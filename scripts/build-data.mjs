@@ -254,10 +254,13 @@ function resolveLinkedPage(pageByTitle, title) {
   }
 
   const alias = title
-    .replace(/^Loner\s*\([^)]+\)$/i, "Loner (X+)")
-    .replace(/^Hatred\s*\([^)]+\)$/i, "Hatred (X)")
-    .replace(/^Animosity\s*\([^)]+\)$/i, "Animosity (X)")
-    .replace(/^Bloodlust\s*\([^)]+\)$/i, "Bloodlust (X+)");
+    .replace(/^Loner\s*\([^)]+\)(?:\s+Thick\s+Skull)?$/i, "Loner (X+)")
+    .replace(/^Hatred(?:\s*\([^)]+\))?$/i, "Hatred (X)")
+    .replace(/^Animosity(?:\s*\([^)]+\))?$/i, "Animosity (X)")
+    .replace(/^Bloodlust\s*\([^)]+\)$/i, "Bloodlust")
+    .replace(/^Unchannelled Fury$/i, "Unchanneled Fury")
+    .replace(/^Ball\s*&\s*Chain$/i, "Ball and Chain")
+    .replace(/^Bone-Head$/i, "Bonehead");
 
   return alias !== title ? pageByTitle.get(alias) : undefined;
 }

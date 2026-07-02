@@ -5,7 +5,7 @@
 | 0-4 | Chaos Dwarf Blocker | 4 | 3 | 4+ | 6+ | 10+ | [[Block]], [[Thick Skull]], [[Iron Hard Skin]] | G S | M D | 70K | Dwarf, Blocker |
 | 0-2 | Chaos Dwarf Flamesmith | 5 | 3 | 4+ | 6+ | 10+ | [[Breathe Fire]], [[Disturbing Presence]], [[Thick Skull]] | G S | M D | 80K | Dwarf, Special |
 | 0-2 | Bull Centaur Blitzer | 6 | 4 | 4+ | 6+ | 10+ | [[Horns]], [[Leap]], [[Sprint]], [[Sure Feet]], [[Thick Skull]] | G S | A M D | 150K | Dwarf, Blitzer |
-| 0-1 | Minotaur | 5 | 5 | 4+ | - | 9+ | [[Frenzy]], [[Horns]], [[Loner (4+)]], [[Mighty Blow]], [[Thick Skull]], [[Unchannelled Fury]] | S M | A G | 145K | Minotaur, Big Guy |
+| 0-1 | Minotaur | 5 | 5 | 4+ | - | 9+ | [[Frenzy]], [[Horns]], [[Loner (4+)]], [[Mighty Blow]], [[Thick Skull]], [[Unchanneled Fury]] | S M | A G | 145K | Minotaur, Big Guy |
 
 **Rerolls:** 60K
 **Apothecary:** Apothecary: Available
