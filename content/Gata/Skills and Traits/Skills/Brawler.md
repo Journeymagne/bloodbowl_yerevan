@@ -7,7 +7,7 @@ tags:
 ## Rule summary
 When this player declares a Block Action, they may re-roll one Both Down result from that block.
 
-Full reference: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Full wording: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
 
 ## Gata League change
-- Brawler: Cannot be used in negative dice blocks.
+- Once during a Block, this player may reroll a single block die. Brawler cannot be used in negative dice blocks.

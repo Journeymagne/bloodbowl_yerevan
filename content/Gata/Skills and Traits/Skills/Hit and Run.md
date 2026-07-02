@@ -7,4 +7,4 @@ tags:
 ## Rule summary
 After this player completes a Block Action or Stab Special Action and remains Standing, they may move one free square ignoring tackle zones, ending clear of all opposing marks. This skill cannot be combined with Frenzy.
 
-Full reference: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Full wording: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/

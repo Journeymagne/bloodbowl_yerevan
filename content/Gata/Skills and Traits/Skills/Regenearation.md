@@ -7,4 +7,4 @@ tags:
 ## Rule summary
 When this player suffers a Casualty, roll before the Casualty roll. On 4+ the casualty is ignored and the player goes to Reserves; on 1-3, resolve the casualty normally.
 
-Full reference: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Full wording: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
