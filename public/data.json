@@ -1,13 +1,13 @@
 {
-  "generatedAt": "2026-07-02T22:22:43.162Z",
+  "generatedAt": "2026-07-02T22:29:09.108Z",
   "counts": {
-    "pages": 298,
+    "pages": 306,
     "teams": 37,
     "skills": 93,
     "traits": 53,
     "rules": 5,
     "cheatsheets": 0,
-    "inducements": 16,
+    "inducements": 24,
     "starPlayers": 75
   },
   "unresolvedLinks": [],
@@ -150,6 +150,54 @@
       "text": "# Reference Sources Gata Blood Bowl League is an unofficial fan league reference. Base Blood Bowl 2025 wording is not reproduced wholesale here. When a rule is not changed by the Gata League documents, use the current Blood Bowl 2025 wording from Blood Bowl Base: - https://bloodbowlbase.ru/bb2025/ - https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/"
     },
     {
+      "id": "inducements-additional-training",
+      "title": "Additional Training",
+      "path": "Inducements/Additional Training.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-6 Additional Training (85k): Gain a Team Reroll until the end of the game.",
+      "empty": false,
+      "slug": "inducements/additional-training",
+      "html": "<p>0-6 Additional Training (85k): Gain a Team Reroll until the end of the game.</p>",
+      "text": "0-6 Additional Training (85k): Gain a Team Reroll until the end of the game."
+    },
+    {
+      "id": "inducements-assistant-coaches",
+      "title": "Assistant Coaches",
+      "path": "Inducements/Assistant Coaches.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-5 Assistant Coaches (10k): Receive +1 assistant coach per game.",
+      "empty": false,
+      "slug": "inducements/assistant-coaches",
+      "html": "<p>0-5 Assistant Coaches (10k): Receive +1 assistant coach per game.</p>",
+      "text": "0-5 Assistant Coaches (10k): Receive +1 assistant coach per game."
+    },
+    {
+      "id": "inducements-ballistics-expert",
+      "title": "Ballistics Expert",
+      "path": "Inducements/Ballistics Expert.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 Ballistics Expert (40k, or 30k for Halfling): Each drive, during kickoff, before the ball scatters, roll a d3:\n1: Nothing happens.\n2: You may reduce the scatter distance by 1.\n3: You may apply a modifier of -2 to +2 to the d6 and d8 values.",
+      "empty": false,
+      "slug": "inducements/ballistics-expert",
+      "html": "<p>0-1 Ballistics Expert (40k, or 30k for Halfling): Each drive, during kickoff, before the ball scatters, roll a d3:<br>1: Nothing happens.<br>2: You may reduce the scatter distance by 1.<br>3: You may apply a modifier of -2 to +2 to the d6 and d8 values.</p>",
+      "text": "0-1 Ballistics Expert (40k, or 30k for Halfling): Each drive, during kickoff, before the ball scatters, roll a d3: 1: Nothing happens. 2: You may reduce the scatter distance by 1. 3: You may apply a modifier of -2 to +2 to the d6 and d8 values."
+    },
+    {
       "id": "inducements-biased-referee",
       "title": "Biased Referee",
       "path": "Inducements/Biased Referee.md",
@@ -157,82 +205,93 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 120K\n\nBrings a referee who is easier on your fouls and harsher on the opponent's disputed calls.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Biased Referee (100k, or 60k for Bribery and Corruption): After your opponent performs a Foul, roll a d6: on a 5+, the fouling player is sent off. You receive +1 to rolls when disputing a referee's decision.",
       "empty": false,
       "slug": "inducements/biased-referee",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 120K</p>\n<p>Brings a referee who is easier on your fouls and harsher on the opponent's disputed calls.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 120K Brings a referee who is easier on your fouls and harsher on the opponent's disputed calls. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Biased Referee (100k, or 60k for Bribery and Corruption): After your opponent performs a Foul, roll a d6: on a 5+, the fouling player is sent off. You receive +1 to rolls when disputing a referee's decision.</p>",
+      "text": "0-1 Biased Referee (100k, or 60k for Bribery and Corruption): After your opponent performs a Foul, roll a d6: on a 5+, the fouling player is sent off. You receive +1 to rolls when disputing a referee's decision."
     },
     {
-      "id": "inducements-bloodweiser-kegs",
-      "title": "Bloodweiser Kegs",
-      "path": "Inducements/Bloodweiser Kegs.md",
+      "id": "inducements-bloodweiser-keg",
+      "title": "Bloodweiser Keg",
+      "path": "Inducements/Bloodweiser Keg.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Medical"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-2\n**Cost:** 50K each\n\nImproves recovery chances for players in the Knocked-out box.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-2 Bloodweiser Keg (or Blitzer’s Best) (40k): Until the end of the game, your rolls to recover from Knock Out receive +1.",
       "empty": false,
-      "slug": "inducements/bloodweiser-kegs",
-      "html": "<p><strong>Limit:</strong> 0-2 <strong>Cost:</strong> 50K each</p>\n<p>Improves recovery chances for players in the Knocked-out box.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-2 Cost: 50K each Improves recovery chances for players in the Knocked-out box. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/bloodweiser-keg",
+      "html": "<p>0-2 Bloodweiser Keg (or Blitzer’s Best) (40k): Until the end of the game, your rolls to recover from Knock Out receive +1.</p>",
+      "text": "0-2 Bloodweiser Keg (or Blitzer’s Best) (40k): Until the end of the game, your rolls to recover from Knock Out receive +1."
     },
     {
-      "id": "inducements-bribes",
-      "title": "Bribes",
-      "path": "Inducements/Bribes.md",
+      "id": "inducements-bottles-of-grape-day",
+      "title": "Bottles of Grape Day",
+      "path": "Inducements/Bottles of Grape Day.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-3\n**Cost:** 100K each\n\nCan help keep a sent-off player in the match after a foul or Secret Weapon send-off.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-3 Bottles of \"Grape Day\" (30k, available to Stunty teams): At the start of each drive, before kickoff, choose d3 players with the Stunty rule; until the end of the drive, they gain Dauntless, Frenzy, and Really Stupid (4+).",
       "empty": false,
-      "slug": "inducements/bribes",
-      "html": "<p><strong>Limit:</strong> 0-3 <strong>Cost:</strong> 100K each</p>\n<p>Can help keep a sent-off player in the match after a foul or Secret Weapon send-off.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-3 Cost: 100K each Can help keep a sent-off player in the match after a foul or Secret Weapon send-off. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/bottles-of-grape-day",
+      "html": "<p>0-3 Bottles of &quot;Grape Day&quot; (30k, available to Stunty teams): At the start of each drive, before kickoff, choose d3 players with the Stunty rule; until the end of the drive, they gain Dauntless, Frenzy, and Really Stupid (4+).</p>",
+      "text": "0-3 Bottles of \"Grape Day\" (30k, available to Stunty teams): At the start of each drive, before kickoff, choose d3 players with the Stunty rule; until the end of the drive, they gain Dauntless, Frenzy, and Really Stupid (4+)."
     },
     {
-      "id": "inducements-extra-team-training",
-      "title": "Extra Team Training",
-      "path": "Inducements/Extra Team Training.md",
+      "id": "inducements-bribe",
+      "title": "Bribe",
+      "path": "Inducements/Bribe.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Team Training"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-8\n**Cost:** 100K each\n\nAdds extra team re-roll support for the match.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-3 Bribe (100k, or 50k for Bribery and Corruption): When your player is sent off, you may spend a bribe to cancel this effect. The turnover is also canceled.",
       "empty": false,
-      "slug": "inducements/extra-team-training",
-      "html": "<p><strong>Limit:</strong> 0-8 <strong>Cost:</strong> 100K each</p>\n<p>Adds extra team re-roll support for the match.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-8 Cost: 100K each Adds extra team re-roll support for the match. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/bribe",
+      "html": "<p>0-3 Bribe (100k, or 50k for Bribery and Corruption): When your player is sent off, you may spend a bribe to cancel this effect. The turnover is also canceled.</p>",
+      "text": "0-3 Bribe (100k, or 50k for Bribery and Corruption): When your player is sent off, you may spend a bribe to cancel this effect. The turnover is also canceled."
     },
     {
-      "id": "inducements-famous-coaching-staff",
-      "title": "Famous Coaching Staff",
-      "path": "Inducements/Famous Coaching Staff.md",
+      "id": "inducements-cheerleaders",
+      "title": "Cheerleaders",
+      "path": "Inducements/Cheerleaders.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-2\n**Cost:** Varies\n\nNamed coaching staff with their own match effects.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-5 Cheerleaders (10k): Receive +1 cheerleader per game.",
       "empty": false,
-      "slug": "inducements/famous-coaching-staff",
-      "html": "<p><strong>Limit:</strong> 0-2 <strong>Cost:</strong> Varies</p>\n<p>Named coaching staff with their own match effects.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-2 Cost: Varies Named coaching staff with their own match effects. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/cheerleaders",
+      "html": "<p>0-5 Cheerleaders (10k): Receive +1 cheerleader per game.</p>",
+      "text": "0-5 Cheerleaders (10k): Receive +1 cheerleader per game."
+    },
+    {
+      "id": "inducements-frolicking-nurgling",
+      "title": "Frolicking Nurgling",
+      "path": "Inducements/Frolicking Nurgling.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-3 Frolicking Nurgling (15k, only for Favoured of Nurgle): +1 cheerleader and assistant coach. You may exceed the maximum.",
+      "empty": false,
+      "slug": "inducements/frolicking-nurgling",
+      "html": "<p>0-3 Frolicking Nurgling (15k, only for Favoured of Nurgle): +1 cheerleader and assistant coach. You may exceed the maximum.</p>",
+      "text": "0-3 Frolicking Nurgling (15k, only for Favoured of Nurgle): +1 cheerleader and assistant coach. You may exceed the maximum."
     },
     {
       "id": "inducements-halfling-master-chef",
@@ -242,15 +301,61 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff",
-        "Halfling"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 300K\n\nMay disrupt the opposing team's re-roll supply while helping your own side.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Halfling Master Chef (300k, or 100k for Halfling): At the start of each half, roll a d6 for each of the opponent's Team Rerolls; on a 4+, the reroll transfers to your team.",
       "empty": false,
       "slug": "inducements/halfling-master-chef",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 300K</p>\n<p>May disrupt the opposing team's re-roll supply while helping your own side.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 300K May disrupt the opposing team's re-roll supply while helping your own side. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Halfling Master Chef (300k, or 100k for Halfling): At the start of each half, roll a d6 for each of the opponent's Team Rerolls; on a 4+, the reroll transfers to your team.</p>",
+      "text": "0-1 Halfling Master Chef (300k, or 100k for Halfling): At the start of each half, roll a d6 for each of the opponent's Team Rerolls; on a 4+, the reroll transfers to your team."
+    },
+    {
+      "id": "inducements-halfling-surprise-pot",
+      "title": "Halfling Surprise Pot",
+      "path": "Inducements/Halfling Surprise Pot.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 Halfling \"Surprise\" Pot (80k, or 60k for Halfling): Once per game, after the opponent's turn, choose a square and roll a d6:\n6: Pot hits the target.\n2-5: Scatter the target square 3 times.\n1: d3 players in your reserves move to Knock Out.\nThe player in the target square falls; make an armor roll with a +2 modifier. Then roll a d6 for each player in adjacent squares; on a 4+, they become Placed Prone.",
+      "empty": false,
+      "slug": "inducements/halfling-surprise-pot",
+      "html": "<p>0-1 Halfling &quot;Surprise&quot; Pot (80k, or 60k for Halfling): Once per game, after the opponent's turn, choose a square and roll a d6:<br>6: Pot hits the target.<br>2-5: Scatter the target square 3 times.<br>1: d3 players in your reserves move to Knock Out.<br>The player in the target square falls; make an armor roll with a +2 modifier. Then roll a d6 for each player in adjacent squares; on a 4+, they become Placed Prone.</p>",
+      "text": "0-1 Halfling \"Surprise\" Pot (80k, or 60k for Halfling): Once per game, after the opponent's turn, choose a square and roll a d6: 6: Pot hits the target. 2-5: Scatter the target square 3 times. 1: d3 players in your reserves move to Knock Out. The player in the target square falls; make an armor roll with a +2 modifier. Then roll a d6 for each player in adjacent squares; on a 4+, they become Placed Prone."
+    },
+    {
+      "id": "inducements-hired-wizard",
+      "title": "Hired Wizard",
+      "path": "Inducements/Hired Wizard.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 Hired Wizard (150k): Once per game, after any player's turn, you may cast one of the following spells:\nFireball: Choose a square; roll a d6 for each player in that and adjacent squares. On a 4+, the player falls; make an armor roll with a +1 modifier.\nToad-Toad: Choose a player and roll a d6. If the result equals or exceeds the player's Strength (6 is always a success), turn them into a toad until the end of the drive. Any injury rolls against the toad are considered Badly Hurt; an apothecary cannot be used. Toad stats: MV 5, ST 1, AG 2+, PA -, AV 5+ (Pogo, Evasive, Dodge, Stunty, No Ball, Titchy, Very Long Legs).",
+      "empty": false,
+      "slug": "inducements/hired-wizard",
+      "html": "<p>0-1 Hired Wizard (150k): Once per game, after any player's turn, you may cast one of the following spells:<br>Fireball: Choose a square; roll a d6 for each player in that and adjacent squares. On a 4+, the player falls; make an armor roll with a +1 modifier.<br>Toad-Toad: Choose a player and roll a d6. If the result equals or exceeds the player's Strength (6 is always a success), turn them into a toad until the end of the drive. Any injury rolls against the toad are considered Badly Hurt; an apothecary cannot be used. Toad stats: MV 5, ST 1, AG 2+, PA -, AV 5+ (Pogo, Evasive, Dodge, Stunty, No Ball, Titchy, Very Long Legs).</p>",
+      "text": "0-1 Hired Wizard (150k): Once per game, after any player's turn, you may cast one of the following spells: Fireball: Choose a square; roll a d6 for each player in that and adjacent squares. On a 4+, the player falls; make an armor roll with a +1 modifier. Toad-Toad: Choose a player and roll a d6. If the result equals or exceeds the player's Strength (6 is always a success), turn them into a toad until the end of the drive. Any injury rolls against the toad are considered Badly Hurt; an apothecary cannot be used. Toad stats: MV 5, ST 1, AG 2+, PA -, AV 5+ (Pogo, Evasive, Dodge, Stunty, No Ball, Titchy, Very Long Legs)."
+    },
+    {
+      "id": "inducements-mark-of-chaos",
+      "title": "Mark of Chaos",
+      "path": "Inducements/Mark of Chaos.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 Mark of Chaos (50k, only for Favoured of...): At the start of the match, the chosen player gains skills until the end of the game. Does not work on Star Players. Skills depend on your choice of Favoured of...:\nUndivided: Tentacles, Horns.\nKhorne: Piledriver, Jump Up.\nNurgle: Disturbing Presence, Foul Appearance.\nTzeentch: Pro, Two Heads.\nSlaanesh: Dodge, Leap.\nHashut: Iron Hard Skin, Claw.",
+      "empty": false,
+      "slug": "inducements/mark-of-chaos",
+      "html": "<p>0-1 Mark of Chaos (50k, only for Favoured of...): At the start of the match, the chosen player gains skills until the end of the game. Does not work on Star Players. Skills depend on your choice of Favoured of...:<br>Undivided: Tentacles, Horns.<br>Khorne: Piledriver, Jump Up.<br>Nurgle: Disturbing Presence, Foul Appearance.<br>Tzeentch: Pro, Two Heads.<br>Slaanesh: Dodge, Leap.<br>Hashut: Iron Hard Skin, Claw.</p>",
+      "text": "0-1 Mark of Chaos (50k, only for Favoured of...): At the start of the match, the chosen player gains skills until the end of the game. Does not work on Star Players. Skills depend on your choice of Favoured of...: Undivided: Tentacles, Horns. Khorne: Piledriver, Jump Up. Nurgle: Disturbing Presence, Foul Appearance. Tzeentch: Pro, Two Heads. Slaanesh: Dodge, Leap. Hashut: Iron Hard Skin, Claw."
     },
     {
       "id": "inducements-mortuary-assistant",
@@ -260,32 +365,29 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Medical",
-        "Undead"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 100K\n\nProvides match support for teams that rely on necromantic recovery rather than a normal apothecary.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Mortuary Assistant (100k, only for Masters of Undeath): Once per game, you may reroll a regeneration check.",
       "empty": false,
       "slug": "inducements/mortuary-assistant",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 100K</p>\n<p>Provides match support for teams that rely on necromantic recovery rather than a normal apothecary.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 100K Provides match support for teams that rely on necromantic recovery rather than a normal apothecary. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Mortuary Assistant (100k, only for Masters of Undeath): Once per game, you may reroll a regeneration check.</p>",
+      "text": "0-1 Mortuary Assistant (100k, only for Masters of Undeath): Once per game, you may reroll a regeneration check."
     },
     {
-      "id": "inducements-part-time-assistant-coaches",
-      "title": "Part-time Assistant Coaches",
-      "path": "Inducements/Part-time Assistant Coaches.md",
+      "id": "inducements-nuffle-s-prayers",
+      "title": "Nuffle's Prayers",
+      "path": "Inducements/Nuffle's Prayers.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-3\n**Cost:** 20K each\n\nTemporary assistant coaches for match-day sideline support.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-3 Nuffle's Prayers (15k): Roll on the Nuffle's Prayers table; you may reroll results you already have.",
       "empty": false,
-      "slug": "inducements/part-time-assistant-coaches",
-      "html": "<p><strong>Limit:</strong> 0-3 <strong>Cost:</strong> 20K each</p>\n<p>Temporary assistant coaches for match-day sideline support.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-3 Cost: 20K each Temporary assistant coaches for match-day sideline support. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/nuffle-s-prayers",
+      "html": "<p>0-3 Nuffle's Prayers (15k): Roll on the Nuffle's Prayers table; you may reroll results you already have.</p>",
+      "text": "0-3 Nuffle's Prayers (15k): Roll on the Nuffle's Prayers table; you may reroll results you already have."
     },
     {
       "id": "inducements-plague-doctor",
@@ -295,50 +397,45 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Medical",
-        "Nurgle"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 100K\n\nProvides Nurgle-flavoured injury support for the match.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Plague Doctor (100k, only for Favoured of Nurgle): Once per game, you may reroll a regeneration check or apply an apothecary effect.",
       "empty": false,
       "slug": "inducements/plague-doctor",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 100K</p>\n<p>Provides Nurgle-flavoured injury support for the match.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 100K Provides Nurgle-flavoured injury support for the match. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Plague Doctor (100k, only for Favoured of Nurgle): Once per game, you may reroll a regeneration check or apply an apothecary effect.</p>",
+      "text": "0-1 Plague Doctor (100k, only for Favoured of Nurgle): Once per game, you may reroll a regeneration check or apply an apothecary effect."
     },
     {
-      "id": "inducements-riotous-rookies",
-      "title": "Riotous Rookies",
-      "path": "Inducements/Riotous Rookies.md",
+      "id": "inducements-rowdy-rookies",
+      "title": "Rowdy Rookies",
+      "path": "Inducements/Rowdy Rookies.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Players",
-        "Snotling"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 100K\n\nAdds a wave of temporary rookie bodies for the match.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Rowdy Rookies (100k, only for Low cost Linemen): Gain 2d3+1 journeymen, ignoring the team size limit.",
       "empty": false,
-      "slug": "inducements/riotous-rookies",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 100K</p>\n<p>Adds a wave of temporary rookie bodies for the match.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 100K Adds a wave of temporary rookie bodies for the match. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/rowdy-rookies",
+      "html": "<p>0-1 Rowdy Rookies (100k, only for Low cost Linemen): Gain 2d3+1 journeymen, ignoring the team size limit.</p>",
+      "text": "0-1 Rowdy Rookies (100k, only for Low cost Linemen): Gain 2d3+1 journeymen, ignoring the team size limit."
     },
     {
-      "id": "inducements-special-plays",
-      "title": "Special Plays",
-      "path": "Inducements/Special Plays.md",
+      "id": "inducements-rune-priest",
+      "title": "Rune Priest",
+      "path": "Inducements/Rune Priest.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Cards"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-5\n**Cost:** 100K each\n\nGrants access to match-day special play cards.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Rune Priest (50k, only for Old World Classic and Worlds Edge Superleague): At the start of each drive, before the kick, choose one player without the Loner trait and roll a d6: on a 4+, select a rune and apply it to the player (cannot use this effect again for the game); on 2-3, the rune fails but you can repeat in the next drive; on 1, the rune fails and the effect is locked for the game.\nRune of Might: Player gains Mighty Blow until the end of the drive.\nRune of Fury: Player gains Dauntless and Frenzy until the end of the drive.\nRune of Speed: Player gains Sure Feet and Sprint until the end of the drive.\nRune of Iron: Player gains +1 AV and Stand Firm until the end of the drive.\nRune of Force: Player gains Horns and Juggernaut until the end of the drive.",
       "empty": false,
-      "slug": "inducements/special-plays",
-      "html": "<p><strong>Limit:</strong> 0-5 <strong>Cost:</strong> 100K each</p>\n<p>Grants access to match-day special play cards.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-5 Cost: 100K each Grants access to match-day special play cards. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/rune-priest",
+      "html": "<p>0-1 Rune Priest (50k, only for Old World Classic and Worlds Edge Superleague): At the start of each drive, before the kick, choose one player without the Loner trait and roll a d6: on a 4+, select a rune and apply it to the player (cannot use this effect again for the game); on 2-3, the rune fails but you can repeat in the next drive; on 1, the rune fails and the effect is locked for the game.<br>Rune of Might: Player gains Mighty Blow until the end of the drive.<br>Rune of Fury: Player gains Dauntless and Frenzy until the end of the drive.<br>Rune of Speed: Player gains Sure Feet and Sprint until the end of the drive.<br>Rune of Iron: Player gains +1 AV and Stand Firm until the end of the drive.<br>Rune of Force: Player gains Horns and Juggernaut until the end of the drive.</p>",
+      "text": "0-1 Rune Priest (50k, only for Old World Classic and Worlds Edge Superleague): At the start of each drive, before the kick, choose one player without the Loner trait and roll a d6: on a 4+, select a rune and apply it to the player (cannot use this effect again for the game); on 2-3, the rune fails but you can repeat in the next drive; on 1, the rune fails and the effect is locked for the game. Rune of Might: Player gains Mighty Blow until the end of the drive. Rune of Fury: Player gains Dauntless and Frenzy until the end of the drive. Rune of Speed: Player gains Sure Feet and Sprint until the end of the drive. Rune of Iron: Player gains +1 AV and Stand Firm until the end of the drive. Rune of Force: Player gains Horns and Juggernaut until the end of the drive."
     },
     {
       "id": "inducements-star-players",
@@ -348,49 +445,77 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Players",
-        "Star Player"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-2\n**Cost:** Varies\n\nHire star players for the match, subject to league availability and normal team restrictions.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-2 Star Players (0-4 for Stunty Leagues): Hire a Star Player from your league, ignoring team limits.",
       "empty": false,
       "slug": "inducements/star-players",
-      "html": "<p><strong>Limit:</strong> 0-2 <strong>Cost:</strong> Varies</p>\n<p>Hire star players for the match, subject to league availability and normal team restrictions.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-2 Cost: Varies Hire star players for the match, subject to league availability and normal team restrictions. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-2 Star Players (0-4 for Stunty Leagues): Hire a Star Player from your league, ignoring team limits.</p>",
+      "text": "0-2 Star Players (0-4 for Stunty Leagues): Hire a Star Player from your league, ignoring team limits."
     },
     {
-      "id": "inducements-temp-agency-cheerleaders",
-      "title": "Temp Agency Cheerleaders",
-      "path": "Inducements/Temp Agency Cheerleaders.md",
+      "id": "inducements-team-mascot",
+      "title": "Team Mascot",
+      "path": "Inducements/Team Mascot.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-4\n**Cost:** 20K each\n\nTemporary cheerleaders for match-day sideline support.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Team Mascot (25k): Once per half, grants an additional Team Reroll. When used, roll a d6: on a 4+, the reroll works; on a 1-3, it is burned, but you can immediately use a regular reroll instead. Also grants a reroll of 1 for the Cheering Fans event.",
       "empty": false,
-      "slug": "inducements/temp-agency-cheerleaders",
-      "html": "<p><strong>Limit:</strong> 0-4 <strong>Cost:</strong> 20K each</p>\n<p>Temporary cheerleaders for match-day sideline support.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-4 Cost: 20K each Temporary cheerleaders for match-day sideline support. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/team-mascot",
+      "html": "<p>0-1 Team Mascot (25k): Once per half, grants an additional Team Reroll. When used, roll a d6: on a 4+, the reroll works; on a 1-3, it is burned, but you can immediately use a regular reroll instead. Also grants a reroll of 1 for the Cheering Fans event.</p>",
+      "text": "0-1 Team Mascot (25k): Once per half, grants an additional Team Reroll. When used, roll a d6: on a 4+, the reroll works; on a 1-3, it is burned, but you can immediately use a regular reroll instead. Also grants a reroll of 1 for the Cheering Fans event."
     },
     {
-      "id": "inducements-wandering-apothecaries",
-      "title": "Wandering Apothecaries",
-      "path": "Inducements/Wandering Apothecaries.md",
+      "id": "inducements-vishnevsky-ointment",
+      "title": "Vishnevsky Ointment",
+      "path": "Inducements/Vishnevsky Ointment.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Medical"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-2\n**Cost:** 100K each\n\nTemporary apothecaries hired for match-day injury support.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Vishnevsky Ointment (60k): Once per game, if a player leaves the game due to injury, you may return them to the reserves. However, at the end of the game, apply all effects they should have received from that injury.",
       "empty": false,
-      "slug": "inducements/wandering-apothecaries",
-      "html": "<p><strong>Limit:</strong> 0-2 <strong>Cost:</strong> 100K each</p>\n<p>Temporary apothecaries hired for match-day injury support.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-2 Cost: 100K each Temporary apothecaries hired for match-day injury support. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/vishnevsky-ointment",
+      "html": "<p>0-1 Vishnevsky Ointment (60k): Once per game, if a player leaves the game due to injury, you may return them to the reserves. However, at the end of the game, apply all effects they should have received from that injury.</p>",
+      "text": "0-1 Vishnevsky Ointment (60k): Once per game, if a player leaves the game due to injury, you may return them to the reserves. However, at the end of the game, apply all effects they should have received from that injury."
+    },
+    {
+      "id": "inducements-waaagh-drummer",
+      "title": "WAAAGH! Drummer",
+      "path": "Inducements/WAAAGH! Drummer.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 WAAAGH! Drummer (50k, only for Badlands Brawl): At the start of each drive, after kickoff, roll 4d6; for each roll of 4+, move any player 1 square toward your opponent's end zone. You may choose the same player multiple times.",
+      "empty": false,
+      "slug": "inducements/waaagh-drummer",
+      "html": "<p>0-1 WAAAGH! Drummer (50k, only for Badlands Brawl): At the start of each drive, after kickoff, roll 4d6; for each roll of 4+, move any player 1 square toward your opponent's end zone. You may choose the same player multiple times.</p>",
+      "text": "0-1 WAAAGH! Drummer (50k, only for Badlands Brawl): At the start of each drive, after kickoff, roll 4d6; for each roll of 4+, move any player 1 square toward your opponent's end zone. You may choose the same player multiple times."
+    },
+    {
+      "id": "inducements-wandering-apothecary",
+      "title": "Wandering Apothecary",
+      "path": "Inducements/Wandering Apothecary.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-2 Wandering Apothecary (100k, only for teams capable of hiring an Apothecary): Grants an additional use of an apothecary.",
+      "empty": false,
+      "slug": "inducements/wandering-apothecary",
+      "html": "<p>0-2 Wandering Apothecary (100k, only for teams capable of hiring an Apothecary): Grants an additional use of an apothecary.</p>",
+      "text": "0-2 Wandering Apothecary (100k, only for teams capable of hiring an Apothecary): Grants an additional use of an apothecary."
     },
     {
       "id": "inducements-weather-mage",
@@ -400,31 +525,13 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Magic"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 30K\n\nLets a team interfere with match weather at a key moment.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Weather Mage (20k): Once per game, at the start of your turn, you may roll on the weather table, adding a modifier of -2 to +2 to the result after rolling.",
       "empty": false,
       "slug": "inducements/weather-mage",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 30K</p>\n<p>Lets a team interfere with match weather at a key moment.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 30K Lets a team interfere with match weather at a key moment. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
-    },
-    {
-      "id": "inducements-wizard",
-      "title": "Wizard",
-      "path": "Inducements/Wizard.md",
-      "section": "Inducements",
-      "sectionLabel": "Inducements",
-      "kind": "inducement",
-      "tags": [
-        "Inducement",
-        "Magic"
-      ],
-      "body": "**Limit:** 0-1\n**Cost:** 150K\n\nOne-off magical help during the match.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
-      "empty": false,
-      "slug": "inducements/wizard",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 150K</p>\n<p>One-off magical help during the match.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 150K One-off magical help during the match. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Weather Mage (20k): Once per game, at the start of your turn, you may roll on the weather table, adding a modifier of -2 to +2 to the result after rolling.</p>",
+      "text": "0-1 Weather Mage (20k): Once per game, at the start of your turn, you may roll on the weather table, adding a modifier of -2 to +2 to the result after rolling."
     },
     {
       "id": "rules-1-league-basics",
@@ -19171,6 +19278,54 @@
   "cheatsheets": [],
   "inducements": [
     {
+      "id": "inducements-additional-training",
+      "title": "Additional Training",
+      "path": "Inducements/Additional Training.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-6 Additional Training (85k): Gain a Team Reroll until the end of the game.",
+      "empty": false,
+      "slug": "inducements/additional-training",
+      "html": "<p>0-6 Additional Training (85k): Gain a Team Reroll until the end of the game.</p>",
+      "text": "0-6 Additional Training (85k): Gain a Team Reroll until the end of the game."
+    },
+    {
+      "id": "inducements-assistant-coaches",
+      "title": "Assistant Coaches",
+      "path": "Inducements/Assistant Coaches.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-5 Assistant Coaches (10k): Receive +1 assistant coach per game.",
+      "empty": false,
+      "slug": "inducements/assistant-coaches",
+      "html": "<p>0-5 Assistant Coaches (10k): Receive +1 assistant coach per game.</p>",
+      "text": "0-5 Assistant Coaches (10k): Receive +1 assistant coach per game."
+    },
+    {
+      "id": "inducements-ballistics-expert",
+      "title": "Ballistics Expert",
+      "path": "Inducements/Ballistics Expert.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 Ballistics Expert (40k, or 30k for Halfling): Each drive, during kickoff, before the ball scatters, roll a d3:\n1: Nothing happens.\n2: You may reduce the scatter distance by 1.\n3: You may apply a modifier of -2 to +2 to the d6 and d8 values.",
+      "empty": false,
+      "slug": "inducements/ballistics-expert",
+      "html": "<p>0-1 Ballistics Expert (40k, or 30k for Halfling): Each drive, during kickoff, before the ball scatters, roll a d3:<br>1: Nothing happens.<br>2: You may reduce the scatter distance by 1.<br>3: You may apply a modifier of -2 to +2 to the d6 and d8 values.</p>",
+      "text": "0-1 Ballistics Expert (40k, or 30k for Halfling): Each drive, during kickoff, before the ball scatters, roll a d3: 1: Nothing happens. 2: You may reduce the scatter distance by 1. 3: You may apply a modifier of -2 to +2 to the d6 and d8 values."
+    },
+    {
       "id": "inducements-biased-referee",
       "title": "Biased Referee",
       "path": "Inducements/Biased Referee.md",
@@ -19178,82 +19333,93 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 120K\n\nBrings a referee who is easier on your fouls and harsher on the opponent's disputed calls.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Biased Referee (100k, or 60k for Bribery and Corruption): After your opponent performs a Foul, roll a d6: on a 5+, the fouling player is sent off. You receive +1 to rolls when disputing a referee's decision.",
       "empty": false,
       "slug": "inducements/biased-referee",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 120K</p>\n<p>Brings a referee who is easier on your fouls and harsher on the opponent's disputed calls.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 120K Brings a referee who is easier on your fouls and harsher on the opponent's disputed calls. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Biased Referee (100k, or 60k for Bribery and Corruption): After your opponent performs a Foul, roll a d6: on a 5+, the fouling player is sent off. You receive +1 to rolls when disputing a referee's decision.</p>",
+      "text": "0-1 Biased Referee (100k, or 60k for Bribery and Corruption): After your opponent performs a Foul, roll a d6: on a 5+, the fouling player is sent off. You receive +1 to rolls when disputing a referee's decision."
     },
     {
-      "id": "inducements-bloodweiser-kegs",
-      "title": "Bloodweiser Kegs",
-      "path": "Inducements/Bloodweiser Kegs.md",
+      "id": "inducements-bloodweiser-keg",
+      "title": "Bloodweiser Keg",
+      "path": "Inducements/Bloodweiser Keg.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Medical"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-2\n**Cost:** 50K each\n\nImproves recovery chances for players in the Knocked-out box.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-2 Bloodweiser Keg (or Blitzer’s Best) (40k): Until the end of the game, your rolls to recover from Knock Out receive +1.",
       "empty": false,
-      "slug": "inducements/bloodweiser-kegs",
-      "html": "<p><strong>Limit:</strong> 0-2 <strong>Cost:</strong> 50K each</p>\n<p>Improves recovery chances for players in the Knocked-out box.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-2 Cost: 50K each Improves recovery chances for players in the Knocked-out box. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/bloodweiser-keg",
+      "html": "<p>0-2 Bloodweiser Keg (or Blitzer’s Best) (40k): Until the end of the game, your rolls to recover from Knock Out receive +1.</p>",
+      "text": "0-2 Bloodweiser Keg (or Blitzer’s Best) (40k): Until the end of the game, your rolls to recover from Knock Out receive +1."
     },
     {
-      "id": "inducements-bribes",
-      "title": "Bribes",
-      "path": "Inducements/Bribes.md",
+      "id": "inducements-bottles-of-grape-day",
+      "title": "Bottles of Grape Day",
+      "path": "Inducements/Bottles of Grape Day.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-3\n**Cost:** 100K each\n\nCan help keep a sent-off player in the match after a foul or Secret Weapon send-off.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-3 Bottles of \"Grape Day\" (30k, available to Stunty teams): At the start of each drive, before kickoff, choose d3 players with the Stunty rule; until the end of the drive, they gain Dauntless, Frenzy, and Really Stupid (4+).",
       "empty": false,
-      "slug": "inducements/bribes",
-      "html": "<p><strong>Limit:</strong> 0-3 <strong>Cost:</strong> 100K each</p>\n<p>Can help keep a sent-off player in the match after a foul or Secret Weapon send-off.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-3 Cost: 100K each Can help keep a sent-off player in the match after a foul or Secret Weapon send-off. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/bottles-of-grape-day",
+      "html": "<p>0-3 Bottles of &quot;Grape Day&quot; (30k, available to Stunty teams): At the start of each drive, before kickoff, choose d3 players with the Stunty rule; until the end of the drive, they gain Dauntless, Frenzy, and Really Stupid (4+).</p>",
+      "text": "0-3 Bottles of \"Grape Day\" (30k, available to Stunty teams): At the start of each drive, before kickoff, choose d3 players with the Stunty rule; until the end of the drive, they gain Dauntless, Frenzy, and Really Stupid (4+)."
     },
     {
-      "id": "inducements-extra-team-training",
-      "title": "Extra Team Training",
-      "path": "Inducements/Extra Team Training.md",
+      "id": "inducements-bribe",
+      "title": "Bribe",
+      "path": "Inducements/Bribe.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Team Training"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-8\n**Cost:** 100K each\n\nAdds extra team re-roll support for the match.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-3 Bribe (100k, or 50k for Bribery and Corruption): When your player is sent off, you may spend a bribe to cancel this effect. The turnover is also canceled.",
       "empty": false,
-      "slug": "inducements/extra-team-training",
-      "html": "<p><strong>Limit:</strong> 0-8 <strong>Cost:</strong> 100K each</p>\n<p>Adds extra team re-roll support for the match.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-8 Cost: 100K each Adds extra team re-roll support for the match. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/bribe",
+      "html": "<p>0-3 Bribe (100k, or 50k for Bribery and Corruption): When your player is sent off, you may spend a bribe to cancel this effect. The turnover is also canceled.</p>",
+      "text": "0-3 Bribe (100k, or 50k for Bribery and Corruption): When your player is sent off, you may spend a bribe to cancel this effect. The turnover is also canceled."
     },
     {
-      "id": "inducements-famous-coaching-staff",
-      "title": "Famous Coaching Staff",
-      "path": "Inducements/Famous Coaching Staff.md",
+      "id": "inducements-cheerleaders",
+      "title": "Cheerleaders",
+      "path": "Inducements/Cheerleaders.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-2\n**Cost:** Varies\n\nNamed coaching staff with their own match effects.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-5 Cheerleaders (10k): Receive +1 cheerleader per game.",
       "empty": false,
-      "slug": "inducements/famous-coaching-staff",
-      "html": "<p><strong>Limit:</strong> 0-2 <strong>Cost:</strong> Varies</p>\n<p>Named coaching staff with their own match effects.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-2 Cost: Varies Named coaching staff with their own match effects. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/cheerleaders",
+      "html": "<p>0-5 Cheerleaders (10k): Receive +1 cheerleader per game.</p>",
+      "text": "0-5 Cheerleaders (10k): Receive +1 cheerleader per game."
+    },
+    {
+      "id": "inducements-frolicking-nurgling",
+      "title": "Frolicking Nurgling",
+      "path": "Inducements/Frolicking Nurgling.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-3 Frolicking Nurgling (15k, only for Favoured of Nurgle): +1 cheerleader and assistant coach. You may exceed the maximum.",
+      "empty": false,
+      "slug": "inducements/frolicking-nurgling",
+      "html": "<p>0-3 Frolicking Nurgling (15k, only for Favoured of Nurgle): +1 cheerleader and assistant coach. You may exceed the maximum.</p>",
+      "text": "0-3 Frolicking Nurgling (15k, only for Favoured of Nurgle): +1 cheerleader and assistant coach. You may exceed the maximum."
     },
     {
       "id": "inducements-halfling-master-chef",
@@ -19263,15 +19429,61 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff",
-        "Halfling"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 300K\n\nMay disrupt the opposing team's re-roll supply while helping your own side.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Halfling Master Chef (300k, or 100k for Halfling): At the start of each half, roll a d6 for each of the opponent's Team Rerolls; on a 4+, the reroll transfers to your team.",
       "empty": false,
       "slug": "inducements/halfling-master-chef",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 300K</p>\n<p>May disrupt the opposing team's re-roll supply while helping your own side.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 300K May disrupt the opposing team's re-roll supply while helping your own side. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Halfling Master Chef (300k, or 100k for Halfling): At the start of each half, roll a d6 for each of the opponent's Team Rerolls; on a 4+, the reroll transfers to your team.</p>",
+      "text": "0-1 Halfling Master Chef (300k, or 100k for Halfling): At the start of each half, roll a d6 for each of the opponent's Team Rerolls; on a 4+, the reroll transfers to your team."
+    },
+    {
+      "id": "inducements-halfling-surprise-pot",
+      "title": "Halfling Surprise Pot",
+      "path": "Inducements/Halfling Surprise Pot.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 Halfling \"Surprise\" Pot (80k, or 60k for Halfling): Once per game, after the opponent's turn, choose a square and roll a d6:\n6: Pot hits the target.\n2-5: Scatter the target square 3 times.\n1: d3 players in your reserves move to Knock Out.\nThe player in the target square falls; make an armor roll with a +2 modifier. Then roll a d6 for each player in adjacent squares; on a 4+, they become Placed Prone.",
+      "empty": false,
+      "slug": "inducements/halfling-surprise-pot",
+      "html": "<p>0-1 Halfling &quot;Surprise&quot; Pot (80k, or 60k for Halfling): Once per game, after the opponent's turn, choose a square and roll a d6:<br>6: Pot hits the target.<br>2-5: Scatter the target square 3 times.<br>1: d3 players in your reserves move to Knock Out.<br>The player in the target square falls; make an armor roll with a +2 modifier. Then roll a d6 for each player in adjacent squares; on a 4+, they become Placed Prone.</p>",
+      "text": "0-1 Halfling \"Surprise\" Pot (80k, or 60k for Halfling): Once per game, after the opponent's turn, choose a square and roll a d6: 6: Pot hits the target. 2-5: Scatter the target square 3 times. 1: d3 players in your reserves move to Knock Out. The player in the target square falls; make an armor roll with a +2 modifier. Then roll a d6 for each player in adjacent squares; on a 4+, they become Placed Prone."
+    },
+    {
+      "id": "inducements-hired-wizard",
+      "title": "Hired Wizard",
+      "path": "Inducements/Hired Wizard.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 Hired Wizard (150k): Once per game, after any player's turn, you may cast one of the following spells:\nFireball: Choose a square; roll a d6 for each player in that and adjacent squares. On a 4+, the player falls; make an armor roll with a +1 modifier.\nToad-Toad: Choose a player and roll a d6. If the result equals or exceeds the player's Strength (6 is always a success), turn them into a toad until the end of the drive. Any injury rolls against the toad are considered Badly Hurt; an apothecary cannot be used. Toad stats: MV 5, ST 1, AG 2+, PA -, AV 5+ (Pogo, Evasive, Dodge, Stunty, No Ball, Titchy, Very Long Legs).",
+      "empty": false,
+      "slug": "inducements/hired-wizard",
+      "html": "<p>0-1 Hired Wizard (150k): Once per game, after any player's turn, you may cast one of the following spells:<br>Fireball: Choose a square; roll a d6 for each player in that and adjacent squares. On a 4+, the player falls; make an armor roll with a +1 modifier.<br>Toad-Toad: Choose a player and roll a d6. If the result equals or exceeds the player's Strength (6 is always a success), turn them into a toad until the end of the drive. Any injury rolls against the toad are considered Badly Hurt; an apothecary cannot be used. Toad stats: MV 5, ST 1, AG 2+, PA -, AV 5+ (Pogo, Evasive, Dodge, Stunty, No Ball, Titchy, Very Long Legs).</p>",
+      "text": "0-1 Hired Wizard (150k): Once per game, after any player's turn, you may cast one of the following spells: Fireball: Choose a square; roll a d6 for each player in that and adjacent squares. On a 4+, the player falls; make an armor roll with a +1 modifier. Toad-Toad: Choose a player and roll a d6. If the result equals or exceeds the player's Strength (6 is always a success), turn them into a toad until the end of the drive. Any injury rolls against the toad are considered Badly Hurt; an apothecary cannot be used. Toad stats: MV 5, ST 1, AG 2+, PA -, AV 5+ (Pogo, Evasive, Dodge, Stunty, No Ball, Titchy, Very Long Legs)."
+    },
+    {
+      "id": "inducements-mark-of-chaos",
+      "title": "Mark of Chaos",
+      "path": "Inducements/Mark of Chaos.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 Mark of Chaos (50k, only for Favoured of...): At the start of the match, the chosen player gains skills until the end of the game. Does not work on Star Players. Skills depend on your choice of Favoured of...:\nUndivided: Tentacles, Horns.\nKhorne: Piledriver, Jump Up.\nNurgle: Disturbing Presence, Foul Appearance.\nTzeentch: Pro, Two Heads.\nSlaanesh: Dodge, Leap.\nHashut: Iron Hard Skin, Claw.",
+      "empty": false,
+      "slug": "inducements/mark-of-chaos",
+      "html": "<p>0-1 Mark of Chaos (50k, only for Favoured of...): At the start of the match, the chosen player gains skills until the end of the game. Does not work on Star Players. Skills depend on your choice of Favoured of...:<br>Undivided: Tentacles, Horns.<br>Khorne: Piledriver, Jump Up.<br>Nurgle: Disturbing Presence, Foul Appearance.<br>Tzeentch: Pro, Two Heads.<br>Slaanesh: Dodge, Leap.<br>Hashut: Iron Hard Skin, Claw.</p>",
+      "text": "0-1 Mark of Chaos (50k, only for Favoured of...): At the start of the match, the chosen player gains skills until the end of the game. Does not work on Star Players. Skills depend on your choice of Favoured of...: Undivided: Tentacles, Horns. Khorne: Piledriver, Jump Up. Nurgle: Disturbing Presence, Foul Appearance. Tzeentch: Pro, Two Heads. Slaanesh: Dodge, Leap. Hashut: Iron Hard Skin, Claw."
     },
     {
       "id": "inducements-mortuary-assistant",
@@ -19281,32 +19493,29 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Medical",
-        "Undead"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 100K\n\nProvides match support for teams that rely on necromantic recovery rather than a normal apothecary.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Mortuary Assistant (100k, only for Masters of Undeath): Once per game, you may reroll a regeneration check.",
       "empty": false,
       "slug": "inducements/mortuary-assistant",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 100K</p>\n<p>Provides match support for teams that rely on necromantic recovery rather than a normal apothecary.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 100K Provides match support for teams that rely on necromantic recovery rather than a normal apothecary. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Mortuary Assistant (100k, only for Masters of Undeath): Once per game, you may reroll a regeneration check.</p>",
+      "text": "0-1 Mortuary Assistant (100k, only for Masters of Undeath): Once per game, you may reroll a regeneration check."
     },
     {
-      "id": "inducements-part-time-assistant-coaches",
-      "title": "Part-time Assistant Coaches",
-      "path": "Inducements/Part-time Assistant Coaches.md",
+      "id": "inducements-nuffle-s-prayers",
+      "title": "Nuffle's Prayers",
+      "path": "Inducements/Nuffle's Prayers.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-3\n**Cost:** 20K each\n\nTemporary assistant coaches for match-day sideline support.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-3 Nuffle's Prayers (15k): Roll on the Nuffle's Prayers table; you may reroll results you already have.",
       "empty": false,
-      "slug": "inducements/part-time-assistant-coaches",
-      "html": "<p><strong>Limit:</strong> 0-3 <strong>Cost:</strong> 20K each</p>\n<p>Temporary assistant coaches for match-day sideline support.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-3 Cost: 20K each Temporary assistant coaches for match-day sideline support. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/nuffle-s-prayers",
+      "html": "<p>0-3 Nuffle's Prayers (15k): Roll on the Nuffle's Prayers table; you may reroll results you already have.</p>",
+      "text": "0-3 Nuffle's Prayers (15k): Roll on the Nuffle's Prayers table; you may reroll results you already have."
     },
     {
       "id": "inducements-plague-doctor",
@@ -19316,50 +19525,45 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Medical",
-        "Nurgle"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 100K\n\nProvides Nurgle-flavoured injury support for the match.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Plague Doctor (100k, only for Favoured of Nurgle): Once per game, you may reroll a regeneration check or apply an apothecary effect.",
       "empty": false,
       "slug": "inducements/plague-doctor",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 100K</p>\n<p>Provides Nurgle-flavoured injury support for the match.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 100K Provides Nurgle-flavoured injury support for the match. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Plague Doctor (100k, only for Favoured of Nurgle): Once per game, you may reroll a regeneration check or apply an apothecary effect.</p>",
+      "text": "0-1 Plague Doctor (100k, only for Favoured of Nurgle): Once per game, you may reroll a regeneration check or apply an apothecary effect."
     },
     {
-      "id": "inducements-riotous-rookies",
-      "title": "Riotous Rookies",
-      "path": "Inducements/Riotous Rookies.md",
+      "id": "inducements-rowdy-rookies",
+      "title": "Rowdy Rookies",
+      "path": "Inducements/Rowdy Rookies.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Players",
-        "Snotling"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 100K\n\nAdds a wave of temporary rookie bodies for the match.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Rowdy Rookies (100k, only for Low cost Linemen): Gain 2d3+1 journeymen, ignoring the team size limit.",
       "empty": false,
-      "slug": "inducements/riotous-rookies",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 100K</p>\n<p>Adds a wave of temporary rookie bodies for the match.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 100K Adds a wave of temporary rookie bodies for the match. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/rowdy-rookies",
+      "html": "<p>0-1 Rowdy Rookies (100k, only for Low cost Linemen): Gain 2d3+1 journeymen, ignoring the team size limit.</p>",
+      "text": "0-1 Rowdy Rookies (100k, only for Low cost Linemen): Gain 2d3+1 journeymen, ignoring the team size limit."
     },
     {
-      "id": "inducements-special-plays",
-      "title": "Special Plays",
-      "path": "Inducements/Special Plays.md",
+      "id": "inducements-rune-priest",
+      "title": "Rune Priest",
+      "path": "Inducements/Rune Priest.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Cards"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-5\n**Cost:** 100K each\n\nGrants access to match-day special play cards.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Rune Priest (50k, only for Old World Classic and Worlds Edge Superleague): At the start of each drive, before the kick, choose one player without the Loner trait and roll a d6: on a 4+, select a rune and apply it to the player (cannot use this effect again for the game); on 2-3, the rune fails but you can repeat in the next drive; on 1, the rune fails and the effect is locked for the game.\nRune of Might: Player gains Mighty Blow until the end of the drive.\nRune of Fury: Player gains Dauntless and Frenzy until the end of the drive.\nRune of Speed: Player gains Sure Feet and Sprint until the end of the drive.\nRune of Iron: Player gains +1 AV and Stand Firm until the end of the drive.\nRune of Force: Player gains Horns and Juggernaut until the end of the drive.",
       "empty": false,
-      "slug": "inducements/special-plays",
-      "html": "<p><strong>Limit:</strong> 0-5 <strong>Cost:</strong> 100K each</p>\n<p>Grants access to match-day special play cards.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-5 Cost: 100K each Grants access to match-day special play cards. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/rune-priest",
+      "html": "<p>0-1 Rune Priest (50k, only for Old World Classic and Worlds Edge Superleague): At the start of each drive, before the kick, choose one player without the Loner trait and roll a d6: on a 4+, select a rune and apply it to the player (cannot use this effect again for the game); on 2-3, the rune fails but you can repeat in the next drive; on 1, the rune fails and the effect is locked for the game.<br>Rune of Might: Player gains Mighty Blow until the end of the drive.<br>Rune of Fury: Player gains Dauntless and Frenzy until the end of the drive.<br>Rune of Speed: Player gains Sure Feet and Sprint until the end of the drive.<br>Rune of Iron: Player gains +1 AV and Stand Firm until the end of the drive.<br>Rune of Force: Player gains Horns and Juggernaut until the end of the drive.</p>",
+      "text": "0-1 Rune Priest (50k, only for Old World Classic and Worlds Edge Superleague): At the start of each drive, before the kick, choose one player without the Loner trait and roll a d6: on a 4+, select a rune and apply it to the player (cannot use this effect again for the game); on 2-3, the rune fails but you can repeat in the next drive; on 1, the rune fails and the effect is locked for the game. Rune of Might: Player gains Mighty Blow until the end of the drive. Rune of Fury: Player gains Dauntless and Frenzy until the end of the drive. Rune of Speed: Player gains Sure Feet and Sprint until the end of the drive. Rune of Iron: Player gains +1 AV and Stand Firm until the end of the drive. Rune of Force: Player gains Horns and Juggernaut until the end of the drive."
     },
     {
       "id": "inducements-star-players",
@@ -19369,49 +19573,77 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Players",
-        "Star Player"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-2\n**Cost:** Varies\n\nHire star players for the match, subject to league availability and normal team restrictions.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-2 Star Players (0-4 for Stunty Leagues): Hire a Star Player from your league, ignoring team limits.",
       "empty": false,
       "slug": "inducements/star-players",
-      "html": "<p><strong>Limit:</strong> 0-2 <strong>Cost:</strong> Varies</p>\n<p>Hire star players for the match, subject to league availability and normal team restrictions.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-2 Cost: Varies Hire star players for the match, subject to league availability and normal team restrictions. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-2 Star Players (0-4 for Stunty Leagues): Hire a Star Player from your league, ignoring team limits.</p>",
+      "text": "0-2 Star Players (0-4 for Stunty Leagues): Hire a Star Player from your league, ignoring team limits."
     },
     {
-      "id": "inducements-temp-agency-cheerleaders",
-      "title": "Temp Agency Cheerleaders",
-      "path": "Inducements/Temp Agency Cheerleaders.md",
+      "id": "inducements-team-mascot",
+      "title": "Team Mascot",
+      "path": "Inducements/Team Mascot.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Staff"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-4\n**Cost:** 20K each\n\nTemporary cheerleaders for match-day sideline support.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Team Mascot (25k): Once per half, grants an additional Team Reroll. When used, roll a d6: on a 4+, the reroll works; on a 1-3, it is burned, but you can immediately use a regular reroll instead. Also grants a reroll of 1 for the Cheering Fans event.",
       "empty": false,
-      "slug": "inducements/temp-agency-cheerleaders",
-      "html": "<p><strong>Limit:</strong> 0-4 <strong>Cost:</strong> 20K each</p>\n<p>Temporary cheerleaders for match-day sideline support.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-4 Cost: 20K each Temporary cheerleaders for match-day sideline support. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/team-mascot",
+      "html": "<p>0-1 Team Mascot (25k): Once per half, grants an additional Team Reroll. When used, roll a d6: on a 4+, the reroll works; on a 1-3, it is burned, but you can immediately use a regular reroll instead. Also grants a reroll of 1 for the Cheering Fans event.</p>",
+      "text": "0-1 Team Mascot (25k): Once per half, grants an additional Team Reroll. When used, roll a d6: on a 4+, the reroll works; on a 1-3, it is burned, but you can immediately use a regular reroll instead. Also grants a reroll of 1 for the Cheering Fans event."
     },
     {
-      "id": "inducements-wandering-apothecaries",
-      "title": "Wandering Apothecaries",
-      "path": "Inducements/Wandering Apothecaries.md",
+      "id": "inducements-vishnevsky-ointment",
+      "title": "Vishnevsky Ointment",
+      "path": "Inducements/Vishnevsky Ointment.md",
       "section": "Inducements",
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Medical"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-2\n**Cost:** 100K each\n\nTemporary apothecaries hired for match-day injury support.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Vishnevsky Ointment (60k): Once per game, if a player leaves the game due to injury, you may return them to the reserves. However, at the end of the game, apply all effects they should have received from that injury.",
       "empty": false,
-      "slug": "inducements/wandering-apothecaries",
-      "html": "<p><strong>Limit:</strong> 0-2 <strong>Cost:</strong> 100K each</p>\n<p>Temporary apothecaries hired for match-day injury support.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-2 Cost: 100K each Temporary apothecaries hired for match-day injury support. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "slug": "inducements/vishnevsky-ointment",
+      "html": "<p>0-1 Vishnevsky Ointment (60k): Once per game, if a player leaves the game due to injury, you may return them to the reserves. However, at the end of the game, apply all effects they should have received from that injury.</p>",
+      "text": "0-1 Vishnevsky Ointment (60k): Once per game, if a player leaves the game due to injury, you may return them to the reserves. However, at the end of the game, apply all effects they should have received from that injury."
+    },
+    {
+      "id": "inducements-waaagh-drummer",
+      "title": "WAAAGH! Drummer",
+      "path": "Inducements/WAAAGH! Drummer.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-1 WAAAGH! Drummer (50k, only for Badlands Brawl): At the start of each drive, after kickoff, roll 4d6; for each roll of 4+, move any player 1 square toward your opponent's end zone. You may choose the same player multiple times.",
+      "empty": false,
+      "slug": "inducements/waaagh-drummer",
+      "html": "<p>0-1 WAAAGH! Drummer (50k, only for Badlands Brawl): At the start of each drive, after kickoff, roll 4d6; for each roll of 4+, move any player 1 square toward your opponent's end zone. You may choose the same player multiple times.</p>",
+      "text": "0-1 WAAAGH! Drummer (50k, only for Badlands Brawl): At the start of each drive, after kickoff, roll 4d6; for each roll of 4+, move any player 1 square toward your opponent's end zone. You may choose the same player multiple times."
+    },
+    {
+      "id": "inducements-wandering-apothecary",
+      "title": "Wandering Apothecary",
+      "path": "Inducements/Wandering Apothecary.md",
+      "section": "Inducements",
+      "sectionLabel": "Inducements",
+      "kind": "inducement",
+      "tags": [
+        "Inducement"
+      ],
+      "body": "0-2 Wandering Apothecary (100k, only for teams capable of hiring an Apothecary): Grants an additional use of an apothecary.",
+      "empty": false,
+      "slug": "inducements/wandering-apothecary",
+      "html": "<p>0-2 Wandering Apothecary (100k, only for teams capable of hiring an Apothecary): Grants an additional use of an apothecary.</p>",
+      "text": "0-2 Wandering Apothecary (100k, only for teams capable of hiring an Apothecary): Grants an additional use of an apothecary."
     },
     {
       "id": "inducements-weather-mage",
@@ -19421,31 +19653,13 @@
       "sectionLabel": "Inducements",
       "kind": "inducement",
       "tags": [
-        "Inducement",
-        "Magic"
+        "Inducement"
       ],
-      "body": "**Limit:** 0-1\n**Cost:** 30K\n\nLets a team interfere with match weather at a key moment.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
+      "body": "0-1 Weather Mage (20k): Once per game, at the start of your turn, you may roll on the weather table, adding a modifier of -2 to +2 to the result after rolling.",
       "empty": false,
       "slug": "inducements/weather-mage",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 30K</p>\n<p>Lets a team interfere with match weather at a key moment.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 30K Lets a team interfere with match weather at a key moment. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
-    },
-    {
-      "id": "inducements-wizard",
-      "title": "Wizard",
-      "path": "Inducements/Wizard.md",
-      "section": "Inducements",
-      "sectionLabel": "Inducements",
-      "kind": "inducement",
-      "tags": [
-        "Inducement",
-        "Magic"
-      ],
-      "body": "**Limit:** 0-1\n**Cost:** 150K\n\nOne-off magical help during the match.\n\nFull base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/",
-      "empty": false,
-      "slug": "inducements/wizard",
-      "html": "<p><strong>Limit:</strong> 0-1 <strong>Cost:</strong> 150K</p>\n<p>One-off magical help during the match.</p>\n<p>Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/</p>",
-      "text": "Limit: 0-1 Cost: 150K One-off magical help during the match. Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/"
+      "html": "<p>0-1 Weather Mage (20k): Once per game, at the start of your turn, you may roll on the weather table, adding a modifier of -2 to +2 to the result after rolling.</p>",
+      "text": "0-1 Weather Mage (20k): Once per game, at the start of your turn, you may roll on the weather table, adding a modifier of -2 to +2 to the result after rolling."
     }
   ],
   "starPlayers": [

@@ -326,7 +326,7 @@ function renderNumberedList(items, pageByTitle, start = 1) {
   ].join("\n");
 }
 
-function markdownToHtml(markdown, pageByTitle) {
+function markdownToHtml(markdown, pageByTitle, options = {}) {
   const lines = markdown.split(/\r?\n/);
   const html = [];
   let listType = null;
@@ -334,15 +334,15 @@ function markdownToHtml(markdown, pageByTitle) {
 
   const flushParagraph = () => {
     if (paragraph.length) {
-      const text = paragraph.join(" ");
+      const text = paragraph.join(options.preserveLineBreaks ? "\n" : " ");
       const numberedItems = splitInlineNumberedItems(text);
-      if (numberedItems) {
+      if (!options.preserveLineBreaks && numberedItems) {
         if (numberedItems.lead) {
           html.push(`<p>${inlineMarkdownToHtml(numberedItems.lead, pageByTitle)}</p>`);
         }
         html.push(renderNumberedList(numberedItems.items, pageByTitle, numberedItems.start));
       } else {
-        html.push(`<p>${inlineMarkdownToHtml(text, pageByTitle)}</p>`);
+        html.push(`<p>${inlineMarkdownToHtml(text, pageByTitle).replace(/\n/g, "<br>")}</p>`);
       }
       paragraph = [];
     }
@@ -644,7 +644,7 @@ const pages = rawPages.map((page) => {
 
   return {
     ...page,
-    html: page.empty ? "" : markdownToHtml(page.body, pageByTitle),
+    html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, { preserveLineBreaks: page.kind === "inducement" }),
     text: stripFormatting(page.body),
     team: page.kind === "team" ? {
       experimental: page.section === "Experimental" || page.section === "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ",

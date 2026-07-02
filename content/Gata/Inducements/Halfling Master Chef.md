@@ -1,13 +1,6 @@
 ---
 tags:
   - Inducement
-  - Staff
-  - Halfling
 ---
 
-**Limit:** 0-1
-**Cost:** 300K
-
-May disrupt the opposing team's re-roll supply while helping your own side.
-
-Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/
+0-1 Halfling Master Chef (300k, or 100k for Halfling): At the start of each half, roll a d6 for each of the opponent's Team Rerolls; on a 4+, the reroll transfers to your team.

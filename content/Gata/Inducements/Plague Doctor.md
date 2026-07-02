@@ -1,13 +1,6 @@
 ---
 tags:
   - Inducement
-  - Medical
-  - Nurgle
 ---
 
-**Limit:** 0-1
-**Cost:** 100K
-
-Provides Nurgle-flavoured injury support for the match.
-
-Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/
+0-1 Plague Doctor (100k, only for Favoured of Nurgle): Once per game, you may reroll a regeneration check or apply an apothecary effect.

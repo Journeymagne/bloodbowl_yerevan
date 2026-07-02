@@ -1,12 +1,6 @@
 ---
 tags:
   - Inducement
-  - Magic
 ---
 
-**Limit:** 0-1
-**Cost:** 30K
-
-Lets a team interfere with match weather at a key moment.
-
-Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/
+0-1 Weather Mage (20k): Once per game, at the start of your turn, you may roll on the weather table, adding a modifier of -2 to +2 to the result after rolling.

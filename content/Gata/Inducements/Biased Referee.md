@@ -1,12 +1,6 @@
 ---
 tags:
   - Inducement
-  - Staff
 ---
 
-**Limit:** 0-1
-**Cost:** 120K
-
-Brings a referee who is easier on your fouls and harsher on the opponent's disputed calls.
-
-Full base wording: https://bloodbowlbase.ru/bb2025/core_rules/inducements/
+0-1 Biased Referee (100k, or 60k for Bribery and Corruption): After your opponent performs a Foul, roll a d6: on a 5+, the fouling player is sent off. You receive +1 to rolls when disputing a referee's decision.
