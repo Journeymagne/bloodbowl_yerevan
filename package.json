@@ -1,0 +1,12 @@
+{
+  "name": "bloodbowl-sevens-reference",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "import:gata": "python scripts/import-gata-content.py",
+    "standardize": "node scripts/standardize-content.mjs",
+    "build": "node scripts/build-data.mjs && node scripts/build-site.mjs",
+    "dev": "node scripts/build-data.mjs && node scripts/serve.mjs"
+  }
+}

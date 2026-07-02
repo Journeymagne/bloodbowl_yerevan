@@ -1,0 +1,63 @@
+﻿<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Gata Blood Bowl League Reference</title>
+    <link rel="stylesheet" href="src/styles.css?v=gata-3">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="Navigation">
+        <a class="brand" href="#/">
+          <span class="brand-mark">
+            <img src="assets/brand/gata-league-logo.png" alt="">
+          </span>
+          <span>
+            <strong>Gata League</strong>
+            <small>Blood Bowl Sevens</small>
+          </span>
+        </a>
+
+        <nav class="nav-list">
+          <a href="#/" data-nav="home">Overview</a>
+          <a href="#/teams" data-nav="teams">Teams</a>
+          <a href="#/skills" data-nav="skills">Skills</a>
+          <a href="#/traits" data-nav="traits">Traits</a>
+          <a href="#/rules" data-nav="rules">League Rules</a>
+          <a href="#/inducements" data-nav="inducements">Inducements</a>
+          <a href="#/star-players" data-nav="star-players">Star Players</a>
+          <a href="#/pages" data-nav="pages">General Information</a>
+        </nav>
+
+        <div class="sidebar-footer">
+          <span id="generated-at">Loading data</span>
+          <p class="legal-note">
+            Unofficial fan-made league reference.
+            <a href="#/legal" data-nav="legal">Legal Information</a>
+          </p>
+        </div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="search-wrap">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"></path>
+            </svg>
+            <input id="global-search" type="search" placeholder="Search teams, skills, rules..." autocomplete="off">
+          </div>
+          <div class="top-actions">
+            <button id="lang-toggle" class="icon-text-button" type="button" disabled title="English version">EN</button>
+          </div>
+        </header>
+
+        <section id="app-view" class="view" aria-live="polite">
+          <div class="loading">Loading reference...</div>
+        </section>
+      </main>
+    </div>
+
+    <script type="module" src="src/app.js?v=gata-7"></script>
+  </body>
+</html>
