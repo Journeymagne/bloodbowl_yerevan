@@ -382,7 +382,8 @@ function markdownToHtml(markdown, pageByTitle) {
       if (isSeparatorRow(separator)) {
         flushParagraph();
         closeList();
-        html.push("<div class=\"table-scroll\"><table><thead><tr>");
+        const tableClass = headerLabels[0] === "#" ? " class=\"numbered-table\"" : "";
+        html.push(`<div class="table-scroll"><table${tableClass}><thead><tr>`);
         html.push(header.map((cell) => `<th>${inlineMarkdownToHtml(cell, pageByTitle)}</th>`).join(""));
         html.push("</tr></thead><tbody>");
         index += 2;

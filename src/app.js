@@ -18,6 +18,11 @@
     category: "all",
     application: "all",
   },
+  skillTableRoller: {
+    group: "Agility",
+    result: "",
+    roll: null,
+  },
   builder: {
     teamSlug: "",
     teamName: "",
@@ -113,6 +118,17 @@ function normalize(value = "") {
 
 function pageUrl(page) {
   return `#/${page.slug}`;
+}
+
+function isSkillTablePage(page) {
+  return page.title === "Skill Table";
+}
+
+function pageForSkillTableEntry(title) {
+  return state.data.skills.find((page) => page.title === title)
+    ?? state.data.traits.find((page) => page.title === title)
+    ?? state.data.pages.find((page) => page.title === title)
+    ?? null;
 }
 
 function setActiveNav(route) {
@@ -521,10 +537,66 @@ function renderDetail(page) {
   view.innerHTML = `
     ${renderHeader(page.title, page.sectionLabel)}
     <div class="detail-layout">
-      <article class="content-panel content-body">${page.html || `<p>${escapeHtml(page.text)}</p>`}</article>
+      <article class="content-panel content-body">
+        ${isSkillTablePage(page) ? renderSkillTableRoller() : ""}
+        ${page.html || `<p>${escapeHtml(page.text)}</p>`}
+      </article>
       ${sidebar}
     </div>
   `;
+  wireSkillTableRoller(page);
+}
+
+function renderSkillTableRoller() {
+  const groups = state.data.skillGroups ?? [];
+  const selectedGroup = groups.find((group) => group.category === state.skillTableRoller.group) ?? groups[0];
+  if (!selectedGroup) return "";
+
+  const skills = selectedGroup.skills ?? [];
+  const result = skills.includes(state.skillTableRoller.result) ? state.skillTableRoller.result : "";
+  const resultPage = result ? pageForSkillTableEntry(result) : null;
+  const resultMarkup = result
+    ? `<a class="skill-roll-result-link" href="${resultPage ? pageUrl(resultPage) : "#/skill-table"}">${escapeHtml(result)}</a>`
+    : `<span class="skill-roll-placeholder">Ready to roll 1d${skills.length}.</span>`;
+
+  return `
+    <section class="skill-roll-panel" aria-label="Skill randomizer">
+      <div class="skill-roll-controls">
+        <label class="filter-field">
+          <span>Skill group</span>
+          <select data-skill-roll-group>
+            ${groups.map((group) => renderOption(group.category, group.category, selectedGroup.category)).join("")}
+          </select>
+        </label>
+        <button class="primary-button" type="button" data-skill-roll>Roll</button>
+      </div>
+      <div class="skill-roll-result">
+        <span class="skill-roll-die">1d${skills.length}${state.skillTableRoller.roll ? `: ${state.skillTableRoller.roll}` : ""}</span>
+        ${resultMarkup}
+      </div>
+    </section>
+  `;
+}
+
+function wireSkillTableRoller(page) {
+  if (!isSkillTablePage(page)) return;
+
+  view.querySelector("[data-skill-roll-group]")?.addEventListener("change", (event) => {
+    state.skillTableRoller.group = event.currentTarget.value;
+    state.skillTableRoller.result = "";
+    state.skillTableRoller.roll = null;
+    renderDetail(page);
+  });
+
+  view.querySelector("[data-skill-roll]")?.addEventListener("click", () => {
+    const group = (state.data.skillGroups ?? []).find((item) => item.category === state.skillTableRoller.group);
+    const skills = group?.skills ?? [];
+    if (!skills.length) return;
+    const index = Math.floor(Math.random() * skills.length);
+    state.skillTableRoller.result = skills[index];
+    state.skillTableRoller.roll = index + 1;
+    renderDetail(page);
+  });
 }
 
 function renderSidebar(page) {

@@ -488,6 +488,61 @@ a {
   color: var(--text);
 }
 
+.skill-roll-panel {
+  display: grid;
+  grid-template-columns: minmax(260px, 420px) minmax(220px, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(240, 200, 74, 0.38);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, rgba(199, 46, 34, 0.12), transparent),
+    rgba(12, 9, 7, 0.72);
+}
+
+.skill-roll-controls {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.skill-roll-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(12, 9, 7, 0.78);
+}
+
+.skill-roll-die {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  background: rgba(240, 200, 74, 0.16);
+  color: var(--soft);
+  font-weight: 700;
+}
+
+.skill-roll-result-link {
+  color: var(--focus);
+  font-weight: 800;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.skill-roll-placeholder {
+  color: var(--muted);
+}
+
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -965,6 +1020,14 @@ td {
   background: rgba(12, 9, 7, 0.5);
 }
 
+.numbered-table th:first-child,
+.numbered-table td:first-child {
+  width: 48px;
+  min-width: 48px;
+  color: var(--muted);
+  text-align: center;
+}
+
 .missing-link {
   color: var(--danger);
 }
@@ -1004,7 +1067,8 @@ td {
 
   .builder-layout,
   .builder-form,
-  .builder-addons {
+  .builder-addons,
+  .skill-roll-panel {
     grid-template-columns: 1fr;
   }
 
@@ -1050,7 +1114,8 @@ td {
   }
 
   .builder-row,
-  .builder-addon {
+  .builder-addon,
+  .skill-roll-controls {
     grid-template-columns: 1fr;
   }
 
