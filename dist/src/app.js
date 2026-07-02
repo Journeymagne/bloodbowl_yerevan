@@ -352,7 +352,7 @@ function collectionForRoute(route) {
 function visibleCollection(route) {
   const items = collectionForRoute(route);
   if (route === "teams") return items.filter(isTeamVisible);
-  if (route === "skills" || route === "traits") return items.filter(isSkillVisible);
+  if (route === "skills") return items.filter(isSkillVisible);
   if (route === "star-players") return items.filter(isStarVisible);
   if (route === "inducements") return items.filter(isInducementVisible);
   return items.filter(matchesQuery);
@@ -378,7 +378,7 @@ function renderSection(route) {
 
 function renderFilters(route) {
   if (route === "teams") return renderTeamFilters();
-  if (route === "skills" || route === "traits") return renderSkillFilters(route);
+  if (route === "skills") return renderSkillFilters(route);
   if (route === "star-players") return renderStarFilters();
   if (route === "inducements") return renderInducementFilters();
   return "";
