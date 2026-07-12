@@ -121,7 +121,16 @@ The site is an unofficial fan reference and should not present itself as affilia
 
 This is the live deployment path for the full app (Node server + Postgres,
 with accounts and saved teams), on the existing VPS at `51.81.86.51`,
-following the same pattern used for `table-booker-project`.
+following the same GitHub Actions + pm2 pattern used for
+`table-booker-project`.
+
+The server's port 80/443 are already owned by a shared Caddy container
+(`paint-day-caddy`, from the `painting-evenings` project's docker-compose
+stack) that also serves `paint.shitpostsoftware.com` — there is no system
+nginx on this host. `bloodbowl-league` runs directly on the host via pm2
+(not in Docker), so the shared Caddy container reaches it through its
+docker-compose project's bridge gateway IP rather than through
+`localhost`.
 
 ### One-time server setup
 
@@ -142,14 +151,30 @@ pm2 start server/server.mjs --name bloodbowl-league
 pm2 save
 ```
 
-Then configure nginx and TLS:
+If port 3002 isn't reachable from Docker containers yet (first-time setup
+on a fresh host), allow it from the relevant docker-compose project's
+subnet only — never expose it to the public internet:
 
 ```bash
-cp deploy/nginx/bb.shitpostsoftware.com.conf /etc/nginx/sites-available/bb.shitpostsoftware.com.conf
-ln -s /etc/nginx/sites-available/bb.shitpostsoftware.com.conf /etc/nginx/sites-enabled/
-nginx -t && systemctl reload nginx
-certbot --nginx -d bb.shitpostsoftware.com
+docker network inspect paint-day-tracker-prod_default --format '{{json .IPAM.Config}}'
+# note the Subnet, e.g. 172.18.0.0/16, then:
+ufw allow from 172.18.0.0/16 to any port 3002 proto tcp
 ```
+
+Then add the site block from `deploy/caddy/bb.shitpostsoftware.com.conf`
+to the shared Caddyfile and reload (no downtime for the other site on the
+same Caddy container):
+
+```bash
+cat deploy/caddy/bb.shitpostsoftware.com.conf >> /home/deploy/painting-evenings/Caddyfile
+docker exec paint-day-caddy caddy reload --config /etc/caddy/Caddyfile
+```
+
+The existing single-site Caddyfile (`{$SITE_ADDRESS} { ... }`) must already
+be in braced-block form before appending a second site — if it's still the
+unbraced single-site shorthand, wrap it in `{ }` first. Caddy provisions
+the Let's Encrypt certificate for the new domain automatically on first
+request; no certbot step is needed.
 
 ### GitHub secrets
 
