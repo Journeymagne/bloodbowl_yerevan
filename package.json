@@ -7,6 +7,7 @@
     "import:gata": "python scripts/import-gata-content.py",
     "standardize": "node scripts/standardize-content.mjs",
     "build": "node scripts/build-data.mjs && node scripts/build-site.mjs",
+    "i18n:check": "node scripts/check-i18n-glossary.mjs",
     "dev": "node scripts/build-data.mjs && node scripts/serve.mjs",
     "server": "node server/server.mjs",
     "start": "npm run build && node server/server.mjs",
