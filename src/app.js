@@ -2023,27 +2023,27 @@ async function renderMyTeams() {
   setActiveNav("my-teams");
   setViewSection("teams");
   view.innerHTML = `
-    ${renderHeader("My Teams", "Saved teams from your profile.", `<button class="primary-button" type="button" data-new-team>Create Team</button>`)}
-    <div class="loading">Loading teams...</div>
+    ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"), `<button class="primary-button" type="button" data-new-team>${t("myTeams.createTeam")}</button>`)}
+    <div class="loading">${t("myTeams.loadingTeams")}</div>
   `;
   await loadMyTeams(true);
   if (!state.auth.currentUser) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
-      <div class="empty-state">Log in to save and edit your teams.</div>
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      <div class="empty-state">${t("myTeams.loginRequired")}</div>
     `;
     return;
   }
   if (state.myTeams.error) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
       <div class="empty-state">${escapeHtml(state.myTeams.error)}</div>
     `;
     return;
   }
   view.innerHTML = `
-    ${renderHeader("My Teams", "Saved teams from your profile.", `<button class="primary-button" type="button" data-new-team>Create Team</button>`)}
-    ${state.myTeams.items.length ? renderSavedTeamsTable(state.myTeams.items) : `<div class="empty-state">No saved teams yet.</div>`}
+    ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"), `<button class="primary-button" type="button" data-new-team>${t("myTeams.createTeam")}</button>`)}
+    ${state.myTeams.items.length ? renderSavedTeamsTable(state.myTeams.items) : `<div class="empty-state">${t("myTeams.noSavedTeams")}</div>`}
   `;
   wireMyTeams();
 }
@@ -2055,12 +2055,12 @@ function renderSavedTeamsTable(teams) {
         <table class="my-teams-table compact-roster-table">
           <thead>
             <tr>
-              <th>Team</th>
-              <th>Rules</th>
-              <th>Players</th>
-              <th>Total Cost</th>
-              <th>Updated</th>
-              <th>Actions</th>
+              <th>${t("sidebar.teamHeading")}</th>
+              <th>${t("myTeams.table.rules")}</th>
+              <th>${t("myTeams.table.players")}</th>
+              <th>${t("roster.totalCost")}</th>
+              <th>${t("footer.updated")}</th>
+              <th>${t("myTeams.table.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -2095,8 +2095,8 @@ function renderSavedTeamRow(team) {
       <td>${escapeHtml(updated)}</td>
       <td>
         <div class="table-actions">
-          <a class="primary-button compact-action" href="#/my-teams/${encodeURIComponent(team.id)}">Edit</a>
-          <button class="filter-button compact-action" type="button" data-delete-team="${escapeHtml(team.id)}">Delete</button>
+          <a class="primary-button compact-action" href="#/my-teams/${encodeURIComponent(team.id)}">${t("common.edit")}</a>
+          <button class="filter-button compact-action" type="button" data-delete-team="${escapeHtml(team.id)}">${t("common.delete")}</button>
         </div>
       </td>
     </tr>
@@ -2121,15 +2121,15 @@ async function renderSavedRoster(teamId, refresh = true) {
   setViewSection("teams");
   if (refresh) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
-      <div class="loading">Loading team...</div>
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      <div class="loading">${t("myTeams.loadingTeam")}</div>
     `;
   }
   await loadMyTeams(refresh);
   if (!state.auth.currentUser) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
-      <div class="empty-state">Log in to save and edit your teams.</div>
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      <div class="empty-state">${t("myTeams.loginRequired")}</div>
     `;
     return;
   }
@@ -2137,8 +2137,8 @@ async function renderSavedRoster(teamId, refresh = true) {
   const savedTeam = state.myTeams.items.find((item) => item.id === teamId);
   if (!savedTeam) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
-      <div class="empty-state">Saved team not found.</div>
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      <div class="empty-state">${t("savedRoster.notFound")}</div>
     `;
     return;
   }
@@ -2153,7 +2153,7 @@ async function renderSavedRoster(teamId, refresh = true) {
   const warnings = rosterWarnings(team, draft, costs);
 
   view.innerHTML = `
-    ${renderHeader(`Team "${draft.teamName || savedTeam.name || team.title}"`, `${team.title} roster`, `<a class="primary-button" href="#/my-teams">Back</a>`)}
+    ${renderHeader(`${t("sidebar.teamHeading")} "${draft.teamName || savedTeam.name || team.title}"`, `${team.title} ${t("savedRoster.rosterSuffix")}`, `<a class="primary-button" href="#/my-teams">${t("common.back")}</a>`)}
     <div class="saved-roster-top-grid">
       ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
       ${renderSavedRosterSettings(team, draft, costs, teams)}
@@ -2161,12 +2161,12 @@ async function renderSavedRoster(teamId, refresh = true) {
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
         <section class="builder-selected">
-          <h2>Roster</h2>
+          <h2>${t("savedRoster.rosterHeading")}</h2>
           ${renderSavedPlayerList(team, draft)}
         </section>
 
         <section class="builder-pool saved-add-player-section">
-          <h2>Add new players</h2>
+          <h2>${t("savedRoster.addNewPlayers")}</h2>
           ${renderSavedNewPlayerTable(team, draft)}
         </section>
       </section>
@@ -2182,31 +2182,31 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
       ${draft.logoData ? `
         <div class="summary-logo-block">
           <img src="${escapeHtml(draft.logoData)}" alt="">
-          <button class="filter-button compact-action" type="button" data-roster-remove-logo>Remove logo</button>
+          <button class="filter-button compact-action" type="button" data-roster-remove-logo>${t("savedRoster.removeLogo")}</button>
         </div>
       ` : ""}
       <div class="summary-title-block">
-        <h3>Roster Summary</h3>
+        <h3>${t("savedRoster.summaryTitle")}</h3>
         <p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosave.status)}">${escapeHtml(autosave.message)}</p>
         <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
       </div>
       <dl class="stat-list summary-stat-grid">
-        <dt>Active players</dt><dd>${costs.playersCount}</dd>
-        <dt>Total players</dt><dd>${costs.totalPlayersCount}</dd>
-        <dt>Starting rerolls</dt><dd>${draft.startingRerolls ?? 0}</dd>
-        <dt>Team Rerolls</dt><dd>${draft.teamRerolls ?? 0}</dd>
-        <dt>Dedicated Fans</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
-        <dt>Treasury</dt><dd data-treasury-display>${countToNumber(draft.treasury)}k</dd>
-        <dt>Total SPP</dt><dd data-total-spp-display>${rosterTotalSpp(team, draft)} SPP</dd>
-        <dt>Players cost</dt><dd>${costs.playersCost}k</dd>
-        <dt>Staff cost</dt><dd>${costs.staffCost}k</dd>
-        <dt>Total Cost</dt><dd>${costs.total}k</dd>
+        <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
+        <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
+        <dt>${t("savedRoster.startingRerolls")}</dt><dd>${draft.startingRerolls ?? 0}</dd>
+        <dt>${t("savedRoster.teamRerolls")}</dt><dd>${draft.teamRerolls ?? 0}</dd>
+        <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
+        <dt>${t("savedRoster.treasury")}</dt><dd data-treasury-display>${countToNumber(draft.treasury)}k</dd>
+        <dt>${t("savedRoster.totalSppLabel")}</dt><dd data-total-spp-display>${rosterTotalSpp(team, draft)} SPP</dd>
+        <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
+        <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
+        <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
       </dl>
       <div class="summary-state-block">
-        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">Roster is within the current limits.</div>`}
+        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
         <div class="summary-actions">
-          <button class="primary-button" type="button" data-save-roster>Save Changes</button>
-          <button class="primary-button" type="button" data-copy-saved-roster>Copy Roster</button>
+          <button class="primary-button" type="button" data-save-roster>${t("roster.saveChanges")}</button>
+          <button class="primary-button" type="button" data-copy-saved-roster>${t("roster.copyRoster")}</button>
         </div>
       </div>
     </aside>
@@ -2218,29 +2218,29 @@ function renderSavedRosterSettings(team, draft, costs, teams) {
     <section class="roster-settings-panel side-panel">
       <div class="builder-form saved-roster-form">
         <label class="filter-field">
-          <span>Team</span>
+          <span>${t("sidebar.teamHeading")}</span>
           <select data-roster-team>
             ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
           </select>
         </label>
         <label class="filter-field">
-          <span>Team Name</span>
+          <span>${t("savedRoster.teamName")}</span>
           <input type="text" value="${escapeHtml(draft.teamName || team.title)}" data-roster-name>
         </label>
         <label class="filter-field">
-          <span>Logo, max 2 MB</span>
+          <span>${t("savedRoster.logoField")}</span>
           <input type="file" accept="image/*" data-roster-logo>
         </label>
         <label class="filter-field">
-          <span>Total Cost</span>
+          <span>${t("roster.totalCost")}</span>
           <input type="text" value="${costs.total}k" readonly>
         </label>
         <label class="filter-field">
-          <span>Treasury, k</span>
+          <span>${t("savedRoster.treasuryField")}</span>
           <input type="number" step="10" value="${countToNumber(draft.treasury)}" data-roster-treasury>
         </label>
         <label class="filter-field">
-          <span>Starting rerolls</span>
+          <span>${t("savedRoster.startingRerolls")}</span>
           <div class="inline-stepper-control">
             <button class="filter-button" type="button" data-roster-reroll="-1" ${countToNumber(draft.startingRerolls) <= 0 ? "disabled" : ""}>-</button>
             <strong>${countToNumber(draft.startingRerolls)}</strong>
@@ -2248,7 +2248,7 @@ function renderSavedRosterSettings(team, draft, costs, teams) {
           </div>
         </label>
         <label class="filter-field">
-          <span>Team Rerolls, 120k</span>
+          <span>${t("savedRoster.teamRerollsField")}</span>
           <div class="inline-stepper-control">
             <button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>
             <strong>${countToNumber(draft.teamRerolls)}</strong>
@@ -2257,9 +2257,9 @@ function renderSavedRosterSettings(team, draft, costs, teams) {
         </label>
       </div>
       <div class="builder-addons compact-addons">
-        ${renderRosterStaffControl("dedicatedFans", "Dedicated Fans", draft.dedicatedFans)}
-        ${renderRosterStaffControl("assistantCoaches", "Assistant Coaches", draft.assistantCoaches)}
-        ${renderRosterStaffControl("cheerleaders", "Cheerleaders", draft.cheerleaders)}
+        ${renderRosterStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), draft.dedicatedFans)}
+        ${renderRosterStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), draft.assistantCoaches)}
+        ${renderRosterStaffControl("cheerleaders", t("savedRoster.cheerleaders"), draft.cheerleaders)}
       </div>
       ${renderTeamRuleAccess(team, draft, "roster")}
     </section>
@@ -2272,7 +2272,7 @@ function renderRosterAddon(key, title, description, max, value, cost, disabled =
     <div class="builder-addon ${disabled ? "disabled" : ""}">
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(disabled ? "Not available for this team" : description)}</span>
+        <span>${escapeHtml(disabled ? t("roster.notAvailableForTeam") : description)}</span>
       </div>
       ${renderRosterStepper(`roster-addon-${key}`, current, 0, max, disabled || !cost)}
     </div>
@@ -2282,7 +2282,7 @@ function renderRosterAddon(key, title, description, max, value, cost, disabled =
 function renderRosterStaffControl(key, title, value) {
   const max = builderStaffMaximums[key] ?? 6;
   const current = countToNumber(value);
-  const description = key === "dedicatedFans" ? "Post-match value" : "10k each";
+  const description = key === "dedicatedFans" ? t("roster.postMatchValue") : t("roster.tenKEach");
   return `
     <div class="builder-addon compact-staff-control">
       <div>
@@ -2346,17 +2346,17 @@ function renderRosterSlot(team, draft, slot, slotIndex) {
     return `
       <article class="roster-slot empty">
         <header>
-          <strong>Slot ${slotIndex + 1}</strong>
-          <span>Empty</span>
+          <strong>${t("roster.slot")} ${slotIndex + 1}</strong>
+          <span>${t("roster.emptySlot")}</span>
         </header>
         <div class="roster-slot-add">
           <select data-slot-add="${slotIndex}">
-            <option value="">Add player...</option>
+            <option value="">${t("roster.addPlayerOption")}</option>
             ${availableRows.map(({ row, rowIndex }) => `
               <option value="${rowIndex}">${escapeHtml(row.position)} - ${escapeHtml(rowCost(row))}</option>
             `).join("")}
           </select>
-          <button class="primary-button" type="button" data-slot-add-button="${slotIndex}" ${availableRows.length ? "" : "disabled"}>Add</button>
+          <button class="primary-button" type="button" data-slot-add-button="${slotIndex}" ${availableRows.length ? "" : "disabled"}>${t("common.add")}</button>
         </div>
       </article>
     `;
@@ -2366,10 +2366,10 @@ function renderRosterSlot(team, draft, slot, slotIndex) {
     <article class="roster-slot filled">
       <header>
         <div>
-          <strong>Slot ${slotIndex + 1}</strong>
+          <strong>${t("roster.slot")} ${slotIndex + 1}</strong>
           <span>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row))}</span>
         </div>
-        <button class="filter-button" type="button" data-slot-remove="${slotIndex}">Remove</button>
+        <button class="filter-button" type="button" data-slot-remove="${slotIndex}">${t("common.remove")}</button>
       </header>
       ${renderSlotPlayerEditor(player)}
     </article>
@@ -2383,12 +2383,12 @@ function renderSlotPlayerEditor(player) {
     <div class="player-editor slot-player-editor" data-slot-player="${player.slotIndex}">
       <div class="slot-player-topline">
         <label class="filter-field compact-field">
-          <span>Player name</span>
+          <span>${t("roster.playerName")}</span>
           <input type="text" value="${escapeHtml(player.name)}" data-slot-player-name>
         </label>
         <label class="checkbox-field skip-next-field">
           <input type="checkbox" data-slot-skip-next ${player.skipNextGame ? "checked" : ""}>
-          <span>Skip Next Game</span>
+          <span>${t("roster.skipNextGame")}</span>
         </label>
       </div>
       <div class="player-stat-editors slot-stat-editors">
@@ -2413,10 +2413,10 @@ function renderSlotPlayerEditor(player) {
       </div>
       <div class="player-skill-editor">
         <select data-slot-skill>
-          <option value="">Add skill...</option>
+          <option value="">${t("roster.addSkillOption")}</option>
           ${options.map((skill) => renderOption(skill, skill, "")).join("")}
         </select>
-        <button class="filter-button" type="button" data-slot-add-skill>Add</button>
+        <button class="filter-button" type="button" data-slot-add-skill>${t("common.add")}</button>
       </div>
       ${player.extraSkills.length ? `
         <div class="player-extra-skills">
@@ -2479,7 +2479,7 @@ function wireSavedRoster(savedTeam, team, draft) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert("Logo must be 2 MB or smaller.");
+      alert(t("savedRoster.logoTooLarge"));
       event.currentTarget.value = "";
       return;
     }
@@ -2556,13 +2556,13 @@ function wireSavedPlayerEditors(team, draft, rerender) {
         player.spp = normalizeSppCounters(player.spp);
         player.spp[event.currentTarget.dataset.savedPlayerSpp] = Math.max(0, countToNumber(event.currentTarget.value));
         const rowTotal = card.querySelector("[data-player-spp-total]");
-        if (rowTotal) rowTotal.textContent = `${playerSppTotal(team, player)} SPP earned`;
+        if (rowTotal) rowTotal.textContent = `${playerSppTotal(team, player)} ${t("roster.sppEarned")}`;
         const available = card.querySelector("[data-player-available-spp]");
-        if (available) available.textContent = `${playerAvailableSpp(team, player)} SPP available`;
+        if (available) available.textContent = `${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
         const nextAdvancement = card.querySelector("[data-player-next-advancement]");
         const nextRank = advancementRanks[playerAdvancementLevel(player)];
         if (nextAdvancement && nextRank) {
-          nextAdvancement.textContent = `Next: ${nextRank.rank}, ${playerAvailableSpp(team, player)} SPP available`;
+          nextAdvancement.textContent = `${t("roster.next")}: ${nextRank.rank}, ${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
         }
         const rosterTotal = view.querySelector("[data-total-spp-display]");
         if (rosterTotal) rosterTotal.textContent = `${rosterTotalSpp(team, draft)} SPP`;
@@ -2674,7 +2674,7 @@ function autosaveStatusFor(teamId) {
   return savedRosterAutosaves.get(teamId) ?? {
     revision: 0,
     timer: null,
-    message: "Autosaves after every change.",
+    message: t("roster.autosaveDefaultMessage"),
     status: "idle",
   };
 }
@@ -2701,12 +2701,12 @@ function scheduleSavedRosterAutosave(teamId) {
   const next = {
     ...current,
     revision,
-    message: "Saving...",
+    message: t("roster.savingStatus"),
     status: "saving",
   };
   next.timer = setTimeout(() => runSavedRosterAutosave(teamId, revision), autosaveDelayMs);
   savedRosterAutosaves.set(teamId, next);
-  setAutosaveStatus(teamId, "Saving...", "saving");
+  setAutosaveStatus(teamId, t("roster.savingStatus"), "saving");
 }
 
 async function runSavedRosterAutosave(teamId, revision) {
@@ -2745,18 +2745,18 @@ async function saveSavedRoster(savedTeam, team, draft, options = {}) {
       }
     }
     if (options.quiet) {
-      if (canApplyResult) setAutosaveStatus(savedTeam.id, "Autosaved", "saved");
+      if (canApplyResult) setAutosaveStatus(savedTeam.id, t("roster.autosavedStatus"), "saved");
     } else {
-      setAutosaveStatus(savedTeam.id, "Saved", "saved");
+      setAutosaveStatus(savedTeam.id, t("roster.savedStatus"), "saved");
       const button = view.querySelector("[data-save-roster]");
       if (button) {
-        button.textContent = "Saved";
-        setTimeout(() => { button.textContent = "Save Changes"; }, 1200);
+        button.textContent = t("roster.savedStatus");
+        setTimeout(() => { button.textContent = t("roster.saveChanges"); }, 1200);
       }
     }
   } catch (error) {
     if (options.quiet) {
-      setAutosaveStatus(savedTeam.id, "Autosave failed", "error");
+      setAutosaveStatus(savedTeam.id, t("roster.autosaveFailedStatus"), "error");
     } else {
       alert(error.message);
     }
@@ -2767,8 +2767,8 @@ async function copySavedRoster(team, draft) {
   await navigator.clipboard.writeText(buildRosterTextForDraft(team, draft));
   const button = view.querySelector("[data-copy-saved-roster]");
   if (button) {
-    button.textContent = "Copied";
-    setTimeout(() => { button.textContent = "Copy Roster"; }, 1200);
+    button.textContent = t("roster.copiedStatus");
+    setTimeout(() => { button.textContent = t("roster.copyRoster"); }, 1200);
   }
 }
 
@@ -3036,7 +3036,7 @@ function renderBuilderPlayerRow(player, index) {
 function renderSavedPlayerList(team, draft) {
   const players = selectedRosterPlayers(team, draft);
   if (!players.length) {
-    return `<div class="builder-empty-roster">No players in this team yet.</div>`;
+    return `<div class="builder-empty-roster">${t("savedRoster.noPlayersYet")}</div>`;
   }
   return `
     <div class="table-scroll builder-table-scroll saved-roster-table-wrap">
@@ -3044,22 +3044,22 @@ function renderSavedPlayerList(team, draft) {
         <thead>
           <tr>
             <th>#</th>
-            <th>Name</th>
-            <th>Position</th>
-            <th>MA</th>
-            <th>ST</th>
-            <th>AG</th>
-            <th>PA</th>
-            <th>AR</th>
-            <th>Skills</th>
-            <th>Add Skill</th>
-            <th>Skip</th>
-            <th>Nigling Injury</th>
+            <th>${t("roster.nameHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("roster.addSkillHeader")}</th>
+            <th>${t("roster.skipHeader")}</th>
+            <th>${t("roster.niglingInjury")}</th>
             <th>SPP</th>
-            <th>Level</th>
-            <th>Advancement</th>
-            <th>Cost</th>
-            <th>Action</th>
+            <th>${t("roster.levelHeader")}</th>
+            <th>${t("roster.advancementHeader")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("roster.actionHeader")}</th>
           </tr>
         </thead>
         <tbody>
@@ -3079,19 +3079,19 @@ function renderSavedNewPlayerTable(team, draft) {
       <table class="builder-table compact-roster-table add-player-table">
         <thead>
           <tr>
-            <th>Qty</th>
-            <th>Position</th>
-            <th>MA</th>
-            <th>ST</th>
-            <th>AG</th>
-            <th>PA</th>
-            <th>AR</th>
-            <th>Skills</th>
-            <th>Primary</th>
-            <th>Secondary</th>
-            <th>Cost</th>
-            <th>Roster</th>
-            <th>Add</th>
+            <th>${t("roster.qtyHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("roster.primary")}</th>
+            <th>${t("roster.secondary")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("savedRoster.rosterHeading")}</th>
+            <th>${t("common.add")}</th>
           </tr>
         </thead>
         <tbody>
@@ -3142,36 +3142,36 @@ function renderSavedPlayerRow(team, player, index) {
             `).join("")}
           </div>
         ` : ""}
-        ${eliteCost ? `<p class="cost-note">Elite combo: +${eliteCost}k</p>` : ""}
+        ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
       </td>
       <td>
         <div class="table-skill-editor">
-          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="Skill..." data-saved-player-skill>
+          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="${t("roster.skillPlaceholder")}" data-saved-player-skill>
           <datalist id="${escapeHtml(skillInputId)}">
             ${skillOptions.map((option) => `
-              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? "Secondary" : "Primary")}"></option>
+              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
             `).join("")}
           </datalist>
-          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>Add</button>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
         </div>
       </td>
       <td>
-        <label class="table-checkbox" title="Skip Next Game">
+        <label class="table-checkbox" title="${t("roster.skipNextGame")}">
           <input type="checkbox" data-saved-player-skip ${player.skipNextGame ? "checked" : ""}>
-          <span>Skip</span>
+          <span>${t("roster.skipHeader")}</span>
         </label>
       </td>
       <td>
-        <label class="table-checkbox" title="Nigling Injury">
+        <label class="table-checkbox" title="${t("roster.niglingInjury")}">
           <input type="checkbox" data-saved-player-nigling ${player.niglingInjury ? "checked" : ""}>
-          <span>Nigling Injury</span>
+          <span>${t("roster.niglingInjury")}</span>
         </label>
       </td>
       <td class="spp-cell">${renderPlayerSppControls(team, player)}</td>
       <td class="level-cell">${renderPlayerLevelCell(team, player)}</td>
       <td class="advancement-cell">${renderPlayerAdvancementControls(team, player)}</td>
       <td>${escapeHtml(rowCost(player.row) || "-")}${adjustment ? `<span class="cost-note inline-cost-note">${adjustment > 0 ? "+" : ""}${adjustment}k</span>` : ""}</td>
-      <td><button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">Remove</button></td>
+      <td><button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button></td>
     </tr>
   `;
 }
@@ -3190,42 +3190,42 @@ function renderSavedPlayerCard(team, player, index) {
           <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
         </div>
-        <button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">Remove</button>
+        <button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button>
       </header>
 
       <section class="mobile-player-section">
-        <h3>Stats</h3>
+        <h3>${t("roster.statsHeading")}</h3>
         ${renderEditableStatLine(player)}
       </section>
 
       <section class="mobile-player-section">
-        <h3>Skills</h3>
+        <h3>${t("roster.skillsLabel")}</h3>
         <div class="mobile-player-pills">
           ${renderRosterLinks(player.row.skills)}
           ${extraSkills.map((skill) => `
             <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
           `).join("")}
         </div>
-        ${eliteCost ? `<p class="cost-note">Elite combo: +${eliteCost}k</p>` : ""}
+        ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
         <div class="table-skill-editor mobile-skill-editor">
-          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="Skill..." data-saved-player-skill>
+          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="${t("roster.skillPlaceholder")}" data-saved-player-skill>
           <datalist id="${escapeHtml(skillInputId)}">
             ${skillOptions.map((option) => `
-              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? "Secondary" : "Primary")}"></option>
+              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
             `).join("")}
           </datalist>
-          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>Add</button>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
         </div>
       </section>
 
       <section class="mobile-player-section mobile-player-checks">
-        <label class="table-checkbox" title="Skip Next Game">
+        <label class="table-checkbox" title="${t("roster.skipNextGame")}">
           <input type="checkbox" data-saved-player-skip ${player.skipNextGame ? "checked" : ""}>
-          <span>Skip Next Game</span>
+          <span>${t("roster.skipNextGame")}</span>
         </label>
-        <label class="table-checkbox" title="Nigling Injury">
+        <label class="table-checkbox" title="${t("roster.niglingInjury")}">
           <input type="checkbox" data-saved-player-nigling ${player.niglingInjury ? "checked" : ""}>
-          <span>Nigling Injury</span>
+          <span>${t("roster.niglingInjury")}</span>
         </label>
       </section>
 
@@ -3236,11 +3236,11 @@ function renderSavedPlayerCard(team, player, index) {
 
       <section class="mobile-player-section mobile-advancement-section">
         <div>
-          <h3>Level</h3>
+          <h3>${t("roster.levelHeader")}</h3>
           ${renderPlayerLevelCell(team, player)}
         </div>
         <div>
-          <h3>Advancement</h3>
+          <h3>${t("roster.advancementHeader")}</h3>
           ${renderPlayerAdvancementControls(team, player)}
         </div>
       </section>
@@ -3259,7 +3259,7 @@ function renderPlayerSppControls(team, player) {
         </label>
       `).join("")}
     </div>
-    <strong class="spp-total" data-player-spp-total>${playerSppTotal(team, player)} SPP earned</strong>
+    <strong class="spp-total" data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</strong>
   `;
 }
 
@@ -3269,8 +3269,8 @@ function renderPlayerLevelCell(team, player) {
     <div class="player-level-stack">
       <strong>${level}</strong>
       <span>${escapeHtml(playerLevelRank(player))}</span>
-      <small data-player-spent-spp>${playerAdvancementSpent(player)} SPP spent</small>
-      <small data-player-available-spp>${playerAvailableSpp(team, player)} SPP available</small>
+      <small data-player-spent-spp>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small>
+      <small data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
     </div>
   `;
 }
@@ -3290,10 +3290,10 @@ function renderPlayerAdvancementControls(team, player) {
               <option value="${type}">${escapeHtml(`${label} (${nextRank.costs[type]} SPP)`)}</option>
             `).join("")}
           </select>
-          <button class="filter-button compact-action" type="button" data-saved-player-add-advancement>Add</button>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-advancement>${t("common.add")}</button>
         </div>
-        <small class="advancement-next" data-player-next-advancement>Next: ${escapeHtml(nextRank.rank)}, ${available} SPP available</small>
-      ` : `<span class="muted-text">Max level</span>`}
+        <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}, ${available} ${t("roster.sppAvailable")}</small>
+      ` : `<span class="muted-text">${t("roster.maxLevel")}</span>`}
       <div class="advancement-list">
         ${advancements.length ? advancements.map((advancement, index) => {
     const cost = advancementRanks[index]?.costs?.[advancement.type] ?? 0;
@@ -3303,7 +3303,7 @@ function renderPlayerAdvancementControls(team, player) {
               ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP x`)}
             </button>
           `;
-  }).join("") : `<span class="muted-text">No advancements yet.</span>`}
+  }).join("") : `<span class="muted-text">${t("roster.noAdvancementsYet")}</span>`}
       </div>
     </div>
   `;
