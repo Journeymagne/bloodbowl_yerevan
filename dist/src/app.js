@@ -52,6 +52,7 @@
     teamSlug: "",
     teamName: "",
     selectedLeague: "",
+    favouredChoice: "",
     logoData: "",
     players: [],
     roster: {},
@@ -62,6 +63,9 @@
     dedicatedFans: 0,
     assistantCoaches: 0,
     cheerleaders: 0,
+    apothecary: 0,
+    mortuaryAssistant: 0,
+    plagueDoctor: 0,
     purchasedStaff: {},
     treasury: 0,
     coachesSafe: 0,
@@ -145,6 +149,9 @@ const builderStaffCosts = {
   dedicatedFans: 10,
   assistantCoaches: 10,
   cheerleaders: 10,
+  apothecary: 50,
+  mortuaryAssistant: 100,
+  plagueDoctor: 100,
 };
 
 const builderStaffMaximums = {
@@ -154,7 +161,16 @@ const builderStaffMaximums = {
   dedicatedFans: 6,
   assistantCoaches: 6,
   cheerleaders: 6,
+  apothecary: 1,
+  mortuaryAssistant: 1,
+  plagueDoctor: 1,
 };
+
+const medicalStaffDefinitions = [
+  { key: "apothecary", title: "Apothecary", access: "apothecary" },
+  { key: "mortuaryAssistant", title: "Mortuary Assistant", access: "mortuary" },
+  { key: "plagueDoctor", title: "Plague Doctor", access: "plague" },
+];
 
 const rosterSlotCount = 14;
 
@@ -227,6 +243,153 @@ const quickPreviews = new Map([
   ["Leagues", "League access cards with eligible teams and available star players."],
   ["Reference Sources", "External references for base Blood Bowl 2025 wording and the site's legal/source notes."],
 ]);
+
+const overviewCards = [
+  {
+    slug: "code-of-conduct",
+    title: "Code Of Conduct",
+    summary: "Fair play, rollbacks, tilt control, reporting, and how to keep the match pleasant.",
+    sections: [
+      {
+        title: "How to Be a Great Player",
+        items: [
+          "Play fair and with respect for your opponent.",
+          "Rollbacks are allowed for any actions, but only before the dice are thrown.",
+          "Control your frustration (tilt) over the dice rolls.",
+          "Report match results to the organizer on time.",
+          "Ask the organizer immediately if you have any questions about rules that you cannot find the answer to.",
+          "Notify in advance if you cannot play your match on time.",
+          "Enjoy the football!",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "general-rules",
+    title: "General Rules",
+    summary: "League formats, match procedures, model standards, and basic registration rules.",
+    sections: [
+      {
+        title: "League Formats",
+        items: [
+          "Season: A major event lasting about 3-4 months, with a defined start, end, and fixed roster of participants. Match schedules and times are strictly designated.",
+          "Tournaments: Events played over 1-2 days, typically serving as season finales or fun cup events.",
+          "Off-season: Friendly matches that can be played at any time, provided the team is not currently participating in another event. This is a great way to develop your team before the season. You may register up to 6 games per month in this format.",
+          "Match results must be reported within 1-3 days of completion. Failure to comply may result in penalties, up to and including the annulment of match results.",
+          "A single coach may register up to 4 teams in the league.",
+          "If either player wishes, the game can be played with a clock. The standard format is 45 minutes per person. The timer stops for both players during pre-game preparations, kick-offs, and similar downtime.",
+        ],
+      },
+      {
+        title: "Match Procedures",
+        items: [
+          "Scheduling: For matches on designated game days, coaches must arrange the details with their opponents independently, using any convenient method.",
+          "Reporting: Match results should be reported to the commissioner using any convenient method.",
+          "Photos: It would be even better if you took some photos.",
+        ],
+      },
+      {
+        title: "Model Requirements",
+        items: [
+          "Free Starting Roster: As a personal incentive for participating, the Commissioner will provide you with 9 players - enough for a valid roster - from any 3D-printed team, completely free of charge.",
+          "Model Standards: A model must clearly represent a team player, have a base, and be of an appropriate size.",
+          "Identification: The player's number must be clearly marked on either the model or its base, matching the number listed on your team roster.",
+          "Thematic Accuracy: Models must depict Blood Bowl players; weapons like swords, generic armor, etc., are not permitted.",
+          "Conversions: Conversions are allowed.",
+          "Clarification: If you are unsure whether your model is suitable for play, please consult the Commissioner.",
+        ],
+      },
+      {
+        title: "Registration",
+        items: [
+          "Whenever registration is open, go to Season and register a valid league team.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "create-your-team",
+    title: "Create Your Team",
+    summary: "Starting budget, roster limits, specialists, registration, and model expectations.",
+    sections: [
+      {
+        title: "New Team Creation",
+        items: [
+          "Starting Budget: Teams are drafted with 600,000 gold pieces in accordance with the base rules.",
+          "Roster Size: The team size is limited to 14 players.",
+          "Specialists: In Sevens, a team can field no more than 4 specialists per drive, so be sure to purchase at least 3 players with the Lineman tag.",
+          "Registration: Create a new team on this website, then enter its name and logo.",
+        ],
+      },
+      {
+        title: "Model Requirements",
+        items: [
+          "Model Standards: A model must clearly represent a team player, have a base, and be of an appropriate size.",
+          "Identification: The player's number must be clearly marked on either the model or its base, matching the number listed on your team roster.",
+          "Thematic Accuracy: Models must depict Blood Bowl players; weapons like swords, generic armor, etc., are not permitted.",
+          "Conversions: Conversions are allowed.",
+          "Clarification: If you are unsure whether your model is suitable for play, please consult the Commissioner.",
+          "Painting: It is highly encouraged to play with a painted team. A miniature is considered painted if all details are highlighted, base shadows and highlights have been applied, and the base is finished.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "season-structure-and-scoring",
+    title: "Season Structure and Scoring",
+    summary: "Round deadlines, league points, rookie protection, prizes, and tournament structure.",
+    sections: [
+      {
+        title: "Match Conduct",
+        items: [
+          "Rounds: One round lasts two weeks, starting on a Monday and ending on a Sunday.",
+          "Deadlines: Each match must be played within its designated round.",
+          "Locations: Games can be played at the Litch Club, at Ded Max's Painting Evenings, or at someone's home by prior arrangement.",
+          "Virtual Play: If it is impossible to play in real life, the match can be played using the Tabletop Simulator (TTS) mod.",
+          "Scheduling: Time proposals for matches must be submitted by the end of Friday. If a coach only provides scheduling proposals over the weekend and the match is ultimately not played, the Commissioner will favor the coach who provided their availability in advance.",
+          "Incomplete Matches: If a match is not played within the round, the result will be determined by the Commissioner.",
+          "Season Start: At the beginning of the season, all missed game penalties are removed from all players.",
+        ],
+      },
+      {
+        title: "League Points",
+        items: [
+          "3 points for a win.",
+          "1 point for a draw.",
+          "2 points for a technical win.",
+          "0 points for a loss.",
+          "+1 point if the game ends with a margin of 3+ touchdowns.",
+          "+1 point if you conceded 0 touchdowns (you must score at least one yourself).",
+          "+2 points if the opponent could not field a team for the match (e.g., due to too many injuries).",
+        ],
+      },
+      {
+        title: "End-of-Season Prizes",
+        items: [
+          "At the end of the season, all teams not in the top rankings receive winnings.",
+          "10k for each match played.",
+          "20k for each victory.",
+          "10k for each draw.",
+        ],
+      },
+      {
+        title: "Rookie Protection",
+        items: [
+          "For the first 3 games after a team's creation, all injuries inflicted on its players are counted as Badly Hurt.",
+        ],
+      },
+      {
+        title: "Technical Win & Tournament Structure",
+        items: [
+          "Technical Win: The winning team is awarded 2 MVP rolls and (D3+2) * 10k gold.",
+          "Tournament Bracket: Matches are assigned using the Swiss system.",
+          "Tie-breakers: The Buchholz coefficient and head-to-head results are used for tie-breakers, followed by the total number of touchdowns and injuries.",
+          "Playoff Qualification: Depending on the number of participants, the players at the top of the standings will receive an automatic bye into the tournament's playoff winner's bracket.",
+        ],
+      },
+    ],
+  },
+];
 
 function escapeHtml(value = "") {
   return String(value)
@@ -545,6 +708,7 @@ function navRouteForPage(page) {
 
 function routeSection(route) {
   if (!route || route === "home") return "home";
+  if (route.startsWith("overview/")) return "home";
   if (route.startsWith("administration/")) return "administration";
   if (route.startsWith("players/")) return "players";
   if (sectionRoutes.has(route)) return route;
@@ -634,6 +798,33 @@ const specialRuleNames = [
   "Team Captain",
 ];
 
+const favouredAlignments = [
+  {
+    name: "Undivided",
+    skills: ["Prehensile Tail", "Extra Arms", "Disturbing Presence"],
+  },
+  {
+    name: "Hashut",
+    skills: ["Iron Hard Skin", "Horns", "Bone Hook"],
+  },
+  {
+    name: "Slaanesh",
+    skills: ["Tentacles", "Foul Appearance", "Extra Arms"],
+  },
+  {
+    name: "Nurgle",
+    skills: ["Tentacles", "Monstrous Mouth", "Bone Hook"],
+  },
+  {
+    name: "Khorne",
+    skills: ["Horns", "Iron Hard Skin", "Prehensile Tail"],
+  },
+  {
+    name: "Tzeentch",
+    skills: ["Two Heads", "Extra Arms", "Very Long Legs"],
+  },
+];
+
 const sppCounterDefinitions = [
   ["touchdowns", "TD"],
   ["casualties", "CAS"],
@@ -653,6 +844,7 @@ function emptyBuilderState(team = null) {
     editingTeamId: "",
     teamSlug: team?.slug ?? "",
     teamName: team?.title ?? "",
+    favouredChoice: "",
     logoData: "",
     players: [],
     roster: {},
@@ -663,6 +855,9 @@ function emptyBuilderState(team = null) {
     dedicatedFans: 0,
     assistantCoaches: 0,
     cheerleaders: 0,
+    apothecary: 0,
+    mortuaryAssistant: 0,
+    plagueDoctor: 0,
     purchasedStaff: {},
     treasury: 0,
     coachesSafe: 0,
@@ -679,6 +874,7 @@ function builderPayload(team) {
     teamSlug: team.slug,
     teamName: state.builder.teamName || team.title,
     selectedLeague: state.builder.selectedLeague || "",
+    favouredChoice: state.builder.favouredChoice || "",
     logoData: state.builder.logoData || "",
     players: state.builder.players,
     roster: state.builder.roster,
@@ -689,6 +885,9 @@ function builderPayload(team) {
     dedicatedFans: state.builder.dedicatedFans,
     assistantCoaches: state.builder.assistantCoaches,
     cheerleaders: state.builder.cheerleaders,
+    apothecary: state.builder.apothecary,
+    mortuaryAssistant: state.builder.mortuaryAssistant,
+    plagueDoctor: state.builder.plagueDoctor,
     purchasedStaff: state.builder.purchasedStaff ?? {},
     treasury: state.builder.treasury,
     coachesSafe: state.builder.coachesSafe,
@@ -703,6 +902,7 @@ function normalizeSavedRoster(savedTeam) {
     teamSlug: savedTeam.baseTeamSlug || roster.teamSlug || "",
     teamName: savedTeam.name || roster.teamName || "",
     selectedLeague: String(roster.selectedLeague ?? ""),
+    favouredChoice: String(roster.favouredChoice ?? ""),
     logoData: savedTeam.logoData || roster.logoData || "",
     players: Array.isArray(roster.players) ? roster.players : [],
     slots: Array.isArray(roster.slots) ? roster.slots : undefined,
@@ -714,6 +914,9 @@ function normalizeSavedRoster(savedTeam) {
     dedicatedFans: countToNumber(roster.dedicatedFans ?? 0),
     assistantCoaches: countToNumber(roster.assistantCoaches ?? 0),
     cheerleaders: countToNumber(roster.cheerleaders ?? 0),
+    apothecary: countToNumber(roster.apothecary ?? 0),
+    mortuaryAssistant: countToNumber(roster.mortuaryAssistant ?? 0),
+    plagueDoctor: countToNumber(roster.plagueDoctor ?? 0),
     purchasedStaff: normalizePurchasedStaff(roster),
     treasury: countToNumber(roster.treasury ?? 0),
     coachesSafe: countToNumber(roster.coachesSafe ?? 0),
@@ -757,6 +960,9 @@ function normalizePurchasedStaff(roster = {}) {
     bribes: countToNumber(purchased.bribes ?? 0),
     assistantCoaches: countToNumber(purchased.assistantCoaches ?? 0),
     cheerleaders: countToNumber(purchased.cheerleaders ?? 0),
+    apothecary: countToNumber(purchased.apothecary ?? 0),
+    mortuaryAssistant: countToNumber(purchased.mortuaryAssistant ?? 0),
+    plagueDoctor: countToNumber(purchased.plagueDoctor ?? 0),
   };
 }
 
@@ -764,9 +970,11 @@ function makeRosterPlayer(row, rowIndex, copyIndex = 0, options = {}) {
   return {
     id: makeRosterPlayerId(),
     rowIndex,
+    number: String(options.number ?? copyIndex + 1),
     name: `${row.position} ${copyIndex + 1}`,
     statMods: {},
     extraSkills: [],
+    favouredSkills: [],
     skipNextGame: false,
     niglingInjury: false,
     spp: {},
@@ -800,6 +1008,31 @@ function normalizePlayerExtraSkills(row, skills = []) {
     });
 }
 
+function normalizeFavouredSkill(skill) {
+  if (!skill) return null;
+  if (typeof skill === "string") return { name: skill, access: "favoured" };
+  if (typeof skill === "object" && skill.name) {
+    return {
+      name: String(skill.name),
+      access: "favoured",
+    };
+  }
+  return null;
+}
+
+function normalizePlayerFavouredSkills(row, skills = []) {
+  const seen = new Set(row.skills ?? []);
+  return skills
+    .map(normalizeFavouredSkill)
+    .filter(Boolean)
+    .map((skill) => ({ ...skill, name: String(skill.name).trim() }))
+    .filter((skill) => {
+      if (!skill.name || seen.has(skill.name)) return false;
+      seen.add(skill.name);
+      return true;
+    });
+}
+
 function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
   if (!player || typeof player !== "object") return null;
   const rowIndex = Number(player.rowIndex);
@@ -808,9 +1041,11 @@ function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
   return {
     id: String(player.id || makeRosterPlayerId()),
     rowIndex,
+    number: String(player.number ?? fallbackIndex + 1),
     name: String(player.name || `${row.position} ${fallbackIndex + 1}`),
     statMods: { ...(player.statMods ?? {}) },
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
+    favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
     skipNextGame: Boolean(player.skipNextGame),
     niglingInjury: Boolean(player.niglingInjury),
     spp: normalizeSppCounters(player.spp),
@@ -852,9 +1087,11 @@ function playersFromLegacyRoster(team, draft) {
       players.push(normalizeRosterPlayer({
         id: makeRosterPlayerId(),
         rowIndex,
+        number: edit.number ?? players.length + 1,
         name: edit.name || `${row.position} ${copyIndex + 1}`,
         statMods: edit.statMods ?? {},
         extraSkills: edit.extraSkills ?? [],
+        favouredSkills: edit.favouredSkills ?? [],
         skipNextGame: Boolean(edit.skipNextGame),
         niglingInjury: Boolean(edit.niglingInjury),
         spp: normalizeSppCounters(edit.spp),
@@ -899,9 +1136,11 @@ function rosterPlayerView(team, player, index = 0) {
     row,
     rowIndex: player.rowIndex,
     copyIndex: index,
+    number: String(player.number ?? index + 1),
     name: player.name || `${row.position} ${index + 1}`,
     statMods: player.statMods ?? {},
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
+    favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
     skipNextGame: Boolean(player.skipNextGame),
     niglingInjury: Boolean(player.niglingInjury),
     spp: normalizeSppCounters(player.spp),
@@ -914,7 +1153,11 @@ function baseSkillsForPlayer(row) {
 }
 
 function skillNamesForPlayer(row, player) {
-  return [...baseSkillsForPlayer(row), ...normalizePlayerExtraSkills(row, player.extraSkills ?? [])].map((skill) => skill.name);
+  return [
+    ...baseSkillsForPlayer(row),
+    ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
+    ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
+  ].map((skill) => skill.name);
 }
 
 function availableSkillOptionsForPlayer(row, player) {
@@ -943,6 +1186,7 @@ function statModCost(stat, mod = 0) {
 }
 
 function skillModCost(skill) {
+  if (skill?.access === "favoured") return 0;
   return skill?.access === "secondary" ? 40 : 20;
 }
 
@@ -1107,12 +1351,6 @@ function renderHeader(title, description, actions = "") {
 function renderHome() {
   setActiveNav("home");
   setViewSection("home");
-  const quickPages = [
-    ...["1. League Basics", "2. Team Creation", "3. Team Management", "4. Match Procedures", "5. Patch Notes"]
-      .map((title) => state.data.rules.find((page) => page.title === title))
-      .filter(Boolean),
-    state.data.otherPages?.find((page) => page.title === "Reference Sources"),
-  ].filter(Boolean);
 
   view.innerHTML = `
     <section class="league-hero">
@@ -1128,27 +1366,76 @@ function renderHome() {
     <section>
       <div class="page-head">
         <div>
-          <h1>Quick Start</h1>
-          <p>Jump into the most useful league pages, or use search for teams, rules, skills and star players.</p>
+          <h1>Overview</h1>
+          <p>League conduct, season structure, team creation, and match reporting in one place.</p>
         </div>
       </div>
-      <div class="card-grid quick-grid">
-        <a class="card compact" href="#/teams">
-          <h3>Teams</h3>
-          <p>${state.data.counts.teams} rosters with team-building data.</p>
-        </a>
-        <a class="card compact" href="#/builder">
-          <h3>Team Builder</h3>
-          <p>Build a 600k starting roster by adding individual players.</p>
-        </a>
-        <a class="card compact" href="#/star-players">
-          <h3>Star Players</h3>
-          <p>${state.data.counts.starPlayers} stars with costs and availability.</p>
-        </a>
-        ${quickPages.map(renderSimpleCard).join("")}
+      <div class="card-grid overview-grid">
+        ${overviewCards.map(renderOverviewIndexCard).join("")}
       </div>
     </section>
   `;
+}
+
+function overviewCardUrl(card) {
+  return `#/overview/${encodeURIComponent(card.slug)}`;
+}
+
+function findOverviewCard(slug = "") {
+  return overviewCards.find((card) => card.slug === slug) ?? null;
+}
+
+function renderOverviewIndexCard(card) {
+  return `
+    <a class="card compact overview-index-card" href="${overviewCardUrl(card)}">
+      <h3>${escapeHtml(card.title)}</h3>
+      <p>${escapeHtml(card.summary ?? "")}</p>
+    </a>
+  `;
+}
+
+function renderOverviewDetail(slug) {
+  const card = findOverviewCard(slug);
+  setActiveNav("home");
+  setViewSection("home");
+  if (!card) {
+    view.innerHTML = `
+      ${renderHeader("Overview", "League overview pages.", `<a class="primary-button" href="#/">Back</a>`)}
+      <div class="empty-state">Overview page not found.</div>
+    `;
+    return;
+  }
+  view.innerHTML = `
+    ${renderHeader(card.title, "Overview", `<a class="primary-button" href="#/">Back</a>`)}
+    <article class="content-panel content-body overview-detail">
+      ${renderOverviewContent(card)}
+    </article>
+  `;
+}
+
+function renderOverviewContent(card) {
+  return `
+    <div class="overview-card">
+      ${(card.sections ?? []).map(renderOverviewSection).join("")}
+    </div>
+  `;
+}
+
+function renderOverviewSection(section) {
+  return `
+    <section class="overview-card-section">
+      <h3>${escapeHtml(section.title)}</h3>
+      <ul class="overview-list">
+        ${(section.items ?? []).map((item) => `<li>${renderOverviewItem(item)}</li>`).join("")}
+      </ul>
+    </section>
+  `;
+}
+
+function renderOverviewItem(item = "") {
+  const match = String(item).match(/^([^:]{2,42}):\s+(.+)$/);
+  if (!match) return escapeHtml(item);
+  return `<strong>${escapeHtml(match[1])}:</strong> ${escapeHtml(match[2])}`;
 }
 
 function renderSimpleCard(page) {
@@ -1773,9 +2060,78 @@ function ensureDraftLeagueChoice(team, draft) {
   return draft.selectedLeague;
 }
 
+function favouredAlignmentName(value = "") {
+  const clean = String(value)
+    .replace(/\bFavored\b/g, "Favoured")
+    .replace(/^Favoured\s+of/i, "")
+    .replace(/\.+$/g, "")
+    .trim();
+  const key = ruleLookupKey(clean);
+  return favouredAlignments.find((alignment) => ruleLookupKey(alignment.name) === key)?.name ?? "";
+}
+
+function teamFavouredOptions(team) {
+  const rules = teamSpecialRuleTokens(team).filter((rule) => ruleLookupKey(rule).startsWith("favouredof"));
+  if (!rules.length) return [];
+  if (rules.some((rule) => ruleLookupKey(rule) === ruleLookupKey("Favoured of..."))) {
+    return favouredAlignments.map((alignment) => alignment.name);
+  }
+  const seen = new Set();
+  return rules
+    .map(favouredAlignmentName)
+    .filter((name) => {
+      const key = ruleLookupKey(name);
+      if (!name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function ensureDraftFavouredChoice(team, draft) {
+  const options = teamFavouredOptions(team);
+  if (!options.length) {
+    draft.favouredChoice = "";
+    return "";
+  }
+  const current = options.find((option) => ruleLookupKey(option) === ruleLookupKey(draft.favouredChoice));
+  draft.favouredChoice = current ?? options[0];
+  return draft.favouredChoice;
+}
+
+function favouredSkillsForChoice(choice = "") {
+  const alignment = favouredAlignments.find((item) => ruleLookupKey(item.name) === ruleLookupKey(choice));
+  return alignment?.skills ?? [];
+}
+
+function favouredSkillOptionsForPlayer(team, draft, row, player) {
+  const choice = ensureDraftFavouredChoice(team, draft);
+  if (!choice) return [];
+  const taken = new Set(skillNamesForPlayer(row, player));
+  return favouredSkillsForChoice(choice)
+    .filter((name) => !taken.has(name))
+    .map((name) => ({ name, access: "favoured", alignment: choice }));
+}
+
+function sanitizeFavouredSkillsForTeam(team, draft) {
+  const choice = ensureDraftFavouredChoice(team, draft);
+  const allowed = new Set(favouredSkillsForChoice(choice));
+  (draft.players ?? []).forEach((player) => {
+    const row = rowsForTeam(team)[player.rowIndex];
+    if (!row) return;
+    const regularSkills = new Set([
+      ...(row.skills ?? []),
+      ...normalizePlayerExtraSkills(row, player.extraSkills ?? []).map((skill) => skill.name),
+    ]);
+    player.favouredSkills = normalizePlayerFavouredSkills(row, player.favouredSkills ?? [])
+      .filter((skill) => allowed.has(skill.name) && !regularSkills.has(skill.name));
+  });
+}
+
 function renderTeamRuleAccess(team, draft, controlName = "") {
   const leagueOptions = teamLeagueOptions(team);
   const selectedLeague = ensureDraftLeagueChoice(team, draft);
+  const favouredOptions = teamFavouredOptions(team);
+  const selectedFavoured = ensureDraftFavouredChoice(team, draft);
   const specialRules = teamSpecialRuleTokens(team);
   return `
     <section class="team-rules-panel">
@@ -1795,6 +2151,16 @@ function renderTeamRuleAccess(team, draft, controlName = "") {
         <span>Special rules</span>
         <div class="rule-link-list">${renderRuleLinks(specialRules)}</div>
       </div>
+      ${favouredOptions.length ? `
+        <div class="team-rules-row">
+          <span>Favoured Of</span>
+          ${favouredOptions.length > 1 ? `
+            <select ${controlName ? `data-${controlName}-favoured` : ""}>
+              ${favouredOptions.map((option) => renderOption(option, option, selectedFavoured)).join("")}
+            </select>
+          ` : `<strong>${escapeHtml(selectedFavoured)}</strong>`}
+        </div>
+      ` : ""}
     </section>
   `;
 }
@@ -3599,7 +3965,9 @@ async function renderSavedRoster(teamId, refresh = true, options = {}) {
   if (!draft.teamSlug && teams[0]) draft.teamSlug = teams[0].slug;
   const team = teams.find((item) => item.slug === draft.teamSlug) ?? teams[0];
   ensureDraftLeagueChoice(team, draft);
+  syncMedicalStaffForTeam(team, draft);
   ensureDraftPlayers(team, draft);
+  sanitizeFavouredSkillsForTeam(team, draft);
   const costs = calculateRosterCosts(team, draft);
   const warnings = rosterWarnings(team, draft, costs);
   const backUrl = isAdminEdit ? `#/administration/users/${encodeURIComponent(owner?.id || options.adminOwnerId)}` : "#/my-teams";
@@ -3607,9 +3975,11 @@ async function renderSavedRoster(teamId, refresh = true, options = {}) {
 
   view.innerHTML = `
     ${renderHeader(titlePrefix, `${team.title} roster${isAdminEdit && owner ? ` · ${owner.login}` : ""}`, `<a class="primary-button" href="${backUrl}">Back</a>`)}
-    ${renderSavedRosterIdentity(team, draft, teams)}
-    ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
-    ${renderSavedRosterPurchases(draft)}
+    <div class="saved-roster-top-grid">
+      ${renderSavedRosterIdentity(team, draft, teams)}
+      ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
+    </div>
+    ${renderSavedRosterPurchases(team, draft)}
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
         <section class="builder-selected">
@@ -3632,7 +4002,7 @@ async function renderSavedRoster(teamId, refresh = true, options = {}) {
 function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
   const autosave = autosaveStatusFor(savedTeam.id);
   return `
-    <aside class="builder-summary builder-summary-horizontal saved-roster-summary-panel side-panel">
+    <aside class="builder-summary saved-roster-summary-panel side-panel">
       <div class="summary-title-block">
         <h3>Roster Summary</h3>
         <p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosave.status)}">${escapeHtml(autosave.message)}</p>
@@ -3691,42 +4061,68 @@ function renderSavedRosterIdentity(team, draft, teams) {
   `;
 }
 
-function renderSavedRosterPurchases(draft) {
+function renderSavedRosterPurchases(team, draft) {
   return `
-    <section class="roster-controls-panel side-panel">
-      <h2>Purchases</h2>
-      <div class="builder-form roster-money-form">
-        <label class="filter-field">
-          <span>Treasury, k</span>
-          <input type="number" step="10" value="${countToNumber(draft.treasury)}" data-roster-treasury>
-        </label>
-        <label class="filter-field">
-          <span>Coach's Safe, k</span>
-          <input type="number" step="10" value="${countToNumber(draft.coachesSafe)}" data-roster-coaches-safe>
-        </label>
-      </div>
-      <div class="builder-tracker-list roster-tracker-list" aria-label="Roster purchase trackers">
-        <label class="filter-field">
-          <span>Starting rerolls</span>
-          <div class="inline-stepper-control">
-            <button class="filter-button" type="button" data-roster-reroll="-1" ${countToNumber(draft.startingRerolls) <= 0 ? "disabled" : ""}>-</button>
-            <strong>${countToNumber(draft.startingRerolls)}</strong>
-            <button class="filter-button" type="button" data-roster-reroll="1">+</button>
-          </div>
-        </label>
-        <label class="filter-field">
-          <span>Team Rerolls, 120k</span>
-          <div class="inline-stepper-control">
-            <button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>
-            <strong>${countToNumber(draft.teamRerolls)}</strong>
-            <button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>
-          </div>
-        </label>
-        ${renderRosterStaffControl("dedicatedFans", "Dedicated Fans", draft.dedicatedFans)}
+    <div class="roster-purchases-layout">
+      <section class="roster-controls-panel roster-resources-panel side-panel">
+        <h2>Team Resources</h2>
+        <div class="builder-tracker-list roster-resource-list" aria-label="Team resource trackers">
+          ${renderRosterStaffControl("dedicatedFans", "Dedicated Fans", draft.dedicatedFans)}
+          ${renderRosterMoneyControl("Treasury", "Spendable team balance", draft.treasury, "data-roster-treasury")}
+          ${renderRosterMoneyControl("Coach's Safe", "Locked reserve", draft.coachesSafe, "data-roster-coaches-safe")}
+        </div>
+      </section>
+      <section class="roster-controls-panel roster-purchases-panel side-panel">
+        <h2>Purchases</h2>
+        <div class="builder-tracker-list roster-tracker-list roster-purchase-grid" aria-label="Roster purchase trackers">
+        ${renderRosterCounterControl(
+          "Starting rerolls",
+          "60k each",
+          countToNumber(draft.startingRerolls),
+          `<button class="filter-button" type="button" data-roster-reroll="-1" ${countToNumber(draft.startingRerolls) <= 0 ? "disabled" : ""}>-</button>`,
+          `<button class="filter-button" type="button" data-roster-reroll="1">+</button>`,
+        )}
+        ${renderRosterCounterControl(
+          "Team Rerolls",
+          "120k each",
+          countToNumber(draft.teamRerolls),
+          `<button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>`,
+          `<button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>`,
+        )}
         ${renderRosterStaffControl("assistantCoaches", "Assistant Coaches", draft.assistantCoaches)}
         ${renderRosterStaffControl("cheerleaders", "Cheerleaders", draft.cheerleaders)}
+        ${availableMedicalStaffDefinitions(team).map((staff) => renderRosterStaffControl(staff.key, staff.title, draft[staff.key])).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderRosterMoneyControl(title, description, value, dataAttribute) {
+  return `
+    <label class="builder-addon compact-staff-control roster-purchase-card roster-money-card">
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(description)}</span>
       </div>
-    </section>
+      <input class="table-input roster-purchase-input" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
+    </label>
+  `;
+}
+
+function renderRosterCounterControl(title, description, value, minusButton, plusButton) {
+  return `
+    <div class="builder-addon compact-staff-control roster-purchase-card">
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </div>
+      <div class="inline-stepper-control">
+        ${minusButton}
+        <strong>${value}</strong>
+        ${plusButton}
+      </div>
+    </div>
   `;
 }
 
@@ -3746,20 +4142,15 @@ function renderRosterAddon(key, title, description, max, value, cost, disabled =
 function renderRosterStaffControl(key, title, value) {
   const max = builderStaffMaximums[key] ?? 6;
   const current = countToNumber(value);
-  const description = key === "dedicatedFans" ? "Post-match value" : "10k each";
-  return `
-    <div class="builder-addon compact-staff-control">
-      <div>
-        <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(description)}</span>
-      </div>
-      <div class="inline-stepper-control">
-        <button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>
-        <strong>${current}</strong>
-        <button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="1" ${current >= max ? "disabled" : ""}>+</button>
-      </div>
-    </div>
-  `;
+  const cost = builderStaffCosts[key] ?? 0;
+  const description = key === "dedicatedFans" ? "Post-match value" : `${cost}k${max > 1 ? " each" : ""}`;
+  return renderRosterCounterControl(
+    title,
+    description,
+    current,
+    `<button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>`,
+    `<button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="1" ${current >= max ? "disabled" : ""}>+</button>`,
+  );
 }
 
 function rowCountInSlots(draft, rowIndex) {
@@ -3922,6 +4313,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     draft.teamSlug = nextTeam.slug;
     draft.players = [];
     draft.selectedLeague = "";
+    draft.favouredChoice = "";
     syncRosterCountsFromPlayers(draft);
     if (!draft.teamName) draft.teamName = nextTeam.title;
     rerender();
@@ -3947,6 +4339,11 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     draft.selectedLeague = event.currentTarget.value;
     updateSavedRosterFields(savedTeam, draft);
     autosave();
+  });
+  view.querySelector("[data-roster-favoured]")?.addEventListener("change", (event) => {
+    draft.favouredChoice = event.currentTarget.value;
+    sanitizeFavouredSkillsForTeam(team, draft);
+    rerender();
   });
   view.querySelector("[data-roster-logo]")?.addEventListener("change", async (event) => {
     const file = event.currentTarget.files?.[0];
@@ -4007,6 +4404,71 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   view.querySelector("[data-copy-saved-roster]")?.addEventListener("click", () => copySavedRoster(team, draft));
 }
 
+function moveRosterPlayer(draft, draggedId, targetId, position = "before") {
+  if (!draggedId || !targetId || draggedId === targetId || !Array.isArray(draft.players)) return false;
+  const fromIndex = draft.players.findIndex((player) => player.id === draggedId);
+  if (fromIndex === -1) return false;
+  const [dragged] = draft.players.splice(fromIndex, 1);
+  const targetIndex = draft.players.findIndex((player) => player.id === targetId);
+  if (targetIndex === -1) {
+    draft.players.splice(fromIndex, 0, dragged);
+    return false;
+  }
+  const insertIndex = position === "after" ? targetIndex + 1 : targetIndex;
+  draft.players.splice(insertIndex, 0, dragged);
+  return true;
+}
+
+function wireSavedRosterDragAndDrop(draft, rerender) {
+  let draggedId = "";
+  view.querySelectorAll(".saved-roster-table tbody tr[data-roster-player]").forEach((row) => {
+    row.addEventListener("dragstart", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest("[data-player-drag-handle]")) {
+        event.preventDefault();
+        return;
+      }
+      draggedId = row.dataset.rosterPlayer || "";
+      row.classList.add("is-dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggedId);
+      }
+    });
+
+    row.addEventListener("dragover", (event) => {
+      if (!draggedId || draggedId === row.dataset.rosterPlayer) return;
+      event.preventDefault();
+      const rect = row.getBoundingClientRect();
+      row.dataset.dropPosition = event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+      row.classList.toggle("drop-after", row.dataset.dropPosition === "after");
+      row.classList.toggle("drop-before", row.dataset.dropPosition !== "after");
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    });
+
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("drop-before", "drop-after");
+      delete row.dataset.dropPosition;
+    });
+
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const targetId = row.dataset.rosterPlayer || "";
+      const moved = moveRosterPlayer(draft, draggedId, targetId, row.dataset.dropPosition);
+      draggedId = "";
+      if (moved) rerender();
+    });
+
+    row.addEventListener("dragend", () => {
+      draggedId = "";
+      view.querySelectorAll(".saved-roster-table tbody tr").forEach((item) => {
+        item.classList.remove("is-dragging", "drop-before", "drop-after");
+        delete item.dataset.dropPosition;
+      });
+    });
+  });
+}
+
 function wireSavedPlayerEditors(team, draft, rerender) {
   const autosave = () => scheduleSavedRosterAutosave(draft.editingTeamId);
   view.querySelectorAll("[data-roster-player]").forEach((card) => {
@@ -4014,6 +4476,10 @@ function wireSavedPlayerEditors(team, draft, rerender) {
     if (!player) return;
     card.querySelector("[data-saved-player-name]")?.addEventListener("input", (event) => {
       player.name = event.currentTarget.value;
+      autosave();
+    });
+    card.querySelector("[data-saved-player-number]")?.addEventListener("input", (event) => {
+      player.number = event.currentTarget.value;
       autosave();
     });
     card.querySelector("[data-saved-player-skip]")?.addEventListener("change", (event) => {
@@ -4065,6 +4531,7 @@ function wireSavedPlayerEditors(team, draft, rerender) {
       if (player.extraSkills.some((skill) => skill.name === option.name)) return;
       player.extraSkills.push({ name: option.name, access: option.access });
       player.extraSkills = normalizePlayerExtraSkills(row, player.extraSkills);
+      sanitizeFavouredSkillsForTeam(team, draft);
       rerender();
     });
     card.querySelectorAll("[data-saved-player-remove-skill]").forEach((button) => {
@@ -4073,10 +4540,34 @@ function wireSavedPlayerEditors(team, draft, rerender) {
         rerender();
       });
     });
+    card.querySelector("[data-saved-player-add-favoured]")?.addEventListener("click", () => {
+      const input = card.querySelector("[data-saved-player-favoured-skill]");
+      const row = rowsForTeam(team)[player.rowIndex];
+      if (!row) return;
+      const typed = String(input?.value || "").trim();
+      const option = favouredSkillOptionsForPlayer(team, draft, row, player)
+        .find((item) => item.name.toLowerCase() === typed.toLowerCase());
+      if (!option) {
+        if (input) input.value = "";
+        return;
+      }
+      player.favouredSkills ??= [];
+      if (player.favouredSkills.some((skill) => skill.name === option.name)) return;
+      player.favouredSkills.push({ name: option.name, access: "favoured" });
+      sanitizeFavouredSkillsForTeam(team, draft);
+      rerender();
+    });
+    card.querySelectorAll("[data-saved-player-remove-favoured]").forEach((button) => {
+      button.addEventListener("click", () => {
+        player.favouredSkills = (player.favouredSkills ?? [])
+          .filter((skill) => (typeof skill === "string" ? skill : skill.name) !== button.dataset.savedPlayerRemoveFavoured);
+        rerender();
+      });
+    });
     card.querySelector("[data-saved-player-add-advancement]")?.addEventListener("click", () => {
       const type = card.querySelector("[data-saved-player-advancement-type]")?.value ?? "primary";
       const cost = nextAdvancementCost(player, type);
-      if (!cost || playerAvailableSpp(team, player) < cost) return;
+      if (!cost) return;
       player.advancements = normalizePlayerAdvancements(player.advancements);
       player.advancements.push({ type });
       rerender();
@@ -4090,6 +4581,7 @@ function wireSavedPlayerEditors(team, draft, rerender) {
       });
     });
   });
+  wireSavedRosterDragAndDrop(draft, rerender);
   view.querySelectorAll("[data-remove-saved-player]").forEach((button) => {
     button.addEventListener("click", () => {
       const removed = draft.players.find((player) => player.id === button.dataset.removeSavedPlayer);
@@ -4192,6 +4684,7 @@ async function runSavedRosterAutosave(teamId, revision) {
   const team = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? state.data.teams[0];
   if (!team) return;
   ensureDraftPlayers(team, draft);
+  sanitizeFavouredSkillsForTeam(team, draft);
   await saveSavedRoster(savedTeam, team, draft, { quiet: true, revision });
 }
 
@@ -4262,7 +4755,9 @@ function renderBuilder() {
   }
   const team = teams.find((item) => item.slug === state.builder.teamSlug) ?? teams[0];
   ensureDraftLeagueChoice(team, state.builder);
+  syncMedicalStaffForTeam(team, state.builder);
   ensureDraftPlayers(team, state.builder);
+  sanitizeFavouredSkillsForTeam(team, state.builder);
   const costs = calculateBuilderCosts(team);
   const warnings = builderWarnings(team, costs);
 
@@ -4270,7 +4765,7 @@ function renderBuilder() {
     ${renderHeader("Team Builder", "Build a 600k starting roster by clicking available players.")}
     ${renderBuilderIdentity(team, teams)}
     ${renderBuilderSummary(team, costs, warnings)}
-    ${renderBuilderPurchases(costs)}
+    ${renderBuilderPurchases(team, costs)}
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
         <section class="builder-pool">
@@ -4318,7 +4813,7 @@ function renderBuilderIdentity(team, teams) {
   `;
 }
 
-function renderBuilderPurchases(costs) {
+function renderBuilderPurchases(team, costs) {
   return `
     <section class="roster-controls-panel side-panel">
       <h2>Purchases</h2>
@@ -4337,6 +4832,10 @@ function renderBuilderPurchases(costs) {
         ${renderBuilderStaffControl("dedicatedFans", "Dedicated Fans", state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
         ${renderBuilderStaffControl("assistantCoaches", "Assistant Coaches", state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
         ${renderBuilderStaffControl("cheerleaders", "Cheerleaders", state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
+        ${availableMedicalStaffDefinitions(team).map((staff) => {
+          const blocked = costs.total + (builderStaffCosts[staff.key] ?? 0) > 600;
+          return renderBuilderStaffControl(staff.key, staff.title, state.builder[staff.key], blocked);
+        }).join("")}
       </div>
     </section>
   `;
@@ -4453,11 +4952,12 @@ function renderAvailablePlayerCard(row, rowIndex, draft, costs, enforceBudget = 
 function renderBuilderStaffControl(key, title, value, plusBlocked = false) {
   const max = builderStaffMaximums[key] ?? 6;
   const current = countToNumber(value);
+  const cost = builderStaffCosts[key] ?? 0;
   return `
     <div class="builder-addon compact-staff-control builder-tracker-control">
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>10k each</span>
+        <span>${cost}k${max > 1 ? " each" : ""}</span>
       </div>
       <div class="inline-stepper-control">
         <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>
@@ -4600,6 +5100,7 @@ function renderBuilderPlayerCard(player, index) {
 
 function renderSavedPlayerList(team, draft) {
   const players = selectedRosterPlayers(team, draft);
+  const hasFavouredAccess = teamFavouredOptions(team).length > 0;
   if (!players.length) {
     return `<div class="builder-empty-roster">No players in this team yet.</div>`;
   }
@@ -4623,17 +5124,18 @@ function renderSavedPlayerList(team, draft) {
             <th>SPP</th>
             <th>Level</th>
             <th>Advancement</th>
+            ${hasFavouredAccess ? "<th>Favoured Of</th>" : ""}
             <th>Cost</th>
             <th>Action</th>
           </tr>
         </thead>
         <tbody>
-          ${players.map((player, index) => renderSavedPlayerRow(team, player, index)).join("")}
+          ${players.map((player, index) => renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess)).join("")}
         </tbody>
       </table>
     </div>
     <div class="saved-roster-mobile-list">
-      ${players.map((player, index) => renderSavedPlayerCard(team, player, index)).join("")}
+      ${players.map((player, index) => renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess)).join("")}
     </div>
   `;
 }
@@ -4684,15 +5186,51 @@ function renderSavedNewPlayerTable(team, draft) {
   `;
 }
 
-function renderSavedPlayerRow(team, player, index) {
+function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
+  const choice = ensureDraftFavouredChoice(team, draft);
+  if (!choice) return `<span class="muted-text">-</span>`;
+  const options = favouredSkillOptionsForPlayer(team, draft, player.row, player);
+  return `
+    <div class="favoured-skill-editor">
+      <small>${escapeHtml(choice)}</small>
+      <div class="table-skill-editor">
+        <input class="table-input" type="text" list="${escapeHtml(inputId)}" placeholder="Favoured skill..." data-saved-player-favoured-skill ${!options.length ? "disabled" : ""}>
+        <datalist id="${escapeHtml(inputId)}">
+          ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
+        </datalist>
+        <button class="filter-button compact-action" type="button" data-saved-player-add-favoured ${!options.length ? "disabled" : ""}>Add</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderFavouredSkillButtons(player) {
+  const favouredSkills = normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []);
+  if (!favouredSkills.length) return "";
+  return `
+    <div class="player-extra-skills table-extra-skills favoured-extra-skills">
+      ${favouredSkills.map((skill) => `
+        <button class="roster-pill favoured-skill-pill" type="button" data-saved-player-remove-favoured="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = false) {
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
   const adjustment = playerAdjustmentCost(player);
   const eliteCost = eliteComboCost(player.row, player);
   const skillInputId = `skill-options-${index}`;
+  const favouredInputId = `favoured-skill-options-${index}`;
   const skillOptions = availableSkillOptionsForPlayer(player.row, player);
   return `
-    <tr data-roster-player="${escapeHtml(player.id)}">
-      <td>${index + 1}</td>
+    <tr data-roster-player="${escapeHtml(player.id)}" draggable="true">
+      <td class="saved-number-cell">
+        <div class="saved-number-control">
+          <button class="filter-button compact-action drag-handle table-drag-handle" type="button" draggable="true" data-player-drag-handle title="Drag to reorder" aria-label="Drag to reorder">↕</button>
+          <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
+        </div>
+      </td>
       <td>
         <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
       </td>
@@ -4707,6 +5245,7 @@ function renderSavedPlayerRow(team, player, index) {
             `).join("")}
           </div>
         ` : ""}
+        ${renderFavouredSkillButtons(player)}
         ${eliteCost ? `<p class="cost-note">Elite combo: +${eliteCost}k</p>` : ""}
       </td>
       <td>
@@ -4735,23 +5274,28 @@ function renderSavedPlayerRow(team, player, index) {
       <td class="spp-cell">${renderPlayerSppControls(team, player)}</td>
       <td class="level-cell">${renderPlayerLevelCell(team, player)}</td>
       <td class="advancement-cell">${renderPlayerAdvancementControls(team, player)}</td>
+      ${hasFavouredAccess ? `<td class="favoured-skill-cell">${renderSavedPlayerFavouredEditor(team, draft, player, favouredInputId)}</td>` : ""}
       <td>${escapeHtml(rowCost(player.row) || "-")}${adjustment ? `<span class="cost-note inline-cost-note">${adjustment > 0 ? "+" : ""}${adjustment}k</span>` : ""}</td>
       <td><button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">Remove</button></td>
     </tr>
   `;
 }
 
-function renderSavedPlayerCard(team, player, index) {
+function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = false) {
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
   const adjustment = playerAdjustmentCost(player);
   const eliteCost = eliteComboCost(player.row, player);
   const skillInputId = `mobile-skill-options-${index}`;
+  const favouredInputId = `mobile-favoured-skill-options-${index}`;
   const skillOptions = availableSkillOptionsForPlayer(player.row, player);
   return `
     <article class="saved-roster-player-card mobile-roster-player-card" data-roster-player="${escapeHtml(player.id)}">
       <header>
         <div class="mobile-player-title">
-          <span>#${index + 1}</span>
+          <label class="mobile-player-number">
+            <span>No.</span>
+            <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
+          </label>
           <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
         </div>
@@ -4770,6 +5314,7 @@ function renderSavedPlayerCard(team, player, index) {
           ${extraSkills.map((skill) => `
             <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
           `).join("")}
+          ${renderFavouredSkillButtons(player)}
         </div>
         ${eliteCost ? `<p class="cost-note">Elite combo: +${eliteCost}k</p>` : ""}
         <div class="table-skill-editor mobile-skill-editor">
@@ -4781,6 +5326,7 @@ function renderSavedPlayerCard(team, player, index) {
           </datalist>
           <button class="filter-button compact-action" type="button" data-saved-player-add-skill>Add</button>
         </div>
+        ${hasFavouredAccess ? renderSavedPlayerFavouredEditor(team, draft, player, favouredInputId) : ""}
       </section>
 
       <section class="mobile-player-section mobile-player-checks">
@@ -5116,6 +5662,43 @@ function hasBribery(team) {
   return /bribery\s+and\s+corruption/i.test(team.team?.meta?.specialRules ?? "");
 }
 
+function teamApothecaryAccess(team) {
+  return cleanApothecary(team.team?.meta?.apothecary ?? "");
+}
+
+function teamHasFavouredOf(team, alignment) {
+  const expected = ruleLookupKey(`Favoured of ${alignment}`);
+  return teamSpecialRuleTokens(team).some((rule) => ruleLookupKey(rule) === expected);
+}
+
+function canHireMedicalStaff(team, staff) {
+  const apothecaryAccess = teamApothecaryAccess(team);
+  if (staff.access === "apothecary") return /\bavailable\b/i.test(apothecaryAccess);
+  if (staff.access === "mortuary") {
+    return /mortuary\s+assistant/i.test(apothecaryAccess) || teamHasSpecialRule(team, "Masters of Undeath");
+  }
+  if (staff.access === "plague") {
+    return /plague\s+doctor/i.test(apothecaryAccess) || teamHasFavouredOf(team, "Nurgle");
+  }
+  return false;
+}
+
+function availableMedicalStaffDefinitions(team) {
+  return medicalStaffDefinitions.filter((staff) => canHireMedicalStaff(team, staff));
+}
+
+function syncMedicalStaffForTeam(team, draft) {
+  const availableKeys = new Set(availableMedicalStaffDefinitions(team).map((staff) => staff.key));
+  medicalStaffDefinitions.forEach((staff) => {
+    if (!availableKeys.has(staff.key)) {
+      draft[staff.key] = 0;
+      if (draft.purchasedStaff) draft.purchasedStaff[staff.key] = 0;
+      return;
+    }
+    draft[staff.key] = clamp(countToNumber(draft[staff.key]), 0, builderStaffMaximums[staff.key] ?? 1);
+  });
+}
+
 function calculateBuilderCosts(team) {
   return calculateRosterCosts(team, state.builder, { includeDedicatedFans: true });
 }
@@ -5172,7 +5755,8 @@ function calculateRosterCosts(team, draft, options = {}) {
     + staffItemCost(draft, "teamRerolls")
     + (includeDedicatedFans ? staffItemCost(draft, "dedicatedFans") : 0)
     + staffItemCost(draft, "assistantCoaches")
-    + staffItemCost(draft, "cheerleaders");
+    + staffItemCost(draft, "cheerleaders")
+    + medicalStaffDefinitions.reduce((sum, staff) => sum + staffItemCost(draft, staff.key), 0);
   const total = playersCost + staffCost;
   return {
     playersCount,
@@ -5213,6 +5797,9 @@ function wireBuilder(team) {
   });
   view.querySelector("[data-builder-league]")?.addEventListener("change", (event) => {
     state.builder.selectedLeague = event.currentTarget.value;
+  });
+  view.querySelector("[data-builder-favoured]")?.addEventListener("change", (event) => {
+    state.builder.favouredChoice = event.currentTarget.value;
   });
   view.querySelector("[data-builder-name]")?.addEventListener("input", (event) => {
     state.builder.teamName = event.currentTarget.value;
@@ -5415,12 +6002,13 @@ function buildRosterTextForDraft(team, draft) {
   const lines = [
     `${draft.teamName || team.title} (${team.title})`,
     draft.selectedLeague ? `League Access: ${draft.selectedLeague}` : "",
+    draft.favouredChoice ? `Favoured Of: ${draft.favouredChoice}` : "",
     `Total Cost: ${costs.total}k`,
     `Treasury: ${draft.treasury ?? 0}k`,
     `Coach's Safe: ${draft.coachesSafe ?? 0}k`,
     "",
     ...selected.map((player) => [
-      `${player.name} (${player.row.position}) - ${rowCost(player.row)}${player.skipNextGame ? " - Skip Next Game" : ""}`,
+      `#${player.number ?? player.index + 1} ${player.name} (${player.row.position}) - ${rowCost(player.row)}${player.skipNextGame ? " - Skip Next Game" : ""}`,
       `  Stats: MA ${statValueForDisplayByStat("ma", player.row.ma, player.statMods.ma ?? 0)} / ST ${statValueForDisplayByStat("st", player.row.st, player.statMods.st ?? 0)} / AG ${statValueForDisplayByStat("ag", player.row.ag, player.statMods.ag ?? 0)} / PA ${statValueForDisplayByStat("pa", player.row.pa, player.statMods.pa ?? 0)} / AR ${statValueForDisplayByStat("ar", player.row.ar, player.statMods.ar ?? 0)}`,
       `  Skills: ${skillNamesForPlayer(player.row, player).join(", ") || "-"}`,
     ].join("\n")),
@@ -5430,6 +6018,7 @@ function buildRosterTextForDraft(team, draft) {
     draft.dedicatedFans ? `Dedicated Fans: ${draft.dedicatedFans}` : "",
     draft.assistantCoaches ? `Assistant Coaches: ${draft.assistantCoaches}` : "",
     draft.cheerleaders ? `Cheerleaders: ${draft.cheerleaders}` : "",
+    ...medicalStaffDefinitions.map((staff) => draft[staff.key] ? `${staff.title}: ${draft[staff.key]}` : ""),
   ].filter(Boolean).join("\n");
   return lines;
 }
@@ -5438,6 +6027,7 @@ function renderRoute() {
   const route = decodeURIComponent(location.hash.replace(/^#\/?/, "")) || "home";
   const section = routeSection(route);
   if (route === "home") return renderHome();
+  if (route.startsWith("overview/")) return renderOverviewDetail(route.replace(/^overview\//, ""));
   if (sectionRoutes.has(route)) return renderSection(route);
   if (route === "builder") return renderBuilder();
   if (route.startsWith("my-teams/")) return renderSavedRoster(route.replace(/^my-teams\//, ""));

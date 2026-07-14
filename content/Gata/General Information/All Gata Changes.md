@@ -107,7 +107,7 @@
 - **Real Bonuses:** Favoured of now provides actual bonuses.
 - **Deity Selection:** If a team has a choice for this rule, choose one option during team registration: Undivided, Khorne, Nurgle, Tzeentch, Slaanesh, or Hashut.
 - **Skill Acquisition:** Every time a player receives an advancement, roll a D8.
-- **Additional Skill:** If the result matches your choice, the player may receive one corresponding skill in addition to the regular advancement. This increases the player's value, but does not increase their rank.
+- **Additional Skill:** If the result matches your choice, the player may receive one corresponding skill in addition to the regular advancement. This does not increase the player's value and does not increase their rank.
 - **Random Selection:** If a player has Mutation access only as secondary, or no Mutation access at all, choose the bonus skill randomly.
 
 | Choice | Trigger | Skill list |

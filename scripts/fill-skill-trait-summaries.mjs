@@ -4,7 +4,8 @@ import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const baseUrl = "https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/";
-const placeholder = `Base wording: use the Blood Bowl 2025 reference at ${baseUrl}`;
+const baseLink = `[Blood Bowl 2025 skills and traits reference](${baseUrl})`;
+const placeholder = `Base wording: use the ${baseLink}`;
 
 function key(name) {
   return name
@@ -89,7 +90,6 @@ add(["Right Stuff", "Right stuff"], "This player can be thrown by a team-mate us
 add("Saboteur", "When this player is Knocked Down by an opposing Block Action, roll before their Armour roll. On 4+ the sabotaged weapon also Knocks Down the attacker, then this player is automatically Knocked Out. Requires Secret Weapon.");
 add("Safe Pair of Hands", "If this player would become Prone while holding the ball, they may place the ball in an adjacent empty square before becoming Prone instead of letting it bounce.");
 add("Safe Pass", "If this player rolls a natural 1 on a Passing Ability test, the pass is not fumbled. The player keeps the ball, their activation ends, and no Turnover is caused.");
-add("Secret Weapon. Loner (4+)", "Combined roster shorthand. Secret Weapon means the player is Sent-off at the end of a drive in which they took part; Loner (4+) means they must roll 4+ to use a Team re-roll.");
 add("Secret Weapon", "At the end of any drive in which this player took part, they are Sent-off, even if they are no longer on the pitch when the drive ends.");
 add("Shadowing", "When an opponent Dodges out of this player's tackle zone, this player may roll. On 4+ they move into the square the opponent left. Uses per turn are limited by this player's MA.");
 add("Shiv", "Gata skill. Works like Stab, but only one player with Shiv on the team may use it each turn.");

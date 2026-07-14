@@ -1230,6 +1230,54 @@ body.auth-open {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.78);
 }
 
+.overview-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  align-items: start;
+}
+
+.overview-card {
+  display: grid;
+  gap: 16px;
+  min-height: 0;
+}
+
+.overview-index-card {
+  display: grid;
+  gap: 10px;
+  min-height: 156px;
+}
+
+.overview-index-card .meta-line {
+  align-self: end;
+}
+
+.overview-card h2 {
+  color: var(--text);
+}
+
+.overview-card-section {
+  display: grid;
+  gap: 8px;
+}
+
+.overview-card-section h3 {
+  color: var(--soft);
+  font-size: 16px;
+}
+
+.overview-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding-left: 20px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.overview-list strong {
+  color: var(--text);
+}
+
 .catalog-card {
   display: grid;
   align-content: start;
@@ -1446,10 +1494,16 @@ body.auth-open {
 
 .saved-roster-top-grid {
   display: grid;
-  grid-template-columns: minmax(280px, 0.72fr) minmax(0, 1.8fr);
+  grid-template-columns: minmax(360px, 1fr) minmax(280px, 360px);
   gap: 18px;
   align-items: start;
   margin-bottom: 18px;
+}
+
+.saved-roster-top-grid .roster-identity-panel,
+.saved-roster-top-grid .saved-roster-summary-panel {
+  height: 100%;
+  margin-bottom: 0;
 }
 
 .builder-panel {
@@ -1494,6 +1548,10 @@ body.auth-open {
   backdrop-filter: none;
 }
 
+.builder-setup-panel.roster-identity-panel .saved-roster-form {
+  grid-template-columns: 1fr;
+}
+
 .roster-identity-panel,
 .roster-controls-panel {
   margin-bottom: 18px;
@@ -1501,6 +1559,10 @@ body.auth-open {
 
 .roster-identity-panel {
   gap: 14px;
+}
+
+.roster-identity-panel .team-rules-panel {
+  grid-template-columns: 1fr;
 }
 
 .roster-logo-inline {
@@ -1515,6 +1577,27 @@ body.auth-open {
 
 .roster-controls-panel h2 {
   margin: 0;
+}
+
+.roster-purchases-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+  align-items: start;
+  margin-bottom: 18px;
+}
+
+.roster-purchases-layout .roster-controls-panel {
+  margin-bottom: 0;
+}
+
+.roster-resources-panel,
+.roster-purchases-panel {
+  min-width: 0;
+}
+
+.roster-resource-list {
+  grid-template-columns: 1fr;
 }
 
 .roster-money-form {
@@ -1533,6 +1616,31 @@ body.auth-open {
   display: grid;
   gap: 8px;
   min-width: 0;
+}
+
+.roster-purchase-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+.roster-purchase-card {
+  min-height: 86px;
+}
+
+.roster-money-card {
+  grid-template-columns: 1fr;
+  align-content: start;
+}
+
+.roster-purchase-card .inline-stepper-control,
+.roster-purchase-input {
+  justify-self: end;
+  width: min(150px, 100%);
+}
+
+.roster-purchase-input {
+  justify-self: stretch;
+  width: 100%;
+  min-height: 38px;
 }
 
 .roster-settings-panel {
@@ -1666,6 +1774,25 @@ body.auth-open {
   margin-top: 5px;
   color: var(--muted);
   line-height: 1.45;
+}
+
+.builder-addon.roster-money-card {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: center;
+  gap: 8px;
+}
+
+.builder-addon.roster-money-card span {
+  margin-top: 3px;
+  max-width: none;
+}
+
+.builder-addon.roster-money-card .roster-purchase-input {
+  width: 100%;
+  min-width: 0;
+  margin: 0;
 }
 
 .builder-tracker-control {
@@ -1897,7 +2024,56 @@ body.auth-open {
 }
 
 .saved-roster-table {
-  min-width: 1780px;
+  min-width: 2040px;
+}
+
+.saved-roster-table tbody tr[draggable="true"] {
+  transition: background 0.14s ease, opacity 0.14s ease;
+}
+
+.saved-roster-table tbody tr.is-dragging {
+  opacity: 0.5;
+}
+
+.saved-roster-table tbody tr.drop-before {
+  box-shadow: inset 0 3px 0 var(--focus);
+}
+
+.saved-roster-table tbody tr.drop-after {
+  box-shadow: inset 0 -3px 0 var(--focus);
+}
+
+.drag-handle {
+  cursor: grab;
+  user-select: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.saved-number-cell {
+  min-width: 100px;
+}
+
+.saved-number-control {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.table-drag-handle {
+  width: 30px;
+  min-width: 30px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.table-number-input {
+  width: 58px;
+  min-width: 58px;
+  text-align: center;
 }
 
 .saved-roster-mobile-list {
@@ -1924,6 +2100,14 @@ body.auth-open {
   flex: 1 1 auto;
   gap: 5px;
   min-width: 0;
+}
+
+.mobile-player-number {
+  display: grid;
+  grid-template-columns: auto minmax(58px, 86px);
+  gap: 8px;
+  align-items: center;
+  width: fit-content;
 }
 
 .mobile-player-title > span,
@@ -2156,6 +2340,25 @@ body.auth-open {
 
 .table-skill-editor .table-input {
   min-width: 125px;
+}
+
+.favoured-skill-cell {
+  min-width: 220px;
+}
+
+.favoured-skill-editor {
+  display: grid;
+  gap: 6px;
+}
+
+.favoured-skill-editor small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.favoured-skill-pill {
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus) 45%, transparent);
 }
 
 .compact-action {
@@ -2781,7 +2984,9 @@ body.auth-open {
 }
 
 .saved-roster-summary-panel .summary-stat-grid {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: 16px;
+  row-gap: 7px;
 }
 
 .saved-roster-summary-panel .summary-actions {
@@ -3352,6 +3557,7 @@ td {
 
   .builder-layout,
   .saved-roster-top-grid,
+  .roster-purchases-layout,
   .builder-addons,
   .builder-setup-panel,
   .team-rules-panel,
@@ -3639,7 +3845,7 @@ td {
   }
 
   .table-scroll .saved-roster-table {
-    min-width: 1780px;
+    min-width: 2040px;
   }
 
   .table-scroll .my-teams-table {

@@ -17,9 +17,9 @@ Teams with this rule have improved access to referee-related inducements:
 
 ## Favoured of...
 
-If a team has a choice for Favoured of..., choose one alignment during team registration. The choice cannot be changed later.
+If a team has a choice for Favoured of..., choose one alignment for the team.
 
-Every time a player on the team receives an advancement, roll a D8. If the result matches the team's alignment, the player may gain one matching skill in addition to their normal advancement. This extra skill increases the player's value, but does not increase their rank.
+Every time a player on the team receives an advancement, roll a D8. If the result matches the team's alignment, the player may gain one matching skill in addition to their normal advancement. This extra skill does not increase the player's value and does not increase their rank.
 
 If the player has Mutation access only as a secondary access, or has no Mutation access at all, choose the bonus skill randomly from the matching list.
 

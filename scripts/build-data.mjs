@@ -308,7 +308,8 @@ function resolveLinkedPage(pageByTitle, title) {
     .replace(/^Bloodlust\s*\([^)]+\)$/i, "Bloodlust")
     .replace(/^Unchannelled Fury$/i, "Unchanneled Fury")
     .replace(/^Ball\s*&\s*Chain$/i, "Ball and Chain")
-    .replace(/^Bone-Head$/i, "Bonehead");
+    .replace(/^Bone[-\s]+Head$/i, "Bonehead")
+    .replace(/^Side\s+Step$/i, "Sidestep");
 
   return alias !== title ? pageByTitle.get(alias) : undefined;
 }
@@ -320,6 +321,9 @@ function inlineMarkdownToHtml(value, pageByTitle, options = {}) {
   html = html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_match, alt, src) => {
     const imageSrc = /^https?:\/\//i.test(src) ? src : toPublicAssetPath(src);
     return `<img src="${escapeHtml(imageSrc)}" alt="${escapeHtml(alt)}">`;
+  });
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, (_match, label, href) => {
+    return `<a href="${escapeHtml(href)}">${label}</a>`;
   });
   html = html.replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_match, target, alias) => {
     const title = target.trim();
