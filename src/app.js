@@ -190,6 +190,8 @@ function applyLocaleChrome() {
   document.documentElement.lang = state.locale;
   activeDict = translations[state.locale];
   applyStaticI18n();
+  updateAuthButton();
+  setAuthMode(state.auth.mode);
   if (langToggle) {
     langToggle.textContent = state.locale === "en" ? "RU" : "EN";
     langToggle.title = t("lang.toggleTitle");
@@ -394,10 +396,10 @@ function updateAuthButton() {
   if (!authButton) return;
   if (state.auth.currentUser) {
     authButton.textContent = state.auth.currentUser.login;
-    authButton.title = `Signed in as ${state.auth.currentUser.login}`;
+    authButton.title = `${t("auth.signedInAs")} ${state.auth.currentUser.login}`;
   } else {
-    authButton.textContent = "Login";
-    authButton.title = "Login or create account";
+    authButton.textContent = t("auth.login");
+    authButton.title = t("auth.loginOrCreate");
   }
 }
 
@@ -408,7 +410,7 @@ function setAuthMode(mode) {
   const isRegister = mode === "register";
 
   if (authTitle) {
-    authTitle.textContent = isAccount ? "Account" : isRegister ? "Register" : "Login";
+    authTitle.textContent = isAccount ? t("auth.account") : isRegister ? t("auth.register") : t("auth.login");
   }
   if (authForm) {
     authForm.hidden = isAccount;
@@ -435,10 +437,10 @@ function setAuthMode(mode) {
     }
   }
   if (authSubmit) {
-    authSubmit.textContent = isRegister ? "Register" : "Login";
+    authSubmit.textContent = isRegister ? t("auth.register") : t("auth.login");
   }
   if (authSwitch) {
-    authSwitch.textContent = isRegister ? "I already have an account" : "Create account";
+    authSwitch.textContent = isRegister ? t("auth.haveAccount") : t("auth.createAccount");
   }
 }
 
