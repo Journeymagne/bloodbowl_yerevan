@@ -177,5 +177,13 @@
   "roster.statsHeading": "Характеристики",
   "roster.sppSpent": "SPP потрачено",
   "roster.maxLevel": "Максимальный уровень",
-  "roster.noAdvancementsYet": "Пока нет улучшений."
+  "roster.noAdvancementsYet": "Пока нет улучшений.",
+  "builder.subtitle": "Соберите стартовый состав на 600 тыс., нажимая на доступных игроков.",
+  "builder.availablePlayers": "Доступные игроки",
+  "builder.remaining": "Остаток",
+  "builder.saveTeam": "Сохранить команду",
+  "builder.selectedHeader": "Выбрано",
+  "builder.overBudget": "превышение",
+  "builder.emptyRosterHint": "Нажмите на игрока выше, чтобы добавить его в состав.",
+  "builder.noPlayersSelected": "Игроки ещё не выбраны."
 }

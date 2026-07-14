@@ -2790,27 +2790,27 @@ function renderBuilder() {
   const warnings = builderWarnings(team, costs);
 
   view.innerHTML = `
-    ${renderHeader("Team Builder", "Build a 600k starting roster by clicking available players.")}
+    ${renderHeader(t("nav.builder"), t("builder.subtitle"))}
     ${renderBuilderSummary(team, costs, warnings)}
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
         <div class="builder-form">
           <label class="filter-field">
-            <span>Team</span>
+            <span>${t("sidebar.teamHeading")}</span>
             <select data-builder-team>
               ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
             </select>
           </label>
           <label class="filter-field">
-            <span>Team Name</span>
+            <span>${t("savedRoster.teamName")}</span>
             <input type="text" value="${escapeHtml(state.builder.teamName || team.title)}" data-builder-name>
           </label>
           <label class="filter-field">
-            <span>Logo, max 2 MB</span>
+            <span>${t("savedRoster.logoField")}</span>
             <input type="file" accept="image/*" data-builder-logo>
           </label>
           <label class="filter-field">
-            <span>Starting rerolls</span>
+            <span>${t("savedRoster.startingRerolls")}</span>
             <div class="inline-stepper-control">
               <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
               <strong>${state.builder.startingRerolls}</strong>
@@ -2821,24 +2821,24 @@ function renderBuilder() {
         ${state.builder.logoData ? `
           <div class="builder-logo-inline">
             <img class="builder-logo-preview" src="${escapeHtml(state.builder.logoData)}" alt="">
-            <button class="filter-button compact-action" type="button" data-builder-remove-logo>Remove logo</button>
+            <button class="filter-button compact-action" type="button" data-builder-remove-logo>${t("savedRoster.removeLogo")}</button>
           </div>
         ` : ""}
 
         <div class="builder-addons compact-addons">
-          ${renderBuilderStaffControl("dedicatedFans", "Dedicated Fans", state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
-          ${renderBuilderStaffControl("assistantCoaches", "Assistant Coaches", state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
-          ${renderBuilderStaffControl("cheerleaders", "Cheerleaders", state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
+          ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
+          ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
+          ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
         </div>
         ${renderTeamRuleAccess(team, state.builder, "builder")}
 
         <section class="builder-pool">
-          <h2>Available players</h2>
+          <h2>${t("builder.availablePlayers")}</h2>
           ${renderAvailablePlayerTable(team, state.builder, true)}
         </section>
 
         <section class="builder-selected">
-          <h2>Roster</h2>
+          <h2>${t("savedRoster.rosterHeading")}</h2>
           ${renderBuilderPlayerList(team, state.builder)}
         </section>
       </section>
@@ -2851,22 +2851,22 @@ function renderBuilderSummary(team, costs, warnings) {
   return `
     <aside class="builder-summary builder-summary-horizontal side-panel">
       <div class="summary-title-block">
-        <h3>Roster Summary</h3>
+        <h3>${t("savedRoster.summaryTitle")}</h3>
         <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
       </div>
       <dl class="stat-list summary-stat-grid">
-        <dt>Players</dt><dd>${costs.totalPlayersCount}</dd>
-        <dt>Dedicated Fans</dt><dd>${countToNumber(state.builder.dedicatedFans)}</dd>
-        <dt>Players cost</dt><dd>${costs.playersCost}k</dd>
-        <dt>Staff cost</dt><dd>${costs.staffCost}k</dd>
-        <dt>Total Cost</dt><dd>${costs.total}k</dd>
-        <dt>Remaining</dt><dd class="${costs.remaining < 0 ? "danger-text" : ""}">${costs.remaining}k</dd>
+        <dt>${t("myTeams.table.players")}</dt><dd>${costs.totalPlayersCount}</dd>
+        <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(state.builder.dedicatedFans)}</dd>
+        <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
+        <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
+        <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
+        <dt>${t("builder.remaining")}</dt><dd class="${costs.remaining < 0 ? "danger-text" : ""}">${costs.remaining}k</dd>
       </dl>
       <div class="summary-state-block">
-        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">Roster is within the current limits.</div>`}
+        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
         <div class="summary-actions">
-          <button class="primary-button" type="button" data-save-team ${costs.total > 600 || !state.builder.players.length ? "disabled" : ""}>Save Team</button>
-          <button class="primary-button" type="button" data-copy-roster>Copy Roster</button>
+          <button class="primary-button" type="button" data-save-team ${costs.total > 600 || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
+          <button class="primary-button" type="button" data-copy-roster>${t("roster.copyRoster")}</button>
         </div>
       </div>
     </aside>
@@ -2880,19 +2880,19 @@ function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
       <table class="builder-table compact-roster-table">
         <thead>
           <tr>
-            <th>Qty</th>
-            <th>Position</th>
-            <th>MA</th>
-            <th>ST</th>
-            <th>AG</th>
-            <th>PA</th>
-            <th>AR</th>
-            <th>Skills</th>
-            <th>Primary</th>
-            <th>Secondary</th>
-            <th>Cost</th>
-            <th>Selected</th>
-            <th>Add</th>
+            <th>${t("roster.qtyHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("roster.primary")}</th>
+            <th>${t("roster.secondary")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("builder.selectedHeader")}</th>
+            <th>${t("common.add")}</th>
           </tr>
         </thead>
         <tbody>
@@ -2911,7 +2911,7 @@ function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
         <td>${renderAccessCell(row.primary)}</td>
         <td>${renderAccessCell(row.secondary)}</td>
         <td>${escapeHtml(rowCost(row) || "-")}</td>
-        <td>${current}/${rosterMax(row.qty)}${budgetBlocked ? `<span class="danger-text"> over</span>` : ""}</td>
+        <td>${current}/${rosterMax(row.qty)}${budgetBlocked ? `<span class="danger-text"> ${t("builder.overBudget")}</span>` : ""}</td>
         <td>
           <button class="primary-button table-plus-button" type="button" data-add-row="${rowIndex}" ${disabled ? "disabled" : ""}>+</button>
         </td>
@@ -2931,7 +2931,7 @@ function renderBuilderStaffControl(key, title, value, plusBlocked = false) {
     <div class="builder-addon compact-staff-control">
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>10k each</span>
+        <span>${t("roster.tenKEach")}</span>
       </div>
       <div class="inline-stepper-control">
         <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>
@@ -2989,7 +2989,7 @@ function renderEditablePlayerStatCells(player) {
 function renderBuilderPlayerList(team, draft) {
   const players = selectedRosterPlayers(team, draft);
   if (!players.length) {
-    return `<div class="builder-empty-roster">Click a player above to add them to the roster.</div>`;
+    return `<div class="builder-empty-roster">${t("builder.emptyRosterHint")}</div>`;
   }
   return `
     <div class="table-scroll builder-table-scroll">
@@ -2997,16 +2997,16 @@ function renderBuilderPlayerList(team, draft) {
         <thead>
           <tr>
             <th>#</th>
-            <th>Name</th>
-            <th>Position</th>
-            <th>MA</th>
-            <th>ST</th>
-            <th>AG</th>
-            <th>PA</th>
-            <th>AR</th>
-            <th>Skills</th>
-            <th>Cost</th>
-            <th>Action</th>
+            <th>${t("roster.nameHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("roster.actionHeader")}</th>
           </tr>
         </thead>
         <tbody>
@@ -3028,7 +3028,7 @@ function renderBuilderPlayerRow(player, index) {
       ${renderPlayerStatCells(player)}
       <td class="skills-cell">${renderRosterLinks(player.row.skills)}</td>
       <td>${escapeHtml(rowCost(player.row) || "-")}</td>
-      <td><button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">Remove</button></td>
+      <td><button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">${t("common.remove")}</button></td>
     </tr>
   `;
 }
@@ -3337,7 +3337,7 @@ function renderAddon(key, title, description, max, value, cost, disabled = false
     <div class="builder-addon ${disabled ? "disabled" : ""}">
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(disabled ? "Not available for this team" : description)}</span>
+        <span>${escapeHtml(disabled ? t("roster.notAvailableForTeam") : description)}</span>
       </div>
       ${renderStepper(`builder-addon-${key}`, current, 0, max, disabled || !cost)}
     </div>
@@ -3464,7 +3464,7 @@ function renderBuilderSummaryRoster(team) {
 function renderEditableRosterPlayers(team, draft, mode) {
   const selected = selectedRosterPlayers(team, draft);
   if (!selected.length) {
-    return `<div class="builder-empty-roster">No players selected yet.</div>`;
+    return `<div class="builder-empty-roster">${t("builder.noPlayersSelected")}</div>`;
   }
 
   return `
@@ -3491,12 +3491,12 @@ function renderEditablePlayer(player, mode = "builder") {
   return `
     <div class="player-editor" data-player="${escapeHtml(player.key)}" data-row-index="${player.rowIndex}" data-editor-mode="${escapeHtml(mode)}">
       <label class="filter-field compact-field">
-        <span>Player name</span>
+        <span>${t("roster.playerName")}</span>
         <input type="text" value="${escapeHtml(player.name)}" data-player-name>
       </label>
       <label class="checkbox-field skip-next-field">
         <input type="checkbox" data-player-skip-next ${player.skipNextGame ? "checked" : ""}>
-        <span>Skip Next Game</span>
+        <span>${t("roster.skipNextGame")}</span>
       </label>
       <div class="player-stat-editors">
         ${editableStats.map((stat) => {
@@ -3516,10 +3516,10 @@ function renderEditablePlayer(player, mode = "builder") {
       </div>
       <div class="player-skill-editor">
         <select data-player-skill>
-          <option value="">Add skill...</option>
+          <option value="">${t("roster.addSkillOption")}</option>
           ${options.map((skill) => renderOption(skill, skill, "")).join("")}
         </select>
-        <button class="filter-button" type="button" data-player-add-skill>Add</button>
+        <button class="filter-button" type="button" data-player-add-skill>${t("common.add")}</button>
       </div>
       ${player.extraSkills.length ? `
         <div class="player-extra-skills">
@@ -3801,8 +3801,8 @@ async function copyRoster(team) {
   await navigator.clipboard.writeText(lines);
   const button = view.querySelector("[data-copy-roster]");
   if (button) {
-    button.textContent = "Copied";
-    setTimeout(() => { button.textContent = "Copy Roster"; }, 1200);
+    button.textContent = t("roster.copiedStatus");
+    setTimeout(() => { button.textContent = t("roster.copyRoster"); }, 1200);
   }
 }
 
@@ -3830,7 +3830,7 @@ async function saveTeam(team) {
     state.myTeams.loaded = false;
     const button = view.querySelector("[data-save-team]");
     if (button) {
-      button.textContent = "Saved";
+      button.textContent = t("roster.savedStatus");
       setTimeout(() => {
         location.hash = `#/my-teams/${encodeURIComponent(result.team.id)}`;
       }, 700);

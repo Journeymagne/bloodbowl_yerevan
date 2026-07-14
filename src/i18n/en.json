@@ -177,5 +177,13 @@
   "roster.statsHeading": "Stats",
   "roster.sppSpent": "SPP spent",
   "roster.maxLevel": "Max level",
-  "roster.noAdvancementsYet": "No advancements yet."
+  "roster.noAdvancementsYet": "No advancements yet.",
+  "builder.subtitle": "Build a 600k starting roster by clicking available players.",
+  "builder.availablePlayers": "Available players",
+  "builder.remaining": "Remaining",
+  "builder.saveTeam": "Save Team",
+  "builder.selectedHeader": "Selected",
+  "builder.overBudget": "over",
+  "builder.emptyRosterHint": "Click a player above to add them to the roster.",
+  "builder.noPlayersSelected": "No players selected yet."
 }
