@@ -1,5 +1,6 @@
 ﻿const state = {
   data: null,
+  locale: "en",
   query: "",
   teamFilters: {
     type: "all",
@@ -77,6 +78,11 @@ const authTelegramField = document.querySelector("[data-auth-telegram]");
 
 const authTokenKey = "gata-league-auth-token";
 const themeStorageKey = "gata-league-theme";
+const localeStorageKey = "gata-league-locale";
+const supportedLocales = new Set(["en", "ru"]);
+const dataCache = new Map();
+let translations = { en: {}, ru: {} };
+let activeDict = translations.en;
 const themeIds = new Set([
   "dark-gata",
   "dark-dugout",
@@ -122,6 +128,89 @@ function applyTheme(theme, persist = true) {
   } catch (_error) {
     // Theme persistence is optional; the visual switch still works for this session.
   }
+}
+
+function detectDefaultLocale() {
+  const languages = navigator.languages && navigator.languages.length
+    ? navigator.languages
+    : [navigator.language || "en"];
+  return languages.some((lang) => lang.toLowerCase().startsWith("ru")) ? "ru" : "en";
+}
+
+function storedLocale() {
+  try {
+    const saved = localStorage.getItem(localeStorageKey);
+    return supportedLocales.has(saved) ? saved : detectDefaultLocale();
+  } catch (_error) {
+    return detectDefaultLocale();
+  }
+}
+
+async function loadTranslations() {
+  const [en, ru] = await Promise.all([
+    fetch("src/i18n/en.json", { cache: "no-store" }).then((response) => response.json()),
+    fetch("src/i18n/ru.json", { cache: "no-store" }).then((response) => response.json()),
+  ]);
+  translations = { en, ru };
+}
+
+function t(key) {
+  return activeDict[key] ?? translations.en[key] ?? key;
+}
+
+function applyStaticI18n() {
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+    element.setAttribute("title", t(element.dataset.i18nTitle));
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+    element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+  });
+}
+
+async function loadLocaleData(locale) {
+  if (dataCache.has(locale)) return dataCache.get(locale);
+  let data;
+  if (window.__REFERENCE_DATA__ && window.__REFERENCE_DATA__[locale]) {
+    data = window.__REFERENCE_DATA__[locale];
+  } else {
+    const response = await fetch(`public/data.${locale}.json`, { cache: "no-store" });
+    data = await response.json();
+  }
+  dataCache.set(locale, data);
+  return data;
+}
+
+function applyLocaleChrome() {
+  document.documentElement.lang = state.locale;
+  activeDict = translations[state.locale];
+  applyStaticI18n();
+  if (langToggle) {
+    langToggle.textContent = state.locale === "en" ? "RU" : "EN";
+    langToggle.title = t("lang.toggleTitle");
+  }
+  if (generatedAt && state.data) {
+    const dateLocale = state.locale === "ru" ? "ru-RU" : "en-GB";
+    generatedAt.textContent = `${t("footer.updated")} ${new Date(state.data.generatedAt).toLocaleDateString(dateLocale)}`;
+  }
+}
+
+async function switchLocale(nextLocale) {
+  if (!supportedLocales.has(nextLocale) || nextLocale === state.locale) return;
+  state.locale = nextLocale;
+  try {
+    localStorage.setItem(localeStorageKey, nextLocale);
+  } catch (_error) {
+    // Locale persistence is optional; the switch still works for this session.
+  }
+  state.data = await loadLocaleData(nextLocale);
+  applyLocaleChrome();
+  renderRoute();
 }
 
 const builderStaffCosts = {
@@ -3786,16 +3875,11 @@ function renderRoute() {
 
 async function init() {
   applyTheme(storedTheme(), false);
-  if (window.__REFERENCE_DATA__) {
-    state.data = window.__REFERENCE_DATA__;
-  } else {
-    const response = await fetch("public/data.json", { cache: "no-store" });
-    state.data = await response.json();
-  }
+  state.locale = storedLocale();
+  await loadTranslations();
+  state.data = await loadLocaleData(state.locale);
   await loadAuthSession();
-  if (generatedAt) {
-    generatedAt.textContent = `Updated ${new Date(state.data.generatedAt).toLocaleDateString("en-GB")}`;
-  }
+  applyLocaleChrome();
   if (searchInput) {
     searchInput.addEventListener("input", (event) => {
       state.query = event.currentTarget.value;
@@ -3838,15 +3922,14 @@ async function init() {
       setNavOpen(false);
     }
   });
-  if (langToggle) {
-    langToggle.textContent = "EN";
-    langToggle.title = "English version";
-  }
+  langToggle?.addEventListener("click", () => {
+    switchLocale(state.locale === "en" ? "ru" : "en");
+  });
   window.addEventListener("hashchange", renderRoute);
   renderRoute();
 }
 
 init().catch((error) => {
   console.error(error);
-  view.innerHTML = `<div class="empty-state">Could not load site data.</div>`;
+  view.innerHTML = `<div class="empty-state">${t("app.dataLoadError")}</div>`;
 });
