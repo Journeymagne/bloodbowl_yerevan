@@ -1,11 +1,12 @@
-﻿import { promises as fs } from "node:fs";
+import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const vaultDir = path.join(rootDir, "content", process.env.SITE_CONTENT_DIR || "Gata");
+const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
+const vaultDir = path.join(rootDir, "content", primaryContentDir);
+const ruVaultDir = path.join(rootDir, "content", `${primaryContentDir}-ru`);
 const publicDir = path.join(rootDir, "public");
-const dataPath = path.join(publicDir, "data.json");
 
 const sectionLabels = new Map([
   ["Teams", "Teams"],
@@ -21,7 +22,7 @@ const sectionLabels = new Map([
   ["Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ", "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ РєРѕРјР°РЅРґС‹"],
   ["РќР°РІС‹РєРё", "РќР°РІС‹РєРё"],
   ["РЎРІРѕР№СЃС‚РІР°", "РЎРІРѕР№СЃС‚РІР°"],
-  ["Р РµРіР»Р°РјРµРЅС‚", "Р РµРіР»Р°РјРµРЅС‚"],
+  ["Р РµРіР»Р°РјРµРЅС‚", "Р РµРіР»Р°РјРµРЅС‚"],
   ["РџР°РјСЏС‚РєР°", "РџР°РјСЏС‚РєР°"],
   ["РџРѕРѕС‰СЂРµРЅРёСЏ", "РџРѕРѕС‰СЂРµРЅРёСЏ"],
   ["Р—РІРµР·РґРЅС‹Рµ РёРіСЂРѕРєРё", "Р—РІРµР·РґРЅС‹Рµ РёРіСЂРѕРєРё"],
@@ -84,7 +85,7 @@ function transliterate(value) {
 function slugify(value) {
   return transliterate(value)
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .toLowerCase()
     .replace(/&/g, " and ")
     .replace(/[^a-z0-9]+/g, "-")
@@ -442,7 +443,7 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
           html.push("<tr>");
           html.push(splitTableRow(lines[index]).map((cell, cellIndex) => {
             const headerLabel = headerLabels[cellIndex] ?? "";
-            const autoLinkKnown = headerLabel !== "Position" && headerLabel !== "\u041f\u043e\u0437\u0438\u0446\u0438\u044f";
+            const autoLinkKnown = headerLabel !== "Position" && headerLabel !== "Позиция";
             return `<td>${inlineMarkdownToHtml(cell, pageByTitle, { autoLinkKnown })}</td>`;
           }).join(""));
           html.push("</tr>");
@@ -556,7 +557,7 @@ function getKind(section) {
   if (section === "РљРѕРјР°РЅРґС‹" || section === "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ") return "team";
   if (section === "РќР°РІС‹РєРё") return "skill";
   if (section === "РЎРІРѕР№СЃС‚РІР°") return "trait";
-  if (section === "Р РµРіР»Р°РјРµРЅС‚") return "rules";
+  if (section === "Р РµРіР»Р°РјРµРЅС‚") return "rules";
   if (section === "РџР°РјСЏС‚РєР°") return "cheatsheet";
   if (section === "РџРѕРѕС‰СЂРµРЅРёСЏ") return "inducement";
   if (section === "Р—РІРµР·РґРЅС‹Рµ РёРіСЂРѕРєРё") return "starPlayer";
@@ -570,10 +571,10 @@ function extractTeamMeta(markdown) {
     ["apothecary", /\*\*Apothecary:\*\*\s*([^\n]+)/i],
     ["league", /\*\*League:\*\*\s*([^\n]+)/i],
     ["specialRules", /\*\*Special Rules:\*\*\s*([^\n]+)/i],
-    ["rerolls", /\*\*РџРµСЂРµР±СЂРѕСЃС‹:\*\*\s*([^\n]+)/i],
-    ["apothecary", /\*\*РђРїРѕС‚РµРєР°СЂРёР№:\*\*\s*([^\n]+)/i],
-    ["league", /\*\*Р›РёРіР°:\*\*\s*([^\n]+)/i],
-    ["specialRules", /\*\*РЎРїРµС†РёР°Р»СЊРЅС‹Рµ РїСЂР°РІРёР»Р°:\*\*\s*([^\n]+)/i],
+    ["rerolls", /\*\*Перебросы:\*\*\s*([^\n]+)/i],
+    ["apothecary", /\*\*Апотекарий:\*\*\s*([^\n]+)/i],
+    ["league", /\*\*Лига:\*\*\s*([^\n]+)/i],
+    ["specialRules", /\*\*Специальные правила:\*\*\s*([^\n]+)/i],
   ];
 
   for (const [key, pattern] of patterns) {
@@ -592,9 +593,9 @@ function extractStarPlayerMeta(markdown) {
     ["availability", /\*\*Availability:\*\*\s*([^\n]+)/i],
     ["cost", /\*\*Cost:\*\*\s*([^\n]+)/i],
     ["teams", /\*\*Teams:\*\*\s*([^\n]+)/i],
-    ["availability", /\*\*Р”РѕСЃС‚СѓРїРЅРѕСЃС‚СЊ:\*\*\s*([^\n]+)/i],
-    ["cost", /\*\*Р¦РµРЅР°:\*\*\s*([^\n]+)/i],
-    ["teams", /\*\*РљРѕРјР°РЅРґС‹:\*\*\s*([^\n]+)/i],
+    ["availability", /\*\*Доступность:\*\*\s*([^\n]+)/i],
+    ["cost", /\*\*Цена:\*\*\s*([^\n]+)/i],
+    ["teams", /\*\*Команды:\*\*\s*([^\n]+)/i],
   ];
 
   for (const [key, pattern] of patterns) {
@@ -634,131 +635,146 @@ function splitListCell(value) {
     .filter(Boolean);
 }
 
-const files = await walk(vaultDir);
-const rawPages = [];
+async function buildLocaleData(sourceDir) {
+  const files = await walk(sourceDir);
+  const rawPages = [];
 
-for (const file of files) {
-  const relativePath = path.relative(vaultDir, file);
-  const title = path.basename(file, ".md");
-  const raw = await fs.readFile(file, "utf8");
-  const { body, tags } = parseFrontmatter(raw);
-  const section = getSection(relativePath);
-  const kind = getKind(section);
-  const typeTag = kind === "team" ? teamTypeTag(title) : "";
-  const pageTags = typeTag
-    ? [...new Set([...tags.filter((tag) => !["Core", "Experimental"].includes(tag)), typeTag])]
-    : tags;
+  for (const file of files) {
+    const relativePath = path.relative(sourceDir, file);
+    const title = path.basename(file, ".md");
+    const raw = await fs.readFile(file, "utf8");
+    const { body, tags } = parseFrontmatter(raw);
+    const section = getSection(relativePath);
+    const kind = getKind(section);
+    const typeTag = kind === "team" ? teamTypeTag(title) : "";
+    const pageTags = typeTag
+      ? [...new Set([...tags.filter((tag) => !["Core", "Experimental"].includes(tag)), typeTag])]
+      : tags;
 
-  rawPages.push({
-    id: slugify(`${section}-${title}`),
-    title,
-    path: relativePath.replaceAll(path.sep, "/"),
-    section,
-    sectionLabel: sectionLabels.get(section) || "General Information",
-    kind,
-    tags: pageTags,
-    body: body.trim(),
-    empty: body.trim().length === 0,
+    rawPages.push({
+      id: slugify(`${section}-${title}`),
+      title,
+      path: relativePath.replaceAll(path.sep, "/"),
+      section,
+      sectionLabel: sectionLabels.get(section) || "General Information",
+      kind,
+      tags: pageTags,
+      body: body.trim(),
+      empty: body.trim().length === 0,
+    });
+  }
+
+  const pageByTitle = new Map();
+  for (const page of rawPages) {
+    page.slug = page.kind === "team"
+      ? `teams/${slugify(page.title)}`
+      : page.kind === "skill"
+        ? `skills/${slugify(page.title)}`
+        : page.kind === "trait"
+          ? `traits/${slugify(page.title)}`
+          : page.kind === "rules"
+            ? `rules/${slugify(page.title)}`
+            : page.kind === "cheatsheet"
+              ? `cheatsheets/${slugify(page.title)}`
+              : page.kind === "inducement"
+                ? `inducements/${slugify(page.title)}`
+                : slugify(page.title);
+    pageByTitle.set(page.title, page);
+  }
+
+  const pages = rawPages.map((page) => {
+    const tables = parseMarkdownTables(page.body);
+    const teamTable = page.kind === "team" ? tables[0] : undefined;
+    const roster = teamTable?.rows.map((row) => ({
+      qty: stripFormatting(row.Qty || row["РЎРѕСЃС‚Р°РІ"] || ""),
+      position: stripFormatting(row.Position || row["РџРѕР·РёС†РёСЏ"] || ""),
+      ma: stripFormatting(row.MA || ""),
+      st: stripFormatting(row.ST || ""),
+      ag: stripFormatting(row.AG || ""),
+      pa: stripFormatting(row.PA || ""),
+      ar: stripFormatting(row.AR || ""),
+      skills: splitListCell(row.Skills || row["РќР°РІС‹РєРё"] || ""),
+      primary: splitListCell(row.Primary || row["РћСЃРЅРѕРІРЅС‹Рµ"] || ""),
+      secondary: splitListCell(row.Secondary || row["Р'С‚РѕСЂРёС‡РЅС‹Рµ"] || ""),
+      price: normalizeCost(row.Cost || row["Р¦РµРЅР°"] || ""),
+      tags: splitListCell(row.Tags || row["РўРµРіРё"] || ""),
+    })) || [];
+
+    return {
+      ...page,
+      html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, { preserveLineBreaks: page.kind === "inducement" }),
+      text: stripFormatting(page.body),
+      team: page.kind === "team" ? {
+        experimental: page.tags.includes("Experimental") || page.section === "Experimental" || page.section === "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ",
+        type: page.tags.includes("Experimental") ? "Experimental" : "Core",
+        meta: extractTeamMeta(page.body),
+        roster,
+      } : undefined,
+      starPlayer: page.kind === "starPlayer" ? extractStarPlayerMeta(page.body) : undefined,
+    };
   });
-}
 
-const pageByTitle = new Map();
-for (const page of rawPages) {
-  page.slug = page.kind === "team"
-    ? `teams/${slugify(page.title)}`
-    : page.kind === "skill"
-      ? `skills/${slugify(page.title)}`
-      : page.kind === "trait"
-        ? `traits/${slugify(page.title)}`
-        : page.kind === "rules"
-          ? `rules/${slugify(page.title)}`
-          : page.kind === "cheatsheet"
-            ? `cheatsheets/${slugify(page.title)}`
-            : page.kind === "inducement"
-              ? `inducements/${slugify(page.title)}`
-              : slugify(page.title);
-  pageByTitle.set(page.title, page);
-}
+  const teams = pages.filter((page) => page.kind === "team").sort((a, b) => a.title.localeCompare(b.title, "en"));
+  const skills = pages.filter((page) => page.kind === "skill").sort((a, b) => a.title.localeCompare(b.title, "en"));
+  const traits = pages.filter((page) => page.kind === "trait").sort((a, b) => a.title.localeCompare(b.title, "en"));
+  const rules = pages.filter((page) => page.kind === "rules").sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  const cheatsheets = pages.filter((page) => page.kind === "cheatsheet").sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  const inducements = pages.filter((page) => page.kind === "inducement").sort((a, b) => a.title.localeCompare(b.title, "ru"));
+  const starPlayers = pages
+    .filter((page) => page.kind === "starPlayer")
+    .filter((page) => /\d/.test(page.starPlayer?.cost ?? "") && !(page.starPlayer?.cost ?? "").includes("|"))
+    .sort((a, b) => a.title.localeCompare(b.title, "en"));
+  const otherPages = pages.filter((page) => page.kind === "page").sort((a, b) => a.title.localeCompare(b.title, "ru"));
 
-const pages = rawPages.map((page) => {
-  const tables = parseMarkdownTables(page.body);
-  const teamTable = page.kind === "team" ? tables[0] : undefined;
-  const roster = teamTable?.rows.map((row) => ({
-    qty: stripFormatting(row.Qty || row["РЎРѕСЃС‚Р°РІ"] || ""),
-    position: stripFormatting(row.Position || row["РџРѕР·РёС†РёСЏ"] || ""),
-    ma: stripFormatting(row.MA || ""),
-    st: stripFormatting(row.ST || ""),
-    ag: stripFormatting(row.AG || ""),
-    pa: stripFormatting(row.PA || ""),
-    ar: stripFormatting(row.AR || ""),
-    skills: splitListCell(row.Skills || row["РќР°РІС‹РєРё"] || ""),
-    primary: splitListCell(row.Primary || row["РћСЃРЅРѕРІРЅС‹Рµ"] || ""),
-    secondary: splitListCell(row.Secondary || row["Р’С‚РѕСЂРёС‡РЅС‹Рµ"] || ""),
-    price: normalizeCost(row.Cost || row["Р¦РµРЅР°"] || ""),
-    tags: splitListCell(row.Tags || row["РўРµРіРё"] || ""),
-  })) || [];
-
-  return {
-    ...page,
-    html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, { preserveLineBreaks: page.kind === "inducement" }),
-    text: stripFormatting(page.body),
-    team: page.kind === "team" ? {
-      experimental: page.tags.includes("Experimental") || page.section === "Experimental" || page.section === "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ",
-      type: page.tags.includes("Experimental") ? "Experimental" : "Core",
-      meta: extractTeamMeta(page.body),
-      roster,
-    } : undefined,
-    starPlayer: page.kind === "starPlayer" ? extractStarPlayerMeta(page.body) : undefined,
+  const data = {
+    generatedAt: new Date().toISOString(),
+    counts: {
+      pages: pages.length,
+      teams: teams.length,
+      skills: skills.length,
+      traits: traits.length,
+      rules: rules.length,
+      cheatsheets: cheatsheets.length,
+      inducements: inducements.length,
+      starPlayers: starPlayers.length,
+    },
+    unresolvedLinks: [...new Set(
+      pages.flatMap((page) => [...page.body.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)]
+        .map((match) => match[1].trim())
+        .filter((target) => !resolveLinkedPage(pageByTitle, target) && !virtualLinks.has(target)))
+    )],
+    skillGroups: parseSkillGroups(pages),
+    pages,
+    teams,
+    skills,
+    traits,
+    rules,
+    cheatsheets,
+    inducements,
+    starPlayers,
+    otherPages,
   };
-});
 
-const teams = pages.filter((page) => page.kind === "team").sort((a, b) => a.title.localeCompare(b.title, "en"));
-const skills = pages.filter((page) => page.kind === "skill").sort((a, b) => a.title.localeCompare(b.title, "en"));
-const traits = pages.filter((page) => page.kind === "trait").sort((a, b) => a.title.localeCompare(b.title, "en"));
-const rules = pages.filter((page) => page.kind === "rules").sort((a, b) => a.title.localeCompare(b.title, "ru"));
-const cheatsheets = pages.filter((page) => page.kind === "cheatsheet").sort((a, b) => a.title.localeCompare(b.title, "ru"));
-const inducements = pages.filter((page) => page.kind === "inducement").sort((a, b) => a.title.localeCompare(b.title, "ru"));
-const starPlayers = pages
-  .filter((page) => page.kind === "starPlayer")
-  .filter((page) => /\d/.test(page.starPlayer?.cost ?? "") && !(page.starPlayer?.cost ?? "").includes("|"))
-  .sort((a, b) => a.title.localeCompare(b.title, "en"));
-const otherPages = pages.filter((page) => page.kind === "page").sort((a, b) => a.title.localeCompare(b.title, "ru"));
-
-const data = {
-  generatedAt: new Date().toISOString(),
-  counts: {
-    pages: pages.length,
-    teams: teams.length,
-    skills: skills.length,
-    traits: traits.length,
-    rules: rules.length,
-    cheatsheets: cheatsheets.length,
-    inducements: inducements.length,
-    starPlayers: starPlayers.length,
-  },
-  unresolvedLinks: [...new Set(
-    pages.flatMap((page) => [...page.body.matchAll(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g)]
-      .map((match) => match[1].trim())
-      .filter((target) => !resolveLinkedPage(pageByTitle, target) && !virtualLinks.has(target)))
-  )],
-  skillGroups: parseSkillGroups(pages),
-  pages,
-  teams,
-  skills,
-  traits,
-  rules,
-  cheatsheets,
-  inducements,
-  starPlayers,
-  otherPages,
-};
+  return data;
+}
 
 await fs.mkdir(publicDir, { recursive: true });
-await fs.writeFile(dataPath, JSON.stringify(data, null, 2), "utf8");
 
-console.log(`Built ${data.counts.pages} pages into ${path.relative(rootDir, dataPath)}`);
-if (data.unresolvedLinks.length) {
-  console.log(`Unresolved links: ${data.unresolvedLinks.join(", ")}`);
+const enData = await buildLocaleData(vaultDir);
+await fs.writeFile(path.join(publicDir, "data.en.json"), JSON.stringify(enData, null, 2), "utf8");
+await fs.writeFile(path.join(publicDir, "data.json"), JSON.stringify(enData, null, 2), "utf8");
+console.log(`Built ${enData.counts.pages} pages into public/data.en.json (+ data.json alias)`);
+
+let ruSourceDir = ruVaultDir;
+try {
+  await fs.access(ruVaultDir);
+} catch {
+  console.warn(`content/${primaryContentDir}-ru not found yet; using ${primaryContentDir} content for public/data.ru.json`);
+  ruSourceDir = vaultDir;
 }
-
-
+const ruData = await buildLocaleData(ruSourceDir);
+await fs.writeFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData, null, 2), "utf8");
+console.log(`Built ${ruData.counts.pages} pages into public/data.ru.json`);
+if (enData.unresolvedLinks.length) {
+  console.log(`Unresolved links: ${enData.unresolvedLinks.join(", ")}`);
+}
