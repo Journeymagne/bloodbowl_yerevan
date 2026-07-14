@@ -85,6 +85,9 @@ content task:
   "Tackle Zone" and named actions (Move, Blitz, Pass, Hand-off, Foul, Block)
   stay in English as capitalized rule-identifiers, same treatment as
   skill/position names.
+- **"Kick-off"** (generic rules vocabulary, not a proper noun) →
+  transliterated the same way as Drive/Turnover/Touchdown: "кик-офф"
+  (lowercase, ordinary Russian noun).
 - **"Fan Factor"** stays in English, grouped with the core-stat-shorthand
   family (TV/SPP/etc.).
 - **Broken export artifacts** (e.g. stray `DOCX`/footnote fragments left over
