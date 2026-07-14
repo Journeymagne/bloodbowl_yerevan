@@ -88,11 +88,37 @@ content task:
 - **"Kick-off"** (generic rules vocabulary, not a proper noun) →
   transliterated the same way as Drive/Turnover/Touchdown: "кик-офф"
   (lowercase, ordinary Russian noun).
-- **"Fan Factor"** stays in English, grouped with the core-stat-shorthand
-  family (TV/SPP/etc.).
+- **"Fan Factor"** and **"Team Value"** stay in English, grouped with the
+  core-stat-shorthand family (TV/SPP/etc.).
 - **Broken export artifacts** (e.g. stray `DOCX`/footnote fragments left over
   from whatever process originally produced `content/Gata`'s Markdown) are
   carried forward verbatim, untranslated — they aren't real prose.
+- **Casualty result names** (Task 9): `Badly Hurt` and `Niggling Injury` stay
+  English — they recur as identifiers elsewhere in `content/Gata` (healing
+  rules, specific skills/traits). `Seriously Hurt`, `Serious Injury`,
+  `Lasting Injury`, `Dead` are translated normally, since they don't recur as
+  identifiers outside the Casualties table. The generic noun
+  "casualty/casualties" (not the `CAS` shorthand) → «травма»/«травмы».
+- **Kick-off event names** (Task 9) stay English and bolded (e.g.
+  `**Bribes:**`, `**Cheering Fans:**`) — several are cross-referenced by
+  exact name from other pages (e.g. `Inducements/Team Mascot.md`), so all of
+  them are kept English for internal consistency rather than deciding
+  case-by-case.
+- **Prayer names** (e.g. in `Prayers to Nuffle.md`) are translated like any
+  other narrative label (not cross-referenced elsewhere as identifiers), but
+  `Nuffle` itself (the deity) always stays English, the same treatment as
+  the Chaos god names (Khorne, Nurgle, etc.), even inside an otherwise
+  translated prayer name.
+- **"Open" player state** (the Blood Bowl 2020/2025 "unmarked player"
+  concept) stays English, glossed on first mention per section as
+  «открытый (Open)» — same pattern as `Prone`/`Stunned`.
+- **"Skill"/"Trait" the common nouns** (not a specific skill/trait's name) →
+  «навык»/«черта».
+- **Generic "Special Rules" category noun** (not one specific rule's name) →
+  translated as «специальные правила» (lowercase) — this differs from
+  "Inducements," which stays English, because the structural-label table
+  above already establishes Russian as the intended rendering for this
+  category (`**Special Rules:**` → `**Специальные правила:**`).
 
 If `content/Gata`'s English source itself contains unrecoverable corruption
 (e.g. a block of text with characters destroyed at the byte level, not just
