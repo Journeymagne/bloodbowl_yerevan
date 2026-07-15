@@ -117,7 +117,7 @@ These are not blockers for deployment, but they should be decided before present
 
 The site is an unofficial fan reference and should not present itself as affiliated with Games Workshop. Base Blood Bowl wording should be linked or summarized instead of copied wholesale.
 
-## VPS Deployment (bb.shitpostsoftware.com)
+## VPS Deployment (bloodbowlyerevan.shitpostsoftware.com)
 
 This is the live deployment path for the full app (Node server + Postgres,
 with accounts and saved teams), on the existing VPS at `51.81.86.51`,
@@ -131,6 +131,13 @@ nginx on this host. `bloodbowl-league` runs directly on the host via pm2
 (not in Docker), so the shared Caddy container reaches it through its
 docker-compose project's bridge gateway IP rather than through
 `localhost`.
+
+The site was originally deployed at `bb.shitpostsoftware.com` and was
+moved to `bloodbowlyerevan.shitpostsoftware.com` on 2026-07-13. Both
+names are subdomains of the same wildcard-covered `shitpostsoftware.com`,
+so no DNS change was needed — only the Caddyfile site block on the
+server. The old `bb.shitpostsoftware.com` block was removed rather than
+kept as a redirect.
 
 ### One-time server setup
 
@@ -161,12 +168,13 @@ docker network inspect paint-day-tracker-prod_default --format '{{json .IPAM.Con
 ufw allow from 172.18.0.0/16 to any port 3002 proto tcp
 ```
 
-Then add the site block from `deploy/caddy/bb.shitpostsoftware.com.conf`
-to the shared Caddyfile and reload (no downtime for the other site on the
-same Caddy container):
+Then add the site block from
+`deploy/caddy/bloodbowlyerevan.shitpostsoftware.com.conf` to the shared
+Caddyfile and reload (no downtime for the other site on the same Caddy
+container):
 
 ```bash
-cat deploy/caddy/bb.shitpostsoftware.com.conf >> /home/deploy/painting-evenings/Caddyfile
+cat deploy/caddy/bloodbowlyerevan.shitpostsoftware.com.conf >> /home/deploy/painting-evenings/Caddyfile
 docker exec paint-day-caddy caddy reload --config /etc/caddy/Caddyfile
 ```
 
@@ -200,12 +208,12 @@ rebuilds, and restarts the `bloodbowl-league` pm2 process automatically.
 After the first deploy and after each subsequent one:
 
 ```bash
-curl -f https://bb.shitpostsoftware.com/api/health
+curl -f https://bloodbowlyerevan.shitpostsoftware.com/api/health
 ```
 
 Expected: `{"ok":true}`
 
-Also open `https://bb.shitpostsoftware.com/` in a browser, confirm the
+Also open `https://bloodbowlyerevan.shitpostsoftware.com/` in a browser, confirm the
 site renders with a valid TLS certificate, then register a test account
 and save a team to confirm the Postgres-backed API path works
 end-to-end.
