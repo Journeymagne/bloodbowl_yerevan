@@ -107,6 +107,35 @@ function publicSavedTeam(row) {
   };
 }
 
+function rosterWithoutEmbeddedLogo(roster = {}) {
+  if (!roster || typeof roster !== "object" || Array.isArray(roster)) return roster ?? {};
+  const clean = { ...roster };
+  delete clean.logoData;
+  return clean;
+}
+
+function publicSavedTeamSummary(row) {
+  if (!row) return null;
+  return {
+    ...publicSavedTeam(row),
+    logoData: null,
+    roster: rosterWithoutEmbeddedLogo(row.roster),
+  };
+}
+
+function publicSavedTeamSlim(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    name: row.name,
+    baseTeamSlug: row.base_team_slug,
+    logoData: null,
+    roster: {},
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
 function publicSeason(row) {
   if (!row) return null;
   return {
@@ -136,8 +165,8 @@ function publicSeasonEntry(row) {
       id: row.saved_team_id,
       name: row.team_name,
       baseTeamSlug: row.base_team_slug,
-      logoData: row.logo_data,
-      roster: row.roster,
+      logoData: null,
+      roster: {},
       createdAt: row.team_created_at,
       updatedAt: row.team_updated_at,
     },
@@ -176,6 +205,19 @@ function publicAdminSavedTeam(row) {
     roster: row.roster,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    owner: {
+      id: row.user_id,
+      login: row.user_login,
+      telegram: row.user_telegram,
+      isAdmin: row.user_is_admin,
+    },
+  };
+}
+
+function publicAdminSavedTeamSlim(row) {
+  if (!row) return null;
+  return {
+    ...publicSavedTeamSlim(row),
     owner: {
       id: row.user_id,
       login: row.user_login,
@@ -349,8 +391,6 @@ async function loadSeasonEntryRows(seasonId) {
        users.is_admin AS user_is_admin,
        saved_teams.name AS team_name,
        saved_teams.base_team_slug,
-       saved_teams.logo_data,
-       saved_teams.roster,
        saved_teams.created_at AS team_created_at,
        saved_teams.updated_at AS team_updated_at
      FROM season_entries se
@@ -505,7 +545,13 @@ async function loadSeasonBundle(user) {
     loadSeasonEntryRows(seasonRow.id),
     loadSeasonRoundRows(seasonRow.id),
     loadSeasonPairingRows(seasonRow.id),
-    pool.query(`SELECT * FROM saved_teams WHERE user_id = $1 ORDER BY updated_at DESC`, [user.id]),
+    pool.query(
+      `SELECT id, user_id, name, base_team_slug, created_at, updated_at
+       FROM saved_teams
+       WHERE user_id = $1
+       ORDER BY updated_at DESC`,
+      [user.id],
+    ),
   ]);
   const entries = entryRows.map(publicSeasonEntry);
   const pairings = pairingRows.map(publicSeasonPairing);
@@ -532,14 +578,22 @@ async function loadSeasonBundle(user) {
     rounds,
     myEntry,
     currentFixture,
-    myTeams: myTeamsResult.rows.map(publicSavedTeam),
+    myTeams: myTeamsResult.rows.map(publicSavedTeamSlim),
   };
 
   if (user.is_admin) {
     const [usersResult, teamsResult] = await Promise.all([
       pool.query(`SELECT * FROM users ORDER BY login_key ASC`),
       pool.query(
-        `SELECT saved_teams.*, users.login AS user_login, users.telegram AS user_telegram, users.is_admin AS user_is_admin
+        `SELECT saved_teams.id,
+                saved_teams.user_id,
+                saved_teams.name,
+                saved_teams.base_team_slug,
+                saved_teams.created_at,
+                saved_teams.updated_at,
+                users.login AS user_login,
+                users.telegram AS user_telegram,
+                users.is_admin AS user_is_admin
          FROM saved_teams
          JOIN users ON users.id = saved_teams.user_id
          ORDER BY users.login_key ASC, saved_teams.updated_at DESC`,
@@ -547,7 +601,7 @@ async function loadSeasonBundle(user) {
     ]);
     payload.admin = {
       users: usersResult.rows.map(publicUser),
-      savedTeams: teamsResult.rows.map(publicAdminSavedTeam),
+      savedTeams: teamsResult.rows.map(publicAdminSavedTeamSlim),
     };
   }
 
@@ -1044,14 +1098,17 @@ async function handleApi(request, response, url) {
           [adminUserMatch[1]],
         ),
         pool.query(
-          `SELECT * FROM saved_teams WHERE user_id = $1 ORDER BY updated_at DESC`,
+          `SELECT id, user_id, name, base_team_slug, roster, created_at, updated_at
+           FROM saved_teams
+           WHERE user_id = $1
+           ORDER BY updated_at DESC`,
           [adminUserMatch[1]],
         ),
       ]);
       if (!profileResult.rows[0]) return sendJson(response, 404, { error: "User not found." });
       return sendJson(response, 200, {
         user: publicAdminUser(profileResult.rows[0]),
-        teams: teamsResult.rows.map(publicSavedTeam),
+        teams: teamsResult.rows.map(publicSavedTeamSummary),
       });
     }
 
@@ -1175,12 +1232,18 @@ async function handleApi(request, response, url) {
            GROUP BY users.id`,
           [publicPlayerMatch[1]],
         ),
-        pool.query(`SELECT * FROM saved_teams WHERE user_id = $1 ORDER BY updated_at DESC`, [publicPlayerMatch[1]]),
+        pool.query(
+          `SELECT id, user_id, name, base_team_slug, roster, created_at, updated_at
+           FROM saved_teams
+           WHERE user_id = $1
+           ORDER BY updated_at DESC`,
+          [publicPlayerMatch[1]],
+        ),
       ]);
       if (!profileResult.rows[0]) return sendJson(response, 404, { error: "Player not found." });
       return sendJson(response, 200, {
         user: publicAdminUser(profileResult.rows[0]),
-        teams: teamsResult.rows.map(publicSavedTeam),
+        teams: teamsResult.rows.map(publicSavedTeamSummary),
       });
     }
 

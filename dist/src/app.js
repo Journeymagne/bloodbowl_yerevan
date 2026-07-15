@@ -1206,6 +1206,7 @@ function makeRosterPlayer(row, rowIndex, copyIndex = 0, options = {}) {
     favouredSkills: [],
     skipNextGame: false,
     niglingInjury: false,
+    isCaptain: false,
     spp: {},
     advancements: [],
     purchased: Boolean(options.purchased),
@@ -1277,6 +1278,7 @@ function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
     favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
     skipNextGame: Boolean(player.skipNextGame),
     niglingInjury: Boolean(player.niglingInjury),
+    isCaptain: Boolean(player.isCaptain ?? player.captain),
     spp: normalizeSppCounters(player.spp),
     advancements: normalizePlayerAdvancements(player.advancements),
     purchased: Boolean(player.purchased),
@@ -1323,6 +1325,7 @@ function playersFromLegacyRoster(team, draft) {
         favouredSkills: edit.favouredSkills ?? [],
         skipNextGame: Boolean(edit.skipNextGame),
         niglingInjury: Boolean(edit.niglingInjury),
+        isCaptain: Boolean(edit.isCaptain ?? edit.captain),
         spp: normalizeSppCounters(edit.spp),
         advancements: normalizePlayerAdvancements(edit.advancements),
       }, rows, copyIndex));
@@ -1372,6 +1375,7 @@ function rosterPlayerView(team, player, index = 0) {
     favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
     skipNextGame: Boolean(player.skipNextGame),
     niglingInjury: Boolean(player.niglingInjury),
+    isCaptain: Boolean(player.isCaptain ?? player.captain),
     spp: normalizeSppCounters(player.spp),
     advancements: normalizePlayerAdvancements(player.advancements),
   };
@@ -1382,11 +1386,34 @@ function baseSkillsForPlayer(row) {
 }
 
 function skillNamesForPlayer(row, player) {
+  const seen = new Set();
   return [
     ...baseSkillsForPlayer(row),
     ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-  ].map((skill) => skill.name);
+    ...(player.isCaptain ? [{ name: "Pro", access: "captain" }] : []),
+  ]
+    .map((skill) => skill.name)
+    .filter((name) => {
+      if (!name || seen.has(name)) return false;
+      seen.add(name);
+      return true;
+    });
+}
+
+function setRosterCaptain(draft, playerId, isCaptain = true) {
+  if (!Array.isArray(draft.players)) return;
+  draft.players.forEach((player) => {
+    player.isCaptain = Boolean(isCaptain && player.id === playerId);
+  });
+}
+
+function playerStatusText(player) {
+  const statuses = [];
+  if (player.isCaptain) statuses.push(t("roster.captain"));
+  if (player.skipNextGame) statuses.push(t("admin.skipNextGameStatus"));
+  if (player.niglingInjury) statuses.push(t("roster.niglingInjury"));
+  return statuses.join(", ") || "-";
 }
 
 function availableSkillOptionsForPlayer(row, player) {
@@ -3289,6 +3316,7 @@ function renderPublicTeamSummary(user, savedTeam, team, draft, costs) {
         <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
         <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
         <dt>${t("savedRoster.teamRerolls")}</dt><dd>${draft.teamRerolls ?? 0}</dd>
+        ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
         <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
         <dt>${t("savedRoster.treasury")}</dt><dd>${countToNumber(draft.treasury)}k</dd>
         <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
@@ -3331,7 +3359,7 @@ function renderPublicTeamRosterTable(team, draft) {
               <td>${escapeHtml(statValueForDisplayByStat("ar", player.row.ar, player.statMods.ar ?? 0))}</td>
               <td class="skills-cell">${renderRosterLinks(skillNamesForPlayer(player.row, player))}</td>
               <td>${playerCurrentCost(player.row, player, true)}k</td>
-              <td>${player.skipNextGame ? t("admin.skipNextGameStatus") : player.niglingInjury ? t("roster.niglingInjury") : "-"}</td>
+              <td>${escapeHtml(playerStatusText(player))}</td>
             </tr>
           `).join("")}
         </tbody>
@@ -4265,6 +4293,7 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
         <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
         <dt>${t("savedRoster.startingRerolls")}</dt><dd>${draft.startingRerolls ?? 0}</dd>
         <dt>${t("savedRoster.teamRerolls")}</dt><dd>${draft.teamRerolls ?? 0}</dd>
+        ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
         <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
         <dt>${t("savedRoster.treasury")}</dt><dd data-treasury-display>${countToNumber(draft.treasury)}k</dd>
         <dt>${t("savedRoster.totalSppLabel")}</dt><dd data-total-spp-display>${rosterTotalSpp(team, draft)} SPP</dd>
@@ -4314,6 +4343,7 @@ function renderSavedRosterIdentity(team, draft, teams) {
 }
 
 function renderSavedRosterPurchases(team, draft) {
+  const briberyControl = hasBribery(team) ? renderRosterStaffControl("bribes", t("savedRoster.bribes"), draft.bribes) : "";
   return `
     <div class="roster-purchases-layout">
       <section class="roster-controls-panel roster-resources-panel side-panel">
@@ -4341,6 +4371,7 @@ function renderSavedRosterPurchases(team, draft) {
           `<button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>`,
           `<button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>`,
         )}
+        ${briberyControl}
         ${renderRosterStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), draft.assistantCoaches)}
         ${renderRosterStaffControl("cheerleaders", t("savedRoster.cheerleaders"), draft.cheerleaders)}
         ${availableMedicalStaffDefinitions(team).map((staff) => renderRosterStaffControl(staff.key, staff.title, draft[staff.key])).join("")}
@@ -4742,6 +4773,10 @@ function wireSavedPlayerEditors(team, draft, rerender) {
       player.niglingInjury = event.currentTarget.checked;
       autosave();
     });
+    card.querySelector("[data-saved-player-captain]")?.addEventListener("change", (event) => {
+      setRosterCaptain(draft, player.id, event.currentTarget.checked);
+      rerender();
+    });
     card.querySelectorAll("[data-saved-player-spp]").forEach((input) => {
       input.addEventListener("input", (event) => {
         player.spp = normalizeSppCounters(player.spp);
@@ -5082,6 +5117,7 @@ function renderBuilderPurchases(team, costs) {
           </div>
         </div>
         ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
+        ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total + builderStaffCosts.bribes > 600) : ""}
         ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
         ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
         ${availableMedicalStaffDefinitions(team).map((staff) => {
@@ -5103,6 +5139,7 @@ function renderBuilderSummary(team, costs, warnings) {
       <dl class="stat-list summary-stat-grid">
         <dt>${t("myTeams.table.players")}</dt><dd>${costs.totalPlayersCount}</dd>
         <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(state.builder.dedicatedFans)}</dd>
+        ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(state.builder.bribes)}</dd>` : ""}
         <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
         <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
         <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
@@ -5282,6 +5319,7 @@ function renderBuilderPlayerList(team, draft) {
             <th>${t("stats.ag")}</th>
             <th>${t("stats.pa")}</th>
             <th>${t("stats.ar")}</th>
+            <th>${t("roster.captain")}</th>
             <th>${t("roster.skillsLabel")}</th>
             <th>${t("sidebar.cost")}</th>
             <th>${t("roster.actionHeader")}</th>
@@ -5307,7 +5345,13 @@ function renderBuilderPlayerRow(player, index) {
       </td>
       <td><strong>${escapeHtml(player.row.position)}</strong></td>
       ${renderPlayerStatCells(player)}
-      <td class="skills-cell">${renderRosterLinks(player.row.skills)}</td>
+      <td>
+        <label class="table-checkbox" title="${t("roster.captain")}">
+          <input type="checkbox" data-builder-player-captain="${escapeHtml(player.id)}" ${player.isCaptain ? "checked" : ""}>
+          <span>${t("roster.captain")}</span>
+        </label>
+      </td>
+      <td class="skills-cell">${renderRosterLinks(skillNamesForPlayer(player.row, player))}</td>
       <td>${escapeHtml(rowCost(player.row) || "-")}</td>
       <td><button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">${t("common.remove")}</button></td>
     </tr>
@@ -5344,7 +5388,11 @@ function renderBuilderPlayerCard(player, index) {
       </section>
       <section class="mobile-player-section">
         <h3>${t("roster.skillsLabel")}</h3>
-        <div class="mobile-player-pills">${renderRosterLinks(player.row.skills)}</div>
+        <div class="mobile-player-pills">${renderRosterLinks(skillNamesForPlayer(player.row, player))}</div>
+        <label class="table-checkbox" title="${t("roster.captain")}">
+          <input type="checkbox" data-builder-player-captain="${escapeHtml(player.id)}" ${player.isCaptain ? "checked" : ""}>
+          <span>${t("roster.captain")}</span>
+        </label>
       </section>
     </article>
   `;
@@ -5373,6 +5421,7 @@ function renderSavedPlayerList(team, draft) {
             <th>${t("roster.addSkillHeader")}</th>
             <th>${t("roster.skipHeader")}</th>
             <th>${t("roster.niglingInjury")}</th>
+            <th>${t("roster.captain")}</th>
             <th>SPP</th>
             <th>${t("roster.levelHeader")}</th>
             <th>${t("roster.advancementHeader")}</th>
@@ -5468,6 +5517,21 @@ function renderFavouredSkillButtons(player) {
   `;
 }
 
+function renderCaptainSkillBadge(player) {
+  if (!player.isCaptain) return "";
+  const nonCaptainSkills = new Set([
+    ...(player.row.skills ?? []),
+    ...normalizePlayerExtraSkills(player.row, player.extraSkills ?? []).map((skill) => skill.name),
+    ...normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []).map((skill) => skill.name),
+  ]);
+  return `
+    <div class="player-extra-skills table-extra-skills captain-extra-skills">
+      ${nonCaptainSkills.has("Pro") ? "" : renderRosterLinks(["Pro"])}
+      <span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>
+    </div>
+  `;
+}
+
 function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = false) {
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
   const adjustment = playerAdjustmentCost(player);
@@ -5498,6 +5562,7 @@ function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = fa
           </div>
         ` : ""}
         ${renderFavouredSkillButtons(player)}
+        ${renderCaptainSkillBadge(player)}
         ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
       </td>
       <td>
@@ -5521,6 +5586,12 @@ function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = fa
         <label class="table-checkbox" title="${t("roster.niglingInjury")}">
           <input type="checkbox" data-saved-player-nigling ${player.niglingInjury ? "checked" : ""}>
           <span>${t("roster.niglingInjury")}</span>
+        </label>
+      </td>
+      <td>
+        <label class="table-checkbox" title="${t("roster.captain")}">
+          <input type="checkbox" data-saved-player-captain ${player.isCaptain ? "checked" : ""}>
+          <span>${t("roster.captain")}</span>
         </label>
       </td>
       <td class="spp-cell">${renderPlayerSppControls(team, player)}</td>
@@ -5567,6 +5638,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
             <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
           `).join("")}
           ${renderFavouredSkillButtons(player)}
+          ${renderCaptainSkillBadge(player)}
         </div>
         ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
         <div class="table-skill-editor mobile-skill-editor">
@@ -5589,6 +5661,10 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
         <label class="table-checkbox" title="${t("roster.niglingInjury")}">
           <input type="checkbox" data-saved-player-nigling ${player.niglingInjury ? "checked" : ""}>
           <span>${t("roster.niglingInjury")}</span>
+        </label>
+        <label class="table-checkbox" title="${t("roster.captain")}">
+          <input type="checkbox" data-saved-player-captain ${player.isCaptain ? "checked" : ""}>
+          <span>${t("roster.captain")}</span>
         </label>
       </section>
 
@@ -5779,6 +5855,7 @@ function selectedRosterPlayers(team, draft) {
         statMods: edit.statMods ?? {},
         extraSkills: edit.extraSkills ?? [],
         skipNextGame: Boolean(edit.skipNextGame),
+        isCaptain: Boolean(edit.isCaptain ?? edit.captain),
       };
     });
   });
@@ -5790,6 +5867,7 @@ function ensurePlayerEdit(draft, key, row) {
     statMods: {},
     extraSkills: [],
     skipNextGame: false,
+    isCaptain: false,
   };
   if (!draft.playerEdits[key].name) {
     const copyIndex = Number(key.split("-")[1] ?? 0);
@@ -5798,6 +5876,7 @@ function ensurePlayerEdit(draft, key, row) {
   draft.playerEdits[key].statMods ??= {};
   draft.playerEdits[key].extraSkills ??= [];
   draft.playerEdits[key].skipNextGame = Boolean(draft.playerEdits[key].skipNextGame);
+  draft.playerEdits[key].isCaptain = Boolean(draft.playerEdits[key].isCaptain);
   return draft.playerEdits[key];
 }
 
@@ -5940,6 +6019,13 @@ function availableMedicalStaffDefinitions(team) {
 }
 
 function syncMedicalStaffForTeam(team, draft) {
+  if (!hasBribery(team)) {
+    draft.bribes = 0;
+    if (draft.purchasedStaff) draft.purchasedStaff.bribes = 0;
+  } else {
+    draft.bribes = clamp(countToNumber(draft.bribes), 0, builderStaffMaximums.bribes);
+  }
+
   const availableKeys = new Set(availableMedicalStaffDefinitions(team).map((staff) => staff.key));
   medicalStaffDefinitions.forEach((staff) => {
     if (!availableKeys.has(staff.key)) {
@@ -6005,6 +6091,7 @@ function calculateRosterCosts(team, draft, options = {}) {
   }, 0);
   const staffCost = staffItemCost(draft, "startingRerolls")
     + staffItemCost(draft, "teamRerolls")
+    + (hasBribery(team) ? staffItemCost(draft, "bribes") : 0)
     + (includeDedicatedFans ? staffItemCost(draft, "dedicatedFans") : 0)
     + staffItemCost(draft, "assistantCoaches")
     + staffItemCost(draft, "cheerleaders")
@@ -6095,6 +6182,12 @@ function wireBuilder(team) {
     input.addEventListener("input", (event) => {
       const player = state.builder.players.find((item) => item.id === input.dataset.builderPlayerName);
       if (player) player.name = event.currentTarget.value;
+    });
+  });
+  view.querySelectorAll("[data-builder-player-captain]").forEach((input) => {
+    input.addEventListener("change", (event) => {
+      setRosterCaptain(state.builder, input.dataset.builderPlayerCaptain, event.currentTarget.checked);
+      renderBuilder();
     });
   });
   view.querySelectorAll("[data-builder-reroll]").forEach((button) => {
@@ -6260,7 +6353,7 @@ function buildRosterTextForDraft(team, draft) {
     `Coach's Safe: ${draft.coachesSafe ?? 0}k`,
     "",
     ...selected.map((player) => [
-      `#${player.number ?? player.index + 1} ${player.name} (${player.row.position}) - ${rowCost(player.row)}${player.skipNextGame ? " - Skip Next Game" : ""}`,
+      `#${player.number ?? player.index + 1} ${player.name} (${player.row.position}) - ${rowCost(player.row)}${playerStatusText(player) !== "-" ? ` - ${playerStatusText(player)}` : ""}`,
       `  Stats: MA ${statValueForDisplayByStat("ma", player.row.ma, player.statMods.ma ?? 0)} / ST ${statValueForDisplayByStat("st", player.row.st, player.statMods.st ?? 0)} / AG ${statValueForDisplayByStat("ag", player.row.ag, player.statMods.ag ?? 0)} / PA ${statValueForDisplayByStat("pa", player.row.pa, player.statMods.pa ?? 0)} / AR ${statValueForDisplayByStat("ar", player.row.ar, player.statMods.ar ?? 0)}`,
       `  Skills: ${skillNamesForPlayer(player.row, player).join(", ") || "-"}`,
     ].join("\n")),
