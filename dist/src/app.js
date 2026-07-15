@@ -1,5 +1,6 @@
 ﻿const state = {
   data: null,
+  locale: "en",
   query: "",
   teamFilters: {
     type: "all",
@@ -77,6 +78,11 @@ const authTelegramField = document.querySelector("[data-auth-telegram]");
 
 const authTokenKey = "gata-league-auth-token";
 const themeStorageKey = "gata-league-theme";
+const localeStorageKey = "gata-league-locale";
+const supportedLocales = new Set(["en", "ru"]);
+const dataCache = new Map();
+let translations = { en: {}, ru: {} };
+let activeDict = translations.en;
 const themeIds = new Set([
   "dark-gata",
   "dark-dugout",
@@ -122,6 +128,104 @@ function applyTheme(theme, persist = true) {
   } catch (_error) {
     // Theme persistence is optional; the visual switch still works for this session.
   }
+}
+
+function detectDefaultLocale() {
+  const languages = navigator.languages && navigator.languages.length
+    ? navigator.languages
+    : [navigator.language || "en"];
+  return languages.some((lang) => lang.toLowerCase().startsWith("ru")) ? "ru" : "en";
+}
+
+function storedLocale() {
+  try {
+    const saved = localStorage.getItem(localeStorageKey);
+    return supportedLocales.has(saved) ? saved : detectDefaultLocale();
+  } catch (_error) {
+    return detectDefaultLocale();
+  }
+}
+
+async function loadTranslations() {
+  const [en, ru] = await Promise.all([
+    fetch("src/i18n/en.json", { cache: "no-store" }).then((response) => response.json()),
+    fetch("src/i18n/ru.json", { cache: "no-store" }).then((response) => response.json()),
+  ]);
+  translations = { en, ru };
+}
+
+function t(key) {
+  return activeDict[key] ?? translations.en[key] ?? key;
+}
+
+function applyStaticI18n() {
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    element.textContent = t(element.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
+    element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
+  });
+  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
+    element.setAttribute("title", t(element.dataset.i18nTitle));
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+    element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+  });
+}
+
+async function loadLocaleData(locale) {
+  if (dataCache.has(locale)) return dataCache.get(locale);
+  let data;
+  if (window.__REFERENCE_DATA__ && window.__REFERENCE_DATA__[locale]) {
+    data = window.__REFERENCE_DATA__[locale];
+  } else {
+    const response = await fetch(`public/data.${locale}.json`, { cache: "no-store" });
+    data = await response.json();
+  }
+  dataCache.set(locale, data);
+  return data;
+}
+
+function applyLocaleChrome() {
+  document.documentElement.lang = state.locale;
+  activeDict = translations[state.locale];
+  applyStaticI18n();
+  updateAuthButton();
+  setAuthMode(state.auth.mode);
+  if (langToggle) {
+    langToggle.textContent = state.locale === "en" ? "RU" : "EN";
+    langToggle.title = t("lang.toggleTitle");
+  }
+  if (generatedAt && state.data) {
+    const dateLocale = state.locale === "ru" ? "ru-RU" : "en-GB";
+    generatedAt.textContent = `${t("footer.updated")} ${new Date(state.data.generatedAt).toLocaleDateString(dateLocale)}`;
+  }
+}
+
+async function switchLocale(nextLocale) {
+  if (!supportedLocales.has(nextLocale) || nextLocale === state.locale) return;
+  const previousLocale = state.locale;
+  state.locale = nextLocale;
+  try {
+    localStorage.setItem(localeStorageKey, nextLocale);
+  } catch (_error) {
+    // Locale persistence is optional; the switch still works for this session.
+  }
+  try {
+    state.data = await loadLocaleData(nextLocale);
+  } catch (error) {
+    console.error(error);
+    state.locale = previousLocale;
+    try {
+      localStorage.setItem(localeStorageKey, previousLocale);
+    } catch (_error) {
+      // Locale persistence is optional; the switch still works for this session.
+    }
+    applyLocaleChrome();
+    return;
+  }
+  applyLocaleChrome();
+  renderRoute();
 }
 
 const builderStaffCosts = {
@@ -173,28 +277,6 @@ const eliteSkillCombos = [
   ["Guard", "Defensive"],
   ["Wrestle", "Evasive"],
 ];
-
-const sectionTitles = {
-  teams: "Team's Rules",
-  skills: "Skills",
-  traits: "Traits",
-  rules: "League Rules",
-  cheatsheets: "Cheatsheets",
-  inducements: "Inducements",
-  "star-players": "Star Players",
-  pages: "References",
-};
-
-const sectionDescriptions = {
-  teams: "Browse team roster rules, tiers, special rules and team-building data.",
-  skills: "Skill reference with category and active/passive filters.",
-  traits: "Trait reference for players, star players and special rules.",
-  rules: "Gata league format, roster creation, season flow and league-specific rulings.",
-  cheatsheets: "Compact tables and match aids used during play.",
-  inducements: "Inducements and match extras available in the league.",
-  "star-players": "Star player costs, availability groups, keywords and abilities.",
-  pages: "Skill, kick-off, player advancement, special rules and match reference tables.",
-};
 
 const quickPreviews = new Map([
   ["1. League Basics", "League format, event tone, dice/model expectations and core conduct for Gata league games."],
@@ -292,10 +374,10 @@ function updateAuthButton() {
   if (!authButton) return;
   if (state.auth.currentUser) {
     authButton.textContent = state.auth.currentUser.login;
-    authButton.title = `Signed in as ${state.auth.currentUser.login}`;
+    authButton.title = `${t("auth.signedInAs")} ${state.auth.currentUser.login}`;
   } else {
-    authButton.textContent = "Login";
-    authButton.title = "Login or create account";
+    authButton.textContent = t("auth.login");
+    authButton.title = t("auth.loginOrCreate");
   }
 }
 
@@ -306,7 +388,7 @@ function setAuthMode(mode) {
   const isRegister = mode === "register";
 
   if (authTitle) {
-    authTitle.textContent = isAccount ? "Account" : isRegister ? "Register" : "Login";
+    authTitle.textContent = isAccount ? t("auth.account") : isRegister ? t("auth.register") : t("auth.login");
   }
   if (authForm) {
     authForm.hidden = isAccount;
@@ -333,10 +415,10 @@ function setAuthMode(mode) {
     }
   }
   if (authSubmit) {
-    authSubmit.textContent = isRegister ? "Register" : "Login";
+    authSubmit.textContent = isRegister ? t("auth.register") : t("auth.login");
   }
   if (authSwitch) {
-    authSwitch.textContent = isRegister ? "I already have an account" : "Create account";
+    authSwitch.textContent = isRegister ? t("auth.haveAccount") : t("auth.createAccount");
   }
 }
 
@@ -1063,8 +1145,8 @@ function renderHome() {
   view.innerHTML = `
     <section class="league-hero">
       <div class="league-hero-copy">
-        <h1>Gata Blood Bowl League</h1>
-        <p>Teams, star players, skills, traits and league rules in one searchable reference.</p>
+        <h1>${t("home.heroTitle")}</h1>
+        <p>${t("home.heroSubtitle")}</p>
       </div>
       <div class="league-hero-media" aria-hidden="true">
         <img src="assets/brand/gata-league-logo.png" alt="">
@@ -1074,22 +1156,22 @@ function renderHome() {
     <section>
       <div class="page-head">
         <div>
-          <h1>Quick Start</h1>
-          <p>Jump into the most useful league pages, or use search for teams, rules, skills and star players.</p>
+          <h1>${t("home.quickStartTitle")}</h1>
+          <p>${t("home.quickStartSubtitle")}</p>
         </div>
       </div>
       <div class="card-grid quick-grid">
         <a class="card compact" href="#/teams">
-          <h3>Teams</h3>
-          <p>${state.data.counts.teams} rosters with team-building data.</p>
+          <h3>${t("common.teams")}</h3>
+          <p>${state.data.counts.teams} ${t("home.cardTeamsDescription")}</p>
         </a>
         <a class="card compact" href="#/builder">
-          <h3>Team Builder</h3>
-          <p>Build a 600k starting roster by adding individual players.</p>
+          <h3>${t("nav.builder")}</h3>
+          <p>${t("home.cardBuilderDescription")}</p>
         </a>
         <a class="card compact" href="#/star-players">
-          <h3>Star Players</h3>
-          <p>${state.data.counts.starPlayers} stars with costs and availability.</p>
+          <h3>${t("nav.starPlayers")}</h3>
+          <p>${state.data.counts.starPlayers} ${t("home.cardStarPlayersDescription")}</p>
         </a>
         ${quickPages.map(renderSimpleCard).join("")}
       </div>
@@ -1139,14 +1221,33 @@ function renderSection(route) {
   normalizeSkillFilters(route);
   const items = visibleCollection(route);
   const allItems = collectionForRoute(route);
-  const actions = route === "teams" ? `<a class="primary-button" href="#/builder">Create Team</a>` : "";
-  const description = route === "pages" ? "" : `${items.length} of ${allItems.length}. ${sectionDescriptions[route]}`;
+  const sectionTitleKeys = {
+    teams: "nav.teamsRules",
+    skills: "nav.skills",
+    traits: "nav.traits",
+    rules: "section.rulesTitle",
+    cheatsheets: "section.cheatsheetsTitle",
+    inducements: "nav.inducements",
+    "star-players": "nav.starPlayers",
+    pages: "nav.references",
+  };
+  const sectionDescriptionKeys = {
+    teams: "section.teamsDescription",
+    skills: "section.skillsDescription",
+    traits: "section.traitsDescription",
+    rules: "section.rulesDescription",
+    cheatsheets: "section.cheatsheetsDescription",
+    inducements: "section.inducementsDescription",
+    "star-players": "section.starPlayersDescription",
+  };
+  const actions = route === "teams" ? `<a class="primary-button" href="#/builder">${t("section.createTeamButton")}</a>` : "";
+  const description = route === "pages" ? "" : `${items.length} ${t("section.countOf")} ${allItems.length}. ${t(sectionDescriptionKeys[route])}`;
 
   view.innerHTML = `
-    ${renderHeader(sectionTitles[route], description, actions)}
+    ${renderHeader(t(sectionTitleKeys[route]), description, actions)}
     ${renderFilters(route)}
     <div class="card-grid">
-      ${items.length ? items.map((page) => renderListCard(page, route)).join("") : `<div class="empty-state">Nothing found. Try changing the search or filters.</div>`}
+      ${items.length ? items.map((page) => renderListCard(page, route)).join("") : `<div class="empty-state">${t("section.emptyState")}</div>`}
     </div>
   `;
   wireFilters(route);
@@ -1172,28 +1273,28 @@ function renderTeamFilters() {
   const f = state.teamFilters;
   return `
     <div class="filter-panel" data-filter-panel="teams">
-      <label class="filter-field"><span>Type</span><select data-filter="type">
-        ${renderOption("all", "All teams", f.type)}
-        ${renderOption("core", "Core", f.type)}
-        ${renderOption("experimental", "Experimental", f.type)}
+      <label class="filter-field"><span>${t("filters.type")}</span><select data-filter="type">
+        ${renderOption("all", t("filters.allTeams"), f.type)}
+        ${renderOption("core", t("filters.core"), f.type)}
+        ${renderOption("experimental", t("filters.experimental"), f.type)}
       </select></label>
-      <label class="filter-field"><span>League</span><select data-filter="league">
-        ${renderOption("all", "Any league", f.league)}
+      <label class="filter-field"><span>${t("filters.league")}</span><select data-filter="league">
+        ${renderOption("all", t("filters.anyLeague"), f.league)}
         ${leagues.map((league) => renderOption(league, league, f.league)).join("")}
       </select></label>
-      <label class="filter-field"><span>Skill or trait</span><select data-filter="skill">
-        ${renderOption("all", "Any skill", f.skill)}
+      <label class="filter-field"><span>${t("filters.skillOrTrait")}</span><select data-filter="skill">
+        ${renderOption("all", t("filters.anySkill"), f.skill)}
         ${skills.map((skill) => renderOption(skill, skill, f.skill)).join("")}
       </select></label>
-      <label class="filter-field"><span>Player tag</span><select data-filter="tag">
-        ${renderOption("all", "Any tag", f.tag)}
+      <label class="filter-field"><span>${t("filters.playerTag")}</span><select data-filter="tag">
+        ${renderOption("all", t("filters.anyTag"), f.tag)}
         ${tags.map((tag) => renderOption(tag, tag, f.tag)).join("")}
       </select></label>
-      <label class="filter-field"><span>Player cost</span><select data-filter="price">
-        ${renderOption("all", "Any cost", f.price)}
+      <label class="filter-field"><span>${t("filters.playerCost")}</span><select data-filter="price">
+        ${renderOption("all", t("filters.anyCost"), f.price)}
         ${prices.map((price) => renderOption(price, price, f.price)).join("")}
       </select></label>
-      <button class="filter-button" type="button" data-reset-filters>Reset</button>
+      <button class="filter-button" type="button" data-reset-filters>${t("filters.reset")}</button>
     </div>
   `;
 }
@@ -1221,11 +1322,11 @@ function renderSkillFilters(route) {
   const f = state.skillFilters;
   return `
     <div class="filter-panel compact-panel" data-filter-panel="skills">
-      <label class="filter-field"><span>Group</span><select data-filter="category">
-        ${renderOption("all", "Any group", f.category)}
+      <label class="filter-field"><span>${t("filters.group")}</span><select data-filter="category">
+        ${renderOption("all", t("filters.anyGroup"), f.category)}
         ${categories.map((tag) => renderOption(tag, tag, f.category)).join("")}
       </select></label>
-      <button class="filter-button" type="button" data-reset-filters>Reset</button>
+      <button class="filter-button" type="button" data-reset-filters>${t("filters.reset")}</button>
     </div>
   `;
 }
@@ -1235,11 +1336,11 @@ function renderStarFilters() {
   const f = state.starFilters;
   return `
     <div class="filter-panel compact-panel" data-filter-panel="star-players">
-      <label class="filter-field"><span>Player tag</span><select data-filter="tag">
-        ${renderOption("all", "Any tag", f.tag)}
+      <label class="filter-field"><span>${t("filters.playerTag")}</span><select data-filter="tag">
+        ${renderOption("all", t("filters.anyTag"), f.tag)}
         ${tags.map((tag) => renderOption(tag, tag, f.tag)).join("")}
       </select></label>
-      <button class="filter-button" type="button" data-reset-filters>Reset</button>
+      <button class="filter-button" type="button" data-reset-filters>${t("filters.reset")}</button>
     </div>
   `;
 }
@@ -1249,11 +1350,11 @@ function renderInducementFilters() {
   const f = state.inducementFilters;
   return `
     <div class="filter-panel compact-panel" data-filter-panel="inducements">
-      <label class="filter-field"><span>Inducement tag</span><select data-filter="tag">
-        ${renderOption("all", "Any tag", f.tag)}
+      <label class="filter-field"><span>${t("filters.inducementTag")}</span><select data-filter="tag">
+        ${renderOption("all", t("filters.anyTag"), f.tag)}
         ${tags.map((tag) => renderOption(tag, tag, f.tag)).join("")}
       </select></label>
-      <button class="filter-button" type="button" data-reset-filters>Reset</button>
+      <button class="filter-button" type="button" data-reset-filters>${t("filters.reset")}</button>
     </div>
   `;
 }
@@ -1288,7 +1389,7 @@ function renderListCard(page, route) {
     return `
       <a class="card compact" href="${pageUrl(page)}">
         <h3>${escapeHtml(page.title)}</h3>
-        <p>${escapeHtml(page.team?.meta?.league ?? "League roster")}</p>
+        <p>${escapeHtml(page.team?.meta?.league ?? t("listCard.leagueRosterFallback"))}</p>
       </a>
     `;
   }
@@ -1324,7 +1425,7 @@ function renderDetail(page) {
   setActiveNav(route);
   setViewSection(route);
   const sidebar = renderSidebar(page);
-  const actions = `<a class="primary-button" href="${listUrlForRoute(route)}">Back</a>`;
+  const actions = `<a class="primary-button" href="${listUrlForRoute(route)}">${t("common.back")}</a>`;
   let content = page.html || `<p>${escapeHtml(page.text)}</p>`;
   if (isLeaguesPage(page)) {
     content = renderLeaguesReferencePage();
@@ -1560,11 +1661,11 @@ function renderTeamRuleAccess(team, draft, controlName = "") {
   return `
     <section class="team-rules-panel">
       <div class="team-rules-row">
-        <span>Tier</span>
+        <span>${t("roster.tier")}</span>
         <strong>${escapeHtml(team.team?.meta?.league ?? "-")}</strong>
       </div>
       <div class="team-rules-row">
-        <span>League access</span>
+        <span>${t("roster.leagueAccess")}</span>
         ${leagueOptions.length > 1 ? `
           <select ${controlName ? `data-${controlName}-league` : ""}>
             ${leagueOptions.map((option) => renderOption(option, option, selectedLeague)).join("")}
@@ -1572,7 +1673,7 @@ function renderTeamRuleAccess(team, draft, controlName = "") {
         ` : `<div class="rule-link-list">${renderRuleLinks(leagueOptions)}</div>`}
       </div>
       <div class="team-rules-row team-rules-row-wide">
-        <span>Special rules</span>
+        <span>${t("roster.specialRules")}</span>
         <div class="rule-link-list">${renderRuleLinks(specialRules)}</div>
       </div>
     </section>
@@ -1625,18 +1726,18 @@ function renderLeaguesReferencePage() {
           <article class="league-reference-card">
             <header>
               <h2>${escapeHtml(league)}</h2>
-              <span>${teams.length} teams · ${starPlayers.length} star players</span>
+              <span>${teams.length} ${t("leagueRef.teamsSuffix")} · ${starPlayers.length} ${t("leagueRef.starPlayersSuffix")}</span>
             </header>
             <section class="league-reference-section">
-              <h3>Teams</h3>
+              <h3>${t("common.teams")}</h3>
               <div class="rule-link-list league-link-list">
-                ${renderPagePills(teams, "No teams")}
+                ${renderPagePills(teams, t("leagueRef.noTeams"))}
               </div>
             </section>
             <section class="league-reference-section">
-              <h3>Star Players</h3>
+              <h3>${t("nav.starPlayers")}</h3>
               <div class="rule-link-list league-link-list league-star-list">
-                ${renderPagePills(starPlayers, "No star players")}
+                ${renderPagePills(starPlayers, t("leagueRef.noStarPlayers"))}
               </div>
             </section>
           </article>
@@ -1649,11 +1750,11 @@ function renderLeaguesReferencePage() {
 function renderRosterStatGrid(row) {
   return `
     <dl class="team-stat-grid">
-      <div><dt>MA</dt><dd>${escapeHtml(row.ma || "-")}</dd></div>
-      <div><dt>ST</dt><dd>${escapeHtml(row.st || "-")}</dd></div>
-      <div><dt>AG</dt><dd>${escapeHtml(row.ag || "-")}</dd></div>
-      <div><dt>PA</dt><dd>${escapeHtml(row.pa || "-")}</dd></div>
-      <div><dt>AR</dt><dd>${escapeHtml(row.ar || "-")}</dd></div>
+      <div><dt>${t("stats.ma")}</dt><dd>${escapeHtml(row.ma || "-")}</dd></div>
+      <div><dt>${t("stats.st")}</dt><dd>${escapeHtml(row.st || "-")}</dd></div>
+      <div><dt>${t("stats.ag")}</dt><dd>${escapeHtml(row.ag || "-")}</dd></div>
+      <div><dt>${t("stats.pa")}</dt><dd>${escapeHtml(row.pa || "-")}</dd></div>
+      <div><dt>${t("stats.ar")}</dt><dd>${escapeHtml(row.ar || "-")}</dd></div>
     </dl>
   `;
 }
@@ -1675,21 +1776,21 @@ function renderTeamRosterMobile(team) {
           </header>
           ${renderRosterStatGrid(row)}
           <div class="team-roster-field">
-            <span>Skills</span>
+            <span>${t("roster.skillsLabel")}</span>
             <div>${renderRosterLinks(row.skills)}</div>
           </div>
           <div class="team-roster-columns">
             <div class="team-roster-field">
-              <span>Primary</span>
+              <span>${t("roster.primary")}</span>
               <div>${renderRosterValues(row.primary)}</div>
             </div>
             <div class="team-roster-field">
-              <span>Secondary</span>
+              <span>${t("roster.secondary")}</span>
               <div>${renderRosterValues(row.secondary)}</div>
             </div>
           </div>
           <div class="team-roster-field">
-            <span>Tags</span>
+            <span>${t("roster.tags")}</span>
             <div>${renderRosterValues(row.tags)}</div>
           </div>
         </article>
@@ -1708,18 +1809,18 @@ function renderSkillTableRoller() {
   const resultPage = result ? pageForSkillTableEntry(result) : null;
   const resultMarkup = result
     ? `<a class="skill-roll-result-link" href="${resultPage ? pageUrl(resultPage) : "#/skill-table"}">${escapeHtml(result)}</a>`
-    : `<span class="skill-roll-placeholder">Ready to roll 1d${skills.length}.</span>`;
+    : `<span class="skill-roll-placeholder">${t("skillRoll.readyPrefix")}${skills.length}.</span>`;
 
   return `
     <section class="skill-roll-panel" aria-label="Skill randomizer">
       <div class="skill-roll-controls">
         <label class="filter-field">
-          <span>Skill group</span>
+          <span>${t("skillRoll.groupLabel")}</span>
           <select data-skill-roll-group>
             ${groups.map((group) => renderOption(group.category, group.category, selectedGroup.category)).join("")}
           </select>
         </label>
-        <button class="primary-button" type="button" data-skill-roll>Roll</button>
+        <button class="primary-button" type="button" data-skill-roll>${t("skillRoll.rollButton")}</button>
       </div>
       <div class="skill-roll-result">
         <span class="skill-roll-die">1d${skills.length}${state.skillTableRoller.roll ? `: ${state.skillTableRoller.roll}` : ""}</span>
@@ -1846,15 +1947,15 @@ function renderSidebar(page) {
     const costs = uniqueSorted(roster.map(rowCost).filter(Boolean));
     return `
       <aside class="side-panel">
-        <h3>Team</h3>
+        <h3>${t("sidebar.teamHeading")}</h3>
         <dl class="stat-list">
-          <dt>Positions</dt><dd>${roster.length}</dd>
-          <dt>Player cost</dt><dd>${escapeHtml(costs.join(" - ") || "-")}</dd>
-          <dt>Rerolls</dt><dd>${escapeHtml(page.team?.meta?.rerolls ?? "-")}</dd>
-          <dt>Apothecary</dt><dd>${escapeHtml(cleanApothecary(page.team?.meta?.apothecary))}</dd>
-          <dt>Tier</dt><dd>${escapeHtml(page.team?.meta?.league ?? "-")}</dd>
-          <dt>League access</dt><dd>${renderRuleLinks(teamLeagueOptions(page))}</dd>
-          <dt>Special rules</dt><dd>${renderRuleLinks(teamSpecialRuleTokens(page))}</dd>
+          <dt>${t("sidebar.positions")}</dt><dd>${roster.length}</dd>
+          <dt>${t("filters.playerCost")}</dt><dd>${escapeHtml(costs.join(" - ") || "-")}</dd>
+          <dt>${t("sidebar.rerolls")}</dt><dd>${escapeHtml(page.team?.meta?.rerolls ?? "-")}</dd>
+          <dt>${t("sidebar.apothecary")}</dt><dd>${escapeHtml(cleanApothecary(page.team?.meta?.apothecary))}</dd>
+          <dt>${t("roster.tier")}</dt><dd>${escapeHtml(page.team?.meta?.league ?? "-")}</dd>
+          <dt>${t("roster.leagueAccess")}</dt><dd>${renderRuleLinks(teamLeagueOptions(page))}</dd>
+          <dt>${t("roster.specialRules")}</dt><dd>${renderRuleLinks(teamSpecialRuleTokens(page))}</dd>
         </dl>
       </aside>
     `;
@@ -1862,21 +1963,21 @@ function renderSidebar(page) {
   if (page.kind === "starPlayer") {
     return `
       <aside class="side-panel">
-        <h3>Star Player</h3>
+        <h3>${t("sidebar.starPlayerHeading")}</h3>
         <dl class="stat-list">
-          <dt>Cost</dt><dd>${escapeHtml(page.starPlayer?.cost ?? "-")}</dd>
-          <dt>Availability</dt><dd>${escapeHtml(page.starPlayer?.availability ?? "-")}</dd>
-          <dt>Tags</dt><dd>${badgeList(page.tags, 8)}</dd>
+          <dt>${t("sidebar.cost")}</dt><dd>${escapeHtml(page.starPlayer?.cost ?? "-")}</dd>
+          <dt>${t("sidebar.availability")}</dt><dd>${escapeHtml(page.starPlayer?.availability ?? "-")}</dd>
+          <dt>${t("roster.tags")}</dt><dd>${badgeList(page.tags, 8)}</dd>
         </dl>
       </aside>
     `;
   }
   return `
     <aside class="side-panel">
-      <h3>Page</h3>
+      <h3>${t("sidebar.pageHeading")}</h3>
       <dl class="stat-list">
-        <dt>Category</dt><dd>${escapeHtml(page.sectionLabel)}</dd>
-        ${page.tags?.length ? `<dt>Tags</dt><dd>${badgeList(page.tags, 8)}</dd>` : ""}
+        <dt>${t("sidebar.category")}</dt><dd>${escapeHtml(page.sectionLabel)}</dd>
+        ${page.tags?.length ? `<dt>${t("roster.tags")}</dt><dd>${badgeList(page.tags, 8)}</dd>` : ""}
       </dl>
     </aside>
   `;
@@ -1890,11 +1991,11 @@ function renderLegal() {
   setActiveNav("legal");
   setViewSection("pages");
   view.innerHTML = `
-    ${renderHeader("Legal Information", "Unofficial fan-made reference for a private Blood Bowl league.")}
+    ${renderHeader(t("legal.title"), t("legal.subtitle"))}
     <article class="content-panel content-body">
-      <p>Gata Blood Bowl League is an unofficial fan reference. It is not affiliated with, endorsed by, or sponsored by Games Workshop.</p>
-      <p>Blood Bowl and related names belong to their respective owners. This site is intended to document league-specific house rules and help players navigate their local league.</p>
-      <p>Base game wording is referenced through Blood Bowl Base where appropriate instead of being reproduced here in full.</p>
+      <p>${t("legal.paragraph1")}</p>
+      <p>${t("legal.paragraph2")}</p>
+      <p>${t("legal.paragraph3")}</p>
     </article>
   `;
 }
@@ -1922,27 +2023,27 @@ async function renderMyTeams() {
   setActiveNav("my-teams");
   setViewSection("teams");
   view.innerHTML = `
-    ${renderHeader("My Teams", "Saved teams from your profile.", `<button class="primary-button" type="button" data-new-team>Create Team</button>`)}
-    <div class="loading">Loading teams...</div>
+    ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"), `<button class="primary-button" type="button" data-new-team>${t("myTeams.createTeam")}</button>`)}
+    <div class="loading">${t("myTeams.loadingTeams")}</div>
   `;
   await loadMyTeams(true);
   if (!state.auth.currentUser) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
-      <div class="empty-state">Log in to save and edit your teams.</div>
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      <div class="empty-state">${t("myTeams.loginRequired")}</div>
     `;
     return;
   }
   if (state.myTeams.error) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
       <div class="empty-state">${escapeHtml(state.myTeams.error)}</div>
     `;
     return;
   }
   view.innerHTML = `
-    ${renderHeader("My Teams", "Saved teams from your profile.", `<button class="primary-button" type="button" data-new-team>Create Team</button>`)}
-    ${state.myTeams.items.length ? renderSavedTeamsTable(state.myTeams.items) : `<div class="empty-state">No saved teams yet.</div>`}
+    ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"), `<button class="primary-button" type="button" data-new-team>${t("myTeams.createTeam")}</button>`)}
+    ${state.myTeams.items.length ? renderSavedTeamsTable(state.myTeams.items) : `<div class="empty-state">${t("myTeams.noSavedTeams")}</div>`}
   `;
   wireMyTeams();
 }
@@ -1954,12 +2055,12 @@ function renderSavedTeamsTable(teams) {
         <table class="my-teams-table compact-roster-table">
           <thead>
             <tr>
-              <th>Team</th>
-              <th>Rules</th>
-              <th>Players</th>
-              <th>Total Cost</th>
-              <th>Updated</th>
-              <th>Actions</th>
+              <th>${t("sidebar.teamHeading")}</th>
+              <th>${t("myTeams.table.rules")}</th>
+              <th>${t("myTeams.table.players")}</th>
+              <th>${t("roster.totalCost")}</th>
+              <th>${t("footer.updated")}</th>
+              <th>${t("myTeams.table.actions")}</th>
             </tr>
           </thead>
           <tbody>
@@ -1994,8 +2095,8 @@ function renderSavedTeamRow(team) {
       <td>${escapeHtml(updated)}</td>
       <td>
         <div class="table-actions">
-          <a class="primary-button compact-action" href="#/my-teams/${encodeURIComponent(team.id)}">Edit</a>
-          <button class="filter-button compact-action" type="button" data-delete-team="${escapeHtml(team.id)}">Delete</button>
+          <a class="primary-button compact-action" href="#/my-teams/${encodeURIComponent(team.id)}">${t("common.edit")}</a>
+          <button class="filter-button compact-action" type="button" data-delete-team="${escapeHtml(team.id)}">${t("common.delete")}</button>
         </div>
       </td>
     </tr>
@@ -2020,15 +2121,15 @@ async function renderSavedRoster(teamId, refresh = true) {
   setViewSection("teams");
   if (refresh) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
-      <div class="loading">Loading team...</div>
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      <div class="loading">${t("myTeams.loadingTeam")}</div>
     `;
   }
   await loadMyTeams(refresh);
   if (!state.auth.currentUser) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
-      <div class="empty-state">Log in to save and edit your teams.</div>
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      <div class="empty-state">${t("myTeams.loginRequired")}</div>
     `;
     return;
   }
@@ -2036,8 +2137,8 @@ async function renderSavedRoster(teamId, refresh = true) {
   const savedTeam = state.myTeams.items.find((item) => item.id === teamId);
   if (!savedTeam) {
     view.innerHTML = `
-      ${renderHeader("My Teams", "Saved teams from your profile.")}
-      <div class="empty-state">Saved team not found.</div>
+      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      <div class="empty-state">${t("savedRoster.notFound")}</div>
     `;
     return;
   }
@@ -2052,7 +2153,7 @@ async function renderSavedRoster(teamId, refresh = true) {
   const warnings = rosterWarnings(team, draft, costs);
 
   view.innerHTML = `
-    ${renderHeader(`Team "${draft.teamName || savedTeam.name || team.title}"`, `${team.title} roster`, `<a class="primary-button" href="#/my-teams">Back</a>`)}
+    ${renderHeader(`${t("sidebar.teamHeading")} "${draft.teamName || savedTeam.name || team.title}"`, `${team.title} ${t("savedRoster.rosterSuffix")}`, `<a class="primary-button" href="#/my-teams">${t("common.back")}</a>`)}
     <div class="saved-roster-top-grid">
       ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
       ${renderSavedRosterSettings(team, draft, costs, teams)}
@@ -2060,12 +2161,12 @@ async function renderSavedRoster(teamId, refresh = true) {
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
         <section class="builder-selected">
-          <h2>Roster</h2>
+          <h2>${t("savedRoster.rosterHeading")}</h2>
           ${renderSavedPlayerList(team, draft)}
         </section>
 
         <section class="builder-pool saved-add-player-section">
-          <h2>Add new players</h2>
+          <h2>${t("savedRoster.addNewPlayers")}</h2>
           ${renderSavedNewPlayerTable(team, draft)}
         </section>
       </section>
@@ -2081,31 +2182,31 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
       ${draft.logoData ? `
         <div class="summary-logo-block">
           <img src="${escapeHtml(draft.logoData)}" alt="">
-          <button class="filter-button compact-action" type="button" data-roster-remove-logo>Remove logo</button>
+          <button class="filter-button compact-action" type="button" data-roster-remove-logo>${t("savedRoster.removeLogo")}</button>
         </div>
       ` : ""}
       <div class="summary-title-block">
-        <h3>Roster Summary</h3>
+        <h3>${t("savedRoster.summaryTitle")}</h3>
         <p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosave.status)}">${escapeHtml(autosave.message)}</p>
         <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
       </div>
       <dl class="stat-list summary-stat-grid">
-        <dt>Active players</dt><dd>${costs.playersCount}</dd>
-        <dt>Total players</dt><dd>${costs.totalPlayersCount}</dd>
-        <dt>Starting rerolls</dt><dd>${draft.startingRerolls ?? 0}</dd>
-        <dt>Team Rerolls</dt><dd>${draft.teamRerolls ?? 0}</dd>
-        <dt>Dedicated Fans</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
-        <dt>Treasury</dt><dd data-treasury-display>${countToNumber(draft.treasury)}k</dd>
-        <dt>Total SPP</dt><dd data-total-spp-display>${rosterTotalSpp(team, draft)} SPP</dd>
-        <dt>Players cost</dt><dd>${costs.playersCost}k</dd>
-        <dt>Staff cost</dt><dd>${costs.staffCost}k</dd>
-        <dt>Total Cost</dt><dd>${costs.total}k</dd>
+        <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
+        <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
+        <dt>${t("savedRoster.startingRerolls")}</dt><dd>${draft.startingRerolls ?? 0}</dd>
+        <dt>${t("savedRoster.teamRerolls")}</dt><dd>${draft.teamRerolls ?? 0}</dd>
+        <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
+        <dt>${t("savedRoster.treasury")}</dt><dd data-treasury-display>${countToNumber(draft.treasury)}k</dd>
+        <dt>${t("savedRoster.totalSppLabel")}</dt><dd data-total-spp-display>${rosterTotalSpp(team, draft)} SPP</dd>
+        <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
+        <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
+        <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
       </dl>
       <div class="summary-state-block">
-        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">Roster is within the current limits.</div>`}
+        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
         <div class="summary-actions">
-          <button class="primary-button" type="button" data-save-roster>Save Changes</button>
-          <button class="primary-button" type="button" data-copy-saved-roster>Copy Roster</button>
+          <button class="primary-button" type="button" data-save-roster>${t("roster.saveChanges")}</button>
+          <button class="primary-button" type="button" data-copy-saved-roster>${t("roster.copyRoster")}</button>
         </div>
       </div>
     </aside>
@@ -2117,29 +2218,29 @@ function renderSavedRosterSettings(team, draft, costs, teams) {
     <section class="roster-settings-panel side-panel">
       <div class="builder-form saved-roster-form">
         <label class="filter-field">
-          <span>Team</span>
+          <span>${t("sidebar.teamHeading")}</span>
           <select data-roster-team>
             ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
           </select>
         </label>
         <label class="filter-field">
-          <span>Team Name</span>
+          <span>${t("savedRoster.teamName")}</span>
           <input type="text" value="${escapeHtml(draft.teamName || team.title)}" data-roster-name>
         </label>
         <label class="filter-field">
-          <span>Logo, max 2 MB</span>
+          <span>${t("savedRoster.logoField")}</span>
           <input type="file" accept="image/*" data-roster-logo>
         </label>
         <label class="filter-field">
-          <span>Total Cost</span>
+          <span>${t("roster.totalCost")}</span>
           <input type="text" value="${costs.total}k" readonly>
         </label>
         <label class="filter-field">
-          <span>Treasury, k</span>
+          <span>${t("savedRoster.treasuryField")}</span>
           <input type="number" step="10" value="${countToNumber(draft.treasury)}" data-roster-treasury>
         </label>
         <label class="filter-field">
-          <span>Starting rerolls</span>
+          <span>${t("savedRoster.startingRerolls")}</span>
           <div class="inline-stepper-control">
             <button class="filter-button" type="button" data-roster-reroll="-1" ${countToNumber(draft.startingRerolls) <= 0 ? "disabled" : ""}>-</button>
             <strong>${countToNumber(draft.startingRerolls)}</strong>
@@ -2147,7 +2248,7 @@ function renderSavedRosterSettings(team, draft, costs, teams) {
           </div>
         </label>
         <label class="filter-field">
-          <span>Team Rerolls, 120k</span>
+          <span>${t("savedRoster.teamRerollsField")}</span>
           <div class="inline-stepper-control">
             <button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>
             <strong>${countToNumber(draft.teamRerolls)}</strong>
@@ -2156,9 +2257,9 @@ function renderSavedRosterSettings(team, draft, costs, teams) {
         </label>
       </div>
       <div class="builder-addons compact-addons">
-        ${renderRosterStaffControl("dedicatedFans", "Dedicated Fans", draft.dedicatedFans)}
-        ${renderRosterStaffControl("assistantCoaches", "Assistant Coaches", draft.assistantCoaches)}
-        ${renderRosterStaffControl("cheerleaders", "Cheerleaders", draft.cheerleaders)}
+        ${renderRosterStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), draft.dedicatedFans)}
+        ${renderRosterStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), draft.assistantCoaches)}
+        ${renderRosterStaffControl("cheerleaders", t("savedRoster.cheerleaders"), draft.cheerleaders)}
       </div>
       ${renderTeamRuleAccess(team, draft, "roster")}
     </section>
@@ -2171,7 +2272,7 @@ function renderRosterAddon(key, title, description, max, value, cost, disabled =
     <div class="builder-addon ${disabled ? "disabled" : ""}">
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(disabled ? "Not available for this team" : description)}</span>
+        <span>${escapeHtml(disabled ? t("roster.notAvailableForTeam") : description)}</span>
       </div>
       ${renderRosterStepper(`roster-addon-${key}`, current, 0, max, disabled || !cost)}
     </div>
@@ -2181,7 +2282,7 @@ function renderRosterAddon(key, title, description, max, value, cost, disabled =
 function renderRosterStaffControl(key, title, value) {
   const max = builderStaffMaximums[key] ?? 6;
   const current = countToNumber(value);
-  const description = key === "dedicatedFans" ? "Post-match value" : "10k each";
+  const description = key === "dedicatedFans" ? t("roster.postMatchValue") : t("roster.tenKEach");
   return `
     <div class="builder-addon compact-staff-control">
       <div>
@@ -2245,17 +2346,17 @@ function renderRosterSlot(team, draft, slot, slotIndex) {
     return `
       <article class="roster-slot empty">
         <header>
-          <strong>Slot ${slotIndex + 1}</strong>
-          <span>Empty</span>
+          <strong>${t("roster.slot")} ${slotIndex + 1}</strong>
+          <span>${t("roster.emptySlot")}</span>
         </header>
         <div class="roster-slot-add">
           <select data-slot-add="${slotIndex}">
-            <option value="">Add player...</option>
+            <option value="">${t("roster.addPlayerOption")}</option>
             ${availableRows.map(({ row, rowIndex }) => `
               <option value="${rowIndex}">${escapeHtml(row.position)} - ${escapeHtml(rowCost(row))}</option>
             `).join("")}
           </select>
-          <button class="primary-button" type="button" data-slot-add-button="${slotIndex}" ${availableRows.length ? "" : "disabled"}>Add</button>
+          <button class="primary-button" type="button" data-slot-add-button="${slotIndex}" ${availableRows.length ? "" : "disabled"}>${t("common.add")}</button>
         </div>
       </article>
     `;
@@ -2265,10 +2366,10 @@ function renderRosterSlot(team, draft, slot, slotIndex) {
     <article class="roster-slot filled">
       <header>
         <div>
-          <strong>Slot ${slotIndex + 1}</strong>
+          <strong>${t("roster.slot")} ${slotIndex + 1}</strong>
           <span>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row))}</span>
         </div>
-        <button class="filter-button" type="button" data-slot-remove="${slotIndex}">Remove</button>
+        <button class="filter-button" type="button" data-slot-remove="${slotIndex}">${t("common.remove")}</button>
       </header>
       ${renderSlotPlayerEditor(player)}
     </article>
@@ -2282,12 +2383,12 @@ function renderSlotPlayerEditor(player) {
     <div class="player-editor slot-player-editor" data-slot-player="${player.slotIndex}">
       <div class="slot-player-topline">
         <label class="filter-field compact-field">
-          <span>Player name</span>
+          <span>${t("roster.playerName")}</span>
           <input type="text" value="${escapeHtml(player.name)}" data-slot-player-name>
         </label>
         <label class="checkbox-field skip-next-field">
           <input type="checkbox" data-slot-skip-next ${player.skipNextGame ? "checked" : ""}>
-          <span>Skip Next Game</span>
+          <span>${t("roster.skipNextGame")}</span>
         </label>
       </div>
       <div class="player-stat-editors slot-stat-editors">
@@ -2312,10 +2413,10 @@ function renderSlotPlayerEditor(player) {
       </div>
       <div class="player-skill-editor">
         <select data-slot-skill>
-          <option value="">Add skill...</option>
+          <option value="">${t("roster.addSkillOption")}</option>
           ${options.map((skill) => renderOption(skill, skill, "")).join("")}
         </select>
-        <button class="filter-button" type="button" data-slot-add-skill>Add</button>
+        <button class="filter-button" type="button" data-slot-add-skill>${t("common.add")}</button>
       </div>
       ${player.extraSkills.length ? `
         <div class="player-extra-skills">
@@ -2378,7 +2479,7 @@ function wireSavedRoster(savedTeam, team, draft) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     if (file.size > 2 * 1024 * 1024) {
-      alert("Logo must be 2 MB or smaller.");
+      alert(t("savedRoster.logoTooLarge"));
       event.currentTarget.value = "";
       return;
     }
@@ -2455,13 +2556,13 @@ function wireSavedPlayerEditors(team, draft, rerender) {
         player.spp = normalizeSppCounters(player.spp);
         player.spp[event.currentTarget.dataset.savedPlayerSpp] = Math.max(0, countToNumber(event.currentTarget.value));
         const rowTotal = card.querySelector("[data-player-spp-total]");
-        if (rowTotal) rowTotal.textContent = `${playerSppTotal(team, player)} SPP earned`;
+        if (rowTotal) rowTotal.textContent = `${playerSppTotal(team, player)} ${t("roster.sppEarned")}`;
         const available = card.querySelector("[data-player-available-spp]");
-        if (available) available.textContent = `${playerAvailableSpp(team, player)} SPP available`;
+        if (available) available.textContent = `${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
         const nextAdvancement = card.querySelector("[data-player-next-advancement]");
         const nextRank = advancementRanks[playerAdvancementLevel(player)];
         if (nextAdvancement && nextRank) {
-          nextAdvancement.textContent = `Next: ${nextRank.rank}, ${playerAvailableSpp(team, player)} SPP available`;
+          nextAdvancement.textContent = `${t("roster.next")}: ${nextRank.rank}, ${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
         }
         const rosterTotal = view.querySelector("[data-total-spp-display]");
         if (rosterTotal) rosterTotal.textContent = `${rosterTotalSpp(team, draft)} SPP`;
@@ -2573,7 +2674,7 @@ function autosaveStatusFor(teamId) {
   return savedRosterAutosaves.get(teamId) ?? {
     revision: 0,
     timer: null,
-    message: "Autosaves after every change.",
+    message: t("roster.autosaveDefaultMessage"),
     status: "idle",
   };
 }
@@ -2600,12 +2701,12 @@ function scheduleSavedRosterAutosave(teamId) {
   const next = {
     ...current,
     revision,
-    message: "Saving...",
+    message: t("roster.savingStatus"),
     status: "saving",
   };
   next.timer = setTimeout(() => runSavedRosterAutosave(teamId, revision), autosaveDelayMs);
   savedRosterAutosaves.set(teamId, next);
-  setAutosaveStatus(teamId, "Saving...", "saving");
+  setAutosaveStatus(teamId, t("roster.savingStatus"), "saving");
 }
 
 async function runSavedRosterAutosave(teamId, revision) {
@@ -2644,18 +2745,18 @@ async function saveSavedRoster(savedTeam, team, draft, options = {}) {
       }
     }
     if (options.quiet) {
-      if (canApplyResult) setAutosaveStatus(savedTeam.id, "Autosaved", "saved");
+      if (canApplyResult) setAutosaveStatus(savedTeam.id, t("roster.autosavedStatus"), "saved");
     } else {
-      setAutosaveStatus(savedTeam.id, "Saved", "saved");
+      setAutosaveStatus(savedTeam.id, t("roster.savedStatus"), "saved");
       const button = view.querySelector("[data-save-roster]");
       if (button) {
-        button.textContent = "Saved";
-        setTimeout(() => { button.textContent = "Save Changes"; }, 1200);
+        button.textContent = t("roster.savedStatus");
+        setTimeout(() => { button.textContent = t("roster.saveChanges"); }, 1200);
       }
     }
   } catch (error) {
     if (options.quiet) {
-      setAutosaveStatus(savedTeam.id, "Autosave failed", "error");
+      setAutosaveStatus(savedTeam.id, t("roster.autosaveFailedStatus"), "error");
     } else {
       alert(error.message);
     }
@@ -2666,8 +2767,8 @@ async function copySavedRoster(team, draft) {
   await navigator.clipboard.writeText(buildRosterTextForDraft(team, draft));
   const button = view.querySelector("[data-copy-saved-roster]");
   if (button) {
-    button.textContent = "Copied";
-    setTimeout(() => { button.textContent = "Copy Roster"; }, 1200);
+    button.textContent = t("roster.copiedStatus");
+    setTimeout(() => { button.textContent = t("roster.copyRoster"); }, 1200);
   }
 }
 
@@ -2689,27 +2790,27 @@ function renderBuilder() {
   const warnings = builderWarnings(team, costs);
 
   view.innerHTML = `
-    ${renderHeader("Team Builder", "Build a 600k starting roster by clicking available players.")}
+    ${renderHeader(t("nav.builder"), t("builder.subtitle"))}
     ${renderBuilderSummary(team, costs, warnings)}
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
         <div class="builder-form">
           <label class="filter-field">
-            <span>Team</span>
+            <span>${t("sidebar.teamHeading")}</span>
             <select data-builder-team>
               ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
             </select>
           </label>
           <label class="filter-field">
-            <span>Team Name</span>
+            <span>${t("savedRoster.teamName")}</span>
             <input type="text" value="${escapeHtml(state.builder.teamName || team.title)}" data-builder-name>
           </label>
           <label class="filter-field">
-            <span>Logo, max 2 MB</span>
+            <span>${t("savedRoster.logoField")}</span>
             <input type="file" accept="image/*" data-builder-logo>
           </label>
           <label class="filter-field">
-            <span>Starting rerolls</span>
+            <span>${t("savedRoster.startingRerolls")}</span>
             <div class="inline-stepper-control">
               <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
               <strong>${state.builder.startingRerolls}</strong>
@@ -2720,24 +2821,24 @@ function renderBuilder() {
         ${state.builder.logoData ? `
           <div class="builder-logo-inline">
             <img class="builder-logo-preview" src="${escapeHtml(state.builder.logoData)}" alt="">
-            <button class="filter-button compact-action" type="button" data-builder-remove-logo>Remove logo</button>
+            <button class="filter-button compact-action" type="button" data-builder-remove-logo>${t("savedRoster.removeLogo")}</button>
           </div>
         ` : ""}
 
         <div class="builder-addons compact-addons">
-          ${renderBuilderStaffControl("dedicatedFans", "Dedicated Fans", state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
-          ${renderBuilderStaffControl("assistantCoaches", "Assistant Coaches", state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
-          ${renderBuilderStaffControl("cheerleaders", "Cheerleaders", state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
+          ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
+          ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
+          ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
         </div>
         ${renderTeamRuleAccess(team, state.builder, "builder")}
 
         <section class="builder-pool">
-          <h2>Available players</h2>
+          <h2>${t("builder.availablePlayers")}</h2>
           ${renderAvailablePlayerTable(team, state.builder, true)}
         </section>
 
         <section class="builder-selected">
-          <h2>Roster</h2>
+          <h2>${t("savedRoster.rosterHeading")}</h2>
           ${renderBuilderPlayerList(team, state.builder)}
         </section>
       </section>
@@ -2750,22 +2851,22 @@ function renderBuilderSummary(team, costs, warnings) {
   return `
     <aside class="builder-summary builder-summary-horizontal side-panel">
       <div class="summary-title-block">
-        <h3>Roster Summary</h3>
+        <h3>${t("savedRoster.summaryTitle")}</h3>
         <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
       </div>
       <dl class="stat-list summary-stat-grid">
-        <dt>Players</dt><dd>${costs.totalPlayersCount}</dd>
-        <dt>Dedicated Fans</dt><dd>${countToNumber(state.builder.dedicatedFans)}</dd>
-        <dt>Players cost</dt><dd>${costs.playersCost}k</dd>
-        <dt>Staff cost</dt><dd>${costs.staffCost}k</dd>
-        <dt>Total Cost</dt><dd>${costs.total}k</dd>
-        <dt>Remaining</dt><dd class="${costs.remaining < 0 ? "danger-text" : ""}">${costs.remaining}k</dd>
+        <dt>${t("myTeams.table.players")}</dt><dd>${costs.totalPlayersCount}</dd>
+        <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(state.builder.dedicatedFans)}</dd>
+        <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
+        <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
+        <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
+        <dt>${t("builder.remaining")}</dt><dd class="${costs.remaining < 0 ? "danger-text" : ""}">${costs.remaining}k</dd>
       </dl>
       <div class="summary-state-block">
-        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">Roster is within the current limits.</div>`}
+        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
         <div class="summary-actions">
-          <button class="primary-button" type="button" data-save-team ${costs.total > 600 || !state.builder.players.length ? "disabled" : ""}>Save Team</button>
-          <button class="primary-button" type="button" data-copy-roster>Copy Roster</button>
+          <button class="primary-button" type="button" data-save-team ${costs.total > 600 || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
+          <button class="primary-button" type="button" data-copy-roster>${t("roster.copyRoster")}</button>
         </div>
       </div>
     </aside>
@@ -2779,19 +2880,19 @@ function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
       <table class="builder-table compact-roster-table">
         <thead>
           <tr>
-            <th>Qty</th>
-            <th>Position</th>
-            <th>MA</th>
-            <th>ST</th>
-            <th>AG</th>
-            <th>PA</th>
-            <th>AR</th>
-            <th>Skills</th>
-            <th>Primary</th>
-            <th>Secondary</th>
-            <th>Cost</th>
-            <th>Selected</th>
-            <th>Add</th>
+            <th>${t("roster.qtyHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("roster.primary")}</th>
+            <th>${t("roster.secondary")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("builder.selectedHeader")}</th>
+            <th>${t("common.add")}</th>
           </tr>
         </thead>
         <tbody>
@@ -2810,7 +2911,7 @@ function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
         <td>${renderAccessCell(row.primary)}</td>
         <td>${renderAccessCell(row.secondary)}</td>
         <td>${escapeHtml(rowCost(row) || "-")}</td>
-        <td>${current}/${rosterMax(row.qty)}${budgetBlocked ? `<span class="danger-text"> over</span>` : ""}</td>
+        <td>${current}/${rosterMax(row.qty)}${budgetBlocked ? `<span class="danger-text"> ${t("builder.overBudget")}</span>` : ""}</td>
         <td>
           <button class="primary-button table-plus-button" type="button" data-add-row="${rowIndex}" ${disabled ? "disabled" : ""}>+</button>
         </td>
@@ -2830,7 +2931,7 @@ function renderBuilderStaffControl(key, title, value, plusBlocked = false) {
     <div class="builder-addon compact-staff-control">
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>10k each</span>
+        <span>${t("roster.tenKEach")}</span>
       </div>
       <div class="inline-stepper-control">
         <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>
@@ -2888,7 +2989,7 @@ function renderEditablePlayerStatCells(player) {
 function renderBuilderPlayerList(team, draft) {
   const players = selectedRosterPlayers(team, draft);
   if (!players.length) {
-    return `<div class="builder-empty-roster">Click a player above to add them to the roster.</div>`;
+    return `<div class="builder-empty-roster">${t("builder.emptyRosterHint")}</div>`;
   }
   return `
     <div class="table-scroll builder-table-scroll">
@@ -2896,16 +2997,16 @@ function renderBuilderPlayerList(team, draft) {
         <thead>
           <tr>
             <th>#</th>
-            <th>Name</th>
-            <th>Position</th>
-            <th>MA</th>
-            <th>ST</th>
-            <th>AG</th>
-            <th>PA</th>
-            <th>AR</th>
-            <th>Skills</th>
-            <th>Cost</th>
-            <th>Action</th>
+            <th>${t("roster.nameHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("roster.actionHeader")}</th>
           </tr>
         </thead>
         <tbody>
@@ -2927,7 +3028,7 @@ function renderBuilderPlayerRow(player, index) {
       ${renderPlayerStatCells(player)}
       <td class="skills-cell">${renderRosterLinks(player.row.skills)}</td>
       <td>${escapeHtml(rowCost(player.row) || "-")}</td>
-      <td><button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">Remove</button></td>
+      <td><button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">${t("common.remove")}</button></td>
     </tr>
   `;
 }
@@ -2935,7 +3036,7 @@ function renderBuilderPlayerRow(player, index) {
 function renderSavedPlayerList(team, draft) {
   const players = selectedRosterPlayers(team, draft);
   if (!players.length) {
-    return `<div class="builder-empty-roster">No players in this team yet.</div>`;
+    return `<div class="builder-empty-roster">${t("savedRoster.noPlayersYet")}</div>`;
   }
   return `
     <div class="table-scroll builder-table-scroll saved-roster-table-wrap">
@@ -2943,22 +3044,22 @@ function renderSavedPlayerList(team, draft) {
         <thead>
           <tr>
             <th>#</th>
-            <th>Name</th>
-            <th>Position</th>
-            <th>MA</th>
-            <th>ST</th>
-            <th>AG</th>
-            <th>PA</th>
-            <th>AR</th>
-            <th>Skills</th>
-            <th>Add Skill</th>
-            <th>Skip</th>
-            <th>Nigling Injury</th>
+            <th>${t("roster.nameHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("roster.addSkillHeader")}</th>
+            <th>${t("roster.skipHeader")}</th>
+            <th>${t("roster.niglingInjury")}</th>
             <th>SPP</th>
-            <th>Level</th>
-            <th>Advancement</th>
-            <th>Cost</th>
-            <th>Action</th>
+            <th>${t("roster.levelHeader")}</th>
+            <th>${t("roster.advancementHeader")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("roster.actionHeader")}</th>
           </tr>
         </thead>
         <tbody>
@@ -2978,19 +3079,19 @@ function renderSavedNewPlayerTable(team, draft) {
       <table class="builder-table compact-roster-table add-player-table">
         <thead>
           <tr>
-            <th>Qty</th>
-            <th>Position</th>
-            <th>MA</th>
-            <th>ST</th>
-            <th>AG</th>
-            <th>PA</th>
-            <th>AR</th>
-            <th>Skills</th>
-            <th>Primary</th>
-            <th>Secondary</th>
-            <th>Cost</th>
-            <th>Roster</th>
-            <th>Add</th>
+            <th>${t("roster.qtyHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("roster.primary")}</th>
+            <th>${t("roster.secondary")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("savedRoster.rosterHeading")}</th>
+            <th>${t("common.add")}</th>
           </tr>
         </thead>
         <tbody>
@@ -3041,36 +3142,36 @@ function renderSavedPlayerRow(team, player, index) {
             `).join("")}
           </div>
         ` : ""}
-        ${eliteCost ? `<p class="cost-note">Elite combo: +${eliteCost}k</p>` : ""}
+        ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
       </td>
       <td>
         <div class="table-skill-editor">
-          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="Skill..." data-saved-player-skill>
+          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="${t("roster.skillPlaceholder")}" data-saved-player-skill>
           <datalist id="${escapeHtml(skillInputId)}">
             ${skillOptions.map((option) => `
-              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? "Secondary" : "Primary")}"></option>
+              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
             `).join("")}
           </datalist>
-          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>Add</button>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
         </div>
       </td>
       <td>
-        <label class="table-checkbox" title="Skip Next Game">
+        <label class="table-checkbox" title="${t("roster.skipNextGame")}">
           <input type="checkbox" data-saved-player-skip ${player.skipNextGame ? "checked" : ""}>
-          <span>Skip</span>
+          <span>${t("roster.skipHeader")}</span>
         </label>
       </td>
       <td>
-        <label class="table-checkbox" title="Nigling Injury">
+        <label class="table-checkbox" title="${t("roster.niglingInjury")}">
           <input type="checkbox" data-saved-player-nigling ${player.niglingInjury ? "checked" : ""}>
-          <span>Nigling Injury</span>
+          <span>${t("roster.niglingInjury")}</span>
         </label>
       </td>
       <td class="spp-cell">${renderPlayerSppControls(team, player)}</td>
       <td class="level-cell">${renderPlayerLevelCell(team, player)}</td>
       <td class="advancement-cell">${renderPlayerAdvancementControls(team, player)}</td>
       <td>${escapeHtml(rowCost(player.row) || "-")}${adjustment ? `<span class="cost-note inline-cost-note">${adjustment > 0 ? "+" : ""}${adjustment}k</span>` : ""}</td>
-      <td><button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">Remove</button></td>
+      <td><button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button></td>
     </tr>
   `;
 }
@@ -3089,42 +3190,42 @@ function renderSavedPlayerCard(team, player, index) {
           <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
         </div>
-        <button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">Remove</button>
+        <button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button>
       </header>
 
       <section class="mobile-player-section">
-        <h3>Stats</h3>
+        <h3>${t("roster.statsHeading")}</h3>
         ${renderEditableStatLine(player)}
       </section>
 
       <section class="mobile-player-section">
-        <h3>Skills</h3>
+        <h3>${t("roster.skillsLabel")}</h3>
         <div class="mobile-player-pills">
           ${renderRosterLinks(player.row.skills)}
           ${extraSkills.map((skill) => `
             <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
           `).join("")}
         </div>
-        ${eliteCost ? `<p class="cost-note">Elite combo: +${eliteCost}k</p>` : ""}
+        ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
         <div class="table-skill-editor mobile-skill-editor">
-          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="Skill..." data-saved-player-skill>
+          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="${t("roster.skillPlaceholder")}" data-saved-player-skill>
           <datalist id="${escapeHtml(skillInputId)}">
             ${skillOptions.map((option) => `
-              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? "Secondary" : "Primary")}"></option>
+              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
             `).join("")}
           </datalist>
-          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>Add</button>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
         </div>
       </section>
 
       <section class="mobile-player-section mobile-player-checks">
-        <label class="table-checkbox" title="Skip Next Game">
+        <label class="table-checkbox" title="${t("roster.skipNextGame")}">
           <input type="checkbox" data-saved-player-skip ${player.skipNextGame ? "checked" : ""}>
-          <span>Skip Next Game</span>
+          <span>${t("roster.skipNextGame")}</span>
         </label>
-        <label class="table-checkbox" title="Nigling Injury">
+        <label class="table-checkbox" title="${t("roster.niglingInjury")}">
           <input type="checkbox" data-saved-player-nigling ${player.niglingInjury ? "checked" : ""}>
-          <span>Nigling Injury</span>
+          <span>${t("roster.niglingInjury")}</span>
         </label>
       </section>
 
@@ -3135,11 +3236,11 @@ function renderSavedPlayerCard(team, player, index) {
 
       <section class="mobile-player-section mobile-advancement-section">
         <div>
-          <h3>Level</h3>
+          <h3>${t("roster.levelHeader")}</h3>
           ${renderPlayerLevelCell(team, player)}
         </div>
         <div>
-          <h3>Advancement</h3>
+          <h3>${t("roster.advancementHeader")}</h3>
           ${renderPlayerAdvancementControls(team, player)}
         </div>
       </section>
@@ -3158,7 +3259,7 @@ function renderPlayerSppControls(team, player) {
         </label>
       `).join("")}
     </div>
-    <strong class="spp-total" data-player-spp-total>${playerSppTotal(team, player)} SPP earned</strong>
+    <strong class="spp-total" data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</strong>
   `;
 }
 
@@ -3168,8 +3269,8 @@ function renderPlayerLevelCell(team, player) {
     <div class="player-level-stack">
       <strong>${level}</strong>
       <span>${escapeHtml(playerLevelRank(player))}</span>
-      <small data-player-spent-spp>${playerAdvancementSpent(player)} SPP spent</small>
-      <small data-player-available-spp>${playerAvailableSpp(team, player)} SPP available</small>
+      <small data-player-spent-spp>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small>
+      <small data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
     </div>
   `;
 }
@@ -3189,10 +3290,10 @@ function renderPlayerAdvancementControls(team, player) {
               <option value="${type}">${escapeHtml(`${label} (${nextRank.costs[type]} SPP)`)}</option>
             `).join("")}
           </select>
-          <button class="filter-button compact-action" type="button" data-saved-player-add-advancement>Add</button>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-advancement>${t("common.add")}</button>
         </div>
-        <small class="advancement-next" data-player-next-advancement>Next: ${escapeHtml(nextRank.rank)}, ${available} SPP available</small>
-      ` : `<span class="muted-text">Max level</span>`}
+        <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}, ${available} ${t("roster.sppAvailable")}</small>
+      ` : `<span class="muted-text">${t("roster.maxLevel")}</span>`}
       <div class="advancement-list">
         ${advancements.length ? advancements.map((advancement, index) => {
     const cost = advancementRanks[index]?.costs?.[advancement.type] ?? 0;
@@ -3202,7 +3303,7 @@ function renderPlayerAdvancementControls(team, player) {
               ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP x`)}
             </button>
           `;
-  }).join("") : `<span class="muted-text">No advancements yet.</span>`}
+  }).join("") : `<span class="muted-text">${t("roster.noAdvancementsYet")}</span>`}
       </div>
     </div>
   `;
@@ -3236,7 +3337,7 @@ function renderAddon(key, title, description, max, value, cost, disabled = false
     <div class="builder-addon ${disabled ? "disabled" : ""}">
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(disabled ? "Not available for this team" : description)}</span>
+        <span>${escapeHtml(disabled ? t("roster.notAvailableForTeam") : description)}</span>
       </div>
       ${renderStepper(`builder-addon-${key}`, current, 0, max, disabled || !cost)}
     </div>
@@ -3363,7 +3464,7 @@ function renderBuilderSummaryRoster(team) {
 function renderEditableRosterPlayers(team, draft, mode) {
   const selected = selectedRosterPlayers(team, draft);
   if (!selected.length) {
-    return `<div class="builder-empty-roster">No players selected yet.</div>`;
+    return `<div class="builder-empty-roster">${t("builder.noPlayersSelected")}</div>`;
   }
 
   return `
@@ -3390,12 +3491,12 @@ function renderEditablePlayer(player, mode = "builder") {
   return `
     <div class="player-editor" data-player="${escapeHtml(player.key)}" data-row-index="${player.rowIndex}" data-editor-mode="${escapeHtml(mode)}">
       <label class="filter-field compact-field">
-        <span>Player name</span>
+        <span>${t("roster.playerName")}</span>
         <input type="text" value="${escapeHtml(player.name)}" data-player-name>
       </label>
       <label class="checkbox-field skip-next-field">
         <input type="checkbox" data-player-skip-next ${player.skipNextGame ? "checked" : ""}>
-        <span>Skip Next Game</span>
+        <span>${t("roster.skipNextGame")}</span>
       </label>
       <div class="player-stat-editors">
         ${editableStats.map((stat) => {
@@ -3415,10 +3516,10 @@ function renderEditablePlayer(player, mode = "builder") {
       </div>
       <div class="player-skill-editor">
         <select data-player-skill>
-          <option value="">Add skill...</option>
+          <option value="">${t("roster.addSkillOption")}</option>
           ${options.map((skill) => renderOption(skill, skill, "")).join("")}
         </select>
-        <button class="filter-button" type="button" data-player-add-skill>Add</button>
+        <button class="filter-button" type="button" data-player-add-skill>${t("common.add")}</button>
       </div>
       ${player.extraSkills.length ? `
         <div class="player-extra-skills">
@@ -3700,8 +3801,8 @@ async function copyRoster(team) {
   await navigator.clipboard.writeText(lines);
   const button = view.querySelector("[data-copy-roster]");
   if (button) {
-    button.textContent = "Copied";
-    setTimeout(() => { button.textContent = "Copy Roster"; }, 1200);
+    button.textContent = t("roster.copiedStatus");
+    setTimeout(() => { button.textContent = t("roster.copyRoster"); }, 1200);
   }
 }
 
@@ -3729,7 +3830,7 @@ async function saveTeam(team) {
     state.myTeams.loaded = false;
     const button = view.querySelector("[data-save-team]");
     if (button) {
-      button.textContent = "Saved";
+      button.textContent = t("roster.savedStatus");
       setTimeout(() => {
         location.hash = `#/my-teams/${encodeURIComponent(result.team.id)}`;
       }, 700);
@@ -3786,16 +3887,11 @@ function renderRoute() {
 
 async function init() {
   applyTheme(storedTheme(), false);
-  if (window.__REFERENCE_DATA__) {
-    state.data = window.__REFERENCE_DATA__;
-  } else {
-    const response = await fetch("public/data.json", { cache: "no-store" });
-    state.data = await response.json();
-  }
+  state.locale = storedLocale();
+  await loadTranslations();
+  state.data = await loadLocaleData(state.locale);
   await loadAuthSession();
-  if (generatedAt) {
-    generatedAt.textContent = `Updated ${new Date(state.data.generatedAt).toLocaleDateString("en-GB")}`;
-  }
+  applyLocaleChrome();
   if (searchInput) {
     searchInput.addEventListener("input", (event) => {
       state.query = event.currentTarget.value;
@@ -3838,15 +3934,14 @@ async function init() {
       setNavOpen(false);
     }
   });
-  if (langToggle) {
-    langToggle.textContent = "EN";
-    langToggle.title = "English version";
-  }
+  langToggle?.addEventListener("click", () => {
+    switchLocale(state.locale === "en" ? "ru" : "en");
+  });
   window.addEventListener("hashchange", renderRoute);
   renderRoute();
 }
 
 init().catch((error) => {
   console.error(error);
-  view.innerHTML = `<div class="empty-state">Could not load site data.</div>`;
+  view.innerHTML = `<div class="empty-state">${t("app.dataLoadError")}</div>`;
 });

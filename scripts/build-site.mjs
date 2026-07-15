@@ -54,11 +54,13 @@ await copyDir(path.join(rootDir, "public"), path.join(distDir, "public"));
 await copyDir(path.join(rootDir, "assets"), path.join(distDir, "assets"));
 await copyVaultAssets(path.join(rootDir, "content", "7ZBBL"), path.join(distDir, "public", "vault-assets"));
 
-const dataJson = (await fs.readFile(path.join(rootDir, "public", "data.json"), "utf8"))
+const enDataJson = (await fs.readFile(path.join(rootDir, "public", "data.en.json"), "utf8"))
+  .replace(/</g, "\\u003c");
+const ruDataJson = (await fs.readFile(path.join(rootDir, "public", "data.ru.json"), "utf8"))
   .replace(/</g, "\\u003c");
 const localPreviewHtml = indexHtml.replace(
   '<script type="module" src="src/app.js?v=gata-52"></script>',
-  `<script>window.__REFERENCE_DATA__ = ${dataJson};</script>\n    <script src="src/app.js?v=gata-52"></script>`,
+  `<script>window.__REFERENCE_DATA__ = { en: ${enDataJson}, ru: ${ruDataJson} };</script>\n    <script src="src/app.js?v=gata-52"></script>`,
 );
 await fs.writeFile(path.join(distDir, "local-preview.html"), localPreviewHtml);
 

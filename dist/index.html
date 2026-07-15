@@ -30,22 +30,22 @@
         </a>
 
         <nav class="nav-list">
-          <a href="#/" data-nav="home">Overview</a>
-          <a href="#/pages" data-nav="pages">References</a>
-          <a href="#/inducements" data-nav="inducements">Inducements</a>
-          <a href="#/skills" data-nav="skills">Skills</a>
-          <a href="#/traits" data-nav="traits">Traits</a>
-          <a href="#/star-players" data-nav="star-players">Star Players</a>
-          <a href="#/teams" data-nav="teams">Team's Rules</a>
-          <a href="#/builder" data-nav="builder">Team Builder</a>
-          <a href="#/my-teams" data-nav="my-teams">My Teams</a>
+          <a href="#/" data-nav="home" data-i18n="nav.overview">Overview</a>
+          <a href="#/pages" data-nav="pages" data-i18n="nav.references">References</a>
+          <a href="#/inducements" data-nav="inducements" data-i18n="nav.inducements">Inducements</a>
+          <a href="#/skills" data-nav="skills" data-i18n="nav.skills">Skills</a>
+          <a href="#/traits" data-nav="traits" data-i18n="nav.traits">Traits</a>
+          <a href="#/star-players" data-nav="star-players" data-i18n="nav.starPlayers">Star Players</a>
+          <a href="#/teams" data-nav="teams" data-i18n="nav.teamsRules">Team's Rules</a>
+          <a href="#/builder" data-nav="builder" data-i18n="nav.builder">Team Builder</a>
+          <a href="#/my-teams" data-nav="my-teams" data-i18n="nav.myTeams">My Teams</a>
         </nav>
 
         <div class="sidebar-footer">
-          <span id="generated-at">Loading data</span>
+          <span id="generated-at" data-i18n="footer.loadingData">Loading data</span>
           <p class="legal-note">
-            Unofficial fan-made league reference.
-            <a href="#/legal" data-nav="legal">Legal Information</a>
+            <span data-i18n="footer.unofficialNote">Unofficial fan-made league reference.</span>
+            <a href="#/legal" data-nav="legal" data-i18n="footer.legalLink">Legal Information</a>
           </p>
         </div>
       </aside>
@@ -53,7 +53,7 @@
 
       <main class="main">
         <header class="topbar">
-          <button id="nav-toggle" class="nav-toggle" type="button" aria-label="Open menu" aria-controls="site-sidebar" aria-expanded="false">
+          <button id="nav-toggle" class="nav-toggle" type="button" aria-label="Open menu" data-i18n-aria-label="nav.openMenu" aria-controls="site-sidebar" aria-expanded="false">
             <svg aria-hidden="true" viewBox="0 0 24 24">
               <path d="M4 7h16M4 12h16M4 17h16"></path>
             </svg>
@@ -62,12 +62,12 @@
             <svg aria-hidden="true" viewBox="0 0 24 24">
               <path d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"></path>
             </svg>
-            <input id="global-search" type="search" placeholder="Search teams, skills, rules..." autocomplete="off">
+            <input id="global-search" type="search" placeholder="Search teams, skills, rules..." data-i18n-placeholder="search.placeholder" autocomplete="off">
           </div>
           <div class="top-actions">
-            <label class="theme-picker" title="Theme">
-              <span>Theme</span>
-              <select id="theme-select" aria-label="Theme">
+            <label class="theme-picker" title="Theme" data-i18n-title="theme.label">
+              <span data-i18n="theme.label">Theme</span>
+              <select id="theme-select" aria-label="Theme" data-i18n-aria-label="theme.label">
                 <option value="dark-gata">Gata Dark</option>
                 <option value="dark-dugout">Dugout Dark</option>
                 <option value="dark-warpstone">Warpstone Dark</option>
@@ -76,8 +76,8 @@
                 <option value="light-altdorf">Altdorf Light</option>
               </select>
             </label>
-            <button id="auth-button" class="icon-text-button auth-button" type="button">Login</button>
-            <button id="lang-toggle" class="icon-text-button" type="button" disabled title="English version">EN</button>
+            <button id="auth-button" class="icon-text-button auth-button" type="button" data-i18n="auth.login">Login</button>
+            <button id="lang-toggle" class="icon-text-button" type="button" title="Switch to Russian">EN</button>
           </div>
         </header>
 
@@ -88,49 +88,49 @@
     </div>
 
     <div id="auth-modal" class="auth-modal" hidden role="dialog" aria-modal="true" aria-labelledby="auth-title">
-      <button class="auth-backdrop" type="button" data-auth-close aria-label="Close authorization"></button>
+      <button class="auth-backdrop" type="button" data-auth-close aria-label="Close authorization" data-i18n-aria-label="auth.closeAriaLabel"></button>
       <section class="auth-dialog">
         <header>
-          <h2 id="auth-title">Login</h2>
-          <button class="ghost-button" type="button" data-auth-close>Close</button>
+          <h2 id="auth-title" data-i18n="auth.login">Login</h2>
+          <button class="ghost-button" type="button" data-auth-close data-i18n="auth.close">Close</button>
         </header>
 
         <div id="auth-account" class="auth-account" hidden>
           <p id="auth-account-text"></p>
           <form id="auth-profile-form" class="auth-form">
             <label class="filter-field">
-              <span>Login</span>
+              <span data-i18n="auth.loginField">Login</span>
               <input name="login" autocomplete="username" required>
             </label>
             <label class="filter-field">
-              <span>Telegram contact</span>
+              <span data-i18n="auth.telegramField">Telegram contact</span>
               <input name="telegram" autocomplete="off" required>
             </label>
             <label class="filter-field">
-              <span>New password</span>
-              <input name="password" type="password" autocomplete="new-password" placeholder="Leave empty to keep current">
+              <span data-i18n="auth.newPasswordField">New password</span>
+              <input name="password" type="password" autocomplete="new-password" placeholder="Leave empty to keep current" data-i18n-placeholder="auth.newPasswordPlaceholder">
             </label>
-            <button class="primary-button" type="submit">Save profile</button>
+            <button class="primary-button" type="submit" data-i18n="auth.saveProfile">Save profile</button>
           </form>
-          <button id="auth-logout" class="primary-button" type="button">Log out</button>
+          <button id="auth-logout" class="primary-button" type="button" data-i18n="auth.logout">Log out</button>
         </div>
 
         <form id="auth-form" class="auth-form">
           <label class="filter-field">
-            <span>Login</span>
+            <span data-i18n="auth.loginField">Login</span>
             <input name="login" autocomplete="username" required>
           </label>
           <label class="filter-field">
-            <span>Password</span>
+            <span data-i18n="auth.passwordField">Password</span>
             <input name="password" type="password" autocomplete="current-password" required>
           </label>
           <label class="filter-field" data-auth-telegram>
-            <span>Telegram contact</span>
+            <span data-i18n="auth.telegramField">Telegram contact</span>
             <input name="telegram" autocomplete="off" placeholder="@username">
           </label>
           <p id="auth-error" class="auth-error" hidden></p>
-          <button id="auth-submit" class="primary-button" type="submit">Login</button>
-          <button id="auth-switch" class="filter-button" type="button">Create account</button>
+          <button id="auth-submit" class="primary-button" type="submit" data-i18n="auth.login">Login</button>
+          <button id="auth-switch" class="filter-button" type="button" data-i18n="auth.createAccount">Create account</button>
         </form>
       </section>
     </div>
