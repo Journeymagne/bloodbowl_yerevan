@@ -1,11 +1,10 @@
 ---
 tags:
-  - Star Player
 ---
 
 
 **Имя:** Tolly Clockringer
-**Доступность:** -
+**Доступность:** Favoured of Nurgle
 **Цена:** 110k
 
 | MA | ST | AG | PA | AR | Cost | Skills | Keywords |

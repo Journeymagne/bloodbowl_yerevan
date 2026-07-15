@@ -1,8 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Any Team
-  - Ogre
   - Big Guy
 ---
 

@@ -7,4 +7,4 @@ tags:
 ## Краткое описание
 После того как этот игрок выполняет Quick Pass или Hand-off, не вызывая терновер, его активация не заканчивается; он может продолжить движение, используя оставшееся движение.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

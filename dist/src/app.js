@@ -34,11 +34,26 @@
     loading: false,
     error: "",
   },
+  admin: {
+    users: [],
+    loaded: false,
+    loading: false,
+    error: "",
+    editingTeams: new Map(),
+  },
+  season: {
+    data: null,
+    loaded: false,
+    loading: false,
+    error: "",
+    activeTab: "registration",
+  },
   builder: {
     editingTeamId: "",
     teamSlug: "",
     teamName: "",
     selectedLeague: "",
+    favouredChoice: "",
     logoData: "",
     players: [],
     roster: {},
@@ -49,6 +64,9 @@
     dedicatedFans: 0,
     assistantCoaches: 0,
     cheerleaders: 0,
+    apothecary: 0,
+    mortuaryAssistant: 0,
+    plagueDoctor: 0,
     purchasedStaff: {},
     treasury: 0,
     coachesSafe: 0,
@@ -104,7 +122,7 @@ const sectionRoutes = new Map([
   ["star-players", "star-players"],
   ["pages", "pages"],
 ]);
-const staticRoutes = new Set(["builder", "legal", "my-teams"]);
+const staticRoutes = new Set(["builder", "legal", "my-teams", "season", "administration"]);
 
 function normalizeTheme(theme) {
   return themeIds.has(theme) ? theme : "dark-gata";
@@ -235,6 +253,9 @@ const builderStaffCosts = {
   dedicatedFans: 10,
   assistantCoaches: 10,
   cheerleaders: 10,
+  apothecary: 50,
+  mortuaryAssistant: 100,
+  plagueDoctor: 100,
 };
 
 const builderStaffMaximums = {
@@ -244,7 +265,16 @@ const builderStaffMaximums = {
   dedicatedFans: 6,
   assistantCoaches: 6,
   cheerleaders: 6,
+  apothecary: 1,
+  mortuaryAssistant: 1,
+  plagueDoctor: 1,
 };
+
+const medicalStaffDefinitions = [
+  { key: "apothecary", title: "Apothecary", access: "apothecary" },
+  { key: "mortuaryAssistant", title: "Mortuary Assistant", access: "mortuary" },
+  { key: "plagueDoctor", title: "Plague Doctor", access: "plague" },
+];
 
 const rosterSlotCount = 14;
 
@@ -295,6 +325,153 @@ const quickPreviews = new Map([
   ["Leagues", "League access cards with eligible teams and available star players."],
   ["Reference Sources", "External references for base Blood Bowl 2025 wording and the site's legal/source notes."],
 ]);
+
+const overviewCards = [
+  {
+    slug: "code-of-conduct",
+    title: "Code Of Conduct",
+    summary: "Fair play, rollbacks, tilt control, reporting, and how to keep the match pleasant.",
+    sections: [
+      {
+        title: "How to Be a Great Player",
+        items: [
+          "Play fair and with respect for your opponent.",
+          "Rollbacks are allowed for any actions, but only before the dice are thrown.",
+          "Control your frustration (tilt) over the dice rolls.",
+          "Report match results to the organizer on time.",
+          "Ask the organizer immediately if you have any questions about rules that you cannot find the answer to.",
+          "Notify in advance if you cannot play your match on time.",
+          "Enjoy the football!",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "general-rules",
+    title: "General Rules",
+    summary: "League formats, match procedures, model standards, and basic registration rules.",
+    sections: [
+      {
+        title: "League Formats",
+        items: [
+          "Season: A major event lasting about 3-4 months, with a defined start, end, and fixed roster of participants. Match schedules and times are strictly designated.",
+          "Tournaments: Events played over 1-2 days, typically serving as season finales or fun cup events.",
+          "Off-season: Friendly matches that can be played at any time, provided the team is not currently participating in another event. This is a great way to develop your team before the season. You may register up to 6 games per month in this format.",
+          "Match results must be reported within 1-3 days of completion. Failure to comply may result in penalties, up to and including the annulment of match results.",
+          "A single coach may register up to 4 teams in the league.",
+          "If either player wishes, the game can be played with a clock. The standard format is 45 minutes per person. The timer stops for both players during pre-game preparations, kick-offs, and similar downtime.",
+        ],
+      },
+      {
+        title: "Match Procedures",
+        items: [
+          "Scheduling: For matches on designated game days, coaches must arrange the details with their opponents independently, using any convenient method.",
+          "Reporting: Match results should be reported to the commissioner using any convenient method.",
+          "Photos: It would be even better if you took some photos.",
+        ],
+      },
+      {
+        title: "Model Requirements",
+        items: [
+          "Free Starting Roster: As a personal incentive for participating, the Commissioner will provide you with 9 players - enough for a valid roster - from any 3D-printed team, completely free of charge.",
+          "Model Standards: A model must clearly represent a team player, have a base, and be of an appropriate size.",
+          "Identification: The player's number must be clearly marked on either the model or its base, matching the number listed on your team roster.",
+          "Thematic Accuracy: Models must depict Blood Bowl players; weapons like swords, generic armor, etc., are not permitted.",
+          "Conversions: Conversions are allowed.",
+          "Clarification: If you are unsure whether your model is suitable for play, please consult the Commissioner.",
+        ],
+      },
+      {
+        title: "Registration",
+        items: [
+          "Whenever registration is open, go to Season and register a valid league team.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "create-your-team",
+    title: "Create Your Team",
+    summary: "Starting budget, roster limits, specialists, registration, and model expectations.",
+    sections: [
+      {
+        title: "New Team Creation",
+        items: [
+          "Starting Budget: Teams are drafted with 600,000 gold pieces in accordance with the base rules.",
+          "Roster Size: The team size is limited to 14 players.",
+          "Specialists: In Sevens, a team can field no more than 4 specialists per drive, so be sure to purchase at least 3 players with the Lineman tag.",
+          "Registration: Create a new team on this website, then enter its name and logo.",
+        ],
+      },
+      {
+        title: "Model Requirements",
+        items: [
+          "Model Standards: A model must clearly represent a team player, have a base, and be of an appropriate size.",
+          "Identification: The player's number must be clearly marked on either the model or its base, matching the number listed on your team roster.",
+          "Thematic Accuracy: Models must depict Blood Bowl players; weapons like swords, generic armor, etc., are not permitted.",
+          "Conversions: Conversions are allowed.",
+          "Clarification: If you are unsure whether your model is suitable for play, please consult the Commissioner.",
+          "Painting: It is highly encouraged to play with a painted team. A miniature is considered painted if all details are highlighted, base shadows and highlights have been applied, and the base is finished.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "season-structure-and-scoring",
+    title: "Season Structure and Scoring",
+    summary: "Round deadlines, league points, rookie protection, prizes, and tournament structure.",
+    sections: [
+      {
+        title: "Match Conduct",
+        items: [
+          "Rounds: One round lasts two weeks, starting on a Monday and ending on a Sunday.",
+          "Deadlines: Each match must be played within its designated round.",
+          "Locations: Games can be played at the Litch Club, at Ded Max's Painting Evenings, or at someone's home by prior arrangement.",
+          "Virtual Play: If it is impossible to play in real life, the match can be played using the Tabletop Simulator (TTS) mod.",
+          "Scheduling: Time proposals for matches must be submitted by the end of Friday. If a coach only provides scheduling proposals over the weekend and the match is ultimately not played, the Commissioner will favor the coach who provided their availability in advance.",
+          "Incomplete Matches: If a match is not played within the round, the result will be determined by the Commissioner.",
+          "Season Start: At the beginning of the season, all missed game penalties are removed from all players.",
+        ],
+      },
+      {
+        title: "League Points",
+        items: [
+          "3 points for a win.",
+          "1 point for a draw.",
+          "2 points for a technical win.",
+          "0 points for a loss.",
+          "+1 point if the game ends with a margin of 3+ touchdowns.",
+          "+1 point if you conceded 0 touchdowns (you must score at least one yourself).",
+          "+2 points if the opponent could not field a team for the match (e.g., due to too many injuries).",
+        ],
+      },
+      {
+        title: "End-of-Season Prizes",
+        items: [
+          "At the end of the season, all teams not in the top rankings receive winnings.",
+          "10k for each match played.",
+          "20k for each victory.",
+          "10k for each draw.",
+        ],
+      },
+      {
+        title: "Rookie Protection",
+        items: [
+          "For the first 3 games after a team's creation, all injuries inflicted on its players are counted as Badly Hurt.",
+        ],
+      },
+      {
+        title: "Technical Win & Tournament Structure",
+        items: [
+          "Technical Win: The winning team is awarded 2 MVP rolls and (D3+2) * 10k gold.",
+          "Tournament Bracket: Matches are assigned using the Swiss system.",
+          "Tie-breakers: The Buchholz coefficient and head-to-head results are used for tie-breakers, followed by the total number of touchdowns and injuries.",
+          "Playoff Qualification: Depending on the number of participants, the players at the top of the standings will receive an automatic bye into the tournament's playoff winner's bracket.",
+        ],
+      },
+    ],
+  },
+];
 
 function escapeHtml(value = "") {
   return String(value)
@@ -372,6 +549,9 @@ async function loadAuthSession() {
 
 function updateAuthButton() {
   if (!authButton) return;
+  document.querySelectorAll("[data-admin-nav]").forEach((link) => {
+    link.hidden = !state.auth.currentUser?.isAdmin;
+  });
   if (state.auth.currentUser) {
     authButton.textContent = state.auth.currentUser.login;
     authButton.title = `${t("auth.signedInAs")} ${state.auth.currentUser.login}`;
@@ -467,8 +647,11 @@ async function handleAuthSubmit(event) {
 
     setAuthToken(payload.token);
     state.auth.currentUser = payload.user;
+    state.myTeams.loaded = false;
+    state.season.loaded = false;
     updateAuthButton();
     closeAuthModal();
+    renderRoute();
   } catch (error) {
     setAuthError(error.message);
   }
@@ -516,12 +699,43 @@ async function logoutAuth() {
   }
   setAuthToken("");
   state.auth.currentUser = null;
+  state.myTeams = { items: [], loaded: false, loading: false, error: "" };
+  state.admin = { users: [], loaded: false, loading: false, error: "", editingTeams: new Map() };
+  state.season = { data: null, loaded: false, loading: false, error: "", activeTab: "registration" };
   updateAuthButton();
   closeAuthModal();
+  renderRoute();
 }
 
 function pageUrl(page) {
   return `#/${page.slug}`;
+}
+
+function playerUrl(userOrId) {
+  const id = typeof userOrId === "string" ? userOrId : userOrId?.id;
+  return `#/players/${encodeURIComponent(id || "")}`;
+}
+
+function playerTeamUrl(userOrId, teamOrId) {
+  const userId = typeof userOrId === "string" ? userOrId : userOrId?.id;
+  const teamId = typeof teamOrId === "string" ? teamOrId : teamOrId?.id;
+  return `#/players/${encodeURIComponent(userId || "")}/teams/${encodeURIComponent(teamId || "")}`;
+}
+
+function adminTeamEditUrl(userOrId, teamOrId) {
+  const userId = typeof userOrId === "string" ? userOrId : userOrId?.id;
+  const teamId = typeof teamOrId === "string" ? teamOrId : teamOrId?.id;
+  return `#/administration/users/${encodeURIComponent(userId || "")}/teams/${encodeURIComponent(teamId || "")}/edit`;
+}
+
+function renderPlayerLink(user) {
+  if (!user?.id) return `<span class="muted-text">-</span>`;
+  return `<a class="inline-rule-link" href="${playerUrl(user)}">${escapeHtml(user.login || "Player")}</a>`;
+}
+
+function renderPublicTeamLink(user, team) {
+  if (!user?.id || !team?.id) return `<span class="muted-text">${escapeHtml(team?.name || "-")}</span>`;
+  return `<a class="inline-rule-link" href="${playerTeamUrl(user, team)}">${escapeHtml(team.name || "Team")}</a>`;
 }
 
 function isSkillTablePage(page) {
@@ -576,6 +790,9 @@ function navRouteForPage(page) {
 
 function routeSection(route) {
   if (!route || route === "home") return "home";
+  if (route.startsWith("overview/")) return "home";
+  if (route.startsWith("administration/")) return "administration";
+  if (route.startsWith("players/")) return "players";
   if (sectionRoutes.has(route)) return route;
   if (staticRoutes.has(route)) return route;
   const page = findPageBySlug(route);
@@ -651,14 +868,43 @@ const leagueAccessNames = [
 ];
 
 const specialRuleNames = [
+  "Architect of Fate",
   "Brawlin' Brutes",
   "Bribery and Corruption",
+  "Explosive Demise",
   "Favoured of...",
   "Low Cost Linemen",
   "Masters of Undeath",
   "Passing Virtuosos",
   "Swarming",
   "Team Captain",
+];
+
+const favouredAlignments = [
+  {
+    name: "Undivided",
+    skills: ["Prehensile Tail", "Extra Arms", "Disturbing Presence"],
+  },
+  {
+    name: "Hashut",
+    skills: ["Iron Hard Skin", "Horns", "Bone Hook"],
+  },
+  {
+    name: "Slaanesh",
+    skills: ["Tentacles", "Foul Appearance", "Extra Arms"],
+  },
+  {
+    name: "Nurgle",
+    skills: ["Tentacles", "Monstrous Mouth", "Bone Hook"],
+  },
+  {
+    name: "Khorne",
+    skills: ["Horns", "Iron Hard Skin", "Prehensile Tail"],
+  },
+  {
+    name: "Tzeentch",
+    skills: ["Two Heads", "Extra Arms", "Very Long Legs"],
+  },
 ];
 
 const sppCounterDefinitions = [
@@ -680,6 +926,7 @@ function emptyBuilderState(team = null) {
     editingTeamId: "",
     teamSlug: team?.slug ?? "",
     teamName: team?.title ?? "",
+    favouredChoice: "",
     logoData: "",
     players: [],
     roster: {},
@@ -690,6 +937,9 @@ function emptyBuilderState(team = null) {
     dedicatedFans: 0,
     assistantCoaches: 0,
     cheerleaders: 0,
+    apothecary: 0,
+    mortuaryAssistant: 0,
+    plagueDoctor: 0,
     purchasedStaff: {},
     treasury: 0,
     coachesSafe: 0,
@@ -706,6 +956,7 @@ function builderPayload(team) {
     teamSlug: team.slug,
     teamName: state.builder.teamName || team.title,
     selectedLeague: state.builder.selectedLeague || "",
+    favouredChoice: state.builder.favouredChoice || "",
     logoData: state.builder.logoData || "",
     players: state.builder.players,
     roster: state.builder.roster,
@@ -716,6 +967,9 @@ function builderPayload(team) {
     dedicatedFans: state.builder.dedicatedFans,
     assistantCoaches: state.builder.assistantCoaches,
     cheerleaders: state.builder.cheerleaders,
+    apothecary: state.builder.apothecary,
+    mortuaryAssistant: state.builder.mortuaryAssistant,
+    plagueDoctor: state.builder.plagueDoctor,
     purchasedStaff: state.builder.purchasedStaff ?? {},
     treasury: state.builder.treasury,
     coachesSafe: state.builder.coachesSafe,
@@ -730,6 +984,7 @@ function normalizeSavedRoster(savedTeam) {
     teamSlug: savedTeam.baseTeamSlug || roster.teamSlug || "",
     teamName: savedTeam.name || roster.teamName || "",
     selectedLeague: String(roster.selectedLeague ?? ""),
+    favouredChoice: String(roster.favouredChoice ?? ""),
     logoData: savedTeam.logoData || roster.logoData || "",
     players: Array.isArray(roster.players) ? roster.players : [],
     slots: Array.isArray(roster.slots) ? roster.slots : undefined,
@@ -741,6 +996,9 @@ function normalizeSavedRoster(savedTeam) {
     dedicatedFans: countToNumber(roster.dedicatedFans ?? 0),
     assistantCoaches: countToNumber(roster.assistantCoaches ?? 0),
     cheerleaders: countToNumber(roster.cheerleaders ?? 0),
+    apothecary: countToNumber(roster.apothecary ?? 0),
+    mortuaryAssistant: countToNumber(roster.mortuaryAssistant ?? 0),
+    plagueDoctor: countToNumber(roster.plagueDoctor ?? 0),
     purchasedStaff: normalizePurchasedStaff(roster),
     treasury: countToNumber(roster.treasury ?? 0),
     coachesSafe: countToNumber(roster.coachesSafe ?? 0),
@@ -784,6 +1042,9 @@ function normalizePurchasedStaff(roster = {}) {
     bribes: countToNumber(purchased.bribes ?? 0),
     assistantCoaches: countToNumber(purchased.assistantCoaches ?? 0),
     cheerleaders: countToNumber(purchased.cheerleaders ?? 0),
+    apothecary: countToNumber(purchased.apothecary ?? 0),
+    mortuaryAssistant: countToNumber(purchased.mortuaryAssistant ?? 0),
+    plagueDoctor: countToNumber(purchased.plagueDoctor ?? 0),
   };
 }
 
@@ -791,9 +1052,11 @@ function makeRosterPlayer(row, rowIndex, copyIndex = 0, options = {}) {
   return {
     id: makeRosterPlayerId(),
     rowIndex,
+    number: String(options.number ?? copyIndex + 1),
     name: `${row.position} ${copyIndex + 1}`,
     statMods: {},
     extraSkills: [],
+    favouredSkills: [],
     skipNextGame: false,
     niglingInjury: false,
     spp: {},
@@ -827,6 +1090,31 @@ function normalizePlayerExtraSkills(row, skills = []) {
     });
 }
 
+function normalizeFavouredSkill(skill) {
+  if (!skill) return null;
+  if (typeof skill === "string") return { name: skill, access: "favoured" };
+  if (typeof skill === "object" && skill.name) {
+    return {
+      name: String(skill.name),
+      access: "favoured",
+    };
+  }
+  return null;
+}
+
+function normalizePlayerFavouredSkills(row, skills = []) {
+  const seen = new Set(row.skills ?? []);
+  return skills
+    .map(normalizeFavouredSkill)
+    .filter(Boolean)
+    .map((skill) => ({ ...skill, name: String(skill.name).trim() }))
+    .filter((skill) => {
+      if (!skill.name || seen.has(skill.name)) return false;
+      seen.add(skill.name);
+      return true;
+    });
+}
+
 function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
   if (!player || typeof player !== "object") return null;
   const rowIndex = Number(player.rowIndex);
@@ -835,9 +1123,11 @@ function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
   return {
     id: String(player.id || makeRosterPlayerId()),
     rowIndex,
+    number: String(player.number ?? fallbackIndex + 1),
     name: String(player.name || `${row.position} ${fallbackIndex + 1}`),
     statMods: { ...(player.statMods ?? {}) },
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
+    favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
     skipNextGame: Boolean(player.skipNextGame),
     niglingInjury: Boolean(player.niglingInjury),
     spp: normalizeSppCounters(player.spp),
@@ -879,9 +1169,11 @@ function playersFromLegacyRoster(team, draft) {
       players.push(normalizeRosterPlayer({
         id: makeRosterPlayerId(),
         rowIndex,
+        number: edit.number ?? players.length + 1,
         name: edit.name || `${row.position} ${copyIndex + 1}`,
         statMods: edit.statMods ?? {},
         extraSkills: edit.extraSkills ?? [],
+        favouredSkills: edit.favouredSkills ?? [],
         skipNextGame: Boolean(edit.skipNextGame),
         niglingInjury: Boolean(edit.niglingInjury),
         spp: normalizeSppCounters(edit.spp),
@@ -926,9 +1218,11 @@ function rosterPlayerView(team, player, index = 0) {
     row,
     rowIndex: player.rowIndex,
     copyIndex: index,
+    number: String(player.number ?? index + 1),
     name: player.name || `${row.position} ${index + 1}`,
     statMods: player.statMods ?? {},
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
+    favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
     skipNextGame: Boolean(player.skipNextGame),
     niglingInjury: Boolean(player.niglingInjury),
     spp: normalizeSppCounters(player.spp),
@@ -941,7 +1235,11 @@ function baseSkillsForPlayer(row) {
 }
 
 function skillNamesForPlayer(row, player) {
-  return [...baseSkillsForPlayer(row), ...normalizePlayerExtraSkills(row, player.extraSkills ?? [])].map((skill) => skill.name);
+  return [
+    ...baseSkillsForPlayer(row),
+    ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
+    ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
+  ].map((skill) => skill.name);
 }
 
 function availableSkillOptionsForPlayer(row, player) {
@@ -970,6 +1268,7 @@ function statModCost(stat, mod = 0) {
 }
 
 function skillModCost(skill) {
+  if (skill?.access === "favoured") return 0;
   return skill?.access === "secondary" ? 40 : 20;
 }
 
@@ -1087,8 +1386,7 @@ function isTeamVisible(team) {
 }
 
 function isStarVisible(page) {
-  if (!matchesQuery(page)) return false;
-  return state.starFilters.tag === "all" || (page.tags ?? []).includes(state.starFilters.tag);
+  return matchesQuery(page);
 }
 
 function isInducementVisible(page) {
@@ -1135,12 +1433,6 @@ function renderHeader(title, description, actions = "") {
 function renderHome() {
   setActiveNav("home");
   setViewSection("home");
-  const quickPages = [
-    ...["1. League Basics", "2. Team Creation", "3. Team Management", "4. Match Procedures", "5. Patch Notes"]
-      .map((title) => state.data.rules.find((page) => page.title === title))
-      .filter(Boolean),
-    state.data.otherPages?.find((page) => page.title === "Reference Sources"),
-  ].filter(Boolean);
 
   view.innerHTML = `
     <section class="league-hero">
@@ -1156,27 +1448,76 @@ function renderHome() {
     <section>
       <div class="page-head">
         <div>
-          <h1>${t("home.quickStartTitle")}</h1>
-          <p>${t("home.quickStartSubtitle")}</p>
+          <h1>${t("home.overviewTitle")}</h1>
+          <p>${t("home.overviewSubtitle")}</p>
         </div>
       </div>
-      <div class="card-grid quick-grid">
-        <a class="card compact" href="#/teams">
-          <h3>${t("common.teams")}</h3>
-          <p>${state.data.counts.teams} ${t("home.cardTeamsDescription")}</p>
-        </a>
-        <a class="card compact" href="#/builder">
-          <h3>${t("nav.builder")}</h3>
-          <p>${t("home.cardBuilderDescription")}</p>
-        </a>
-        <a class="card compact" href="#/star-players">
-          <h3>${t("nav.starPlayers")}</h3>
-          <p>${state.data.counts.starPlayers} ${t("home.cardStarPlayersDescription")}</p>
-        </a>
-        ${quickPages.map(renderSimpleCard).join("")}
+      <div class="card-grid overview-grid">
+        ${overviewCards.map(renderOverviewIndexCard).join("")}
       </div>
     </section>
   `;
+}
+
+function overviewCardUrl(card) {
+  return `#/overview/${encodeURIComponent(card.slug)}`;
+}
+
+function findOverviewCard(slug = "") {
+  return overviewCards.find((card) => card.slug === slug) ?? null;
+}
+
+function renderOverviewIndexCard(card) {
+  return `
+    <a class="card compact overview-index-card" href="${overviewCardUrl(card)}">
+      <h3>${escapeHtml(card.title)}</h3>
+      <p>${escapeHtml(card.summary ?? "")}</p>
+    </a>
+  `;
+}
+
+function renderOverviewDetail(slug) {
+  const card = findOverviewCard(slug);
+  setActiveNav("home");
+  setViewSection("home");
+  if (!card) {
+    view.innerHTML = `
+      ${renderHeader("Overview", "League overview pages.", `<a class="primary-button" href="#/">Back</a>`)}
+      <div class="empty-state">Overview page not found.</div>
+    `;
+    return;
+  }
+  view.innerHTML = `
+    ${renderHeader(card.title, "Overview", `<a class="primary-button" href="#/">Back</a>`)}
+    <article class="content-panel content-body overview-detail">
+      ${renderOverviewContent(card)}
+    </article>
+  `;
+}
+
+function renderOverviewContent(card) {
+  return `
+    <div class="overview-card">
+      ${(card.sections ?? []).map(renderOverviewSection).join("")}
+    </div>
+  `;
+}
+
+function renderOverviewSection(section) {
+  return `
+    <section class="overview-card-section">
+      <h3>${escapeHtml(section.title)}</h3>
+      <ul class="overview-list">
+        ${(section.items ?? []).map((item) => `<li>${renderOverviewItem(item)}</li>`).join("")}
+      </ul>
+    </section>
+  `;
+}
+
+function renderOverviewItem(item = "") {
+  const match = String(item).match(/^([^:]{2,42}):\s+(.+)$/);
+  if (!match) return escapeHtml(item);
+  return `<strong>${escapeHtml(match[1])}:</strong> ${escapeHtml(match[2])}`;
 }
 
 function renderSimpleCard(page) {
@@ -1208,7 +1549,7 @@ function collectionForRoute(route) {
 
 function visibleCollection(route) {
   const items = collectionForRoute(route);
-  if (route === "teams") return items.filter(isTeamVisible);
+  if (route === "teams") return items.filter(matchesQuery);
   if (route === "skills") return items.filter(isSkillVisible);
   if (route === "star-players") return items.filter(isStarVisible);
   if (route === "inducements") return items.filter(isInducementVisible);
@@ -1254,9 +1595,7 @@ function renderSection(route) {
 }
 
 function renderFilters(route) {
-  if (route === "teams") return renderTeamFilters();
   if (route === "skills") return renderSkillFilters(route);
-  if (route === "star-players") return renderStarFilters();
   if (route === "inducements") return renderInducementFilters();
   return "";
 }
@@ -1386,21 +1725,10 @@ function wireFilters(route) {
 
 function renderListCard(page, route) {
   if (route === "teams") {
-    return `
-      <a class="card compact" href="${pageUrl(page)}">
-        <h3>${escapeHtml(page.title)}</h3>
-        <p>${escapeHtml(page.team?.meta?.league ?? t("listCard.leagueRosterFallback"))}</p>
-      </a>
-    `;
+    return renderTeamCatalogCard(page);
   }
   if (route === "star-players") {
-    return `
-      <a class="card" href="${pageUrl(page)}">
-        <h3>${escapeHtml(page.title)}</h3>
-        <p>${escapeHtml([page.starPlayer?.cost, page.starPlayer?.availability].filter(Boolean).join(" · "))}</p>
-        <div class="meta-line">${badgeList(page.tags, 3)}</div>
-      </a>
-    `;
+    return renderStarPlayerCatalogCard(page);
   }
   if (route === "skills" || route === "traits") {
     return `
@@ -1417,6 +1745,183 @@ function renderListCard(page, route) {
       <p>${escapeHtml(preview)}</p>
       <div class="meta-line">${badgeList(page.tags, 3)}</div>
     </a>
+  `;
+}
+
+function renderCatalogField(label, value) {
+  return `
+    <div>
+      <dt>${escapeHtml(label)}</dt>
+      <dd>${value}</dd>
+    </div>
+  `;
+}
+
+function renderLimitedRuleLinks(items = [], limit = 3) {
+  const visible = items.slice(0, limit);
+  const extra = items.length - visible.length;
+  if (!visible.length) return `<span class="muted-text">-</span>`;
+  return `${renderRuleLinks(visible)}${extra > 0 ? `<span class="roster-pill roster-pill-muted">+${extra}</span>` : ""}`;
+}
+
+function renderLimitedRosterLinks(items = [], limit = 5) {
+  const visible = items.slice(0, limit);
+  const extra = items.length - visible.length;
+  if (!visible.length) return `<span class="muted-text">-</span>`;
+  return `${renderRosterLinks(visible)}${extra > 0 ? `<span class="roster-pill roster-pill-muted">+${extra}</span>` : ""}`;
+}
+
+function rowCostRange(rows = []) {
+  const costs = [...new Set(rows.map(rowCost).filter(Boolean))]
+    .sort((a, b) => costToNumber(a) - costToNumber(b));
+  if (!costs.length) return "-";
+  if (costs.length === 1) return costs[0];
+  return `${costs[0]}-${costs[costs.length - 1]}`;
+}
+
+function renderTeamCatalogCard(page) {
+  const rows = rowsForTeam(page);
+  const leagueOptions = teamLeagueOptions(page);
+  const specialRules = teamSpecialRuleTokens(page);
+  const positionPreview = rows.slice(0, 3).map((row) => row.position).filter(Boolean);
+  const extraPositions = rows.length - positionPreview.length;
+  return `
+    <article class="card catalog-card team-catalog-card">
+      <header class="catalog-card-head">
+        <div>
+          <span class="catalog-kicker">${escapeHtml(page.team?.type ?? page.tags?.[0] ?? "Team")}</span>
+          <h3><a class="catalog-card-title" href="${pageUrl(page)}">${escapeHtml(page.title)}</a></h3>
+        </div>
+      </header>
+      <dl class="catalog-card-stats">
+        ${renderCatalogField("Tier", escapeHtml(page.team?.meta?.league ?? "-"))}
+        ${renderCatalogField("Positions", escapeHtml(String(rows.length)))}
+        ${renderCatalogField("Rerolls", escapeHtml(page.team?.meta?.rerolls ?? "-"))}
+      </dl>
+      <section class="catalog-card-section">
+        <span>Players</span>
+        <p>${escapeHtml(positionPreview.join(", ") || "No roster rows")}${extraPositions > 0 ? ` +${extraPositions}` : ""}</p>
+      </section>
+      <section class="catalog-card-section">
+        <span>League access</span>
+        <div class="catalog-pill-row">${renderLimitedRuleLinks(leagueOptions, 2)}</div>
+      </section>
+      <section class="catalog-card-section">
+        <span>Special rules</span>
+        <div class="catalog-pill-row">${renderLimitedRuleLinks(specialRules, 3)}</div>
+      </section>
+      <footer class="catalog-card-actions">
+        <a class="primary-button compact-action" href="${pageUrl(page)}">Open</a>
+      </footer>
+    </article>
+  `;
+}
+
+function splitStarMarkdownTableRow(line = "") {
+  const trimmed = String(line).trim().replace(/^\|/, "").replace(/\|$/, "");
+  const cells = [];
+  let current = "";
+  let inWikiLink = false;
+  for (let index = 0; index < trimmed.length; index += 1) {
+    const pair = trimmed.slice(index, index + 2);
+    if (pair === "[[") {
+      inWikiLink = true;
+      current += pair;
+      index += 1;
+      continue;
+    }
+    if (pair === "]]") {
+      inWikiLink = false;
+      current += pair;
+      index += 1;
+      continue;
+    }
+    const char = trimmed[index];
+    if (char === "|" && !inWikiLink) {
+      cells.push(current.trim());
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  cells.push(current.trim());
+  return cells;
+}
+
+function cleanMarkdownCell(value = "") {
+  return String(value)
+    .replace(/\[\[[^\]|]+\|([^\]]+)\]\]/g, "$1")
+    .replace(/\[\[([^\]]+)\]\]/g, "$1")
+    .replace(/\*\*/g, "")
+    .replace(/`/g, "")
+    .trim();
+}
+
+function starPlayerTableData(page) {
+  const lines = String(page.body ?? "").split(/\r?\n/);
+  const headerIndex = lines.findIndex((line) => /\|\s*MA\s*\|\s*ST\s*\|\s*AG\s*\|\s*PA\s*\|\s*AR/i.test(line));
+  if (headerIndex === -1) return {};
+  const dataLine = lines.slice(headerIndex + 1).find((line) => {
+    const trimmed = line.trim();
+    return trimmed.startsWith("|") && !/^\|\s*-+/.test(trimmed);
+  });
+  if (!dataLine) return {};
+  const cells = splitStarMarkdownTableRow(dataLine).map(cleanMarkdownCell);
+  return {
+    ma: cells[0] ?? "",
+    st: cells[1] ?? "",
+    ag: cells[2] ?? "",
+    pa: cells[3] ?? "",
+    ar: cells[4] ?? "",
+    cost: cells[5] ?? "",
+    skills: splitList(cells[6] ?? ""),
+    keywords: splitList(cells[7] ?? ""),
+  };
+}
+
+function renderStarCatalogStats(star) {
+  return `
+    <dl class="catalog-stat-strip">
+      <div><dt>MA</dt><dd>${escapeHtml(star.ma || "-")}</dd></div>
+      <div><dt>ST</dt><dd>${escapeHtml(star.st || "-")}</dd></div>
+      <div><dt>AG</dt><dd>${escapeHtml(star.ag || "-")}</dd></div>
+      <div><dt>PA</dt><dd>${escapeHtml(star.pa || "-")}</dd></div>
+      <div><dt>AR</dt><dd>${escapeHtml(star.ar || "-")}</dd></div>
+    </dl>
+  `;
+}
+
+function renderStarPlayerCatalogCard(page) {
+  const star = starPlayerTableData(page);
+  const cost = page.starPlayer?.cost ?? star.cost ?? "-";
+  const availability = page.starPlayer?.availability ?? "-";
+  const keywords = star.keywords.length ? star.keywords : (page.tags ?? []).filter((tag) => tag !== "Star Player");
+  return `
+    <article class="card catalog-card star-catalog-card">
+      <header class="catalog-card-head">
+        <div>
+          <span class="catalog-kicker">Star Player</span>
+          <h3><a class="catalog-card-title" href="${pageUrl(page)}">${escapeHtml(page.title)}</a></h3>
+        </div>
+        <span class="catalog-price">${escapeHtml(cost)}</span>
+      </header>
+      ${renderStarCatalogStats(star)}
+      <section class="catalog-card-section">
+        <span>Availability</span>
+        <p>${escapeHtml(availability || "-")}</p>
+      </section>
+      <section class="catalog-card-section">
+        <span>Skills</span>
+        <div class="catalog-pill-row">${renderLimitedRosterLinks(star.skills, 5)}</div>
+      </section>
+      <section class="catalog-card-section">
+        <span>Keywords</span>
+        <div class="catalog-pill-row">${badgeList(keywords, 4)}</div>
+      </section>
+      <footer class="catalog-card-actions">
+        <a class="primary-button compact-action" href="${pageUrl(page)}">Open</a>
+      </footer>
+    </article>
   `;
 }
 
@@ -1491,9 +1996,11 @@ function ruleLookupKey(value = "") {
 
 const leagueAccessDisplayByKey = new Map(leagueAccessNames.map((name) => [ruleLookupKey(name), name]));
 const specialRuleDisplayByKey = new Map([
+  [ruleLookupKey("Architect of Fate"), "Architect of Fate"],
   [ruleLookupKey("Brawlin' Brutes"), "Brawlin' Brutes"],
   [ruleLookupKey("Brawling Brutes"), "Brawlin' Brutes"],
   [ruleLookupKey("Bribery and Corruption"), "Bribery and Corruption"],
+  [ruleLookupKey("Explosive Demise"), "Explosive Demise"],
   [ruleLookupKey("Favoured of..."), "Favoured of..."],
   [ruleLookupKey("Favoured of ..."), "Favoured of..."],
   [ruleLookupKey("Favored of..."), "Favoured of..."],
@@ -1654,9 +2161,78 @@ function ensureDraftLeagueChoice(team, draft) {
   return draft.selectedLeague;
 }
 
+function favouredAlignmentName(value = "") {
+  const clean = String(value)
+    .replace(/\bFavored\b/g, "Favoured")
+    .replace(/^Favoured\s+of/i, "")
+    .replace(/\.+$/g, "")
+    .trim();
+  const key = ruleLookupKey(clean);
+  return favouredAlignments.find((alignment) => ruleLookupKey(alignment.name) === key)?.name ?? "";
+}
+
+function teamFavouredOptions(team) {
+  const rules = teamSpecialRuleTokens(team).filter((rule) => ruleLookupKey(rule).startsWith("favouredof"));
+  if (!rules.length) return [];
+  if (rules.some((rule) => ruleLookupKey(rule) === ruleLookupKey("Favoured of..."))) {
+    return favouredAlignments.map((alignment) => alignment.name);
+  }
+  const seen = new Set();
+  return rules
+    .map(favouredAlignmentName)
+    .filter((name) => {
+      const key = ruleLookupKey(name);
+      if (!name || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+}
+
+function ensureDraftFavouredChoice(team, draft) {
+  const options = teamFavouredOptions(team);
+  if (!options.length) {
+    draft.favouredChoice = "";
+    return "";
+  }
+  const current = options.find((option) => ruleLookupKey(option) === ruleLookupKey(draft.favouredChoice));
+  draft.favouredChoice = current ?? options[0];
+  return draft.favouredChoice;
+}
+
+function favouredSkillsForChoice(choice = "") {
+  const alignment = favouredAlignments.find((item) => ruleLookupKey(item.name) === ruleLookupKey(choice));
+  return alignment?.skills ?? [];
+}
+
+function favouredSkillOptionsForPlayer(team, draft, row, player) {
+  const choice = ensureDraftFavouredChoice(team, draft);
+  if (!choice) return [];
+  const taken = new Set(skillNamesForPlayer(row, player));
+  return favouredSkillsForChoice(choice)
+    .filter((name) => !taken.has(name))
+    .map((name) => ({ name, access: "favoured", alignment: choice }));
+}
+
+function sanitizeFavouredSkillsForTeam(team, draft) {
+  const choice = ensureDraftFavouredChoice(team, draft);
+  const allowed = new Set(favouredSkillsForChoice(choice));
+  (draft.players ?? []).forEach((player) => {
+    const row = rowsForTeam(team)[player.rowIndex];
+    if (!row) return;
+    const regularSkills = new Set([
+      ...(row.skills ?? []),
+      ...normalizePlayerExtraSkills(row, player.extraSkills ?? []).map((skill) => skill.name),
+    ]);
+    player.favouredSkills = normalizePlayerFavouredSkills(row, player.favouredSkills ?? [])
+      .filter((skill) => allowed.has(skill.name) && !regularSkills.has(skill.name));
+  });
+}
+
 function renderTeamRuleAccess(team, draft, controlName = "") {
   const leagueOptions = teamLeagueOptions(team);
   const selectedLeague = ensureDraftLeagueChoice(team, draft);
+  const favouredOptions = teamFavouredOptions(team);
+  const selectedFavoured = ensureDraftFavouredChoice(team, draft);
   const specialRules = teamSpecialRuleTokens(team);
   return `
     <section class="team-rules-panel">
@@ -1676,6 +2252,16 @@ function renderTeamRuleAccess(team, draft, controlName = "") {
         <span>${t("roster.specialRules")}</span>
         <div class="rule-link-list">${renderRuleLinks(specialRules)}</div>
       </div>
+      ${favouredOptions.length ? `
+        <div class="team-rules-row">
+          <span>Favoured Of</span>
+          ${favouredOptions.length > 1 ? `
+            <select ${controlName ? `data-${controlName}-favoured` : ""}>
+              ${favouredOptions.map((option) => renderOption(option, option, selectedFavoured)).join("")}
+            </select>
+          ` : `<strong>${escapeHtml(selectedFavoured)}</strong>`}
+        </div>
+      ` : ""}
     </section>
   `;
 }
@@ -2050,7 +2636,7 @@ async function renderMyTeams() {
 
 function renderSavedTeamsTable(teams) {
   return `
-    <article class="content-panel compact-table-panel">
+    <article class="content-panel compact-table-panel my-teams-table-panel">
       <div class="table-scroll builder-table-scroll">
         <table class="my-teams-table compact-roster-table">
           <thead>
@@ -2069,6 +2655,9 @@ function renderSavedTeamsTable(teams) {
         </table>
       </div>
     </article>
+    <div class="my-teams-card-list">
+      ${teams.map(renderSavedTeamCard).join("")}
+    </div>
   `;
 }
 
@@ -2086,7 +2675,7 @@ function renderSavedTeamRow(team) {
       <td>
         <span class="saved-team-name-cell">
           ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
-          <strong>${escapeHtml(team.name)}</strong>
+          <strong>${renderPublicTeamLink(state.auth.currentUser, team)}</strong>
         </span>
       </td>
       <td>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</td>
@@ -2103,6 +2692,37 @@ function renderSavedTeamRow(team) {
   `;
 }
 
+function renderSavedTeamCard(team) {
+  const base = state.data.teams.find((item) => item.slug === team.baseTeamSlug);
+  const draft = normalizeSavedRoster(team);
+  const rosterTeam = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? base;
+  if (rosterTeam) {
+    ensureDraftPlayers(rosterTeam, draft);
+  }
+  const costs = rosterTeam ? calculateRosterCosts(rosterTeam, draft) : null;
+  const updated = team.updatedAt ? new Date(team.updatedAt).toLocaleDateString("en-GB") : "-";
+  return `
+    <article class="card saved-team-card">
+      <header class="saved-team-card-head">
+        ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
+        <div>
+          <h3>${renderPublicTeamLink(state.auth.currentUser, team)}</h3>
+          <p>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</p>
+        </div>
+      </header>
+      <dl class="saved-team-card-stats">
+        <div><dt>Players</dt><dd>${costs ? costs.totalPlayersCount : "-"}</dd></div>
+        <div><dt>Total Cost</dt><dd>${costs ? `${costs.total}k` : "-"}</dd></div>
+        <div><dt>Updated</dt><dd>${escapeHtml(updated)}</dd></div>
+      </dl>
+      <div class="saved-team-actions">
+        <a class="primary-button compact-action" href="#/my-teams/${encodeURIComponent(team.id)}">Edit</a>
+        <button class="filter-button compact-action" type="button" data-delete-team="${escapeHtml(team.id)}">Delete</button>
+      </div>
+    </article>
+  `;
+}
+
 function wireMyTeams() {
   view.querySelector("[data-new-team]")?.addEventListener("click", () => {
     resetBuilderForTeam(state.data.teams[0]);
@@ -2116,28 +2736,1326 @@ function wireMyTeams() {
   });
 }
 
-async function renderSavedRoster(teamId, refresh = true) {
-  setActiveNav("my-teams");
+async function loadAdminUsers(force = false) {
+  if (!state.auth.currentUser?.isAdmin) {
+    state.admin = { users: [], loaded: true, loading: false, error: "", editingTeams: new Map() };
+    return;
+  }
+  if (state.admin.loaded && !force) return;
+  state.admin.loading = true;
+  state.admin.error = "";
+  try {
+    const payload = await apiRequest("/api/admin/users");
+    state.admin.users = payload.users ?? [];
+    state.admin.loaded = true;
+  } catch (error) {
+    state.admin.error = error.message;
+  } finally {
+    state.admin.loading = false;
+  }
+}
+
+async function renderAdministration() {
+  setActiveNav("administration");
+  setViewSection("administration");
+  view.innerHTML = `
+    ${renderHeader("Administration", "Players, profiles, and saved teams.", `<button class="primary-button" type="button" data-admin-refresh>Refresh</button>`)}
+    <div class="loading">Loading players...</div>
+  `;
+
+  if (!state.auth.currentUser) {
+    view.innerHTML = `
+      ${renderHeader("Administration", "Players, profiles, and saved teams.")}
+      <div class="empty-state">Log in as an admin to open Administration.</div>
+    `;
+    return;
+  }
+
+  if (!state.auth.currentUser.isAdmin) {
+    view.innerHTML = `
+      ${renderHeader("Administration", "Players, profiles, and saved teams.")}
+      <div class="empty-state">Admin access required.</div>
+    `;
+    return;
+  }
+
+  await loadAdminUsers(true);
+  if (state.admin.error) {
+    view.innerHTML = `
+      ${renderHeader("Administration", "Players, profiles, and saved teams.", `<button class="primary-button" type="button" data-admin-refresh>Refresh</button>`)}
+      <div class="empty-state">${escapeHtml(state.admin.error)}</div>
+    `;
+    wireAdministration();
+    return;
+  }
+
+  view.innerHTML = `
+    ${renderHeader("Administration", "Players, profiles, and saved teams.", `<button class="primary-button" type="button" data-admin-refresh>Refresh</button>`)}
+    ${renderAdminUsersTable(state.admin.users)}
+  `;
+  wireAdministration();
+}
+
+function renderAdminUsersTable(users) {
+  if (!users.length) return `<div class="empty-state">No players found.</div>`;
+  return `
+    <article class="content-panel compact-table-panel">
+      <div class="table-scroll builder-table-scroll">
+        <table class="admin-users-table compact-roster-table">
+          <thead>
+            <tr>
+              <th>Player</th>
+              <th>Telegram</th>
+              <th>Role</th>
+              <th>Saved Teams</th>
+              <th>Last Team Update</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${users.map(renderAdminUserRow).join("")}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  `;
+}
+
+function renderAdminUserRow(user) {
+  const updated = user.lastTeamUpdatedAt ? new Date(user.lastTeamUpdatedAt).toLocaleDateString("en-GB") : "-";
+  return `
+    <tr>
+      <td><strong>${renderPlayerLink(user)}</strong></td>
+      <td>${escapeHtml(user.telegram || "-")}</td>
+      <td>${user.isAdmin ? "Admin" : "Player"}</td>
+      <td>${user.savedTeamCount ?? 0}</td>
+      <td>${escapeHtml(updated)}</td>
+      <td><a class="primary-button compact-action" href="#/administration/users/${encodeURIComponent(user.id)}">Profile</a></td>
+    </tr>
+  `;
+}
+
+async function renderAdminUserProfile(userId) {
+  setActiveNav("administration");
+  setViewSection("administration");
+  view.innerHTML = `
+    ${renderHeader("Administration", "Player profile.", `<a class="primary-button" href="#/administration">Back</a>`)}
+    <div class="loading">Loading profile...</div>
+  `;
+
+  if (!state.auth.currentUser?.isAdmin) {
+    view.innerHTML = `
+      ${renderHeader("Administration", "Player profile.", `<a class="primary-button" href="#/administration">Back</a>`)}
+      <div class="empty-state">Admin access required.</div>
+    `;
+    return;
+  }
+
+  try {
+    const payload = await apiRequest(`/api/admin/users/${encodeURIComponent(userId)}`);
+    view.innerHTML = `
+      ${renderHeader(`Player "${payload.user.login}"`, "Saved teams and profile details.", `<a class="primary-button" href="#/administration">Back</a>`)}
+      <div class="admin-profile-grid">
+        ${renderAdminProfileCard(payload.user)}
+        <section class="content-panel season-card">
+          ${renderAdminCreateTeamForUserPanel(payload.user)}
+        </section>
+        <section class="content-panel season-card">
+          <h2>Saved Teams</h2>
+          ${renderAdminSavedTeamsTable(payload.teams ?? [], payload.user)}
+        </section>
+      </div>
+    `;
+    wireAdminUserProfile(payload.user);
+  } catch (error) {
+    view.innerHTML = `
+      ${renderHeader("Administration", "Player profile.", `<a class="primary-button" href="#/administration">Back</a>`)}
+      <div class="empty-state">${escapeHtml(error.message)}</div>
+    `;
+  }
+}
+
+function renderAdminProfileCard(user) {
+  const created = user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-GB") : "-";
+  const updated = user.lastTeamUpdatedAt ? new Date(user.lastTeamUpdatedAt).toLocaleDateString("en-GB") : "-";
+  return `
+    <aside class="side-panel admin-profile-card">
+      <h2>Profile</h2>
+      <dl class="stat-list">
+        <dt>Login</dt><dd>${renderPlayerLink(user)}</dd>
+        <dt>Telegram</dt><dd>${escapeHtml(user.telegram || "-")}</dd>
+        <dt>Role</dt><dd>${user.isAdmin ? "Admin" : "Player"}</dd>
+        <dt>Saved teams</dt><dd>${user.savedTeamCount ?? 0}</dd>
+        <dt>Created</dt><dd>${escapeHtml(created)}</dd>
+        <dt>Last team update</dt><dd>${escapeHtml(updated)}</dd>
+      </dl>
+    </aside>
+  `;
+}
+
+function renderAdminCreateTeamForUserPanel(user) {
+  const teams = state.data.teams ?? [];
+  return `
+    <h2>Create Team For Player</h2>
+    <p class="muted-text">Create a saved team in ${escapeHtml(user.login)}'s profile. It will not be committed to the season automatically.</p>
+    <div class="season-action-row admin-create-team-row">
+      <label class="filter-field">
+        <span>Rules team</span>
+        <select data-admin-create-team-base>
+          ${teams.map((team) => renderOption(team.slug, team.title, "")).join("")}
+        </select>
+      </label>
+      <label class="filter-field">
+        <span>Team name</span>
+        <input type="text" data-admin-create-team-name placeholder="New team name">
+      </label>
+      <button class="primary-button" type="button" data-admin-create-user-team="${escapeHtml(user.id)}">Create Team</button>
+    </div>
+  `;
+}
+
+function wireAdminUserProfile(user) {
+  view.querySelector("[data-admin-create-user-team]")?.addEventListener("click", async () => {
+    const baseTeamSlug = view.querySelector("[data-admin-create-team-base]")?.value;
+    const baseTeam = state.data.teams.find((team) => team.slug === baseTeamSlug);
+    if (!baseTeam) return;
+    const name = String(view.querySelector("[data-admin-create-team-name]")?.value ?? "").trim() || baseTeam.title;
+    try {
+      const payload = await apiRequest(`/api/admin/users/${encodeURIComponent(user.id)}/teams`, {
+        method: "POST",
+        body: JSON.stringify({
+          name,
+          baseTeamSlug,
+          roster: makeSeasonStarterRoster(baseTeam, name),
+        }),
+      });
+      state.admin.loaded = false;
+      location.hash = adminTeamEditUrl(user, payload.team);
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+
+function renderAdminSavedTeamsTable(teams, owner = null) {
+  if (!teams.length) return `<p>No saved teams yet.</p>`;
+  return `
+    <div class="table-scroll builder-table-scroll">
+      <table class="admin-teams-table compact-roster-table">
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Rules</th>
+            <th>Players</th>
+            <th>Total Cost</th>
+            <th>Updated</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${teams.map((team) => renderAdminSavedTeamRow(team, owner)).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderAdminSavedTeamRow(team, owner = null) {
+  const teamOwner = owner ?? team.owner ?? null;
+  const base = state.data.teams.find((item) => item.slug === team.baseTeamSlug);
+  const draft = normalizeSavedRoster(team);
+  const rosterTeam = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? base;
+  if (rosterTeam) {
+    ensureDraftPlayers(rosterTeam, draft);
+  }
+  const costs = rosterTeam ? calculateRosterCosts(rosterTeam, draft) : null;
+  const updated = team.updatedAt ? new Date(team.updatedAt).toLocaleDateString("en-GB") : "-";
+  return `
+    <tr>
+      <td>
+        <span class="saved-team-name-cell">
+          ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
+          <strong>${teamOwner ? renderPublicTeamLink(teamOwner, team) : escapeHtml(team.name)}</strong>
+        </span>
+      </td>
+      <td>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</td>
+      <td>${costs ? costs.totalPlayersCount : "-"}</td>
+      <td>${costs ? `${costs.total}k` : "-"}</td>
+      <td>${escapeHtml(updated)}</td>
+      <td>${state.auth.currentUser?.isAdmin && teamOwner ? `<a class="primary-button compact-action" href="${adminTeamEditUrl(teamOwner, team)}">Edit</a>` : `<span class="muted-text">-</span>`}</td>
+    </tr>
+  `;
+}
+
+async function renderPlayerProfile(userId) {
+  setActiveNav("season");
+  setViewSection("players");
+  view.innerHTML = `
+    ${renderHeader("Player Profile", "Saved teams and coach details.", `<a class="primary-button" href="#/season">Back</a>`)}
+    <div class="loading">Loading player...</div>
+  `;
+
+  if (!state.auth.currentUser) {
+    view.innerHTML = `
+      ${renderHeader("Player Profile", "Saved teams and coach details.")}
+      <div class="empty-state">Log in to view player profiles.</div>
+    `;
+    return;
+  }
+
+  try {
+    const payload = await apiRequest(`/api/players/${encodeURIComponent(userId)}`);
+    view.innerHTML = `
+      ${renderHeader(`Player "${payload.user.login}"`, "Saved teams and coach details.", `<a class="primary-button" href="#/season">Back</a>`)}
+      <div class="admin-profile-grid">
+        ${renderAdminProfileCard(payload.user)}
+        ${state.auth.currentUser?.isAdmin ? `<section class="content-panel season-card">${renderAdminCreateTeamForUserPanel(payload.user)}</section>` : ""}
+        <section class="content-panel season-card">
+          <h2>Saved Teams</h2>
+          ${renderPublicProfileTeamsTable(payload.user, payload.teams ?? [])}
+        </section>
+      </div>
+    `;
+    if (state.auth.currentUser?.isAdmin) {
+      wireAdminUserProfile(payload.user);
+    }
+  } catch (error) {
+    view.innerHTML = `
+      ${renderHeader("Player Profile", "Saved teams and coach details.", `<a class="primary-button" href="#/season">Back</a>`)}
+      <div class="empty-state">${escapeHtml(error.message)}</div>
+    `;
+  }
+}
+
+function renderPublicProfileTeamsTable(user, teams) {
+  if (!teams.length) return `<p>No saved teams yet.</p>`;
+  return `
+    <div class="table-scroll builder-table-scroll">
+      <table class="admin-teams-table compact-roster-table">
+        <thead>
+          <tr>
+            <th>Team</th>
+            <th>Rules</th>
+            <th>Players</th>
+            <th>Total Cost</th>
+            <th>Updated</th>
+            ${state.auth.currentUser?.isAdmin ? "<th>Action</th>" : ""}
+          </tr>
+        </thead>
+        <tbody>
+          ${teams.map((team) => renderPublicProfileTeamRow(user, team)).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderPublicProfileTeamRow(user, team) {
+  const base = state.data.teams.find((item) => item.slug === team.baseTeamSlug);
+  const draft = normalizeSavedRoster(team);
+  const rosterTeam = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? base;
+  if (rosterTeam) ensureDraftPlayers(rosterTeam, draft);
+  const costs = rosterTeam ? calculateRosterCosts(rosterTeam, draft) : null;
+  const updated = team.updatedAt ? new Date(team.updatedAt).toLocaleDateString("en-GB") : "-";
+  return `
+    <tr>
+      <td>
+        <span class="saved-team-name-cell">
+          ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
+          <strong>${renderPublicTeamLink(user, team)}</strong>
+        </span>
+      </td>
+      <td>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</td>
+      <td>${costs ? costs.totalPlayersCount : "-"}</td>
+      <td>${costs ? `${costs.total}k` : "-"}</td>
+      <td>${escapeHtml(updated)}</td>
+      ${state.auth.currentUser?.isAdmin ? `<td><a class="primary-button compact-action" href="${adminTeamEditUrl(user, team)}">Edit</a></td>` : ""}
+    </tr>
+  `;
+}
+
+async function renderPublicTeamProfile(userId, teamId) {
+  setActiveNav("season");
+  setViewSection("players");
+  view.innerHTML = `
+    ${renderHeader("Team", "Saved roster.", `<a class="primary-button" href="${playerUrl(userId)}">Back</a>`)}
+    <div class="loading">Loading team...</div>
+  `;
+
+  if (!state.auth.currentUser) {
+    view.innerHTML = `
+      ${renderHeader("Team", "Saved roster.")}
+      <div class="empty-state">Log in to view saved teams.</div>
+    `;
+    return;
+  }
+
+  try {
+    const payload = await apiRequest(`/api/players/${encodeURIComponent(userId)}/teams/${encodeURIComponent(teamId)}`);
+    const draft = normalizeSavedRoster(payload.team);
+    const team = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? state.data.teams[0];
+    ensureDraftLeagueChoice(team, draft);
+    ensureDraftPlayers(team, draft);
+    const costs = calculateRosterCosts(team, draft);
+    const actions = `
+      <a class="primary-button" href="${playerUrl(payload.user)}">Back</a>
+      ${state.auth.currentUser?.isAdmin ? `<a class="primary-button" href="${adminTeamEditUrl(payload.user, payload.team)}">Edit Team</a>` : ""}
+    `;
+    view.innerHTML = `
+      ${renderHeader(`Team "${payload.team.name}"`, `Coach: ${payload.user.login}`, actions)}
+      <div class="saved-roster-top-grid">
+        ${renderPublicTeamSummary(payload.user, payload.team, team, draft, costs)}
+        <section class="side-panel">
+          <h2>Coach</h2>
+          <p>${renderPlayerLink(payload.user)}</p>
+          ${renderTeamRuleAccess(team, draft)}
+        </section>
+      </div>
+      <section class="content-panel compact-table-panel">
+        <h2>Roster</h2>
+        ${renderPublicTeamRosterTable(team, draft)}
+      </section>
+    `;
+  } catch (error) {
+    view.innerHTML = `
+      ${renderHeader("Team", "Saved roster.", `<a class="primary-button" href="${playerUrl(userId)}">Back</a>`)}
+      <div class="empty-state">${escapeHtml(error.message)}</div>
+    `;
+  }
+}
+
+function renderPublicTeamSummary(user, savedTeam, team, draft, costs) {
+  return `
+    <aside class="builder-summary saved-roster-summary-panel side-panel">
+      ${draft.logoData ? `<div class="summary-logo-block"><img src="${escapeHtml(draft.logoData)}" alt=""></div>` : ""}
+      <div class="summary-title-block">
+        <h3>Roster Summary</h3>
+        <a class="builder-team-link" href="${playerTeamUrl(user, savedTeam)}">${escapeHtml(savedTeam.name)}</a>
+      </div>
+      <dl class="stat-list summary-stat-grid">
+        <dt>Coach</dt><dd>${renderPlayerLink(user)}</dd>
+        <dt>Rules</dt><dd><a class="inline-rule-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a></dd>
+        <dt>Active players</dt><dd>${costs.playersCount}</dd>
+        <dt>Total players</dt><dd>${costs.totalPlayersCount}</dd>
+        <dt>Team Rerolls</dt><dd>${draft.teamRerolls ?? 0}</dd>
+        <dt>Dedicated Fans</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
+        <dt>Treasury</dt><dd>${countToNumber(draft.treasury)}k</dd>
+        <dt>Total Cost</dt><dd>${costs.total}k</dd>
+      </dl>
+    </aside>
+  `;
+}
+
+function renderPublicTeamRosterTable(team, draft) {
+  const players = selectedRosterPlayers(team, draft);
+  if (!players.length) return `<p>No players in this team yet.</p>`;
+  return `
+    <div class="table-scroll builder-table-scroll">
+      <table class="compact-roster-table public-roster-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Name</th>
+            <th>Position</th>
+            <th>MA</th>
+            <th>ST</th>
+            <th>AG</th>
+            <th>PA</th>
+            <th>AR</th>
+            <th>Skills</th>
+            <th>Cost</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${players.map((player, index) => `
+            <tr>
+              <td>${index + 1}</td>
+              <td><strong>${escapeHtml(player.name)}</strong></td>
+              <td>${escapeHtml(player.row.position)}</td>
+              <td>${escapeHtml(statValueForDisplayByStat("ma", player.row.ma, player.statMods.ma ?? 0))}</td>
+              <td>${escapeHtml(statValueForDisplayByStat("st", player.row.st, player.statMods.st ?? 0))}</td>
+              <td>${escapeHtml(statValueForDisplayByStat("ag", player.row.ag, player.statMods.ag ?? 0))}</td>
+              <td>${escapeHtml(statValueForDisplayByStat("pa", player.row.pa, player.statMods.pa ?? 0))}</td>
+              <td>${escapeHtml(statValueForDisplayByStat("ar", player.row.ar, player.statMods.ar ?? 0))}</td>
+              <td class="skills-cell">${renderRosterLinks(skillNamesForPlayer(player.row, player))}</td>
+              <td>${playerCurrentCost(player.row, player, true)}k</td>
+              <td>${player.skipNextGame ? "Skip next game" : player.niglingInjury ? "Nigling injury" : "-"}</td>
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function wireAdministration() {
+  view.querySelector("[data-admin-refresh]")?.addEventListener("click", () => {
+    state.admin.loaded = false;
+    renderAdministration();
+  });
+}
+
+async function loadSeason(force = false) {
+  if (!state.auth.currentUser) {
+    state.season = { ...state.season, data: null, loaded: true, loading: false, error: "" };
+    return;
+  }
+  if (state.season.loaded && !force) return;
+  state.season.loading = true;
+  state.season.error = "";
+  try {
+    state.season.data = await apiRequest("/api/season");
+    state.season.loaded = true;
+  } catch (error) {
+    state.season.error = error.message;
+  } finally {
+    state.season.loading = false;
+  }
+}
+
+function seasonEntryMap(data) {
+  return new Map((data.entries ?? []).map((entry) => [entry.id, entry]));
+}
+
+function seasonEntryLabel(entry) {
+  if (!entry) return "-";
+  return `${entry.user.login} · ${entry.team.name}`;
+}
+
+function seasonTeamRulesLink(entry) {
+  const team = state.data.teams.find((item) => item.slug === entry?.team?.baseTeamSlug);
+  return team
+    ? `<a class="inline-rule-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>`
+    : escapeHtml(entry?.team?.baseTeamSlug || "-");
+}
+
+function seasonTeamProfileLink(entry) {
+  return entry ? renderPublicTeamLink(entry.user, entry.team) : `<span class="muted-text">-</span>`;
+}
+
+function makeSeasonStarterRoster(team, name) {
+  const draft = emptyBuilderState(team);
+  draft.teamName = name || team.title;
+  draft.selectedLeague = teamLeagueOptions(team)[0] ?? "";
+  return draft;
+}
+
+const seasonTabDefinitions = [
+  { id: "registration", label: "Registration" },
+  { id: "fixture", label: "League Fixture" },
+  { id: "standings", label: "Standings" },
+  { id: "schedule", label: "Schedule" },
+  { id: "administration", label: "Administration", adminOnly: true },
+];
+
+function availableSeasonTabs() {
+  return seasonTabDefinitions.filter((tab) => !tab.adminOnly || state.auth.currentUser?.isAdmin);
+}
+
+function normalizeSeasonTab(tabId = "") {
+  const tabs = availableSeasonTabs();
+  return tabs.some((tab) => tab.id === tabId) ? tabId : tabs[0]?.id ?? "registration";
+}
+
+function renderSeasonTabs(activeTab) {
+  return `
+    <div class="season-tabs" role="tablist" aria-label="Season sections">
+      ${availableSeasonTabs().map((tab) => `
+        <button
+          class="season-tab ${tab.id === activeTab ? "active" : ""}"
+          type="button"
+          role="tab"
+          aria-selected="${tab.id === activeTab ? "true" : "false"}"
+          data-season-tab="${escapeHtml(tab.id)}"
+        >${escapeHtml(tab.label)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSeasonTabContent(data, activeTab) {
+  if (activeTab === "fixture") return renderLeagueFixture(data);
+  if (activeTab === "standings") return renderSeasonStandings(data);
+  if (activeTab === "schedule") return renderSeasonRounds(data);
+  if (activeTab === "administration" && state.auth.currentUser?.isAdmin) return renderSeasonAdmin(data);
+  return renderSeasonRegistration(data);
+}
+
+async function renderSeason(refresh = true) {
+  setActiveNav("season");
+  setViewSection("season");
+  view.innerHTML = `
+    ${renderHeader("Season", "Commit a team, manage Swiss pairings, and track league points.", `<button class="primary-button" type="button" data-season-refresh>Refresh</button>`)}
+    <div class="loading">Loading season...</div>
+  `;
+
+  await loadSeason(refresh);
+
+  if (!state.auth.currentUser) {
+    view.innerHTML = `
+      ${renderHeader("Season", "Commit a team, manage Swiss pairings, and track league points.")}
+      <div class="empty-state">Log in to commit your team to the season.</div>
+    `;
+    return;
+  }
+
+  if (state.season.error) {
+    view.innerHTML = `
+      ${renderHeader("Season", "Commit a team, manage Swiss pairings, and track league points.", `<button class="primary-button" type="button" data-season-refresh>Refresh</button>`)}
+      <div class="empty-state">${escapeHtml(state.season.error)}</div>
+    `;
+    wireSeason();
+    return;
+  }
+
+  const data = state.season.data ?? {};
+  const activeTab = normalizeSeasonTab(state.season.activeTab);
+  state.season.activeTab = activeTab;
+  view.innerHTML = `
+    ${renderHeader("Season", `${data.season?.name ?? "Season 1"} · Swiss pairing control`, `<button class="primary-button" type="button" data-season-refresh>Refresh</button>`)}
+    ${renderSeasonTabs(activeTab)}
+    ${renderSeasonTabContent(data, activeTab)}
+  `;
+  wireSeason();
+}
+
+function renderSeasonRegistration(data) {
+  return `
+    <div class="season-overview-grid">
+      ${renderSeasonCommitPanel(data)}
+      ${state.auth.currentUser?.isAdmin ? renderSeasonRegistrationAdminPanel(data) : ""}
+      <section class="content-panel season-card">
+        <h2>Registered Teams</h2>
+        ${renderSeasonEntriesTable(data, Boolean(state.auth.currentUser?.isAdmin))}
+      </section>
+    </div>
+  `;
+}
+
+function availableSeasonSavedTeams(data) {
+  const admin = data.admin ?? { savedTeams: [] };
+  const committedTeamIds = new Set((data.entries ?? []).map((entry) => entry.team.id));
+  const committedUserIds = new Set((data.entries ?? []).map((entry) => entry.user.id));
+  return admin.savedTeams.filter((team) => !committedTeamIds.has(team.id) && !committedUserIds.has(team.owner.id));
+}
+
+function renderSeasonRegistrationAdminPanel(data) {
+  const availableSavedTeams = availableSeasonSavedTeams(data);
+  return `
+    <section class="content-panel season-card">
+      <h2>Admin Registration</h2>
+      ${availableSavedTeams.length ? `
+        <p>Add any saved team to the active season.</p>
+        <div class="season-action-row">
+          <label class="filter-field">
+            <span>Saved team</span>
+            <select data-season-admin-team>
+              ${availableSavedTeams.map((team) => renderOption(team.id, `${team.owner.login} · ${team.name}`, "")).join("")}
+            </select>
+          </label>
+          <button class="primary-button" type="button" data-season-admin-add-team>Add Team</button>
+        </div>
+      ` : `<p>No eligible saved teams outside the season.</p>`}
+    </section>
+  `;
+}
+
+function renderSeasonCommitPanel(data) {
+  const myEntry = data.myEntry;
+  const teams = data.myTeams ?? [];
+  if (myEntry) {
+    return `
+      <section class="content-panel season-card">
+        <h2>Your Season Team</h2>
+        <div class="season-committed-team">
+          ${myEntry.team.logoData ? `<img src="${escapeHtml(myEntry.team.logoData)}" alt="">` : ""}
+          <div>
+            <strong>${escapeHtml(myEntry.team.name)}</strong>
+            <p>${seasonTeamRulesLink(myEntry)}</p>
+            <p class="muted-text">Committed as ${escapeHtml(myEntry.user.login)}.</p>
+          </div>
+        </div>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="content-panel season-card">
+      <h2>Commit Team</h2>
+      ${teams.length ? `
+        <p>Select one saved team to confirm its participation in the active season.</p>
+        <div class="season-action-row">
+          <label class="filter-field">
+            <span>Saved team</span>
+            <select data-season-commit-team>
+              ${teams.map((team) => renderOption(team.id, team.name, "")).join("")}
+            </select>
+          </label>
+          <button class="primary-button" type="button" data-season-commit>Commit</button>
+        </div>
+      ` : `
+        <p>No saved teams yet.</p>
+        <a class="primary-button" href="#/builder">Create Team</a>
+      `}
+    </section>
+  `;
+}
+
+function pairingEntry(data, entryId) {
+  return (data.entries ?? []).find((entry) => entry.id === entryId) ?? null;
+}
+
+function pairingTeamCell(data, entryId) {
+  const entry = pairingEntry(data, entryId);
+  if (!entry) return `<span class="muted-text">Empty</span>`;
+  return `
+    <span class="season-pairing-team">
+      <strong>${seasonTeamProfileLink(entry)}</strong>
+      <span>${renderPlayerLink(entry.user)} · ${seasonTeamRulesLink(entry)}</span>
+    </span>
+  `;
+}
+
+function pairingLeaguePoints(pairing) {
+  const home = pairing.homePoints ?? "-";
+  const away = pairing.awayPoints ?? "-";
+  return `${home} / ${away}`;
+}
+
+function pairingTouchdowns(pairing) {
+  const home = pairing.homeTouchdowns ?? "-";
+  const away = pairing.awayTouchdowns ?? "-";
+  return `${home} / ${away}`;
+}
+
+function currentFixtureForData(data) {
+  if (!data.myEntry) return null;
+  if (data.currentFixture) return data.currentFixture;
+  return [...(data.rounds ?? [])]
+    .filter((round) => round.status === "started")
+    .sort((a, b) => b.roundNumber - a.roundNumber)
+    .flatMap((round) => round.pairings)
+    .find((pairing) => pairing.homeEntryId === data.myEntry.id || pairing.awayEntryId === data.myEntry.id) ?? null;
+}
+
+function renderLeagueFixture(data) {
+  const myEntry = data.myEntry;
+  if (!myEntry) {
+    return `
+      <section class="content-panel season-card">
+        <h2>League Fixture</h2>
+        <p>Commit a team first to receive your active pairing.</p>
+      </section>
+    `;
+  }
+
+  const fixture = currentFixtureForData(data);
+  if (!fixture) {
+    return `
+      <section class="content-panel season-card">
+        <h2>League Fixture</h2>
+        <p>No active pairing yet. An admin needs to start a round first.</p>
+      </section>
+    `;
+  }
+
+  const home = pairingEntry(data, fixture.homeEntryId);
+  const away = pairingEntry(data, fixture.awayEntryId);
+  const isHome = fixture.homeEntryId === myEntry.id;
+  const opponent = isHome ? away : home;
+  return `
+    <section class="content-panel season-card">
+      <h2>League Fixture</h2>
+      <div class="fixture-headline">
+        <div>
+          <span class="muted-text">Round ${fixture.roundNumber} · Table ${fixture.tableNumber}</span>
+          <strong>${seasonTeamProfileLink(myEntry)}</strong>
+        </div>
+        <div>
+          <span class="muted-text">Opponent</span>
+          ${opponent ? `
+            <strong>${seasonTeamProfileLink(opponent)}</strong>
+            <p>${renderPlayerLink(opponent.user)} · ${seasonTeamRulesLink(opponent)}</p>
+          ` : `<strong>BYE</strong>`}
+        </div>
+      </div>
+
+      <div class="season-score-summary">
+        <span>Touchdowns: <strong>${escapeHtml(pairingTouchdowns(fixture))}</strong></span>
+        <span>League points: <strong>${escapeHtml(pairingLeaguePoints(fixture))}</strong></span>
+      </div>
+
+      ${opponent ? renderFixtureResultForm(fixture) : `<p>This is a one-team fixture. Admin-started one-team pairings are scored as a technical win.</p>`}
+    </section>
+  `;
+}
+
+function renderFixtureResultForm(pairing) {
+  return `
+    <div class="fixture-result-form" data-fixture-row="${escapeHtml(pairing.id)}">
+      <label class="filter-field">
+        <span>Home touchdowns</span>
+        <input type="number" min="0" step="1" value="${escapeHtml(pairing.homeTouchdowns ?? "")}" data-fixture-home-td>
+      </label>
+      <label class="filter-field">
+        <span>Away touchdowns</span>
+        <input type="number" min="0" step="1" value="${escapeHtml(pairing.awayTouchdowns ?? "")}" data-fixture-away-td>
+      </label>
+      <label class="table-checkbox fixture-checkbox">
+        <input type="checkbox" data-fixture-home-unable ${pairing.homeOpponentUnable ? "checked" : ""}>
+        <span>Award +2 to Home: Away could not field</span>
+      </label>
+      <label class="table-checkbox fixture-checkbox">
+        <input type="checkbox" data-fixture-away-unable ${pairing.awayOpponentUnable ? "checked" : ""}>
+        <span>Award +2 to Away: Home could not field</span>
+      </label>
+      <button class="primary-button" type="button" data-save-fixture="${escapeHtml(pairing.id)}">Submit Result</button>
+    </div>
+  `;
+}
+
+function renderSeasonEntriesTable(data, adminActions = false) {
+  const entries = data.entries ?? [];
+  if (!entries.length) return `<p>No teams committed yet.</p>`;
+  return `
+    <div class="table-scroll">
+      <table class="compact-roster-table season-table">
+        <thead>
+          <tr>
+            <th>Coach</th>
+            <th>Team</th>
+            <th>Rules</th>
+            ${adminActions ? "<th>Action</th>" : ""}
+          </tr>
+        </thead>
+        <tbody>
+          ${entries.map((entry) => `
+            <tr>
+              <td>${renderPlayerLink(entry.user)}</td>
+              <td><strong>${seasonTeamProfileLink(entry)}</strong></td>
+              <td>${seasonTeamRulesLink(entry)}</td>
+              ${adminActions ? `<td><button class="filter-button compact-action" type="button" data-season-remove-entry="${escapeHtml(entry.id)}">Remove</button></td>` : ""}
+            </tr>
+          `).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+
+function renderSeasonStandings(data) {
+  const standings = data.standings ?? [];
+  return `
+    <section class="content-panel season-card">
+      <h2>Standings</h2>
+      <p class="muted-text">Scoring: win 3, draw 1, technical win 2, loss 0, +1 for a 3+ TD gap, +1 for a shutout with at least one TD scored, +2 if the opponent could not field a team.</p>
+      ${standings.length ? `
+        <div class="table-scroll">
+          <table class="compact-roster-table season-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>Coach</th>
+                <th>Team</th>
+                <th>Games</th>
+                <th>League Points</th>
+                <th>Byes</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${standings.map((standing) => `
+                <tr>
+                  <td>${standing.rank}</td>
+                  <td>${renderPlayerLink(standing.user)}</td>
+                  <td><strong>${renderPublicTeamLink(standing.user, standing.team)}</strong></td>
+                  <td>${standing.games}</td>
+                  <td>${standing.points}</td>
+                  <td>${standing.byes}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      ` : `<p>No committed teams yet.</p>`}
+    </section>
+  `;
+}
+
+function renderSeasonRounds(data, adminMode = false) {
+  const rounds = data.rounds ?? [];
+  if (!rounds.length) {
+    return `
+      <section class="content-panel season-card">
+        <h2>${adminMode ? "Pairing Controls" : "Schedule"}</h2>
+        <p>No rounds generated yet. An admin can generate Round 1 after teams are committed.</p>
+      </section>
+    `;
+  }
+
+  return `
+    <section class="season-rounds">
+      ${rounds.map((round) => `
+        <article class="content-panel season-card">
+          <header class="season-round-header">
+            <div>
+              <h2>Round ${round.roundNumber}</h2>
+              <span class="season-status-pill" data-status="${escapeHtml(round.status)}">${escapeHtml(round.status)}</span>
+            </div>
+            ${adminMode ? renderSeasonRoundActions(round) : ""}
+          </header>
+          <div class="table-scroll">
+            <table class="compact-roster-table season-table">
+              <thead>
+                ${adminMode ? `
+                  <tr>
+                    <th>Table</th>
+                    <th>Home</th>
+                    <th>Away</th>
+                    <th>Result</th>
+                    <th>TD</th>
+                    <th>Bonuses</th>
+                    <th>League Points</th>
+                    <th>Action</th>
+                  </tr>
+                ` : `
+                  <tr>
+                    <th>Table</th>
+                    <th>Home</th>
+                    <th>TD</th>
+                    <th>League Points</th>
+                    <th>Away</th>
+                  </tr>
+                `}
+              </thead>
+              <tbody>
+                ${round.pairings.map((pairing) => renderSeasonPairingRow(data, round, pairing, adminMode)).join("")}
+              </tbody>
+            </table>
+          </div>
+        </article>
+      `).join("")}
+    </section>
+  `;
+}
+
+function renderSeasonRoundActions(round) {
+  return `
+    <div class="season-round-actions">
+      ${round.status === "draft" ? `
+        <button class="primary-button compact-action" type="button" data-season-start-round="${escapeHtml(round.id)}">Start Round</button>
+        <button class="filter-button compact-action" type="button" data-season-add-pairing="${escapeHtml(round.id)}">Add Empty Pairing</button>
+      ` : ""}
+      <button class="filter-button compact-action" type="button" data-season-delete-round="${escapeHtml(round.id)}">Delete Round</button>
+    </div>
+  `;
+}
+
+function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
+  const home = pairingEntry(data, pairing.homeEntryId);
+  const away = pairingEntry(data, pairing.awayEntryId);
+  const isBye = !away;
+  const homeValue = pairing.homePoints ?? "";
+  const awayValue = pairing.awayPoints ?? "";
+  if (!adminMode) {
+    return `
+      <tr>
+        <td>${pairing.tableNumber}</td>
+        <td>${pairingTeamCell(data, pairing.homeEntryId)}</td>
+        <td>${escapeHtml(pairingTouchdowns(pairing))}</td>
+        <td>${escapeHtml(pairingLeaguePoints(pairing))}</td>
+        <td>${isBye ? "<strong>BYE</strong>" : pairingTeamCell(data, pairing.awayEntryId)}</td>
+      </tr>
+    `;
+  }
+
+  const locked = round.status !== "draft";
+  const resultLocked = round.status !== "started";
+  return `
+    <tr data-pairing-row="${escapeHtml(pairing.id)}">
+      <td>${pairing.tableNumber}</td>
+      <td>${renderSeasonEntrySelect(data, "home-entry", pairing.homeEntryId, locked)}</td>
+      <td>${renderSeasonEntrySelect(data, "away-entry", pairing.awayEntryId, locked)}</td>
+      <td>
+        <select class="table-select" data-result-type ${resultLocked ? "disabled" : ""}>
+          ${renderOption("played", "Played", pairing.resultType)}
+          ${renderOption("technical_home", "Technical Home 1-0", pairing.resultType)}
+          ${renderOption("technical_away", "Technical Away 0-1", pairing.resultType)}
+        </select>
+      </td>
+      <td>
+        <div class="season-td-pair">
+          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeTouchdowns ?? "")}" data-home-td ${resultLocked ? "disabled" : ""}>
+          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.awayTouchdowns ?? "")}" data-away-td ${resultLocked ? "disabled" : ""}>
+        </div>
+      </td>
+      <td>
+        <div class="season-bonus-checks">
+          <label class="table-checkbox"><input type="checkbox" data-home-unable ${pairing.homeOpponentUnable ? "checked" : ""} ${resultLocked ? "disabled" : ""}><span>+2 Home</span></label>
+          <label class="table-checkbox"><input type="checkbox" data-away-unable ${pairing.awayOpponentUnable ? "checked" : ""} ${resultLocked ? "disabled" : ""}><span>+2 Away</span></label>
+        </div>
+      </td>
+      <td>${escapeHtml(pairingLeaguePoints(pairing))}</td>
+      <td>
+        <div class="table-actions">
+          <button class="filter-button compact-action" type="button" data-save-season-pairing="${escapeHtml(pairing.id)}">Save</button>
+          <button class="filter-button compact-action" type="button" data-delete-season-pairing="${escapeHtml(pairing.id)}">Delete</button>
+        </div>
+      </td>
+    </tr>
+  `;
+}
+
+function renderSeasonEntrySelect(data, name, selected, disabled = false) {
+  return `
+    <select class="table-select" data-${name} ${disabled ? "disabled" : ""}>
+      ${renderOption("", "Empty slot", selected ?? "")}
+      ${(data.entries ?? []).map((entry) => renderOption(entry.id, seasonEntryLabel(entry), selected ?? "")).join("")}
+    </select>
+  `;
+}
+
+function renderSeasonAdmin(data) {
+  const admin = data.admin ?? { users: [], savedTeams: [] };
+  const committedUserIds = new Set((data.entries ?? []).map((entry) => entry.user.id));
+  const availableSavedTeams = availableSeasonSavedTeams(data);
+  const availableUsers = admin.users.filter((user) => !committedUserIds.has(user.id));
+  const teams = state.data.teams ?? [];
+  return `
+    <div class="season-admin-stack">
+      <section class="content-panel season-card season-admin-panel">
+        <h2>Admin Controls</h2>
+        <div class="season-admin-grid">
+          <div class="season-admin-block">
+            <h3>Rounds</h3>
+            <p>Create pairings as drafts. Start Round locks the pairings and publishes League Fixtures.</p>
+            <button class="primary-button" type="button" data-season-generate-round>Generate Next Round</button>
+            <button class="filter-button" type="button" data-season-create-round>Create Empty Round</button>
+          </div>
+
+          <div class="season-admin-block">
+            <h3>Add Saved Team</h3>
+            ${availableSavedTeams.length ? `
+              <label class="filter-field">
+                <span>Saved team</span>
+                <select data-season-admin-team>
+                  ${availableSavedTeams.map((team) => renderOption(team.id, `${team.owner.login} · ${team.name}`, "")).join("")}
+                </select>
+              </label>
+              <button class="primary-button" type="button" data-season-admin-add-team>Add Team</button>
+            ` : `<p>No eligible saved teams outside the season.</p>`}
+          </div>
+
+          <div class="season-admin-block">
+            <h3>Create Team For Coach</h3>
+            ${availableUsers.length ? `
+              <label class="filter-field">
+                <span>Coach</span>
+                <select data-season-admin-user>
+                  ${availableUsers.map((user) => renderOption(user.id, user.login, "")).join("")}
+                </select>
+              </label>
+              <label class="filter-field">
+                <span>Rules team</span>
+                <select data-season-admin-base-team>
+                  ${teams.map((team) => renderOption(team.slug, team.title, "")).join("")}
+                </select>
+              </label>
+              <label class="filter-field">
+                <span>Team name</span>
+                <input type="text" data-season-admin-team-name placeholder="New roster name">
+              </label>
+              <button class="primary-button" type="button" data-season-admin-create-team>Create And Commit</button>
+            ` : `<p>Every coach already has one committed team.</p>`}
+          </div>
+        </div>
+      </section>
+
+      ${renderSeasonRounds(data, true)}
+
+      <section class="content-panel season-card">
+        <h2>Committed Teams</h2>
+        ${renderSeasonAdminEntries(data)}
+      </section>
+    </div>
+  `;
+}
+
+function renderSeasonAdminEntries(data) {
+  return renderSeasonEntriesTable(data, true);
+}
+
+function replaceSeasonData(payload) {
+  state.season.data = payload;
+  state.season.loaded = true;
+}
+
+function wireSeason() {
+  view.querySelector("[data-season-refresh]")?.addEventListener("click", () => {
+    state.season.loaded = false;
+    renderSeason(true);
+  });
+
+  view.querySelectorAll("[data-season-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.season.activeTab = normalizeSeasonTab(button.dataset.seasonTab);
+      renderSeason(false);
+    });
+  });
+
+  view.querySelector("[data-season-commit]")?.addEventListener("click", async () => {
+    const teamId = view.querySelector("[data-season-commit-team]")?.value;
+    if (!teamId) return;
+    try {
+      replaceSeasonData(await apiRequest("/api/season/commit", {
+        method: "POST",
+        body: JSON.stringify({ teamId }),
+      }));
+      renderSeason(false);
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+  view.querySelector("[data-season-admin-add-team]")?.addEventListener("click", async () => {
+    const teamId = view.querySelector("[data-season-admin-team]")?.value;
+    if (!teamId) return;
+    try {
+      replaceSeasonData(await apiRequest("/api/season/admin/entries", {
+        method: "POST",
+        body: JSON.stringify({ teamId }),
+      }));
+      renderSeason(false);
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+  view.querySelector("[data-season-admin-create-team]")?.addEventListener("click", async () => {
+    const userId = view.querySelector("[data-season-admin-user]")?.value;
+    const baseTeamSlug = view.querySelector("[data-season-admin-base-team]")?.value;
+    const baseTeam = state.data.teams.find((team) => team.slug === baseTeamSlug);
+    if (!userId || !baseTeam) return;
+    const name = String(view.querySelector("[data-season-admin-team-name]")?.value ?? "").trim() || baseTeam.title;
+    try {
+      replaceSeasonData(await apiRequest("/api/season/admin/create-team", {
+        method: "POST",
+        body: JSON.stringify({
+          userId,
+          name,
+          baseTeamSlug,
+          roster: makeSeasonStarterRoster(baseTeam, name),
+        }),
+      }));
+      state.myTeams.loaded = false;
+      renderSeason(false);
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+  view.querySelector("[data-season-generate-round]")?.addEventListener("click", async () => {
+    try {
+      replaceSeasonData(await apiRequest("/api/season/admin/rounds/generate", {
+        method: "POST",
+        body: "{}",
+      }));
+      renderSeason(false);
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+  view.querySelector("[data-season-create-round]")?.addEventListener("click", async () => {
+    try {
+      replaceSeasonData(await apiRequest("/api/season/admin/rounds", {
+        method: "POST",
+        body: "{}",
+      }));
+      renderSeason(false);
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+  view.querySelectorAll("[data-season-start-round]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        replaceSeasonData(await apiRequest(`/api/season/admin/rounds/${button.dataset.seasonStartRound}/start`, {
+          method: "POST",
+          body: "{}",
+        }));
+        renderSeason(false);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  });
+
+  view.querySelectorAll("[data-season-delete-round]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("Delete this round and all its pairings?")) return;
+      try {
+        replaceSeasonData(await apiRequest(`/api/season/admin/rounds/${button.dataset.seasonDeleteRound}`, {
+          method: "DELETE",
+        }));
+        renderSeason(false);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  });
+
+  view.querySelectorAll("[data-season-add-pairing]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      try {
+        replaceSeasonData(await apiRequest(`/api/season/admin/rounds/${button.dataset.seasonAddPairing}/pairings`, {
+          method: "POST",
+          body: JSON.stringify({ homeEntryId: "", awayEntryId: "" }),
+        }));
+        renderSeason(false);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  });
+
+  view.querySelectorAll("[data-save-fixture]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const row = button.closest("[data-fixture-row]");
+      const homeTouchdowns = row?.querySelector("[data-fixture-home-td]")?.value ?? "";
+      const awayTouchdowns = row?.querySelector("[data-fixture-away-td]")?.value ?? "";
+      if (homeTouchdowns === "" || awayTouchdowns === "") {
+        alert("Enter both touchdown values.");
+        return;
+      }
+      try {
+        replaceSeasonData(await apiRequest(`/api/season/fixture/${button.dataset.saveFixture}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            homeTouchdowns,
+            awayTouchdowns,
+            homeOpponentUnable: row?.querySelector("[data-fixture-home-unable]")?.checked ?? false,
+            awayOpponentUnable: row?.querySelector("[data-fixture-away-unable]")?.checked ?? false,
+          }),
+        }));
+        renderSeason(false);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  });
+
+  view.querySelectorAll("[data-save-season-pairing]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const row = button.closest("[data-pairing-row]");
+      const homeEntry = row?.querySelector("[data-home-entry]");
+      const awayEntry = row?.querySelector("[data-away-entry]");
+      const payload = {
+        resultType: row?.querySelector("[data-result-type]")?.value ?? "played",
+        homeTouchdowns: row?.querySelector("[data-home-td]")?.value ?? "",
+        awayTouchdowns: row?.querySelector("[data-away-td]")?.value ?? "",
+        homeOpponentUnable: row?.querySelector("[data-home-unable]")?.checked ?? false,
+        awayOpponentUnable: row?.querySelector("[data-away-unable]")?.checked ?? false,
+      };
+      if (homeEntry && !homeEntry.disabled) payload.homeEntryId = homeEntry.value;
+      if (awayEntry && !awayEntry.disabled) payload.awayEntryId = awayEntry.value;
+      try {
+        replaceSeasonData(await apiRequest(`/api/season/admin/pairings/${button.dataset.saveSeasonPairing}`, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        }));
+        renderSeason(false);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  });
+
+  view.querySelectorAll("[data-delete-season-pairing]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("Delete this pairing?")) return;
+      try {
+        replaceSeasonData(await apiRequest(`/api/season/admin/pairings/${button.dataset.deleteSeasonPairing}`, {
+          method: "DELETE",
+        }));
+        renderSeason(false);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  });
+
+  view.querySelectorAll("[data-season-remove-entry]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      if (!confirm("Remove this team from the season?")) return;
+      try {
+        replaceSeasonData(await apiRequest(`/api/season/admin/entries/${button.dataset.seasonRemoveEntry}`, {
+          method: "DELETE",
+        }));
+        renderSeason(false);
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+  });
+}
+
+async function renderSavedRoster(teamId, refresh = true, options = {}) {
+  const isAdminEdit = Boolean(options.adminOwnerId);
+  setActiveNav(isAdminEdit ? "administration" : "my-teams");
   setViewSection("teams");
   if (refresh) {
     view.innerHTML = `
-      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      ${renderHeader(isAdminEdit ? t("nav.administration") : t("myTeams.title"), isAdminEdit ? t("savedRoster.editingTeamSubtitle") : t("myTeams.subtitle"))}
       <div class="loading">${t("myTeams.loadingTeam")}</div>
     `;
   }
-  await loadMyTeams(refresh);
   if (!state.auth.currentUser) {
     view.innerHTML = `
-      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      ${renderHeader(isAdminEdit ? t("nav.administration") : t("myTeams.title"), isAdminEdit ? t("savedRoster.editingTeamSubtitle") : t("myTeams.subtitle"))}
       <div class="empty-state">${t("myTeams.loginRequired")}</div>
     `;
     return;
   }
 
-  const savedTeam = state.myTeams.items.find((item) => item.id === teamId);
+  let savedTeam = null;
+  let owner = state.auth.currentUser;
+  if (isAdminEdit) {
+    if (!state.auth.currentUser.isAdmin) {
+      view.innerHTML = `
+        ${renderHeader(t("nav.administration"), t("savedRoster.editingTeamSubtitle"), `<a class="primary-button" href="#/administration">${t("common.back")}</a>`)}
+        <div class="empty-state">${t("admin.accessRequired")}</div>
+      `;
+      return;
+    }
+    state.admin.editingTeams ??= new Map();
+    savedTeam = !refresh ? state.admin.editingTeams.get(teamId) : null;
+    owner = savedTeam?._owner ?? owner;
+    if (!savedTeam) {
+      try {
+        const payload = await apiRequest(`/api/admin/teams/${encodeURIComponent(teamId)}`);
+        savedTeam = payload.team;
+        owner = payload.owner;
+        savedTeam._saveEndpoint = `/api/admin/teams/${encodeURIComponent(teamId)}`;
+        savedTeam._owner = owner;
+        state.admin.editingTeams.set(teamId, savedTeam);
+      } catch (error) {
+        view.innerHTML = `
+          ${renderHeader(t("nav.administration"), t("savedRoster.editingTeamSubtitle"), `<a class="primary-button" href="#/administration/users/${encodeURIComponent(options.adminOwnerId)}">${t("common.back")}</a>`)}
+          <div class="empty-state">${escapeHtml(error.message)}</div>
+        `;
+        return;
+      }
+    }
+  } else {
+    await loadMyTeams(refresh);
+    savedTeam = state.myTeams.items.find((item) => item.id === teamId);
+  }
+
   if (!savedTeam) {
     view.innerHTML = `
-      ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"))}
+      ${renderHeader(isAdminEdit ? t("nav.administration") : t("myTeams.title"), isAdminEdit ? t("savedRoster.editingTeamSubtitle") : t("myTeams.subtitle"))}
       <div class="empty-state">${t("savedRoster.notFound")}</div>
     `;
     return;
@@ -2148,16 +4066,21 @@ async function renderSavedRoster(teamId, refresh = true) {
   if (!draft.teamSlug && teams[0]) draft.teamSlug = teams[0].slug;
   const team = teams.find((item) => item.slug === draft.teamSlug) ?? teams[0];
   ensureDraftLeagueChoice(team, draft);
+  syncMedicalStaffForTeam(team, draft);
   ensureDraftPlayers(team, draft);
+  sanitizeFavouredSkillsForTeam(team, draft);
   const costs = calculateRosterCosts(team, draft);
   const warnings = rosterWarnings(team, draft, costs);
+  const backUrl = isAdminEdit ? `#/administration/users/${encodeURIComponent(owner?.id || options.adminOwnerId)}` : "#/my-teams";
+  const titlePrefix = isAdminEdit ? `${t("common.editing")} "${draft.teamName || savedTeam.name || team.title}"` : `${t("sidebar.teamHeading")} "${draft.teamName || savedTeam.name || team.title}"`;
 
   view.innerHTML = `
-    ${renderHeader(`${t("sidebar.teamHeading")} "${draft.teamName || savedTeam.name || team.title}"`, `${team.title} ${t("savedRoster.rosterSuffix")}`, `<a class="primary-button" href="#/my-teams">${t("common.back")}</a>`)}
+    ${renderHeader(titlePrefix, `${team.title} ${t("savedRoster.rosterSuffix")}${isAdminEdit && owner ? ` · ${owner.login}` : ""}`, `<a class="primary-button" href="${backUrl}">${t("common.back")}</a>`)}
     <div class="saved-roster-top-grid">
+      ${renderSavedRosterIdentity(team, draft, teams)}
       ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
-      ${renderSavedRosterSettings(team, draft, costs, teams)}
     </div>
+    ${renderSavedRosterPurchases(team, draft)}
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
         <section class="builder-selected">
@@ -2172,19 +4095,15 @@ async function renderSavedRoster(teamId, refresh = true) {
       </section>
     </div>
   `;
-  wireSavedRoster(savedTeam, team, draft);
+  wireSavedRoster(savedTeam, team, draft, {
+    rerender: () => renderSavedRoster(teamId, false, options),
+  });
 }
 
 function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
   const autosave = autosaveStatusFor(savedTeam.id);
   return `
     <aside class="builder-summary saved-roster-summary-panel side-panel">
-      ${draft.logoData ? `
-        <div class="summary-logo-block">
-          <img src="${escapeHtml(draft.logoData)}" alt="">
-          <button class="filter-button compact-action" type="button" data-roster-remove-logo>${t("savedRoster.removeLogo")}</button>
-        </div>
-      ` : ""}
       <div class="summary-title-block">
         <h3>${t("savedRoster.summaryTitle")}</h3>
         <p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosave.status)}">${escapeHtml(autosave.message)}</p>
@@ -2213,9 +4132,9 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
   `;
 }
 
-function renderSavedRosterSettings(team, draft, costs, teams) {
+function renderSavedRosterIdentity(team, draft, teams) {
   return `
-    <section class="roster-settings-panel side-panel">
+    <section class="builder-setup-panel roster-identity-panel side-panel">
       <div class="builder-form saved-roster-form">
         <label class="filter-field">
           <span>${t("sidebar.teamHeading")}</span>
@@ -2231,38 +4150,80 @@ function renderSavedRosterSettings(team, draft, costs, teams) {
           <span>${t("savedRoster.logoField")}</span>
           <input type="file" accept="image/*" data-roster-logo>
         </label>
-        <label class="filter-field">
-          <span>${t("roster.totalCost")}</span>
-          <input type="text" value="${costs.total}k" readonly>
-        </label>
-        <label class="filter-field">
-          <span>${t("savedRoster.treasuryField")}</span>
-          <input type="number" step="10" value="${countToNumber(draft.treasury)}" data-roster-treasury>
-        </label>
-        <label class="filter-field">
-          <span>${t("savedRoster.startingRerolls")}</span>
-          <div class="inline-stepper-control">
-            <button class="filter-button" type="button" data-roster-reroll="-1" ${countToNumber(draft.startingRerolls) <= 0 ? "disabled" : ""}>-</button>
-            <strong>${countToNumber(draft.startingRerolls)}</strong>
-            <button class="filter-button" type="button" data-roster-reroll="1">+</button>
-          </div>
-        </label>
-        <label class="filter-field">
-          <span>${t("savedRoster.teamRerollsField")}</span>
-          <div class="inline-stepper-control">
-            <button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>
-            <strong>${countToNumber(draft.teamRerolls)}</strong>
-            <button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>
-          </div>
-        </label>
       </div>
-      <div class="builder-addons compact-addons">
-        ${renderRosterStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), draft.dedicatedFans)}
-        ${renderRosterStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), draft.assistantCoaches)}
-        ${renderRosterStaffControl("cheerleaders", t("savedRoster.cheerleaders"), draft.cheerleaders)}
-      </div>
+      ${draft.logoData ? `
+        <div class="builder-logo-inline roster-logo-inline">
+          <img class="builder-logo-preview" src="${escapeHtml(draft.logoData)}" alt="">
+          <button class="filter-button compact-action" type="button" data-roster-remove-logo>Remove logo</button>
+        </div>
+      ` : ""}
       ${renderTeamRuleAccess(team, draft, "roster")}
     </section>
+  `;
+}
+
+function renderSavedRosterPurchases(team, draft) {
+  return `
+    <div class="roster-purchases-layout">
+      <section class="roster-controls-panel roster-resources-panel side-panel">
+        <h2>Team Resources</h2>
+        <div class="builder-tracker-list roster-resource-list" aria-label="Team resource trackers">
+          ${renderRosterStaffControl("dedicatedFans", "Dedicated Fans", draft.dedicatedFans)}
+          ${renderRosterMoneyControl("Treasury", "Spendable team balance", draft.treasury, "data-roster-treasury")}
+          ${renderRosterMoneyControl("Coach's Safe", "Locked reserve", draft.coachesSafe, "data-roster-coaches-safe")}
+        </div>
+      </section>
+      <section class="roster-controls-panel roster-purchases-panel side-panel">
+        <h2>Purchases</h2>
+        <div class="builder-tracker-list roster-tracker-list roster-purchase-grid" aria-label="Roster purchase trackers">
+        ${renderRosterCounterControl(
+          "Starting rerolls",
+          "60k each",
+          countToNumber(draft.startingRerolls),
+          `<button class="filter-button" type="button" data-roster-reroll="-1" ${countToNumber(draft.startingRerolls) <= 0 ? "disabled" : ""}>-</button>`,
+          `<button class="filter-button" type="button" data-roster-reroll="1">+</button>`,
+        )}
+        ${renderRosterCounterControl(
+          "Team Rerolls",
+          "120k each",
+          countToNumber(draft.teamRerolls),
+          `<button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>`,
+          `<button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>`,
+        )}
+        ${renderRosterStaffControl("assistantCoaches", "Assistant Coaches", draft.assistantCoaches)}
+        ${renderRosterStaffControl("cheerleaders", "Cheerleaders", draft.cheerleaders)}
+        ${availableMedicalStaffDefinitions(team).map((staff) => renderRosterStaffControl(staff.key, staff.title, draft[staff.key])).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+
+function renderRosterMoneyControl(title, description, value, dataAttribute) {
+  return `
+    <label class="builder-addon compact-staff-control roster-purchase-card roster-money-card">
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </div>
+      <input class="table-input roster-purchase-input" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
+    </label>
+  `;
+}
+
+function renderRosterCounterControl(title, description, value, minusButton, plusButton) {
+  return `
+    <div class="builder-addon compact-staff-control roster-purchase-card">
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </div>
+      <div class="inline-stepper-control">
+        ${minusButton}
+        <strong>${value}</strong>
+        ${plusButton}
+      </div>
+    </div>
   `;
 }
 
@@ -2282,20 +4243,15 @@ function renderRosterAddon(key, title, description, max, value, cost, disabled =
 function renderRosterStaffControl(key, title, value) {
   const max = builderStaffMaximums[key] ?? 6;
   const current = countToNumber(value);
-  const description = key === "dedicatedFans" ? t("roster.postMatchValue") : t("roster.tenKEach");
-  return `
-    <div class="builder-addon compact-staff-control">
-      <div>
-        <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(description)}</span>
-      </div>
-      <div class="inline-stepper-control">
-        <button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>
-        <strong>${current}</strong>
-        <button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="1" ${current >= max ? "disabled" : ""}>+</button>
-      </div>
-    </div>
-  `;
+  const cost = builderStaffCosts[key] ?? 0;
+  const description = key === "dedicatedFans" ? t("roster.postMatchValue") : `${cost}k${max > 1 ? ` ${t("roster.each")}` : ""}`;
+  return renderRosterCounterControl(
+    title,
+    description,
+    current,
+    `<button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>`,
+    `<button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="1" ${current >= max ? "disabled" : ""}>+</button>`,
+  );
 }
 
 function rowCountInSlots(draft, rowIndex) {
@@ -2439,13 +4395,17 @@ function renderRosterStepper(name, value, min, max, disabled = false) {
   `;
 }
 
-function wireSavedRoster(savedTeam, team, draft) {
+function wireSavedRoster(savedTeam, team, draft, options = {}) {
   const autosave = () => scheduleSavedRosterAutosave(savedTeam.id);
   const rerender = () => {
     syncRosterCountsFromPlayers(draft);
     updateSavedRosterFields(savedTeam, draft);
     autosave();
-    renderSavedRoster(savedTeam.id, false);
+    if (options.rerender) {
+      options.rerender();
+    } else {
+      renderSavedRoster(savedTeam.id, false);
+    }
   };
 
   view.querySelector("[data-roster-team]")?.addEventListener("change", (event) => {
@@ -2454,6 +4414,7 @@ function wireSavedRoster(savedTeam, team, draft) {
     draft.teamSlug = nextTeam.slug;
     draft.players = [];
     draft.selectedLeague = "";
+    draft.favouredChoice = "";
     syncRosterCountsFromPlayers(draft);
     if (!draft.teamName) draft.teamName = nextTeam.title;
     rerender();
@@ -2470,10 +4431,20 @@ function wireSavedRoster(savedTeam, team, draft) {
     if (treasuryDisplay) treasuryDisplay.textContent = `${countToNumber(draft.treasury)}k`;
     autosave();
   });
+  view.querySelector("[data-roster-coaches-safe]")?.addEventListener("input", (event) => {
+    draft.coachesSafe = countToNumber(event.currentTarget.value);
+    updateSavedRosterFields(savedTeam, draft);
+    autosave();
+  });
   view.querySelector("[data-roster-league]")?.addEventListener("change", (event) => {
     draft.selectedLeague = event.currentTarget.value;
     updateSavedRosterFields(savedTeam, draft);
     autosave();
+  });
+  view.querySelector("[data-roster-favoured]")?.addEventListener("change", (event) => {
+    draft.favouredChoice = event.currentTarget.value;
+    sanitizeFavouredSkillsForTeam(team, draft);
+    rerender();
   });
   view.querySelector("[data-roster-logo]")?.addEventListener("change", async (event) => {
     const file = event.currentTarget.files?.[0];
@@ -2534,6 +4505,71 @@ function wireSavedRoster(savedTeam, team, draft) {
   view.querySelector("[data-copy-saved-roster]")?.addEventListener("click", () => copySavedRoster(team, draft));
 }
 
+function moveRosterPlayer(draft, draggedId, targetId, position = "before") {
+  if (!draggedId || !targetId || draggedId === targetId || !Array.isArray(draft.players)) return false;
+  const fromIndex = draft.players.findIndex((player) => player.id === draggedId);
+  if (fromIndex === -1) return false;
+  const [dragged] = draft.players.splice(fromIndex, 1);
+  const targetIndex = draft.players.findIndex((player) => player.id === targetId);
+  if (targetIndex === -1) {
+    draft.players.splice(fromIndex, 0, dragged);
+    return false;
+  }
+  const insertIndex = position === "after" ? targetIndex + 1 : targetIndex;
+  draft.players.splice(insertIndex, 0, dragged);
+  return true;
+}
+
+function wireSavedRosterDragAndDrop(draft, rerender) {
+  let draggedId = "";
+  view.querySelectorAll(".saved-roster-table tbody tr[data-roster-player]").forEach((row) => {
+    row.addEventListener("dragstart", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest("[data-player-drag-handle]")) {
+        event.preventDefault();
+        return;
+      }
+      draggedId = row.dataset.rosterPlayer || "";
+      row.classList.add("is-dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggedId);
+      }
+    });
+
+    row.addEventListener("dragover", (event) => {
+      if (!draggedId || draggedId === row.dataset.rosterPlayer) return;
+      event.preventDefault();
+      const rect = row.getBoundingClientRect();
+      row.dataset.dropPosition = event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+      row.classList.toggle("drop-after", row.dataset.dropPosition === "after");
+      row.classList.toggle("drop-before", row.dataset.dropPosition !== "after");
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    });
+
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("drop-before", "drop-after");
+      delete row.dataset.dropPosition;
+    });
+
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const targetId = row.dataset.rosterPlayer || "";
+      const moved = moveRosterPlayer(draft, draggedId, targetId, row.dataset.dropPosition);
+      draggedId = "";
+      if (moved) rerender();
+    });
+
+    row.addEventListener("dragend", () => {
+      draggedId = "";
+      view.querySelectorAll(".saved-roster-table tbody tr").forEach((item) => {
+        item.classList.remove("is-dragging", "drop-before", "drop-after");
+        delete item.dataset.dropPosition;
+      });
+    });
+  });
+}
+
 function wireSavedPlayerEditors(team, draft, rerender) {
   const autosave = () => scheduleSavedRosterAutosave(draft.editingTeamId);
   view.querySelectorAll("[data-roster-player]").forEach((card) => {
@@ -2541,6 +4577,10 @@ function wireSavedPlayerEditors(team, draft, rerender) {
     if (!player) return;
     card.querySelector("[data-saved-player-name]")?.addEventListener("input", (event) => {
       player.name = event.currentTarget.value;
+      autosave();
+    });
+    card.querySelector("[data-saved-player-number]")?.addEventListener("input", (event) => {
+      player.number = event.currentTarget.value;
       autosave();
     });
     card.querySelector("[data-saved-player-skip]")?.addEventListener("change", (event) => {
@@ -2592,6 +4632,7 @@ function wireSavedPlayerEditors(team, draft, rerender) {
       if (player.extraSkills.some((skill) => skill.name === option.name)) return;
       player.extraSkills.push({ name: option.name, access: option.access });
       player.extraSkills = normalizePlayerExtraSkills(row, player.extraSkills);
+      sanitizeFavouredSkillsForTeam(team, draft);
       rerender();
     });
     card.querySelectorAll("[data-saved-player-remove-skill]").forEach((button) => {
@@ -2600,10 +4641,34 @@ function wireSavedPlayerEditors(team, draft, rerender) {
         rerender();
       });
     });
+    card.querySelector("[data-saved-player-add-favoured]")?.addEventListener("click", () => {
+      const input = card.querySelector("[data-saved-player-favoured-skill]");
+      const row = rowsForTeam(team)[player.rowIndex];
+      if (!row) return;
+      const typed = String(input?.value || "").trim();
+      const option = favouredSkillOptionsForPlayer(team, draft, row, player)
+        .find((item) => item.name.toLowerCase() === typed.toLowerCase());
+      if (!option) {
+        if (input) input.value = "";
+        return;
+      }
+      player.favouredSkills ??= [];
+      if (player.favouredSkills.some((skill) => skill.name === option.name)) return;
+      player.favouredSkills.push({ name: option.name, access: "favoured" });
+      sanitizeFavouredSkillsForTeam(team, draft);
+      rerender();
+    });
+    card.querySelectorAll("[data-saved-player-remove-favoured]").forEach((button) => {
+      button.addEventListener("click", () => {
+        player.favouredSkills = (player.favouredSkills ?? [])
+          .filter((skill) => (typeof skill === "string" ? skill : skill.name) !== button.dataset.savedPlayerRemoveFavoured);
+        rerender();
+      });
+    });
     card.querySelector("[data-saved-player-add-advancement]")?.addEventListener("click", () => {
       const type = card.querySelector("[data-saved-player-advancement-type]")?.value ?? "primary";
       const cost = nextAdvancementCost(player, type);
-      if (!cost || playerAvailableSpp(team, player) < cost) return;
+      if (!cost) return;
       player.advancements = normalizePlayerAdvancements(player.advancements);
       player.advancements.push({ type });
       rerender();
@@ -2617,6 +4682,7 @@ function wireSavedPlayerEditors(team, draft, rerender) {
       });
     });
   });
+  wireSavedRosterDragAndDrop(draft, rerender);
   view.querySelectorAll("[data-remove-saved-player]").forEach((button) => {
     button.addEventListener("click", () => {
       const removed = draft.players.find((player) => player.id === button.dataset.removeSavedPlayer);
@@ -2712,12 +4778,14 @@ function scheduleSavedRosterAutosave(teamId) {
 async function runSavedRosterAutosave(teamId, revision) {
   const current = autosaveStatusFor(teamId);
   if (current.revision !== revision) return;
-  const savedTeam = state.myTeams.items.find((item) => item.id === teamId);
+  const savedTeam = state.myTeams.items.find((item) => item.id === teamId)
+    ?? state.admin.editingTeams?.get(teamId);
   if (!savedTeam) return;
   const draft = normalizeSavedRoster(savedTeam);
   const team = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? state.data.teams[0];
   if (!team) return;
   ensureDraftPlayers(team, draft);
+  sanitizeFavouredSkillsForTeam(team, draft);
   await saveSavedRoster(savedTeam, team, draft, { quiet: true, revision });
 }
 
@@ -2731,7 +4799,7 @@ async function saveSavedRoster(savedTeam, team, draft, options = {}) {
     roster: draft,
   };
   try {
-    const result = await apiRequest(`/api/teams/${savedTeam.id}`, {
+    const result = await apiRequest(savedTeam._saveEndpoint || `/api/teams/${savedTeam.id}`, {
       method: "PATCH",
       body: JSON.stringify(request),
     });
@@ -2742,6 +4810,9 @@ async function saveSavedRoster(savedTeam, team, draft, options = {}) {
       Object.assign(savedTeam, result.team);
       if (index >= 0) {
         Object.assign(state.myTeams.items[index], savedTeam);
+      }
+      if (state.admin.editingTeams?.has(savedTeam.id)) {
+        state.admin.editingTeams.set(savedTeam.id, savedTeam);
       }
     }
     if (options.quiet) {
@@ -2785,53 +4856,19 @@ function renderBuilder() {
   }
   const team = teams.find((item) => item.slug === state.builder.teamSlug) ?? teams[0];
   ensureDraftLeagueChoice(team, state.builder);
+  syncMedicalStaffForTeam(team, state.builder);
   ensureDraftPlayers(team, state.builder);
+  sanitizeFavouredSkillsForTeam(team, state.builder);
   const costs = calculateBuilderCosts(team);
   const warnings = builderWarnings(team, costs);
 
   view.innerHTML = `
     ${renderHeader(t("nav.builder"), t("builder.subtitle"))}
+    ${renderBuilderIdentity(team, teams)}
     ${renderBuilderSummary(team, costs, warnings)}
+    ${renderBuilderPurchases(team, costs)}
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
-        <div class="builder-form">
-          <label class="filter-field">
-            <span>${t("sidebar.teamHeading")}</span>
-            <select data-builder-team>
-              ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
-            </select>
-          </label>
-          <label class="filter-field">
-            <span>${t("savedRoster.teamName")}</span>
-            <input type="text" value="${escapeHtml(state.builder.teamName || team.title)}" data-builder-name>
-          </label>
-          <label class="filter-field">
-            <span>${t("savedRoster.logoField")}</span>
-            <input type="file" accept="image/*" data-builder-logo>
-          </label>
-          <label class="filter-field">
-            <span>${t("savedRoster.startingRerolls")}</span>
-            <div class="inline-stepper-control">
-              <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
-              <strong>${state.builder.startingRerolls}</strong>
-              <button class="filter-button" type="button" data-builder-reroll="1" ${costs.total + builderStaffCosts.startingRerolls > 600 ? "disabled" : ""}>+</button>
-            </div>
-          </label>
-        </div>
-        ${state.builder.logoData ? `
-          <div class="builder-logo-inline">
-            <img class="builder-logo-preview" src="${escapeHtml(state.builder.logoData)}" alt="">
-            <button class="filter-button compact-action" type="button" data-builder-remove-logo>${t("savedRoster.removeLogo")}</button>
-          </div>
-        ` : ""}
-
-        <div class="builder-addons compact-addons">
-          ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
-          ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
-          ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
-        </div>
-        ${renderTeamRuleAccess(team, state.builder, "builder")}
-
         <section class="builder-pool">
           <h2>${t("builder.availablePlayers")}</h2>
           ${renderAvailablePlayerTable(team, state.builder, true)}
@@ -2845,6 +4882,64 @@ function renderBuilder() {
     </div>
   `;
   wireBuilder(team);
+}
+
+function renderBuilderIdentity(team, teams) {
+  return `
+    <section class="builder-setup-panel roster-identity-panel side-panel">
+      <div class="builder-form builder-identity-form">
+        <label class="filter-field">
+          <span>Team</span>
+          <select data-builder-team>
+            ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>Team Name</span>
+          <input type="text" value="${escapeHtml(state.builder.teamName || team.title)}" data-builder-name>
+        </label>
+        <label class="filter-field">
+          <span>Logo, max 2 MB</span>
+          <input type="file" accept="image/*" data-builder-logo>
+        </label>
+      </div>
+      ${state.builder.logoData ? `
+        <div class="builder-logo-inline roster-logo-inline">
+          <img class="builder-logo-preview" src="${escapeHtml(state.builder.logoData)}" alt="">
+          <button class="filter-button compact-action" type="button" data-builder-remove-logo>Remove logo</button>
+        </div>
+      ` : ""}
+      ${renderTeamRuleAccess(team, state.builder, "builder")}
+    </section>
+  `;
+}
+
+function renderBuilderPurchases(team, costs) {
+  return `
+    <section class="roster-controls-panel side-panel">
+      <h2>Purchases</h2>
+      <div class="builder-tracker-list roster-tracker-list" aria-label="Starting roster trackers">
+        <div class="builder-addon compact-staff-control builder-tracker-control">
+          <div>
+            <strong>Starting rerolls</strong>
+            <span>60k each</span>
+          </div>
+          <div class="inline-stepper-control">
+            <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
+            <strong>${state.builder.startingRerolls}</strong>
+            <button class="filter-button" type="button" data-builder-reroll="1" ${costs.total + builderStaffCosts.startingRerolls > 600 ? "disabled" : ""}>+</button>
+          </div>
+        </div>
+        ${renderBuilderStaffControl("dedicatedFans", "Dedicated Fans", state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
+        ${renderBuilderStaffControl("assistantCoaches", "Assistant Coaches", state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
+        ${renderBuilderStaffControl("cheerleaders", "Cheerleaders", state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
+        ${availableMedicalStaffDefinitions(team).map((staff) => {
+          const blocked = costs.total + (builderStaffCosts[staff.key] ?? 0) > 600;
+          return renderBuilderStaffControl(staff.key, staff.title, state.builder[staff.key], blocked);
+        }).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function renderBuilderSummary(team, costs, warnings) {
@@ -2875,8 +4970,9 @@ function renderBuilderSummary(team, costs, warnings) {
 
 function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
   const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: enforceBudget });
+  const rows = rowsForTeam(team);
   return `
-    <div class="table-scroll builder-table-scroll">
+    <div class="table-scroll builder-table-scroll builder-available-table-wrap">
       <table class="builder-table compact-roster-table">
         <thead>
           <tr>
@@ -2896,7 +4992,7 @@ function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
           </tr>
         </thead>
         <tbody>
-          ${rowsForTeam(team).map((row, rowIndex) => {
+          ${rows.map((row, rowIndex) => {
     const baseCost = costToNumber(rowCost(row));
     const positionFull = !canAddRowToDraft(row, rowIndex, draft, true);
     const budgetBlocked = enforceBudget && costs.total + baseCost > 600;
@@ -2921,17 +5017,48 @@ function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
         </tbody>
       </table>
     </div>
+    <div class="builder-mobile-card-list available-player-mobile-list">
+      ${rows.map((row, rowIndex) => renderAvailablePlayerCard(row, rowIndex, draft, costs, enforceBudget)).join("")}
+    </div>
+  `;
+}
+
+function renderAvailablePlayerCard(row, rowIndex, draft, costs, enforceBudget = false) {
+  const baseCost = costToNumber(rowCost(row));
+  const positionFull = !canAddRowToDraft(row, rowIndex, draft, true);
+  const budgetBlocked = enforceBudget && costs.total + baseCost > 600;
+  const disabled = positionFull || budgetBlocked;
+  const current = rowCountInPlayers(draft, rowIndex);
+  return `
+    <article class="available-player-card ${disabled ? "disabled" : ""}">
+      <header class="available-player-head">
+        <div>
+          <strong>${escapeHtml(row.position)}</strong>
+          <em>${escapeHtml(row.qty || "-")} · ${escapeHtml(rowCost(row) || "-")}</em>
+        </div>
+        <button class="primary-button add-player-button" type="button" data-add-row="${rowIndex}" ${disabled ? "disabled" : ""}>+</button>
+      </header>
+      ${renderRosterStatGrid(row)}
+      <section class="mobile-player-section">
+        <h3>Skills</h3>
+        <div class="mobile-player-pills">${renderRosterLinks(row.skills)}</div>
+      </section>
+      <footer class="available-player-foot">
+        Primary ${renderAccessCell(row.primary)} · Secondary ${renderAccessCell(row.secondary)} · Selected ${current}/${rosterMax(row.qty)}${budgetBlocked ? ` · over budget` : ""}
+      </footer>
+    </article>
   `;
 }
 
 function renderBuilderStaffControl(key, title, value, plusBlocked = false) {
   const max = builderStaffMaximums[key] ?? 6;
   const current = countToNumber(value);
+  const cost = builderStaffCosts[key] ?? 0;
   return `
-    <div class="builder-addon compact-staff-control">
+    <div class="builder-addon compact-staff-control builder-tracker-control">
       <div>
         <strong>${escapeHtml(title)}</strong>
-        <span>${t("roster.tenKEach")}</span>
+        <span>${cost}k${max > 1 ? ` ${t("roster.each")}` : ""}</span>
       </div>
       <div class="inline-stepper-control">
         <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>
@@ -2992,7 +5119,7 @@ function renderBuilderPlayerList(team, draft) {
     return `<div class="builder-empty-roster">${t("builder.emptyRosterHint")}</div>`;
   }
   return `
-    <div class="table-scroll builder-table-scroll">
+    <div class="table-scroll builder-table-scroll builder-selected-table-wrap">
       <table class="builder-selected-table compact-roster-table">
         <thead>
           <tr>
@@ -3014,6 +5141,9 @@ function renderBuilderPlayerList(team, draft) {
         </tbody>
       </table>
     </div>
+    <div class="builder-mobile-card-list builder-selected-mobile-list">
+      ${players.map((player, index) => renderBuilderPlayerCard(player, index)).join("")}
+    </div>
   `;
 }
 
@@ -3033,8 +5163,45 @@ function renderBuilderPlayerRow(player, index) {
   `;
 }
 
+function renderBuilderPlayerStatGrid(player) {
+  const value = (stat) => statValueForDisplayByStat(stat, player.row[stat], player.statMods?.[stat] ?? 0);
+  return `
+    <dl class="team-stat-grid">
+      <div><dt>MA</dt><dd>${escapeHtml(value("ma"))}</dd></div>
+      <div><dt>ST</dt><dd>${escapeHtml(value("st"))}</dd></div>
+      <div><dt>AG</dt><dd>${escapeHtml(value("ag"))}</dd></div>
+      <div><dt>PA</dt><dd>${escapeHtml(value("pa"))}</dd></div>
+      <div><dt>AR</dt><dd>${escapeHtml(value("ar"))}</dd></div>
+    </dl>
+  `;
+}
+
+function renderBuilderPlayerCard(player, index) {
+  return `
+    <article class="saved-roster-player-card mobile-roster-player-card builder-selected-player-card">
+      <header>
+        <div class="mobile-player-title">
+          <span>#${index + 1}</span>
+          <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-builder-player-name="${escapeHtml(player.id)}">
+          <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}</small>
+        </div>
+        <button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">Remove</button>
+      </header>
+      <section class="mobile-player-section">
+        <h3>Stats</h3>
+        ${renderBuilderPlayerStatGrid(player)}
+      </section>
+      <section class="mobile-player-section">
+        <h3>Skills</h3>
+        <div class="mobile-player-pills">${renderRosterLinks(player.row.skills)}</div>
+      </section>
+    </article>
+  `;
+}
+
 function renderSavedPlayerList(team, draft) {
   const players = selectedRosterPlayers(team, draft);
+  const hasFavouredAccess = teamFavouredOptions(team).length > 0;
   if (!players.length) {
     return `<div class="builder-empty-roster">${t("savedRoster.noPlayersYet")}</div>`;
   }
@@ -3058,17 +5225,18 @@ function renderSavedPlayerList(team, draft) {
             <th>SPP</th>
             <th>${t("roster.levelHeader")}</th>
             <th>${t("roster.advancementHeader")}</th>
+            ${hasFavouredAccess ? `<th>${t("roster.favouredOf")}</th>` : ""}
             <th>${t("sidebar.cost")}</th>
             <th>${t("roster.actionHeader")}</th>
           </tr>
         </thead>
         <tbody>
-          ${players.map((player, index) => renderSavedPlayerRow(team, player, index)).join("")}
+          ${players.map((player, index) => renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess)).join("")}
         </tbody>
       </table>
     </div>
     <div class="saved-roster-mobile-list">
-      ${players.map((player, index) => renderSavedPlayerCard(team, player, index)).join("")}
+      ${players.map((player, index) => renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess)).join("")}
     </div>
   `;
 }
@@ -3119,15 +5287,51 @@ function renderSavedNewPlayerTable(team, draft) {
   `;
 }
 
-function renderSavedPlayerRow(team, player, index) {
+function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
+  const choice = ensureDraftFavouredChoice(team, draft);
+  if (!choice) return `<span class="muted-text">-</span>`;
+  const options = favouredSkillOptionsForPlayer(team, draft, player.row, player);
+  return `
+    <div class="favoured-skill-editor">
+      <small>${escapeHtml(choice)}</small>
+      <div class="table-skill-editor">
+        <input class="table-input" type="text" list="${escapeHtml(inputId)}" placeholder="Favoured skill..." data-saved-player-favoured-skill ${!options.length ? "disabled" : ""}>
+        <datalist id="${escapeHtml(inputId)}">
+          ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
+        </datalist>
+        <button class="filter-button compact-action" type="button" data-saved-player-add-favoured ${!options.length ? "disabled" : ""}>Add</button>
+      </div>
+    </div>
+  `;
+}
+
+function renderFavouredSkillButtons(player) {
+  const favouredSkills = normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []);
+  if (!favouredSkills.length) return "";
+  return `
+    <div class="player-extra-skills table-extra-skills favoured-extra-skills">
+      ${favouredSkills.map((skill) => `
+        <button class="roster-pill favoured-skill-pill" type="button" data-saved-player-remove-favoured="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+
+function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = false) {
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
   const adjustment = playerAdjustmentCost(player);
   const eliteCost = eliteComboCost(player.row, player);
   const skillInputId = `skill-options-${index}`;
+  const favouredInputId = `favoured-skill-options-${index}`;
   const skillOptions = availableSkillOptionsForPlayer(player.row, player);
   return `
-    <tr data-roster-player="${escapeHtml(player.id)}">
-      <td>${index + 1}</td>
+    <tr data-roster-player="${escapeHtml(player.id)}" draggable="true">
+      <td class="saved-number-cell">
+        <div class="saved-number-control">
+          <button class="filter-button compact-action drag-handle table-drag-handle" type="button" draggable="true" data-player-drag-handle title="Drag to reorder" aria-label="Drag to reorder">↕</button>
+          <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
+        </div>
+      </td>
       <td>
         <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
       </td>
@@ -3142,6 +5346,7 @@ function renderSavedPlayerRow(team, player, index) {
             `).join("")}
           </div>
         ` : ""}
+        ${renderFavouredSkillButtons(player)}
         ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
       </td>
       <td>
@@ -3170,23 +5375,28 @@ function renderSavedPlayerRow(team, player, index) {
       <td class="spp-cell">${renderPlayerSppControls(team, player)}</td>
       <td class="level-cell">${renderPlayerLevelCell(team, player)}</td>
       <td class="advancement-cell">${renderPlayerAdvancementControls(team, player)}</td>
+      ${hasFavouredAccess ? `<td class="favoured-skill-cell">${renderSavedPlayerFavouredEditor(team, draft, player, favouredInputId)}</td>` : ""}
       <td>${escapeHtml(rowCost(player.row) || "-")}${adjustment ? `<span class="cost-note inline-cost-note">${adjustment > 0 ? "+" : ""}${adjustment}k</span>` : ""}</td>
       <td><button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button></td>
     </tr>
   `;
 }
 
-function renderSavedPlayerCard(team, player, index) {
+function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = false) {
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
   const adjustment = playerAdjustmentCost(player);
   const eliteCost = eliteComboCost(player.row, player);
   const skillInputId = `mobile-skill-options-${index}`;
+  const favouredInputId = `mobile-favoured-skill-options-${index}`;
   const skillOptions = availableSkillOptionsForPlayer(player.row, player);
   return `
     <article class="saved-roster-player-card mobile-roster-player-card" data-roster-player="${escapeHtml(player.id)}">
       <header>
         <div class="mobile-player-title">
-          <span>#${index + 1}</span>
+          <label class="mobile-player-number">
+            <span>No.</span>
+            <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
+          </label>
           <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
         </div>
@@ -3205,6 +5415,7 @@ function renderSavedPlayerCard(team, player, index) {
           ${extraSkills.map((skill) => `
             <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
           `).join("")}
+          ${renderFavouredSkillButtons(player)}
         </div>
         ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
         <div class="table-skill-editor mobile-skill-editor">
@@ -3216,6 +5427,7 @@ function renderSavedPlayerCard(team, player, index) {
           </datalist>
           <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
         </div>
+        ${hasFavouredAccess ? renderSavedPlayerFavouredEditor(team, draft, player, favouredInputId) : ""}
       </section>
 
       <section class="mobile-player-section mobile-player-checks">
@@ -3551,6 +5763,43 @@ function hasBribery(team) {
   return /bribery\s+and\s+corruption/i.test(team.team?.meta?.specialRules ?? "");
 }
 
+function teamApothecaryAccess(team) {
+  return cleanApothecary(team.team?.meta?.apothecary ?? "");
+}
+
+function teamHasFavouredOf(team, alignment) {
+  const expected = ruleLookupKey(`Favoured of ${alignment}`);
+  return teamSpecialRuleTokens(team).some((rule) => ruleLookupKey(rule) === expected);
+}
+
+function canHireMedicalStaff(team, staff) {
+  const apothecaryAccess = teamApothecaryAccess(team);
+  if (staff.access === "apothecary") return /\bavailable\b/i.test(apothecaryAccess);
+  if (staff.access === "mortuary") {
+    return /mortuary\s+assistant/i.test(apothecaryAccess) || teamHasSpecialRule(team, "Masters of Undeath");
+  }
+  if (staff.access === "plague") {
+    return /plague\s+doctor/i.test(apothecaryAccess) || teamHasFavouredOf(team, "Nurgle");
+  }
+  return false;
+}
+
+function availableMedicalStaffDefinitions(team) {
+  return medicalStaffDefinitions.filter((staff) => canHireMedicalStaff(team, staff));
+}
+
+function syncMedicalStaffForTeam(team, draft) {
+  const availableKeys = new Set(availableMedicalStaffDefinitions(team).map((staff) => staff.key));
+  medicalStaffDefinitions.forEach((staff) => {
+    if (!availableKeys.has(staff.key)) {
+      draft[staff.key] = 0;
+      if (draft.purchasedStaff) draft.purchasedStaff[staff.key] = 0;
+      return;
+    }
+    draft[staff.key] = clamp(countToNumber(draft[staff.key]), 0, builderStaffMaximums[staff.key] ?? 1);
+  });
+}
+
 function calculateBuilderCosts(team) {
   return calculateRosterCosts(team, state.builder, { includeDedicatedFans: true });
 }
@@ -3607,7 +5856,8 @@ function calculateRosterCosts(team, draft, options = {}) {
     + staffItemCost(draft, "teamRerolls")
     + (includeDedicatedFans ? staffItemCost(draft, "dedicatedFans") : 0)
     + staffItemCost(draft, "assistantCoaches")
-    + staffItemCost(draft, "cheerleaders");
+    + staffItemCost(draft, "cheerleaders")
+    + medicalStaffDefinitions.reduce((sum, staff) => sum + staffItemCost(draft, staff.key), 0);
   const total = playersCost + staffCost;
   return {
     playersCount,
@@ -3648,6 +5898,9 @@ function wireBuilder(team) {
   });
   view.querySelector("[data-builder-league]")?.addEventListener("change", (event) => {
     state.builder.selectedLeague = event.currentTarget.value;
+  });
+  view.querySelector("[data-builder-favoured]")?.addEventListener("change", (event) => {
+    state.builder.favouredChoice = event.currentTarget.value;
   });
   view.querySelector("[data-builder-name]")?.addEventListener("input", (event) => {
     state.builder.teamName = event.currentTarget.value;
@@ -3850,12 +6103,13 @@ function buildRosterTextForDraft(team, draft) {
   const lines = [
     `${draft.teamName || team.title} (${team.title})`,
     draft.selectedLeague ? `League Access: ${draft.selectedLeague}` : "",
+    draft.favouredChoice ? `Favoured Of: ${draft.favouredChoice}` : "",
     `Total Cost: ${costs.total}k`,
     `Treasury: ${draft.treasury ?? 0}k`,
     `Coach's Safe: ${draft.coachesSafe ?? 0}k`,
     "",
     ...selected.map((player) => [
-      `${player.name} (${player.row.position}) - ${rowCost(player.row)}${player.skipNextGame ? " - Skip Next Game" : ""}`,
+      `#${player.number ?? player.index + 1} ${player.name} (${player.row.position}) - ${rowCost(player.row)}${player.skipNextGame ? " - Skip Next Game" : ""}`,
       `  Stats: MA ${statValueForDisplayByStat("ma", player.row.ma, player.statMods.ma ?? 0)} / ST ${statValueForDisplayByStat("st", player.row.st, player.statMods.st ?? 0)} / AG ${statValueForDisplayByStat("ag", player.row.ag, player.statMods.ag ?? 0)} / PA ${statValueForDisplayByStat("pa", player.row.pa, player.statMods.pa ?? 0)} / AR ${statValueForDisplayByStat("ar", player.row.ar, player.statMods.ar ?? 0)}`,
       `  Skills: ${skillNamesForPlayer(player.row, player).join(", ") || "-"}`,
     ].join("\n")),
@@ -3865,6 +6119,7 @@ function buildRosterTextForDraft(team, draft) {
     draft.dedicatedFans ? `Dedicated Fans: ${draft.dedicatedFans}` : "",
     draft.assistantCoaches ? `Assistant Coaches: ${draft.assistantCoaches}` : "",
     draft.cheerleaders ? `Cheerleaders: ${draft.cheerleaders}` : "",
+    ...medicalStaffDefinitions.map((staff) => draft[staff.key] ? `${staff.title}: ${draft[staff.key]}` : ""),
   ].filter(Boolean).join("\n");
   return lines;
 }
@@ -3873,10 +6128,19 @@ function renderRoute() {
   const route = decodeURIComponent(location.hash.replace(/^#\/?/, "")) || "home";
   const section = routeSection(route);
   if (route === "home") return renderHome();
+  if (route.startsWith("overview/")) return renderOverviewDetail(route.replace(/^overview\//, ""));
   if (sectionRoutes.has(route)) return renderSection(route);
   if (route === "builder") return renderBuilder();
   if (route.startsWith("my-teams/")) return renderSavedRoster(route.replace(/^my-teams\//, ""));
   if (route === "my-teams") return renderMyTeams();
+  if (route === "season") return renderSeason();
+  const adminEditMatch = route.match(/^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit$/);
+  if (adminEditMatch) return renderSavedRoster(adminEditMatch[2], true, { adminOwnerId: adminEditMatch[1] });
+  if (route.startsWith("administration/users/")) return renderAdminUserProfile(route.replace(/^administration\/users\//, ""));
+  if (route === "administration") return renderAdministration();
+  const publicTeamMatch = route.match(/^players\/([^/]+)\/teams\/([^/]+)$/);
+  if (publicTeamMatch) return renderPublicTeamProfile(publicTeamMatch[1], publicTeamMatch[2]);
+  if (route.startsWith("players/")) return renderPlayerProfile(route.replace(/^players\//, ""));
   if (route === "legal") return renderLegal();
   const page = findPageBySlug(route);
   if (page) return renderDetail(page);

@@ -1,8 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Lustrian Superleague
-  - Old World Classic
 ---
 
 

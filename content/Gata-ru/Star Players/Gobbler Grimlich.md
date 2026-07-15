@@ -1,10 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Chaos Clash
-  - Underworld Challenge
-  - Spawn
-  - Special
 ---
 
 

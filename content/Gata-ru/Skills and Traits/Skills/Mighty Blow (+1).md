@@ -7,7 +7,7 @@ tags:
 ## Краткое описание
 Когда этот игрок наносит сопернику Knocked Down во время действия Block, он может добавить +1 либо к броску на броню, либо к броску на травму, уже увидев результат броска.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)
 
 ## Изменения Gata League
 - Когда этот игрок применяет Mighty Blow (+1), он полностью суммируется с Claws и Pile Driver. При совместном использовании Claws и Mighty Blow любой бросок на броню 7+ пробивает броню.

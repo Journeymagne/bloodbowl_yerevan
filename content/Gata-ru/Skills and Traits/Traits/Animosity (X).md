@@ -6,4 +6,4 @@ tags:
 ## Краткое описание
 Когда этот игрок пытается выполнить Pass или Hand-off напарнику, отмеченному ключевым словом Animosity, сделайте бросок D6. На 1 игрок отказывается, и его активация заканчивается. Animosity (All) действует в отношении каждого напарника.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

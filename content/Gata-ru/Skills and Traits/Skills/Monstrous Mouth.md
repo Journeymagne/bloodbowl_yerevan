@@ -7,7 +7,7 @@ tags:
 ## Краткое описание
 Этот игрок может выполнить Special Action Chomp против стоящего соперника, которого он держит под Marked. При 3+ соперник получает Chomped и не может уйти, пока остаётся под Marked этого игрока. Strip Ball также нельзя использовать против этого игрока.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)
 
 ## Изменения Gata League
 - Monstrous Mouth может удерживать не более одного игрока. При использовании вместе с Multiple Block он может удерживать до двух игроков.

@@ -6,4 +6,4 @@ tags:
 ## Краткое описание
 После объявления действия сделайте бросок D6 с +2 за Block или Blitz. На 4+ действуйте как обычно; на 1-3 активация игрока немедленно заканчивается.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

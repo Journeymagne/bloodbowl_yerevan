@@ -1,10 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Badlands Brawl
-  - Favoured of Hashut
-  - Dwarf
-  - Blitzer
 ---
 
 

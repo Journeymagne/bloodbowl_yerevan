@@ -1,9 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Chaos Clash
-  - Human
-  - Blocker
 ---
 
 

@@ -1,7 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Sylvanian Spotlight
 ---
 
 

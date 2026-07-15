@@ -7,4 +7,4 @@ tags:
 ## Краткое описание
 Когда этот игрок получает Push Back, его тренер выбирает клетку назначения из доступных соседних клеток вместо тренера соперника.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

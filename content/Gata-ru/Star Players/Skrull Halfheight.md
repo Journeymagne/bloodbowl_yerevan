@@ -1,8 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Sylvanian Spotlight
-  - World's Edge Superleague
 ---
 
 

@@ -8,5 +8,5 @@
 
 **Рероллы:** 60K
 **Апотекарий:** Есть
-**Лига:** League
+**Лига:** Tier 2
 **Специальные правила:** Old World Classic, Passing Virtuosos

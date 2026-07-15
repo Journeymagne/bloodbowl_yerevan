@@ -6,4 +6,4 @@ tags:
 ## Краткое описание
 Этот игрок игнорирует отрицательные модификаторы за то, что отмечен (Marked), при попытке Dodge, получает -1 при попытке Intercept и использует таблицу травм Stunty при получении травм.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

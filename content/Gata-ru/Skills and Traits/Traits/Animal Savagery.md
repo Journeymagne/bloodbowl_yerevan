@@ -6,4 +6,4 @@ tags:
 ## Краткое описание
 После объявления действия сделайте бросок D6 с +2 за Block или Blitz. На 4+ действуйте как обычно; при неудаче по возможности сделайте Knock Down стоящему рядом напарнику, иначе этот игрок переходит в состояние Distracted.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

@@ -7,7 +7,7 @@ tags:
 ## Краткое описание
 Если этот игрок выбрасывает натуральную 1 на тесте Passing Ability, пас не считается Fumble. Игрок сохраняет мяч, его активация заканчивается, и терновер не вызывается.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)
 
 ## Изменения Gata League
 - Safe Pass защищает от любого Fumble, а не только от натуральной 1.

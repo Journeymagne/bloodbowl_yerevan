@@ -6,4 +6,4 @@ tags:
 ## Краткое описание
 Когда этого игрока бросают через Throw Team-mate, он может заменить обычный разлёт (scatter) броском направления и дистанции по шаблону броска мяча в аут (throw-in template), а также может перебросить тест на приземление.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

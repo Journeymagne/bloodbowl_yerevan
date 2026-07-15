@@ -1,8 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Chaos Clash
-  - Minotaur
   - Big Guy
 ---
 

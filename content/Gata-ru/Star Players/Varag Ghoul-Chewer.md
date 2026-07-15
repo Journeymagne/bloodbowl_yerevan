@@ -1,9 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Badlands Brawl
-  - Orc
-  - Blocker
 ---
 
 

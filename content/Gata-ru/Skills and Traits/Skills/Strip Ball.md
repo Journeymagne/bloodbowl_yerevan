@@ -7,4 +7,4 @@ tags:
 ## Краткое описание
 Когда этот игрок выполняет Block по носителю мяча и наносит ему Push Back, мяч падает в клетку, куда был вытолкнут игрок, и отскакивает до того, как цель переходит в Prone, если это применимо.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

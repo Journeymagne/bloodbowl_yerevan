@@ -1,7 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Favoured of Hashut
 ---
 
 

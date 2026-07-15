@@ -1,9 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Favoured of Khorne
-  - Human
-  - Special
 ---
 
 

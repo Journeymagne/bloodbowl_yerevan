@@ -1,11 +1,10 @@
 ---
 tags:
-  - Star Player
 ---
 
 
 **Имя:** Asperon Thorn
-**Доступность:** -
+**Доступность:** Elven Kingdom League
 **Цена:** 170k
 
 | MA | ST | AG | PA | AR | Cost | Skills | Keywords |

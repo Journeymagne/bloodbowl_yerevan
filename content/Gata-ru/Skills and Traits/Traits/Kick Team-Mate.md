@@ -6,4 +6,4 @@ tags:
 ## Краткое описание
 Этот игрок может выполнять специальное действие Kick Team-mate. Оно работает как Throw Team-mate, но не расходует командное действие Throw Team-mate за этот ход; неудачный (сфамбленный) удар травмирует пинаемого напарника сильнее.
 
-Полная формулировка: https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/
+Полная формулировка: [Справочник по навыкам и чертам Blood Bowl 2025](https://bloodbowlbase.ru/bb2025/core_rules/skills_and_traits/)

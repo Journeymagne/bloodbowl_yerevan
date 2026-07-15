@@ -1,9 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Halfling Thimble Cup
-  - Old World Classic
-  - World's Edge Superleague
 ---
 
 

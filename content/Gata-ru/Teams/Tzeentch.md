@@ -8,4 +8,4 @@
 **Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 2
-**Специальные правила:** Chaos Clash, Favored of Tzeentch, Architect of Fate
+**Специальные правила:** Chaos Clash, Favoured of Tzeentch, Architect of Fate, Explosive Demise

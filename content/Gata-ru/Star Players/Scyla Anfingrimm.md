@@ -1,8 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Favoured of Khorne
-  - Spawn
   - Big Guy
 ---
 

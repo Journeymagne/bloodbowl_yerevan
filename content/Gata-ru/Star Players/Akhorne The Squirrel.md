@@ -1,9 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Any Team
-  - Squirell
-  - Blitzer
 ---
 
 

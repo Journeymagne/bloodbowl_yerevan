@@ -1,8 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Elven Kingdom League
-  - Lustrian Superleague
 ---
 
 

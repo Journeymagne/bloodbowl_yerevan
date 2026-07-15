@@ -1,8 +1,5 @@
 ---
 tags:
-  - Star Player
-  - Any Team
-  - Halfling
   - Lineman
 ---
 
