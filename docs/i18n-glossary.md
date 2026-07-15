@@ -281,3 +281,48 @@ a translation gap.
   "homebrew" → «доморощенные правила», matching the existing rendering in
   `Rules/1. League Basics.md`. "Sevens" stays English (established game-format
   term, used untranslated throughout `content/Gata-ru`).
+
+## Keeping the RU vault in sync with `content/Gata` over time
+
+This project reached "fully translated" once, on 2026-07-15. Content is not static — the league's
+English source gets edited, cleaned up, or expanded independently of translation work (this
+happened almost immediately: a separate branch merged in with 226 changed EN files, 7 deleted, and
+2 new special-rules sections, none of it translated). Treat every merge or pull that touches
+`content/Gata/` as a translation task, not just a code review. Concretely:
+
+1. **Find the drift.** Two commands, run from repo root:
+   ```bash
+   # Structural: any RU file with no EN counterpart, or vice versa
+   diff <(cd content/Gata && find . -type f | sort) <(cd content/Gata-ru && find . -type f | sort)
+
+   # Content: what changed in EN since the RU translation was last synced
+   # (replace <base> with the commit/branch the RU vault was last verified against)
+   git diff <base> HEAD -- content/Gata/
+   ```
+2. **Deleted EN file →** `git rm` the matching RU file. Don't leave an orphan; it breaks the
+   file-parity invariant `scripts/build-data.mjs` relies on and `npm run i18n:check` enforces.
+3. **New EN file →** translate it into a same-named RU file, following the categories and structural
+   bold-label rules earlier in this document.
+4. **Modified EN file →** read the diff. Distinguish:
+   - **Pure formatting** (link syntax, whitespace, a reworded-but-same-meaning sentence) — apply the
+     equivalent formatting change to RU, translating any new descriptive text.
+   - **Real rule/data changes** (an `Availability`/`League`/`Special Rules` value changed, a skill's
+     actual mechanical text changed, a previously-garbled English paragraph got fixed) — retranslate
+     that specific field/paragraph. Don't assume the old RU translation is still correct just because
+     the file diff looks small; a one-line change can flip a rule's meaning (e.g. "increases the
+     player's value" → "does not increase the player's value" is a 3-word diff with the opposite
+     rule effect).
+   - If EN text that was previously garbled/corrupted is now fixed, this is your chance to produce a
+     real translation instead of the byte-for-byte mirror the corruption-handling rule called for —
+     don't leave the RU side mirroring garbage once a good source exists.
+5. **Rebuild and verify:**
+   ```bash
+   npm run build && npm run i18n:check
+   ```
+   Expect matching page counts in both locales and `0 falling back to Gata` in the build output.
+6. **New UI code** (not content) needs the same treatment — see `CLAUDE.md` at the repo root for the
+   `t()`/`data-i18n` convention. If a branch with new views/panels merges in without i18n support
+   (this has already happened once with a Season/Administration/roster-catalog feature set), grep the
+   new code for hardcoded string literals in template strings before considering the merge done —
+   `npm run i18n:check` only validates *content* parity, it has no way to catch a hardcoded English
+   string sitting in `src/app.js`.
