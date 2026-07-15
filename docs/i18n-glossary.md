@@ -128,6 +128,34 @@ content task:
   «Взносы:», `Restrictions` → «Ограничения:», `Usage` → «Использование:» —
   use these exact three renderings everywhere this section recurs, for
   consistency across files.
+- **"Team-mate"** (the generic noun for a fellow roster player, not a
+  proper name) → «напарник», consistent with existing translated
+  `Rules`/`General Information` content (e.g. the Blood Lust/Bloodlust
+  rules text). Decline normally (напарника/напарнику/напарником/etc.).
+- **Named game-state and result identifiers** that recur across
+  `Skills and Traits/Traits` (Task 12) — `Distracted`, `Rooted`,
+  `Journeyman`, `Marked`, `Player Down`, `Follow-up`, `Pushed Back` — stay
+  in English, the same capitalized rule-identifier treatment already
+  established for `Prone`/`Knocked Down`/`Sent-off`/`Open`. Where a state
+  is entered, phrase it as «переходит в состояние X» (already used for
+  `Placed Prone` in `Rules/3. Team Management.md`), rather than inventing a
+  new construction per file.
+- **"Rush" and "Intercept"** (core rule actions with no dedicated skill
+  page, referenced generically in prose) stay in English, grouped with the
+  already-established named-action family (Move, Blitz, Pass, Hand-off,
+  Foul, Block).
+- **"Armour roll" / "Injury roll" / "Casualty roll"** (generic dice-roll
+  procedure names, not proper nouns) → «бросок на броню» / «бросок на
+  травму» / «бросок на травму» respectively — consistent with existing
+  `Rules` content (`Fireball`, `Bounce` entries, etc.). A named table like
+  "Stunty Injury Table" renders as «таблица травм Stunty» (generic word
+  translated, trait name kept English), the same pattern already used for
+  "Star Player table" → «таблицу Star Player».
+- **"Throw-in template" / "scatter" (ball or player deviation)** →
+  «шаблон броска мяча в аут (throw-in template)» / «разлёт (scatter)»,
+  reusing the established gloss pattern from `Rules/3. Team Management.md`
+  ("мяч разлетается (scatter)") and `All Gata Changes.md` ("Броски мяча в
+  аут (Throw-Ins)").
 
 If `content/Gata`'s English source itself contains unrecoverable corruption
 (e.g. a block of text with characters destroyed at the byte level, not just
