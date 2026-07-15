@@ -135,3 +135,27 @@ untranslated), don't fabricate replacement text. Mirror the source's broken
 text byte-for-byte into the RU file and flag it for follow-up outside the
 translation task's scope — that's a pre-existing data-integrity problem, not
 a translation gap.
+
+- **Lowercase "tackle zone" / "control zone"** (the generic descriptive
+  phrase, as opposed to the capitalized proper-noun "Tackle Zone" which
+  already stays fully English per the named-actions rule above) → translated
+  as «зона контроля», glossed with the English original in parentheses on
+  first mention per file/section: «зоне контроля (tackle zone)». This
+  follows the precedent already set in `General Information/All Gata
+  Changes.md` ("...в зоне контроля (tackle zone) владельца навыка").
+- **Capitalization-as-signal for Blood Bowl rule-identifiers** (Task 11,
+  Skills translation): the English source is inconsistent about whether it
+  capitalizes a term to invoke it as a defined rules keyword (e.g. "Both
+  Down", "Knocked Down", "Push Back", "Prone", "Standing", "Marked",
+  "Sent-off", "Distracted", "Fall Over", "Follow-up", "Rush") versus using it
+  as ordinary lowercase language. Established rule: if the source
+  capitalizes the term at that point in the sentence, keep it bare English in
+  the translation (same treatment as named actions/skills); if lowercase,
+  translate it as ordinary prose. Where a Russian verb is needed to carry a
+  capitalized English result/state term grammatically (e.g. "this player
+  Knocks Down an opponent"), use a neutral carrier verb — «наносит»/«получает»
+  — and keep the term itself bare English immediately after it (e.g. "наносит
+  сопернику Knocked Down").
+- **"Touchback"** (generic rules vocabulary, not previously covered) →
+  transliterated the same way as Drive/Turnover/Touchdown/Kick-off: "тачбэк"
+  (lowercase, ordinary Russian noun).
