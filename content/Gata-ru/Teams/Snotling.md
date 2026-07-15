@@ -7,7 +7,7 @@
 | 0-2 | Pump Wagon | 4 | 5 | 5+ | 6+ | 9+ | [[Dirty Player]], [[Mighty Blow]], [[Juggernaut]], [[Very Stupid]], [[Stand Firm]] | S D | A G | 125K | Snotling, Big guy, Special |
 | 0-2 | Well-Trained Troll | 4 | 5 | 5+ | 5+ | 10+ | [[Always Hungry]], [[Mighty Blow]], [[Projectile Vomit]], [[Really Stupid]], [[Regeneration]], [[Throw Team-mate]] | S | A G P | 125K | Troll, Big guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 3
 **Специальные правила:** Badlands Brawl, Bribery and Corruption, Underworld Challenge, 

@@ -9,7 +9,7 @@
 | 0-1 | Doom Diver | 6 | 2 | 3+ | 6+ | 8+ | [[Right Stuff]], [[Stunty]], [[Swoop]] | A D | G S | 30K | Goblin, , Lineman |
 | 0-2 | Well-Trained Troll | 4 | 5 | 5+ | 5+ | 10+ | [[Always Hungry]], [[Mighty Blow]], [[Projectile Vomit]], [[Really Stupid]], [[Regeneration]], [[Throw Team-mate]] | S | A G P | 125K | Troll, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 2
 **Специальные правила:** Badlands Brawl or Underworld Challenge, Bribery and Corruption

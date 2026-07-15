@@ -5,7 +5,7 @@
 | 0-2 | Elf Catcher | 8 | 3 | 2+ | 4+ | 8+ | [[Catch]], [[Diving Catch]], [[Nerves of Steel]] | A G | P S | 110K | Elf, Catcher |
 | 0-2 | Elf Blitzer | 7 | 3 | 2+ | 3+ | 9+ | [[Block]], [[Sidestep]] | A G | P S | 105K | Elf, Biltzer |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Elven Kingdoms League, Passing Virtuosos

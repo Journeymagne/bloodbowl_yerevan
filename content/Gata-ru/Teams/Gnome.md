@@ -6,7 +6,7 @@
 | 0-2 | Woodland Fox | 7 | 2 | 2+ | - | 6+ | [[Dodge]], [[Evasive]], [[Stunty]], [[My Ball]], [[Sidestep]] | A | G S | 45K | Animal, Runner |
 | 0-2 | Altern Forest Treeman | 2 | 6 | 5+ | 5+ | 11+ | [[Mighty Blow]], [[Stand Firm]], [[Strong Arm]], [[Take Root]], [[Thick Skull]], [[Throw Team-mate]], [[Timmm-ber!]] | S | A G P | 105K | Treeman, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 2
 **Специальные правила:** Woodland League

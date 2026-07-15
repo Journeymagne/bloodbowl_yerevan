@@ -5,7 +5,7 @@
 | 0-2 | Thro-Ra | 6 | 3 | 3+ | 3+ | 8+ | [[Pass]], [[Sure Hands]], [[Regeneration]] | G P | A D S | 85K | Skeleton, Undead, Thrower |
 | 0-2 | Blitz-Ra | 6 | 3 | 3+ | 6+ | 9+ | [[Block]], [[Regeneration]], [[Thick Skull]] | G S | A D | 65K | Skeleton, Undead, Blitzer |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Mortuary Assistant
 **Лига:** Tier 1
 **Специальные правила:** Sylvanian Spotlight, Masters of Undeath

@@ -6,7 +6,7 @@
 | 0-2 | Blitzer | 8 | 3 | 3+ | 4+ | 9+ | [[Block]], [[Strip Ball]] | G S | A M D | 100K | Skaven, Blitzer |
 | 0-1 | Rat Ogre | 6 | 5 | 4+ | 6+ | 9+ | [[Animal Savagery]], [[Frenzy]], [[Loner (4+)]], [[Mighty Blow (+1)]], [[Prehensile Tail]] | S | A G M | 145K | Skaven, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Underworld Challenge

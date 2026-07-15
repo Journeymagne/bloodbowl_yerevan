@@ -4,7 +4,7 @@
 | 0-6 | Black Orc | 5 | 4 | 4+ | 5+ | 10+ | [[Brawler]], [[Grab]] | G S | A D | 110K | Orc, Blocker |
 | 0-1 | Trained Troll | 4 | 5 | 5+ | 5+ | 10+ | [[Always Hungry]], [[Loner (3+)]], [[Mighty Blow]], [[Projectile Vomit]], [[Really Stupid]], [[Regeneration]], [[Throw Team-mate]] | S | A G P | 125K | Troll, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Bribery and Corruption, Badlands Brawl, Brawling Brutes

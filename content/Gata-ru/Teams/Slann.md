@@ -5,7 +5,7 @@
 | 0-4 | Blitzers | 7 | 3 | 3+ | 4+ | 9+ | [[Leap]], [[Very Long Legs]], [[Jump Up]], [[Diving Tackle]] | GAS | P | 100k | Slann, Blitzer |
 | 0-1 | Kroxigor | 6 | 5 | 5+ | - | 10+ | [[Bone Head]], [[Loner (4+)]], [[Mighty Blow]], [[Prehensile Tail]], [[Thick Skull]] | S | GA | 140k | Lizardman, Big guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Lustrian Superleague

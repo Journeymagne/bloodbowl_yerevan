@@ -12,7 +12,7 @@
 | 0-1 | Ogre | 5 | 5 | 4+ | 5+ | 10+ | [[Bonehead]], [[Thick Skull]], [[Mighty Blow]], [[Loner (3+)]], [[Throw Team-mate]] | S | A G | 140K | Ogre, Big Guy |
 | 0-1 | Altern Forest Treeman | 2 | 6 | 5+ | 5+ | 11+ | [[Mighty Blow]], [[Stand Firm]], [[Strong Arm]], [[Take Root]], [[Thick Skull]], [[Throw Team-mate]], [[Timmm-ber!]], [[Loner (3+)]] | S | A G P | 105K | Treeman, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Old World Classic

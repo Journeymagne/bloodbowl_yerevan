@@ -6,7 +6,7 @@
 | 0-1 | Chaos Ogre | 5 | 5 | 4+ | 5+ | 10+ | [[Bonehead]], [[Thick Skull]], [[Mighty Blow]], [[Loner (4+)]], [[Throw Team-mate]] | M S | A G | 140K | Ogre, Big Guy |
 | 0-1 | Minotaur | 5 | 5 | 4+ | - | 9+ | [[Frenzy]], [[Horns]], [[Loner (4+)]], [[Mighty Blow]], [[Thick Skull]], [[Unchannelled Fury]] | M S | A G | 145K | Minotaur, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Chaos Clash, Brawling Brutes, Favoured of ...

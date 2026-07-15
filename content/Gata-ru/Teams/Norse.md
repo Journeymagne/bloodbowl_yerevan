@@ -7,7 +7,7 @@
 | 0-2 | Ulfwerener | 6 | 4 | 4+ | 6+ | 9+ | [[Frenzy]], [[Unsteady]] | G S | A | 105K | Human, Blocker |
 | 0-1 | Yhetee | 5 | 5 | 4+ | 6+ | 9+ | [[Claws]], [[Disturbing Presence]], [[Frenzy]], [[Loner (4+)]], [[Unchannelled Fury]] | S | A G | 135K | Yehetee, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Old World Classic or Chaos Clash + Favoured of Khorne, Brawling Brutes

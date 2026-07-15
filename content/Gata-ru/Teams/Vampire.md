@@ -6,7 +6,7 @@
 | 0-2 | Vampire Thrower | 6 | 4 | 2+ | 2+ | 9+ | [[Bloodlust]], [[Hypnotic Gaze]], [[Regeneration]], [[Pass]] | A G P | S | 125K | Vampire, Undead, Thrower |
 | 0-1 | Vargheist | 5 | 5 | 4+ | - | 10+ | [[Bloodlust]], [[Regeneration]], [[Claws]], [[Frenzy]], [[Loner (4+)]] | S | A G | 145K | Big Guy, Undead, Vampire |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Mortuary Assistant
 **Лига:** Tier 1
 **Специальные правила:** Sylvanian Spotlight, Masters of Undeath

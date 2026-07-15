@@ -6,7 +6,7 @@
 | 0-2 | Assassin | 7 | 3 | 2+ | 5+ | 8+ | [[Shadowing]], [[Stab]], [[Hit and Run]] | A G D | P S | 80K | Elf, Special |
 | 0-2 | Witch Elf | 7 | 3 | 2+ | 5+ | 8+ | [[Evasive]], [[Frenzy]], [[Jump Up]] | A G | P S D | 95K | Elf, Special |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Elven Kingdoms League

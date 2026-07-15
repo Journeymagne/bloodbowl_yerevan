@@ -5,7 +5,7 @@
 | 0-4 | Bloater | 4 | 4 | 4+ | 6+ | 10+ | [[Disturbing Presence]], [[Foul Appearance]], [[Plague Ridden]], [[Regeneration]], [[Stand Firm]], [[Unsteady]] | G M S | A D | 110K | Human, Blocker |
 | 0-1 | Rotspawn | 4 | 5 | 5+ | - | 10+ | [[Disturbing Presence]], [[Foul Appearance]], [[Loner (4+)]], [[Mighty Blow]], [[Plague Ridden]], [[Really Stupid]], [[Regeneration]], [[Tentacles]], [[Pick-me-up]] | S | D G M | 145K | Spawn, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Plague Doctor
 **Лига:** Tier 3
 **Специальные правила:** Chaos Clash, Favoured of Nurgle,  Brawling Brutes

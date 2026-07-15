@@ -9,7 +9,7 @@
 | 0-1 | Underworld Troll | 4 | 5 | 5+ | 5+ | 10+ | [[Always Hungry]], [[Loner (4+)]], [[Mighty Blow]], [[Projectile Vomit]], [[Really Stupid]], [[Regeneration]], [[Throw Team-mate]] | M S | A G P | 125K | Troll, Big guy |
 | 0-1 | Mutant Rat Ogre | 6 | 5 | 4+ | - | 9+ | [[Animal Savagery]], [[Frenzy]], [[Loner (4+)]], [[Mighty Blow (+1)]], [[Prehensile Tail]] | M S | A G | 145K | Skaven, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Underworld Challenge, Bribery and Corruption

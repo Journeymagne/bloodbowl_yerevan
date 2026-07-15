@@ -5,7 +5,7 @@
 | 0-4 | Bloodseeker | 5 | 4 | 4+ | 6+ | 10+ | [[Frenzy]] | G M S | A D | 95K | Human, Blocker |
 | 0-1 | Bloodspawn | 5 | 5 | 4+ | 6+ | 9+ | [[Claws]], [[Frenzy]], [[Loner (4+)]], [[Mighty Blow]], [[Unchannelled Fury]] | M S | A G | 140K | Spawn, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Chaos Clash, Favoured of Khorne,  Brawling Brutes

@@ -7,7 +7,7 @@
 | 0-4 | Goblin | 6 | 2 | 3+ | 4+ | 8+ | [[Dodge]], [[Evasive]], [[Stunty]], [[Right Stuff]] | A D | G P S | 40K | Goblin, Lineman |
 | 0-1 | Untrained Troll | 4 | 5 | 5+ | 5+ | 10+ | [[Always Hungry]], [[Loner (4+)]], [[Mighty Blow]], [[Projectile Vomit]], [[Really Stupid]], [[Regeneration]], [[Throw Team-mate]] | S | A G P | 125K | Troll, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Badlands Brawl, Brawling Brutes

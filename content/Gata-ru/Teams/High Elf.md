@@ -5,7 +5,7 @@
 | 0-2 | White Lion | 6 | 3 | 2+ | 4+ | 9+ | [[Claws]], [[Wrestle]] | G A | S | 90K | Elf, Blitzer |
 | 0-2 | Dragon Prince | 8 | 3 | 2+ | 4+ | 9+ | [[Block]], [[My Ball]], [[Steady Footing]] | G A | P S | 120K | Elf, Runner |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Elven Kingdoms League, Passing Virtuosos

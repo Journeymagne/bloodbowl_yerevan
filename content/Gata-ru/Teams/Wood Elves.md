@@ -6,7 +6,7 @@
 | 0-2 | Wardancer | 8 | 3 | 2+ | 4+ | 8+ | [[Block]], [[Evasive]], [[Leap]] | A G | P S | 120K | Elf, Blitzer |
 | 0-1 | Loren Forest Treeman | 2 | 6 | 5+ | 5+ | 11+ | [[Mighty Blow]], [[Stand Firm]], [[Strong Arm]], [[Take Root]], [[Loner (4+)]], [[Thick Skull]], [[Throw Team-mate]], [[Timmm-ber!]] | S | A G | 105K | Treeman, Big guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Elven Kingdoms League or Woodland League, Passing Virtuosos

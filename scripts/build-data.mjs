@@ -571,7 +571,7 @@ function extractTeamMeta(markdown) {
     ["apothecary", /\*\*Apothecary:\*\*\s*([^\n]+)/i],
     ["league", /\*\*League:\*\*\s*([^\n]+)/i],
     ["specialRules", /\*\*Special Rules:\*\*\s*([^\n]+)/i],
-    ["rerolls", /\*\*Перебросы:\*\*\s*([^\n]+)/i],
+    ["rerolls", /\*\*Рероллы:\*\*\s*([^\n]+)/i],
     ["apothecary", /\*\*Апотекарий:\*\*\s*([^\n]+)/i],
     ["league", /\*\*Лига:\*\*\s*([^\n]+)/i],
     ["specialRules", /\*\*Специальные правила:\*\*\s*([^\n]+)/i],

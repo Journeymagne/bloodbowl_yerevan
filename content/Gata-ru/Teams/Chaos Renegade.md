@@ -11,7 +11,7 @@
 | 0-1 | Renegade Minotaur* | 5 | 5 | 4+ | - | 9+ | [[Frenzy]], [[Horns]], [[Loner (4+)]], [[Mighty Blow]], [[Thick Skull]], [[Unchannelled Fury]] | S | A G M | 145K | Minotaur, Big Guy |
 | 0-1 | Renegade Rat Ogre* | 6 | 5 | 4+ | - | 9+ | [[Animal Savagery]], [[Frenzy]], [[Loner (4+)]], [[Mighty Blow (+1)]], [[Prehensile Tail]] | S | A G M | 145K | Skaven, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** -

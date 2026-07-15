@@ -6,7 +6,7 @@
 | 0-4 | Kossar | 6 | 3 | 3+ | 4+ | 9+ | [[Stand Firm]], [[Wrestle]] | G S | AP | 70k | Human, Blocker |
 | 0-1 | Trained Bear | 5 | 5 | 6+ | - | 9+ | [[Unchannelled Fury]], [[Mighty Blow]], [[Loner (4+)]], [[Thick Skull]], [[Grab]] | S | GAP | 125k | Animal, Big guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Old World Classic, Passing Virtuosos

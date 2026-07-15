@@ -5,7 +5,7 @@
 | 0-6 | Saurus Blocker | 6 | 4 | 5+ | 6+ | 10+ | [[Juggernaut]], [[Unsteady]] | G S | A | 100K | Lizardman, Blocker |
 | 0-1 | Kroxigor | 6 | 5 | 5+ | - | 10+ | [[Bonehead]], [[Thick Skull]], [[Mighty Blow]], [[Loner (4+)]], [[Prehensile Tail]] | S | A G | 140K | Lizardman, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Lustrian Superleague

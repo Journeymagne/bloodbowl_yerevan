@@ -5,7 +5,7 @@
 | 0-2 | Piranha Warrior Blitzer | 7 | 3 | 3+ | 5+ | 8+ | [[Evasive]], [[Hit and Run]], [[Jump Up]] | A G | S | 70K | Human, Blitzer |
 | 0-2 | Jaguar Warrior Blocker | 6 | 4 | 3+ | 5+ | 9+ | [[Evasive]], [[Defensive]] | G S | A | 130K | Human, Blocker |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Lustrian Superleague

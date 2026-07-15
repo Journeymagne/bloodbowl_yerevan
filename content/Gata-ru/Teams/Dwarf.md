@@ -6,7 +6,7 @@
 | 0-2 | Troll Slayer | 5 | 3 | 4+ | - | 9+ | [[Block]], [[Dauntless]], [[Frenzy]], [[Thick Skull]], [[Hatred (Troll)]] | G S | D | 85K | Dwarf, Special |
 | 0-1 | Deathroller | 4 | 7 | 5+ | - | 11+ | [[Break Tackle]], [[Dirty Player]], [[Juggernaut]], [[Loner (4+)]], [[Mighty Blow]], [[No Ball]], [[Stand Firm]], [[Secret Weapon]] | D S | G | 180K | Dwarf, Special |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Worlds Edge Superleague, Brawling Brutes,  Bribery and Corruption

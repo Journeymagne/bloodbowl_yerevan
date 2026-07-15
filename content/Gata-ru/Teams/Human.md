@@ -7,7 +7,7 @@
 | 0-3 | Halfling Hopeful | 5 | 2 | 3+ | 4+ | 7+ | [[Dodge]], [[Evasive]], [[Stunty]], [[Right Stuff]] | A | G S D | 30K | Halfling, Lineman |
 | 0-1 | Ogre | 5 | 5 | 4+ | 5+ | 10+ | [[Bonehead]], [[Thick Skull]], [[Mighty Blow]], [[Loner (3+)]], [[Throw Team-mate]] | S | A G | 140K | Ogre, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Old World Classic

@@ -5,7 +5,7 @@
 | 0-4 | Slave to Darkness | 6 | 4 | 3+ | 4+ | 9+ | [[Break Tackle]] | GMA | SD | 110k | Blocker, Human |
 | 0-1 | Fiend | 6 | 5 | 3+ | 6+ | 9+ | [[Hypnotic Gaze]], [[Prehensile Tail]], [[Unchanneled Fury]], [[Claws]], [[No Hands]], [[Loner (4+)]] | GMA | SD | 155k | Big Guy, Daemon |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Chaos Clash, Favored of Slaanesh

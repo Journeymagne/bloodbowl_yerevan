@@ -6,7 +6,7 @@
 | 0-2 | Werewolf | 8 | 3 | 3+ | 4+ | 9+ | [[Claws]], [[Frenzy]], [[Regeneration]] | A G | P S D | 110K | Undead, Werewolf, Blitzer |
 | 0-2 | Flesh Golem | 4 | 4 | 4+ | 6+ | 10+ | [[Regeneration]], [[Stand Firm]], [[Thick Skull]], [[Unsteady]] | G S | A D | 100K | Undead, Construct, Blocker |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Mortuary Assistant
 **Лига:** Tier 1
 **Специальные правила:** Sylvanian Spotlight, Masters of Undeath

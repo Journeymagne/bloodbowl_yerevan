@@ -6,7 +6,7 @@
 | 0-2 | Celestial Guard | 6 | 3 | 3+ | 4+ | 9+ | [[Wrestle]], [[Jump Up]] | GS | A | 70k | Blocker, Human |
 | 0-1 | Foo Statue | 3 | 5 | 5+ | 6+ | 11+ | [[Taunt]], [[Arm Bar]], [[Take Root]], [[Mighty Blow]], [[Thick Skull]], [[Loner (3+)]] | S | GA | 110k | Big Guy, Construct |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** OId World Classic

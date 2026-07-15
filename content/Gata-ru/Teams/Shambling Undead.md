@@ -6,7 +6,7 @@
 | 0-2 | Wight Blitzer | 6 | 3 | 3+ | 5+ | 9+ | [[Block]], [[Tackle]], [[Regeneration]], [[Thick Skull]] | G S | A D | 80K | Skeleton, Undead, Blitzer |
 | 0-2 | Mummy | 3 | 5 | 5+ | 6+ | 10+ | [[Mighty Blow]], [[Regeneration]] | S | A G | 105K | Human, Undead, Big Guy, Blocker |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Mortuary Assistant
 **Лига:** Tier 1
 **Специальные правила:** Sylvanian Spotlight, Masters of Undeath

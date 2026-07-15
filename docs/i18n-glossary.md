@@ -24,7 +24,7 @@ anything else won't be recognized by the parser:
 
 | English            | Russian (use exactly this) | Used on         |
 |---------------------|------------------------------|-----------------|
-| **Rerolls:**         | **Перебросы:**                | Team pages      |
+| **Rerolls:**         | **Рероллы:**                  | Team pages      |
 | **Apothecary:**       | **Апотекарий:**               | Team pages      |
 | **League:**           | **Лига:**                     | Team pages      |
 | **Special Rules:**    | **Специальные правила:**      | Team pages      |
@@ -71,11 +71,22 @@ The categories above don't cover every recurring term. These calls were made
 during Rules translation and should be applied consistently in every later
 content task:
 
-- **Reroll(s) / Apothecary, used generically in prose** (not as a bold
-  structural label, not as part of a named inducement) → "переброс(ы)" /
-  "апотекарий", consistent with the structural-label translations above.
-  Named inducements built on these words (`Wandering Apothecary`, `Mortuary
-  Assistant`, `Plague Doctor`) stay fully English as inducement names.
+- **Reroll(s)** (the noun, as a resource/game term — bold structural label,
+  UI copy, or generic prose alike) → "реролл(ы)", transliterated and joining
+  the established RU Blood Bowl fan-community jargon family (alongside
+  Drive/Turnover/Touchdown/Kick-off/Touchback below). **Superseded 2026-07-15:**
+  earlier translation tasks (8-14) used "переброс(ы)"/"переброска(и)" for this
+  instead; every occurrence across `content/Gata-ru/` and `src/i18n/ru.json`
+  was swept to "реролл(ы)" (whole-word replacement, all case/declension
+  forms) after this decision. The **verb** "перебросить" ("may reroll a
+  test", used throughout Skills/Traits/Star Players rule text) is a distinct
+  word — deliberately left as ordinary Russian, not converted to a
+  реролл-based verb, so future translations shouldn't "fix" it to match.
+  **Apothecary, used generically in prose** (not as a bold structural label,
+  not as part of a named inducement) → "апотекарий", consistent with the
+  structural-label translation. Named inducements built on these words
+  (`Wandering Apothecary`, `Mortuary Assistant`, `Plague Doctor`) stay fully
+  English as inducement names.
 - **"Inducements"** (the generic category noun, not one specific inducement's
   name) — kept in English throughout, treated as an adopted term rather than
   translated inconsistently case-by-case.

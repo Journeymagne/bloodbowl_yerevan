@@ -7,7 +7,7 @@
 | 0-2 | Bull Centaur Blitzer | 6 | 4 | 4+ | 6+ | 10+ | [[Horns]], [[Leap]], [[Sprint]], [[Sure Feet]], [[Thick Skull]] | G S | A M D | 150K | Dwarf, Blitzer |
 | 0-1 | Minotaur | 5 | 5 | 4+ | — | 9+ | [[Frenzy]], [[Horns]], [[Loner (4+)]], [[Mighty Blow]], [[Thick Skull]], [[Unchannelled Fury]] | S M | A G | 145K | Minotaur, Big Guy |
 
-**Перебросы:** 60K
+**Рероллы:** 60K
 **Апотекарий:** Есть
 **Лига:** Tier 1
 **Специальные правила:** Favoured of Hashut, Badlands Brawl or Chaos Clash
