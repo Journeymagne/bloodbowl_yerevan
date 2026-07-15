@@ -101,6 +101,12 @@ const supportedLocales = new Set(["en", "ru"]);
 const dataCache = new Map();
 let translations = { en: {}, ru: {} };
 let activeDict = translations.en;
+const assetVersion = "gata-85";
+const logoUploadMaxBytes = 2 * 1024 * 1024;
+const logoOptimizeMaxDimension = 512;
+const logoOptimizeQuality = 0.82;
+const logoOptimizeSkipLength = 160_000;
+const logoOptimizationCache = new Map();
 const themeIds = new Set([
   "dark-gata",
   "dark-dugout",
@@ -166,8 +172,8 @@ function storedLocale() {
 
 async function loadTranslations() {
   const [en, ru] = await Promise.all([
-    fetch("src/i18n/en.json", { cache: "no-store" }).then((response) => response.json()),
-    fetch("src/i18n/ru.json", { cache: "no-store" }).then((response) => response.json()),
+    fetch(`src/i18n/en.json?v=${assetVersion}`).then((response) => response.json()),
+    fetch(`src/i18n/ru.json?v=${assetVersion}`).then((response) => response.json()),
   ]);
   translations = { en, ru };
 }
@@ -197,7 +203,7 @@ async function loadLocaleData(locale) {
   if (window.__REFERENCE_DATA__ && window.__REFERENCE_DATA__[locale]) {
     data = window.__REFERENCE_DATA__[locale];
   } else {
-    const response = await fetch(`public/data.${locale}.json`, { cache: "no-store" });
+    const response = await fetch(`public/data.${locale}.json?v=${assetVersion}`);
     data = await response.json();
   }
   dataCache.set(locale, data);
@@ -4631,12 +4637,12 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   view.querySelector("[data-roster-logo]")?.addEventListener("change", async (event) => {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > logoUploadMaxBytes) {
       alert(t("savedRoster.logoTooLarge"));
       event.currentTarget.value = "";
       return;
     }
-    draft.logoData = await fileToDataUrl(file);
+    draft.logoData = await fileToOptimizedLogoDataUrl(file);
     rerender();
   });
   view.querySelector("[data-roster-remove-logo]")?.addEventListener("click", () => {
@@ -4977,6 +4983,7 @@ async function runSavedRosterAutosave(teamId, revision) {
 
 async function saveSavedRoster(savedTeam, team, draft, options = {}) {
   syncRosterCountsFromPlayers(draft);
+  draft.logoData = await optimizeLogoDataUrl(draft.logoData);
   updateSavedRosterFields(savedTeam, draft);
   const request = {
     name: draft.teamName || team.title,
@@ -6146,12 +6153,12 @@ function wireBuilder(team) {
   view.querySelector("[data-builder-logo]")?.addEventListener("change", async (event) => {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
-    if (file.size > 2 * 1024 * 1024) {
+    if (file.size > logoUploadMaxBytes) {
       alert(t("savedRoster.logoTooLarge"));
       event.currentTarget.value = "";
       return;
     }
-    state.builder.logoData = await fileToDataUrl(file);
+    state.builder.logoData = await fileToOptimizedLogoDataUrl(file);
     renderBuilder();
   });
   view.querySelector("[data-builder-remove-logo]")?.addEventListener("click", () => {
@@ -6225,6 +6232,59 @@ function fileToDataUrl(file) {
     reader.addEventListener("error", reject);
     reader.readAsDataURL(file);
   });
+}
+
+function loadImageFromDataUrl(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener("load", () => resolve(image), { once: true });
+    image.addEventListener("error", reject, { once: true });
+    image.src = dataUrl;
+  });
+}
+
+function canvasToDataUrl(canvas, mimeType, quality) {
+  try {
+    return canvas.toDataURL(mimeType, quality);
+  } catch (_error) {
+    return "";
+  }
+}
+
+async function optimizeLogoDataUrl(dataUrl) {
+  const source = String(dataUrl || "");
+  if (!source.startsWith("data:image/")) return source;
+  if (source.startsWith("data:image/webp") && source.length <= logoOptimizeSkipLength) return source;
+  if (logoOptimizationCache.has(source)) return logoOptimizationCache.get(source);
+
+  let optimized = source;
+  try {
+    const image = await loadImageFromDataUrl(source);
+    const width = image.naturalWidth || image.width;
+    const height = image.naturalHeight || image.height;
+    if (width > 0 && height > 0) {
+      const scale = Math.min(1, logoOptimizeMaxDimension / Math.max(width, height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, Math.round(width * scale));
+      canvas.height = Math.max(1, Math.round(height * scale));
+      const context = canvas.getContext("2d", { alpha: true });
+      context?.drawImage(image, 0, 0, canvas.width, canvas.height);
+      const webp = canvasToDataUrl(canvas, "image/webp", logoOptimizeQuality);
+      if (webp.startsWith("data:image/webp") && webp.length < source.length) {
+        optimized = webp;
+      }
+    }
+  } catch (_error) {
+    optimized = source;
+  }
+
+  logoOptimizationCache.set(source, optimized);
+  return optimized;
+}
+
+async function fileToOptimizedLogoDataUrl(file) {
+  const source = await fileToDataUrl(file);
+  return optimizeLogoDataUrl(source);
 }
 
 function wirePlayerEditors(team, draft, rerender) {
@@ -6310,6 +6370,8 @@ async function saveTeam(team) {
   }
   syncRosterCountsFromPlayers(state.builder);
   const payload = builderPayload(team);
+  payload.logoData = await optimizeLogoDataUrl(payload.logoData);
+  state.builder.logoData = payload.logoData;
   const startupCosts = calculateRosterCosts(team, state.builder, { includeDedicatedFans: true });
   payload.treasury = Math.max(0, 600 - startupCosts.total);
   const request = {

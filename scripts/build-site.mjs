@@ -46,6 +46,15 @@ async function copyVaultAssets(from, to) {
   }
 }
 
+function minifyCss(source) {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*([{}:;,>+~])\s*/g, "$1")
+    .replace(/;}/g, "}")
+    .trim();
+}
+
 await fs.mkdir(distDir, { recursive: true });
 const indexHtml = await fs.readFile(path.join(rootDir, "index.html"), "utf8");
 await fs.writeFile(path.join(distDir, "index.html"), indexHtml);
@@ -53,14 +62,16 @@ await copyDir(path.join(rootDir, "src"), path.join(distDir, "src"));
 await copyDir(path.join(rootDir, "public"), path.join(distDir, "public"));
 await copyDir(path.join(rootDir, "assets"), path.join(distDir, "assets"));
 await copyVaultAssets(path.join(rootDir, "content", "7ZBBL"), path.join(distDir, "public", "vault-assets"));
+const stylesPath = path.join(distDir, "src", "styles.css");
+await fs.writeFile(stylesPath, minifyCss(await fs.readFile(stylesPath, "utf8")));
 
 const enDataJson = (await fs.readFile(path.join(rootDir, "public", "data.en.json"), "utf8"))
   .replace(/</g, "\\u003c");
 const ruDataJson = (await fs.readFile(path.join(rootDir, "public", "data.ru.json"), "utf8"))
   .replace(/</g, "\\u003c");
 const localPreviewHtml = indexHtml.replace(
-  '<script type="module" src="src/app.js?v=gata-84"></script>',
-  `<script>window.__REFERENCE_DATA__ = { en: ${enDataJson}, ru: ${ruDataJson} };</script>\n    <script src="src/app.js?v=gata-84"></script>`,
+  '<script type="module" src="src/app.js?v=gata-85"></script>',
+  `<script>window.__REFERENCE_DATA__ = { en: ${enDataJson}, ru: ${ruDataJson} };</script>\n    <script src="src/app.js?v=gata-85"></script>`,
 );
 await fs.writeFile(path.join(distDir, "local-preview.html"), localPreviewHtml);
 

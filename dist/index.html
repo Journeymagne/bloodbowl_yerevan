@@ -14,14 +14,16 @@
         } catch (_error) {}
       })();
     </script>
-    <link rel="stylesheet" href="src/styles.css?v=gata-50">
+    <link rel="preload" as="image" href="assets/brand/gata-league-logo-96.png" fetchpriority="high">
+    <link rel="preload" href="src/styles.css?v=gata-50" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="src/styles.css?v=gata-50"></noscript>
   </head>
   <body>
     <div class="app-shell">
       <aside id="site-sidebar" class="sidebar" aria-label="Navigation">
         <a class="brand" href="#/">
           <span class="brand-mark">
-            <img src="assets/brand/gata-league-logo.png" alt="">
+            <img src="assets/brand/gata-league-logo-96.png" width="48" height="48" alt="" decoding="async" fetchpriority="high">
           </span>
           <span>
             <strong>Gata League</strong>
@@ -137,6 +139,6 @@
       </section>
     </div>
 
-    <script type="module" src="src/app.js?v=gata-84"></script>
+    <script type="module" src="src/app.js?v=gata-85"></script>
   </body>
 </html>

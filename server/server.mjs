@@ -3,6 +3,7 @@ import http from "node:http";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 import { Pool } from "pg";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -56,6 +57,7 @@ const databaseUrl = resolveDatabaseUrl();
 const sessionDays = Number(process.env.SESSION_DAYS || 30);
 const databaseCheckRetries = Number(process.env.DATABASE_CHECK_RETRIES || 30);
 const databaseCheckDelayMs = Number(process.env.DATABASE_CHECK_DELAY_MS || 1000);
+const compressionMinBytes = Number(process.env.COMPRESSION_MIN_BYTES || 1024);
 
 const pool = new Pool({ connectionString: databaseUrl });
 const mimeTypes = new Map([
@@ -69,6 +71,13 @@ const mimeTypes = new Map([
   [".svg", "image/svg+xml"],
   [".webp", "image/webp"],
 ]);
+const compressibleTypes = [
+  "text/",
+  "application/json",
+  "application/javascript",
+  "text/javascript",
+  "image/svg+xml",
+];
 
 function normalizeLogin(value = "") {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
@@ -101,17 +110,33 @@ function publicSavedTeam(row) {
     name: row.name,
     baseTeamSlug: row.base_team_slug,
     logoData: row.logo_data,
-    roster: row.roster,
+    roster: rosterWithoutEmbeddedLogo(row.roster),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
 }
 
+function stripEmbeddedLogoData(value) {
+  if (Array.isArray(value)) {
+    return value.map(stripEmbeddedLogoData);
+  }
+  if (value === null || value === undefined || typeof value !== "object") {
+    return value;
+  }
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== "logoData" && key !== "logo_data")
+      .map(([key, entry]) => [key, stripEmbeddedLogoData(entry)]),
+  );
+}
+
 function rosterWithoutEmbeddedLogo(roster = {}) {
-  if (!roster || typeof roster !== "object" || Array.isArray(roster)) return roster ?? {};
-  const clean = { ...roster };
-  delete clean.logoData;
-  return clean;
+  if (!roster || typeof roster !== "object") return {};
+  return stripEmbeddedLogoData(roster);
+}
+
+function serializeRosterForStorage(roster = {}) {
+  return JSON.stringify(rosterWithoutEmbeddedLogo(roster));
 }
 
 function publicSavedTeamSummary(row) {
@@ -202,7 +227,7 @@ function publicAdminSavedTeam(row) {
     name: row.name,
     baseTeamSlug: row.base_team_slug,
     logoData: row.logo_data,
-    roster: row.roster,
+    roster: rosterWithoutEmbeddedLogo(row.roster),
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     owner: {
@@ -316,9 +341,58 @@ async function ensureAdmin() {
   startupLog(`admin account is ready: ${login}`);
 }
 
+function shouldCompress(contentType = "", body) {
+  return body.length >= compressionMinBytes
+    && compressibleTypes.some((type) => contentType.startsWith(type));
+}
+
+function preferredEncoding(request) {
+  const value = String(request?.headers?.["accept-encoding"] ?? "");
+  if (/\bbr\b/.test(value)) return "br";
+  if (/\bgzip\b/.test(value)) return "gzip";
+  return "";
+}
+
+function encodedBody(request, body, contentType) {
+  if (!shouldCompress(contentType, body)) return { body };
+  const encoding = preferredEncoding(request);
+  if (encoding === "br") {
+    return {
+      body: brotliCompressSync(body, {
+        params: {
+          [zlibConstants.BROTLI_PARAM_QUALITY]: 5,
+        },
+      }),
+      encoding,
+    };
+  }
+  if (encoding === "gzip") {
+    return { body: gzipSync(body, { level: 6 }), encoding };
+  }
+  return { body };
+}
+
+function writeResponse(request, response, status, body, headers = {}) {
+  const buffer = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
+  const contentType = String(headers["Content-Type"] ?? "");
+  const encoded = encodedBody(request, buffer, contentType);
+  const responseHeaders = {
+    ...headers,
+    "Content-Length": encoded.body.length,
+  };
+  if (encoded.encoding) {
+    responseHeaders["Content-Encoding"] = encoded.encoding;
+    responseHeaders.Vary = [responseHeaders.Vary, "Accept-Encoding"].filter(Boolean).join(", ");
+  }
+  response.writeHead(status, responseHeaders);
+  response.end(encoded.body);
+}
+
 function sendJson(response, status, payload) {
-  response.writeHead(status, { "Content-Type": "application/json; charset=utf-8" });
-  response.end(JSON.stringify(payload));
+  writeResponse(response.__request, response, status, JSON.stringify(payload), {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+  });
 }
 
 async function readJson(request) {
@@ -1136,7 +1210,7 @@ async function handleApi(request, response, url) {
         `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [adminUserTeamsMatch[1], name, baseTeamSlug, logoData, JSON.stringify(roster)],
+        [adminUserTeamsMatch[1], name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
       );
       return sendJson(response, 201, {
         user: publicUser(coach.rows[0]),
@@ -1195,7 +1269,7 @@ async function handleApi(request, response, url) {
              updated_at = now()
          WHERE id = $1
          RETURNING *`,
-        [adminTeamMatch[1], name, baseTeamSlug, logoData, JSON.stringify(roster)],
+        [adminTeamMatch[1], name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
       );
       if (!result.rows[0]) return sendJson(response, 404, { error: "Team not found." });
       return sendJson(response, 200, { team: publicSavedTeam(result.rows[0]) });
@@ -1323,7 +1397,7 @@ async function handleApi(request, response, url) {
         `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [userId, name, baseTeamSlug, logoData, JSON.stringify(roster)],
+        [userId, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
       );
       await commitSavedTeamToSeason(season.id, savedTeam.rows[0].id);
       return sendJson(response, 201, await loadSeasonBundle(user));
@@ -1444,7 +1518,7 @@ async function handleApi(request, response, url) {
         `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
          VALUES ($1, $2, $3, $4, $5)
          RETURNING *`,
-        [user.id, name, baseTeamSlug, logoData, JSON.stringify(roster)],
+        [user.id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
       );
       return sendJson(response, 201, { team: publicSavedTeam(result.rows[0]) });
     }
@@ -1485,7 +1559,7 @@ async function handleApi(request, response, url) {
              updated_at = now()
          WHERE id = $1 AND user_id = $2
          RETURNING *`,
-        [teamMatch[1], user.id, name, baseTeamSlug, logoData, JSON.stringify(roster)],
+        [teamMatch[1], user.id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
       );
       if (!result.rows[0]) return sendJson(response, 404, { error: "Team not found." });
       return sendJson(response, 200, { team: publicSavedTeam(result.rows[0]) });
@@ -1515,7 +1589,22 @@ function resolveStaticPath(url) {
   return fullPath.startsWith(rootDir) ? fullPath : null;
 }
 
-async function handleStatic(_request, response, url) {
+function cacheControlForStatic(url, fullPath) {
+  const pathname = url.pathname;
+  const extension = path.extname(fullPath);
+  if (extension === ".html" || pathname === "/" || pathname === "/index.html") {
+    return "no-cache";
+  }
+  if (url.searchParams.has("v") || pathname.startsWith("/assets/")) {
+    return "public, max-age=31536000, immutable";
+  }
+  if (pathname.startsWith("/public/data") || pathname.startsWith("/src/i18n/")) {
+    return "public, max-age=3600, stale-while-revalidate=86400";
+  }
+  return "public, max-age=86400";
+}
+
+async function handleStatic(request, response, url) {
   const fullPath = resolveStaticPath(url);
   if (!fullPath) {
     response.writeHead(403);
@@ -1525,10 +1614,10 @@ async function handleStatic(_request, response, url) {
 
   try {
     const body = await fs.readFile(fullPath);
-    response.writeHead(200, {
+    writeResponse(request, response, 200, body, {
       "Content-Type": mimeTypes.get(path.extname(fullPath)) || "application/octet-stream",
+      "Cache-Control": cacheControlForStatic(url, fullPath),
     });
-    response.end(body);
   } catch {
     response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
     response.end("Not found");
@@ -1540,6 +1629,7 @@ await ensureSchema();
 await ensureAdmin();
 
 const server = http.createServer(async (request, response) => {
+  response.__request = request;
   const url = new URL(request.url || "/", `http://localhost:${appPort}`);
   if (url.pathname.startsWith("/api/")) {
     await handleApi(request, response, url);
