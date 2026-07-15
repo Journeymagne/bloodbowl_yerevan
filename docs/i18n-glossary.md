@@ -135,3 +135,43 @@ untranslated), don't fabricate replacement text. Mirror the source's broken
 text byte-for-byte into the RU file and flag it for follow-up outside the
 translation task's scope — that's a pre-existing data-integrity problem, not
 a translation gap.
+
+- **Star player special-ability names** (Task 13): the short title before the
+  colon in a `**Special Ability:**` line (e.g. `Precision Pass`, `Star of the
+  Show`) stays in English, same treatment as skill/inducement names — only
+  the descriptive sentence after the colon is translated. Confirmed against
+  the task's own worked example (`Asperon Thorn.md`).
+- **Named actions + "Action"/"Special Action"** (Task 13): when a named
+  action (`Block`, `Blitz`, `Pass`, `Foul`, `Move`, `Hand-off`) is paired with
+  the word "Action" or "Special Action" (e.g. `Block Action`, `Pass Action`,
+  `Stab Special Action`, `Chainsaw Attack Special action`), keep the whole
+  phrase in English exactly as capitalized in the source, rather than
+  translating "action" to «действие». This differs from earlier Rules-content
+  translations (Task 8), which used «действие Block»-style phrasing; the
+  Star Players task's own worked example established the whole-phrase-English
+  convention instead, so it's used consistently here. Generic, non-named uses
+  of "action" (e.g. "before making the first action") are still translated
+  normally as «действие».
+- **"Knocked Down" / "Sent Off" (or "Sent-off")** (Task 13): kept in English
+  as player-state/game-event terms, same treatment as `Prone`/`Stunned`.
+  `Sent Off`/`Sent-off` is glossed on first use per file as «удаляется с поля
+  (Sent Off)» / «удалён с поля (Sent-off)» (spelling/hyphenation matches the
+  source), consistent with existing Kick-off Table and Prayers to Nuffle
+  renderings.
+- **"Armour roll" / "Injury roll"** (Task 13) → «бросок на броню» / «бросок
+  на травму», matching the established Rules translation (no English gloss
+  needed, these aren't glossary-listed retained terms). **"Casualty roll"**
+  (a third, distinct roll type alongside those two, e.g. in Puggy
+  Baconbreath's and Ripper Bolgrot's special abilities) → «бросок по таблице
+  травм», to keep it distinguishable from "Injury roll" in the same sentence.
+- **"Distracted"** (a player status effect introduced in Kiroth Krakeneye's
+  special ability, with no prior translation elsewhere in the site) stays in
+  English, treated the same as `Prone`/`Stunned`/`Open` — an established
+  player-state term rather than ordinary prose.
+- **Source typos and misspelled cross-references in star player prose**
+  (Task 13) are preserved verbatim rather than silently corrected — e.g.
+  Lucian Swift's ability text repeatedly calls him "Lucien" (vs. "Lucian" in
+  the `**Name:**` field), and Grak's ability refers to "Grumbleberry" (vs.
+  "Crumbleberry", the correct star player name/filename). These are treated
+  like the broken-export-artifact rule: don't fabricate a correction the
+  source doesn't contain.
