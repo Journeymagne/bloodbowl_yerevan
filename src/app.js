@@ -423,6 +423,50 @@ const overviewCards = [
     ],
   },
   {
+    slug: "team-management",
+    title: "Team Management",
+    summary: "Team transfers, player sales, contracts, renewals, recovery, and roster retention.",
+    sections: [
+      {
+        title: "Team Management",
+        items: [
+          "Team Transfer: You may transfer a team from the previous season without any restrictions.",
+          "Players: Players can be sold after a match for half their price.",
+          "Roster Constraints: You cannot sell or remove a player if doing so would leave the team with fewer than 7 players.",
+        ],
+      },
+      {
+        title: "Contracts",
+        items: [
+          "Contract Terms: Upon team formation, the coach signs a contract with the team. The contract renewal time is announced by the Commissioner and typically occurs at the end of the season.",
+          "Team Buyout: To purchase the team from the league treasury, 600,000 gold will be allocated, plus the funds in the team's treasury at the time of renewal, up to a total maximum of 900,000 gold.",
+          "Agent Fees: A player who has completed a contract will incur an additional 20,000 gold in agent fees for each contract completed after the first. For example, after 3 successful contracts, a player will cost 40,000 more to buy out. This increase is not counted toward the total team value.",
+          "Player Departure: Players who do not sign a contract leave the team.",
+          "Retention: After signing a new contract, a player retains all experience, acquired skills, and injuries.",
+          "Dissolution: You may dissolve your team and choose not to renew the contract if you wish.",
+        ],
+      },
+      {
+        title: "Contract Renewal — Health Recovery",
+        items: [
+          "Healing Niggling Injuries: Roll a d6 for each Niggling Injury; add a +1 modifier if you have an Apothecary. On a 4+, the vacation and rest work wonders, and the injury is successfully healed. If you fail, the injury remains with the player.",
+          "Healing Serious Injuries: Roll a d6 for each stat reduction on the player; add a +1 modifier if you have an Apothecary. On a 4+, the treatment is successful, the characteristic is restored to its previous value, and the player receives a Niggling Injury. If you fail, the injury remains with the player.",
+          "Removing Hatred: Roll a d6 for each acquired Hatred skill on the player. On a 4+, the player forgets their old grudges, and the skill is removed from the player's profile.",
+        ],
+      },
+      {
+        title: "Contract Renewal — Staff & Personnel",
+        items: [
+          "Assistant coaches, cheerleaders, and apothecaries go on unpaid leave.",
+          "Rerolls are lost.",
+          "Select the players you wish to keep on the team and pay their cost, plus any applicable agent fees.",
+          "Remove the remaining players. Count the number of upgrades the departing players had and roll that many d6s; for every 1–2 rolled, you lose one Fan Factor.",
+          "Purchase new players, staff, and rerolls as needed.",
+        ],
+      },
+    ],
+  },
+  {
     slug: "season-structure-and-scoring",
     title: "Season Structure and Scoring",
     summary: "Round deadlines, league points, rookie protection, prizes, and tournament structure.",
@@ -565,6 +609,50 @@ const overviewCardsRu = [
           "Конверсии: конверсии разрешены.",
           "Уточнение: если вы не уверены, подходит ли ваша модель для игры, обратитесь к комиссару.",
           "Покраска: настоятельно рекомендуется играть покрашенной командой. Миниатюра считается покрашенной, если проработаны все детали, нанесены тени и света на подставке, а сама подставка завершена.",
+        ],
+      },
+    ],
+  },
+  {
+    slug: "team-management",
+    title: "Управление командой",
+    summary: "Перенос команды, продажа игроков, контракты, их продление, восстановление и сохранение состава.",
+    sections: [
+      {
+        title: "Управление командой",
+        items: [
+          "Перенос команды: вы можете перенести команду из предыдущего сезона без каких-либо ограничений.",
+          "Игроки: после матча игроков можно продать за половину их стоимости.",
+          "Ограничения состава: нельзя продать или удалить игрока, если после этого в команде останется меньше 7 игроков.",
+        ],
+      },
+      {
+        title: "Контракты",
+        items: [
+          "Условия контракта: при формировании команды тренер подписывает с ней контракт. Срок продления контракта объявляет комиссар; обычно это происходит в конце сезона.",
+          "Выкуп команды: для выкупа команды из казны лиги выделяется 600 000 золотых, к которым добавляются средства из казны команды на момент продления. Общая сумма не может превышать 900 000 золотых.",
+          "Агентские сборы: игрок, завершивший контракт, требует дополнительно 20 000 золотых агентских за каждый завершённый контракт после первого. Например, после 3 успешно завершённых контрактов выкуп игрока будет стоить на 40 000 больше. Эта надбавка не учитывается в общей стоимости команды.",
+          "Уход игроков: игроки, не подписавшие контракт, покидают команду.",
+          "Сохранение прогресса: после подписания нового контракта игрок сохраняет весь опыт, приобретённые навыки и травмы.",
+          "Расформирование: при желании вы можете расформировать команду и не продлевать контракт.",
+        ],
+      },
+      {
+        title: "Продление контракта — Восстановление здоровья",
+        items: [
+          "Лечение хронических травм: бросьте d6 за каждую Niggling Injury; добавьте модификатор +1, если у вас есть Apothecary. На 4+ отпуск и отдых творят чудеса, и травма успешно излечивается. При неудаче травма остаётся у игрока.",
+          "Лечение серьёзных травм: бросьте d6 за каждое снижение характеристики игрока; добавьте модификатор +1, если у вас есть Apothecary. На 4+ лечение проходит успешно, характеристика восстанавливается до прежнего значения, а игрок получает Niggling Injury. При неудаче травма остаётся у игрока.",
+          "Удаление Ненависти: бросьте d6 за каждый приобретённый игроком навык Hatred. На 4+ игрок забывает старые обиды, и навык удаляется из его профиля.",
+        ],
+      },
+      {
+        title: "Продление контракта — Персонал",
+        items: [
+          "Помощники тренера, чирлидеры и аптекари уходят в неоплачиваемый отпуск.",
+          "Рероллы теряются.",
+          "Выберите игроков, которых хотите оставить в команде, и оплатите их стоимость с учётом применимых агентских сборов.",
+          "Удалите остальных игроков. Посчитайте количество улучшений у покидающих команду игроков и бросьте столько же d6; за каждый результат 1–2 вы теряете один Fan Factor.",
+          "При необходимости купите новых игроков, персонал и рероллы.",
         ],
       },
     ],
