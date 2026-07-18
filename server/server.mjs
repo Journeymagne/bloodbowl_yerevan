@@ -210,6 +210,8 @@ function publicSeasonPairing(row) {
     awayEntryId: row.away_entry_id,
     homeTouchdowns: row.home_touchdowns,
     awayTouchdowns: row.away_touchdowns,
+    homeCasualties: row.home_casualties,
+    awayCasualties: row.away_casualties,
     resultType: row.result_type,
     homePoints: row.home_points,
     awayPoints: row.away_points,
@@ -513,24 +515,26 @@ function normalizeResultType(value = "played") {
 function scoreLeagueResult({
   homeTouchdowns,
   awayTouchdowns,
+  homeCasualties,
+  awayCasualties,
   resultType = "played",
   hasHome = true,
   hasAway = true,
 }) {
   if (!hasHome && !hasAway) {
-    return { homePoints: null, awayPoints: null, homeTouchdowns: null, awayTouchdowns: null };
+    return { homePoints: null, awayPoints: null, homeTouchdowns: null, awayTouchdowns: null, homeCasualties: null, awayCasualties: null };
   }
 
   if (resultType === "technical_home") {
-    return { homePoints: hasHome ? 2 : null, awayPoints: hasAway ? 0 : null, homeTouchdowns: hasHome ? 1 : null, awayTouchdowns: hasAway ? 0 : null };
+    return { homePoints: hasHome ? 2 : null, awayPoints: hasAway ? 0 : null, homeTouchdowns: hasHome ? 1 : null, awayTouchdowns: hasAway ? 0 : null, homeCasualties: hasHome ? 0 : null, awayCasualties: hasAway ? 0 : null };
   }
 
   if (resultType === "technical_away") {
-    return { homePoints: hasHome ? 0 : null, awayPoints: hasAway ? 2 : null, homeTouchdowns: hasHome ? 0 : null, awayTouchdowns: hasAway ? 1 : null };
+    return { homePoints: hasHome ? 0 : null, awayPoints: hasAway ? 2 : null, homeTouchdowns: hasHome ? 0 : null, awayTouchdowns: hasAway ? 1 : null, homeCasualties: hasHome ? 0 : null, awayCasualties: hasAway ? 0 : null };
   }
 
   if (homeTouchdowns === null || awayTouchdowns === null || homeTouchdowns === undefined || awayTouchdowns === undefined) {
-    return { homePoints: null, awayPoints: null, homeTouchdowns: homeTouchdowns ?? null, awayTouchdowns: awayTouchdowns ?? null };
+    return { homePoints: null, awayPoints: null, homeTouchdowns: homeTouchdowns ?? null, awayTouchdowns: awayTouchdowns ?? null, homeCasualties: homeCasualties ?? null, awayCasualties: awayCasualties ?? null };
   }
 
   let homePoints = homeTouchdowns > awayTouchdowns ? 3 : homeTouchdowns === awayTouchdowns ? 1 : 0;
@@ -544,7 +548,9 @@ function scoreLeagueResult({
 
   if (homeTouchdowns > 0 && awayTouchdowns === 0) homePoints += 1;
   if (awayTouchdowns > 0 && homeTouchdowns === 0) awayPoints += 1;
-  return { homePoints, awayPoints, homeTouchdowns, awayTouchdowns };
+  if (homeCasualties >= 4) homePoints += 1;
+  if (awayCasualties >= 4) awayPoints += 1;
+  return { homePoints, awayPoints, homeTouchdowns, awayTouchdowns, homeCasualties, awayCasualties };
 }
 
 function computeSeasonStandings(entryRows, pairingRows) {
@@ -921,11 +927,17 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
   const resultType = normalizeResultType(body.resultType ?? pairing.result_type);
   const homeTouchdowns = nullableInteger(body.homeTouchdowns, "Home touchdowns");
   const awayTouchdowns = nullableInteger(body.awayTouchdowns, "Away touchdowns");
+  const homeCasualties = nullableInteger(body.homeCasualties, "Home casualties");
+  const awayCasualties = nullableInteger(body.awayCasualties, "Away casualties");
   const nextHomeTouchdowns = homeTouchdowns === undefined ? pairing.home_touchdowns : homeTouchdowns;
   const nextAwayTouchdowns = awayTouchdowns === undefined ? pairing.away_touchdowns : awayTouchdowns;
+  const nextHomeCasualties = homeCasualties === undefined ? pairing.home_casualties : homeCasualties;
+  const nextAwayCasualties = awayCasualties === undefined ? pairing.away_casualties : awayCasualties;
   const score = scoreLeagueResult({
     homeTouchdowns: nextHomeTouchdowns,
     awayTouchdowns: nextAwayTouchdowns,
+    homeCasualties: nextHomeCasualties,
+    awayCasualties: nextAwayCasualties,
     resultType,
     hasHome: Boolean(homeEntryId),
     hasAway: Boolean(awayEntryId),
@@ -937,9 +949,11 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
          away_entry_id = $3,
          home_touchdowns = $4,
          away_touchdowns = $5,
-         result_type = $6,
-         home_points = $7,
-         away_points = $8,
+         home_casualties = $6,
+         away_casualties = $7,
+         result_type = $8,
+         home_points = $9,
+         away_points = $10,
          updated_at = now()
      WHERE id = $1
      RETURNING *`,
@@ -949,6 +963,8 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
       awayEntryId,
       score.homeTouchdowns,
       score.awayTouchdowns,
+      score.homeCasualties,
+      score.awayCasualties,
       resultType,
       score.homePoints,
       score.awayPoints,
@@ -983,6 +999,8 @@ async function startSeasonRound(seasonId, roundId) {
            SET result_type = 'technical_home',
                home_touchdowns = 1,
                away_touchdowns = 0,
+               home_casualties = 0,
+               away_casualties = 0,
                home_points = 2,
                away_points = 0,
                updated_at = now()
@@ -995,6 +1013,8 @@ async function startSeasonRound(seasonId, roundId) {
            SET result_type = 'technical_away',
                home_touchdowns = 0,
                away_touchdowns = 1,
+               home_casualties = 0,
+               away_casualties = 0,
                home_points = 0,
                away_points = 2,
                updated_at = now()

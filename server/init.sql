@@ -84,6 +84,8 @@ CREATE TABLE IF NOT EXISTS season_pairings (
   away_entry_id UUID REFERENCES season_entries(id) ON DELETE CASCADE,
   home_touchdowns INTEGER,
   away_touchdowns INTEGER,
+  home_casualties INTEGER,
+  away_casualties INTEGER,
   result_type TEXT NOT NULL DEFAULT 'played',
   home_points INTEGER,
   away_points INTEGER,
@@ -95,6 +97,8 @@ CREATE TABLE IF NOT EXISTS season_pairings (
 ALTER TABLE season_pairings ALTER COLUMN home_entry_id DROP NOT NULL;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS home_touchdowns INTEGER;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS away_touchdowns INTEGER;
+ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS home_casualties INTEGER;
+ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS away_casualties INTEGER;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS result_type TEXT NOT NULL DEFAULT 'played';
 DO $$
 BEGIN

@@ -612,6 +612,7 @@ const overviewCards = [
           "0 points for a loss.",
           "+1 point if the game ends with a margin of 3+ touchdowns.",
           "+1 point if you conceded 0 touchdowns (you must score at least one yourself).",
+          "+1 point if you caused 4 or more casualties.",
         ],
       },
       {
@@ -922,6 +923,7 @@ const overviewCardsRu = [
           "0 очков за поражение.",
           "+1 очко, если матч завершился с разницей в 3+ тачдауна.",
           "+1 очко, если вы не пропустили ни одного тачдауна (при этом нужно забить хотя бы один самому).",
+          "+1 очко, если вы нанесли 4 или больше травм (Casualties).",
         ],
       },
       {
@@ -4022,6 +4024,12 @@ function pairingTouchdowns(pairing) {
   return `${home} / ${away}`;
 }
 
+function pairingCasualties(pairing) {
+  const home = pairing.homeCasualties ?? "-";
+  const away = pairing.awayCasualties ?? "-";
+  return `${home} / ${away}`;
+}
+
 function currentFixtureForData(data) {
   if (!data.myEntry) return null;
   if (data.currentFixture) return data.currentFixture;
@@ -4076,6 +4084,7 @@ function renderLeagueFixture(data) {
 
       <div class="season-score-summary">
         <span>${t("season.touchdownsLabel")}: <strong>${escapeHtml(pairingTouchdowns(fixture))}</strong></span>
+        <span>${t("season.casualtiesLabel")}: <strong>${escapeHtml(pairingCasualties(fixture))}</strong></span>
         <span>${t("season.leaguePointsLabel")}: <strong>${escapeHtml(pairingLeaguePoints(fixture))}</strong></span>
       </div>
 
@@ -4094,6 +4103,14 @@ function renderFixtureResultForm(pairing) {
       <label class="filter-field">
         <span>${t("season.awayTouchdownsField")}</span>
         <input type="number" min="0" step="1" value="${escapeHtml(pairing.awayTouchdowns ?? "")}" data-fixture-away-td>
+      </label>
+      <label class="filter-field">
+        <span>${t("season.homeCasualtiesField")}</span>
+        <input type="number" min="0" step="1" value="${escapeHtml(pairing.homeCasualties ?? "")}" data-fixture-home-casualties>
+      </label>
+      <label class="filter-field">
+        <span>${t("season.awayCasualtiesField")}</span>
+        <input type="number" min="0" step="1" value="${escapeHtml(pairing.awayCasualties ?? "")}" data-fixture-away-casualties>
       </label>
       <button class="primary-button" type="button" data-save-fixture="${escapeHtml(pairing.id)}">${t("season.submitResultAction")}</button>
     </div>
@@ -4199,6 +4216,7 @@ function renderSeasonRounds(data, adminMode = false) {
                     <th>${t("season.awayLabel")}</th>
                     <th>${t("season.resultHeader")}</th>
                     <th>${t("season.tdHeader")}</th>
+                    <th>${t("season.casualtiesHeader")}</th>
                     <th>${t("season.leaguePointsLabel")}</th>
                     <th>${t("roster.actionHeader")}</th>
                   </tr>
@@ -4207,6 +4225,7 @@ function renderSeasonRounds(data, adminMode = false) {
                     <th>${t("season.tableLabel")}</th>
                     <th>${t("season.homeLabel")}</th>
                     <th>${t("season.tdHeader")}</th>
+                    <th>${t("season.casualtiesHeader")}</th>
                     <th>${t("season.leaguePointsLabel")}</th>
                     <th>${t("season.awayLabel")}</th>
                   </tr>
@@ -4247,6 +4266,7 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
         <td>${pairing.tableNumber}</td>
         <td>${pairingTeamCell(data, pairing.homeEntryId)}</td>
         <td>${escapeHtml(pairingTouchdowns(pairing))}</td>
+        <td>${escapeHtml(pairingCasualties(pairing))}</td>
         <td>${escapeHtml(pairingLeaguePoints(pairing))}</td>
         <td>${isBye ? `<strong>${t("season.byeLabel")}</strong>` : pairingTeamCell(data, pairing.awayEntryId)}</td>
       </tr>
@@ -4271,6 +4291,12 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
         <div class="season-td-pair">
           <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeTouchdowns ?? "")}" data-home-td ${resultLocked ? "disabled" : ""}>
           <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.awayTouchdowns ?? "")}" data-away-td ${resultLocked ? "disabled" : ""}>
+        </div>
+      </td>
+      <td>
+        <div class="season-td-pair">
+          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeCasualties ?? "")}" data-home-casualties ${resultLocked ? "disabled" : ""}>
+          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.awayCasualties ?? "")}" data-away-casualties ${resultLocked ? "disabled" : ""}>
         </div>
       </td>
       <td>${escapeHtml(pairingLeaguePoints(pairing))}</td>
@@ -4503,8 +4529,10 @@ function wireSeason() {
       const row = button.closest("[data-fixture-row]");
       const homeTouchdowns = row?.querySelector("[data-fixture-home-td]")?.value ?? "";
       const awayTouchdowns = row?.querySelector("[data-fixture-away-td]")?.value ?? "";
-      if (homeTouchdowns === "" || awayTouchdowns === "") {
-        alert(t("season.enterBothTouchdownsAlert"));
+      const homeCasualties = row?.querySelector("[data-fixture-home-casualties]")?.value ?? "";
+      const awayCasualties = row?.querySelector("[data-fixture-away-casualties]")?.value ?? "";
+      if (homeTouchdowns === "" || awayTouchdowns === "" || homeCasualties === "" || awayCasualties === "") {
+        alert(t("season.enterCompleteResultAlert"));
         return;
       }
       try {
@@ -4513,6 +4541,8 @@ function wireSeason() {
           body: JSON.stringify({
             homeTouchdowns,
             awayTouchdowns,
+            homeCasualties,
+            awayCasualties,
           }),
         }));
         renderSeason(false);
@@ -4531,6 +4561,8 @@ function wireSeason() {
         resultType: row?.querySelector("[data-result-type]")?.value ?? "played",
         homeTouchdowns: row?.querySelector("[data-home-td]")?.value ?? "",
         awayTouchdowns: row?.querySelector("[data-away-td]")?.value ?? "",
+        homeCasualties: row?.querySelector("[data-home-casualties]")?.value ?? "",
+        awayCasualties: row?.querySelector("[data-away-casualties]")?.value ?? "",
       };
       if (homeEntry && !homeEntry.disabled) payload.homeEntryId = homeEntry.value;
       if (awayEntry && !awayEntry.disabled) payload.awayEntryId = awayEntry.value;
