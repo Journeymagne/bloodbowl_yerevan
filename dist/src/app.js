@@ -102,7 +102,7 @@ const supportedLocales = new Set(["en", "ru"]);
 const dataCache = new Map();
 let translations = { en: {}, ru: {} };
 let activeDict = translations.en;
-const assetVersion = "gata-87";
+const assetVersion = "gata-88";
 const logoUploadMaxBytes = 2 * 1024 * 1024;
 const logoOptimizeMaxDimension = 512;
 const logoOptimizeQuality = 0.82;
@@ -3892,7 +3892,7 @@ async function renderGamePage(gameId) {
           : renderGameProposalForm(game);
     view.innerHTML = `
       ${renderHeader(t("games.gameHeading"), `${game.season.name} · ${t("season.roundLabel")} ${game.roundNumber}`, `<a class="primary-button" href="#/my-games">${t("common.back")}</a>`)}
-      <section class="content-panel game-page"><div class="game-versus"><div><span>${t("season.homeLabel")}</span><h2>${escapeHtml(game.home?.team?.name || "-")}</h2>${game.home?.team?.logoData ? `<img class="game-team-logo" src="${escapeHtml(game.home.team.logoData)}" alt="">` : ""}<p>${escapeHtml(game.home?.user?.login || "-")}</p></div><strong>VS</strong><div><span>${t("season.awayLabel")}</span><h2>${escapeHtml(game.away?.team?.name || "-")}</h2>${game.away?.team?.logoData ? `<img class="game-team-logo" src="${escapeHtml(game.away.team.logoData)}" alt="">` : ""}<p>${escapeHtml(game.away?.user?.login || "-")}</p></div></div>${actions}</section>`;
+      <section class="content-panel game-page"><div class="game-versus"><div><span>${t("season.homeLabel")}</span><h2>${escapeHtml(game.home?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.home?.team?.name || "-")}</p>${game.home?.team?.logoData ? `<img class="game-team-logo" src="${escapeHtml(game.home.team.logoData)}" alt="">` : ""}</div><strong>VS</strong><div><span>${t("season.awayLabel")}</span><h2>${escapeHtml(game.away?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.away?.team?.name || "-")}</p>${game.away?.team?.logoData ? `<img class="game-team-logo" src="${escapeHtml(game.away.team.logoData)}" alt="">` : ""}</div></div>${actions}</section>`;
     wireGamePage(game);
   } catch (error) {
     view.innerHTML = `${renderHeader(t("games.gameHeading"), t("games.subtitle"), `<a class="primary-button" href="#/my-games">${t("common.back")}</a>`)}<div class="empty-state">${escapeHtml(error.message)}</div>`;

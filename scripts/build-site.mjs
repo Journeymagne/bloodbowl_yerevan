@@ -70,8 +70,8 @@ const enDataJson = (await fs.readFile(path.join(rootDir, "public", "data.en.json
 const ruDataJson = (await fs.readFile(path.join(rootDir, "public", "data.ru.json"), "utf8"))
   .replace(/</g, "\\u003c");
 const localPreviewHtml = indexHtml.replace(
-  '<script type="module" src="src/app.js?v=gata-87"></script>',
-  `<script>window.__REFERENCE_DATA__ = { en: ${enDataJson}, ru: ${ruDataJson} };</script>\n    <script src="src/app.js?v=gata-87"></script>`,
+  '<script type="module" src="src/app.js?v=gata-88"></script>',
+  `<script>window.__REFERENCE_DATA__ = { en: ${enDataJson}, ru: ${ruDataJson} };</script>\n    <script src="src/app.js?v=gata-88"></script>`,
 );
 await fs.writeFile(path.join(distDir, "local-preview.html"), localPreviewHtml);
 

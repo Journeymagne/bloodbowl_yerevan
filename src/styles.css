@@ -3472,6 +3472,10 @@ body.auth-open {
   margin: 6px 0 0;
 }
 
+.game-team-name {
+  font-weight: 700;
+}
+
 .game-team-logo {
   display: block;
   width: min(360px, 100%);
