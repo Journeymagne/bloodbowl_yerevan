@@ -34,7 +34,7 @@
     loading: false,
     error: "",
   },
-  games: { items: [], loaded: false, loading: false, error: "" },
+  games: { items: [], currentItems: [], loaded: false, loading: false, error: "" },
   admin: {
     users: [],
     loaded: false,
@@ -102,7 +102,7 @@ const supportedLocales = new Set(["en", "ru"]);
 const dataCache = new Map();
 let translations = { en: {}, ru: {} };
 let activeDict = translations.en;
-const assetVersion = "gata-90";
+const assetVersion = "gata-91";
 const logoUploadMaxBytes = 2 * 1024 * 1024;
 const logoOptimizeMaxDimension = 512;
 const logoOptimizeQuality = 0.82;
@@ -1131,7 +1131,7 @@ async function handleAuthSubmit(event) {
     setAuthToken(payload.token);
     state.auth.currentUser = payload.user;
     state.myTeams.loaded = false;
-    state.games = { items: [], loaded: false, loading: false, error: "" };
+    state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
     state.season.loaded = false;
     updateAuthButton();
     void loadGames();
@@ -1185,7 +1185,7 @@ async function logoutAuth() {
   setAuthToken("");
   state.auth.currentUser = null;
   state.myTeams = { items: [], loaded: false, loading: false, error: "" };
-  state.games = { items: [], loaded: false, loading: false, error: "" };
+  state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
   state.admin = { users: [], loaded: false, loading: false, error: "", editingTeams: new Map() };
   state.season = { data: null, loaded: false, loading: false, error: "", activeTab: "registration" };
   updateAuthButton();
@@ -3820,9 +3820,9 @@ async function loadGames(force = false) {
   gamesLoadPromise = (async () => {
     try {
       const payload = await apiRequest("/api/games");
-      state.games = { items: payload.games ?? [], loaded: true, loading: false, error: "" };
+      state.games = { items: payload.games ?? [], currentItems: payload.currentGames ?? [], loaded: true, loading: false, error: "" };
     } catch (error) {
-      state.games = { items: [], loaded: true, loading: false, error: error.message };
+      state.games = { items: [], currentItems: [], loaded: true, loading: false, error: error.message };
     } finally {
       gamesLoadPromise = null;
     }
@@ -3842,6 +3842,18 @@ function renderGameCard(game) {
   `;
 }
 
+function renderAdminGameCard(game) {
+  return `
+    <a class="card compact game-card" href="${gameUrl(game)}">
+      <span class="season-status-pill" data-status="${escapeHtml(game.resultStatus)}">${escapeHtml(gameStatusLabel(game.resultStatus))}</span>
+      <h3>${escapeHtml(game.season.name)} · ${t("season.roundLabel")} ${game.roundNumber}</h3>
+      <p><strong>${escapeHtml(game.home?.user?.login || t("season.byeLabel"))}</strong> · ${escapeHtml(game.home?.team?.name || "-")}</p>
+      <p>${t("games.vsLabel")}</p>
+      <p><strong>${escapeHtml(game.away?.user?.login || t("season.byeLabel"))}</strong> · ${escapeHtml(game.away?.team?.name || "-")}</p>
+      ${game.resultStatus === "confirmed" ? `<p>${t("season.touchdownsLabel")}: ${escapeHtml(pairingTouchdowns(game))} · ${t("season.casualtiesHeader")}: ${escapeHtml(pairingCasualties(game))}</p>` : ""}
+    </a>`;
+}
+
 async function renderMyGames() {
   setActiveNav("my-games");
   setViewSection("my-games");
@@ -3859,8 +3871,12 @@ async function renderMyGames() {
   }
   const nextGames = state.games.items.filter((game) => game.resultStatus !== "confirmed" && game.roundStatus === "started");
   const history = state.games.items.filter((game) => game.resultStatus === "confirmed");
+  const adminCurrentGames = state.auth.currentUser.isAdmin ? state.games.currentItems : [];
   view.innerHTML = `
     ${renderHeader(t("nav.myGames"), t("games.subtitle"))}
+    ${state.auth.currentUser.isAdmin ? `<section class="content-panel season-card"><h2>${t("games.adminCurrentHeading")}</h2>
+      ${adminCurrentGames.length ? `<div class="card-grid games-grid">${adminCurrentGames.map(renderAdminGameCard).join("")}</div>` : `<p>${t("games.noAdminCurrentGames")}</p>`}
+    </section>` : ""}
     <section class="content-panel season-card"><h2>${t("games.nextGameHeading")}</h2>
       ${nextGames.length ? `<div class="card-grid games-grid">${nextGames.map(renderGameCard).join("")}</div>` : `<p>${t("games.noNextGame")}</p>`}
     </section>
@@ -3886,6 +3902,20 @@ function renderGameProposalForm(game) {
     </form>`;
 }
 
+function renderAdminGameResultForm(game) {
+  const value = (confirmedKey, proposedKey) => game[confirmedKey] ?? game[proposedKey] ?? "";
+  return `
+    <form class="game-result-form fixture-result-form notice-box" data-admin-game-result>
+      <strong>${t("games.adminEditHeading")}</strong>
+      <label class="filter-field"><span>${t("season.resultHeader")}</span><select name="resultType"><option value="played"${game.resultType === "played" ? " selected" : ""}>${t("season.resultPlayed")}</option><option value="technical_home"${game.resultType === "technical_home" ? " selected" : ""}>${t("season.resultTechnicalHome")}</option><option value="technical_away"${game.resultType === "technical_away" ? " selected" : ""}>${t("season.resultTechnicalAway")}</option></select></label>
+      <label class="filter-field"><span>${t("season.homeTouchdownsField")}</span><input name="homeTouchdowns" type="number" min="0" step="1" required value="${escapeHtml(value("homeTouchdowns", "proposedHomeTouchdowns"))}"></label>
+      <label class="filter-field"><span>${t("season.awayTouchdownsField")}</span><input name="awayTouchdowns" type="number" min="0" step="1" required value="${escapeHtml(value("awayTouchdowns", "proposedAwayTouchdowns"))}"></label>
+      <label class="filter-field"><span>${t("season.homeCasualtiesField")}</span><input name="homeCasualties" type="number" min="0" step="1" required value="${escapeHtml(value("homeCasualties", "proposedHomeCasualties"))}"></label>
+      <label class="filter-field"><span>${t("season.awayCasualtiesField")}</span><input name="awayCasualties" type="number" min="0" step="1" required value="${escapeHtml(value("awayCasualties", "proposedAwayCasualties"))}"></label>
+      <button class="primary-button" type="submit">${t("games.adminSaveResultAction")}</button>
+    </form>`;
+}
+
 async function renderGamePage(gameId) {
   setActiveNav("my-games");
   setViewSection("my-games");
@@ -3895,17 +3925,18 @@ async function renderGamePage(gameId) {
   }
   try {
     const { game } = await apiRequest(`/api/games/${encodeURIComponent(gameId)}`);
-    const awaitingOpponent = game.resultStatus === "awaiting_confirmation" && !game.viewerIsProposer;
+    const isAdmin = Boolean(state.auth.currentUser?.isAdmin);
+    const awaitingOpponent = game.resultStatus === "awaiting_confirmation" && (!game.viewerIsProposer || isAdmin);
     const actions = game.resultStatus === "confirmed"
       ? `<p class="notice-box">${escapeHtml(renderGameScore(game))}</p>`
       : awaitingOpponent
         ? `<div class="notice-box"><strong>${t("games.confirmRequestHeading")}</strong><p>${escapeHtml(renderGameScore(game, true))}</p><div class="game-confirm-actions"><button class="primary-button" data-game-confirm>${t("games.confirmAction")}</button><button class="filter-button danger-action" data-game-reject>${t("games.rejectAction")}</button></div></div>`
         : game.resultStatus === "awaiting_confirmation"
           ? `<div class="notice-box"><strong>${t("games.awaitingOpponent")}</strong><p>${escapeHtml(renderGameScore(game, true))}</p></div>`
-          : renderGameProposalForm(game);
+          : isAdmin ? "" : renderGameProposalForm(game);
     view.innerHTML = `
       ${renderHeader(t("games.gameHeading"), `${game.season.name} · ${t("season.roundLabel")} ${game.roundNumber}`, `<a class="primary-button" href="#/my-games">${t("common.back")}</a>`)}
-      <section class="content-panel game-page"><div class="game-versus"><div><span>${t("season.homeLabel")}</span><h2>${escapeHtml(game.home?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.home?.team?.name || "-")}</p>${game.home?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.home.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div><strong>VS</strong><div><span>${t("season.awayLabel")}</span><h2>${escapeHtml(game.away?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.away?.team?.name || "-")}</p>${game.away?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.away.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div></div>${actions}</section>`;
+      <section class="content-panel game-page"><div class="game-versus"><div><span>${t("season.homeLabel")}</span><h2>${escapeHtml(game.home?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.home?.team?.name || "-")}</p>${game.home?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.home.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div><strong>VS</strong><div><span>${t("season.awayLabel")}</span><h2>${escapeHtml(game.away?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.away?.team?.name || "-")}</p>${game.away?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.away.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div></div>${actions}${isAdmin ? renderAdminGameResultForm(game) : ""}</section>`;
     wireGamePage(game);
   } catch (error) {
     view.innerHTML = `${renderHeader(t("games.gameHeading"), t("games.subtitle"), `<a class="primary-button" href="#/my-games">${t("common.back")}</a>`)}<div class="empty-state">${escapeHtml(error.message)}</div>`;
@@ -3913,6 +3944,11 @@ async function renderGamePage(gameId) {
 }
 
 function wireGamePage(game) {
+  view.querySelector("[data-admin-game-result]")?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const form = Object.fromEntries(new FormData(event.currentTarget));
+    try { await apiRequest(`/api/games/${game.id}`, { method: "PATCH", body: JSON.stringify(form) }); state.games.loaded = false; renderGamePage(game.id); } catch (error) { alert(error.message); }
+  });
   view.querySelector("[data-game-proposal]")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.currentTarget));

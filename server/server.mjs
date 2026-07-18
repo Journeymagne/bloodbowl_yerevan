@@ -505,10 +505,10 @@ async function loadSeasonPairingRows(seasonId) {
   return result.rows;
 }
 
-async function loadUserGameRows(userId, pairingId = null) {
+async function loadUserGameRows(userId, pairingId = null, includeAll = false) {
   const pairingFilter = pairingId
-    ? `p.id = $2 AND ($1 = he.user_id OR $1 = ae.user_id)`
-    : `($1 = he.user_id OR $1 = ae.user_id)`;
+    ? includeAll ? `p.id = $2` : `p.id = $2 AND ($1 = he.user_id OR $1 = ae.user_id)`
+    : includeAll ? `r.status = 'started'` : `($1 = he.user_id OR $1 = ae.user_id)`;
   const result = await pool.query(
     `SELECT p.*, r.round_number, r.status AS round_status,
             s.id AS season_id, s.name AS season_name, s.status AS season_status,
@@ -956,11 +956,11 @@ async function proposeGameResult(pairingId, userId, body) {
   );
 }
 
-async function respondToGameProposal(pairingId, userId, accept) {
-  const game = (await loadUserGameRows(userId, pairingId))[0];
+async function respondToGameProposal(pairingId, userId, accept, isAdmin = false) {
+  const game = (await loadUserGameRows(userId, pairingId, isAdmin))[0];
   if (!game) throw httpError(404, "Game not found.");
   if (game.result_status !== "awaiting_confirmation") throw httpError(409, "There is no result awaiting confirmation.");
-  if (game.proposed_by_user_id === userId) throw httpError(403, "The proposing player cannot confirm their own result.");
+  if (!isAdmin && game.proposed_by_user_id === userId) throw httpError(403, "The proposing player cannot confirm their own result.");
   if (!accept) {
     await pool.query(`UPDATE season_pairings SET result_status = 'rejected', updated_at = now() WHERE id = $1`, [pairingId]);
     return;
@@ -971,7 +971,7 @@ async function respondToGameProposal(pairingId, userId, accept) {
     awayTouchdowns: game.proposed_away_touchdowns,
     homeCasualties: game.proposed_home_casualties,
     awayCasualties: game.proposed_away_casualties,
-  }, false, userId);
+  }, isAdmin, userId);
   await pool.query(`UPDATE season_pairings SET result_status = 'confirmed', confirmed_at = now(), updated_at = now() WHERE id = $1`, [pairingId]);
 }
 
@@ -1479,8 +1479,14 @@ async function handleApi(request, response, url) {
     if (url.pathname === "/api/games" && request.method === "GET") {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
-      const rows = await loadUserGameRows(user.id);
-      return sendJson(response, 200, { games: rows.map((row) => publicGame(row, user.id)) });
+      const [rows, currentRows] = await Promise.all([
+        loadUserGameRows(user.id),
+        user.is_admin ? loadUserGameRows(user.id, null, true) : Promise.resolve([]),
+      ]);
+      return sendJson(response, 200, {
+        games: rows.map((row) => publicGame(row, user.id)),
+        currentGames: currentRows.map((row) => publicGame(row, user.id)),
+      });
     }
 
     const teamLogoMatch = url.pathname.match(/^\/api\/team-logos\/([0-9a-f-]+)$/i);
@@ -1508,9 +1514,20 @@ async function handleApi(request, response, url) {
     if (gameMatch && request.method === "GET") {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
-      const row = (await loadUserGameRows(user.id, gameMatch[1]))[0];
+      const row = (await loadUserGameRows(user.id, gameMatch[1], user.is_admin))[0];
       if (!row) return sendJson(response, 404, { error: "Game not found." });
       return sendJson(response, 200, { game: publicGame(row, user.id) });
+    }
+
+    if (gameMatch && request.method === "PATCH") {
+      const user = await currentUser(request);
+      if (!user) return sendJson(response, 401, { error: "Not authorized." });
+      if (!user.is_admin) return sendJson(response, 403, { error: "Admin access required." });
+      const row = (await loadUserGameRows(user.id, gameMatch[1], true))[0];
+      if (!row) return sendJson(response, 404, { error: "Game not found." });
+      await updateSeasonPairing(row.season_id, gameMatch[1], await readJson(request), true, user.id);
+      const updated = (await loadUserGameRows(user.id, gameMatch[1], true))[0];
+      return sendJson(response, 200, { game: publicGame(updated, user.id) });
     }
 
     const gameActionMatch = url.pathname.match(/^\/api\/games\/([0-9a-f-]+)\/(propose|confirm|reject)$/i);
@@ -1518,9 +1535,9 @@ async function handleApi(request, response, url) {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
       if (gameActionMatch[2] === "propose") await proposeGameResult(gameActionMatch[1], user.id, await readJson(request));
-      if (gameActionMatch[2] === "confirm") await respondToGameProposal(gameActionMatch[1], user.id, true);
-      if (gameActionMatch[2] === "reject") await respondToGameProposal(gameActionMatch[1], user.id, false);
-      const row = (await loadUserGameRows(user.id, gameActionMatch[1]))[0];
+      if (gameActionMatch[2] === "confirm") await respondToGameProposal(gameActionMatch[1], user.id, true, user.is_admin);
+      if (gameActionMatch[2] === "reject") await respondToGameProposal(gameActionMatch[1], user.id, false, user.is_admin);
+      const row = (await loadUserGameRows(user.id, gameActionMatch[1], user.is_admin))[0];
       return sendJson(response, 200, { game: publicGame(row, user.id) });
     }
 
