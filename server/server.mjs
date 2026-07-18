@@ -506,6 +506,9 @@ async function loadSeasonPairingRows(seasonId) {
 }
 
 async function loadUserGameRows(userId, pairingId = null) {
+  const pairingFilter = pairingId
+    ? `p.id = $2 AND ($1 = he.user_id OR $1 = ae.user_id)`
+    : `($1 = he.user_id OR $1 = ae.user_id)`;
   const result = await pool.query(
     `SELECT p.*, r.round_number, r.status AS round_status,
             s.id AS season_id, s.name AS season_name, s.status AS season_status,
@@ -522,10 +525,9 @@ async function loadUserGameRows(userId, pairingId = null) {
      LEFT JOIN season_entries ae ON ae.id = p.away_entry_id
      LEFT JOIN users au ON au.id = ae.user_id
      LEFT JOIN saved_teams at ON at.id = ae.saved_team_id
-     WHERE ($2::uuid IS NULL OR p.id = $2)
-       AND ($1 = he.user_id OR $1 = ae.user_id)
+     WHERE ${pairingFilter}
      ORDER BY s.created_at DESC, r.round_number DESC, p.table_number ASC`,
-    [userId, pairingId],
+    pairingId ? [userId, pairingId] : [userId],
   );
   return result.rows;
 }

@@ -102,7 +102,7 @@ const supportedLocales = new Set(["en", "ru"]);
 const dataCache = new Map();
 let translations = { en: {}, ru: {} };
 let activeDict = translations.en;
-const assetVersion = "gata-89";
+const assetVersion = "gata-90";
 const logoUploadMaxBytes = 2 * 1024 * 1024;
 const logoOptimizeMaxDimension = 512;
 const logoOptimizeQuality = 0.82;
@@ -1027,6 +1027,7 @@ async function loadAuthSession() {
     state.auth.currentUser = null;
   }
   updateAuthButton();
+  if (state.auth.currentUser) void loadGames();
 }
 
 function updateAuthButton() {
@@ -1130,8 +1131,10 @@ async function handleAuthSubmit(event) {
     setAuthToken(payload.token);
     state.auth.currentUser = payload.user;
     state.myTeams.loaded = false;
+    state.games = { items: [], loaded: false, loading: false, error: "" };
     state.season.loaded = false;
     updateAuthButton();
+    void loadGames();
     closeAuthModal();
     renderRoute();
   } catch (error) {
@@ -3807,16 +3810,24 @@ function gameOpponent(game) {
   return game.viewerIsHome ? game.away : game.home;
 }
 
+let gamesLoadPromise = null;
+
 async function loadGames(force = false) {
   if (!state.auth.currentUser) return;
   if (state.games.loaded && !force) return;
+  if (gamesLoadPromise && !force) return gamesLoadPromise;
   state.games.loading = true;
-  try {
-    const payload = await apiRequest("/api/games");
-    state.games = { items: payload.games ?? [], loaded: true, loading: false, error: "" };
-  } catch (error) {
-    state.games = { items: [], loaded: true, loading: false, error: error.message };
-  }
+  gamesLoadPromise = (async () => {
+    try {
+      const payload = await apiRequest("/api/games");
+      state.games = { items: payload.games ?? [], loaded: true, loading: false, error: "" };
+    } catch (error) {
+      state.games = { items: [], loaded: true, loading: false, error: error.message };
+    } finally {
+      gamesLoadPromise = null;
+    }
+  })();
+  return gamesLoadPromise;
 }
 
 function renderGameCard(game) {
@@ -3838,8 +3849,10 @@ async function renderMyGames() {
     view.innerHTML = `${renderHeader(t("nav.myGames"), t("games.subtitle"))}<div class="empty-state">${t("games.loginRequired")}</div>`;
     return;
   }
-  view.innerHTML = `${renderHeader(t("nav.myGames"), t("games.subtitle"))}<div class="loading">${t("games.loading")}</div>`;
-  await loadGames(true);
+  if (!state.games.loaded) {
+    view.innerHTML = `${renderHeader(t("nav.myGames"), t("games.subtitle"))}<div class="loading">${t("games.loading")}</div>`;
+  }
+  await loadGames();
   if (state.games.error) {
     view.innerHTML = `${renderHeader(t("nav.myGames"), t("games.subtitle"))}<div class="empty-state">${escapeHtml(state.games.error)}</div>`;
     return;
