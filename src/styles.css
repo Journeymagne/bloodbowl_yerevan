@@ -3472,6 +3472,14 @@ body.auth-open {
   margin: 6px 0 0;
 }
 
+.game-team-logo {
+  display: block;
+  width: min(180px, 80%);
+  max-height: 180px;
+  margin: 14px auto 0;
+  object-fit: contain;
+}
+
 .game-confirm-actions {
   display: flex;
   flex-wrap: wrap;

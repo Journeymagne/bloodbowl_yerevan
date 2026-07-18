@@ -506,6 +506,7 @@ async function loadSeasonPairingRows(seasonId) {
 }
 
 async function loadUserGameRows(userId, pairingId = null) {
+  const logoColumns = pairingId ? ", ht.logo_data AS home_team_logo, at.logo_data AS away_team_logo" : "";
   const result = await pool.query(
     `SELECT p.*, r.round_number, r.status AS round_status,
             s.id AS season_id, s.name AS season_name, s.status AS season_status,
@@ -513,6 +514,7 @@ async function loadUserGameRows(userId, pairingId = null) {
             ht.id AS home_team_id, ht.name AS home_team_name, ht.base_team_slug AS home_team_slug,
             ae.user_id AS away_user_id, au.login AS away_user_login,
             at.id AS away_team_id, at.name AS away_team_name, at.base_team_slug AS away_team_slug
+            ${logoColumns}
      FROM season_pairings p
      JOIN season_rounds r ON r.id = p.round_id
      JOIN seasons s ON s.id = r.season_id
@@ -536,8 +538,8 @@ function publicGame(row, viewerId) {
   return {
     ...pairing,
     season: { id: row.season_id, name: row.season_name, status: row.season_status },
-    home: row.home_user_id ? { user: { id: row.home_user_id, login: row.home_user_login }, team: { id: row.home_team_id, name: row.home_team_name, baseTeamSlug: row.home_team_slug } } : null,
-    away: row.away_user_id ? { user: { id: row.away_user_id, login: row.away_user_login }, team: { id: row.away_team_id, name: row.away_team_name, baseTeamSlug: row.away_team_slug } } : null,
+    home: row.home_user_id ? { user: { id: row.home_user_id, login: row.home_user_login }, team: { id: row.home_team_id, name: row.home_team_name, baseTeamSlug: row.home_team_slug, logoData: row.home_team_logo ?? null } } : null,
+    away: row.away_user_id ? { user: { id: row.away_user_id, login: row.away_user_login }, team: { id: row.away_team_id, name: row.away_team_name, baseTeamSlug: row.away_team_slug, logoData: row.away_team_logo ?? null } } : null,
     viewerIsHome: row.home_user_id === viewerId,
     viewerIsProposer: row.proposed_by_user_id === viewerId,
   };
