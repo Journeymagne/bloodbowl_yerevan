@@ -83,13 +83,20 @@ function normalizeLogin(value = "") {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+function isAdminUser(row) {
+  const value = row?.is_admin ?? row?.isAdmin ?? false;
+  if (value === true || value === 1) return true;
+  if (value === false || value === 0 || value === null || value === undefined) return false;
+  return ["1", "true", "t", "yes", "y", "admin"].includes(String(value).trim().toLowerCase());
+}
+
 function publicUser(row) {
   if (!row) return null;
   return {
     id: row.id,
     login: row.login,
     telegram: row.telegram,
-    isAdmin: row.is_admin,
+    isAdmin: isAdminUser(row),
     createdAt: row.created_at,
   };
 }
@@ -184,7 +191,7 @@ function publicSeasonEntry(row) {
       id: row.user_id,
       login: row.user_login,
       telegram: row.user_telegram,
-      isAdmin: row.user_is_admin,
+      isAdmin: isAdminUser({ is_admin: row.user_is_admin }),
     },
     team: {
       id: row.saved_team_id,
@@ -242,7 +249,7 @@ function publicAdminSavedTeam(row) {
       id: row.user_id,
       login: row.user_login,
       telegram: row.user_telegram,
-      isAdmin: row.user_is_admin,
+      isAdmin: isAdminUser({ is_admin: row.user_is_admin }),
     },
   };
 }
@@ -255,7 +262,7 @@ function publicAdminSavedTeamSlim(row) {
       id: row.user_id,
       login: row.user_login,
       telegram: row.user_telegram,
-      isAdmin: row.user_is_admin,
+      isAdmin: isAdminUser({ is_admin: row.user_is_admin }),
     },
   };
 }
@@ -539,7 +546,8 @@ async function currentUser(request) {
      WHERE sessions.token_hash = $1 AND sessions.expires_at > now()`,
     [tokenHash],
   );
-  return result.rows[0] ?? null;
+  const user = result.rows[0] ?? null;
+  return user ? { ...user, is_admin: isAdminUser(user) } : null;
 }
 
 async function createSession(userId) {
