@@ -103,11 +103,15 @@ CREATE TABLE IF NOT EXISTS season_pairings (
 );
 
 ALTER TABLE season_pairings ALTER COLUMN home_entry_id DROP NOT NULL;
+ALTER TABLE season_pairings ALTER COLUMN away_entry_id DROP NOT NULL;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS home_touchdowns INTEGER;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS away_touchdowns INTEGER;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS home_casualties INTEGER;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS away_casualties INTEGER;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS result_type TEXT NOT NULL DEFAULT 'played';
+ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS home_points INTEGER;
+ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS away_points INTEGER;
+ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS result_status TEXT NOT NULL DEFAULT 'pending';
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS proposed_by_user_id UUID REFERENCES users(id) ON DELETE SET NULL;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS proposed_home_touchdowns INTEGER;

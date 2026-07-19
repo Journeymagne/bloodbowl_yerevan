@@ -203,26 +203,26 @@ function publicSeasonPairing(row) {
   return {
     id: row.id,
     roundId: row.round_id,
-    roundNumber: row.round_number,
-    roundStatus: row.round_status,
-    tableNumber: row.table_number,
-    homeEntryId: row.home_entry_id,
-    awayEntryId: row.away_entry_id,
-    homeTouchdowns: row.home_touchdowns,
-    awayTouchdowns: row.away_touchdowns,
-    homeCasualties: row.home_casualties,
-    awayCasualties: row.away_casualties,
-    resultType: row.result_type,
-    homePoints: row.home_points,
-    awayPoints: row.away_points,
+    roundNumber: Number(row.round_number ?? 0),
+    roundStatus: row.round_status ?? "draft",
+    tableNumber: Number(row.table_number ?? 0),
+    homeEntryId: row.home_entry_id ?? null,
+    awayEntryId: row.away_entry_id ?? null,
+    homeTouchdowns: row.home_touchdowns ?? null,
+    awayTouchdowns: row.away_touchdowns ?? null,
+    homeCasualties: row.home_casualties ?? null,
+    awayCasualties: row.away_casualties ?? null,
+    resultType: row.result_type ?? "played",
+    homePoints: row.home_points ?? null,
+    awayPoints: row.away_points ?? null,
     resultStatus: row.result_status ?? "pending",
     proposedByUserId: row.proposed_by_user_id ?? null,
-    proposedHomeTouchdowns: row.proposed_home_touchdowns,
-    proposedAwayTouchdowns: row.proposed_away_touchdowns,
-    proposedHomeCasualties: row.proposed_home_casualties,
-    proposedAwayCasualties: row.proposed_away_casualties,
-    proposedAt: row.proposed_at,
-    confirmedAt: row.confirmed_at,
+    proposedHomeTouchdowns: row.proposed_home_touchdowns ?? null,
+    proposedAwayTouchdowns: row.proposed_away_touchdowns ?? null,
+    proposedHomeCasualties: row.proposed_home_casualties ?? null,
+    proposedAwayCasualties: row.proposed_away_casualties ?? null,
+    proposedAt: row.proposed_at ?? null,
+    confirmedAt: row.confirmed_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -623,7 +623,7 @@ function computeSeasonStandings(entryRows, pairingRows) {
     const away = standings.get(pairing.away_entry_id);
 
     if (home && !away) {
-      if (pairing.home_points === null) continue;
+      if (pairing.home_points == null) continue;
       home.games += 1;
       home.byes += 1;
       home.points += Number(pairing.home_points);
@@ -631,7 +631,7 @@ function computeSeasonStandings(entryRows, pairingRows) {
     }
 
     if (away && !home) {
-      if (pairing.away_points === null) continue;
+      if (pairing.away_points == null) continue;
       away.games += 1;
       away.byes += 1;
       away.points += Number(pairing.away_points);
@@ -642,7 +642,7 @@ function computeSeasonStandings(entryRows, pairingRows) {
     home.opponents.push(pairing.away_entry_id);
     away.opponents.push(pairing.home_entry_id);
 
-    if (pairing.home_points === null || pairing.away_points === null) {
+    if (pairing.home_points == null || pairing.away_points == null) {
       continue;
     }
 
