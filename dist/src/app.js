@@ -3813,7 +3813,9 @@ function renderPublicTeamOverview(user, savedTeam, team, draft, costs) {
         <div class="public-team-coach-block">
           <h2>${t("admin.coachHeading")}</h2>
           <p>${renderPlayerLink(user)}</p>
-          ${renderTeamRuleAccess(team, draft)}
+          <div class="public-team-rules-wrap">
+            ${renderTeamRuleAccess(team, draft)}
+          </div>
         </div>
       </div>
     </section>

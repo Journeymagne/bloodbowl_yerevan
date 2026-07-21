@@ -3105,13 +3105,50 @@ body.auth-open {
 }
 
 .public-team-logo-block {
-  min-height: 190px;
+  width: 100%;
   margin: 0;
+  padding: 10px;
+  place-items: center;
 }
 
 .public-team-logo-block img {
-  width: min(100%, 220px);
-  max-height: 220px;
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+}
+
+.public-team-rules-wrap .team-rules-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.public-team-rules-wrap .team-rules-row {
+  display: grid;
+  min-width: 0;
+  gap: 8px;
+  align-content: start;
+}
+
+.public-team-rules-wrap .team-rules-row-wide {
+  grid-column: 1 / -1;
+}
+
+.public-team-rules-wrap .rule-link-list {
+  display: flex;
+  min-width: 0;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.public-team-rules-wrap .roster-pill {
+  width: auto;
+  max-width: 100%;
+  min-height: 24px;
+  white-space: normal;
+  line-height: 1.2;
+  text-align: left;
 }
 
 .summary-title-block {
