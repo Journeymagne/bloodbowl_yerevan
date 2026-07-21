@@ -4437,7 +4437,8 @@ function renderSeasonStandings(data) {
                 <th>${t("sidebar.teamHeading")}</th>
                 <th>${t("season.gamesHeader")}</th>
                 <th>${t("season.leaguePointsLabel")}</th>
-                <th>${t("season.byesHeader")}</th>
+                <th>${t("season.touchdownsLabel")}</th>
+                <th>${t("season.casualtiesLabel")}</th>
               </tr>
             </thead>
             <tbody>
@@ -4448,7 +4449,8 @@ function renderSeasonStandings(data) {
                   <td><strong>${renderPublicTeamLink(standing.user, standing.team)}</strong></td>
                   <td>${standing.games}</td>
                   <td>${standing.points}</td>
-                  <td>${standing.byes}</td>
+                  <td>${standing.touchdowns ?? 0}</td>
+                  <td>${standing.casualties ?? 0}</td>
                 </tr>
               `).join("")}
             </tbody>

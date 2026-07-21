@@ -729,6 +729,7 @@ function scoreLeagueResult({
 }
 
 function computeSeasonStandings(entryRows, pairingRows) {
+  const numericResult = (value) => Number(value ?? 0) || 0;
   const standings = new Map(entryRows.map((row) => {
     const entry = publicSeasonEntry(row);
     return [row.id, {
@@ -738,6 +739,8 @@ function computeSeasonStandings(entryRows, pairingRows) {
       points: 0,
       games: 0,
       byes: 0,
+      touchdowns: 0,
+      casualties: 0,
       opponents: [],
     }];
   }));
@@ -754,6 +757,8 @@ function computeSeasonStandings(entryRows, pairingRows) {
       home.games += 1;
       home.byes += 1;
       home.points += Number(pairing.home_points);
+      home.touchdowns += numericResult(pairing.home_touchdowns);
+      home.casualties += numericResult(pairing.home_casualties);
       continue;
     }
 
@@ -762,6 +767,8 @@ function computeSeasonStandings(entryRows, pairingRows) {
       away.games += 1;
       away.byes += 1;
       away.points += Number(pairing.away_points);
+      away.touchdowns += numericResult(pairing.away_touchdowns);
+      away.casualties += numericResult(pairing.away_casualties);
       continue;
     }
 
@@ -777,10 +784,16 @@ function computeSeasonStandings(entryRows, pairingRows) {
     away.games += 1;
     home.points += Number(pairing.home_points);
     away.points += Number(pairing.away_points);
+    home.touchdowns += numericResult(pairing.home_touchdowns);
+    away.touchdowns += numericResult(pairing.away_touchdowns);
+    home.casualties += numericResult(pairing.home_casualties);
+    away.casualties += numericResult(pairing.away_casualties);
   }
 
   return [...standings.values()]
     .sort((a, b) => b.points - a.points
+      || b.touchdowns - a.touchdowns
+      || b.casualties - a.casualties
       || b.games - a.games
       || a.user.login.localeCompare(b.user.login, "en")
       || a.team.name.localeCompare(b.team.name, "en"))
@@ -920,6 +933,15 @@ function assertCurrentRoundComplete(pairingRows) {
   }
 }
 
+function shuffleEntries(entries) {
+  const shuffled = [...entries];
+  for (let index = shuffled.length - 1; index > 0; index -= 1) {
+    const swapIndex = crypto.randomInt(index + 1);
+    [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+  }
+  return shuffled;
+}
+
 async function generateSwissRound(seasonRow) {
   const entryRows = await loadSeasonEntryRows(seasonRow.id);
   const roundRows = await loadSeasonRoundRows(seasonRow.id);
@@ -928,9 +950,12 @@ async function generateSwissRound(seasonRow) {
   assertNoDraftRound(roundRows);
   assertCurrentRoundComplete(pairingRows);
 
+  const nextRoundNumber = Math.max(0, ...roundRows.map((round) => Number(round.round_number))) + 1;
   const standings = computeSeasonStandings(entryRows, pairingRows);
   const entriesById = new Map(entryRows.map((entry) => [entry.id, entry]));
-  const queue = standings.map((standing) => entriesById.get(standing.entryId)).filter(Boolean);
+  const queue = nextRoundNumber === 1
+    ? shuffleEntries(entryRows)
+    : standings.map((standing) => entriesById.get(standing.entryId)).filter(Boolean);
   const { opponents, byes } = previousOpponentMap(entryRows, pairingRows);
   const pairingsToCreate = [];
 
@@ -966,7 +991,6 @@ async function generateSwissRound(seasonRow) {
     });
   }
 
-  const nextRoundNumber = Math.max(0, ...roundRows.map((round) => Number(round.round_number))) + 1;
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
