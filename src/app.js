@@ -4528,6 +4528,8 @@ function renderSeasonRoundActions(round) {
     <div class="season-round-actions">
       ${round.status === "draft" ? `
         <button class="primary-button compact-action" type="button" data-season-start-round="${escapeHtml(round.id)}">${t("season.startRoundAction")}</button>
+      ` : ""}
+      ${round.status === "draft" || round.status === "started" ? `
         <button class="filter-button compact-action" type="button" data-season-add-pairing="${escapeHtml(round.id)}">${t("season.addEmptyPairingAction")}</button>
       ` : ""}
       <button class="filter-button compact-action" type="button" data-season-delete-round="${escapeHtml(round.id)}">${t("season.deleteRoundAction")}</button>
@@ -4554,14 +4556,13 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
     `;
   }
 
-  const locked = round.status !== "draft";
   const resultLocked = round.status !== "started";
   const selectedEntryIds = selectedRoundEntryIds(round);
   return `
     <tr data-pairing-row="${escapeHtml(pairing.id)}">
       <td>${pairing.tableNumber}</td>
-      <td>${renderSeasonEntrySelect(data, "home-entry", pairing.homeEntryId, locked, selectedEntryIds)}</td>
-      <td>${renderSeasonEntrySelect(data, "away-entry", pairing.awayEntryId, locked, selectedEntryIds)}</td>
+      <td>${renderSeasonEntrySelect(data, "home-entry", pairing.homeEntryId, false, selectedEntryIds)}</td>
+      <td>${renderSeasonEntrySelect(data, "away-entry", pairing.awayEntryId, false, selectedEntryIds)}</td>
       <td>
         <select class="table-select" data-result-type ${resultLocked ? "disabled" : ""}>
           ${renderOption("played", t("season.resultPlayed"), pairing.resultType)}

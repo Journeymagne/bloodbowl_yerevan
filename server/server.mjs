@@ -1062,7 +1062,9 @@ async function addSeasonPairing(seasonId, roundId, homeEntryId = "", awayEntryId
     [roundId, seasonId],
   );
   if (!round.rows[0]) throw httpError(404, "Round not found.");
-  if (round.rows[0].status !== "draft") throw httpError(409, "Started rounds are locked.");
+  if (!["draft", "started"].includes(round.rows[0].status)) {
+    throw httpError(409, "This round cannot be changed.");
+  }
 
   const homeId = await validateSeasonEntry(seasonId, homeEntryId);
   const awayId = await validateSeasonEntry(seasonId, awayEntryId);
@@ -1139,7 +1141,6 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
 
   const wantsTeamUpdate = Object.hasOwn(body, "homeEntryId") || Object.hasOwn(body, "awayEntryId");
   if (wantsTeamUpdate && !isAdmin) throw httpError(403, "Admin access required.");
-  if (wantsTeamUpdate && pairing.round_status !== "draft") throw httpError(409, "Started pairings are locked.");
   if (!isAdmin && pairing.round_status !== "started") throw httpError(409, "This round has not started yet.");
   if (!isAdmin && (!pairing.home_entry_id || !pairing.away_entry_id)) {
     throw httpError(400, "This fixture cannot receive a player-submitted result.");
