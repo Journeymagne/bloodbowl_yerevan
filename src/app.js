@@ -3797,6 +3797,7 @@ async function renderPublicTeamProfile(userId, teamId) {
 }
 
 function renderPublicTeamOverview(user, savedTeam, team, draft, costs) {
+  const totalRerolls = countToNumber(draft.startingRerolls) + countToNumber(draft.teamRerolls);
   return `
     <section class="public-team-overview side-panel">
       ${draft.logoData ? `<div class="summary-logo-block public-team-logo-block"><img src="${escapeHtml(draft.logoData)}" alt=""></div>` : ""}
@@ -3809,7 +3810,7 @@ function renderPublicTeamOverview(user, savedTeam, team, draft, costs) {
           <dl class="stat-list summary-stat-grid">
             <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
             <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
-            <dt>${t("savedRoster.teamRerolls")}</dt><dd>${draft.teamRerolls ?? 0}</dd>
+            <dt>${t("savedRoster.teamRerolls")}</dt><dd>${totalRerolls}</dd>
             ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
             <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
             <dt>${t("savedRoster.treasury")}</dt><dd>${countToNumber(draft.treasury)}k</dd>
@@ -3829,6 +3830,7 @@ function renderPublicTeamOverview(user, savedTeam, team, draft, costs) {
 }
 
 function renderPublicTeamSummary(user, savedTeam, team, draft, costs) {
+  const totalRerolls = countToNumber(draft.startingRerolls) + countToNumber(draft.teamRerolls);
   return `
     <aside class="builder-summary saved-roster-summary-panel side-panel">
       ${draft.logoData ? `<div class="summary-logo-block"><img src="${escapeHtml(draft.logoData)}" alt=""></div>` : ""}
@@ -3841,7 +3843,7 @@ function renderPublicTeamSummary(user, savedTeam, team, draft, costs) {
         <dt>${t("myTeams.table.rules")}</dt><dd><a class="inline-rule-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a></dd>
         <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
         <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
-        <dt>${t("savedRoster.teamRerolls")}</dt><dd>${draft.teamRerolls ?? 0}</dd>
+        <dt>${t("savedRoster.teamRerolls")}</dt><dd>${totalRerolls}</dd>
         ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
         <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
         <dt>${t("savedRoster.treasury")}</dt><dd>${countToNumber(draft.treasury)}k</dd>
