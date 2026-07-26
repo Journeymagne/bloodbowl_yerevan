@@ -1185,6 +1185,13 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
     hasHome: Boolean(homeEntryId),
     hasAway: Boolean(awayEntryId),
   });
+  const resultComplete = [
+    score.homeTouchdowns,
+    score.awayTouchdowns,
+    score.homeCasualties,
+    score.awayCasualties,
+  ].every((value) => value !== null && value !== undefined);
+  const resultStatus = resultComplete ? "confirmed" : "pending";
 
   const result = await pool.query(
     `UPDATE season_pairings
@@ -1197,8 +1204,8 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
          result_type = $8,
          home_points = $9,
          away_points = $10,
-         result_status = 'confirmed',
-         confirmed_at = now(),
+         result_status = $11,
+         confirmed_at = CASE WHEN $11 = 'confirmed' THEN now() ELSE NULL END,
          updated_at = now()
      WHERE id = $1
      RETURNING *`,
@@ -1213,6 +1220,7 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
       resultType,
       score.homePoints,
       score.awayPoints,
+      resultStatus,
     ],
   );
   return result.rows[0];

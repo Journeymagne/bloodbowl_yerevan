@@ -3971,17 +3971,19 @@ async function loadGames(force = false) {
 
 function renderGameCard(game) {
   const opponent = gameOpponent(game);
+  const resultSubmitted = isGameResultSubmitted(game);
   return `
     <a class="card compact game-card" href="${gameUrl(game)}">
       <span class="season-status-pill" data-status="${escapeHtml(game.resultStatus)}">${escapeHtml(gameStatusLabel(game.resultStatus))}</span>
       <h3>${escapeHtml(game.season.name)} · ${t("season.roundLabel")} ${game.roundNumber}</h3>
       <p>${t("games.vsLabel")} <strong>${escapeHtml(opponent?.team?.name || t("season.byeLabel"))}</strong>${opponent ? ` · ${escapeHtml(opponent.user.login)}` : ""}</p>
-      ${game.resultStatus === "confirmed" ? `<p>${t("season.touchdownsLabel")}: ${escapeHtml(pairingTouchdowns(game))} · ${t("season.casualtiesHeader")}: ${escapeHtml(pairingCasualties(game))}</p>` : ""}
+      ${resultSubmitted ? `<p>${t("season.touchdownsLabel")}: ${escapeHtml(pairingTouchdowns(game))} · ${t("season.casualtiesHeader")}: ${escapeHtml(pairingCasualties(game))}</p>` : ""}
     </a>
   `;
 }
 
 function renderAdminGameCard(game) {
+  const resultSubmitted = isGameResultSubmitted(game);
   return `
     <a class="card compact game-card" href="${gameUrl(game)}">
       <span class="season-status-pill" data-status="${escapeHtml(game.resultStatus)}">${escapeHtml(gameStatusLabel(game.resultStatus))}</span>
@@ -3989,8 +3991,20 @@ function renderAdminGameCard(game) {
       <p><strong>${escapeHtml(game.home?.user?.login || t("season.byeLabel"))}</strong> · ${escapeHtml(game.home?.team?.name || "-")}</p>
       <p>${t("games.vsLabel")}</p>
       <p><strong>${escapeHtml(game.away?.user?.login || t("season.byeLabel"))}</strong> · ${escapeHtml(game.away?.team?.name || "-")}</p>
-      ${game.resultStatus === "confirmed" ? `<p>${t("season.touchdownsLabel")}: ${escapeHtml(pairingTouchdowns(game))} · ${t("season.casualtiesHeader")}: ${escapeHtml(pairingCasualties(game))}</p>` : ""}
+      ${resultSubmitted ? `<p>${t("season.touchdownsLabel")}: ${escapeHtml(pairingTouchdowns(game))} · ${t("season.casualtiesHeader")}: ${escapeHtml(pairingCasualties(game))}</p>` : ""}
     </a>`;
+}
+
+function isGameResultSubmitted(game) {
+  return game?.resultStatus === "confirmed"
+    && game.homeTouchdowns !== null
+    && game.homeTouchdowns !== undefined
+    && game.awayTouchdowns !== null
+    && game.awayTouchdowns !== undefined
+    && game.homeCasualties !== null
+    && game.homeCasualties !== undefined
+    && game.awayCasualties !== null
+    && game.awayCasualties !== undefined;
 }
 
 async function renderMyGames() {
@@ -4008,8 +4022,8 @@ async function renderMyGames() {
     view.innerHTML = `${renderHeader(t("nav.myGames"), t("games.subtitle"))}<div class="empty-state">${escapeHtml(state.games.error)}</div>`;
     return;
   }
-  const nextGames = state.games.items.filter((game) => game.resultStatus !== "confirmed" && game.roundStatus === "started");
-  const history = state.games.items.filter((game) => game.resultStatus === "confirmed");
+  const nextGames = state.games.items.filter((game) => !isGameResultSubmitted(game) && game.roundStatus === "started");
+  const history = state.games.items.filter(isGameResultSubmitted);
   const adminCurrentGames = state.auth.currentUser.isAdmin ? state.games.currentItems : [];
   view.innerHTML = `
     ${renderHeader(t("nav.myGames"), t("games.subtitle"))}
@@ -4065,8 +4079,9 @@ async function renderGamePage(gameId) {
   try {
     const { game } = await apiRequest(`/api/games/${encodeURIComponent(gameId)}`);
     const isAdmin = Boolean(state.auth.currentUser?.isAdmin);
+    const resultSubmitted = isGameResultSubmitted(game);
     const awaitingOpponent = game.resultStatus === "awaiting_confirmation" && (!game.viewerIsProposer || isAdmin);
-    const actions = game.resultStatus === "confirmed"
+    const actions = resultSubmitted
       ? `<p class="notice-box">${escapeHtml(renderGameScore(game))}</p>`
       : awaitingOpponent
         ? `<div class="notice-box"><strong>${t("games.confirmRequestHeading")}</strong><p>${escapeHtml(renderGameScore(game, true))}</p><div class="game-confirm-actions"><button class="primary-button" data-game-confirm>${t("games.confirmAction")}</button><button class="filter-button danger-action" data-game-reject>${t("games.rejectAction")}</button></div></div>`
