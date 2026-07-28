@@ -207,6 +207,11 @@ function publicSeasonEntry(row) {
 
 function publicSeasonPairing(row) {
   if (!row) return null;
+  const resultStatus = storedGameResultComplete(row)
+    ? "confirmed"
+    : row.result_status === "confirmed"
+      ? "pending"
+      : row.result_status ?? "pending";
   return {
     id: row.id,
     roundId: row.round_id,
@@ -222,14 +227,14 @@ function publicSeasonPairing(row) {
     resultType: row.result_type ?? "played",
     homePoints: row.home_points ?? null,
     awayPoints: row.away_points ?? null,
-    resultStatus: row.result_status ?? "pending",
+    resultStatus,
     proposedByUserId: row.proposed_by_user_id ?? null,
     proposedHomeTouchdowns: row.proposed_home_touchdowns ?? null,
     proposedAwayTouchdowns: row.proposed_away_touchdowns ?? null,
     proposedHomeCasualties: row.proposed_home_casualties ?? null,
     proposedAwayCasualties: row.proposed_away_casualties ?? null,
     proposedAt: row.proposed_at ?? null,
-    confirmedAt: row.confirmed_at ?? null,
+    confirmedAt: resultStatus === "confirmed" ? row.confirmed_at ?? null : null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -672,6 +677,18 @@ function publicGame(row, viewerId) {
   };
 }
 
+function storedGameResultComplete(row) {
+  return row?.result_status === "confirmed"
+    && row.home_touchdowns !== null
+    && row.home_touchdowns !== undefined
+    && row.away_touchdowns !== null
+    && row.away_touchdowns !== undefined
+    && row.home_casualties !== null
+    && row.home_casualties !== undefined
+    && row.away_casualties !== null
+    && row.away_casualties !== undefined;
+}
+
 function nullableInteger(value, fieldName) {
   if (value === undefined) return undefined;
   if (value === null || value === "") return null;
@@ -1090,7 +1107,7 @@ async function proposeGameResult(pairingId, userId, body, isAdmin = false) {
   if (!game) throw httpError(404, "Game not found.");
   if (game.round_status !== "started") throw httpError(409, "This game has not started yet.");
   if (!game.home_user_id || !game.away_user_id) throw httpError(409, "A BYE game does not require confirmation.");
-  if (game.result_status === "confirmed") throw httpError(409, "This result is already confirmed.");
+  if (storedGameResultComplete(game)) throw httpError(409, "This result is already confirmed.");
   const values = [
     nullableInteger(body.homeTouchdowns, "Home touchdowns"),
     nullableInteger(body.awayTouchdowns, "Away touchdowns"),
@@ -1113,7 +1130,6 @@ async function respondToGameProposal(pairingId, userId, accept, isAdmin = false)
   const game = (await loadUserGameRows(userId, pairingId, isAdmin))[0];
   if (!game) throw httpError(404, "Game not found.");
   if (game.result_status !== "awaiting_confirmation") throw httpError(409, "There is no result awaiting confirmation.");
-  if (!isAdmin && game.proposed_by_user_id === userId) throw httpError(403, "The proposing player cannot confirm their own result.");
   if (!accept) {
     await pool.query(`UPDATE season_pairings SET result_status = 'rejected', updated_at = now() WHERE id = $1`, [pairingId]);
     return;
