@@ -4030,7 +4030,12 @@ async function renderMyGames() {
   }
   const nextGames = state.games.items.filter((game) => !isGameResultSubmitted(game) && isCurrentPlayerRoundGame(game));
   const history = state.games.items.filter((game) => isGameResultSubmitted(game) || isGameClosedForPlayers(game));
-  const adminCurrentGames = state.auth.currentUser.isAdmin ? state.games.currentItems : [];
+  const adminCurrentGamesRaw = state.auth.currentUser.isAdmin ? state.games.currentItems : [];
+  const latestAdminRound = Math.max(0, ...adminCurrentGamesRaw
+    .filter((game) => game.roundStatus === "started")
+    .map((game) => Number(game.roundNumber ?? 0)));
+  const adminCurrentGames = adminCurrentGamesRaw
+    .filter((game) => game.roundStatus === "started" && Number(game.roundNumber ?? 0) === latestAdminRound);
   view.innerHTML = `
     ${renderHeader(t("nav.myGames"), t("games.subtitle"))}
     ${state.auth.currentUser.isAdmin ? `<section class="content-panel season-card"><h2>${t("games.adminCurrentHeading")}</h2>

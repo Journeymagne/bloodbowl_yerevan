@@ -638,7 +638,13 @@ async function loadUserGameRows(userId, pairingId = null, includeAll = false) {
     pairingFilter = `p.id = $2 AND ($1 = he.user_id OR $1 = ae.user_id)`;
     params = [userId, pairingId];
   } else if (includeAll) {
-    pairingFilter = `r.status = 'started' AND r.round_number = s.current_round`;
+    pairingFilter = `r.status = 'started'
+      AND r.round_number = (
+        SELECT MAX(latest_round.round_number)
+        FROM season_rounds latest_round
+        WHERE latest_round.season_id = s.id
+          AND latest_round.status = 'started'
+      )`;
     params = [];
   }
   const result = await pool.query(
@@ -830,8 +836,11 @@ async function loadSeasonBundle(user) {
   }));
   const standings = computeSeasonStandings(entryRows, pairingRows);
   const myEntry = entries.find((entry) => entry.user.id === user.id) ?? null;
+  const latestStartedRound = Math.max(0, ...rounds
+    .filter((round) => round.status === "started")
+    .map((round) => Number(round.roundNumber ?? 0)));
   const startedRounds = rounds
-    .filter((round) => round.status === "started" && round.roundNumber === Number(seasonRow.current_round ?? 0))
+    .filter((round) => round.status === "started" && round.roundNumber === latestStartedRound)
     .sort((a, b) => b.roundNumber - a.roundNumber);
   const currentFixture = myEntry
     ? (startedRounds.flatMap((round) => round.pairings)
