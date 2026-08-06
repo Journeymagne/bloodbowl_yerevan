@@ -2168,7 +2168,28 @@ body.auth-open {
 }
 
 .mobile-roster-player-card {
-  gap: 12px;
+  position: relative;
+  gap: 14px;
+  border-color: color-mix(in srgb, var(--focus) 42%, var(--line));
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, transparent), transparent 42%),
+    linear-gradient(180deg, color-mix(in srgb, var(--focus) 10%, transparent), transparent),
+    color-mix(in srgb, var(--surface-strong) 88%, var(--panel-2));
+  box-shadow:
+    inset 0 1px 0 color-mix(in srgb, var(--bone) 12%, transparent),
+    0 12px 28px rgba(0, 0, 0, 0.24);
+}
+
+.mobile-roster-player-card header {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 10px;
+}
+
+.mobile-roster-player-card header .compact-action {
+  justify-self: end;
+  min-width: 74px;
 }
 
 .builder-selected-player-card .team-stat-grid {
@@ -2201,7 +2222,7 @@ body.auth-open {
   display: grid;
   gap: 8px;
   padding-top: 10px;
-  border-top: 1px solid rgba(85, 69, 51, 0.45);
+  border-top: 1px solid color-mix(in srgb, var(--line-bright) 34%, transparent);
 }
 
 .mobile-player-section h3 {
@@ -3981,6 +4002,12 @@ td {
 
   .mobile-roster-player-card header {
     display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .mobile-roster-player-card header .compact-action {
+    align-self: start;
+    justify-self: end;
   }
 
   .builder-row .team-stat-grid {
