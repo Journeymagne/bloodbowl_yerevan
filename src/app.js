@@ -4035,7 +4035,7 @@ async function renderMyGames() {
     .filter((game) => game.roundStatus === "started")
     .map((game) => Number(game.roundNumber ?? 0)));
   const adminCurrentGames = adminCurrentGamesRaw
-    .filter((game) => !isGameResultSubmitted(game)
+    .filter((game) => game.resultStatus !== "confirmed"
       && game.roundStatus === "started"
       && Number(game.roundNumber ?? 0) === latestAdminRound);
   view.innerHTML = `
