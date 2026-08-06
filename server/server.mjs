@@ -639,6 +639,7 @@ async function loadUserGameRows(userId, pairingId = null, includeAll = false) {
     params = [userId, pairingId];
   } else if (includeAll) {
     pairingFilter = `r.status = 'started'
+      AND p.result_status <> 'confirmed'
       AND r.round_number = (
         SELECT MAX(latest_round.round_number)
         FROM season_rounds latest_round

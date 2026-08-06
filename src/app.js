@@ -4035,7 +4035,9 @@ async function renderMyGames() {
     .filter((game) => game.roundStatus === "started")
     .map((game) => Number(game.roundNumber ?? 0)));
   const adminCurrentGames = adminCurrentGamesRaw
-    .filter((game) => game.roundStatus === "started" && Number(game.roundNumber ?? 0) === latestAdminRound);
+    .filter((game) => !isGameResultSubmitted(game)
+      && game.roundStatus === "started"
+      && Number(game.roundNumber ?? 0) === latestAdminRound);
   view.innerHTML = `
     ${renderHeader(t("nav.myGames"), t("games.subtitle"))}
     ${state.auth.currentUser.isAdmin ? `<section class="content-panel season-card"><h2>${t("games.adminCurrentHeading")}</h2>
