@@ -3978,19 +3978,6 @@ function renderGameCard(game) {
   `;
 }
 
-function renderAdminGameCard(game) {
-  const resultSubmitted = isGameResultSubmitted(game);
-  return `
-    <a class="card compact game-card" href="${gameUrl(game)}">
-      <span class="season-status-pill" data-status="${escapeHtml(game.resultStatus)}">${escapeHtml(gameStatusLabel(game.resultStatus))}</span>
-      <h3>${escapeHtml(game.season.name)} · ${t("season.roundLabel")} ${game.roundNumber}</h3>
-      <p><strong>${escapeHtml(game.home?.user?.login || t("season.byeLabel"))}</strong> · ${escapeHtml(game.home?.team?.name || "-")}</p>
-      <p>${t("games.vsLabel")}</p>
-      <p><strong>${escapeHtml(game.away?.user?.login || t("season.byeLabel"))}</strong> · ${escapeHtml(game.away?.team?.name || "-")}</p>
-      ${resultSubmitted ? `<p>${t("season.touchdownsLabel")}: ${escapeHtml(pairingTouchdowns(game))} · ${t("season.casualtiesHeader")}: ${escapeHtml(pairingCasualties(game))}</p>` : ""}
-    </a>`;
-}
-
 function isGameResultSubmitted(game) {
   return game?.resultStatus === "confirmed"
     && game.homeTouchdowns !== null
@@ -4030,19 +4017,8 @@ async function renderMyGames() {
   }
   const nextGames = state.games.items.filter((game) => !isGameResultSubmitted(game) && isCurrentPlayerRoundGame(game));
   const history = state.games.items.filter((game) => isGameResultSubmitted(game) || isGameClosedForPlayers(game));
-  const adminCurrentGamesRaw = state.auth.currentUser.isAdmin ? state.games.currentItems : [];
-  const latestAdminRound = Math.max(0, ...adminCurrentGamesRaw
-    .filter((game) => game.roundStatus === "started")
-    .map((game) => Number(game.roundNumber ?? 0)));
-  const adminCurrentGames = adminCurrentGamesRaw
-    .filter((game) => game.resultStatus !== "confirmed"
-      && game.roundStatus === "started"
-      && Number(game.roundNumber ?? 0) === latestAdminRound);
   view.innerHTML = `
     ${renderHeader(t("nav.myGames"), t("games.subtitle"))}
-    ${state.auth.currentUser.isAdmin ? `<section class="content-panel season-card"><h2>${t("games.adminCurrentHeading")}</h2>
-      ${adminCurrentGames.length ? `<div class="card-grid games-grid">${adminCurrentGames.map(renderAdminGameCard).join("")}</div>` : `<p>${t("games.noAdminCurrentGames")}</p>`}
-    </section>` : ""}
     <section class="content-panel season-card"><h2>${t("games.nextGameHeading")}</h2>
       ${nextGames.length ? `<div class="card-grid games-grid">${nextGames.map(renderGameCard).join("")}</div>` : `<p>${t("games.noNextGame")}</p>`}
     </section>
@@ -4533,6 +4509,7 @@ function renderSeasonRounds(data, adminMode = false) {
                     <th>${t("season.tableLabel")}</th>
                     <th>${t("season.homeLabel")}</th>
                     <th>${t("season.awayLabel")}</th>
+                    <th>${t("admin.statusHeader")}</th>
                     <th>${t("season.tdHeader")}</th>
                     <th>${t("season.casualtiesHeader")}</th>
                     <th>${t("season.leaguePointsLabel")}</th>
@@ -4599,6 +4576,7 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
       <td>${pairing.tableNumber}</td>
       <td>${renderSeasonEntrySelect(data, "home-entry", pairing.homeEntryId, false, selectedEntryIds)}</td>
       <td>${renderSeasonEntrySelect(data, "away-entry", pairing.awayEntryId, false, selectedEntryIds)}</td>
+      <td><span class="season-status-pill" data-status="${escapeHtml(pairing.resultStatus)}">${escapeHtml(gameStatusLabel(pairing.resultStatus))}</span></td>
       <td>
         <div class="season-td-pair">
           <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeTouchdowns ?? "")}" data-home-td>

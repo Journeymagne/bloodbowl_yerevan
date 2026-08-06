@@ -224,7 +224,6 @@ function publicSeasonPairing(row) {
     awayTouchdowns: row.away_touchdowns ?? null,
     homeCasualties: row.home_casualties ?? null,
     awayCasualties: row.away_casualties ?? null,
-    resultType: "played",
     homePoints: row.home_points ?? null,
     awayPoints: row.away_points ?? null,
     resultStatus,
