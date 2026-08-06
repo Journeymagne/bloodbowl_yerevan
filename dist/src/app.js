@@ -609,7 +609,6 @@ const overviewCards = [
         items: [
           "3 points for a win.",
           "1 point for a draw.",
-          "2 points for a technical win.",
           "0 points for a loss.",
           "+1 point if the game ends with a margin of 3+ touchdowns.",
           "+1 point if you conceded 0 touchdowns (you must score at least one yourself).",
@@ -632,9 +631,8 @@ const overviewCards = [
         ],
       },
       {
-        title: "Technical Win & Tournament Structure",
+        title: "Tournament Structure",
         items: [
-          "Technical Win: The winning team is awarded 2 MVP rolls and (D3+2) * 10k gold.",
           "Tournament Bracket: Matches are assigned using the Swiss system.",
           "Tie-breakers: The Buchholz coefficient and head-to-head results are used for tie-breakers, followed by the total number of touchdowns and injuries.",
           "Playoff Qualification: Depending on the number of participants, the players at the top of the standings will receive an automatic bye into the tournament's playoff winner's bracket.",
@@ -920,7 +918,6 @@ const overviewCardsRu = [
         items: [
           "3 очка за победу.",
           "1 очко за ничью.",
-          "2 очка за техническую победу.",
           "0 очков за поражение.",
           "+1 очко, если матч завершился с разницей в 3+ тачдауна.",
           "+1 очко, если вы не пропустили ни одного тачдауна (при этом нужно забить хотя бы один самому).",
@@ -943,9 +940,8 @@ const overviewCardsRu = [
         ],
       },
       {
-        title: "Техническая победа и структура турнира",
+        title: "Структура турнира",
         items: [
-          "Техническая победа: команде-победителю начисляется 2 броска MVP и (D3+2) * 10 тыс. золотых.",
           "Турнирная сетка: матчи распределяются по швейцарской системе.",
           "Тай-брейки: для определения мест при равенстве очков используются коэффициент Бухгольца и результат личной встречи, затем — суммарное число тачдаунов и травм.",
           "Выход в плей-офф: в зависимости от числа участников, команды в верхней части таблицы получают автоматический проход в сетку победителей плей-офф турнира.",
@@ -4007,6 +4003,16 @@ function isGameResultSubmitted(game) {
     && game.awayCasualties !== undefined;
 }
 
+function isCurrentPlayerRoundGame(game) {
+  return game?.roundStatus === "started"
+    && Number(game?.roundNumber ?? 0) === Number(game?.season?.currentRound ?? 0);
+}
+
+function isGameClosedForPlayers(game) {
+  return game?.roundStatus === "completed"
+    || (game?.roundStatus === "started" && Number(game?.roundNumber ?? 0) < Number(game?.season?.currentRound ?? 0));
+}
+
 async function renderMyGames() {
   setActiveNav("my-games");
   setViewSection("my-games");
@@ -4022,8 +4028,8 @@ async function renderMyGames() {
     view.innerHTML = `${renderHeader(t("nav.myGames"), t("games.subtitle"))}<div class="empty-state">${escapeHtml(state.games.error)}</div>`;
     return;
   }
-  const nextGames = state.games.items.filter((game) => !isGameResultSubmitted(game) && game.roundStatus === "started");
-  const history = state.games.items.filter(isGameResultSubmitted);
+  const nextGames = state.games.items.filter((game) => !isGameResultSubmitted(game) && isCurrentPlayerRoundGame(game));
+  const history = state.games.items.filter((game) => isGameResultSubmitted(game) || isGameClosedForPlayers(game));
   const adminCurrentGames = state.auth.currentUser.isAdmin ? state.games.currentItems : [];
   view.innerHTML = `
     ${renderHeader(t("nav.myGames"), t("games.subtitle"))}
@@ -4061,7 +4067,6 @@ function renderAdminGameResultForm(game) {
   return `
     <form class="game-result-form fixture-result-form notice-box" data-admin-game-result>
       <strong>${t("games.adminEditHeading")}</strong>
-      <label class="filter-field"><span>${t("season.resultHeader")}</span><select name="resultType"><option value="played"${game.resultType === "played" ? " selected" : ""}>${t("season.resultPlayed")}</option><option value="technical_home"${game.resultType === "technical_home" ? " selected" : ""}>${t("season.resultTechnicalHome")}</option><option value="technical_away"${game.resultType === "technical_away" ? " selected" : ""}>${t("season.resultTechnicalAway")}</option></select></label>
       <label class="filter-field"><span>${t("season.homeTouchdownsField")}</span><input name="homeTouchdowns" type="number" min="0" step="1" required value="${escapeHtml(value("homeTouchdowns", "proposedHomeTouchdowns"))}"></label>
       <label class="filter-field"><span>${t("season.awayTouchdownsField")}</span><input name="awayTouchdowns" type="number" min="0" step="1" required value="${escapeHtml(value("awayTouchdowns", "proposedAwayTouchdowns"))}"></label>
       <label class="filter-field"><span>${t("season.homeCasualtiesField")}</span><input name="homeCasualties" type="number" min="0" step="1" required value="${escapeHtml(value("homeCasualties", "proposedHomeCasualties"))}"></label>
@@ -4081,14 +4086,16 @@ async function renderGamePage(gameId) {
     const { game } = await apiRequest(`/api/games/${encodeURIComponent(gameId)}`);
     const isAdmin = Boolean(state.auth.currentUser?.isAdmin);
     const resultSubmitted = isGameResultSubmitted(game);
+    const playerLocked = !isAdmin && isGameClosedForPlayers(game);
     const awaitingConfirmation = game.resultStatus === "awaiting_confirmation";
-    const playerResultForm = !isAdmin && !resultSubmitted ? renderGameProposalForm(game) : "";
-    const confirmationBox = awaitingConfirmation && !resultSubmitted
+    const playerResultForm = !isAdmin && !resultSubmitted && !playerLocked ? renderGameProposalForm(game) : "";
+    const confirmationBox = awaitingConfirmation && !resultSubmitted && !playerLocked
       ? `<div class="notice-box"><strong>${t("games.confirmRequestHeading")}</strong><p>${escapeHtml(renderGameScore(game, true))}</p><div class="game-confirm-actions"><button class="primary-button" data-game-confirm>${t("games.confirmAction")}</button><button class="filter-button danger-action" data-game-reject>${t("games.rejectAction")}</button></div></div>`
       : "";
+    const lockedNotice = playerLocked && !resultSubmitted ? `<p class="notice-box">${t("games.roundClosed")}</p>` : "";
     const actions = resultSubmitted
       ? `<p class="notice-box">${escapeHtml(renderGameScore(game))}</p>`
-      : `${confirmationBox}${playerResultForm}`;
+      : `${lockedNotice}${confirmationBox}${playerResultForm}`;
     view.innerHTML = `
       ${renderHeader(t("games.gameHeading"), `${game.season.name} · ${t("season.roundLabel")} ${game.roundNumber}`, "", { back: true, backFallback: "#/my-games" })}
       <section class="content-panel game-page"><div class="game-versus"><div><span>${t("season.homeLabel")}</span><h2>${escapeHtml(game.home?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.home?.team?.name || "-")}</p>${game.home?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.home.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div><strong>VS</strong><div><span>${t("season.awayLabel")}</span><h2>${escapeHtml(game.away?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.away?.team?.name || "-")}</p>${game.away?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.away.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div></div>${actions}${isAdmin ? renderAdminGameResultForm(game) : ""}</section>`;
@@ -4519,7 +4526,6 @@ function renderSeasonRounds(data, adminMode = false) {
                     <th>${t("season.tableLabel")}</th>
                     <th>${t("season.homeLabel")}</th>
                     <th>${t("season.awayLabel")}</th>
-                    <th>${t("season.resultHeader")}</th>
                     <th>${t("season.tdHeader")}</th>
                     <th>${t("season.casualtiesHeader")}</th>
                     <th>${t("season.leaguePointsLabel")}</th>
@@ -4580,7 +4586,6 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
     `;
   }
 
-  const resultLocked = round.status !== "started";
   const selectedEntryIds = selectedRoundEntryIds(round);
   return `
     <tr data-pairing-row="${escapeHtml(pairing.id)}">
@@ -4588,22 +4593,15 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
       <td>${renderSeasonEntrySelect(data, "home-entry", pairing.homeEntryId, false, selectedEntryIds)}</td>
       <td>${renderSeasonEntrySelect(data, "away-entry", pairing.awayEntryId, false, selectedEntryIds)}</td>
       <td>
-        <select class="table-select" data-result-type ${resultLocked ? "disabled" : ""}>
-          ${renderOption("played", t("season.resultPlayed"), pairing.resultType)}
-          ${renderOption("technical_home", t("season.resultTechnicalHome"), pairing.resultType)}
-          ${renderOption("technical_away", t("season.resultTechnicalAway"), pairing.resultType)}
-        </select>
-      </td>
-      <td>
         <div class="season-td-pair">
-          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeTouchdowns ?? "")}" data-home-td ${resultLocked ? "disabled" : ""}>
-          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.awayTouchdowns ?? "")}" data-away-td ${resultLocked ? "disabled" : ""}>
+          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeTouchdowns ?? "")}" data-home-td>
+          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.awayTouchdowns ?? "")}" data-away-td>
         </div>
       </td>
       <td>
         <div class="season-td-pair">
-          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeCasualties ?? "")}" data-home-casualties ${resultLocked ? "disabled" : ""}>
-          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.awayCasualties ?? "")}" data-away-casualties ${resultLocked ? "disabled" : ""}>
+          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeCasualties ?? "")}" data-home-casualties>
+          <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.awayCasualties ?? "")}" data-away-casualties>
         </div>
       </td>
       <td>${escapeHtml(pairingLeaguePoints(pairing))}</td>
@@ -4715,7 +4713,6 @@ function seasonPairingPayload(row) {
   const homeEntry = row?.querySelector("[data-home-entry]");
   const awayEntry = row?.querySelector("[data-away-entry]");
   const payload = {
-    resultType: row?.querySelector("[data-result-type]")?.value ?? "played",
     homeTouchdowns: row?.querySelector("[data-home-td]")?.value ?? "",
     awayTouchdowns: row?.querySelector("[data-away-td]")?.value ?? "",
     homeCasualties: row?.querySelector("[data-home-casualties]")?.value ?? "",
@@ -4881,7 +4878,7 @@ function wireSeason() {
       row.dataset.saveTimer = String(setTimeout(saveNow, 350));
     };
 
-    row.querySelectorAll("[data-home-entry], [data-away-entry], [data-result-type]").forEach((field) => {
+    row.querySelectorAll("[data-home-entry], [data-away-entry]").forEach((field) => {
       field.addEventListener("change", saveNow);
     });
 

@@ -224,7 +224,7 @@ function publicSeasonPairing(row) {
     awayTouchdowns: row.away_touchdowns ?? null,
     homeCasualties: row.home_casualties ?? null,
     awayCasualties: row.away_casualties ?? null,
-    resultType: row.result_type ?? "played",
+    resultType: "played",
     homePoints: row.home_points ?? null,
     awayPoints: row.away_points ?? null,
     resultStatus,
@@ -638,12 +638,12 @@ async function loadUserGameRows(userId, pairingId = null, includeAll = false) {
     pairingFilter = `p.id = $2 AND ($1 = he.user_id OR $1 = ae.user_id)`;
     params = [userId, pairingId];
   } else if (includeAll) {
-    pairingFilter = `r.status = 'started'`;
+    pairingFilter = `r.status = 'started' AND r.round_number = s.current_round`;
     params = [];
   }
   const result = await pool.query(
     `SELECT p.*, r.round_number, r.status AS round_status,
-            s.id AS season_id, s.name AS season_name, s.status AS season_status,
+            s.id AS season_id, s.name AS season_name, s.status AS season_status, s.current_round AS season_current_round,
             he.user_id AS home_user_id, hu.login AS home_user_login,
             ht.id AS home_team_id, ht.name AS home_team_name, ht.base_team_slug AS home_team_slug,
             ae.user_id AS away_user_id, au.login AS away_user_login,
@@ -669,7 +669,7 @@ function publicGame(row, viewerId) {
   const pairing = publicSeasonPairing(row);
   return {
     ...pairing,
-    season: { id: row.season_id, name: row.season_name, status: row.season_status },
+    season: { id: row.season_id, name: row.season_name, status: row.season_status, currentRound: Number(row.season_current_round ?? 0) },
     home: row.home_user_id ? { user: { id: row.home_user_id, login: row.home_user_login }, team: { id: row.home_team_id, name: row.home_team_name, baseTeamSlug: row.home_team_slug, logoUrl: row.home_team_id ? `/api/team-logos/${row.home_team_id}` : null } } : null,
     away: row.away_user_id ? { user: { id: row.away_user_id, login: row.away_user_login }, team: { id: row.away_team_id, name: row.away_team_name, baseTeamSlug: row.away_team_slug, logoUrl: row.away_team_id ? `/api/team-logos/${row.away_team_id}` : null } } : null,
     viewerIsHome: row.home_user_id === viewerId,
@@ -699,30 +699,16 @@ function nullableInteger(value, fieldName) {
   return number;
 }
 
-function normalizeResultType(value = "played") {
-  const resultType = String(value || "played");
-  return ["played", "technical_home", "technical_away"].includes(resultType) ? resultType : "played";
-}
-
 function scoreLeagueResult({
   homeTouchdowns,
   awayTouchdowns,
   homeCasualties,
   awayCasualties,
-  resultType = "played",
   hasHome = true,
   hasAway = true,
 }) {
   if (!hasHome && !hasAway) {
     return { homePoints: null, awayPoints: null, homeTouchdowns: null, awayTouchdowns: null, homeCasualties: null, awayCasualties: null };
-  }
-
-  if (resultType === "technical_home") {
-    return { homePoints: hasHome ? 2 : null, awayPoints: hasAway ? 0 : null, homeTouchdowns: hasHome ? 1 : null, awayTouchdowns: hasAway ? 0 : null, homeCasualties: hasHome ? 0 : null, awayCasualties: hasAway ? 0 : null };
-  }
-
-  if (resultType === "technical_away") {
-    return { homePoints: hasHome ? 0 : null, awayPoints: hasAway ? 2 : null, homeTouchdowns: hasHome ? 0 : null, awayTouchdowns: hasAway ? 1 : null, homeCasualties: hasHome ? 0 : null, awayCasualties: hasAway ? 0 : null };
   }
 
   if (homeTouchdowns === null || awayTouchdowns === null || homeTouchdowns === undefined || awayTouchdowns === undefined) {
@@ -763,7 +749,7 @@ function computeSeasonStandings(entryRows, pairingRows) {
   }));
 
   for (const pairing of pairingRows) {
-    if (pairing.round_status !== "started") continue;
+    if (!["started", "completed"].includes(pairing.round_status)) continue;
     if (!pairing.home_entry_id && !pairing.away_entry_id) continue;
 
     const home = standings.get(pairing.home_entry_id);
@@ -844,7 +830,9 @@ async function loadSeasonBundle(user) {
   }));
   const standings = computeSeasonStandings(entryRows, pairingRows);
   const myEntry = entries.find((entry) => entry.user.id === user.id) ?? null;
-  const startedRounds = rounds.filter((round) => round.status === "started").sort((a, b) => b.roundNumber - a.roundNumber);
+  const startedRounds = rounds
+    .filter((round) => round.status === "started" && round.roundNumber === Number(seasonRow.current_round ?? 0))
+    .sort((a, b) => b.roundNumber - a.roundNumber);
   const currentFixture = myEntry
     ? (startedRounds.flatMap((round) => round.pairings)
       .find((pairing) => pairing.homeEntryId === myEntry.id || pairing.awayEntryId === myEntry.id) ?? null)
@@ -912,7 +900,7 @@ function previousOpponentMap(entryRows, pairingRows) {
   const opponents = new Map(entryRows.map((entry) => [entry.id, new Set()]));
   const byes = new Set();
   for (const pairing of pairingRows) {
-    if (pairing.round_status !== "started") continue;
+    if (!["started", "completed"].includes(pairing.round_status)) continue;
     if (!pairing.home_entry_id && !pairing.away_entry_id) continue;
     if (!pairing.away_entry_id) {
       if (pairing.home_entry_id) byes.add(pairing.home_entry_id);
@@ -1105,7 +1093,8 @@ async function addSeasonPairing(seasonId, roundId, homeEntryId = "", awayEntryId
 async function proposeGameResult(pairingId, userId, body, isAdmin = false) {
   const game = (await loadUserGameRows(userId, pairingId, isAdmin))[0];
   if (!game) throw httpError(404, "Game not found.");
-  if (game.round_status !== "started") throw httpError(409, "This game has not started yet.");
+  if (!isAdmin) ensurePlayerCanSubmitGame(game);
+  else if (game.round_status !== "started") throw httpError(409, "This game has not started yet.");
   if (!game.home_user_id || !game.away_user_id) throw httpError(409, "A BYE game does not require confirmation.");
   if (storedGameResultComplete(game)) throw httpError(409, "This result is already confirmed.");
   const values = [
@@ -1129,13 +1118,13 @@ async function proposeGameResult(pairingId, userId, body, isAdmin = false) {
 async function respondToGameProposal(pairingId, userId, accept, isAdmin = false) {
   const game = (await loadUserGameRows(userId, pairingId, isAdmin))[0];
   if (!game) throw httpError(404, "Game not found.");
+  if (!isAdmin) ensurePlayerCanSubmitGame(game);
   if (game.result_status !== "awaiting_confirmation") throw httpError(409, "There is no result awaiting confirmation.");
   if (!accept) {
     await pool.query(`UPDATE season_pairings SET result_status = 'rejected', updated_at = now() WHERE id = $1`, [pairingId]);
     return;
   }
   await updateSeasonPairing(game.season_id, pairingId, {
-    resultType: "played",
     homeTouchdowns: game.proposed_home_touchdowns,
     awayTouchdowns: game.proposed_away_touchdowns,
     homeCasualties: game.proposed_home_casualties,
@@ -1144,11 +1133,19 @@ async function respondToGameProposal(pairingId, userId, accept, isAdmin = false)
   await pool.query(`UPDATE season_pairings SET result_status = 'confirmed', confirmed_at = now(), updated_at = now() WHERE id = $1`, [pairingId]);
 }
 
+function ensurePlayerCanSubmitGame(game) {
+  if (game.round_status !== "started") throw httpError(409, "This game has not started yet.");
+  if (Number(game.round_number ?? 0) !== Number(game.season_current_round ?? 0)) {
+    throw httpError(409, "This round is closed for player result changes.");
+  }
+}
+
 async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, userId = "") {
   const current = await pool.query(
-    `SELECT season_pairings.*, season_rounds.season_id, season_rounds.status AS round_status
+    `SELECT season_pairings.*, season_rounds.season_id, season_rounds.round_number, season_rounds.status AS round_status, seasons.current_round AS season_current_round
      FROM season_pairings
      JOIN season_rounds ON season_rounds.id = season_pairings.round_id
+     JOIN seasons ON seasons.id = season_rounds.season_id
      WHERE season_pairings.id = $1 AND season_rounds.season_id = $2`,
     [pairingId, seasonId],
   );
@@ -1157,7 +1154,7 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
 
   const wantsTeamUpdate = Object.hasOwn(body, "homeEntryId") || Object.hasOwn(body, "awayEntryId");
   if (wantsTeamUpdate && !isAdmin) throw httpError(403, "Admin access required.");
-  if (!isAdmin && pairing.round_status !== "started") throw httpError(409, "This round has not started yet.");
+  if (!isAdmin) ensurePlayerCanSubmitGame(pairing);
   if (!isAdmin && (!pairing.home_entry_id || !pairing.away_entry_id)) {
     throw httpError(400, "This fixture cannot receive a player-submitted result.");
   }
@@ -1183,7 +1180,6 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
     }
   }
 
-  const resultType = normalizeResultType(body.resultType ?? pairing.result_type);
   const homeTouchdowns = nullableInteger(body.homeTouchdowns, "Home touchdowns");
   const awayTouchdowns = nullableInteger(body.awayTouchdowns, "Away touchdowns");
   const homeCasualties = nullableInteger(body.homeCasualties, "Home casualties");
@@ -1197,7 +1193,6 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
     awayTouchdowns: nextAwayTouchdowns,
     homeCasualties: nextHomeCasualties,
     awayCasualties: nextAwayCasualties,
-    resultType,
     hasHome: Boolean(homeEntryId),
     hasAway: Boolean(awayEntryId),
   });
@@ -1217,11 +1212,11 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
          away_touchdowns = $5,
          home_casualties = $6,
          away_casualties = $7,
-         result_type = $8,
-         home_points = $9,
-         away_points = $10,
-         result_status = $11,
-         confirmed_at = CASE WHEN $11 = 'confirmed' THEN now() ELSE NULL END,
+         result_type = 'played',
+         home_points = $8,
+         away_points = $9,
+         result_status = $10,
+         confirmed_at = CASE WHEN $10 = 'confirmed' THEN now() ELSE NULL END,
          updated_at = now()
      WHERE id = $1
      RETURNING *`,
@@ -1233,7 +1228,6 @@ async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, u
       score.awayTouchdowns,
       score.homeCasualties,
       score.awayCasualties,
-      resultType,
       score.homePoints,
       score.awayPoints,
       resultStatus,
@@ -1261,41 +1255,15 @@ async function startSeasonRound(seasonId, roundId) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
-    for (const pairing of pairings.rows) {
-      if (pairing.home_entry_id && !pairing.away_entry_id) {
-        await client.query(
-          `UPDATE season_pairings
-           SET result_type = 'technical_home',
-               home_touchdowns = 1,
-               away_touchdowns = 0,
-               home_casualties = 0,
-               away_casualties = 0,
-               home_points = 2,
-               away_points = 0,
-               result_status = 'confirmed',
-               confirmed_at = now(),
-               updated_at = now()
-           WHERE id = $1`,
-          [pairing.id],
-        );
-      } else if (!pairing.home_entry_id && pairing.away_entry_id) {
-        await client.query(
-          `UPDATE season_pairings
-           SET result_type = 'technical_away',
-               home_touchdowns = 0,
-               away_touchdowns = 1,
-               home_casualties = 0,
-               away_casualties = 0,
-               home_points = 0,
-               away_points = 2,
-               result_status = 'confirmed',
-               confirmed_at = now(),
-               updated_at = now()
-           WHERE id = $1`,
-          [pairing.id],
-        );
-      }
-    }
+    await client.query(
+      `UPDATE season_rounds
+       SET status = 'completed',
+           updated_at = now()
+       WHERE season_id = $1
+         AND round_number < $2
+         AND status = 'started'`,
+      [seasonId, round.rows[0].round_number],
+    );
     const updated = await client.query(
       `UPDATE season_rounds
        SET status = 'started',
