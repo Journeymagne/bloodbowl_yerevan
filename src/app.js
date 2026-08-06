@@ -35,6 +35,9 @@
     error: "",
   },
   games: { items: [], currentItems: [], loaded: false, loading: false, error: "" },
+  savedRosterUi: {
+    expandedPlayers: new Set(),
+  },
   admin: {
     users: [],
     loaded: false,
@@ -102,7 +105,7 @@ const supportedLocales = new Set(["en", "ru"]);
 const dataCache = new Map();
 let translations = { en: {}, ru: {} };
 let activeDict = translations.en;
-const assetVersion = "gata-92";
+const assetVersion = "gata-93";
 const logoUploadMaxBytes = 2 * 1024 * 1024;
 const logoOptimizeMaxDimension = 512;
 const logoOptimizeQuality = 0.82;
@@ -1399,6 +1402,19 @@ const sppCounterDefinitions = [
   ["interceptions", "INT"],
   ["mvps", "MVP"],
 ];
+
+function isSavedRosterPlayerExpanded(playerId) {
+  return state.savedRosterUi.expandedPlayers.has(playerId);
+}
+
+function setSavedRosterPlayerExpanded(playerId, expanded) {
+  if (!playerId) return;
+  if (expanded) {
+    state.savedRosterUi.expandedPlayers.add(playerId);
+  } else {
+    state.savedRosterUi.expandedPlayers.delete(playerId);
+  }
+}
 
 function rowsForTeam(team) {
   return team.team?.roster ?? [];
@@ -5493,6 +5509,23 @@ function wireSavedPlayerEditors(team, draft, rerender) {
   view.querySelectorAll("[data-roster-player]").forEach((card) => {
     const player = draft.players.find((item) => item.id === card.dataset.rosterPlayer);
     if (!player) return;
+    card.querySelector("[data-saved-player-expand]")?.addEventListener("click", () => {
+      setSavedRosterPlayerExpanded(player.id, true);
+      rerender();
+    });
+    card.querySelector("[data-saved-player-collapse]")?.addEventListener("click", () => {
+      setSavedRosterPlayerExpanded(player.id, false);
+      rerender();
+    });
+    card.querySelectorAll("[data-saved-player-spp-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.savedPlayerSppAction;
+        player.spp = normalizeSppCounters(player.spp);
+        player.spp[key] = Math.max(0, countToNumber(player.spp[key]) + 1);
+        autosave();
+        rerender();
+      });
+    });
     card.querySelector("[data-saved-player-name]")?.addEventListener("input", (event) => {
       player.name = event.currentTarget.value;
       autosave();
@@ -6443,6 +6476,9 @@ function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = fa
 }
 
 function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = false) {
+  if (!isSavedRosterPlayerExpanded(player.id)) {
+    return renderSavedPlayerPreviewCard(team, player, index);
+  }
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
   const adjustment = playerAdjustmentCost(player);
   const eliteCost = eliteComboCost(player.row, player);
@@ -6450,7 +6486,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
   const favouredInputId = `mobile-favoured-skill-options-${index}`;
   const skillOptions = availableSkillOptionsForPlayer(player.row, player);
   return `
-    <article class="saved-roster-player-card mobile-roster-player-card" data-roster-player="${escapeHtml(player.id)}">
+    <article class="saved-roster-player-card mobile-roster-player-card is-expanded" data-roster-player="${escapeHtml(player.id)}">
       <header>
         <div class="mobile-player-title">
           <label class="mobile-player-number">
@@ -6460,7 +6496,10 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
           <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
         </div>
-        <button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button>
+        <div class="mobile-card-actions">
+          <button class="filter-button compact-action" type="button" data-saved-player-collapse="${escapeHtml(player.id)}">${t("roster.previewAction")}</button>
+          <button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button>
+        </div>
       </header>
 
       <section class="mobile-player-section">
@@ -6527,6 +6566,82 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
         </div>
       </section>
     </article>
+  `;
+}
+
+function renderSavedPlayerPreviewCard(team, player, index) {
+  return `
+    <article class="saved-roster-player-card mobile-roster-player-card is-preview" data-roster-player="${escapeHtml(player.id)}">
+      <header>
+        <div class="mobile-player-title">
+          <strong>${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}</strong>
+          <small>${escapeHtml(player.row.position)}</small>
+        </div>
+        <button class="primary-button compact-action" type="button" data-saved-player-expand="${escapeHtml(player.id)}">${t("roster.advanceAction")}</button>
+      </header>
+
+      <section class="mobile-player-section">
+        <h3>${t("roster.statsHeading")}</h3>
+        ${renderReadonlyStatLine(player)}
+      </section>
+
+      <section class="mobile-player-section">
+        <h3>${t("roster.skillsLabel")}</h3>
+        <div class="mobile-player-pills">
+          ${renderPlayerPreviewSkills(player)}
+        </div>
+      </section>
+
+      <section class="mobile-player-section">
+        <div class="mobile-spp-preview-head">
+          <h3>SPP</h3>
+          <strong>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</strong>
+        </div>
+        <div class="mobile-spp-action-grid">
+          ${renderSppActionButtons(player)}
+        </div>
+      </section>
+    </article>
+  `;
+}
+
+function renderPlayerPreviewSkills(player) {
+  const names = [
+    ...(player.row.skills ?? []),
+    ...normalizePlayerExtraSkills(player.row, player.extraSkills ?? []).map((skill) => skill.name),
+    ...normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []).map((skill) => skill.name),
+  ];
+  if (player.isCaptain && !names.includes("Pro")) names.push("Pro");
+  const rendered = renderRosterLinks(uniqueSorted(names));
+  return `${rendered}${player.isCaptain ? `<span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>` : ""}`;
+}
+
+function renderSppActionButtons(player) {
+  const spp = normalizeSppCounters(player.spp);
+  return sppCounterDefinitions.map(([key, label]) => `
+    <button class="filter-button mobile-spp-action" type="button" data-saved-player-spp-action="${escapeHtml(key)}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${spp[key]}</strong>
+      <em>+1</em>
+    </button>
+  `).join("");
+}
+
+function renderReadonlyStatLine(player) {
+  const stats = ["ma", "st", "ag", "pa", "ar"];
+  return `
+    <div class="player-stat-editors readonly-stat-line">
+      ${stats.map((stat) => {
+    const mod = Number(player.statMods?.[stat] ?? 0);
+    const modClass = mod > 0 ? "stat-up" : mod < 0 ? "stat-down" : "";
+    return `
+        <div class="player-stat-editor ${modClass}">
+          <span>${stat.toUpperCase()}</span>
+          <strong>${escapeHtml(statValueForDisplayByStat(stat, player.row[stat], mod))}</strong>
+        </div>
+      `;
+  }).join("")}
+    </div>
   `;
 }
 

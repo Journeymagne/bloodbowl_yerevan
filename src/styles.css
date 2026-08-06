@@ -2204,6 +2204,94 @@ body.auth-open {
   color: var(--text);
 }
 
+.mobile-roster-player-card.is-preview {
+  gap: 12px;
+}
+
+.mobile-roster-player-card.is-preview header {
+  align-items: center;
+}
+
+.mobile-roster-player-card.is-preview .mobile-player-title strong {
+  display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--text);
+  font-size: 18px;
+}
+
+.mobile-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.mobile-spp-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mobile-spp-preview-head strong {
+  color: var(--soft);
+  font-size: 13px;
+}
+
+.mobile-spp-action-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.mobile-spp-action {
+  display: grid;
+  min-width: 0;
+  min-height: 42px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px 6px;
+  align-items: center;
+  padding: 5px 7px;
+  text-align: left;
+}
+
+.mobile-spp-action span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--button-muted-text);
+  font-size: 11px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-spp-action strong {
+  color: var(--text);
+  font-size: 15px;
+}
+
+.mobile-spp-action em {
+  grid-column: 1 / -1;
+  color: var(--focus);
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 900;
+}
+
+.readonly-stat-line {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(44px, 1fr));
+  overflow: hidden;
+  border: 1px solid rgba(85, 69, 51, 0.62);
+  border-radius: var(--radius);
+}
+
+.readonly-stat-line .player-stat-editor {
+  min-height: 54px;
+  align-content: center;
+}
+
 .builder-selected-player-card .team-stat-grid {
   grid-template-columns: repeat(5, minmax(0, 1fr));
 }

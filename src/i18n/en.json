@@ -191,6 +191,8 @@
   "roster.sppSpent": "SPP spent",
   "roster.maxLevel": "Max level",
   "roster.noAdvancementsYet": "No advancements yet.",
+  "roster.advanceAction": "Advance",
+  "roster.previewAction": "Preview",
   "builder.subtitle": "Build a 600k starting roster by clicking available players.",
   "builder.availablePlayers": "Available players",
   "builder.remaining": "Remaining",

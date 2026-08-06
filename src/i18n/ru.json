@@ -191,6 +191,8 @@
   "roster.sppSpent": "SPP потрачено",
   "roster.maxLevel": "Максимальный уровень",
   "roster.noAdvancementsYet": "Пока нет улучшений.",
+  "roster.advanceAction": "\u041f\u0440\u043e\u043a\u0430\u0447\u043a\u0430",
+  "roster.previewAction": "\u041f\u0440\u0435\u0432\u044c\u044e",
   "builder.subtitle": "Соберите стартовый состав на 600 тыс., нажимая на доступных игроков.",
   "builder.availablePlayers": "Доступные игроки",
   "builder.remaining": "Остаток",
