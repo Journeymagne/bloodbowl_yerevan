@@ -1892,14 +1892,23 @@ body.auth-open {
   align-items: stretch;
 }
 
+.builder-tracker-control.compact-staff-control:not(.roster-money-card) {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  text-align: center;
+}
+
 .compact-staff-control > div:first-child {
   display: grid;
   align-content: center;
+  justify-items: center;
   min-width: 0;
 }
 
 .compact-staff-control .inline-stepper-control {
   align-self: center;
+  justify-self: center;
+  width: min(174px, 100%);
 }
 
 .compact-staff-control .inline-stepper-control > strong {
@@ -4120,7 +4129,7 @@ td {
   }
 
   .builder-tracker-control .inline-stepper-control {
-    justify-self: end;
+    justify-self: center;
   }
 
   .mobile-roster-player-card header {
