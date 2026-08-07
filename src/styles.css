@@ -1640,7 +1640,7 @@ body.auth-open {
 }
 
 .roster-purchase-grid {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
 .builder-info-panel {
@@ -1687,7 +1687,7 @@ body.auth-open {
 }
 
 .roster-purchase-card {
-  min-height: 86px;
+  min-height: 92px;
 }
 
 .roster-money-card {
@@ -1698,7 +1698,7 @@ body.auth-open {
 .roster-purchase-card .inline-stepper-control,
 .roster-purchase-input {
   justify-self: end;
-  width: min(150px, 100%);
+  width: min(174px, 100%);
 }
 
 .roster-purchase-input {
@@ -1860,30 +1860,53 @@ body.auth-open {
 }
 
 .builder-tracker-control {
-  grid-template-columns: minmax(0, 1fr) minmax(106px, auto);
-  gap: 10px;
-  padding: 9px 10px;
+  grid-template-columns: minmax(0, 1fr) minmax(146px, auto);
+  gap: 12px;
+  padding: 12px;
 }
 
 .builder-tracker-control strong {
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1.2;
 }
 
 .builder-tracker-control span {
-  margin-top: 2px;
-  font-size: 12px;
-  line-height: 1.25;
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.3;
 }
 
 .builder-tracker-control .inline-stepper-control {
-  min-height: 32px;
-  grid-template-columns: 32px 40px 32px;
+  min-height: 44px;
+  grid-template-columns: 44px minmax(54px, 1fr) 44px;
 }
 
 .builder-tracker-control .inline-stepper-control .filter-button {
-  min-height: 32px;
+  min-height: 44px;
   padding: 0;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.compact-staff-control {
+  align-items: stretch;
+}
+
+.compact-staff-control > div:first-child {
+  display: grid;
+  align-content: center;
+  min-width: 0;
+}
+
+.compact-staff-control .inline-stepper-control {
+  align-self: center;
+}
+
+.compact-staff-control .inline-stepper-control > strong {
+  display: grid;
+  min-height: 44px;
+  place-items: center;
+  font-size: 18px;
 }
 
 .builder-row {
@@ -4093,7 +4116,7 @@ td {
   }
 
   .builder-tracker-control {
-    grid-template-columns: minmax(0, 1fr) minmax(104px, auto);
+    grid-template-columns: minmax(0, 1fr) minmax(146px, auto);
   }
 
   .builder-tracker-control .inline-stepper-control {
