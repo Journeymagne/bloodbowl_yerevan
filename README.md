@@ -20,6 +20,10 @@ The site contains:
 - `index.html`, `src/app.js`, `src/styles.css` - static frontend.
 - `public/data.json` - generated site data.
 - `dist` - generated deploy output, ignored by Git and recreated during build.
+- `dist/local-preview.html` - the site with all reference data inlined. It still
+  has to be **served** (`npm run dev`, or any static server pointed at `dist/`)
+  rather than opened straight off disk: `src/app.js` is an ES module and browsers
+  refuse to load modules over `file://`.
 - `netlify.toml` - Netlify build and redirect settings.
 
 ## Commands
@@ -31,6 +35,25 @@ npm run start
 npm run postgres:up
 npm run postgres:down
 npm run postgres:reset
+```
+
+Checks:
+
+```bash
+npm run check      # unreachable functions + file/function size budgets
+npm test           # unit tests (node:test, no dependencies)
+npm run i18n:check # EN/RU page parity
+npm run smoke      # API + static exposure, needs a running server
+```
+
+`scripts/browser-check.mjs` additionally drives a real browser over the running
+dev server. It needs Playwright, which is intentionally not a dependency of this
+project:
+
+```bash
+npm i -D playwright && npx playwright install chromium
+npm run dev            # in another terminal
+node scripts/browser-check.mjs
 ```
 
 On Windows PowerShell, if `npm` is blocked by execution policy, use:

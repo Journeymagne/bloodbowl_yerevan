@@ -10,6 +10,10 @@ scripts/__pycache__/
 _upload_git/
 source/imports/
 
+# Build output. README has always described dist/ as generated; it used to be
+# committed anyway, which made every build show up as a 4.7 MB diff.
+dist/
+
 # Per-locale build output regenerates on every `npm run build` and is huge
 # (~20k lines each); public/data.json (the pre-existing single-locale
 # artifact) stays tracked per this repo's existing convention, but tracking
@@ -17,5 +21,3 @@ source/imports/
 # unreviewable.
 public/data.en.json
 public/data.ru.json
-dist/public/data.en.json
-dist/public/data.ru.json

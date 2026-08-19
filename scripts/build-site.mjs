@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = path.join(rootDir, "dist");
@@ -20,32 +21,6 @@ async function copyDir(from, to) {
   }
 }
 
-async function copyVaultAssets(from, to) {
-  const entries = await fs.readdir(from, { withFileTypes: true });
-
-  for (const entry of entries) {
-    if (entry.name === ".obsidian") {
-      continue;
-    }
-
-    const source = path.join(from, entry.name);
-    const target = path.join(to, entry.name);
-    if (entry.isDirectory()) {
-      await copyVaultAssets(source, target);
-    } else if (entry.isFile() && !entry.name.endsWith(".md")) {
-      await fs.mkdir(to, { recursive: true });
-      try {
-        await fs.copyFile(source, target);
-      } catch (error) {
-        if (error.code !== "EPERM") {
-          throw error;
-        }
-        await fs.access(target);
-      }
-    }
-  }
-}
-
 function minifyCss(source) {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -55,13 +30,56 @@ function minifyCss(source) {
     .trim();
 }
 
+/**
+ * One cache-busting token for every asset, derived from the files it protects.
+ * index.html is the only place a version appears; src/app.js reads its own
+ * `?v=` back off import.meta.url, so the data and i18n fetches automatically
+ * match whatever index.html asked for.
+ */
+async function assetVersion() {
+  const hash = crypto.createHash("sha256");
+  for (const relativePath of ["src/app.js", "src/styles.css", "index.html"]) {
+    hash.update(await fs.readFile(path.join(rootDir, relativePath)));
+  }
+  return `gata-${hash.digest("hex").slice(0, 10)}`;
+}
+
+/** Rewrite every `?v=...` in index.html, failing loudly if the markup moved. */
+function stampVersion(html, version) {
+  const pattern = /(\b(?:src|href)="[^"]+\?v=)[^"]*(")/g;
+  const stamped = html.replace(pattern, `$1${version}$2`);
+  const count = (html.match(pattern) ?? []).length;
+  if (count < 2) {
+    throw new Error(
+      `build-site: expected at least 2 versioned asset references in index.html, found ${count}. `
+      + "Update stampVersion() if the markup changed.",
+    );
+  }
+  return stamped;
+}
+
+/** The offline preview inlines the reference data so no fetch is needed. */
+function buildLocalPreview(html, enDataJson, ruDataJson) {
+  const scriptPattern = /<script type="module" src="(src\/app\.js[^"]*)"><\/script>/;
+  const match = html.match(scriptPattern);
+  if (!match) {
+    throw new Error("build-site: could not find the module script tag in index.html; update buildLocalPreview().");
+  }
+  const inlineData = `<script>window.__REFERENCE_DATA__ = { en: ${enDataJson}, ru: ${ruDataJson} };</script>`;
+  // Stays type="module" — src/app.js imports its domain modules, so a classic
+  // script would fail. That means this file has to be *served* (npm run dev,
+  // or any static server pointed at dist/), not opened straight off disk.
+  return html.replace(scriptPattern, `${inlineData}\n    <script type="module" src="${match[1]}"></script>`);
+}
+
 await fs.mkdir(distDir, { recursive: true });
-const indexHtml = await fs.readFile(path.join(rootDir, "index.html"), "utf8");
+
+const version = await assetVersion();
+const indexHtml = stampVersion(await fs.readFile(path.join(rootDir, "index.html"), "utf8"), version);
 await fs.writeFile(path.join(distDir, "index.html"), indexHtml);
 await copyDir(path.join(rootDir, "src"), path.join(distDir, "src"));
 await copyDir(path.join(rootDir, "public"), path.join(distDir, "public"));
 await copyDir(path.join(rootDir, "assets"), path.join(distDir, "assets"));
-await copyVaultAssets(path.join(rootDir, "content", "7ZBBL"), path.join(distDir, "public", "vault-assets"));
 const stylesPath = path.join(distDir, "src", "styles.css");
 await fs.writeFile(stylesPath, minifyCss(await fs.readFile(stylesPath, "utf8")));
 
@@ -69,10 +87,9 @@ const enDataJson = (await fs.readFile(path.join(rootDir, "public", "data.en.json
   .replace(/</g, "\\u003c");
 const ruDataJson = (await fs.readFile(path.join(rootDir, "public", "data.ru.json"), "utf8"))
   .replace(/</g, "\\u003c");
-const localPreviewHtml = indexHtml.replace(
-  '<script type="module" src="src/app.js?v=gata-97"></script>',
-  `<script>window.__REFERENCE_DATA__ = { en: ${enDataJson}, ru: ${ruDataJson} };</script>\n    <script src="src/app.js?v=gata-97"></script>`,
+await fs.writeFile(
+  path.join(distDir, "local-preview.html"),
+  buildLocalPreview(indexHtml, enDataJson, ruDataJson),
 );
-await fs.writeFile(path.join(distDir, "local-preview.html"), localPreviewHtml);
 
-console.log("Built static site into dist");
+console.log(`Built static site into dist (asset version ${version})`);

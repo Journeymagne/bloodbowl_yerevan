@@ -105,7 +105,11 @@ const supportedLocales = new Set(["en", "ru"]);
 const dataCache = new Map();
 let translations = { en: {}, ru: {} };
 let activeDict = translations.en;
-const assetVersion = "gata-93";
+// Cache-busting token: index.html loads this module as `src/app.js?v=<version>`
+// and the build stamps that value, so data and i18n fetches reuse it instead of
+// carrying a second copy that drifts (it used to say gata-93 while index.html
+// asked for gata-97).
+const assetVersion = new URL(import.meta.url).searchParams.get("v") || "dev";
 const logoUploadMaxBytes = 2 * 1024 * 1024;
 const logoOptimizeMaxDimension = 512;
 const logoOptimizeQuality = 0.82;
