@@ -12,7 +12,9 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-gata_admin}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-change-me-admin-password}
     ports:
-      - "${POSTGRES_PORT:-5433}:5432"
+      # Bind to loopback only: the database must never be reachable from the
+      # public internet. Use an SSH tunnel for remote access.
+      - "127.0.0.1:${POSTGRES_PORT:-5433}:5432"
     volumes:
       - gata_postgres_data:/var/lib/postgresql/data
     healthcheck:
