@@ -217,3 +217,74 @@ Also open `https://bloodbowlyerevan.shitpostsoftware.com/` in a browser, confirm
 site renders with a valid TLS certificate, then register a test account
 and save a team to confirm the Postgres-backed API path works
 end-to-end.
+
+## Security Notes (added 2026-08-19)
+
+### Static file exposure — fixed, but secrets must be rotated
+
+Before this change the server resolved any request path against the deploy
+directory and served whatever it found, so `/.env`, `/.git/config`,
+`/server/init.sql` and `/package.json` were publicly downloadable on
+`bloodbowlyerevan.shitpostsoftware.com`.
+
+`server/http/static-path.mjs` now serves only:
+
+- `index.html`, `local-preview.html`, `favicon.ico`, `robots.txt`
+- anything under `dist/`, `public/`, `src/`, `assets/`
+
+Everything else returns `404`. Covered by `test/static-path.test.mjs`
+(`npm test`).
+
+**Treat the following as compromised and rotate them on the server:**
+
+1. `POSTGRES_PASSWORD` in `.env` — and the copy of it inside `DATABASE_URL`.
+2. `ADMIN_PASSWORD` in `.env`. Note that `ensureAdmin()` rewrites the admin
+   password from `.env` on every process start, so changing it in the UI is
+   not enough — the file is the source of truth.
+
+After editing `.env`:
+
+```bash
+cd /opt/bloodbowl-league
+docker compose up -d
+pm2 restart bloodbowl-league
+```
+
+### Postgres must not listen on the public interface
+
+`docker-compose.yml` now publishes the database as
+`127.0.0.1:${POSTGRES_PORT:-5433}:5432`. Apply it with `docker compose up -d`
+and verify from another machine that port 5433 does not answer.
+
+### Verifying the fix
+
+```bash
+for p in /.env /.git/config /package.json /server/init.sql /docker-compose.yml; do
+  printf '%s -> ' "$p"
+  curl -s -o /dev/null -w '%{http_code}\n' "https://bloodbowlyerevan.shitpostsoftware.com$p"
+done
+# expected: 404 for every path
+
+for p in / /src/app.js /public/data.en.json /assets/brand/gata-league-logo-96.png; do
+  printf '%s -> ' "$p"
+  curl -s -o /dev/null -w '%{http_code}\n' "https://bloodbowlyerevan.shitpostsoftware.com$p"
+done
+# expected: 200 for every path
+```
+
+### Checking whether the exposure was used
+
+```bash
+docker logs paint-day-caddy 2>&1 | grep -Ei '/\.env|/\.git' | tail -50
+psql "$DATABASE_URL" -c "SELECT login, is_admin, created_at FROM users WHERE is_admin;"
+```
+
+Also review `~/.ssh/authorized_keys` on the host for unexpected keys.
+
+### Still to do
+
+- Move `.env` out of the deploy directory (for example `/etc/bloodbowl-league/.env`)
+  and pass it to pm2 through the environment, so a future routing change cannot
+  expose it again.
+- Switch `Content-Security-Policy-Report-Only` to the enforcing header after the
+  inline theme script in `index.html` is moved to its own file.

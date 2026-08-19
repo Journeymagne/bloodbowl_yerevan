@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 import { Pool } from "pg";
+import { resolveStaticPath } from "./http/static-path.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -1979,12 +1980,6 @@ async function handleApi(request, response, url) {
   }
 }
 
-function resolveStaticPath(url) {
-  const cleanPath = decodeURIComponent(url.pathname);
-  const target = cleanPath === "/" ? "index.html" : cleanPath.slice(1);
-  const fullPath = path.resolve(rootDir, target);
-  return fullPath.startsWith(rootDir) ? fullPath : null;
-}
 
 function cacheControlForStatic(url, fullPath) {
   const pathname = url.pathname;
@@ -2002,10 +1997,11 @@ function cacheControlForStatic(url, fullPath) {
 }
 
 async function handleStatic(request, response, url) {
-  const fullPath = resolveStaticPath(url);
+  const fullPath = resolveStaticPath(url.pathname, rootDir);
   if (!fullPath) {
-    response.writeHead(403);
-    response.end("Forbidden");
+    // 404 rather than 403: a 403 confirms the file exists.
+    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
+    response.end("Not found");
     return;
   }
 
