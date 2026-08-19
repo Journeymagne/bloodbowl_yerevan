@@ -191,8 +191,8 @@
   "roster.sppSpent": "SPP потрачено",
   "roster.maxLevel": "Максимальный уровень",
   "roster.noAdvancementsYet": "Пока нет улучшений.",
-  "roster.advanceAction": "\u041f\u0440\u043e\u043a\u0430\u0447\u043a\u0430",
-  "roster.previewAction": "\u041f\u0440\u0435\u0432\u044c\u044e",
+  "roster.advanceAction": "Прокачка",
+  "roster.previewAction": "Превью",
   "builder.subtitle": "Соберите стартовый состав на 600 тыс., нажимая на доступных игроков.",
   "builder.availablePlayers": "Доступные игроки",
   "builder.remaining": "Остаток",
@@ -365,5 +365,9 @@
   "season.tableLabel": "Стол",
   "season.tdHeader": "TD",
   "season.touchdownsLabel": "Тачдауны",
-  "season.yourTeamHeading": "Ваша команда сезона"
+  "season.yourTeamHeading": "Ваша команда сезона",
+  "validation.ROSTER_MIN_PLAYERS": "В ростере Sevens обычно нужно не менее {min} игроков (сейчас {count}).",
+  "validation.ROSTER_MAX_PLAYERS": "В ростере Sevens не должно быть больше {max} игроков (сейчас {count}).",
+  "validation.POSITION_MIN": "{position}: минимум {min}.",
+  "validation.POSITION_MAX": "{position}: максимум {max}."
 }

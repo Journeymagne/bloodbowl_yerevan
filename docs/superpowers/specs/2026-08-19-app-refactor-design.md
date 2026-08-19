@@ -160,7 +160,7 @@
 
 В колонке `saved_teams.roster` (JSONB, без схемы и без версии) сосуществуют три поколения формата:
 
-1. **Поколение 1:** `roster` — счётчики `{ rowIndex: count }` + `playerEdits` — правки по ключу `` `${rowIndex}:${copyIndex}` `` (`playerKey:6776`).
+1. **Поколение 1:** `roster` — счётчики `{ rowIndex: count }` + `playerEdits` — правки по ключу `` `${rowIndex}-${copyIndex}` `` (`playerKey:6776`).
 2. **Поколение 2:** `slots` — массив фиксированной длины `rosterSlotCount = 14` (`src/app.js:289`).
 3. **Поколение 3 (текущее):** `players[]` — массив объектов с `id`, `rowIndex`, `statMods`, `extraSkills`, `favouredSkills`, `spp`, `advancements`.
 

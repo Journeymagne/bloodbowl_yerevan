@@ -1,3 +1,103 @@
+import {
+  advancementRanks,
+  advancementStatCosts,
+  advancementTypeLabels,
+  builderStaffCosts,
+  builderStaffMaximums,
+  eliteSkillCombos,
+  favouredAlignments,
+  leagueAccessNames,
+  medicalStaffDefinitions,
+  skillAccessMap,
+  specialRuleNames,
+  sppCounterDefinitions,
+} from "./domain/league-rules.mjs";
+import {
+  categoriesForAccess,
+  clamp,
+  costToNumber,
+  countToNumber,
+  makeRosterPlayerId,
+  parseAccessCodes,
+  playerKey,
+  rosterMax,
+  rowCost,
+  rowsForTeam,
+  splitList,
+  statValueForDisplayByStat,
+} from "./domain/roster/values.mjs";
+import {
+  availableMedicalStaffDefinitions,
+  canHireMedicalStaff,
+  canonicalLeagueName,
+  canonicalSpecialRuleName,
+  cleanApothecary,
+  favouredAlignmentName,
+  favouredSkillsForChoice,
+  hasBribery,
+  leagueAccessDisplayByKey,
+  leagueOrder,
+  ruleLookupKey,
+  specialRuleDisplayByKey,
+  specialRuleMatchKey,
+  specialRuleOrder,
+  splitRuleAccessParts,
+  teamApothecaryAccess,
+  teamFavouredOptions,
+  teamHasFavouredOf,
+  teamHasSpecialRule,
+  teamLeagueOptions,
+  teamSpecialRuleTokens,
+  uniqueCanonical,
+} from "./domain/roster/team-rules.mjs";
+import {
+  baseSkillsForPlayer,
+  canAddRowToDraft,
+  ensureDraftPlayers,
+  makeRosterPlayer,
+  normalizeExtraSkill,
+  normalizeFavouredSkill,
+  normalizePlayerAdvancements,
+  normalizePlayerExtraSkills,
+  normalizePlayerFavouredSkills,
+  normalizePurchasedStaff,
+  normalizeRosterPlayer,
+  normalizeSppCounters,
+  playersFromLegacyRoster,
+  rosterPlayerView,
+  rowCountInPlayers,
+  selectedRosterPlayers,
+  setRosterCaptain,
+  skillNamesForPlayer,
+  slotPlayerFromDraft,
+  syncRosterCountsFromPlayers,
+} from "./domain/roster/players.mjs";
+import {
+  nextAdvancementCost,
+  playerAdvancementLevel,
+  playerAdvancementSpent,
+  playerAvailableSpp,
+  playerLevelRank,
+  playerSppTotal,
+  rosterTotalSpp,
+} from "./domain/roster/progression.mjs";
+import {
+  applyPaidStaffChange,
+  calculateRosterCosts,
+  eliteComboCost,
+  markStaffPurchased,
+  playerAdjustmentCost,
+  playerCurrentCost,
+  refundTreasury,
+  skillModCost,
+  spendTreasury,
+  staffItemCost,
+  statModCost,
+  syncMedicalStaffForTeam,
+} from "./domain/roster/costs.mjs";
+import { validateRoster } from "./domain/roster/validate.mjs";
+import { startingBudget } from "./domain/league-rules.mjs";
+
 ﻿const state = {
   data: null,
   locale: "en",
@@ -186,8 +286,10 @@ async function loadTranslations() {
   translations = { en, ru };
 }
 
-function t(key) {
-  return activeDict[key] ?? translations.en[key] ?? key;
+function t(key, params) {
+  const template = activeDict[key] ?? translations.en[key] ?? key;
+  if (!params) return template;
+  return String(template).replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match));
 }
 
 function applyStaticI18n() {
@@ -260,67 +362,14 @@ async function switchLocale(nextLocale) {
   renderRoute();
 }
 
-const builderStaffCosts = {
-  teamRerolls: 120,
-  startingRerolls: 60,
-  bribes: 50,
-  dedicatedFans: 10,
-  assistantCoaches: 10,
-  cheerleaders: 10,
-  apothecary: 50,
-  mortuaryAssistant: 100,
-  plagueDoctor: 100,
-};
 
-const builderStaffMaximums = {
-  teamRerolls: 8,
-  startingRerolls: 8,
-  bribes: 3,
-  dedicatedFans: 6,
-  assistantCoaches: 6,
-  cheerleaders: 6,
-  apothecary: 1,
-  mortuaryAssistant: 1,
-  plagueDoctor: 1,
-};
 
-const medicalStaffDefinitions = [
-  { key: "apothecary", title: "Apothecary", access: "apothecary" },
-  { key: "mortuaryAssistant", title: "Mortuary Assistant", access: "mortuary" },
-  { key: "plagueDoctor", title: "Plague Doctor", access: "plague" },
-];
 
 const rosterSlotCount = 14;
 
-const advancementRanks = [
-  { rank: "Experienced", costs: { random: 3, primary: 6, secondary: 10, stat: 14 } },
-  { rank: "Veteran", costs: { random: 4, primary: 8, secondary: 12, stat: 16 } },
-  { rank: "Emerging Star", costs: { random: 6, primary: 12, secondary: 16, stat: 20 } },
-  { rank: "Star", costs: { random: 8, primary: 16, secondary: 20, stat: 24 } },
-  { rank: "Superstar", costs: { random: 10, primary: 20, secondary: 24, stat: 28 } },
-  { rank: "Legend", costs: { random: 15, primary: 30, secondary: 34, stat: 38 } },
-];
 
-const advancementTypeLabels = {
-  random: "Random",
-  primary: "Primary",
-  secondary: "Secondary",
-  stat: "Stat",
-};
 
-const advancementStatCosts = {
-  ar: 10,
-  pa: 20,
-  ma: 30,
-  ag: 40,
-  st: 50,
-};
 
-const eliteSkillCombos = [
-  ["Claws", "Mighty Blow"],
-  ["Guard", "Defensive"],
-  ["Wrestle", "Evasive"],
-];
 
 const quickPreviews = new Map([
   ["1. League Basics", "League format, event tone, dice/model expectations and core conduct for Gata league games."],
@@ -1306,35 +1355,10 @@ function matchesQuery(page) {
   return haystack.includes(normalize(state.query));
 }
 
-function splitList(value = "") {
-  return String(value)
-    .split(/,|;|\n/)
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
 
-function costToNumber(value = "") {
-  const match = String(value).match(/(\d+)/);
-  return match ? Number(match[1]) : 0;
-}
 
-function countToNumber(value = 0) {
-  const number = Number(value);
-  return Number.isFinite(number) ? number : 0;
-}
 
-function rowCost(row) {
-  return row.cost ?? row.price ?? "";
-}
 
-const skillAccessMap = {
-  A: "Agility",
-  D: "Devious",
-  G: "General",
-  M: "Mutation",
-  P: "Passing",
-  S: "Strength",
-};
 
 function optionLabel(value) {
   return value === "-" ? "None" : value;
@@ -1344,68 +1368,9 @@ function uniqueSorted(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "en"));
 }
 
-const leagueAccessNames = [
-  "Badlands Brawl",
-  "Chaos Clash",
-  "Elven Kingdoms League",
-  "Halfling Thimble Cup",
-  "Lustrian Superleague",
-  "Old World Classic",
-  "Sylvanian Spotlight",
-  "Underworld Challenge",
-  "Woodland League",
-  "Worlds Edge Superleague",
-];
 
-const specialRuleNames = [
-  "Architect of Fate",
-  "Brawlin' Brutes",
-  "Bribery and Corruption",
-  "Explosive Demise",
-  "Favoured of...",
-  "Low Cost Linemen",
-  "Masters of Undeath",
-  "Passing Virtuosos",
-  "Swarming",
-  "Team Captain",
-];
 
-const favouredAlignments = [
-  {
-    name: "Undivided",
-    skills: ["Prehensile Tail", "Extra Arms", "Disturbing Presence"],
-  },
-  {
-    name: "Hashut",
-    skills: ["Iron Hard Skin", "Horns", "Bone Hook"],
-  },
-  {
-    name: "Slaanesh",
-    skills: ["Tentacles", "Foul Appearance", "Extra Arms"],
-  },
-  {
-    name: "Nurgle",
-    skills: ["Tentacles", "Monstrous Mouth", "Bone Hook"],
-  },
-  {
-    name: "Khorne",
-    skills: ["Horns", "Iron Hard Skin", "Prehensile Tail"],
-  },
-  {
-    name: "Tzeentch",
-    skills: ["Two Heads", "Extra Arms", "Very Long Legs"],
-  },
-];
 
-const sppCounterDefinitions = [
-  ["touchdowns", "TD"],
-  ["casualties", "CAS"],
-  ["knockouts", "KO"],
-  ["completions", "COMP"],
-  ["catches", "CATCH"],
-  ["interceptions", "INT"],
-  ["mvps", "MVP"],
-];
 
 function isSavedRosterPlayerExpanded(playerId) {
   return state.savedRosterUi.expandedPlayers.has(playerId);
@@ -1420,9 +1385,6 @@ function setSavedRosterPlayerExpanded(playerId, expanded) {
   }
 }
 
-function rowsForTeam(team) {
-  return team.team?.roster ?? [];
-}
 
 function emptyBuilderState(team = null) {
   return {
@@ -1520,253 +1482,26 @@ function updateSavedRosterFields(savedTeam, draft) {
   savedTeam.roster = draft;
 }
 
-function makeRosterPlayerId() {
-  if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
-  return `player-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-}
 
-function parseAccessCodes(values = []) {
-  const source = Array.isArray(values) ? values : [values];
-  return [...new Set(source
-    .flatMap((value) => String(value).split(/\s+/))
-    .flatMap((code) => /^[ADGMPS]+$/.test(code) ? code.split("") : [code])
-    .filter((code) => code && code !== "-"))];
-}
 
-function categoriesForAccess(values = []) {
-  return parseAccessCodes(values).map((code) => skillAccessMap[code]).filter(Boolean);
-}
 
-function normalizePurchasedStaff(roster = {}) {
-  const purchased = roster.purchasedStaff ?? {};
-  return {
-    teamRerolls: countToNumber(purchased.teamRerolls ?? roster.teamRerolls ?? 0),
-    startingRerolls: countToNumber(purchased.startingRerolls ?? 0),
-    bribes: countToNumber(purchased.bribes ?? 0),
-    assistantCoaches: countToNumber(purchased.assistantCoaches ?? 0),
-    cheerleaders: countToNumber(purchased.cheerleaders ?? 0),
-    apothecary: countToNumber(purchased.apothecary ?? 0),
-    mortuaryAssistant: countToNumber(purchased.mortuaryAssistant ?? 0),
-    plagueDoctor: countToNumber(purchased.plagueDoctor ?? 0),
-  };
-}
 
-function makeRosterPlayer(row, rowIndex, copyIndex = 0, options = {}) {
-  return {
-    id: makeRosterPlayerId(),
-    rowIndex,
-    number: String(options.number ?? copyIndex + 1),
-    name: `${row.position} ${copyIndex + 1}`,
-    statMods: {},
-    extraSkills: [],
-    favouredSkills: [],
-    skipNextGame: false,
-    niglingInjury: false,
-    isCaptain: false,
-    extendedContracts: 0,
-    spp: {},
-    advancements: [],
-    purchased: Boolean(options.purchased),
-  };
-}
 
-function normalizeExtraSkill(skill) {
-  if (!skill) return null;
-  if (typeof skill === "string") return { name: skill, access: "primary" };
-  if (typeof skill === "object" && skill.name) {
-    return {
-      name: String(skill.name),
-      access: skill.access === "secondary" ? "secondary" : "primary",
-    };
-  }
-  return null;
-}
 
-function normalizePlayerExtraSkills(row, skills = []) {
-  const seen = new Set(row.skills ?? []);
-  return skills
-    .map(normalizeExtraSkill)
-    .filter(Boolean)
-    .map((skill) => ({ ...skill, name: String(skill.name).trim() }))
-    .filter((skill) => {
-      if (!skill.name || seen.has(skill.name)) return false;
-      seen.add(skill.name);
-      return true;
-    });
-}
 
-function normalizeFavouredSkill(skill) {
-  if (!skill) return null;
-  if (typeof skill === "string") return { name: skill, access: "favoured" };
-  if (typeof skill === "object" && skill.name) {
-    return {
-      name: String(skill.name),
-      access: "favoured",
-    };
-  }
-  return null;
-}
 
-function normalizePlayerFavouredSkills(row, skills = []) {
-  const seen = new Set(row.skills ?? []);
-  return skills
-    .map(normalizeFavouredSkill)
-    .filter(Boolean)
-    .map((skill) => ({ ...skill, name: String(skill.name).trim() }))
-    .filter((skill) => {
-      if (!skill.name || seen.has(skill.name)) return false;
-      seen.add(skill.name);
-      return true;
-    });
-}
 
-function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
-  if (!player || typeof player !== "object") return null;
-  const rowIndex = Number(player.rowIndex);
-  if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return null;
-  const row = rows[rowIndex];
-  return {
-    id: String(player.id || makeRosterPlayerId()),
-    rowIndex,
-    number: String(player.number ?? fallbackIndex + 1),
-    name: String(player.name || `${row.position} ${fallbackIndex + 1}`),
-    statMods: { ...(player.statMods ?? {}) },
-    extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
-    favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    skipNextGame: Boolean(player.skipNextGame),
-    niglingInjury: Boolean(player.niglingInjury),
-    isCaptain: Boolean(player.isCaptain ?? player.captain),
-    extendedContracts: countToNumber(player.extendedContracts),
-    spp: normalizeSppCounters(player.spp),
-    advancements: normalizePlayerAdvancements(player.advancements),
-    purchased: Boolean(player.purchased),
-  };
-}
 
-function normalizeSppCounters(spp = {}) {
-  return Object.fromEntries(sppCounterDefinitions.map(([key]) => [key, Math.max(0, countToNumber(spp?.[key]))]));
-}
 
-function normalizePlayerAdvancements(advancements = []) {
-  const source = Array.isArray(advancements) ? advancements : [];
-  return source
-    .map((advancement) => {
-      const type = typeof advancement === "string" ? advancement : advancement?.type;
-      return Object.hasOwn(advancementTypeLabels, type) ? { type } : null;
-    })
-    .filter(Boolean)
-    .slice(0, advancementRanks.length);
-}
 
-function playersFromLegacyRoster(team, draft) {
-  const rows = rowsForTeam(team);
-  if (Array.isArray(draft.players) && draft.players.length) {
-    return draft.players.map((player, index) => normalizeRosterPlayer(player, rows, index)).filter(Boolean);
-  }
 
-  if (Array.isArray(draft.slots) && draft.slots.length) {
-    return draft.slots.map((slot, index) => normalizeRosterPlayer(slot, rows, index)).filter(Boolean);
-  }
 
-  const players = [];
-  rows.forEach((row, rowIndex) => {
-    const count = Math.max(0, Number(draft.roster?.[rowIndex] ?? 0));
-    for (let copyIndex = 0; copyIndex < count; copyIndex += 1) {
-      const edit = draft.playerEdits?.[playerKey(rowIndex, copyIndex)] ?? {};
-      players.push(normalizeRosterPlayer({
-        id: makeRosterPlayerId(),
-        rowIndex,
-        number: edit.number ?? players.length + 1,
-        name: edit.name || `${row.position} ${copyIndex + 1}`,
-        statMods: edit.statMods ?? {},
-        extraSkills: edit.extraSkills ?? [],
-        favouredSkills: edit.favouredSkills ?? [],
-        skipNextGame: Boolean(edit.skipNextGame),
-        niglingInjury: Boolean(edit.niglingInjury),
-        isCaptain: Boolean(edit.isCaptain ?? edit.captain),
-        extendedContracts: countToNumber(edit.extendedContracts),
-        spp: normalizeSppCounters(edit.spp),
-        advancements: normalizePlayerAdvancements(edit.advancements),
-      }, rows, copyIndex));
-    }
-  });
-  return players.filter(Boolean);
-}
 
-function ensureDraftPlayers(team, draft) {
-  draft.players = playersFromLegacyRoster(team, draft);
-  delete draft.slots;
-  syncRosterCountsFromPlayers(draft);
-  return draft.players;
-}
 
-function syncRosterCountsFromPlayers(draft) {
-  const counts = {};
-  (draft.players ?? []).forEach((player) => {
-    counts[player.rowIndex] = (counts[player.rowIndex] ?? 0) + 1;
-  });
-  draft.roster = counts;
-}
 
-function rowCountInPlayers(draft, rowIndex) {
-  return (draft.players ?? []).filter((player) => player.rowIndex === rowIndex).length;
-}
 
-function canAddRowToDraft(row, rowIndex, draft, enforceMaximum = true) {
-  if (!enforceMaximum) return true;
-  return rowCountInPlayers(draft, rowIndex) < rosterMax(row.qty);
-}
 
-function rosterPlayerView(team, player, index = 0) {
-  const row = rowsForTeam(team)[player.rowIndex];
-  if (!row) return null;
-  return {
-    ...player,
-    key: player.id,
-    index,
-    row,
-    rowIndex: player.rowIndex,
-    copyIndex: index,
-    number: String(player.number ?? index + 1),
-    name: player.name || `${row.position} ${index + 1}`,
-    statMods: player.statMods ?? {},
-    extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
-    favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    skipNextGame: Boolean(player.skipNextGame),
-    niglingInjury: Boolean(player.niglingInjury),
-    isCaptain: Boolean(player.isCaptain ?? player.captain),
-    extendedContracts: countToNumber(player.extendedContracts),
-    spp: normalizeSppCounters(player.spp),
-    advancements: normalizePlayerAdvancements(player.advancements),
-  };
-}
 
-function baseSkillsForPlayer(row) {
-  return (row.skills ?? []).map((name) => ({ name, access: "base" }));
-}
-
-function skillNamesForPlayer(row, player) {
-  const seen = new Set();
-  return [
-    ...baseSkillsForPlayer(row),
-    ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
-    ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    ...(player.isCaptain ? [{ name: "Pro", access: "captain" }] : []),
-  ]
-    .map((skill) => skill.name)
-    .filter((name) => {
-      if (!name || seen.has(name)) return false;
-      seen.add(name);
-      return true;
-    });
-}
-
-function setRosterCaptain(draft, playerId, isCaptain = true) {
-  if (!Array.isArray(draft.players)) return;
-  draft.players.forEach((player) => {
-    player.isCaptain = Boolean(isCaptain && player.id === playerId);
-  });
-}
 
 function playerStatusText(player) {
   const statuses = [];
@@ -1797,46 +1532,11 @@ function availableSkillOptionsForPlayer(row, player) {
   return options.sort((a, b) => a.name.localeCompare(b.name, "en"));
 }
 
-function statModCost(stat, mod = 0) {
-  return (advancementStatCosts[stat] ?? 0) * Math.max(0, mod);
-}
 
-function skillModCost(skill) {
-  if (skill?.access === "favoured") return 0;
-  return skill?.access === "secondary" ? 40 : 20;
-}
 
-function eliteComboCost(row, player) {
-  const baseSkills = new Set(row.skills ?? []);
-  const advancedSkills = new Set(normalizePlayerExtraSkills(row, player.extraSkills ?? []).map((skill) => skill.name));
-  const allSkills = new Set([...baseSkills, ...advancedSkills]);
 
-  return eliteSkillCombos.reduce((sum, combo) => {
-    const hasCombo = combo.every((skill) => allSkills.has(skill));
-    const comboAdvanced = combo.some((skill) => advancedSkills.has(skill));
-    return hasCombo && comboAdvanced ? sum + 15 : sum;
-  }, 0);
-}
 
-function playerAdjustmentCost(player) {
-  const skillCost = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []).reduce((sum, skill) => sum + skillModCost(skill), 0);
-  const statCost = Object.entries(player.statMods ?? {}).reduce((sum, [stat, mod]) => sum + statModCost(stat, Number(mod) || 0), 0);
-  const contractCost = countToNumber(player.extendedContracts) * 20;
-  return skillCost + statCost + contractCost + eliteComboCost(player.row, player);
-}
 
-function playerCurrentCost(row, player, includeAdjustments = true) {
-  return costToNumber(rowCost(row)) + (includeAdjustments ? playerAdjustmentCost(player) : 0);
-}
-
-function statValueForDisplayByStat(stat, base, mod = 0) {
-  if (base === "-" || base === "") return base || "-";
-  const match = String(base).match(/^(\d+)(\+)?$/);
-  if (!match) return base;
-  const raw = Number(match[1]);
-  const next = ["ag", "pa"].includes(stat) ? raw - mod : raw + mod;
-  return `${Math.max(1, next)}${match[2] ?? ""}`;
-}
 
 function emptyRosterSlots() {
   return Array.from({ length: rosterSlotCount }, () => null);
@@ -2545,33 +2245,7 @@ function renderRosterValues(items = []) {
   return items.map((item) => `<span class="roster-pill roster-pill-muted">${escapeHtml(item)}</span>`).join("");
 }
 
-function ruleLookupKey(value = "") {
-  return String(value)
-    .replace(/\bOId\b/g, "Old")
-    .replace(/\bFavored\b/g, "Favoured")
-    .replace(/Elven Kingdoms League/i, "Elven Kingdom League")
-    .replace(/Worlds Edge/i, "World's Edge")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "");
-}
 
-const leagueAccessDisplayByKey = new Map(leagueAccessNames.map((name) => [ruleLookupKey(name), name]));
-const specialRuleDisplayByKey = new Map([
-  [ruleLookupKey("Architect of Fate"), "Architect of Fate"],
-  [ruleLookupKey("Brawlin' Brutes"), "Brawlin' Brutes"],
-  [ruleLookupKey("Brawling Brutes"), "Brawlin' Brutes"],
-  [ruleLookupKey("Bribery and Corruption"), "Bribery and Corruption"],
-  [ruleLookupKey("Explosive Demise"), "Explosive Demise"],
-  [ruleLookupKey("Favoured of..."), "Favoured of..."],
-  [ruleLookupKey("Favoured of ..."), "Favoured of..."],
-  [ruleLookupKey("Favored of..."), "Favoured of..."],
-  [ruleLookupKey("Favored of ..."), "Favoured of..."],
-  [ruleLookupKey("Low Cost Linemen"), "Low Cost Linemen"],
-  [ruleLookupKey("Masters of Undeath"), "Masters of Undeath"],
-  [ruleLookupKey("Passing Virtuosos"), "Passing Virtuosos"],
-  [ruleLookupKey("Swarming"), "Swarming"],
-  [ruleLookupKey("Team Captain"), "Team Captain"],
-]);
 
 function pageForRuleEntry(title) {
   if (canonicalLeagueName(title)) {
@@ -2585,74 +2259,14 @@ function pageForRuleEntry(title) {
     ?? null;
 }
 
-function splitRuleAccessParts(value = "") {
-  return splitList(value)
-    .filter((item) => item !== "-")
-    .flatMap((item) => item.split(/\s+or\s+/i))
-    .flatMap((item) => item.split(/\s+\+\s+/))
-    .map((item) => item.trim())
-    .filter(Boolean);
-}
 
-function canonicalLeagueName(value = "") {
-  return leagueAccessDisplayByKey.get(ruleLookupKey(value)) ?? "";
-}
 
-function canonicalSpecialRuleName(value = "") {
-  const clean = String(value).replace(/\bFavored\b/g, "Favoured").trim();
-  const key = ruleLookupKey(clean);
-  if (key.startsWith("favouredof")) {
-    return key === ruleLookupKey("Favoured of...") ? "Favoured of..." : clean;
-  }
-  return specialRuleDisplayByKey.get(key) ?? "";
-}
 
-function uniqueCanonical(values, canonicalizer) {
-  const seen = new Set();
-  const output = [];
-  for (const value of values) {
-    const canonical = canonicalizer(value);
-    if (!canonical) continue;
-    const key = ruleLookupKey(canonical);
-    if (seen.has(key)) continue;
-    seen.add(key);
-    output.push(canonical);
-  }
-  return output;
-}
 
-function leagueOrder(name) {
-  const key = ruleLookupKey(name);
-  const index = leagueAccessNames.findIndex((league) => ruleLookupKey(league) === key);
-  return index === -1 ? leagueAccessNames.length : index;
-}
 
-function specialRuleOrder(name) {
-  const key = ruleLookupKey(name);
-  const index = specialRuleNames.findIndex((rule) => key.startsWith("favouredof")
-    ? ruleLookupKey(rule) === ruleLookupKey("Favoured of...")
-    : ruleLookupKey(rule) === key);
-  return index === -1 ? specialRuleNames.length : index;
-}
 
-function teamSpecialRuleTokens(team) {
-  const rules = uniqueCanonical(splitRuleAccessParts(team.team?.meta?.specialRules ?? ""), canonicalSpecialRuleName);
-  if (!rules.some((rule) => ruleLookupKey(rule) === ruleLookupKey("Team Captain"))) {
-    rules.push("Team Captain");
-  }
-  return rules
-    .sort((a, b) => specialRuleOrder(a) - specialRuleOrder(b) || a.localeCompare(b, "en"));
-}
 
-function specialRuleMatchKey(value = "") {
-  const key = ruleLookupKey(value);
-  return key === "brawlingbrutes" ? "brawlinbrutes" : key;
-}
 
-function teamHasSpecialRule(team, ruleName) {
-  const expected = specialRuleMatchKey(ruleName);
-  return teamSpecialRuleTokens(team).some((rule) => specialRuleMatchKey(rule) === expected);
-}
 
 function renderRuleLinks(items = []) {
   if (!items.length) return `<span class="muted-text">-</span>`;
@@ -2664,52 +2278,13 @@ function renderRuleLinks(items = []) {
   }).join("");
 }
 
-function playerSppTotal(team, player) {
-  const spp = normalizeSppCounters(player.spp);
-  const hasBrawlinBrutes = teamHasSpecialRule(team, "Brawlin' Brutes");
-  const hasPassingVirtuosos = teamHasSpecialRule(team, "Passing Virtuosos");
-  const touchdownValue = hasBrawlinBrutes || hasPassingVirtuosos ? 2 : 3;
-  const casualtyValue = hasBrawlinBrutes ? 3 : 2;
-  return (spp.touchdowns * touchdownValue)
-    + (spp.casualties * casualtyValue)
-    + spp.knockouts
-    + spp.completions
-    + (hasPassingVirtuosos ? spp.catches : 0)
-    + (spp.interceptions * 2)
-    + (spp.mvps * 5);
-}
 
-function playerAdvancementLevel(player) {
-  return normalizePlayerAdvancements(player.advancements).length;
-}
 
-function playerAdvancementSpent(player) {
-  return normalizePlayerAdvancements(player.advancements)
-    .reduce((sum, advancement, index) => sum + (advancementRanks[index]?.costs?.[advancement.type] ?? 0), 0);
-}
 
-function playerAvailableSpp(team, player) {
-  return playerSppTotal(team, player) - playerAdvancementSpent(player);
-}
 
-function playerLevelRank(player) {
-  const level = playerAdvancementLevel(player);
-  return level > 0 ? advancementRanks[level - 1]?.rank ?? "Legend" : "Rookie";
-}
 
-function nextAdvancementCost(player, type) {
-  const rank = advancementRanks[playerAdvancementLevel(player)];
-  return rank?.costs?.[type] ?? 0;
-}
 
-function rosterTotalSpp(team, draft) {
-  return selectedRosterPlayers(team, draft).reduce((sum, player) => sum + playerSppTotal(team, player), 0);
-}
 
-function teamLeagueOptions(team) {
-  return uniqueCanonical(splitRuleAccessParts(team.team?.meta?.specialRules ?? ""), canonicalLeagueName)
-    .sort((a, b) => leagueOrder(a) - leagueOrder(b) || a.localeCompare(b, "en"));
-}
 
 function ensureDraftLeagueChoice(team, draft) {
   const options = teamLeagueOptions(team);
@@ -2722,32 +2297,7 @@ function ensureDraftLeagueChoice(team, draft) {
   return draft.selectedLeague;
 }
 
-function favouredAlignmentName(value = "") {
-  const clean = String(value)
-    .replace(/\bFavored\b/g, "Favoured")
-    .replace(/^Favoured\s+of/i, "")
-    .replace(/\.+$/g, "")
-    .trim();
-  const key = ruleLookupKey(clean);
-  return favouredAlignments.find((alignment) => ruleLookupKey(alignment.name) === key)?.name ?? "";
-}
 
-function teamFavouredOptions(team) {
-  const rules = teamSpecialRuleTokens(team).filter((rule) => ruleLookupKey(rule).startsWith("favouredof"));
-  if (!rules.length) return [];
-  if (rules.some((rule) => ruleLookupKey(rule) === ruleLookupKey("Favoured of..."))) {
-    return favouredAlignments.map((alignment) => alignment.name);
-  }
-  const seen = new Set();
-  return rules
-    .map(favouredAlignmentName)
-    .filter((name) => {
-      const key = ruleLookupKey(name);
-      if (!name || seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
-}
 
 function ensureDraftFavouredChoice(team, draft) {
   const options = teamFavouredOptions(team);
@@ -2760,10 +2310,6 @@ function ensureDraftFavouredChoice(team, draft) {
   return draft.favouredChoice;
 }
 
-function favouredSkillsForChoice(choice = "") {
-  const alignment = favouredAlignments.find((item) => ruleLookupKey(item.name) === ruleLookupKey(choice));
-  return alignment?.skills ?? [];
-}
 
 function favouredSkillOptionsForPlayer(team, draft, row, player) {
   const choice = ensureDraftFavouredChoice(team, draft);
@@ -3130,9 +2676,6 @@ function renderSidebar(page) {
   `;
 }
 
-function cleanApothecary(value = "") {
-  return String(value).replace(/^Apothecary:\s*/i, "") || "-";
-}
 
 function renderLegal() {
   setActiveNav("legal");
@@ -5196,29 +4739,6 @@ function addableRowsForSlots(team, draft, currentSlotIndex = -1) {
     .filter((item) => rowAvailableForSlot(draft, item.rowIndex, currentSlotIndex));
 }
 
-function slotPlayerFromDraft(team, slot, slotIndex) {
-  if (!slot) return null;
-  const row = rowsForTeam(team)[slot.rowIndex];
-  if (!row) return null;
-  return {
-    key: `slot-${slotIndex}`,
-    slotIndex,
-    rowIndex: slot.rowIndex,
-    copyIndex: slotIndex,
-    row,
-    name: slot.name || row.position,
-    stats: {
-      ma: Number(row.ma) + (slot.statMods?.ma ?? 0),
-      st: Number(row.st) + (slot.statMods?.st ?? 0),
-      ag: row.ag,
-      pa: row.pa,
-      ar: row.ar,
-    },
-    statMods: slot.statMods ?? {},
-    extraSkills: slot.extraSkills ?? [],
-    skipNextGame: Boolean(slot.skipNextGame),
-  };
-}
 
 function renderRosterSlot(team, draft, slot, slotIndex) {
   const player = slotPlayerFromDraft(team, slot, slotIndex);
@@ -5895,7 +5415,7 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
           <div class="summary-state-block">
             ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
             <div class="summary-actions">
-              <button class="primary-button" type="button" data-save-team ${costs.total > 600 || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
+              <button class="primary-button" type="button" data-save-team ${costs.total > startingBudget || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
               <button class="primary-button" type="button" data-copy-roster>${t("roster.copyRoster")}</button>
             </div>
           </div>
@@ -5911,15 +5431,15 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
               <div class="inline-stepper-control">
                 <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
                 <strong>${state.builder.startingRerolls}</strong>
-                <button class="filter-button" type="button" data-builder-reroll="1" ${costs.total + builderStaffCosts.startingRerolls > 600 ? "disabled" : ""}>+</button>
+                <button class="filter-button" type="button" data-builder-reroll="1" ${costs.total + builderStaffCosts.startingRerolls > startingBudget ? "disabled" : ""}>+</button>
               </div>
             </div>
-            ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
-            ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total + builderStaffCosts.bribes > 600) : ""}
-            ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
-            ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
+            ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > startingBudget)}
+            ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total + builderStaffCosts.bribes > startingBudget) : ""}
+            ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > startingBudget)}
+            ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > startingBudget)}
             ${availableMedicalStaffDefinitions(team).map((staff) => {
-              const blocked = costs.total + (builderStaffCosts[staff.key] ?? 0) > 600;
+              const blocked = costs.total + (builderStaffCosts[staff.key] ?? 0) > startingBudget;
               return renderBuilderStaffControl(staff.key, staff.title, state.builder[staff.key], blocked);
             }).join("")}
           </div>
@@ -5972,15 +5492,15 @@ function renderBuilderPurchases(team, costs) {
           <div class="inline-stepper-control">
             <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
             <strong>${state.builder.startingRerolls}</strong>
-            <button class="filter-button" type="button" data-builder-reroll="1" ${costs.total + builderStaffCosts.startingRerolls > 600 ? "disabled" : ""}>+</button>
+            <button class="filter-button" type="button" data-builder-reroll="1" ${costs.total + builderStaffCosts.startingRerolls > startingBudget ? "disabled" : ""}>+</button>
           </div>
         </div>
-        ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > 600)}
-        ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total + builderStaffCosts.bribes > 600) : ""}
-        ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > 600)}
-        ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > 600)}
+        ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > startingBudget)}
+        ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total + builderStaffCosts.bribes > startingBudget) : ""}
+        ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > startingBudget)}
+        ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > startingBudget)}
         ${availableMedicalStaffDefinitions(team).map((staff) => {
-          const blocked = costs.total + (builderStaffCosts[staff.key] ?? 0) > 600;
+          const blocked = costs.total + (builderStaffCosts[staff.key] ?? 0) > startingBudget;
           return renderBuilderStaffControl(staff.key, staff.title, state.builder[staff.key], blocked);
         }).join("")}
       </div>
@@ -6007,7 +5527,7 @@ function renderBuilderSummary(team, costs, warnings) {
       <div class="summary-state-block">
         ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
         <div class="summary-actions">
-          <button class="primary-button" type="button" data-save-team ${costs.total > 600 || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
+          <button class="primary-button" type="button" data-save-team ${costs.total > startingBudget || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
           <button class="primary-button" type="button" data-copy-roster>${t("roster.copyRoster")}</button>
         </div>
       </div>
@@ -6042,7 +5562,7 @@ function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
           ${rows.map((row, rowIndex) => {
     const baseCost = costToNumber(rowCost(row));
     const positionFull = !canAddRowToDraft(row, rowIndex, draft, true);
-    const budgetBlocked = enforceBudget && costs.total + baseCost > 600;
+    const budgetBlocked = enforceBudget && costs.total + baseCost > startingBudget;
     const disabled = positionFull || budgetBlocked;
     const current = rowCountInPlayers(draft, rowIndex);
     return `
@@ -6073,7 +5593,7 @@ function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
 function renderAvailablePlayerCard(row, rowIndex, draft, costs, enforceBudget = false) {
   const baseCost = costToNumber(rowCost(row));
   const positionFull = !canAddRowToDraft(row, rowIndex, draft, true);
-  const budgetBlocked = enforceBudget && costs.total + baseCost > 600;
+  const budgetBlocked = enforceBudget && costs.total + baseCost > startingBudget;
   const disabled = positionFull || budgetBlocked;
   const current = rowCountInPlayers(draft, rowIndex);
   return `
@@ -6777,52 +6297,11 @@ function selectedRosterRows(team, draft) {
     .filter((item) => item.count > 0);
 }
 
-function playerKey(rowIndex, copyIndex) {
-  return `${rowIndex}-${copyIndex}`;
-}
 
 function selectedBuilderPlayers(team) {
   return selectedRosterPlayers(team, state.builder);
 }
 
-function selectedRosterPlayers(team, draft) {
-  if (Array.isArray(draft.players)) {
-    return draft.players
-      .map((player, index) => rosterPlayerView(team, player, index))
-      .filter(Boolean);
-  }
-  if (Array.isArray(draft.slots)) {
-    return draft.slots
-      .map((slot, slotIndex) => slotPlayerFromDraft(team, slot, slotIndex))
-      .filter(Boolean);
-  }
-  return rowsForTeam(team).flatMap((row, rowIndex) => {
-    const count = draft.roster[rowIndex] ?? 0;
-    return Array.from({ length: count }, (_item, copyIndex) => {
-      const key = playerKey(rowIndex, copyIndex);
-      const edit = draft.playerEdits[key] ?? {};
-      return {
-        key,
-        rowIndex,
-        copyIndex,
-        row,
-        name: edit.name ?? `${row.position} ${copyIndex + 1}`,
-        stats: {
-          ma: Number(row.ma) + (edit.statMods?.ma ?? 0),
-          st: Number(row.st) + (edit.statMods?.st ?? 0),
-          ag: row.ag,
-          pa: row.pa,
-          ar: row.ar,
-        },
-        statMods: edit.statMods ?? {},
-        extraSkills: edit.extraSkills ?? [],
-        skipNextGame: Boolean(edit.skipNextGame),
-        isCaptain: Boolean(edit.isCaptain ?? edit.captain),
-        extendedContracts: countToNumber(edit.extendedContracts),
-      };
-    });
-  });
-}
 
 function ensurePlayerEdit(draft, key, row) {
   draft.playerEdits[key] ??= {
@@ -6949,147 +6428,34 @@ function renderStepper(name, value, min, max, disabled = false) {
   `;
 }
 
-function rosterMax(value = "") {
-  const match = String(value).match(/-(\d+)/);
-  return match ? Number(match[1]) : 16;
-}
 
-function hasBribery(team) {
-  return /bribery\s+and\s+corruption/i.test(team.team?.meta?.specialRules ?? "");
-}
 
-function teamApothecaryAccess(team) {
-  return cleanApothecary(team.team?.meta?.apothecary ?? "");
-}
 
-function teamHasFavouredOf(team, alignment) {
-  const expected = ruleLookupKey(`Favoured of ${alignment}`);
-  return teamSpecialRuleTokens(team).some((rule) => ruleLookupKey(rule) === expected);
-}
 
-function canHireMedicalStaff(team, staff) {
-  const apothecaryAccess = teamApothecaryAccess(team);
-  if (staff.access === "apothecary") return /\bavailable\b/i.test(apothecaryAccess);
-  if (staff.access === "mortuary") {
-    return /mortuary\s+assistant/i.test(apothecaryAccess) || teamHasSpecialRule(team, "Masters of Undeath");
-  }
-  if (staff.access === "plague") {
-    return /plague\s+doctor/i.test(apothecaryAccess) || teamHasFavouredOf(team, "Nurgle");
-  }
-  return false;
-}
 
-function availableMedicalStaffDefinitions(team) {
-  return medicalStaffDefinitions.filter((staff) => canHireMedicalStaff(team, staff));
-}
 
-function syncMedicalStaffForTeam(team, draft) {
-  if (!hasBribery(team)) {
-    draft.bribes = 0;
-    if (draft.purchasedStaff) draft.purchasedStaff.bribes = 0;
-  } else {
-    draft.bribes = clamp(countToNumber(draft.bribes), 0, builderStaffMaximums.bribes);
-  }
-
-  const availableKeys = new Set(availableMedicalStaffDefinitions(team).map((staff) => staff.key));
-  medicalStaffDefinitions.forEach((staff) => {
-    if (!availableKeys.has(staff.key)) {
-      draft[staff.key] = 0;
-      if (draft.purchasedStaff) draft.purchasedStaff[staff.key] = 0;
-      return;
-    }
-    draft[staff.key] = clamp(countToNumber(draft[staff.key]), 0, builderStaffMaximums[staff.key] ?? 1);
-  });
-}
 
 function calculateBuilderCosts(team) {
   return calculateRosterCosts(team, state.builder, { includeDedicatedFans: true });
 }
 
-function staffItemCost(draft, key) {
-  return countToNumber(draft[key]) * (builderStaffCosts[key] ?? 0);
-}
 
-function spendTreasury(draft, amount) {
-  const cost = countToNumber(amount);
-  if (!cost) return;
-  draft.treasury = countToNumber(draft.treasury) - cost;
-}
 
-function refundTreasury(draft, amount) {
-  const value = countToNumber(amount);
-  if (!value) return;
-  draft.treasury = countToNumber(draft.treasury) + value;
-}
 
-function markStaffPurchased(draft, key, delta) {
-  draft.purchasedStaff ??= {};
-  draft.purchasedStaff[key] = Math.max(0, countToNumber(draft.purchasedStaff[key]) + delta);
-}
 
-function applyPaidStaffChange(draft, key, previous, next) {
-  if (key === "dedicatedFans") return;
-  const difference = next - previous;
-  const unitCost = builderStaffCosts[key] ?? 0;
-  if (!difference || !unitCost) return;
 
-  if (difference > 0) {
-    spendTreasury(draft, unitCost * difference);
-    markStaffPurchased(draft, key, difference);
-    return;
-  }
-
-  const refundable = Math.min(Math.abs(difference), countToNumber(draft.purchasedStaff?.[key]));
-  if (refundable > 0) {
-    refundTreasury(draft, unitCost * refundable);
-    markStaffPurchased(draft, key, -refundable);
-  }
-}
-
-function calculateRosterCosts(team, draft, options = {}) {
-  const includeDedicatedFans = Boolean(options.includeDedicatedFans);
-  const players = selectedRosterPlayers(team, draft);
-  const playersCount = players.filter((player) => !player.skipNextGame).length;
-  const playersCost = players.reduce((sum, player) => {
-    if (player.skipNextGame) return sum;
-    return sum + playerCurrentCost(player.row, player, true);
-  }, 0);
-  const staffCost = staffItemCost(draft, "startingRerolls")
-    + staffItemCost(draft, "teamRerolls")
-    + (hasBribery(team) ? staffItemCost(draft, "bribes") : 0)
-    + (includeDedicatedFans ? staffItemCost(draft, "dedicatedFans") : 0)
-    + staffItemCost(draft, "assistantCoaches")
-    + staffItemCost(draft, "cheerleaders")
-    + medicalStaffDefinitions.reduce((sum, staff) => sum + staffItemCost(draft, staff.key), 0);
-  const total = playersCost + staffCost;
-  return {
-    playersCount,
-    totalPlayersCount: players.length,
-    playersCost,
-    staffCost,
-    rerollCost: staffCost,
-    total,
-    remaining: 600 - total,
-  };
-}
 
 function builderWarnings(team, costs) {
   return rosterWarnings(team, state.builder, costs);
 }
 
+/** Domain violations rendered in the current locale. */
+function warningMessages(violations) {
+  return violations.map((violation) => t(`validation.${violation.code}`, violation.params));
+}
+
 function rosterWarnings(team, draft, costs) {
-  const warnings = [];
-  if (costs.playersCount < 7) warnings.push("A Sevens roster usually needs at least 7 players.");
-  if (costs.playersCount > 11) warnings.push("A Sevens roster should not exceed 11 players.");
-  rowsForTeam(team).forEach((row, index) => {
-    const count = draft.roster[index] ?? 0;
-    const minMatch = String(row.qty).match(/^(\d+)-/);
-    const min = minMatch ? Number(minMatch[1]) : 0;
-    const max = rosterMax(row.qty);
-    if (count < min) warnings.push(`${row.position}: minimum is ${min}.`);
-    if (count > max) warnings.push(`${row.position}: maximum is ${max}.`);
-  });
-  return warnings;
+  return warningMessages(validateRoster(team, draft, costs));
 }
 
 function wireBuilder(team) {
@@ -7129,7 +6495,7 @@ function wireBuilder(team) {
       const row = rowsForTeam(team)[rowIndex];
       if (!row) return;
       const costs = calculateRosterCosts(team, state.builder, { includeDedicatedFans: true });
-      if (costs.total + costToNumber(rowCost(row)) > 600) return;
+      if (costs.total + costToNumber(rowCost(row)) > startingBudget) return;
       if (!canAddRowToDraft(row, rowIndex, state.builder, true)) return;
       state.builder.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(state.builder, rowIndex)));
       syncRosterCountsFromPlayers(state.builder);
@@ -7161,7 +6527,7 @@ function wireBuilder(team) {
       const next = clamp(countToNumber(state.builder.startingRerolls) + delta, 0, builderStaffMaximums.startingRerolls);
       const previous = countToNumber(state.builder.startingRerolls);
       const projected = calculateRosterCosts(team, { ...state.builder, startingRerolls: next }, { includeDedicatedFans: true }).total;
-      if (projected > 600 && next > previous) return;
+      if (projected > startingBudget && next > previous) return;
       state.builder.startingRerolls = next;
       renderBuilder();
     });
@@ -7174,7 +6540,7 @@ function wireBuilder(team) {
       const next = clamp(countToNumber(state.builder[key]) + delta, 0, max);
       const previous = countToNumber(state.builder[key]);
       const projected = calculateRosterCosts(team, { ...state.builder, [key]: next }, { includeDedicatedFans: true }).total;
-      if (projected > 600 && next > previous) return;
+      if (projected > startingBudget && next > previous) return;
       state.builder[key] = next;
       renderBuilder();
     });
@@ -7307,9 +6673,6 @@ function handleBuilderStepEvent(event) {
   renderBuilder();
 }
 
-function clamp(value, min, max) {
-  return Math.min(max, Math.max(min, value));
-}
 
 async function copyRoster(team) {
   const lines = buildRosterText(team, state.builder);
@@ -7331,7 +6694,7 @@ async function saveTeam(team) {
   payload.logoData = await optimizeLogoDataUrl(payload.logoData);
   state.builder.logoData = payload.logoData;
   const startupCosts = calculateRosterCosts(team, state.builder, { includeDedicatedFans: true });
-  payload.treasury = Math.max(0, 600 - startupCosts.total);
+  payload.treasury = Math.max(0, startingBudget - startupCosts.total);
   const request = {
     name: payload.teamName,
     baseTeamSlug: team.slug,

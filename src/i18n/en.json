@@ -365,5 +365,9 @@
   "season.tableLabel": "Table",
   "season.tdHeader": "TD",
   "season.touchdownsLabel": "Touchdowns",
-  "season.yourTeamHeading": "Your Season Team"
+  "season.yourTeamHeading": "Your Season Team",
+  "validation.ROSTER_MIN_PLAYERS": "A Sevens roster usually needs at least {min} players (currently {count}).",
+  "validation.ROSTER_MAX_PLAYERS": "A Sevens roster should not exceed {max} players (currently {count}).",
+  "validation.POSITION_MIN": "{position}: minimum is {min}.",
+  "validation.POSITION_MAX": "{position}: maximum is {max}."
 }

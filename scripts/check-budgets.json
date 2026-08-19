@@ -1,15 +1,23 @@
 {
   "_comment": "Ratchets for npm run check. Numbers may only go down. Targets from docs/superpowers/plans/2026-08-19-app-refactor.md: 600 lines per file, 80 lines per function, 0 unreachable functions.",
   "deadCode": {
-    "roots": ["src", "server", "scripts"],
+    "roots": [
+      "src",
+      "server",
+      "scripts"
+    ],
     "maxFunctions": 42
   },
   "structure": {
-    "roots": ["src", "server", "scripts"],
+    "roots": [
+      "src",
+      "server",
+      "scripts"
+    ],
     "defaultMaxFileLines": 600,
     "defaultMaxFunctionLines": 80,
     "maxFileLines": {
-      "src/app.js": 7500,
+      "src/app.js": 6900,
       "server/server.mjs": 2100,
       "scripts/build-data.mjs": 810
     },
