@@ -16,7 +16,12 @@
     "postgres:down": "docker-compose down",
     "postgres:reset": "docker-compose down -v",
     "team-import:sql": "powershell -ExecutionPolicy Bypass -File scripts/run-python.ps1 scripts/prepare-team-import.py",
-    "team-import:apply": "node scripts/apply-sql.mjs"
+    "team-import:apply": "node scripts/apply-sql.mjs",
+    "check": "node scripts/check-dead-code.mjs && node scripts/check-structure.mjs",
+    "check:dead-code": "node scripts/check-dead-code.mjs",
+    "check:structure": "node scripts/check-structure.mjs",
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "smoke": "node scripts/smoke-api.mjs"
   },
   "dependencies": {
     "pg": "^8.13.1"
