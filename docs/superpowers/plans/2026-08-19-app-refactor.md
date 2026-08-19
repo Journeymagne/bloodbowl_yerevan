@@ -12,6 +12,25 @@
 
 ---
 
+## Ход работ
+
+Обновлено 2026-08-19. Ветка `refactor/stage-1`, 5 коммитов.
+
+| Задача | Состояние |
+|---|---|
+| S — хотфикс безопасности | **код готов** (S.1, S.2); шаги на сервере S.3–S.8 за владельцем |
+| 0 — страховка | не выполнялась: нет доступа к боевой БД, дамп снимает владелец |
+| 1 — инструменты проверки | **готово** |
+| 2 — гигиена репозитория | **готово** |
+| 3 — доменный слой ростера | **частично**: вынесены правила, значения, игроки, прокачка, стоимости, валидация; ещё нужны `schema.mjs` (RosterV2), `export.mjs` и `canTakeAdvancement` |
+| 4–17 | не начинались |
+
+Проверки после каждого коммита: `npm test` (45 тестов), `npm run check`,
+`npm run build`, `npm run i18n:check` и прогон в реальном браузере
+(`scripts/browser-check.mjs`).
+
+---
+
 ## Глобальные ограничения
 
 - **Стек не меняется:** vanilla JS, нативные ES-модули (`<script type="module">`), никаких бандлеров, транспиляторов, фреймворков и новых рантайм-зависимостей на фронте. Единственная зависимость сервера остаётся `pg`.
@@ -65,8 +84,8 @@ S (ХОТФИКС БЕЗОПАСНОСТИ — до всего остально�
 
 **Шаги:**
 
-- [ ] **Шаг S.1.** Переписать `resolveStaticPath` на белый список. Разрешены: `index.html`, `local-preview.html` и всё внутри `dist/`, `public/`, `src/`, `assets/`. Всё остальное — `404` (именно 404, а не 403: 403 подтверждает существование файла). Дополнительно запретить любой сегмент пути, начинающийся с точки, и символ `\` в пути.
-- [ ] **Шаг S.2.** `test/static-path.test.mjs`: проверить, что `/.env`, `/.git/config`, `/server/init.sql`, `/server/server.mjs`, `/package.json`, `/docker-compose.yml`, `/.env.example`, `/%2e%2e/etc/passwd`, `/..%5cwindows` → `null`; а `/index.html`, `/src/app.js`, `/public/data.en.json`, `/assets/brand/gata-league-logo.png` → корректный путь.
+- [x] **Шаг S.1.** Переписать `resolveStaticPath` на белый список. Разрешены: `index.html`, `local-preview.html` и всё внутри `dist/`, `public/`, `src/`, `assets/`. Всё остальное — `404` (именно 404, а не 403: 403 подтверждает существование файла). Дополнительно запретить любой сегмент пути, начинающийся с точки, и символ `\` в пути.
+- [x] **Шаг S.2.** `test/static-path.test.mjs`: проверить, что `/.env`, `/.git/config`, `/server/init.sql`, `/server/server.mjs`, `/package.json`, `/docker-compose.yml`, `/.env.example`, `/%2e%2e/etc/passwd`, `/..%5cwindows` → `null`; а `/index.html`, `/src/app.js`, `/public/data.en.json`, `/assets/brand/gata-league-logo.png` → корректный путь.
 - [ ] **Шаг S.3.** Выкатить на сервер (push в `main` запускает деплой) и проверить curl-ом: `curl -s -o /dev/null -w "%{http_code}\n" https://bloodbowlyerevan.shitpostsoftware.com/.env` → `404`, то же для `/.git/config`, `/package.json`, `/server/init.sql`. Проверить, что сайт при этом работает: `/`, `/src/app.js`, `/public/data.en.json` → `200`.
 - [ ] **Шаг S.4.** **Сменить скомпрометированные секреты** на сервере: новый `POSTGRES_PASSWORD`, синхронно обновить пароль внутри `DATABASE_URL`, новый `ADMIN_PASSWORD`. Затем `docker compose up -d` и `pm2 restart bloodbowl-league`. Помнить, что `ensureAdmin` (`server/server.mjs:343`) перезаписывает пароль администратора из `.env` при каждом старте — менять надо именно файл.
 - [ ] **Шаг S.5.** Закрыть Postgres снаружи: в `docker-compose.yml` заменить `"${POSTGRES_PORT:-5433}:5432"` на `"127.0.0.1:${POSTGRES_PORT:-5433}:5432"`, применить `docker compose up -d`, проверить с другой машины, что порт 5433 не отвечает.
@@ -115,11 +134,11 @@ S (ХОТФИКС БЕЗОПАСНОСТИ — до всего остально�
 
 **Шаги:**
 
-- [ ] **Шаг 1.1.** `scripts/check-dead-code.mjs`: строит граф достижимости функций от точки входа для каждого файла в `src/**/*.js|mjs`, печатает недостижимые функции с именем, файлом, строкой и размером. На старте выводит текущее состояние (ожидается 41 функция, ~615 строк в `src/app.js`) и **не падает**; порог фиксируется в файле и понижается по мере выполнения задачи 7.
-- [ ] **Шаг 1.2.** `scripts/check-structure.mjs`: падает, если (а) любой файл в `src/` длиннее 600 строк; (б) любая функция длиннее 80 строк; (в) в `src/domain/**` встречается `document`, `window`, `localStorage`, `fetch`. Пороги (а) и (б) на старте выставить в текущие значения и понижать по мере выполнения задач 6–7.
-- [ ] **Шаг 1.3.** `scripts/smoke-api.mjs`: регистрация тестового пользователя → логин → `POST /api/teams` → `GET /api/teams` → `PATCH /api/teams/:id` → `GET /api/teams/:id` (сверить, что правка применилась) → `DELETE` → `GET /api/health`. Работает по `APP_URL` (по умолчанию `http://localhost:3002`).
-- [ ] **Шаг 1.4.** `docs/smoke-test.md` — ручной дымовой сценарий, обязательный после каждой задачи: открыть Overview → Teams (37 карточек) → карточка команды → Builder: выбрать расу, добавить 7 игроков, увидеть стоимость → сохранить → My Teams → открыть ростер → изменить имя игрока, добавить скилл, добавить SPP → **перезагрузить страницу и убедиться, что всё сохранилось** → переключить язык → переключить тему.
-- [ ] **Шаг 1.5.** Добавить в `package.json`: `"check"`, `"smoke"`, `"test": "node --test test/"`.
+- [x] **Шаг 1.1.** `scripts/check-dead-code.mjs`: строит граф достижимости функций от точки входа для каждого файла в `src/**/*.js|mjs`, печатает недостижимые функции с именем, файлом, строкой и размером. На старте выводит текущее состояние (ожидается 41 функция, ~615 строк в `src/app.js`) и **не падает**; порог фиксируется в файле и понижается по мере выполнения задачи 7.
+- [x] **Шаг 1.2.** `scripts/check-structure.mjs`: падает, если (а) любой файл в `src/` длиннее 600 строк; (б) любая функция длиннее 80 строк; (в) в `src/domain/**` встречается `document`, `window`, `localStorage`, `fetch`. Пороги (а) и (б) на старте выставить в текущие значения и понижать по мере выполнения задач 6–7.
+- [x] **Шаг 1.3.** `scripts/smoke-api.mjs`: регистрация тестового пользователя → логин → `POST /api/teams` → `GET /api/teams` → `PATCH /api/teams/:id` → `GET /api/teams/:id` (сверить, что правка применилась) → `DELETE` → `GET /api/health`. Работает по `APP_URL` (по умолчанию `http://localhost:3002`).
+- [x] **Шаг 1.4.** `docs/smoke-test.md` — ручной дымовой сценарий, обязательный после каждой задачи: открыть Overview → Teams (37 карточек) → карточка команды → Builder: выбрать расу, добавить 7 игроков, увидеть стоимость → сохранить → My Teams → открыть ростер → изменить имя игрока, добавить скилл, добавить SPP → **перезагрузить страницу и убедиться, что всё сохранилось** → переключить язык → переключить тему.
+- [x] **Шаг 1.5.** Добавить в `package.json`: `"check"`, `"smoke"`, `"test": "node --test test/"`.
 
 **Проверка:** `npm run check` отрабатывает и печатает текущие метрики; `npm start` + `npm run smoke` проходит зелёным.
 
@@ -136,11 +155,11 @@ S (ХОТФИКС БЕЗОПАСНОСТИ — до всего остально�
 
 **Шаги:**
 
-- [ ] **Шаг 2.1.** Перепроверить, что удаляемые ассеты действительно нигде не используются: `grep -rn "section-background\|drishevik\|trophy\|zbbL-ball" --exclude-dir=.git --exclude-dir=dist .` — вывод должен быть пуст. Только после этого удалять.
-- [ ] **Шаг 2.2.** `git rm -r --cached dist` и добавить `dist/` в `.gitignore` (README уже утверждает, что `dist` игнорируется — привести в соответствие). Убедиться, что деплой это переживёт: `.github/workflows/deploy.yml` делает `npm run build` на сервере, `dist` из репозитория ему не нужен.
-- [ ] **Шаг 2.3.** Заменить хрупкую подстановку в `scripts/build-site.mjs:72` (жёсткая строка `'<script type="module" src="src/app.js?v=gata-97"></script>'`) на регулярное выражение по `src="src/app.js?v=..."`, и **падать с внятной ошибкой**, если совпадений нет.
-- [ ] **Шаг 2.4.** Свести версионирование ассетов в одно место: одна константа версии, из которой генерируются `?v=` в `index.html` при сборке. Сейчас `index.html` просит `gata-97`/`gata-61`, а `src/app.js:108` объявляет `gata-93`.
-- [ ] **Шаг 2.5.** Прогнать `npm run build`, убедиться что `dist/` собирается заново и содержит те же файлы, что и раньше (за вычетом удалённых ассетов).
+- [x] **Шаг 2.1.** Перепроверить, что удаляемые ассеты действительно нигде не используются: `grep -rn "section-background\|drishevik\|trophy\|zbbL-ball" --exclude-dir=.git --exclude-dir=dist .` — вывод должен быть пуст. Только после этого удалять.
+- [x] **Шаг 2.2.** `git rm -r --cached dist` и добавить `dist/` в `.gitignore` (README уже утверждает, что `dist` игнорируется — привести в соответствие). Убедиться, что деплой это переживёт: `.github/workflows/deploy.yml` делает `npm run build` на сервере, `dist` из репозитория ему не нужен.
+- [x] **Шаг 2.3.** Заменить хрупкую подстановку в `scripts/build-site.mjs:72` (жёсткая строка `'<script type="module" src="src/app.js?v=gata-97"></script>'`) на регулярное выражение по `src="src/app.js?v=..."`, и **падать с внятной ошибкой**, если совпадений нет.
+- [x] **Шаг 2.4.** Свести версионирование ассетов в одно место: одна константа версии, из которой генерируются `?v=` в `index.html` при сборке. Сейчас `index.html` просит `gata-97`/`gata-61`, а `src/app.js:108` объявляет `gata-93`.
+- [x] **Шаг 2.5.** Прогнать `npm run build`, убедиться что `dist/` собирается заново и содержит те же файлы, что и раньше (за вычетом удалённых ассетов).
 
 **Проверка:** `npm run build` зелёный; размер репозитория без `dist/` и мёртвых ассетов уменьшился примерно на 7 МБ; дымовой сценарий из 1.4 проходит.
 
@@ -174,20 +193,23 @@ export function rosterToJson(roster)
 
 **Шаги:**
 
-- [ ] **Шаг 3.1.** `src/domain/league-rules.mjs`: перенести сюда все числа, сейчас разбросанные по коду — `builderStaffCosts` (`app.js:259`), `builderStaffMaximums` (`271`), `medicalStaffDefinitions` (`283`), `advancementRanks` (`291`), `advancementStatCosts` (`307`), `eliteSkillCombos` (`315`), стоимость скилла 20/40 (`skillModCost:1800`), стоимость контракта 20 (`playerAdjustmentCost:1820`), стартовый бюджет `600` (21 вхождение), лимиты состава 7/11 (`rosterWarnings:7078-7079`). Экспортировать как один замороженный объект `LEAGUE_RULES`.
+- [x] **Шаг 3.1.** `src/domain/league-rules.mjs`: перенести сюда все числа, сейчас разбросанные по коду — `builderStaffCosts` (`app.js:259`), `builderStaffMaximums` (`271`), `medicalStaffDefinitions` (`283`), `advancementRanks` (`291`), `advancementStatCosts` (`307`), `eliteSkillCombos` (`315`), стоимость скилла 20/40 (`skillModCost:1800`), стоимость контракта 20 (`playerAdjustmentCost:1820`), стартовый бюджет `600` (21 вхождение), лимиты состава 7/11 (`rosterWarnings:7078-7079`). Экспортировать как один замороженный объект `LEAGUE_RULES`.
 - [ ] **Шаг 3.2.** `schema.mjs`: описать RosterV2 (раздел 10.2 design spec) — `createRoster()`, `normalizePlayer()`, значения по умолчанию. **Форма черновика описывается ровно здесь и больше нигде**; удалить четыре расходящихся описания: `state.builder` (`app.js:55-76`), `emptyBuilderState:1423`, `builderPayload:1452`, `normalizeSavedRoster:1478`.
+  - *Сделано частично:* форма черновика по-прежнему описана в четырёх местах; `schema.mjs` и RosterV2 не введены.
 - [ ] **Шаг 3.3.** `migrate.mjs`: собрать из `playersFromLegacyRoster:1657`, `ensureDraftPlayers:1692`, `normalizeRosterPlayer:1619`, `normalizeSppCounters:1642`, `normalizePlayerAdvancements:1646`, `normalizePlayerExtraSkills:1581`, `normalizePlayerFavouredSkills:1606`, `normalizePurchasedStaff:1536`. Функция `migrateRoster(raw, team)` обязана корректно принимать: (а) поколение 1 — `roster` + `playerEdits`; (б) поколение 2 — `slots`; (в) поколение 3 — `players`; (г) уже мигрированный RosterV2 (идемпотентность). На выходе **никогда** нет полей `roster`, `playerEdits`, `slots`, `logoData`.
-- [ ] **Шаг 3.4.** `costs.mjs`: перенести `rowCost:1322`, `costToNumber:1312`, `statModCost:1796`, `skillModCost:1800`, `eliteComboCost:1805`, `playerAdjustmentCost:1817`, `playerCurrentCost:1824`, `calculateRosterCosts:7045`, `staffItemCost:7005`. **Числа берутся только из `LEAGUE_RULES`.** Разделить два разных понятия, которые сейчас слиты в `costs.total`: `teamValue` (стоимость команды) и `startupCost` (что потрачено из стартового бюджета). Поведение `skipNextGame` (исключение из стоимости, `7050-7055`) сохранить как есть и пометить `// TODO(league-question-2)` — см. вопрос 2 в design spec.
+  - *Сделано частично:* миграция вынесена в `src/domain/roster/players.mjs` (`playersFromLegacyRoster`, `ensureDraftPlayers`) и покрыта тестами на все три поколения, но остаётся миграцией «на каждом чтении» — одноразовый прогон по БД делает задача 4.
+- [x] **Шаг 3.4.** `costs.mjs`: перенести `rowCost:1322`, `costToNumber:1312`, `statModCost:1796`, `skillModCost:1800`, `eliteComboCost:1805`, `playerAdjustmentCost:1817`, `playerCurrentCost:1824`, `calculateRosterCosts:7045`, `staffItemCost:7005`. **Числа берутся только из `LEAGUE_RULES`.** Разделить два разных понятия, которые сейчас слиты в `costs.total`: `teamValue` (стоимость команды) и `startupCost` (что потрачено из стартового бюджета). Поведение `skipNextGame` (исключение из стоимости, `7050-7055`) сохранить как есть и пометить `// TODO(league-question-2)` — см. вопрос 2 в design spec.
 - [ ] **Шаг 3.5.** `progression.mjs`: перенести `playerSppTotal:2663`, `playerAdvancementLevel:2678`, `playerAdvancementSpent:2682`, `playerAvailableSpp:2687`, `playerLevelRank:2691`, `nextAdvancementCost:2696`, `rosterTotalSpp:2701`. Добавить `canTakeAdvancement(team, player, type)` — сейчас проверки хватает SPP нет вообще (`app.js:5630-5636`).
-- [ ] **Шаг 3.6.** `validate.mjs`: перенести `rosterWarnings:7076`, заменив английские строки на коды: `ROSTER_MIN_PLAYERS`, `ROSTER_MAX_PLAYERS`, `POSITION_MIN`, `POSITION_MAX`, плюс новые `BUDGET_EXCEEDED`, `TREASURY_NEGATIVE`, `SPP_OVERSPENT`, `STAFF_LIMIT_EXCEEDED`, `SKILL_NOT_AVAILABLE`. Каждый код возвращается как `{ code, params: { position, min, max, … } }`. Добавить ключи в `src/i18n/en.json` и `src/i18n/ru.json` (`validation.*`) — **это закрывает единственную i18n-дыру в приложении**.
+  - *Сделано частично:* прокачка вынесена в `progression.mjs`; `canTakeAdvancement()` ещё не добавлен, SPP по-прежнему уходит в минус.
+- [x] **Шаг 3.6.** `validate.mjs`: перенести `rosterWarnings:7076`, заменив английские строки на коды: `ROSTER_MIN_PLAYERS`, `ROSTER_MAX_PLAYERS`, `POSITION_MIN`, `POSITION_MAX`, плюс новые `BUDGET_EXCEEDED`, `TREASURY_NEGATIVE`, `SPP_OVERSPENT`, `STAFF_LIMIT_EXCEEDED`, `SKILL_NOT_AVAILABLE`. Каждый код возвращается как `{ code, params: { position, min, max, … } }`. Добавить ключи в `src/i18n/en.json` и `src/i18n/ru.json` (`validation.*`) — **это закрывает единственную i18n-дыру в приложении**.
 - [ ] **Шаг 3.7.** `export.mjs`: перенести `buildRosterTextForDraft:7360`, добавить `rosterToJson()` для будущего экспорта/импорта файлом. Убрать рассинхрон сигнатур `buildRosterText:7356` / `copyRoster:7311`.
-- [ ] **Шаг 3.8.** Фикстуры: положить в `test/fixtures/` 5 ростеров из шага 0.4 (обезличив имена пользователей) + синтетические примеры поколений 1 и 2.
-- [ ] **Шаг 3.9.** Тесты (`node --test`):
+- [x] **Шаг 3.8.** Фикстуры: положить в `test/fixtures/` 5 ростеров из шага 0.4 (обезличив имена пользователей) + синтетические примеры поколений 1 и 2.
+- [x] **Шаг 3.9.** Тесты (`node --test`):
   - миграция каждого поколения даёт ожидаемое число игроков и не теряет `statMods`, `extraSkills`, `spp`, `advancements`;
   - `migrateRoster(migrateRoster(x)) === migrateRoster(x)` (идемпотентность);
   - на 5 эталонных ростерах `calculateCosts` даёт **ровно те же числа**, что записаны в шаге 0.4;
   - `validateRoster` ловит: < 7 игроков, > 11, превышение лимита позиции, отрицательную казну, SPP в минусе.
-- [ ] **Шаг 3.10.** Переключить `src/app.js` на импорты из `src/domain/roster/index.mjs`, удалив перенесённые определения. Ничего не переписывать «заодно» — только перенос.
+- [x] **Шаг 3.10.** Переключить `src/app.js` на импорты из `src/domain/roster/index.mjs`, удалив перенесённые определения. Ничего не переписывать «заодно» — только перенос.
 
 **Проверка:** `npm test` зелёный; `npm run check` показывает уменьшение `src/app.js` минимум на 600 строк; дымовой сценарий 1.4 проходит; расчёты на пяти эталонных ростерах не изменились.
 
