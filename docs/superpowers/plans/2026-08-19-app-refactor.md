@@ -14,7 +14,7 @@
 
 ## Ход работ
 
-Обновлено 2026-08-20. Ветка `refactor/stage-1`, 16 коммитов.
+Обновлено 2026-08-20. Ветка `refactor/stage-1`, 17 коммитов.
 
 | Задача | Состояние |
 |---|---|
@@ -25,7 +25,7 @@
 | 3 — доменный слой ростера | **частично**: вынесены правила, значения, игроки, прокачка, стоимости, валидация, `canTakeAdvancement`; поддержка старых форматов удалена (шаги 3.3 и 4.4 отменены решением владельца); остались `schema.mjs` и `export.mjs` |
 | 4 — сервер: валидация и ревизии | **заблокирована**: нужна база, доступа нет |
 | 5 — сохранение ростера | **готово**: `src/data/roster-store.mjs`, гонка «правка сразу после сохранения» воспроизведена тестом и закрыта |
-| 6 — разбор `src/app.js` | **в работе**: вынесены `core/theme`, `core/i18n`, `data/reference`, `core/dom`, `core/markdown`, `core/routes`; экраны ещё внутри |
+| 6 — разбор `src/app.js` | **в работе**: вынесены `core/theme`, `core/i18n`, `data/reference`, `core/dom`, `core/markdown`, `core/routes`, `core/state`, `core/view`; экраны справочника вынесены (6.5); билдер/сезон/админка/игры ещё внутри |
 | 7–17 | не начинались |
 
 Проверки после каждого коммита: `npm test` (131 тест), `npm run check`
@@ -328,7 +328,7 @@ export function hasPendingChanges()              // для beforeunload
 - [x] **Шаг 6.2.** `src/core/dom.mjs`: тег-шаблон `html\`\`` с **автоматическим экранированием интерполяций** (`escapeHtml:957` внутри, а не по вызову), `raw()` для намеренно сырого HTML, `delegate(root, selector, event, handler)` вместо 112 ручных `addEventListener`. Это снимает системный риск из раздела 3.4 design spec.
 - [ ] **Шаг 6.3.** `src/core/state.mjs` ← объект `state:1-78` + подписки. Удалить мёртвые ветки состояния: `teamFilters`, `starFilters` (UI фильтров удалён, см. 4.3 design spec).
 - [~] **Шаг 6.4.** `src/core/router.mjs` ← `renderRoute:7387`, `routeSection:1276`, `setActiveNav:1249`, `navRouteForPage:1265`. Ввести таблицу маршрутов и контракт экрана `render(params) → { html, mount(root), destroy() }`; роутер обязан вызывать `destroy()` предыдущего экрана (сейчас таймеры автосохранения и подписки не снимаются никогда).
-- [ ] **Шаг 6.5.** Вынести справочные экраны: `screens/home.mjs`, `overview.mjs`, `section.mjs`, `detail.mjs`, `legal.mjs`, `leagues.mjs` + `components/filters.mjs`, `components/cards.mjs`.
+- [x] **Шаг 6.5.** Вынести справочные экраны: `screens/home.mjs`, `overview.mjs`, `section.mjs`, `detail.mjs`, `legal.mjs`, `leagues.mjs` + `components/filters.mjs`, `components/cards.mjs`.
 - [ ] **Шаг 6.6.** Вынести личный кабинет: `screens/my-teams.mjs`, `screens/builder.mjs`, `screens/saved-roster.mjs`.
 - [ ] **Шаг 6.7.** Вынести сезон: `screens/season/{index,registration,fixture,standings,schedule,admin}.mjs`. Разрезать `wireSeason:4745` (175 строк) — по обработчику на модуль. Активную вкладку перенести в URL (`#/season/standings`) вместо `state.season.activeTab` — вкладку станет можно дать ссылкой.
 - [ ] **Шаг 6.8.** Вынести игры: `screens/my-games.mjs`, `screens/game.mjs`; администрирование: `screens/administration/{users,user}.mjs`; профили: `screens/players/{profile,team}.mjs`.
@@ -337,7 +337,7 @@ export function hasPendingChanges()              // для beforeunload
 
 **Проверка:** `npm run check` зелёный с новыми порогами; дымовой сценарий 1.4 полностью проходит; визуальных отличий нет (сравнить скриншоты ключевых экранов до/после).
 
-> **Состояние на 2026-08-20.** Шаги 6.1 и 6.2 закрыты (`core/theme.mjs`,
+> **Состояние на 2026-08-20.** Шаги 6.1, 6.2 и 6.5 закрыты (`core/theme.mjs`,
 > `core/i18n.mjs`, `data/reference.mjs`, `core/dom.mjs`). Шаг 6.4 закрыт
 > наполовину: таблица маршрутов и разбор хеша вынесены в `core/routes.mjs` и
 > покрыты тестами, `renderRoute` стал диспетчером — но контракта экрана
@@ -345,6 +345,31 @@ export function hasPendingChanges()              // для beforeunload
 > по-прежнему не снимаются при уходе с экрана. Дополнительно вынесен разбор
 > markdown (`core/markdown.mjs`), которого в исходном плане не было: он
 > обнаружился внутри экранов справочника и мешал их выносить.
+>
+> **Шаг 6.5 потянул за собой инфраструктуру, которой ещё не было.** Экраны
+> справочника (`renderHome`, `renderOverviewDetail`, `renderSection`,
+> `renderDetail`, `renderLegal`) и часть их помощников читают и пишут
+> `state` и `view` — без модуля состояния (шаг 6.3, ещё не сделан) это
+> означало бы, что `screens/*.mjs` и `app.js` импортируют друг друга.
+> Поэтому вместе с экранами добавлены `core/state.mjs` (мехнический перенос
+> объекта `state`, без магазина/подписок — полноценный 6.3 остаётся
+> отдельной задачей) и `core/view.mjs` (узел `#app-view`). Отдельно
+> обнаружилось, что часть «справочных» помощников на самом деле общие с
+> билдером/сохранённым ростером (`renderHeader`, `setActiveNav`,
+> `setViewSection`, `renderRosterLinks`, `renderRosterStatGrid`,
+> `pageForSkillTableEntry`, `uniqueSorted`, `renderOption`) — они выделены в
+> `components/page-chrome.mjs` и `components/content-links.mjs` (плюс
+> `renderOption` — в уже существующий `core/dom.mjs`), а не легли внутрь
+> `screens/*.mjs`, как можно было бы предположить по названию задачи.
+> `components/filters.mjs`'s `wireFilters` берёт повторную отрисовку
+> колбэком `rerender`, а не зовёт `renderSection` напрямую — иначе
+> `filters.mjs` и `screens/section.mjs` импортировали бы друг друга (тот же
+> приём, что и `wireRosterNotices(root, handlers)`). Данные `overviewCards`/
+> `overviewCardsRu` (618 строк текста правил) вынесены как есть в
+> `data/overview-cards-{en,ru}.mjs` — задача 10.4 плана позже переносит их в
+> `content/Gata/Overview/*.md`, здесь это чисто механический перенос.
+>
+> `src/app.js`: 5968 → 4330 строк.
 
 ---
 
