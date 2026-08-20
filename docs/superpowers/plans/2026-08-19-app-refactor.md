@@ -14,7 +14,7 @@
 
 ## Ход работ
 
-Обновлено 2026-08-20. Ветка `refactor/stage-1`, 20 коммитов.
+Обновлено 2026-08-20. Ветка `refactor/stage-1`, 22 коммита.
 
 | Задача | Состояние |
 |---|---|
@@ -25,17 +25,17 @@
 | 3 — доменный слой ростера | **частично**: вынесены правила, значения, игроки, прокачка, стоимости, валидация, `canTakeAdvancement`; поддержка старых форматов удалена (шаги 3.3 и 4.4 отменены решением владельца); остались `schema.mjs` и `export.mjs` |
 | 4 — сервер: валидация и ревизии | **заблокирована**: нужна база, доступа нет |
 | 5 — сохранение ростера | **готово**: `src/data/roster-store.mjs`, гонка «правка сразу после сохранения» воспроизведена тестом и закрыта; попутно (6.6) починен реальный баг автосохранения в браузере, см. ниже |
-| 6 — разбор `src/app.js` | **в работе**: вынесены `core/theme`, `core/i18n`, `data/reference`, `core/dom`, `core/markdown`, `core/routes`, `core/state`, `core/view`, `core/api-client`, `core/logo-upload`; экраны справочника (6.5) и личный кабинет — my-teams/builder/saved-roster (6.6) — вынесены; сезон/админка/игры ещё внутри |
+| 6 — разбор `src/app.js` | **в работе**: вынесены `core/theme`, `core/i18n`, `data/reference`, `core/dom`, `core/markdown`, `core/routes`, `core/state`, `core/view`, `core/api-client`, `core/logo-upload`; экраны справочника (6.5), личный кабинет (6.6) и сезон (6.7) вынесены; админка/игры ещё внутри |
 | 7–17 | не начинались |
 
-Проверки после каждого коммита: `npm test` (131 тест), `npm run check`
+Проверки после каждого коммита: `npm test` (132 теста), `npm run check`
 (0 недостижимых функций, лимиты файлов и функций), `npm run build`,
 `npm run i18n:check` и прогон в реальном браузере —
 `scripts/browser-check.mjs` (публичные экраны, билдер, переключение локали и
 темы, плюс проверка что `/.env`, `/package.json` и `/server/init.sql` отдают
 404).
 
-`src/app.js`: 7479 → 5968 → 4330 → 1991 строк.
+`src/app.js`: 7479 → 5968 → 4330 → 1991 → 1194 строк.
 
 ### Найдено по дороге, ждёт решения владельца
 
@@ -342,14 +342,14 @@ export function hasPendingChanges()              // для beforeunload
 - [~] **Шаг 6.4.** `src/core/router.mjs` ← `renderRoute:7387`, `routeSection:1276`, `setActiveNav:1249`, `navRouteForPage:1265`. Ввести таблицу маршрутов и контракт экрана `render(params) → { html, mount(root), destroy() }`; роутер обязан вызывать `destroy()` предыдущего экрана (сейчас таймеры автосохранения и подписки не снимаются никогда).
 - [x] **Шаг 6.5.** Вынести справочные экраны: `screens/home.mjs`, `overview.mjs`, `section.mjs`, `detail.mjs`, `legal.mjs`, `leagues.mjs` + `components/filters.mjs`, `components/cards.mjs`.
 - [x] **Шаг 6.6.** Вынести личный кабинет: `screens/my-teams.mjs`, `screens/builder.mjs`, `screens/saved-roster.mjs`.
-- [ ] **Шаг 6.7.** Вынести сезон: `screens/season/{index,registration,fixture,standings,schedule,admin}.mjs`. Разрезать `wireSeason:4745` (175 строк) — по обработчику на модуль. Активную вкладку перенести в URL (`#/season/standings`) вместо `state.season.activeTab` — вкладку станет можно дать ссылкой.
+- [x] **Шаг 6.7.** Вынести сезон: `screens/season/{index,registration,fixture,standings,schedule,admin}.mjs`. Разрезать `wireSeason:4745` (175 строк) — по обработчику на модуль. Активную вкладку перенести в URL (`#/season/standings`) вместо `state.season.activeTab` — вкладку станет можно дать ссылкой.
 - [ ] **Шаг 6.8.** Вынести игры: `screens/my-games.mjs`, `screens/game.mjs`; администрирование: `screens/administration/{users,user}.mjs`; профили: `screens/players/{profile,team}.mjs`.
 - [ ] **Шаг 6.9.** `src/app.js` оставить как bootstrap: загрузка переводов и данных, восстановление сессии, глобальные слушатели, старт роутера. Цель — менее 200 строк.
 - [ ] **Шаг 6.10.** Понизить пороги в `scripts/check-structure.mjs` до 600 строк на файл и 80 строк на функцию; убедиться, что проверка проходит.
 
 **Проверка:** `npm run check` зелёный с новыми порогами; дымовой сценарий 1.4 полностью проходит; визуальных отличий нет (сравнить скриншоты ключевых экранов до/после).
 
-> **Состояние на 2026-08-20.** Шаги 6.1, 6.2, 6.5 и 6.6 закрыты (`core/theme.mjs`,
+> **Состояние на 2026-08-20.** Шаги 6.1, 6.2, 6.5, 6.6 и 6.7 закрыты (`core/theme.mjs`,
 > `core/i18n.mjs`, `data/reference.mjs`, `core/dom.mjs`). Шаг 6.4 закрыт
 > наполовину: таблица маршрутов и разбор хеша вынесены в `core/routes.mjs` и
 > покрыты тестами, `renderRoute` стал диспетчером — но контракта экрана
@@ -408,7 +408,51 @@ export function hasPendingChanges()              // для beforeunload
 >
 > Браузерный смок-тест (через `scripts/mock-api.mjs`, без боевой БД) нашёл
 > реальный P0-баг автосохранения — см. «Починено по дороге» выше.
-> `src/app.js`: 5968 → 4330 строк.
+>
+> **Шаг 6.7 вынес сезон в шесть файлов** (`index`, `registration`, `fixture`,
+> `standings`, `schedule`, `admin`) плюс два общих: `season-data.mjs`
+> (`loadSeason`, `replaceSeasonData`, `makeSeasonStarterRoster` — так же,
+> как `data/roster-draft.mjs` в 6.6, чтобы `screens/season/*.mjs` не
+> импортировали друг друга) и `season-links.mjs` (форматирование
+> команды/пары: `seasonEntryLabel`, `seasonTeamRulesLink`,
+> `seasonTeamProfileLink`, `pairingEntry` и остальные `pairing*` — общие
+> между registration/fixture/schedule). `renderSeasonRounds` живёт в
+> `schedule.mjs` и рендерится в двух режимах (только чтение для вкладки
+> «Расписание», редактируемый для «Администрирования» — `admin.mjs`
+> импортирует его оттуда, а не дублирует). `wireSeason` (175 строк)
+> разошёлся по вкладкам: `wireRegistration` в registration.mjs, `wireAdmin`
+> в admin.mjs (сам разбит на `wireEntryManagement`/`wireRoundManagement`/
+> `wirePairingDeletion`/`wirePairingAutosave`, иначе не укладывался в лимит
+> 80 строк на функцию), у остальных вкладок своей проводки нет — обе, как и
+> в 6.5/6.6, берут `rerender`-колбэк вместо прямого вызова `renderSeason`.
+> `gameStatusLabel` и `renderPlayerLink` тоже общие (с играми и админкой,
+> которые остаются в `app.js` до задачи 6.8) — ушли в
+> `components/game-status.mjs` и `components/content-links.mjs`.
+>
+> **Осознанное отступление от «поведение не меняется»**, оговорённое самим
+> текстом задачи 6.7: активная вкладка сезона раньше жила в
+> `state.season.activeTab` (сбрасывалась при перезагрузке, не давалась
+> ссылкой). Теперь это параметр маршрута `#/season/:tab`
+> (`core/routes.mjs`, `seasonTabUrl()`). Переключение вкладки делает
+> `history.replaceState` вместо реальной hash-навигации — URL меняется
+> (можно скопировать ссылку, переживает перезагрузку), но `hashchange` не
+> стреляет (не дублирует рендер через роутер) и вкладки не копятся в
+> истории браузера. Вход в `#/season` откуда угодно (ссылка в меню,
+> назад/вперёд, вручную вбитый URL) идёт через роутер как раньше и
+> форсирует перезагрузку данных сезона — переключение вкладки внутри уже
+> открытого экрана не перезапрашивает, если сезон уже загружен, точно как
+> было раньше.
+>
+> Браузерный смок-тест (`scripts/mock-api.mjs` не поддерживает `/api/season`,
+> отдаёт `{}` на любой незнакомый путь — этого хватило для пустых
+> состояний; для проверки заполненных вкладок сезонные данные подставлялись
+> напрямую через `state` из консоли) нашёл реальный `ReferenceError`:
+> `renderSeasonAdmin` вызывает `availableSeasonSavedTeams`, которая осталась
+> только в `registration.mjs` без экспорта — `npm run check`'s
+> reachability-анализ этого не ловит (это не мёртвый код, а необъявленная
+> ссылка), только браузер. Экспортировано и доимпортировано в `admin.mjs`.
+>
+> `src/app.js`: 1991 → 1194 строк.
 
 ---
 
