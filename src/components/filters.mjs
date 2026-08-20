@@ -70,21 +70,15 @@ export function wireFilters(route, rerender) {
     select.addEventListener("change", (event) => {
       const key = event.currentTarget.dataset.filter;
       const value = event.currentTarget.value;
-      if (route === "teams") state.teamFilters[key] = value;
       if (route === "skills" || route === "traits") state.skillFilters[key] = value;
-      if (route === "star-players") state.starFilters[key] = value;
       if (route === "inducements") state.inducementFilters[key] = value;
       rerender();
     });
   });
   view.querySelector("[data-reset-filters]")?.addEventListener("click", () => {
-    if (route === "teams") {
-      state.teamFilters = { type: "all", league: "all", skill: "all", tag: "all", price: "all" };
-    }
     if (route === "skills" || route === "traits") {
       state.skillFilters = { category: "all", application: "all" };
     }
-    if (route === "star-players") state.starFilters = { tag: "all" };
     if (route === "inducements") state.inducementFilters = { tag: "all" };
     rerender();
   });

@@ -12,16 +12,6 @@ export const state = {
   data: null,
   locale: "en",
   query: "",
-  teamFilters: {
-    type: "all",
-    league: "all",
-    skill: "all",
-    tag: "all",
-    price: "all",
-  },
-  starFilters: {
-    tag: "all",
-  },
   inducementFilters: {
     tag: "all",
   },
