@@ -95,6 +95,18 @@ import {
 import { validateRoster } from "./domain/roster/validate.mjs";
 import { SAVE_STATUS, createRosterStore } from "./data/roster-store.mjs";
 import { storage } from "./core/storage.mjs";
+import { initTheme } from "./core/theme.mjs";
+import {
+  applyStaticI18n,
+  getLocale,
+  initLocale,
+  isSupportedLocale,
+  loadTranslations,
+  setLocale,
+  storedLocale,
+  t,
+} from "./core/i18n.mjs";
+import { loadReferenceData } from "./data/reference.mjs";
 import { createApiClient } from "./core/api.mjs";
 import { renderRosterNotices, wireRosterNotices } from "./components/roster-notices.mjs";
 import { createBuilderDraftStore, isEmptyBuilderDraft } from "./data/builder-draft.mjs";
@@ -182,7 +194,6 @@ const view = document.querySelector("#app-view");
 const searchInput = document.querySelector("#global-search");
 const generatedAt = document.querySelector("#generated-at");
 const langToggle = document.querySelector("#lang-toggle");
-const themeSelect = document.querySelector("#theme-select");
 const navToggle = document.querySelector("#nav-toggle");
 const navOverlay = document.querySelector("#nav-overlay");
 const navList = document.querySelector(".nav-list");
@@ -200,30 +211,17 @@ const authLogout = document.querySelector("#auth-logout");
 const authTelegramField = document.querySelector("[data-auth-telegram]");
 
 const authTokenKey = "gata-league-auth-token";
-const themeStorageKey = "gata-league-theme";
-const localeStorageKey = "gata-league-locale";
-const supportedLocales = new Set(["en", "ru"]);
-const dataCache = new Map();
-let translations = { en: {}, ru: {} };
-let activeDict = translations.en;
 // Cache-busting token: index.html loads this module as `src/app.js?v=<version>`
 // and the build stamps that value, so data and i18n fetches reuse it instead of
 // carrying a second copy that drifts (it used to say gata-93 while index.html
 // asked for gata-97).
 const assetVersion = new URL(import.meta.url).searchParams.get("v") || "dev";
+const referenceDataOptions = { version: assetVersion, inlineData: globalThis.__REFERENCE_DATA__ };
 const logoUploadMaxBytes = 2 * 1024 * 1024;
 const logoOptimizeMaxDimension = 512;
 const logoOptimizeQuality = 0.82;
 const logoOptimizeSkipLength = 160_000;
 const logoOptimizationCache = new Map();
-const themeIds = new Set([
-  "dark-gata",
-  "dark-dugout",
-  "dark-warpstone",
-  "light-parchment",
-  "light-sideline",
-  "light-altdorf",
-]);
 const autosaveDelayMs = 450;
 
 const sectionRoutes = new Map([
@@ -238,136 +236,39 @@ const sectionRoutes = new Map([
 ]);
 const staticRoutes = new Set(["builder", "legal", "my-teams", "my-games", "season", "administration"]);
 
-function normalizeTheme(theme) {
-  return themeIds.has(theme) ? theme : "dark-gata";
-}
-
-function storedTheme() {
-  try {
-    return normalizeTheme(localStorage.getItem(themeStorageKey));
-  } catch (_error) {
-    return "dark-gata";
-  }
-}
-
-function applyTheme(theme, persist = true) {
-  const normalized = normalizeTheme(theme);
-  document.documentElement.dataset.theme = normalized;
-  if (themeSelect) themeSelect.value = normalized;
-  if (!persist) return;
-  try {
-    localStorage.setItem(themeStorageKey, normalized);
-  } catch (_error) {
-    // Theme persistence is optional; the visual switch still works for this session.
-  }
-}
-
-function detectDefaultLocale() {
-  const languages = navigator.languages && navigator.languages.length
-    ? navigator.languages
-    : [navigator.language || "en"];
-  return languages.some((lang) => lang.toLowerCase().startsWith("ru")) ? "ru" : "en";
-}
-
-function storedLocale() {
-  try {
-    const saved = localStorage.getItem(localeStorageKey);
-    return supportedLocales.has(saved) ? saved : detectDefaultLocale();
-  } catch (_error) {
-    return detectDefaultLocale();
-  }
-}
-
-async function loadTranslations() {
-  const [en, ru] = await Promise.all([
-    fetch(`src/i18n/en.json?v=${assetVersion}`).then((response) => response.json()),
-    fetch(`src/i18n/ru.json?v=${assetVersion}`).then((response) => response.json()),
-  ]);
-  translations = { en, ru };
-}
-
-function t(key, params) {
-  const template = activeDict[key] ?? translations.en[key] ?? key;
-  if (!params) return template;
-  return String(template).replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match));
-}
-
-function applyStaticI18n() {
-  document.querySelectorAll("[data-i18n]").forEach((element) => {
-    element.textContent = t(element.dataset.i18n);
-  });
-  document.querySelectorAll("[data-i18n-placeholder]").forEach((element) => {
-    element.setAttribute("placeholder", t(element.dataset.i18nPlaceholder));
-  });
-  document.querySelectorAll("[data-i18n-title]").forEach((element) => {
-    element.setAttribute("title", t(element.dataset.i18nTitle));
-  });
-  document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
-    element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
-  });
-}
-
-async function loadLocaleData(locale) {
-  if (dataCache.has(locale)) return dataCache.get(locale);
-  let data;
-  if (window.__REFERENCE_DATA__ && window.__REFERENCE_DATA__[locale]) {
-    data = window.__REFERENCE_DATA__[locale];
-  } else {
-    const response = await fetch(`public/data.${locale}.json?v=${assetVersion}`);
-    data = await response.json();
-  }
-  dataCache.set(locale, data);
-  return data;
-}
-
+/** The bits of the frame that carry locale-dependent text. */
 function applyLocaleChrome() {
-  document.documentElement.lang = state.locale;
-  activeDict = translations[state.locale];
   applyStaticI18n();
   updateAuthButton();
   setAuthMode(state.auth.mode);
   if (langToggle) {
-    langToggle.textContent = state.locale === "en" ? "RU" : "EN";
+    langToggle.textContent = getLocale() === "en" ? "RU" : "EN";
     langToggle.title = t("lang.toggleTitle");
   }
   if (generatedAt && state.data) {
-    const dateLocale = state.locale === "ru" ? "ru-RU" : "en-GB";
+    const dateLocale = getLocale() === "ru" ? "ru-RU" : "en-GB";
     generatedAt.textContent = `${t("footer.updated")} ${new Date(state.data.generatedAt).toLocaleDateString(dateLocale)}`;
   }
 }
 
+/**
+ * Switch language without reloading: fetch that locale's content, then
+ * re-render the current route. If the content cannot be loaded the locale goes
+ * back to what it was, so the interface never disagrees with the data.
+ */
 async function switchLocale(nextLocale) {
-  if (!supportedLocales.has(nextLocale) || nextLocale === state.locale) return;
-  const previousLocale = state.locale;
-  state.locale = nextLocale;
+  if (!isSupportedLocale(nextLocale) || nextLocale === getLocale()) return;
+  const previous = getLocale();
   try {
-    localStorage.setItem(localeStorageKey, nextLocale);
-  } catch (_error) {
-    // Locale persistence is optional; the switch still works for this session.
-  }
-  try {
-    state.data = await loadLocaleData(nextLocale);
+    state.data = await loadReferenceData(nextLocale, referenceDataOptions);
   } catch (error) {
     console.error(error);
-    state.locale = previousLocale;
-    try {
-      localStorage.setItem(localeStorageKey, previousLocale);
-    } catch (_error) {
-      // Locale persistence is optional; the switch still works for this session.
-    }
-    applyLocaleChrome();
     return;
   }
-  applyLocaleChrome();
-  renderRoute();
+  setLocale(nextLocale);
+  state.locale = nextLocale;
+  if (previous !== nextLocale) renderRoute();
 }
-
-
-
-
-
-
-
 
 const quickPreviews = new Map([
   ["1. League Basics", "League format, event tone, dice/model expectations and core conduct for Gata league games."],
@@ -6135,10 +6036,10 @@ function renderRoute() {
 }
 
 async function init() {
-  applyTheme(storedTheme(), false);
-  state.locale = storedLocale();
-  await loadTranslations();
-  state.data = await loadLocaleData(state.locale);
+  initTheme();
+  state.locale = initLocale(storedLocale());
+  await loadTranslations(assetVersion);
+  state.data = await loadReferenceData(state.locale, referenceDataOptions);
   await loadAuthSession();
   applyLocaleChrome();
   if (searchInput) {
@@ -6147,9 +6048,6 @@ async function init() {
       renderRoute();
     });
   }
-  themeSelect?.addEventListener("change", (event) => {
-    applyTheme(event.currentTarget.value);
-  });
   view.addEventListener("click", handleHistoryBack);
   navToggle?.addEventListener("click", () => {
     setNavOpen(!document.body.classList.contains("nav-open"));
