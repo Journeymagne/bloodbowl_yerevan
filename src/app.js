@@ -70,7 +70,7 @@ import {
   syncRosterCountsFromPlayers,
 } from "./domain/roster/players.mjs";
 import {
-  nextAdvancementCost,
+  canTakeAdvancement,
   playerAdvancementLevel,
   playerAdvancementSpent,
   playerAvailableSpp,
@@ -4833,8 +4833,13 @@ function wireSavedPlayerEditors(team, draft, rerender) {
     });
     card.querySelector("[data-saved-player-add-advancement]")?.addEventListener("click", () => {
       const type = card.querySelector("[data-saved-player-advancement-type]")?.value ?? "primary";
-      const cost = nextAdvancementCost(player, type);
-      if (!cost) return;
+      const verdict = canTakeAdvancement(team, player, type);
+      if (!verdict.allowed) {
+        // Used to fail silently whenever the cost was zero, and to happily let
+        // available SPP go negative otherwise.
+        alert(t(`validation.${verdict.reason}`, verdict.params));
+        return;
+      }
       player.advancements = normalizePlayerAdvancements(player.advancements);
       player.advancements.push({ type });
       rerender();
@@ -5757,9 +5762,12 @@ function renderPlayerAdvancementControls(team, player) {
       ${canAdvance ? `
         <div class="advancement-add-row">
           <select class="table-select" data-saved-player-advancement-type>
-            ${Object.entries(advancementTypeLabels).map(([type, label]) => `
-              <option value="${type}">${escapeHtml(`${label} (${nextRank.costs[type]} SPP)`)}</option>
-            `).join("")}
+            ${Object.entries(advancementTypeLabels).map(([type, label]) => {
+    const verdict = canTakeAdvancement(team, player, type);
+    return `
+              <option value="${type}" ${verdict.allowed ? "" : "disabled"}>${escapeHtml(`${label} (${nextRank.costs[type]} SPP)${verdict.allowed ? "" : ` — ${t("roster.notEnoughSpp")}`}`)}</option>
+            `;
+  }).join("")}
           </select>
           <button class="filter-button compact-action" type="button" data-saved-player-add-advancement>${t("common.add")}</button>
         </div>

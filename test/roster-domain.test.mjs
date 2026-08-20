@@ -276,3 +276,54 @@ test("position limits are reported per position", () => {
     assert.equal(typeof violation.params.max, "number");
   }
 });
+
+// ---------------------------------------------------------------------------
+// Advancements cannot be taken on credit.
+// ---------------------------------------------------------------------------
+
+test("canTakeAdvancement refuses to overspend SPP", async () => {
+  const { canTakeAdvancement, ADVANCEMENT_BLOCKED } = await import("../src/domain/roster/progression.mjs");
+  const team = teamBySlug.get("teams/amazon");
+
+  // 4 MVPs = 20 SPP. Experienced primary costs 6, stat costs 14.
+  const player = { spp: { mvps: 4 }, advancements: [] };
+  assert.equal(canTakeAdvancement(team, player, "primary").allowed, true);
+  assert.equal(canTakeAdvancement(team, player, "stat").allowed, true);
+
+  // Spend 14 on a stat: 6 left. A Veteran primary now costs 8 — too much.
+  player.advancements = [{ type: "stat" }];
+  assert.equal(playerAvailableSpp(team, player), 6);
+  const veteranPrimary = canTakeAdvancement(team, player, "primary");
+  assert.equal(veteranPrimary.allowed, false);
+  assert.equal(veteranPrimary.reason, ADVANCEMENT_BLOCKED.NOT_ENOUGH_SPP);
+  assert.deepEqual(veteranPrimary.params, { cost: 8, available: 6, rank: "Veteran", missing: 2 });
+
+  // A cheaper one at the same rank still fits.
+  assert.equal(canTakeAdvancement(team, player, "random").allowed, true, "Veteran random costs 4");
+});
+
+test("canTakeAdvancement stops at the top rank and on unknown types", async () => {
+  const { canTakeAdvancement, ADVANCEMENT_BLOCKED } = await import("../src/domain/roster/progression.mjs");
+  const { advancementRanks } = await import("../src/domain/league-rules.mjs");
+  const team = teamBySlug.get("teams/amazon");
+
+  const maxed = { spp: { mvps: 200 }, advancements: advancementRanks.map(() => ({ type: "random" })) };
+  const verdict = canTakeAdvancement(team, maxed, "random");
+  assert.equal(verdict.allowed, false);
+  assert.equal(verdict.reason, ADVANCEMENT_BLOCKED.MAX_LEVEL);
+
+  const rookie = { spp: { mvps: 200 }, advancements: [] };
+  const unknown = canTakeAdvancement(team, rookie, "nonsense");
+  assert.equal(unknown.allowed, false);
+  assert.equal(unknown.reason, ADVANCEMENT_BLOCKED.UNKNOWN_TYPE);
+});
+
+test("every advancement block reason has a message in both locales", async () => {
+  const { ADVANCEMENT_BLOCKED } = await import("../src/domain/roster/progression.mjs");
+  const en = JSON.parse(await fs.readFile(path.join(rootDir, "src", "i18n", "en.json"), "utf8"));
+  const ru = JSON.parse(await fs.readFile(path.join(rootDir, "src", "i18n", "ru.json"), "utf8"));
+  for (const reason of Object.values(ADVANCEMENT_BLOCKED)) {
+    assert.ok(en[`validation.${reason}`], `missing English message for ${reason}`);
+    assert.ok(ru[`validation.${reason}`], `missing Russian message for ${reason}`);
+  }
+});

@@ -369,5 +369,9 @@
   "validation.ROSTER_MIN_PLAYERS": "A Sevens roster usually needs at least {min} players (currently {count}).",
   "validation.ROSTER_MAX_PLAYERS": "A Sevens roster should not exceed {max} players (currently {count}).",
   "validation.POSITION_MIN": "{position}: minimum is {min}.",
-  "validation.POSITION_MAX": "{position}: maximum is {max}."
+  "validation.POSITION_MAX": "{position}: maximum is {max}.",
+  "roster.notEnoughSpp": "not enough SPP",
+  "validation.ADVANCEMENT_MAX_LEVEL": "This player has reached the highest level.",
+  "validation.ADVANCEMENT_UNKNOWN_TYPE": "Unknown advancement type: {type}.",
+  "validation.ADVANCEMENT_NOT_ENOUGH_SPP": "{rank} costs {cost} SPP, {available} available — {missing} short."
 }
