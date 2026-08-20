@@ -74,6 +74,11 @@ export function savedRosterUrl(teamOrId) {
   return `#/my-teams/${segment(teamOrId)}`;
 }
 
+/** Bare `#/season` is the default tab; only a non-default tab gets a segment. */
+export function seasonTabUrl(tab) {
+  return tab ? `#/season/${encodeURIComponent(tab)}` : "#/season";
+}
+
 export function listUrlForRoute(route) {
   return route === "home" ? "#/" : `#/${route}`;
 }
@@ -124,6 +129,7 @@ export function routeSection(route, findPage = () => null) {
   if (route.startsWith("administration/")) return "administration";
   if (route.startsWith("games/")) return "my-games";
   if (route.startsWith("players/")) return "players";
+  if (route.startsWith("season/")) return "season";
   if (SECTION_ROUTES.has(route)) return route;
   if (STATIC_ROUTES.has(route)) return route;
   const page = findPage(route);
@@ -161,7 +167,10 @@ export function matchRoute(route) {
     return { name: "game", params: { gameId: route.slice("games/".length) } };
   }
   if (route === "my-games") return { name: "myGames", params: {} };
-  if (route === "season") return { name: "season", params: {} };
+  if (route === "season") return { name: "season", params: { tab: "" } };
+  if (route.startsWith("season/")) {
+    return { name: "season", params: { tab: route.slice("season/".length) } };
+  }
 
   const adminEdit = route.match(ADMIN_TEAM_EDIT);
   if (adminEdit) {

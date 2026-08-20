@@ -13,6 +13,7 @@ import {
   routeFromHash,
   routeSection,
   savedRosterUrl,
+  seasonTabUrl,
 } from "../src/core/routes.mjs";
 
 // ---------------------------------------------------------------------------
@@ -46,6 +47,8 @@ test("the remaining link shapes are what the screens expect", () => {
   assert.equal(savedRosterUrl("t1"), "#/my-teams/t1");
   assert.equal(listUrlForRoute("home"), "#/", "home is the bare hash, not #/home");
   assert.equal(listUrlForRoute("skills"), "#/skills");
+  assert.equal(seasonTabUrl(""), "#/season", "the default tab is the bare hash, not a trailing slash");
+  assert.equal(seasonTabUrl("standings"), "#/season/standings");
 });
 
 // ---------------------------------------------------------------------------
@@ -79,9 +82,14 @@ test("the plain screens match by name", () => {
   assert.deepEqual(matchRoute("builder"), { name: "builder", params: {} });
   assert.deepEqual(matchRoute("my-teams"), { name: "myTeams", params: {} });
   assert.deepEqual(matchRoute("my-games"), { name: "myGames", params: {} });
-  assert.deepEqual(matchRoute("season"), { name: "season", params: {} });
+  assert.deepEqual(matchRoute("season"), { name: "season", params: { tab: "" } });
   assert.deepEqual(matchRoute("administration"), { name: "administration", params: {} });
   assert.deepEqual(matchRoute("legal"), { name: "legal", params: {} });
+});
+
+test("a season tab in the hash is carried as a param", () => {
+  assert.deepEqual(matchRoute("season/standings"), { name: "season", params: { tab: "standings" } });
+  assert.deepEqual(matchRoute("season/administration"), { name: "season", params: { tab: "administration" } });
 });
 
 test("catalogue sections match and carry their own route", () => {
@@ -165,4 +173,5 @@ test("section and static routes light themselves up", () => {
   assert.equal(routeSection("skills"), "skills");
   assert.equal(routeSection("builder"), "builder");
   assert.equal(routeSection("season"), "season");
+  assert.equal(routeSection("season/standings"), "season");
 });

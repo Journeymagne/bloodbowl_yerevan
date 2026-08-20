@@ -60,7 +60,6 @@ export const state = {
     loaded: false,
     loading: false,
     error: "",
-    activeTab: "registration",
   },
   builder: {
     editingTeamId: "",
