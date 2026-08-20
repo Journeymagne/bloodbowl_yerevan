@@ -8,8 +8,9 @@
  *
  * It keeps one user and one saved team in memory, records every PATCH it
  * receives into .codex_tmp/mock-saves.json, and answers just enough of the API
- * for the saved roster screen. Not a substitute for `npm run smoke`, which
- * exercises the real server.
+ * for the saved roster, my-games, game, administration and player-profile
+ * screens. Set MOCK_ADMIN=1 to sign in as an admin and reach the admin-only
+ * ones. Not a substitute for `npm run smoke`, which exercises the real server.
  */
 import http from "node:http";
 import { promises as fs } from "node:fs";
@@ -33,7 +34,24 @@ const mime = new Map([
   [".svg", "image/svg+xml"],
 ]);
 
-const user = { id: "u1", login: "coach", telegram: "@coach", isAdmin: false, createdAt: new Date().toISOString() };
+const user = {
+  id: "u1",
+  login: "coach",
+  telegram: "@coach",
+  isAdmin: process.env.MOCK_ADMIN === "1",
+  createdAt: new Date().toISOString(),
+  savedTeamCount: 1,
+  lastTeamUpdatedAt: new Date().toISOString(),
+};
+const rival = {
+  id: "u2",
+  login: "rival",
+  telegram: "@rival",
+  isAdmin: false,
+  createdAt: new Date().toISOString(),
+  savedTeamCount: 0,
+  lastTeamUpdatedAt: null,
+};
 const team = {
   id: "t1",
   name: "Mock Team",
@@ -55,6 +73,25 @@ const team = {
   },
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
+};
+
+const game = {
+  id: "g1",
+  resultStatus: "awaiting_confirmation",
+  roundStatus: "started",
+  roundNumber: 1,
+  viewerIsHome: true,
+  season: { name: "Mock Season", currentRound: 1 },
+  home: { user, team: { name: team.name } },
+  away: { user: rival, team: { name: "Rival Team" } },
+  homeTouchdowns: null,
+  awayTouchdowns: null,
+  homeCasualties: null,
+  awayCasualties: null,
+  proposedHomeTouchdowns: 2,
+  proposedAwayTouchdowns: 1,
+  proposedHomeCasualties: 1,
+  proposedAwayCasualties: 0,
 };
 
 export const saves = [];
@@ -85,7 +122,12 @@ const server = http.createServer(async (request, response) => {
       Object.assign(team, { name: body.name, roster: body.roster, updatedAt: new Date().toISOString() });
       return json(200, { team });
     }
-    if (url.pathname === "/api/games") return json(200, { games: [], currentGames: [] });
+    if (url.pathname === "/api/games") return json(200, { games: [game], currentGames: [game] });
+    if (url.pathname.startsWith("/api/games/")) return json(200, { game });
+    if (url.pathname === "/api/admin/users") return json(200, { users: [user, rival] });
+    if (url.pathname.startsWith("/api/admin/users/")) return json(200, { user, teams: [team] });
+    if (/^\/api\/players\/[^/]+\/teams\/[^/]+$/.test(url.pathname)) return json(200, { user, team });
+    if (url.pathname.startsWith("/api/players/")) return json(200, { user, teams: [team] });
     return json(200, {});
   }
 

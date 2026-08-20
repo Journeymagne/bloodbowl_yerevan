@@ -17,7 +17,7 @@
     "defaultMaxFileLines": 600,
     "defaultMaxFunctionLines": 80,
     "maxFileLines": {
-      "src/app.js": 1194,
+      "src/app.js": 400,
       "server/server.mjs": 2020,
       "scripts/build-data.mjs": 805,
       "src/screens/saved-roster.mjs": 1283
@@ -30,7 +30,7 @@
       "src/screens/builder.mjs": 100
     },
     "_notes": {
-      "src/app.js": "Task 6 is walking this down: 6210 -> 5968 -> 4330 -> 1991 -> 1194 so far (theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs; the reference screens in 6.5; 6.6's my-teams/builder/saved-roster; then 6.7's season screens + the shared components/game-status.mjs and screens/season/{season-data,season-links}.mjs they needed). Only ever lower it.",
+      "src/app.js": "Task 6 walked this down: 6210 -> 5968 -> 4330 -> 1991 -> 1194 -> 400 (theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs; the reference screens in 6.5; 6.6's my-teams/builder/saved-roster; 6.7's season screens; then 6.8's games/administration/players + components/auth-button.mjs). What is left is the bootstrap plus the auth modal — step 6.9 takes the modal out and targets under 200. Only ever lower it.",
       "src/screens/saved-roster.mjs": "One of the two duplicate roster-editor implementations design spec 5.1 counts (screens/builder.mjs is the other) — moved out of app.js as-is in task 6.6, oversized because it still is the whole editor. Task 7 merges the two into components/roster-editor/* and this budget should shrink close to zero.",
       "src/screens/builder.mjs": "wireBuilder() came in at 100 lines, moved from app.js unchanged. Same task-7 note as saved-roster.mjs: this shrinks when the two editors merge."
     }
