@@ -322,8 +322,11 @@ function savingApi(deps, entries) {
 export function createRosterStore({
   transport,
   storage,
-  setTimeoutFn = setTimeout,
-  clearTimeoutFn = clearTimeout,
+  // Bound, not the bare reference: `deps.setTimeoutFn(...)` below calls this as
+  // a method of `deps`, and native setTimeout/clearTimeout throw "Illegal
+  // invocation" in a browser unless `this` is the window they came from.
+  setTimeoutFn = setTimeout.bind(globalThis),
+  clearTimeoutFn = clearTimeout.bind(globalThis),
   debounceMs = 450,
   /** Never let edits sit unsaved longer than this while someone keeps typing. */
   maxDelayMs = 5000,
