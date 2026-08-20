@@ -65,6 +65,11 @@ export function toHtml(value) {
   return renderValue(value);
 }
 
+/** An `<option>`, marked selected when its value matches. */
+export function renderOption(value, label, selected) {
+  return `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+}
+
 /**
  * One listener for a whole list instead of one per row.
  *

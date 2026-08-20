@@ -17,7 +17,7 @@
     "defaultMaxFileLines": 600,
     "defaultMaxFunctionLines": 80,
     "maxFileLines": {
-      "src/app.js": 5968,
+      "src/app.js": 4330,
       "server/server.mjs": 2020,
       "scripts/build-data.mjs": 805
     },
@@ -27,7 +27,7 @@
       "scripts/build-data.mjs": 130
     },
     "_notes": {
-      "src/app.js": "Task 6 is walking this down: 6210 -> 5968 so far (theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs). Only ever lower it."
+      "src/app.js": "Task 6 is walking this down: 6210 -> 5968 -> 4330 so far (theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs, then the reference screens: core/state.mjs, core/view.mjs, components/{page-chrome,content-links,filters,cards}.mjs, screens/{home,overview,section,leagues,detail,legal}.mjs). Only ever lower it."
     }
   }
 }
