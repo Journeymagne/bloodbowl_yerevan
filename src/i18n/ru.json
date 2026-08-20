@@ -376,5 +376,8 @@
   "validation.ADVANCEMENT_NOT_ENOUGH_SPP": "{rank} стоит {cost} SPP, доступно {available} — не хватает {missing}.",
   "roster.unsavedStatus": "Есть несохранённые изменения",
   "roster.offlineStatus": "Нет связи — изменения сохранены и будут отправлены",
-  "roster.conflictStatus": "На сервере более новая версия команды"
+  "roster.conflictStatus": "На сервере более новая версия команды",
+  "builder.startOver": "Начать заново",
+  "builder.startOverConfirm": "Удалить этот черновик и начать новую команду?",
+  "builder.draftRestored": "Восстановлен черновик, над которым вы работали. Кнопка «Начать заново» удалит его."
 }

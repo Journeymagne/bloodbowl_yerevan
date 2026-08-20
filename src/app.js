@@ -95,6 +95,7 @@ import {
 import { validateRoster } from "./domain/roster/validate.mjs";
 import { SAVE_STATUS, createRosterStore } from "./data/roster-store.mjs";
 import { storage } from "./core/storage.mjs";
+import { createBuilderDraftStore, isEmptyBuilderDraft } from "./data/builder-draft.mjs";
 import { startingBudget } from "./domain/league-rules.mjs";
 
 ﻿const state = {
@@ -4980,6 +4981,18 @@ async function copySavedRoster(team, draft) {
   }
 }
 
+const builderDraftStore = createBuilderDraftStore({ storage, debounceMs: autosaveDelayMs });
+
+/** Adopt a stored draft when the builder is opened with nothing in it. */
+function restoreBuilderDraft() {
+  if (!isEmptyBuilderDraft(state.builder)) return false;
+  const teams = state.data.teams;
+  const stored = builderDraftStore.read((slug) => teams.some((item) => item.slug === slug));
+  if (!stored) return false;
+  state.builder = { ...emptyBuilderState(), ...stored, editingTeamId: "" };
+  return true;
+}
+
 function renderBuilder() {
   setActiveNav("builder");
   setViewSection("teams");
@@ -4987,6 +5000,7 @@ function renderBuilder() {
   if (state.builder.editingTeamId) {
     resetBuilderForTeam(teams[0]);
   }
+  const restoredDraft = restoreBuilderDraft();
   if (!state.builder.teamSlug && teams[0]) {
     state.builder.teamSlug = teams[0].slug;
     state.builder.teamName = teams[0].title;
@@ -5000,7 +5014,8 @@ function renderBuilder() {
   const warnings = builderWarnings(team, costs);
 
   view.innerHTML = `
-    ${renderHeader(t("nav.builder"), t("builder.subtitle"))}
+    ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="filter-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`)}
+    ${restoredDraft ? `<p class="notice-box" data-builder-restored>${t("builder.draftRestored")}</p>` : ""}
     ${renderBuilderInfoPanel(team, teams, costs, warnings)}
     <div class="builder-layout builder-layout-main">
       <section class="builder-panel">
@@ -5847,6 +5862,16 @@ function rosterWarnings(team, draft, costs) {
 }
 
 function wireBuilder(team) {
+  // Any control in the builder mutates state.builder directly, so listening on
+  // the container is enough to know something changed.
+  const persistDraft = () => builderDraftStore.save(state.builder);
+  for (const event of ["input", "click", "change"]) view.addEventListener(event, persistDraft);
+  view.querySelector("[data-builder-reset]")?.addEventListener("click", () => {
+    if (!isEmptyBuilderDraft(state.builder) && !confirm(t("builder.startOverConfirm"))) return;
+    builderDraftStore.clear();
+    resetBuilderForTeam(state.data.teams[0]);
+    renderBuilder();
+  });
   view.querySelector("[data-builder-team]")?.addEventListener("change", (event) => {
     state.builder.teamSlug = event.currentTarget.value;
     const nextTeam = state.data.teams.find((item) => item.slug === state.builder.teamSlug);
@@ -6033,6 +6058,7 @@ async function saveTeam(team) {
       body: JSON.stringify(request),
     });
     state.builder.editingTeamId = result.team.id;
+    builderDraftStore.clear();
     state.myTeams.loaded = false;
     const button = view.querySelector("[data-save-team]");
     if (button) {
