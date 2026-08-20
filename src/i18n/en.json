@@ -379,5 +379,11 @@
   "roster.conflictStatus": "A newer version of this team is on the server",
   "builder.startOver": "Start over",
   "builder.startOverConfirm": "Discard this draft and start a new team?",
-  "builder.draftRestored": "Restored the draft you were working on. Use “Start over” to discard it."
+  "builder.draftRestored": "Restored the draft you were working on. Use “Start over” to discard it.",
+  "roster.pendingRestoreHeading": "Unsaved changes were found",
+  "roster.pendingRestoreBody": "Changes made in this browser never reached the server. Restore them, or discard and keep the saved version.",
+  "roster.pendingRestoreAction": "Restore them",
+  "roster.pendingDiscardAction": "Discard",
+  "roster.conflictBody": "Someone saved this team after you opened it. Reload to see their version — your changes are still on screen until you do.",
+  "roster.conflictReloadAction": "Reload from the server"
 }

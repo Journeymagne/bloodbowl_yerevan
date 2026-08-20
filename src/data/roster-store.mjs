@@ -106,11 +106,14 @@ function mergeServerTeam(entry, serverTeam) {
   }
 }
 
+/** Kinds worth keeping the edit for and trying again — see src/core/api.mjs. */
+const RETRYABLE_KINDS = new Set(["offline", "timeout"]);
+
 function failSave(deps, entry, error) {
   entry.inFlight = false;
   entry.dirty = true;
   rememberPending(deps, entry);
-  if (error?.kind === "offline") setStatus(entry, SAVE_STATUS.OFFLINE, error);
+  if (RETRYABLE_KINDS.has(error?.kind)) setStatus(entry, SAVE_STATUS.OFFLINE, error);
   else if (error?.kind === "conflict") setStatus(entry, SAVE_STATUS.CONFLICT, error);
   else setStatus(entry, SAVE_STATUS.ERROR, error);
   return entry.status;
@@ -292,6 +295,22 @@ function savingApi(deps, entries) {
     /** Unsaved edits mirrored to storage, if any survived a reload. */
     readPending(teamId) {
       return deps.storage?.getJson(pendingKey(teamId), null) ?? null;
+    },
+
+    /**
+     * Put the edits that survived a reload back into the editor and queue them
+     * for saving. Returns the restored draft, or null if there was nothing.
+     */
+    restorePending(teamId) {
+      const entry = entryFor(teamId);
+      const roster = deps.storage?.getJson(pendingKey(teamId), null)?.request?.roster;
+      if (!roster) return null;
+      entry.draft = roster;
+      entry.dirty = true;
+      entry.firstDirtyAt = deps.now();
+      setStatus(entry, SAVE_STATUS.DIRTY);
+      scheduleSave(deps, entry);
+      return entry.draft;
     },
 
     discardPending(teamId) {

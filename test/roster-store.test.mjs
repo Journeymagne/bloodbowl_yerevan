@@ -330,3 +330,85 @@ test("storage round-trips JSON and survives corrupt values", () => {
   backing.set("gata-league-builder-draft", "{not json");
   assert.deepEqual(store.getJson("builder-draft", "fallback"), "fallback");
 });
+
+test("a timeout is treated like being offline: keep the edit and retry", async () => {
+  const harness = createHarness({ autoResolve: false });
+  const { draft } = trackTeam(harness.store);
+
+  draft.teamName = "Slow network";
+  harness.store.markDirty("team-1");
+  await harness.tick();
+
+  harness.inflight.shift().reject(Object.assign(new Error("aborted"), { kind: "timeout" }));
+  await flushMicrotasks();
+
+  assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.OFFLINE);
+  assert.equal(harness.store.hasPendingChanges(), true);
+});
+
+test("an unexpected failure is an error, not a silent success", async () => {
+  const harness = createHarness({ autoResolve: false });
+  const { draft } = trackTeam(harness.store);
+
+  draft.teamName = "Rejected";
+  harness.store.markDirty("team-1");
+  await harness.tick();
+
+  harness.inflight.shift().reject(Object.assign(new Error("boom"), { kind: "http", status: 500 }));
+  await flushMicrotasks();
+
+  assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.ERROR);
+  assert.equal(harness.store.hasPendingChanges(), true, "the edit is still queued");
+});
+
+test("a draft that cannot be serialised reports an error instead of hanging", async () => {
+  const harness = createHarness();
+  const draft = { teamName: "Cyclic", players: [] };
+  harness.store.track("team-9", {
+    draft,
+    meta: { id: "team-9" },
+    buildRequest: () => { throw new Error("cannot serialise"); },
+  });
+
+  harness.store.markDirty("team-9");
+  await harness.tick();
+
+  assert.equal(harness.store.statusOf("team-9"), SAVE_STATUS.ERROR);
+  assert.equal(harness.calls.length, 0);
+});
+
+test("edits that survived a reload can be put back and are saved", async () => {
+  const first = createHarness({ autoResolve: false });
+  const { draft } = trackTeam(first.store);
+  draft.teamName = "Typed before the crash";
+  first.store.markDirty("team-1");
+
+  const mirrored = first.store.readPending("team-1");
+  assert.ok(mirrored, "the edit is in storage before it ever reached the server");
+  assert.equal(mirrored.request.roster.teamName, "Typed before the crash");
+
+  // A reload: same storage, a store that knows nothing, a draft rebuilt from
+  // whatever the server last had.
+  const second = createHarness();
+  second.storage.setJson("pending-roster:team-1", mirrored);
+  const stale = { teamName: "Server copy", players: [] };
+  second.store.track("team-1", {
+    draft: stale,
+    meta: { id: "team-1" },
+    buildRequest: (current) => ({ name: current.teamName, roster: current }),
+  });
+
+  const restored = second.store.restorePending("team-1");
+  assert.equal(restored.teamName, "Typed before the crash");
+  assert.equal(second.store.getDraft("team-1"), restored);
+
+  await second.tick();
+  assert.equal(second.calls.at(-1).request.roster.teamName, "Typed before the crash");
+  assert.equal(second.store.readPending("team-1"), null, "and storage is cleared once saved");
+});
+
+test("restorePending is a no-op when nothing survived", () => {
+  const harness = createHarness();
+  trackTeam(harness.store);
+  assert.equal(harness.store.restorePending("team-1"), null);
+});

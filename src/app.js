@@ -95,6 +95,8 @@ import {
 import { validateRoster } from "./domain/roster/validate.mjs";
 import { SAVE_STATUS, createRosterStore } from "./data/roster-store.mjs";
 import { storage } from "./core/storage.mjs";
+import { createApiClient } from "./core/api.mjs";
+import { renderRosterNotices, wireRosterNotices } from "./components/roster-notices.mjs";
 import { createBuilderDraftStore, isEmptyBuilderDraft } from "./data/builder-draft.mjs";
 import { startingBudget } from "./domain/league-rules.mjs";
 
@@ -1038,26 +1040,21 @@ function setAuthToken(token = "") {
   }
 }
 
-async function authRequest(path, options = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-    ...(options.headers || {}),
-  };
-  const token = authToken();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
+const apiClient = createApiClient({
+  getToken: authToken,
+  onUnauthorized: () => {
+    // The session died under us. Say so once, instead of letting every screen
+    // report its own mystery failure.
+    if (!state.auth.currentUser) return;
+    state.auth.currentUser = null;
+    setAuthToken("");
+    updateAuthButton();
+  },
+});
 
-  const response = await fetch(path, { ...options, headers });
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error(payload.error || "Authorization request failed.");
-  }
-  return payload;
-}
-
+/** Errors from here carry a `kind`; see src/core/api.mjs. */
 async function apiRequest(path, options = {}) {
-  return authRequest(path, options);
+  return apiClient.request(path, options);
 }
 
 async function loadAuthSession() {
@@ -1068,7 +1065,7 @@ async function loadAuthSession() {
   }
 
   try {
-    const payload = await authRequest("/api/auth/me");
+    const payload = await apiRequest("/api/auth/me");
     state.auth.currentUser = payload.user;
   } catch {
     setAuthToken("");
@@ -1167,11 +1164,11 @@ async function handleAuthSubmit(event) {
 
   try {
     const payload = state.auth.mode === "register"
-      ? await authRequest("/api/auth/register", {
+      ? await apiRequest("/api/auth/register", {
         method: "POST",
         body: JSON.stringify({ login, password, telegram }),
       })
-      : await authRequest("/api/auth/login", {
+      : await apiRequest("/api/auth/login", {
         method: "POST",
         body: JSON.stringify({ login, password }),
       });
@@ -1211,7 +1208,7 @@ async function handleProfileSubmit(event) {
   }
 
   try {
-    const payload = await authRequest("/api/auth/profile", {
+    const payload = await apiRequest("/api/auth/profile", {
       method: "PATCH",
       body: JSON.stringify({ login, telegram, password }),
     });
@@ -1226,7 +1223,7 @@ async function handleProfileSubmit(event) {
 
 async function logoutAuth() {
   try {
-    await authRequest("/api/auth/logout", { method: "POST", body: "{}" });
+    await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
   } catch {
     // Local logout should still happen if the API is unavailable.
   }
@@ -4355,6 +4352,7 @@ async function renderSavedRoster(teamId, refresh = true, options = {}) {
 
   view.innerHTML = `
     ${renderHeader(titlePrefix, `${team.title} ${t("savedRoster.rosterSuffix")}${isAdminEdit && owner ? ` · ${owner.login}` : ""}`, "", { back: true, backFallback: backUrl })}
+    ${renderRosterNotices({ pending: rosterStore.readPending(savedTeam.id), serverUpdatedAt: savedTeam.updatedAt, conflict: rosterStore.statusOf(savedTeam.id) === SAVE_STATUS.CONFLICT, t })}
     <div class="saved-roster-top-grid">
       ${renderSavedRosterIdentity(team, draft, teams)}
       ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
@@ -4527,6 +4525,12 @@ function renderRosterStaffControl(key, title, value) {
 
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
   wireAutosaveStatus(savedTeam.id);
+  const reload = () => renderSavedRoster(savedTeam.id, true, options);
+  wireRosterNotices(view, {
+    onRestore: () => rosterStore.restorePending(savedTeam.id) && renderSavedRoster(savedTeam.id, false, options),
+    onDiscard: () => { rosterStore.discardPending(savedTeam.id); reload(); },
+    onReload: reload,
+  });
   const autosave = () => scheduleSavedRosterAutosave(savedTeam.id);
   const rerender = () => {
     syncRosterCountsFromPlayers(draft);
