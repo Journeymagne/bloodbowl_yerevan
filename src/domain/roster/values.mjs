@@ -58,9 +58,6 @@ export function statValueForDisplayByStat(stat, base, mod = 0) {
   return `${Math.max(1, next)}${match[2] ?? ""}`;
 }
 
-export function playerKey(rowIndex, copyIndex) {
-  return `${rowIndex}-${copyIndex}`;
-}
 
 export function rosterMax(value = "") {
   // Quantities in the vault are ranges ("0-16"). A bare number falls back to

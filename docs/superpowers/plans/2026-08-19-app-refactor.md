@@ -196,8 +196,14 @@ export function rosterToJson(roster)
 - [x] **Шаг 3.1.** `src/domain/league-rules.mjs`: перенести сюда все числа, сейчас разбросанные по коду — `builderStaffCosts` (`app.js:259`), `builderStaffMaximums` (`271`), `medicalStaffDefinitions` (`283`), `advancementRanks` (`291`), `advancementStatCosts` (`307`), `eliteSkillCombos` (`315`), стоимость скилла 20/40 (`skillModCost:1800`), стоимость контракта 20 (`playerAdjustmentCost:1820`), стартовый бюджет `600` (21 вхождение), лимиты состава 7/11 (`rosterWarnings:7078-7079`). Экспортировать как один замороженный объект `LEAGUE_RULES`.
 - [ ] **Шаг 3.2.** `schema.mjs`: описать RosterV2 (раздел 10.2 design spec) — `createRoster()`, `normalizePlayer()`, значения по умолчанию. **Форма черновика описывается ровно здесь и больше нигде**; удалить четыре расходящихся описания: `state.builder` (`app.js:55-76`), `emptyBuilderState:1423`, `builderPayload:1452`, `normalizeSavedRoster:1478`.
   - *Сделано частично:* форма черновика по-прежнему описана в четырёх местах; `schema.mjs` и RosterV2 не введены.
-- [ ] **Шаг 3.3.** `migrate.mjs`: собрать из `playersFromLegacyRoster:1657`, `ensureDraftPlayers:1692`, `normalizeRosterPlayer:1619`, `normalizeSppCounters:1642`, `normalizePlayerAdvancements:1646`, `normalizePlayerExtraSkills:1581`, `normalizePlayerFavouredSkills:1606`, `normalizePurchasedStaff:1536`. Функция `migrateRoster(raw, team)` обязана корректно принимать: (а) поколение 1 — `roster` + `playerEdits`; (б) поколение 2 — `slots`; (в) поколение 3 — `players`; (г) уже мигрированный RosterV2 (идемпотентность). На выходе **никогда** нет полей `roster`, `playerEdits`, `slots`, `logoData`.
-  - *Сделано частично:* миграция вынесена в `src/domain/roster/players.mjs` (`playersFromLegacyRoster`, `ensureDraftPlayers`) и покрыта тестами на все три поколения, но остаётся миграцией «на каждом чтении» — одноразовый прогон по БД делает задача 4.
+- [x] **Шаг 3.3.** ~~`migrate.mjs`: поддержать все три поколения формата.~~ **Отменено решением владельца 2026-08-19: поддержка старых форматов не нужна и удалена.** Вместо миграции:
+  - `playersFromLegacyRoster` заменена на `normalizeDraftPlayers` — читается только `players[]`;
+  - из `selectedRosterPlayers` убраны ветки `slots` и `roster`+`playerEdits`, удалены `slotPlayerFromDraft` и `playerKey`;
+  - из формы черновика убраны `playerEdits` и `slots` (`state.builder`, `emptyBuilderState`, `builderPayload`, `normalizeSavedRoster`);
+  - удалены 43 недостижимые функции — оба заброшенных поколения редактора игрока целиком; `npm run check` теперь держит планку «0 недостижимых»;
+  - добавлен предохранитель `scripts/check-roster-shapes.mjs`: спрашивает у живой базы, есть ли команды без `players[]`, но со `slots`/`playerEdits`. **Запускать до выката**, ненулевой код возврата = выкатывать нельзя.
+
+  Подробности и последствия — раздел 6.1 design spec.
 - [x] **Шаг 3.4.** `costs.mjs`: перенести `rowCost:1322`, `costToNumber:1312`, `statModCost:1796`, `skillModCost:1800`, `eliteComboCost:1805`, `playerAdjustmentCost:1817`, `playerCurrentCost:1824`, `calculateRosterCosts:7045`, `staffItemCost:7005`. **Числа берутся только из `LEAGUE_RULES`.** Разделить два разных понятия, которые сейчас слиты в `costs.total`: `teamValue` (стоимость команды) и `startupCost` (что потрачено из стартового бюджета). Поведение `skipNextGame` (исключение из стоимости, `7050-7055`) сохранить как есть и пометить `// TODO(league-question-2)` — см. вопрос 2 в design spec.
 - [ ] **Шаг 3.5.** `progression.mjs`: перенести `playerSppTotal:2663`, `playerAdvancementLevel:2678`, `playerAdvancementSpent:2682`, `playerAvailableSpp:2687`, `playerLevelRank:2691`, `nextAdvancementCost:2696`, `rosterTotalSpp:2701`. Добавить `canTakeAdvancement(team, player, type)` — сейчас проверки хватает SPP нет вообще (`app.js:5630-5636`).
   - *Сделано частично:* прокачка вынесена в `progression.mjs`; `canTakeAdvancement()` ещё не добавлен, SPP по-прежнему уходит в минус.
@@ -222,7 +228,6 @@ export function rosterToJson(roster)
 **Файлы:**
 - Создать: `server/db/migrations/001_baseline.sql`, `002_roster_schema_version.sql`, `003_snapshots.sql` (заготовка под задачу 9), `server/db/migrate.mjs`
 - Создать: `server/domain/roster.mjs` (реэкспорт `src/domain/roster/index.mjs`)
-- Создать: `scripts/migrate-rosters.mjs`
 - Изменить: `server/server.mjs` (`ensureSchema:337`, `readJson:417`, эндпоинты команд `1889-1970`, админский PATCH `1568`)
 - Изменить: `server/init.sql` → превратить в `001_baseline.sql`, из старта сервера убрать
 
@@ -235,16 +240,16 @@ export function rosterToJson(roster)
 
 - [ ] **Шаг 4.1.** Перенести `server/init.sql` в `server/db/migrations/001_baseline.sql`, **вырезав из него все `UPDATE`-операции над данными** (`init.sql:145-147` — форс-подтверждение результатов; `154-161` — перевод раундов в `started`; блок `DO $$ … home_opponent_unable`). Эти правки уже применены на боевой базе; их повторное выполнение при каждом рестарте pm2 — источник тихой порчи данных.
 - [ ] **Шаг 4.2.** `server/db/migrate.mjs` + таблица `schema_migrations (name, applied_at)`. Применение — только явной командой; на старте сервер лишь проверяет, что непринятых миграций нет, и падает с понятным сообщением, если есть.
-- [ ] **Шаг 4.3.** Миграция `002`: `ALTER TABLE saved_teams ADD COLUMN revision INTEGER NOT NULL DEFAULT 1`, `ADD COLUMN schema_version INTEGER NOT NULL DEFAULT 0`.
-- [ ] **Шаг 4.4.** `scripts/migrate-rosters.mjs`: разово прогоняет `migrateRoster` по всем `saved_teams`, пишет RosterV2 и `schema_version = 2`. Обязательно: (а) режим `--dry-run` с отчётом «сколько записей какого поколения»; (б) сверка с `.codex_tmp/roster-baseline.json` — для каждой команды число игроков и `teamValue` до и после совпадают; (в) повторный прогон ничего не меняет.
+- [ ] **Шаг 4.3.** Миграция `002`: `ALTER TABLE saved_teams ADD COLUMN revision INTEGER NOT NULL DEFAULT 1`.
+- [x] **Шаг 4.4.** ~~`scripts/migrate-rosters.mjs`: разовый прогон миграции по всем `saved_teams`.~~ **Отменено вместе с шагом 3.3:** старые форматы не поддерживаются, переписывать блобы не нужно. Единственная необратимая операция плана исчезла; вместо неё — проверка `scripts/check-roster-shapes.mjs` перед выкатом (только чтение). Колонка `schema_version` тоже не нужна: формат ровно один.
 - [ ] **Шаг 4.5.** Ограничить размер тела запроса в `readJson:417` (сейчас читает поток без лимита — тривиальный DoS). Лимит: 3 МБ, при превышении — `413`.
-- [ ] **Шаг 4.6.** Подключить `server/domain/roster.mjs` в `POST /api/teams`, `PATCH /api/teams/:id`, `PATCH /api/admin/teams/:id`, `POST /api/admin/users/:id/teams`, `POST /api/season/admin/create-team`: входящий `roster` прогоняется через `migrateRoster` + `validateRoster`; при нарушениях — `422 { error, violations: [{ code, params }] }`. Клиент рисует их через `t("validation.<code>")`.
+- [ ] **Шаг 4.6.** Подключить `server/domain/roster.mjs` в `POST /api/teams`, `PATCH /api/teams/:id`, `PATCH /api/admin/teams/:id`, `POST /api/admin/users/:id/teams`, `POST /api/season/admin/create-team`: входящий `roster` прогоняется через `normalizeDraftPlayers` + `validateRoster`; при нарушениях — `422 { error, violations: [{ code, params }] }`. Клиент рисует их через `t("validation.<code>")`.
 - [ ] **Шаг 4.7.** Оптимистичная блокировка: `UPDATE … SET revision = revision + 1 … WHERE id = $1 AND revision = $N RETURNING *`. Нет строки → перечитать команду → `409` с актуальной версией. Применить и к пользовательскому, и к админскому PATCH.
 - [ ] **Шаг 4.8.** Убрать дублирование логотипа: `logo_data` — единственное место хранения; `stripEmbeddedLogoData:126` остаётся как защита от старых клиентов, но `serializeRosterForStorage:145` должен получать роcтер, в котором `logoData` уже нет по схеме.
 - [ ] **Шаг 4.9.** Разбить `handleApi:1301` (~680 строк цепочки `if`) на `server/routes/{auth,teams,admin,season,games}.mjs` с таблицей маршрутов в `server/http/router.mjs`. Механический перенос, поведение не меняется.
 - [ ] **Шаг 4.10.** Добавить простое ограничение частоты попыток входа для `POST /api/auth/login` (например, 10 попыток на логин за 15 минут, в памяти процесса).
 
-**Проверка:** `npm run db:migrate` на чистой базе поднимает схему; `node scripts/migrate-rosters.mjs --dry-run` на копии боевой базы отчитывается без ошибок, боевой прогон даёт совпадение с baseline; `npm run smoke` проходит; попытка сохранить ростер из 30 игроков через `curl` возвращает `422`; параллельное сохранение из двух вкладок даёт `409`, а не молчаливую потерю.
+**Проверка:** `npm run db:migrate` на чистой базе поднимает схему; `npm run smoke` проходит; попытка сохранить ростер из 30 игроков через `curl` возвращает `422`; параллельное сохранение из двух вкладок даёт `409`, а не молчаливую потерю.
 
 ---
 

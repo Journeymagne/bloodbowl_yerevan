@@ -1,10 +1,9 @@
 /**
  * Deterministic roster cases shared by the fixture generator and the tests.
  *
- * `buildRosterCases()` produces, for a set of real teams, one draft of each
- * roster generation the app has to understand, plus everything the domain
- * computes from it. The random source is a fixed-seed LCG, so the same input
- * data always produces the same cases.
+ * `buildRosterCases()` produces, for a set of real teams, a roster plus
+ * everything the domain computes from it. The random source is a fixed-seed
+ * LCG, so the same input data always produces the same cases.
  */
 import { calculateRosterCosts, applyPaidStaffChange, syncMedicalStaffForTeam } from "../../src/domain/roster/costs.mjs";
 import { ensureDraftPlayers, selectedRosterPlayers, skillNamesForPlayer } from "../../src/domain/roster/players.mjs";
@@ -76,7 +75,7 @@ function emptyDraft(team) {
   };
 }
 
-/** Current shape: an explicit players array. */
+/** A roster: an explicit players array. */
 function modernDraft(team, random) {
   const pick = (list) => list[Math.floor(random() * list.length)];
   const draft = emptyDraft(team);
@@ -117,54 +116,6 @@ function modernDraft(team, random) {
   return draft;
 }
 
-/** Generation 1: counts in `roster` plus edits keyed by `rowIndex:copyIndex`. */
-function legacyEditsDraft(team, random) {
-  const pick = (list) => list[Math.floor(random() * list.length)];
-  const draft = emptyDraft(team);
-  delete draft.players;
-  const rows = team.team?.roster ?? [];
-  rows.forEach((row, rowIndex) => {
-    const count = Math.floor(random() * 3);
-    if (!count) return;
-    draft.roster[rowIndex] = count;
-    for (let copyIndex = 0; copyIndex < count; copyIndex += 1) {
-      // Key format has to match playerKey() in src/domain/roster/values.mjs.
-      draft.playerEdits[`${rowIndex}-${copyIndex}`] = {
-        name: `Old ${rowIndex}-${copyIndex}`,
-        statMods: { st: 1 },
-        extraSkills: [{ name: pick(SKILLS), access: "primary" }],
-        skipNextGame: random() > 0.8,
-        isCaptain: false,
-        extendedContracts: 1,
-        spp: { touchdowns: 2, casualties: 1, mvps: 1 },
-        advancements: [{ type: "primary" }],
-      };
-    }
-  });
-  return draft;
-}
-
-/** Generation 2: the fixed-length `slots` array. */
-function legacySlotsDraft(team, random) {
-  const pick = (list) => list[Math.floor(random() * list.length)];
-  const draft = emptyDraft(team);
-  delete draft.players;
-  const rows = team.team?.roster ?? [];
-  draft.slots = Array.from({ length: 14 }, (_slot, index) => {
-    if (!rows.length || random() > 0.5) return null;
-    const rowIndex = Math.floor(random() * rows.length);
-    return {
-      rowIndex,
-      name: `Slot ${index}`,
-      statMods: { ma: 1 },
-      extraSkills: [{ name: pick(SKILLS), access: "secondary" }],
-      spp: { touchdowns: 1 },
-      advancements: [],
-    };
-  });
-  return draft;
-}
-
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
 /** Player ids are generated, so they are normalised out of every comparison. */
@@ -198,11 +149,10 @@ export function describeCase(team, rawDraft) {
   syncMedicalStaffForTeam(team, medical);
 
   return stableJson({
-    // Only the parts migration actually rewrites: the rest of the draft is
-    // carried over unchanged and would just bloat the fixture file.
-    migratedPlayers: draft.players,
+    // Only the parts normalisation rewrites; the rest of the draft is carried
+    // over unchanged and would just bloat the fixture file.
+    normalisedPlayers: draft.players,
     rosterCounts: draft.roster,
-    hasLegacyShapes: { slots: "slots" in draft, playerEdits: Object.keys(draft.playerEdits ?? {}).length },
     costs: calculateRosterCosts(team, draft),
     costsWithFans: calculateRosterCosts(team, draft, { includeDedicatedFans: true }),
     totalSpp: rosterTotalSpp(team, draft),
@@ -238,11 +188,7 @@ export function buildRosterCases(allTeams) {
 
   const cases = [];
   for (const team of teams) {
-    for (const [generation, make] of [
-      ["modern", modernDraft],
-      ["legacy-edits", legacyEditsDraft],
-      ["legacy-slots", legacySlotsDraft],
-    ]) {
+    for (const [generation, make] of [["modern", modernDraft]]) {
       // A per-case seed keeps cases independent: changing one generator does
       // not shift every other case's random draw.
       const random = makeRandom(hashSeed(`${team.slug}/${generation}`));

@@ -19,7 +19,6 @@ import {
   countToNumber,
   makeRosterPlayerId,
   parseAccessCodes,
-  playerKey,
   rosterMax,
   rowCost,
   rowsForTeam,
@@ -63,13 +62,11 @@ import {
   normalizePurchasedStaff,
   normalizeRosterPlayer,
   normalizeSppCounters,
-  playersFromLegacyRoster,
   rosterPlayerView,
   rowCountInPlayers,
   selectedRosterPlayers,
   setRosterCaptain,
   skillNamesForPlayer,
-  slotPlayerFromDraft,
   syncRosterCountsFromPlayers,
 } from "./domain/roster/players.mjs";
 import {
@@ -161,7 +158,6 @@ import { startingBudget } from "./domain/league-rules.mjs";
     logoData: "",
     players: [],
     roster: {},
-    playerEdits: {},
     teamRerolls: 0,
     startingRerolls: 0,
     bribes: 0,
@@ -364,8 +360,6 @@ async function switchLocale(nextLocale) {
 
 
 
-
-const rosterSlotCount = 14;
 
 
 
@@ -1360,10 +1354,6 @@ function matchesQuery(page) {
 
 
 
-function optionLabel(value) {
-  return value === "-" ? "None" : value;
-}
-
 function uniqueSorted(values) {
   return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "en"));
 }
@@ -1395,7 +1385,6 @@ function emptyBuilderState(team = null) {
     logoData: "",
     players: [],
     roster: {},
-    playerEdits: {},
     teamRerolls: 0,
     startingRerolls: 0,
     bribes: 0,
@@ -1425,7 +1414,6 @@ function builderPayload(team) {
     logoData: state.builder.logoData || "",
     players: state.builder.players,
     roster: state.builder.roster,
-    playerEdits: state.builder.playerEdits,
     teamRerolls: state.builder.teamRerolls,
     startingRerolls: state.builder.startingRerolls,
     bribes: state.builder.bribes,
@@ -1452,9 +1440,7 @@ function normalizeSavedRoster(savedTeam) {
     favouredChoice: String(roster.favouredChoice ?? ""),
     logoData: savedTeam.logoData || roster.logoData || "",
     players: Array.isArray(roster.players) ? roster.players : [],
-    slots: Array.isArray(roster.slots) ? roster.slots : undefined,
     roster: roster.roster ?? {},
-    playerEdits: roster.playerEdits ?? {},
     teamRerolls: countToNumber(roster.teamRerolls ?? 0),
     startingRerolls: countToNumber(roster.startingRerolls ?? roster.rerolls ?? 0),
     bribes: countToNumber(roster.bribes ?? 0),
@@ -1537,88 +1523,6 @@ function availableSkillOptionsForPlayer(row, player) {
 
 
 
-
-function emptyRosterSlots() {
-  return Array.from({ length: rosterSlotCount }, () => null);
-}
-
-function normalizeSlot(slot, rows) {
-  if (!slot || typeof slot !== "object") return null;
-  const rowIndex = Number(slot.rowIndex);
-  if (!Number.isInteger(rowIndex) || rowIndex < 0 || rowIndex >= rows.length) return null;
-  const row = rows[rowIndex];
-  return {
-    rowIndex,
-    name: String(slot.name || row.position),
-    statMods: { ...(slot.statMods ?? {}) },
-    extraSkills: Array.isArray(slot.extraSkills) ? [...slot.extraSkills] : [],
-    skipNextGame: Boolean(slot.skipNextGame),
-  };
-}
-
-function ensureRosterSlots(team, draft) {
-  const rows = rowsForTeam(team);
-  if (Array.isArray(draft.slots)) {
-    draft.slots = emptyRosterSlots().map((_empty, index) => normalizeSlot(draft.slots[index], rows));
-    return draft.slots;
-  }
-
-  const slots = [];
-  rows.forEach((row, rowIndex) => {
-    const count = Math.max(0, Number(draft.roster?.[rowIndex] ?? 0));
-    for (let copyIndex = 0; copyIndex < count && slots.length < rosterSlotCount; copyIndex += 1) {
-      const edit = draft.playerEdits?.[playerKey(rowIndex, copyIndex)] ?? {};
-      slots.push({
-        rowIndex,
-        name: String(edit.name || `${row.position} ${copyIndex + 1}`),
-        statMods: { ...(edit.statMods ?? {}) },
-        extraSkills: Array.isArray(edit.extraSkills) ? [...edit.extraSkills] : [],
-        skipNextGame: Boolean(edit.skipNextGame),
-      });
-    }
-  });
-
-  draft.slots = emptyRosterSlots().map((_empty, index) => normalizeSlot(slots[index], rows));
-  return draft.slots;
-}
-
-function syncRosterCountsFromSlots(draft) {
-  const counts = {};
-  (draft.slots ?? []).forEach((slot) => {
-    if (!slot) return;
-    counts[slot.rowIndex] = (counts[slot.rowIndex] ?? 0) + 1;
-  });
-  draft.roster = counts;
-}
-
-function allRosterRows() {
-  return state.data.teams.flatMap(rowsForTeam);
-}
-
-function allRowSkills() {
-  return uniqueSorted(allRosterRows().flatMap((row) => row.skills ?? []));
-}
-
-function allRowTags() {
-  return uniqueSorted(allRosterRows().flatMap((row) => row.tags ?? []));
-}
-
-function allRowCosts() {
-  return uniqueSorted(allRosterRows().map(rowCost).filter(Boolean));
-}
-
-function isTeamVisible(team) {
-  if (!matchesQuery(team)) return false;
-  const { type, league, skill, tag, price } = state.teamFilters;
-  const roster = rowsForTeam(team);
-  if (type === "core" && team.team?.experimental) return false;
-  if (type === "experimental" && !team.team?.experimental) return false;
-  if (league !== "all" && team.team?.meta?.league !== league) return false;
-  if (skill !== "all" && !roster.some((row) => (row.skills ?? []).includes(skill))) return false;
-  if (tag !== "all" && !roster.some((row) => (row.tags ?? []).includes(tag))) return false;
-  if (price !== "all" && !roster.some((row) => rowCost(row) === price)) return false;
-  return true;
-}
 
 function isStarVisible(page) {
   return matchesQuery(page);
@@ -1782,16 +1686,6 @@ function renderOverviewItem(item = "") {
   return `<strong>${escapeHtml(match[1])}:</strong> ${escapeHtml(match[2])}`;
 }
 
-function renderSimpleCard(page) {
-  const preview = quickPreviews.get(page.title) ?? shortText(page.text, 135);
-  return `
-    <a class="card compact" href="${pageUrl(page)}">
-      <h3>${escapeHtml(page.title)}</h3>
-      <p>${escapeHtml(preview)}</p>
-    </a>
-  `;
-}
-
 function collectionForRoute(route) {
   if (route === "teams") return state.data.teams;
   if (route === "skills") return state.data.skills;
@@ -1866,40 +1760,6 @@ function renderOption(value, label, selected) {
   return `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
 }
 
-function renderTeamFilters() {
-  const leagues = uniqueSorted(state.data.teams.map((team) => team.team?.meta?.league));
-  const skills = allRowSkills();
-  const tags = allRowTags();
-  const prices = allRowCosts();
-  const f = state.teamFilters;
-  return `
-    <div class="filter-panel" data-filter-panel="teams">
-      <label class="filter-field"><span>${t("filters.type")}</span><select data-filter="type">
-        ${renderOption("all", t("filters.allTeams"), f.type)}
-        ${renderOption("core", t("filters.core"), f.type)}
-        ${renderOption("experimental", t("filters.experimental"), f.type)}
-      </select></label>
-      <label class="filter-field"><span>${t("filters.league")}</span><select data-filter="league">
-        ${renderOption("all", t("filters.anyLeague"), f.league)}
-        ${leagues.map((league) => renderOption(league, league, f.league)).join("")}
-      </select></label>
-      <label class="filter-field"><span>${t("filters.skillOrTrait")}</span><select data-filter="skill">
-        ${renderOption("all", t("filters.anySkill"), f.skill)}
-        ${skills.map((skill) => renderOption(skill, skill, f.skill)).join("")}
-      </select></label>
-      <label class="filter-field"><span>${t("filters.playerTag")}</span><select data-filter="tag">
-        ${renderOption("all", t("filters.anyTag"), f.tag)}
-        ${tags.map((tag) => renderOption(tag, tag, f.tag)).join("")}
-      </select></label>
-      <label class="filter-field"><span>${t("filters.playerCost")}</span><select data-filter="price">
-        ${renderOption("all", t("filters.anyCost"), f.price)}
-        ${prices.map((price) => renderOption(price, price, f.price)).join("")}
-      </select></label>
-      <button class="filter-button" type="button" data-reset-filters>${t("filters.reset")}</button>
-    </div>
-  `;
-}
-
 function skillFilterCategories(route) {
   const source = route === "traits" ? state.data.traits : state.data.skills;
   const tags = uniqueSorted(source.flatMap((page) => page.tags ?? []));
@@ -1926,20 +1786,6 @@ function renderSkillFilters(route) {
       <label class="filter-field"><span>${t("filters.group")}</span><select data-filter="category">
         ${renderOption("all", t("filters.anyGroup"), f.category)}
         ${categories.map((tag) => renderOption(tag, tag, f.category)).join("")}
-      </select></label>
-      <button class="filter-button" type="button" data-reset-filters>${t("filters.reset")}</button>
-    </div>
-  `;
-}
-
-function renderStarFilters() {
-  const tags = uniqueSorted(state.data.starPlayers.flatMap((page) => page.tags ?? []));
-  const f = state.starFilters;
-  return `
-    <div class="filter-panel compact-panel" data-filter-panel="star-players">
-      <label class="filter-field"><span>${t("filters.playerTag")}</span><select data-filter="tag">
-        ${renderOption("all", t("filters.anyTag"), f.tag)}
-        ${tags.map((tag) => renderOption(tag, tag, f.tag)).join("")}
       </select></label>
       <button class="filter-button" type="button" data-reset-filters>${t("filters.reset")}</button>
     </div>
@@ -2031,14 +1877,6 @@ function renderLimitedRosterLinks(items = [], limit = 5) {
   const extra = items.length - visible.length;
   if (!visible.length) return `<span class="muted-text">-</span>`;
   return `${renderRosterLinks(visible)}${extra > 0 ? `<span class="roster-pill roster-pill-muted">+${extra}</span>` : ""}`;
-}
-
-function rowCostRange(rows = []) {
-  const costs = [...new Set(rows.map(rowCost).filter(Boolean))]
-    .sort((a, b) => costToNumber(a) - costToNumber(b));
-  if (!costs.length) return "-";
-  if (costs.length === 1) return costs[0];
-  return `${costs[0]}-${costs[costs.length - 1]}`;
 }
 
 function renderTeamCatalogCard(page) {
@@ -3388,30 +3226,6 @@ function renderPublicTeamOverview(user, savedTeam, team, draft, costs) {
   `;
 }
 
-function renderPublicTeamSummary(user, savedTeam, team, draft, costs) {
-  const totalRerolls = countToNumber(draft.startingRerolls) + countToNumber(draft.teamRerolls);
-  return `
-    <aside class="builder-summary saved-roster-summary-panel side-panel">
-      ${draft.logoData ? `<div class="summary-logo-block"><img src="${escapeHtml(draft.logoData)}" alt=""></div>` : ""}
-      <div class="summary-title-block">
-        <h3>${t("savedRoster.summaryTitle")}</h3>
-        <a class="builder-team-link" href="${playerTeamUrl(user, savedTeam)}">${escapeHtml(savedTeam.name)}</a>
-      </div>
-      <dl class="stat-list summary-stat-grid">
-        <dt>${t("admin.coachHeading")}</dt><dd>${renderPlayerLink(user)}</dd>
-        <dt>${t("myTeams.table.rules")}</dt><dd><a class="inline-rule-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a></dd>
-        <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
-        <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
-        <dt>${t("savedRoster.teamRerolls")}</dt><dd>${totalRerolls}</dd>
-        ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
-        <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
-        <dt>${t("savedRoster.treasury")}</dt><dd>${countToNumber(draft.treasury)}k</dd>
-        <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
-      </dl>
-    </aside>
-  `;
-}
-
 function renderPublicTeamRosterTable(team, draft) {
   const players = selectedRosterPlayers(team, draft);
   if (!players.length) return `<p>${t("savedRoster.noPlayersYet")}</p>`;
@@ -3685,10 +3499,6 @@ async function loadSeason(force = false) {
   } finally {
     state.season.loading = false;
   }
-}
-
-function seasonEntryMap(data) {
-  return new Map((data.entries ?? []).map((entry) => [entry.id, entry]));
 }
 
 function seasonEntryLabel(entry) {
@@ -4695,19 +4505,6 @@ function renderRosterCounterControl(title, description, value, minusButton, plus
   `;
 }
 
-function renderRosterAddon(key, title, description, max, value, cost, disabled = false) {
-  const current = disabled ? 0 : value;
-  return `
-    <div class="builder-addon ${disabled ? "disabled" : ""}">
-      <div>
-        <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(disabled ? t("roster.notAvailableForTeam") : description)}</span>
-      </div>
-      ${renderRosterStepper(`roster-addon-${key}`, current, 0, max, disabled || !cost)}
-    </div>
-  `;
-}
-
 function renderRosterStaffControl(key, title, value) {
   const max = builderStaffMaximums[key] ?? 6;
   const current = countToNumber(value);
@@ -4722,123 +4519,6 @@ function renderRosterStaffControl(key, title, value) {
   );
 }
 
-function rowCountInSlots(draft, rowIndex) {
-  return (draft.slots ?? []).filter((slot) => slot && slot.rowIndex === rowIndex).length;
-}
-
-function rowAvailableForSlot(draft, rowIndex, currentSlotIndex = -1) {
-  const row = rowsForTeam(state.data.teams.find((team) => team.slug === draft.teamSlug) ?? state.data.teams[0])[rowIndex];
-  const currentSlot = currentSlotIndex >= 0 ? draft.slots?.[currentSlotIndex] : null;
-  const count = rowCountInSlots(draft, rowIndex) - (currentSlot?.rowIndex === rowIndex ? 1 : 0);
-  return count < rosterMax(row?.qty);
-}
-
-function addableRowsForSlots(team, draft, currentSlotIndex = -1) {
-  return rowsForTeam(team)
-    .map((row, rowIndex) => ({ row, rowIndex }))
-    .filter((item) => rowAvailableForSlot(draft, item.rowIndex, currentSlotIndex));
-}
-
-
-function renderRosterSlot(team, draft, slot, slotIndex) {
-  const player = slotPlayerFromDraft(team, slot, slotIndex);
-  const availableRows = addableRowsForSlots(team, draft, slotIndex);
-  if (!player) {
-    return `
-      <article class="roster-slot empty">
-        <header>
-          <strong>${t("roster.slot")} ${slotIndex + 1}</strong>
-          <span>${t("roster.emptySlot")}</span>
-        </header>
-        <div class="roster-slot-add">
-          <select data-slot-add="${slotIndex}">
-            <option value="">${t("roster.addPlayerOption")}</option>
-            ${availableRows.map(({ row, rowIndex }) => `
-              <option value="${rowIndex}">${escapeHtml(row.position)} - ${escapeHtml(rowCost(row))}</option>
-            `).join("")}
-          </select>
-          <button class="primary-button" type="button" data-slot-add-button="${slotIndex}" ${availableRows.length ? "" : "disabled"}>${t("common.add")}</button>
-        </div>
-      </article>
-    `;
-  }
-
-  return `
-    <article class="roster-slot filled">
-      <header>
-        <div>
-          <strong>${t("roster.slot")} ${slotIndex + 1}</strong>
-          <span>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row))}</span>
-        </div>
-        <button class="filter-button" type="button" data-slot-remove="${slotIndex}">${t("common.remove")}</button>
-      </header>
-      ${renderSlotPlayerEditor(player)}
-    </article>
-  `;
-}
-
-function renderSlotPlayerEditor(player) {
-  const editableStats = ["ma", "st", "ag", "pa", "ar"];
-  const options = availableSkillsForRow(player.row).filter((skill) => !player.extraSkills.includes(skill));
-  return `
-    <div class="player-editor slot-player-editor" data-slot-player="${player.slotIndex}">
-      <div class="slot-player-topline">
-        <label class="filter-field compact-field">
-          <span>${t("roster.playerName")}</span>
-          <input type="text" value="${escapeHtml(player.name)}" data-slot-player-name>
-        </label>
-        <label class="checkbox-field skip-next-field">
-          <input type="checkbox" data-slot-skip-next ${player.skipNextGame ? "checked" : ""}>
-          <span>${t("roster.skipNextGame")}</span>
-        </label>
-      </div>
-      <div class="player-stat-editors slot-stat-editors">
-        ${editableStats.map((stat) => {
-          const mod = player.statMods[stat] ?? 0;
-          const value = statValueForDisplay(player.row[stat], mod);
-          const modClass = mod > 0 ? "stat-up" : mod < 0 ? "stat-down" : "";
-          return `
-            <div class="player-stat-editor ${modClass}">
-              <span>${stat.toUpperCase()}</span>
-              <strong>${escapeHtml(value)}</strong>
-              <div class="mini-stepper">
-                <button type="button" data-slot-stat="${stat}" data-slot-stat-delta="-1">-</button>
-                <button type="button" data-slot-stat="${stat}" data-slot-stat-delta="1">+</button>
-              </div>
-            </div>
-          `;
-        }).join("")}
-      </div>
-      <div class="builder-summary-skills slot-skill-list">
-        ${renderRosterLinks([...(player.row.skills ?? []), ...player.extraSkills])}
-      </div>
-      <div class="player-skill-editor">
-        <select data-slot-skill>
-          <option value="">${t("roster.addSkillOption")}</option>
-          ${options.map((skill) => renderOption(skill, skill, "")).join("")}
-        </select>
-        <button class="filter-button" type="button" data-slot-add-skill>${t("common.add")}</button>
-      </div>
-      ${player.extraSkills.length ? `
-        <div class="player-extra-skills">
-          ${player.extraSkills.map((skill) => `
-            <button class="roster-pill" type="button" data-slot-remove-skill="${escapeHtml(skill)}">${escapeHtml(skill)} x</button>
-          `).join("")}
-        </div>
-      ` : ""}
-    </div>
-  `;
-}
-
-function renderRosterStepper(name, value, min, max, disabled = false) {
-  return `
-    <div class="stepper" data-roster-stepper="${escapeHtml(name)}" data-min="${min}" data-max="${max}">
-      <button type="button" data-roster-step="-1" ${disabled || value <= min ? "disabled" : ""}>-</button>
-      <output>${value}</output>
-      <button type="button" data-roster-step="1" ${disabled || value >= max ? "disabled" : ""}>+</button>
-    </div>
-  `;
-}
 
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
   const autosave = () => scheduleSavedRosterAutosave(savedTeam.id);
@@ -5183,45 +4863,6 @@ function wireSavedPlayerEditors(team, draft, rerender) {
   });
 }
 
-function wireSlotPlayerEditors(team, draft, rerender) {
-  view.querySelectorAll("[data-slot-player]").forEach((card) => {
-    const slotIndex = Number(card.dataset.slotPlayer);
-    const slot = draft.slots?.[slotIndex];
-    if (!slot) return;
-
-    card.querySelector("[data-slot-player-name]")?.addEventListener("input", (event) => {
-      slot.name = event.currentTarget.value;
-    });
-    card.querySelector("[data-slot-skip-next]")?.addEventListener("change", (event) => {
-      slot.skipNextGame = event.currentTarget.checked;
-      rerender();
-    });
-    card.querySelectorAll("[data-slot-stat]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const stat = button.dataset.slotStat;
-        const delta = Number(button.dataset.slotStatDelta);
-        slot.statMods ??= {};
-        slot.statMods[stat] = clamp((slot.statMods[stat] ?? 0) + delta, -10, 10);
-        rerender();
-      });
-    });
-    card.querySelector("[data-slot-add-skill]")?.addEventListener("click", () => {
-      const select = card.querySelector("[data-slot-skill]");
-      const skill = select?.value;
-      slot.extraSkills ??= [];
-      if (!skill || slot.extraSkills.includes(skill)) return;
-      slot.extraSkills.push(skill);
-      rerender();
-    });
-    card.querySelectorAll("[data-slot-remove-skill]").forEach((button) => {
-      button.addEventListener("click", () => {
-        slot.extraSkills = (slot.extraSkills ?? []).filter((skill) => skill !== button.dataset.slotRemoveSkill);
-        rerender();
-      });
-    });
-  });
-}
-
 function autosaveStatusFor(teamId) {
   return savedRosterAutosaves.get(teamId) ?? {
     revision: 0,
@@ -5449,92 +5090,6 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
   `;
 }
 
-function renderBuilderIdentity(team, teams) {
-  return `
-    <section class="builder-setup-panel roster-identity-panel side-panel">
-      <div class="builder-form builder-identity-form">
-        <label class="filter-field">
-          <span>${t("sidebar.teamHeading")}</span>
-          <select data-builder-team>
-            ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
-          </select>
-        </label>
-        <label class="filter-field">
-          <span>${t("savedRoster.teamName")}</span>
-          <input type="text" value="${escapeHtml(state.builder.teamName || team.title)}" data-builder-name>
-        </label>
-        <label class="filter-field">
-          <span>${t("savedRoster.logoField")}</span>
-          <input type="file" accept="image/*" data-builder-logo>
-        </label>
-      </div>
-      ${state.builder.logoData ? `
-        <div class="builder-logo-inline roster-logo-inline">
-          <img class="builder-logo-preview" src="${escapeHtml(state.builder.logoData)}" alt="">
-          <button class="filter-button compact-action" type="button" data-builder-remove-logo>${t("savedRoster.removeLogo")}</button>
-        </div>
-      ` : ""}
-      ${renderTeamRuleAccess(team, state.builder, "builder")}
-    </section>
-  `;
-}
-
-function renderBuilderPurchases(team, costs) {
-  return `
-    <section class="roster-controls-panel side-panel">
-      <h2>${t("roster.purchasesHeading")}</h2>
-      <div class="builder-tracker-list roster-tracker-list" aria-label="${t("roster.startingRosterTrackersAriaLabel")}">
-        <div class="builder-addon compact-staff-control builder-tracker-control">
-          <div>
-            <strong>${t("savedRoster.startingRerolls")}</strong>
-            <span>60k ${t("roster.each")}</span>
-          </div>
-          <div class="inline-stepper-control">
-            <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
-            <strong>${state.builder.startingRerolls}</strong>
-            <button class="filter-button" type="button" data-builder-reroll="1" ${costs.total + builderStaffCosts.startingRerolls > startingBudget ? "disabled" : ""}>+</button>
-          </div>
-        </div>
-        ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > startingBudget)}
-        ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total + builderStaffCosts.bribes > startingBudget) : ""}
-        ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > startingBudget)}
-        ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > startingBudget)}
-        ${availableMedicalStaffDefinitions(team).map((staff) => {
-          const blocked = costs.total + (builderStaffCosts[staff.key] ?? 0) > startingBudget;
-          return renderBuilderStaffControl(staff.key, staff.title, state.builder[staff.key], blocked);
-        }).join("")}
-      </div>
-    </section>
-  `;
-}
-
-function renderBuilderSummary(team, costs, warnings) {
-  return `
-    <aside class="builder-summary builder-summary-horizontal side-panel">
-      <div class="summary-title-block">
-        <h3>${t("savedRoster.summaryTitle")}</h3>
-        <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
-      </div>
-      <dl class="stat-list summary-stat-grid">
-        <dt>${t("myTeams.table.players")}</dt><dd>${costs.totalPlayersCount}</dd>
-        <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(state.builder.dedicatedFans)}</dd>
-        ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(state.builder.bribes)}</dd>` : ""}
-        <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
-        <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
-        <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
-        <dt>${t("builder.remaining")}</dt><dd class="${costs.remaining < 0 ? "danger-text" : ""}">${costs.remaining}k</dd>
-      </dl>
-      <div class="summary-state-block">
-        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
-        <div class="summary-actions">
-          <button class="primary-button" type="button" data-save-team ${costs.total > startingBudget || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
-          <button class="primary-button" type="button" data-copy-roster>${t("roster.copyRoster")}</button>
-        </div>
-      </div>
-    </aside>
-  `;
-}
-
 function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
   const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: enforceBudget });
   const rows = rowsForTeam(team);
@@ -5634,11 +5189,6 @@ function renderBuilderStaffControl(key, title, value, plusBlocked = false) {
       </div>
     </div>
   `;
-}
-
-function renderPlainSkillPills(items = []) {
-  if (!items.length) return `<span class="muted-text">-</span>`;
-  return items.map((item) => `<span class="roster-pill">${escapeHtml(item)}</span>`).join("");
 }
 
 function renderAccessCell(values = []) {
@@ -6252,181 +5802,7 @@ function renderEditableStatLine(player) {
   `;
 }
 
-function renderAddon(key, title, description, max, value, cost, disabled = false) {
-  const current = disabled ? 0 : value;
-  return `
-    <div class="builder-addon ${disabled ? "disabled" : ""}">
-      <div>
-        <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(disabled ? t("roster.notAvailableForTeam") : description)}</span>
-      </div>
-      ${renderStepper(`builder-addon-${key}`, current, 0, max, disabled || !cost)}
-    </div>
-  `;
-}
 
-function renderBuilderRow(row, index) {
-  const value = state.builder.roster[index] ?? 0;
-  const max = rosterMax(row.qty);
-  return `
-    <div class="builder-row">
-      <div class="builder-row-body">
-        <div class="builder-row-main">
-          <div class="builder-row-head">
-            <strong>${escapeHtml(row.position)}</strong>
-            <span>${escapeHtml([row.qty, rowCost(row)].filter(Boolean).join(" · "))}</span>
-          </div>
-          ${renderRosterStatGrid(row)}
-          <div class="builder-row-skills">
-            ${renderRosterLinks(row.skills)}
-          </div>
-        </div>
-      </div>
-      ${renderStepper(`builder-row-${index}`, value, 0, max)}
-    </div>
-  `;
-}
-
-function selectedBuilderRows(team) {
-  return selectedRosterRows(team, state.builder);
-}
-
-function selectedRosterRows(team, draft) {
-  return rowsForTeam(team)
-    .map((row, index) => ({ row, count: draft.roster[index] ?? 0 }))
-    .filter((item) => item.count > 0);
-}
-
-
-function selectedBuilderPlayers(team) {
-  return selectedRosterPlayers(team, state.builder);
-}
-
-
-function ensurePlayerEdit(draft, key, row) {
-  draft.playerEdits[key] ??= {
-    name: "",
-    statMods: {},
-    extraSkills: [],
-    skipNextGame: false,
-    isCaptain: false,
-    extendedContracts: 0,
-  };
-  if (!draft.playerEdits[key].name) {
-    const copyIndex = Number(key.split("-")[1] ?? 0);
-    draft.playerEdits[key].name = `${row.position} ${copyIndex + 1}`;
-  }
-  draft.playerEdits[key].statMods ??= {};
-  draft.playerEdits[key].extraSkills ??= [];
-  draft.playerEdits[key].skipNextGame = Boolean(draft.playerEdits[key].skipNextGame);
-  draft.playerEdits[key].isCaptain = Boolean(draft.playerEdits[key].isCaptain);
-  draft.playerEdits[key].extendedContracts = countToNumber(draft.playerEdits[key].extendedContracts);
-  return draft.playerEdits[key];
-}
-
-function statValueForDisplay(base, mod = 0) {
-  if (base === "-" || base === "") return base || "-";
-  const match = String(base).match(/^(\d+)(\+)?$/);
-  if (!match) return base;
-  const next = Number(match[1]) + mod;
-  return `${Math.max(1, next)}${match[2] ?? ""}`;
-}
-
-function availableSkillsForRow(row) {
-  const access = [...(row.primary ?? []), ...(row.secondary ?? [])].join(" ");
-  const categories = [...new Set(access.split(/\s+/).map((code) => skillAccessMap[code]).filter(Boolean))];
-  const baseSkills = new Set(row.skills ?? []);
-  return (state.data.skillGroups ?? [])
-    .filter((group) => categories.includes(group.category))
-    .flatMap((group) => group.skills ?? [])
-    .filter((skill) => !baseSkills.has(skill))
-    .sort((a, b) => a.localeCompare(b, "en"));
-}
-
-function renderBuilderSummaryRoster(team) {
-  return renderEditableRosterPlayers(team, state.builder, "builder");
-}
-
-function renderEditableRosterPlayers(team, draft, mode) {
-  const selected = selectedRosterPlayers(team, draft);
-  if (!selected.length) {
-    return `<div class="builder-empty-roster">${t("builder.noPlayersSelected")}</div>`;
-  }
-
-  return `
-    <div class="builder-summary-roster">
-      ${selected.map((player) => `
-        <article class="builder-summary-player">
-          <header>
-            <strong>${escapeHtml(player.name)}</strong>
-            <span>${escapeHtml(rowCost(player.row) || "-")}</span>
-          </header>
-          ${renderEditablePlayer(player, mode)}
-          <div class="builder-summary-skills">
-            ${renderRosterLinks([...(player.row.skills ?? []), ...player.extraSkills])}
-          </div>
-        </article>
-      `).join("")}
-    </div>
-  `;
-}
-
-function renderEditablePlayer(player, mode = "builder") {
-  const editableStats = ["ma", "st", "ag", "pa", "ar"];
-  const options = availableSkillsForRow(player.row).filter((skill) => !player.extraSkills.includes(skill));
-  return `
-    <div class="player-editor" data-player="${escapeHtml(player.key)}" data-row-index="${player.rowIndex}" data-editor-mode="${escapeHtml(mode)}">
-      <label class="filter-field compact-field">
-        <span>${t("roster.playerName")}</span>
-        <input type="text" value="${escapeHtml(player.name)}" data-player-name>
-      </label>
-      <label class="checkbox-field skip-next-field">
-        <input type="checkbox" data-player-skip-next ${player.skipNextGame ? "checked" : ""}>
-        <span>${t("roster.skipNextGame")}</span>
-      </label>
-      <div class="player-stat-editors">
-        ${editableStats.map((stat) => {
-          const mod = player.statMods[stat] ?? 0;
-          const value = statValueForDisplay(player.row[stat], mod);
-          return `
-            <div class="player-stat-editor">
-              <span>${stat.toUpperCase()}</span>
-              <strong>${escapeHtml(value)}</strong>
-              <div class="mini-stepper">
-                <button type="button" data-player-stat="${stat}" data-player-stat-delta="-1">-</button>
-                <button type="button" data-player-stat="${stat}" data-player-stat-delta="1">+</button>
-              </div>
-            </div>
-          `;
-        }).join("")}
-      </div>
-      <div class="player-skill-editor">
-        <select data-player-skill>
-          <option value="">${t("roster.addSkillOption")}</option>
-          ${options.map((skill) => renderOption(skill, skill, "")).join("")}
-        </select>
-        <button class="filter-button" type="button" data-player-add-skill>${t("common.add")}</button>
-      </div>
-      ${player.extraSkills.length ? `
-        <div class="player-extra-skills">
-          ${player.extraSkills.map((skill) => `
-            <button class="roster-pill" type="button" data-player-remove-skill="${escapeHtml(skill)}">${escapeHtml(skill)} x</button>
-          `).join("")}
-        </div>
-      ` : ""}
-    </div>
-  `;
-}
-
-function renderStepper(name, value, min, max, disabled = false) {
-  return `
-    <div class="stepper" data-stepper="${escapeHtml(name)}" data-min="${min}" data-max="${max}">
-      <button type="button" data-step="-1" data-builder-step="-1" onclick="this.dispatchEvent(new Event('builderstep',{bubbles:true}))" ${disabled || value <= min ? "disabled" : ""}>-</button>
-      <output>${value}</output>
-      <button type="button" data-step="1" data-builder-step="1" onclick="this.dispatchEvent(new Event('builderstep',{bubbles:true}))" ${disabled || value >= max ? "disabled" : ""}>+</button>
-    </div>
-  `;
-}
 
 
 
@@ -6611,68 +5987,6 @@ async function fileToOptimizedLogoDataUrl(file) {
   return optimizeLogoDataUrl(source);
 }
 
-function wirePlayerEditors(team, draft, rerender) {
-  view.querySelectorAll("[data-player]").forEach((card) => {
-    const key = card.dataset.player;
-    const rowIndex = Number(card.dataset.rowIndex);
-    const row = rowsForTeam(team)[rowIndex];
-    if (!key || !row) return;
-    const edit = ensurePlayerEdit(draft, key, row);
-
-    card.querySelector("[data-player-name]")?.addEventListener("input", (event) => {
-      edit.name = event.currentTarget.value;
-    });
-    card.querySelector("[data-player-skip-next]")?.addEventListener("change", (event) => {
-      edit.skipNextGame = event.currentTarget.checked;
-      rerender();
-    });
-
-    card.querySelectorAll("[data-player-stat]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const stat = button.dataset.playerStat;
-        const delta = Number(button.dataset.playerStatDelta);
-        edit.statMods[stat] = clamp((edit.statMods[stat] ?? 0) + delta, -10, 10);
-        rerender();
-      });
-    });
-
-    card.querySelector("[data-player-add-skill]")?.addEventListener("click", () => {
-      const select = card.querySelector("[data-player-skill]");
-      const skill = select?.value;
-      if (!skill || edit.extraSkills.includes(skill)) return;
-      edit.extraSkills.push(skill);
-      rerender();
-    });
-
-    card.querySelectorAll("[data-player-remove-skill]").forEach((button) => {
-      button.addEventListener("click", () => {
-        edit.extraSkills = edit.extraSkills.filter((skill) => skill !== button.dataset.playerRemoveSkill);
-        rerender();
-      });
-    });
-  });
-}
-
-function handleBuilderStepEvent(event) {
-  const target = event.target instanceof Element ? event.target : event.target.parentElement;
-  const button = target?.closest("button[data-builder-step]");
-  if (!button) return;
-  const stepper = button.closest("[data-stepper]");
-  if (!stepper) return;
-
-  const key = stepper.dataset.stepper;
-  const delta = Number(button.dataset.builderStep);
-  if (key.startsWith("builder-row-")) {
-    const index = key.replace("builder-row-", "");
-    const current = state.builder.roster[index] ?? 0;
-    state.builder.roster[index] = clamp(current + delta, Number(stepper.dataset.min), Number(stepper.dataset.max));
-  } else {
-    const addon = key.replace("builder-addon-", "");
-    state.builder[addon] = clamp((state.builder[addon] ?? 0) + delta, Number(stepper.dataset.min), Number(stepper.dataset.max));
-  }
-  renderBuilder();
-}
-
 
 async function copyRoster(team) {
   const lines = buildRosterText(team, state.builder);
@@ -6794,7 +6108,6 @@ async function init() {
   themeSelect?.addEventListener("change", (event) => {
     applyTheme(event.currentTarget.value);
   });
-  view.addEventListener("builderstep", handleBuilderStepEvent);
   view.addEventListener("click", handleHistoryBack);
   navToggle?.addEventListener("click", () => {
     setNavOpen(!document.body.classList.contains("nav-open"));

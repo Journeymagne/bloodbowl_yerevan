@@ -21,14 +21,16 @@ const teamBySlug = new Map(data.teams.map((team) => [team.slug, team]));
 // ---------------------------------------------------------------------------
 // Behavioural baseline. These fixtures were generated from the implementation
 // that lived in src/app.js before the domain was extracted, and verified to
-// match it exactly across all 37 teams and three roster generations. A diff
-// here means the rules changed — intentionally or not.
+// match it exactly across all 37 teams. A diff here means the rules changed —
+// intentionally or not.
 // ---------------------------------------------------------------------------
 
-test("fixtures cover every roster generation", () => {
-  const generations = new Set(cases.map((item) => item.generation));
-  assert.deepEqual([...generations].sort(), ["legacy-edits", "legacy-slots", "modern"]);
-  assert.ok(cases.length >= 24, `expected at least 24 cases, found ${cases.length}`);
+test("fixtures cover the teams whose special rules the domain branches on", () => {
+  assert.equal(cases.length, 8);
+  for (const item of cases) assert.equal(item.generation, "modern");
+  for (const slug of ["teams/black-orc", "teams/elven-union", "teams/nurgle"]) {
+    assert.ok(cases.some((item) => item.team === slug), `${slug} missing from fixtures`);
+  }
 });
 
 for (const item of cases) {
@@ -43,7 +45,7 @@ for (const item of cases) {
 // Properties that must hold whatever the fixtures say.
 // ---------------------------------------------------------------------------
 
-test("migration is idempotent", () => {
+test("normalisation is idempotent", () => {
   for (const item of cases) {
     const team = teamBySlug.get(item.team);
     const draft = JSON.parse(JSON.stringify(item.draft));
@@ -54,34 +56,63 @@ test("migration is idempotent", () => {
   }
 });
 
-test("migration drops the legacy slots array and keeps counts in sync", () => {
-  for (const item of cases) {
-    const team = teamBySlug.get(item.team);
-    const draft = JSON.parse(JSON.stringify(item.draft));
-    ensureDraftPlayers(team, draft);
-    assert.equal("slots" in draft, false, `${item.team}/${item.generation} still has slots`);
-    const counted = {};
-    for (const player of draft.players) counted[player.rowIndex] = (counted[player.rowIndex] ?? 0) + 1;
-    assert.deepEqual(draft.roster, counted, `${item.team}/${item.generation} roster counts drifted`);
-  }
+test("the two retired roster shapes are no longer read", () => {
+  // Support for `slots` and for `roster` counts plus `playerEdits` was removed
+  // once every saved team had been in the players[] shape for a while (see
+  // scripts/check-roster-shapes.mjs, run against the database before deploying).
+  // A blob in either old shape now normalises to an empty roster rather than
+  // being silently half-understood.
+  const team = teamBySlug.get("teams/amazon");
+
+  const slotsBlob = {
+    slots: [{ rowIndex: 0, name: "Old slot", statMods: { ma: 1 }, extraSkills: [], spp: {}, advancements: [] }],
+    roster: {},
+  };
+  ensureDraftPlayers(team, slotsBlob);
+  assert.deepEqual(slotsBlob.players, []);
+
+  const editsBlob = {
+    roster: { 0: 2 },
+    playerEdits: { "0-0": { name: "Old A" }, "0-1": { name: "Old B" } },
+  };
+  ensureDraftPlayers(team, editsBlob);
+  assert.deepEqual(editsBlob.players, []);
+  assert.deepEqual(editsBlob.roster, {}, "counts are recomputed from players");
 });
 
-test("legacy edits survive migration", () => {
-  const item = cases.find((entry) => entry.generation === "legacy-edits" && entry.draft.playerEdits
-    && Object.keys(entry.draft.playerEdits).length > 0);
-  assert.ok(item, "no legacy-edits fixture with edits");
-  const team = teamBySlug.get(item.team);
-  const draft = JSON.parse(JSON.stringify(item.draft));
+test("a player carries its edits through normalisation", () => {
+  const team = teamBySlug.get("teams/amazon");
+  const draft = {
+    players: [{
+      id: "keep-me",
+      rowIndex: 0,
+      number: "7",
+      name: "Named Player",
+      statMods: { st: 1 },
+      extraSkills: [{ name: "Block", access: "primary" }],
+      favouredSkills: [],
+      skipNextGame: true,
+      niglingInjury: true,
+      isCaptain: true,
+      extendedContracts: 2,
+      spp: { touchdowns: 2, casualties: 1, mvps: 1 },
+      advancements: [{ type: "primary" }],
+    }],
+    roster: {},
+  };
   ensureDraftPlayers(team, draft);
-  const edits = Object.values(item.draft.playerEdits);
-  assert.equal(draft.players.length, edits.length);
-  for (const player of draft.players) {
-    assert.match(player.name, /^Old \d+-\d+$/);
-    assert.equal(player.statMods.st, 1);
-    assert.equal(player.extendedContracts, 1);
-    assert.equal(player.spp.touchdowns, 2);
-    assert.equal(player.advancements.length, 1);
-  }
+  const [player] = draft.players;
+  assert.equal(player.name, "Named Player");
+  assert.equal(player.number, "7");
+  assert.equal(player.statMods.st, 1);
+  assert.equal(player.extraSkills[0].name, "Block");
+  assert.equal(player.skipNextGame, true);
+  assert.equal(player.niglingInjury, true);
+  assert.equal(player.isCaptain, true);
+  assert.equal(player.extendedContracts, 2);
+  assert.equal(player.spp.touchdowns, 2);
+  assert.equal(player.advancements.length, 1);
+  assert.deepEqual(draft.roster, { 0: 1 });
 });
 
 test("costs add up: players + staff = total", () => {

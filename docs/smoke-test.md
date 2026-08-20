@@ -30,6 +30,27 @@ DELETE FROM users WHERE login LIKE 'smoke-%';
 
 Never point `APP_URL` at production.
 
+Two optional browser checks (need `npm i -D playwright && npx playwright install chromium`):
+
+```bash
+npm run dev &                        # public screens, builder, static exposure
+node scripts/browser-check.mjs
+
+node scripts/mock-api.mjs &          # saved roster editor, no database needed
+node scripts/browser-check-roster.mjs
+```
+
+The second one covers what the manual pass below checks by hand: the editor
+renders, edits autosave, hiring works, SPP updates on both layouts, a reload
+keeps the edits, and the roster sent to the server carries no retired keys.
+
+Before deploying anything that touches roster storage, also run the shape check
+against the real database (read-only):
+
+```bash
+DATABASE_URL=postgres://... node scripts/check-roster-shapes.mjs
+```
+
 ## 2. Manual pass
 
 Open http://localhost:3002.

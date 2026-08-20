@@ -46,14 +46,26 @@ npm run i18n:check # EN/RU page parity
 npm run smoke      # API + static exposure, needs a running server
 ```
 
-`scripts/browser-check.mjs` additionally drives a real browser over the running
-dev server. It needs Playwright, which is intentionally not a dependency of this
-project:
+Two optional checks drive a real browser. They need Playwright, which is
+intentionally not a dependency of this project:
 
 ```bash
 npm i -D playwright && npx playwright install chromium
+```
+
+Public screens, the builder and static exposure, against the dev server:
+
+```bash
 npm run dev            # in another terminal
 node scripts/browser-check.mjs
+```
+
+The logged-in saved roster editor, against a small in-memory fake API so no
+database is needed:
+
+```bash
+node scripts/mock-api.mjs &
+node scripts/browser-check-roster.mjs
 ```
 
 On Windows PowerShell, if `npm` is blocked by execution policy, use:

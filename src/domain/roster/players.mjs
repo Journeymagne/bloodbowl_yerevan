@@ -1,15 +1,15 @@
 /**
- * Roster players: normalisation, migration and the view model the screens read.
+ * Roster players: normalisation and the view model the screens read.
  *
- * The saved_teams.roster JSONB blob still holds three generations of shape —
- * `roster` counts plus `playerEdits`, the fixed-length `slots` array, and the
- * current `players` array. playersFromLegacyRoster() understands all three and
- * ensureDraftPlayers() rewrites a draft into the current one. Until the
- * one-off database migration in task 4 of the refactor plan runs, this happens
- * on every read.
+ * A roster is an array of players. The two earlier shapes this app used to
+ * accept — `roster` counts plus `playerEdits`, and the fixed-length `slots`
+ * array — are no longer supported: every saved team has been in the current
+ * shape for a while, so reading them cost a migration pass on every single
+ * read for nothing. `scripts/check-roster-shapes.mjs` verifies that against a
+ * live database before this is deployed.
  */
 import { advancementRanks, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
-import { countToNumber, makeRosterPlayerId, playerKey, rosterMax, rowsForTeam } from "./values.mjs";
+import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
 
 export function normalizePurchasedStaff(roster = {}) {
   const purchased = roster.purchasedStaff ?? {};
@@ -132,44 +132,16 @@ export function normalizePlayerAdvancements(advancements = []) {
     .slice(0, advancementRanks.length);
 }
 
-export function playersFromLegacyRoster(team, draft) {
+/** Every player in the draft, normalised. */
+export function normalizeDraftPlayers(team, draft) {
   const rows = rowsForTeam(team);
-  if (Array.isArray(draft.players) && draft.players.length) {
-    return draft.players.map((player, index) => normalizeRosterPlayer(player, rows, index)).filter(Boolean);
-  }
-
-  if (Array.isArray(draft.slots) && draft.slots.length) {
-    return draft.slots.map((slot, index) => normalizeRosterPlayer(slot, rows, index)).filter(Boolean);
-  }
-
-  const players = [];
-  rows.forEach((row, rowIndex) => {
-    const count = Math.max(0, Number(draft.roster?.[rowIndex] ?? 0));
-    for (let copyIndex = 0; copyIndex < count; copyIndex += 1) {
-      const edit = draft.playerEdits?.[playerKey(rowIndex, copyIndex)] ?? {};
-      players.push(normalizeRosterPlayer({
-        id: makeRosterPlayerId(),
-        rowIndex,
-        number: edit.number ?? players.length + 1,
-        name: edit.name || `${row.position} ${copyIndex + 1}`,
-        statMods: edit.statMods ?? {},
-        extraSkills: edit.extraSkills ?? [],
-        favouredSkills: edit.favouredSkills ?? [],
-        skipNextGame: Boolean(edit.skipNextGame),
-        niglingInjury: Boolean(edit.niglingInjury),
-        isCaptain: Boolean(edit.isCaptain ?? edit.captain),
-        extendedContracts: countToNumber(edit.extendedContracts),
-        spp: normalizeSppCounters(edit.spp),
-        advancements: normalizePlayerAdvancements(edit.advancements),
-      }, rows, copyIndex));
-    }
-  });
-  return players.filter(Boolean);
+  return (Array.isArray(draft.players) ? draft.players : [])
+    .map((player, index) => normalizeRosterPlayer(player, rows, index))
+    .filter(Boolean);
 }
 
 export function ensureDraftPlayers(team, draft) {
-  draft.players = playersFromLegacyRoster(team, draft);
-  delete draft.slots;
+  draft.players = normalizeDraftPlayers(team, draft);
   syncRosterCountsFromPlayers(draft);
   return draft.players;
 }
@@ -242,65 +214,10 @@ export function setRosterCaptain(draft, playerId, isCaptain = true) {
   });
 }
 
-export function slotPlayerFromDraft(team, slot, slotIndex) {
-  if (!slot) return null;
-  const row = rowsForTeam(team)[slot.rowIndex];
-  if (!row) return null;
-  return {
-    key: `slot-${slotIndex}`,
-    slotIndex,
-    rowIndex: slot.rowIndex,
-    copyIndex: slotIndex,
-    row,
-    name: slot.name || row.position,
-    stats: {
-      ma: Number(row.ma) + (slot.statMods?.ma ?? 0),
-      st: Number(row.st) + (slot.statMods?.st ?? 0),
-      ag: row.ag,
-      pa: row.pa,
-      ar: row.ar,
-    },
-    statMods: slot.statMods ?? {},
-    extraSkills: slot.extraSkills ?? [],
-    skipNextGame: Boolean(slot.skipNextGame),
-  };
-}
 
 export function selectedRosterPlayers(team, draft) {
-  if (Array.isArray(draft.players)) {
-    return draft.players
-      .map((player, index) => rosterPlayerView(team, player, index))
-      .filter(Boolean);
-  }
-  if (Array.isArray(draft.slots)) {
-    return draft.slots
-      .map((slot, slotIndex) => slotPlayerFromDraft(team, slot, slotIndex))
-      .filter(Boolean);
-  }
-  return rowsForTeam(team).flatMap((row, rowIndex) => {
-    const count = draft.roster[rowIndex] ?? 0;
-    return Array.from({ length: count }, (_item, copyIndex) => {
-      const key = playerKey(rowIndex, copyIndex);
-      const edit = draft.playerEdits[key] ?? {};
-      return {
-        key,
-        rowIndex,
-        copyIndex,
-        row,
-        name: edit.name ?? `${row.position} ${copyIndex + 1}`,
-        stats: {
-          ma: Number(row.ma) + (edit.statMods?.ma ?? 0),
-          st: Number(row.st) + (edit.statMods?.st ?? 0),
-          ag: row.ag,
-          pa: row.pa,
-          ar: row.ar,
-        },
-        statMods: edit.statMods ?? {},
-        extraSkills: edit.extraSkills ?? [],
-        skipNextGame: Boolean(edit.skipNextGame),
-        isCaptain: Boolean(edit.isCaptain ?? edit.captain),
-        extendedContracts: countToNumber(edit.extendedContracts),
-      };
-    });
-  });
+  return (Array.isArray(draft.players) ? draft.players : [])
+    .map((player, index) => rosterPlayerView(team, player, index))
+    .filter(Boolean);
 }
+

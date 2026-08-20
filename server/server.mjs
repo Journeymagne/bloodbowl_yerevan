@@ -241,24 +241,6 @@ function publicSeasonPairing(row) {
   };
 }
 
-function publicAdminSavedTeam(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    baseTeamSlug: row.base_team_slug,
-    logoData: row.logo_data,
-    roster: rosterWithoutEmbeddedLogo(row.roster),
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    owner: {
-      id: row.user_id,
-      login: row.user_login,
-      telegram: row.user_telegram,
-      isAdmin: isAdminUser({ is_admin: row.user_is_admin }),
-    },
-  };
-}
 
 function publicAdminSavedTeamSlim(row) {
   if (!row) return null;

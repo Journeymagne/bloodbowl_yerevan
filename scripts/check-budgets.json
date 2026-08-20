@@ -6,7 +6,7 @@
       "server",
       "scripts"
     ],
-    "maxFunctions": 42
+    "maxFunctions": 0
   },
   "structure": {
     "roots": [
@@ -17,9 +17,9 @@
     "defaultMaxFileLines": 600,
     "defaultMaxFunctionLines": 80,
     "maxFileLines": {
-      "src/app.js": 6900,
-      "server/server.mjs": 2100,
-      "scripts/build-data.mjs": 810
+      "src/app.js": 6200,
+      "server/server.mjs": 2030,
+      "scripts/build-data.mjs": 806
     },
     "maxFunctionLines": {
       "src/app.js": 180,
