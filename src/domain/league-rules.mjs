@@ -144,6 +144,13 @@ export const sppCounterDefinitions = [
  * Numbers that used to be written inline in src/app.js. Values unchanged —
  * this only gives them a name and a single place to edit.
  */
+/**
+ * What a brand-new team gets to spend on its first purchase, and nothing else.
+ * A league constant, not a per-season setting — confirmed by the league owner
+ * on 2026-08-21 (question 1 of the design spec's section 13). It therefore has
+ * no business in a league team's summary: see task 7.5, which drops the
+ * "remaining budget" line for teams already in play.
+ */
 export const startingBudget = 600;
 export const rosterSizeLimits = { min: 7, max: 11 };
 export const skillCosts = { primary: 20, secondary: 40, favoured: 0 };

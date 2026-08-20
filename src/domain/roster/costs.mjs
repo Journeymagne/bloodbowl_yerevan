@@ -113,6 +113,12 @@ export function applyPaidStaffChange(draft, key, previous, next) {
   }
 }
 
+/**
+ * A player sitting out the next game counts for neither the squad size nor the
+ * team's value. Confirmed intentional by the league owner on 2026-08-21 —
+ * question 2 of the design spec's section 13, which had it flagged as a
+ * probable bug.
+ */
 export function calculateRosterCosts(team, draft, options = {}) {
   const includeDedicatedFans = Boolean(options.includeDedicatedFans);
   const players = selectedRosterPlayers(team, draft);
