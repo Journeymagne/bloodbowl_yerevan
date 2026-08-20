@@ -14,7 +14,7 @@
 
 ## Ход работ
 
-Обновлено 2026-08-20. Ветка `refactor/stage-1`, 17 коммитов.
+Обновлено 2026-08-20. Ветка `refactor/stage-1`, 20 коммитов.
 
 | Задача | Состояние |
 |---|---|
@@ -24,8 +24,8 @@
 | 2 — гигиена репозитория | **готово** |
 | 3 — доменный слой ростера | **частично**: вынесены правила, значения, игроки, прокачка, стоимости, валидация, `canTakeAdvancement`; поддержка старых форматов удалена (шаги 3.3 и 4.4 отменены решением владельца); остались `schema.mjs` и `export.mjs` |
 | 4 — сервер: валидация и ревизии | **заблокирована**: нужна база, доступа нет |
-| 5 — сохранение ростера | **готово**: `src/data/roster-store.mjs`, гонка «правка сразу после сохранения» воспроизведена тестом и закрыта |
-| 6 — разбор `src/app.js` | **в работе**: вынесены `core/theme`, `core/i18n`, `data/reference`, `core/dom`, `core/markdown`, `core/routes`, `core/state`, `core/view`; экраны справочника вынесены (6.5); билдер/сезон/админка/игры ещё внутри |
+| 5 — сохранение ростера | **готово**: `src/data/roster-store.mjs`, гонка «правка сразу после сохранения» воспроизведена тестом и закрыта; попутно (6.6) починен реальный баг автосохранения в браузере, см. ниже |
+| 6 — разбор `src/app.js` | **в работе**: вынесены `core/theme`, `core/i18n`, `data/reference`, `core/dom`, `core/markdown`, `core/routes`, `core/state`, `core/view`, `core/api-client`, `core/logo-upload`; экраны справочника (6.5) и личный кабинет — my-teams/builder/saved-roster (6.6) — вынесены; сезон/админка/игры ещё внутри |
 | 7–17 | не начинались |
 
 Проверки после каждого коммита: `npm test` (131 тест), `npm run check`
@@ -35,7 +35,7 @@
 темы, плюс проверка что `/.env`, `/package.json` и `/server/init.sql` отдают
 404).
 
-`src/app.js`: 7479 → 5968 строк.
+`src/app.js`: 7479 → 5968 → 4330 → 1991 строк.
 
 ### Найдено по дороге, ждёт решения владельца
 
@@ -48,6 +48,18 @@
 - **`public/data.json` в гите содержит `generatedAt`.** Любая сборка даёт диф
   в этом файле. Либо убрать файл из индекса (он генерируется `npm run build`),
   либо убрать метку времени.
+
+### Починено по дороге
+
+- **Автосохранение ростера падало в реальном браузере (P0).** `scheduleSave()`
+  в `src/data/roster-store.mjs` вызывала `deps.setTimeoutFn(...)` как метод
+  объекта `deps` — нативный `setTimeout` в браузере (в отличие от Node)
+  требует `this === window` и кидает `TypeError: Illegal invocation`.
+  131 тест это не ловил: они гоняются в Node, где `setTimeout` к получателю
+  не чувствителен. Обнаружено при браузерном смок-тесте задачи 6.6 (первый
+  раз, когда `saved-roster.mjs` реально открыли в браузере после задачи 5).
+  Почищено `.bind(globalThis)` в значениях по умолчанию — отдельный коммит,
+  не входит в механический перенос 6.6.
 
 ---
 
@@ -329,7 +341,7 @@ export function hasPendingChanges()              // для beforeunload
 - [ ] **Шаг 6.3.** `src/core/state.mjs` ← объект `state:1-78` + подписки. Удалить мёртвые ветки состояния: `teamFilters`, `starFilters` (UI фильтров удалён, см. 4.3 design spec).
 - [~] **Шаг 6.4.** `src/core/router.mjs` ← `renderRoute:7387`, `routeSection:1276`, `setActiveNav:1249`, `navRouteForPage:1265`. Ввести таблицу маршрутов и контракт экрана `render(params) → { html, mount(root), destroy() }`; роутер обязан вызывать `destroy()` предыдущего экрана (сейчас таймеры автосохранения и подписки не снимаются никогда).
 - [x] **Шаг 6.5.** Вынести справочные экраны: `screens/home.mjs`, `overview.mjs`, `section.mjs`, `detail.mjs`, `legal.mjs`, `leagues.mjs` + `components/filters.mjs`, `components/cards.mjs`.
-- [ ] **Шаг 6.6.** Вынести личный кабинет: `screens/my-teams.mjs`, `screens/builder.mjs`, `screens/saved-roster.mjs`.
+- [x] **Шаг 6.6.** Вынести личный кабинет: `screens/my-teams.mjs`, `screens/builder.mjs`, `screens/saved-roster.mjs`.
 - [ ] **Шаг 6.7.** Вынести сезон: `screens/season/{index,registration,fixture,standings,schedule,admin}.mjs`. Разрезать `wireSeason:4745` (175 строк) — по обработчику на модуль. Активную вкладку перенести в URL (`#/season/standings`) вместо `state.season.activeTab` — вкладку станет можно дать ссылкой.
 - [ ] **Шаг 6.8.** Вынести игры: `screens/my-games.mjs`, `screens/game.mjs`; администрирование: `screens/administration/{users,user}.mjs`; профили: `screens/players/{profile,team}.mjs`.
 - [ ] **Шаг 6.9.** `src/app.js` оставить как bootstrap: загрузка переводов и данных, восстановление сессии, глобальные слушатели, старт роутера. Цель — менее 200 строк.
@@ -337,7 +349,7 @@ export function hasPendingChanges()              // для beforeunload
 
 **Проверка:** `npm run check` зелёный с новыми порогами; дымовой сценарий 1.4 полностью проходит; визуальных отличий нет (сравнить скриншоты ключевых экранов до/после).
 
-> **Состояние на 2026-08-20.** Шаги 6.1, 6.2 и 6.5 закрыты (`core/theme.mjs`,
+> **Состояние на 2026-08-20.** Шаги 6.1, 6.2, 6.5 и 6.6 закрыты (`core/theme.mjs`,
 > `core/i18n.mjs`, `data/reference.mjs`, `core/dom.mjs`). Шаг 6.4 закрыт
 > наполовину: таблица маршрутов и разбор хеша вынесены в `core/routes.mjs` и
 > покрыты тестами, `renderRoute` стал диспетчером — но контракта экрана
@@ -369,6 +381,33 @@ export function hasPendingChanges()              // для beforeunload
 > `data/overview-cards-{en,ru}.mjs` — задача 10.4 плана позже переносит их в
 > `content/Gata/Overview/*.md`, здесь это чисто механический перенос.
 >
+> **Шаг 6.6 вынес личный кабинет и потянул за собой ещё инфраструктуру.**
+> `screens/builder.mjs` и `screens/saved-roster.mjs` — те самые два
+> дублирующих редактора ростера из раздела 5.1 design spec (12 пар
+> функций-двойников); они переехали как есть, всё ещё раздельные — слияние
+> в один редактор это задача 7, не эта. `saved-roster.mjs` вышел на 1283
+> строки и получил budget override в `check-budgets.json` по тому же
+> принципу, что и `app.js`: это по-прежнему целый редактор, ужмётся, когда
+> задача 7 разберёт его на `components/roster-editor/*`.
+>
+> Новая общая инфраструктура — по той же причине, что `core/state.mjs` и
+> `core/view.mjs` в 6.5 (иначе `screens/*.mjs` и `app.js` импортировали бы
+> друг друга): `core/api-client.mjs` (`apiRequest` и токен сессии; `on
+> Unauthorized` стал регистрируемым колбэком `setOnUnauthorized`, а не
+> прямым вызовом `updateAuthButton()` из `app.js`), `core/logo-upload.mjs`
+> (превращение выбранного файла лого в оптимизированный data URL, нужно
+> обоим редакторам), `data/roster-draft.mjs` (форма черновика сохранённой
+> команды — одно из четырёх мест из раздела 6 design spec; схлопнуть их в
+> одно — задача 3.2, не эта), `components/roster-editor-shared.mjs`
+> (`renderTeamRuleAccess` и его `ensureDraft*`/
+> `sanitizeFavouredSkillsForTeam`, `renderAccessCell`,
+> `renderRosterStatCells`, `rosterWarnings`, `buildRosterTextForDraft`,
+> `playerStatusText` — используются обоими редакторами и публичным
+> профилем команды в `app.js`). `content-links.mjs` получил
+> `renderPublicTeamLink` по той же причине.
+>
+> Браузерный смок-тест (через `scripts/mock-api.mjs`, без боевой БД) нашёл
+> реальный P0-баг автосохранения — см. «Починено по дороге» выше.
 > `src/app.js`: 5968 → 4330 строк.
 
 ---
