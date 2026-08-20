@@ -17,17 +17,22 @@
     "defaultMaxFileLines": 600,
     "defaultMaxFunctionLines": 80,
     "maxFileLines": {
-      "src/app.js": 4330,
+      "src/app.js": 1991,
       "server/server.mjs": 2020,
-      "scripts/build-data.mjs": 805
+      "scripts/build-data.mjs": 805,
+      "src/screens/saved-roster.mjs": 1283
     },
     "maxFunctionLines": {
       "src/app.js": 180,
       "server/server.mjs": 700,
-      "scripts/build-data.mjs": 130
+      "scripts/build-data.mjs": 130,
+      "src/screens/saved-roster.mjs": 159,
+      "src/screens/builder.mjs": 100
     },
     "_notes": {
-      "src/app.js": "Task 6 is walking this down: 6210 -> 5968 -> 4330 so far (theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs, then the reference screens: core/state.mjs, core/view.mjs, components/{page-chrome,content-links,filters,cards}.mjs, screens/{home,overview,section,leagues,detail,legal}.mjs). Only ever lower it."
+      "src/app.js": "Task 6 is walking this down: 6210 -> 5968 -> 4330 -> 1991 so far (theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs; the reference screens in 6.5; then 6.6's my-teams/builder/saved-roster + the shared core/api-client.mjs, core/logo-upload.mjs, data/roster-draft.mjs, components/roster-editor-shared.mjs it needed). Only ever lower it.",
+      "src/screens/saved-roster.mjs": "One of the two duplicate roster-editor implementations design spec 5.1 counts (screens/builder.mjs is the other) — moved out of app.js as-is in task 6.6, oversized because it still is the whole editor. Task 7 merges the two into components/roster-editor/* and this budget should shrink close to zero.",
+      "src/screens/builder.mjs": "wireBuilder() came in at 100 lines, moved from app.js unchanged. Same task-7 note as saved-roster.mjs: this shrinks when the two editors merge."
     }
   }
 }

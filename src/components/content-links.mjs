@@ -1,15 +1,19 @@
 /**
- * Turning a rule/skill/page name into a link, when there is a page for it.
+ * Turning a rule/skill/page name — or a coach's saved team — into a link,
+ * when there is somewhere for it to point.
  *
- * Mechanically moved out of src/app.js. Reference screens use these for
- * cross-links between pages; the roster editor (still in app.js) uses the
- * same functions to link a player's skills and a team's special rules back
- * to their pages, which is why this is a shared module rather than living
+ * Mechanically moved out of src/app.js. Reference screens use the rule/page
+ * links for cross-links between pages; the roster editor (screens/builder.mjs,
+ * screens/saved-roster.mjs) and the admin/season screens still in app.js use
+ * the same functions to link a player's skills and a team's special rules
+ * back to their pages, and `renderPublicTeamLink` to link to a saved team's
+ * public profile — which is why this is a shared module rather than living
  * under screens/.
  */
 import { escapeHtml } from "../core/dom.mjs";
+import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
-import { pageUrl } from "../core/routes.mjs";
+import { pageUrl, playerTeamUrl } from "../core/routes.mjs";
 import { canonicalLeagueName, canonicalSpecialRuleName, ruleLookupKey } from "../domain/roster/team-rules.mjs";
 
 export function uniqueSorted(values) {
@@ -53,4 +57,9 @@ export function renderRuleLinks(items = []) {
       ? `<a class="roster-pill" href="${pageUrl(page)}">${escapeHtml(item)}</a>`
       : `<span class="roster-pill roster-pill-muted">${escapeHtml(item)}</span>`;
   }).join("");
+}
+
+export function renderPublicTeamLink(user, team) {
+  if (!user?.id || !team?.id) return `<span class="muted-text">${escapeHtml(team?.name || "-")}</span>`;
+  return `<a class="inline-rule-link" href="${playerTeamUrl(user, team)}">${escapeHtml(team.name || t("sidebar.teamHeading"))}</a>`;
 }

@@ -1,0 +1,1282 @@
+/**
+ * The saved-roster editor: `#/my-teams/:id`, the admin equivalent, and the
+ * public player-team edit route.
+ *
+ * Mechanically moved out of src/app.js. This is one of the two "roster
+ * editor" implementations design spec section 5.1 counts — screens/
+ * builder.mjs is the other. They stay separate here on purpose: task 7
+ * merges them into one, this task only relocates the code as-is.
+ *
+ * `renderSavedRoster` and `rosterStore` are exported: the former is a
+ * screens-map entry in app.js, the latter is read by app.js's
+ * `beforeunload` handler to warn about unsaved edits.
+ */
+import { escapeHtml, renderOption } from "../core/dom.mjs";
+import { t } from "../core/i18n.mjs";
+import { state } from "../core/state.mjs";
+import { view } from "../core/view.mjs";
+import { apiRequest } from "../core/api-client.mjs";
+import { storage } from "../core/storage.mjs";
+import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
+import { pageUrl } from "../core/routes.mjs";
+import {
+  advancementRanks,
+  advancementTypeLabels,
+  builderStaffCosts,
+  builderStaffMaximums,
+  sppCounterDefinitions,
+} from "../domain/league-rules.mjs";
+import { categoriesForAccess, clamp, costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
+import { availableMedicalStaffDefinitions, hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
+import {
+  ensureDraftPlayers,
+  makeRosterPlayer,
+  normalizePlayerAdvancements,
+  normalizePlayerExtraSkills,
+  normalizePlayerFavouredSkills,
+  normalizeSppCounters,
+  rowCountInPlayers,
+  selectedRosterPlayers,
+  setRosterCaptain,
+  skillNamesForPlayer,
+  syncRosterCountsFromPlayers,
+} from "../domain/roster/players.mjs";
+import {
+  canTakeAdvancement,
+  playerAdvancementLevel,
+  playerAdvancementSpent,
+  playerAvailableSpp,
+  playerLevelRank,
+  playerSppTotal,
+  rosterTotalSpp,
+} from "../domain/roster/progression.mjs";
+import {
+  applyPaidStaffChange,
+  calculateRosterCosts,
+  eliteComboCost,
+  playerAdjustmentCost,
+  refundTreasury,
+  spendTreasury,
+  syncMedicalStaffForTeam,
+} from "../domain/roster/costs.mjs";
+import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
+import { normalizeSavedRoster, updateSavedRosterFields } from "../data/roster-draft.mjs";
+import { renderRosterNotices, wireRosterNotices } from "../components/roster-notices.mjs";
+import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
+import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
+import {
+  buildRosterTextForDraft,
+  ensureDraftFavouredChoice,
+  ensureDraftLeagueChoice,
+  favouredSkillOptionsForPlayer,
+  renderAccessCell,
+  renderRosterStatCells,
+  renderTeamRuleAccess,
+  rosterWarnings,
+  sanitizeFavouredSkillsForTeam,
+} from "../components/roster-editor-shared.mjs";
+import { deleteSavedTeam, loadMyTeams } from "./my-teams.mjs";
+
+const autosaveDelayMs = 450;
+
+function isSavedRosterPlayerExpanded(playerId) {
+  return state.savedRosterUi.expandedPlayers.has(playerId);
+}
+
+function setSavedRosterPlayerExpanded(playerId, expanded) {
+  if (!playerId) return;
+  if (expanded) {
+    state.savedRosterUi.expandedPlayers.add(playerId);
+  } else {
+    state.savedRosterUi.expandedPlayers.delete(playerId);
+  }
+}
+function availableSkillOptionsForPlayer(row, player) {
+  const base = new Set(skillNamesForPlayer(row, player));
+  const primaryCategories = categoriesForAccess(row.primary ?? []);
+  const secondaryCategories = categoriesForAccess(row.secondary ?? []);
+  const options = [];
+
+  (state.data.skillGroups ?? []).forEach((group) => {
+    const access = primaryCategories.includes(group.category)
+      ? "primary"
+      : secondaryCategories.includes(group.category)
+        ? "secondary"
+        : "";
+    if (!access) return;
+    (group.skills ?? []).forEach((name) => {
+      if (!base.has(name)) options.push({ name, access, category: group.category });
+    });
+  });
+
+  return options.sort((a, b) => a.name.localeCompare(b.name, "en"));
+}
+export async function renderSavedRoster(teamId, refresh = true, options = {}) {
+  const isAdminEdit = Boolean(options.adminOwnerId);
+  setActiveNav(isAdminEdit ? "administration" : "my-teams");
+  setViewSection("teams");
+  if (refresh) {
+    view.innerHTML = `
+      ${renderHeader(isAdminEdit ? t("nav.administration") : t("myTeams.title"), isAdminEdit ? t("savedRoster.editingTeamSubtitle") : t("myTeams.subtitle"))}
+      <div class="loading">${t("myTeams.loadingTeam")}</div>
+    `;
+  }
+  if (!state.auth.currentUser) {
+    view.innerHTML = `
+      ${renderHeader(isAdminEdit ? t("nav.administration") : t("myTeams.title"), isAdminEdit ? t("savedRoster.editingTeamSubtitle") : t("myTeams.subtitle"))}
+      <div class="empty-state">${t("myTeams.loginRequired")}</div>
+    `;
+    return;
+  }
+
+  let savedTeam = null;
+  let owner = state.auth.currentUser;
+  if (isAdminEdit) {
+    if (!state.auth.currentUser.isAdmin) {
+      view.innerHTML = `
+        ${renderHeader(t("nav.administration"), t("savedRoster.editingTeamSubtitle"), "", { back: true, backFallback: "#/administration" })}
+        <div class="empty-state">${t("admin.accessRequired")}</div>
+      `;
+      return;
+    }
+    state.admin.editingTeams ??= new Map();
+    savedTeam = !refresh ? state.admin.editingTeams.get(teamId) : null;
+    owner = savedTeam?._owner ?? owner;
+    if (!savedTeam) {
+      try {
+        const payload = await apiRequest(`/api/admin/teams/${encodeURIComponent(teamId)}`);
+        savedTeam = payload.team;
+        owner = payload.owner;
+        savedTeam._saveEndpoint = `/api/admin/teams/${encodeURIComponent(teamId)}`;
+        savedTeam._owner = owner;
+        state.admin.editingTeams.set(teamId, savedTeam);
+      } catch (error) {
+        view.innerHTML = `
+          ${renderHeader(t("nav.administration"), t("savedRoster.editingTeamSubtitle"), "", { back: true, backFallback: `#/administration/users/${encodeURIComponent(options.adminOwnerId)}` })}
+          <div class="empty-state">${escapeHtml(error.message)}</div>
+        `;
+        return;
+      }
+    }
+  } else {
+    await loadMyTeams(refresh);
+    savedTeam = state.myTeams.items.find((item) => item.id === teamId);
+  }
+
+  if (!savedTeam) {
+    view.innerHTML = `
+      ${renderHeader(isAdminEdit ? t("nav.administration") : t("myTeams.title"), isAdminEdit ? t("savedRoster.editingTeamSubtitle") : t("myTeams.subtitle"))}
+      <div class="empty-state">${t("savedRoster.notFound")}</div>
+    `;
+    return;
+  }
+
+  // The store owns the draft. A local re-render reuses the very same object;
+  // only a fresh load from the server offers a new one, and even then the store
+  // keeps the existing draft if it still holds unsaved edits.
+  const draft = trackSavedRoster(savedTeam, { refresh });
+  const teams = state.data.teams;
+  if (!draft.teamSlug && teams[0]) draft.teamSlug = teams[0].slug;
+  const team = teams.find((item) => item.slug === draft.teamSlug) ?? teams[0];
+  ensureDraftLeagueChoice(team, draft);
+  syncMedicalStaffForTeam(team, draft);
+  ensureDraftPlayers(team, draft);
+  sanitizeFavouredSkillsForTeam(team, draft);
+  const costs = calculateRosterCosts(team, draft);
+  const warnings = rosterWarnings(team, draft, costs);
+  const backUrl = isAdminEdit ? `#/administration/users/${encodeURIComponent(owner?.id || options.adminOwnerId)}` : "#/my-teams";
+  const titlePrefix = isAdminEdit ? `${t("common.editing")} "${draft.teamName || savedTeam.name || team.title}"` : `${t("sidebar.teamHeading")} "${draft.teamName || savedTeam.name || team.title}"`;
+
+  view.innerHTML = `
+    ${renderHeader(titlePrefix, `${team.title} ${t("savedRoster.rosterSuffix")}${isAdminEdit && owner ? ` · ${owner.login}` : ""}`, "", { back: true, backFallback: backUrl })}
+    ${renderRosterNotices({ pending: rosterStore.readPending(savedTeam.id), serverUpdatedAt: savedTeam.updatedAt, conflict: rosterStore.statusOf(savedTeam.id) === SAVE_STATUS.CONFLICT, t })}
+    <div class="saved-roster-top-grid">
+      ${renderSavedRosterIdentity(team, draft, teams)}
+      ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
+    </div>
+    ${renderSavedRosterPurchases(team, draft)}
+    <div class="builder-layout builder-layout-main">
+      <section class="builder-panel">
+        <section class="builder-selected">
+          <h2>${t("savedRoster.rosterHeading")}</h2>
+          ${renderSavedPlayerList(team, draft)}
+        </section>
+
+        <section class="builder-pool saved-add-player-section">
+          <h2>${t("savedRoster.addNewPlayers")}</h2>
+          ${renderSavedNewPlayerTable(team, draft)}
+        </section>
+      </section>
+    </div>
+  `;
+  wireSavedRoster(savedTeam, team, draft, {
+    rerender: () => renderSavedRoster(teamId, false, options),
+  });
+}
+function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
+  const autosaveStatus = rosterStore.statusOf(savedTeam.id);
+  return `
+    <aside class="builder-summary saved-roster-summary-panel side-panel">
+      <div class="summary-title-block">
+        <h3>${t("savedRoster.summaryTitle")}</h3>
+        <p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosaveStatus)}">${escapeHtml(autosaveMessageFor(autosaveStatus))}</p>
+        <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
+      </div>
+      <dl class="stat-list summary-stat-grid">
+        <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
+        <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
+        <dt>${t("savedRoster.startingRerolls")}</dt><dd>${draft.startingRerolls ?? 0}</dd>
+        <dt>${t("savedRoster.teamRerolls")}</dt><dd>${draft.teamRerolls ?? 0}</dd>
+        ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
+        <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
+        <dt>${t("savedRoster.treasury")}</dt><dd data-treasury-display>${countToNumber(draft.treasury)}k</dd>
+        <dt>${t("savedRoster.totalSppLabel")}</dt><dd data-total-spp-display>${rosterTotalSpp(team, draft)} SPP</dd>
+        <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
+        <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
+        <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
+      </dl>
+      <div class="summary-state-block">
+        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
+        <div class="summary-actions">
+          <button class="primary-button" type="button" data-save-roster>${t("roster.saveChanges")}</button>
+          <button class="primary-button" type="button" data-copy-saved-roster>${t("roster.copyRoster")}</button>
+          <button class="filter-button danger-action" type="button" data-delete-saved-roster>${t("common.delete")}</button>
+        </div>
+      </div>
+    </aside>
+  `;
+}
+function renderSavedRosterIdentity(team, draft, teams) {
+  return `
+    <section class="builder-setup-panel roster-identity-panel side-panel">
+      <div class="builder-form saved-roster-form">
+        <label class="filter-field">
+          <span>${t("sidebar.teamHeading")}</span>
+          <select data-roster-team>
+            ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
+          </select>
+        </label>
+        <label class="filter-field">
+          <span>${t("savedRoster.teamName")}</span>
+          <input type="text" value="${escapeHtml(draft.teamName || team.title)}" data-roster-name>
+        </label>
+        <label class="filter-field">
+          <span>${t("savedRoster.logoField")}</span>
+          <input type="file" accept="image/*" data-roster-logo>
+        </label>
+      </div>
+      ${draft.logoData ? `
+        <div class="builder-logo-inline roster-logo-inline">
+          <img class="builder-logo-preview" src="${escapeHtml(draft.logoData)}" alt="">
+          <button class="filter-button compact-action" type="button" data-roster-remove-logo>${t("savedRoster.removeLogo")}</button>
+        </div>
+      ` : ""}
+      ${renderTeamRuleAccess(team, draft, "roster")}
+    </section>
+  `;
+}
+function renderSavedRosterPurchases(team, draft) {
+  const briberyControl = hasBribery(team) ? renderRosterStaffControl("bribes", t("savedRoster.bribes"), draft.bribes) : "";
+  return `
+    <div class="roster-purchases-layout">
+      <section class="roster-controls-panel roster-resources-panel side-panel">
+        <h2>${t("roster.teamResourcesHeading")}</h2>
+        <div class="builder-tracker-list roster-resource-list" aria-label="${t("roster.teamResourceTrackersAriaLabel")}">
+          ${renderRosterStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), draft.dedicatedFans)}
+          ${renderRosterMoneyControl(t("roster.treasuryTitle"), t("roster.treasuryDescription"), draft.treasury, "data-roster-treasury")}
+          ${renderRosterMoneyControl("Coach's Safe", t("roster.coachesSafeDescription"), draft.coachesSafe, "data-roster-coaches-safe")}
+        </div>
+      </section>
+      <section class="roster-controls-panel roster-purchases-panel side-panel">
+        <h2>${t("roster.purchasesHeading")}</h2>
+        <div class="builder-tracker-list roster-tracker-list roster-purchase-grid" aria-label="${t("roster.purchaseTrackersAriaLabel")}">
+        ${renderRosterCounterControl(
+          t("savedRoster.startingRerolls"),
+          `60k ${t("roster.each")}`,
+          countToNumber(draft.startingRerolls),
+          `<button class="filter-button" type="button" data-roster-reroll="-1" ${countToNumber(draft.startingRerolls) <= 0 ? "disabled" : ""}>-</button>`,
+          `<button class="filter-button" type="button" data-roster-reroll="1">+</button>`,
+        )}
+        ${renderRosterCounterControl(
+          t("savedRoster.teamRerolls"),
+          `120k ${t("roster.each")}`,
+          countToNumber(draft.teamRerolls),
+          `<button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>`,
+          `<button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>`,
+        )}
+        ${briberyControl}
+        ${renderRosterStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), draft.assistantCoaches)}
+        ${renderRosterStaffControl("cheerleaders", t("savedRoster.cheerleaders"), draft.cheerleaders)}
+        ${availableMedicalStaffDefinitions(team).map((staff) => renderRosterStaffControl(staff.key, staff.title, draft[staff.key])).join("")}
+        </div>
+      </section>
+    </div>
+  `;
+}
+function renderRosterMoneyControl(title, description, value, dataAttribute) {
+  return `
+    <label class="builder-addon compact-staff-control roster-purchase-card roster-money-card">
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </div>
+      <input class="table-input roster-purchase-input" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
+    </label>
+  `;
+}
+function renderRosterCounterControl(title, description, value, minusButton, plusButton) {
+  return `
+    <div class="builder-addon compact-staff-control roster-purchase-card">
+      <div>
+        <strong>${escapeHtml(title)}</strong>
+        <span>${escapeHtml(description)}</span>
+      </div>
+      <div class="inline-stepper-control">
+        ${minusButton}
+        <strong>${value}</strong>
+        ${plusButton}
+      </div>
+    </div>
+  `;
+}
+function renderRosterStaffControl(key, title, value) {
+  const max = builderStaffMaximums[key] ?? 6;
+  const current = countToNumber(value);
+  const cost = builderStaffCosts[key] ?? 0;
+  const description = key === "dedicatedFans" ? t("roster.postMatchValue") : `${cost}k${max > 1 ? ` ${t("roster.each")}` : ""}`;
+  return renderRosterCounterControl(
+    title,
+    description,
+    current,
+    `<button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>`,
+    `<button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="1" ${current >= max ? "disabled" : ""}>+</button>`,
+  );
+}
+function wireSavedRoster(savedTeam, team, draft, options = {}) {
+  wireAutosaveStatus(savedTeam.id);
+  const reload = () => renderSavedRoster(savedTeam.id, true, options);
+  wireRosterNotices(view, {
+    onRestore: () => rosterStore.restorePending(savedTeam.id) && renderSavedRoster(savedTeam.id, false, options),
+    onDiscard: () => { rosterStore.discardPending(savedTeam.id); reload(); },
+    onReload: reload,
+  });
+  const autosave = () => scheduleSavedRosterAutosave(savedTeam.id);
+  const rerender = () => {
+    syncRosterCountsFromPlayers(draft);
+    updateSavedRosterFields(savedTeam, draft);
+    autosave();
+    if (options.rerender) {
+      options.rerender();
+    } else {
+      renderSavedRoster(savedTeam.id, false);
+    }
+  };
+
+  view.querySelector("[data-roster-team]")?.addEventListener("change", (event) => {
+    const nextTeam = state.data.teams.find((item) => item.slug === event.currentTarget.value);
+    if (!nextTeam) return;
+    draft.teamSlug = nextTeam.slug;
+    draft.players = [];
+    draft.selectedLeague = "";
+    draft.favouredChoice = "";
+    syncRosterCountsFromPlayers(draft);
+    if (!draft.teamName) draft.teamName = nextTeam.title;
+    rerender();
+  });
+  view.querySelector("[data-roster-name]")?.addEventListener("input", (event) => {
+    draft.teamName = event.currentTarget.value;
+    updateSavedRosterFields(savedTeam, draft);
+    autosave();
+  });
+  view.querySelector("[data-roster-treasury]")?.addEventListener("input", (event) => {
+    draft.treasury = countToNumber(event.currentTarget.value);
+    updateSavedRosterFields(savedTeam, draft);
+    const treasuryDisplay = view.querySelector("[data-treasury-display]");
+    if (treasuryDisplay) treasuryDisplay.textContent = `${countToNumber(draft.treasury)}k`;
+    autosave();
+  });
+  view.querySelector("[data-roster-coaches-safe]")?.addEventListener("input", (event) => {
+    draft.coachesSafe = countToNumber(event.currentTarget.value);
+    updateSavedRosterFields(savedTeam, draft);
+    autosave();
+  });
+  view.querySelector("[data-roster-league]")?.addEventListener("change", (event) => {
+    draft.selectedLeague = event.currentTarget.value;
+    updateSavedRosterFields(savedTeam, draft);
+    autosave();
+  });
+  view.querySelector("[data-roster-favoured]")?.addEventListener("change", (event) => {
+    draft.favouredChoice = event.currentTarget.value;
+    sanitizeFavouredSkillsForTeam(team, draft);
+    rerender();
+  });
+  view.querySelector("[data-roster-logo]")?.addEventListener("change", async (event) => {
+    const file = event.currentTarget.files?.[0];
+    if (!file) return;
+    if (file.size > logoUploadMaxBytes) {
+      alert(t("savedRoster.logoTooLarge"));
+      event.currentTarget.value = "";
+      return;
+    }
+    draft.logoData = await fileToOptimizedLogoDataUrl(file);
+    rerender();
+  });
+  view.querySelector("[data-roster-remove-logo]")?.addEventListener("click", () => {
+    draft.logoData = "";
+    rerender();
+  });
+  view.querySelectorAll("[data-roster-reroll]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const previous = countToNumber(draft.startingRerolls);
+      draft.startingRerolls = clamp(previous + Number(button.dataset.rosterReroll), 0, builderStaffMaximums.startingRerolls);
+      applyPaidStaffChange(draft, "startingRerolls", previous, draft.startingRerolls);
+      rerender();
+    });
+  });
+  view.querySelectorAll("[data-roster-team-reroll]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const delta = Number(button.dataset.rosterTeamReroll);
+      const previous = countToNumber(draft.teamRerolls);
+      draft.teamRerolls = clamp(previous + delta, 0, builderStaffMaximums.teamRerolls);
+      applyPaidStaffChange(draft, "teamRerolls", previous, draft.teamRerolls);
+      rerender();
+    });
+  });
+  view.querySelectorAll("[data-roster-staff]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const key = button.dataset.rosterStaff;
+      const max = builderStaffMaximums[key] ?? 6;
+      const delta = Number(button.dataset.rosterStaffStep);
+      const previous = countToNumber(draft[key]);
+      draft[key] = clamp(previous + delta, 0, max);
+      applyPaidStaffChange(draft, key, previous, draft[key]);
+      rerender();
+    });
+  });
+  view.querySelectorAll("[data-add-saved-row]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const rowIndex = Number(button.dataset.addSavedRow);
+      const row = rowsForTeam(team)[rowIndex];
+      if (!row) return;
+      draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex), { purchased: true }));
+      spendTreasury(draft, costToNumber(rowCost(row)));
+      syncRosterCountsFromPlayers(draft);
+      rerender();
+    });
+  });
+  wireSavedPlayerEditors(team, draft, rerender);
+  view.querySelector("[data-save-roster]")?.addEventListener("click", () => saveSavedRoster(savedTeam));
+  view.querySelector("[data-copy-saved-roster]")?.addEventListener("click", () => copySavedRoster(team, draft));
+  view.querySelector("[data-delete-saved-roster]")?.addEventListener("click", async () => {
+    const ownerId = savedTeam._owner?.id || options.adminOwnerId || state.auth.currentUser?.id || "";
+    try {
+      const deleted = await deleteSavedTeam(savedTeam.id, {
+        ownerId,
+        teamName: draft.teamName || savedTeam.name || team.title,
+      });
+      if (!deleted) return;
+      location.hash = options.adminOwnerId ? `#/administration/users/${encodeURIComponent(ownerId)}` : "#/my-teams";
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+}
+function moveRosterPlayer(draft, draggedId, targetId, position = "before") {
+  if (!draggedId || !targetId || draggedId === targetId || !Array.isArray(draft.players)) return false;
+  const fromIndex = draft.players.findIndex((player) => player.id === draggedId);
+  if (fromIndex === -1) return false;
+  const [dragged] = draft.players.splice(fromIndex, 1);
+  const targetIndex = draft.players.findIndex((player) => player.id === targetId);
+  if (targetIndex === -1) {
+    draft.players.splice(fromIndex, 0, dragged);
+    return false;
+  }
+  const insertIndex = position === "after" ? targetIndex + 1 : targetIndex;
+  draft.players.splice(insertIndex, 0, dragged);
+  return true;
+}
+function wireSavedRosterDragAndDrop(draft, rerender) {
+  let draggedId = "";
+  view.querySelectorAll(".saved-roster-table tbody tr[data-roster-player]").forEach((row) => {
+    row.addEventListener("dragstart", (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      if (!target?.closest("[data-player-drag-handle]")) {
+        event.preventDefault();
+        return;
+      }
+      draggedId = row.dataset.rosterPlayer || "";
+      row.classList.add("is-dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", draggedId);
+      }
+    });
+
+    row.addEventListener("dragover", (event) => {
+      if (!draggedId || draggedId === row.dataset.rosterPlayer) return;
+      event.preventDefault();
+      const rect = row.getBoundingClientRect();
+      row.dataset.dropPosition = event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+      row.classList.toggle("drop-after", row.dataset.dropPosition === "after");
+      row.classList.toggle("drop-before", row.dataset.dropPosition !== "after");
+      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+    });
+
+    row.addEventListener("dragleave", () => {
+      row.classList.remove("drop-before", "drop-after");
+      delete row.dataset.dropPosition;
+    });
+
+    row.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const targetId = row.dataset.rosterPlayer || "";
+      const moved = moveRosterPlayer(draft, draggedId, targetId, row.dataset.dropPosition);
+      draggedId = "";
+      if (moved) rerender();
+    });
+
+    row.addEventListener("dragend", () => {
+      draggedId = "";
+      view.querySelectorAll(".saved-roster-table tbody tr").forEach((item) => {
+        item.classList.remove("is-dragging", "drop-before", "drop-after");
+        delete item.dataset.dropPosition;
+      });
+    });
+  });
+}
+function wireSavedPlayerEditors(team, draft, rerender) {
+  const autosave = () => scheduleSavedRosterAutosave(draft.editingTeamId);
+  view.querySelectorAll("[data-roster-player]").forEach((card) => {
+    const player = draft.players.find((item) => item.id === card.dataset.rosterPlayer);
+    if (!player) return;
+    card.querySelector("[data-saved-player-expand]")?.addEventListener("click", () => {
+      setSavedRosterPlayerExpanded(player.id, true);
+      rerender();
+    });
+    card.querySelector("[data-saved-player-collapse]")?.addEventListener("click", () => {
+      setSavedRosterPlayerExpanded(player.id, false);
+      rerender();
+    });
+    card.querySelectorAll("[data-saved-player-spp-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const key = button.dataset.savedPlayerSppAction;
+        player.spp = normalizeSppCounters(player.spp);
+        player.spp[key] = Math.max(0, countToNumber(player.spp[key]) + 1);
+        autosave();
+        rerender();
+      });
+    });
+    card.querySelector("[data-saved-player-name]")?.addEventListener("input", (event) => {
+      player.name = event.currentTarget.value;
+      autosave();
+    });
+    card.querySelector("[data-saved-player-number]")?.addEventListener("input", (event) => {
+      player.number = event.currentTarget.value;
+      autosave();
+    });
+    card.querySelector("[data-saved-player-skip]")?.addEventListener("change", (event) => {
+      player.skipNextGame = event.currentTarget.checked;
+      rerender();
+    });
+    card.querySelector("[data-saved-player-nigling]")?.addEventListener("change", (event) => {
+      player.niglingInjury = event.currentTarget.checked;
+      autosave();
+    });
+    card.querySelector("[data-saved-player-captain]")?.addEventListener("change", (event) => {
+      setRosterCaptain(draft, player.id, event.currentTarget.checked);
+      rerender();
+    });
+    card.querySelectorAll("[data-saved-player-contract-delta]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const delta = Number(button.dataset.savedPlayerContractDelta);
+        player.extendedContracts = Math.max(0, countToNumber(player.extendedContracts) + delta);
+        rerender();
+      });
+    });
+    card.querySelectorAll("[data-saved-player-spp]").forEach((input) => {
+      input.addEventListener("input", (event) => {
+        player.spp = normalizeSppCounters(player.spp);
+        player.spp[event.currentTarget.dataset.savedPlayerSpp] = Math.max(0, countToNumber(event.currentTarget.value));
+        const rowTotal = card.querySelector("[data-player-spp-total]");
+        if (rowTotal) rowTotal.textContent = `${playerSppTotal(team, player)} ${t("roster.sppEarned")}`;
+        const available = card.querySelector("[data-player-available-spp]");
+        if (available) available.textContent = `${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
+        const nextAdvancement = card.querySelector("[data-player-next-advancement]");
+        const nextRank = advancementRanks[playerAdvancementLevel(player)];
+        if (nextAdvancement && nextRank) {
+          nextAdvancement.textContent = `${t("roster.next")}: ${nextRank.rank}, ${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
+        }
+        const rosterTotal = view.querySelector("[data-total-spp-display]");
+        if (rosterTotal) rosterTotal.textContent = `${rosterTotalSpp(team, draft)} SPP`;
+        autosave();
+      });
+    });
+    card.querySelectorAll("[data-saved-stat]").forEach((button) => {
+      button.addEventListener("click", () => {
+      const stat = button.dataset.savedStat;
+      const delta = Number(button.dataset.savedStatDelta);
+      player.statMods ??= {};
+      player.statMods[stat] = clamp(countToNumber(player.statMods[stat]) + delta, -10, 10);
+      rerender();
+    });
+  });
+    card.querySelector("[data-saved-player-add-skill]")?.addEventListener("click", () => {
+      const input = card.querySelector("[data-saved-player-skill]");
+      const row = rowsForTeam(team)[player.rowIndex];
+      const typed = String(input?.value || "").trim();
+      const option = availableSkillOptionsForPlayer(row, player)
+        .find((item) => item.name.toLowerCase() === typed.toLowerCase());
+      if (!option) {
+        if (input) input.value = "";
+        return;
+      }
+      player.extraSkills ??= [];
+      if (player.extraSkills.some((skill) => skill.name === option.name)) return;
+      player.extraSkills.push({ name: option.name, access: option.access });
+      player.extraSkills = normalizePlayerExtraSkills(row, player.extraSkills);
+      sanitizeFavouredSkillsForTeam(team, draft);
+      rerender();
+    });
+    card.querySelectorAll("[data-saved-player-remove-skill]").forEach((button) => {
+      button.addEventListener("click", () => {
+        player.extraSkills = (player.extraSkills ?? []).filter((skill) => skill.name !== button.dataset.savedPlayerRemoveSkill);
+        rerender();
+      });
+    });
+    card.querySelector("[data-saved-player-add-favoured]")?.addEventListener("click", () => {
+      const input = card.querySelector("[data-saved-player-favoured-skill]");
+      const row = rowsForTeam(team)[player.rowIndex];
+      if (!row) return;
+      const typed = String(input?.value || "").trim();
+      const option = favouredSkillOptionsForPlayer(team, draft, row, player)
+        .find((item) => item.name.toLowerCase() === typed.toLowerCase());
+      if (!option) {
+        if (input) input.value = "";
+        return;
+      }
+      player.favouredSkills ??= [];
+      if (player.favouredSkills.some((skill) => skill.name === option.name)) return;
+      player.favouredSkills.push({ name: option.name, access: "favoured" });
+      sanitizeFavouredSkillsForTeam(team, draft);
+      rerender();
+    });
+    card.querySelectorAll("[data-saved-player-remove-favoured]").forEach((button) => {
+      button.addEventListener("click", () => {
+        player.favouredSkills = (player.favouredSkills ?? [])
+          .filter((skill) => (typeof skill === "string" ? skill : skill.name) !== button.dataset.savedPlayerRemoveFavoured);
+        rerender();
+      });
+    });
+    card.querySelector("[data-saved-player-add-advancement]")?.addEventListener("click", () => {
+      const type = card.querySelector("[data-saved-player-advancement-type]")?.value ?? "primary";
+      const verdict = canTakeAdvancement(team, player, type);
+      if (!verdict.allowed) {
+        // Used to fail silently whenever the cost was zero, and to happily let
+        // available SPP go negative otherwise.
+        alert(t(`validation.${verdict.reason}`, verdict.params));
+        return;
+      }
+      player.advancements = normalizePlayerAdvancements(player.advancements);
+      player.advancements.push({ type });
+      rerender();
+    });
+    card.querySelectorAll("[data-saved-player-remove-advancement]").forEach((button) => {
+      button.addEventListener("click", () => {
+        const index = Number(button.dataset.savedPlayerRemoveAdvancement);
+        player.advancements = normalizePlayerAdvancements(player.advancements)
+          .filter((_advancement, advancementIndex) => advancementIndex !== index);
+        rerender();
+      });
+    });
+  });
+  wireSavedRosterDragAndDrop(draft, rerender);
+  view.querySelectorAll("[data-remove-saved-player]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const removed = draft.players.find((player) => player.id === button.dataset.removeSavedPlayer);
+      if (removed?.purchased) {
+        const row = rowsForTeam(team)[removed.rowIndex];
+        refundTreasury(draft, costToNumber(rowCost(row)));
+      }
+      draft.players = draft.players.filter((player) => player.id !== button.dataset.removeSavedPlayer);
+      syncRosterCountsFromPlayers(draft);
+      rerender();
+    });
+  });
+}
+/**
+ * Everything below hands roster saving to src/data/roster-store.mjs.
+ *
+ * The store owns the draft object and the request queue; this file only decides
+ * what a request looks like and how the status is worded.
+ */
+
+const rosterSaveTransport = {
+  async save(teamId, request, { endpoint } = {}) {
+    return apiRequest(endpoint || `/api/teams/${teamId}`, {
+      method: "PATCH",
+      body: JSON.stringify(request),
+    });
+  },
+};
+export const rosterStore = createRosterStore({
+  transport: rosterSaveTransport,
+  storage,
+  debounceMs: autosaveDelayMs,
+});
+/** Turn the live draft into a PATCH body. Async: the logo is re-encoded here. */
+async function buildRosterRequest(savedTeam, team, draft) {
+  syncRosterCountsFromPlayers(draft);
+  draft.logoData = await optimizeLogoDataUrl(draft.logoData);
+  updateSavedRosterFields(savedTeam, draft);
+  return {
+    name: draft.teamName || team.title,
+    baseTeamSlug: draft.teamSlug || team.slug,
+    logoData: draft.logoData || "",
+    roster: draft,
+  };
+}
+/**
+ * Hand the team to the store and get back the draft to render.
+ *
+ * On a local re-render the store returns the same object the screen was already
+ * mutating. On a fresh load it takes the newly parsed one — unless edits are
+ * still queued, in which case those win and the server copy is ignored.
+ */
+function trackSavedRoster(savedTeam, { refresh = true } = {}) {
+  const existing = rosterStore.getDraft(savedTeam.id);
+  const draft = refresh || !existing ? normalizeSavedRoster(savedTeam) : existing;
+  const teams = state.data.teams;
+  const team = teams.find((item) => item.slug === draft.teamSlug) ?? teams[0];
+  return rosterStore.track(savedTeam.id, {
+    draft,
+    meta: savedTeam,
+    endpoint: savedTeam._saveEndpoint || `/api/teams/${savedTeam.id}`,
+    buildRequest: (current) => buildRosterRequest(savedTeam, team, current),
+  });
+}
+const autosaveStatusMessages = {
+  [SAVE_STATUS.IDLE]: "roster.autosaveDefaultMessage",
+  [SAVE_STATUS.DIRTY]: "roster.unsavedStatus",
+  [SAVE_STATUS.SAVING]: "roster.savingStatus",
+  [SAVE_STATUS.SAVED]: "roster.autosavedStatus",
+  [SAVE_STATUS.OFFLINE]: "roster.offlineStatus",
+  [SAVE_STATUS.CONFLICT]: "roster.conflictStatus",
+  [SAVE_STATUS.ERROR]: "roster.autosaveFailedStatus",
+};
+function autosaveMessageFor(status) {
+  return t(autosaveStatusMessages[status] ?? autosaveStatusMessages[SAVE_STATUS.IDLE]);
+}
+/** Keep the status line in the summary panel in step with the store. */
+function wireAutosaveStatus(teamId) {
+  return rosterStore.subscribe(teamId, ({ status }) => {
+    const node = view.querySelector("[data-autosave-status]");
+    if (!node) return;
+    node.textContent = autosaveMessageFor(status);
+    node.dataset.status = status;
+  });
+}
+function scheduleSavedRosterAutosave(teamId) {
+  if (!teamId) return;
+  rosterStore.markDirty(teamId);
+}
+/** The explicit "save changes" button: write now and say what happened. */
+async function saveSavedRoster(savedTeam) {
+  const status = await rosterStore.flush(savedTeam.id);
+  const button = view.querySelector("[data-save-roster]");
+  if (status === SAVE_STATUS.SAVED) {
+    if (button) {
+      button.textContent = t("roster.savedStatus");
+      setTimeout(() => { button.textContent = t("roster.saveChanges"); }, 1200);
+    }
+    return;
+  }
+  alert(autosaveMessageFor(status));
+}
+async function copySavedRoster(team, draft) {
+  await navigator.clipboard.writeText(buildRosterTextForDraft(team, draft));
+  const button = view.querySelector("[data-copy-saved-roster]");
+  if (button) {
+    button.textContent = t("roster.copiedStatus");
+    setTimeout(() => { button.textContent = t("roster.copyRoster"); }, 1200);
+  }
+}
+function renderEditablePlayerStatCells(player) {
+  return ["ma", "st", "ag", "pa", "ar"]
+    .map((stat) => {
+      const mod = Number(player.statMods?.[stat] ?? 0);
+      const modClass = mod > 0 ? "stat-up" : mod < 0 ? "stat-down" : "";
+      const value = statValueForDisplayByStat(stat, player.row[stat], mod);
+      return `
+        <td class="stat-table-cell ${modClass}">
+          <div class="table-stat-control">
+            <button type="button" data-saved-stat="${stat}" data-saved-stat-delta="-1">-</button>
+            <strong>${escapeHtml(value)}</strong>
+            <button type="button" data-saved-stat="${stat}" data-saved-stat-delta="1">+</button>
+          </div>
+        </td>
+      `;
+    })
+    .join("");
+}
+function renderSavedPlayerList(team, draft) {
+  const players = selectedRosterPlayers(team, draft);
+  const hasFavouredAccess = teamFavouredOptions(team).length > 0;
+  if (!players.length) {
+    return `<div class="builder-empty-roster">${t("savedRoster.noPlayersYet")}</div>`;
+  }
+  return `
+    <div class="table-scroll builder-table-scroll saved-roster-table-wrap">
+      <table class="saved-roster-table compact-roster-table">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>${t("roster.nameHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("roster.addSkillHeader")}</th>
+            <th>${t("roster.skipHeader")}</th>
+            <th>${t("roster.niglingInjury")}</th>
+            <th>${t("roster.captain")}</th>
+            <th>${t("roster.extendedContracts")}</th>
+            <th>SPP</th>
+            <th>${t("roster.levelHeader")}</th>
+            <th>${t("roster.advancementHeader")}</th>
+            ${hasFavouredAccess ? `<th>${t("roster.favouredOf")}</th>` : ""}
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("roster.actionHeader")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${players.map((player, index) => renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess)).join("")}
+        </tbody>
+      </table>
+    </div>
+    <div class="saved-roster-mobile-list">
+      ${players.map((player, index) => renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess)).join("")}
+    </div>
+  `;
+}
+function renderSavedNewPlayerTable(team, draft) {
+  return `
+    <div class="table-scroll builder-table-scroll">
+      <table class="builder-table compact-roster-table add-player-table">
+        <thead>
+          <tr>
+            <th>${t("roster.qtyHeader")}</th>
+            <th>${t("roster.positionHeader")}</th>
+            <th>${t("stats.ma")}</th>
+            <th>${t("stats.st")}</th>
+            <th>${t("stats.ag")}</th>
+            <th>${t("stats.pa")}</th>
+            <th>${t("stats.ar")}</th>
+            <th>${t("roster.skillsLabel")}</th>
+            <th>${t("roster.primary")}</th>
+            <th>${t("roster.secondary")}</th>
+            <th>${t("sidebar.cost")}</th>
+            <th>${t("savedRoster.rosterHeading")}</th>
+            <th>${t("common.add")}</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rowsForTeam(team).map((row, rowIndex) => {
+    const current = rowCountInPlayers(draft, rowIndex);
+    return `
+      <tr>
+        <td>${escapeHtml(row.qty || "-")}</td>
+        <td><strong>${escapeHtml(row.position)}</strong></td>
+        ${renderRosterStatCells(row)}
+        <td class="skills-cell">${renderRosterLinks(row.skills)}</td>
+        <td>${renderAccessCell(row.primary)}</td>
+        <td>${renderAccessCell(row.secondary)}</td>
+        <td>${escapeHtml(rowCost(row) || "-")}</td>
+        <td>${current}/${rosterMax(row.qty)}</td>
+        <td>
+          <button class="primary-button table-plus-button" type="button" data-add-saved-row="${rowIndex}">+</button>
+        </td>
+      </tr>
+    `;
+          }).join("")}
+        </tbody>
+      </table>
+    </div>
+  `;
+}
+function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
+  const choice = ensureDraftFavouredChoice(team, draft);
+  if (!choice) return `<span class="muted-text">-</span>`;
+  const options = favouredSkillOptionsForPlayer(team, draft, player.row, player);
+  return `
+    <div class="favoured-skill-editor">
+      <small>${escapeHtml(choice)}</small>
+      <div class="table-skill-editor">
+        <input class="table-input" type="text" list="${escapeHtml(inputId)}" placeholder="${t("roster.favouredSkillPlaceholder")}" data-saved-player-favoured-skill ${!options.length ? "disabled" : ""}>
+        <datalist id="${escapeHtml(inputId)}">
+          ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
+        </datalist>
+        <button class="filter-button compact-action" type="button" data-saved-player-add-favoured ${!options.length ? "disabled" : ""}>${t("common.add")}</button>
+      </div>
+    </div>
+  `;
+}
+function renderPlayerContractControls(player) {
+  const contracts = Math.max(0, countToNumber(player.extendedContracts));
+  return `
+    <div class="player-contract-control">
+      <div class="inline-stepper-control compact-contract-stepper">
+        <button class="filter-button" type="button" data-saved-player-contract-delta="-1" ${contracts <= 0 ? "disabled" : ""}>-</button>
+        <strong>${contracts}</strong>
+        <button class="filter-button" type="button" data-saved-player-contract-delta="1">+</button>
+      </div>
+      ${contracts ? `<small class="cost-note">+${contracts * 20}k</small>` : ""}
+    </div>
+  `;
+}
+function renderFavouredSkillButtons(player) {
+  const favouredSkills = normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []);
+  if (!favouredSkills.length) return "";
+  return `
+    <div class="player-extra-skills table-extra-skills favoured-extra-skills">
+      ${favouredSkills.map((skill) => `
+        <button class="roster-pill favoured-skill-pill" type="button" data-saved-player-remove-favoured="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+function renderCaptainSkillBadge(player) {
+  if (!player.isCaptain) return "";
+  const nonCaptainSkills = new Set([
+    ...(player.row.skills ?? []),
+    ...normalizePlayerExtraSkills(player.row, player.extraSkills ?? []).map((skill) => skill.name),
+    ...normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []).map((skill) => skill.name),
+  ]);
+  return `
+    <div class="player-extra-skills table-extra-skills captain-extra-skills">
+      ${nonCaptainSkills.has("Pro") ? "" : renderRosterLinks(["Pro"])}
+      <span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>
+    </div>
+  `;
+}
+function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = false) {
+  const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
+  const adjustment = playerAdjustmentCost(player);
+  const eliteCost = eliteComboCost(player.row, player);
+  const skillInputId = `skill-options-${index}`;
+  const favouredInputId = `favoured-skill-options-${index}`;
+  const skillOptions = availableSkillOptionsForPlayer(player.row, player);
+  return `
+    <tr data-roster-player="${escapeHtml(player.id)}" draggable="true">
+      <td class="saved-number-cell">
+        <div class="saved-number-control">
+          <button class="filter-button compact-action drag-handle table-drag-handle" type="button" draggable="true" data-player-drag-handle title="${t("roster.dragToReorder")}" aria-label="${t("roster.dragToReorder")}">↕</button>
+          <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
+        </div>
+      </td>
+      <td>
+        <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
+      </td>
+      <td><strong>${escapeHtml(player.row.position)}</strong></td>
+      ${renderEditablePlayerStatCells(player)}
+      <td class="skills-cell">
+        ${renderRosterLinks(player.row.skills)}
+        ${extraSkills.length ? `
+          <div class="player-extra-skills table-extra-skills">
+            ${extraSkills.map((skill) => `
+              <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+            `).join("")}
+          </div>
+        ` : ""}
+        ${renderFavouredSkillButtons(player)}
+        ${renderCaptainSkillBadge(player)}
+        ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
+      </td>
+      <td>
+        <div class="table-skill-editor">
+          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="${t("roster.skillPlaceholder")}" data-saved-player-skill>
+          <datalist id="${escapeHtml(skillInputId)}">
+            ${skillOptions.map((option) => `
+              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
+            `).join("")}
+          </datalist>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
+        </div>
+      </td>
+      <td>
+        <label class="table-checkbox" title="${t("roster.skipNextGame")}">
+          <input type="checkbox" data-saved-player-skip ${player.skipNextGame ? "checked" : ""}>
+          <span>${t("roster.skipHeader")}</span>
+        </label>
+      </td>
+      <td>
+        <label class="table-checkbox" title="${t("roster.niglingInjury")}">
+          <input type="checkbox" data-saved-player-nigling ${player.niglingInjury ? "checked" : ""}>
+          <span>${t("roster.niglingInjury")}</span>
+        </label>
+      </td>
+      <td>
+        <label class="table-checkbox" title="${t("roster.captain")}">
+          <input type="checkbox" data-saved-player-captain ${player.isCaptain ? "checked" : ""}>
+          <span>${t("roster.captain")}</span>
+        </label>
+      </td>
+      <td>${renderPlayerContractControls(player)}</td>
+      <td class="spp-cell">${renderPlayerSppControls(team, player)}</td>
+      <td class="level-cell">${renderPlayerLevelCell(team, player)}</td>
+      <td class="advancement-cell">${renderPlayerAdvancementControls(team, player)}</td>
+      ${hasFavouredAccess ? `<td class="favoured-skill-cell">${renderSavedPlayerFavouredEditor(team, draft, player, favouredInputId)}</td>` : ""}
+      <td>${escapeHtml(rowCost(player.row) || "-")}${adjustment ? `<span class="cost-note inline-cost-note">${adjustment > 0 ? "+" : ""}${adjustment}k</span>` : ""}</td>
+      <td><button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button></td>
+    </tr>
+  `;
+}
+function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = false) {
+  if (!isSavedRosterPlayerExpanded(player.id)) {
+    return renderSavedPlayerPreviewCard(team, player, index);
+  }
+  const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
+  const adjustment = playerAdjustmentCost(player);
+  const eliteCost = eliteComboCost(player.row, player);
+  const skillInputId = `mobile-skill-options-${index}`;
+  const favouredInputId = `mobile-favoured-skill-options-${index}`;
+  const skillOptions = availableSkillOptionsForPlayer(player.row, player);
+  return `
+    <article class="saved-roster-player-card mobile-roster-player-card is-expanded" data-roster-player="${escapeHtml(player.id)}">
+      <header>
+        <div class="mobile-player-title">
+          <label class="mobile-player-number">
+            <span>${t("roster.numberAbbr")}</span>
+            <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
+          </label>
+          <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
+          <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
+        </div>
+        <div class="mobile-card-actions">
+          <button class="filter-button compact-action" type="button" data-saved-player-collapse="${escapeHtml(player.id)}">${t("roster.previewAction")}</button>
+          <button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button>
+        </div>
+      </header>
+
+      <section class="mobile-player-section">
+        <h3>${t("roster.statsHeading")}</h3>
+        ${renderEditableStatLine(player)}
+      </section>
+
+      <section class="mobile-player-section">
+        <h3>${t("roster.skillsLabel")}</h3>
+        <div class="mobile-player-pills">
+          ${renderRosterLinks(player.row.skills)}
+          ${extraSkills.map((skill) => `
+            <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+          `).join("")}
+          ${renderFavouredSkillButtons(player)}
+          ${renderCaptainSkillBadge(player)}
+        </div>
+        ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
+        <div class="table-skill-editor mobile-skill-editor">
+          <input class="table-input" type="text" list="${escapeHtml(skillInputId)}" placeholder="${t("roster.skillPlaceholder")}" data-saved-player-skill>
+          <datalist id="${escapeHtml(skillInputId)}">
+            ${skillOptions.map((option) => `
+              <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
+            `).join("")}
+          </datalist>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
+        </div>
+        ${hasFavouredAccess ? renderSavedPlayerFavouredEditor(team, draft, player, favouredInputId) : ""}
+      </section>
+
+      <section class="mobile-player-section mobile-player-checks">
+        <label class="table-checkbox" title="${t("roster.skipNextGame")}">
+          <input type="checkbox" data-saved-player-skip ${player.skipNextGame ? "checked" : ""}>
+          <span>${t("roster.skipNextGame")}</span>
+        </label>
+        <label class="table-checkbox" title="${t("roster.niglingInjury")}">
+          <input type="checkbox" data-saved-player-nigling ${player.niglingInjury ? "checked" : ""}>
+          <span>${t("roster.niglingInjury")}</span>
+        </label>
+        <label class="table-checkbox" title="${t("roster.captain")}">
+          <input type="checkbox" data-saved-player-captain ${player.isCaptain ? "checked" : ""}>
+          <span>${t("roster.captain")}</span>
+        </label>
+      </section>
+
+      <section class="mobile-player-section">
+        <h3>${t("roster.extendedContracts")}</h3>
+        ${renderPlayerContractControls(player)}
+      </section>
+
+      <section class="mobile-player-section">
+        <h3>SPP</h3>
+        ${renderPlayerSppControls(team, player)}
+      </section>
+
+      <section class="mobile-player-section mobile-advancement-section">
+        <div>
+          <h3>${t("roster.levelHeader")}</h3>
+          ${renderPlayerLevelCell(team, player)}
+        </div>
+        <div>
+          <h3>${t("roster.advancementHeader")}</h3>
+          ${renderPlayerAdvancementControls(team, player)}
+        </div>
+      </section>
+    </article>
+  `;
+}
+function renderSavedPlayerPreviewCard(team, player, index) {
+  return `
+    <article class="saved-roster-player-card mobile-roster-player-card is-preview" data-roster-player="${escapeHtml(player.id)}">
+      <header>
+        <div class="mobile-player-title">
+          <strong>${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}</strong>
+          <small>${escapeHtml(player.row.position)}</small>
+        </div>
+        <button class="primary-button compact-action" type="button" data-saved-player-expand="${escapeHtml(player.id)}">${t("roster.advanceAction")}</button>
+      </header>
+
+      <section class="mobile-player-section">
+        <h3>${t("roster.statsHeading")}</h3>
+        ${renderReadonlyStatLine(player)}
+      </section>
+
+      <section class="mobile-player-section">
+        <h3>${t("roster.skillsLabel")}</h3>
+        <div class="mobile-player-pills">
+          ${renderPlayerPreviewSkills(player)}
+        </div>
+      </section>
+
+      <section class="mobile-player-section">
+        <div class="mobile-spp-preview-head">
+          <h3>SPP</h3>
+          <strong>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</strong>
+        </div>
+        <div class="mobile-spp-action-grid">
+          ${renderSppActionButtons(player)}
+        </div>
+      </section>
+    </article>
+  `;
+}
+function renderPlayerPreviewSkills(player) {
+  const names = [
+    ...(player.row.skills ?? []),
+    ...normalizePlayerExtraSkills(player.row, player.extraSkills ?? []).map((skill) => skill.name),
+    ...normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []).map((skill) => skill.name),
+  ];
+  if (player.isCaptain && !names.includes("Pro")) names.push("Pro");
+  const rendered = renderRosterLinks(uniqueSorted(names));
+  return `${rendered}${player.isCaptain ? `<span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>` : ""}`;
+}
+function renderSppActionButtons(player) {
+  const spp = normalizeSppCounters(player.spp);
+  return sppCounterDefinitions.map(([key, label]) => `
+    <button class="filter-button mobile-spp-action" type="button" data-saved-player-spp-action="${escapeHtml(key)}">
+      <span>${escapeHtml(label)}</span>
+      <strong>${spp[key]}</strong>
+      <em>+1</em>
+    </button>
+  `).join("");
+}
+function renderReadonlyStatLine(player) {
+  const stats = ["ma", "st", "ag", "pa", "ar"];
+  return `
+    <div class="player-stat-editors readonly-stat-line">
+      ${stats.map((stat) => {
+    const mod = Number(player.statMods?.[stat] ?? 0);
+    const modClass = mod > 0 ? "stat-up" : mod < 0 ? "stat-down" : "";
+    return `
+        <div class="player-stat-editor ${modClass}">
+          <span>${stat.toUpperCase()}</span>
+          <strong>${escapeHtml(statValueForDisplayByStat(stat, player.row[stat], mod))}</strong>
+        </div>
+      `;
+  }).join("")}
+    </div>
+  `;
+}
+function renderPlayerSppControls(team, player) {
+  const spp = normalizeSppCounters(player.spp);
+  return `
+    <div class="spp-counter-grid">
+      ${sppCounterDefinitions.map(([key, label]) => `
+        <label class="spp-counter-field">
+          <span>${escapeHtml(label)}</span>
+          <input type="number" min="0" step="1" value="${spp[key]}" data-saved-player-spp="${key}">
+        </label>
+      `).join("")}
+    </div>
+    <strong class="spp-total" data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</strong>
+  `;
+}
+function renderPlayerLevelCell(team, player) {
+  const level = playerAdvancementLevel(player);
+  return `
+    <div class="player-level-stack">
+      <strong>${level}</strong>
+      <span>${escapeHtml(playerLevelRank(player))}</span>
+      <small data-player-spent-spp>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small>
+      <small data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
+    </div>
+  `;
+}
+function renderPlayerAdvancementControls(team, player) {
+  const advancements = normalizePlayerAdvancements(player.advancements);
+  const level = playerAdvancementLevel(player);
+  const nextRank = advancementRanks[level];
+  const available = playerAvailableSpp(team, player);
+  const canAdvance = Boolean(nextRank);
+  return `
+    <div class="advancement-control">
+      ${canAdvance ? `
+        <div class="advancement-add-row">
+          <select class="table-select" data-saved-player-advancement-type>
+            ${Object.entries(advancementTypeLabels).map(([type, label]) => {
+    const verdict = canTakeAdvancement(team, player, type);
+    return `
+              <option value="${type}" ${verdict.allowed ? "" : "disabled"}>${escapeHtml(`${label} (${nextRank.costs[type]} SPP)${verdict.allowed ? "" : ` — ${t("roster.notEnoughSpp")}`}`)}</option>
+            `;
+  }).join("")}
+          </select>
+          <button class="filter-button compact-action" type="button" data-saved-player-add-advancement>${t("common.add")}</button>
+        </div>
+        <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}, ${available} ${t("roster.sppAvailable")}</small>
+      ` : `<span class="muted-text">${t("roster.maxLevel")}</span>`}
+      <div class="advancement-list">
+        ${advancements.length ? advancements.map((advancement, index) => {
+    const cost = advancementRanks[index]?.costs?.[advancement.type] ?? 0;
+    const label = advancementTypeLabels[advancement.type] ?? advancement.type;
+    return `
+            <button class="roster-pill advancement-pill" type="button" data-saved-player-remove-advancement="${index}">
+              ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP x`)}
+            </button>
+          `;
+  }).join("") : `<span class="muted-text">${t("roster.noAdvancementsYet")}</span>`}
+      </div>
+    </div>
+  `;
+}
+function renderEditableStatLine(player) {
+  const stats = ["ma", "st", "ag", "pa", "ar"];
+  return `
+    <div class="player-stat-editors editable-stat-line">
+      ${stats.map((stat) => {
+        const mod = Number(player.statMods?.[stat] ?? 0);
+        const modClass = mod > 0 ? "stat-up" : mod < 0 ? "stat-down" : "";
+        return `
+          <div class="player-stat-editor ${modClass}">
+            <span>${stat.toUpperCase()}</span>
+            <strong>${escapeHtml(statValueForDisplayByStat(stat, player.row[stat], mod))}</strong>
+            <div class="mini-stepper">
+              <button type="button" data-saved-stat="${stat}" data-saved-stat-delta="-1">-</button>
+              <button type="button" data-saved-stat="${stat}" data-saved-stat-delta="1">+</button>
+            </div>
+          </div>
+        `;
+      }).join("")}
+    </div>
+  `;
+}
