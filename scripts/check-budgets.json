@@ -17,10 +17,10 @@
     "defaultMaxFileLines": 600,
     "defaultMaxFunctionLines": 80,
     "maxFileLines": {
-      "src/app.js": 400,
+      "src/app.js": 157,
       "server/server.mjs": 2020,
       "scripts/build-data.mjs": 805,
-      "src/screens/saved-roster.mjs": 1283
+      "src/screens/saved-roster.mjs": 1284
     },
     "maxFunctionLines": {
       "src/app.js": 180,
@@ -30,8 +30,8 @@
       "src/screens/builder.mjs": 100
     },
     "_notes": {
-      "src/app.js": "Task 6 walked this down: 6210 -> 5968 -> 4330 -> 1991 -> 1194 -> 400 (theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs; the reference screens in 6.5; 6.6's my-teams/builder/saved-roster; 6.7's season screens; then 6.8's games/administration/players + components/auth-button.mjs). What is left is the bootstrap plus the auth modal — step 6.9 takes the modal out and targets under 200. Only ever lower it.",
-      "src/screens/saved-roster.mjs": "One of the two duplicate roster-editor implementations design spec 5.1 counts (screens/builder.mjs is the other) — moved out of app.js as-is in task 6.6, oversized because it still is the whole editor. Task 7 merges the two into components/roster-editor/* and this budget should shrink close to zero.",
+      "src/app.js": "Task 6 walked this down 6210 -> 157: theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs, then the screens in 6.5-6.8, then 6.9's components/auth-modal.mjs and core/router.mjs. What is left is bootstrap. Only ever lower it.",
+      "src/screens/saved-roster.mjs": "One of the two duplicate roster-editor implementations design spec 5.1 counts (screens/builder.mjs is the other) — moved out of app.js as-is in task 6.6, oversized because it still is the whole editor. Task 7 merges the two into components/roster-editor/* and this budget should shrink close to zero. Went 1283 -> 1284 in 6.9: the one added line is the core/screen-lifecycle.mjs import that stops the autosave-status listener leaking on every re-render. Raising a ratchet is normally forbidden; this was a bugfix, not drift.",
       "src/screens/builder.mjs": "wireBuilder() came in at 100 lines, moved from app.js unchanged. Same task-7 note as saved-roster.mjs: this shrinks when the two editors merge."
     }
   }

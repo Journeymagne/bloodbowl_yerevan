@@ -19,6 +19,7 @@ import { apiRequest } from "../core/api-client.mjs";
 import { storage } from "../core/storage.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
 import { pageUrl } from "../core/routes.mjs";
+import { onScreenLeave } from "../core/screen-lifecycle.mjs";
 import {
   advancementRanks,
   advancementTypeLabels,
@@ -766,14 +767,14 @@ const autosaveStatusMessages = {
 function autosaveMessageFor(status) {
   return t(autosaveStatusMessages[status] ?? autosaveStatusMessages[SAVE_STATUS.IDLE]);
 }
-/** Keep the status line in the summary panel in step with the store. */
+/** Status line in step with the store; the unsubscribe is registered, not dropped. */
 function wireAutosaveStatus(teamId) {
-  return rosterStore.subscribe(teamId, ({ status }) => {
+  onScreenLeave("saved-roster:autosave-status", rosterStore.subscribe(teamId, ({ status }) => {
     const node = view.querySelector("[data-autosave-status]");
     if (!node) return;
     node.textContent = autosaveMessageFor(status);
     node.dataset.status = status;
-  });
+  }));
 }
 function scheduleSavedRosterAutosave(teamId) {
   if (!teamId) return;
