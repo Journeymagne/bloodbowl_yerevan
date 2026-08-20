@@ -22,7 +22,6 @@ import {
   rosterMax,
   rowCost,
   rowsForTeam,
-  splitList,
   statValueForDisplayByStat,
 } from "./domain/roster/values.mjs";
 import {
@@ -94,6 +93,24 @@ import {
 } from "./domain/roster/costs.mjs";
 import { validateRoster } from "./domain/roster/validate.mjs";
 import { SAVE_STATUS, createRosterStore } from "./data/roster-store.mjs";
+import { escapeHtml } from "./core/dom.mjs";
+import {
+  inlineSimpleMarkdown,
+  parseFirstMarkdownTable,
+  starPlayerTableData,
+} from "./core/markdown.mjs";
+import {
+  SECTION_ROUTES,
+  adminTeamEditUrl,
+  gameUrl,
+  listUrlForRoute,
+  matchRoute,
+  navRouteForPage,
+  pageUrl,
+  playerTeamUrl,
+  playerUrl,
+  routeFromHash,
+} from "./core/routes.mjs";
 import { storage } from "./core/storage.mjs";
 import { initTheme } from "./core/theme.mjs";
 import {
@@ -223,18 +240,6 @@ const logoOptimizeQuality = 0.82;
 const logoOptimizeSkipLength = 160_000;
 const logoOptimizationCache = new Map();
 const autosaveDelayMs = 450;
-
-const sectionRoutes = new Map([
-  ["teams", "teams"],
-  ["skills", "skills"],
-  ["traits", "traits"],
-  ["rules", "rules"],
-  ["cheatsheets", "cheatsheets"],
-  ["inducements", "inducements"],
-  ["star-players", "star-players"],
-  ["pages", "pages"],
-]);
-const staticRoutes = new Set(["builder", "legal", "my-teams", "my-games", "season", "administration"]);
 
 /** The bits of the frame that carry locale-dependent text. */
 function applyLocaleChrome() {
@@ -906,14 +911,6 @@ const overviewCardsRu = [
   },
 ];
 
-function escapeHtml(value = "") {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
 function shortText(value = "", length = 180) {
   const clean = String(value).replace(/\s+/g, " ").trim();
   return clean.length > length ? `${clean.slice(0, length - 1)}...` : clean;
@@ -1139,27 +1136,6 @@ async function logoutAuth() {
   renderRoute();
 }
 
-function pageUrl(page) {
-  return `#/${page.slug}`;
-}
-
-function playerUrl(userOrId) {
-  const id = typeof userOrId === "string" ? userOrId : userOrId?.id;
-  return `#/players/${encodeURIComponent(id || "")}`;
-}
-
-function playerTeamUrl(userOrId, teamOrId) {
-  const userId = typeof userOrId === "string" ? userOrId : userOrId?.id;
-  const teamId = typeof teamOrId === "string" ? teamOrId : teamOrId?.id;
-  return `#/players/${encodeURIComponent(userId || "")}/teams/${encodeURIComponent(teamId || "")}`;
-}
-
-function adminTeamEditUrl(userOrId, teamOrId) {
-  const userId = typeof userOrId === "string" ? userOrId : userOrId?.id;
-  const teamId = typeof teamOrId === "string" ? teamOrId : teamOrId?.id;
-  return `#/administration/users/${encodeURIComponent(userId || "")}/teams/${encodeURIComponent(teamId || "")}/edit`;
-}
-
 function renderPlayerLink(user) {
   if (!user?.id) return `<span class="muted-text">-</span>`;
   return `<a class="inline-rule-link" href="${playerUrl(user)}">${escapeHtml(user.login || t("admin.playerHeader"))}</a>`;
@@ -1189,10 +1165,6 @@ function pageForSkillTableEntry(title) {
     ?? null;
 }
 
-function listUrlForRoute(route) {
-  return route === "home" ? "#/" : `#/${route}`;
-}
-
 function setActiveNav(route) {
   document.querySelectorAll("[data-nav]").forEach((link) => {
     link.classList.toggle("active", link.dataset.nav === route);
@@ -1207,29 +1179,6 @@ function setNavOpen(isOpen) {
   document.body.classList.toggle("nav-open", isOpen);
   navToggle?.setAttribute("aria-expanded", String(isOpen));
   navToggle?.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
-}
-
-function navRouteForPage(page) {
-  if (page.kind === "team") return "teams";
-  if (page.kind === "skill") return "skills";
-  if (page.kind === "trait") return "traits";
-  if (page.kind === "rules") return "rules";
-  if (page.kind === "cheatsheet") return "cheatsheets";
-  if (page.kind === "inducement") return "inducements";
-  if (page.kind === "starPlayer") return "star-players";
-  return "pages";
-}
-
-function routeSection(route) {
-  if (!route || route === "home") return "home";
-  if (route.startsWith("overview/")) return "home";
-  if (route.startsWith("administration/")) return "administration";
-  if (route.startsWith("games/")) return "my-games";
-  if (route.startsWith("players/")) return "players";
-  if (sectionRoutes.has(route)) return route;
-  if (staticRoutes.has(route)) return route;
-  const page = findPageBySlug(route);
-  return page ? navRouteForPage(page) : "home";
 }
 
 function findPageBySlug(slug) {
@@ -1817,68 +1766,6 @@ function renderTeamCatalogCard(page) {
   `;
 }
 
-function splitStarMarkdownTableRow(line = "") {
-  const trimmed = String(line).trim().replace(/^\|/, "").replace(/\|$/, "");
-  const cells = [];
-  let current = "";
-  let inWikiLink = false;
-  for (let index = 0; index < trimmed.length; index += 1) {
-    const pair = trimmed.slice(index, index + 2);
-    if (pair === "[[") {
-      inWikiLink = true;
-      current += pair;
-      index += 1;
-      continue;
-    }
-    if (pair === "]]") {
-      inWikiLink = false;
-      current += pair;
-      index += 1;
-      continue;
-    }
-    const char = trimmed[index];
-    if (char === "|" && !inWikiLink) {
-      cells.push(current.trim());
-      current = "";
-    } else {
-      current += char;
-    }
-  }
-  cells.push(current.trim());
-  return cells;
-}
-
-function cleanMarkdownCell(value = "") {
-  return String(value)
-    .replace(/\[\[[^\]|]+\|([^\]]+)\]\]/g, "$1")
-    .replace(/\[\[([^\]]+)\]\]/g, "$1")
-    .replace(/\*\*/g, "")
-    .replace(/`/g, "")
-    .trim();
-}
-
-function starPlayerTableData(page) {
-  const lines = String(page.body ?? "").split(/\r?\n/);
-  const headerIndex = lines.findIndex((line) => /\|\s*MA\s*\|\s*ST\s*\|\s*AG\s*\|\s*PA\s*\|\s*AR/i.test(line));
-  if (headerIndex === -1) return {};
-  const dataLine = lines.slice(headerIndex + 1).find((line) => {
-    const trimmed = line.trim();
-    return trimmed.startsWith("|") && !/^\|\s*-+/.test(trimmed);
-  });
-  if (!dataLine) return {};
-  const cells = splitStarMarkdownTableRow(dataLine).map(cleanMarkdownCell);
-  return {
-    ma: cells[0] ?? "",
-    st: cells[1] ?? "",
-    ag: cells[2] ?? "",
-    pa: cells[3] ?? "",
-    ar: cells[4] ?? "",
-    cost: cells[5] ?? "",
-    skills: splitList(cells[6] ?? ""),
-    keywords: splitList(cells[7] ?? ""),
-  };
-}
-
 function renderStarCatalogStats(star) {
   return `
     <dl class="catalog-stat-strip">
@@ -2259,37 +2146,6 @@ function renderSkillTableRoller() {
       </div>
     </section>
   `;
-}
-
-function inlineSimpleMarkdown(value = "") {
-  return escapeHtml(value)
-    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/\*([^*]+)\*/g, "<em>$1</em>");
-}
-
-function splitMarkdownTableRow(line = "") {
-  return line
-    .trim()
-    .replace(/^\|/, "")
-    .replace(/\|$/, "")
-    .split("|")
-    .map((cell) => cell.trim());
-}
-
-function parseFirstMarkdownTable(markdown = "") {
-  const lines = markdown.split(/\r?\n/);
-  const start = lines.findIndex((line, index) => (
-    line.trim().startsWith("|")
-    && lines[index + 1]?.trim().startsWith("|")
-  ));
-  if (start === -1) return null;
-
-  const headers = splitMarkdownTableRow(lines[start]);
-  const rows = [];
-  for (let index = start + 2; index < lines.length && lines[index].trim().startsWith("|"); index += 1) {
-    rows.push(splitMarkdownTableRow(lines[index]));
-  }
-  return { headers, rows };
 }
 
 function renderReferenceTableMobile(page) {
@@ -3207,11 +3063,6 @@ function wireAdministration() {
       alert(error.message);
     }
   });
-}
-
-function gameUrl(gameOrId) {
-  const id = typeof gameOrId === "string" ? gameOrId : gameOrId?.id;
-  return `#/games/${encodeURIComponent(id || "")}`;
 }
 
 function gameStatusLabel(status) {
@@ -6008,31 +5859,46 @@ function buildRosterTextForDraft(team, draft) {
   return lines;
 }
 
-function renderRoute() {
-  const route = decodeURIComponent(location.hash.replace(/^#\/?/, "")) || "home";
-  const section = routeSection(route);
-  if (route === "home") return renderHome();
-  if (route.startsWith("overview/")) return renderOverviewDetail(route.replace(/^overview\//, ""));
-  if (sectionRoutes.has(route)) return renderSection(route);
-  if (route === "builder") return renderBuilder();
-  if (route.startsWith("my-teams/")) return renderSavedRoster(route.replace(/^my-teams\//, ""));
-  if (route === "my-teams") return renderMyTeams();
-  if (route.startsWith("games/")) return renderGamePage(route.replace(/^games\//, ""));
-  if (route === "my-games") return renderMyGames();
-  if (route === "season") return renderSeason();
-  const adminEditMatch = route.match(/^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit$/);
-  if (adminEditMatch) return renderSavedRoster(adminEditMatch[2], true, { adminOwnerId: adminEditMatch[1] });
-  if (route.startsWith("administration/users/")) return renderAdminUserProfile(route.replace(/^administration\/users\//, ""));
-  if (route === "administration") return renderAdministration();
-  const publicTeamMatch = route.match(/^players\/([^/]+)\/teams\/([^/]+)$/);
-  if (publicTeamMatch) return renderPublicTeamProfile(publicTeamMatch[1], publicTeamMatch[2]);
-  if (route.startsWith("players/")) return renderPlayerProfile(route.replace(/^players\//, ""));
-  if (route === "legal") return renderLegal();
-  const page = findPageBySlug(route);
-  if (page) return renderDetail(page);
+/**
+ * One screen per route name. `matchRoute` decides which; this decides what to
+ * draw. Keeping the two apart is what makes the routing table testable — see
+ * test/routes.test.mjs.
+ */
+const screens = {
+  home: () => renderHome(),
+  overview: ({ slug }) => renderOverviewDetail(slug),
+  section: ({ route }) => renderSection(route),
+  builder: () => renderBuilder(),
+  savedRoster: ({ teamId }) => renderSavedRoster(teamId),
+  myTeams: () => renderMyTeams(),
+  game: ({ gameId }) => renderGamePage(gameId),
+  myGames: () => renderMyGames(),
+  season: () => renderSeason(),
+  adminTeamEdit: ({ ownerId, teamId }) => renderSavedRoster(teamId, true, { adminOwnerId: ownerId }),
+  adminUserProfile: ({ userId }) => renderAdminUserProfile(userId),
+  administration: () => renderAdministration(),
+  publicTeam: ({ userId, teamId }) => renderPublicTeamProfile(userId, teamId),
+  playerProfile: ({ userId }) => renderPlayerProfile(userId),
+  legal: () => renderLegal(),
+  page: ({ slug }) => {
+    const page = findPageBySlug(slug);
+    return page ? renderDetail(page) : renderNotFound();
+  },
+};
+
+function renderNotFound() {
   setActiveNav("home");
   setViewSection("home");
   view.innerHTML = `<div class="empty-state">${t("app.pageNotFound")}</div>`;
+}
+
+function renderRoute() {
+  // Each screen sets its own nav highlight on the way in. core/routes.mjs also
+  // exports routeSection(), which derives the same thing from the route alone —
+  // the two disagree today (a player profile highlights "season"), so switching
+  // to it is a visible change and belongs in its own commit, not this one.
+  const { name, params } = matchRoute(routeFromHash(location.hash));
+  return screens[name](params);
 }
 
 async function init() {
