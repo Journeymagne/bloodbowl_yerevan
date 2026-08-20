@@ -14,7 +14,7 @@
 
 ## Ход работ
 
-Обновлено 2026-08-20. Ветка `refactor/stage-1`, 22 коммита.
+Обновлено 2026-08-21. Ветка `refactor/stage-1`, 24 коммита.
 
 | Задача | Состояние |
 |---|---|
@@ -25,7 +25,7 @@
 | 3 — доменный слой ростера | **частично**: вынесены правила, значения, игроки, прокачка, стоимости, валидация, `canTakeAdvancement`; поддержка старых форматов удалена (шаги 3.3 и 4.4 отменены решением владельца); остались `schema.mjs` и `export.mjs` |
 | 4 — сервер: валидация и ревизии | **заблокирована**: нужна база, доступа нет |
 | 5 — сохранение ростера | **готово**: `src/data/roster-store.mjs`, гонка «правка сразу после сохранения» воспроизведена тестом и закрыта; попутно (6.6) починен реальный баг автосохранения в браузере, см. ниже |
-| 6 — разбор `src/app.js` | **в работе**: вынесены `core/theme`, `core/i18n`, `data/reference`, `core/dom`, `core/markdown`, `core/routes`, `core/state`, `core/view`, `core/api-client`, `core/logo-upload`; экраны справочника (6.5), личный кабинет (6.6) и сезон (6.7) вынесены; админка/игры ещё внутри |
+| 6 — разбор `src/app.js` | **почти готово**: вынесены `core/theme`, `core/i18n`, `data/reference`, `core/dom`, `core/markdown`, `core/routes`, `core/state`, `core/view`, `core/api-client`, `core/logo-upload`; все экраны вынесены — справочник (6.5), личный кабинет (6.6), сезон (6.7), игры/админка/профили (6.8). Осталось 6.3 (подписки в `core/state`), вторая половина 6.4 (контракт экрана `render/mount/destroy`), 6.9 (вынести модалку входа, цель < 200 строк) и 6.10 |
 | 7–17 | не начинались |
 
 Проверки после каждого коммита: `npm test` (132 теста), `npm run check`
@@ -35,7 +35,7 @@
 темы, плюс проверка что `/.env`, `/package.json` и `/server/init.sql` отдают
 404).
 
-`src/app.js`: 7479 → 5968 → 4330 → 1991 → 1194 строк.
+`src/app.js`: 7479 → 5968 → 4330 → 1991 → 1194 → 400 строк.
 
 ### Найдено по дороге, ждёт решения владельца
 
@@ -343,13 +343,13 @@ export function hasPendingChanges()              // для beforeunload
 - [x] **Шаг 6.5.** Вынести справочные экраны: `screens/home.mjs`, `overview.mjs`, `section.mjs`, `detail.mjs`, `legal.mjs`, `leagues.mjs` + `components/filters.mjs`, `components/cards.mjs`.
 - [x] **Шаг 6.6.** Вынести личный кабинет: `screens/my-teams.mjs`, `screens/builder.mjs`, `screens/saved-roster.mjs`.
 - [x] **Шаг 6.7.** Вынести сезон: `screens/season/{index,registration,fixture,standings,schedule,admin}.mjs`. Разрезать `wireSeason:4745` (175 строк) — по обработчику на модуль. Активную вкладку перенести в URL (`#/season/standings`) вместо `state.season.activeTab` — вкладку станет можно дать ссылкой.
-- [ ] **Шаг 6.8.** Вынести игры: `screens/my-games.mjs`, `screens/game.mjs`; администрирование: `screens/administration/{users,user}.mjs`; профили: `screens/players/{profile,team}.mjs`.
+- [x] **Шаг 6.8.** Вынести игры: `screens/my-games.mjs`, `screens/game.mjs`; администрирование: `screens/administration/{users,user}.mjs`; профили: `screens/players/{profile,team}.mjs`.
 - [ ] **Шаг 6.9.** `src/app.js` оставить как bootstrap: загрузка переводов и данных, восстановление сессии, глобальные слушатели, старт роутера. Цель — менее 200 строк.
 - [ ] **Шаг 6.10.** Понизить пороги в `scripts/check-structure.mjs` до 600 строк на файл и 80 строк на функцию; убедиться, что проверка проходит.
 
 **Проверка:** `npm run check` зелёный с новыми порогами; дымовой сценарий 1.4 полностью проходит; визуальных отличий нет (сравнить скриншоты ключевых экранов до/после).
 
-> **Состояние на 2026-08-20.** Шаги 6.1, 6.2, 6.5, 6.6 и 6.7 закрыты (`core/theme.mjs`,
+> **Состояние на 2026-08-21.** Шаги 6.1, 6.2, 6.5, 6.6, 6.7 и 6.8 закрыты (`core/theme.mjs`,
 > `core/i18n.mjs`, `data/reference.mjs`, `core/dom.mjs`). Шаг 6.4 закрыт
 > наполовину: таблица маршрутов и разбор хеша вынесены в `core/routes.mjs` и
 > покрыты тестами, `renderRoute` стал диспетчером — но контракта экрана
@@ -453,6 +453,35 @@ export function hasPendingChanges()              // для beforeunload
 > ссылка), только браузер. Экспортировано и доимпортировано в `admin.mjs`.
 >
 > `src/app.js`: 1991 → 1194 строк.
+>
+> **Шаг 6.8 вынес остаток экранов** — игры (`screens/games/{my-games,game}.mjs`),
+> админку (`screens/administration/{users,user}.mjs`) и профили
+> (`screens/players/{profile,team}.mjs`). Два перекрёстных импорта, которые
+> избавили от дублирования: `players/profile.mjs` берёт карточку профиля,
+> панель «создать команду игроку» и `wireAdminUserProfile` из
+> `administration/user.mjs` (админ на публичном профиле видит ровно те же
+> панели), а `games/game.mjs` берёт предикаты `isGameResultSubmitted` /
+> `isGameClosedForPlayers` из `my-games.mjs` — что показывать на странице
+> матча решается теми же правилами, что и раскладка списка.
+>
+> `updateAuthButton` пришлось вынести в `components/auth-button.mjs`:
+> `wireAdminUserProfile` зовёт её после того, как админ отредактировал
+> собственный аккаунт, а жила она в `app.js`. Это тот же случай, что и
+> `setOnUnauthorized` в 6.6, но здесь хватило переноса — функция читает
+> только `state.auth.currentUser`, `t()` и свою кнопку, ничего из остального
+> auth-хрома (модалка, её формы и режимы) не трогает и остаётся в `app.js`
+> до шага 6.9.
+>
+> **`scripts/mock-api.mjs` расширен** — иначе эти экраны нечем было проверить
+> в браузере: он умел отвечать только за экран сохранённого ростера, а
+> подменить `fetch` из консоли уже нельзя (клиент захватывает `fetch` в
+> момент `createApiClient`, то есть при загрузке модуля). Добавлены
+> `/api/games/:id`, `/api/admin/users`, `/api/admin/users/:id`,
+> `/api/players/:id`, `/api/players/:id/teams/:teamId` и второй пользователь;
+> `MOCK_ADMIN=1` поднимает сессию админом, по умолчанию поведение прежнее.
+>
+> `src/app.js`: 1194 → 400 строк. Остаток — bootstrap плюс модалка входа,
+> которую забирает шаг 6.9.
 
 ---
 
