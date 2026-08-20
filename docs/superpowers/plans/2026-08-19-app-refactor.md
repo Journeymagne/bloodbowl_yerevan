@@ -324,10 +324,10 @@ export function hasPendingChanges()              // для beforeunload
 
 **Шаги:**
 
-- [ ] **Шаг 6.1.** `src/core/i18n.mjs` ← `normalizeTheme:137`…`switchLocale:233` (тема + локаль + `t()` + `applyStaticI18n`).
-- [ ] **Шаг 6.2.** `src/core/dom.mjs`: тег-шаблон `html\`\`` с **автоматическим экранированием интерполяций** (`escapeHtml:957` внутри, а не по вызову), `raw()` для намеренно сырого HTML, `delegate(root, selector, event, handler)` вместо 112 ручных `addEventListener`. Это снимает системный риск из раздела 3.4 design spec.
+- [x] **Шаг 6.1.** `src/core/i18n.mjs` ← `normalizeTheme:137`…`switchLocale:233` (тема + локаль + `t()` + `applyStaticI18n`).
+- [x] **Шаг 6.2.** `src/core/dom.mjs`: тег-шаблон `html\`\`` с **автоматическим экранированием интерполяций** (`escapeHtml:957` внутри, а не по вызову), `raw()` для намеренно сырого HTML, `delegate(root, selector, event, handler)` вместо 112 ручных `addEventListener`. Это снимает системный риск из раздела 3.4 design spec.
 - [ ] **Шаг 6.3.** `src/core/state.mjs` ← объект `state:1-78` + подписки. Удалить мёртвые ветки состояния: `teamFilters`, `starFilters` (UI фильтров удалён, см. 4.3 design spec).
-- [ ] **Шаг 6.4.** `src/core/router.mjs` ← `renderRoute:7387`, `routeSection:1276`, `setActiveNav:1249`, `navRouteForPage:1265`. Ввести таблицу маршрутов и контракт экрана `render(params) → { html, mount(root), destroy() }`; роутер обязан вызывать `destroy()` предыдущего экрана (сейчас таймеры автосохранения и подписки не снимаются никогда).
+- [~] **Шаг 6.4.** `src/core/router.mjs` ← `renderRoute:7387`, `routeSection:1276`, `setActiveNav:1249`, `navRouteForPage:1265`. Ввести таблицу маршрутов и контракт экрана `render(params) → { html, mount(root), destroy() }`; роутер обязан вызывать `destroy()` предыдущего экрана (сейчас таймеры автосохранения и подписки не снимаются никогда).
 - [ ] **Шаг 6.5.** Вынести справочные экраны: `screens/home.mjs`, `overview.mjs`, `section.mjs`, `detail.mjs`, `legal.mjs`, `leagues.mjs` + `components/filters.mjs`, `components/cards.mjs`.
 - [ ] **Шаг 6.6.** Вынести личный кабинет: `screens/my-teams.mjs`, `screens/builder.mjs`, `screens/saved-roster.mjs`.
 - [ ] **Шаг 6.7.** Вынести сезон: `screens/season/{index,registration,fixture,standings,schedule,admin}.mjs`. Разрезать `wireSeason:4745` (175 строк) — по обработчику на модуль. Активную вкладку перенести в URL (`#/season/standings`) вместо `state.season.activeTab` — вкладку станет можно дать ссылкой.
@@ -336,6 +336,15 @@ export function hasPendingChanges()              // для beforeunload
 - [ ] **Шаг 6.10.** Понизить пороги в `scripts/check-structure.mjs` до 600 строк на файл и 80 строк на функцию; убедиться, что проверка проходит.
 
 **Проверка:** `npm run check` зелёный с новыми порогами; дымовой сценарий 1.4 полностью проходит; визуальных отличий нет (сравнить скриншоты ключевых экранов до/после).
+
+> **Состояние на 2026-08-20.** Шаги 6.1 и 6.2 закрыты (`core/theme.mjs`,
+> `core/i18n.mjs`, `data/reference.mjs`, `core/dom.mjs`). Шаг 6.4 закрыт
+> наполовину: таблица маршрутов и разбор хеша вынесены в `core/routes.mjs` и
+> покрыты тестами, `renderRoute` стал диспетчером — но контракта экрана
+> `render/mount/destroy` ещё нет, поэтому таймеры автосохранения и подписки
+> по-прежнему не снимаются при уходе с экрана. Дополнительно вынесен разбор
+> markdown (`core/markdown.mjs`), которого в исходном плане не было: он
+> обнаружился внутри экранов справочника и мешал их выносить.
 
 ---
 
