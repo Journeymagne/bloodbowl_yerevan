@@ -373,5 +373,8 @@
   "roster.notEnoughSpp": "не хватает SPP",
   "validation.ADVANCEMENT_MAX_LEVEL": "Игрок достиг максимального уровня.",
   "validation.ADVANCEMENT_UNKNOWN_TYPE": "Неизвестный тип прокачки: {type}.",
-  "validation.ADVANCEMENT_NOT_ENOUGH_SPP": "{rank} стоит {cost} SPP, доступно {available} — не хватает {missing}."
+  "validation.ADVANCEMENT_NOT_ENOUGH_SPP": "{rank} стоит {cost} SPP, доступно {available} — не хватает {missing}.",
+  "roster.unsavedStatus": "Есть несохранённые изменения",
+  "roster.offlineStatus": "Нет связи — изменения сохранены и будут отправлены",
+  "roster.conflictStatus": "На сервере более новая версия команды"
 }

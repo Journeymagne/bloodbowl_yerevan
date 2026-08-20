@@ -373,5 +373,8 @@
   "roster.notEnoughSpp": "not enough SPP",
   "validation.ADVANCEMENT_MAX_LEVEL": "This player has reached the highest level.",
   "validation.ADVANCEMENT_UNKNOWN_TYPE": "Unknown advancement type: {type}.",
-  "validation.ADVANCEMENT_NOT_ENOUGH_SPP": "{rank} costs {cost} SPP, {available} available — {missing} short."
+  "validation.ADVANCEMENT_NOT_ENOUGH_SPP": "{rank} costs {cost} SPP, {available} available — {missing} short.",
+  "roster.unsavedStatus": "Unsaved changes",
+  "roster.offlineStatus": "No connection — changes are kept and will be sent",
+  "roster.conflictStatus": "A newer version of this team is on the server"
 }

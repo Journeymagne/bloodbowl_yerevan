@@ -93,6 +93,8 @@ import {
   syncMedicalStaffForTeam,
 } from "./domain/roster/costs.mjs";
 import { validateRoster } from "./domain/roster/validate.mjs";
+import { SAVE_STATUS, createRosterStore } from "./data/roster-store.mjs";
+import { storage } from "./core/storage.mjs";
 import { startingBudget } from "./domain/league-rules.mjs";
 
 ﻿const state = {
@@ -219,7 +221,6 @@ const themeIds = new Set([
   "light-sideline",
   "light-altdorf",
 ]);
-const savedRosterAutosaves = new Map();
 const autosaveDelayMs = 450;
 
 const sectionRoutes = new Map([
@@ -4335,7 +4336,10 @@ async function renderSavedRoster(teamId, refresh = true, options = {}) {
     return;
   }
 
-  const draft = normalizeSavedRoster(savedTeam);
+  // The store owns the draft. A local re-render reuses the very same object;
+  // only a fresh load from the server offers a new one, and even then the store
+  // keeps the existing draft if it still holds unsaved edits.
+  const draft = trackSavedRoster(savedTeam, { refresh });
   const teams = state.data.teams;
   if (!draft.teamSlug && teams[0]) draft.teamSlug = teams[0].slug;
   const team = teams.find((item) => item.slug === draft.teamSlug) ?? teams[0];
@@ -4375,12 +4379,12 @@ async function renderSavedRoster(teamId, refresh = true, options = {}) {
 }
 
 function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
-  const autosave = autosaveStatusFor(savedTeam.id);
+  const autosaveStatus = rosterStore.statusOf(savedTeam.id);
   return `
     <aside class="builder-summary saved-roster-summary-panel side-panel">
       <div class="summary-title-block">
         <h3>${t("savedRoster.summaryTitle")}</h3>
-        <p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosave.status)}">${escapeHtml(autosave.message)}</p>
+        <p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosaveStatus)}">${escapeHtml(autosaveMessageFor(autosaveStatus))}</p>
         <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
       </div>
       <dl class="stat-list summary-stat-grid">
@@ -4521,6 +4525,7 @@ function renderRosterStaffControl(key, title, value) {
 
 
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
+  wireAutosaveStatus(savedTeam.id);
   const autosave = () => scheduleSavedRosterAutosave(savedTeam.id);
   const rerender = () => {
     syncRosterCountsFromPlayers(draft);
@@ -4626,7 +4631,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     });
   });
   wireSavedPlayerEditors(team, draft, rerender);
-  view.querySelector("[data-save-roster]")?.addEventListener("click", () => saveSavedRoster(savedTeam, team, draft));
+  view.querySelector("[data-save-roster]")?.addEventListener("click", () => saveSavedRoster(savedTeam));
   view.querySelector("[data-copy-saved-roster]")?.addEventListener("click", () => copySavedRoster(team, draft));
   view.querySelector("[data-delete-saved-roster]")?.addEventListener("click", async () => {
     const ownerId = savedTeam._owner?.id || options.adminOwnerId || state.auth.currentUser?.id || "";
@@ -4868,103 +4873,102 @@ function wireSavedPlayerEditors(team, draft, rerender) {
   });
 }
 
-function autosaveStatusFor(teamId) {
-  return savedRosterAutosaves.get(teamId) ?? {
-    revision: 0,
-    timer: null,
-    message: t("roster.autosaveDefaultMessage"),
-    status: "idle",
-  };
-}
+/**
+ * Everything below hands roster saving to src/data/roster-store.mjs.
+ *
+ * The store owns the draft object and the request queue; this file only decides
+ * what a request looks like and how the status is worded.
+ */
 
-function setAutosaveStatus(teamId, message, status = "idle") {
-  const current = autosaveStatusFor(teamId);
-  savedRosterAutosaves.set(teamId, {
-    ...current,
-    message,
-    status,
-  });
-  const node = view.querySelector("[data-autosave-status]");
-  if (node) {
-    node.textContent = message;
-    node.dataset.status = status;
-  }
-}
+const rosterSaveTransport = {
+  async save(teamId, request, { endpoint } = {}) {
+    return apiRequest(endpoint || `/api/teams/${teamId}`, {
+      method: "PATCH",
+      body: JSON.stringify(request),
+    });
+  },
+};
 
-function scheduleSavedRosterAutosave(teamId) {
-  if (!teamId) return;
-  const current = autosaveStatusFor(teamId);
-  if (current.timer) clearTimeout(current.timer);
-  const revision = current.revision + 1;
-  const next = {
-    ...current,
-    revision,
-    message: t("roster.savingStatus"),
-    status: "saving",
-  };
-  next.timer = setTimeout(() => runSavedRosterAutosave(teamId, revision), autosaveDelayMs);
-  savedRosterAutosaves.set(teamId, next);
-  setAutosaveStatus(teamId, t("roster.savingStatus"), "saving");
-}
+const rosterStore = createRosterStore({
+  transport: rosterSaveTransport,
+  storage,
+  debounceMs: autosaveDelayMs,
+});
 
-async function runSavedRosterAutosave(teamId, revision) {
-  const current = autosaveStatusFor(teamId);
-  if (current.revision !== revision) return;
-  const savedTeam = state.myTeams.items.find((item) => item.id === teamId)
-    ?? state.admin.editingTeams?.get(teamId);
-  if (!savedTeam) return;
-  const draft = normalizeSavedRoster(savedTeam);
-  const team = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? state.data.teams[0];
-  if (!team) return;
-  ensureDraftPlayers(team, draft);
-  sanitizeFavouredSkillsForTeam(team, draft);
-  await saveSavedRoster(savedTeam, team, draft, { quiet: true, revision });
-}
-
-async function saveSavedRoster(savedTeam, team, draft, options = {}) {
+/** Turn the live draft into a PATCH body. Async: the logo is re-encoded here. */
+async function buildRosterRequest(savedTeam, team, draft) {
   syncRosterCountsFromPlayers(draft);
   draft.logoData = await optimizeLogoDataUrl(draft.logoData);
   updateSavedRosterFields(savedTeam, draft);
-  const request = {
+  return {
     name: draft.teamName || team.title,
     baseTeamSlug: draft.teamSlug || team.slug,
     logoData: draft.logoData || "",
     roster: draft,
   };
-  try {
-    const result = await apiRequest(savedTeam._saveEndpoint || `/api/teams/${savedTeam.id}`, {
-      method: "PATCH",
-      body: JSON.stringify(request),
-    });
-    const autosaveState = autosaveStatusFor(savedTeam.id);
-    const canApplyResult = !options.revision || autosaveState.revision === options.revision;
-    if (canApplyResult) {
-      const index = state.myTeams.items.findIndex((item) => item.id === savedTeam.id);
-      Object.assign(savedTeam, result.team);
-      if (index >= 0) {
-        Object.assign(state.myTeams.items[index], savedTeam);
-      }
-      if (state.admin.editingTeams?.has(savedTeam.id)) {
-        state.admin.editingTeams.set(savedTeam.id, savedTeam);
-      }
+}
+
+/**
+ * Hand the team to the store and get back the draft to render.
+ *
+ * On a local re-render the store returns the same object the screen was already
+ * mutating. On a fresh load it takes the newly parsed one — unless edits are
+ * still queued, in which case those win and the server copy is ignored.
+ */
+function trackSavedRoster(savedTeam, { refresh = true } = {}) {
+  const existing = rosterStore.getDraft(savedTeam.id);
+  const draft = refresh || !existing ? normalizeSavedRoster(savedTeam) : existing;
+  const teams = state.data.teams;
+  const team = teams.find((item) => item.slug === draft.teamSlug) ?? teams[0];
+  return rosterStore.track(savedTeam.id, {
+    draft,
+    meta: savedTeam,
+    endpoint: savedTeam._saveEndpoint || `/api/teams/${savedTeam.id}`,
+    buildRequest: (current) => buildRosterRequest(savedTeam, team, current),
+  });
+}
+
+const autosaveStatusMessages = {
+  [SAVE_STATUS.IDLE]: "roster.autosaveDefaultMessage",
+  [SAVE_STATUS.DIRTY]: "roster.unsavedStatus",
+  [SAVE_STATUS.SAVING]: "roster.savingStatus",
+  [SAVE_STATUS.SAVED]: "roster.autosavedStatus",
+  [SAVE_STATUS.OFFLINE]: "roster.offlineStatus",
+  [SAVE_STATUS.CONFLICT]: "roster.conflictStatus",
+  [SAVE_STATUS.ERROR]: "roster.autosaveFailedStatus",
+};
+
+function autosaveMessageFor(status) {
+  return t(autosaveStatusMessages[status] ?? autosaveStatusMessages[SAVE_STATUS.IDLE]);
+}
+
+/** Keep the status line in the summary panel in step with the store. */
+function wireAutosaveStatus(teamId) {
+  return rosterStore.subscribe(teamId, ({ status }) => {
+    const node = view.querySelector("[data-autosave-status]");
+    if (!node) return;
+    node.textContent = autosaveMessageFor(status);
+    node.dataset.status = status;
+  });
+}
+
+function scheduleSavedRosterAutosave(teamId) {
+  if (!teamId) return;
+  rosterStore.markDirty(teamId);
+}
+
+/** The explicit "save changes" button: write now and say what happened. */
+async function saveSavedRoster(savedTeam) {
+  const status = await rosterStore.flush(savedTeam.id);
+  const button = view.querySelector("[data-save-roster]");
+  if (status === SAVE_STATUS.SAVED) {
+    if (button) {
+      button.textContent = t("roster.savedStatus");
+      setTimeout(() => { button.textContent = t("roster.saveChanges"); }, 1200);
     }
-    if (options.quiet) {
-      if (canApplyResult) setAutosaveStatus(savedTeam.id, t("roster.autosavedStatus"), "saved");
-    } else {
-      setAutosaveStatus(savedTeam.id, t("roster.savedStatus"), "saved");
-      const button = view.querySelector("[data-save-roster]");
-      if (button) {
-        button.textContent = t("roster.savedStatus");
-        setTimeout(() => { button.textContent = t("roster.saveChanges"); }, 1200);
-      }
-    }
-  } catch (error) {
-    if (options.quiet) {
-      setAutosaveStatus(savedTeam.id, t("roster.autosaveFailedStatus"), "error");
-    } else {
-      alert(error.message);
-    }
+    return;
   }
+  alert(autosaveMessageFor(status));
 }
 
 async function copySavedRoster(team, draft) {
@@ -6148,6 +6152,13 @@ async function init() {
     if (window.innerWidth > 900) {
       setNavOpen(false);
     }
+  });
+  window.addEventListener("beforeunload", (event) => {
+    // Autosave debounces, so closing the tab a moment after the last keystroke
+    // used to drop it without a word.
+    if (!rosterStore.hasPendingChanges()) return;
+    event.preventDefault();
+    event.returnValue = "";
   });
   langToggle?.addEventListener("click", () => {
     switchLocale(state.locale === "en" ? "ru" : "en");
