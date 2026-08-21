@@ -66,7 +66,6 @@ import { renderRosterNotices, wireRosterNotices } from "../components/roster-not
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
 import {
-  buildRosterTextForDraft,
   ensureDraftFavouredChoice,
   ensureDraftLeagueChoice,
   favouredSkillOptionsForPlayer,
@@ -240,7 +239,6 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
         ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
         <div class="summary-actions">
           <button class="primary-button" type="button" data-save-roster>${t("roster.saveChanges")}</button>
-          <button class="primary-button" type="button" data-copy-saved-roster>${t("roster.copyRoster")}</button>
           <button class="filter-button danger-action" type="button" data-delete-saved-roster>${t("common.delete")}</button>
         </div>
       </div>
@@ -467,7 +465,6 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   });
   wireSavedPlayerEditors(team, draft, rerender);
   view.querySelector("[data-save-roster]")?.addEventListener("click", () => saveSavedRoster(savedTeam));
-  view.querySelector("[data-copy-saved-roster]")?.addEventListener("click", () => copySavedRoster(team, draft));
   view.querySelector("[data-delete-saved-roster]")?.addEventListener("click", async () => {
     const ownerId = savedTeam._owner?.id || options.adminOwnerId || state.auth.currentUser?.id || "";
     try {
@@ -792,14 +789,6 @@ async function saveSavedRoster(savedTeam) {
     return;
   }
   alert(autosaveMessageFor(status));
-}
-async function copySavedRoster(team, draft) {
-  await navigator.clipboard.writeText(buildRosterTextForDraft(team, draft));
-  const button = view.querySelector("[data-copy-saved-roster]");
-  if (button) {
-    button.textContent = t("roster.copiedStatus");
-    setTimeout(() => { button.textContent = t("roster.copyRoster"); }, 1200);
-  }
 }
 function renderEditablePlayerStatCells(player) {
   return ["ma", "st", "ag", "pa", "ar"]

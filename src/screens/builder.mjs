@@ -34,7 +34,6 @@ import { builderPayload, emptyBuilderState, resetBuilderForTeam } from "../data/
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks } from "../components/content-links.mjs";
 import {
-  buildRosterTextForDraft,
   ensureDraftLeagueChoice,
   renderAccessCell,
   renderRosterStatCells,
@@ -142,7 +141,6 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
             ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
             <div class="summary-actions">
               <button class="primary-button" type="button" data-save-team ${costs.total > startingBudget || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
-              <button class="primary-button" type="button" data-copy-roster>${t("roster.copyRoster")}</button>
             </div>
           </div>
         </div>
@@ -476,17 +474,7 @@ function wireBuilder(team) {
       renderBuilder();
     });
   });
-  view.querySelector("[data-copy-roster]")?.addEventListener("click", () => copyRoster(team));
   view.querySelector("[data-save-team]")?.addEventListener("click", () => saveTeam(team));
-}
-async function copyRoster(team) {
-  const lines = buildRosterText(team, state.builder);
-  await navigator.clipboard.writeText(lines);
-  const button = view.querySelector("[data-copy-roster]");
-  if (button) {
-    button.textContent = t("roster.copiedStatus");
-    setTimeout(() => { button.textContent = t("roster.copyRoster"); }, 1200);
-  }
 }
 async function saveTeam(team) {
   if (!state.auth.currentUser) {
@@ -523,7 +511,4 @@ async function saveTeam(team) {
   } catch (error) {
     alert(error.message);
   }
-}
-function buildRosterText(team) {
-  return buildRosterTextForDraft(team, state.builder);
 }

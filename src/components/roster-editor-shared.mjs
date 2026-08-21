@@ -135,29 +135,3 @@ export function rosterWarnings(team, draft, costs) {
   return warningMessages(validateRoster(team, draft, costs));
 }
 
-export function buildRosterTextForDraft(team, draft) {
-  const selected = selectedRosterPlayers(team, draft);
-  const costs = calculateRosterCosts(team, draft);
-  const lines = [
-    `${draft.teamName || team.title} (${team.title})`,
-    draft.selectedLeague ? `League Access: ${draft.selectedLeague}` : "",
-    draft.favouredChoice ? `Favoured Of: ${draft.favouredChoice}` : "",
-    `Total Cost: ${costs.total}k`,
-    `Treasury: ${draft.treasury ?? 0}k`,
-    `Coach's Safe: ${draft.coachesSafe ?? 0}k`,
-    "",
-    ...selected.map((player) => [
-      `#${player.number ?? player.index + 1} ${player.name} (${player.row.position}) - ${rowCost(player.row)}${playerStatusText(player) !== "-" ? ` - ${playerStatusText(player)}` : ""}`,
-      `  Stats: MA ${statValueForDisplayByStat("ma", player.row.ma, player.statMods.ma ?? 0)} / ST ${statValueForDisplayByStat("st", player.row.st, player.statMods.st ?? 0)} / AG ${statValueForDisplayByStat("ag", player.row.ag, player.statMods.ag ?? 0)} / PA ${statValueForDisplayByStat("pa", player.row.pa, player.statMods.pa ?? 0)} / AR ${statValueForDisplayByStat("ar", player.row.ar, player.statMods.ar ?? 0)}`,
-      `  Skills: ${skillNamesForPlayer(player.row, player).join(", ") || "-"}`,
-    ].join("\n")),
-    draft.teamRerolls ? `Team Rerolls: ${draft.teamRerolls}` : "",
-    draft.startingRerolls ? `Starting Rerolls: ${draft.startingRerolls}` : "",
-    draft.bribes ? `Bribes: ${draft.bribes}` : "",
-    draft.dedicatedFans ? `Dedicated Fans: ${draft.dedicatedFans}` : "",
-    draft.assistantCoaches ? `Assistant Coaches: ${draft.assistantCoaches}` : "",
-    draft.cheerleaders ? `Cheerleaders: ${draft.cheerleaders}` : "",
-    ...medicalStaffDefinitions.map((staff) => draft[staff.key] ? `${staff.title}: ${draft[staff.key]}` : ""),
-  ].filter(Boolean).join("\n");
-  return lines;
-}

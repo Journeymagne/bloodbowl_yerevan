@@ -407,115 +407,7 @@ async function readJson(request) {
   return raw ? JSON.parse(raw) : {};
 }
 
-function normalizeAdminImportRecords(body = {}) {
-  const rawRecords = Array.isArray(body) ? body : Array.isArray(body.imports) ? body.imports : [body];
-  return rawRecords.map((record, index) => {
-    const roster = rosterWithoutEmbeddedLogo(record?.roster ?? {});
-    const teamName = String(record?.teamName ?? roster.teamName ?? "").trim();
-    const baseTeamSlug = String(record?.baseTeamSlug ?? roster.teamSlug ?? "").trim();
-    const login = String(record?.login ?? "").trim();
-    const telegram = String(record?.telegram ?? "").trim();
-    const temporaryPassword = String(record?.temporaryPassword ?? record?.password ?? "").trim();
-    const logoData = record?.logoData ? String(record.logoData) : null;
 
-    if (login.length < 3) throw httpError(400, `Import row ${index + 1}: login must be at least 3 characters.`);
-    if (!telegram) throw httpError(400, `Import row ${index + 1}: Telegram contact is required.`);
-    if (temporaryPassword.length < 4) throw httpError(400, `Import row ${index + 1}: password must be at least 4 characters.`);
-    if (!teamName) throw httpError(400, `Import row ${index + 1}: team name is required.`);
-    if (!baseTeamSlug) throw httpError(400, `Import row ${index + 1}: base team is required.`);
-    if (!roster || typeof roster !== "object" || Array.isArray(roster)) {
-      throw httpError(400, `Import row ${index + 1}: roster must be an object.`);
-    }
-    if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) {
-      throw httpError(400, `Import row ${index + 1}: logo is too large.`);
-    }
-
-    return {
-      login,
-      loginKey: normalizeLogin(login),
-      telegram,
-      temporaryPassword,
-      teamName,
-      baseTeamSlug,
-      logoData,
-      roster: {
-        ...roster,
-        teamName,
-        teamSlug: roster.teamSlug || baseTeamSlug,
-      },
-    };
-  });
-}
-
-async function importAdminUserTeams(body) {
-  const records = normalizeAdminImportRecords(body);
-  if (!records.length) throw httpError(400, "Import file does not contain any records.");
-
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const imported = [];
-
-    for (const record of records) {
-      const passwordHash = hashPassword(record.temporaryPassword);
-      const userResult = await client.query(
-        `INSERT INTO users (login, login_key, telegram, password_hash, is_admin)
-         VALUES ($1, $2, $3, $4, FALSE)
-         ON CONFLICT (login_key) DO UPDATE
-           SET login = EXCLUDED.login,
-               telegram = EXCLUDED.telegram,
-               password_hash = EXCLUDED.password_hash,
-               updated_at = now()
-         RETURNING *, (xmax = 0) AS was_inserted`,
-        [record.login, record.loginKey, record.telegram, passwordHash],
-      );
-      const importedUser = userResult.rows[0];
-
-      const existingTeam = await client.query(
-        `SELECT id
-         FROM saved_teams
-         WHERE user_id = $1 AND name = $2
-         ORDER BY updated_at DESC
-         LIMIT 1`,
-        [importedUser.id, record.teamName],
-      );
-
-      const teamResult = existingTeam.rows[0]
-        ? await client.query(
-          `UPDATE saved_teams
-           SET base_team_slug = $2,
-               logo_data = $3,
-               roster = $4,
-               updated_at = now()
-           WHERE id = $1
-           RETURNING *`,
-          [existingTeam.rows[0].id, record.baseTeamSlug, record.logoData, serializeRosterForStorage(record.roster)],
-        )
-        : await client.query(
-          `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
-           VALUES ($1, $2, $3, $4, $5)
-           RETURNING *`,
-          [importedUser.id, record.teamName, record.baseTeamSlug, record.logoData, serializeRosterForStorage(record.roster)],
-        );
-
-      imported.push({
-        user: publicAdminUser(importedUser),
-        team: publicSavedTeamSummary(teamResult.rows[0]),
-        temporaryPassword: record.temporaryPassword,
-        createdUser: Boolean(importedUser.was_inserted),
-        createdTeam: !existingTeam.rows[0],
-      });
-    }
-
-    await client.query("COMMIT");
-    return imported;
-  } catch (error) {
-    await client.query("ROLLBACK");
-    throw error;
-  } finally {
-    client.release();
-  }
-}
 
 function bearerToken(request) {
   const header = request.headers.authorization || "";
@@ -1392,14 +1284,6 @@ async function handleApi(request, response, url) {
          ORDER BY users.login_key ASC`,
       );
       return sendJson(response, 200, { users: result.rows.map(publicAdminUser) });
-    }
-
-    if (url.pathname === "/api/admin/import-users" && request.method === "POST") {
-      const user = await currentUser(request);
-      if (!user) return sendJson(response, 401, { error: "Not authorized." });
-      if (!user.is_admin) return sendJson(response, 403, { error: "Admin access required." });
-      const imported = await importAdminUserTeams(await readJson(request));
-      return sendJson(response, 201, { imported });
     }
 
     const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)$/i);
