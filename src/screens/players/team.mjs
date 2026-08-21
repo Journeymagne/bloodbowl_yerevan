@@ -22,7 +22,10 @@ import { ensureDraftLeagueChoice, playerStatusText, renderTeamRuleAccess } from 
 import { normalizeSavedRoster } from "../../data/roster-draft.mjs";
 
 export async function renderPublicTeamProfile(userId, teamId) {
-  setActiveNav("season");
+  // "players" matches no nav item, so nothing lights up — which is what
+  // routeSection() in core/routes.mjs already says these routes are. The two
+  // used to disagree, and this screen highlighted "Season".
+  setActiveNav("players");
   setViewSection("players");
   view.innerHTML = `
     ${renderHeader(t("sidebar.teamHeading"), t("admin.savedRosterSubtitle"), "", { back: true, backFallback: playerUrl(userId) })}

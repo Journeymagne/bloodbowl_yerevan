@@ -25,7 +25,10 @@ import {
 } from "../administration/user.mjs";
 
 export async function renderPlayerProfile(userId) {
-  setActiveNav("season");
+  // "players" matches no nav item, so nothing lights up — which is what
+  // routeSection() in core/routes.mjs already says these routes are. The two
+  // used to disagree, and this screen highlighted "Season".
+  setActiveNav("players");
   setViewSection("players");
   view.innerHTML = `
     ${renderHeader(t("admin.playerProfileHeading"), t("admin.savedTeamsAndCoachSubtitle"), "", { back: true, backFallback: "#/season" })}

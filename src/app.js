@@ -14,6 +14,7 @@ import {
   initLocale,
   isSupportedLocale,
   loadTranslations,
+  onLocaleChange,
   setLocale,
   storedLocale,
   t,
@@ -139,6 +140,8 @@ function wireFrame() {
 
 async function init() {
   setOnUnauthorized(updateAuthButton);
+  // applyStaticI18n cannot reach the toggle label or the footer date: both are written imperatively.
+  onLocaleChange(applyLocaleChrome);
   initTheme();
   state.locale = initLocale(storedLocale());
   await loadTranslations(assetVersion);
