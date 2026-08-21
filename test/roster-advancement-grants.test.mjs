@@ -113,10 +113,7 @@ test("taking a skill advancement spends SPP, raises the rank and hands over the 
   const player = richPlayer();
   const skill = advancementGrantOptions(row, player, "primary", skillGroups).options[0].skill;
   const sppBefore = playerAvailableSpp(team, player);
-  // playerAdjustmentCost reads player.row even though playerCurrentCost takes
-  // row as an argument, so costing only works on a view-shaped player.
-  const valueOf = (subject) => playerCurrentCost(row, { ...subject, row }, true);
-  const costBefore = valueOf(player);
+  const costBefore = playerCurrentCost(row, player, true);
 
   const result = applyAdvancement(team, row, player, "primary", { skill }, skillGroups);
 
@@ -124,7 +121,7 @@ test("taking a skill advancement spends SPP, raises the rank and hands over the 
   assert.equal(playerLevelRank(player), "Experienced");
   assert.equal(playerAvailableSpp(team, player), sppBefore - result.cost);
   assert.ok(player.extraSkills.some((entry) => entry.name === skill), "the skill actually arrived");
-  assert.ok(valueOf(player) > costBefore, "and the player is worth more for it");
+  assert.ok(playerCurrentCost(row, player, true) > costBefore, "and the player is worth more for it");
   assert.deepEqual(normalizePlayerAdvancements(player.advancements), [{ type: "primary", grants: { skill } }]);
 });
 

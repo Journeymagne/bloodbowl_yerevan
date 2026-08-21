@@ -953,7 +953,7 @@ function renderCaptainSkillBadge(player) {
 }
 function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = false) {
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
-  const adjustment = playerAdjustmentCost(player);
+  const adjustment = playerAdjustmentCost(player.row, player);
   const eliteCost = eliteComboCost(player.row, player);
   const skillInputId = `skill-options-${index}`;
   const favouredInputId = `favoured-skill-options-${index}`;
@@ -1028,7 +1028,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
     return renderSavedPlayerPreviewCard(team, player, index);
   }
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
-  const adjustment = playerAdjustmentCost(player);
+  const adjustment = playerAdjustmentCost(player.row, player);
   const eliteCost = eliteComboCost(player.row, player);
   const skillInputId = `mobile-skill-options-${index}`;
   const favouredInputId = `mobile-favoured-skill-options-${index}`;

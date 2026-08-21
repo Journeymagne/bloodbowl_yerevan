@@ -31,6 +31,20 @@ export function skillModCost(skill) {
   return skill?.access === "secondary" ? skillCosts.secondary : skillCosts.primary;
 }
 
+/**
+ * The +15k an elite combination is worth once it comes together.
+ *
+ * The rule, confirmed by the league owner on 2026-08-21: the surcharge is for
+ * a combination that was *assembled* through advancement. Whether both halves
+ * were advanced or one was there from the start does not matter — what matters
+ * is that a position which already has the pair at creation never pays for it.
+ * Gnome linemen (Wrestle + Evasive) and the Khorne Bloodspawn (Claws + Mighty
+ * Blow) are the live examples.
+ *
+ * Hence `some`, not `every`: one advanced half is enough to say the pair was
+ * assembled, and none means it was always there. Locked in by
+ * test/roster-elite-combos.test.mjs.
+ */
 export function eliteComboCost(row, player) {
   const baseSkills = new Set(row.skills ?? []);
   const advancedSkills = new Set(normalizePlayerExtraSkills(row, player.extraSkills ?? []).map((skill) => skill.name));
@@ -43,15 +57,24 @@ export function eliteComboCost(row, player) {
   }, 0);
 }
 
-export function playerAdjustmentCost(player) {
-  const skillCost = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []).reduce((sum, skill) => sum + skillModCost(skill), 0);
+/**
+ * What a player is worth above their position's list price: bought skills,
+ * raised characteristics, extended contracts and any elite combination.
+ *
+ * `row` is a parameter rather than `player.row` so this works on a raw draft
+ * player, which only carries `rowIndex`. It used to read `player.row` while
+ * `playerCurrentCost` right below took `row` as an argument, so the pair only
+ * worked on the copy `rosterPlayerView` hands out and threw on anything else.
+ */
+export function playerAdjustmentCost(row, player) {
+  const skillCost = normalizePlayerExtraSkills(row, player.extraSkills ?? []).reduce((sum, skill) => sum + skillModCost(skill), 0);
   const statCost = Object.entries(player.statMods ?? {}).reduce((sum, [stat, mod]) => sum + statModCost(stat, Number(mod) || 0), 0);
   const contractCost = countToNumber(player.extendedContracts) * extendedContractCost;
-  return skillCost + statCost + contractCost + eliteComboCost(player.row, player);
+  return skillCost + statCost + contractCost + eliteComboCost(row, player);
 }
 
 export function playerCurrentCost(row, player, includeAdjustments = true) {
-  return costToNumber(rowCost(row)) + (includeAdjustments ? playerAdjustmentCost(player) : 0);
+  return costToNumber(rowCost(row)) + (includeAdjustments ? playerAdjustmentCost(row, player) : 0);
 }
 
 export function syncMedicalStaffForTeam(team, draft) {
