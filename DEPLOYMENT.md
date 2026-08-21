@@ -2,6 +2,11 @@
 
 This document is for the person who will publish the Gata Blood Bowl League reference site.
 
+> **Outstanding security work:** the static-file leak that exposed `.env` is
+> fixed and deployed, but the database and admin passwords it exposed have not
+> been rotated yet. See `docs/security-hotfix-todo.md` for the remaining
+> server-side steps.
+
 ## Quick Deploy Checklist
 
 1. Clone the repository.
