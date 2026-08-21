@@ -12,9 +12,6 @@ export const state = {
   data: null,
   locale: "en",
   query: "",
-  inducementFilters: {
-    tag: "all",
-  },
   skillFilters: {
     category: "all",
     application: "all",

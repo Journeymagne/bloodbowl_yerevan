@@ -33,11 +33,6 @@ export function isStarVisible(page) {
   return matchesQuery(page);
 }
 
-export function isInducementVisible(page) {
-  if (!matchesQuery(page)) return false;
-  return state.inducementFilters.tag === "all" || (page.tags ?? []).includes(state.inducementFilters.tag);
-}
-
 function skillGroupMatches(page, category) {
   if ((page.tags ?? []).includes(category)) return true;
   return (state.data.skillGroups ?? [])
@@ -75,7 +70,6 @@ function visibleCollection(route) {
   if (route === "teams") return items.filter(matchesQuery);
   if (route === "skills") return items.filter(isSkillVisible);
   if (route === "star-players") return items.filter(isStarVisible);
-  if (route === "inducements") return items.filter(isInducementVisible);
   return items.filter(matchesQuery);
 }
 

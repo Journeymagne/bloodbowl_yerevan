@@ -15,7 +15,6 @@ import { uniqueSorted } from "./content-links.mjs";
 
 export function renderFilters(route) {
   if (route === "skills") return renderSkillFilters(route);
-  if (route === "inducements") return renderInducementFilters();
   return "";
 }
 
@@ -51,27 +50,12 @@ function renderSkillFilters(route) {
   `;
 }
 
-function renderInducementFilters() {
-  const tags = uniqueSorted(state.data.inducements.flatMap((page) => page.tags ?? []));
-  const f = state.inducementFilters;
-  return `
-    <div class="filter-panel compact-panel" data-filter-panel="inducements">
-      <label class="filter-field"><span>${t("filters.inducementTag")}</span><select data-filter="tag">
-        ${renderOption("all", t("filters.anyTag"), f.tag)}
-        ${tags.map((tag) => renderOption(tag, tag, f.tag)).join("")}
-      </select></label>
-      <button class="filter-button" type="button" data-reset-filters>${t("filters.reset")}</button>
-    </div>
-  `;
-}
-
 export function wireFilters(route, rerender) {
   view.querySelectorAll("[data-filter]").forEach((select) => {
     select.addEventListener("change", (event) => {
       const key = event.currentTarget.dataset.filter;
       const value = event.currentTarget.value;
       if (route === "skills" || route === "traits") state.skillFilters[key] = value;
-      if (route === "inducements") state.inducementFilters[key] = value;
       rerender();
     });
   });
@@ -79,7 +63,6 @@ export function wireFilters(route, rerender) {
     if (route === "skills" || route === "traits") {
       state.skillFilters = { category: "all", application: "all" };
     }
-    if (route === "inducements") state.inducementFilters = { tag: "all" };
     rerender();
   });
 }
