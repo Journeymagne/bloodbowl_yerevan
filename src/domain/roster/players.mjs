@@ -8,7 +8,7 @@
  * read for nothing. `scripts/check-roster-shapes.mjs` verifies that against a
  * live database before this is deployed.
  */
-import { advancementRanks, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
+import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
 import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
 
 export function normalizePurchasedStaff(roster = {}) {
@@ -121,15 +121,36 @@ export function normalizeSppCounters(spp = {}) {
   return Object.fromEntries(sppCounterDefinitions.map(([key]) => [key, Math.max(0, countToNumber(spp?.[key]))]));
 }
 
+/**
+ * An advancement is a type plus, optionally, the thing it granted.
+ *
+ * `grants` is what links spending SPP to actually getting something —
+ * `{ skill: "Block" }` or `{ stat: "ma" }`. It is optional because every
+ * advancement saved before the link existed has none; those stay readable and
+ * simply record that SPP was spent. See domain/roster/progression.mjs for the
+ * rules on which grant each type may carry.
+ */
 export function normalizePlayerAdvancements(advancements = []) {
   const source = Array.isArray(advancements) ? advancements : [];
   return source
     .map((advancement) => {
       const type = typeof advancement === "string" ? advancement : advancement?.type;
-      return Object.hasOwn(advancementTypeLabels, type) ? { type } : null;
+      if (!Object.hasOwn(advancementTypeLabels, type)) return null;
+      const grants = normalizeAdvancementGrant(advancement?.grants);
+      return grants ? { type, grants } : { type };
     })
     .filter(Boolean)
     .slice(0, advancementRanks.length);
+}
+
+/** A grant is one skill or one stat, never both, never neither. */
+function normalizeAdvancementGrant(grants) {
+  if (!grants || typeof grants !== "object") return null;
+  const skill = typeof grants.skill === "string" ? grants.skill.trim() : "";
+  const stat = typeof grants.stat === "string" ? grants.stat.trim().toLowerCase() : "";
+  if (skill && !stat) return { skill };
+  if (stat && !skill && Object.hasOwn(advancementStatCosts, stat)) return { stat };
+  return null;
 }
 
 /** Every player in the draft, normalised. */
