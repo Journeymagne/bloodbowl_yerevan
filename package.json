@@ -17,6 +17,7 @@
     "postgres:down": "docker-compose down",
     "postgres:reset": "docker-compose down -v",
     "backup:db": "node scripts/backup-db.mjs",
+    "backup:status": "node scripts/backup-status.mjs",
     "team-import:sql": "powershell -ExecutionPolicy Bypass -File scripts/run-python.ps1 scripts/prepare-team-import.py",
     "team-import:apply": "node scripts/apply-sql.mjs"
   },
