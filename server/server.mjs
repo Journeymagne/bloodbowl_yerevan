@@ -5,12 +5,14 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 import { Pool } from "pg";
+import { resolveEnvFilePath } from "./config/env-file.mjs";
 import { resolveStaticPath } from "./http/static-path.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function loadEnvFile() {
-  const envPath = path.join(rootDir, ".env");
+  const envPath = resolveEnvFilePath(rootDir);
+  if (!envPath) return;
   let body = "";
   try {
     body = await fs.readFile(envPath, "utf8");

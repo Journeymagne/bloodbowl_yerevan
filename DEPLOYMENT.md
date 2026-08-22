@@ -147,16 +147,27 @@ Run these once on `51.81.86.51`:
 mkdir -p /opt/bloodbowl-league
 git clone https://github.com/Journeymagne/-bloodbowlyerevan.git /opt/bloodbowl-league
 cd /opt/bloodbowl-league
-cp .env.example .env
-# edit .env: set real POSTGRES_PASSWORD, then update the password inside
-# DATABASE_URL to match it (the app reads DATABASE_URL, not POSTGRES_PASSWORD,
-# directly); also set ADMIN_PASSWORD, ADMIN_TELEGRAM; leave APP_PORT=3002
-docker compose up -d
+install -d -m 700 /etc/bloodbowl-league
+install -m 600 .env.example /etc/bloodbowl-league/.env
+# edit /etc/bloodbowl-league/.env: set a real POSTGRES_PASSWORD, then put the
+# same password inside DATABASE_URL (the app reads DATABASE_URL, not
+# POSTGRES_PASSWORD, directly); also set ADMIN_PASSWORD, ADMIN_TELEGRAM;
+# leave APP_PORT=3002
+docker compose --env-file /etc/bloodbowl-league/.env up -d
 npm install
 npm run build
 pm2 start server/server.mjs --name bloodbowl-league
 pm2 save
 ```
+
+The env file lives outside `/opt/bloodbowl-league` on purpose: that directory
+is served over HTTP, and it once handed out `.env` to anyone who asked. The
+server looks for the file in this order — `BLOODBOWL_ENV_FILE`, then
+`/etc/bloodbowl-league/.env`, then `.env` in the repository root (which is
+what local development uses); see `server/config/env-file.mjs`. `docker
+compose` needs the path passed explicitly with `--env-file`; without it the
+variables are missing and compose refuses to start rather than falling back
+to a placeholder password.
 
 If port 3002 isn't reachable from Docker containers yet (first-time setup
 on a fresh host), allow it from the relevant docker-compose project's
@@ -235,26 +246,55 @@ directory and served whatever it found, so `/.env`, `/.git/config`,
 Everything else returns `404`. Covered by `test/static-path.test.mjs`
 (`npm test`).
 
-**Treat the following as compromised and rotate them on the server:**
+**Rotating the database and admin passwords**
 
-1. `POSTGRES_PASSWORD` in `.env` — and the copy of it inside `DATABASE_URL`.
-2. `ADMIN_PASSWORD` in `.env`. Note that `ensureAdmin()` rewrites the admin
-   password from `.env` on every process start, so changing it in the UI is
-   not enough — the file is the source of truth.
+The two behave differently, and getting it backwards leaves the site down with
+the old password still valid.
 
-After editing `.env`:
+`POSTGRES_PASSWORD` in the env file does **not** change the role's password.
+The `postgres:16` image applies that variable only when it initialises an empty
+data directory, and the `gata_postgres_data` volume already holds a database.
+Change the role inside Postgres first:
+
+```bash
+docker exec -it gata-league-postgres psql -U gata_admin -d gata_league
+# \password gata_admin   (prompts twice, never echoes, never reaches shell history)
+# \q
+```
+
+`ADMIN_PASSWORD` is the opposite: editing the env file is enough, and it is the
+only thing that works. `ensureAdmin()` rewrites the admin password hash from the
+file on every process start, so a change made through the site survives only
+until the next restart.
+
+Then edit `/etc/bloodbowl-league/.env` — `POSTGRES_PASSWORD`, the password
+inside `DATABASE_URL` (it must match what you just set on the role), and
+`ADMIN_PASSWORD` — and apply:
 
 ```bash
 cd /opt/bloodbowl-league
-docker compose up -d
+docker compose --env-file /etc/bloodbowl-league/.env up -d
 pm2 restart bloodbowl-league
+pm2 logs bloodbowl-league --lines 20 --nostream
 ```
+
+`admin account is ready` in the log means the app connected with the new
+credentials and rewrote the admin hash. `password authentication failed` means
+the role and `DATABASE_URL` disagree.
+
+Rotated on 2026-08-22 after the exposure; see
+`docs/security-incident-2026-08-22.md`.
 
 ### Postgres must not listen on the public interface
 
 `docker-compose.yml` now publishes the database as
 `127.0.0.1:${POSTGRES_PORT:-5433}:5432`. Apply it with `docker compose up -d`
 and verify from another machine that port 5433 does not answer.
+
+Applied 2026-08-22. Note that the deploy workflow does **not** run `docker
+compose`, so a change to this file reaches the server only when someone runs
+it by hand. Until it was applied, the port had been under a dictionary attack
+since 2026-07-12 — 35 676 attempts, about one a minute.
 
 ### Verifying the fix
 
@@ -281,10 +321,18 @@ psql "$DATABASE_URL" -c "SELECT login, is_admin, created_at FROM users WHERE is_
 
 Also review `~/.ssh/authorized_keys` on the host for unexpected keys.
 
+**Know what these commands cannot tell you.** Caddy's access log is not enabled
+(no `log` directive in the Caddyfile), so a successful download leaves no entry
+— only errors are recorded. `log_connections` is off by default in the Postgres
+image, so a successful login leaves no entry either. Both journals record
+failures and stay silent about successes, which is exactly backwards for this
+question. Turning either on is worth doing before the next incident, not during
+one. The 2026-08-22 review and its limits are written up in
+`docs/security-incident-2026-08-22.md`.
+
 ### Still to do
 
-- Move `.env` out of the deploy directory (for example `/etc/bloodbowl-league/.env`)
-  and pass it to pm2 through the environment, so a future routing change cannot
-  expose it again.
+- Enable Caddy's access log and Postgres `log_connections`, so the next review
+  has something to read.
 - Switch `Content-Security-Policy-Report-Only` to the enforcing header after the
   inline theme script in `index.html` is moved to its own file.
