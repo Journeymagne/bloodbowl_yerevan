@@ -33,6 +33,11 @@ security-заголовки, разобрать следы и вынести `.e
 - Пуш в `main` запускает деплой в продакшн. Мерж — только по явному
   подтверждению владельца, запрошенному отдельным сообщением.
 - Имена контейнеров: `gata-league-postgres` (база), `paint-day-caddy` (общий Caddy).
+- **Вход на сервер — под пользователем `ubuntu`, команды через `sudo`.** Перенаправление
+  `>` выполняет шелл вызывающего пользователя, а не `sudo`, поэтому
+  `sudo cmd > /root/файл` падает с `Permission denied`. Везде, где вывод пишется в
+  `/root`, команда заворачивается в `sudo sh -c '...'`. Чтение из `/root` и
+  `/home/deploy` тоже требует `sudo` — каталог инцидента создан с правами `700`.
 - Приложение: pm2-процесс `bloodbowl-league`, слушает `3002`, снаружи закрыт.
 - `refactor/stage-1` не трогаем.
 - Новых строк интерфейса в этой работе нет, `src/i18n/*.json` не меняются.
@@ -62,7 +67,7 @@ security-заголовки, разобрать следы и вынести `.e
 - [ ] **Шаг 1: создать каталог инцидента**
 
 ```bash
-install -d -m 700 /root/bb-incident-2026-08-22
+sudo install -d -m 700 /root/bb-incident-2026-08-22
 ```
 
 Вывод пустой. Проверка — следующий шаг.
@@ -70,7 +75,7 @@ install -d -m 700 /root/bb-incident-2026-08-22
 - [ ] **Шаг 2: сохранить копию `.env`**
 
 ```bash
-install -m 600 /opt/bloodbowl-league/.env /root/bb-incident-2026-08-22/env.bak
+sudo install -m 600 /opt/bloodbowl-league/.env /root/bb-incident-2026-08-22/env.bak
 ```
 
 Ожидается: пустой вывод. Если `install` ругается на отсутствие исходного файла —
@@ -80,7 +85,7 @@ install -m 600 /opt/bloodbowl-league/.env /root/bb-incident-2026-08-22/env.bak
 - [ ] **Шаг 3: снять дамп базы**
 
 ```bash
-docker exec gata-league-postgres pg_dump -U gata_admin -d gata_league > /root/bb-incident-2026-08-22/gata_league.sql
+sudo sh -c 'docker exec gata-league-postgres pg_dump -U gata_admin -d gata_league > /root/bb-incident-2026-08-22/gata_league.sql'
 ```
 
 Ожидается: пустой вывод (дамп уходит в файл). Если появится
@@ -92,7 +97,7 @@ docker exec gata-league-postgres pg_dump -U gata_admin -d gata_league > /root/bb
 - [ ] **Шаг 4: проверить, что дамп настоящий**
 
 ```bash
-ls -l /root/bb-incident-2026-08-22/ && tail -1 /root/bb-incident-2026-08-22/gata_league.sql
+sudo ls -l /root/bb-incident-2026-08-22/ && sudo tail -1 /root/bb-incident-2026-08-22/gata_league.sql
 ```
 
 Ожидается: `gata_league.sql` размером заметно больше нуля, последняя строка —
@@ -115,7 +120,7 @@ ls -l /root/bb-incident-2026-08-22/ && tail -1 /root/bb-incident-2026-08-22/gata
 - [ ] **Шаг 1: сохранить логи Caddy целиком**
 
 ```bash
-docker logs paint-day-caddy > /root/bb-incident-2026-08-22/caddy.log 2>&1; wc -l /root/bb-incident-2026-08-22/caddy.log
+sudo sh -c 'docker logs paint-day-caddy > /root/bb-incident-2026-08-22/caddy.log 2>&1'; sudo wc -l /root/bb-incident-2026-08-22/caddy.log
 ```
 
 Ожидается: число строк. Если строк ноль — переходить к шагу 3, но зафиксировать это:
@@ -124,7 +129,7 @@ docker logs paint-day-caddy > /root/bb-incident-2026-08-22/caddy.log 2>&1; wc -l
 - [ ] **Шаг 2: проверить, включено ли вообще логирование запросов**
 
 ```bash
-grep -cE '"msg":"handled request"' /root/bb-incident-2026-08-22/caddy.log; grep -nE '^[[:space:]]*log[[:space:]]*\{|^[[:space:]]*log$' /home/deploy/painting-evenings/Caddyfile
+sudo grep -cE '"msg":"handled request"' /root/bb-incident-2026-08-22/caddy.log; sudo grep -nE '^[[:space:]]*log[[:space:]]*\{|^[[:space:]]*log$' /home/deploy/painting-evenings/Caddyfile
 ```
 
 Ожидается одно из двух:
@@ -137,7 +142,7 @@ grep -cE '"msg":"handled request"' /root/bb-incident-2026-08-22/caddy.log; grep 
 - [ ] **Шаг 3: искать обращения к секретным путям**
 
 ```bash
-grep -Ei '/\.env|/\.git|/docker-compose|/package\.json' /root/bb-incident-2026-08-22/caddy.log | tail -50
+sudo grep -Ei '/\.env|/\.git|/docker-compose|/package\.json' /root/bb-incident-2026-08-22/caddy.log | tail -50
 ```
 
 Ожидается: либо пусто, либо строки с полями `"uri"` и `"status"`. Ключевое различие:
@@ -148,7 +153,7 @@ grep -Ei '/\.env|/\.git|/docker-compose|/package\.json' /root/bb-incident-2026-0
 - [ ] **Шаг 4: отдельно выделить успешные отдачи**
 
 ```bash
-grep -E '/\.env|/\.git' /root/bb-incident-2026-08-22/caddy.log | grep -E '"status":(200|206)' | tail -20
+sudo grep -E '/\.env|/\.git' /root/bb-incident-2026-08-22/caddy.log | grep -E '"status":(200|206)' | tail -20
 ```
 
 Ожидается: пусто. Любая строка здесь — срабатывание гейта.
@@ -156,7 +161,7 @@ grep -E '/\.env|/\.git' /root/bb-incident-2026-08-22/caddy.log | grep -E '"statu
 - [ ] **Шаг 5: сохранить логи Postgres (исчезнут в задаче 3)**
 
 ```bash
-docker logs gata-league-postgres > /root/bb-incident-2026-08-22/postgres.log 2>&1; grep -ciE 'authentication failed|FATAL' /root/bb-incident-2026-08-22/postgres.log
+sudo sh -c 'docker logs gata-league-postgres > /root/bb-incident-2026-08-22/postgres.log 2>&1'; sudo grep -ciE 'authentication failed|FATAL' /root/bb-incident-2026-08-22/postgres.log
 ```
 
 Ожидается: число. Оговорка для отчёта: `log_connections` в образе `postgres:16` по
@@ -167,7 +172,7 @@ docker logs gata-league-postgres > /root/bb-incident-2026-08-22/postgres.log 2>&
 - [ ] **Шаг 6: посмотреть SSH-ключи и входы**
 
 ```bash
-cat /root/.ssh/authorized_keys; echo "--- входы ---"; last -n 30
+sudo cat /root/.ssh/authorized_keys; echo "--- ubuntu ---"; cat ~/.ssh/authorized_keys; echo "--- входы ---"; last -n 30
 ```
 
 Хост доступен только владельцу, поэтому это не гейт, а тридцатисекундный взгляд:
@@ -176,7 +181,7 @@ cat /root/.ssh/authorized_keys; echo "--- входы ---"; last -n 30
 - [ ] **Шаг 7: список администраторов приложения**
 
 ```bash
-docker exec gata-league-postgres psql -U gata_admin -d gata_league -c "SELECT login, is_admin, created_at, updated_at FROM users WHERE is_admin ORDER BY created_at;"
+sudo docker exec gata-league-postgres psql -U gata_admin -d gata_league -c "SELECT login, is_admin, created_at, updated_at FROM users WHERE is_admin ORDER BY created_at;"
 ```
 
 Ожидается: одна строка — `admin` (или значение `ADMIN_LOGIN` из `.env`). Любая
@@ -185,7 +190,7 @@ docker exec gata-league-postgres psql -U gata_admin -d gata_league -c "SELECT lo
 - [ ] **Шаг 8: роли и таблицы Postgres**
 
 ```bash
-docker exec gata-league-postgres psql -U gata_admin -d gata_league -c "\du" -c "\dt"
+sudo docker exec gata-league-postgres psql -U gata_admin -d gata_league -c "\du" -c "\dt"
 ```
 
 Ожидается: роли `gata_admin` и служебные; таблицы — те, что заводит
@@ -235,7 +240,7 @@ grep -n -A4 'ports:' /opt/bloodbowl-league/docker-compose.yml
 - [ ] **Шаг 2: применить**
 
 ```bash
-cd /opt/bloodbowl-league && docker compose up -d
+cd /opt/bloodbowl-league && sudo docker compose up -d
 ```
 
 Ожидается: `Recreating gata-league-postgres` / `Container gata-league-postgres Started`.
@@ -243,7 +248,7 @@ cd /opt/bloodbowl-league && docker compose up -d
 - [ ] **Шаг 3: проверить привязку изнутри хоста**
 
 ```bash
-ss -lntp | grep 5433
+sudo ss -lntp | grep 5433
 ```
 
 Ожидается: строка с `127.0.0.1:5433`. Если видно `0.0.0.0:5433` или `*:5433` —
@@ -252,7 +257,7 @@ ss -lntp | grep 5433
 - [ ] **Шаг 4: перезапустить приложение**
 
 ```bash
-pm2 restart bloodbowl-league
+sudo pm2 restart bloodbowl-league
 ```
 
 Ожидается: таблица pm2 со статусом `online`. Пул соединений переподключается к
@@ -296,7 +301,7 @@ URL-кодирования. Сохранить оба в свой менедже
 - [ ] **Шаг 2: сменить пароль роли в базе**
 
 ```bash
-docker exec -it gata-league-postgres psql -U gata_admin -d gata_league
+sudo docker exec -it gata-league-postgres psql -U gata_admin -d gata_league
 ```
 
 В открывшемся psql выполнить `\password gata_admin`, дважды ввести новый
@@ -309,7 +314,7 @@ postgres-пароль (ввод не отображается и не попад
 - [ ] **Шаг 3: привести `.env` в соответствие**
 
 ```bash
-nano /opt/bloodbowl-league/.env
+sudo nano /opt/bloodbowl-league/.env
 ```
 
 Заменить три значения:
@@ -323,7 +328,7 @@ nano /opt/bloodbowl-league/.env
 - [ ] **Шаг 4: проверить, что пароли в двух местах совпали, не печатая их**
 
 ```bash
-grep -E '^POSTGRES_PASSWORD=' /opt/bloodbowl-league/.env | cut -d= -f2- > /tmp/.p1; sed -nE 's#^DATABASE_URL=postgres://[^:]+:([^@]+)@.*#\1#p' /opt/bloodbowl-league/.env > /tmp/.p2; cmp -s /tmp/.p1 /tmp/.p2 && echo MATCH || echo MISMATCH; rm -f /tmp/.p1 /tmp/.p2
+sudo grep -E '^POSTGRES_PASSWORD=' /opt/bloodbowl-league/.env | cut -d= -f2- > /tmp/.p1; sudo sed -nE 's#^DATABASE_URL=postgres://[^:]+:([^@]+)@.*#\1#p' /opt/bloodbowl-league/.env > /tmp/.p2; cmp -s /tmp/.p1 /tmp/.p2 && echo MATCH || echo MISMATCH; rm -f /tmp/.p1 /tmp/.p2
 ```
 
 Ожидается: `MATCH`. При `MISMATCH` вернуться к шагу 3 — приложение с расхождением к
@@ -332,7 +337,7 @@ grep -E '^POSTGRES_PASSWORD=' /opt/bloodbowl-league/.env | cut -d= -f2- > /tmp/.
 - [ ] **Шаг 5: применить**
 
 ```bash
-cd /opt/bloodbowl-league && docker compose up -d && pm2 restart bloodbowl-league
+cd /opt/bloodbowl-league && sudo docker compose up -d && pm2 restart bloodbowl-league
 ```
 
 Ожидается: контейнер поднят, pm2-процесс `online`.
@@ -340,7 +345,7 @@ cd /opt/bloodbowl-league && docker compose up -d && pm2 restart bloodbowl-league
 - [ ] **Шаг 6: убедиться, что приложение подключилось к базе**
 
 ```bash
-pm2 logs bloodbowl-league --lines 40 --nostream
+sudo pm2 logs bloodbowl-league --lines 40 --nostream
 ```
 
 Ожидается строка `admin account is ready: admin` (или ваш `ADMIN_LOGIN`). Строка
@@ -387,7 +392,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3002/api/health
 - [ ] **Шаг 1: узнать, где Caddyfile лежит внутри контейнера**
 
 ```bash
-docker inspect paint-day-caddy --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
+sudo docker inspect paint-day-caddy --format '{{range .Mounts}}{{.Source}} -> {{.Destination}}{{"\n"}}{{end}}'
 ```
 
 Ожидается строка вида `/home/deploy/painting-evenings/Caddyfile -> /etc/caddy/Caddyfile`.
@@ -397,7 +402,7 @@ docker inspect paint-day-caddy --format '{{range .Mounts}}{{.Source}} -> {{.Dest
 - [ ] **Шаг 2: сделать копию**
 
 ```bash
-cp /home/deploy/painting-evenings/Caddyfile /root/bb-incident-2026-08-22/Caddyfile.bak && ls -l /root/bb-incident-2026-08-22/Caddyfile.bak
+sudo cp /home/deploy/painting-evenings/Caddyfile /root/bb-incident-2026-08-22/Caddyfile.bak && sudo ls -l /root/bb-incident-2026-08-22/Caddyfile.bak
 ```
 
 Ожидается: строка с непустым размером.
@@ -405,7 +410,7 @@ cp /home/deploy/painting-evenings/Caddyfile /root/bb-incident-2026-08-22/Caddyfi
 - [ ] **Шаг 3: заменить блок сайта**
 
 ```bash
-nano /home/deploy/painting-evenings/Caddyfile
+sudo nano /home/deploy/painting-evenings/Caddyfile
 ```
 
 Найти блок `bloodbowlyerevan.shitpostsoftware.com { ... }` и заменить его целиком на:
@@ -431,7 +436,7 @@ bloodbowlyerevan.shitpostsoftware.com {
 - [ ] **Шаг 4: проверить синтаксис до перезагрузки**
 
 ```bash
-docker exec paint-day-caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+sudo docker exec paint-day-caddy caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
 Ожидается: `Valid configuration`. При ошибке — **не перезагружать**, вернуть текст
@@ -441,7 +446,7 @@ docker exec paint-day-caddy caddy validate --config /etc/caddy/Caddyfile --adapt
 - [ ] **Шаг 5: перезагрузить**
 
 ```bash
-docker exec paint-day-caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+sudo docker exec paint-day-caddy caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
 ```
 
 Ожидается: пустой вывод или сообщение об успешной перезагрузке, без ошибок.
@@ -787,7 +792,7 @@ directory, and the `gata_postgres_data` volume already holds a database. Change 
 role inside Postgres first, then bring the env file in line:
 
 ```bash
-docker exec -it gata-league-postgres psql -U gata_admin -d gata_league
+sudo docker exec -it gata-league-postgres psql -U gata_admin -d gata_league
 # \password gata_admin   (prompts twice, never echoes, never hits shell history)
 # \q
 ```
@@ -910,13 +915,13 @@ for p in / /src/app.js /api/health; do printf "%-14s -> " "$p"; curl -s -m 10 -o
 - [ ] **Шаг 1: создать каталог**
 
 ```bash
-install -d -m 700 /etc/bloodbowl-league
+sudo install -d -m 700 /etc/bloodbowl-league
 ```
 
 - [ ] **Шаг 2: скопировать файл**
 
 ```bash
-install -m 600 -o root -g root /opt/bloodbowl-league/.env /etc/bloodbowl-league/.env && ls -l /etc/bloodbowl-league/.env
+sudo install -m 600 -o root -g root /opt/bloodbowl-league/.env /etc/bloodbowl-league/.env && sudo ls -l /etc/bloodbowl-league/.env
 ```
 
 Ожидается: `-rw------- 1 root root ... /etc/bloodbowl-league/.env`.
@@ -924,7 +929,7 @@ install -m 600 -o root -g root /opt/bloodbowl-league/.env /etc/bloodbowl-league/
 - [ ] **Шаг 3: перезапустить приложение и убедиться, что читается новый файл**
 
 ```bash
-pm2 restart bloodbowl-league && sleep 3 && pm2 logs bloodbowl-league --lines 20 --nostream
+sudo pm2 restart bloodbowl-league && sleep 3 && pm2 logs bloodbowl-league --lines 20 --nostream
 ```
 
 Ожидается: `admin account is ready`. Приложение теперь читает
@@ -934,7 +939,7 @@ pm2 restart bloodbowl-league && sleep 3 && pm2 logs bloodbowl-league --lines 20 
 - [ ] **Шаг 4: перевести Postgres на `--env-file`**
 
 ```bash
-cd /opt/bloodbowl-league && docker compose --env-file /etc/bloodbowl-league/.env up -d && docker compose ps
+cd /opt/bloodbowl-league && sudo docker compose --env-file /etc/bloodbowl-league/.env up -d && docker compose ps
 ```
 
 Ожидается: контейнер `gata-league-postgres` в состоянии `running` (или `healthy`).
@@ -950,7 +955,7 @@ curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3002/api/health
 - [ ] **Шаг 6: удалить старый файл**
 
 ```bash
-rm /opt/bloodbowl-league/.env && ls -la /opt/bloodbowl-league/ | grep -c '\.env$' || echo "файла нет — верно"
+sudo rm /opt/bloodbowl-league/.env && ls -la /opt/bloodbowl-league/ | grep -c '\.env$' || echo "файла нет — верно"
 ```
 
 Ожидается: `.env` в каталоге отсутствует (`.env.example` остаётся, он не секретный).
@@ -958,7 +963,7 @@ rm /opt/bloodbowl-league/.env && ls -la /opt/bloodbowl-league/ | grep -c '\.env$
 - [ ] **Шаг 7: финальная проверка**
 
 ```bash
-pm2 restart bloodbowl-league && sleep 3 && curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3002/api/health
+sudo pm2 restart bloodbowl-league && sleep 3 && curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3002/api/health
 ```
 
 Ожидается: `200`. Это подтверждает, что приложение живёт без файла в старом месте.
