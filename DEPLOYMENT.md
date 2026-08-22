@@ -347,6 +347,64 @@ one-off backup against a database other than the one the env file describes. So 
 different env file than the usual `/etc/bloodbowl-league/.env` /
 repo-root-`.env` fallback.
 
+### What is verified, and what is not
+
+Verified on the server on 2026-08-22: the units install, the timer schedules,
+a dump taken by hand lands with the right ownership and permissions, and
+`backup:status` reports OK.
+
+Not verified on the server: that a dump actually restores. `backup-db.mjs`
+checks every dump with `pg_restore --list`, which reads the archive's header and
+table of contents but not its data, so a file truncated after the table of
+contents would still pass. Rotation's keep-seven rule is covered by unit tests
+but has not yet run here against eight real files. Until someone works through
+the section below on a real dump, restoring is expected to work rather than
+known to. It takes about a minute, and the good time to find out is not the day
+you need it.
+
+### Restoring from a backup
+
+**Checking a dump without touching production.** This is the safe path, and the
+one to use whenever the question is only "is this backup any good". The last
+command reads every data block rather than just the header, which is what
+`backup-db.mjs`'s own check does not do:
+
+```bash
+DUMP=$(ls -1t /var/backups/bloodbowl-league/*.dump | head -1)
+docker cp "$DUMP" gata-league-postgres:/tmp/restore-check.dump
+docker exec gata-league-postgres createdb -U gata_admin gata_league_restore_check
+docker exec gata-league-postgres pg_restore -U gata_admin -d gata_league_restore_check /tmp/restore-check.dump
+docker exec gata-league-postgres psql -U gata_admin -d gata_league_restore_check -c "SELECT count(*) FROM users;"
+docker exec gata-league-postgres pg_restore -f /dev/null /tmp/restore-check.dump
+docker exec gata-league-postgres dropdb -U gata_admin gata_league_restore_check
+docker exec gata-league-postgres rm -f /tmp/restore-check.dump
+```
+
+Compare the user count against production (`-d gata_league`, same query). They
+should match, except for accounts created after the dump was taken.
+
+**Restoring over production.** This destroys whatever is in the database now,
+including everything written since the dump was taken. Take a fresh dump first
+even if the current data looks broken — it is the only copy of the state you are
+about to overwrite, and "broken" and "worthless" are not the same thing.
+
+```bash
+pm2 stop bloodbowl-league
+cd /opt/bloodbowl-league && npm run backup:db
+DUMP=/var/backups/bloodbowl-league/gata_league-YYYYMMDD-HHMMSS.dump   # pick one
+docker cp "$DUMP" gata-league-postgres:/tmp/restore.dump
+docker exec gata-league-postgres pg_restore -U gata_admin -d gata_league --clean --if-exists /tmp/restore.dump
+docker exec gata-league-postgres rm -f /tmp/restore.dump
+pm2 start bloodbowl-league
+pm2 logs bloodbowl-league --lines 20 --nostream
+curl -f https://bloodbowlyerevan.shitpostsoftware.com/api/health
+```
+
+`admin account is ready` in the log means the app reconnected and rewrote the
+admin password hash from the env file. Then open the site, log in, and confirm
+the data you expected to get back is actually there — the health endpoint only
+says the process is up, not that it is serving the right rows.
+
 ## Security Notes (added 2026-08-19)
 
 ### Static file exposure — fixed, but secrets must be rotated
