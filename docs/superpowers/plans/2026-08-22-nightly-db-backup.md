@@ -282,6 +282,14 @@ test("parseDumpTimestamp refuses names that are not dumps", () => {
     "gata_league-20260822-040000.dump.gz",
     "notes.txt",
     "",
+    // Dump-shaped but calendar-impossible. Without a round-trip check these
+    // parse into some other date, sort as the newest file, and push a real
+    // backup out of the seven that are kept.
+    "gata_league-99999999-999999.dump",
+    "gata_league-20260230-040000.dump",
+    "gata_league-20261301-040000.dump",
+    "gata_league-20260822-250000.dump",
+    "gata_league-20260822-046000.dump",
   ]) {
     assert.equal(parseDumpTimestamp(name), null, `expected ${name} to be refused`);
     assert.equal(isDumpName(name), false, `expected ${name} not to count as a dump`);
@@ -400,10 +408,17 @@ export function formatDumpName(date) {
  * @returns {Date|null} null when the name was not produced by formatDumpName.
  */
 export function parseDumpTimestamp(name) {
-  const match = DUMP_NAME.exec(String(name ?? ""));
+  const safeName = String(name ?? "");
+  const match = DUMP_NAME.exec(safeName);
   if (!match) return null;
   const [, year, month, day, hours, minutes, seconds] = match.map(Number);
-  return new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+  const date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+  // Date.UTC() silently rolls over out-of-range components (e.g. month 13,
+  // Feb 30) instead of rejecting them, so a dump-shaped but calendar-impossible
+  // name would otherwise parse into some other, misleading date. Confirm the
+  // parse round-trips through the formatter before trusting it.
+  if (formatDumpName(date) !== safeName) return null;
+  return date;
 }
 
 /**
