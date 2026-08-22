@@ -243,6 +243,11 @@ dumps are not encrypted.
 
 ### One-time server setup
 
+Run these as root. The deploy workflow logs in as root, but if you log in as
+`ubuntu`, take a root shell first with `sudo -i` rather than prefixing the
+commands — `sudo` before a `&&` chain applies only to the first command in the
+chain, and the rest fail on permissions one at a time.
+
 ```bash
 install -d -m 700 -o root -g root /var/backups/bloodbowl-league
 ln -sf /opt/bloodbowl-league/deploy/systemd/bloodbowl-backup.service /etc/systemd/system/bloodbowl-backup.service
@@ -277,6 +282,14 @@ systemctl daemon-reload
 
 The drop-in stays on the server: the node path is a property of this host, not
 of the repository.
+
+Installed on 2026-08-22. The database was 26 MB and its dump 3.0 MiB, so the
+seven retained dumps take roughly 21 MiB of the 32 GB free on `/var` — what
+limits the retention count here is how far back you might need to reach, not
+disk. `node` is at `/usr/bin/node`, already inside systemd's own PATH, so the
+drop-in above was not needed on this host. The first dump was taken by hand and
+verified; the timer scheduled its next run for 04:02:56 UTC, the few minutes
+past 04:00 being `RandomizedDelaySec`.
 
 ### Checking on the backups
 
