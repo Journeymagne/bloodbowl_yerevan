@@ -5,14 +5,21 @@ import path from "node:path";
 import { promisify } from "node:util";
 
 import { DEFAULT_KEEP } from "./backup/rotation.mjs";
-import { summarizeBackups } from "./backup/status.mjs";
+import {
+  summarizeBackups,
+  parseSystemctlProperties,
+  evaluateSystemdState,
+  evaluateBackupStatus,
+} from "./backup/status.mjs";
 
 const run = promisify(execFile);
 const backupDir = process.env.BACKUP_DIR || "/var/backups/bloodbowl-league";
 const keep = Number(process.env.BACKUP_KEEP || DEFAULT_KEEP);
 const unit = "bloodbowl-backup";
 
-const megabytes = (bytes) => `${(bytes / 1_048_576).toFixed(1)} MB`;
+// `1_048_576` is 1 MiB, not 1 MB - the label has to match what is actually
+// computed.
+const formatSize = (bytes) => `${(bytes / 1_048_576).toFixed(1)} MiB`;
 
 async function readEntries() {
   let names = [];
@@ -25,30 +32,43 @@ async function readEntries() {
 
   const entries = [];
   for (const name of names) {
-    const stat = await fs.stat(path.join(backupDir, name));
+    let stat;
+    try {
+      stat = await fs.stat(path.join(backupDir, name));
+    } catch {
+      // Rotation deleting a dump between readdir() and stat() (ENOENT), or a
+      // file this process cannot read (EACCES), is a benign race, not a
+      // reason to abort the whole check. A name that can no longer be
+      // stat'd is simply not part of the listing.
+      continue;
+    }
     if (stat.isFile()) entries.push({ name, size: stat.size });
   }
   return entries;
 }
 
+async function readUnitProperties(unitName, properties) {
+  const { stdout } = await run("systemctl", [
+    "show", unitName,
+    ...properties.map((property) => `--property=${property}`),
+  ]);
+  return parseSystemctlProperties(stdout);
+}
+
 // systemd is absent on development machines; its absence is not a failure of
-// the backups, so it is reported rather than thrown.
-async function readTimer() {
+// the backups, so it is collected here and left for the pure evaluator to
+// report as "unknown" rather than thrown.
+async function readSystemdState() {
   try {
-    const { stdout } = await run("systemctl", [
-      "show", `${unit}.service`,
-      "--property=Result", "--property=ExecMainStatus", "--property=ExecMainExitTimestamp",
+    const [service, timer] = await Promise.all([
+      readUnitProperties(`${unit}.service`, [
+        "LoadState", "Result", "ExecMainStatus", "ExecMainExitTimestamp",
+      ]),
+      readUnitProperties(`${unit}.timer`, ["LoadState", "ActiveState"]),
     ]);
-    const properties = new Map(
-      stdout.trim().split("\n").map((line) => {
-        const index = line.indexOf("=");
-        return [line.slice(0, index), line.slice(index + 1)];
-      }),
-    );
-    const { stdout: timers } = await run("systemctl", ["list-timers", `${unit}.timer`, "--no-pager", "--no-legend"]);
-    return { properties, timers: timers.trim() };
+    return { available: true, service, timer };
   } catch {
-    return null;
+    return { available: false };
   }
 }
 
@@ -62,29 +82,28 @@ async function main() {
 
   const summary = summarizeBackups(entries, { keep });
   console.log(`directory: ${backupDir}`);
-  console.log(`dumps:     ${summary.count} (keeping ${keep}), ${megabytes(summary.totalBytes)} total`);
+  console.log(`dumps:     ${summary.count} (keeping ${keep}), ${formatSize(summary.totalBytes)} total`);
   if (summary.newest) {
-    console.log(`newest:    ${summary.newest.name}, ${megabytes(summary.newest.size)}, ${summary.ageHours.toFixed(1)} h ago`);
+    console.log(`newest:    ${summary.newest.name}, ${formatSize(summary.newest.size)}, ${summary.ageHours.toFixed(1)} h ago`);
   } else {
     console.log("newest:    none");
   }
 
-  const timer = await readTimer();
-  if (timer) {
-    console.log(`last run:  ${timer.properties.get("Result")} (exit ${timer.properties.get("ExecMainStatus")}) at ${timer.properties.get("ExecMainExitTimestamp") || "never"}`);
-    console.log(`timer:     ${timer.timers || "not scheduled"}`);
+  const state = await readSystemdState();
+  const systemd = evaluateSystemdState(state, unit);
+  if (!state.available) {
+    console.log(`systemd:   unknown (systemctl unavailable)`);
   } else {
-    console.log("last run:  unknown (systemctl unavailable)");
+    const service = state.service.get("LoadState");
+    const lastRun = systemd.hasRun
+      ? `last run ${systemd.result} (exit ${state.service.get("ExecMainStatus")}) at ${state.service.get("ExecMainExitTimestamp")}`
+      : "has not run yet";
+    console.log(`service:   ${service}, ${lastRun}`);
+    console.log(`timer:     ${state.timer.get("LoadState")}, ${state.timer.get("ActiveState")}`);
   }
 
-  const problems = [];
-  if (summary.stale) problems.push(`newest dump is older than allowed (${summary.ageHours === null ? "there are none" : `${summary.ageHours.toFixed(1)} h`})`);
-  if (summary.overKeep) problems.push(`${summary.count} dumps kept, expected at most ${keep}`);
-  if (timer && timer.properties.get("Result") && timer.properties.get("Result") !== "success") {
-    problems.push(`last run result: ${timer.properties.get("Result")}`);
-  }
-
-  if (problems.length) {
+  const { problems, ok } = evaluateBackupStatus({ summary, keep, systemd });
+  if (!ok) {
     console.error(`\nNOT OK:\n- ${problems.join("\n- ")}`);
     process.exitCode = 1;
     return;
