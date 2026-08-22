@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 
-import { resolveEnvFilePath, SYSTEM_ENV_PATH } from "../server/config/env-file.mjs";
+import { parseEnvFile, resolveEnvFilePath, SYSTEM_ENV_PATH } from "../server/config/env-file.mjs";
 
 const root = "/opt/bloodbowl-league";
 // The tests never touch the real filesystem: they say which paths exist.
@@ -60,4 +60,35 @@ test("throws when the override points at a file that does not exist", () => {
     }),
     /BLOODBOWL_ENV_FILE/,
   );
+});
+
+test("parses keys, ignoring comments and blank lines", () => {
+  const values = parseEnvFile(["# comment", "", "POSTGRES_DB=gata_league", "POSTGRES_USER=gata_admin"].join("\n"));
+  assert.deepEqual([...values], [["POSTGRES_DB", "gata_league"], ["POSTGRES_USER", "gata_admin"]]);
+});
+
+test("keeps everything after the first equals sign", () => {
+  const values = parseEnvFile("DATABASE_URL=postgres://user:p=ss@localhost:5433/db");
+  assert.equal(values.get("DATABASE_URL"), "postgres://user:p=ss@localhost:5433/db");
+});
+
+test("strips surrounding quotes and outer whitespace", () => {
+  const values = parseEnvFile(['ADMIN_PASSWORD="quoted secret"', "  ADMIN_LOGIN = admin  "].join("\n"));
+  assert.equal(values.get("ADMIN_PASSWORD"), "quoted secret");
+  assert.equal(values.get("ADMIN_LOGIN"), "admin");
+});
+
+test("the first occurrence of a key wins, matching how the server loaded the file", () => {
+  const values = parseEnvFile(["APP_PORT=3002", "APP_PORT=9999"].join("\n"));
+  assert.equal(values.get("APP_PORT"), "3002");
+});
+
+test("skips lines that carry no assignment", () => {
+  const values = parseEnvFile(["nonsense", "#KEY=value", "=orphan"].join("\n"));
+  assert.equal(values.size, 0);
+});
+
+test("handles CRLF line endings", () => {
+  const values = parseEnvFile("POSTGRES_DB=gata_league\r\nPOSTGRES_USER=gata_admin\r\n");
+  assert.equal(values.get("POSTGRES_USER"), "gata_admin");
 });

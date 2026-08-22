@@ -5,30 +5,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 import { Pool } from "pg";
-import { resolveEnvFilePath } from "./config/env-file.mjs";
+import { readEnvValues } from "./config/env-file.mjs";
 import { resolveStaticPath } from "./http/static-path.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
 async function loadEnvFile() {
-  const envPath = resolveEnvFilePath(rootDir);
-  if (!envPath) return;
-  let body = "";
-  try {
-    body = await fs.readFile(envPath, "utf8");
-  } catch {
-    return;
-  }
-
-  for (const line of body.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
-    const index = trimmed.indexOf("=");
-    const key = trimmed.slice(0, index).trim();
-    const value = trimmed.slice(index + 1).trim().replace(/^['"]|['"]$/g, "");
-    if (key && process.env[key] === undefined) {
-      process.env[key] = value;
-    }
+  // A variable already present in the real environment wins over the file:
+  // that is how systemd and docker overrides have always been able to win.
+  for (const [key, value] of await readEnvValues(rootDir)) {
+    if (process.env[key] === undefined) process.env[key] = value;
   }
 }
 
