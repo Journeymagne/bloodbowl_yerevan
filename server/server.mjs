@@ -5,20 +5,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 import { Pool } from "pg";
-import { readEnvValues } from "./config/env-file.mjs";
+import { loadEnvFile } from "./config/env-file.mjs";
 import { resolveStaticPath } from "./http/static-path.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function loadEnvFile() {
-  // A variable already present in the real environment wins over the file:
-  // that is how systemd and docker overrides have always been able to win.
-  for (const [key, value] of await readEnvValues(rootDir)) {
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
-}
-
-await loadEnvFile();
+await loadEnvFile(rootDir);
 
 const appPort = Number(process.env.APP_PORT || process.env.PORT || 3002);
 

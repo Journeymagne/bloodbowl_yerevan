@@ -2,22 +2,9 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Pool } from "pg";
-import { readEnvValues } from "../server/config/env-file.mjs";
+import { loadEnvFile } from "../server/config/env-file.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-async function loadEnvFile() {
-  // Shared with server.mjs and backup-db.mjs, so this script finds the env file
-  // where production actually keeps it: /etc/bloodbowl-league/.env, outside the
-  // directory that is served over HTTP.
-  //
-  // A variable already present in the real environment wins over the file, the
-  // same way server.mjs composes it, so systemd and docker overrides keep
-  // winning over whatever the file says.
-  for (const [key, value] of await readEnvValues(rootDir)) {
-    if (process.env[key] === undefined) process.env[key] = value;
-  }
-}
 
 function databaseUrl() {
   const value = process.env.DATABASE_URL;
@@ -34,7 +21,7 @@ if (!sqlPath) {
   process.exit(1);
 }
 
-await loadEnvFile();
+await loadEnvFile(rootDir);
 
 const sql = await fs.readFile(path.resolve(sqlPath), "utf8");
 const pool = new Pool({ connectionString: databaseUrl() });

@@ -75,3 +75,39 @@ export async function readEnvValues(rootDir, options = {}) {
     return new Map();
   }
 }
+
+/**
+ * Fill in the keys the target does not already have.
+ *
+ * A variable already present in the real environment wins over the file: that
+ * is how systemd and docker overrides have always been able to win. Only
+ * `undefined` counts as absent, so exporting a key as an empty string still
+ * beats whatever the file says.
+ *
+ * @param {Map<string, string>} values
+ * @param {Record<string, string|undefined>} [target]
+ * @returns {Record<string, string|undefined>} The target, filled in.
+ */
+export function applyEnvValues(values, target = process.env) {
+  for (const [key, value] of values) {
+    if (target[key] === undefined) target[key] = value;
+  }
+  return target;
+}
+
+/**
+ * Locate the env file and compose it into the environment.
+ *
+ * The one call every entry point needs: server.mjs and apply-sql.mjs both load
+ * their configuration this way, so they agree on where the file lives and on
+ * what outranks it.
+ *
+ * @param {string} rootDir
+ * @param {object} [options] `target` overrides process.env; the rest goes to
+ *   resolveEnvFilePath.
+ * @returns {Promise<Record<string, string|undefined>>}
+ */
+export async function loadEnvFile(rootDir, options = {}) {
+  const { target = process.env, ...resolveOptions } = options;
+  return applyEnvValues(await readEnvValues(rootDir, resolveOptions), target);
+}

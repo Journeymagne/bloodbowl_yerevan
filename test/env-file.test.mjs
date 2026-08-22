@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import path from "node:path";
 
-import { parseEnvFile, resolveEnvFilePath, SYSTEM_ENV_PATH } from "../server/config/env-file.mjs";
+import { applyEnvValues, parseEnvFile, resolveEnvFilePath, SYSTEM_ENV_PATH } from "../server/config/env-file.mjs";
 
 const root = "/opt/bloodbowl-league";
 // The tests never touch the real filesystem: they say which paths exist.
@@ -91,4 +91,24 @@ test("skips lines that carry no assignment", () => {
 test("handles CRLF line endings", () => {
   const values = parseEnvFile("POSTGRES_DB=gata_league\r\nPOSTGRES_USER=gata_admin\r\n");
   assert.equal(values.get("POSTGRES_USER"), "gata_admin");
+});
+
+test("applies only the keys the target does not already have", () => {
+  const target = { DATABASE_URL: "postgres://from-systemd/db" };
+  applyEnvValues(new Map([["DATABASE_URL", "postgres://from-file/db"], ["APP_PORT", "3002"]]), target);
+  assert.equal(target.DATABASE_URL, "postgres://from-systemd/db");
+  assert.equal(target.APP_PORT, "3002");
+});
+
+test("a key set to an empty string still counts as set", () => {
+  // Only undefined means absent: exporting ADMIN_PASSWORD= to blank out what
+  // the file says has to keep working.
+  const target = { ADMIN_PASSWORD: "" };
+  applyEnvValues(new Map([["ADMIN_PASSWORD", "from-file"]]), target);
+  assert.equal(target.ADMIN_PASSWORD, "");
+});
+
+test("returns the target it filled in", () => {
+  const target = {};
+  assert.equal(applyEnvValues(new Map([["APP_PORT", "3002"]]), target), target);
 });
