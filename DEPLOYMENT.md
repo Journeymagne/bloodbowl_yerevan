@@ -229,6 +229,88 @@ site renders with a valid TLS certificate, then register a test account
 and save a team to confirm the Postgres-backed API path works
 end-to-end.
 
+## Database Backups
+
+A systemd timer dumps the `gata_league` database every night and keeps the seven
+most recent dumps. Backups live in `/var/backups/bloodbowl-league`, outside the
+deploy directory: `/opt/bloodbowl-league` is served over HTTP and a dump holds
+the same secrets the `.env` leak did — logins, password hashes, contacts.
+
+What this covers and what it does not: it restores data lost to a bad delete, a
+broken migration, or a dropped volume, as long as you notice within a week. It
+does not survive losing the server itself — there is no offsite copy — and the
+dumps are not encrypted.
+
+### One-time server setup
+
+```bash
+install -d -m 700 -o root -g root /var/backups/bloodbowl-league
+ln -sf /opt/bloodbowl-league/deploy/systemd/bloodbowl-backup.service /etc/systemd/system/bloodbowl-backup.service
+ln -sf /opt/bloodbowl-league/deploy/systemd/bloodbowl-backup.timer /etc/systemd/system/bloodbowl-backup.timer
+systemctl daemon-reload
+systemd-analyze verify bloodbowl-backup.timer
+systemctl enable --now bloodbowl-backup.timer
+```
+
+The units are symlinks into the repository so that an edit arrives with the next
+deploy. Two things do not: systemd is not reloaded by the deploy workflow, and
+neither is `docker compose` (same caveat as `docker-compose.yml`). After changing
+a unit file, run `systemctl daemon-reload` on the server by hand.
+
+`ExecStart` calls `node` through `/usr/bin/env`, which searches only systemd's
+own PATH. If `systemctl start bloodbowl-backup.service` fails with status 203,
+node is installed somewhere else (nvm, for example). Point systemd at it:
+
+```bash
+command -v node    # e.g. /root/.nvm/versions/node/v20.11.1/bin/node
+mkdir -p /etc/systemd/system/bloodbowl-backup.service.d
+printf '[Service]\nEnvironment=PATH=%s:/usr/local/bin:/usr/bin:/bin\n' "$(dirname "$(command -v node)")" \
+  > /etc/systemd/system/bloodbowl-backup.service.d/node-path.conf
+systemctl daemon-reload
+```
+
+The drop-in stays on the server: the node path is a property of this host, not
+of the repository.
+
+### Checking on the backups
+
+```bash
+cd /opt/bloodbowl-league && npm run backup:status
+```
+
+It prints how many dumps there are, how old the newest one is, how much disk
+they use, and what systemd reports for the service and timer — then exits
+non-zero if any of the following is true:
+
+- the newest dump is more than 48 hours old (or there are no dumps at all)
+- there are more dumps on disk than the retention limit
+- the last run of `bloodbowl-backup.service` failed
+- the service or timer unit is not loaded by systemd — not installed, or
+  masked (symlinked to `/dev/null`, the usual result of `disable` where
+  `stop` was meant)
+- the timer is not active
+- the timer is active but has no future run scheduled
+- a file in the backup directory could not be read (a permissions problem,
+  or a filesystem issue — not the ordinary race of rotation deleting a dump
+  between listing the directory and stating it, which is tolerated)
+
+Two things it reports without failing the check: if `systemctl` itself is not
+available, or if a value it reads back from systemd is in a shape the command
+does not recognise, it prints that state as "unknown" rather than guessing —
+unknown is not silently treated as healthy, but it is not treated as broken
+either. That is the one command to run when you want to know whether backups
+are healthy.
+
+To take a backup right now:
+
+```bash
+systemctl start bloodbowl-backup.service
+journalctl -u bloodbowl-backup.service --since "10 minutes ago" --no-pager
+```
+
+Settings that can be overridden through the environment: `BACKUP_DIR`,
+`BACKUP_KEEP`, `POSTGRES_CONTAINER`.
+
 ## Security Notes (added 2026-08-19)
 
 ### Static file exposure — fixed, but secrets must be rotated

@@ -1,0 +1,22 @@
+[Unit]
+Description=Nightly gata_league database backup
+Documentation=file:///opt/bloodbowl-league/DEPLOYMENT.md
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/bloodbowl-league
+ExecStart=/usr/bin/env node /opt/bloodbowl-league/scripts/backup-db.mjs
+# The dumps hold password hashes and player contacts. Nothing but root reads them.
+UMask=0077
+# Type=oneshot otherwise inherits DefaultTimeoutStartSec (90s on a stock
+# systemd), which a dump-plus-verify pass on a growing database can outlive
+# long before the backup itself is unhealthy - and the failure would then
+# look like a mysterious backup failure rather than a timeout. 30 minutes is
+# far more than a league database should ever need, while still bounding a
+# genuinely wedged run instead of letting it hold this slot forever.
+# scripts/backup-db.mjs handles SIGTERM by killing the in-flight dump and
+# removing the incomplete file, so a timeout kill here is a clean exit, not
+# an orphaned dump process or a half-written file left behind.
+TimeoutStartSec=1800
