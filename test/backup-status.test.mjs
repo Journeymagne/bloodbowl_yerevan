@@ -130,6 +130,13 @@ const recordedService = ({
 // the previous round wrongly assumed a raw microseconds-since-epoch integer
 // was the *only* form and was never checked against an actual systemd.
 //
+// The default is deliberately far in the future (year 2099, not "tomorrow")
+// - evaluateSystemdState() has no injectable `now` of its own (only
+// parseTimerNextElapse does), so it judges "future" against the real clock.
+// A near-term default would silently start failing every test that relies
+// on it once the real calendar caught up, which is exactly the class of bug
+// Finding 1 is about.
+//
 // Pass `nextElapse`:
 //   - a human timestamp string (default) -> a real future run
 //   - an all-digit string                -> the tolerated raw-microseconds
@@ -141,7 +148,7 @@ const recordedService = ({
 const recordedTimer = ({
   loadState = "loaded",
   activeState = "active",
-  nextElapse = "Sat 2026-08-23 04:00:00 UTC",
+  nextElapse = "Sat 2099-01-01 04:00:00 UTC",
 } = {}) => parseSystemctlProperties([
   `LoadState=${loadState}`,
   `ActiveState=${activeState}`,
@@ -260,14 +267,17 @@ test("evaluateSystemdState: a service that has never run is not itself a problem
 // value is in neither recognised shape. ------------------------------------
 
 test("parseTimerNextElapse: a human-readable timestamp (the believed real systemd shape) is a future run", () => {
-  const result = parseTimerNextElapse("Sat 2026-08-23 04:00:00 UTC");
+  const result = parseTimerNextElapse("Sat 2026-08-23 04:00:00 UTC", { now });
   assert.equal(result.kind, "future");
   assert.ok(result.date instanceof Date);
   assert.equal(Number.isNaN(result.date.getTime()), false);
 });
 
 test("parseTimerNextElapse: an all-digit value is tolerated as microseconds since the epoch", () => {
-  const result = parseTimerNextElapse("1755840000000000");
+  // 1755840000000000 usec is 2025-08-22T05:20:00Z - pin `now` to a point
+  // before that instant so this test exercises "future" regardless of when
+  // it is actually run (parseTimerNextElapse takes `now` for exactly this).
+  const result = parseTimerNextElapse("1755840000000000", { now: new Date("2020-01-01T00:00:00Z") });
   assert.equal(result.kind, "future");
   assert.equal(result.date.getTime(), 1755840000000000 / 1000);
 });
@@ -296,6 +306,59 @@ test("parseTimerNextElapse: an unrecognised shape lands in unknown, verbatim, no
   assert.equal(result.raw, "some-shape-nobody-has-seen-yet");
 });
 
+// --- Finding 1 (this round, critical): a next-run time must actually be in
+// the future to count as healthy - a parsed time that has already passed is
+// a real problem (the timer is active but nothing is going to fire it), not
+// a silently-OK "future" run. `now` is an injectable parameter precisely so
+// this boundary can be tested without depending on the real clock. ---------
+
+test("parseTimerNextElapse: a human-readable timestamp in the past is not a future run", () => {
+  const result = parseTimerNextElapse("Sat 2020-01-01 04:00:00 UTC", { now });
+  assert.equal(result.kind, "none");
+});
+
+test("parseTimerNextElapse: a human-readable timestamp far in the future is healthy", () => {
+  const result = parseTimerNextElapse("Sat 2099-01-01 04:00:00 UTC", { now });
+  assert.equal(result.kind, "future");
+  assert.equal(result.date.getTime(), new Date("2099-01-01T04:00:00Z").getTime());
+});
+
+test("parseTimerNextElapse: a plausible microseconds-since-epoch value in the future is healthy", () => {
+  // 2026-08-23T04:00:00Z expressed as microseconds since the epoch.
+  const result = parseTimerNextElapse("1787457600000000", { now });
+  assert.equal(result.kind, "future");
+  assert.equal(result.date.getTime(), new Date("2026-08-23T04:00:00Z").getTime());
+});
+
+test("parseTimerNextElapse: a microseconds-since-epoch value in the past fails", () => {
+  const result = parseTimerNextElapse("1755840000000000", { now });
+  assert.equal(result.kind, "none");
+});
+
+test("parseTimerNextElapse: 'N/A' in mixed case is still an explicit no-future-run", () => {
+  assert.equal(parseTimerNextElapse("N/A").kind, "none");
+  assert.equal(parseTimerNextElapse("n/A").kind, "none");
+  assert.equal(parseTimerNextElapse("N/a").kind, "none");
+});
+
+test("parseTimerNextElapse: surrounding whitespace on an otherwise valid value still parses", () => {
+  const result = parseTimerNextElapse("  Sat 2099-01-01 04:00:00 UTC  ", { now });
+  assert.equal(result.kind, "future");
+  assert.equal(result.date.getTime(), new Date("2099-01-01T04:00:00Z").getTime());
+});
+
+// --- Finding 2 (this round, important): an out-of-range digit string must
+// not crash by producing an Invalid Date that flows through as "future" -
+// the digit branch needs the same Date-validity check the timestamp branch
+// already had. An unusable value belongs in "unknown": reported verbatim,
+// not failing the check. ----------------------------------------------------
+
+test("parseTimerNextElapse: an out-of-range digit string is unknown, not a crash and not a false future", () => {
+  const result = parseTimerNextElapse("99999999999999999999999999", { now });
+  assert.equal(result.kind, "unknown");
+  assert.equal(result.raw, "99999999999999999999999999");
+});
+
 // --- Finding 1 (this round, critical): the timer's next-run time must be
 // parsed in a format systemd actually emits, and an unrecognised shape must
 // never silently read as "no future run" (which the previous round's
@@ -317,10 +380,50 @@ test("evaluateSystemdState: a loaded, active timer with the tolerated raw-micros
   const result = evaluateSystemdState({
     available: true,
     service: recordedService(),
-    timer: recordedTimer({ nextElapse: "1755840000000000" }),
+    // 4070908800000000 usec is 2099-01-01T00:00:00Z - see the note on
+    // recordedTimer()'s default above for why this needs to be far-future
+    // rather than "tomorrow".
+    timer: recordedTimer({ nextElapse: "4070908800000000" }),
   }, "bloodbowl-backup");
   assert.deepEqual(result.problems, []);
   assert.ok(result.timerNextRun instanceof Date);
+});
+
+// --- Finding 1 (this round, critical): a next-run time in the past is not
+// healthy - the timer is active but its schedule has already lapsed, which
+// is a real problem, not silently OK. evaluateSystemdState has no
+// injectable `now` (only parseTimerNextElapse does), so these fixtures use
+// a date safely in the past for any real invocation instead. --------------
+
+test("evaluateSystemdState: a loaded, active timer whose next elapse is in the past is a problem", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapse: "Sat 2020-01-01 04:00:00 UTC" }),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /timer.*no future run/.test(problem)), true);
+  // The problem message must include the time it saw, not just "no future
+  // run" - the raw value systemd reported is the only way an operator can
+  // tell this was a lapsed timestamp rather than an explicit "n/a"/"0".
+  assert.equal(result.problems.some((problem) => problem.includes("2020-01-01 04:00:00 UTC")), true);
+  assert.equal(result.timerNextRun, null);
+});
+
+// --- Finding 2 (this round, important): an out-of-range digit string must
+// not crash the whole evaluation - it has to land in "unknown" (reported,
+// not failing) rather than producing an Invalid Date that reads as future
+// and later blows up formatting it. -----------------------------------------
+
+test("evaluateSystemdState: an out-of-range digit NextElapseUSecRealtime is unknown, not a crash, not a false-healthy future", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapse: "99999999999999999999999999" }),
+  }, "bloodbowl-backup");
+  assert.deepEqual(result.problems, []);
+  assert.equal(result.timerNextRun, null);
+  assert.equal(result.timerNextRunUnknown, "99999999999999999999999999");
+  assert.match(result.notes.join(" "), /99999999999999999999999999/);
 });
 
 test("evaluateSystemdState: a loaded, active timer with no future elapse (NextElapseUSecRealtime=0) is a problem", () => {

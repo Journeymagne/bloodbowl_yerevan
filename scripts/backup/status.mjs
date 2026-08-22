@@ -66,41 +66,63 @@ export function parseSystemctlProperties(output) {
  * a wrong guess here previously turned a healthy, scheduled timer into a
  * false "NOT OK" because `Number(rawTimestamp)` is NaN.
  *
- * "n/a", an empty string, and "0" all mean the same thing: systemd is
- * explicitly saying there is no future run - a real problem for a timer that
- * is supposed to be active.
+ * A successfully parsed time only counts as "future" when it is actually
+ * after `now`. A next-elapse time that has already passed is not a future
+ * run - the timer is not going to fire on its own - which is exactly as
+ * much a problem for an active timer as systemd explicitly saying there is
+ * no next run at all, so it is folded into the same "none" outcome. `now`
+ * is an injectable parameter (default the real clock) rather than read
+ * internally, so this stays pure and the past/future boundary can be tested
+ * deterministically.
+ *
+ * "n/a" (matched case-insensitively), an empty string, and "0" all mean the
+ * same thing: systemd is explicitly saying there is no future run - a real
+ * problem for a timer that is supposed to be active.
  *
  * Anything else - including the property being absent from the requested
- * output altogether - is not guessed at. It is reported as unknown, the same
- * way this file already treats `systemctl` itself being unavailable: unknown
- * is never silently healthy, but it does not by itself fail the check either.
+ * output altogether, or a value that parses to a Date outside the range
+ * JavaScript can represent (e.g. an absurdly large microsecond count,
+ * `Number.isFinite` yet no valid Date) - is not guessed at. It is reported
+ * as unknown, the same way this file already treats `systemctl` itself
+ * being unavailable: unknown is never silently healthy, but it does not by
+ * itself fail the check either.
  *
  * @param {string | undefined} raw
+ * @param {{now?: Date}} [options]
  * @returns {{kind: "future", date: Date} | {kind: "none"} | {kind: "unknown", raw: string | undefined}}
  */
-export function parseTimerNextElapse(raw) {
+export function parseTimerNextElapse(raw, options = {}) {
+  const { now = new Date() } = options;
+
   if (raw === undefined) {
     return { kind: "unknown", raw: undefined };
   }
 
   const trimmed = raw.trim();
-  if (trimmed === "" || trimmed === "n/a" || trimmed === "0") {
+  if (trimmed === "" || trimmed.toLowerCase() === "n/a" || trimmed === "0") {
     return { kind: "none" };
   }
 
   // All-digits: the tolerated microseconds-since-epoch alternative form.
   if (/^\d+$/.test(trimmed)) {
     const usec = Number(trimmed);
-    if (Number.isFinite(usec) && usec > 0) {
-      return { kind: "future", date: new Date(usec / 1000) };
+    if (!Number.isFinite(usec) || usec <= 0) {
+      return { kind: "none" };
     }
-    return { kind: "none" };
+    const date = new Date(usec / 1000);
+    // An out-of-range value (e.g. a wildly too-large digit string) is still
+    // Number.isFinite and > 0, but yields an unusable Date - same treatment
+    // as the timestamp branch below: unknown, not a silently-healthy future.
+    if (Number.isNaN(date.getTime())) {
+      return { kind: "unknown", raw: trimmed };
+    }
+    return date.getTime() > now.getTime() ? { kind: "future", date } : { kind: "none" };
   }
 
   // Otherwise, try the believed-real human-readable timestamp shape.
   const parsed = new Date(trimmed);
   if (!Number.isNaN(parsed.getTime())) {
-    return { kind: "future", date: parsed };
+    return parsed.getTime() > now.getTime() ? { kind: "future", date: parsed } : { kind: "none" };
   }
 
   return { kind: "unknown", raw: trimmed };
