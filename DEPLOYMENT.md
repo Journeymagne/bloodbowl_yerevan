@@ -229,6 +229,111 @@ site renders with a valid TLS certificate, then register a test account
 and save a team to confirm the Postgres-backed API path works
 end-to-end.
 
+## Database Backups
+
+A systemd timer dumps the `gata_league` database every night and keeps the seven
+most recent dumps. Backups live in `/var/backups/bloodbowl-league`, outside the
+deploy directory: `/opt/bloodbowl-league` is served over HTTP and a dump holds
+the same secrets the `.env` leak did — logins, password hashes, contacts.
+
+What this covers and what it does not: it restores data lost to a bad delete, a
+broken migration, or a dropped volume, as long as you notice within a week. It
+does not survive losing the server itself — there is no offsite copy — and the
+dumps are not encrypted.
+
+### One-time server setup
+
+```bash
+install -d -m 700 -o root -g root /var/backups/bloodbowl-league
+ln -sf /opt/bloodbowl-league/deploy/systemd/bloodbowl-backup.service /etc/systemd/system/bloodbowl-backup.service
+ln -sf /opt/bloodbowl-league/deploy/systemd/bloodbowl-backup.timer /etc/systemd/system/bloodbowl-backup.timer
+systemctl daemon-reload
+systemd-analyze verify bloodbowl-backup.timer
+systemctl enable --now bloodbowl-backup.timer
+```
+
+Right after this, `npm run backup:status` correctly reports NOT OK — there are no
+dumps yet, and an empty backup directory is treated as maximally stale rather than
+as a pass. That is expected, not a sign the install failed; it clears up on its own
+once the timer's first run lands (04:00 UTC), or immediately if you trigger one by
+hand (see "To take a backup right now" below).
+
+The units are symlinks into the repository so that an edit arrives with the next
+deploy. Two things do not: systemd is not reloaded by the deploy workflow, and
+neither is `docker compose` (same caveat as `docker-compose.yml`). After changing
+a unit file, run `systemctl daemon-reload` on the server by hand.
+
+`ExecStart` calls `node` through `/usr/bin/env`, which searches only systemd's
+own PATH. If `systemctl start bloodbowl-backup.service` fails with status 203,
+node is installed somewhere else (nvm, for example). Point systemd at it:
+
+```bash
+command -v node    # e.g. /root/.nvm/versions/node/v20.11.1/bin/node
+mkdir -p /etc/systemd/system/bloodbowl-backup.service.d
+printf '[Service]\nEnvironment=PATH=%s:/usr/local/bin:/usr/bin:/bin\n' "$(dirname "$(command -v node)")" \
+  > /etc/systemd/system/bloodbowl-backup.service.d/node-path.conf
+systemctl daemon-reload
+```
+
+The drop-in stays on the server: the node path is a property of this host, not
+of the repository.
+
+### Checking on the backups
+
+Run this as root — the backup directory is `0700`, so anything else dies with a
+bare `backup status failed: EACCES`, which by itself does not tell you the
+directory just isn't readable by whatever user you ran it as.
+
+```bash
+cd /opt/bloodbowl-league && npm run backup:status
+```
+
+It prints how many dumps there are, how old the newest one is, how much disk
+they use, and what systemd reports for the service and timer — then exits
+non-zero if any of the following is true:
+
+- the newest dump is more than 48 hours old (or there are no dumps at all)
+- the newest dump is dated more than a few minutes in the future — this means the
+  server's clock is wrong, not that a backup came early; it is reported separately
+  from staleness so it reads as what it is
+- there are more dumps on disk than the retention limit
+- the last run of `bloodbowl-backup.service` failed
+- the service or timer unit is not loaded by systemd — not installed, or
+  masked (`systemctl mask`, sometimes run where `disable` was meant; the way
+  back is `systemctl unmask`, since `enable` fails on a masked unit)
+- the timer is not active
+- the timer is active but has no future run scheduled
+- any file in the backup directory could not be read. This includes the
+  harmless race of a dump being rotated away between listing the directory
+  and reading it, so a lone unreadable entry may be nothing — but silently
+  ignoring an unknown number of unreadable files would let a permissions or
+  filesystem problem hide most of the directory while the check still said
+  OK, and that trade is not worth making
+
+Two things it reports without failing the check: if `systemctl` itself is not
+available, or if a value it reads back from systemd is in a shape the command
+does not recognise, it prints that state as "unknown" rather than guessing —
+unknown is not silently treated as healthy, but it is not treated as broken
+either. That is the one command to run when you want to know whether backups
+are healthy.
+
+To take a backup right now:
+
+```bash
+systemctl start bloodbowl-backup.service
+journalctl -u bloodbowl-backup.service --since "10 minutes ago" --no-pager
+```
+
+Settings that can be overridden through the environment: `BACKUP_DIR` (where dumps
+are written and read from), `BACKUP_KEEP` (how many to retain), and
+`POSTGRES_CONTAINER` (the container `pg_dump` runs in). `POSTGRES_DB`,
+`POSTGRES_USER`, and `POSTGRES_PASSWORD` are also read from the environment first —
+they override what would otherwise come from the env file, which is useful for a
+one-off backup against a database other than the one the env file describes. So is
+`BLOODBOWL_ENV_FILE`, which points the backup — the same as the server itself — at a
+different env file than the usual `/etc/bloodbowl-league/.env` /
+repo-root-`.env` fallback.
+
 ## Security Notes (added 2026-08-19)
 
 ### Static file exposure — fixed, but secrets must be rotated
