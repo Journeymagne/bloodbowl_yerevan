@@ -27,11 +27,10 @@ import {
   builderStaffMaximums,
   sppCounterDefinitions,
 } from "../domain/league-rules.mjs";
-import { categoriesForAccess, clamp, costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
+import { categoriesForAccess, clamp, costToNumber, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { availableMedicalStaffDefinitions, hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
 import {
   ensureDraftPlayers,
-  makeRosterPlayer,
   normalizePlayerAdvancements,
   normalizePlayerExtraSkills,
   normalizePlayerFavouredSkills,
@@ -57,7 +56,6 @@ import {
   eliteComboCost,
   playerAdjustmentCost,
   refundTreasury,
-  spendTreasury,
   syncMedicalStaffForTeam,
 } from "../domain/roster/costs.mjs";
 import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
@@ -65,12 +63,12 @@ import { normalizeSavedRoster, updateSavedRosterFields } from "../data/roster-dr
 import { renderRosterNotices, wireRosterNotices } from "../components/roster-notices.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
+import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
+import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import {
   ensureDraftFavouredChoice,
   ensureDraftLeagueChoice,
   favouredSkillOptionsForPlayer,
-  renderAccessCell,
-  renderRosterStatCells,
   renderTeamRuleAccess,
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
@@ -204,7 +202,7 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
 
         <section class="builder-pool saved-add-player-section">
           <h2>${t("savedRoster.addNewPlayers")}</h2>
-          ${renderSavedNewPlayerTable(team, draft)}
+          ${renderHirePanel(team, draft, LEAGUE_MODE)}
         </section>
       </section>
     </div>
@@ -452,18 +450,9 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
       rerender();
     });
   });
-  view.querySelectorAll("[data-add-saved-row]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const rowIndex = Number(button.dataset.addSavedRow);
-      const row = rowsForTeam(team)[rowIndex];
-      if (!row) return;
-      draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex), { purchased: true }));
-      spendTreasury(draft, costToNumber(rowCost(row)));
-      syncRosterCountsFromPlayers(draft);
-      rerender();
-    });
-  });
+  wireHirePanel(view, { team, draft, mode: LEAGUE_MODE, onChange: rerender });
   wireSavedPlayerEditors(team, draft, rerender);
+
   view.querySelector("[data-save-roster]")?.addEventListener("click", () => saveSavedRoster(savedTeam));
   view.querySelector("[data-delete-saved-roster]")?.addEventListener("click", async () => {
     const ownerId = savedTeam._owner?.id || options.adminOwnerId || state.auth.currentUser?.id || "";
@@ -848,51 +837,6 @@ function renderSavedPlayerList(team, draft) {
     </div>
     <div class="saved-roster-mobile-list">
       ${players.map((player, index) => renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess)).join("")}
-    </div>
-  `;
-}
-function renderSavedNewPlayerTable(team, draft) {
-  return `
-    <div class="table-scroll builder-table-scroll">
-      <table class="builder-table compact-roster-table add-player-table">
-        <thead>
-          <tr>
-            <th>${t("roster.qtyHeader")}</th>
-            <th>${t("roster.positionHeader")}</th>
-            <th>${t("stats.ma")}</th>
-            <th>${t("stats.st")}</th>
-            <th>${t("stats.ag")}</th>
-            <th>${t("stats.pa")}</th>
-            <th>${t("stats.ar")}</th>
-            <th>${t("roster.skillsLabel")}</th>
-            <th>${t("roster.primary")}</th>
-            <th>${t("roster.secondary")}</th>
-            <th>${t("sidebar.cost")}</th>
-            <th>${t("savedRoster.rosterHeading")}</th>
-            <th>${t("common.add")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rowsForTeam(team).map((row, rowIndex) => {
-    const current = rowCountInPlayers(draft, rowIndex);
-    return `
-      <tr>
-        <td>${escapeHtml(row.qty || "-")}</td>
-        <td><strong>${escapeHtml(row.position)}</strong></td>
-        ${renderRosterStatCells(row)}
-        <td class="skills-cell">${renderRosterLinks(row.skills)}</td>
-        <td>${renderAccessCell(row.primary)}</td>
-        <td>${renderAccessCell(row.secondary)}</td>
-        <td>${escapeHtml(rowCost(row) || "-")}</td>
-        <td>${current}/${rosterMax(row.qty)}</td>
-        <td>
-          <button class="primary-button table-plus-button" type="button" data-add-saved-row="${rowIndex}">+</button>
-        </td>
-      </tr>
-    `;
-          }).join("")}
-        </tbody>
-      </table>
     </div>
   `;
 }

@@ -359,6 +359,7 @@
   "validation.ROSTER_MAX_PLAYERS": "A Sevens roster should not exceed {max} players (currently {count}).",
   "validation.POSITION_MIN": "{position}: minimum is {min}.",
   "validation.POSITION_MAX": "{position}: maximum is {max}.",
+  "validation.BUDGET_EXCEEDED": "Only {budget}k to spend, and {total}k of it is committed.",
   "roster.notEnoughSpp": "not enough SPP",
   "validation.ADVANCEMENT_MAX_LEVEL": "This player has reached the highest level.",
   "validation.ADVANCEMENT_UNKNOWN_TYPE": "Unknown advancement type: {type}.",

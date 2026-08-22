@@ -8,7 +8,6 @@
  */
 import { escapeHtml, renderOption } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
-import { renderRosterStatGrid } from "./detail.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
@@ -16,12 +15,10 @@ import { storage } from "../core/storage.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
 import { pageUrl } from "../core/routes.mjs";
 import { builderStaffCosts, builderStaffMaximums, startingBudget } from "../domain/league-rules.mjs";
-import { clamp, costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
+import { clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "../domain/roster/team-rules.mjs";
 import {
-  canAddRowToDraft,
   ensureDraftPlayers,
-  makeRosterPlayer,
   rowCountInPlayers,
   selectedRosterPlayers,
   setRosterCaptain,
@@ -33,10 +30,10 @@ import { createBuilderDraftStore, isEmptyBuilderDraft } from "../data/builder-dr
 import { builderPayload, emptyBuilderState, resetBuilderForTeam } from "../data/roster-draft.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks } from "../components/content-links.mjs";
+import { CREATE_MODE } from "../components/roster-editor/modes.mjs";
+import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import {
   ensureDraftLeagueChoice,
-  renderAccessCell,
-  renderRosterStatCells,
   renderTeamRuleAccess,
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
@@ -82,7 +79,7 @@ export function renderBuilder() {
       <section class="builder-panel">
         <section class="builder-pool">
           <h2>${t("builder.availablePlayers")}</h2>
-          ${renderAvailablePlayerTable(team, state.builder, true)}
+          ${renderHirePanel(team, state.builder, CREATE_MODE)}
         </section>
 
         <section class="builder-selected">
@@ -170,86 +167,6 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
         </div>
       </div>
     </section>
-  `;
-}
-function renderAvailablePlayerTable(team, draft, enforceBudget = false) {
-  const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: enforceBudget });
-  const rows = rowsForTeam(team);
-  return `
-    <div class="table-scroll builder-table-scroll builder-available-table-wrap">
-      <table class="builder-table compact-roster-table">
-        <thead>
-          <tr>
-            <th>${t("roster.qtyHeader")}</th>
-            <th>${t("roster.positionHeader")}</th>
-            <th>${t("stats.ma")}</th>
-            <th>${t("stats.st")}</th>
-            <th>${t("stats.ag")}</th>
-            <th>${t("stats.pa")}</th>
-            <th>${t("stats.ar")}</th>
-            <th>${t("roster.skillsLabel")}</th>
-            <th>${t("roster.primary")}</th>
-            <th>${t("roster.secondary")}</th>
-            <th>${t("sidebar.cost")}</th>
-            <th>${t("builder.selectedHeader")}</th>
-            <th>${t("common.add")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map((row, rowIndex) => {
-    const baseCost = costToNumber(rowCost(row));
-    const positionFull = !canAddRowToDraft(row, rowIndex, draft, true);
-    const budgetBlocked = enforceBudget && costs.total + baseCost > startingBudget;
-    const disabled = positionFull || budgetBlocked;
-    const current = rowCountInPlayers(draft, rowIndex);
-    return `
-      <tr class="${disabled ? "disabled-row" : ""}">
-        <td>${escapeHtml(row.qty || "-")}</td>
-        <td><strong>${escapeHtml(row.position)}</strong></td>
-        ${renderRosterStatCells(row)}
-        <td class="skills-cell">${renderRosterLinks(row.skills)}</td>
-        <td>${renderAccessCell(row.primary)}</td>
-        <td>${renderAccessCell(row.secondary)}</td>
-        <td>${escapeHtml(rowCost(row) || "-")}</td>
-        <td>${current}/${rosterMax(row.qty)}${budgetBlocked ? `<span class="danger-text"> ${t("builder.overBudget")}</span>` : ""}</td>
-        <td>
-          <button class="primary-button table-plus-button" type="button" data-add-row="${rowIndex}" ${disabled ? "disabled" : ""}>+</button>
-        </td>
-      </tr>
-    `;
-          }).join("")}
-        </tbody>
-      </table>
-    </div>
-    <div class="builder-mobile-card-list available-player-mobile-list">
-      ${rows.map((row, rowIndex) => renderAvailablePlayerCard(row, rowIndex, draft, costs, enforceBudget)).join("")}
-    </div>
-  `;
-}
-function renderAvailablePlayerCard(row, rowIndex, draft, costs, enforceBudget = false) {
-  const baseCost = costToNumber(rowCost(row));
-  const positionFull = !canAddRowToDraft(row, rowIndex, draft, true);
-  const budgetBlocked = enforceBudget && costs.total + baseCost > startingBudget;
-  const disabled = positionFull || budgetBlocked;
-  const current = rowCountInPlayers(draft, rowIndex);
-  return `
-    <article class="available-player-card ${disabled ? "disabled" : ""}">
-      <header class="available-player-head">
-        <div>
-          <strong>${escapeHtml(row.position)}</strong>
-          <em>${escapeHtml(row.qty || "-")} · ${escapeHtml(rowCost(row) || "-")}</em>
-        </div>
-        <button class="primary-button add-player-button" type="button" data-add-row="${rowIndex}" ${disabled ? "disabled" : ""}>+</button>
-      </header>
-      ${renderRosterStatGrid(row)}
-      <section class="mobile-player-section">
-        <h3>${t("roster.skillsLabel")}</h3>
-        <div class="mobile-player-pills">${renderRosterLinks(row.skills)}</div>
-      </section>
-      <footer class="available-player-foot">
-        ${t("roster.primary")} ${renderAccessCell(row.primary)} · ${t("roster.secondary")} ${renderAccessCell(row.secondary)} · ${t("roster.selectedLabel")} ${current}/${rosterMax(row.qty)}${budgetBlocked ? ` · ${t("roster.overBudgetLabel")}` : ""}
-      </footer>
-    </article>
   `;
 }
 function renderBuilderStaffControl(key, title, value, plusBlocked = false) {
@@ -418,19 +335,7 @@ function wireBuilder(team) {
     state.builder.logoData = "";
     renderBuilder();
   });
-  view.querySelectorAll("[data-add-row]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const rowIndex = Number(button.dataset.addRow);
-      const row = rowsForTeam(team)[rowIndex];
-      if (!row) return;
-      const costs = calculateRosterCosts(team, state.builder, { includeDedicatedFans: true });
-      if (costs.total + costToNumber(rowCost(row)) > startingBudget) return;
-      if (!canAddRowToDraft(row, rowIndex, state.builder, true)) return;
-      state.builder.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(state.builder, rowIndex)));
-      syncRosterCountsFromPlayers(state.builder);
-      renderBuilder();
-    });
-  });
+  wireHirePanel(view, { team, draft: state.builder, mode: CREATE_MODE, onChange: renderBuilder });
   view.querySelectorAll("[data-remove-player]").forEach((button) => {
     button.addEventListener("click", () => {
       state.builder.players = state.builder.players.filter((player) => player.id !== button.dataset.removePlayer);
