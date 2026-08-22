@@ -252,6 +252,12 @@ systemd-analyze verify bloodbowl-backup.timer
 systemctl enable --now bloodbowl-backup.timer
 ```
 
+Right after this, `npm run backup:status` correctly reports NOT OK — there are no
+dumps yet, and an empty backup directory is treated as maximally stale rather than
+as a pass. That is expected, not a sign the install failed; it clears up on its own
+once the timer's first run lands (04:00 UTC), or immediately if you trigger one by
+hand (see "To take a backup right now" below).
+
 The units are symlinks into the repository so that an edit arrives with the next
 deploy. Two things do not: systemd is not reloaded by the deploy workflow, and
 neither is `docker compose` (same caveat as `docker-compose.yml`). After changing
@@ -274,6 +280,10 @@ of the repository.
 
 ### Checking on the backups
 
+Run this as root — the backup directory is `0700`, so anything else dies with a
+bare `backup status failed: EACCES`, which by itself does not tell you the
+directory just isn't readable by whatever user you ran it as.
+
 ```bash
 cd /opt/bloodbowl-league && npm run backup:status
 ```
@@ -283,6 +293,9 @@ they use, and what systemd reports for the service and timer — then exits
 non-zero if any of the following is true:
 
 - the newest dump is more than 48 hours old (or there are no dumps at all)
+- the newest dump is dated more than a few minutes in the future — this means the
+  server's clock is wrong, not that a backup came early; it is reported separately
+  from staleness so it reads as what it is
 - there are more dumps on disk than the retention limit
 - the last run of `bloodbowl-backup.service` failed
 - the service or timer unit is not loaded by systemd — not installed, or
@@ -311,8 +324,15 @@ systemctl start bloodbowl-backup.service
 journalctl -u bloodbowl-backup.service --since "10 minutes ago" --no-pager
 ```
 
-Settings that can be overridden through the environment: `BACKUP_DIR`,
-`BACKUP_KEEP`, `POSTGRES_CONTAINER`.
+Settings that can be overridden through the environment: `BACKUP_DIR` (where dumps
+are written and read from), `BACKUP_KEEP` (how many to retain), and
+`POSTGRES_CONTAINER` (the container `pg_dump` runs in). `POSTGRES_DB`,
+`POSTGRES_USER`, and `POSTGRES_PASSWORD` are also read from the environment first —
+they override what would otherwise come from the env file, which is useful for a
+one-off backup against a database other than the one the env file describes. So is
+`BLOODBOWL_ENV_FILE`, which points the backup — the same as the server itself — at a
+different env file than the usual `/etc/bloodbowl-league/.env` /
+repo-root-`.env` fallback.
 
 ## Security Notes (added 2026-08-19)
 

@@ -1,8 +1,17 @@
-import { DEFAULT_KEEP, isDumpName, parseDumpTimestamp } from "./rotation.mjs";
+import { DEFAULT_KEEP, isDumpName, isValidKeep, parseDumpTimestamp } from "./rotation.mjs";
 
 // A nightly job may be delayed by a reboot or a randomised start, but two
 // missed nights in a row means something is broken rather than late.
 export const STALE_AFTER_HOURS = 48;
+
+// A dump's name is stamped once, when the run starts; this check happens at
+// some later moment. A few seconds to a couple of minutes of the newest
+// dump appearing "in the future" is ordinary clock jitter - an NTP step
+// correction, or a small drift between the host that ran the dump and the
+// host running this check - not a broken clock. Past this tolerance it is
+// not jitter: see the comment on `future` in summarizeBackups below.
+export const FUTURE_TOLERANCE_MINUTES = 5;
+const FUTURE_TOLERANCE_HOURS = FUTURE_TOLERANCE_MINUTES / 60;
 
 /**
  * @param {Array<{name: string, size: number}>} entries
@@ -20,14 +29,49 @@ export function summarizeBackups(entries, options = {}) {
     ? (now.getTime() - parseDumpTimestamp(newest.name).getTime()) / 3_600_000
     : null;
 
+  // A dump named after `now` (age hours negative beyond ordinary jitter) is
+  // a problem in its own right - almost always a server clock that is
+  // wrong - and a *worse* one than staleness: folding it into `stale` via
+  // "not > staleAfterHours" is exactly what let it report healthy before
+  // this field existed, while the newest dump silently sorted as the
+  // lexicographically oldest and got rotated away on the next run. Keep it
+  // a separate, explicitly-named flag so an operator is not sent looking
+  // for a too-old backup that isn't the actual problem.
+  const future = ageHours !== null && ageHours < -FUTURE_TOLERANCE_HOURS;
+
   return {
     count: dumps.length,
     totalBytes: dumps.reduce((total, entry) => total + entry.size, 0),
     newest,
     ageHours,
     stale: ageHours === null || ageHours > staleAfterHours,
+    future,
     overKeep: dumps.length > keep,
   };
+}
+
+/**
+ * Parse and validate the BACKUP_KEEP environment override.
+ *
+ * `Number(garbage)` silently becomes NaN, and `count > NaN` is always
+ * `false` - the over-retention check would turn itself off without a word.
+ * `planRotation` in ./rotation.mjs already refuses to run with a bad `keep`
+ * (fail-safe: a rejected promise, surfaced by the backup command as a
+ * failure); this is that same rule applied before the status command ever
+ * prints a number, so a garbage value fails loudly here too instead of
+ * printing "keeping NaN" and reporting OK.
+ *
+ * @param {string | undefined} raw
+ * @param {number} [fallback]
+ * @returns {number}
+ */
+export function parseKeepOption(raw, fallback = DEFAULT_KEEP) {
+  if (!raw) return fallback;
+  const value = Number(raw);
+  if (!isValidKeep(value)) {
+    throw new RangeError(`BACKUP_KEEP must be a positive integer, got ${JSON.stringify(raw)}`);
+  }
+  return value;
 }
 
 /**
@@ -263,7 +307,15 @@ export function evaluateSystemdState(state, unit) {
  */
 export function evaluateBackupStatus({ summary, keep, systemd, unreadableCount = 0 }) {
   const problems = [];
-  if (summary.stale) {
+  if (summary.future) {
+    // Named explicitly, and separately from staleness (see the comment on
+    // `future` in summarizeBackups) - an operator seeing "too old" for a
+    // dump dated in 2035 would waste time looking in the wrong direction.
+    problems.push(
+      `newest dump (${summary.newest.name}) is dated ${Math.abs(summary.ageHours).toFixed(1)} h ` +
+        "in the future - the server clock is wrong",
+    );
+  } else if (summary.stale) {
     const age = summary.ageHours === null ? "there are none" : `${summary.ageHours.toFixed(1)} h`;
     problems.push(`newest dump is older than allowed (${age})`);
   }

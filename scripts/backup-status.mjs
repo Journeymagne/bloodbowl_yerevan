@@ -4,17 +4,16 @@ import { execFile } from "node:child_process";
 import path from "node:path";
 import { promisify } from "node:util";
 
-import { DEFAULT_KEEP } from "./backup/rotation.mjs";
 import {
   summarizeBackups,
   parseSystemctlProperties,
   evaluateSystemdState,
   evaluateBackupStatus,
+  parseKeepOption,
 } from "./backup/status.mjs";
 
 const run = promisify(execFile);
 const backupDir = process.env.BACKUP_DIR || "/var/backups/bloodbowl-league";
-const keep = Number(process.env.BACKUP_KEEP || DEFAULT_KEEP);
 const unit = "bloodbowl-backup";
 
 // `1_048_576` is 1 MiB, not 1 MB - the label has to match what is actually
@@ -22,9 +21,9 @@ const unit = "bloodbowl-backup";
 const formatSize = (bytes) => `${(bytes / 1_048_576).toFixed(1)} MiB`;
 
 async function readEntries() {
-  let names = [];
+  let dirEntries = [];
   try {
-    names = await fs.readdir(backupDir);
+    dirEntries = await fs.readdir(backupDir, { withFileTypes: true });
   } catch (error) {
     if (error.code === "ENOENT") return null;
     throw error;
@@ -32,10 +31,19 @@ async function readEntries() {
 
   const entries = [];
   let unreadableCount = 0;
-  for (const name of names) {
+  for (const dirent of dirEntries) {
+    // Match rotate() in scripts/backup/create.mjs: a symlink is never a
+    // dump this system created, whether or not its target exists.
+    // Dirent.isFile() decides this from the entry's own type, without
+    // following the link - the same check rotation uses to leave symlinks
+    // alone. Deciding it any other way (e.g. stat(), which follows links)
+    // would let the two scripts disagree: a dump-named symlink would count
+    // here but never get rotated away there, and sit in the retention
+    // total forever.
+    if (!dirent.isFile()) continue;
     let stat;
     try {
-      stat = await fs.stat(path.join(backupDir, name));
+      stat = await fs.stat(path.join(backupDir, dirent.name));
     } catch {
       // Rotation deleting a dump between readdir() and stat() (ENOENT), or a
       // file this process cannot read (EACCES), is a benign race, not a
@@ -47,7 +55,7 @@ async function readEntries() {
       unreadableCount += 1;
       continue;
     }
-    if (stat.isFile()) entries.push({ name, size: stat.size });
+    entries.push({ name: dirent.name, size: stat.size });
   }
   return { entries, unreadableCount };
 }
@@ -89,6 +97,10 @@ async function readSystemdState() {
 }
 
 async function main() {
+  // Validated before any I/O: a garbage BACKUP_KEEP must fail loudly rather
+  // than silently disable the over-retention check (see parseKeepOption).
+  const keep = parseKeepOption(process.env.BACKUP_KEEP);
+
   const listing = await readEntries();
   if (listing === null) {
     console.error(`backup directory ${backupDir} does not exist`);

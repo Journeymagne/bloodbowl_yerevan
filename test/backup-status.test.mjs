@@ -9,12 +9,15 @@ import { fileURLToPath } from "node:url";
 
 import {
   STALE_AFTER_HOURS,
+  FUTURE_TOLERANCE_MINUTES,
   summarizeBackups,
   parseSystemctlProperties,
   parseTimerNextElapse,
   evaluateSystemdState,
   evaluateBackupStatus,
+  parseKeepOption,
 } from "../scripts/backup/status.mjs";
+import { formatDumpName } from "../scripts/backup/rotation.mjs";
 
 const run = promisify(execFile);
 const cliPath = fileURLToPath(new URL("../scripts/backup-status.mjs", import.meta.url));
@@ -85,6 +88,106 @@ test("a dump exactly STALE_AFTER_HOURS old is not yet stale", () => {
   const summary = summarizeBackups([dump("gata_league-20260820-120000.dump")], { now });
   assert.equal(summary.ageHours, STALE_AFTER_HOURS);
   assert.equal(summary.stale, false);
+});
+
+// --- Fix 1: a newest dump dated in the future is its own problem, not a
+// silently-healthy negative age, and not folded into staleness -----------
+//
+// Root cause: `stale` was only `ageHours > staleAfterHours`. A dump named
+// after `now` (a wrong server clock, not a real backup from the future)
+// gives a negative age, which is never `> staleAfterHours`, so the old code
+// reported it as healthy - and with seven such names present, a
+// correctly-dated new dump sorts as the lexicographically oldest and gets
+// rotated away immediately (rotation's name-based sort is unchanged and
+// correct; this fix is entirely in the reporting).
+
+test("a newest dump dated far in the future is flagged as its own problem, not stale", () => {
+  const summary = summarizeBackups([dump("gata_league-20350101-040000.dump")], { now });
+  assert.equal(summary.ageHours, -73288);
+  assert.equal(summary.stale, false);
+  assert.equal(summary.future, true);
+});
+
+// A dump's name is captured once, when the run starts; the status check
+// happens at some later moment. A few minutes of negative age is ordinary
+// clock jitter (NTP step corrections, a little drift between hosts), not a
+// broken clock, and must not be reported as a problem.
+test("a dump a couple of minutes in the future is ordinary clock jitter, not a problem", () => {
+  const jittery = new Date(now.getTime() + 2 * 60_000);
+  const summary = summarizeBackups([dump(formatDumpName(jittery))], { now });
+  assert.equal(summary.future, false);
+  assert.equal(summary.stale, false);
+});
+
+test("a dump exactly at the jitter tolerance boundary is not yet a future-clock problem", () => {
+  const boundary = new Date(now.getTime() + FUTURE_TOLERANCE_MINUTES * 60_000);
+  const summary = summarizeBackups([dump(formatDumpName(boundary))], { now });
+  assert.equal(summary.ageHours, -FUTURE_TOLERANCE_MINUTES / 60);
+  assert.equal(summary.future, false);
+});
+
+test("a dump one second past the jitter tolerance boundary is a future-clock problem", () => {
+  const pastBoundary = new Date(now.getTime() + FUTURE_TOLERANCE_MINUTES * 60_000 + 1000);
+  const summary = summarizeBackups([dump(formatDumpName(pastBoundary))], { now });
+  assert.equal(summary.future, true);
+});
+
+test("evaluateBackupStatus: a future-dated newest dump fails with its own message, distinct from staleness", () => {
+  const summary = summarizeBackups([dump("gata_league-20350101-040000.dump")], { now });
+  const systemd = evaluateSystemdState({ available: false }, "bloodbowl-backup");
+  const status = evaluateBackupStatus({ summary, keep: 7, systemd });
+
+  assert.equal(status.ok, false);
+  assert.equal(status.problems.some((problem) => /future/i.test(problem)), true);
+  assert.equal(status.problems.some((problem) => /older than allowed/.test(problem)), false);
+});
+
+test("the CLI reports a future-dated newest dump and exits non-zero", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(path.join(dir, "gata_league-20350101-040000.dump"), "x".repeat(2048));
+
+  await assert.rejects(
+    run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir } }),
+    (error) => {
+      assert.match(error.stdout + error.stderr, /future/i);
+      assert.equal(error.code, 1);
+      return true;
+    },
+  );
+});
+
+// --- Fix 2: a bad BACKUP_KEEP must fail loudly, not silently disable the
+// over-retention check (`count > NaN` is always false) --------------------
+
+test("parseKeepOption accepts a valid positive integer string", () => {
+  assert.equal(parseKeepOption("7"), 7);
+});
+
+test("parseKeepOption falls back to the default when unset", () => {
+  assert.equal(parseKeepOption(undefined, 7), 7);
+});
+
+test("parseKeepOption rejects non-numeric, zero, negative, and fractional values", () => {
+  for (const raw of ["abc", "0", "-3", "2.5", "NaN", "Infinity", "7abc"]) {
+    assert.throws(() => parseKeepOption(raw), RangeError, `expected ${raw} to be rejected`);
+  }
+});
+
+test("the CLI fails loudly on a garbage BACKUP_KEEP instead of silently printing 'keeping NaN'", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  await fs.writeFile(path.join(dir, "gata_league-20260822-040000.dump"), "x".repeat(2048));
+
+  await assert.rejects(
+    run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir, BACKUP_KEEP: "notanumber" } }),
+    (error) => {
+      assert.match(error.stderr, /BACKUP_KEEP/);
+      assert.doesNotMatch(error.stdout, /keeping NaN/);
+      assert.equal(error.code, 1);
+      return true;
+    },
+  );
 });
 
 // --- Finding 2: pure systemd-state parsing and evaluation ---------------
@@ -629,34 +732,60 @@ test("evaluateBackupStatus: more dumps than the retention limit still fails (rot
 
 // --- Finding 3: a file that vanishes (or can't be stat'd) between readdir
 // and stat must not crash the whole command -------------------------------
+//
+// This used to be exercised with a dangling symlink: readdir() sees the
+// name, but stat() (which follows symlinks) throws ENOENT because the
+// target is gone, the same as a file rotated away between the two calls.
+// Fix 3 (below) changes how symlinks are classified - the directory listing
+// now decides "is this a dump" the same way rotation does, via the
+// Dirent's own type, which never follows the link. That check happens
+// *before* any stat() call, so a symlink - dangling or not - is now
+// excluded up front and never reaches the stat() that used to throw. The
+// vanished-real-file race this test originally stood in for is still
+// caught by the same try/catch (see readEntries in scripts/backup-status.mjs),
+// just no longer reachable through a symlink; it would need a genuine
+// timing race to reproduce deterministically, which is not attempted here.
 
-test("the CLI survives a dangling symlink in the backup directory instead of crashing, but still reports and fails on the unreadable entry", async (t) => {
+// --- Fix 3: the two directory listings must agree about symlinks - a
+// symlink is not a dump either script created, whether or not its target
+// exists, so neither counts it. --------------------------------------------
+
+test("a dangling symlink is excluded from the count, not reported as an unreadable entry", async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
 
   // A real, readable dump so the directory is otherwise healthy.
   await fs.writeFile(path.join(dir, "gata_league-20260822-040000.dump"), "x".repeat(2048));
 
-  // A dangling symlink reproduces exactly the race the finding describes:
-  // readdir() sees the name, but stat() (which follows symlinks) throws
-  // ENOENT because the target is gone - the same as a file rotated away
-  // between the two calls.
   await fs.symlink(
     path.join(dir, "gata_league-20260822-050000.dump-does-not-exist"),
     path.join(dir, "gata_league-20260822-050000.dump"),
   );
 
-  // Finding 3: the vanished entry must not crash the process (no generic
-  // "backup status failed" handler), but it also must not be silently
-  // discarded - it is counted, reported, and now makes the check fail.
-  await assert.rejects(
-    run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir } }),
-    (error) => {
-      assert.doesNotMatch(error.stderr, /backup status failed/);
-      assert.match(error.stdout, /dumps:\s+1 /);
-      assert.match(error.stdout, /unreadable/);
-      assert.equal(error.code, 1);
-      return true;
-    },
-  );
+  const { stdout } = await run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir } });
+  assert.match(stdout, /dumps:\s+1 /);
+  assert.doesNotMatch(stdout, /unreadable/);
+  assert.match(stdout, /\nOK/);
+});
+
+test("a symlink to a real dump file is also excluded from the count, matching rotation's Dirent-based check", async (t) => {
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+
+  // The one real dump rotation would ever remove or keep.
+  await fs.writeFile(path.join(dir, "gata_league-20260822-040000.dump"), "x".repeat(2048));
+
+  // A live target, so following the link (the old behaviour) would succeed
+  // and silently count it - the bug this fix closes: rotate() in
+  // scripts/backup/create.mjs never touches a symlink (Dirent.isFile() is
+  // false for it), so a counted-but-never-rotated symlink would sit in the
+  // retention total forever.
+  const target = path.join(dir, "real-target.dump");
+  await fs.writeFile(target, "x".repeat(2048));
+  await fs.symlink(target, path.join(dir, "gata_league-20260821-040000.dump"));
+
+  const { stdout } = await run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir } });
+  assert.match(stdout, /dumps:\s+1 /);
+  assert.doesNotMatch(stdout, /unreadable/);
+  assert.match(stdout, /\nOK/);
 });

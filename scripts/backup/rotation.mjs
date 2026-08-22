@@ -58,6 +58,19 @@ function isPartialName(name) {
 }
 
 /**
+ * A retention count only makes sense as a positive whole number of dumps.
+ * Shared by planRotation's own guard below and by the status CLI's
+ * BACKUP_KEEP validation (see parseKeepOption in ./status.mjs), so both
+ * agree on what "usable" means rather than each inventing its own rule.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function isValidKeep(value) {
+  return Number.isInteger(value) && value >= 1;
+}
+
+/**
  * Decide which files in the backup directory may go.
  *
  * Anything the naming scheme does not recognise is left alone: this function
@@ -69,7 +82,7 @@ function isPartialName(name) {
  */
 export function planRotation(entries, options = {}) {
   const { keep = DEFAULT_KEEP, now = new Date(), partialMaxAgeMs = PARTIAL_MAX_AGE_MS } = options;
-  if (!Number.isInteger(keep) || keep < 1) {
+  if (!isValidKeep(keep)) {
     throw new RangeError(`keep must be an integer of at least 1, got ${String(keep)}`);
   }
 
