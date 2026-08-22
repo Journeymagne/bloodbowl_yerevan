@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { createWriteStream } from "node:fs";
+import { createWriteStream, rmSync } from "node:fs";
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,12 +13,42 @@ const backupDir = process.env.BACKUP_DIR || "/var/backups/bloodbowl-league";
 const container = process.env.POSTGRES_CONTAINER || "gata-league-postgres";
 const keep = Number(process.env.BACKUP_KEEP || DEFAULT_KEEP);
 
-function run(command, args, { onStdout = null, env = process.env } = {}) {
+// Tracks whatever dump is currently in flight, so a signal handler that fires
+// asynchronously (the process being killed from outside, e.g. `systemctl stop`
+// or a systemd start-timeout) has something to clean up. Set right before the
+// dump child is spawned, cleared once runDump settles either way.
+let activeChild = null;
+let activePartialPath = null;
+
+// SIGTERM/SIGINT mean something external is ending this run right now — the
+// same orphan-accumulation problem the write-failure teardown above closes,
+// just triggered by the systemd caller instead of an internal error. Node's
+// default behaviour for these signals is to exit immediately with no chance
+// for the normal try/catch teardown in runDump or createBackup to run, so it
+// must be handled explicitly here. Everything below must be synchronous: the
+// process is on its way out, and an `await` may never get scheduled again.
+function handleTerminationSignal(signal) {
+  process.stderr.write(`backup interrupted by ${signal}\n`);
+  if (activeChild && activeChild.exitCode === null && activeChild.signalCode === null) {
+    activeChild.kill();
+  }
+  if (activePartialPath) {
+    // Only ever the not-yet-verified file — safe to remove unconditionally.
+    // A finished `*.dump` is never tracked here.
+    rmSync(activePartialPath, { force: true });
+  }
+  process.exit(1);
+}
+process.on("SIGTERM", () => handleTerminationSignal("SIGTERM"));
+process.on("SIGINT", () => handleTerminationSignal("SIGINT"));
+
+function run(command, args, { onStdout = null, env = process.env, onChild = null } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
       stdio: ["ignore", onStdout ? "pipe" : "ignore", "pipe"],
       env,
     });
+    if (onChild) onChild(child);
 
     let stderr = "";
     child.stderr.on("data", (chunk) => { stderr += chunk; });
@@ -91,10 +121,17 @@ async function main() {
     // as a command-line argument, so it never shows up in `ps` on the host.
     if (password) args.push("-e", "PGPASSWORD");
     args.push(container, "pg_dump", "-U", user, "-d", database, "-Fc");
-    await run("docker", args, {
-      onStdout: file,
-      env: password ? { ...process.env, PGPASSWORD: password } : process.env,
-    });
+    activePartialPath = target;
+    try {
+      await run("docker", args, {
+        onStdout: file,
+        env: password ? { ...process.env, PGPASSWORD: password } : process.env,
+        onChild: (child) => { activeChild = child; },
+      });
+    } finally {
+      activeChild = null;
+      activePartialPath = null;
+    }
   };
 
   // The container cannot see the host's backup directory, and pg_restore wants
@@ -105,7 +142,13 @@ async function main() {
     try {
       await run("docker", ["exec", container, "pg_restore", "--list", inside]);
     } finally {
-      await run("docker", ["exec", container, "rm", "-f", inside]).catch(() => {});
+      await run("docker", ["exec", container, "rm", "-f", inside]).catch((error) => {
+        // Not fatal to the backup — the dump itself is already verified by
+        // this point — but silently leaving copies inside the container on
+        // every failed cleanup is exactly the kind of thing an operator needs
+        // to hear about before it becomes a disk problem.
+        console.error(`warning: failed to remove ${inside} from ${container}: ${error.message}`);
+      });
     }
   };
 
