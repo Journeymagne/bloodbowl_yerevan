@@ -128,4 +128,54 @@ test("creates the backup directory when it is not there yet", async () => {
   const dir = path.join(await makeDir(), "nested");
   await createBackup({ backupDir: dir, runDump: writes(4096), verifyDump: succeeds, now });
   assert.deepEqual(await listing(dir), ["gata_league-20260822-040000.dump"]);
+
+  // Only the newly created leaf directory ("nested") is expected to carry the
+  // mode — its parent already existed from makeDir().
+  const stat = await fs.stat(dir);
+  assert.equal(stat.mode & 0o777, 0o700);
+});
+
+test("a successful run reports no rotation error", async () => {
+  const dir = await makeDir();
+  const result = await createBackup({ backupDir: dir, runDump: writes(4096), verifyDump: succeeds, now });
+  assert.equal(result.rotationError, null);
+});
+
+test("a rotation failure still resolves, with the verified dump left on disk", async () => {
+  const dir = await makeDir();
+  const result = await createBackup({
+    backupDir: dir,
+    runDump: writes(4096),
+    verifyDump: succeeds,
+    now,
+    keep: 0,
+  });
+
+  assert.deepEqual(await listing(dir), ["gata_league-20260822-040000.dump"]);
+  assert.equal(result.path, path.join(dir, "gata_league-20260822-040000.dump"));
+  assert.deepEqual(result.removed, []);
+  assert.ok(result.rotationError instanceof Error);
+  assert.match(result.rotationError.message, /keep must be an integer/);
+});
+
+test("a cleanup failure during the error path does not hide the original error", async () => {
+  const dir = await makeDir();
+  const finalPath = path.join(dir, "gata_league-20260822-040000.dump");
+  const partialPath = `${finalPath}.partial`;
+  // Pre-create the .partial path as a directory, so the catch block's
+  // fs.rm(partialPath, { force: true }) fails with EISDIR instead of
+  // removing it.
+  await fs.mkdir(partialPath);
+
+  await assert.rejects(
+    () => createBackup({
+      backupDir: dir,
+      runDump: async () => {
+        throw new Error("pg_dump could not connect to the database");
+      },
+      verifyDump: succeeds,
+      now,
+    }),
+    /pg_dump could not connect to the database/,
+  );
 });

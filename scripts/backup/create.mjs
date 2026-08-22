@@ -22,7 +22,7 @@ export const MIN_DUMP_BYTES = 512;
  *   keep?: number,
  *   minBytes?: number,
  * }} options
- * @returns {Promise<{path: string, removed: string[]}>}
+ * @returns {Promise<{path: string, removed: string[], rotationError: Error|null}>}
  */
 export async function createBackup(options) {
   const {
@@ -50,12 +50,29 @@ export async function createBackup(options) {
     await fs.chmod(partialPath, 0o600);
     await fs.rename(partialPath, finalPath);
   } catch (error) {
-    await fs.rm(partialPath, { force: true });
+    try {
+      await fs.rm(partialPath, { force: true });
+    } catch {
+      // The dump already failed for its own reason; a cleanup error here is
+      // secondary and must not displace the diagnostic that explains why the
+      // dump was rejected in the first place.
+    }
     throw error;
   }
 
-  const removed = await rotate(backupDir, { keep, now });
-  return { path: finalPath, removed };
+  // The dump is verified and sitting under its final name by this point, so
+  // the backup itself has already succeeded — a systemd oneshot caller
+  // treats a rejected promise as "no backup happened tonight", which would
+  // be false. Rotation is a housekeeping step layered on top of that success:
+  // if it fails (bad `keep`, a transient readdir/stat/rm error), report the
+  // failure through the resolved value instead of throwing, so dumps piling
+  // up is visible without masquerading as a failed backup.
+  try {
+    const removed = await rotate(backupDir, { keep, now });
+    return { path: finalPath, removed, rotationError: null };
+  } catch (rotationError) {
+    return { path: finalPath, removed: [], rotationError };
+  }
 }
 
 /**
