@@ -24,9 +24,32 @@ function run(command, args, { onStdout = null, env = process.env } = {}) {
     child.stderr.on("data", (chunk) => { stderr += chunk; });
     if (onStdout) child.stdout.pipe(onStdout);
 
+    // `.pipe()` does not undo itself when the destination errors: Node leaves
+    // the source flowing and the child running. On any failure path below we
+    // must tear both down ourselves before the promise settles, or a write
+    // failure (disk full, most realistically) leaves the dump process
+    // orphaned in the container.
+    let settled = false;
+    const settleReject = (error) => {
+      if (settled) return;
+      settled = true;
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill();
+      }
+      if (onStdout && !onStdout.destroyed) {
+        onStdout.destroy();
+      }
+      reject(error);
+    };
+    const settleResolve = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
     const exited = new Promise((done, failed) => {
       child.on("error", failed);
-      child.on("close", done);
+      child.on("close", (code, signal) => done([code, signal]));
     });
     // The child can exit before the file it was piped into has flushed, so wait
     // for both: otherwise a truncated dump can look like a clean run.
@@ -37,10 +60,14 @@ function run(command, args, { onStdout = null, env = process.env } = {}) {
         })
       : Promise.resolve();
 
-    Promise.all([exited, written]).then(([code]) => {
-      if (code === 0) resolve();
-      else reject(new Error(`${command} ${args.join(" ")} exited with ${code}: ${stderr.trim()}`));
-    }, reject);
+    Promise.all([exited, written]).then(([[code, signal]]) => {
+      if (code === 0) {
+        settleResolve();
+      } else {
+        const status = signal ? `signal ${signal}` : `${code}`;
+        settleReject(new Error(`${command} ${args.join(" ")} exited with ${status}: ${stderr.trim()}`));
+      }
+    }, settleReject);
   });
 }
 
