@@ -31,6 +31,7 @@ async function readEntries() {
   }
 
   const entries = [];
+  let unreadableCount = 0;
   for (const name of names) {
     let stat;
     try {
@@ -39,12 +40,16 @@ async function readEntries() {
       // Rotation deleting a dump between readdir() and stat() (ENOENT), or a
       // file this process cannot read (EACCES), is a benign race, not a
       // reason to abort the whole check. A name that can no longer be
-      // stat'd is simply not part of the listing.
+      // stat'd is simply not part of the listing - but it is counted, so a
+      // permissions regression or filesystem trouble that makes most of the
+      // directory unreadable is not silently indistinguishable from an
+      // empty, healthy directory.
+      unreadableCount += 1;
       continue;
     }
     if (stat.isFile()) entries.push({ name, size: stat.size });
   }
-  return entries;
+  return { entries, unreadableCount };
 }
 
 async function readUnitProperties(unitName, properties) {
@@ -64,7 +69,7 @@ async function readSystemdState() {
       readUnitProperties(`${unit}.service`, [
         "LoadState", "Result", "ExecMainStatus", "ExecMainExitTimestamp",
       ]),
-      readUnitProperties(`${unit}.timer`, ["LoadState", "ActiveState"]),
+      readUnitProperties(`${unit}.timer`, ["LoadState", "ActiveState", "NextElapseUSecRealtime"]),
     ]);
     return { available: true, service, timer };
   } catch {
@@ -73,12 +78,13 @@ async function readSystemdState() {
 }
 
 async function main() {
-  const entries = await readEntries();
-  if (entries === null) {
+  const listing = await readEntries();
+  if (listing === null) {
     console.error(`backup directory ${backupDir} does not exist`);
     process.exitCode = 1;
     return;
   }
+  const { entries, unreadableCount } = listing;
 
   const summary = summarizeBackups(entries, { keep });
   console.log(`directory: ${backupDir}`);
@@ -87,6 +93,10 @@ async function main() {
     console.log(`newest:    ${summary.newest.name}, ${formatSize(summary.newest.size)}, ${summary.ageHours.toFixed(1)} h ago`);
   } else {
     console.log("newest:    none");
+  }
+  if (unreadableCount > 0) {
+    const noun = unreadableCount === 1 ? "entry" : "entries";
+    console.log(`unreadable: ${unreadableCount} ${noun} could not be stat'd (permissions or a mid-listing race)`);
   }
 
   const state = await readSystemdState();
@@ -99,10 +109,11 @@ async function main() {
       ? `last run ${systemd.result} (exit ${state.service.get("ExecMainStatus")}) at ${state.service.get("ExecMainExitTimestamp")}`
       : "has not run yet";
     console.log(`service:   ${service}, ${lastRun}`);
-    console.log(`timer:     ${state.timer.get("LoadState")}, ${state.timer.get("ActiveState")}`);
+    const nextRun = systemd.timerNextRun ? `, next run ${systemd.timerNextRun.toISOString()}` : "";
+    console.log(`timer:     ${state.timer.get("LoadState")}, ${state.timer.get("ActiveState")}${nextRun}`);
   }
 
-  const { problems, ok } = evaluateBackupStatus({ summary, keep, systemd });
+  const { problems, ok } = evaluateBackupStatus({ summary, keep, systemd, unreadableCount });
   if (!ok) {
     console.error(`\nNOT OK:\n- ${problems.join("\n- ")}`);
     process.exitCode = 1;

@@ -122,9 +122,18 @@ const recordedService = ({
   "",
 ].join("\n"));
 
-const recordedTimer = ({ loadState = "loaded", activeState = "active" } = {}) => parseSystemctlProperties([
+// A far-future NextElapseUSecRealtime (microseconds since the epoch) so a
+// default recordedTimer() reads as "has a future run" unless a test
+// overrides it. Pass `nextElapseUsec: null` to omit the property entirely
+// (the "absent from the output" case), or "0" for "no future elapse".
+const recordedTimer = ({
+  loadState = "loaded",
+  activeState = "active",
+  nextElapseUsec = "1755840000000000",
+} = {}) => parseSystemctlProperties([
   `LoadState=${loadState}`,
   `ActiveState=${activeState}`,
+  ...(nextElapseUsec === null ? [] : [`NextElapseUSecRealtime=${nextElapseUsec}`]),
   "",
 ].join("\n"));
 
@@ -152,7 +161,7 @@ test("evaluateSystemdState: a not-found service is a problem, even if the timer 
     service: recordedService({ loadState: "not-found", result: "success", execMainExitTimestamp: "" }),
     timer: recordedTimer(),
   }, "bloodbowl-backup");
-  assert.equal(result.problems.some((problem) => /service.*not installed/.test(problem)), true);
+  assert.equal(result.problems.some((problem) => /service.*not loaded.*LoadState=not-found/.test(problem)), true);
 });
 
 test("evaluateSystemdState: a not-found timer is a problem - the backup is not scheduled", () => {
@@ -161,7 +170,42 @@ test("evaluateSystemdState: a not-found timer is a problem - the backup is not s
     service: recordedService(),
     timer: recordedTimer({ loadState: "not-found", activeState: "inactive" }),
   }, "bloodbowl-backup");
-  assert.equal(result.problems.some((problem) => /timer.*not scheduled/.test(problem)), true);
+  assert.equal(result.problems.some((problem) => /timer.*not loaded.*LoadState=not-found/.test(problem)), true);
+});
+
+// --- Finding 1: LoadState must be an allow-list ("loaded" only), not a
+// deny-list of just "not-found" - masked, error, and bad-setting are all
+// broken units too, and the service's own LoadState was not even the only
+// gap: a masked service was previously invisible entirely. -----------------
+
+test("evaluateSystemdState: a masked service is a problem - the common `systemctl mask` slip", () => {
+  // Masking a unit (symlinking it to /dev/null) is a common mistake when
+  // `disable` was meant. LoadState=masked, not "not-found" - the old
+  // deny-list test missed this state completely.
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService({ loadState: "masked", result: "success", execMainExitTimestamp: "" }),
+    timer: recordedTimer(),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /service.*not loaded.*LoadState=masked/.test(problem)), true);
+});
+
+test("evaluateSystemdState: a service in LoadState=error is a problem", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService({ loadState: "error", result: "success", execMainExitTimestamp: "" }),
+    timer: recordedTimer(),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /service.*not loaded.*LoadState=error/.test(problem)), true);
+});
+
+test("evaluateSystemdState: a masked timer is a problem, same allow-list applied to the timer side", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ loadState: "masked", activeState: "inactive" }),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /timer.*not loaded.*LoadState=masked/.test(problem)), true);
 });
 
 test("evaluateSystemdState: an installed but inactive timer is a problem", () => {
@@ -194,6 +238,92 @@ test("evaluateSystemdState: a service that has never run is not itself a problem
   assert.equal(result.hasRun, false);
   assert.deepEqual(result.problems, []);
   assert.match(result.notes.join(" "), /has not run yet/);
+});
+
+// --- Finding 2: ActiveState=active on the timer only means it is loaded and
+// running - it says nothing about whether it will ever fire again. The next
+// elapse must be checked explicitly via NextElapseUSecRealtime. -----------
+
+test("evaluateSystemdState: a loaded, active timer with no future elapse (NextElapseUSecRealtime=0) is a problem", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapseUsec: "0" }),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /timer.*no future run/.test(problem)), true);
+});
+
+test("evaluateSystemdState: a loaded, active timer with a real future elapse stays healthy", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapseUsec: "1755840000000000" }),
+  }, "bloodbowl-backup");
+  assert.deepEqual(result.problems, []);
+  assert.ok(result.timerNextRun instanceof Date);
+});
+
+test("evaluateSystemdState: NextElapseUSecRealtime missing from the output entirely is treated as no future elapse, not silently healthy", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapseUsec: null }),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /timer.*no future run/.test(problem)), true);
+  assert.equal(result.timerNextRun, null);
+});
+
+test("evaluateBackupStatus: an active-but-dead timer plus a never-run service and a fresh dump must still fail - the Finding 2 regression case", () => {
+  // The reviewer's exact repro: active timer with no future elapse, service
+  // that has never run, but a dump happens to be fresh. Must not read as OK.
+  const summary = summarizeBackups([dump("gata_league-20260822-040000.dump")], { now });
+  const systemd = evaluateSystemdState({
+    available: true,
+    service: recordedService({ result: "success", execMainExitTimestamp: "" }),
+    timer: recordedTimer({ nextElapseUsec: "0" }),
+  }, "bloodbowl-backup");
+  const status = evaluateBackupStatus({ summary, keep: 7, systemd });
+  assert.equal(status.ok, false);
+});
+
+test("evaluateBackupStatus: a masked service must still fail overall even with a healthy timer and a fresh dump - the Finding 1 regression case", () => {
+  // The reviewer's exact repro: masked service, loaded active timer with a
+  // real future elapse, one dump inside the freshness window. Must not read
+  // as OK just because LoadState=masked isn't literally "not-found".
+  const summary = summarizeBackups([dump("gata_league-20260822-040000.dump")], { now });
+  const systemd = evaluateSystemdState({
+    available: true,
+    service: recordedService({ loadState: "masked", result: "success", execMainExitTimestamp: "" }),
+    timer: recordedTimer(),
+  }, "bloodbowl-backup");
+  const status = evaluateBackupStatus({ summary, keep: 7, systemd });
+  assert.equal(status.ok, false);
+});
+
+// --- Finding 3: entries that could not be stat'd must be counted, reported,
+// and treated as a problem rather than silently discarded. -----------------
+
+test("evaluateBackupStatus: a non-zero unreadable-entry count is a problem", () => {
+  const summary = summarizeBackups([dump("gata_league-20260822-040000.dump")], { now });
+  const systemd = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer(),
+  }, "bloodbowl-backup");
+  const status = evaluateBackupStatus({ summary, keep: 7, systemd, unreadableCount: 3 });
+  assert.equal(status.ok, false);
+  assert.equal(status.problems.some((problem) => /3.*unreadable|unreadable.*3/.test(problem)), true);
+});
+
+test("evaluateBackupStatus: zero unreadable entries is not, by itself, a problem", () => {
+  const summary = summarizeBackups([dump("gata_league-20260822-040000.dump")], { now });
+  const systemd = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer(),
+  }, "bloodbowl-backup");
+  const status = evaluateBackupStatus({ summary, keep: 7, systemd, unreadableCount: 0 });
+  assert.equal(status.ok, true);
 });
 
 test("evaluateSystemdState: a never-installed timer plus a fresh dump must still fail - the Finding 1 regression case", () => {
@@ -271,7 +401,7 @@ test("evaluateBackupStatus: more dumps than the retention limit still fails (rot
 // --- Finding 3: a file that vanishes (or can't be stat'd) between readdir
 // and stat must not crash the whole command -------------------------------
 
-test("the CLI survives a dangling symlink in the backup directory instead of crashing", async (t) => {
+test("the CLI survives a dangling symlink in the backup directory instead of crashing, but still reports and fails on the unreadable entry", async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
 
@@ -287,12 +417,17 @@ test("the CLI survives a dangling symlink in the backup directory instead of cra
     path.join(dir, "gata_league-20260822-050000.dump"),
   );
 
-  const { stdout, stderr } = await run("node", [cliPath], {
-    env: { ...process.env, BACKUP_DIR: dir },
-  });
-
-  // Must not have crashed with the generic top-level "backup status failed"
-  // handler - the vanished entry should simply be skipped.
-  assert.doesNotMatch(stderr, /backup status failed/);
-  assert.match(stdout, /dumps:\s+1 /);
+  // Finding 3: the vanished entry must not crash the process (no generic
+  // "backup status failed" handler), but it also must not be silently
+  // discarded - it is counted, reported, and now makes the check fail.
+  await assert.rejects(
+    run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir } }),
+    (error) => {
+      assert.doesNotMatch(error.stderr, /backup status failed/);
+      assert.match(error.stdout, /dumps:\s+1 /);
+      assert.match(error.stdout, /unreadable/);
+      assert.equal(error.code, 1);
+      return true;
+    },
+  );
 });

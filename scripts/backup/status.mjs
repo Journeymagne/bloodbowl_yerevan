@@ -83,6 +83,7 @@ export function evaluateSystemdState(state, unit) {
       notes: [`${unit}: systemd state unknown (systemctl unavailable)`],
       hasRun: null,
       result: null,
+      timerNextRun: null,
     };
   }
 
@@ -90,16 +91,50 @@ export function evaluateSystemdState(state, unit) {
   const problems = [];
   const notes = [];
 
-  if (service.get("LoadState") === "not-found") {
-    problems.push(`${unit}.service is not installed`);
+  // Only "loaded" means systemd actually has a usable unit. Every other
+  // LoadState - "not-found" (never installed), "masked" (symlinked to
+  // /dev/null, the common slip when `disable` was meant), "error",
+  // "bad-setting", and whatever systemd adds in a later release - is a
+  // broken unit. This is the same call this repository already made for the
+  // same reason: see the comment on `staticFileAllowList` in
+  // server/http/static-path.mjs ("a deny-list would leak the next file
+  // someone adds") - a deny-list of just "not-found" would just as surely
+  // leak the next LoadState someone hits.
+  const serviceLoadState = service.get("LoadState");
+  if (serviceLoadState !== "loaded") {
+    problems.push(`${unit}.service is not loaded (LoadState=${serviceLoadState})`);
   }
 
   const timerLoadState = timer.get("LoadState");
   const timerActiveState = timer.get("ActiveState");
-  if (timerLoadState === "not-found" || timerActiveState !== "active") {
+  let timerNextRun = null;
+  if (timerLoadState !== "loaded") {
+    // Same allow-list as the service, applied to the timer.
+    problems.push(`${unit}.timer is not loaded (LoadState=${timerLoadState})`);
+  } else if (timerActiveState !== "active") {
     problems.push(
       `${unit}.timer is not scheduled (LoadState=${timerLoadState}, ActiveState=${timerActiveState})`,
     );
+  } else {
+    // ActiveState=active only means the timer unit is loaded and running -
+    // it says nothing about whether it will ever fire again. A timer that
+    // already consumed its last trigger, or whose calendar expression
+    // yields no further occurrence, stays "active" forever while never
+    // invoking the service again. NextElapseUSecRealtime is systemd's own
+    // answer to "when next" for a calendar timer: it reports "0" when there
+    // is none, and a microsecond-since-epoch value otherwise. The property
+    // can also be absent from the requested output altogether - that must
+    // read the same as "0", not be assumed to mean anything reassuring.
+    const rawNextElapse = timer.get("NextElapseUSecRealtime");
+    const nextElapseUsec = rawNextElapse === undefined ? NaN : Number(rawNextElapse.trim());
+    if (Number.isFinite(nextElapseUsec) && nextElapseUsec > 0) {
+      timerNextRun = new Date(nextElapseUsec / 1000);
+    } else {
+      problems.push(
+        `${unit}.timer is active but has no future run scheduled ` +
+          `(NextElapseUSecRealtime=${rawNextElapse ?? "not reported"})`,
+      );
+    }
   }
 
   const execTimestamp = (service.get("ExecMainExitTimestamp") || "").trim();
@@ -117,16 +152,16 @@ export function evaluateSystemdState(state, unit) {
     notes.push(`${unit}.service has not run yet`);
   }
 
-  return { available: true, problems, notes, hasRun, result };
+  return { available: true, problems, notes, hasRun, result, timerNextRun };
 }
 
 /**
  * Combine the dump summary with the systemd judgement into the final
  * pass/fail decision the CLI reports.
  *
- * @param {{summary: ReturnType<typeof summarizeBackups>, keep: number, systemd: ReturnType<typeof evaluateSystemdState>}} input
+ * @param {{summary: ReturnType<typeof summarizeBackups>, keep: number, systemd: ReturnType<typeof evaluateSystemdState>, unreadableCount?: number}} input
  */
-export function evaluateBackupStatus({ summary, keep, systemd }) {
+export function evaluateBackupStatus({ summary, keep, systemd, unreadableCount = 0 }) {
   const problems = [];
   if (summary.stale) {
     const age = summary.ageHours === null ? "there are none" : `${summary.ageHours.toFixed(1)} h`;
@@ -134,6 +169,16 @@ export function evaluateBackupStatus({ summary, keep, systemd }) {
   }
   if (summary.overKeep) {
     problems.push(`${summary.count} dumps kept, expected at most ${keep}`);
+  }
+  if (unreadableCount > 0) {
+    // A single file lost to a genuine readdir()/stat() race is rare enough
+    // that surfacing it (and failing the check) is an acceptable cost.
+    // Silently discarding an unknown number of unreadable files - which is
+    // what a permissions regression or filesystem trouble would produce -
+    // is not: the operator would see a healthy-looking count and learn
+    // nothing.
+    const noun = unreadableCount === 1 ? "entry" : "entries";
+    problems.push(`${unreadableCount} unreadable ${noun} in the backup directory`);
   }
   problems.push(...systemd.problems);
 
