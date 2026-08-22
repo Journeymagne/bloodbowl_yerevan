@@ -31,10 +31,17 @@ export function formatDumpName(date) {
  * @returns {Date|null} null when the name was not produced by formatDumpName.
  */
 export function parseDumpTimestamp(name) {
-  const match = DUMP_NAME.exec(String(name ?? ""));
+  const safeName = String(name ?? "");
+  const match = DUMP_NAME.exec(safeName);
   if (!match) return null;
   const [, year, month, day, hours, minutes, seconds] = match.map(Number);
-  return new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+  const date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+  // Date.UTC() silently rolls over out-of-range components (e.g. month 13,
+  // Feb 30) instead of rejecting them, so a dump-shaped but calendar-impossible
+  // name would otherwise parse into some other, misleading date. Confirm the
+  // parse round-trips through the formatter before trusting it.
+  if (formatDumpName(date) !== safeName) return null;
+  return date;
 }
 
 /**

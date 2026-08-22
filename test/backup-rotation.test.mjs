@@ -97,6 +97,54 @@ test("removes a partial left behind for more than a day", () => {
   assert.deepEqual(plan.remove, ["gata_league-20260807-040000.dump.partial"]);
 });
 
+test("parseDumpTimestamp refuses calendar-impossible dump-shaped names", () => {
+  for (const name of [
+    "gata_league-99999999-999999.dump",
+    "gata_league-20260230-040000.dump", // Feb 30 does not exist
+    "gata_league-20261301-040000.dump", // month 13
+    "gata_league-20260822-250000.dump", // hour 25
+    "gata_league-20260822-046000.dump", // minute 60
+  ]) {
+    assert.equal(parseDumpTimestamp(name), null, `expected ${name} to be refused`);
+    assert.equal(isDumpName(name), false, `expected ${name} not to count as a dump`);
+  }
+});
+
+test("parseDumpTimestamp still round-trips valid edge dates", () => {
+  for (const name of [
+    "gata_league-20240229-040000.dump", // leap day
+    "gata_league-20260101-000000.dump", // midnight
+  ]) {
+    const when = parseDumpTimestamp(name);
+    assert.notEqual(when, null);
+    assert.equal(formatDumpName(when), name);
+  }
+});
+
+test("a calendar-impossible dump-shaped name cannot push a real dump into remove", () => {
+  const now = new Date("2026-09-01T00:00:00Z");
+  const plan = planRotation([
+    ...dumpsFor(1, 2, 3, 4, 5, 6, 7),
+    { name: "gata_league-99999999-999999.dump", mtimeMs: 0 },
+  ], { keep: 7, now });
+
+  for (const day of [1, 2, 3, 4, 5, 6, 7]) {
+    const name = `gata_league-202608${String(day).padStart(2, "0")}-040000.dump`;
+    assert.ok(!plan.remove.includes(name), `expected legitimate dump ${name} not to be removed`);
+  }
+  assert.ok(!plan.keep.includes("gata_league-99999999-999999.dump"));
+  assert.ok(!plan.remove.includes("gata_league-99999999-999999.dump"));
+});
+
+test("removes a partial exactly at the max age boundary (inclusive)", () => {
+  const now = new Date("2026-08-09T04:00:00Z");
+  const plan = planRotation([
+    { name: "gata_league-20260807-040000.dump.partial", mtimeMs: now.getTime() - PARTIAL_MAX_AGE_MS },
+  ], { keep: 7, now });
+
+  assert.deepEqual(plan.remove, ["gata_league-20260807-040000.dump.partial"]);
+});
+
 test("refuses a keep count that would wipe the directory", () => {
   for (const keep of [0, -1, 1.5, Number.NaN, "7"]) {
     assert.throws(() => planRotation(dumpsFor(1, 2), { keep }), RangeError);
