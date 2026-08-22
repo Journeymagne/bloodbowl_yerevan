@@ -11,6 +11,7 @@ import {
   STALE_AFTER_HOURS,
   summarizeBackups,
   parseSystemctlProperties,
+  parseTimerNextElapse,
   evaluateSystemdState,
   evaluateBackupStatus,
 } from "../scripts/backup/status.mjs";
@@ -122,18 +123,29 @@ const recordedService = ({
   "",
 ].join("\n"));
 
-// A far-future NextElapseUSecRealtime (microseconds since the epoch) so a
-// default recordedTimer() reads as "has a future run" unless a test
-// overrides it. Pass `nextElapseUsec: null` to omit the property entirely
-// (the "absent from the output" case), or "0" for "no future elapse".
+// A default recordedTimer() carries NextElapseUSecRealtime in the shape a
+// real systemd actually emits: a human-readable timestamp, the same shape
+// this file already fixtures correctly for ExecMainExitTimestamp above
+// ("Sat 2026-08-22 04:00:01 UTC"). That is the shape believed to be real;
+// the previous round wrongly assumed a raw microseconds-since-epoch integer
+// was the *only* form and was never checked against an actual systemd.
+//
+// Pass `nextElapse`:
+//   - a human timestamp string (default) -> a real future run
+//   - an all-digit string                -> the tolerated raw-microseconds
+//                                            alternative form
+//   - "n/a" | "" | "0"                   -> explicit "no future run"
+//   - null                               -> the property absent from the
+//                                            output entirely
+//   - anything else                      -> an unrecognised shape
 const recordedTimer = ({
   loadState = "loaded",
   activeState = "active",
-  nextElapseUsec = "1755840000000000",
+  nextElapse = "Sat 2026-08-23 04:00:00 UTC",
 } = {}) => parseSystemctlProperties([
   `LoadState=${loadState}`,
   `ActiveState=${activeState}`,
-  ...(nextElapseUsec === null ? [] : [`NextElapseUSecRealtime=${nextElapseUsec}`]),
+  ...(nextElapse === null ? [] : [`NextElapseUSecRealtime=${nextElapse}`]),
   "",
 ].join("\n"));
 
@@ -240,37 +252,151 @@ test("evaluateSystemdState: a service that has never run is not itself a problem
   assert.match(result.notes.join(" "), /has not run yet/);
 });
 
-// --- Finding 2: ActiveState=active on the timer only means it is loaded and
-// running - it says nothing about whether it will ever fire again. The next
-// elapse must be checked explicitly via NextElapseUSecRealtime. -----------
+// --- Finding 2 (this round): the previous round's fixture invented the
+// NextElapseUSecRealtime format (a raw microsecond integer) and every timer
+// test validated the parser against the parser's own wrong assumption. These
+// tests exercise parseTimerNextElapse directly against both plausible real
+// shapes, plus the explicit "no next run" values, plus what happens when the
+// value is in neither recognised shape. ------------------------------------
 
-test("evaluateSystemdState: a loaded, active timer with no future elapse (NextElapseUSecRealtime=0) is a problem", () => {
-  const result = evaluateSystemdState({
-    available: true,
-    service: recordedService(),
-    timer: recordedTimer({ nextElapseUsec: "0" }),
-  }, "bloodbowl-backup");
-  assert.equal(result.problems.some((problem) => /timer.*no future run/.test(problem)), true);
+test("parseTimerNextElapse: a human-readable timestamp (the believed real systemd shape) is a future run", () => {
+  const result = parseTimerNextElapse("Sat 2026-08-23 04:00:00 UTC");
+  assert.equal(result.kind, "future");
+  assert.ok(result.date instanceof Date);
+  assert.equal(Number.isNaN(result.date.getTime()), false);
 });
 
-test("evaluateSystemdState: a loaded, active timer with a real future elapse stays healthy", () => {
+test("parseTimerNextElapse: an all-digit value is tolerated as microseconds since the epoch", () => {
+  const result = parseTimerNextElapse("1755840000000000");
+  assert.equal(result.kind, "future");
+  assert.equal(result.date.getTime(), 1755840000000000 / 1000);
+});
+
+test("parseTimerNextElapse: 'n/a' is an explicit no-future-run", () => {
+  assert.equal(parseTimerNextElapse("n/a").kind, "none");
+});
+
+test("parseTimerNextElapse: an empty value is an explicit no-future-run", () => {
+  assert.equal(parseTimerNextElapse("").kind, "none");
+});
+
+test("parseTimerNextElapse: '0' is an explicit no-future-run", () => {
+  assert.equal(parseTimerNextElapse("0").kind, "none");
+});
+
+test("parseTimerNextElapse: the property missing entirely (undefined) is unknown, not a failure", () => {
+  const result = parseTimerNextElapse(undefined);
+  assert.equal(result.kind, "unknown");
+  assert.equal(result.raw, undefined);
+});
+
+test("parseTimerNextElapse: an unrecognised shape lands in unknown, verbatim, not a failure", () => {
+  const result = parseTimerNextElapse("some-shape-nobody-has-seen-yet");
+  assert.equal(result.kind, "unknown");
+  assert.equal(result.raw, "some-shape-nobody-has-seen-yet");
+});
+
+// --- Finding 1 (this round, critical): the timer's next-run time must be
+// parsed in a format systemd actually emits, and an unrecognised shape must
+// never silently read as "no future run" (which the previous round's
+// Number(raw) implementation did for every real timestamp - NaN was treated
+// as "no future run", so a correctly scheduled, healthy timer reported NOT
+// OK on every real deployment). ---------------------------------------------
+
+test("evaluateSystemdState: a loaded, active timer with the real human-timestamp shape stays healthy", () => {
   const result = evaluateSystemdState({
     available: true,
     service: recordedService(),
-    timer: recordedTimer({ nextElapseUsec: "1755840000000000" }),
+    timer: recordedTimer(),
   }, "bloodbowl-backup");
   assert.deepEqual(result.problems, []);
   assert.ok(result.timerNextRun instanceof Date);
 });
 
-test("evaluateSystemdState: NextElapseUSecRealtime missing from the output entirely is treated as no future elapse, not silently healthy", () => {
+test("evaluateSystemdState: a loaded, active timer with the tolerated raw-microseconds shape stays healthy", () => {
   const result = evaluateSystemdState({
     available: true,
     service: recordedService(),
-    timer: recordedTimer({ nextElapseUsec: null }),
+    timer: recordedTimer({ nextElapse: "1755840000000000" }),
+  }, "bloodbowl-backup");
+  assert.deepEqual(result.problems, []);
+  assert.ok(result.timerNextRun instanceof Date);
+});
+
+test("evaluateSystemdState: a loaded, active timer with no future elapse (NextElapseUSecRealtime=0) is a problem", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapse: "0" }),
   }, "bloodbowl-backup");
   assert.equal(result.problems.some((problem) => /timer.*no future run/.test(problem)), true);
+});
+
+test("evaluateSystemdState: NextElapseUSecRealtime='n/a' is a problem - the timer will never fire again", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapse: "n/a" }),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /timer.*no future run/.test(problem)), true);
+});
+
+test("evaluateSystemdState: an empty NextElapseUSecRealtime value is a problem", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapse: "" }),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /timer.*no future run/.test(problem)), true);
+});
+
+test("evaluateSystemdState: NextElapseUSecRealtime missing from the output entirely is unknown, and must NOT fail the check", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapse: null }),
+  }, "bloodbowl-backup");
+  assert.deepEqual(result.problems, []);
   assert.equal(result.timerNextRun, null);
+  assert.match(result.notes.join(" "), /timer.*next run is unknown/);
+});
+
+test("evaluateSystemdState: an unrecognised NextElapseUSecRealtime shape is reported verbatim as unknown, and must NOT fail the check", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService(),
+    timer: recordedTimer({ nextElapse: "some-shape-nobody-has-seen-yet" }),
+  }, "bloodbowl-backup");
+  assert.deepEqual(result.problems, []);
+  assert.equal(result.timerNextRun, null);
+  assert.equal(result.timerNextRunUnknown, "some-shape-nobody-has-seen-yet");
+  assert.match(result.notes.join(" "), /some-shape-nobody-has-seen-yet/);
+});
+
+// --- Finding 3 (this round): a failure reading the service's systemctl
+// output must not erase a successful read of the timer's, and vice versa -
+// the two are now read (and evaluated) independently. ----------------------
+
+test("evaluateSystemdState: the service query failing does not erase a real timer problem", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: null,
+    timer: recordedTimer({ loadState: "not-found", activeState: "inactive" }),
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /timer.*not loaded.*LoadState=not-found/.test(problem)), true);
+  assert.equal(result.hasRun, null);
+  assert.match(result.notes.join(" "), /service state unknown/);
+});
+
+test("evaluateSystemdState: the timer query failing does not erase a real service failure (Result=failed)", () => {
+  const result = evaluateSystemdState({
+    available: true,
+    service: recordedService({ result: "failed", execMainStatus: "1" }),
+    timer: null,
+  }, "bloodbowl-backup");
+  assert.equal(result.problems.some((problem) => /last run result: failed/.test(problem)), true);
+  assert.equal(result.timerNextRun, null);
+  assert.match(result.notes.join(" "), /timer state unknown/);
 });
 
 test("evaluateBackupStatus: an active-but-dead timer plus a never-run service and a fresh dump must still fail - the Finding 2 regression case", () => {
@@ -280,7 +406,7 @@ test("evaluateBackupStatus: an active-but-dead timer plus a never-run service an
   const systemd = evaluateSystemdState({
     available: true,
     service: recordedService({ result: "success", execMainExitTimestamp: "" }),
-    timer: recordedTimer({ nextElapseUsec: "0" }),
+    timer: recordedTimer({ nextElapse: "0" }),
   }, "bloodbowl-backup");
   const status = evaluateBackupStatus({ summary, keep: 7, systemd });
   assert.equal(status.ok, false);

@@ -63,18 +63,29 @@ async function readUnitProperties(unitName, properties) {
 // systemd is absent on development machines; its absence is not a failure of
 // the backups, so it is collected here and left for the pure evaluator to
 // report as "unknown" rather than thrown.
+//
+// The service and timer are queried independently (Promise.allSettled, not
+// Promise.all) so that one failing does not discard the other's result - a
+// single failing `systemctl show` call (a transient error querying just the
+// timer, say) must not erase a real `Result=failed` read successfully off
+// the service. Only when *both* fail is systemd state reported as fully
+// unknown; otherwise the successful side is kept and the failed side is
+// `null`, which the pure evaluator treats as "unknown" for that unit only.
 async function readSystemdState() {
-  try {
-    const [service, timer] = await Promise.all([
-      readUnitProperties(`${unit}.service`, [
-        "LoadState", "Result", "ExecMainStatus", "ExecMainExitTimestamp",
-      ]),
-      readUnitProperties(`${unit}.timer`, ["LoadState", "ActiveState", "NextElapseUSecRealtime"]),
-    ]);
-    return { available: true, service, timer };
-  } catch {
+  const [serviceResult, timerResult] = await Promise.allSettled([
+    readUnitProperties(`${unit}.service`, [
+      "LoadState", "Result", "ExecMainStatus", "ExecMainExitTimestamp",
+    ]),
+    readUnitProperties(`${unit}.timer`, ["LoadState", "ActiveState", "NextElapseUSecRealtime"]),
+  ]);
+
+  const service = serviceResult.status === "fulfilled" ? serviceResult.value : null;
+  const timer = timerResult.status === "fulfilled" ? timerResult.value : null;
+
+  if (service === null && timer === null) {
     return { available: false };
   }
+  return { available: true, service, timer };
 }
 
 async function main() {
@@ -104,13 +115,32 @@ async function main() {
   if (!state.available) {
     console.log(`systemd:   unknown (systemctl unavailable)`);
   } else {
-    const service = state.service.get("LoadState");
-    const lastRun = systemd.hasRun
-      ? `last run ${systemd.result} (exit ${state.service.get("ExecMainStatus")}) at ${state.service.get("ExecMainExitTimestamp")}`
-      : "has not run yet";
-    console.log(`service:   ${service}, ${lastRun}`);
-    const nextRun = systemd.timerNextRun ? `, next run ${systemd.timerNextRun.toISOString()}` : "";
-    console.log(`timer:     ${state.timer.get("LoadState")}, ${state.timer.get("ActiveState")}${nextRun}`);
+    // state.service / state.timer are read independently and either can be
+    // null on its own (that unit's systemctl query failed while the other
+    // succeeded) - print each side's unknown state rather than assuming both
+    // are present just because `state.available` is true.
+    if (state.service === null) {
+      console.log(`service:   unknown (systemctl query failed)`);
+    } else {
+      const lastRun = systemd.hasRun
+        ? `last run ${systemd.result} (exit ${state.service.get("ExecMainStatus")}) at ${state.service.get("ExecMainExitTimestamp")}`
+        : "has not run yet";
+      console.log(`service:   ${state.service.get("LoadState")}, ${lastRun}`);
+    }
+
+    if (state.timer === null) {
+      console.log(`timer:     unknown (systemctl query failed)`);
+    } else {
+      let nextRun = "";
+      if (systemd.timerNextRun) {
+        nextRun = `, next run ${systemd.timerNextRun.toISOString()}`;
+      } else if (systemd.timerNextRunUnknown) {
+        // Print what systemd actually said verbatim - see the comment on
+        // parseTimerNextElapse in scripts/backup/status.mjs.
+        nextRun = `, next run unknown (NextElapseUSecRealtime=${systemd.timerNextRunUnknown})`;
+      }
+      console.log(`timer:     ${state.timer.get("LoadState")}, ${state.timer.get("ActiveState")}${nextRun}`);
+    }
   }
 
   const { problems, ok } = evaluateBackupStatus({ summary, keep, systemd, unreadableCount });
