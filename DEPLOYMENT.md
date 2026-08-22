@@ -286,13 +286,16 @@ non-zero if any of the following is true:
 - there are more dumps on disk than the retention limit
 - the last run of `bloodbowl-backup.service` failed
 - the service or timer unit is not loaded by systemd — not installed, or
-  masked (symlinked to `/dev/null`, the usual result of `disable` where
-  `stop` was meant)
+  masked (`systemctl mask`, sometimes run where `disable` was meant; the way
+  back is `systemctl unmask`, since `enable` fails on a masked unit)
 - the timer is not active
 - the timer is active but has no future run scheduled
-- a file in the backup directory could not be read (a permissions problem,
-  or a filesystem issue — not the ordinary race of rotation deleting a dump
-  between listing the directory and stating it, which is tolerated)
+- any file in the backup directory could not be read. This includes the
+  harmless race of a dump being rotated away between listing the directory
+  and reading it, so a lone unreadable entry may be nothing — but silently
+  ignoring an unknown number of unreadable files would let a permissions or
+  filesystem problem hide most of the directory while the check still said
+  OK, and that trade is not worth making
 
 Two things it reports without failing the check: if `systemctl` itself is not
 available, or if a value it reads back from systemd is in a shape the command
