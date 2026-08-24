@@ -9,43 +9,7 @@ This document is for the person who will publish the Gata Blood Bowl League refe
 3. Run `npm install`.
 4. Run `npm run build`.
 5. Confirm that `dist/` was generated.
-6. Publish `dist/` on a static host, or connect the repository to Netlify.
-
-## Netlify Settings
-
-The repository already contains `netlify.toml`.
-
-Expected settings:
-
-```text
-Build command: npm run build
-Publish directory: dist
-```
-
-The app uses hash routes (`#/teams`, `#/builder`, etc.), but `netlify.toml` also includes a fallback redirect to `index.html` for static hosting safety.
-
-## Manual Netlify Deploy
-
-If you do not want to connect GitHub yet:
-
-1. Run `npm run build` locally.
-2. Open Netlify Drop.
-3. Drag the generated `dist/` folder into Netlify.
-
-This is good for a preview, but Git-based deploys are better for ongoing updates.
-
-## Git-Based Netlify Deploy
-
-Recommended flow:
-
-1. Create a new GitHub repository for `Gata Blood Bowl League`.
-2. Push this branch/repository to GitHub.
-3. In Netlify, choose `Add new site` -> `Import an existing project`.
-4. Select the GitHub repository.
-5. Keep the build command and publish directory from `netlify.toml`.
-6. Deploy.
-
-After that, every push to the deployed branch will trigger a new build.
+6. Publish `dist/` on a static host.
 
 ## Updating Content
 

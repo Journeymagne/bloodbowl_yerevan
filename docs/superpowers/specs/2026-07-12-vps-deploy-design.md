@@ -100,8 +100,7 @@ access to modify nginx/certbot state on the host.
 ### 3. `DEPLOYMENT.md` update
 
 Add a new "VPS Deployment (bb.shitpostsoftware.com)" section documenting
-the one-time manual setup and the ongoing CI-based flow. The existing
-Netlify section stays as-is as a documented alternative path.
+the one-time manual setup and the ongoing CI-based flow.
 
 ## One-time manual server setup (performed by the user, not this session)
 
@@ -148,8 +147,6 @@ After the first deploy and after each subsequent one:
 
 ## Out of scope
 
-- No changes to the Netlify deployment path (`netlify.toml`,
-  `DEPLOYMENT.md`'s existing Netlify section stay untouched).
 - No changes to `table-booker-project` or its deploy workflows — used
   only as a reference pattern.
 - Automated DNS management — not needed, wildcard record already covers

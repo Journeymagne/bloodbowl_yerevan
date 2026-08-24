@@ -15,7 +15,6 @@
 - Server directory: `/opt/bloodbowl-league`. pm2 process name: `bloodbowl-league`.
 - DNS: `*.shitpostsoftware.com` wildcard already points at `51.81.86.51` — no DNS changes in scope.
 - This session has no SSH access to `51.81.86.51` — every server-side step is executed by the user, with exact commands provided here to paste.
-- Do not touch `netlify.toml` or the existing Netlify instructions in `DEPLOYMENT.md` — that path stays as an alternative.
 
 ---
 

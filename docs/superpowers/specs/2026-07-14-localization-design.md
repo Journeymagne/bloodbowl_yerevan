@@ -53,7 +53,7 @@ This is a two-layer problem: a UI-string i18n system, and a parallel-content-vau
 
 - `scripts/build-data.mjs`: loop over `content/Gata` and `content/Gata-ru`, writing `public/data.en.json` and `public/data.ru.json` (plus `public/data.json` as a copy of `en`, for compatibility).
 - `scripts/build-site.mjs` (used for the static `dist/local-preview.html` inlining path): instead of inlining a single `data.json` as `window.__REFERENCE_DATA__`, inline both locales as `window.__REFERENCE_DATA__ = { en: {...}, ru: {...} }`. `app.js` prefers this inlined object at startup if present, falling back to `fetch("public/data.<locale>.json")` otherwise.
-- No changes needed to `netlify.toml`, `.github/workflows/deploy.yml`, or `server/server.mjs` — they run `npm run build` / serve static files from `public/` agnostic to how many JSON files exist there.
+- No changes needed to `.github/workflows/deploy.yml` or `server/server.mjs` — they run `npm run build` / serve static files from `public/` agnostic to how many JSON files exist there.
 
 ## Execution phasing
 

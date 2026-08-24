@@ -14,10 +14,10 @@ source/imports/
 # committed anyway, which made every build show up as a 4.7 MB diff.
 dist/
 
-# Build output. All three regenerate on every `npm run build` — Netlify and
-# the pm2 deploy both run it — and they are huge (~20k lines each), so keeping
-# them tracked made every content commit unreviewable. data.json (the
-# single-locale alias) was the last one still tracked, purely by inertia.
+# Build output. All three regenerate on every `npm run build` — the pm2 deploy
+# runs it — and they are huge (~20k lines each), so keeping them tracked made
+# every content commit unreviewable. data.json (the single-locale alias) was
+# the last one still tracked, purely by inertia.
 public/data.en.json
 public/data.ru.json
 public/data.json

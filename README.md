@@ -24,7 +24,6 @@ The site contains:
   has to be **served** (`npm run dev`, or any static server pointed at `dist/`)
   rather than opened straight off disk: `src/app.js` is an ES module and browsers
   refuse to load modules over `file://`.
-- `netlify.toml` - Netlify build and redirect settings.
 
 ## Commands
 
@@ -174,7 +173,7 @@ npm.cmd run team-import:apply -- ".codex_tmp\team-imports\drunken-rune-guard.sql
 
 ## Deployment
 
-See `DEPLOYMENT.md` for Netlify and handoff instructions.
+See `DEPLOYMENT.md` for deployment and handoff instructions.
 
 ## Notes
 
