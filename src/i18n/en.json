@@ -192,7 +192,7 @@
   "roster.previewAction": "Preview",
   "builder.subtitle": "Build a 600k starting roster by clicking available players.",
   "builder.availablePlayers": "Available players",
-  "builder.remaining": "Remaining",
+  "builder.remaining": "Remaining — becomes the treasury",
   "builder.saveTeam": "Save Team",
   "builder.selectedHeader": "Selected",
   "builder.overBudget": "over",

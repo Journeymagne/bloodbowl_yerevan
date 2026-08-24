@@ -2,10 +2,15 @@
  * What a roster costs: player prices with their surcharges, staff, and the
  * treasury bookkeeping behind buying and refunding staff.
  *
- * Note the two different economies the app runs today (design spec section 5.2):
- * the builder enforces a hard budget while a saved roster spends from the
- * treasury. calculateRosterCosts() serves both, which is why `remaining` is
- * computed against the starting budget even for an in-season team.
+ * Two economies meet here (design spec section 5.2): the builder spends a
+ * fixed starting budget, a saved roster spends its treasury. They are the same
+ * money at different times — whatever the builder leaves unspent becomes the
+ * new team's treasury when it is saved, so `remaining` is what the coach
+ * carries forward, not a number that stops mattering at creation.
+ *
+ * calculateRosterCosts() serves both, so `remaining` is computed for an
+ * in-season team too. Nothing displays it there: once the team exists the
+ * treasury is the live figure and the starting budget is history.
  */
 import {
   advancementStatCosts,
