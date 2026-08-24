@@ -55,10 +55,10 @@ const rival = {
 const team = {
   id: "t1",
   name: "Mock Team",
-  baseTeamSlug: "amazon",
+  baseTeamSlug: "teams/amazon",
   logoData: null,
   roster: {
-    teamSlug: "amazon",
+    teamSlug: "teams/amazon",
     teamName: "Mock Team",
     players: [
       { id: "p1", rowIndex: 0, number: "1", name: "Linewoman One", statMods: {}, extraSkills: [], favouredSkills: [], spp: { touchdowns: 1 }, advancements: [] },

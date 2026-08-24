@@ -158,6 +158,7 @@
   "roster.addPlayerOption": "Добавить игрока...",
   "roster.playerName": "Имя игрока",
   "roster.captain": "Капитан",
+  "roster.confirmTeamChange": "Смена {from} на {to} удалит всех игроков ({count}) — их позиции принадлежат прежней расе. Отменить будет нельзя.",
   "roster.extendedContracts": "Продленные контракты",
   "roster.skipNextGame": "Пропустить следующий матч",
   "roster.addSkillOption": "Добавить навык...",

@@ -31,6 +31,7 @@ import { builderPayload, emptyBuilderState, resetBuilderForTeam } from "../data/
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks } from "../components/content-links.mjs";
 import { CREATE_MODE } from "../components/roster-editor/modes.mjs";
+import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import {
   ensureDraftLeagueChoice,
@@ -306,8 +307,14 @@ function wireBuilder(team) {
     renderBuilder();
   });
   view.querySelector("[data-builder-team]")?.addEventListener("change", (event) => {
-    state.builder.teamSlug = event.currentTarget.value;
-    const nextTeam = state.data.teams.find((item) => item.slug === state.builder.teamSlug);
+    const select = event.currentTarget;
+    const nextTeam = state.data.teams.find((item) => item.slug === select.value);
+    if (!nextTeam) return;
+    if (!confirmRaceChange(team, state.builder, nextTeam)) {
+      restoreTeamSelect(select, team.slug);
+      return;
+    }
+    state.builder.teamSlug = nextTeam.slug;
     resetBuilderForTeam(nextTeam);
     renderBuilder();
   });

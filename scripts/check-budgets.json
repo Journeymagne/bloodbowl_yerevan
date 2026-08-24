@@ -20,7 +20,7 @@
       "src/app.js": 160,
       "server/server.mjs": 1904,
       "scripts/build-data.mjs": 805,
-      "src/screens/saved-roster.mjs": 1218
+      "src/screens/saved-roster.mjs": 1223
     },
     "maxFunctionLines": {
       "src/app.js": 180,
@@ -32,7 +32,7 @@
     },
     "_notes": {
       "src/app.js": "Task 6 walked this down 6210 -> 157: theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs, then the screens in 6.5-6.8, then 6.9's components/auth-modal.mjs and core/router.mjs. What is left is bootstrap. Went 157 -> 160 for the stale-locale-chrome fix: an import, a comment and an onLocaleChange registration, which is the smallest form that fix takes. Bugfixes may cost a line; drift may not.",
-      "src/screens/saved-roster.mjs": "One of the two duplicate roster-editor implementations design spec 5.1 counts (screens/builder.mjs is the other) — moved out of app.js as-is in task 6.6, oversized because it still is the whole editor. Task 7 merges the two into components/roster-editor/* and this budget should shrink close to zero. Went 1283 -> 1284 in 6.9: the one added line is the core/screen-lifecycle.mjs import that stops the autosave-status listener leaking on every re-render. Raising a ratchet is normally forbidden; this was a bugfix, not drift.",
+      "src/screens/saved-roster.mjs": "One of the two duplicate roster-editor implementations design spec 5.1 counts (screens/builder.mjs is the other) — moved out of app.js as-is in task 6.6, oversized because it still is the whole editor. Task 7 merges the two into components/roster-editor/* and this budget should shrink close to zero. Went 1283 -> 1284 in 6.9: the one added line is the core/screen-lifecycle.mjs import that stops the autosave-status listener leaking on every re-render. Raising a ratchet is normally forbidden; this was a bugfix, not drift. Went 1218 -> 1223 in task 7.7: the guard that stops a mis-clicked race change wiping the squad. Data-loss fixes may cost lines; drift may not.",
       "src/screens/builder.mjs": "wireBuilder() came in at 100 lines, moved from app.js unchanged. Same task-7 note as saved-roster.mjs: this shrinks when the two editors merge.",
       "scripts/backup/status.mjs": "Arrived with the nightly-backup work on main, which was written before this branch's check-structure existed and so never ran against it. evaluateSystemdState() is 108 lines. Inherited, not drift — lower it when that file is next touched."
     }

@@ -158,6 +158,7 @@
   "roster.addPlayerOption": "Add player...",
   "roster.playerName": "Player name",
   "roster.captain": "Captain",
+  "roster.confirmTeamChange": "Switching from {from} to {to} removes all {count} players — their positions belong to the old race. This cannot be undone.",
   "roster.extendedContracts": "Extended Contracts",
   "roster.skipNextGame": "Skip Next Game",
   "roster.addSkillOption": "Add skill...",

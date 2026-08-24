@@ -64,6 +64,7 @@ import { renderRosterNotices, wireRosterNotices } from "../components/roster-not
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
+import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import {
   ensureDraftFavouredChoice,
@@ -370,8 +371,13 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   };
 
   view.querySelector("[data-roster-team]")?.addEventListener("change", (event) => {
-    const nextTeam = state.data.teams.find((item) => item.slug === event.currentTarget.value);
+    const select = event.currentTarget;
+    const nextTeam = state.data.teams.find((item) => item.slug === select.value);
     if (!nextTeam) return;
+    if (!confirmRaceChange(team, draft, nextTeam)) {
+      restoreTeamSelect(select, team.slug);
+      return;
+    }
     draft.teamSlug = nextTeam.slug;
     draft.players = [];
     draft.selectedLeague = "";
