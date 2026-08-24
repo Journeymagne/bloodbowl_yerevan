@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { delegate, escapeHtml, html, isRaw, raw, toHtml } from "../src/core/dom.mjs";
+import { delegate, escapeHtml, html, isRaw, patch, raw, toHtml } from "../src/core/dom.mjs";
+import { createDocument, el, outline } from "./helpers/fake-dom.mjs";
 
 test("escapeHtml neutralises everything that can break out of markup", () => {
   assert.equal(escapeHtml("<script>alert(1)</script>"), "&lt;script&gt;alert(1)&lt;/script&gt;");
@@ -101,4 +102,150 @@ test("delegate returns a way to stop listening", () => {
   assert.equal(root.has("click"), true);
   stop();
   assert.equal(root.has("click"), false);
+});
+
+// ---------------------------------------------------------------------------
+// patch() — against the small DOM in test/helpers/fake-dom.mjs
+// ---------------------------------------------------------------------------
+
+function row(document, key, name) {
+  return el(document, "tr", { "data-key": key }, el(document, "td", {}, name));
+}
+
+function tableOf(document, ...rows) {
+  return el(document, "tbody", {}, ...rows);
+}
+
+test("patch replaces text without rebuilding the node around it", () => {
+  const document = createDocument();
+  const live = el(document, "div", {}, el(document, "span", {}, "Grak"));
+  const span = live.childNodes[0];
+  const textNode = span.childNodes[0];
+
+  patch(live, el(document, "div", {}, el(document, "span", {}, "Grok")));
+
+  assert.equal(live.textContent, "Grok");
+  assert.equal(live.childNodes[0], span, "the span is the same node, not a replacement");
+  assert.equal(span.childNodes[0], textNode, "so is the text node inside it");
+});
+
+test("patch adds and removes keyed rows, keeping the ones that stay", () => {
+  const document = createDocument();
+  const live = tableOf(document, row(document, "p1", "Grak"), row(document, "p2", "Urg"));
+  const first = live.childNodes[0];
+
+  patch(live, tableOf(document, row(document, "p1", "Grak"), row(document, "p3", "Zug")));
+
+  assert.equal(outline(live), "tbody(tr#p1(td(Grak)),tr#p3(td(Zug)))");
+  assert.equal(live.childNodes[0], first, "the surviving row was not rebuilt");
+  assert.equal(live.childNodes.length, 2);
+});
+
+test("patch moves a keyed row instead of rebuilding it", () => {
+  const document = createDocument();
+  const live = tableOf(document, row(document, "p1", "Grak"), row(document, "p2", "Urg"), row(document, "p3", "Zug"));
+  const [first, second, third] = live.childNodes;
+
+  // Drag p3 to the top — what wireSavedRosterDragAndDrop does.
+  patch(live, tableOf(document, row(document, "p3", "Zug"), row(document, "p1", "Grak"), row(document, "p2", "Urg")));
+
+  assert.equal(outline(live), "tbody(tr#p3(td(Zug)),tr#p1(td(Grak)),tr#p2(td(Urg)))");
+  assert.deepEqual(live.childNodes, [third, first, second], "the same three nodes, reordered");
+});
+
+test("patch replaces a node whose kind changed at the same position", () => {
+  const document = createDocument();
+  const live = el(document, "div", {}, el(document, "span", {}, "disabled"));
+  const span = live.childNodes[0];
+
+  patch(live, el(document, "div", {}, el(document, "button", {}, "Hire")));
+
+  assert.equal(outline(live), "div(button(Hire))");
+  assert.notEqual(live.childNodes[0], span);
+});
+
+test("patch adds, changes and removes attributes", () => {
+  const document = createDocument();
+  const live = el(document, "button", { class: "primary", disabled: "", title: "gone" });
+  const container = el(document, "div", {}, live);
+  patch(container, el(document, "div", {}, el(document, "button", { class: "primary compact", "aria-disabled": "true" })));
+
+  assert.equal(live.getAttribute("class"), "primary compact");
+  assert.equal(live.getAttribute("aria-disabled"), "true");
+  assert.equal(live.getAttribute("title"), null, "an attribute the markup dropped is removed");
+  assert.equal(live.getAttribute("disabled"), null);
+});
+
+test("patch leaves the focused field alone while its value is being typed", () => {
+  const document = createDocument();
+  const input = el(document, "input", { "data-key": "name", value: "Gra" });
+  input.selectionStart = 3;
+  input.selectionEnd = 3;
+  const live = el(document, "div", {}, input);
+  input.focus();
+  input.value = "Grak"; // typed since the markup was produced
+
+  patch(live, el(document, "div", {}, el(document, "input", { "data-key": "name", value: "Gra" })));
+
+  assert.equal(document.activeElement, input, "focus never moved");
+  assert.equal(input.value, "Grak", "the value on screen wins over the stale markup");
+  assert.equal(input.selectionStart, 3, "and the caret did not jump");
+});
+
+test("patch syncs the value of a control nobody is typing in", () => {
+  const document = createDocument();
+  const input = el(document, "input", { "data-key": "spp", value: "3" });
+  const live = el(document, "div", {}, input);
+
+  patch(live, el(document, "div", {}, el(document, "input", { "data-key": "spp", value: "6" })));
+
+  assert.equal(input.value, "6");
+});
+
+test("patch puts focus and caret back when the field had to be replaced", () => {
+  const document = createDocument();
+  const input = el(document, "input", { "data-key": "name", value: "Grak" });
+  input.selectionStart = 2;
+  input.selectionEnd = 4;
+  const live = el(document, "div", {}, el(document, "label", {}, input));
+  input.focus();
+
+  // The label became a div, so everything under it is rebuilt.
+  patch(live, el(document, "div", {}, el(document, "div", {}, el(document, "input", { "data-key": "name", value: "Grak" }))));
+
+  const replacement = live.querySelector('[data-key="name"]');
+  assert.notEqual(replacement, input, "it really was replaced");
+  assert.equal(document.activeElement, replacement, "focus followed the key");
+  assert.deepEqual([replacement.selectionStart, replacement.selectionEnd], [2, 4]);
+});
+
+test("patch on an empty container just fills it", () => {
+  const document = createDocument();
+  const live = el(document, "tbody", {});
+
+  patch(live, tableOf(document, row(document, "p1", "Grak")));
+
+  assert.equal(outline(live), "tbody(tr#p1(td(Grak)))");
+});
+
+test("patch empties a container the markup emptied", () => {
+  const document = createDocument();
+  const live = tableOf(document, row(document, "p1", "Grak"));
+
+  patch(live, el(document, "tbody", {}));
+
+  assert.equal(live.childNodes.length, 0);
+});
+
+test("patch survives a focused control that has no caret to save", () => {
+  const document = createDocument();
+  const spp = el(document, "input", { "data-key": "spp", type: "number", value: "3" });
+  const live = el(document, "div", {}, el(document, "label", {}, spp));
+  spp.focus();
+
+  // A number input throws on selectionStart in a browser; capturing and
+  // restoring focus must not depend on getting one.
+  patch(live, el(document, "div", {}, el(document, "div", {}, el(document, "input", { "data-key": "spp", type: "number", value: "3" }))));
+
+  assert.equal(document.activeElement, live.querySelector('[data-key="spp"]'));
 });
