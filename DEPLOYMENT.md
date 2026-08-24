@@ -109,7 +109,7 @@ Run these once on `51.81.86.51`:
 
 ```bash
 mkdir -p /opt/bloodbowl-league
-git clone https://github.com/Journeymagne/-bloodbowlyerevan.git /opt/bloodbowl-league
+git clone https://github.com/Journeymagne/bloodbowl_yerevan.git /opt/bloodbowl-league
 cd /opt/bloodbowl-league
 install -d -m 700 /etc/bloodbowl-league
 install -m 600 .env.example /etc/bloodbowl-league/.env
@@ -161,7 +161,7 @@ request; no certbot step is needed.
 
 ### GitHub secrets
 
-Already set (as of this deploy) in the `Journeymagne/-bloodbowlyerevan`
+Already set (as of this deploy) in the `Journeymagne/bloodbowl_yerevan`
 repo settings:
 
 - `SERVER_HOST` = `51.81.86.51`
@@ -171,7 +171,7 @@ repo settings:
 
 If this key is ever rotated, generate a new keypair, add the public half
 to the server's `authorized_keys`, and update the `SSH_PRIVATE_KEY`
-secret with `gh secret set SSH_PRIVATE_KEY -R Journeymagne/-bloodbowlyerevan < path/to/key`.
+secret with `gh secret set SSH_PRIVATE_KEY -R Journeymagne/bloodbowl_yerevan < path/to/key`.
 
 ### Ongoing deploys
 
