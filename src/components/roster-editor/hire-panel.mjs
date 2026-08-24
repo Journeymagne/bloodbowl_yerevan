@@ -7,19 +7,28 @@
  * data attribute the buttons carried, and one heading. Two of the twelve
  * duplicate pairs the design spec counts in section 5.1.
  *
- * What differs now lives in modes.mjs; this file reads flags and never asks
- * which mode it is in.
+ * What differs between the two situations lives in modes.mjs; this file reads
+ * flags and never asks which mode it is in.
  *
- * Step 7.6 of the plan lands here too: a hire that cannot be made says why.
- * The buttons were already disabled, but silently — a coach who had run out of
- * budget saw a dead button and no reason for it.
+ * Step 7.3 asks for one markup with the layout left to CSS. That is not what
+ * the card is: it is a designed layout — position with quantity and price
+ * inline, a stat grid, skills as pills — rather than the table folded into
+ * blocks, and turning it into a generic block table would be a worse phone
+ * screen, not a better one. What the duplication actually cost was having to
+ * make every change twice, so each field is declared once below and the two
+ * layouts arrange the same values differently. Stats are the exception: the
+ * table wants cells and the card wants a grid, which is structure rather than
+ * content, so those stay as two renderers over the same row.
+ *
+ * Step 7.6 lands here too: a hire that cannot be made says why. The buttons
+ * were already disabled, but silently — a coach who had run out of budget saw
+ * a dead button and no reason for it.
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { startingBudget } from "../../domain/league-rules.mjs";
-import { calculateRosterCosts } from "../../domain/roster/costs.mjs";
+import { calculateRosterCosts, spendTreasury } from "../../domain/roster/costs.mjs";
 import { canAddRowToDraft, makeRosterPlayer, rowCountInPlayers, syncRosterCountsFromPlayers } from "../../domain/roster/players.mjs";
-import { spendTreasury } from "../../domain/roster/costs.mjs";
 import { costToNumber, rosterMax, rowCost, rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderRosterLinks } from "../content-links.mjs";
 import { renderAccessCell, renderRosterStatCells } from "../roster-editor-shared.mjs";
@@ -30,7 +39,7 @@ import { renderRosterStatGrid } from "../../screens/detail.mjs";
  *
  * @returns {{blocked: boolean, reason: string, title: string}}
  */
-function hireVerdict(team, draft, row, rowIndex, mode, costs) {
+function hireVerdict(draft, row, rowIndex, mode, costs) {
   if (mode.enforcesPositionLimit && !canAddRowToDraft(row, rowIndex, draft, true)) {
     return {
       blocked: true,
@@ -48,6 +57,28 @@ function hireVerdict(team, draft, row, rowIndex, mode, costs) {
   return { blocked: false, reason: "", title: "" };
 }
 
+/**
+ * Everything the pool says about one position, written once.
+ *
+ * The table and the card both read from here, so a change to what a field says
+ * lands in both without being typed twice.
+ */
+function hireFields(row, rowIndex, draft, mode, verdict) {
+  const current = rowCountInPlayers(draft, rowIndex);
+  return {
+    qty: escapeHtml(row.qty || "-"),
+    position: escapeHtml(row.position),
+    skills: renderRosterLinks(row.skills),
+    primary: renderAccessCell(row.primary),
+    secondary: renderAccessCell(row.secondary),
+    cost: escapeHtml(rowCost(row) || "-"),
+    taken: `${current}/${rosterMax(row.qty)}`,
+    overBudget: verdict.reason === "budget",
+    blocked: verdict.blocked,
+    button: (className) => hireButton(rowIndex, mode, verdict, className),
+  };
+}
+
 function hireButton(rowIndex, mode, verdict, className) {
   const attributes = [
     `class="primary-button ${className}"`,
@@ -63,7 +94,8 @@ function hireButton(rowIndex, mode, verdict, className) {
 export function renderHirePanel(team, draft, mode) {
   const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: mode.enforcesBudget });
   const rows = rowsForTeam(team);
-  const verdicts = rows.map((row, rowIndex) => hireVerdict(team, draft, row, rowIndex, mode, costs));
+  const fields = rows.map((row, rowIndex) =>
+    hireFields(row, rowIndex, draft, mode, hireVerdict(draft, row, rowIndex, mode, costs)));
 
   return `
     <div class="table-scroll builder-table-scroll builder-available-table-wrap">
@@ -87,19 +119,18 @@ export function renderHirePanel(team, draft, mode) {
         </thead>
         <tbody>
           ${rows.map((row, rowIndex) => {
-            const verdict = verdicts[rowIndex];
-            const current = rowCountInPlayers(draft, rowIndex);
+            const field = fields[rowIndex];
             return `
-              <tr class="${verdict.blocked ? "disabled-row" : ""}">
-                <td>${escapeHtml(row.qty || "-")}</td>
-                <td><strong>${escapeHtml(row.position)}</strong></td>
+              <tr class="${field.blocked ? "disabled-row" : ""}">
+                <td>${field.qty}</td>
+                <td><strong>${field.position}</strong></td>
                 ${renderRosterStatCells(row)}
-                <td class="skills-cell">${renderRosterLinks(row.skills)}</td>
-                <td>${renderAccessCell(row.primary)}</td>
-                <td>${renderAccessCell(row.secondary)}</td>
-                <td>${escapeHtml(rowCost(row) || "-")}</td>
-                <td>${current}/${rosterMax(row.qty)}${verdict.reason === "budget" ? `<span class="danger-text"> ${t("builder.overBudget")}</span>` : ""}</td>
-                <td>${hireButton(rowIndex, mode, verdict, "table-plus-button")}</td>
+                <td class="skills-cell">${field.skills}</td>
+                <td>${field.primary}</td>
+                <td>${field.secondary}</td>
+                <td>${field.cost}</td>
+                <td>${field.taken}${field.overBudget ? `<span class="danger-text"> ${t("builder.overBudget")}</span>` : ""}</td>
+                <td>${field.button("table-plus-button")}</td>
               </tr>
             `;
           }).join("")}
@@ -108,30 +139,29 @@ export function renderHirePanel(team, draft, mode) {
     </div>
     ${mode.showsHireCards ? `
       <div class="builder-mobile-card-list available-player-mobile-list">
-        ${rows.map((row, rowIndex) => renderHireCard(row, rowIndex, draft, mode, verdicts[rowIndex])).join("")}
+        ${rows.map((row, rowIndex) => renderHireCard(row, fields[rowIndex])).join("")}
       </div>
     ` : ""}
   `;
 }
 
-function renderHireCard(row, rowIndex, draft, mode, verdict) {
-  const current = rowCountInPlayers(draft, rowIndex);
+function renderHireCard(row, field) {
   return `
-    <article class="available-player-card ${verdict.blocked ? "disabled" : ""}">
+    <article class="available-player-card ${field.blocked ? "disabled" : ""}">
       <header class="available-player-head">
         <div>
-          <strong>${escapeHtml(row.position)}</strong>
-          <em>${escapeHtml(row.qty || "-")} · ${escapeHtml(rowCost(row) || "-")}</em>
+          <strong>${field.position}</strong>
+          <em>${field.qty} · ${field.cost}</em>
         </div>
-        ${hireButton(rowIndex, mode, verdict, "add-player-button")}
+        ${field.button("add-player-button")}
       </header>
       ${renderRosterStatGrid(row)}
       <section class="mobile-player-section">
         <h3>${t("roster.skillsLabel")}</h3>
-        <div class="mobile-player-pills">${renderRosterLinks(row.skills)}</div>
+        <div class="mobile-player-pills">${field.skills}</div>
       </section>
       <footer class="available-player-foot">
-        ${t("roster.primary")} ${renderAccessCell(row.primary)} · ${t("roster.secondary")} ${renderAccessCell(row.secondary)} · ${t("roster.selectedLabel")} ${current}/${rosterMax(row.qty)}${verdict.reason === "budget" ? ` · ${t("roster.overBudgetLabel")}` : ""}
+        ${t("roster.primary")} ${field.primary} · ${t("roster.secondary")} ${field.secondary} · ${t("roster.selectedLabel")} ${field.taken}${field.overBudget ? ` · ${t("roster.overBudgetLabel")}` : ""}
       </footer>
     </article>
   `;
@@ -153,7 +183,7 @@ export function wireHirePanel(root, { team, draft, mode, onChange }) {
       if (!row) return;
 
       const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: mode.enforcesBudget });
-      if (hireVerdict(team, draft, row, rowIndex, mode, costs).blocked) return;
+      if (hireVerdict(draft, row, rowIndex, mode, costs).blocked) return;
 
       const options = mode.marksPurchased ? { purchased: true } : {};
       draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex), options));

@@ -31,6 +31,7 @@ import { builderPayload, emptyBuilderState, resetBuilderForTeam } from "../data/
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks } from "../components/content-links.mjs";
 import { CREATE_MODE } from "../components/roster-editor/modes.mjs";
+import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import {
@@ -92,6 +93,27 @@ export function renderBuilder() {
   `;
   wireBuilder(team);
 }
+function renderBuilderSummary(team, costs, warnings) {
+  return renderSummaryPanel({
+    className: "builder-info-section builder-info-summary",
+    teamTitle: team.title,
+    teamHref: pageUrl(team),
+    rows: [
+      { label: t("myTeams.table.players"), value: costs.totalPlayersCount },
+      { label: t("savedRoster.dedicatedFans"), value: countToNumber(state.builder.dedicatedFans) },
+      ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(state.builder.bribes) }] : []),
+      { label: t("savedRoster.playersCost"), value: `${costs.playersCost}k` },
+      { label: t("savedRoster.staffCost"), value: `${costs.staffCost}k` },
+      { label: t("roster.totalCost"), value: `${costs.total}k` },
+      { label: t("builder.remaining"), value: `${costs.remaining}k`, valueClass: costs.remaining < 0 ? "danger-text" : "" },
+    ],
+    warnings,
+    actionsHtml: `
+              <button class="primary-button" type="button" data-save-team ${costs.total > startingBudget || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
+    `,
+  });
+}
+
 function renderBuilderInfoPanel(team, teams, costs, warnings) {
   return `
     <section class="builder-info-panel side-panel">
@@ -121,27 +143,7 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
         ${renderTeamRuleAccess(team, state.builder, "builder")}
       </div>
       <div class="builder-info-grid">
-        <div class="builder-info-section builder-info-summary">
-          <div class="summary-title-block">
-            <h3>${t("savedRoster.summaryTitle")}</h3>
-            <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
-          </div>
-          <dl class="stat-list summary-stat-grid">
-            <dt>${t("myTeams.table.players")}</dt><dd>${costs.totalPlayersCount}</dd>
-            <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(state.builder.dedicatedFans)}</dd>
-            ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(state.builder.bribes)}</dd>` : ""}
-            <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
-            <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
-            <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
-            <dt>${t("builder.remaining")}</dt><dd class="${costs.remaining < 0 ? "danger-text" : ""}">${costs.remaining}k</dd>
-          </dl>
-          <div class="summary-state-block">
-            ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
-            <div class="summary-actions">
-              <button class="primary-button" type="button" data-save-team ${costs.total > startingBudget || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
-            </div>
-          </div>
-        </div>
+        ${renderBuilderSummary(team, costs, warnings)}
         <div class="builder-info-section builder-info-purchases">
           <h2>${t("roster.purchasesHeading")}</h2>
           <div class="builder-tracker-list roster-tracker-list" aria-label="${t("roster.startingRosterTrackersAriaLabel")}">

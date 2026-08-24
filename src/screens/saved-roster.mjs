@@ -64,6 +64,7 @@ import { renderRosterNotices, wireRosterNotices } from "../components/roster-not
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
+import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import {
@@ -214,35 +215,31 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
 }
 function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
   const autosaveStatus = rosterStore.statusOf(savedTeam.id);
-  return `
-    <aside class="builder-summary saved-roster-summary-panel side-panel">
-      <div class="summary-title-block">
-        <h3>${t("savedRoster.summaryTitle")}</h3>
-        <p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosaveStatus)}">${escapeHtml(autosaveMessageFor(autosaveStatus))}</p>
-        <a class="builder-team-link" href="${pageUrl(team)}">${escapeHtml(team.title)}</a>
-      </div>
-      <dl class="stat-list summary-stat-grid">
-        <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
-        <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
-        <dt>${t("savedRoster.startingRerolls")}</dt><dd>${draft.startingRerolls ?? 0}</dd>
-        <dt>${t("savedRoster.teamRerolls")}</dt><dd>${draft.teamRerolls ?? 0}</dd>
-        ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
-        <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
-        <dt>${t("savedRoster.treasury")}</dt><dd data-treasury-display>${countToNumber(draft.treasury)}k</dd>
-        <dt>${t("savedRoster.totalSppLabel")}</dt><dd data-total-spp-display>${rosterTotalSpp(team, draft)} SPP</dd>
-        <dt>${t("savedRoster.playersCost")}</dt><dd>${costs.playersCost}k</dd>
-        <dt>${t("savedRoster.staffCost")}</dt><dd>${costs.staffCost}k</dd>
-        <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
-      </dl>
-      <div class="summary-state-block">
-        ${warnings.length ? `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>` : `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`}
-        <div class="summary-actions">
+  return renderSummaryPanel({
+    tag: "aside",
+    className: "builder-summary saved-roster-summary-panel side-panel",
+    teamTitle: team.title,
+    teamHref: pageUrl(team),
+    statusHtml: `<p class="autosave-status" data-autosave-status data-status="${escapeHtml(autosaveStatus)}">${escapeHtml(autosaveMessageFor(autosaveStatus))}</p>`,
+    rows: [
+      { label: t("savedRoster.activePlayers"), value: costs.playersCount },
+      { label: t("savedRoster.totalPlayers"), value: costs.totalPlayersCount },
+      { label: t("savedRoster.startingRerolls"), value: draft.startingRerolls ?? 0 },
+      { label: t("savedRoster.teamRerolls"), value: draft.teamRerolls ?? 0 },
+      ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(draft.bribes) }] : []),
+      { label: t("savedRoster.dedicatedFans"), value: countToNumber(draft.dedicatedFans) },
+      { label: t("savedRoster.treasury"), value: `${countToNumber(draft.treasury)}k`, valueAttributes: "data-treasury-display" },
+      { label: t("savedRoster.totalSppLabel"), value: `${rosterTotalSpp(team, draft)} SPP`, valueAttributes: "data-total-spp-display" },
+      { label: t("savedRoster.playersCost"), value: `${costs.playersCost}k` },
+      { label: t("savedRoster.staffCost"), value: `${costs.staffCost}k` },
+      { label: t("roster.totalCost"), value: `${costs.total}k` },
+    ],
+    warnings,
+    actionsHtml: `
           <button class="primary-button" type="button" data-save-roster>${t("roster.saveChanges")}</button>
           <button class="filter-button danger-action" type="button" data-delete-saved-roster>${t("common.delete")}</button>
-        </div>
-      </div>
-    </aside>
-  `;
+    `,
+  });
 }
 function renderSavedRosterIdentity(team, draft, teams) {
   return `
