@@ -5,32 +5,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 import { Pool } from "pg";
+import { loadEnvFile } from "./config/env-file.mjs";
 import { resolveStaticPath } from "./http/static-path.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
-async function loadEnvFile() {
-  const envPath = path.join(rootDir, ".env");
-  let body = "";
-  try {
-    body = await fs.readFile(envPath, "utf8");
-  } catch {
-    return;
-  }
-
-  for (const line of body.split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#") || !trimmed.includes("=")) continue;
-    const index = trimmed.indexOf("=");
-    const key = trimmed.slice(0, index).trim();
-    const value = trimmed.slice(index + 1).trim().replace(/^['"]|['"]$/g, "");
-    if (key && process.env[key] === undefined) {
-      process.env[key] = value;
-    }
-  }
-}
-
-await loadEnvFile();
+await loadEnvFile(rootDir);
 
 const appPort = Number(process.env.APP_PORT || process.env.PORT || 3002);
 

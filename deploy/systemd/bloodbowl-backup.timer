@@ -1,0 +1,13 @@
+[Unit]
+Description=Nightly gata_league database backup
+
+[Timer]
+# Fixed UTC: a local-time schedule would skip or repeat a run when the clocks change.
+OnCalendar=*-*-* 04:00:00 UTC
+# Catch up on a run missed while the server was down, rather than losing that night.
+Persistent=true
+RandomizedDelaySec=300
+Unit=bloodbowl-backup.service
+
+[Install]
+WantedBy=timers.target

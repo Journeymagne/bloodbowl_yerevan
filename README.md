@@ -105,6 +105,8 @@ Useful environment variables in `.env`:
 
 `npm run postgres:up` starts only Postgres from `docker-compose.yml`. `npm start` builds the reference data and starts the site/API locally. The server reads `.env` and connects to Postgres through `localhost:${POSTGRES_PORT}`.
 
+The `.env` in the repository root is the local-development location. The server looks for the file in this order: `BLOODBOWL_ENV_FILE`, then `/etc/bloodbowl-league/.env`, then the repository root (see `server/config/env-file.mjs`). Production keeps it in `/etc` because `/opt/bloodbowl-league` is served over HTTP — see the security notes in `DEPLOYMENT.md`.
+
 On Windows you can also run:
 
 ```powershell
