@@ -16,6 +16,7 @@
 const AUTO_DISMISS_MS = 6000;
 
 let region = null;
+const dismissTimers = new WeakMap();
 
 function toastRegion() {
   if (region?.isConnected) return region;
@@ -38,17 +39,33 @@ export function toast(message, { tone = "info", timeout } = {}) {
   const text = String(message ?? "").trim();
   if (!text) return;
 
+  const region = toastRegion();
+  const dismissAfter = timeout ?? (tone === "error" ? AUTO_DISMISS_MS * 2 : AUTO_DISMISS_MS);
+
+  // The same message twice running is one message. A refused button pressed
+  // five times has one reason, not five, and stacking copies of it buries
+  // whatever else is on screen.
+  const previous = region.lastElementChild;
+  if (previous?.textContent === text) {
+    keepFor(previous, dismissAfter);
+    return;
+  }
+
   const node = document.createElement("output");
   node.className = `toast toast-${tone}`;
   node.textContent = text;
-  toastRegion().append(node);
-
-  const dismissAfter = timeout ?? (tone === "error" ? AUTO_DISMISS_MS * 2 : AUTO_DISMISS_MS);
-  const timer = setTimeout(() => node.remove(), dismissAfter);
+  region.append(node);
+  keepFor(node, dismissAfter);
   node.addEventListener("click", () => {
-    clearTimeout(timer);
+    clearTimeout(dismissTimers.get(node));
     node.remove();
   });
+}
+
+/** (Re)start one toast's countdown, so a repeat refreshes rather than piles up. */
+function keepFor(node, dismissAfter) {
+  clearTimeout(dismissTimers.get(node));
+  dismissTimers.set(node, setTimeout(() => node.remove(), dismissAfter));
 }
 
 /** What went wrong, said without blocking the page. */

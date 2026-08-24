@@ -157,24 +157,49 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
               <div class="inline-stepper-control">
                 <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
                 <strong>${state.builder.startingRerolls}</strong>
-                <button class="filter-button" type="button" data-builder-reroll="1" ${costs.total + builderStaffCosts.startingRerolls > startingBudget ? "disabled" : ""}>+</button>
+                <button class="filter-button" type="button" data-builder-reroll="1" ${blockedAttributes(stepUpVerdict("startingRerolls", t("savedRoster.startingRerolls"), state.builder.startingRerolls, costs.total))}>+</button>
               </div>
             </div>
-            ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total + builderStaffCosts.dedicatedFans > startingBudget)}
-            ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total + builderStaffCosts.bribes > startingBudget) : ""}
-            ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total + builderStaffCosts.assistantCoaches > startingBudget)}
-            ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total + builderStaffCosts.cheerleaders > startingBudget)}
-            ${availableMedicalStaffDefinitions(team).map((staff) => {
-              const blocked = costs.total + (builderStaffCosts[staff.key] ?? 0) > startingBudget;
-              return renderBuilderStaffControl(staff.key, staff.title, state.builder[staff.key], blocked);
-            }).join("")}
+            ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total)}
+            ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total) : ""}
+            ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total)}
+            ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total)}
+            ${availableMedicalStaffDefinitions(team)
+              .map((staff) => renderBuilderStaffControl(staff.key, staff.title, state.builder[staff.key], costs.total))
+              .join("")}
           </div>
         </div>
       </div>
     </section>
   `;
 }
-function renderBuilderStaffControl(key, title, value, plusBlocked = false) {
+/**
+ * Why one more of something cannot be bought, if it cannot.
+ *
+ * Step 7.6: the "+" used to be plain `disabled`, which says no without saying
+ * why. Same shape as the hire pool's `hireVerdict` — the verdict is worked out
+ * once and both the markup and the click handler read it, so the tooltip and
+ * the message after a refused click can never drift apart.
+ */
+function stepUpVerdict(key, title, value, committedTotal) {
+  const max = builderStaffMaximums[key] ?? 6;
+  if (countToNumber(value) >= max) return { blocked: true, title: t("validation.STAFF_MAX", { title, max }) };
+  if (committedTotal + (builderStaffCosts[key] ?? 0) > startingBudget) {
+    return { blocked: true, title: t("validation.BUDGET_EXCEEDED", { budget: startingBudget, total: committedTotal }) };
+  }
+  return { blocked: false, title: "" };
+}
+
+/**
+ * `aria-disabled` rather than `disabled`: a disabled button takes no click and
+ * shows no tooltip, so its reason never reaches the coach. The handler turns
+ * the refusal down instead, and says why.
+ */
+function blockedAttributes(verdict) {
+  return verdict.blocked ? `aria-disabled="true" title="${escapeHtml(verdict.title)}"` : "";
+}
+
+function renderBuilderStaffControl(key, title, value, committedTotal = 0) {
   const max = builderStaffMaximums[key] ?? 6;
   const current = countToNumber(value);
   const cost = builderStaffCosts[key] ?? 0;
@@ -187,7 +212,7 @@ function renderBuilderStaffControl(key, title, value, plusBlocked = false) {
       <div class="inline-stepper-control">
         <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>
         <strong>${current}</strong>
-        <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="1" ${current >= max || plusBlocked ? "disabled" : ""}>+</button>
+        <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="1" ${blockedAttributes(stepUpVerdict(key, title, value, committedTotal))}>+</button>
       </div>
     </div>
   `;
@@ -299,6 +324,49 @@ function calculateBuilderCosts(team) {
 function builderWarnings(team, costs) {
   return rosterWarnings(team, state.builder, costs);
 }
+/** The label each stepper carries, so a refusal can name what it refused. */
+function stepperTitles(team) {
+  const titles = {
+    startingRerolls: t("savedRoster.startingRerolls"),
+    dedicatedFans: t("savedRoster.dedicatedFans"),
+    bribes: t("savedRoster.bribes"),
+    assistantCoaches: t("savedRoster.assistantCoaches"),
+    cheerleaders: t("savedRoster.cheerleaders"),
+  };
+  for (const staff of availableMedicalStaffDefinitions(team)) titles[staff.key] = staff.title;
+  return titles;
+}
+
+/**
+ * The reroll and staff steppers, both of which stop at the budget and at their
+ * own maximum. Step 7.6: a refused click now says which of the two it was.
+ */
+function wireBuilderSteppers(team) {
+  const titles = stepperTitles(team);
+
+  const step = (key, delta) => {
+    const current = countToNumber(state.builder[key]);
+    if (delta > 0) {
+      const committed = calculateRosterCosts(team, state.builder, { includeDedicatedFans: true }).total;
+      const verdict = stepUpVerdict(key, titles[key] ?? key, current, committed);
+      if (verdict.blocked) {
+        toast(verdict.title, { tone: "error" });
+        return;
+      }
+    }
+    state.builder[key] = clamp(current + delta, 0, builderStaffMaximums[key] ?? 6);
+    renderBuilder();
+  };
+
+  view.querySelectorAll("[data-builder-reroll]").forEach((button) => {
+    button.addEventListener("click", () => step("startingRerolls", Number(button.dataset.builderReroll)));
+  });
+
+  view.querySelectorAll("[data-builder-staff]").forEach((button) => {
+    button.addEventListener("click", () => step(button.dataset.builderStaff, Number(button.dataset.builderStaffStep)));
+  });
+}
+
 function wireBuilder(team) {
   // Any control in the builder mutates state.builder directly, so listening on
   // the container is enough to know something changed.
@@ -370,30 +438,7 @@ function wireBuilder(team) {
       renderBuilder();
     });
   });
-  view.querySelectorAll("[data-builder-reroll]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const delta = Number(button.dataset.builderReroll);
-      const next = clamp(countToNumber(state.builder.startingRerolls) + delta, 0, builderStaffMaximums.startingRerolls);
-      const previous = countToNumber(state.builder.startingRerolls);
-      const projected = calculateRosterCosts(team, { ...state.builder, startingRerolls: next }, { includeDedicatedFans: true }).total;
-      if (projected > startingBudget && next > previous) return;
-      state.builder.startingRerolls = next;
-      renderBuilder();
-    });
-  });
-  view.querySelectorAll("[data-builder-staff]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const key = button.dataset.builderStaff;
-      const delta = Number(button.dataset.builderStaffStep);
-      const max = builderStaffMaximums[key] ?? 6;
-      const next = clamp(countToNumber(state.builder[key]) + delta, 0, max);
-      const previous = countToNumber(state.builder[key]);
-      const projected = calculateRosterCosts(team, { ...state.builder, [key]: next }, { includeDedicatedFans: true }).total;
-      if (projected > startingBudget && next > previous) return;
-      state.builder[key] = next;
-      renderBuilder();
-    });
-  });
+  wireBuilderSteppers(team);
   view.querySelector("[data-save-team]")?.addEventListener("click", () => saveTeam(team));
 }
 async function saveTeam(team) {

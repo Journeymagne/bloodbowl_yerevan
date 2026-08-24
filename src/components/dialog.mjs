@@ -70,7 +70,13 @@ export function confirmAction({
     // which is exactly what happens in some embedded Chromium builds. `close`
     // stays as a backstop for a dialog closed some other way.
     dialog.querySelectorAll("button").forEach((button) => {
-      button.addEventListener("click", () => settle(button.value === "confirm"));
+      button.addEventListener("click", (event) => {
+        // The form is `method="dialog"`, so a submit would close the element a
+        // second time — after `settle` has already removed it, which the
+        // browser reports as a cancelled submission on a disconnected form.
+        event.preventDefault();
+        settle(button.value === "confirm");
+      });
     });
     dialog.addEventListener("keydown", (event) => {
       if (event.key === "Escape") settle(false);

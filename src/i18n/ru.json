@@ -362,6 +362,7 @@
   "validation.ROSTER_MAX_PLAYERS": "В ростере Sevens не должно быть больше {max} игроков (сейчас {count}).",
   "validation.POSITION_MIN": "{position}: минимум {min}.",
   "validation.POSITION_MAX": "{position}: максимум {max}.",
+  "validation.STAFF_MAX": "{title}: максимум {max}.",
   "validation.BUDGET_EXCEEDED": "Бюджет {budget}k, из него уже потрачено {total}k.",
   "roster.notEnoughSpp": "не хватает SPP",
   "validation.ADVANCEMENT_MAX_LEVEL": "Игрок достиг максимального уровня.",
