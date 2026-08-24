@@ -22,6 +22,8 @@ import { updateAuthButton } from "../../components/auth-button.mjs";
 import { normalizeSavedRoster } from "../../data/roster-draft.mjs";
 import { wireTeamDeleteButtons } from "../my-teams.mjs";
 import { makeSeasonStarterRoster } from "../season/season-data.mjs";
+import { toast, toastError } from "../../components/toast.mjs";
+import { confirmAction } from "../../components/dialog.mjs";
 
 export async function renderAdminUserProfile(userId) {
   setActiveNav("administration");
@@ -147,21 +149,25 @@ export function wireAdminUserProfile(user) {
         updateAuthButton();
       }
       state.admin.loaded = false;
-      alert(t("admin.userUpdatedMessage"));
+      toast(t("admin.userUpdatedMessage"));
       renderAdminUserProfile(user.id);
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 
   view.querySelector("[data-admin-delete-user]")?.addEventListener("click", async () => {
-    if (!confirm(`${t("admin.deleteUserConfirm")} ${user.login}? ${t("admin.deleteUserCascadeWarning")}`)) return;
+    if (!await confirmAction({
+      message: `${t("admin.deleteUserConfirm")} ${user.login}? ${t("admin.deleteUserCascadeWarning")}`,
+      confirmLabel: t("common.delete"),
+      destructive: true,
+    })) return;
     try {
       await apiRequest(`/api/admin/users/${encodeURIComponent(user.id)}`, { method: "DELETE" });
       state.admin.loaded = false;
       location.hash = "#/administration";
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 
@@ -182,7 +188,7 @@ export function wireAdminUserProfile(user) {
       state.admin.loaded = false;
       location.hash = adminTeamEditUrl(user, payload.team);
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 }

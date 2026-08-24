@@ -40,6 +40,8 @@ import {
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
 } from "../components/roster-editor-shared.mjs";
+import { toast, toastError } from "../components/toast.mjs";
+import { confirmAction } from "../components/dialog.mjs";
 
 const autosaveDelayMs = 450;
 const builderDraftStore = createBuilderDraftStore({ storage, debounceMs: autosaveDelayMs });
@@ -302,17 +304,21 @@ function wireBuilder(team) {
   // the container is enough to know something changed.
   const persistDraft = () => builderDraftStore.save(state.builder);
   for (const event of ["input", "click", "change"]) view.addEventListener(event, persistDraft);
-  view.querySelector("[data-builder-reset]")?.addEventListener("click", () => {
-    if (!isEmptyBuilderDraft(state.builder) && !confirm(t("builder.startOverConfirm"))) return;
+  view.querySelector("[data-builder-reset]")?.addEventListener("click", async () => {
+    if (!isEmptyBuilderDraft(state.builder) && !await confirmAction({
+      message: t("builder.startOverConfirm"),
+      confirmLabel: t("builder.startOver"),
+      destructive: true,
+    })) return;
     builderDraftStore.clear();
     resetBuilderForTeam(state.data.teams[0]);
     renderBuilder();
   });
-  view.querySelector("[data-builder-team]")?.addEventListener("change", (event) => {
+  view.querySelector("[data-builder-team]")?.addEventListener("change", async (event) => {
     const select = event.currentTarget;
     const nextTeam = state.data.teams.find((item) => item.slug === select.value);
     if (!nextTeam) return;
-    if (!confirmRaceChange(team, state.builder, nextTeam)) {
+    if (!await confirmRaceChange(team, state.builder, nextTeam)) {
       restoreTeamSelect(select, team.slug);
       return;
     }
@@ -333,7 +339,7 @@ function wireBuilder(team) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     if (file.size > logoUploadMaxBytes) {
-      alert(t("savedRoster.logoTooLarge"));
+      toast(t("savedRoster.logoTooLarge"), { tone: "error" });
       event.currentTarget.value = "";
       return;
     }
@@ -423,6 +429,6 @@ async function saveTeam(team) {
       }, 700);
     }
   } catch (error) {
-    alert(error.message);
+    toastError(error);
   }
 }

@@ -120,6 +120,8 @@
   "common.save": "Save",
   "common.saving": "Saving...",
   "common.delete": "Delete",
+  "common.cancel": "Cancel",
+  "common.confirm": "Confirm",
   "common.add": "Add",
   "common.remove": "Remove",
   "savedRoster.notFound": "Saved team not found.",
@@ -376,5 +378,6 @@
   "roster.pendingRestoreAction": "Restore them",
   "roster.pendingDiscardAction": "Discard",
   "roster.conflictBody": "Someone saved this team after you opened it. Reload to see their version — your changes are still on screen until you do.",
-  "roster.conflictReloadAction": "Reload from the server"
+  "roster.conflictReloadAction": "Reload from the server",
+  "roster.changeRaceAction": "Change race"
 }

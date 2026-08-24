@@ -11,6 +11,7 @@ import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { isGameClosedForPlayers, isGameResultSubmitted } from "./my-games.mjs";
+import { toastError } from "../../components/toast.mjs";
 
 function renderGameScore(game, proposed = false) {
   const prefix = proposed ? "proposed" : "";
@@ -73,16 +74,16 @@ function wireGamePage(game) {
   view.querySelector("[data-admin-game-result]")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.currentTarget));
-    try { await apiRequest(`/api/games/${game.id}`, { method: "PATCH", body: JSON.stringify(form) }); state.games.loaded = false; renderGamePage(game.id); } catch (error) { alert(error.message); }
+    try { await apiRequest(`/api/games/${game.id}`, { method: "PATCH", body: JSON.stringify(form) }); state.games.loaded = false; renderGamePage(game.id); } catch (error) { toastError(error); }
   });
   view.querySelector("[data-game-proposal]")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.currentTarget));
-    try { await apiRequest(`/api/games/${game.id}/propose`, { method: "POST", body: JSON.stringify(form) }); renderGamePage(game.id); } catch (error) { alert(error.message); }
+    try { await apiRequest(`/api/games/${game.id}/propose`, { method: "POST", body: JSON.stringify(form) }); renderGamePage(game.id); } catch (error) { toastError(error); }
   });
   for (const [selector, action] of [["[data-game-confirm]", "confirm"], ["[data-game-reject]", "reject"]]) {
     view.querySelector(selector)?.addEventListener("click", async () => {
-      try { await apiRequest(`/api/games/${game.id}/${action}`, { method: "POST", body: "{}" }); state.games.loaded = false; renderGamePage(game.id); } catch (error) { alert(error.message); }
+      try { await apiRequest(`/api/games/${game.id}/${action}`, { method: "POST", body: "{}" }); state.games.loaded = false; renderGamePage(game.id); } catch (error) { toastError(error); }
     });
   }
 }

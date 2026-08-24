@@ -120,6 +120,8 @@
   "common.save": "Сохранить",
   "common.saving": "Сохранение...",
   "common.delete": "Удалить",
+  "common.cancel": "Отмена",
+  "common.confirm": "Подтвердить",
   "common.add": "Добавить",
   "common.remove": "Удалить",
   "savedRoster.notFound": "Сохранённая команда не найдена.",
@@ -376,5 +378,6 @@
   "roster.pendingRestoreAction": "Восстановить",
   "roster.pendingDiscardAction": "Отклонить",
   "roster.conflictBody": "Кто-то сохранил эту команду после того, как вы её открыли. Перезагрузите, чтобы увидеть их версию — ваши правки останутся на экране до этого момента.",
-  "roster.conflictReloadAction": "Перезагрузить с сервера"
+  "roster.conflictReloadAction": "Перезагрузить с сервера",
+  "roster.changeRaceAction": "Сменить расу"
 }

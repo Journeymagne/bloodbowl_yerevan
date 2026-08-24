@@ -76,6 +76,8 @@ import {
   sanitizeFavouredSkillsForTeam,
 } from "../components/roster-editor-shared.mjs";
 import { deleteSavedTeam, loadMyTeams } from "./my-teams.mjs";
+import { toast, toastError } from "../components/toast.mjs";
+import { confirmAction } from "../components/dialog.mjs";
 
 const autosaveDelayMs = 450;
 
@@ -85,11 +87,9 @@ function isSavedRosterPlayerExpanded(playerId) {
 
 function setSavedRosterPlayerExpanded(playerId, expanded) {
   if (!playerId) return;
-  if (expanded) {
-    state.savedRosterUi.expandedPlayers.add(playerId);
-  } else {
-    state.savedRosterUi.expandedPlayers.delete(playerId);
-  }
+  const expandedPlayers = state.savedRosterUi.expandedPlayers;
+  if (expanded) expandedPlayers.add(playerId);
+  else expandedPlayers.delete(playerId);
 }
 function availableSkillOptionsForPlayer(row, player) {
   const base = new Set(skillNamesForPlayer(row, player));
@@ -367,11 +367,11 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     }
   };
 
-  view.querySelector("[data-roster-team]")?.addEventListener("change", (event) => {
+  view.querySelector("[data-roster-team]")?.addEventListener("change", async (event) => {
     const select = event.currentTarget;
     const nextTeam = state.data.teams.find((item) => item.slug === select.value);
     if (!nextTeam) return;
-    if (!confirmRaceChange(team, draft, nextTeam)) {
+    if (!await confirmRaceChange(team, draft, nextTeam)) {
       restoreTeamSelect(select, team.slug);
       return;
     }
@@ -414,7 +414,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     const file = event.currentTarget.files?.[0];
     if (!file) return;
     if (file.size > logoUploadMaxBytes) {
-      alert(t("savedRoster.logoTooLarge"));
+      toast(t("savedRoster.logoTooLarge"), { tone: "error" });
       event.currentTarget.value = "";
       return;
     }
@@ -467,7 +467,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
       if (!deleted) return;
       location.hash = options.adminOwnerId ? `#/administration/users/${encodeURIComponent(ownerId)}` : "#/my-teams";
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 }
@@ -663,7 +663,7 @@ function wireSavedPlayerEditors(team, draft, rerender) {
       if (!verdict.allowed) {
         // Used to fail silently whenever the cost was zero, and to happily let
         // available SPP go negative otherwise.
-        alert(t(`validation.${verdict.reason}`, verdict.params));
+        toast(t(`validation.${verdict.reason}`, verdict.params), { tone: "error" });
         return;
       }
       player.advancements = normalizePlayerAdvancements(player.advancements);
@@ -780,7 +780,7 @@ async function saveSavedRoster(savedTeam) {
     }
     return;
   }
-  alert(autosaveMessageFor(status));
+  toast(autosaveMessageFor(status), { tone: "error" });
 }
 function renderEditablePlayerStatCells(player) {
   return ["ma", "st", "ag", "pa", "ar"]

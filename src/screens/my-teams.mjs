@@ -18,6 +18,8 @@ import { ensureDraftPlayers } from "../domain/roster/players.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderPublicTeamLink } from "../components/content-links.mjs";
 import { normalizeSavedRoster, resetBuilderForTeam } from "../data/roster-draft.mjs";
+import { toastError } from "../components/toast.mjs";
+import { confirmAction } from "../components/dialog.mjs";
 
 export async function loadMyTeams(force = false) {
   if (!state.auth.currentUser) {
@@ -175,7 +177,11 @@ function deleteTeamEndpoint(teamId, ownerId = "") {
 export async function deleteSavedTeam(teamId, options = {}) {
   if (!teamId) return false;
   const teamName = options.teamName ? ` "${options.teamName}"` : "";
-  if (!confirm(`${t("savedRoster.deleteTeamConfirm")}${teamName}?`)) return false;
+  if (!await confirmAction({
+    message: `${t("savedRoster.deleteTeamConfirm")}${teamName}?`,
+    confirmLabel: t("common.delete"),
+    destructive: true,
+  })) return false;
   await apiRequest(options.endpoint || deleteTeamEndpoint(teamId, options.ownerId), { method: "DELETE" });
   state.myTeams.loaded = false;
   state.season.loaded = false;
@@ -196,7 +202,7 @@ export function wireTeamDeleteButtons(afterDelete) {
         });
         if (deleted && afterDelete) await afterDelete(button);
       } catch (error) {
-        alert(error.message);
+        toastError(error);
       }
     });
   });

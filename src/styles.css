@@ -4280,3 +4280,77 @@ td {
     min-width: 760px;
   }
 }
+
+/* Toasts and dialogs — see src/components/{toast,dialog}.mjs (step 7.10). */
+
+.toast-region {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 60;
+  display: grid;
+  gap: 8px;
+  max-width: min(380px, calc(100vw - 32px));
+}
+
+.toast {
+  display: block;
+  padding: 12px 14px;
+  border: 1px solid rgba(240, 200, 74, 0.38);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  color: var(--text);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+}
+
+.toast-error {
+  border-color: var(--danger);
+}
+
+.app-dialog {
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 0;
+  border: 1px solid rgba(240, 200, 74, 0.38);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  color: var(--text);
+}
+
+.app-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.app-dialog-form {
+  display: grid;
+  gap: 14px;
+  padding: 20px;
+}
+
+.app-dialog-title {
+  margin: 0;
+  font-size: 18px;
+}
+
+.app-dialog-message {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.app-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation: toast-in 160ms ease-out;
+  }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+}

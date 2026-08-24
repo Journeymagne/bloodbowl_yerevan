@@ -14,6 +14,8 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { availableSeasonSavedTeams, renderSeasonEntriesTable } from "./registration.mjs";
 import { renderSeasonRounds } from "./schedule.mjs";
 import { makeSeasonStarterRoster, replaceSeasonData } from "./season-data.mjs";
+import { toastError } from "../../components/toast.mjs";
+import { confirmAction } from "../../components/dialog.mjs";
 
 export function renderSeasonAdmin(data) {
   const admin = data.admin ?? { users: [], savedTeams: [] };
@@ -113,7 +115,7 @@ async function saveSeasonPairingRow(row, rerender) {
     rerender();
   } catch (error) {
     row.dataset.saving = "false";
-    alert(error.message);
+    toastError(error);
   }
 }
 
@@ -129,7 +131,7 @@ function wireEntryManagement(rerender) {
       }));
       rerender();
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 
@@ -152,20 +154,24 @@ function wireEntryManagement(rerender) {
       state.myTeams.loaded = false;
       rerender();
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 
   view.querySelectorAll("[data-season-remove-entry]").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!confirm(t("season.confirmRemoveTeam"))) return;
+      if (!await confirmAction({
+        message: t("season.confirmRemoveTeam"),
+        confirmLabel: t("common.remove"),
+        destructive: true,
+      })) return;
       try {
         replaceSeasonData(await apiRequest(`/api/season/admin/entries/${button.dataset.seasonRemoveEntry}`, {
           method: "DELETE",
         }));
         rerender();
       } catch (error) {
-        alert(error.message);
+        toastError(error);
       }
     });
   });
@@ -181,7 +187,7 @@ function wireRoundManagement(rerender) {
       }));
       rerender();
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 
@@ -193,7 +199,7 @@ function wireRoundManagement(rerender) {
       }));
       rerender();
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 
@@ -206,21 +212,25 @@ function wireRoundManagement(rerender) {
         }));
         rerender();
       } catch (error) {
-        alert(error.message);
+        toastError(error);
       }
     });
   });
 
   view.querySelectorAll("[data-season-delete-round]").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!confirm(t("season.confirmDeleteRound"))) return;
+      if (!await confirmAction({
+        message: t("season.confirmDeleteRound"),
+        confirmLabel: t("common.delete"),
+        destructive: true,
+      })) return;
       try {
         replaceSeasonData(await apiRequest(`/api/season/admin/rounds/${button.dataset.seasonDeleteRound}`, {
           method: "DELETE",
         }));
         rerender();
       } catch (error) {
-        alert(error.message);
+        toastError(error);
       }
     });
   });
@@ -234,7 +244,7 @@ function wireRoundManagement(rerender) {
         }));
         rerender();
       } catch (error) {
-        alert(error.message);
+        toastError(error);
       }
     });
   });
@@ -244,14 +254,18 @@ function wireRoundManagement(rerender) {
 function wirePairingDeletion(rerender) {
   view.querySelectorAll("[data-delete-season-pairing]").forEach((button) => {
     button.addEventListener("click", async () => {
-      if (!confirm(t("season.confirmDeletePairing"))) return;
+      if (!await confirmAction({
+        message: t("season.confirmDeletePairing"),
+        confirmLabel: t("common.delete"),
+        destructive: true,
+      })) return;
       try {
         replaceSeasonData(await apiRequest(`/api/season/admin/pairings/${button.dataset.deleteSeasonPairing}`, {
           method: "DELETE",
         }));
         rerender();
       } catch (error) {
-        alert(error.message);
+        toastError(error);
       }
     });
   });

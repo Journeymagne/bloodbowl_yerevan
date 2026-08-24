@@ -16,6 +16,7 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { renderPlayerLink } from "../../components/content-links.mjs";
 import { seasonTeamProfileLink, seasonTeamRulesLink } from "./season-links.mjs";
 import { replaceSeasonData } from "./season-data.mjs";
+import { toastError } from "../../components/toast.mjs";
 
 export function renderSeasonRegistration(data) {
   return `
@@ -141,7 +142,7 @@ export function wireRegistration(rerender) {
       }));
       rerender();
     } catch (error) {
-      alert(error.message);
+      toastError(error);
     }
   });
 }

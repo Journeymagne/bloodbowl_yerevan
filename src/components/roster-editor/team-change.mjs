@@ -8,11 +8,12 @@
  * 450ms autosave debounce, so a mis-click on the dropdown destroyed a
  * developed roster for good. Step 7.7 of the refactor plan.
  *
- * The guard is deliberately a plain `confirm()`: every other destructive
- * action in the editor uses one, and step 7.10 replaces them all together
- * rather than leaving one odd dialog out on its own.
+ * The guard is components/dialog.mjs, like every other destructive action in
+ * the app since step 7.10. That makes it asynchronous, so callers await it;
+ * a `confirm()` here would have been the one blocking prompt left.
  */
 import { t } from "../../core/i18n.mjs";
+import { confirmAction } from "../dialog.mjs";
 import { selectedRosterPlayers } from "../../domain/roster/players.mjs";
 
 /**
@@ -25,16 +26,20 @@ import { selectedRosterPlayers } from "../../domain/roster/players.mjs";
  * @param {object} team the race currently selected
  * @param {object} draft
  * @param {object} nextTeam the race being switched to
- * @returns {boolean} whether to go ahead
+ * @returns {Promise<boolean>} whether to go ahead
  */
-export function confirmRaceChange(team, draft, nextTeam) {
+export async function confirmRaceChange(team, draft, nextTeam) {
   const losing = selectedRosterPlayers(team, draft).length;
   if (!losing) return true;
-  return confirm(t("roster.confirmTeamChange", {
-    count: losing,
-    from: team?.title ?? "",
-    to: nextTeam?.title ?? "",
-  }));
+  return confirmAction({
+    message: t("roster.confirmTeamChange", {
+      count: losing,
+      from: team?.title ?? "",
+      to: nextTeam?.title ?? "",
+    }),
+    confirmLabel: t("roster.changeRaceAction"),
+    destructive: true,
+  });
 }
 
 /**
