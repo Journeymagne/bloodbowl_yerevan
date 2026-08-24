@@ -6,7 +6,7 @@
  * screens/saved-roster.mjs is the other. Task 7 merges them; this task
  * only relocates the code as-is.
  */
-import { escapeHtml, renderOption } from "../core/dom.mjs";
+import { escapeHtml, listenerGroup, renderOption } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -14,6 +14,7 @@ import { apiRequest } from "../core/api-client.mjs";
 import { storage } from "../core/storage.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
 import { pageUrl } from "../core/routes.mjs";
+import { onScreenLeave } from "../core/screen-lifecycle.mjs";
 import { builderStaffCosts, builderStaffMaximums, startingBudget } from "../domain/league-rules.mjs";
 import { clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "../domain/roster/team-rules.mjs";
@@ -341,7 +342,7 @@ function stepperTitles(team) {
  * The reroll and staff steppers, both of which stop at the budget and at their
  * own maximum. Step 7.6: a refused click now says which of the two it was.
  */
-function wireBuilderSteppers(team) {
+function wireBuilderSteppers(team, events) {
   const titles = stepperTitles(team);
 
   const step = (key, delta) => {
@@ -358,21 +359,25 @@ function wireBuilderSteppers(team) {
     renderBuilder();
   };
 
-  view.querySelectorAll("[data-builder-reroll]").forEach((button) => {
-    button.addEventListener("click", () => step("startingRerolls", Number(button.dataset.builderReroll)));
-  });
-
-  view.querySelectorAll("[data-builder-staff]").forEach((button) => {
-    button.addEventListener("click", () => step(button.dataset.builderStaff, Number(button.dataset.builderStaffStep)));
-  });
+  events.on("click", "[data-builder-reroll]", (event, button) => step("startingRerolls", Number(button.dataset.builderReroll)));
+  events.on("click", "[data-builder-staff]", (event, button) => step(button.dataset.builderStaff, Number(button.dataset.builderStaffStep)));
 }
 
 function wireBuilder(team) {
+  // Delegated to the container, which survives a re-render, so the group has to
+  // be dropped when this runs again. It always did: the three persistDraft
+  // listeners below sat on `view` and were added again on every render, so a
+  // coach who had hired ten players was writing the draft to storage thirty
+  // times per keystroke.
+  const events = listenerGroup(view);
+  onScreenLeave("builder:events", () => events.release());
+
   // Any control in the builder mutates state.builder directly, so listening on
   // the container is enough to know something changed.
   const persistDraft = () => builderDraftStore.save(state.builder);
-  for (const event of ["input", "click", "change"]) view.addEventListener(event, persistDraft);
-  view.querySelector("[data-builder-reset]")?.addEventListener("click", async () => {
+  for (const eventName of ["input", "click", "change"]) events.on(eventName, "*", persistDraft);
+
+  events.on("click", "[data-builder-reset]", async () => {
     if (!isEmptyBuilderDraft(state.builder) && !await confirmAction({
       message: t("builder.startOverConfirm"),
       confirmLabel: t("builder.startOver"),
@@ -382,8 +387,7 @@ function wireBuilder(team) {
     resetBuilderForTeam(state.data.teams[0]);
     renderBuilder();
   });
-  view.querySelector("[data-builder-team]")?.addEventListener("change", async (event) => {
-    const select = event.currentTarget;
+  events.on("change", "[data-builder-team]", async (event, select) => {
     const nextTeam = state.data.teams.find((item) => item.slug === select.value);
     if (!nextTeam) return;
     if (!await confirmRaceChange(team, state.builder, nextTeam)) {
@@ -394,52 +398,46 @@ function wireBuilder(team) {
     resetBuilderForTeam(nextTeam);
     renderBuilder();
   });
-  view.querySelector("[data-builder-league]")?.addEventListener("change", (event) => {
-    state.builder.selectedLeague = event.currentTarget.value;
+  events.on("change", "[data-builder-league]", (event, select) => {
+    state.builder.selectedLeague = select.value;
   });
-  view.querySelector("[data-builder-favoured]")?.addEventListener("change", (event) => {
-    state.builder.favouredChoice = event.currentTarget.value;
+  events.on("change", "[data-builder-favoured]", (event, select) => {
+    state.builder.favouredChoice = select.value;
   });
-  view.querySelector("[data-builder-name]")?.addEventListener("input", (event) => {
-    state.builder.teamName = event.currentTarget.value;
+  events.on("input", "[data-builder-name]", (event, input) => {
+    state.builder.teamName = input.value;
   });
-  view.querySelector("[data-builder-logo]")?.addEventListener("change", async (event) => {
-    const file = event.currentTarget.files?.[0];
+  events.on("change", "[data-builder-logo]", async (event, input) => {
+    const file = input.files?.[0];
     if (!file) return;
     if (file.size > logoUploadMaxBytes) {
       toast(t("savedRoster.logoTooLarge"), { tone: "error" });
-      event.currentTarget.value = "";
+      input.value = "";
       return;
     }
     state.builder.logoData = await fileToOptimizedLogoDataUrl(file);
     renderBuilder();
   });
-  view.querySelector("[data-builder-remove-logo]")?.addEventListener("click", () => {
+  events.on("click", "[data-builder-remove-logo]", () => {
     state.builder.logoData = "";
     renderBuilder();
   });
-  wireHirePanel(view, { team, draft: state.builder, mode: CREATE_MODE, onChange: renderBuilder });
-  view.querySelectorAll("[data-remove-player]").forEach((button) => {
-    button.addEventListener("click", () => {
-      state.builder.players = state.builder.players.filter((player) => player.id !== button.dataset.removePlayer);
-      syncRosterCountsFromPlayers(state.builder);
-      renderBuilder();
-    });
+  events.own(wireHirePanel(view, { team, draft: state.builder, mode: CREATE_MODE, onChange: renderBuilder }));
+  events.on("click", "[data-remove-player]", (event, button) => {
+    state.builder.players = state.builder.players.filter((player) => player.id !== button.dataset.removePlayer);
+    syncRosterCountsFromPlayers(state.builder);
+    renderBuilder();
   });
-  view.querySelectorAll("[data-builder-player-name]").forEach((input) => {
-    input.addEventListener("input", (event) => {
-      const player = state.builder.players.find((item) => item.id === input.dataset.builderPlayerName);
-      if (player) player.name = event.currentTarget.value;
-    });
+  events.on("input", "[data-builder-player-name]", (event, input) => {
+    const player = state.builder.players.find((item) => item.id === input.dataset.builderPlayerName);
+    if (player) player.name = input.value;
   });
-  view.querySelectorAll("[data-builder-player-captain]").forEach((input) => {
-    input.addEventListener("change", (event) => {
-      setRosterCaptain(state.builder, input.dataset.builderPlayerCaptain, event.currentTarget.checked);
-      renderBuilder();
-    });
+  events.on("change", "[data-builder-player-captain]", (event, input) => {
+    setRosterCaptain(state.builder, input.dataset.builderPlayerCaptain, input.checked);
+    renderBuilder();
   });
-  wireBuilderSteppers(team);
-  view.querySelector("[data-save-team]")?.addEventListener("click", () => saveTeam(team));
+  wireBuilderSteppers(team, events);
+  events.on("click", "[data-save-team]", () => saveTeam(team));
 }
 async function saveTeam(team) {
   if (!state.auth.currentUser) {

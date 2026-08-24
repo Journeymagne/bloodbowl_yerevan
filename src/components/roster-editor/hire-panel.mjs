@@ -24,7 +24,7 @@
  * were already disabled, but silently — a coach who had run out of budget saw
  * a dead button and no reason for it.
  */
-import { escapeHtml } from "../../core/dom.mjs";
+import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { startingBudget } from "../../domain/league-rules.mjs";
 import { calculateRosterCosts, spendTreasury } from "../../domain/roster/costs.mjs";
@@ -176,20 +176,21 @@ function renderHireCard(row, field) {
  * @param {{team: object, draft: object, mode: object, onChange: () => void}} deps
  */
 export function wireHirePanel(root, { team, draft, mode, onChange }) {
-  root.querySelectorAll(`[data-${mode.hireAttribute}]`).forEach((button) => {
-    button.addEventListener("click", () => {
-      const rowIndex = Number(button.dataset[mode.hireAttribute === "add-row" ? "addRow" : "addSavedRow"]);
-      const row = rowsForTeam(team)[rowIndex];
-      if (!row) return;
+  const events = listenerGroup(root);
+  const property = mode.hireAttribute === "add-row" ? "addRow" : "addSavedRow";
+  events.on("click", `[data-${mode.hireAttribute}]`, (event, button) => {
+    const rowIndex = Number(button.dataset[property]);
+    const row = rowsForTeam(team)[rowIndex];
+    if (!row) return;
 
-      const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: mode.enforcesBudget });
-      if (hireVerdict(draft, row, rowIndex, mode, costs).blocked) return;
+    const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: mode.enforcesBudget });
+    if (hireVerdict(draft, row, rowIndex, mode, costs).blocked) return;
 
-      const options = mode.marksPurchased ? { purchased: true } : {};
-      draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex), options));
-      if (mode.spendsTreasury) spendTreasury(draft, costToNumber(rowCost(row)));
-      syncRosterCountsFromPlayers(draft);
-      onChange();
-    });
+    const options = mode.marksPurchased ? { purchased: true } : {};
+    draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex), options));
+    if (mode.spendsTreasury) spendTreasury(draft, costToNumber(rowCost(row)));
+    syncRosterCountsFromPlayers(draft);
+    onChange();
   });
+  return () => events.release();
 }

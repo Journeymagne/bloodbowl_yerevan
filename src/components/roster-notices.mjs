@@ -10,8 +10,9 @@
  *    server starts answering 409 (task 4 of the refactor plan), but the screen
  *    is ready for it.
  *
- * Pure: takes state and a translator, returns markup.
+ * The rendering half is pure: it takes state and a translator, returns markup.
  */
+import { listenerGroup } from "../core/dom.mjs";
 
 /**
  * @param {object} options
@@ -69,11 +70,17 @@ export function isPendingNewer(pending, serverUpdatedAt) {
  * Attach the banners' buttons. Markup and behaviour live together so a screen
  * only has to say what each action means.
  *
- * @param {ParentNode} root
+ * Delegated to `root` rather than bound to the buttons: a banner appears and
+ * disappears as the roster's state changes, and the screen wires once.
+ *
+ * @param {Element} root
  * @param {{onRestore: Function, onDiscard: Function, onReload: Function}} handlers
+ * @returns {() => void} removes the listeners
  */
 export function wireRosterNotices(root, { onRestore, onDiscard, onReload }) {
-  root.querySelector("[data-roster-restore-pending]")?.addEventListener("click", onRestore);
-  root.querySelector("[data-roster-discard-pending]")?.addEventListener("click", onDiscard);
-  root.querySelector("[data-roster-reload-server]")?.addEventListener("click", onReload);
+  const events = listenerGroup(root);
+  events.on("click", "[data-roster-restore-pending]", onRestore);
+  events.on("click", "[data-roster-discard-pending]", onDiscard);
+  events.on("click", "[data-roster-reload-server]", onReload);
+  return () => events.release();
 }

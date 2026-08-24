@@ -11,7 +11,7 @@
  * screens-map entry in app.js, the latter is read by app.js's
  * `beforeunload` handler to warn about unsaved edits.
  */
-import { escapeHtml, renderOption } from "../core/dom.mjs";
+import { escapeHtml, listenerGroup, renderOption } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -349,12 +349,17 @@ function renderRosterStaffControl(key, title, value) {
 }
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
   wireAutosaveStatus(savedTeam.id);
+  // Delegated to the container, which survives a re-render: the group must be
+  // dropped when this runs again, or every edit doubles the handlers.
+  const events = listenerGroup(view);
+  onScreenLeave("saved-roster:events", () => events.release());
+
   const reload = () => renderSavedRoster(savedTeam.id, true, options);
-  wireRosterNotices(view, {
+  events.own(wireRosterNotices(view, {
     onRestore: () => rosterStore.restorePending(savedTeam.id) && renderSavedRoster(savedTeam.id, false, options),
     onDiscard: () => { rosterStore.discardPending(savedTeam.id); reload(); },
     onReload: reload,
-  });
+  }));
   const autosave = () => scheduleSavedRosterAutosave(savedTeam.id);
   const rerender = () => {
     syncRosterCountsFromPlayers(draft);
@@ -367,8 +372,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     }
   };
 
-  view.querySelector("[data-roster-team]")?.addEventListener("change", async (event) => {
-    const select = event.currentTarget;
+  events.on("change", "[data-roster-team]", async (event, select) => {
     const nextTeam = state.data.teams.find((item) => item.slug === select.value);
     if (!nextTeam) return;
     if (!await confirmRaceChange(team, draft, nextTeam)) {
@@ -383,81 +387,75 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     if (!draft.teamName) draft.teamName = nextTeam.title;
     rerender();
   });
-  view.querySelector("[data-roster-name]")?.addEventListener("input", (event) => {
-    draft.teamName = event.currentTarget.value;
+  events.on("input", "[data-roster-name]", (event, input) => {
+    draft.teamName = input.value;
     updateSavedRosterFields(savedTeam, draft);
     autosave();
   });
-  view.querySelector("[data-roster-treasury]")?.addEventListener("input", (event) => {
-    draft.treasury = countToNumber(event.currentTarget.value);
+  events.on("input", "[data-roster-treasury]", (event, input) => {
+    draft.treasury = countToNumber(input.value);
     updateSavedRosterFields(savedTeam, draft);
     const treasuryDisplay = view.querySelector("[data-treasury-display]");
     if (treasuryDisplay) treasuryDisplay.textContent = `${countToNumber(draft.treasury)}k`;
     autosave();
   });
-  view.querySelector("[data-roster-coaches-safe]")?.addEventListener("input", (event) => {
-    draft.coachesSafe = countToNumber(event.currentTarget.value);
+  events.on("input", "[data-roster-coaches-safe]", (event, input) => {
+    draft.coachesSafe = countToNumber(input.value);
     updateSavedRosterFields(savedTeam, draft);
     autosave();
   });
-  view.querySelector("[data-roster-league]")?.addEventListener("change", (event) => {
-    draft.selectedLeague = event.currentTarget.value;
+  events.on("change", "[data-roster-league]", (event, select) => {
+    draft.selectedLeague = select.value;
     updateSavedRosterFields(savedTeam, draft);
     autosave();
   });
-  view.querySelector("[data-roster-favoured]")?.addEventListener("change", (event) => {
-    draft.favouredChoice = event.currentTarget.value;
+  events.on("change", "[data-roster-favoured]", (event, select) => {
+    draft.favouredChoice = select.value;
     sanitizeFavouredSkillsForTeam(team, draft);
     rerender();
   });
-  view.querySelector("[data-roster-logo]")?.addEventListener("change", async (event) => {
-    const file = event.currentTarget.files?.[0];
+  events.on("change", "[data-roster-logo]", async (event, input) => {
+    const file = input.files?.[0];
     if (!file) return;
     if (file.size > logoUploadMaxBytes) {
       toast(t("savedRoster.logoTooLarge"), { tone: "error" });
-      event.currentTarget.value = "";
+      input.value = "";
       return;
     }
     draft.logoData = await fileToOptimizedLogoDataUrl(file);
     rerender();
   });
-  view.querySelector("[data-roster-remove-logo]")?.addEventListener("click", () => {
+  events.on("click", "[data-roster-remove-logo]", () => {
     draft.logoData = "";
     rerender();
   });
-  view.querySelectorAll("[data-roster-reroll]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const previous = countToNumber(draft.startingRerolls);
-      draft.startingRerolls = clamp(previous + Number(button.dataset.rosterReroll), 0, builderStaffMaximums.startingRerolls);
-      applyPaidStaffChange(draft, "startingRerolls", previous, draft.startingRerolls);
-      rerender();
-    });
+  events.on("click", "[data-roster-reroll]", (event, button) => {
+    const previous = countToNumber(draft.startingRerolls);
+    draft.startingRerolls = clamp(previous + Number(button.dataset.rosterReroll), 0, builderStaffMaximums.startingRerolls);
+    applyPaidStaffChange(draft, "startingRerolls", previous, draft.startingRerolls);
+    rerender();
   });
-  view.querySelectorAll("[data-roster-team-reroll]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const delta = Number(button.dataset.rosterTeamReroll);
-      const previous = countToNumber(draft.teamRerolls);
-      draft.teamRerolls = clamp(previous + delta, 0, builderStaffMaximums.teamRerolls);
-      applyPaidStaffChange(draft, "teamRerolls", previous, draft.teamRerolls);
-      rerender();
-    });
+  events.on("click", "[data-roster-team-reroll]", (event, button) => {
+    const delta = Number(button.dataset.rosterTeamReroll);
+    const previous = countToNumber(draft.teamRerolls);
+    draft.teamRerolls = clamp(previous + delta, 0, builderStaffMaximums.teamRerolls);
+    applyPaidStaffChange(draft, "teamRerolls", previous, draft.teamRerolls);
+    rerender();
   });
-  view.querySelectorAll("[data-roster-staff]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const key = button.dataset.rosterStaff;
-      const max = builderStaffMaximums[key] ?? 6;
-      const delta = Number(button.dataset.rosterStaffStep);
-      const previous = countToNumber(draft[key]);
-      draft[key] = clamp(previous + delta, 0, max);
-      applyPaidStaffChange(draft, key, previous, draft[key]);
-      rerender();
-    });
+  events.on("click", "[data-roster-staff]", (event, button) => {
+    const key = button.dataset.rosterStaff;
+    const max = builderStaffMaximums[key] ?? 6;
+    const delta = Number(button.dataset.rosterStaffStep);
+    const previous = countToNumber(draft[key]);
+    draft[key] = clamp(previous + delta, 0, max);
+    applyPaidStaffChange(draft, key, previous, draft[key]);
+    rerender();
   });
-  wireHirePanel(view, { team, draft, mode: LEAGUE_MODE, onChange: rerender });
-  wireSavedPlayerEditors(team, draft, rerender);
+  events.own(wireHirePanel(view, { team, draft, mode: LEAGUE_MODE, onChange: rerender }));
+  events.own(wireSavedPlayerEditors(team, draft, rerender));
 
-  view.querySelector("[data-save-roster]")?.addEventListener("click", () => saveSavedRoster(savedTeam));
-  view.querySelector("[data-delete-saved-roster]")?.addEventListener("click", async () => {
+  events.on("click", "[data-save-roster]", () => saveSavedRoster(savedTeam));
+  events.on("click", "[data-delete-saved-roster]", async () => {
     const ownerId = savedTeam._owner?.id || options.adminOwnerId || state.auth.currentUser?.id || "";
     try {
       const deleted = await deleteSavedTeam(savedTeam.id, {
@@ -485,213 +483,215 @@ function moveRosterPlayer(draft, draggedId, targetId, position = "before") {
   draft.players.splice(insertIndex, 0, dragged);
   return true;
 }
+/** @returns {() => void} removes the listeners */
 function wireSavedRosterDragAndDrop(draft, rerender) {
+  const events = listenerGroup(view);
+  const rowSelector = ".saved-roster-table tbody tr[data-roster-player]";
   let draggedId = "";
-  view.querySelectorAll(".saved-roster-table tbody tr[data-roster-player]").forEach((row) => {
-    row.addEventListener("dragstart", (event) => {
-      const target = event.target instanceof Element ? event.target : null;
-      if (!target?.closest("[data-player-drag-handle]")) {
-        event.preventDefault();
-        return;
-      }
-      draggedId = row.dataset.rosterPlayer || "";
-      row.classList.add("is-dragging");
-      if (event.dataTransfer) {
-        event.dataTransfer.effectAllowed = "move";
-        event.dataTransfer.setData("text/plain", draggedId);
-      }
-    });
 
-    row.addEventListener("dragover", (event) => {
-      if (!draggedId || draggedId === row.dataset.rosterPlayer) return;
+  events.on("dragstart", rowSelector, (event, row) => {
+    const source = event.target instanceof Element ? event.target : null;
+    if (!source?.closest("[data-player-drag-handle]")) {
       event.preventDefault();
-      const rect = row.getBoundingClientRect();
-      row.dataset.dropPosition = event.clientY > rect.top + rect.height / 2 ? "after" : "before";
-      row.classList.toggle("drop-after", row.dataset.dropPosition === "after");
-      row.classList.toggle("drop-before", row.dataset.dropPosition !== "after");
-      if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-    });
+      return;
+    }
+    draggedId = row.dataset.rosterPlayer || "";
+    row.classList.add("is-dragging");
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", draggedId);
+    }
+  });
 
-    row.addEventListener("dragleave", () => {
-      row.classList.remove("drop-before", "drop-after");
-      delete row.dataset.dropPosition;
-    });
+  events.on("dragover", rowSelector, (event, row) => {
+    if (!draggedId || draggedId === row.dataset.rosterPlayer) return;
+    event.preventDefault();
+    const rect = row.getBoundingClientRect();
+    row.dataset.dropPosition = event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+    row.classList.toggle("drop-after", row.dataset.dropPosition === "after");
+    row.classList.toggle("drop-before", row.dataset.dropPosition !== "after");
+    if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
+  });
 
-    row.addEventListener("drop", (event) => {
-      event.preventDefault();
-      const targetId = row.dataset.rosterPlayer || "";
-      const moved = moveRosterPlayer(draft, draggedId, targetId, row.dataset.dropPosition);
-      draggedId = "";
-      if (moved) rerender();
-    });
+  events.on("dragleave", rowSelector, (event, row) => {
+    row.classList.remove("drop-before", "drop-after");
+    delete row.dataset.dropPosition;
+  });
 
-    row.addEventListener("dragend", () => {
-      draggedId = "";
-      view.querySelectorAll(".saved-roster-table tbody tr").forEach((item) => {
-        item.classList.remove("is-dragging", "drop-before", "drop-after");
-        delete item.dataset.dropPosition;
-      });
+  events.on("drop", rowSelector, (event, row) => {
+    event.preventDefault();
+    const moved = moveRosterPlayer(draft, draggedId, row.dataset.rosterPlayer || "", row.dataset.dropPosition);
+    draggedId = "";
+    if (moved) rerender();
+  });
+
+  events.on("dragend", rowSelector, () => {
+    draggedId = "";
+    view.querySelectorAll(".saved-roster-table tbody tr").forEach((item) => {
+      item.classList.remove("is-dragging", "drop-before", "drop-after");
+      delete item.dataset.dropPosition;
     });
   });
+
+  return () => events.release();
 }
+/**
+ * Wire the player rows and cards, delegated rather than bound per card: which
+ * player a click belongs to is read back out of the DOM instead of closed over.
+ *
+ * @returns {() => void} removes the listeners
+ */
 function wireSavedPlayerEditors(team, draft, rerender) {
   const autosave = () => scheduleSavedRosterAutosave(draft.editingTeamId);
-  view.querySelectorAll("[data-roster-player]").forEach((card) => {
-    const player = draft.players.find((item) => item.id === card.dataset.rosterPlayer);
-    if (!player) return;
-    card.querySelector("[data-saved-player-expand]")?.addEventListener("click", () => {
-      setSavedRosterPlayerExpanded(player.id, true);
-      rerender();
+  const events = listenerGroup(view);
+  /** Run `handler` with the player whose card the event happened in. */
+  const onPlayer = (eventName, selector, handler) => {
+    events.on(eventName, selector, (event, target) => {
+      const card = target.closest("[data-roster-player]");
+      const player = card ? draft.players.find((item) => item.id === card.dataset.rosterPlayer) : null;
+      if (player) handler({ target, card, player });
     });
-    card.querySelector("[data-saved-player-collapse]")?.addEventListener("click", () => {
-      setSavedRosterPlayerExpanded(player.id, false);
-      rerender();
-    });
-    card.querySelectorAll("[data-saved-player-spp-action]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const key = button.dataset.savedPlayerSppAction;
-        player.spp = normalizeSppCounters(player.spp);
-        player.spp[key] = Math.max(0, countToNumber(player.spp[key]) + 1);
-        autosave();
-        rerender();
-      });
-    });
-    card.querySelector("[data-saved-player-name]")?.addEventListener("input", (event) => {
-      player.name = event.currentTarget.value;
-      autosave();
-    });
-    card.querySelector("[data-saved-player-number]")?.addEventListener("input", (event) => {
-      player.number = event.currentTarget.value;
-      autosave();
-    });
-    card.querySelector("[data-saved-player-skip]")?.addEventListener("change", (event) => {
-      player.skipNextGame = event.currentTarget.checked;
-      rerender();
-    });
-    card.querySelector("[data-saved-player-nigling]")?.addEventListener("change", (event) => {
-      player.niglingInjury = event.currentTarget.checked;
-      autosave();
-    });
-    card.querySelector("[data-saved-player-captain]")?.addEventListener("change", (event) => {
-      setRosterCaptain(draft, player.id, event.currentTarget.checked);
-      rerender();
-    });
-    card.querySelectorAll("[data-saved-player-contract-delta]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const delta = Number(button.dataset.savedPlayerContractDelta);
-        player.extendedContracts = Math.max(0, countToNumber(player.extendedContracts) + delta);
-        rerender();
-      });
-    });
-    card.querySelectorAll("[data-saved-player-spp]").forEach((input) => {
-      input.addEventListener("input", (event) => {
-        player.spp = normalizeSppCounters(player.spp);
-        player.spp[event.currentTarget.dataset.savedPlayerSpp] = Math.max(0, countToNumber(event.currentTarget.value));
-        const rowTotal = card.querySelector("[data-player-spp-total]");
-        if (rowTotal) rowTotal.textContent = `${playerSppTotal(team, player)} ${t("roster.sppEarned")}`;
-        const available = card.querySelector("[data-player-available-spp]");
-        if (available) available.textContent = `${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
-        const nextAdvancement = card.querySelector("[data-player-next-advancement]");
-        const nextRank = advancementRanks[playerAdvancementLevel(player)];
-        if (nextAdvancement && nextRank) {
-          nextAdvancement.textContent = `${t("roster.next")}: ${nextRank.rank}, ${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
-        }
-        const rosterTotal = view.querySelector("[data-total-spp-display]");
-        if (rosterTotal) rosterTotal.textContent = `${rosterTotalSpp(team, draft)} SPP`;
-        autosave();
-      });
-    });
-    card.querySelectorAll("[data-saved-stat]").forEach((button) => {
-      button.addEventListener("click", () => {
-      const stat = button.dataset.savedStat;
-      const delta = Number(button.dataset.savedStatDelta);
-      player.statMods ??= {};
-      player.statMods[stat] = clamp(countToNumber(player.statMods[stat]) + delta, -10, 10);
-      rerender();
-    });
+  };
+  onPlayer("click", "[data-saved-player-expand],[data-saved-player-collapse]", ({ target, player }) => {
+    setSavedRosterPlayerExpanded(player.id, target.hasAttribute("data-saved-player-expand"));
+    rerender();
   });
-    card.querySelector("[data-saved-player-add-skill]")?.addEventListener("click", () => {
-      const input = card.querySelector("[data-saved-player-skill]");
-      const row = rowsForTeam(team)[player.rowIndex];
-      const typed = String(input?.value || "").trim();
-      const option = availableSkillOptionsForPlayer(row, player)
-        .find((item) => item.name.toLowerCase() === typed.toLowerCase());
-      if (!option) {
-        if (input) input.value = "";
-        return;
-      }
-      player.extraSkills ??= [];
-      if (player.extraSkills.some((skill) => skill.name === option.name)) return;
-      player.extraSkills.push({ name: option.name, access: option.access });
-      player.extraSkills = normalizePlayerExtraSkills(row, player.extraSkills);
-      sanitizeFavouredSkillsForTeam(team, draft);
-      rerender();
-    });
-    card.querySelectorAll("[data-saved-player-remove-skill]").forEach((button) => {
-      button.addEventListener("click", () => {
-        player.extraSkills = (player.extraSkills ?? []).filter((skill) => skill.name !== button.dataset.savedPlayerRemoveSkill);
-        rerender();
-      });
-    });
-    card.querySelector("[data-saved-player-add-favoured]")?.addEventListener("click", () => {
-      const input = card.querySelector("[data-saved-player-favoured-skill]");
-      const row = rowsForTeam(team)[player.rowIndex];
-      if (!row) return;
-      const typed = String(input?.value || "").trim();
-      const option = favouredSkillOptionsForPlayer(team, draft, row, player)
-        .find((item) => item.name.toLowerCase() === typed.toLowerCase());
-      if (!option) {
-        if (input) input.value = "";
-        return;
-      }
-      player.favouredSkills ??= [];
-      if (player.favouredSkills.some((skill) => skill.name === option.name)) return;
-      player.favouredSkills.push({ name: option.name, access: "favoured" });
-      sanitizeFavouredSkillsForTeam(team, draft);
-      rerender();
-    });
-    card.querySelectorAll("[data-saved-player-remove-favoured]").forEach((button) => {
-      button.addEventListener("click", () => {
-        player.favouredSkills = (player.favouredSkills ?? [])
-          .filter((skill) => (typeof skill === "string" ? skill : skill.name) !== button.dataset.savedPlayerRemoveFavoured);
-        rerender();
-      });
-    });
-    card.querySelector("[data-saved-player-add-advancement]")?.addEventListener("click", () => {
-      const type = card.querySelector("[data-saved-player-advancement-type]")?.value ?? "primary";
-      const verdict = canTakeAdvancement(team, player, type);
-      if (!verdict.allowed) {
-        // Used to fail silently whenever the cost was zero, and to happily let
-        // available SPP go negative otherwise.
-        toast(t(`validation.${verdict.reason}`, verdict.params), { tone: "error" });
-        return;
-      }
-      player.advancements = normalizePlayerAdvancements(player.advancements);
-      player.advancements.push({ type });
-      rerender();
-    });
-    card.querySelectorAll("[data-saved-player-remove-advancement]").forEach((button) => {
-      button.addEventListener("click", () => {
-        const index = Number(button.dataset.savedPlayerRemoveAdvancement);
-        player.advancements = normalizePlayerAdvancements(player.advancements)
-          .filter((_advancement, advancementIndex) => advancementIndex !== index);
-        rerender();
-      });
-    });
+  onPlayer("click", "[data-saved-player-spp-action]", ({ target, player }) => {
+    const key = target.dataset.savedPlayerSppAction;
+    player.spp = normalizeSppCounters(player.spp);
+    player.spp[key] = Math.max(0, countToNumber(player.spp[key]) + 1);
+    autosave();
+    rerender();
   });
-  wireSavedRosterDragAndDrop(draft, rerender);
-  view.querySelectorAll("[data-remove-saved-player]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const removed = draft.players.find((player) => player.id === button.dataset.removeSavedPlayer);
-      if (removed?.purchased) {
-        const row = rowsForTeam(team)[removed.rowIndex];
-        refundTreasury(draft, costToNumber(rowCost(row)));
-      }
-      draft.players = draft.players.filter((player) => player.id !== button.dataset.removeSavedPlayer);
-      syncRosterCountsFromPlayers(draft);
-      rerender();
-    });
+  onPlayer("input", "[data-saved-player-name]", ({ target, player }) => {
+    player.name = target.value;
+    autosave();
   });
+  onPlayer("input", "[data-saved-player-number]", ({ target, player }) => {
+    player.number = target.value;
+    autosave();
+  });
+  onPlayer("change", "[data-saved-player-skip]", ({ target, player }) => {
+    player.skipNextGame = target.checked;
+    rerender();
+  });
+  onPlayer("change", "[data-saved-player-nigling]", ({ target, player }) => {
+    player.niglingInjury = target.checked;
+    autosave();
+  });
+  onPlayer("change", "[data-saved-player-captain]", ({ target, player }) => {
+    setRosterCaptain(draft, player.id, target.checked);
+    rerender();
+  });
+  onPlayer("click", "[data-saved-player-contract-delta]", ({ target, player }) => {
+    const delta = Number(target.dataset.savedPlayerContractDelta);
+    player.extendedContracts = Math.max(0, countToNumber(player.extendedContracts) + delta);
+    rerender();
+  });
+  onPlayer("input", "[data-saved-player-spp]", ({ target, card, player }) => {
+    player.spp = normalizeSppCounters(player.spp);
+    player.spp[target.dataset.savedPlayerSpp] = Math.max(0, countToNumber(target.value));
+    updateSppDisplays(team, draft, card, player);
+    autosave();
+  });
+  onPlayer("click", "[data-saved-stat]", ({ target, player }) => {
+    const stat = target.dataset.savedStat;
+    player.statMods ??= {};
+    player.statMods[stat] = clamp(countToNumber(player.statMods[stat]) + Number(target.dataset.savedStatDelta), -10, 10);
+    rerender();
+  });
+  onPlayer("click", "[data-saved-player-add-skill]", ({ card, player }) => {
+    const input = card.querySelector("[data-saved-player-skill]");
+    const row = rowsForTeam(team)[player.rowIndex];
+    const typed = String(input?.value || "").trim();
+    const option = availableSkillOptionsForPlayer(row, player)
+      .find((item) => item.name.toLowerCase() === typed.toLowerCase());
+    if (!option) {
+      if (input) input.value = "";
+      return;
+    }
+    player.extraSkills ??= [];
+    if (player.extraSkills.some((skill) => skill.name === option.name)) return;
+    player.extraSkills.push({ name: option.name, access: option.access });
+    player.extraSkills = normalizePlayerExtraSkills(row, player.extraSkills);
+    sanitizeFavouredSkillsForTeam(team, draft);
+    rerender();
+  });
+  onPlayer("click", "[data-saved-player-remove-skill]", ({ target, player }) => {
+    player.extraSkills = (player.extraSkills ?? []).filter((skill) => skill.name !== target.dataset.savedPlayerRemoveSkill);
+    rerender();
+  });
+  onPlayer("click", "[data-saved-player-add-favoured]", ({ card, player }) => {
+    const input = card.querySelector("[data-saved-player-favoured-skill]");
+    const row = rowsForTeam(team)[player.rowIndex];
+    if (!row) return;
+    const typed = String(input?.value || "").trim();
+    const option = favouredSkillOptionsForPlayer(team, draft, row, player)
+      .find((item) => item.name.toLowerCase() === typed.toLowerCase());
+    if (!option) {
+      if (input) input.value = "";
+      return;
+    }
+    player.favouredSkills ??= [];
+    if (player.favouredSkills.some((skill) => skill.name === option.name)) return;
+    player.favouredSkills.push({ name: option.name, access: "favoured" });
+    sanitizeFavouredSkillsForTeam(team, draft);
+    rerender();
+  });
+  onPlayer("click", "[data-saved-player-remove-favoured]", ({ target, player }) => {
+    const removed = target.dataset.savedPlayerRemoveFavoured;
+    player.favouredSkills = (player.favouredSkills ?? [])
+      .filter((skill) => (typeof skill === "string" ? skill : skill.name) !== removed);
+    rerender();
+  });
+  onPlayer("click", "[data-saved-player-add-advancement]", ({ card, player }) => {
+    const type = card.querySelector("[data-saved-player-advancement-type]")?.value ?? "primary";
+    const verdict = canTakeAdvancement(team, player, type);
+    if (!verdict.allowed) {
+      // Used to fail silently whenever the cost was zero, and to happily let
+      // available SPP go negative otherwise.
+      toast(t(`validation.${verdict.reason}`, verdict.params), { tone: "error" });
+      return;
+    }
+    player.advancements = normalizePlayerAdvancements(player.advancements);
+    player.advancements.push({ type });
+    rerender();
+  });
+  onPlayer("click", "[data-saved-player-remove-advancement]", ({ target, player }) => {
+    const index = Number(target.dataset.savedPlayerRemoveAdvancement);
+    player.advancements = normalizePlayerAdvancements(player.advancements)
+      .filter((_advancement, advancementIndex) => advancementIndex !== index);
+    rerender();
+  });
+  events.own(wireSavedRosterDragAndDrop(draft, rerender));
+  events.on("click", "[data-remove-saved-player]", (event, button) => {
+    const removedId = button.dataset.removeSavedPlayer;
+    const removed = draft.players.find((player) => player.id === removedId);
+    if (removed?.purchased) {
+      const row = rowsForTeam(team)[removed.rowIndex];
+      refundTreasury(draft, costToNumber(rowCost(row)));
+    }
+    draft.players = draft.players.filter((player) => player.id !== removedId);
+    syncRosterCountsFromPlayers(draft);
+    rerender();
+  });
+
+  return () => events.release();
+}
+
+/** The hand-written node updates step 8.3 deletes once patch() renders this. */
+function updateSppDisplays(team, draft, card, player) {
+  const rowTotal = card.querySelector("[data-player-spp-total]");
+  if (rowTotal) rowTotal.textContent = `${playerSppTotal(team, player)} ${t("roster.sppEarned")}`;
+  const available = card.querySelector("[data-player-available-spp]");
+  if (available) available.textContent = `${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
+  const nextAdvancement = card.querySelector("[data-player-next-advancement]");
+  const nextRank = advancementRanks[playerAdvancementLevel(player)];
+  if (nextAdvancement && nextRank) {
+    nextAdvancement.textContent = `${t("roster.next")}: ${nextRank.rank}, ${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
+  }
+  const rosterTotal = view.querySelector("[data-total-spp-display]");
+  if (rosterTotal) rosterTotal.textContent = `${rosterTotalSpp(team, draft)} SPP`;
 }
 /**
  * Everything below hands roster saving to src/data/roster-store.mjs.

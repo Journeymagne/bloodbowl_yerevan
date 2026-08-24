@@ -302,3 +302,34 @@ export function delegate(root, eventName, selector, handler) {
   root.addEventListener(eventName, listener);
   return () => root.removeEventListener(eventName, listener);
 }
+
+/**
+ * A set of delegated listeners that are dropped together.
+ *
+ * Screens re-run their wiring on every render. While a render replaced the
+ * whole subtree that was self-correcting — the old nodes and their listeners
+ * went with it. Delegated listeners live on the container instead, which
+ * survives, so wiring twice means handling every click twice.
+ *
+ * So a screen wires into a group and hands `release` to
+ * core/screen-lifecycle.mjs under a stable key: re-registering the key drops
+ * the previous group, and leaving the route drops the last one.
+ *
+ * @param {Element} root the container the listeners sit on
+ */
+export function listenerGroup(root) {
+  const offs = [];
+  return {
+    /** @param {string} eventName @param {string} selector @param {Function} handler */
+    on(eventName, selector, handler) {
+      offs.push(delegate(root, eventName, selector, handler));
+    },
+    /** Take ownership of an unsubscribe produced elsewhere. */
+    own(off) {
+      if (typeof off === "function") offs.push(off);
+    },
+    release() {
+      while (offs.length) offs.pop()();
+    },
+  };
+}
