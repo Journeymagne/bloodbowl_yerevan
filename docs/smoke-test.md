@@ -118,7 +118,7 @@ Open http://localhost:3002.
 ```bash
 curl -f https://bloodbowlyerevan.shitpostsoftware.com/api/health
 
-for p in /.env /.git/config /package.json /server/init.sql; do
+for p in /.env /.git/config /package.json /server/db/migrations/001_baseline.sql; do
   printf '%s -> ' "$p"
   curl -s -o /dev/null -w '%{http_code}\n' "https://bloodbowlyerevan.shitpostsoftware.com$p"
 done

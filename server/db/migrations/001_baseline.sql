@@ -1,3 +1,15 @@
+-- 001_baseline.sql — the schema as it stood when migrations were introduced.
+--
+-- This is server/init.sql with every data edit removed. Those edits (points
+-- adjusted for a dropped column, results force-confirmed, rounds forced to
+-- 'started') were applied to production once, years of restarts ago, and
+-- re-running them on every start was a way to quietly overwrite a pending
+-- result. Schema statements are idempotent and safe to re-apply; data edits
+-- are not, which is the whole reason migrations are recorded.
+--
+-- Applied by `npm run db:migrate`. The server refuses to start if a
+-- migration has not been applied; it no longer applies anything itself.
+
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS users (
@@ -120,42 +132,9 @@ ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS proposed_home_casualties IN
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS proposed_away_casualties INTEGER;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS proposed_at TIMESTAMPTZ;
 ALTER TABLE season_pairings ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ;
-DO $$
-BEGIN
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'season_pairings' AND column_name = 'home_opponent_unable'
-  ) THEN
-    UPDATE season_pairings
-    SET home_points = GREATEST(home_points - 2, 0)
-    WHERE home_opponent_unable = TRUE AND home_points IS NOT NULL;
-  END IF;
-  IF EXISTS (
-    SELECT 1 FROM information_schema.columns
-    WHERE table_name = 'season_pairings' AND column_name = 'away_opponent_unable'
-  ) THEN
-    UPDATE season_pairings
-    SET away_points = GREATEST(away_points - 2, 0)
-    WHERE away_opponent_unable = TRUE AND away_points IS NOT NULL;
-  END IF;
-END $$;
 ALTER TABLE season_pairings DROP COLUMN IF EXISTS home_opponent_unable;
 ALTER TABLE season_pairings DROP COLUMN IF EXISTS away_opponent_unable;
-
-UPDATE season_pairings
-SET result_status = 'confirmed', confirmed_at = COALESCE(confirmed_at, updated_at)
-WHERE home_points IS NOT NULL OR away_points IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS season_pairings_round_id_idx ON season_pairings(round_id);
 CREATE INDEX IF NOT EXISTS season_pairings_home_entry_id_idx ON season_pairings(home_entry_id);
 CREATE INDEX IF NOT EXISTS season_pairings_away_entry_id_idx ON season_pairings(away_entry_id);
-
-UPDATE season_rounds
-SET status = 'started'
-WHERE status = 'draft'
-  AND EXISTS (
-    SELECT 1
-    FROM season_pairings
-    WHERE season_pairings.round_id = season_rounds.id
-      AND (season_pairings.home_points IS NOT NULL OR season_pairings.away_points IS NOT NULL)
-  );

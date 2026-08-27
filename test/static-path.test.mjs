@@ -32,6 +32,7 @@ test("refuses secrets and repository internals", () => {
     "/.gitignore",
     "/server/server.mjs",
     "/server/init.sql",
+    "/server/db/migrations/001_baseline.sql",
     "/scripts/build-data.mjs",
     "/package.json",
     "/package-lock.json",

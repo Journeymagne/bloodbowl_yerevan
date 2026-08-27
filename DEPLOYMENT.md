@@ -120,6 +120,7 @@ install -m 600 .env.example /etc/bloodbowl-league/.env
 docker compose --env-file /etc/bloodbowl-league/.env up -d
 npm install
 npm run build
+npm run db:migrate
 pm2 start server/server.mjs --name bloodbowl-league
 pm2 save
 ```
@@ -375,7 +376,8 @@ says the process is up, not that it is serving the right rows.
 
 Before this change the server resolved any request path against the deploy
 directory and served whatever it found, so `/.env`, `/.git/config`,
-`/server/init.sql` and `/package.json` were publicly downloadable on
+`/server/init.sql` (the schema, since moved to `/server/db/migrations/`) and
+`/package.json` were publicly downloadable on
 `bloodbowlyerevan.shitpostsoftware.com`.
 
 `server/http/static-path.mjs` now serves only:
@@ -414,6 +416,7 @@ inside `DATABASE_URL` (it must match what you just set on the role), and
 ```bash
 cd /opt/bloodbowl-league
 docker compose --env-file /etc/bloodbowl-league/.env up -d
+npm run db:migrate
 pm2 restart bloodbowl-league
 pm2 logs bloodbowl-league --lines 20 --nostream
 ```
@@ -439,7 +442,7 @@ since 2026-07-12 — 35 676 attempts, about one a minute.
 ### Verifying the fix
 
 ```bash
-for p in /.env /.git/config /package.json /server/init.sql /docker-compose.yml; do
+for p in /.env /.git/config /package.json /server/db/migrations/001_baseline.sql /docker-compose.yml; do
   printf '%s -> ' "$p"
   curl -s -o /dev/null -w '%{http_code}\n' "https://bloodbowlyerevan.shitpostsoftware.com$p"
 done

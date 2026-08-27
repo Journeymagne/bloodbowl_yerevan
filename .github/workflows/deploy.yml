@@ -22,4 +22,9 @@ jobs:
             git reset --hard origin/main
             npm install
             npm run build
+            # Schema first: the server refuses to start against a database that
+            # is behind the code, rather than running half-working. Migrations
+            # are idempotent and recorded, so this is a no-op when nothing is
+            # outstanding.
+            npm run db:migrate
             pm2 restart bloodbowl-league

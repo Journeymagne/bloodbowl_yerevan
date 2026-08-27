@@ -15,6 +15,7 @@
     "postgres:down": "docker-compose down",
     "postgres:reset": "docker-compose down -v",
     "check": "node scripts/check-dead-code.mjs && node scripts/check-structure.mjs",
+    "db:migrate": "node scripts/db-migrate.mjs",
     "check:dead-code": "node scripts/check-dead-code.mjs",
     "check:structure": "node scripts/check-structure.mjs",
     "test": "node --test \"test/**/*.test.mjs\"",

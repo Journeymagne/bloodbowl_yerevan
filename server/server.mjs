@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 import { Pool } from "pg";
 import { loadEnvFile } from "./config/env-file.mjs";
+import { assertMigrationsApplied } from "./db/migrate.mjs";
 import { resolveStaticPath } from "./http/static-path.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -298,9 +299,15 @@ async function waitForDatabase() {
   }
 }
 
+/**
+ * Refuse to serve a database that is behind the code.
+ *
+ * This used to run server/init.sql on every boot, which applied schema and
+ * data alike. Migrations are applied by `npm run db:migrate` now; all the
+ * server does is check, and stop with a message naming the command.
+ */
 async function ensureSchema() {
-  const sql = await fs.readFile(path.join(rootDir, "server", "init.sql"), "utf8");
-  await pool.query(sql);
+  await assertMigrationsApplied(pool);
   startupLog("database schema is ready");
 }
 
