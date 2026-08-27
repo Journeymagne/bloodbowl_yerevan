@@ -381,5 +381,6 @@
   "roster.conflictBody": "Кто-то сохранил эту команду после того, как вы её открыли. Перезагрузите, чтобы увидеть их версию — ваши правки останутся на экране до этого момента.",
   "roster.conflictReloadAction": "Перезагрузить с сервера",
   "roster.changeRaceAction": "Сменить расу",
-  "validation.UNKNOWN_TEAM": "Неизвестная раса «{slug}»."
+  "validation.UNKNOWN_TEAM": "Неизвестная раса «{slug}».",
+  "roster.raceLockedInSeason": "Команда играет в текущем сезоне — сменить расу нельзя."
 }

@@ -310,7 +310,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   events.on("change", "[data-roster-team]", async (event, select) => {
     const nextTeam = state.data.teams.find((item) => item.slug === select.value);
     if (!nextTeam) return;
-    if (!await confirmRaceChange(team, draft, nextTeam)) {
+    if (!await confirmRaceChange(team, draft, nextTeam, { inActiveSeason: savedTeam.inActiveSeason })) {
       restoreTeamSelect(select, team.slug);
       return;
     }

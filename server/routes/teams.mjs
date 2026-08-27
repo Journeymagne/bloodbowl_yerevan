@@ -11,6 +11,7 @@ import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
 import { blockingViolations, checkRoster } from "../domain/roster.mjs";
+import { SAVED_TEAM_COLUMNS } from "../api/team-queries.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -26,7 +27,7 @@ export async function handleTeamRoutes(request, response, url) {
     const user = await currentUser(request);
     if (!user) return send(response, 401, { error: "Not authorized." });
     const result = await pool.query(
-      `SELECT * FROM saved_teams WHERE user_id = $1 ORDER BY updated_at DESC`,
+      `SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE user_id = $1 ORDER BY updated_at DESC`,
       [user.id],
     );
     return send(response, 200, { teams: result.rows.map(publicSavedTeam) });
@@ -51,7 +52,7 @@ export async function handleTeamRoutes(request, response, url) {
     const user = await currentUser(request);
     if (!user) return send(response, 401, { error: "Not authorized." });
     const result = await pool.query(
-      `SELECT * FROM saved_teams WHERE id = $1 AND user_id = $2`,
+      `SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1 AND user_id = $2`,
       [teamMatch[1], user.id],
     );
     if (!result.rows[0]) return send(response, 404, { error: "Team not found." });
@@ -124,7 +125,7 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
 
   // No row: either the team is not there, or the revision moved under us.
   const current = await pool.query(
-    `SELECT * FROM saved_teams WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid)`,
+    `SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid)`,
     [teamId, owner],
   );
   if (!current.rows[0]) return null;

@@ -14,21 +14,33 @@
  */
 import { t } from "../../core/i18n.mjs";
 import { confirmAction } from "../dialog.mjs";
+import { toast } from "../toast.mjs";
 import { selectedRosterPlayers } from "../../domain/roster/players.mjs";
 
 /**
- * Ask before a race change that would throw players away.
+ * Ask before a race change that would throw players away — or refuse it.
  *
  * A roster with nobody in it has nothing to lose, so it changes without a
- * prompt — the question is only worth asking when there is an answer worth
+ * prompt: the question is only worth asking when there is an answer worth
  * hearing.
+ *
+ * A team playing in the current season cannot change race at all, confirmed
+ * or not. Its opponents' results, the table and the fixtures all refer to a
+ * squad that would stop existing. Step 7.7 wanted this and could not have it:
+ * the editor had no way to know a team was in a season until step 4.11 made
+ * the server say so.
  *
  * @param {object} team the race currently selected
  * @param {object} draft
  * @param {object} nextTeam the race being switched to
+ * @param {{inActiveSeason?: boolean}} [permissions]
  * @returns {Promise<boolean>} whether to go ahead
  */
-export async function confirmRaceChange(team, draft, nextTeam) {
+export async function confirmRaceChange(team, draft, nextTeam, permissions = {}) {
+  if (permissions.inActiveSeason) {
+    toast(t("roster.raceLockedInSeason"), { tone: "error" });
+    return false;
+  }
   const losing = selectedRosterPlayers(team, draft).length;
   if (!losing) return true;
   return confirmAction({

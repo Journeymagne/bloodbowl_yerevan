@@ -381,5 +381,6 @@
   "roster.conflictBody": "Someone saved this team after you opened it. Reload to see their version — your changes are still on screen until you do.",
   "roster.conflictReloadAction": "Reload from the server",
   "roster.changeRaceAction": "Change race",
-  "validation.UNKNOWN_TEAM": "Unknown team \"{slug}\"."
+  "validation.UNKNOWN_TEAM": "Unknown team \"{slug}\".",
+  "roster.raceLockedInSeason": "This team is playing in the current season, so its race cannot be changed."
 }

@@ -23,6 +23,7 @@ import {
   serializeRosterForStorage,
 } from "../api/serializers.mjs";
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
+import { SAVED_TEAM_COLUMNS } from "../api/team-queries.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -208,7 +209,7 @@ async function handleAdminTeamRoutes(request, response, url) {
     if (!user) return send(response, 401, { error: "Not authorized." });
     if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
     const result = await pool.query(
-      `SELECT saved_teams.*, users.id AS owner_id, users.login AS owner_login, users.telegram AS owner_telegram, users.is_admin AS owner_is_admin, users.created_at AS owner_created_at
+      `SELECT ${SAVED_TEAM_COLUMNS}, users.id AS owner_id, users.login AS owner_login, users.telegram AS owner_telegram, users.is_admin AS owner_is_admin, users.created_at AS owner_created_at
        FROM saved_teams
        JOIN users ON users.id = saved_teams.user_id
        WHERE saved_teams.id = $1`,

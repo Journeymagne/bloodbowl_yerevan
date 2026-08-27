@@ -51,6 +51,10 @@ export function publicSavedTeam(row) {
     logoData: row.logo_data,
     roster: rosterWithoutEmbeddedLogo(row.roster),
     revision: row.revision,
+    // Only present on the queries that ask for it; undefined elsewhere rather
+    // than a confident false, so a screen cannot read "not in a season" out of
+    // a query that never looked.
+    inActiveSeason: row.in_active_season,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
