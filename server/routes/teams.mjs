@@ -103,7 +103,7 @@ export async function handleTeamRoutes(request, response, url) {
  * @param {string|null} ownerId restricts the write to one owner; null for admin
  * @returns {Promise<{team: object}|{conflict: object}|null>} null when no such team
  */
-async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision }) {
+export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision }) {
   const expected = Number.isInteger(revision) ? revision : null;
   const owner = ownerId ?? null;
   const result = await pool.query(
@@ -136,7 +136,7 @@ async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, r
  * go through here, because the API is the boundary — a roster that breaks the
  * rules is just as wrong when an admin sends it.
  */
-async function readTeamBody(request) {
+export async function readTeamBody(request) {
   const body = await readJson(request);
   const name = String(body.name ?? "").trim();
   const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
