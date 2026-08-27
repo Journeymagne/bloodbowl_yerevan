@@ -9,40 +9,8 @@
  * live database before this is deployed.
  */
 import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
-import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
-
-export function normalizePurchasedStaff(roster = {}) {
-  const purchased = roster.purchasedStaff ?? {};
-  return {
-    teamRerolls: countToNumber(purchased.teamRerolls ?? roster.teamRerolls ?? 0),
-    startingRerolls: countToNumber(purchased.startingRerolls ?? 0),
-    bribes: countToNumber(purchased.bribes ?? 0),
-    assistantCoaches: countToNumber(purchased.assistantCoaches ?? 0),
-    cheerleaders: countToNumber(purchased.cheerleaders ?? 0),
-    apothecary: countToNumber(purchased.apothecary ?? 0),
-    mortuaryAssistant: countToNumber(purchased.mortuaryAssistant ?? 0),
-    plagueDoctor: countToNumber(purchased.plagueDoctor ?? 0),
-  };
-}
-
-export function makeRosterPlayer(row, rowIndex, copyIndex = 0, options = {}) {
-  return {
-    id: makeRosterPlayerId(),
-    rowIndex,
-    number: String(options.number ?? copyIndex + 1),
-    name: `${row.position} ${copyIndex + 1}`,
-    statMods: {},
-    extraSkills: [],
-    favouredSkills: [],
-    skipNextGame: false,
-    niglingInjury: false,
-    isCaptain: false,
-    extendedContracts: 0,
-    spp: {},
-    advancements: [],
-    purchased: Boolean(options.purchased),
-  };
-}
+import { countToNumber, rosterMax, rowsForTeam } from "./values.mjs";
+import { createPlayer, normalizePurchasedStaff } from "./schema.mjs";
 
 export function normalizeExtraSkill(skill) {
   if (!skill) return null;
@@ -242,3 +210,11 @@ export function selectedRosterPlayers(team, draft) {
     .filter(Boolean);
 }
 
+
+/**
+ * The shape of a player and of purchased staff moved to schema.mjs in step 3.2,
+ * which is now the only place either is described. The names stay: every caller
+ * uses them, and renaming was not what the step was for.
+ */
+export { normalizePurchasedStaff };
+export const makeRosterPlayer = createPlayer;
