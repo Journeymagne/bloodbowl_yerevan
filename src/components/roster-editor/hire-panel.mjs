@@ -22,7 +22,8 @@
  *
  * Step 7.6 lands here too: a hire that cannot be made says why. The buttons
  * were already disabled, but silently — a coach who had run out of budget saw
- * a dead button and no reason for it.
+ * a dead button and no reason for it. The first pass at that left `disabled`
+ * on as well, which kept the reason unreachable; see hireButton below.
  */
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -33,6 +34,7 @@ import { costToNumber, rosterMax, rowCost, rowsForTeam } from "../../domain/rost
 import { renderRosterLinks } from "../content-links.mjs";
 import { renderAccessCell, renderRosterStatCells } from "../roster-editor-shared.mjs";
 import { renderRosterStatGrid } from "../../screens/detail.mjs";
+import { toast } from "../toast.mjs";
 
 /**
  * Why this position cannot be hired right now, or nothing if it can.
@@ -79,12 +81,17 @@ function hireFields(row, rowIndex, draft, mode, verdict) {
   };
 }
 
+/**
+ * `aria-disabled`, never `disabled` — the same rule the staff steppers follow.
+ * A disabled button takes no click and shows no title, so the reason a hire was
+ * refused never reached the coach: the button just went dead. Marked this way it
+ * still reads as unavailable to a screen reader, and a click says why.
+ */
 function hireButton(rowIndex, mode, verdict, className) {
   const attributes = [
     `class="primary-button ${className}"`,
     `type="button"`,
     `data-${mode.hireAttribute}="${rowIndex}"`,
-    verdict.blocked ? "disabled" : "",
     verdict.blocked ? `aria-disabled="true"` : "",
     verdict.blocked ? `title="${escapeHtml(verdict.title)}"` : "",
   ].filter(Boolean).join(" ");
@@ -184,7 +191,11 @@ export function wireHirePanel(root, { team, draft, mode, onChange }) {
     if (!row) return;
 
     const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: mode.enforcesBudget });
-    if (hireVerdict(draft, row, rowIndex, mode, costs).blocked) return;
+    const verdict = hireVerdict(draft, row, rowIndex, mode, costs);
+    if (verdict.blocked) {
+      toast(verdict.title, { tone: "error" });
+      return;
+    }
 
     const options = mode.marksPurchased ? { purchased: true } : {};
     draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex), options));
