@@ -117,3 +117,80 @@ export function importedNames(source) {
 export function relative(rootDir, file) {
   return path.relative(rootDir, file).split(path.sep).join("/");
 }
+
+/**
+ * Blank out comments and string literals, keeping every line and column.
+ *
+ * Analysis that works on raw source keeps finding code in prose: a comment
+ * saying "the caller (see below)" reads as a call to `caller`, and a message in
+ * a string reads as whatever it happens to contain. Replacing them with spaces
+ * rather than deleting them means line and column numbers still point at the
+ * right place in the real file.
+ */
+/**
+ * What can precede a regex literal but never a division: an operator, an
+ * opening bracket, a comma, `return`, or the start of the file.
+ */
+const REGEX_MAY_FOLLOW = /(^|[(,=:[!&|?{};+\-*%~^]|\breturn|\btypeof|\bcase|\bin|\bof)\s*$/;
+
+export function blankCommentsAndStrings(source) {
+  const out = source.split("");
+  const blank = (from, to) => {
+    for (let i = from; i < to && i < out.length; i += 1) {
+      if (out[i] !== "\n" && out[i] !== "\r") out[i] = " ";
+    }
+  };
+  let index = 0;
+  while (index < source.length) {
+    const two = source.slice(index, index + 2);
+    if (two === "//") {
+      const end = source.indexOf("\n", index);
+      blank(index, end === -1 ? source.length : end);
+      index = end === -1 ? source.length : end;
+      continue;
+    }
+    if (two === "/*") {
+      const end = source.indexOf("*/", index + 2);
+      const stop = end === -1 ? source.length : end + 2;
+      blank(index, stop);
+      index = stop;
+      continue;
+    }
+    // A regular expression literal has to be recognised before its contents
+    // are read as anything else: /[&<>"']/ contains a quote, and treating that
+    // quote as the start of a string swallows the code after it until the next
+    // one. Which is exactly what happened — this blanker ate forty lines of
+    // src/core/dom.mjs, and the check built on it then reported a variable
+    // declared inside them as undefined.
+    if (source[index] === "/" && REGEX_MAY_FOLLOW.test(source.slice(0, index))) {
+      let cursor = index + 1;
+      let inClass = false;
+      while (cursor < source.length) {
+        const character = source[cursor];
+        if (character === "\\") { cursor += 2; continue; }
+        if (character === "\n") break;
+        if (character === "[") inClass = true;
+        else if (character === "]") inClass = false;
+        else if (character === "/" && !inClass) break;
+        cursor += 1;
+      }
+      blank(index + 1, cursor);
+      index = cursor + 1;
+      continue;
+    }
+    const quote = source[index];
+    if (quote === '"' || quote === "'" || quote === "`") {
+      let cursor = index + 1;
+      while (cursor < source.length) {
+        if (source[cursor] === "\\") { cursor += 2; continue; }
+        if (source[cursor] === quote) break;
+        cursor += 1;
+      }
+      blank(index + 1, cursor);
+      index = cursor + 1;
+      continue;
+    }
+    index += 1;
+  }
+  return out.join("");
+}

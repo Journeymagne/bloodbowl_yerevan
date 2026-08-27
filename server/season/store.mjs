@@ -19,6 +19,7 @@ import {
   publicSeason,
   publicSeasonEntry,
   publicSeasonPairing,
+  publicUser,
 } from "../api/serializers.mjs";
 import { computeSeasonStandings } from "./scoring.mjs";
 

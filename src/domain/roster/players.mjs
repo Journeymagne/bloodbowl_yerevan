@@ -9,7 +9,7 @@
  * live database before this is deployed.
  */
 import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
-import { countToNumber, rosterMax, rowsForTeam } from "./values.mjs";
+import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
 import { createPlayer, normalizePurchasedStaff } from "./schema.mjs";
 
 export function normalizeExtraSkill(skill) {

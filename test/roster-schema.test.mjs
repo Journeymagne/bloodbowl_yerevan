@@ -139,3 +139,17 @@ test("a new player carries exactly the fields a player has always carried", () =
   assert.equal(player.purchased, true);
   assert.notEqual(player.id, createPlayer(row, 2, 1).id);
 });
+
+test("a stored player with no id gets one, rather than throwing", async () => {
+  // Step 3.2 moved makeRosterPlayer to schema.mjs and took makeRosterPlayerId
+  // out of players.mjs' imports with it — but normalizeRosterPlayer still calls
+  // it, for exactly the rows this covers: a player saved before ids existed.
+  // Neither the fixtures (all of which have ids) nor a browser pass over a
+  // current roster went near it. scripts/check-references.mjs found it.
+  const { normalizeRosterPlayer } = await import("../src/domain/roster/players.mjs");
+  const rows = [{ position: "Linewoman", ma: 6, st: 3, ag: "3+", pa: "4+", ar: "8+" }];
+  const player = normalizeRosterPlayer({ rowIndex: 0, name: "Old" }, rows, 0);
+  assert.equal(typeof player.id, "string");
+  assert.ok(player.id.length > 0);
+  assert.equal(player.name, "Old");
+});
