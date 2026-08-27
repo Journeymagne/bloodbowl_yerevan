@@ -36,7 +36,9 @@ test("returns null when no candidate exists", () => {
 });
 
 test("an explicit override wins over both defaults", () => {
-  const override = "/srv/secrets/bloodbowl.env";
+  // Resolved rather than written literally: on Windows a POSIX-absolute path
+  // resolves onto the current drive, and the fake existence check would miss it.
+  const override = path.resolve("/srv/secrets/bloodbowl.env");
   const resolved = resolveEnvFilePath(root, {
     override,
     exists: existing(override, SYSTEM_ENV_PATH, path.join(root, ".env")),

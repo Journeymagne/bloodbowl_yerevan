@@ -18,6 +18,7 @@ import {
   parseKeepOption,
 } from "../scripts/backup/status.mjs";
 import { formatDumpName } from "../scripts/backup/rotation.mjs";
+import { posixOnly } from "./helpers/platform.mjs";
 
 const run = promisify(execFile);
 const cliPath = fileURLToPath(new URL("../scripts/backup-status.mjs", import.meta.url));
@@ -750,7 +751,7 @@ test("evaluateBackupStatus: more dumps than the retention limit still fails (rot
 // symlink is not a dump either script created, whether or not its target
 // exists, so neither counts it. --------------------------------------------
 
-test("a dangling symlink is excluded from the count, not reported as an unreadable entry", async (t) => {
+test("a dangling symlink is excluded from the count, not reported as an unreadable entry", posixOnly, async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
 
@@ -768,7 +769,7 @@ test("a dangling symlink is excluded from the count, not reported as an unreadab
   assert.match(stdout, /\nOK/);
 });
 
-test("a symlink to a real dump file is also excluded from the count, matching rotation's Dirent-based check", async (t) => {
+test("a symlink to a real dump file is also excluded from the count, matching rotation's Dirent-based check", posixOnly, async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
 

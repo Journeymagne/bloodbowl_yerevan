@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 
 import { createBackup } from "../scripts/backup/create.mjs";
+import { posixOnly } from "./helpers/platform.mjs";
 
 const makeDir = () => fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-"));
 const listing = async (dir) => (await fs.readdir(dir)).sort();
@@ -34,7 +35,7 @@ test("a successful run leaves exactly one finished dump", async () => {
   assert.deepEqual(result.removed, []);
 });
 
-test("the finished dump is readable only by its owner", async () => {
+test("the finished dump is readable only by its owner", posixOnly, async () => {
   const dir = await makeDir();
   const result = await createBackup({ backupDir: dir, runDump: writes(4096), verifyDump: succeeds, now });
   const stat = await fs.stat(result.path);
@@ -124,7 +125,7 @@ test("rotation leaves unrelated files in the directory alone", async () => {
   assert.ok((await listing(dir)).includes("restore-notes.txt"));
 });
 
-test("creates the backup directory when it is not there yet", async () => {
+test("creates the backup directory when it is not there yet", posixOnly, async () => {
   const dir = path.join(await makeDir(), "nested");
   await createBackup({ backupDir: dir, runDump: writes(4096), verifyDump: succeeds, now });
   assert.deepEqual(await listing(dir), ["gata_league-20260822-040000.dump"]);

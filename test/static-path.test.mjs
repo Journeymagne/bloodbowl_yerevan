@@ -4,7 +4,10 @@ import path from "node:path";
 
 import { resolveStaticPath } from "../server/http/static-path.mjs";
 
-const root = "/opt/bloodbowl-league";
+// Resolved rather than written literally: path.resolve() on Windows puts this
+// on the current drive, and the expectations have to agree with what the
+// function computes, not with what a POSIX shell would print.
+const root = path.resolve("/opt/bloodbowl-league");
 const resolve = (pathname) => resolveStaticPath(pathname, root);
 
 test("serves the entry point", () => {
