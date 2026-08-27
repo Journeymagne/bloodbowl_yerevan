@@ -738,6 +738,8 @@ async function buildLocaleData(resolvedFiles) {
     };
   });
 
+  const byId = (page) => page.id;
+
   const teams = pages.filter((page) => page.kind === "team").sort((a, b) => a.title.localeCompare(b.title, "en"));
   const skills = pages.filter((page) => page.kind === "skill").sort((a, b) => a.title.localeCompare(b.title, "en"));
   const traits = pages.filter((page) => page.kind === "trait").sort((a, b) => a.title.localeCompare(b.title, "en"));
@@ -749,6 +751,8 @@ async function buildLocaleData(resolvedFiles) {
     .filter((page) => /\d/.test(page.starPlayer?.cost ?? "") && !(page.starPlayer?.cost ?? "").includes("|"))
     .sort((a, b) => a.title.localeCompare(b.title, "en"));
   const otherPages = pages.filter((page) => page.kind === "page").sort((a, b) => a.title.localeCompare(b.title, "ru"));
+
+  const collections = { teams, skills, traits, rules, cheatsheets, inducements, starPlayers, otherPages };
 
   const data = {
     generatedAt: new Date().toISOString(),
@@ -769,14 +773,9 @@ async function buildLocaleData(resolvedFiles) {
     )],
     skillGroups: parseSkillGroups(pages),
     pages,
-    teams,
-    skills,
-    traits,
-    rules,
-    cheatsheets,
-    inducements,
-    starPlayers,
-    otherPages,
+    // Identifiers, not pages: 276 of the 292 objects used to appear twice in
+    // this file, byte for byte. reference.mjs expands them back on load.
+    ...Object.fromEntries(Object.entries(collections).map(([name, list]) => [name, list.map(byId)])),
   };
 
   return data;
@@ -786,8 +785,8 @@ await fs.mkdir(publicDir, { recursive: true });
 
 const enFiles = (await walk(vaultDir)).map((file) => ({ file, relativePath: path.relative(vaultDir, file) }));
 const enData = await buildLocaleData(enFiles);
-await fs.writeFile(path.join(publicDir, "data.en.json"), JSON.stringify(enData, null, 2), "utf8");
-await fs.writeFile(path.join(publicDir, "data.json"), JSON.stringify(enData, null, 2), "utf8");
+await fs.writeFile(path.join(publicDir, "data.en.json"), JSON.stringify(enData), "utf8");
+await fs.writeFile(path.join(publicDir, "data.json"), JSON.stringify(enData), "utf8");
 console.log(`Built ${enData.counts.pages} pages into public/data.en.json (+ data.json alias)`);
 
 const ruVaultExists = await pathExists(ruVaultDir);
@@ -796,7 +795,7 @@ if (!ruVaultExists) {
 }
 const ruFiles = await resolveLocaleFiles(vaultDir, ruVaultDir);
 const ruData = await buildLocaleData(ruFiles);
-await fs.writeFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData, null, 2), "utf8");
+await fs.writeFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData), "utf8");
 const ruTranslatedCount = ruFiles.filter(({ file }) => file.startsWith(ruVaultDir + path.sep)).length;
 console.log(`Built ${ruData.counts.pages} pages into public/data.ru.json (${ruTranslatedCount} translated, ${ruData.counts.pages - ruTranslatedCount} falling back to ${primaryContentDir})`);
 if (enData.unresolvedLinks.length) {

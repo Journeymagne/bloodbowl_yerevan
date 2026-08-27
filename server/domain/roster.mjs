@@ -25,6 +25,7 @@ import { calculateRosterCosts } from "../../src/domain/roster/costs.mjs";
 import { ensureDraftPlayers, syncRosterCountsFromPlayers } from "../../src/domain/roster/players.mjs";
 import { normalizeDraft } from "../../src/domain/roster/schema.mjs";
 import { validateRoster } from "../../src/domain/roster/validate.mjs";
+import { expandCollections } from "../../src/data/reference.mjs";
 
 export { normalizeDraft };
 
@@ -39,7 +40,7 @@ export async function loadTeamReference(rootDir) {
   const file = path.join(rootDir, "public", "data.en.json");
   let parsed;
   try {
-    parsed = JSON.parse(await fs.readFile(file, "utf8"));
+    parsed = expandCollections(JSON.parse(await fs.readFile(file, "utf8")));
   } catch (error) {
     throw new Error(
       `cannot read ${file}, which the roster rules are built from: ${error.message}. Run \`npm run build\`.`,
