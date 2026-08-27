@@ -23,7 +23,8 @@ import {
   publicUser,
   serializeRosterForStorage,
 } from "./api/serializers.mjs";
-import { bearerToken, createSession, currentUser, hashPassword, hashToken, verifyPassword } from "./auth/session.mjs";
+import { currentUser, hashPassword } from "./auth/session.mjs";
+import { handleAuthRoutes } from "./routes/auth.mjs";
 
 const appPort = Number(process.env.APP_PORT || process.env.PORT || 3002);
 
@@ -901,100 +902,9 @@ async function startSeasonRound(seasonId, roundId) {
 
 async function handleApi(request, response, url) {
   try {
-    if (request.method === "GET" && url.pathname === "/api/health") {
-      await pool.query("SELECT 1");
-      return sendJson(response, 200, { ok: true });
-    }
-
-    if (request.method === "GET" && url.pathname === "/api/auth/me") {
-      const user = await currentUser(request);
-      return sendJson(response, 200, { user: publicUser(user) });
-    }
-
-    if (request.method === "POST" && url.pathname === "/api/auth/register") {
-      const body = await readJson(request);
-      const login = String(body.login ?? "").trim();
-      const password = String(body.password ?? "");
-      const telegram = String(body.telegram ?? "").trim();
-      const loginKey = normalizeLogin(login);
-
-      if (login.length < 3) return sendJson(response, 400, { error: "Login must be at least 3 characters." });
-      if (password.length < 4) return sendJson(response, 400, { error: "Password must be at least 4 characters." });
-      if (!telegram) return sendJson(response, 400, { error: "Telegram contact is required." });
-
-      const passwordHash = hashPassword(password);
-      const result = await pool.query(
-        `INSERT INTO users (login, login_key, telegram, password_hash)
-         VALUES ($1, $2, $3, $4)
-         RETURNING *`,
-        [login, loginKey, telegram, passwordHash],
-      ).catch((error) => {
-        if (error.code === "23505") return null;
-        throw error;
-      });
-      if (!result) return sendJson(response, 409, { error: "This login is already registered." });
-
-      const token = await createSession(result.rows[0].id);
-      return sendJson(response, 201, { token, user: publicUser(result.rows[0]) });
-    }
-
-    if (request.method === "POST" && url.pathname === "/api/auth/login") {
-      const body = await readJson(request);
-      const loginKey = normalizeLogin(body.login ?? "");
-      const password = String(body.password ?? "");
-      const result = await pool.query("SELECT * FROM users WHERE login_key = $1", [loginKey]);
-      const user = result.rows[0];
-      if (!user || !verifyPassword(password, user.password_hash)) {
-        return sendJson(response, 401, { error: "Wrong login or password." });
-      }
-      const token = await createSession(user.id);
-      return sendJson(response, 200, { token, user: publicUser(user) });
-    }
-
-    if (request.method === "POST" && url.pathname === "/api/auth/logout") {
-      const token = bearerToken(request);
-      if (token) {
-        await pool.query("DELETE FROM sessions WHERE token_hash = $1", [hashToken(token)]);
-      }
-      return sendJson(response, 200, { ok: true });
-    }
-
-    if (request.method === "PATCH" && url.pathname === "/api/auth/profile") {
-      const user = await currentUser(request);
-      if (!user) return sendJson(response, 401, { error: "Not authorized." });
-
-      const body = await readJson(request);
-      const login = String(body.login ?? user.login).trim();
-      const telegram = String(body.telegram ?? user.telegram).trim();
-      const password = String(body.password ?? "");
-      const loginKey = normalizeLogin(login);
-
-      if (login.length < 3) return sendJson(response, 400, { error: "Login must be at least 3 characters." });
-      if (!telegram) return sendJson(response, 400, { error: "Telegram contact is required." });
-      if (password && password.length < 4) return sendJson(response, 400, { error: "Password must be at least 4 characters." });
-
-      const params = [user.id, login, loginKey, telegram];
-      const passwordSql = password ? ", password_hash = $5" : "";
-      if (password) params.push(hashPassword(password));
-      const updated = await pool.query(
-        `UPDATE users
-         SET login = $2,
-             login_key = $3,
-             telegram = $4,
-             updated_at = now()
-             ${passwordSql}
-         WHERE id = $1
-         RETURNING *`,
-        params,
-      ).catch((error) => {
-        if (error.code === "23505") return null;
-        throw error;
-      });
-      if (!updated) return sendJson(response, 409, { error: "This login is already registered." });
-
-      return sendJson(response, 200, { user: publicUser(updated.rows[0]) });
-    }
-
+    // Route modules answer and say so; the chain stops at the first that does.
+    // step 4.9 is moving the rest of this function into them.
+    if (await handleAuthRoutes(request, response, url)) return;
     if (url.pathname === "/api/admin/users" && request.method === "GET") {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });

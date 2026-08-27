@@ -18,7 +18,7 @@
     "defaultMaxFunctionLines": 80,
     "maxFileLines": {
       "src/app.js": 160,
-      "server/server.mjs": 1588,
+      "server/server.mjs": 1498,
       "scripts/build-data.mjs": 805,
       "src/screens/saved-roster.mjs": 1138
     },
