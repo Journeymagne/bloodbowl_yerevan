@@ -7,6 +7,7 @@ import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:z
 import { Pool } from "pg";
 import { loadEnvFile } from "./config/env-file.mjs";
 import { assertMigrationsApplied } from "./db/migrate.mjs";
+import { blockingViolations, checkRoster, loadTeamReference } from "./domain/roster.mjs";
 import { resolveStaticPath } from "./http/static-path.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -300,11 +301,9 @@ async function waitForDatabase() {
 }
 
 /**
- * Refuse to serve a database that is behind the code.
- *
- * This used to run server/init.sql on every boot, which applied schema and
- * data alike. Migrations are applied by `npm run db:migrate` now; all the
- * server does is check, and stop with a message naming the command.
+ * Refuse to serve a database that is behind the code. This used to run
+ * server/init.sql on every boot, applying schema and data alike; migrations are
+ * `npm run db:migrate`'s job now, and the server only checks.
  */
 async function ensureSchema() {
   await assertMigrationsApplied(pool);
@@ -385,9 +384,49 @@ function sendJson(response, status, payload) {
   });
 }
 
+/**
+ * This used to read the stream to its end with no limit: one endless body was
+ * enough to exhaust the process, and the process is single. 3 MB is well above
+ * the largest real roster — a team with a logo runs to tens of kilobytes — and
+ * the body is refused as it arrives, so it is never buffered.
+ */
+const maxRequestBodyBytes = Number(process.env.MAX_REQUEST_BODY_BYTES || 3 * 1024 * 1024);
+
+/**
+ * Read and check a team body. Both the coach's endpoints and the admin ones
+ * go through here, because the API is the boundary — a roster that breaks the
+ * rules is just as wrong when an admin sends it.
+ */
+async function readTeamBody(request) {
+  const body = await readJson(request);
+  const name = String(body.name ?? "").trim();
+  const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
+  const logoData = body.logoData ? String(body.logoData) : null;
+  if (!name) throw httpError(400, "Team name is required.");
+  if (!baseTeamSlug) throw httpError(400, "Base team is required.");
+  if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) throw httpError(400, "Logo is too large.");
+
+  const { violations, roster } = checkRoster(baseTeamSlug, body.roster ?? {});
+  const blocking = blockingViolations(violations);
+  if (blocking.length) {
+    const error = httpError(422, "This roster breaks the league's rules.");
+    error.violations = blocking;
+    throw error;
+  }
+  return { body, name, baseTeamSlug, logoData, roster };
+}
+
 async function readJson(request) {
   const chunks = [];
+  let size = 0;
   for await (const chunk of request) {
+    size += chunk.length;
+    if (size > maxRequestBodyBytes) {
+      // Stop reading but leave the socket alone: destroying it here means the
+      // client sees a reset instead of the 413 explaining what happened.
+      request.pause();
+      throw httpError(413, `Request body is larger than ${Math.floor(maxRequestBodyBytes / 1024)} KB.`);
+    }
     chunks.push(chunk);
   }
   const raw = Buffer.concat(chunks).toString("utf8");
@@ -1367,17 +1406,7 @@ async function handleApi(request, response, url) {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
       if (!user.is_admin) return sendJson(response, 403, { error: "Admin access required." });
-      const body = await readJson(request);
-      const name = String(body.name ?? "").trim();
-      const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
-      const logoData = body.logoData ? String(body.logoData) : null;
-      const roster = body.roster ?? {};
-
-      if (!name) return sendJson(response, 400, { error: "Team name is required." });
-      if (!baseTeamSlug) return sendJson(response, 400, { error: "Base team is required." });
-      if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) {
-        return sendJson(response, 400, { error: "Logo is too large." });
-      }
+      const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
 
       const coach = await pool.query(`SELECT * FROM users WHERE id = $1`, [adminUserTeamsMatch[1]]);
       if (!coach.rows[0]) return sendJson(response, 404, { error: "Coach not found." });
@@ -1424,17 +1453,7 @@ async function handleApi(request, response, url) {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
       if (!user.is_admin) return sendJson(response, 403, { error: "Admin access required." });
-      const body = await readJson(request);
-      const name = String(body.name ?? "").trim();
-      const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
-      const logoData = body.logoData ? String(body.logoData) : null;
-      const roster = body.roster ?? {};
-
-      if (!name) return sendJson(response, 400, { error: "Team name is required." });
-      if (!baseTeamSlug) return sendJson(response, 400, { error: "Base team is required." });
-      if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) {
-        return sendJson(response, 400, { error: "Logo is too large." });
-      }
+      const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
 
       const result = await pool.query(
         `UPDATE saved_teams
@@ -1754,17 +1773,7 @@ async function handleApi(request, response, url) {
     if (url.pathname === "/api/teams" && request.method === "POST") {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
-      const body = await readJson(request);
-      const name = String(body.name ?? "").trim();
-      const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
-      const logoData = body.logoData ? String(body.logoData) : null;
-      const roster = body.roster ?? {};
-
-      if (!name) return sendJson(response, 400, { error: "Team name is required." });
-      if (!baseTeamSlug) return sendJson(response, 400, { error: "Base team is required." });
-      if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) {
-        return sendJson(response, 400, { error: "Logo is too large." });
-      }
+      const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
 
       const result = await pool.query(
         `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
@@ -1790,17 +1799,7 @@ async function handleApi(request, response, url) {
     if (teamMatch && request.method === "PATCH") {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
-      const body = await readJson(request);
-      const name = String(body.name ?? "").trim();
-      const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
-      const logoData = body.logoData ? String(body.logoData) : null;
-      const roster = body.roster ?? {};
-
-      if (!name) return sendJson(response, 400, { error: "Team name is required." });
-      if (!baseTeamSlug) return sendJson(response, 400, { error: "Base team is required." });
-      if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) {
-        return sendJson(response, 400, { error: "Logo is too large." });
-      }
+      const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
 
       const result = await pool.query(
         `UPDATE saved_teams
@@ -1830,7 +1829,9 @@ async function handleApi(request, response, url) {
     if (status >= 500) {
       console.error(error);
     }
-    return sendJson(response, status, { error: status >= 500 ? "Server error." : error.message });
+    const payload = { error: status >= 500 ? "Server error." : error.message };
+    if (Array.isArray(error.violations)) payload.violations = error.violations;
+    return sendJson(response, status, payload);
   }
 }
 
@@ -1873,6 +1874,7 @@ async function handleStatic(request, response, url) {
 
 await waitForDatabase();
 await ensureSchema();
+startupLog(`roster rules loaded for ${await loadTeamReference(rootDir)} teams`);
 await ensureAdmin();
 
 const server = http.createServer(async (request, response) => {

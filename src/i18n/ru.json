@@ -380,5 +380,6 @@
   "roster.pendingDiscardAction": "Отклонить",
   "roster.conflictBody": "Кто-то сохранил эту команду после того, как вы её открыли. Перезагрузите, чтобы увидеть их версию — ваши правки останутся на экране до этого момента.",
   "roster.conflictReloadAction": "Перезагрузить с сервера",
-  "roster.changeRaceAction": "Сменить расу"
+  "roster.changeRaceAction": "Сменить расу",
+  "validation.UNKNOWN_TEAM": "Неизвестная раса «{slug}»."
 }

@@ -380,5 +380,6 @@
   "roster.pendingDiscardAction": "Discard",
   "roster.conflictBody": "Someone saved this team after you opened it. Reload to see their version — your changes are still on screen until you do.",
   "roster.conflictReloadAction": "Reload from the server",
-  "roster.changeRaceAction": "Change race"
+  "roster.changeRaceAction": "Change race",
+  "validation.UNKNOWN_TEAM": "Unknown team \"{slug}\"."
 }
