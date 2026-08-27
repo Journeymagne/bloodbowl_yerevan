@@ -64,6 +64,7 @@ import { renderRosterNotices, wireRosterNotices } from "../components/roster-not
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
+import { renderStaffControl } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
@@ -271,13 +272,13 @@ function renderSavedRosterIdentity(team, draft, teams) {
   `;
 }
 function renderSavedRosterPurchases(team, draft) {
-  const briberyControl = hasBribery(team) ? renderRosterStaffControl("bribes", t("savedRoster.bribes"), draft.bribes) : "";
+  const briberyControl = hasBribery(team) ? renderStaffControl({ key: "bribes", title: t("savedRoster.bribes"), value: draft.bribes, mode: LEAGUE_MODE }) : "";
   return `
     <div class="roster-purchases-layout" data-key="roster-purchases">
       <section class="roster-controls-panel roster-resources-panel side-panel">
         <h2>${t("roster.teamResourcesHeading")}</h2>
         <div class="builder-tracker-list roster-resource-list" aria-label="${t("roster.teamResourceTrackersAriaLabel")}">
-          ${renderRosterStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), draft.dedicatedFans)}
+          ${renderStaffControl({ key: "dedicatedFans", title: t("savedRoster.dedicatedFans"), value: draft.dedicatedFans, mode: LEAGUE_MODE, description: t("roster.postMatchValue") })}
           ${renderRosterMoneyControl(t("roster.treasuryTitle"), t("roster.treasuryDescription"), draft.treasury, "data-roster-treasury")}
           ${renderRosterMoneyControl("Coach's Safe", t("roster.coachesSafeDescription"), draft.coachesSafe, "data-roster-coaches-safe")}
         </div>
@@ -300,9 +301,9 @@ function renderSavedRosterPurchases(team, draft) {
           `<button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>`,
         )}
         ${briberyControl}
-        ${renderRosterStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), draft.assistantCoaches)}
-        ${renderRosterStaffControl("cheerleaders", t("savedRoster.cheerleaders"), draft.cheerleaders)}
-        ${availableMedicalStaffDefinitions(team).map((staff) => renderRosterStaffControl(staff.key, staff.title, draft[staff.key])).join("")}
+        ${renderStaffControl({ key: "assistantCoaches", title: t("savedRoster.assistantCoaches"), value: draft.assistantCoaches, mode: LEAGUE_MODE })}
+        ${renderStaffControl({ key: "cheerleaders", title: t("savedRoster.cheerleaders"), value: draft.cheerleaders, mode: LEAGUE_MODE })}
+        ${availableMedicalStaffDefinitions(team).map((staff) => renderStaffControl({ key: staff.key, title: staff.title, value: draft[staff.key], mode: LEAGUE_MODE })).join("")}
         </div>
       </section>
     </div>
@@ -333,19 +334,6 @@ function renderRosterCounterControl(title, description, value, minusButton, plus
       </div>
     </div>
   `;
-}
-function renderRosterStaffControl(key, title, value) {
-  const max = builderStaffMaximums[key] ?? 6;
-  const current = countToNumber(value);
-  const cost = builderStaffCosts[key] ?? 0;
-  const description = key === "dedicatedFans" ? t("roster.postMatchValue") : `${cost}k${max > 1 ? ` ${t("roster.each")}` : ""}`;
-  return renderRosterCounterControl(
-    title,
-    description,
-    current,
-    `<button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>`,
-    `<button class="filter-button" type="button" data-roster-staff="${key}" data-roster-staff-step="1" ${current >= max ? "disabled" : ""}>+</button>`,
-  );
 }
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
   wireAutosaveStatus(savedTeam.id);
@@ -442,6 +430,12 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     rerender();
   });
   events.on("click", "[data-roster-staff]", (event, button) => {
+    // The markup already worked out why a step is refused and put the reason in
+    // the button's title; reading it back cannot drift from what the coach saw.
+    if (button.getAttribute("aria-disabled") === "true") {
+      toast(button.getAttribute("title") || "", { tone: "error" });
+      return;
+    }
     const key = button.dataset.rosterStaff;
     const max = builderStaffMaximums[key] ?? 6;
     const delta = Number(button.dataset.rosterStaffStep);

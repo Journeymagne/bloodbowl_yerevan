@@ -15,7 +15,7 @@ import { storage } from "../core/storage.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
 import { pageUrl } from "../core/routes.mjs";
 import { onScreenLeave } from "../core/screen-lifecycle.mjs";
-import { builderStaffCosts, builderStaffMaximums, startingBudget } from "../domain/league-rules.mjs";
+import { builderStaffMaximums, startingBudget } from "../domain/league-rules.mjs";
 import { clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "../domain/roster/team-rules.mjs";
 import {
@@ -32,6 +32,7 @@ import { builderPayload, emptyBuilderState, resetBuilderForTeam } from "../data/
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks } from "../components/content-links.mjs";
 import { CREATE_MODE } from "../components/roster-editor/modes.mjs";
+import { blockedAttributes, renderStaffControl, staffStepVerdict } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
@@ -158,15 +159,15 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
               <div class="inline-stepper-control">
                 <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
                 <strong>${state.builder.startingRerolls}</strong>
-                <button class="filter-button" type="button" data-builder-reroll="1" ${blockedAttributes(stepUpVerdict("startingRerolls", t("savedRoster.startingRerolls"), state.builder.startingRerolls, costs.total))}>+</button>
+                <button class="filter-button" type="button" data-builder-reroll="1" ${blockedAttributes(staffStepVerdict("startingRerolls", t("savedRoster.startingRerolls"), state.builder.startingRerolls, CREATE_MODE, costs.total))}>+</button>
               </div>
             </div>
-            ${renderBuilderStaffControl("dedicatedFans", t("savedRoster.dedicatedFans"), state.builder.dedicatedFans, costs.total)}
-            ${hasBribery(team) ? renderBuilderStaffControl("bribes", t("savedRoster.bribes"), state.builder.bribes, costs.total) : ""}
-            ${renderBuilderStaffControl("assistantCoaches", t("savedRoster.assistantCoaches"), state.builder.assistantCoaches, costs.total)}
-            ${renderBuilderStaffControl("cheerleaders", t("savedRoster.cheerleaders"), state.builder.cheerleaders, costs.total)}
+            ${renderStaffControl({ key: "dedicatedFans", title: t("savedRoster.dedicatedFans"), value: state.builder.dedicatedFans, mode: CREATE_MODE, committedTotal: costs.total })}
+            ${hasBribery(team) ? renderStaffControl({ key: "bribes", title: t("savedRoster.bribes"), value: state.builder.bribes, mode: CREATE_MODE, committedTotal: costs.total }) : ""}
+            ${renderStaffControl({ key: "assistantCoaches", title: t("savedRoster.assistantCoaches"), value: state.builder.assistantCoaches, mode: CREATE_MODE, committedTotal: costs.total })}
+            ${renderStaffControl({ key: "cheerleaders", title: t("savedRoster.cheerleaders"), value: state.builder.cheerleaders, mode: CREATE_MODE, committedTotal: costs.total })}
             ${availableMedicalStaffDefinitions(team)
-              .map((staff) => renderBuilderStaffControl(staff.key, staff.title, state.builder[staff.key], costs.total))
+              .map((staff) => renderStaffControl({ key: staff.key, title: staff.title, value: state.builder[staff.key], mode: CREATE_MODE, committedTotal: costs.total }))
               .join("")}
           </div>
         </div>
@@ -174,50 +175,8 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
     </section>
   `;
 }
-/**
- * Why one more of something cannot be bought, if it cannot.
- *
- * Step 7.6: the "+" used to be plain `disabled`, which says no without saying
- * why. Same shape as the hire pool's `hireVerdict` — the verdict is worked out
- * once and both the markup and the click handler read it, so the tooltip and
- * the message after a refused click can never drift apart.
- */
-function stepUpVerdict(key, title, value, committedTotal) {
-  const max = builderStaffMaximums[key] ?? 6;
-  if (countToNumber(value) >= max) return { blocked: true, title: t("validation.STAFF_MAX", { title, max }) };
-  if (committedTotal + (builderStaffCosts[key] ?? 0) > startingBudget) {
-    return { blocked: true, title: t("validation.BUDGET_EXCEEDED", { budget: startingBudget, total: committedTotal }) };
-  }
-  return { blocked: false, title: "" };
-}
 
-/**
- * `aria-disabled` rather than `disabled`: a disabled button takes no click and
- * shows no tooltip, so its reason never reaches the coach. The handler turns
- * the refusal down instead, and says why.
- */
-function blockedAttributes(verdict) {
-  return verdict.blocked ? `aria-disabled="true" title="${escapeHtml(verdict.title)}"` : "";
-}
 
-function renderBuilderStaffControl(key, title, value, committedTotal = 0) {
-  const max = builderStaffMaximums[key] ?? 6;
-  const current = countToNumber(value);
-  const cost = builderStaffCosts[key] ?? 0;
-  return `
-    <div class="builder-addon compact-staff-control builder-tracker-control">
-      <div>
-        <strong>${escapeHtml(title)}</strong>
-        <span>${cost}k${max > 1 ? ` ${t("roster.each")}` : ""}</span>
-      </div>
-      <div class="inline-stepper-control">
-        <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="-1" ${current <= 0 ? "disabled" : ""}>-</button>
-        <strong>${current}</strong>
-        <button class="filter-button" type="button" data-builder-staff="${key}" data-builder-staff-step="1" ${blockedAttributes(stepUpVerdict(key, title, value, committedTotal))}>+</button>
-      </div>
-    </div>
-  `;
-}
 function renderPlayerStatCells(player) {
   return ["ma", "st", "ag", "pa", "ar"]
     .map((stat) => {
@@ -349,7 +308,7 @@ function wireBuilderSteppers(team, events) {
     const current = countToNumber(state.builder[key]);
     if (delta > 0) {
       const committed = calculateRosterCosts(team, state.builder, { includeDedicatedFans: true }).total;
-      const verdict = stepUpVerdict(key, titles[key] ?? key, current, committed);
+      const verdict = staffStepVerdict(key, titles[key] ?? key, current, CREATE_MODE, committed);
       if (verdict.blocked) {
         toast(verdict.title, { tone: "error" });
         return;

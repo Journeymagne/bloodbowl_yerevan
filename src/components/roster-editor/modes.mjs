@@ -23,6 +23,8 @@
  * @property {boolean} showsHireCards        the hire pool also renders cards for narrow screens
  * @property {string} hireAttribute          the data attribute the hire buttons carry
  * @property {string} hireCountHeadingKey    i18n key for the "how many do I have" column
+ * @property {string} staffAttribute         the data attribute the staff steppers carry
+ * @property {string} staffCardClass         the wrapper class the staff card wears
  */
 
 /** A brand-new team, spending the league's starting budget. */
@@ -35,6 +37,8 @@ export const CREATE_MODE = Object.freeze({
   showsHireCards: true,
   hireAttribute: "add-row",
   hireCountHeadingKey: "builder.selectedHeader",
+  staffAttribute: "builder-staff",
+  staffCardClass: "builder-tracker-control",
 });
 
 /**
@@ -54,4 +58,6 @@ export const LEAGUE_MODE = Object.freeze({
   showsHireCards: false,
   hireAttribute: "add-saved-row",
   hireCountHeadingKey: "savedRoster.rosterHeading",
+  staffAttribute: "roster-staff",
+  staffCardClass: "roster-purchase-card",
 });
