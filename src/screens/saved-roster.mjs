@@ -23,7 +23,6 @@ import { onScreenLeave } from "../core/screen-lifecycle.mjs";
 import {
   advancementRanks,
   advancementTypeLabels,
-  builderStaffCosts,
   builderStaffMaximums,
   sppCounterDefinitions,
 } from "../domain/league-rules.mjs";
@@ -64,7 +63,7 @@ import { renderRosterNotices, wireRosterNotices } from "../components/roster-not
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
-import { renderDedicatedFansLine, renderHiredStaffLines } from "../components/roster-editor/staff-control.mjs";
+import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
@@ -264,20 +263,8 @@ function renderSavedRosterPurchases(team, draft) {
       <section class="roster-controls-panel roster-purchases-panel side-panel">
         <h2>${t("roster.purchasesHeading")}</h2>
         <div class="builder-tracker-list roster-tracker-list roster-purchase-grid" aria-label="${t("roster.purchaseTrackersAriaLabel")}">
-        ${renderRosterCounterControl(
-          t("savedRoster.startingRerolls"),
-          `60k ${t("roster.each")}`,
-          countToNumber(draft.startingRerolls),
-          `<button class="filter-button" type="button" data-roster-reroll="-1" ${countToNumber(draft.startingRerolls) <= 0 ? "disabled" : ""}>-</button>`,
-          `<button class="filter-button" type="button" data-roster-reroll="1">+</button>`,
-        )}
-        ${renderRosterCounterControl(
-          t("savedRoster.teamRerolls"),
-          `120k ${t("roster.each")}`,
-          countToNumber(draft.teamRerolls),
-          `<button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>`,
-          `<button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>`,
-        )}
+        ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: draft.startingRerolls, mode: LEAGUE_MODE })}
+        ${renderStaffControl({ key: "teamRerolls", title: t("savedRoster.teamRerolls"), value: draft.teamRerolls, mode: LEAGUE_MODE })}
         ${renderHiredStaffLines({ team, draft, mode: LEAGUE_MODE })}
         </div>
       </section>
@@ -293,21 +280,6 @@ function renderRosterMoneyControl(title, description, value, dataAttribute) {
       </div>
       <input class="table-input roster-purchase-input" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
     </label>
-  `;
-}
-function renderRosterCounterControl(title, description, value, minusButton, plusButton) {
-  return `
-    <div class="builder-addon compact-staff-control roster-purchase-card">
-      <div>
-        <strong>${escapeHtml(title)}</strong>
-        <span>${escapeHtml(description)}</span>
-      </div>
-      <div class="inline-stepper-control">
-        ${minusButton}
-        <strong>${value}</strong>
-        ${plusButton}
-      </div>
-    </div>
   `;
 }
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
@@ -389,19 +361,6 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   });
   events.on("click", "[data-roster-remove-logo]", () => {
     draft.logoData = "";
-    rerender();
-  });
-  events.on("click", "[data-roster-reroll]", (event, button) => {
-    const previous = countToNumber(draft.startingRerolls);
-    draft.startingRerolls = clamp(previous + Number(button.dataset.rosterReroll), 0, builderStaffMaximums.startingRerolls);
-    applyPaidStaffChange(draft, "startingRerolls", previous, draft.startingRerolls);
-    rerender();
-  });
-  events.on("click", "[data-roster-team-reroll]", (event, button) => {
-    const delta = Number(button.dataset.rosterTeamReroll);
-    const previous = countToNumber(draft.teamRerolls);
-    draft.teamRerolls = clamp(previous + delta, 0, builderStaffMaximums.teamRerolls);
-    applyPaidStaffChange(draft, "teamRerolls", previous, draft.teamRerolls);
     rerender();
   });
   events.on("click", "[data-roster-staff]", (event, button) => {
@@ -680,6 +639,7 @@ async function buildRosterRequest(savedTeam, team, draft) {
     baseTeamSlug: draft.teamSlug || team.slug,
     logoData: draft.logoData || "",
     roster: draft,
+    revision: savedTeam.revision, // the server writes only while this still matches
   };
 }
 /**
@@ -714,6 +674,16 @@ function autosaveMessageFor(status) {
   return t(autosaveStatusMessages[status] ?? autosaveStatusMessages[SAVE_STATUS.IDLE]);
 }
 /** Status line in step with the store; the unsubscribe is registered, not dropped. */
+/**
+ * The status line tells a coach their team was saved somewhere else — already
+ * the difference between losing work silently and being told. The *banner*
+ * offering a choice between the versions is markup and a conflict arrives
+ * between renders, so it needs a render; that trigger must be careful, since
+ * subscribe() replays the status and every render subscribes again. It is the
+ * rest of step 4.7, in the plan rather than shipped unverified — reaching the
+ * state needs unsaved edits, which the beforeunload guard stops a check from
+ * driving.
+ */
 function wireAutosaveStatus(teamId) {
   onScreenLeave("saved-roster:autosave-status", rosterStore.subscribe(teamId, ({ status }) => {
     const node = view.querySelector("[data-autosave-status]");

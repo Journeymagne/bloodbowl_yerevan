@@ -102,6 +102,7 @@ function publicSavedTeam(row) {
     baseTeamSlug: row.base_team_slug,
     logoData: row.logo_data,
     roster: rosterWithoutEmbeddedLogo(row.roster),
+    revision: row.revision,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -128,6 +129,51 @@ function rosterWithoutEmbeddedLogo(roster = {}) {
 
 function serializeRosterForStorage(roster = {}) {
   return JSON.stringify(rosterWithoutEmbeddedLogo(roster));
+}
+
+/**
+ * Write a team, refusing to overwrite work the client has not seen.
+ *
+ * Two tabs on the same roster used to be a race the loser never heard about:
+ * both PATCH, the second wins, and the first coach's edits are gone with no
+ * message. The client sends the revision it last saw; the write lands only
+ * while that still matches, and a mismatch answers 409 with the team as it now
+ * stands, so the interface can offer a choice instead of guessing.
+ *
+ * A body with no revision writes unconditionally. That is deliberate rather
+ * than an oversight: admin paths create teams without ever having read one,
+ * and refusing them would break flows this step is not about. Every path a
+ * coach edits through autosaves, and autosave sends it.
+ *
+ * @param {string|null} ownerId restricts the write to one owner; null for admin
+ * @returns {Promise<{team: object}|{conflict: object}|null>} null when no such team
+ */
+async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision }) {
+  const expected = Number.isInteger(revision) ? revision : null;
+  const owner = ownerId ?? null;
+  const result = await pool.query(
+    `UPDATE saved_teams
+        SET name = $3,
+            base_team_slug = $4,
+            logo_data = $5,
+            roster = $6,
+            revision = revision + 1,
+            updated_at = now()
+      WHERE id = $1
+        AND ($2::uuid IS NULL OR user_id = $2::uuid)
+        AND ($7::int IS NULL OR revision = $7::int)
+      RETURNING *`,
+    [teamId, owner, name, baseTeamSlug, logoData, serializeRosterForStorage(roster), expected],
+  );
+  if (result.rows[0]) return { team: publicSavedTeam(result.rows[0]) };
+
+  // No row: either the team is not there, or the revision moved under us.
+  const current = await pool.query(
+    `SELECT * FROM saved_teams WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid)`,
+    [teamId, owner],
+  );
+  if (!current.rows[0]) return null;
+  return { conflict: publicSavedTeam(current.rows[0]) };
 }
 
 function publicSavedTeamSummary(row) {
@@ -1453,21 +1499,19 @@ async function handleApi(request, response, url) {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
       if (!user.is_admin) return sendJson(response, 403, { error: "Admin access required." });
-      const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
-
-      const result = await pool.query(
-        `UPDATE saved_teams
-         SET name = $2,
-             base_team_slug = $3,
-             logo_data = $4,
-             roster = $5,
-             updated_at = now()
-         WHERE id = $1
-         RETURNING *`,
-        [adminTeamMatch[1], name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
-      );
-      if (!result.rows[0]) return sendJson(response, 404, { error: "Team not found." });
-      return sendJson(response, 200, { team: publicSavedTeam(result.rows[0]) });
+      const { body, name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
+      const written = await writeSavedTeam({
+        teamId: adminTeamMatch[1], ownerId: null,
+        name, baseTeamSlug, logoData, roster, revision: body.revision,
+      });
+      if (!written) return sendJson(response, 404, { error: "Team not found." });
+      if (written.conflict) {
+        return sendJson(response, 409, {
+          error: "This team was saved somewhere else after you opened it.",
+          team: written.conflict,
+        });
+      }
+      return sendJson(response, 200, { team: written.team });
     }
 
     if (adminTeamMatch && request.method === "DELETE") {
@@ -1799,21 +1843,19 @@ async function handleApi(request, response, url) {
     if (teamMatch && request.method === "PATCH") {
       const user = await currentUser(request);
       if (!user) return sendJson(response, 401, { error: "Not authorized." });
-      const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
-
-      const result = await pool.query(
-        `UPDATE saved_teams
-         SET name = $3,
-             base_team_slug = $4,
-             logo_data = $5,
-             roster = $6,
-             updated_at = now()
-         WHERE id = $1 AND user_id = $2
-         RETURNING *`,
-        [teamMatch[1], user.id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
-      );
-      if (!result.rows[0]) return sendJson(response, 404, { error: "Team not found." });
-      return sendJson(response, 200, { team: publicSavedTeam(result.rows[0]) });
+      const { body, name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
+      const written = await writeSavedTeam({
+        teamId: teamMatch[1], ownerId: user.id,
+        name, baseTeamSlug, logoData, roster, revision: body.revision,
+      });
+      if (!written) return sendJson(response, 404, { error: "Team not found." });
+      if (written.conflict) {
+        return sendJson(response, 409, {
+          error: "This team was saved somewhere else after you opened it.",
+          team: written.conflict,
+        });
+      }
+      return sendJson(response, 200, { team: written.team });
     }
 
     if (teamMatch && request.method === "DELETE") {
