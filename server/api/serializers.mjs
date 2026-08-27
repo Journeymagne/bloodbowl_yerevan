@@ -197,3 +197,15 @@ export function publicGame(row, viewerId) {
     viewerIsProposer: row.proposed_by_user_id === viewerId,
   };
 }
+
+export function storedGameResultComplete(row) {
+  return row?.result_status === "confirmed"
+    && row.home_touchdowns !== null
+    && row.home_touchdowns !== undefined
+    && row.away_touchdowns !== null
+    && row.away_touchdowns !== undefined
+    && row.home_casualties !== null
+    && row.home_casualties !== undefined
+    && row.away_casualties !== null
+    && row.away_casualties !== undefined;
+}

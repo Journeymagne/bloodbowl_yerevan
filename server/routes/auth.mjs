@@ -9,7 +9,7 @@
  */
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
-import { createSession, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
+import { bearerToken, createSession, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
