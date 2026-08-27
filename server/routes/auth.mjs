@@ -10,6 +10,7 @@
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { bearerToken, createSession, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
+import { checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
@@ -63,11 +64,25 @@ export async function handleAuthRoutes(request, response, url) {
     const body = await readJson(request);
     const loginKey = normalizeLogin(body.login ?? "");
     const password = String(body.password ?? "");
+
+    // Checked before the password is verified, not after: verifying is the
+    // expensive part, and refusing to do it is the point.
+    const attempt = checkLoginAttempt(loginKey);
+    if (!attempt.allowed) {
+      response.setHeader?.("Retry-After", String(attempt.retryAfterSeconds));
+      return send(response, 429, {
+        error: "Too many attempts for this login. Try again shortly.",
+        retryAfterSeconds: attempt.retryAfterSeconds,
+      });
+    }
+
     const result = await pool.query("SELECT * FROM users WHERE login_key = $1", [loginKey]);
     const user = result.rows[0];
     if (!user || !verifyPassword(password, user.password_hash)) {
+      recordFailedLogin(loginKey);
       return send(response, 401, { error: "Wrong login or password." });
     }
+    clearLoginAttempts(loginKey);
     const token = await createSession(user.id);
     return send(response, 200, { token, user: publicUser(user) });
   }
