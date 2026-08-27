@@ -40,22 +40,52 @@ export async function proposeGameResult(pairingId, userId, body, isAdmin = false
   );
 }
 
+/**
+ * Accept or reject a proposed result.
+ *
+ * **A coach cannot accept their own proposal.** The point of the two-step flow
+ * is that a score is agreed by both sides; without this check it was agreed by
+ * whoever clicked twice, and the league table counted it. An administrator
+ * still can, because that is what an administrator is for when a coach has
+ * gone quiet. Step 14.1.
+ *
+ * Accepting writes the result and the confirmation **in one transaction**. It
+ * used to be two statements: a failure between them left a pairing carrying a
+ * score with a status that said nobody had agreed to it. Step 14.2.
+ */
 export async function respondToGameProposal(pairingId, userId, accept, isAdmin = false) {
   const game = (await loadUserGameRows(userId, pairingId, isAdmin))[0];
   if (!game) throw httpError(404, "Game not found.");
   if (!isAdmin) ensurePlayerCanSubmitGame(game);
   if (game.result_status !== "awaiting_confirmation") throw httpError(409, "There is no result awaiting confirmation.");
+  if (accept && !isAdmin && game.proposed_by_user_id === userId) {
+    throw httpError(409, "You proposed this result; your opponent has to confirm it.");
+  }
   if (!accept) {
     await pool.query(`UPDATE season_pairings SET result_status = 'rejected', updated_at = now() WHERE id = $1`, [pairingId]);
     return;
   }
-  await updateSeasonPairing(game.season_id, pairingId, {
-    homeTouchdowns: game.proposed_home_touchdowns,
-    awayTouchdowns: game.proposed_away_touchdowns,
-    homeCasualties: game.proposed_home_casualties,
-    awayCasualties: game.proposed_away_casualties,
-  }, isAdmin, userId);
-  await pool.query(`UPDATE season_pairings SET result_status = 'confirmed', confirmed_at = now(), updated_at = now() WHERE id = $1`, [pairingId]);
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    await updateSeasonPairing(game.season_id, pairingId, {
+      homeTouchdowns: game.proposed_home_touchdowns,
+      awayTouchdowns: game.proposed_away_touchdowns,
+      homeCasualties: game.proposed_home_casualties,
+      awayCasualties: game.proposed_away_casualties,
+    }, isAdmin, userId, client);
+    await client.query(
+      `UPDATE season_pairings SET result_status = 'confirmed', confirmed_at = now(), updated_at = now() WHERE id = $1`,
+      [pairingId],
+    );
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
 }
 
 export function ensurePlayerCanSubmitGame(game) {
@@ -65,8 +95,12 @@ export function ensurePlayerCanSubmitGame(game) {
   }
 }
 
-export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, userId = "") {
-  const current = await pool.query(
+/**
+ * @param {import("pg").PoolClient} [client] run inside a caller's transaction;
+ *   defaults to the pool, which is a transaction of one statement at a time.
+ */
+export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, userId = "", client = pool) {
+  const current = await client.query(
     `SELECT season_pairings.*, season_rounds.season_id, season_rounds.round_number, season_rounds.status AS round_status, seasons.current_round AS season_current_round
      FROM season_pairings
      JOIN season_rounds ON season_rounds.id = season_pairings.round_id
@@ -95,7 +129,7 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
   }
 
   if (!isAdmin) {
-    const userEntry = await pool.query(
+    const userEntry = await client.query(
       `SELECT id FROM season_entries WHERE season_id = $1 AND user_id = $2`,
       [seasonId, userId],
     );
@@ -129,7 +163,7 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
   ].every((value) => value !== null && value !== undefined);
   const resultStatus = resultComplete ? "confirmed" : "pending";
 
-  const result = await pool.query(
+  const result = await client.query(
     `UPDATE season_pairings
      SET home_entry_id = $2,
          away_entry_id = $3,
