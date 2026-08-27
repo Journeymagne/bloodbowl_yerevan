@@ -28,7 +28,7 @@ import {
   sppCounterDefinitions,
 } from "../domain/league-rules.mjs";
 import { categoriesForAccess, clamp, costToNumber, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
-import { availableMedicalStaffDefinitions, hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
+import { hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
 import {
   ensureDraftPlayers,
   normalizePlayerAdvancements,
@@ -64,7 +64,7 @@ import { renderRosterNotices, wireRosterNotices } from "../components/roster-not
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
-import { renderStaffControl } from "../components/roster-editor/staff-control.mjs";
+import { renderDedicatedFansLine, renderHiredStaffLines } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
@@ -251,13 +251,12 @@ function renderSavedRosterIdentity(team, draft, teams) {
   `;
 }
 function renderSavedRosterPurchases(team, draft) {
-  const briberyControl = hasBribery(team) ? renderStaffControl({ key: "bribes", title: t("savedRoster.bribes"), value: draft.bribes, mode: LEAGUE_MODE }) : "";
   return `
     <div class="roster-purchases-layout" data-key="roster-purchases">
       <section class="roster-controls-panel roster-resources-panel side-panel">
         <h2>${t("roster.teamResourcesHeading")}</h2>
         <div class="builder-tracker-list roster-resource-list" aria-label="${t("roster.teamResourceTrackersAriaLabel")}">
-          ${renderStaffControl({ key: "dedicatedFans", title: t("savedRoster.dedicatedFans"), value: draft.dedicatedFans, mode: LEAGUE_MODE, description: t("roster.postMatchValue") })}
+          ${renderDedicatedFansLine({ draft, mode: LEAGUE_MODE })}
           ${renderRosterMoneyControl(t("roster.treasuryTitle"), t("roster.treasuryDescription"), draft.treasury, "data-roster-treasury")}
           ${renderRosterMoneyControl("Coach's Safe", t("roster.coachesSafeDescription"), draft.coachesSafe, "data-roster-coaches-safe")}
         </div>
@@ -279,10 +278,7 @@ function renderSavedRosterPurchases(team, draft) {
           `<button class="filter-button" type="button" data-roster-team-reroll="-1" ${countToNumber(draft.teamRerolls) <= 0 ? "disabled" : ""}>-</button>`,
           `<button class="filter-button" type="button" data-roster-team-reroll="1" ${countToNumber(draft.teamRerolls) >= builderStaffMaximums.teamRerolls ? "disabled" : ""}>+</button>`,
         )}
-        ${briberyControl}
-        ${renderStaffControl({ key: "assistantCoaches", title: t("savedRoster.assistantCoaches"), value: draft.assistantCoaches, mode: LEAGUE_MODE })}
-        ${renderStaffControl({ key: "cheerleaders", title: t("savedRoster.cheerleaders"), value: draft.cheerleaders, mode: LEAGUE_MODE })}
-        ${availableMedicalStaffDefinitions(team).map((staff) => renderStaffControl({ key: staff.key, title: staff.title, value: draft[staff.key], mode: LEAGUE_MODE })).join("")}
+        ${renderHiredStaffLines({ team, draft, mode: LEAGUE_MODE })}
         </div>
       </section>
     </div>

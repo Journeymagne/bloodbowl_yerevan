@@ -32,7 +32,7 @@ import { builderPayload, emptyBuilderState, resetBuilderForTeam } from "../data/
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks } from "../components/content-links.mjs";
 import { CREATE_MODE } from "../components/roster-editor/modes.mjs";
-import { blockedAttributes, renderStaffControl, staffStepVerdict } from "../components/roster-editor/staff-control.mjs";
+import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl, staffStepVerdict } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
@@ -130,24 +130,9 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
         <div class="builder-info-section builder-info-purchases">
           <h2>${t("roster.purchasesHeading")}</h2>
           <div class="builder-tracker-list roster-tracker-list" aria-label="${t("roster.startingRosterTrackersAriaLabel")}">
-            <div class="builder-addon compact-staff-control builder-tracker-control">
-              <div>
-                <strong>${t("savedRoster.startingRerolls")}</strong>
-                <span>60k ${t("roster.each")}</span>
-              </div>
-              <div class="inline-stepper-control">
-                <button class="filter-button" type="button" data-builder-reroll="-1" ${state.builder.startingRerolls <= 0 ? "disabled" : ""}>-</button>
-                <strong>${state.builder.startingRerolls}</strong>
-                <button class="filter-button" type="button" data-builder-reroll="1" ${blockedAttributes(staffStepVerdict("startingRerolls", t("savedRoster.startingRerolls"), state.builder.startingRerolls, CREATE_MODE, costs.total))}>+</button>
-              </div>
-            </div>
-            ${renderStaffControl({ key: "dedicatedFans", title: t("savedRoster.dedicatedFans"), value: state.builder.dedicatedFans, mode: CREATE_MODE, committedTotal: costs.total })}
-            ${hasBribery(team) ? renderStaffControl({ key: "bribes", title: t("savedRoster.bribes"), value: state.builder.bribes, mode: CREATE_MODE, committedTotal: costs.total }) : ""}
-            ${renderStaffControl({ key: "assistantCoaches", title: t("savedRoster.assistantCoaches"), value: state.builder.assistantCoaches, mode: CREATE_MODE, committedTotal: costs.total })}
-            ${renderStaffControl({ key: "cheerleaders", title: t("savedRoster.cheerleaders"), value: state.builder.cheerleaders, mode: CREATE_MODE, committedTotal: costs.total })}
-            ${availableMedicalStaffDefinitions(team)
-              .map((staff) => renderStaffControl({ key: staff.key, title: staff.title, value: state.builder[staff.key], mode: CREATE_MODE, committedTotal: costs.total }))
-              .join("")}
+            ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: state.builder.startingRerolls, mode: CREATE_MODE, committedTotal: costs.total })}
+            ${renderDedicatedFansLine({ draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}
+            ${renderHiredStaffLines({ team, draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}
           </div>
         </div>
       </div>
@@ -287,7 +272,6 @@ function wireBuilderSteppers(team, events) {
     renderBuilder();
   };
 
-  events.on("click", "[data-builder-reroll]", (event, button) => step("startingRerolls", Number(button.dataset.builderReroll)));
   events.on("click", "[data-builder-staff]", (event, button) => step(button.dataset.builderStaff, Number(button.dataset.builderStaffStep)));
 }
 

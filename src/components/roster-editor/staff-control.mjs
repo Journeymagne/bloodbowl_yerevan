@@ -21,6 +21,7 @@ import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { builderStaffCosts, builderStaffMaximums, startingBudget } from "../../domain/league-rules.mjs";
 import { countToNumber } from "../../domain/roster/values.mjs";
+import { availableMedicalStaffDefinitions, hasBribery } from "../../domain/roster/team-rules.mjs";
 
 /**
  * Why this staff line cannot go up, or nothing if it can.
@@ -82,4 +83,49 @@ export function renderStaffControl({ key, title, value, mode, committedTotal = 0
       </div>
     </div>
   `;
+}
+
+/**
+ * Dedicated fans, worded for the situation.
+ *
+ * The same number means two different things: while the starting budget is
+ * being spent they are a price, and once the team is playing they are a
+ * post-match value it accrued. That is what `enforcesBudget` distinguishes.
+ *
+ * Kept apart from the hired staff because the two editors file it differently —
+ * the builder lists it with the purchases, the league editor with the team's
+ * resources, next to the treasury.
+ */
+export function renderDedicatedFansLine({ draft, mode, committedTotal = 0 }) {
+  return renderStaffControl({
+    key: "dedicatedFans",
+    title: t("savedRoster.dedicatedFans"),
+    value: draft.dedicatedFans,
+    mode,
+    committedTotal,
+    description: mode.enforcesBudget ? undefined : t("roster.postMatchValue"),
+  });
+}
+
+/**
+ * The staff a coach hires, in the order both editors listed them.
+ *
+ * Rerolls and money are not here: a brand-new team buys starting rerolls out of
+ * the budget and has no treasury, a league team also has team rerolls and two
+ * money fields. Those stay with their editors.
+ *
+ * @param {object} options
+ * @param {object} options.team the race, for bribery and medical staff
+ * @param {object} options.draft the roster being edited
+ * @param {object} options.mode CREATE_MODE or LEAGUE_MODE
+ * @param {number} [options.committedTotal] roster cost so far, for the budget check
+ */
+export function renderHiredStaffLines({ team, draft, mode, committedTotal = 0 }) {
+  const line = (key, title) => renderStaffControl({ key, title, value: draft[key], mode, committedTotal });
+  return [
+    hasBribery(team) ? line("bribes", t("savedRoster.bribes")) : "",
+    line("assistantCoaches", t("savedRoster.assistantCoaches")),
+    line("cheerleaders", t("savedRoster.cheerleaders")),
+    ...availableMedicalStaffDefinitions(team).map((staff) => line(staff.key, staff.title)),
+  ].join("");
 }
