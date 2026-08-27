@@ -36,6 +36,7 @@ import { blockedAttributes, renderStaffControl, staffStepVerdict } from "../comp
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
+import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import {
   ensureDraftLeagueChoice,
   renderTeamRuleAccess,
@@ -177,68 +178,58 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
 }
 
 
-function renderPlayerStatCells(player) {
-  return ["ma", "st", "ag", "pa", "ar"]
-    .map((stat) => {
-      const value = statValueForDisplayByStat(stat, player.row[stat], player.statMods?.[stat] ?? 0);
-      return `<td class="stat-table-cell">${escapeHtml(value)}</td>`;
-    })
-    .join("");
+/** The builder's columns, declared once and read by both the header and the body. */
+function builderColumns() {
+  const statColumn = (stat) => ({
+    header: t(`stats.${stat}`),
+    className: "stat-table-cell",
+    cell: (player) => escapeHtml(statValueForDisplayByStat(stat, player.row[stat], player.statMods?.[stat] ?? 0)),
+  });
+  return [
+    { header: "#", cell: (player, index) => String(index + 1) },
+    { header: t("roster.nameHeader"), cell: (player, index) => renderBuilderNameInput(player, index) },
+    { header: t("roster.positionHeader"), cell: (player) => `<strong>${escapeHtml(player.row.position)}</strong>` },
+    ...["ma", "st", "ag", "pa", "ar"].map(statColumn),
+    { header: t("roster.captain"), cell: (player) => renderBuilderCaptainCheckbox(player) },
+    {
+      header: t("roster.skillsLabel"),
+      className: "skills-cell",
+      cell: (player) => renderRosterLinks(skillNamesForPlayer(player.row, player)),
+    },
+    { header: t("sidebar.cost"), cell: (player) => escapeHtml(rowCost(player.row) || "-") },
+    {
+      header: t("roster.actionHeader"),
+      cell: (player) => `<button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">${t("common.remove")}</button>`,
+    },
+  ];
 }
+
+function renderBuilderNameInput(player, index) {
+  const name = player.name || `${player.row.position} ${index + 1}`;
+  return `<input class="table-input" type="text" value="${escapeHtml(name)}" data-builder-player-name="${escapeHtml(player.id)}">`;
+}
+
+function renderBuilderCaptainCheckbox(player) {
+  return `
+    <label class="table-checkbox" title="${t("roster.captain")}">
+      <input type="checkbox" data-builder-player-captain="${escapeHtml(player.id)}" ${player.isCaptain ? "checked" : ""}>
+      <span>${t("roster.captain")}</span>
+    </label>
+  `;
+}
+
 function renderBuilderPlayerList(team, draft) {
-  const players = selectedRosterPlayers(team, draft);
-  if (!players.length) {
-    return `<div class="builder-empty-roster">${t("builder.emptyRosterHint")}</div>`;
-  }
-  return `
-    <div class="table-scroll builder-table-scroll builder-selected-table-wrap">
-      <table class="builder-selected-table compact-roster-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>${t("roster.nameHeader")}</th>
-            <th>${t("roster.positionHeader")}</th>
-            <th>${t("stats.ma")}</th>
-            <th>${t("stats.st")}</th>
-            <th>${t("stats.ag")}</th>
-            <th>${t("stats.pa")}</th>
-            <th>${t("stats.ar")}</th>
-            <th>${t("roster.captain")}</th>
-            <th>${t("roster.skillsLabel")}</th>
-            <th>${t("sidebar.cost")}</th>
-            <th>${t("roster.actionHeader")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${players.map((player, index) => renderBuilderPlayerRow(player, index)).join("")}
-        </tbody>
-      </table>
-    </div>
-    <div class="builder-mobile-card-list builder-selected-mobile-list">
-      ${players.map((player, index) => renderBuilderPlayerCard(player, index)).join("")}
-    </div>
-  `;
-}
-function renderBuilderPlayerRow(player, index) {
-  return `
-    <tr data-key="${escapeHtml(player.id)}">
-      <td>${index + 1}</td>
-      <td>
-        <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-builder-player-name="${escapeHtml(player.id)}">
-      </td>
-      <td><strong>${escapeHtml(player.row.position)}</strong></td>
-      ${renderPlayerStatCells(player)}
-      <td>
-        <label class="table-checkbox" title="${t("roster.captain")}">
-          <input type="checkbox" data-builder-player-captain="${escapeHtml(player.id)}" ${player.isCaptain ? "checked" : ""}>
-          <span>${t("roster.captain")}</span>
-        </label>
-      </td>
-      <td class="skills-cell">${renderRosterLinks(skillNamesForPlayer(player.row, player))}</td>
-      <td>${escapeHtml(rowCost(player.row) || "-")}</td>
-      <td><button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">${t("common.remove")}</button></td>
-    </tr>
-  `;
+  return renderPlayerList({
+    players: selectedRosterPlayers(team, draft),
+    columns: builderColumns(),
+    emptyText: t("builder.emptyRosterHint"),
+    classes: {
+      wrap: "builder-selected-table-wrap",
+      table: "builder-selected-table",
+      mobileList: "builder-mobile-card-list builder-selected-mobile-list",
+    },
+    renderCard: renderBuilderPlayerCard,
+  });
 }
 function renderBuilderPlayerStatGrid(player) {
   const value = (stat) => statValueForDisplayByStat(stat, player.row[stat], player.statMods?.[stat] ?? 0);
