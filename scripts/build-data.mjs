@@ -2,6 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown.mjs";
+import { writeDataFile } from "./lib/write-data-file.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
@@ -763,8 +764,7 @@ async function buildLocaleData(resolvedFiles) {
     )],
     skillGroups: parseSkillGroups(pages),
     pages,
-    // Identifiers, not pages: 276 of the 292 objects used to appear twice in
-    // this file, byte for byte. reference.mjs expands them back on load.
+    // Identifiers, not pages; reference.mjs expands them back on load.
     ...Object.fromEntries(Object.entries(collections).map(([name, list]) => [name, list.map(byId)])),
   };
 
@@ -775,8 +775,8 @@ await fs.mkdir(publicDir, { recursive: true });
 
 const enFiles = (await walk(vaultDir)).map((file) => ({ file, relativePath: path.relative(vaultDir, file) }));
 const enData = await buildLocaleData(enFiles);
-await fs.writeFile(path.join(publicDir, "data.en.json"), JSON.stringify(enData), "utf8");
-await fs.writeFile(path.join(publicDir, "data.json"), JSON.stringify(enData), "utf8");
+const enJson = JSON.stringify(enData);
+for (const name of ["data.en.json", "data.json"]) await writeDataFile(path.join(publicDir, name), enJson);
 console.log(`Built ${enData.counts.pages} pages into public/data.en.json (+ data.json alias)`);
 
 const ruVaultExists = await pathExists(ruVaultDir);
@@ -785,7 +785,7 @@ if (!ruVaultExists) {
 }
 const ruFiles = await resolveLocaleFiles(vaultDir, ruVaultDir);
 const ruData = await buildLocaleData(ruFiles);
-await fs.writeFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData), "utf8");
+await writeDataFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData));
 const ruTranslatedCount = ruFiles.filter(({ file }) => file.startsWith(ruVaultDir + path.sep)).length;
 console.log(`Built ${ruData.counts.pages} pages into public/data.ru.json (${ruTranslatedCount} translated, ${ruData.counts.pages - ruTranslatedCount} falling back to ${primaryContentDir})`);
 if (enData.unresolvedLinks.length) {

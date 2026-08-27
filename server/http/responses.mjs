@@ -40,7 +40,7 @@ function shouldCompress(contentType = "", body) {
     && compressibleTypes.some((type) => contentType.startsWith(type));
 }
 
-function preferredEncoding(request) {
+export function preferredEncoding(request) {
   const value = String(request?.headers?.["accept-encoding"] ?? "");
   if (/\bbr\b/.test(value)) return "br";
   if (/\bgzip\b/.test(value)) return "gzip";

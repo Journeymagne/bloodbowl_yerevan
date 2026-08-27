@@ -6,8 +6,8 @@ import { rootDir } from "./config/env.mjs";
 import { databaseUrl, pool, safeDatabaseLabel } from "./db/pool.mjs";
 import { assertMigrationsApplied } from "./db/migrate.mjs";
 import { loadTeamReference } from "./domain/roster.mjs";
-import { resolveStaticPath } from "./http/static-path.mjs";
-import { encodedBody, httpError, readJson, sendJson, writeResponse } from "./http/responses.mjs";
+import { handleStatic } from "./http/static.mjs";
+import { encodedBody, httpError, preferredEncoding, readJson, sendJson, writeResponse } from "./http/responses.mjs";
 import {
   isAdminUser,
   normalizeLogin,
@@ -38,19 +38,6 @@ const appPort = Number(process.env.APP_PORT || process.env.PORT || 3002);
 
 const databaseCheckRetries = Number(process.env.DATABASE_CHECK_RETRIES || 30);
 const databaseCheckDelayMs = Number(process.env.DATABASE_CHECK_DELAY_MS || 1000);
-
-const mimeTypes = new Map([
-  [".html", "text/html; charset=utf-8"],
-  [".css", "text/css; charset=utf-8"],
-  [".js", "text/javascript; charset=utf-8"],
-  [".mjs", "text/javascript; charset=utf-8"],
-  [".json", "application/json; charset=utf-8"],
-  [".png", "image/png"],
-  [".jpg", "image/jpeg"],
-  [".jpeg", "image/jpeg"],
-  [".svg", "image/svg+xml"],
-  [".webp", "image/webp"],
-]);
 
 
 function wait(ms) {
@@ -155,42 +142,6 @@ async function handleApi(request, response, url) {
   }
 }
 
-
-function cacheControlForStatic(url, fullPath) {
-  const pathname = url.pathname;
-  const extension = path.extname(fullPath);
-  if (extension === ".html" || pathname === "/" || pathname === "/index.html") {
-    return "no-cache";
-  }
-  if (url.searchParams.has("v") || pathname.startsWith("/assets/")) {
-    return "public, max-age=31536000, immutable";
-  }
-  if (pathname.startsWith("/public/data") || pathname.startsWith("/src/i18n/")) {
-    return "public, max-age=3600, stale-while-revalidate=86400";
-  }
-  return "public, max-age=86400";
-}
-
-async function handleStatic(request, response, url) {
-  const fullPath = resolveStaticPath(url.pathname, rootDir);
-  if (!fullPath) {
-    // 404 rather than 403: a 403 confirms the file exists.
-    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-    response.end("Not found");
-    return;
-  }
-
-  try {
-    const body = await fs.readFile(fullPath);
-    writeResponse(request, response, 200, body, {
-      "Content-Type": mimeTypes.get(path.extname(fullPath)) || "application/octet-stream",
-      "Cache-Control": cacheControlForStatic(url, fullPath),
-    });
-  } catch {
-    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-    response.end("Not found");
-  }
-}
 
 await waitForDatabase();
 await ensureSchema();
