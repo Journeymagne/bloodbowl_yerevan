@@ -224,7 +224,9 @@ function sourceFrom(root, next) {
   if (next && typeof next === "object" && "childNodes" in next) return next;
   const document = root.ownerDocument ?? globalThis.document;
   const template = document.createElement("template");
-  template.innerHTML = toHtml(next);
+  // A plain string is markup, exactly as it was when this was `innerHTML = …`.
+  // Escaping is `html`'s job, and a caller who wants it passes an html`` value.
+  template.innerHTML = typeof next === "string" ? next : toHtml(next);
   return template.content;
 }
 

@@ -11,7 +11,7 @@
  * screens-map entry in app.js, the latter is read by app.js's
  * `beforeunload` handler to warn about unsaved edits.
  */
-import { escapeHtml, listenerGroup, renderOption } from "../core/dom.mjs";
+import { escapeHtml, listenerGroup, patch, renderOption } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -187,15 +187,15 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
   const backUrl = isAdminEdit ? `#/administration/users/${encodeURIComponent(owner?.id || options.adminOwnerId)}` : "#/my-teams";
   const titlePrefix = isAdminEdit ? `${t("common.editing")} "${draft.teamName || savedTeam.name || team.title}"` : `${t("sidebar.teamHeading")} "${draft.teamName || savedTeam.name || team.title}"`;
 
-  view.innerHTML = `
+  patch(view, `
     ${renderHeader(titlePrefix, `${team.title} ${t("savedRoster.rosterSuffix")}${isAdminEdit && owner ? ` · ${owner.login}` : ""}`, "", { back: true, backFallback: backUrl })}
     ${renderRosterNotices({ pending: rosterStore.readPending(savedTeam.id), serverUpdatedAt: savedTeam.updatedAt, conflict: rosterStore.statusOf(savedTeam.id) === SAVE_STATUS.CONFLICT, t })}
-    <div class="saved-roster-top-grid">
+    <div class="saved-roster-top-grid" data-key="roster-top">
       ${renderSavedRosterIdentity(team, draft, teams)}
       ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
     </div>
     ${renderSavedRosterPurchases(team, draft)}
-    <div class="builder-layout builder-layout-main">
+    <div class="builder-layout builder-layout-main" data-key="roster-main">
       <section class="builder-panel">
         <section class="builder-selected">
           <h2>${t("savedRoster.rosterHeading")}</h2>
@@ -208,7 +208,7 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
         </section>
       </section>
     </div>
-  `;
+  `);
   wireSavedRoster(savedTeam, team, draft, {
     rerender: () => renderSavedRoster(teamId, false, options),
   });
@@ -273,7 +273,7 @@ function renderSavedRosterIdentity(team, draft, teams) {
 function renderSavedRosterPurchases(team, draft) {
   const briberyControl = hasBribery(team) ? renderRosterStaffControl("bribes", t("savedRoster.bribes"), draft.bribes) : "";
   return `
-    <div class="roster-purchases-layout">
+    <div class="roster-purchases-layout" data-key="roster-purchases">
       <section class="roster-controls-panel roster-resources-panel side-panel">
         <h2>${t("roster.teamResourcesHeading")}</h2>
         <div class="builder-tracker-list roster-resource-list" aria-label="${t("roster.teamResourceTrackersAriaLabel")}">
@@ -394,10 +394,9 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   });
   events.on("input", "[data-roster-treasury]", (event, input) => {
     draft.treasury = countToNumber(input.value);
-    updateSavedRosterFields(savedTeam, draft);
-    const treasuryDisplay = view.querySelector("[data-treasury-display]");
-    if (treasuryDisplay) treasuryDisplay.textContent = `${countToNumber(draft.treasury)}k`;
-    autosave();
+    // The treasury readout used to be updated by hand for the same reason the
+    // SPP readouts were: a re-render would have emptied the field being typed.
+    rerender();
   });
   events.on("input", "[data-roster-coaches-safe]", (event, input) => {
     draft.coachesSafe = countToNumber(input.value);
@@ -588,11 +587,14 @@ function wireSavedPlayerEditors(team, draft, rerender) {
     player.extendedContracts = Math.max(0, countToNumber(player.extendedContracts) + delta);
     rerender();
   });
-  onPlayer("input", "[data-saved-player-spp]", ({ target, card, player }) => {
+  onPlayer("input", "[data-saved-player-spp]", ({ target, player }) => {
     player.spp = normalizeSppCounters(player.spp);
     player.spp[target.dataset.savedPlayerSpp] = Math.max(0, countToNumber(target.value));
-    updateSppDisplays(team, draft, card, player);
     autosave();
+    // Used to hand-update four nodes — the row total, the available SPP, the
+    // next rank and the roster total — because a re-render would have taken the
+    // caret out of the field being typed into. patch() keeps it.
+    rerender();
   });
   onPlayer("click", "[data-saved-stat]", ({ target, player }) => {
     const stat = target.dataset.savedStat;
@@ -679,20 +681,6 @@ function wireSavedPlayerEditors(team, draft, rerender) {
   return () => events.release();
 }
 
-/** The hand-written node updates step 8.3 deletes once patch() renders this. */
-function updateSppDisplays(team, draft, card, player) {
-  const rowTotal = card.querySelector("[data-player-spp-total]");
-  if (rowTotal) rowTotal.textContent = `${playerSppTotal(team, player)} ${t("roster.sppEarned")}`;
-  const available = card.querySelector("[data-player-available-spp]");
-  if (available) available.textContent = `${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
-  const nextAdvancement = card.querySelector("[data-player-next-advancement]");
-  const nextRank = advancementRanks[playerAdvancementLevel(player)];
-  if (nextAdvancement && nextRank) {
-    nextAdvancement.textContent = `${t("roster.next")}: ${nextRank.rank}, ${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}`;
-  }
-  const rosterTotal = view.querySelector("[data-total-spp-display]");
-  if (rosterTotal) rosterTotal.textContent = `${rosterTotalSpp(team, draft)} SPP`;
-}
 /**
  * Everything below hands roster saving to src/data/roster-store.mjs.
  *
@@ -906,7 +894,7 @@ function renderSavedPlayerRow(team, draft, player, index, hasFavouredAccess = fa
   const favouredInputId = `favoured-skill-options-${index}`;
   const skillOptions = availableSkillOptionsForPlayer(player.row, player);
   return `
-    <tr data-roster-player="${escapeHtml(player.id)}" draggable="true">
+    <tr data-key="${escapeHtml(player.id)}" data-roster-player="${escapeHtml(player.id)}" draggable="true">
       <td class="saved-number-cell">
         <div class="saved-number-control">
           <button class="filter-button compact-action drag-handle table-drag-handle" type="button" draggable="true" data-player-drag-handle title="${t("roster.dragToReorder")}" aria-label="${t("roster.dragToReorder")}">↕</button>
@@ -981,7 +969,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
   const favouredInputId = `mobile-favoured-skill-options-${index}`;
   const skillOptions = availableSkillOptionsForPlayer(player.row, player);
   return `
-    <article class="saved-roster-player-card mobile-roster-player-card is-expanded" data-roster-player="${escapeHtml(player.id)}">
+    <article class="saved-roster-player-card mobile-roster-player-card is-expanded" data-key="${escapeHtml(player.id)}" data-roster-player="${escapeHtml(player.id)}">
       <header>
         <div class="mobile-player-title">
           <label class="mobile-player-number">
@@ -1065,7 +1053,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
 }
 function renderSavedPlayerPreviewCard(team, player, index) {
   return `
-    <article class="saved-roster-player-card mobile-roster-player-card is-preview" data-roster-player="${escapeHtml(player.id)}">
+    <article class="saved-roster-player-card mobile-roster-player-card is-preview" data-key="${escapeHtml(player.id)}" data-roster-player="${escapeHtml(player.id)}">
       <header>
         <div class="mobile-player-title">
           <strong>${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}</strong>

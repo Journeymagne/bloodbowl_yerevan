@@ -6,7 +6,7 @@
  * screens/saved-roster.mjs is the other. Task 7 merges them; this task
  * only relocates the code as-is.
  */
-import { escapeHtml, listenerGroup, renderOption } from "../core/dom.mjs";
+import { escapeHtml, listenerGroup, patch, renderOption } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -76,11 +76,11 @@ export function renderBuilder() {
   const costs = calculateBuilderCosts(team);
   const warnings = builderWarnings(team, costs);
 
-  view.innerHTML = `
+  patch(view, `
     ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="filter-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`)}
-    ${restoredDraft ? `<p class="notice-box" data-builder-restored>${t("builder.draftRestored")}</p>` : ""}
+    ${restoredDraft ? `<p class="notice-box" data-key="builder-restored" data-builder-restored>${t("builder.draftRestored")}</p>` : ""}
     ${renderBuilderInfoPanel(team, teams, costs, warnings)}
-    <div class="builder-layout builder-layout-main">
+    <div class="builder-layout builder-layout-main" data-key="builder-main">
       <section class="builder-panel">
         <section class="builder-pool">
           <h2>${t("builder.availablePlayers")}</h2>
@@ -93,7 +93,7 @@ export function renderBuilder() {
         </section>
       </section>
     </div>
-  `;
+  `);
   wireBuilder(team);
 }
 function renderBuilderSummary(team, costs, warnings) {
@@ -119,7 +119,7 @@ function renderBuilderSummary(team, costs, warnings) {
 
 function renderBuilderInfoPanel(team, teams, costs, warnings) {
   return `
-    <section class="builder-info-panel side-panel">
+    <section class="builder-info-panel side-panel" data-key="builder-info">
       <div class="builder-info-section builder-info-identity">
         <div class="builder-form builder-identity-form">
           <label class="filter-field">
@@ -262,7 +262,7 @@ function renderBuilderPlayerList(team, draft) {
 }
 function renderBuilderPlayerRow(player, index) {
   return `
-    <tr>
+    <tr data-key="${escapeHtml(player.id)}">
       <td>${index + 1}</td>
       <td>
         <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-builder-player-name="${escapeHtml(player.id)}">
@@ -295,7 +295,7 @@ function renderBuilderPlayerStatGrid(player) {
 }
 function renderBuilderPlayerCard(player, index) {
   return `
-    <article class="saved-roster-player-card mobile-roster-player-card builder-selected-player-card">
+    <article class="saved-roster-player-card mobile-roster-player-card builder-selected-player-card" data-key="${escapeHtml(player.id)}">
       <header>
         <div class="mobile-player-title">
           <span>#${index + 1}</span>

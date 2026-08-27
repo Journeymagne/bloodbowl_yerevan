@@ -31,7 +31,7 @@ export function renderHeader(title, description, actions = "", options = {}) {
     >${t("common.back")}</button>
   ` : "";
   return `
-    <header class="page-head">
+    <header class="page-head" data-key="page-head">
       <div class="page-heading-main">
         <div class="page-title-row">
           <h1>${escapeHtml(title)}</h1>

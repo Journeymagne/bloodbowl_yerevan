@@ -26,7 +26,7 @@ export function renderRosterNotices({ pending, serverUpdatedAt, conflict, t }) {
 
   if (isPendingNewer(pending, serverUpdatedAt)) {
     notices.push(`
-      <div class="notice-box" data-roster-pending>
+      <div class="notice-box" data-key="roster-pending" data-roster-pending>
         <strong>${t("roster.pendingRestoreHeading")}</strong>
         <p>${t("roster.pendingRestoreBody")}</p>
         <div class="game-confirm-actions">
@@ -39,7 +39,7 @@ export function renderRosterNotices({ pending, serverUpdatedAt, conflict, t }) {
 
   if (conflict) {
     notices.push(`
-      <div class="notice-box" data-roster-conflict>
+      <div class="notice-box" data-key="roster-conflict" data-roster-conflict>
         <strong>${t("roster.conflictStatus")}</strong>
         <p>${t("roster.conflictBody")}</p>
         <div class="game-confirm-actions">
