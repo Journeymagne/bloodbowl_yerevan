@@ -18,7 +18,7 @@
     "defaultMaxFunctionLines": 80,
     "maxFileLines": {
       "src/app.js": 160,
-      "server/server.mjs": 1808,
+      "server/server.mjs": 1587,
       "scripts/build-data.mjs": 805,
       "src/screens/saved-roster.mjs": 1138
     },
@@ -35,7 +35,7 @@
       "src/screens/saved-roster.mjs": "Task 7b folded this file's shared markup into components/roster-editor/*: the table, the staff steppers, the identity panel, the staff lines. 1219 -> 1138. What is left is what a team already in play has and a new one does not — SPP, advancements, contracts, the phone cards, the wiring and the save plumbing — and only step 7b.4 moves that. The five lines back from 1133 are task 4.7's conflict handling, which is a data-loss fix: without them a coach whose team was saved in another tab sees a status line and no way to choose.",
       "src/screens/builder.mjs": "wireBuilder() came in at 100 lines, moved from app.js unchanged. Same task-7 note as saved-roster.mjs: this shrinks when the two editors merge.",
       "scripts/backup/status.mjs": "Arrived with the nightly-backup work on main, which was written before this branch's check-structure existed and so never ran against it. evaluateSystemdState() is 108 lines. Inherited, not drift — lower it when that file is next touched.",
-      "server/server.mjs": "Step 4.9 is splitting this file. The response plumbing is in server/http/responses.mjs, the pool in server/db/pool.mjs, and env loading in server/config/env.mjs so that a module reading process.env at import time sees a populated one. 1935 -> 1808. handleApi is still 632 lines; the route modules are what take this under 600."
+      "server/server.mjs": "Step 4.9 is splitting this file. Out so far: the response plumbing (server/http/responses.mjs), the pool (server/db/pool.mjs), env loading (server/config/env.mjs, so a module reading process.env at import time sees a populated one), the row serializers (server/api/serializers.mjs) and sessions (server/auth/session.mjs). 1935 -> 1587. handleApi is still 632 lines; the route modules are what take this under 600."
     }
   }
 }

@@ -8,10 +8,25 @@ import { assertMigrationsApplied } from "./db/migrate.mjs";
 import { blockingViolations, checkRoster, loadTeamReference } from "./domain/roster.mjs";
 import { resolveStaticPath } from "./http/static-path.mjs";
 import { encodedBody, httpError, readJson, sendJson, writeResponse } from "./http/responses.mjs";
+import {
+  isAdminUser,
+  normalizeLogin,
+  publicAdminSavedTeamSlim,
+  publicAdminUser,
+  publicGame,
+  publicSavedTeam,
+  publicSavedTeamSlim,
+  publicSavedTeamSummary,
+  publicSeason,
+  publicSeasonEntry,
+  publicSeasonPairing,
+  publicUser,
+  serializeRosterForStorage,
+} from "./api/serializers.mjs";
+import { bearerToken, createSession, currentUser, hashPassword, hashToken, verifyPassword } from "./auth/session.mjs";
 
 const appPort = Number(process.env.APP_PORT || process.env.PORT || 3002);
 
-const sessionDays = Number(process.env.SESSION_DAYS || 30);
 const databaseCheckRetries = Number(process.env.DATABASE_CHECK_RETRIES || 30);
 const databaseCheckDelayMs = Number(process.env.DATABASE_CHECK_DELAY_MS || 1000);
 
@@ -27,74 +42,6 @@ const mimeTypes = new Map([
   [".svg", "image/svg+xml"],
   [".webp", "image/webp"],
 ]);
-
-function normalizeLogin(value = "") {
-  return String(value).toLowerCase().replace(/\s+/g, " ").trim();
-}
-
-function isAdminUser(row) {
-  const value = row?.is_admin ?? row?.isAdmin ?? false;
-  if (value === true || value === 1) return true;
-  if (value === false || value === 0 || value === null || value === undefined) return false;
-  return ["1", "true", "t", "yes", "y", "admin"].includes(String(value).trim().toLowerCase());
-}
-
-function publicUser(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    login: row.login,
-    telegram: row.telegram,
-    isAdmin: isAdminUser(row),
-    createdAt: row.created_at,
-  };
-}
-
-function publicAdminUser(row) {
-  if (!row) return null;
-  return {
-    ...publicUser(row),
-    savedTeamCount: Number(row.saved_team_count ?? 0),
-    lastTeamUpdatedAt: row.last_team_updated_at ?? null,
-  };
-}
-
-function publicSavedTeam(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    baseTeamSlug: row.base_team_slug,
-    logoData: row.logo_data,
-    roster: rosterWithoutEmbeddedLogo(row.roster),
-    revision: row.revision,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function stripEmbeddedLogoData(value) {
-  if (Array.isArray(value)) {
-    return value.map(stripEmbeddedLogoData);
-  }
-  if (value === null || value === undefined || typeof value !== "object") {
-    return value;
-  }
-  return Object.fromEntries(
-    Object.entries(value)
-      .filter(([key]) => key !== "logoData" && key !== "logo_data")
-      .map(([key, entry]) => [key, stripEmbeddedLogoData(entry)]),
-  );
-}
-
-function rosterWithoutEmbeddedLogo(roster = {}) {
-  if (!roster || typeof roster !== "object") return {};
-  return stripEmbeddedLogoData(roster);
-}
-
-function serializeRosterForStorage(roster = {}) {
-  return JSON.stringify(rosterWithoutEmbeddedLogo(roster));
-}
 
 /**
  * Write a team, refusing to overwrite work the client has not seen.
@@ -141,128 +88,6 @@ async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, r
   return { conflict: publicSavedTeam(current.rows[0]) };
 }
 
-function publicSavedTeamSummary(row) {
-  if (!row) return null;
-  return {
-    ...publicSavedTeam(row),
-    logoData: null,
-    roster: rosterWithoutEmbeddedLogo(row.roster),
-  };
-}
-
-function publicSavedTeamSlim(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    baseTeamSlug: row.base_team_slug,
-    logoData: null,
-    roster: {},
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function publicSeason(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    name: row.name,
-    status: row.status,
-    currentRound: row.current_round,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-function publicSeasonEntry(row) {
-  if (!row) return null;
-  return {
-    id: row.id,
-    seasonId: row.season_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-    user: {
-      id: row.user_id,
-      login: row.user_login,
-      telegram: row.user_telegram,
-      isAdmin: isAdminUser({ is_admin: row.user_is_admin }),
-    },
-    team: {
-      id: row.saved_team_id,
-      name: row.team_name,
-      baseTeamSlug: row.base_team_slug,
-      logoData: null,
-      roster: {},
-      createdAt: row.team_created_at,
-      updatedAt: row.team_updated_at,
-    },
-  };
-}
-
-function publicSeasonPairing(row) {
-  if (!row) return null;
-  const resultStatus = storedGameResultComplete(row)
-    ? "confirmed"
-    : row.result_status === "confirmed"
-      ? "pending"
-      : row.result_status ?? "pending";
-  return {
-    id: row.id,
-    roundId: row.round_id,
-    roundNumber: Number(row.round_number ?? 0),
-    roundStatus: row.round_status ?? "draft",
-    tableNumber: Number(row.table_number ?? 0),
-    homeEntryId: row.home_entry_id ?? null,
-    awayEntryId: row.away_entry_id ?? null,
-    homeTouchdowns: row.home_touchdowns ?? null,
-    awayTouchdowns: row.away_touchdowns ?? null,
-    homeCasualties: row.home_casualties ?? null,
-    awayCasualties: row.away_casualties ?? null,
-    homePoints: row.home_points ?? null,
-    awayPoints: row.away_points ?? null,
-    resultStatus,
-    proposedByUserId: row.proposed_by_user_id ?? null,
-    proposedHomeTouchdowns: row.proposed_home_touchdowns ?? null,
-    proposedAwayTouchdowns: row.proposed_away_touchdowns ?? null,
-    proposedHomeCasualties: row.proposed_home_casualties ?? null,
-    proposedAwayCasualties: row.proposed_away_casualties ?? null,
-    proposedAt: row.proposed_at ?? null,
-    confirmedAt: resultStatus === "confirmed" ? row.confirmed_at ?? null : null,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
-  };
-}
-
-
-function publicAdminSavedTeamSlim(row) {
-  if (!row) return null;
-  return {
-    ...publicSavedTeamSlim(row),
-    owner: {
-      id: row.user_id,
-      login: row.user_login,
-      telegram: row.user_telegram,
-      isAdmin: isAdminUser({ is_admin: row.user_is_admin }),
-    },
-  };
-}
-
-function hashToken(token) {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
-
-function hashPassword(password, salt = crypto.randomBytes(16).toString("hex")) {
-  const derived = crypto.scryptSync(password, salt, 64).toString("hex");
-  return `scrypt:${salt}:${derived}`;
-}
-
-function verifyPassword(password, stored = "") {
-  const [method, salt, expected] = stored.split(":");
-  if (method !== "scrypt" || !salt || !expected) return false;
-  const actual = crypto.scryptSync(password, salt, 64);
-  return crypto.timingSafeEqual(Buffer.from(expected, "hex"), actual);
-}
 
 function wait(ms) {
   return new Promise((resolve) => {
@@ -352,37 +177,6 @@ async function readTeamBody(request) {
 }
 
 
-
-function bearerToken(request) {
-  const header = request.headers.authorization || "";
-  const match = header.match(/^Bearer\s+(.+)$/i);
-  return match?.[1] ?? "";
-}
-
-async function currentUser(request) {
-  const token = bearerToken(request);
-  if (!token) return null;
-  const tokenHash = hashToken(token);
-  const result = await pool.query(
-    `SELECT users.*
-     FROM sessions
-     JOIN users ON users.id = sessions.user_id
-     WHERE sessions.token_hash = $1 AND sessions.expires_at > now()`,
-    [tokenHash],
-  );
-  const user = result.rows[0] ?? null;
-  return user ? { ...user, is_admin: isAdminUser(user) } : null;
-}
-
-async function createSession(userId) {
-  const token = crypto.randomBytes(32).toString("base64url");
-  await pool.query(
-    `INSERT INTO sessions (token_hash, user_id, expires_at)
-     VALUES ($1, $2, now() + ($3 || ' days')::interval)`,
-    [hashToken(token), userId, String(sessionDays)],
-  );
-  return token;
-}
 
 async function ensureActiveSeason() {
   const existing = await pool.query(
@@ -488,19 +282,6 @@ async function loadUserGameRows(userId, pairingId = null, includeAll = false) {
     params,
   );
   return result.rows;
-}
-
-function publicGame(row, viewerId) {
-  if (!row) return null;
-  const pairing = publicSeasonPairing(row);
-  return {
-    ...pairing,
-    season: { id: row.season_id, name: row.season_name, status: row.season_status, currentRound: Number(row.season_current_round ?? 0) },
-    home: row.home_user_id ? { user: { id: row.home_user_id, login: row.home_user_login }, team: { id: row.home_team_id, name: row.home_team_name, baseTeamSlug: row.home_team_slug, logoUrl: row.home_team_id ? `/api/team-logos/${row.home_team_id}` : null } } : null,
-    away: row.away_user_id ? { user: { id: row.away_user_id, login: row.away_user_login }, team: { id: row.away_team_id, name: row.away_team_name, baseTeamSlug: row.away_team_slug, logoUrl: row.away_team_id ? `/api/team-logos/${row.away_team_id}` : null } } : null,
-    viewerIsHome: row.home_user_id === viewerId,
-    viewerIsProposer: row.proposed_by_user_id === viewerId,
-  };
 }
 
 function storedGameResultComplete(row) {
