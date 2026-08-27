@@ -11,7 +11,7 @@
  * screens-map entry in app.js, the latter is read by app.js's `beforeunload`
  * handler to warn about unsaved edits.
  */
-import { escapeHtml, listenerGroup, patch, renderOption } from "../core/dom.mjs";
+import { escapeHtml, listenerGroup, patch } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -69,11 +69,11 @@ import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mj
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
+import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
 import {
   ensureDraftFavouredChoice,
   ensureDraftLeagueChoice,
   favouredSkillOptionsForPlayer,
-  renderTeamRuleAccess,
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
 } from "../components/roster-editor-shared.mjs";
@@ -246,29 +246,7 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
 function renderSavedRosterIdentity(team, draft, teams) {
   return `
     <section class="builder-setup-panel roster-identity-panel side-panel">
-      <div class="builder-form saved-roster-form">
-        <label class="filter-field">
-          <span>${t("sidebar.teamHeading")}</span>
-          <select data-roster-team>
-            ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
-          </select>
-        </label>
-        <label class="filter-field">
-          <span>${t("savedRoster.teamName")}</span>
-          <input type="text" value="${escapeHtml(draft.teamName || team.title)}" data-roster-name>
-        </label>
-        <label class="filter-field">
-          <span>${t("savedRoster.logoField")}</span>
-          <input type="file" accept="image/*" data-roster-logo>
-        </label>
-      </div>
-      ${draft.logoData ? `
-        <div class="builder-logo-inline roster-logo-inline">
-          <img class="builder-logo-preview" src="${escapeHtml(draft.logoData)}" alt="">
-          <button class="filter-button compact-action" type="button" data-roster-remove-logo>${t("savedRoster.removeLogo")}</button>
-        </div>
-      ` : ""}
-      ${renderTeamRuleAccess(team, draft, "roster")}
+      ${renderIdentityFields({ team, draft, teams, mode: LEAGUE_MODE })}
     </section>
   `;
 }

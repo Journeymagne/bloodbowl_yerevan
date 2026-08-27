@@ -6,7 +6,7 @@
  * screens/saved-roster.mjs is the other. Task 7 merges them; this task
  * only relocates the code as-is.
  */
-import { escapeHtml, listenerGroup, patch, renderOption } from "../core/dom.mjs";
+import { escapeHtml, listenerGroup, patch } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -37,9 +37,9 @@ import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mj
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
+import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
 import {
   ensureDraftLeagueChoice,
-  renderTeamRuleAccess,
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
 } from "../components/roster-editor-shared.mjs";
@@ -123,29 +123,7 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
   return `
     <section class="builder-info-panel side-panel" data-key="builder-info">
       <div class="builder-info-section builder-info-identity">
-        <div class="builder-form builder-identity-form">
-          <label class="filter-field">
-            <span>${t("sidebar.teamHeading")}</span>
-            <select data-builder-team>
-              ${teams.map((item) => renderOption(item.slug, item.title, team.slug)).join("")}
-            </select>
-          </label>
-          <label class="filter-field">
-            <span>${t("savedRoster.teamName")}</span>
-            <input type="text" value="${escapeHtml(state.builder.teamName || team.title)}" data-builder-name>
-          </label>
-          <label class="filter-field">
-            <span>${t("savedRoster.logoField")}</span>
-            <input type="file" accept="image/*" data-builder-logo>
-          </label>
-        </div>
-        ${state.builder.logoData ? `
-          <div class="builder-logo-inline roster-logo-inline">
-            <img class="builder-logo-preview" src="${escapeHtml(state.builder.logoData)}" alt="">
-            <button class="filter-button compact-action" type="button" data-builder-remove-logo>${t("savedRoster.removeLogo")}</button>
-          </div>
-        ` : ""}
-        ${renderTeamRuleAccess(team, state.builder, "builder")}
+        ${renderIdentityFields({ team, draft: state.builder, teams, mode: CREATE_MODE })}
       </div>
       <div class="builder-info-grid">
         ${renderBuilderSummary(team, costs, warnings)}

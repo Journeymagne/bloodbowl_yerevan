@@ -25,6 +25,8 @@
  * @property {string} hireCountHeadingKey    i18n key for the "how many do I have" column
  * @property {string} staffAttribute         the data attribute the staff steppers carry
  * @property {string} staffCardClass         the wrapper class the staff card wears
+ * @property {string} identityAttribute      data-attribute prefix on the identity controls
+ * @property {string} identityFormClass      the class the identity form wears
  */
 
 /** A brand-new team, spending the league's starting budget. */
@@ -39,6 +41,8 @@ export const CREATE_MODE = Object.freeze({
   hireCountHeadingKey: "builder.selectedHeader",
   staffAttribute: "builder-staff",
   staffCardClass: "builder-tracker-control",
+  identityAttribute: "builder",
+  identityFormClass: "builder-identity-form",
 });
 
 /**
@@ -60,4 +64,6 @@ export const LEAGUE_MODE = Object.freeze({
   hireCountHeadingKey: "savedRoster.rosterHeading",
   staffAttribute: "roster-staff",
   staffCardClass: "roster-purchase-card",
+  identityAttribute: "roster",
+  identityFormClass: "saved-roster-form",
 });
