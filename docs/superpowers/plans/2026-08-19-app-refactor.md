@@ -640,15 +640,17 @@ bootstrap: загрузка переводов и данных, восстано
 и после неё.
 
 **Пять пар, с которых задача начиналась,** закрыты шагами 7b.1–7b.3:
-/ и /
- — общим каркасом таблицы и колонками-данными;
-/ — колонками статов;
-/ — общим контролом
-персонала. / остаются раздельными
-намеренно (см. 7b.1).
+`renderBuilderPlayerList`/`renderSavedPlayerList` и `renderBuilderPlayerRow`/
+`renderSavedPlayerRow` — общим каркасом таблицы и колонками-данными;
+`renderPlayerStatCells`/`renderEditablePlayerStatCells` — колонками статов;
+`renderBuilderStaffControl`/`renderRosterStaffControl` — общим контролом
+персонала. `renderBuilderPlayerCard`/`renderSavedPlayerCard` остаются
+раздельными намеренно (см. 7b.1).
 
-**Файлы:** создать `src/components/roster-editor/{index,identity,purchases,player-list,player-row}.mjs`;
-сократить `screens/builder.mjs` и `screens/saved-roster.mjs` до тонких обёрток.
+**Файлы:** `src/components/roster-editor/{player-list,staff-control,identity,
+hire-panel,summary-panel,team-change,modes}.mjs`; `screens/builder.mjs` и
+`screens/saved-roster.mjs` держат загрузку данных, проводку и то, что у каждого
+своё.
 
 **Интерфейс:**
 
