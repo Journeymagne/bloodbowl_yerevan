@@ -11,7 +11,7 @@ import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
 import { blockingViolations, checkRoster } from "../domain/roster.mjs";
-import { SAVED_TEAM_COLUMNS } from "../api/team-queries.mjs";
+import { SAVED_TEAM_COLUMNS, hasSeasonHistory } from "../api/team-queries.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -80,6 +80,14 @@ export async function handleTeamRoutes(request, response, url) {
   if (teamMatch && request.method === "DELETE") {
     const user = await currentUser(request);
     if (!user) return send(response, 401, { error: "Not authorized." });
+    // A team that has played in a season cannot be deleted: its matches are
+    // its opponents' results too. The RESTRICT constraint behind this would
+    // stop it anyway, but as a 500 nobody can act on.
+    if (await hasSeasonHistory(pool, teamMatch[1])) {
+      return send(response, 409, {
+        error: "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
+      });
+    }
     await pool.query(`DELETE FROM saved_teams WHERE id = $1 AND user_id = $2`, [teamMatch[1], user.id]);
     return send(response, 200, { ok: true });
   }

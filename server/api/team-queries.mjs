@@ -23,3 +23,23 @@ export const SAVED_TEAM_COLUMNS = `
        AND seasons.status = 'active'
   ) AS in_active_season
 `;
+
+/**
+ * Has this team ever played in a season?
+ *
+ * The question the delete routes ask before refusing, and the same one the
+ * RESTRICT constraint behind them enforces. Any season, not just the current
+ * one: a finished season's results stop being true the moment a team in them
+ * disappears.
+ *
+ * @param {import("pg").Pool} pool
+ * @param {string} teamId
+ * @returns {Promise<boolean>}
+ */
+export async function hasSeasonHistory(pool, teamId) {
+  const result = await pool.query(
+    "SELECT 1 FROM season_entries WHERE saved_team_id = $1 LIMIT 1",
+    [teamId],
+  );
+  return result.rowCount > 0;
+}

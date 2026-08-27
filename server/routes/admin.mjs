@@ -23,7 +23,7 @@ import {
   serializeRosterForStorage,
 } from "../api/serializers.mjs";
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
-import { SAVED_TEAM_COLUMNS } from "../api/team-queries.mjs";
+import { SAVED_TEAM_COLUMNS, hasSeasonHistory } from "../api/team-queries.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -252,6 +252,14 @@ async function handleAdminTeamRoutes(request, response, url) {
     const user = await currentUser(request);
     if (!user) return send(response, 401, { error: "Not authorized." });
     if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    // A team that has played in a season cannot be deleted: its matches are
+    // its opponents' results too. The RESTRICT constraint behind this would
+    // stop it anyway, but as a 500 nobody can act on.
+    if (await hasSeasonHistory(pool, adminTeamMatch[1])) {
+      return send(response, 409, {
+        error: "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
+      });
+    }
     const deleted = await pool.query(
       `DELETE FROM saved_teams WHERE id = $1 RETURNING id, user_id`,
       [adminTeamMatch[1]],
