@@ -2,47 +2,19 @@ import crypto from "node:crypto";
 import http from "node:http";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
-import { Pool } from "pg";
-import { loadEnvFile } from "./config/env-file.mjs";
+import { rootDir } from "./config/env.mjs";
+import { databaseUrl, pool, safeDatabaseLabel } from "./db/pool.mjs";
 import { assertMigrationsApplied } from "./db/migrate.mjs";
 import { blockingViolations, checkRoster, loadTeamReference } from "./domain/roster.mjs";
 import { resolveStaticPath } from "./http/static-path.mjs";
-
-const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-
-await loadEnvFile(rootDir);
+import { encodedBody, httpError, readJson, sendJson, writeResponse } from "./http/responses.mjs";
 
 const appPort = Number(process.env.APP_PORT || process.env.PORT || 3002);
 
-function resolveDatabaseUrl() {
-  const value = process.env.DATABASE_URL || "postgres://gata_admin:change-me-admin-password@localhost:5432/gata_league";
-  if (process.env.RUNNING_IN_DOCKER === "true") {
-    return value;
-  }
-
-  try {
-    const url = new URL(value);
-    if (url.hostname === "postgres") {
-      url.hostname = "localhost";
-      url.port = process.env.POSTGRES_PORT || "5432";
-      return url.toString();
-    }
-  } catch {
-    return value;
-  }
-
-  return value;
-}
-
-const databaseUrl = resolveDatabaseUrl();
 const sessionDays = Number(process.env.SESSION_DAYS || 30);
 const databaseCheckRetries = Number(process.env.DATABASE_CHECK_RETRIES || 30);
 const databaseCheckDelayMs = Number(process.env.DATABASE_CHECK_DELAY_MS || 1000);
-const compressionMinBytes = Number(process.env.COMPRESSION_MIN_BYTES || 1024);
 
-const pool = new Pool({ connectionString: databaseUrl });
 const mimeTypes = new Map([
   [".html", "text/html; charset=utf-8"],
   [".css", "text/css; charset=utf-8"],
@@ -55,13 +27,6 @@ const mimeTypes = new Map([
   [".svg", "image/svg+xml"],
   [".webp", "image/webp"],
 ]);
-const compressibleTypes = [
-  "text/",
-  "application/json",
-  "application/javascript",
-  "text/javascript",
-  "image/svg+xml",
-];
 
 function normalizeLogin(value = "") {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
@@ -283,12 +248,6 @@ function publicAdminSavedTeamSlim(row) {
   };
 }
 
-function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
-
 function hashToken(token) {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
@@ -309,15 +268,6 @@ function wait(ms) {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-}
-
-function safeDatabaseLabel(value = "") {
-  try {
-    const url = new URL(value);
-    return `${url.hostname}:${url.port || 5432}/${url.pathname.replace(/^\//, "")}`;
-  } catch {
-    return "configured database";
-  }
 }
 
 function startupLog(message) {
@@ -376,67 +326,6 @@ async function ensureAdmin() {
   startupLog(`admin account is ready: ${login}`);
 }
 
-function shouldCompress(contentType = "", body) {
-  return body.length >= compressionMinBytes
-    && compressibleTypes.some((type) => contentType.startsWith(type));
-}
-
-function preferredEncoding(request) {
-  const value = String(request?.headers?.["accept-encoding"] ?? "");
-  if (/\bbr\b/.test(value)) return "br";
-  if (/\bgzip\b/.test(value)) return "gzip";
-  return "";
-}
-
-function encodedBody(request, body, contentType) {
-  if (!shouldCompress(contentType, body)) return { body };
-  const encoding = preferredEncoding(request);
-  if (encoding === "br") {
-    return {
-      body: brotliCompressSync(body, {
-        params: {
-          [zlibConstants.BROTLI_PARAM_QUALITY]: 5,
-        },
-      }),
-      encoding,
-    };
-  }
-  if (encoding === "gzip") {
-    return { body: gzipSync(body, { level: 6 }), encoding };
-  }
-  return { body };
-}
-
-function writeResponse(request, response, status, body, headers = {}) {
-  const buffer = Buffer.isBuffer(body) ? body : Buffer.from(String(body));
-  const contentType = String(headers["Content-Type"] ?? "");
-  const encoded = encodedBody(request, buffer, contentType);
-  const responseHeaders = {
-    ...headers,
-    "Content-Length": encoded.body.length,
-  };
-  if (encoded.encoding) {
-    responseHeaders["Content-Encoding"] = encoded.encoding;
-    responseHeaders.Vary = [responseHeaders.Vary, "Accept-Encoding"].filter(Boolean).join(", ");
-  }
-  response.writeHead(status, responseHeaders);
-  response.end(encoded.body);
-}
-
-function sendJson(response, status, payload) {
-  writeResponse(response.__request, response, status, JSON.stringify(payload), {
-    "Content-Type": "application/json; charset=utf-8",
-    "Cache-Control": "no-store",
-  });
-}
-
-/**
- * This used to read the stream to its end with no limit: one endless body was
- * enough to exhaust the process, and the process is single. 3 MB is well above
- * the largest real roster — a team with a logo runs to tens of kilobytes — and
- * the body is refused as it arrives, so it is never buffered.
- */
-const maxRequestBodyBytes = Number(process.env.MAX_REQUEST_BODY_BYTES || 3 * 1024 * 1024);
 
 /**
  * Read and check a team body. Both the coach's endpoints and the admin ones
@@ -460,23 +349,6 @@ async function readTeamBody(request) {
     throw error;
   }
   return { body, name, baseTeamSlug, logoData, roster };
-}
-
-async function readJson(request) {
-  const chunks = [];
-  let size = 0;
-  for await (const chunk of request) {
-    size += chunk.length;
-    if (size > maxRequestBodyBytes) {
-      // Stop reading but leave the socket alone: destroying it here means the
-      // client sees a reset instead of the 413 explaining what happened.
-      request.pause();
-      throw httpError(413, `Request body is larger than ${Math.floor(maxRequestBodyBytes / 1024)} KB.`);
-    }
-    chunks.push(chunk);
-  }
-  const raw = Buffer.concat(chunks).toString("utf8");
-  return raw ? JSON.parse(raw) : {};
 }
 
 
