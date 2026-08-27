@@ -9,7 +9,27 @@
  * instead, so the offline preview needs no fetches.
  */
 
+import { stripMarkdownFormatting } from "../core/markdown.mjs";
+
 const cache = new Map();
+
+/**
+ * Give every page back its `text`.
+ *
+ * The built file used to carry it — the page's prose with the Markdown taken
+ * out — alongside the `body` it is derived from. That was 0.19 MB of the file
+ * saying something the file already said. Deriving it here is one pass over
+ * 292 strings on load and nothing on the wire.
+ *
+ * It stays a plain field rather than a getter because search reads it for
+ * every page on every keystroke, and a getter would redo the work each time.
+ */
+function deriveText(data) {
+  for (const page of data.pages ?? []) {
+    if (typeof page.text !== "string") page.text = stripMarkdownFormatting(page.body ?? "");
+  }
+  return data;
+}
 
 /** The collections that are stored as identifiers rather than as pages. */
 const COLLECTIONS = [
@@ -38,7 +58,7 @@ export function expandCollections(data) {
     if (!Array.isArray(collection)) continue;
     data[name] = collection.map((entry) => (typeof entry === "string" ? byId.get(entry) : entry)).filter(Boolean);
   }
-  return data;
+  return deriveText(data);
 }
 
 /**

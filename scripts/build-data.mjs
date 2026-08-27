@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
@@ -108,16 +109,6 @@ function toPublicAssetPath(relativePath) {
   return `public/vault-assets/${relativePath.split(path.sep).map(encodeURIComponent).join("/")}`;
 }
 
-function stripFormatting(value = "") {
-  return value
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
-    .replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_match, target, alias) => alias || target)
-    .replace(/\*\*/g, "")
-    .replace(/\*/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 const canonicalLabels = new Map(Object.entries({
   "big guy": "Big Guy",
@@ -727,7 +718,6 @@ async function buildLocaleData(resolvedFiles) {
     return {
       ...page,
       html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, { preserveLineBreaks: page.kind === "inducement" }),
-      text: stripFormatting(page.body),
       team: page.kind === "team" ? {
         experimental: page.tags.includes("Experimental") || page.section === "Experimental" || page.section === "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ",
         type: page.tags.includes("Experimental") ? "Experimental" : "Core",
