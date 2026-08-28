@@ -57,10 +57,10 @@ export function scoreLeagueResult({
   return { homePoints, awayPoints, homeTouchdowns, awayTouchdowns, homeCasualties, awayCasualties };
 }
 
-export function computeSeasonStandings(entryRows, pairingRows) {
+export function computeSeasonStandings(entryRows, pairingRows, { includeContacts = true } = {}) {
   const numericResult = (value) => Number(value ?? 0) || 0;
   const standings = new Map(entryRows.map((row) => {
-    const entry = publicSeasonEntry(row);
+    const entry = publicSeasonEntry(row, { includeContacts });
     return [row.id, {
       entryId: row.id,
       user: entry.user,

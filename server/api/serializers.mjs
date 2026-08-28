@@ -117,7 +117,14 @@ export function publicSeason(row) {
   };
 }
 
-export function publicSeasonEntry(row) {
+/**
+ * @param {object} row
+ * @param {{includeContacts?: boolean}} [options] a coach's Telegram handle is
+ *   how opponents arrange a match, so signed-in coaches see it — but the
+ *   season is readable without an account since step 10.3, and a league table
+ *   is not a reason to publish everyone's contact to the open internet.
+ */
+export function publicSeasonEntry(row, { includeContacts = true } = {}) {
   if (!row) return null;
   return {
     id: row.id,
@@ -127,7 +134,7 @@ export function publicSeasonEntry(row) {
     user: {
       id: row.user_id,
       login: row.user_login,
-      telegram: row.user_telegram,
+      ...(includeContacts ? { telegram: row.user_telegram } : {}),
       isAdmin: isAdminUser({ is_admin: row.user_is_admin }),
     },
     team: {

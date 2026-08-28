@@ -13,11 +13,15 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
 import { emptyBuilderState } from "../../data/roster-draft.mjs";
 
+/**
+ * Fetch the season, signed in or not.
+ *
+ * This used to return an empty season for a signed-out visitor without asking
+ * the server at all, which was correct while /api/season answered 401. Since
+ * step 10.3 it answers the public half — the table, the schedule, the results —
+ * and short-circuiting here would have made that change invisible.
+ */
 export async function loadSeason(force = false) {
-  if (!state.auth.currentUser) {
-    state.season = { ...state.season, data: null, loaded: true, loading: false, error: "" };
-    return;
-  }
   if (state.season.loaded && !force) return;
   state.season.loading = true;
   state.season.error = "";

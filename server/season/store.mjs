@@ -129,21 +129,36 @@ export async function loadUserGameRows(userId, pairingId = null, includeAll = fa
   return result.rows;
 }
 
-export async function loadSeasonBundle(user) {
+/**
+ * Everything the season screen shows, in one answer.
+ *
+ * `user` may be null: a league table, a schedule and the results are what a
+ * league is *for*, and requiring an account to look at them meant a coach could
+ * not send anyone a link to the standings. Step 10.3.
+ *
+ * What a signed-out visitor does not get: `myEntry` and `currentFixture`
+ * (there is no "my"), `myTeams`, the admin block, and every coach's Telegram
+ * handle. The handle is how opponents arrange a match, which is a reason for
+ * coaches to see it and not a reason to publish it.
+ */
+export async function loadSeasonBundle(user = null) {
   const seasonRow = await ensureActiveSeason();
   const [entryRows, roundRows, pairingRows, myTeamsResult] = await Promise.all([
     loadSeasonEntryRows(seasonRow.id),
     loadSeasonRoundRows(seasonRow.id),
     loadSeasonPairingRows(seasonRow.id),
-    pool.query(
-      `SELECT id, user_id, name, base_team_slug, created_at, updated_at
-       FROM saved_teams
-       WHERE user_id = $1
-       ORDER BY updated_at DESC`,
-      [user.id],
-    ),
+    user
+      ? pool.query(
+        `SELECT id, user_id, name, base_team_slug, created_at, updated_at
+         FROM saved_teams
+         WHERE user_id = $1
+         ORDER BY updated_at DESC`,
+        [user.id],
+      )
+      : { rows: [] },
   ]);
-  const entries = entryRows.map(publicSeasonEntry);
+  const includeContacts = Boolean(user);
+  const entries = entryRows.map((row) => publicSeasonEntry(row, { includeContacts }));
   const pairings = pairingRows.map(publicSeasonPairing);
   const rounds = roundRows.map((round) => ({
     id: round.id,
@@ -154,8 +169,8 @@ export async function loadSeasonBundle(user) {
     updatedAt: round.updated_at,
     pairings: pairings.filter((pairing) => pairing.roundId === round.id),
   }));
-  const standings = computeSeasonStandings(entryRows, pairingRows);
-  const myEntry = entries.find((entry) => entry.user.id === user.id) ?? null;
+  const standings = computeSeasonStandings(entryRows, pairingRows, { includeContacts });
+  const myEntry = user ? entries.find((entry) => entry.user.id === user.id) ?? null : null;
   const latestStartedRound = Math.max(0, ...rounds
     .filter((round) => round.status === "started")
     .map((round) => Number(round.roundNumber ?? 0)));
@@ -176,7 +191,7 @@ export async function loadSeasonBundle(user) {
     myTeams: myTeamsResult.rows.map(publicSavedTeamSlim),
   };
 
-  if (user.is_admin) {
+  if (user?.is_admin) {
     const [usersResult, teamsResult] = await Promise.all([
       pool.query(`SELECT * FROM users ORDER BY login_key ASC`),
       pool.query(

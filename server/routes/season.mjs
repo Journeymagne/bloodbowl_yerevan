@@ -28,9 +28,11 @@ function send(response, status, payload) {
  */
 export async function handleSeasonRoutes(request, response, url) {
   if (url.pathname === "/api/season" && request.method === "GET") {
-    const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    return send(response, 200, await loadSeasonBundle(user));
+    // No session required since step 10.3: the table, the schedule and the
+    // results are readable by anyone. What a signed-in coach additionally gets
+    // — their own entry, their teams, the admin block, everyone's contact — is
+    // decided inside loadSeasonBundle, from whether there is a user at all.
+    return send(response, 200, await loadSeasonBundle(await currentUser(request)));
   }
 
   if (url.pathname === "/api/season/commit" && request.method === "POST") {
