@@ -12,6 +12,7 @@
  */
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { errorPayload } from "../http/errors.mjs";
 import { currentUser, hashPassword } from "../auth/session.mjs";
 import {
   isAdminUser,
@@ -31,14 +32,19 @@ function send(response, status, payload) {
   return true;
 }
 
+/** The same, for a refusal the client can translate. */
+function sendError(response, status, code, params) {
+  return send(response, status, errorPayload(code, params));
+}
+
 /**
  * @returns {Promise<boolean>} true when this module answered the request
  */
 export async function handleAdminRoutes(request, response, url) {
   if (url.pathname === "/api/admin/users" && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const result = await pool.query(
       `SELECT users.*,
               COUNT(saved_teams.id) AS saved_team_count,
@@ -64,12 +70,12 @@ async function handleAdminUserRoutes(request, response, url) {
   const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)$/i);
   if (adminUserMatch && request.method === "PATCH") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
 
     const targetResult = await pool.query("SELECT * FROM users WHERE id = $1", [adminUserMatch[1]]);
     const target = targetResult.rows[0];
-    if (!target) return send(response, 404, { error: "User not found." });
+    if (!target) return sendError(response, 404, "USER_NOT_FOUND");
 
     const body = await readJson(request);
     const login = String(body.login ?? target.login).trim();
@@ -77,10 +83,10 @@ async function handleAdminUserRoutes(request, response, url) {
     const loginKey = normalizeLogin(login);
     const nextIsAdmin = Object.hasOwn(body, "isAdmin") ? isAdminUser({ is_admin: body.isAdmin }) : isAdminUser(target);
 
-    if (login.length < 3) return send(response, 400, { error: "Login must be at least 3 characters." });
-    if (password && password.length < 4) return send(response, 400, { error: "Password must be at least 4 characters." });
+    if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
+    if (password && password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
     if (target.id === user.id && !nextIsAdmin) {
-      return send(response, 409, { error: "You cannot remove admin access from your own account." });
+      return sendError(response, 409, "SELF_ADMIN_DEMOTE");
     }
 
     const passwordHash = password ? hashPassword(password) : null;
@@ -98,7 +104,7 @@ async function handleAdminUserRoutes(request, response, url) {
       if (error.code === "23505") return null;
       throw error;
     });
-    if (!updated) return send(response, 409, { error: "This login is already registered." });
+    if (!updated) return sendError(response, 409, "LOGIN_ALREADY_REGISTERED");
 
     if (password && target.id !== user.id) {
       await pool.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
@@ -120,21 +126,21 @@ async function handleAdminUserReadRoutes(request, response, url) {
   const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)$/i);
   if (adminUserMatch && request.method === "DELETE") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     if (adminUserMatch[1] === user.id) {
-      return send(response, 409, { error: "You cannot delete your own admin account." });
+      return sendError(response, 409, "SELF_ADMIN_DELETE");
     }
 
     const deleted = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [adminUserMatch[1]]);
-    if (!deleted.rows[0]) return send(response, 404, { error: "User not found." });
+    if (!deleted.rows[0]) return sendError(response, 404, "USER_NOT_FOUND");
     return send(response, 200, { ok: true });
   }
 
   if (adminUserMatch && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const [profileResult, teamsResult] = await Promise.all([
       pool.query(
         `SELECT users.*,
@@ -154,7 +160,7 @@ async function handleAdminUserReadRoutes(request, response, url) {
         [adminUserMatch[1]],
       ),
     ]);
-    if (!profileResult.rows[0]) return send(response, 404, { error: "User not found." });
+    if (!profileResult.rows[0]) return sendError(response, 404, "USER_NOT_FOUND");
     return send(response, 200, {
       user: publicAdminUser(profileResult.rows[0]),
       teams: teamsResult.rows.map(publicSavedTeamSummary),
@@ -174,12 +180,12 @@ async function handleAdminUserTeamRoutes(request, response, url) {
   const adminUserTeamsMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)\/teams$/i);
   if (adminUserTeamsMatch && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
 
     const coach = await pool.query(`SELECT * FROM users WHERE id = $1`, [adminUserTeamsMatch[1]]);
-    if (!coach.rows[0]) return send(response, 404, { error: "Coach not found." });
+    if (!coach.rows[0]) return sendError(response, 404, "COACH_NOT_FOUND");
 
     const result = await pool.query(
       `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
@@ -206,8 +212,8 @@ async function handleAdminTeamRoutes(request, response, url) {
   const adminTeamMatch = url.pathname.match(/^\/api\/admin\/teams\/([0-9a-f-]+)$/i);
   if (adminTeamMatch && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const result = await pool.query(
       `SELECT ${SAVED_TEAM_COLUMNS}, users.id AS owner_id, users.login AS owner_login, users.telegram AS owner_telegram, users.is_admin AS owner_is_admin, users.created_at AS owner_created_at
        FROM saved_teams
@@ -215,7 +221,7 @@ async function handleAdminTeamRoutes(request, response, url) {
        WHERE saved_teams.id = $1`,
       [adminTeamMatch[1]],
     );
-    if (!result.rows[0]) return send(response, 404, { error: "Team not found." });
+    if (!result.rows[0]) return sendError(response, 404, "TEAM_NOT_FOUND");
     const row = result.rows[0];
     return send(response, 200, {
       owner: publicUser({
@@ -231,17 +237,17 @@ async function handleAdminTeamRoutes(request, response, url) {
 
   if (adminTeamMatch && request.method === "PATCH") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const { body, name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
     const written = await writeSavedTeam({
       teamId: adminTeamMatch[1], ownerId: null,
       name, baseTeamSlug, logoData, roster, revision: body.revision,
     });
-    if (!written) return send(response, 404, { error: "Team not found." });
+    if (!written) return sendError(response, 404, "TEAM_NOT_FOUND");
     if (written.conflict) {
       return send(response, 409, {
-        error: "This team was saved somewhere else after you opened it.",
+        ...errorPayload("TEAM_SAVED_ELSEWHERE"),
         team: written.conflict,
       });
     }
@@ -250,21 +256,19 @@ async function handleAdminTeamRoutes(request, response, url) {
 
   if (adminTeamMatch && request.method === "DELETE") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     // A team that has played in a season cannot be deleted: its matches are
     // its opponents' results too. The RESTRICT constraint behind this would
     // stop it anyway, but as a 500 nobody can act on.
     if (await hasSeasonHistory(pool, adminTeamMatch[1])) {
-      return send(response, 409, {
-        error: "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
-      });
+      return sendError(response, 409, "TEAM_IN_SEASON_CANNOT_BE_DELETED");
     }
     const deleted = await pool.query(
       `DELETE FROM saved_teams WHERE id = $1 RETURNING id, user_id`,
       [adminTeamMatch[1]],
     );
-    if (!deleted.rows[0]) return send(response, 404, { error: "Team not found." });
+    if (!deleted.rows[0]) return sendError(response, 404, "TEAM_NOT_FOUND");
     return send(response, 200, { ok: true, ownerId: deleted.rows[0].user_id });
   }
 

@@ -12,6 +12,7 @@
  */
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson, writeResponse } from "../http/responses.mjs";
+import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicGame } from "../api/serializers.mjs";
 import { loadUserGameRows } from "../season/store.mjs";
@@ -23,13 +24,18 @@ function send(response, status, payload) {
   return true;
 }
 
+/** The same, for a refusal the client can translate. */
+function sendError(response, status, code, params) {
+  return send(response, status, errorPayload(code, params));
+}
+
 /**
  * @returns {Promise<boolean>} true when this module answered the request
  */
 export async function handleGameRoutes(request, response, url) {
   if (url.pathname === "/api/games" && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const [rows, currentRows] = await Promise.all([
       loadUserGameRows(user.id),
       user.is_admin ? loadUserGameRows(user.id, null, true) : Promise.resolve([]),
@@ -64,18 +70,18 @@ export async function handleGameRoutes(request, response, url) {
   const gameMatch = url.pathname.match(/^\/api\/games\/([0-9a-f-]+)$/i);
   if (gameMatch && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const row = (await loadUserGameRows(user.id, gameMatch[1], user.is_admin))[0];
-    if (!row) return send(response, 404, { error: "Game not found." });
+    if (!row) return sendError(response, 404, "GAME_NOT_FOUND");
     return send(response, 200, { game: publicGame(row, user.id) });
   }
 
   if (gameMatch && request.method === "PATCH") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const row = (await loadUserGameRows(user.id, gameMatch[1], true))[0];
-    if (!row) return send(response, 404, { error: "Game not found." });
+    if (!row) return sendError(response, 404, "GAME_NOT_FOUND");
     await updateSeasonPairing(row.season_id, gameMatch[1], await readJson(request), true, user.id);
     const updated = (await loadUserGameRows(user.id, gameMatch[1], true))[0];
     return send(response, 200, { game: publicGame(updated, user.id) });
@@ -84,7 +90,7 @@ export async function handleGameRoutes(request, response, url) {
   const gameActionMatch = url.pathname.match(/^\/api\/games\/([0-9a-f-]+)\/(propose|confirm|reject)$/i);
   if (gameActionMatch && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (gameActionMatch[2] === "propose") await proposeGameResult(gameActionMatch[1], user.id, await readJson(request), user.is_admin);
     if (gameActionMatch[2] === "confirm") await respondToGameProposal(gameActionMatch[1], user.id, true, user.is_admin);
     if (gameActionMatch[2] === "reject") await respondToGameProposal(gameActionMatch[1], user.id, false, user.is_admin);

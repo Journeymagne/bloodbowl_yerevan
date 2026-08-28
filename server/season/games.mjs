@@ -17,18 +17,18 @@ import { validateSeasonEntry } from "./rounds.mjs";
 
 export async function proposeGameResult(pairingId, userId, body, isAdmin = false) {
   const game = (await loadUserGameRows(userId, pairingId, isAdmin))[0];
-  if (!game) throw httpError(404, "Game not found.");
+  if (!game) throw httpError(404, "GAME_NOT_FOUND");
   if (!isAdmin) ensurePlayerCanSubmitGame(game);
-  else if (game.round_status !== "started") throw httpError(409, "This game has not started yet.");
-  if (!game.home_user_id || !game.away_user_id) throw httpError(409, "A BYE game does not require confirmation.");
-  if (storedGameResultComplete(game)) throw httpError(409, "This result is already confirmed.");
+  else if (game.round_status !== "started") throw httpError(409, "GAME_NOT_STARTED");
+  if (!game.home_user_id || !game.away_user_id) throw httpError(409, "BYE_NEEDS_NO_CONFIRMATION");
+  if (storedGameResultComplete(game)) throw httpError(409, "RESULT_ALREADY_CONFIRMED");
   const values = [
     nullableInteger(body.homeTouchdowns, "Home touchdowns"),
     nullableInteger(body.awayTouchdowns, "Away touchdowns"),
     nullableInteger(body.homeCasualties, "Home casualties"),
     nullableInteger(body.awayCasualties, "Away casualties"),
   ];
-  if (values.some((value) => value === null || value === undefined)) throw httpError(400, "Enter touchdowns and casualties for both teams.");
+  if (values.some((value) => value === null || value === undefined)) throw httpError(400, "RESULT_NEEDS_BOTH_TEAMS");
   await pool.query(
     `UPDATE season_pairings
      SET result_status = 'awaiting_confirmation', proposed_by_user_id = $2,
@@ -55,11 +55,11 @@ export async function proposeGameResult(pairingId, userId, body, isAdmin = false
  */
 export async function respondToGameProposal(pairingId, userId, accept, isAdmin = false) {
   const game = (await loadUserGameRows(userId, pairingId, isAdmin))[0];
-  if (!game) throw httpError(404, "Game not found.");
+  if (!game) throw httpError(404, "GAME_NOT_FOUND");
   if (!isAdmin) ensurePlayerCanSubmitGame(game);
-  if (game.result_status !== "awaiting_confirmation") throw httpError(409, "There is no result awaiting confirmation.");
+  if (game.result_status !== "awaiting_confirmation") throw httpError(409, "NO_RESULT_AWAITING_CONFIRMATION");
   if (accept && !isAdmin && game.proposed_by_user_id === userId) {
-    throw httpError(409, "You proposed this result; your opponent has to confirm it.");
+    throw httpError(409, "PROPOSER_CANNOT_CONFIRM");
   }
   if (!accept) {
     await pool.query(`UPDATE season_pairings SET result_status = 'rejected', updated_at = now() WHERE id = $1`, [pairingId]);
@@ -89,9 +89,9 @@ export async function respondToGameProposal(pairingId, userId, accept, isAdmin =
 }
 
 export function ensurePlayerCanSubmitGame(game) {
-  if (game.round_status !== "started") throw httpError(409, "This game has not started yet.");
+  if (game.round_status !== "started") throw httpError(409, "GAME_NOT_STARTED");
   if (Number(game.round_number ?? 0) !== Number(game.season_current_round ?? 0)) {
-    throw httpError(409, "This round is closed for player result changes.");
+    throw httpError(409, "ROUND_CLOSED_FOR_PLAYERS");
   }
 }
 
@@ -109,13 +109,13 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
     [pairingId, seasonId],
   );
   const pairing = current.rows[0];
-  if (!pairing) throw httpError(404, "Pairing not found.");
+  if (!pairing) throw httpError(404, "PAIRING_NOT_FOUND");
 
   const wantsTeamUpdate = Object.hasOwn(body, "homeEntryId") || Object.hasOwn(body, "awayEntryId");
-  if (wantsTeamUpdate && !isAdmin) throw httpError(403, "Admin access required.");
+  if (wantsTeamUpdate && !isAdmin) throw httpError(403, "ADMIN_REQUIRED");
   if (!isAdmin) ensurePlayerCanSubmitGame(pairing);
   if (!isAdmin && (!pairing.home_entry_id || !pairing.away_entry_id)) {
-    throw httpError(400, "This fixture cannot receive a player-submitted result.");
+    throw httpError(400, "FIXTURE_NOT_PLAYER_SUBMITTABLE");
   }
 
   let homeEntryId = pairing.home_entry_id;
@@ -124,7 +124,7 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
     homeEntryId = await validateSeasonEntry(seasonId, body.homeEntryId);
     awayEntryId = await validateSeasonEntry(seasonId, body.awayEntryId);
     if (homeEntryId && awayEntryId && homeEntryId === awayEntryId) {
-      throw httpError(400, "A team cannot play itself.");
+      throw httpError(400, "TEAM_PLAYS_ITSELF");
     }
   }
 
@@ -135,7 +135,7 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
     );
     const entryId = userEntry.rows[0]?.id;
     if (!entryId || (entryId !== pairing.home_entry_id && entryId !== pairing.away_entry_id)) {
-      throw httpError(403, "This fixture does not belong to your team.");
+      throw httpError(403, "FIXTURE_NOT_YOURS");
     }
   }
 

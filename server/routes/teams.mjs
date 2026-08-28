@@ -8,6 +8,7 @@
  */
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
 import { blockingViolations, checkRoster } from "../domain/roster.mjs";
@@ -19,13 +20,18 @@ function send(response, status, payload) {
   return true;
 }
 
+/** The same, for a refusal the client can translate. */
+function sendError(response, status, code, params) {
+  return send(response, status, errorPayload(code, params));
+}
+
 /**
  * @returns {Promise<boolean>} true when this module answered the request
  */
 export async function handleTeamRoutes(request, response, url) {
   if (url.pathname === "/api/teams" && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const result = await pool.query(
       `SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE user_id = $1 ORDER BY updated_at DESC`,
       [user.id],
@@ -35,7 +41,7 @@ export async function handleTeamRoutes(request, response, url) {
 
   if (url.pathname === "/api/teams" && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
 
     const result = await pool.query(
@@ -50,27 +56,27 @@ export async function handleTeamRoutes(request, response, url) {
   const teamMatch = url.pathname.match(/^\/api\/teams\/([0-9a-f-]+)$/i);
   if (teamMatch && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const result = await pool.query(
       `SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1 AND user_id = $2`,
       [teamMatch[1], user.id],
     );
-    if (!result.rows[0]) return send(response, 404, { error: "Team not found." });
+    if (!result.rows[0]) return sendError(response, 404, "TEAM_NOT_FOUND");
     return send(response, 200, { team: publicSavedTeam(result.rows[0]) });
   }
 
   if (teamMatch && request.method === "PATCH") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const { body, name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
     const written = await writeSavedTeam({
       teamId: teamMatch[1], ownerId: user.id,
       name, baseTeamSlug, logoData, roster, revision: body.revision,
     });
-    if (!written) return send(response, 404, { error: "Team not found." });
+    if (!written) return sendError(response, 404, "TEAM_NOT_FOUND");
     if (written.conflict) {
       return send(response, 409, {
-        error: "This team was saved somewhere else after you opened it.",
+        ...errorPayload("TEAM_SAVED_ELSEWHERE"),
         team: written.conflict,
       });
     }
@@ -79,14 +85,12 @@ export async function handleTeamRoutes(request, response, url) {
 
   if (teamMatch && request.method === "DELETE") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     // A team that has played in a season cannot be deleted: its matches are
     // its opponents' results too. The RESTRICT constraint behind this would
     // stop it anyway, but as a 500 nobody can act on.
     if (await hasSeasonHistory(pool, teamMatch[1])) {
-      return send(response, 409, {
-        error: "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
-      });
+      return sendError(response, 409, "TEAM_IN_SEASON_CANNOT_BE_DELETED");
     }
     await pool.query(`DELETE FROM saved_teams WHERE id = $1 AND user_id = $2`, [teamMatch[1], user.id]);
     return send(response, 200, { ok: true });
@@ -150,14 +154,14 @@ export async function readTeamBody(request) {
   const name = String(body.name ?? "").trim();
   const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
   const logoData = body.logoData ? String(body.logoData) : null;
-  if (!name) throw httpError(400, "Team name is required.");
-  if (!baseTeamSlug) throw httpError(400, "Base team is required.");
-  if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) throw httpError(400, "Logo is too large.");
+  if (!name) throw httpError(400, "TEAM_NAME_REQUIRED");
+  if (!baseTeamSlug) throw httpError(400, "BASE_TEAM_REQUIRED");
+  if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) throw httpError(400, "LOGO_TOO_LARGE");
 
   const { violations, roster } = checkRoster(baseTeamSlug, body.roster ?? {});
   const blocking = blockingViolations(violations);
   if (blocking.length) {
-    const error = httpError(422, "This roster breaks the league's rules.");
+    const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
     error.violations = blocking;
     throw error;
   }

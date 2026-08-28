@@ -11,6 +11,7 @@
  * screens-map entry in app.js, the latter is read by app.js's `beforeunload`
  * handler to warn about unsaved edits.
  */
+import { errorText } from "../core/api.mjs";
 import { escapeHtml, listenerGroup, patch } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
@@ -154,7 +155,7 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
       } catch (error) {
         view.innerHTML = `
           ${renderHeader(t("nav.administration"), t("savedRoster.editingTeamSubtitle"), "", { back: true, backFallback: `#/administration/users/${encodeURIComponent(options.adminOwnerId)}` })}
-          <div class="empty-state">${escapeHtml(error.message)}</div>
+          <div class="empty-state">${escapeHtml(errorText(error))}</div>
         `;
         return;
       }

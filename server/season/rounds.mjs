@@ -19,7 +19,7 @@ export async function generateSwissRound(seasonRow) {
   const entryRows = await loadSeasonEntryRows(seasonRow.id);
   const roundRows = await loadSeasonRoundRows(seasonRow.id);
   const pairingRows = await loadSeasonPairingRows(seasonRow.id);
-  if (!entryRows.length) throw httpError(400, "Add at least one committed team first.");
+  if (!entryRows.length) throw httpError(400, "NEED_A_COMMITTED_TEAM");
   assertNoDraftRound(roundRows);
   assertCurrentRoundComplete(pairingRows);
 
@@ -110,7 +110,7 @@ export async function validateSeasonEntry(seasonId, entryId) {
     `SELECT id FROM season_entries WHERE id = $1 AND season_id = $2`,
     [entryId, seasonId],
   );
-  if (!result.rows[0]) throw httpError(404, "Season entry not found.");
+  if (!result.rows[0]) throw httpError(404, "ENTRY_NOT_FOUND");
   return result.rows[0].id;
 }
 
@@ -134,14 +134,14 @@ export async function addSeasonPairing(seasonId, roundId, homeEntryId = "", away
     `SELECT * FROM season_rounds WHERE id = $1 AND season_id = $2`,
     [roundId, seasonId],
   );
-  if (!round.rows[0]) throw httpError(404, "Round not found.");
+  if (!round.rows[0]) throw httpError(404, "ROUND_NOT_FOUND");
   if (!["draft", "started"].includes(round.rows[0].status)) {
-    throw httpError(409, "This round cannot be changed.");
+    throw httpError(409, "ROUND_IS_LOCKED");
   }
 
   const homeId = await validateSeasonEntry(seasonId, homeEntryId);
   const awayId = await validateSeasonEntry(seasonId, awayEntryId);
-  if (homeId && awayId && homeId === awayId) throw httpError(400, "A team cannot play itself.");
+  if (homeId && awayId && homeId === awayId) throw httpError(400, "TEAM_PLAYS_ITSELF");
 
   const nextTable = await pool.query(
     `SELECT COALESCE(MAX(table_number), 0) + 1 AS table_number
@@ -163,7 +163,7 @@ export async function startSeasonRound(seasonId, roundId) {
     `SELECT * FROM season_rounds WHERE id = $1 AND season_id = $2`,
     [roundId, seasonId],
   );
-  if (!round.rows[0]) throw httpError(404, "Round not found.");
+  if (!round.rows[0]) throw httpError(404, "ROUND_NOT_FOUND");
   if (round.rows[0].status === "started") return round.rows[0];
 
   const pairings = await pool.query(
@@ -171,7 +171,7 @@ export async function startSeasonRound(seasonId, roundId) {
     [roundId],
   );
   if (!pairings.rows.some((pairing) => pairing.home_entry_id || pairing.away_entry_id)) {
-    throw httpError(400, "Add at least one non-empty pairing before starting the round.");
+    throw httpError(400, "NEED_A_PAIRING");
   }
 
   const client = await pool.connect();

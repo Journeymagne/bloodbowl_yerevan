@@ -11,6 +11,7 @@
  */
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicGame, publicSavedTeam, serializeRosterForStorage } from "../api/serializers.mjs";
 import { commitSavedTeamToSeason, ensureActiveSeason, loadSeasonBundle, loadUserGameRows } from "../season/store.mjs";
@@ -21,6 +22,11 @@ import { proposeGameResult, updateSeasonPairing } from "../season/games.mjs";
 function send(response, status, payload) {
   sendJson(response, status, payload);
   return true;
+}
+
+/** The same, for a refusal the client can translate. */
+function sendError(response, status, code, params) {
+  return send(response, status, errorPayload(code, params));
 }
 
 /**
@@ -37,10 +43,10 @@ export async function handleSeasonRoutes(request, response, url) {
 
   if (url.pathname === "/api/season/commit" && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const body = await readJson(request);
     const teamId = String(body.teamId ?? "").trim();
-    if (!teamId) return send(response, 400, { error: "Team is required." });
+    if (!teamId) return sendError(response, 400, "TEAM_REQUIRED");
     const season = await ensureActiveSeason();
     await commitSavedTeamToSeason(season.id, teamId, user.id);
     return send(response, 201, await loadSeasonBundle(user));
@@ -58,11 +64,11 @@ export async function handleSeasonRoutes(request, response, url) {
 async function handleSeasonEntryRoutes(request, response, url) {
   if (url.pathname === "/api/season/admin/entries" && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const body = await readJson(request);
     const teamId = String(body.teamId ?? "").trim();
-    if (!teamId) return send(response, 400, { error: "Team is required." });
+    if (!teamId) return sendError(response, 400, "TEAM_REQUIRED");
     const season = await ensureActiveSeason();
     await commitSavedTeamToSeason(season.id, teamId);
     return send(response, 201, await loadSeasonBundle(user));
@@ -71,8 +77,8 @@ async function handleSeasonEntryRoutes(request, response, url) {
   const seasonEntryMatch = url.pathname.match(/^\/api\/season\/admin\/entries\/([0-9a-f-]+)$/i);
   if (seasonEntryMatch && request.method === "DELETE") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
     await pool.query(
       `DELETE FROM season_entries WHERE id = $1 AND season_id = $2`,
@@ -83,8 +89,8 @@ async function handleSeasonEntryRoutes(request, response, url) {
 
   if (url.pathname === "/api/season/admin/create-team" && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const body = await readJson(request);
     const userId = String(body.userId ?? "").trim();
     const name = String(body.name ?? "").trim();
@@ -92,15 +98,15 @@ async function handleSeasonEntryRoutes(request, response, url) {
     const logoData = body.logoData ? String(body.logoData) : null;
     const roster = body.roster ?? {};
 
-    if (!userId) return send(response, 400, { error: "Coach is required." });
-    if (!name) return send(response, 400, { error: "Team name is required." });
-    if (!baseTeamSlug) return send(response, 400, { error: "Base team is required." });
+    if (!userId) return sendError(response, 400, "COACH_REQUIRED");
+    if (!name) return sendError(response, 400, "TEAM_NAME_REQUIRED");
+    if (!baseTeamSlug) return sendError(response, 400, "BASE_TEAM_REQUIRED");
     if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) {
-      return send(response, 400, { error: "Logo is too large." });
+      return sendError(response, 400, "LOGO_TOO_LARGE");
     }
 
     const coach = await pool.query(`SELECT id FROM users WHERE id = $1`, [userId]);
-    if (!coach.rows[0]) return send(response, 404, { error: "Coach not found." });
+    if (!coach.rows[0]) return sendError(response, 404, "COACH_NOT_FOUND");
 
     const season = await ensureActiveSeason();
     const existingEntry = await pool.query(
@@ -108,7 +114,7 @@ async function handleSeasonEntryRoutes(request, response, url) {
       [season.id, userId],
     );
     if (existingEntry.rows[0]) {
-      return send(response, 409, { error: "This coach already has a committed team." });
+      return sendError(response, 409, "COACH_ALREADY_COMMITTED");
     }
 
     const savedTeam = await pool.query(
@@ -133,8 +139,8 @@ async function handleSeasonEntryRoutes(request, response, url) {
 async function handleSeasonRoundRoutes(request, response, url) {
   if (url.pathname === "/api/season/admin/rounds/generate" && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
     await generateSwissRound(season);
     return send(response, 201, await loadSeasonBundle(user));
@@ -142,8 +148,8 @@ async function handleSeasonRoundRoutes(request, response, url) {
 
   if (url.pathname === "/api/season/admin/rounds" && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
     await createManualRound(season);
     return send(response, 201, await loadSeasonBundle(user));
@@ -152,8 +158,8 @@ async function handleSeasonRoundRoutes(request, response, url) {
   const seasonRoundMatch = url.pathname.match(/^\/api\/season\/admin\/rounds\/([0-9a-f-]+)$/i);
   if (seasonRoundMatch && request.method === "DELETE") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
     await pool.query(`DELETE FROM season_rounds WHERE id = $1 AND season_id = $2`, [seasonRoundMatch[1], season.id]);
     return send(response, 200, await loadSeasonBundle(user));
@@ -162,8 +168,8 @@ async function handleSeasonRoundRoutes(request, response, url) {
   const seasonRoundStartMatch = url.pathname.match(/^\/api\/season\/admin\/rounds\/([0-9a-f-]+)\/start$/i);
   if (seasonRoundStartMatch && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
     await startSeasonRound(season.id, seasonRoundStartMatch[1]);
     return send(response, 200, await loadSeasonBundle(user));
@@ -182,8 +188,8 @@ async function handleSeasonPairingRoutes(request, response, url) {
   const seasonRoundPairingsMatch = url.pathname.match(/^\/api\/season\/admin\/rounds\/([0-9a-f-]+)\/pairings$/i);
   if (seasonRoundPairingsMatch && request.method === "POST") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const body = await readJson(request);
     const season = await ensureActiveSeason();
     await addSeasonPairing(season.id, seasonRoundPairingsMatch[1], body.homeEntryId, body.awayEntryId);
@@ -193,7 +199,7 @@ async function handleSeasonPairingRoutes(request, response, url) {
   const fixtureMatch = url.pathname.match(/^\/api\/season\/fixture\/([0-9a-f-]+)$/i);
   if (fixtureMatch && request.method === "PATCH") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const body = await readJson(request);
     await proposeGameResult(fixtureMatch[1], user.id, body, user.is_admin);
     return send(response, 200, { game: publicGame((await loadUserGameRows(user.id, fixtureMatch[1], user.is_admin))[0], user.id) });
@@ -202,8 +208,8 @@ async function handleSeasonPairingRoutes(request, response, url) {
   const seasonPairingMatch = url.pathname.match(/^\/api\/season\/admin\/pairings\/([0-9a-f-]+)$/i);
   if (seasonPairingMatch && request.method === "PATCH") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const body = await readJson(request);
     const season = await ensureActiveSeason();
     await updateSeasonPairing(season.id, seasonPairingMatch[1], body, true, user.id);
@@ -212,8 +218,8 @@ async function handleSeasonPairingRoutes(request, response, url) {
 
   if (seasonPairingMatch && request.method === "DELETE") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
-    if (!user.is_admin) return send(response, 403, { error: "Admin access required." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
     await pool.query(
       `DELETE FROM season_pairings

@@ -13,6 +13,7 @@
  * hardcoded English instead of going through `t()`. That is part of the i18n
  * gap catalogued in section 16 of the design spec and belongs to task 13.
  */
+import { errorText } from "../core/api.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { apiRequest, authToken, setAuthToken } from "../core/api-client.mjs";
@@ -150,7 +151,7 @@ async function handleAuthSubmit(event) {
     closeAuthModal();
     renderRoute();
   } catch (error) {
-    setAuthError(error.message);
+    setAuthError(errorText(error));
   }
 }
 
@@ -184,7 +185,7 @@ async function handleProfileSubmit(event) {
     setAuthMode("account");
     setAuthError("");
   } catch (error) {
-    setAuthError(error.message);
+    setAuthError(errorText(error));
   }
 }
 

@@ -8,6 +8,7 @@
  * viewing a public profile; `renderAdminSavedTeamsTable` is used by both
  * this screen and the season admin tab's team list.
  */
+import { errorText } from "../../core/api.mjs";
 import { escapeHtml, renderOption } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
@@ -62,7 +63,7 @@ export async function renderAdminUserProfile(userId) {
   } catch (error) {
     view.innerHTML = `
       ${renderHeader(t("nav.administration"), t("admin.playerProfileSubtitle"), "", { back: true, backFallback: "#/administration" })}
-      <div class="empty-state">${escapeHtml(error.message)}</div>
+      <div class="empty-state">${escapeHtml(errorText(error))}</div>
     `;
   }
 }

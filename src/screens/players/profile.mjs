@@ -6,6 +6,7 @@
  * the same edit panels as the administration screen, so those come from
  * screens/administration/user.mjs rather than being duplicated here.
  */
+import { errorText } from "../../core/api.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
@@ -63,7 +64,7 @@ export async function renderPlayerProfile(userId) {
   } catch (error) {
     view.innerHTML = `
       ${renderHeader(t("admin.playerProfileHeading"), t("admin.savedTeamsAndCoachSubtitle"), "", { back: true, backFallback: "#/season" })}
-      <div class="empty-state">${escapeHtml(error.message)}</div>
+      <div class="empty-state">${escapeHtml(errorText(error))}</div>
     `;
   }
 }

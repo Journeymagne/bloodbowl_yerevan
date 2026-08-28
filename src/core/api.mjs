@@ -10,6 +10,8 @@
  * Requests also get a timeout — without one a stalled connection left the
  * autosave hanging on "saving..." forever.
  */
+import { t } from "./i18n.mjs";
+
 
 export const API_ERROR = Object.freeze({
   /** The request never reached the server (no network, DNS, refused). */
@@ -34,6 +36,10 @@ export class ApiError extends Error {
     this.status = status;
     this.payload = payload;
     this.violations = payload?.violations ?? null;
+    // The server names its refusals since step 13.3; `message` is the English
+    // it used to send, kept as the fallback when a dictionary lacks the key.
+    this.code = payload?.error?.code ?? null;
+    this.params = payload?.error?.params ?? {};
     if (cause) this.cause = cause;
   }
 }
@@ -86,4 +92,22 @@ export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauth
   }
 
   return { request };
+}
+
+/**
+ * An error as a sentence the reader can read.
+ *
+ * Server refusals name themselves with a code (step 13.3), so the same
+ * refusal reads in whichever language the page is in. `message` is the
+ * English the server sends alongside, and stays the fallback: a dictionary
+ * that lacks the key should show a sentence, not error.SOMETHING.
+ */
+export function errorText(error) {
+  const code = error?.code;
+  if (code) {
+    const key = `error.${code}`;
+    const translated = t(key, error.params ?? {});
+    if (translated !== key) return translated;
+  }
+  return error?.message ?? String(error);
 }

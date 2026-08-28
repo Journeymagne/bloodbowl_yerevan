@@ -12,6 +12,7 @@
  * message placed inside would be re-announced on the next keystroke; this
  * region announces once, when the message arrives.
  */
+import { errorText } from "../core/api.mjs";
 
 const AUTO_DISMISS_MS = 6000;
 
@@ -68,7 +69,8 @@ function keepFor(node, dismissAfter) {
   dismissTimers.set(node, setTimeout(() => node.remove(), dismissAfter));
 }
 
-/** What went wrong, said without blocking the page. */
+/** What went wrong, said without blocking the page, in the reader's language. */
 export function toastError(error) {
-  toast(error?.message ?? String(error), { tone: "error" });
+  toast(errorText(error), { tone: "error" });
 }
+

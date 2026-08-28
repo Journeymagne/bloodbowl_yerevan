@@ -7,6 +7,7 @@
  * screens/games/game.mjs decides what a single game page may show from the
  * same rules.
  */
+import { errorText } from "../../core/api.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
@@ -31,7 +32,7 @@ export async function loadGames(force = false) {
       const payload = await apiRequest("/api/games");
       state.games = { items: payload.games ?? [], currentItems: payload.currentGames ?? [], loaded: true, loading: false, error: "" };
     } catch (error) {
-      state.games = { items: [], currentItems: [], loaded: true, loading: false, error: error.message };
+      state.games = { items: [], currentItems: [], loaded: true, loading: false, error: errorText(error) };
     } finally {
       gamesLoadPromise = null;
     }

@@ -9,6 +9,7 @@
  */
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { errorPayload } from "../http/errors.mjs";
 import { bearerToken, createSession, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
 import { checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
@@ -17,6 +18,11 @@ import { normalizeLogin, publicUser } from "../api/serializers.mjs";
 function send(response, status, payload) {
   sendJson(response, status, payload);
   return true;
+}
+
+/** The same, for a refusal the client can translate. */
+function sendError(response, status, code, params) {
+  return send(response, status, errorPayload(code, params));
 }
 
 /**
@@ -40,9 +46,9 @@ export async function handleAuthRoutes(request, response, url) {
     const telegram = String(body.telegram ?? "").trim();
     const loginKey = normalizeLogin(login);
 
-    if (login.length < 3) return send(response, 400, { error: "Login must be at least 3 characters." });
-    if (password.length < 4) return send(response, 400, { error: "Password must be at least 4 characters." });
-    if (!telegram) return send(response, 400, { error: "Telegram contact is required." });
+    if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
+    if (password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
+    if (!telegram) return sendError(response, 400, "TELEGRAM_REQUIRED");
 
     const passwordHash = hashPassword(password);
     const result = await pool.query(
@@ -54,7 +60,7 @@ export async function handleAuthRoutes(request, response, url) {
       if (error.code === "23505") return null;
       throw error;
     });
-    if (!result) return send(response, 409, { error: "This login is already registered." });
+    if (!result) return sendError(response, 409, "LOGIN_ALREADY_REGISTERED");
 
     const token = await createSession(result.rows[0].id);
     return send(response, 201, { token, user: publicUser(result.rows[0]) });
@@ -71,7 +77,7 @@ export async function handleAuthRoutes(request, response, url) {
     if (!attempt.allowed) {
       response.setHeader?.("Retry-After", String(attempt.retryAfterSeconds));
       return send(response, 429, {
-        error: "Too many attempts for this login. Try again shortly.",
+        ...errorPayload("TOO_MANY_LOGIN_ATTEMPTS"),
         retryAfterSeconds: attempt.retryAfterSeconds,
       });
     }
@@ -80,7 +86,7 @@ export async function handleAuthRoutes(request, response, url) {
     const user = result.rows[0];
     if (!user || !verifyPassword(password, user.password_hash)) {
       recordFailedLogin(loginKey);
-      return send(response, 401, { error: "Wrong login or password." });
+      return sendError(response, 401, "WRONG_LOGIN_OR_PASSWORD");
     }
     clearLoginAttempts(loginKey);
     const token = await createSession(user.id);
@@ -111,7 +117,7 @@ export async function handleAuthRoutes(request, response, url) {
  */
 async function updateProfile(request, response) {
   const user = await currentUser(request);
-  if (!user) return send(response, 401, { error: "Not authorized." });
+  if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
 
   const body = await readJson(request);
   const login = String(body.login ?? user.login).trim();
@@ -119,9 +125,9 @@ async function updateProfile(request, response) {
   const password = String(body.password ?? "");
   const loginKey = normalizeLogin(login);
 
-  if (login.length < 3) return send(response, 400, { error: "Login must be at least 3 characters." });
-  if (!telegram) return send(response, 400, { error: "Telegram contact is required." });
-  if (password && password.length < 4) return send(response, 400, { error: "Password must be at least 4 characters." });
+  if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
+  if (!telegram) return sendError(response, 400, "TELEGRAM_REQUIRED");
+  if (password && password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
 
   const params = [user.id, login, loginKey, telegram];
   const passwordSql = password ? ", password_hash = $5" : "";
@@ -140,7 +146,7 @@ async function updateProfile(request, response) {
     if (error.code === "23505") return null;
     throw error;
   });
-  if (!updated) return send(response, 409, { error: "This login is already registered." });
+  if (!updated) return sendError(response, 409, "LOGIN_ALREADY_REGISTERED");
 
   return send(response, 200, { user: publicUser(updated.rows[0]) });
 }

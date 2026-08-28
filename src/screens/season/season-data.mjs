@@ -8,6 +8,7 @@
  * `loadSeason` — living here rather than under any one tab avoids the tab
  * modules importing each other.
  */
+import { errorText } from "../../core/api.mjs";
 import { state } from "../../core/state.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
@@ -29,7 +30,7 @@ export async function loadSeason(force = false) {
     state.season.data = await apiRequest("/api/season");
     state.season.loaded = true;
   } catch (error) {
-    state.season.error = error.message;
+    state.season.error = errorText(error);
   } finally {
     state.season.loading = false;
   }

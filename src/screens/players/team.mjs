@@ -6,6 +6,7 @@
  * those two it is view-only, so task 7's merge covers the editors and
  * leaves this one alone.
  */
+import { errorText } from "../../core/api.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
@@ -61,7 +62,7 @@ export async function renderPublicTeamProfile(userId, teamId) {
   } catch (error) {
     view.innerHTML = `
       ${renderHeader(t("sidebar.teamHeading"), t("admin.savedRosterSubtitle"), "", { back: true, backFallback: playerUrl(userId) })}
-      <div class="empty-state">${escapeHtml(error.message)}</div>
+      <div class="empty-state">${escapeHtml(errorText(error))}</div>
     `;
   }
 }

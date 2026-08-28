@@ -225,7 +225,7 @@ export async function commitSavedTeamToSeason(seasonId, savedTeamId, ownerId = "
     `SELECT * FROM saved_teams WHERE id = $1 ${ownerSql}`,
     params,
   );
-  if (!savedTeam.rows[0]) throw httpError(404, "Saved team not found.");
+  if (!savedTeam.rows[0]) throw httpError(404, "SAVED_TEAM_NOT_FOUND");
 
   const result = await pool.query(
     `INSERT INTO season_entries (season_id, user_id, saved_team_id)
@@ -236,6 +236,6 @@ export async function commitSavedTeamToSeason(seasonId, savedTeamId, ownerId = "
     if (error.code === "23505") return null;
     throw error;
   });
-  if (!result) throw httpError(409, "This coach or team is already committed to the season.");
+  if (!result) throw httpError(409, "ENTRY_ALREADY_COMMITTED");
   return result.rows[0];
 }
