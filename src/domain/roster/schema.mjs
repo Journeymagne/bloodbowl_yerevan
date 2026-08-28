@@ -39,7 +39,9 @@ export const DRAFT_FIELDS = Object.freeze([
   { name: "teamName", kind: "text" },
   { name: "selectedLeague", kind: "text" },
   { name: "favouredChoice", kind: "text" },
-  { name: "logoData", kind: "text" },
+  // `column` names a field the server keeps outside the blob; rosterForStorage
+  // leaves those out of what it sends.
+  { name: "logoData", kind: "text", column: "logo_data" },
   { name: "players", kind: "list" },
   { name: "roster", kind: "map" },
   { name: "teamRerolls", kind: "count" },
@@ -120,6 +122,23 @@ export function normalizeDraft(raw = {}) {
   const draft = {};
   for (const field of DRAFT_FIELDS) draft[field.name] = readField(field, raw);
   return draft;
+}
+
+/**
+ * The draft as the server should store it: without what it keeps elsewhere.
+ *
+ * Step 4.8. A logo is up to 2.9 MB of data URL, and it went to the server
+ * twice — once as `logoData`, once inside the roster blob, where the editor
+ * keeps it while a coach is looking at it. The server has stripped the second
+ * copy for as long as the column has existed, so nothing stored is wrong; it
+ * was the request, and the JSON parse of it, that carried a megabyte for
+ * nothing.
+ *
+ * The server keeps stripping, for coaches still running an older bundle.
+ */
+export function rosterForStorage(draft = {}) {
+  const owned = new Set(DRAFT_FIELDS.filter((field) => field.column).map((field) => field.name));
+  return Object.fromEntries(Object.entries(draft).filter(([name]) => !owned.has(name)));
 }
 
 /** A draft, copied out for sending to the server. */

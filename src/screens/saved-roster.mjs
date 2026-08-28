@@ -59,7 +59,7 @@ import {
   syncMedicalStaffForTeam,
 } from "../domain/roster/costs.mjs";
 import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
-import { normalizeSavedRoster, updateSavedRosterFields } from "../data/roster-draft.mjs";
+import { normalizeSavedRoster, rosterForStorage, updateSavedRosterFields } from "../data/roster-draft.mjs";
 import { renderRosterNotices, wireConflictBanner, wireRosterNotices } from "../components/roster-notices.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
@@ -642,7 +642,7 @@ async function buildRosterRequest(savedTeam, team, draft) {
     name: draft.teamName || team.title,
     baseTeamSlug: draft.teamSlug || team.slug,
     logoData: draft.logoData || "",
-    roster: draft,
+    roster: rosterForStorage(draft),
     revision: savedTeam.revision, // the server writes only while this still matches
   };
 }
