@@ -409,7 +409,7 @@ a {
   margin-top: auto;
   padding-top: 20px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .legal-note {
@@ -464,7 +464,7 @@ a {
   border-radius: var(--radius);
   background: var(--button-bg);
   color: var(--button-muted-text);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 900;
 }
 
@@ -608,7 +608,7 @@ a {
 
 .auth-dialog h2 {
   margin: 0;
-  font-size: 24px;
+  font-size: 1.5rem;
 }
 
 .auth-form,
@@ -691,7 +691,7 @@ body.auth-open {
 .league-hero-copy h1 {
   max-width: 860px;
   margin: 0;
-  font-size: clamp(34px, 5vw, 66px);
+  font-size: clamp(2.125rem, 5vw, 4.125rem);
   line-height: 0.98;
 }
 
@@ -699,7 +699,7 @@ body.auth-open {
   max-width: 720px;
   margin: 16px 0 0;
   color: var(--bone);
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.55;
 }
 
@@ -741,7 +741,7 @@ body.auth-open {
 
 .page-head h1 {
   margin: 0;
-  font-size: clamp(28px, 4vw, 46px);
+  font-size: clamp(1.75rem, 4vw, 2.875rem);
   line-height: 1.05;
 }
 
@@ -788,7 +788,7 @@ body.auth-open {
 
 .filter-field span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .filter-field select {
@@ -972,7 +972,7 @@ body.auth-open {
 .content-panel .team-roster-card h2 {
   margin: 0;
   color: var(--soft);
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.25;
 }
 
@@ -1009,7 +1009,7 @@ body.auth-open {
 
 .team-stat-grid dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
@@ -1032,7 +1032,7 @@ body.auth-open {
 
 .team-roster-field > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1066,7 +1066,7 @@ body.auth-open {
   border-radius: 999px;
   background: rgba(91, 71, 38, 0.44);
   color: var(--focus);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
   line-height: 1.2;
 }
@@ -1106,7 +1106,7 @@ body.auth-open {
 
 .reference-table-card header span {
   color: var(--soft);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1125,7 +1125,7 @@ body.auth-open {
   margin: 0;
   padding: 12px 12px 0;
   color: var(--focus);
-  font-size: 17px;
+  font-size: 1.0625rem;
   line-height: 1.25;
 }
 
@@ -1149,7 +1149,7 @@ body.auth-open {
   border-bottom: 1px solid var(--line);
   background: var(--table-head);
   color: var(--soft);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.2;
 }
 
@@ -1239,7 +1239,7 @@ body.auth-open {
 .card h2,
 .card h3 {
   margin: 0;
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1.2;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.86);
 }
@@ -1283,7 +1283,7 @@ body.auth-open {
 
 .overview-card-section h3 {
   color: var(--soft);
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .overview-list {
@@ -1321,7 +1321,7 @@ body.auth-open {
   display: block;
   margin-bottom: 5px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
   text-transform: uppercase;
 }
@@ -1384,7 +1384,7 @@ body.auth-open {
 .catalog-stat-strip dt,
 .catalog-card-section > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
@@ -1456,7 +1456,7 @@ body.auth-open {
 .league-reference-card header span {
   flex: 0 0 auto;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 800;
 }
 
@@ -1483,7 +1483,7 @@ body.auth-open {
   border-radius: 999px;
   background: rgba(91, 71, 38, 0.72);
   color: var(--soft);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .badge.warning {
@@ -1738,7 +1738,7 @@ body.auth-open {
 
 .team-rules-row > span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
@@ -1866,13 +1866,13 @@ body.auth-open {
 }
 
 .builder-tracker-control strong {
-  font-size: 15px;
+  font-size: 0.9375rem;
   line-height: 1.2;
 }
 
 .builder-tracker-control span {
   margin-top: 4px;
-  font-size: 13px;
+  font-size: 0.8125rem;
   line-height: 1.3;
 }
 
@@ -1884,7 +1884,7 @@ body.auth-open {
 .builder-tracker-control .inline-stepper-control .filter-button {
   min-height: 44px;
   padding: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 900;
 }
 
@@ -1915,7 +1915,7 @@ body.auth-open {
   display: grid;
   min-height: 44px;
   place-items: center;
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .builder-row {
@@ -1987,7 +1987,7 @@ body.auth-open {
 .builder-row-skills .roster-pill {
   min-height: 28px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .builder-pool,
@@ -1999,7 +1999,7 @@ body.auth-open {
 .builder-pool h2,
 .builder-selected h2 {
   margin: 4px 0 0;
-  font-size: 20px;
+  font-size: 1.25rem;
 }
 
 .builder-player-pool {
@@ -2060,7 +2060,7 @@ body.auth-open {
 .available-player-foot {
   color: var(--muted);
   font-style: normal;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .available-player-actions {
@@ -2074,7 +2074,7 @@ body.auth-open {
   min-width: 40px;
   min-height: 36px;
   padding: 0;
-  font-size: 20px;
+  font-size: 1.25rem;
   line-height: 1;
 }
 
@@ -2088,7 +2088,7 @@ body.auth-open {
 
 .compact-roster-table {
   min-width: 980px;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .compact-roster-table th,
@@ -2112,7 +2112,7 @@ body.auth-open {
 .compact-roster-table .roster-pill {
   min-height: 24px;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .builder-selected-table {
@@ -2178,7 +2178,7 @@ body.auth-open {
   width: 30px;
   min-width: 30px;
   padding: 0;
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1;
 }
 
@@ -2249,7 +2249,7 @@ body.auth-open {
   min-width: 0;
   overflow-wrap: anywhere;
   color: var(--text);
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .mobile-card-actions {
@@ -2268,7 +2268,7 @@ body.auth-open {
 
 .mobile-spp-preview-head strong {
   color: var(--soft);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .mobile-spp-action-grid {
@@ -2292,7 +2292,7 @@ body.auth-open {
   min-width: 0;
   overflow: hidden;
   color: var(--button-muted-text);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2300,13 +2300,13 @@ body.auth-open {
 
 .mobile-spp-action strong {
   color: var(--text);
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 
 .mobile-spp-action em {
   grid-column: 1 / -1;
   color: var(--focus);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-style: normal;
   font-weight: 900;
 }
@@ -2346,7 +2346,7 @@ body.auth-open {
 .mobile-player-title > span,
 .mobile-player-title small {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
@@ -2360,7 +2360,7 @@ body.auth-open {
 .mobile-player-section h3 {
   margin: 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   text-transform: uppercase;
 }
 
@@ -2408,7 +2408,7 @@ body.auth-open {
 
 .spp-counter-field span {
   color: var(--muted);
-  font-size: 10px;
+  font-size: 0.625rem;
   font-weight: 900;
 }
 
@@ -2427,7 +2427,7 @@ body.auth-open {
   display: block;
   margin-top: 6px;
   color: var(--focus);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .player-level-stack,
@@ -2438,7 +2438,7 @@ body.auth-open {
 
 .player-level-stack strong {
   color: var(--focus);
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
@@ -2446,7 +2446,7 @@ body.auth-open {
 .player-level-stack small,
 .advancement-next {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 800;
 }
 
@@ -2531,7 +2531,7 @@ body.auth-open {
 
 .saved-team-card-stats dt {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 900;
 }
 
@@ -2597,7 +2597,7 @@ body.auth-open {
 .compact-action {
   min-height: 30px;
   padding: 0 10px;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 
 .table-plus-button {
@@ -2605,7 +2605,7 @@ body.auth-open {
   min-width: 34px;
   min-height: 30px;
   padding: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
   line-height: 1;
 }
 
@@ -2668,7 +2668,7 @@ body.auth-open {
   align-items: center;
   gap: 6px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
   white-space: nowrap;
 }
@@ -2749,14 +2749,14 @@ body.auth-open {
 .cost-note {
   margin: 0;
   color: var(--focus);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 800;
 }
 
 .skill-search-hint {
   margin: -4px 0 0;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .inline-stepper-control {
@@ -2983,7 +2983,7 @@ body.auth-open {
 .autosave-status {
   margin: -7px 0 8px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
@@ -3031,7 +3031,7 @@ body.auth-open {
   align-items: center;
   gap: 9px;
   color: var(--muted);
-  font-size: 13px;
+  font-size: 0.8125rem;
   font-weight: 800;
 }
 
@@ -3071,7 +3071,7 @@ body.auth-open {
 
 .player-stat-editor > span {
   color: var(--muted);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 800;
 }
 
@@ -3167,7 +3167,7 @@ body.auth-open {
   border: 0;
   background: transparent;
   color: var(--button-muted-text);
-  font-size: 20px;
+  font-size: 1.25rem;
   cursor: pointer;
 }
 
@@ -3328,13 +3328,13 @@ body.auth-open {
 
 .summary-stat-grid dt {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 800;
 }
 
 .summary-stat-grid dd {
   color: var(--text);
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 900;
 }
 
@@ -3537,7 +3537,7 @@ body.auth-open {
   border-radius: 999px;
   background: var(--button-bg);
   color: var(--button-text);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 900;
   text-transform: uppercase;
 }
@@ -3625,7 +3625,7 @@ body.auth-open {
 
 .season-pairing-team span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .season-td-pair {
@@ -3650,7 +3650,7 @@ body.auth-open {
 .fixture-headline strong {
   display: block;
   color: var(--soft);
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .fixture-headline p {
@@ -3802,7 +3802,7 @@ body.auth-open {
 
 .side-panel h2 {
   margin: 0 0 10px;
-  font-size: 16px;
+  font-size: 1rem;
 }
 
 .kv {
@@ -3817,11 +3817,11 @@ body.auth-open {
 
 .kv span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 
 .kv strong {
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 .table-scroll {
@@ -3852,7 +3852,7 @@ table {
   width: 100%;
   min-width: 760px;
   border-collapse: collapse;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 th,
@@ -4073,7 +4073,7 @@ td {
   .theme-picker select {
     width: 88px;
     min-height: 28px;
-    font-size: 11px;
+    font-size: 0.6875rem;
   }
 
   .icon-text-button {
@@ -4329,7 +4329,7 @@ td {
 
 .app-dialog-title {
   margin: 0;
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 
 .app-dialog-message {
