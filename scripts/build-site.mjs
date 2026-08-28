@@ -38,10 +38,43 @@ function minifyCss(source) {
  */
 async function assetVersion() {
   const hash = crypto.createHash("sha256");
-  for (const relativePath of ["src/app.js", "src/styles.css", "index.html"]) {
-    hash.update(await fs.readFile(path.join(rootDir, relativePath)));
-  }
+  // Every file the browser runs, in a fixed order. Hashing only app.js used
+  // to leave the token unchanged when any of the other 118 modules changed,
+  // and the token is what tells a returning browser to fetch them again.
+  const files = [path.join(rootDir, "index.html"), ...(await sourceFiles(path.join(rootDir, "src")))];
+  for (const file of files.sort()) hash.update(await fs.readFile(file));
   return `gata-${hash.digest("hex").slice(0, 10)}`;
+}
+
+/** Every script and stylesheet under a directory, recursively. */
+async function sourceFiles(dir) {
+  const found = [];
+  for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) found.push(...(await sourceFiles(full)));
+    else if (/\.(mjs|js|css)$/.test(entry.name)) found.push(full);
+  }
+  return found;
+}
+
+/**
+ * Put the version on every import inside the copied modules.
+ *
+ * index.html versions src/app.js, but app.js imports src/core/*.mjs with
+ * plain relative paths, and those URLs do not change between releases. A
+ * browser holding yesterday's copy of a module and today's app.js runs a
+ * mixed graph — the bug that made changes look like they had not deployed.
+ */
+async function stampImports(dir, version) {
+  for (const file of await sourceFiles(dir)) {
+    if (file.endsWith(".css")) continue;
+    const source = await fs.readFile(file, "utf8");
+    const stamped = source.replace(
+      /(from\s*")(\.[^"]+\.(?:mjs|js))(")/g,
+      (whole, before, specifier, after) => `${before}${specifier}?v=${version}${after}`,
+    );
+    if (stamped !== source) await fs.writeFile(file, stamped);
+  }
 }
 
 /** Rewrite every `?v=...` in index.html, failing loudly if the markup moved. */
@@ -78,6 +111,7 @@ const version = await assetVersion();
 const indexHtml = stampVersion(await fs.readFile(path.join(rootDir, "index.html"), "utf8"), version);
 await fs.writeFile(path.join(distDir, "index.html"), indexHtml);
 await copyDir(path.join(rootDir, "src"), path.join(distDir, "src"));
+await stampImports(path.join(distDir, "src"), version);
 await copyDir(path.join(rootDir, "public"), path.join(distDir, "public"));
 await copyDir(path.join(rootDir, "assets"), path.join(distDir, "assets"));
 const stylesPath = path.join(distDir, "src", "styles.css");
