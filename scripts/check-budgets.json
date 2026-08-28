@@ -20,7 +20,7 @@
       "src/app.js": 160,
       "server/server.mjs": 148,
       "scripts/build-data.mjs": 794,
-      "src/screens/saved-roster.mjs": 1138
+      "src/screens/saved-roster.mjs": 1108
     },
     "maxFunctionLines": {
       "src/app.js": 180,
@@ -33,7 +33,7 @@
     },
     "_notes": {
       "src/app.js": "Task 6 walked this down 6210 -> 157: theme/i18n/reference, core/dom.mjs, core/markdown.mjs, core/routes.mjs, then the screens in 6.5-6.8, then 6.9's components/auth-modal.mjs and core/router.mjs. What is left is bootstrap. Went 157 -> 160 for the stale-locale-chrome fix: an import, a comment and an onLocaleChange registration, which is the smallest form that fix takes. Bugfixes may cost a line; drift may not.",
-      "src/screens/saved-roster.mjs": "Task 7b folded this file's shared markup into components/roster-editor/*: the table, the staff steppers, the identity panel, the staff lines. 1219 -> 1138. What is left is what a team already in play has and a new one does not — SPP, advancements, contracts, the phone cards, the wiring and the save plumbing — and only step 7b.4 moves that. The five lines back from 1133 are task 4.7's conflict handling, which is a data-loss fix: without them a coach whose team was saved in another tab sees a status line and no way to choose.",
+      "src/screens/saved-roster.mjs": "Task 7b folded this file's shared markup into components/roster-editor/*: the table, the staff steppers, the identity panel, the staff lines. 1219 -> 1138. What is left is what a team already in play has and a new one does not — SPP, advancements, contracts, the phone cards, the wiring and the save plumbing — and only step 7b.4 moves that. Step 15.5 moved the autosave status line to components/roster-editor/autosave-status.mjs, since it is now what a screen reader is told too: 1108. The five lines back from 1133 are task 4.7's conflict handling, which is a data-loss fix: without them a coach whose team was saved in another tab sees a status line and no way to choose.",
       "src/screens/builder.mjs": "wireBuilder() came in at 100 lines, moved from app.js unchanged. Same task-7 note as saved-roster.mjs: this shrinks when the two editors merge.",
       "scripts/backup/status.mjs": "Arrived with the nightly-backup work on main, which was written before this branch's check-structure existed and so never ran against it. evaluateSystemdState() is 108 lines. Inherited, not drift — lower it when that file is next touched.",
       "server/server.mjs": "Step 4.9 split this file 1935 -> 213: response plumbing, the pool, env loading, row serializers, sessions, the season and six route modules. Step 17.1 took static serving out too (server/http/static.mjs), leaving 164 — startup, the route table, and the HTTP server itself. Step 13.3 then found 24 imports the split had left behind, unused: 148.",

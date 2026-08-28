@@ -70,6 +70,7 @@ import { confirmRaceChange, restoreTeamSelect } from "../components/roster-edito
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
+import { autosaveMessageFor, wireAutosaveStatus } from "../components/roster-editor/autosave-status.mjs";
 import {
   ensureDraftFavouredChoice,
   ensureDraftLeagueChoice,
@@ -284,7 +285,7 @@ function renderRosterMoneyControl(title, description, value, dataAttribute) {
   `;
 }
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
-  wireAutosaveStatus(savedTeam.id);
+  onScreenLeave("saved-roster:autosave-status", wireAutosaveStatus(view, rosterStore, savedTeam.id));
   // Delegated to the container, which survives a re-render: the group must be
   // dropped when this runs again, or every edit doubles the handlers.
   const events = listenerGroup(view);
@@ -661,37 +662,6 @@ function trackSavedRoster(savedTeam, { refresh = true } = {}) {
     endpoint: savedTeam._saveEndpoint || `/api/teams/${savedTeam.id}`,
     buildRequest: (current) => buildRosterRequest(savedTeam, team, current),
   });
-}
-const autosaveStatusMessages = {
-  [SAVE_STATUS.IDLE]: "roster.autosaveDefaultMessage",
-  [SAVE_STATUS.DIRTY]: "roster.unsavedStatus",
-  [SAVE_STATUS.SAVING]: "roster.savingStatus",
-  [SAVE_STATUS.SAVED]: "roster.autosavedStatus",
-  [SAVE_STATUS.OFFLINE]: "roster.offlineStatus",
-  [SAVE_STATUS.CONFLICT]: "roster.conflictStatus",
-  [SAVE_STATUS.ERROR]: "roster.autosaveFailedStatus",
-};
-function autosaveMessageFor(status) {
-  return t(autosaveStatusMessages[status] ?? autosaveStatusMessages[SAVE_STATUS.IDLE]);
-}
-/** Status line in step with the store; the unsubscribe is registered, not dropped. */
-/**
- * The status line tells a coach their team was saved somewhere else — already
- * the difference between losing work silently and being told. The *banner*
- * offering a choice between the versions is markup and a conflict arrives
- * between renders, so it needs a render; that trigger must be careful, since
- * subscribe() replays the status and every render subscribes again. It is the
- * rest of step 4.7, in the plan rather than shipped unverified — reaching the
- * state needs unsaved edits, which the beforeunload guard stops a check from
- * driving.
- */
-function wireAutosaveStatus(teamId) {
-  onScreenLeave("saved-roster:autosave-status", rosterStore.subscribe(teamId, ({ status }) => {
-    const node = view.querySelector("[data-autosave-status]");
-    if (!node) return;
-    node.textContent = autosaveMessageFor(status);
-    node.dataset.status = status;
-  }));
 }
 function scheduleSavedRosterAutosave(teamId) {
   if (!teamId) return;
