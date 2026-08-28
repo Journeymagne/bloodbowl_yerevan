@@ -7,9 +7,14 @@
     <script>
       (() => {
         try {
+          const themes = ["dark-gata", "dark-dugout", "dark-warpstone", "light-parchment", "light-sideline", "light-altdorf"];
           const theme = localStorage.getItem("gata-league-theme");
-          if (["dark-gata", "dark-dugout", "dark-warpstone", "light-parchment", "light-sideline", "light-altdorf"].includes(theme)) {
+          if (themes.includes(theme)) {
             document.documentElement.dataset.theme = theme;
+          } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
+            // No choice stored: follow the system, before the stylesheet
+            // paints dark. src/core/theme.mjs makes the same decision.
+            document.documentElement.dataset.theme = "light-parchment";
           }
         } catch (_error) {}
       })();

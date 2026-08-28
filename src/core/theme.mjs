@@ -21,14 +21,29 @@ export const THEME_IDS = Object.freeze([
 
 export const DEFAULT_THEME = "dark-gata";
 
+/** What the six themes fall back to when the system asks for light. */
+export const DEFAULT_LIGHT_THEME = "light-parchment";
+
 const known = new Set(THEME_IDS);
 
 export function normalizeTheme(theme) {
   return known.has(theme) ? theme : DEFAULT_THEME;
 }
 
+/**
+ * The theme to use when nobody has picked one.
+ *
+ * Step 15.6. Before this the site opened dark for everybody, including a
+ * reader whose system is set to light because dark is hard for them to read.
+ * A stored choice still wins — this only answers the case of no choice.
+ */
+export function systemTheme(matchMediaFn = globalThis.matchMedia) {
+  return matchMediaFn?.("(prefers-color-scheme: light)")?.matches ? DEFAULT_LIGHT_THEME : DEFAULT_THEME;
+}
+
 export function storedTheme() {
-  return normalizeTheme(storage.get(STORAGE_KEYS.theme));
+  const stored = storage.get(STORAGE_KEYS.theme);
+  return stored === null ? systemTheme() : normalizeTheme(stored);
 }
 
 /**
@@ -49,5 +64,10 @@ export function initTheme() {
   applyTheme(storedTheme(), false);
   document.querySelector("#theme-select")?.addEventListener("change", (event) => {
     applyTheme(event.currentTarget.value);
+  });
+  // Someone who has not picked a theme follows their system, including when
+  // it changes at sunset. Someone who has picked one is left alone.
+  globalThis.matchMedia?.("(prefers-color-scheme: light)")?.addEventListener?.("change", () => {
+    if (storage.get(STORAGE_KEYS.theme) === null) applyTheme(systemTheme(), false);
   });
 }
