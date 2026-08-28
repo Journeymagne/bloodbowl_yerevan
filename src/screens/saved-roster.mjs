@@ -60,7 +60,7 @@ import {
 } from "../domain/roster/costs.mjs";
 import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
 import { normalizeSavedRoster, updateSavedRosterFields } from "../data/roster-draft.mjs";
-import { renderRosterNotices, wireRosterNotices } from "../components/roster-notices.mjs";
+import { renderRosterNotices, wireConflictBanner, wireRosterNotices } from "../components/roster-notices.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
@@ -286,6 +286,8 @@ function renderRosterMoneyControl(title, description, value, dataAttribute) {
 }
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
   onScreenLeave("saved-roster:autosave-status", wireAutosaveStatus(view, rosterStore, savedTeam.id));
+  onScreenLeave("saved-roster:conflict-banner", wireConflictBanner(view, rosterStore, savedTeam.id,
+    SAVE_STATUS.CONFLICT, () => renderSavedRoster(savedTeam.id, false, options)));
   // Delegated to the container, which survives a re-render: the group must be
   // dropped when this runs again, or every edit doubles the handlers.
   const events = listenerGroup(view);

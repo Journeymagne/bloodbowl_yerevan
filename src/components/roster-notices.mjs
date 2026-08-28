@@ -84,3 +84,32 @@ export function wireRosterNotices(root, { onRestore, onDiscard, onReload }) {
   events.on("click", "[data-roster-reload-server]", onReload);
   return () => events.release();
 }
+
+/**
+ * Show the conflict banner when the conflict arrives, not at the next render.
+ *
+ * The rest of step 4.7. The server answers 409 and the store reaches
+ * `conflict`, but the banner is markup: without this, a coach whose team was
+ * saved in another tab sees only the status line change, and the offer to take
+ * the server's version waits for a render that may never come.
+ *
+ * The trigger has to be careful for two reasons. subscribe() replays the
+ * current status immediately, and every render subscribes again — so a naive
+ * "re-render on conflict" renders forever. The guard is the banner itself: if
+ * it is already on screen, this conflict is the one that is already being
+ * shown.
+ *
+ * @param {HTMLElement} root the rendered screen
+ * @param {object} store the roster store
+ * @param {string} teamId
+ * @param {string} conflictStatus the store's conflict status value
+ * @param {() => void} rerender
+ * @returns {() => void} the unsubscribe, for the caller to register
+ */
+export function wireConflictBanner(root, store, teamId, conflictStatus, rerender) {
+  return store.subscribe(teamId, ({ status }) => {
+    if (status !== conflictStatus) return;
+    if (root.querySelector("[data-roster-conflict]")) return;
+    rerender();
+  });
+}
