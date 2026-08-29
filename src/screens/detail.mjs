@@ -12,7 +12,7 @@ import { view } from "../core/view.mjs";
 import { inlineSimpleMarkdown, parseFirstMarkdownTable } from "../core/markdown.mjs";
 import { listUrlForRoute, navRouteForPage, pageUrl } from "../core/routes.mjs";
 import { rowCost, rowsForTeam } from "../domain/roster/values.mjs";
-import { cleanApothecary, teamLeagueOptions, teamSpecialRuleTokens } from "../domain/roster/team-rules.mjs";
+import { teamApothecaryAccess, teamLeagueOptions, teamSpecialRuleTokens } from "../domain/roster/team-rules.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { badgeList } from "../components/cards.mjs";
 import { pageForSkillTableEntry, renderRosterLinks, renderRuleLinks, uniqueSorted } from "../components/content-links.mjs";
@@ -248,7 +248,7 @@ function renderSidebar(page) {
           <dt>${t("sidebar.positions")}</dt><dd>${roster.length}</dd>
           <dt>${t("filters.playerCost")}</dt><dd>${escapeHtml(costs.join(" - ") || "-")}</dd>
           <dt>${t("sidebar.rerolls")}</dt><dd>${escapeHtml(page.team?.meta?.rerolls ?? "-")}</dd>
-          <dt>${t("sidebar.apothecary")}</dt><dd>${escapeHtml(cleanApothecary(page.team?.meta?.apothecary))}</dd>
+          <dt>${t("sidebar.apothecary")}</dt><dd>${escapeHtml(teamApothecaryAccess(page))}</dd>
           <dt>${t("roster.tier")}</dt><dd>${escapeHtml(page.team?.meta?.league ?? "-")}</dd>
           <dt>${t("roster.leagueAccess")}</dt><dd>${renderRuleLinks(teamLeagueOptions(page))}</dd>
           <dt>${t("roster.specialRules")}</dt><dd>${renderRuleLinks(teamSpecialRuleTokens(page))}</dd>

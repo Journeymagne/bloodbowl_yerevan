@@ -19,7 +19,7 @@
     "maxFileLines": {
       "src/app.js": 160,
       "server/server.mjs": 148,
-      "scripts/build-data.mjs": 794,
+      "scripts/build-data.mjs": 805,
       "src/screens/saved-roster.mjs": 1110
     },
     "maxFunctionLines": {
@@ -38,7 +38,8 @@
       "scripts/backup/status.mjs": "Arrived with the nightly-backup work on main, which was written before this branch's check-structure existed and so never ran against it. evaluateSystemdState() is 108 lines. Inherited, not drift — lower it when that file is next touched.",
       "server/server.mjs": "Step 4.9 split this file 1935 -> 213: response plumbing, the pool, env loading, row serializers, sessions, the season and six route modules. Step 17.1 took static serving out too (server/http/static.mjs), leaving 164 — startup, the route table, and the HTTP server itself. Step 13.3 then found 24 imports the split had left behind, unused: 148.",
       "server/season/games.mjs": "updateSeasonPairing() is 95 lines. Not new debt — it was always this long, hidden by the 700-line function override server.mjs carried while everything lived there. Step 4.9 only made it visible. Task 14.2 rewrites this function to confirm a result in one transaction instead of two statements; it shrinks then, not before.",
-      "server/season/rounds.mjs": "generateSwissRound() is 88 lines, and inherited the same way. Task 14.5 replaces its greedy pairing pass — which takes the first opponent available and then any opponent at all, so it can invent a rematch where a consistent pairing existed — with a search. Lower it there."
+      "server/season/rounds.mjs": "generateSwissRound() is 88 lines, and inherited the same way. Task 14.5 replaces its greedy pairing pass — which takes the first opponent available and then any opponent at all, so it can invent a rematch where a consistent pairing existed — with a search. Lower it there.",
+      "scripts/build-data.mjs": "794 -> 805 for step 16.1, a bug fix: the client decided which medical staff a team may hire by matching English words against a translated sentence, so no Russian coach could hire an apothecary. The build now derives access tokens from the English vault and copies them onto both locales (scripts/lib/medical-access.mjs). The eleven lines here are the import, the two calls, and stripping the label the English vault writes twice."
     }
   }
 }

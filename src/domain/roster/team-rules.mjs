@@ -143,16 +143,26 @@ export function favouredSkillsForChoice(choice = "") {
   return alignment?.skills ?? [];
 }
 
-export function cleanApothecary(value = "") {
-  return String(value).replace(/^Apothecary:\s*/i, "") || "-";
-}
-
 export function hasBribery(team) {
   return /bribery\s+and\s+corruption/i.test(team.team?.meta?.specialRules ?? "");
 }
 
+/** What the page says about medical staff, in the reader's language. */
 export function teamApothecaryAccess(team) {
-  return cleanApothecary(team.team?.meta?.apothecary ?? "");
+  return team.team?.meta?.apothecary || "-";
+}
+
+/**
+ * Which medical staff this team may hire: "apothecary", "mortuary", "plague".
+ *
+ * The build derives these from the English vault and puts the same tokens on
+ * both locales (step 16.1). Before that, the rule below read the displayed
+ * sentence, so a Russian coach — whose page says one Russian word rather than
+ * "Available" — could not hire an apothecary at all.
+ */
+export function teamMedicalAccess(team) {
+  const access = team.team?.meta?.apothecaryAccess;
+  return Array.isArray(access) ? access : [];
 }
 
 export function teamHasFavouredOf(team, alignment) {
@@ -161,13 +171,13 @@ export function teamHasFavouredOf(team, alignment) {
 }
 
 export function canHireMedicalStaff(team, staff) {
-  const apothecaryAccess = teamApothecaryAccess(team);
-  if (staff.access === "apothecary") return /\bavailable\b/i.test(apothecaryAccess);
+  const access = teamMedicalAccess(team);
+  if (staff.access === "apothecary") return access.includes("apothecary");
   if (staff.access === "mortuary") {
-    return /mortuary\s+assistant/i.test(apothecaryAccess) || teamHasSpecialRule(team, "Masters of Undeath");
+    return access.includes("mortuary") || teamHasSpecialRule(team, "Masters of Undeath");
   }
   if (staff.access === "plague") {
-    return /plague\s+doctor/i.test(apothecaryAccess) || teamHasFavouredOf(team, "Nurgle");
+    return access.includes("plague") || teamHasFavouredOf(team, "Nurgle");
   }
   return false;
 }

@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown.mjs";
 import { writeDataFile } from "./lib/write-data-file.mjs";
+import { applyMedicalAccess, medicalAccessByPageId } from "./lib/medical-access.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
@@ -580,8 +581,15 @@ function extractTeamMeta(markdown) {
     }
   }
 
+  // The English vault writes the label twice: `**Apothecary:** Apothecary:
+  // Available`. Every screen then had to strip it back off, and one of them
+  // did it by matching English prose, which is why a Russian coach could not
+  // hire an apothecary at all (step 16.1).
+  if (meta.apothecary) meta.apothecary = meta.apothecary.replace(/^Apothecary:\s*/i, "");
+
   return meta;
 }
+
 
 function extractStarPlayerMeta(markdown) {
   const meta = {};
@@ -775,6 +783,8 @@ await fs.mkdir(publicDir, { recursive: true });
 
 const enFiles = (await walk(vaultDir)).map((file) => ({ file, relativePath: path.relative(vaultDir, file) }));
 const enData = await buildLocaleData(enFiles);
+const medicalAccessById = medicalAccessByPageId(enData);
+applyMedicalAccess(enData, medicalAccessById);
 const enJson = JSON.stringify(enData);
 for (const name of ["data.en.json", "data.json"]) await writeDataFile(path.join(publicDir, name), enJson);
 console.log(`Built ${enData.counts.pages} pages into public/data.en.json (+ data.json alias)`);
@@ -785,6 +795,7 @@ if (!ruVaultExists) {
 }
 const ruFiles = await resolveLocaleFiles(vaultDir, ruVaultDir);
 const ruData = await buildLocaleData(ruFiles);
+applyMedicalAccess(ruData, medicalAccessById);
 await writeDataFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData));
 const ruTranslatedCount = ruFiles.filter(({ file }) => file.startsWith(ruVaultDir + path.sep)).length;
 console.log(`Built ${ruData.counts.pages} pages into public/data.ru.json (${ruTranslatedCount} translated, ${ruData.counts.pages - ruTranslatedCount} falling back to ${primaryContentDir})`);

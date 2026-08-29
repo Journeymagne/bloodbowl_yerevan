@@ -38,10 +38,17 @@ function minifyCss(source) {
  */
 async function assetVersion() {
   const hash = crypto.createHash("sha256");
-  // Every file the browser runs, in a fixed order. Hashing only app.js used
-  // to leave the token unchanged when any of the other 118 modules changed,
-  // and the token is what tells a returning browser to fetch them again.
-  const files = [path.join(rootDir, "index.html"), ...(await sourceFiles(path.join(rootDir, "src")))];
+  // Every file the browser runs or reads, in a fixed order. Hashing only
+  // app.js used to leave the token unchanged when any of the other 118 modules
+  // changed, and the token is what tells a returning browser to fetch them
+  // again. The reference data is in here for the same reason: app.js passes
+  // this token to its data and dictionary fetches, so a rules change that
+  // moved no code would otherwise be served from a day-old cache.
+  const files = [
+    path.join(rootDir, "index.html"),
+    ...(await sourceFiles(path.join(rootDir, "src"))),
+    ...["data.en.json", "data.ru.json"].map((name) => path.join(rootDir, "public", name)),
+  ];
   for (const file of files.sort()) hash.update(await fs.readFile(file));
   return `gata-${hash.digest("hex").slice(0, 10)}`;
 }
