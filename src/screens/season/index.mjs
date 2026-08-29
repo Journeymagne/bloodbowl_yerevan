@@ -54,6 +54,18 @@ function normalizeSeasonTab(tabId = "") {
   return tabs.some((tab) => tab.id === tabId) ? tabId : tabs[0]?.id ?? "registration";
 }
 
+const SEASON_PANEL_ID = "season-panel";
+
+const seasonTabId = (tabId) => `season-tab-${tabId}`;
+
+/**
+ * The tab strip.
+ *
+ * Step 15.7 finishes what the roles started: a tab now names the panel it
+ * controls, and only the selected one is a tab stop. That is the roving
+ * tabindex a tablist is meant to have — Tab moves past the whole strip rather
+ * than through it, and the arrow keys move within, which wireSeason handles.
+ */
 function renderSeasonTabs(activeTab) {
   return `
     <div class="season-tabs" role="tablist" aria-label="${t("season.sectionsAriaLabel")}">
@@ -62,10 +74,22 @@ function renderSeasonTabs(activeTab) {
           class="season-tab ${tab.id === activeTab ? "active" : ""}"
           type="button"
           role="tab"
+          id="${seasonTabId(tab.id)}"
+          aria-controls="${SEASON_PANEL_ID}"
           aria-selected="${tab.id === activeTab ? "true" : "false"}"
+          tabindex="${tab.id === activeTab ? "0" : "-1"}"
           data-season-tab="${escapeHtml(tab.id)}"
         >${t(tab.labelKey)}</button>
       `).join("")}
+    </div>
+  `;
+}
+
+/** The tab's content, told to a reader as the panel that tab controls. */
+function renderSeasonPanel(data, activeTab) {
+  return `
+    <div id="${SEASON_PANEL_ID}" role="tabpanel" tabindex="0" aria-labelledby="${seasonTabId(activeTab)}">
+      ${renderSeasonTabContent(data, activeTab)}
     </div>
   `;
 }
@@ -104,7 +128,7 @@ export async function renderSeason(refresh = true, tab = "") {
   view.innerHTML = `
     ${renderHeader(t("nav.season"), `${data.season?.name ?? t("season.defaultName")} · ${t("season.swissPairingControl")}`, `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
     ${renderSeasonTabs(activeTab)}
-    ${renderSeasonTabContent(data, activeTab)}
+    ${renderSeasonPanel(data, activeTab)}
   `;
   wireSeason(activeTab);
 }
@@ -115,11 +139,37 @@ function wireSeason(activeTab) {
     renderSeason(true, activeTab);
   });
 
-  view.querySelectorAll("[data-season-tab]").forEach((button) => {
-    button.addEventListener("click", () => {
-      const nextTab = normalizeSeasonTab(button.dataset.seasonTab);
-      history.replaceState(null, "", seasonTabUrl(nextTab));
-      renderSeason(false, nextTab);
+  /**
+   * Switch tabs, and leave focus where the person left it.
+   *
+   * The switch re-renders the strip, so the button that was focused is gone by
+   * the end of it — focus would drop to the body and a keyboard user would
+   * have to walk back to the tabs. Rendering the new tab with tabindex="0"
+   * makes it focusable, not focused; only this does.
+   */
+  const openTab = async (tabId, { focusTab = false } = {}) => {
+    const nextTab = normalizeSeasonTab(tabId);
+    history.replaceState(null, "", seasonTabUrl(nextTab));
+    await renderSeason(false, nextTab);
+    if (focusTab) view.querySelector(`#${seasonTabId(nextTab)}`)?.focus();
+  };
+
+  const buttons = [...view.querySelectorAll("[data-season-tab]")];
+  buttons.forEach((button, index) => {
+    button.addEventListener("click", () => openTab(button.dataset.seasonTab));
+    // Arrow keys move within a tablist; Home and End jump to its ends. Without
+    // this the strip is one tab stop with no way to reach the other tabs from
+    // the keyboard at all, which is what a roving tabindex costs if the keys
+    // that go with it are missing.
+    button.addEventListener("keydown", (event) => {
+      const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key];
+      let next = null;
+      if (step) next = buttons[(index + step + buttons.length) % buttons.length];
+      if (event.key === "Home") next = buttons[0];
+      if (event.key === "End") next = buttons[buttons.length - 1];
+      if (!next) return;
+      event.preventDefault();
+      openTab(next.dataset.seasonTab, { focusTab: true });
     });
   });
 

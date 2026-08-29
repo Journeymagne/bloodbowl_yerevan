@@ -434,5 +434,6 @@
   "skills.randomizerRegion": "Случайный навык",
   "skills.tableByCategoryRegion": "Таблица навыков по категориям",
   "teams.rosterRegion": "Состав: {team}",
-  "reference.tableRegion": "Таблица: {page}"
+  "reference.tableRegion": "Таблица: {page}",
+  "a11y.skipToContent": "К содержимому"
 }

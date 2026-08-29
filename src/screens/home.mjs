@@ -27,7 +27,9 @@ export function renderHome() {
     <section>
       <div class="page-head">
         <div>
-          <h1>${t("home.overviewTitle")}</h1>
+          <!-- h2, not h1: the hero above is this screen's heading, and a second
+               h1 tells a screen reader the page starts again here. -->
+          <h2>${t("home.overviewTitle")}</h2>
           <p>${t("home.overviewSubtitle")}</p>
         </div>
       </div>

@@ -41,9 +41,8 @@ const navOverlay = document.querySelector("#nav-overlay");
 const navList = document.querySelector(".nav-list");
 
 // Cache-busting token: index.html loads this module as `src/app.js?v=<version>`
-// and the build stamps that value, so data and i18n fetches reuse it instead of
-// carrying a second copy that drifts (it used to say gata-93 while index.html
-// asked for gata-97).
+// and the build stamps that value, so data and i18n fetches reuse it rather
+// than a second copy that drifts (it said gata-93 while index.html said 97).
 const assetVersion = new URL(import.meta.url).searchParams.get("v") || "dev";
 const referenceDataOptions = { version: assetVersion, inlineData: globalThis.__REFERENCE_DATA__ };
 
@@ -105,6 +104,7 @@ function wireFrame() {
     renderRoute();
   });
   view.addEventListener("click", handleHistoryBack);
+  document.querySelector("[data-skip-to-content]")?.addEventListener("click", () => view.focus());
   navToggle?.addEventListener("click", () => {
     setNavOpen(!document.body.classList.contains("nav-open"));
   });
