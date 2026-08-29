@@ -324,22 +324,7 @@
 }
 
 
-/*
- * References is two lists now: the five sections that used to be sidebar
- * entries, then the pages themselves. The headings tell them apart.
- */
-.section-subheading {
-  margin: 0 0 12px;
-  font-size: 1rem;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.reference-sections {
-  margin-bottom: 26px;
-}
-
+/* A section card sits among the page cards on References; its count stands out. */
 .reference-section-card .meta-line {
   color: var(--soft);
 }

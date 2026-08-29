@@ -7,6 +7,7 @@
  * used to call `renderSection(route)` directly (see components/filters.mjs's
  * docstring) — it now gets that as a `rerender` callback.
  */
+import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -57,12 +58,41 @@ function collectionForRoute(route) {
   if (route === "inducements") return state.data.inducements;
   if (route === "star-players") return state.data.starPlayers;
   if (route === "pages") {
-    const order = ["Weather", "Kick-off Table", "Prayers to Nuffle", "Casualties", "Player Advancement", "Leagues", "Skill Table", "Special Rules", "All Gata Changes"];
     return state.data.pages
-      .filter((page) => page.kind === "page" && order.includes(page.title))
-      .sort((a, b) => order.indexOf(a.title) - order.indexOf(b.title));
+      .filter((page) => page.kind === "page" && REFERENCE_PAGE_TITLES.has(page.title));
   }
   return [];
+}
+
+/** The nine reference pages, whatever else the vault holds. */
+const REFERENCE_PAGE_TITLES = new Set([
+  "Weather",
+  "Kick-off Table",
+  "Prayers to Nuffle",
+  "Casualties",
+  "Player Advancement",
+  "Leagues",
+  "Skill Table",
+  "Special Rules",
+  "All Gata Changes",
+]);
+
+/**
+ * The four a coach reaches for during a match, in the order they need them.
+ * Everything else on the References screen follows alphabetically.
+ */
+const PINNED_REFERENCES = ["Weather", "Kick-off Table", "Prayers to Nuffle", "Casualties"];
+
+/** Pinned first, in their own order; the rest by name, in the reader's language. */
+function byReferenceOrder(a, b) {
+  const rankA = PINNED_REFERENCES.indexOf(a.title);
+  const rankB = PINNED_REFERENCES.indexOf(b.title);
+  if (rankA !== -1 || rankB !== -1) {
+    if (rankA === -1) return 1;
+    if (rankB === -1) return -1;
+    return rankA - rankB;
+  }
+  return a.title.localeCompare(b.title, state.locale);
 }
 
 function visibleCollection(route) {
@@ -107,13 +137,15 @@ export function renderSection(route) {
   // now, and the sidebar no longer holds a link to where they came from.
   const headerOptions = route === "pages" ? {} : { back: true, backFallback: "#/pages" };
 
+  const cards = route === "pages"
+    ? referenceCards(items)
+    : items.map((page) => renderListCard(page, route)).join("");
+
   view.innerHTML = `
     ${renderHeader(t(sectionTitleKeys[route]), description, actions, headerOptions)}
-    ${route === "pages" ? renderReferenceSections() : ""}
     ${renderFilters(route)}
-    ${route === "pages" ? `<h2 class="section-subheading">${t("section.pagesHeading")}</h2>` : ""}
     <div class="card-grid">
-      ${items.length ? items.map((page) => renderListCard(page, route)).join("") : `<div class="empty-state">${t("section.emptyState")}</div>`}
+      ${cards || `<div class="empty-state">${t("section.emptyState")}</div>`}
     </div>
   `;
   wireFilters(route, () => renderSection(route));
@@ -124,8 +156,9 @@ export function renderSection(route) {
  *
  * The sidebar had eleven items and only the first few are things a coach opens
  * during a match; these are the reference material, so they are behind one
- * entry now and this is the way in. Each says how much is in it, because "37
- * teams" is what tells you whether you are in the right place.
+ * entry now. They sit in the same list as the reference pages, because to
+ * somebody looking for the casualty table there is no difference between a
+ * page and a catalogue — both are places to read.
  */
 const REFERENCE_SECTIONS = [
   ["teams", "nav.teamsRules", "section.teamsDescription"],
@@ -135,16 +168,30 @@ const REFERENCE_SECTIONS = [
   ["inducements", "nav.inducements", "section.inducementsDescription"],
 ];
 
-function renderReferenceSections() {
-  const cards = REFERENCE_SECTIONS.map(([route, titleKey, descriptionKey]) => `
-    <a class="card reference-section-card" href="#/${route}">
-      <h3>${t(titleKey)}</h3>
-      <p>${t(descriptionKey)}</p>
-      <div class="meta-line">${collectionForRoute(route).length} ${t("section.entries")}</div>
-    </a>
-  `).join("");
+/** One card for a section, with the size of it, since a catalogue has one. */
+function sectionCard({ route, title, description, count }) {
   return `
-    <h2 class="section-subheading">${t("section.sectionsHeading")}</h2>
-    <div class="card-grid reference-sections">${cards}</div>
+    <a class="card reference-section-card" href="#/${route}">
+      <h3>${escapeHtml(title)}</h3>
+      <p>${escapeHtml(description)}</p>
+      <div class="meta-line">${count} ${t("section.entries")}</div>
+    </a>
   `;
+}
+
+/** The References screen: pages and sections in one list, in one order. */
+function referenceCards(pages) {
+  const sections = REFERENCE_SECTIONS
+    .map(([route, titleKey, descriptionKey]) => ({
+      route,
+      title: t(titleKey),
+      description: t(descriptionKey),
+      count: collectionForRoute(route).length,
+    }))
+    .filter((section) => matchesQuery({ title: section.title, text: section.description }));
+
+  return [...pages, ...sections]
+    .sort(byReferenceOrder)
+    .map((entry) => (entry.route ? sectionCard(entry) : renderListCard(entry, "pages")))
+    .join("");
 }
