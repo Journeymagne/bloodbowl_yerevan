@@ -434,5 +434,6 @@
   "skills.randomizerRegion": "Skill randomizer",
   "skills.tableByCategoryRegion": "Skill table grouped by category",
   "teams.rosterRegion": "{team} roster",
-  "reference.tableRegion": "{page} table"
+  "reference.tableRegion": "{page} table",
+  "a11y.skipToContent": "Skip to content"
 }

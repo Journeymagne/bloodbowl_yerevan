@@ -737,7 +737,8 @@ body.auth-open {
   align-items: center;
 }
 
-.page-head h1 {
+.page-head h1,
+.page-head h2 {
   margin: 0;
   font-size: clamp(1.75rem, 4vw, 2.875rem);
   line-height: 1.05;
@@ -4397,4 +4398,29 @@ td {
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/*
+ * The skip link: out of the way until it is focused, then the first thing on
+ * the page. Forty-four navigation links sit between the top of the document
+ * and the content, and a keyboard had to walk all of them on every screen.
+ */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -100px;
+  z-index: 100;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--text);
+  text-decoration: none;
+  transition: top 120ms ease;
+}
+
+/* :focus, not only :focus-visible - a control nobody can see is reached by
+   keyboard or by a screen reader, and both should reveal it. */
+.skip-link:focus {
+  top: 8px;
 }
