@@ -27,7 +27,7 @@ import {
   builderStaffMaximums,
   sppCounterDefinitions,
 } from "../domain/league-rules.mjs";
-import { categoriesForAccess, clamp, costToNumber, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
+import { PLAYER_STATS, categoriesForAccess, clamp, costToNumber, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
 import {
   ensureDraftPlayers,
@@ -768,7 +768,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
       cell: (player, index) => `<input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>`,
     },
     { header: t("roster.positionHeader"), cell: (player) => `<strong>${escapeHtml(player.row.position)}</strong>` },
-    ...["ma", "st", "ag", "pa", "ar"].map(savedStatColumn),
+    ...PLAYER_STATS.map(savedStatColumn),
     { header: t("roster.skillsLabel"), className: "skills-cell", cell: renderSavedSkillsCell },
     { header: t("roster.addSkillHeader"), cell: renderSavedSkillEditor },
     {

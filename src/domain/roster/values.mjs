@@ -7,6 +7,15 @@
  */
 import { defaultPositionMaximum, skillAccessMap } from "../league-rules.mjs";
 
+/**
+ * The five printed characteristics, in the order a roster table shows them.
+ *
+ * Written down once (step 13.4): three files carried their own copy of this
+ * array, and each of them turns a name here into a `stats.<name>` dictionary
+ * key. A list nobody can enumerate is a list nothing can check.
+ */
+export const PLAYER_STATS = Object.freeze(["ma", "st", "ag", "pa", "ar"]);
+
 export function splitList(value = "") {
   return String(value)
     .split(/,|;|\n/)

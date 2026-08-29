@@ -15,6 +15,7 @@ import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
 import { pageUrl } from "../core/routes.mjs";
 import { calculateRosterCosts } from "../domain/roster/costs.mjs";
+import { countToNumber } from "../domain/roster/values.mjs";
 import { ensureDraftPlayers } from "../domain/roster/players.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderPublicTeamLink } from "../components/content-links.mjs";
@@ -142,13 +143,15 @@ function renderSavedTeamCard(team) {
       <header class="saved-team-card-head">
         ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
         <div>
-          <h3>${renderPublicTeamLink(state.auth.currentUser, team)}</h3>
+          <h3>${renderPublicTeamLink(state.auth.currentUser, team)}
+            ${team.inActiveSeason ? `<span class="badge season-badge">${t("myTeams.inSeasonBadge")}</span>` : ""}</h3>
           <p>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</p>
         </div>
       </header>
       <dl class="saved-team-card-stats">
         <div><dt>${t("catalog.players")}</dt><dd>${costs ? costs.totalPlayersCount : "-"}</dd></div>
         <div><dt>${t("roster.totalCost")}</dt><dd>${costs ? `${costs.total}k` : "-"}</dd></div>
+        <div><dt>${t("roster.treasuryTitle")}</dt><dd>${countToNumber(draft.treasury)}k</dd></div>
         <div><dt>${t("footer.updated")}</dt><dd>${escapeHtml(updated)}</dd></div>
       </dl>
       <div class="saved-team-actions">

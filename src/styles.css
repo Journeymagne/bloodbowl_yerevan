@@ -4424,3 +4424,9 @@ td {
 .skip-link:focus {
   top: 8px;
 }
+
+/* Which saved team is actually in play — the first thing a coach picking one needs. */
+.season-badge {
+  margin-left: 8px;
+  vertical-align: middle;
+}
