@@ -12,7 +12,11 @@
  * gets displayed — so this has to be importable without pulling in a screen.
  */
 import { state } from "../core/state.mjs";
-import { createDraft, draftPayload, normalizeDraft } from "../domain/roster/schema.mjs";
+import { createDraft, draftPayload, normalizeDraft, rosterForStorage } from "../domain/roster/schema.mjs";
+
+// The blob must not repeat what a column holds; that rule belongs with this
+// module, and the screens take it from here rather than from the schema.
+export { rosterForStorage };
 
 export function emptyBuilderState(team = null) {
   return createDraft(team);

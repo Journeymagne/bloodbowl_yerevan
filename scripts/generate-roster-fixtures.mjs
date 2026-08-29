@@ -19,12 +19,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { buildRosterCases } from "../test/helpers/roster-cases.mjs";
+import { expandCollections } from "../src/data/reference.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const dataPath = path.join(rootDir, "public", "data.json");
 const outPath = path.join(rootDir, "test", "fixtures", "roster-cases.json");
 
-const data = JSON.parse(await fs.readFile(dataPath, "utf8"));
+const data = expandCollections(JSON.parse(await fs.readFile(dataPath, "utf8")));
 const cases = buildRosterCases(data.teams);
 
 await fs.mkdir(path.dirname(outPath), { recursive: true });

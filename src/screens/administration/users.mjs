@@ -3,6 +3,7 @@
  *
  * Mechanically moved out of src/app.js.
  */
+import { errorText } from "../../core/api.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
@@ -24,7 +25,7 @@ async function loadAdminUsers(force = false) {
     state.admin.users = payload.users ?? [];
     state.admin.loaded = true;
   } catch (error) {
-    state.admin.error = error.message;
+    state.admin.error = errorText(error);
   } finally {
     state.admin.loading = false;
   }

@@ -20,7 +20,7 @@ export function nullableInteger(value, fieldName) {
   if (value === null || value === "") return null;
   const number = Number(value);
   if (!Number.isInteger(number) || number < 0) {
-    throw httpError(400, `${fieldName} must be a non-negative integer.`);
+    throw httpError(400, "NOT_A_NON_NEGATIVE_INTEGER", { field: fieldName });
   }
   return number;
 }
@@ -57,10 +57,10 @@ export function scoreLeagueResult({
   return { homePoints, awayPoints, homeTouchdowns, awayTouchdowns, homeCasualties, awayCasualties };
 }
 
-export function computeSeasonStandings(entryRows, pairingRows) {
+export function computeSeasonStandings(entryRows, pairingRows, { includeContacts = true } = {}) {
   const numericResult = (value) => Number(value ?? 0) || 0;
   const standings = new Map(entryRows.map((row) => {
-    const entry = publicSeasonEntry(row);
+    const entry = publicSeasonEntry(row, { includeContacts });
     return [row.id, {
       entryId: row.id,
       user: entry.user,
@@ -152,7 +152,7 @@ export function previousOpponentMap(entryRows, pairingRows) {
 export function assertNoDraftRound(roundRows) {
   const draft = roundRows.find((round) => round.status === "draft");
   if (draft) {
-    throw httpError(409, `Round ${draft.round_number} is still a draft. Start or delete it before creating another round.`);
+    throw httpError(409, "ROUND_STILL_A_DRAFT", { round: draft.round_number });
   }
 }
 
@@ -167,7 +167,7 @@ export function assertCurrentRoundComplete(pairingRows) {
     && pairing.away_entry_id
     && (pairing.home_points === null || pairing.away_points === null));
   if (unfinished) {
-    throw httpError(409, `Round ${latestRound} has unfinished pairings.`);
+    throw httpError(409, "ROUND_HAS_UNFINISHED_PAIRINGS", { round: latestRound });
   }
 }
 

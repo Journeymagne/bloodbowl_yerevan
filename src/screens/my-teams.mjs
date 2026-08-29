@@ -7,6 +7,7 @@
  * saved teams; `loadMyTeams` is exported because saved-roster.mjs's team
  * picker reloads the same list.
  */
+import { errorText } from "../core/api.mjs";
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
@@ -34,7 +35,7 @@ export async function loadMyTeams(force = false) {
     state.myTeams.items = payload.teams ?? [];
     state.myTeams.loaded = true;
   } catch (error) {
-    state.myTeams.error = error.message;
+    state.myTeams.error = errorText(error);
   } finally {
     state.myTeams.loading = false;
   }

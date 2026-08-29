@@ -135,3 +135,27 @@ export function parseFirstMarkdownTable(markdown = "") {
   }
   return { headers, rows };
 }
+
+/**
+ * A page's prose with the Markdown taken out: what search matches against and
+ * what a card preview is cut from.
+ *
+ * Shipped as a `text` field on every page until step 11.2, which noticed it is
+ * derivable from the `body` that ships anyway — 0.19 MB of the built file
+ * saying something the file already said. The build no longer writes it and
+ * src/data/reference.mjs derives it on load, which costs one pass over 292
+ * strings and nothing on the wire.
+ *
+ * scripts/build-data.mjs imports this rather than keeping its own copy, so the
+ * two cannot drift: a search that matched before must match now.
+ */
+export function stripMarkdownFormatting(value = "") {
+  return value
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_match, target, alias) => alias || target)
+    .replace(/\*\*/g, "")
+    .replace(/\*/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}

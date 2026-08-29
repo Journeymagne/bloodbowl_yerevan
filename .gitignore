@@ -21,3 +21,6 @@ dist/
 public/data.en.json
 public/data.ru.json
 public/data.json
+# ...and the compressed copies the build writes beside them.
+public/*.json.br
+public/*.json.gz

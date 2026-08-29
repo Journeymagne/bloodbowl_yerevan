@@ -27,16 +27,26 @@ import { renderSeasonRounds } from "./schedule.mjs";
 import { renderSeasonAdmin, wireAdmin } from "./admin.mjs";
 import { loadSeason } from "./season-data.mjs";
 
+/**
+ * `signedIn` marks a tab that says something about *you*: entering the season
+ * and your current fixture. Since step 10.3 the rest is readable without an
+ * account, so a visitor lands on the standings rather than on a login notice.
+ */
 const seasonTabDefinitions = [
-  { id: "registration", labelKey: "season.tab.registration" },
-  { id: "fixture", labelKey: "season.tab.fixture" },
+  { id: "registration", labelKey: "season.tab.registration", signedIn: true },
+  { id: "fixture", labelKey: "season.tab.fixture", signedIn: true },
   { id: "standings", labelKey: "season.tab.standings" },
   { id: "schedule", labelKey: "season.tab.schedule" },
   { id: "administration", labelKey: "nav.administration", adminOnly: true },
 ];
 
 function availableSeasonTabs() {
-  return seasonTabDefinitions.filter((tab) => !tab.adminOnly || state.auth.currentUser?.isAdmin);
+  const user = state.auth.currentUser;
+  return seasonTabDefinitions.filter((tab) => {
+    if (tab.adminOnly) return Boolean(user?.isAdmin);
+    if (tab.signedIn) return Boolean(user);
+    return true;
+  });
 }
 
 function normalizeSeasonTab(tabId = "") {
@@ -78,13 +88,6 @@ export async function renderSeason(refresh = true, tab = "") {
 
   await loadSeason(refresh);
 
-  if (!state.auth.currentUser) {
-    view.innerHTML = `
-      ${renderHeader(t("nav.season"), t("season.subtitle"))}
-      <div class="empty-state">${t("season.loginToCommit")}</div>
-    `;
-    return;
-  }
 
   const activeTab = normalizeSeasonTab(tab);
 

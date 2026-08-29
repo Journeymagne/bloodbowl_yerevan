@@ -4,6 +4,7 @@
  *
  * Mechanically moved out of src/app.js.
  */
+import { errorText } from "../../core/api.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
@@ -55,9 +56,15 @@ export async function renderGamePage(gameId) {
     const playerLocked = !isAdmin && isGameClosedForPlayers(game);
     const awaitingConfirmation = game.resultStatus === "awaiting_confirmation";
     const playerResultForm = !isAdmin && !resultSubmitted && !playerLocked ? renderGameProposalForm(game) : "";
-    const confirmationBox = awaitingConfirmation && !resultSubmitted && !playerLocked
+    // The coach who proposed the result is shown that it is sent, not buttons
+    // to agree with themselves. The server refuses it either way (step 14.1);
+    // this is so nobody is offered a button that cannot work.
+    const waitingForOpponent = awaitingConfirmation && !isAdmin && game.viewerIsProposer;
+    const confirmationBox = awaitingConfirmation && !resultSubmitted && !playerLocked && !waitingForOpponent
       ? `<div class="notice-box"><strong>${t("games.confirmRequestHeading")}</strong><p>${escapeHtml(renderGameScore(game, true))}</p><div class="game-confirm-actions"><button class="primary-button" data-game-confirm>${t("games.confirmAction")}</button><button class="filter-button danger-action" data-game-reject>${t("games.rejectAction")}</button></div></div>`
-      : "";
+      : waitingForOpponent
+        ? `<div class="notice-box" data-game-awaiting><strong>${t("games.awaitingOpponent")}</strong><p>${escapeHtml(renderGameScore(game, true))}</p></div>`
+        : "";
     const lockedNotice = playerLocked && !resultSubmitted ? `<p class="notice-box">${t("games.roundClosed")}</p>` : "";
     const actions = resultSubmitted
       ? `<p class="notice-box">${escapeHtml(renderGameScore(game))}</p>`
@@ -67,7 +74,7 @@ export async function renderGamePage(gameId) {
       <section class="content-panel game-page"><div class="game-versus"><div><span>${t("season.homeLabel")}</span><h2>${escapeHtml(game.home?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.home?.team?.name || "-")}</p>${game.home?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.home.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div><strong>VS</strong><div><span>${t("season.awayLabel")}</span><h2>${escapeHtml(game.away?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.away?.team?.name || "-")}</p>${game.away?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.away.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div></div>${actions}${isAdmin ? renderAdminGameResultForm(game) : ""}</section>`;
     wireGamePage(game);
   } catch (error) {
-    view.innerHTML = `${renderHeader(t("games.gameHeading"), t("games.subtitle"), "", { back: true, backFallback: "#/my-games" })}<div class="empty-state">${escapeHtml(error.message)}</div>`;
+    view.innerHTML = `${renderHeader(t("games.gameHeading"), t("games.subtitle"), "", { back: true, backFallback: "#/my-games" })}<div class="empty-state">${escapeHtml(errorText(error))}</div>`;
   }
 }
 function wireGamePage(game) {

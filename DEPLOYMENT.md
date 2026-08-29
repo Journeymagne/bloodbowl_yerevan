@@ -318,14 +318,25 @@ Verified on the server on 2026-08-22: the units install, the timer schedules,
 a dump taken by hand lands with the right ownership and permissions, and
 `backup:status` reports OK.
 
-Not verified on the server: that a dump actually restores. `backup-db.mjs`
-checks every dump with `pg_restore --list`, which reads the archive's header and
-table of contents but not its data, so a file truncated after the table of
-contents would still pass. Rotation's keep-seven rule is covered by unit tests
-but has not yet run here against eight real files. Until someone works through
-the section below on a real dump, restoring is expected to work rather than
-known to. It takes about a minute, and the good time to find out is not the day
-you need it.
+Verified on a development machine on 2026-08-28: a dump taken by `npm run
+backup:db` restores. The whole path below was walked — dump, `docker cp`,
+`createdb`, `pg_restore` into a scratch database, `pg_restore -f /dev/null`
+over the file to read every data block, and a row count per table compared
+against the source. All eight tables matched (`users=6`, `saved_teams=14`,
+`sessions=49`, `seasons=1`, `season_rounds=1`, `season_pairings=2`,
+`season_entries=3`, `schema_migrations=3`). So the procedure is right and the
+archive format is readable end to end.
+
+Still not verified on the server: that a dump *taken there* restores. The
+development database is small and was written by the same code, so it proves
+the mechanics and not the data. `backup-db.mjs` checks every dump it writes
+with `pg_restore --list`, which reads the archive's header and table of
+contents but not its data, so a file truncated after the table of contents
+would still pass — the `-f /dev/null` pass below is the one that reads
+everything. Rotation's keep-seven rule is covered by unit tests but has not
+yet run on the server against eight real files. Working through the section
+below on a real nightly dump takes about a minute, and the good time to find
+out is not the day you need it.
 
 ### Restoring from a backup
 
@@ -346,7 +357,16 @@ docker exec gata-league-postgres rm -f /tmp/restore-check.dump
 ```
 
 Compare the user count against production (`-d gata_league`, same query). They
-should match, except for accounts created after the dump was taken.
+should match, except for accounts created after the dump was taken. To compare
+every table at once rather than one:
+
+```bash
+docker exec gata-league-postgres psql -U gata_admin -d gata_league_restore_check -t -c "SELECT table_name || '=' || (xpath('/row/c/text()', query_to_xml('SELECT count(*) AS c FROM ' || quote_ident(table_name), false, true, '')))[1]::text::int FROM information_schema.tables WHERE table_schema='public' ORDER BY table_name;"
+```
+
+On Windows in Git Bash, prefix these with `MSYS_NO_PATHCONV=1` — otherwise the
+shell rewrites `/tmp/restore-check.dump` into a Windows path before `docker`
+sees it, and `pg_restore` reports a file that is not there.
 
 **Restoring over production.** This destroys whatever is in the database now,
 including everything written since the dump was taken. Take a fresh dump first

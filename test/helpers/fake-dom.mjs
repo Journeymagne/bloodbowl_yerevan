@@ -13,6 +13,11 @@
  * `<template>` and is proved in the browser check instead.
  */
 
+/** `savedAt` -> `saved-at`, the way dataset names map onto attributes. */
+function dashed(name) {
+  return String(name).replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
+}
+
 class FakeNode {
   constructor(nodeType, ownerDocument) {
     this.nodeType = nodeType;
@@ -34,6 +39,11 @@ class FakeNode {
     return node;
   }
 
+  /** The modern spelling; only the single-node form is used. */
+  append(node) {
+    return this.appendChild(node);
+  }
+
   appendChild(node) {
     return this.insertBefore(node, null);
   }
@@ -51,6 +61,12 @@ class FakeNode {
     return node;
   }
 
+  /** In the document, not merely constructed — code caches nodes on this. */
+  get isConnected() {
+    for (let walk = this; walk; walk = walk.parentNode) if (walk === this.ownerDocument?.body) return true;
+    return false;
+  }
+
   contains(node) {
     for (let walk = node; walk; walk = walk.parentNode) if (walk === this) return true;
     return false;
@@ -66,6 +82,13 @@ class FakeNode {
   get textContent() {
     if (this.nodeType === 3) return this.nodeValue;
     return this.childNodes.map((child) => child.textContent).join("");
+  }
+
+  /** Assigning it replaces the children with one text node, as a browser does. */
+  set textContent(value) {
+    if (this.nodeType === 3) { this.nodeValue = String(value); return; }
+    for (const child of [...this.childNodes]) this.removeChild(child);
+    if (value !== "") this.appendChild(this.ownerDocument.createTextNode(String(value)));
   }
 }
 
@@ -92,6 +115,13 @@ class FakeElement extends FakeNode {
     const textual = this.tagName === "INPUT" || this.tagName === "TEXTAREA";
     this.selectionStart = textual ? 0 : null;
     this.selectionEnd = textual ? 0 : null;
+    // dataset.status and getAttribute("data-status") are the same storage in a
+    // browser, and code written against one is read by the other.
+    this.dataset = new Proxy(this, {
+      get: (element, name) => element.getAttribute(`data-${dashed(name)}`) ?? undefined,
+      set: (element, name, value) => { element.setAttribute(`data-${dashed(name)}`, String(value)); return true; },
+      has: (element, name) => element.getAttribute(`data-${dashed(name)}`) !== null,
+    });
   }
 
   get id() {
@@ -116,13 +146,15 @@ class FakeElement extends FakeNode {
     this.attributes = this.attributes.filter((attribute) => attribute.name !== name);
   }
 
-  /** `[data-key="…"]` and `#id` — the two forms restoreFocus() builds. */
+  /** `[data-key="…"]`, a bare `[attribute]`, and `#id`. */
   querySelector(selector) {
     const keyed = /^\[data-key="(.*)"\]$/.exec(selector);
+    const present = /^\[([\w-]+)\]$/.exec(selector);
     const byId = /^#(.+)$/.exec(selector);
     for (const node of this.walk()) {
       if (node === this || node.nodeType !== 1) continue;
       if (keyed && node.getAttribute("data-key") === keyed[1]) return node;
+      if (present && node.getAttribute(present[1]) !== null) return node;
       if (byId && node.id === byId[1]) return node;
     }
     return null;

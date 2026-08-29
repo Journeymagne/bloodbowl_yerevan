@@ -11,6 +11,7 @@ import {
   draftPayload,
   normalizeDraft,
   normalizePurchasedStaff,
+  rosterForStorage,
 } from "../src/domain/roster/schema.mjs";
 
 const cases = JSON.parse(readFileSync(new URL("./fixtures/roster-cases.json", import.meta.url), "utf8"));
@@ -152,4 +153,20 @@ test("a stored player with no id gets one, rather than throwing", async () => {
   assert.equal(typeof player.id, "string");
   assert.ok(player.id.length > 0);
   assert.equal(player.name, "Old");
+});
+
+test("the roster sent for storage leaves out what a column holds", () => {
+  const draft = normalizeDraft({ teamName: "Gata", logoData: "data:image/png;base64,AAAA", treasury: 40 });
+  const stored = rosterForStorage(draft);
+
+  assert.equal("logoData" in stored, false, "the logo has its own column; the blob must not repeat it");
+  assert.equal(stored.teamName, "Gata");
+  assert.equal(stored.treasury, 40);
+  // Everything else survives untouched.
+  for (const field of DRAFT_FIELDS) {
+    if (field.column) continue;
+    assert.ok(field.name in stored, `${field.name} must still be stored`);
+  }
+  // And the draft itself keeps the logo — the editor is still showing it.
+  assert.equal(draft.logoData, "data:image/png;base64,AAAA");
 });

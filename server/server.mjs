@@ -1,56 +1,25 @@
-import crypto from "node:crypto";
 import http from "node:http";
-import { promises as fs } from "node:fs";
-import path from "node:path";
+
 import { rootDir } from "./config/env.mjs";
 import { databaseUrl, pool, safeDatabaseLabel } from "./db/pool.mjs";
 import { assertMigrationsApplied } from "./db/migrate.mjs";
 import { loadTeamReference } from "./domain/roster.mjs";
-import { resolveStaticPath } from "./http/static-path.mjs";
-import { encodedBody, httpError, readJson, sendJson, writeResponse } from "./http/responses.mjs";
-import {
-  isAdminUser,
-  normalizeLogin,
-  publicAdminUser,
-  publicGame,
-  publicSavedTeam,
-  publicSavedTeamSummary,
-  publicUser,
-  serializeRosterForStorage,
-} from "./api/serializers.mjs";
-import { currentUser, hashPassword } from "./auth/session.mjs";
+import { handleStatic } from "./http/static.mjs";
+import { sendJson } from "./http/responses.mjs";
+import { errorPayload } from "./http/errors.mjs";
+import { normalizeLogin } from "./api/serializers.mjs";
+import { hashPassword } from "./auth/session.mjs";
 import { handleAuthRoutes } from "./routes/auth.mjs";
 import { handleTeamRoutes } from "./routes/teams.mjs";
 import { handleAdminRoutes } from "./routes/admin.mjs";
 import { handlePlayerRoutes } from "./routes/players.mjs";
 import { handleGameRoutes } from "./routes/games.mjs";
 import { handleSeasonRoutes } from "./routes/season.mjs";
-import {
-  commitSavedTeamToSeason,
-  ensureActiveSeason,
-  loadSeasonBundle,
-  loadUserGameRows,
-} from "./season/store.mjs";
-import { addSeasonPairing, createManualRound, generateSwissRound, startSeasonRound, validateSeasonEntry } from "./season/rounds.mjs";
-import { proposeGameResult, respondToGameProposal, updateSeasonPairing } from "./season/games.mjs";
 
 const appPort = Number(process.env.APP_PORT || process.env.PORT || 3002);
 
 const databaseCheckRetries = Number(process.env.DATABASE_CHECK_RETRIES || 30);
 const databaseCheckDelayMs = Number(process.env.DATABASE_CHECK_DELAY_MS || 1000);
-
-const mimeTypes = new Map([
-  [".html", "text/html; charset=utf-8"],
-  [".css", "text/css; charset=utf-8"],
-  [".js", "text/javascript; charset=utf-8"],
-  [".mjs", "text/javascript; charset=utf-8"],
-  [".json", "application/json; charset=utf-8"],
-  [".png", "image/png"],
-  [".jpg", "image/jpeg"],
-  [".jpeg", "image/jpeg"],
-  [".svg", "image/svg+xml"],
-  [".webp", "image/webp"],
-]);
 
 
 function wait(ms) {
@@ -137,58 +106,24 @@ const routes = [
 async function handleApi(request, response, url) {
   try {
     // Each module answers and says so; the first that does ends the chain.
-    // Order is not significant — the paths do not overlap — so this reads in
-    // the order somebody would look for a route, not in the order the old
-    // if-chain happened to grow.
+    // The paths do not overlap, so the order is the order somebody would look
+    // for a route in, not the order the old if-chain happened to grow.
     for (const route of routes) {
       if (await route(request, response, url)) return;
     }
-    return sendJson(response, 404, { error: "API route not found." });
+    return sendJson(response, 404, errorPayload("ROUTE_NOT_FOUND"));
   } catch (error) {
     const status = Number(error.status) || 500;
     if (status >= 500) {
       console.error(error);
     }
-    const payload = { error: status >= 500 ? "Server error." : error.message };
+    // A 500 says nothing about itself: that belongs in the log, not in a
+    // stranger's browser. Anything else carries its code.
+    const payload = status >= 500
+      ? errorPayload("SERVER_ERROR")
+      : errorPayload(error.code ?? "SERVER_ERROR", error.params ?? {}, error.message);
     if (Array.isArray(error.violations)) payload.violations = error.violations;
     return sendJson(response, status, payload);
-  }
-}
-
-
-function cacheControlForStatic(url, fullPath) {
-  const pathname = url.pathname;
-  const extension = path.extname(fullPath);
-  if (extension === ".html" || pathname === "/" || pathname === "/index.html") {
-    return "no-cache";
-  }
-  if (url.searchParams.has("v") || pathname.startsWith("/assets/")) {
-    return "public, max-age=31536000, immutable";
-  }
-  if (pathname.startsWith("/public/data") || pathname.startsWith("/src/i18n/")) {
-    return "public, max-age=3600, stale-while-revalidate=86400";
-  }
-  return "public, max-age=86400";
-}
-
-async function handleStatic(request, response, url) {
-  const fullPath = resolveStaticPath(url.pathname, rootDir);
-  if (!fullPath) {
-    // 404 rather than 403: a 403 confirms the file exists.
-    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-    response.end("Not found");
-    return;
-  }
-
-  try {
-    const body = await fs.readFile(fullPath);
-    writeResponse(request, response, 200, body, {
-      "Content-Type": mimeTypes.get(path.extname(fullPath)) || "application/octet-stream",
-      "Cache-Control": cacheControlForStatic(url, fullPath),
-    });
-  } catch {
-    response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });
-    response.end("Not found");
   }
 }
 

@@ -11,6 +11,12 @@
  */
 import { brotliCompressSync, constants as zlibConstants, gzipSync } from "node:zlib";
 
+import { httpError } from "./errors.mjs";
+
+// Re-exported: every route already takes its response helpers from here, and
+// an error is one of the things a route responds with.
+export { httpError };
+
 const compressionMinBytes = Number(process.env.COMPRESSION_MIN_BYTES || 1024);
 
 /**
@@ -28,19 +34,13 @@ const compressibleTypes = [
   "image/svg+xml",
 ];
 
-/** An error the API turns into a status rather than a 500. */
-export function httpError(status, message) {
-  const error = new Error(message);
-  error.status = status;
-  return error;
-}
 
 function shouldCompress(contentType = "", body) {
   return body.length >= compressionMinBytes
     && compressibleTypes.some((type) => contentType.startsWith(type));
 }
 
-function preferredEncoding(request) {
+export function preferredEncoding(request) {
   const value = String(request?.headers?.["accept-encoding"] ?? "");
   if (/\bbr\b/.test(value)) return "br";
   if (/\bgzip\b/.test(value)) return "gzip";
@@ -98,7 +98,7 @@ export async function readJson(request) {
       // Stop reading but leave the socket alone: destroying it here means the
       // client sees a reset instead of the 413 explaining what happened.
       request.pause();
-      throw httpError(413, `Request body is larger than ${Math.floor(maxRequestBodyBytes / 1024)} KB.`);
+      throw httpError(413, "BODY_TOO_LARGE", { limitKb: Math.floor(maxRequestBodyBytes / 1024) });
     }
     chunks.push(chunk);
   }

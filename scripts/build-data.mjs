@@ -1,6 +1,10 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown.mjs";
+import { writeDataFile } from "./lib/write-data-file.mjs";
+import { applyMedicalAccess, medicalAccessByPageId } from "./lib/medical-access.mjs";
+import { assertDataIsUsable } from "./lib/validate-data.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
@@ -108,16 +112,6 @@ function toPublicAssetPath(relativePath) {
   return `public/vault-assets/${relativePath.split(path.sep).map(encodeURIComponent).join("/")}`;
 }
 
-function stripFormatting(value = "") {
-  return value
-    .replace(/<br\s*\/?>/gi, " ")
-    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
-    .replace(/\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g, (_match, target, alias) => alias || target)
-    .replace(/\*\*/g, "")
-    .replace(/\*/g, "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 const canonicalLabels = new Map(Object.entries({
   "big guy": "Big Guy",
@@ -588,8 +582,15 @@ function extractTeamMeta(markdown) {
     }
   }
 
+  // The English vault writes the label twice: `**Apothecary:** Apothecary:
+  // Available`. Every screen then had to strip it back off, and one of them
+  // did it by matching English prose, which is why a Russian coach could not
+  // hire an apothecary at all (step 16.1).
+  if (meta.apothecary) meta.apothecary = meta.apothecary.replace(/^Apothecary:\s*/i, "");
+
   return meta;
 }
+
 
 function extractStarPlayerMeta(markdown) {
   const meta = {};
@@ -727,7 +728,6 @@ async function buildLocaleData(resolvedFiles) {
     return {
       ...page,
       html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, { preserveLineBreaks: page.kind === "inducement" }),
-      text: stripFormatting(page.body),
       team: page.kind === "team" ? {
         experimental: page.tags.includes("Experimental") || page.section === "Experimental" || page.section === "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ",
         type: page.tags.includes("Experimental") ? "Experimental" : "Core",
@@ -737,6 +737,8 @@ async function buildLocaleData(resolvedFiles) {
       starPlayer: page.kind === "starPlayer" ? extractStarPlayerMeta(page.body) : undefined,
     };
   });
+
+  const byId = (page) => page.id;
 
   const teams = pages.filter((page) => page.kind === "team").sort((a, b) => a.title.localeCompare(b.title, "en"));
   const skills = pages.filter((page) => page.kind === "skill").sort((a, b) => a.title.localeCompare(b.title, "en"));
@@ -749,6 +751,8 @@ async function buildLocaleData(resolvedFiles) {
     .filter((page) => /\d/.test(page.starPlayer?.cost ?? "") && !(page.starPlayer?.cost ?? "").includes("|"))
     .sort((a, b) => a.title.localeCompare(b.title, "en"));
   const otherPages = pages.filter((page) => page.kind === "page").sort((a, b) => a.title.localeCompare(b.title, "ru"));
+
+  const collections = { teams, skills, traits, rules, cheatsheets, inducements, starPlayers, otherPages };
 
   const data = {
     generatedAt: new Date().toISOString(),
@@ -769,14 +773,8 @@ async function buildLocaleData(resolvedFiles) {
     )],
     skillGroups: parseSkillGroups(pages),
     pages,
-    teams,
-    skills,
-    traits,
-    rules,
-    cheatsheets,
-    inducements,
-    starPlayers,
-    otherPages,
+    // Identifiers, not pages; reference.mjs expands them back on load.
+    ...Object.fromEntries(Object.entries(collections).map(([name, list]) => [name, list.map(byId)])),
   };
 
   return data;
@@ -786,8 +784,11 @@ await fs.mkdir(publicDir, { recursive: true });
 
 const enFiles = (await walk(vaultDir)).map((file) => ({ file, relativePath: path.relative(vaultDir, file) }));
 const enData = await buildLocaleData(enFiles);
-await fs.writeFile(path.join(publicDir, "data.en.json"), JSON.stringify(enData, null, 2), "utf8");
-await fs.writeFile(path.join(publicDir, "data.json"), JSON.stringify(enData, null, 2), "utf8");
+const medicalAccessById = medicalAccessByPageId(enData);
+applyMedicalAccess(enData, medicalAccessById);
+assertDataIsUsable(enData, "en");
+const enJson = JSON.stringify(enData);
+for (const name of ["data.en.json", "data.json"]) await writeDataFile(path.join(publicDir, name), enJson);
 console.log(`Built ${enData.counts.pages} pages into public/data.en.json (+ data.json alias)`);
 
 const ruVaultExists = await pathExists(ruVaultDir);
@@ -796,7 +797,9 @@ if (!ruVaultExists) {
 }
 const ruFiles = await resolveLocaleFiles(vaultDir, ruVaultDir);
 const ruData = await buildLocaleData(ruFiles);
-await fs.writeFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData, null, 2), "utf8");
+applyMedicalAccess(ruData, medicalAccessById);
+assertDataIsUsable(ruData, "ru");
+await writeDataFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData));
 const ruTranslatedCount = ruFiles.filter(({ file }) => file.startsWith(ruVaultDir + path.sep)).length;
 console.log(`Built ${ruData.counts.pages} pages into public/data.ru.json (${ruTranslatedCount} translated, ${ruData.counts.pages - ruTranslatedCount} falling back to ${primaryContentDir})`);
 if (enData.unresolvedLinks.length) {

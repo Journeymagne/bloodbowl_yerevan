@@ -28,7 +28,7 @@ import {
 } from "../domain/roster/players.mjs";
 import { calculateRosterCosts, syncMedicalStaffForTeam } from "../domain/roster/costs.mjs";
 import { createBuilderDraftStore, isEmptyBuilderDraft } from "../data/builder-draft.mjs";
-import { builderPayload, emptyBuilderState, resetBuilderForTeam } from "../data/roster-draft.mjs";
+import { builderPayload, emptyBuilderState, resetBuilderForTeam, rosterForStorage } from "../data/roster-draft.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks } from "../components/content-links.mjs";
 import { CREATE_MODE } from "../components/roster-editor/modes.mjs";
@@ -366,7 +366,7 @@ async function saveTeam(team) {
     name: payload.teamName,
     baseTeamSlug: team.slug,
     logoData: payload.logoData,
-    roster: payload,
+    roster: rosterForStorage(payload),
   };
   try {
     const result = await apiRequest("/api/teams", {

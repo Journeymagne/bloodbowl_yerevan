@@ -7,16 +7,21 @@
     <script>
       (() => {
         try {
+          const themes = ["dark-gata", "dark-dugout", "dark-warpstone", "light-parchment", "light-sideline", "light-altdorf"];
           const theme = localStorage.getItem("gata-league-theme");
-          if (["dark-gata", "dark-dugout", "dark-warpstone", "light-parchment", "light-sideline", "light-altdorf"].includes(theme)) {
+          if (themes.includes(theme)) {
             document.documentElement.dataset.theme = theme;
+          } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
+            // No choice stored: follow the system, before the stylesheet
+            // paints dark. src/core/theme.mjs makes the same decision.
+            document.documentElement.dataset.theme = "light-parchment";
           }
         } catch (_error) {}
       })();
     </script>
     <link rel="preload" as="image" href="assets/brand/gata-league-logo-96.png" fetchpriority="high">
-    <link rel="preload" href="src/styles.css?v=gata-61" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="src/styles.css?v=gata-61"></noscript>
+    <link rel="preload" href="src/styles.css?v=gata-63" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="src/styles.css?v=gata-63"></noscript>
   </head>
   <body>
     <div class="app-shell">
@@ -86,7 +91,7 @@
           </div>
         </header>
 
-        <section id="app-view" class="view" aria-live="polite">
+        <section id="app-view" class="view">
           <div class="loading">Loading reference...</div>
         </section>
       </main>

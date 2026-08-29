@@ -7,9 +7,10 @@ import { fileURLToPath } from "node:url";
 import { eliteComboCost, playerAdjustmentCost } from "../src/domain/roster/costs.mjs";
 import { eliteSkillCombos } from "../src/domain/league-rules.mjs";
 import { rowsForTeam } from "../src/domain/roster/values.mjs";
+import { expandCollections } from "../src/data/reference.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const data = JSON.parse(await fs.readFile(path.join(rootDir, "public", "data.json"), "utf8"));
+const data = expandCollections(JSON.parse(await fs.readFile(path.join(rootDir, "public", "data.json"), "utf8")));
 const SURCHARGE = 15;
 
 function positionOf(teamTitle, position) {

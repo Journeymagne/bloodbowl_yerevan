@@ -13,6 +13,7 @@ import { releaseCurrentScreen } from "./screen-lifecycle.mjs";
 import { t } from "./i18n.mjs";
 import { state } from "./state.mjs";
 import { view } from "./view.mjs";
+import { announce } from "../components/live-region.mjs";
 import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderHome } from "../screens/home.mjs";
 import { renderOverviewDetail } from "../screens/overview.mjs";
@@ -71,5 +72,10 @@ export function renderRoute() {
   // to it is a visible change and belongs in its own commit, not this one.
   releaseCurrentScreen();
   const { name, params } = matchRoute(routeFromHash(location.hash));
-  return screens[name](params);
+  const rendered = screens[name](params);
+  // A sighted reader sees the screen change; #app-view no longer says so
+  // (step 15.5), so the heading is announced instead — after the screen has
+  // put one there, which for anything that waits on a fetch is not yet.
+  Promise.resolve(rendered).then(() => announce(view.querySelector("h1, h2")?.textContent ?? ""));
+  return rendered;
 }

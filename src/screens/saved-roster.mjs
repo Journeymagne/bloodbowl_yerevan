@@ -11,6 +11,7 @@
  * screens-map entry in app.js, the latter is read by app.js's `beforeunload`
  * handler to warn about unsaved edits.
  */
+import { errorText } from "../core/api.mjs";
 import { escapeHtml, listenerGroup, patch } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
@@ -58,8 +59,8 @@ import {
   syncMedicalStaffForTeam,
 } from "../domain/roster/costs.mjs";
 import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
-import { normalizeSavedRoster, updateSavedRosterFields } from "../data/roster-draft.mjs";
-import { renderRosterNotices, wireRosterNotices } from "../components/roster-notices.mjs";
+import { normalizeSavedRoster, rosterForStorage, updateSavedRosterFields } from "../data/roster-draft.mjs";
+import { renderRosterNotices, wireConflictBanner, wireRosterNotices } from "../components/roster-notices.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
@@ -69,6 +70,7 @@ import { confirmRaceChange, restoreTeamSelect } from "../components/roster-edito
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
+import { autosaveMessageFor, wireAutosaveStatus } from "../components/roster-editor/autosave-status.mjs";
 import {
   ensureDraftFavouredChoice,
   ensureDraftLeagueChoice,
@@ -154,7 +156,7 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
       } catch (error) {
         view.innerHTML = `
           ${renderHeader(t("nav.administration"), t("savedRoster.editingTeamSubtitle"), "", { back: true, backFallback: `#/administration/users/${encodeURIComponent(options.adminOwnerId)}` })}
-          <div class="empty-state">${escapeHtml(error.message)}</div>
+          <div class="empty-state">${escapeHtml(errorText(error))}</div>
         `;
         return;
       }
@@ -283,7 +285,9 @@ function renderRosterMoneyControl(title, description, value, dataAttribute) {
   `;
 }
 function wireSavedRoster(savedTeam, team, draft, options = {}) {
-  wireAutosaveStatus(savedTeam.id);
+  onScreenLeave("saved-roster:autosave-status", wireAutosaveStatus(view, rosterStore, savedTeam.id));
+  onScreenLeave("saved-roster:conflict-banner", wireConflictBanner(view, rosterStore, savedTeam.id,
+    SAVE_STATUS.CONFLICT, () => renderSavedRoster(savedTeam.id, false, options)));
   // Delegated to the container, which survives a re-render: the group must be
   // dropped when this runs again, or every edit doubles the handlers.
   const events = listenerGroup(view);
@@ -638,7 +642,7 @@ async function buildRosterRequest(savedTeam, team, draft) {
     name: draft.teamName || team.title,
     baseTeamSlug: draft.teamSlug || team.slug,
     logoData: draft.logoData || "",
-    roster: draft,
+    roster: rosterForStorage(draft),
     revision: savedTeam.revision, // the server writes only while this still matches
   };
 }
@@ -660,37 +664,6 @@ function trackSavedRoster(savedTeam, { refresh = true } = {}) {
     endpoint: savedTeam._saveEndpoint || `/api/teams/${savedTeam.id}`,
     buildRequest: (current) => buildRosterRequest(savedTeam, team, current),
   });
-}
-const autosaveStatusMessages = {
-  [SAVE_STATUS.IDLE]: "roster.autosaveDefaultMessage",
-  [SAVE_STATUS.DIRTY]: "roster.unsavedStatus",
-  [SAVE_STATUS.SAVING]: "roster.savingStatus",
-  [SAVE_STATUS.SAVED]: "roster.autosavedStatus",
-  [SAVE_STATUS.OFFLINE]: "roster.offlineStatus",
-  [SAVE_STATUS.CONFLICT]: "roster.conflictStatus",
-  [SAVE_STATUS.ERROR]: "roster.autosaveFailedStatus",
-};
-function autosaveMessageFor(status) {
-  return t(autosaveStatusMessages[status] ?? autosaveStatusMessages[SAVE_STATUS.IDLE]);
-}
-/** Status line in step with the store; the unsubscribe is registered, not dropped. */
-/**
- * The status line tells a coach their team was saved somewhere else — already
- * the difference between losing work silently and being told. The *banner*
- * offering a choice between the versions is markup and a conflict arrives
- * between renders, so it needs a render; that trigger must be careful, since
- * subscribe() replays the status and every render subscribes again. It is the
- * rest of step 4.7, in the plan rather than shipped unverified — reaching the
- * state needs unsaved edits, which the beforeunload guard stops a check from
- * driving.
- */
-function wireAutosaveStatus(teamId) {
-  onScreenLeave("saved-roster:autosave-status", rosterStore.subscribe(teamId, ({ status }) => {
-    const node = view.querySelector("[data-autosave-status]");
-    if (!node) return;
-    node.textContent = autosaveMessageFor(status);
-    node.dataset.status = status;
-  }));
 }
 function scheduleSavedRosterAutosave(teamId) {
   if (!teamId) return;

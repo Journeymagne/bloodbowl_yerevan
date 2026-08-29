@@ -16,9 +16,10 @@ import {
 import { normalizePlayerAdvancements } from "../src/domain/roster/players.mjs";
 import { rowsForTeam } from "../src/domain/roster/values.mjs";
 import { playerCurrentCost } from "../src/domain/roster/costs.mjs";
+import { expandCollections } from "../src/data/reference.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const data = JSON.parse(await fs.readFile(path.join(rootDir, "public", "data.json"), "utf8"));
+const data = expandCollections(JSON.parse(await fs.readFile(path.join(rootDir, "public", "data.json"), "utf8")));
 const team = data.teams.find((item) => item.slug === "teams/amazon") ?? data.teams[0];
 const skillGroups = data.skillGroups ?? [];
 const row = rowsForTeam(team)[0];

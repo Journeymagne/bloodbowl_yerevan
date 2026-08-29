@@ -10,6 +10,7 @@
  */
 import { pool } from "../db/pool.mjs";
 import { sendJson } from "../http/responses.mjs";
+import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicAdminUser, publicSavedTeam, publicSavedTeamSummary, publicUser } from "../api/serializers.mjs";
 
@@ -19,6 +20,11 @@ function send(response, status, payload) {
   return true;
 }
 
+/** The same, for a refusal the client can translate. */
+function sendError(response, status, code, params) {
+  return send(response, status, errorPayload(code, params));
+}
+
 /**
  * @returns {Promise<boolean>} true when this module answered the request
  */
@@ -26,13 +32,13 @@ export async function handlePlayerRoutes(request, response, url) {
   const publicTeamMatch = url.pathname.match(/^\/api\/players\/([0-9a-f-]+)\/teams\/([0-9a-f-]+)$/i);
   if (publicTeamMatch && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const [profileResult, teamResult] = await Promise.all([
       pool.query(`SELECT * FROM users WHERE id = $1`, [publicTeamMatch[1]]),
       pool.query(`SELECT * FROM saved_teams WHERE user_id = $1 AND id = $2`, [publicTeamMatch[1], publicTeamMatch[2]]),
     ]);
-    if (!profileResult.rows[0]) return send(response, 404, { error: "Player not found." });
-    if (!teamResult.rows[0]) return send(response, 404, { error: "Team not found." });
+    if (!profileResult.rows[0]) return sendError(response, 404, "PLAYER_NOT_FOUND");
+    if (!teamResult.rows[0]) return sendError(response, 404, "TEAM_NOT_FOUND");
     return send(response, 200, {
       user: publicUser(profileResult.rows[0]),
       team: publicSavedTeam(teamResult.rows[0]),
@@ -42,7 +48,7 @@ export async function handlePlayerRoutes(request, response, url) {
   const publicPlayerMatch = url.pathname.match(/^\/api\/players\/([0-9a-f-]+)$/i);
   if (publicPlayerMatch && request.method === "GET") {
     const user = await currentUser(request);
-    if (!user) return send(response, 401, { error: "Not authorized." });
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const [profileResult, teamsResult] = await Promise.all([
       pool.query(
         `SELECT users.*,
@@ -62,7 +68,7 @@ export async function handlePlayerRoutes(request, response, url) {
         [publicPlayerMatch[1]],
       ),
     ]);
-    if (!profileResult.rows[0]) return send(response, 404, { error: "Player not found." });
+    if (!profileResult.rows[0]) return sendError(response, 404, "PLAYER_NOT_FOUND");
     return send(response, 200, {
       user: publicAdminUser(profileResult.rows[0]),
       teams: teamsResult.rows.map(publicSavedTeamSummary),

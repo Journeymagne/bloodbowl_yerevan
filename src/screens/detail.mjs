@@ -12,7 +12,7 @@ import { view } from "../core/view.mjs";
 import { inlineSimpleMarkdown, parseFirstMarkdownTable } from "../core/markdown.mjs";
 import { listUrlForRoute, navRouteForPage, pageUrl } from "../core/routes.mjs";
 import { rowCost, rowsForTeam } from "../domain/roster/values.mjs";
-import { cleanApothecary, teamLeagueOptions, teamSpecialRuleTokens } from "../domain/roster/team-rules.mjs";
+import { teamApothecaryAccess, teamLeagueOptions, teamSpecialRuleTokens } from "../domain/roster/team-rules.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { badgeList } from "../components/cards.mjs";
 import { pageForSkillTableEntry, renderRosterLinks, renderRuleLinks, uniqueSorted } from "../components/content-links.mjs";
@@ -91,7 +91,7 @@ function renderTeamRosterMobile(team) {
   if (!rows.length) return "";
 
   return `
-    <section class="team-roster-mobile" aria-label="${escapeHtml(team.title)} roster">
+    <section class="team-roster-mobile" aria-label="${escapeHtml(t("teams.rosterRegion", { team: team.title }))}">
       ${rows.map((row) => `
         <article class="team-roster-card">
           <header>
@@ -139,7 +139,7 @@ function renderSkillTableRoller() {
     : `<span class="skill-roll-placeholder">${t("skillRoll.readyPrefix")}${skills.length}.</span>`;
 
   return `
-    <section class="skill-roll-panel" aria-label="Skill randomizer">
+    <section class="skill-roll-panel" aria-label="${escapeHtml(t("skills.randomizerRegion"))}">
       <div class="skill-roll-controls">
         <label class="filter-field">
           <span>${t("skillRoll.groupLabel")}</span>
@@ -162,7 +162,7 @@ function renderReferenceTableMobile(page) {
   if (!table?.rows.length) return "";
 
   return `
-    <section class="reference-table-mobile" aria-label="${escapeHtml(page.title)} mobile table">
+    <section class="reference-table-mobile" aria-label="${escapeHtml(t("reference.tableRegion", { page: page.title }))}">
       ${table.rows.map((row) => {
         const roll = row[0] ?? "";
         if (table.headers.length >= 3) {
@@ -195,7 +195,7 @@ function renderSkillTableMobile() {
   if (!groups.length) return "";
 
   return `
-    <section class="skill-table-mobile" aria-label="Skill table grouped by category">
+    <section class="skill-table-mobile" aria-label="${escapeHtml(t("skills.tableByCategoryRegion"))}">
       ${groups.map((group) => `
         <article class="skill-table-group">
           <h2>${escapeHtml(group.category)}</h2>
@@ -248,7 +248,7 @@ function renderSidebar(page) {
           <dt>${t("sidebar.positions")}</dt><dd>${roster.length}</dd>
           <dt>${t("filters.playerCost")}</dt><dd>${escapeHtml(costs.join(" - ") || "-")}</dd>
           <dt>${t("sidebar.rerolls")}</dt><dd>${escapeHtml(page.team?.meta?.rerolls ?? "-")}</dd>
-          <dt>${t("sidebar.apothecary")}</dt><dd>${escapeHtml(cleanApothecary(page.team?.meta?.apothecary))}</dd>
+          <dt>${t("sidebar.apothecary")}</dt><dd>${escapeHtml(teamApothecaryAccess(page))}</dd>
           <dt>${t("roster.tier")}</dt><dd>${escapeHtml(page.team?.meta?.league ?? "-")}</dd>
           <dt>${t("roster.leagueAccess")}</dt><dd>${renderRuleLinks(teamLeagueOptions(page))}</dd>
           <dt>${t("roster.specialRules")}</dt><dd>${renderRuleLinks(teamSpecialRuleTokens(page))}</dd>

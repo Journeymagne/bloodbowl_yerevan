@@ -12,10 +12,11 @@ import { teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
 import { costToNumber, countToNumber, rosterMax, rowCost } from "../src/domain/roster/values.mjs";
 import { advancementStatCosts, builderStaffCosts } from "../src/domain/league-rules.mjs";
 import { validateRoster as validateRosterSync } from "../src/domain/roster/validate.mjs";
+import { expandCollections } from "../src/data/reference.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cases = JSON.parse(await fs.readFile(path.join(rootDir, "test", "fixtures", "roster-cases.json"), "utf8"));
-const data = JSON.parse(await fs.readFile(path.join(rootDir, "public", "data.json"), "utf8"));
+const data = expandCollections(JSON.parse(await fs.readFile(path.join(rootDir, "public", "data.json"), "utf8")));
 const teamBySlug = new Map(data.teams.map((team) => [team.slug, team]));
 
 // ---------------------------------------------------------------------------
