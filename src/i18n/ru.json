@@ -450,5 +450,6 @@
   "preview.general-information-weather": "Весенняя и летняя таблицы погоды с результатами 2D6 и D6.",
   "preview.general-information-casualties": "Таблица травм по D16 с исходами повреждений.",
   "preview.general-information-leagues": "Карточки доступа к лигам: какие команды подходят и какие star players доступны.",
-  "preview.general-information-reference-sources": "Внешние источники формулировок базового Blood Bowl 2025 и юридические заметки сайта."
+  "preview.general-information-reference-sources": "Внешние источники формулировок базового Blood Bowl 2025 и юридические заметки сайта.",
+  "myTeams.inSeasonBadge": "Играет в сезоне"
 }

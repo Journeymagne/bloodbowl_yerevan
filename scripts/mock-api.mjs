@@ -57,6 +57,9 @@ const team = {
   name: "Mock Team",
   baseTeamSlug: "teams/amazon",
   logoData: null,
+  // The real API sends this on every list query; without it the mock cannot
+  // exercise anything that depends on a team being in play.
+  inActiveSeason: true,
   roster: {
     teamSlug: "teams/amazon",
     teamName: "Mock Team",

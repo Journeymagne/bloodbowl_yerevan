@@ -450,5 +450,6 @@
   "preview.general-information-weather": "Spring and Summer weather tables with 2D6 and D6 results.",
   "preview.general-information-casualties": "D16 casualty table with injury outcomes.",
   "preview.general-information-leagues": "League access cards with eligible teams and available star players.",
-  "preview.general-information-reference-sources": "External references for base Blood Bowl 2025 wording and the site's legal/source notes."
+  "preview.general-information-reference-sources": "External references for base Blood Bowl 2025 wording and the site's legal/source notes.",
+  "myTeams.inSeasonBadge": "In the season"
 }
