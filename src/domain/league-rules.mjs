@@ -159,6 +159,59 @@ export const eliteComboCost = 15;
 /** Fallback used when a position's quantity is not written as a range. */
 export const defaultPositionMaximum = 16;
 
+/**
+ * What a match is worth in the league table.
+ *
+ * These numbers lived inside the server function that applied them, which is
+ * the one place nobody looks them up: a coach asking why a 4-0 is worth five
+ * points could not be answered from the site. Step 14.3 moved them here, with
+ * the rest of the league rules, and matchPoints below is the only thing that
+ * reads them.
+ */
+export const seasonPoints = Object.freeze({
+  win: 3,
+  draw: 1,
+  loss: 0,
+  /** A win by this many touchdowns or more is worth one extra point. */
+  bigWinMargin: 3,
+  bigWinBonus: 1,
+  /** Scoring while keeping the opponent at nil is worth one more. */
+  shutoutBonus: 1,
+  /** So are four casualties, however the match went. */
+  casualtyThreshold: 4,
+  casualtyBonus: 1,
+});
+
+/**
+ * One side's points for a finished match.
+ *
+ * @param {{touchdownsFor: number, touchdownsAgainst: number, casualtiesFor?: number}} match
+ * @returns {number}
+ */
+export function matchPoints({ touchdownsFor, touchdownsAgainst, casualtiesFor = 0 }) {
+  const scored = Number(touchdownsFor) || 0;
+  const conceded = Number(touchdownsAgainst) || 0;
+  const casualties = Number(casualtiesFor) || 0;
+
+  let points = scored > conceded ? seasonPoints.win : scored === conceded ? seasonPoints.draw : seasonPoints.loss;
+  if (scored > conceded && scored - conceded >= seasonPoints.bigWinMargin) points += seasonPoints.bigWinBonus;
+  if (scored > 0 && conceded === 0) points += seasonPoints.shutoutBonus;
+  if (casualties >= seasonPoints.casualtyThreshold) points += seasonPoints.casualtyBonus;
+  return points;
+}
+
+/**
+ * How the table is ordered, most significant first. Written down because the
+ * order is a league rule and not an implementation detail; scoring.mjs sorts
+ * by exactly this list.
+ */
+export const standingsOrder = Object.freeze([
+  "points",
+  "touchdowns",
+  "casualties",
+  "games",
+]);
+
 const LEAGUE_RULES = Object.freeze({
   startingBudget,
   rosterSizeLimits,
@@ -173,6 +226,7 @@ const LEAGUE_RULES = Object.freeze({
   advancementStatCosts,
   eliteSkillCombos,
   sppCounters: sppCounterDefinitions,
+  seasonPoints,
 });
 
 export default LEAGUE_RULES;
