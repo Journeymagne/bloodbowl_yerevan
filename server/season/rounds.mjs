@@ -3,15 +3,14 @@
  *
  * Lifted out of server.mjs by step 4.9.
  *
- * `generateSwissRound` is the interesting one and the plan has a complaint
- * about it: it takes the first available opponent, and when there is none it
- * takes the first opponent at all, so it can produce a rematch where a
- * consistent pairing existed. Task 14.5 either replaces the greedy pass with a
- * search or at least marks the forced rematches so an admin sees them before
- * the round starts. Moved here unchanged.
+ * `generateSwissRound` decides the round; who faces whom inside it is
+ * season/pairing.mjs, which step 14.5 turned from a greedy pass into a search.
+ * The greedy version could report a rematch as unavoidable when a clean
+ * pairing existed.
  */
 import { pool } from "../db/pool.mjs";
 import { httpError } from "../http/responses.mjs";
+import { pairRound, takeByeEntry } from "./pairing.mjs";
 import { assertCurrentRoundComplete, assertNoDraftRound, computeSeasonStandings, previousOpponentMap, shuffleEntries } from "./scoring.mjs";
 import { loadSeasonEntryRows, loadSeasonPairingRows, loadSeasonRoundRows } from "./store.mjs";
 
@@ -32,37 +31,32 @@ export async function generateSwissRound(seasonRow) {
   const { opponents, byes } = previousOpponentMap(entryRows, pairingRows);
   const pairingsToCreate = [];
 
-  if (queue.length % 2 === 1) {
-    let byeIndex = -1;
-    for (let index = queue.length - 1; index >= 0; index -= 1) {
-      if (!byes.has(queue[index].id)) {
-        byeIndex = index;
-        break;
-      }
-    }
-    if (byeIndex === -1) byeIndex = queue.length - 1;
-    const [byeEntry] = queue.splice(byeIndex, 1);
+  const { bye, rest } = takeByeEntry(queue, byes);
+  if (bye) {
     pairingsToCreate.push({
-      homeEntryId: byeEntry.id,
+      homeEntryId: bye.id,
       awayEntryId: null,
       homePoints: null,
       awayPoints: null,
     });
   }
 
-  const matchPairings = [];
-  while (queue.length > 0) {
-    const home = queue.shift();
-    let awayIndex = queue.findIndex((candidate) => !opponents.get(home.id)?.has(candidate.id));
-    if (awayIndex === -1) awayIndex = 0;
-    const [away] = queue.splice(awayIndex, 1);
-    matchPairings.push({
-      homeEntryId: home.id,
-      awayEntryId: away.id,
-      homePoints: null,
-      awayPoints: null,
-    });
+  const { pairs, rematches, exhaustive } = pairRound(rest, opponents);
+  if (rematches > 0) {
+    // Nothing here can prevent it — late in a small league everybody has
+    // played everybody. Saying so in the log is the difference between an
+    // admin knowing before the round starts and a coach noticing after.
+    console.warn(
+      `[season] round ${nextRoundNumber}: ${rematches} pairing(s) repeat an earlier match`
+      + (exhaustive ? "" : " (the search hit its budget, so a cleaner round may exist)"),
+    );
   }
+  const matchPairings = pairs.map(([home, away]) => ({
+    homeEntryId: home.id,
+    awayEntryId: away.id,
+    homePoints: null,
+    awayPoints: null,
+  }));
 
   const client = await pool.connect();
   try {
