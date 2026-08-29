@@ -21,7 +21,7 @@ import { calculateRosterCosts } from "../domain/roster/costs.mjs";
 import { normalizePlayerExtraSkills, normalizePlayerFavouredSkills, selectedRosterPlayers, skillNamesForPlayer } from "../domain/roster/players.mjs";
 import { favouredSkillsForChoice, ruleLookupKey, teamFavouredOptions, teamLeagueOptions, teamSpecialRuleTokens } from "../domain/roster/team-rules.mjs";
 import { validateRoster } from "../domain/roster/validate.mjs";
-import { parseAccessCodes, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
+import { PLAYER_STATS, parseAccessCodes, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { renderRuleLinks } from "./content-links.mjs";
 
 export function playerStatusText(player) {
@@ -122,7 +122,7 @@ export function renderAccessCell(values = []) {
 }
 
 export function renderRosterStatCells(row) {
-  return ["ma", "st", "ag", "pa", "ar"]
+  return PLAYER_STATS
     .map((stat) => `<td class="stat-table-cell">${escapeHtml(row[stat] || "-")}</td>`)
     .join("");
 }

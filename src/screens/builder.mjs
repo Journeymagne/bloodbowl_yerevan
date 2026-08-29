@@ -16,7 +16,7 @@ import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } f
 import { pageUrl } from "../core/routes.mjs";
 import { onScreenLeave } from "../core/screen-lifecycle.mjs";
 import { builderStaffMaximums, startingBudget } from "../domain/league-rules.mjs";
-import { clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
+import { PLAYER_STATS, clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "../domain/roster/team-rules.mjs";
 import {
   ensureDraftPlayers,
@@ -152,7 +152,7 @@ function builderColumns() {
     { header: "#", cell: (player, index) => String(index + 1) },
     { header: t("roster.nameHeader"), cell: (player, index) => renderBuilderNameInput(player, index) },
     { header: t("roster.positionHeader"), cell: (player) => `<strong>${escapeHtml(player.row.position)}</strong>` },
-    ...["ma", "st", "ag", "pa", "ar"].map(statColumn),
+    ...PLAYER_STATS.map(statColumn),
     { header: t("roster.captain"), cell: (player) => renderBuilderCaptainCheckbox(player) },
     {
       header: t("roster.skillsLabel"),
