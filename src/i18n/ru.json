@@ -44,7 +44,6 @@
   "home.cardTeamsDescription": "составов с данными для сборки команды.",
   "home.cardBuilderDescription": "Соберите стартовый состав на 600 тыс., добавляя игроков по одному.",
   "home.cardStarPlayersDescription": "звёзд со стоимостью и доступностью.",
-  "section.createTeamButton": "Создать команду",
   "section.countOf": "из",
   "section.emptyState": "Ничего не найдено. Попробуйте изменить поиск или фильтры.",
   "section.rulesTitle": "Правила лиги",
@@ -451,5 +450,8 @@
   "preview.general-information-casualties": "Таблица травм по D16 с исходами повреждений.",
   "preview.general-information-leagues": "Карточки доступа к лигам: какие команды подходят и какие star players доступны.",
   "preview.general-information-reference-sources": "Внешние источники формулировок базового Blood Bowl 2025 и юридические заметки сайта.",
-  "myTeams.inSeasonBadge": "Играет в сезоне"
+  "myTeams.inSeasonBadge": "Играет в сезоне",
+  "section.sectionsHeading": "Разделы",
+  "section.pagesHeading": "Страницы",
+  "section.entries": "записей"
 }
