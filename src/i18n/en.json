@@ -430,5 +430,9 @@
   "error.TELEGRAM_REQUIRED": "Telegram contact is required.",
   "error.TOO_MANY_LOGIN_ATTEMPTS": "Too many attempts for this login. Try again shortly.",
   "error.USER_NOT_FOUND": "User not found.",
-  "error.WRONG_LOGIN_OR_PASSWORD": "Wrong login or password."
+  "error.WRONG_LOGIN_OR_PASSWORD": "Wrong login or password.",
+  "skills.randomizerRegion": "Skill randomizer",
+  "skills.tableByCategoryRegion": "Skill table grouped by category",
+  "teams.rosterRegion": "{team} roster",
+  "reference.tableRegion": "{page} table"
 }

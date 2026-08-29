@@ -430,5 +430,9 @@
   "error.TELEGRAM_REQUIRED": "Укажите контакт в Telegram.",
   "error.TOO_MANY_LOGIN_ATTEMPTS": "Слишком много попыток для этого логина. Попробуйте чуть позже.",
   "error.USER_NOT_FOUND": "Пользователь не найден.",
-  "error.WRONG_LOGIN_OR_PASSWORD": "Неверный логин или пароль."
+  "error.WRONG_LOGIN_OR_PASSWORD": "Неверный логин или пароль.",
+  "skills.randomizerRegion": "Случайный навык",
+  "skills.tableByCategoryRegion": "Таблица навыков по категориям",
+  "teams.rosterRegion": "Состав: {team}",
+  "reference.tableRegion": "Таблица: {page}"
 }
