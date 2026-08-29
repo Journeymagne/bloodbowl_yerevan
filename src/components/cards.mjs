@@ -12,23 +12,23 @@ import { rowsForTeam } from "../domain/roster/values.mjs";
 import { teamLeagueOptions, teamSpecialRuleTokens } from "../domain/roster/team-rules.mjs";
 import { renderRuleLinks, renderRosterLinks } from "./content-links.mjs";
 
-export const quickPreviews = new Map([
-  ["1. League Basics", "League format, event tone, dice/model expectations and core conduct for Gata league games."],
-  ["2. Team Creation", "Starting roster rules, team budget, model requirements and how new teams enter the league."],
-  ["3. Team Management", "Team transfers, treasury, player contracts, injuries and post-game roster management."],
-  ["4. Match Procedures", "Season structure, weekly games, match organization and league-point handling."],
-  ["5. Patch Notes", "Current Gata League 2 changes to teams, skills, traits and special rulings."],
-  ["All Gata Changes", "Full list of Gata gameplay, team, skill, Favoured Of, and Coach's Safe changes."],
-  ["Skill Table", "Skill categories, row numbers, and the random skill roller."],
-  ["Kick-off Table", "2D6 kick-off events used in Gata league games."],
-  ["Player Advancement", "SPP costs, value increases, elite combinations, and characteristic rolls."],
-  ["Special Rules", "Team special rules that change gameplay, advancement, TV, or inducement access."],
-  ["Prayers to Nuffle", "D16 prayer table with temporary match effects."],
-  ["Weather", "Spring and Summer weather tables with 2D6 and D6 results."],
-  ["Casualties", "D16 casualty table with injury outcomes."],
-  ["Leagues", "League access cards with eligible teams and available star players."],
-  ["Reference Sources", "External references for base Blood Bowl 2025 wording and the site's legal/source notes."],
-]);
+/**
+ * The hand-written summary for a reference page, if it has one.
+ *
+ * These fifteen sentences used to be an English Map keyed by English page
+ * title, which meant a Russian coach read the catalogue in English (step
+ * 13.1). They are dictionary entries now, keyed by page identifier — the one
+ * thing that is the same in both vaults.
+ *
+ * A page without one falls back to the opening of its own text, which is
+ * already in the reader's language.
+ */
+function pagePreview(page) {
+  const key = `preview.${page.id}`;
+  const written = t(key);
+  if (written !== key) return written;
+  return shortText(page.text.replace(/Full base wording:.*/i, "").trim(), 155);
+}
 
 function shortText(value = "", length = 180) {
   const clean = String(value).replace(/\s+/g, " ").trim();
@@ -59,7 +59,7 @@ export function renderListCard(page, route) {
       </a>
     `;
   }
-  const preview = quickPreviews.get(page.title) ?? shortText(page.text.replace(/Full base wording:.*/i, "").trim(), 155);
+  const preview = pagePreview(page);
   return `
     <a class="card" href="${pageUrl(page)}">
       <h3>${escapeHtml(page.title)}</h3>

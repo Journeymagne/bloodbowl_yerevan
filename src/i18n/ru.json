@@ -435,5 +435,20 @@
   "skills.tableByCategoryRegion": "Таблица навыков по категориям",
   "teams.rosterRegion": "Состав: {team}",
   "reference.tableRegion": "Таблица: {page}",
-  "a11y.skipToContent": "К содержимому"
+  "a11y.skipToContent": "К содержимому",
+  "preview.rules-1-league-basics": "Формат лиги, тон мероприятий, требования к кубикам и моделям, правила поведения на играх Gata.",
+  "preview.rules-2-team-creation": "Правила стартового состава, бюджет команды, требования к моделям и как новые команды входят в лигу.",
+  "preview.rules-3-team-management": "Переходы, казна, контракты игроков, травмы и работа с составом после матча.",
+  "preview.rules-4-match-procedures": "Структура сезона, еженедельные игры, организация матчей и начисление очков лиги.",
+  "preview.rules-5-patch-notes": "Текущие изменения Gata League 2: команды, навыки, свойства и отдельные решения по правилам.",
+  "preview.general-information-all-gata-changes": "Полный список изменений Gata: игровой процесс, команды, навыки, Favoured Of и Coach's Safe.",
+  "preview.skills-and-traits-skill-table": "Категории навыков, номера строк и бросок случайного навыка.",
+  "preview.general-information-kick-off-table": "События вбрасывания по 2D6, которые используются в играх лиги Gata.",
+  "preview.general-information-player-advancement": "Стоимость в SPP, рост ценности игрока, элитные комбинации и броски характеристик.",
+  "preview.general-information-special-rules": "Особые правила команд, меняющие игру, прокачку, TV или доступ к inducements.",
+  "preview.general-information-prayers-to-nuffle": "Таблица молитв по D16 с временными эффектами на матч.",
+  "preview.general-information-weather": "Весенняя и летняя таблицы погоды с результатами 2D6 и D6.",
+  "preview.general-information-casualties": "Таблица травм по D16 с исходами повреждений.",
+  "preview.general-information-leagues": "Карточки доступа к лигам: какие команды подходят и какие star players доступны.",
+  "preview.general-information-reference-sources": "Внешние источники формулировок базового Blood Bowl 2025 и юридические заметки сайта."
 }
