@@ -1,0 +1,538 @@
+/*
+ * The season: standings, fixtures, rounds, games, and the notices around them.
+ *
+ * Part of src/styles.css, which imports the eight files in this directory in
+ * order. The split is by position, not by theme: the cuts fall between rules
+ * that were already neighbours, so the cascade is exactly what it was.
+ */
+.content-panel,
+.side-panel {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+  backdrop-filter: blur(6px);
+}
+
+.content-panel {
+  padding: 14px;
+}
+
+.content-panel h2,
+.content-panel h3 {
+  margin: 24px 0 10px;
+}
+
+.content-panel h2:first-child,
+.content-panel h3:first-child {
+  margin-top: 0;
+}
+
+.content-panel p,
+.content-panel li {
+  color: var(--text);
+  line-height: 1.65;
+}
+
+.content-panel ul,
+.content-panel ol {
+  margin: 10px 0 20px;
+  padding-left: 28px;
+}
+
+.content-panel .numbered-list {
+  display: grid;
+  gap: 8px;
+}
+
+.content-panel .numbered-list li {
+  padding-left: 4px;
+}
+
+.content-panel a {
+  color: var(--focus);
+  text-decoration: none;
+}
+
+.content-panel a:hover {
+  text-decoration: underline;
+}
+
+.content-panel img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 16px 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(239, 224, 183, 0.08);
+}
+
+.season-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-strong);
+}
+
+.season-tab {
+  display: inline-flex;
+  flex: 1 1 140px;
+  min-height: 38px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border: 1px solid var(--button-border);
+  border-radius: 6px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.season-tab:hover {
+  border-color: var(--line-bright);
+  background: var(--button-bg-hover);
+}
+
+.season-tab.active {
+  border-color: var(--active-button-border);
+  background: var(--active-button-bg);
+  color: var(--active-button-text);
+}
+
+.season-overview-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.season-registration-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.season-registration-top {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
+  gap: 18px;
+  align-items: stretch;
+}
+
+.season-registered-panel {
+  min-width: 0;
+}
+
+.season-rounds {
+  display: grid;
+  gap: 18px;
+}
+
+.season-round-header {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.season-round-header > div:first-child {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.season-round-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: stretch;
+  gap: 8px;
+}
+
+.season-status-pill {
+  display: inline-grid;
+  min-height: 24px;
+  place-items: center;
+  padding: 0 9px;
+  border: 1px solid var(--button-border);
+  border-radius: 999px;
+  background: var(--button-bg);
+  color: var(--button-text);
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.season-status-pill[data-status="started"] {
+  border-color: rgba(138, 160, 75, 0.68);
+  color: #cfe5a4;
+}
+
+.season-admin-stack {
+  display: grid;
+  gap: 18px;
+}
+
+.season-card {
+  display: grid;
+  gap: 14px;
+}
+
+.season-card h2,
+.season-card h3,
+.season-card p {
+  margin: 0;
+}
+
+.season-committed-team {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.season-committed-team img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin: 0;
+}
+
+.season-action-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: end;
+}
+
+.season-admin-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.season-admin-block {
+  display: grid;
+  align-content: start;
+  gap: 10px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-glass);
+}
+
+.season-table {
+  min-width: 760px;
+}
+
+.season-score-input {
+  width: 76px;
+  min-height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--input-bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 800;
+  text-align: center;
+}
+
+.season-pairing-team {
+  display: grid;
+  gap: 3px;
+  min-width: 180px;
+}
+
+.season-pairing-team span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.season-td-pair {
+  display: grid;
+  gap: 6px;
+}
+
+.fixture-headline {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.fixture-headline > div,
+.season-score-summary {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-glass);
+}
+
+.fixture-headline strong {
+  display: block;
+  color: var(--soft);
+  font-size: 1.125rem;
+}
+
+.fixture-headline p {
+  margin: 4px 0 0;
+}
+
+.season-score-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.fixture-result-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+}
+
+.admin-profile-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+}
+
+.admin-profile-card .stat-list {
+  margin: 0;
+}
+
+.games-grid {
+  margin-top: 14px;
+}
+
+.game-card {
+  display: grid;
+  gap: 8px;
+}
+
+.game-card h3,
+.game-card p {
+  margin: 0;
+}
+
+.game-versus {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  align-items: center;
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.game-versus > div {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-glass);
+}
+
+.game-versus h2,
+.game-versus p {
+  margin: 6px 0 0;
+}
+
+.game-team-name {
+  font-weight: 700;
+}
+
+.game-team-logo {
+  display: block;
+  width: min(360px, 100%);
+  max-height: 360px;
+  margin: 14px auto 0;
+  justify-self: center;
+  object-fit: contain;
+}
+
+.game-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-user-management-form {
+  display: grid;
+  gap: 12px;
+}
+
+.admin-user-management-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.danger-action {
+  border-color: rgba(232, 92, 63, 0.62);
+  color: var(--danger);
+}
+
+.danger-action:hover:not(:disabled) {
+  border-color: var(--danger);
+}
+
+.danger-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.48;
+}
+
+.admin-users-table {
+  min-width: 820px;
+}
+
+.admin-teams-table {
+  min-width: 760px;
+}
+
+.public-roster-table {
+  min-width: 980px;
+}
+
+.legal-panel {
+  max-width: 900px;
+}
+
+.notice-box {
+  margin-bottom: 22px;
+  padding: 16px;
+  border: 1px solid rgba(240, 200, 74, 0.38);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, rgba(199, 46, 34, 0.14), transparent),
+    var(--surface-strong);
+}
+
+.notice-box strong {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--soft);
+}
+
+.notice-box p {
+  margin: 0;
+}
+
+.side-panel {
+  align-self: start;
+  padding: 16px;
+}
+
+.side-panel h2 {
+  margin: 0 0 10px;
+  font-size: 1rem;
+}
+
+.kv {
+  display: grid;
+  gap: 10px;
+}
+
+.kv div {
+  display: grid;
+  gap: 3px;
+}
+
+.kv span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.kv strong {
+  font-size: 0.875rem;
+}
+
+.table-scroll {
+  position: relative;
+  width: auto;
+  max-width: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  margin: 16px -14px;
+  padding: 0 0 10px 0;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-inline: contain;
+  scrollbar-color: rgba(240, 200, 74, 0.72) var(--surface-soft);
+  scrollbar-width: thin;
+}
+
+/* The fade at the right edge that says the table keeps going. */
+.table-scroll::after {
+  position: sticky;
+  right: 0;
+  display: block;
+  float: right;
+  width: 34px;
+  height: 1px;
+  margin-top: -1px;
+  background: linear-gradient(90deg, transparent, var(--scroll-fade));
+  content: "";
+  pointer-events: none;
+}
+
+.table-scroll::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-scroll::-webkit-scrollbar-track {
+  background: var(--surface-soft);
+}
+
+.table-scroll::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(240, 200, 74, 0.72);
+}
+
+table {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+th,
+td {
+  padding: 10px;
+  border: 1px solid var(--line);
+  vertical-align: top;
+}
+
+th {
+  background: var(--table-head);
+  color: var(--soft);
+  text-align: left;
+}
+
+td {
+  background: var(--surface-soft);
+}
+
+.numbered-table th:first-child,
+.numbered-table td:first-child {
+  width: 48px;
+  min-width: 48px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.missing-link {
+  color: var(--danger);
+}
+
+.empty-state,
+.loading {
+  padding: 28px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--muted);
+}

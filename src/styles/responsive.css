@@ -1,0 +1,432 @@
+/*
+ * What changes as the screen gets wider.
+ *
+ * The stylesheet is written for the narrow screen first (step 15.2), so this
+ * is where the wide layout lives, in ascending order: a rule in a later block
+ * wins, the way a wider screen should win over a narrower one.
+ *
+ * The three max-width blocks below are what is left of the old direction and
+ * are being turned around one area at a time.
+ *
+ * Part of src/styles.css, which imports the eight files in this directory in
+ * order.
+ */
+
+/* Anything wider than a phone. */
+@media (min-width: 601px) {
+
+  /* Room for the topbar to breathe. */
+  .topbar {
+    flex-direction: row;
+    padding: 18px 24px;
+  }
+
+  .search-wrap {
+    min-width: auto;
+  }
+
+  .top-actions {
+    gap: 8px;
+  }
+
+  .theme-picker {
+    min-height: 44px;
+    padding: 0 8px;
+  }
+
+  .theme-picker select {
+    width: 108px;
+    min-height: 30px;
+    font-size: inherit;
+  }
+
+  .icon-text-button {
+    min-width: 48px;
+    min-height: 44px;
+  }
+
+
+  /* Page furniture. */
+  .view {
+    padding: 28px;
+  }
+
+  .page-head {
+    display: flex;
+    gap: 16px;
+  }
+
+  .page-head > .toolbar .primary-button {
+    width: auto;
+  }
+
+  .page-head > .toolbar {
+    justify-content: flex-end;
+  }
+
+  .league-reference-card header {
+    display: flex;
+    gap: 10px;
+  }
+
+  .league-hero {
+    min-height: 320px;
+    padding: 30px;
+  }
+
+  .league-hero-media {
+    min-height: 220px;
+  }
+
+  .league-hero-media img {
+    max-height: 270px;
+  }
+
+  .content-panel {
+    padding: 22px;
+  }
+
+  .season-tab {
+    flex: 0 1 auto;
+  }
+
+
+  /* Rows that had to stack on a phone. */
+  .builder-row,
+  .builder-addon,
+  .roster-slot-add,
+  .slot-player-topline,
+  .saved-player-grid,
+  .season-action-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .skill-roll-controls {
+    grid-template-columns: minmax(160px, 1fr) auto;
+  }
+
+  .advancement-add-row {
+    grid-template-columns: minmax(140px, 1fr) auto;
+  }
+
+  .mobile-player-checks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .mobile-skill-editor {
+    grid-template-columns: none;
+  }
+
+  .mobile-advancement-section {
+    grid-template-columns: minmax(100px, 0.52fr) minmax(0, 1fr);
+  }
+
+  .mobile-roster-player-card header .compact-action {
+    align-self: auto;
+    width: auto;
+  }
+
+  .builder-tracker-control .inline-stepper-control {
+    justify-self: auto;
+  }
+
+  .builder-setup-panel .builder-form,
+  .builder-info-identity .builder-form,
+  .builder-tracker-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+
+  /* Grids that fit more than one card. */
+  .grid {
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  }
+
+  .card-grid {
+    grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  }
+
+  /* Wider cards, which used to win by sitting later in the file. */
+  .overview-grid {
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
+  }
+
+  .filter-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .saved-team-card-stats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .summary-actions {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .builder-row .team-stat-grid {
+    width: max-content;
+    grid-template-columns: repeat(5, 54px);
+  }
+
+  .stepper {
+    width: auto;
+    grid-template-columns: 38px 44px 38px;
+  }
+
+  .stepper button {
+    width: 38px;
+  }
+
+
+  /* Tables, rather than the cards that stand in for them. */
+  .team-roster-desktop,
+  .skill-table-desktop,
+  .reference-table-desktop,
+  .builder-available-table-wrap,
+  .builder-selected-table-wrap,
+  .my-teams-table-panel {
+    display: block;
+  }
+
+  .team-roster-mobile,
+  .skill-table-mobile,
+  .reference-table-mobile,
+  .builder-mobile-card-list,
+  .my-teams-card-list {
+    display: none;
+  }
+
+  .table-scroll {
+    position: static;
+    width: auto;
+    max-width: 100%;
+    margin: 18px -4px;
+    padding: 0;
+  }
+
+  .table-scroll::after {
+    display: none;
+  }
+
+}
+
+/* The topbar controls, once they are not fighting for the width. */
+@media (min-width: 761px) {
+  .theme-picker {
+    padding: 0 10px;
+  }
+
+  .theme-picker span {
+    display: inline;
+  }
+
+  .theme-picker select {
+    width: 138px;
+  }
+
+  .auth-button {
+    max-width: 148px;
+  }
+}
+
+/* The wide layout: a sidebar beside the page, and panels side by side. */
+@media (min-width: 901px) {
+  .app-shell {
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: sticky;
+    z-index: auto;
+    inset: 0 auto auto auto;
+    width: auto;
+    height: 100vh;
+    box-shadow: none;
+    transform: none;
+    transition: none;
+  }
+
+  body.nav-open {
+    overflow: visible;
+  }
+
+  .nav-overlay,
+  .nav-toggle {
+    display: none;
+  }
+
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr) 260px;
+  }
+
+  .league-hero {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
+  }
+
+  .builder-layout {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+
+  /* The one-column variant, which used to win by sitting later in the file. */
+  .builder-layout-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .saved-roster-top-grid {
+    grid-template-columns: minmax(360px, 1fr) minmax(280px, 360px);
+  }
+
+  .roster-purchases-layout {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .builder-info-grid {
+    grid-template-columns: minmax(280px, 0.7fr) minmax(360px, 1.3fr);
+  }
+
+  .public-team-overview-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.48fr);
+  }
+
+  .builder-addons {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .team-rules-panel {
+    grid-template-columns: minmax(160px, 0.5fr) minmax(220px, 0.75fr) minmax(0, 1.4fr);
+  }
+
+  .builder-player-pool {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .roster-slots {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .skill-roll-panel {
+    grid-template-columns: minmax(260px, 420px) minmax(220px, 1fr);
+  }
+
+  .season-overview-grid {
+    grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
+  }
+
+  .season-admin-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .admin-profile-grid {
+    grid-template-columns: minmax(240px, 0.34fr) minmax(0, 1fr);
+  }
+
+  .fixture-headline {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .game-versus {
+    grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  }
+
+  .fixture-result-form {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* What the narrow layout stacks, side by side again. */
+  .builder-setup-panel .builder-form,
+  .builder-info-identity .builder-form {
+    grid-template-columns: repeat(3, minmax(140px, 1fr));
+  }
+
+  .builder-tracker-list {
+    grid-template-columns: none;
+  }
+
+  .public-team-coach-block {
+    padding-top: 0;
+    padding-left: 18px;
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+
+  .season-round-header {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .season-round-actions {
+    justify-content: flex-end;
+  }
+
+  .builder-summary {
+    position: sticky;
+  }
+
+  .builder-summary-horizontal {
+    grid-template-columns: auto minmax(150px, 0.7fr) minmax(360px, 1.8fr) minmax(260px, 1fr);
+  }
+
+  .builder-summary-horizontal:not(:has(.summary-logo-block)) {
+    grid-template-columns: minmax(150px, 0.7fr) minmax(360px, 1.8fr) minmax(260px, 1fr);
+  }
+
+  .summary-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .builder-row-main {
+    grid-template-columns: minmax(200px, 1.2fr) max-content minmax(180px, 1fr);
+  }
+
+  .filter-panel {
+    grid-template-columns: repeat(5, minmax(150px, 1fr)) auto;
+  }
+
+  .league-hero-media {
+    min-height: 260px;
+  }
+
+  .saved-roster-table-wrap {
+    display: block;
+  }
+
+  .saved-roster-mobile-list {
+    display: none;
+  }
+}
+
+/*
+ * The one thing that cannot be written the other way round.
+ *
+ * On a phone a wide table scrolls sideways at its natural width. Saying so
+ * needs `.table-scroll table`, which out-specifies the rules each table sets
+ * for itself (.compact-roster-table asks for 980px), so there is no wider
+ * rule that could hand control back — hence a max-width query, and the five
+ * tables repeating their own widths underneath it.
+ */
+@media (max-width: 600px) {
+  .table-scroll table {
+    width: max-content;
+    min-width: 720px;
+  }
+
+  .table-scroll .builder-table {
+    min-width: 980px;
+  }
+
+  .table-scroll .builder-selected-table {
+    min-width: 940px;
+  }
+
+  .table-scroll .saved-roster-table {
+    min-width: 2160px;
+  }
+
+  .table-scroll .my-teams-table {
+    min-width: 720px;
+  }
+
+  .table-scroll .season-table {
+    min-width: 760px;
+  }
+}

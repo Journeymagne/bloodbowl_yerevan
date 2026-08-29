@@ -1,0 +1,563 @@
+/*
+ * A screen's own furniture — headings, filters, buttons, chips — and the reference pages' tables and prose.
+ *
+ * Part of src/styles.css, which imports the eight files in this directory in
+ * order. The split is by position, not by theme: the cuts fall between rules
+ * that were already neighbours, so the cascade is exactly what it was.
+ */
+.view {
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100vh - 81px);
+  padding: 18px 14px;
+}
+
+.view::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  pointer-events: none;
+}
+
+.view::after {
+  z-index: -1;
+  background:
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 96px 100%,
+    linear-gradient(0deg, transparent 0 47px, var(--grid-line-soft) 48px 49px, transparent 50px) 0 0 / 100% 96px,
+    repeating-linear-gradient(90deg, var(--stripe-line) 0 1px, transparent 1px 24px),
+    radial-gradient(circle at 52% 0%, rgba(255, 215, 120, 0.1), transparent 28%),
+    linear-gradient(180deg, transparent, var(--bg)),
+    linear-gradient(90deg, var(--surface-strong), transparent 36%, transparent 66%, var(--surface-strong));
+}
+
+.league-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+  min-height: 0;
+  margin-bottom: 30px;
+  padding: 20px;
+  border: 1px solid rgba(239, 224, 183, 0.2);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, rgba(199, 46, 34, 0.22), transparent 42%),
+    linear-gradient(180deg, rgba(255, 215, 120, 0.08), transparent),
+    var(--panel-glass);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.035);
+}
+
+.league-hero-copy h1 {
+  max-width: 860px;
+  margin: 0;
+  font-size: clamp(2.125rem, 5vw, 4.125rem);
+  line-height: 0.98;
+}
+
+.league-hero-copy p {
+  max-width: 720px;
+  margin: 16px 0 0;
+  color: var(--bone);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+}
+
+.league-hero-media {
+  display: grid;
+  min-height: 180px;
+  place-items: center;
+  border: 1px solid rgba(240, 200, 74, 0.38);
+  border-radius: var(--radius);
+  background: linear-gradient(180deg, #fff8e7, #d9c28d);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.28);
+}
+
+.league-hero-media img {
+  width: min(100%, 280px);
+  max-height: 190px;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 18px rgba(42, 30, 10, 0.28));
+}
+
+.page-head {
+  display: grid;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 22px;
+}
+
+.page-heading-main {
+  min-width: 0;
+}
+
+.page-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+}
+
+.page-head h1,
+.page-head h2 {
+  margin: 0;
+  font-size: clamp(1.75rem, 4vw, 2.875rem);
+  line-height: 1.05;
+}
+
+.page-back-button {
+  min-height: 34px;
+  padding: 0 12px;
+}
+
+.page-head p {
+  max-width: 760px;
+  margin: 10px 0 0;
+  color: var(--muted);
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 0 0 18px;
+}
+
+/* On a phone the toolbar button takes the width; see styles/responsive.css. */
+.page-head > .toolbar .primary-button {
+  width: 100%;
+}
+
+.page-head > .toolbar {
+  justify-content: stretch;
+  margin: 0;
+}
+
+.filter-panel {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: end;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-glass);
+  backdrop-filter: blur(5px);
+}
+
+.filter-field {
+  display: grid;
+  gap: 6px;
+}
+
+.filter-field span {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.filter-field select {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.filter-field input {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--input-bg);
+  color: var(--text);
+}
+
+.filter-field input:focus,
+.filter-field select:focus {
+  border-color: var(--focus);
+}
+
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  font-weight: 700;
+  text-decoration: none;
+  text-shadow: var(--primary-text-shadow);
+  cursor: pointer;
+}
+
+.primary-button:hover {
+  border-color: var(--line-bright);
+  background: var(--primary-bg-hover);
+}
+
+.full-width {
+  width: 100%;
+}
+
+.chip,
+.filter-button,
+.ghost-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius);
+  background: var(--button-bg);
+  color: var(--button-muted-text);
+  text-decoration: none;
+}
+
+.chip:hover,
+.filter-button:hover,
+.ghost-button:hover {
+  border-color: var(--line-bright);
+  background: var(--button-bg-hover);
+  color: var(--button-text);
+}
+
+.filter-button {
+  cursor: pointer;
+}
+
+.ghost-button {
+  justify-content: center;
+  min-height: 38px;
+  cursor: pointer;
+}
+
+.filter-button.active {
+  border-color: var(--active-button-border);
+  background: var(--active-button-bg);
+  color: var(--active-button-text);
+}
+
+.skill-roll-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  align-items: end;
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid rgba(240, 200, 74, 0.38);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(90deg, rgba(199, 46, 34, 0.12), transparent),
+    var(--surface-soft);
+}
+
+.skill-roll-controls {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+  align-items: end;
+}
+
+.skill-roll-result {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  min-height: 40px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--input-bg-soft);
+}
+
+.skill-roll-die {
+  display: inline-flex;
+  min-height: 24px;
+  align-items: center;
+  padding: 0 8px;
+  border-radius: var(--radius);
+  background: rgba(240, 200, 74, 0.16);
+  color: var(--soft);
+  font-weight: 700;
+}
+
+.skill-roll-result-link {
+  color: var(--focus);
+  font-weight: 800;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.skill-roll-placeholder {
+  color: var(--muted);
+}
+
+.skill-table-mobile {
+  display: grid;
+  gap: 12px;
+}
+
+.skill-table-desktop {
+  display: none;
+}
+
+.team-roster-desktop {
+  display: none;
+}
+
+.team-roster-mobile {
+  display: grid;
+  gap: 12px;
+}
+
+.team-roster-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.team-roster-card header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--table-head);
+}
+
+.content-panel .team-roster-card h2 {
+  margin: 0;
+  color: var(--soft);
+  font-size: 1.0625rem;
+  line-height: 1.25;
+}
+
+.team-roster-card header span {
+  display: block;
+  margin-top: 3px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.team-roster-card header strong {
+  flex: 0 0 auto;
+  color: var(--soft);
+}
+
+.team-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.team-stat-grid div {
+  display: grid;
+  gap: 4px;
+  padding: 10px 6px;
+  border-left: 1px solid rgba(85, 69, 51, 0.62);
+  text-align: center;
+}
+
+.team-stat-grid div:first-child {
+  border-left: 0;
+}
+
+.team-stat-grid dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+}
+
+.team-stat-grid dd {
+  margin: 0;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.team-roster-field {
+  display: grid;
+  gap: 7px;
+  padding: 11px 12px;
+  border-top: 1px solid rgba(85, 69, 51, 0.45);
+}
+
+.team-stat-grid + .team-roster-field {
+  border-top: 0;
+}
+
+.team-roster-field > span {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.team-roster-field > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.team-roster-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid rgba(85, 69, 51, 0.45);
+}
+
+.team-roster-columns .team-roster-field {
+  border-top: 0;
+}
+
+.team-roster-columns .team-roster-field + .team-roster-field {
+  border-left: 1px solid rgba(85, 69, 51, 0.45);
+}
+
+.roster-pill {
+  display: inline-flex;
+  min-height: 25px;
+  align-items: center;
+  padding: 0 8px;
+  border: 1px solid rgba(240, 200, 74, 0.26);
+  border-radius: 999px;
+  background: rgba(91, 71, 38, 0.44);
+  color: var(--focus);
+  font-size: 0.75rem;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.roster-pill-muted {
+  color: var(--soft);
+}
+
+.muted-text {
+  color: var(--muted);
+}
+
+.reference-table-mobile {
+  display: grid;
+  gap: 12px;
+}
+
+.reference-table-desktop {
+  display: none;
+}
+
+.reference-table-card {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.reference-table-card header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--table-head);
+}
+
+.reference-table-card header span {
+  color: var(--soft);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.reference-table-card header strong {
+  display: inline-grid;
+  min-width: 36px;
+  min-height: 28px;
+  place-items: center;
+  border-radius: var(--radius);
+  background: rgba(240, 200, 74, 0.16);
+  color: var(--soft);
+}
+
+.content-panel .reference-table-card h2 {
+  margin: 0;
+  padding: 12px 12px 0;
+  color: var(--focus);
+  font-size: 1.0625rem;
+  line-height: 1.25;
+}
+
+.content-panel .reference-table-card p {
+  margin: 0;
+  padding: 12px;
+  color: var(--text);
+  line-height: 1.55;
+}
+
+.skill-table-group {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+}
+
+.skill-table-group h2 {
+  margin: 0;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  background: var(--table-head);
+  color: var(--soft);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.content-panel .skill-table-list {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.content-panel .skill-table-list li {
+  display: grid;
+  min-height: 38px;
+  grid-template-columns: 44px minmax(0, 1fr);
+  border-top: 1px solid rgba(85, 69, 51, 0.62);
+}
+
+.content-panel .skill-table-list li:first-child {
+  border-top: 0;
+}
+
+.skill-table-number {
+  display: grid;
+  place-items: center;
+  border-right: 1px solid rgba(85, 69, 51, 0.62);
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.content-panel .skill-table-list a {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  padding: 8px 10px;
+  color: var(--focus);
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
