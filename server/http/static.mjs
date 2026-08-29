@@ -12,6 +12,34 @@ import { rootDir } from "../config/env.mjs";
 import { resolveStaticPath } from "./static-path.mjs";
 import { preferredEncoding, writeResponse } from "./responses.mjs";
 
+/**
+ * Where the files a browser asks for actually come from.
+ *
+ * `npm run build` writes dist/: minified CSS, and — since the module-version
+ * fix — every import inside it carrying `?v=<release>`, which is what lets a
+ * module be cached for a year and still change on a deploy. Serving the repo
+ * root instead means serving unstamped modules under `max-age=86400`, so a
+ * coach who visited yesterday runs today's app.js against yesterday's screens.
+ *
+ * The deploy builds before it restarts, so dist/ is current when it exists.
+ * When it does not — a checkout that has not been built — the repo root still
+ * works, which is what development wants.
+ */
+export const staticRoot = await pickStaticRoot();
+
+async function pickStaticRoot() {
+  const dist = path.join(rootDir, "dist");
+  try {
+    await fs.access(path.join(dist, "index.html"));
+    return dist;
+  } catch {
+    return rootDir;
+  }
+}
+
+/** For the startup line: which of the two this process ended up on. */
+export const staticRootLabel = staticRoot === rootDir ? "repository root (no dist/ built)" : "dist/";
+
 const mimeTypes = new Map([
   [".html", "text/html; charset=utf-8"],
   [".css", "text/css; charset=utf-8"],
@@ -77,7 +105,7 @@ async function sendPrecompressed(request, response, fullPath, headers) {
 }
 
 export async function handleStatic(request, response, url) {
-  const fullPath = resolveStaticPath(url.pathname, rootDir);
+  const fullPath = resolveStaticPath(url.pathname, staticRoot);
   if (!fullPath) {
     // 404 rather than 403: a 403 confirms the file exists.
     response.writeHead(404, { "Content-Type": "text/plain; charset=utf-8" });

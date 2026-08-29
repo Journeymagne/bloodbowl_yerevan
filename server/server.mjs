@@ -4,7 +4,7 @@ import { rootDir } from "./config/env.mjs";
 import { databaseUrl, pool, safeDatabaseLabel } from "./db/pool.mjs";
 import { assertMigrationsApplied } from "./db/migrate.mjs";
 import { loadTeamReference } from "./domain/roster.mjs";
-import { handleStatic } from "./http/static.mjs";
+import { handleStatic, staticRootLabel } from "./http/static.mjs";
 import { sendJson } from "./http/responses.mjs";
 import { errorPayload } from "./http/errors.mjs";
 import { normalizeLogin } from "./api/serializers.mjs";
@@ -130,6 +130,7 @@ async function handleApi(request, response, url) {
 await waitForDatabase();
 await ensureSchema();
 startupLog(`roster rules loaded for ${await loadTeamReference(rootDir)} teams`);
+startupLog(`serving the site from ${staticRootLabel}`);
 await ensureAdmin();
 
 const server = http.createServer(async (request, response) => {
