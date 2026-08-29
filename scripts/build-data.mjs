@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown.mjs";
 import { writeDataFile } from "./lib/write-data-file.mjs";
 import { applyMedicalAccess, medicalAccessByPageId } from "./lib/medical-access.mjs";
+import { assertDataIsUsable } from "./lib/validate-data.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
@@ -785,6 +786,7 @@ const enFiles = (await walk(vaultDir)).map((file) => ({ file, relativePath: path
 const enData = await buildLocaleData(enFiles);
 const medicalAccessById = medicalAccessByPageId(enData);
 applyMedicalAccess(enData, medicalAccessById);
+assertDataIsUsable(enData, "en");
 const enJson = JSON.stringify(enData);
 for (const name of ["data.en.json", "data.json"]) await writeDataFile(path.join(publicDir, name), enJson);
 console.log(`Built ${enData.counts.pages} pages into public/data.en.json (+ data.json alias)`);
@@ -796,6 +798,7 @@ if (!ruVaultExists) {
 const ruFiles = await resolveLocaleFiles(vaultDir, ruVaultDir);
 const ruData = await buildLocaleData(ruFiles);
 applyMedicalAccess(ruData, medicalAccessById);
+assertDataIsUsable(ruData, "ru");
 await writeDataFile(path.join(publicDir, "data.ru.json"), JSON.stringify(ruData));
 const ruTranslatedCount = ruFiles.filter(({ file }) => file.startsWith(ruVaultDir + path.sep)).length;
 console.log(`Built ${ruData.counts.pages} pages into public/data.ru.json (${ruTranslatedCount} translated, ${ruData.counts.pages - ruTranslatedCount} falling back to ${primaryContentDir})`);
