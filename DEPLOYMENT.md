@@ -509,5 +509,10 @@ one. The 2026-08-22 review and its limits are written up in
 
 - Enable Caddy's access log and Postgres `log_connections`, so the next review
   has something to read.
-- Switch `Content-Security-Policy-Report-Only` to the enforcing header after the
-  inline theme script in `index.html` is moved to its own file.
+- ~~Switch `Content-Security-Policy-Report-Only` to the enforcing header~~ —
+  done. The theme bootstrap moved to `src/theme-boot.js` and the stylesheet
+  preload swap became a plain link, so nothing on the page is inline any more;
+  the policy allows neither inline script nor inline style. Checked against the
+  built site under exactly that policy, with no violations. Note that
+  `dist/local-preview.html` inlines its data in a `<script>` block and so only
+  works off a local static server, not through Caddy.
