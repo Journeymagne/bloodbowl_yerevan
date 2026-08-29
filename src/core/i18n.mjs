@@ -57,11 +57,23 @@ export function setDictionaries(next) {
 }
 
 export async function loadTranslations(version, fetchFn = fetch) {
-  const [en, ru] = await Promise.all(
-    SUPPORTED_LOCALES.map((name) => fetchFn(`src/i18n/${name}.json?v=${version}`).then((response) => response.json())),
-  );
+  const [en, ru] = await Promise.all(SUPPORTED_LOCALES.map((name) => loadDictionary(name, version, fetchFn)));
   setDictionaries({ en, ru });
   return dictionaries;
+}
+
+/**
+ * One dictionary, or a clear reason why not.
+ *
+ * The status was not checked, so a 404 handed an HTML error page to
+ * JSON.parse and the app died on "Unexpected token '<'" — which reads like a
+ * broken build rather than a missing file. reference.mjs learned this in step
+ * 11.1; this is the same fix on the other fetch that boots the app.
+ */
+async function loadDictionary(name, version, fetchFn) {
+  const response = await fetchFn(`src/i18n/${name}.json?v=${version}`);
+  if (!response.ok) throw new Error(`Translations for "${name}" are missing (${response.status}).`);
+  return response.json();
 }
 
 /** Translate everything index.html marked up with data-i18n* attributes. */
