@@ -177,7 +177,19 @@ secret with `gh secret set SSH_PRIVATE_KEY -R Journeymagne/bloodbowl_yerevan < p
 ### Ongoing deploys
 
 Every push to `main` runs `.github/workflows/deploy.yml`, which pulls,
-rebuilds, and restarts the `bloodbowl-league` pm2 process automatically.
+rebuilds, applies any outstanding migrations, and restarts the
+`bloodbowl-league` pm2 process automatically.
+
+The deploy then asks the site whether it is actually up — `/api/health` on the
+server's own port, for up to thirty seconds. If it never answers, the deploy
+puts the previous commit back, rebuilds, restarts, and fails the job, so a
+deploy that leaves the site down no longer looks the same as one that worked.
+
+The rollback is **code only**. Migrations are forward-only and additive, so
+the older code runs against the newer schema; a migration that genuinely
+breaks the older code has to be undone by hand, and the job log names the
+commit to undo it back to. The `dist/` the site is served from is rebuilt on
+the way back, so a rolled-back deploy serves the rolled-back build.
 
 ### Smoke test
 
