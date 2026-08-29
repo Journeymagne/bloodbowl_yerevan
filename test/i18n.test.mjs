@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { detectDefaultLocale, isSupportedLocale, setDictionaries, t } from "../src/core/i18n.mjs";
+import { detectDefaultLocale, isSupportedLocale, loadTranslations, setDictionaries, t } from "../src/core/i18n.mjs";
 import { clearReferenceCache, loadReferenceData } from "../src/data/reference.mjs";
 
 // The module keeps one global locale, so these tests set the dictionaries they
@@ -95,4 +95,27 @@ test("a missing data file says so instead of failing to parse HTML", async () =>
     () => loadReferenceData("ru", { version: "v1", fetchFn }),
     /Reference data for "ru" is missing \(404\)/,
   );
+});
+
+test("a dictionary that will not load says which one, and why", async () => {
+  const fetchFn = async (url) => (url.includes("ru")
+    ? { ok: false, status: 404, json: async () => ({}) }
+    : { ok: true, status: 200, json: async () => ({ "nav.overview": "Overview" }) });
+
+  await assert.rejects(
+    () => loadTranslations("gata-test", fetchFn),
+    /Translations for "ru" are missing \(404\)/,
+  );
+});
+
+test("both dictionaries load together", async () => {
+  const fetchFn = async (url) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({ "nav.overview": url.includes("ru") ? "Обзор" : "Overview" }),
+  });
+
+  const dictionaries = await loadTranslations("gata-test", fetchFn);
+  assert.equal(dictionaries.en["nav.overview"], "Overview");
+  assert.equal(dictionaries.ru["nav.overview"], "Обзор");
 });

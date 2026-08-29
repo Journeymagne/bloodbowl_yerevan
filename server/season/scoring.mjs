@@ -6,14 +6,15 @@
  * was buried among the queries in server.mjs; step 4.9 pulled it out so the
  * season routes could move.
  *
- * Task 14.3 goes further and moves the scoring *rules* into
- * src/domain/league-rules.mjs, where the browser reads them too. Until then
- * this is the only place they are written down.
+ * The scoring *rules* themselves — what a win is worth, what earns a bonus,
+ * how the table breaks ties — are in src/domain/league-rules.mjs since step
+ * 14.3, where the browser reads them too. This applies them to rows.
  */
 import crypto from "node:crypto";
 
 import { httpError } from "../http/responses.mjs";
 import { publicSeasonEntry } from "../api/serializers.mjs";
+import { matchPoints, standingsOrder } from "../../src/domain/league-rules.mjs";
 
 export function nullableInteger(value, fieldName) {
   if (value === undefined) return undefined;
@@ -41,19 +42,19 @@ export function scoreLeagueResult({
     return { homePoints: null, awayPoints: null, homeTouchdowns: homeTouchdowns ?? null, awayTouchdowns: awayTouchdowns ?? null, homeCasualties: homeCasualties ?? null, awayCasualties: awayCasualties ?? null };
   }
 
-  let homePoints = homeTouchdowns > awayTouchdowns ? 3 : homeTouchdowns === awayTouchdowns ? 1 : 0;
-  let awayPoints = awayTouchdowns > homeTouchdowns ? 3 : homeTouchdowns === awayTouchdowns ? 1 : 0;
-  const touchdownGap = Math.abs(homeTouchdowns - awayTouchdowns);
-
-  if (touchdownGap >= 3) {
-    if (homeTouchdowns > awayTouchdowns) homePoints += 1;
-    if (awayTouchdowns > homeTouchdowns) awayPoints += 1;
-  }
-
-  if (homeTouchdowns > 0 && awayTouchdowns === 0) homePoints += 1;
-  if (awayTouchdowns > 0 && homeTouchdowns === 0) awayPoints += 1;
-  if (homeCasualties >= 4) homePoints += 1;
-  if (awayCasualties >= 4) awayPoints += 1;
+  // The numbers themselves are in src/domain/league-rules.mjs (step 14.3),
+  // where the rest of the league's rules live and where somebody can find out
+  // why a 4-0 with four casualties is worth six points.
+  const homePoints = matchPoints({
+    touchdownsFor: homeTouchdowns,
+    touchdownsAgainst: awayTouchdowns,
+    casualtiesFor: homeCasualties,
+  });
+  const awayPoints = matchPoints({
+    touchdownsFor: awayTouchdowns,
+    touchdownsAgainst: homeTouchdowns,
+    casualtiesFor: awayCasualties,
+  });
   return { homePoints, awayPoints, homeTouchdowns, awayTouchdowns, homeCasualties, awayCasualties };
 }
 
@@ -120,13 +121,24 @@ export function computeSeasonStandings(entryRows, pairingRows, { includeContacts
   }
 
   return [...standings.values()]
-    .sort((a, b) => b.points - a.points
-      || b.touchdowns - a.touchdowns
-      || b.casualties - a.casualties
-      || b.games - a.games
-      || a.user.login.localeCompare(b.user.login, "en")
-      || a.team.name.localeCompare(b.team.name, "en"))
+    .sort(byStandingsOrder)
     .map((standing, index) => ({ ...standing, rank: index + 1 }));
+}
+
+/**
+ * The table's order: the league's tiebreaks first, then a stable fallback.
+ *
+ * standingsOrder is the league rule (step 14.3) and the name is compared last
+ * only so that two coaches who are equal on every count do not swap places
+ * between one page load and the next.
+ */
+function byStandingsOrder(a, b) {
+  for (const field of standingsOrder) {
+    const difference = b[field] - a[field];
+    if (difference) return difference;
+  }
+  return a.user.login.localeCompare(b.user.login, "en")
+    || a.team.name.localeCompare(b.team.name, "en");
 }
 
 export function previousOpponentMap(entryRows, pairingRows) {

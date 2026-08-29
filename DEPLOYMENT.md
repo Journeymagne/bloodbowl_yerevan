@@ -63,10 +63,14 @@ Check at least:
 - Overview opens.
 - Teams shows 37 cards.
 - Star Players shows 75 cards.
-- Skills shows 93 cards.
-- Traits shows 53 cards.
+- Skills shows 86 cards.
+- Traits shows 38 cards.
 - Team Builder can add a player and update cost.
 - A team detail page, for example `#/teams/amazon`, shows a horizontally scrollable roster table on mobile.
+
+The counts come from the build: `npm run build` prints the page total (292),
+and `public/data.en.json` carries the rest in its `counts` field. Check there
+rather than here if the two ever disagree.
 
 ## Current UX And Content Questions
 
