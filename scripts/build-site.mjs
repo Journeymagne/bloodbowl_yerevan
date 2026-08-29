@@ -21,6 +21,24 @@ async function copyDir(from, to) {
   }
 }
 
+/**
+ * Fold src/styles.css' @import lines into one stylesheet.
+ *
+ * The source is eight files so a person can find things in it; the site should
+ * still fetch one. Inlining also keeps the parts covered by the version on the
+ * index's link - an @import would ask for styles/roster.css with no ?v= on it
+ * and get a day-old copy after a deploy.
+ */
+async function inlineCssImports(file) {
+  const source = await fs.readFile(file, "utf8");
+  const parts = [];
+  for (const match of source.matchAll(/@import url\("([^"]+)"\);/g)) {
+    parts.push(await fs.readFile(path.join(path.dirname(file), match[1]), "utf8"));
+  }
+  if (!parts.length) return source;
+  return parts.join(String.fromCharCode(10));
+}
+
 function minifyCss(source) {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, "")
@@ -129,7 +147,7 @@ await stampImports(path.join(distDir, "src"), version);
 await copyDir(path.join(rootDir, "public"), path.join(distDir, "public"));
 await copyDir(path.join(rootDir, "assets"), path.join(distDir, "assets"));
 const stylesPath = path.join(distDir, "src", "styles.css");
-await fs.writeFile(stylesPath, minifyCss(await fs.readFile(stylesPath, "utf8")));
+await fs.writeFile(stylesPath, minifyCss(await inlineCssImports(stylesPath)));
 
 const enDataJson = (await fs.readFile(path.join(rootDir, "public", "data.en.json"), "utf8"))
   .replace(/</g, "\\u003c");

@@ -1,0 +1,404 @@
+/*
+ * The frame around every screen: body, sidebar, brand, navigation, topbar controls and the sign-in dialog.
+ *
+ * Part of src/styles.css, which imports the eight files in this directory in
+ * order. The split is by position, not by theme: the cuts fall between rules
+ * that were already neighbours, so the cascade is exactly what it was.
+ */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-width: 320px;
+  margin: 0;
+  background:
+    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 96px 100%,
+    linear-gradient(0deg, transparent 0 47px, var(--grid-line-soft) 48px 49px, transparent 50px) 0 0 / 100% 96px,
+    repeating-linear-gradient(90deg, var(--stripe-line) 0 1px, transparent 1px 24px),
+    radial-gradient(circle at 18% 0%, var(--body-glow), transparent 32%),
+    var(--body-gradient),
+    var(--bg);
+  color: var(--text);
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+}
+
+.app-shell {
+  display: grid;
+  grid-template-columns: 1fr;
+  min-height: 100vh;
+}
+
+/*
+ * The narrow sidebar: a drawer that slides in over the page. The wide one —
+ * a column that scrolls with it — is in styles/responsive.css, because this
+ * stylesheet is written for the smaller screen first (step 15.2).
+ */
+.sidebar {
+  position: fixed;
+  z-index: 30;
+  inset: 0 auto 0 0;
+  display: flex;
+  flex-direction: column;
+  width: min(84vw, 320px);
+  height: 100dvh;
+  padding: 20px;
+  border-right: 1px solid var(--line);
+  box-shadow: 18px 0 36px rgba(0, 0, 0, 0.44);
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, var(--sidebar-wash), transparent 30%),
+    var(--sidebar-bg);
+  transform: translateX(-102%);
+  transition: transform 180ms ease;
+}
+
+body.nav-open {
+  overflow: hidden;
+}
+
+body.nav-open .sidebar {
+  transform: translateX(0);
+}
+
+.sidebar > * {
+  position: relative;
+  z-index: 1;
+}
+
+/*
+ * The button that opens the drawer, and the dark sheet behind it. Both belong
+ * to the narrow layout; the wide one hides them (styles/responsive.css).
+ */
+.nav-toggle {
+  display: grid;
+}
+
+.nav-overlay {
+  position: fixed;
+  z-index: 20;
+  inset: 0;
+  display: block;
+  border: 0;
+  background: rgba(0, 0, 0, 0.58);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+body.nav-open .nav-overlay {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.brand {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  min-height: 48px;
+  text-decoration: none;
+}
+
+.brand-mark {
+  display: grid;
+  width: 52px;
+  height: 52px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(240, 200, 74, 0.55);
+  border-radius: var(--radius);
+  background: #f3eee2;
+  box-shadow: 0 0 0 3px rgba(199, 46, 34, 0.18);
+}
+
+.brand-mark img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.brand strong,
+.brand small {
+  display: block;
+}
+
+.brand small {
+  margin-top: 2px;
+  color: var(--muted);
+}
+
+.nav-list {
+  display: grid;
+  gap: 4px;
+  margin-top: 28px;
+}
+
+.nav-list a {
+  position: relative;
+  padding: 10px 12px;
+  border-radius: var(--radius);
+  color: var(--muted);
+  text-decoration: none;
+}
+
+.nav-list a:hover,
+.nav-list a.active {
+  background: var(--nav-active-bg);
+  color: var(--text);
+}
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.legal-note {
+  margin: 10px 0 0;
+  color: rgba(201, 189, 152, 0.86);
+  line-height: 1.45;
+}
+
+.legal-note a {
+  display: inline-block;
+  margin-top: 6px;
+  color: var(--soft);
+  text-decoration: none;
+}
+
+.legal-note a:hover {
+  text-decoration: underline;
+}
+
+.main {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+.topbar {
+  position: sticky;
+  z-index: 5;
+  top: 0;
+  display: flex;
+  flex-direction: row;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--topbar-bg);
+  backdrop-filter: blur(14px);
+}
+
+.top-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 6px;
+  align-items: center;
+}
+
+.theme-picker {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  padding: 0 6px;
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius);
+  background: var(--button-bg);
+  color: var(--button-muted-text);
+  font-size: 0.75rem;
+  font-weight: 900;
+}
+
+/* The label is hidden until there is room for it; see styles/responsive.css. */
+.theme-picker span {
+  display: none;
+}
+
+.theme-picker select {
+  width: 88px;
+  min-height: 28px;
+  border: 0;
+  background: transparent;
+  color: var(--button-text);
+  font: inherit;
+  font-size: 0.6875rem;
+  cursor: pointer;
+}
+
+.auth-button {
+  max-width: 104px;
+  padding: 0 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.nav-toggle {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius);
+  background: var(--button-bg);
+  color: var(--button-text);
+  cursor: pointer;
+}
+
+.nav-toggle svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.search-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  max-width: 760px;
+}
+
+.search-wrap svg {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  translate: 0 -50%;
+  fill: none;
+  stroke: var(--muted);
+  stroke-linecap: round;
+  stroke-width: 2;
+}
+
+.search-wrap input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 14px 0 42px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--input-bg-soft);
+  color: var(--text);
+}
+
+.search-wrap input:focus {
+  border-color: var(--focus);
+}
+
+.icon-text-button {
+  min-width: 42px;
+  min-height: 40px;
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius);
+  background: var(--button-bg);
+  color: var(--button-text);
+  cursor: pointer;
+}
+
+.theme-picker:hover,
+.nav-toggle:hover,
+.icon-text-button:hover:not(:disabled) {
+  border-color: var(--line-bright);
+  background: var(--button-bg-hover);
+}
+
+.icon-text-button:disabled {
+  cursor: default;
+  color: var(--button-muted-text);
+}
+
+.auth-modal[hidden] {
+  display: none;
+}
+
+.auth-modal {
+  position: fixed;
+  z-index: 80;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.auth-backdrop {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: var(--overlay-bg);
+  cursor: pointer;
+}
+
+.auth-dialog {
+  position: relative;
+  z-index: 1;
+  width: min(420px, 100%);
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(180deg, rgba(199, 46, 34, 0.14), transparent),
+    var(--modal-bg);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52);
+}
+
+.auth-dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.auth-dialog h2 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.auth-form,
+.auth-account {
+  display: grid;
+  gap: 12px;
+}
+
+.auth-form[hidden],
+.auth-account[hidden],
+.auth-form [hidden] {
+  display: none;
+}
+
+.auth-account p {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface-soft);
+  color: var(--soft);
+  font-weight: 800;
+}
+
+.auth-error {
+  margin: 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(232, 92, 63, 0.54);
+  border-radius: var(--radius);
+  background: rgba(232, 92, 63, 0.12);
+  color: #ffb199;
+}
+
+body.auth-open {
+  overflow: hidden;
+}
