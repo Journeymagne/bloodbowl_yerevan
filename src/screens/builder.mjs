@@ -79,7 +79,7 @@ export function renderBuilder() {
   const warnings = builderWarnings(team, costs);
 
   patch(view, `
-    ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="filter-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`)}
+    ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="filter-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`, { back: true, backFallback: "#/my-teams" })}
     ${restoredDraft ? `<p class="notice-box" data-key="builder-restored" data-builder-restored>${t("builder.draftRestored")}</p>` : ""}
     ${renderBuilderInfoPanel(team, teams, costs, warnings)}
     <div class="builder-layout builder-layout-main" data-key="builder-main">

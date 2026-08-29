@@ -28,6 +28,18 @@ select {
   font: inherit;
 }
 
+/*
+ * The list a select drops down is drawn by the browser, not by the page: it
+ * takes the option colours but paints its own light background. Under a dark
+ * theme the options inherit near-white text, and every one of them except the
+ * highlighted row was unreadable. So they carry their own pair — the closed
+ * control keeps the theme's colours, since it sets them itself.
+ */
+option {
+  background-color: #fdf6e6;
+  color: #14100c;
+}
+
 a {
   color: inherit;
 }

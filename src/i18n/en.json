@@ -44,7 +44,6 @@
   "home.cardTeamsDescription": "rosters with team-building data.",
   "home.cardBuilderDescription": "Build a 600k starting roster by adding individual players.",
   "home.cardStarPlayersDescription": "stars with costs and availability.",
-  "section.createTeamButton": "Create Team",
   "section.countOf": "of",
   "section.emptyState": "Nothing found. Try changing the search or filters.",
   "section.rulesTitle": "League Rules",
@@ -451,5 +450,8 @@
   "preview.general-information-casualties": "D16 casualty table with injury outcomes.",
   "preview.general-information-leagues": "League access cards with eligible teams and available star players.",
   "preview.general-information-reference-sources": "External references for base Blood Bowl 2025 wording and the site's legal/source notes.",
-  "myTeams.inSeasonBadge": "In the season"
+  "myTeams.inSeasonBadge": "In the season",
+  "section.sectionsHeading": "Sections",
+  "section.pagesHeading": "Pages",
+  "section.entries": "entries"
 }

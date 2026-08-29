@@ -11,9 +11,28 @@ import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { view } from "../core/view.mjs";
 
+/**
+ * Sections that no longer have a sidebar entry of their own.
+ *
+ * The reference sections live inside References and the builder is reached
+ * from My Teams, so that is what should look active while a coach is in one —
+ * otherwise the whole sidebar goes dark and nothing says where they are.
+ */
+const NAV_PARENT = new Map([
+  ["builder", "my-teams"],
+  ["teams", "pages"],
+  ["skills", "pages"],
+  ["traits", "pages"],
+  ["rules", "pages"],
+  ["cheatsheets", "pages"],
+  ["inducements", "pages"],
+  ["star-players", "pages"],
+]);
+
 export function setActiveNav(route) {
+  const active = NAV_PARENT.get(route) ?? route;
   document.querySelectorAll("[data-nav]").forEach((link) => {
-    link.classList.toggle("active", link.dataset.nav === route);
+    link.classList.toggle("active", link.dataset.nav === active);
   });
 }
 
