@@ -63,3 +63,51 @@ export async function createSession(userId) {
   );
   return token;
 }
+
+/**
+ * Delete sessions that have already expired.
+ *
+ * Nothing did, ever. A row is written on every login and removed only when
+ * somebody logs out, so a coach who signs in from a phone and closes the tab
+ * leaves a row behind that stops being useful in thirty days and stays for
+ * good. It is not a leak of anything — an expired row cannot authenticate,
+ * currentUser checks the date — it is a table that only grows, on the same
+ * disk the season lives on.
+ *
+ * @param {(text: string, values?: unknown[]) => Promise<{rowCount: number}>} [query]
+ * @returns {Promise<number>} how many rows went
+ */
+export async function purgeExpiredSessions(query = (text) => pool.query(text)) {
+  const result = await query(`DELETE FROM sessions WHERE expires_at <= now()`);
+  return result?.rowCount ?? 0;
+}
+
+/**
+ * Sweep on a timer, starting now.
+ *
+ * A timer rather than a cron entry: the deploy has enough moving parts, and
+ * this has to work on a laptop too. `unref()` so it never keeps the process
+ * alive — a sweep is not a reason to refuse to shut down.
+ *
+ * @param {{intervalMs?: number, purge?: () => Promise<number>, log?: (message: string) => void}} [options]
+ * @returns {{stop: () => void}}
+ */
+export function startSessionSweeper({
+  intervalMs = Number(process.env.SESSION_SWEEP_MS || 6 * 60 * 60 * 1000),
+  purge = purgeExpiredSessions,
+  log = console.log,
+} = {}) {
+  const sweep = async () => {
+    try {
+      const removed = await purge();
+      if (removed > 0) log(`[sessions] removed ${removed} expired session(s)`);
+    } catch (error) {
+      // A failed sweep is not a failed site: say so and try again next time.
+      console.error(`[sessions] sweep failed: ${error.message}`);
+    }
+  };
+  const timer = setInterval(sweep, intervalMs);
+  timer.unref?.();
+  sweep();
+  return { stop: () => clearInterval(timer) };
+}

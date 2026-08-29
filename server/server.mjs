@@ -8,7 +8,7 @@ import { handleStatic, staticRootLabel } from "./http/static.mjs";
 import { sendJson } from "./http/responses.mjs";
 import { errorPayload } from "./http/errors.mjs";
 import { normalizeLogin } from "./api/serializers.mjs";
-import { hashPassword } from "./auth/session.mjs";
+import { hashPassword, startSessionSweeper } from "./auth/session.mjs";
 import { handleAuthRoutes } from "./routes/auth.mjs";
 import { handleTeamRoutes } from "./routes/teams.mjs";
 import { handleAdminRoutes } from "./routes/admin.mjs";
@@ -56,8 +56,7 @@ async function waitForDatabase() {
 
 /**
  * Refuse to serve a database that is behind the code. This used to run
- * server/init.sql on every boot, applying schema and data alike; migrations are
- * `npm run db:migrate`'s job now, and the server only checks.
+ * init.sql on every boot; migrations are `npm run db:migrate`'s job now.
  */
 async function ensureSchema() {
   await assertMigrationsApplied(pool);
@@ -132,6 +131,7 @@ await ensureSchema();
 startupLog(`roster rules loaded for ${await loadTeamReference(rootDir)} teams`);
 startupLog(`serving the site from ${staticRootLabel}`);
 await ensureAdmin();
+startSessionSweeper();
 
 const server = http.createServer(async (request, response) => {
   response.__request = request;

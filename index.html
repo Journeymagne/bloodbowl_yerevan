@@ -4,24 +4,13 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Gata Blood Bowl League Reference</title>
-    <script>
-      (() => {
-        try {
-          const themes = ["dark-gata", "dark-dugout", "dark-warpstone", "light-parchment", "light-sideline", "light-altdorf"];
-          const theme = localStorage.getItem("gata-league-theme");
-          if (themes.includes(theme)) {
-            document.documentElement.dataset.theme = theme;
-          } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
-            // No choice stored: follow the system, before the stylesheet
-            // paints dark. src/core/theme.mjs makes the same decision.
-            document.documentElement.dataset.theme = "light-parchment";
-          }
-        } catch (_error) {}
-      })();
-    </script>
+    <!-- Runs before the stylesheet paints, so a chosen light theme never flashes dark. -->
+    <script src="src/theme-boot.js?v=gata-63"></script>
     <link rel="preload" as="image" href="assets/brand/gata-league-logo-96.png" fetchpriority="high">
-    <link rel="preload" href="src/styles.css?v=gata-63" as="style" onload="this.onload=null;this.rel='stylesheet'">
-    <noscript><link rel="stylesheet" href="src/styles.css?v=gata-63"></noscript>
+    <!-- A plain stylesheet link, not preload plus an onload swap: that swap was
+         inline JavaScript, and the Content-Security-Policy no longer allows any
+         (step 17.5). Render-blocking CSS also cannot flash unstyled content. -->
+    <link rel="stylesheet" href="src/styles.css?v=gata-63">
   </head>
   <body>
     <div class="app-shell">

@@ -19,6 +19,9 @@ jobs:
             set -e
             cd /opt/bloodbowl-league
             git fetch origin main
+            # Where to go back to if the new code does not answer. Read before
+            # the reset, because after it there is nothing left pointing here.
+            PREVIOUS=$(git rev-parse HEAD)
             git reset --hard origin/main
             npm install
             npm run build
@@ -28,3 +31,36 @@ jobs:
             # outstanding.
             npm run db:migrate
             pm2 restart bloodbowl-league
+
+            # Does it actually answer? Until this existed, a deploy that left
+            # the site down looked exactly like a deploy that worked: the job
+            # went green and the league found out.
+            PORT=$(grep -hE '^(APP_PORT|PORT)=' /etc/bloodbowl-league/.env 2>/dev/null | tail -1 | cut -d= -f2)
+            PORT=${PORT:-3002}
+            HEALTHY=""
+            for attempt in $(seq 1 15); do
+              if curl -fsS --max-time 5 "http://127.0.0.1:${PORT}/api/health" > /dev/null; then
+                HEALTHY=1
+                break
+              fi
+              sleep 2
+            done
+
+            if [ -z "$HEALTHY" ]; then
+              echo "health check failed after 30s; rolling the code back to ${PREVIOUS}"
+              # Code only. Migrations are forward-only and additive, so the
+              # older code runs against the newer schema; a migration that
+              # actually breaks the old code has to be undone by hand, and the
+              # log line above says which commit to undo it back to.
+              git reset --hard "$PREVIOUS"
+              npm install
+              npm run build
+              pm2 restart bloodbowl-league
+              sleep 5
+              curl -fsS --max-time 5 "http://127.0.0.1:${PORT}/api/health" > /dev/null \
+                && echo "rolled back, and the site is answering again" \
+                || echo "rolled back, but the site is still not answering - look at pm2 logs bloodbowl-league"
+              exit 1
+            fi
+
+            echo "deployed and answering on port ${PORT}"

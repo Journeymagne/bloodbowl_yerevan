@@ -98,7 +98,14 @@ function stampVersion(html, version) {
   return stamped;
 }
 
-/** The offline preview inlines the reference data so no fetch is needed. */
+/**
+ * The offline preview inlines the reference data so no fetch is needed.
+ *
+ * Inline means a <script> block, which the deployed site refuses since step
+ * 17.5 — its Content-Security-Policy allows no inline script at all. So this
+ * file is for a local static server, not for the deployed host: opened there
+ * it would load the page and no data.
+ */
 function buildLocalPreview(html, enDataJson, ruDataJson) {
   const scriptPattern = /<script type="module" src="(src\/app\.js[^"]*)"><\/script>/;
   const match = html.match(scriptPattern);
