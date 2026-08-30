@@ -770,7 +770,6 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("roster.positionHeader"), cell: (player) => `<strong>${escapeHtml(player.row.position)}</strong>` },
     ...PLAYER_STATS.map(savedStatColumn),
     { header: t("roster.skillsLabel"), className: "skills-cell", cell: renderSavedSkillsCell },
-    { header: t("roster.addSkillHeader"), cell: renderSavedSkillEditor },
     {
       header: t("roster.skipHeader"),
       cell: (player) => renderSavedPlayerFlag("data-saved-player-skip", t("roster.skipNextGame"), player.skipNextGame),
@@ -787,6 +786,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: "SPP", className: "spp-cell", cell: (player) => renderPlayerSppControls(team, player) },
     { header: t("roster.levelHeader"), className: "level-cell", cell: (player) => renderPlayerLevelCell(team, player) },
     { header: t("roster.advancementHeader"), className: "advancement-cell", cell: (player) => renderPlayerAdvancementControls(team, player) },
+    { header: t("roster.addSkillHeader"), cell: renderSavedSkillEditor },
     hasFavouredAccess && {
       header: t("roster.favouredOf"),
       className: "favoured-skill-cell",
