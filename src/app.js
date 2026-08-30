@@ -129,8 +129,8 @@ function wireFrame() {
     }
   });
   window.addEventListener("beforeunload", (event) => {
-    // Autosave debounces, so closing the tab a moment after the last keystroke
-    // used to drop it without a word.
+    // Even immediate autosave can still have a request in flight. Do not let a
+    // tab close silently until the server has acknowledged it.
     if (!rosterStore.hasPendingChanges()) return;
     event.preventDefault();
     event.returnValue = "";

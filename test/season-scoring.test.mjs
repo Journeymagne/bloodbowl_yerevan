@@ -15,14 +15,14 @@ test("the bonuses, one at a time", () => {
   assert.equal(matchPoints({ touchdownsFor: 4, touchdownsAgainst: 1 }), 4);
   // Shutout without the margin.
   assert.equal(matchPoints({ touchdownsFor: 2, touchdownsAgainst: 0 }), 4);
-  // Four casualties, in a match that was lost anyway.
-  assert.equal(matchPoints({ touchdownsFor: 0, touchdownsAgainst: 3, casualtiesFor: 4 }), 1);
-  // Three casualties is not four.
-  assert.equal(matchPoints({ touchdownsFor: 1, touchdownsAgainst: 1, casualtiesFor: 3 }), 1);
+  // Three casualties, in a match that was lost anyway.
+  assert.equal(matchPoints({ touchdownsFor: 0, touchdownsAgainst: 3, casualtiesFor: 3 }), 1);
+  // Two casualties is below the threshold.
+  assert.equal(matchPoints({ touchdownsFor: 1, touchdownsAgainst: 1, casualtiesFor: 2 }), 1);
 });
 
-test("the bonuses stack: 4-0 with four casualties is six", () => {
-  assert.equal(matchPoints({ touchdownsFor: 4, touchdownsAgainst: 0, casualtiesFor: 4 }), 6);
+test("the bonuses stack: 4-0 with three casualties is six", () => {
+  assert.equal(matchPoints({ touchdownsFor: 4, touchdownsAgainst: 0, casualtiesFor: 3 }), 6);
 });
 
 test("a 0-0 is a draw, not a shutout for both sides", () => {
@@ -31,9 +31,9 @@ test("a 0-0 is a draw, not a shutout for both sides", () => {
 
 test("scoreLeagueResult scores both sides of one match", () => {
   const result = scoreLeagueResult({
-    homeTouchdowns: 3, awayTouchdowns: 0, homeCasualties: 4, awayCasualties: 1,
+    homeTouchdowns: 3, awayTouchdowns: 0, homeCasualties: 3, awayCasualties: 1,
   });
-  assert.equal(result.homePoints, 6, "win, three clear, shutout, four casualties");
+  assert.equal(result.homePoints, 6, "win, three clear, shutout, three casualties");
   assert.equal(result.awayPoints, 0);
 });
 
@@ -89,7 +89,7 @@ test("the table adds up what was played", () => {
   );
   assert.equal(second.points, 0);
   assert.equal(second.rank, 2);
-  assert.deepEqual(first.opponents, ["b"]);
+  assert.equal(Object.hasOwn(first, "opponents"), false, "standings expose no unused opponent tiebreak data");
 });
 
 test("a bye counts as a played game for the coach who sat out", () => {

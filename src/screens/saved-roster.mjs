@@ -17,7 +17,6 @@ import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
-import { storage } from "../core/storage.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
 import { pageUrl } from "../core/routes.mjs";
 import { onScreenLeave } from "../core/screen-lifecycle.mjs";
@@ -82,7 +81,7 @@ import { deleteSavedTeam, loadMyTeams } from "./my-teams.mjs";
 import { toast, toastError } from "../components/toast.mjs";
 import { confirmAction } from "../components/dialog.mjs";
 
-const autosaveDelayMs = 450;
+const autosaveDelayMs = 0;
 
 function isSavedRosterPlayerExpanded(playerId) {
   return state.savedRosterUi.expandedPlayers.has(playerId);
@@ -192,7 +191,7 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
 
   patch(view, `
     ${renderHeader(titlePrefix, `${team.title} ${t("savedRoster.rosterSuffix")}${isAdminEdit && owner ? ` · ${owner.login}` : ""}`, "", { back: true, backFallback: backUrl })}
-    ${renderRosterNotices({ pending: rosterStore.readPending(savedTeam.id), serverUpdatedAt: savedTeam.updatedAt, conflict: rosterStore.statusOf(savedTeam.id) === SAVE_STATUS.CONFLICT, t })}
+    ${renderRosterNotices({ conflict: rosterStore.statusOf(savedTeam.id) === SAVE_STATUS.CONFLICT, t })}
     <div class="saved-roster-top-grid" data-key="roster-top">
       ${renderSavedRosterIdentity(team, draft, teams)}
       ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
@@ -295,8 +294,6 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
 
   const reload = () => renderSavedRoster(savedTeam.id, true, options);
   events.own(wireRosterNotices(view, {
-    onRestore: () => rosterStore.restorePending(savedTeam.id) && renderSavedRoster(savedTeam.id, false, options),
-    onDiscard: () => { rosterStore.discardPending(savedTeam.id); reload(); },
     onReload: reload,
   }));
   const autosave = () => scheduleSavedRosterAutosave(savedTeam.id);
@@ -630,7 +627,6 @@ const rosterSaveTransport = {
 };
 export const rosterStore = createRosterStore({
   transport: rosterSaveTransport,
-  storage,
   debounceMs: autosaveDelayMs,
 });
 /** Turn the live draft into a PATCH body. Async: the logo is re-encoded here. */

@@ -285,7 +285,7 @@ export const overviewCards = [
           "0 points for a loss.",
           "+1 point if the game ends with a margin of 3+ touchdowns.",
           "+1 point if you conceded 0 touchdowns (you must score at least one yourself).",
-          "+1 point if you caused 4 or more casualties.",
+          "+1 point if you caused 3 or more casualties.",
         ],
       },
       {
@@ -307,7 +307,7 @@ export const overviewCards = [
         title: "Tournament Structure",
         items: [
           "Tournament Bracket: Matches are assigned using the Swiss system.",
-          "Tie-breakers: The Buchholz coefficient and head-to-head results are used for tie-breakers, followed by the total number of touchdowns and injuries.",
+          "Tie-breakers: total touchdowns, then total casualties, then games played.",
           "Playoff Qualification: Depending on the number of participants, the players at the top of the standings will receive an automatic bye into the tournament's playoff winner's bracket.",
         ],
       },

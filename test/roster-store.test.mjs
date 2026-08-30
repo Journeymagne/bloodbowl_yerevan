@@ -9,7 +9,7 @@ import { createStorage } from "../src/core/storage.mjs";
 // the exact interleavings that used to lose edits can be reproduced.
 // ---------------------------------------------------------------------------
 
-function createHarness({ autoResolve = true } = {}) {
+function createHarness({ autoResolve = true, debounceMs = 0 } = {}) {
   const calls = [];
   const inflight = [];
   let clock = 0;
@@ -43,16 +43,9 @@ function createHarness({ autoResolve = true } = {}) {
     };
   }
 
-  const storage = createStorage({
-    _data: new Map(),
-    getItem(key) { return this._data.has(key) ? this._data.get(key) : null; },
-    setItem(key, value) { this._data.set(key, value); },
-    removeItem(key) { this._data.delete(key); },
-  });
-
   const store = createRosterStore({
     transport,
-    storage,
+    debounceMs,
     now: () => clock,
     setTimeoutFn: (fn, delay) => {
       const timer = { fn, at: clock + delay, cancelled: false };
@@ -78,7 +71,7 @@ function createHarness({ autoResolve = true } = {}) {
     await flushMicrotasks();
   }
 
-  return { store, transport, storage, calls, inflight, tick, settleAll, advance: (ms) => { clock += ms; } };
+  return { store, transport, calls, inflight, tick, settleAll, advance: (ms) => { clock += ms; } };
 }
 
 async function flushMicrotasks() {
@@ -110,6 +103,18 @@ test("the draft a screen holds is never swapped for the server's copy", async ()
   assert.equal(harness.store.getDraft("team-1"), draft, "identity must survive a save");
   assert.equal(meta.roster, draft, "the team record still points at the live draft");
   assert.equal(meta.updatedAt, "stamp-1", "server metadata is merged");
+});
+
+test("an edit is queued for saving without a debounce delay", async () => {
+  const harness = createHarness();
+  const { draft } = trackTeam(harness.store);
+
+  draft.teamName = "Save immediately";
+  harness.store.markDirty("team-1");
+  await harness.tick(0);
+
+  assert.equal(harness.calls.length, 1);
+  assert.equal(harness.calls[0].request.roster.teamName, "Save immediately");
 });
 
 test("an edit made right after a save still reaches the server", async () => {
@@ -185,7 +190,6 @@ test("a failed save keeps the edit, reports offline, and retries successfully", 
 
   assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.OFFLINE);
   assert.equal(harness.store.hasPendingChanges(), true);
-  assert.ok(harness.store.readPending("team-1"), "the edit is mirrored to storage");
 
   harness.store.markDirty("team-1");
   await harness.tick();
@@ -194,7 +198,6 @@ test("a failed save keeps the edit, reports offline, and retries successfully", 
 
   assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.SAVED);
   assert.equal(harness.store.hasPendingChanges(), false);
-  assert.equal(harness.store.readPending("team-1"), null, "storage is cleared once the server has it");
   assert.equal(harness.calls.at(-1).request.roster.teamName, "Offline edit");
 });
 
@@ -218,11 +221,10 @@ test("a conflict is reported as such and the draft is left alone", async () => {
   const adopted = harness.store.adoptServerRoster("team-1", serverCopy);
   assert.equal(adopted, serverCopy);
   assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.IDLE);
-  assert.equal(harness.store.readPending("team-1"), null);
 });
 
 test("continuous typing is saved at least every maxDelayMs", async () => {
-  const harness = createHarness();
+  const harness = createHarness({ debounceMs: 450 });
   const { draft } = trackTeam(harness.store);
 
   // Type every 200 ms for 5.4 s without ever pausing long enough to debounce.
@@ -375,40 +377,4 @@ test("a draft that cannot be serialised reports an error instead of hanging", as
 
   assert.equal(harness.store.statusOf("team-9"), SAVE_STATUS.ERROR);
   assert.equal(harness.calls.length, 0);
-});
-
-test("edits that survived a reload can be put back and are saved", async () => {
-  const first = createHarness({ autoResolve: false });
-  const { draft } = trackTeam(first.store);
-  draft.teamName = "Typed before the crash";
-  first.store.markDirty("team-1");
-
-  const mirrored = first.store.readPending("team-1");
-  assert.ok(mirrored, "the edit is in storage before it ever reached the server");
-  assert.equal(mirrored.request.roster.teamName, "Typed before the crash");
-
-  // A reload: same storage, a store that knows nothing, a draft rebuilt from
-  // whatever the server last had.
-  const second = createHarness();
-  second.storage.setJson("pending-roster:team-1", mirrored);
-  const stale = { teamName: "Server copy", players: [] };
-  second.store.track("team-1", {
-    draft: stale,
-    meta: { id: "team-1" },
-    buildRequest: (current) => ({ name: current.teamName, roster: current }),
-  });
-
-  const restored = second.store.restorePending("team-1");
-  assert.equal(restored.teamName, "Typed before the crash");
-  assert.equal(second.store.getDraft("team-1"), restored);
-
-  await second.tick();
-  assert.equal(second.calls.at(-1).request.roster.teamName, "Typed before the crash");
-  assert.equal(second.store.readPending("team-1"), null, "and storage is cleared once saved");
-});
-
-test("restorePending is a no-op when nothing survived", () => {
-  const harness = createHarness();
-  trackTeam(harness.store);
-  assert.equal(harness.store.restorePending("team-1"), null);
 });

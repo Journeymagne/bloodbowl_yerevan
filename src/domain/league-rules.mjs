@@ -177,8 +177,8 @@ export const seasonPoints = Object.freeze({
   bigWinBonus: 1,
   /** Scoring while keeping the opponent at nil is worth one more. */
   shutoutBonus: 1,
-  /** So are four casualties, however the match went. */
-  casualtyThreshold: 4,
+  /** So are three casualties, however the match went. */
+  casualtyThreshold: 3,
   casualtyBonus: 1,
 });
 

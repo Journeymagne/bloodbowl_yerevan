@@ -22,8 +22,8 @@
  *
  * - one in-flight request per team, later edits queue behind it, so writes
  *   cannot land out of order;
- * - a save that has not been written yet survives a reload (it is mirrored into
- *   storage and cleared once the server has it);
+ * - every edit is queued for saving immediately and later edits wait behind an
+ *   in-flight request;
  * - status is a state, not a sentence, so the interface can translate it;
  * - `hasPendingChanges()` is what the beforeunload guard asks.
  *
@@ -41,10 +41,6 @@ export const SAVE_STATUS = Object.freeze({
   ERROR: "error",
   CONFLICT: "conflict",
 });
-
-const PENDING_PREFIX = "pending-roster:";
-
-const pendingKey = (teamId) => `${PENDING_PREFIX}${teamId}`;
 
 function snapshotOf(entry) {
   return {
@@ -68,23 +64,6 @@ function setStatus(entry, status, error = null) {
   entry.status = entry.inFlight && status === SAVE_STATUS.DIRTY ? SAVE_STATUS.SAVING : status;
   entry.error = error;
   notify(entry);
-}
-
-function rememberPending(deps, entry) {
-  if (!deps.storage) return;
-  try {
-    deps.storage.setJson(pendingKey(entry.teamId), {
-      savedAt: deps.now(),
-      request: entry.buildRequest(entry.draft),
-    });
-  } catch {
-    // Mirroring is best effort: a draft we cannot serialise yet is still safe
-    // in memory, and the real save will report any problem with it.
-  }
-}
-
-function forgetPending(deps, entry) {
-  deps.storage?.remove(pendingKey(entry.teamId));
 }
 
 function scheduleSave(deps, entry) {
@@ -112,7 +91,6 @@ const RETRYABLE_KINDS = new Set(["offline", "timeout"]);
 function failSave(deps, entry, error) {
   entry.inFlight = false;
   entry.dirty = true;
-  rememberPending(deps, entry);
   if (RETRYABLE_KINDS.has(error?.kind)) setStatus(entry, SAVE_STATUS.OFFLINE, error);
   else if (error?.kind === "conflict") setStatus(entry, SAVE_STATUS.CONFLICT, error);
   else setStatus(entry, SAVE_STATUS.ERROR, error);
@@ -147,14 +125,12 @@ async function runSave(deps, entry, { force = false } = {}) {
     if (entry.dirty) {
       // More edits arrived while we were saving: keep them queued and do not
       // claim success yet.
-      rememberPending(deps, entry);
       setStatus(entry, SAVE_STATUS.DIRTY);
       return runSave(deps, entry);
     }
 
     entry.firstDirtyAt = null;
     entry.savedAt = deps.now();
-    forgetPending(deps, entry);
     setStatus(entry, SAVE_STATUS.SAVED);
     return entry.status;
   } catch (error) {
@@ -261,7 +237,6 @@ function savingApi(deps, entries) {
       const entry = entryFor(teamId);
       entry.dirty = true;
       if (entry.firstDirtyAt === null) entry.firstDirtyAt = deps.now();
-      rememberPending(deps, entry);
       setStatus(entry, SAVE_STATUS.DIRTY);
       scheduleSave(deps, entry);
     },
@@ -287,54 +262,27 @@ function savingApi(deps, entries) {
       entry.draft = roster;
       entry.dirty = false;
       entry.firstDirtyAt = null;
-      forgetPending(deps, entry);
       setStatus(entry, SAVE_STATUS.IDLE);
       return entry.draft;
-    },
-
-    /** Unsaved edits mirrored to storage, if any survived a reload. */
-    readPending(teamId) {
-      return deps.storage?.getJson(pendingKey(teamId), null) ?? null;
-    },
-
-    /**
-     * Put the edits that survived a reload back into the editor and queue them
-     * for saving. Returns the restored draft, or null if there was nothing.
-     */
-    restorePending(teamId) {
-      const entry = entryFor(teamId);
-      const roster = deps.storage?.getJson(pendingKey(teamId), null)?.request?.roster;
-      if (!roster) return null;
-      entry.draft = roster;
-      entry.dirty = true;
-      entry.firstDirtyAt = deps.now();
-      setStatus(entry, SAVE_STATUS.DIRTY);
-      scheduleSave(deps, entry);
-      return entry.draft;
-    },
-
-    discardPending(teamId) {
-      deps.storage?.remove(pendingKey(teamId));
     },
   };
 }
 
 export function createRosterStore({
   transport,
-  storage,
   // Bound, not the bare reference: `deps.setTimeoutFn(...)` below calls this as
   // a method of `deps`, and native setTimeout/clearTimeout throw "Illegal
   // invocation" in a browser unless `this` is the window they came from.
   setTimeoutFn = setTimeout.bind(globalThis),
   clearTimeoutFn = clearTimeout.bind(globalThis),
-  debounceMs = 450,
+  debounceMs = 0,
   /** Never let edits sit unsaved longer than this while someone keeps typing. */
   maxDelayMs = 5000,
   now = () => Date.now(),
 } = {}) {
   if (!transport?.save) throw new Error("roster-store needs a transport with save()");
 
-  const deps = { transport, storage, setTimeoutFn, clearTimeoutFn, debounceMs, maxDelayMs, now };
+  const deps = { transport, setTimeoutFn, clearTimeoutFn, debounceMs, maxDelayMs, now };
   /** @type {Map<string, object>} */
   const entries = new Map();
 

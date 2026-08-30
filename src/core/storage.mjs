@@ -15,8 +15,6 @@ export const STORAGE_KEYS = Object.freeze({
   theme: "theme",
   locale: "locale",
   builderDraft: "builder-draft",
-  /** Unsaved roster edits, one entry per team: pending-roster:<teamId>. */
-  pendingRoster: "pending-roster",
 });
 
 function fullKey(key) {

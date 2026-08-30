@@ -55,7 +55,8 @@ and the application lives in 67 modules under `src/core`, `src/domain`,
   become translatable.
 - **A roster storage layer** (`src/data/roster-store.mjs`): one save queue per
   team, the server's answer merged field by field instead of replacing the draft,
-  unsaved edits mirrored into `localStorage`, and a `beforeunload` guard. Save
+  every edit queued for immediate autosave, and a `beforeunload` guard while a
+  request is still in flight. Save
   status is a real state machine (`idle`/`dirty`/`saving`/`saved`/`offline`/
   `conflict`/`error`) instead of a string written from six places.
 - **The builder draft survives a reload.** A half-built team used to exist only in
