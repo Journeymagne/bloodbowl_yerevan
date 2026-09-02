@@ -13,7 +13,13 @@
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
-import { currentUser, hashPassword } from "../auth/session.mjs";
+import {
+  bearerToken,
+  currentUser,
+  generateTemporaryPassword,
+  hashPassword,
+  hashToken,
+} from "../auth/session.mjs";
 import {
   isAdminUser,
   normalizeLogin,
@@ -67,6 +73,8 @@ export async function handleAdminRoutes(request, response, url) {
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleAdminUserRoutes(request, response, url) {
+  if (await handleAdminPasswordResetRoute(request, response, url)) return true;
+
   const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)$/i);
   if (adminUserMatch && request.method === "PATCH") {
     const user = await currentUser(request);
@@ -114,6 +122,42 @@ async function handleAdminUserRoutes(request, response, url) {
   }
 
   return handleAdminUserReadRoutes(request, response, url);
+}
+
+/** Replace one password and revoke every session except the admin's current one. */
+async function handleAdminPasswordResetRoute(request, response, url) {
+  const match = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)\/reset-password$/i);
+  if (!match || request.method !== "POST") return false;
+
+  const user = await currentUser(request);
+  if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+  if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
+
+  const targetId = match[1];
+  const password = generateTemporaryPassword();
+  const passwordHash = hashPassword(password);
+  const preservedTokenHash = targetId === user.id ? hashToken(bearerToken(request)) : "";
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const updated = await client.query(
+      `UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1 RETURNING id`,
+      [targetId, passwordHash],
+    );
+    if (!updated.rows[0]) throw httpError(404, "USER_NOT_FOUND");
+    if (preservedTokenHash) {
+      await client.query("DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2", [targetId, preservedTokenHash]);
+    } else {
+      await client.query("DELETE FROM sessions WHERE user_id = $1", [targetId]);
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+  return send(response, 200, { password });
 }
 
 /**

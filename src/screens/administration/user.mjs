@@ -105,9 +105,20 @@ function renderAdminUserManagementPanel(user) {
         </label>
         <div class="admin-user-management-actions">
           <button class="primary-button" type="submit">${t("common.save")}</button>
+          <button class="filter-button danger-action" type="button" data-admin-reset-password>${t("admin.resetPasswordAction")}</button>
           <button class="filter-button danger-action" type="button" data-admin-delete-user ${isCurrentUser ? "disabled" : ""}>${t("admin.deleteUserAction")}</button>
         </div>
       </form>
+      <div class="admin-reset-password-result" data-admin-reset-password-result hidden>
+        <label class="filter-field">
+          <span>${t("admin.generatedPasswordLabel")}</span>
+          <span class="admin-reset-password-value">
+            <input type="text" readonly data-admin-generated-password autocomplete="off" aria-label="${t("admin.generatedPasswordLabel")}">
+            <button class="filter-button" type="button" data-admin-copy-password>${t("admin.copyPasswordAction")}</button>
+          </span>
+        </label>
+        <p class="muted-text">${t("admin.generatedPasswordNote")}</p>
+      </div>
       ${isCurrentUser ? `<p class="muted-text">${t("admin.cannotDeleteSelfNote")}</p>` : ""}
     </section>
   `;
@@ -157,6 +168,8 @@ export function wireAdminUserProfile(user) {
     }
   });
 
+  wireAdminPasswordReset(user);
+
   view.querySelector("[data-admin-delete-user]")?.addEventListener("click", async () => {
     if (!await confirmAction({
       message: `${t("admin.deleteUserConfirm")} ${user.login}? ${t("admin.deleteUserCascadeWarning")}`,
@@ -190,6 +203,53 @@ export function wireAdminUserProfile(user) {
       location.hash = adminTeamEditUrl(user, payload.team);
     } catch (error) {
       toastError(error);
+    }
+  });
+}
+
+function wireAdminPasswordReset(user) {
+  view.querySelector("[data-admin-reset-password]")?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    button.disabled = true;
+    if (!await confirmAction({
+      message: t("admin.resetPasswordConfirm", { login: user.login }),
+      confirmLabel: t("admin.resetPasswordAction"),
+      destructive: true,
+    })) {
+      button.disabled = false;
+      return;
+    }
+    try {
+      const payload = await apiRequest(`/api/admin/users/${encodeURIComponent(user.id)}/reset-password`, {
+        method: "POST",
+      });
+      const result = view.querySelector("[data-admin-reset-password-result]");
+      const password = view.querySelector("[data-admin-generated-password]");
+      if (result && password) {
+        password.value = String(payload.password ?? "");
+        result.hidden = false;
+        password.focus();
+        password.select();
+      }
+      toast(t("admin.passwordResetMessage"));
+    } catch (error) {
+      toastError(error);
+    } finally {
+      button.disabled = false;
+    }
+  });
+
+  view.querySelector("[data-admin-copy-password]")?.addEventListener("click", async () => {
+    const password = view.querySelector("[data-admin-generated-password]");
+    if (!password?.value) return;
+    try {
+      if (!globalThis.navigator?.clipboard?.writeText) throw new Error("clipboard unavailable");
+      await globalThis.navigator.clipboard.writeText(password.value);
+      toast(t("admin.passwordCopiedMessage"));
+    } catch {
+      password.focus();
+      password.select();
+      toast(t("admin.passwordCopyFallbackMessage"));
     }
   });
 }

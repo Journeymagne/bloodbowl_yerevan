@@ -372,6 +372,31 @@
   gap: 10px;
 }
 
+.admin-reset-password-result:not([hidden]) {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-glass);
+}
+
+.admin-reset-password-result p {
+  margin: 0;
+}
+
+.admin-reset-password-value {
+  display: flex;
+  gap: 10px;
+}
+
+.admin-reset-password-value input {
+  min-width: 0;
+  flex: 1;
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
 .danger-action {
   border-color: rgba(232, 92, 63, 0.62);
   color: var(--danger);

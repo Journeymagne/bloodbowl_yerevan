@@ -26,6 +26,11 @@ export function hashPassword(password, salt = crypto.randomBytes(16).toString("h
   return `scrypt:${salt}:${derived}`;
 }
 
+/** A URL-safe, 96-bit password that can be copied without escaping. */
+export function generateTemporaryPassword(randomBytes = crypto.randomBytes) {
+  return randomBytes(12).toString("base64url");
+}
+
 export function verifyPassword(password, stored = "") {
   const [method, salt, expected] = stored.split(":");
   if (method !== "scrypt" || !salt || !expected) return false;
