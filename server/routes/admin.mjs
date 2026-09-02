@@ -14,11 +14,9 @@ import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import {
-  bearerToken,
   currentUser,
   generateTemporaryPassword,
   hashPassword,
-  hashToken,
 } from "../auth/session.mjs";
 import {
   isAdminUser,
@@ -134,9 +132,9 @@ async function handleAdminPasswordResetRoute(request, response, url) {
   if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
 
   const targetId = match[1];
+  if (targetId === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");
   const password = generateTemporaryPassword();
   const passwordHash = hashPassword(password);
-  const preservedTokenHash = targetId === user.id ? hashToken(bearerToken(request)) : "";
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -145,11 +143,7 @@ async function handleAdminPasswordResetRoute(request, response, url) {
       [targetId, passwordHash],
     );
     if (!updated.rows[0]) throw httpError(404, "USER_NOT_FOUND");
-    if (preservedTokenHash) {
-      await client.query("DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2", [targetId, preservedTokenHash]);
-    } else {
-      await client.query("DELETE FROM sessions WHERE user_id = $1", [targetId]);
-    }
+    await client.query("DELETE FROM sessions WHERE user_id = $1", [targetId]);
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});

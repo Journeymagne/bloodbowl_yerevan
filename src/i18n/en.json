@@ -423,6 +423,7 @@
   "error.SAVED_TEAM_NOT_FOUND": "Saved team not found.",
   "error.SELF_ADMIN_DELETE": "You cannot delete your own admin account.",
   "error.SELF_ADMIN_DEMOTE": "You cannot remove admin access from your own account.",
+  "error.SELF_PASSWORD_RESET": "Use your account settings to change your own password.",
   "error.SERVER_ERROR": "Server error.",
   "error.TEAM_IN_SEASON_CANNOT_BE_DELETED": "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
   "error.TEAM_SAVED_ELSEWHERE": "This team was saved somewhere else after you opened it.",

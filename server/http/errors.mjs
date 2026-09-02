@@ -58,6 +58,7 @@ export const API_ERRORS = Object.freeze({
   SAVED_TEAM_NOT_FOUND: "Saved team not found.",
   SELF_ADMIN_DELETE: "You cannot delete your own admin account.",
   SELF_ADMIN_DEMOTE: "You cannot remove admin access from your own account.",
+  SELF_PASSWORD_RESET: "Use your account settings to change your own password.",
   SERVER_ERROR: "Server error.",
   TEAM_IN_SEASON_CANNOT_BE_DELETED:
     "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",

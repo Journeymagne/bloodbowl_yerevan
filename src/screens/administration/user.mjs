@@ -105,11 +105,11 @@ function renderAdminUserManagementPanel(user) {
         </label>
         <div class="admin-user-management-actions">
           <button class="primary-button" type="submit">${t("common.save")}</button>
-          <button class="filter-button danger-action" type="button" data-admin-reset-password>${t("admin.resetPasswordAction")}</button>
+          ${isCurrentUser ? "" : `<button class="filter-button danger-action" type="button" data-admin-reset-password>${t("admin.resetPasswordAction")}</button>`}
           <button class="filter-button danger-action" type="button" data-admin-delete-user ${isCurrentUser ? "disabled" : ""}>${t("admin.deleteUserAction")}</button>
         </div>
       </form>
-      <div class="admin-reset-password-result" data-admin-reset-password-result hidden>
+      ${isCurrentUser ? "" : `<div class="admin-reset-password-result" data-admin-reset-password-result hidden>
         <label class="filter-field">
           <span>${t("admin.generatedPasswordLabel")}</span>
           <span class="admin-reset-password-value">
@@ -118,7 +118,7 @@ function renderAdminUserManagementPanel(user) {
           </span>
         </label>
         <p class="muted-text">${t("admin.generatedPasswordNote")}</p>
-      </div>
+      </div>`}
       ${isCurrentUser ? `<p class="muted-text">${t("admin.cannotDeleteSelfNote")}</p>` : ""}
     </section>
   `;
