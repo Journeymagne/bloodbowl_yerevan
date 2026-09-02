@@ -105,10 +105,12 @@ function renderSeasonTabContent(data, activeTab) {
 export async function renderSeason(refresh = true, tab = "") {
   setActiveNav("season");
   setViewSection("season");
-  view.innerHTML = `
-    ${renderHeader(t("nav.season"), t("season.subtitle"), `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
-    <div class="loading">${t("season.loading")}</div>
-  `;
+  if (refresh) {
+    view.innerHTML = `
+      ${renderHeader(t("nav.season"), t("season.subtitle"), `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
+      <div class="loading">${t("season.loading")}</div>
+    `;
+  }
 
   await loadSeason(refresh);
 

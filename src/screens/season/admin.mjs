@@ -13,9 +13,11 @@ import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { availableSeasonSavedTeams, renderSeasonEntriesTable } from "./registration.mjs";
 import { renderSeasonRounds } from "./schedule.mjs";
+import { pairingLeaguePoints } from "./season-links.mjs";
 import { makeSeasonStarterRoster, replaceSeasonData } from "./season-data.mjs";
 import { toastError } from "../../components/toast.mjs";
 import { confirmAction } from "../../components/dialog.mjs";
+import { gameStatusLabel } from "../../components/game-status.mjs";
 
 export function renderSeasonAdmin(data) {
   const admin = data.admin ?? { users: [], savedTeams: [] };
@@ -101,18 +103,57 @@ function seasonPairingPayload(row) {
   return payload;
 }
 
-async function saveSeasonPairingRow(row, rerender) {
+function pairingFromSeasonData(data, pairingId) {
+  for (const round of data?.rounds ?? []) {
+    const pairing = (round.pairings ?? []).find((item) => item.id === pairingId);
+    if (pairing) return pairing;
+  }
+  return null;
+}
+
+function updateSavedPairingResult(row, data, pairingId) {
+  const pairing = pairingFromSeasonData(data, pairingId);
+  if (!pairing) return;
+  const status = row.querySelector("[data-pairing-status]");
+  if (status) {
+    status.dataset.status = pairing.resultStatus ?? "pending";
+    status.textContent = gameStatusLabel(pairing.resultStatus);
+  }
+  const points = row.querySelector("[data-pairing-points]");
+  if (points) points.textContent = pairingLeaguePoints(pairing);
+}
+
+async function saveSeasonPairingRow(row, { rerender = null } = {}) {
   const pairingId = row?.dataset.pairingRow;
-  if (!pairingId || row.dataset.saving === "true") return;
+  if (!pairingId) return;
+  if (row.dataset.saving === "true") {
+    row.dataset.saveAgain = "true";
+    return;
+  }
   clearTimeout(Number(row.dataset.saveTimer || 0));
   row.dataset.saveTimer = "";
+  row.dataset.saveAgain = "";
   row.dataset.saving = "true";
   try {
-    replaceSeasonData(await apiRequest(`/api/season/admin/pairings/${pairingId}`, {
+    const data = await apiRequest(`/api/season/admin/pairings/${pairingId}`, {
       method: "PATCH",
       body: JSON.stringify(seasonPairingPayload(row)),
-    }));
-    rerender();
+    });
+    replaceSeasonData(data);
+    row.dataset.saving = "false";
+    if (row.dataset.saveAgain === "true") {
+      updateSavedPairingResult(row, data, pairingId);
+      void saveSeasonPairingRow(row, { rerender });
+      return;
+    }
+    if (rerender) {
+      const scrollX = globalThis.scrollX ?? 0;
+      const scrollY = globalThis.scrollY ?? 0;
+      await rerender();
+      globalThis.scrollTo?.(scrollX, scrollY);
+      return;
+    }
+    updateSavedPairingResult(row, data, pairingId);
   } catch (error) {
     row.dataset.saving = "false";
     toastError(error);
@@ -274,19 +315,20 @@ function wirePairingDeletion(rerender) {
 /** Auto-save on every edit to an admin-mode pairing row's score/entry fields. */
 function wirePairingAutosave(rerender) {
   view.querySelectorAll("[data-pairing-row]").forEach((row) => {
-    const saveNow = () => saveSeasonPairingRow(row, rerender);
+    const saveEntries = () => saveSeasonPairingRow(row, { rerender });
+    const saveScore = () => saveSeasonPairingRow(row);
     const saveSoon = () => {
       clearTimeout(Number(row.dataset.saveTimer || 0));
-      row.dataset.saveTimer = String(setTimeout(saveNow, 350));
+      row.dataset.saveTimer = String(setTimeout(saveScore, 350));
     };
 
     row.querySelectorAll("[data-home-entry], [data-away-entry]").forEach((field) => {
-      field.addEventListener("change", saveNow);
+      field.addEventListener("change", saveEntries);
     });
 
     row.querySelectorAll("[data-home-td], [data-away-td], [data-home-casualties], [data-away-casualties]").forEach((field) => {
       field.addEventListener("input", saveSoon);
-      field.addEventListener("change", saveNow);
+      field.addEventListener("change", saveScore);
     });
   });
 }

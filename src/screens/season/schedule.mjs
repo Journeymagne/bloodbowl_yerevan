@@ -116,7 +116,7 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
       <td>${pairing.tableNumber}</td>
       <td>${renderSeasonEntrySelect(data, "home-entry", pairing.homeEntryId, false, selectedEntryIds)}</td>
       <td>${renderSeasonEntrySelect(data, "away-entry", pairing.awayEntryId, false, selectedEntryIds)}</td>
-      <td><span class="season-status-pill" data-status="${escapeHtml(pairing.resultStatus)}">${escapeHtml(gameStatusLabel(pairing.resultStatus))}</span></td>
+      <td><span class="season-status-pill" data-status="${escapeHtml(pairing.resultStatus)}" data-pairing-status>${escapeHtml(gameStatusLabel(pairing.resultStatus))}</span></td>
       <td>
         <div class="season-td-pair">
           <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.homeTouchdowns ?? "")}" data-home-td>
@@ -129,7 +129,7 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
           <input class="season-score-input" type="number" min="0" step="1" value="${escapeHtml(pairing.awayCasualties ?? "")}" data-away-casualties>
         </div>
       </td>
-      <td>${escapeHtml(pairingLeaguePoints(pairing))}</td>
+      <td data-pairing-points>${escapeHtml(pairingLeaguePoints(pairing))}</td>
       <td>
         <div class="table-actions">
           <button class="filter-button compact-action" type="button" data-delete-season-pairing="${escapeHtml(pairing.id)}">${t("common.delete")}</button>
