@@ -245,12 +245,12 @@ test("validation reports codes with the parameters the UI needs", async () => {
   assert.ok(min, "expected a minimum-players violation");
   assert.deepEqual(min.params, { min: 7, count: 3 });
 
-  const tooMany = validateRoster(team, { roster: {} }, { playersCount: 12 });
+  const tooMany = validateRoster(team, { roster: {} }, { playersCount: 15 });
   const max = tooMany.find((item) => item.code === VALIDATION_CODES.ROSTER_MAX_PLAYERS);
   assert.ok(max, "expected a maximum-players violation");
-  assert.deepEqual(max.params, { max: 11, count: 12 });
+  assert.deepEqual(max.params, { max: 14, count: 15 });
 
-  const legal = validateRoster(team, { roster: {} }, { playersCount: 9 });
+  const legal = validateRoster(team, { roster: {} }, { playersCount: 14 });
   assert.deepEqual(legal.filter((item) => item.code.startsWith("ROSTER_")), []);
 
   assert.equal(positionMinimum("1-2"), 1);

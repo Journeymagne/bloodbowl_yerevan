@@ -90,7 +90,7 @@ export function checkRoster(baseTeamSlug, roster) {
  * like the app eating their work. Being *under* a minimum is a roster in
  * progress, and the editor already says so on screen.
  *
- * Being over a maximum is different: no honest client sends twelve players or
+ * Being over a maximum is different: no honest client sends fifteen players or
  * three Blitzers where two are allowed, the roster is wrong for everyone who
  * reads it — the season table, the opponent, the public profile — and there is
  * no editing state that legitimately passes through it.

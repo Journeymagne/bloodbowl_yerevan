@@ -152,7 +152,7 @@ export const sppCounterDefinitions = [
  * "remaining budget" line for teams already in play.
  */
 export const startingBudget = 600;
-export const rosterSizeLimits = { min: 7, max: 11 };
+export const rosterSizeLimits = { min: 7, max: 14 };
 export const skillCosts = { primary: 20, secondary: 40, favoured: 0 };
 export const extendedContractCost = 20;
 export const eliteComboCost = 15;
