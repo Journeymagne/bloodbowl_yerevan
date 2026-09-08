@@ -692,6 +692,7 @@
 /* On a phone the wide tables are replaced by these cards; see responsive.css. */
 .builder-available-table-wrap,
 .builder-selected-table-wrap,
+.saved-roster-table-wrap,
 .my-teams-table-panel {
   display: none;
 }
