@@ -146,7 +146,7 @@ test("evaluateBackupStatus: a future-dated newest dump fails with its own messag
 test("the CLI reports a future-dated newest dump and exits non-zero", async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
-  await fs.writeFile(path.join(dir, "gata_league-20350101-040000.dump"), "x".repeat(2048));
+  await fs.writeFile(path.join(dir, formatDumpName(new Date(Date.now() + 86_400_000))), "x".repeat(2048));
 
   await assert.rejects(
     run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir } }),
@@ -178,7 +178,7 @@ test("parseKeepOption rejects non-numeric, zero, negative, and fractional values
 test("the CLI fails loudly on a garbage BACKUP_KEEP instead of silently printing 'keeping NaN'", async (t) => {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
-  await fs.writeFile(path.join(dir, "gata_league-20260822-040000.dump"), "x".repeat(2048));
+  await fs.writeFile(path.join(dir, formatDumpName(new Date())), "x".repeat(2048));
 
   await assert.rejects(
     run("node", [cliPath], { env: { ...process.env, BACKUP_DIR: dir, BACKUP_KEEP: "notanumber" } }),
@@ -755,8 +755,8 @@ test("a dangling symlink is excluded from the count, not reported as an unreadab
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "gata-backup-status-"));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
 
-  // A real, readable dump so the directory is otherwise healthy.
-  await fs.writeFile(path.join(dir, "gata_league-20260822-040000.dump"), "x".repeat(2048));
+  // The CLI uses the real clock, so its healthy fixture must be fresh at runtime.
+  await fs.writeFile(path.join(dir, formatDumpName(new Date())), "x".repeat(2048));
 
   await fs.symlink(
     path.join(dir, "gata_league-20260822-050000.dump-does-not-exist"),
@@ -774,7 +774,7 @@ test("a symlink to a real dump file is also excluded from the count, matching ro
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
 
   // The one real dump rotation would ever remove or keep.
-  await fs.writeFile(path.join(dir, "gata_league-20260822-040000.dump"), "x".repeat(2048));
+  await fs.writeFile(path.join(dir, formatDumpName(new Date())), "x".repeat(2048));
 
   // A live target, so following the link (the old behaviour) would succeed
   // and silently count it - the bug this fix closes: rotate() in

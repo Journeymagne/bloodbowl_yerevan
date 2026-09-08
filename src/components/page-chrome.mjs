@@ -32,7 +32,10 @@ const NAV_PARENT = new Map([
 export function setActiveNav(route) {
   const active = NAV_PARENT.get(route) ?? route;
   document.querySelectorAll("[data-nav]").forEach((link) => {
-    link.classList.toggle("active", link.dataset.nav === active);
+    const current = link.dataset.nav === active;
+    link.classList.toggle("active", current);
+    if (current) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
   });
 }
 
@@ -43,7 +46,7 @@ export function setViewSection(section) {
 export function renderHeader(title, description, actions = "", options = {}) {
   const backButton = options.back ? `
     <button
-      class="primary-button page-back-button"
+      class="ghost-button page-back-button"
       type="button"
       data-history-back
       data-history-fallback="${escapeHtml(options.backFallback || "#/")}"

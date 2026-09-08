@@ -22,7 +22,8 @@
     "test": "node --test \"test/**/*.test.mjs\"",
     "smoke": "node scripts/smoke-api.mjs",
     "backup:db": "node scripts/backup-db.mjs",
-    "backup:status": "node scripts/backup-status.mjs"
+    "backup:status": "node scripts/backup-status.mjs",
+    "preview:prod": "npm run build && node scripts/preview.mjs"
   },
   "dependencies": {
     "pg": "^8.13.1"

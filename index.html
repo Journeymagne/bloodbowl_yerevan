@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -13,13 +13,20 @@
     <link rel="stylesheet" href="src/styles.css?v=gata-63">
   </head>
   <body>
+    <!-- THESIS: A club competition journal that puts player tasks first.
+    OWN-WORLD: Navy, cool white, copper; Oswald headings and Golos Text; solid surfaces.
+    STORY: Find the season, open a match, manage a team, consult a rule.
+    FIRST VIEWPORT: Compact masthead; season workspace left, team and rules right; mobile stacks.
+    FORM: Club annual / competition programme, candidate 5, seed 22546323; user selected.
+    FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md -->
     <!-- First tab stop: 44 navigation links stand between the top of the page
          and the content, and a keyboard had to walk all of them. A button, not
          a link: an href="#app-view" would rewrite the hash, and the hash is
          what the router reads. -->
     <button class="skip-link" type="button" data-skip-to-content data-i18n="a11y.skipToContent">Skip to content</button>
     <div class="app-shell">
-      <aside id="site-sidebar" class="sidebar" aria-label="Navigation">
+      <aside id="site-sidebar" class="sidebar" aria-label="Navigation" data-i18n-aria-label="nav.label">
+        <button class="nav-close ghost-button" data-nav-close type="button" data-i18n="nav.closeMenu">Close menu</button>
         <a class="brand" href="#/">
           <span class="brand-mark">
             <img src="assets/brand/gata-league-logo-96.png" width="48" height="48" alt="" decoding="async" fetchpriority="high">
@@ -30,48 +37,17 @@
           </span>
         </a>
 
-        <!--
-          Team Builder is not here either: a coach reaches it from the Create
-          button in My Teams, which is where making a team starts.
-
-          The five reference sections (Inducements, Skills, Traits, Star
-          Players, Team's Rules) are reached through References now: the
-          sidebar was eleven items and only the first few were things a coach
-          opens on a match day.
-        -->
         <nav class="nav-list">
-          <a href="#/" data-nav="home" data-i18n="nav.overview">Overview</a>
+          <a href="#/" data-nav="home" data-i18n="nav.home">Home</a>
+          <a href="#/season" data-nav="season" data-i18n="nav.season">Season</a>
+          <a href="#/my-games" data-nav="my-games" data-i18n="nav.myGames">My Games</a>
           <a href="#/my-teams" data-nav="my-teams" data-i18n="nav.myTeams">My Teams</a>
           <a href="#/pages" data-nav="pages" data-i18n="nav.references">References</a>
-          <a href="#/my-games" data-nav="my-games" data-i18n="nav.myGames">My Games</a>
-          <a href="#/season" data-nav="season" data-i18n="nav.season">Season</a>
           <a href="#/administration" data-nav="administration" data-admin-nav hidden data-i18n="nav.administration">Administration</a>
         </nav>
 
-        <div class="sidebar-footer">
-          <span id="generated-at" data-i18n="footer.loadingData">Loading data</span>
-          <p class="legal-note">
-            <span data-i18n="footer.unofficialNote">Unofficial fan-made league reference.</span>
-            <a href="#/legal" data-nav="legal" data-i18n="footer.legalLink">Legal Information</a>
-          </p>
-        </div>
-      </aside>
-      <button id="nav-overlay" class="nav-overlay" type="button" aria-label="Close menu"></button>
 
-      <main class="main">
-        <header class="topbar">
-          <button id="nav-toggle" class="nav-toggle" type="button" aria-label="Open menu" data-i18n-aria-label="nav.openMenu" aria-controls="site-sidebar" aria-expanded="false">
-            <svg aria-hidden="true" viewBox="0 0 24 24">
-              <path d="M4 7h16M4 12h16M4 17h16"></path>
-            </svg>
-          </button>
-          <div class="search-wrap">
-            <svg aria-hidden="true" viewBox="0 0 24 24">
-              <path d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"></path>
-            </svg>
-            <input id="global-search" type="search" placeholder="Search teams, skills, rules..." data-i18n-placeholder="search.placeholder" autocomplete="off">
-          </div>
-          <div class="top-actions">
+        <div class="nav-settings">
             <label class="theme-picker" title="Theme" data-i18n-title="theme.label">
               <span data-i18n="theme.label">Theme</span>
               <select id="theme-select" aria-label="Theme" data-i18n-aria-label="theme.label">
@@ -83,14 +59,41 @@
                 <option value="light-altdorf">Altdorf Light</option>
               </select>
             </label>
-            <button id="auth-button" class="icon-text-button auth-button" type="button" data-i18n="auth.login">Login</button>
             <button id="lang-toggle" class="icon-text-button" type="button" title="Switch to Russian">EN</button>
+        </div>
+      </aside>
+      <button id="nav-overlay" class="nav-overlay" type="button" aria-label="Close menu" data-i18n-aria-label="nav.closeMenu" tabindex="-1"></button>
+
+      <main class="main">
+        <header class="topbar">
+          <button id="nav-toggle" class="nav-toggle" type="button" aria-label="Open menu" data-i18n-aria-label="nav.openMenu" aria-controls="site-sidebar" aria-expanded="false">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M4 7h16M4 12h16M4 17h16"></path>
+            </svg>
+          </button>
+          <a class="mobile-brand" href="#/">Gata League</a>
+          <div class="search-wrap">
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"></path>
+            </svg>
+            <input id="global-search" type="search" aria-label="Search reference" data-i18n-aria-label="search.label" placeholder="Search teams, skills, rules..." data-i18n-placeholder="search.placeholder" autocomplete="off">
+          </div>
+          <div class="top-actions">
+            <button id="auth-button" class="icon-text-button auth-button" type="button" data-i18n="auth.login">Login</button>
+
           </div>
         </header>
 
         <section id="app-view" class="view" tabindex="-1">
-          <div class="loading">Loading reference...</div>
+          <div class="loading" data-i18n="footer.loadingData">Loading reference...</div>
         </section>
+        <div class="site-footer">
+          <span id="generated-at" data-i18n="footer.loadingData">Loading data</span>
+          <p class="legal-note">
+            <span data-i18n="footer.unofficialNote">Unofficial fan-made league reference.</span>
+            <a href="#/legal" data-nav="legal" data-i18n="footer.legalLink">Legal Information</a>
+          </p>
+        </div>
       </main>
     </div>
 

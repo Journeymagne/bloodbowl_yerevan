@@ -16,6 +16,7 @@ import { view } from "./view.mjs";
 import { announce } from "../components/live-region.mjs";
 import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderHome } from "../screens/home.mjs";
+import { renderSearch } from "../screens/search.mjs";
 import { renderOverviewDetail } from "../screens/overview.mjs";
 import { renderSection } from "../screens/section.mjs";
 import { renderDetail } from "../screens/detail.mjs";
@@ -71,6 +72,7 @@ export function renderRoute() {
   // the two disagree today (a player profile highlights "season"), so switching
   // to it is a visible change and belongs in its own commit, not this one.
   releaseCurrentScreen();
+  if (state.query.trim()) return renderSearch();
   const { name, params } = matchRoute(routeFromHash(location.hash));
   const rendered = screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so

@@ -15,41 +15,7 @@
 /* Anything wider than a phone. */
 @media (min-width: 601px) {
 
-  /* Room for the topbar to breathe. */
-  .topbar {
-    flex-direction: row;
-    padding: 18px 24px;
-  }
-
-  .search-wrap {
-    min-width: auto;
-  }
-
-  .top-actions {
-    gap: 8px;
-  }
-
-  .theme-picker {
-    min-height: 44px;
-    padding: 0 8px;
-  }
-
-  .theme-picker select {
-    width: 108px;
-    min-height: 30px;
-    font-size: inherit;
-  }
-
-  .icon-text-button {
-    min-width: 48px;
-    min-height: 44px;
-  }
-
-
   /* Page furniture. */
-  .view {
-    padding: 28px;
-  }
 
   .page-head {
     display: flex;
@@ -69,19 +35,6 @@
     gap: 10px;
   }
 
-  .league-hero {
-    min-height: 320px;
-    padding: 30px;
-  }
-
-  .league-hero-media {
-    min-height: 220px;
-  }
-
-  .league-hero-media img {
-    max-height: 270px;
-  }
-
   .content-panel {
     padding: 22px;
   }
@@ -89,7 +42,6 @@
   .season-tab {
     flex: 0 1 auto;
   }
-
 
   /* Rows that had to stack on a phone. */
   .builder-row,
@@ -136,7 +88,6 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-
   /* Grids that fit more than one card. */
   .grid {
     grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
@@ -177,7 +128,6 @@
     width: 38px;
   }
 
-
   /* Tables, rather than the cards that stand in for them. */
   .team-roster-desktop,
   .skill-table-desktop,
@@ -210,57 +160,11 @@
 
 }
 
-/* The topbar controls, once they are not fighting for the width. */
-@media (min-width: 761px) {
-  .theme-picker {
-    padding: 0 10px;
-  }
-
-  .theme-picker span {
-    display: inline;
-  }
-
-  .theme-picker select {
-    width: 138px;
-  }
-
-  .auth-button {
-    max-width: 148px;
-  }
-}
-
 /* The wide layout: a sidebar beside the page, and panels side by side. */
 @media (min-width: 901px) {
-  .app-shell {
-    grid-template-columns: 280px minmax(0, 1fr);
-  }
-
-  .sidebar {
-    position: sticky;
-    z-index: auto;
-    inset: 0 auto auto auto;
-    width: auto;
-    height: 100vh;
-    box-shadow: none;
-    transform: none;
-    transition: none;
-  }
-
-  body.nav-open {
-    overflow: visible;
-  }
-
-  .nav-overlay,
-  .nav-toggle {
-    display: none;
-  }
 
   .detail-layout {
     grid-template-columns: minmax(0, 1fr) 260px;
-  }
-
-  .league-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
   }
 
   .builder-layout {
@@ -273,7 +177,7 @@
   }
 
   .saved-roster-top-grid {
-    grid-template-columns: minmax(360px, 1fr) minmax(280px, 360px);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 360px);
   }
 
   .roster-purchases-layout {
@@ -281,7 +185,7 @@
   }
 
   .builder-info-grid {
-    grid-template-columns: minmax(280px, 0.7fr) minmax(360px, 1.3fr);
+    grid-template-columns: minmax(0, 0.7fr) minmax(0, 1.3fr);
   }
 
   .public-team-overview-grid {
@@ -363,11 +267,11 @@
   }
 
   .builder-summary-horizontal {
-    grid-template-columns: auto minmax(150px, 0.7fr) minmax(360px, 1.8fr) minmax(260px, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
   }
 
   .builder-summary-horizontal:not(:has(.summary-logo-block)) {
-    grid-template-columns: minmax(150px, 0.7fr) minmax(360px, 1.8fr) minmax(260px, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
   }
 
   .summary-actions {
@@ -375,15 +279,11 @@
   }
 
   .builder-row-main {
-    grid-template-columns: minmax(200px, 1.2fr) max-content minmax(180px, 1fr);
+    grid-template-columns: minmax(0, 1fr) max-content;
   }
 
   .filter-panel {
-    grid-template-columns: repeat(5, minmax(150px, 1fr)) auto;
-  }
-
-  .league-hero-media {
-    min-height: 260px;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
   }
 
   .saved-roster-table-wrap {

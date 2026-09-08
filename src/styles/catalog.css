@@ -19,27 +19,14 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   overflow: hidden;
-  background:
-    linear-gradient(180deg, rgba(255, 215, 120, 0.045), transparent),
-    var(--panel-glass);
-  backdrop-filter: blur(2px);
+  background: var(--panel-glass);
+  backdrop-filter: none;
   text-decoration: none;
-}
-
-.card::before {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 4px;
-  background: linear-gradient(180deg, var(--accent), var(--focus));
-  content: "";
-  opacity: 0.72;
 }
 
 .card:hover {
   border-color: var(--line-bright);
-  background:
-    linear-gradient(180deg, rgba(255, 215, 120, 0.08), transparent),
-    var(--surface-strong);
+  background: var(--surface-strong);
 }
 
 .card.compact {
@@ -51,14 +38,14 @@
   margin: 0;
   font-size: 1.25rem;
   line-height: 1.2;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.86);
+
 }
 
 .card p {
   margin: 10px 0 0;
   color: var(--muted);
   line-height: 1.45;
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.78);
+
 }
 
 .overview-grid {
@@ -150,11 +137,11 @@
 .catalog-price {
   flex: 0 0 auto;
   padding: 5px 8px;
-  border: 1px solid rgba(240, 200, 74, 0.34);
+  border: 1px solid var(--line);
   border-radius: 999px;
-  background: rgba(91, 71, 38, 0.42);
+  background: var(--surface-soft);
   color: var(--soft);
-  font-weight: 900;
+  font-weight: 700;
   line-height: 1;
 }
 
@@ -163,7 +150,7 @@
   display: grid;
   margin: 0;
   overflow: hidden;
-  border: 1px solid rgba(85, 69, 51, 0.62);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
 }
 
@@ -181,7 +168,7 @@
   gap: 4px;
   min-width: 0;
   padding: 8px 7px;
-  border-left: 1px solid rgba(85, 69, 51, 0.5);
+  border-left: 1px solid var(--line);
   text-align: center;
 }
 
@@ -203,7 +190,7 @@
   min-width: 0;
   margin: 0;
   color: var(--text);
-  font-weight: 900;
+  font-weight: 700;
 }
 
 .catalog-card-section {
@@ -254,7 +241,7 @@
   gap: 4px;
   align-items: baseline;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(85, 69, 51, 0.72);
+  border-bottom: 1px solid var(--line);
   padding-bottom: 10px;
 }
 
@@ -291,14 +278,14 @@
   align-items: center;
   padding: 0 8px;
   border-radius: 999px;
-  background: rgba(91, 71, 38, 0.72);
+  background: var(--surface-soft);
   color: var(--soft);
   font-size: 0.75rem;
 }
 
 .badge.warning {
-  background: rgba(217, 73, 45, 0.18);
-  color: #ffb199;
+  background: var(--surface-soft);
+  color: var(--danger);
 }
 
 .detail-layout {

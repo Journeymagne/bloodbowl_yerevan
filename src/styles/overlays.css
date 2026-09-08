@@ -20,7 +20,7 @@
 .toast {
   display: block;
   padding: 12px 14px;
-  border: 1px solid rgba(240, 200, 74, 0.38);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-strong);
   color: var(--text);
@@ -35,14 +35,14 @@
 .app-dialog {
   max-width: min(440px, calc(100vw - 32px));
   padding: 0;
-  border: 1px solid rgba(240, 200, 74, 0.38);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-strong);
   color: var(--text);
 }
 
 .app-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.55);
+  background: var(--surface-soft);
 }
 
 .app-dialog-form {

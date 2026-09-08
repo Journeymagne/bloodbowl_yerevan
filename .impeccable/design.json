@@ -1,0 +1,637 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-09-08T09:46:06.444964Z",
+  "title": "Design System: Gata Blood Bowl League",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Primary",
+        "canonical": "#99502c",
+        "tonalRamp": [
+          "oklch(15.00% 0.10931 45.46)",
+          "oklch(26.43% 0.10931 45.46)",
+          "oklch(37.86% 0.10931 45.46)",
+          "oklch(49.29% 0.10931 45.46)",
+          "oklch(60.71% 0.10931 45.46)",
+          "oklch(72.14% 0.10931 45.46)",
+          "oklch(83.57% 0.10931 45.46)",
+          "oklch(95.00% 0.10931 45.46)"
+        ]
+      },
+      "primary-hover": {
+        "role": "primary",
+        "displayName": "Primary Hover",
+        "canonical": "#7e3f22",
+        "tonalRamp": [
+          "oklch(15.00% 0.09672 44.08)",
+          "oklch(26.43% 0.09672 44.08)",
+          "oklch(37.86% 0.09672 44.08)",
+          "oklch(49.29% 0.09672 44.08)",
+          "oklch(60.71% 0.09672 44.08)",
+          "oklch(72.14% 0.09672 44.08)",
+          "oklch(83.57% 0.09672 44.08)",
+          "oklch(95.00% 0.09672 44.08)"
+        ]
+      },
+      "primary-text": {
+        "role": "primary",
+        "displayName": "Primary Text",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "copper": {
+        "role": "primary",
+        "displayName": "Copper",
+        "canonical": "#bc734a",
+        "tonalRamp": [
+          "oklch(15.00% 0.10794 49.20)",
+          "oklch(26.43% 0.10794 49.20)",
+          "oklch(37.86% 0.10794 49.20)",
+          "oklch(49.29% 0.10794 49.20)",
+          "oklch(60.71% 0.10794 49.20)",
+          "oklch(72.14% 0.10794 49.20)",
+          "oklch(83.57% 0.10794 49.20)",
+          "oklch(95.00% 0.10794 49.20)"
+        ]
+      },
+      "copper-soft": {
+        "role": "primary",
+        "displayName": "Copper Soft",
+        "canonical": "#e8af87",
+        "tonalRamp": [
+          "oklch(15.00% 0.08566 56.20)",
+          "oklch(26.43% 0.08566 56.20)",
+          "oklch(37.86% 0.08566 56.20)",
+          "oklch(49.29% 0.08566 56.20)",
+          "oklch(60.71% 0.08566 56.20)",
+          "oklch(72.14% 0.08566 56.20)",
+          "oklch(83.57% 0.08566 56.20)",
+          "oklch(95.00% 0.08566 56.20)"
+        ]
+      },
+      "navy-bg": {
+        "role": "neutral",
+        "displayName": "Navy Bg",
+        "canonical": "#101d28",
+        "tonalRamp": [
+          "oklch(15.00% 0.02828 245.06)",
+          "oklch(26.43% 0.02828 245.06)",
+          "oklch(37.86% 0.02828 245.06)",
+          "oklch(49.29% 0.02828 245.06)",
+          "oklch(60.71% 0.02828 245.06)",
+          "oklch(72.14% 0.02828 245.06)",
+          "oklch(83.57% 0.02828 245.06)",
+          "oklch(95.00% 0.02828 245.06)"
+        ]
+      },
+      "navy-panel": {
+        "role": "neutral",
+        "displayName": "Navy Panel",
+        "canonical": "#182b3a",
+        "tonalRamp": [
+          "oklch(15.00% 0.03733 243.48)",
+          "oklch(26.43% 0.03733 243.48)",
+          "oklch(37.86% 0.03733 243.48)",
+          "oklch(49.29% 0.03733 243.48)",
+          "oklch(60.71% 0.03733 243.48)",
+          "oklch(72.14% 0.03733 243.48)",
+          "oklch(83.57% 0.03733 243.48)",
+          "oklch(95.00% 0.03733 243.48)"
+        ]
+      },
+      "navy-panel-raised": {
+        "role": "neutral",
+        "displayName": "Navy Panel Raised",
+        "canonical": "#213847",
+        "tonalRamp": [
+          "oklch(15.00% 0.03935 238.22)",
+          "oklch(26.43% 0.03935 238.22)",
+          "oklch(37.86% 0.03935 238.22)",
+          "oklch(49.29% 0.03935 238.22)",
+          "oklch(60.71% 0.03935 238.22)",
+          "oklch(72.14% 0.03935 238.22)",
+          "oklch(83.57% 0.03935 238.22)",
+          "oklch(95.00% 0.03935 238.22)"
+        ]
+      },
+      "navy-line": {
+        "role": "neutral",
+        "displayName": "Navy Line",
+        "canonical": "#3f5664",
+        "tonalRamp": [
+          "oklch(15.00% 0.03632 235.41)",
+          "oklch(26.43% 0.03632 235.41)",
+          "oklch(37.86% 0.03632 235.41)",
+          "oklch(49.29% 0.03632 235.41)",
+          "oklch(60.71% 0.03632 235.41)",
+          "oklch(72.14% 0.03632 235.41)",
+          "oklch(83.57% 0.03632 235.41)",
+          "oklch(95.00% 0.03632 235.41)"
+        ]
+      },
+      "navy-line-bright": {
+        "role": "neutral",
+        "displayName": "Navy Line Bright",
+        "canonical": "#9eafb9",
+        "tonalRamp": [
+          "oklch(15.00% 0.02386 233.49)",
+          "oklch(26.43% 0.02386 233.49)",
+          "oklch(37.86% 0.02386 233.49)",
+          "oklch(49.29% 0.02386 233.49)",
+          "oklch(60.71% 0.02386 233.49)",
+          "oklch(72.14% 0.02386 233.49)",
+          "oklch(83.57% 0.02386 233.49)",
+          "oklch(95.00% 0.02386 233.49)"
+        ]
+      },
+      "navy-text": {
+        "role": "neutral",
+        "displayName": "Navy Text",
+        "canonical": "#f0f4f5",
+        "tonalRamp": [
+          "oklch(15.00% 0.00448 214.33)",
+          "oklch(26.43% 0.00448 214.33)",
+          "oklch(37.86% 0.00448 214.33)",
+          "oklch(49.29% 0.00448 214.33)",
+          "oklch(60.71% 0.00448 214.33)",
+          "oklch(72.14% 0.00448 214.33)",
+          "oklch(83.57% 0.00448 214.33)",
+          "oklch(95.00% 0.00448 214.33)"
+        ]
+      },
+      "navy-muted": {
+        "role": "neutral",
+        "displayName": "Navy Muted",
+        "canonical": "#b7c7d0",
+        "tonalRamp": [
+          "oklch(15.00% 0.02162 232.20)",
+          "oklch(26.43% 0.02162 232.20)",
+          "oklch(37.86% 0.02162 232.20)",
+          "oklch(49.29% 0.02162 232.20)",
+          "oklch(60.71% 0.02162 232.20)",
+          "oklch(72.14% 0.02162 232.20)",
+          "oklch(83.57% 0.02162 232.20)",
+          "oklch(95.00% 0.02162 232.20)"
+        ]
+      },
+      "masthead": {
+        "role": "neutral",
+        "displayName": "Masthead",
+        "canonical": "#172d40",
+        "tonalRamp": [
+          "oklch(15.00% 0.04490 246.22)",
+          "oklch(26.43% 0.04490 246.22)",
+          "oklch(37.86% 0.04490 246.22)",
+          "oklch(49.29% 0.04490 246.22)",
+          "oklch(60.71% 0.04490 246.22)",
+          "oklch(72.14% 0.04490 246.22)",
+          "oklch(83.57% 0.04490 246.22)",
+          "oklch(95.00% 0.04490 246.22)"
+        ]
+      },
+      "masthead-text": {
+        "role": "neutral",
+        "displayName": "Masthead Text",
+        "canonical": "#f3f5f4",
+        "tonalRamp": [
+          "oklch(15.00% 0.00250 165.08)",
+          "oklch(26.43% 0.00250 165.08)",
+          "oklch(37.86% 0.00250 165.08)",
+          "oklch(49.29% 0.00250 165.08)",
+          "oklch(60.71% 0.00250 165.08)",
+          "oklch(72.14% 0.00250 165.08)",
+          "oklch(83.57% 0.00250 165.08)",
+          "oklch(95.00% 0.00250 165.08)"
+        ]
+      },
+      "masthead-muted": {
+        "role": "neutral",
+        "displayName": "Masthead Muted",
+        "canonical": "#c0cdd5",
+        "tonalRamp": [
+          "oklch(15.00% 0.01808 234.55)",
+          "oklch(26.43% 0.01808 234.55)",
+          "oklch(37.86% 0.01808 234.55)",
+          "oklch(49.29% 0.01808 234.55)",
+          "oklch(60.71% 0.01808 234.55)",
+          "oklch(72.14% 0.01808 234.55)",
+          "oklch(83.57% 0.01808 234.55)",
+          "oklch(95.00% 0.01808 234.55)"
+        ]
+      },
+      "nav-highlight": {
+        "role": "neutral",
+        "displayName": "Nav Highlight",
+        "canonical": "#253f53",
+        "tonalRamp": [
+          "oklch(15.00% 0.04737 242.82)",
+          "oklch(26.43% 0.04737 242.82)",
+          "oklch(37.86% 0.04737 242.82)",
+          "oklch(49.29% 0.04737 242.82)",
+          "oklch(60.71% 0.04737 242.82)",
+          "oklch(72.14% 0.04737 242.82)",
+          "oklch(83.57% 0.04737 242.82)",
+          "oklch(95.00% 0.04737 242.82)"
+        ]
+      },
+      "nav-underline": {
+        "role": "neutral",
+        "displayName": "Nav Underline",
+        "canonical": "#d49971",
+        "tonalRamp": [
+          "oklch(15.00% 0.08933 54.97)",
+          "oklch(26.43% 0.08933 54.97)",
+          "oklch(37.86% 0.08933 54.97)",
+          "oklch(49.29% 0.08933 54.97)",
+          "oklch(60.71% 0.08933 54.97)",
+          "oklch(72.14% 0.08933 54.97)",
+          "oklch(83.57% 0.08933 54.97)",
+          "oklch(95.00% 0.08933 54.97)"
+        ]
+      },
+      "cool-bg": {
+        "role": "neutral",
+        "displayName": "Cool Bg",
+        "canonical": "#f0f3f3",
+        "tonalRamp": [
+          "oklch(15.00% 0.00320 197.10)",
+          "oklch(26.43% 0.00320 197.10)",
+          "oklch(37.86% 0.00320 197.10)",
+          "oklch(49.29% 0.00320 197.10)",
+          "oklch(60.71% 0.00320 197.10)",
+          "oklch(72.14% 0.00320 197.10)",
+          "oklch(83.57% 0.00320 197.10)",
+          "oklch(95.00% 0.00320 197.10)"
+        ]
+      },
+      "cool-panel": {
+        "role": "neutral",
+        "displayName": "Cool Panel",
+        "canonical": "#ffffff",
+        "tonalRamp": [
+          "oklch(15.00% 0.00000 89.88)",
+          "oklch(26.43% 0.00000 89.88)",
+          "oklch(37.86% 0.00000 89.88)",
+          "oklch(49.29% 0.00000 89.88)",
+          "oklch(60.71% 0.00000 89.88)",
+          "oklch(72.14% 0.00000 89.88)",
+          "oklch(83.57% 0.00000 89.88)",
+          "oklch(95.00% 0.00000 89.88)"
+        ]
+      },
+      "cool-panel-raised": {
+        "role": "neutral",
+        "displayName": "Cool Panel Raised",
+        "canonical": "#e7edef",
+        "tonalRamp": [
+          "oklch(15.00% 0.00698 219.56)",
+          "oklch(26.43% 0.00698 219.56)",
+          "oklch(37.86% 0.00698 219.56)",
+          "oklch(49.29% 0.00698 219.56)",
+          "oklch(60.71% 0.00698 219.56)",
+          "oklch(72.14% 0.00698 219.56)",
+          "oklch(83.57% 0.00698 219.56)",
+          "oklch(95.00% 0.00698 219.56)"
+        ]
+      },
+      "cool-line": {
+        "role": "neutral",
+        "displayName": "Cool Line",
+        "canonical": "#c5d0d6",
+        "tonalRamp": [
+          "oklch(15.00% 0.01464 231.24)",
+          "oklch(26.43% 0.01464 231.24)",
+          "oklch(37.86% 0.01464 231.24)",
+          "oklch(49.29% 0.01464 231.24)",
+          "oklch(60.71% 0.01464 231.24)",
+          "oklch(72.14% 0.01464 231.24)",
+          "oklch(83.57% 0.01464 231.24)",
+          "oklch(95.00% 0.01464 231.24)"
+        ]
+      },
+      "cool-text": {
+        "role": "neutral",
+        "displayName": "Cool Text",
+        "canonical": "#172d40",
+        "tonalRamp": [
+          "oklch(15.00% 0.04490 246.22)",
+          "oklch(26.43% 0.04490 246.22)",
+          "oklch(37.86% 0.04490 246.22)",
+          "oklch(49.29% 0.04490 246.22)",
+          "oklch(60.71% 0.04490 246.22)",
+          "oklch(72.14% 0.04490 246.22)",
+          "oklch(83.57% 0.04490 246.22)",
+          "oklch(95.00% 0.04490 246.22)"
+        ]
+      },
+      "cool-muted": {
+        "role": "neutral",
+        "displayName": "Cool Muted",
+        "canonical": "#526775",
+        "tonalRamp": [
+          "oklch(15.00% 0.03370 237.53)",
+          "oklch(26.43% 0.03370 237.53)",
+          "oklch(37.86% 0.03370 237.53)",
+          "oklch(49.29% 0.03370 237.53)",
+          "oklch(60.71% 0.03370 237.53)",
+          "oklch(72.14% 0.03370 237.53)",
+          "oklch(83.57% 0.03370 237.53)",
+          "oklch(95.00% 0.03370 237.53)"
+        ]
+      },
+      "cool-soft": {
+        "role": "primary",
+        "displayName": "Cool Soft",
+        "canonical": "#874726",
+        "tonalRamp": [
+          "oklch(15.00% 0.09876 46.39)",
+          "oklch(26.43% 0.09876 46.39)",
+          "oklch(37.86% 0.09876 46.39)",
+          "oklch(49.29% 0.09876 46.39)",
+          "oklch(60.71% 0.09876 46.39)",
+          "oklch(72.14% 0.09876 46.39)",
+          "oklch(83.57% 0.09876 46.39)",
+          "oklch(95.00% 0.09876 46.39)"
+        ]
+      },
+      "focus": {
+        "role": "neutral",
+        "displayName": "Focus",
+        "canonical": "#f3b27e",
+        "tonalRamp": [
+          "oklch(15.00% 0.10167 59.35)",
+          "oklch(26.43% 0.10167 59.35)",
+          "oklch(37.86% 0.10167 59.35)",
+          "oklch(49.29% 0.10167 59.35)",
+          "oklch(60.71% 0.10167 59.35)",
+          "oklch(72.14% 0.10167 59.35)",
+          "oklch(83.57% 0.10167 59.35)",
+          "oklch(95.00% 0.10167 59.35)"
+        ]
+      },
+      "danger": {
+        "role": "neutral",
+        "displayName": "Danger",
+        "canonical": "#ffb3aa",
+        "tonalRamp": [
+          "oklch(15.00% 0.09035 26.68)",
+          "oklch(26.43% 0.09035 26.68)",
+          "oklch(37.86% 0.09035 26.68)",
+          "oklch(49.29% 0.09035 26.68)",
+          "oklch(60.71% 0.09035 26.68)",
+          "oklch(72.14% 0.09035 26.68)",
+          "oklch(83.57% 0.09035 26.68)",
+          "oklch(95.00% 0.09035 26.68)"
+        ]
+      },
+      "danger-bg": {
+        "role": "neutral",
+        "displayName": "Danger Bg",
+        "canonical": "#482e32",
+        "tonalRamp": [
+          "oklch(15.00% 0.03871 9.26)",
+          "oklch(26.43% 0.03871 9.26)",
+          "oklch(37.86% 0.03871 9.26)",
+          "oklch(49.29% 0.03871 9.26)",
+          "oklch(60.71% 0.03871 9.26)",
+          "oklch(72.14% 0.03871 9.26)",
+          "oklch(83.57% 0.03871 9.26)",
+          "oklch(95.00% 0.03871 9.26)"
+        ]
+      },
+      "success": {
+        "role": "neutral",
+        "displayName": "Success",
+        "canonical": "#a5d4b8",
+        "tonalRamp": [
+          "oklch(15.00% 0.06284 158.54)",
+          "oklch(26.43% 0.06284 158.54)",
+          "oklch(37.86% 0.06284 158.54)",
+          "oklch(49.29% 0.06284 158.54)",
+          "oklch(60.71% 0.06284 158.54)",
+          "oklch(72.14% 0.06284 158.54)",
+          "oklch(83.57% 0.06284 158.54)",
+          "oklch(95.00% 0.06284 158.54)"
+        ]
+      },
+      "success-bg": {
+        "role": "neutral",
+        "displayName": "Success Bg",
+        "canonical": "#254439",
+        "tonalRamp": [
+          "oklch(15.00% 0.04200 169.17)",
+          "oklch(26.43% 0.04200 169.17)",
+          "oklch(37.86% 0.04200 169.17)",
+          "oklch(49.29% 0.04200 169.17)",
+          "oklch(60.71% 0.04200 169.17)",
+          "oklch(72.14% 0.04200 169.17)",
+          "oklch(83.57% 0.04200 169.17)",
+          "oklch(95.00% 0.04200 169.17)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Season display",
+        "purpose": "Large season heading; Oswald."
+      },
+      "headline": {
+        "displayName": "Page headline",
+        "purpose": "General page headings; Oswald."
+      },
+      "title": {
+        "displayName": "Section title",
+        "purpose": "Home tools and handbook headings; Oswald."
+      },
+      "body": {
+        "displayName": "Reading text",
+        "purpose": "English and Russian prose; Golos Text."
+      },
+      "label": {
+        "displayName": "Navigation label",
+        "purpose": "Compact navigation and supporting controls; Golos Text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "drawer",
+        "value": "12px 0 36px rgb(0 0 0 / 25%)",
+        "purpose": "Mobile navigation above page content."
+      },
+      {
+        "name": "auth-dialog",
+        "value": "0 24px 80px rgba(0, 0, 0, 0.52)",
+        "purpose": "Authentication dialog above its scrim."
+      },
+      {
+        "name": "toast",
+        "value": "0 8px 24px rgba(0, 0, 0, 0.35)",
+        "purpose": "Temporary status notice."
+      }
+    ],
+    "motion": [
+      {
+        "name": "drawer",
+        "value": "transform 180ms ease-out",
+        "purpose": "Mobile drawer entry and exit."
+      },
+      {
+        "name": "overlay",
+        "value": "opacity 180ms, visibility 180ms",
+        "purpose": "Drawer scrim."
+      },
+      {
+        "name": "toast",
+        "value": "toast-in 160ms ease-out",
+        "purpose": "Opacity and 6px vertical entry, only when reduced motion is not requested."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "0.01ms",
+        "purpose": "Animation and transition duration when reduced motion is requested; one animation iteration and automatic scroll behavior."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "narrow-phone-max",
+        "value": "380px"
+      },
+      {
+        "name": "forms-and-tables",
+        "value": "601px"
+      },
+      {
+        "name": "reference-two-columns",
+        "value": "701px"
+      },
+      {
+        "name": "desk-columns",
+        "value": "901px"
+      },
+      {
+        "name": "desktop-masthead",
+        "value": "1101px"
+      },
+      {
+        "name": "reference-three-columns",
+        "value": "1201px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The solid copper action shared by season, team and form flows.",
+      "html": "<button class=\"ds-primary\" type=\"button\">Open season</button>",
+      "css": ".ds-primary{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 14px;border:1px solid var(--primary-border,#99502c);border-radius:var(--radius,4px);background:var(--primary-bg,#99502c);color:var(--primary-text,#ffffff);font-weight:700;text-decoration:none;cursor:pointer;font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);font-size:16px;}.ds-primary:hover{border-color:var(--line-bright,#9eafb9);background:var(--primary-bg-hover,#7e3f22);}.ds-primary:disabled{opacity:.6;cursor:not-allowed;}.ds-primary:focus-visible{outline:2px solid var(--focus,#f3b27e);outline-offset:2px;border-radius:var(--radius,4px);}"
+    },
+    {
+      "name": "Ghost button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet secondary actions using the current theme surface.",
+      "html": "<button class=\"ds-ghost\" type=\"button\">Close</button>",
+      "css": ".ds-ghost{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--button-border,#3f5664);border-radius:var(--radius,4px);background:var(--button-bg,#182b3a);color:var(--button-text,#f0f4f5);text-decoration:none;cursor:pointer;font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);font-size:16px;justify-content:center;}.ds-ghost:hover{border-color:var(--line-bright,#9eafb9);background:var(--button-bg-hover,#213847);color:var(--button-text,#f0f4f5);}.ds-ghost:focus-visible{outline:2px solid var(--focus,#f3b27e);outline-offset:2px;border-radius:var(--radius,4px);}.ds-ghost:disabled{opacity:.6;cursor:not-allowed;}"
+    },
+    {
+      "name": "Labeled field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Stacked labels and solid inputs used in account and filtering forms.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Login</span><input class=\"ds-field-input\" autocomplete=\"username\" placeholder=\"Login\"></label>",
+      "css": ".ds-field{display:grid;gap:6px;font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);font-size:16px;}.ds-field-label{color:var(--muted,#b7c7d0);font-size:12px;}.ds-field-input{width:100%;min-height:44px;padding:0 10px;border:1px solid var(--line,#3f5664);border-radius:var(--radius,4px);background:var(--input-bg,#182b3a);color:var(--text,#f0f4f5);font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);font-size:16px;}.ds-field-input::placeholder{color:var(--muted,#b7c7d0);opacity:1;}.ds-field-input:focus{border-color:var(--focus,#f3b27e);}.ds-field-input:focus-visible{outline:2px solid var(--focus,#f3b27e);outline-offset:2px;border-radius:var(--radius,4px);}"
+    },
+    {
+      "name": "Masthead navigation",
+      "kind": "nav",
+      "description": "Dark masthead links with a copper rule for the active destination.",
+      "html": "<nav class=\"ds-nav\" aria-label=\"Example navigation\"><a class=\"ds-nav-link ds-nav-active\" href=\"#/\" aria-current=\"page\">Clubhouse</a><a class=\"ds-nav-link\" href=\"#/season\">Season</a><a class=\"ds-nav-link\" href=\"#/pages\">References</a></nav>",
+      "css": ".ds-nav{display:flex;flex-wrap:wrap;gap:2px;background:var(--masthead,#172d40);}.ds-nav-link{display:flex;align-items:center;min-height:48px;padding:12px;border-bottom:2px solid transparent;color:var(--masthead-muted,#c0cdd5);text-decoration:none;font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);font-size:14px;font-weight:500;}.ds-nav-link:hover,.ds-nav-active{background:#253f53;color:var(--masthead-text,#f3f5f4);}.ds-nav-active{border-bottom-color:#d49971;}.ds-nav-link:focus-visible{outline:2px solid var(--focus,#f3b27e);outline-offset:2px;border-radius:var(--radius,4px);}"
+    },
+    {
+      "name": "Reference chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Compact linked labels using the existing chip dimensions and hover treatment.",
+      "html": "<a class=\"ds-chip\" href=\"#/pages\">References</a>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;min-height:44px;padding:0 10px;border:1px solid var(--button-border,#3f5664);border-radius:var(--radius,4px);background:var(--button-bg,#182b3a);color:var(--button-text,#f0f4f5);text-decoration:none;cursor:pointer;font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);font-size:16px;min-height:34px;color:var(--button-muted-text,#f0f4f5);}.ds-chip:hover{border-color:var(--line-bright,#9eafb9);background:var(--button-bg-hover,#213847);color:var(--button-text,#f0f4f5);}.ds-chip:focus-visible{outline:2px solid var(--focus,#f3b27e);outline-offset:2px;border-radius:var(--radius,4px);}"
+    },
+    {
+      "name": "Reference card",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "A linked catalogue card with a restrained border response.",
+      "html": "<a class=\"ds-card\" href=\"#/pages\"><h2 class=\"ds-card-title\">References</h2><p class=\"ds-card-copy\">Teams, skills and rules.</p></a>",
+      "css": ".ds-card{position:relative;display:block;min-height:122px;padding:16px;border:1px solid var(--line,#3f5664);border-radius:var(--radius,4px);overflow:hidden;background:var(--panel-glass,#182b3a);color:var(--text,#f0f4f5);text-decoration:none;font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);font-size:16px;}.ds-card:hover{border-color:var(--line-bright,#9eafb9);background:var(--surface-strong,#182b3a);}.ds-card-title{margin:0;font-family:var(--font-display,\"Oswald\",sans-serif);font-size:20px;font-weight:500;line-height:1.2;}.ds-card-copy{margin:10px 0 0;color:var(--muted,#b7c7d0);line-height:1.45;}.ds-card:focus-visible{outline:2px solid var(--focus,#f3b27e);outline-offset:2px;border-radius:var(--radius,4px);}"
+    },
+    {
+      "name": "Journal rule link",
+      "kind": "custom",
+      "description": "Ruled rows make frequently consulted rules easy to scan without separate cards.",
+      "html": "<a class=\"ds-row\" href=\"#/pages\"><span class=\"ds-row-label\">Weather</span><svg class=\"ds-row-arrow\" aria-hidden=\"true\" viewBox=\"0 0 24 24\"><path d=\"M4 12h15m-6-6 6 6-6 6\"></path></svg></a>",
+      "css": ".ds-row{display:flex;align-items:center;justify-content:space-between;gap:18px;min-height:54px;padding:16px 0;border-bottom:1px solid var(--line,#3f5664);color:var(--text,#f0f4f5);font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);font-size:14px;line-height:1.55;text-decoration:none;}.ds-row-label{min-width:0;font-weight:600;}.ds-row:hover{color:var(--soft,#e8af87);}.ds-row-arrow{width:20px;height:20px;flex:0 0 20px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}.ds-row:focus-visible{outline:2px solid var(--focus,#f3b27e);outline-offset:2px;border-radius:var(--radius,4px);}"
+    },
+    {
+      "name": "Compact standings",
+      "kind": "custom",
+      "description": "Three fixed-layout columns that shrink on phones; sample row is explicitly synthetic.",
+      "html": "<table class=\"ds-standings\" aria-label=\"Synthetic standings example\"><thead><tr><th class=\"ds-standing-cell ds-standing-head\" scope=\"col\">#</th><th class=\"ds-standing-cell ds-standing-head\" scope=\"col\">Team</th><th class=\"ds-standing-cell ds-standing-head\" scope=\"col\">League points</th></tr></thead><tbody><tr><td class=\"ds-standing-cell\">1</td><td class=\"ds-standing-cell\">Example team</td><td class=\"ds-standing-cell ds-standing-points\">0</td></tr></tbody></table>",
+      "css": ".ds-standings{width:100%;min-width:0;border-collapse:collapse;table-layout:fixed;color:var(--text,#f0f4f5);font-family:var(--font-body,\"Golos Text\",ui-sans-serif,system-ui,sans-serif);line-height:1.55;}.ds-standing-cell{padding:12px 8px;border:1px solid var(--line,#3f5664);font-size:14px;overflow-wrap:anywhere;vertical-align:top;background:var(--surface-soft,#213847);}.ds-standing-head{font-size:12px;font-weight:500;text-align:left;color:var(--muted,#b7c7d0);background:var(--table-head,#213847);}.ds-standing-head:first-child{width:40px;}.ds-standing-head:last-child{width:90px;}.ds-standing-points{font-weight:600;font-variant-numeric:tabular-nums;}"
+    }
+  ],
+  "narrative": {
+    "northStar": "Club tournament journal",
+    "overview": "A practical competition programme for the Gata club: condensed sports headings, calm reading text, ruled information and restrained copper actions. Solid navy anchors the identity; cool light surfaces and the existing dark themes give players a comfortable workspace. The supplied Gata emblem remains the visual identifier.\n\nPremium character comes from hierarchy, measured spacing and careful tables. Existing players should recognize a working league desk, with season, matches, teams and rules easy to scan in English or Russian. The selected world is recorded in the index body contract (candidate 5, seed 22546323); screenshot demo scores and names are test fixtures, never brand or season facts.",
+    "keyCharacteristics": [
+      "Condensed Oswald headings paired with Golos Text reading text.",
+      "Solid surfaces, thin rules and small corners.",
+      "Copper primary actions within a navy club frame.",
+      "Dense information that reflows deliberately on phones.",
+      "Equal visual care for English, Russian and all six themes."
+    ],
+    "rules": [
+      {
+        "name": "The Semantic Surface Rule",
+        "body": "Build with the existing CSS aliases so a new surface follows every theme automatically.",
+        "section": "colors"
+      },
+      {
+        "name": "The Two Scripts Rule",
+        "body": "Preserve hierarchy and available width when copy switches between English and Russian; do not shrink Russian into a separate visual system.",
+        "section": "typography"
+      },
+      {
+        "name": "The Solid Ground Rule",
+        "body": "Keep permanent surfaces opaque and border-led; reserve shadow for temporary surfaces above the page.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "**Do** use semantic CSS aliases and check all six theme IDs.",
+      "**Do** retain the supplied emblem, Oswald headings and Golos Text reading text.",
+      "**Do** check English and Russian at desktop and phone widths.",
+      "**Do** preserve visible keyboard focus, drawer containment and reduced-motion behavior.",
+      "**Do** keep compact home standings shrinkable and long team names readable.",
+      "**Do** use real loading, empty and unavailable states when live data is absent."
+    ],
+    "donts": [
+      "**Don't** reintroduce decorative glass, glows or patterned backgrounds through legacy aliases.",
+      "**Don't** replace ruled reference lists with a uniform grid of floating cards.",
+      "**Don't** use primary-action colors as a substitute for semantic status colors.",
+      "**Don't** remove existing theme choices or treat Russian labels as secondary.",
+      "**Don't** promote synthetic screenshot names, dates or scores into product claims."
+    ]
+  }
+}
