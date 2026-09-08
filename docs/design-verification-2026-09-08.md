@@ -46,3 +46,13 @@ preview connected to production, and submitting all work in a separate branch/PR
 - The local proxy returned production health and season data; browser inspection displayed the real Season 1 standings. Only public GET requests were performed against production. Authenticated mutations are covered using a local upstream fixture, not live accounts.
 - An independent code reviewer found no critical/important issues and marked the scoped preview/test changes ready for PR (74 targeted tests passed).
 - No production deployment is part of this submission.
+
+## Additional controls and auth polish
+
+Requested after PR creation: replace the bulky Close menu control and redesign Create account. Impeccable critique ran as two isolated assessments; its pre-fix snapshot is saved under `.impeccable/critique/`. Remaining recommendations include bringing the active round forward, demoting Refresh and removing redundant reference metadata.
+
+Implemented a 44px close icon in the drawer identity row and auth heading, plus a centered underlined account switch below the primary action. The auth dialog now contains focus, makes the background inert, restores its opener, translates and announces local errors, uses new-password autocomplete for registration and preserves values across mode switches. Closing an already-hidden auth modal is a no-op, so global Escape cannot steal navigation/search focus.
+
+Browser checks used a local fake API, not production writes: desktop RU login, 390px RU menu and validation, 390px EN/light registration; no horizontal overflow, 44px hit areas, Tab/Shift+Tab wrapping and Escape restoration. Screenshots are `.codex_tmp/design/polish-*.png`. An independent reviewer checked the new controls and caught the hidden-modal Escape regression before the follow-up commit.
+
+Final follow-up verdict: **Approved**, no required fixes outstanding in the scoped controls/auth review. Post-fix Escape checks preserve nav-toggle, global-search and auth-button focus respectively. Full suite remains 364/364; build/i18n/structure checks pass.

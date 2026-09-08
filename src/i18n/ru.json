@@ -486,5 +486,10 @@
   "home.noSeasonNote": "Турнирная таблица появится здесь, когда сезон станет доступен.",
   "home.fullStandings": "Полная турнирная таблица",
   "reference.catalog": "Команды, игроки и навыки",
-  "reference.league": "Правила и развитие"
+  "reference.league": "Правила и развитие",
+  "auth.signIn": "Войти",
+  "auth.noAccount": "Нет аккаунта?",
+  "auth.validation.login": "Логин должен содержать не менее 3 символов.",
+  "auth.validation.password": "Пароль должен содержать не менее 4 символов.",
+  "auth.validation.telegram": "Укажите контакт в Telegram."
 }

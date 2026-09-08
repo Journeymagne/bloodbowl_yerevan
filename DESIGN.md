@@ -187,6 +187,8 @@ Small standard corners unify buttons, fields, cards, dialogs and focus rings. Th
 
 Confident, compact controls. Primary buttons are centered inline-flex actions, minimum height 44px, with copper fill, white text and 14px side padding. Hover deepens the fill and brightens the border. Ghost buttons use the theme's panel, text and line with 10px side padding and the same 44px minimum. Disabled buttons use 0.6 opacity and a not-allowed cursor. Keyboard focus is a 2px focus-colored outline with 2px offset; it must remain visible.
 
+Authentication keeps one copper submit action. Its mode switch is a centered, underlined text action with a 44px hit area beside a muted hint, separated from the form by a thin rule. Closing controls are 44px transparent icon buttons with a 20px stroked cross, a localized accessible name and visible keyboard focus.
+
 ### Chips and filters
 
 Compact chips and filter buttons use the same surface contract, with a 34px minimum height. Hover strengthens the border and changes to panel-2. Selected filters use the active-button aliases; the selected state is a border-and-surface treatment, not only a text-color change. Roster pills retain their existing capsule shape and smaller typography.
@@ -201,7 +203,9 @@ Labels sit above fields with a 6px gap. Inputs and selects have solid panel back
 
 ### Navigation
 
-The dark club masthead pairs the supplied 48px emblem with a condensed wordmark. Navigation links have a 48px minimum height; active links combine the dark highlight surface and copper bottom rule. Theme and language controls remain available in both frame modes. The mobile drawer has a scrim and explicit close button; opening focuses that button and makes the main content inert. Tab cycles within visible enabled drawer controls; Escape closes and returns focus to the opener. Closing also removes the drawer from keyboard traversal. Preserve these behaviors when changing its appearance.
+The dark club masthead pairs the supplied 48px emblem with a condensed wordmark. Navigation links have a 48px minimum height; active links combine the dark highlight surface and copper bottom rule. Theme and language controls remain available in both frame modes. The mobile drawer has a scrim and a 44px close icon beside the club identity; opening focuses that button and makes the main content inert. Tab cycles within visible enabled drawer controls; Escape closes and returns focus to the opener. Closing also removes the drawer from keyboard traversal. Preserve these behaviors when changing its appearance.
+
+The authentication dialog makes the page behind it inert, contains Tab navigation and returns focus to its opener. Closing and reopening resets credentials; switching between sign-in and registration preserves entered values. Registration uses new-password autocomplete; local errors are translated and announced. The dialog scrolls within the viewport when space is constrained.
 
 ### Journal rows and standings
 

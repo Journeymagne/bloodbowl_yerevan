@@ -26,7 +26,10 @@
     <button class="skip-link" type="button" data-skip-to-content data-i18n="a11y.skipToContent">Skip to content</button>
     <div class="app-shell">
       <aside id="site-sidebar" class="sidebar" aria-label="Navigation" data-i18n-aria-label="nav.label">
-        <button class="nav-close ghost-button" data-nav-close type="button" data-i18n="nav.closeMenu">Close menu</button>
+        <div class="nav-brand-row">
+          <button class="nav-close icon-close" data-nav-close type="button" aria-label="Close menu" data-i18n-aria-label="nav.closeMenu" title="Close menu" data-i18n-title="nav.closeMenu">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+          </button>
         <a class="brand" href="#/">
           <span class="brand-mark">
             <img src="assets/brand/gata-league-logo-96.png" width="48" height="48" alt="" decoding="async" fetchpriority="high">
@@ -36,6 +39,7 @@
             <small>Blood Bowl Sevens</small>
           </span>
         </a>
+        </div>
 
         <nav class="nav-list">
           <a href="#/" data-nav="home" data-i18n="nav.home">Home</a>
@@ -98,11 +102,13 @@
     </div>
 
     <div id="auth-modal" class="auth-modal" hidden role="dialog" aria-modal="true" aria-labelledby="auth-title">
-      <button class="auth-backdrop" type="button" data-auth-close aria-label="Close authorization" data-i18n-aria-label="auth.closeAriaLabel"></button>
+      <button class="auth-backdrop" type="button" data-auth-close tabindex="-1" aria-label="Close authorization" data-i18n-aria-label="auth.closeAriaLabel"></button>
       <section class="auth-dialog">
         <header>
           <h2 id="auth-title" data-i18n="auth.login">Login</h2>
-          <button class="ghost-button" type="button" data-auth-close data-i18n="auth.close">Close</button>
+          <button class="icon-close" type="button" data-auth-close aria-label="Close authorization" data-i18n-aria-label="auth.closeAriaLabel" title="Close" data-i18n-title="auth.close">
+            <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"></path></svg>
+          </button>
         </header>
 
         <div id="auth-account" class="auth-account" hidden>
@@ -138,9 +144,12 @@
             <span data-i18n="auth.telegramField">Telegram contact</span>
             <input name="telegram" autocomplete="off" placeholder="@username">
           </label>
-          <p id="auth-error" class="auth-error" hidden></p>
-          <button id="auth-submit" class="primary-button" type="submit" data-i18n="auth.login">Login</button>
-          <button id="auth-switch" class="filter-button" type="button" data-i18n="auth.createAccount">Create account</button>
+          <p id="auth-error" class="auth-error" role="alert" hidden></p>
+          <button id="auth-submit" class="primary-button" type="submit" data-i18n="auth.signIn">Sign in</button>
+          <div class="auth-switch-row">
+            <span id="auth-switch-hint" data-i18n="auth.noAccount">No account yet?</span>
+            <button id="auth-switch" class="auth-switch" type="button" data-i18n="auth.createAccount">Create account</button>
+          </div>
         </form>
       </section>
     </div>
