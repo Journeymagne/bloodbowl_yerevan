@@ -968,7 +968,7 @@
 
 .advancement-add-row {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr) auto;
   gap: 6px;
   align-items: center;
 }
@@ -976,7 +976,7 @@
 .table-select {
   width: 100%;
   min-height: 30px;
-  padding: 4px 8px;
+  padding: 4px 2px 4px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
   background: var(--input-bg);
@@ -1117,6 +1117,7 @@
 }
 
 .table-plus-button {
+  justify-content: center;
   width: 34px;
   min-width: 34px;
   min-height: 30px;

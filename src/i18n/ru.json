@@ -188,6 +188,8 @@
   "roster.sppSpent": "SPP потрачено",
   "roster.maxLevel": "Максимальный уровень",
   "roster.noAdvancementsYet": "Пока нет улучшений.",
+  "roster.addAdvancement": "Добавить улучшение",
+  "roster.advancementType": "Тип улучшения",
   "roster.advanceAction": "Прокачка",
   "roster.previewAction": "Превью",
   "builder.subtitle": "Соберите стартовый состав на 600 тыс., нажимая на доступных игроков.",

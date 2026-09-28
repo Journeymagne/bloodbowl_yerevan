@@ -1051,13 +1051,12 @@ function renderPlayerAdvancementControls(team, player) {
   const advancements = normalizePlayerAdvancements(player.advancements);
   const level = playerAdvancementLevel(player);
   const nextRank = advancementRanks[level];
-  const available = playerAvailableSpp(team, player);
   const canAdvance = Boolean(nextRank);
   return `
     <div class="advancement-control">
       ${canAdvance ? `
         <div class="advancement-add-row">
-          <select class="table-select" data-saved-player-advancement-type>
+          <select class="table-select" data-saved-player-advancement-type aria-label="${t("roster.advancementType")}">
             ${Object.entries(advancementTypeLabels).map(([type, label]) => {
     const verdict = canTakeAdvancement(team, player, type);
     return `
@@ -1065,10 +1064,10 @@ function renderPlayerAdvancementControls(team, player) {
             `;
   }).join("")}
           </select>
-          <button class="filter-button compact-action" type="button" data-saved-player-add-advancement>${t("common.add")}</button>
+          <button class="filter-button table-plus-button" type="button" data-saved-player-add-advancement title="${t("roster.addAdvancement")}" aria-label="${t("roster.addAdvancement")}">+</button>
         </div>
-        <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}, ${available} ${t("roster.sppAvailable")}</small>
-      ` : `<span class="muted-text">${t("roster.maxLevel")}</span>`}
+        <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}</small>
+      ` : `<strong class="muted-text">${t("roster.maxLevel")}</strong>`}
       <div class="advancement-list">
         ${advancements.length ? advancements.map((advancement, index) => {
     const cost = advancementRanks[index]?.costs?.[advancement.type] ?? 0;
@@ -1078,7 +1077,7 @@ function renderPlayerAdvancementControls(team, player) {
               ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP x`)}
             </button>
           `;
-  }).join("") : `<span class="muted-text">${t("roster.noAdvancementsYet")}</span>`}
+  }).join("") : `<small class="muted-text"><em>${t("roster.noAdvancementsYet")}</em></small>`}
       </div>
     </div>
   `;
