@@ -627,20 +627,19 @@
   white-space: normal;
 }
 
+.contract-cell {
+  width: 1%;
+}
+
 .player-contract-control {
   display: grid;
   gap: 4px;
-  min-width: 116px;
+  justify-items: center;
 }
 
-.compact-contract-stepper {
-  grid-template-columns: 32px minmax(38px, auto) 32px;
-  min-height: 32px;
-}
-
-.compact-contract-stepper .filter-button {
-  min-height: 32px;
-  padding: 0;
+.player-contract-control .table-stepper {
+  grid-template-columns: 26px minmax(22px, auto) 26px;
+  min-width: 0;
 }
 
 .saved-roster-table tbody tr[draggable="true"] {
@@ -1136,7 +1135,7 @@
   opacity: 0.55;
 }
 
-.table-stat-control {
+.table-stepper {
   display: grid;
   grid-template-columns: 26px minmax(34px, auto) 26px;
   align-items: center;
@@ -1147,7 +1146,7 @@
   background: var(--surface-soft);
 }
 
-.table-stat-control button {
+.table-stepper button {
   min-height: 28px;
   border: 0;
   border-right: 1px solid rgba(85, 69, 51, 0.7);
@@ -1156,18 +1155,24 @@
   cursor: pointer;
 }
 
-.table-stat-control button:hover {
+.table-stepper button:disabled {
+  cursor: default;
+  opacity: 0.45;
+}
+
+.table-stepper button:not(:disabled):hover {
   background: var(--button-bg-hover);
   color: var(--button-text);
 }
 
-.table-stat-control button:last-child {
+.table-stepper button:last-child {
   border-right: 0;
   border-left: 1px solid rgba(85, 69, 51, 0.7);
 }
 
-.table-stat-control strong {
+.table-stepper strong {
   color: var(--text);
+  text-align: center;
 }
 
 .stat-table-cell.stat-up {

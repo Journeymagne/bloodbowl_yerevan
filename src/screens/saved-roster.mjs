@@ -687,7 +687,7 @@ function savedStatColumn(stat) {
       return `stat-table-cell ${mod > 0 ? "stat-up" : mod < 0 ? "stat-down" : ""}`.trim();
     },
     cell: (player) => `
-      <div class="table-stat-control">
+      <div class="table-stepper">
         <button type="button" data-saved-stat="${stat}" data-saved-stat-delta="-1">-</button>
         <strong>${escapeHtml(statValueForDisplayByStat(stat, player.row[stat], Number(player.statMods?.[stat] ?? 0)))}</strong>
         <button type="button" data-saved-stat="${stat}" data-saved-stat-delta="1">+</button>
@@ -780,7 +780,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
       className: "checkbox-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-captain", t("roster.captain"), player.isCaptain),
     },
-    { header: t("roster.extendedContracts"), cell: renderPlayerContractControls },
+    { header: t("roster.extendedContracts"), className: "contract-cell", cell: renderPlayerContractControls },
     { header: "SPP", className: "spp-cell", cell: (player) => renderPlayerSppControls(team, player) },
     { header: t("roster.levelHeader"), className: "level-cell", cell: (player) => renderPlayerLevelCell(team, player) },
     { header: t("roster.advancementHeader"), className: "advancement-cell", cell: (player) => renderPlayerAdvancementControls(team, player) },
@@ -834,10 +834,10 @@ function renderPlayerContractControls(player) {
   const contracts = Math.max(0, countToNumber(player.extendedContracts));
   return `
     <div class="player-contract-control">
-      <div class="inline-stepper-control compact-contract-stepper">
-        <button class="filter-button" type="button" data-saved-player-contract-delta="-1" ${contracts <= 0 ? "disabled" : ""}>-</button>
+      <div class="table-stepper">
+        <button type="button" data-saved-player-contract-delta="-1" ${contracts <= 0 ? "disabled" : ""}>-</button>
         <strong>${contracts}</strong>
-        <button class="filter-button" type="button" data-saved-player-contract-delta="1">+</button>
+        <button type="button" data-saved-player-contract-delta="1">+</button>
       </div>
       ${contracts ? `<small class="cost-note">+${contracts * 20}k</small>` : ""}
     </div>
