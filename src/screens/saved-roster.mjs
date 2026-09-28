@@ -82,7 +82,8 @@ import { toast, toastError } from "../components/toast.mjs";
 import { confirmAction } from "../components/dialog.mjs";
 
 const autosaveDelayMs = 0;
-const REMOVE_ICON = `<svg class="remove-icon" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"/></svg>`;
+const TRASH_ICON = `<svg class="trash-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.8 6.5v4.5M9.2 6.5v4.5"/></svg>`;
+const REMOVE_ICON =`<svg class="remove-icon" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"/></svg>`;
 
 function isSavedRosterPlayerExpanded(playerId) {
   return state.savedRosterUi.expandedPlayers.has(playerId);
@@ -735,7 +736,7 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
           <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
         `).join("")}
       </datalist>
-      <button class="filter-button table-plus-button" type="button" data-saved-player-add-skill title="${t("common.add")}" aria-label="${t("common.add")}">+</button>
+      <button class="filter-button table-icon-button" type="button" data-saved-player-add-skill title="${t("common.add")}" aria-label="${t("common.add")}">+</button>
     </div>
   `;
 }
@@ -794,7 +795,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("sidebar.cost"), cell: renderSavedCostCell },
     {
       header: t("roster.actionHeader"),
-      cell: (player) => `<button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button>`,
+      cell: (player) => `<button class="filter-button table-icon-button danger-icon-button" type="button" data-remove-saved-player="${escapeHtml(player.id)}" title="${t("common.remove")}" aria-label="${t("common.remove")}">${TRASH_ICON}</button>`,
     },
   ];
 }
@@ -826,7 +827,7 @@ function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
         <datalist id="${escapeHtml(inputId)}">
           ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
         </datalist>
-        <button class="filter-button table-plus-button" type="button" data-saved-player-add-favoured title="${t("common.add")}" aria-label="${t("common.add")}" ${!options.length ? "disabled" : ""}>+</button>
+        <button class="filter-button table-icon-button" type="button" data-saved-player-add-favoured title="${t("common.add")}" aria-label="${t("common.add")}" ${!options.length ? "disabled" : ""}>+</button>
       </div>
     </div>
   `;
@@ -1065,7 +1066,7 @@ function renderPlayerAdvancementControls(team, player) {
             `;
   }).join("")}
           </select>
-          <button class="filter-button table-plus-button" type="button" data-saved-player-add-advancement title="${t("common.add")}" aria-label="${t("common.add")}">+</button>
+          <button class="filter-button table-icon-button" type="button" data-saved-player-add-advancement title="${t("common.add")}" aria-label="${t("common.add")}">+</button>
         </div>
         <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}</small>
       ` : `<strong class="muted-text">${t("roster.maxLevel")}</strong>`}
