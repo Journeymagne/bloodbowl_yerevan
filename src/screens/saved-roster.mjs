@@ -735,7 +735,7 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
           <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
         `).join("")}
       </datalist>
-      <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
+      <button class="filter-button table-plus-button" type="button" data-saved-player-add-skill title="${t("common.add")}" aria-label="${t("common.add")}">+</button>
     </div>
   `;
 }
@@ -1065,7 +1065,7 @@ function renderPlayerAdvancementControls(team, player) {
             `;
   }).join("")}
           </select>
-          <button class="filter-button table-plus-button" type="button" data-saved-player-add-advancement title="${t("roster.addAdvancement")}" aria-label="${t("roster.addAdvancement")}">+</button>
+          <button class="filter-button table-plus-button" type="button" data-saved-player-add-advancement title="${t("common.add")}" aria-label="${t("common.add")}">+</button>
         </div>
         <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}</small>
       ` : `<strong class="muted-text">${t("roster.maxLevel")}</strong>`}
