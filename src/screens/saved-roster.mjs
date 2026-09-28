@@ -82,6 +82,7 @@ import { toast, toastError } from "../components/toast.mjs";
 import { confirmAction } from "../components/dialog.mjs";
 
 const autosaveDelayMs = 0;
+const REMOVE_ICON = `<svg class="remove-icon" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"/></svg>`;
 
 function isSavedRosterPlayerExpanded(playerId) {
   return state.savedRosterUi.expandedPlayers.has(playerId);
@@ -713,7 +714,7 @@ function renderSavedSkillsCell(player) {
     ${extraSkills.length ? `
       <div class="player-extra-skills table-extra-skills">
         ${extraSkills.map((skill) => `
-          <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+          <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}${REMOVE_ICON}</button>
         `).join("")}
       </div>
     ` : ""}
@@ -849,7 +850,7 @@ function renderFavouredSkillButtons(player) {
   return `
     <div class="player-extra-skills table-extra-skills favoured-extra-skills">
       ${favouredSkills.map((skill) => `
-        <button class="roster-pill favoured-skill-pill" type="button" data-saved-player-remove-favoured="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+        <button class="roster-pill favoured-skill-pill" type="button" data-saved-player-remove-favoured="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}${REMOVE_ICON}</button>
       `).join("")}
     </div>
   `;
@@ -903,7 +904,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
         <div class="mobile-player-pills">
           ${renderRosterLinks(player.row.skills)}
           ${extraSkills.map((skill) => `
-            <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+            <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}${REMOVE_ICON}</button>
           `).join("")}
           ${renderFavouredSkillButtons(player)}
           ${renderCaptainSkillBadge(player)}
@@ -1074,7 +1075,7 @@ function renderPlayerAdvancementControls(team, player) {
     const label = advancementTypeLabels[advancement.type] ?? advancement.type;
     return `
             <button class="roster-pill advancement-pill" type="button" data-saved-player-remove-advancement="${index}">
-              ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP x`)}
+              ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP`)}${REMOVE_ICON}
             </button>
           `;
   }).join("") : `<small class="muted-text"><em>${t("roster.noAdvancementsYet")}</em></small>`}

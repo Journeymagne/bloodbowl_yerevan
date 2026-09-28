@@ -995,6 +995,23 @@
   cursor: pointer;
 }
 
+.remove-icon {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-left: 6px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  opacity: 0.7;
+}
+
+.roster-pill:hover .remove-icon {
+  stroke: var(--danger);
+  opacity: 1;
+}
+
 .my-teams-table {
   min-width: 720px;
 }
