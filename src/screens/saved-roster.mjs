@@ -743,8 +743,7 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
 function renderSavedPlayerFlag(attribute, label, checked) {
   return `
     <label class="table-checkbox" title="${label}">
-      <input type="checkbox" ${attribute} ${checked ? "checked" : ""}>
-      <span>${label}</span>
+      <input type="checkbox" ${attribute} ${checked ? "checked" : ""} aria-label="${label}">
     </label>
   `;
 }
@@ -767,15 +766,18 @@ function savedColumns(team, draft, hasFavouredAccess) {
     ...PLAYER_STATS.map(savedStatColumn),
     { header: t("roster.skillsLabel"), className: "skills-cell", cell: renderSavedSkillsCell },
     {
-      header: t("roster.skipHeader"),
+      header: t("roster.skipNextGame"),
+      className: "checkbox-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-skip", t("roster.skipNextGame"), player.skipNextGame),
     },
     {
       header: t("roster.niglingInjury"),
+      className: "checkbox-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-nigling", t("roster.niglingInjury"), player.niglingInjury),
     },
     {
       header: t("roster.captain"),
+      className: "checkbox-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-captain", t("roster.captain"), player.isCaptain),
     },
     { header: t("roster.extendedContracts"), cell: renderPlayerContractControls },
