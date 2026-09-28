@@ -826,7 +826,7 @@ function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
         <datalist id="${escapeHtml(inputId)}">
           ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
         </datalist>
-        <button class="filter-button compact-action" type="button" data-saved-player-add-favoured ${!options.length ? "disabled" : ""}>${t("common.add")}</button>
+        <button class="filter-button table-plus-button" type="button" data-saved-player-add-favoured title="${t("common.add")}" aria-label="${t("common.add")}" ${!options.length ? "disabled" : ""}>+</button>
       </div>
     </div>
   `;
