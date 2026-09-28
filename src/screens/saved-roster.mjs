@@ -721,7 +721,7 @@ function renderSavedSkillsCell(player) {
     ` : ""}
     ${renderFavouredSkillButtons(player)}
     ${renderCaptainSkillBadge(player)}
-    ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
+    ${eliteCost ? `<p class="cost-note elite-combo-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
   `;
 }
 

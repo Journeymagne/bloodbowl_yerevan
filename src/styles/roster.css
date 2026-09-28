@@ -627,6 +627,14 @@
   white-space: normal;
 }
 
+.saved-roster-table .skills-cell {
+  min-width: 185px;
+}
+
+.saved-roster-table .elite-combo-note {
+  margin-top: 6px;
+}
+
 .contract-cell {
   width: 1%;
 }
