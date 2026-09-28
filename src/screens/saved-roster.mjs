@@ -730,7 +730,7 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
   const options = availableSkillOptionsForPlayer(player.row, player);
   return `
     <div class="table-skill-editor ${className}">
-      <input class="table-input" type="text" list="${escapeHtml(listId)}" placeholder="${t("roster.skillPlaceholder")}" data-saved-player-skill>
+      <input class="table-input" type="text" list="${escapeHtml(listId)}" placeholder="${t("roster.skillPlaceholder")}" aria-label="${t("roster.addSkillHeader")}" data-saved-player-skill>
       <datalist id="${escapeHtml(listId)}">
         ${options.map((option) => `
           <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
@@ -811,7 +811,7 @@ function renderSavedPlayerList(team, draft) {
       table: "saved-roster-table",
       mobileList: "saved-roster-mobile-list",
     },
-    rowAttributes: (player) => `data-roster-player="${escapeHtml(player.id)}" draggable="true"`,
+    rowAttributes: (player) => `data-roster-player="${escapeHtml(player.id)}" draggable="true"${player.skipNextGame ? ` class="is-skipped"` : ""}`,
     renderCard: (player, index) => renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess),
   });
 }
@@ -823,7 +823,7 @@ function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
     <div class="favoured-skill-editor">
       <small>${escapeHtml(choice)}</small>
       <div class="table-skill-editor">
-        <input class="table-input" type="text" list="${escapeHtml(inputId)}" placeholder="${t("roster.favouredSkillPlaceholder")}" data-saved-player-favoured-skill ${!options.length ? "disabled" : ""}>
+        <input class="table-input" type="text" list="${escapeHtml(inputId)}" placeholder="${t("roster.favouredSkillPlaceholder")}" aria-label="${t("roster.favouredOf")}" data-saved-player-favoured-skill ${!options.length ? "disabled" : ""}>
         <datalist id="${escapeHtml(inputId)}">
           ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
         </datalist>

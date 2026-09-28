@@ -657,6 +657,10 @@
   );
 }
 
+.saved-roster-table tbody tr.is-skipped {
+  opacity: 0.6;
+}
+
 .saved-roster-table tbody tr.is-dragging {
   opacity: 0.5;
 }
