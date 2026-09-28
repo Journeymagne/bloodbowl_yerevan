@@ -642,7 +642,7 @@
 }
 
 .player-contract-control .table-stepper {
-  grid-template-columns: 26px minmax(22px, auto) 26px;
+  grid-template-columns: 21px minmax(22px, auto) 21px;
   min-width: 0;
 }
 
@@ -1175,10 +1175,10 @@
 
 .table-stepper {
   display: grid;
-  grid-template-columns: 26px minmax(34px, auto) 26px;
+  grid-template-columns: 21px minmax(34px, auto) 21px;
   align-items: center;
   overflow: hidden;
-  min-width: 86px;
+  min-width: 76px;
   border: 1px solid rgba(85, 69, 51, 0.7);
   border-radius: 6px;
   background: var(--surface-soft);
@@ -1186,6 +1186,7 @@
 
 .table-stepper button {
   min-height: 28px;
+  padding: 0;
   border: 0;
   border-right: 1px solid rgba(85, 69, 51, 0.7);
   background: var(--button-bg);
