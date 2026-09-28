@@ -619,10 +619,6 @@
   min-width: 940px;
 }
 
-.saved-roster-table {
-  min-width: 2160px;
-}
-
 .saved-roster-table th {
   white-space: normal;
 }
@@ -652,6 +648,13 @@
 
 .saved-roster-table tbody tr[draggable="true"] {
   transition: background 0.14s ease, opacity 0.14s ease;
+}
+
+.saved-roster-table tbody tr:hover > td {
+  background-image: linear-gradient(
+    color-mix(in srgb, var(--focus) 6%, transparent),
+    color-mix(in srgb, var(--focus) 6%, transparent)
+  );
 }
 
 .saved-roster-table tbody tr.is-dragging {
@@ -1161,7 +1164,7 @@
   stroke-linejoin: round;
 }
 
-.danger-icon-button:hover {
+.danger-icon-button:not(:disabled):hover {
   border-color: var(--danger);
   color: var(--danger);
 }
