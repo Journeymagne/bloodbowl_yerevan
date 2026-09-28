@@ -605,10 +605,6 @@
   min-width: 190px;
 }
 
-.compact-roster-table .checkbox-cell {
-  width: 1%;
-}
-
 .compact-roster-table .roster-pill {
   min-height: 24px;
   padding: 0 8px;
@@ -629,10 +625,6 @@
 
 .saved-roster-table .elite-combo-note {
   margin-top: 6px;
-}
-
-.contract-cell {
-  width: 1%;
 }
 
 .player-contract-control {
@@ -682,7 +674,7 @@
   cursor: grabbing;
 }
 
-.saved-number-cell {
+.fit-cell {
   width: 1%;
   white-space: nowrap;
 }
@@ -704,10 +696,13 @@
 }
 
 .table-number-input {
+  text-align: center;
+}
+
+.saved-roster-table .table-number-input {
   width: 30px;
   min-width: 30px;
   padding-inline: 2px;
-  text-align: center;
 }
 
 .saved-roster-mobile-list {
@@ -964,10 +959,6 @@
 .advancement-control {
   display: grid;
   gap: 5px;
-}
-
-.player-level-stack strong {
-  color: var(--text);
 }
 
 .player-level-stack .player-available-spp {

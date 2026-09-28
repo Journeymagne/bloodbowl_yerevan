@@ -701,7 +701,7 @@ function savedStatColumn(stat) {
 function renderSavedNumberCell(player, index) {
   return `
     <div class="saved-number-control">
-      <button class="filter-button compact-action drag-handle table-drag-handle" type="button" draggable="true" data-player-drag-handle title="${t("roster.dragToReorder")}" aria-label="${t("roster.dragToReorder")}">↕</button>
+      <button class="filter-button drag-handle table-drag-handle" type="button" draggable="true" data-player-drag-handle title="${t("roster.dragToReorder")}" aria-label="${t("roster.dragToReorder")}">↕</button>
       <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
     </div>
   `;
@@ -736,7 +736,7 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
           <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
         `).join("")}
       </datalist>
-      <button class="filter-button table-icon-button" type="button" data-saved-player-add-skill title="${t("common.add")}" aria-label="${t("common.add")}">+</button>
+      <button class="filter-button table-icon-button" type="button" data-saved-player-add-skill title="${t("common.add")}">+</button>
     </div>
   `;
 }
@@ -759,7 +759,7 @@ function renderSavedCostCell(player) {
 /** The league editor's columns, declared once and read by both header and body. */
 function savedColumns(team, draft, hasFavouredAccess) {
   return [
-    { header: "#", className: "saved-number-cell", cell: renderSavedNumberCell },
+    { header: "#", className: "fit-cell", cell: renderSavedNumberCell },
     {
       header: t("roster.nameHeader"),
       cell: (player, index) => `<input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>`,
@@ -769,20 +769,20 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("roster.skillsLabel"), className: "skills-cell", cell: renderSavedSkillsCell },
     {
       header: t("roster.skipNextGame"),
-      className: "checkbox-cell",
+      className: "fit-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-skip", t("roster.skipNextGame"), player.skipNextGame),
     },
     {
       header: t("roster.niglingInjury"),
-      className: "checkbox-cell",
+      className: "fit-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-nigling", t("roster.niglingInjury"), player.niglingInjury),
     },
     {
       header: t("roster.captain"),
-      className: "checkbox-cell",
+      className: "fit-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-captain", t("roster.captain"), player.isCaptain),
     },
-    { header: t("roster.extendedContracts"), className: "contract-cell", cell: renderPlayerContractControls },
+    { header: t("roster.extendedContracts"), className: "fit-cell", cell: renderPlayerContractControls },
     { header: "SPP", className: "spp-cell", cell: (player) => renderPlayerSppControls(team, player) },
     { header: t("roster.levelHeader"), className: "level-cell", cell: (player) => renderPlayerLevelCell(team, player) },
     { header: t("roster.advancementHeader"), className: "advancement-cell", cell: (player) => renderPlayerAdvancementControls(team, player) },
@@ -795,7 +795,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("sidebar.cost"), cell: renderSavedCostCell },
     {
       header: t("roster.actionHeader"),
-      cell: (player) => `<button class="filter-button table-icon-button danger-icon-button" type="button" data-remove-saved-player="${escapeHtml(player.id)}" title="${t("common.remove")}" aria-label="${t("common.remove")}">${TRASH_ICON}</button>`,
+      cell: (player) => `<button class="filter-button table-icon-button danger-icon-button" type="button" data-remove-saved-player="${escapeHtml(player.id)}" title="${t("common.remove")}">${TRASH_ICON}</button>`,
     },
   ];
 }
@@ -827,7 +827,7 @@ function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
         <datalist id="${escapeHtml(inputId)}">
           ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
         </datalist>
-        <button class="filter-button table-icon-button" type="button" data-saved-player-add-favoured title="${t("common.add")}" aria-label="${t("common.add")}" ${!options.length ? "disabled" : ""}>+</button>
+        <button class="filter-button table-icon-button" type="button" data-saved-player-add-favoured title="${t("common.add")}" ${!options.length ? "disabled" : ""}>+</button>
       </div>
     </div>
   `;
@@ -1066,7 +1066,7 @@ function renderPlayerAdvancementControls(team, player) {
             `;
   }).join("")}
           </select>
-          <button class="filter-button table-icon-button" type="button" data-saved-player-add-advancement title="${t("common.add")}" aria-label="${t("common.add")}">+</button>
+          <button class="filter-button table-icon-button" type="button" data-saved-player-add-advancement title="${t("common.add")}">+</button>
         </div>
         <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}</small>
       ` : `<strong class="muted-text">${t("roster.maxLevel")}</strong>`}
