@@ -945,13 +945,6 @@
   font-weight: 800;
 }
 
-.spp-total {
-  display: block;
-  margin-top: 6px;
-  color: var(--focus);
-  font-size: 0.75rem;
-}
-
 .player-level-stack,
 .advancement-control {
   display: grid;
@@ -959,13 +952,14 @@
 }
 
 .player-level-stack strong {
-  color: var(--focus);
-  font-size: 1.125rem;
-  line-height: 1;
+  color: var(--text);
 }
 
-.player-level-stack span,
-.player-level-stack small,
+.player-level-stack .player-available-spp {
+  color: var(--focus);
+  font-weight: 800;
+}
+
 .advancement-next {
   color: var(--muted);
   font-size: 0.6875rem;

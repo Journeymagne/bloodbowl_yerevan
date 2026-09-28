@@ -1034,17 +1034,16 @@ function renderPlayerSppControls(team, player) {
         </label>
       `).join("")}
     </div>
-    <strong class="spp-total" data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</strong>
   `;
 }
 function renderPlayerLevelCell(team, player) {
   const level = playerAdvancementLevel(player);
   return `
     <div class="player-level-stack">
-      <strong>${level}</strong>
-      <span>${escapeHtml(playerLevelRank(player))}</span>
+      <strong>${level} (${escapeHtml(playerLevelRank(player))})</strong>
+      <small data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</small>
       <small data-player-spent-spp>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small>
-      <small data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
+      <small class="player-available-spp" data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
     </div>
   `;
 }
