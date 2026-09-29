@@ -886,7 +886,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
         </div>
         <div class="mobile-card-actions">
           <button class="filter-button compact-action" type="button" data-saved-player-collapse="${escapeHtml(player.id)}">${t("roster.previewAction")}</button>
-          <button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button>
+          ${iconButton({ icon: "trash", tone: "danger", title: t("common.remove"), attributes: `data-remove-saved-player="${escapeHtml(player.id)}"` })}
         </div>
       </header>
 

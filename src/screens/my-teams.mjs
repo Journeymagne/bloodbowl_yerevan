@@ -156,8 +156,8 @@ function renderSavedTeamCard(team) {
         <div><dt>${t("footer.updated")}</dt><dd>${escapeHtml(updated)}</dd></div>
       </dl>
       <div class="saved-team-actions">
-        <a class="primary-button compact-action" href="#/my-teams/${encodeURIComponent(team.id)}">${t("common.edit")}</a>
-        <button class="filter-button compact-action danger-action" type="button" data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}">${t("common.delete")}</button>
+        ${iconButton({ icon: "edit", title: t("common.edit"), href: `#/my-teams/${encodeURIComponent(team.id)}` })}
+        ${iconButton({ icon: "trash", tone: "danger", title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
       </div>
     </article>
   `;

@@ -15,6 +15,7 @@
 import { escapeHtml, renderOption } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { renderTeamRuleAccess } from "../roster-editor-shared.mjs";
+import { iconButton } from "../icons.mjs";
 
 /**
  * @param {object} options
@@ -45,7 +46,7 @@ export function renderIdentityFields({ team, draft, teams, mode }) {
     ${draft.logoData ? `
       <div class="builder-logo-inline roster-logo-inline">
         <img class="builder-logo-preview" src="${escapeHtml(draft.logoData)}" alt="">
-        <button class="filter-button compact-action" type="button" data-${attribute}-remove-logo>${t("savedRoster.removeLogo")}</button>
+        ${iconButton({ icon: "trash", tone: "danger", title: t("savedRoster.removeLogo"), attributes: `data-${attribute}-remove-logo` })}
       </div>
     ` : ""}
     ${renderTeamRuleAccess(team, draft, attribute)}

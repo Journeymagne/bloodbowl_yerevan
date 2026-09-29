@@ -35,7 +35,7 @@ export async function renderAdministration() {
   setActiveNav("administration");
   setViewSection("administration");
   view.innerHTML = `
-    ${renderHeader(t("nav.administration"), t("admin.subtitle"), `<button class="primary-button" type="button" data-admin-refresh>${t("admin.refresh")}</button>`)}
+    ${renderHeader(t("nav.administration"), t("admin.subtitle"), iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-admin-refresh" }))}
     <div class="loading">${t("admin.loadingPlayers")}</div>
   `;
 
@@ -58,7 +58,7 @@ export async function renderAdministration() {
   await loadAdminUsers(true);
   if (state.admin.error) {
     view.innerHTML = `
-      ${renderHeader(t("nav.administration"), t("admin.subtitle"), `<button class="primary-button" type="button" data-admin-refresh>${t("admin.refresh")}</button>`)}
+      ${renderHeader(t("nav.administration"), t("admin.subtitle"), iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-admin-refresh" }))}
       <div class="empty-state">${escapeHtml(state.admin.error)}</div>
     `;
     wireAdministration();
@@ -66,7 +66,7 @@ export async function renderAdministration() {
   }
 
   view.innerHTML = `
-    ${renderHeader(t("nav.administration"), t("admin.subtitle"), `<button class="primary-button" type="button" data-admin-refresh>${t("admin.refresh")}</button>`)}
+    ${renderHeader(t("nav.administration"), t("admin.subtitle"), iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-admin-refresh" }))}
     ${renderAdminUsersTable(state.admin.users)}
   `;
   wireAdministration();

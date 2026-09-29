@@ -763,8 +763,13 @@
   width: auto;
   min-width: 74px;
   min-height: 34px;
-  border-color: color-mix(in srgb, var(--danger) 68%, var(--button-border));
-  color: var(--text);
+}
+
+.mobile-roster-player-card .table-icon-button,
+.saved-team-actions .table-icon-button {
+  width: 40px;
+  min-width: 40px;
+  min-height: 36px;
 }
 
 .mobile-roster-player-card.is-preview {

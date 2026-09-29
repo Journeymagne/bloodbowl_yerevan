@@ -20,6 +20,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { seasonTabUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
+import { iconButton } from "../../components/icons.mjs";
 import { renderSeasonRegistration, wireRegistration } from "./registration.mjs";
 import { renderLeagueFixture } from "./fixture.mjs";
 import { renderSeasonStandings } from "./standings.mjs";
@@ -107,7 +108,7 @@ export async function renderSeason(refresh = true, tab = "") {
   setViewSection("season");
   if (refresh) {
     view.innerHTML = `
-      ${renderHeader(t("nav.season"), t("season.subtitle"), `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
+      ${renderHeader(t("nav.season"), t("season.subtitle"), iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-season-refresh" }))}
       <div class="loading">${t("season.loading")}</div>
     `;
   }
@@ -119,7 +120,7 @@ export async function renderSeason(refresh = true, tab = "") {
 
   if (state.season.error) {
     view.innerHTML = `
-      ${renderHeader(t("nav.season"), t("season.subtitle"), `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
+      ${renderHeader(t("nav.season"), t("season.subtitle"), iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-season-refresh" }))}
       <div class="empty-state">${escapeHtml(state.season.error)}</div>
     `;
     wireSeason(activeTab);
@@ -128,7 +129,7 @@ export async function renderSeason(refresh = true, tab = "") {
 
   const data = state.season.data ?? {};
   view.innerHTML = `
-    ${renderHeader(t("nav.season"), `${data.season?.name ?? t("season.defaultName")} · ${t("season.swissPairingControl")}`, `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
+    ${renderHeader(t("nav.season"), `${data.season?.name ?? t("season.defaultName")} · ${t("season.swissPairingControl")}`, iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-season-refresh" }))}
     ${renderSeasonTabs(activeTab)}
     ${renderSeasonPanel(data, activeTab)}
   `;
