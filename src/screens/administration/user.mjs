@@ -301,8 +301,8 @@ function renderAdminSavedTeamRow(team, owner = null) {
       <td>
         ${state.auth.currentUser?.isAdmin && teamOwner ? `
           <div class="table-actions">
-            ${iconButton({ icon: "edit", title: t("common.edit"), href: adminTeamEditUrl(teamOwner, team) })}
-            ${iconButton({ icon: "trash", tone: "danger", title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(teamOwner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
+            ${iconButton("edit", { href: adminTeamEditUrl(teamOwner, team) })}
+            ${iconButton("trash", { title: t("common.delete"), attributes:`data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(teamOwner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
           </div>
         ` : `<span class="muted-text">-</span>`}
       </td>

@@ -163,7 +163,7 @@ function builderColumns() {
     { header: t("sidebar.cost"), cell: (player) => escapeHtml(rowCost(player.row) || "-") },
     {
       header: t("roster.actionHeader"),
-      cell: (player) => iconButton({ icon: "trash", tone: "danger", title: t("common.remove"), attributes: `data-remove-player="${escapeHtml(player.id)}"` }),
+      cell: (player) => iconButton("trash", { attributes:`data-remove-player="${escapeHtml(player.id)}"` }),
     },
   ];
 }
@@ -216,7 +216,7 @@ function renderBuilderPlayerCard(player, index) {
           <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-builder-player-name="${escapeHtml(player.id)}">
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}</small>
         </div>
-        ${iconButton({ icon: "trash", tone: "danger", title: t("common.remove"), attributes: `data-remove-player="${escapeHtml(player.id)}"` })}
+        ${iconButton("trash", { attributes:`data-remove-player="${escapeHtml(player.id)}"` })}
       </header>
       <section class="mobile-player-section">
         <h3>${t("roster.statsLabel")}</h3>

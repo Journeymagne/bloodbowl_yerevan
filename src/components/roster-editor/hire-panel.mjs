@@ -79,11 +79,7 @@ function hireFields(row, rowIndex, draft, mode, verdict) {
     overBudget: verdict.reason === "budget",
     blocked: verdict.blocked,
     button: (className) => hireButton(rowIndex, mode, verdict, className),
-    iconButton: () => iconButton({
-      icon: "plus",
-      title: verdict.blocked ? verdict.title : t("common.add"),
-      attributes: hireAttributes(rowIndex, mode, verdict),
-    }),
+    iconButton: () => iconButton("plus", { title: verdict.title, attributes: hireAttributes(rowIndex, mode, verdict) }),
   };
 }
 

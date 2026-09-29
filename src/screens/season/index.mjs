@@ -108,7 +108,7 @@ export async function renderSeason(refresh = true, tab = "") {
   setViewSection("season");
   if (refresh) {
     view.innerHTML = `
-      ${renderHeader(t("nav.season"), t("season.subtitle"), iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-season-refresh" }))}
+      ${renderHeader(t("nav.season"), t("season.subtitle"), iconButton("refresh", { attributes: "data-season-refresh" }))}
       <div class="loading">${t("season.loading")}</div>
     `;
   }
@@ -120,7 +120,7 @@ export async function renderSeason(refresh = true, tab = "") {
 
   if (state.season.error) {
     view.innerHTML = `
-      ${renderHeader(t("nav.season"), t("season.subtitle"), iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-season-refresh" }))}
+      ${renderHeader(t("nav.season"), t("season.subtitle"), iconButton("refresh", { attributes: "data-season-refresh" }))}
       <div class="empty-state">${escapeHtml(state.season.error)}</div>
     `;
     wireSeason(activeTab);
@@ -129,7 +129,7 @@ export async function renderSeason(refresh = true, tab = "") {
 
   const data = state.season.data ?? {};
   view.innerHTML = `
-    ${renderHeader(t("nav.season"), `${data.season?.name ?? t("season.defaultName")} · ${t("season.swissPairingControl")}`, iconButton({ icon: "refresh", title: t("admin.refresh"), attributes: "data-season-refresh" }))}
+    ${renderHeader(t("nav.season"), `${data.season?.name ?? t("season.defaultName")} · ${t("season.swissPairingControl")}`, iconButton("refresh", { attributes: "data-season-refresh" }))}
     ${renderSeasonTabs(activeTab)}
     ${renderSeasonPanel(data, activeTab)}
   `;

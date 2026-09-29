@@ -46,7 +46,7 @@ export function renderIdentityFields({ team, draft, teams, mode }) {
     ${draft.logoData ? `
       <div class="builder-logo-inline roster-logo-inline">
         <img class="builder-logo-preview" src="${escapeHtml(draft.logoData)}" alt="">
-        ${iconButton({ icon: "trash", tone: "danger", title: t("savedRoster.removeLogo"), attributes: `data-${attribute}-remove-logo` })}
+        ${iconButton("trash", { title: t("savedRoster.removeLogo"), attributes:`data-${attribute}-remove-logo` })}
       </div>
     ` : ""}
     ${renderTeamRuleAccess(team, draft, attribute)}

@@ -735,7 +735,7 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
           <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
         `).join("")}
       </datalist>
-      ${iconButton({ icon: "plus", title: t("common.add"), attributes: "data-saved-player-add-skill" })}
+      ${iconButton("plus", { attributes:"data-saved-player-add-skill" })}
     </div>
   `;
 }
@@ -790,7 +790,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("sidebar.cost"), cell: renderSavedCostCell },
     {
       header: t("roster.actionHeader"),
-      cell: (player) => iconButton({ icon: "trash", tone: "danger", title: t("common.remove"), attributes: `data-remove-saved-player="${escapeHtml(player.id)}"` }),
+      cell: (player) => iconButton("trash", { attributes:`data-remove-saved-player="${escapeHtml(player.id)}"` }),
     },
   ];
 }
@@ -822,7 +822,7 @@ function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
         <datalist id="${escapeHtml(inputId)}">
           ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
         </datalist>
-        ${iconButton({ icon: "plus", title: t("common.add"), attributes: `data-saved-player-add-favoured ${!options.length ? "disabled" : ""}` })}
+        ${iconButton("plus", { attributes:`data-saved-player-add-favoured ${!options.length ? "disabled" : ""}` })}
       </div>
     </div>
   `;
@@ -886,7 +886,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
         </div>
         <div class="mobile-card-actions">
           <button class="filter-button compact-action" type="button" data-saved-player-collapse="${escapeHtml(player.id)}">${t("roster.previewAction")}</button>
-          ${iconButton({ icon: "trash", tone: "danger", title: t("common.remove"), attributes: `data-remove-saved-player="${escapeHtml(player.id)}"` })}
+          ${iconButton("trash", { attributes:`data-remove-saved-player="${escapeHtml(player.id)}"` })}
         </div>
       </header>
 
@@ -1061,7 +1061,7 @@ function renderPlayerAdvancementControls(team, player) {
             `;
   }).join("")}
           </select>
-          ${iconButton({ icon: "plus", title: t("common.add"), attributes: "data-saved-player-add-advancement" })}
+          ${iconButton("plus", { attributes:"data-saved-player-add-advancement" })}
         </div>
         <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}</small>
       ` : `<strong class="muted-text">${t("roster.maxLevel")}</strong>`}

@@ -113,8 +113,8 @@ function renderPublicProfileTeamRow(user, team) {
       ${canManageProfileTeams(user) ? `
         <td>
           <div class="table-actions">
-            ${iconButton({ icon: "edit", title: t("common.edit"), href: state.auth.currentUser?.isAdmin ? adminTeamEditUrl(user, team) : `#/my-teams/${encodeURIComponent(team.id)}` })}
-            ${iconButton({ icon: "trash", tone: "danger", title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(user.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
+            ${iconButton("edit", { href:state.auth.currentUser?.isAdmin ? adminTeamEditUrl(user, team) : `#/my-teams/${encodeURIComponent(team.id)}` })}
+            ${iconButton("trash", { title: t("common.delete"), attributes:`data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(user.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
           </div>
         </td>
       ` : ""}
