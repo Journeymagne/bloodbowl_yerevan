@@ -14,6 +14,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { renderPlayerLink } from "../../components/content-links.mjs";
+import { iconButton } from "../../components/icons.mjs";
 import { seasonTeamProfileLink, seasonTeamRulesLink } from "./season-links.mjs";
 import { replaceSeasonData } from "./season-data.mjs";
 import { toastError } from "../../components/toast.mjs";
@@ -122,7 +123,7 @@ export function renderSeasonEntriesTable(data, adminActions = false) {
               <td>${renderPlayerLink(entry.user)}</td>
               <td><strong>${seasonTeamProfileLink(entry)}</strong></td>
               <td>${seasonTeamRulesLink(entry)}</td>
-              ${adminActions ? `<td><button class="filter-button compact-action" type="button" data-season-remove-entry="${escapeHtml(entry.id)}">${t("common.remove")}</button></td>` : ""}
+              ${adminActions ? `<td>${iconButton({ icon: "trash", tone: "danger", title: t("common.remove"), attributes: `data-season-remove-entry="${escapeHtml(entry.id)}"` })}</td>` : ""}
             </tr>
           `).join("")}
         </tbody>

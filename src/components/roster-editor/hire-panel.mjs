@@ -32,6 +32,7 @@ import { calculateRosterCosts, spendTreasury } from "../../domain/roster/costs.m
 import { canAddRowToDraft, makeRosterPlayer, rowCountInPlayers, syncRosterCountsFromPlayers } from "../../domain/roster/players.mjs";
 import { costToNumber, rosterMax, rowCost, rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderRosterLinks } from "../content-links.mjs";
+import { iconButton } from "../icons.mjs";
 import { renderAccessCell, renderRosterStatCells } from "../roster-editor-shared.mjs";
 import { renderRosterStatGrid } from "../../screens/detail.mjs";
 import { toast } from "../toast.mjs";
@@ -78,7 +79,16 @@ function hireFields(row, rowIndex, draft, mode, verdict) {
     overBudget: verdict.reason === "budget",
     blocked: verdict.blocked,
     button: (className) => hireButton(rowIndex, mode, verdict, className),
+    iconButton: () => iconButton({
+      icon: "plus",
+      title: verdict.blocked ? verdict.title : t("common.add"),
+      attributes: hireAttributes(rowIndex, mode, verdict),
+    }),
   };
+}
+
+function hireAttributes(rowIndex, mode, verdict) {
+  return `data-${mode.hireAttribute}="${rowIndex}"${verdict.blocked ? ` aria-disabled="true"` : ""}`;
 }
 
 /**
@@ -88,14 +98,8 @@ function hireFields(row, rowIndex, draft, mode, verdict) {
  * still reads as unavailable to a screen reader, and a click says why.
  */
 function hireButton(rowIndex, mode, verdict, className) {
-  const attributes = [
-    `class="primary-button ${className}"`,
-    `type="button"`,
-    `data-${mode.hireAttribute}="${rowIndex}"`,
-    verdict.blocked ? `aria-disabled="true"` : "",
-    verdict.blocked ? `title="${escapeHtml(verdict.title)}"` : "",
-  ].filter(Boolean).join(" ");
-  return `<button ${attributes}>+</button>`;
+  const title = verdict.blocked ? ` title="${escapeHtml(verdict.title)}"` : "";
+  return `<button class="primary-button ${className}" type="button" ${hireAttributes(rowIndex, mode, verdict)}${title}>+</button>`;
 }
 
 export function renderHirePanel(team, draft, mode) {
@@ -137,7 +141,7 @@ export function renderHirePanel(team, draft, mode) {
                 <td>${field.secondary}</td>
                 <td>${field.cost}</td>
                 <td>${field.taken}${field.overBudget ? `<span class="danger-text"> ${t("builder.overBudget")}</span>` : ""}</td>
-                <td>${field.button("table-icon-button")}</td>
+                <td>${field.iconButton()}</td>
               </tr>
             `;
           }).join("")}

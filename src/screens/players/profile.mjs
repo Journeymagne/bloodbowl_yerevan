@@ -17,6 +17,7 @@ import { ensureDraftPlayers } from "../../domain/roster/players.mjs";
 import { calculateRosterCosts } from "../../domain/roster/costs.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPublicTeamLink } from "../../components/content-links.mjs";
+import { iconButton } from "../../components/icons.mjs";
 import { normalizeSavedRoster } from "../../data/roster-draft.mjs";
 import { wireTeamDeleteButtons } from "../my-teams.mjs";
 import {
@@ -112,8 +113,8 @@ function renderPublicProfileTeamRow(user, team) {
       ${canManageProfileTeams(user) ? `
         <td>
           <div class="table-actions">
-            ${state.auth.currentUser?.isAdmin ? `<a class="primary-button compact-action" href="${adminTeamEditUrl(user, team)}">${t("common.edit")}</a>` : `<a class="primary-button compact-action" href="#/my-teams/${encodeURIComponent(team.id)}">${t("common.edit")}</a>`}
-            <button class="filter-button compact-action danger-action" type="button" data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(user.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}">${t("common.delete")}</button>
+            ${iconButton({ icon: "edit", title: t("common.edit"), href: state.auth.currentUser?.isAdmin ? adminTeamEditUrl(user, team) : `#/my-teams/${encodeURIComponent(team.id)}` })}
+            ${iconButton({ icon: "trash", tone: "danger", title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(user.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
           </div>
         </td>
       ` : ""}

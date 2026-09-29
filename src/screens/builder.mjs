@@ -38,6 +38,7 @@ import { confirmRaceChange, restoreTeamSelect } from "../components/roster-edito
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
+import { iconButton } from "../components/icons.mjs";
 import {
   ensureDraftLeagueChoice,
   rosterWarnings,
@@ -162,7 +163,7 @@ function builderColumns() {
     { header: t("sidebar.cost"), cell: (player) => escapeHtml(rowCost(player.row) || "-") },
     {
       header: t("roster.actionHeader"),
-      cell: (player) => `<button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">${t("common.remove")}</button>`,
+      cell: (player) => iconButton({ icon: "trash", tone: "danger", title: t("common.remove"), attributes: `data-remove-player="${escapeHtml(player.id)}"` }),
     },
   ];
 }

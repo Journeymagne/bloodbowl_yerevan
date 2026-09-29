@@ -22,6 +22,7 @@ import { renderPublicTeamLink } from "../components/content-links.mjs";
 import { normalizeSavedRoster, resetBuilderForTeam } from "../data/roster-draft.mjs";
 import { toastError } from "../components/toast.mjs";
 import { confirmAction } from "../components/dialog.mjs";
+import { iconButton } from "../components/icons.mjs";
 
 export async function loadMyTeams(force = false) {
   if (!state.auth.currentUser) {
@@ -121,8 +122,8 @@ function renderSavedTeamRow(team) {
       <td>${escapeHtml(updated)}</td>
       <td>
         <div class="table-actions">
-          <a class="primary-button compact-action" href="#/my-teams/${encodeURIComponent(team.id)}">${t("common.edit")}</a>
-          <button class="filter-button compact-action danger-action" type="button" data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}">${t("common.delete")}</button>
+          ${iconButton({ icon: "edit", title: t("common.edit"), href: `#/my-teams/${encodeURIComponent(team.id)}` })}
+          ${iconButton({ icon: "trash", tone: "danger", title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
         </div>
       </td>
     </tr>

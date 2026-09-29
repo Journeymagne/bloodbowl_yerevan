@@ -1145,11 +1145,9 @@
   min-width: 34px;
   min-height: 30px;
   padding: 0;
-  font-size: 1.125rem;
-  line-height: 1;
 }
 
-.trash-icon {
+.button-icon {
   width: 15px;
   height: 15px;
   fill: none;
@@ -1157,6 +1155,21 @@
   stroke-width: 1.4;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.accent-icon-button {
+  border-color: color-mix(in srgb, var(--focus) 50%, var(--button-border));
+  color: var(--focus);
+}
+
+.danger-icon-button {
+  border-color: color-mix(in srgb, var(--danger) 50%, var(--button-border));
+  color: var(--danger);
+}
+
+.accent-icon-button:not(:disabled):hover {
+  border-color: var(--focus);
+  color: var(--focus);
 }
 
 .danger-icon-button:not(:disabled):hover {
