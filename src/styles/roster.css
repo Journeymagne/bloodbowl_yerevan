@@ -679,6 +679,10 @@
   white-space: nowrap;
 }
 
+.center-cell {
+  text-align: center;
+}
+
 .saved-number-control {
   display: flex;
   align-items: center;
@@ -687,11 +691,11 @@
 
 .table-drag-handle {
   justify-content: center;
-  width: 30px;
-  min-width: 30px;
+  width: 25px;
+  min-width: 25px;
   min-height: 32px;
   padding: 0;
-  font-size: 1rem;
+  font-size: 0.8rem;
   line-height: 1;
 }
 
@@ -700,8 +704,8 @@
 }
 
 .saved-roster-table .table-number-input {
-  width: 30px;
-  min-width: 30px;
+  width: 40px;
+  min-width: 40px;
   padding-inline: 2px;
 }
 
@@ -920,11 +924,21 @@
 }
 
 .level-cell {
-  min-width: 120px;
+  width: 1%;
 }
 
-.advancement-cell {
-  min-width: 260px;
+.level-cell .player-level-stack {
+  width: 100px;
+}
+
+.advancement-cell,
+.skill-editor-cell,
+.favoured-skill-cell {
+  min-width: 220px;
+}
+
+.saved-roster-table .table-skill-editor {
+  min-width: 0;
 }
 
 .spp-counter-grid {
@@ -963,9 +977,9 @@
 
 .player-level-stack .player-available-spp {
   color: var(--focus);
-  font-weight: 800;
 }
 
+.player-level-stack small,
 .advancement-next {
   color: var(--muted);
   font-size: 0.6875rem;
@@ -982,10 +996,17 @@
 .table-select {
   width: 100%;
   min-height: 30px;
-  padding: 4px 2px 4px 8px;
+  padding: 4px 24px 4px 8px;
   border: 1px solid var(--line);
   border-radius: 6px;
-  background: var(--input-bg);
+  appearance: none;
+  background-color: var(--input-bg);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
   color: var(--text);
   font: inherit;
   font-weight: 800;
@@ -1112,10 +1133,6 @@
 
 .table-skill-editor .table-input {
   min-width: 125px;
-}
-
-.favoured-skill-cell {
-  min-width: 220px;
 }
 
 .favoured-skill-editor {

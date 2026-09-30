@@ -769,24 +769,24 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("roster.skillsLabel"), className: "skills-cell", cell: renderSavedSkillsCell },
     {
       header: t("roster.skipNextGame"),
-      className: "fit-cell",
+      className: "fit-cell center-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-skip", t("roster.skipNextGame"), player.skipNextGame),
     },
     {
       header: t("roster.niglingInjury"),
-      className: "fit-cell",
+      className: "fit-cell center-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-nigling", t("roster.niglingInjury"), player.niglingInjury),
     },
     {
       header: t("roster.captain"),
-      className: "fit-cell",
+      className: "fit-cell center-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-captain", t("roster.captain"), player.isCaptain),
     },
     { header: t("roster.extendedContracts"), className: "fit-cell", cell: renderPlayerContractControls },
     { header: "SPP", className: "spp-cell", cell: (player) => renderPlayerSppControls(team, player) },
     { header: t("roster.levelHeader"), className: "level-cell", cell: (player) => renderPlayerLevelCell(team, player) },
     { header: t("roster.advancementHeader"), className: "advancement-cell", cell: (player) => renderPlayerAdvancementControls(team, player) },
-    { header: t("roster.addSkillHeader"), cell: renderSavedSkillEditor },
+    { header: t("roster.addSkillHeader"), className: "skill-editor-cell", cell: renderSavedSkillEditor },
     hasFavouredAccess && {
       header: t("roster.favouredOf"),
       className: "favoured-skill-cell",
@@ -795,6 +795,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("sidebar.cost"), cell: renderSavedCostCell },
     {
       header: t("roster.actionHeader"),
+      className: "center-cell",
       cell: (player) => `<button class="filter-button table-icon-button danger-icon-button" type="button" data-remove-saved-player="${escapeHtml(player.id)}" title="${t("common.remove")}">${TRASH_ICON}</button>`,
     },
   ];
