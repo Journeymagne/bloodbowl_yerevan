@@ -15,7 +15,7 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { adminTeamEditUrl, playerTeamUrl, playerUrl } from "../../core/routes.mjs";
 import { countToNumber, statValueForDisplayByStat } from "../../domain/roster/values.mjs";
 import { hasBribery } from "../../domain/roster/team-rules.mjs";
-import { ensureDraftPlayers, selectedRosterPlayers, skillNamesForPlayer } from "../../domain/roster/players.mjs";
+import { ensureDraftPlayers, favouredSkillNames, selectedRosterPlayers, skillNamesForPlayer } from "../../domain/roster/players.mjs";
 import { calculateRosterCosts, playerCurrentCost } from "../../domain/roster/costs.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPlayerLink, renderRosterLinks } from "../../components/content-links.mjs";
@@ -130,7 +130,7 @@ function renderPublicTeamRosterTable(team, draft) {
               <td>${escapeHtml(statValueForDisplayByStat("ag", player.row.ag, player.statMods.ag ?? 0))}</td>
               <td>${escapeHtml(statValueForDisplayByStat("pa", player.row.pa, player.statMods.pa ?? 0))}</td>
               <td>${escapeHtml(statValueForDisplayByStat("ar", player.row.ar, player.statMods.ar ?? 0))}</td>
-              <td class="skills-cell">${renderRosterLinks(skillNamesForPlayer(player.row, player))}</td>
+              <td class="skills-cell">${renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player))}</td>
               <td>${playerCurrentCost(player.row, player, true)}k</td>
               <td>${escapeHtml(playerStatusText(player))}</td>
             </tr>

@@ -605,8 +605,18 @@
   min-width: 190px;
 }
 
+.skills-cell .roster-pill {
+  margin: 0 4px 4px 0;
+}
+
+.skills-cell .player-extra-skills {
+  gap: 0;
+}
+
 .compact-roster-table .roster-pill {
+  height: 24px;
   min-height: 24px;
+  white-space: nowrap;
   padding: 0 8px;
   font-size: 0.75rem;
 }
@@ -636,6 +646,18 @@
 .player-contract-control .table-stepper {
   grid-template-columns: 21px minmax(22px, auto) 21px;
   min-width: 0;
+}
+
+.mobile-roster-player-card .player-contract-control {
+  justify-items: stretch;
+}
+
+.mobile-roster-player-card .player-contract-control .table-stepper {
+  grid-template-columns: 63px minmax(0, 1fr) 63px;
+}
+
+.mobile-roster-player-card .player-contract-control .table-stepper button {
+  min-height: 36px;
 }
 
 .saved-roster-table tbody tr[draggable="true"] {
@@ -905,6 +927,10 @@
   gap: 7px;
 }
 
+.mobile-player-pills .player-extra-skills {
+  display: contents;
+}
+
 .mobile-skill-editor,
 .mobile-advancement-section {
   min-width: 0;
@@ -975,6 +1001,7 @@
   gap: 5px;
 }
 
+.player-level-number,
 .player-level-stack .player-available-spp {
   color: var(--focus);
 }
@@ -1012,6 +1039,10 @@
   font-weight: 800;
 }
 
+.advancement-list > small {
+  font-size: 0.6875rem;
+}
+
 .advancement-list {
   display: flex;
   flex-wrap: wrap;
@@ -1026,7 +1057,7 @@
   flex: none;
   width: 8px;
   height: 8px;
-  margin-left: 6px;
+  margin: 0 -2px 0 4px;
   fill: none;
   stroke: currentColor;
   stroke-width: 1.8;
@@ -1147,7 +1178,6 @@
 
 .favoured-skill-pill {
   border-color: var(--focus);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--focus) 45%, transparent);
 }
 
 .compact-action {
@@ -1256,10 +1286,6 @@
   width: 16px;
   height: 16px;
   accent-color: var(--focus);
-}
-
-.table-extra-skills {
-  margin-top: 6px;
 }
 
 .inline-cost-note {

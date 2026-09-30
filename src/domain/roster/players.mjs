@@ -180,6 +180,10 @@ export function baseSkillsForPlayer(row) {
   return (row.skills ?? []).map((name) => ({ name, access: "base" }));
 }
 
+export function favouredSkillNames(row, player) {
+  return new Set(normalizePlayerFavouredSkills(row, player.favouredSkills ?? []).map((skill) => skill.name));
+}
+
 export function skillNamesForPlayer(row, player) {
   const seen = new Set();
   return [

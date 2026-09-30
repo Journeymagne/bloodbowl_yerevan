@@ -30,6 +30,7 @@ import { PLAYER_STATS, categoriesForAccess, clamp, costToNumber, countToNumber, 
 import { hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
 import {
   ensureDraftPlayers,
+  favouredSkillNames,
   normalizePlayerAdvancements,
   normalizePlayerExtraSkills,
   normalizePlayerFavouredSkills,
@@ -61,7 +62,7 @@ import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
 import { normalizeSavedRoster, rosterForStorage, updateSavedRosterFields } from "../data/roster-draft.mjs";
 import { renderRosterNotices, wireConflictBanner, wireRosterNotices } from "../components/roster-notices.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
-import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
+import { renderRosterLinks } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
 import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
@@ -713,7 +714,7 @@ function renderSavedSkillsCell(player) {
   return `
     ${renderRosterLinks(player.row.skills)}
     ${extraSkills.length ? `
-      <div class="player-extra-skills table-extra-skills">
+      <div class="player-extra-skills">
         ${extraSkills.map((skill) => `
           <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}${REMOVE_ICON}</button>
         `).join("")}
@@ -850,7 +851,7 @@ function renderFavouredSkillButtons(player) {
   const favouredSkills = normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []);
   if (!favouredSkills.length) return "";
   return `
-    <div class="player-extra-skills table-extra-skills favoured-extra-skills">
+    <div class="player-extra-skills favoured-extra-skills">
       ${favouredSkills.map((skill) => `
         <button class="roster-pill favoured-skill-pill" type="button" data-saved-player-remove-favoured="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}${REMOVE_ICON}</button>
       `).join("")}
@@ -865,7 +866,7 @@ function renderCaptainSkillBadge(player) {
     ...normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []).map((skill) => skill.name),
   ]);
   return `
-    <div class="player-extra-skills table-extra-skills captain-extra-skills">
+    <div class="player-extra-skills captain-extra-skills">
       ${nonCaptainSkills.has("Pro") ? "" : renderRosterLinks(["Pro"])}
       <span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>
     </div>
@@ -990,13 +991,7 @@ function renderSavedPlayerPreviewCard(team, player, index) {
   `;
 }
 function renderPlayerPreviewSkills(player) {
-  const names = [
-    ...(player.row.skills ?? []),
-    ...normalizePlayerExtraSkills(player.row, player.extraSkills ?? []).map((skill) => skill.name),
-    ...normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []).map((skill) => skill.name),
-  ];
-  if (player.isCaptain && !names.includes("Pro")) names.push("Pro");
-  const rendered = renderRosterLinks(uniqueSorted(names));
+  const rendered = renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player));
   return `${rendered}${player.isCaptain ? `<span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>` : ""}`;
 }
 function renderSppActionButtons(player) {
@@ -1043,7 +1038,7 @@ function renderPlayerLevelCell(team, player) {
   const level = playerAdvancementLevel(player);
   return `
     <div class="player-level-stack">
-      <strong>${level} (${escapeHtml(playerLevelRank(player))})</strong>
+      <strong><span class="player-level-number">${level}</span> (${escapeHtml(playerLevelRank(player))})</strong>
       <small data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</small>
       <small data-player-spent-spp>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small>
       <small class="player-available-spp" data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
