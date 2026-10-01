@@ -671,8 +671,21 @@
   );
 }
 
-.saved-roster-table tbody tr.is-skipped {
-  opacity: 0.6;
+/* `*:is()`, not ` :is()`: the build's minifier strips the space before a colon. */
+.saved-roster-table tbody tr.is-skipped *:is(td, p, strong, small, span, input, select, button, .roster-pill) {
+  color: color-mix(in srgb, var(--text) 40%, transparent);
+}
+
+.saved-roster-table tbody tr.is-skipped *:is(.player-level-number, .player-available-spp) {
+  color: color-mix(in srgb, var(--focus) 55%, transparent);
+}
+
+.saved-roster-table tbody tr.is-skipped *:is(input, select, button, .table-stepper, .roster-pill) {
+  border-color: color-mix(in srgb, var(--line) 45%, transparent);
+}
+
+.saved-roster-table tbody tr.is-skipped .roster-pill {
+  background: transparent;
 }
 
 .saved-roster-table tbody tr.is-dragging {
@@ -786,6 +799,7 @@
 .mobile-roster-player-card header .compact-action {
   align-self: start;
   justify-self: end;
+  justify-content: center;
   width: auto;
   min-width: 74px;
   min-height: 34px;
