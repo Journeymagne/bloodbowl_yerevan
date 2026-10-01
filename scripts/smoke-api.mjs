@@ -80,8 +80,8 @@ await step("POST /api/teams", async () => {
     expect: 201,
     body: {
       name: "Smoke Team",
-      baseTeamSlug: "amazon",
-      roster: { teamSlug: "amazon", teamName: "Smoke Team", players: [], treasury: 600 },
+      baseTeamSlug: "teams/amazon",
+      roster: { teamSlug: "teams/amazon", teamName: "Smoke Team", players: [], treasury: 600 },
     },
   });
   teamId = payload.team?.id;
@@ -98,8 +98,8 @@ await step("PATCH /api/teams/:id persists a change", async () => {
     method: "PATCH",
     body: {
       name: "Smoke Team Renamed",
-      baseTeamSlug: "amazon",
-      roster: { teamSlug: "amazon", teamName: "Smoke Team Renamed", players: [], treasury: 550 },
+      baseTeamSlug: "teams/amazon",
+      roster: { teamSlug: "teams/amazon", teamName: "Smoke Team Renamed", players: [], treasury: 550 },
     },
   });
   const payload = await api(`/api/teams/${teamId}`);
