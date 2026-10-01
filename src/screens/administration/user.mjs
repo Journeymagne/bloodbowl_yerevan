@@ -1,12 +1,8 @@
 /**
- * One coach's admin profile: their account, the admin-only edit form,
- * and their saved teams.
+ * One shared coach-profile template, plus its admin controls.
  *
- * Mechanically moved out of src/app.js. The profile card, the "create a
- * team for this coach" panel and `wireAdminUserProfile` are exported
- * because screens/players/profile.mjs shows the same three to an admin
- * viewing a public profile; `renderAdminSavedTeamsTable` is used by both
- * this screen and the season admin tab's team list.
+ * Both the Administration route and the public player route render this
+ * template. Access decides which controls appear; the route no longer does.
  */
 import { errorText } from "../../core/api.mjs";
 import { escapeHtml, renderOption } from "../../core/dom.mjs";
@@ -45,22 +41,11 @@ export async function renderAdminUserProfile(userId) {
 
   try {
     const payload = await apiRequest(`/api/admin/users/${encodeURIComponent(userId)}`);
-    view.innerHTML = `
-      ${renderHeader(`${t("admin.playerHeader")} "${payload.user.login}"`, t("admin.savedTeamsAndProfileSubtitle"), "", { back: true, backFallback: "#/administration" })}
-      <div class="admin-profile-grid">
-        ${renderAdminProfileCard(payload.user)}
-        ${renderAdminUserManagementPanel(payload.user)}
-        <section class="content-panel season-card">
-          ${renderAdminCreateTeamForUserPanel(payload.user)}
-        </section>
-        <section class="content-panel season-card">
-          <h2>${t("admin.savedTeamsHeader")}</h2>
-          ${renderAdminSavedTeamsTable(payload.teams ?? [], payload.user)}
-        </section>
-      </div>
-    `;
-    wireAdminUserProfile(payload.user);
-    wireTeamDeleteButtons(() => renderAdminUserProfile(userId));
+    view.innerHTML = renderUserProfilePage(payload, {
+      subtitle: t("admin.savedTeamsAndProfileSubtitle"),
+      backFallback: "#/administration",
+    });
+    wireUserProfile(payload.user, () => renderAdminUserProfile(userId));
   } catch (error) {
     view.innerHTML = `
       ${renderHeader(t("nav.administration"), t("admin.playerProfileSubtitle"), "", { back: true, backFallback: "#/administration" })}
@@ -68,7 +53,25 @@ export async function renderAdminUserProfile(userId) {
     `;
   }
 }
-export function renderAdminProfileCard(user) {
+
+export function renderUserProfilePage(payload, { subtitle, backFallback } = {}) {
+  const user = payload.user;
+  const isAdmin = Boolean(state.auth.currentUser?.isAdmin);
+  return `
+    ${renderHeader(`${t("admin.playerHeader")} "${user.login}"`, subtitle, "", { back: true, backFallback })}
+    <div class="admin-profile-grid">
+      ${renderUserProfileCard(user)}
+      ${isAdmin ? renderAdminUserManagementPanel(user) : ""}
+      ${isAdmin ? `<section class="content-panel season-card">${renderAdminCreateTeamForUserPanel(user)}</section>` : ""}
+      <section class="content-panel season-card">
+        <h2>${t("admin.savedTeamsHeader")}</h2>
+        ${renderProfileSavedTeamsTable(payload.teams ?? [], user)}
+      </section>
+    </div>
+  `;
+}
+
+function renderUserProfileCard(user) {
   const created = user.createdAt ? new Date(user.createdAt).toLocaleDateString("en-GB") : "-";
   const updated = user.lastTeamUpdatedAt ? new Date(user.lastTeamUpdatedAt).toLocaleDateString("en-GB") : "-";
   return `
@@ -106,25 +109,34 @@ function renderAdminUserManagementPanel(user) {
         </label>
         <div class="admin-user-management-actions">
           <button class="primary-button" type="submit">${t("common.save")}</button>
-          ${isCurrentUser ? "" : `<button class="filter-button danger-action" type="button" data-admin-reset-password>${t("admin.resetPasswordAction")}</button>`}
+          ${isCurrentUser ? "" : renderAdminPasswordResetButton()}
           <button class="filter-button danger-action" type="button" data-admin-delete-user ${isCurrentUser ? "disabled" : ""}>${t("admin.deleteUserAction")}</button>
         </div>
       </form>
-      ${isCurrentUser ? "" : `<div class="admin-reset-password-result" data-admin-reset-password-result hidden>
-        <label class="filter-field">
-          <span>${t("admin.generatedPasswordLabel")}</span>
-          <span class="admin-reset-password-value">
-            <input type="text" readonly data-admin-generated-password autocomplete="off" aria-label="${t("admin.generatedPasswordLabel")}">
-            <button class="filter-button" type="button" data-admin-copy-password>${t("admin.copyPasswordAction")}</button>
-          </span>
-        </label>
-        <p class="muted-text">${t("admin.generatedPasswordNote")}</p>
-      </div>`}
+      ${isCurrentUser ? "" : renderAdminPasswordResetResult()}
       ${isCurrentUser ? `<p class="muted-text">${t("admin.cannotDeleteSelfNote")}</p>` : ""}
     </section>
   `;
 }
-export function renderAdminCreateTeamForUserPanel(user) {
+
+function renderAdminPasswordResetButton() {
+  return `<button class="filter-button danger-action" type="button" data-admin-reset-password>${t("admin.resetPasswordAction")}</button>`;
+}
+
+function renderAdminPasswordResetResult() {
+  return `<div class="admin-reset-password-result" data-admin-reset-password-result hidden>
+    <label class="filter-field">
+      <span>${t("admin.generatedPasswordLabel")}</span>
+      <span class="admin-reset-password-value">
+        <input type="text" readonly data-admin-generated-password autocomplete="off" aria-label="${t("admin.generatedPasswordLabel")}">
+        <button class="filter-button" type="button" data-admin-copy-password>${t("admin.copyPasswordAction")}</button>
+      </span>
+    </label>
+    <p class="muted-text">${t("admin.generatedPasswordNote")}</p>
+  </div>`;
+}
+
+function renderAdminCreateTeamForUserPanel(user) {
   const teams = state.data.teams ?? [];
   return `
     <h2>${t("admin.createTeamForPlayerHeading")}</h2>
@@ -144,7 +156,7 @@ export function renderAdminCreateTeamForUserPanel(user) {
     </div>
   `;
 }
-export function wireAdminUserProfile(user) {
+function wireAdminUserProfile(user, rerender) {
   view.querySelector("[data-admin-user-management]")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -163,7 +175,7 @@ export function wireAdminUserProfile(user) {
       }
       state.admin.loaded = false;
       toast(t("admin.userUpdatedMessage"));
-      renderAdminUserProfile(user.id);
+      rerender();
     } catch (error) {
       toastError(error);
     }
@@ -206,6 +218,11 @@ export function wireAdminUserProfile(user) {
       toastError(error);
     }
   });
+}
+
+export function wireUserProfile(user, rerender) {
+  if (state.auth.currentUser?.isAdmin) wireAdminUserProfile(user, rerender);
+  wireTeamDeleteButtons(rerender);
 }
 
 function wireAdminPasswordReset(user) {
@@ -254,8 +271,9 @@ function wireAdminPasswordReset(user) {
     }
   });
 }
-export function renderAdminSavedTeamsTable(teams, owner = null) {
+function renderProfileSavedTeamsTable(teams, owner) {
   if (!teams.length) return `<p>${t("myTeams.noSavedTeams")}</p>`;
+  const canManage = canManageProfileTeams(owner);
   return `
     <div class="table-scroll builder-table-scroll">
       <table class="admin-teams-table compact-roster-table">
@@ -266,18 +284,17 @@ export function renderAdminSavedTeamsTable(teams, owner = null) {
             <th>${t("catalog.players")}</th>
             <th>${t("roster.totalCost")}</th>
             <th>${t("footer.updated")}</th>
-            <th>${t("roster.actionHeader")}</th>
+            ${canManage ? `<th>${t("roster.actionHeader")}</th>` : ""}
           </tr>
         </thead>
         <tbody>
-          ${teams.map((team) => renderAdminSavedTeamRow(team, owner)).join("")}
+          ${teams.map((team) => renderProfileSavedTeamRow(team, owner)).join("")}
         </tbody>
       </table>
     </div>
   `;
 }
-function renderAdminSavedTeamRow(team, owner = null) {
-  const teamOwner = owner ?? team.owner ?? null;
+function renderProfileSavedTeamRow(team, owner) {
   const base = state.data.teams.find((item) => item.slug === team.baseTeamSlug);
   const draft = normalizeSavedRoster(team);
   const rosterTeam = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? base;
@@ -291,21 +308,30 @@ function renderAdminSavedTeamRow(team, owner = null) {
       <td>
         <span class="saved-team-name-cell">
           ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
-          <strong>${teamOwner ? renderPublicTeamLink(teamOwner, team) : escapeHtml(team.name)}</strong>
+          <strong>${renderPublicTeamLink(owner, team)}</strong>
         </span>
       </td>
       <td>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</td>
       <td>${costs ? costs.totalPlayersCount : "-"}</td>
       <td>${costs ? `${costs.total}k` : "-"}</td>
       <td>${escapeHtml(updated)}</td>
-      <td>
-        ${state.auth.currentUser?.isAdmin && teamOwner ? `
+      ${canManageProfileTeams(owner) ? `<td>
           <div class="table-actions">
-            ${iconButton("edit", { href: adminTeamEditUrl(teamOwner, team) })}
-            ${iconButton("trash", { title: t("common.delete"), attributes:`data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(teamOwner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
+            ${iconButton("edit", { href: profileTeamEditUrl(owner, team) })}
+            ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(owner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
           </div>
-        ` : `<span class="muted-text">-</span>`}
-      </td>
+      </td>` : ""}
     </tr>
   `;
+}
+
+function canManageProfileTeams(user) {
+  const currentUser = state.auth.currentUser;
+  return Boolean(currentUser?.isAdmin || (currentUser?.id && currentUser.id === user?.id));
+}
+
+function profileTeamEditUrl(owner, team) {
+  return state.auth.currentUser?.isAdmin
+    ? adminTeamEditUrl(owner, team)
+    : `#/my-teams/${encodeURIComponent(team.id)}`;
 }

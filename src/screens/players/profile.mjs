@@ -12,18 +12,10 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { adminTeamEditUrl, pageUrl } from "../../core/routes.mjs";
-import { ensureDraftPlayers } from "../../domain/roster/players.mjs";
-import { calculateRosterCosts } from "../../domain/roster/costs.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { renderPublicTeamLink } from "../../components/content-links.mjs";
-import { iconButton } from "../../components/icons.mjs";
-import { normalizeSavedRoster } from "../../data/roster-draft.mjs";
-import { wireTeamDeleteButtons } from "../my-teams.mjs";
 import {
-  renderAdminCreateTeamForUserPanel,
-  renderAdminProfileCard,
-  wireAdminUserProfile,
+  renderUserProfilePage,
+  wireUserProfile,
 } from "../administration/user.mjs";
 
 export async function renderPlayerProfile(userId) {
@@ -47,80 +39,15 @@ export async function renderPlayerProfile(userId) {
 
   try {
     const payload = await apiRequest(`/api/players/${encodeURIComponent(userId)}`);
-    view.innerHTML = `
-      ${renderHeader(`${t("admin.playerHeader")} "${payload.user.login}"`, t("admin.savedTeamsAndCoachSubtitle"), "", { back: true, backFallback: "#/season" })}
-      <div class="admin-profile-grid">
-        ${renderAdminProfileCard(payload.user)}
-        ${state.auth.currentUser?.isAdmin ? `<section class="content-panel season-card">${renderAdminCreateTeamForUserPanel(payload.user)}</section>` : ""}
-        <section class="content-panel season-card">
-          <h2>${t("admin.savedTeamsHeader")}</h2>
-          ${renderPublicProfileTeamsTable(payload.user, payload.teams ?? [])}
-        </section>
-      </div>
-    `;
-    if (state.auth.currentUser?.isAdmin) {
-      wireAdminUserProfile(payload.user);
-    }
-    wireTeamDeleteButtons(() => renderPlayerProfile(userId));
+    view.innerHTML = renderUserProfilePage(payload, {
+      subtitle: t("admin.savedTeamsAndCoachSubtitle"),
+      backFallback: "#/season",
+    });
+    wireUserProfile(payload.user, () => renderPlayerProfile(userId));
   } catch (error) {
     view.innerHTML = `
       ${renderHeader(t("admin.playerProfileHeading"), t("admin.savedTeamsAndCoachSubtitle"), "", { back: true, backFallback: "#/season" })}
       <div class="empty-state">${escapeHtml(errorText(error))}</div>
     `;
   }
-}
-function renderPublicProfileTeamsTable(user, teams) {
-  if (!teams.length) return `<p>${t("myTeams.noSavedTeams")}</p>`;
-  return `
-    <div class="table-scroll builder-table-scroll">
-      <table class="admin-teams-table compact-roster-table">
-        <thead>
-          <tr>
-            <th>${t("sidebar.teamHeading")}</th>
-            <th>${t("myTeams.table.rules")}</th>
-            <th>${t("catalog.players")}</th>
-            <th>${t("roster.totalCost")}</th>
-            <th>${t("footer.updated")}</th>
-            ${canManageProfileTeams(user) ? `<th>${t("roster.actionHeader")}</th>` : ""}
-          </tr>
-        </thead>
-        <tbody>
-          ${teams.map((team) => renderPublicProfileTeamRow(user, team)).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-function renderPublicProfileTeamRow(user, team) {
-  const base = state.data.teams.find((item) => item.slug === team.baseTeamSlug);
-  const draft = normalizeSavedRoster(team);
-  const rosterTeam = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? base;
-  if (rosterTeam) ensureDraftPlayers(rosterTeam, draft);
-  const costs = rosterTeam ? calculateRosterCosts(rosterTeam, draft) : null;
-  const updated = team.updatedAt ? new Date(team.updatedAt).toLocaleDateString("en-GB") : "-";
-  return `
-    <tr>
-      <td>
-        <span class="saved-team-name-cell">
-          ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
-          <strong>${renderPublicTeamLink(user, team)}</strong>
-        </span>
-      </td>
-      <td>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</td>
-      <td>${costs ? costs.totalPlayersCount : "-"}</td>
-      <td>${costs ? `${costs.total}k` : "-"}</td>
-      <td>${escapeHtml(updated)}</td>
-      ${canManageProfileTeams(user) ? `
-        <td>
-          <div class="table-actions">
-            ${iconButton("edit", { href:state.auth.currentUser?.isAdmin ? adminTeamEditUrl(user, team) : `#/my-teams/${encodeURIComponent(team.id)}` })}
-            ${iconButton("trash", { title: t("common.delete"), attributes:`data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(user.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
-          </div>
-        </td>
-      ` : ""}
-    </tr>
-  `;
-}
-function canManageProfileTeams(user) {
-  return Boolean(state.auth.currentUser?.isAdmin || (state.auth.currentUser?.id && state.auth.currentUser.id === user?.id));
 }

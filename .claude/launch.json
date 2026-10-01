@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "bloodbowl-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5173
+    },
+    {
+      "name": "bloodbowl-mock-api",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["scripts/mock-api.mjs"],
+      "port": 5174
+    },
+    {
+      "name": "bloodbowl-mock-api-admin",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["--yes", "cross-env", "MOCK_ADMIN=1", "MOCK_PORT=5175", "node", "scripts/mock-api.mjs"],
+      "port": 5175
+    }
+  ]
+}
