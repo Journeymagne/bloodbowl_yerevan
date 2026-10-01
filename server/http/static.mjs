@@ -51,6 +51,7 @@ const mimeTypes = new Map([
   [".jpeg", "image/jpeg"],
   [".svg", "image/svg+xml"],
   [".webp", "image/webp"],
+  [".ico", "image/x-icon"],
 ]);
 
 function cacheControlForStatic(url, fullPath) {
