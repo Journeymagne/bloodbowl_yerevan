@@ -671,11 +671,11 @@
   );
 }
 
-/* `*:is()`, not ` :is()`: the build's minifier strips the space before a colon. */
-.saved-roster-table tbody tr.is-skipped *:is(td, p, strong, small, span, input, select, button, .roster-pill) {
+.saved-roster-table tbody tr.is-skipped *:not(option) {
   color: color-mix(in srgb, var(--text) 40%, transparent);
 }
 
+/* `*:is()`, not ` :is()`: the build's minifier strips the space before a colon. */
 .saved-roster-table tbody tr.is-skipped *:is(.player-level-number, .player-available-spp) {
   color: color-mix(in srgb, var(--focus) 55%, transparent);
 }
