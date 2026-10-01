@@ -7,6 +7,7 @@
  * pieces they share under src/components/, and the route table itself in
  * src/core/router.mjs.
  */
+import { wireNavigation } from "./components/navigation.mjs";
 import { initTheme } from "./core/theme.mjs";
 import {
   applyStaticI18n,
@@ -36,10 +37,6 @@ import { rosterStore } from "./screens/saved-roster.mjs";
 const searchInput = document.querySelector("#global-search");
 const generatedAt = document.querySelector("#generated-at");
 const langToggle = document.querySelector("#lang-toggle");
-const navToggle = document.querySelector("#nav-toggle");
-const navOverlay = document.querySelector("#nav-overlay");
-const navList = document.querySelector(".nav-list");
-
 // Cache-busting token: index.html loads this module as `src/app.js?v=<version>`
 // and the build stamps that value, so data and i18n fetches reuse it rather
 // than a second copy that drifts (it said gata-93 while index.html said 97).
@@ -80,12 +77,6 @@ async function switchLocale(nextLocale) {
   if (previous !== nextLocale) renderRoute();
 }
 
-function setNavOpen(isOpen) {
-  document.body.classList.toggle("nav-open", isOpen);
-  navToggle?.setAttribute("aria-expanded", String(isOpen));
-  navToggle?.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
-}
-
 function handleHistoryBack(event) {
   const trigger = event.target instanceof Element ? event.target.closest("[data-history-back]") : null;
   if (!trigger) return;
@@ -105,27 +96,20 @@ function wireFrame() {
   });
   view.addEventListener("click", handleHistoryBack);
   document.querySelector("[data-skip-to-content]")?.addEventListener("click", () => view.focus());
-  navToggle?.addEventListener("click", () => {
-    setNavOpen(!document.body.classList.contains("nav-open"));
-  });
-  navOverlay?.addEventListener("click", () => setNavOpen(false));
-  navList?.addEventListener("click", (event) => {
-    if (event.target instanceof Element && event.target.closest("a")) {
-      setNavOpen(false);
-    }
+  wireNavigation();
+  document.addEventListener("click", event => {
+    const link = event.target.closest?.('a[href^="#/"]');
+    if (!link || !state.query) return;
+    state.query = "";
+    if (searchInput) searchInput.value = "";
+    if (link.hash === location.hash) renderRoute();
   });
   langToggle?.addEventListener("click", () => {
     switchLocale(state.locale === "en" ? "ru" : "en");
   });
   window.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
-      setNavOpen(false);
       closeAuthModal();
-    }
-  });
-  window.addEventListener("resize", () => {
-    if (window.innerWidth > 900) {
-      setNavOpen(false);
     }
   });
   window.addEventListener("beforeunload", (event) => {
@@ -135,7 +119,11 @@ function wireFrame() {
     event.preventDefault();
     event.returnValue = "";
   });
-  window.addEventListener("hashchange", renderRoute);
+  window.addEventListener("hashchange", () => {
+    state.query = "";
+    if (searchInput) searchInput.value = "";
+    renderRoute();
+  });
 }
 
 async function init() {

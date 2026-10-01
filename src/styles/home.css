@@ -1,0 +1,79 @@
+/* Player desk and compact reference index. All values inherit semantic themes. */
+.link-arrow { width: 20px; height: 20px; flex: 0 0 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.home-desk { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.home-season { min-width: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.home-season-head { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 32px; }
+.home-season-head h1 { margin: 0; font: 600 clamp(3rem, 6vw, 5rem)/1.08 var(--font-display); letter-spacing: -.02em; }
+.home-season-head p { max-width: 38ch; margin: 18px 0 0; color: var(--muted); }
+.home-season-head .primary-button { flex: 0 0 auto; }
+.season-shortcuts { display: grid; grid-template-columns: 1fr 1fr; margin: 0 32px; border-block: 1px solid var(--line); }
+.desk-link { display: flex; align-items: center; justify-content: space-between; gap: 18px; min-height: 62px; padding: 16px 0; text-decoration: none; }
+.desk-link span { min-width: 0; }
+.desk-link strong { display: block; font-weight: 600; }
+.desk-link small { display: block; margin-top: 6px; color: var(--muted); font-size: 14px; line-height: 1.5; }
+.desk-link:hover, .handbook-list a:hover { color: var(--soft); }
+.season-shortcuts .desk-link { padding-right: 22px; }
+.season-shortcuts .desk-link + .desk-link { border-left: 1px solid var(--line); padding-left: 22px; padding-right: 0; }
+.home-season-data { min-height: 228px; padding: 24px 32px; }
+.home-season-data .loading { border: 0; padding: 20px 0; background: transparent; color: var(--muted); }
+.home-season-message { padding: 8px 0; max-width: 58ch; }
+.home-season-message h2 { margin: 0; font: 500 25px/1.25 var(--font-display); }
+.home-season-message p { color: var(--muted); font-size: 14px; margin: 12px 0 18px; }
+.home-match-link { border-top: 1px solid var(--line); padding: 0 32px; }
+.home-match-link .desk-link { min-height: 94px; }
+.home-tools { display: grid; align-content: start; gap: 24px; min-width: 0; }
+.home-team { padding: 26px; background: var(--masthead); color: var(--masthead-text); border-radius: var(--radius); }
+.home-tools h2, .home-handbook h2 { margin: 0; font: 500 28px/1.2 var(--font-display); }
+.home-team p { color: var(--masthead-muted); font-size: 14px; margin: 12px 0 22px; }
+.home-team .primary-button { width: 100%; }
+.home-rules { padding: 0 4px; }
+.section-heading p { color: var(--muted); margin: 10px 0 0; font-size: 14px; }
+.quick-rules { margin-top: 16px; margin-bottom: 16px; border-top: 1px solid var(--line); }
+.quick-rules .desk-link { border-bottom: 1px solid var(--line); min-height: 54px; font-size: 14px; }
+.text-link { display: inline-flex; gap: 12px; align-items: center; min-height: 44px; color: var(--soft); font-size: 14px; font-weight: 500; text-decoration-thickness: 1px; }
+.home-handbook { margin-top: 42px; padding-top: 28px; border-top: 1px solid var(--line); }
+.handbook-list { display: grid; grid-template-columns: minmax(0, 1fr); margin-top: 20px; column-gap: 32px; }
+.handbook-list a { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 15px 0; min-height: 54px; border-bottom: 1px solid var(--line); text-decoration: none; font-size: 14px; }
+.season-name { margin: 0 0 18px; font: 500 26px/1.25 var(--font-display); }
+.home-standings { width: 100%; min-width: 0; border-collapse: collapse; table-layout: fixed; }
+.home-standings th, .home-standings td { padding: 12px 8px; border-bottom: 1px solid var(--line); font-size: 14px; overflow-wrap: anywhere; }
+.home-standings th { color: var(--muted); font-size: 12px; font-weight: 500; text-align: left; }
+.home-standings th:first-child { width: 40px; }
+.home-standings th:last-child { width: 90px; }
+.home-standings td:last-child { font-weight: 600; font-variant-numeric: tabular-nums; }
+.reference-hub { display: grid; grid-template-columns: minmax(0, 1fr); gap: 36px; }
+.reference-group h2 { margin: 0 0 18px; font: 500 26px/1.25 var(--font-display); }
+.reference-list { border-top: 1px solid var(--line); }
+.reference-list .card { min-height: 0; padding: 18px 0; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; }
+.reference-list .card h3 { font-size: 17px; font-weight: 600; }
+.reference-list .card p { font-size: 14px; margin: 8px 0 0; }
+.reference-list .card:hover { color: var(--soft); }
+.reference-list .meta-line:empty { display: none; }
+.reference-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 18px 0; border-bottom: 1px solid var(--line); text-decoration: none; }
+.reference-row strong { font-weight: 600; }
+.reference-row small { display: block; margin-top: 6px; color: var(--muted); }
+.reference-row:hover { color: var(--soft); }
+.search-results { max-width: 900px; }
+@media (min-width: 701px) {
+  .handbook-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .reference-hub { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 901px) {
+  .home-desk { grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr); gap: 32px; }
+}
+@media (min-width: 1201px) {
+  .reference-hub { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; }
+}
+@media (max-width: 600px) {
+  .view { padding: 20px 16px 36px; }
+  .home-season-head { display: block; padding: 24px 20px; }
+  .home-season-head p { margin: 14px 0 20px; }
+  .home-season-head .primary-button { width: 100%; }
+  .season-shortcuts { margin: 0 20px; grid-template-columns: minmax(0, 1fr); }
+  .season-shortcuts .desk-link { padding: 14px 0; }
+  .season-shortcuts .desk-link + .desk-link { border-left: 0; border-top: 1px solid var(--line); padding: 14px 0; }
+  .home-season-data { padding: 20px; min-height: 0; }
+  .home-match-link { padding: 0 20px; }
+  .home-team { padding: 24px 20px; }
+  .home-handbook { margin-top: 32px; }
+}

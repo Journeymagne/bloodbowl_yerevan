@@ -9,9 +9,6 @@
  * `wireAuthModal` attaches the listeners app.js used to attach inline, and is
  * the one thing bootstrap has to call.
  *
- * Known debt, untouched by this move: the five validation messages below are
- * hardcoded English instead of going through `t()`. That is part of the i18n
- * gap catalogued in section 16 of the design spec and belongs to task 13.
  */
 import { errorText } from "../core/api.mjs";
 import { t } from "../core/i18n.mjs";
@@ -26,6 +23,8 @@ const authForm = document.querySelector("#auth-form");
 const authTitle = document.querySelector("#auth-title");
 const authSubmit = document.querySelector("#auth-submit");
 const authSwitch = document.querySelector("#auth-switch");
+const authSwitchHint = document.querySelector("#auth-switch-hint");
+let authReturnFocus;
 const authError = document.querySelector("#auth-error");
 const authAccount = document.querySelector("#auth-account");
 const authAccountText = document.querySelector("#auth-account-text");
@@ -68,7 +67,6 @@ export function setAuthMode(mode) {
   }
   if (authForm) {
     authForm.hidden = isAccount;
-    authForm.reset();
   }
   if (authAccount) {
     authAccount.hidden = !isAccount;
@@ -91,15 +89,21 @@ export function setAuthMode(mode) {
     }
   }
   if (authSubmit) {
-    authSubmit.textContent = isRegister ? t("auth.register") : t("auth.login");
+    authSubmit.textContent = isRegister ? t("auth.createAccount") : t("auth.signIn");
   }
   if (authSwitch) {
-    authSwitch.textContent = isRegister ? t("auth.haveAccount") : t("auth.createAccount");
+    authSwitch.textContent = isRegister ? t("auth.signIn") : t("auth.createAccount");
   }
+  if (authSwitchHint) authSwitchHint.textContent = isRegister ? t("auth.haveAccount") : t("auth.noAccount");
+  authForm?.elements.password.setAttribute("autocomplete", isRegister ? "new-password" : "current-password");
 }
 
 function openAuthModal(mode = "login") {
   if (!authModal) return;
+  authReturnFocus = document.activeElement;
+  authForm?.reset();
+  document.querySelector(".app-shell").inert = true;
+  document.querySelector("[data-skip-to-content]").inert = true;
   authModal.hidden = false;
   document.body.classList.add("auth-open");
   setAuthMode(state.auth.currentUser && mode !== "register" ? "account" : mode);
@@ -108,9 +112,12 @@ function openAuthModal(mode = "login") {
 }
 
 export function closeAuthModal() {
-  if (!authModal) return;
+  if (!authModal || authModal.hidden) return;
   authModal.hidden = true;
   document.body.classList.remove("auth-open");
+  document.querySelector(".app-shell").inert = false;
+  document.querySelector("[data-skip-to-content]").inert = false;
+  (authReturnFocus?.isConnected ? authReturnFocus : authButton)?.focus();
   setAuthError("");
 }
 
@@ -122,11 +129,11 @@ async function handleAuthSubmit(event) {
   const telegram = String(data.get("telegram") ?? "").trim();
 
   if (login.length < 3) {
-    setAuthError("Login must be at least 3 characters.");
+    setAuthError(t("auth.validation.login"));
     return;
   }
   if (password.length < 4) {
-    setAuthError("Password must be at least 4 characters.");
+    setAuthError(t("auth.validation.password"));
     return;
   }
 
@@ -163,15 +170,15 @@ async function handleProfileSubmit(event) {
   const password = String(data.get("password") ?? "");
 
   if (login.length < 3) {
-    setAuthError("Login must be at least 3 characters.");
+    setAuthError(t("auth.validation.login"));
     return;
   }
   if (!telegram) {
-    setAuthError("Telegram contact is required.");
+    setAuthError(t("auth.validation.telegram"));
     return;
   }
   if (password && password.length < 4) {
-    setAuthError("Password must be at least 4 characters.");
+    setAuthError(t("auth.validation.password"));
     return;
   }
 
@@ -210,6 +217,18 @@ async function logoutAuth() {
 /** Attach every listener the modal needs. Called once, from bootstrap. */
 export function wireAuthModal() {
   authButton?.addEventListener("click", () => openAuthModal());
+  authModal?.addEventListener("keydown", event => {
+    if (event.key !== "Tab") return;
+    const controls = [...authModal.querySelectorAll('button:not([tabindex="-1"]), input')]
+      .filter(control => !control.disabled && control.getClientRects().length);
+    const first = controls[0];
+    const last = controls.at(-1);
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault(); last?.focus();
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault(); first?.focus();
+    }
+  });
   authModal?.addEventListener("click", (event) => {
     if (event.target instanceof Element && event.target.closest("[data-auth-close]")) {
       closeAuthModal();

@@ -144,7 +144,7 @@ export function renderSection(route) {
   view.innerHTML = `
     ${renderHeader(t(sectionTitleKeys[route]), description, actions, headerOptions)}
     ${renderFilters(route)}
-    <div class="card-grid">
+    <div class="${route === "pages" ? "reference-hub" : "card-grid"}">
       ${cards || `<div class="empty-state">${t("section.emptyState")}</div>`}
     </div>
   `;
@@ -190,8 +190,13 @@ function referenceCards(pages) {
     }))
     .filter((section) => matchesQuery({ title: section.title, text: section.description }));
 
-  return [...pages, ...sections]
-    .sort(byReferenceOrder)
-    .map((entry) => (entry.route ? sectionCard(entry) : renderListCard(entry, "pages")))
-    .join("");
+  const groups = [
+    ["home.matchRules", pages.filter(page => PINNED_REFERENCES.includes(page.title))],
+    ["reference.catalog", sections],
+    ["reference.league", pages.filter(page => !PINNED_REFERENCES.includes(page.title))],
+  ];
+  return groups.filter(([, entries]) => entries.length).map(([title, entries]) => `
+    <section class="reference-group"><h2>${t(title)}</h2><div class="reference-list">
+      ${entries.sort(byReferenceOrder).map(entry => entry.route ? sectionCard(entry) : renderListCard(entry, "pages")).join("")}
+    </div></section>`).join("");
 }

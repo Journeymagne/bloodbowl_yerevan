@@ -24,3 +24,6 @@ public/data.json
 # ...and the compressed copies the build writes beside them.
 public/*.json.br
 public/*.json.gz
+
+# Runtime state of the local design decision server. Keep decisions and artwork.
+.impeccable/questions/*.state.json

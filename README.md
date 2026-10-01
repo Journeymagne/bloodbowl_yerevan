@@ -125,6 +125,39 @@ Delete the local database data and recreate it from scratch on the next start:
 npm run postgres:reset
 ```
 
+## Local preview using the production API
+
+Requires Node.js 20+ and dependencies installed with `npm ci`:
+
+```bash
+npm run preview:prod
+```
+
+Open **http://127.0.0.1:5180**. This command builds `dist/`, serves that local
+frontend, and proxies `/api/*` to
+`https://bloodbowlyerevan.shitpostsoftware.com`. The reference catalogue and UI
+come from your checkout; season, accounts, teams and games come from production.
+No local PostgreSQL, database credentials or production configuration file is needed.
+
+**This is a live connection:** signing in uses a real account, and saving a team
+or a result changes production data. The browser session is separate from the
+production website, so sign in normally in the preview. Never run the destructive
+`npm run smoke` suite against this preview or production.
+
+The server listens only on loopback, refuses foreign API origins, and does not
+follow upstream redirects with authorization. Stop it with Ctrl+C. Re-run the
+command after source edits to rebuild. To serve an already-built `dist/` without
+rebuilding, use `node scripts/preview.mjs`.
+
+Optional shell environment variables (not read from `.env`):
+
+- `PREVIEW_PORT`: local port, default `5180`.
+- `PREVIEW_API_ORIGIN`: another credential-free HTTPS origin; HTTP loopback is
+  also supported for local API testing. Supply only an origin, without an API path.
+
+The preview script does not change the production build or deployment workflow.
+Pushes to a feature branch do not deploy; the existing workflow deploys `main`.
+
 ## Optional Content Re-import
 
 The repository already contains generated Markdown in `content/Gata`, so a deployer does not need the original source files just to publish the site.

@@ -11,7 +11,7 @@
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--surface-strong);
-  backdrop-filter: blur(6px);
+  backdrop-filter: none;
 }
 
 .content-panel {
@@ -65,7 +65,7 @@
   margin: 16px 0;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: rgba(239, 224, 183, 0.08);
+  background: var(--surface-soft);
 }
 
 .season-tabs {
@@ -165,13 +165,13 @@
   background: var(--button-bg);
   color: var(--button-text);
   font-size: 0.75rem;
-  font-weight: 900;
+  font-weight: 700;
   text-transform: uppercase;
 }
 
 .season-status-pill[data-status="started"] {
-  border-color: rgba(138, 160, 75, 0.68);
-  color: #cfe5a4;
+  border-color: var(--success);
+  color: var(--success);
 }
 
 .season-admin-stack {
@@ -398,7 +398,7 @@
 }
 
 .danger-action {
-  border-color: rgba(232, 92, 63, 0.62);
+  border-color: var(--danger);
   color: var(--danger);
 }
 
@@ -430,11 +430,9 @@
 .notice-box {
   margin-bottom: 22px;
   padding: 16px;
-  border: 1px solid rgba(240, 200, 74, 0.38);
+  border: 1px solid var(--line);
   border-radius: var(--radius);
-  background:
-    linear-gradient(90deg, rgba(199, 46, 34, 0.14), transparent),
-    var(--surface-strong);
+  background: var(--surface-strong);
 }
 
 .notice-box strong {
@@ -486,7 +484,7 @@
   padding: 0 0 10px 0;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-inline: contain;
-  scrollbar-color: rgba(240, 200, 74, 0.72) var(--surface-soft);
+  scrollbar-color: var(--soft) var(--surface-soft);
   scrollbar-width: thin;
 }
 
@@ -499,7 +497,7 @@
   width: 34px;
   height: 1px;
   margin-top: -1px;
-  background: linear-gradient(90deg, transparent, var(--scroll-fade));
+  background: var(--scroll-fade);
   content: "";
   pointer-events: none;
 }
@@ -514,7 +512,7 @@
 
 .table-scroll::-webkit-scrollbar-thumb {
   border-radius: 999px;
-  background: rgba(240, 200, 74, 0.72);
+  background: var(--surface-soft);
 }
 
 table {
