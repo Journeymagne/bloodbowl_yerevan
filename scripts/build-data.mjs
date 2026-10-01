@@ -112,7 +112,6 @@ function toPublicAssetPath(relativePath) {
   return `public/vault-assets/${relativePath.split(path.sep).map(encodeURIComponent).join("/")}`;
 }
 
-
 const canonicalLabels = new Map(Object.entries({
   "big guy": "Big Guy",
   biltzer: "Blitzer",
@@ -185,6 +184,7 @@ function parseFrontmatter(markdown) {
   return { body, tags: tags.map(canonicalLabel) };
 }
 
+const NUMBER_RANGE = /^\d+\s*[-–]\s*\d+$/;
 function splitTableRow(line) {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
   const cells = [];
@@ -442,7 +442,8 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
           html.push(splitTableRow(lines[index]).map((cell, cellIndex) => {
             const headerLabel = headerLabels[cellIndex] ?? "";
             const autoLinkKnown = headerLabel !== "Position" && headerLabel !== "Позиция";
-            return `<td>${inlineMarkdownToHtml(cell, pageByTitle, { autoLinkKnown })}</td>`;
+            const cellClass = NUMBER_RANGE.test(cell.trim()) ? ` class="nowrap-cell"` : "";
+            return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, { autoLinkKnown })}</td>`;
           }).join(""));
           html.push("</tr>");
           index += 1;
@@ -590,7 +591,6 @@ function extractTeamMeta(markdown) {
 
   return meta;
 }
-
 
 function extractStarPlayerMeta(markdown) {
   const meta = {};
