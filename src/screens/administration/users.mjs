@@ -104,7 +104,7 @@ function renderAdminUserRow(user) {
       <td>${user.isAdmin ? t("admin.roleAdmin") : t("admin.rolePlayer")}</td>
       <td>${user.savedTeamCount ?? 0}</td>
       <td>${escapeHtml(updated)}</td>
-      <td>${iconButton("edit", { href:`#/administration/users/${encodeURIComponent(user.id)}` })}</td>
+      <td class="fit-cell center-cell">${iconButton("edit", { href: `#/administration/users/${encodeURIComponent(user.id)}` })}</td>
     </tr>
   `;
 }

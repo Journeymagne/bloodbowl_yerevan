@@ -163,7 +163,7 @@ function builderColumns() {
     { header: t("sidebar.cost"), cell: (player) => escapeHtml(rowCost(player.row) || "-") },
     {
       header: t("roster.actionHeader"),
-      className: "center-cell",
+      className: "fit-cell center-cell",
       cell: (player) => iconButton("trash", { attributes: `data-remove-player="${escapeHtml(player.id)}"` }),
     },
   ];

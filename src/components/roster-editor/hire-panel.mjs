@@ -23,7 +23,7 @@
  * Step 7.6 lands here too: a hire that cannot be made says why. The buttons
  * were already disabled, but silently — a coach who had run out of budget saw
  * a dead button and no reason for it. The first pass at that left `disabled`
- * on as well, which kept the reason unreachable; see hireButton below.
+ * on as well, which kept the reason unreachable; see hireAttributes below.
  */
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -78,13 +78,8 @@ function hireFields(row, rowIndex, draft, mode, verdict) {
     taken: `${current}/${rosterMax(row.qty)}`,
     overBudget: verdict.reason === "budget",
     blocked: verdict.blocked,
-    button: (className) => hireButton(rowIndex, mode, verdict, className),
     iconButton: () => iconButton("plus", { title: verdict.title, attributes: hireAttributes(rowIndex, mode, verdict) }),
   };
-}
-
-function hireAttributes(rowIndex, mode, verdict) {
-  return `data-${mode.hireAttribute}="${rowIndex}"${verdict.blocked ? ` aria-disabled="true"` : ""}`;
 }
 
 /**
@@ -93,9 +88,8 @@ function hireAttributes(rowIndex, mode, verdict) {
  * refused never reached the coach: the button just went dead. Marked this way it
  * still reads as unavailable to a screen reader, and a click says why.
  */
-function hireButton(rowIndex, mode, verdict, className) {
-  const title = verdict.blocked ? ` title="${escapeHtml(verdict.title)}"` : "";
-  return `<button class="primary-button ${className}" type="button" ${hireAttributes(rowIndex, mode, verdict)}${title}>+</button>`;
+function hireAttributes(rowIndex, mode, verdict) {
+  return `data-${mode.hireAttribute}="${rowIndex}"${verdict.blocked ? ` aria-disabled="true"` : ""}`;
 }
 
 export function renderHirePanel(team, draft, mode) {
@@ -136,8 +130,8 @@ export function renderHirePanel(team, draft, mode) {
                 <td>${field.primary}</td>
                 <td>${field.secondary}</td>
                 <td>${field.cost}</td>
-                <td>${field.taken}${field.overBudget ? `<span class="danger-text"> ${t("builder.overBudget")}</span>` : ""}</td>
-                <td class="center-cell">${field.iconButton()}</td>
+                <td>${field.taken}</td>
+                <td class="fit-cell center-cell">${field.iconButton()}</td>
               </tr>
             `;
           }).join("")}
@@ -160,7 +154,7 @@ function renderHireCard(row, field) {
           <strong>${field.position}</strong>
           <em>${field.qty} · ${field.cost}</em>
         </div>
-        ${field.button("add-player-button")}
+        ${field.iconButton()}
       </header>
       ${renderRosterStatGrid(row)}
       <section class="mobile-player-section">

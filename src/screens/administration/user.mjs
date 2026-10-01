@@ -315,7 +315,7 @@ function renderProfileSavedTeamRow(team, owner) {
       <td>${costs ? costs.totalPlayersCount : "-"}</td>
       <td>${costs ? `${costs.total}k` : "-"}</td>
       <td>${escapeHtml(updated)}</td>
-      ${canManageProfileTeams(owner) ? `<td>
+      ${canManageProfileTeams(owner) ? `<td class="fit-cell">
           <div class="table-actions">
             ${iconButton("edit", { href: profileTeamEditUrl(owner, team) })}
             ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(owner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}

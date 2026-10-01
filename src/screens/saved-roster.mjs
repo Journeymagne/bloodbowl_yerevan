@@ -791,7 +791,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("sidebar.cost"), cell: renderSavedCostCell },
     {
       header: t("roster.actionHeader"),
-      className: "center-cell",
+      className: "fit-cell center-cell",
       cell: (player) => iconButton("trash", { attributes: `data-remove-saved-player="${escapeHtml(player.id)}"` }),
     },
   ];
@@ -887,8 +887,8 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
         </div>
         <div class="mobile-card-actions">
-          ${iconButton("collapse", { attributes: `data-saved-player-collapse="${escapeHtml(player.id)}"` })}
           ${iconButton("trash", { attributes: `data-remove-saved-player="${escapeHtml(player.id)}"` })}
+          ${iconButton("collapse", { attributes: `data-saved-player-collapse="${escapeHtml(player.id)}"` })}
         </div>
       </header>
 
@@ -958,7 +958,7 @@ function renderSavedPlayerPreviewCard(team, player, index) {
           <strong>${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}</strong>
           <small>${escapeHtml(player.row.position)}</small>
         </div>
-        <button class="primary-button compact-action" type="button" data-saved-player-expand="${escapeHtml(player.id)}">${t("roster.advanceAction")}</button>
+        ${iconButton("expand", { attributes: `data-saved-player-expand="${escapeHtml(player.id)}"` })}
       </header>
 
       <section class="mobile-player-section">

@@ -84,7 +84,7 @@ function renderSavedTeamsTable(teams) {
               <th>${t("myTeams.table.players")}</th>
               <th>${t("roster.totalCost")}</th>
               <th>${t("footer.updated")}</th>
-              <th>${t("myTeams.table.actions")}</th>
+              <th>${t("roster.actionHeader")}</th>
             </tr>
           </thead>
           <tbody>
@@ -120,7 +120,7 @@ function renderSavedTeamRow(team) {
       <td>${costs ? costs.totalPlayersCount : "-"}</td>
       <td>${costs ? `${costs.total}k` : "-"}</td>
       <td>${escapeHtml(updated)}</td>
-      <td>
+      <td class="fit-cell">
         <div class="table-actions">
           ${iconButton("edit", { href: `#/my-teams/${encodeURIComponent(team.id)}` })}
           ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}

@@ -526,8 +526,7 @@
     var(--surface-strong);
 }
 
-.available-player-card.disabled,
-.available-player-card.disabled .add-player-button {
+.available-player-card.disabled {
   opacity: 0.56;
 }
 
@@ -564,14 +563,6 @@
   grid-template-columns: minmax(0, 1fr) 40px;
   gap: 10px;
   align-items: center;
-}
-
-.add-player-button {
-  min-width: 40px;
-  min-height: 36px;
-  padding: 0;
-  font-size: 1.25rem;
-  line-height: 1;
 }
 
 .compact-table-panel {
@@ -797,16 +788,8 @@
   grid-template-columns: minmax(0, 1fr) max-content;
 }
 
-.mobile-roster-player-card header .compact-action {
-  align-self: start;
-  justify-self: end;
-  justify-content: center;
-  width: auto;
-  min-width: 74px;
-  min-height: 34px;
-}
-
 .mobile-roster-player-card .table-icon-button,
+.available-player-card .table-icon-button,
 .saved-team-actions .table-icon-button {
   width: 40px;
   min-width: 40px;
@@ -815,10 +798,6 @@
 
 .mobile-roster-player-card.is-preview {
   gap: 12px;
-}
-
-.mobile-roster-player-card.is-preview header {
-  align-items: center;
 }
 
 .mobile-roster-player-card.is-preview .mobile-player-title strong {
@@ -831,7 +810,6 @@
 
 .mobile-card-actions {
   display: flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
@@ -1178,6 +1156,10 @@
   gap: 7px;
 }
 
+.table-actions {
+  justify-content: center;
+}
+
 .table-skill-editor {
   min-width: 210px;
 }
@@ -1250,6 +1232,12 @@
 .danger-icon-button:not(:disabled):hover {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.table-icon-button[aria-disabled="true"],
+.table-icon-button[aria-disabled="true"]:not(:disabled):hover {
+  border-color: var(--button-border);
+  color: var(--button-muted-text);
 }
 
 .disabled-row {

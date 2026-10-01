@@ -121,11 +121,6 @@
     grid-template-columns: minmax(100px, 0.52fr) minmax(0, 1fr);
   }
 
-  .mobile-roster-player-card header .compact-action {
-    align-self: auto;
-    width: auto;
-  }
-
   .builder-tracker-control .inline-stepper-control {
     justify-self: auto;
   }
