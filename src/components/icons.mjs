@@ -27,8 +27,8 @@ export const REMOVE_ICON = `<svg class="remove-icon" viewBox="0 0 10 10" aria-hi
  * @param {string} [options.title] overrides the icon's default tooltip / screen-reader name
  */
 export function iconButton(icon, { attributes = "", href = "", title = "" } = {}) {
-  const { path, tone = "accent" } = ICONS[icon];
-  const shared = `class="filter-button table-icon-button ${tone}-icon-button" title="${escapeHtml(title || t(ICONS[icon].title))}" ${attributes}`;
+  const { path, tone = "accent", title: titleKey } = ICONS[icon];
+  const shared = `class="filter-button table-icon-button ${tone}-icon-button" title="${escapeHtml(title || t(titleKey))}" ${attributes}`;
   const svg = `<svg class="button-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="${path}"/></svg>`;
   return href ? `<a ${shared} href="${href}">${svg}</a>` : `<button type="button" ${shared}>${svg}</button>`;
 }
