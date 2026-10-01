@@ -122,8 +122,8 @@ function renderSavedTeamRow(team) {
       <td>${escapeHtml(updated)}</td>
       <td>
         <div class="table-actions">
-          ${iconButton("edit", { href:`#/my-teams/${encodeURIComponent(team.id)}` })}
-          ${iconButton("trash", { title: t("common.delete"), attributes:`data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
+          ${iconButton("edit", { href: `#/my-teams/${encodeURIComponent(team.id)}` })}
+          ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
         </div>
       </td>
     </tr>
@@ -156,8 +156,8 @@ function renderSavedTeamCard(team) {
         <div><dt>${t("footer.updated")}</dt><dd>${escapeHtml(updated)}</dd></div>
       </dl>
       <div class="saved-team-actions">
-        ${iconButton("edit", { href:`#/my-teams/${encodeURIComponent(team.id)}` })}
-        ${iconButton("trash", { title: t("common.delete"), attributes:`data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
+        ${iconButton("edit", { href: `#/my-teams/${encodeURIComponent(team.id)}` })}
+        ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
       </div>
     </article>
   `;

@@ -231,7 +231,6 @@
   "admin.playerProfileHeading": "Player Profile",
   "admin.playerProfileSubtitle": "Player profile.",
   "admin.profileHeading": "Profile",
-  "admin.profileLink": "Profile",
   "admin.refresh": "Refresh",
   "admin.resetPasswordAction": "Reset password",
   "admin.resetPasswordConfirm": "Reset the password for {login}? Their old password will stop working and existing sessions on other devices will be signed out.",

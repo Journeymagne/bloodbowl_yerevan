@@ -121,7 +121,7 @@ export function renderHirePanel(team, draft, mode) {
             <th>${t("roster.secondary")}</th>
             <th>${t("sidebar.cost")}</th>
             <th>${t(mode.hireCountHeadingKey)}</th>
-            <th>${t("common.add")}</th>
+            <th>${t("roster.actionHeader")}</th>
           </tr>
         </thead>
         <tbody>
@@ -137,7 +137,7 @@ export function renderHirePanel(team, draft, mode) {
                 <td>${field.secondary}</td>
                 <td>${field.cost}</td>
                 <td>${field.taken}${field.overBudget ? `<span class="danger-text"> ${t("builder.overBudget")}</span>` : ""}</td>
-                <td>${field.iconButton()}</td>
+                <td class="center-cell">${field.iconButton()}</td>
               </tr>
             `;
           }).join("")}

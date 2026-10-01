@@ -664,6 +664,7 @@
   transition: background 0.14s ease, opacity 0.14s ease;
 }
 
+.builder-selected-table tbody tr:hover > td,
 .saved-roster-table tbody tr:hover > td {
   background-image: linear-gradient(
     color-mix(in srgb, var(--focus) 6%, transparent),
@@ -1231,6 +1232,14 @@
 .danger-icon-button {
   border-color: color-mix(in srgb, var(--danger) 50%, var(--button-border));
   color: var(--danger);
+}
+
+.table-icon-button:disabled,
+.table-skill-editor input:placeholder-shown ~ .table-icon-button {
+  border-color: var(--button-border);
+  color: var(--button-muted-text);
+  opacity: 0.45;
+  pointer-events: none;
 }
 
 .accent-icon-button:not(:disabled):hover {
@@ -1988,11 +1997,16 @@
   gap: 8px;
 }
 
+.summary-actions .filter-button {
+  justify-content: center;
+  min-height: 40px;
+}
+
 .builder-warnings,
 .builder-ok {
   padding: 12px;
   border-radius: var(--radius);
-  background: var(--panel-glass);
+  background: var(--panel);
 }
 
 .builder-warnings {
@@ -2001,7 +2015,7 @@
 
 .builder-warnings p {
   margin: 0;
-  color: #ffb199;
+  color: color-mix(in srgb, var(--danger) 65%, var(--text));
   line-height: 1.45;
 }
 
@@ -2011,7 +2025,7 @@
 
 .builder-ok {
   border: 1px solid rgba(138, 160, 75, 0.6);
-  color: #cfe5a4;
+  color: color-mix(in srgb, var(--accent-2) 65%, var(--text));
 }
 
 .danger-text {

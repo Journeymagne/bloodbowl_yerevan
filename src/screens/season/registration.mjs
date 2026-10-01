@@ -123,7 +123,7 @@ export function renderSeasonEntriesTable(data, adminActions = false) {
               <td>${renderPlayerLink(entry.user)}</td>
               <td><strong>${seasonTeamProfileLink(entry)}</strong></td>
               <td>${seasonTeamRulesLink(entry)}</td>
-              ${adminActions ? `<td>${iconButton("trash", { attributes:`data-season-remove-entry="${escapeHtml(entry.id)}"` })}</td>` : ""}
+              ${adminActions ? `<td class="center-cell">${iconButton("trash", { attributes: `data-season-remove-entry="${escapeHtml(entry.id)}"` })}</td>` : ""}
             </tr>
           `).join("")}
         </tbody>

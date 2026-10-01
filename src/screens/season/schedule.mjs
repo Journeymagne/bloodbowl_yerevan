@@ -133,7 +133,7 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
       <td data-pairing-points>${escapeHtml(pairingLeaguePoints(pairing))}</td>
       <td>
         <div class="table-actions">
-          ${iconButton("trash", { title: t("common.delete"), attributes:`data-delete-season-pairing="${escapeHtml(pairing.id)}"` })}
+          ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-season-pairing="${escapeHtml(pairing.id)}"` })}
         </div>
       </td>
     </tr>

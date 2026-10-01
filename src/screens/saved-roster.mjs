@@ -736,7 +736,7 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
           <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
         `).join("")}
       </datalist>
-      ${iconButton("plus", { attributes:"data-saved-player-add-skill" })}
+      ${iconButton("plus", { attributes: "data-saved-player-add-skill" })}
     </div>
   `;
 }
@@ -824,7 +824,7 @@ function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
         <datalist id="${escapeHtml(inputId)}">
           ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
         </datalist>
-        ${iconButton("plus", { attributes:`data-saved-player-add-favoured ${!options.length ? "disabled" : ""}` })}
+        ${iconButton("plus", { attributes: `data-saved-player-add-favoured ${!options.length ? "disabled" : ""}` })}
       </div>
     </div>
   `;
@@ -887,8 +887,8 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
         </div>
         <div class="mobile-card-actions">
-          <button class="filter-button compact-action" type="button" data-saved-player-collapse="${escapeHtml(player.id)}">${t("roster.previewAction")}</button>
-          ${iconButton("trash", { attributes:`data-remove-saved-player="${escapeHtml(player.id)}"` })}
+          ${iconButton("collapse", { attributes: `data-saved-player-collapse="${escapeHtml(player.id)}"` })}
+          ${iconButton("trash", { attributes: `data-remove-saved-player="${escapeHtml(player.id)}"` })}
         </div>
       </header>
 
@@ -1045,6 +1045,7 @@ function renderPlayerAdvancementControls(team, player) {
   const level = playerAdvancementLevel(player);
   const nextRank = advancementRanks[level];
   const canAdvance = Boolean(nextRank);
+  const canAfford = Object.keys(advancementTypeLabels).some((type) => canTakeAdvancement(team, player, type).allowed);
   return `
     <div class="advancement-control">
       ${canAdvance ? `
@@ -1057,7 +1058,7 @@ function renderPlayerAdvancementControls(team, player) {
             `;
   }).join("")}
           </select>
-          ${iconButton("plus", { attributes:"data-saved-player-add-advancement" })}
+          ${iconButton("plus", { attributes: `data-saved-player-add-advancement ${canAfford ? "" : "disabled"}` })}
         </div>
         <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}</small>
       ` : `<strong class="muted-text">${t("roster.maxLevel")}</strong>`}

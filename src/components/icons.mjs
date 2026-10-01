@@ -2,7 +2,7 @@
  * Inline SVG icons, and the square icon button for compact actions.
  *
  * One helper so the actions look the same everywhere: yellow for adding,
- * editing, opening and refreshing, red for removing. Each icon carries its own
+ * editing and opening, red for removing. Each icon carries its own
  * tone and default title, so a call site only says which icon and what it hooks.
  */
 import { escapeHtml } from "../core/dom.mjs";
@@ -12,15 +12,14 @@ const ICONS = {
   plus: { path: "M8 3v10M3 8h10", title: "common.add" },
   edit: { path: "M10.5 2.5l3 3L6 13H3v-3zM9 4l3 3", title: "common.edit" },
   trash: { path: "M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.8 6.5v4.5M9.2 6.5v4.5", title: "common.remove", tone: "danger" },
-  profile: { path: "M8 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM3 13.5c0-2.5 2.2-4 5-4s5 1.5 5 4", title: "admin.profileLink" },
-  refresh: { path: "M14 2.7v3.8h-3.8M13.4 10a5.8 5.8 0 1 1-1.3-6L14 6.5", title: "admin.refresh" },
+  collapse: { path: "M3.5 10.5L8 6l4.5 4.5", title: "roster.previewAction" },
 };
 
 /** The small ✕ at the end of a removable pill. */
 export const REMOVE_ICON = `<svg class="remove-icon" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"/></svg>`;
 
 /**
- * @param {"plus"|"edit"|"trash"|"profile"|"refresh"} icon
+ * @param {"plus"|"edit"|"trash"|"collapse"} icon
  * @param {object} [options]
  * @param {string} [options.attributes] extra attributes: data-* hooks, disabled, aria-disabled
  * @param {string} [options.href] renders a link instead of a button

@@ -20,12 +20,11 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { seasonTabUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { iconButton } from "../../components/icons.mjs";
 import { renderSeasonRegistration, wireRegistration } from "./registration.mjs";
 import { renderLeagueFixture } from "./fixture.mjs";
 import { renderSeasonStandings } from "./standings.mjs";
 import { renderSeasonRounds } from "./schedule.mjs";
-import { renderSeasonAdmin, wireAdmin } from "./admin.mjs";
+import { renderSeasonAdmin, wireAdmin, wireEntryManagement } from "./admin.mjs";
 import { loadSeason } from "./season-data.mjs";
 
 /**
@@ -108,7 +107,7 @@ export async function renderSeason(refresh = true, tab = "") {
   setViewSection("season");
   if (refresh) {
     view.innerHTML = `
-      ${renderHeader(t("nav.season"), t("season.subtitle"), iconButton("refresh", { attributes: "data-season-refresh" }))}
+      ${renderHeader(t("nav.season"), t("season.subtitle"), `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
       <div class="loading">${t("season.loading")}</div>
     `;
   }
@@ -120,7 +119,7 @@ export async function renderSeason(refresh = true, tab = "") {
 
   if (state.season.error) {
     view.innerHTML = `
-      ${renderHeader(t("nav.season"), t("season.subtitle"), iconButton("refresh", { attributes: "data-season-refresh" }))}
+      ${renderHeader(t("nav.season"), t("season.subtitle"), `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
       <div class="empty-state">${escapeHtml(state.season.error)}</div>
     `;
     wireSeason(activeTab);
@@ -129,7 +128,7 @@ export async function renderSeason(refresh = true, tab = "") {
 
   const data = state.season.data ?? {};
   view.innerHTML = `
-    ${renderHeader(t("nav.season"), `${data.season?.name ?? t("season.defaultName")} · ${t("season.swissPairingControl")}`, iconButton("refresh", { attributes: "data-season-refresh" }))}
+    ${renderHeader(t("nav.season"), `${data.season?.name ?? t("season.defaultName")} · ${t("season.swissPairingControl")}`, `<button class="primary-button" type="button" data-season-refresh>${t("admin.refresh")}</button>`)}
     ${renderSeasonTabs(activeTab)}
     ${renderSeasonPanel(data, activeTab)}
   `;
@@ -177,6 +176,10 @@ function wireSeason(activeTab) {
   });
 
   const rerender = () => renderSeason(false, activeTab);
-  if (activeTab === "registration") wireRegistration(rerender);
+  if (activeTab === "registration") {
+    wireRegistration(rerender);
+    // The registration tab shows admins the add-team panel and remove buttons too.
+    wireEntryManagement(rerender);
+  }
   if (activeTab === "administration") wireAdmin(rerender);
 }

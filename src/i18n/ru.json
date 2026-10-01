@@ -231,7 +231,6 @@
   "admin.playerProfileHeading": "Профиль игрока",
   "admin.playerProfileSubtitle": "Профиль игрока.",
   "admin.profileHeading": "Профиль",
-  "admin.profileLink": "Профиль",
   "admin.refresh": "Обновить",
   "admin.resetPasswordAction": "Сбросить пароль",
   "admin.resetPasswordConfirm": "Сбросить пароль пользователя {login}? Старый пароль перестанет работать, а активные сессии на других устройствах будут завершены.",
