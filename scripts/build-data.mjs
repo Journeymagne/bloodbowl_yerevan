@@ -5,6 +5,7 @@ import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown
 import { writeDataFile } from "./lib/write-data-file.mjs";
 import { applyMedicalAccess, medicalAccessByPageId } from "./lib/medical-access.mjs";
 import { assertDataIsUsable } from "./lib/validate-data.mjs";
+import { SENTENCE, autoLinkKnownTerms, escapeHtml } from "./lib/auto-link.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
@@ -96,18 +97,6 @@ function slugify(value) {
     .replace(/^-+|-+$/g, "") || "page";
 }
 
-function escapeHtml(value = "") {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
-}
-
-function escapeRegExp(value) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function toPublicAssetPath(relativePath) {
   return `public/vault-assets/${relativePath.split(path.sep).map(encodeURIComponent).join("/")}`;
 }
@@ -185,6 +174,8 @@ function parseFrontmatter(markdown) {
 }
 
 const NUMBER_RANGE = /^\d+\s*[-–]\s*\d+$/;
+const UNLINKED_COLUMNS = ["Position", "Позиция", "Result", "Результат"];
+
 function splitTableRow(line) {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
   const cells = [];
@@ -255,32 +246,6 @@ function parseMarkdownTables(markdown) {
   return tables;
 }
 
-function autoLinkKnownTerms(html, pageByTitle) {
-  if (html.includes("<a ")) {
-    return html;
-  }
-
-  const entities = [...pageByTitle.values()]
-    .filter((page) => page.kind === "skill" || page.kind === "trait")
-    .sort((a, b) => b.title.length - a.title.length);
-
-  let linked = html;
-  for (const page of entities) {
-    const pattern = new RegExp(`(^|[^A-Za-z0-9])(${escapeRegExp(escapeHtml(page.title))})(?=$|[^A-Za-z0-9])`, "gi");
-    linked = linked
-      .split(/(<a\b[^>]*>.*?<\/a>|<[^>]+>)/gi)
-      .map((part) => {
-        if (part.startsWith("<")) {
-          return part;
-        }
-        return part.replace(pattern, (_match, prefix, label) => `${prefix}<a href="#/${page.slug}">${label}</a>`);
-      })
-      .join("");
-  }
-
-  return linked;
-}
-
 function resolveLinkedPage(pageByTitle, title) {
   const direct = pageByTitle.get(title);
   if (direct) return direct;
@@ -336,7 +301,7 @@ function inlineMarkdownToHtml(value, pageByTitle, options = {}) {
   html = html.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
   html = html.replace(/\*([^*]+)\*/g, "<em>$1</em>");
   if (options.autoLinkKnown) {
-    html = autoLinkKnownTerms(html, pageByTitle);
+    html = autoLinkKnownTerms(html, pageByTitle, options);
   }
   return html;
 }
@@ -388,11 +353,11 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
       const numberedItems = splitInlineNumberedItems(text);
       if (!options.preserveLineBreaks && numberedItems) {
         if (numberedItems.lead) {
-          html.push(`<p>${inlineMarkdownToHtml(numberedItems.lead, pageByTitle)}</p>`);
+          html.push(`<p>${inlineMarkdownToHtml(numberedItems.lead, pageByTitle, options)}</p>`);
         }
         html.push(renderNumberedList(numberedItems.items, pageByTitle, numberedItems.start));
       } else {
-        html.push(`<p>${inlineMarkdownToHtml(text, pageByTitle).replace(/\n/g, "<br>")}</p>`);
+        html.push(`<p>${inlineMarkdownToHtml(text, pageByTitle, options).replace(/\n/g, "<br>")}</p>`);
       }
       paragraph = [];
     }
@@ -441,9 +406,10 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
           html.push("<tr>");
           html.push(splitTableRow(lines[index]).map((cell, cellIndex) => {
             const headerLabel = headerLabels[cellIndex] ?? "";
-            const autoLinkKnown = headerLabel !== "Position" && headerLabel !== "Позиция";
+            const autoLinkKnown = !UNLINKED_COLUMNS.includes(headerLabel);
             const cellClass = NUMBER_RANGE.test(cell.trim()) ? ` class="nowrap-cell"` : "";
-            return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, { autoLinkKnown })}</td>`;
+            const linking = { autoLinkKnown, strictLinks: SENTENCE.test(cell), selfPage: options.selfPage };
+            return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, linking)}</td>`;
           }).join(""));
           html.push("</tr>");
           index += 1;
@@ -467,7 +433,7 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
     if (listItem) {
       flushParagraph();
       openList("ul");
-      html.push(`<li>${inlineMarkdownToHtml(listItem[1], pageByTitle)}</li>`);
+      html.push(`<li>${inlineMarkdownToHtml(listItem[1], pageByTitle, options)}</li>`);
       continue;
     }
 
@@ -475,7 +441,7 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
     if (orderedListItem) {
       flushParagraph();
       openList("ol", Number.parseInt(orderedListItem[1], 10));
-      html.push(`<li>${inlineMarkdownToHtml(orderedListItem[2], pageByTitle)}</li>`);
+      html.push(`<li>${inlineMarkdownToHtml(orderedListItem[2], pageByTitle, options)}</li>`);
       continue;
     }
 
@@ -727,7 +693,12 @@ async function buildLocaleData(resolvedFiles) {
 
     return {
       ...page,
-      html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, { preserveLineBreaks: page.kind === "inducement" }),
+      html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, {
+        preserveLineBreaks: page.kind === "inducement",
+        autoLinkKnown: ["skill", "trait", "page"].includes(page.kind),
+        strictLinks: true,
+        selfPage: page,
+      }),
       team: page.kind === "team" ? {
         experimental: page.tags.includes("Experimental") || page.section === "Experimental" || page.section === "Р­РєСЃРїРµСЂРёРјРµРЅС‚Р°Р»СЊРЅС‹Рµ",
         type: page.tags.includes("Experimental") ? "Experimental" : "Core",
