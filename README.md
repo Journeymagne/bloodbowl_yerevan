@@ -25,6 +25,58 @@ The site contains:
   rather than opened straight off disk: `src/app.js` is an ES module and browsers
   refuse to load modules over `file://`.
 
+## Running Locally
+
+Install these first:
+
+- **Node.js** (includes `npm`) - <https://nodejs.org/en/download>
+- **Docker Desktop**, for the local PostgreSQL database that keeps users, saved teams and profile edits - <https://docs.docker.com/desktop/setup/install/windows-install/> (Windows; the same site has the macOS and Linux installers)
+
+Open a new terminal after installing so `node` and `npm` are on the `PATH`, and make sure Docker Desktop is running.
+
+First-time setup, from the repository root:
+
+```bash
+npm ci                 # install dependencies
+cp .env.example .env   # Windows cmd: copy .env.example .env
+npm run postgres:up    # start PostgreSQL in Docker
+npm run db:migrate     # create the database tables
+npm start              # build the site and serve it
+```
+
+The `.env` file is not in the repository (it holds passwords and is git-ignored), so it has to be created from `.env.example` before anything else works - both Docker and the server read it. The example values are fine for local use. If you change `POSTGRES_PASSWORD`, put the same password inside `DATABASE_URL`: the app connects with `DATABASE_URL`, not with `POSTGRES_PASSWORD`.
+
+The site and API then run at <http://localhost:3002>. Log in with `ADMIN_LOGIN` / `ADMIN_PASSWORD` from `.env` to reach the admin screens.
+
+On later runs only `npm run postgres:up` and `npm start` are needed; run `npm run db:migrate` again when a new file appears in `server/db/migrations/`.
+
+`npm start` builds once and serves the result from `dist/`. After editing anything in `src/` or `content/`, run `npm run build` in a second terminal and hard-refresh the page (Ctrl+F5) to see the change.
+
+If a step fails:
+
+| Message | Cause | Fix |
+|---|---|---|
+| `required variable POSTGRES_DB is missing a value` | no `.env` file | `cp .env.example .env` |
+| `Cannot find package 'pg'` | dependencies not installed | `npm ci` |
+| `database is behind: ... not applied` | fresh database, no tables yet | `npm run db:migrate` |
+
+### `npm run dev` vs `npm start`
+
+`npm run dev` builds the reference data and serves the source files as they are at <http://localhost:5173>. It needs no Docker, no database and no `.env`, but it has no API either: login, saved teams, the season and administration screens cannot load anything.
+
+| | `npm run dev` | `npm start` |
+|---|---|---|
+| Needs Docker, Postgres, `.env` | no | yes |
+| API (login, saved teams, season, admin) | no | yes |
+| Serves | source files in `src/` | the built copy in `dist/` |
+| After editing `src/` | refresh the page | `npm run build`, then refresh |
+| After editing `content/` | restart `npm run dev` | `npm run build`, then refresh |
+| Port | 5173 | 3002 |
+
+Use `npm run dev` for the reference pages and general styling, `npm start` for anything behind a login.
+
+`npm run dev` serves the stylesheets unminified, so a style can look right there and still break in the built site. Check CSS changes once against the build before calling them done.
+
 ## Commands
 
 ```bash
@@ -72,26 +124,6 @@ On Windows PowerShell, if `npm` is blocked by execution policy, use:
 ```powershell
 npm.cmd run build
 npm.cmd run dev
-```
-
-After `npm run dev`, the site runs at:
-
-```text
-http://localhost:5173
-```
-
-For persistent users, saved teams and profile editing, run PostgreSQL with Docker Desktop and then start the site locally:
-
-```bash
-cp .env.example .env
-npm run postgres:up
-npm start
-```
-
-By default the site and API run at:
-
-```text
-http://localhost:3002
 ```
 
 Useful environment variables in `.env`:
