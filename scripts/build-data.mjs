@@ -103,19 +103,11 @@ function toPublicAssetPath(relativePath) {
 
 const canonicalLabels = new Map(Object.entries({
   "big guy": "Big Guy",
-  biltzer: "Blitzer",
   blitzer: "Blitzer",
-  bonehead: "Bone Head",
-  "foul apearance": "Foul Appearance",
   "foul appearance": "Foul Appearance",
-  "side step": "Sidestep",
   sidestep: "Sidestep",
   "thick skull": "Thick Skull",
-  "thick skull": "Thick Skull",
-  trall: "Thrall",
-  squirell: "Squirrel",
   "unchanneled fury": "Unchanneled Fury",
-  "unchannelled fury": "Unchanneled Fury",
   "worlds edge superleague": "World's Edge Superleague",
 }));
 
@@ -248,31 +240,17 @@ function parseMarkdownTables(markdown) {
 }
 
 function resolveLinkedPage(pageByTitle, title) {
-  const direct = pageByTitle.get(title);
+  // "Snail Sh..." — a name the source spreadsheet cut short.
+  const direct = pageByTitle.get(title) ?? pageByTitle.get(title.replace(/\.+$/, ""));
   if (direct) return direct;
 
-  const lowerTitle = title.toLowerCase();
-  const caseMatch = [...pageByTitle.values()].find((page) => page.title.toLowerCase() === lowerTitle);
-  if (caseMatch) return caseMatch;
+  // A trait written with its value links to the page for the trait itself.
+  const generic = title
+    .replace(/^Loner \([^)]+\)$/, "Loner (X+)")
+    .replace(/^Hatred \([^)]+\)$/, "Hatred (X)")
+    .replace(/^Animosity \([^)]+\)$/, "Animosity (X)");
 
-  const trimmedDots = title.replace(/\.+$/g, "");
-  if (trimmedDots !== title) {
-    const dotMatch = pageByTitle.get(trimmedDots)
-      || [...pageByTitle.values()].find((page) => page.title.toLowerCase() === trimmedDots.toLowerCase());
-    if (dotMatch) return dotMatch;
-  }
-
-  const alias = title
-    .replace(/^Loner\s*\([^)]+\)(?:\s+Thick\s+Skull)?$/i, "Loner (X+)")
-    .replace(/^Hatred(?:\s*\([^)]+\))?$/i, "Hatred (X)")
-    .replace(/^Animosity(?:\s*\([^)]+\))?$/i, "Animosity (X)")
-    .replace(/^Bloodlust\s*\([^)]+\)$/i, "Bloodlust")
-    .replace(/^Unchannelled Fury$/i, "Unchanneled Fury")
-    .replace(/^Ball\s*&\s*Chain$/i, "Ball and Chain")
-    .replace(/^Bone[-\s]+Head$/i, "Bonehead")
-    .replace(/^Side\s+Step$/i, "Sidestep");
-
-  return alias !== title ? pageByTitle.get(alias) : undefined;
+  return generic !== title ? pageByTitle.get(generic) : undefined;
 }
 
 function inlineMarkdownToHtml(value, pageByTitle, options = {}) {

@@ -127,7 +127,7 @@ add("Drunkard", "This player suffers -1 when attempting to Rush.");
 add(["Hatred", "Hatred (X)", "Hatred (Big Guy)", "Hatred (Dwarf)", "Hatred (Ogre)", "Hatred (Troll)", "Hatred (Undead)"], "When this player Blocks a player with the listed keyword, they may re-roll one Player Down result.");
 add("Hypnotic Gaze", "This player may make a Hypnotic Gaze Special Action after moving. Choose an adjacent standing opponent; on a successful roll that opponent becomes Distracted and this player's activation ends.");
 add("Insignificant", "When building a roster, you cannot include more players with Insignificant than players without it.");
-add("Kick Team-Mate", "This player may make a Kick Team-mate Special Action. It works like Throw Team-mate, but does not use the team's Throw Team-mate action for the turn; a fumbled kick injures the kicked player more harshly.");
+add("Kick Team-mate","This player may make a Kick Team-mate Special Action. It works like Throw Team-mate, but does not use the team's Throw Team-mate action for the turn; a fumbled kick injures the kicked player more harshly.");
 add(["Loner (X+)", "Loner (X+) Thick Skull", "Loner (4+)"], "When this player wants to use a Team re-roll, roll D6. If the result meets or beats the listed target, the re-roll may be used; otherwise the re-roll is lost and the original result stands.");
 add("My Ball", "This player may not willingly give up the ball. They cannot Pass, Hand-off, or use abilities that voluntarily relinquish possession; they lose it only by being taken down or by an opponent's effect.");
 add("No Ball", "This player can never possess the ball, automatically fails attempts to catch or pick it up, and cannot attempt interceptions.");
@@ -139,7 +139,7 @@ add("Stab", "This player may make a Stab Special Action against an adjacent stan
 add("Stunty", "This player ignores negative modifiers for being Marked when Dodging, suffers -1 when trying to Intercept, and uses the Stunty Injury Table when injured.");
 add("Swoop", "When thrown by Throw Team-mate, this player may replace normal scatter with a throw-in-template direction and distance roll, and may re-roll the landing test.");
 add("Take Root", "When activated while standing, roll D6. On 2+ act normally; on 1 the player becomes Rooted, cannot move, follow up, be pushed back, or leave the square until knocked down, placed prone, removed, or the drive ends.");
-add("Throw Team-Mate", "This player may perform the Throw Team-mate Action. Use the normal Throw Team-mate procedure for picking up and throwing an eligible team-mate.");
+add("Throw Team-mate","This player may perform the Throw Team-mate Action. Use the normal Throw Team-mate procedure for picking up and throwing an eligible team-mate.");
 add("Titchy", "This player gets +1 to Dodge tests, but does not impose the normal -1 marking modifier on opponents dodging into their tackle zone.");
 add("Trickster", "When targeted by a Block Action or most direct Special Actions, this player may be removed and placed in another empty square adjacent to the attacker before the action resolves. If placed on the ball, they may try to pick it up first.");
 add(["Unchannelled Fury", "Unchanneled Fury"], "After declaring an action, roll D6 with +2 for Block or Blitz. On 4+ act normally; on 1-3 the player's activation ends immediately.");
