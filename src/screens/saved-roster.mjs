@@ -30,6 +30,7 @@ import { PLAYER_STATS, categoriesForAccess, clamp, costToNumber, countToNumber, 
 import { hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
 import {
   ensureDraftPlayers,
+  favouredSkillNames,
   normalizePlayerAdvancements,
   normalizePlayerExtraSkills,
   normalizePlayerFavouredSkills,
@@ -61,7 +62,7 @@ import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
 import { normalizeSavedRoster, rosterForStorage, updateSavedRosterFields } from "../data/roster-draft.mjs";
 import { renderRosterNotices, wireConflictBanner, wireRosterNotices } from "../components/roster-notices.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
-import { renderRosterLinks, uniqueSorted } from "../components/content-links.mjs";
+import { renderRosterLinks } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
 import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
@@ -82,6 +83,8 @@ import { toast, toastError } from "../components/toast.mjs";
 import { confirmAction } from "../components/dialog.mjs";
 
 const autosaveDelayMs = 0;
+const TRASH_ICON = `<svg class="trash-icon" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4h11M6 4V2.5h4V4M4 4l.7 9.5h6.6L12 4M6.8 6.5v4.5M9.2 6.5v4.5"/></svg>`;
+const REMOVE_ICON =`<svg class="remove-icon" viewBox="0 0 10 10" aria-hidden="true"><path d="M2 2l6 6M8 2l-6 6"/></svg>`;
 
 function isSavedRosterPlayerExpanded(playerId) {
   return state.savedRosterUi.expandedPlayers.has(playerId);
@@ -687,7 +690,7 @@ function savedStatColumn(stat) {
       return `stat-table-cell ${mod > 0 ? "stat-up" : mod < 0 ? "stat-down" : ""}`.trim();
     },
     cell: (player) => `
-      <div class="table-stat-control">
+      <div class="table-stepper">
         <button type="button" data-saved-stat="${stat}" data-saved-stat-delta="-1">-</button>
         <strong>${escapeHtml(statValueForDisplayByStat(stat, player.row[stat], Number(player.statMods?.[stat] ?? 0)))}</strong>
         <button type="button" data-saved-stat="${stat}" data-saved-stat-delta="1">+</button>
@@ -699,7 +702,7 @@ function savedStatColumn(stat) {
 function renderSavedNumberCell(player, index) {
   return `
     <div class="saved-number-control">
-      <button class="filter-button compact-action drag-handle table-drag-handle" type="button" draggable="true" data-player-drag-handle title="${t("roster.dragToReorder")}" aria-label="${t("roster.dragToReorder")}">↕</button>
+      <button class="filter-button drag-handle table-drag-handle" type="button" draggable="true" data-player-drag-handle title="${t("roster.dragToReorder")}" aria-label="${t("roster.dragToReorder")}">↕</button>
       <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
     </div>
   `;
@@ -711,15 +714,15 @@ function renderSavedSkillsCell(player) {
   return `
     ${renderRosterLinks(player.row.skills)}
     ${extraSkills.length ? `
-      <div class="player-extra-skills table-extra-skills">
+      <div class="player-extra-skills">
         ${extraSkills.map((skill) => `
-          <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+          <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}${REMOVE_ICON}</button>
         `).join("")}
       </div>
     ` : ""}
     ${renderFavouredSkillButtons(player)}
     ${renderCaptainSkillBadge(player)}
-    ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
+    ${eliteCost ? `<p class="cost-note elite-combo-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
   `;
 }
 
@@ -728,13 +731,13 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
   const options = availableSkillOptionsForPlayer(player.row, player);
   return `
     <div class="table-skill-editor ${className}">
-      <input class="table-input" type="text" list="${escapeHtml(listId)}" placeholder="${t("roster.skillPlaceholder")}" data-saved-player-skill>
+      <input class="table-input" type="text" list="${escapeHtml(listId)}" placeholder="${t("roster.skillPlaceholder")}" aria-label="${t("roster.addSkillHeader")}" data-saved-player-skill>
       <datalist id="${escapeHtml(listId)}">
         ${options.map((option) => `
           <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
         `).join("")}
       </datalist>
-      <button class="filter-button compact-action" type="button" data-saved-player-add-skill>${t("common.add")}</button>
+      <button class="filter-button table-icon-button" type="button" data-saved-player-add-skill title="${t("common.add")}">+</button>
     </div>
   `;
 }
@@ -743,8 +746,7 @@ function renderSavedSkillEditor(player, index, { className = "", idPrefix = "ski
 function renderSavedPlayerFlag(attribute, label, checked) {
   return `
     <label class="table-checkbox" title="${label}">
-      <input type="checkbox" ${attribute} ${checked ? "checked" : ""}>
-      <span>${label}</span>
+      <input type="checkbox" ${attribute} ${checked ? "checked" : ""} aria-label="${label}">
     </label>
   `;
 }
@@ -758,7 +760,7 @@ function renderSavedCostCell(player) {
 /** The league editor's columns, declared once and read by both header and body. */
 function savedColumns(team, draft, hasFavouredAccess) {
   return [
-    { header: "#", className: "saved-number-cell", cell: renderSavedNumberCell },
+    { header: "#", className: "fit-cell", cell: renderSavedNumberCell },
     {
       header: t("roster.nameHeader"),
       cell: (player, index) => `<input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>`,
@@ -767,22 +769,25 @@ function savedColumns(team, draft, hasFavouredAccess) {
     ...PLAYER_STATS.map(savedStatColumn),
     { header: t("roster.skillsLabel"), className: "skills-cell", cell: renderSavedSkillsCell },
     {
-      header: t("roster.skipHeader"),
+      header: t("roster.skipNextGame"),
+      className: "fit-cell center-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-skip", t("roster.skipNextGame"), player.skipNextGame),
     },
     {
       header: t("roster.niglingInjury"),
+      className: "fit-cell center-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-nigling", t("roster.niglingInjury"), player.niglingInjury),
     },
     {
       header: t("roster.captain"),
+      className: "fit-cell center-cell",
       cell: (player) => renderSavedPlayerFlag("data-saved-player-captain", t("roster.captain"), player.isCaptain),
     },
-    { header: t("roster.extendedContracts"), cell: renderPlayerContractControls },
+    { header: t("roster.extendedContracts"), className: "fit-cell", cell: renderPlayerContractControls },
     { header: "SPP", className: "spp-cell", cell: (player) => renderPlayerSppControls(team, player) },
     { header: t("roster.levelHeader"), className: "level-cell", cell: (player) => renderPlayerLevelCell(team, player) },
     { header: t("roster.advancementHeader"), className: "advancement-cell", cell: (player) => renderPlayerAdvancementControls(team, player) },
-    { header: t("roster.addSkillHeader"), cell: renderSavedSkillEditor },
+    { header: t("roster.addSkillHeader"), className: "skill-editor-cell", cell: renderSavedSkillEditor },
     hasFavouredAccess && {
       header: t("roster.favouredOf"),
       className: "favoured-skill-cell",
@@ -791,7 +796,8 @@ function savedColumns(team, draft, hasFavouredAccess) {
     { header: t("sidebar.cost"), cell: renderSavedCostCell },
     {
       header: t("roster.actionHeader"),
-      cell: (player) => `<button class="filter-button compact-action" type="button" data-remove-saved-player="${escapeHtml(player.id)}">${t("common.remove")}</button>`,
+      className: "center-cell",
+      cell: (player) => `<button class="filter-button table-icon-button danger-icon-button" type="button" data-remove-saved-player="${escapeHtml(player.id)}" title="${t("common.remove")}">${TRASH_ICON}</button>`,
     },
   ];
 }
@@ -807,7 +813,7 @@ function renderSavedPlayerList(team, draft) {
       table: "saved-roster-table",
       mobileList: "saved-roster-mobile-list",
     },
-    rowAttributes: (player) => `data-roster-player="${escapeHtml(player.id)}" draggable="true"`,
+    rowAttributes: (player) => `data-roster-player="${escapeHtml(player.id)}" draggable="true"${player.skipNextGame ? ` class="is-skipped"` : ""}`,
     renderCard: (player, index) => renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess),
   });
 }
@@ -819,11 +825,11 @@ function renderSavedPlayerFavouredEditor(team, draft, player, inputId) {
     <div class="favoured-skill-editor">
       <small>${escapeHtml(choice)}</small>
       <div class="table-skill-editor">
-        <input class="table-input" type="text" list="${escapeHtml(inputId)}" placeholder="${t("roster.favouredSkillPlaceholder")}" data-saved-player-favoured-skill ${!options.length ? "disabled" : ""}>
+        <input class="table-input" type="text" list="${escapeHtml(inputId)}" placeholder="${t("roster.favouredSkillPlaceholder")}" aria-label="${t("roster.favouredOf")}" data-saved-player-favoured-skill ${!options.length ? "disabled" : ""}>
         <datalist id="${escapeHtml(inputId)}">
           ${options.map((option) => `<option value="${escapeHtml(option.name)}" label="${escapeHtml(option.alignment)}"></option>`).join("")}
         </datalist>
-        <button class="filter-button compact-action" type="button" data-saved-player-add-favoured ${!options.length ? "disabled" : ""}>${t("common.add")}</button>
+        <button class="filter-button table-icon-button" type="button" data-saved-player-add-favoured title="${t("common.add")}" ${!options.length ? "disabled" : ""}>+</button>
       </div>
     </div>
   `;
@@ -832,10 +838,10 @@ function renderPlayerContractControls(player) {
   const contracts = Math.max(0, countToNumber(player.extendedContracts));
   return `
     <div class="player-contract-control">
-      <div class="inline-stepper-control compact-contract-stepper">
-        <button class="filter-button" type="button" data-saved-player-contract-delta="-1" ${contracts <= 0 ? "disabled" : ""}>-</button>
+      <div class="table-stepper">
+        <button type="button" data-saved-player-contract-delta="-1" ${contracts <= 0 ? "disabled" : ""}>-</button>
         <strong>${contracts}</strong>
-        <button class="filter-button" type="button" data-saved-player-contract-delta="1">+</button>
+        <button type="button" data-saved-player-contract-delta="1">+</button>
       </div>
       ${contracts ? `<small class="cost-note">+${contracts * 20}k</small>` : ""}
     </div>
@@ -845,9 +851,9 @@ function renderFavouredSkillButtons(player) {
   const favouredSkills = normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []);
   if (!favouredSkills.length) return "";
   return `
-    <div class="player-extra-skills table-extra-skills favoured-extra-skills">
+    <div class="player-extra-skills favoured-extra-skills">
       ${favouredSkills.map((skill) => `
-        <button class="roster-pill favoured-skill-pill" type="button" data-saved-player-remove-favoured="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+        <button class="roster-pill favoured-skill-pill" type="button" data-saved-player-remove-favoured="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}${REMOVE_ICON}</button>
       `).join("")}
     </div>
   `;
@@ -860,7 +866,7 @@ function renderCaptainSkillBadge(player) {
     ...normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []).map((skill) => skill.name),
   ]);
   return `
-    <div class="player-extra-skills table-extra-skills captain-extra-skills">
+    <div class="player-extra-skills captain-extra-skills">
       ${nonCaptainSkills.has("Pro") ? "" : renderRosterLinks(["Pro"])}
       <span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>
     </div>
@@ -901,7 +907,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
         <div class="mobile-player-pills">
           ${renderRosterLinks(player.row.skills)}
           ${extraSkills.map((skill) => `
-            <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(`${skill.name} x`)}</button>
+            <button class="roster-pill" type="button" data-saved-player-remove-skill="${escapeHtml(skill.name)}">${escapeHtml(skill.name)}${REMOVE_ICON}</button>
           `).join("")}
           ${renderFavouredSkillButtons(player)}
           ${renderCaptainSkillBadge(player)}
@@ -985,13 +991,7 @@ function renderSavedPlayerPreviewCard(team, player, index) {
   `;
 }
 function renderPlayerPreviewSkills(player) {
-  const names = [
-    ...(player.row.skills ?? []),
-    ...normalizePlayerExtraSkills(player.row, player.extraSkills ?? []).map((skill) => skill.name),
-    ...normalizePlayerFavouredSkills(player.row, player.favouredSkills ?? []).map((skill) => skill.name),
-  ];
-  if (player.isCaptain && !names.includes("Pro")) names.push("Pro");
-  const rendered = renderRosterLinks(uniqueSorted(names));
+  const rendered = renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player));
   return `${rendered}${player.isCaptain ? `<span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>` : ""}`;
 }
 function renderSppActionButtons(player) {
@@ -1032,17 +1032,16 @@ function renderPlayerSppControls(team, player) {
         </label>
       `).join("")}
     </div>
-    <strong class="spp-total" data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</strong>
   `;
 }
 function renderPlayerLevelCell(team, player) {
   const level = playerAdvancementLevel(player);
   return `
     <div class="player-level-stack">
-      <strong>${level}</strong>
-      <span>${escapeHtml(playerLevelRank(player))}</span>
+      <strong><span class="player-level-number">${level}</span> (${escapeHtml(playerLevelRank(player))})</strong>
+      <small data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</small>
       <small data-player-spent-spp>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small>
-      <small data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
+      <small class="player-available-spp" data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
     </div>
   `;
 }
@@ -1050,13 +1049,12 @@ function renderPlayerAdvancementControls(team, player) {
   const advancements = normalizePlayerAdvancements(player.advancements);
   const level = playerAdvancementLevel(player);
   const nextRank = advancementRanks[level];
-  const available = playerAvailableSpp(team, player);
   const canAdvance = Boolean(nextRank);
   return `
     <div class="advancement-control">
       ${canAdvance ? `
         <div class="advancement-add-row">
-          <select class="table-select" data-saved-player-advancement-type>
+          <select class="table-select" data-saved-player-advancement-type aria-label="${t("roster.advancementType")}">
             ${Object.entries(advancementTypeLabels).map(([type, label]) => {
     const verdict = canTakeAdvancement(team, player, type);
     return `
@@ -1064,20 +1062,20 @@ function renderPlayerAdvancementControls(team, player) {
             `;
   }).join("")}
           </select>
-          <button class="filter-button compact-action" type="button" data-saved-player-add-advancement>${t("common.add")}</button>
+          <button class="filter-button table-icon-button" type="button" data-saved-player-add-advancement title="${t("common.add")}">+</button>
         </div>
-        <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}, ${available} ${t("roster.sppAvailable")}</small>
-      ` : `<span class="muted-text">${t("roster.maxLevel")}</span>`}
+        <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}</small>
+      ` : `<strong class="muted-text">${t("roster.maxLevel")}</strong>`}
       <div class="advancement-list">
         ${advancements.length ? advancements.map((advancement, index) => {
     const cost = advancementRanks[index]?.costs?.[advancement.type] ?? 0;
     const label = advancementTypeLabels[advancement.type] ?? advancement.type;
     return `
             <button class="roster-pill advancement-pill" type="button" data-saved-player-remove-advancement="${index}">
-              ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP x`)}
+              ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP`)}${REMOVE_ICON}
             </button>
           `;
-  }).join("") : `<span class="muted-text">${t("roster.noAdvancementsYet")}</span>`}
+  }).join("") : `<small class="muted-text"><em>${t("roster.noAdvancementsYet")}</em></small>`}
       </div>
     </div>
   `;

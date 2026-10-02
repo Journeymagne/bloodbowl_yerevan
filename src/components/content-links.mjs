@@ -27,13 +27,15 @@ export function pageForSkillTableEntry(title) {
     ?? null;
 }
 
-export function renderRosterLinks(items = []) {
+/** @param {Set<string>} [favoured] names to mark as favoured-skill pills */
+export function renderRosterLinks(items = [], favoured = new Set()) {
   if (!items.length) return `<span class="muted-text">-</span>`;
   return items.map((item) => {
     const page = pageForSkillTableEntry(item);
+    const className = favoured.has(item) ? "roster-pill favoured-skill-pill" : "roster-pill";
     return page
-      ? `<a class="roster-pill" href="${pageUrl(page)}">${escapeHtml(item)}</a>`
-      : `<span class="roster-pill">${escapeHtml(item)}</span>`;
+      ? `<a class="${className}" href="${pageUrl(page)}">${escapeHtml(item)}</a>`
+      : `<span class="${className}">${escapeHtml(item)}</span>`;
   }).join("");
 }
 
