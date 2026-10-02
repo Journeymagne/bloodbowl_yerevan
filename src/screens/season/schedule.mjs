@@ -10,6 +10,7 @@
 import { escapeHtml, renderOption } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameStatusLabel } from "../../components/game-status.mjs";
+import { iconButton } from "../../components/icons.mjs";
 import {
   pairingCasualties,
   pairingEntry,
@@ -130,9 +131,9 @@ function renderSeasonPairingRow(data, round, pairing, adminMode = false) {
         </div>
       </td>
       <td data-pairing-points>${escapeHtml(pairingLeaguePoints(pairing))}</td>
-      <td>
+      <td class="fit-cell">
         <div class="table-actions">
-          <button class="filter-button compact-action" type="button" data-delete-season-pairing="${escapeHtml(pairing.id)}">${t("common.delete")}</button>
+          ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-season-pairing="${escapeHtml(pairing.id)}"` })}
         </div>
       </td>
     </tr>

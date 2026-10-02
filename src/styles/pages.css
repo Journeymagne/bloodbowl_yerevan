@@ -176,6 +176,10 @@
   color: var(--text);
 }
 
+.filter-field input[type="file"] {
+  padding-block: 6px;
+}
+
 .filter-field input:focus,
 .filter-field select:focus {
   border-color: var(--focus);
@@ -221,7 +225,7 @@
 }
 
 .chip:hover,
-.filter-button:hover,
+.filter-button:not(:disabled):hover,
 .ghost-button:hover {
   border-color: var(--line-bright);
   background: var(--button-bg-hover);
@@ -230,6 +234,11 @@
 
 .filter-button {
   cursor: pointer;
+}
+
+.filter-button:disabled {
+  cursor: default;
+  opacity: 0.45;
 }
 
 .ghost-button {

@@ -38,6 +38,7 @@ import { confirmRaceChange, restoreTeamSelect } from "../components/roster-edito
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
+import { iconButton } from "../components/icons.mjs";
 import {
   ensureDraftLeagueChoice,
   rosterWarnings,
@@ -79,7 +80,7 @@ export function renderBuilder() {
   const warnings = builderWarnings(team, costs);
 
   patch(view, `
-    ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="filter-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`, { back: true, backFallback: "#/my-teams" })}
+    ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="primary-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`, { back: true, backFallback: "#/my-teams" })}
     ${restoredDraft ? `<p class="notice-box" data-key="builder-restored" data-builder-restored>${t("builder.draftRestored")}</p>` : ""}
     ${renderBuilderInfoPanel(team, teams, costs, warnings)}
     <div class="builder-layout builder-layout-main" data-key="builder-main">
@@ -149,11 +150,11 @@ function builderColumns() {
     cell: (player) => escapeHtml(statValueForDisplayByStat(stat, player.row[stat], player.statMods?.[stat] ?? 0)),
   });
   return [
-    { header: "#", cell: (player, index) => String(index + 1) },
+    { header: "#", className: "fit-cell", cell: (player, index) => String(index + 1) },
     { header: t("roster.nameHeader"), cell: (player, index) => renderBuilderNameInput(player, index) },
     { header: t("roster.positionHeader"), cell: (player) => `<strong>${escapeHtml(player.row.position)}</strong>` },
     ...PLAYER_STATS.map(statColumn),
-    { header: t("roster.captain"), cell: (player) => renderBuilderCaptainCheckbox(player) },
+    { header: t("roster.captain"), className: "fit-cell center-cell", cell: (player) => renderBuilderCaptainCheckbox(player) },
     {
       header: t("roster.skillsLabel"),
       className: "skills-cell",
@@ -162,7 +163,8 @@ function builderColumns() {
     { header: t("sidebar.cost"), cell: (player) => escapeHtml(rowCost(player.row) || "-") },
     {
       header: t("roster.actionHeader"),
-      cell: (player) => `<button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">${t("common.remove")}</button>`,
+      className: "fit-cell center-cell",
+      cell: (player) => iconButton("trash", { attributes: `data-remove-player="${escapeHtml(player.id)}"` }),
     },
   ];
 }
@@ -175,8 +177,7 @@ function renderBuilderNameInput(player, index) {
 function renderBuilderCaptainCheckbox(player) {
   return `
     <label class="table-checkbox" title="${t("roster.captain")}">
-      <input type="checkbox" data-builder-player-captain="${escapeHtml(player.id)}" ${player.isCaptain ? "checked" : ""}>
-      <span>${t("roster.captain")}</span>
+      <input type="checkbox" data-builder-player-captain="${escapeHtml(player.id)}" ${player.isCaptain ? "checked" : ""} aria-label="${t("roster.captain")}">
     </label>
   `;
 }
@@ -215,7 +216,7 @@ function renderBuilderPlayerCard(player, index) {
           <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-builder-player-name="${escapeHtml(player.id)}">
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}</small>
         </div>
-        <button class="filter-button compact-action" type="button" data-remove-player="${escapeHtml(player.id)}">${t("common.remove")}</button>
+        ${iconButton("trash", { attributes: `data-remove-player="${escapeHtml(player.id)}"` })}
       </header>
       <section class="mobile-player-section">
         <h3>${t("roster.statsLabel")}</h3>

@@ -18,7 +18,7 @@ const listeners = new Set();
 let dictionaries = { en: {}, ru: {} };
 let locale = "en";
 
-export function detectDefaultLocale(navigatorLike = globalThis.navigator) {
+export function detectDefaultLocale(navigatorLike) {
   const languages = navigatorLike?.languages?.length
     ? navigatorLike.languages
     : [navigatorLike?.language || "en"];
@@ -27,7 +27,7 @@ export function detectDefaultLocale(navigatorLike = globalThis.navigator) {
 
 export function storedLocale() {
   const saved = storage.get(STORAGE_KEYS.locale);
-  return supported.has(saved) ? saved : detectDefaultLocale();
+  return supported.has(saved) ? saved : detectDefaultLocale(globalThis.navigator);
 }
 
 export function getLocale() {
@@ -107,7 +107,7 @@ export function setLocale(next) {
 
 /** Set the locale without announcing it — used once, on boot. */
 export function initLocale(next) {
-  locale = supported.has(next) ? next : detectDefaultLocale();
+  locale = supported.has(next) ? next : detectDefaultLocale(globalThis.navigator);
   document.documentElement.lang = locale;
   return locale;
 }

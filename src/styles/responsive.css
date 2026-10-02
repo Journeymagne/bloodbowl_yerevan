@@ -121,11 +121,6 @@
     grid-template-columns: minmax(100px, 0.52fr) minmax(0, 1fr);
   }
 
-  .mobile-roster-player-card header .compact-action {
-    align-self: auto;
-    width: auto;
-  }
-
   .builder-tracker-control .inline-stepper-control {
     justify-self: auto;
   }
@@ -401,7 +396,7 @@
  * On a phone a wide table scrolls sideways at its natural width. Saying so
  * needs `.table-scroll table`, which out-specifies the rules each table sets
  * for itself (.compact-roster-table asks for 980px), so there is no wider
- * rule that could hand control back — hence a max-width query, and the five
+ * rule that could hand control back — hence a max-width query, and the
  * tables repeating their own widths underneath it.
  */
 @media (max-width: 600px) {
@@ -416,10 +411,6 @@
 
   .table-scroll .builder-selected-table {
     min-width: 940px;
-  }
-
-  .table-scroll .saved-roster-table {
-    min-width: 2160px;
   }
 
   .table-scroll .my-teams-table {

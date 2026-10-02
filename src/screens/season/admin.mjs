@@ -161,7 +161,7 @@ async function saveSeasonPairingRow(row, { rerender = null } = {}) {
 }
 
 /** Adding a coach's saved team, creating a fresh one for them, or removing an entry. */
-function wireEntryManagement(rerender) {
+export function wireEntryManagement(rerender) {
   view.querySelector("[data-season-admin-add-team]")?.addEventListener("click", async () => {
     const teamId = view.querySelector("[data-season-admin-team]")?.value;
     if (!teamId) return;

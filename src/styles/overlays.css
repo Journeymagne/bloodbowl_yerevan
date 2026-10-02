@@ -68,6 +68,12 @@
   flex-wrap: wrap;
 }
 
+.app-dialog-actions .filter-button {
+  justify-content: center;
+  min-height: 40px;
+  padding: 0 14px;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .toast {
     animation: toast-in 160ms ease-out;

@@ -24,7 +24,7 @@ import { renderSeasonRegistration, wireRegistration } from "./registration.mjs";
 import { renderLeagueFixture } from "./fixture.mjs";
 import { renderSeasonStandings } from "./standings.mjs";
 import { renderSeasonRounds } from "./schedule.mjs";
-import { renderSeasonAdmin, wireAdmin } from "./admin.mjs";
+import { renderSeasonAdmin, wireAdmin, wireEntryManagement } from "./admin.mjs";
 import { loadSeason } from "./season-data.mjs";
 
 /**
@@ -176,6 +176,10 @@ function wireSeason(activeTab) {
   });
 
   const rerender = () => renderSeason(false, activeTab);
-  if (activeTab === "registration") wireRegistration(rerender);
+  if (activeTab === "registration") {
+    wireRegistration(rerender);
+    // The registration tab shows admins the add-team panel and remove buttons too.
+    wireEntryManagement(rerender);
+  }
   if (activeTab === "administration") wireAdmin(rerender);
 }
