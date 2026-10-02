@@ -110,10 +110,6 @@
   min-width: 0;
 }
 
-.roster-resource-list {
-  grid-template-columns: 1fr;
-}
-
 .roster-money-form {
   grid-template-columns: repeat(2, minmax(160px, 1fr));
   padding: 0;
@@ -133,8 +129,13 @@
   min-width: 0;
 }
 
-.roster-purchase-grid {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+.roster-resource-list > :not(.roster-money-card) {
+  grid-column: 1 / -1;
+}
+
+.builder-tracker-list.roster-resource-list,
+.builder-tracker-list.roster-purchase-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(310px, calc(50% - 4px))), 1fr));
 }
 
 .builder-info-panel {
@@ -352,6 +353,22 @@
   width: 100%;
   min-width: 0;
   margin: 0;
+  padding: 0 28px;
+  text-align: center;
+}
+
+.builder-addon span.money-input {
+  position: relative;
+  margin: 0;
+}
+
+.builder-addon .money-input > span {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  margin: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .builder-tracker-control {
@@ -379,7 +396,6 @@
 
 .builder-tracker-control .inline-stepper-control .filter-button {
   min-height: 44px;
-  padding: 0;
   font-size: 1.125rem;
   font-weight: 900;
 }
@@ -1396,7 +1412,7 @@
 .inline-stepper-control {
   display: grid;
   grid-template-columns: 38px minmax(42px, auto) 38px;
-  align-items: center;
+  align-items: stretch;
   overflow: hidden;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -1405,14 +1421,23 @@
 }
 
 .inline-stepper-control strong {
+  align-self: center;
   color: var(--text);
   text-align: center;
 }
 
 .inline-stepper-control .filter-button {
+  justify-content: center;
   min-height: 38px;
+  padding: 0;
   border: 0;
+  border-right: 1px solid var(--line);
   border-radius: 0;
+}
+
+.inline-stepper-control .filter-button:last-child {
+  border-right: 0;
+  border-left: 1px solid var(--line);
 }
 
 .editable-stat-line .player-stat-editor.stat-up {

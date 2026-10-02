@@ -281,7 +281,10 @@ function renderRosterMoneyControl(title, description, value, dataAttribute) {
         <strong>${escapeHtml(title)}</strong>
         <span>${escapeHtml(description)}</span>
       </div>
-      <input class="table-input roster-purchase-input" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
+      <span class="money-input">
+        <input class="table-input roster-purchase-input" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
+        <span aria-hidden="true">k</span>
+      </span>
     </label>
   `;
 }
