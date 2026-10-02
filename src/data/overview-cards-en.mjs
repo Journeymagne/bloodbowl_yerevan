@@ -120,8 +120,8 @@ export const overviewCards = [
       {
         title: "Skill Changes",
         items: [
-          "Claws, Mighty Blow, and Piledriver: These skills now fully stack. With Claws and Mighty Blow, you break any armor on a 7+.",
-          "Piledriver: Completely changed. After an armor roll from a Block action, the player using the skill can become Placed Prone to roll again. This does not work with skills that replace Block and has been moved to the Strength category.",
+          "Claws, Mighty Blow, and Pile Driver: These skills now fully stack. With Claws and Mighty Blow, you break any armor on a 7+.",
+          "Pile Driver: Completely changed. After an armor roll from a Block action, the player using the skill can become Placed Prone to roll again. This does not work with skills that replace Block and has been moved to the Strength category.",
           "Hypnotic Gaze: Partially changed; can now only be used once per turn.",
           "Brawler: Completely changed; allows a one-time reroll of a single die during a Block. Cannot be used in negative dice blocks.",
           "Plague Ridden / Masters of Undeath: Completely changed; when a player with this rule kills an opponent, their coach gains a Lineman of their own team. Shambling Undead can choose between a Skeleton or a Zombie.",
@@ -139,7 +139,7 @@ export const overviewCards = [
           "Shiv (New): Works like Stab but can only be used once per turn among all players with the skill.",
           "Decay: Completely changed; when receiving an injury, roll two dice and choose the highest.",
           "Safe Pass: Protects against any Fumble, not just on a natural 1.",
-          "Fumblerooski: Moved to the Agility category.",
+          "Fumblerooskie: Moved to the Agility category.",
           "Pogo: Can only be used once per activation.",
           "Secret Weapon: Only works if the player was fielded for the drive.",
           "Shadowing: Now a General skill.",

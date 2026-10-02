@@ -552,6 +552,10 @@ td {
   background: var(--surface-soft);
 }
 
+.nowrap-cell {
+  white-space: nowrap;
+}
+
 .numbered-table th:first-child,
 .numbered-table td:first-child {
   width: 48px;

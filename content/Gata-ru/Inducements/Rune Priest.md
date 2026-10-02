@@ -4,8 +4,9 @@ tags:
 ---
 
 0-1 Rune Priest (50 тыс., только для Old World Classic и Worlds Edge Superleague): В начале каждого драна, перед киком, выберите одного игрока без трейта Loner и бросьте d6: на 4+ выберите руну и примените её к игроку (повторно этот эффект в этой игре использовать нельзя); на 2-3 руна не срабатывает, но вы можете повторить попытку в следующем дране; на 1 руна не срабатывает, и эффект блокируется до конца игры.
-Rune of Might: Игрок получает Mighty Blow до конца драна.
-Rune of Fury: Игрок получает Dauntless и Frenzy до конца драна.
-Rune of Speed: Игрок получает Sure Feet и Sprint до конца драна.
-Rune of Iron: Игрок получает +1 AV и Stand Firm до конца драна.
-Rune of Force: Игрок получает Horns и Juggernaut до конца драна.
+
+- **Rune of Might:** Игрок получает Mighty Blow до конца драна.
+- **Rune of Fury:** Игрок получает Dauntless и Frenzy до конца драна.
+- **Rune of Speed:** Игрок получает Sure Feet и Sprint до конца драна.
+- **Rune of Iron:** Игрок получает +1 AV и Stand Firm до конца драна.
+- **Rune of Force:** Игрок получает Horns и Juggernaut до конца драна.
