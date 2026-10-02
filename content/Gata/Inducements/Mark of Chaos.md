@@ -10,4 +10,4 @@ tags:
 - **Nurgle:** Disturbing Presence, Foul Appearance.
 - **Tzeentch:** Pro, Two Heads.
 - **Slaanesh:** Dodge, Leap.
-- **Hashut:** Iron Hard Skin, Claw.
+- **Hashut:** Iron Hard Skin, Claws.
