@@ -76,7 +76,9 @@
 }
 
 .roster-identity-panel .team-rules-panel {
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  align-items: start;
+  gap: 12px 24px;
 }
 
 .roster-logo-inline {
