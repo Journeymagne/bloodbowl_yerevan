@@ -10,4 +10,4 @@ tags:
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | 6 | 4 | 2+ | 4+ | 10+ | 210k | [[Fend]], [[Guard]], [[Wrestle]], [[Stand Firm]], [[Loner (4+)]] |  |
 
-**Special Ability:** ?:       Side Step.
+**Special Ability:** ?:       Sidestep.
