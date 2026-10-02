@@ -176,6 +176,10 @@
   color: var(--text);
 }
 
+.filter-field input[type="file"] {
+  padding-block: 6px;
+}
+
 .filter-field input:focus,
 .filter-field select:focus {
   border-color: var(--focus);

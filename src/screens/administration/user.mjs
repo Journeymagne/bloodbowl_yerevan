@@ -21,6 +21,7 @@ import { wireTeamDeleteButtons } from "../my-teams.mjs";
 import { makeSeasonStarterRoster } from "../season/season-data.mjs";
 import { toast, toastError } from "../../components/toast.mjs";
 import { confirmAction } from "../../components/dialog.mjs";
+import { iconButton } from "../../components/icons.mjs";
 
 export async function renderAdminUserProfile(userId) {
   setActiveNav("administration");
@@ -314,10 +315,10 @@ function renderProfileSavedTeamRow(team, owner) {
       <td>${costs ? costs.totalPlayersCount : "-"}</td>
       <td>${costs ? `${costs.total}k` : "-"}</td>
       <td>${escapeHtml(updated)}</td>
-      ${canManageProfileTeams(owner) ? `<td>
+      ${canManageProfileTeams(owner) ? `<td class="fit-cell">
           <div class="table-actions">
-            <a class="primary-button compact-action" href="${profileTeamEditUrl(owner, team)}">${t("common.edit")}</a>
-            <button class="filter-button compact-action danger-action" type="button" data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(owner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}">${t("common.delete")}</button>
+            ${iconButton("edit", { href: profileTeamEditUrl(owner, team) })}
+            ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(owner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
           </div>
       </td>` : ""}
     </tr>

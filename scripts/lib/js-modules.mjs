@@ -48,7 +48,7 @@ async function walk(dir, files) {
  *   `start`/`end` are 0-based line indexes, inclusive.
  */
 export function findTopLevelFunctions(source) {
-  const lines = source.split("\n");
+  const lines = source.split(/\r?\n/);
   const functions = [];
   for (let index = 0; index < lines.length; index += 1) {
     const match = lines[index].match(/^(export\s+)?(?:async\s+)?function\s+([A-Za-z0-9_$]+)\s*\(/);

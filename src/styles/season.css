@@ -406,6 +406,17 @@
   border-color: var(--danger);
 }
 
+.primary-button.danger-action {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 80%, #000);
+  color: #fff;
+  text-shadow: none;
+}
+
+.primary-button.danger-action:hover:not(:disabled) {
+  background: var(--danger);
+}
+
 .danger-action:disabled {
   cursor: not-allowed;
   opacity: 0.48;

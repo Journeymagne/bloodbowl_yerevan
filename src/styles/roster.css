@@ -526,8 +526,7 @@
     var(--surface-strong);
 }
 
-.available-player-card.disabled,
-.available-player-card.disabled .add-player-button {
+.available-player-card.disabled {
   opacity: 0.56;
 }
 
@@ -564,14 +563,6 @@
   grid-template-columns: minmax(0, 1fr) 40px;
   gap: 10px;
   align-items: center;
-}
-
-.add-player-button {
-  min-width: 40px;
-  min-height: 36px;
-  padding: 0;
-  font-size: 1.25rem;
-  line-height: 1;
 }
 
 .compact-table-panel {
@@ -664,6 +655,7 @@
   transition: background 0.14s ease, opacity 0.14s ease;
 }
 
+.builder-selected-table tbody tr:hover > td,
 .saved-roster-table tbody tr:hover > td {
   background-image: linear-gradient(
     color-mix(in srgb, var(--focus) 6%, transparent),
@@ -796,23 +788,16 @@
   grid-template-columns: minmax(0, 1fr) max-content;
 }
 
-.mobile-roster-player-card header .compact-action {
-  align-self: start;
-  justify-self: end;
-  justify-content: center;
-  width: auto;
-  min-width: 74px;
-  min-height: 34px;
-  border-color: color-mix(in srgb, var(--danger) 68%, var(--button-border));
-  color: var(--text);
+.mobile-roster-player-card .table-icon-button,
+.available-player-card .table-icon-button,
+.saved-team-actions .table-icon-button {
+  width: 40px;
+  min-width: 40px;
+  min-height: 36px;
 }
 
 .mobile-roster-player-card.is-preview {
   gap: 12px;
-}
-
-.mobile-roster-player-card.is-preview header {
-  align-items: center;
 }
 
 .mobile-roster-player-card.is-preview .mobile-player-title strong {
@@ -825,7 +810,6 @@
 
 .mobile-card-actions {
   display: flex;
-  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
 }
@@ -1172,6 +1156,10 @@
   gap: 7px;
 }
 
+.table-actions {
+  justify-content: center;
+}
+
 .table-skill-editor {
   min-width: 210px;
 }
@@ -1206,11 +1194,9 @@
   min-width: 34px;
   min-height: 30px;
   padding: 0;
-  font-size: 1.125rem;
-  line-height: 1;
 }
 
-.trash-icon {
+.button-icon {
   width: 15px;
   height: 15px;
   fill: none;
@@ -1220,9 +1206,38 @@
   stroke-linejoin: round;
 }
 
+.accent-icon-button {
+  border-color: color-mix(in srgb, var(--focus) 50%, var(--button-border));
+  color: var(--focus);
+}
+
+.danger-icon-button {
+  border-color: color-mix(in srgb, var(--danger) 50%, var(--button-border));
+  color: var(--danger);
+}
+
+.table-icon-button:disabled,
+.table-skill-editor input:placeholder-shown ~ .table-icon-button {
+  border-color: var(--button-border);
+  color: var(--button-muted-text);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.accent-icon-button:not(:disabled):hover {
+  border-color: var(--focus);
+  color: var(--focus);
+}
+
 .danger-icon-button:not(:disabled):hover {
   border-color: var(--danger);
   color: var(--danger);
+}
+
+.table-icon-button[aria-disabled="true"],
+.table-icon-button[aria-disabled="true"]:not(:disabled):hover {
+  border-color: var(--button-border);
+  color: var(--button-muted-text);
 }
 
 .disabled-row {
@@ -1970,11 +1985,16 @@
   gap: 8px;
 }
 
+.summary-actions .filter-button {
+  justify-content: center;
+  min-height: 40px;
+}
+
 .builder-warnings,
 .builder-ok {
   padding: 12px;
   border-radius: var(--radius);
-  background: var(--panel-glass);
+  background: var(--panel);
 }
 
 .builder-warnings {
@@ -1983,7 +2003,7 @@
 
 .builder-warnings p {
   margin: 0;
-  color: #ffb199;
+  color: color-mix(in srgb, var(--danger) 65%, var(--text));
   line-height: 1.45;
 }
 
@@ -1993,7 +2013,7 @@
 
 .builder-ok {
   border: 1px solid rgba(138, 160, 75, 0.6);
-  color: #cfe5a4;
+  color: color-mix(in srgb, var(--accent-2) 65%, var(--text));
 }
 
 .danger-text {

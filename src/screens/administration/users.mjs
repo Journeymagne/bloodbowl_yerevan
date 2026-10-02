@@ -11,6 +11,7 @@ import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPlayerLink } from "../../components/content-links.mjs";
+import { iconButton } from "../../components/icons.mjs";
 
 async function loadAdminUsers(force = false) {
   if (!state.auth.currentUser?.isAdmin) {
@@ -103,7 +104,7 @@ function renderAdminUserRow(user) {
       <td>${user.isAdmin ? t("admin.roleAdmin") : t("admin.rolePlayer")}</td>
       <td>${user.savedTeamCount ?? 0}</td>
       <td>${escapeHtml(updated)}</td>
-      <td><a class="primary-button compact-action" href="#/administration/users/${encodeURIComponent(user.id)}">${t("admin.profileLink")}</a></td>
+      <td class="fit-cell center-cell">${iconButton("edit", { href: `#/administration/users/${encodeURIComponent(user.id)}` })}</td>
     </tr>
   `;
 }
