@@ -4,11 +4,11 @@
  * Two modes, because the two places names appear are not alike:
  *
  * - A list of names — a roster's skill column — links every name, in any case.
- * - Sentences (`strictLinks`) are stricter. A name must be capitalised the way
- *   it is written, a page never links to itself, and names that are also
- *   ordinary rules words are left alone: "a Block action", "Tackle Zone" and
- *   "Kick-off" do not mean the skill. Inside a comma-separated list they do,
- *   so "Dodge, Leap" still links both.
+ * - Sentences (`prose`) are stricter. A name must start with a capital,
+ *   a page never links to itself, and names that are also ordinary rules words
+ *   are left alone: "a Block action", "Tackle Zone" and "Kick-off" do not mean
+ *   the skill. Inside a comma-separated list they do, so "Dodge, Leap" still
+ *   links both.
  */
 const PROSE_SKIP = new Set(["Accurate", "Block", "Catch", "Dodge", "Kick", "Pass", "Tackle"]);
 
@@ -27,53 +27,59 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/**
- * Whether the name at [start, end) of `parts[index]` is an item in a
- * comma-separated list — "Dodge, Leap" — which is where a skipped name does
- * mean the skill. Earlier items may already be links, so the text before and
- * after is read across the neighbouring parts with their tags removed.
- */
-function inCommaList(parts, index, start, end) {
-  const plain = (list) => list.join("").replace(/<[^>]+>/g, "");
-  const before = plain(parts.slice(0, index)) + parts[index].slice(0, start);
-  const after = parts[index].slice(end) + plain(parts.slice(index + 1));
-  return /,\s*$/.test(before) || /^\s*,/.test(after);
+/** One matcher per set of pages: building it is the expensive part, and a build asks thousands of times. */
+const linkers = new WeakMap();
+
+function linkerFor(pageByTitle) {
+  let linker = linkers.get(pageByTitle);
+  if (!linker) {
+    const pages = [...pageByTitle.values()].filter((page) => page.kind === "skill" || page.kind === "trait");
+    // Longest first, so "Diving Catch" is tried before "Catch".
+    const titles = pages.map((page) => escapeHtml(page.title)).sort((a, b) => b.length - a.length);
+    linker = {
+      byTitle: new Map(pages.map((page) => [escapeHtml(page.title).toLowerCase(), page])),
+      pattern: new RegExp(`(?<![A-Za-z0-9])(?:${titles.map(escapeRegExp).join("|")})(?![A-Za-z0-9])`, "gi"),
+    };
+    linkers.set(pageByTitle, linker);
+  }
+  return linker;
+}
+
+/** Whether a name found in a sentence refers to the skill; `offset` is where `label` starts in `text`. */
+function linksInProse(page, label, text, offset, selfPage) {
+  if (page === selfPage || label[0] !== label[0].toUpperCase()) return false;
+  if (!PROSE_SKIP.has(page.title)) return true;
+  return /,\s*$/.test(text.slice(0, offset)) || /^\s*,/.test(text.slice(offset + label.length));
 }
 
 /**
  * @param {string} html
  * @param {Map<string, object>} pageByTitle
  * @param {object} [options]
- * @param {boolean} [options.strictLinks] the text is sentences, not a list of names
+ * @param {boolean} [options.prose] the text is sentences, not a list of names
  * @param {object} [options.selfPage] the page being rendered, never linked to itself
  */
-export function autoLinkKnownTerms(html, pageByTitle, { strictLinks = false, selfPage = null } = {}) {
+export function autoLinkKnownTerms(html, pageByTitle, { prose = false, selfPage = null } = {}) {
   if (html.includes("<a ")) {
     return html;
   }
 
-  const entities = [...pageByTitle.values()]
-    .filter((page) => page.kind === "skill" || page.kind === "trait")
-    .filter((page) => !strictLinks || page !== selfPage)
-    .sort((a, b) => b.title.length - a.title.length);
-
-  let linked = html;
-  for (const page of entities) {
-    const pattern = new RegExp(`(^|[^A-Za-z0-9])(${escapeRegExp(escapeHtml(page.title))})(?=$|[^A-Za-z0-9])`, strictLinks ? "g" : "gi");
-    const listOnly = strictLinks && PROSE_SKIP.has(page.title);
-    linked = linked
-      .split(/(<a\b[^>]*>.*?<\/a>|<[^>]+>)/gi)
-      .map((part, partIndex, parts) => {
-        if (part.startsWith("<")) {
-          return part;
-        }
-        return part.replace(pattern, (match, prefix, label, offset) => {
-          if (listOnly && !inCommaList(parts, partIndex, offset + prefix.length, offset + match.length)) return match;
-          return `${prefix}<a href="#/${page.slug}">${label}</a>`;
-        });
-      })
-      .join("");
+  const { byTitle, pattern } = linkerFor(pageByTitle);
+  if (!byTitle.size) {
+    return html;
   }
 
-  return linked;
+  return html
+    .split(/(<[^>]+>)/)
+    .map((text) => {
+      if (text.startsWith("<")) {
+        return text;
+      }
+      return text.replace(pattern, (label, offset) => {
+        const page = byTitle.get(label.toLowerCase());
+        if (prose && !linksInProse(page, label, text, offset, selfPage)) return label;
+        return `<a href="#/${page.slug}">${label}</a>`;
+      });
+    })
+    .join("");
 }

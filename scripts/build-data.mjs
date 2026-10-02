@@ -175,6 +175,7 @@ function parseFrontmatter(markdown) {
 
 const NUMBER_RANGE = /^\d+\s*[-–]\s*\d+$/;
 const UNLINKED_COLUMNS = ["Position", "Позиция", "Result", "Результат"];
+const PROSE_LINKED_KINDS = ["skill", "trait", "page", "inducement"];
 
 function splitTableRow(line) {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
@@ -332,13 +333,19 @@ function splitInlineNumberedItems(value) {
   return items.length >= 2 ? { lead, start: markers[0].number, items } : null;
 }
 
-function renderNumberedList(items, pageByTitle, start = 1) {
+function renderNumberedList(items, pageByTitle, start, options) {
   const startAttr = start > 1 ? ` start="${start}"` : "";
   return [
     `<ol class="numbered-list"${startAttr}>`,
-    ...items.map((item) => `<li>${inlineMarkdownToHtml(item, pageByTitle)}</li>`),
+    ...items.map((item) => `<li>${inlineMarkdownToHtml(item, pageByTitle, options)}</li>`),
     "</ol>",
   ].join("\n");
+}
+
+function renderTableCell(cell, headerLabel, pageByTitle, selfPage) {
+  const cellClass = NUMBER_RANGE.test(cell.trim()) ? ` class="nowrap-cell"` : "";
+  const linking = { autoLinkKnown: !UNLINKED_COLUMNS.includes(headerLabel), prose: SENTENCE.test(cell), selfPage };
+  return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, linking)}</td>`;
 }
 
 function markdownToHtml(markdown, pageByTitle, options = {}) {
@@ -355,7 +362,7 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
         if (numberedItems.lead) {
           html.push(`<p>${inlineMarkdownToHtml(numberedItems.lead, pageByTitle, options)}</p>`);
         }
-        html.push(renderNumberedList(numberedItems.items, pageByTitle, numberedItems.start));
+        html.push(renderNumberedList(numberedItems.items, pageByTitle, numberedItems.start, options));
       } else {
         html.push(`<p>${inlineMarkdownToHtml(text, pageByTitle, options).replace(/\n/g, "<br>")}</p>`);
       }
@@ -404,13 +411,9 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
         index += 2;
         while (index < lines.length && lines[index].trim().startsWith("|")) {
           html.push("<tr>");
-          html.push(splitTableRow(lines[index]).map((cell, cellIndex) => {
-            const headerLabel = headerLabels[cellIndex] ?? "";
-            const autoLinkKnown = !UNLINKED_COLUMNS.includes(headerLabel);
-            const cellClass = NUMBER_RANGE.test(cell.trim()) ? ` class="nowrap-cell"` : "";
-            const linking = { autoLinkKnown, strictLinks: SENTENCE.test(cell), selfPage: options.selfPage };
-            return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, linking)}</td>`;
-          }).join(""));
+          html.push(splitTableRow(lines[index])
+            .map((cell, cellIndex) => renderTableCell(cell, headerLabels[cellIndex] ?? "", pageByTitle, options.selfPage))
+            .join(""));
           html.push("</tr>");
           index += 1;
         }
@@ -695,8 +698,8 @@ async function buildLocaleData(resolvedFiles) {
       ...page,
       html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, {
         preserveLineBreaks: page.kind === "inducement",
-        autoLinkKnown: ["skill", "trait", "page", "inducement"].includes(page.kind),
-        strictLinks: true,
+        autoLinkKnown: PROSE_LINKED_KINDS.includes(page.kind),
+        prose: true,
         selfPage: page,
       }),
       team: page.kind === "team" ? {
