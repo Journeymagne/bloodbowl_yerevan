@@ -6,12 +6,15 @@ import { SENTENCE, autoLinkKnownTerms } from "../scripts/lib/auto-link.mjs";
 const pages = [
   { title: "Block", kind: "skill", slug: "skills/block" },
   { title: "Catch", kind: "skill", slug: "skills/catch" },
+  { title: "Claws", kind: "skill", slug: "skills/claws" },
   { title: "Diving Catch", kind: "skill", slug: "skills/diving-catch" },
   { title: "Dodge", kind: "skill", slug: "skills/dodge" },
   { title: "Leap", kind: "skill", slug: "skills/leap" },
   { title: "Mighty Blow", kind: "skill", slug: "skills/mighty-blow" },
   { title: "Mighty Blow (+1)", kind: "skill", slug: "skills/mighty-blow-1" },
   { title: "Throw Team-Mate", kind: "trait", slug: "traits/throw-team-mate" },
+  { title: "Timmm-ber!", kind: "trait", slug: "traits/timmm-ber" },
+  { title: "Ball & Chain", kind: "trait", slug: "traits/ball-chain" },
   { title: "Weather", kind: "page", slug: "weather" },
 ];
 const pageByTitle = new Map(pages.map((page) => [page.title, page]));
@@ -81,6 +84,62 @@ test("names inside other tags are still linked, the tags are kept", () => {
     prose("<strong>Leap:</strong> gains Mighty Blow"),
     `<strong>${link("skills/leap", "Leap")}:</strong> gains ${link("skills/mighty-blow", "Mighty Blow")}`,
   );
+});
+
+test("each set of pages has its own matcher", () => {
+  // The matcher is cached per map; the EN and RU builds must not share one.
+  const other = new Map([["Guard", { title: "Guard", kind: "skill", slug: "skills/guard" }]]);
+  assert.equal(autoLinkKnownTerms("Guard, Leap", other), `${link("skills/guard", "Guard")}, Leap`);
+  assert.equal(autoLinkKnownTerms("Guard, Leap", pageByTitle), `Guard, ${link("skills/leap", "Leap")}`);
+});
+
+test("a page's own name stays plain even where a shorter name fits inside it", () => {
+  const plusOne = pageByTitle.get("Mighty Blow (+1)");
+  assert.equal(
+    prose("Mighty Blow (+1) stacks with Mighty Blow", plusOne),
+    `Mighty Blow (+1) stacks with ${link("skills/mighty-blow", "Mighty Blow")}`,
+  );
+});
+
+test("names inside Russian sentences are linked", () => {
+  assert.equal(
+    prose("Игрок получает Mighty Blow до конца драна."),
+    `Игрок получает ${link("skills/mighty-blow", "Mighty Blow")} до конца драна.`,
+  );
+  assert.equal(prose("с Claws и Leap"), `с ${link("skills/claws", "Claws")} и ${link("skills/leap", "Leap")}`);
+});
+
+test("punctuation and escaped characters in a name are part of the match", () => {
+  assert.equal(
+    autoLinkKnownTerms("Timmm-ber! and Leap", pageByTitle),
+    `${link("traits/timmm-ber", "Timmm-ber!")} and ${link("skills/leap", "Leap")}`,
+  );
+  assert.equal(autoLinkKnownTerms("Ball &amp; Chain", pageByTitle), link("traits/ball-chain", "Ball &amp; Chain"));
+});
+
+test("text inside a tag's attributes is never touched", () => {
+  assert.equal(
+    autoLinkKnownTerms(`<img alt="Leap" src="x.png"> Leap`, pageByTitle),
+    `<img alt="Leap" src="x.png"> ${link("skills/leap", "Leap")}`,
+  );
+});
+
+test("a lower-case rules word in a comma list stays plain in sentences", () => {
+  assert.equal(prose("dodge, leap"), "dodge, leap");
+});
+
+test("a list of names links the page's own name too", () => {
+  const leap = pageByTitle.get("Leap");
+  assert.equal(autoLinkKnownTerms("Leap", pageByTitle, { selfPage: leap }), link("skills/leap", "Leap"));
+});
+
+test("every occurrence of a name is linked", () => {
+  const leap = link("skills/leap", "Leap");
+  assert.equal(prose("Leap, then Leap again"), `${leap}, then ${leap} again`);
+});
+
+test("known limitation: a rules word followed by a comma in a sentence is linked", () => {
+  assert.equal(prose("in a Block, the player falls"), `in a ${link("skills/block", "Block")}, the player falls`);
 });
 
 test("a cell with a full stop is sentences, a bare list of names is not", () => {
