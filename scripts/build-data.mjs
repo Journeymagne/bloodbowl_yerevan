@@ -695,7 +695,7 @@ async function buildLocaleData(resolvedFiles) {
       ...page,
       html: page.empty ? "" : markdownToHtml(page.body, pageByTitle, {
         preserveLineBreaks: page.kind === "inducement",
-        autoLinkKnown: ["skill", "trait", "page"].includes(page.kind),
+        autoLinkKnown: ["skill", "trait", "page", "inducement"].includes(page.kind),
         strictLinks: true,
         selfPage: page,
       }),

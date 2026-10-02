@@ -7,7 +7,8 @@
  * - Sentences (`strictLinks`) are stricter. A name must be capitalised the way
  *   it is written, a page never links to itself, and names that are also
  *   ordinary rules words are left alone: "a Block action", "Tackle Zone" and
- *   "Kick-off" do not mean the skill.
+ *   "Kick-off" do not mean the skill. Inside a comma-separated list they do,
+ *   so "Dodge, Leap" still links both.
  */
 const PROSE_SKIP = new Set(["Accurate", "Block", "Catch", "Dodge", "Kick", "Pass", "Tackle"]);
 
@@ -27,6 +28,19 @@ function escapeRegExp(value) {
 }
 
 /**
+ * Whether the name at [start, end) of `parts[index]` is an item in a
+ * comma-separated list — "Dodge, Leap" — which is where a skipped name does
+ * mean the skill. Earlier items may already be links, so the text before and
+ * after is read across the neighbouring parts with their tags removed.
+ */
+function inCommaList(parts, index, start, end) {
+  const plain = (list) => list.join("").replace(/<[^>]+>/g, "");
+  const before = plain(parts.slice(0, index)) + parts[index].slice(0, start);
+  const after = parts[index].slice(end) + plain(parts.slice(index + 1));
+  return /,\s*$/.test(before) || /^\s*,/.test(after);
+}
+
+/**
  * @param {string} html
  * @param {Map<string, object>} pageByTitle
  * @param {object} [options]
@@ -40,19 +54,23 @@ export function autoLinkKnownTerms(html, pageByTitle, { strictLinks = false, sel
 
   const entities = [...pageByTitle.values()]
     .filter((page) => page.kind === "skill" || page.kind === "trait")
-    .filter((page) => !strictLinks || (page !== selfPage && !PROSE_SKIP.has(page.title)))
+    .filter((page) => !strictLinks || page !== selfPage)
     .sort((a, b) => b.title.length - a.title.length);
 
   let linked = html;
   for (const page of entities) {
     const pattern = new RegExp(`(^|[^A-Za-z0-9])(${escapeRegExp(escapeHtml(page.title))})(?=$|[^A-Za-z0-9])`, strictLinks ? "g" : "gi");
+    const listOnly = strictLinks && PROSE_SKIP.has(page.title);
     linked = linked
       .split(/(<a\b[^>]*>.*?<\/a>|<[^>]+>)/gi)
-      .map((part) => {
+      .map((part, partIndex, parts) => {
         if (part.startsWith("<")) {
           return part;
         }
-        return part.replace(pattern, (_match, prefix, label) => `${prefix}<a href="#/${page.slug}">${label}</a>`);
+        return part.replace(pattern, (match, prefix, label, offset) => {
+          if (listOnly && !inCommaList(parts, partIndex, offset + prefix.length, offset + match.length)) return match;
+          return `${prefix}<a href="#/${page.slug}">${label}</a>`;
+        });
       })
       .join("");
   }
