@@ -64,7 +64,7 @@
 - **Brawler:** Allows a one-time reroll of a single die during a Block. Cannot be used in negative dice blocks.
 - **Plague Ridden / Masters of Undeath:** When a player with this rule kills an opponent, their coach gains a Lineman of their own team. Shambling Undead may choose either a Skeleton or a Zombie.
 - **Throw Team-mate:** Now a passive skill.
-- **Blood Lust:** After declaring any action, roll a D6. On a 2+, the turn continues normally. On a 1, the action is lost and the player must feed. The player may choose an adjacent teammate without the Vampire or Undead tags and make an injury roll against them, treating all results as Badly Hurt. This causes a Turnover only if the bitten player was holding the ball. Movement may be declared before the bite. After the bite, activation ends. If no bite is performed, a Turnover occurs.
+- **Bloodlust:** After declaring any action, roll a D6. On a 2+, the turn continues normally. On a 1, the action is lost and the player must feed. The player may choose an adjacent teammate without the Vampire or Undead tags and make an injury roll against them, treating all results as Badly Hurt. This causes a Turnover only if the bitten player was holding the ball. Movement may be declared before the bite. After the bite, activation ends. If no bite is performed, a Turnover occurs.
 - **Accurate and Cannoneer:** Merged into Accurate, which gives +1 to all passes.
 - **Dodge:** Now only allows a reroll for dodge tests.
 - **Evasive:** New skill. The player can treat a result of 5 as 3-4 when being blocked, and Stumble results as Push Back.
