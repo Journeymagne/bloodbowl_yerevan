@@ -78,7 +78,7 @@
 .roster-identity-panel .team-rules-panel,
 .summary-rules-block .team-rules-panel,
 .summary-overview-grid .summary-stat-grid {
-  grid-template-columns: repeat(auto-fit, minmax(var(--column-min, 160px), 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(var(--column-min, 130px), 1fr));
   align-items: start;
   gap: 12px 24px;
 }
@@ -1772,10 +1772,20 @@
 }
 
 .summary-overview-grid {
+  --stats-share: 6fr;
+  --rules-share: 3fr;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
+}
+
+.summary-overview-grid:has(.summary-stat-grid > :nth-child(7)) {
+  --stats-share: 7fr;
+}
+
+.summary-overview-grid:has(.team-rules-row:nth-child(4)) {
+  --rules-share: 4fr;
 }
 
 .summary-overview-grid .summary-stat-grid {
