@@ -263,7 +263,7 @@ function renderSidebar(page) {
         <dl class="stat-list">
           <dt>${t("sidebar.cost")}</dt><dd>${escapeHtml(page.starPlayer?.cost ?? "-")}</dd>
           <dt>${t("sidebar.availability")}</dt><dd>${escapeHtml(page.starPlayer?.availability ?? "-")}</dd>
-          <dt>${t("roster.tags")}</dt><dd>${badgeList(page.tags, 8)}</dd>
+          ${page.tags?.length ? `<dt>${t("roster.tags")}</dt><dd>${badgeList(page.tags, 8)}</dd>` : ""}
         </dl>
       </aside>
     `;
