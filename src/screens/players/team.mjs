@@ -12,7 +12,7 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { adminTeamEditUrl, playerTeamUrl, playerUrl } from "../../core/routes.mjs";
+import { adminTeamEditUrl, playerUrl } from "../../core/routes.mjs";
 import { countToNumber, statValueForDisplayByStat } from "../../domain/roster/values.mjs";
 import { hasBribery } from "../../domain/roster/team-rules.mjs";
 import { ensureDraftPlayers, favouredSkillNames, selectedRosterPlayers, skillNamesForPlayer } from "../../domain/roster/players.mjs";
@@ -52,8 +52,12 @@ export async function renderPublicTeamProfile(userId, teamId) {
       ${state.auth.currentUser?.isAdmin ? `<a class="primary-button" href="${adminTeamEditUrl(payload.user, payload.team)}">${t("admin.editTeamAction")}</a>` : ""}
     `;
     view.innerHTML = `
-      ${renderHeader(`${t("sidebar.teamHeading")} "${payload.team.name}"`, `${t("admin.coachHeading")}: ${payload.user.login}`, actions, { back: true, backFallback: playerUrl(payload.user) })}
-      ${renderPublicTeamOverview(payload.user, payload.team, team, draft, costs)}
+      ${renderHeader(`${t("sidebar.teamHeading")} "${payload.team.name}"`, "", actions, {
+        back: true,
+        backFallback: playerUrl(payload.user),
+        descriptionHtml: `${escapeHtml(t("admin.coachHeading"))}: ${renderPlayerLink(payload.user)}`,
+      })}
+      ${renderPublicTeamOverview(team, draft, costs)}
       <section class="content-panel compact-table-panel">
         <h2>${t("savedRoster.rosterHeading")}</h2>
         ${renderPublicTeamRosterTable(team, draft)}
@@ -66,30 +70,28 @@ export async function renderPublicTeamProfile(userId, teamId) {
     `;
   }
 }
-function renderPublicTeamOverview(user, savedTeam, team, draft, costs) {
+function renderPublicTeamOverview(team, draft, costs) {
   const totalRerolls = countToNumber(draft.startingRerolls) + countToNumber(draft.teamRerolls);
+  const stat = (label, value) => `<div><dt>${label}</dt><dd>${value}</dd></div>`;
   return `
     <section class="public-team-overview side-panel">
       ${draft.logoData ? `<div class="summary-logo-block public-team-logo-block"><img src="${escapeHtml(draft.logoData)}" alt=""></div>` : ""}
+      <div class="summary-title-block">
+        <h3>${t("savedRoster.summaryTitle")}</h3>
+      </div>
       <div class="public-team-overview-grid">
         <div class="public-team-summary-block">
-          <div class="summary-title-block">
-            <h3>${t("savedRoster.summaryTitle")}</h3>
-            <a class="builder-team-link" href="${playerTeamUrl(user, savedTeam)}">${escapeHtml(savedTeam.name)}</a>
-          </div>
           <dl class="stat-list summary-stat-grid">
-            <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
-            <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
-            <dt>${t("savedRoster.teamRerolls")}</dt><dd>${totalRerolls}</dd>
-            ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
-            <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
-            <dt>${t("savedRoster.treasury")}</dt><dd>${countToNumber(draft.treasury)}k</dd>
-            <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
+            ${stat(t("savedRoster.activePlayers"), costs.playersCount)}
+            ${stat(t("savedRoster.totalPlayers"), costs.totalPlayersCount)}
+            ${stat(t("savedRoster.teamRerolls"), totalRerolls)}
+            ${hasBribery(team) ? stat(t("savedRoster.bribes"), countToNumber(draft.bribes)) : ""}
+            ${stat(t("savedRoster.dedicatedFans"), countToNumber(draft.dedicatedFans))}
+            ${stat(t("savedRoster.treasury"), `${countToNumber(draft.treasury)}k`)}
+            ${stat(t("roster.totalCost"), `${costs.total}k`)}
           </dl>
         </div>
         <div class="public-team-coach-block">
-          <h2>${t("admin.coachHeading")}</h2>
-          <p>${renderPlayerLink(user)}</p>
           <div class="public-team-rules-wrap">
             ${renderTeamRuleAccess(team, draft)}
           </div>

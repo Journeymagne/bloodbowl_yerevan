@@ -75,7 +75,8 @@
   gap: 14px;
 }
 
-.roster-identity-panel .team-rules-panel {
+.roster-identity-panel .team-rules-panel,
+.public-team-rules-wrap .team-rules-panel {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   align-items: start;
   gap: 12px 24px;
@@ -1890,14 +1891,19 @@
   align-content: start;
 }
 
+.public-team-summary-block .summary-stat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px 24px;
+}
+
+.public-team-summary-block .summary-stat-grid > div {
+  display: grid;
+  gap: 4px;
+}
+
 .public-team-coach-block {
   padding-top: 16px;
   border-top: 1px solid var(--line);
-}
-
-.public-team-coach-block h2,
-.public-team-coach-block p {
-  margin: 0;
 }
 
 .public-team-logo-block {
@@ -1914,21 +1920,11 @@
   height: auto;
 }
 
-.public-team-rules-wrap .team-rules-panel {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
 .public-team-rules-wrap .team-rules-row {
   display: grid;
   min-width: 0;
   gap: 8px;
   align-content: start;
-}
-
-.public-team-rules-wrap .team-rules-row-wide {
-  grid-column: 1 / -1;
 }
 
 .public-team-rules-wrap .rule-link-list {
