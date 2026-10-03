@@ -50,7 +50,7 @@ export async function renderPublicTeamProfile(userId, teamId) {
     ensureDraftPlayers(team, draft);
     const costs = calculateRosterCosts(team, draft);
     const editUrl = teamEditUrl(payload.user, payload.team, state.auth.currentUser);
-    const actions = editUrl ? `<a class="primary-button" href="${editUrl}">${t("admin.editTeamAction")}</a>` : "";
+    const actions = editUrl ? `<a class="primary-button" href="${editUrl}">${t("common.editTeam")}</a>` : "";
     view.innerHTML = `
       ${renderHeader(`${t("sidebar.teamHeading")} "${payload.team.name}"`, "", actions, {
         back: true,

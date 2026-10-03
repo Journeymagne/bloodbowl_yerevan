@@ -325,7 +325,7 @@
 
 .builder-addon.roster-money-card .roster-purchase-input.is-negative {
   border-color: var(--danger);
-  color: color-mix(in srgb, var(--danger) 65%, var(--text));
+  color: var(--danger-text);
 }
 
 .builder-addon span.money-input {
@@ -1916,7 +1916,7 @@
 
 .builder-warnings p {
   margin: 0;
-  color: color-mix(in srgb, var(--danger) 65%, var(--text));
+  color: var(--danger-text);
   line-height: 1.45;
 }
 
@@ -1926,10 +1926,10 @@
 
 .builder-ok {
   border: 1px solid rgba(138, 160, 75, 0.6);
-  color: color-mix(in srgb, var(--accent-2) 65%, var(--text));
+  color: var(--ok-text);
 }
 
 .summary-stat-grid dd.danger-text {
-  color: color-mix(in srgb, var(--danger) 65%, var(--text));
+  color: var(--danger-text);
 }
 
