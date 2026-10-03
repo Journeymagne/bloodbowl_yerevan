@@ -233,7 +233,12 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
       { label: t("savedRoster.teamRerolls"), value: draft.teamRerolls ?? 0 },
       ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(draft.bribes) }] : []),
       { label: t("savedRoster.dedicatedFans"), value: countToNumber(draft.dedicatedFans) },
-      { label: t("savedRoster.treasury"), value: `${countToNumber(draft.treasury)}k`, valueAttributes: "data-treasury-display" },
+      {
+        label: t("savedRoster.treasury"),
+        value: `${countToNumber(draft.treasury)}k`,
+        valueAttributes: "data-treasury-display",
+        valueClass: countToNumber(draft.treasury) < 0 ? "danger-text" : "",
+      },
       { label: t("savedRoster.totalSppLabel"), value: `${rosterTotalSpp(team, draft)} SPP`, valueAttributes: "data-total-spp-display" },
       { label: t("savedRoster.playersCost"), value: `${costs.playersCost}k` },
       { label: t("savedRoster.staffCost"), value: `${costs.staffCost}k` },
@@ -284,7 +289,7 @@ function renderRosterMoneyControl(title, description, value, dataAttribute) {
         <span>${escapeHtml(description)}</span>
       </div>
       <span class="money-input">
-        <input class="table-input roster-purchase-input" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
+        <input class="table-input roster-purchase-input${countToNumber(value) < 0 ? " is-negative" : ""}" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
         <span aria-hidden="true">k</span>
       </span>
     </label>
@@ -343,6 +348,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   });
   events.on("input", "[data-roster-coaches-safe]", (event, input) => {
     draft.coachesSafe = countToNumber(input.value);
+    input.classList.toggle("is-negative", draft.coachesSafe < 0);
     updateSavedRosterFields(savedTeam, draft);
     autosave();
   });
