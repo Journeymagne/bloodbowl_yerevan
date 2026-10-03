@@ -75,6 +75,7 @@ import {
   ensureDraftFavouredChoice,
   ensureDraftLeagueChoice,
   favouredSkillOptionsForPlayer,
+  renderTeamRuleAccess,
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
 } from "../components/roster-editor-shared.mjs";
@@ -249,6 +250,7 @@ function renderSavedRosterIdentity(team, draft, teams) {
   return `
     <section class="builder-setup-panel roster-identity-panel side-panel">
       ${renderIdentityFields({ team, draft, teams, mode: LEAGUE_MODE })}
+      ${renderTeamRuleAccess(team, draft, LEAGUE_MODE.identityAttribute)}
     </section>
   `;
 }

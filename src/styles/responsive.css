@@ -158,6 +158,11 @@
     grid-template-columns: 1fr 1fr;
   }
 
+  .builder-save-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
   .builder-row .team-stat-grid {
     width: max-content;
     grid-template-columns: repeat(5, 54px);
@@ -275,20 +280,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .builder-info-grid {
-    grid-template-columns: minmax(280px, 0.7fr) minmax(360px, 1.3fr);
-  }
-
-  .public-team-overview-grid {
+  .summary-overview-grid {
     grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   }
 
   .builder-addons {
     grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .team-rules-panel {
-    grid-template-columns: minmax(160px, 0.5fr) minmax(220px, 0.75fr) minmax(0, 1.4fr);
   }
 
   .builder-player-pool {
@@ -337,7 +334,7 @@
     grid-template-columns: none;
   }
 
-  .public-team-coach-block {
+  .summary-rules-block {
     padding-top: 0;
     padding-left: 18px;
     border-top: 0;

@@ -20,6 +20,7 @@ import { calculateRosterCosts, playerCurrentCost } from "../../domain/roster/cos
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPlayerLink, renderRosterLinks } from "../../components/content-links.mjs";
 import { ensureDraftLeagueChoice, playerStatusText, renderTeamRuleAccess } from "../../components/roster-editor-shared.mjs";
+import { renderSummaryOverview } from "../../components/roster-editor/summary-panel.mjs";
 import { normalizeSavedRoster } from "../../data/roster-draft.mjs";
 
 export async function renderPublicTeamProfile(userId, teamId) {
@@ -72,31 +73,19 @@ export async function renderPublicTeamProfile(userId, teamId) {
 }
 function renderPublicTeamOverview(team, draft, costs) {
   const totalRerolls = countToNumber(draft.startingRerolls) + countToNumber(draft.teamRerolls);
-  const stat = (label, value) => `<div><dt>${label}</dt><dd>${value}</dd></div>`;
+  const rows = [
+    { label: t("savedRoster.activePlayers"), value: costs.playersCount },
+    { label: t("savedRoster.totalPlayers"), value: costs.totalPlayersCount },
+    { label: t("savedRoster.teamRerolls"), value: totalRerolls },
+    ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(draft.bribes) }] : []),
+    { label: t("savedRoster.dedicatedFans"), value: countToNumber(draft.dedicatedFans) },
+    { label: t("savedRoster.treasury"), value: `${countToNumber(draft.treasury)}k` },
+    { label: t("roster.totalCost"), value: `${costs.total}k` },
+  ];
   return `
     <section class="public-team-overview side-panel">
       ${draft.logoData ? `<div class="summary-logo-block public-team-logo-block"><img src="${escapeHtml(draft.logoData)}" alt=""></div>` : ""}
-      <div class="summary-title-block">
-        <h3>${t("savedRoster.summaryTitle")}</h3>
-      </div>
-      <div class="public-team-overview-grid">
-        <div class="public-team-summary-block">
-          <dl class="stat-list summary-stat-grid">
-            ${stat(t("savedRoster.activePlayers"), costs.playersCount)}
-            ${stat(t("savedRoster.totalPlayers"), costs.totalPlayersCount)}
-            ${stat(t("savedRoster.teamRerolls"), totalRerolls)}
-            ${hasBribery(team) ? stat(t("savedRoster.bribes"), countToNumber(draft.bribes)) : ""}
-            ${stat(t("savedRoster.dedicatedFans"), countToNumber(draft.dedicatedFans))}
-            ${stat(t("savedRoster.treasury"), `${countToNumber(draft.treasury)}k`)}
-            ${stat(t("roster.totalCost"), `${costs.total}k`)}
-          </dl>
-        </div>
-        <div class="public-team-coach-block">
-          <div class="public-team-rules-wrap">
-            ${renderTeamRuleAccess(team, draft)}
-          </div>
-        </div>
-      </div>
+      ${renderSummaryOverview(rows, renderTeamRuleAccess(team, draft))}
     </section>
   `;
 }

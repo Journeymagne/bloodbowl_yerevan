@@ -60,8 +60,32 @@ function renderSummaryRow({ label, value, valueAttributes = "", valueClass = "" 
   return `<dt>${label}</dt><dd${attributes ? ` ${attributes}` : ""}>${value}</dd>`;
 }
 
+/**
+ * The summary as a heading over two blocks: the figures, each label above its
+ * value, and beside them the team's rules. The builder and the public team
+ * page lay it out this way; the league editor keeps the panel above.
+ *
+ * @param {Array<{label: string, value: string, valueAttributes?: string, valueClass?: string}>} rows
+ * @param {string} rulesHtml
+ */
+export function renderSummaryOverview(rows, rulesHtml) {
+  return `
+    <div class="summary-title-block">
+      <h2>${t("savedRoster.summaryTitle")}</h2>
+    </div>
+    <div class="summary-overview-grid">
+      <dl class="stat-list summary-stat-grid">
+        ${rows.map((row) => `<div>${renderSummaryRow(row)}</div>`).join("")}
+      </dl>
+      <div class="summary-rules-block">
+        ${rulesHtml}
+      </div>
+    </div>
+  `;
+}
+
 /** Either what the roster breaks, or a note that it breaks nothing. */
-function renderRosterState(warnings) {
+export function renderRosterState(warnings) {
   if (!warnings.length) return `<div class="builder-ok">${t("savedRoster.withinLimits")}</div>`;
   return `<div class="builder-warnings">${warnings.map((warning) => `<p>${escapeHtml(warning)}</p>`).join("")}</div>`;
 }

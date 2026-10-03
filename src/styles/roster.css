@@ -76,7 +76,7 @@
 }
 
 .roster-identity-panel .team-rules-panel,
-.public-team-rules-wrap .team-rules-panel {
+.summary-rules-block .team-rules-panel {
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   align-items: start;
   gap: 12px 24px;
@@ -166,19 +166,9 @@
   backdrop-filter: none;
 }
 
-.builder-info-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
+.builder-info-section + .builder-info-section {
   padding-top: 16px;
   border-top: 1px solid var(--line);
-}
-
-.builder-info-panel .team-rules-panel,
-.public-team-overview .team-rules-panel {
-  padding: 0;
-  border: 0;
-  background: transparent;
 }
 
 .builder-info-purchases .builder-tracker-list {
@@ -1876,34 +1866,33 @@
   margin-bottom: 18px;
 }
 
-.public-team-overview-grid {
+.summary-overview-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
 
-.public-team-summary-block,
-.public-team-coach-block {
-  display: grid;
-  min-width: 0;
-  gap: 12px;
-  align-content: start;
-}
-
-.public-team-summary-block .summary-stat-grid {
+.summary-overview-grid .summary-stat-grid {
   grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 12px 24px;
 }
 
-.public-team-summary-block .summary-stat-grid > div {
+.summary-overview-grid .summary-stat-grid > div {
   display: grid;
   gap: 4px;
 }
 
-.public-team-coach-block {
+.summary-rules-block {
+  min-width: 0;
   padding-top: 16px;
   border-top: 1px solid var(--line);
+}
+
+.summary-rules-block .team-rules-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .public-team-logo-block {
@@ -1920,21 +1909,21 @@
   height: auto;
 }
 
-.public-team-rules-wrap .team-rules-row {
+.summary-rules-block .team-rules-row {
   display: grid;
   min-width: 0;
   gap: 8px;
   align-content: start;
 }
 
-.public-team-rules-wrap .rule-link-list {
+.summary-rules-block .rule-link-list {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
   gap: 7px;
 }
 
-.public-team-rules-wrap .roster-pill {
+.summary-rules-block .roster-pill {
   width: auto;
   max-width: 100%;
   min-height: 24px;
@@ -1949,6 +1938,7 @@
   min-width: 0;
 }
 
+.summary-title-block h2,
 .summary-title-block h3 {
   margin: 0;
 }
@@ -1987,6 +1977,10 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
+}
+
+.builder-save-row .summary-actions {
+  grid-template-columns: 1fr;
 }
 
 .summary-actions .filter-button {
