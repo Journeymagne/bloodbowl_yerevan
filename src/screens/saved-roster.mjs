@@ -233,12 +233,7 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
       { label: t("savedRoster.teamRerolls"), value: draft.teamRerolls ?? 0 },
       ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(draft.bribes) }] : []),
       { label: t("savedRoster.dedicatedFans"), value: countToNumber(draft.dedicatedFans) },
-      {
-        label: t("savedRoster.treasury"),
-        value: `${countToNumber(draft.treasury)}k`,
-        valueAttributes: "data-treasury-display",
-        valueClass: countToNumber(draft.treasury) < 0 ? "danger-text" : "",
-      },
+      { label: t("savedRoster.treasury"), value: `${countToNumber(draft.treasury)}k`, valueAttributes: "data-treasury-display", valueClass: draft.treasury < 0 ? "danger-text" : "" },
       { label: t("savedRoster.totalSppLabel"), value: `${rosterTotalSpp(team, draft)} SPP`, valueAttributes: "data-total-spp-display" },
       { label: t("savedRoster.playersCost"), value: `${costs.playersCost}k` },
       { label: t("savedRoster.staffCost"), value: `${costs.staffCost}k` },
