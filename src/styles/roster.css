@@ -75,8 +75,12 @@
   gap: 14px;
 }
 
-.roster-identity-panel .team-rules-panel {
-  grid-template-columns: 1fr;
+.roster-identity-panel .team-rules-panel,
+.summary-rules-block .team-rules-panel,
+.summary-overview-grid .summary-stat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(var(--column-min, 130px), 1fr));
+  align-items: start;
+  gap: 12px 24px;
 }
 
 .roster-logo-inline {
@@ -110,31 +114,19 @@
   min-width: 0;
 }
 
-.roster-resource-list {
-  grid-template-columns: 1fr;
-}
-
-.roster-money-form {
-  grid-template-columns: repeat(2, minmax(160px, 1fr));
-  padding: 0;
-  border: 0;
-  background: transparent;
-  backdrop-filter: none;
-}
-
-.roster-tracker-list {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-}
-
 .builder-tracker-list {
   display: grid;
-  grid-template-columns: 1fr;
   gap: 8px;
   min-width: 0;
 }
 
-.roster-purchase-grid {
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+.roster-resource-list > :not(.roster-money-card) {
+  grid-column: 1 / -1;
+}
+
+.builder-tracker-list.roster-resource-list,
+.builder-tracker-list.roster-purchase-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, max(310px, calc(50% - 4px))), 1fr));
 }
 
 .builder-info-panel {
@@ -162,19 +154,9 @@
   backdrop-filter: none;
 }
 
-.builder-info-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
+.builder-info-section + .builder-info-section {
   padding-top: 16px;
   border-top: 1px solid var(--line);
-}
-
-.builder-info-panel .team-rules-panel,
-.public-team-overview .team-rules-panel {
-  padding: 0;
-  border: 0;
-  background: transparent;
 }
 
 .builder-info-purchases .builder-tracker-list {
@@ -188,18 +170,6 @@
 .roster-money-card {
   grid-template-columns: 1fr;
   align-content: start;
-}
-
-.roster-purchase-card .inline-stepper-control,
-.roster-purchase-input {
-  justify-self: end;
-  width: min(174px, 100%);
-}
-
-.roster-purchase-input {
-  justify-self: stretch;
-  width: 100%;
-  min-height: 38px;
 }
 
 .roster-settings-panel {
@@ -244,10 +214,6 @@
 .team-rules-row select {
   min-width: 0;
   min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--input-bg);
-  color: var(--text);
 }
 
 .rule-link-list {
@@ -351,7 +317,29 @@
 .builder-addon.roster-money-card .roster-purchase-input {
   width: 100%;
   min-width: 0;
+  min-height: 38px;
   margin: 0;
+  padding: 0 28px;
+  text-align: center;
+}
+
+.builder-addon.roster-money-card .roster-purchase-input.is-negative {
+  border-color: var(--danger);
+  color: var(--danger-text);
+}
+
+.builder-addon span.money-input {
+  position: relative;
+  margin: 0;
+}
+
+.builder-addon .money-input > span {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  margin: 0;
+  transform: translateY(-50%);
+  pointer-events: none;
 }
 
 .builder-tracker-control {
@@ -379,7 +367,6 @@
 
 .builder-tracker-control .inline-stepper-control .filter-button {
   min-height: 44px;
-  padding: 0;
   font-size: 1.125rem;
   font-weight: 900;
 }
@@ -471,19 +458,6 @@
 
 .builder-row .team-stat-grid div {
   padding: 6px 5px;
-}
-
-.builder-row-skills,
-.builder-summary-skills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.builder-row-skills .roster-pill {
-  min-height: 28px;
-  padding: 0 10px;
-  font-size: 0.8125rem;
 }
 
 .builder-pool,
@@ -1022,18 +996,7 @@
   width: 100%;
   min-height: 30px;
   padding: 4px 24px 4px 8px;
-  border: 1px solid var(--line);
   border-radius: 6px;
-  appearance: none;
-  background-color: var(--input-bg);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
-    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
-  color: var(--text);
-  font: inherit;
   font-weight: 800;
 }
 
@@ -1396,7 +1359,7 @@
 .inline-stepper-control {
   display: grid;
   grid-template-columns: 38px minmax(42px, auto) 38px;
-  align-items: center;
+  align-items: stretch;
   overflow: hidden;
   min-height: 38px;
   border: 1px solid var(--line);
@@ -1405,14 +1368,23 @@
 }
 
 .inline-stepper-control strong {
+  align-self: center;
   color: var(--text);
   text-align: center;
 }
 
 .inline-stepper-control .filter-button {
+  justify-content: center;
   min-height: 38px;
+  padding: 0;
   border: 0;
+  border-right: 1px solid var(--line);
   border-radius: 0;
+}
+
+.inline-stepper-control .filter-button:last-child {
+  border-right: 0;
+  border-left: 1px solid var(--line);
 }
 
 .editable-stat-line .player-stat-editor.stat-up {
@@ -1483,10 +1455,6 @@
 .roster-slot-add select {
   min-width: 0;
   min-height: 38px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--input-bg);
-  color: var(--text);
 }
 
 .slot-player-editor {
@@ -1532,44 +1500,6 @@
 .builder-team-link:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.builder-summary-roster {
-  display: grid;
-  gap: 10px;
-}
-
-.builder-summary-player {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-glass);
-}
-
-.builder-summary-player header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px;
-  border-bottom: 1px solid var(--line);
-  background: var(--table-head);
-}
-
-.builder-summary-player header strong {
-  min-width: 0;
-  color: var(--text);
-  line-height: 1.25;
-}
-
-.builder-summary-player header span {
-  flex: 0 0 auto;
-  color: var(--soft);
-  font-weight: 800;
-}
-
-.builder-summary-player .team-stat-grid {
-  grid-template-columns: repeat(5, minmax(34px, 1fr));
 }
 
 .builder-logo-preview {
@@ -1751,7 +1681,7 @@
   min-height: 34px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--input-bg);
+  background-color: var(--input-bg);
   color: var(--text);
 }
 
@@ -1759,11 +1689,6 @@
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
-}
-
-.builder-summary-skills {
-  padding: 10px;
-  border-top: 1px solid rgba(85, 69, 51, 0.45);
 }
 
 .builder-empty-roster {
@@ -1832,18 +1757,6 @@
   top: 96px;
 }
 
-.builder-summary-horizontal {
-  position: static;
-  grid-template-columns: 1fr;
-  align-items: center;
-  margin-bottom: 18px;
-  padding: 16px;
-}
-
-.builder-summary-horizontal:not(:has(.summary-logo-block)) {
-  grid-template-columns: 1fr;
-}
-
 .saved-roster-summary-panel {
   position: static;
   align-content: start;
@@ -1857,39 +1770,48 @@
   row-gap: 7px;
 }
 
-.saved-roster-summary-panel .summary-actions {
-  grid-template-columns: 1fr;
-}
-
 .public-team-overview {
   display: grid;
   gap: 16px;
   margin-bottom: 18px;
 }
 
-.public-team-overview-grid {
+.summary-overview-grid {
+  --stats-share: 6fr;
+  --rules-share: 3fr;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
 
-.public-team-summary-block,
-.public-team-coach-block {
-  display: grid;
-  min-width: 0;
-  gap: 12px;
-  align-content: start;
+.summary-overview-grid:has(.summary-stat-grid > :nth-child(7)) {
+  --stats-share: 7fr;
 }
 
-.public-team-coach-block {
+.summary-overview-grid:has(.team-rules-row:nth-child(4)) {
+  --rules-share: 4fr;
+}
+
+.summary-overview-grid .summary-stat-grid {
+  --column-min: 120px;
+}
+
+.summary-overview-grid .summary-stat-grid > div {
+  display: grid;
+  gap: 4px;
+}
+
+.summary-rules-block {
+  min-width: 0;
   padding-top: 16px;
   border-top: 1px solid var(--line);
 }
 
-.public-team-coach-block h2,
-.public-team-coach-block p {
-  margin: 0;
+.summary-rules-block .team-rules-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .public-team-logo-block {
@@ -1906,31 +1828,21 @@
   height: auto;
 }
 
-.public-team-rules-wrap .team-rules-panel {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-}
-
-.public-team-rules-wrap .team-rules-row {
+.summary-rules-block .team-rules-row {
   display: grid;
   min-width: 0;
   gap: 8px;
   align-content: start;
 }
 
-.public-team-rules-wrap .team-rules-row-wide {
-  grid-column: 1 / -1;
-}
-
-.public-team-rules-wrap .rule-link-list {
+.summary-rules-block .rule-link-list {
   display: flex;
   min-width: 0;
   flex-wrap: wrap;
   gap: 7px;
 }
 
-.public-team-rules-wrap .roster-pill {
+.summary-rules-block .roster-pill {
   width: auto;
   max-width: 100%;
   min-height: 24px;
@@ -1945,6 +1857,7 @@
   min-width: 0;
 }
 
+.summary-overview-title,
 .summary-title-block h3 {
   margin: 0;
 }
@@ -2003,7 +1916,7 @@
 
 .builder-warnings p {
   margin: 0;
-  color: color-mix(in srgb, var(--danger) 65%, var(--text));
+  color: var(--danger-text);
   line-height: 1.45;
 }
 
@@ -2013,10 +1926,10 @@
 
 .builder-ok {
   border: 1px solid rgba(138, 160, 75, 0.6);
-  color: color-mix(in srgb, var(--accent-2) 65%, var(--text));
+  color: var(--ok-text);
 }
 
-.danger-text {
-  color: #ffb199;
+.summary-stat-grid dd.danger-text {
+  color: var(--danger-text);
 }
 

@@ -1,11 +1,11 @@
 /**
- * Who the team is: its race, its name, its logo, and the rules that follow from
- * the race. Shared by both editors.
+ * Who the team is: its race, its name and its logo. Shared by both editors.
  *
  * There used to be two copies — the identity block inside the builder's info
- * panel and renderSavedRosterIdentity — the same three fields, the same logo
- * preview and the same rule-access panel, differing only in the data attributes
- * the controls carried and two class names.
+ * panel and renderSavedRosterIdentity — the same three fields and the same logo
+ * preview, differing only in the data attributes the controls carried and two
+ * class names. The rules that follow from the race are rendered by each editor
+ * where its layout wants them.
  *
  * Only the contents are shared. Each editor keeps its own wrapper element,
  * because that is layout: the builder's block sits inside its info panel, the
@@ -14,7 +14,6 @@
  */
 import { escapeHtml, renderOption } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { renderTeamRuleAccess } from "../roster-editor-shared.mjs";
 import { iconButton } from "../icons.mjs";
 
 /**
@@ -49,6 +48,5 @@ export function renderIdentityFields({ team, draft, teams, mode }) {
         ${iconButton("trash", { title: t("savedRoster.removeLogo"), attributes: `data-${attribute}-remove-logo` })}
       </div>
     ` : ""}
-    ${renderTeamRuleAccess(team, draft, attribute)}
   `;
 }

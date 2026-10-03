@@ -159,11 +159,6 @@
 .filter-field select {
   width: 100%;
   min-height: 38px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--input-bg);
-  color: var(--text);
 }
 
 .filter-field input {

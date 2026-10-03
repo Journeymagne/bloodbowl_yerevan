@@ -49,6 +49,7 @@ export function renderHeader(title, description, actions = "", options = {}) {
       data-history-fallback="${escapeHtml(options.backFallback || "#/")}"
     >${t("common.back")}</button>
   ` : "";
+  const descriptionHtml = options.descriptionHtml ?? (description ? escapeHtml(description) : "");
   return `
     <header class="page-head" data-key="page-head">
       <div class="page-heading-main">
@@ -56,7 +57,7 @@ export function renderHeader(title, description, actions = "", options = {}) {
           <h1>${escapeHtml(title)}</h1>
           ${backButton}
         </div>
-        ${description ? `<p>${escapeHtml(description)}</p>` : ""}
+        ${descriptionHtml ? `<p>${descriptionHtml}</p>` : ""}
       </div>
       ${actions ? `<div class="toolbar">${actions}</div>` : ""}
     </header>

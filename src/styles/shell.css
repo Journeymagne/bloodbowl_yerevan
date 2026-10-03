@@ -28,6 +28,21 @@ select {
   font: inherit;
 }
 
+select {
+  padding: 0 24px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  appearance: none;
+  background-color: var(--input-bg);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  color: var(--text);
+}
+
 /*
  * The list a select drops down is drawn by the browser, not by the page: it
  * takes the option colours but paints its own light background. Under a dark
@@ -240,8 +255,9 @@ body.nav-open .nav-overlay {
 .theme-picker select {
   width: 88px;
   min-height: 28px;
+  padding: 0 24px 0 4px;
   border: 0;
-  background: transparent;
+  background-color: transparent;
   color: var(--button-text);
   font: inherit;
   font-size: 0.6875rem;

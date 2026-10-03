@@ -19,6 +19,8 @@
   --accent-2: #8aa04b;
   --focus: #f0c84a;
   --danger: #e85c3f;
+  --danger-text: color-mix(in srgb, var(--danger) 65%, var(--text));
+  --ok-text: color-mix(in srgb, var(--accent-2) 65%, var(--text));
   --bone: #efe0b7;
   --radius: 8px;
   --grid-line: rgba(255, 215, 120, 0.06);

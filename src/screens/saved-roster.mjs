@@ -75,6 +75,7 @@ import {
   ensureDraftFavouredChoice,
   ensureDraftLeagueChoice,
   favouredSkillOptionsForPlayer,
+  renderTeamRuleAccess,
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
 } from "../components/roster-editor-shared.mjs";
@@ -232,7 +233,7 @@ function renderSavedRosterSummary(savedTeam, team, draft, costs, warnings) {
       { label: t("savedRoster.teamRerolls"), value: draft.teamRerolls ?? 0 },
       ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(draft.bribes) }] : []),
       { label: t("savedRoster.dedicatedFans"), value: countToNumber(draft.dedicatedFans) },
-      { label: t("savedRoster.treasury"), value: `${countToNumber(draft.treasury)}k`, valueAttributes: "data-treasury-display" },
+      { label: t("savedRoster.treasury"), value: `${countToNumber(draft.treasury)}k`, valueAttributes: "data-treasury-display", valueClass: draft.treasury < 0 ? "danger-text" : "" },
       { label: t("savedRoster.totalSppLabel"), value: `${rosterTotalSpp(team, draft)} SPP`, valueAttributes: "data-total-spp-display" },
       { label: t("savedRoster.playersCost"), value: `${costs.playersCost}k` },
       { label: t("savedRoster.staffCost"), value: `${costs.staffCost}k` },
@@ -249,6 +250,7 @@ function renderSavedRosterIdentity(team, draft, teams) {
   return `
     <section class="builder-setup-panel roster-identity-panel side-panel">
       ${renderIdentityFields({ team, draft, teams, mode: LEAGUE_MODE })}
+      ${renderTeamRuleAccess(team, draft, LEAGUE_MODE.identityAttribute)}
     </section>
   `;
 }
@@ -265,7 +267,7 @@ function renderSavedRosterPurchases(team, draft) {
       </section>
       <section class="roster-controls-panel roster-purchases-panel side-panel">
         <h2>${t("roster.purchasesHeading")}</h2>
-        <div class="builder-tracker-list roster-tracker-list roster-purchase-grid" aria-label="${t("roster.purchaseTrackersAriaLabel")}">
+        <div class="builder-tracker-list roster-purchase-grid" aria-label="${t("roster.purchaseTrackersAriaLabel")}">
         ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: draft.startingRerolls, mode: LEAGUE_MODE })}
         ${renderStaffControl({ key: "teamRerolls", title: t("savedRoster.teamRerolls"), value: draft.teamRerolls, mode: LEAGUE_MODE })}
         ${renderHiredStaffLines({ team, draft, mode: LEAGUE_MODE })}
@@ -281,7 +283,10 @@ function renderRosterMoneyControl(title, description, value, dataAttribute) {
         <strong>${escapeHtml(title)}</strong>
         <span>${escapeHtml(description)}</span>
       </div>
-      <input class="table-input roster-purchase-input" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
+      <span class="money-input">
+        <input class="table-input roster-purchase-input${countToNumber(value) < 0 ? " is-negative" : ""}" type="number" step="10" value="${countToNumber(value)}" ${dataAttribute}>
+        <span aria-hidden="true">k</span>
+      </span>
     </label>
   `;
 }
@@ -338,6 +343,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   });
   events.on("input", "[data-roster-coaches-safe]", (event, input) => {
     draft.coachesSafe = countToNumber(input.value);
+    input.classList.toggle("is-negative", draft.coachesSafe < 0);
     updateSavedRosterFields(savedTeam, draft);
     autosave();
   });

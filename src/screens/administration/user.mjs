@@ -10,7 +10,7 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { adminTeamEditUrl, pageUrl } from "../../core/routes.mjs";
+import { adminTeamEditUrl, pageUrl, teamEditUrl } from "../../core/routes.mjs";
 import { ensureDraftPlayers } from "../../domain/roster/players.mjs";
 import { calculateRosterCosts } from "../../domain/roster/costs.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
@@ -317,7 +317,7 @@ function renderProfileSavedTeamRow(team, owner) {
       <td>${escapeHtml(updated)}</td>
       ${canManageProfileTeams(owner) ? `<td class="fit-cell">
           <div class="table-actions">
-            ${iconButton("edit", { href: profileTeamEditUrl(owner, team) })}
+            ${iconButton("edit", { href: teamEditUrl(owner, team, state.auth.currentUser) })}
             ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(owner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
           </div>
       </td>` : ""}
@@ -328,10 +328,4 @@ function renderProfileSavedTeamRow(team, owner) {
 function canManageProfileTeams(user) {
   const currentUser = state.auth.currentUser;
   return Boolean(currentUser?.isAdmin || (currentUser?.id && currentUser.id === user?.id));
-}
-
-function profileTeamEditUrl(owner, team) {
-  return state.auth.currentUser?.isAdmin
-    ? adminTeamEditUrl(owner, team)
-    : `#/my-teams/${encodeURIComponent(team.id)}`;
 }

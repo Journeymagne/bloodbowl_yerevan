@@ -13,7 +13,6 @@ import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
 import { storage } from "../core/storage.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
-import { pageUrl } from "../core/routes.mjs";
 import { onScreenLeave } from "../core/screen-lifecycle.mjs";
 import { builderStaffMaximums, startingBudget } from "../domain/league-rules.mjs";
 import { PLAYER_STATS, clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
@@ -33,7 +32,7 @@ import { renderHeader, setActiveNav, setViewSection } from "../components/page-c
 import { renderRosterLinks } from "../components/content-links.mjs";
 import { CREATE_MODE } from "../components/roster-editor/modes.mjs";
 import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl, staffStepVerdict } from "../components/roster-editor/staff-control.mjs";
-import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
+import { renderRosterState, renderSummaryOverview } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
 import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
@@ -41,6 +40,7 @@ import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
 import { iconButton } from "../components/icons.mjs";
 import {
   ensureDraftLeagueChoice,
+  renderTeamRuleAccess,
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
 } from "../components/roster-editor-shared.mjs";
@@ -99,25 +99,21 @@ export function renderBuilder() {
   `);
   wireBuilder(team);
 }
-function renderBuilderSummary(team, costs, warnings) {
-  return renderSummaryPanel({
-    className: "builder-info-section builder-info-summary",
-    teamTitle: team.title,
-    teamHref: pageUrl(team),
-    rows: [
-      { label: t("myTeams.table.players"), value: costs.totalPlayersCount },
-      { label: t("savedRoster.dedicatedFans"), value: countToNumber(state.builder.dedicatedFans) },
-      ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(state.builder.bribes) }] : []),
-      { label: t("savedRoster.playersCost"), value: `${costs.playersCost}k` },
-      { label: t("savedRoster.staffCost"), value: `${costs.staffCost}k` },
-      { label: t("roster.totalCost"), value: `${costs.total}k` },
-      { label: t("builder.remaining"), value: `${costs.remaining}k`, valueClass: costs.remaining < 0 ? "danger-text" : "" },
-    ],
-    warnings,
-    actionsHtml: `
-              <button class="primary-button" type="button" data-save-team ${costs.total > startingBudget || !state.builder.players.length ? "disabled" : ""}>${t("builder.saveTeam")}</button>
-    `,
-  });
+function renderBuilderSummary(team, costs) {
+  const rows = [
+    { label: t("myTeams.table.players"), value: costs.totalPlayersCount },
+    { label: t("savedRoster.dedicatedFans"), value: countToNumber(state.builder.dedicatedFans) },
+    ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(state.builder.bribes) }] : []),
+    { label: t("savedRoster.playersCost"), value: `${costs.playersCost}k` },
+    { label: t("savedRoster.staffCost"), value: `${costs.staffCost}k` },
+    { label: t("roster.totalCost"), value: `${costs.total}k` },
+    { label: t("builder.remaining"), value: `${costs.remaining}k`, valueClass: costs.remaining < 0 ? "danger-text" : "" },
+  ];
+  return `
+    <div class="builder-info-section">
+      ${renderSummaryOverview(rows, renderTeamRuleAccess(team, state.builder, CREATE_MODE.identityAttribute))}
+    </div>
+  `;
 }
 
 function renderBuilderInfoPanel(team, teams, costs, warnings) {
@@ -126,15 +122,19 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
       <div class="builder-info-section builder-info-identity">
         ${renderIdentityFields({ team, draft: state.builder, teams, mode: CREATE_MODE })}
       </div>
-      <div class="builder-info-grid">
-        ${renderBuilderSummary(team, costs, warnings)}
-        <div class="builder-info-section builder-info-purchases">
-          <h2>${t("roster.purchasesHeading")}</h2>
-          <div class="builder-tracker-list roster-tracker-list" aria-label="${t("roster.startingRosterTrackersAriaLabel")}">
-            ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: state.builder.startingRerolls, mode: CREATE_MODE, committedTotal: costs.total })}
-            ${renderDedicatedFansLine({ draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}
-            ${renderHiredStaffLines({ team, draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}
-          </div>
+      ${renderBuilderSummary(team, costs)}
+      <div class="builder-info-section builder-info-purchases">
+        <h2>${t("roster.purchasesHeading")}</h2>
+        <div class="builder-tracker-list" aria-label="${t("roster.startingRosterTrackersAriaLabel")}">
+          ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: state.builder.startingRerolls, mode: CREATE_MODE, committedTotal: costs.total })}
+          ${renderDedicatedFansLine({ draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}
+          ${renderHiredStaffLines({ team, draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}
+        </div>
+      </div>
+      <div class="builder-info-section summary-state-block builder-save-row">
+        ${renderRosterState(warnings)}
+        <div class="summary-actions">
+          <button class="primary-button" type="button" data-save-team ${state.builder.players.length ? "" : "disabled"}>${t("builder.saveTeam")}</button>
         </div>
       </div>
     </section>
