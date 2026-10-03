@@ -84,34 +84,25 @@ export function renderTeamRuleAccess(team, draft, controlName = "") {
   const favouredOptions = teamFavouredOptions(team);
   const selectedFavoured = ensureDraftFavouredChoice(team, draft);
   const specialRules = teamSpecialRuleTokens(team);
+  const row = (label, valueHtml) => `
+    <div class="team-rules-row">
+      <span>${label}</span>
+      ${valueHtml}
+    </div>
+  `;
+  const choice = (name, options, selected, readOnlyHtml) => controlName && options.length > 1 ? `
+    <select data-${controlName}-${name}>
+      ${options.map((option) => renderOption(option, option, selected)).join("")}
+    </select>
+  ` : readOnlyHtml;
   return `
     <section class="team-rules-panel">
-      <div class="team-rules-row">
-        <span>${t("roster.tier")}</span>
-        <strong>${escapeHtml(team.team?.meta?.league ?? "-")}</strong>
-      </div>
-      <div class="team-rules-row">
-        <span>${t("roster.leagueAccess")}</span>
-        ${controlName && leagueOptions.length > 1 ? `
-          <select data-${controlName}-league>
-            ${leagueOptions.map((option) => renderOption(option, option, selectedLeague)).join("")}
-          </select>
-        ` : `<div class="rule-link-list">${renderRuleLinks([selectedLeague].filter(Boolean))}</div>`}
-      </div>
-      <div class="team-rules-row">
-        <span>${t("roster.specialRules")}</span>
-        <div class="rule-link-list">${renderRuleLinks(specialRules)}</div>
-      </div>
-      ${favouredOptions.length ? `
-        <div class="team-rules-row">
-          <span>${t("roster.favouredOf")}</span>
-          ${controlName && favouredOptions.length > 1 ? `
-            <select data-${controlName}-favoured>
-              ${favouredOptions.map((option) => renderOption(option, option, selectedFavoured)).join("")}
-            </select>
-          ` : `<strong>${escapeHtml(selectedFavoured)}</strong>`}
-        </div>
-      ` : ""}
+      ${row(t("roster.tier"), `<strong>${escapeHtml(team.team?.meta?.league ?? "-")}</strong>`)}
+      ${row(t("roster.leagueAccess"), choice("league", leagueOptions, selectedLeague,
+        `<div class="rule-link-list">${renderRuleLinks([selectedLeague].filter(Boolean))}</div>`))}
+      ${row(t("roster.specialRules"), `<div class="rule-link-list">${renderRuleLinks(specialRules)}</div>`)}
+      ${favouredOptions.length ? row(t("roster.favouredOf"), choice("favoured", favouredOptions, selectedFavoured,
+        `<strong>${escapeHtml(selectedFavoured)}</strong>`)) : ""}
     </section>
   `;
 }
