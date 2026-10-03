@@ -267,7 +267,7 @@ function renderSavedRosterPurchases(team, draft) {
       </section>
       <section class="roster-controls-panel roster-purchases-panel side-panel">
         <h2>${t("roster.purchasesHeading")}</h2>
-        <div class="builder-tracker-list roster-tracker-list roster-purchase-grid" aria-label="${t("roster.purchaseTrackersAriaLabel")}">
+        <div class="builder-tracker-list roster-purchase-grid" aria-label="${t("roster.purchaseTrackersAriaLabel")}">
         ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: draft.startingRerolls, mode: LEAGUE_MODE })}
         ${renderStaffControl({ key: "teamRerolls", title: t("savedRoster.teamRerolls"), value: draft.teamRerolls, mode: LEAGUE_MODE })}
         ${renderHiredStaffLines({ team, draft, mode: LEAGUE_MODE })}

@@ -70,9 +70,7 @@ function renderSummaryRow({ label, value, valueAttributes = "", valueClass = "" 
  */
 export function renderSummaryOverview(rows, rulesHtml) {
   return `
-    <div class="summary-title-block">
-      <h2>${t("savedRoster.summaryTitle")}</h2>
-    </div>
+    <h2 class="summary-overview-title">${t("savedRoster.summaryTitle")}</h2>
     <div class="summary-overview-grid">
       <dl class="stat-list summary-stat-grid">
         ${rows.map((row) => `<div>${renderSummaryRow(row)}</div>`).join("")}

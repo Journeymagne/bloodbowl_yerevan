@@ -354,14 +354,6 @@
     position: sticky;
   }
 
-  .builder-summary-horizontal {
-    grid-template-columns: auto minmax(150px, 0.7fr) minmax(360px, 1.8fr) minmax(260px, 1fr);
-  }
-
-  .builder-summary-horizontal:not(:has(.summary-logo-block)) {
-    grid-template-columns: minmax(150px, 0.7fr) minmax(360px, 1.8fr) minmax(260px, 1fr);
-  }
-
   .summary-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

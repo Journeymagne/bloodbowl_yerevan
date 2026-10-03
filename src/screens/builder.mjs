@@ -125,7 +125,7 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
       ${renderBuilderSummary(team, costs)}
       <div class="builder-info-section builder-info-purchases">
         <h2>${t("roster.purchasesHeading")}</h2>
-        <div class="builder-tracker-list roster-tracker-list" aria-label="${t("roster.startingRosterTrackersAriaLabel")}">
+        <div class="builder-tracker-list" aria-label="${t("roster.startingRosterTrackersAriaLabel")}">
           ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: state.builder.startingRerolls, mode: CREATE_MODE, committedTotal: costs.total })}
           ${renderDedicatedFansLine({ draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}
           ${renderHiredStaffLines({ team, draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}

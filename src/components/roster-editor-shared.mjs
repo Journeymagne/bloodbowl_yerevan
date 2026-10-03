@@ -92,21 +92,21 @@ export function renderTeamRuleAccess(team, draft, controlName = "") {
       </div>
       <div class="team-rules-row">
         <span>${t("roster.leagueAccess")}</span>
-        ${leagueOptions.length > 1 ? `
-          <select ${controlName ? `data-${controlName}-league` : ""}>
+        ${controlName && leagueOptions.length > 1 ? `
+          <select data-${controlName}-league>
             ${leagueOptions.map((option) => renderOption(option, option, selectedLeague)).join("")}
           </select>
-        ` : `<div class="rule-link-list">${renderRuleLinks(leagueOptions)}</div>`}
+        ` : `<div class="rule-link-list">${renderRuleLinks([selectedLeague].filter(Boolean))}</div>`}
       </div>
-      <div class="team-rules-row team-rules-row-wide">
+      <div class="team-rules-row">
         <span>${t("roster.specialRules")}</span>
         <div class="rule-link-list">${renderRuleLinks(specialRules)}</div>
       </div>
       ${favouredOptions.length ? `
         <div class="team-rules-row">
           <span>${t("roster.favouredOf")}</span>
-          ${favouredOptions.length > 1 ? `
-            <select ${controlName ? `data-${controlName}-favoured` : ""}>
+          ${controlName && favouredOptions.length > 1 ? `
+            <select data-${controlName}-favoured>
               ${favouredOptions.map((option) => renderOption(option, option, selectedFavoured)).join("")}
             </select>
           ` : `<strong>${escapeHtml(selectedFavoured)}</strong>`}
