@@ -280,7 +280,7 @@
   }
 
   .public-team-overview-grid {
-    grid-template-columns: minmax(0, 1fr) minmax(260px, 0.48fr);
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
   }
 
   .builder-addons {
