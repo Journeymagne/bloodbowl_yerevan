@@ -12,7 +12,7 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { adminTeamEditUrl, playerUrl } from "../../core/routes.mjs";
+import { playerUrl, teamEditUrl } from "../../core/routes.mjs";
 import { countToNumber, statValueForDisplayByStat } from "../../domain/roster/values.mjs";
 import { hasBribery } from "../../domain/roster/team-rules.mjs";
 import { ensureDraftPlayers, favouredSkillNames, selectedRosterPlayers, skillNamesForPlayer } from "../../domain/roster/players.mjs";
@@ -49,9 +49,8 @@ export async function renderPublicTeamProfile(userId, teamId) {
     ensureDraftLeagueChoice(team, draft);
     ensureDraftPlayers(team, draft);
     const costs = calculateRosterCosts(team, draft);
-    const actions = `
-      ${state.auth.currentUser?.isAdmin ? `<a class="primary-button" href="${adminTeamEditUrl(payload.user, payload.team)}">${t("admin.editTeamAction")}</a>` : ""}
-    `;
+    const editUrl = teamEditUrl(payload.user, payload.team, state.auth.currentUser);
+    const actions = editUrl ? `<a class="primary-button" href="${editUrl}">${t("admin.editTeamAction")}</a>` : "";
     view.innerHTML = `
       ${renderHeader(`${t("sidebar.teamHeading")} "${payload.team.name}"`, "", actions, {
         back: true,

@@ -14,6 +14,7 @@ import {
   routeSection,
   savedRosterUrl,
   seasonTabUrl,
+  teamEditUrl,
 } from "../src/core/routes.mjs";
 
 // ---------------------------------------------------------------------------
@@ -49,6 +50,15 @@ test("the remaining link shapes are what the screens expect", () => {
   assert.equal(listUrlForRoute("skills"), "#/skills");
   assert.equal(seasonTabUrl(""), "#/season", "the default tab is the bare hash, not a trailing slash");
   assert.equal(seasonTabUrl("standings"), "#/season/standings");
+});
+
+test("a team is edited in its owner's editor, or by an admin in the admin one", () => {
+  const owner = { id: "u1" };
+  assert.equal(teamEditUrl(owner, "t1", { id: "u1" }), "#/my-teams/t1");
+  assert.equal(teamEditUrl(owner, "t1", { id: "u1", isAdmin: true }), "#/my-teams/t1", "an admin's own team opens their own editor");
+  assert.equal(teamEditUrl(owner, "t1", { id: "u2", isAdmin: true }), "#/administration/users/u1/teams/t1/edit");
+  assert.equal(teamEditUrl(owner, "t1", { id: "u2" }), "", "another coach cannot edit it");
+  assert.equal(teamEditUrl(owner, "t1", null), "", "nor can a visitor who is not logged in");
 });
 
 // ---------------------------------------------------------------------------

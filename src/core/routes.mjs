@@ -74,6 +74,16 @@ export function savedRosterUrl(teamOrId) {
   return `#/my-teams/${segment(teamOrId)}`;
 }
 
+/**
+ * Where `viewer` edits `owner`'s team: their own editor for their own team, the
+ * admin editor for anyone else's if they are an admin, and nowhere otherwise.
+ */
+export function teamEditUrl(ownerOrId, teamOrId, viewer) {
+  if (!viewer?.id) return "";
+  if (viewer.id === idOf(ownerOrId)) return savedRosterUrl(teamOrId);
+  return viewer.isAdmin ? adminTeamEditUrl(ownerOrId, teamOrId) : "";
+}
+
 /** Bare `#/season` is the default tab; only a non-default tab gets a segment. */
 export function seasonTabUrl(tab) {
   return tab ? `#/season/${encodeURIComponent(tab)}` : "#/season";
