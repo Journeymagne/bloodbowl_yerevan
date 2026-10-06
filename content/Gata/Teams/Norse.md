@@ -5,7 +5,7 @@
 | 0-2 | Norse Berzerker | 6 | 3 | 3+ | 5+ | 8+ | [[Block]], [[Frenzy]], [[Jump Up]] | G S | A P | 65K | Human, Blitzer |
 | 0-2 | Valkyrie | 7 | 3 | 3+ | 3+ | 8+ | [[Catch]], [[Dauntless]], [[Pass]], [[Strip Ball]] | A G P | S | 100K | Human, Thrower, Catcher |
 | 0-2 | Ulfwerener | 6 | 4 | 4+ | 6+ | 9+ | [[Frenzy]], [[Unsteady]] | G S | A | 105K | Human, Blocker |
-| 0-1 | Yhetee | 5 | 5 | 4+ | 6+ | 9+ | [[Claws]], [[Disturbing Presence]], [[Frenzy]], [[Loner (4+)]], [[Unchannelled Fury]] | S | A G | 135K | Yehetee, Big Guy |
+| 0-1 | Yhetee | 5 | 5 | 4+ | 6+ | 9+ | [[Claws]], [[Disturbing Presence]], [[Frenzy]], [[Loner (4+)]], [[Unchanneled Fury]] | S | A G | 135K | Yehetee, Big Guy |
 
 **Rerolls:** 60K
 **Apothecary:** Apothecary: Available
