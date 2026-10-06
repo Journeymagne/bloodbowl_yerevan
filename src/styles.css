@@ -1,10 +1,7 @@
 /*
- * The stylesheet, in eight files.
- *
- * It was one 4432-line file with no sections in it, which is a thing you
- * search rather than read. The parts are cut by position: every cut falls
- * between two rules that were already next to each other, so the order the
- * browser sees — and therefore which rule wins a tie — has not changed.
+ * Site themes, shared controls and component layouts.
+ * tokens.css owns fonts/colours; controls.css and overlays.css own common UI.
+ * Screen styles specialise layout without repeating those base rules.
  *
  * @import is a request each in development. The build inlines them into one
  * file for dist/, which is what the site serves.
@@ -17,3 +14,14 @@
 @import url("styles/season.css");
 @import url("styles/responsive.css");
 @import url("styles/overlays.css");
+@import url("styles/controls.css");
+@import url("styles/matchday.css");
+@import url("styles/pre-match.css");
+@import url("styles/challenges.css");
+@import url("styles/site-matchday.css");
+@import url("styles/post-match.css");
+@import url("styles/season-results.css");
+@import url("styles/season-entries.css");
+@import url("styles/saved-teams.css");
+@import url("styles/result-form.css");
+@import url("styles/administration.css");

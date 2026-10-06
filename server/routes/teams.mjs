@@ -12,7 +12,7 @@ import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
 import { blockingViolations, checkRoster } from "../domain/roster.mjs";
-import { SAVED_TEAM_COLUMNS, hasSeasonHistory } from "../api/team-queries.mjs";
+import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames } from "../api/team-queries.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -92,6 +92,7 @@ export async function handleTeamRoutes(request, response, url) {
     if (await hasSeasonHistory(pool, teamMatch[1])) {
       return sendError(response, 409, "TEAM_IN_SEASON_CANNOT_BE_DELETED");
     }
+    if (await hasFriendlyGames(pool, teamMatch[1])) return sendError(response, 409, "TEAM_IN_FRIENDLY_GAMES");
     await pool.query(`DELETE FROM saved_teams WHERE id = $1 AND user_id = $2`, [teamMatch[1], user.id]);
     return send(response, 200, { ok: true });
   }

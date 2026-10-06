@@ -18,6 +18,7 @@ import { iconButton } from "../../components/icons.mjs";
 import { seasonTeamProfileLink, seasonTeamRulesLink } from "./season-links.mjs";
 import { replaceSeasonData } from "./season-data.mjs";
 import { toastError } from "../../components/toast.mjs";
+import { renderSeasonCoachEntryPanel } from "./coach-entry.mjs";
 
 export function renderSeasonRegistration(data) {
   return `
@@ -25,6 +26,7 @@ export function renderSeasonRegistration(data) {
       <div class="season-registration-top">
         ${renderSeasonCommitPanel(data)}
         ${state.auth.currentUser?.isAdmin ? renderSeasonRegistrationAdminPanel(data) : ""}
+        ${renderSeasonCoachEntryPanel()}
       </div>
       <section class="content-panel season-card season-registered-panel">
         <h2>${t("season.registeredTeamsHeading")}</h2>
@@ -107,23 +109,21 @@ export function renderSeasonEntriesTable(data, adminActions = false) {
   const entries = data.entries ?? [];
   if (!entries.length) return `<p>${t("season.noTeamsCommittedYet")}</p>`;
   return `
-    <div class="table-scroll">
-      <table class="compact-roster-table season-table">
+    <div class="table-scroll season-entries-scroll">
+      <table class="compact-roster-table season-entries-table ${adminActions ? 'season-entries-admin' : ''}">
         <thead>
           <tr>
-            <th>${t("admin.coachHeading")}</th>
-            <th>${t("sidebar.teamHeading")}</th>
-            <th>${t("myTeams.table.rules")}</th>
-            ${adminActions ? `<th>${t("roster.actionHeader")}</th>` : ""}
+            <th scope="col" class="season-entry-coach">${t("admin.coachHeading")}</th>
+            <th scope="col">${t("sidebar.teamHeading")}</th>
+            ${adminActions ? `<th scope="col" class="season-entry-actions">${t("roster.actionHeader")}</th>` : ""}
           </tr>
         </thead>
         <tbody>
           ${entries.map((entry) => `
-            <tr>
-              <td>${renderPlayerLink(entry.user)}</td>
-              <td><strong>${seasonTeamProfileLink(entry)}</strong></td>
-              <td>${seasonTeamRulesLink(entry)}</td>
-              ${adminActions ? `<td class="fit-cell center-cell">${iconButton("trash", { attributes: `data-season-remove-entry="${escapeHtml(entry.id)}"` })}</td>` : ""}
+            <tr class="season-entry-row">
+              <td class="season-entry-coach" data-label="${t('admin.coachHeading')}">${renderPlayerLink(entry.user)}</td>
+              <td class="season-entry-team" data-label="${t('sidebar.teamHeading')}"><strong>${seasonTeamProfileLink(entry)}</strong></td>
+              ${adminActions ? `<td class="season-entry-actions">${iconButton("trash", { attributes: `data-season-remove-entry="${escapeHtml(entry.id)}"` })}</td>` : ""}
             </tr>
           `).join("")}
         </tbody>

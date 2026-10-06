@@ -354,32 +354,9 @@ body.nav-open .nav-overlay {
   cursor: pointer;
 }
 
-.auth-dialog {
-  position: relative;
-  z-index: 1;
-  width: min(420px, 100%);
-  padding: 18px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background:
-    linear-gradient(180deg, rgba(199, 46, 34, 0.14), transparent),
-    var(--modal-bg);
-  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.52);
-}
-
-.auth-dialog header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.auth-dialog h2 {
-  margin: 0;
-  font-size: 1.5rem;
-}
-
+.auth-dialog { position: relative; z-index: 1; width: min(420px, 100%); padding: 24px; }
+.auth-dialog header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 20px; padding-bottom: 17px; border-bottom: 1px solid var(--line); }
+.auth-dialog h2 { margin: 0; }
 .auth-form,
 .auth-account {
   display: grid;
@@ -402,15 +379,7 @@ body.nav-open .nav-overlay {
   font-weight: 800;
 }
 
-.auth-error {
-  margin: 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(232, 92, 63, 0.54);
-  border-radius: var(--radius);
-  background: rgba(232, 92, 63, 0.12);
-  color: #ffb199;
-}
-
+.auth-error { margin: 0; padding: 10px 12px; border: 1px solid var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--panel)); color: var(--danger); }
 body.auth-open {
   overflow: hidden;
 }

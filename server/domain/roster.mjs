@@ -78,7 +78,8 @@ export function checkRoster(baseTeamSlug, roster) {
   ensureDraftPlayers(team, draft);
   syncRosterCountsFromPlayers(draft);
   const costs = calculateRosterCosts(team, draft);
-  return { violations: validateRoster(team, draft, costs), roster: draft };
+  const balances = { ...draft, treasury: roster.treasury ?? 0, coachesSafe: roster.coachesSafe ?? 0 };
+  return { violations: validateRoster(team, balances, costs), roster: draft };
 }
 
 /**
@@ -95,7 +96,7 @@ export function checkRoster(baseTeamSlug, roster) {
  * reads it — the season table, the opponent, the public profile — and there is
  * no editing state that legitimately passes through it.
  */
-const BLOCKING_CODES = new Set(["ROSTER_MAX_PLAYERS", "POSITION_MAX", "UNKNOWN_TEAM"]);
+const BLOCKING_CODES = new Set(["ROSTER_MAX_PLAYERS", "POSITION_MAX", "UNKNOWN_TEAM", "TREASURY_INVALID", "SAFE_INVALID"]);
 
 export function blockingViolations(violations) {
   return violations.filter((violation) => BLOCKING_CODES.has(violation.code));

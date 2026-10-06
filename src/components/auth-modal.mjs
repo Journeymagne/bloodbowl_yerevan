@@ -98,7 +98,7 @@ export function setAuthMode(mode) {
   }
 }
 
-function openAuthModal(mode = "login") {
+export function openAuthModal(mode = "login") {
   if (!authModal) return;
   authModal.hidden = false;
   document.body.classList.add("auth-open");

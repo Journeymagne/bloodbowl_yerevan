@@ -137,6 +137,113 @@ test("an edit made right after a save still reaches the server", async () => {
   assert.equal(harness.calls[1].request.roster.players[0].name, "Second edit");
 });
 
+test("a tracker change starts saving without even a zero-delay timer", async () => {
+  const harness = createHarness({ debounceMs: 450 });
+  const { draft } = trackTeam(harness.store);
+  draft.players[0].spp = { touchdowns: 1 };
+  harness.store.saveChange("team-1");
+  await flushMicrotasks();
+  assert.equal(harness.calls.length, 1, "no timer was advanced");
+  assert.equal(harness.calls[0].request.roster.players[0].spp.touchdowns, 1);
+  assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.SAVED);
+});
+
+test("every rapid SPP/stat change is saved in order while the previous request is slow", async () => {
+  const harness = createHarness({ autoResolve: false });
+  const { draft, meta } = trackTeam(harness.store);
+  const edits = [[1, 0], [2, 1], [1, 1], [1, -1]];
+  for (const [touchdowns, ma] of edits) {
+    draft.players[0].spp = { touchdowns };
+    draft.players[0].statMods = { ma };
+    harness.store.saveChange("team-1");
+  }
+  await flushMicrotasks();
+  assert.equal(harness.calls.length, 1);
+  for (let index = 0; index < edits.length; index += 1) {
+    assert.equal(harness.inflight.length, 1, "requests cannot overtake one another");
+    const sent = harness.calls[index].request.roster.players[0];
+    assert.deepEqual([sent.spp.touchdowns, sent.statMods.ma], edits[index]);
+    harness.inflight.shift().resolve();
+    await flushMicrotasks();
+  }
+  assert.equal(harness.calls.length, edits.length, "one request per action");
+  assert.equal(harness.store.hasPendingChanges(), false);
+  assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.SAVED);
+  assert.equal(meta.roster, draft, "saving snapshots never replaces the live draft");
+});
+
+test("queued changes use each acknowledged revision instead of conflicting with one another", async () => {
+  let revision = 7;
+  const calls = [];
+  const draft = { teamName: "Team", players: [{ id: "p1", spp: { touchdowns: 0 } }] };
+  const meta = { id: "team-1", revision, roster: draft };
+  const store = createRosterStore({ transport: {
+    async save(teamId, request) {
+      assert.equal(request.revision, revision);
+      calls.push(request);
+      return { team: { id: teamId, revision: ++revision, roster: request.roster } };
+    },
+  } });
+  store.track("team-1", { draft, meta, buildRequest: async current => {
+    await Promise.resolve(); // Logo optimisation can yield while more clicks arrive.
+    return { revision: meta.revision, roster: current };
+  } });
+  for (const touchdowns of [1, 2, 3]) {
+    draft.players[0].spp.touchdowns = touchdowns;
+    store.saveChange("team-1");
+  }
+  await flushMicrotasks();
+  assert.deepEqual(calls.map(request => request.revision), [7, 8, 9]);
+  assert.deepEqual(calls.map(request => request.roster.players[0].spp.touchdowns), [1, 2, 3]);
+  assert.equal(meta.revision, 10);
+  assert.equal(meta.roster, draft);
+  assert.equal(store.statusOf("team-1"), SAVE_STATUS.SAVED);
+});
+
+test("a failed tracker save keeps all queued changes for a later retry", async () => {
+  const harness = createHarness({ autoResolve: false });
+  const { draft } = trackTeam(harness.store);
+  for (const touchdowns of [1, 2]) {
+    draft.players[0].spp = { touchdowns };
+    harness.store.saveChange("team-1");
+  }
+  await flushMicrotasks();
+  harness.inflight.shift().reject(Object.assign(new Error("offline"), { kind: "offline" }));
+  await flushMicrotasks();
+  assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.OFFLINE);
+  assert.equal(harness.store.hasPendingChanges(), true);
+  void harness.store.flush("team-1");
+  await flushMicrotasks();
+  for (let index = 0; index < 2; index += 1) {
+    harness.inflight.shift().resolve();
+    await flushMicrotasks();
+  }
+  assert.deepEqual(harness.calls.map(call => call.request.roster.players[0].spp.touchdowns), [1, 1, 2]);
+  assert.equal(harness.store.statusOf("team-1"), SAVE_STATUS.SAVED);
+  assert.equal(harness.store.hasPendingChanges(), false);
+});
+
+test("resolving a conflict discards queued tracker snapshots along with the old draft", async () => {
+  const harness = createHarness({ autoResolve: false });
+  const { draft } = trackTeam(harness.store);
+  for (const touchdowns of [1, 2]) {
+    draft.players[0].spp = { touchdowns };
+    harness.store.saveChange("team-1");
+  }
+  await flushMicrotasks();
+  harness.inflight.shift().reject(Object.assign(new Error("conflict"), { kind: "conflict" }));
+  await flushMicrotasks();
+  const replacement = { teamName: "Server", players: [{ id: "p1", spp: { touchdowns: 9 } }] };
+  harness.store.adoptServerRoster("team-1", replacement);
+  assert.equal(harness.store.hasPendingChanges(), false);
+  replacement.players[0].spp.touchdowns = 10;
+  harness.store.saveChange("team-1");
+  await flushMicrotasks();
+  harness.inflight.shift().resolve();
+  await flushMicrotasks();
+  assert.deepEqual(harness.calls.map(call => call.request.roster.players[0].spp.touchdowns), [1, 10]);
+});
+
 test("edits made while a request is in the air are not lost and do not overtake it", async () => {
   const harness = createHarness({ autoResolve: false });
   const { draft } = trackTeam(harness.store);

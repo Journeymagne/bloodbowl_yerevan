@@ -1,0 +1,55 @@
+.post-step-nav { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.post-step-nav a { padding: 10px 8px; font-size: .72rem; gap: 7px; }
+.post-match [hidden] { display: none !important; }
+.post-match .pre-content > form { margin-block: 20px; }
+.post-match form .filter-field { margin-bottom: 16px; }
+.post-match form select { text-overflow: ellipsis; }
+.post-match .post-check { display: flex; align-items: center; gap: 10px; margin-block: 18px; font-size: .82rem; }
+.post-two-fields, .post-roster-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.post-player-grid { display: grid; gap: 24px; }
+.post-player { border: 1px solid var(--line-bright); background: var(--panel); min-width: 0; }
+.post-player > .pre-player-card { border: 0; border-bottom: 1px solid var(--line); }
+.post-match .post-statistics { padding: 18px; }
+.post-counter-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.post-match .post-counter-grid .filter-field { margin-bottom: 0; font-size: .7rem; }
+.post-counter-grid input { font-family: var(--label-font); font-size: 1.1rem; }
+.post-injury-fields { display: grid; grid-template-columns: 2fr 1fr; gap: 14px; margin-top: 20px; border-top: 1px solid var(--line); padding-top: 20px; }
+.post-match .post-injury-fields .post-check { grid-column: 1 / -1; margin-block: 0; }
+.post-player-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--line); padding: 18px; font-size: .8rem; }
+.post-mvp-panel { border: 2px solid var(--line-bright); background: var(--panel-2); padding: 22px; margin-bottom: 24px; }
+.post-mvp-panel h3, .post-staff-panel h3 { margin-top: 0; font-family: var(--display-font); font-size: 1.6rem; text-transform: uppercase; }
+.post-save-bar { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; }
+.post-advance-form { padding: 24px; }
+.post-advance-form .notice-box { margin-block: 20px; }
+.post-staff-line { display: flex; align-items: center; gap: 10px; padding-block: 12px; border-bottom: 1px solid var(--line); font-size: .8rem; }
+.post-staff-line span { flex: 1; }
+.post-staff-line small { display: block; color: var(--muted); margin-top: 4px; }
+.post-staff-line button { min-width: 44px; padding-inline: 10px; }
+.post-match .pre-player-grid { margin-block: 20px; }
+.post-reopen { display: grid; gap: 10px; justify-items: start; border-top: 1px solid var(--line); padding-top: 20px; margin-top: 32px; }
+.post-reopen small { color: var(--muted); font-size: .72rem; line-height: 1.5; }
+.post-game-panel { margin-bottom: 24px; }
+.post-accounting { border: 1px solid var(--line); background: var(--panel); padding: 18px; margin-block: 20px; }
+.post-accounting h3 { margin-top: 0; }
+.post-accounting-grid { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 8px 20px; margin: 0; font-size: .82rem; }
+.post-accounting dt { color: var(--muted); }
+.post-accounting dd { margin: 0; font-family: var(--label-font); text-align: right; }
+.post-review-details h4 { margin: 20px 0 8px; font-family: var(--label-font); font-size: .72rem; color: var(--muted); }
+.post-review-details p { font-size: .8rem; }
+.post-review-list { padding-left: 18px; font-size: .8rem; }
+.post-review-list li { padding-bottom: 12px; overflow-wrap: anywhere; }
+.post-review-list li span { display: block; margin-top: 5px; color: var(--muted); }
+@media (max-width: 1100px) {
+  .post-step-nav { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .post-step-nav a:last-child { grid-column: span 2; }
+  .post-roster-actions { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 600px) {
+  .post-step-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .post-step-nav a:last-child { grid-column: 1 / -1; }
+  .post-two-fields { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .post-counter-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .post-injury-fields { grid-template-columns: minmax(0, 1fr); }
+  .post-player-actions > button, .post-save-bar > button { width: 100%; }
+  .post-advance-form { padding: 18px; }
+}

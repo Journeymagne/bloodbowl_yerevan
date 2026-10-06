@@ -11,6 +11,7 @@
 import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
 import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
 import { createPlayer, normalizePurchasedStaff } from "./schema.mjs";
+import { isMoneyAmount } from "../money.mjs";
 
 export function normalizeExtraSkill(skill) {
   if (!skill) return null;
@@ -75,13 +76,18 @@ export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
     statMods: { ...(player.statMods ?? {}) },
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    skipNextGame: Boolean(player.skipNextGame),
+    skipNextGame: Boolean(player.skipNextGame || player.temporarilyRetired),
     niglingInjury: Boolean(player.niglingInjury),
+    nigglingInjuries: countToNumber(player.nigglingInjuries ?? (player.niglingInjury ? 1 : 0)),
+    injuryStatMods: { ...(player.injuryStatMods ?? {}) },
+    temporarilyRetired: Boolean(player.temporarilyRetired),
     isCaptain: Boolean(player.isCaptain ?? player.captain),
     extendedContracts: countToNumber(player.extendedContracts),
     spp: normalizeSppCounters(player.spp),
     advancements: normalizePlayerAdvancements(player.advancements),
     purchased: Boolean(player.purchased),
+    ...(player.purchased && player.purchaseRefund != null && isMoneyAmount(player.purchaseRefund)
+      ? { purchaseRefund: Number(player.purchaseRefund) } : {}),
   };
 }
 
@@ -167,7 +173,7 @@ export function rosterPlayerView(team, player, index = 0) {
     statMods: player.statMods ?? {},
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    skipNextGame: Boolean(player.skipNextGame),
+    skipNextGame: Boolean(player.skipNextGame || player.temporarilyRetired),
     niglingInjury: Boolean(player.niglingInjury),
     isCaptain: Boolean(player.isCaptain ?? player.captain),
     extendedContracts: countToNumber(player.extendedContracts),

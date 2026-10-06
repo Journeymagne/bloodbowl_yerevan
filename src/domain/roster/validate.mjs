@@ -9,12 +9,15 @@
  */
 import { rosterSizeLimits } from "../league-rules.mjs";
 import { rosterMax, rowsForTeam } from "./values.mjs";
+import { isMoneyAmount } from "../money.mjs";
 
 export const VALIDATION_CODES = Object.freeze({
   ROSTER_MIN_PLAYERS: "ROSTER_MIN_PLAYERS",
   ROSTER_MAX_PLAYERS: "ROSTER_MAX_PLAYERS",
   POSITION_MIN: "POSITION_MIN",
   POSITION_MAX: "POSITION_MAX",
+  TREASURY_INVALID: "TREASURY_INVALID",
+  SAFE_INVALID: "SAFE_INVALID",
 });
 
 /** Minimum quantity a position requires, e.g. 1 from "1-2". */
@@ -28,6 +31,8 @@ export function positionMinimum(qty) {
  */
 export function validateRoster(team, draft, costs) {
   const violations = [];
+  if (!isMoneyAmount(draft.treasury ?? 0)) violations.push({ code: VALIDATION_CODES.TREASURY_INVALID, params: {} });
+  if (!isMoneyAmount(draft.coachesSafe ?? 0)) violations.push({ code: VALIDATION_CODES.SAFE_INVALID, params: {} });
 
   if (costs.playersCount < rosterSizeLimits.min) {
     violations.push({ code: VALIDATION_CODES.ROSTER_MIN_PLAYERS, params: { min: rosterSizeLimits.min, count: costs.playersCount } });

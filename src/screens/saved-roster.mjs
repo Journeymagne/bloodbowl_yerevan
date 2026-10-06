@@ -12,7 +12,7 @@
  * handler to warn about unsaved edits.
  */
 import { errorText } from "../core/api.mjs";
-import { escapeHtml, listenerGroup, patch } from "../core/dom.mjs";
+import { escapeHtml, listenerGroup } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -24,9 +24,8 @@ import {
   advancementRanks,
   advancementTypeLabels,
   builderStaffMaximums,
-  sppCounterDefinitions,
 } from "../domain/league-rules.mjs";
-import { PLAYER_STATS, categoriesForAccess, clamp, costToNumber, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
+import { PLAYER_STATS, categoriesForAccess, clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
 import {
   ensureDraftPlayers,
@@ -55,7 +54,6 @@ import {
   calculateRosterCosts,
   eliteComboCost,
   playerAdjustmentCost,
-  refundTreasury,
   syncMedicalStaffForTeam,
 } from "../domain/roster/costs.mjs";
 import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
@@ -67,9 +65,12 @@ import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
 import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
-import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
+import { wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
+import { renderPlayerRemoval, wirePlayerTransfers } from "../components/roster-editor/transfers.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
+import { closeMatchdayHire, patchMatchdayEditor, matchdayDetailsOpen, renderMatchdayEditor, wireMatchdayEditor } from "../components/roster-editor/matchday-layout.mjs";
+import { renderSppControls } from "../components/roster-editor/spp-controls.mjs";
 import { autosaveMessageFor, wireAutosaveStatus } from "../components/roster-editor/autosave-status.mjs";
 import {
   ensureDraftFavouredChoice,
@@ -191,28 +192,17 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
   const backUrl = isAdminEdit ? `#/administration/users/${encodeURIComponent(owner?.id || options.adminOwnerId)}` : "#/my-teams";
   const titlePrefix = isAdminEdit ? `${t("common.editing")} "${draft.teamName || savedTeam.name || team.title}"` : `${t("sidebar.teamHeading")} "${draft.teamName || savedTeam.name || team.title}"`;
 
-  patch(view, `
+  patchMatchdayEditor(view, `
+    <div class="matchday-editor" data-key="matchday-editor">
     ${renderHeader(titlePrefix, `${team.title} ${t("savedRoster.rosterSuffix")}${isAdminEdit && owner ? ` · ${owner.login}` : ""}`, "", { back: true, backFallback: backUrl })}
     ${renderRosterNotices({ conflict: rosterStore.statusOf(savedTeam.id) === SAVE_STATUS.CONFLICT, t })}
-    <div class="saved-roster-top-grid" data-key="roster-top">
-      ${renderSavedRosterIdentity(team, draft, teams)}
-      ${renderSavedRosterSummary(savedTeam, team, draft, costs, warnings)}
-    </div>
-    ${renderSavedRosterPurchases(team, draft)}
-    <div class="builder-layout builder-layout-main" data-key="roster-main">
-      <section class="builder-panel">
-        <section class="builder-selected">
-          <h2>${t("savedRoster.rosterHeading")}</h2>
-          ${renderSavedPlayerList(team, draft)}
-        </section>
-
-        <section class="builder-pool saved-add-player-section">
-          <h2>${t("savedRoster.addNewPlayers")}</h2>
-          ${renderHirePanel(team, draft, LEAGUE_MODE)}
-        </section>
-      </section>
-    </div>
-  `);
+    ${renderMatchdayEditor({ team, draft, costs, mode: LEAGUE_MODE,
+      identityHtml: renderSavedRosterIdentity(team, draft, teams),
+      summaryHtml: renderSavedRosterSummary(savedTeam, team, draft, costs, warnings),
+      purchasesHtml: renderSavedRosterPurchases(team, draft),
+      playersHtml: renderSavedPlayerList(team, draft),
+    })}</div>
+  `, draft);
   wireSavedRoster(savedTeam, team, draft, {
     rerender: () => renderSavedRoster(teamId, false, options),
   });
@@ -293,16 +283,17 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   // dropped when this runs again, or every edit doubles the handlers.
   const events = listenerGroup(view);
   onScreenLeave("saved-roster:events", () => events.release());
+  onScreenLeave("saved-roster:matchday", wireMatchdayEditor(view, draft));
 
   const reload = () => renderSavedRoster(savedTeam.id, true, options);
   events.own(wireRosterNotices(view, {
     onReload: reload,
   }));
   const autosave = () => scheduleSavedRosterAutosave(savedTeam.id);
-  const rerender = () => {
+  const rerender = ({ save = true } = {}) => {
     syncRosterCountsFromPlayers(draft);
     updateSavedRosterFields(savedTeam, draft);
-    autosave();
+    if (save) autosave();
     if (options.rerender) {
       options.rerender();
     } else {
@@ -327,6 +318,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
   });
   events.on("input", "[data-roster-name]", (event, input) => {
     draft.teamName = input.value;
+    view.querySelector("[data-matchday-team-name]").textContent = input.value || team.title;
     updateSavedRosterFields(savedTeam, draft);
     autosave();
   });
@@ -381,8 +373,9 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
     applyPaidStaffChange(draft, key, previous, draft[key]);
     rerender();
   });
-  events.own(wireHirePanel(view, { team, draft, mode: LEAGUE_MODE, onChange: rerender }));
+  events.own(wireHirePanel(view, { team, draft, mode: LEAGUE_MODE, onChange: () => { closeMatchdayHire(view, draft); rerender(); } }));
   events.own(wireSavedPlayerEditors(team, draft, rerender));
+  events.own(wirePlayerTransfers(view, { team, draft, onChange: rerender }));
 
   events.on("click", "[data-save-roster]", () => saveSavedRoster(savedTeam));
   events.on("click", "[data-delete-saved-roster]", async () => {
@@ -416,7 +409,7 @@ function moveRosterPlayer(draft, draggedId, targetId, position = "before") {
 /** @returns {() => void} removes the listeners */
 function wireSavedRosterDragAndDrop(draft, rerender) {
   const events = listenerGroup(view);
-  const rowSelector = ".saved-roster-table tbody tr[data-roster-player]";
+  const rowSelector = "[data-roster-player]";
   let draggedId = "";
 
   events.on("dragstart", rowSelector, (event, row) => {
@@ -457,7 +450,7 @@ function wireSavedRosterDragAndDrop(draft, rerender) {
 
   events.on("dragend", rowSelector, () => {
     draggedId = "";
-    view.querySelectorAll(".saved-roster-table tbody tr").forEach((item) => {
+    view.querySelectorAll(rowSelector).forEach((item) => {
       item.classList.remove("is-dragging", "drop-before", "drop-after");
       delete item.dataset.dropPosition;
     });
@@ -473,6 +466,10 @@ function wireSavedRosterDragAndDrop(draft, rerender) {
  */
 function wireSavedPlayerEditors(team, draft, rerender) {
   const autosave = () => scheduleSavedRosterAutosave(draft.editingTeamId);
+  const saveChange = () => {
+    rosterStore.saveChange(draft.editingTeamId);
+    rerender({ save: false });
+  };
   const events = listenerGroup(view);
   /** Run `handler` with the player whose card the event happened in. */
   const onPlayer = (eventName, selector, handler) => {
@@ -484,14 +481,15 @@ function wireSavedPlayerEditors(team, draft, rerender) {
   };
   onPlayer("click", "[data-saved-player-expand],[data-saved-player-collapse]", ({ target, player }) => {
     setSavedRosterPlayerExpanded(player.id, target.hasAttribute("data-saved-player-expand"));
-    rerender();
+    rerender({ save: false });
   });
   onPlayer("click", "[data-saved-player-spp-action]", ({ target, player }) => {
     const key = target.dataset.savedPlayerSppAction;
     player.spp = normalizeSppCounters(player.spp);
-    player.spp[key] = Math.max(0, countToNumber(player.spp[key]) + 1);
-    autosave();
-    rerender();
+    const delta = Number(target.dataset.sppDelta || 1);
+    if (!Object.hasOwn(player.spp, key) || ![-1, 1].includes(delta) || target.disabled) return;
+    player.spp[key] = Math.max(0, countToNumber(player.spp[key]) + delta);
+    saveChange();
   });
   onPlayer("input", "[data-saved-player-name]", ({ target, player }) => {
     player.name = target.value;
@@ -521,17 +519,16 @@ function wireSavedPlayerEditors(team, draft, rerender) {
   onPlayer("input", "[data-saved-player-spp]", ({ target, player }) => {
     player.spp = normalizeSppCounters(player.spp);
     player.spp[target.dataset.savedPlayerSpp] = Math.max(0, countToNumber(target.value));
-    autosave();
     // Used to hand-update four nodes — the row total, the available SPP, the
     // next rank and the roster total — because a re-render would have taken the
     // caret out of the field being typed into. patch() keeps it.
-    rerender();
+    saveChange();
   });
   onPlayer("click", "[data-saved-stat]", ({ target, player }) => {
     const stat = target.dataset.savedStat;
     player.statMods ??= {};
     player.statMods[stat] = clamp(countToNumber(player.statMods[stat]) + Number(target.dataset.savedStatDelta), -10, 10);
-    rerender();
+    saveChange();
   });
   onPlayer("click", "[data-saved-player-add-skill]", ({ card, player }) => {
     const input = card.querySelector("[data-saved-player-skill]");
@@ -597,17 +594,6 @@ function wireSavedPlayerEditors(team, draft, rerender) {
     rerender();
   });
   events.own(wireSavedRosterDragAndDrop(draft, rerender));
-  events.on("click", "[data-remove-saved-player]", (event, button) => {
-    const removedId = button.dataset.removeSavedPlayer;
-    const removed = draft.players.find((player) => player.id === removedId);
-    if (removed?.purchased) {
-      const row = rowsForTeam(team)[removed.rowIndex];
-      refundTreasury(draft, costToNumber(rowCost(row)));
-    }
-    draft.players = draft.players.filter((player) => player.id !== removedId);
-    syncRosterCountsFromPlayers(draft);
-    rerender();
-  });
 
   return () => events.release();
 }
@@ -634,12 +620,11 @@ export const rosterStore = createRosterStore({
 /** Turn the live draft into a PATCH body. Async: the logo is re-encoded here. */
 async function buildRosterRequest(savedTeam, team, draft) {
   syncRosterCountsFromPlayers(draft);
-  draft.logoData = await optimizeLogoDataUrl(draft.logoData);
-  updateSavedRosterFields(savedTeam, draft);
+  const logoData = await optimizeLogoDataUrl(draft.logoData);
   return {
     name: draft.teamName || team.title,
     baseTeamSlug: draft.teamSlug || team.slug,
-    logoData: draft.logoData || "",
+    logoData: logoData || "",
     roster: rosterForStorage(draft),
     revision: savedTeam.revision, // the server writes only while this still matches
   };
@@ -792,7 +777,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
     {
       header: t("roster.actionHeader"),
       className: "fit-cell center-cell",
-      cell: (player) => iconButton("trash", { attributes: `data-remove-saved-player="${escapeHtml(player.id)}"` }),
+      cell: (player) => renderPlayerRemoval(team, draft, player),
     },
   ];
 }
@@ -800,6 +785,7 @@ function savedColumns(team, draft, hasFavouredAccess) {
 function renderSavedPlayerList(team, draft) {
   const hasFavouredAccess = teamFavouredOptions(team).length > 0;
   return renderPlayerList({
+    cardsOnly: true,
     players: selectedRosterPlayers(team, draft),
     columns: savedColumns(team, draft, hasFavouredAccess),
     emptyText: t("savedRoster.noPlayersYet"),
@@ -869,28 +855,26 @@ function renderCaptainSkillBadge(player) {
 }
 function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = false) {
   if (!isSavedRosterPlayerExpanded(player.id)) {
-    return renderSavedPlayerPreviewCard(team, player, index);
+    return renderSavedPlayerPreviewCard(team, draft, player, index);
   }
   const extraSkills = normalizePlayerExtraSkills(player.row, player.extraSkills ?? []);
   const adjustment = playerAdjustmentCost(player.row, player);
   const eliteCost = eliteComboCost(player.row, player);
   const favouredInputId = `mobile-favoured-skill-options-${index}`;
   return `
-    <article class="saved-roster-player-card mobile-roster-player-card is-expanded" data-key="${escapeHtml(player.id)}" data-roster-player="${escapeHtml(player.id)}">
+    <article class="saved-roster-player-card mobile-roster-player-card matchday-player-card is-expanded" data-key="${escapeHtml(player.id)}" data-roster-player="${escapeHtml(player.id)}" draggable="true">
+      <div class="matchday-card-top">${renderSavedNumberCell(player, index)}<span>${escapeHtml(player.row.position)}</span><strong>${renderSavedCostCell(player)}</strong></div>
       <header>
         <div class="mobile-player-title">
-          <label class="mobile-player-number">
-            <span>${t("roster.numberAbbr")}</span>
-            <input class="table-input table-number-input" type="text" value="${escapeHtml(player.number ?? index + 1)}" data-saved-player-number>
-          </label>
           <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
           <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}${adjustment ? ` · ${adjustment > 0 ? "+" : ""}${adjustment}k` : ""}</small>
         </div>
         <div class="mobile-card-actions">
-          ${iconButton("trash", { attributes: `data-remove-saved-player="${escapeHtml(player.id)}"` })}
           ${iconButton("collapse", { attributes: `data-saved-player-collapse="${escapeHtml(player.id)}"` })}
         </div>
       </header>
+      <div class="roster-transfer-actions">${renderPlayerRemoval(team, draft, player)}</div>
+      ${renderMatchdaySppPanel(team, draft, player, index)}
 
       <section class="mobile-player-section">
         <h3>${t("roster.statsHeading")}</h3>
@@ -932,11 +916,6 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
         ${renderPlayerContractControls(player)}
       </section>
 
-      <section class="mobile-player-section">
-        <h3>SPP</h3>
-        ${renderPlayerSppControls(team, player)}
-      </section>
-
       <section class="mobile-player-section mobile-advancement-section">
         <div>
           <h3>${t("roster.levelHeader")}</h3>
@@ -950,13 +929,14 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
     </article>
   `;
 }
-function renderSavedPlayerPreviewCard(team, player, index) {
+function renderSavedPlayerPreviewCard(team, draft, player, index) {
   return `
-    <article class="saved-roster-player-card mobile-roster-player-card is-preview" data-key="${escapeHtml(player.id)}" data-roster-player="${escapeHtml(player.id)}">
+    <article class="saved-roster-player-card mobile-roster-player-card matchday-player-card is-preview ${player.skipNextGame ? "is-skipped" : ""}" data-key="${escapeHtml(player.id)}" data-roster-player="${escapeHtml(player.id)}" draggable="true">
+      <div class="matchday-card-top">${renderSavedNumberCell(player, index)}<span>${escapeHtml(player.row.position)}</span><strong>${renderSavedCostCell(player)}</strong></div>
       <header>
         <div class="mobile-player-title">
-          <strong>${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}</strong>
-          <small>${escapeHtml(player.row.position)}</small>
+          <input class="table-input" type="text" aria-label="${t("roster.nameHeader")}" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-saved-player-name>
+          <small>${player.isCaptain ? t("roster.captain") : player.skipNextGame ? t("roster.skipNextGame") : ""}</small>
         </div>
         ${iconButton("expand", { attributes: `data-saved-player-expand="${escapeHtml(player.id)}"` })}
       </header>
@@ -973,15 +953,7 @@ function renderSavedPlayerPreviewCard(team, player, index) {
         </div>
       </section>
 
-      <section class="mobile-player-section">
-        <div class="mobile-spp-preview-head">
-          <h3>SPP</h3>
-          <strong>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</strong>
-        </div>
-        <div class="mobile-spp-action-grid">
-          ${renderSppActionButtons(player)}
-        </div>
-      </section>
+      ${renderMatchdaySppPanel(team, draft, player, index)}
     </article>
   `;
 }
@@ -989,15 +961,12 @@ function renderPlayerPreviewSkills(player) {
   const rendered = renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player));
   return `${rendered}${player.isCaptain ? `<span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>` : ""}`;
 }
-function renderSppActionButtons(player) {
-  const spp = normalizeSppCounters(player.spp);
-  return sppCounterDefinitions.map(([key, label]) => `
-    <button class="filter-button mobile-spp-action" type="button" data-saved-player-spp-action="${escapeHtml(key)}">
-      <span>${escapeHtml(label)}</span>
-      <strong>${spp[key]}</strong>
-      <em>+1</em>
-    </button>
-  `).join("");
+function renderMatchdaySppPanel(team, draft, player, index) {
+  const key = `spp-${player.id}`;
+  return `<details class="matchday-player-spp" data-key="${escapeHtml(key)}" data-matchday-details="${escapeHtml(key)}" ${matchdayDetailsOpen(draft, key, index === 0 || isSavedRosterPlayerExpanded(player.id))}>
+    <summary><span>${t("roster.sppTrackers")}</span><strong>${playerSppTotal(team, player)} SPP</strong></summary>
+    <div class="matchday-player-spp-body">${renderPlayerSppControls(team, player)}</div>
+  </details>`;
 }
 function renderReadonlyStatLine(player) {
   const stats = ["ma", "st", "ag", "pa", "ar"];
@@ -1017,17 +986,7 @@ function renderReadonlyStatLine(player) {
   `;
 }
 function renderPlayerSppControls(team, player) {
-  const spp = normalizeSppCounters(player.spp);
-  return `
-    <div class="spp-counter-grid">
-      ${sppCounterDefinitions.map(([key, label]) => `
-        <label class="spp-counter-field">
-          <span>${escapeHtml(label)}</span>
-          <input type="number" min="0" step="1" value="${spp[key]}" data-saved-player-spp="${key}">
-        </label>
-      `).join("")}
-    </div>
-  `;
+  return renderSppControls(team, player);
 }
 function renderPlayerLevelCell(team, player) {
   const level = playerAdvancementLevel(player);

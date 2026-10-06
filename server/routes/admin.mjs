@@ -28,7 +28,7 @@ import {
   serializeRosterForStorage,
 } from "../api/serializers.mjs";
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
-import { SAVED_TEAM_COLUMNS, hasSeasonHistory } from "../api/team-queries.mjs";
+import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, userHasFriendlyGames } from "../api/team-queries.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -170,6 +170,7 @@ async function handleAdminUserReadRoutes(request, response, url) {
       return sendError(response, 409, "SELF_ADMIN_DELETE");
     }
 
+    if (await userHasFriendlyGames(pool, adminUserMatch[1])) return sendError(response, 409, "USER_IN_FRIENDLY_GAMES");
     const deleted = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [adminUserMatch[1]]);
     if (!deleted.rows[0]) return sendError(response, 404, "USER_NOT_FOUND");
     return send(response, 200, { ok: true });
@@ -302,6 +303,7 @@ async function handleAdminTeamRoutes(request, response, url) {
     if (await hasSeasonHistory(pool, adminTeamMatch[1])) {
       return sendError(response, 409, "TEAM_IN_SEASON_CANNOT_BE_DELETED");
     }
+    if (await hasFriendlyGames(pool, adminTeamMatch[1])) return sendError(response, 409, "TEAM_IN_FRIENDLY_GAMES");
     const deleted = await pool.query(
       `DELETE FROM saved_teams WHERE id = $1 RETURNING id, user_id`,
       [adminTeamMatch[1]],

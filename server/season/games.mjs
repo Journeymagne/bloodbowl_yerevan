@@ -15,9 +15,27 @@ import { nullableInteger, scoreLeagueResult } from "./scoring.mjs";
 import { loadUserGameRows } from "./store.mjs";
 import { validateSeasonEntry } from "./rounds.mjs";
 
+async function assertResultOutsidePostMatch(pairingId, client = pool) {
+  const row = (await client.query('SELECT pairing_id FROM match_post_games WHERE pairing_id=$1', [pairingId])).rows[0];
+  if (row) throw httpError(409, 'POST_RESULT_LOCKED');
+}
+
+async function withGameResultLock(pairingId, operation) {
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    await client.query('SELECT id FROM season_pairings WHERE id=$1 FOR UPDATE', [pairingId]);
+    await assertResultOutsidePostMatch(pairingId, client);
+    await operation(client);
+    await client.query('COMMIT');
+  } catch (error) { await client.query('ROLLBACK').catch(() => {}); throw error; }
+  finally { client.release(); }
+}
+
 export async function proposeGameResult(pairingId, userId, body, isAdmin = false) {
   const game = (await loadUserGameRows(userId, pairingId, isAdmin))[0];
   if (!game) throw httpError(404, "GAME_NOT_FOUND");
+  await assertResultOutsidePostMatch(pairingId);
   if (!isAdmin) ensurePlayerCanSubmitGame(game);
   else if (game.round_status !== "started") throw httpError(409, "GAME_NOT_STARTED");
   if (!game.home_user_id || !game.away_user_id) throw httpError(409, "BYE_NEEDS_NO_CONFIRMATION");
@@ -29,7 +47,7 @@ export async function proposeGameResult(pairingId, userId, body, isAdmin = false
     nullableInteger(body.awayCasualties, "Away casualties"),
   ];
   if (values.some((value) => value === null || value === undefined)) throw httpError(400, "RESULT_NEEDS_BOTH_TEAMS");
-  await pool.query(
+  await withGameResultLock(pairingId, client => client.query(
     `UPDATE season_pairings
      SET result_status = 'awaiting_confirmation', proposed_by_user_id = $2,
          proposed_home_touchdowns = $3, proposed_away_touchdowns = $4,
@@ -37,7 +55,7 @@ export async function proposeGameResult(pairingId, userId, body, isAdmin = false
          proposed_at = now(), updated_at = now()
      WHERE id = $1`,
     [pairingId, userId, ...values],
-  );
+  ));
 }
 
 /**
@@ -62,7 +80,7 @@ export async function respondToGameProposal(pairingId, userId, accept, isAdmin =
     throw httpError(409, "PROPOSER_CANNOT_CONFIRM");
   }
   if (!accept) {
-    await pool.query(`UPDATE season_pairings SET result_status = 'rejected', updated_at = now() WHERE id = $1`, [pairingId]);
+    await withGameResultLock(pairingId, client => client.query(`UPDATE season_pairings SET result_status = 'rejected', updated_at = now() WHERE id = $1`, [pairingId]));
     return;
   }
 
@@ -89,6 +107,7 @@ export async function respondToGameProposal(pairingId, userId, accept, isAdmin =
 }
 
 export function ensurePlayerCanSubmitGame(game) {
+  if (game.match_kind === "friendly") return;
   if (game.round_status !== "started") throw httpError(409, "GAME_NOT_STARTED");
   if (Number(game.round_number ?? 0) !== Number(game.season_current_round ?? 0)) {
     throw httpError(409, "ROUND_CLOSED_FOR_PLAYERS");
@@ -101,20 +120,20 @@ export function ensurePlayerCanSubmitGame(game) {
  */
 export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = false, userId = "", client = pool) {
   const current = await client.query(
-    `SELECT season_pairings.*, season_rounds.season_id, season_rounds.round_number, season_rounds.status AS round_status, seasons.current_round AS season_current_round
-     FROM season_pairings
-     JOIN season_rounds ON season_rounds.id = season_pairings.round_id
-     JOIN seasons ON seasons.id = season_rounds.season_id
-     WHERE season_pairings.id = $1 AND season_rounds.season_id = $2`,
+    `SELECT c.* FROM match_pairing_context c JOIN season_pairings p ON p.id=c.id
+     WHERE c.id=$1 AND c.season_id IS NOT DISTINCT FROM $2::uuid FOR UPDATE OF p`,
     [pairingId, seasonId],
   );
   const pairing = current.rows[0];
   if (!pairing) throw httpError(404, "PAIRING_NOT_FOUND");
+  await assertResultOutsidePostMatch(pairingId, client);
 
   const wantsTeamUpdate = Object.hasOwn(body, "homeEntryId") || Object.hasOwn(body, "awayEntryId");
+  const friendly = pairing.match_kind === "friendly";
+  if (friendly && wantsTeamUpdate) throw httpError(409, "FRIENDLY_TEAMS_FIXED");
   if (wantsTeamUpdate && !isAdmin) throw httpError(403, "ADMIN_REQUIRED");
   if (!isAdmin) ensurePlayerCanSubmitGame(pairing);
-  if (!isAdmin && (!pairing.home_entry_id || !pairing.away_entry_id)) {
+  if (!isAdmin && !friendly && (!pairing.home_entry_id || !pairing.away_entry_id)) {
     throw httpError(400, "FIXTURE_NOT_PLAYER_SUBMITTABLE");
   }
 
@@ -128,16 +147,7 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
     }
   }
 
-  if (!isAdmin) {
-    const userEntry = await client.query(
-      `SELECT id FROM season_entries WHERE season_id = $1 AND user_id = $2`,
-      [seasonId, userId],
-    );
-    const entryId = userEntry.rows[0]?.id;
-    if (!entryId || (entryId !== pairing.home_entry_id && entryId !== pairing.away_entry_id)) {
-      throw httpError(403, "FIXTURE_NOT_YOURS");
-    }
-  }
+  if (!isAdmin && ![pairing.home_user_id,pairing.away_user_id].includes(userId)) throw httpError(403, "FIXTURE_NOT_YOURS");
 
   const homeTouchdowns = nullableInteger(body.homeTouchdowns, "Home touchdowns");
   const awayTouchdowns = nullableInteger(body.awayTouchdowns, "Away touchdowns");
@@ -152,8 +162,9 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
     awayTouchdowns: nextAwayTouchdowns,
     homeCasualties: nextHomeCasualties,
     awayCasualties: nextAwayCasualties,
-    hasHome: Boolean(homeEntryId),
-    hasAway: Boolean(awayEntryId),
+    hasHome: friendly || Boolean(homeEntryId),
+    hasAway: friendly || Boolean(awayEntryId),
+    kind: pairing.match_kind,
   });
   const resultComplete = [
     score.homeTouchdowns,

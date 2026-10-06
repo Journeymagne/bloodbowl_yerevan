@@ -10,18 +10,15 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { adminTeamEditUrl, pageUrl } from "../../core/routes.mjs";
-import { ensureDraftPlayers } from "../../domain/roster/players.mjs";
-import { calculateRosterCosts } from "../../domain/roster/costs.mjs";
+import { adminTeamEditUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { renderPlayerLink, renderPublicTeamLink } from "../../components/content-links.mjs";
+import { renderPlayerLink } from "../../components/content-links.mjs";
 import { updateAuthButton } from "../../components/auth-button.mjs";
-import { normalizeSavedRoster } from "../../data/roster-draft.mjs";
+import { renderSavedTeams } from "../../components/saved-teams.mjs";
 import { wireTeamDeleteButtons } from "../my-teams.mjs";
 import { makeSeasonStarterRoster } from "../season/season-data.mjs";
 import { toast, toastError } from "../../components/toast.mjs";
 import { confirmAction } from "../../components/dialog.mjs";
-import { iconButton } from "../../components/icons.mjs";
 
 export async function renderAdminUserProfile(userId) {
   setActiveNav("administration");
@@ -62,10 +59,10 @@ export function renderUserProfilePage(payload, { subtitle, backFallback } = {}) 
     <div class="admin-profile-grid">
       ${renderUserProfileCard(user)}
       ${isAdmin ? renderAdminUserManagementPanel(user) : ""}
-      ${isAdmin ? `<section class="content-panel season-card">${renderAdminCreateTeamForUserPanel(user)}</section>` : ""}
+      ${isAdmin ? `<section class="content-panel season-card admin-create-team-panel">${renderAdminCreateTeamForUserPanel(user)}</section>` : ""}
       <section class="content-panel season-card">
         <h2>${t("admin.savedTeamsHeader")}</h2>
-        ${renderProfileSavedTeamsTable(payload.teams ?? [], user)}
+        ${renderSavedTeams(payload.teams ?? [], { owner: user, canManage: canManageProfileTeams(user), editUrl: team => profileTeamEditUrl(user, team) })}
       </section>
     </div>
   `;
@@ -270,59 +267,6 @@ function wireAdminPasswordReset(user) {
       toast(t("admin.passwordCopyFallbackMessage"));
     }
   });
-}
-function renderProfileSavedTeamsTable(teams, owner) {
-  if (!teams.length) return `<p>${t("myTeams.noSavedTeams")}</p>`;
-  const canManage = canManageProfileTeams(owner);
-  return `
-    <div class="table-scroll builder-table-scroll">
-      <table class="admin-teams-table compact-roster-table">
-        <thead>
-          <tr>
-            <th>${t("sidebar.teamHeading")}</th>
-            <th>${t("myTeams.table.rules")}</th>
-            <th>${t("catalog.players")}</th>
-            <th>${t("roster.totalCost")}</th>
-            <th>${t("footer.updated")}</th>
-            ${canManage ? `<th>${t("roster.actionHeader")}</th>` : ""}
-          </tr>
-        </thead>
-        <tbody>
-          ${teams.map((team) => renderProfileSavedTeamRow(team, owner)).join("")}
-        </tbody>
-      </table>
-    </div>
-  `;
-}
-function renderProfileSavedTeamRow(team, owner) {
-  const base = state.data.teams.find((item) => item.slug === team.baseTeamSlug);
-  const draft = normalizeSavedRoster(team);
-  const rosterTeam = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? base;
-  if (rosterTeam) {
-    ensureDraftPlayers(rosterTeam, draft);
-  }
-  const costs = rosterTeam ? calculateRosterCosts(rosterTeam, draft) : null;
-  const updated = team.updatedAt ? new Date(team.updatedAt).toLocaleDateString("en-GB") : "-";
-  return `
-    <tr>
-      <td>
-        <span class="saved-team-name-cell">
-          ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
-          <strong>${renderPublicTeamLink(owner, team)}</strong>
-        </span>
-      </td>
-      <td>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</td>
-      <td>${costs ? costs.totalPlayersCount : "-"}</td>
-      <td>${costs ? `${costs.total}k` : "-"}</td>
-      <td>${escapeHtml(updated)}</td>
-      ${canManageProfileTeams(owner) ? `<td class="fit-cell">
-          <div class="table-actions">
-            ${iconButton("edit", { href: profileTeamEditUrl(owner, team) })}
-            ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-owner="${escapeHtml(owner.id || "")}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
-          </div>
-      </td>` : ""}
-    </tr>
-  `;
 }
 
 function canManageProfileTeams(user) {

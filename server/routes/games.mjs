@@ -10,6 +10,7 @@
  * Task 14.1 is about the propose/confirm/reject route: today the coach who
  * proposed a result can accept it themselves.
  */
+import { createHash } from "node:crypto";
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson, writeResponse } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
@@ -17,6 +18,9 @@ import { currentUser } from "../auth/session.mjs";
 import { publicGame } from "../api/serializers.mjs";
 import { loadUserGameRows } from "../season/store.mjs";
 import { proposeGameResult, respondToGameProposal, updateSeasonPairing } from "../season/games.mjs";
+import { handlePreparationRoutes } from "./preparation.mjs";
+import { handleChallengeRoutes } from "./challenges.mjs";
+import { handlePostMatchRoutes } from "./post-match.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -33,6 +37,9 @@ function sendError(response, status, code, params) {
  * @returns {Promise<boolean>} true when this module answered the request
  */
 export async function handleGameRoutes(request, response, url) {
+  if (await handleChallengeRoutes(request, response, url)) return true;
+  if (await handlePreparationRoutes(request, response, url)) return true;
+  if (await handlePostMatchRoutes(request, response, url)) return true;
   if (url.pathname === "/api/games" && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -54,17 +61,18 @@ export async function handleGameRoutes(request, response, url) {
     );
     const logoData = String(result.rows[0]?.logo_data || "");
     const match = logoData.match(/^data:(image\/(?:png|jpeg|webp|gif));base64,([a-z0-9+/=]+)$/i);
-    if (!match) return writeResponse(request, response, 404, "", { "Cache-Control": "public, max-age=300" });
+    if (!match) { writeResponse(request, response, 404, "", { "Cache-Control": "public, max-age=300" }); return true; }
     const body = Buffer.from(match[2], "base64");
-    const etag = `"${crypto.createHash("sha256").update(body).digest("hex")}"`;
+    const etag = `"${createHash("sha256").update(body).digest("hex")}"`;
     if (request.headers["if-none-match"] === etag) {
-      return writeResponse(request, response, 304, "", { ETag: etag, "Cache-Control": "public, max-age=86400" });
+      writeResponse(request, response, 304, "", { ETag: etag, "Cache-Control": "public, max-age=86400" }); return true;
     }
-    return writeResponse(request, response, 200, body, {
+    writeResponse(request, response, 200, body, {
       "Content-Type": match[1].toLowerCase(),
       "Cache-Control": "public, max-age=86400",
       ETag: etag,
     });
+    return true;
   }
 
   const gameMatch = url.pathname.match(/^\/api\/games\/([0-9a-f-]+)$/i);

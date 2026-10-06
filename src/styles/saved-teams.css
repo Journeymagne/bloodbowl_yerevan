@@ -1,0 +1,19 @@
+/* Shared saved-team cards; profiles use the same roster entry points. */
+.saved-team-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 24px; }
+.saved-team-card { display: grid; padding: 24px; gap: 22px; align-content: start; }
+.saved-team-card-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
+.saved-team-card-head:not(:has(img)) { grid-template-columns: minmax(0, 1fr); }
+.saved-team-card-head img { width: 64px; height: 64px; margin: 0; object-fit: contain; background: var(--bone); padding: 4px; border: 1px solid var(--line-bright); }
+.saved-team-card-head h3 { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 0; }
+.saved-team-card-head h3 > a { overflow-wrap: anywhere; }
+.saved-team-card-head p { margin: 8px 0 0; color: var(--muted); font-weight: 800; }
+.saved-team-card-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0; margin: 0; border-block: 1px solid var(--line-bright); }
+.saved-team-card-stats > div { min-width: 0; padding: 13px 10px; border-right: 1px solid var(--line); }
+.saved-team-card-stats > div:nth-child(2n) { border-right: 0; }
+.saved-team-card-stats > div:nth-child(-n+2) { border-bottom: 1px solid var(--line); }
+.saved-team-card-stats dt { color: var(--muted); font: .6rem/1.5 var(--label-font); text-transform: uppercase; }
+.saved-team-card-stats dd { margin: 7px 0 0; color: var(--text); font: 1.4rem/1.3 var(--label-font); overflow-wrap: anywhere; }
+.saved-team-actions { display: flex; align-items: center; gap: 12px; }
+.saved-team-actions .primary-button { flex: 1; }
+.saved-team-actions .table-icon-button { width: 44px; }
+@media (max-width: 600px) { .saved-team-card-stats dd { font-size: 1.2rem; } }

@@ -13,16 +13,11 @@ import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
-import { pageUrl } from "../core/routes.mjs";
-import { calculateRosterCosts } from "../domain/roster/costs.mjs";
-import { countToNumber } from "../domain/roster/values.mjs";
-import { ensureDraftPlayers } from "../domain/roster/players.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
-import { renderPublicTeamLink } from "../components/content-links.mjs";
-import { normalizeSavedRoster, resetBuilderForTeam } from "../data/roster-draft.mjs";
+import { resetBuilderForTeam } from "../data/roster-draft.mjs";
 import { toastError } from "../components/toast.mjs";
+import { renderSavedTeams } from "../components/saved-teams.mjs";
 import { confirmAction } from "../components/dialog.mjs";
-import { iconButton } from "../components/icons.mjs";
 
 export async function loadMyTeams(force = false) {
   if (!state.auth.currentUser) {
@@ -67,101 +62,11 @@ export async function renderMyTeams() {
   }
   view.innerHTML = `
     ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"), `<button class="primary-button" type="button" data-new-team>${t("myTeams.createTeam")}</button>`)}
-    ${state.myTeams.items.length ? renderSavedTeamsTable(state.myTeams.items) : `<div class="empty-state">${t("myTeams.noSavedTeams")}</div>`}
+    ${state.myTeams.items.length ? renderSavedTeams(state.myTeams.items, { owner: state.auth.currentUser, canManage: true, editUrl: team => "#/my-teams/" + encodeURIComponent(team.id) }) : `<div class="empty-state">${t("myTeams.noSavedTeams")}</div>`}
   `;
   wireMyTeams();
 }
 
-function renderSavedTeamsTable(teams) {
-  return `
-    <article class="content-panel compact-table-panel my-teams-table-panel">
-      <div class="table-scroll builder-table-scroll">
-        <table class="my-teams-table compact-roster-table">
-          <thead>
-            <tr>
-              <th>${t("sidebar.teamHeading")}</th>
-              <th>${t("myTeams.table.rules")}</th>
-              <th>${t("myTeams.table.players")}</th>
-              <th>${t("roster.totalCost")}</th>
-              <th>${t("footer.updated")}</th>
-              <th>${t("roster.actionHeader")}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${teams.map(renderSavedTeamRow).join("")}
-          </tbody>
-        </table>
-      </div>
-    </article>
-    <div class="my-teams-card-list">
-      ${teams.map(renderSavedTeamCard).join("")}
-    </div>
-  `;
-}
-
-function renderSavedTeamRow(team) {
-  const base = state.data.teams.find((item) => item.slug === team.baseTeamSlug);
-  const draft = normalizeSavedRoster(team);
-  const rosterTeam = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? base;
-  if (rosterTeam) {
-    ensureDraftPlayers(rosterTeam, draft);
-  }
-  const costs = rosterTeam ? calculateRosterCosts(rosterTeam, draft) : null;
-  const updated = team.updatedAt ? new Date(team.updatedAt).toLocaleDateString("en-GB") : "-";
-  return `
-    <tr>
-      <td>
-        <span class="saved-team-name-cell">
-          ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
-          <strong>${renderPublicTeamLink(state.auth.currentUser, team)}</strong>
-        </span>
-      </td>
-      <td>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</td>
-      <td>${costs ? costs.totalPlayersCount : "-"}</td>
-      <td>${costs ? `${costs.total}k` : "-"}</td>
-      <td>${escapeHtml(updated)}</td>
-      <td class="fit-cell">
-        <div class="table-actions">
-          ${iconButton("edit", { href: `#/my-teams/${encodeURIComponent(team.id)}` })}
-          ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
-        </div>
-      </td>
-    </tr>
-  `;
-}
-
-function renderSavedTeamCard(team) {
-  const base = state.data.teams.find((item) => item.slug === team.baseTeamSlug);
-  const draft = normalizeSavedRoster(team);
-  const rosterTeam = state.data.teams.find((item) => item.slug === draft.teamSlug) ?? base;
-  if (rosterTeam) {
-    ensureDraftPlayers(rosterTeam, draft);
-  }
-  const costs = rosterTeam ? calculateRosterCosts(rosterTeam, draft) : null;
-  const updated = team.updatedAt ? new Date(team.updatedAt).toLocaleDateString("en-GB") : "-";
-  return `
-    <article class="card saved-team-card">
-      <header class="saved-team-card-head">
-        ${team.logoData ? `<img src="${escapeHtml(team.logoData)}" alt="">` : ""}
-        <div>
-          <h3>${renderPublicTeamLink(state.auth.currentUser, team)}
-            ${team.inActiveSeason ? `<span class="badge season-badge">${t("myTeams.inSeasonBadge")}</span>` : ""}</h3>
-          <p>${rosterTeam ? `<a class="inline-rule-link" href="${pageUrl(rosterTeam)}">${escapeHtml(rosterTeam.title)}</a>` : escapeHtml(team.baseTeamSlug || "-")}</p>
-        </div>
-      </header>
-      <dl class="saved-team-card-stats">
-        <div><dt>${t("catalog.players")}</dt><dd>${costs ? costs.totalPlayersCount : "-"}</dd></div>
-        <div><dt>${t("roster.totalCost")}</dt><dd>${costs ? `${costs.total}k` : "-"}</dd></div>
-        <div><dt>${t("roster.treasuryTitle")}</dt><dd>${countToNumber(draft.treasury)}k</dd></div>
-        <div><dt>${t("footer.updated")}</dt><dd>${escapeHtml(updated)}</dd></div>
-      </dl>
-      <div class="saved-team-actions">
-        ${iconButton("edit", { href: `#/my-teams/${encodeURIComponent(team.id)}` })}
-        ${iconButton("trash", { title: t("common.delete"), attributes: `data-delete-team="${escapeHtml(team.id)}" data-delete-team-name="${escapeHtml(team.name || "")}"` })}
-      </div>
-    </article>
-  `;
-}
 
 function wireMyTeams() {
   view.querySelector("[data-new-team]")?.addEventListener("click", () => {

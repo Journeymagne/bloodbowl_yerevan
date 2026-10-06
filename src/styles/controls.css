@@ -1,0 +1,67 @@
+/* Shared controls. Component files only change layout or specialised sizes. */
+.primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1px solid var(--primary-border);
+  border-radius: var(--radius);
+  background: var(--primary-bg);
+  color: var(--primary-text);
+  font-size: .85rem;
+  font-weight: 700;
+  text-decoration: none;
+  text-shadow: var(--primary-text-shadow);
+  box-shadow: 3px 3px 0 var(--line-bright);
+  cursor: pointer;
+}
+.primary-button:hover:not(:disabled) { border-color: var(--line-bright); background: var(--primary-bg-hover); }
+.primary-button:active:not(:disabled) { translate: 2px 2px; box-shadow: 1px 1px 0 var(--line-bright); }
+.primary-button:disabled { box-shadow: none; cursor: default; }
+.chip, .filter-button, .ghost-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--button-border);
+  border-radius: var(--radius);
+  background: var(--button-bg);
+  color: var(--button-muted-text);
+  text-decoration: none;
+}
+.chip:hover, .filter-button:hover:not(:disabled), .ghost-button:hover {
+  border-color: var(--line-bright); background: var(--button-bg-hover); color: var(--button-text);
+}
+.filter-button, .ghost-button { cursor: pointer; }
+.ghost-button { justify-content: center; }
+.filter-button:disabled { cursor: default; opacity: .45; }
+.filter-button.active { border-color: var(--active-button-border); background: var(--active-button-bg); color: var(--active-button-text); }
+.table-icon-button, .icon-text-button { min-height: 44px; min-width: 44px; }
+.filter-field { display: grid; gap: 8px; min-width: 0; }
+.filter-field > span { color: var(--muted); font: .65rem/1.5 var(--label-font); letter-spacing: .7px; text-transform: uppercase; }
+.filter-field :is(input, select), .pre-match :is(input, select),
+.challenge-card select, .challenge-dialog select {
+  width: 100%; max-width: 100%; min-width: 0; min-height: 44px; padding: 10px;
+  border: 1px solid var(--line); border-radius: var(--radius);
+  background: var(--panel); color: var(--text);
+}
+.filter-field input[type="file"] { padding-block: 6px; }
+.filter-field :is(input, select):focus { border-color: var(--focus); }
+.filter-field input[type="checkbox"], .pre-match input[type="checkbox"] {
+  width: 20px; height: 20px; min-height: 20px; padding: 0; flex-shrink: 0; accent-color: var(--line-bright);
+}
+.checkbox-field { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--muted); font-size: .8rem; font-weight: 700; }
+.checkbox-field input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--line-bright); }
+.inline-stepper-control {
+  display: grid; grid-template-columns: 44px minmax(24px, auto) 44px; align-items: center;
+  overflow: hidden; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2);
+}
+.inline-stepper-control strong { color: var(--text); text-align: center; font-family: var(--label-font); }
+.inline-stepper-control button {
+  width: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 0;
+  background: var(--panel); color: var(--text); cursor: pointer;
+}
+.inline-stepper-control button:hover:not(:disabled) { background: var(--button-bg-hover); }
+.inline-stepper-control button:disabled { cursor: default; opacity: .45; }
+@media (prefers-reduced-motion: reduce) { .primary-button:active { translate: none; } }

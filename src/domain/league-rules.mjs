@@ -16,8 +16,8 @@ export const builderStaffCosts = {
   assistantCoaches: 10,
   cheerleaders: 10,
   apothecary: 50,
-  mortuaryAssistant: 100,
-  plagueDoctor: 100,
+  mortuaryAssistant: 50,
+  plagueDoctor: 50,
 };
 
 export const builderStaffMaximums = {
@@ -66,6 +66,7 @@ export const eliteSkillCombos = [
   ["Claws", "Mighty Blow"],
   ["Guard", "Defensive"],
   ["Wrestle", "Evasive"],
+  ["Sneaky Git", "Dirty Player"],
 ];
 
 export const skillAccessMap = {
@@ -137,6 +138,9 @@ export const sppCounterDefinitions = [
   ["completions", "COMP"],
   ["catches", "CATCH"],
   ["interceptions", "INT"],
+  ["throws", "TTM"],
+  ["landings", "LAND"],
+  ["bonus", "BONUS"],
   ["mvps", "MVP"],
 ];
 
