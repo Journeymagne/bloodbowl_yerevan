@@ -6,7 +6,7 @@
  * screens/saved-roster.mjs is the other. Task 7 merges them; this task
  * only relocates the code as-is.
  */
-import { escapeHtml, listenerGroup, patch } from "../core/dom.mjs";
+import { escapeHtml, listenerGroup } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
@@ -35,9 +35,11 @@ import { CREATE_MODE } from "../components/roster-editor/modes.mjs";
 import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl, staffStepVerdict } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
 import { confirmRaceChange, restoreTeamSelect } from "../components/roster-editor/team-change.mjs";
-import { renderHirePanel, wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
+import { wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
+import { closeMatchdayHire, patchMatchdayEditor, renderMatchdayEditor, wireMatchdayEditor } from "../components/roster-editor/matchday-layout.mjs";
+import { openAuthModal } from "../components/auth-modal.mjs";
 import { iconButton } from "../components/icons.mjs";
 import {
   ensureDraftLeagueChoice,
@@ -79,29 +81,22 @@ export function renderBuilder() {
   const costs = calculateBuilderCosts(team);
   const warnings = builderWarnings(team, costs);
 
-  patch(view, `
+  patchMatchdayEditor(view, `
+    <div class="matchday-editor" data-key="matchday-editor">
     ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="primary-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`, { back: true, backFallback: "#/my-teams" })}
     ${restoredDraft ? `<p class="notice-box" data-key="builder-restored" data-builder-restored>${t("builder.draftRestored")}</p>` : ""}
-    ${renderBuilderInfoPanel(team, teams, costs, warnings)}
-    <div class="builder-layout builder-layout-main" data-key="builder-main">
-      <section class="builder-panel">
-        <section class="builder-pool">
-          <h2>${t("builder.availablePlayers")}</h2>
-          ${renderHirePanel(team, state.builder, CREATE_MODE)}
-        </section>
-
-        <section class="builder-selected">
-          <h2>${t("savedRoster.rosterHeading")}</h2>
-          ${renderBuilderPlayerList(team, state.builder)}
-        </section>
-      </section>
-    </div>
-  `);
+    ${renderMatchdayEditor({ team, draft: state.builder, costs, mode: CREATE_MODE,
+      identityHtml: renderIdentityFields({ team, draft: state.builder, teams, mode: CREATE_MODE }),
+      summaryHtml: renderBuilderSummary(team, costs, warnings),
+      purchasesHtml: renderBuilderInfoPanel(team, costs),
+      playersHtml: renderBuilderPlayerList(team, state.builder),
+    })}</div>
+  `, state.builder);
   wireBuilder(team);
 }
 function renderBuilderSummary(team, costs, warnings) {
   return renderSummaryPanel({
-    className: "builder-info-section builder-info-summary",
+    className: "builder-summary builder-info-section builder-info-summary",
     teamTitle: team.title,
     teamHref: pageUrl(team),
     rows: [
@@ -120,14 +115,9 @@ function renderBuilderSummary(team, costs, warnings) {
   });
 }
 
-function renderBuilderInfoPanel(team, teams, costs, warnings) {
+function renderBuilderInfoPanel(team, costs) {
   return `
     <section class="builder-info-panel side-panel" data-key="builder-info">
-      <div class="builder-info-section builder-info-identity">
-        ${renderIdentityFields({ team, draft: state.builder, teams, mode: CREATE_MODE })}
-      </div>
-      <div class="builder-info-grid">
-        ${renderBuilderSummary(team, costs, warnings)}
         <div class="builder-info-section builder-info-purchases">
           <h2>${t("roster.purchasesHeading")}</h2>
           <div class="builder-tracker-list roster-tracker-list" aria-label="${t("roster.startingRosterTrackersAriaLabel")}">
@@ -136,7 +126,6 @@ function renderBuilderInfoPanel(team, teams, costs, warnings) {
             ${renderHiredStaffLines({ team, draft: state.builder, mode: CREATE_MODE, committedTotal: costs.total })}
           </div>
         </div>
-      </div>
     </section>
   `;
 }
@@ -184,6 +173,7 @@ function renderBuilderCaptainCheckbox(player) {
 
 function renderBuilderPlayerList(team, draft) {
   return renderPlayerList({
+    cardsOnly: true,
     players: selectedRosterPlayers(team, draft),
     columns: builderColumns(),
     emptyText: t("builder.emptyRosterHint"),
@@ -209,12 +199,11 @@ function renderBuilderPlayerStatGrid(player) {
 }
 function renderBuilderPlayerCard(player, index) {
   return `
-    <article class="saved-roster-player-card mobile-roster-player-card builder-selected-player-card" data-key="${escapeHtml(player.id)}">
+    <article class="saved-roster-player-card mobile-roster-player-card builder-selected-player-card matchday-player-card" data-key="${escapeHtml(player.id)}">
+      <div class="matchday-card-top"><span class="matchday-jersey">${String(index + 1).padStart(2, "0")}</span><span>${escapeHtml(player.row.position)}</span><strong>${escapeHtml(rowCost(player.row) || "-")}</strong></div>
       <header>
         <div class="mobile-player-title">
-          <span>#${index + 1}</span>
-          <input class="table-input" type="text" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-builder-player-name="${escapeHtml(player.id)}">
-          <small>${escapeHtml(player.row.position)} · ${escapeHtml(rowCost(player.row) || "-")}</small>
+          <input class="table-input" type="text" aria-label="${t("roster.nameHeader")}" value="${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}" data-builder-player-name="${escapeHtml(player.id)}">
         </div>
         ${iconButton("trash", { attributes: `data-remove-player="${escapeHtml(player.id)}"` })}
       </header>
@@ -284,6 +273,7 @@ function wireBuilder(team) {
   // times per keystroke.
   const events = listenerGroup(view);
   onScreenLeave("builder:events", () => events.release());
+  onScreenLeave("builder:matchday", wireMatchdayEditor(view, state.builder));
 
   // Any control in the builder mutates state.builder directly, so listening on
   // the container is enough to know something changed.
@@ -319,6 +309,7 @@ function wireBuilder(team) {
   });
   events.on("input", "[data-builder-name]", (event, input) => {
     state.builder.teamName = input.value;
+    view.querySelector("[data-matchday-team-name]").textContent = input.value || team.title;
   });
   events.on("change", "[data-builder-logo]", async (event, input) => {
     const file = input.files?.[0];
@@ -335,7 +326,7 @@ function wireBuilder(team) {
     state.builder.logoData = "";
     renderBuilder();
   });
-  events.own(wireHirePanel(view, { team, draft: state.builder, mode: CREATE_MODE, onChange: renderBuilder }));
+  events.own(wireHirePanel(view, { team, draft: state.builder, mode: CREATE_MODE, onChange: () => { closeMatchdayHire(view, state.builder); renderBuilder(); } }));
   events.on("click", "[data-remove-player]", (event, button) => {
     state.builder.players = state.builder.players.filter((player) => player.id !== button.dataset.removePlayer);
     syncRosterCountsFromPlayers(state.builder);

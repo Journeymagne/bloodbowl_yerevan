@@ -10,6 +10,9 @@ scripts/__pycache__/
 _upload_git/
 source/imports/
 
+# Local screenshots, verification logs and temporary database backups.
+/output/
+
 # Build output. README has always described dist/ as generated; it used to be
 # committed anyway, which made every build show up as a 4.7 MB diff.
 dist/

@@ -1,6 +1,6 @@
 {
   "name": "bloodbowl-sevens-reference",
-  "version": "0.2.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -21,6 +21,10 @@
     "check:structure": "node scripts/check-structure.mjs",
     "test": "node --test \"test/**/*.test.mjs\"",
     "smoke": "node scripts/smoke-api.mjs",
+    "preview:seed": "node scripts/seed-pre-match-preview.mjs",
+    "smoke:pre-match": "node scripts/smoke-pre-match.mjs",
+    "smoke:friendly": "node scripts/smoke-friendly.mjs",
+    "smoke:post-match": "node scripts/smoke-post-match.mjs",
     "backup:db": "node scripts/backup-db.mjs",
     "backup:status": "node scripts/backup-status.mjs"
   },

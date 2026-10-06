@@ -1,6 +1,8 @@
 ﻿# Gata Blood Bowl League Reference
 
-Static reference site for the Gata Blood Bowl League, an unofficial Blood Bowl Sevens fan league.
+League management and reference site for the Gata Blood Bowl League, an unofficial Blood Bowl Sevens fan league.
+
+Current release: **2.0.0**. See [CHANGELOG.md](CHANGELOG.md) for release details and upgrade instructions.
 
 The site contains:
 
@@ -8,7 +10,10 @@ The site contains:
 - star player reference cards;
 - skills and traits reference entries;
 - Gata league rules and patch notes;
-- a lightweight team builder;
+- a team builder with saved rosters, player progression and transfers;
+- season registration, pairings, results and administration;
+- friendly challenges with the same match workflow as league games;
+- pre-match and post-match checklists with roster and treasury settlement;
 - legal/disclaimer text for an unofficial fan project.
 
 ## Project Structure
@@ -18,6 +23,9 @@ The site contains:
 - `scripts/build-data.mjs` - converts Markdown content into `public/data.json`.
 - `scripts/build-site.mjs` - copies the static app into `dist` for hosting.
 - `index.html`, `src/app.js`, `src/styles.css` - static frontend.
+- `src/components/matchday.mjs` and `games/checklist-layout.mjs` - shared heroes, scoreboards and match checklist layouts; each checklist screen retains its own rules and actions.
+- `src/components/saved-teams.mjs` - saved-team cards used by My Teams and public/admin profiles.
+- `src/styles/tokens.css`, `controls.css`, `overlays.css` - common theme, form and dialog styles; screen styles specialise layout.
 - `public/data.json` - generated site data.
 - `dist` - generated deploy output, ignored by Git and recreated during build.
 - `dist/local-preview.html` - the site with all reference data inlined. It still
@@ -51,6 +59,8 @@ The site and API then run at <http://localhost:3002>. Log in with `ADMIN_LOGIN` 
 On later runs only `npm run postgres:up` and `npm start` are needed; run `npm run db:migrate` again when a new file appears in `server/db/migrations/`.
 
 `npm start` builds once and serves the result from `dist/`. After editing anything in `src/` or `content/`, run `npm run build` in a second terminal and hard-refresh the page (Ctrl+F5) to see the change.
+
+After changing `server/`, restart the running site server as well: its API modules are loaded at startup. Building the frontend alone can show new screens against an older API and produce “API route not found.” Apply any new database migrations before restarting. Use the port printed by the restarted server.
 
 If a step fails:
 
@@ -156,6 +166,46 @@ Delete the local database data and recreate it from scratch on the next start:
 ```bash
 npm run postgres:reset
 ```
+
+## Local Pre-match Preview
+
+The game page opens a Gata Sevens checklist: fans, seasonal weather, available roster and optional journeymen, inducements, and both coaches' confirmation. A team may start with fewer than seven available players. All Lineman positions can be used for journeymen, subject to their position limits, regardless of the roster's Qty label. Kick/receive selection happens at the table and is omitted from the app's checklist. Start saves match-only players/effects and spends treasury exactly once. Mercenaries remain unavailable until Gata hiring rules are specified. Existing preparations retain their fans, weather and purchases when the policy updates; both coaches review them again. Started match snapshots remain sealed.
+
+The whole site uses the builder's Matchday styling: framed page headers, square cards and controls, monospace stat strips, and the same six colour palettes. This includes navigation, reference pages, saved team cards, season tables, game screens and dialogs. Saved teams use roster cards on desktop as well as mobile.
+
+For a local preview with an existing Postgres instance:
+
+```powershell
+npm.cmd run build
+npm.cmd run db:migrate
+$env:APP_PORT='3003'
+npm.cmd run preview:seed
+npm.cmd run server
+```
+
+The seed prints the match URL and creates only a separate preview season and demo accounts. Sign in as `preview-home` or `preview-away`, password `preview2026`. Use separate browser profiles to act as both coaches. Rerunning the seed keeps the match's current preparation.
+
+With the local server running, `npm.cmd run smoke:pre-match` checks authorization, conflicts, phase order, roster changes, effects, snapshots and concurrent/idempotent spending on disposable fixtures. It removes only its own fixtures afterward. Set `SMOKE_BASE_URL` if using a port other than 3003. Both helpers refuse a non-local database.
+
+## Friendly Challenges
+
+In My Games, choose your saved team and another coach to send a friendly challenge. The recipient chooses their own team when accepting. Pending challenges can be declined by the recipient or cancelled by the sender. Accepted challenges open a match for both coaches and remain accessible in My Games and recent challenge responses.
+
+Friendly matches use the same Gata Sevens preparation checklist, match snapshots, treasury spending and two-coach result confirmation as league matches. They can be played independently of season rounds. Results award zero LP, including bonuses, and never enter the season standings or schedule. Teams participating in accepted matches cannot be deleted, preserving their match history.
+
+Apply migration `006_friendly_challenges.sql` before starting the updated server. With the local preview accounts and server running, `npm.cmd run smoke:friendly` checks the complete flow, access rules, concurrent acceptance/start, and zero LP on disposable teams and matches; it removes its own fixtures afterward. `SMOKE_BASE_URL` defaults to `http://localhost:3003`.
+
+## Post-match Checklist
+
+Started league and friendly games open the same post-match checklist: agree on the result, record income and Dedicated Fans, enter match statistics and final injuries, choose MVP manually, optionally advance players, manage the roster, resolve treasury risks and prepare the next roster. A final review shows both coaches' MVPs, SPP, injuries, purchases, treasury and fans before they confirm. All MVP/advancement/fan/treasury dice are rolled at the table and entered by the coach. MVP awards give 5 SPP. Advancement may be skipped even when enough SPP are saved for a characteristic increase.
+
+Changes stay in a saved draft until both coaches confirm and either completes the match. Completion applies both rosters and the agreed result in one transaction, with version checks and receipts preventing duplicate SPP or cash. Friendlies award zero LP while retaining SPP, winnings, injuries and recovery. Old MNG flags clear; new lasting injuries and temporary retirement persist. Gata rules include rookie protection, a 15k bonus for fully painted teams, Coach's Safe, journeyman retention and team-specific advancement/roster rules. Independent opponent edits do not discard your form; edits to your own draft in another window require a refresh.
+
+Permanently hiring a Mortuary Assistant or Plague Doctor costs 50k. Each adds 50k to TV/CTV. Their separate one-match inducements cost 100k.
+
+Apply `007_post_match.sql` with `npm.cmd run db:migrate`, then rebuild and restart the API. Routes: `#/games/:id/post-match/:step?`, `GET/PATCH /api/games/:id/post-match`, `POST /api/games/:id/finish`. Existing started matches with saved match rosters can use the checklist. Matches without snapshots continue using the previous result entry.
+
+`npm.cmd run smoke:post-match` checks league/friendly completion, permissions, revisions, transaction rollback, manual MVP, optional advancement, recovery, legacy game counts and concurrent/idempotent completion on disposable local fixtures. It defaults to `http://localhost:3002` and refuses a non-local database. Add `-- --keep-preview` to leave a separate friendly game at the player step and print its URL; use the preview accounts above. Detailed rules and implementation decisions are in [the post-match implementation notes](docs/superpowers/plans/2026-10-06-post-match-checklist.md).
 
 ## Optional Content Re-import
 

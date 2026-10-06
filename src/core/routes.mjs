@@ -70,6 +70,14 @@ export function gameUrl(gameOrId) {
   return `#/games/${segment(gameOrId)}`;
 }
 
+export function preMatchUrl(gameOrId, step = "") {
+  return `${gameUrl(gameOrId)}/pre-match${step ? `/${encodeURIComponent(step)}` : ""}`;
+}
+
+export function postMatchUrl(gameOrId, step = "") {
+  return `${gameUrl(gameOrId)}/post-match${step ? `/${encodeURIComponent(step)}` : ""}`;
+}
+
 export function savedRosterUrl(teamOrId) {
   return `#/my-teams/${segment(teamOrId)}`;
 }
@@ -163,6 +171,10 @@ export function matchRoute(route) {
     return { name: "savedRoster", params: { teamId: route.slice("my-teams/".length) } };
   }
   if (route === "my-teams") return { name: "myTeams", params: {} };
+  const preparation = route.match(/^games\/([^/]+)\/pre-match(?:\/([^/]+))?$/);
+  if (preparation) return { name: "preMatch", params: { gameId: preparation[1], step: preparation[2] || "" } };
+  const postMatch = route.match(/^games\/([^/]+)\/post-match(?:\/([^/]+))?$/);
+  if (postMatch) return { name: "postMatch", params: { gameId: postMatch[1], step: postMatch[2] || "" } };
   if (route.startsWith("games/")) {
     return { name: "game", params: { gameId: route.slice("games/".length) } };
   }

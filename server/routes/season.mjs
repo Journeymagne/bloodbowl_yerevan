@@ -17,6 +17,8 @@ import { publicGame, publicSavedTeam, serializeRosterForStorage } from "../api/s
 import { commitSavedTeamToSeason, ensureActiveSeason, loadSeasonBundle, loadUserGameRows } from "../season/store.mjs";
 import { addSeasonPairing, createManualRound, generateSwissRound, startSeasonRound, validateSeasonEntry } from "../season/rounds.mjs";
 import { proposeGameResult, updateSeasonPairing } from "../season/games.mjs";
+import { createSeasonCoachWithTeam } from "../season/coach-entry.mjs";
+import { readTeamBody } from "./teams.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -62,6 +64,8 @@ export async function handleSeasonRoutes(request, response, url) {
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleSeasonEntryRoutes(request, response, url) {
+  if (await handleSeasonCoachRoute(request, response, url)) return true;
+
   if (url.pathname === "/api/season/admin/entries" && request.method === "POST") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -128,6 +132,18 @@ async function handleSeasonEntryRoutes(request, response, url) {
   }
 
   return handleSeasonRoundRoutes(request, response, url);
+}
+
+/** Create a coach account without changing the admin's session. */
+async function handleSeasonCoachRoute(request, response, url) {
+  if (url.pathname !== "/api/season/admin/coaches" || request.method !== "POST") return false;
+  const user = await currentUser(request);
+  if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+  if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
+  const { body, name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
+  const season = await ensureActiveSeason();
+  await createSeasonCoachWithTeam(season.id, { ...body, name, baseTeamSlug, logoData, roster });
+  return send(response, 201, await loadSeasonBundle(user));
 }
 
 /**

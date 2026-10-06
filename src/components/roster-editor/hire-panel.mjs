@@ -78,6 +78,7 @@ function hireFields(row, rowIndex, draft, mode, verdict) {
     taken: `${current}/${rosterMax(row.qty)}`,
     overBudget: verdict.reason === "budget",
     blocked: verdict.blocked,
+    blockedTitle: verdict.title,
     iconButton: () => iconButton("plus", { title: verdict.title, attributes: hireAttributes(rowIndex, mode, verdict) }),
   };
 }
@@ -92,11 +93,12 @@ function hireAttributes(rowIndex, mode, verdict) {
   return `data-${mode.hireAttribute}="${rowIndex}"${verdict.blocked ? ` aria-disabled="true"` : ""}`;
 }
 
-export function renderHirePanel(team, draft, mode) {
+export function renderHirePanel(team, draft, mode, { cardsOnly = false } = {}) {
   const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: mode.enforcesBudget });
   const rows = rowsForTeam(team);
   const fields = rows.map((row, rowIndex) =>
     hireFields(row, rowIndex, draft, mode, hireVerdict(draft, row, rowIndex, mode, costs)));
+  if (cardsOnly) return `<div class="available-player-mobile-list matchday-hire-list">${rows.map((row, index) => renderHireCard(row, fields[index])).join("")}</div>`;
 
   return `
     <div class="table-scroll builder-table-scroll builder-available-table-wrap">
@@ -152,7 +154,7 @@ function renderHireCard(row, field) {
       <header class="available-player-head">
         <div>
           <strong>${field.position}</strong>
-          <em>${field.qty} · ${field.cost}</em>
+          <em>${field.taken} · ${field.cost}</em>
         </div>
         ${field.iconButton()}
       </header>
@@ -164,6 +166,7 @@ function renderHireCard(row, field) {
       <footer class="available-player-foot">
         ${t("roster.primary")} ${field.primary} · ${t("roster.secondary")} ${field.secondary} · ${t("roster.selectedLabel")} ${field.taken}${field.overBudget ? ` · ${t("roster.overBudgetLabel")}` : ""}
       </footer>
+      ${field.blocked ? `<p class="matchday-hire-reason">${escapeHtml(field.blockedTitle)}</p>` : ""}
     </article>
   `;
 }
@@ -191,7 +194,8 @@ export function wireHirePanel(root, { team, draft, mode, onChange }) {
       return;
     }
 
-    const options = mode.marksPurchased ? { purchased: true } : {};
+    const options = mode.marksPurchased ? { purchased: true,
+      ...(mode.spendsTreasury ? { purchaseRefund: costToNumber(rowCost(row)) } : {}) } : {};
     draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex), options));
     if (mode.spendsTreasury) spendTreasury(draft, costToNumber(rowCost(row)));
     syncRosterCountsFromPlayers(draft);

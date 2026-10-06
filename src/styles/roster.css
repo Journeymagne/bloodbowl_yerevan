@@ -424,9 +424,7 @@
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background:
-    linear-gradient(180deg, rgba(255, 215, 120, 0.045), transparent),
-    var(--panel-glass);
+  background: var(--panel);
   backdrop-filter: blur(2px);
 }
 
@@ -744,13 +742,11 @@
 /* On a phone the wide tables are replaced by these cards; see responsive.css. */
 .builder-available-table-wrap,
 .builder-selected-table-wrap,
-.saved-roster-table-wrap,
-.my-teams-table-panel {
+.saved-roster-table-wrap {
   display: none;
 }
 
-.builder-mobile-card-list,
-.my-teams-card-list {
+.builder-mobile-card-list {
   display: grid;
   gap: 12px;
 }
@@ -1068,68 +1064,6 @@
   opacity: 1;
 }
 
-.my-teams-table {
-  min-width: 720px;
-}
-
-.saved-team-card {
-  display: grid;
-  gap: 12px;
-}
-
-.saved-team-card-head {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 12px;
-  align-items: center;
-}
-
-.saved-team-card-head img {
-  margin-bottom: 0;
-}
-
-.saved-team-card-head h3,
-.saved-team-card-head p {
-  margin: 0;
-}
-
-.saved-team-card-head p {
-  margin-top: 4px;
-  color: var(--muted);
-  font-weight: 800;
-}
-
-.saved-team-card-stats {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  margin: 0;
-}
-
-.saved-team-card-stats div {
-  padding: 8px;
-  border: 1px solid rgba(85, 69, 51, 0.62);
-  border-radius: var(--radius);
-  background: var(--surface-soft);
-}
-
-.saved-team-card-stats dt,
-.saved-team-card-stats dd {
-  margin: 0;
-}
-
-.saved-team-card-stats dt {
-  color: var(--muted);
-  font-size: 0.6875rem;
-  font-weight: 900;
-}
-
-.saved-team-card-stats dd {
-  margin-top: 3px;
-  color: var(--text);
-  font-weight: 900;
-}
-
 .stat-table-cell {
   width: 44px;
   min-width: 44px;
@@ -1353,9 +1287,7 @@
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background:
-    linear-gradient(180deg, rgba(255, 215, 120, 0.045), transparent),
-    var(--panel-glass);
+  background: var(--panel);
 }
 
 .builder-player-card header,
@@ -1393,44 +1325,6 @@
   font-size: 0.75rem;
 }
 
-.inline-stepper-control {
-  display: grid;
-  grid-template-columns: 38px minmax(42px, auto) 38px;
-  align-items: center;
-  overflow: hidden;
-  min-height: 38px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--input-bg-soft);
-}
-
-.inline-stepper-control strong {
-  color: var(--text);
-  text-align: center;
-}
-
-.inline-stepper-control .filter-button {
-  min-height: 38px;
-  border: 0;
-  border-radius: 0;
-}
-
-.editable-stat-line .player-stat-editor.stat-up {
-  background: rgba(63, 167, 92, 0.18);
-}
-
-.editable-stat-line .player-stat-editor.stat-up strong {
-  color: #9df0a9;
-}
-
-.editable-stat-line .player-stat-editor.stat-down {
-  background: rgba(190, 55, 45, 0.18);
-}
-
-.editable-stat-line .player-stat-editor.stat-down strong {
-  color: #ff9a8f;
-}
-
 .roster-slots {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
@@ -1444,9 +1338,7 @@
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background:
-    linear-gradient(180deg, rgba(255, 215, 120, 0.045), transparent),
-    var(--panel-glass);
+  background: var(--panel);
   backdrop-filter: blur(2px);
 }
 
@@ -1498,22 +1390,6 @@
   grid-template-columns: 1fr;
   gap: 10px;
   align-items: end;
-}
-
-.slot-stat-editors .player-stat-editor.stat-up {
-  background: rgba(63, 167, 92, 0.18);
-}
-
-.slot-stat-editors .player-stat-editor.stat-up strong {
-  color: #9df0a9;
-}
-
-.slot-stat-editors .player-stat-editor.stat-down {
-  background: rgba(190, 55, 45, 0.18);
-}
-
-.slot-stat-editors .player-stat-editor.stat-down strong {
-  color: #ff9a8f;
 }
 
 .slot-skill-list {
@@ -1626,28 +1502,11 @@
 }
 
 .autosave-status[data-status="saved"] {
-  color: #cfe5a4;
+  color: var(--stat-up-text);
 }
 
 .autosave-status[data-status="error"] {
-  color: #ffb199;
-}
-
-.saved-team-card img {
-  width: 64px;
-  height: 64px;
-  margin-bottom: 10px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: rgba(239, 224, 183, 0.08);
-  object-fit: contain;
-}
-
-.saved-team-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 14px;
+  color: var(--danger);
 }
 
 .player-editor {
@@ -1658,21 +1517,6 @@
 
 .compact-field input {
   min-height: 34px;
-}
-
-.checkbox-field {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: var(--muted);
-  font-size: 0.8125rem;
-  font-weight: 800;
-}
-
-.checkbox-field input {
-  width: 16px;
-  height: 16px;
-  accent-color: var(--focus);
 }
 
 .skip-next-field {
@@ -2020,3 +1864,9 @@
   color: #ffb199;
 }
 
+
+/* Stat state belongs to the theme, independent of the editor layout. */
+.player-stat-editor.stat-up { background: var(--stat-up-bg); }
+.player-stat-editor.stat-up strong { color: var(--stat-up-text); }
+.player-stat-editor.stat-down { background: var(--stat-down-bg); }
+.player-stat-editor.stat-down strong { color: var(--danger); }

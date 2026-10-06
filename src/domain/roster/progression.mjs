@@ -10,19 +10,18 @@ import { teamHasSpecialRule } from "./team-rules.mjs";
 import { normalizePlayerAdvancements, normalizeSppCounters, selectedRosterPlayers, skillNamesForPlayer } from "./players.mjs";
 import { categoriesForAccess } from "./values.mjs";
 
-export function playerSppTotal(team, player) {
-  const spp = normalizeSppCounters(player.spp);
+export function sppCounterWeights(team) {
   const hasBrawlinBrutes = teamHasSpecialRule(team, "Brawlin' Brutes");
   const hasPassingVirtuosos = teamHasSpecialRule(team, "Passing Virtuosos");
   const touchdownValue = hasBrawlinBrutes || hasPassingVirtuosos ? 2 : 3;
   const casualtyValue = hasBrawlinBrutes ? 3 : 2;
-  return (spp.touchdowns * touchdownValue)
-    + (spp.casualties * casualtyValue)
-    + spp.knockouts
-    + spp.completions
-    + (hasPassingVirtuosos ? spp.catches : 0)
-    + (spp.interceptions * 2)
-    + (spp.mvps * 5);
+  return { touchdowns: touchdownValue, casualties: casualtyValue, knockouts: 1,
+    completions: 1, catches: hasPassingVirtuosos ? 1 : 0, interceptions: 2, throws: 1, landings: 1, bonus: 1, mvps: 5 };
+}
+
+export function playerSppTotal(team, player) {
+  const spp = normalizeSppCounters(player.spp);
+  return Object.entries(sppCounterWeights(team)).reduce((total, [key, value]) => total + spp[key] * value, 0);
 }
 
 export function playerAdvancementLevel(player) {

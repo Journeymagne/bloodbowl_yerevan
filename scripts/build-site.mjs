@@ -43,7 +43,8 @@ function minifyCss(source) {
   return source
     .replace(/\/\*[\s\S]*?\*\//g, "")
     .replace(/\s+/g, " ")
-    .replace(/\s*([{}:;,>+~])\s*/g, "$1")
+    // A space before :is/:where can be a descendant combinator, not decoration.
+    .replace(/\s*([{};,>+~])\s*/g, "$1")
     .replace(/;}/g, "}")
     .trim();
 }
@@ -95,7 +96,7 @@ async function stampImports(dir, version) {
     if (file.endsWith(".css")) continue;
     const source = await fs.readFile(file, "utf8");
     const stamped = source.replace(
-      /(from\s*")(\.[^"]+\.(?:mjs|js))(")/g,
+      /(from\s*["'])(\.[^"']+\.(?:mjs|js))(["'])/g,
       (whole, before, specifier, after) => `${before}${specifier}?v=${version}${after}`,
     );
     if (stamped !== source) await fs.writeFile(file, stamped);

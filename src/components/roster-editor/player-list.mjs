@@ -46,9 +46,11 @@ function classFor(column, player) {
  * @param {{wrap: string, table: string, mobileList: string}} options.classes
  * @param {(player: object) => string} [options.rowAttributes] extra `<tr>` attributes
  * @param {(player: object, index: number) => string} options.renderCard the phone layout
+ * @param {boolean} [options.cardsOnly] use responsive cards without a duplicate table
  */
-export function renderPlayerList({ players, columns, emptyText, classes, rowAttributes, renderCard }) {
+export function renderPlayerList({ players, columns, emptyText, classes, rowAttributes, renderCard, cardsOnly = false }) {
   if (!players.length) return `<div class="builder-empty-roster">${emptyText}</div>`;
+  if (cardsOnly) return `<div class="${classes.mobileList} matchday-player-list">${players.map(renderCard).join("")}</div>`;
   const cells = columns.filter(Boolean);
   return `
     <div class="table-scroll builder-table-scroll ${classes.wrap}">

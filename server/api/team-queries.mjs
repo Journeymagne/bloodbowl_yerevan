@@ -43,3 +43,15 @@ export async function hasSeasonHistory(pool, teamId) {
   );
   return result.rowCount > 0;
 }
+
+export async function hasFriendlyGames(pool, teamId) {
+  const result = await pool.query(`SELECT 1 FROM season_pairings WHERE match_kind='friendly'
+    AND (friendly_home_team_id=$1 OR friendly_away_team_id=$1) LIMIT 1`, [teamId]);
+  return result.rowCount > 0;
+}
+
+export async function userHasFriendlyGames(pool, userId) {
+  const result = await pool.query(`SELECT 1 FROM season_pairings WHERE match_kind='friendly'
+    AND (friendly_home_user_id=$1 OR friendly_away_user_id=$1) LIMIT 1`, [userId]);
+  return result.rowCount > 0;
+}

@@ -33,6 +33,7 @@ export function scoreLeagueResult({
   awayCasualties,
   hasHome = true,
   hasAway = true,
+  kind = "league",
 }) {
   if (!hasHome && !hasAway) {
     return { homePoints: null, awayPoints: null, homeTouchdowns: null, awayTouchdowns: null, homeCasualties: null, awayCasualties: null };
@@ -45,12 +46,12 @@ export function scoreLeagueResult({
   // The numbers themselves are in src/domain/league-rules.mjs (step 14.3),
   // where the rest of the league's rules live and where somebody can find out
   // why a 4-0 with three casualties is worth six points.
-  const homePoints = matchPoints({
+  const homePoints = kind === "friendly" ? 0 : matchPoints({
     touchdownsFor: homeTouchdowns,
     touchdownsAgainst: awayTouchdowns,
     casualtiesFor: homeCasualties,
   });
-  const awayPoints = matchPoints({
+  const awayPoints = kind === "friendly" ? 0 : matchPoints({
     touchdownsFor: awayTouchdowns,
     touchdownsAgainst: homeTouchdowns,
     casualtiesFor: awayCasualties,
@@ -75,6 +76,7 @@ export function computeSeasonStandings(entryRows, pairingRows, { includeContacts
   }));
 
   for (const pairing of pairingRows) {
+    if (pairing.match_kind === "friendly") continue;
     if (!["started", "completed"].includes(pairing.round_status)) continue;
     if (!pairing.home_entry_id && !pairing.away_entry_id) continue;
 

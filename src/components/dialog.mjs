@@ -15,6 +15,24 @@
  * touched rather than swapped.
  */
 import { t } from "../core/i18n.mjs";
+import { escapeHtml, patch } from "../core/dom.mjs";
+
+/** Patch a checklist without dropping the native modal's open state or focus. */
+export function patchWithModal(root, markup, selector = "") {
+  const template = document.createElement("template");
+  template.innerHTML = markup;
+  const wanted = selector ? template.content.querySelector(selector) : null;
+  for (const dialog of root.querySelectorAll("dialog:modal")) {
+    if (wanted && dialog.matches(selector)) wanted.setAttribute("open", "");
+    else { if (!dialog.open) dialog.open = true; dialog.close(); }
+  }
+  patch(root, template.content);
+  const dialog = wanted && root.querySelector(selector);
+  if (dialog && !dialog.matches(":modal")) {
+    if (dialog.open) dialog.close();
+    dialog.showModal();
+  }
+}
 
 /**
  * Ask the coach to confirm, and resolve to what they chose.
@@ -44,11 +62,11 @@ export function confirmAction({
   dialog.className = "app-dialog";
   dialog.innerHTML = `
     <form method="dialog" class="app-dialog-form">
-      ${title ? `<h2 class="app-dialog-title">${escapeText(title)}</h2>` : ""}
-      <p class="app-dialog-message">${escapeText(message)}</p>
+      ${title ? `<h2 class="app-dialog-title">${escapeHtml(title)}</h2>` : ""}
+      <p class="app-dialog-message">${escapeHtml(message)}</p>
       <div class="app-dialog-actions">
-        <button class="filter-button" type="submit" value="cancel">${escapeText(cancelLabel || t("common.cancel"))}</button>
-        <button class="primary-button ${destructive ? "danger-action" : ""}" type="submit" value="confirm">${escapeText(confirmLabel || t("common.confirm"))}</button>
+        <button class="filter-button" type="submit" value="cancel">${escapeHtml(cancelLabel || t("common.cancel"))}</button>
+        <button class="primary-button ${destructive ? "danger-action" : ""}" type="submit" value="confirm">${escapeHtml(confirmLabel || t("common.confirm"))}</button>
       </div>
     </form>
   `;
@@ -89,11 +107,4 @@ export function confirmAction({
     // Escape and the default both land on the same, safe answer.
     dialog.querySelector("button[value='cancel']")?.focus();
   });
-}
-
-/** Text into markup, without pulling core/dom.mjs in for one call. */
-function escapeText(value) {
-  const node = document.createElement("span");
-  node.textContent = String(value ?? "");
-  return node.innerHTML;
 }

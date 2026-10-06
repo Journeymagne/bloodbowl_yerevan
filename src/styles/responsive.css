@@ -150,11 +150,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .saved-team-card-stats {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
-  .summary-actions {
+.summary-actions {
     grid-template-columns: 1fr 1fr;
   }
 
@@ -178,16 +174,14 @@
   .skill-table-desktop,
   .reference-table-desktop,
   .builder-available-table-wrap,
-  .builder-selected-table-wrap,
-  .my-teams-table-panel {
+  .builder-selected-table-wrap {
     display: block;
   }
 
   .team-roster-mobile,
   .skill-table-mobile,
   .reference-table-mobile,
-  .builder-mobile-card-list,
-  .my-teams-card-list {
+  .builder-mobile-card-list {
     display: none;
   }
 
@@ -413,11 +407,7 @@
     min-width: 940px;
   }
 
-  .table-scroll .my-teams-table {
-    min-width: 720px;
-  }
-
-  .table-scroll .season-table {
+.table-scroll .season-table {
     min-width: 760px;
   }
 }

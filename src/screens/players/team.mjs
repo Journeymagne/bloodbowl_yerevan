@@ -1,46 +1,39 @@
-/**
- * A coach's saved team, read-only: summary, league rules and roster.
- *
- * Mechanically moved out of src/app.js. This is the third renderer of a
- * roster (after screens/builder.mjs and screens/saved-roster.mjs) — unlike
- * those two it is view-only, so task 7's merge covers the editors and
- * leaves this one alone.
- */
+/** A coach's saved team in Matchday, with navigation but no roster mutations. */
 import { errorText } from "../../core/api.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { adminTeamEditUrl, playerTeamUrl, playerUrl } from "../../core/routes.mjs";
-import { countToNumber, statValueForDisplayByStat } from "../../domain/roster/values.mjs";
+import { pageUrl, playerUrl } from "../../core/routes.mjs";
+import { advancementRanks, advancementTypeLabels } from "../../domain/league-rules.mjs";
+import { countToNumber, PLAYER_STATS, statValueForDisplayByStat } from "../../domain/roster/values.mjs";
 import { hasBribery } from "../../domain/roster/team-rules.mjs";
-import { ensureDraftPlayers, favouredSkillNames, selectedRosterPlayers, skillNamesForPlayer } from "../../domain/roster/players.mjs";
+import { ensureDraftPlayers, favouredSkillNames, normalizePlayerAdvancements, selectedRosterPlayers, skillNamesForPlayer } from "../../domain/roster/players.mjs";
 import { calculateRosterCosts, playerCurrentCost } from "../../domain/roster/costs.mjs";
+import { playerAdvancementLevel, playerAdvancementSpent, playerLevelRank, playerSppTotal, rosterTotalSpp } from "../../domain/roster/progression.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPlayerLink, renderRosterLinks } from "../../components/content-links.mjs";
-import { ensureDraftLeagueChoice, playerStatusText, renderTeamRuleAccess } from "../../components/roster-editor-shared.mjs";
+import { ensureDraftLeagueChoice, playerStatusText, renderTeamRuleAccess, rosterWarnings } from "../../components/roster-editor-shared.mjs";
+import { renderMatchdayEditor } from "../../components/roster-editor/matchday-layout.mjs";
+import { LEAGUE_MODE } from "../../components/roster-editor/modes.mjs";
+import { renderSummaryPanel } from "../../components/roster-editor/summary-panel.mjs";
+import { renderSppControls } from "../../components/roster-editor/spp-controls.mjs";
+import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl } from "../../components/roster-editor/staff-control.mjs";
 import { normalizeSavedRoster } from "../../data/roster-draft.mjs";
 
 export async function renderPublicTeamProfile(userId, teamId) {
-  // "players" matches no nav item, so nothing lights up — which is what
-  // routeSection() in core/routes.mjs already says these routes are. The two
-  // used to disagree, and this screen highlighted "Season".
   setActiveNav("players");
   setViewSection("players");
   view.innerHTML = `
     ${renderHeader(t("sidebar.teamHeading"), t("admin.savedRosterSubtitle"), "", { back: true, backFallback: playerUrl(userId) })}
-    <div class="loading">${t("myTeams.loadingTeam")}</div>
-  `;
-
+    <div class="loading">${t("myTeams.loadingTeam")}</div>`;
   if (!state.auth.currentUser) {
     view.innerHTML = `
       ${renderHeader(t("sidebar.teamHeading"), t("admin.savedRosterSubtitle"))}
-      <div class="empty-state">${t("admin.loginToViewSavedTeams")}</div>
-    `;
+      <div class="empty-state">${t("admin.loginToViewSavedTeams")}</div>`;
     return;
   }
-
   try {
     const payload = await apiRequest(`/api/players/${encodeURIComponent(userId)}/teams/${encodeURIComponent(teamId)}`);
     const draft = normalizeSavedRoster(payload.team);
@@ -48,95 +41,131 @@ export async function renderPublicTeamProfile(userId, teamId) {
     ensureDraftLeagueChoice(team, draft);
     ensureDraftPlayers(team, draft);
     const costs = calculateRosterCosts(team, draft);
-    const actions = `
-      ${state.auth.currentUser?.isAdmin ? `<a class="primary-button" href="${adminTeamEditUrl(payload.user, payload.team)}">${t("admin.editTeamAction")}</a>` : ""}
-    `;
     view.innerHTML = `
-      ${renderHeader(`${t("sidebar.teamHeading")} "${payload.team.name}"`, `${t("admin.coachHeading")}: ${payload.user.login}`, actions, { back: true, backFallback: playerUrl(payload.user) })}
-      ${renderPublicTeamOverview(payload.user, payload.team, team, draft, costs)}
-      <section class="content-panel compact-table-panel">
-        <h2>${t("savedRoster.rosterHeading")}</h2>
-        ${renderPublicTeamRosterTable(team, draft)}
-      </section>
-    `;
+      <div class="matchday-editor matchday-public">
+        ${renderHeader(`${t("sidebar.teamHeading")} "${payload.team.name}"`, `${t("admin.coachHeading")}: ${payload.user.login}`, "", { back: true, backFallback: playerUrl(payload.user) })}
+        ${renderMatchdayEditor({ team, draft, costs, mode: LEAGUE_MODE, readOnly: true,
+          identityHtml: `<section class="public-team-coach-block"><h2>${t("admin.coachHeading")}</h2><p>${renderPlayerLink(payload.user)}</p>${renderTeamRuleAccess(team, draft, "", { readOnly: true })}</section>`,
+          summaryHtml: renderPublicTeamSummary(team, draft, costs),
+          purchasesHtml: renderPublicTeamResources(team, draft),
+          playersHtml: renderPublicTeamPlayers(team, draft),
+        })}
+      </div>`;
   } catch (error) {
     view.innerHTML = `
       ${renderHeader(t("sidebar.teamHeading"), t("admin.savedRosterSubtitle"), "", { back: true, backFallback: playerUrl(userId) })}
-      <div class="empty-state">${escapeHtml(errorText(error))}</div>
-    `;
+      <div class="empty-state">${escapeHtml(errorText(error))}</div>`;
   }
 }
-function renderPublicTeamOverview(user, savedTeam, team, draft, costs) {
-  const totalRerolls = countToNumber(draft.startingRerolls) + countToNumber(draft.teamRerolls);
-  return `
-    <section class="public-team-overview side-panel">
-      ${draft.logoData ? `<div class="summary-logo-block public-team-logo-block"><img src="${escapeHtml(draft.logoData)}" alt=""></div>` : ""}
-      <div class="public-team-overview-grid">
-        <div class="public-team-summary-block">
-          <div class="summary-title-block">
-            <h3>${t("savedRoster.summaryTitle")}</h3>
-            <a class="builder-team-link" href="${playerTeamUrl(user, savedTeam)}">${escapeHtml(savedTeam.name)}</a>
-          </div>
-          <dl class="stat-list summary-stat-grid">
-            <dt>${t("savedRoster.activePlayers")}</dt><dd>${costs.playersCount}</dd>
-            <dt>${t("savedRoster.totalPlayers")}</dt><dd>${costs.totalPlayersCount}</dd>
-            <dt>${t("savedRoster.teamRerolls")}</dt><dd>${totalRerolls}</dd>
-            ${hasBribery(team) ? `<dt>${t("savedRoster.bribes")}</dt><dd>${countToNumber(draft.bribes)}</dd>` : ""}
-            <dt>${t("savedRoster.dedicatedFans")}</dt><dd>${countToNumber(draft.dedicatedFans)}</dd>
-            <dt>${t("savedRoster.treasury")}</dt><dd>${countToNumber(draft.treasury)}k</dd>
-            <dt>${t("roster.totalCost")}</dt><dd>${costs.total}k</dd>
-          </dl>
-        </div>
-        <div class="public-team-coach-block">
-          <h2>${t("admin.coachHeading")}</h2>
-          <p>${renderPlayerLink(user)}</p>
-          <div class="public-team-rules-wrap">
-            ${renderTeamRuleAccess(team, draft)}
-          </div>
-        </div>
+
+function renderPublicTeamSummary(team, draft, costs) {
+  return renderSummaryPanel({
+    className: "builder-summary saved-roster-summary-panel side-panel",
+    teamTitle: team.title,
+    teamHref: pageUrl(team),
+    statusHtml: `<p class="matchday-readonly-label">${t("roster.readOnly")}</p>`,
+    rows: [
+      { label: t("savedRoster.activePlayers"), value: costs.playersCount },
+      { label: t("savedRoster.totalPlayers"), value: costs.totalPlayersCount },
+      { label: t("savedRoster.startingRerolls"), value: countToNumber(draft.startingRerolls) },
+      { label: t("savedRoster.teamRerolls"), value: countToNumber(draft.teamRerolls) },
+      ...(hasBribery(team) ? [{ label: t("savedRoster.bribes"), value: countToNumber(draft.bribes) }] : []),
+      { label: t("savedRoster.dedicatedFans"), value: countToNumber(draft.dedicatedFans) },
+      { label: t("savedRoster.treasury"), value: `${countToNumber(draft.treasury)}k`, valueAttributes: "data-treasury-display" },
+      { label: t("savedRoster.totalSppLabel"), value: `${rosterTotalSpp(team, draft)} SPP`, valueAttributes: "data-total-spp-display" },
+      { label: t("savedRoster.playersCost"), value: `${costs.playersCost}k` },
+      { label: t("savedRoster.staffCost"), value: `${costs.staffCost}k` },
+      { label: t("roster.totalCost"), value: `${costs.total}k` },
+    ],
+    warnings: rosterWarnings(team, draft, costs),
+    actionsHtml: "",
+  });
+}
+
+function renderPublicMoney(title, description, value) {
+  return `<div class="builder-addon compact-staff-control roster-purchase-card roster-money-card">
+    <div><strong>${escapeHtml(title)}</strong><span>${escapeHtml(description)}</span></div>
+    <output class="table-input matchday-money-value">${countToNumber(value)}k</output>
+  </div>`;
+}
+
+function renderPublicTeamResources(team, draft) {
+  const options = { mode: LEAGUE_MODE, readOnly: true };
+  return `<div class="roster-purchases-layout">
+    <section class="roster-controls-panel side-panel">
+      <h2>${t("roster.teamResourcesHeading")}</h2>
+      <div class="builder-tracker-list roster-resource-list">
+        ${renderDedicatedFansLine({ draft, ...options })}
+        ${renderPublicMoney(t("roster.treasuryTitle"), t("roster.treasuryDescription"), draft.treasury)}
+        ${renderPublicMoney("Coach's Safe", t("roster.coachesSafeDescription"), draft.coachesSafe)}
       </div>
     </section>
-  `;
+    <section class="roster-controls-panel side-panel">
+      <h2>${t("roster.purchasesHeading")}</h2>
+      <div class="builder-tracker-list roster-tracker-list">
+        ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: draft.startingRerolls, ...options })}
+        ${renderStaffControl({ key: "teamRerolls", title: t("savedRoster.teamRerolls"), value: draft.teamRerolls, ...options })}
+        ${renderHiredStaffLines({ team, draft, ...options })}
+      </div>
+    </section>
+  </div>`;
 }
-function renderPublicTeamRosterTable(team, draft) {
+
+function renderPublicTeamPlayers(team, draft) {
   const players = selectedRosterPlayers(team, draft);
-  if (!players.length) return `<p>${t("savedRoster.noPlayersYet")}</p>`;
-  return `
-    <div class="table-scroll builder-table-scroll">
-      <table class="compact-roster-table public-roster-table">
-        <thead>
-          <tr>
-            <th>#</th>
-            <th>${t("roster.nameHeader")}</th>
-            <th>${t("roster.positionHeader")}</th>
-            <th>${t("stats.ma")}</th>
-            <th>${t("stats.st")}</th>
-            <th>${t("stats.ag")}</th>
-            <th>${t("stats.pa")}</th>
-            <th>${t("stats.ar")}</th>
-            <th>${t("roster.skillsLabel")}</th>
-            <th>${t("sidebar.cost")}</th>
-            <th>${t("admin.statusHeader")}</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${players.map((player, index) => `
-            <tr>
-              <td>${index + 1}</td>
-              <td><strong>${escapeHtml(player.name)}</strong></td>
-              <td>${escapeHtml(player.row.position)}</td>
-              <td>${escapeHtml(statValueForDisplayByStat("ma", player.row.ma, player.statMods.ma ?? 0))}</td>
-              <td>${escapeHtml(statValueForDisplayByStat("st", player.row.st, player.statMods.st ?? 0))}</td>
-              <td>${escapeHtml(statValueForDisplayByStat("ag", player.row.ag, player.statMods.ag ?? 0))}</td>
-              <td>${escapeHtml(statValueForDisplayByStat("pa", player.row.pa, player.statMods.pa ?? 0))}</td>
-              <td>${escapeHtml(statValueForDisplayByStat("ar", player.row.ar, player.statMods.ar ?? 0))}</td>
-              <td class="skills-cell">${renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player))}</td>
-              <td>${playerCurrentCost(player.row, player, true)}k</td>
-              <td>${escapeHtml(playerStatusText(player))}</td>
-            </tr>
-          `).join("")}
-        </tbody>
-      </table>
+  if (!players.length) return `<div class="builder-empty-roster">${t("savedRoster.noPlayersYet")}</div>`;
+  return `<div class="matchday-player-list">${players.map((player, index) => renderPublicPlayerCard(team, player, index)).join("")}</div>`;
+}
+
+function renderPublicPlayerCard(team, player, index) {
+  return `<article class="saved-roster-player-card mobile-roster-player-card matchday-player-card is-preview ${player.skipNextGame ? "is-skipped" : ""}">
+    <div class="matchday-card-top">
+      <span class="matchday-jersey">${escapeHtml(String(player.number ?? index + 1))}</span>
+      <span>${escapeHtml(player.row.position)}</span><strong>${playerCurrentCost(player.row, player, true)}k</strong>
     </div>
-  `;
+    <header><div class="mobile-player-title">
+      <h3 class="matchday-player-name">${escapeHtml(player.name || `${player.row.position} ${index + 1}`)}</h3>
+      <small>${escapeHtml(playerStatusText(player))}</small>
+    </div></header>
+    <section class="mobile-player-section">
+      <h3>${t("roster.statsHeading")}</h3>
+      ${renderPublicPlayerStats(player)}
+    </section>
+    <section class="mobile-player-section">
+      <h3>${t("roster.skillsLabel")}</h3>
+      <div class="mobile-player-pills">${renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player))}</div>
+    </section>
+    ${renderPublicPlayerDetails(player)}
+    <details class="matchday-player-spp" ${index === 0 ? "open" : ""}>
+      <summary><span>${t("roster.sppTrackers")}</span><strong>${playerSppTotal(team, player)} SPP</strong></summary>
+      <div class="matchday-player-spp-body">${renderSppControls(team, player, { readOnly: true })}</div>
+    </details>
+  </article>`;
+}
+
+function renderPublicPlayerStats(player) {
+  return `<div class="player-stat-editors readonly-stat-line">${PLAYER_STATS.map(stat => {
+    const mod = Number(player.statMods?.[stat] ?? 0);
+    return `<div class="player-stat-editor ${mod > 0 ? "stat-up" : mod < 0 ? "stat-down" : ""}">
+      <span>${stat.toUpperCase()}</span><strong>${escapeHtml(statValueForDisplayByStat(stat, player.row[stat], mod))}</strong>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+function renderPublicPlayerDetails(player) {
+  const flags = [["roster.captain", player.isCaptain], ["roster.skipNextGame", player.skipNextGame], ["roster.niglingInjury", player.niglingInjury]];
+  const advancements = normalizePlayerAdvancements(player.advancements);
+  return `<details class="matchday-player-details">
+    <summary>${t("roster.playerDetails")}</summary>
+    <div class="mobile-player-checks">${flags.map(([key, value]) => `<label class="table-checkbox"><input type="checkbox" disabled ${value ? "checked" : ""}><span>${t(key)}</span></label>`).join("")}</div>
+    <section class="mobile-player-section">
+      <h3>${t("roster.extendedContracts")}</h3>
+      <div class="mini-stepper matchday-contract-value"><button type="button" disabled>−</button><strong>${countToNumber(player.extendedContracts)}</strong><button type="button" disabled>+</button></div>
+    </section>
+    <section class="mobile-player-section">
+      <h3>${t("roster.levelHeader")}</h3>
+      <div class="player-level-stack"><strong>${playerAdvancementLevel(player)} (${escapeHtml(playerLevelRank(player))})</strong><small>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small></div>
+      <div class="mobile-player-pills">${advancements.map((advancement, index) => `<span class="roster-pill advancement-pill">${escapeHtml(`${index + 1}. ${advancementTypeLabels[advancement.type] ?? advancement.type}: ${advancementRanks[index]?.costs?.[advancement.type] ?? 0} SPP`)}</span>`).join("")}</div>
+    </section>
+  </details>`;
 }

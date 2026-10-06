@@ -14,15 +14,19 @@ export function renderHome() {
   setViewSection("home");
 
   view.innerHTML = `
-    <section class="league-hero">
+    <section class="league-hero matchday-hero">
+      <div class="league-hero-mark" aria-hidden="true"><img src="assets/brand/gata-league-logo.png" alt=""></div>
       <div class="league-hero-copy">
+        <span class="matchday-eyebrow">${t("roster.sevensLabel")}</span>
         <h1>${t("home.heroTitle")}</h1>
         <p>${t("home.heroSubtitle")}</p>
       </div>
-      <div class="league-hero-media" aria-hidden="true">
-        <img src="assets/brand/gata-league-logo.png" alt="">
-      </div>
+      <div class="matchday-edition" aria-hidden="true">07</div>
     </section>
+
+    <nav class="site-quick-links" aria-label="${t("nav.navigationAria")}">
+      ${[["my-teams", "nav.myTeams"], ["my-games", "nav.myGames"], ["season", "nav.season"], ["pages", "nav.references"]].map(([route, key], index) => `<a href="#/${route}"><span aria-hidden="true">0${index + 1}</span><strong>${t(key)}</strong><span aria-hidden="true">↗</span></a>`).join("")}
+    </nav>
 
     <section>
       <div class="page-head">
@@ -44,9 +48,10 @@ function overviewCardUrl(card) {
   return `#/overview/${encodeURIComponent(card.slug)}`;
 }
 
-function renderOverviewIndexCard(card) {
+function renderOverviewIndexCard(card, index) {
   return `
     <a class="card compact overview-index-card" href="${overviewCardUrl(card)}">
+      <span class="site-card-index" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
       <h3>${escapeHtml(card.title)}</h3>
       <p>${escapeHtml(card.summary ?? "")}</p>
     </a>

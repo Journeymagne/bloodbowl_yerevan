@@ -68,12 +68,13 @@ await check("team detail", async () => {
 
 await check("builder hires exactly one player per click", async () => {
   await page.goto(`${base}/#/builder`, { waitUntil: "networkidle" });
-  await page.waitForSelector("[data-add-row]", { timeout: 15000 });
+  await page.waitForSelector("[data-matchday-open-hire]", { timeout: 15000 });
   const unique = () => page.evaluate(() =>
     new Set([...document.querySelectorAll("[data-remove-player]")].map((node) => node.dataset.removePlayer)).size);
   const before = await unique();
   const summary = () => page.locator(".builder-info-panel .stat-list, .builder-summary .stat-list").first().innerText();
   const costBefore = await summary();
+  await page.locator("[data-matchday-open-hire]:visible").first().click();
   await page.locator("[data-add-row]").first().click();
   await page.waitForTimeout(300);
   const after = await unique();
