@@ -26,6 +26,8 @@ import { renderBuilder } from "../screens/builder.mjs";
 import { renderSeason } from "../screens/season/index.mjs";
 import { renderMyGames } from "../screens/games/my-games.mjs";
 import { renderGamePage } from "../screens/games/game.mjs";
+import { renderPreMatch } from "../screens/games/pre-match.mjs";
+import { renderPostMatch } from "../screens/games/post-match.mjs";
 import { renderAdministration } from "../screens/administration/users.mjs";
 import { renderAdminUserProfile } from "../screens/administration/user.mjs";
 import { renderPlayerProfile } from "../screens/players/profile.mjs";
@@ -45,6 +47,8 @@ const screens = {
   savedRoster: ({ teamId }) => renderSavedRoster(teamId),
   myTeams: () => renderMyTeams(),
   game: ({ gameId }) => renderGamePage(gameId),
+  preMatch: ({ gameId, step }) => renderPreMatch(gameId, step),
+  postMatch: ({ gameId, step }) => renderPostMatch(gameId, step),
   myGames: () => renderMyGames(),
   season: ({ tab }) => renderSeason(true, tab),
   adminTeamEdit: ({ ownerId, teamId }) => renderSavedRoster(teamId, true, { adminOwnerId: ownerId }),

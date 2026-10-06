@@ -494,19 +494,19 @@
         "playersCount": 7,
         "totalPlayersCount": 8,
         "playersCost": 775,
-        "staffCost": 620,
-        "rerollCost": 620,
-        "total": 1395,
-        "remaining": -795
+        "staffCost": 520,
+        "rerollCost": 520,
+        "total": 1295,
+        "remaining": -695
       },
       "costsWithFans": {
         "playersCount": 7,
         "totalPlayersCount": 8,
         "playersCost": 775,
-        "staffCost": 640,
-        "rerollCost": 640,
-        "total": 1415,
-        "remaining": -815
+        "staffCost": 540,
+        "rerollCost": 540,
+        "total": 1315,
+        "remaining": -715
       },
       "totalSpp": 144,
       "team": {
@@ -1713,19 +1713,19 @@
         "playersCount": 5,
         "totalPlayersCount": 5,
         "playersCost": 830,
-        "staffCost": 120,
-        "rerollCost": 120,
-        "total": 950,
-        "remaining": -350
+        "staffCost": 70,
+        "rerollCost": 70,
+        "total": 900,
+        "remaining": -300
       },
       "costsWithFans": {
         "playersCount": 5,
         "totalPlayersCount": 5,
         "playersCost": 830,
-        "staffCost": 120,
-        "rerollCost": 120,
-        "total": 950,
-        "remaining": -350
+        "staffCost": 70,
+        "rerollCost": 70,
+        "total": 900,
+        "remaining": -300
       },
       "totalSpp": 118,
       "team": {
@@ -3037,19 +3037,19 @@
         "playersCount": 3,
         "totalPlayersCount": 4,
         "playersCost": 380,
-        "staffCost": 270,
-        "rerollCost": 270,
-        "total": 650,
-        "remaining": -50
+        "staffCost": 220,
+        "rerollCost": 220,
+        "total": 600,
+        "remaining": 0
       },
       "costsWithFans": {
         "playersCount": 3,
         "totalPlayersCount": 4,
         "playersCost": 380,
-        "staffCost": 280,
-        "rerollCost": 280,
-        "total": 660,
-        "remaining": -60
+        "staffCost": 230,
+        "rerollCost": 230,
+        "total": 610,
+        "remaining": -10
       },
       "totalSpp": 40,
       "team": {

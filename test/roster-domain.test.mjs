@@ -34,11 +34,24 @@ test("fixtures cover the teams whose special rules the domain branches on", () =
   }
 });
 
+// Keep the pinned pre-extraction arithmetic baseline; new post-match fields
+// with empty defaults are covered by post-match.test.mjs.
+function baselineView(value) {
+  if (Array.isArray(value)) return value.map(baselineView);
+  if (!value || typeof value !== 'object') return value;
+  return Object.fromEntries(Object.entries(value).filter(([key, entry]) => !(
+    ['throws', 'landings', 'bonus'].includes(key) && entry === 0
+    || key === 'nigglingInjuries' && entry === (value.niglingInjury ? 1 : 0)
+    || key === 'temporarilyRetired' && entry === false
+    || key === 'injuryStatMods' && Object.keys(entry).length === 0
+  )).map(([key, entry]) => [key, baselineView(entry)]));
+}
+
 for (const item of cases) {
   test(`${item.team} / ${item.generation} matches the pinned baseline`, () => {
     const team = teamBySlug.get(item.team);
     assert.ok(team, `team ${item.team} is missing from public/data.json`);
-    assert.deepEqual(describeCase(team, item.draft), item.expected);
+    assert.deepEqual(baselineView(describeCase(team, item.draft)), item.expected);
   });
 }
 

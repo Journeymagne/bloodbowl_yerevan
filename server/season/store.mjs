@@ -87,43 +87,26 @@ export async function loadSeasonPairingRows(seasonId) {
 }
 
 export async function loadUserGameRows(userId, pairingId = null, includeAll = false) {
-  let pairingFilter = `($1 = he.user_id OR $1 = ae.user_id)`;
+  let pairingFilter = `($1 = home_user_id OR $1 = away_user_id)`;
   let params = [userId];
   if (pairingId && includeAll) {
-    pairingFilter = `p.id = $1`;
+    pairingFilter = `id = $1`;
     params = [pairingId];
   } else if (pairingId) {
-    pairingFilter = `p.id = $2 AND ($1 = he.user_id OR $1 = ae.user_id)`;
+    pairingFilter = `id = $2 AND ($1 = home_user_id OR $1 = away_user_id)`;
     params = [userId, pairingId];
   } else if (includeAll) {
-    pairingFilter = `r.status = 'started'
-      AND COALESCE(p.result_status, 'pending') <> 'confirmed'
-      AND r.round_number = (
-        SELECT MAX(latest_round.round_number)
-        FROM season_rounds latest_round
-        WHERE latest_round.season_id = s.id
-          AND latest_round.status = 'started'
-      )`;
+    pairingFilter = `round_status = 'started' AND COALESCE(result_status,'pending') <> 'confirmed'
+      AND (match_kind='friendly' OR round_number=(SELECT MAX(latest_round.round_number)
+        FROM season_rounds latest_round WHERE latest_round.season_id=match_pairing_context.season_id
+          AND latest_round.status='started'))`;
     params = [];
   }
   const result = await pool.query(
-    `SELECT p.*, r.round_number, r.status AS round_status,
-            s.id AS season_id, s.name AS season_name, s.status AS season_status, s.current_round AS season_current_round,
-            he.user_id AS home_user_id, hu.login AS home_user_login,
-            ht.id AS home_team_id, ht.name AS home_team_name, ht.base_team_slug AS home_team_slug,
-            ae.user_id AS away_user_id, au.login AS away_user_login,
-            at.id AS away_team_id, at.name AS away_team_name, at.base_team_slug AS away_team_slug
-     FROM season_pairings p
-     JOIN season_rounds r ON r.id = p.round_id
-     JOIN seasons s ON s.id = r.season_id
-     LEFT JOIN season_entries he ON he.id = p.home_entry_id
-     LEFT JOIN users hu ON hu.id = he.user_id
-     LEFT JOIN saved_teams ht ON ht.id = he.saved_team_id
-     LEFT JOIN season_entries ae ON ae.id = p.away_entry_id
-     LEFT JOIN users au ON au.id = ae.user_id
-     LEFT JOIN saved_teams at ON at.id = ae.saved_team_id
+    `SELECT match_pairing_context.*, COALESCE((SELECT state->>'status' FROM match_post_games
+       WHERE pairing_id=match_pairing_context.id),'not_started') AS post_match_status FROM match_pairing_context
      WHERE ${pairingFilter}
-     ORDER BY s.created_at DESC, r.round_number DESC, p.table_number ASC`,
+     ORDER BY COALESCE(season_created_at,created_at) DESC, round_number DESC NULLS LAST, table_number ASC`,
     params,
   );
   return result.rows;

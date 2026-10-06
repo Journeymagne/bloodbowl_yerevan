@@ -20,7 +20,14 @@
   --focus: #f0c84a;
   --danger: #e85c3f;
   --bone: #efe0b7;
-  --radius: 8px;
+  --radius: 0;
+  --display-font: Impact, "Arial Narrow", sans-serif;
+  --label-font: Consolas, "Courier New", monospace;
+  --md-accent: var(--line-bright);
+  --md-wash: color-mix(in srgb, var(--md-accent) 10%, var(--panel));
+  --stat-up-bg: color-mix(in srgb, var(--accent-2) 14%, var(--panel));
+  --stat-up-text: color-mix(in srgb, var(--accent-2) 70%, var(--text));
+  --stat-down-bg: color-mix(in srgb, var(--danger) 14%, var(--panel));
   --grid-line: rgba(255, 215, 120, 0.06);
   --grid-line-soft: rgba(255, 215, 120, 0.04);
   --stripe-line: rgba(199, 46, 34, 0.045);
@@ -286,9 +293,9 @@
   --button-border: rgba(83, 110, 146, 0.42);
   --button-text: #151c28;
   --button-muted-text: #506077;
-  --primary-bg: linear-gradient(180deg, rgba(83, 110, 146, 0.96), rgba(182, 60, 50, 0.9));
-  --primary-bg-hover: linear-gradient(180deg, rgba(96, 127, 168, 0.98), rgba(197, 72, 60, 0.98));
-  --primary-border: rgba(83, 110, 146, 0.72);
+  --primary-bg: #3b567a;
+  --primary-bg-hover: #2d4360;
+  --primary-border: #3b567a;
   --primary-text: #fbfcff;
   --primary-text-shadow: none;
   --active-button-bg: linear-gradient(180deg, rgba(83, 110, 146, 0.2), rgba(182, 60, 50, 0.12)), rgba(236, 242, 250, 0.96);

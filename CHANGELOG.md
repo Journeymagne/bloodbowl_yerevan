@@ -8,6 +8,78 @@ This is an application, not a library, so "breaking" is judged by what a league
 coach or an operator would notice: a data format that no longer loads, a URL that
 no longer resolves, a deployment step that is now required.
 
+## [2.0.0] — 2026-10-06
+
+Full match management for Gata Sevens, from preparation to post-match team
+development, with a shared Matchday design across the site.
+
+### Added
+
+- **Pre-match checklist:** fans, weather, match roster, inducements and review.
+  Both coaches confirm their preparations before starting the match. Match
+  snapshots, revisions and spending receipts prevent conflicting edits and
+  repeated treasury deductions.
+- **Friendly challenges:** send, accept, decline or cancel a challenge in My
+  Games, then open the pairing and use the same preparation and post-match
+  checklists as league matches. Friendlies award no League Points and do not
+  affect season standings.
+- **Post-match checklist:** result, fans, player statistics and injuries, roster
+  changes, finances, next-match readiness and review. Coaches select the MVP
+  after rolling their own dice and may bank SPP instead of buying advancements.
+  Once both sides confirm the agreed result, both teams and match records are
+  updated in one transaction, with receipts preventing duplicate settlement.
+- **Roster transfers:** buy and sell players, retain eligible journeymen and
+  cancel an eligible new purchase. Team-specific sale rules and injury effects
+  are included in the valuation.
+- **Season administration:** add a coach and team during an active season without
+  replacing the administrator's session.
+- Unit and API smoke coverage for preparation, friendlies, post-match settlement,
+  transfers, money calculations, roster viewing and coach registration.
+
+### Changed
+
+- Builder-style Matchday panels, typography, controls, dialogs and theme tokens
+  now cover saved teams, profiles, games, checklists and season administration.
+  Shared components replace repeated cards, scoreboards and checklist layouts.
+- TD and CAS inputs are grouped and labelled by coach and team in result forms
+  and administration. Committed teams no longer show the redundant Rules column;
+  administration layouts adapt to narrow screens.
+- Journeymen are optional when starting with fewer than seven players. All
+  eligible Linemen, including Dwarf Linemen, are available regardless of the
+  roster's maximum quantity. Kick/receive is decided at the table and is no
+  longer a pre-match checklist step.
+- Painting bonus is **15k**, including the rules documentation in both languages.
+  Permanently hired Mortuary Assistants and Plague Doctors cost **50k** and add
+  **50k** to team value; their one-match inducement price remains **100k**.
+- Money is summed in integer gold pieces to preserve fractional-thousand
+  transfer amounts. Treasury and Coach's Safe reject invalid balances.
+- Frontend styles share common control, overlay and Matchday modules; obsolete
+  styles and duplicated hidden layouts have been removed.
+
+### Fixed
+
+- Dedicated Fans can increase by only one after a match. Winnings show their
+  attendance, touchdown and applicable bonus components.
+- Lasting injuries no longer count as purchased characteristic advancements.
+  Missing-next-game status and temporary players are handled during settlement.
+- Rapid roster statistic edits retain their own save snapshots, including edits
+  made while another save is in flight.
+- Post-match finance projection refreshes correctly, and opening an advancement
+  choice does not mark an unmodified player statistic as edited.
+- Game logo responses no longer attempt a second HTTP response.
+- Built CSS preserves descendant spaces before pseudo-classes such as `:is()`
+  and `:where()`, keeping form controls consistent with the source styles.
+
+### Upgrade
+
+- Apply database migrations **005–007** with `npm run db:migrate`, rebuild with
+  `npm run build`, and restart the application server. Deploy the frontend and
+  API together: the new checklist screens require the new routes and tables.
+  The main-branch deployment workflow performs these steps automatically.
+- Existing games without checklist snapshots retain their legacy result forms.
+  Existing saved rosters remain supported; no database reset is required.
+- Mercenary inducements remain unavailable pending a league ruling.
+
 ## [0.2.0] — 2026-08-24
 
 Stage 1 of the refactor plan

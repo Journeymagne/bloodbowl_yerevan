@@ -13,11 +13,11 @@ import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { availableSeasonSavedTeams, renderSeasonEntriesTable } from "./registration.mjs";
 import { renderSeasonRounds } from "./schedule.mjs";
-import { pairingLeaguePoints } from "./season-links.mjs";
 import { makeSeasonStarterRoster, replaceSeasonData } from "./season-data.mjs";
 import { toastError } from "../../components/toast.mjs";
 import { confirmAction } from "../../components/dialog.mjs";
 import { gameStatusLabel } from "../../components/game-status.mjs";
+import { renderSeasonCoachEntryPanel, wireSeasonCoachEntry } from "./coach-entry.mjs";
 
 export function renderSeasonAdmin(data) {
   const admin = data.admin ?? { users: [], savedTeams: [] };
@@ -75,6 +75,8 @@ export function renderSeasonAdmin(data) {
         </div>
       </section>
 
+      ${renderSeasonCoachEntryPanel()}
+
       ${renderSeasonRounds(data, true)}
 
       <section class="content-panel season-card">
@@ -119,8 +121,10 @@ function updateSavedPairingResult(row, data, pairingId) {
     status.dataset.status = pairing.resultStatus ?? "pending";
     status.textContent = gameStatusLabel(pairing.resultStatus);
   }
-  const points = row.querySelector("[data-pairing-points]");
-  if (points) points.textContent = pairingLeaguePoints(pairing);
+  for (const name of ['home', 'away']) {
+    const points = row.querySelector(`[data-pairing-${name}-points]`);
+    if (points) points.textContent = pairing[name + 'Points'] ?? '—';
+  }
 }
 
 async function saveSeasonPairingRow(row, { rerender = null } = {}) {
@@ -162,6 +166,8 @@ async function saveSeasonPairingRow(row, { rerender = null } = {}) {
 
 /** Adding a coach's saved team, creating a fresh one for them, or removing an entry. */
 export function wireEntryManagement(rerender) {
+  wireSeasonCoachEntry(rerender);
+
   view.querySelector("[data-season-admin-add-team]")?.addEventListener("click", async () => {
     const teamId = view.querySelector("[data-season-admin-team]")?.value;
     if (!teamId) return;

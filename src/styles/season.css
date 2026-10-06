@@ -5,19 +5,8 @@
  * order. The split is by position, not by theme: the cuts fall between rules
  * that were already neighbours, so the cascade is exactly what it was.
  */
-.content-panel,
-.side-panel {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-strong);
-  backdrop-filter: blur(6px);
-}
-
-.content-panel {
-  padding: 14px;
-}
-
+.content-panel, .side-panel { min-width: 0; border: 1px solid var(--line); border-top: 2px solid var(--line-bright); border-radius: var(--radius); background: var(--panel); }
+.content-panel { padding: 24px; }
 .content-panel h2,
 .content-panel h3 {
   margin: 24px 0 10px;
@@ -49,12 +38,12 @@
   padding-left: 4px;
 }
 
-.content-panel a {
+.content-panel a:where(:not(.primary-button, .filter-button, .ghost-button, .icon-text-button, .table-icon-button)) {
   color: var(--focus);
   text-decoration: none;
 }
 
-.content-panel a:hover {
+.content-panel a:where(:not(.primary-button, .filter-button, .ghost-button, .icon-text-button, .table-icon-button)):hover {
   text-decoration: underline;
 }
 
@@ -215,6 +204,13 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 14px;
+}
+
+.season-coach-entry-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: 14px;
+  align-items: end;
 }
 
 .season-admin-block {
@@ -394,11 +390,11 @@
 .admin-reset-password-value input {
   min-width: 0;
   flex: 1;
-  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-family: ui-monospace, SFMono-Regular, var(--label-font);
 }
 
 .danger-action {
-  border-color: rgba(232, 92, 63, 0.62);
+  border-color: var(--danger);
   color: var(--danger);
 }
 
@@ -422,14 +418,6 @@
   opacity: 0.48;
 }
 
-.admin-users-table {
-  min-width: 820px;
-}
-
-.admin-teams-table {
-  min-width: 760px;
-}
-
 .public-roster-table {
   min-width: 980px;
 }
@@ -438,16 +426,7 @@
   max-width: 900px;
 }
 
-.notice-box {
-  margin-bottom: 22px;
-  padding: 16px;
-  border: 1px solid rgba(240, 200, 74, 0.38);
-  border-radius: var(--radius);
-  background:
-    linear-gradient(90deg, rgba(199, 46, 34, 0.14), transparent),
-    var(--surface-strong);
-}
-
+.notice-box { margin-bottom: 22px; padding: 16px; border: 1px solid var(--line); border-left: 3px solid var(--line-bright); border-radius: var(--radius); background: var(--md-wash); }
 .notice-box strong {
   display: block;
   margin-bottom: 8px;

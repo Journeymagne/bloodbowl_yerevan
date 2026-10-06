@@ -65,11 +65,12 @@ export function staffCostDescription(key) {
  * @param {number} [options.committedTotal] roster cost so far, for the budget check
  * @param {string} [options.description] overrides the price line — a dedicated fan
  *   in a league team was not bought, it accrued, so its card says so instead
+ * @param {boolean} [options.readOnly] disable buttons and omit mutation attributes
  */
-export function renderStaffControl({ key, title, value, mode, committedTotal = 0, description }) {
+export function renderStaffControl({ key, title, value, mode, committedTotal = 0, description, readOnly = false }) {
   const current = countToNumber(value);
   const verdict = staffStepVerdict(key, title, value, mode, committedTotal);
-  const down = current <= 0 ? "disabled" : "";
+  const down = readOnly || current <= 0 ? "disabled" : "";
   return `
     <div class="builder-addon compact-staff-control ${mode.staffCardClass}">
       <div>
@@ -77,9 +78,9 @@ export function renderStaffControl({ key, title, value, mode, committedTotal = 0
         <span>${escapeHtml(description ?? staffCostDescription(key))}</span>
       </div>
       <div class="inline-stepper-control">
-        <button class="filter-button" type="button" data-${mode.staffAttribute}="${key}" data-${mode.staffAttribute}-step="-1" ${down}>-</button>
+        <button class="filter-button" type="button" ${readOnly ? "" : `data-${mode.staffAttribute}="${key}" data-${mode.staffAttribute}-step="-1"`} ${down}>-</button>
         <strong>${current}</strong>
-        <button class="filter-button" type="button" data-${mode.staffAttribute}="${key}" data-${mode.staffAttribute}-step="1" ${blockedAttributes(verdict)}>+</button>
+        <button class="filter-button" type="button" ${readOnly ? "disabled" : `data-${mode.staffAttribute}="${key}" data-${mode.staffAttribute}-step="1" ${blockedAttributes(verdict)}`}>+</button>
       </div>
     </div>
   `;
@@ -96,13 +97,14 @@ export function renderStaffControl({ key, title, value, mode, committedTotal = 0
  * the builder lists it with the purchases, the league editor with the team's
  * resources, next to the treasury.
  */
-export function renderDedicatedFansLine({ draft, mode, committedTotal = 0 }) {
+export function renderDedicatedFansLine({ draft, mode, committedTotal = 0, readOnly = false }) {
   return renderStaffControl({
     key: "dedicatedFans",
     title: t("savedRoster.dedicatedFans"),
     value: draft.dedicatedFans,
     mode,
     committedTotal,
+    readOnly,
     description: mode.enforcesBudget ? undefined : t("roster.postMatchValue"),
   });
 }
@@ -120,8 +122,8 @@ export function renderDedicatedFansLine({ draft, mode, committedTotal = 0 }) {
  * @param {object} options.mode CREATE_MODE or LEAGUE_MODE
  * @param {number} [options.committedTotal] roster cost so far, for the budget check
  */
-export function renderHiredStaffLines({ team, draft, mode, committedTotal = 0 }) {
-  const line = (key, title) => renderStaffControl({ key, title, value: draft[key], mode, committedTotal });
+export function renderHiredStaffLines({ team, draft, mode, committedTotal = 0, readOnly = false }) {
+  const line = (key, title) => renderStaffControl({ key, title, value: draft[key], mode, committedTotal, readOnly });
   return [
     hasBribery(team) ? line("bribes", t("savedRoster.bribes")) : "",
     line("assistantCoaches", t("savedRoster.assistantCoaches")),

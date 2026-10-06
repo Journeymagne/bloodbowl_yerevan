@@ -114,6 +114,7 @@ await check("hiring a player", async () => {
   const count = () => page.evaluate(() =>
     new Set([...document.querySelectorAll("[data-roster-player]")].map((n) => n.dataset.rosterPlayer)).size);
   const before = await count();
+  await page.locator("[data-matchday-open-hire]:visible").first().click();
   await page.locator("[data-add-saved-row]").first().click();
   await page.waitForTimeout(800);
   const after = await count();

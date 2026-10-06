@@ -24,6 +24,8 @@
  *   cannot land out of order;
  * - every edit is queued for saving immediately and later edits wait behind an
  *   in-flight request;
+ * - tracker/stat changes keep a separate snapshot per action, including rapid
+ *   clicks while an earlier request is still being saved;
  * - status is a state, not a sentence, so the interface can translate it;
  * - `hasPendingChanges()` is what the beforeunload guard asks.
  *
@@ -47,7 +49,7 @@ function snapshotOf(entry) {
     status: entry.status,
     error: entry.error ?? null,
     savedAt: entry.savedAt ?? null,
-    pending: entry.dirty || entry.inFlight,
+    pending: entry.dirty || entry.inFlight || entry.pendingDrafts.length > 0,
   };
 }
 
@@ -88,9 +90,10 @@ function mergeServerTeam(entry, serverTeam) {
 /** Kinds worth keeping the edit for and trying again — see src/core/api.mjs. */
 const RETRYABLE_KINDS = new Set(["offline", "timeout"]);
 
-function failSave(deps, entry, error) {
+function failSave(deps, entry, error, snapshot = null) {
   entry.inFlight = false;
-  entry.dirty = true;
+  if (snapshot) entry.pendingDrafts.unshift(snapshot);
+  else entry.dirty = true;
   if (RETRYABLE_KINDS.has(error?.kind)) setStatus(entry, SAVE_STATUS.OFFLINE, error);
   else if (error?.kind === "conflict") setStatus(entry, SAVE_STATUS.CONFLICT, error);
   else setStatus(entry, SAVE_STATUS.ERROR, error);
@@ -99,22 +102,21 @@ function failSave(deps, entry, error) {
 
 async function runSave(deps, entry, { force = false } = {}) {
   if (entry.inFlight) {
-    // Someone edited while a request was in the air; runSave() is called again
-    // when it settles, so the newest draft is what finally lands.
-    entry.dirty = true;
+    // The current request drains queued snapshots and later dirty edits in order.
     return entry.status;
   }
-  if (!entry.dirty && !force) return entry.status;
+  if (!entry.dirty && !entry.pendingDrafts.length && !force) return entry.status;
 
+  const snapshot = entry.pendingDrafts.shift() ?? null;
   entry.inFlight = true;
-  entry.dirty = false;
+  if (!snapshot) entry.dirty = false;
   setStatus(entry, SAVE_STATUS.SAVING);
 
   let request;
   try {
-    request = await entry.buildRequest(entry.draft);
+    request = await entry.buildRequest(snapshot ?? structuredClone(entry.draft));
   } catch (error) {
-    return failSave(deps, entry, error);
+    return failSave(deps, entry, error, snapshot);
   }
 
   try {
@@ -122,7 +124,7 @@ async function runSave(deps, entry, { force = false } = {}) {
     entry.inFlight = false;
     mergeServerTeam(entry, result?.team);
 
-    if (entry.dirty) {
+    if (entry.dirty || entry.pendingDrafts.length) {
       // More edits arrived while we were saving: keep them queued and do not
       // claim success yet.
       setStatus(entry, SAVE_STATUS.DIRTY);
@@ -134,8 +136,20 @@ async function runSave(deps, entry, { force = false } = {}) {
     setStatus(entry, SAVE_STATUS.SAVED);
     return entry.status;
   } catch (error) {
-    return failSave(deps, entry, error);
+    return failSave(deps, entry, error, snapshot);
   }
+}
+
+/** Keep each tracker/stat change and start saving without a debounce timer. */
+function enqueueChange(deps, entry) {
+  if (entry.timer) deps.clearTimeoutFn(entry.timer);
+  entry.timer = null;
+  entry.pendingDrafts.push(structuredClone(entry.draft));
+  // This snapshot includes any earlier text edits that were still pending.
+  entry.dirty = false;
+  if (entry.firstDirtyAt === null) entry.firstDirtyAt = deps.now();
+  setStatus(entry, SAVE_STATUS.DIRTY);
+  void runSave(deps, entry);
 }
 
 function makeEntry(teamId, { draft, buildRequest, endpoint, meta }) {
@@ -150,6 +164,7 @@ function makeEntry(teamId, { draft, buildRequest, endpoint, meta }) {
     savedAt: null,
     dirty: false,
     inFlight: false,
+    pendingDrafts: [],
     timer: null,
     firstDirtyAt: null,
     listeners: new Set(),
@@ -191,7 +206,7 @@ function trackingApi(deps, entries) {
       existing.buildRequest = options.buildRequest;
       existing.endpoint = options.endpoint ?? existing.endpoint;
       existing.meta = options.meta ?? existing.meta;
-      if (!existing.dirty && !existing.inFlight && options.draft !== existing.draft) {
+      if (!existing.dirty && !existing.inFlight && !existing.pendingDrafts.length && options.draft !== existing.draft) {
         existing.draft = options.draft;
       }
       return existing.draft;
@@ -201,6 +216,8 @@ function trackingApi(deps, entries) {
       const entry = entries.get(teamId);
       if (!entry) return;
       if (entry.timer) deps.clearTimeoutFn(entry.timer);
+      entry.pendingDrafts.length = 0;
+      entry.dirty = false;
       entries.delete(teamId);
     },
 
@@ -221,7 +238,7 @@ function trackingApi(deps, entries) {
 
     hasPendingChanges() {
       for (const entry of entries.values()) {
-        if (entry.dirty || entry.inFlight) return true;
+        if (entry.dirty || entry.inFlight || entry.pendingDrafts.length) return true;
       }
       return false;
     },
@@ -241,6 +258,11 @@ function savingApi(deps, entries) {
       scheduleSave(deps, entry);
     },
 
+    /** Save every discrete change, preserving clicks made during another save. */
+    saveChange(teamId) {
+      enqueueChange(deps, entryFor(teamId));
+    },
+
     /** Save now and wait for it — the save button and the unload guard use this. */
     async flush(teamId) {
       const entry = entries.get(teamId);
@@ -249,7 +271,7 @@ function savingApi(deps, entries) {
         deps.clearTimeoutFn(entry.timer);
         entry.timer = null;
       }
-      if (!entry.dirty && !entry.inFlight) return entry.status;
+      if (!entry.dirty && !entry.inFlight && !entry.pendingDrafts.length) return entry.status;
       return runSave(deps, entry, { force: true });
     },
 
@@ -259,6 +281,9 @@ function savingApi(deps, entries) {
      */
     adoptServerRoster(teamId, roster) {
       const entry = entryFor(teamId);
+      if (entry.timer) deps.clearTimeoutFn(entry.timer);
+      entry.timer = null;
+      entry.pendingDrafts.length = 0;
       entry.draft = roster;
       entry.dirty = false;
       entry.firstDirtyAt = null;

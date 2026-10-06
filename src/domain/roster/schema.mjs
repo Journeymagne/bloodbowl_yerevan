@@ -21,6 +21,7 @@
  * apiece instead of three parallel lists.
  */
 import { countToNumber, makeRosterPlayerId } from "./values.mjs";
+import { isMoneyAmount } from "../money.mjs";
 
 /**
  * @typedef {"text"|"count"|"list"|"map"|"staff"} FieldKind
@@ -162,6 +163,9 @@ export const PLAYER_FIELDS = Object.freeze({
   favouredSkills: () => [],
   skipNextGame: () => false,
   niglingInjury: () => false,
+  nigglingInjuries: () => 0,
+  injuryStatMods: () => ({}),
+  temporarilyRetired: () => false,
   isCaptain: () => false,
   extendedContracts: () => 0,
   spp: () => ({}),
@@ -174,7 +178,7 @@ export const PLAYER_FIELDS = Object.freeze({
  * @param {object} row the position's line in the team's roster table
  * @param {number} rowIndex which line that is
  * @param {number} [copyIndex] how many of this position the team already has
- * @param {{number?: string|number, purchased?: boolean}} [options]
+ * @param {{number?: string|number, purchased?: boolean, purchaseRefund?: number}} [options]
  */
 export function createPlayer(row, rowIndex, copyIndex = 0, options = {}) {
   const player = {
@@ -185,5 +189,8 @@ export function createPlayer(row, rowIndex, copyIndex = 0, options = {}) {
   };
   for (const [name, empty] of Object.entries(PLAYER_FIELDS)) player[name] = empty();
   player.purchased = Boolean(options.purchased);
+  if (options.purchased && options.purchaseRefund != null && isMoneyAmount(options.purchaseRefund)) {
+    player.purchaseRefund = Number(options.purchaseRefund);
+  }
   return player;
 }

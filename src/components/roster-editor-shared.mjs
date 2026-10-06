@@ -78,7 +78,7 @@ export function sanitizeFavouredSkillsForTeam(team, draft) {
   });
 }
 
-export function renderTeamRuleAccess(team, draft, controlName = "") {
+export function renderTeamRuleAccess(team, draft, controlName = "", { readOnly = false } = {}) {
   const leagueOptions = teamLeagueOptions(team);
   const selectedLeague = ensureDraftLeagueChoice(team, draft);
   const favouredOptions = teamFavouredOptions(team);
@@ -92,11 +92,11 @@ export function renderTeamRuleAccess(team, draft, controlName = "") {
       </div>
       <div class="team-rules-row">
         <span>${t("roster.leagueAccess")}</span>
-        ${leagueOptions.length > 1 ? `
+        ${leagueOptions.length > 1 && !readOnly ? `
           <select ${controlName ? `data-${controlName}-league` : ""}>
             ${leagueOptions.map((option) => renderOption(option, option, selectedLeague)).join("")}
           </select>
-        ` : `<div class="rule-link-list">${renderRuleLinks(leagueOptions)}</div>`}
+        ` : `<div class="rule-link-list">${renderRuleLinks(readOnly ? (selectedLeague ? [selectedLeague] : []) : leagueOptions)}</div>`}
       </div>
       <div class="team-rules-row team-rules-row-wide">
         <span>${t("roster.specialRules")}</span>
@@ -105,7 +105,7 @@ export function renderTeamRuleAccess(team, draft, controlName = "") {
       ${favouredOptions.length ? `
         <div class="team-rules-row">
           <span>${t("roster.favouredOf")}</span>
-          ${favouredOptions.length > 1 ? `
+          ${favouredOptions.length > 1 && !readOnly ? `
             <select ${controlName ? `data-${controlName}-favoured` : ""}>
               ${favouredOptions.map((option) => renderOption(option, option, selectedFavoured)).join("")}
             </select>
@@ -134,4 +134,3 @@ function warningMessages(violations) {
 export function rosterWarnings(team, draft, costs) {
   return warningMessages(validateRoster(team, draft, costs));
 }
-

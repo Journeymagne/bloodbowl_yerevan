@@ -75,8 +75,8 @@ function renderAdminUsersTable(users) {
   if (!users.length) return `<div class="empty-state">${t("admin.noPlayersFound")}</div>`;
   return `
     <article class="content-panel compact-table-panel">
-      <div class="table-scroll builder-table-scroll">
-        <table class="admin-users-table compact-roster-table">
+      <div class="table-scroll builder-table-scroll responsive-table-scroll">
+        <table class="admin-users-table compact-roster-table responsive-table">
           <thead>
             <tr>
               <th>${t("admin.playerHeader")}</th>
@@ -99,12 +99,12 @@ function renderAdminUserRow(user) {
   const updated = user.lastTeamUpdatedAt ? new Date(user.lastTeamUpdatedAt).toLocaleDateString("en-GB") : "-";
   return `
     <tr>
-      <td><strong>${renderPlayerLink(user)}</strong></td>
-      <td>${escapeHtml(user.telegram || "-")}</td>
-      <td>${user.isAdmin ? t("admin.roleAdmin") : t("admin.rolePlayer")}</td>
-      <td>${user.savedTeamCount ?? 0}</td>
-      <td>${escapeHtml(updated)}</td>
-      <td class="fit-cell center-cell">${iconButton("edit", { href: `#/administration/users/${encodeURIComponent(user.id)}` })}</td>
+      <td data-label="${t("admin.playerHeader")}"><strong>${renderPlayerLink(user)}</strong></td>
+      <td data-label="${t("auth.telegramField")}">${escapeHtml(user.telegram || "-")}</td>
+      <td data-label="${t("admin.roleHeader")}">${user.isAdmin ? t("admin.roleAdmin") : t("admin.rolePlayer")}</td>
+      <td data-label="${t("admin.savedTeamsHeader")}">${user.savedTeamCount ?? 0}</td>
+      <td data-label="${t("admin.lastTeamUpdateHeader")}">${escapeHtml(updated)}</td>
+      <td data-label="${t("roster.actionHeader")}" class="fit-cell center-cell">${iconButton("edit", { href: `#/administration/users/${encodeURIComponent(user.id)}` })}</td>
     </tr>
   `;
 }

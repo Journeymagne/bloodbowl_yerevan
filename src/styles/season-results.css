@@ -1,0 +1,42 @@
+/* Each coach owns one complete score row; shared match controls span the pair. */
+.table-scroll .season-results-table { width: 100%; min-width: 0; table-layout: fixed; }
+.season-results-table .season-match-number { width: 56px; text-align: center; vertical-align: middle; }
+.season-results-table .season-result-counter { width: 78px; text-align: center; vertical-align: middle; }
+.season-results-table .season-result-points { width: 88px; text-align: center; vertical-align: middle; font-family: var(--label-font); white-space: normal; }
+.season-results-table .season-match-status { width: 130px; vertical-align: middle; }
+.season-results-table .season-match-actions { width: 68px; vertical-align: middle; }
+.season-results-table .season-match-number strong { font: 1.6rem/1 var(--display-font); color: var(--line-bright); }
+.season-results-table .season-score-input { width: 100%; min-height: 44px; border-radius: 0; font-family: var(--label-font); }
+.season-results-table .season-result-participant { background: var(--panel); font: inherit; color: var(--text); white-space: normal; }
+.season-result-identity { display: grid; gap: 9px; min-width: 0; }
+.season-result-side-label { font: .6rem/1.5 var(--label-font); text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+.season-result-identity .table-select { width: 100%; min-width: 0; max-width: none; min-height: 44px; border-radius: 0; text-overflow: ellipsis; }
+.season-results-table .season-pairing-team { min-width: 0; overflow-wrap: anywhere; }
+.season-match-group + .season-match-group > tr:first-child > * { border-top: 2px solid var(--line-bright); }
+.season-match-group:focus-within > tr > *, .season-match-group:hover > tr > * { background: var(--panel-2); }
+.season-results-table .table-actions { justify-content: center; }
+.season-results-table .season-status-pill { white-space: normal; }
+@media (max-width: 900px) {
+  .season-results-table, .season-results-table tbody { display: block; width: 100%; }
+  .season-results-table thead { display: none; }
+  .season-results-table .season-match-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line-bright); margin-bottom: 20px; }
+  .season-results-table .season-result-side { display: contents; }
+  .season-results-table .season-result-side > * { width: auto; border: 0; min-width: 0; }
+  .season-results-table .season-match-number { order: 0; grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--panel-2); }
+  .season-results-table .season-match-number::before { content: attr(data-label); font: .65rem/1.5 var(--label-font); color: var(--muted); }
+  .season-results-table .season-result-participant { grid-column: 1 / -1; padding: 16px 16px 12px; border-top: 1px solid var(--line); }
+  .season-results-table .season-result-home > .season-result-participant { order: 1; }
+  .season-results-table .season-result-home > .season-result-counter, .season-results-table .season-result-home > .season-result-points { order: 2; }
+  .season-results-table .season-result-away > .season-result-participant { order: 3; }
+  .season-results-table .season-result-away > .season-result-counter, .season-results-table .season-result-away > .season-result-points { order: 4; }
+  .season-results-table .season-result-counter, .season-results-table .season-result-points { padding: 0 16px 16px; text-align: left; }
+  .season-results-table .season-result-counter::before, .season-results-table .season-result-points::before { content: attr(data-label); display: block; font: .65rem/1.5 var(--label-font); color: var(--muted); margin-bottom: 8px; }
+  .season-results-table .season-result-points { font-size: 1.2rem; }
+  .season-results-table .season-match-status { order: 5; grid-column: 1 / -1; border-top: 1px solid var(--line); padding: 14px 16px; }
+  .season-results-admin .season-match-status { grid-column: 1 / span 2; }
+  .season-results-table .season-match-actions { order: 5; grid-column: 3; border-top: 1px solid var(--line); padding: 14px 16px; }
+  .season-results-table .table-actions { justify-content: end; }
+  .season-match-group + .season-match-group > tr:first-child > * { border-top: 0; }
+  .season-match-group + .season-match-group > tr:first-child > .season-match-status,
+  .season-match-group + .season-match-group > tr:first-child > .season-match-actions { border-top: 1px solid var(--line); }
+}

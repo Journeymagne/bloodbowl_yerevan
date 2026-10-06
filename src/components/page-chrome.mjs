@@ -9,6 +9,7 @@
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
+import { MATCHDAY_CREST } from "./matchday.mjs";
 import { view } from "../core/view.mjs";
 
 /**
@@ -51,7 +52,9 @@ export function renderHeader(title, description, actions = "", options = {}) {
   ` : "";
   return `
     <header class="page-head" data-key="page-head">
+      <span class="site-page-crest" aria-hidden="true">${MATCHDAY_CREST}</span>
       <div class="page-heading-main">
+        <span class="site-page-kicker">${t("roster.sevensLabel")}</span>
         <div class="page-title-row">
           <h1>${escapeHtml(title)}</h1>
           ${backButton}

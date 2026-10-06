@@ -26,6 +26,7 @@ import {
 import { clamp, costToNumber, countToNumber, rowCost } from "./values.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "./team-rules.mjs";
 import { normalizePlayerExtraSkills, selectedRosterPlayers } from "./players.mjs";
+import { sumMoney } from "../money.mjs";
 
 export function statModCost(stat, mod = 0) {
   return (advancementStatCosts[stat] ?? 0) * Math.max(0, mod);
@@ -73,7 +74,8 @@ export function eliteComboCost(row, player) {
  */
 export function playerAdjustmentCost(row, player) {
   const skillCost = normalizePlayerExtraSkills(row, player.extraSkills ?? []).reduce((sum, skill) => sum + skillModCost(skill), 0);
-  const statCost = Object.entries(player.statMods ?? {}).reduce((sum, [stat, mod]) => sum + statModCost(stat, Number(mod) || 0), 0);
+  const statCost = Object.entries(player.statMods ?? {}).reduce((sum, [stat, mod]) => sum + statModCost(stat,
+    (Number(mod) || 0) - (Number(player.injuryStatMods?.[stat]) || 0)), 0);
   const contractCost = countToNumber(player.extendedContracts) * extendedContractCost;
   return skillCost + statCost + contractCost + eliteComboCost(row, player);
 }
@@ -108,13 +110,13 @@ export function staffItemCost(draft, key) {
 export function spendTreasury(draft, amount) {
   const cost = countToNumber(amount);
   if (!cost) return;
-  draft.treasury = countToNumber(draft.treasury) - cost;
+  draft.treasury = sumMoney(countToNumber(draft.treasury), -cost);
 }
 
 export function refundTreasury(draft, amount) {
   const value = countToNumber(amount);
   if (!value) return;
-  draft.treasury = countToNumber(draft.treasury) + value;
+  draft.treasury = sumMoney(countToNumber(draft.treasury), value);
 }
 
 export function markStaffPurchased(draft, key, delta) {

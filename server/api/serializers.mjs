@@ -171,6 +171,8 @@ export function publicSeasonPairing(row) {
     homePoints: row.home_points ?? null,
     awayPoints: row.away_points ?? null,
     resultStatus,
+    preparationStatus: row.preparation_status ?? "not_started",
+    postMatchStatus: row.post_match_status ?? "not_started",
     proposedByUserId: row.proposed_by_user_id ?? null,
     proposedHomeTouchdowns: row.proposed_home_touchdowns ?? null,
     proposedAwayTouchdowns: row.proposed_away_touchdowns ?? null,
@@ -201,9 +203,10 @@ export function publicGame(row, viewerId) {
   const pairing = publicSeasonPairing(row);
   return {
     ...pairing,
-    season: { id: row.season_id, name: row.season_name, status: row.season_status, currentRound: Number(row.season_current_round ?? 0) },
-    home: row.home_user_id ? { user: { id: row.home_user_id, login: row.home_user_login }, team: { id: row.home_team_id, name: row.home_team_name, baseTeamSlug: row.home_team_slug, logoUrl: row.home_team_id ? `/api/team-logos/${row.home_team_id}` : null } } : null,
-    away: row.away_user_id ? { user: { id: row.away_user_id, login: row.away_user_login }, team: { id: row.away_team_id, name: row.away_team_name, baseTeamSlug: row.away_team_slug, logoUrl: row.away_team_id ? `/api/team-logos/${row.away_team_id}` : null } } : null,
+    kind: row.match_kind || "league",
+    season: row.match_kind === "friendly" ? null : { id: row.season_id, name: row.season_name, status: row.season_status, currentRound: Number(row.season_current_round ?? 0) },
+    home: row.home_user_id ? { user: { id: row.home_user_id, login: row.home_user_login }, team: { id: row.home_team_id, name: row.home_team_name, baseTeamSlug: row.home_team_slug, logoUrl: row.home_team_id && row.home_team_has_logo ? `/api/team-logos/${row.home_team_id}` : null } } : null,
+    away: row.away_user_id ? { user: { id: row.away_user_id, login: row.away_user_login }, team: { id: row.away_team_id, name: row.away_team_name, baseTeamSlug: row.away_team_slug, logoUrl: row.away_team_id && row.away_team_has_logo ? `/api/team-logos/${row.away_team_id}` : null } } : null,
     viewerIsHome: row.home_user_id === viewerId,
     viewerIsProposer: row.proposed_by_user_id === viewerId,
   };

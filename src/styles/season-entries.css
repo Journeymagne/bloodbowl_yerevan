@@ -1,0 +1,24 @@
+/* Registered teams share the same list in registration and administration. */
+.season-entries-scroll { margin: 0; padding: 0; }
+.season-entries-scroll::after { display: none; }
+.table-scroll .season-entries-table { width: 100%; min-width: 0; table-layout: fixed; }
+.season-entries-table .season-entry-coach { width: 34%; }
+.season-entries-table .season-entry-actions { width: 80px; text-align: center; }
+.season-entries-table td { padding: 12px 16px; vertical-align: middle; overflow-wrap: anywhere; }
+.season-entries-table a { display: inline-block; max-width: 100%; min-height: 44px; padding: 10px 0; font-size: .95rem; line-height: 1.5; }
+.season-entry-row:focus-within > td, .season-entry-row:hover > td { background: var(--panel-2); }
+@media (max-width: 600px) {
+  .season-entries-table { display: block; }
+  .season-entries-table thead { display: none; }
+  .season-entries-table tbody { display: grid; gap: 12px; }
+  .season-entries-table .season-entry-row { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px 16px; padding: 16px; border: 1px solid var(--line); background: var(--panel); }
+  .season-entries-admin .season-entry-row { grid-template-columns: minmax(0, 1fr) 44px; }
+  .season-entries-table td { min-width: 0; width: auto; padding: 0; border: 0; background: none; }
+  .season-entries-table .season-entry-coach { grid-column: 1; grid-row: 1; width: auto; }
+  .season-entries-table .season-entry-team { grid-column: 1; grid-row: 2; }
+  .season-entries-table .season-entry-actions { grid-column: 2; grid-row: 1 / span 2; align-self: center; width: auto; }
+  .season-entries-table .season-entry-coach::before, .season-entries-table .season-entry-team::before { content: attr(data-label); display: block; font: .6rem/1.5 var(--label-font); text-transform: uppercase; letter-spacing: .8px; color: var(--muted); }
+  .season-entries-table a { padding: 8px 0; }
+  .season-entry-row:focus-within, .season-entry-row:hover { background: var(--panel-2); }
+  .season-entry-row:focus-within > td, .season-entry-row:hover > td { background: none; }
+}

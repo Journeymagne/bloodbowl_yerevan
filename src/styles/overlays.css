@@ -1,3 +1,13 @@
+/* Shared dialog surface for account, confirmation, hiring and advancement. */
+.auth-dialog, .app-dialog, .matchday-hire-dialog {
+  max-height: calc(100dvh - 32px); padding: 0; overflow: auto; overscroll-behavior: contain;
+  border: 2px solid var(--line-bright); border-radius: var(--radius);
+  background: var(--panel); color: var(--text); box-shadow: 5px 5px 0 var(--line-bright);
+}
+.auth-dialog { padding: 24px; }
+.auth-dialog h2, .app-dialog h2, .matchday-hire-dialog h2 { font: 400 1.8rem/1.2 var(--display-font); text-transform: uppercase; }
+.app-dialog::backdrop, .matchday-hire-dialog::backdrop { background: var(--overlay-bg); backdrop-filter: blur(3px); }
+
 /*
  * What sits above a screen or outside it: toasts, dialogs, the focus ring, reduced motion, the screen-reader region.
  *
@@ -17,45 +27,19 @@
   max-width: min(380px, calc(100vw - 32px));
 }
 
-.toast {
-  display: block;
-  padding: 12px 14px;
-  border: 1px solid rgba(240, 200, 74, 0.38);
-  border-radius: var(--radius);
-  background: var(--surface-strong);
-  color: var(--text);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
-  cursor: pointer;
-}
-
+.toast { display: block; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--line-bright); border-radius: var(--radius); background: var(--panel); color: var(--text); box-shadow: 3px 3px 0 var(--line); cursor: pointer; }
 .toast-error {
   border-color: var(--danger);
 }
 
-.app-dialog {
-  max-width: min(440px, calc(100vw - 32px));
-  padding: 0;
-  border: 1px solid rgba(240, 200, 74, 0.38);
-  border-radius: var(--radius);
-  background: var(--surface-strong);
-  color: var(--text);
-}
-
-.app-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.55);
-}
-
+.app-dialog { max-width: min(440px, calc(100vw - 32px)); }
 .app-dialog-form {
   display: grid;
   gap: 14px;
   padding: 20px;
 }
 
-.app-dialog-title {
-  margin: 0;
-  font-size: 1.125rem;
-}
-
+.app-dialog-title { margin: 0; }
 .app-dialog-message {
   margin: 0;
   line-height: 1.5;
