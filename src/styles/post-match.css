@@ -34,7 +34,7 @@
 .post-accounting-grid { display: grid; grid-template-columns: minmax(0, 1fr) max-content; gap: 8px 20px; margin: 0; font-size: .82rem; }
 .post-accounting dt { color: var(--muted); }
 .post-accounting dd { margin: 0; font-family: var(--label-font); text-align: right; }
-.post-review-details h4 { margin: 20px 0 8px; font-family: var(--label-font); font-size: .72rem; color: var(--muted); }
+.post-review-details h4 { margin: 20px 0 8px; font-family: var(--display-font); font-size: .8rem; color: var(--muted); }
 .post-review-details p { font-size: .8rem; }
 .post-review-list { padding-left: 18px; font-size: .8rem; }
 .post-review-list li { padding-bottom: 12px; overflow-wrap: anywhere; }

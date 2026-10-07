@@ -190,10 +190,8 @@
   align-content: start;
 }
 
-.roster-purchase-card .inline-stepper-control,
-.roster-purchase-input {
+.roster-purchase-card .inline-stepper-control {
   justify-self: end;
-  width: min(174px, 100%);
 }
 
 .roster-purchase-input {
@@ -373,15 +371,6 @@
 
 .builder-tracker-control .inline-stepper-control {
   justify-self: center;
-  min-height: 44px;
-  grid-template-columns: 44px minmax(54px, 1fr) 44px;
-}
-
-.builder-tracker-control .inline-stepper-control .filter-button {
-  min-height: 44px;
-  padding: 0;
-  font-size: 1.125rem;
-  font-weight: 900;
 }
 
 .compact-staff-control {
@@ -404,13 +393,9 @@
 .compact-staff-control .inline-stepper-control {
   align-self: center;
   justify-self: center;
-  width: min(174px, 100%);
 }
 
 .compact-staff-control .inline-stepper-control > strong {
-  display: grid;
-  min-height: 44px;
-  place-items: center;
   font-size: 1.125rem;
 }
 

@@ -247,8 +247,13 @@
 
 .team-roster-card header span {
   display: block;
-  margin-top: 3px;
-  color: var(--muted);
+  width: fit-content;
+  margin-top: 6px;
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font-size: .875rem;
   font-weight: 700;
 }
 
@@ -464,4 +469,3 @@
   grid-template-columns: 1fr;
   gap: 14px;
 }
-

@@ -25,6 +25,16 @@ export function matchdayDetailsOpen(draft, key, defaultOpen = false) {
   return (uiFor(draft).details.get(key) ?? defaultOpen) ? "open" : "";
 }
 
+/** Close every nested panel and remember it before the next render. */
+export function collapseMatchdayDetails(root, draft) {
+  const ui = uiFor(draft);
+  for (const details of root.querySelectorAll("details")) {
+    details.open = false;
+    const key = details.dataset.matchdayDetails;
+    if (key) ui.details.set(key, false);
+  }
+}
+
 function addPlayerButton(className = "") {
   return `<button class="primary-button matchday-add-player ${className}" type="button" data-matchday-open-hire>${PLUS}<span>${t("roster.addPlayerButton")}</span></button>`;
 }
@@ -56,11 +66,11 @@ export function renderMatchdayEditor({ team, draft, costs, mode, identityHtml, s
       <summary>${t(readOnly ? "roster.teamDetails" : "roster.teamSettings")}</summary><div class="matchday-identity-body">${identityHtml}</div>
     </details>
     <div class="matchday-workspace" data-key="matchday-workspace">
+      <aside class="matchday-sidebar">${summaryHtml}${purchasesHtml}</aside>
       <section class="matchday-roster builder-selected">
         <div class="matchday-roster-heading"><div><span class="matchday-eyebrow">${t("roster.sevensLabel")}</span><h2>${t("savedRoster.rosterHeading")}<span class="matchday-heading-dot">.</span></h2></div>${readOnly ? "" : addPlayerButton("matchday-desktop-hire")}</div>
         ${playersHtml}
       </section>
-      <aside class="matchday-sidebar">${summaryHtml}${purchasesHtml}</aside>
     </div>
     ${readOnly ? "" : `<div class="matchday-mobile-dock"><div><strong class="${money < 0 ? "danger-text" : ""}">${money}k</strong><small>${t(mode.enforcesBudget ? "builder.remaining" : "savedRoster.treasury")}</small></div>${addPlayerButton()}</div>
     <dialog class="matchday-hire-dialog" data-key="matchday-hire-dialog" data-matchday-hire-dialog aria-labelledby="matchday-hire-title">
@@ -90,8 +100,12 @@ export function wireMatchdayEditor(root, draft) {
   const cancel = () => { ui.hireOpen = false; document.body.classList.remove("matchday-modal-open"); };
   dialog.addEventListener("cancel", cancel);
   events.own(() => dialog.removeEventListener("cancel", cancel));
-  for (const details of root.querySelectorAll("[data-matchday-details]")) {
-    const remember = () => ui.details.set(details.dataset.matchdayDetails, details.open);
+  for (const details of root.querySelectorAll("details")) {
+    const remember = () => {
+      const key = details.dataset.matchdayDetails;
+      if (key) ui.details.set(key, details.open);
+      if (!details.open) collapseMatchdayDetails(details, draft);
+    };
     details.addEventListener("toggle", remember);
     events.own(() => details.removeEventListener("toggle", remember));
   }

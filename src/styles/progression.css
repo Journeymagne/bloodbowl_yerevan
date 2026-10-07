@@ -1,0 +1,36 @@
+/* A readable SPP balance beside the single paid advancement form. */
+.player-level-stack { gap: 12px; color: var(--text); }
+.player-level-stack > strong { font-size: 1rem; line-height: 1.5; }
+.player-level-number { color: var(--text); }
+.player-progression-balance {
+  width: 100%; max-width: 330px;
+  padding: 12px; border: 1px solid var(--line-bright); border-left-width: 3px;
+  background: var(--panel-2); color: var(--text);
+}
+.player-progression-balance h4, .advancement-history h4 {
+  margin: 0 0 8px; font-size: .875rem; font-weight: 800; line-height: 1.5;
+}
+.player-spp-ledger { display: grid; margin: 0; }
+.player-spp-ledger > div {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 8px 0; border-bottom: 1px solid var(--line);
+}
+.player-spp-ledger > div:last-child { border-bottom: 0; }
+.player-spp-ledger dt { color: var(--text); font-size: .875rem; line-height: 1.5; }
+.player-spp-ledger dd { margin: 0; color: var(--text); font-size: 1rem; font-weight: 700; }
+.player-spp-ledger .player-spp-available dd { font-size: 1.6rem; }
+.player-advancement-form {
+  display: grid; gap: 12px; min-width: 0; max-width: 420px;
+  padding: 12px; border: 1px solid var(--line); background: var(--panel-2);
+}
+.advancement-field { display: grid; gap: 6px; min-width: 0; color: var(--text); font-size: .875rem; line-height: 1.5; }
+.advancement-field > span { font-weight: 700; }
+.advancement-field .table-select { width: 100%; min-width: 0; min-height: 44px; font-size: .875rem; }
+.advancement-payment, .advancement-hint, .advancement-history p, .advancement-control .advancement-next {
+  margin: 0; color: var(--text); font-size: .875rem; font-weight: 400; line-height: 1.5;
+}
+.advancement-payment.danger-text { color: var(--text); padding-left: 8px; border-left: 3px solid var(--danger); }
+.player-advancement-form .primary-button { justify-self: start; max-width: 100%; font-size: .875rem; }
+.advancement-control { gap: 12px; min-width: 0; }
+.advancement-history { padding-top: 12px; border-top: 1px solid var(--line); }
+.advancement-history .advancement-list { gap: 8px; }

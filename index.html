@@ -10,6 +10,8 @@
     <!-- Runs before the stylesheet paints, so a chosen light theme never flashes dark. -->
     <script src="src/theme-boot.js?v=gata-63"></script>
     <link rel="preload" as="image" href="assets/brand/gata-league-logo-96.png" fetchpriority="high">
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/comfortaa/comfortaa-latin-wght-normal.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/comfortaa/comfortaa-cyrillic-wght-normal.woff2" crossorigin>
     <!-- A plain stylesheet link, not preload plus an onload swap: that swap was
          inline JavaScript, and the Content-Security-Policy no longer allows any
          (step 17.5). Render-blocking CSS also cannot flash unstyled content. -->

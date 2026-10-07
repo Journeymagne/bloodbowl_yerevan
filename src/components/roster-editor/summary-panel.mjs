@@ -1,5 +1,5 @@
 /**
- * The summary both editors show beside the roster.
+ * The summary both editors show above the roster.
  *
  * Step 7.5. The two had the same skeleton — a title with a link to the race,
  * a definition list of figures, then either the rule violations or a note that

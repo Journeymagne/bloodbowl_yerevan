@@ -54,12 +54,18 @@
 .checkbox-field { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--muted); font-size: .8rem; font-weight: 700; }
 .checkbox-field input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--line-bright); }
 .inline-stepper-control {
-  display: grid; grid-template-columns: 44px minmax(24px, auto) 44px; align-items: center;
-  overflow: hidden; min-height: 44px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2);
+  display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: 44px;
+  width: max-content; flex-shrink: 0; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel-2);
 }
-.inline-stepper-control strong { color: var(--text); text-align: center; font-family: var(--label-font); }
+.inline-stepper-control > strong {
+  display: grid; place-items: center; min-width: 0;
+  color: var(--text); text-align: center; font-family: var(--label-font); line-height: 1;
+}
 .inline-stepper-control button {
-  width: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 0;
+  display: grid; place-items: center;
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px; padding: 0; border: 0; border-radius: 0;
+  font-size: 1.125rem; font-weight: 700; line-height: 1;
   background: var(--panel); color: var(--text); cursor: pointer;
 }
 .inline-stepper-control button:hover:not(:disabled) { background: var(--button-bg-hover); }

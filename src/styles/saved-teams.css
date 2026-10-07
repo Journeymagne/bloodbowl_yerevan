@@ -1,6 +1,6 @@
 /* Shared saved-team cards; profiles use the same roster entry points. */
-.saved-team-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 24px; }
-.saved-team-card { display: grid; padding: 24px; gap: 22px; align-content: start; }
+.saved-team-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 360px), 1fr)); gap: 24px; }
+.saved-team-card { display: grid; width: 100%; max-width: 420px; min-width: 0; padding: 24px; gap: 22px; align-content: start; }
 .saved-team-card-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: center; }
 .saved-team-card-head:not(:has(img)) { grid-template-columns: minmax(0, 1fr); }
 .saved-team-card-head img { width: 64px; height: 64px; margin: 0; object-fit: contain; background: var(--bone); padding: 4px; border: 1px solid var(--line-bright); }

@@ -1,6 +1,6 @@
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { renderRosterLinks } from "../content-links.mjs";
+import { renderCaptainBadge, renderRosterLinks } from "../content-links.mjs";
 import { calculateMatchCtv } from "../../domain/match/roster.mjs";
 import { matchBudget } from "../../domain/match/budget.mjs";
 import { otherSide } from "../../domain/match/rules.mjs";
@@ -24,7 +24,7 @@ export function playerCard(player, remove = false) {
     <header><span class="pre-player-number">${safe(player.number)}</span><div><h3>${safe(player.name)}</h3><small>${safe(player.row?.position || t("pre.star"))}</small></div><strong>${money(player.value)}</strong></header>
     <div class="pre-stat-grid">${PLAYER_STATS.map(stat => `<div><span>${t(`stats.${stat}`)}</span><strong>${safe(player.stats?.[stat] || "—")}</strong></div>`).join("")}</div>
     <div class="pre-skills">${renderRosterLinks(player.skills || [])}</div>
-    <footer>${player.temporary ? `<span class="pre-badge">${t("pre.temporary")}</span>` : ""}${player.isCaptain ? `<span class="pre-badge">${t("roster.captain")}</span>` : ""}${player.temporaryEffects?.length ? `<span class="pre-badge">${safe(player.temporaryEffects.join(" · "))}</span>` : ""}
+    <footer>${player.temporary ? `<span class="pre-badge">${t("pre.temporary")}</span>` : ""}${player.isCaptain ? renderCaptainBadge("pre-badge") : ""}${player.temporaryEffects?.length ? `<span class="pre-badge">${safe(player.temporaryEffects.join(" · "))}</span>` : ""}
     ${remove ? `<button class="filter-button" type="button" data-pre-remove="${safe(player.id)}">${t("common.remove")}</button>` : ""}</footer>
   </article>`;
 }

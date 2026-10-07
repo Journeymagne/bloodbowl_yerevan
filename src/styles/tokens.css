@@ -21,8 +21,9 @@
   --danger: #e85c3f;
   --bone: #efe0b7;
   --radius: 0;
-  --display-font: Impact, "Arial Narrow", sans-serif;
-  --label-font: Consolas, "Courier New", monospace;
+  --body-font: "Comfortaa", "Segoe UI", sans-serif;
+  --display-font: "Nunito", "Comfortaa", "Segoe UI", sans-serif;
+  --label-font: var(--body-font);
   --md-accent: var(--line-bright);
   --md-wash: color-mix(in srgb, var(--md-accent) 10%, var(--panel));
   --stat-up-bg: color-mix(in srgb, var(--accent-2) 14%, var(--panel));
@@ -60,7 +61,7 @@
   --modal-bg: rgba(18, 12, 9, 0.96);
   --overlay-bg: rgba(0, 0, 0, 0.64);
   --scroll-fade: rgba(18, 12, 9, 0.92);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--body-font);
 }
 
 :root[data-theme="dark-dugout"] {

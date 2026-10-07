@@ -22,6 +22,7 @@ const team = state.data.teams.find(item => item.slug === "teams/dwarf");
 const draft = createDraft(team);
 const player = createPlayer(rowsForTeam(team)[0], 0, 0);
 player.spp = { touchdowns: 3, casualties: 1, knockouts: 0, completions: 0, catches: 0, interceptions: 0, mvps: 1 };
+player.advancements = [{ type: "primary" }];
 draft.players = [player];
 
 function assertInactiveButtons(html, count) {
@@ -35,10 +36,12 @@ test("public SPP counters show values without editable inputs or action attribut
   assertInactiveButtons(html, 20);
   assert.doesNotMatch(html, /<input\b|data-saved-player-spp/);
   assert.match(html, /<output[^>]*aria-label="TD">3<\/output>/);
-  assert.match(html, /data-player-spp-total>14<\/strong>/);
+  assert.match(html, /<strong data-player-available-spp>8<\/strong>/);
+  assert.match(html, /<small data-player-spp-total>[^<]*: 14<\/small>/);
   const editable = renderSppControls(team, player);
   assert.equal((editable.match(/<input\b/g) ?? []).length, 10);
   assert.match(editable, /data-saved-player-spp-action="touchdowns"/);
+  assert.match(editable, /<strong data-player-available-spp>8<\/strong>/);
 });
 
 test("public staff counters cannot trigger purchases even with a nonzero value", () => {

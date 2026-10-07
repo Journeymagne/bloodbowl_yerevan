@@ -5,7 +5,7 @@
 .season-results-table .season-result-points { width: 88px; text-align: center; vertical-align: middle; font-family: var(--label-font); white-space: normal; }
 .season-results-table .season-match-status { width: 130px; vertical-align: middle; }
 .season-results-table .season-match-actions { width: 68px; vertical-align: middle; }
-.season-results-table .season-match-number strong { font: 1.6rem/1 var(--display-font); color: var(--line-bright); }
+.season-results-table .season-match-number strong { font: 700 1.6rem/1 var(--body-font); color: var(--line-bright); }
 .season-results-table .season-score-input { width: 100%; min-height: 44px; border-radius: 0; font-family: var(--label-font); }
 .season-results-table .season-result-participant { background: var(--panel); font: inherit; color: var(--text); white-space: normal; }
 .season-result-identity { display: grid; gap: 9px; min-width: 0; }

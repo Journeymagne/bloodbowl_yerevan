@@ -21,9 +21,10 @@ export function uniqueSorted(values) {
 }
 
 export function pageForSkillTableEntry(title) {
-  return state.data.skills.find((page) => page.title === title)
-    ?? state.data.traits.find((page) => page.title === title)
-    ?? state.data.pages.find((page) => page.title === title)
+  const pages = [...state.data.skills, ...state.data.traits, ...state.data.pages];
+  const lookupTitle = title.trim().replace(/^Loner\s*(?:\(\s*(?:[1-6]|X)\s*\+\s*\)|(?:[1-6]|X)\s*\+)$/i, "Loner (X+)");
+  return pages.find((page) => page.title === title)
+    ?? pages.find((page) => page.title.toLowerCase() === lookupTitle.toLowerCase())
     ?? null;
 }
 
@@ -49,6 +50,14 @@ export function pageForRuleEntry(title) {
   const key = ruleLookupKey(title);
   return [...state.data.pages, ...state.data.skills, ...state.data.traits].find((page) => ruleLookupKey(page.title) === key)
     ?? null;
+}
+
+export function renderCaptainBadge(className = "roster-pill roster-pill-muted") {
+  const page = pageForRuleEntry("Team Captain");
+  const label = escapeHtml(t("roster.captain"));
+  return page
+    ? `<a class="${className}" href="${pageUrl(page)}">${label}</a>`
+    : `<span class="${className}">${label}</span>`;
 }
 
 export function renderRuleLinks(items = []) {

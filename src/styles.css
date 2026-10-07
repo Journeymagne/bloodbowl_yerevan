@@ -6,6 +6,7 @@
  * @import is a request each in development. The build inlines them into one
  * file for dist/, which is what the site serves.
  */
+@import url("styles/fonts.css");
 @import url("styles/tokens.css");
 @import url("styles/shell.css");
 @import url("styles/pages.css");
@@ -16,6 +17,7 @@
 @import url("styles/overlays.css");
 @import url("styles/controls.css");
 @import url("styles/matchday.css");
+@import url("styles/progression.css");
 @import url("styles/pre-match.css");
 @import url("styles/challenges.css");
 @import url("styles/site-matchday.css");

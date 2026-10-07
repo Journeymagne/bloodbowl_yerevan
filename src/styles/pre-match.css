@@ -8,7 +8,7 @@
 .pre-workspace { align-items: start; }
 .pre-workspace .matchday-sidebar { padding-top: 0; }
 .pre-content { min-width: 0; }
-.pre-content > h2, .pre-section-head h2 { font: 2rem var(--display-font); text-transform: uppercase; margin: 0; }
+.pre-content > h2, .pre-section-head h2 { font: 800 2rem/1.2 var(--display-font); text-transform: uppercase; margin: 0; }
 .pre-intro { color: var(--muted); font-size: .8rem; line-height: 1.7; margin: 18px 0; }
 .pre-section-head { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 20px; }
 .pre-section-head .primary-button { min-height: 44px; }
@@ -33,7 +33,7 @@
 .pre-player-card > header > div { flex: 1; min-width: 0; }
 .pre-player-card h3 { margin: 0 0 5px; font-size: .86rem; overflow-wrap: anywhere; }
 .pre-player-card small { color: var(--muted); font-size: .65rem; }
-.pre-player-number { color: var(--line-bright); font: 1.45rem var(--display-font); }
+.pre-player-number { color: var(--line-bright); font: 700 1.45rem var(--body-font); }
 .pre-player-card > header > strong { font: .8rem var(--label-font); }
 .pre-stat-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--line); }
 .pre-stat-grid > div { text-align: center; padding: 8px 2px; border-right: 1px solid var(--line); }
@@ -67,7 +67,6 @@
 .pre-inducement-card header strong { white-space: nowrap; font: .9rem var(--label-font); color: var(--line-bright); }
 .pre-inducement-card header small, .pre-inducement-card > p { font-size: .68rem; color: var(--muted); line-height: 1.65; }
 .pre-inducement-card footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; }
-.pre-inducement-card .inline-stepper-control { grid-template-columns: 44px 24px 44px; }
 .pre-inducement-card .inline-stepper-control button:disabled, .pre-inducement-card .inline-stepper-control button[aria-disabled] { opacity: .5; cursor: default; }
 .pre-inducement-card .inline-stepper-control strong { font: .9rem var(--label-font); }
 .pre-inducement-card.is-unavailable { opacity: .7; }

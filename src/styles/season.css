@@ -390,7 +390,7 @@
 .admin-reset-password-value input {
   min-width: 0;
   flex: 1;
-  font-family: ui-monospace, SFMono-Regular, var(--label-font);
+  font-family: var(--label-font);
 }
 
 .danger-action {

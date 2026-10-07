@@ -11,14 +11,15 @@ import { countToNumber, PLAYER_STATS, statValueForDisplayByStat } from "../../do
 import { hasBribery } from "../../domain/roster/team-rules.mjs";
 import { ensureDraftPlayers, favouredSkillNames, normalizePlayerAdvancements, selectedRosterPlayers, skillNamesForPlayer } from "../../domain/roster/players.mjs";
 import { calculateRosterCosts, playerCurrentCost } from "../../domain/roster/costs.mjs";
-import { playerAdvancementLevel, playerAdvancementSpent, playerLevelRank, playerSppTotal, rosterTotalSpp } from "../../domain/roster/progression.mjs";
+import { playerAvailableSpp, rosterTotalSpp } from "../../domain/roster/progression.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { renderPlayerLink, renderRosterLinks } from "../../components/content-links.mjs";
+import { renderCaptainBadge, renderPlayerLink, renderRosterLinks } from "../../components/content-links.mjs";
 import { ensureDraftLeagueChoice, playerStatusText, renderTeamRuleAccess, rosterWarnings } from "../../components/roster-editor-shared.mjs";
 import { renderMatchdayEditor } from "../../components/roster-editor/matchday-layout.mjs";
 import { LEAGUE_MODE } from "../../components/roster-editor/modes.mjs";
 import { renderSummaryPanel } from "../../components/roster-editor/summary-panel.mjs";
 import { renderSppControls } from "../../components/roster-editor/spp-controls.mjs";
+import { renderPlayerLevel } from "../../components/roster-editor/advancement-controls.mjs";
 import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl } from "../../components/roster-editor/staff-control.mjs";
 import { normalizeSavedRoster } from "../../data/roster-draft.mjs";
 
@@ -133,11 +134,11 @@ function renderPublicPlayerCard(team, player, index) {
     </section>
     <section class="mobile-player-section">
       <h3>${t("roster.skillsLabel")}</h3>
-      <div class="mobile-player-pills">${renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player))}</div>
+      <div class="mobile-player-pills">${renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player))}${player.isCaptain ? renderCaptainBadge() : ""}</div>
     </section>
-    ${renderPublicPlayerDetails(player)}
-    <details class="matchday-player-spp" ${index === 0 ? "open" : ""}>
-      <summary><span>${t("roster.sppTrackers")}</span><strong>${playerSppTotal(team, player)} SPP</strong></summary>
+    ${renderPublicPlayerDetails(team, player)}
+    <details class="matchday-player-spp">
+      <summary><span>${t("roster.sppAvailable")}</span><strong data-player-available-spp>${playerAvailableSpp(team, player)}</strong></summary>
       <div class="matchday-player-spp-body">${renderSppControls(team, player, { readOnly: true })}</div>
     </details>
   </article>`;
@@ -152,7 +153,7 @@ function renderPublicPlayerStats(player) {
   }).join("")}</div>`;
 }
 
-function renderPublicPlayerDetails(player) {
+function renderPublicPlayerDetails(team, player) {
   const flags = [["roster.captain", player.isCaptain], ["roster.skipNextGame", player.skipNextGame], ["roster.niglingInjury", player.niglingInjury]];
   const advancements = normalizePlayerAdvancements(player.advancements);
   return `<details class="matchday-player-details">
@@ -164,7 +165,7 @@ function renderPublicPlayerDetails(player) {
     </section>
     <section class="mobile-player-section">
       <h3>${t("roster.levelHeader")}</h3>
-      <div class="player-level-stack"><strong>${playerAdvancementLevel(player)} (${escapeHtml(playerLevelRank(player))})</strong><small>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small></div>
+      ${renderPlayerLevel(team, player)}
       <div class="mobile-player-pills">${advancements.map((advancement, index) => `<span class="roster-pill advancement-pill">${escapeHtml(`${index + 1}. ${advancementTypeLabels[advancement.type] ?? advancement.type}: ${advancementRanks[index]?.costs?.[advancement.type] ?? 0} SPP`)}</span>`).join("")}</div>
     </section>
   </details>`;

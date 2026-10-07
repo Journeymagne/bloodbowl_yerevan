@@ -12,7 +12,7 @@ export function renderSppControls(team, player, { readOnly = false } = {}) {
     ${sppCounterDefinitions.map(([key, label]) => {
       const id = `spp-${player.id}-${key}`;
       return `<div class="spp-counter-field matchday-spp-counter" data-key="${escapeHtml(id)}">
-        <label for="${escapeHtml(id)}"><span>${label}</span><small>+${weights[key]} SPP</small></label>
+        <label for="${escapeHtml(id)}"><span>${label}</span><small>+${weights[key]}</small></label>
         <div class="matchday-spp-stepper">
           <button type="button" class="filter-button" ${readOnly ? "disabled" : `data-saved-player-spp-action="${key}" data-spp-delta="-1" ${spp[key] <= 0 ? "disabled" : ""}`} aria-label="${escapeHtml(t("roster.decreaseSpp", { counter: label }))}">−</button>
           ${readOnly ? `<output id="${escapeHtml(id)}" aria-label="${label}">${spp[key]}</output>` : `<input id="${escapeHtml(id)}" type="number" min="0" step="1" inputmode="numeric" value="${spp[key]}" data-saved-player-spp="${key}" aria-label="${label}">`}
@@ -20,6 +20,6 @@ export function renderSppControls(team, player, { readOnly = false } = {}) {
         </div>
       </div>`;
     }).join("")}
-    <div class="matchday-spp-total"><span>${t("savedRoster.totalSppLabel")}</span><strong data-player-spp-total>${playerSppTotal(team, player)}</strong><small data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small></div>
+    <div class="matchday-spp-total"><span>${t("roster.sppAvailable")}</span><strong data-player-available-spp>${playerAvailableSpp(team, player)}</strong><small data-player-spp-total>${t("savedRoster.totalSppLabel")}: ${playerSppTotal(team, player)}</small></div>
   </div>`;
 }

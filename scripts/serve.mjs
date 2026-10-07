@@ -16,6 +16,7 @@ const mimeTypes = new Map([
   [".png", "image/png"],
   [".svg", "image/svg+xml"],
   [".ico", "image/x-icon"],
+  [".woff2", "font/woff2"],
 ]);
 
 // Same whitelist as the production server, so the dev server cannot serve

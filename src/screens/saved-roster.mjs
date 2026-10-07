@@ -21,16 +21,13 @@ import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } f
 import { pageUrl } from "../core/routes.mjs";
 import { onScreenLeave } from "../core/screen-lifecycle.mjs";
 import {
-  advancementRanks,
-  advancementTypeLabels,
   builderStaffMaximums,
 } from "../domain/league-rules.mjs";
-import { PLAYER_STATS, categoriesForAccess, clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
+import { PLAYER_STATS, clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { hasBribery, teamFavouredOptions } from "../domain/roster/team-rules.mjs";
 import {
   ensureDraftPlayers,
   favouredSkillNames,
-  normalizePlayerAdvancements,
   normalizePlayerExtraSkills,
   normalizePlayerFavouredSkills,
   normalizeSppCounters,
@@ -41,12 +38,7 @@ import {
   syncRosterCountsFromPlayers,
 } from "../domain/roster/players.mjs";
 import {
-  canTakeAdvancement,
-  playerAdvancementLevel,
-  playerAdvancementSpent,
   playerAvailableSpp,
-  playerLevelRank,
-  playerSppTotal,
   rosterTotalSpp,
 } from "../domain/roster/progression.mjs";
 import {
@@ -60,7 +52,7 @@ import { SAVE_STATUS, createRosterStore } from "../data/roster-store.mjs";
 import { normalizeSavedRoster, rosterForStorage, updateSavedRosterFields } from "../data/roster-draft.mjs";
 import { renderRosterNotices, wireConflictBanner, wireRosterNotices } from "../components/roster-notices.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
-import { renderRosterLinks } from "../components/content-links.mjs";
+import { renderCaptainBadge, renderRosterLinks } from "../components/content-links.mjs";
 import { LEAGUE_MODE } from "../components/roster-editor/modes.mjs";
 import { renderDedicatedFansLine, renderHiredStaffLines, renderStaffControl } from "../components/roster-editor/staff-control.mjs";
 import { renderSummaryPanel } from "../components/roster-editor/summary-panel.mjs";
@@ -69,8 +61,9 @@ import { wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerRemoval, wirePlayerTransfers } from "../components/roster-editor/transfers.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
-import { closeMatchdayHire, patchMatchdayEditor, matchdayDetailsOpen, renderMatchdayEditor, wireMatchdayEditor } from "../components/roster-editor/matchday-layout.mjs";
+import { collapseMatchdayDetails, closeMatchdayHire, patchMatchdayEditor, matchdayDetailsOpen, renderMatchdayEditor, wireMatchdayEditor } from "../components/roster-editor/matchday-layout.mjs";
 import { renderSppControls } from "../components/roster-editor/spp-controls.mjs";
+import { renderPlayerAdvancements, renderPlayerLevel, wirePlayerAdvancements } from "../components/roster-editor/advancement-controls.mjs";
 import { autosaveMessageFor, wireAutosaveStatus } from "../components/roster-editor/autosave-status.mjs";
 import {
   ensureDraftFavouredChoice,
@@ -95,26 +88,6 @@ function setSavedRosterPlayerExpanded(playerId, expanded) {
   const expandedPlayers = state.savedRosterUi.expandedPlayers;
   if (expanded) expandedPlayers.add(playerId);
   else expandedPlayers.delete(playerId);
-}
-function availableSkillOptionsForPlayer(row, player) {
-  const base = new Set(skillNamesForPlayer(row, player));
-  const primaryCategories = categoriesForAccess(row.primary ?? []);
-  const secondaryCategories = categoriesForAccess(row.secondary ?? []);
-  const options = [];
-
-  (state.data.skillGroups ?? []).forEach((group) => {
-    const access = primaryCategories.includes(group.category)
-      ? "primary"
-      : secondaryCategories.includes(group.category)
-        ? "secondary"
-        : "";
-    if (!access) return;
-    (group.skills ?? []).forEach((name) => {
-      if (!base.has(name)) options.push({ name, access, category: group.category });
-    });
-  });
-
-  return options.sort((a, b) => a.name.localeCompare(b.name, "en"));
 }
 export async function renderSavedRoster(teamId, refresh = true, options = {}) {
   const isAdminEdit = Boolean(options.adminOwnerId);
@@ -479,8 +452,10 @@ function wireSavedPlayerEditors(team, draft, rerender) {
       if (player) handler({ target, card, player });
     });
   };
-  onPlayer("click", "[data-saved-player-expand],[data-saved-player-collapse]", ({ target, player }) => {
-    setSavedRosterPlayerExpanded(player.id, target.hasAttribute("data-saved-player-expand"));
+  onPlayer("click", "[data-saved-player-expand],[data-saved-player-collapse]", ({ target, card, player }) => {
+    const expanded = target.hasAttribute("data-saved-player-expand");
+    if (!expanded) collapseMatchdayDetails(card, draft);
+    setSavedRosterPlayerExpanded(player.id, expanded);
     rerender({ save: false });
   });
   onPlayer("click", "[data-saved-player-spp-action]", ({ target, player }) => {
@@ -530,27 +505,6 @@ function wireSavedPlayerEditors(team, draft, rerender) {
     player.statMods[stat] = clamp(countToNumber(player.statMods[stat]) + Number(target.dataset.savedStatDelta), -10, 10);
     saveChange();
   });
-  onPlayer("click", "[data-saved-player-add-skill]", ({ card, player }) => {
-    const input = card.querySelector("[data-saved-player-skill]");
-    const row = rowsForTeam(team)[player.rowIndex];
-    const typed = String(input?.value || "").trim();
-    const option = availableSkillOptionsForPlayer(row, player)
-      .find((item) => item.name.toLowerCase() === typed.toLowerCase());
-    if (!option) {
-      if (input) input.value = "";
-      return;
-    }
-    player.extraSkills ??= [];
-    if (player.extraSkills.some((skill) => skill.name === option.name)) return;
-    player.extraSkills.push({ name: option.name, access: option.access });
-    player.extraSkills = normalizePlayerExtraSkills(row, player.extraSkills);
-    sanitizeFavouredSkillsForTeam(team, draft);
-    rerender();
-  });
-  onPlayer("click", "[data-saved-player-remove-skill]", ({ target, player }) => {
-    player.extraSkills = (player.extraSkills ?? []).filter((skill) => skill.name !== target.dataset.savedPlayerRemoveSkill);
-    rerender();
-  });
   onPlayer("click", "[data-saved-player-add-favoured]", ({ card, player }) => {
     const input = card.querySelector("[data-saved-player-favoured-skill]");
     const row = rowsForTeam(team)[player.rowIndex];
@@ -574,25 +528,7 @@ function wireSavedPlayerEditors(team, draft, rerender) {
       .filter((skill) => (typeof skill === "string" ? skill : skill.name) !== removed);
     rerender();
   });
-  onPlayer("click", "[data-saved-player-add-advancement]", ({ card, player }) => {
-    const type = card.querySelector("[data-saved-player-advancement-type]")?.value ?? "primary";
-    const verdict = canTakeAdvancement(team, player, type);
-    if (!verdict.allowed) {
-      // Used to fail silently whenever the cost was zero, and to happily let
-      // available SPP go negative otherwise.
-      toast(t(`validation.${verdict.reason}`, verdict.params), { tone: "error" });
-      return;
-    }
-    player.advancements = normalizePlayerAdvancements(player.advancements);
-    player.advancements.push({ type });
-    rerender();
-  });
-  onPlayer("click", "[data-saved-player-remove-advancement]", ({ target, player }) => {
-    const index = Number(target.dataset.savedPlayerRemoveAdvancement);
-    player.advancements = normalizePlayerAdvancements(player.advancements)
-      .filter((_advancement, advancementIndex) => advancementIndex !== index);
-    rerender();
-  });
+  wirePlayerAdvancements(onPlayer, { team, draft, skillGroups: state.data.skillGroups, rerender });
   events.own(wireSavedRosterDragAndDrop(draft, rerender));
 
   return () => events.release();
@@ -710,22 +646,6 @@ function renderSavedSkillsCell(player) {
   `;
 }
 
-function renderSavedSkillEditor(player, index, { className = "", idPrefix = "skill-options" } = {}) {
-  const listId = `${idPrefix}-${index}`;
-  const options = availableSkillOptionsForPlayer(player.row, player);
-  return `
-    <div class="table-skill-editor ${className}">
-      <input class="table-input" type="text" list="${escapeHtml(listId)}" placeholder="${t("roster.skillPlaceholder")}" aria-label="${t("roster.addSkillHeader")}" data-saved-player-skill>
-      <datalist id="${escapeHtml(listId)}">
-        ${options.map((option) => `
-          <option value="${escapeHtml(option.name)}" label="${escapeHtml(option.access === "secondary" ? t("roster.secondary") : t("roster.primary"))}"></option>
-        `).join("")}
-      </datalist>
-      ${iconButton("plus", { attributes: "data-saved-player-add-skill" })}
-    </div>
-  `;
-}
-
 /** A labelled checkbox, the shape every flag on a league player wears. */
 function renderSavedPlayerFlag(attribute, label, checked) {
   return `<label class="table-checkbox" title="${label}"><input type="checkbox" ${attribute} ${checked ? "checked" : ""} aria-label="${label}"></label>`;
@@ -765,9 +685,8 @@ function savedColumns(team, draft, hasFavouredAccess) {
     },
     { header: t("roster.extendedContracts"), className: "fit-cell", cell: renderPlayerContractControls },
     { header: "SPP", className: "spp-cell", cell: (player) => renderPlayerSppControls(team, player) },
-    { header: t("roster.levelHeader"), className: "level-cell", cell: (player) => renderPlayerLevelCell(team, player) },
-    { header: t("roster.advancementHeader"), className: "advancement-cell", cell: (player) => renderPlayerAdvancementControls(team, player) },
-    { header: t("roster.addSkillHeader"), className: "skill-editor-cell", cell: renderSavedSkillEditor },
+    { header: t("roster.levelHeader"), className: "level-cell", cell: (player) => renderPlayerLevel(team, player) },
+    { header: t("roster.advancementHeader"), className: "advancement-cell", cell: (player) => renderPlayerAdvancements(team, draft, player, state.data.skillGroups) },
     hasFavouredAccess && {
       header: t("roster.favouredOf"),
       className: "favoured-skill-cell",
@@ -849,7 +768,7 @@ function renderCaptainSkillBadge(player) {
   return `
     <div class="player-extra-skills captain-extra-skills">
       ${nonCaptainSkills.has("Pro") ? "" : renderRosterLinks(["Pro"])}
-      <span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>
+      ${renderCaptainBadge()}
     </div>
   `;
 }
@@ -874,7 +793,7 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
         </div>
       </header>
       <div class="roster-transfer-actions">${renderPlayerRemoval(team, draft, player)}</div>
-      ${renderMatchdaySppPanel(team, draft, player, index)}
+      ${renderMatchdaySppPanel(team, draft, player)}
 
       <section class="mobile-player-section">
         <h3>${t("roster.statsHeading")}</h3>
@@ -892,7 +811,6 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
           ${renderCaptainSkillBadge(player)}
         </div>
         ${eliteCost ? `<p class="cost-note">${t("roster.eliteCombo")} +${eliteCost}k</p>` : ""}
-        ${renderSavedSkillEditor(player, index, { className: "mobile-skill-editor", idPrefix: "mobile-skill-options" })}
         ${hasFavouredAccess ? renderSavedPlayerFavouredEditor(team, draft, player, favouredInputId) : ""}
       </section>
 
@@ -919,11 +837,11 @@ function renderSavedPlayerCard(team, draft, player, index, hasFavouredAccess = f
       <section class="mobile-player-section mobile-advancement-section">
         <div>
           <h3>${t("roster.levelHeader")}</h3>
-          ${renderPlayerLevelCell(team, player)}
+          ${renderPlayerLevel(team, player)}
         </div>
         <div>
           <h3>${t("roster.advancementHeader")}</h3>
-          ${renderPlayerAdvancementControls(team, player)}
+          ${renderPlayerAdvancements(team, draft, player, state.data.skillGroups)}
         </div>
       </section>
     </article>
@@ -953,18 +871,18 @@ function renderSavedPlayerPreviewCard(team, draft, player, index) {
         </div>
       </section>
 
-      ${renderMatchdaySppPanel(team, draft, player, index)}
+      ${renderMatchdaySppPanel(team, draft, player)}
     </article>
   `;
 }
 function renderPlayerPreviewSkills(player) {
   const rendered = renderRosterLinks(skillNamesForPlayer(player.row, player), favouredSkillNames(player.row, player));
-  return `${rendered}${player.isCaptain ? `<span class="roster-pill roster-pill-muted">${t("roster.captain")}</span>` : ""}`;
+  return `${rendered}${player.isCaptain ? renderCaptainBadge() : ""}`;
 }
-function renderMatchdaySppPanel(team, draft, player, index) {
+function renderMatchdaySppPanel(team, draft, player) {
   const key = `spp-${player.id}`;
-  return `<details class="matchday-player-spp" data-key="${escapeHtml(key)}" data-matchday-details="${escapeHtml(key)}" ${matchdayDetailsOpen(draft, key, index === 0 || isSavedRosterPlayerExpanded(player.id))}>
-    <summary><span>${t("roster.sppTrackers")}</span><strong>${playerSppTotal(team, player)} SPP</strong></summary>
+  return `<details class="matchday-player-spp" data-key="${escapeHtml(key)}" data-matchday-details="${escapeHtml(key)}" ${matchdayDetailsOpen(draft, key)}>
+    <summary><span>${t("roster.sppAvailable")}</span><strong data-player-available-spp>${playerAvailableSpp(team, player)}</strong></summary>
     <div class="matchday-player-spp-body">${renderPlayerSppControls(team, player)}</div>
   </details>`;
 }
@@ -987,53 +905,6 @@ function renderReadonlyStatLine(player) {
 }
 function renderPlayerSppControls(team, player) {
   return renderSppControls(team, player);
-}
-function renderPlayerLevelCell(team, player) {
-  const level = playerAdvancementLevel(player);
-  return `
-    <div class="player-level-stack">
-      <strong><span class="player-level-number">${level}</span> (${escapeHtml(playerLevelRank(player))})</strong>
-      <small data-player-spp-total>${playerSppTotal(team, player)} ${t("roster.sppEarned")}</small>
-      <small data-player-spent-spp>${playerAdvancementSpent(player)} ${t("roster.sppSpent")}</small>
-      <small class="player-available-spp" data-player-available-spp>${playerAvailableSpp(team, player)} ${t("roster.sppAvailable")}</small>
-    </div>
-  `;
-}
-function renderPlayerAdvancementControls(team, player) {
-  const advancements = normalizePlayerAdvancements(player.advancements);
-  const level = playerAdvancementLevel(player);
-  const nextRank = advancementRanks[level];
-  const canAdvance = Boolean(nextRank);
-  const canAfford = Object.keys(advancementTypeLabels).some((type) => canTakeAdvancement(team, player, type).allowed);
-  return `
-    <div class="advancement-control">
-      ${canAdvance ? `
-        <div class="advancement-add-row">
-          <select class="table-select" data-saved-player-advancement-type aria-label="${t("roster.advancementType")}">
-            ${Object.entries(advancementTypeLabels).map(([type, label]) => {
-    const verdict = canTakeAdvancement(team, player, type);
-    return `
-              <option value="${type}" ${verdict.allowed ? "" : "disabled"}>${escapeHtml(`${label} (${nextRank.costs[type]} SPP)${verdict.allowed ? "" : ` — ${t("roster.notEnoughSpp")}`}`)}</option>
-            `;
-  }).join("")}
-          </select>
-          ${iconButton("plus", { attributes: `data-saved-player-add-advancement ${canAfford ? "" : "disabled"}` })}
-        </div>
-        <small class="advancement-next" data-player-next-advancement>${t("roster.next")}: ${escapeHtml(nextRank.rank)}</small>
-      ` : `<strong class="muted-text">${t("roster.maxLevel")}</strong>`}
-      <div class="advancement-list">
-        ${advancements.length ? advancements.map((advancement, index) => {
-    const cost = advancementRanks[index]?.costs?.[advancement.type] ?? 0;
-    const label = advancementTypeLabels[advancement.type] ?? advancement.type;
-    return `
-            <button class="roster-pill advancement-pill" type="button" data-saved-player-remove-advancement="${index}">
-              ${escapeHtml(`${index + 1}. ${label}: ${cost} SPP`)}${REMOVE_ICON}
-            </button>
-          `;
-  }).join("") : `<small class="muted-text"><em>${t("roster.noAdvancementsYet")}</em></small>`}
-      </div>
-    </div>
-  `;
 }
 function renderEditableStatLine(player) {
   const stats = ["ma", "st", "ag", "pa", "ar"];
