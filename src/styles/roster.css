@@ -639,14 +639,6 @@
   transition: background 0.14s ease, opacity 0.14s ease;
 }
 
-.builder-selected-table tbody tr:hover > td,
-.saved-roster-table tbody tr:hover > td {
-  background-image: linear-gradient(
-    color-mix(in srgb, var(--focus) 6%, transparent),
-    color-mix(in srgb, var(--focus) 6%, transparent)
-  );
-}
-
 .saved-roster-table tbody tr.is-skipped *:not(option) {
   color: color-mix(in srgb, var(--text) 40%, transparent);
 }

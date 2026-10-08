@@ -71,16 +71,6 @@
   min-height: 0;
 }
 
-.overview-index-card {
-  display: grid;
-  gap: 10px;
-  min-height: 156px;
-}
-
-.overview-index-card .meta-line {
-  align-self: end;
-}
-
 .overview-card h2 {
   color: var(--text);
 }

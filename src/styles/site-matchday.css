@@ -75,8 +75,6 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .catalog-card-stats dd, .catalog-stat-strip dd { font: 1.15rem/1.4 var(--label-font); color: var(--text); }
 .catalog-card-actions { border-top-color: var(--line); padding-top: 18px; }
 .catalog-card .primary-button { width: 100%; }
-.content-panel table td { border-color: var(--line); }
-.table-scroll { border-color: var(--line); }
 .league-reference-card, .team-roster-card, .reference-table-card,
 .skill-roll-panel, .season-admin-block, .fixture-headline > div, .season-score-summary,
 .game-versus > div { background: var(--panel-2); border-color: var(--line); box-shadow: none; }
@@ -113,9 +111,10 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .site-quick-links .site-link-arrow { margin-left: auto; }
 .site-quick-links strong { font-size: .85rem; }
 .overview-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); }
-.overview-index-card { min-height: 190px; display: flex; flex-direction: column; gap: 0; }
+.overview-index-card { min-height: 190px; display: flex; flex-direction: column; }
 .overview-index-card p { margin: 12px 0 0; }
-.site-link-arrow { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 1.5; }@media (min-width: 901px) {
+.site-link-arrow { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 1.5; }
+@media (min-width: 901px) {
   .app-shell { grid-template-columns: 240px minmax(0, 1fr); }
   .sidebar { width: 240px; padding: 24px 18px; }
   .topbar { padding: 16px 28px; }
