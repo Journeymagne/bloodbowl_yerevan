@@ -44,8 +44,9 @@
 .challenge-card select, .challenge-dialog select {
   width: 100%; max-width: 100%; min-width: 0; min-height: 44px; padding: 10px;
   border: 1px solid var(--line); border-radius: var(--radius);
-  background: var(--panel); color: var(--text);
+  background-color: var(--panel); color: var(--text);
 }
+.filter-field select, .pre-match select:not([multiple]), .challenge-card select, .challenge-dialog select { padding-right: 28px; }
 .filter-field input[type="file"] { padding-block: 6px; }
 .filter-field :is(input, select):focus { border-color: var(--focus); }
 .filter-field input[type="checkbox"], .pre-match input[type="checkbox"] {
