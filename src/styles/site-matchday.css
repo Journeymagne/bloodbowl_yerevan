@@ -52,7 +52,7 @@ body { background: var(--bg); font-size: .9375rem; }
 .page-back-button { min-height: 44px; }
 .catalog-kicker, .catalog-card-section > span { font: .65rem/1.5 var(--label-font); letter-spacing: .7px; text-transform: uppercase; }
 .filter-panel { padding: 17px 0; border: 0; border-block: 1px solid var(--line-bright); background: none; backdrop-filter: none; }
-.content-panel h2, .side-panel h2 { font: 800 1.9rem/1.2 var(--display-font); letter-spacing: .4px; text-transform: uppercase; color: var(--text); }
+.content-panel h2, .side-panel h2 { font: 800 1.6rem/1.2 var(--display-font); letter-spacing: .4px; text-transform: uppercase; color: var(--text); }
 .content-body > h2:not(:first-child), .overview-card-section + .overview-card-section { padding-top: 24px; border-top: 1px solid var(--line); }
 .content-body { font-size: .9rem; }
 .content-body > p { max-width: 85ch; }
@@ -60,7 +60,7 @@ body { background: var(--bg); font-size: .9375rem; }
 .card::before { display: none; }
 .card:hover { background: var(--panel-2); border-color: var(--focus); }
 a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
-.card h2, .card h3 { font: 800 1.7rem/1.2 var(--display-font); letter-spacing: .3px; text-transform: uppercase; text-shadow: none; color: var(--text); }
+.card h2, .card h3 { font: 800 1.45rem/1.2 var(--display-font); letter-spacing: .3px; text-transform: uppercase; text-shadow: none; color: var(--text); }
 .card p { font-size: .85rem; text-shadow: none; line-height: 1.65; }
 .card-grid { gap: 20px; }
 .badge, .roster-pill, .catalog-price, .season-status-pill, .season-tab,
@@ -97,7 +97,7 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .game-card-flags .pre-badge { display: inline-flex; padding: 5px 8px; font: .6rem/1.5 var(--label-font); margin: 0; }
 .challenge-panel { margin-bottom: 28px; }
 .challenge-card, .pre-team-panel { border-color: var(--line); }
-.challenge-card h3 { font: 800 1.7rem/1.2 var(--display-font); text-transform: uppercase; }
+.challenge-card h3 { font: 800 1.45rem/1.2 var(--display-font); text-transform: uppercase; }
 .empty-state, .loading { background: var(--panel); border: 1px dashed var(--line-bright); padding: 30px; font-size: .85rem; }
 .league-hero { display: flex; min-height: 220px; background: var(--panel-2); border: 2px solid var(--line-bright); border-radius: 0; box-shadow: 4px 4px 0 var(--line-bright); }
 .league-hero-copy { min-width: 0; flex: 1; }
@@ -115,7 +115,6 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .site-quick-links strong { font-size: .85rem; }
 .overview-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); }
 .overview-index-card { min-height: 190px; display: flex; flex-direction: column; gap: 0; }
-.overview-index-card h3 { font-size: 1.45rem; }
 .overview-index-card p { margin: 12px 0 0; }
 .site-link-arrow { flex: none; width: 18px; height: 18px; fill: none; stroke: var(--muted); stroke-width: 1.5; }@media (min-width: 901px) {
   .app-shell { grid-template-columns: 240px minmax(0, 1fr); }
@@ -149,9 +148,8 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
   .page-head > .toolbar { width: 100%; }
   .page-head > .toolbar > button, .page-head > .toolbar > a { flex: 1 1 auto; }
   .content-panel, .card { padding: 18px; }
-  .content-panel h2 { font-size: 1.65rem; }
-  .card h3 { font-size: 1.6rem; }
-  .overview-index-card h3 { font-size: 1.2rem; }
+  .content-panel h2 { font-size: 1.4rem; }
+  .card h3, .challenge-card h3 { font-size: 1.2rem; }
   .league-hero { flex-wrap: wrap; padding: 22px 18px; gap: 18px; }
   .league-hero-mark { width: 58px; height: 58px; align-self: start; margin-top: 7px; }
   .league-hero-copy h1 { font-size: 1.95rem; }

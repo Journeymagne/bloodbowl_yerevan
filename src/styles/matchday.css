@@ -43,8 +43,7 @@
   border-bottom: 2px solid var(--line-bright);
 }
 .matchday-scoreboard > div { min-width: 0; padding: 10px 10px; border-right: 1px solid var(--line); }
-.matchday-scoreboard > div:first-child { padding-left: 0; }
-.matchday-scoreboard > div:last-child { padding-right: 0; border-right: 0; }
+.matchday-scoreboard > div:last-child { border-right: 0; }
 .matchday-scoreboard dt { color: var(--muted); font: .52rem/1.4 var(--label-font); text-transform: uppercase; letter-spacing: .4px; overflow-wrap: anywhere; }
 .matchday-scoreboard dd { margin: 5px 0 0; color: var(--text); font: 1.35rem/1.2 var(--label-font); letter-spacing: -.8px; }
 .matchday-scoreboard dd small { color: var(--text); font-size: .875rem; letter-spacing: 0; }
@@ -64,7 +63,7 @@
 .matchday-workspace { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; align-items: start; }
 .matchday-workspace > * { min-width: 0; }
 .matchday-roster-heading { display: flex; align-items: center; justify-content: space-between; gap: 15px; margin-bottom: 18px; }
-.matchday-roster-heading h2 { margin: 3px 0 0; font: 800 2.4rem/1.15 var(--display-font); letter-spacing: .2px; text-transform: uppercase; }
+.matchday-roster-heading h2 { margin: 3px 0 0; font: 800 1.9rem/1.15 var(--display-font); letter-spacing: .2px; text-transform: uppercase; }
 .matchday-heading-dot { color: var(--md-accent); }
 .matchday-add-player { min-height: 48px; display: flex; gap: 8px; align-items: center; justify-content: center; font-size: .72rem; padding: 0 13px; }
 .matchday-add-player svg { width: 19px; height: 19px; fill: none; stroke: currentColor; stroke-width: 1.8; flex-shrink: 0; }
