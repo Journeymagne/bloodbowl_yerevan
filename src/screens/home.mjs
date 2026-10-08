@@ -24,9 +24,14 @@ export function renderHome() {
       <div class="matchday-edition" aria-hidden="true">07</div>
     </section>
 
-    <nav class="site-quick-links" aria-label="${t("nav.navigationAria")}">
-      ${[["my-teams", "nav.myTeams"], ["my-games", "nav.myGames"], ["season", "nav.season"], ["pages", "nav.references"]].map(([route, key], index) => `<a href="#/${route}"><span aria-hidden="true">0${index + 1}</span><strong>${t(key)}</strong><span aria-hidden="true">↗</span></a>`).join("")}
-    </nav>
+    <section class="site-quick-section">
+      <div class="page-head">
+        <h2 id="site-quick-links-title">${t("home.quickAccessTitle")}</h2>
+      </div>
+      <nav class="site-quick-links" aria-labelledby="site-quick-links-title">
+        ${[["my-teams", "nav.myTeams"], ["my-games", "nav.myGames"], ["season", "nav.season"], ["pages", "nav.references"]].map(([route, key]) => `<a href="#/${route}"><strong>${t(key)}</strong><span aria-hidden="true">→</span></a>`).join("")}
+      </nav>
+    </section>
 
     <section>
       <div class="page-head">
