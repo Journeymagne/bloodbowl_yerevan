@@ -41,7 +41,7 @@ body { background: var(--bg); font-size: .9375rem; }
 }
 .view > .page-head h1 { font-size: clamp(1.6rem, 3.2vw, 3rem); overflow-wrap: anywhere; }
 .page-head p { font-size: .8rem; line-height: 1.65; color: var(--muted); }
-.site-page-kicker { display: block; margin-bottom: 10px; color: var(--muted); font: .6rem/1.5 var(--label-font); letter-spacing: 1.4px; }
+.site-page-kicker { display: block; margin-bottom: 8px; color: var(--muted); font: .6rem/1.5 var(--label-font); letter-spacing: 1.4px; }
 .site-page-crest { width: 58px; height: 76px; color: var(--line-bright); }
 .site-page-crest svg { width: 100%; height: 100%; fill: none; stroke: currentColor; stroke-width: 2; }
 .site-page-crest svg path:nth-child(2) { fill: currentColor; stroke: none; }
@@ -98,7 +98,7 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .empty-state, .loading { background: var(--panel); border: 1px dashed var(--line-bright); padding: 30px; font-size: .85rem; }
 .league-hero { display: flex; min-height: 220px; background: var(--panel-2); border: 2px solid var(--line-bright); border-radius: 0; box-shadow: 4px 4px 0 var(--line-bright); }
 .league-hero-copy { min-width: 0; flex: 1; }
-.league-hero-copy h1 { margin-top: 10px; font: 800 clamp(2rem, 4vw, 3.2rem)/1.15 var(--display-font); text-transform: uppercase; letter-spacing: .5px; }
+.league-hero-copy h1 { margin-top: 10px; font: 800 clamp(2.1rem, 4.2vw, 3.4rem)/1.15 var(--display-font); text-transform: uppercase; letter-spacing: .5px; }
 .league-hero-copy p { font-size: .85rem; color: var(--muted); line-height: 1.65; max-width: 65ch; }
 .league-hero-mark { width: 96px; height: 96px; padding: 7px; flex-shrink: 0; border: 1px solid var(--line-bright); background: var(--bone); }
 .league-hero-mark img { width: 100%; height: 100%; object-fit: contain; }
@@ -139,7 +139,7 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
   .view > .page-head { min-height: 0; padding: 20px 16px; gap: 14px; margin-bottom: 26px; }
   .view > .page-head h1 { font-size: 1.85rem; }
   .page-head h2 { font-size: 1.65rem; }
-  .site-page-kicker { font-size: .52rem; letter-spacing: .7px; margin-bottom: 7px; }
+  .site-page-kicker { font-size: .52rem; letter-spacing: .7px; margin-bottom: 6px; }
   .site-page-crest { align-self: start; margin-top: 12px; }
   .page-head p { font-size: .75rem; }
   .page-title-row { gap: 12px; }
@@ -150,7 +150,7 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
   .card h3, .challenge-card h3 { font-size: 1.2rem; }
   .league-hero { flex-wrap: wrap; padding: 22px 18px; gap: 18px; }
   .league-hero-mark { width: 58px; height: 58px; align-self: start; margin-top: 7px; }
-  .league-hero-copy h1 { font-size: 1.95rem; }
+  .league-hero-copy h1 { font-size: 2.1rem; }
   .league-hero-copy p { font-size: .75rem; }
   .site-quick-links a { gap: 9px; padding: 17px 10px; }
   .site-quick-links strong { font-size: .75rem; }
