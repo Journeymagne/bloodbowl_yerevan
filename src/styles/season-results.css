@@ -17,11 +17,13 @@
 .season-results-table .table-actions { justify-content: center; }
 .season-results-table .season-status-pill { white-space: normal; }
 @media (max-width: 900px) {
+  .table-scroll:has(> .season-results-table) { border: 0; }
   .season-results-table, .season-results-table tbody { display: block; width: 100%; }
   .season-results-table thead { display: none; }
   .season-results-table .season-match-group { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--line-bright); margin-bottom: 20px; }
   .season-results-table .season-result-side { display: contents; }
   .season-results-table .season-result-side > * { width: auto; border: 0; min-width: 0; }
+  .season-match-group > tr > td { background-color: var(--surface-soft); }
   .season-results-table .season-match-number { order: 0; grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--panel-2); }
   .season-results-table .season-match-number::before { content: attr(data-label); font: .65rem/1.5 var(--label-font); color: var(--muted); }
   .season-results-table .season-result-participant { grid-column: 1 / -1; padding: 16px 16px 12px; border-top: 1px solid var(--line); }

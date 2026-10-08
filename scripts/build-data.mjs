@@ -176,6 +176,7 @@ function parseFrontmatter(markdown) {
 const NUMBER_RANGE = /^\d+\s*[-–]\s*\d+$/;
 const UNLINKED_COLUMNS = ["Position", "Позиция", "Result", "Результат"];
 const PROSE_LINKED_KINDS = ["skill", "trait", "page", "inducement"];
+const FIT_TABLE_MAX_COLUMNS = 5;
 
 function splitTableRow(line) {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
@@ -404,7 +405,8 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
       if (isSeparatorRow(separator)) {
         flushParagraph();
         closeList();
-        const tableClass = headerLabels[0] === "#" ? " class=\"numbered-table\"" : "";
+        const classes = [headerLabels[0] === "#" ? "numbered-table" : "", header.length <= FIT_TABLE_MAX_COLUMNS ? "fit-table" : ""].filter(Boolean);
+        const tableClass = classes.length ? ` class="${classes.join(" ")}"` : "";
         html.push(`<div class="table-scroll"><table${tableClass}><thead><tr>`);
         html.push(header.map((cell) => `<th>${inlineMarkdownToHtml(cell, pageByTitle)}</th>`).join(""));
         html.push("</tr></thead><tbody>");

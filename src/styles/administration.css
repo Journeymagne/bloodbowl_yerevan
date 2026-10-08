@@ -25,7 +25,7 @@
   .responsive-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   .responsive-table tbody { display: grid; gap: 18px; }
   .responsive-table tr { display: grid; min-width: 0; border: 1px solid var(--line-bright); background: var(--panel-2); }
-  .responsive-table tbody td { display: flex; justify-content: space-between; align-items: center; gap: 18px; width: auto; min-width: 0; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--line); text-align: right; }
+  .responsive-table tbody td { display: flex; justify-content: space-between; align-items: center; gap: 18px; width: auto; min-width: 0; padding: 12px 14px; border: 0; border-bottom: 1px solid var(--line); background-color: var(--surface-soft); text-align: right; }
   .responsive-table tbody td::before { content: attr(data-label); flex: 0 1 45%; text-align: left; color: var(--muted); font: .6rem/1.5 var(--label-font); text-transform: uppercase; }
   .responsive-table tbody td > * { min-width: 0; }
   .responsive-table tbody td:first-child { border-bottom-color: var(--line-bright); }

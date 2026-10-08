@@ -559,12 +559,17 @@
 
 .compact-roster-table th,
 .compact-roster-table td {
-  padding: 8px 10px;
+  padding: 10px 12px;
   vertical-align: middle;
 }
 
 .compact-roster-table th {
   white-space: nowrap;
+}
+
+.compact-roster-table thead th {
+  padding-block: 8px 6px;
+  vertical-align: bottom;
 }
 
 .compact-roster-table td {

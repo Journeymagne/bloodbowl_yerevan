@@ -410,4 +410,9 @@
 .table-scroll .season-table {
     min-width: 760px;
   }
+
+  .fit-table th,
+  .fit-table td {
+    padding-inline: 8px;
+  }
 }

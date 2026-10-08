@@ -75,7 +75,6 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .catalog-card-stats dd, .catalog-stat-strip dd { font: 1.15rem/1.4 var(--label-font); color: var(--text); }
 .catalog-card-actions { border-top-color: var(--line); padding-top: 18px; }
 .catalog-card .primary-button { width: 100%; }
-.content-panel table th, .side-panel table th { background: var(--panel-2); font: .65rem/1.5 var(--label-font); letter-spacing: .3px; color: var(--muted); }
 .content-panel table td { border-color: var(--line); }
 .table-scroll { border-color: var(--line); }
 .league-reference-card, .team-roster-card, .reference-table-card,
