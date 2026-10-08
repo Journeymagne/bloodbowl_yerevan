@@ -177,6 +177,18 @@ const NUMBER_RANGE = /^\d+\s*[-–]\s*\d+$/;
 const UNLINKED_COLUMNS = ["Position", "Позиция", "Result", "Результат"];
 const PROSE_LINKED_KINDS = ["skill", "trait", "page", "inducement"];
 const FIT_TABLE_MAX_COLUMNS = 5;
+const CENTERED_COLUMNS = ["Qty", "MA", "ST", "AG", "PA", "AR", "Roll", "Бросок"];
+const DICE_COLUMN = /^\d*d\d+$/i;
+
+function classAttribute(...names) {
+  const classes = names.filter(Boolean);
+  return classes.length ? ` class="${classes.join(" ")}"` : "";
+}
+
+function columnClass(headerLabel) {
+  if (CENTERED_COLUMNS.includes(headerLabel) || DICE_COLUMN.test(headerLabel)) return "center-cell";
+  return headerLabel === "Cost" ? "number-cell" : "";
+}
 
 function splitTableRow(line) {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
@@ -344,7 +356,7 @@ function renderNumberedList(items, pageByTitle, start, options) {
 }
 
 function renderTableCell(cell, headerLabel, pageByTitle, selfPage) {
-  const cellClass = NUMBER_RANGE.test(cell.trim()) ? ` class="nowrap-cell"` : "";
+  const cellClass = classAttribute(NUMBER_RANGE.test(cell.trim()) ? "nowrap-cell" : "", columnClass(headerLabel));
   const linking = { autoLinkKnown: !UNLINKED_COLUMNS.includes(headerLabel), prose: SENTENCE.test(cell), selfPage };
   return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, linking)}</td>`;
 }
@@ -405,10 +417,9 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
       if (isSeparatorRow(separator)) {
         flushParagraph();
         closeList();
-        const classes = [headerLabels[0] === "#" ? "numbered-table" : "", header.length <= FIT_TABLE_MAX_COLUMNS ? "fit-table" : ""].filter(Boolean);
-        const tableClass = classes.length ? ` class="${classes.join(" ")}"` : "";
+        const tableClass = classAttribute(headerLabels[0] === "#" ? "numbered-table" : "", header.length <= FIT_TABLE_MAX_COLUMNS ? "fit-table" : "");
         html.push(`<div class="table-scroll"><table${tableClass}><thead><tr>`);
-        html.push(header.map((cell) => `<th>${inlineMarkdownToHtml(cell, pageByTitle)}</th>`).join(""));
+        html.push(header.map((cell, cellIndex) => `<th${classAttribute(columnClass(headerLabels[cellIndex]))}>${inlineMarkdownToHtml(cell, pageByTitle)}</th>`).join(""));
         html.push("</tr></thead><tbody>");
         index += 2;
         while (index < lines.length && lines[index].trim().startsWith("|")) {

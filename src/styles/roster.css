@@ -692,6 +692,13 @@
 
 .center-cell {
   text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.number-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .saved-number-control {

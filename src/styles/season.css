@@ -500,7 +500,7 @@
   overflow-y: hidden;
   margin: 16px -14px;
   padding: 0 0 10px 0;
-  border: 1px solid var(--line);
+  border-block: 1px solid var(--line);
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-inline: contain;
   scrollbar-color: rgba(240, 200, 74, 0.72) var(--surface-soft);
