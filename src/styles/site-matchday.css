@@ -146,7 +146,7 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
   .page-head > .toolbar > button, .page-head > .toolbar > a { flex: 1 1 auto; }
   .content-panel, .card { padding: 18px; }
   .content-panel h2 { font-size: 1.4rem; }
-  .card h2, .card h3, .challenge-card h3 { font-size: 1.2rem; }
+  .card h3, .challenge-card h3 { font-size: 1.2rem; }
   .league-hero { flex-wrap: wrap; padding: 22px 18px; gap: 18px; }
   .league-hero-mark { width: 58px; height: 58px; align-self: start; margin-top: 7px; }
   .league-hero-copy h1 { font-size: 2.1rem; }

@@ -5,7 +5,8 @@ import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown
 import { writeDataFile } from "./lib/write-data-file.mjs";
 import { applyMedicalAccess, medicalAccessByPageId } from "./lib/medical-access.mjs";
 import { assertDataIsUsable } from "./lib/validate-data.mjs";
-import { SENTENCE, autoLinkKnownTerms, escapeHtml } from "./lib/auto-link.mjs";
+import { autoLinkKnownTerms, escapeHtml } from "./lib/auto-link.mjs";
+import { renderTable } from "./lib/render-table.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
@@ -173,24 +174,7 @@ function parseFrontmatter(markdown) {
   return { body, tags: tags.map(canonicalLabel) };
 }
 
-const NUMBER_RANGE = /^\d+\s*[-–]\s*\d+$/;
-const UNLINKED_COLUMNS = ["Position", "Позиция", "Result", "Результат"];
 const PROSE_LINKED_KINDS = ["skill", "trait", "page", "inducement"];
-const FIT_TABLE_MAX_COLUMNS = 5;
-const CENTERED_COLUMNS = ["Qty", "MA", "ST", "AG", "PA", "AR", "Roll", "Бросок"];
-const DICE_COLUMN = /^\d*d\d+$/i;
-const WHOLE_NUMBER = /^\d+$/;
-
-function classAttribute(...names) {
-  const classes = names.filter(Boolean);
-  return classes.length ? ` class="${classes.join(" ")}"` : "";
-}
-
-function columnClass(headerLabel, cells) {
-  if (CENTERED_COLUMNS.includes(headerLabel) || DICE_COLUMN.test(headerLabel)) return "fit-cell center-cell";
-  if (headerLabel === "Cost") return "fit-cell number-cell";
-  return cells.length && cells.every((cell) => WHOLE_NUMBER.test(cell.trim())) ? "center-cell" : "";
-}
 
 function splitTableRow(line) {
   const trimmed = line.trim().replace(/^\|/, "").replace(/\|$/, "");
@@ -357,29 +341,6 @@ function renderNumberedList(items, pageByTitle, start, options) {
   ].join("\n");
 }
 
-function renderTableCell(cell, headerLabel, columnClasses, pageByTitle, selfPage) {
-  const cellClass = classAttribute(NUMBER_RANGE.test(cell.trim()) ? "nowrap-cell" : "", columnClasses);
-  const linking = { autoLinkKnown: !UNLINKED_COLUMNS.includes(headerLabel), prose: SENTENCE.test(cell), selfPage };
-  return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, linking)}</td>`;
-}
-
-function renderTable(header, rows, pageByTitle, selfPage) {
-  const headerLabels = header.map(stripFormatting);
-  const columnClasses = headerLabels.map((label, column) => columnClass(label, rows.map((row) => row[column] ?? "")));
-  const tableClass = classAttribute(headerLabels[0] === "#" ? "numbered-table" : "", header.length <= FIT_TABLE_MAX_COLUMNS ? "fit-table" : "");
-  return [
-    `<div class="table-scroll"><table${tableClass}><thead><tr>`,
-    header.map((cell, column) => `<th${classAttribute(columnClasses[column])}>${inlineMarkdownToHtml(cell, pageByTitle)}</th>`).join(""),
-    "</tr></thead><tbody>",
-    ...rows.flatMap((row) => [
-      "<tr>",
-      row.map((cell, column) => renderTableCell(cell, headerLabels[column] ?? "", columnClasses[column], pageByTitle, selfPage)).join(""),
-      "</tr>",
-    ]),
-    "</tbody></table></div>",
-  ];
-}
-
 function markdownToHtml(markdown, pageByTitle, options = {}) {
   const lines = markdown.split(/\r?\n/);
   const html = [];
@@ -441,7 +402,8 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
           rows.push(splitTableRow(lines[index]));
           index += 1;
         }
-        html.push(...renderTable(header, rows, pageByTitle, options.selfPage));
+        html.push(...renderTable(header, rows, (cell, linking) =>
+          inlineMarkdownToHtml(cell, pageByTitle, linking && { ...linking, selfPage: options.selfPage })));
         index -= 1;
         continue;
       }

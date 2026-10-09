@@ -36,6 +36,16 @@ anything else won't be recognized by the parser:
 into structured fields (pure display prose) — translate them freely, e.g.
 `**Имя:**` / `**Персональная способность:**`.
 
+### Table headers that drive column layout
+
+The build also reads table header text to decide how a column is laid out:
+`Qty`, `MA`, `ST`, `AG`, `PA`, `AR`, `Roll` / `Бросок` and dice headers
+(`d6`, `2d6`, `D8`, `D16`) become narrow centred columns, and `Cost` becomes a
+narrow right-aligned one. Keep these headers exactly as written. A renamed
+header still renders, but the column silently loses its alignment and width —
+if a new spelling is needed, add it to `CENTERED_COLUMNS` in
+`scripts/build-data.mjs`.
+
 ## Inducement names used as UI labels elsewhere
 
 **Ruling from Task 6:** some inducement names double as roster-builder staff
