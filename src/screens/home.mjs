@@ -9,6 +9,8 @@ import { view } from "../core/view.mjs";
 import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { activeOverviewCards } from "./overview.mjs";
 
+const ARROW_ICON = '<svg class="site-link-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12h15M13 6l6 6-6 6"/></svg>';
+
 export function renderHome() {
   setActiveNav("home");
   setViewSection("home");
@@ -24,9 +26,14 @@ export function renderHome() {
       <div class="matchday-edition" aria-hidden="true">07</div>
     </section>
 
-    <nav class="site-quick-links" aria-label="${t("nav.navigationAria")}">
-      ${[["my-teams", "nav.myTeams"], ["my-games", "nav.myGames"], ["season", "nav.season"], ["pages", "nav.references"]].map(([route, key], index) => `<a href="#/${route}"><span aria-hidden="true">0${index + 1}</span><strong>${t(key)}</strong><span aria-hidden="true">↗</span></a>`).join("")}
-    </nav>
+    <section class="site-quick-section">
+      <div class="page-head">
+        <h2 id="site-quick-links-title">${t("home.quickAccessTitle")}</h2>
+      </div>
+      <nav class="site-quick-links" aria-labelledby="site-quick-links-title">
+        ${[["my-teams", "nav.myTeams"], ["my-games", "nav.myGames"], ["season", "nav.season"], ["pages", "nav.references"]].map(([route, key]) => `<a href="#/${route}"><strong>${t(key)}</strong>${ARROW_ICON}</a>`).join("")}
+      </nav>
+    </section>
 
     <section>
       <div class="page-head">
@@ -48,10 +55,9 @@ function overviewCardUrl(card) {
   return `#/overview/${encodeURIComponent(card.slug)}`;
 }
 
-function renderOverviewIndexCard(card, index) {
+function renderOverviewIndexCard(card) {
   return `
     <a class="card compact overview-index-card" href="${overviewCardUrl(card)}">
-      <span class="site-card-index" aria-hidden="true">${String(index + 1).padStart(2, "0")}</span>
       <h3>${escapeHtml(card.title)}</h3>
       <p>${escapeHtml(card.summary ?? "")}</p>
     </a>

@@ -1,6 +1,5 @@
 {
   "common.refresh": "Обновить",
-  "nav.navigationAria": "Навигация по лиге",
   "myTeams.openRoster": "Открыть ростер",
   "games.friendlyMatch": "Товарищеский матч",
   "games.noLeaguePoints": "Без ЛП",
@@ -78,6 +77,7 @@
   "auth.register": "Регистрация",
   "home.heroTitle": "Gata Blood Bowl League",
   "home.heroSubtitle": "Команды, звёздные игроки, навыки, черты и правила лиги — всё в одном справочнике с поиском.",
+  "home.quickAccessTitle": "Быстрый доступ",
   "home.overviewTitle": "Обзор",
   "home.overviewSubtitle": "Поведение в лиге, структура сезона, создание команды и отчёты о матчах — в одном месте.",
   "common.teams": "Команды",

@@ -242,10 +242,6 @@
 .team-rules-row select {
   min-width: 0;
   min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--input-bg);
-  color: var(--text);
 }
 
 .rule-link-list {
@@ -563,12 +559,17 @@
 
 .compact-roster-table th,
 .compact-roster-table td {
-  padding: 8px 10px;
+  padding: 10px 12px;
   vertical-align: middle;
 }
 
 .compact-roster-table th {
   white-space: nowrap;
+}
+
+.compact-roster-table thead th {
+  padding-block: 8px 6px;
+  vertical-align: bottom;
 }
 
 .compact-roster-table td {
@@ -638,14 +639,6 @@
   transition: background 0.14s ease, opacity 0.14s ease;
 }
 
-.builder-selected-table tbody tr:hover > td,
-.saved-roster-table tbody tr:hover > td {
-  background-image: linear-gradient(
-    color-mix(in srgb, var(--focus) 6%, transparent),
-    color-mix(in srgb, var(--focus) 6%, transparent)
-  );
-}
-
 .saved-roster-table tbody tr.is-skipped *:not(option) {
   color: color-mix(in srgb, var(--text) 40%, transparent);
 }
@@ -691,6 +684,13 @@
 
 .center-cell {
   text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.number-cell {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .saved-number-control {
@@ -1003,18 +1003,7 @@
   width: 100%;
   min-height: 30px;
   padding: 4px 24px 4px 8px;
-  border: 1px solid var(--line);
   border-radius: 6px;
-  appearance: none;
-  background-color: var(--input-bg);
-  background-image:
-    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
-    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
-  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
-  background-size: 5px 5px;
-  background-repeat: no-repeat;
-  color: var(--text);
-  font: inherit;
   font-weight: 800;
 }
 
@@ -1360,10 +1349,6 @@
 .roster-slot-add select {
   min-width: 0;
   min-height: 38px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--input-bg);
-  color: var(--text);
 }
 
 .slot-player-editor {
@@ -1580,7 +1565,7 @@
   min-height: 34px;
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  background: var(--input-bg);
+  background-color: var(--input-bg);
   color: var(--text);
 }
 

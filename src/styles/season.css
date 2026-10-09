@@ -500,6 +500,7 @@
   overflow-y: hidden;
   margin: 16px -14px;
   padding: 0 0 10px 0;
+  border-block: 1px solid var(--line);
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-inline: contain;
   scrollbar-color: rgba(240, 200, 74, 0.72) var(--surface-soft);
@@ -540,21 +541,60 @@ table {
   font-size: 0.875rem;
 }
 
+.table-scroll .fit-table {
+  width: 100%;
+  min-width: 0;
+}
+
 th,
 td {
-  padding: 10px;
-  border: 1px solid var(--line);
+  padding: 12px 14px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
   vertical-align: top;
 }
 
 th {
-  background: var(--table-head);
-  color: var(--soft);
   text-align: left;
+}
+
+thead th {
+  padding-block: 10px 6px;
+  border-bottom-color: var(--line-bright);
+  vertical-align: bottom;
+  color: var(--muted);
+  font: 700 .65rem/1.5 var(--label-font);
+  letter-spacing: .3px;
+  text-transform: uppercase;
 }
 
 td {
   background: var(--surface-soft);
+}
+
+@media (hover: hover) {
+  :where(table:not(.season-results-table) tbody tr:hover) > td {
+    background-image: linear-gradient(
+      color-mix(in srgb, var(--focus) 6%, transparent),
+      color-mix(in srgb, var(--focus) 6%, transparent)
+    );
+  }
+}
+
+:where(table:not(.season-results-table) tbody:last-of-type > tr:last-child) > :is(td, th),
+:where(.season-match-group:last-of-type) > tr:last-child > :is(td, th),
+:where(.season-match-group:last-of-type) > tr > [rowspan] {
+  border-bottom: 0;
+}
+
+:where(table:not(.season-results-table) tbody tr:nth-child(odd)) > td,
+:where(.season-match-group:nth-of-type(odd)) > tr > td {
+  background-color: color-mix(in srgb, var(--text) 4%, var(--surface-soft));
+}
+
+:where(table:not(.season-results-table) tbody tr:nth-child(even)) > td,
+:where(.season-match-group:nth-of-type(even)) > tr > td {
+  background-color: color-mix(in srgb, var(--text) 10%, var(--surface-soft));
 }
 
 .nowrap-cell {

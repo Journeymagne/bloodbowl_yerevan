@@ -29,6 +29,27 @@ textarea {
   font: inherit;
 }
 
+select:where(:not([multiple])) {
+  padding: 0 28px 0 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  appearance: none;
+  background-color: var(--input-bg);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted) 50%),
+    linear-gradient(135deg, var(--muted) 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 8px) 50%;
+  background-size: 5px 5px;
+  background-repeat: no-repeat;
+  color: var(--text);
+}
+
+@media (forced-colors: active) {
+  select:where(:not([multiple])) {
+    appearance: auto;
+  }
+}
+
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--display-font);
   font-weight: 800;
@@ -246,8 +267,11 @@ body.nav-open .nav-overlay {
 .theme-picker select {
   width: 88px;
   min-height: 28px;
+  padding: 0 18px 0 6px;
   border: 0;
-  background: transparent;
+  background-position: calc(100% - 10px) 50%, calc(100% - 5px) 50%;
+  text-overflow: ellipsis;
+  background-color: transparent;
   color: var(--button-text);
   font: inherit;
   font-size: 0.6875rem;
