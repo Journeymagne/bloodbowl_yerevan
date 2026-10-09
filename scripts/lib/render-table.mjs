@@ -14,7 +14,7 @@ const NUMBER_RANGE = /^\d+\s*[-–]\s*\d+$/;
 const WHOLE_NUMBER = /^\d+$/;
 const DICE_COLUMN = /^\d*d\d+$/i;
 const UNLINKED_COLUMNS = ["Position", "Позиция", "Result", "Результат"];
-const CENTERED_COLUMNS = ["Qty", "MA", "ST", "AG", "PA", "AR", "Roll", "Бросок"];
+const CENTERED_COLUMNS = ["Qty", "MA", "ST", "AG", "PA", "AR", "Roll", "Бросок", "Trigger", "Триггер"];
 const FIT_TABLE_MAX_COLUMNS = 5;
 
 function classAttribute(...names) {

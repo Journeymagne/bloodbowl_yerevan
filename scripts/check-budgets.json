@@ -20,7 +20,7 @@
       "src/app.js": 160,
       "server/server.mjs": 149,
       "scripts/build-data.mjs": 768,
-      "src/screens/saved-roster.mjs": 1106
+      "src/screens/saved-roster.mjs": 930
     },
     "maxFunctionLines": {
       "src/app.js": 180,

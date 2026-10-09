@@ -7,8 +7,8 @@ const plain = (cell) => cell;
 const render = (header, rows, renderInline = plain) => renderTable(header, rows, renderInline).join("\n");
 
 test("stat, dice and roll columns are narrow and centred", () => {
-  const html = render(["Qty", "MA", "2d6", "D8", "Бросок", "Position"], [["0-4", "6", "2", "1-2", "3", "Lineman"]]);
-  for (const label of ["Qty", "MA", "2d6", "D8", "Бросок"]) {
+  const html = render(["Qty", "MA", "2d6", "D8", "Бросок", "Триггер", "Position"], [["0-4", "6", "2", "1-2", "3", "9 (6 in notes)", "Lineman"]]);
+  for (const label of ["Qty", "MA", "2d6", "D8", "Бросок", "Триггер"]) {
     assert.ok(html.includes(`<th class="fit-cell center-cell">${label}</th>`), label);
   }
   assert.ok(html.includes("<th>Position</th>"));

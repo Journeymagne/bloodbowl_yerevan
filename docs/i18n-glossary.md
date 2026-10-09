@@ -39,7 +39,7 @@ into structured fields (pure display prose) — translate them freely, e.g.
 ### Table headers that drive column layout
 
 The build also reads table header text to decide how a column is laid out:
-`Qty`, `MA`, `ST`, `AG`, `PA`, `AR`, `Roll` / `Бросок` and dice headers
+`Qty`, `MA`, `ST`, `AG`, `PA`, `AR`, `Roll` / `Бросок`, `Trigger` / `Триггер` and dice headers
 (`d6`, `2d6`, `D8`, `D16`) become narrow centred columns, and `Cost` becomes a
 narrow right-aligned one. Keep these headers exactly as written. A renamed
 header still renders, but the column silently loses its alignment and width —
