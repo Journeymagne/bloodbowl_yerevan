@@ -179,15 +179,17 @@ const PROSE_LINKED_KINDS = ["skill", "trait", "page", "inducement"];
 const FIT_TABLE_MAX_COLUMNS = 5;
 const CENTERED_COLUMNS = ["Qty", "MA", "ST", "AG", "PA", "AR", "Roll", "Бросок"];
 const DICE_COLUMN = /^\d*d\d+$/i;
+const WHOLE_NUMBER = /^\d+$/;
 
 function classAttribute(...names) {
   const classes = names.filter(Boolean);
   return classes.length ? ` class="${classes.join(" ")}"` : "";
 }
 
-function columnClass(headerLabel) {
-  if (CENTERED_COLUMNS.includes(headerLabel) || DICE_COLUMN.test(headerLabel)) return "center-cell";
-  return headerLabel === "Cost" ? "number-cell" : "";
+function columnClass(headerLabel, cells) {
+  if (CENTERED_COLUMNS.includes(headerLabel) || DICE_COLUMN.test(headerLabel)) return "fit-cell center-cell";
+  if (headerLabel === "Cost") return "fit-cell number-cell";
+  return cells.length && cells.every((cell) => WHOLE_NUMBER.test(cell.trim())) ? "center-cell" : "";
 }
 
 function splitTableRow(line) {
@@ -355,10 +357,27 @@ function renderNumberedList(items, pageByTitle, start, options) {
   ].join("\n");
 }
 
-function renderTableCell(cell, headerLabel, pageByTitle, selfPage) {
-  const cellClass = classAttribute(NUMBER_RANGE.test(cell.trim()) ? "nowrap-cell" : "", columnClass(headerLabel));
+function renderTableCell(cell, headerLabel, columnClasses, pageByTitle, selfPage) {
+  const cellClass = classAttribute(NUMBER_RANGE.test(cell.trim()) ? "nowrap-cell" : "", columnClasses);
   const linking = { autoLinkKnown: !UNLINKED_COLUMNS.includes(headerLabel), prose: SENTENCE.test(cell), selfPage };
   return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, linking)}</td>`;
+}
+
+function renderTable(header, rows, pageByTitle, selfPage) {
+  const headerLabels = header.map(stripFormatting);
+  const columnClasses = headerLabels.map((label, column) => columnClass(label, rows.map((row) => row[column] ?? "")));
+  const tableClass = classAttribute(headerLabels[0] === "#" ? "numbered-table" : "", header.length <= FIT_TABLE_MAX_COLUMNS ? "fit-table" : "");
+  return [
+    `<div class="table-scroll"><table${tableClass}><thead><tr>`,
+    header.map((cell, column) => `<th${classAttribute(columnClasses[column])}>${inlineMarkdownToHtml(cell, pageByTitle)}</th>`).join(""),
+    "</tr></thead><tbody>",
+    ...rows.flatMap((row) => [
+      "<tr>",
+      row.map((cell, column) => renderTableCell(cell, headerLabels[column] ?? "", columnClasses[column], pageByTitle, selfPage)).join(""),
+      "</tr>",
+    ]),
+    "</tbody></table></div>",
+  ];
 }
 
 function markdownToHtml(markdown, pageByTitle, options = {}) {
@@ -412,25 +431,17 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
 
     if (trimmed.startsWith("|") && lines[index + 1]?.trim().startsWith("|")) {
       const header = splitTableRow(lines[index]);
-      const headerLabels = header.map(stripFormatting);
       const separator = splitTableRow(lines[index + 1]);
       if (isSeparatorRow(separator)) {
         flushParagraph();
         closeList();
-        const tableClass = classAttribute(headerLabels[0] === "#" ? "numbered-table" : "", header.length <= FIT_TABLE_MAX_COLUMNS ? "fit-table" : "");
-        html.push(`<div class="table-scroll"><table${tableClass}><thead><tr>`);
-        html.push(header.map((cell, cellIndex) => `<th${classAttribute(columnClass(headerLabels[cellIndex]))}>${inlineMarkdownToHtml(cell, pageByTitle)}</th>`).join(""));
-        html.push("</tr></thead><tbody>");
+        const rows = [];
         index += 2;
         while (index < lines.length && lines[index].trim().startsWith("|")) {
-          html.push("<tr>");
-          html.push(splitTableRow(lines[index])
-            .map((cell, cellIndex) => renderTableCell(cell, headerLabels[cellIndex] ?? "", pageByTitle, options.selfPage))
-            .join(""));
-          html.push("</tr>");
+          rows.push(splitTableRow(lines[index]));
           index += 1;
         }
-        html.push("</tbody></table></div>");
+        html.push(...renderTable(header, rows, pageByTitle, options.selfPage));
         index -= 1;
         continue;
       }
