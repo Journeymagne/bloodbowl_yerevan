@@ -18,15 +18,15 @@ export async function generateSwissRound(seasonRow) {
   const entryRows = await loadSeasonEntryRows(seasonRow.id);
   const roundRows = await loadSeasonRoundRows(seasonRow.id);
   const pairingRows = await loadSeasonPairingRows(seasonRow.id);
-  if (!entryRows.length) throw httpError(400, "NEED_A_COMMITTED_TEAM");
+  if (!entryRows.some(entry => !entry.withdrawn_at)) throw httpError(400, "NEED_A_COMMITTED_TEAM");
   assertNoDraftRound(roundRows);
   assertCurrentRoundComplete(pairingRows);
 
   const nextRoundNumber = Math.max(0, ...roundRows.map((round) => Number(round.round_number))) + 1;
   const standings = computeSeasonStandings(entryRows, pairingRows);
-  const entriesById = new Map(entryRows.map((entry) => [entry.id, entry]));
+  const entriesById = new Map(entryRows.filter(entry => !entry.withdrawn_at).map(entry => [entry.id, entry]));
   const queue = nextRoundNumber === 1
-    ? shuffleEntries(entryRows)
+    ? shuffleEntries([...entriesById.values()])
     : standings.map((standing) => entriesById.get(standing.entryId)).filter(Boolean);
   const { opponents, byes } = previousOpponentMap(entryRows, pairingRows);
   const pairingsToCreate = [];
@@ -98,10 +98,11 @@ export async function generateSwissRound(seasonRow) {
   }
 }
 
-export async function validateSeasonEntry(seasonId, entryId) {
+export async function validateSeasonEntry(seasonId, entryId, { includeWithdrawn = false } = {}) {
   if (!entryId) return null;
   const result = await pool.query(
-    `SELECT id FROM season_entries WHERE id = $1 AND season_id = $2`,
+    `SELECT id FROM season_entries WHERE id = $1 AND season_id = $2
+       ${includeWithdrawn ? "" : "AND withdrawn_at IS NULL"}`,
     [entryId, seasonId],
   );
   if (!result.rows[0]) throw httpError(404, "ENTRY_NOT_FOUND");

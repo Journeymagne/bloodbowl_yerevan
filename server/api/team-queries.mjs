@@ -20,6 +20,7 @@ export const SAVED_TEAM_COLUMNS = `
       FROM season_entries
       JOIN seasons ON seasons.id = season_entries.season_id
      WHERE season_entries.saved_team_id = saved_teams.id
+       AND season_entries.withdrawn_at IS NULL
        AND seasons.status = 'active'
   ) AS in_active_season
 `;

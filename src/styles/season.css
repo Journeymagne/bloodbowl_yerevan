@@ -581,3 +581,4 @@ td {
   background: var(--panel);
   color: var(--muted);
 }
+.season-table .season-withdrawn-label { display: block; margin-top: 4px; color: var(--muted); font-size: .8125rem; line-height: 1.5; }

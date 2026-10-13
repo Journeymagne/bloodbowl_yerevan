@@ -31,7 +31,7 @@ export function seasonTeamProfileLink(entry) {
 }
 
 export function pairingEntry(data, entryId) {
-  return (data.entries ?? []).find((entry) => entry.id === entryId) ?? null;
+  return [...(data.entries ?? []), ...(data.historicalEntries ?? [])].find((entry) => entry.id === entryId) ?? null;
 }
 
 export function pairingTeamCell(data, entryId) {

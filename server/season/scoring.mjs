@@ -65,6 +65,7 @@ export function computeSeasonStandings(entryRows, pairingRows, { includeContacts
     const entry = publicSeasonEntry(row, { includeContacts });
     return [row.id, {
       entryId: row.id,
+      withdrawnAt: entry.withdrawnAt,
       user: entry.user,
       team: entry.team,
       points: 0,

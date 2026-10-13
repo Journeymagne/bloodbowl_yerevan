@@ -140,8 +140,8 @@ export async function updateSeasonPairing(seasonId, pairingId, body, isAdmin = f
   let homeEntryId = pairing.home_entry_id;
   let awayEntryId = pairing.away_entry_id;
   if (wantsTeamUpdate) {
-    homeEntryId = await validateSeasonEntry(seasonId, body.homeEntryId);
-    awayEntryId = await validateSeasonEntry(seasonId, body.awayEntryId);
+    homeEntryId = await validateSeasonEntry(seasonId, body.homeEntryId, { includeWithdrawn: body.homeEntryId === pairing.home_entry_id });
+    awayEntryId = await validateSeasonEntry(seasonId, body.awayEntryId, { includeWithdrawn: body.awayEntryId === pairing.away_entry_id });
     if (homeEntryId && awayEntryId && homeEntryId === awayEntryId) {
       throw httpError(400, "TEAM_PLAYS_ITSELF");
     }

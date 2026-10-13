@@ -30,7 +30,7 @@ export function renderSeasonStandings(data) {
               ${standings.map((standing) => `
                 <tr>
                   <td>${standing.rank}</td>
-                  <td>${renderPlayerLink(standing.user)}</td>
+                  <td>${renderPlayerLink(standing.user)}${standing.withdrawnAt ? `<small class="season-withdrawn-label">${t("season.withdrawnLabel")}</small>` : ""}</td>
                   <td><strong>${renderPublicTeamLink(standing.user, standing.team)}</strong></td>
                   <td>${standing.games}</td>
                   <td>${standing.points}</td>

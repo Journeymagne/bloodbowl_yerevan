@@ -119,7 +119,8 @@ function selectedRoundEntryIds(round) {
 
 function renderSeasonEntrySelect(data, name, selected, disabled = false, unavailableEntryIds = new Set()) {
   const selectedValue = selected ?? "";
-  const options = (data.entries ?? []).filter((entry) => entry.id === selectedValue || !unavailableEntryIds.has(entry.id));
+  const candidates = [...(data.entries ?? []), ...(data.historicalEntries ?? []).filter(entry => entry.id === selectedValue)];
+  const options = candidates.filter((entry) => entry.id === selectedValue || !unavailableEntryIds.has(entry.id));
   return `
     <select class="table-select" data-${name} ${disabled ? "disabled" : ""}>
       ${renderOption("", t("season.emptySlotLabel"), selectedValue)}

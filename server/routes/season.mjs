@@ -85,7 +85,8 @@ async function handleSeasonEntryRoutes(request, response, url) {
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const season = await ensureActiveSeason();
     await pool.query(
-      `DELETE FROM season_entries WHERE id = $1 AND season_id = $2`,
+      `UPDATE season_entries SET withdrawn_at = COALESCE(withdrawn_at, now()), updated_at = now()
+       WHERE id = $1 AND season_id = $2`,
       [seasonEntryMatch[1], season.id],
     );
     return send(response, 200, await loadSeasonBundle(user));
@@ -114,7 +115,7 @@ async function handleSeasonEntryRoutes(request, response, url) {
 
     const season = await ensureActiveSeason();
     const existingEntry = await pool.query(
-      `SELECT id FROM season_entries WHERE season_id = $1 AND user_id = $2`,
+      `SELECT id FROM season_entries WHERE season_id = $1 AND user_id = $2 AND withdrawn_at IS NULL`,
       [season.id, userId],
     );
     if (existingEntry.rows[0]) {

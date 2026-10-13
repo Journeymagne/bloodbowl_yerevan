@@ -141,7 +141,8 @@ export async function loadSeasonBundle(user = null) {
       : { rows: [] },
   ]);
   const includeContacts = Boolean(user);
-  const entries = entryRows.map((row) => publicSeasonEntry(row, { includeContacts }));
+  const allEntries = entryRows.map((row) => publicSeasonEntry(row, { includeContacts }));
+  const entries = allEntries.filter((entry) => !entry.withdrawnAt);
   const pairings = pairingRows.map(publicSeasonPairing);
   const rounds = roundRows.map((round) => ({
     id: round.id,
@@ -167,6 +168,7 @@ export async function loadSeasonBundle(user = null) {
   const payload = {
     season: publicSeason(seasonRow),
     entries,
+    historicalEntries: allEntries.filter((entry) => entry.withdrawnAt),
     standings,
     rounds,
     myEntry,
@@ -213,12 +215,15 @@ export async function commitSavedTeamToSeason(seasonId, savedTeamId, ownerId = "
   const result = await pool.query(
     `INSERT INTO season_entries (season_id, user_id, saved_team_id)
      VALUES ($1, $2, $3)
+     ON CONFLICT (season_id, saved_team_id) DO UPDATE
+       SET withdrawn_at = NULL, updated_at = now()
+       WHERE season_entries.withdrawn_at IS NOT NULL
      RETURNING *`,
     [seasonId, savedTeam.rows[0].user_id, savedTeam.rows[0].id],
   ).catch((error) => {
     if (error.code === "23505") return null;
     throw error;
   });
-  if (!result) throw httpError(409, "ENTRY_ALREADY_COMMITTED");
+  if (!result?.rows[0]) throw httpError(409, "ENTRY_ALREADY_COMMITTED");
   return result.rows[0];
 }

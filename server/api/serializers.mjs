@@ -129,6 +129,7 @@ export function publicSeasonEntry(row, { includeContacts = true } = {}) {
   return {
     id: row.id,
     seasonId: row.season_id,
+    withdrawnAt: row.withdrawn_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     user: {
