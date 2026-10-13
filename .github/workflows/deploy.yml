@@ -23,7 +23,7 @@ jobs:
             import { execFileSync } from 'node:child_process';
             import { pool } from './server/db/pool.mjs';
 
-            const APPLY = false;
+            const APPLY = true;
             const directory = '/var/backups/bloodbowl-league/season-history-recovery-20261013';
             const coaches = new Set(['5743ec4d-aea1-4b32-a92a-5f3ac4ddfdc6','b06d2c69-8218-47c9-8e94-b08a22ee45c3']);
             const quote = value => '"' + value.replaceAll('"','""') + '"';
@@ -51,6 +51,8 @@ jobs:
               assert.ok(entries.every(row=>rounds.every(round=>round.season_id===row.season_id)), 'Same season');
               const livePairs=(await pool.query('SELECT * FROM season_pairings ORDER BY id')).rows;
               const liveEntries=(await pool.query('SELECT * FROM season_entries ORDER BY id')).rows;
+              const knownEntries=new Set([...entryIds,...liveEntries.map(row=>row.id)]);
+              assert.ok(pairs.every(row=>[row.home_entry_id,row.away_entry_id].filter(Boolean).every(id=>knownEntries.has(id))), 'All original opponents must exist');
               assert.ok(entries.every(row=>!liveEntries.some(current=>current.id!==row.id && current.season_id===row.season_id && current.saved_team_id===row.saved_team_id)), 'Do not overwrite a replacement entry');
               const collisions=pairs.filter(row=>livePairs.some(current=>current.id!==row.id && current.round_id===row.round_id && current.table_number===row.table_number)).length;
               const plan={participants:entries.filter(row=>!liveEntries.some(current=>current.id===row.id)).length,
