@@ -70,13 +70,13 @@ jobs:
                 for (let block = 0; block < metadata.size/metadata.blocksize; block++) {
                   const page = (await pool.query('SELECT pg_read_binary_file($1,$2,$3) AS page', [metadata.file,block*metadata.blocksize,metadata.blocksize])).rows[0].page;
                   await fs.writeFile(`${destination}/${table}-block-${block}.bin`, page, { mode: 0o600 });
-                  const items = (await inspector.query(`SELECT i.lp,i.t_xmin::text AS xmin,i.t_xmax::text AS xmax,i.t_ctid::text AS ctid,
+                  const items = (await inspector.query(`SELECT i.lp,i.t_xmin::text AS xmin,i.t_xmax::text AS xmax,i.t_ctid::text AS ctid,(i.t_infomask2 & 2047) AS natts,
                     f.raw_flags,tuple_data_split($2::regclass,i.t_data,i.t_infomask,i.t_infomask2,i.t_bits,false) AS attributes
                     FROM heap_page_items($1) i CROSS JOIN LATERAL heap_tuple_infomask_flags(i.t_infomask,i.t_infomask2) f WHERE i.lp_flags=1`, [page,table])).rows;
                   for (const item of items) {
                     if (item.raw_flags.includes('HEAP_XMIN_INVALID')) continue;
                     const row = {};
-                    for (const field of fields) if (!field.attisdropped) row[field.attname] = field.attnum>item.attributes.length ? field.missing_value??null : decode(item.attributes[field.attnum-1],field.type);
+                    for (const field of fields) if (!field.attisdropped) row[field.attname] = field.attnum>item.natts ? field.missing_value??null : decode(item.attributes[field.attnum-1],field.type);
                     if (item.ctid !== `(${block},${item.lp})`) continue;
                     if (currentIds.has(row.id)) {
                       const visible = current.find(current => current.id === row.id);
