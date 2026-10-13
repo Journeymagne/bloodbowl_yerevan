@@ -17,86 +17,20 @@ jobs:
             set -e
             cd /opt/bloodbowl-league
             node --input-type=module <<'NODE'
-            import fs from 'node:fs/promises';
             import assert from 'node:assert/strict';
-            import crypto from 'node:crypto';
-            import { execFileSync } from 'node:child_process';
+            import { loadSeasonBundle } from './server/season/store.mjs';
             import { pool } from './server/db/pool.mjs';
-
-            const APPLY = true;
-            const directory = '/var/backups/bloodbowl-league/season-history-recovery-20261013';
-            const coaches = new Set(['5743ec4d-aea1-4b32-a92a-5f3ac4ddfdc6','b06d2c69-8218-47c9-8e94-b08a22ee45c3']);
-            const quote = value => '"' + value.replaceAll('"','""') + '"';
-            const digest = rows => crypto.createHash('sha256').update(JSON.stringify(rows)).digest('hex');
-            let client;
             try {
-              const sources = {};
-              for (const table of ['season_entries','season_pairings']) {
-                sources[table] = JSON.parse(await fs.readFile(directory+'/'+table+'-retained.json','utf8'));
-                assert.ok(sources[table].visibleChecks.length > 0 && sources[table].visibleChecks.every(item=>item.differences.length===0), 'Decoded source must match visible rows');
-              }
-              const entries = sources.season_entries.records.map(item=>item.row);
-              const pairs = sources.season_pairings.records.map(item=>item.row);
-              assert.equal(entries.length,2); assert.equal(pairs.length,4);
-              assert.deepEqual(new Set(entries.map(row=>row.user_id)),coaches);
-              const entryIds=new Set(entries.map(row=>row.id));
-              assert.ok(pairs.every(row=>row.match_kind==='league' && (entryIds.has(row.home_entry_id)||entryIds.has(row.away_entry_id))
-                && (row.home_points!==null||row.away_points!==null)), 'Only the requested historical scored matches');
-              const schema=await pool.query("SELECT name FROM schema_migrations WHERE name='008_withdraw_season_entries.sql'");
-              assert.equal(schema.rows.length,1,'History-preserving schema must be deployed');
-              const identities=(await pool.query('SELECT id,user_id FROM saved_teams WHERE id=ANY($1::uuid[])',[entries.map(row=>row.saved_team_id)])).rows;
-              assert.ok(entries.every(row=>identities.some(team=>team.id===row.saved_team_id && team.user_id===row.user_id)), 'Original coaches and teams must still exist');
-              const rounds=(await pool.query('SELECT id,season_id,status FROM season_rounds WHERE id=ANY($1::uuid[])',[pairs.map(row=>row.round_id)])).rows;
-              assert.ok(pairs.every(row=>rounds.some(round=>round.id===row.round_id && ['started','completed'].includes(round.status))), 'Only played historical rounds');
-              assert.ok(entries.every(row=>rounds.every(round=>round.season_id===row.season_id)), 'Same season');
-              const livePairs=(await pool.query('SELECT * FROM season_pairings ORDER BY id')).rows;
-              const liveEntries=(await pool.query('SELECT * FROM season_entries ORDER BY id')).rows;
-              const knownEntries=new Set([...entryIds,...liveEntries.map(row=>row.id)]);
-              assert.ok(pairs.every(row=>[row.home_entry_id,row.away_entry_id].filter(Boolean).every(id=>knownEntries.has(id))), 'All original opponents must exist');
-              assert.ok(entries.every(row=>!liveEntries.some(current=>current.id!==row.id && current.season_id===row.season_id && current.saved_team_id===row.saved_team_id)), 'Do not overwrite a replacement entry');
-              const collisions=pairs.filter(row=>livePairs.some(current=>current.id!==row.id && current.round_id===row.round_id && current.table_number===row.table_number)).length;
-              const plan={participants:entries.filter(row=>!liveEntries.some(current=>current.id===row.id)).length,
-                matches:pairs.filter(row=>!livePairs.some(current=>current.id===row.id)).length,tableNumberCollisions:collisions,
-                existingMatches:livePairs.length,currentRostersWillChange:false,existingResultsWillChange:false};
-              await fs.writeFile(directory+'/restore-plan.json',JSON.stringify({plan,entries,pairs}),{mode:0o600});
-              if (!APPLY) { console.log('RECOVERY_DATA '+JSON.stringify({plan})); }
-              else {
-                const beforeBackup=directory+'/before-restore';
-                execFileSync('node',['scripts/backup-db.mjs'],{env:{...process.env,BACKUP_DIR:beforeBackup},encoding:'utf8',timeout:120000,maxBuffer:1048576});
-                client=await pool.connect();
-                await client.query('BEGIN');
-                await client.query('LOCK TABLE season_entries,season_pairings IN SHARE ROW EXCLUSIVE MODE');
-                const beforePairs=(await client.query('SELECT * FROM season_pairings ORDER BY id')).rows;
-                const beforeTeams=(await client.query('SELECT id,roster,revision,updated_at FROM saved_teams ORDER BY id')).rows;
-                const activeBefore=(await client.query('SELECT count(*)::int AS n FROM season_entries WHERE withdrawn_at IS NULL')).rows[0].n;
-                const insert=async(table,row)=>{
-                  const columns=(await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema='public' AND table_name=$1",[table])).rows.map(row=>row.column_name);
-                  const keys=Object.keys(row).filter(key=>columns.includes(key));
-                  return client.query(`INSERT INTO ${quote(table)} (${keys.map(quote).join(',')}) VALUES (${keys.map((key,index)=>'$'+(index+1)).join(',')}) ON CONFLICT(id) DO NOTHING RETURNING id`,keys.map(key=>row[key]));
-                };
-                let restoredEntries=0,restoredMatches=0,renumbered=0;
-                for (const entry of entries) restoredEntries+=(await insert('season_entries',{...entry,withdrawn_at:new Date().toISOString()})).rowCount;
-                for (const original of pairs) {
-                  const pair={...original};
-                  const sameId=(await client.query('SELECT * FROM season_pairings WHERE id=$1',[pair.id])).rows[0];
-                  if (sameId) continue;
-                  const occupied=(await client.query('SELECT id FROM season_pairings WHERE round_id=$1 AND table_number=$2',[pair.round_id,pair.table_number])).rows.length;
-                  if (occupied) {pair.table_number=(await client.query('SELECT COALESCE(MAX(table_number),0)+1 AS n FROM season_pairings WHERE round_id=$1',[pair.round_id])).rows[0].n;renumbered++;}
-                  restoredMatches+=(await insert('season_pairings',pair)).rowCount;
-                }
-                const afterPairs=(await client.query('SELECT * FROM season_pairings ORDER BY id')).rows;
-                assert.ok(beforePairs.every(row=>JSON.stringify(row)===JSON.stringify(afterPairs.find(item=>item.id===row.id))),'Existing results must be unchanged');
-                assert.equal(digest((await client.query('SELECT id,roster,revision,updated_at FROM saved_teams ORDER BY id')).rows),digest(beforeTeams),'Current rosters must be unchanged');
-                assert.equal((await client.query('SELECT count(*)::int AS n FROM season_entries WHERE withdrawn_at IS NULL')).rows[0].n,activeBefore,'Restoration must not rejoin withdrawn coaches');
-                assert.ok(entries.every(row=>afterPairs.some(pair=>(pair.home_entry_id===row.id||pair.away_entry_id===row.id) && (pair.home_points!==null||pair.away_points!==null))),'Both participants must have historical results');
-                const result={restoredEntries,restoredMatches,renumbered,existingResultsUnchanged:true,currentRostersUnchanged:true,activeParticipantsUnchanged:true};
-                await client.query('COMMIT');
-                await fs.writeFile(directory+'/restore-result.json',JSON.stringify({result,restoredAt:new Date().toISOString(),entries:entries.map(row=>row.id),matches:pairs.map(row=>row.id)}),{mode:0o600});
-                console.log('RECOVERY_DATA '+JSON.stringify({result}));
-              }
-            } catch(error) {
-              if (client) await client.query('ROLLBACK');
-              throw error;
-            } finally {if(client)client.release();await pool.end();}
+              const targets=new Set(['5743ec4d-aea1-4b32-a92a-5f3ac4ddfdc6','b06d2c69-8218-47c9-8e94-b08a22ee45c3']);
+              const data=await loadSeasonBundle();
+              const restored=data.standings.filter(row=>targets.has(row.user.id));
+              assert.equal(restored.length,2);
+              assert.ok(restored.every(row=>row.withdrawnAt && row.games>0));
+              assert.ok(data.entries.every(row=>!targets.has(row.user.id)));
+              const ids=new Set(restored.map(row=>row.entryId));
+              const matches=data.rounds.flatMap(round=>round.pairings).filter(pair=>ids.has(pair.homeEntryId)||ids.has(pair.awayEntryId));
+              assert.equal(matches.length,4);
+              console.log('RECOVERY_DATA '+JSON.stringify({verified:true,restoredParticipants:2,restoredMatches:4,activeParticipants:data.entries.length}));
+            } finally {await pool.end();}
 
             NODE
