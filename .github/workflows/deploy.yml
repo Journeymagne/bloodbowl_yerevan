@@ -23,6 +23,8 @@ jobs:
             import { databaseUrl, pool } from './server/db/pool.mjs';
 
             const destination = '/var/backups/bloodbowl-league/season-history-recovery-20261013';
+            const targetCoaches = new Set(['5743ec4d-aea1-4b32-a92a-5f3ac4ddfdc6','b06d2c69-8218-47c9-8e94-b08a22ee45c3']);
+            const targetEntries = new Set();
             const container = 'gata-league-postgres', user = process.env.POSTGRES_USER || 'gata_admin';
             const scratch = `codex_season_history_${Date.now()}_999`;
             if (!/^codex_season_history_\d+_\d+$/.test(scratch)) throw new Error('Invalid scratch name');
@@ -81,15 +83,18 @@ jobs:
                       visibleChecks.push({id:row.id,differences});
                       continue;
                     }
+                    if (table === 'season_entries' && !targetCoaches.has(row.user_id)) continue;
+                    if (table === 'season_pairings' && !targetEntries.has(row.home_entry_id) && !targetEntries.has(row.away_entry_id)) continue;
                     if (item.xmax === '0' || item.raw_flags.includes('HEAP_XMAX_INVALID') || item.raw_flags.includes('HEAP_XMAX_LOCK_ONLY') || item.raw_flags.includes('HEAP_XMAX_IS_MULTI')) continue;
                     const status = (await pool.query('SELECT pg_xact_status($1::xid8) AS status', [item.xmax])).rows[0].status;
                     if (status !== 'committed') continue;
+                    if (table === 'season_entries') targetEntries.add(row.id);
                     records.push({row,source:{block,offset:item.lp,xmin:item.xmin,deletedBy:item.xmax,flags:item.raw_flags}});
                   }
                 }
                 await fs.writeFile(destination+'/'+table+'-retained.json', JSON.stringify({records,visibleChecks}), {mode:0o600});
-                recovered[table] = {records: records.map(item => item.row),validatedVisible:visibleChecks.length,
-                  decodeMismatches:visibleChecks.filter(item => item.differences.length)};
+                recovered[table] = {recoveredRecords: records.length,validatedVisible:visibleChecks.length,
+                  decodeMismatches:visibleChecks.filter(item => item.differences.length).length};
               }
               console.log('RECOVERY_DATA '+JSON.stringify({retained:recovered}));
             } finally {
