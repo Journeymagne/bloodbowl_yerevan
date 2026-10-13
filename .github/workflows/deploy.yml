@@ -17,57 +17,16 @@ jobs:
             set -e
             cd /opt/bloodbowl-league
             node --input-type=module <<'NODE'
-            import fs from 'node:fs/promises';
             import { execFileSync } from 'node:child_process';
-            import { Pool } from 'pg';
-            import { databaseUrl, pool } from './server/db/pool.mjs';
-
-            const coaches = ['5743ec4d-aea1-4b32-a92a-5f3ac4ddfdc6', 'b06d2c69-8218-47c9-8e94-b08a22ee45c3'];
-            const directory = '/var/backups/bloodbowl-league';
-            const destination = directory + '/season-history-recovery-20261013';
-            const container = 'gata-league-postgres', user = process.env.POSTGRES_USER || 'gata_admin';
-            const docker = args => execFileSync('docker', ['exec', container, ...args], { encoding: 'utf8', timeout: 90000, maxBuffer: 16 * 1024 * 1024 });
-            const summary = [];
+            import { pool } from './server/db/pool.mjs';
             try {
-              await fs.mkdir(destination, { recursive: true, mode: 0o700 });
-              const current = new Set((await pool.query('SELECT id FROM season_pairings')).rows.map(row => row.id));
-              const files = (await fs.readdir(directory)).filter(name => /^gata_league-202610\d{2}-\d{6}\.dump$/.test(name)).sort().reverse();
-              for (const [index, filename] of files.entries()) {
-                const scratch = `codex_season_history_${Date.now()}_${index}`;
-                if (!/^codex_season_history_\d+_\d+$/.test(scratch)) throw new Error('Invalid scratch database name');
-                const dump = '/tmp/' + scratch + '.dump';
-                let backup;
-                try {
-                  docker(['createdb', '-U', user, scratch]);
-                  execFileSync('docker', ['cp', directory + '/' + filename, container + ':' + dump], { timeout: 30000 });
-                  docker(['pg_restore', '-U', user, '--exit-on-error', '--no-owner', '--no-acl', '-d', scratch, dump]);
-                  const connection = new URL(databaseUrl); connection.pathname = '/' + scratch;
-                  backup = new Pool({ connectionString: connection.toString() });
-                  const targets = (await backup.query(`SELECT e.*,u.login,t.name AS team_name,t.base_team_slug FROM season_entries e
-                    JOIN users u ON u.id=e.user_id JOIN saved_teams t ON t.id=e.saved_team_id WHERE e.user_id=ANY($1::uuid[])`, [coaches])).rows;
-                  const pairings = (await backup.query(`SELECT p.* FROM season_pairings p JOIN season_rounds r ON r.id=p.round_id
-                    WHERE (home_entry_id=ANY($1::uuid[]) OR away_entry_id=ANY($1::uuid[])) AND r.status IN ('started','completed')
-                      AND (home_points IS NOT NULL OR away_points IS NOT NULL)`, [targets.map(row => row.id)])).rows;
-                  const entryIds = [...new Set([...targets.map(row => row.id), ...pairings.flatMap(row => [row.home_entry_id, row.away_entry_id]).filter(Boolean)])];
-                  const entries = (await backup.query('SELECT * FROM season_entries WHERE id=ANY($1::uuid[])', [entryIds])).rows;
-                  const rounds = (await backup.query('SELECT * FROM season_rounds WHERE id=ANY($1::uuid[])', [[...new Set(pairings.map(row => row.round_id))]])).rows;
-                  const related = {};
-                  for (const table of ['match_preparations','match_roster_snapshots','match_treasury_spends','match_post_games','match_post_applications']) {
-                    related[table] = (await backup.query(`SELECT * FROM ${table} WHERE pairing_id=ANY($1::uuid[])`, [pairings.map(row => row.id)])).rows;
-                  }
-                  const file = destination + '/' + filename + '.json';
-                  await fs.writeFile(file, JSON.stringify({ backup: filename, targets, entries, rounds, pairings, related }), { mode: 0o600 });
-                  summary.push({ backup: filename, file, targets: targets.map(row => ({ id: row.id, coachId: row.user_id, login: row.login, team: row.team_name })),
-                    matches: pairings.map(row => ({ id: row.id, round: rounds.find(round => round.id===row.round_id)?.round_number,
-                      home: row.home_entry_id, away: row.away_entry_id, points: [row.home_points,row.away_points], touchdowns: [row.home_touchdowns,row.away_touchdowns],
-                      missing: !current.has(row.id) })), related: Object.fromEntries(Object.entries(related).map(([table, rows]) => [table,rows.length])) });
-                } finally {
-                  if (backup) await backup.end();
-                  docker(['dropdb', '-U', user, '--if-exists', scratch]);
-                  docker(['rm', '-f', dump]);
-                }
-              }
-              console.log('RECOVERY_DATA ' + JSON.stringify({ inspection: summary }));
+              const storage = (await pool.query(`SELECT c.relname,pg_relation_filepath(c.oid) AS file,pg_relation_size(c.oid)::int AS bytes,
+                s.n_live_tup,s.n_dead_tup,s.last_vacuum,s.last_autovacuum FROM pg_class c JOIN pg_stat_user_tables s ON s.relid=c.oid
+                WHERE c.relname IN ('season_entries','season_pairings','match_preparations','match_roster_snapshots','match_treasury_spends','match_post_games','match_post_applications')`)).rows;
+              const extensions = (await pool.query("SELECT name,installed_version FROM pg_available_extensions WHERE name IN ('pageinspect','pg_dirtyread')")).rows;
+              const privileges = (await pool.query('SELECT rolsuper FROM pg_roles WHERE rolname=current_user')).rows;
+              const archives = execFileSync('find',['/var/backups','/root','/opt/bloodbowl-league','-maxdepth','3','-type','f','(','-iname','*gata*.dump','-o','-iname','*bloodbowl*.dump','-o','-iname','*gata*.sql*','-o','-iname','*bloodbowl*.sql*',')','-printf','%p %s bytes\n'],{encoding:'utf8',timeout:30000}).trim().split('\n');
+              console.log('RECOVERY_DATA ' + JSON.stringify({storage,extensions,privileges,archives}));
             } finally { await pool.end(); }
 
             NODE
