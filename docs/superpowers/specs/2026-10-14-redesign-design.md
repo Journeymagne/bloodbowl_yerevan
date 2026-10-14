@@ -171,7 +171,7 @@ CREATE TABLE dice_rolls (
 ALTER TABLE users ADD COLUMN preferences jsonb NOT NULL DEFAULT '{}'::jsonb;
 ```
 
-Ключи: `themeMode` (`light|dark|system`), `lightPalette`, `darkPalette`, `activeTeamId`, `locale`. Сервер принимает только известные ключи и значения. localStorage остаётся кешем для `theme-boot.js`: тема должна примениться до загрузки модулей, без мигания.
+Ключи: `themeMode` (`light|dark|system`), `lightPalette`, `darkPalette`, `activeTeamId`, `locale`. Сервер принимает только известные ключи и значения. localStorage остаётся кешем для `theme-boot.js`: тема должна примениться до загрузки модулей, без мигания. Кеш выбора — ключ `gata-league-palette`, JSON `{mode: "light"|"dark"|"system", light, dark}`; его же читает страница техобслуживания (спека выката §1.2). Таблица перевода шести старых тем — `LEGACY_THEME_PALETTE` в `public/maintenance/palettes.mjs`.
 
 **Палитры.** Шесть текущих тем заменяются на 4 светлых и 4 тёмных палитры из 0.8. `theme-boot.js` переводит сохранённые старые id в ближайшую новую палитру, таблица соответствия лежит в `src/core/theme.mjs`.
 

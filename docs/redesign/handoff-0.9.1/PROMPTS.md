@@ -4,7 +4,7 @@
 
 Общий префикс для любого этапа:
 
-> Мы делаем редизайн Gata League 3.0. Прочитай `docs/redesign/handoff-0.9.1/README.md`, затем план `docs/superpowers/plans/2026-10-14-redesign.md` (этап N), проектную спецификацию `docs/superpowers/specs/2026-10-14-redesign-design.md` (разделы, на которые ссылается этап) и корневой `CLAUDE.md`. Правила и числа бери из `src/domain/**` и `content/Gata/**`, вид и тексты — из прототипов в `docs/redesign/handoff-0.9.1/prototypes` и спецификации интерфейса `docs/superpowers/specs/2026-10-14-ui-spec-v0.9.md`. Работай в ветке `rd/NN-…`, коммить по пунктам плана, отмечай чекбоксы в плане. Перед завершением пройди `docs/redesign/handoff-0.9.1/PR-CHECKLIST.md`. Не пушь.
+> Мы делаем редизайн Gata League 3.0. Прочитай `docs/redesign/handoff-0.9.1/README.md`, затем план `docs/superpowers/plans/2026-10-14-redesign.md` (этап N), проектную спецификацию `docs/superpowers/specs/2026-10-14-redesign-design.md` (разделы, на которые ссылается этап) и корневой `CLAUDE.md`. Правила и числа бери из `src/domain/**` и `content/Gata/**`, вид и тексты — из прототипов в `docs/redesign/handoff-0.9.1/prototypes` и спецификации интерфейса `docs/superpowers/specs/2026-10-14-ui-spec-v0.9.md`. Работай в ветке `rd/NN-…`, коммить по пунктам плана, отмечай чекбоксы в плане. Перед завершением пройди `docs/redesign/handoff-0.9.1/PR-CHECKLIST.md`. Пуш, PR и слияние — по протоколу мастер-плана `docs/superpowers/plans/2026-10-14-redesign-rollout.md`.
 
 ---
 
@@ -14,11 +14,11 @@
 
 ## Этап 3 · API (`rd/03-api`)
 
-> Этап 3 плана, §4 проектной спецификации. Эндпоинты казны, павших (`FALLEN_FROM_MATCH`), бросков, активации, настроек, записей матча (`GET/POST /api/teams/:id/events`, `MATCH_NOT_LIVE`) и истории игрока (`GET /api/teams/:id/players/:pid/history`, со сборкой старых матчей из `match_post_applications`). Режим техобслуживания: флаг-файл `{kind, startsAt, endsAt}`, 503 и `public/maintenance.html` по экранам `prototypes/*/…Maintenance*.html` — страница без модулей, в палитре пользователя через внешний `/theme-boot.js` и `tokens.css` (CSP без inline JS), с проверкой `/api/health` раз в 30 секунд; раздел в `DEPLOYMENT.md` (nginx должен отдавать эту статику без Node). Новые коды — в `API_ERRORS` и в обоих словарях. Дополни `scripts/smoke-api.mjs`.
+> Этап 3 плана, §4 проектной спецификации. Эндпоинты казны, павших (`FALLEN_FROM_MATCH`), бросков, активации, настроек, записей матча (`GET/POST /api/teams/:id/events`, `MATCH_NOT_LIVE`) и истории игрока (`GET /api/teams/:id/players/:pid/history`, со сборкой старых матчей из `match_post_applications`). Режим техобслуживания уже в `main` (релиз 2.1.0) — не трогать. Новые коды — в `API_ERRORS` и в обоих словарях. Дополни `scripts/smoke-api.mjs`.
 
 ## Этап 4 · Дизайн-система в коде (`rd/04-tokens`)
 
-> Этап 4 плана, §5. Шрифты из `docs/redesign/handoff-0.9.1/design-system/fonts` → `assets/fonts/` (OFL рядом), `fonts.css`, preload. `src/styles/tokens.css` по `design-system/tokens.json` + 4 светлых и 4 тёмных палитры (значения — объект `PALETTES` в `prototypes/mobile/Settings.html`); старые переменные временно отображаются на новые. `theme.mjs` и `theme-boot.js`: режим, палитра, перевод старых id тем, кеш в localStorage. Компоненты `src/ui/*` по `design-system/components/*/README.md` и `bundle.css`, с тестами разметки. Скриншоты текущих экранов до и после.
+> Этап 4 плана, §5. Шрифты из `docs/redesign/handoff-0.9.1/design-system/fonts` → `assets/fonts/` (OFL рядом), `fonts.css`, preload. `src/styles/tokens.css` по `design-system/tokens.json` + 4 светлых и 4 тёмных палитры (значения — объект `PALETTES` в `prototypes/mobile/Settings.html`); старые переменные временно отображаются на новые. `theme.mjs` и `theme-boot.js`: режим, палитра, перевод старых id тем, кеш в localStorage. Кеш выбора — `gata-league-palette` (JSON `{mode, light, dark}`), таблицы палитр и старых тем — как в `public/maintenance/palettes.mjs` (тест на совпадение). Шрифты уже лежат в `assets/fonts/ui/` (релиз 2.1.0). Компоненты `src/ui/*` по `design-system/components/*/README.md` и `bundle.css`, с тестами разметки. Скриншоты текущих экранов до и после.
 
 ## Этап 5 · Оболочка и маршруты (`rd/05-shell`)
 
@@ -38,7 +38,7 @@
 
 ## Этап 9 · Матчи (`rd/09-matches`)
 
-> Этап 9 плана; § 16–21; экраны «Матчи · …» и «Состав · Во время подготовки и матча». Один путь к матчу; шаги pre-match и post-match в новом виде (логика `src/domain/match/*` и `post-match/*` не меняется, кроме чтения записей); шаг «Счёт» подставляет TD/CAS из записей и показывает расхождение; шаг «Игроки» правит те же записи, MVP — отличившиеся сверху; товарищеские вызовы с поиском соперника. Быстрый счёт без подготовки — не трогать до ответа на §9.6.
+> Этап 9 плана; § 16–21; экраны «Матчи · …» и «Состав · Во время подготовки и матча». Один путь к матчу; шаги pre-match и post-match в новом виде (логика `src/domain/match/*` и `post-match/*` не меняется, кроме чтения записей); шаг «Счёт» подставляет TD/CAS из записей и показывает расхождение; шаг «Игроки» правит те же записи, MVP — отличившиеся сверху; товарищеские вызовы с поиском соперника. Форму быстрого счёта у тренера удалить (§9.6); `proposeGameResult` оставить для админа.
 
 ## Этап 10 · Таблица и соперники (`rd/10-season`)
 
