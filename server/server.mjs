@@ -7,8 +7,8 @@ import { loadTeamReference } from "./domain/roster.mjs";
 import { handleStatic, staticRootLabel } from "./http/static.mjs";
 import { sendJson } from "./http/responses.mjs";
 import { errorPayload } from "./http/errors.mjs";
-import { normalizeLogin } from "./api/serializers.mjs";
-import { hashPassword, startSessionSweeper } from "./auth/session.mjs";
+import { ensureAdminAccount } from "./auth/admin-account.mjs";
+import { startSessionSweeper } from "./auth/session.mjs";
 import { handleAuthRoutes } from "./routes/auth.mjs";
 import { handleTeamRoutes } from "./routes/teams.mjs";
 import { handleAdminRoutes } from "./routes/admin.mjs";
@@ -63,29 +63,6 @@ async function ensureSchema() {
   startupLog("database schema is ready");
 }
 
-async function ensureAdmin() {
-  const login = process.env.ADMIN_LOGIN || "admin";
-  const password = process.env.ADMIN_PASSWORD || "change-me-site-admin-password";
-  const telegram = process.env.ADMIN_TELEGRAM || "@admin";
-  const loginKey = normalizeLogin(login);
-  const passwordHash = hashPassword(password);
-
-  await pool.query(
-    `INSERT INTO users (login, login_key, telegram, password_hash, is_admin)
-     VALUES ($1, $2, $3, $4, TRUE)
-     ON CONFLICT (login_key) DO UPDATE
-       SET telegram = EXCLUDED.telegram,
-           password_hash = EXCLUDED.password_hash,
-           is_admin = TRUE,
-           updated_at = now()`,
-    [login, loginKey, telegram, passwordHash],
-  );
-  startupLog(`admin account is ready: ${login}`);
-}
-
-
-
-
 /**
  * Every route module, in the order the API is tried.
  *
@@ -130,7 +107,7 @@ await waitForDatabase();
 await ensureSchema();
 startupLog(`roster rules loaded for ${await loadTeamReference(rootDir)} teams`);
 startupLog(`serving the site from ${staticRootLabel}`);
-await ensureAdmin();
+startupLog(`admin account is ready: ${await ensureAdminAccount(pool)}`);
 startSessionSweeper();
 
 const server = http.createServer(async (request, response) => {
