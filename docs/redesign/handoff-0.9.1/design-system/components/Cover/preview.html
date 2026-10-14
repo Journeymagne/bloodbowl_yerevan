@@ -1,0 +1,55 @@
+<!-- @dsCard height=288 -->
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Gata League UI</title>
+<style>
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--surface); color: var(--ink); font-family: var(--font-body); overflow: hidden; }
+  .cover { position: relative; height: 288px; overflow: hidden; }
+  .art { position: absolute; top: 0; left: 480px; width: 480px; height: 288px; overflow: hidden; }
+  .art svg { display: block; width: 480px; height: 288px; }
+  .pitch { fill: var(--pitch-900); }
+  .accent { fill: var(--accent); }
+  .tint { fill: var(--accent-tint); }
+  .gold { fill: var(--crest-gold); }
+  .blk { rx: var(--radius-2xl); }
+  .sq { fill: var(--accent); rx: var(--radius-xs); }
+  .sq.lane { fill: var(--accent-tint); }
+  .words { position: absolute; left: var(--space-24); bottom: var(--space-24); max-width: 440px; }
+  .name { margin: 0; font-family: var(--font-display); font-size: 64px; line-height: .95; font-weight: 700; color: var(--ink); }
+  .tag { margin: var(--space-8) 0 0 2px; font-size: 14px; line-height: 20px; color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="cover">
+<div class="art" aria-hidden="true">
+<svg viewBox="0 0 480 288" width="480" height="288">
+<!--
+  blocks      pitch-900 280×288 slab bleeding off top/bottom/right, accent 120×168 bleeding off the bottom, accent-tint 160×80, crest-gold disc r22
+  arrangement one tall dark slab on the right with two satellites stepping down to its left, like the header over a table
+  pattern     literal motif: the Blood Bowl pitch grid. The site is a set of tables about squares on a pitch, so 42 squares on the slab, a diagonal of 6 in tint as a passing lane
+  scales      squares 24 with an 8 gap (space-8), radius-xs; blocks radius-2xl; offsets space-24
+-->
+<rect class="pitch" x="200" y="0" width="280" height="288"></rect>
+<rect class="tint blk" x="24" y="24" width="160" height="80"></rect>
+<rect class="accent blk" x="64" y="128" width="120" height="184"></rect>
+<circle class="gold" cx="440" cy="44" r="22"></circle>
+<g>
+<rect class="sq" x="224" y="96" width="24" height="24"></rect><rect class="sq" x="256" y="96" width="24" height="24"></rect><rect class="sq" x="288" y="96" width="24" height="24"></rect><rect class="sq" x="320" y="96" width="24" height="24"></rect><rect class="sq" x="352" y="96" width="24" height="24"></rect><rect class="sq" x="384" y="96" width="24" height="24"></rect><rect class="sq lane" x="416" y="96" width="24" height="24"></rect>
+<rect class="sq" x="224" y="128" width="24" height="24"></rect><rect class="sq" x="256" y="128" width="24" height="24"></rect><rect class="sq" x="288" y="128" width="24" height="24"></rect><rect class="sq" x="320" y="128" width="24" height="24"></rect><rect class="sq" x="352" y="128" width="24" height="24"></rect><rect class="sq lane" x="384" y="128" width="24" height="24"></rect><rect class="sq" x="416" y="128" width="24" height="24"></rect>
+<rect class="sq" x="224" y="160" width="24" height="24"></rect><rect class="sq" x="256" y="160" width="24" height="24"></rect><rect class="sq" x="288" y="160" width="24" height="24"></rect><rect class="sq" x="320" y="160" width="24" height="24"></rect><rect class="sq lane" x="352" y="160" width="24" height="24"></rect><rect class="sq" x="384" y="160" width="24" height="24"></rect><rect class="sq" x="416" y="160" width="24" height="24"></rect>
+<rect class="sq" x="224" y="192" width="24" height="24"></rect><rect class="sq" x="256" y="192" width="24" height="24"></rect><rect class="sq" x="288" y="192" width="24" height="24"></rect><rect class="sq lane" x="320" y="192" width="24" height="24"></rect><rect class="sq" x="352" y="192" width="24" height="24"></rect><rect class="sq" x="384" y="192" width="24" height="24"></rect><rect class="sq" x="416" y="192" width="24" height="24"></rect>
+<rect class="sq" x="224" y="224" width="24" height="24"></rect><rect class="sq" x="256" y="224" width="24" height="24"></rect><rect class="sq lane" x="288" y="224" width="24" height="24"></rect><rect class="sq" x="320" y="224" width="24" height="24"></rect><rect class="sq" x="352" y="224" width="24" height="24"></rect><rect class="sq" x="384" y="224" width="24" height="24"></rect><rect class="sq" x="416" y="224" width="24" height="24"></rect>
+<rect class="sq" x="224" y="256" width="24" height="24"></rect><rect class="sq lane" x="256" y="256" width="24" height="24"></rect><rect class="sq" x="288" y="256" width="24" height="24"></rect><rect class="sq" x="320" y="256" width="24" height="24"></rect><rect class="sq" x="352" y="256" width="24" height="24"></rect><rect class="sq" x="384" y="256" width="24" height="24"></rect><rect class="sq" x="416" y="256" width="24" height="24"></rect>
+</g>
+</svg>
+</div>
+<div class="words">
+<h1 class="name">Gata League<br>UI</h1>
+<p class="tag">Ростер, SPP, прокачка и справочник лиги Blood Bowl Sevens</p>
+</div>
+</div>
+</body>
+</html>

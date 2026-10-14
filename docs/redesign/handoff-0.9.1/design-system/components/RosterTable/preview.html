@@ -1,0 +1,29 @@
+<!-- @dsCard group="Data" height=330 -->
+<!doctype html>
+<html lang="ru">
+<head><meta charset="utf-8"><title>RosterTable — preview</title></head>
+<body>
+<div style="max-width:390px">
+  <div class="g-table__head" style="grid-template-columns:minmax(0,1fr) repeat(6,30px) 42px">
+    <button class="g-sort g-sort--start" aria-sort="ascending">ИГРОК<span style="font-size:10px;width:7px">▲</span></button>
+    <button class="g-sort">TD</button><button class="g-sort">CAS</button><button class="g-sort">CP</button><button class="g-sort">DEF</button><button class="g-sort">INT</button><button class="g-sort">MVP</button><button class="g-sort g-sort--end">SPP</button>
+  </div>
+  <button class="g-trow" style="grid-template-columns:minmax(0,1fr) repeat(6,30px) 42px" aria-expanded="false">
+    <span class="g-who"><span class="g-num" style="background:var(--pos-blitzer)">1</span><span style="min-width:0"><div class="g-who__name">W. Brandt</div><div class="g-who__sub">Blitzer</div></span></span>
+    <span class="g-cell">2</span><span class="g-cell">3</span><span class="g-cell g-cell--zero">0</span><span class="g-cell g-cell--zero">0</span><span class="g-cell g-cell--zero">0</span><span class="g-cell">1</span><span class="g-cell g-cell--total">16</span>
+  </button>
+  <button class="g-trow" style="grid-template-columns:minmax(0,1fr) repeat(6,30px) 42px" aria-expanded="true">
+    <span class="g-who"><span class="g-num" style="background:var(--pos-catcher)">3</span><span style="min-width:0"><div class="g-who__name">L. Ashby</div><div class="g-who__sub">Catcher</div></span></span>
+    <span class="g-cell">7</span><span class="g-cell g-cell--zero">0</span><span class="g-cell">2</span><span class="g-cell g-cell--zero">0</span><span class="g-cell g-cell--zero">0</span><span class="g-cell">1</span><span class="g-cell g-cell--total">27</span>
+  </button>
+  <div class="g-tpanel">
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:var(--muted)"><span>Этот матч</span><span style="font-weight:600;color:var(--accent)">+3 SPP</span></div>
+    <div style="display:flex;justify-content:space-between;gap:8px"><a class="g-btn g-btn--dark" href="#">Профиль и прокачка</a><button class="g-btn">Пропуск матча…</button></div>
+  </div>
+  <button class="g-trow" style="grid-template-columns:minmax(0,1fr) repeat(6,30px) 42px" aria-expanded="false">
+    <span class="g-who"><span class="g-num" style="background:var(--pos-lineman)">9</span><span style="min-width:0"><div class="g-who__name">J. Corr</div><div class="g-who__sub g-who__sub--alert">Серьёзная травма</div></span></span>
+    <span class="g-cell g-cell--zero">0</span><span class="g-cell">1</span><span class="g-cell g-cell--zero">0</span><span class="g-cell g-cell--zero">0</span><span class="g-cell g-cell--zero">0</span><span class="g-cell g-cell--zero">0</span><span class="g-cell g-cell--total">2</span>
+  </button>
+</div>
+</body>
+</html>

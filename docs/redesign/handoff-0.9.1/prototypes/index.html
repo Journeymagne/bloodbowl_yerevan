@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gata League · прототипы v0.9.1</title>
+<link rel="stylesheet" href="fonts/fonts.css">
+<style>
+body{margin:0;background:#F3F6F4;color:#14201A;font-family:'Golos Text',system-ui,sans-serif}
+header{background:#17392C;color:#fff;padding:28px 32px}
+header h1{margin:0;font-family:'Oswald',sans-serif;font-size:40px}
+header p{margin:6px 0 0;color:#CFE0D7;font-size:15px;max-width:760px;line-height:1.45}
+nav{display:flex;gap:8px;padding:16px 32px 0}
+nav a{padding:8px 14px;border-radius:10px;background:#fff;box-shadow:inset 0 0 0 1px #DCE3DF;color:#14201A;font-weight:700;text-decoration:none}
+main{padding:8px 32px 48px}
+h2{font-family:'Oswald',sans-serif;font-size:32px;margin:28px 0 4px}
+h3{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:#5F6B65;margin:22px 0 10px}
+.grid{display:grid;gap:14px}
+.grid--mobile{grid-template-columns:repeat(auto-fill,minmax(170px,1fr))}
+.grid--desktop{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.card{display:flex;flex-direction:column;gap:8px;padding:10px;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 1px #DCE3DF;color:#14201A;text-decoration:none;font-size:14px;font-weight:600}
+.card:hover{box-shadow:inset 0 0 0 2px #2F7A52}
+.card img{width:100%;border-radius:8px;background:#E6EBE8;display:block}
+.grid--mobile .card img{aspect-ratio:390/844;object-fit:cover;object-position:top}
+.grid--desktop .card img{aspect-ratio:1440/1000;object-fit:cover;object-position:top}
+footer{padding:0 32px 32px;font-size:12px;color:#8A948F}
+</style>
+</head>
+<body>
+<header><h1>Gata League · прототипы v0.9.1</h1><p>Интерактивные прототипы мобильной и десктопной версии. Открывается без установки в любом браузере на Mac и Windows. Кнопки, листы, переключатели и переходы между вкладками работают; данные — пример, ничего не сохраняется.</p></header>
+<nav><a href="#mobile">Мобильная версия</a><a href="#desktop">Десктоп</a></nav>
+<main>
+<h2 id="mobile">Мобильная версия</h2>
+<h3>Вход и регистрация</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/Login.html"><img src="thumbs/Login.jpg" alt="" loading="lazy"><span>Вход</span></a>
+<a class="card" href="mobile/LoginError.html"><img src="thumbs/LoginError.jpg" alt="" loading="lazy"><span>Вход · неверный пароль</span></a>
+<a class="card" href="mobile/LoginRegister.html"><img src="thumbs/LoginRegister.jpg" alt="" loading="lazy"><span>Регистрация</span></a>
+</div>
+<h3>Обзор команды</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/Team.html"><img src="thumbs/Team.jpg" alt="" loading="lazy"><span>Обзор</span></a>
+</div>
+<h3>Смена и создание команды</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/TeamSwitch.html"><img src="thumbs/TeamSwitch.jpg" alt="" loading="lazy"><span>Мои команды</span></a>
+<a class="card" href="mobile/TeamNew.html"><img src="thumbs/TeamNew.jpg" alt="" loading="lazy"><span>Новая команда</span></a>
+</div>
+<h3>ИЗМ · Казна и ресурсы · межсезонье</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/TeamManagePre.html"><img src="thumbs/TeamManagePre.jpg" alt="" loading="lazy"><span>ИЗМ · Команда в межсезонье</span></a>
+</div>
+<h3>Таблица → обзор соперника</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/League.html"><img src="thumbs/League.jpg" alt="" loading="lazy"><span>Таблица лиги</span></a>
+<a class="card" href="mobile/OppTeam.html"><img src="thumbs/OppTeam.jpg" alt="" loading="lazy"><span>Соперник · Silverbrook Rangers</span></a>
+<a class="card" href="mobile/OppTeamOgres.html"><img src="thumbs/OppTeamOgres.jpg" alt="" loading="lazy"><span>Соперник · Cinderpeak Ash</span></a>
+</div>
+<h3>Справочник · Разделы и списки</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/Ref.html"><img src="thumbs/Ref.jpg" alt="" loading="lazy"><span>Справочник</span></a>
+<a class="card" href="mobile/RefSkills.html"><img src="thumbs/RefSkills.jpg" alt="" loading="lazy"><span>Навыки</span></a>
+</div>
+<h3>Справочник · Статьи и таблицы</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/RefAdvancement.html"><img src="thumbs/RefAdvancement.jpg" alt="" loading="lazy"><span>Player Advancement</span></a>
+</div>
+<h3>Справочник · Правила команд</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/RefTeam.html"><img src="thumbs/RefTeam.jpg" alt="" loading="lazy"><span>Огры</span></a>
+<a class="card" href="mobile/RefTeamElves.html"><img src="thumbs/RefTeamElves.jpg" alt="" loading="lazy"><span>Лесные эльфы</span></a>
+</div>
+<h3>Настройки · Темы и палитры</h3><div class="grid grid--mobile">
+<a class="card" href="mobile/SettingsDark.html"><img src="thumbs/SettingsDark.jpg" alt="" loading="lazy"><span>Тёмная тема</span></a>
+<a class="card" href="mobile/SettingsParchment.html"><img src="thumbs/SettingsParchment.jpg" alt="" loading="lazy"><span>«Палящий зной»</span></a>
+<a class="card" href="mobile/SettingsEmbers.html"><img src="thumbs/SettingsEmbers.jpg" alt="" loading="lazy"><span>«Пламя Хаоса»</span></a>
+</div>
+<h2 id="desktop">Десктоп</h2>
+<h3>Вход и регистрация</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskLogin.html"><img src="thumbs/DeskLogin.jpg" alt="" loading="lazy"><span>Вход</span></a>
+<a class="card" href="desktop/DeskLoginRegister.html"><img src="thumbs/DeskLoginRegister.jpg" alt="" loading="lazy"><span>Регистрация</span></a>
+</div>
+<h3>Обзор команды</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskOverview.html"><img src="thumbs/DeskOverview.jpg" alt="" loading="lazy"><span>Обзор</span></a>
+</div>
+<h3>Смена и создание команды</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskTeamSwitch.html"><img src="thumbs/DeskTeamSwitch.jpg" alt="" loading="lazy"><span>Мои команды</span></a>
+<a class="card" href="desktop/DeskTeamNew.html"><img src="thumbs/DeskTeamNew.jpg" alt="" loading="lazy"><span>Новая команда</span></a>
+</div>
+<h3>Состав · Пропуски и погибшие</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskRosterInjured.html"><img src="thumbs/DeskRosterInjured.jpg" alt="" loading="lazy"><span>Весь экран с пропусками и погибшими</span></a>
+<a class="card" href="desktop/DeskRosterDeath.html"><img src="thumbs/DeskRosterDeath.jpg" alt="" loading="lazy"><span>Отметка гибели</span></a>
+</div>
+<h3>ИЗМ · Казна и ресурсы · межсезонье</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskRosterPreseason.html"><img src="thumbs/DeskRosterPreseason.jpg" alt="" loading="lazy"><span>ИЗМ · Казна и ресурсы в межсезонье</span></a>
+</div>
+<h3>Таблица → обзор соперника</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskOppTeam.html"><img src="thumbs/DeskOppTeam.jpg" alt="" loading="lazy"><span>Соперник · Silverbrook Rangers</span></a>
+<a class="card" href="desktop/DeskOppTeamOgres.html"><img src="thumbs/DeskOppTeamOgres.jpg" alt="" loading="lazy"><span>Соперник · Cinderpeak Ash</span></a>
+</div>
+<h3>Справочник · Разделы и списки</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskRef.html"><img src="thumbs/DeskRef.jpg" alt="" loading="lazy"><span>Справочник · навыки</span></a>
+</div>
+<h3>Справочник · Статьи и таблицы</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskRefReader.html"><img src="thumbs/DeskRefReader.jpg" alt="" loading="lazy"><span>Статья (Weather)</span></a>
+<a class="card" href="desktop/DeskRefAdv.html"><img src="thumbs/DeskRefAdv.jpg" alt="" loading="lazy"><span>Таблица (Player Advancement)</span></a>
+</div>
+<h3>Справочник · Правила команд</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskRefTeam.html"><img src="thumbs/DeskRefTeam.jpg" alt="" loading="lazy"><span>Огры</span></a>
+<a class="card" href="desktop/DeskRefTeamElves.html"><img src="thumbs/DeskRefTeamElves.jpg" alt="" loading="lazy"><span>Лесные эльфы</span></a>
+</div>
+<h3>Настройки · Аккаунт</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskCoach.html"><img src="thumbs/DeskCoach.jpg" alt="" loading="lazy"><span>Настройки</span></a>
+<a class="card" href="desktop/DeskCoachPassword.html"><img src="thumbs/DeskCoachPassword.jpg" alt="" loading="lazy"><span>Смена пароля</span></a>
+</div>
+<h3>Настройки · Темы и палитры</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskCoachDark.html"><img src="thumbs/DeskCoachDark.jpg" alt="" loading="lazy"><span>Тёмная тема</span></a>
+<a class="card" href="desktop/DeskCoachIce.html"><img src="thumbs/DeskCoachIce.jpg" alt="" loading="lazy"><span>«Метель»</span></a>
+<a class="card" href="desktop/DeskCoachDungeon.html"><img src="thumbs/DeskCoachDungeon.jpg" alt="" loading="lazy"><span>«Тёмные эльфы»</span></a>
+</div>
+<h3>НОВОЕ · Администрирование · сезон</h3><div class="grid grid--desktop">
+<a class="card" href="desktop/DeskAdminSeason.html"><img src="thumbs/DeskAdminSeason.jpg" alt="" loading="lazy"><span>НОВОЕ · Туры и пары</span></a>
+<a class="card" href="desktop/DeskAdminEntries.html"><img src="thumbs/DeskAdminEntries.jpg" alt="" loading="lazy"><span>НОВОЕ · Участники</span></a>
+</div>
+</main>
+<footer>Экспорт 14.10.2026 · Неофициальный фанатский справочник лиги</footer>
+</body>
+</html>
