@@ -1,0 +1,528 @@
+# Редизайн 3.0 · мастер-план исполнения и переезда
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** провести редизайн 3.0 цепочкой PR (этапы П, 01, 2–13) с вехами для владельца и перевезти боевой сайт на 3.0 за одно окно до часа, без потери данных и с проверенным откатом.
+
+**Architecture:** работа идёт волнами. Сначала релиз 2.1.0 в `main`: механика переезда работает на проде заранее. Затем инструменты репетиции (этап 01). Дальше два трека этапов 2–5, экранные этапы 6–13 (не больше двух одновременно), вехи M1–M5 с репетициями на обезличенной копии боевой базы. В конце PR `redesign → main` в день X по runbook. Детальный план каждого этапа 2–13 пишется при его старте (writing-plans), по протоколу ниже.
+
+**Tech Stack:** Node.js, vanilla ES-модули, PostgreSQL 16 (Docker), pm2, GitHub Actions, общий Caddy; агенты Claude Code (subagent-driven-development, worktrees).
+
+**Spec:** `docs/superpowers/specs/2026-10-14-redesign-rollout-design.md` (спека выката) и `docs/superpowers/specs/2026-10-14-redesign-design.md` (спека 3.0). Этапы и чекбоксы: `docs/superpowers/plans/2026-10-14-redesign.md` (план 3.0). Детальные планы: `plans/2026-10-14-release-2.1.0.md` (этап П), `plans/2026-10-14-rehearsal-tooling.md` (этап 01).
+
+## Global Constraints
+
+- Ветки: `release/2.1.0` от `main` → PR в `main`; этапы `rd/NN-…` от свежей `redesign` → PR в `redesign`. В `main` вливает **только владелец**; в `redesign` — Claude после проверок и ревью.
+- После выхода 2.1.0 `main` заморожен: только фиксы багов. Каждый фикс Claude сразу вливает в `redesign` (`git merge origin/main`).
+- Одновременно открыто не больше двух этапных веток с экранами; слияния в `redesign` — по одному, следующая ветка ребейзится на свежую `redesign`.
+- Каждый PR зелёный: `npm test && npm run check && npm run i18n:check && npm run build`, плюс `npm run smoke` и `smoke:pre-match / smoke:friendly / smoke:post-match` для этапов, трогающих матчи; `npm run build && npm run i18n:check` — одинаковое число страниц EN/RU, 0 fallback.
+- Правила и числа — из `content/Gata/**` и `src/domain/**`. Если контент и код расходятся **между собой**, трек останавливается до ответа владельца (спека 3.0 §0.12). Расхождения макета с кодом правятся по коду без вопроса.
+- Миграции только добавляют (спека 3.0 §0.13); применённый файл не правится. После первой репетиции, на которой миграция применилась, её изменение = новая миграция **и** повтор репетиции.
+- Без новых зависимостей, фреймворков, сборщика. CSP без inline JS и `style="…"`.
+- В репозиторий не попадает ничего из боевого дампа; отчёты репетиций в репозитории — только сводки.
+- SSH к серверу у Claude нет: все серверные шаги — готовые команды для владельца (`sudo -i`), Claude читает вывод.
+- Ответы владельцу — по-русски; комментарии в коде — по-английски.
+
+## Review Focus
+
+1. **Worktree поднялся на чужой ветке** → агент начинает этап с неверной базы. Протокол, шаг 2, сверяет `git rev-parse HEAD` с `origin/redesign` и останавливается при расхождении.
+2. **Два параллельных этапа добавили ключи в `en.json`/`ru.json`, при ребейзе ключ потерялся или задублировался** → JSON молча берёт последнее значение. Протокол, шаг 8, проверяет дубли ключей скриптом из шага 8.
+3. **Миграцию поправили после репетиции** → отчёт вехи врёт. Протокол, шаг 8, сравнивает чек-суммы `server/db/migrations/*.sql` с записанными в отчёте последней репетиции.
+4. **Между предполётной проверкой и `maintenance:on` тренер начал матч** → фаза X, шаг T+8, повторяет запрос открытых состояний уже при включённом техобслуживании.
+5. **3.0 требует чего-то, что режет боевой CSP** (шрифт, inline-стиль, внешний адрес) → веха M5 проходит собранный сайт под точной политикой из `deploy/caddy/…conf`.
+
+---
+
+## Фаза 0 · Документы и PR #10 (Claude, сразу после одобрения этого плана)
+
+### Task 0.1: План 3.0 под решения 2026-10-14
+
+**Files:** Modify: `docs/superpowers/plans/2026-10-14-redesign.md`
+
+- [ ] **Step 1:** В «Как устроена работа» после пункта «Ветки» добавить:
+
+```markdown
+- **Исполнение и выкат.** Порядок PR, протокол этапа, вехи M1–M5 и runbook дня X — в `plans/2026-10-14-redesign-rollout.md` (спека выката — `specs/2026-10-14-redesign-rollout-design.md`). Этапные PR в `redesign` открывает и вливает Claude; в `main` — только владелец.
+```
+
+- [ ] **Step 2:** В этапе 0 добавить `- [x] Спека выката и мастер-план исполнения (2026-10-14)`. В этапе 1 заменить `- [ ] Ответ владельца на §9.6 (быстрый счёт без подготовки)` на `- [x] Ответ владельца на §9.6: быстрый счёт у тренера убрать (2026-10-14)`.
+
+- [ ] **Step 3:** Перед `## Этап 2 · База данных и домен` вставить:
+
+```markdown
+## Этап П · Релиз 2.1.0 в `main` (`release/2.1.0`)
+Детальный план: `plans/2026-10-14-release-2.1.0.md`. Спека выката §1.
+- [ ] Режим техобслуживания: флаг-файл, 503, страница `public/maintenance/`, обход только с loopback, `maintenance:on|off|status`
+- [ ] Открытые вкладки перезагружаются по `MAINTENANCE`
+- [ ] `deploy:migrate`: дамп `premigrate` перед миграциями
+- [ ] Слияние владельцем, проба на проде, тег `v2.1.0`, `main` влит в `redesign`
+
+## Этап 01 · Инструменты репетиции (`rd/01-rehearsal`)
+Детальный план: `plans/2026-10-14-rehearsal-tooling.md`. Спека выката §3.
+- [ ] Перенос из PR #9 (`scripts/lib/render-table.mjs`, заметка глоссария); PR #9 закрыт
+- [ ] `rehearsal:restore`, `rehearsal:migrate`, `rehearsal:check`
+
+```
+
+- [ ] **Step 4:** В 2.1 заменить строку `  - Все существующие и новые команды пока создаются в `active`; `draft` включается на этапе 12.` на:
+
+```markdown
+  - Существующие команды: `active`, если есть неотозванная заявка в текущий сезон или сыгранный матч, иначе `draft` (спека 3.0 §0.6, §3.1; SQL — мастер-план, этап 02a). Новые команды до этапа 12 создаются в `active`.
+```
+
+В 2.3 после строки про `011_fallen_players.sql` добавить:
+
+```markdown
+  - `015_backfill_fallen_players.sql`: погибшие из итогов матчей, сыгранных до 3.0 (спека 3.0 §3.3).
+```
+
+- [ ] **Step 5:** В этапе 3 заменить пункт `- [ ] Режим техобслуживания: …` на строку без чекбокса `- Режим техобслуживания вышел в релизе 2.1.0 (этап П); здесь не трогается.` В пункте `scripts/smoke-api.mjs` убрать слово «техобслуживание».
+
+- [ ] **Step 6:** В этапе 9 заменить пункт `- [ ] Быстрый счёт без подготовки: по ответу на §9.6 …` на:
+
+```markdown
+- [ ] Быстрый счёт у тренера убрать (§9.6): форма `components/games/result-fields.mjs` в режиме тренера удаляется, `proposeGameResult` остаётся для админа
+- [ ] `npm run rehearsal:transitions` — сквозной тест переходных состояний 2.x → 3.0 (спека выката §3.3)
+```
+
+- [ ] **Step 7:** В этапе 12 добавить:
+
+```markdown
+- [ ] «Добавить погибшего задним числом» (`POST /api/admin/teams/:id/fallen`, спека 3.0 §3.3)
+- [ ] Ввод и подтверждение админом счетов, предложенных до 3.0 и не подтверждённых
+```
+
+- [ ] **Step 8:** В этапе 13 заменить пункт `- [ ] План выката:` вместе с шестью вложенными строками на:
+
+```markdown
+- [ ] Раздел «Переезд на 3.0» в `DEPLOYMENT.md`: runbook дня X (команды — мастер-план, фаза X; спека выката §6)
+- [ ] Финальная репетиция на свежем дампе, веха M5 (go / no-go)
+```
+
+- [ ] **Step 9:** Блок `## Порядок и зависимости` заменить на:
+
+````markdown
+## Порядок и зависимости
+
+```
+П (2.1.0 в main) ─ 01 (репетиция) ─┬─ 02a ─ 02b ─ 03 ──┐
+                                    └─ 04 ─── 05 ───────┴─ M1
+M1 ─ 06 ∥ 11 ─ 07a…07e ∥ 08 ─ M2 ─ 09a ─ 09b ─ 09c ∥ 10 ─ M3 ─ 12 ─ M4 ─ 13 ─ M5 ─ день X
+```
+
+Подробно — `plans/2026-10-14-redesign-rollout.md`.
+````
+
+- [ ] **Step 10: Commit**
+
+```bash
+git add docs/superpowers/plans/2026-10-14-redesign.md
+git commit -m "docs(redesign): plan 3.0 — stages П and 01, owner's answers, milestones"
+```
+
+### Task 0.2: Handoff, спецификация интерфейса, мелкие правки спек
+
+**Files:** Modify: `docs/redesign/handoff-0.9.1/README.md`, `docs/redesign/handoff-0.9.1/PROMPTS.md`, `docs/superpowers/specs/2026-10-14-ui-spec-v0.9.md`, `docs/superpowers/specs/2026-10-14-redesign-design.md`, `docs/superpowers/specs/2026-10-14-redesign-rollout-design.md`
+
+- [ ] **Step 1: `README.md` handoff**
+  - Строку `- Коммиты — на этапной ветке; пуш и PR делает владелец (или по его явной просьбе).` заменить на `- Коммиты — на этапной ветке. Этапные PR в `redesign` открывает и вливает Claude после проверок и ревью; в `main` вливает только владелец. Протокол — `docs/superpowers/plans/2026-10-14-redesign-rollout.md`.`
+  - Абзац `**Открытый вопрос (§9.6):** …` заменить на `**§9.6 закрыт (2026-10-14):** у тренера только подготовка → итоги; форму быстрого счёта убрать на этапе 9, `proposeGameResult` оставить для админа.`
+  - В «Ключевых решениях» пункт 4 заменить на `4. При переезде `active` — команды в текущем сезоне или уже игравшие, остальные `draft`; новые команды получают `draft` с этапа 12.`
+  - В «Что читать и в каком порядке» после пункта 2 вставить `2a. **Мастер-план выката:** `docs/superpowers/plans/2026-10-14-redesign-rollout.md` — цепочка PR, протокол этапа, вехи, день X.`
+  - Блок «Порядок этапов» заменить ссылкой: `Порядок этапов, параллельность и вехи — в мастер-плане выката.`
+
+- [ ] **Step 2: `PROMPTS.md`**
+  - В общем префиксе `Не пушь.` заменить на `Пуш, PR и слияние — по протоколу мастер-плана `docs/superpowers/plans/2026-10-14-redesign-rollout.md`.`
+  - В промпте этапа 3 удалить предложение, начинающееся с `Режим техобслуживания: флаг-файл`, до конца этого предложения; добавить `Режим техобслуживания уже в `main` (релиз 2.1.0) — не трогать.`
+  - В промпте этапа 4 после `theme.mjs и theme-boot.js: …` добавить `Кеш выбора — `gata-league-palette` (JSON `{mode, light, dark}`), таблицы палитр и старых тем — как в `public/maintenance/palettes.mjs` (тест на совпадение).`
+  - В промпте этапа 9 `Быстрый счёт без подготовки — не трогать до ответа на §9.6.` заменить на `Форму быстрого счёта у тренера удалить (§9.6); `proposeGameResult` оставить для админа.`
+
+- [ ] **Step 3: Спецификация интерфейса §30.** Пункт, начинающийся `- Как это работает без приложения:`, заменить на:
+
+```markdown
+- Как это работает без приложения (пересмотрено 2026-10-14, спека выката §1.2): страница на том же адресе и читает кеш выбора в localStorage — `gata-league-palette` из 3.0, иначе `gata-league-theme` из 2.x. Свои CSS и JS внешними файлами (`public/maintenance/`), без `theme-boot.js` и `tokens.css`. Отдаёт её Node во время работ; nginx на проде нет, при упавшем Node Caddy отвечает 502.
+```
+
+- [ ] **Step 4: Спека 3.0 §3.5.** После абзаца про `theme-boot.js` добавить: `Кеш выбора в localStorage — ключ `gata-league-palette`, JSON `{mode: "light"|"dark"|"system", light, dark}`; его же читает страница техобслуживания (спека выката §1.2). Таблица перевода шести старых тем — `LEGACY_THEME_PALETTE` в `public/maintenance/palettes.mjs`.`
+
+- [ ] **Step 5: Спека выката §3.1.** Строку `  - TV каждой команды (через `src/domain`) и очки таблицы сезона совпадают;` заменить на `  - результаты и очки таблицы сезона совпадают; TV не пересчитывается: миграции не меняют ни блоб, ни справочные данные, поэтому совпадение блоба означает совпадение TV;`
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add docs/redesign/handoff-0.9.1/README.md docs/redesign/handoff-0.9.1/PROMPTS.md docs/superpowers/specs/
+git commit -m "docs(redesign): handoff, UI spec §30 and specs aligned with the rollout plan"
+```
+
+### Task 0.3: PR #10 в `redesign`
+
+- [ ] **Step 1:** `git push origin rd/00-plan`
+- [ ] **Step 2:** Обновить описание PR #10: что внутри (спека 3.0, план 3.0, handoff 0.9.1, спека выката, мастер-план, планы П и 01), строка `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+
+```bash
+gh pr edit 10 --body-file <scratchpad>/pr-10.md
+```
+
+- [ ] **Step 3:** `gh pr merge 10 --merge`, затем `git fetch origin && git log --oneline -1 origin/redesign`. Чекбоксы фазы 0 в этом плане отмечаются в ветке этапа 01 вместе с его собственными.
+
+---
+
+## Фаза П · Релиз 2.1.0
+
+- [ ] Исполнить `plans/2026-10-14-release-2.1.0.md` (Tasks 0–9) — subagent-driven-development в worktree `../bb-release-2.1.0`.
+- [ ] Владелец вливает PR в `main`; проба на проде (Task 10, Step 2); тег `v2.1.0`; `main` влит в `redesign`.
+- [ ] Короткий отчёт владельцу в чат: ссылки на PR и деплой, результат пробы.
+
+## Фаза 01 · Инструменты репетиции
+
+- [ ] Исполнить `plans/2026-10-14-rehearsal-tooling.md` (Tasks 0–5).
+- [ ] Протокол этапа, шаги 7–10 (ниже).
+
+---
+
+## Протокол этапа (для этапов 02a–13)
+
+Каждый этап проходит одни и те же 10 шагов. Детали этапа — в плане 3.0, спеке 3.0, спецификации интерфейса 0.9.1, `SCREENS.md` и дополнениях к этапу ниже.
+
+- [ ] **1. Готовность.** Зависимости этапа влиты в `redesign` (таблица этапов). Открыто не больше одной другой экранной ветки.
+- [ ] **2. Worktree.**
+
+```bash
+cd /Users/felstell/git/-bloodbowlyerevan && git fetch origin
+git worktree add ../bb-rd-NN -b rd/NN-name origin/redesign
+cd ../bb-rd-NN
+test "$(git rev-parse HEAD)" = "$(git rev-parse origin/redesign)" && echo "base ok"
+npm install && npm test && npm run check && npm run i18n:check && npm run build
+```
+
+Нет `base ok` → `git reset --hard origin/redesign` и повторить; не начинать на чужой базе.
+
+- [ ] **3. Детальный план этапа** (skill writing-plans) → `docs/superpowers/plans/2026-10-14-rd-NN-name.md` в этой же ветке: задачи с тестами и кодом, Global Constraints этого мастер-плана плюс правила `README.md` handoff, Review Focus этапа. Пункты этапа из плана 3.0 и дополнения ниже — обязательный охват (самопроверка плана сверяет).
+- [ ] **4. Исполнение** (skill subagent-driven-development): по задаче — исполнитель (TDD), ревьюер соответствия, ревьюер качества; замечания исправляются до следующей задачи.
+- [ ] **5. Стоп-условия** (спека выката §2.3): продуктовое решение вне спек, противоречие прототипов, расхождение контента и кода → вопрос владельцу в чат; трек ждёт, другой продолжает.
+- [ ] **6. Скриншоты** встроенным браузером (`preview_start`): каждый экран этапа на 390 и 1440, светлая и одна тёмная палитра, все состояния из `SCREENS.md`; выборочно 768 и 1024. Файлы — в `output/screens/rd-NN/` (не коммитятся), в PR — загрузкой.
+- [ ] **7. Финальное ревью ветки** (skill requesting-code-review) и исправления.
+- [ ] **8. Проверки перед PR:**
+
+```bash
+npm test && npm run check && npm run i18n:check && npm run build
+npm run smoke   # + smoke:pre-match / smoke:friendly / smoke:post-match для 02b, 03, 07a, 09a–09c, 12
+git diff --name-only origin/redesign -- src | xargs grep -nE ">[A-ZА-Я]" || true   # хардкод в разметке (CLAUDE.md)
+python3 -c "import json,sys
+for f in ('src/i18n/en.json','src/i18n/ru.json'):
+    seen=set()
+    def hook(pairs):
+        for k,_ in pairs:
+            assert k not in seen, f'duplicate key {k} in {f}'; seen.add(k)
+        return dict(pairs)
+    json.load(open(f,encoding='utf-8'),object_pairs_hook=hook)
+print('i18n keys unique')"
+shasum -a 256 server/db/migrations/*.sql   # сверить с отчётом последней репетиции, если миграции уже репетировались
+```
+
+Плюс `docs/redesign/handoff-0.9.1/PR-CHECKLIST.md` целиком.
+
+- [ ] **9. PR и слияние.**
+
+```bash
+git push -u origin rd/NN-name
+gh pr create --base redesign --head rd/NN-name --title "rd/NN: <что>" --body-file <scratchpad>/pr-rd-NN.md
+gh pr merge <номер> --merge
+```
+
+Тело PR: пункты плана 3.0, закрытые этапом; вывод шага 8; скриншоты; расхождения макета с кодом и как решены; правки спек в этом PR; строка `🤖 Generated with [Claude Code](https://claude.com/claude-code)`. После `gh pr create` — `ccd_pr.get_status` / `bind_pr`.
+
+- [ ] **10. После слияния.** Чекбоксы этапа в плане 3.0 и в таблице этапов ниже (коммит в следующей ветке или прямым коммитом `docs(plan): …` в `redesign`); `git worktree remove ../bb-rd-NN`; вторая открытая ветка ребейзится на свежую `redesign` (`git rebase origin/redesign`, конфликты в словарях — объединение ключей, затем шаг 8 заново).
+
+---
+
+## Этапы 02a–13
+
+| Этап | Ветка | Зависит от | Пункты плана 3.0 | Smoke |
+|---|---|---|---|---|
+| [ ] 02a | `rd/02a-data` | 01 | 2.1–2.5, 2.7 | `smoke`, `smoke:post-match` |
+| [ ] 02b | `rd/02b-match-events` | 02a | 2.6 | все четыре |
+| [ ] 03 | `rd/03-api` | 02b | этап 3 | все четыре |
+| [ ] 04 | `rd/04-tokens` | 01 (параллельно с 02a–03) | этап 4 | `smoke` |
+| [ ] 05 | `rd/05-shell` | 04, 03 | этап 5 | `smoke` |
+| [ ] **M1** | — | 03, 05 | репетиция №1 | — |
+| [ ] 06 | `rd/06-teams` | M1 | этап 6 | `smoke` |
+| [ ] 11 | `rd/11-ref` | M1 (параллельно с 06) | этап 11 | `smoke` |
+| [ ] 07a–07e | `rd/07a-roster-table` … `rd/07e-career` | 06 | этап 7 | `smoke`, `smoke:post-match` |
+| [ ] 08 | `rd/08-treasury` | 06 (параллельно с 07) | этап 8 | `smoke` |
+| [ ] **M2** | — | 07e, 08, 11 | вид и данные | — |
+| [ ] 09a | `rd/09a-matches-prep` | M2 | этап 9: табло, перед матчем, подготовка, игра, удаление формы быстрого счёта | все четыре |
+| [ ] 09b | `rd/09b-post-match` | 09a | этап 9: итоги по шагам, павшие из итогов; `rehearsal:transitions` | все четыре |
+| [ ] 09c | `rd/09c-challenges` | 09b | этап 9: вызовы | `smoke:friendly` |
+| [ ] 10 | `rd/10-season` | 09a (параллельно с 09b/09c) | этап 10 | `smoke` |
+| [ ] **M3** | — | 09c, 10 | репетиция №2, полный матч | — |
+| [ ] 12 | `rd/12-admin` | M3 | этап 12 | все четыре |
+| [ ] **M4** | — | 12 | репетиция №3 | — |
+| [ ] 13 | `rd/13-release` | M4 | этап 13 | все четыре |
+| [ ] **M5** | — | 13 | финальная репетиция, go / no-go | — |
+
+### Дополнения к этапам (обязательный охват детального плана)
+
+**02a.**
+- `009_team_stage.sql` — после `ADD COLUMN stage … DEFAULT 'active'` и `activated_at`:
+
+```sql
+UPDATE saved_teams t SET stage = 'draft'
+WHERE NOT EXISTS (
+        SELECT 1 FROM season_entries e JOIN seasons s ON s.id = e.season_id
+        WHERE e.saved_team_id = t.id AND e.withdrawn_at IS NULL AND s.status = 'active')
+  AND NOT EXISTS (SELECT 1 FROM match_post_applications a WHERE a.saved_team_id = t.id)
+  AND NOT EXISTS (
+        SELECT 1 FROM season_pairings p
+        LEFT JOIN season_entries he ON he.id = p.home_entry_id
+        LEFT JOIN season_entries ae ON ae.id = p.away_entry_id
+        WHERE p.result_status = 'confirmed'
+          AND t.id IN (he.saved_team_id, ae.saved_team_id, p.friendly_home_team_id, p.friendly_away_team_id));
+```
+
+  То же правило читает `scripts/rehearsal/snapshot.mjs` (`stages`) — при изменении менять оба места.
+- `015_backfill_fallen_players.sql` — перенос погибших (спека 3.0 §3.3). Первым шагом детального плана — найти в `src/domain/post-match/state.mjs` и `roster.mjs`, где в `match_post_games.state` лежат травмы стороны (код `dead`) и как они связаны с id игрока; тесты: игрок с `dead` в одной стороне переносится один раз, повторный прогон ничего не добавляет, игрок с другой травмой не переносится, journeyman/star из снимка — не переносится (их нет в `before_roster`).
+- После 02a обновить `rehearsal:check`, если миграции добавили что-то, что стоит сравнивать.
+
+**03.** Без техобслуживания (оно в 2.1.0). `POST /api/admin/teams/:id/fallen` — на этапе 12.
+
+**04.** Шрифты уже в `assets/fonts/ui/` (2.1.0) — не копировать заново. `src/core/theme.mjs` и `theme-boot.js` пишут кеш `gata-league-palette` (JSON `{mode, light, dark}`) и переводят старые id через ту же таблицу, что `public/maintenance/palettes.mjs`; тест сравнивает `PALETTE_KEYS`, `DEFAULT_PALETTE` и `LEGACY_THEME_PALETTE` обоих модулей. При первом входе в 3.0 выбор записывается в `preferences`, если там пусто (спека выката §5.4).
+
+**05.** Ключ `active-team` в `STORAGE_KEYS`; `gata-league-auth-token` и формат сессий не трогать (никто не должен перелогиниться).
+
+**06.** `builder-draft` удаляется вместе с ключом из `STORAGE_KEYS`; импорт старого черновика не делаем.
+
+**09a.** Форма быстрого счёта (`components/games/result-fields.mjs`, режим тренера) удаляется; админский ручной результат остаётся.
+
+**09b.** `scripts/rehearsal-transitions.mjs` (`npm run rehearsal:transitions -- --seed <url 2.1> | --finish <url 3.0>`): `--seed` против сервера `v2.1.0` (worktree, порт 3004) на `gata_rehearsal` создаёт через API и записывает в `output/rehearsal/transitions.json` пять состояний из спеки выката §3.3; `--finish` против 3.0 доводит каждое до конца и проверяет: подготовка продолжается с того же шага; итоги, начатые в 2.x, завершаются без `POST_TEAM_CHANGED`, SPP после = SPP до + статистика матча, записи матча получают `settled_at`; неподтверждённый счёт вносит админ; вызов принимается. Детальный план этапа описывает API-вызовы по `scripts/smoke-post-match.mjs` и `smoke-friendly.mjs`.
+
+**12.** Админка: «Добавить погибшего задним числом» (`POST /api/admin/teams/:id/fallen {player: {name, position, number?}, cause, pairingId?, diedAt?}`), ввод и подтверждение старых неподтверждённых счетов, перевод `draft → active`, `draft` для новых команд.
+
+**13.**
+- Удалить старые экраны, CSS, временные алиасы, Comfortaa и Nunito, `docs/redesign/handoff-0.9.1/`, `docs/redesign/reports/`; ужать бюджеты.
+- Версия `3.0.0`, CHANGELOG, README, глоссарий.
+- `DEPLOYMENT.md` → раздел «Moving to 3.0»: команды фазы X этого плана, переведённые в стиль файла (английский).
+
+---
+
+## Вехи
+
+### Состав вехи
+
+- [ ] **Репетиция** (M1, M3, M4, M5) — процедура ниже.
+- [ ] **Отчёт** `docs/redesign/reports/Mn.md` (коммит в `redesign`):
+
+```markdown
+# Веха Mn — <дата>
+
+## Сделано
+- PR: <ссылки> — <одной строкой что>
+
+## Посмотреть
+- Скриншоты: <ссылки на PR со снимками>
+- Поднять у себя: `git fetch && git switch redesign && npm install && npm start` (нужен `npm run postgres:up` и `npm run db:migrate`)
+
+## Репетиция
+- Дамп: <имя файла>, снят <дата>
+- Миграции: <список>, <время> мс
+- Существующие данные: OK / проблемы: <список>
+- Стадии: active <N>, draft <M> — список в приложении ниже
+- Погибшие перенесены: <по командам>
+- Открытые состояния на момент дампа: <сводка>
+- Откат на 2.1.0 на мигрированной базе: OK / нет
+- Чек-суммы миграций: <sha256 по файлам>
+
+## Нужно от вас
+- <вопросы и решения>
+```
+
+- [ ] **Сообщение владельцу** в чат: короткая сводка и ссылка на отчёт. Дальше — только после его «ок».
+
+### Процедура репетиции
+
+1. **Владелец (сервер, `sudo -i`):**
+
+```bash
+cd /opt/bloodbowl-league && npm run backup:db
+DUMP=$(ls -1t /var/backups/bloodbowl-league/gata_league-2*.dump | head -1); echo "$DUMP"
+sha256sum "$DUMP"
+install -m 600 -o ubuntu -g ubuntu "$DUMP" /home/ubuntu/
+```
+
+2. **Владелец (Mac):**
+
+```bash
+mkdir -p ~/gata-dumps && chmod 700 ~/gata-dumps
+scp ubuntu@51.81.86.51:~/gata_league-YYYYMMDD-HHMMSS.dump ~/gata-dumps/
+shasum -a 256 ~/gata-dumps/gata_league-YYYYMMDD-HHMMSS.dump   # совпадает с sha256sum на сервере
+chmod 600 ~/gata-dumps/*.dump
+```
+
+3. **Владелец (сервер):** `rm /home/ubuntu/gata_league-YYYYMMDD-HHMMSS.dump`
+4. **Claude (Mac, отдельный worktree на свежей `redesign`):**
+
+```bash
+cd /Users/felstell/git/-bloodbowlyerevan && git fetch origin
+git worktree add --detach ../bb-rehearsal origin/redesign 2>/dev/null || (cd ../bb-rehearsal && git checkout --detach origin/redesign)
+cd ../bb-rehearsal && npm install
+npm run rehearsal:restore -- ~/gata-dumps/gata_league-YYYYMMDD-HHMMSS.dump
+npm run rehearsal:check -- --before
+npm run rehearsal:migrate
+npm run rehearsal:check -- --after
+```
+
+затем сервер 3.0 на `gata_rehearsal` (`preview_start`, конфигурация с `DATABASE_URL` на `gata_rehearsal`) → все smoke → проход в браузере под 4–5 тренерами (спека выката §3.2) → с M3 полный товарищеский матч и `rehearsal:transitions` → сервер `v2.1.0` (worktree `../bb-v2.1.0`, `git worktree add --detach ../bb-v2.1.0 v2.1.0`, порт 3004, `DATABASE_URL` на `gata_rehearsal`) на той же базе: `/api/health` и `npm run smoke` с `SMOKE_BASE_URL=http://localhost:3004`.
+
+5. **M5 дополнительно:** собранный сайт под боевым CSP. Локально, не коммитя, добавить в `writeResponse` (`server/http/responses.mjs`) заголовок `Content-Security-Policy` ровно из `deploy/caddy/bloodbowlyerevan.shitpostsoftware.com.conf`, пройти все экраны и состояния из `SCREENS.md`, `read_console_messages` — ноль нарушений CSP; затем `git checkout server/http/responses.mjs`.
+
+---
+
+## Фаза X · День X (runbook)
+
+Все серверные команды — владелец под `sudo -i`; Claude в чате проверяет вывод каждого шага. Первой командой в сессии на сервере определить сокращение для запросов к базе:
+
+```bash
+DB() { docker exec -i gata-league-postgres psql -U gata_admin -d gata_league "$@"; }
+```
+
+### Подготовка
+
+- [ ] **После «go» на M5:** владелец выбирает тихий вечер (тур может быть открыт); Claude готовит PR `redesign → main`:
+
+```bash
+git fetch origin && git switch redesign && git merge --no-ff origin/main && npm test && npm run check && npm run i18n:check && npm run build && git push
+gh pr create --base main --head redesign --title "Gata League 3.0" --body-file <scratchpad>/pr-3.0.md
+```
+
+- [ ] **T−7 дней** — владелец публикует в Telegram лиги (текст готовит Claude): дата и окно до часа; «доделайте черновики в билдере»; «завершите итоги сыгранных матчей и подтвердите счета до <время>».
+- [ ] **T−2 дня** — финальная репетиция (M5) на свежем дампе; PR `redesign → main` зелёный, без конфликтов.
+- [ ] **T−1 день** — напоминание в Telegram; Claude присылает в чат этот runbook с подставленными датами.
+
+### Окно
+
+- [ ] **T−15 мин · предполётная проверка**
+
+```bash
+cd /opt/bloodbowl-league && npm run backup:status && df -h /var /opt
+DB -c "
+SELECT 'preparing' AS state, p.id, p.match_kind FROM season_pairings p
+ WHERE p.preparation_status NOT IN ('not_started','in_progress') AND p.result_status IS DISTINCT FROM 'confirmed'
+UNION ALL
+SELECT 'started, post-match open', p.id, p.match_kind FROM season_pairings p
+ WHERE p.preparation_status = 'in_progress'
+   AND NOT EXISTS (SELECT 1 FROM match_post_applications a WHERE a.pairing_id = p.id)
+   AND (EXISTS (SELECT 1 FROM match_post_games g WHERE g.pairing_id = p.id) OR p.result_status IS DISTINCT FROM 'confirmed')
+UNION ALL
+SELECT 'awaiting confirmation', p.id, p.match_kind FROM season_pairings p WHERE p.result_status = 'awaiting_confirmation';"
+```
+
+`awaiting confirmation` — договориться с соперником о подтверждении сейчас или внести счёт админом после переезда. `started, post-match open` — предупреждение при зелёном `rehearsal:transitions` на M5, иначе блокер (спека выката §6.2).
+
+- [ ] **T+0 · техобслуживание**
+
+```bash
+npm run maintenance:on -- --kind planned --ends "$(date -u -d '+60 min' +%Y-%m-%dT%H:%M:%SZ)"
+curl -s http://127.0.0.1:3002/api/health
+```
+
+С телефона: видна страница техобслуживания.
+
+- [ ] **T+2 · дамп дня X и копия на Mac**
+
+```bash
+npm run backup:db
+DUMP=$(ls -1t /var/backups/bloodbowl-league/gata_league-2*.dump | head -1); echo "$DUMP"; sha256sum "$DUMP"
+install -m 600 -o ubuntu -g ubuntu "$DUMP" /home/ubuntu/
+```
+
+Mac: `scp …` и `shasum -a 256 …` как в процедуре репетиции; суммы совпадают. Сервер: `rm /home/ubuntu/<файл>`.
+
+- [ ] **T+8 · слепок «до» и повтор открытых состояний**
+
+```bash
+DB -At -c "
+SELECT table_name || '=' || (xpath('/row/c/text()', query_to_xml('SELECT count(*) AS c FROM ' || quote_ident(table_name), false, true, '')))[1]::text
+  FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name;
+SELECT 'teams=' || md5(string_agg(id || ':' || revision || ':' || md5(roster::text), ',' ORDER BY id)) FROM saved_teams;
+SELECT 'pairings=' || md5(coalesce(string_agg(concat_ws('|', id, home_touchdowns, away_touchdowns, home_casualties, away_casualties,
+  result_type, home_points, away_points, result_status, confirmed_at), ',' ORDER BY id), '')) FROM season_pairings;" > /root/cutover-before.txt
+cat /root/cutover-before.txt
+```
+
+и ещё раз запрос открытых состояний из T−15 (ничего нового не появилось).
+
+- [ ] **T+10 · владелец вливает PR `redesign → main`** (GitHub, merge commit). Claude следит за job Deploy: ожидается `deploy:migrate: pending: 009_…, …, 015_…`, `backup ok: …premigrate…`, `applied …`, `deployed and answering on port 3002`.
+
+- [ ] **T+15 · проверка схемы и данных**
+
+```bash
+cd /opt/bloodbowl-league && git log --oneline -1 && npm run db:migrate -- --check
+DB -At -c "<тот же запрос, что в T+8>" > /root/cutover-after.txt
+diff /root/cutover-before.txt /root/cutover-after.txt
+pm2 logs bloodbowl-league --lines 100 --nostream
+```
+
+Ожидается: `database is up to date`; в `diff` — только новые таблицы (`dice_rolls`, `match_events`, `team_fallen_players`, `team_ledger`) и `schema_migrations` (+7); строки `teams=` и `pairings=` совпадают; в логах нет ошибок.
+
+- [ ] **T+20 · проверка через туннель** (Mac): `ssh -L 3002:127.0.0.1:3002 ubuntu@51.81.86.51`, затем `http://localhost:3002` — чек-лист спеки выката §6.5 (12 пунктов).
+
+- [ ] **T+30 · решение.** Блокер → «Откат до точки невозврата» ниже. Иначе дальше.
+
+- [ ] **T+35 · точка невозврата**
+
+```bash
+npm run maintenance:off
+```
+
+С телефона: «Готово» → сайт 3.0. Claude: `git tag -a v3.0.0 -m "Gata League 3.0" origin/main && git push origin v3.0.0` (после «ок» владельца). Владелец: объявление в Telegram.
+
+- [ ] **T+35 … +3 ч · наблюдение:** `pm2 logs bloodbowl-league`, `/api/health`, сообщения тренеров. Хотфикс: ветка `hotfix/…` от `main` → PR → владелец вливает → деплой; Claude вливает `main` в `redesign` только если `redesign` ещё жива (после релиза её можно удалить).
+
+### Откат до точки невозврата (сценарий 1)
+
+```bash
+cd /opt/bloodbowl-league && git fetch origin --tags
+git reset --hard v2.1.0 && npm install && npm run build
+pm2 restart bloodbowl-league
+sleep 5 && curl -fsS http://127.0.0.1:3002/api/health
+npm run maintenance:off
+```
+
+База не восстанавливается: 2.1.0 работает на мигрированной схеме (проверено репетициями). **После отката не пушить в `main`** — любой пуш снова выкатит 3.0. Повторная попытка: исправление → PR в `main` → деплой в следующем окне. Срочный фикс 2.1 до повторной попытки: ветка `hotfix/2.1.x` от `v2.1.0`, на сервер — `git fetch && git reset --hard origin/hotfix/2.1.x && npm install && npm run build && pm2 restart bloodbowl-league`.
+
+### Полное восстановление (сценарий 3, только при катастрофе в первые часы)
+
+Решение принимает владелец: всё, что записано после переезда, теряется.
+
+```bash
+npm run maintenance:on -- --kind unplanned
+pm2 stop bloodbowl-league
+DUMP=/var/backups/bloodbowl-league/<дамп дня X>.dump
+docker cp "$DUMP" gata-league-postgres:/tmp/restore.dump
+docker exec gata-league-postgres dropdb -U gata_admin --force gata_league
+docker exec gata-league-postgres createdb -U gata_admin gata_league
+docker exec gata-league-postgres pg_restore -U gata_admin -d gata_league /tmp/restore.dump
+docker exec gata-league-postgres rm -f /tmp/restore.dump
+git reset --hard v2.1.0 && npm install && npm run build
+npm run db:migrate -- --check     # database is up to date (миграции 2.1.0 = миграции дампа)
+pm2 start bloodbowl-league && sleep 5 && curl -fsS http://127.0.0.1:3002/api/health
+npm run maintenance:off
+```
+
+Точечный ремонт (по умолчанию) — тот же дамп в `gata_league_recover` (`createdb … gata_league_recover`, `pg_restore -d gata_league_recover`), перенос пострадавших строк SQL-запросом, который Claude готовит под конкретную порчу.
+
+### После
+
+- [ ] **T+1 день:** `npm run backup:status` — OK, свежий ночной дамп снят на схеме 3.0.
+- [ ] **T+14 дней:**
+
+```bash
+# Mac
+rm -P ~/gata-dumps/*.dump
+docker exec gata-league-postgres dropdb -U gata_admin --if-exists gata_rehearsal
+# сервер
+ls /var/backups/bloodbowl-league/*premigrate*   # проверить список, затем
+rm /var/backups/bloodbowl-league/gata_league-premigrate-*.dump
+```
+
+- [ ] В `DEPLOYMENT.md` записать дату переезда и фактическое время простоя (PR в `main`).
