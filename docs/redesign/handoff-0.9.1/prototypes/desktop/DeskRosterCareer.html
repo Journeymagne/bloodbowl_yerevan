@@ -1,0 +1,839 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>НОВОЕ · Карьера по матчам — Gata League v0.9.1</title>
+<link rel="stylesheet" href="../fonts/fonts.css">
+<style>body{margin:0}</style>
+<link rel="stylesheet" href="../fonts/fonts.css">
+<style>
+body{margin:0}
+</style>
+<style>html,body{margin:0;background:#F3F6F4;font-family:'Golos Text',system-ui,sans-serif}
+.gl-home{position:fixed;right:16px;bottom:16px;z-index:100;padding:10px 14px;border-radius:12px;background:#17392C;color:#fff;font-size:14px;font-weight:700;text-decoration:none;box-shadow:0 6px 20px rgba(0,0,0,.25)}</style>
+</head>
+<body>
+<div id="app"></div><a class="gl-home" href="../index.html">☰ Все экраны</a>
+<script>/* dc-lite — a tiny standalone renderer for Gata League prototype artboards.
+   Supports {{path}} lookups, <sc-if>, <sc-for>, <dc-import>, DCLogic setState. */
+(function () {
+  var DEFS = {};
+  var parser = new DOMParser();
+
+  function DCLogic(props) { this.props = props || {}; this.state = {}; }
+  DCLogic.prototype.setState = function (upd) {
+    var s = typeof upd === 'function' ? upd(this.state, this.props) : upd;
+    if (s == null) return;
+    this.state = Object.assign({}, this.state, s);
+    schedule();
+  };
+  window.DCLogic = DCLogic;
+
+  function define(name, def) {
+    var doc = parser.parseFromString('<!doctype html><html><body>' + def.tpl + '</body></html>', 'text/html');
+    def.root = doc.body;
+    DEFS[name] = def;
+  }
+
+  function camel(s) { return s.replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); }); }
+
+  function lookup(path, scope) {
+    path = path.trim();
+    if (path === 'true') return true;
+    if (path === 'false') return false;
+    if (path === 'null') return null;
+    if (/^-?\d+(\.\d+)?$/.test(path)) return parseFloat(path);
+    if (/^'.*'$|^".*"$/.test(path)) return path.slice(1, -1);
+    var parts = path.split('.');
+    var head = parts[0], v, found = false;
+    for (var sc = scope; sc; sc = sc.__parent) {
+      if (Object.prototype.hasOwnProperty.call(sc, head)) { v = sc[head]; found = true; break; }
+    }
+    if (!found) return undefined;
+    for (var i = 1; i < parts.length; i++) { if (v == null) return undefined; v = v[parts[i]]; }
+    return v;
+  }
+  var PURE = /^\s*\{\{([^}]*)\}\}\s*$/;
+  function interp(str, scope) {
+    return str.replace(/\{\{([^}]*)\}\}/g, function (_, e) { var v = lookup(e, scope); return v == null ? '' : String(v); });
+  }
+  function child(scope, vars) { var o = Object.assign({}, vars); o.__parent = scope; return o; }
+
+  var instances = {};
+  function instantiate(name, props, key) {
+    var def = DEFS[name];
+    if (!def) return null;
+    var inst = instances[key];
+    if (!inst || inst.__name !== name) {
+      var full = Object.assign({}, def.defaults, props);
+      var Cls = def.factory();
+      inst = new Cls(full);
+      inst.__name = name;
+      instances[key] = inst;
+    }
+    return inst;
+  }
+
+  function renderComponent(name, props, key) {
+    var inst = instantiate(name, props, key);
+    if (!inst) { var d = document.createElement('div'); d.textContent = 'Missing component ' + name; return [d]; }
+    var vals = inst.renderVals ? inst.renderVals() : {};
+    var scope = Object.assign({}, vals); scope.__parent = null;
+    var out = [];
+    var ctr = { n: 0 };
+    DEFS[name].root.childNodes.forEach(function (n) { out = out.concat(renderNode(n, scope, key, ctr)); });
+    return out;
+  }
+
+  function renderNode(node, scope, key, ctr) {
+    if (node.nodeType === 3) return [document.createTextNode(interp(node.nodeValue, scope))];
+    if (node.nodeType !== 1) return [];
+    var tag = node.localName;
+    var out = [];
+    if (tag === 'sc-if') {
+      if (!lookup((node.getAttribute('value') || '').replace(/^\s*\{\{|\}\}\s*$/g, ''), scope)) return [];
+      node.childNodes.forEach(function (c) { out = out.concat(renderNode(c, scope, key, ctr)); });
+      return out;
+    }
+    if (tag === 'sc-for') {
+      var list = lookup((node.getAttribute('list') || '').replace(/^\s*\{\{|\}\}\s*$/g, ''), scope) || [];
+      var as = node.getAttribute('as') || 'item';
+      list.forEach(function (item, i) {
+        var v = {}; v[as] = item; v[as + 'Index'] = i;
+        var s = child(scope, v);
+        node.childNodes.forEach(function (c) { out = out.concat(renderNode(c, s, key, ctr)); });
+      });
+      return out;
+    }
+    if (tag === 'dc-import') {
+      var props = {};
+      Array.prototype.forEach.call(node.attributes, function (a) {
+        if (a.name === 'name' || a.name.indexOf('hint-') === 0) return;
+        var m = a.value.match(PURE);
+        props[camel(a.name)] = m ? lookup(m[1], scope) : a.value;
+      });
+      var wrap = document.createElement('div');
+      wrap.style.display = 'contents';
+      renderComponent(node.getAttribute('name'), props, key + '/' + node.getAttribute('name') + (ctr.n++)).forEach(function (n) { wrap.appendChild(n); });
+      return [wrap];
+    }
+    var el = node.namespaceURI && node.namespaceURI !== 'http://www.w3.org/1999/xhtml'
+      ? document.createElementNS(node.namespaceURI, tag) : document.createElement(tag);
+    var deferred = [];
+    Array.prototype.forEach.call(node.attributes, function (a) {
+      var name = a.name, val = a.value, m = val.match(PURE);
+      if (name.indexOf('on') === 0 && m) {
+        var fn = lookup(m[1], scope);
+        if (typeof fn === 'function') {
+          var ev = name.slice(2).toLowerCase();
+          var isText = tag === 'input' && !/^(checkbox|radio)$/i.test(node.getAttribute('type') || '') || tag === 'textarea';
+          if (ev === 'change' && isText) ev = 'input';
+          el.addEventListener(ev, function (e) { fn(e); });
+        }
+        return;
+      }
+      if (name === 'data-optlist') { deferred.push(['options', lookup(val, scope)]); return; }
+      if (m) {
+        var v = lookup(m[1], scope);
+        if (name === 'value') { deferred.push(['value', v]); return; }
+        if (name === 'checked') { deferred.push(['checked', !!v]); return; }
+        if (v === false || v == null) return;
+        if (name === 'disabled' || name === 'selected') { if (v) el.setAttribute(name, ''); return; }
+        if (name === 'href' && typeof v === 'string') v = v.replace(/^([A-Za-z0-9]+)\.dc\.html/, '$1.html');
+        el.setAttribute(name, v === true ? '' : String(v));
+        return;
+      }
+      if (name === 'value' && (tag === 'select' || tag === 'input')) { deferred.push(['value', interp(val, scope)]); return; }
+      el.setAttribute(name, interp(val, scope));
+    });
+    node.childNodes.forEach(function (c) { renderNode(c, scope, key, ctr).forEach(function (n) { el.appendChild(n); }); });
+    deferred.forEach(function (d) {
+      if (d[0] === 'options') (d[1] || []).forEach(function (o) { var op = document.createElement('option'); op.value = o.v; op.textContent = o.v; el.appendChild(op); });
+    });
+    deferred.forEach(function (d) {
+      if (d[0] === 'value') { el.value = d[1] == null ? '' : d[1]; if (tag === 'input') el.setAttribute('value', el.value); }
+      if (d[0] === 'checked') el.checked = d[1];
+    });
+    return [el];
+  }
+
+  /* --- mount & re-render, keeping scroll positions and focus --- */
+  var host, rootName, pending = false;
+  function pathOf(el) { var p = []; while (el && el !== host) { var i = 0, s = el; while ((s = s.previousElementSibling)) i++; p.unshift(i); el = el.parentElement; } return p.join('.'); }
+  function byPath(p) { var el = host; if (!p) return null; p.split('.').forEach(function (i) { el = el && el.children[+i]; }); return el; }
+  function render() {
+    pending = false;
+    var scrolls = [];
+    if (host.firstChild) host.querySelectorAll('*').forEach(function (el) { if (el.scrollTop || el.scrollLeft) scrolls.push([pathOf(el), el.scrollTop, el.scrollLeft]); });
+    var act = document.activeElement, focus = null;
+    if (act && host.contains(act)) focus = [pathOf(act), act.selectionStart, act.selectionEnd];
+    var nodes = renderComponent(rootName, {}, 'root');
+    host.innerHTML = '';
+    nodes.forEach(function (n) { host.appendChild(n); });
+    scrolls.forEach(function (s) { var el = byPath(s[0]); if (el) { el.scrollTop = s[1]; el.scrollLeft = s[2]; } });
+    if (focus) { var f = byPath(focus[0]); if (f && f.focus) { f.focus(); try { if (focus[1] != null) f.setSelectionRange(focus[1], focus[2]); } catch (e) {} } }
+  }
+  function schedule() { if (!pending) { pending = true; (window.queueMicrotask || setTimeout)(render); } }
+  window.DC = { define: define, mount: function (name, el) { rootName = name; host = el; render(); } };
+})();
+</script>
+<script>
+DC.define("DeskRosterCareer", { tpl: "\n<div style=\"width: 100%\">\n<dc-import name=\"DeskRoster\" demo-career=\"{{ true }}\" hint-size=\"100%,1240px\"><\/dc-import>\n<\/div>\n", defaults: {}, factory: function () {
+
+class Component extends DCLogic { renderVals() { return {}; } }
+
+return Component;
+} });
+DC.define("DeskRoster", { tpl: "\n<div style=\"position: relative; display: flex; flex-wrap: wrap; min-height: 1000px; background: #F3F6F4; color: #14201A; font-family: 'Golos Text', system-ui, sans-serif; font-variant-numeric: tabular-nums\">\n\n  <aside style=\"flex: 1 1 232px; max-width: 100%; background: #17392C; color: #FFFFFF; padding: 24px 16px 20px; display: flex; flex-direction: column; gap: 24px; box-sizing: border-box\">\n    <a href=\"DeskTeamSwitch.html\" aria-label=\"Сменить команду\" style=\"display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; margin: -8px -8px 0; border: 0; border-radius: 12px; background: transparent; text-decoration: none; font-family: inherit; cursor: pointer\"><span style=\"display: flex; align-items: center; gap: 12px; min-width: 0\"><svg width=\"36\" height=\"41\" viewBox=\"0 0 44 50\" aria-hidden=\"true\"><path d=\"M22 2 L40 8 V24 C40 36 32 44 22 48 C12 44 4 36 4 24 V8 Z\" fill=\"#F2C14E\" stroke=\"#FFFFFF\" stroke-width=\"2\"><\/path><path d=\"M22 9 L34 13 V24 C34 32 29 38 22 41 C15 38 10 32 10 24 V13 Z\" fill=\"#17392C\"><\/path><ellipse cx=\"22\" cy=\"25\" rx=\"8\" ry=\"5.2\" fill=\"none\" stroke=\"#F2C14E\" stroke-width=\"2\" transform=\"rotate(-30 22 25)\"><\/ellipse><\/svg><span style=\"display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left\"><span style=\"font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 700; line-height: 1.05; color: #FFFFFF\">Ashgrove Wardens<\/span><span style=\"font-size: 13px; color: #CFE0D7\">Люди · Gata League<\/span><\/span><\/span><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"flex: none; color: #A9C4B6\"><path d=\"M8 10l4 4 4-4\"><\/path><\/svg><\/a>\n    <nav aria-label=\"Разделы\" style=\"display: flex; flex-direction: column; gap: 4px\">\n      <a href=\"DeskOverview.html\" style=\"display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; text-decoration: none; font-size: 16px; font-weight: 600; color: #A9C4B6\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z\"><\/path><\/svg>Обзор<\/a>\n      <a href=\"DeskRoster.html\" aria-current=\"page\" style=\"display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; text-decoration: none; font-size: 16px; font-weight: 600; background: rgba(255,255,255,0.12); color: #FFFFFF\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><path d=\"M9 6h11M9 12h11M9 18h11M4 6h1M4 12h1M4 18h1\"><\/path><\/svg>Состав<\/a>\n      <a href=\"DeskSeason.html\" style=\"display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; text-decoration: none; font-size: 16px; font-weight: 600; color: #A9C4B6\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><rect x=\"4\" y=\"5\" width=\"16\" height=\"15\" rx=\"2\"><\/rect><path d=\"M4 10h16M9 3v4M15 3v4\"><\/path><\/svg>Сезон<\/a>\n      <a href=\"DeskRef.html\" style=\"display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; text-decoration: none; font-size: 16px; font-weight: 600; color: #A9C4B6\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linejoin=\"round\"><path d=\"M5 5a2 2 0 0 1 2-2h12v16H7a2 2 0 0 0-2 2z\"><\/path><path d=\"M5 21V5\"><\/path><\/svg>Справочник<\/a>\n      <a href=\"DeskCoach.html\" style=\"display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 12px; border-radius: 10px; text-decoration: none; font-size: 16px; font-weight: 600; color: #A9C4B6\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"3\"><\/circle><path d=\"M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4\"><\/path><\/svg>Настройки<\/a>\n    <\/nav>\n    <div style=\"margin-top: auto; display: flex; flex-direction: column; gap: 16px\"><div style=\"border-radius: 14px; background: rgba(255,255,255,0.08); padding: 14px; display: flex; flex-direction: column; gap: 8px\"><span style=\"display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: #A9C4B6\"><sc-if value=\"{{isLiveMatch}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"width: 8px; height: 8px; border-radius: 4px; background: #7FD3A2\"><\/span><\/sc-if>{{sbLabel}}<\/span><span style=\"font-size: 16px; font-weight: 600\">{{sbOpp}}<\/span><span style=\"font-size: 13px; color: #CFE0D7\">{{sbSub}}<\/span><sc-if value=\"{{isIdle}}\" hint-placeholder-val=\"{{ true }}\"><a href=\"DeskPreInducements.html\" style=\"margin-top: 4px; min-height: 44px; border-radius: 10px; background: #2F7A52; color: #FFFFFF; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700; text-decoration: none\">Подготовка к матчу<\/a><\/sc-if><sc-if value=\"{{isLiveMatch}}\" hint-placeholder-val=\"{{ false }}\"><a href=\"DeskPostPlayers.html\" style=\"margin-top: 4px; min-height: 44px; border-radius: 10px; background: #FFFFFF; color: #17392C; display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 15px; font-weight: 700; text-decoration: none\">Итоги матча<\/a><\/sc-if><sc-if value=\"{{isSent}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"margin-top: 2px; font-size: 14px; font-weight: 700\">{{sentLine}}<\/span><\/sc-if><\/div><div style=\"display: flex; flex-direction: column; gap: 10px; padding: 12px 4px 0; border-top: 1px solid rgba(255,255,255,0.12)\"><div role=\"group\" aria-label=\"Язык\" style=\"display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700\"><span style=\"color: #A9C4B6; font-weight: 600; margin-right: 6px\">Язык<\/span><a href=\"#\" aria-current=\"true\" style=\"min-width: 36px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.14); color: #FFFFFF; text-decoration: none; display: flex; align-items: center; justify-content: center\">RU<\/a><a href=\"#\" style=\"min-width: 36px; height: 28px; border-radius: 8px; color: #A9C4B6; text-decoration: none; display: flex; align-items: center; justify-content: center\">EN<\/a><\/div><span style=\"font-size: 11px; line-height: 1.5; color: #8FAA9C\">Обновлено 07.10.2026 · Неофициальный фанатский справочник лиги · <a href=\"#\" style=\"color: #CFE0D7\">Юридическая информация<\/a><\/span><\/div><\/div>\n  <\/aside>\n\n  <div style=\"flex: 999 1 640px; min-width: 0; display: flex; flex-direction: column\">\n    <header style=\"display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 20px 32px; background: #FFFFFF; border-bottom: 1px solid #E6EBE8\">\n      <div style=\"display: flex; flex-direction: column; gap: 4px\">\n        <h1 style=\"margin: 0; font-family: 'Oswald', sans-serif; font-size: 32px; font-weight: 700; line-height: 1\">Состав<\/h1>\n        <span style=\"font-size: 14px; color: #5F6B65\">{{summary}}<\/span>\n      <\/div>\n      <div style=\"display: flex; align-items: center; gap: 12px; flex-wrap: wrap\">\n        <label style=\"display: flex; align-items: center; gap: 10px; width: 320px; max-width: 100%; height: 44px; padding: 0 14px; border-radius: 12px; background: #F3F6F4; color: #5F6B65; box-sizing: border-box\">\n          <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"11\" cy=\"11\" r=\"7\"><\/circle><path d=\"M20 20l-3.5-3.5\"><\/path><\/svg>\n          <input type=\"search\" aria-label=\"Поиск\" placeholder=\"Игроки, навыки, правила…\" style=\"flex: 1 1 auto; min-width: 0; border: 0; background: transparent; font-family: inherit; font-size: 15px; color: #14201A; outline: none\">\n        <\/label>\n      <\/div>\n    <\/header>\n\n    <main style=\"padding: 24px 32px 40px; display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start\">\n\n      <section style=\"flex: 999 1 620px; min-width: 0; display: flex; flex-direction: column; gap: 14px\">\n<sc-if value=\"{{isPrep}}\" hint-placeholder-val=\"{{ false }}\"><div role=\"status\" style=\"outline: {{rv}}; outline-offset: 3px; display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 14px; background: #FFF4DE; color: #6B4A0E\"><span style=\"flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px\"><b style=\"font-size: 15px\">Идёт подготовка к туру 7<\/b><span style=\"font-size: 13px; line-height: 1.45\">Найм, продажа и пропуски сбросят шаги «Состав», «Индьюсменты» и «Старт». Фанаты и погода сохранятся.<\/span><\/span><a href=\"DeskPreInducements.html\" style=\"flex: none; font-size: 14px; font-weight: 700; color: #6B4A0E\">К подготовке →<\/a><\/div><\/sc-if><sc-if value=\"{{isLive}}\" hint-placeholder-val=\"{{ false }}\"><div role=\"status\" style=\"outline: {{rv}}; outline-offset: 3px; display: flex; align-items: center; gap: 16px; padding: 12px 16px; border-radius: 14px; background: {{liveBg}}; color: {{liveInk}}\"><span style=\"flex: 1 1 auto; display: flex; flex-direction: column; gap: 2px\"><b style=\"display: flex; align-items: center; gap: 8px; font-size: 15px\"><span style=\"width: 8px; height: 8px; flex: none; border-radius: 4px; background: {{liveDot}}\"><\/span>{{liveTitle}} · {{liveCount}}<\/b><span style=\"font-size: 13px; line-height: 1.45\">{{liveText}}<\/span><\/span><button onClick=\"{{toggleOff}}\" role=\"switch\" aria-checked=\"{{offStr}}\" style=\"flex: none; display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 0; border: 0; background: transparent; font-family: inherit; color: inherit; cursor: pointer\"><span style=\"font-size: 14px; font-weight: 700\">Правка вне матча<\/span><span style=\"width: 44px; height: 26px; flex: none; border-radius: 13px; background: {{offTrack}}; padding: 3px; box-sizing: border-box\"><span style=\"display: block; width: 20px; height: 20px; border-radius: 10px; background: #FFFFFF; transform: {{offKnob}}\"><\/span><\/span><\/button><a href=\"DeskPostPlayers.html\" style=\"flex: none; font-size: 14px; font-weight: 700; color: inherit\">Итоги матча →<\/a><\/div><\/sc-if>\n<sc-if value=\"{{hireDoneShow}}\" hint-placeholder-val=\"{{ false }}\"><div role=\"status\" style=\"display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 12px 10px 14px; border-radius: 12px; background: #E4F0E9; color: #163A28; font-size: 14px; font-weight: 600\"><span>{{hireDone}}<\/span><button onClick=\"{{hideHireDone}}\" aria-label=\"Скрыть\" style=\"width: 32px; height: 32px; flex: none; border: 0; border-radius: 16px; background: transparent; color: inherit; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"><\/path><\/svg><\/button><\/div><\/sc-if>\n        <div role=\"group\" aria-label=\"Казна и ресурсы\" style=\"display: flex; align-items: stretch; border-radius: 14px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #DCE3DF; overflow: hidden\">\n          <div style=\"flex: 1.3 1 0; min-width: 0; padding: 10px 16px; background: #E4F0E9; display: flex; flex-direction: column; justify-content: center; gap: 1px\">\n            <span style=\"font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #163A28\">Казна<\/span>\n            <span style=\"font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 700; line-height: 1; color: #163A28\">{{fundMoney}}<\/span>\n          <\/div>\n          <sc-for list=\"{{fundLine}}\" as=\"f\" hint-placeholder-count=\"6\">\n            <div style=\"flex: 1 1 0; min-width: 0; padding: 10px 12px; border-left: 1px solid #E6EBE8; display: flex; flex-direction: column; justify-content: center; gap: 1px\">\n              <span style=\"font-size: 11px; font-weight: 700; letter-spacing: 0.02em; text-transform: uppercase; color: #8A948F; white-space: nowrap; overflow: hidden; text-overflow: ellipsis\">{{f.l}}<\/span>\n              <span style=\"font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 700; line-height: 1.05; color: {{f.color}}\">{{f.v}}<\/span>\n            <\/div>\n          <\/sc-for>\n          <button onClick=\"{{openFunds}}\" disabled=\"{{isLive}}\" aria-haspopup=\"dialog\" aria-label=\"Изменить казну и ресурсы\" title=\"{{fundsTitle}}\" style=\"flex: none; width: 56px; border: 0; border-left: 1px solid #E6EBE8; background: transparent; color: #3E4A44; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16z\"><\/path><path d=\"M13.5 6.5l4 4\"><\/path><\/svg><\/button>\n        <\/div>\n\n        <div style=\"border-radius: 16px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #DCE3DF; overflow-x: auto\">\n          <div style=\"min-width: 640px\">\n            <div style=\"display: grid; grid-template-columns: minmax(180px, 1fr) repeat(5, 32px) 12px repeat(6, 36px) 12px 44px 52px; align-items: end; padding: 12px 16px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; color: #8A948F\">\n              <span><\/span>\n              <span style=\"grid-column: span 5; text-align: center; padding-bottom: 4px; border-bottom: 1px solid #DCE3DF\">ХАРАКТЕРИСТИКИ<\/span>\n              <span><\/span>\n              <span style=\"grid-column: span 6; text-align: center; padding-bottom: 4px; border-bottom: 1px solid #DCE3DF\">ЗА КАРЬЕРУ<\/span>\n              <span><\/span>\n              <span style=\"outline: {{rv}}; outline-offset: 3px; grid-column: span 2; text-align: center; padding-bottom: 4px; border-bottom: 1px solid #DCE3DF\">SPP<\/span>\n            <\/div>\n            <div style=\"display: grid; grid-template-columns: minmax(180px, 1fr) repeat(5, 32px) 12px repeat(6, 36px) 12px 44px 52px; align-items: center; padding: 0 16px; border-bottom: 1px solid #DCE3DF\">\n              <sc-for list=\"{{cols}}\" as=\"c\" hint-placeholder-count=\"15\">\n                <sc-if value=\"{{c.gap}}\" hint-placeholder-val=\"{{ false }}\"><span><\/span><\/sc-if>\n                <sc-if value=\"{{c.real}}\" hint-placeholder-val=\"{{ true }}\">\n                  <sc-if value=\"{{c.first}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"display: flex; align-items: center; gap: 8px\"><button onClick=\"{{c.sort}}\" aria-label=\"{{c.aria}}\" style=\"height: 40px; border: 0; background: transparent; padding: 0; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: {{c.color}}; display: flex; align-items: center; justify-content: {{c.justify}}; gap: 1px\">{{c.l}}<span style=\"font-size: 9px; width: 6px\">{{c.ind}}<\/span><\/button><button onClick=\"{{openHire}}\" disabled=\"{{isLive}}\" aria-label=\"Добавить игроков\" aria-haspopup=\"dialog\" title=\"{{hireTitle}}\" style=\"width: 24px; height: 24px; flex: none; border: 0; border-radius: 12px; background: {{hireBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"3\" stroke-linecap=\"round\"><path d=\"M5 12h14M12 5v14\"><\/path><\/svg><\/button><\/span><\/sc-if>\n                  <sc-if value=\"{{c.rest}}\" hint-placeholder-val=\"{{ true }}\"><button onClick=\"{{c.sort}}\" aria-label=\"{{c.aria}}\" style=\"height: 40px; border: 0; background: transparent; padding: 0; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: {{c.color}}; display: flex; align-items: center; justify-content: {{c.justify}}; gap: 1px\">{{c.l}}<span style=\"font-size: 9px; width: 6px\">{{c.ind}}<\/span><\/button><\/sc-if>\n                <\/sc-if>\n              <\/sc-for>\n            <\/div>\n\n            <sc-for list=\"{{rowsActive}}\" as=\"p\" hint-placeholder-count=\"11\">\n              <button onClick=\"{{p.select}}\" aria-pressed=\"{{p.pressed}}\" style=\"width: 100%; display: grid; grid-template-columns: minmax(180px, 1fr) repeat(5, 32px) 12px repeat(6, 36px) 12px 44px 52px; align-items: center; padding: 10px 16px; border: 0; border-bottom: 1px solid #E6EBE8; background: {{p.bg}}; box-shadow: {{p.ring}}; text-align: left; font-family: inherit; color: #14201A; cursor: pointer; box-sizing: border-box\">\n                <span style=\"display: flex; align-items: flex-start; gap: 12px; min-width: 0; padding-right: 12px\">\n                  <span style=\"position: relative; width: 36px; height: 36px; flex: none; border-radius: 18px; background: {{p.badgeBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 17px\">{{p.num}}<sc-if value=\"{{p.captain}}\" hint-placeholder-val=\"{{ false }}\"><span title=\"Капитан\" aria-label=\"Капитан\" style=\"position: absolute; top: -4px; right: -5px; width: 17px; height: 17px; border-radius: 9px; background: #F2C14E; color: #17392C; box-shadow: 0 0 0 2px #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Golos Text', sans-serif; font-size: 10px; font-weight: 800; line-height: 1\">C<\/span><\/sc-if><\/span>\n                  <span style=\"display: flex; flex-direction: column; gap: 4px; min-width: 0\">\n                    <span style=\"display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap\"><span style=\"font-size: 16px; font-weight: 600\">{{p.name}}<\/span><span style=\"font-size: 13px; color: {{p.subColor}}\">{{p.sub}}<\/span><\/span>\n                    <span style=\"display: flex; flex-wrap: wrap; gap: 4px\">\n                      <sc-for list=\"{{p.skills}}\" as=\"sk\" hint-placeholder-count=\"2\">\n                        <span style=\"padding: 2px 8px; border-radius: 6px; background: {{sk.bg}}; color: {{sk.color}}; font-size: 12px; font-weight: {{sk.weight}}\">{{sk.n}}<\/span>\n                      <\/sc-for>\n                    <\/span>\n                  <\/span>\n                <\/span>\n                <sc-for list=\"{{p.stats}}\" as=\"s\" hint-placeholder-count=\"5\">\n                  <span style=\"text-align: center; font-size: 15px; font-weight: {{s.weight}}; color: {{s.color}}\">{{s.v}}<\/span>\n                <\/sc-for>\n                <span><\/span>\n                <sc-for list=\"{{p.cells}}\" as=\"c\" hint-placeholder-count=\"6\">\n                  <span style=\"text-align: center; font-size: 15px; color: {{c.color}}\">{{c.v}}<sc-if value=\"{{c.hasLive}}\" hint-placeholder-val=\"{{ false }}\"><sup style=\"margin-left: 1px; font-size: 10px; font-weight: 700; color: #2F7A52\">{{c.live}}<\/sup><\/sc-if><\/span>\n                <\/sc-for>\n                <span><\/span>\n                <span style=\"text-align: center; font-size: 15px; color: #5F6B65\">{{p.earned}}<\/span>\n                <span style=\"text-align: right; font-size: 17px; font-weight: 700; color: {{p.availColor}}\">{{p.avail}}<\/span>\n              <\/button>\n            <\/sc-for>\n            <sc-if value=\"{{hasOut}}\" hint-placeholder-val=\"{{ true }}\">\n              <div style=\"display: flex; align-items: baseline; gap: 8px; padding: 18px 16px 8px; border-bottom: 1px solid #DCE3DF; background: #F7F9F8\">\n                <span style=\"font-family: 'Oswald', sans-serif; font-size: 20px; font-weight: 700\">Пропускают матч<\/span><span style=\"font-size: 14px; color: #5F6B65\">{{outCount}}<\/span>\n              <\/div>\n            <sc-for list=\"{{rowsOut}}\" as=\"p\" hint-placeholder-count=\"1\">\n              <button onClick=\"{{p.select}}\" aria-pressed=\"{{p.pressed}}\" style=\"width: 100%; display: grid; grid-template-columns: minmax(180px, 1fr) repeat(5, 32px) 12px repeat(6, 36px) 12px 44px 52px; align-items: center; padding: 10px 16px; border: 0; border-bottom: 1px solid #E6EBE8; background: {{p.bg}}; box-shadow: {{p.ring}}; text-align: left; font-family: inherit; color: #14201A; cursor: pointer; box-sizing: border-box\">\n                <span style=\"display: flex; align-items: flex-start; gap: 12px; min-width: 0; padding-right: 12px\">\n                  <span style=\"position: relative; width: 36px; height: 36px; flex: none; border-radius: 18px; background: {{p.badgeBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 17px\">{{p.num}}<sc-if value=\"{{p.captain}}\" hint-placeholder-val=\"{{ false }}\"><span title=\"Капитан\" aria-label=\"Капитан\" style=\"position: absolute; top: -4px; right: -5px; width: 17px; height: 17px; border-radius: 9px; background: #F2C14E; color: #17392C; box-shadow: 0 0 0 2px #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Golos Text', sans-serif; font-size: 10px; font-weight: 800; line-height: 1\">C<\/span><\/sc-if><\/span>\n                  <span style=\"display: flex; flex-direction: column; gap: 4px; min-width: 0\">\n                    <span style=\"display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap\"><span style=\"font-size: 16px; font-weight: 600\">{{p.name}}<\/span><span style=\"font-size: 13px; color: {{p.subColor}}\">{{p.sub}}<\/span><\/span>\n                    <span style=\"display: flex; flex-wrap: wrap; gap: 4px\">\n                      <sc-for list=\"{{p.skills}}\" as=\"sk\" hint-placeholder-count=\"2\">\n                        <span style=\"padding: 2px 8px; border-radius: 6px; background: {{sk.bg}}; color: {{sk.color}}; font-size: 12px; font-weight: {{sk.weight}}\">{{sk.n}}<\/span>\n                      <\/sc-for>\n                    <\/span>\n                  <\/span>\n                <\/span>\n                <sc-for list=\"{{p.stats}}\" as=\"s\" hint-placeholder-count=\"5\">\n                  <span style=\"text-align: center; font-size: 15px; font-weight: {{s.weight}}; color: {{s.color}}\">{{s.v}}<\/span>\n                <\/sc-for>\n                <span><\/span>\n                <sc-for list=\"{{p.cells}}\" as=\"c\" hint-placeholder-count=\"6\">\n                  <span style=\"text-align: center; font-size: 15px; color: {{c.color}}\">{{c.v}}<sc-if value=\"{{c.hasLive}}\" hint-placeholder-val=\"{{ false }}\"><sup style=\"margin-left: 1px; font-size: 10px; font-weight: 700; color: #2F7A52\">{{c.live}}<\/sup><\/sc-if><\/span>\n                <\/sc-for>\n                <span><\/span>\n                <span style=\"text-align: center; font-size: 15px; color: #5F6B65\">{{p.earned}}<\/span>\n                <span style=\"text-align: right; font-size: 17px; font-weight: 700; color: {{p.availColor}}\">{{p.avail}}<\/span>\n              <\/button>\n            <\/sc-for>\n            <\/sc-if>\n            <sc-if value=\"{{hasDead}}\" hint-placeholder-val=\"{{ true }}\">\n              <div style=\"display: flex; align-items: baseline; gap: 8px; padding: 18px 16px 8px; border-bottom: 1px solid #DCE3DF; background: #F7F9F8\">\n                <span style=\"font-family: 'Oswald', sans-serif; font-size: 20px; font-weight: 700\">Погибшие<\/span><span style=\"font-size: 14px; color: #5F6B65\">{{deadCount}}<\/span>\n              <\/div>\n            <sc-for list=\"{{rowsDead}}\" as=\"p\" hint-placeholder-count=\"1\">\n              <button onClick=\"{{p.select}}\" aria-pressed=\"{{p.pressed}}\" style=\"width: 100%; display: grid; grid-template-columns: minmax(180px, 1fr) repeat(5, 32px) 12px repeat(6, 36px) 12px 44px 52px; align-items: center; padding: 10px 16px; border: 0; border-bottom: 1px solid #E6EBE8; background: {{p.bg}}; box-shadow: {{p.ring}}; text-align: left; font-family: inherit; color: #14201A; cursor: pointer; box-sizing: border-box\">\n                <span style=\"display: flex; align-items: flex-start; gap: 12px; min-width: 0; padding-right: 12px\">\n                  <span style=\"position: relative; width: 36px; height: 36px; flex: none; border-radius: 18px; background: {{p.badgeBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 17px\">{{p.num}}<sc-if value=\"{{p.captain}}\" hint-placeholder-val=\"{{ false }}\"><span title=\"Капитан\" aria-label=\"Капитан\" style=\"position: absolute; top: -4px; right: -5px; width: 17px; height: 17px; border-radius: 9px; background: #F2C14E; color: #17392C; box-shadow: 0 0 0 2px #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Golos Text', sans-serif; font-size: 10px; font-weight: 800; line-height: 1\">C<\/span><\/sc-if><\/span>\n                  <span style=\"display: flex; flex-direction: column; gap: 4px; min-width: 0\">\n                    <span style=\"display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap\"><span style=\"font-size: 16px; font-weight: 600\">{{p.name}}<\/span><span style=\"font-size: 13px; color: {{p.subColor}}\">{{p.sub}}<\/span><\/span>\n                    <span style=\"display: flex; flex-wrap: wrap; gap: 4px\">\n                      <sc-for list=\"{{p.skills}}\" as=\"sk\" hint-placeholder-count=\"2\">\n                        <span style=\"padding: 2px 8px; border-radius: 6px; background: {{sk.bg}}; color: {{sk.color}}; font-size: 12px; font-weight: {{sk.weight}}\">{{sk.n}}<\/span>\n                      <\/sc-for>\n                    <\/span>\n                  <\/span>\n                <\/span>\n                <sc-for list=\"{{p.stats}}\" as=\"s\" hint-placeholder-count=\"5\">\n                  <span style=\"text-align: center; font-size: 15px; font-weight: {{s.weight}}; color: {{s.color}}\">{{s.v}}<\/span>\n                <\/sc-for>\n                <span><\/span>\n                <sc-for list=\"{{p.cells}}\" as=\"c\" hint-placeholder-count=\"6\">\n                  <span style=\"text-align: center; font-size: 15px; color: {{c.color}}\">{{c.v}}<sc-if value=\"{{c.hasLive}}\" hint-placeholder-val=\"{{ false }}\"><sup style=\"margin-left: 1px; font-size: 10px; font-weight: 700; color: #2F7A52\">{{c.live}}<\/sup><\/sc-if><\/span>\n                <\/sc-for>\n                <span><\/span>\n                <span style=\"text-align: center; font-size: 15px; color: #5F6B65\">{{p.earned}}<\/span>\n                <span style=\"text-align: right; font-size: 17px; font-weight: 700; color: {{p.availColor}}\">{{p.avail}}<\/span>\n              <\/button>\n            <\/sc-for>\n            <\/sc-if>\n            <div aria-hidden=\"false\" style=\"display: grid; grid-template-columns: minmax(180px, 1fr) repeat(5, 32px) 12px repeat(6, 36px) 12px 44px 52px; align-items: center; padding: 0 16px; border-top: 1px solid #DCE3DF; margin-top: -1px\">\n              <sc-for list=\"{{cols}}\" as=\"c\" hint-placeholder-count=\"15\">\n                <sc-if value=\"{{c.gap}}\" hint-placeholder-val=\"{{ false }}\"><span><\/span><\/sc-if>\n                <sc-if value=\"{{c.real}}\" hint-placeholder-val=\"{{ true }}\"><button onClick=\"{{c.sort}}\" aria-label=\"{{c.aria}}\" style=\"height: 40px; border: 0; background: transparent; padding: 0; cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: 0.04em; color: {{c.color}}; display: flex; align-items: center; justify-content: {{c.justify}}; gap: 1px\">{{c.l}}<span style=\"font-size: 9px; width: 6px\">{{c.ind}}<\/span><\/button><\/sc-if>\n              <\/sc-for>\n            <\/div>\n            <div style=\"display: grid; grid-template-columns: minmax(180px, 1fr) repeat(5, 32px) 12px repeat(6, 36px) 12px 44px 52px; align-items: start; padding: 0 16px 12px; font-size: 11px; font-weight: 700; letter-spacing: 0.03em; color: #8A948F\">\n              <span><\/span>\n              <span style=\"grid-column: span 5; text-align: center; padding-top: 4px; border-top: 1px solid #DCE3DF\">ХАРАКТЕРИСТИКИ<\/span>\n              <span><\/span>\n              <span style=\"grid-column: span 6; text-align: center; padding-top: 4px; border-top: 1px solid #DCE3DF\">ЗА КАРЬЕРУ<\/span>\n              <span><\/span>\n              <span style=\"grid-column: span 2; text-align: center; padding-top: 4px; border-top: 1px solid #DCE3DF\">SPP<\/span>\n            <\/div>\n          <\/div>\n        <\/div>\n        <div style=\"font-size: 13px; color: #5F6B65\">SPP: слева — всего заработано, справа — доступно для прокачки. Зелёным — полученные навыки и улучшенные характеристики. Клик по строке открывает игрока справа. Пропускающие матч — внизу таблицы.<\/div>\n      <\/section>\n\n      <aside aria-label=\"Игрок\" style=\"flex: 1 1 340px; min-width: 0; max-width: 420px; position: sticky; top: 24px; border-radius: 16px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #DCE3DF; padding: 20px; display: flex; flex-direction: column; gap: 18px\">\n        <div style=\"display: flex; align-items: center; gap: 14px\">\n          <span style=\"position: relative; width: 56px; height: 56px; flex: none; border-radius: 28px; background: {{sel.badgeBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 26px\">{{sel.num}}<sc-if value=\"{{sel.captain}}\" hint-placeholder-val=\"{{ false }}\"><span title=\"Капитан\" aria-label=\"Капитан\" style=\"position: absolute; top: -4px; right: -6px; width: 22px; height: 22px; border-radius: 12px; background: #F2C14E; color: #17392C; box-shadow: 0 0 0 2px #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Golos Text', sans-serif; font-size: 12px; font-weight: 800; line-height: 1\">C<\/span><\/sc-if><\/span>\n          <span style=\"display: flex; flex-direction: column; gap: 2px; min-width: 0\">\n            <span style=\"font-family: 'Oswald', sans-serif; font-size: 30px; font-weight: 700; line-height: 1.05\">{{sel.name}}<\/span>\n            <span style=\"font-size: 14px; color: #5F6B65\">{{sel.pos}} · {{sel.value}}<\/span>\n          <\/span>\n          <button onClick=\"{{openEdit}}\" aria-label=\"Редактировать игрока\" aria-haspopup=\"dialog\" style=\"margin-left: auto; width: 40px; height: 40px; flex: none; border: 0; border-radius: 20px; background: #EEF2F0; color: #14201A; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16z\"><\/path><path d=\"M13.5 6.5l4 4\"><\/path><\/svg><\/button>\n        <\/div>\n\n        <div style=\"display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px\">\n          <sc-for list=\"{{sel.tiles}}\" as=\"t\" hint-placeholder-count=\"5\">\n            <div style=\"border-radius: 12px; background: {{t.bg}}; padding: 8px 0 10px; display: flex; flex-direction: column; align-items: center; gap: 2px\">\n              <span style=\"font-size: 12px; font-weight: 600; letter-spacing: 0.05em; color: #5F6B65\">{{t.k}}<\/span>\n              <span style=\"font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 700; color: {{t.color}}\">{{t.v}}<\/span>\n            <\/div>\n          <\/sc-for>\n        <\/div>\n\n\n        <sc-if value=\"{{isLive}}\" hint-placeholder-val=\"{{ false }}\">\n          <div style=\"outline: {{rv}}; outline-offset: 3px; border-radius: 14px; background: #F3F6F4; padding: 12px; display: flex; flex-direction: column; gap: 8px\">\n            <div style=\"display: flex; justify-content: space-between; align-items: baseline; gap: 10px\"><b style=\"font-size: 14px\">{{recTitle}}<\/b><span style=\"font-size: 13px; font-weight: 700; color: {{recColor}}\">{{recSpp}}<\/span><\/div>\n            <div style=\"display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px\">\n              <sc-for list=\"{{recActs}}\" as=\"m\" hint-placeholder-count=\"9\">\n                <div style=\"display: flex; flex-direction: column; gap: 2px; padding: 6px 3px 3px; background: #FFFFFF; border: 1px solid #DCE3DF; border-radius: 12px\">\n                  <div style=\"text-align: center; font-size: 11px; font-weight: 600; letter-spacing: 0.04em; color: #5F6B65; white-space: nowrap\">{{m.l}} <span style=\"color: #2F7A52\">+{{m.v}}<\/span><\/div>\n                  <div style=\"display: flex; align-items: center; justify-content: space-between\">\n                    <button onClick=\"{{m.dec}}\" disabled=\"{{m.cantDec}}\" aria-label=\"{{m.decLabel}}\" style=\"width: 32px; height: 32px; border-radius: 9px; border: 0; background: #EEF2F0; color: {{m.decColor}}; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M5 12h14\"><\/path><\/svg><\/button>\n                    <span style=\"font-size: 17px; font-weight: 700\">{{m.count}}<sc-if value=\"{{m.hasLive}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"margin-left: 2px; font-size: 11px; color: #2F7A52\">{{m.live}}<\/span><\/sc-if><\/span>\n                    <button onClick=\"{{m.inc}}\" disabled=\"{{m.cantInc}}\" title=\"{{m.incTitle}}\" aria-label=\"{{m.incLabel}}\" style=\"width: 32px; height: 32px; border-radius: 9px; border: 0; background: {{m.incBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M5 12h14M12 5v14\"><\/path><\/svg><\/button>\n                  <\/div>\n                <\/div>\n              <\/sc-for>\n            <\/div>\n            <span style=\"font-size: 12px; line-height: 1.4; color: #5F6B65\">{{recNote}}<\/span>\n          <\/div>\n        <\/sc-if>\n        <div style=\"border-radius: 14px; background: #F3F6F4; padding: 14px; display: flex; flex-direction: column; gap: 12px\">\n          <div style=\"display: flex; align-items: center; justify-content: space-between; gap: 12px\">\n            <span style=\"display: flex; align-items: baseline; gap: 6px; white-space: nowrap\"><span style=\"font-family: 'Oswald', sans-serif; font-size: 40px; font-weight: 700; line-height: 1; color: #2F7A52\">{{sel.avail}}<\/span><span style=\"font-size: 15px; font-weight: 600\">SPP доступно<\/span><\/span>\n            <span style=\"font-size: 13px; line-height: 1.35; color: #5F6B65; text-align: right; white-space: nowrap\">заработано {{sel.earned}}<br>потрачено {{sel.spent}}<\/span>\n          <\/div>\n          <div style=\"display: flex; align-items: center; gap: 10px\">\n            <span style=\"display: flex; gap: 4px\">\n              <sc-for list=\"{{sel.dots}}\" as=\"d\" hint-placeholder-count=\"6\"><span style=\"width: 22px; height: 6px; border-radius: 3px; background: {{d.bg}}\"><\/span><\/sc-for>\n            <\/span>\n            <span style=\"font-size: 13px; color: #5F6B65\">Улучшения: {{sel.advCount}} из 6<\/span>\n          <\/div>\n          <button onClick=\"{{openAdv}}\" disabled=\"{{sel.advDisabled}}\" style=\"height: 48px; border: 0; border-radius: 12px; background: {{sel.advBg}}; color: #FFFFFF; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px\">\n            <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 19V5M5 12l7-7 7 7\"><\/path><\/svg>Прокачать\n          <\/button>\n          <span style=\"font-size: 13px; color: #5F6B65; text-align: center; margin-top: -4px\">{{sel.advHint}}<\/span>\n        <\/div>\n\n        <div style=\"display: flex; flex-direction: column; gap: 8px\">\n          <h3 style=\"margin: 0; font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 700\">Навыки<\/h3>\n          <div style=\"display: flex; flex-wrap: wrap; gap: 6px\">\n            <sc-for list=\"{{sel.skills}}\" as=\"sk\" hint-placeholder-count=\"3\">\n              <span style=\"padding: 6px 10px; border-radius: 10px; background: {{sk.bg}}; color: {{sk.color}}; box-shadow: inset 0 0 0 1px {{sk.ring}}; display: flex; flex-direction: column; line-height: 1.2\"><span style=\"font-size: 14px; font-weight: 600\">{{sk.n}}<\/span><span style=\"font-size: 11px; opacity: 0.85\">{{sk.kind}}<\/span><\/span>\n            <\/sc-for>\n          <\/div>\n          <div style=\"font-size: 13px; color: #5F6B65\">Основные: <b style=\"color: #3E4A44\">{{sel.primary}}<\/b> · Вторичные: <b style=\"color: #3E4A44\">{{sel.secondary}}<\/b><\/div>\n        <\/div>\n\n        <div style=\"display: flex; flex-direction: column; gap: 10px; padding-top: 14px; border-top: 1px solid #E6EBE8\">\n          <div style=\"font-size: 14px; color: #5F6B65\">Следующий матч: <b style=\"color: {{sel.mngColor}}\">{{sel.mngLabel}}<\/b><\/div>\n          <div style=\"display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px\">\n            <button onClick=\"{{toggleMng}}\" style=\"min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #C9D3CE; font-family: inherit; font-size: 14px; font-weight: 600; color: #3E4A44; cursor: pointer\">{{sel.mngBtn}}<\/button>\n            <sc-if value=\"{{canSell}}\" hint-placeholder-val=\"{{ true }}\"><button onClick=\"{{openSell}}\" aria-haspopup=\"dialog\" disabled=\"{{sellBlocked}}\" style=\"outline: {{rv}}; outline-offset: 3px; min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #C9D3CE; font-family: inherit; font-size: 14px; font-weight: 600; color: #3E4A44; cursor: pointer\">{{sellBtn}}<\/button><\/sc-if>\n          <\/div>\n          <sc-if value=\"{{mngPicking}}\" hint-placeholder-val=\"{{ false }}\">\n            <div style=\"display: flex; flex-direction: column; gap: 6px\">\n              <sc-for list=\"{{reasons}}\" as=\"r\" hint-placeholder-count=\"4\">\n                <button onClick=\"{{r.pick}}\" aria-pressed=\"{{r.pressed}}\" style=\"min-height: 52px; border: 0; border-radius: 12px; background: {{r.bg}}; box-shadow: {{r.ring}}; padding: 8px 12px; display: flex; align-items: center; gap: 10px; text-align: left; font-family: inherit; color: #14201A; cursor: pointer\">\n                  <span style=\"width: 18px; height: 18px; flex: none; border-radius: 9px; box-shadow: {{r.dot}}\"><\/span>\n                  <span style=\"display: flex; flex-direction: column\"><span style=\"font-size: 15px; font-weight: 600\">{{r.t}}<\/span><span style=\"font-size: 12px; color: #5F6B65\">{{r.d}}<\/span><\/span>\n                <\/button>\n              <\/sc-for>\n              <sc-if value=\"{{showCause}}\" hint-placeholder-val=\"{{ false }}\">\n                <label style=\"display: flex; flex-direction: column; gap: 6px; padding-top: 4px\">\n                  <span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">Причина гибели<\/span>\n                  <textarea rows=\"2\" value=\"{{mngCause}}\" onChange=\"{{onCause}}\" placeholder=\"Например: фол от Duskspire Knives, тур 4\" style=\"min-height: 60px; padding: 10px 12px; border: 0; border-radius: 10px; box-shadow: inset 0 0 0 1px #DCE3DF; font-family: inherit; font-size: 14px; line-height: 1.4; color: #14201A; resize: vertical; outline: none\"><\/textarea>\n                <\/label>\n              <\/sc-if>\n              <button onClick=\"{{confirmMng}}\" disabled=\"{{mngNotReady}}\" style=\"height: 44px; border: 0; border-radius: 10px; background: {{mngCtaBg}}; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer\">{{mngCtaLabel}}<\/button>\n            <\/div>\n          <\/sc-if>\n\n          <sc-if value=\"{{injPicking}}\" hint-placeholder-val=\"{{ false }}\">\n            <div style=\"outline: {{rv}}; outline-offset: 3px; display: flex; flex-direction: column; gap: 6px\">\n              <span style=\"font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5F6B65\">Травма в матче · по Casualty Table<\/span>\n              <sc-for list=\"{{injOpts}}\" as=\"o\" hint-placeholder-count=\"5\">\n                <button onClick=\"{{o.pick}}\" role=\"radio\" aria-checked=\"{{o.sel}}\" style=\"min-height: 48px; border: 0; border-radius: 12px; background: {{o.bg}}; box-shadow: {{o.ring}}; padding: 6px 12px; display: flex; align-items: center; gap: 10px; text-align: left; font-family: inherit; color: #14201A; cursor: pointer\">\n                  <span style=\"width: 18px; height: 18px; flex: none; border-radius: 9px; box-shadow: {{o.dot}}\"><\/span>\n                  <span style=\"display: flex; flex-direction: column\"><span style=\"font-size: 14px; font-weight: 600\">{{o.t}}<\/span><span style=\"font-size: 12px; color: #5F6B65\">{{o.d}}<\/span><\/span>\n                <\/button>\n              <\/sc-for>\n              <sc-if value=\"{{injNeedStat}}\" hint-placeholder-val=\"{{ false }}\"><div style=\"display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px\"><sc-for list=\"{{injStats}}\" as=\"k\" hint-placeholder-count=\"5\"><button onClick=\"{{k.pick}}\" aria-pressed=\"{{k.sel}}\" style=\"min-height: 36px; border: 0; border-radius: 10px; background: {{k.bg}}; color: {{k.color}}; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer\">{{k.k}}<\/button><\/sc-for><\/div><\/sc-if>\n              <span style=\"font-size: 12px; line-height: 1.4; color: #5F6B65\">Запишется в тур 7 и подставится на шаг «Игроки» в итогах — там применяется к составу.<\/span>\n              <div style=\"display: grid; grid-template-columns: {{injCols}}; gap: 8px\">\n                <sc-if value=\"{{injHas}}\" hint-placeholder-val=\"{{ true }}\"><button onClick=\"{{injRemove}}\" style=\"height: 44px; border: 0; border-radius: 10px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #C9D3CE; font-family: inherit; font-size: 14px; font-weight: 700; color: #A0473A; cursor: pointer\">Убрать запись<\/button><\/sc-if>\n                <button onClick=\"{{injSave}}\" disabled=\"{{injOff}}\" style=\"height: 44px; border: 0; border-radius: 10px; background: {{injBg}}; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer\">Записать в матч<\/button>\n              <\/div>\n            <\/div>\n          <\/sc-if>\n\n        <\/div>\n\n        <div style=\"display: flex; flex-direction: column; gap: 8px; padding-top: 14px; border-top: 1px solid #E6EBE8\">\n          <button onClick=\"{{toggleCareer}}\" aria-expanded=\"{{careerStr}}\" style=\"outline: {{rv}}; outline-offset: 3px; display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 40px; padding: 0; border: 0; background: transparent; font-family: inherit; color: #14201A; cursor: pointer\">\n            <span style=\"display: flex; align-items: baseline; gap: 10px\"><span style=\"font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 700\">Карьера<\/span><span style=\"font-size: 13px; color: #5F6B65\">по матчам сезона<\/span><\/span>\n            <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"transform: {{careerRot}}\"><path d=\"M6 9l6 6 6-6\"><\/path><\/svg>\n          <\/button>\n          <sc-if value=\"{{careerOpen}}\" hint-placeholder-val=\"{{ false }}\">\n            <sc-if value=\"{{careerHas}}\" hint-placeholder-val=\"{{ true }}\">\n              <div style=\"display: flex; flex-direction: column; border-radius: 12px; box-shadow: inset 0 0 0 1px #DCE3DF; overflow: hidden\">\n                <sc-for list=\"{{careerRows}}\" as=\"m\" hint-placeholder-count=\"8\">\n                  <div style=\"display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; min-height: 48px; padding: 6px 12px; border-bottom: 1px solid #E6EBE8; background: {{m.bg}}\">\n                    <span style=\"display: flex; flex-direction: column; gap: 1px; min-width: 0\"><span style=\"display: flex; align-items: center; gap: 6px; min-width: 0\"><b style=\"font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis\">{{m.t}}<\/b><span style=\"flex: none; font-size: 12px; font-weight: 700; color: {{m.resColor}}\">{{m.res}}<\/span><\/span><span style=\"font-size: 12px; color: {{m.evColor}}\">{{m.ev}}<\/span><\/span>\n                    <span style=\"display: flex; align-items: center; gap: 6px\"><sc-if value=\"{{m.pending}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"height: 20px; padding: 0 7px; border-radius: 10px; background: #FFF4DE; color: #7A5410; font-size: 11px; font-weight: 700; display: flex; align-items: center; white-space: nowrap\">ждёт итогов<\/span><\/sc-if><b style=\"font-family: 'Oswald', sans-serif; font-size: 17px; color: {{m.sppColor}}\">{{m.spp}}<\/b><\/span>\n                  <\/div>\n                <\/sc-for>\n              <\/div>\n            <\/sc-if>\n            <sc-if value=\"{{careerNone}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"font-size: 13px; color: #5F6B65\">В макете история показана для L. Ashby.<\/span><\/sc-if>\n          <\/sc-if>\n        <\/div>\n      <\/aside>\n    <\/main>\n  <\/div>\n\n  <sc-if value=\"{{advOpen}}\" hint-placeholder-val=\"{{ false }}\">\n    <div style=\"position: absolute; inset: 0; z-index: 20; background: rgba(10, 22, 16, 0.5); display: flex; justify-content: center; align-items: flex-start; padding: 64px 16px; box-sizing: border-box\">\n      <div role=\"dialog\" aria-label=\"Прокачка\" style=\"width: 1080px; max-width: 100%; background: #FFFFFF; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden\">\n        <div style=\"display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid #E6EBE8\">\n          <div style=\"display: flex; align-items: center; gap: 14px\">\n            <span style=\"width: 44px; height: 44px; border-radius: 22px; background: {{sel.badgeBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 20px\">{{sel.num}}<\/span>\n            <span style=\"display: flex; flex-direction: column; gap: 2px\">\n              <span style=\"font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; line-height: 1\">Прокачка · {{sel.name}}<\/span>\n              <span style=\"font-size: 14px; color: #5F6B65\">{{sel.avail}} SPP доступно · улучшение {{advNext}} из 6 · {{sel.pos}}<\/span>\n            <\/span>\n          <\/div>\n          <button onClick=\"{{closeAdv}}\" aria-label=\"Закрыть\" style=\"width: 44px; height: 44px; border: 0; border-radius: 22px; background: #EEF2F0; color: #14201A; display: flex; align-items: center; justify-content: center; cursor: pointer\">\n            <svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"><\/path><\/svg>\n          <\/button>\n        <\/div>\n\n        <sc-if value=\"{{advNotDone}}\" hint-placeholder-val=\"{{ true }}\">\n          <div style=\"display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); min-height: 440px\">\n            <div style=\"padding: 20px 20px 24px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #E6EBE8\">\n              <div style=\"font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5F6B65\">1 · ТИП<\/div>\n              <sc-for list=\"{{typeOpts}}\" as=\"o\" hint-placeholder-count=\"4\">\n                <button onClick=\"{{o.pick}}\" disabled=\"{{o.disabled}}\" aria-pressed=\"{{o.pressed}}\" style=\"min-height: 64px; border: 0; border-radius: 14px; background: {{o.bg}}; box-shadow: {{o.ring}}; padding: 10px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px; text-align: left; font-family: inherit; color: {{o.color}}; cursor: pointer\">\n                  <span style=\"display: flex; flex-direction: column; gap: 2px; min-width: 0\"><span style=\"font-size: 15px; font-weight: 600\">{{o.t}}<\/span><span style=\"font-size: 12px; color: {{o.subColor}}\">{{o.sub}}<\/span><\/span>\n                  <span style=\"flex: none; min-width: 56px; text-align: center; border-radius: 8px; padding: 6px 8px; font-size: 14px; font-weight: 700; background: {{o.pillBg}}; color: {{o.pillColor}}\">{{o.cost}} SPP<\/span>\n                <\/button>\n              <\/sc-for>\n            <\/div>\n\n            <div style=\"padding: 20px 20px 24px; display: flex; flex-direction: column; gap: 10px; border-right: 1px solid #E6EBE8; background: {{col2Bg}}\">\n              <div style=\"font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5F6B65\">{{col2Title}}<\/div>\n              <sc-if value=\"{{col2Empty}}\" hint-placeholder-val=\"{{ false }}\"><div style=\"font-size: 14px; color: #8A948F; padding-top: 8px\">Сначала выберите тип улучшения<\/div><\/sc-if>\n              <sc-for list=\"{{catOpts}}\" as=\"c\" hint-placeholder-count=\"2\">\n                <button onClick=\"{{c.pick}}\" aria-pressed=\"{{c.pressed}}\" style=\"min-height: 72px; border: 0; border-radius: 14px; background: {{c.bg}}; box-shadow: {{c.ring}}; padding: 12px 14px; display: flex; align-items: center; gap: 12px; text-align: left; font-family: inherit; color: #14201A; cursor: pointer\">\n                  <span style=\"width: 36px; height: 36px; flex: none; border-radius: 10px; background: {{c.badgeBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-size: 20px; font-weight: 700\">{{c.letter}}<\/span>\n                  <span style=\"display: flex; flex-direction: column; gap: 2px\"><span style=\"font-size: 16px; font-weight: 700\">{{c.name}}<\/span><span style=\"font-size: 12px; color: #5F6B65\">{{c.free}}<\/span><\/span>\n                <\/button>\n              <\/sc-for>\n              <sc-if value=\"{{isStat}}\" hint-placeholder-val=\"{{ false }}\">\n                <div style=\"display: flex; flex-direction: column; align-items: center; gap: 12px; padding-top: 8px\">\n<div role=\"radiogroup\" aria-label=\"Как бросаем\" style=\"outline: {{rv}}; outline-offset: 3px; width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: #EEF2F0; box-sizing: border-box\">\n  <sc-for list=\"{{viaSeg}}\" as=\"v\" hint-placeholder-count=\"2\"><button onClick=\"{{v.pick}}\" role=\"radio\" aria-checked=\"{{v.sel}}\" disabled=\"{{v.locked}}\" style=\"min-height: 36px; border: 0; border-radius: 9px; background: {{v.bg}}; box-shadow: {{v.shadow}}; font-family: inherit; font-size: 13px; font-weight: {{v.weight}}; color: {{v.color}}; cursor: pointer\">{{v.l}}<\/button><\/sc-for>\n<\/div>\n<span style=\"outline: {{rv}}; outline-offset: 3px; font-size: 12px; line-height: 1.4; color: #5F6B65\">{{viaNote}}<\/span>\n<sc-if value=\"{{d8Manual}}\" hint-placeholder-val=\"{{ false }}\"><div role=\"radiogroup\" aria-label=\"Результат D8 за столом\" style=\"outline: {{rv}}; outline-offset: 3px; width: 100%; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 4px\"><sc-for list=\"{{d8Chips}}\" as=\"c\" hint-placeholder-count=\"8\"><button onClick=\"{{c.pick}}\" style=\"min-height: 40px; border: 0; border-radius: 10px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #C9D3CE; font-family: 'Oswald', sans-serif; font-size: 17px; font-weight: 700; color: #14201A; cursor: pointer\">{{c.n}}<\/button><\/sc-for><\/div><\/sc-if>\n                  <div style=\"width: 76px; height: 76px; border-radius: 18px; background: {{d8Bg}}; color: {{d8Color}}; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1\"><span style=\"font-size: 12px; font-weight: 600; opacity: 0.8\">D8<\/span><span style=\"font-family: 'Oswald', sans-serif; font-size: 36px; font-weight: 700\">{{d8}}<\/span><\/div>\n                  <sc-if value=\"{{showRollD8}}\" hint-placeholder-val=\"{{ true }}\"><button onClick=\"{{rollStat}}\" disabled=\"{{d8Rolled}}\" style=\"min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: {{rollBg}}; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer\">Бросить D8<\/button><\/sc-if>\n                  <div style=\"width: 100%; font-size: 13px; line-height: 1.6; color: #5F6B65\">1 AV · 2 AV/PA · 3–4 AV/MA/PA · 5 MA/PA · 6 AG/MA · 7 AG/ST · 8 любая<\/div>\n                <\/div>\n              <\/sc-if>\n            <\/div>\n\n            <div style=\"padding: 20px 20px 24px; display: flex; flex-direction: column; gap: 10px; background: {{col3Bg}}\">\n              <div style=\"font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5F6B65\">{{col3Title}}<\/div>\n              <sc-if value=\"{{col3Empty}}\" hint-placeholder-val=\"{{ false }}\"><div style=\"font-size: 14px; color: #8A948F; padding-top: 8px\">{{col3Hint}}<\/div><\/sc-if>\n              <sc-if value=\"{{isChosen}}\" hint-placeholder-val=\"{{ false }}\">\n                <div style=\"display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px\">\n                  <sc-for list=\"{{skillOpts}}\" as=\"s\" hint-placeholder-count=\"12\">\n                    <button onClick=\"{{s.pick}}\" disabled=\"{{s.owned}}\" aria-pressed=\"{{s.pressed}}\" style=\"min-height: 40px; border: 0; border-radius: 10px; background: {{s.bg}}; box-shadow: {{s.ring}}; padding: 0 10px; text-align: left; font-family: inherit; font-size: 14px; font-weight: {{s.weight}}; color: {{s.color}}; text-decoration: {{s.deco}}; cursor: pointer\">{{s.n}}<\/button>\n                  <\/sc-for>\n                <\/div>\n              <\/sc-if>\n              <sc-if value=\"{{isRandom}}\" hint-placeholder-val=\"{{ false }}\">\n<div role=\"radiogroup\" aria-label=\"Как бросаем\" style=\"outline: {{rv}}; outline-offset: 3px; width: 100%; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: #EEF2F0; box-sizing: border-box\">\n  <sc-for list=\"{{viaSeg}}\" as=\"v\" hint-placeholder-count=\"2\"><button onClick=\"{{v.pick}}\" role=\"radio\" aria-checked=\"{{v.sel}}\" disabled=\"{{v.locked}}\" style=\"min-height: 36px; border: 0; border-radius: 9px; background: {{v.bg}}; box-shadow: {{v.shadow}}; font-family: inherit; font-size: 13px; font-weight: {{v.weight}}; color: {{v.color}}; cursor: pointer\">{{v.l}}<\/button><\/sc-for>\n<\/div>\n<span style=\"outline: {{rv}}; outline-offset: 3px; font-size: 12px; line-height: 1.4; color: #5F6B65\">{{viaNote}}<\/span>\n                <div style=\"display: flex; align-items: center; gap: 14px\">\n                  <div style=\"width: 64px; height: 64px; flex: none; border-radius: 16px; background: {{dieBg}}; color: {{dieColor}}; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1\"><span style=\"font-size: 11px; font-weight: 600; opacity: 0.8\">{{dieLabel}}<\/span><span style=\"font-family: 'Oswald', sans-serif; font-size: 30px; font-weight: 700\">{{die}}<\/span><\/div>\n                  <span style=\"display: flex; flex-direction: column; gap: 6px\">\n                    <span style=\"font-size: 15px; font-weight: 600; color: #2F7A52\">{{rollResult}}<\/span>\n                    <button onClick=\"{{rollSkill}}\" disabled=\"{{dieRolled}}\" style=\"align-self: flex-start; min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: {{rollBg}}; color: #FFFFFF; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer\">Бросить {{dieLabel}}<\/button>\n                  <\/span>\n                <\/div>\n                <div style=\"display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 8px; font-size: 13px\">\n                  <sc-for list=\"{{rollTable}}\" as=\"r\" hint-placeholder-count=\"12\">\n                    <button onClick=\"{{r.pick}}\" disabled=\"{{r.locked}}\" style=\"min-height: 28px; padding: 4px 6px; border: 0; border-radius: 6px; background: {{r.bg}}; color: {{r.color}}; text-decoration: {{r.deco}}; font-family: inherit; font-size: 13px; font-weight: {{r.weight}}; text-align: left; cursor: {{r.cursor}}\">{{r.i}}. {{r.n}}<\/button>\n                  <\/sc-for>\n                <\/div>\n              <\/sc-if>\n              <sc-if value=\"{{isStatPick}}\" hint-placeholder-val=\"{{ false }}\">\n                <button onClick=\"{{statToSkill}}\" style=\"outline: {{rv}}; outline-offset: 3px; order: 9; min-height: 48px; padding: 8px 14px; border: 0; border-radius: 12px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #C9D3CE; font-family: inherit; text-align: left; display: flex; flex-direction: column; gap: 2px; cursor: pointer\"><b style=\"font-size: 14px; color: #14201A\">Взять навык вместо характеристики<\/b><span style=\"font-size: 12px; color: #5F6B65\">Основной или вторичный на выбор · по цене характеристики<\/span><\/button>\n                <sc-for list=\"{{statOpts}}\" as=\"so\" hint-placeholder-count=\"3\">\n                  <button onClick=\"{{so.pick}}\" aria-pressed=\"{{so.pressed}}\" style=\"min-height: 52px; border: 0; border-radius: 12px; background: {{so.bg}}; box-shadow: {{so.ring}}; padding: 0 14px; display: flex; align-items: center; justify-content: space-between; font-family: inherit; font-size: 15px; color: #14201A; cursor: pointer\">\n                    <b>{{so.k}}<\/b><span>{{so.from}} → <b style=\"color: #2F7A52\">{{so.to}}<\/b> · {{so.tv}}<\/span>\n                  <\/button>\n                <\/sc-for>\n              <\/sc-if>\n            <\/div>\n          <\/div>\n        <\/sc-if>\n\n        <sc-if value=\"{{advDone}}\" hint-placeholder-val=\"{{ false }}\">\n          <div style=\"min-height: 300px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px; text-align: center\">\n            <span style=\"width: 64px; height: 64px; border-radius: 32px; background: #2F7A52; color: #FFFFFF; display: flex; align-items: center; justify-content: center\"><svg width=\"30\" height=\"30\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12.5l4.5 4.5L19 7.5\"><\/path><\/svg><\/span>\n            <span style=\"font-family: 'Oswald', sans-serif; font-size: 34px; font-weight: 700\">{{doneTitle}}<\/span>\n            <span style=\"font-size: 15px; color: #5F6B65\">{{doneSub}}<\/span>\n          <\/div>\n        <\/sc-if>\n\n        <div style=\"display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; padding: 16px 24px; border-top: 1px solid #E6EBE8; background: #F3F6F4\">\n          <span style=\"font-size: 15px; color: #3E4A44\">{{advSummary}}<\/span>\n          <span style=\"display: flex; gap: 8px\">\n            <sc-if value=\"{{advNotDone}}\" hint-placeholder-val=\"{{ true }}\">\n              <button onClick=\"{{closeAdv}}\" style=\"min-height: 48px; padding: 0 18px; border: 0; border-radius: 12px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #C9D3CE; font-family: inherit; font-size: 15px; font-weight: 600; color: #3E4A44; cursor: pointer\">Отмена<\/button>\n            <\/sc-if>\n            <button onClick=\"{{advCta}}\" disabled=\"{{advCtaDisabled}}\" style=\"min-height: 48px; min-width: 220px; padding: 0 20px; border: 0; border-radius: 12px; background: {{advCtaBg}}; color: #FFFFFF; font-family: inherit; font-size: 16px; font-weight: 700; cursor: pointer\">{{advCtaLabel}}<\/button>\n          <\/span>\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/sc-if>\n  \n  <sc-if value=\"{{fundsOpen}}\" hint-placeholder-val=\"{{ false }}\">\n    <div style=\"position: absolute; inset: 0; z-index: 20; background: rgba(10, 22, 16, 0.5); display: flex; justify-content: center; align-items: flex-start; padding: 64px 16px; box-sizing: border-box\">\n      <div role=\"dialog\" aria-label=\"Казна и ресурсы\" style=\"width: 920px; max-width: 100%; background: #FFFFFF; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden\">\n        <div style=\"display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; border-bottom: 1px solid #E6EBE8\">\n          <span style=\"display: flex; flex-direction: column; gap: 2px\">\n            <span style=\"font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; line-height: 1\">Казна и ресурсы<\/span>\n            <span style=\"font-size: 14px; color: #5F6B65\">Ручные изменения вне матчей: товарищеские игры, спонсоры, покупки<\/span><span style=\"outline: {{rv}}; outline-offset: 3px; font-size: 13px; color: #3E4A44\">Сумму можно ввести любую — правка попадёт в историю как ручная.<\/span>\n          <\/span>\n          <button onClick=\"{{closeFunds}}\" aria-label=\"Закрыть\" style=\"width: 44px; height: 44px; border: 0; border-radius: 22px; background: #EEF2F0; color: #14201A; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"><\/path><\/svg><\/button>\n        <\/div>\n        <div style=\"display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr))\">\n          <div style=\"padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 16px; border-right: 1px solid #E6EBE8\">\n            <div style=\"font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5F6B65\">КАЗНА<\/div>\n            <div style=\"display: flex; align-items: baseline; gap: 10px\">\n              <span style=\"font-family: 'Oswald', sans-serif; font-size: 48px; font-weight: 700; line-height: 1\">{{treasury}}k<\/span>\n              <span style=\"font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; color: {{previewColor}}\">→ {{preview}}k<\/span>\n            <\/div>\n            <div role=\"tablist\" aria-label=\"Операция\" style=\"display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: #EEF2F0\">\n              <sc-for list=\"{{modes}}\" as=\"m\" hint-placeholder-count=\"2\">\n                <button onClick=\"{{m.pick}}\" role=\"tab\" aria-selected=\"{{m.sel}}\" style=\"min-height: 40px; border: 0; border-radius: 9px; background: {{m.bg}}; box-shadow: {{m.shadow}}; font-family: inherit; font-size: 15px; font-weight: {{m.weight}}; color: #14201A; cursor: pointer\">{{m.l}}<\/button>\n              <\/sc-for>\n            <\/div>\n            <div style=\"display: flex; flex-direction: column; gap: 8px\">\n              <span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">Сумма<\/span>\n              <div style=\"display: flex; gap: 6px; flex-wrap: wrap\">\n                <sc-for list=\"{{amounts}}\" as=\"a\" hint-placeholder-count=\"5\">\n                  <button onClick=\"{{a.pick}}\" aria-pressed=\"{{a.sel}}\" style=\"height: 40px; padding: 0 14px; border: 0; border-radius: 20px; background: {{a.bg}}; color: {{a.color}}; box-shadow: {{a.ring}}; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer\">{{a.l}}<\/button>\n                <\/sc-for>\n                <label style=\"display: flex; align-items: center; gap: 4px; height: 40px; padding: 0 12px; border-radius: 20px; box-shadow: inset 0 0 0 1px #C9D3CE; font-size: 14px; color: #5F6B65\">\n                  <input type=\"number\" min=\"0\" step=\"5\" aria-label=\"Своя сумма в тысячах\" value=\"{{amount}}\" onChange=\"{{onAmount}}\" style=\"width: 56px; border: 0; background: transparent; font-family: inherit; font-size: 15px; font-weight: 700; color: #14201A; outline: none\">k\n                <\/label>\n              <\/div>\n            <\/div>\n            <div style=\"display: flex; flex-direction: column; gap: 8px\">\n              <span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">За что<\/span>\n              <div style=\"display: flex; gap: 6px; flex-wrap: wrap\">\n                <sc-for list=\"{{moneyReasons}}\" as=\"r\" hint-placeholder-count=\"5\">\n                  <button onClick=\"{{r.pick}}\" aria-pressed=\"{{r.sel}}\" style=\"height: 36px; padding: 0 12px; border: 0; border-radius: 18px; background: {{r.bg}}; color: {{r.color}}; box-shadow: {{r.ring}}; font-family: inherit; font-size: 14px; font-weight: 600; cursor: pointer\">{{r.l}}<\/button>\n                <\/sc-for>\n              <\/div>\n            <\/div>\n            <button onClick=\"{{applyMoney}}\" disabled=\"{{moneyDisabled}}\" style=\"flex: none; height: 52px; border: 0; border-radius: 12px; background: {{moneyBg}}; color: #FFFFFF; font-family: inherit; font-size: 17px; font-weight: 700; cursor: pointer\">{{moneyLabel}}<\/button>\n          <\/div>\n          <div style=\"padding: 20px 24px 24px; display: flex; flex-direction: column; gap: 6px; background: #FAFBFA\">\n            <div style=\"display: flex; justify-content: space-between; align-items: baseline\"><span style=\"font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5F6B65\">РЕСУРСЫ<\/span><span style=\"font-size: 12px; font-weight: 600; color: {{fundPhaseColor}}\">{{fundPhase}}<\/span><\/div>\n            <div style=\"outline: {{rv}}; outline-offset: 3px; display: flex; flex-direction: column\">\n            <sc-for list=\"{{steppers}}\" as=\"s\" hint-placeholder-count=\"6\">\n              <div style=\"display: flex; align-items: center; justify-content: space-between; min-height: 52px; border-bottom: 1px solid #E6EBE8\">\n                <span style=\"display: flex; flex-direction: column\"><span style=\"font-size: 15px\">{{s.l}}<\/span><span style=\"font-size: 12px; color: #5F6B65\">{{s.note}}<\/span><\/span>\n                <span style=\"display: flex; align-items: center; gap: 4px\">\n                  <button onClick=\"{{s.dec}}\" disabled=\"{{s.atMin}}\" aria-label=\"{{s.decAria}}\" style=\"width: 36px; height: 36px; border: 0; border-radius: 10px; background: #EEF2F0; color: {{s.decColor}}; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M5 12h14\"><\/path><\/svg><\/button>\n                  <span style=\"min-width: 30px; text-align: center; font-size: 17px; font-weight: 700\">{{s.v}}<\/span>\n                  <button onClick=\"{{s.inc}}\" disabled=\"{{s.atMax}}\" aria-label=\"{{s.incAria}}\" style=\"width: 36px; height: 36px; border: 0; border-radius: 10px; background: #EEF2F0; color: {{s.incColor}}; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M5 12h14M12 5v14\"><\/path><\/svg><\/button>\n                <\/span>\n              <\/div>\n            <\/sc-for>\n            <\/div>\n            <label style=\"display: flex; align-items: center; justify-content: space-between; min-height: 52px; font-size: 15px; cursor: pointer; border-bottom: 1px solid #E6EBE8\">Apothecary<input type=\"checkbox\" checked=\"{{apo}}\" onChange=\"{{toggleApo}}\" style=\"width: 20px; height: 20px; accent-color: #2F7A52\"><\/label>\n            <div style=\"outline: {{rv}}; outline-offset: 3px; display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; padding: 10px 12px; border-radius: 12px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #DCE3DF\"><span style=\"display: flex; flex-direction: column; gap: 2px\"><span style=\"font-size: 14px; font-weight: 600\">Coach's Safe<\/span><span style=\"font-size: 12px; color: #5F6B65\">До 50k из дохода после матча · тратится после сезона<\/span><\/span><span style=\"font-family: 'Oswald', sans-serif; font-size: 24px; font-weight: 700\">20k<\/span><\/div>\n            <div style=\"font-size: 12px; font-weight: 700; letter-spacing: 0.08em; color: #5F6B65; padding-top: 14px\">ИСТОРИЯ<\/div>\n            <sc-for list=\"{{history}}\" as=\"h\" hint-placeholder-count=\"3\">\n              <div style=\"display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 44px; border-bottom: 1px solid #E6EBE8\">\n                <span style=\"display: flex; flex-direction: column; min-width: 0\"><span style=\"font-size: 14px\">{{h.what}}<\/span><span style=\"font-size: 12px; color: #5F6B65\">{{h.when}}<\/span><\/span>\n                <span style=\"font-size: 14px; font-weight: 700; color: {{h.color}}; white-space: nowrap\">{{h.delta}}<\/span>\n              <\/div>\n            <\/sc-for>\n          <\/div>\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/sc-if>\n  <sc-if value=\"{{sellOpen}}\" hint-placeholder-val=\"{{ false }}\">\n    <div style=\"position: absolute; inset: 0; z-index: 20; background: rgba(10, 22, 16, 0.5); display: flex; justify-content: center; align-items: flex-start; padding: 120px 16px; box-sizing: border-box\">\n      <div role=\"dialog\" aria-label=\"Продать игрока\" style=\"width: 520px; max-width: 100%; background: #FFFFFF; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden\">\n        <div style=\"display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px 18px 24px; border-bottom: 1px solid #E6EBE8\">\n          <span style=\"display: flex; flex-direction: column; gap: 2px\"><span style=\"font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; line-height: 1\">{{sell.title}}<\/span><span style=\"font-size: 13px; color: #5F6B65\">{{sell.name}} · #{{sell.num}} {{sell.pos}}<\/span><\/span>\n          <button onClick=\"{{closeSell}}\" aria-label=\"Закрыть\" style=\"width: 40px; height: 40px; border: 0; border-radius: 20px; background: #EEF2F0; color: #14201A; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"><\/path><\/svg><\/button>\n        <\/div>\n        <div style=\"padding: 4px 24px 8px; display: flex; flex-direction: column; gap: 14px\">\n          <div style=\"outline: {{rv}}; outline-offset: 3px; display: flex; flex-direction: column\">\n            <sc-for list=\"{{sell.lines}}\" as=\"l\" hint-placeholder-count=\"4\">\n              <div style=\"display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 6px 0; box-sizing: border-box; border-bottom: 1px solid #E6EBE8; font-size: 15px; line-height: 1.25\"><span style=\"color: #5F6B65\">{{l.k}}<\/span><span style=\"font-weight: {{l.w}}; color: {{l.c}}\">{{l.v}}<\/span><\/div>\n            <\/sc-for>\n          <\/div>\n          <div style=\"display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; padding: 12px 16px; border-radius: 14px; background: #E4F0E9; color: #163A28\">\n            <span style=\"display: flex; flex-direction: column\"><span style=\"font-size: 12px\">Казна сейчас<\/span><span style=\"font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 28px\">{{sell.before}}k<\/span><\/span>\n            <svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M5 12h14M13 6l6 6-6 6\"><\/path><\/svg>\n            <span style=\"display: flex; flex-direction: column; align-items: flex-end\"><span style=\"font-size: 12px\">После продажи<\/span><span style=\"font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 28px\">{{sell.after}}k<\/span><\/span>\n          <\/div>\n          <span style=\"outline: {{rv}}; outline-offset: 3px; font-size: 13px; line-height: 1.45; color: #5F6B65\">{{sell.note}}<\/span>\n        <\/div>\n        <div style=\"display: flex; justify-content: flex-end; gap: 8px; padding: 12px 24px 20px\">\n          <button onClick=\"{{closeSell}}\" style=\"min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: #EEF2F0; color: #14201A; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer\">Отмена<\/button>\n          <button onClick=\"{{confirmSell}}\" style=\"min-height: 44px; padding: 0 22px; border: 0; border-radius: 10px; background: #C4352A; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer\">{{sell.cta}}<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/sc-if>\n  <sc-if value=\"{{editOpen}}\" hint-placeholder-val=\"{{ false }}\">\n    <div style=\"position: absolute; inset: 0; z-index: 20; background: rgba(10, 22, 16, 0.5); display: flex; justify-content: center; align-items: flex-start; padding: 120px 16px; box-sizing: border-box\">\n      <div role=\"dialog\" aria-label=\"Редактировать игрока\" style=\"width: 480px; max-width: 100%; background: #FFFFFF; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden\">\n        <div style=\"display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px 18px 24px; border-bottom: 1px solid #E6EBE8\">\n          <span style=\"display: flex; flex-direction: column; gap: 2px\"><span style=\"font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; line-height: 1\">Редактировать игрока<\/span><span style=\"font-size: 13px; color: #5F6B65\">{{sel.pos}} · Люди<\/span><\/span>\n          <button onClick=\"{{closeEdit}}\" aria-label=\"Закрыть\" style=\"width: 40px; height: 40px; border: 0; border-radius: 20px; background: #EEF2F0; color: #14201A; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"><\/path><\/svg><\/button>\n        <\/div>\n        <div style=\"padding: 20px 24px 8px; display: flex; flex-direction: column; gap: 14px\">\n          <div style=\"display: grid; grid-template-columns: 100px minmax(0, 1fr); gap: 12px\">\n            <label style=\"display: flex; flex-direction: column; gap: 6px\"><span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">Номер<\/span><input type=\"number\" min=\"1\" max=\"16\" value=\"{{edNum}}\" onChange=\"{{onEdNum}}\" style=\"height: 44px; padding: 0 12px; border: 0; border-radius: 10px; box-shadow: {{edNumRing}}; font-family: 'Oswald', sans-serif; font-size: 22px; font-weight: 700; color: #14201A; outline: none\"><\/label>\n            <label style=\"display: flex; flex-direction: column; gap: 6px; min-width: 0\"><span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">Имя<\/span><input value=\"{{edName}}\" onChange=\"{{onEdName}}\" autocomplete=\"off\" style=\"height: 44px; min-width: 0; padding: 0 14px; border: 0; border-radius: 10px; box-shadow: {{edNameRing}}; font-family: inherit; font-size: 15px; color: #14201A; outline: none\"><\/label>\n          <\/div>\n          <span style=\"font-size: 13px; color: {{edMsgColor}}\">{{edMsg}}<\/span>\n          <button onClick=\"{{toggleEdCaptain}}\" role=\"switch\" aria-checked=\"{{edCapStr}}\" style=\"min-height: 60px; padding: 10px 14px; border: 0; border-radius: 12px; background: {{edCapBg}}; box-shadow: {{edCapRing}}; font-family: inherit; color: #14201A; text-align: left; display: flex; align-items: center; gap: 12px; cursor: pointer\">\n            <span style=\"width: 26px; height: 26px; flex: none; border-radius: 13px; background: #F2C14E; color: #17392C; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800\">C<\/span>\n            <span style=\"flex: 1 1 auto; display: flex; flex-direction: column; gap: 1px\"><span style=\"font-size: 15px; font-weight: 600\">Капитан команды<\/span><span style=\"font-size: 13px; color: #5F6B65\">{{edCapHint}}<\/span><\/span>\n            <span style=\"width: 48px; height: 28px; flex: none; border-radius: 14px; background: {{edCapTrack}}; padding: 3px; box-sizing: border-box\"><span style=\"display: block; width: 22px; height: 22px; border-radius: 11px; background: #FFFFFF; transform: {{edCapKnob}}; transition: transform 0.15s\"><\/span><\/span>\n          <\/button>\n        <\/div>\n        <div style=\"display: flex; justify-content: flex-end; gap: 8px; padding: 12px 24px 20px\">\n          <button onClick=\"{{closeEdit}}\" style=\"min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: #EEF2F0; color: #14201A; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer\">Отмена<\/button>\n          <button onClick=\"{{saveEdit}}\" disabled=\"{{edInvalid}}\" style=\"min-height: 44px; padding: 0 22px; border: 0; border-radius: 10px; background: {{edSaveBg}}; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer\">Сохранить<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/sc-if>\n  <sc-if value=\"{{hireOpen}}\" hint-placeholder-val=\"{{ false }}\">\n    <div style=\"position: absolute; inset: 0; z-index: 20; background: rgba(10, 22, 16, 0.5); display: flex; justify-content: center; align-items: flex-start; padding: 80px 16px; box-sizing: border-box\">\n      <div role=\"dialog\" aria-label=\"Нанять игроков\" style=\"width: 640px; max-width: 100%; background: #FFFFFF; border-radius: 20px; display: flex; flex-direction: column; overflow: hidden\">\n        <div style=\"display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 20px 18px 24px; border-bottom: 1px solid #E6EBE8\">\n          <span style=\"display: flex; flex-direction: column; gap: 2px\"><span style=\"font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 28px; line-height: 1\">Нанять игроков<\/span><span style=\"outline: {{rv}}; outline-offset: 3px; font-size: 13px; color: #5F6B65\">Люди · {{hireSlots}}<\/span><\/span>\n          <button onClick=\"{{closeHire}}\" aria-label=\"Закрыть\" style=\"width: 40px; height: 40px; border: 0; border-radius: 20px; background: #EEF2F0; color: #14201A; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\"><path d=\"M6 6l12 12M18 6L6 18\"><\/path><\/svg><\/button>\n        <\/div>\n        <div style=\"padding: 16px 24px 8px; display: flex; flex-direction: column; gap: 10px\">\n          <div style=\"display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px\">\n            <div style=\"border-radius: 12px; background: #F3F6F4; padding: 10px 12px\"><div style=\"font-size: 12px; color: #5F6B65\">Казна<\/div><div style=\"font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 24px\">{{hireTreasury}}<\/div><\/div>\n            <div style=\"border-radius: 12px; background: #F3F6F4; padding: 10px 12px\"><div style=\"font-size: 12px; color: #5F6B65\">Корзина<\/div><div style=\"font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 24px\">{{hireCart}}<\/div><\/div>\n            <div style=\"border-radius: 12px; background: {{hireAfterBg}}; padding: 10px 12px\"><div style=\"font-size: 12px; color: #5F6B65\">Останется<\/div><div style=\"font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 24px; color: {{hireAfterColor}}\">{{hireAfter}}<\/div><\/div>\n          <\/div>\n          <sc-for list=\"{{hireRows}}\" as=\"h\" hint-placeholder-count=\"5\">\n            <div style=\"display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 14px; background: {{h.rowBg}}; box-shadow: {{h.ring}}\">\n              <span style=\"width: 38px; height: 38px; flex: none; border-radius: 19px; background: {{h.bg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 18px\">{{h.letter}}<\/span>\n              <span style=\"flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px\">\n                <span style=\"display: flex; align-items: baseline; gap: 8px\"><span style=\"font-size: 16px; font-weight: 700\">{{h.k}}<\/span><span style=\"font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 18px; color: #2F7A52\">{{h.price}}<\/span><\/span>\n                <span style=\"font-size: 12px; color: #3E4A44; white-space: nowrap; overflow: hidden; text-overflow: ellipsis\">{{h.stats}}<\/span>\n                <span style=\"font-size: 12px; color: #5F6B65; white-space: nowrap; overflow: hidden; text-overflow: ellipsis\">{{h.skills}} · {{h.limit}}<\/span>\n              <\/span>\n              <sc-if value=\"{{h.none}}\" hint-placeholder-val=\"{{ true }}\"><button onClick=\"{{h.inc}}\" disabled=\"{{h.cantInc}}\" aria-label=\"{{h.incAria}}\" style=\"flex: none; min-height: 40px; padding: 0 12px; border: 0; border-radius: 10px; background: transparent; box-shadow: {{h.addRing}}; color: {{h.addColor}}; font-family: inherit; font-size: 14px; font-weight: 700; display: flex; align-items: center; gap: 4px; cursor: pointer\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M5 12h14M12 5v14\"><\/path><\/svg>В корзину<\/button><\/sc-if>\n              <sc-if value=\"{{h.has}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"flex: none; display: flex; align-items: center; gap: 4px; padding: 3px; border-radius: 12px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #DCE3DF\"><button onClick=\"{{h.dec}}\" aria-label=\"{{h.decAria}}\" style=\"width: 36px; height: 36px; border: 0; border-radius: 9px; background: #EEF2F0; color: #14201A; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M5 12h14\"><\/path><\/svg><\/button><span style=\"min-width: 20px; text-align: center; font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 20px\">{{h.n}}<\/span><button onClick=\"{{h.inc}}\" disabled=\"{{h.cantInc}}\" aria-label=\"{{h.incAria}}\" style=\"width: 36px; height: 36px; border: 0; border-radius: 9px; background: {{h.incBg}}; color: #FFFFFF; display: flex; align-items: center; justify-content: center; cursor: pointer\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.6\" stroke-linecap=\"round\"><path d=\"M5 12h14M12 5v14\"><\/path><\/svg><\/button><\/span><\/sc-if>\n            <\/div>\n          <\/sc-for>\n          <sc-if value=\"{{hireHas}}\" hint-placeholder-val=\"{{ false }}\">\n            <div style=\"display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 12px; background: #F3F6F4\">\n              <sc-for list=\"{{hireLines}}\" as=\"l\" hint-placeholder-count=\"2\"><span style=\"display: flex; justify-content: space-between; font-size: 14px\"><span>{{l.t}}<\/span><b>{{l.sum}}<\/b><\/span><\/sc-for>\n            <\/div>\n          <\/sc-if>\n          <span style=\"font-size: 12px; color: #5F6B65\">{{hireNums}}<\/span>\n        <\/div>\n        <div style=\"display: flex; justify-content: flex-end; gap: 8px; padding: 12px 24px 20px\">\n          <button onClick=\"{{closeHire}}\" style=\"min-height: 44px; padding: 0 18px; border: 0; border-radius: 10px; background: #EEF2F0; color: #14201A; font-family: inherit; font-size: 15px; font-weight: 600; cursor: pointer\">Отмена<\/button>\n          <button onClick=\"{{buyHire}}\" disabled=\"{{hireBlocked}}\" style=\"min-height: 44px; padding: 0 22px; border: 0; border-radius: 10px; background: {{hireBtnBg}}; color: #FFFFFF; font-family: inherit; font-size: 15px; font-weight: 700; cursor: pointer\">{{hireBtn}}<\/button>\n        <\/div>\n      <\/div>\n    <\/div>\n  <\/sc-if>\n<\/div>\n", defaults: {"demoPreseason": false, "demoSell": false, "demoMngDead": false, "demoInjured": false, "demoSel": "p3", "demoHire": "none", "demoFunds": false, "demoEdit": "none", "demoMatch": "idle", "initialAdv": false, "review": true, "demoAdvStat": false, "demoMPhase": "none", "demoCareer": false}, factory: function () {
+
+var MD_OPPS = ['Duskspire Knives', 'Karak Hold Hammers', 'Grimtusk Raiders', 'Silverbrook Rangers', 'Cinderpeak Ash', 'Mirefen Rotters', 'Ratwharf Gnawers', 'Bloodmoon Howlers', 'Tombway Kings'];
+var MD_FIX = { round: 7, opp: 'Silverbrook Rangers', race: 'Лесные эльфы' };
+function mdState(demo) {
+  var s = { mStatus: 'idle', mKind: 'league', mOpp: 'Grimtusk Raiders', resultOpen: false, res: { tdUs: 0, tdThem: 0, casUs: 0, casThem: 0 } };
+  if (demo === 'live') s.mStatus = 'live';
+  if (demo === 'friendly') s.mKind = 'friendly';
+  if (demo === 'result') { s.mStatus = 'live'; s.resultOpen = true; s.res = { tdUs: 1, tdThem: 1, casUs: 2, casThem: 1 }; }
+  if (demo === 'sent') { s.mStatus = 'sent'; s.res = { tdUs: 1, tdThem: 1, casUs: 2, casThem: 1 }; }
+  return s;
+}
+function mdVals(self, prefill) {
+  var st = self.state;
+  var friendly = st.mKind === 'friendly';
+  var opp = friendly ? st.mOpp : MD_FIX.opp;
+  var title = friendly ? 'Товарищеский · vs ' + opp : 'Тур ' + MD_FIX.round + ' · vs ' + MD_FIX.opp;
+  var r = st.res;
+  var stepper = function (key, label, side) {
+    return {
+      label: label, side: side, v: r[key],
+      dec: function () { self.setState(function (s) { var n = Object.assign({}, s.res); n[key] = Math.max(0, n[key] - 1); return { res: n }; }); },
+      inc: function () { self.setState(function (s) { var n = Object.assign({}, s.res); n[key] = n[key] + 1; return { res: n }; }); },
+      decAria: 'Уменьшить: ' + label + ', ' + side, incAria: 'Увеличить: ' + label + ', ' + side
+    };
+  };
+  var outcome = r.tdUs > r.tdThem ? 'Победа' : r.tdUs < r.tdThem ? 'Поражение' : 'Ничья';
+  return {
+    mTitle: title,
+    mSub: friendly ? 'не влияет на таблицу лиги' : MD_FIX.race + ' · дома · [ДАТА]',
+    isIdle: st.mStatus === 'idle', isLiveMatch: st.mStatus === 'live', isSent: st.mStatus === 'sent',
+    gameOn: st.mStatus === 'live',
+    statusLabel: st.mStatus === 'idle' ? 'Не начат' : st.mStatus === 'live' ? 'Идёт игра' : friendly ? 'Сохранён' : 'Ждёт подтверждения',
+    statusBg: st.mStatus === 'idle' ? '#EEF2F0' : st.mStatus === 'live' ? '#E4F0E9' : '#FBF1DD',
+    statusColor: st.mStatus === 'idle' ? '#3E4A44' : st.mStatus === 'live' ? '#163A28' : '#6B4A0E',
+    dotColor: st.mStatus === 'live' ? '#2F7A52' : st.mStatus === 'idle' ? '#8A948F' : '#B07A1E',
+    kindTabs: [['league', 'Лига · тур ' + MD_FIX.round], ['friendly', 'Товарищеский']].map(function (k) {
+      var on = st.mKind === k[0];
+      return { l: k[1], sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', shadow: on ? '0 1px 2px rgba(20,32,26,0.12)' : 'none', weight: on ? '700' : '600', pick: function () { self.setState({ mKind: k[0] }); } };
+    }),
+    isFriendlyKind: friendly,
+    oppOptions: MD_OPPS.map(function (o) { return { v: o, selected: o === st.mOpp }; }),
+    mOpp: st.mOpp,
+    onOpp: function (e) { self.setState({ mOpp: e.target.value }); },
+    startGame: function () { self.setState({ mStatus: 'live' }); },
+    finishGame: function () {
+      var p = prefill ? prefill() : {};
+      self.setState(function (s) { return { resultOpen: true, res: { tdUs: p.td || 0, tdThem: s.res.tdThem, casUs: p.cas || 0, casThem: s.res.casThem } }; });
+    },
+    resultOpen: st.resultOpen,
+    closeResult: function () { self.setState({ resultOpen: false }); },
+    resRows: [
+      { title: 'Тачдауны', us: stepper('tdUs', 'Тачдауны', 'мы'), them: stepper('tdThem', 'Тачдауны', 'соперник') },
+      { title: 'Травмы (CAS)', us: stepper('casUs', 'Травмы', 'мы'), them: stepper('casThem', 'Травмы', 'соперник') }
+    ],
+    resOpp: opp,
+    resOutcome: outcome + ' ' + r.tdUs + ':' + r.tdThem,
+    resHint: friendly ? 'Товарищеский сохранится сразу.' : 'После отправки соперник подтвердит результат — тогда начислятся очки лиги.',
+    sendLabel: friendly ? 'Сохранить результат' : 'Отправить результат',
+    sendResult: function () { self.setState({ mStatus: 'sent', resultOpen: false }); },
+    sentLine: outcome + ' ' + r.tdUs + ':' + r.tdThem + ' · CAS ' + r.casUs + '–' + r.casThem,
+    sentNote: friendly ? 'Товарищеский сохранён в истории' : MD_FIX.opp + ' должен подтвердить результат',
+    resetMatch: function () { self.setState(mdState()); },
+    cancelStart: function () { self.setState({ mStatus: 'idle' }); },
+    startFriendly: function () { self.setState({ mKind: 'friendly', mStatus: st.mStatus === 'sent' ? 'idle' : st.mStatus }); },
+    backToLeague: function () { self.setState({ mKind: 'league' }); },
+    sbLabel: st.mStatus === 'idle' ? 'Следующий матч' : st.mStatus === 'live' ? 'Идёт игра' : friendly ? 'Матч сохранён' : 'Ждёт подтверждения',
+    sbOpp: opp,
+    sbSub: friendly ? 'Товарищеский' : 'Тур ' + MD_FIX.round + ' · дома · [ДАТА]',
+    mOppShort: opp,
+    resTdUs: r.tdUs, resTdThem: r.tdThem
+  };
+}
+var ACCENT = '#2F7A52';
+var RES = [
+  { k: 'start', l: 'Start Re-rolls', price: 60, phase: 'pre', min: 0, max: 8, note: { pre: '60k · только до старта сезона', season: 'Покупка закрыта — сезон идёт' } },
+  { k: 'team', l: 'Team Re-rolls', price: 120, phase: 'season', min: 0, max: 8, note: { pre: 'Откроется после старта сезона', season: '120k · докупка по ходу сезона' } },
+  { k: 'fans', l: 'Dedicated Fans', price: 10, phase: 'pre', min: 1, max: 6, note: { pre: '10k · только при наборе команды', season: 'Меняется только после матчей' } },
+  { k: 'coaches', l: 'Assistant Coaches', price: 10, phase: 'any', min: 0, max: 6, note: { pre: '10k за штуку', season: '10k за штуку' } },
+  { k: 'cheer', l: 'Cheerleaders', price: 10, phase: 'any', min: 0, max: 6, note: { pre: '10k за штуку', season: '10k за штуку' } },
+  { k: 'bribes', l: 'Bribes', price: 50, phase: 'never', min: 0, max: 3, note: { pre: 'Только для команд с Bribery and Corruption', season: 'Только для команд с Bribery and Corruption' } }
+];
+var AMOUNTS = [5, 10, 20, 50, 100];
+var MONEY_REASONS = ['Товарищеская игра', 'Спонсор / приз', 'Штраф лиги', 'Покупка', 'Другое'];
+var HISTORY0 = [
+  { what: 'Товарищеская игра', when: 'после тура 5', delta: '+20k', color: ACCENT },
+  { what: 'Team Re-rolls 2 → 3', when: 'после тура 3', delta: 'ресурс', color: '#5F6B65' },
+  { what: 'Покупка', when: 'после тура 3', delta: '−50k', color: '#A0473A' }
+];
+function fundsState(demo) {
+  return {
+    treasury: 70, res: { start: 2, team: 1, fans: 3, coaches: 1, cheer: 1, bribes: 0 }, phase: 'season', bought: {}, apo: true, history: HISTORY0,
+    fundsOpen: !!demo, mode: 'in', amount: 20, reason: demo ? 'Товарищеская игра' : null
+  };
+}
+function fundsVals(self) {
+  var st = self.state;
+  var sign = st.mode === 'in' ? 1 : -1;
+  var amt = Math.max(0, Number(st.amount) || 0);
+  var after = st.treasury + sign * amt;
+  var bad = amt === 0 || !st.reason || after < 0;
+  var chip = function (on) { return { bg: on ? '#17392C' : '#FFFFFF', color: on ? '#FFFFFF' : '#14201A', ring: on ? 'none' : 'inset 0 0 0 1px #C9D3CE', sel: on ? 'true' : 'false' }; };
+  var log = function (h) { return [h].concat(st.history); };
+  var setRes = function (r, d) {
+    return function () {
+      self.setState(function (s) {
+        var v = s.res[r.k] + d;
+        if (v < r.min || v > r.max) return null;
+        if (r.phase !== 'any' && r.phase !== s.phase) return null;
+        var bought = Object.assign({}, s.bought), money = 0;
+        if (d > 0) { if (s.treasury < r.price) return null; money = -r.price; bought[r.k] = (bought[r.k] || 0) + 1; }
+        else if ((bought[r.k] || 0) > 0) { money = r.price; bought[r.k] -= 1; }
+        var res = Object.assign({}, s.res); res[r.k] = v;
+        return { res: res, bought: bought, treasury: s.treasury + money, history: [{ what: r.l + ' ' + s.res[r.k] + ' → ' + v, when: 'только что', delta: money ? (money > 0 ? '+' : '−') + Math.abs(money) + 'k' : 'ресурс', color: money > 0 ? ACCENT : money < 0 ? '#A0473A' : '#5F6B65' }].concat(s.history) };
+      });
+    };
+  };
+  return {
+    treasury: st.treasury,
+    preview: after, previewColor: after < 0 ? '#A0473A' : sign > 0 ? ACCENT : '#A0473A',
+    fundRows: RES.map(function (r) { return { l: r.l, v: String(st.res[r.k]) }; }).concat([{ l: 'Apo', v: st.apo ? 'есть' : 'нет' }]),
+    fundPhase: st.phase === 'pre' ? 'Межсезонье · Team Re-rolls закрыты' : 'Сезон идёт · Start Re-rolls закрыты', fundPhaseColor: st.phase === 'pre' ? '#7A5410' : '#163A28',
+    fundsOpen: st.fundsOpen,
+    openFunds: function () { self.setState({ fundsOpen: true }); },
+    closeFunds: function () { self.setState({ fundsOpen: false }); },
+    modes: [['in', 'Зачислить'], ['out', 'Списать']].map(function (m) {
+      var on = st.mode === m[0];
+      return { l: m[1], sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', shadow: on ? '0 1px 2px rgba(20,32,26,0.12)' : 'none', weight: on ? '700' : '600', pick: function () { self.setState({ mode: m[0] }); } };
+    }),
+    amounts: AMOUNTS.map(function (a) { return Object.assign(chip(amt === a), { l: a + 'k', pick: function () { self.setState({ amount: a }); } }); }),
+    amount: st.amount,
+    onAmount: function (e) { self.setState({ amount: e.target.value }); },
+    moneyReasons: MONEY_REASONS.map(function (r) { return Object.assign(chip(st.reason === r), { l: r, pick: function () { self.setState({ reason: r }); } }); }),
+    moneyDisabled: bad, moneyBg: bad ? '#A9B3AE' : ACCENT,
+    moneyLabel: !st.reason ? 'Выберите, за что' : after < 0 ? 'В казне не хватает ' + (-after) + 'k' : (sign > 0 ? 'Зачислить ' : 'Списать ') + amt + 'k → ' + after + 'k',
+    applyMoney: function () {
+      if (bad) return;
+      self.setState({ treasury: after, history: log({ what: st.reason, when: 'только что', delta: (sign > 0 ? '+' : '−') + amt + 'k', color: sign > 0 ? ACCENT : '#A0473A' }), reason: null });
+    },
+    steppers: RES.map(function (r) {
+      var v = st.res[r.k], locked = r.phase !== 'any' && r.phase !== st.phase, poor = st.treasury < r.price;
+      var lo = locked || v <= r.min, hi = locked || v >= r.max || poor;
+      return {
+        l: r.l, note: locked ? r.note[st.phase] : poor && v < r.max ? 'Не хватает казны · ' + r.price + 'k' : r.note[st.phase], v: v, atMin: lo, atMax: hi,
+        decColor: lo ? '#B5BDB9' : '#14201A', incColor: hi ? '#B5BDB9' : '#14201A',
+        decAria: 'Уменьшить: ' + r.l, incAria: 'Увеличить: ' + r.l,
+        dec: setRes(r, -1), inc: setRes(r, 1)
+      };
+    }),
+    apo: st.apo,
+    toggleApo: function () {
+      self.setState(function (s) { return { apo: !s.apo, history: [{ what: 'Apothecary: ' + (s.apo ? 'нет' : 'есть'), when: 'только что', delta: 'ресурс', color: '#5F6B65' }].concat(s.history) }; });
+    },
+    history: st.history,
+    fundMoney: st.treasury + 'k',
+    fundLine: RES.filter(function (r) { return r.phase !== 'never'; }).map(function (r) { return { l: { start: 'Start RR', team: 'Team RR', fans: 'Fans', coaches: 'Coaches', cheer: 'Cheer', bribes: 'Bribes' }[r.k], v: String(st.res[r.k]), color: st.res[r.k] ? '#14201A' : '#8A948F' }; }).concat([{ l: 'Apo', v: st.apo ? 'есть' : 'нет', color: st.apo ? '#14201A' : '#8A948F' }])
+  };
+}
+
+var MORE_ACTS = [{ k: 'ttm', l: 'TTM', v: 1, n: 'бросок союзника' }, { k: 'land', l: 'Призем.', v: 1, n: 'приземление' }, { k: 'bon', l: 'Бонус', v: 1, n: 'бонусное SPP' }];
+var INJ_OPTS = [
+  { k: 'bh', t: 'Badly Hurt', d: 'без последствий после матча' },
+  { k: 'sh', t: 'Seriously Hurt', d: 'пропустит следующий матч' },
+  { k: 'si', t: 'Serious Injury', d: 'Niggling Injury и пропуск' },
+  { k: 'last', t: 'Lasting Injury', d: '−1 к характеристике и пропуск' },
+  { k: 'dead', t: 'Dead', d: 'игрок погиб' }];
+var INJ_SHORT = { bh: 'Badly Hurt', sh: 'Seriously Hurt', si: 'Serious Injury', last: 'Lasting', dead: 'Dead' };
+var CAREER_ROWS = [{"t": "Тур 7 · Silverbrook Rangers", "res": "", "resColor": "#7A5410", "ev": "TD 1 · COMP 1", "spp": "+4", "pending": true, "bg": "#FFFBF2", "evColor": "#3E4A44", "sppColor": "#163A28"}, {"t": "Товарищеский · Grimtusk", "res": "Н 1–1", "resColor": "#5F6B65", "ev": "без действий", "spp": "0", "pending": false, "bg": "#FFFFFF", "evColor": "#8A948F", "sppColor": "#8A948F"}, {"t": "Тур 6 · Grimtusk Raiders", "res": "В 2–1", "resColor": "#163A28", "ev": "TD 1", "spp": "+3", "pending": false, "bg": "#FFFFFF", "evColor": "#3E4A44", "sppColor": "#163A28"}, {"t": "Тур 5 · Karak Hold Hammers", "res": "Н 1–1", "resColor": "#5F6B65", "ev": "TD 1", "spp": "+3", "pending": false, "bg": "#FFFFFF", "evColor": "#3E4A44", "sppColor": "#163A28"}, {"t": "Тур 4 · Duskspire Knives", "res": "П 0–2", "resColor": "#A0473A", "ev": "не играл · Seriously Hurt", "spp": "—", "pending": false, "bg": "#FFFFFF", "evColor": "#8A948F", "sppColor": "#8A948F"}, {"t": "Тур 3 · Ratwharf Gnawers", "res": "В 3–0", "resColor": "#163A28", "ev": "TD 1 · MVP", "spp": "+8", "pending": false, "bg": "#FFFFFF", "evColor": "#3E4A44", "sppColor": "#163A28"}, {"t": "Тур 2 · Mirefen Rotters", "res": "В 4–2", "resColor": "#163A28", "ev": "TD 1 · COMP 1", "spp": "+4", "pending": false, "bg": "#FFFFFF", "evColor": "#3E4A44", "sppColor": "#163A28"}, {"t": "Тур 1 · Tombway Kings", "res": "В 3–1", "resColor": "#163A28", "ev": "TD 2", "spp": "+6", "pending": false, "bg": "#FFFFFF", "evColor": "#3E4A44", "sppColor": "#163A28"}];
+var ACTIONS = [{ k: 'td', l: 'TD', v: 3 }, { k: 'cas', l: 'CAS', v: 2 }, { k: 'cp', l: 'COMP', v: 1 }, { k: 'def', l: 'KO', v: 1 }, { k: 'int', l: 'INT', v: 2 }, { k: 'mvp', l: 'MVP', v: 5 }];
+var STATS = [{ k: 'ma', l: 'MA', plus: false, better: -1 }, { k: 'st', l: 'ST', plus: false, better: -1 }, { k: 'ag', l: 'AG', plus: true, better: 1 }, { k: 'pa', l: 'PA', plus: true, better: 1 }, { k: 'av', l: 'AV', plus: true, better: -1 }];
+var STAT_KEY = { MA: 'ma', ST: 'st', AG: 'ag', PA: 'pa', AV: 'av' };
+var POS_BG = { Blitzer: '#17392C', Catcher: '#2E6E8E', Thrower: '#8A5A12', Lineman: '#55615B', 'Halfling Hopeful': '#6B4E8A', Ogre: '#7B2E2E' };
+var CAT = { A: 'Agility', D: 'Devious', G: 'General', M: 'Mutation', P: 'Passing', S: 'Strength' };
+var CAT_BG = { A: '#2E6E8E', D: '#5B3F78', G: '#17392C', M: '#6B5A1E', P: '#8A5A12', S: '#7B2E2E' };
+var SKILLS = {
+  A: ['Catch', 'Diving Catch', 'Diving Tackle', 'Dodge', 'Defensive', 'Hit and Run', 'Jump Up', 'Leap', 'Safe Pair of Hands', 'Sidestep', 'Sprint', 'Sure Feet', 'Fumblerooskie', 'Evasive'],
+  D: ['Dirty Player', 'Eye Gouge', 'Lethal Flight', 'Lone Fouler', 'Put the Boot In', 'Quick Foul', 'Saboteur', 'Sneaky Git', 'Shiv'],
+  G: ['Block', 'Dauntless', 'Fend', 'Frenzy', 'Kick', 'Pro', 'Steady Footing', 'Strip Ball', 'Sure Hands', 'Tackle', 'Taunt', 'Wrestle', 'Offensive', 'Elvenball', 'Shadowing', 'Thick Skull'],
+  M: ['Big Hand', 'Claws', 'Disturbing Presence', 'Extra Arms', 'Foul Appearance', 'Horns', 'Iron Hard Skin', 'Monstrous Mouth', 'Prehensile Tail', 'Tentacles', 'Two Heads', 'Very Long Legs', 'Bone Hook'],
+  P: ['Accurate', 'Cloud Burster', 'Dump-Off', 'Give and Go', 'Hail Mary Pass', 'Leader', 'Nerves of Steel', 'On the Ball', 'Pass', 'Punt', 'Safe Pass', 'Strong Wrist'],
+  S: ['Arm Bar', 'Brawler', 'Break Tackle', 'Bullseye', 'Grab', 'Guard', 'Juggernaut', 'Mighty Blow', 'Multiple Block', 'Stand Firm', 'Strong Arm', 'Pile Driver']
+};
+var ACCESS = { Blitzer: ['GS', 'APD'], Catcher: ['AG', 'PSD'], Thrower: ['GP', 'ASD'], Lineman: ['G', 'ASD'], 'Halfling Hopeful': ['A', 'GSD'], Ogre: ['S', 'AG'] };
+var BASE = {
+  Blitzer: { ma: 7, st: 3, ag: 3, pa: 4, av: 9, value: 80, skills: ['Block', 'Tackle'] },
+  Catcher: { ma: 8, st: 3, ag: 3, pa: 5, av: 8, value: 75, skills: ['Catch', 'Dodge'] },
+  Thrower: { ma: 6, st: 3, ag: 3, pa: 3, av: 9, value: 80, skills: ['Pass', 'Sure Hands'] },
+  'Halfling Hopeful': { ma: 5, st: 2, ag: 3, pa: 4, av: 7, value: 30, skills: ['Dodge', 'Evasive', 'Stunty', 'Right Stuff'] },
+  Lineman: { ma: 6, st: 3, ag: 3, pa: 4, av: 9, value: 50, skills: [] },
+  Ogre:    { ma: 5, st: 5, ag: 4, pa: 5, av: 10, value: 140, skills: ['Bonehead', 'Loner (3+)', 'Mighty Blow', 'Thick Skull', 'Throw Team-mate'] }
+};
+var ADV = [
+  { k: 'randomPrimary', t: 'Случайный основной', pool: 0, random: true, tv: 20 },
+  { k: 'chosenPrimary', t: 'Основной на выбор', pool: 0, random: false, tv: 20 },
+  { k: 'chosenSecondary', t: 'Вторичный на выбор', pool: 1, random: false, tv: 40 },
+  { k: 'stat', t: 'Характеристика', pool: null, random: true, tv: 0 }
+];
+var COST = { randomPrimary: [3, 4, 6, 8, 10, 15], chosenPrimary: [6, 8, 12, 16, 20, 30], chosenSecondary: [10, 12, 16, 20, 24, 34], stat: [14, 16, 20, 24, 28, 38] };
+var STAT_TV = { MA: 30, ST: 50, AG: 40, PA: 20, AV: 10 };
+var REASONS = [
+  { k: 'sh', t: 'Серьёзная травма', d: 'Casualty 9–10 · пропуск матча' },
+  { k: 'si', t: 'Тяжёлое повреждение', d: 'Casualty 11–12 · Niggling Injury + пропуск' },
+  { k: 'li', t: 'Стойкая травма', d: 'Casualty 13–14 · −1 к характеристике + пропуск' },
+  { k: 'dead', t: 'Смерть', d: 'Casualty 15–16 · игрок выбывает из состава' },
+  { k: 'other', t: 'Другая причина', d: 'Решение лиги или тренера' }
+];
+function mk(id, num, name, pos, a, extra) {
+  var b = BASE[pos];
+  var p = { id: id, num: num, name: name, pos: pos, ma: b.ma, st: b.st, ag: b.ag, pa: b.pa, av: b.av, improved: {}, extraTv: 0,
+    skills: b.skills.map(function (n) { return { n: n, kind: 'стартовый' }; }), td: 0, cas: 0, cp: 0, def: 0, int: 0, mvp: 0, spent: 0, advCount: 0, mng: null };
+  Object.assign(p, a);
+  if (extra) {
+    (extra.gained || []).forEach(function (g) { p.skills.push({ n: g[0], kind: g[1] }); });
+    Object.keys(extra.up || {}).forEach(function (k) { p[STAT_KEY[k]] = extra.up[k]; p.improved[k] = true; });
+  }
+  return p;
+}
+var INIT = [
+  mk('p1', 1, 'W. Brandt', 'Blitzer', { td: 2, cas: 3, def: 1, mvp: 1, spent: 6, advCount: 1, extraTv: 20 }, { gained: [['Mighty Blow', 'Основной на выбор']] }),
+  mk('p2', 2, 'O. Krell', 'Blitzer', { td: 3, cas: 3, def: 1, mvp: 1, spent: 14, advCount: 1, extraTv: 10 }, { up: { AV: 10 } }),
+  mk('p3', 3, 'L. Ashby', 'Catcher', { td: 7, cp: 2, mvp: 1, spent: 6, advCount: 1, extraTv: 20 }, { gained: [['Sure Hands', 'Основной на выбор']] }),
+  mk('p4', 4, 'F. Moss', 'Catcher', { td: 2, int: 1 }),
+  mk('p5', 5, 'H. Vane', 'Thrower', { cp: 9, mvp: 1, spent: 6, advCount: 1, extraTv: 20 }, { gained: [['Accurate', 'Основной на выбор']] }),
+  mk('p6', 6, 'T. Rourke', 'Lineman', { cas: 1, def: 1, mvp: 1, spent: 6, advCount: 1, extraTv: 20 }, { gained: [['Block', 'Основной на выбор']] }),
+  mk('p7', 7, 'B. Hale', 'Lineman', {}),
+  mk('p8', 8, 'S. Pike', 'Lineman', { td: 1, cp: 1 }),
+  mk('p9', 9, 'J. Corr', 'Lineman', { cas: 1, mng: { k: 'sh' } }),
+  mk('p10', 10, 'D. Fenn', 'Lineman', { td: 2, cas: 1, mvp: 2, spent: 14, advCount: 1, extraTv: 30 }, { up: { MA: 7 } }),
+  mk('p11', 11, 'E. Thorn', 'Lineman', {}),
+  mk('p12', 12, 'Gruk', 'Ogre', { cas: 4, mvp: 1 })
+];
+function earnedOf(p) { return ACTIONS.reduce(function (t, a) { return t + p[a.k] * a.v; }, 0); }
+function availOf(p) { return earnedOf(p) - p.spent; }
+function owns(p, n) { return p.skills.some(function (s) { return s.n === n; }); }
+function statText(k, v) { return (k === 'AG' || k === 'PA' || k === 'AV') ? v + '+' : String(v); }
+function statAfter(k, v) { return (k === 'AG' || k === 'PA') ? v - 1 : v + 1; }
+function d8Opts(r) {
+  if (r === 1) return ['AV']; if (r === 2) return ['AV', 'PA']; if (r <= 4) return ['AV', 'MA', 'PA'];
+  if (r === 5) return ['MA', 'PA']; if (r === 6) return ['AG', 'MA']; if (r === 7) return ['AG', 'ST'];
+  return ['MA', 'ST', 'AG', 'PA', 'AV'];
+}
+function minCost(p) { return p.advCount >= 6 ? 999 : COST.randomPrimary[p.advCount]; }
+var ADV0 = { open: false, type: null, cat: null, picked: null, die: null, rerolls: 0, d8: null, statPick: null, done: false, last: null };
+
+var HIRE_POS = [
+  { k: 'Lineman', price: 50, max: 16, stats: 'MA 6 · ST 3 · AG 3+ · PA 4+ · AV 9+', skills: 'без навыков', bg: '#55615B' },
+  { k: 'Thrower', price: 80, max: 2, stats: 'MA 6 · ST 3 · AG 3+ · PA 3+ · AV 9+', skills: 'Pass, Sure Hands', bg: '#8A5A12' },
+  { k: 'Catcher', price: 75, max: 2, stats: 'MA 8 · ST 3 · AG 3+ · PA 5+ · AV 8+', skills: 'Catch, Dodge', bg: '#2E6E8E' },
+  { k: 'Blitzer', price: 80, max: 2, stats: 'MA 7 · ST 3 · AG 3+ · PA 4+ · AV 9+', skills: 'Block, Tackle', bg: '#17392C' },
+  { k: 'Halfling Hopeful', price: 30, max: 3, stats: 'MA 5 · ST 2 · AG 3+ · PA 4+ · AV 7+', skills: 'Dodge, Evasive, Stunty, Right Stuff', bg: '#6B4E8A' },
+  { k: 'Ogre', price: 140, max: 1, stats: 'MA 5 · ST 5 · AG 4+ · PA 5+ · AV 10+', skills: 'Bonehead, Loner (3+), Mighty Blow, Thick Skull, Throw Team-mate', bg: '#7B2E2E' }
+];
+var HIRE_MAX = 14;
+function hireState(demo) {
+  var d = demo || '';
+  return { hireOpen: d === 'open' || d === 'over' || d === 'ok', cart: d === 'over' ? { Blitzer: 1 } : d === 'ok' ? { Lineman: 1 } : {}, hireDone: '' };
+}
+function hireVals(self, players, treasury, onBuy) {
+  var st = self.state, cart = st.cart || {};
+  var have = {}; players.forEach(function (p) { have[p.pos] = (have[p.pos] || 0) + 1; });
+  var count = 0, total = 0;
+  HIRE_POS.forEach(function (h) { count += cart[h.k] || 0; total += (cart[h.k] || 0) * h.price; });
+  var slots = HIRE_MAX - players.length, after = treasury - total, ok = count > 0 && after >= 0;
+  var used = {}; players.forEach(function (p) { used[p.num] = true; });
+  var nums = []; for (var n = 1; nums.length < count && n <= 99; n++) if (!used[n]) nums.push(n);
+  var set = function (k, d) { self.setState(function (s) { var c = Object.assign({}, s.cart || {}); c[k] = Math.max(0, (c[k] || 0) + d); if (!c[k]) delete c[k]; return { cart: c }; }); };
+  return {
+    hireOpen: !!st.hireOpen,
+    openHire: function () { self.setState({ hireOpen: true, cart: {}, hireDone: '' }); },
+    closeHire: function () { self.setState({ hireOpen: false, cart: {} }); },
+    hireTreasury: treasury + 'k',
+    hireCart: total ? '−' + total + 'k' : '0',
+    hireAfter: after + 'k', hireAfterColor: after < 0 ? '#A0473A' : '#14201A', hireAfterBg: after < 0 ? '#FBEDEA' : '#E4F0E9',
+    hireSlots: 'В составе ' + players.length + ' из ' + HIRE_MAX + ' · свободно мест: ' + Math.max(0, slots - count),
+    hireRows: HIRE_POS.map(function (h) {
+      var n = cart[h.k] || 0, hv = have[h.k] || 0;
+      var canInc = hv + n < h.max && count < slots;
+      return { k: h.k, letter: h.k.charAt(0), bg: h.bg, price: h.price + 'k', stats: h.stats, skills: h.skills,
+        limit: 'в команде ' + hv + ' из ' + h.max, n: n, has: n > 0, none: n === 0,
+        ring: n > 0 ? 'inset 0 0 0 2px #2F7A52' : 'inset 0 0 0 1px #DCE3DF', rowBg: n > 0 ? '#F1F8F4' : '#FFFFFF',
+        cantInc: !canInc, incBg: canInc ? '#2F7A52' : '#C9D3CE', addColor: canInc ? '#2F7A52' : '#A9B3AE', addRing: canInc ? 'inset 0 0 0 1.5px #2F7A52' : 'inset 0 0 0 1.5px #C9D3CE',
+        inc: function () { if (canInc) set(h.k, 1); }, dec: function () { set(h.k, -1); },
+        incAria: 'Добавить в корзину: ' + h.k, decAria: 'Убрать из корзины: ' + h.k };
+    }),
+    hireCount: count, hireEmpty: count === 0, hireHas: count > 0,
+    hireLines: HIRE_POS.filter(function (h) { return cart[h.k]; }).map(function (h) { return { t: cart[h.k] + ' × ' + h.k, sum: cart[h.k] * h.price + 'k' }; }),
+    hireNums: count ? 'Номера новичков: ' + nums.join(', ') + ' — поменять можно в профиле игрока' : 'Добавьте игроков в корзину',
+    hireOk: ok, hireBlocked: !ok, hireBtnBg: ok ? '#2F7A52' : '#A9B3AE',
+    hireBtn: count === 0 ? 'Корзина пуста' : after < 0 ? 'Не хватает ' + (-after) + 'k' : 'Купить ' + count + ' ' + (count === 1 ? 'игрока' : count < 5 ? 'игроков'.replace('ов', 'а') : 'игроков') + ' за ' + total + 'k',
+    hireDone: st.hireDone, hireDoneShow: !!st.hireDone,
+    hideHireDone: function () { self.setState({ hireDone: '' }); },
+    buyHire: function () {
+      if (!ok) return;
+      var list = []; var i = 0;
+      HIRE_POS.forEach(function (h) { for (var j = 0; j < (cart[h.k] || 0); j++) list.push({ pos: h.k, num: nums[i++] }); });
+      onBuy(list, after);
+      self.setState({ hireOpen: false, cart: {}, hireDone: 'Куплено: ' + list.map(function (x) { return x.pos + ' #' + x.num; }).join(', ') + ' · в казне ' + after + 'k' });
+    }
+  };
+}
+function kfmt(v) { return String(v).replace('.', ','); }
+function sellVals(self) {
+  var st = self.state, p = st.players.find(function (x) { return x.id === st.sel; });
+  var hire = p ? (HIRE_POS.find(function (h) { return h.k === p.pos; }) || { price: 50 }).price : 0;
+  var alive = !!p && !(p.mng && p.mng.k === 'dead');
+  var open = !!st.sellOpen && !!p;
+  var value = p ? hire + p.extraTv : 0, cancel = !!(p && p.bought);
+  var refund = cancel ? p.bought : value / 2;
+  var squad = st.players.filter(function (x) { return !(x.mng && x.mng.k === 'dead'); }).length;
+  return {
+    canSell: alive, sellBlocked: st.mphase === 'live' || (!cancel && squad <= 7), sellBtn: cancel ? 'Отменить покупку' : 'Продать',
+    openSell: function () { self.setState({ sellOpen: true }); },
+    closeSell: function () { self.setState({ sellOpen: false }); },
+    sellOpen: open,
+    sell: p ? {
+      name: p.name, num: p.num, pos: p.pos, refund: kfmt(refund), before: st.treasury, after: kfmt(st.treasury + refund),
+      title: cancel ? 'Отменить покупку' : 'Продать игрока',
+      note: cancel ? 'Игрок куплен после последнего матча, поэтому возвращается полная цена. После старта матча покупку отменить нельзя.' : 'Игрок уходит из команды насовсем: SPP, навыки и улучшения пропадают. Возвращается половина текущей стоимости. Продать нельзя, если в составе 7 игроков или меньше.',
+      cta: cancel ? 'Отменить и вернуть ' + refund + 'k' : 'Продать за ' + kfmt(refund) + 'k',
+      lines: cancel ? [
+        { k: 'Куплен в этот раз за', v: refund + 'k', w: '600', c: '#14201A' },
+        { k: 'Вернётся в казну', v: '+' + refund + 'k', w: '700', c: ACCENT }
+      ] : [
+        { k: 'Цена найма ' + p.pos, v: hire + 'k', w: '600', c: '#14201A' },
+        { k: 'Навыки и улучшения', v: p.extraTv ? '+' + p.extraTv + 'k' : '—', w: '600', c: '#14201A' },
+        { k: 'Текущая стоимость', v: value + 'k', w: '700', c: '#14201A' },
+        { k: 'SPP за карьеру', v: earnedOf(p) + ' · сгорят', w: '600', c: '#A0473A' },
+        { k: 'Вернётся в казну · половина', v: '+' + kfmt(refund) + 'k', w: '700', c: ACCENT }
+      ]
+    } : { name: '', num: '', pos: '', refund: 0, before: 0, after: 0, lines: [], title: '', note: '', cta: '' },
+    confirmSell: function () {
+      if (!p) return;
+      self.setState(function (s2) {
+        var rest = s2.players.filter(function (x) { return x.id !== p.id; });
+        return { sellOpen: false, treasury: s2.treasury + refund, players: rest, sel: (rest[0] || {}).id, captain: s2.captain === p.id ? null : s2.captain };
+      });
+    }
+  };
+}
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = {
+      players: props.demoInjured ? INIT.map(function (x) { var m = { p9: { k: 'sh' }, p4: { k: 'si' }, p6: { k: 'li', stat: 'MA' }, p11: { k: 'other', note: 'Дисквалификация · решение лиги' }, p8: { k: 'dead', cause: 'Фол от Duskspire Knives в туре 4, бросок Casualty 16' } }[x.id]; return m ? Object.assign({}, x, { mng: m }) : x; }) : INIT, captain: 'p1', sel: props.demoMngDead ? 'p12' : props.demoSel || 'p3', sort: { key: 'num', dir: 1 }, edit: null,
+      adv: props.demoAdvStat ? Object.assign({}, ADV0, { open: true, type: 'stat', via: 'table', d8: 6, statPick: null, rolled: 'table' }) : props.initialAdv ? Object.assign({}, ADV0, { open: true, type: 'chosenPrimary', cat: 'A', picked: 'Diving Catch' }) : ADV0,
+      mngPicking: !!props.demoMngDead, mngReason: props.demoMngDead ? 'dead' : null, mngCause: props.demoMngDead ? 'Фол от Grimtusk Raiders в туре 6, бросок Casualty 15' : ''
+    };
+    Object.assign(this.state, Object.assign(mdState(props.demoMatch), { bandIdx: null }));
+    Object.assign(this.state, fundsState(props.demoFunds), hireState(props.demoHire));
+    if (props.demoPreseason) Object.assign(this.state, { phase: 'pre', treasury: 60, history: [], apo: false, res: { start: 2, team: 0, fans: 1, coaches: 0, cheer: 0, bribes: 0 } });
+    this.state.sellOpen = !!props.demoSell;
+    var mp = props.demoMPhase || 'none';
+    this.state.mphase = mp; this.state.offMatch = false; this.state.mc = {}; this.state.inj = {}; this.state.careerOpen = !!props.demoCareer;
+    if (mp === 'live') {
+      this.state.mc = { p3: { td: 1, cp: 1 }, p8: { td: 1 }, p12: { cas: 2 }, p1: { cas: 1, def: 1 } };
+      this.state.inj = { p2: { code: 'last', stat: 'AG' } };
+    }
+    if (props.demoEdit === 'open') this.state.edit = { name: 'Lukas Ashby', num: '3', captain: true };
+    if (props.demoEdit === 'taken') this.state.edit = { name: 'L. Ashby', num: '5', captain: false };
+  }
+  bumpLive(id, k, d) {
+    this.setState(function (s) {
+      var cur = s.players.find(function (p) { return p.id === id; });
+      if (!cur || (cur[k] || 0) + d < 0) return null;
+      var players = s.players.map(function (p) { if (p.id !== id) return p; var n = Object.assign({}, p); n[k] = (p[k] || 0) + d; return n; });
+      var mc = s.mc;
+      if (s.mphase === 'live' && !s.offMatch) { mc = Object.assign({}, s.mc); var m = Object.assign({}, mc[id] || {}); m[k] = Math.max(0, (m[k] || 0) + d); mc[id] = m; }
+      return { players: players, mc: mc };
+    });
+  }
+  setAdv(patch) { this.setState(function (s) { return { adv: Object.assign({}, s.adv, patch) }; }); }
+  updateSel(fn) {
+    this.setState(function (s) { return { players: s.players.map(function (p) { return p.id === s.sel ? fn(p) : p; }) }; });
+  }
+  confirmAdv() {
+    var st = this.state, a = st.adv, p = st.players.find(function (x) { return x.id === st.sel; });
+    var def = ADV.find(function (x) { return x.k === a.type; });
+    var cost = COST[a.costAs || a.type][p.advCount];
+    var n = Object.assign({}, p, { spent: p.spent + cost, advCount: p.advCount + 1, improved: Object.assign({}, p.improved) });
+    var last;
+    if (a.type === 'stat') {
+      var key = STAT_KEY[a.statPick];
+      n[key] = statAfter(a.statPick, p[key]); n.improved[a.statPick] = true; n.extraTv = p.extraTv + STAT_TV[a.statPick];
+      last = { title: a.statPick + ' ' + statText(a.statPick, p[key]) + ' → ' + statText(a.statPick, n[key]), sub: '−' + cost + ' SPP · стоимость +' + STAT_TV[a.statPick] + 'k' };
+    } else {
+      n.skills = p.skills.concat([{ n: a.picked, kind: def.t }]); n.extraTv = p.extraTv + def.tv;
+      last = { title: p.name + ' получает ' + a.picked, sub: def.t + ' · ' + CAT[a.cat] + ' · −' + cost + ' SPP · стоимость +' + def.tv + 'k' };
+    }
+    this.setState(function (s) {
+      return { players: s.players.map(function (x) { return x.id === s.sel ? n : x; }), adv: Object.assign({}, s.adv, { done: true, last: last }) };
+    });
+  }
+  _rv() {
+    var self = this, st = this.state, a = st.adv, sort = st.sort;
+    var players = st.players;
+    var p = players.find(function (x) { return x.id === st.sel; }) || players[0];
+    var ringOn = 'inset 0 0 0 2px ' + ACCENT, ringOff = 'inset 0 0 0 1px #DCE3DF';
+
+    var filtered = players.slice();
+    var val = function (x, k) { return k === 'earned' ? earnedOf(x) : k === 'avail' ? availOf(x) : x[k]; };
+    filtered.sort(function (x, y) { return (val(x, sort.key) - val(y, sort.key)) * sort.dir || x.num - y.num; });
+
+    var counts = {
+      all: players.length,
+      active: players.filter(function (x) { return !x.mng; }).length,
+      out: players.filter(function (x) { return !!x.mng; }).length,
+      ready: players.filter(function (x) { return !x.mng && availOf(x) >= minCost(x); }).length
+    };
+
+    var colDefs = [{ k: 'num', l: 'ИГРОК', j: 'flex-start', dir: 1 }]
+      .concat(STATS.map(function (s) { return { k: s.k, l: s.l, j: 'center', dir: s.better }; }))
+      .concat([{ gap: true }])
+      .concat(ACTIONS.map(function (x) { return { k: x.k, l: x.l, j: 'center', dir: -1 }; }))
+      .concat([{ gap: true }, { k: 'earned', l: 'ВСЕГО', j: 'center', dir: -1 }, { k: 'avail', l: 'ДОСТ.', j: 'flex-end', dir: -1 }]);
+    var cols = colDefs.map(function (c) {
+      if (c.gap) return { gap: true, real: false };
+      var on = sort.key === c.k;
+      return {
+        gap: false, real: true, first: c.k === 'num', rest: c.k !== 'num', l: c.l, justify: c.j, color: on ? ACCENT : '#5F6B65',
+        ind: on ? (sort.dir > 0 ? '▲' : '▼') : '', aria: 'Сортировать по ' + c.l,
+        sort: function () { self.setState(function (s) { return { sort: s.sort.key === c.k ? { key: c.k, dir: -s.sort.dir } : { key: c.k, dir: c.dir } }; }); }
+      };
+    });
+
+    var rowOf = function (x) {
+      var on = x.id === p.id, av = availOf(x);
+      var skills = x.skills.map(function (s) {
+        var gained = s.kind !== 'стартовый';
+        return { n: s.n, bg: gained ? '#E4F0E9' : '#F3F6F4', color: gained ? '#163A28' : '#3E4A44', weight: gained ? '700' : '500' };
+      });
+      if (x.mng && x.mng.k === 'si') skills = skills.concat([{ n: 'Niggling Injury', bg: '#FBEDEA', color: '#7A2E22', weight: '700' }]);
+      return {
+        num: x.num, captain: x.id === st.captain, name: x.name, badgeBg: x.mng && x.mng.k === 'dead' ? '#8A948F' : POS_BG[x.pos],
+        sub: x.mng ? (x.mng.k === 'dead' ? 'Погиб · ' + (x.mng.cause || 'причина не указана') : x.mng.note || REASONS.find(function (r) { return r.k === x.mng.k; }).t + (x.mng.stat ? ' · −1 ' + x.mng.stat : '')) : x.pos,
+        subColor: x.mng ? '#A0473A' : '#5F6B65',
+        skills: skills,
+        stats: STATS.map(function (s) { var hurt = x.mng && x.mng.stat === s.l; var up = !!x.improved[s.l]; var gone = x.mng && x.mng.k === 'dead'; return { v: (hurt ? x[s.k] + (s.better < 0 ? -1 : 1) : x[s.k]) + (s.plus ? '+' : ''), color: gone ? '#8A948F' : hurt ? '#A0473A' : up ? ACCENT : '#14201A', weight: hurt || up ? '700' : '500' }; }),
+        cells: ACTIONS.map(function (q) { var lv = st.mphase === 'live' && st.mc[x.id] ? (st.mc[x.id][q.k] || 0) : 0; return { v: x[q.k], hasLive: lv > 0, live: '+' + lv, color: x[q.k] && !(x.mng && x.mng.k === 'dead') ? '#14201A' : '#8A948F' }; }),
+        earned: earnedOf(x), avail: av, availColor: !x.mng && av >= minCost(x) ? ACCENT : '#8A948F',
+        bg: on ? '#F1F8F4' : '#FFFFFF', ring: on ? 'inset 0 0 0 2px ' + ACCENT : 'none', pressed: on ? 'true' : 'false',
+        select: function () { self.setState({ sel: x.id, mngPicking: false, mngReason: null }); }
+      };
+    };
+    var rowsActive = filtered.filter(function (x) { return !x.mng; }).map(rowOf);
+    var rowsOut = filtered.filter(function (x) { return !!x.mng && x.mng.k !== 'dead'; }).map(rowOf);
+    var rowsDead = filtered.filter(function (x) { return !!x.mng && x.mng.k === 'dead'; }).map(rowOf);
+
+    var ed = st.edit;
+    var edN = ed ? parseInt(ed.num, 10) : 0;
+    var takenBy = ed ? players.find(function (x) { return x.id !== p.id && x.num === edN; }) : null;
+    var edNumOk = !ed || (edN >= 1 && edN <= 16 && !takenBy);
+    var edNameOk = !ed || ed.name.trim().length > 0;
+    var edMsg = !ed ? '' : !edNameOk ? 'Имя не может быть пустым' : !(edN >= 1 && edN <= 16) ? 'Номер — от 1 до 16' : takenBy ? 'Номер ' + edN + ' уже у ' + takenBy.name : 'Номер и имя видят соперники в составе и протоколе матча';
+    var edValid = !!ed && edNumOk && edNameOk && (ed.name.trim() !== p.name || edN !== p.num || ed.captain !== (st.captain === p.id));
+    var curCapName = (players.find(function (x) { return x.id === st.captain; }) || { name: 'не выбран' }).name;
+    var acc = ACCESS[p.pos];
+    var pAvail = availOf(p), pMin = minCost(p);
+    var live = st.mphase === 'live';
+    var recTotal = 0; Object.keys(st.mc).forEach(function (k) { Object.keys(st.mc[k]).forEach(function (a) { recTotal += st.mc[k][a]; }); }); recTotal += Object.keys(st.inj).length;
+    var recSpp = 0; if (st.mc[p.id]) ACTIONS.concat(MORE_ACTS).forEach(function (a) { recSpp += (st.mc[p.id][a.k] || 0) * a.v; });
+    var canAdv = !live && p.advCount < 6 && pAvail >= pMin;
+    var sel = {
+      num: p.num, name: p.name, pos: p.pos, badgeBg: POS_BG[p.pos], captain: st.captain === p.id,
+      captainHint: st.captain === p.id ? 'Носит повязку капитана' : 'Сейчас: ' + (players.find(function (x) { return x.id === st.captain; }) || { name: 'не выбран' }).name + '. Отметка передаст роль', value: (BASE[p.pos].value + p.extraTv) + 'k',
+      tiles: STATS.map(function (s) { var up = !!p.improved[s.l]; return { k: s.l, v: p[s.k] + (s.plus ? '+' : ''), bg: up ? '#E4F0E9' : '#F3F6F4', color: up ? ACCENT : '#14201A' }; }),
+      avail: pAvail, earned: earnedOf(p), spent: p.spent, advCount: p.advCount,
+      dots: [0, 1, 2, 3, 4, 5].map(function (i) { return { bg: i < p.advCount ? ACCENT : '#DCE3DF' }; }),
+      advDisabled: !canAdv, advBg: canAdv ? ACCENT : '#A9B3AE',
+      advHint: live ? 'Прокачка — после итогов матча' : p.advCount >= 6 ? 'Достигнут максимум улучшений' : canAdv ? 'Самое дешёвое — ' + pMin + ' SPP' : 'Нужно ещё ' + (pMin - pAvail) + ' SPP',
+      skills: p.skills.map(function (s) { var g = s.kind !== 'стартовый'; return { n: s.n, kind: s.kind, bg: g ? '#E4F0E9' : '#FFFFFF', color: g ? '#163A28' : '#14201A', ring: g ? '#B7D3C3' : '#C9D3CE' }; }),
+      primary: acc[0].split('').map(function (c) { return CAT[c]; }).join(', '),
+      secondary: acc[1].split('').map(function (c) { return CAT[c]; }).join(', '),
+      mngLabel: live && st.inj[p.id] ? 'травма в матче: ' + INJ_SHORT[st.inj[p.id].code] + (st.inj[p.id].stat ? ' (' + st.inj[p.id].stat + ')' : '') : p.mng ? (p.mng.k === 'dead' ? 'Погиб · ' + (p.mng.cause || 'причина не указана') : REASONS.find(function (r) { return r.k === p.mng.k; }).t + ' · пропускает') : 'Играет',
+      mngColor: p.mng ? '#A0473A' : '#14201A',
+      mngBtn: live ? (st.inj[p.id] ? 'Травма: ' + INJ_SHORT[st.inj[p.id].code] : 'Травма в матче…') : p.mng ? (p.mng.k === 'dead' ? 'Отменить отметку' : 'Вернуть в состав') : st.mngPicking ? 'Отмена' : 'Пропуск матча…'
+    };
+
+    var mngReady = !!st.mngReason && (st.mngReason !== 'dead' || !!(st.mngCause || '').trim());
+    var reasons = REASONS.map(function (r) {
+      var on = st.mngReason === r.k;
+      return { t: r.t, d: r.d, pressed: on ? 'true' : 'false', bg: on ? '#F1F8F4' : '#FFFFFF', ring: on ? ringOn : ringOff, dot: on ? 'inset 0 0 0 6px ' + ACCENT : 'inset 0 0 0 2px #A9B3AE', pick: function () { self.setState({ mngReason: r.k }); } };
+    });
+
+    // advancement
+    var def = a.type ? ADV.find(function (x) { return x.k === a.type; }) : null;
+    var idx = Math.min(p.advCount, 5);
+    var typeOpts = ADV.map(function (o) {
+      var cost = COST[o.k][idx], ok = p.advCount < 6 && pAvail >= cost, on = a.type === o.k;
+      var pool = o.pool === null ? null : acc[o.pool];
+      return {
+        t: o.t, cost: cost, disabled: !ok, pressed: on ? 'true' : 'false',
+        sub: !ok ? 'Не хватает ' + (cost - pAvail) + ' SPP' : pool ? pool.split('').map(function (c) { return CAT[c]; }).join(', ') + ' · +' + o.tv + 'k' : 'Бросок D8 · +10–50k',
+        bg: !ok ? '#F6F7F6' : on ? '#F1F8F4' : '#FFFFFF', ring: on ? ringOn : ringOff,
+        color: ok ? '#14201A' : '#8A948F', subColor: ok ? '#5F6B65' : '#A0473A',
+        pillBg: on ? ACCENT : ok ? '#EEF2F0' : '#F0F2F1', pillColor: on ? '#FFFFFF' : ok ? '#14201A' : '#8A948F',
+        pick: function () { if (ok) self.setAdv({ type: o.k, cat: null, picked: null, die: null, rerolls: 0, d8: null, statPick: null, costAs: null, via: 'site', rolled: null }); }
+      };
+    });
+    var isStat = a.type === 'stat';
+    var catOpts = def && def.pool !== null ? (a.costAs ? acc[0] + acc[1] : acc[def.pool]).split('').map(function (c) {
+      var on = a.cat === c, free = SKILLS[c].filter(function (n) { return !owns(p, n); }).length;
+      return { letter: c, name: CAT[c], free: 'доступно ' + free + ' из ' + SKILLS[c].length, pressed: on ? 'true' : 'false', bg: on ? '#F1F8F4' : '#FFFFFF', ring: on ? ringOn : ringOff, badgeBg: CAT_BG[c], pick: function () { self.setAdv({ cat: c, picked: null, die: null, rerolls: 0 }); } };
+    }) : [];
+    var list = a.cat ? SKILLS[a.cat] : [];
+    var isChosen = !!def && !def.random && !!a.cat;
+    var isRandom = !!def && def.random && !isStat && !!a.cat;
+    var skillOpts = list.map(function (n) {
+      var own = owns(p, n), on = a.picked === n;
+      return { n: n, owned: own, pressed: on ? 'true' : 'false', bg: on ? '#F1F8F4' : own ? '#F6F7F6' : '#FFFFFF', ring: on ? ringOn : ringOff, color: own ? '#8A948F' : '#14201A', weight: on ? '700' : '500', deco: own ? 'line-through' : 'none', pick: function () { if (!own) self.setAdv({ picked: n }); } };
+    });
+    var manual = a.via === 'table';
+    var rollTable = list.map(function (n, i) {
+      var own = owns(p, n), hit = a.die && a.picked === n, canPick = manual && !own && !a.die;
+      return { i: i + 1, n: n, bg: hit ? ACCENT : canPick ? '#F3F6F4' : 'transparent', color: hit ? '#FFFFFF' : own ? '#8A948F' : '#14201A', deco: own ? 'line-through' : 'none', weight: hit ? '700' : '400',
+        locked: !canPick, cursor: canPick ? 'pointer' : 'default', pick: function () { if (canPick) self.setAdv({ die: i + 1, picked: n, rerolls: 0, rolled: 'table' }); } };
+    });
+    var rolledAlready = (isStat && !!a.d8) || (!isStat && !!a.die);
+    var viaSeg = [['site', 'Бросить на сайте'], ['table', 'Бросил за столом']].map(function (m) {
+      var on = (a.via || 'site') === m[0];
+      return { l: m[1], sel: on ? 'true' : 'false', locked: rolledAlready, bg: on ? '#FFFFFF' : 'transparent', shadow: on ? '0 1px 2px rgba(20,32,26,0.12)' : 'none', weight: on ? '700' : '600', color: on ? '#14201A' : '#5F6B65',
+        pick: function () { if (!rolledAlready) self.setAdv({ via: m[0] }); } };
+    });
+    var viaNote = a.rolled === 'site' ? 'Брошено на сайте · результат сохранён' : a.rolled === 'table' ? 'Результат броска за столом · пометка в истории'
+      : manual ? (isStat ? 'Выберите, что выпало на D8' : 'Нажмите на выпавший навык') : 'Сайт бросит кубик и сохранит результат';
+    var statOpts = isStat && a.d8 ? d8Opts(a.d8).map(function (k) {
+      var on = a.statPick === k, cur = p[STAT_KEY[k]];
+      return { k: k, from: statText(k, cur), to: statText(k, statAfter(k, cur)), tv: '+' + STAT_TV[k] + 'k', pressed: on ? 'true' : 'false', bg: on ? '#F1F8F4' : '#FFFFFF', ring: on ? ringOn : ringOff, pick: function () { self.setAdv({ statPick: k }); } };
+    }) : [];
+
+    var ready = def && ((isStat && a.statPick) || (!isStat && a.picked));
+    var cost = def ? COST[a.costAs || def.k][idx] : 0;
+    var summary = a.done ? 'Сохранено в профиле игрока' : !def ? 'Выберите тип улучшения' :
+      def.t + (a.cat ? ' · ' + CAT[a.cat] : '') + (a.picked && !isStat ? ' · ' + a.picked : '') + (isStat && a.statPick ? ' · ' + a.statPick : '') + ' — ' + cost + ' SPP';
+    var ctaLabel = a.done ? 'Готово' : isStat ? (a.statPick ? 'Улучшить ' + a.statPick : 'Выберите характеристику') : def && def.random ? (a.picked ? 'Принять ' + a.picked : 'Сначала бросок') : (a.picked ? 'Взять ' + a.picked : 'Выберите навык');
+    var ctaDisabled = !a.done && !ready;
+
+    return {
+      summary: counts.active + ' в составе · ' + counts.out + ' пропускает · ' + counts.ready + ' могут прокачаться',
+      cols: cols, rowsActive: rowsActive, rowsOut: rowsOut, hasOut: rowsOut.length > 0, outCount: rowsOut.length, rowsDead: rowsDead, hasDead: rowsDead.length > 0, deadCount: rowsDead.length, sel: sel,
+      openEdit: function () { self.setState({ edit: { name: p.name, num: String(p.num), captain: st.captain === p.id } }); },
+      closeEdit: function () { self.setState({ edit: null }); },
+      editOpen: !!ed,
+      edName: ed ? ed.name : '', edNum: ed ? ed.num : '',
+      onEdName: function (e) { self.setState({ edit: Object.assign({}, st.edit, { name: e.target.value }) }); },
+      onEdNum: function (e) { self.setState({ edit: Object.assign({}, st.edit, { num: e.target.value }) }); },
+      edNameRing: edNameOk ? 'inset 0 0 0 1px #DCE3DF' : 'inset 0 0 0 2px #A0473A',
+      edNumRing: edNumOk ? 'inset 0 0 0 1px #DCE3DF' : 'inset 0 0 0 2px #A0473A',
+      edMsg: edMsg, edMsgColor: edNumOk && edNameOk ? '#5F6B65' : '#A0473A',
+      edCapStr: ed && ed.captain ? 'true' : 'false',
+      edCapBg: ed && ed.captain ? '#F1F8F4' : '#FFFFFF',
+      edCapRing: ed && ed.captain ? 'inset 0 0 0 2px ' + ACCENT : 'inset 0 0 0 1px #DCE3DF',
+      edCapTrack: ed && ed.captain ? ACCENT : '#C9D3CE', edCapKnob: ed && ed.captain ? 'translateX(20px)' : 'none',
+      edCapHint: ed && ed.captain ? (st.captain === p.id ? 'Носит повязку капитана' : 'Роль перейдёт от ' + curCapName) : 'Сейчас капитан — ' + curCapName,
+      toggleEdCaptain: function () { self.setState({ edit: Object.assign({}, st.edit, { captain: !st.edit.captain }) }); },
+      edInvalid: !edValid, edSaveBg: edValid ? ACCENT : '#A9B3AE',
+      saveEdit: function () {
+        if (!edValid) return;
+        self.updateSel(function (x) { return Object.assign({}, x, { name: ed.name.trim(), num: edN }); });
+        self.setState(function (s2) { return { captain: ed.captain ? p.id : (s2.captain === p.id ? null : s2.captain), edit: null }; });
+      },
+      toggleCaptain: function () { self.setState(function (s) { return { captain: s.captain === p.id ? null : p.id }; }); },
+      openAdv: function () { if (canAdv) self.setState({ adv: Object.assign({}, ADV0, { open: true }) }); },
+      toggleMng: function () {
+        if (live) { var j = st.inj[p.id]; self.setState({ injPicking: !st.injPicking, injCode: j ? j.code : null, injStat: j ? j.stat : null }); return; }
+        if (p.mng) self.updateSel(function (x) { return Object.assign({}, x, { mng: null }); });
+        else self.setState({ mngPicking: !st.mngPicking, mngReason: null });
+      },
+      isPrep: st.mphase === 'prep', isLive: live,
+      liveBg: st.offMatch ? '#FFF4DE' : '#E4F0E9', liveInk: st.offMatch ? '#6B4A0E' : '#163A28', liveDot: st.offMatch ? '#C99A2E' : '#2F7A52',
+      liveTitle: st.offMatch ? 'Правка вне матча' : 'Идёт матч · тур 7',
+      liveCount: recTotal + ' ' + (recTotal % 10 === 1 && recTotal % 100 !== 11 ? 'запись' : recTotal % 10 >= 2 && recTotal % 10 <= 4 && (recTotal % 100 < 10 || recTotal % 100 >= 20) ? 'записи' : 'записей'),
+      liveText: st.offMatch ? 'Правки меняют карьеру, но не попадут в тур 7.' : 'Счётчики игрока справа пишут записи в тур 7: сразу видны в карьере (зелёный индекс в таблице) и сами подставятся в итоги. Найм, продажа, прокачка и казна — после итогов.',
+      offStr: st.offMatch ? 'true' : 'false', offTrack: st.offMatch ? '#C99A2E' : 'rgba(20,32,26,0.25)', offKnob: st.offMatch ? 'translateX(18px)' : 'none',
+      toggleOff: function () { self.setState({ offMatch: !st.offMatch }); },
+      hireBg: live ? '#A9B3AE' : '#2F7A52', hireTitle: live ? 'Найм — после итогов матча' : 'Добавить игроков', fundsTitle: live ? 'Казна — после итогов матча' : 'Изменить казну и ресурсы',
+      recTitle: st.offMatch ? 'Правка вне матча · ' + p.name : 'Записи матча · тур 7', recSpp: recSpp ? '+' + recSpp + ' SPP в матче' : 'пока без действий', recColor: recSpp ? '#2F7A52' : '#5F6B65',
+      recNote: 'MVP — в итогах матча. Прокачка и продажа — после итогов.',
+      recActs: ACTIONS.concat(MORE_ACTS).map(function (a) {
+        var cnt = p[a.k] || 0, lv = st.mc[p.id] ? (st.mc[p.id][a.k] || 0) : 0, mvp = a.k === 'mvp';
+        return { l: a.l, v: a.v, count: cnt, hasLive: lv > 0, live: '+' + lv, cantDec: !cnt, decColor: cnt ? '#14201A' : '#B5BDB9',
+          cantInc: mvp, incBg: mvp ? '#A9B3AE' : ACCENT, incTitle: mvp ? 'MVP выбирают в итогах матча' : '',
+          inc: function () { self.bumpLive(p.id, a.k, 1); }, dec: function () { self.bumpLive(p.id, a.k, -1); },
+          incLabel: 'Добавить: ' + (a.n || a.l) + ', ' + p.name, decLabel: 'Убрать: ' + (a.n || a.l) + ', ' + p.name };
+      }),
+      injPicking: live && !!st.injPicking,
+      injOpts: INJ_OPTS.map(function (o) { var on = st.injCode === o.k; return { t: o.t, d: o.d, sel: on ? 'true' : 'false', bg: on ? '#F1F8F4' : '#FFFFFF', ring: on ? 'inset 0 0 0 2px ' + ACCENT : 'inset 0 0 0 1px #DCE3DF', dot: on ? 'inset 0 0 0 6px ' + ACCENT : 'inset 0 0 0 2px #A9B3AE', pick: function () { self.setState({ injCode: o.k, injStat: o.k === 'last' ? st.injStat : null }); } }; }),
+      injNeedStat: st.injCode === 'last',
+      injStats: ['MA', 'ST', 'AG', 'PA', 'AV'].map(function (k) { var on = st.injStat === k; return { k: k, sel: on ? 'true' : 'false', bg: on ? ACCENT : '#EEF2F0', color: on ? '#FFFFFF' : '#14201A', pick: function () { self.setState({ injStat: k }); } }; }),
+      injHas: !!st.inj[p.id], injCols: st.inj[p.id] ? '1fr 1fr' : '1fr',
+      injOff: !st.injCode || (st.injCode === 'last' && !st.injStat), injBg: !st.injCode || (st.injCode === 'last' && !st.injStat) ? '#A9B3AE' : ACCENT,
+      injRemove: function () { var n = Object.assign({}, st.inj); delete n[p.id]; self.setState({ inj: n, injPicking: false }); },
+      injSave: function () { if (!st.injCode || (st.injCode === 'last' && !st.injStat)) return; var n = Object.assign({}, st.inj); n[p.id] = { code: st.injCode, stat: st.injCode === 'last' ? st.injStat : null }; self.setState({ inj: n, injPicking: false }); },
+      careerOpen: !!st.careerOpen, careerStr: st.careerOpen ? 'true' : 'false', careerRot: st.careerOpen ? 'rotate(180deg)' : 'none',
+      toggleCareer: function () { self.setState({ careerOpen: !st.careerOpen }); },
+      careerHas: p.id === 'p3', careerNone: p.id !== 'p3', careerRows: CAREER_ROWS,
+      mngPicking: st.mngPicking && !p.mng, reasons: reasons,
+      mngNotReady: !mngReady, mngCtaBg: mngReady ? ACCENT : '#A9B3AE',
+      showCause: st.mngReason === 'dead', mngCause: st.mngCause || '', onCause: function (e) { self.setState({ mngCause: e.target.value }); },
+      mngCtaLabel: st.mngReason === 'dead' ? 'Отметить гибель' : 'Отметить пропуск',
+      confirmMng: function () { if (!mngReady) return; var r = st.mngReason, cz = (st.mngCause || '').trim(); self.updateSel(function (x) { return Object.assign({}, x, { mng: r === 'dead' ? { k: r, cause: cz } : { k: r } }); }); self.setState({ mngPicking: false, mngReason: null, mngCause: '' }); },
+
+      advOpen: a.open, advDone: a.done, advNotDone: !a.done, advNext: p.advCount + (a.done ? 0 : 1),
+      closeAdv: function () { self.setState({ adv: ADV0 }); },
+      typeOpts: typeOpts,
+      col2Title: isStat ? '2 · БРОСОК D8' : '2 · КАТЕГОРИЯ', col2Empty: !def, col2Bg: def ? '#FFFFFF' : '#FAFBFA',
+      catOpts: catOpts, isStat: isStat,
+      d8: a.d8 || '?', d8Bg: a.d8 ? ACCENT : '#EEF2F0', d8Color: a.d8 ? '#FFFFFF' : '#8A948F', d8Rolled: !!a.d8 || manual,
+      rollStat: function () { if (manual) return; self.setAdv({ d8: 1 + Math.floor(Math.random() * 8), statPick: null, rolled: 'site' }); },
+      viaSeg: viaSeg, viaNote: viaNote, d8Manual: manual && isStat && !a.d8, showRollD8: !manual && !a.d8,
+      d8Chips: [1, 2, 3, 4, 5, 6, 7, 8].map(function (n) { return { n: n, pick: function () { self.setAdv({ d8: n, statPick: null, rolled: 'table' }); } }; }),
+      statToSkill: function () { self.setAdv({ type: 'chosenPrimary', costAs: 'stat', cat: null, picked: null, d8: null, statPick: null }); },
+      col3Title: isStat ? '3 · ХАРАКТЕРИСТИКА' : def && def.random ? '3 · БРОСОК НАВЫКА' : '3 · НАВЫК',
+      col3Empty: !(isChosen || isRandom || (isStat && a.d8)), col3Bg: (isChosen || isRandom || (isStat && a.d8)) ? '#FFFFFF' : '#FAFBFA',
+      col3Hint: isStat ? 'Бросьте D8 — здесь появятся доступные характеристики' : 'Выберите категорию',
+      isChosen: isChosen, skillOpts: skillOpts, isRandom: isRandom, rollTable: rollTable,
+      dieLabel: 'D' + list.length, die: a.die || '?', dieBg: a.die ? ACCENT : '#EEF2F0', dieColor: a.die ? '#FFFFFF' : '#8A948F', dieRolled: !!a.die || manual,
+      rollBg: ACCENT,
+      rollResult: a.die ? a.picked + (a.rerolls ? ' · переброс ×' + a.rerolls : '') : 'Бросок 1D' + list.length + ' по таблице',
+      rollSkill: function () {
+        var d, n, t = 0;
+        do { d = 1 + Math.floor(Math.random() * list.length); n = list[d - 1]; t++; } while (owns(p, n) && t < 80);
+        if (manual) return;
+        self.setAdv({ die: d, picked: n, rerolls: t - 1, rolled: 'site' });
+      },
+      isStatPick: isStat && !!a.d8, statOpts: statOpts,
+      doneTitle: a.last ? a.last.title : '', doneSub: a.last ? a.last.sub : '',
+      advSummary: summary, advCtaLabel: ctaLabel, advCtaDisabled: ctaDisabled, advCtaBg: ctaDisabled ? '#A9B3AE' : ACCENT,
+      advCta: function () { if (a.done) self.setState({ adv: ADV0 }); else if (ready) self.confirmAdv(); }
+    };
+  }
+  _rv09() {
+    var md = mdVals(this, function () { return { td: 2, cas: 1 }; });
+    var self = this;
+    var hv = hireVals(this, this.state.players, this.state.treasury, function (list, after) {
+      self.setState(function (s2) { return { treasury: after, players: s2.players.concat(list.map(function (x) { return mk('n' + x.num, x.num, 'Новичок #' + x.num, x.pos, { bought: BASE[x.pos].value }); })) }; });
+    });
+    return Object.assign(md, fundsVals(this), hv, this._rv(), sellVals(this));
+  }
+  renderVals() {
+    var v = this._rv09();
+    v.rv = this.props.review === false ? 'none' : '2px dashed #D6336C';
+    v.rvTag = this.props.review !== false;
+    return v;
+  }
+}
+
+return Component;
+} });
+DC.mount("DeskRosterCareer", document.getElementById('app'));
+</script>
+</body>
+</html>

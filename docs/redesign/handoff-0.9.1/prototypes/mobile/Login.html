@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Вход — Gata League v0.9.1</title>
+<link rel="stylesheet" href="../fonts/fonts.css">
+<style>body{margin:0}</style>
+<style>html,body{margin:0;background:#E3E9E5;font-family:'Golos Text',system-ui,sans-serif}
+.gl-top{max-width:390px;margin:0 auto;padding:16px 4px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;color:#3E4A44}
+.gl-top a{color:#2F7A52;font-weight:700;text-decoration:none}
+.gl-frame{width:390px;height:844px;margin:0 auto 32px;border-radius:28px;overflow:hidden;box-shadow:0 10px 40px rgba(20,32,26,.25);background:#fff;position:relative}
+@media (max-width:420px){.gl-top{display:none}.gl-frame{margin:0;border-radius:0;box-shadow:none;width:100vw;height:100vh}.gl-frame>#app>div{width:100vw!important;height:100vh!important}}</style>
+</head>
+<body>
+<div class="gl-top"><a href="../index.html">← Все экраны</a><span>Вход</span></div><div class="gl-frame" style="height: 844px"><div id="app"></div></div>
+<script>/* dc-lite — a tiny standalone renderer for Gata League prototype artboards.
+   Supports {{path}} lookups, <sc-if>, <sc-for>, <dc-import>, DCLogic setState. */
+(function () {
+  var DEFS = {};
+  var parser = new DOMParser();
+
+  function DCLogic(props) { this.props = props || {}; this.state = {}; }
+  DCLogic.prototype.setState = function (upd) {
+    var s = typeof upd === 'function' ? upd(this.state, this.props) : upd;
+    if (s == null) return;
+    this.state = Object.assign({}, this.state, s);
+    schedule();
+  };
+  window.DCLogic = DCLogic;
+
+  function define(name, def) {
+    var doc = parser.parseFromString('<!doctype html><html><body>' + def.tpl + '</body></html>', 'text/html');
+    def.root = doc.body;
+    DEFS[name] = def;
+  }
+
+  function camel(s) { return s.replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); }); }
+
+  function lookup(path, scope) {
+    path = path.trim();
+    if (path === 'true') return true;
+    if (path === 'false') return false;
+    if (path === 'null') return null;
+    if (/^-?\d+(\.\d+)?$/.test(path)) return parseFloat(path);
+    if (/^'.*'$|^".*"$/.test(path)) return path.slice(1, -1);
+    var parts = path.split('.');
+    var head = parts[0], v, found = false;
+    for (var sc = scope; sc; sc = sc.__parent) {
+      if (Object.prototype.hasOwnProperty.call(sc, head)) { v = sc[head]; found = true; break; }
+    }
+    if (!found) return undefined;
+    for (var i = 1; i < parts.length; i++) { if (v == null) return undefined; v = v[parts[i]]; }
+    return v;
+  }
+  var PURE = /^\s*\{\{([^}]*)\}\}\s*$/;
+  function interp(str, scope) {
+    return str.replace(/\{\{([^}]*)\}\}/g, function (_, e) { var v = lookup(e, scope); return v == null ? '' : String(v); });
+  }
+  function child(scope, vars) { var o = Object.assign({}, vars); o.__parent = scope; return o; }
+
+  var instances = {};
+  function instantiate(name, props, key) {
+    var def = DEFS[name];
+    if (!def) return null;
+    var inst = instances[key];
+    if (!inst || inst.__name !== name) {
+      var full = Object.assign({}, def.defaults, props);
+      var Cls = def.factory();
+      inst = new Cls(full);
+      inst.__name = name;
+      instances[key] = inst;
+    }
+    return inst;
+  }
+
+  function renderComponent(name, props, key) {
+    var inst = instantiate(name, props, key);
+    if (!inst) { var d = document.createElement('div'); d.textContent = 'Missing component ' + name; return [d]; }
+    var vals = inst.renderVals ? inst.renderVals() : {};
+    var scope = Object.assign({}, vals); scope.__parent = null;
+    var out = [];
+    var ctr = { n: 0 };
+    DEFS[name].root.childNodes.forEach(function (n) { out = out.concat(renderNode(n, scope, key, ctr)); });
+    return out;
+  }
+
+  function renderNode(node, scope, key, ctr) {
+    if (node.nodeType === 3) return [document.createTextNode(interp(node.nodeValue, scope))];
+    if (node.nodeType !== 1) return [];
+    var tag = node.localName;
+    var out = [];
+    if (tag === 'sc-if') {
+      if (!lookup((node.getAttribute('value') || '').replace(/^\s*\{\{|\}\}\s*$/g, ''), scope)) return [];
+      node.childNodes.forEach(function (c) { out = out.concat(renderNode(c, scope, key, ctr)); });
+      return out;
+    }
+    if (tag === 'sc-for') {
+      var list = lookup((node.getAttribute('list') || '').replace(/^\s*\{\{|\}\}\s*$/g, ''), scope) || [];
+      var as = node.getAttribute('as') || 'item';
+      list.forEach(function (item, i) {
+        var v = {}; v[as] = item; v[as + 'Index'] = i;
+        var s = child(scope, v);
+        node.childNodes.forEach(function (c) { out = out.concat(renderNode(c, s, key, ctr)); });
+      });
+      return out;
+    }
+    if (tag === 'dc-import') {
+      var props = {};
+      Array.prototype.forEach.call(node.attributes, function (a) {
+        if (a.name === 'name' || a.name.indexOf('hint-') === 0) return;
+        var m = a.value.match(PURE);
+        props[camel(a.name)] = m ? lookup(m[1], scope) : a.value;
+      });
+      var wrap = document.createElement('div');
+      wrap.style.display = 'contents';
+      renderComponent(node.getAttribute('name'), props, key + '/' + node.getAttribute('name') + (ctr.n++)).forEach(function (n) { wrap.appendChild(n); });
+      return [wrap];
+    }
+    var el = node.namespaceURI && node.namespaceURI !== 'http://www.w3.org/1999/xhtml'
+      ? document.createElementNS(node.namespaceURI, tag) : document.createElement(tag);
+    var deferred = [];
+    Array.prototype.forEach.call(node.attributes, function (a) {
+      var name = a.name, val = a.value, m = val.match(PURE);
+      if (name.indexOf('on') === 0 && m) {
+        var fn = lookup(m[1], scope);
+        if (typeof fn === 'function') {
+          var ev = name.slice(2).toLowerCase();
+          var isText = tag === 'input' && !/^(checkbox|radio)$/i.test(node.getAttribute('type') || '') || tag === 'textarea';
+          if (ev === 'change' && isText) ev = 'input';
+          el.addEventListener(ev, function (e) { fn(e); });
+        }
+        return;
+      }
+      if (name === 'data-optlist') { deferred.push(['options', lookup(val, scope)]); return; }
+      if (m) {
+        var v = lookup(m[1], scope);
+        if (name === 'value') { deferred.push(['value', v]); return; }
+        if (name === 'checked') { deferred.push(['checked', !!v]); return; }
+        if (v === false || v == null) return;
+        if (name === 'disabled' || name === 'selected') { if (v) el.setAttribute(name, ''); return; }
+        if (name === 'href' && typeof v === 'string') v = v.replace(/^([A-Za-z0-9]+)\.dc\.html/, '$1.html');
+        el.setAttribute(name, v === true ? '' : String(v));
+        return;
+      }
+      if (name === 'value' && (tag === 'select' || tag === 'input')) { deferred.push(['value', interp(val, scope)]); return; }
+      el.setAttribute(name, interp(val, scope));
+    });
+    node.childNodes.forEach(function (c) { renderNode(c, scope, key, ctr).forEach(function (n) { el.appendChild(n); }); });
+    deferred.forEach(function (d) {
+      if (d[0] === 'options') (d[1] || []).forEach(function (o) { var op = document.createElement('option'); op.value = o.v; op.textContent = o.v; el.appendChild(op); });
+    });
+    deferred.forEach(function (d) {
+      if (d[0] === 'value') { el.value = d[1] == null ? '' : d[1]; if (tag === 'input') el.setAttribute('value', el.value); }
+      if (d[0] === 'checked') el.checked = d[1];
+    });
+    return [el];
+  }
+
+  /* --- mount & re-render, keeping scroll positions and focus --- */
+  var host, rootName, pending = false;
+  function pathOf(el) { var p = []; while (el && el !== host) { var i = 0, s = el; while ((s = s.previousElementSibling)) i++; p.unshift(i); el = el.parentElement; } return p.join('.'); }
+  function byPath(p) { var el = host; if (!p) return null; p.split('.').forEach(function (i) { el = el && el.children[+i]; }); return el; }
+  function render() {
+    pending = false;
+    var scrolls = [];
+    if (host.firstChild) host.querySelectorAll('*').forEach(function (el) { if (el.scrollTop || el.scrollLeft) scrolls.push([pathOf(el), el.scrollTop, el.scrollLeft]); });
+    var act = document.activeElement, focus = null;
+    if (act && host.contains(act)) focus = [pathOf(act), act.selectionStart, act.selectionEnd];
+    var nodes = renderComponent(rootName, {}, 'root');
+    host.innerHTML = '';
+    nodes.forEach(function (n) { host.appendChild(n); });
+    scrolls.forEach(function (s) { var el = byPath(s[0]); if (el) { el.scrollTop = s[1]; el.scrollLeft = s[2]; } });
+    if (focus) { var f = byPath(focus[0]); if (f && f.focus) { f.focus(); try { if (focus[1] != null) f.setSelectionRange(focus[1], focus[2]); } catch (e) {} } }
+  }
+  function schedule() { if (!pending) { pending = true; (window.queueMicrotask || setTimeout)(render); } }
+  window.DC = { define: define, mount: function (name, el) { rootName = name; host = el; render(); } };
+})();
+</script>
+<script>
+DC.define("Login", { tpl: "\n<div style=\"position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; background: #17392C; color: #14201A; font-family: 'Golos Text', system-ui, sans-serif; overflow: hidden\">\n  <div style=\"flex: none; padding: 40px 24px 28px; display: flex; flex-direction: column; align-items: center; gap: 10px; color: #FFFFFF; text-align: center\">\n    <svg width=\"64\" height=\"73\" viewBox=\"0 0 44 50\" aria-hidden=\"true\" style=\"flex: none\"><path d=\"M22 2 L40 8 V24 C40 36 32 44 22 48 C12 44 4 36 4 24 V8 Z\" fill=\"#F2C14E\" stroke=\"#FFFFFF\" stroke-width=\"2\"><\/path><path d=\"M22 9 L34 13 V24 C34 32 29 38 22 41 C15 38 10 32 10 24 V13 Z\" fill=\"#17392C\"><\/path><ellipse cx=\"22\" cy=\"25\" rx=\"8\" ry=\"5.2\" fill=\"none\" stroke=\"#F2C14E\" stroke-width=\"2\" transform=\"rotate(-30 22 25)\"><\/ellipse><path d=\"M18.5 25.5 L25.5 24.5 M19.5 23.5 L20.3 26.3 M22 23 L22.8 25.8 M24.3 22.6 L25.1 25.4\" stroke=\"#F2C14E\" stroke-width=\"1.4\" stroke-linecap=\"round\" transform=\"rotate(-30 22 25)\"><\/path><\/svg>\n    <span style=\"font-family: 'Oswald', sans-serif; font-size: 34px; font-weight: 700; line-height: 1\">Gata League<\/span>\n    <span style=\"font-size: 14px; color: #CFE0D7\">Blood Bowl Sevens · лига тренеров<\/span>\n  <\/div>\n  <main style=\"flex: 1 1 auto; overflow-y: auto; background: #F3F6F4; border-radius: 22px 22px 0 0; padding: 18px 16px 28px; display: flex; flex-direction: column; gap: 16px\">\n<div role=\"tablist\" aria-label=\"Вход или регистрация\" style=\"display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 12px; background: #EEF2F0\">\n  <sc-for list=\"{{tabs}}\" as=\"m\" hint-placeholder-count=\"2\"><button onClick=\"{{m.pick}}\" role=\"tab\" aria-selected=\"{{m.sel}}\" style=\"min-height: 40px; border: 0; border-radius: 9px; background: {{m.bg}}; box-shadow: {{m.shadow}}; font-family: inherit; font-size: 15px; font-weight: {{m.weight}}; color: {{m.color}}; cursor: pointer\">{{m.l}}<\/button><\/sc-for>\n<\/div>\n<sc-if value=\"{{done}}\" hint-placeholder-val=\"{{ false }}\">\n  <div role=\"status\" style=\"display: flex; flex-direction: column; gap: 6px; padding: 16px; border-radius: 14px; background: #E4F0E9; color: #163A28\"><b style=\"font-size: 17px\">{{doneTitle}}<\/b><span style=\"font-size: 14px; line-height: 1.45\">{{doneText}}<\/span><\/div>\n<\/sc-if>\n<sc-if value=\"{{notDone}}\" hint-placeholder-val=\"{{ true }}\">\n<div style=\"display: flex; flex-direction: column; gap: 14px\">\n  <sc-if value=\"{{hasErr}}\" hint-placeholder-val=\"{{ false }}\"><div role=\"alert\" style=\"display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: #FBEDEA; color: #7A2E22; font-size: 14px; font-weight: 600\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.2\" stroke-linecap=\"round\"><circle cx=\"12\" cy=\"12\" r=\"9\"><\/circle><path d=\"M12 7v6M12 16.5v.5\"><\/path><\/svg>{{err}}<\/div><\/sc-if>\n  <label style=\"display: flex; flex-direction: column; gap: 6px\"><span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">Логин<\/span><input value=\"{{login}}\" onChange=\"{{onLogin}}\" autocomplete=\"username\" style=\"height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: #FFFFFF; font-family: inherit; font-size: 16px; color: #14201A; outline: none; box-shadow: {{loginRing}}\"><sc-if value=\"{{isRegister}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"font-size: 12px; color: {{loginHintColor}}\">{{loginHint}}<\/span><\/sc-if><\/label>\n  <sc-if value=\"{{isRegister}}\" hint-placeholder-val=\"{{ false }}\">\n    <label style=\"display: flex; flex-direction: column; gap: 6px\"><span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">Telegram<\/span><input value=\"{{tg}}\" onChange=\"{{onTg}}\" autocomplete=\"off\" placeholder=\"@username\" style=\"height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: #FFFFFF; font-family: inherit; font-size: 16px; color: #14201A; outline: none; box-shadow: {{tgRing}}\"><span style=\"font-size: 12px; color: {{tgHintColor}}\">{{tgHint}}<\/span><\/label>\n  <\/sc-if>\n  <label style=\"display: flex; flex-direction: column; gap: 6px\"><span style=\"display: flex; justify-content: space-between; align-items: baseline\"><span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">Пароль<\/span><button onClick=\"{{toggleShow}}\" type=\"button\" style=\"border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 13px; font-weight: 600; color: #2F7A52; cursor: pointer\">{{showLabel}}<\/button><\/span><input type=\"{{passType}}\" value=\"{{pass}}\" onChange=\"{{onPass}}\" autocomplete=\"current-password\" style=\"height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: #FFFFFF; font-family: inherit; font-size: 16px; color: #14201A; outline: none; box-shadow: {{passRing}}\"><\/label>\n  <sc-if value=\"{{isRegister}}\" hint-placeholder-val=\"{{ false }}\">\n    <div style=\"display: flex; align-items: center; gap: 10px; margin-top: -6px\"><div style=\"flex: 1 1 auto; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px\"><sc-for list=\"{{meter}}\" as=\"b\" hint-placeholder-count=\"3\"><span style=\"height: 5px; border-radius: 3px; background: {{b.bg}}\"><\/span><\/sc-for><\/div><span style=\"flex: none; font-size: 12px; font-weight: 600; color: #5F6B65\">{{meterLabel}}<\/span><\/div>\n    <label style=\"display: flex; flex-direction: column; gap: 6px\"><span style=\"font-size: 13px; font-weight: 600; color: #5F6B65\">Повторите пароль<\/span><input type=\"{{passType}}\" value=\"{{pass2}}\" onChange=\"{{onPass2}}\" autocomplete=\"new-password\" style=\"height: 48px; padding: 0 14px; border: 0; border-radius: 12px; background: #FFFFFF; font-family: inherit; font-size: 16px; color: #14201A; outline: none; box-shadow: {{pass2Ring}}\"><sc-if value=\"{{hasPass2Hint}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"font-size: 12px; color: #A0473A\">{{pass2Hint}}<\/span><\/sc-if><\/label>\n  <\/sc-if>\n  <button onClick=\"{{submit}}\" disabled=\"{{ctaDisabled}}\" style=\"height: 52px; border: 0; border-radius: 12px; background: {{ctaBg}}; color: #FFFFFF; font-family: inherit; font-size: 17px; font-weight: 700; cursor: pointer\">{{ctaLabel}}<\/button>\n  <sc-if value=\"{{isLogin}}\" hint-placeholder-val=\"{{ true }}\">\n    <button onClick=\"{{toggleForgot}}\" style=\"align-self: center; border: 0; background: transparent; padding: 4px; font-family: inherit; font-size: 14px; font-weight: 600; color: #2F7A52; cursor: pointer\">Забыли пароль?<\/button>\n    <sc-if value=\"{{forgotOpen}}\" hint-placeholder-val=\"{{ false }}\"><div style=\"padding: 12px 14px; border-radius: 12px; background: #F3F6F4; font-size: 14px; line-height: 1.45; color: #3E4A44\">Восстановления по почте нет. Напишите администратору лиги в Telegram — он сбросит пароль, а новый вы смените в «Настройках».<\/div><\/sc-if>\n  <\/sc-if>\n  <sc-if value=\"{{isRegister}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"font-size: 12px; line-height: 1.45; color: #5F6B65; text-align: center\">После регистрации создайте команду и заявите её в сезон — администратор подтвердит заявку.<\/span><\/sc-if>\n<\/div>\n<\/sc-if>\n<div style=\"text-align: center; font-size: 14px; color: #5F6B65\">{{switchText}} <button onClick=\"{{switchMode}}\" style=\"border: 0; background: transparent; padding: 0; font-family: inherit; font-size: 14px; font-weight: 700; color: #2F7A52; cursor: pointer\">{{switchLink}}<\/button><\/div>\n    <span style=\"margin-top: auto; text-align: center; font-size: 11px; line-height: 1.5; color: #8A948F\">Неофициальный фанатский справочник лиги · Юридическая информация<\/span>\n  <\/main>\n<\/div>\n", defaults: {"mode": "login", "demoError": false}, factory: function () {
+
+// ---- auth: login / register screens (mobile + desktop share the logic) ----
+var AUTH_ACC = '#2F7A52';
+function authState(props) {
+  var reg = props.mode === 'register';
+  return {
+    mode: reg ? 'register' : 'login',
+    login: props.demoError ? 'felstell' : reg ? 'yury' : '', pass: props.demoError ? 'qwerty' : '', pass2: '', tg: reg ? '@' : '',
+    show: false, err: props.demoError ? 'Неверный логин или пароль' : '', forgot: false, touched: !!props.demoError
+  };
+}
+function authVals(self) {
+  var st = self.state, reg = st.mode === 'register';
+  var set = function (k) { return function (e) { var p = { err: '' }; p[k] = e.target.value; self.setState(p); }; };
+  var len = st.pass.length;
+  var strength = len === 0 ? 0 : len < 4 ? 1 : len < 8 ? 2 : 3;
+  var loginOk = st.login.trim().length >= 3;
+  var tgOk = /^@[A-Za-z0-9_]{4,}$/.test(st.tg.trim());
+  var passOk = len >= 4;
+  var matchOk = !reg || (st.pass2 === st.pass && st.pass2.length > 0);
+  var ready = reg ? loginOk && tgOk && passOk && matchOk : st.login.trim().length > 0 && len > 0;
+  var fieldRing = function (bad) { return bad ? 'inset 0 0 0 2px #A0473A' : 'inset 0 0 0 1px #DCE3DF'; };
+  var t = st.touched;
+  return {
+    isLogin: !reg, isRegister: reg,
+    tabs: [['login', 'Вход'], ['register', 'Регистрация']].map(function (m) {
+      var on = st.mode === m[0];
+      return { l: m[1], sel: on ? 'true' : 'false', bg: on ? '#FFFFFF' : 'transparent', shadow: on ? '0 1px 2px rgba(20,32,26,0.12)' : 'none', weight: on ? '700' : '600', color: on ? '#14201A' : '#5F6B65',
+        pick: function () { self.setState({ mode: m[0], err: '', touched: false, forgot: false }); } };
+    }),
+    login: st.login, pass: st.pass, pass2: st.pass2, tg: st.tg,
+    onLogin: set('login'), onPass: set('pass'), onPass2: set('pass2'), onTg: set('tg'),
+    passType: st.show ? 'text' : 'password', showLabel: st.show ? 'Скрыть' : 'Показать',
+    toggleShow: function () { self.setState({ show: !st.show }); },
+    loginRing: fieldRing((t && reg && !loginOk) || !!st.err), passRing: fieldRing((t && reg && !passOk) || !!st.err),
+    tgRing: fieldRing(t && !tgOk), pass2Ring: fieldRing(t && !matchOk),
+    loginHint: reg ? (t && !loginOk ? 'Минимум 3 символа' : 'Латиница, цифры или кириллица — так вас увидят в лиге') : '',
+    loginHintColor: t && reg && !loginOk ? '#A0473A' : '#5F6B65',
+    tgHint: t && !tgOk ? 'Формат: @username, от 5 символов' : 'Видят соперники — чтобы договориться о матче',
+    tgHintColor: t && !tgOk ? '#A0473A' : '#5F6B65',
+    pass2Hint: t && !matchOk ? 'Пароли не совпадают' : '', hasPass2Hint: t && !matchOk,
+    meter: [1, 2, 3].map(function (i) { return { bg: strength >= i ? (strength === 1 ? '#A0473A' : strength === 2 ? '#C99A2E' : AUTH_ACC) : '#E6EBE8' }; }),
+    meterLabel: ['', 'Слишком короткий', 'Нормальный', 'Надёжный'][strength],
+    hasErr: !!st.err, err: st.err,
+    forgotOpen: st.forgot, toggleForgot: function () { self.setState({ forgot: !st.forgot }); },
+    ctaLabel: reg ? 'Создать аккаунт' : 'Войти', ctaBg: (reg || ready) ? AUTH_ACC : '#A9B3AE', ctaDisabled: reg ? false : !ready,
+    submit: function () {
+      if (reg && !ready) { self.setState({ touched: true }); return; }
+      if (!ready) return;
+      if (!reg && st.pass !== 'demo-pass') { self.setState({ err: 'Неверный логин или пароль', touched: true }); return; }
+      self.setState({ err: '', done: true });
+    },
+    done: !!st.done, notDone: !st.done,
+    doneTitle: reg ? 'Аккаунт создан' : 'Вы вошли',
+    doneText: reg ? 'Следующий шаг — создать команду и заявить её в сезон.' : 'Открываем обзор команды…',
+    switchText: reg ? 'Уже есть аккаунт?' : 'Нет аккаунта?', switchLink: reg ? 'Войти' : 'Зарегистрироваться',
+    switchMode: function () { self.setState({ mode: reg ? 'login' : 'register', err: '', touched: false, forgot: false }); }
+  };
+}
+// ---- /auth ----
+
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = authState(props); }
+  componentDidUpdate(prev) { if (prev && (prev.mode !== this.props.mode || prev.demoError !== this.props.demoError)) this.setState(authState(this.props)); }
+  renderVals() { return authVals(this); }
+}
+
+return Component;
+} });
+DC.mount("Login", document.getElementById('app'));
+</script>
+</body>
+</html>

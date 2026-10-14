@@ -1,0 +1,238 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>НОВОЕ · 5 · Казна — Gata League v0.9.1</title>
+<link rel="stylesheet" href="../fonts/fonts.css">
+<style>body{margin:0}</style>
+<style>html,body{margin:0;background:#E3E9E5;font-family:'Golos Text',system-ui,sans-serif}
+.gl-top{max-width:390px;margin:0 auto;padding:16px 4px 10px;display:flex;align-items:center;justify-content:space-between;gap:12px;font-size:14px;color:#3E4A44}
+.gl-top a{color:#2F7A52;font-weight:700;text-decoration:none}
+.gl-frame{width:390px;height:844px;margin:0 auto 32px;border-radius:28px;overflow:hidden;box-shadow:0 10px 40px rgba(20,32,26,.25);background:#fff;position:relative}
+@media (max-width:420px){.gl-top{display:none}.gl-frame{margin:0;border-radius:0;box-shadow:none;width:100vw;height:100vh}.gl-frame>#app>div{width:100vw!important;height:100vh!important}}</style>
+</head>
+<body>
+<div class="gl-top"><a href="../index.html">← Все экраны</a><span>НОВОЕ · 5 · Казна</span></div><div class="gl-frame" style="height: 844px"><div id="app"></div></div>
+<script>/* dc-lite — a tiny standalone renderer for Gata League prototype artboards.
+   Supports {{path}} lookups, <sc-if>, <sc-for>, <dc-import>, DCLogic setState. */
+(function () {
+  var DEFS = {};
+  var parser = new DOMParser();
+
+  function DCLogic(props) { this.props = props || {}; this.state = {}; }
+  DCLogic.prototype.setState = function (upd) {
+    var s = typeof upd === 'function' ? upd(this.state, this.props) : upd;
+    if (s == null) return;
+    this.state = Object.assign({}, this.state, s);
+    schedule();
+  };
+  window.DCLogic = DCLogic;
+
+  function define(name, def) {
+    var doc = parser.parseFromString('<!doctype html><html><body>' + def.tpl + '</body></html>', 'text/html');
+    def.root = doc.body;
+    DEFS[name] = def;
+  }
+
+  function camel(s) { return s.replace(/-([a-z])/g, function (_, c) { return c.toUpperCase(); }); }
+
+  function lookup(path, scope) {
+    path = path.trim();
+    if (path === 'true') return true;
+    if (path === 'false') return false;
+    if (path === 'null') return null;
+    if (/^-?\d+(\.\d+)?$/.test(path)) return parseFloat(path);
+    if (/^'.*'$|^".*"$/.test(path)) return path.slice(1, -1);
+    var parts = path.split('.');
+    var head = parts[0], v, found = false;
+    for (var sc = scope; sc; sc = sc.__parent) {
+      if (Object.prototype.hasOwnProperty.call(sc, head)) { v = sc[head]; found = true; break; }
+    }
+    if (!found) return undefined;
+    for (var i = 1; i < parts.length; i++) { if (v == null) return undefined; v = v[parts[i]]; }
+    return v;
+  }
+  var PURE = /^\s*\{\{([^}]*)\}\}\s*$/;
+  function interp(str, scope) {
+    return str.replace(/\{\{([^}]*)\}\}/g, function (_, e) { var v = lookup(e, scope); return v == null ? '' : String(v); });
+  }
+  function child(scope, vars) { var o = Object.assign({}, vars); o.__parent = scope; return o; }
+
+  var instances = {};
+  function instantiate(name, props, key) {
+    var def = DEFS[name];
+    if (!def) return null;
+    var inst = instances[key];
+    if (!inst || inst.__name !== name) {
+      var full = Object.assign({}, def.defaults, props);
+      var Cls = def.factory();
+      inst = new Cls(full);
+      inst.__name = name;
+      instances[key] = inst;
+    }
+    return inst;
+  }
+
+  function renderComponent(name, props, key) {
+    var inst = instantiate(name, props, key);
+    if (!inst) { var d = document.createElement('div'); d.textContent = 'Missing component ' + name; return [d]; }
+    var vals = inst.renderVals ? inst.renderVals() : {};
+    var scope = Object.assign({}, vals); scope.__parent = null;
+    var out = [];
+    var ctr = { n: 0 };
+    DEFS[name].root.childNodes.forEach(function (n) { out = out.concat(renderNode(n, scope, key, ctr)); });
+    return out;
+  }
+
+  function renderNode(node, scope, key, ctr) {
+    if (node.nodeType === 3) return [document.createTextNode(interp(node.nodeValue, scope))];
+    if (node.nodeType !== 1) return [];
+    var tag = node.localName;
+    var out = [];
+    if (tag === 'sc-if') {
+      if (!lookup((node.getAttribute('value') || '').replace(/^\s*\{\{|\}\}\s*$/g, ''), scope)) return [];
+      node.childNodes.forEach(function (c) { out = out.concat(renderNode(c, scope, key, ctr)); });
+      return out;
+    }
+    if (tag === 'sc-for') {
+      var list = lookup((node.getAttribute('list') || '').replace(/^\s*\{\{|\}\}\s*$/g, ''), scope) || [];
+      var as = node.getAttribute('as') || 'item';
+      list.forEach(function (item, i) {
+        var v = {}; v[as] = item; v[as + 'Index'] = i;
+        var s = child(scope, v);
+        node.childNodes.forEach(function (c) { out = out.concat(renderNode(c, s, key, ctr)); });
+      });
+      return out;
+    }
+    if (tag === 'dc-import') {
+      var props = {};
+      Array.prototype.forEach.call(node.attributes, function (a) {
+        if (a.name === 'name' || a.name.indexOf('hint-') === 0) return;
+        var m = a.value.match(PURE);
+        props[camel(a.name)] = m ? lookup(m[1], scope) : a.value;
+      });
+      var wrap = document.createElement('div');
+      wrap.style.display = 'contents';
+      renderComponent(node.getAttribute('name'), props, key + '/' + node.getAttribute('name') + (ctr.n++)).forEach(function (n) { wrap.appendChild(n); });
+      return [wrap];
+    }
+    var el = node.namespaceURI && node.namespaceURI !== 'http://www.w3.org/1999/xhtml'
+      ? document.createElementNS(node.namespaceURI, tag) : document.createElement(tag);
+    var deferred = [];
+    Array.prototype.forEach.call(node.attributes, function (a) {
+      var name = a.name, val = a.value, m = val.match(PURE);
+      if (name.indexOf('on') === 0 && m) {
+        var fn = lookup(m[1], scope);
+        if (typeof fn === 'function') {
+          var ev = name.slice(2).toLowerCase();
+          var isText = tag === 'input' && !/^(checkbox|radio)$/i.test(node.getAttribute('type') || '') || tag === 'textarea';
+          if (ev === 'change' && isText) ev = 'input';
+          el.addEventListener(ev, function (e) { fn(e); });
+        }
+        return;
+      }
+      if (name === 'data-optlist') { deferred.push(['options', lookup(val, scope)]); return; }
+      if (m) {
+        var v = lookup(m[1], scope);
+        if (name === 'value') { deferred.push(['value', v]); return; }
+        if (name === 'checked') { deferred.push(['checked', !!v]); return; }
+        if (v === false || v == null) return;
+        if (name === 'disabled' || name === 'selected') { if (v) el.setAttribute(name, ''); return; }
+        if (name === 'href' && typeof v === 'string') v = v.replace(/^([A-Za-z0-9]+)\.dc\.html/, '$1.html');
+        el.setAttribute(name, v === true ? '' : String(v));
+        return;
+      }
+      if (name === 'value' && (tag === 'select' || tag === 'input')) { deferred.push(['value', interp(val, scope)]); return; }
+      el.setAttribute(name, interp(val, scope));
+    });
+    node.childNodes.forEach(function (c) { renderNode(c, scope, key, ctr).forEach(function (n) { el.appendChild(n); }); });
+    deferred.forEach(function (d) {
+      if (d[0] === 'options') (d[1] || []).forEach(function (o) { var op = document.createElement('option'); op.value = o.v; op.textContent = o.v; el.appendChild(op); });
+    });
+    deferred.forEach(function (d) {
+      if (d[0] === 'value') { el.value = d[1] == null ? '' : d[1]; if (tag === 'input') el.setAttribute('value', el.value); }
+      if (d[0] === 'checked') el.checked = d[1];
+    });
+    return [el];
+  }
+
+  /* --- mount & re-render, keeping scroll positions and focus --- */
+  var host, rootName, pending = false;
+  function pathOf(el) { var p = []; while (el && el !== host) { var i = 0, s = el; while ((s = s.previousElementSibling)) i++; p.unshift(i); el = el.parentElement; } return p.join('.'); }
+  function byPath(p) { var el = host; if (!p) return null; p.split('.').forEach(function (i) { el = el && el.children[+i]; }); return el; }
+  function render() {
+    pending = false;
+    var scrolls = [];
+    if (host.firstChild) host.querySelectorAll('*').forEach(function (el) { if (el.scrollTop || el.scrollLeft) scrolls.push([pathOf(el), el.scrollTop, el.scrollLeft]); });
+    var act = document.activeElement, focus = null;
+    if (act && host.contains(act)) focus = [pathOf(act), act.selectionStart, act.selectionEnd];
+    var nodes = renderComponent(rootName, {}, 'root');
+    host.innerHTML = '';
+    nodes.forEach(function (n) { host.appendChild(n); });
+    scrolls.forEach(function (s) { var el = byPath(s[0]); if (el) { el.scrollTop = s[1]; el.scrollLeft = s[2]; } });
+    if (focus) { var f = byPath(focus[0]); if (f && f.focus) { f.focus(); try { if (focus[1] != null) f.setSelectionRange(focus[1], focus[2]); } catch (e) {} } }
+  }
+  function schedule() { if (!pending) { pending = true; (window.queueMicrotask || setTimeout)(render); } }
+  window.DC = { define: define, mount: function (name, el) { rootName = name; host = el; render(); } };
+})();
+</script>
+<script>
+DC.define("PostFinance", { tpl: "\n<div style=\"position: relative; width: 390px; height: 844px; display: flex; flex-direction: column; background: #F3F6F4; color: #14201A; font-family: 'Golos Text', system-ui, sans-serif; overflow: hidden\">\n  <header style=\"flex: none; background: #17392C; color: #FFFFFF; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 12px\">\n    <div style=\"display: flex; align-items: center; gap: 10px\"><a href=\"Matches.html\" aria-label=\"Назад\" style=\"width: 40px; height: 40px; flex: none; border-radius: 20px; background: rgba(255,255,255,0.12); color: #FFFFFF; display: flex; align-items: center; justify-content: center\"><svg width=\"18\" height=\"18\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M15 6l-6 6 6 6\"><\/path><\/svg><\/a><span style=\"flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column\"><span style=\"font-family: 'Oswald', sans-serif; font-size: 21px; font-weight: 600; line-height: 1.15\">После матча<\/span><span style=\"font-size: 12px; color: #CFE0D7; white-space: nowrap; overflow: hidden; text-overflow: ellipsis\">Тур 7 · Ashgrove Wardens 2–1 Silverbrook Rangers<\/span><\/span><\/div>\n    <div aria-label=\"Шаги\" style=\"display: flex; gap: 2px\"><span style=\"flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px\"><span style=\"width: 24px; height: 24px; border-radius: 12px; background: #2F7A52; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center\">✓<\/span><span style=\"font-size: 10px; color: #A9C4B6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%\">Счёт<\/span><\/span><span style=\"flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px\"><span style=\"width: 24px; height: 24px; border-radius: 12px; background: #2F7A52; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center\">✓<\/span><span style=\"font-size: 10px; color: #A9C4B6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%\">Доход<\/span><\/span><span style=\"flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px\"><span style=\"width: 24px; height: 24px; border-radius: 12px; background: #2F7A52; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center\">✓<\/span><span style=\"font-size: 10px; color: #A9C4B6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%\">Игроки<\/span><\/span><span style=\"flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px\"><span style=\"width: 24px; height: 24px; border-radius: 12px; background: #2F7A52; color: #FFFFFF; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center\">✓<\/span><span style=\"font-size: 10px; color: #A9C4B6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%\">Состав<\/span><\/span><span style=\"flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px\"><span style=\"width: 24px; height: 24px; border-radius: 12px; background: #FFFFFF; color: #17392C; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center\">5<\/span><span style=\"font-size: 10px; color: #FFFFFF; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%\">Казна<\/span><\/span><span style=\"flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px\"><span style=\"width: 24px; height: 24px; border-radius: 12px; background: rgba(255,255,255,0.14); color: #CFE0D7; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center\">6<\/span><span style=\"font-size: 10px; color: #A9C4B6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%\">Дальше<\/span><\/span><span style=\"flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: 4px\"><span style=\"width: 24px; height: 24px; border-radius: 12px; background: rgba(255,255,255,0.14); color: #CFE0D7; font-size: 12px; font-weight: 700; display: flex; align-items: center; justify-content: center\">7<\/span><span style=\"font-size: 10px; color: #A9C4B6; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%\">Итог<\/span><\/span><\/div>\n  <\/header>\n  <main style=\"flex: 1 1 auto; overflow-y: auto; padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 14px\">\n<div style=\"display: flex; flex-direction: column; gap: 0px; padding: 14px 16px; border-radius: 16px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #DCE3DF\"><div style=\"display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 6px 0; box-sizing: border-box; border-bottom: 1px solid #E6EBE8; font-size: 15px; line-height: 1.25\"><span style=\"display: flex; flex-direction: column; color: #5F6B65\">Казна до матча<\/span><span style=\"font-weight: 600; color: #14201A; text-align: right\">70k<\/span><\/div><div style=\"display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 6px 0; box-sizing: border-box; border-bottom: 1px solid #E6EBE8; font-size: 15px; line-height: 1.25\"><span style=\"display: flex; flex-direction: column; color: #5F6B65\">Доход за матч<\/span><span style=\"font-weight: 600; color: #163A28; text-align: right\">+80k<\/span><\/div><div style=\"display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 6px 0; box-sizing: border-box; border-bottom: 1px solid #E6EBE8; font-size: 15px; line-height: 1.25\"><span style=\"display: flex; flex-direction: column; color: #5F6B65\">Покупки после матча<span style=\"font-size: 12px; color: #8A948F\">Assistant Coach и Cheerleader<\/span><\/span><span style=\"font-weight: 600; color: #A0473A; text-align: right\">−20k<\/span><\/div><div style=\"display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 44px; padding: 6px 0; box-sizing: border-box; border-bottom: 1px solid #E6EBE8; font-size: 15px; line-height: 1.25\"><span style=\"display: flex; flex-direction: column; color: #5F6B65\">В сейф<\/span><span style=\"font-weight: 600; color: #14201A; text-align: right\">−{{s_dep.v}}k<\/span><\/div><div style=\"display: flex; justify-content: space-between; align-items: baseline; padding-top: 8px\"><span style=\"font-size: 14px; color: #5F6B65\">Казна после<\/span><span style=\"font-family: 'Oswald', sans-serif; font-size: 28px; font-weight: 700; color: #14201A\">{{finT}}k<\/span><\/div><\/div>\n<div style=\"display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 16px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #DCE3DF\"><div style=\"display: flex; align-items: center; justify-content: space-between; gap: 10px\"><span style=\"display: flex; flex-direction: column; gap: 2px\"><b style=\"font-size: 15px\">Coach's Safe<\/b><span style=\"font-size: 12px; color: #5F6B65\">До 50k из дохода за матч · сейчас 20k → {{safeAfter}}k<\/span><\/span><span style=\"flex: none; display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 12px; background: #F3F6F4\"><button onClick=\"{{s_dep.dec}}\" disabled=\"{{s_dep.decOff}}\" aria-label=\"Меньше\" style=\"width: 34px; height: 34px; border: 0; border-radius: 9px; background: #FFFFFF; color: {{s_dep.decColor}}; font-size: 18px; font-weight: 700; cursor: pointer\">−<\/button><span style=\"min-width: 30px; text-align: center; font-family: 'Oswald', sans-serif; font-size: 20px; font-weight: 700\">{{s_dep.v}}<\/span><button onClick=\"{{s_dep.inc}}\" disabled=\"{{s_dep.incOff}}\" aria-label=\"Больше\" style=\"width: 34px; height: 34px; border: 0; border-radius: 9px; background: #FFFFFF; color: {{s_dep.incColor}}; font-size: 18px; font-weight: 700; cursor: pointer\">+<\/button><\/span><\/div><\/div>\n<div style=\"display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: 16px; background: #FFFFFF; box-shadow: inset 0 0 0 1px #DCE3DF\"><span style=\"font-size: 12px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: #5F6B65\">Expensive Mistakes<\/span><sc-if value=\"{{mistakeOn}}\" hint-placeholder-val=\"{{ true }}\"><p style=\"margin: 0; font-size: 13px; line-height: 1.45; color: #5F6B65\">В казне 100k и больше — бросьте D6 за столом.<\/p><div role=\"radiogroup\" style=\"display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px\"><sc-for list=\"{{g_mis}}\" as=\"o\" hint-placeholder-count=\"6\"><button onClick=\"{{o.pick}}\" role=\"radio\" aria-checked=\"{{o.sel}}\" style=\"min-height: 44px; padding: 4px 8px; border: 0; border-radius: 10px; background: {{o.bg}}; box-shadow: {{o.ring}}; color: {{o.color}}; font-family: 'Oswald', sans-serif; font-size: 20px; font-weight: {{o.weight}}; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px\"><span>{{o.l}}<\/span><sc-if value=\"{{o.s}}\" hint-placeholder-val=\"{{ false }}\"><span style=\"font-family: 'Golos Text', sans-serif; font-size: 11px; font-weight: 500; opacity: 0.75\">{{o.s}}<\/span><\/sc-if><\/button><\/sc-for><\/div><\/sc-if><b style=\"font-size: 15px; color: {{misColor}}\">{{misRes}}<\/b><p style=\"margin: 0; font-size: 13px; line-height: 1.45; color: #5F6B65\">Таблица зависит от суммы в казне: чем больше денег, тем выше риск Minor, Major и Catastrophe. Деньги в сейфе не рискуют.<\/p><\/div>\n  <\/main>\n  <div style=\"flex: none; padding: 10px 16px 16px; border-top: 1px solid #E6EBE8; background: #FFFFFF; display: flex; flex-direction: column; gap: 8px\">\n    <span style=\"display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 13px; line-height: 1.35; text-align: center; color: #5F6B65\"><span style=\"width: 8px; height: 8px; flex: none; border-radius: 4px; background: #C99A2E\"><\/span><span>Соперник на шаге «Состав»<\/span><\/span>\n    <a href=\"PostNext.html\" style=\"height: 52px; border-radius: 12px; background: #2F7A52; color: #FFFFFF; font-size: 17px; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center\">Далее: следующий матч<\/a>\n  <\/div>\n<\/div>\n", defaults: {}, factory: function () {
+
+// ---- kit: generic chips / steppers / toggles for checklist mockups ----
+var KIT_ACC = '#2F7A52';
+function kitState(cfg) {
+  var s = {};
+  Object.keys(cfg.groups || {}).forEach(function (k) { s['g_' + k] = cfg.groups[k].val; });
+  Object.keys(cfg.steps || {}).forEach(function (k) { s['s_' + k] = cfg.steps[k].v; });
+  Object.keys(cfg.toggles || {}).forEach(function (k) { s['t_' + k] = cfg.toggles[k]; });
+  return s;
+}
+function kitVals(self, cfg) {
+  var st = self.state, v = {};
+  Object.keys(cfg.groups || {}).forEach(function (k) {
+    var g = cfg.groups[k];
+    v['g_' + k] = g.opts.map(function (o) {
+      var val = typeof o === 'object' ? o.v : o, label = typeof o === 'object' ? o.l : String(o), sub = typeof o === 'object' ? (o.s || '') : '';
+      var on = st['g_' + k] === val;
+      return { l: label, s: sub, sel: on ? 'true' : 'false', bg: on ? (g.dark ? '#17392C' : '#F1F8F4') : '#FFFFFF', color: on && g.dark ? '#FFFFFF' : '#14201A',
+        segBg: on ? '#FFFFFF' : 'transparent', segShadow: on ? '0 1px 2px rgba(20,32,26,0.12)' : 'none',
+        ring: on ? (g.dark ? 'none' : 'inset 0 0 0 2px ' + KIT_ACC) : 'inset 0 0 0 1px #C9D3CE', weight: on ? '700' : '600',
+        pick: function () { var p = {}; p['g_' + k] = val; self.setState(p); } };
+    });
+    v['gv_' + k] = st['g_' + k];
+  });
+  Object.keys(cfg.steps || {}).forEach(function (k) {
+    var c = cfg.steps[k], n = st['s_' + k];
+    v['s_' + k] = { v: n, decOff: n <= c.min, incOff: n >= c.max, decColor: n <= c.min ? '#B5BDB9' : '#14201A', incColor: n >= c.max ? '#B5BDB9' : '#14201A',
+      dec: function () { if (n > c.min) { var p = {}; p['s_' + k] = n - 1; self.setState(p); } },
+      inc: function () { if (n < c.max) { var p = {}; p['s_' + k] = n + 1; self.setState(p); } } };
+  });
+  Object.keys(cfg.toggles || {}).forEach(function (k) {
+    var on = !!st['t_' + k];
+    v['t_' + k] = { on: on, str: on ? 'true' : 'false', track: on ? KIT_ACC : '#C9D3CE', knob: on ? 'translateX(20px)' : 'none',
+      toggle: function () { var p = {}; p['t_' + k] = !on; self.setState(p); } };
+  });
+  return v;
+}
+// ---- /kit ----
+
+var CFG = {"steps": {"dep": {"v": 20, "min": 0, "max": 50}}, "groups": {"mis": {"opts": [1, 2, 3, 4, 5, 6], "val": 4}}};
+function extraVals(self, v, st) {
+  var t = 130 - st.s_dep, minor = v.gv_mis === 1 && t >= 100;
+  return { finT: t, safeAfter: 20 + st.s_dep, mistakeOn: t >= 100, mistakeOff: t < 100,
+    misRes: t < 100 ? 'Казна меньше 100k — бросок не нужен' : minor ? 'Minor Incident: теряете D3 × 10k' : 'Ничего не случилось', misColor: minor ? '#A0473A' : '#163A28' };
+  return {};
+}
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = kitState(CFG); }
+  renderVals() { var v = kitVals(this, CFG); return Object.assign(v, extraVals(this, v, this.state)); }
+}
+
+return Component;
+} });
+DC.mount("PostFinance", document.getElementById('app'));
+</script>
+</body>
+</html>
