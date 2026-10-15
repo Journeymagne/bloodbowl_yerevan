@@ -69,6 +69,16 @@ async function readFlag() {
   }
 }
 
+/**
+ * Back into the site. A reload keeps whatever the coach was opening (the
+ * server answers every path with this page), but this page's own address would
+ * just load it again, so someone who opened that one goes to the front page.
+ */
+function leaveMaintenance() {
+  if (location.pathname.startsWith("/public/maintenance/")) location.replace("/");
+  else location.reload();
+}
+
 async function check() {
   // The button and the timer can both ask while a slow check is still out.
   if (checking) return;
@@ -82,7 +92,7 @@ async function check() {
     if (answer !== undefined) lastFlag = answer;
     render(describeMaintenance(lastFlag, now, locale));
     slot("lastCheck").textContent = lastCheckText(answer, now, locale);
-    if (answer === null && !reloadTimer) reloadTimer = setTimeout(() => location.reload(), RELOAD_DELAY_MS);
+    if (answer === null && !reloadTimer) reloadTimer = setTimeout(leaveMaintenance, RELOAD_DELAY_MS);
   } finally {
     checking = false;
     button.disabled = false;
