@@ -22,7 +22,9 @@ export const DEFAULT_MAINTENANCE_FILE = "/etc/bloodbowl-league/maintenance.json"
 export const MAINTENANCE_KINDS = Object.freeze(["planned", "unplanned"]);
 
 const LOOPBACK = new Set(["127.0.0.1", "::1", "::ffff:127.0.0.1"]);
-const PAGE_ASSET_PREFIXES = ["/public/maintenance/", "/assets/fonts/"];
+// What the maintenance page itself loads: its own files, the self-hosted UI
+// fonts, and the logo and favicon in assets/brand. Trailing slashes matter.
+const PAGE_ASSET_PREFIXES = ["/public/maintenance/", "/assets/fonts/", "/assets/brand/"];
 const UNREADABLE = Object.freeze({ kind: "unplanned", startsAt: null, endsAt: null, invalid: true });
 
 export function maintenanceFilePath(env = process.env) {

@@ -53,6 +53,8 @@ test("health, the page's own files and loopback pass during maintenance", () => 
   assert.equal(maintenanceAction("/api/health", "172.18.0.2", planned), "pass");
   assert.equal(maintenanceAction("/public/maintenance/maintenance.css", "172.18.0.2", planned), "pass");
   assert.equal(maintenanceAction("/assets/fonts/ui/fonts.css", "172.18.0.2", planned), "pass");
+  assert.equal(maintenanceAction("/assets/brand/gata-league-logo-96.png", "172.18.0.2", planned), "pass");
+  assert.equal(maintenanceAction("/assets/brandx/logo.png", "172.18.0.2", planned), "page");
   assert.equal(maintenanceAction("/api/teams", "127.0.0.1", planned), "pass");
   assert.equal(maintenanceAction("/", "::1", planned), "pass");
 });
