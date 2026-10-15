@@ -4,7 +4,7 @@
  * into whatever they were trying to open.
  */
 import { PALETTE_STORAGE_KEY, paletteFor } from "./palettes.mjs";
-import { STRINGS, describeMaintenance, lastCheckText, pickLocale } from "./state.mjs";
+import { STRINGS, describeMaintenance, flagFromHealth, lastCheckText, pickLocale } from "./state.mjs";
 
 const POLL_MS = 30_000;
 // Shorter than POLL_MS, so a check that hangs on a flaky network gives up
@@ -58,12 +58,12 @@ function render(view) {
   slot("auto").hidden = view.state === "done";
 }
 
-/** undefined: the server did not answer, so we know nothing new. */
+/** undefined: the server did not answer, or not with a health reply, so we know nothing new. */
 async function readFlag() {
   try {
     const response = await fetch("/api/health", { cache: "no-store", signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
     if (!response.ok) return undefined;
-    return (await response.json()).maintenance ?? null;
+    return flagFromHealth(await response.json());
   } catch {
     return undefined;
   }

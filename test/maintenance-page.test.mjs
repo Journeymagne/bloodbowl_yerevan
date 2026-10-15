@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DEFAULT_PALETTE, LEGACY_THEME_PALETTE, PALETTE_KEYS, paletteFor } from "../public/maintenance/palettes.mjs";
-import { STRINGS, describeMaintenance, formatClock, lastCheckText, pickLocale } from "../public/maintenance/state.mjs";
+import { STRINGS, describeMaintenance, flagFromHealth, formatClock, lastCheckText, pickLocale } from "../public/maintenance/state.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => fs.readFile(path.join(root, file), "utf8");
@@ -101,6 +101,14 @@ test("a check says what it found: no answer, still down, or back", () => {
   assert.equal(lastCheckText(flag, now, "en"), "Not ready yet · checked at 19:00");
   assert.equal(lastCheckText(null, now, "ru"), "");
   assert.equal(lastCheckText(null, now, "en"), "");
+});
+
+test("only a health reply that says so counts as done", () => {
+  const flag = { kind: "unplanned", startsAt: null, endsAt: null };
+  assert.equal(flagFromHealth({ ok: true, maintenance: null }), null);
+  assert.deepEqual(flagFromHealth({ ok: true, maintenance: flag }), flag);
+  // Anything else is a proxy's error page or a different server: unknown, not done.
+  for (const body of [{ ok: true }, {}, null, "ok", 42, []]) assert.equal(flagFromHealth(body), undefined, JSON.stringify(body));
 });
 
 test("the page only names strings and files that exist", async () => {

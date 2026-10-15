@@ -137,3 +137,18 @@ export function lastCheckText(result, now, locale) {
   const strings = STRINGS[locale];
   return fill(result === undefined ? strings.unreachable : strings.notYet, { time: formatClock(now, locale) });
 }
+
+/**
+ * Read the flag out of a /api/health reply.
+ *
+ * Only a reply that carries a `maintenance` field says anything: null means the
+ * flag is down, an object means it is up. A 200 from something else (a proxy's
+ * error page, an older server) is "unknown", never "done" — saying the site is
+ * back when it is not sends the coach into a reload loop.
+ *
+ * @param {unknown} body the parsed JSON
+ * @returns {object|null|undefined} undefined when the reply does not say
+ */
+export function flagFromHealth(body) {
+  return body && typeof body === "object" && "maintenance" in body ? body.maintenance : undefined;
+}
