@@ -139,6 +139,27 @@ export function lastCheckText(result, now, locale) {
 }
 
 /**
+ * A signal that aborts after `ms`, for fetch.
+ *
+ * AbortSignal.timeout is Safari 16 / Chrome 103. On an older phone (an iPhone
+ * stuck on iOS 15) calling it throws, which the page would read as "the site
+ * did not answer" on every check, for ever. So: use it when there is one, else
+ * a controller and a timer, else no signal at all — the page's in-flight guard
+ * still keeps checks from stacking up.
+ *
+ * @param {number} ms
+ * @param {object} env where to look for the browser's pieces; the global scope
+ * @returns {AbortSignal|undefined}
+ */
+export function timeoutSignal(ms, env = globalThis) {
+  if (typeof env.AbortSignal?.timeout === "function") return env.AbortSignal.timeout(ms);
+  if (typeof env.AbortController !== "function") return undefined;
+  const controller = new env.AbortController();
+  env.setTimeout(() => controller.abort(), ms);
+  return controller.signal;
+}
+
+/**
  * Read the flag out of a /api/health reply.
  *
  * Only a reply that carries a `maintenance` field says anything: null means the

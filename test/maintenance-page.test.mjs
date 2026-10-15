@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DEFAULT_PALETTE, LEGACY_THEME_PALETTE, PALETTE_KEYS, paletteFor } from "../public/maintenance/palettes.mjs";
-import { STRINGS, describeMaintenance, flagFromHealth, formatClock, lastCheckText, pickLocale } from "../public/maintenance/state.mjs";
+import { STRINGS, describeMaintenance, flagFromHealth, formatClock, lastCheckText, pickLocale, timeoutSignal } from "../public/maintenance/state.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => fs.readFile(path.join(root, file), "utf8");
@@ -109,6 +109,44 @@ test("only a health reply that says so counts as done", () => {
   assert.deepEqual(flagFromHealth({ ok: true, maintenance: flag }), flag);
   // Anything else is a proxy's error page or a different server: unknown, not done.
   for (const body of [{ ok: true }, {}, null, "ok", 42, []]) assert.equal(flagFromHealth(body), undefined, JSON.stringify(body));
+});
+
+test("a browser with AbortSignal.timeout gets exactly that signal", () => {
+  const signal = { aborted: false };
+  const calls = [];
+  const env = {
+    AbortSignal: { timeout: (ms) => { calls.push(ms); return signal; } },
+    AbortController: function Unused() { throw new Error("the controller path must not run"); },
+    setTimeout: () => { throw new Error("no timer is needed"); },
+  };
+  assert.equal(timeoutSignal(10_000, env), signal);
+  assert.deepEqual(calls, [10_000]);
+});
+
+test("without AbortSignal.timeout (Safari 15) a controller and a timer stand in for it", () => {
+  const timers = [];
+  class FakeController {
+    constructor() { this.signal = { aborted: false }; }
+    abort() { this.signal.aborted = true; }
+  }
+  const env = { AbortSignal: {}, AbortController: FakeController, setTimeout: (fn, ms) => timers.push({ fn, ms }) };
+  const signal = timeoutSignal(10_000, env);
+  assert.equal(signal.aborted, false);
+  assert.equal(timers.length, 1);
+  assert.equal(timers[0].ms, 10_000);
+  timers[0].fn();
+  assert.equal(signal.aborted, true);
+});
+
+test("with neither, the check goes out without a signal instead of throwing", () => {
+  assert.equal(timeoutSignal(10_000, {}), undefined);
+  assert.equal(timeoutSignal(10_000, { AbortSignal: {} }), undefined);
+});
+
+test("the script asks for its timeout through the helper, not AbortSignal.timeout directly", async () => {
+  const script = await read("public/maintenance/maintenance.js");
+  assert.match(script, /signal: timeoutSignal\(CHECK_TIMEOUT_MS\)/);
+  assert.doesNotMatch(script, /AbortSignal\.timeout/);
 });
 
 test("the page only names strings and files that exist", async () => {
