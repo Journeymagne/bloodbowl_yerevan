@@ -212,7 +212,9 @@ After the first deploy and after each subsequent one:
 curl -f https://bloodbowlyerevan.shitpostsoftware.com/api/health
 ```
 
-Expected: `{"ok":true}`
+Expected: `{"ok":true,"maintenance":null}`
+
+The endpoint answers 200 even while maintenance mode is on, so `maintenance` must be `null` for the public to get the site (`npm run maintenance:status` says the same).
 
 Also open `https://bloodbowlyerevan.shitpostsoftware.com/` in a browser, confirm the
 site renders with a valid TLS certificate, then register a test account
@@ -413,7 +415,9 @@ curl -f https://bloodbowlyerevan.shitpostsoftware.com/api/health
 `admin account is ready` in the log means the app reconnected and rewrote the
 admin password hash from the env file. Then open the site, log in, and confirm
 the data you expected to get back is actually there — the health endpoint only
-says the process is up, not that it is serving the right rows.
+says the process is up, not that it is serving the right rows. It also answers
+200 while maintenance mode is on, so check that `maintenance` is `null`, as in
+the smoke test above.
 
 ## Security Notes (added 2026-08-19)
 
