@@ -485,6 +485,7 @@
   "error.ROUND_CLOSED_FOR_PLAYERS": "This round is closed for player result changes.",
   "error.ROUND_NOT_FOUND": "Round not found.",
   "error.ROUND_STILL_A_DRAFT": "Round {round} is still a draft. Start or delete it before creating another round.",
+  "error.MAINTENANCE": "The site is under maintenance. Please try again shortly.",
   "error.ROUTE_NOT_FOUND": "API route not found.",
   "error.SAVED_TEAM_NOT_FOUND": "Saved team not found.",
   "error.SELF_ADMIN_DELETE": "You cannot delete your own admin account.",

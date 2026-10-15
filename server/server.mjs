@@ -5,6 +5,7 @@ import { databaseUrl, pool, safeDatabaseLabel } from "./db/pool.mjs";
 import { assertMigrationsApplied } from "./db/migrate.mjs";
 import { loadTeamReference } from "./domain/roster.mjs";
 import { handleStatic, staticRootLabel } from "./http/static.mjs";
+import { answerMaintenance } from "./http/maintenance.mjs";
 import { sendJson } from "./http/responses.mjs";
 import { errorPayload } from "./http/errors.mjs";
 import { ensureAdminAccount } from "./auth/admin-account.mjs";
@@ -113,6 +114,7 @@ startSessionSweeper();
 const server = http.createServer(async (request, response) => {
   response.__request = request;
   const url = new URL(request.url || "/", `http://localhost:${appPort}`);
+  if (await answerMaintenance(request, response, url)) return;
   if (url.pathname.startsWith("/api/")) {
     await handleApi(request, response, url);
     return;
