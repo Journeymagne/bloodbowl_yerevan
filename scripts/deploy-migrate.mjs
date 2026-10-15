@@ -5,7 +5,9 @@
  * Release 2.1.0. Before this the deploy migrated with whatever backup the
  * nightly timer had last taken, up to a day old. Now any deploy that changes
  * the schema takes a labelled dump first (gata_league-premigrate-*.dump, which
- * rotation keeps), and a failed dump means the schema is left as it was.
+ * rotation keeps), and a failed dump means the schema is left as it was. The
+ * decisions live in scripts/deploy/run.mjs; this file only wires in the real
+ * database, the real dump and the real console.
  */
 import { spawnSync } from "node:child_process";
 import path from "node:path";
@@ -14,7 +16,7 @@ import pg from "pg";
 
 import { loadEnvFile } from "../server/config/env-file.mjs";
 import { applyMigrations, migrationStatus } from "../server/db/migrate.mjs";
-import { planDeployMigration } from "./deploy/migrate-plan.mjs";
+import { describeFailure, runDeployMigration } from "./deploy/run.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 await loadEnvFile(rootDir);
@@ -26,20 +28,18 @@ if (!process.env.DATABASE_URL) {
 
 const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 try {
-  const plan = planDeployMigration(await migrationStatus(pool));
-  console.log(`deploy:migrate: ${plan.message}`);
-  if (plan.action === "refuse") {
-    process.exitCode = 1;
-  } else if (plan.action === "backup-then-migrate") {
-    const backup = spawnSync(process.execPath, [path.join(rootDir, "scripts", "backup-db.mjs"), "--label", "premigrate"], { stdio: "inherit" });
-    if (backup.status !== 0) {
-      console.error("deploy:migrate: the pre-migration backup failed; the schema was not touched");
-      process.exitCode = 1;
-    } else {
-      const applied = await applyMigrations(pool);
-      console.log(`deploy:migrate: applied ${applied.join(", ")}`);
-    }
-  }
+  process.exitCode = await runDeployMigration({
+    status: await migrationStatus(pool),
+    takeBackup: () => spawnSync(process.execPath, [path.join(rootDir, "scripts", "backup-db.mjs"), "--label", "premigrate"], { stdio: "inherit" }),
+    apply: () => applyMigrations(pool),
+    log: console.log,
+    error: console.error,
+  });
+} catch (error) {
+  // A refused connection or a failing migration is an ordinary deploy failure:
+  // one line in the CI log, not a stack trace.
+  console.error(`deploy:migrate: ${describeFailure(error)}`);
+  process.exitCode = 1;
 } finally {
   await pool.end();
 }
