@@ -19,6 +19,9 @@ import { sendJson } from "./responses.mjs";
 import { staticRoot } from "./static.mjs";
 
 const RETRY_AFTER_SECONDS = "120";
+// What a reader gets when the page itself cannot be read: still a 503, still
+// uncached, never a crash. Plain text, so nothing else has to be on disk.
+const FALLBACK_TEXT = "Gata League: maintenance in progress. Please try again shortly.\n";
 
 /**
  * @param {{reader: {current(): Promise<object|null>}, loadPage: () => Promise<Buffer|string>}} deps
@@ -34,12 +37,22 @@ export function createMaintenanceGate({ reader, loadPage }) {
       sendJson(response, 503, errorPayload("MAINTENANCE"));
       return true;
     }
+    // Read before anything is written: a page that cannot be read must not
+    // leave a half-sent response behind, nor reject out of the request handler.
+    let body = FALLBACK_TEXT;
+    let contentType = "text/plain; charset=utf-8";
+    try {
+      body = await loadPage();
+      contentType = "text/html; charset=utf-8";
+    } catch (error) {
+      console.error(`[maintenance] the maintenance page could not be read (${error?.message ?? error}); answering in plain text`);
+    }
     response.writeHead(503, {
-      "Content-Type": "text/html; charset=utf-8",
+      "Content-Type": contentType,
       "Cache-Control": "no-store",
       "Retry-After": RETRY_AFTER_SECONDS,
     });
-    response.end(await loadPage());
+    response.end(body);
     return true;
   };
 }

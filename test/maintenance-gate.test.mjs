@@ -35,6 +35,27 @@ test("a page request gets 503 and the maintenance page, uncached", async () => {
   assert.match(String(response.body), /maintenance/);
 });
 
+test("a maintenance page that cannot be read still gets 503, in plain text", async () => {
+  const failing = async () => { throw Object.assign(new Error("ENOENT: no such file"), { code: "ENOENT" }); };
+  const gate = createMaintenanceGate({ reader: flagged, loadPage: failing });
+  const response = fakeResponse();
+  const logged = [];
+  const originalError = console.error;
+  console.error = (...args) => logged.push(args.join(" "));
+  try {
+    assert.equal(await gate(request("172.18.0.2"), response, url("/")), true);
+  } finally {
+    console.error = originalError;
+  }
+  assert.equal(response.status, 503);
+  assert.match(response.headers["Content-Type"], /^text\/plain/);
+  assert.equal(response.headers["Cache-Control"], "no-store");
+  assert.equal(response.headers["Retry-After"], "120");
+  assert.equal(String(response.body), "Gata League: maintenance in progress. Please try again shortly.\n");
+  assert.equal(logged.length, 1);
+  assert.match(logged[0], /^\[maintenance\]/);
+});
+
 test("an API request gets 503 MAINTENANCE", async () => {
   const gate = createMaintenanceGate({ reader: flagged, loadPage: page });
   const response = fakeResponse();
