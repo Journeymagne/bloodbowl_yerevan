@@ -184,6 +184,15 @@ Every push to `main` runs `.github/workflows/deploy.yml`, which pulls,
 rebuilds, applies any outstanding migrations, and restarts the
 `bloodbowl-league` pm2 process automatically.
 
+The deploy runs `npm run deploy:migrate` rather than `npm run db:migrate`.
+When migrations are outstanding it first takes a labelled dump,
+`/var/backups/bloodbowl-league/gata_league-premigrate-YYYYMMDD-HHMMSS.dump`,
+and applies nothing if that dump fails. If the schema step fails, the workflow
+puts the previous code back on disk before exiting, so pm2 (still running the
+previous code) cannot be restarted into the new code against the old schema.
+Labelled dumps are outside the nightly rotation: delete them by hand once the
+release they guarded has settled (`ls /var/backups/bloodbowl-league/*premigrate*`).
+
 The deploy then asks the site whether it is actually up — `/api/health` on the
 server's own port, for up to thirty seconds. If it never answers, the deploy
 puts the previous commit back, rebuilds, restarts, and fails the job, so a
@@ -520,3 +529,45 @@ one. The 2026-08-22 review and its limits are written up in
   built site under exactly that policy, with no violations. Note that
   `dist/local-preview.html` inlines its data in a `<script>` block and so only
   works off a local static server, not through Caddy.
+
+## Maintenance Mode
+
+Run as root on the server:
+
+```bash
+cd /opt/bloodbowl-league
+npm run maintenance:on -- --kind planned --ends "2026-11-02T19:00+04:00"
+npm run maintenance:status
+npm run maintenance:off
+```
+
+`--kind unplanned` shows "outage" instead of "planned maintenance"; `--ends`
+is optional and only drives the countdown on the page. The server notices the
+flag within two seconds — nothing restarts.
+
+`--starts` and `--ends` must each carry an explicit UTC offset, such as
+`+04:00` or `Z`; the command refuses, with exit status 1 and no change to the
+flag, a missing or empty value, a repeated option, options given to `off` or
+`status`, or an unexpected argument.
+
+While the flag is up:
+
+- every page answers 503 with `public/maintenance/index.html`, in the
+  coach's palette and language, checking `/api/health` every 30 seconds;
+- if that file cannot be read, pages answer a plain-text 503 instead;
+- `/api/*` answers 503 `MAINTENANCE`, and a tab left open on the site reloads
+  into the maintenance page;
+- `/api/health` answers 200 with `maintenance: {kind, startsAt, endsAt}`.
+
+**Checking the site during maintenance.** Requests from the server itself are
+let through. Open a tunnel and use the site at `http://localhost:3002`:
+
+```bash
+ssh -L 3002:127.0.0.1:3002 ubuntu@51.81.86.51
+```
+
+Sign in again there: it is a different origin, so the browser has no session
+for it. Public requests never get through: Caddy reaches Node from the docker
+network, and `X-Forwarded-For` is not consulted.
+
+If Node itself is down, Caddy answers 502 — the maintenance page needs Node.
