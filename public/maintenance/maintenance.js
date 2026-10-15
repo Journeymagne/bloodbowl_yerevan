@@ -4,9 +4,12 @@
  * into whatever they were trying to open.
  */
 import { PALETTE_STORAGE_KEY, paletteFor } from "./palettes.mjs";
-import { STRINGS, describeMaintenance, fill, formatClock, pickLocale } from "./state.mjs";
+import { STRINGS, describeMaintenance, lastCheckText, pickLocale } from "./state.mjs";
 
 const POLL_MS = 30_000;
+// Shorter than POLL_MS, so a check that hangs on a flaky network gives up
+// before the next one is due.
+const CHECK_TIMEOUT_MS = 10_000;
 const RELOAD_DELAY_MS = 5_000;
 
 function stored(key) {
@@ -31,6 +34,10 @@ for (const element of document.querySelectorAll("[data-text]")) element.textCont
 
 const slot = (name) => document.querySelector(`[data-slot="${name}"]`);
 let reloadTimer = null;
+let checking = false;
+// The last flag the server gave us, so the countdown and progress keep moving
+// while it does not answer. Until it does, all we know is that work is on.
+let lastFlag = { kind: "planned", startsAt: null, endsAt: null };
 
 function render(view) {
   slot("status").dataset.state = view.state;
@@ -51,10 +58,10 @@ function render(view) {
   slot("auto").hidden = view.state === "done";
 }
 
-/** undefined: the server did not answer, so keep showing what we showed. */
+/** undefined: the server did not answer, so we know nothing new. */
 async function readFlag() {
   try {
-    const response = await fetch("/api/health", { cache: "no-store" });
+    const response = await fetch("/api/health", { cache: "no-store", signal: AbortSignal.timeout(CHECK_TIMEOUT_MS) });
     if (!response.ok) return undefined;
     return (await response.json()).maintenance ?? null;
   } catch {
@@ -63,16 +70,24 @@ async function readFlag() {
 }
 
 async function check() {
+  // The button and the timer can both ask while a slow check is still out.
+  if (checking) return;
+  checking = true;
   const button = slot("check");
   button.disabled = true;
   button.textContent = strings.checking;
-  const flag = await readFlag();
-  button.disabled = false;
-  button.textContent = strings.check;
-  const now = Date.now();
-  if (flag !== undefined) render(describeMaintenance(flag, now, locale));
-  slot("lastCheck").textContent = flag === null ? "" : fill(strings.notYet, { time: formatClock(now, locale) });
-  if (flag === null && !reloadTimer) reloadTimer = setTimeout(() => location.reload(), RELOAD_DELAY_MS);
+  try {
+    const answer = await readFlag();
+    const now = Date.now();
+    if (answer !== undefined) lastFlag = answer;
+    render(describeMaintenance(lastFlag, now, locale));
+    slot("lastCheck").textContent = lastCheckText(answer, now, locale);
+    if (answer === null && !reloadTimer) reloadTimer = setTimeout(() => location.reload(), RELOAD_DELAY_MS);
+  } finally {
+    checking = false;
+    button.disabled = false;
+    button.textContent = strings.check;
+  }
 }
 
 slot("check").addEventListener("click", check);

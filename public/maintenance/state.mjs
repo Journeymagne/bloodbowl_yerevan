@@ -34,6 +34,7 @@ export const STRINGS = Object.freeze({
     checking: "Проверяем…",
     auto: "Страница сама проверяет сайт каждые 30 секунд",
     notYet: "Ещё не готово · проверили в {time}",
+    unreachable: "Не удалось связаться с сайтом · {time}",
     tipsTitle: "Пока сайт недоступен",
     tipMatchTitle: "Играете матч?",
     tipMatch: "Записывайте TD, CAS, MVP и травмы на бумаге — внесёте в итоги матча после работ.",
@@ -68,6 +69,7 @@ export const STRINGS = Object.freeze({
     checking: "Checking…",
     auto: "This page checks the site every 30 seconds",
     notYet: "Not ready yet · checked at {time}",
+    unreachable: "Couldn't reach the site · {time}",
     tipsTitle: "While the site is down",
     tipMatchTitle: "Playing a match?",
     tipMatch: "Write TD, CAS, MVP and injuries down on paper and enter them in the post-match once we are back.",
@@ -120,4 +122,18 @@ export function describeMaintenance(flag, now, locale) {
   if (flag.kind === "planned") return plannedView(flag, now, locale, strings);
   const meta = flag.startsAt ? fill(strings.since, { time: formatClock(Date.parse(flag.startsAt), locale) }) : strings.sinceUnknown;
   return { state: "unplanned", chip: strings.unplannedChip, title: strings.unplannedTitle, lead: strings.unplannedLead, window: null, progress: null, meta };
+}
+
+/**
+ * The small line under the button: what the last check found.
+ *
+ * @param {object|null|undefined} result what /api/health said — undefined when
+ *   it did not answer, null when the flag is down, the flag while it is up
+ * @param {number} now epoch milliseconds
+ * @param {"ru"|"en"} locale
+ */
+export function lastCheckText(result, now, locale) {
+  if (result === null) return "";
+  const strings = STRINGS[locale];
+  return fill(result === undefined ? strings.unreachable : strings.notYet, { time: formatClock(now, locale) });
 }

@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DEFAULT_PALETTE, LEGACY_THEME_PALETTE, PALETTE_KEYS, paletteFor } from "../public/maintenance/palettes.mjs";
-import { STRINGS, describeMaintenance, formatClock, pickLocale } from "../public/maintenance/state.mjs";
+import { STRINGS, describeMaintenance, formatClock, lastCheckText, pickLocale } from "../public/maintenance/state.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (file) => fs.readFile(path.join(root, file), "utf8");
@@ -90,6 +90,17 @@ test("no flag means done", () => {
   const view = describeMaintenance(null, 0, "en");
   assert.equal(view.state, "done");
   assert.equal(view.title, STRINGS.en.doneTitle);
+});
+
+test("a check says what it found: no answer, still down, or back", () => {
+  const now = Date.parse("2026-11-02T15:00:00Z");
+  const flag = { kind: "planned", startsAt: null, endsAt: null };
+  assert.equal(lastCheckText(undefined, now, "ru"), "Не удалось связаться с сайтом · 19:00");
+  assert.equal(lastCheckText(undefined, now, "en"), "Couldn't reach the site · 19:00");
+  assert.equal(lastCheckText(flag, now, "ru"), "Ещё не готово · проверили в 19:00");
+  assert.equal(lastCheckText(flag, now, "en"), "Not ready yet · checked at 19:00");
+  assert.equal(lastCheckText(null, now, "ru"), "");
+  assert.equal(lastCheckText(null, now, "en"), "");
 });
 
 test("the page only names strings and files that exist", async () => {
