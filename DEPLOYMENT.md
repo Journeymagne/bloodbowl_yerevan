@@ -539,7 +539,7 @@ one. The 2026-08-22 review and its limits are written up in
 
 ## Maintenance Mode
 
-Run as root on the server:
+Run as root on the server: `sudo -i` first, as in the setup steps above, then:
 
 ```bash
 cd /opt/bloodbowl-league
@@ -548,9 +548,16 @@ npm run maintenance:status
 npm run maintenance:off
 ```
 
-`--kind unplanned` shows "outage" instead of "planned maintenance"; `--ends`
-is optional and only drives the countdown on the page. The server notices the
-flag within two seconds — nothing restarts.
+The site closes the moment `on` runs: the server notices the flag within two
+seconds, and nothing restarts. Running `on` again replaces the flag, `startsAt`
+included. The options are all optional:
+
+- `--kind` is `planned` (the default) or `unplanned`, which shows "outage"
+  instead of "planned maintenance".
+- `--starts` only changes the start time shown on the page; it does not
+  schedule anything. The default is now.
+- `--ends` drives the expected end, the countdown and the progress bar. It is
+  ignored for `--kind unplanned`.
 
 `--starts` and `--ends` must each carry an explicit UTC offset, such as
 `+04:00` or `Z`; the command refuses, with exit status 1 and no change to the
@@ -559,8 +566,10 @@ flag, a missing or empty value, a repeated option, options given to `off` or
 
 While the flag is up:
 
-- every page answers 503 with `public/maintenance/index.html`, in the
-  coach's palette and language, checking `/api/health` every 30 seconds;
+- every page answers 503 with the maintenance page, in the coach's palette and
+  language, checking `/api/health` every 30 seconds (the page is
+  `dist/public/maintenance/index.html` after a build: edit `public/` and
+  rebuild);
 - if that file cannot be read, pages answer a plain-text 503 instead;
 - `/api/*` answers 503 `MAINTENANCE`, and a tab left open on the site reloads
   into the maintenance page;
@@ -570,8 +579,11 @@ While the flag is up:
 let through. Open a tunnel and use the site at `http://localhost:3002`:
 
 ```bash
-ssh -L 3002:127.0.0.1:3002 ubuntu@51.81.86.51
+ssh -o ExitOnForwardFailure=yes -L 3002:127.0.0.1:3002 ubuntu@51.81.86.51
 ```
+
+If local port 3002 is busy (a local dev server, say), ssh then fails instead of
+silently leaving you looking at your local site.
 
 Sign in again there: it is a different origin, so the browser has no session
 for it. Public requests never get through: Caddy reaches Node from the docker

@@ -2,7 +2,7 @@
 
 League management and reference site for the Gata Blood Bowl League, an unofficial Blood Bowl Sevens fan league.
 
-Current release: **2.0.0**. See [CHANGELOG.md](CHANGELOG.md) for release details and upgrade instructions.
+Current release: **2.1.0**. See [CHANGELOG.md](CHANGELOG.md) for release details and upgrade instructions.
 
 The site contains:
 
