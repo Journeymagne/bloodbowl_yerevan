@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { readEnvValues } from "../server/config/env-file.mjs";
 import { DEFAULT_KEEP } from "./backup/rotation.mjs";
+import { parseBackupArgs } from "./backup/args.mjs";
 import { createBackup } from "./backup/create.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -102,10 +103,9 @@ function run(command, args, { onStdout = null, env = process.env, onChild = null
 }
 
 async function main() {
-  // --label premigrate: the dump deploy:migrate takes before changing the
-  // schema. Rotation leaves labelled dumps alone (scripts/backup/rotation.mjs).
-  const labelIndex = process.argv.indexOf("--label");
-  const label = labelIndex === -1 ? "" : process.argv[labelIndex + 1] ?? "";
+  // --label <name> keeps this dump out of rotation (scripts/backup/rotation.mjs).
+  // A mistyped option throws here, before anything runs (scripts/backup/args.mjs).
+  const { label } = parseBackupArgs(process.argv.slice(2));
 
   const values = await readEnvValues(rootDir);
   const database = process.env.POSTGRES_DB || values.get("POSTGRES_DB");
