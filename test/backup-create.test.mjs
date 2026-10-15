@@ -180,3 +180,14 @@ test("a cleanup failure during the error path does not hide the original error",
     /pg_dump could not connect to the database/,
   );
 });
+
+test("a labelled run names the dump by its label and the nightly rotation leaves it", async () => {
+  const dir = await makeDir();
+  await createBackup({ backupDir: dir, runDump: writes(4096), verifyDump: succeeds, now, label: "premigrate" });
+  for (let day = 1; day <= 8; day += 1) {
+    await createBackup({ backupDir: dir, runDump: writes(4096), verifyDump: succeeds, now: new Date(now.getTime() + day * 86_400_000), keep: 7 });
+  }
+  const names = await listing(dir);
+  assert.ok(names.includes("gata_league-premigrate-20260822-040000.dump"));
+  assert.equal(names.filter((name) => /^gata_league-\d{8}-\d{6}\.dump$/.test(name)).length, 7);
+});

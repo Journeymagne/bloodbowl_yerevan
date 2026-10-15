@@ -102,6 +102,11 @@ function run(command, args, { onStdout = null, env = process.env, onChild = null
 }
 
 async function main() {
+  // --label premigrate: the dump deploy:migrate takes before changing the
+  // schema. Rotation leaves labelled dumps alone (scripts/backup/rotation.mjs).
+  const labelIndex = process.argv.indexOf("--label");
+  const label = labelIndex === -1 ? "" : process.argv[labelIndex + 1] ?? "";
+
   const values = await readEnvValues(rootDir);
   const database = process.env.POSTGRES_DB || values.get("POSTGRES_DB");
   const user = process.env.POSTGRES_USER || values.get("POSTGRES_USER");
@@ -152,7 +157,7 @@ async function main() {
     }
   };
 
-  const result = await createBackup({ backupDir, runDump, verifyDump, keep });
+  const result = await createBackup({ backupDir, runDump, verifyDump, keep, label });
   const removed = result.removed.length ? `, removed ${result.removed.length}` : "";
   if (result.rotationError) {
     // The dump itself is verified and on disk under its final name, so this is
