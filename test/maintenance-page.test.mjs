@@ -113,3 +113,12 @@ test("the page only names strings and files that exist", async () => {
   assert.doesNotMatch(html, /style="/);
   assert.doesNotMatch(html, /<script>(?!<\/script>)/);
 });
+
+test("every slot the script fills exists in the page", async () => {
+  const script = await read("public/maintenance/maintenance.js");
+  const html = await read("public/maintenance/index.html");
+  const used = new Set([...script.matchAll(/slot\("(\w+)"\)/g)].map(([, name]) => name));
+  const present = new Set([...html.matchAll(/data-slot="(\w+)"/g)].map(([, name]) => name));
+  assert.ok(used.size > 0);
+  for (const name of used) assert.ok(present.has(name), name);
+});

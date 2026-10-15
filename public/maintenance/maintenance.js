@@ -92,4 +92,8 @@ async function check() {
 
 slot("check").addEventListener("click", check);
 setInterval(check, POLL_MS);
+// The chip, title and lead ship in Russian and only render() translates them,
+// so draw once now rather than after the first answer, which on a bad network
+// may never come.
+render(describeMaintenance(lastFlag, Date.now(), locale));
 check();
