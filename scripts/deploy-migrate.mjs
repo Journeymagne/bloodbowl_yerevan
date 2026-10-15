@@ -14,8 +14,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
-import { loadEnvFile } from "../server/config/env-file.mjs";
+import { loadEnvFile, readEnvValues } from "../server/config/env-file.mjs";
 import { applyMigrations, migrationStatus } from "../server/db/migrate.mjs";
+import { checkBackupTarget } from "./deploy/migrate-plan.mjs";
 import { describeFailure, runDeployMigration } from "./deploy/run.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -30,6 +31,11 @@ const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
 try {
   process.exitCode = await runDeployMigration({
     status: await migrationStatus(pool),
+    // Resolved as backup-db.mjs resolves it, so this names what the dump will take.
+    verifyBackupTarget: async () => checkBackupTarget({
+      databaseUrl: process.env.DATABASE_URL,
+      postgresDb: process.env.POSTGRES_DB || (await readEnvValues(rootDir)).get("POSTGRES_DB"),
+    }),
     takeBackup: () => spawnSync(process.execPath, [path.join(rootDir, "scripts", "backup-db.mjs"), "--label", "premigrate"], { stdio: "inherit" }),
     apply: () => applyMigrations(pool),
     log: console.log,

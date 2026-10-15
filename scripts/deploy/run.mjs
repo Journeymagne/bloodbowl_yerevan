@@ -10,6 +10,8 @@ import { planDeployMigration } from "./migrate-plan.mjs";
 /**
  * @param {object} deps
  * @param {{pending: object[], changed: string[]}} deps.status from migrationStatus
+ * @param {() => Promise<{ok: boolean, message?: string}>} deps.verifyBackupTarget
+ *   whether the dump would be of the database being migrated (checkBackupTarget)
  * @param {() => {status: number|null, signal?: string|null, error?: Error}|Promise<object>} deps.takeBackup
  *   runs the dump and reports how the child ended, as spawnSync does
  * @param {() => Promise<string[]>} deps.apply applies the migrations, returns their names
@@ -17,7 +19,7 @@ import { planDeployMigration } from "./migrate-plan.mjs";
  * @param {(line: string) => void} deps.error
  * @returns {Promise<number>} the process exit code
  */
-export async function runDeployMigration({ status, takeBackup, apply, log, error }) {
+export async function runDeployMigration({ status, verifyBackupTarget, takeBackup, apply, log, error }) {
   const plan = planDeployMigration(status);
   if (plan.action === "refuse") {
     error(`deploy:migrate: ${plan.message}`);
@@ -26,6 +28,11 @@ export async function runDeployMigration({ status, takeBackup, apply, log, error
   log(`deploy:migrate: ${plan.message}`);
   if (plan.action === "skip") return 0;
 
+  const target = await verifyBackupTarget();
+  if (!target.ok) {
+    error(`deploy:migrate: ${target.message}`);
+    return 1;
+  }
   const backup = await takeBackup();
   // Anything but a clean exit (a non-zero status, a signal, a dump that never
   // started) means there is nothing to return to, so the schema stays as it is.

@@ -187,9 +187,12 @@ rebuilds, applies any outstanding migrations, and restarts the
 The deploy runs `npm run deploy:migrate` rather than `npm run db:migrate`.
 When migrations are outstanding it first takes a labelled dump,
 `/var/backups/bloodbowl-league/gata_league-premigrate-YYYYMMDD-HHMMSS.dump`,
-and applies nothing if that dump fails. If the schema step fails, the workflow
-puts the previous code back on disk before exiting, so pm2 (still running the
-previous code) cannot be restarted into the new code against the old schema.
+and applies nothing if that dump fails. The dump is of `POSTGRES_DB` while the
+migrations go to the database in `DATABASE_URL`, so if those name different
+databases the step refuses before doing either. If the schema step fails, the
+workflow puts the previous code back on disk before exiting, so pm2 (still
+running the previous code) cannot be restarted into the new code against the
+old schema.
 Labelled dumps are outside the nightly rotation: delete them by hand once the
 release they guarded has settled (`ls /var/backups/bloodbowl-league/*premigrate*`).
 
