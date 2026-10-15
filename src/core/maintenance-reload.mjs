@@ -14,21 +14,32 @@ const RELOAD_KEY = "gata-league-maintenance-reload";
 export const MIN_RELOAD_GAP_MS = 30_000;
 
 export function reloadForMaintenance({
-  session = globalThis.sessionStorage,
+  session,
   location = globalThis.location,
   now = Date.now(),
 } = {}) {
+  // Reading the global itself can throw (a browser refusing storage outright),
+  // so it happens here, inside the guard, and not in the parameter default.
+  let storage = session;
+  if (storage === undefined) {
+    try {
+      storage = globalThis.sessionStorage;
+    } catch {
+      storage = null;
+    }
+  }
   let last = -Infinity;
   try {
-    const stamp = session?.getItem(RELOAD_KEY);
+    const stamp = storage?.getItem(RELOAD_KEY);
     if (stamp) last = Number(stamp);
   } catch {
-    // Storage refused: the reload below still happens, and the next page
-    // load starts from a fresh module, so it cannot repeat in a tight loop.
+    // Storage refused (the property or a method): the reload below still
+    // happens, and the next page load starts from a fresh module, so it
+    // cannot repeat in a tight loop.
   }
   if (now - last < MIN_RELOAD_GAP_MS) return false;
   try {
-    session?.setItem(RELOAD_KEY, String(now));
+    storage?.setItem(RELOAD_KEY, String(now));
   } catch {
     // As above.
   }

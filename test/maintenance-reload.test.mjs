@@ -32,3 +32,16 @@ test("blocked session storage still reloads, once per page", () => {
   assert.equal(reloadForMaintenance({ session: blocked, location, now: 5 }), true);
   assert.equal(location.reloads, 1);
 });
+
+test("a refused sessionStorage property still reloads, once", () => {
+  const original = Object.getOwnPropertyDescriptor(globalThis, "sessionStorage");
+  Object.defineProperty(globalThis, "sessionStorage", { configurable: true, get() { throw new Error("SecurityError"); } });
+  try {
+    const location = countingLocation();
+    assert.equal(reloadForMaintenance({ location, now: 5 }), true);
+    assert.equal(location.reloads, 1);
+  } finally {
+    if (original) Object.defineProperty(globalThis, "sessionStorage", original);
+    else delete globalThis.sessionStorage;
+  }
+});

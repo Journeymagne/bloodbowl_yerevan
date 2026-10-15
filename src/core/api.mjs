@@ -92,7 +92,13 @@ export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauth
       payload,
     });
     if (error.kind === API_ERROR.UNAUTHORIZED) onUnauthorized?.(error);
-    if (error.kind === API_ERROR.MAINTENANCE) onMaintenance?.(error);
+    if (error.kind === API_ERROR.MAINTENANCE) {
+      try {
+        onMaintenance?.(error);
+      } catch {
+        // A failing hook must not replace the ApiError the caller needs.
+      }
+    }
     throw error;
   }
 

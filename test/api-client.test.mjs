@@ -136,3 +136,17 @@ test("any other 503 stays a plain HTTP error", async () => {
   await assert.rejects(() => client.request("/api/teams"), (error) => error.kind === API_ERROR.HTTP);
   assert.equal(called, false);
 });
+
+test("a failing maintenance hook does not replace the maintenance error", async () => {
+  const client = clientWith(async () => jsonResponse(503, { error: { code: "MAINTENANCE", params: {}, message: "maintenance" } }), {
+    onMaintenance: () => { throw new Error("hook failed"); },
+  });
+  await assert.rejects(
+    () => client.request("/api/teams"),
+    (error) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.kind, API_ERROR.MAINTENANCE);
+      return true;
+    },
+  );
+});
