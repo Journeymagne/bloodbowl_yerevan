@@ -124,3 +124,18 @@ test("the skills filter panel is the two straight rules 2.x drew: a radius would
   assert.deepEqual(valuesOf(sheet, ".filter-panel", "border-block"), ["1px solid var(--line-bright)"]);
   assert.deepEqual(valuesOf(sheet, ".filter-panel", "border-radius"), ["0"]);
 });
+
+test("the team roster card's dividers and the stat strip's outline are 3.0 lines, not 2.x taupe", () => {
+  const pages = "src/styles/pages.css";
+  const roster = "src/styles/roster.css";
+  for (const [file, selector, property, value] of [
+    [pages, ".team-stat-grid div", "border-left", "1px solid var(--line)"],
+    [pages, ".team-roster-field", "border-top", "1px solid var(--line)"],
+    [pages, ".team-roster-columns", "border-top", "1px solid var(--line)"],
+    [pages, ".team-roster-columns .team-roster-field + .team-roster-field", "border-left", "1px solid var(--line)"],
+    [roster, ".readonly-stat-line", "border", "1px solid var(--line-strong)"],
+    [roster, ".player-stat-editors", "border", "1px solid var(--line-strong)"],
+  ]) {
+    assert.deepEqual(valuesOf(file, selector, property), [value], `${file} ${selector} ${property}`);
+  }
+});

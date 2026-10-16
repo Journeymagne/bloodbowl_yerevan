@@ -851,7 +851,7 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(44px, 1fr));
   overflow: hidden;
-  border: 1px solid rgba(85, 69, 51, 0.62);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
 }
 
@@ -1516,7 +1516,7 @@
   display: grid;
   grid-template-columns: repeat(5, minmax(48px, 1fr));
   overflow: hidden;
-  border: 1px solid rgba(85, 69, 51, 0.62);
+  border: 1px solid var(--line-strong);
   border-radius: var(--radius);
 }
 
