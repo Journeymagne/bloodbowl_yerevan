@@ -866,5 +866,15 @@
   "ui.progress.caption": "{label}: {done} из {total}",
   "ui.skills.none": "без навыков",
   "ui.die.waiting": "{type}: ещё не брошен",
-  "ui.die.rolled": "Бросок {type}: {value}"
+  "ui.die.rolled": "Бросок {type}: {value}",
+  "ui.result.w": "В",
+  "ui.result.d": "Н",
+  "ui.result.l": "П",
+  "ui.result.t": "Т",
+  "ui.result.wName": "Победа",
+  "ui.result.dName": "Ничья",
+  "ui.result.lName": "Поражение",
+  "ui.result.tName": "Товарищеский",
+  "ui.form.label": "Последние результаты",
+  "ui.match.vs": "vs"
 }

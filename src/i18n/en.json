@@ -866,5 +866,15 @@
   "ui.progress.caption": "{label}: {done} of {total}",
   "ui.skills.none": "no skills",
   "ui.die.waiting": "{type}: not rolled yet",
-  "ui.die.rolled": "{type} roll: {value}"
+  "ui.die.rolled": "{type} roll: {value}",
+  "ui.result.w": "W",
+  "ui.result.d": "D",
+  "ui.result.l": "L",
+  "ui.result.t": "F",
+  "ui.result.wName": "Win",
+  "ui.result.dName": "Draw",
+  "ui.result.lName": "Loss",
+  "ui.result.tName": "Friendly",
+  "ui.form.label": "Recent results",
+  "ui.match.vs": "vs"
 }

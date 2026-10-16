@@ -1,0 +1,39 @@
+/*
+ * Recent results as ten equal squares, the oldest at the left. Font, border,
+ * background, text-transform and border-radius are set here on purpose: the
+ * 2.x globals outlive this sheet until stage 13.
+ */
+.g-form {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+}
+
+.g-form__item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  /* No radius token is 6px. */
+  border-radius: 6px;
+  background: var(--neutral-result);
+  color: var(--on-accent);
+  font: 700 12px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.g-form__item--w { background: var(--accent); }
+.g-form__item--d { background: var(--neutral-result); }
+.g-form__item--l {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+.g-form__item--t { background: var(--result-friendly); }
