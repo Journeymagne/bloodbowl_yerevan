@@ -33,7 +33,8 @@
     "maintenance:status": "node scripts/maintenance.mjs status",
     "rehearsal:restore": "node scripts/rehearsal-restore.mjs",
     "rehearsal:check": "node scripts/rehearsal-check.mjs",
-    "rehearsal:migrate": "node scripts/rehearsal-migrate.mjs"
+    "rehearsal:migrate": "node scripts/rehearsal-migrate.mjs",
+    "screens": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "pg": "^8.13.1"
