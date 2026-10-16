@@ -290,7 +290,22 @@ WHERE NOT EXISTS (
 
 **05.** Ключ `active-team` в `STORAGE_KEYS`; `gata-league-auth-token` и формат сессий не трогать (никто не должен перелогиниться).
 
+**05–13: экраны на компонентах `src/ui` и остатки 2.x** (заметки этапа 04; остальное для 05 — в плане этапа 04, «Передача этапу 05»).
+- Отказ степпера: `wireStepButtons` молча глотает нажатие на кнопку с `aria-disabled="true"`, а `title` на касание не показывается — экран вешает делегированный обработчик `[aria-disabled="true"]`, который показывает причину (как `src/screens/saved-roster.mjs`), или в `stepper.mjs` появляется хук `onRefused`.
+- Первый экран с Sheet: фокус возвращается на открывшую кнопку после перерисовки, следующей за `onClose` (2.x `pre-match.mjs:91` делает это явно); нажатие внутри листа, отпущенное над подложкой, закрывает лист — листу с текстом правила нужна защита по `pointerdown`; прокрутка за листом не заблокирована — `html:has(dialog.g-sheet:modal) { overflow: hidden }` в оболочке.
+- Радиогруппы (SegmentedControl, OptionList): после стрелки фокус стоит на пункте — не перерисовывать группу через `innerHTML` в `onChange`.
+- Callout: кнопка действия не переносится (`nowrap`) — подписи действий короткие.
+- `renderKpiGrid` бросает на нечётном и нулевом числе плиток: этап, который первым рисует плитки из данных (05 или 06), решает, что показать вместо дыры.
+- Проверка словаря в `test/ui-kit.test.mjs` видит только `t("…")`: ключи из шаблонных строк (`` t(`stats.${stat}`) ``) проверять отдельно.
+- Тесты `test/legacy-screens.test.mjs` уходят вместе с таблицей стилей 2.x, которую проверяют (06–12), остаток — с `legacy-aliases.css` на этапе 13.
+- Оставшиеся taupe/olive-литералы 2.x (разделитель `.player-stat-editor` в `roster.css:1527`, рамка `.season-status-pill[data-status="started"]`), литералы `border-radius: 0`, лишний `color` в `site-matchday.css:114`, пустое `.league-hero-copy p` в `pages.css` и мёртвое `.badge.warning` в `catalog.css` уходят вместе со своими таблицами.
+
 **06.** `builder-draft` удаляется вместе с ключом из `STORAGE_KEYS`; импорт старого черновика не делаем.
+
+**07a–07e.**
+- Карточка игрока: улучшенная характеристика в StatStrip выделена только цветом (WCAG 1.4.1) — показать её текстом или добавить sr-only ключ `ui.*`.
+- До первого компонента с `<table>` в `src/ui` (RosterTable): fake-dom принимает `<p><div>` и `<table><tr>` без `<tbody>` как написано, а браузер строит другое дерево — сделать это ошибкой разбора.
+- 07d: `renderOptionCard` сам по себе — `role="radio"` без группы и без roving tabindex, а `wireOptionLists` слышит только карточки внутри `.g-options`: в описании сказать, что группе нужны `role="radiogroup"` и `wireRadioGroups`.
 
 **08.** Счётчик ресурсов (Start Re-rolls, Team Re-rolls) отключает «+» у Start Re-rolls для команд в `active` и у Team Re-rolls для команд в `draft` и показывает переведённую причину (по смыслу `error.STAGE_PURCHASE_LOCKED`). С 02a `PATCH /api/teams/:id` отвечает 422 `STAGE_PURCHASE_LOCKED`, а включённый «+» старого редактора 2.x ломает все последующие автосохранения в этой сессии. Это должно попасть в `redesign` до того, как тренеры начнут пользоваться любой сборкой с редизайном.
 
@@ -299,8 +314,10 @@ WHERE NOT EXISTS (
 **09a.** Форма быстрого счёта (`components/games/result-fields.mjs`, режим тренера) удаляется; админский ручной результат остаётся.
 
 **09b.** `scripts/rehearsal-transitions.mjs` (`npm run rehearsal:transitions -- --seed <url 2.1> | --finish <url 3.0>`): `--seed` против сервера `v2.1.0` (worktree, порт 3004) на `gata_rehearsal` создаёт через API и записывает в `output/rehearsal/transitions.json` пять состояний из спеки выката §3.3; `--finish` против 3.0 доводит каждое до конца и проверяет: подготовка продолжается с того же шага; итоги, начатые в 2.x, завершаются без `POST_TEAM_CHANGED`, SPP после = SPP до + статистика матча, записи матча получают `settled_at`; неподтверждённый счёт вносит админ; вызов принимается. Детальный план этапа описывает API-вызовы по `scripts/smoke-post-match.mjs` и `smoke-friendly.mjs`.
+ActionStepper со значением и приростом читается «4+1» — где экран показывает прирост, добавить sr-only разделитель (заметка этапа 04).
 
 **12.** Админка: «Добавить погибшего задним числом» (`POST /api/admin/teams/:id/fallen {player: {name, position, number?}, cause, pairingId?, diedAt?}`), ввод и подтверждение старых неподтверждённых счетов, перевод `draft → active`, `draft` для новых команд.
+Заголовок «ADMINISTRATION» на 390 переносится посреди слова: «ADMINISTRATIO / N» (в 2.x было «ADMINISTRA / TION»); решить при переносе экранов админки (заметка этапа 04).
 
 **13.**
 - Удалить старые экраны, CSS, временные алиасы, Comfortaa и Nunito, `docs/redesign/handoff-0.9.1/`, `docs/redesign/reports/`; ужать бюджеты.

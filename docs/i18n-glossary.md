@@ -15,6 +15,12 @@ strings, the following categories are **never translated**, in either locale:
 - **Advancement rank and type names** — Rookie, Experienced, Veteran, Emerging
   Star, Star, Superstar, Legend, and Random/Primary/Secondary/Stat.
 
+**Not a league term: palette names.** The theme palettes (`theme.palette.*`) take their Russian
+names from the design handoff (`Settings.html` PALETTES / the design-system README): they name a
+mood, not a team or a weather result, so «Тёмные эльфы», «Имперская знать», «Идеальная погода» and
+«Палящий зной» are deliberate, even though team names are never translated and the weather table in
+`content/Gata-ru` uses other words. Don't "fix" them.
+
 ## Structural bold-label markers
 
 `scripts/build-data.mjs` parses a few fixed bold-label lines out of team and
