@@ -8,6 +8,7 @@
  */
 import { handleFallenRoutes } from "./team-fallen.mjs";
 import { handleLedgerRoutes } from "./team-ledger.mjs";
+import { handleRollRoutes } from "./team-rolls.mjs";
 import { handleActivateRoute } from "./team-stage.mjs";
 
 /** One handler per resource: it answers its own paths, and says so by returning true. */
@@ -15,6 +16,7 @@ const TEAM_RESOURCE_ROUTES = [
   handleActivateRoute,
   handleLedgerRoutes,
   handleFallenRoutes,
+  handleRollRoutes,
 ];
 
 /**

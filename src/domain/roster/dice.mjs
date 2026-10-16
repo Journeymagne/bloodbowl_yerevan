@@ -17,8 +17,13 @@
  * it ended.
  *
  * Pure: the die is passed in. `rng(sides)` answers an integer from 1 to `sides`;
- * the server (stage 03) hands in `(sides) => crypto.randomInt(1, sides + 1)`.
- * An answer outside the die's faces is a `RangeError`, never a result.
+ * the server hands in `serverDie` (server/api/dice-rolls.mjs). An answer outside
+ * the die's faces is a `RangeError`, never a result.
+ *
+ * A roll that can be made comes back as `{ ok: true, params, result }`, the two
+ * halves of a `dice_rolls` row. `params` names the die the same way in both rolls,
+ * as `sides` (8 for a characteristic, 16 for a skill, which adds its category and
+ * candidates); `result` is everything that came up.
  */
 import { canonicalSkillName, heldSkillKeys } from "./players.mjs";
 import { PLAYER_STATS, categoriesForAccess } from "./values.mjs";
@@ -54,7 +59,7 @@ export function statsForRoll(roll) {
 /** One D8 for a characteristic improvement. */
 export function statRoll(rng) {
   const roll = face(rng, STAT_DIE);
-  return { ok: true, params: { die: STAT_DIE }, result: { roll, stats: statsForRoll(roll) } };
+  return { ok: true, params: { sides: STAT_DIE }, result: { roll, stats: statsForRoll(roll) } };
 }
 
 /**
