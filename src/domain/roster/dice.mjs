@@ -1,16 +1,18 @@
 /**
- * The league's dice: the D8 for a characteristic improvement and the roll for a
+ * The league's dice: the D8 for a characteristic improvement and the D16 for a
  * random skill.
  *
  * The D8 table is the one in content/Gata/General Information/Player
  * Advancement.md ("Characteristic Improvements"); its AV is `ar` in code. A
  * random skill is a *primary* skill — the advancement table calls it
- * "Randomly Select a Primary Skill" — drawn from the category's column of the
- * Skill Table (content/Gata/Skills and Traits/Skill Table.md): face 1…N, where
- * N is the length of that column, taken in the Skill Table's order. A skill the
- * player already has (`heldSkillKeys`: base, bought, Favoured, and the
- * captain's Pro, whatever their (+N)) is rolled again, and every attempt is
- * kept so the record shows the whole roll, not just where it ended.
+ * "Randomly Select a Primary Skill" — taken from the category's column of the
+ * Skill Table (content/Gata/Skills and Traits/Skill Table.md) in the Skill
+ * Table's order. The content names no die; the die is a D16 per the league
+ * (owner, 2026-10-16), the length of the longest column (General), so a column
+ * shorter than 16 has faces with no skill on them. A face beyond the column is
+ * rolled again, and so is a skill the player already has (`heldSkillKeys`:
+ * base, bought, Favoured, and the captain's Pro, whatever their (+N)). Every
+ * attempt is kept, so the record shows the whole roll, not just where it ended.
  *
  * Pure: the die is passed in. `rng(sides)` answers an integer from 1 to `sides`;
  * the server (stage 03) hands in `(sides) => crypto.randomInt(1, sides + 1)`.
@@ -23,6 +25,8 @@ import { PLAYER_STATS, categoriesForAccess } from "./values.mjs";
 export const DICE_PURPOSES = Object.freeze(["random_skill", "stat"]);
 
 const STAT_DIE = 8;
+/** The die of a random skill: 16 faces, as long as the longest Skill Table column. */
+export const SKILL_DIE = 16;
 
 function span(from, to, stats) {
   return Object.freeze({ from, to, stats: Object.freeze([...stats]) });
@@ -60,19 +64,21 @@ export function statRoll(rng) {
  * @param {string} args.category a primary category of the row
  * @param {Array<{category: string, skills: string[]}>} args.skillGroups the Skill Table
  * @param {(sides: number) => number} args.rng
- * @param {number} [args.maxAttempts] a die stuck on held skills throws instead of looping
+ * @param {number} [args.maxAttempts] a die stuck on blanks and held skills throws instead of looping. 1000, not 100: a
+ *   9-skill column with 8 held leaves one face in 16, and a fair die would miss 100 times running 0.16 % of the time
  * @returns {{ok: true, params: object, result: {attempts: object[], skill: string}} | {ok: false, reason: string}}
  */
-export function randomSkillRoll({ row, player, category, skillGroups = [], rng, maxAttempts = 100 }) {
+export function randomSkillRoll({ row, player, category, skillGroups = [], rng, maxAttempts = 1000 }) {
   if (!categoriesForAccess(row.primary ?? []).includes(category)) return { ok: false, reason: "DICE_CATEGORY" };
   const candidates = [...(skillGroups.find((group) => group.category === category)?.skills ?? [])];
   const held = heldSkillKeys(row, player);
   if (!candidates.some((skill) => !held.has(canonicalSkillName(skill)))) return { ok: false, reason: "DICE_NO_SKILL" };
   const attempts = [];
   while (attempts.length < maxAttempts) {
-    const roll = face(rng, candidates.length), skill = candidates[roll - 1], duplicate = held.has(canonicalSkillName(skill));
+    const roll = face(rng, SKILL_DIE), skill = candidates[roll - 1] ?? null;
+    const duplicate = skill !== null && held.has(canonicalSkillName(skill));
     attempts.push({ roll, skill, duplicate });
-    if (!duplicate) return { ok: true, params: { category, candidates }, result: { attempts, skill } };
+    if (skill !== null && !duplicate) return { ok: true, params: { category, candidates, sides: SKILL_DIE }, result: { attempts, skill } };
   }
   throw new Error(`no free skill after ${maxAttempts} attempts`);
 }
