@@ -10,12 +10,13 @@
 -- rookie protection, as in effectiveInjury (src/domain/post-match/rules.mjs): a
 -- team with fewer than three games turns any injury into Badly Hurt and keeps
 -- the player, though the state still stores `dead`; a gamesPlayed that is
--- missing or not a whole number carries nobody. The CASE tests it before the
--- cast, because Postgres does not promise the order of AND, and the cast is to
--- numeric, so no digit string is too long: a bad state never stops the
--- migration. The after_roster clause additionally skips anyone still on the
--- roster. Journeymen and star players were never on the roster, so they are
--- never carried over.
+-- missing or not a whole number of at most 18 digits carries nobody (stored
+-- states hold count(*)::integer, far shorter). The CASE tests it before the
+-- cast, because Postgres does not promise the order of AND, and 18 digits
+-- always fit numeric, so a bad state never stops the migration. The
+-- after_roster clause additionally skips anyone still on the roster.
+-- Journeymen and star players were never on the roster, so they are never
+-- carried over.
 --
 -- The snapshot is the player as before_roster holds them; died_at is when the
 -- post-match was applied. 2.x states record no cause, so cause is NULL, and
@@ -44,7 +45,7 @@ SELECT a.saved_team_id, p.player, NULL, a.pairing_id, NULL, a.created_at, true
  CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(a.before_roster->'players') = 'array'
                                               THEN a.before_roster->'players' ELSE '[]'::jsonb END) AS p(player)
  WHERE g.state->a.side->'injuries'->(p.player->>'id')->>'code' = 'dead'
-   AND CASE WHEN (g.state->a.side->>'gamesPlayed') ~ '^[0-9]+$'
+   AND CASE WHEN (g.state->a.side->>'gamesPlayed') ~ '^[0-9]{1,18}$'
             THEN (g.state->a.side->>'gamesPlayed')::numeric >= 3 ELSE false END
    AND NOT EXISTS (
          SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(a.after_roster->'players') = 'array'

@@ -133,3 +133,14 @@ test("a gamesPlayed too large for an integer still counts, and never stops the m
     assert.deepEqual(await carried(client), ["h-dead", "h-veteran"]);
   }, { through: "011_fallen_players.sql" });
 });
+
+test("a dead player the post-match kept on the roster is not carried, whatever the games played", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seed(client);
+    const kept = player("h-kept", "Kept");
+    await another(client, { pairing: id(43), table: 3, state: { home: { gamesPlayed: 5, injuries: { "h-kept": { code: "dead" } } } },
+      before: [kept], after: [kept] });
+    await runMigration(client, "015_backfill_fallen_players.sql");
+    assert.deepEqual(await carried(client), ["h-dead"]);
+  }, { through: "011_fallen_players.sql" });
+});
