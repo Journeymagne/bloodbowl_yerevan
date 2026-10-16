@@ -41,10 +41,15 @@ export async function runMigration(client, name) {
   }
 }
 
-/** Every migration up to and including `last` (all of them without it), in the runner's order. */
+/**
+ * Every migration up to and including `last` (all of them without it), in the runner's order.
+ * `last` is an exact file name: a misspelt one would apply everything and look fine.
+ */
 export async function migrateThrough(client, last = null) {
+  const migrations = await readMigrations();
+  if (last && !migrations.some(({ name }) => name === last)) throw new Error(`no migration ${last}`);
   await migrationStatus(client); // creates schema_migrations exactly as the runner does
-  for (const { name } of await readMigrations()) {
+  for (const { name } of migrations) {
     if (last && name.localeCompare(last, "en") > 0) break;
     await runMigration(client, name);
   }
