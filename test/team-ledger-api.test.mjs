@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 
 import { pool } from "../server/db/pool.mjs";
 import { encodeLedgerCursor, writeLedgerEntries } from "../server/api/team-ledger.mjs";
-import { callApi, seedCoach, seedTeam, teamRow, withApiDatabase } from "./helpers/api-db.mjs";
+import { callApi, loggingErrors, recording, seedCoach, seedTeam, teamRow, withApiDatabase } from "./helpers/api-db.mjs";
 import { lockRow, scratchSkip, withForcedOverlap } from "./helpers/scratch-db.mjs";
 
 const db = { skip: scratchSkip };
@@ -12,33 +12,6 @@ const NOBODY = "44444444-4444-4444-8444-444444444444";
 const treasury = (id, token, body) => callApi("POST", `/api/teams/${id}/treasury`, { token, body: { reason: "sponsor", revision: 1, ...body } });
 const ledger = (id, token, query = "") => callApi("GET", `/api/teams/${id}/ledger${query}`, { token });
 const lines = async (client, id) => (await client.query("SELECT kind, delta::float AS delta FROM team_ledger WHERE saved_team_id = $1", [id])).rows;
-
-/**
- * What `run` did to the database on the connections the server's pool lent it: each statement as written,
- * in order, and `release` when a connection went back. A statement run straight on the pool (who is asking,
- * the first look at the team) is not a transaction's and is not here.
- */
-async function recording(run) {
-  const log = [], connect = pool.connect;
-  pool.connect = async (...args) => {
-    const client = await connect.apply(pool, args);
-    return new Proxy(client, {
-      get(target, key) {
-        if (key === "query") return (...query) => { log.push(String(query[0]).trim().replace(/\s+/g, " ")); return target.query(...query); };
-        if (key === "release") return (...release) => { log.push("release"); return target.release(...release); };
-        return typeof target[key] === "function" ? target[key].bind(target) : target[key];
-      },
-    });
-  };
-  try { return { result: await run(), log }; } finally { pool.connect = connect; }
-}
-
-/** `run` with console.error held back, and what was said to it: a 500 is logged on purpose, and the test output stays quiet. */
-async function loggingErrors(run) {
-  const original = console.error, logged = [];
-  console.error = (...args) => logged.push(args);
-  try { return { result: await run(), logged }; } finally { console.error = original; }
-}
 
 test("a manual entry moves the treasury once, raises the revision and is journaled with its reason", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
