@@ -7,7 +7,7 @@
  */
 import { advancementRanks, advancementStatCosts } from "../league-rules.mjs";
 import { teamHasSpecialRule } from "./team-rules.mjs";
-import { normalizePlayerAdvancements, normalizeSppCounters, selectedRosterPlayers, skillNamesForPlayer } from "./players.mjs";
+import { canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements, normalizeSppCounters, selectedRosterPlayers } from "./players.mjs";
 import { categoriesForAccess } from "./values.mjs";
 
 export function sppCounterWeights(team) {
@@ -137,13 +137,13 @@ export function advancementGrantOptions(row, player, type, skillGroups = []) {
   const access = GRANT_ACCESS_BY_TYPE[type];
   if (!access) return { kind: "skill", options: [] };
 
-  const held = new Set(skillNamesForPlayer(row, player));
+  const held = heldSkillKeys(row, player);
   const categories = categoriesForAccess(access === "primary" ? row.primary ?? [] : row.secondary ?? []);
   const options = [];
   for (const group of skillGroups) {
     if (!categories.includes(group.category)) continue;
     for (const name of group.skills ?? []) {
-      if (!held.has(name)) options.push({ skill: name, access, category: group.category });
+      if (!held.has(canonicalSkillName(name))) options.push({ skill: name, access, category: group.category });
     }
   }
   return { kind: "skill", options: options.sort((a, b) => a.skill.localeCompare(b.skill, "en")) };

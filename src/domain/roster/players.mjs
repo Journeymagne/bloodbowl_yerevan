@@ -222,6 +222,23 @@ export function skillNamesForPlayer(row, player) {
     });
 }
 
+/**
+ * A skill's name without its parameter: the Rat Ogre's `Mighty Blow (+1)` is the
+ * Skill Table's `Mighty Blow`. For comparing only — display names stay as written.
+ */
+export function canonicalSkillName(name) {
+  return String(name).replace(/\s*\([+-]?\d+\)\s*$/, "").trim();
+}
+
+/**
+ * The skills a player already holds, by canonical name, for asking whether a
+ * Skill Table skill is one of them. Both the random roll and the list of skills
+ * an advancement may grant go through here, so neither offers a held skill.
+ */
+export function heldSkillKeys(row, player) {
+  return new Set(skillNamesForPlayer(row, player).map(canonicalSkillName));
+}
+
 export function setRosterCaptain(draft, playerId, isCaptain = true) {
   if (!Array.isArray(draft.players)) return;
   draft.players.forEach((player) => {

@@ -4,12 +4,14 @@ import { readFileSync } from "node:fs";
 
 import { DICE_PURPOSES, STAT_ROLL_TABLE, randomSkillRoll, statRoll, statsForRoll } from "../src/domain/roster/dice.mjs";
 import { PLAYER_STATS, rowsForTeam } from "../src/domain/roster/values.mjs";
-import { normalizePlayerAdvancements } from "../src/domain/roster/players.mjs";
+import { canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements } from "../src/domain/roster/players.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.json", import.meta.url), "utf8")));
 const [lineman, , , blitzer] = rowsForTeam(data.teams.find((team) => team.slug === "teams/human")); // Human Lineman (G), Blitzer (G S; Block, Tackle)
 const general = data.skillGroups.find((group) => group.category === "General").skills;
+const strength = data.skillGroups.find((group) => group.category === "Strength").skills;
+const ratOgre = rowsForTeam(data.teams.find((team) => team.slug === "teams/skaven")).find((row) => row.position === "Rat Ogre"); // primary S, base Mighty Blow (+1)
 
 /** A die that answers from a script and remembers what it was asked to roll. */
 function scripted(...faces) {
@@ -96,4 +98,26 @@ test("an advancement keeps how its result was rolled; anything else is dropped",
     { type: "secondary" },
     { type: "stat" },
   ]);
+});
+
+test("a skill's (+N) is not part of which skill it is", () => {
+  assert.deepEqual(["Mighty Blow (+1)", "Mighty Blow (2)", "Mighty Blow (-1)", "Mighty Blow", "Loner (4+)", "Block"].map(canonicalSkillName),
+    ["Mighty Blow", "Mighty Blow", "Mighty Blow", "Mighty Blow", "Loner (4+)", "Block"]);
+  assert.deepEqual([...heldSkillKeys(ratOgre, { extraSkills: [{ name: "Block", access: "primary" }] })].filter((name) => name.startsWith("Mighty") || name === "Block"),
+    ["Mighty Blow", "Block"]);
+  assert.ok(ratOgre.skills.includes("Mighty Blow (+1)"), "the Rat Ogre keeps the name the content gives it");
+});
+
+test("a Rat Ogre already has Mighty Blow, so it is rerolled instead of rolled again", () => {
+  const mightyBlow = strength.indexOf("Mighty Blow") + 1;
+  const roll = randomSkillRoll({ row: ratOgre, player: {}, category: "Strength", skillGroups: data.skillGroups, rng: scripted(mightyBlow, 1) });
+  assert.deepEqual(roll.result.attempts, [{ roll: mightyBlow, skill: "Mighty Blow", duplicate: true }, { roll: 1, skill: strength[0], duplicate: false }]);
+  assert.equal(roll.result.skill, strength[0]);
+});
+
+test("a Rat Ogre with every Strength skill but Mighty Blow has nothing left to roll", () => {
+  const rng = scripted();
+  const player = { extraSkills: strength.filter((name) => name !== "Mighty Blow").map((name) => ({ name, access: "primary" })) };
+  assert.deepEqual(randomSkillRoll({ row: ratOgre, player, category: "Strength", skillGroups: data.skillGroups, rng }), { ok: false, reason: "DICE_NO_SKILL" });
+  assert.deepEqual(rng.asked, []);
 });

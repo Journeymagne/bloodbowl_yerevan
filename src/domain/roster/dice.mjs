@@ -8,15 +8,15 @@
  * "Randomly Select a Primary Skill" — drawn from the category's column of the
  * Skill Table (content/Gata/Rules/3. Team Management.md): face 1…N, where N is
  * the length of that column, taken in the Skill Table's order. A skill the
- * player already has (`skillNamesForPlayer`: base, bought, Favoured, and the
- * captain's Pro) is rolled again, and every attempt is kept so the record shows
- * the whole roll, not just where it ended.
+ * player already has (`heldSkillKeys`: base, bought, Favoured, and the
+ * captain's Pro, whatever their (+N)) is rolled again, and every attempt is
+ * kept so the record shows the whole roll, not just where it ended.
  *
  * Pure: the die is passed in. `rng(sides)` answers an integer from 1 to `sides`;
  * the server (stage 03) hands in `(sides) => crypto.randomInt(1, sides + 1)`.
  * An answer outside the die's faces is a `RangeError`, never a result.
  */
-import { skillNamesForPlayer } from "./players.mjs";
+import { canonicalSkillName, heldSkillKeys } from "./players.mjs";
 import { PLAYER_STATS, categoriesForAccess } from "./values.mjs";
 
 /** In the order of the `dice_rolls.purpose` CHECK (migration 012). */
@@ -66,11 +66,11 @@ export function statRoll(rng) {
 export function randomSkillRoll({ row, player, category, skillGroups = [], rng, maxAttempts = 100 }) {
   if (!categoriesForAccess(row.primary ?? []).includes(category)) return { ok: false, reason: "DICE_CATEGORY" };
   const candidates = [...(skillGroups.find((group) => group.category === category)?.skills ?? [])];
-  const held = new Set(skillNamesForPlayer(row, player));
-  if (!candidates.some((skill) => !held.has(skill))) return { ok: false, reason: "DICE_NO_SKILL" };
+  const held = heldSkillKeys(row, player);
+  if (!candidates.some((skill) => !held.has(canonicalSkillName(skill)))) return { ok: false, reason: "DICE_NO_SKILL" };
   const attempts = [];
   while (attempts.length < maxAttempts) {
-    const roll = face(rng, candidates.length), skill = candidates[roll - 1], duplicate = held.has(skill);
+    const roll = face(rng, candidates.length), skill = candidates[roll - 1], duplicate = held.has(canonicalSkillName(skill));
     attempts.push({ roll, skill, duplicate });
     if (!duplicate) return { ok: true, params: { category, candidates }, result: { attempts, skill } };
   }

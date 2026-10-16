@@ -202,3 +202,15 @@ test("normalisation keeps a grant and drops a malformed one", () => {
     { type: "random" },
   ]);
 });
+
+test("a held skill is held whatever its (+N): a Rat Ogre is not offered Mighty Blow", () => {
+  const ratOgre = rowsForTeam(data.teams.find((item) => item.slug === "teams/skaven")).find((item) => item.position === "Rat Ogre");
+  const blitzer = rowsForTeam(data.teams.find((item) => item.slug === "teams/human")).find((item) => item.position === "Blitzer");
+  assert.ok(ratOgre.skills.includes("Mighty Blow (+1)"));
+  const offered = (position, type) => advancementGrantOptions(position, richPlayer(), type, skillGroups).options.map((option) => option.skill);
+  assert.ok(!offered(ratOgre, "primary").includes("Mighty Blow"));
+  assert.ok(!offered(ratOgre, "random").includes("Mighty Blow"));
+  assert.ok(offered(blitzer, "primary").includes("Mighty Blow"), "a player without it is still offered it");
+  assert.deepEqual(checkAdvancementGrant(ratOgre, richPlayer(), "primary", { skill: "Mighty Blow" }, skillGroups),
+    { allowed: false, reason: GRANT_BLOCKED.NOT_AVAILABLE, params: { skill: "Mighty Blow", access: "primary" } });
+});
