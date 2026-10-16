@@ -258,6 +258,13 @@ applied" and nothing was tested. `output/rehearsal/report.md` also says how long
 the migrations took, which stage each team got and why, which fallen players
 were carried over, and which matches are still half-way through.
 
+It exits 0 for an OK, 1 when existing data changed, and 2 when no migration was
+applied between the snapshots — nothing was tested. It also requires the new
+tables team_ledger, dice_rolls and match_events to be empty after migrating, and
+the fallen players 015 carried over to be exactly the ones its rule finds.
+Running rehearsal:migrate again adds a run to output/rehearsal/migrate.json
+instead of overwriting it, so the report keeps the time the real run took.
+
 Do not start the server between `--before` and `--after`: booting it writes to
 `users` (below), and the comparison would call that a change. Afterwards, to
 click through as any coach, start the server with `DATABASE_URL` pointing at

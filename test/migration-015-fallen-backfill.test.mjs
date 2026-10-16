@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { readMigrations } from "../server/db/migrate.mjs";
+import { takeSnapshot } from "../scripts/rehearsal/snapshot.mjs";
 import { runMigration, scratchSkip, withScratchDatabase } from "./helpers/scratch-db.mjs";
 
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
@@ -142,5 +143,48 @@ test("a dead player the post-match kept on the roster is not carried, whatever t
       before: [kept], after: [kept] });
     await runMigration(client, "015_backfill_fallen_players.sql");
     assert.deepEqual(await carried(client), ["h-dead"]);
+  }, { through: "011_fallen_players.sql" });
+});
+
+test("the rehearsal snapshot's copy of the rule agrees with 015", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seed(client);
+    await runMigration(client, "015_backfill_fallen_players.sql");
+    assert.deepEqual((await takeSnapshot(client)).fallenCheck, { [H]: { carried: 1, expected: 1 } });
+  }, { through: "011_fallen_players.sql" });
+});
+
+test("the snapshot counts only what 015 carried: nothing before it, and no death a person recorded", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seed(client);
+    // 011 applied, 015 not yet: there is no from_match column, so nothing is carried over, but the rule already sees one.
+    assert.deepEqual((await takeSnapshot(client)).fallenCheck, { [H]: { carried: 0, expected: 1 } });
+    await runMigration(client, "015_backfill_fallen_players.sql");
+    await client.query("INSERT INTO team_fallen_players (saved_team_id, player, cause, recorded_by) VALUES ($1, $2, 'Eaten', $3)",
+      [A, player("a-marked", "Marked"), id(2)]);
+    await client.query("INSERT INTO team_fallen_players (saved_team_id, player, pairing_id, recorded_by, from_match) VALUES ($1, $2, $3, $4, true)",
+      [H, player("h-3.0", "Finished"), EMPTY, id(1)]);
+    assert.deepEqual((await takeSnapshot(client)).fallenCheck, { [H]: { carried: 1, expected: 1 } });
+  }, { through: "011_fallen_players.sql" });
+});
+
+test("the snapshot's copy of the rule agrees with 015 on every case above, and a bad gamesPlayed does not stop it", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seed(client);
+    const kept = player("h-kept", "Kept");
+    await another(client, { pairing: id(43), table: 3, side: "away", team: A, state: { away: { gamesPlayed: 2, injuries: { "a-sold": { code: "dead" } } } },
+      before: [player("a-sold", "Sold")], after: [] }); // protected rookie, sold in the same post-match
+    await another(client, { pairing: id(44), table: 4, applied: false, state: { home: { gamesPlayed: 5, injuries: { "h-ok": { code: "dead" } } } } });
+    for (const [n, gamesPlayed] of [[45, undefined], [46, "four"]]) {
+      await another(client, { pairing: id(n), table: n, state: { home: { gamesPlayed, injuries: { [`h-${n}`]: { code: "dead" } } } },
+        before: [player(`h-${n}`, "Unknown")], after: [] });
+    }
+    await another(client, { pairing: id(47), table: 7, state: { home: { gamesPlayed: "99999999999", injuries: { "h-veteran": { code: "dead" } } } },
+      before: [player("h-veteran", "Veteran")], after: [] });
+    await another(client, { pairing: id(48), table: 8, state: { home: { gamesPlayed: 5, injuries: { "h-kept": { code: "dead" } } } }, before: [kept], after: [kept] });
+    assert.deepEqual((await takeSnapshot(client)).fallenCheck, { [H]: { carried: 0, expected: 2 } });
+    await runMigration(client, "015_backfill_fallen_players.sql");
+    assert.deepEqual((await takeSnapshot(client)).fallenCheck, { [H]: { carried: 2, expected: 2 } });
+    assert.deepEqual(await carried(client), ["h-dead", "h-veteran"]);
   }, { through: "011_fallen_players.sql" });
 });
