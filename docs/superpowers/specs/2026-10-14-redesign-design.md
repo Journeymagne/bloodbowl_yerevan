@@ -189,7 +189,7 @@ ALTER TABLE users ADD COLUMN preferences jsonb NOT NULL DEFAULT '{}'::jsonb;
 CREATE TABLE match_events (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   saved_team_id uuid NOT NULL REFERENCES saved_teams(id) ON DELETE CASCADE,
-  pairing_id uuid REFERENCES season_pairings(id) ON DELETE SET NULL,   -- NULL: правка вне матча
+  pairing_id uuid REFERENCES season_pairings(id) ON DELETE CASCADE,   -- NULL: правка вне матча
   player_id text NOT NULL,           -- id из блоба или из снимка матча (journeyman, star)
   counter text NOT NULL CHECK (counter IN ('touchdowns','casualties','knockouts','completions','catches',
         'interceptions','throws','landings','bonus','injury')),
@@ -203,6 +203,7 @@ CREATE INDEX match_events_team_idx ON match_events (saved_team_id, pairing_id, c
 CREATE INDEX match_events_open_idx ON match_events (saved_team_id) WHERE settled_at IS NULL;
 ```
 
+- **Удалённая пара** уносит свои записи (`CASCADE`, как `match_post_games` и `match_post_applications` в 007), поэтому `pairing_id NULL` всегда значит «правка вне матча»: иначе неучтённые записи удалённого матча стали бы ожидающими правками, их посчитала бы карьера и перенёс бы в блоб `finishPost`.
 - **Во время матча** (`match_preparations.state.status = 'in_progress'`, итоги не завершены) запись разрешена только к матчу этой команды и её стороне; иначе `MATCH_NOT_LIVE`. MVP по ходу матча не записывается: его выбирают в итогах.
 - **Карьера в интерфейсе** = `player.spp` из блоба + сумма неучтённых записей (`settled_at IS NULL`). Блоб во время матча не меняется, ревизия не растёт.
 - **Итоги.** `createPostSide` берёт `statistics` и `injuries` из записей матча вместо нулей (чистая функция `src/domain/post-match/events.mjs::statisticsFromEvents`). Шаг «Игроки» сохраняет статистику как сейчас, а сервер в той же транзакции дописывает в `match_events` разницу, чтобы записи и итоги совпадали. `finishPost` в той же транзакции, где `applyPostMatchRoster`, ставит `settled_at = now()` записям матча.
