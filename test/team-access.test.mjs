@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import pg from "pg";
 
 import { PLAYER_ID_SOURCE, UUID_SOURCE, isUuid, teamConflict, teamForUser } from "../server/api/team-access.mjs";
-import { SAVED_TEAM_COLUMNS } from "../server/api/team-queries.mjs";
+import { withTransaction } from "../server/db/transaction.mjs";
 import { API_ROUTES } from "../server/routes/index.mjs";
 import { callApi, seedCoach, seedTeam, withApiDatabase } from "./helpers/api-db.mjs";
 import { lockRow, scratchSkip } from "./helpers/scratch-db.mjs";
@@ -91,19 +91,25 @@ test("a user with no usable id is nobody's: the owner check is never dropped by 
   }
 });
 
-test("a conflict is the 409 PATCH answers: the code, and the team as it now stands beside it", db, () => withApiDatabase(async ({ client }) => {
+test("a conflict answers with the payload PATCH's 409 has: the same keys at every level, inActiveSeason too", db, () => withApiDatabase(async ({ client }) => {
   const owner = await seedCoach(client, "lion"), id = await seedTeam(client, owner.id, { stage: "draft" });
   const { body: { team } } = await callApi("GET", `/api/teams/${id}`, { token: owner.token });
   const patched = await callApi("PATCH", `/api/teams/${id}`, { token: owner.token,
     body: { name: team.name, baseTeamSlug: team.baseTeamSlug, roster: team.roster, revision: team.revision - 1 } });
   assert.equal(patched.status, 409);
 
-  const row = (await client.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [id])).rows[0];
-  const conflict = teamConflict(row);
-  assert.deepEqual([conflict.status, conflict.code], [409, "TEAM_SAVED_ELSEWHERE"]);
-  API_ROUTES.unshift(async () => { throw conflict; });
+  // What a route does with a stale revision: take the team, find it moved, refuse with it as it stands.
+  API_ROUTES.unshift(() => withTransaction(async (inside) => {
+    const row = await teamForUser(inside, id, as(owner), { lock: true });
+    throw await teamConflict(inside, row.id);
+  }));
   try {
     const answered = await callApi("GET", "/api/any-route");
+    const keys = (value) => Object.keys(value).sort();
+    assert.deepEqual(keys(answered.body), keys(patched.body));
+    assert.deepEqual(keys(answered.body.error), keys(patched.body.error));
+    assert.deepEqual(keys(answered.body.team), keys(patched.body.team));
+    assert.ok(keys(patched.body.team).includes("inActiveSeason"), "the shape being compared is the one that says whether the team is in a season");
     assert.deepEqual([answered.status, answered.body], [patched.status, patched.body]);
   } finally { API_ROUTES.shift(); }
 }));

@@ -13,6 +13,7 @@
  */
 import { httpError } from "../http/errors.mjs";
 import { publicSavedTeam } from "./serializers.mjs";
+import { SAVED_TEAM_COLUMNS } from "./team-queries.mjs";
 
 /** A UUID as regular-expression source, for building a route's path: `` `^/api/teams/(${UUID_SOURCE})/x$` `` with the `i` flag. */
 export const UUID_SOURCE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -59,16 +60,22 @@ export async function teamForUser(db, teamId, user, { lock = false, admin = fals
 }
 
 /**
- * The refusal for a save made from a copy of the team that is out of date: 409
- * TEAM_SAVED_ELSEWHERE with the team as it stands now beside it, so the client can show it
- * instead of guessing — the same answer `PATCH` gives. `handleApi` sends `error.team`.
+ * The refusal for a save made from a copy of the team that is out of date: 409 TEAM_SAVED_ELSEWHERE
+ * with the team as it stands now beside it, so the client can show it instead of guessing. It is the
+ * answer `PATCH` gives, and the team is read the way `PATCH` reads it for that answer
+ * (`SAVED_TEAM_COLUMNS`, `inActiveSeason` included), so the client handles one shape however a save
+ * was refused. `handleApi` sends `error.team`.
  *
- * @param {object} row the saved_teams row as it is now; `inActiveSeason` is in the answer only
- *   when the query that read the row asked for it
- * @returns {Error}
+ * Call it inside the transaction that holds the team, and throw what it returns:
+ * `throw await teamConflict(client, row.id)`.
+ *
+ * @param {{query: Function}} db the client of the transaction
+ * @param {string} teamId the id of a team `teamForUser` has returned
+ * @returns {Promise<Error>}
  */
-export function teamConflict(row) {
+export async function teamConflict(db, teamId) {
+  const { rows } = await db.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [teamId]);
   const error = httpError(409, "TEAM_SAVED_ELSEWHERE");
-  error.team = publicSavedTeam(row);
+  error.team = publicSavedTeam(rows[0]);
   return error;
 }
