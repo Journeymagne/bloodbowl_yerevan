@@ -89,7 +89,7 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .season-round-header { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
 .season-round-header h2 { margin: 0; }
 .game-page > .pre-game-panel { margin-bottom: 28px; }
-.game-versus > strong { font: 700 2rem/1 var(--body-font); color: var(--line-bright); }
+.game-versus > strong { font: 700 2rem/1 var(--body-font); color: var(--muted); }
 .game-versus h2 { overflow-wrap: anywhere; }
 .game-card { display: flex; flex-direction: column; gap: 15px; }
 .game-card > p { margin: 0; }
@@ -111,11 +111,11 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .site-quick-links a:last-child { border-right: 0; }
 .site-quick-links a:hover { background: var(--md-wash); }
 .site-quick-links a span { font: .8rem/1 var(--label-font); color: var(--muted); }
-.site-quick-links a span:last-child { margin-left: auto; color: var(--line-bright); }
+.site-quick-links a span:last-child { margin-left: auto; color: var(--muted); }
 .site-quick-links strong { font-size: .85rem; }
 .overview-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 310px), 1fr)); }
 .overview-index-card { min-height: 190px; display: flex; flex-direction: column; }
-.site-card-index { font: 700 1.9rem/1 var(--body-font); color: var(--line-bright); margin-bottom: 8px; }
+.site-card-index { font: 700 1.9rem/1 var(--body-font); color: var(--muted); margin-bottom: 8px; }
 .overview-index-card p { margin-bottom: 0; }
 @media (min-width: 901px) {
   .app-shell { grid-template-columns: 240px minmax(0, 1fr); }

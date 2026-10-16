@@ -316,7 +316,7 @@ body.matchday-modal-open { overflow: hidden; }
   .matchday-sidebar .builder-info-purchases .builder-tracker-list { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 20px; }
 }
 @media (min-width: 1200px) {
-  .matchday-edition { display: block; font: 700 5rem/1 var(--body-font); color: color-mix(in srgb, var(--md-accent) 25%, var(--panel-2)); }
+  .matchday-edition { display: block; font: 700 5rem/1 var(--body-font); color: var(--muted); }
 }
 @media (min-width: 1280px) {
   .matchday-sidebar { grid-template-columns: minmax(400px, 1fr) minmax(0, 2fr); gap: 24px; }
