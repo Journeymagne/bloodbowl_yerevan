@@ -6,11 +6,11 @@ import { SIDES } from "../../src/domain/match/rules.mjs";
 import { loadPreparationFixture, loadPreparationSources, loadPreparationState, savePreparationState, checkPreparationWrite } from "./preparation-store.mjs";
 import { applyPreMatchTreasury } from "./finance-store.mjs";
 
-async function startPreparedMatch(client, fixture, state, data) {
+async function startPreparedMatch(client, fixture, state, data, actorId) {
   const snapshots = createMatchSnapshots(state, data);
   for (const side of SIDES) {
     const snapshot = snapshots[side], team = state[side].team;
-    await applyPreMatchTreasury(client, fixture.id, side, snapshot);
+    await applyPreMatchTreasury(client, fixture.id, side, snapshot, actorId);
     await client.query(`INSERT INTO match_roster_snapshots (pairing_id,side,saved_team_id,snapshot) VALUES ($1,$2,$3,$4)`,
       [fixture.id, side, team.id, JSON.stringify(snapshot)]);
   }
@@ -35,7 +35,7 @@ export async function accessPreparation(pairingId, user, body = null, start = fa
     let state = await loadPreparationState(client, fixture, sources, data, !body);
     if (body && !(start && state.status === "in_progress")) {
       const side = checkPreparationWrite(fixture, state, body, user);
-      state = start ? await startPreparedMatch(client, fixture, state, data)
+      state = start ? await startPreparedMatch(client, fixture, state, data, user.id)
         : applyPreparationAction(state, side, body.action, data, user.id);
       await savePreparationState(client, fixture.id, state);
     }

@@ -86,7 +86,7 @@ ALTER TABLE saved_teams ADD COLUMN activated_at TIMESTAMPTZ;
 - Колонка добавляется с `DEFAULT 'active'`, затем в той же миграции `draft` получают команды, у которых нет ни неотозванной заявки в текущий сезон, ни сыгранного матча (лигового или товарищеского, с `result_status = 'confirmed'` или строкой в `match_post_applications`). `activated_at` у команд, ставших `active` миграцией, остаётся `NULL` («до 3.0»). Список «команда → стадия → почему» владелец проверяет на репетициях до переезда.
 - Новая команда создаётся в `draft`. В этой стадии работают правила билдера: бюджет 600k, позиции, только Start Re-rolls. Билдер перестаёт быть отдельной сущностью с черновиком в localStorage: это та же команда в стадии `draft`, сохранённая на сервере.
 - Переход `draft → active` делает админ в админской панели (`POST /api/teams/:id/activate`). Обратного перехода нет. До появления админской панели (этап 12) **новые** команды создаются сразу в `active`, как сейчас; `draft` до этого получают только существующие команды по правилу выше.
-- В домене: `src/domain/roster/stage.mjs` (чистый модуль) с `canBuy(stage, key)` и `stageViolations(before, after, stage)`. Сервер в `PATCH /api/teams/:id` отклоняет рост `startingRerolls` в `active` и рост `teamRerolls` в `draft` с кодом `STAGE_PURCHASE_LOCKED` (код нужно добавить в `API_ERRORS` и i18n). Создание команды (`POST /api/teams`) Start Re-rolls не ограничивает: их покупают при наборе.
+- В домене: `src/domain/roster/stage.mjs` (чистый модуль) с `canBuy(stage, key)` и `stageViolations(before, after, stage)`. Сервер в `PATCH /api/teams/:id` отклоняет рост `startingRerolls` в `active` и рост `teamRerolls` в `draft` с кодом `STAGE_PURCHASE_LOCKED` (код нужно добавить в `API_ERRORS` и i18n). Создание команды (`POST /api/teams`) Start Re-rolls не ограничивает: их покупают при наборе. Админский `PATCH /api/admin/teams/:id` проверку стадии пропускает: админ правит команду в любой стадии.
 
 ### 3.2 `010_team_ledger.sql` — журнал казны
 
@@ -94,8 +94,8 @@ ALTER TABLE saved_teams ADD COLUMN activated_at TIMESTAMPTZ;
 CREATE TABLE team_ledger (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   saved_team_id uuid NOT NULL REFERENCES saved_teams(id) ON DELETE CASCADE,
-  delta integer NOT NULL,            -- в тысячах, со знаком
-  balance_after integer NOT NULL,
+  delta numeric(12,3) NOT NULL,      -- в тысячах, со знаком, до золотого
+  balance_after numeric(12,3) NOT NULL,
   kind text NOT NULL CHECK (kind IN ('manual','hire','sale','cancel_purchase','staff','staff_refund',
         'match_spend','match_income','safe','mistake','admin')),
   reason text,                       -- для manual: friendly|sponsor|fine|purchase|other
@@ -107,11 +107,12 @@ CREATE TABLE team_ledger (
 CREATE INDEX team_ledger_team_idx ON team_ledger (saved_team_id, created_at DESC);
 ```
 
+- Деньги в коде дробные: продажа за полцены даёт 500 золотых (`src/domain/money.mjs`), поэтому суммы — `numeric(12,3)` в тысячах; `pg` отдаёт их строкой. Строки одной транзакции получают `created_at = clock_timestamp()`, чтобы сохранить порядок.
 - **Казна по-прежнему живёт в блобе** (`roster.treasury`): это источник истины, журнал — объяснение. Задним числом журнал не заполняется, экран пишет «История ведётся с <дата миграции>».
 - Строки пишет только сервер, в той же транзакции, что и изменение казны:
-  - `PATCH /api/teams/:id`: чистая функция `src/domain/roster/ledger.mjs::classifyTreasuryChange(before, after)` раскладывает разницу на найм, продажу, отмену покупки и персонал по диффу игроков и `purchasedStaff`. Остаток, который не объясняется, пишется как `manual` без причины (тренер поправил казну руками), а для админа — как `admin`;
+  - `PATCH /api/teams/:id`: чистая функция `src/domain/roster/ledger.mjs::classifyTreasuryChange(team, before, after, { admin })` раскладывает разницу на найм, продажу, отмену покупки и персонал по диффу игроков и `purchasedStaff`; `team` — справочник расы (цена продажи зависит от позиции и Architect of Fate), а при смене расы передаётся `null`; при `null` или если у игрока сохранённого состава нет `id` вся разница — одна строка остатка (продажи не выдумываются). Остаток, который не объясняется, пишется как `manual` без причины (тренер поправил казну руками), а в админском маршруте (`PATCH /api/admin/teams/:id`) — как `admin`; проверки стадии там нет;
   - `POST /api/teams/:id/treasury` — ручная операция «Зачислить / Списать» с обязательной причиной;
-  - старт матча (`finance-store.mjs`) — `match_spend`; завершение post-match — `match_income`, `safe`, `mistake`.
+  - старт матча (`finance-store.mjs`) — `match_spend` (если траты есть); завершение post-match — `match_income`, операции шага «Состав» (`hire`, `sale`, `staff`), `safe`, `mistake`, так что строки складываются в разницу казны; пустые строки не пишутся.
 - **Прямая правка казны остаётся у тренера** (решение §0.5: доверяем игрокам). Основной путь в интерфейсе — «Зачислить / Списать» с причиной, но поле можно поправить и напрямую. Правка тоже попадёт в историю.
 
 ### 3.3 `011_fallen_players.sql` и поле `absence` — пропуски и павшие
@@ -135,15 +136,16 @@ CREATE TABLE team_fallen_players (
   cause text,
   pairing_id uuid REFERENCES season_pairings(id) ON DELETE SET NULL,
   recorded_by uuid REFERENCES users(id) ON DELETE SET NULL,
-  died_at timestamptz NOT NULL DEFAULT now()
+  died_at timestamptz NOT NULL DEFAULT now(),
+  from_match boolean NOT NULL DEFAULT false   -- гибель из матча; колонку добавляет 015
 );
 ```
 
 - Post-match при травме `dead` пишет строку туда в той же транзакции, где применяет ростер.
 - Ручная отметка гибели (`POST /api/teams/:id/players/:playerId/death {cause}`) удаляет игрока из блоба и вставляет строку. Отмена (`DELETE /api/teams/:id/fallen/:fallenId`) возвращает игрока, если позволяет лимит состава. В интерфейсе отмена живёт в профиле погибшего игрока, с подтверждением.
-- Отменить можно только ручную отметку (`pairing_id IS NULL`). Гибель из итогов матча отменяет только админ: матч уже рассчитан (SPP, TV, казна). Сервер отвечает `FALLEN_FROM_MATCH`.
-- **`015_backfill_fallen_players.sql` — погибшие до 3.0.** Для каждой строки `match_post_applications` берутся игроки, у которых в `match_post_games.state` этой стороны травма `dead`, и в `team_fallen_players` пишутся снимок из `before_roster`, `pairing_id`, `died_at = created_at` строки и причина, если она есть. Повторный запуск ничего не дублирует (`NOT EXISTS` по команде, матчу и `player->>'id'`). Это гибель «из матча».
-- Погибших, удалённых из состава вручную без итогов, из БД восстановить нельзя. Админ дописывает их сам: `POST /api/admin/teams/:id/fallen {player: {name, position, number?}, cause, pairingId?, diedAt?}`.
+- `from_match` — гибель из матча (итоги или перенос 015); тренер не может её отменить (`FALLEN_FROM_MATCH`, этап 03). Ручная отметка — `from_match = false`; `pairing_id` может стать NULL, если админ удалит пару, — это не делает гибель ручной. Гибель из матча отменяет только админ: матч уже рассчитан (SPP, TV, казна).
+- **`015_backfill_fallen_players.sql` — погибшие до 3.0.** Для каждой строки `match_post_applications` берутся игроки, у которых в `match_post_games.state` этой стороны травма `dead`, `gamesPlayed` этой стороны в состоянии не меньше трёх (защита новичков, как в `effectiveInjury`: меньше трёх матчей — `dead` становится Badly Hurt, хотя в состоянии код остаётся `dead`; без целого `gamesPlayed` не переносится никто) и которых нет в `after_roster`, и в `team_fallen_players` пишутся снимок из `before_roster`, `pairing_id`, `died_at = created_at` строки, причина `NULL` (в состояниях 2.x её нет), `recorded_by` `NULL`, `from_match = true`. Повторный запуск ничего не дублирует (`NOT EXISTS` по команде, матчу и `player->>'id'`). Это гибель «из матча».
+- Погибших, удалённых из состава вручную без итогов, из БД восстановить нельзя. Админ дописывает их сам: `POST /api/admin/teams/:id/fallen {player: {name, position, number?}, cause, pairingId?, diedAt?}`; маршрут пишет `from_match = true`, если передан `pairingId`, и `false` без него.
 
 ### 3.4 `012_dice_rolls.sql` — броски на сайте
 
@@ -224,7 +226,7 @@ CREATE INDEX match_events_open_idx ON match_events (saved_team_id) WHERE settled
 | `DELETE /api/teams/:id/fallen/:fid` | U | вернуть игрока → `{team}` |
 | `POST /api/teams/:id/players/:pid/rolls` | U | `{purpose, category?}` → `{roll}` (повторный вызов на тот же шаг возвращает тот же бросок) |
 | `POST /api/teams/:id/activate` | A | ручной перевод `draft → active` |
-| `POST /api/admin/teams/:id/fallen` | A | `{player: {name, position, number?}, cause, pairingId?, diedAt?}` → `{fallen}`: погибший, удалённый из состава до 3.0 без итогов (§3.3) |
+| `POST /api/admin/teams/:id/fallen` | A | `{player: {name, position, number?}, cause, pairingId?, diedAt?}` → `{fallen}`: погибший, удалённый из состава до 3.0 без итогов (§3.3); `from_match = true`, если передан `pairingId`, иначе `false` |
 | `GET /api/teams/:id/events?pairing=` | U | записи матча (или неучтённые) для карьеры и итогов |
 | `POST /api/teams/:id/events` | U | `{pairingId?, playerId, counter, delta, injury?}` → `{event}`; вне идущего матча с `pairingId` → `MATCH_NOT_LIVE` |
 | `GET /api/teams/:id/players/:pid/history?season=` | U | карьера игрока по матчам: записи, сгруппированные по матчу, и восстановленные из `match_post_applications` |

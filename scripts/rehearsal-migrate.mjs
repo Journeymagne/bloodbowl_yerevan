@@ -6,7 +6,10 @@
  * at the rehearsal database so nobody has to assemble its URL by hand. The
  * time is what the cutover's maintenance window has to allow for; it goes to
  * output/rehearsal/migrate.json for `rehearsal:check -- --after` to put in the
- * report. Refuses a database the restore has not marked as anonymized
+ * report. A second run adds to that file instead of replacing it (it usually
+ * applies nothing, and the first run's time is the one that matters; see
+ * scripts/rehearsal/migrate-record.mjs); `rehearsal:check -- --before` starts it
+ * over. Refuses a database the restore has not marked as anonymized
  * (scripts/rehearsal/marker.mjs).
  */
 import { promises as fs } from "node:fs";
@@ -18,12 +21,33 @@ import { loadEnvFile } from "../server/config/env-file.mjs";
 import { applyMigrations } from "../server/db/migrate.mjs";
 import { rehearsalDatabaseUrl } from "./rehearsal/guard.mjs";
 import { assertAnonymized } from "./rehearsal/marker.mjs";
+import { mergeMigrateRecord } from "./rehearsal/migrate-record.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(rootDir, "output", "rehearsal");
 await loadEnvFile(rootDir);
 
+const recordFile = path.join(outDir, "migrate.json");
+
+// null when there is no record yet; one that is there but not JSON is an error of its own.
+async function readRecord() {
+  let text;
+  try {
+    text = await fs.readFile(recordFile, "utf8");
+  } catch (error) {
+    if (error.code === "ENOENT") return null;
+    throw error;
+  }
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new Error("output/rehearsal/migrate.json is not valid JSON — run npm run rehearsal:check -- --before to start over");
+  }
+}
+
 async function main() {
+  // Read first: a record that is not JSON stops the run before anything is applied, not after.
+  const previous = await readRecord();
   const pool = new pg.Pool({ connectionString: rehearsalDatabaseUrl(process.env.DATABASE_URL) });
   try {
     await assertAnonymized(pool);
@@ -31,8 +55,10 @@ async function main() {
     const applied = await applyMigrations(pool);
     const ms = Math.round(performance.now() - started);
     await fs.mkdir(outDir, { recursive: true });
-    await fs.writeFile(path.join(outDir, "migrate.json"), `${JSON.stringify({ at: new Date().toISOString(), applied, ms }, null, 2)}\n`);
-    console.log(`rehearsal:migrate: applied ${applied.length} migration(s) in ${ms} ms${applied.length ? `: ${applied.join(", ")}` : ""}`);
+    const record = mergeMigrateRecord(previous, { at: new Date().toISOString(), applied, ms });
+    await fs.writeFile(recordFile, `${JSON.stringify(record, null, 2)}\n`);
+    const total = record.runs.length > 1 ? `; record: ${record.applied.length} applied in ${record.ms} ms over ${record.runs.length} runs` : "";
+    console.log(`rehearsal:migrate: applied ${applied.length} migration(s) in ${ms} ms${applied.length ? `: ${applied.join(", ")}` : ""}${total}`);
   } finally {
     await pool.end();
   }

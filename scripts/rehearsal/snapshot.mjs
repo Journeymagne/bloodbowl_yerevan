@@ -14,7 +14,10 @@
  * compared by name. The stored stage must match the rule: active if a team is
  * entered or has a played match, draft otherwise. What a migration should have
  * produced (stages, fallen players, empty preferences) and what is still open (a
- * match half-way through) go in the report for a person to read.
+ * match half-way through) go in the report for a person to read. Two things a
+ * migration was not asked to do are problems all the same: a new journal, dice or
+ * match-events table that starts with rows, and fallen players 015 carried over
+ * that are not the ones its rule finds.
  */
 const LIST = (rows) => rows.map((row) => ({ id: row.id, matchKind: row.match_kind }));
 
@@ -23,6 +26,12 @@ const LIST = (rows) => rows.map((row) => ({ id: row.id, matchKind: row.match_kin
 // is hashed column by column.
 const MIGRATION_LOG = "schema_migrations";
 const SESSIONS = "sessions";
+
+// Tables the 3.0 migrations create and nothing backfills (rollout spec §5.1): a row
+// in one of them right after migrating means a migration counted something up
+// after the fact, which nobody asked it to.
+const START_EMPTY = ["team_ledger", "dice_rolls", "match_events"];
+const FALLEN_BACKFILL = "015_backfill_fallen_players.sql";
 
 const quote = (name) => `"${name.replace(/"/g, '""')}"`;
 
@@ -139,6 +148,45 @@ async function stages(client) {
   return rows.map((row) => ({ id: row.id, name: row.name, stage: row.stage, entered: row.entered, playedMatch: row.played_match }));
 }
 
+// Deaths 015 carried over: from_match is 015's own column, so a database it has not run on has none.
+// recorded_by is NULL only for what a match recorded without a person (the 3.0 finish writes the coach).
+async function carriedFallen(client) {
+  if (!(await columnExists(client, "team_fallen_players", "from_match"))) return {};
+  const { rows } = await client.query(
+    "SELECT saved_team_id, count(*)::int AS n FROM team_fallen_players WHERE from_match AND recorded_by IS NULL GROUP BY 1",
+  );
+  return Object.fromEntries(rows.map((row) => [row.saved_team_id, row.n]));
+}
+
+// The rule of 015_backfill_fallen_players.sql; change both together.
+// It is 015's WHERE without the NOT EXISTS against team_fallen_players, so what it
+// counts is what 015 finds on a database whose fallen table has no rows yet.
+async function expectedFallen(client) {
+  const { rows } = await client.query(`
+    SELECT a.saved_team_id, count(*)::int AS n
+      FROM match_post_applications a
+      JOIN match_post_games g ON g.pairing_id = a.pairing_id
+     CROSS JOIN LATERAL jsonb_array_elements(CASE WHEN jsonb_typeof(a.before_roster->'players') = 'array'
+                                                  THEN a.before_roster->'players' ELSE '[]'::jsonb END) AS p(player)
+     WHERE g.state->a.side->'injuries'->(p.player->>'id')->>'code' = 'dead'
+       AND CASE WHEN (g.state->a.side->>'gamesPlayed') ~ '^[0-9]{1,18}$'
+                THEN (g.state->a.side->>'gamesPlayed')::numeric >= 3 ELSE false END
+       AND NOT EXISTS (
+             SELECT 1 FROM jsonb_array_elements(CASE WHEN jsonb_typeof(a.after_roster->'players') = 'array'
+                                                     THEN a.after_roster->'players' ELSE '[]'::jsonb END) AS q(player)
+              WHERE q.player->>'id' = p.player->>'id')
+     GROUP BY a.saved_team_id`);
+  return Object.fromEntries(rows.map((row) => [row.saved_team_id, row.n]));
+}
+
+// { team id: { carried, expected } } for the teams where either is not zero.
+async function fallenCheck(client) {
+  const carried = await carriedFallen(client);
+  const expected = await expectedFallen(client);
+  const ids = [...new Set([...Object.keys(carried), ...Object.keys(expected)])].sort();
+  return Object.fromEntries(ids.map((id) => [id, { carried: carried[id] ?? 0, expected: expected[id] ?? 0 }]));
+}
+
 async function collect(client) {
   const tables = await baseTables(client);
   const teams = {};
@@ -162,6 +210,7 @@ async function collect(client) {
       ? (await client.query("SELECT count(*)::int AS n FROM users WHERE preferences <> '{}'::jsonb")).rows[0].n
       : null,
     fallen,
+    fallenCheck: fallenExists ? await fallenCheck(client) : null,
   };
 }
 
@@ -200,6 +249,23 @@ function compareTeams(before, after, problems) {
   }
 }
 
+// A table that is new starts empty; one that existed before is compared like any other (compareTables).
+function compareStartEmpty(before, after, problems) {
+  for (const name of START_EMPTY) {
+    if (name in before.tables || !(name in after.tables) || after.tables[name] === 0) continue;
+    problems.push(`new table ${name} has ${after.tables[name]} rows; it must start empty`);
+  }
+}
+
+// Only when 015 ran between the snapshots: before it nothing has been carried over, and if it was
+// already in "before", what it carried over then is not what this run changed.
+function compareFallen(before, after, problems) {
+  if (!after.fallenCheck || !addedMigrations(before, after).includes(FALLEN_BACKFILL)) return;
+  for (const [id, { carried, expected }] of Object.entries(after.fallenCheck)) {
+    if (carried !== expected) problems.push(`team ${after.teams[id]?.name ?? id}: ${carried} fallen carried over, the rule expects ${expected}`);
+  }
+}
+
 // Migrations only add (spec 3.0 §0.13): whatever a column held before, it holds now.
 function compareColumns(before, after, problems, notes) {
   if (!before.columns || !after.columns) {
@@ -224,6 +290,7 @@ export function compareSnapshots(before, after) {
   const notes = [];
   compareTables(before, after, problems, notes);
   compareColumns(before, after, problems, notes);
+  compareStartEmpty(before, after, problems);
   compareTeams(before, after, problems);
   if (before.season.pairings !== after.season.pairings) problems.push("season_pairings results changed");
   if (before.season.entries !== after.season.entries) problems.push("season_entries changed");
@@ -240,6 +307,7 @@ export function compareSnapshots(before, after) {
     if (row.stage !== expected) problems.push(`team ${row.name}: stage ${row.stage}, expected ${expected} (${reason(row)})`);
   }
   if (after.preferencesSet) problems.push(`${after.preferencesSet} users already have preferences set`);
+  compareFallen(before, after, problems);
   return { problems, notes };
 }
 
@@ -257,17 +325,24 @@ export function verdict(before, after, { problems }) {
   return { strong: "OK", rest: " — no existing data changed" };
 }
 
+/** The exit code of rehearsal:check --after: 1 for problems, 2 when nothing was migrated and so nothing tested, 0 for a real OK. */
+export function exitCodeFor(before, after, { problems }) {
+  if (problems.length) return 1;
+  return addedMigrations(before, after).length ? 0 : 2;
+}
+
 function migrationsLine(migrate) {
   if (!migrate) return "Migrations: not run through rehearsal:migrate";
   const names = migrate.applied.length ? ` (${migrate.applied.join(", ")})` : "";
-  return `Migrations: ${migrate.applied.length} applied in ${migrate.ms} ms${names}`;
+  const runs = migrate.runs?.length > 1 ? ` over ${migrate.runs.length} runs` : "";
+  return `Migrations: ${migrate.applied.length} applied in ${migrate.ms} ms${runs}${names}`;
 }
 
 function reason(row) {
   return [row.entered && "entered in the current season", row.playedMatch && "has a played match"].filter(Boolean).join(", ") || "no entry, no match";
 }
 
-/** @param migrate what rehearsal:migrate recorded ({ applied, ms }), or null when it did not run */
+/** @param migrate what rehearsal:migrate recorded ({ applied, ms, runs }, see migrate-record.mjs), or null when it did not run */
 export function renderReport(before, after, comparison, migrate = null) {
   const { problems, notes } = comparison;
   const { strong, rest } = verdict(before, after, comparison);

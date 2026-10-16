@@ -103,9 +103,12 @@ Checks:
 ```bash
 npm run check      # unreachable functions + file/function size budgets
 npm test           # unit tests (node:test, no dependencies)
+GATA_TEST_DATABASE_URL=postgres://gata_admin:…@localhost:5437/gata_league npm test   # + database tests
 npm run i18n:check # EN/RU page parity
 npm run smoke      # API + static exposure, needs a running server
 ```
+
+The database tests (migrations, and SQL a fake client cannot check) run only when GATA_TEST_DATABASE_URL names a local Postgres. Each one creates its own gata_test_* database from template0 and drops it afterwards; the database in the URL is never opened. Without the variable they are skipped.
 
 Two optional checks drive a real browser. They need Playwright, which is
 intentionally not a dependency of this project:
@@ -254,6 +257,15 @@ between the two snapshots: with none, it says "OK, but no migrations were
 applied" and nothing was tested. `output/rehearsal/report.md` also says how long
 the migrations took, which stage each team got and why, which fallen players
 were carried over, and which matches are still half-way through.
+
+It exits 0 for an OK, 1 when existing data changed, and 2 when no migration was
+applied between the snapshots — nothing was tested. It also requires the new
+tables team_ledger, dice_rolls and match_events to be empty after migrating, and
+the number of fallen players 015 carried over, per team, to equal the number
+its rule finds (the check compares counts, not the players themselves). It does
+this only when 015 was applied between the two snapshots.
+Running rehearsal:migrate again adds a run to output/rehearsal/migrate.json
+instead of overwriting it, so the report keeps the time the real run took.
 
 Do not start the server between `--before` and `--after`: booting it writes to
 `users` (below), and the comparison would call that a change. Afterwards, to

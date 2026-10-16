@@ -8,8 +8,9 @@
  *
  * Always reads gata_rehearsal (scripts/rehearsal/guard.mjs), never the database
  * DATABASE_URL names, and only once the restore has marked it as anonymized
- * (scripts/rehearsal/marker.mjs). Exits 1 when existing data changed. An OK needs
- * a migration to have been applied between the two snapshots: with none, nothing
+ * (scripts/rehearsal/marker.mjs). Exits 1 when existing data changed, 2 when no
+ * migration was applied between the snapshots (nothing was tested). An OK needs a
+ * migration to have been applied between the two snapshots: with none, nothing
  * was tested, and it says so.
  */
 import { promises as fs } from "node:fs";
@@ -20,7 +21,7 @@ import pg from "pg";
 import { loadEnvFile } from "../server/config/env-file.mjs";
 import { rehearsalDatabaseUrl } from "./rehearsal/guard.mjs";
 import { assertAnonymized } from "./rehearsal/marker.mjs";
-import { compareSnapshots, renderReport, takeSnapshot, verdict } from "./rehearsal/snapshot.mjs";
+import { compareSnapshots, exitCodeFor, renderReport, takeSnapshot, verdict } from "./rehearsal/snapshot.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(rootDir, "output", "rehearsal");
@@ -79,7 +80,7 @@ async function main() {
   const { strong, rest } = verdict(before, snapshot, comparison);
   const report = "output/rehearsal/report.md";
   console.log(`rehearsal:check: ${strong}${rest}${comparison.problems.length ? ` — see ${report}` : ` (${report})`}`);
-  if (comparison.problems.length) process.exitCode = 1;
+  process.exitCode = exitCodeFor(before, snapshot, comparison);
 }
 
 main().catch((error) => {

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { addedMigrations, columnHashSql, compareSnapshots, renderReport, takeSnapshot, verdict } from "../scripts/rehearsal/snapshot.mjs";
+import { addedMigrations, columnHashSql, compareSnapshots, exitCodeFor, renderReport, takeSnapshot, verdict } from "../scripts/rehearsal/snapshot.mjs";
 
 // One hash per column; the real ones are md5s of the whole column (see columnHashSql).
 function columns(overrides = {}) {
@@ -24,6 +24,7 @@ function snapshot(overrides = {}) {
     stages: null,
     preferencesSet: null,
     fallen: null,
+    fallenCheck: null,
     ...overrides,
   };
 }
@@ -227,6 +228,7 @@ test("the snapshot is one read-only repeatable-read transaction, with a hash for
   assert.equal(client.statements.at(-1), "COMMIT");
   assert.deepEqual(taken.columns, { users: { id: 'hash of "id"', login: 'hash of "login"' } });
   assert.deepEqual(Object.keys(taken.tables), ["schema_migrations", "sessions", "users"]);
+  assert.equal(taken.fallenCheck, null); // no team_fallen_players yet, so nothing to check
 });
 
 test("a failure inside the snapshot rolls the transaction back and is reported", async () => {
@@ -237,11 +239,11 @@ test("a failure inside the snapshot rolls the transaction back and is reported",
 });
 
 function migrated(overrides = {}) {
-  return snapshot({ migrations: [...snapshot().migrations, "009_team_stage.sql", "010_fallen_players.sql"], ...overrides });
+  return snapshot({ migrations: [...snapshot().migrations, "009_team_stage.sql", "010_team_ledger.sql", "011_fallen_players.sql"], ...overrides });
 }
 
 test("the migrations added between the snapshots are the names only the second one has", () => {
-  assert.deepEqual(addedMigrations(snapshot(), migrated()), ["009_team_stage.sql", "010_fallen_players.sql"]);
+  assert.deepEqual(addedMigrations(snapshot(), migrated()), ["009_team_stage.sql", "010_team_ledger.sql", "011_fallen_players.sql"]);
   assert.deepEqual(addedMigrations(snapshot(), snapshot()), []);
 });
 
@@ -272,4 +274,40 @@ test("the report says how long the migrations took, or that they did not go thro
   assert.match(renderReport(snapshot(), after, comparison, { ...log, applied: [] }), /^Migrations: 0 applied in 1234 ms$/m);
   assert.match(renderReport(snapshot(), after, comparison, null), /^Migrations: not run through rehearsal:migrate$/m);
   assert.match(renderReport(snapshot(), after, comparison), /^Migrations: not run through rehearsal:migrate$/m);
+});
+
+test("a new journal, dice or match-events table must start empty; one that existed before is compared as usual", () => {
+  const after = migrated({ tables: { ...snapshot().tables, team_ledger: 3, dice_rolls: 0 } });
+  const { problems } = compareSnapshots(snapshot(), after);
+  assert.ok(problems.includes("new table team_ledger has 3 rows; it must start empty"));
+  assert.ok(!problems.some((problem) => problem.includes("dice_rolls")));
+  const before = snapshot({ tables: { ...snapshot().tables, team_ledger: 2 } });
+  assert.deepEqual(compareSnapshots(before, migrated({ tables: { ...before.tables } })).problems, []);
+});
+
+test("once 015 has run, the fallen it carried over must be what the rule finds", () => {
+  const after = migrated({ migrations: [...migrated().migrations, "015_backfill_fallen_players.sql"],
+    fallenCheck: { t1: { carried: 1, expected: 2 }, t2: { carried: 1, expected: 1 } } });
+  assert.deepEqual(compareSnapshots(snapshot(), after).problems, ["team Ashgrove Wardens: 1 fallen carried over, the rule expects 2"]);
+  // 011 applied, 015 not yet: nothing has been carried over, so there is nothing to compare.
+  assert.deepEqual(compareSnapshots(snapshot(), migrated({ fallenCheck: { t1: { carried: 0, expected: 2 } } })).problems, []);
+  // 015 was already in "before": it did not run between these snapshots, so what it carried over is not what is under test.
+  const ran = migrated({ migrations: [...migrated().migrations, "015_backfill_fallen_players.sql"] });
+  const later = { ...ran, migrations: [...ran.migrations, "016_later.sql"], fallenCheck: { t1: { carried: 1, expected: 2 } } };
+  assert.deepEqual(compareSnapshots(ran, later).problems, []);
+});
+
+test("exit codes: 1 with problems, 2 with nothing migrated, 0 for a real OK", () => {
+  assert.equal(exitCodeFor(snapshot(), migrated(), compareSnapshots(snapshot(), migrated())), 0);
+  assert.equal(exitCodeFor(snapshot(), snapshot(), compareSnapshots(snapshot(), snapshot())), 2);
+  const broken = snapshot({ tables: { ...snapshot().tables, users: 11 } });
+  assert.equal(exitCodeFor(snapshot(), broken, compareSnapshots(snapshot(), broken)), 1);
+});
+
+test("the report says when the time adds up several migrate runs", () => {
+  const after = migrated();
+  const run = { at: "2026-11-01T10:05:00.000Z", applied: ["009_team_stage.sql", "010_team_ledger.sql"], ms: 900 };
+  const record = { ...run, runs: [run, { at: "2026-11-01T10:06:00.000Z", applied: [], ms: 5 }] };
+  assert.match(renderReport(snapshot(), after, compareSnapshots(snapshot(), after), record),
+    /^Migrations: 2 applied in 900 ms over 2 runs \(009_team_stage\.sql, 010_team_ledger\.sql\)$/m);
 });

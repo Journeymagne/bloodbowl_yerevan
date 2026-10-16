@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPostMatch, applyPostAction, validatePostSide } from '../src/domain/post-match/state.mjs';
 import { postIncome, postWinnings, mistakeKind, postFinance, nextDedicatedFans } from '../src/domain/post-match/finance.mjs';
-import { projectPostRoster } from '../src/domain/post-match/roster.mjs';
+import { projectPostRoster, fallenPlayers } from '../src/domain/post-match/roster.mjs';
+import { postMatchLedgerEntries, ledgerRows } from '../src/domain/roster/ledger.mjs';
 import { createMatchSide, calculateMatchCtv } from '../src/domain/match/roster.mjs';
 import { earnedSpp, normalizeMatchStats } from '../src/domain/post-match/statistics.mjs';
 import { playerAvailableSpp } from '../src/domain/roster/progression.mjs';
@@ -374,4 +375,60 @@ test('completed settlement remains historical and cannot be mutated through a pr
   assert.deepEqual(projectPostRoster(f.state, 'home', f.data), settled);
   projectPostRoster(f.state, 'home', f.data).roster.treasury = 999;
   assert.equal(projectPostRoster(f.state, 'home', f.data).roster.treasury, 200);
+});
+
+test('the ledger lines of a post-match add up to its treasury change', () => {
+  const f = agreed(fixture()); f.state.home.reference.team.roster[0].price = '15K';
+  f.state.home.baseRoster.players.push({ ...structuredClone(f.state.home.baseRoster.players[0]), id: 'extra', number: '8' });
+  f.state.home.operations = [{ type: 'sell', playerId: 'extra' }, { type: 'hire', rowIndex: 0, id: 'hired' },
+    { type: 'staff', key: 'assistantCoaches', delta: 1 }];
+  f.state.home.deposit = 20; f.state.home.mistake = { roll: 6 };
+  const { accounting } = projectPostRoster(f.state, 'home', f.data, true);
+  const entries = postMatchLedgerEntries(accounting);
+  assert.deepEqual(entries.map(entry => entry.kind), ['match_income', 'sale', 'hire', 'staff', 'safe']);
+  assert.equal(ledgerRows(accounting.opening, entries).at(-1).balanceAfter, accounting.closing);
+});
+
+test('an expensive mistake is its own ledger line', () => {
+  const f = agreed(fixture()); f.state.home.baseRoster.treasury = 650;
+  f.state.home.operations = [{ type: 'staff', key: 'assistantCoaches', delta: 1 }];
+  f.state.home.deposit = 20; f.state.home.mistake = { roll: 1, first: 2, second: 3 };
+  const { accounting } = projectPostRoster(f.state, 'home', f.data, true);
+  const entries = postMatchLedgerEntries(accounting);
+  assert.deepEqual(entries.map(entry => entry.kind), ['match_income', 'staff', 'safe', 'mistake']);
+  assert.equal(ledgerRows(accounting.opening, entries).at(-1).balanceAfter, 50);
+});
+
+test('post-match explains every new absence with its injury and the match; a player back from one has none', () => {
+  const f = agreed(fixture());
+  f.state.home.injuries['home-0'] = { code: 'miss' };
+  f.state.home.injuries['home-1'] = { code: 'niggling' };
+  f.state.home.injuries['home-2'] = { code: 'lasting', stat: 'ag' };
+  Object.assign(f.state.home.baseRoster.players[3], { skipNextGame: true, absence: { code: 'miss', pairingId: 'earlier' } });
+  const players = projectPostRoster(f.state, 'home', f.data).roster.players;
+  assert.deepEqual(players.slice(0, 4).map(player => player.absence), [{ code: 'miss', pairingId: 'game' },
+    { code: 'niggling', pairingId: 'game' }, { code: 'lasting', stat: 'ag', pairingId: 'game' }, null]);
+  assert.equal(players[3].skipNextGame, false);
+});
+
+test('rookie protection leaves no absence; a temporarily retired player keeps the earlier one', () => {
+  const f = agreed(fixture()); f.state.home.gamesPlayed = 2;
+  f.state.home.injuries['home-0'] = { code: 'miss' };
+  Object.assign(f.state.home.baseRoster.players[1], { temporarilyRetired: true, skipNextGame: true,
+    absence: { code: 'lasting', stat: 'st', pairingId: 'earlier' } });
+  const players = projectPostRoster(f.state, 'home', f.data).roster.players;
+  assert.equal(players[0].absence, null); assert.equal(players[0].skipNextGame, false);
+  assert.deepEqual(players[1].absence, { code: 'lasting', stat: 'st', pairingId: 'earlier' });
+});
+
+test('the fallen are roster players whose injury stands as dead, as the roster held them before the match', () => {
+  const f = agreed(fixture());
+  f.state.home.injuries['home-0'] = { code: 'dead' };
+  f.state.home.injuries['home-1'] = { code: 'lasting', stat: 'ma' };
+  f.state.home.snapshot.players.push({ id: 'journeyman-8', rowIndex: 0, row: f.row, name: 'Temp', number: '8', kind: 'journeyman' });
+  f.state.home.injuries['journeyman-8'] = { code: 'dead' };
+  assert.deepEqual(fallenPlayers(f.state.home), [f.state.home.baseRoster.players[0]]);
+  assert.notEqual(fallenPlayers(f.state.home)[0], f.state.home.baseRoster.players[0]);
+  f.state.home.gamesPlayed = 2;
+  assert.deepEqual(fallenPlayers(f.state.home), []);
 });

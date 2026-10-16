@@ -20,7 +20,7 @@
  * make an empty one, normalise a stored one, produce a payload — are one loop
  * apiece instead of three parallel lists.
  */
-import { countToNumber, makeRosterPlayerId } from "./values.mjs";
+import { PLAYER_STATS, countToNumber, makeRosterPlayerId } from "./values.mjs";
 import { isMoneyAmount } from "../money.mjs";
 
 /**
@@ -152,10 +152,43 @@ export function draftPayload(draft = {}) {
 }
 
 /**
+ * Why a player misses the next match: the post-match injury codes that bench
+ * one, plus `other` for a coach's own mark.
+ */
+export const ABSENCE_CODES = Object.freeze(["miss", "niggling", "lasting", "other"]);
+
+const ABSENCE_NOTE_MAX = 500;
+
+/**
+ * A stored absence read into `{ code, stat?, note?, pairingId? }`, or `null`.
+ *
+ * `skipNextGame` stays the source of truth for team value and for who may be
+ * fielded (design spec section 3.3); the absence only explains it. So a player
+ * who is not sitting out has none, whatever the blob still carries, and an
+ * unknown code or a value that is not an object reads as none too.
+ *
+ * @param {unknown} value what the roster blob holds
+ * @param {boolean} [skipping] whether the player is sitting out the next match
+ */
+export function normalizeAbsence(value, skipping = true) {
+  if (!skipping || !value || typeof value !== "object" || !ABSENCE_CODES.includes(value.code)) return null;
+  const absence = { code: value.code };
+  if (PLAYER_STATS.includes(value.stat)) absence.stat = value.stat;
+  // Cut by characters, not UTF-16 units: a cut through an emoji leaves a lone surrogate, which Postgres jsonb refuses.
+  const note = typeof value.note === "string" ? Array.from(value.note.trim()).slice(0, ABSENCE_NOTE_MAX).join("").trim() : "";
+  if (note) absence.note = note;
+  if (typeof value.pairingId === "string" && value.pairingId) absence.pairingId = value.pairingId;
+  return absence;
+}
+
+/**
  * The fields a roster player carries, and what an untouched one holds.
  *
  * The fifth description of the shape, and the one the other four never
  * mentioned: `makeRosterPlayer` declared it alone in players.mjs.
+ *
+ * `absence` is additive: no stored roster has it, and one that lacks it reads
+ * as `null`, so nothing is migrated.
  */
 export const PLAYER_FIELDS = Object.freeze({
   statMods: () => ({}),
@@ -170,6 +203,7 @@ export const PLAYER_FIELDS = Object.freeze({
   extendedContracts: () => 0,
   spp: () => ({}),
   advancements: () => [],
+  absence: () => null,
 });
 
 /**
