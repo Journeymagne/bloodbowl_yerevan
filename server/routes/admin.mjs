@@ -8,7 +8,8 @@
  * The team endpoints here go through the same readTeamBody and writeSavedTeam
  * as a coach's own — the league's rules and the revision check apply to an
  * admin too. A roster that breaks the rules is just as wrong when an admin
- * sends it.
+ * sends it. The stage rule for re-rolls is the one thing that does not: an
+ * admin may put a team right in either stage.
  */
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
@@ -282,6 +283,7 @@ async function handleAdminTeamRoutes(request, response, url) {
     const written = await writeSavedTeam({
       teamId: adminTeamMatch[1], ownerId: null,
       name, baseTeamSlug, logoData, roster, revision: body.revision,
+      actor: { id: user.id, admin: true },
     });
     if (!written) return sendError(response, 404, "TEAM_NOT_FOUND");
     if (written.conflict) {

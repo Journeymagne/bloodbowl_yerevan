@@ -11,7 +11,8 @@ import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
-import { blockingViolations, checkRoster } from "../domain/roster.mjs";
+import { blockingViolations, checkRoster, normalizeDraft } from "../domain/roster.mjs";
+import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames } from "../api/team-queries.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
@@ -72,6 +73,7 @@ export async function handleTeamRoutes(request, response, url) {
     const written = await writeSavedTeam({
       teamId: teamMatch[1], ownerId: user.id,
       name, baseTeamSlug, logoData, roster, revision: body.revision,
+      actor: { id: user.id, admin: false },
     });
     if (!written) return sendError(response, 404, "TEAM_NOT_FOUND");
     if (written.conflict) {
@@ -114,35 +116,64 @@ export async function handleTeamRoutes(request, response, url) {
  * and refusing them would break flows this step is not about. Every path a
  * coach edits through autosaves, and autosave sends it.
  *
+ * It is one transaction: the row is locked for the length of the write, and the
+ * revision is compared against the locked row, so nothing can move it between
+ * the check and the UPDATE. The stage rule is checked on the same row, after
+ * the revision (a stale tab hears "saved elsewhere" before anything else), and
+ * only for a coach — `actor.admin` is the admin route, which is not held to it.
+ *
  * @param {string|null} ownerId restricts the write to one owner; null for admin
+ * @param {{id?: string, admin?: boolean}} [actor] who is writing
  * @returns {Promise<{team: object}|{conflict: object}|null>} null when no such team
+ * @throws {Error} a 422 STAGE_PURCHASE_LOCKED when a coach buys what the stage forbids
  */
-export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision }) {
+export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision, actor = {} }) {
   const expected = Number.isInteger(revision) ? revision : null;
   const owner = ownerId ?? null;
-  const result = await pool.query(
-    `UPDATE saved_teams
-        SET name = $3,
-            base_team_slug = $4,
-            logo_data = $5,
-            roster = $6,
-            revision = revision + 1,
-            updated_at = now()
-      WHERE id = $1
-        AND ($2::uuid IS NULL OR user_id = $2::uuid)
-        AND ($7::int IS NULL OR revision = $7::int)
-      RETURNING *`,
-    [teamId, owner, name, baseTeamSlug, logoData, serializeRosterForStorage(roster), expected],
-  );
-  if (result.rows[0]) return { team: publicSavedTeam(result.rows[0]) };
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const locked = (await client.query(
+      `SELECT roster, stage, revision, base_team_slug FROM saved_teams
+        WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid) FOR UPDATE`,
+      [teamId, owner],
+    )).rows[0];
+    if (!locked) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    if (expected !== null && locked.revision !== expected) {
+      const current = await client.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [teamId]);
+      await client.query("ROLLBACK");
+      return { conflict: publicSavedTeam(current.rows[0]) };
+    }
+    if (!actor.admin) refuseLockedPurchases(normalizeDraft(locked.roster), roster, locked.stage);
+    const result = await client.query(
+      `UPDATE saved_teams
+          SET name = $2,
+              base_team_slug = $3,
+              logo_data = $4,
+              roster = $5,
+              revision = revision + 1,
+              updated_at = now()
+        WHERE id = $1
+        RETURNING *`,
+      [teamId, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
+    );
+    await client.query("COMMIT");
+    return { team: publicSavedTeam(result.rows[0]) };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
 
-  // No row: either the team is not there, or the revision moved under us.
-  const current = await pool.query(
-    `SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid)`,
-    [teamId, owner],
-  );
-  if (!current.rows[0]) return null;
-  return { conflict: publicSavedTeam(current.rows[0]) };
+/** The first re-roll the stage does not allow, as the refusal the client translates. */
+function refuseLockedPurchases(before, after, stage) {
+  const [violation] = stageViolations(before, after, stage);
+  if (violation) throw httpError(422, "STAGE_PURCHASE_LOCKED", violation.params);
 }
 
 /**

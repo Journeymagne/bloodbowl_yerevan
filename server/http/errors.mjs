@@ -109,6 +109,7 @@ export const API_ERRORS = Object.freeze({
   SELF_ADMIN_DEMOTE: "You cannot remove admin access from your own account.",
   SELF_PASSWORD_RESET: "Use your account settings to change your own password.",
   SERVER_ERROR: "Server error.",
+  STAGE_PURCHASE_LOCKED: "Starting rerolls can only be bought while the team is being assembled, and Team Rerolls only once it plays in the season.",
   TEAM_IN_SEASON_CANNOT_BE_DELETED:
     "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
   TEAM_SAVED_ELSEWHERE: "This team was saved somewhere else after you opened it.",
