@@ -51,6 +51,12 @@ export function publicSavedTeam(row) {
     logoData: row.logo_data,
     roster: rosterWithoutEmbeddedLogo(row.roster),
     revision: row.revision,
+    // Where the team is in its life (migration 009), and when an admin moved it
+    // to `active` — null for a team that was already playing before there were
+    // stages. Like inActiveSeason below, undefined on a query that does not
+    // select them, never a guess.
+    stage: row.stage,
+    activatedAt: row.activated_at,
     // Only present on the queries that ask for it; undefined elsewhere rather
     // than a confident false, so a screen cannot read "not in a season" out of
     // a query that never looked.

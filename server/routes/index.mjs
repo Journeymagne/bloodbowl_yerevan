@@ -53,6 +53,8 @@ export async function handleApi(request, response, url) {
       ? errorPayload("SERVER_ERROR")
       : errorPayload(error.code ?? "SERVER_ERROR", error.params ?? {}, error.message);
     if (Array.isArray(error.violations)) payload.violations = error.violations;
+    // A refusal that says how things stand now (teamConflict): the team travels beside the error.
+    if (error.team) payload.team = error.team;
     return sendJson(response, status, payload);
   }
 }

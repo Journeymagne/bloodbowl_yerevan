@@ -16,6 +16,7 @@ import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames } from "../api/team-queries.mjs";
 import { writeLedgerEntries } from "../api/team-ledger.mjs";
+import { handleTeamResourceRoutes } from "./team-resources.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -32,6 +33,7 @@ function sendError(response, status, code, params) {
  * @returns {Promise<boolean>} true when this module answered the request
  */
 export async function handleTeamRoutes(request, response, url) {
+  if (await handleTeamResourceRoutes(request, response, url)) return true; // /api/teams/:id/...
   if (url.pathname === "/api/teams" && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
