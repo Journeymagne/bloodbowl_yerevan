@@ -54,3 +54,19 @@ export function assertLocalDocker({ dockerHost, contextEndpoint } = {}) {
   const shown = dockerHost || endpoint || "no endpoint reported";
   throw new Error(`refusing to run against a non-local Docker (${shown}) — the container name gata-league-postgres is the same as production's`);
 }
+
+/**
+ * Refuse a DATABASE_URL that reaches another Postgres than the container.
+ *
+ * The restore runs through `docker exec` while the anonymization connects by
+ * DATABASE_URL; with a wrong port the two could be different servers — the
+ * anonymization would then run on, and the checks read, one that never got the
+ * dump. Each server has its own system identifier; both sides must report it.
+ */
+export function assertSameServer({ containerId, clientId, container }) {
+  const inside = String(containerId ?? "").trim();
+  const outside = String(clientId ?? "").trim();
+  if (!inside || !outside || inside !== outside) {
+    throw new Error(`DATABASE_URL reaches a different Postgres server than the container ${container}; check the port in DATABASE_URL`);
+  }
+}

@@ -7,7 +7,8 @@
  *   npm run rehearsal:check -- --after      # writes output/rehearsal/report.md
  *
  * Always reads gata_rehearsal (scripts/rehearsal/guard.mjs), never the database
- * DATABASE_URL names. Exits 1 when existing data changed.
+ * DATABASE_URL names, and only once the restore has marked it as anonymized
+ * (scripts/rehearsal/marker.mjs). Exits 1 when existing data changed.
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -16,6 +17,7 @@ import pg from "pg";
 
 import { loadEnvFile } from "../server/config/env-file.mjs";
 import { rehearsalDatabaseUrl } from "./rehearsal/guard.mjs";
+import { assertAnonymized } from "./rehearsal/marker.mjs";
 import { compareSnapshots, renderReport, takeSnapshot } from "./rehearsal/snapshot.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -38,6 +40,7 @@ async function main() {
   await client.connect();
   let snapshot;
   try {
+    await assertAnonymized(client);
     snapshot = await takeSnapshot(client);
   } finally {
     await client.end();

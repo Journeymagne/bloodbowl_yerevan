@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { REHEARSAL_DATABASE, assertLocalDatabaseUrl, assertLocalDocker, rehearsalDatabaseUrl } from "../scripts/rehearsal/guard.mjs";
+import { REHEARSAL_DATABASE, assertLocalDatabaseUrl, assertLocalDocker, assertSameServer, rehearsalDatabaseUrl } from "../scripts/rehearsal/guard.mjs";
 
 test("only a database on this machine is accepted", () => {
   for (const url of ["postgres://u:p@localhost:5433/gata_league", "postgres://u:p@127.0.0.1:5433/x", "postgres://u:p@[::1]:5433/x"]) {
@@ -65,4 +65,26 @@ test("a context whose endpoint is not a local socket is refused", () => {
     );
   }
   assert.throws(() => assertLocalDocker({ dockerHost: undefined, contextEndpoint: "ssh://ubuntu@51.81.86.51" }), /ssh:\/\/ubuntu@51\.81\.86\.51/);
+});
+
+test("the container and the DATABASE_URL connection must be one Postgres server", () => {
+  assert.doesNotThrow(() => assertSameServer({ containerId: "7696813753774735404", clientId: "7696813753774735404", container: "gata-league-postgres" }));
+  assert.doesNotThrow(() => assertSameServer({ containerId: "7696813753774735404\n", clientId: "7696813753774735404", container: "gata-league-postgres" }));
+});
+
+test("a different system identifier is refused, naming the container and the port to check", () => {
+  assert.throws(
+    () => assertSameServer({ containerId: "7696813753774735404", clientId: "7000000000000000001", container: "gata-league-postgres" }),
+    /DATABASE_URL reaches a different Postgres server than the container gata-league-postgres; check the port in DATABASE_URL/,
+  );
+});
+
+test("an empty or missing identifier on either side is refused rather than matched", () => {
+  for (const [containerId, clientId] of [["", ""], [undefined, undefined], ["", "7696813753774735404"], ["7696813753774735404", ""], ["7696813753774735404", null], ["  \n", "  \n"]]) {
+    assert.throws(
+      () => assertSameServer({ containerId, clientId, container: "gata-league-postgres" }),
+      /different Postgres server/,
+      JSON.stringify([containerId, clientId]),
+    );
+  }
 });
