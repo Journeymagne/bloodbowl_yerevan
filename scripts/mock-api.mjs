@@ -8,9 +8,10 @@
  *
  * It keeps one user and one saved team in memory, records every PATCH it
  * receives into .codex_tmp/mock-saves.json, and answers just enough of the API
- * for the saved roster, my-games, game, administration and player-profile
- * screens. Set MOCK_ADMIN=1 to sign in as an admin and reach the admin-only
- * ones. Not a substitute for `npm run smoke`, which exercises the real server.
+ * for the saved roster, my-games (with its challenges), game, administration
+ * (including editing a user's team) and player-profile screens. Set
+ * MOCK_ADMIN=1 to sign in as an admin and reach the admin-only ones. Not a
+ * substitute for `npm run smoke`, which exercises the real server.
  */
 import http from "node:http";
 import { promises as fs } from "node:fs";
@@ -98,6 +99,26 @@ const game = {
   proposedAwayCasualties: 0,
 };
 
+// GET /api/challenges (server/friendly/challenges.mjs listChallenges): the
+// coach's own challenges (senders and recipients as id and login only), their
+// teams in the slim shape, and who may be challenged. One of each kind, so
+// my-games shows both columns and the history.
+const coach = ({ id, login }) => ({ id, login });
+const challenge = (id, sender, recipient, senderTeam, status, gameId = null) => ({
+  id, sender: coach(sender), recipient: coach(recipient), team: { id: senderTeam.id, name: senderTeam.name },
+  status, gameId, createdAt: team.createdAt, updatedAt: team.updatedAt,
+});
+const rivalTeam = { id: "rt1", name: "Rival Team" };
+const challenges = {
+  challenges: [
+    challenge("c1", rival, user, rivalTeam, "pending"),
+    challenge("c2", user, rival, team, "pending"),
+    challenge("c3", rival, user, rivalTeam, "accepted", game.id),
+  ],
+  teams: [{ id: team.id, name: team.name, baseTeamSlug: team.baseTeamSlug, logoData: null, roster: {}, createdAt: team.createdAt, updatedAt: team.updatedAt }],
+  opponents: [coach(rival)],
+};
+
 export const saves = [];
 
 async function readBody(request) {
@@ -126,10 +147,13 @@ const server = http.createServer(async (request, response) => {
       Object.assign(team, { name: body.name, roster: body.roster, updatedAt: new Date().toISOString() });
       return json(200, { team });
     }
+    if (url.pathname === "/api/challenges" && request.method === "GET") return json(200, challenges);
     if (url.pathname === "/api/games") return json(200, { games: [game], currentGames: [game] });
     if (url.pathname.startsWith("/api/games/")) return json(200, { game });
     if (url.pathname === "/api/admin/users") return json(200, { users: [user, rival] });
     if (url.pathname.startsWith("/api/admin/users/")) return json(200, { user, teams: [team] });
+    // An administrator opening somebody else's team: the owner beside the team (server/routes/admin.mjs).
+    if (/^\/api\/admin\/teams\/[^/]+$/.test(url.pathname) && request.method === "GET") return json(200, { owner: user, team });
     if (/^\/api\/players\/[^/]+\/teams\/[^/]+$/.test(url.pathname)) return json(200, { user, team });
     if (url.pathname.startsWith("/api/players/")) return json(200, { user, teams: [team] });
     return json(200, {});
