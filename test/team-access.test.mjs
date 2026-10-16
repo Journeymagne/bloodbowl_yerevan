@@ -84,12 +84,23 @@ test("an id that is no uuid is no team, and the database is never asked", async 
   }
 });
 
-test("a user with no usable id is nobody's: the owner check is never dropped by accident, and the database is never asked", async () => {
+test("a missing user, or one with no usable id, is nobody's: the owner check is never dropped by accident, and the database is never asked", async () => {
   const database = { query: async () => assert.fail("asked the database") };
-  for (const user of [{}, { id: undefined, is_admin: false }, { id: null, is_admin: true }, { id: "not-a-uuid", is_admin: false }]) {
-    await assert.rejects(teamForUser(database, ID, user), { status: 404, code: "TEAM_NOT_FOUND" }, JSON.stringify(user));
+  for (const user of [null, undefined, {}, { id: undefined, is_admin: false }, { id: null, is_admin: true }, { id: "not-a-uuid", is_admin: false }]) {
+    await assert.rejects(teamForUser(database, ID, user), { status: 404, code: "TEAM_NOT_FOUND" }, String(JSON.stringify(user)));
+  }
+  for (const user of [null, undefined]) { // nor is a missing user an admin, on a route that lets admins through
+    await assert.rejects(teamForUser(database, ID, user, { admin: true, lock: true }), { status: 404, code: "TEAM_NOT_FOUND" }, String(user));
   }
 });
+
+test("a conflict is the team as it stands now, whatever the row it was given says", db, () => withApiDatabase(async ({ client }) => {
+  const owner = await seedCoach(client, "lion"), id = await seedTeam(client, owner.id, { name: "Lions", stage: "draft" });
+  const row = await teamForUser(client, id, as(owner));
+  const conflict = await teamConflict(client, { ...row, name: "Stale", revision: 0, stage: "active" }); // only its id is used
+  assert.deepEqual([conflict.status, conflict.code], [409, "TEAM_SAVED_ELSEWHERE"]);
+  assert.deepEqual([conflict.team.id, conflict.team.name, conflict.team.revision, conflict.team.stage], [id, "Lions", 1, "draft"]);
+}));
 
 test("a conflict answers with the payload PATCH's 409 has: the same keys at every level, inActiveSeason too", db, () => withApiDatabase(async ({ client }) => {
   const owner = await seedCoach(client, "lion"), id = await seedTeam(client, owner.id, { stage: "draft" });
@@ -101,7 +112,7 @@ test("a conflict answers with the payload PATCH's 409 has: the same keys at ever
   // What a route does with a stale revision: take the team, find it moved, refuse with it as it stands.
   API_ROUTES.unshift(() => withTransaction(async (inside) => {
     const row = await teamForUser(inside, id, as(owner), { lock: true });
-    throw await teamConflict(inside, row.id);
+    throw await teamConflict(inside, row);
   }));
   try {
     const answered = await callApi("GET", "/api/any-route");

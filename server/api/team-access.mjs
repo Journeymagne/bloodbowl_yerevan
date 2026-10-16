@@ -41,15 +41,16 @@ export function isUuid(value) {
  *
  * @param {{query: Function}} db a pg pool, or the client of a transaction
  * @param {string} teamId
- * @param {{id: string, is_admin?: boolean}} user as `currentUser` returns it
+ * @param {{id: string, is_admin?: boolean}|null|undefined} user as `currentUser` returns it; no user at all is
+ *   nobody's, not an error of its own
  * @param {{lock?: boolean, admin?: boolean}} [options]
  * @returns {Promise<object>} the saved_teams row
  */
 export async function teamForUser(db, teamId, user, { lock = false, admin = false } = {}) {
   // The query reads a null owner as "any owner", and pg sends a missing id as null: so "any" is
-  // said on purpose here, and a user who has no usable id is nobody's.
-  const anyOwner = admin && user.is_admin;
-  if (isUuid(teamId) && (anyOwner || isUuid(user.id))) {
+  // said on purpose here, and a user who has no usable id, or no user at all, is nobody's.
+  const anyOwner = admin && user?.is_admin;
+  if (isUuid(teamId) && (anyOwner || isUuid(user?.id))) {
     const { rows } = await db.query(
       `SELECT * FROM saved_teams WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid)${lock ? " FOR UPDATE" : ""}`,
       [teamId, anyOwner ? null : user.id],
@@ -66,16 +67,18 @@ export async function teamForUser(db, teamId, user, { lock = false, admin = fals
  * (`SAVED_TEAM_COLUMNS`, `inActiveSeason` included), so the client handles one shape however a save
  * was refused. `handleApi` sends `error.team`.
  *
- * Call it inside the transaction that holds the team, and throw what it returns:
- * `throw await teamConflict(client, row.id)`.
+ * Call it inside the transaction that holds the team, with the row `teamForUser` returned, and
+ * throw what it returns: `throw await teamConflict(client, row)`. The team is read again; only the
+ * row's id is used. It takes the row and not an id so that the id from a path, which may be
+ * anything, cannot be passed by mistake.
  *
  * @param {{query: Function}} db the client of the transaction
- * @param {string} teamId the id of a team `teamForUser` has returned
+ * @param {{id: string}} row the saved_teams row `teamForUser` returned
  * @returns {Promise<Error>}
  */
-export async function teamConflict(db, teamId) {
-  const { rows } = await db.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [teamId]);
+export async function teamConflict(db, row) {
+  const { rows: current } = await db.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [row.id]);
   const error = httpError(409, "TEAM_SAVED_ELSEWHERE");
-  error.team = publicSavedTeam(rows[0]);
+  error.team = publicSavedTeam(current[0]);
   return error;
 }

@@ -22,10 +22,12 @@ import { pool } from "./pool.mjs";
  *   several queries: it sees one moment of the database from its first query to its last,
  *   whoever commits meanwhile, and the database refuses any write or lock inside it.
  * @returns {Promise<T>}
- * @throws whatever `work` throws, after the rollback
+ * @throws whatever `work` throws, after the rollback. A client whose ROLLBACK failed may still be
+ *   inside the transaction, with its locks: it is destroyed instead of going back to the pool.
  */
 export async function withTransaction(work, { readOnly = false } = {}) {
   const client = await pool.connect();
+  let stuck; // why a ROLLBACK failed: such a client is not given back
   try {
     await client.query(readOnly ? "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY" : "BEGIN");
     const result = await work(client);
@@ -33,9 +35,9 @@ export async function withTransaction(work, { readOnly = false } = {}) {
     return result;
   } catch (error) {
     // The error that is thrown is the one that matters, not one from the rollback after it.
-    await client.query("ROLLBACK").catch(() => {});
+    await client.query("ROLLBACK").catch((rollbackError) => { stuck = rollbackError; });
     throw error;
   } finally {
-    client.release();
+    client.release(stuck);
   }
 }

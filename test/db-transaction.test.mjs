@@ -6,9 +6,13 @@ import { withTransaction } from "../server/db/transaction.mjs";
 import { withApiDatabase } from "./helpers/api-db.mjs";
 import { scratchSkip } from "./helpers/scratch-db.mjs";
 
-async function withFakePool(run) {
+/** A pool whose client logs every statement; `fail` maps a statement to the error the database answers it with. */
+async function withFakePool(run, { fail = {} } = {}) {
   const log = [], saved = { connect: pool.connect };
-  pool.connect = async () => ({ query: async (sql) => { log.push(sql); return { rows: [] }; }, release: () => log.push("release") });
+  pool.connect = async () => ({
+    query: async (sql) => { log.push(sql); if (fail[sql]) throw fail[sql]; return { rows: [] }; },
+    release: (error) => log.push(error ? `release(${error.message})` : "release"),
+  });
   try { await run(log); } finally { Object.assign(pool, saved); }
 }
 
@@ -24,6 +28,22 @@ test("work that throws is rolled back, the error comes through, and the client s
     await assert.rejects(withTransaction(async (client) => { await client.query("UPDATE x"); throw new Error("boom"); }), /boom/);
     assert.deepEqual(log, ["BEGIN", "UPDATE x", "ROLLBACK", "release"]);
   });
+});
+
+test("a COMMIT the database refuses is the error that comes through, and the client goes back once", async () => {
+  const refused = new Error("commit refused");
+  await withFakePool(async (log) => {
+    await assert.rejects(withTransaction(async (client) => { await client.query("UPDATE x"); }), (error) => error === refused);
+    assert.deepEqual(log, ["BEGIN", "UPDATE x", "COMMIT", "ROLLBACK", "release"]);
+  }, { fail: { COMMIT: refused } });
+});
+
+test("a ROLLBACK that fails leaves the original error in place, and the client is dropped instead of going back", async () => {
+  const original = new Error("boom"), stuck = new Error("rollback refused");
+  await withFakePool(async (log) => {
+    await assert.rejects(withTransaction(async () => { throw original; }), (error) => error === original);
+    assert.deepEqual(log, ["BEGIN", "ROLLBACK", "release(rollback refused)"]);
+  }, { fail: { ROLLBACK: stuck } });
 });
 
 test("a read is one snapshot that cannot write", async () => {
