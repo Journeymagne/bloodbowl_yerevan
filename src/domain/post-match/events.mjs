@@ -14,7 +14,8 @@
  */
 import { normalizeSppCounters } from '../roster/players.mjs';
 import { PLAYER_STATS } from '../roster/values.mjs';
-import { INJURIES, postCount } from './rules.mjs';
+import { SIDES } from '../match/rules.mjs';
+import { INJURIES, POST_STEPS, postCount } from './rules.mjs';
 import { normalizeMatchStats } from './statistics.mjs';
 
 // The order of the CHECK on `counter` in 014.
@@ -131,4 +132,41 @@ export function careerCounters(player, events = []) {
   const result = normalizeSppCounters(player.spp);
   for (const counter of COUNTED) result[counter] = Math.max(0, result[counter] + sums[counter]);
   return result;
+}
+
+const PLAYERS_STAGE = POST_STEPS.indexOf('players');
+
+// Same values whatever the order of the keys: Postgres jsonb hands an object back with its keys
+// reordered, so comparing stringified copies would call every stored state changed.
+function sameValues(left, right) {
+  if (left === right) return true;
+  if (!left || !right || typeof left !== 'object' || typeof right !== 'object' || Array.isArray(left) !== Array.isArray(right)) return false;
+  const keys = Object.keys(left);
+  return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && sameValues(left[key], right[key]));
+}
+
+/**
+ * A side follows the match until its coach saves the Players step: each call reads its statistics and
+ * injuries from the events again (`eventsBySide.home` / `.away`, none listed means none tapped). A side
+ * begun before 3.0 has no `followsEvents` flag and keeps the statistics it was given, as does a side
+ * past the Players step and any side of a completed post-match. When a followed side reads differently
+ * its chosen advancements go (they were picked against other numbers) and the revision moves, so a
+ * step sent on what the coach saw before a tap is refused instead of writing that tap away.
+ * Nothing read differently gives the same state back; otherwise a copy, and the input is left alone.
+ */
+export function followEvents(state, eventsBySide = {}) {
+  if (state.status === 'completed') return state;
+  const read = {};
+  for (const name of SIDES) {
+    const side = state[name];
+    if (side.followsEvents !== true || side.stage > PLAYERS_STAGE) continue;
+    const recorded = statisticsFromEvents(side.snapshot, eventsBySide[name] ?? []);
+    if (!sameValues([side.statistics, side.injuries], [recorded.statistics, recorded.injuries])) read[name] = recorded;
+  }
+  const changed = Object.keys(read);
+  if (!changed.length) return state;
+  const next = structuredClone(state);
+  for (const name of changed) Object.assign(next[name], read[name], { advancements: {} });
+  next.revision++;
+  return next;
 }

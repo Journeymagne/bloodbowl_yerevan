@@ -3,6 +3,7 @@ import { ensureDraftPlayers } from '../roster/players.mjs';
 import { SIDES, otherSide, CONFIRM_ACTION } from '../match/rules.mjs';
 import { POST_STEPS, INJURIES, RESULT_MODES, postCount, postError, resultAgreed, mvpCount } from './rules.mjs';
 import { normalizeMatchStats, validateStatistics } from './statistics.mjs';
+import { statisticsFromEvents } from './events.mjs';
 import { validateFans } from './finance.mjs';
 import { projectPostRoster } from './roster.mjs';
 
@@ -11,10 +12,11 @@ export function createPostSide(source, snapshot, data) {
   if (!reference) throw postError('UNKNOWN_TEAM');
   const baseRoster = normalizeDraft(source.team.roster);
   ensureDraftPlayers(reference, baseRoster);
+  const recorded = statisticsFromEvents(snapshot, source.events ?? []);
   return { user: source.user, team: source.team, reference, snapshot, baseRoster,
     baseRevision: source.team.revision, gamesPlayed: source.gamesPlayed || 0, stage: 0,
-    statistics: Object.fromEntries(snapshot.players.map(player => [player.id, normalizeMatchStats()])),
-    injuries: {}, departures: {}, mvps: [], advancements: {}, operations: [], fansRoll: null, technicalRoll: null,
+    statistics: recorded.statistics, injuries: recorded.injuries, followsEvents: true,
+    departures: {}, mvps: [], advancements: {}, operations: [], fansRoll: null, technicalRoll: null,
     painted: false, stalling: false, deposit: 0, mistake: {}, captain: '', confirmed: false };
 }
 
@@ -59,6 +61,7 @@ function saveStatistics(state, name, action) {
   side.statistics = statistics; side.mvps = mvps; side.injuries = injuries;
   side.departures = Object.fromEntries(side.baseRoster.players.filter(player => player.advancements.length >= 3)
     .filter(player => action.departures?.[player.id]).map(player => [player.id, postCount(action.departures[player.id], 6)]));
+  side.followsEvents = false;
 }
 
 function clearLater(side) {
