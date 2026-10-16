@@ -243,7 +243,7 @@ gh pr merge <номер> --merge
 | [x] 02a | `rd/02a-data` | 01 | 2.1–2.5, 2.7 | `smoke`, `smoke:post-match` |
 | [ ] 02b | `rd/02b-match-events` | 02a | 2.6 | все четыре |
 | [ ] 03 | `rd/03-api` | 02b | этап 3 | все четыре |
-| [ ] 04 | `rd/04-tokens` | 01 (параллельно с 02a–03) | этап 4 | `smoke` |
+| [x] 04 | `rd/04-tokens` | 01 (параллельно с 02a–03) | этап 4 | `smoke` |
 | [ ] 05 | `rd/05-shell` | 04, 03 | этап 5 | `smoke` |
 | [ ] **M1** | — | 03, 05 | репетиция №1 | — |
 | [ ] 06 | `rd/06-teams` | M1 | этап 6 | `smoke` |
@@ -288,7 +288,7 @@ WHERE NOT EXISTS (
 
 **04.** Шрифты уже в `assets/fonts/ui/` (2.1.0) — не копировать заново. `src/core/theme.mjs` и `theme-boot.js` пишут кеш `gata-league-palette` (JSON `{mode, light, dark}`) и переводят старые id через ту же таблицу, что `public/maintenance/palettes.mjs`; тест сравнивает `PALETTE_KEYS`, `DEFAULT_PALETTE` и `LEGACY_THEME_PALETTE` обоих модулей. При первом входе в 3.0 выбор записывается в `preferences`, если там пусто (спека выката §5.4).
 
-**05.** Ключ `active-team` в `STORAGE_KEYS`; `gata-league-auth-token` и формат сессий не трогать (никто не должен перелогиниться).
+**05.** Ключ `active-team` в `STORAGE_KEYS`; `gata-league-auth-token` и формат сессий не трогать (никто не должен перелогиниться). Кольцо фокуса — только из `src/ui/base.css` (`--accent-text`); токен `--focus-ring` (`box-shadow` на `--accent`, 2.68:1 на `--surface-2` в dungeon) не использовать, пока его не переведут на `--accent-text`.
 
 **05–13: экраны на компонентах `src/ui` и остатки 2.x** (заметки этапа 04; остальное для 05 — в плане этапа 04, «Передача этапу 05»).
 - Отказ степпера: `wireStepButtons` молча глотает нажатие на кнопку с `aria-disabled="true"`, а `title` на касание не показывается — экран вешает делегированный обработчик `[aria-disabled="true"]`, который показывает причину (как `src/screens/saved-roster.mjs`), или в `stepper.mjs` появляется хук `onRefused`.
