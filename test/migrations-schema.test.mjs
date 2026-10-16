@@ -23,3 +23,13 @@ test("011: a fallen player outlives the match record, and goes with the team", {
     assert.equal((await client.query("SELECT count(*)::int AS n FROM team_fallen_players")).rows[0].n, 0);
   }, { through: "011_fallen_players.sql" });
 });
+
+test("012: a roll is for a random skill or a stat, unused until an advancement takes it", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await twoTeams(client);
+    await client.query(`INSERT INTO dice_rolls (saved_team_id, player_id, purpose, params, result) VALUES ($1, 'p', 'stat', '{"die": 8}', '{"roll": 8}')`, [id(11)]);
+    assert.deepEqual((await client.query("SELECT used_at, rolled_by FROM dice_rolls")).rows, [{ used_at: null, rolled_by: null }]);
+    await assert.rejects(client.query(`INSERT INTO dice_rolls (saved_team_id, player_id, purpose, params, result) VALUES ($1, 'p', 'mvp', '{}', '{}')`, [id(11)]),
+      { code: "23514" });
+  }, { through: "012_dice_rolls.sql" });
+});

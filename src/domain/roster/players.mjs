@@ -104,6 +104,10 @@ export function normalizeSppCounters(spp = {}) {
  * advancement saved before the link existed has none; those stay readable and
  * simply record that SPP was spent. See domain/roster/progression.mjs for the
  * rules on which grant each type may carry.
+ *
+ * `roll` says how the result was rolled — on the site (`{ id, via: "site" }`,
+ * `id` being `dice_rolls.id`) or at the table (`{ via: "table" }`). It is
+ * optional, so every advancement saved before it reads unchanged.
  */
 export function normalizePlayerAdvancements(advancements = []) {
   const source = Array.isArray(advancements) ? advancements : [];
@@ -112,7 +116,8 @@ export function normalizePlayerAdvancements(advancements = []) {
       const type = typeof advancement === "string" ? advancement : advancement?.type;
       if (!Object.hasOwn(advancementTypeLabels, type)) return null;
       const grants = normalizeAdvancementGrant(advancement?.grants);
-      return grants ? { type, grants } : { type };
+      const roll = normalizeAdvancementRoll(advancement?.roll);
+      return { type, ...(grants ? { grants } : {}), ...(roll ? { roll } : {}) };
     })
     .filter(Boolean)
     .slice(0, advancementRanks.length);
@@ -126,6 +131,14 @@ function normalizeAdvancementGrant(grants) {
   if (skill && !stat) return { skill };
   if (stat && !skill && Object.hasOwn(advancementStatCosts, stat)) return { stat };
   return null;
+}
+
+/** A roll is a site roll with the id of its `dice_rolls` row, or a table roll; nothing else is kept. */
+function normalizeAdvancementRoll(roll) {
+  if (!roll || typeof roll !== "object") return null;
+  if (roll.via === "table") return { via: "table" };
+  const id = typeof roll.id === "string" ? roll.id.trim() : "";
+  return roll.via === "site" && id ? { id, via: "site" } : null;
 }
 
 /** Every player in the draft, normalised. */
