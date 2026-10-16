@@ -1,6 +1,7 @@
 /**
  * A throwaway database on the local Postgres, for the tests that need the real
- * engine: migrations, and SQL a fake client would only echo back.
+ * engine: migrations, SQL a fake client would only echo back, and races that
+ * need real connections queueing on a real lock.
  *
  * Opt-in. GATA_TEST_DATABASE_URL names the local server — the DATABASE_URL in
  * .env will do, only its host, port and credentials are used. Without it these
@@ -76,6 +77,59 @@ export async function withServerPool(url, run) {
     pool.query = query;
     pool.connect = connect;
     await scratch.end();
+  }
+}
+
+/** The statement that takes a row's lock, as `[sql, values]` for `client.query(...lockRow("users", id))`. */
+export function lockRow(table, id) {
+  return [`SELECT 1 FROM ${table} WHERE id = $1 FOR UPDATE`, [id]];
+}
+
+const WAITING_ON_A_LOCK = `SELECT count(*)::int AS n FROM pg_stat_activity
+  WHERE datname = current_database() AND wait_event_type = 'Lock' AND pid <> pg_backend_pid()`;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Runs `starters` while a client of its own holds `lock`, and lets go only once at least `waiting`
+ * backends of this database are queued on a lock.
+ *
+ * Why: a race that `Promise.all` happens to win proves nothing — the requests may simply have run one
+ * after the other, and the test would pass for a server with no locking at all. Holding the lock makes
+ * every request queue on it, and counting the queue in pg_stat_activity makes the test know that they
+ * did; when they never do, it throws instead of passing.
+ *
+ * @param {string} url the scratch database
+ * @param {{lock: [string, unknown[]?], waiting: number, timeoutMs?: number}} options `lock` is what
+ *   `lockRow` returns, and should be the first lock every starter reaches
+ * @param {Array<() => Promise<unknown>>} starters one per request, all started together
+ * @returns {Promise<PromiseSettledResult<unknown>[]>} how each request ended, once every one has
+ */
+export async function withForcedOverlap(url, { lock, waiting, timeoutMs = 5000 }, starters) {
+  const holder = new pg.Client({ connectionString: url });
+  await holder.connect();
+  try {
+    await holder.query("BEGIN");
+    await holder.query(...lock);
+    // Started together and not awaited: they run into the lock while this client counts them.
+    const running = Promise.allSettled(starters.map((start) => Promise.resolve().then(start)));
+    const deadline = Date.now() + timeoutMs;
+    let queued;
+    for (;;) {
+      // A transaction keeps the first picture it takes of pg_stat_activity, and this one is open:
+      // without a new one the count would stay at whatever it was on the first look.
+      await holder.query("SELECT pg_stat_clear_snapshot()");
+      queued = (await holder.query(WAITING_ON_A_LOCK)).rows[0].n;
+      if (queued >= waiting || Date.now() >= deadline) break;
+      await sleep(25);
+    }
+    await holder.query("COMMIT");
+    const results = await running;
+    if (queued < waiting) throw new Error(`only ${queued} of ${waiting} requests waited on the lock: they did not overlap`);
+    return results;
+  } finally {
+    await holder.query("ROLLBACK").catch(() => {});
+    await holder.end().catch(() => {});
   }
 }
 
