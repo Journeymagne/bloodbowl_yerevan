@@ -49,14 +49,42 @@ const POST_MATCH_OPERATION_KINDS = Object.freeze({ hire: "hire", keep: "hire", r
  *
  * `team` is the race catalogue the players are priced against. Without one —
  * the race changed, so the players mean nothing against it — nothing is
- * classified and the whole difference is one remainder line.
+ * classified and the whole difference is one remainder line. The same goes
+ * for a roster with a player that has no id (see `everyPlayerHasAnId`): with
+ * nothing to tell who stayed, a diff would invent sales.
+ *
+ * What the caller has to know:
+ * - A hire is recognised only by its `purchaseRefund`, the price the editor
+ *   wrote when it bought the player. A new player without one is not a hire:
+ *   whatever treasury moved for them lands in the remainder.
+ * - Classify before anything seals purchases (`sealPlayerPurchases` strips
+ *   `purchaseRefund`); after that a purchase is an ordinary sale.
+ * - An admin who adds a player has bought nothing, so there is no purchase to
+ *   recognise: it shows up as an `admin` remainder.
+ * - The ids are checked as the rosters are handed over. The server's `before`
+ *   is the stored blob, so a squad stored without ids is caught; its `after`
+ *   has been through normalisation, which hands every player an id.
  */
 export function classifyTreasuryChange(team, before, after, { admin = false } = {}) {
-  const entries = team ? [...playerEntries(team, before, after), ...staffEntries(before, after)] : [];
+  const diffable = team && everyPlayerHasAnId(before) && everyPlayerHasAnId(after);
+  const entries = diffable ? [...playerEntries(team, before, after), ...staffEntries(before, after)] : [];
   const change = sumMoney(countToNumber(after.treasury), -countToNumber(before.treasury));
   const residual = sumMoney(change, ...entries.map((entry) => -entry.delta));
   if (residual) entries.push({ kind: admin ? "admin" : "manual", delta: residual });
   return entries;
+}
+
+/**
+ * Whether the players in a roster can be told apart from one save to the next.
+ *
+ * Players saved before ids existed have none, and the normalisation the diff
+ * runs them through gives each a fresh random id on every read: two reads of
+ * the same squad would share nobody, and every player would look sold. So the
+ * roster is looked at as handed over, before that.
+ */
+function everyPlayerHasAnId(roster) {
+  const players = Array.isArray(roster.players) ? roster.players : [];
+  return players.every((player) => !player || typeof player !== "object" || Boolean(player.id));
 }
 
 function playerEntries(team, before, after) {

@@ -11,9 +11,11 @@ import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
-import { blockingViolations, checkRoster, normalizeDraft } from "../domain/roster.mjs";
+import { blockingViolations, checkRoster, normalizeDraft, teamBySlug } from "../domain/roster.mjs";
+import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames } from "../api/team-queries.mjs";
+import { writeLedgerEntries } from "../api/team-ledger.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -121,6 +123,9 @@ export async function handleTeamRoutes(request, response, url) {
  * the check and the UPDATE. The stage rule is checked on the same row, after
  * the revision (a stale tab hears "saved elsewhere" before anything else), and
  * only for a coach — `actor.admin` is the admin route, which is not held to it.
+ * The treasury change is journaled in the same transaction (team_ledger), after
+ * the write and before the commit, so a refused or stale save leaves no line
+ * and a line never outlives its save.
  *
  * @param {string|null} ownerId restricts the write to one owner; null for admin
  * @param {{id?: string, admin?: boolean}} [actor] who is writing
@@ -147,7 +152,8 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
       await client.query("ROLLBACK");
       return { conflict: publicSavedTeam(current.rows[0]) };
     }
-    if (!actor.admin) refuseLockedPurchases(normalizeDraft(locked.roster), roster, locked.stage);
+    const before = normalizeDraft(locked.roster);
+    if (!actor.admin) refuseLockedPurchases(before, roster, locked.stage);
     const result = await client.query(
       `UPDATE saved_teams
           SET name = $2,
@@ -160,6 +166,10 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
         RETURNING *`,
       [teamId, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );
+    // The race is what prices a sale; after a race change the old squad has no price here.
+    const team = locked.base_team_slug === baseTeamSlug ? teamBySlug(baseTeamSlug) : null;
+    const entries = classifyTreasuryChange(team, before, roster, { admin: Boolean(actor.admin) });
+    await writeLedgerEntries(client, { teamId, opening: before.treasury, entries, actorId: actor.id ?? null });
     await client.query("COMMIT");
     return { team: publicSavedTeam(result.rows[0]) };
   } catch (error) {

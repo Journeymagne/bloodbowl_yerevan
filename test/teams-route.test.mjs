@@ -17,13 +17,14 @@ const other = { id: "55555555-5555-4555-8555-555555555555", login: "other", is_a
 const admin = { id: "33333333-3333-4333-8333-333333333333", login: "admin", is_admin: true };
 
 /** A database holding one team; every statement is logged in order. */
-function database({ stage = "active", stored = {}, revision = 4, slug = "teams/human", user = coach, owner = coach } = {}) {
+function database({ stage = "active", stored = {}, revision = 4, slug = "teams/human", user = coach, owner = coach, failOn = null } = {}) {
   const log = [];
   const row = { id: TEAM, user_id: owner.id, name: "Lions", base_team_slug: slug, logo_data: null,
     roster: { teamSlug: slug, players: [], treasury: 100, ...stored }, revision, stage };
   const query = async (sql, values = []) => {
     const text = sql.trim();
     log.push({ sql: text, values });
+    if (failOn && text.startsWith(failOn)) throw new Error(`${failOn} failed`);
     if (text.includes("FROM sessions")) return { rows: [user] };
     if (text.includes("FOR UPDATE")) {
       // The route's own WHERE: this id, and this owner unless the caller is an admin (owner null).
@@ -133,5 +134,99 @@ test("creating a team leaves the stage to the database default", async () => {
     const insert = db.log.find((entry) => entry.sql.startsWith("INSERT INTO saved_teams"));
     assert.ok(insert);
     assert.doesNotMatch(insert.sql, /stage/);
+  });
+});
+
+// values of one INSERT INTO team_ledger: [team, delta, balanceAfter, kind, reason, note, pairing, actor]
+const ledger = (db) => db.log.filter((entry) => entry.sql.startsWith("INSERT INTO team_ledger")).map((entry) => entry.values);
+
+test("buying a Team reroll is journaled as staff, between the write and the commit", async () => {
+  await withDatabase({ stage: "active", stored: { treasury: 150 } }, async (db) => {
+    await handleTeamRoutes(patch({ teamRerolls: 1, purchasedStaff: { teamRerolls: 1 }, treasury: 30 }), response(), teamUrl());
+    assert.deepEqual(ledger(db), [[TEAM, -120, 30, "staff", null, null, null, coach.id]]);
+    const sql = db.log.map((entry) => entry.sql), at = sql.findIndex((text) => text.startsWith("INSERT INTO team_ledger"));
+    assert.ok(sql.findIndex((text) => text.startsWith("UPDATE saved_teams")) < at && at < sql.indexOf("COMMIT"));
+  });
+});
+
+test("a sale is journaled at its half price, gold included", async () => {
+  await withDatabase({ stored: { players: [{ id: "c1", rowIndex: 2, name: "Catcher" }] } }, async (db) => {
+    await handleTeamRoutes(patch({ players: [], treasury: 137.5 }), response(), teamUrl());
+    assert.deepEqual(ledger(db), [[TEAM, 37.5, 137.5, "sale", null, null, null, coach.id]]);
+  });
+});
+
+test("a hire is journaled at the position's price", async () => {
+  await withDatabase({}, async (db) => {
+    await handleTeamRoutes(patch({ players: [{ id: "n1", rowIndex: 0, name: "New", purchased: true, purchaseRefund: 50 }], treasury: 50 }),
+      response(), teamUrl());
+    assert.deepEqual(ledger(db), [[TEAM, -50, 50, "hire", null, null, null, coach.id]]);
+  });
+});
+
+test("a treasury edited by hand is manual without a reason; on the admin route it is admin", async () => {
+  await withDatabase({}, async (db) => {
+    await handleTeamRoutes(patch({ treasury: 130 }), response(), teamUrl());
+    assert.deepEqual(ledger(db), [[TEAM, 30, 130, "manual", null, null, null, coach.id]]);
+  });
+  await withDatabase({ user: admin }, async (db) => {
+    await handleAdminRoutes(patch({ treasury: 130 }), response(), adminUrl);
+    assert.deepEqual(ledger(db), [[TEAM, 30, 130, "admin", null, null, null, admin.id]]);
+  });
+});
+
+test("a race change journals the whole difference as one line, not as sales of the old squad", async () => {
+  await withDatabase({ slug: "teams/dwarf", stored: { players: [{ id: "d1", rowIndex: 0, name: "Dwarf" }] } }, async (db) => {
+    await handleTeamRoutes(patch({ players: [], treasury: 90 }), response(), teamUrl());
+    assert.deepEqual(ledger(db), [[TEAM, -10, 90, "manual", null, null, null, coach.id]]);
+  });
+});
+
+test("an unchanged treasury journals nothing, and a refused or stale write journals nothing", async () => {
+  await withDatabase({}, async (db) => {
+    await handleTeamRoutes(patch({}), response(), teamUrl());
+    assert.deepEqual(ledger(db), []);
+  });
+  await withDatabase({ stage: "active", stored: { startingRerolls: 1 } }, async (db) => {
+    await assert.rejects(handleTeamRoutes(patch({ startingRerolls: 2, treasury: 40 }), response(), teamUrl()), { code: "STAGE_PURCHASE_LOCKED" });
+    assert.deepEqual(ledger(db), []);
+  });
+  await withDatabase({ revision: 5 }, async (db) => {
+    await handleTeamRoutes(patch({ treasury: 40 }, 4), response(), teamUrl());
+    assert.deepEqual(ledger(db), []);
+  });
+});
+
+test("a journal line that cannot be written takes the team write with it", async () => {
+  await withDatabase({ failOn: "INSERT INTO team_ledger" }, async (db) => {
+    await assert.rejects(handleTeamRoutes(patch({ treasury: 40 }), response(), teamUrl()), /INSERT INTO team_ledger failed/);
+    assert.ok(wrote(db));
+    assert.equal(db.log.some((entry) => entry.sql === "COMMIT"), false);
+    assert.ok(db.log.some((entry) => entry.sql === "ROLLBACK"));
+    assert.equal(db.log.at(-1).sql, "release");
+  });
+});
+
+test("fractional thousands are kept exactly, from an opening balance that has gold too", async () => {
+  await withDatabase({ stored: { treasury: 150.5, players: [{ id: "c1", rowIndex: 2, name: "Catcher" }] } }, async (db) => {
+    await handleTeamRoutes(patch({ players: [], treasury: 188 }), response(), teamUrl());
+    assert.deepEqual(ledger(db), [[TEAM, 37.5, 188, "sale", null, null, null, coach.id]]);
+  });
+  await withDatabase({ stored: { treasury: 150.5 } }, async (db) => {
+    await handleTeamRoutes(patch({ treasury: 130.1 }), response(), teamUrl());
+    assert.deepEqual(ledger(db), [[TEAM, -20.4, 130.1, "manual", null, null, null, coach.id]]);
+  });
+});
+
+test("a stored squad with no player ids is not read as sold: the whole difference is one line", async () => {
+  const stored = { players: [{ rowIndex: 2, name: "Catcher" }] }; // saved before ids existed
+  const same = { players: [{ id: "c1", rowIndex: 2, name: "Catcher" }] }; // what the editor sends back, ids made up on load
+  await withDatabase({ stored }, async (db) => {
+    await handleTeamRoutes(patch(same), response(), teamUrl());
+    assert.deepEqual(ledger(db), []);
+  });
+  await withDatabase({ stored }, async (db) => {
+    await handleTeamRoutes(patch({ ...same, treasury: 110 }), response(), teamUrl());
+    assert.deepEqual(ledger(db), [[TEAM, 10, 110, "manual", null, null, null, coach.id]]);
   });
 });

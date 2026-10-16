@@ -9,6 +9,7 @@
  * `pg` returns the `numeric` amounts as strings; whoever reads the history
  * (stage 03) turns them into numbers.
  */
+import { sumMoney } from "../../src/domain/money.mjs";
 import { ledgerRows } from "../../src/domain/roster/ledger.mjs";
 
 const INSERT_LINE = `
@@ -18,13 +19,14 @@ const INSERT_LINE = `
 /**
  * One row per entry, each with the treasury after it, counted from `opening`
  * (the treasury before the first entry). Returns how many rows were written.
+ * An entry that moves nothing, to the gold, is not a line and is skipped.
  *
  * @param {{ query: Function }} client a pg client inside the treasury's transaction
  * @param {{ teamId: string, opening: number, entries: object[], pairingId?: string|null, actorId?: string|null }} lines
  * @returns {Promise<number>}
  */
 export async function writeLedgerEntries(client, { teamId, opening, entries, pairingId = null, actorId = null }) {
-  const rows = ledgerRows(opening, entries);
+  const rows = ledgerRows(opening, entries.filter(({ delta }) => sumMoney(delta)));
   for (const { kind, delta, balanceAfter, reason, note } of rows) {
     await client.query(INSERT_LINE, [teamId, delta, balanceAfter, kind, reason ?? null, note ?? null, pairingId, actorId]);
   }

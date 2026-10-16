@@ -52,3 +52,11 @@ test("on a real database: thousands with their gold, only known kinds, and one t
       { code: "23514" });
   });
 });
+
+test("an entry that moves less than a gold is not a line, and the lines after it still count from the right balance", async () => {
+  const client = fakeClient();
+  const count = await writeLedgerEntries(client, { teamId: "t1", opening: 100,
+    entries: [{ kind: "manual", delta: 0 }, { kind: "hire", delta: -50 }, { kind: "manual", delta: 0.0004 }, { kind: "sale", delta: 37.5 }] });
+  assert.equal(count, 2);
+  assert.deepEqual(client.log.map((entry) => entry.values.slice(1, 4)), [[-50, 50, "hire"], [37.5, 87.5, "sale"]]);
+});

@@ -132,3 +132,19 @@ test("a post-match operation the ledger has no line for is an error, not a guess
   const accounting = { winnings: 0, deposit: 0, loss: 0, transactions: [{ type: "bribe", amount: -10 }] };
   assert.throws(() => postMatchLedgerEntries(accounting), /No ledger line for the post-match operation "bribe"/);
 });
+
+test("a squad whose players have no stored ids cannot be diffed: one remainder line, never invented sales", () => {
+  const human = teams.get("teams/human");
+  const squad = () => [{ rowIndex: 0, name: "Lineman" }, { rowIndex: 2, name: "Catcher" }]; // saved before ids existed
+  assert.deepEqual(classifyTreasuryChange(human, { treasury: 100, players: squad() }, { treasury: 100, players: squad() }), []);
+  assert.deepEqual(classifyTreasuryChange(human, { treasury: 100, players: squad() }, { treasury: 110, players: squad() }),
+    [{ kind: "manual", delta: 10 }]);
+  assert.deepEqual(classifyTreasuryChange(human, { treasury: 100, players: squad() }, { treasury: 110, players: squad() }, { admin: true }),
+    [{ kind: "admin", delta: 10 }]);
+  // one id missing on either side is enough
+  const [first, second] = squad();
+  assert.deepEqual(classifyTreasuryChange(human, { treasury: 100, players: [{ ...first, id: "a" }, second] },
+    { treasury: 100, players: [{ ...first, id: "a" }] }), []);
+  assert.deepEqual(classifyTreasuryChange(human, { treasury: 100, players: [{ ...first, id: "a" }] },
+    { treasury: 100, players: [{ ...first, id: "a" }, second] }), []);
+});
