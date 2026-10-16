@@ -231,7 +231,7 @@ export function compareSnapshots(before, after) {
   for (const name of before.migrations.filter((migration) => !after.migrations.includes(migration))) {
     problems.push(`migration ${name} is gone`);
   }
-  const added = after.migrations.filter((name) => !before.migrations.includes(name));
+  const added = addedMigrations(before, after);
   if (added.length) notes.push(`migrations applied: ${added.join(", ")}`);
   else notes.push("no migrations were applied between the snapshots");
   for (const row of after.stages ?? []) {
@@ -243,19 +243,44 @@ export function compareSnapshots(before, after) {
   return { problems, notes };
 }
 
+export function addedMigrations(before, after) {
+  return after.migrations.filter((name) => !before.migrations.includes(name));
+}
+
+/**
+ * The one-line result, for the report's headline (`strong` in bold) and the console.
+ * With nothing migrated there is nothing to have tested: that is not a plain OK.
+ */
+export function verdict(before, after, { problems }) {
+  if (problems.length) return { strong: `${problems.length} problem(s)`, rest: "" };
+  if (!addedMigrations(before, after).length) return { strong: "OK, but no migrations were applied", rest: " — nothing was tested" };
+  return { strong: "OK", rest: " — no existing data changed" };
+}
+
+function migrationsLine(migrate) {
+  if (!migrate) return "Migrations: not run through rehearsal:migrate";
+  const names = migrate.applied.length ? ` (${migrate.applied.join(", ")})` : "";
+  return `Migrations: ${migrate.applied.length} applied in ${migrate.ms} ms${names}`;
+}
+
 function reason(row) {
   return [row.entered && "entered in the current season", row.playedMatch && "has a played match"].filter(Boolean).join(", ") || "no entry, no match";
 }
 
-export function renderReport(before, after, { problems, notes }) {
+/** @param migrate what rehearsal:migrate recorded ({ applied, ms }), or null when it did not run */
+export function renderReport(before, after, comparison, migrate = null) {
+  const { problems, notes } = comparison;
+  const { strong, rest } = verdict(before, after, comparison);
   const names = Object.fromEntries(Object.entries(after.teams).map(([id, team]) => [id, team.name]));
   const lines = [
     `# Rehearsal report — ${after.takenAt}`,
     "",
-    problems.length ? `**${problems.length} problem(s)**` : "**OK** — no existing data changed",
+    `**${strong}**${rest}`,
     "",
     ...problems.map((problem) => `- ✗ ${problem}`),
     ...notes.map((note) => `- ${note}`),
+    "",
+    migrationsLine(migrate),
     "",
     "## Stages",
     "",

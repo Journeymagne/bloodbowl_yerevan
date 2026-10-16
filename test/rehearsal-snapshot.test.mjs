@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { columnHashSql, compareSnapshots, renderReport, takeSnapshot } from "../scripts/rehearsal/snapshot.mjs";
+import { addedMigrations, columnHashSql, compareSnapshots, renderReport, takeSnapshot, verdict } from "../scripts/rehearsal/snapshot.mjs";
 
 // One hash per column; the real ones are md5s of the whole column (see columnHashSql).
 function columns(overrides = {}) {
@@ -127,6 +127,7 @@ test("the report lists stages with reasons, fallen players and open states", () 
     open,
   });
   const before = snapshot({ open });
+  after.migrations = [...after.migrations, "009_team_stage.sql"];
   const report = renderReport(before, after, compareSnapshots(before, after));
   assert.match(report, /Ashgrove Wardens.*active.*entered/);
   assert.match(report, /Silverbrook Rangers.*draft/);
@@ -233,4 +234,42 @@ test("a failure inside the snapshot rolls the transaction back and is reported",
   await assert.rejects(() => takeSnapshot(client), /boom/);
   assert.equal(client.statements.at(-1), "ROLLBACK");
   assert.ok(!client.statements.includes("COMMIT"));
+});
+
+function migrated(overrides = {}) {
+  return snapshot({ migrations: [...snapshot().migrations, "009_team_stage.sql", "010_fallen_players.sql"], ...overrides });
+}
+
+test("the migrations added between the snapshots are the names only the second one has", () => {
+  assert.deepEqual(addedMigrations(snapshot(), migrated()), ["009_team_stage.sql", "010_fallen_players.sql"]);
+  assert.deepEqual(addedMigrations(snapshot(), snapshot()), []);
+});
+
+test("OK needs a migration: without one the headline and the console say nothing was tested", () => {
+  const same = snapshot();
+  const comparison = compareSnapshots(same, snapshot());
+  assert.deepEqual(comparison.problems, []);
+  assert.match(renderReport(same, snapshot(), comparison), /\*\*OK, but no migrations were applied\*\* — nothing was tested/);
+  assert.doesNotMatch(renderReport(same, snapshot(), comparison), /no existing data changed/);
+  assert.deepEqual(verdict(same, snapshot(), comparison), { strong: "OK, but no migrations were applied", rest: " — nothing was tested" });
+});
+
+test("with a migration and no problems it is the plain OK, and problems always lead", () => {
+  const after = migrated();
+  assert.match(renderReport(snapshot(), after, compareSnapshots(snapshot(), after)), /\*\*OK\*\* — no existing data changed/);
+  assert.deepEqual(verdict(snapshot(), after, compareSnapshots(snapshot(), after)), { strong: "OK", rest: " — no existing data changed" });
+  const broken = snapshot({ tables: { ...snapshot().tables, users: 11 } });
+  const withProblem = compareSnapshots(snapshot(), broken);
+  assert.deepEqual(verdict(snapshot(), broken, withProblem), { strong: "1 problem(s)", rest: "" });
+  assert.match(renderReport(snapshot(), broken, withProblem), /\*\*1 problem\(s\)\*\*/);
+});
+
+test("the report says how long the migrations took, or that they did not go through rehearsal:migrate", () => {
+  const after = migrated();
+  const comparison = compareSnapshots(snapshot(), after);
+  const log = { at: "2026-11-01T10:05:00.000Z", applied: ["009_team_stage.sql", "010_fallen_players.sql"], ms: 1234 };
+  assert.match(renderReport(snapshot(), after, comparison, log), /^Migrations: 2 applied in 1234 ms \(009_team_stage\.sql, 010_fallen_players\.sql\)$/m);
+  assert.match(renderReport(snapshot(), after, comparison, { ...log, applied: [] }), /^Migrations: 0 applied in 1234 ms$/m);
+  assert.match(renderReport(snapshot(), after, comparison, null), /^Migrations: not run through rehearsal:migrate$/m);
+  assert.match(renderReport(snapshot(), after, comparison), /^Migrations: not run through rehearsal:migrate$/m);
 });
