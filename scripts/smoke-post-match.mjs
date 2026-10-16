@@ -104,6 +104,12 @@ async function confirmation(f, name) {
   await change(f, name, { type: 'confirm' });
 }
 
+async function matchEvents(f) {
+  return (await pool.query(`SELECT saved_team_id, counter, sum(delta)::integer AS total, count(*)::integer AS rows, count(settled_at)::integer AS settled
+    FROM match_events WHERE pairing_id=$1 GROUP BY saved_team_id, counter ORDER BY saved_team_id, counter`, [f.gameId])).rows;
+}
+const byTeam = (rows, team) => Object.fromEntries(rows.filter(row => row.saved_team_id === team).map(row => [row.counter, row.total]));
+
 async function verify(f) {
   const path = '/api/games/' + f.gameId;
   assert.equal((await request(null, path + '/post-match')).status, 401);
@@ -123,6 +129,7 @@ async function verify(f) {
   await pool.query('UPDATE saved_teams SET revision=revision+1 WHERE id=$1', [f.teamIds[1]]);
   const failed = await request('home', path + '/finish', { revision: f.post.postMatch.revision }, 'POST');
   assert.equal(failed.data.error.code, 'POST_TEAM_CHANGED');
+  assert.ok((await matchEvents(f)).every(row => row.settled === 0), 'a refused finish settles nothing');
   assert.equal((await pool.query('SELECT count(*)::integer AS n FROM match_post_applications WHERE pairing_id=$1', [f.gameId])).rows[0].n, 0);
   assert.deepEqual((await pool.query('SELECT id,roster FROM saved_teams WHERE id=ANY($1::uuid[]) ORDER BY id', [f.teamIds])).rows, before);
   await change(f, 'away', { type: 'reset-side' });
@@ -142,6 +149,10 @@ async function verify(f) {
   }
   const count = (await pool.query('SELECT count(*)::integer AS n FROM match_post_applications WHERE pairing_id=$1', [f.gameId])).rows[0].n;
   assert.equal(count, 2);
+  const events = await matchEvents(f);
+  assert.deepEqual(byTeam(events, f.teamIds[0]), { casualties: 1, injury: 1, touchdowns: 2 });
+  assert.deepEqual(byTeam(events, f.teamIds[1]), { touchdowns: 1 });
+  assert.ok(events.every(row => row.settled === row.rows), 'every event of the match is settled');
   const rosters = (await pool.query('SELECT roster FROM saved_teams WHERE id=ANY($1::uuid[]) ORDER BY id', [f.teamIds])).rows;
   assert.ok(rosters.every(team => team.roster.coachesSafe === 20 && team.roster.players.length === 8));
   assert.ok(rosters.every(team => team.roster.players.find(player => player.name === 'Recovering player').skipNextGame === false));
@@ -159,6 +170,7 @@ async function verify(f) {
   assert.deepEqual(duplicate.data.postMatch.home.settlement, finished[0].data.postMatch.home.settlement);
   assert.deepEqual(duplicate.data.postMatch.away.settlement, finished[0].data.postMatch.away.settlement);
   assert.deepEqual((await pool.query('SELECT roster FROM saved_teams WHERE id=ANY($1::uuid[]) ORDER BY id', [f.teamIds])).rows, rosters);
+  assert.deepEqual(await matchEvents(f), events);
   const locked = await request('home', path + '/post-match', { revision: duplicate.data.postMatch.revision, action: { type: 'reopen' } }, 'PATCH');
   assert.equal(locked.data.error.code, 'POST_CLOSED');
 }
@@ -185,5 +197,5 @@ try {
     await writeFile('.codex_tmp/post-match-preview.json', JSON.stringify(candidate)); keep = candidate;
     console.log('Preview: ' + base + '/#/games/' + candidate.gameId + '/post-match/players');
   }
-  console.log('Post-match API smoke passed: rights, revisions, rollback, league/friendly LP, 15k painting bonus, optional advancement, manual MVP, recovery and idempotent completion.');
+  console.log('Post-match API smoke passed: rights, revisions, rollback, league/friendly LP, 15k painting bonus, optional advancement, manual MVP, recovery, idempotent completion and match events settled once.');
 } finally { await cleanup(); }
