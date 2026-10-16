@@ -261,7 +261,7 @@ main      : PR redesign → main (вливает владелец в день X,
 - **`009_team_stage.sql`.** Колонка с `DEFAULT 'active'`, затем в той же миграции `draft` ставится командам, у которых нет ни неотозванной заявки в текущий сезон (`seasons.status = 'active'`; если активного сезона нет, остаётся только второе условие), ни сыгранного матча (лигового или товарищеского, с `result_status = 'confirmed'` или строкой в `match_post_applications`). `activated_at` у команд, ставших `active` миграцией, остаётся `NULL` («до 3.0»).
 - **`011_fallen_players.sql`** — только таблица, как в спеке 3.0.
 - **`015_backfill_fallen_players.sql`** — перенос погибших:
-  - для каждой строки `match_post_applications` берутся игроки, у которых в `match_post_games.state` этой стороны травма `dead` и которых нет в `after_roster` (защита новичков превращает `dead` в Badly Hurt — такой игрок остался в составе);
+  - для каждой строки `match_post_applications` берутся игроки, у которых в `match_post_games.state` этой стороны травма `dead`, `gamesPlayed` этой стороны в состоянии не меньше трёх (защита новичков, как в `effectiveInjury`: меньше трёх матчей — `dead` становится Badly Hurt, хотя в состоянии код остаётся `dead`; без целого `gamesPlayed` не переносится никто) и которых нет в `after_roster`;
   - в `team_fallen_players` пишутся снимок игрока из `before_roster`, `pairing_id`, `died_at = created_at` строки, причина `NULL` (в состояниях 2.x её нет), `recorded_by` `NULL`, `from_match = true` (колонку добавляет та же миграция, §3.3 спеки 3.0);
   - повторный запуск ничего не дублирует (`NOT EXISTS` по `saved_team_id, pairing_id, player->>'id'`).
 

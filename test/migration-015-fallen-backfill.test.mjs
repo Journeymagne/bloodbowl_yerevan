@@ -79,3 +79,47 @@ test("from_match: a match death stays one when its pairing is deleted; a manual 
     assert.deepEqual(rows, [{ player: "a-marked", pairing_id: null, from_match: false }, { player: "h-dead", pairing_id: null, from_match: true }]);
   }, { through: "011_fallen_players.sql" });
 });
+
+/** One more friendly on top of the seed: its post-match state and, unless `applied` is false, one side's application. */
+async function another(client, { pairing, table, side = "home", team = H, state, before = [], after = [], applied = true }) {
+  await client.query(`INSERT INTO season_pairings (id, match_kind, table_number, friendly_home_user_id, friendly_away_user_id,
+    friendly_home_team_id, friendly_away_team_id, result_status) VALUES ($1, 'friendly', $2, $3, $4, $5, $6, 'confirmed')`,
+  [pairing, table, id(1), id(2), H, A]);
+  await client.query("INSERT INTO match_post_games (pairing_id, state) VALUES ($1, $2)", [pairing, state]);
+  if (!applied) return;
+  await client.query(`INSERT INTO match_post_applications (pairing_id, side, saved_team_id, before_roster, after_roster, created_at)
+    VALUES ($1, $2, $3, $4, $5, '2026-09-15T18:00:00Z')`, [pairing, side, team, { players: before }, { players: after }]);
+}
+const carried = async (client) => (await fallen(client)).map((row) => row.player.id);
+
+test("a protected rookie who left the roster in the same post-match, sold, is not carried", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seed(client);
+    await another(client, { pairing: id(43), table: 3, side: "away", team: A,
+      state: { away: { gamesPlayed: 2, injuries: { "a-sold": { code: "dead" } } } }, before: [player("a-sold", "Sold")], after: [] });
+    await runMigration(client, "015_backfill_fallen_players.sql");
+    assert.deepEqual(await carried(client), ["h-dead"]);
+  }, { through: "011_fallen_players.sql" });
+});
+
+test("a post-match that was started but never finished carries nobody", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seed(client);
+    await another(client, { pairing: id(43), table: 3, applied: false,
+      state: { home: { gamesPlayed: 5, injuries: { "h-ok": { code: "dead" } } } } });
+    await runMigration(client, "015_backfill_fallen_players.sql");
+    assert.deepEqual(await carried(client), ["h-dead"]);
+  }, { through: "011_fallen_players.sql" });
+});
+
+test("a state without a whole-number gamesPlayed carries nobody", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seed(client);
+    for (const [n, gamesPlayed] of [[43, undefined], [44, "four"]]) {
+      await another(client, { pairing: id(n), table: n, state: { home: { gamesPlayed, injuries: { [`h-${n}`]: { code: "dead" } } } },
+        before: [player(`h-${n}`, "Unknown")], after: [] });
+    }
+    await runMigration(client, "015_backfill_fallen_players.sql");
+    assert.deepEqual(await carried(client), ["h-dead"]);
+  }, { through: "011_fallen_players.sql" });
+});
