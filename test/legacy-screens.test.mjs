@@ -170,3 +170,10 @@ test("the improved and reduced stats of the saved roster table read the text-on-
   assertReadable(sheet, ".stat-table-cell.stat-up strong", "color", ["--surface", "--surface-2", upTint], 4.5);
   assertReadable(sheet, ".stat-table-cell.stat-down strong", "color", ["--surface", "--surface-2", downTint], 4.5);
 });
+
+test("the table stepper is outlined with the 3.0 line, not 2.x taupe", () => {
+  const sheet = "src/styles/roster.css";
+  assert.deepEqual(valuesOf(sheet, ".table-stepper", "border"), ["1px solid var(--line-strong)"]);
+  assert.deepEqual(valuesOf(sheet, ".table-stepper button", "border-right"), ["1px solid var(--line-strong)"]);
+  assert.deepEqual(valuesOf(sheet, ".table-stepper button:last-child", "border-left"), ["1px solid var(--line-strong)"]);
+});
