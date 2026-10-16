@@ -1,0 +1,134 @@
+/**
+ * Match events: what the coaches tap during a game (`match_events`, migration 014), read into the
+ * numbers the post-match works with.
+ *
+ * A counter is one of the SPP counters without the MVP (the MVP is picked in the post-match),
+ * plus the injury. The post-match takes its statistics and injuries from these rows, the
+ * "Players" step appends the difference so that the rows and the entered numbers agree, and
+ * finishing the post-match sets `settled_at`. A career is the blob plus the rows not yet settled.
+ * Crowd and foul casualties are not tapped, so no row ever carries them.
+ *
+ * A row is one step of +1 or -1. Sums are plain sums of `delta`; they are clamped to the
+ * 0..99 `postCount` allows only when read as statistics, and a difference aims at the raw
+ * sum, so what the clamp hid is taken back too. The module is pure.
+ */
+import { normalizeSppCounters } from '../roster/players.mjs';
+import { PLAYER_STATS } from '../roster/values.mjs';
+import { INJURIES, postCount } from './rules.mjs';
+import { normalizeMatchStats } from './statistics.mjs';
+
+// The order of the CHECK on `counter` in 014.
+export const EVENT_COUNTERS = Object.freeze(['touchdowns', 'casualties', 'knockouts', 'completions', 'catches', 'interceptions', 'throws', 'landings', 'bonus', 'injury']);
+
+const COUNTED = EVENT_COUNTERS.filter(counter => counter !== 'injury');
+const MAX_COUNT = 99; // postCount's bound
+const isStep = event => event.delta === 1 || event.delta === -1;
+const isInjuryEvent = event => event.counter === 'injury';
+
+// The events of each player, in the order given; a row that is not a +1 or a -1 is not read.
+function groupByPlayer(events) {
+  const groups = new Map();
+  for (const event of events) {
+    if (!isStep(event)) continue;
+    if (!groups.has(event.playerId)) groups.set(event.playerId, []);
+    groups.get(event.playerId).push(event);
+  }
+  return groups;
+}
+
+// Raw sum of the steps of every counter; a counter that is not tapped (mvps, crowdCasualties, injury) is no sum.
+function sumCounters(events) {
+  const sums = Object.fromEntries(COUNTED.map(counter => [counter, 0]));
+  for (const event of events) if (Object.hasOwn(sums, event.counter)) sums[event.counter] += event.delta;
+  return sums;
+}
+
+// `{ code }` for an injury of the table, `{ code, stat }` for a lasting one with a characteristic, else null.
+// "none" is not an injury, and a stat on any other injury is dropped.
+function eventInjury(value) {
+  if (!value || typeof value !== 'object' || !INJURIES.includes(value.code) || value.code === 'none') return null;
+  if (value.code !== 'lasting') return { code: value.code };
+  return PLAYER_STATS.includes(value.stat) ? { code: value.code, stat: value.stat } : null;
+}
+
+const sameInjury = (left, right) => Boolean(left && right) && left.code === right.code && left.stat === right.stat;
+
+// The injuries still standing for one player, oldest first: +1 puts one on, -1 takes back
+// the latest identical one (an undo), and a -1 with nothing to take back does nothing.
+function standingInjuries(events) {
+  const standing = [];
+  for (const event of events) {
+    const injury = eventInjury(event.injury);
+    if (!injury) continue;
+    if (event.delta > 0) { standing.push(injury); continue; }
+    const at = standing.findLastIndex((item) => sameInjury(item, injury));
+    if (at >= 0) standing.splice(at, 1);
+  }
+  return standing;
+}
+
+/**
+ * The statistics and injuries the events add up to: one row per player of the snapshot, journeymen
+ * and stars included, in the snapshot's order. A player outside the snapshot is not read.
+ * The injury is the latest one still standing; `retire` is the coach's to set on the Players step.
+ */
+export function statisticsFromEvents(snapshot, events = []) {
+  const groups = groupByPlayer(events);
+  const statistics = {}, injuries = {};
+  for (const { id } of snapshot.players) {
+    const own = groups.get(id) || [];
+    const sums = sumCounters(own);
+    statistics[id] = normalizeMatchStats(Object.fromEntries(COUNTED.map(counter => [counter, Math.min(MAX_COUNT, Math.max(0, sums[counter]))])));
+    const standing = standingInjuries(own.filter(isInjuryEvent)).at(-1);
+    if (standing) injuries[id] = { ...standing, retire: false };
+  }
+  return { statistics, injuries };
+}
+
+// n rows of a step, as many as the gap is wide.
+function stepsOf(gap, row) {
+  return Array.from({ length: Math.abs(gap) }, () => ({ ...row, delta: Math.sign(gap) }));
+}
+
+// The injury rows that leave `target` on top of the stack: take back what stands above it, and
+// when nothing of it stands at all, put it on.
+function injuryRows(playerId, own, target) {
+  const standing = standingInjuries(own);
+  const rows = [];
+  while (standing.length && !sameInjury(standing.at(-1), target)) {
+    rows.push({ playerId, counter: 'injury', delta: -1, injury: standing.pop() });
+  }
+  if (!standing.length && target) rows.push({ playerId, counter: 'injury', delta: 1, injury: target });
+  return rows;
+}
+
+/**
+ * The rows that make the events add up to the entered numbers: `{ statistics, injuries }` is a side
+ * of the post-match (or what `statisticsFromEvents` returned), the rows are ±1 steps. Players in key
+ * order, each with their counters in table order and then the injury. A player outside `statistics`
+ * is not touched, and a counter the table does not have (crowd and foul casualties) gets no row.
+ * Applied, the rows make `statisticsFromEvents` read exactly what was entered; a second difference is empty.
+ */
+export function eventsDiff({ statistics, injuries }, events) {
+  const groups = groupByPlayer(events);
+  const rows = [];
+  for (const playerId of Object.keys(statistics)) {
+    const own = groups.get(playerId) || [], entered = statistics[playerId] || {};
+    const sums = sumCounters(own);
+    for (const counter of COUNTED) rows.push(...stepsOf(postCount(entered[counter]) - sums[counter], { playerId, counter }));
+    rows.push(...injuryRows(playerId, own.filter(isInjuryEvent), eventInjury(injuries?.[playerId])));
+  }
+  return rows;
+}
+
+/**
+ * A player's counters for a career: the blob plus the events not yet settled (settled ones are
+ * already in the blob), never below zero. The injury is not a counter.
+ */
+export function careerCounters(player, events = []) {
+  const own = groupByPlayer(events.filter(event => !event.settledAt)).get(player.id) || [];
+  const sums = sumCounters(own);
+  const result = normalizeSppCounters(player.spp);
+  for (const counter of COUNTED) result[counter] = Math.max(0, result[counter] + sums[counter]);
+  return result;
+}
