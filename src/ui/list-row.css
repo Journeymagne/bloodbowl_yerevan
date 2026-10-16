@@ -1,0 +1,142 @@
+/*
+ * The rows of a list: navigation, key–value and ranked. Font, border,
+ * background, text-transform and border-radius are set here on purpose: the
+ * 2.x globals (a { color: inherit }, :focus-visible { border-radius })
+ * outlive this sheet until stage 13.
+ */
+
+/* A link to a deeper screen: the text, the count behind it, a chevron. */
+.g-list-row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 64px;
+  padding: var(--space-10) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 13px/1.35 var(--font-body);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-list-row .g-icon { color: var(--faint); }
+
+.g-list-row__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-list-row__title {
+  font: 700 21px/1.1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-list-row__desc {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-list-row__count {
+  flex: none;
+  color: var(--accent-text);
+  font: 700 13px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* A label and its value, each centred on the row. */
+.g-kv {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: var(--size-touch);
+  padding: var(--space-8) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Either side may wrap rather than push the other out of the row. */
+.g-kv__label { min-width: 0; }
+
+.g-kv__value {
+  min-width: 0;
+  font-weight: 600;
+  text-align: right;
+}
+
+/* A place in a ranking: the lead is a fixed column, so the names line up from row to row. */
+.g-ranked {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: var(--size-touch);
+  padding: var(--space-8) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-ranked__lead {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  color: var(--muted);
+  font: 700 13px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-ranked__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-ranked__title {
+  color: var(--ink);
+  font: 500 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-ranked__caption {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-ranked__value {
+  color: var(--ink);
+  font: 700 18px/1.2 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  text-transform: none;
+  letter-spacing: 0;
+}

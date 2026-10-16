@@ -27,6 +27,17 @@ export function dataAttributes(data = {}) {
   return attributes;
 }
 
+/**
+ * Throws for an href that would run script. The CSP refuses to run it, but the
+ * link would still be drawn, so a person's click would do nothing and nobody
+ * would know why: a bug in the caller, found where the caller is. Read the way
+ * a browser reads a URL, which drops tabs, newlines and leading control
+ * characters before it looks for the scheme: every one of them is removed here.
+ */
+export function assertLinkHref(href) {
+  if (/^javascript:/i.test(String(href).replace(/[\x00-\x20]/g, ""))) throw new Error(`a link cannot be a javascript: URL: ${JSON.stringify(href)}`);
+}
+
 /** The class attribute's value: the names that are there, space-separated. */
 export function classNames(...names) {
   return names.filter(Boolean).join(" ");
