@@ -38,6 +38,7 @@ export const API_ERRORS = Object.freeze({
   POST_RESULT_LOCKED: 'Manage this result in its post-match checklist. Applied results are sealed.',
   POST_WAIT_STATISTICS: 'Wait for both coaches to finish recording player statistics and injuries.',
   POST_CAPTAIN: 'Select a captain for the next match.',
+  MAINTENANCE: "The site is under maintenance. Please try again shortly.",
   POST_INCOMPLETE: 'Both coaches must complete and confirm their post-match checklists.',
   POST_CLOSED: 'This post-match is confirmed. Reopen your draft to make changes.',
   POST_NOT_STARTED: 'Start the match and save both match rosters before recording its post-match.',

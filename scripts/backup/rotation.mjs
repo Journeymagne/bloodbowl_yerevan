@@ -7,13 +7,22 @@ export const DEFAULT_KEEP = 7;
 export const PARTIAL_SUFFIX = ".partial";
 export const PARTIAL_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * A label marks a dump taken for a reason other than the nightly run — the one
+ * before a migration. Its name does not match DUMP_NAME, so rotation never
+ * counts it or deletes it: it stays until someone removes it on purpose.
+ */
+export const DUMP_LABEL = /^[a-z][a-z0-9-]{0,31}$/;
+
 const pad = (value, width) => String(value).padStart(width, "0");
 
 /**
  * @param {Date} date
+ * @param {string} [label] see DUMP_LABEL
  * @returns {string}
  */
-export function formatDumpName(date) {
+export function formatDumpName(date, label = "") {
+  if (label && !DUMP_LABEL.test(label)) throw new Error(`backup label must match ${DUMP_LABEL}: ${label}`);
   const stamp = [
     pad(date.getUTCFullYear(), 4),
     pad(date.getUTCMonth() + 1, 2),
@@ -23,7 +32,7 @@ export function formatDumpName(date) {
     pad(date.getUTCMinutes(), 2),
     pad(date.getUTCSeconds(), 2),
   ].join("");
-  return `gata_league-${stamp}.dump`;
+  return label ? `gata_league-${label}-${stamp}.dump` : `gata_league-${stamp}.dump`;
 }
 
 /**

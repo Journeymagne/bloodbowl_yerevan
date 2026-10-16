@@ -8,6 +8,33 @@ This is an application, not a library, so "breaking" is judged by what a league
 coach or an operator would notice: a data format that no longer loads, a URL that
 no longer resolves, a deployment step that is now required.
 
+## [2.1.0] — 2026-10-15
+
+Groundwork for the 3.0 move: the site can now close itself for maintenance
+safely, and a deploy never changes the database without a fresh backup.
+
+### Added
+
+- **Maintenance mode.** `npm run maintenance:on|off|status` writes or removes
+  `/etc/bloodbowl-league/maintenance.json`. While it is there, coaches see a
+  maintenance page in their own palette that checks every 30 seconds and
+  reloads into the site when the work is done; the API answers 503
+  `MAINTENANCE`; `/api/health` keeps answering 200 and reports the flag.
+  Requests from the server itself pass, so the owner can check the site
+  through an SSH tunnel before reopening it.
+- **Open tabs follow along.** A page left open from before the maintenance
+  reloads into the maintenance page on its next request instead of failing
+  every save.
+- **Backup before migrating.** The deploy runs `npm run deploy:migrate`: when
+  there are migrations to apply it first takes
+  `gata_league-premigrate-*.dump`, which the nightly rotation never deletes,
+  and leaves the schema alone if that dump fails.
+
+### Changed
+
+- Golos Text and Oswald (the 3.0 fonts, OFL) are self-hosted under
+  `assets/fonts/ui/`; the maintenance page is their first user.
+
 ## [2.0.0] — 2026-10-06
 
 Full match management for Gata Sevens, from preparation to post-match team

@@ -24,6 +24,8 @@ export const API_ERROR = Object.freeze({
   CONFLICT: "conflict",
   /** 422: the server rejected the payload, `violations` says why. */
   INVALID: "invalid",
+  /** 503 MAINTENANCE: the site is closed for maintenance. */
+  MAINTENANCE: "maintenance",
   /** Any other non-2xx. */
   HTTP: "http",
 });
@@ -44,10 +46,11 @@ export class ApiError extends Error {
   }
 }
 
-function kindForStatus(status) {
+function kindForStatus(status, payload) {
   if (status === 401 || status === 403) return API_ERROR.UNAUTHORIZED;
   if (status === 409) return API_ERROR.CONFLICT;
   if (status === 422) return API_ERROR.INVALID;
+  if (status === 503 && payload?.error?.code === "MAINTENANCE") return API_ERROR.MAINTENANCE;
   return API_ERROR.HTTP;
 }
 
@@ -56,9 +59,10 @@ function kindForStatus(status) {
  * @param {typeof fetch} deps.fetchFn
  * @param {() => string} deps.getToken
  * @param {(error: ApiError) => void} [deps.onUnauthorized] called once per 401
+ * @param {(error: ApiError) => void} [deps.onMaintenance] called on 503 MAINTENANCE
  * @param {number} [deps.timeoutMs]
  */
-export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauthorized, timeoutMs = 20000 } = {}) {
+export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauthorized, onMaintenance, timeoutMs = 20000 } = {}) {
   async function request(path, options = {}) {
     const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
     const token = getToken();
@@ -82,12 +86,19 @@ export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauth
     const payload = await response.json().catch(() => ({}));
     if (response.ok) return payload;
 
-    const error = new ApiError(kindForStatus(response.status), {
+    const error = new ApiError(kindForStatus(response.status, payload), {
       status: response.status,
       message: payload?.error?.message || payload?.error || `Request failed with ${response.status}`,
       payload,
     });
     if (error.kind === API_ERROR.UNAUTHORIZED) onUnauthorized?.(error);
+    if (error.kind === API_ERROR.MAINTENANCE) {
+      try {
+        onMaintenance?.(error);
+      } catch {
+        // A failing hook must not replace the ApiError the caller needs.
+      }
+    }
     throw error;
   }
 

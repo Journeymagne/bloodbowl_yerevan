@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { readEnvValues } from "../server/config/env-file.mjs";
 import { DEFAULT_KEEP } from "./backup/rotation.mjs";
+import { parseBackupArgs } from "./backup/args.mjs";
 import { createBackup } from "./backup/create.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -102,6 +103,10 @@ function run(command, args, { onStdout = null, env = process.env, onChild = null
 }
 
 async function main() {
+  // --label <name> keeps this dump out of rotation (scripts/backup/rotation.mjs).
+  // A mistyped option throws here, before anything runs (scripts/backup/args.mjs).
+  const { label } = parseBackupArgs(process.argv.slice(2));
+
   const values = await readEnvValues(rootDir);
   const database = process.env.POSTGRES_DB || values.get("POSTGRES_DB");
   const user = process.env.POSTGRES_USER || values.get("POSTGRES_USER");
@@ -152,7 +157,7 @@ async function main() {
     }
   };
 
-  const result = await createBackup({ backupDir, runDump, verifyDump, keep });
+  const result = await createBackup({ backupDir, runDump, verifyDump, keep, label });
   const removed = result.removed.length ? `, removed ${result.removed.length}` : "";
   if (result.rotationError) {
     // The dump itself is verified and on disk under its final name, so this is

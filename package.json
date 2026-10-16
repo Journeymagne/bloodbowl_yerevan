@@ -1,6 +1,6 @@
 {
   "name": "bloodbowl-sevens-reference",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -17,6 +17,7 @@
     "check": "node scripts/check-dead-code.mjs && node scripts/check-references.mjs && node scripts/check-structure.mjs",
     "check:references": "node scripts/check-references.mjs",
     "db:migrate": "node scripts/db-migrate.mjs",
+    "deploy:migrate": "node scripts/deploy-migrate.mjs",
     "check:dead-code": "node scripts/check-dead-code.mjs",
     "check:structure": "node scripts/check-structure.mjs",
     "test": "node --test \"test/**/*.test.mjs\"",
@@ -26,7 +27,10 @@
     "smoke:friendly": "node scripts/smoke-friendly.mjs",
     "smoke:post-match": "node scripts/smoke-post-match.mjs",
     "backup:db": "node scripts/backup-db.mjs",
-    "backup:status": "node scripts/backup-status.mjs"
+    "backup:status": "node scripts/backup-status.mjs",
+    "maintenance:on": "node scripts/maintenance.mjs on",
+    "maintenance:off": "node scripts/maintenance.mjs off",
+    "maintenance:status": "node scripts/maintenance.mjs status"
   },
   "dependencies": {
     "pg": "^8.13.1"

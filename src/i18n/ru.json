@@ -485,6 +485,7 @@
   "error.ROUND_CLOSED_FOR_PLAYERS": "Раунд закрыт для изменения результатов игроками.",
   "error.ROUND_NOT_FOUND": "Раунд не найден.",
   "error.ROUND_STILL_A_DRAFT": "Раунд {round} — черновик. Запустите или удалите его перед созданием следующего.",
+  "error.MAINTENANCE": "На сайте идут работы. Попробуйте чуть позже.",
   "error.ROUTE_NOT_FOUND": "Такого метода API нет.",
   "error.SAVED_TEAM_NOT_FOUND": "Сохранённая команда не найдена.",
   "error.SELF_ADMIN_DELETE": "Нельзя удалить собственную учётную запись администратора.",

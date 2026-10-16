@@ -10,6 +10,7 @@
 import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
+import { currentMaintenance } from "../http/maintenance.mjs";
 import { bearerToken, createSession, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
 import { checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
@@ -31,7 +32,8 @@ function sendError(response, status, code, params) {
 export async function handleAuthRoutes(request, response, url) {
   if (request.method === "GET" && url.pathname === "/api/health") {
     await pool.query("SELECT 1");
-    return send(response, 200, { ok: true });
+    // 200 even in maintenance: the deploy's health check reads this, and maintenance is not "down".
+    return send(response, 200, { ok: true, maintenance: await currentMaintenance() });
   }
 
   if (request.method === "GET" && url.pathname === "/api/auth/me") {
