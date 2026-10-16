@@ -859,5 +859,9 @@
   "ui.stepper.increase": "Добавить: {action}, {player}",
   "ui.counter.decrease": "Уменьшить: {name}",
   "ui.counter.increase": "Увеличить: {name}",
-  "ui.counter.locked": "Недоступно"
+  "ui.counter.locked": "Недоступно",
+  "ui.sheet.back": "Назад",
+  "ui.sheet.close": "Закрыть",
+  "ui.sheet.step": "Шаг {current} из {total}",
+  "ui.progress.caption": "{label}: {done} из {total}"
 }

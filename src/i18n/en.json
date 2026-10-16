@@ -859,5 +859,9 @@
   "ui.stepper.increase": "Add: {action}, {player}",
   "ui.counter.decrease": "Decrease: {name}",
   "ui.counter.increase": "Increase: {name}",
-  "ui.counter.locked": "Unavailable"
+  "ui.counter.locked": "Unavailable",
+  "ui.sheet.back": "Back",
+  "ui.sheet.close": "Close",
+  "ui.sheet.step": "Step {current} of {total}",
+  "ui.progress.caption": "{label}: {done} of {total}"
 }

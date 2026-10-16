@@ -1,0 +1,94 @@
+/*
+ * A radio-like choice inside a sheet. Font, border, background,
+ * text-transform, font-weight and border-radius are set here on purpose: the
+ * 2.x globals (button { font: inherit }, :focus-visible { border-radius })
+ * outlive this sheet until stage 13.
+ */
+.g-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.g-option {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: 64px;
+  padding: var(--space-10) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+.g-option[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+}
+
+/* Refused, not disabled: it stays in the list and the tab order, and says why. */
+.g-option[aria-disabled="true"] {
+  background: var(--surface-2);
+  color: var(--faint);
+  cursor: default;
+}
+
+.g-option__radio {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 2px var(--disabled);
+}
+.g-option[aria-checked="true"] .g-option__radio { box-shadow: inset 0 0 0 7px var(--accent); }
+
+.g-option__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-option__title {
+  font: 600 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-option__sub {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-option[aria-disabled="true"] .g-option__sub { color: var(--danger); }
+
+.g-option__pill {
+  box-sizing: border-box;
+  flex: none;
+  min-width: 58px;
+  padding: 6px var(--space-8);
+  border-radius: var(--radius-sm);
+  background: var(--surface-3);
+  color: var(--ink);
+  font: 700 14px/1.2 var(--font-body);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-option[aria-checked="true"] .g-option__pill {
+  background: var(--accent);
+  color: var(--on-accent);
+}
