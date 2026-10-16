@@ -1,0 +1,37 @@
+/*
+ * What every src/ui component shares: the icon box, text for screen readers
+ * only, and the keyboard focus ring. Components add their own sheet beside
+ * this one and list it in src/styles.css; test/ui-kit.test.mjs fails for a
+ * sheet that is not listed.
+ */
+
+/* An icon is a box in a flex row, never a baseline-aligned glyph that shifts the line. */
+.g-icon {
+  display: block;
+  flex: none;
+}
+
+/* Visually hidden, still read aloud: the label of a control that draws only an icon. */
+.g-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * The same look as --focus-ring, drawn as an outline so it leaves a box-shadow
+ * the component already has (an inset ring, a lift) alone. :where() gives it no
+ * specificity: a component that wants another ring sets its own :focus-visible
+ * and wins without a fight.
+ */
+:where([class^="g-"], [class*=" g-"]):focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 0;
+}
