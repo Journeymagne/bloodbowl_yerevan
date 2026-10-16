@@ -112,3 +112,8 @@ test("the numerals, the tile arrows and the VS between player cards are readable
   assertReadable(sheet, ".game-versus > strong", "color", ["--surface", "--surface-2"], 3);
   assertReadable("src/styles/matchday.css", ".matchday-edition", "color", ["--surface-2"], 3);
 });
+
+test("an improved stat on a roster card is text-accent green, not the button fill, on a dark surface too", () => {
+  const selector = ".matchday-player-card .readonly-stat-line .stat-up strong";
+  assertReadable("src/styles/matchday.css", selector, "color", ["--surface", "--surface-2"], 4.5);
+});
