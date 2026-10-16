@@ -3,7 +3,7 @@ import { ensureDraftPlayers } from '../roster/players.mjs';
 import { SIDES, otherSide, CONFIRM_ACTION } from '../match/rules.mjs';
 import { POST_STEPS, INJURIES, RESULT_MODES, postCount, postError, resultAgreed, mvpCount } from './rules.mjs';
 import { normalizeMatchStats, validateStatistics } from './statistics.mjs';
-import { statisticsFromEvents } from './events.mjs';
+import { statisticsFromEvents, sameValues } from './events.mjs';
 import { validateFans } from './finance.mjs';
 import { projectPostRoster } from './roster.mjs';
 
@@ -57,7 +57,7 @@ function saveStatistics(state, name, action) {
       || (injury.code === 'lasting' && !['ma', 'st', 'ag', 'pa', 'ar'].includes(injury.stat))) throw postError('POST_PLAYER');
     injuries[id] = { code: injury.code, stat: injury.stat, retire: Boolean(injury.retire) };
   }
-  if (JSON.stringify([side.statistics, side.mvps, side.injuries]) !== JSON.stringify([statistics, mvps, injuries])) side.advancements = {};
+  if (!sameValues([side.statistics, side.mvps, side.injuries], [statistics, mvps, injuries])) side.advancements = {};
   side.statistics = statistics; side.mvps = mvps; side.injuries = injuries;
   side.departures = Object.fromEntries(side.baseRoster.players.filter(player => player.advancements.length >= 3)
     .filter(player => action.departures?.[player.id]).map(player => [player.id, postCount(action.departures[player.id], 6)]));

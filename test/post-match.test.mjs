@@ -6,7 +6,7 @@ import { projectPostRoster, fallenPlayers } from '../src/domain/post-match/roste
 import { postMatchLedgerEntries, ledgerRows } from '../src/domain/roster/ledger.mjs';
 import { createMatchSide, calculateMatchCtv } from '../src/domain/match/roster.mjs';
 import { earnedSpp, normalizeMatchStats } from '../src/domain/post-match/statistics.mjs';
-import { careerCounters, eventsDiff, followEvents } from '../src/domain/post-match/events.mjs';
+import { careerCounters, eventsDiff, followEvents, sameValues } from '../src/domain/post-match/events.mjs';
 import { playerAvailableSpp } from '../src/domain/roster/progression.mjs';
 import { playerCurrentCost } from '../src/domain/roster/costs.mjs';
 import { normalizeRosterPlayer } from '../src/domain/roster/players.mjs';
@@ -548,4 +548,48 @@ test('an injury alone is a change; a side with no events listed reads as having 
   assert.equal(undone.revision, hurt.revision + 1);
   hurt.status = 'completed';
   assert.equal(followEvents(hurt, {}), hurt);
+});
+
+test('sameValues: equal whatever the order of the keys, a key holding undefined is a key not there, and any other difference is one', () => {
+  assert.equal(sameValues({ a: 1, b: { c: [1, 2], d: 'x' } }, { b: { d: 'x', c: [1, 2] }, a: 1 }), true);
+  assert.equal(sameValues({ code: 'miss', stat: undefined, retire: false }, { retire: false, code: 'miss' }), true, 'JSON drops undefined, so does the compare');
+  assert.equal(sameValues([{ a: 1 }, 'x'], [{ a: 1 }, 'x']), true);
+  for (const [left, right] of [[{ a: 1 }, { a: 2 }], [{ a: 1 }, { a: 1, b: 0 }], [{ a: 1, b: 0 }, { a: 1 }], [[1, 2], [2, 1]], [[1], [1, 2]],
+    [[], {}], [{ a: 1 }, null], [null, { a: 1 }], [{ a: undefined, b: 1 }, { a: 1, b: undefined }], [{ a: '1' }, { a: 1 }]]) {
+    assert.equal(sameValues(left, right), false, JSON.stringify([left, right]));
+  }
+});
+
+// A side at the Players step with one chosen advancement; `stored` is what the database gives back (jsonb: undefined keys gone, keys reordered).
+function playersStepWithAdvancement() {
+  const f = fanSteps(agreed(fixture()));
+  f.state.home.baseRoster.players[0].spp.bonus = 10;
+  const injuries = { 'home-1': { code: 'miss' } };
+  savePlayers(f, 'home', { injuries });
+  f.state = applyPostAction(f.state, 'home', { type: 'advance', playerId: 'home-0', advancementType: 'primary', grant: { skill: 'Block' } }, f.data);
+  assert.equal(f.state.home.advancements['home-0'].length, 1);
+  const side = f.state.home, stored = structuredClone(f.state);
+  stored.home.statistics = reversedKeys(JSON.parse(JSON.stringify(side.statistics)));
+  stored.home.mvps = reversedKeys(JSON.parse(JSON.stringify(side.mvps)));
+  stored.home.injuries = reversedKeys(JSON.parse(JSON.stringify(side.injuries)));
+  const save = (state, changes = {}) => applyPostAction(state, 'home', { type: 'statistics', statistics: structuredClone(side.statistics), mvps: ['home-0'], injuries, ...changes }, f.data);
+  return { f, stored, save };
+}
+
+test('saving the Players step again with nothing changed keeps the advancements, whatever order the database returned the keys in', () => {
+  const { f, stored, save } = playersStepWithAdvancement();
+  assert.notDeepEqual(Object.keys(stored.home.statistics['home-0']), Object.keys(f.state.home.statistics['home-0']), 'the keys are reordered');
+  assert.deepEqual(save(f.state).home.advancements, f.state.home.advancements, 'in memory');
+  assert.deepEqual(save(stored).home.advancements, f.state.home.advancements, 'as stored');
+});
+
+test('saving the Players step again with a real change still drops the advancements', () => {
+  const { stored, save } = playersStepWithAdvancement();
+  const statistics = { 'home-2': { completions: 1 } };
+  const changed = {
+    counter: { statistics: Object.fromEntries(Object.keys(stored.home.statistics).map(id => [id, { ...normalizeMatchStats(), ...statistics[id] }])) },
+    injury: { injuries: { 'home-1': { code: 'miss' }, 'home-3': { code: 'niggling' } } },
+    mvp: { mvps: ['home-1'] },
+  };
+  for (const [what, changes] of Object.entries(changed)) assert.deepEqual(save(stored, changes).home.advancements, {}, what);
 });

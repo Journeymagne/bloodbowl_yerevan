@@ -23,6 +23,7 @@ export const EVENT_COUNTERS = Object.freeze(['touchdowns', 'casualties', 'knocko
 
 const COUNTED = EVENT_COUNTERS.filter(counter => counter !== 'injury');
 const MAX_COUNT = 99; // postCount's bound
+const PLAYERS_STAGE = POST_STEPS.indexOf('players'); // a side past it keeps what its coach saved
 const isStep = event => event.delta === 1 || event.delta === -1;
 const isInjuryEvent = event => event.counter === 'injury';
 
@@ -134,15 +135,16 @@ export function careerCounters(player, events = []) {
   return result;
 }
 
-const PLAYERS_STAGE = POST_STEPS.indexOf('players');
-
-// Same values whatever the order of the keys: Postgres jsonb hands an object back with its keys
-// reordered, so comparing stringified copies would call every stored state changed.
-function sameValues(left, right) {
+// Same values whatever the order of the keys, the way two JSON texts of them would read: Postgres jsonb
+// hands an object back with its keys reordered and without the keys that held undefined, so comparing
+// stringified copies would call every stored state changed.
+export function sameValues(left, right) {
   if (left === right) return true;
   if (!left || !right || typeof left !== 'object' || typeof right !== 'object' || Array.isArray(left) !== Array.isArray(right)) return false;
-  const keys = Object.keys(left);
-  return keys.length === Object.keys(right).length && keys.every(key => Object.hasOwn(right, key) && sameValues(left[key], right[key]));
+  if (Array.isArray(left)) return left.length === right.length && left.every((item, at) => sameValues(item, right[at]));
+  const keys = Object.keys(left).filter(key => left[key] !== undefined);
+  return keys.length === Object.keys(right).filter(key => right[key] !== undefined).length
+    && keys.every(key => Object.hasOwn(right, key) && sameValues(left[key], right[key]));
 }
 
 /**
