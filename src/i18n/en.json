@@ -854,5 +854,10 @@
   "post.moneyLost": "Treasury lost",
   "post.departureRoll": "Departure D6: {roll} · {outcome}",
   "post.departed": "Player leaves the team",
-  "post.stayed": "Player stays"
+  "post.stayed": "Player stays",
+  "ui.stepper.decrease": "Remove: {action}, {player}",
+  "ui.stepper.increase": "Add: {action}, {player}",
+  "ui.counter.decrease": "Decrease: {name}",
+  "ui.counter.increase": "Increase: {name}",
+  "ui.counter.locked": "Unavailable"
 }

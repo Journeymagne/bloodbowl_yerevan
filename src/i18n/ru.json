@@ -854,5 +854,10 @@
   "post.moneyLost": "Потеря казны",
   "post.departureRoll": "D6 на уход: {roll} · {outcome}",
   "post.departed": "Игрок покидает команду",
-  "post.stayed": "Игрок остаётся"
+  "post.stayed": "Игрок остаётся",
+  "ui.stepper.decrease": "Убрать: {action}, {player}",
+  "ui.stepper.increase": "Добавить: {action}, {player}",
+  "ui.counter.decrease": "Уменьшить: {name}",
+  "ui.counter.increase": "Увеличить: {name}",
+  "ui.counter.locked": "Недоступно"
 }
