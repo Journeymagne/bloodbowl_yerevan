@@ -2,12 +2,14 @@
  * These writes run only inside the locked start/finish transaction, never for a draft.
  * The treasury ledger is written here too, in that same transaction and only once
  * the team's own write has gone through: a start or a finish that is refused leaves
- * no lines behind.
+ * no lines behind. The fallen of a finish follow the ledger on the same terms: a
+ * finish that is refused records nobody.
  */
 import { httpError } from '../http/errors.mjs';
 import { writeLedgerEntries } from '../api/team-ledger.mjs';
 import { sumMoney } from '../../src/domain/money.mjs';
 import { postMatchLedgerEntries } from '../../src/domain/roster/ledger.mjs';
+import { fallenPlayers } from '../../src/domain/post-match/roster.mjs';
 import { sealPlayerPurchases } from '../../src/domain/roster/transfers.mjs';
 
 export async function applyPreMatchTreasury(client, pairingId, name, snapshot, actorId = null) {
@@ -32,4 +34,10 @@ export async function applyPostMatchRoster(client, pairingId, name, side, projec
   if (!saved.rows[0]) throw httpError(409, 'POST_TEAM_CHANGED');
   await writeLedgerEntries(client, { teamId: side.team.id, opening: side.baseRoster.treasury,
     entries: postMatchLedgerEntries(projection.accounting), pairingId, actorId });
+  // The dead are the same players, by the same rule, that migration 015 carries over from earlier
+  // matches: the player as the roster held him before the match, rookie protection via effectiveInjury.
+  for (const player of fallenPlayers(side)) {
+    await client.query(`INSERT INTO team_fallen_players (saved_team_id, player, pairing_id, recorded_by) VALUES ($1, $2, $3, $4)`,
+      [side.team.id, JSON.stringify(player), pairingId, actorId]);
+  }
 }

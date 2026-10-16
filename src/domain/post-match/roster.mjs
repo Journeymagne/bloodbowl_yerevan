@@ -172,6 +172,20 @@ export function projectPostRoster(state, name, data, final = false) {
   return { roster, players, finance, income, accounting, winnings: income.total };
 }
 
+/**
+ * The players this post-match leaves dead: a roster player whose injury stands as
+ * dead once rookie protection is applied (a team with fewer than three games
+ * played gets Badly Hurt instead, see `effectiveInjury`). They are copies, as the
+ * roster held them before the match: the journeyman and the stars are not on it,
+ * so none of them is ever counted. Migration 015 carries over the earlier deaths
+ * by the same rule: the player from before the match, the injury as it stood.
+ */
+export function fallenPlayers(side) {
+  return side.baseRoster.players
+    .filter(player => effectiveInjury(side, player.id).code === 'dead')
+    .map(player => structuredClone(player));
+}
+
 function validateRaise(state, name, side, operation) {
   const opponent = state[name === 'home' ? 'away' : 'home'];
   const dead = opponent.snapshot.players.filter(player => player.kind !== 'star' && effectiveInjury(opponent, player.id).code === 'dead').length;

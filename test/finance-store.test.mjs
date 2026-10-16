@@ -60,6 +60,21 @@ test("a post-match whose team changed journals nothing", async () => {
   assert.deepEqual(journal(db), []);
 });
 
+const fallen = (db) => db.log.filter((entry) => entry.sql.startsWith("INSERT INTO team_fallen_players")).map((entry) => entry.values);
+const finished = { roster: { players: [], treasury: 150 }, accounting: { winnings: 0, deposit: 0, loss: 0, transactions: [] } };
+
+test("finishing a post-match records each dead roster player, and nobody protected or temporary", async () => {
+  const victim = { id: "p2", rowIndex: 0, name: "Fallen" };
+  const db = fakeClient();
+  await applyPostMatchRoster(db, "g1", "home", side({ baseRoster: { treasury: 150, players: [{ id: "p1", rowIndex: 0 }, victim] },
+    injuries: { p2: { code: "dead" }, "journeyman-8": { code: "dead" } } }), structuredClone(finished), "u2");
+  assert.deepEqual(fallen(db).map(([team, player, pairing, by]) => [team, JSON.parse(player), pairing, by]), [["t1", victim, "g1", "u2"]]);
+  const rookies = fakeClient();
+  await applyPostMatchRoster(rookies, "g1", "home", side({ gamesPlayed: 2, baseRoster: { treasury: 150, players: [victim] },
+    injuries: { p2: { code: "dead" } } }), structuredClone(finished), "u2");
+  assert.deepEqual(fallen(rookies), []);
+});
+
 const ID = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 const U1 = ID(1), U2 = ID(2), T1 = ID(11), T2 = ID(12), G = ID(41);
 
@@ -70,6 +85,23 @@ async function friendly(client) {
   await client.query(`INSERT INTO season_pairings (id, match_kind, table_number, friendly_home_user_id, friendly_away_user_id,
     friendly_home_team_id, friendly_away_team_id) VALUES ($1, 'friendly', 1, $2, $3, $4, $5)`, [G, U1, U2, T1, T2]);
 }
+
+test("the fallen follow the journal, one row each, and a finish that is refused records nobody", async () => {
+  const [first, second] = [{ id: "p1", rowIndex: 0 }, { id: "p2", rowIndex: 0 }];
+  const dead = side({ baseRoster: { treasury: 150, players: [first, second, { id: "p3", rowIndex: 0 }] },
+    injuries: { p1: { code: "dead" }, p2: { code: "dead" }, p3: { code: "miss" } } });
+  const paid = { ...finished, accounting: { ...finished.accounting, winnings: 50 } };
+  const db = fakeClient();
+  await applyPostMatchRoster(db, "g1", "home", dead, structuredClone(paid), "u2");
+  assert.deepEqual(fallen(db).map(([, player]) => JSON.parse(player).id), ["p1", "p2"]);
+  const sql = db.log.map((entry) => entry.sql);
+  const lastLine = sql.findLastIndex((text) => text.startsWith("INSERT INTO team_ledger"));
+  assert.ok(lastLine >= 0, "the journal has a line to come after");
+  assert.ok(lastLine < sql.findIndex((text) => text.startsWith("INSERT INTO team_fallen_players")));
+  const refused = fakeClient({ updated: false });
+  await assert.rejects(applyPostMatchRoster(refused, "g1", "home", dead, structuredClone(paid), "u2"), { code: "POST_TEAM_CHANGED" });
+  assert.deepEqual(fallen(refused), []);
+});
 
 test("on a real database: the start and the finish write their journal rows", { skip: scratchSkip }, async () => {
   await withScratchDatabase(async ({ client }) => {
@@ -88,4 +120,17 @@ test("on a real database: the start and the finish write their journal rows", { 
     ]);
     assert.equal((await client.query("SELECT revision FROM saved_teams WHERE id = $1", [T1])).rows[0].revision, 3);
   });
+});
+
+test("on a real database: the dead player of a finished post-match is in team_fallen_players", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await friendly(client);
+    const victim = { id: "p2", rowIndex: 0, name: "Fallen" };
+    await client.query("BEGIN");
+    await applyPostMatchRoster(client, G, "home", { team: { id: T1 }, baseRevision: 1, gamesPlayed: 4, injuries: { p2: { code: "dead" } },
+      baseRoster: { treasury: 150.5, players: [victim] } }, structuredClone(finished), U1);
+    await client.query("COMMIT");
+    const { rows } = await client.query("SELECT saved_team_id, player, cause, pairing_id, recorded_by, died_at IS NOT NULL AS dated FROM team_fallen_players");
+    assert.deepEqual(rows, [{ saved_team_id: T1, player: victim, cause: null, pairing_id: G, recorded_by: U1, dated: true }]);
+  }, { through: "011_fallen_players.sql" });
 });

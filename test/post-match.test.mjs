@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPostMatch, applyPostAction, validatePostSide } from '../src/domain/post-match/state.mjs';
 import { postIncome, postWinnings, mistakeKind, postFinance, nextDedicatedFans } from '../src/domain/post-match/finance.mjs';
-import { projectPostRoster } from '../src/domain/post-match/roster.mjs';
+import { projectPostRoster, fallenPlayers } from '../src/domain/post-match/roster.mjs';
 import { postMatchLedgerEntries, ledgerRows } from '../src/domain/roster/ledger.mjs';
 import { createMatchSide, calculateMatchCtv } from '../src/domain/match/roster.mjs';
 import { earnedSpp, normalizeMatchStats } from '../src/domain/post-match/statistics.mjs';
@@ -419,4 +419,16 @@ test('rookie protection leaves no absence; a temporarily retired player keeps th
   const players = projectPostRoster(f.state, 'home', f.data).roster.players;
   assert.equal(players[0].absence, null); assert.equal(players[0].skipNextGame, false);
   assert.deepEqual(players[1].absence, { code: 'lasting', stat: 'st', pairingId: 'earlier' });
+});
+
+test('the fallen are roster players whose injury stands as dead, as the roster held them before the match', () => {
+  const f = agreed(fixture());
+  f.state.home.injuries['home-0'] = { code: 'dead' };
+  f.state.home.injuries['home-1'] = { code: 'lasting', stat: 'ma' };
+  f.state.home.snapshot.players.push({ id: 'journeyman-8', rowIndex: 0, row: f.row, name: 'Temp', number: '8', kind: 'journeyman' });
+  f.state.home.injuries['journeyman-8'] = { code: 'dead' };
+  assert.deepEqual(fallenPlayers(f.state.home), [f.state.home.baseRoster.players[0]]);
+  assert.notEqual(fallenPlayers(f.state.home)[0], f.state.home.baseRoster.players[0]);
+  f.state.home.gamesPlayed = 2;
+  assert.deepEqual(fallenPlayers(f.state.home), []);
 });
