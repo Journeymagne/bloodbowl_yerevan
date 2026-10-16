@@ -48,12 +48,12 @@ function points(state, name, kind) {
     casualtiesFor: state.result[name].casualties });
 }
 
-async function finishPost(client, fixture, state, sources, data) {
+async function finishPost(client, fixture, state, sources, data, actorId) {
   if (state.status !== 'ready' || !resultAgreed(state)) throw httpError(409, 'POST_INCOMPLETE');
   for (const name of SIDES) {
     if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
     const projection = validatePostSide(state, name, data);
-    await applyPostMatchRoster(client, fixture.id, name, state[name], projection);
+    await applyPostMatchRoster(client, fixture.id, name, state[name], projection, actorId);
     state[name].settlement = projection;
   }
   const result = state.result;
@@ -85,7 +85,7 @@ export async function accessPostMatch(pairingId, user, body = null, finish = fal
         state.status = 'draft'; state.revision++;
       } else {
         if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
-        state = finish ? await finishPost(client, fixture, state, sources, data) : applyPostAction(state, name, body.action, data);
+        state = finish ? await finishPost(client, fixture, state, sources, data, user.id) : applyPostAction(state, name, body.action, data);
       }
     }
     await savePost(client, fixture, state);
