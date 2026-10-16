@@ -261,7 +261,9 @@ were carried over, and which matches are still half-way through.
 It exits 0 for an OK, 1 when existing data changed, and 2 when no migration was
 applied between the snapshots — nothing was tested. It also requires the new
 tables team_ledger, dice_rolls and match_events to be empty after migrating, and
-the fallen players 015 carried over to be exactly the ones its rule finds.
+the number of fallen players 015 carried over, per team, to equal the number
+its rule finds (the check compares counts, not the players themselves). It does
+this only when 015 was applied between the two snapshots.
 Running rehearsal:migrate again adds a run to output/rehearsal/migrate.json
 instead of overwriting it, so the report keeps the time the real run took.
 

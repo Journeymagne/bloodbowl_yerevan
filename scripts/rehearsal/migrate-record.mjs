@@ -4,10 +4,10 @@
  * A second `rehearsal:migrate` usually applies nothing, and a record written over
  * the first one lost the time of the real run, which is the one the cutover's
  * maintenance window has to allow for. So every run is kept in `runs`, and the
- * top level adds them up: `at` is when the first run started, `applied` names
- * what every run applied, and `ms` is the sum of the runs that applied something
- * (the sum of all of them when none did, so an empty rehearsal still says how
- * long it took).
+ * top level adds them up: `at` is when the first run ended (a run takes it after
+ * the migrations are applied), `applied` names what every run applied, and `ms`
+ * is the sum of the runs that applied something (the sum of all of them when
+ * none did, so an empty rehearsal still says how long it took).
  *
  * A record written before runs were kept ({ at, applied, ms }) counts as one run.
  *

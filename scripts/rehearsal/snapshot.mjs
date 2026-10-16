@@ -257,9 +257,10 @@ function compareStartEmpty(before, after, problems) {
   }
 }
 
-// Only once 015 has run: until then nothing has been carried over, and there is nothing to compare.
-function compareFallen(after, problems) {
-  if (!after.fallenCheck || !after.migrations.includes(FALLEN_BACKFILL)) return;
+// Only when 015 ran between the snapshots: before it nothing has been carried over, and if it was
+// already in "before", what it carried over then is not what this run changed.
+function compareFallen(before, after, problems) {
+  if (!after.fallenCheck || !addedMigrations(before, after).includes(FALLEN_BACKFILL)) return;
   for (const [id, { carried, expected }] of Object.entries(after.fallenCheck)) {
     if (carried !== expected) problems.push(`team ${after.teams[id]?.name ?? id}: ${carried} fallen carried over, the rule expects ${expected}`);
   }
@@ -306,7 +307,7 @@ export function compareSnapshots(before, after) {
     if (row.stage !== expected) problems.push(`team ${row.name}: stage ${row.stage}, expected ${expected} (${reason(row)})`);
   }
   if (after.preferencesSet) problems.push(`${after.preferencesSet} users already have preferences set`);
-  compareFallen(after, problems);
+  compareFallen(before, after, problems);
   return { problems, notes };
 }
 

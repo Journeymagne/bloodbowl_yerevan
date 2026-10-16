@@ -291,6 +291,10 @@ test("once 015 has run, the fallen it carried over must be what the rule finds",
   assert.deepEqual(compareSnapshots(snapshot(), after).problems, ["team Ashgrove Wardens: 1 fallen carried over, the rule expects 2"]);
   // 011 applied, 015 not yet: nothing has been carried over, so there is nothing to compare.
   assert.deepEqual(compareSnapshots(snapshot(), migrated({ fallenCheck: { t1: { carried: 0, expected: 2 } } })).problems, []);
+  // 015 was already in "before": it did not run between these snapshots, so what it carried over is not what is under test.
+  const ran = migrated({ migrations: [...migrated().migrations, "015_backfill_fallen_players.sql"] });
+  const later = { ...ran, migrations: [...ran.migrations, "016_later.sql"], fallenCheck: { t1: { carried: 1, expected: 2 } } };
+  assert.deepEqual(compareSnapshots(ran, later).problems, []);
 });
 
 test("exit codes: 1 with problems, 2 with nothing migrated, 0 for a real OK", () => {
