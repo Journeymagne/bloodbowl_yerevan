@@ -49,10 +49,10 @@
 .filter-field input[type="file"] { padding-block: 6px; }
 .filter-field :is(input, select):focus { border-color: var(--focus); }
 .filter-field input[type="checkbox"], .pre-match input[type="checkbox"] {
-  width: 20px; height: 20px; min-height: 20px; padding: 0; flex-shrink: 0; accent-color: var(--line-bright);
+  width: 20px; height: 20px; min-height: 20px; padding: 0; flex-shrink: 0; accent-color: var(--accent);
 }
 .checkbox-field { display: flex; align-items: center; gap: 10px; min-height: 44px; color: var(--muted); font-size: .8rem; font-weight: 700; }
-.checkbox-field input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--line-bright); }
+.checkbox-field input { width: 20px; height: 20px; flex-shrink: 0; accent-color: var(--accent); }
 .inline-stepper-control {
   display: grid; grid-template-columns: repeat(3, 44px); grid-template-rows: 44px;
   width: max-content; flex-shrink: 0; overflow: hidden;

@@ -152,3 +152,12 @@ test("the numbers, badges and prices of match preparation and the season table a
   // The badge's outline is a border and keeps the border colour.
   assert.deepEqual(valuesOf(pre, ".pre-badge", "border"), ["1px solid var(--line-bright)"]);
 });
+
+test("a checked checkbox is filled with the accent, not the pale border colour", () => {
+  const sheet = "src/styles/controls.css";
+  for (const selector of ['.filter-field input[type="checkbox"]', ".checkbox-field input"]) {
+    // 2.5:1 is "clearly not the 1.5-2.1:1 it was"; dungeon's own accent is 2.91:1 on its surface.
+    assertReadable(sheet, selector, "accent-color", ["--surface", "--page"], 2.5);
+    assert.deepEqual(valuesOf(sheet, selector, "accent-color"), ["var(--accent)"], selector);
+  }
+});
