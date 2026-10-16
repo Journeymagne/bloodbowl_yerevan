@@ -3,7 +3,8 @@
  * all-time record at a glance.
  *
  * Which matches count, and in what order they were played, is the caller's.
- * Each square is its letter, with the word in its title; the colour only
+ * Each square shows its letter and is named by its word (aria-label, since a
+ * title is not reliably read; the title stays for a pointer); the colour only
  * reinforces it.
  */
 import { escapeHtml } from "../core/dom.mjs";
@@ -22,6 +23,6 @@ export function renderFormStrip({ results }) {
   if (!Array.isArray(results)) throw new Error("a form strip needs results: an array of outcomes, the oldest first");
   // Every result is checked, the ones cut off included: a bad value should fail now, not when it enters the window.
   const items = results.map((result) => ({ result, ...resultLabels(result) })).slice(-VISIBLE).map(({ result, letter, name }) =>
-    `<span class="g-form__item g-form__item--${result}" role="listitem"${dataAttributes({ result })} title="${escapeHtml(name)}">${escapeHtml(letter)}</span>`);
+    `<span class="g-form__item g-form__item--${result}" role="listitem"${dataAttributes({ result })} aria-label="${escapeHtml(name)}" title="${escapeHtml(name)}">${escapeHtml(letter)}</span>`);
   return `<div class="g-form" role="list" aria-label="${escapeHtml(t("ui.form.label"))}">${items.join("")}</div>`;
 }

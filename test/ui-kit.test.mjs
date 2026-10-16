@@ -4,6 +4,7 @@ import test from "node:test";
 
 import { ICON_NAMES, icon } from "../src/ui/icons.mjs";
 import { classNames, dataAttributes } from "../src/ui/markup.mjs";
+import { assertContrast, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -108,4 +109,12 @@ test("mount shows one page at a time", () => {
   assert.throws(() => mount("<p>"), /never closed/);
   assert.ok(second.isConnected);
   assert.equal(document.querySelector("#ok").textContent, "second");
+});
+
+test("the keyboard focus ring is the text accent, 3:1 on the page and both surfaces in every palette", () => {
+  const [ring] = valuesOf("src/ui/base.css", ':where([class^="g-"], [class*=" g-"]):focus-visible', "outline");
+  const colour = ring?.match(/var\(--[\w-]+\)/)?.[0];
+  assert.ok(colour, `no colour in the focus outline: ${ring}`);
+  // --accent is 2.68-2.91:1 on the dungeon and night surfaces (WCAG 1.4.11 asks 3:1 of a focus indicator).
+  assertContrast(colour, ["--page", "--surface", "--surface-2"], 3, { what: `the focus ring ${colour}` });
 });

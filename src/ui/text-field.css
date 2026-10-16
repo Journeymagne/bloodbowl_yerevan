@@ -37,7 +37,7 @@
   letter-spacing: 0;
   appearance: none;
 }
-.g-field__input::placeholder { color: var(--faint); }
+.g-field__input::placeholder { color: var(--muted); }
 
 .g-field__help,
 .g-field__error {

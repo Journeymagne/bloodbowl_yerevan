@@ -54,4 +54,8 @@
   border-radius: var(--radius-lg);
 }
 .g-kpi--compact .g-kpi__k { font-size: 12px; }
-.g-kpi--compact .g-kpi__v { font: 700 17px/1.2 var(--font-body); }
+.g-kpi--compact .g-kpi__v {
+  font: 700 17px/1.2 var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+}

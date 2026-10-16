@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
+import { assertContrast, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderButton } from "../src/ui/button.mjs";
@@ -301,4 +303,30 @@ test("a match card has a title and two named teams", () => {
   assert.throws(() => renderMatchCard({ title: "T", home: {}, away }), /home/);
   assert.throws(() => renderMatchCard({ title: "T", home }), /away/);
   assert.throws(() => renderMatchCard({ title: "T", home, away: { name: "" } }), /away/);
+});
+
+test("a draw's white letter reads 4.5:1 on its square and its pill, in every palette", () => {
+  for (const [sheet, base, draw] of [["src/ui/result-pill.css", ".g-result", ".g-result--d"], ["src/ui/form-strip.css", ".g-form__item", ".g-form__item--d"]]) {
+    const letter = valuesOf(sheet, base, "color").at(-1);
+    const fill = valuesOf(sheet, draw, "background").at(-1);
+    assertContrast(letter, [fill], 4.5, { what: `${draw} ${letter}` });
+  }
+});
+
+test("a form strip square is named by its word, since a title is not reliably read, and still shows its letter", () => {
+  const fragment = mount(renderFormStrip({ results: ["w", "d", "l", "t"] }));
+  const items = fragment.querySelectorAll(".g-form__item");
+  assert.deepEqual(items.map((item) => item.getAttribute("aria-label")), ["Win", "Draw", "Loss", "Friendly"]);
+  assert.deepEqual(items.map((item) => item.textContent), ["W", "D", "L", "F"]);
+  assertCspSafe(fragment);
+  const russian = inRussian(() => mount(renderFormStrip({ results: ["d"] })).querySelector(".g-form__item"));
+  assert.equal(russian.getAttribute("aria-label"), "Ничья");
+  assert.equal(russian.textContent, "Н");
+});
+
+test("a compact kpi figure keeps tabular digits: its font shorthand would reset them", () => {
+  const sheet = "src/ui/kpi-tile.css";
+  assert.deepEqual(valuesOf(sheet, ".g-kpi--compact .g-kpi__v", "font-variant-numeric"), ["tabular-nums"]);
+  const body = readFileSync(new URL("../src/ui/kpi-tile.css", import.meta.url), "utf8").match(/\.g-kpi--compact \.g-kpi__v\s*\{([^}]*)\}/)[1];
+  assert.ok(body.indexOf("font-variant-numeric") > body.indexOf("font:"), "after the shorthand, or the shorthand wins");
 });

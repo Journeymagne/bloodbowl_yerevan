@@ -68,9 +68,10 @@ const SCALES = {
   "--shadow-thumb": "0 1px 2px rgba(20, 32, 26, 0.12)",
 };
 
+// tokens.json's, except --neutral-result: a shade darker than its #6F7A75, so a white D reads 4.5:1.
 const FIXED = {
   "--pitch-900": "#17392C", "--header-ink": "#FFFFFF", "--crest-gold": "#F2C14E", "--on-accent": "#FFFFFF",
-  "--live": "#7FD3A2", "--neutral-result": "#6F7A75", "--result-friendly": "#8A5A12",
+  "--live": "#7FD3A2", "--neutral-result": "#6B7671", "--result-friendly": "#8A5A12",
   "--pos-blitzer": "var(--pitch-900)", "--pos-catcher": "#2E6E8E", "--pos-thrower": "#8A5A12", "--pos-lineman": "#55615B", "--pos-big": "#7B2E2E",
   "--cat-agility": "#2E6E8E", "--cat-devious": "#5B3F78", "--cat-general": "var(--pitch-900)", "--cat-mutation": "#6B5A1E",
   "--cat-passing": "#8A5A12", "--cat-strength": "#7B2E2E", "--cat-trait": "#55615B",

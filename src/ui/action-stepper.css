@@ -45,6 +45,9 @@
   color: var(--disabled);
   cursor: default;
 }
+/* A refused plus loses the accent fill, as the counter's does: on it the icon all but disappears in the dark palettes. */
+.g-stepper__btn--inc:disabled,
+.g-stepper__btn--inc[aria-disabled="true"] { background: var(--surface-3); }
 
 .g-stepper__mid {
   display: flex;

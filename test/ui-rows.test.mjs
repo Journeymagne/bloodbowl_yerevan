@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { assertReadable } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { CALLOUT_TONES, renderCallout } from "../src/ui/callout.mjs";
 import { renderKeyValueRow, renderNavRow, renderRankedRow } from "../src/ui/list-row.mjs";
@@ -208,4 +209,9 @@ test("a ranked row escapes what is text and inserts what is markup", () => {
   assert.equal(fragment.querySelector(".g-ranked__caption").textContent, HOSTILE);
   assert.equal(fragment.querySelector(".g-ranked__value").textContent, HOSTILE);
   assert.equal(fragment.querySelector("img"), null);
+});
+
+test("a placeholder is text a reader can read in the field, not the faint grey", () => {
+  // --faint is 3.1-3.4:1 on the light palettes' field.
+  assertReadable("src/ui/text-field.css", ".g-field__input::placeholder", "color", ["--field"], 4.5);
 });

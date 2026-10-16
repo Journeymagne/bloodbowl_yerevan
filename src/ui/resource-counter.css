@@ -91,8 +91,10 @@
   text-align: center;
 }
 
-/* A locked counter stays on the page, quiet, and its note says why. */
+/*
+ * A locked counter stays on the page, quiet, and its note says why. The note
+ * keeps --muted: it is the text that explains the lock, and --faint is 3:1.
+ */
 .g-resource--locked .g-resource__name,
-.g-resource--locked .g-resource__note,
 .g-resource--locked .g-resource__value { color: var(--faint); }
 .g-resource--locked .g-resource__btn { background: var(--surface-3); }

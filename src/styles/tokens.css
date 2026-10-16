@@ -65,7 +65,8 @@
   --crest-gold: #F2C14E;
   --on-accent: #FFFFFF;
   --live: #7FD3A2;
-  --neutral-result: #6F7A75;
+  /* tokens.json has #6F7A75, where a white D is 4.45:1: a shade darker reads 4.7:1. */
+  --neutral-result: #6B7671;
   --result-friendly: #8A5A12;
   --pos-blitzer: var(--pitch-900);
   --pos-catcher: #2E6E8E;

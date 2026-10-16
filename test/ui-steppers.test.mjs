@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { assertContrast, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
@@ -185,4 +186,21 @@ test("a minus that is plainly disabled reports nothing, even through its icon", 
   fireEvent(fragment.querySelector('[data-action-step="-1"] svg'), "click");
   fireEvent(fragment.querySelector('[data-resource-step="-1"]'), "click");
   assert.deepEqual(seen, []);
+});
+
+test("a refused plus is drawn as a refusal in both steppers: the minus's --surface-3, not the accent fill", () => {
+  // On the accent, the --disabled icon is 1.1-1.5:1 in the dark palettes: a live-looking button with no sign on it.
+  for (const [sheet, plus] of [["src/ui/action-stepper.css", ".g-stepper__btn--inc"], ["src/ui/resource-counter.css", ".g-resource__btn--inc"]]) {
+    for (const refused of [`${plus}:disabled`, `${plus}[aria-disabled="true"]`]) {
+      assert.deepEqual(valuesOf(sheet, refused, "background"), ["var(--surface-3)"], refused);
+    }
+  }
+  assert.deepEqual(valuesOf("src/ui/action-stepper.css", ".g-stepper__btn", "background"), ["var(--surface-3)"]);
+});
+
+test("a locked counter's note is the reason, so it stays muted text a reader can read; the name and count go faint", () => {
+  const sheet = "src/ui/resource-counter.css";
+  const note = valuesOf(sheet, ".g-resource--locked .g-resource__note", "color").at(-1) ?? valuesOf(sheet, ".g-resource__note", "color").at(-1);
+  assertContrast(note, ["--page", "--surface", "--surface-2"], 4.5, { what: `the locked note ${note}` });
+  assert.deepEqual(valuesOf(sheet, ".g-resource--locked .g-resource__name", "color"), ["var(--faint)"]);
 });
