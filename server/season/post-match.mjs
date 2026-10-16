@@ -3,10 +3,12 @@ import { httpError } from '../http/errors.mjs';
 import { matchReference } from '../domain/match-reference.mjs';
 import { loadPreparationFixture, loadPreparationSources } from './preparation-store.mjs';
 import { createPostMatch, createPostSide, applyPostAction, validatePostSide } from '../../src/domain/post-match/state.mjs';
+import { followEvents } from '../../src/domain/post-match/events.mjs';
 import { resultAgreed } from '../../src/domain/post-match/rules.mjs';
 import { SIDES, otherSide } from '../../src/domain/match/rules.mjs';
 import { matchPoints } from '../../src/domain/league-rules.mjs';
 import { applyPostMatchRoster } from './finance-store.mjs';
+import { loadMatchEvents, recordSideStatistics, settleMatchEvents } from './match-events-store.mjs';
 
 async function postSources(client, fixture) {
   const sources = await loadPreparationSources(client, fixture);
@@ -18,6 +20,8 @@ async function postSources(client, fixture) {
       AND p.result_type<>'technical' GROUP BY COALESCE(ms.saved_team_id,sides.team_id)`,
   [[fixture.home_team_id, fixture.away_team_id], fixture.id])).rows;
   SIDES.forEach(name => { sources[name].gamesPlayed = rows.find(row => row.saved_team_id === sources[name].team.id)?.games || 0; });
+  const events = await loadMatchEvents(client, fixture.id, SIDES.map(name => sources[name].team.id));
+  SIDES.forEach(name => { sources[name].events = events[sources[name].team.id]; });
   return sources;
 }
 
@@ -54,6 +58,10 @@ async function finishPost(client, fixture, state, sources, data, actorId) {
     if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
     const projection = validatePostSide(state, name, data);
     await applyPostMatchRoster(client, fixture.id, name, state[name], projection, actorId);
+    // The difference once more (a post-match begun before 3.0 has no events; a tap may have landed after the
+    // Players step), then settled in this same transaction, so settled events add up to the statistics the post-match applied.
+    await recordSideStatistics(client, fixture.id, state[name], sources[name].events, actorId);
+    await settleMatchEvents(client, { teamId: state[name].team.id, pairingId: fixture.id });
     state[name].settlement = projection;
   }
   const result = state.result;
@@ -65,28 +73,41 @@ async function finishPost(client, fixture, state, sources, data, actorId) {
   return state;
 }
 
+// The side starts over from its team as it is now, its statistics read from the match events again;
+// a rival on the finance step or later goes back to it, unconfirmed.
+function resetSide(state, name, sources, data) {
+  state[name] = createPostSide(sources[name], state[name].snapshot, data);
+  state[name].stage = resultAgreed(state) ? 1 : 0;
+  const rival = state[otherSide(name)];
+  if (rival.stage >= 4) { rival.stage = 4; rival.deposit = 0; rival.mistake = {}; rival.confirmed = false; }
+  state.status = 'draft'; state.revision++;
+  return state;
+}
+
 export async function accessPostMatch(pairingId, user, body = null, finish = false) {
   const data = await matchReference(), client = await pool.connect();
   try {
     await client.query('BEGIN');
     const fixture = await loadPreparationFixture(client, pairingId, user), sources = await postSources(client, fixture);
-    let state = await loadPost(client, fixture, sources, data);
+    // Read under the pairing and team locks taken above, so no tap lands between this read and the writes below.
+    const events = Object.fromEntries(SIDES.map(name => [name, sources[name].events]));
+    let state = followEvents(await loadPost(client, fixture, sources, data), events);
     const viewerSide = fixture.home_user_id === user.id ? 'home' : 'away';
     if (body && !(finish && state.status === 'completed')) {
       const name = body.side || viewerSide;
       if (!SIDES.includes(name) || (!user.is_admin && fixture[name + '_user_id'] !== user.id)) throw httpError(403, 'FIXTURE_NOT_YOURS');
       if (Number(body.revision) !== state.revision) throw httpError(409, 'POST_REVISION');
       if (state.status === 'completed') throw httpError(409, 'POST_CLOSED');
-      if (body.action?.type === 'reset-side') {
-        state[name] = createPostSide(sources[name], state[name].snapshot, data);
-        state[name].stage = resultAgreed(state) ? 1 : 0;
-        const rival = state[otherSide(name)];
-        if (rival.stage >= 4) { rival.stage = 4; rival.deposit = 0; rival.mistake = {}; rival.confirmed = false; }
-        state.status = 'draft'; state.revision++;
-      } else {
+      if (body.action?.type === 'reset-side') state = resetSide(state, name, sources, data);
+      else {
         if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
-        state = finish ? await finishPost(client, fixture, state, sources, data, user.id) : applyPostAction(state, name, body.action, data);
+        if (finish) state = await finishPost(client, fixture, state, sources, data, user.id);
+        else {
+          state = applyPostAction(state, name, body.action, data);
+          if (body.action?.type === 'statistics') events[name] = await recordSideStatistics(client, fixture.id, state[name], events[name], user.id);
+        }
       }
+      state = followEvents(state, events);
     }
     await savePost(client, fixture, state);
     const response = { postMatch: state, viewerSide, isAdmin: Boolean(user.is_admin),

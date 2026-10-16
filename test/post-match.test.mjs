@@ -6,20 +6,21 @@ import { projectPostRoster, fallenPlayers } from '../src/domain/post-match/roste
 import { postMatchLedgerEntries, ledgerRows } from '../src/domain/roster/ledger.mjs';
 import { createMatchSide, calculateMatchCtv } from '../src/domain/match/roster.mjs';
 import { earnedSpp, normalizeMatchStats } from '../src/domain/post-match/statistics.mjs';
+import { careerCounters, eventsDiff, followEvents, sameValues } from '../src/domain/post-match/events.mjs';
 import { playerAvailableSpp } from '../src/domain/roster/progression.mjs';
 import { playerCurrentCost } from '../src/domain/roster/costs.mjs';
 import { normalizeRosterPlayer } from '../src/domain/roster/players.mjs';
 import { matchRoute, postMatchUrl } from '../src/core/routes.mjs';
 
-function fixture(specialRules = 'Old World Classic') {
+function fixture(specialRules = 'Old World Classic', events = {}, official = null) {
   const row = { qty: '0-16', position: 'Human Lineman', tags: ['Lineman'], price: '50K', skills: [], primary: ['G'], secondary: ['A'], ma: '6', st: '3', ag: '3+', pa: '4+', ar: '9+' };
   const reference = { slug: 'teams/human', title: 'Human', team: { roster: [row], meta: { specialRules, rerolls: '60K', apothecaryAccess: ['apothecary'] } } };
   const data = { teams: [reference], skillGroups: [{ category: 'General', skills: ['Block', 'Wrestle', 'Pro'] }, { category: 'Agility', skills: ['Dodge'] }] };
-  const sources = Object.fromEntries(['home', 'away'].map(name => [name, { user: { id: name, login: name }, gamesPlayed: 4,
+  const sources = Object.fromEntries(['home', 'away'].map(name => [name, { user: { id: name, login: name }, gamesPlayed: 4, events: events[name] ?? [],
     team: { id: name, name, revision: 2, baseTeamSlug: reference.slug, roster: { treasury: 150, dedicatedFans: 2, coachesSafe: 10,
       players: Array.from({ length: 7 }, (_, i) => ({ id: name + '-' + i, rowIndex: 0, number: String(i + 1), name: 'Player ' + (i + 1) })) } } }]));
   const snapshots = Object.fromEntries(['home', 'away'].map(name => [name, { ...createMatchSide(sources[name], data), fanFactor: 4, effects: {} }]));
-  return { data, state: createPostMatch('game', sources, snapshots, data), row };
+  return { data, state: createPostMatch('game', sources, snapshots, data, official), row };
 }
 
 function agreed(f, score = { home: { touchdowns: 0, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } }, mode = 'played') {
@@ -431,4 +432,164 @@ test('the fallen are roster players whose injury stands as dead, as the roster h
   assert.notEqual(fallenPlayers(f.state.home)[0], f.state.home.baseRoster.players[0]);
   f.state.home.gamesPlayed = 2;
   assert.deepEqual(fallenPlayers(f.state.home), []);
+});
+
+const tap = (playerId, counter, delta = 1, injury = null) => ({ playerId, counter, delta, injury, settledAt: null });
+const oneNil = { home: { touchdowns: 1, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } };
+
+test('the post-match starts from the match events: statistics and injuries', () => {
+  const f = fixture('Old World Classic', { home: [tap('home-0', 'touchdowns'), tap('home-1', 'injury', 1, { code: 'miss' })] });
+  assert.equal(f.state.home.statistics['home-0'].touchdowns, 1);
+  assert.deepEqual(f.state.home.injuries, { 'home-1': { code: 'miss', retire: false } });
+  assert.equal(f.state.home.followsEvents, true);
+  assert.equal(f.state.away.statistics['away-0'].touchdowns, 0);
+});
+
+test('until its Players step is saved a side follows the events; a change bumps the revision and drops chosen advancements', () => {
+  const f = fanSteps(agreed(fixture()));
+  f.state.home.advancements = { 'home-0': [{ type: 'primary', grant: { skill: 'Block' } }] };
+  const events = { home: [tap('home-0', 'completions')], away: [] };
+  const followed = followEvents(f.state, events);
+  assert.equal(followed.home.statistics['home-0'].completions, 1);
+  assert.deepEqual(followed.home.advancements, {});
+  assert.equal(followed.revision, f.state.revision + 1);
+  assert.equal(followEvents(followed, events), followed);
+  assert.equal(f.state.home.statistics['home-0'].completions, 0, 'the input state is left alone');
+});
+
+test('a saved Players step, a side past it and a side begun before 3.0 do not follow the events', () => {
+  const events = { home: [tap('home-0', 'completions')], away: [tap('away-0', 'completions')] };
+  const f = fanSteps(agreed(fixture()));
+  savePlayers(f, 'home');
+  assert.equal(f.state.home.followsEvents, false);
+  delete f.state.away.followsEvents; // 2.x wrote no such flag
+  assert.equal(followEvents(f.state, events), f.state);
+  const g = fanSteps(agreed(fixture()));
+  g.state.home.stage = 3;
+  assert.equal(followEvents(g.state, events).home.statistics['home-0'].completions, 0);
+});
+
+test('a new result rebuilds both sides, and following the events seeds them again', () => {
+  const events = { home: [tap('home-0', 'touchdowns')], away: [] };
+  const f = fixture('Old World Classic', events);
+  const proposed = applyPostAction(f.state, 'home', { type: 'result', ...oneNil }, f.data);
+  assert.equal(proposed.home.statistics['home-0'].touchdowns, 0, 'the domain alone has no events');
+  assert.equal(followEvents(proposed, events).home.statistics['home-0'].touchdowns, 1);
+});
+
+test('the score is still checked against the agreed result: two tapped touchdowns do not pass a 1-0', () => {
+  const events = { home: [tap('home-0', 'touchdowns'), tap('home-1', 'touchdowns')], away: [] };
+  const f = fanSteps(agreed(fixture('Old World Classic', events), oneNil));
+  f.state = followEvents(f.state, events);
+  f.state = applyPostAction(f.state, 'home', { type: 'statistics', statistics: f.state.home.statistics, mvps: ['home-0'] }, f.data);
+  assert.throws(() => applyPostAction(f.state, 'home', { type: 'lock-players' }, f.data), { code: 'POST_STATISTICS', params: { counter: 'touchdowns' } });
+});
+
+test('a match the admin closed as a technical win before the post-match: the tapped touchdowns must go, and the difference takes them back', () => {
+  const events = { home: [tap('home-0', 'touchdowns')], away: [] };
+  const official = { mode: 'technical', official: true, winner: 'home', accepted: { home: true, away: true },
+    home: { touchdowns: 2, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } };
+  const f = fanSteps(fixture('Old World Classic', events, official));
+  const mvps = ['home-0', 'home-1'];
+  f.state = applyPostAction(f.state, 'home', { type: 'statistics', statistics: f.state.home.statistics, mvps }, f.data);
+  assert.throws(() => applyPostAction(f.state, 'home', { type: 'lock-players' }, f.data), { code: 'POST_STATISTICS' });
+  const cleared = structuredClone(f.state.home.statistics); cleared['home-0'].touchdowns = 0;
+  f.state = applyPostAction(f.state, 'home', { type: 'statistics', statistics: cleared, mvps }, f.data);
+  f.state = applyPostAction(f.state, 'home', { type: 'lock-players' }, f.data);
+  assert.deepEqual(eventsDiff(f.state.home, events.home), [{ playerId: 'home-0', counter: 'touchdowns', delta: -1 }]);
+});
+
+test('a tapped touchdown reaches the blob once: career shows it before the finish and after, never twice', () => {
+  const events = { home: [tap('home-0', 'touchdowns')], away: [] };
+  const f = fanSteps(agreed(fixture('Old World Classic', events), oneNil));
+  f.state = followEvents(f.state, events);
+  assert.equal(careerCounters(f.state.home.baseRoster.players[0], events.home).touchdowns, 1);
+  savePlayers(f, 'home');
+  const after = projectPostRoster(f.state, 'home', f.data).roster.players.find(player => player.id === 'home-0');
+  const settled = [...events.home, ...eventsDiff(f.state.home, events.home)].map(event => ({ ...event, settledAt: '2026-10-16T18:00:00Z' }));
+  assert.equal(after.spp.touchdowns, 1);
+  assert.equal(careerCounters(after, settled).touchdowns, 1);
+});
+
+// What Postgres jsonb does to an object read back from `match_post_games.state`: the same values under reordered keys.
+const reversedKeys = value => {
+  if (!value || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map(reversedKeys);
+  return Object.fromEntries(Object.entries(value).reverse().map(([key, item]) => [key, reversedKeys(item)]));
+};
+
+test('following the events does not see a change in a state whose keys came back reordered (jsonb)', () => {
+  const events = { home: [tap('home-0', 'touchdowns'), tap('home-0', 'completions'), tap('home-1', 'injury', 1, { code: 'lasting', stat: 'ma' })],
+    away: [tap('away-2', 'injury', 1, { code: 'miss' })] };
+  const f = fanSteps(agreed(fixture()));
+  f.state = followEvents(f.state, events);
+  const stored = structuredClone(f.state);
+  for (const name of ['home', 'away']) {
+    stored[name].statistics = reversedKeys(stored[name].statistics);
+    stored[name].injuries = reversedKeys(stored[name].injuries);
+  }
+  assert.notDeepEqual(Object.keys(stored.home.statistics['home-0']), Object.keys(f.state.home.statistics['home-0']), 'the keys are reordered');
+  assert.notDeepEqual(Object.keys(stored.home.injuries['home-1']), Object.keys(f.state.home.injuries['home-1']), 'the keys are reordered');
+  assert.equal(followEvents(stored, events), stored, 'same values, no new revision');
+  const more = followEvents(stored, { ...events, away: [tap('away-0', 'catches')] });
+  assert.equal(more.revision, stored.revision + 1, 'a real change is still seen under reordered keys');
+  assert.equal(more.away.statistics['away-0'].catches, 1);
+  assert.deepEqual(more.away.injuries, {});
+});
+
+test('an injury alone is a change; a side with no events listed reads as having none; a completed post-match is left alone', () => {
+  const f = fanSteps(agreed(fixture()));
+  const hurt = followEvents(f.state, { home: [tap('home-1', 'injury', 1, { code: 'dead' })] });
+  assert.deepEqual(hurt.home.injuries, { 'home-1': { code: 'dead', retire: false } });
+  assert.equal(hurt.revision, f.state.revision + 1);
+  assert.equal(followEvents(hurt, { home: [tap('home-1', 'injury', 1, { code: 'dead' })], away: [] }), hurt);
+  const undone = followEvents(hurt, {});
+  assert.deepEqual(undone.home.injuries, {});
+  assert.equal(undone.revision, hurt.revision + 1);
+  hurt.status = 'completed';
+  assert.equal(followEvents(hurt, {}), hurt);
+});
+
+test('sameValues: equal whatever the order of the keys, a key holding undefined is a key not there, and any other difference is one', () => {
+  assert.equal(sameValues({ a: 1, b: { c: [1, 2], d: 'x' } }, { b: { d: 'x', c: [1, 2] }, a: 1 }), true);
+  assert.equal(sameValues({ code: 'miss', stat: undefined, retire: false }, { retire: false, code: 'miss' }), true, 'JSON drops undefined, so does the compare');
+  assert.equal(sameValues([{ a: 1 }, 'x'], [{ a: 1 }, 'x']), true);
+  for (const [left, right] of [[{ a: 1 }, { a: 2 }], [{ a: 1 }, { a: 1, b: 0 }], [{ a: 1, b: 0 }, { a: 1 }], [[1, 2], [2, 1]], [[1], [1, 2]],
+    [[], {}], [{ a: 1 }, null], [null, { a: 1 }], [{ a: undefined, b: 1 }, { a: 1, b: undefined }], [{ a: '1' }, { a: 1 }]]) {
+    assert.equal(sameValues(left, right), false, JSON.stringify([left, right]));
+  }
+});
+
+// A side at the Players step with one chosen advancement; `stored` is what the database gives back (jsonb: undefined keys gone, keys reordered).
+function playersStepWithAdvancement() {
+  const f = fanSteps(agreed(fixture()));
+  f.state.home.baseRoster.players[0].spp.bonus = 10;
+  const injuries = { 'home-1': { code: 'miss' } };
+  savePlayers(f, 'home', { injuries });
+  f.state = applyPostAction(f.state, 'home', { type: 'advance', playerId: 'home-0', advancementType: 'primary', grant: { skill: 'Block' } }, f.data);
+  assert.equal(f.state.home.advancements['home-0'].length, 1);
+  const side = f.state.home, stored = structuredClone(f.state);
+  stored.home.statistics = reversedKeys(JSON.parse(JSON.stringify(side.statistics)));
+  stored.home.mvps = reversedKeys(JSON.parse(JSON.stringify(side.mvps)));
+  stored.home.injuries = reversedKeys(JSON.parse(JSON.stringify(side.injuries)));
+  const save = (state, changes = {}) => applyPostAction(state, 'home', { type: 'statistics', statistics: structuredClone(side.statistics), mvps: ['home-0'], injuries, ...changes }, f.data);
+  return { f, stored, save };
+}
+
+test('saving the Players step again with nothing changed keeps the advancements, whatever order the database returned the keys in', () => {
+  const { f, stored, save } = playersStepWithAdvancement();
+  assert.notDeepEqual(Object.keys(stored.home.statistics['home-0']), Object.keys(f.state.home.statistics['home-0']), 'the keys are reordered');
+  assert.deepEqual(save(f.state).home.advancements, f.state.home.advancements, 'in memory');
+  assert.deepEqual(save(stored).home.advancements, f.state.home.advancements, 'as stored');
+});
+
+test('saving the Players step again with a real change still drops the advancements', () => {
+  const { stored, save } = playersStepWithAdvancement();
+  const statistics = { 'home-2': { completions: 1 } };
+  const changed = {
+    counter: { statistics: Object.fromEntries(Object.keys(stored.home.statistics).map(id => [id, { ...normalizeMatchStats(), ...statistics[id] }])) },
+    injury: { injuries: { 'home-1': { code: 'miss' }, 'home-3': { code: 'niggling' } } },
+    mvp: { mvps: ['home-1'] },
+  };
+  for (const [what, changes] of Object.entries(changed)) assert.deepEqual(save(stored, changes).home.advancements, {}, what);
 });

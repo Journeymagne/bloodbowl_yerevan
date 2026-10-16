@@ -55,6 +55,30 @@ export async function migrateThrough(client, last = null) {
   }
 }
 
+/**
+ * Runs `run` with the server's pool (server/db/pool.mjs) answering from the database at `url`: its
+ * `query` and `connect` are a real pg.Pool's for that long, then its own methods come back and the
+ * borrowed pool is ended. Route code runs unchanged against the throwaway database, with real
+ * connections and real locks, so concurrent requests are tested as they happen.
+ *
+ * The pool module is imported here and not at the top: it loads the env file, which the tests that
+ * only need a scratch database have no use for.
+ */
+export async function withServerPool(url, run) {
+  const { pool } = await import("../../server/db/pool.mjs");
+  const scratch = new pg.Pool({ connectionString: url });
+  const { query, connect } = pool;
+  pool.query = scratch.query.bind(scratch);
+  pool.connect = scratch.connect.bind(scratch);
+  try {
+    return await run();
+  } finally {
+    pool.query = query;
+    pool.connect = connect;
+    await scratch.end();
+  }
+}
+
 export async function withScratchDatabase(run, { through = null } = {}) {
   const name = `gata_test_${randomBytes(6).toString("hex")}`;
   const server = new pg.Client({ connectionString: urlFor("postgres") });
