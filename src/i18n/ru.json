@@ -472,6 +472,7 @@
   "error.COACH_REQUIRED": "Укажите тренера.",
   "error.ENTRY_ALREADY_COMMITTED": "Этот тренер или команда уже заявлены в сезон.",
   "error.ENTRY_NOT_FOUND": "Заявка на сезон не найдена.",
+  "error.FIELD_INVALID": "Поле {field} не заполнено или имеет недопустимое значение.",
   "error.FIXTURE_NOT_YOURS": "Эта пара — не ваша команда.",
   "error.FIXTURE_NOT_PLAYER_SUBMITTABLE": "В эту пару нельзя внести результат от игрока.",
   "error.GAME_NOT_FOUND": "Игра не найдена.",

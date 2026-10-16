@@ -148,3 +148,13 @@ test("a squad whose players have no stored ids cannot be diffed: one remainder l
   assert.deepEqual(classifyTreasuryChange(human, { treasury: 100, players: [{ ...first, id: "a" }] },
     { treasury: 100, players: [{ ...first, id: "a" }, second] }), []);
 });
+
+test("a Tzeentch sale is priced with Architect of Fate: the whole value plus 10k an injury, not half", () => {
+  const team = teams.get("teams/tzeentch"), row = rowsForTeam(team)[0];
+  const before = normalizeDraft({ treasury: 0, players: [{ ...createPlayer(row, 0), id: "hurt", nigglingInjuries: 1, injuryStatMods: { ma: -1 }, statMods: { ma: -1 } }] });
+  ensureDraftPlayers(team, before);
+  const value = playerSaleValue(team, before.players[0]);
+  const after = { ...structuredClone(before), players: [], treasury: value };
+  assert.notEqual(value, costToNumber(rowCost(row)) / 2);
+  assert.deepEqual(classifyTreasuryChange(team, before, after), [{ kind: "sale", delta: value }]);
+});

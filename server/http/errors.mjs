@@ -79,6 +79,7 @@ export const API_ERRORS = Object.freeze({
   COACH_REQUIRED: "Coach is required.",
   ENTRY_ALREADY_COMMITTED: "This coach or team is already committed to the season.",
   ENTRY_NOT_FOUND: "Season entry not found.",
+  FIELD_INVALID: "The field {field} is missing or has a value the site does not accept.",
   FIXTURE_NOT_YOURS: "This fixture does not belong to your team.",
   FIXTURE_NOT_PLAYER_SUBMITTABLE: "This fixture cannot receive a player-submitted result.",
   GAME_NOT_FOUND: "Game not found.",

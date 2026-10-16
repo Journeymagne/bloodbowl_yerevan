@@ -6,11 +6,13 @@
  * paths do not overlap, so the order below is the order somebody would look for one in. A
  * resource added later adds its handler to the list and nothing else here.
  */
+import { handleLedgerRoutes } from "./team-ledger.mjs";
 import { handleActivateRoute } from "./team-stage.mjs";
 
 /** One handler per resource: it answers its own paths, and says so by returning true. */
 const TEAM_RESOURCE_ROUTES = [
   handleActivateRoute,
+  handleLedgerRoutes,
 ];
 
 /**
