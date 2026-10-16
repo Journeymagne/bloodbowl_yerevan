@@ -1,0 +1,203 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { createDocument, el, fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
+
+const document = createDocument();
+
+test("markup becomes a tree a test can query", () => {
+  const root = parseHtml(document, `<div class="g-a g-b" data-x="1 &amp; 2">
+    <button type="button" disabled>Go &lt;now&gt;</button>
+    <input value="&quot;q&quot;" required>
+    <svg viewBox="0 0 24 24"><path d="M1 1"/></svg>
+  </div>`);
+  assert.equal(root.tagName, "FRAGMENT");
+  const div = root.querySelector("div.g-a.g-b");
+  assert.equal(div.getAttribute("data-x"), "1 & 2");
+  assert.ok(div.classList.contains("g-b"));
+  assert.equal(root.querySelector("button[disabled]").textContent, "Go <now>");
+  assert.equal(root.querySelector("input").value, '"q"');
+  assert.ok(root.querySelector("input").hasAttribute("required"));
+  assert.equal(root.querySelector("svg path").getAttribute("d"), "M1 1");
+  assert.equal(root.querySelectorAll("div, button").length, 2);
+  assert.equal(root.querySelector('[data-x="1 & 2"] button').getAttribute("type"), "button");
+  assert.equal(root.querySelector("path").closest("div"), div);
+  assert.equal(div.childNodes.length, 3, "whitespace between tags is dropped");
+});
+
+test("broken markup is refused, not guessed", () => {
+  for (const bad of ["<div><span></div>", "<div>", "</p>", "<a href='x'>a</a>", "<a href=x>a</a>", "<!-- c -->", "<script>x</script>"]) {
+    assert.throws(() => parseHtml(document, bad), /parseHtml/, bad);
+  }
+});
+
+test("an unsupported selector throws instead of matching nothing", () => {
+  assert.throws(() => parseHtml(document, "<p></p>").querySelector("p:first-child"), /selector/);
+});
+
+test("events bubble to ancestors, carry currentTarget and can be stopped", () => {
+  const root = parseHtml(document, `<section><div><button type="button">x</button></div></section>`);
+  const seen = [];
+  root.querySelector("section").addEventListener("click", (event) => seen.push(["section", event.currentTarget.tagName]));
+  const stopper = (event) => { seen.push(["div", event.target.tagName]); event.stopPropagation(); };
+  root.querySelector("div").addEventListener("click", stopper);
+  fireEvent(root.querySelector("button"), "click");
+  assert.deepEqual(seen, [["div", "BUTTON"]]);
+  root.querySelector("div").removeEventListener("click", stopper);
+  const event = fireEvent(root.querySelector("button"), "click", { key: "Enter" });
+  assert.equal(event.key, "Enter");
+  assert.deepEqual(seen.at(-1), ["section", "SECTION"]);
+});
+
+test("a dialog opens modally and closing it fires close", () => {
+  const dialog = parseHtml(document, `<dialog id="d"></dialog>`).querySelector("#d");
+  let closes = 0;
+  dialog.addEventListener("close", () => { closes += 1; });
+  dialog.showModal();
+  assert.equal(dialog.open, true);
+  dialog.close();
+  assert.equal(dialog.open, false);
+  assert.equal(closes, 1);
+});
+
+test("the document has an html element above body", () => {
+  assert.equal(document.body.parentNode, document.documentElement);
+  assert.equal(document.documentElement.tagName, "HTML");
+});
+
+test("entities decode once, and only the ones escapeHtml writes are known", () => {
+  const root = parseHtml(document, `<p title="&#39;&#x41;&#65;">&amp;lt; &#39;x&#39; &quot;</p>`);
+  assert.equal(root.querySelector("p").getAttribute("title"), "'AA");
+  assert.equal(root.querySelector("p").textContent, `&lt; 'x' "`);
+  for (const bad of ["<p>&nbsp;</p>", "<p>Q & A</p>", "<p>a < b</p>", "<p>&#0;</p>", "<p>&#xD800;</p>", "<p>&amp</p>"]) {
+    assert.throws(() => parseHtml(document, bad), /parseHtml/, bad);
+  }
+});
+
+test("void and self-closed elements take no closing tag; controls mirror value and checked", () => {
+  const root = parseHtml(document, `<form><br><input type="checkbox" checked><input value="7"><img src="a.svg"/><span/></form>`);
+  assert.deepEqual(root.querySelector("form").childNodes.map((node) => node.tagName), ["BR", "INPUT", "INPUT", "IMG", "SPAN"]);
+  assert.equal(root.querySelector("[type=\"checkbox\"]").checked, true);
+  assert.equal(root.querySelector('[value="7"]').value, "7");
+  assert.equal(root.querySelector("br").childNodes.length, 0);
+  assert.throws(() => parseHtml(document, "<br></br>"), /parseHtml/, "a void element has no closing tag");
+});
+
+test("tags and attributes are as strict as the rest", () => {
+  for (const bad of ['<a b="1" b="2">x</a>', '<a b="1"c="2">x</a>', '<a b = "1">x</a>', '<a b="1>x</a>', "<a.b>x</a>", "<1a></1a>", "<a>x</b>", "x</a>", "<a>x</a "]) {
+    assert.throws(() => parseHtml(document, bad), /parseHtml/, bad);
+  }
+  const root = parseHtml(document, `top <b>bold</b> level`);
+  assert.deepEqual(root.childNodes.map((node) => node.textContent), ["top ", "bold", " level"], "text keeps its spacing");
+});
+
+test("selectors: descendants, lists, ids, universal, and values with spaces and commas", () => {
+  const root = parseHtml(document, `<ul id="list"><li class="row on" data-k="a, b]"><a href="#x">A</a></li><li class="row"><span><a>B</a></span></li></ul><a>out</a>`);
+  assert.equal(root.querySelectorAll("ul a").length, 2, "a descendant at any depth");
+  assert.equal(root.querySelectorAll("#list li.row a").length, 2);
+  assert.equal(root.querySelectorAll("li.on a, li.row").length, 3, "a list is a union");
+  assert.equal(root.querySelectorAll("li.row, li.on").length, 2, "an element matching two parts of the list counts once");
+  assert.equal(root.querySelector('[data-k="a, b]"] a').textContent, "A");
+  assert.equal(root.querySelector("li.row.on"), root.querySelector("li"));
+  assert.equal(root.querySelectorAll("*").length, 7, "the fragment itself is not an element");
+  assert.equal(root.querySelectorAll("* a").length, 2, "nor is it an ancestor a descendant selector can match");
+  assert.equal(root.querySelector("li.on li"), null);
+  assert.equal(root.querySelector("a").matches("li a"), true);
+  assert.equal(root.querySelectorAll("a").at(-1).matches("li a"), false);
+  assert.equal(root.querySelector("li").closest("ul"), root.querySelector("ul"));
+  assert.equal(root.querySelector("li").closest("table"), null);
+  assert.equal(root.querySelector("li").closest("li"), root.querySelector("li"), "closest starts at the element itself");
+});
+
+test("selector syntax outside the supported set throws", () => {
+  const root = parseHtml(document, `<div><a>x</a></div>`);
+  for (const bad of ["div > a", "div>a", "div + a", "div ~ a", "a:hover", "a::before", "[a^=\"b\"]", "[a='b']", "[a=b]", "[a=\"b\" i]", "[a", "a]", "", " ", "a,", ",a", "#1a", ".1a", "a#b#c", "a*", "[a]a", ".a\\.b", "a.", "div,,a"]) {
+    assert.throws(() => root.querySelector(bad), /fake-dom: unsupported selector/, JSON.stringify(bad));
+    assert.throws(() => root.querySelector("div").matches(bad), /unsupported selector/, `matches ${JSON.stringify(bad)}`);
+  }
+});
+
+test("the old querySelector forms still work on trees built with el()", () => {
+  const tree = el(document, "div", { id: "top" }, el(document, "input", { "data-key": "name", role: "x" }), el(document, "p", { "data-key": "spp" }));
+  assert.equal(tree.querySelector('[data-key="spp"]').tagName, "P");
+  assert.equal(tree.querySelector("[role]").tagName, "INPUT");
+  assert.equal(tree.querySelector("#top"), null, "the element itself is never its own descendant");
+  assert.equal(tree.querySelector('[data-key="gone"]'), null);
+  document.body.append(tree);
+  assert.equal(document.body.querySelector("#top"), tree);
+  tree.parentNode.removeChild(tree);
+});
+
+test("classList reads and writes the class attribute", () => {
+  const box = parseHtml(document, `<div class="a b"></div><p></p>`).querySelector("div");
+  box.classList.add("c", "a");
+  assert.equal(box.getAttribute("class"), "a b c");
+  box.classList.remove("b");
+  assert.equal(box.getAttribute("class"), "a c");
+  assert.equal(box.classList.toggle("a"), false);
+  assert.equal(box.classList.toggle("z"), true);
+  assert.equal(box.classList.toggle("z", true), true);
+  assert.equal(box.classList.toggle("q", false), false);
+  assert.equal(box.getAttribute("class"), "c z");
+  box.setAttribute("class", "x");
+  assert.ok(box.classList.contains("x") && !box.classList.contains("c"));
+  const bare = box.parentNode.querySelector("p");
+  bare.classList.remove("nothing");
+  assert.equal(bare.hasAttribute("class"), false, "no class attribute appears out of nothing");
+  assert.throws(() => box.classList.add("two words"), /classList/);
+  assert.throws(() => box.classList.add(""), /classList/);
+});
+
+test("dispatchEvent reports preventDefault, honours non-bubbling events and clears currentTarget", () => {
+  const root = parseHtml(document, `<div><button type="button">b</button></div>`);
+  const button = root.querySelector("button");
+  const reached = [];
+  root.querySelector("div").addEventListener("tap", () => reached.push("div"));
+  button.addEventListener("tap", (event) => { reached.push("button"); event.preventDefault(); });
+  const tap = fireEvent(button, "tap", { bubbles: false });
+  assert.deepEqual(reached, ["button"]);
+  assert.equal(tap.defaultPrevented, true);
+  assert.equal(tap.currentTarget, null);
+  assert.equal(button.dispatchEvent({ type: "tap", bubbles: false, preventDefault() {} }), true, "a plain object is a fine event");
+  assert.equal(button.dispatchEvent(fireEvent(button, "none")), true);
+  assert.equal(fireEvent(button, "tap", { bubbles: false }).cancelBubble, false);
+});
+
+test("listeners run in subscription order once each, and one removed mid-dispatch does not run", () => {
+  const button = parseHtml(document, `<button type="button">b</button>`).querySelector("button");
+  const order = [];
+  const second = () => order.push("second");
+  const first = () => { order.push("first"); button.removeEventListener("go", second); };
+  button.addEventListener("go", first);
+  button.addEventListener("go", first);
+  button.addEventListener("go", second);
+  button.addEventListener("go", () => order.push("third"));
+  fireEvent(button, "go");
+  assert.deepEqual(order, ["first", "third"]);
+  assert.throws(() => button.addEventListener("go", first, { once: true }), /options/);
+});
+
+test("a dialog is only a dialog, and closing a closed one says nothing", () => {
+  const root = parseHtml(document, `<dialog open></dialog><div></div>`);
+  const dialog = root.querySelector("dialog");
+  assert.equal(dialog.open, true, "the open attribute is the state");
+  let closes = 0;
+  dialog.addEventListener("close", () => { closes += 1; });
+  dialog.close();
+  dialog.close();
+  assert.equal(closes, 1);
+  assert.throws(() => root.querySelector("div").showModal(), /not a dialog/);
+  assert.throws(() => root.querySelector("div").close(), /not a dialog/);
+});
+
+test("the document queries from html down, body included", () => {
+  const holder = el(document, "section", { id: "s" }, el(document, "em"));
+  document.body.append(holder);
+  assert.equal(document.querySelector("html"), document.documentElement);
+  assert.equal(document.querySelector("body #s em").tagName, "EM");
+  assert.equal(document.querySelectorAll("body, section").length, 2);
+  assert.equal(holder.isConnected, true);
+  assert.equal(document.querySelector("#nope"), null);
+  assert.throws(() => document.querySelector("body > section"), /unsupported selector/);
+  document.body.removeChild(holder);
+});
