@@ -285,6 +285,9 @@ WHERE NOT EXISTS (
 - После 02a обновить `rehearsal:check`, если миграции добавили что-то, что стоит сравнивать.
 
 **03.** Без техобслуживания (оно в 2.1.0). `POST /api/admin/teams/:id/fallen` — на этапе 12.
+- Записи матча (из 02b). `POST /api/teams/:id/events` сначала берёт блокировки итогов — пару `FOR UPDATE OF p` (`loadPreparationFixture`), затем обе команды (`loadPreparationSources`) — и только потом пишет через `writeMatchEvents` (`server/season/match-events-store.mjs`): так тап упорядочен с разницей шага «Игроки» и с `finishPost`. `playerId` — только из снимка своей стороны (иначе `finishPost` учёл бы записи, которых блоб не получит); `counter = 'injury'` — только с `injury` `{code из INJURIES без none, stat для lasting}`, у остальных счётчиков `injury` нет. `MATCH_NOT_LIVE` (+ `API_ERRORS`, оба словаря): подготовка не `in_progress` или итоги `completed`. Решить, принимать ли тап стороны, уже сохранившей шаг «Игроки»: в 02b такой тап не попадает в её статистику, и разница при завершении его снимает. Генератор бросков на сервере — `(sides) => crypto.randomInt(1, sides + 1)` (случайный навык — d16).
+- Правка вне матча (спека 3.0 §3.7) — здесь целиком: `PATCH /api/teams/:id` пишет учтённые записи (`pairing_id NULL`, `settled_at = now()`) по разнице `player.spp` без MVP, в своей транзакции; во время матча — запись без пары и без `settled_at`; `finishPost` переносит неучтённые записи команды без пары в блоб и ставит им `settled_at` в своей транзакции. В 02b `finishPost` учитывает только записи своего матча, а `careerCounters` уже считает все неучтённые.
+- Карьера и история — `careerCounters` и `statisticsFromEvents` из `src/domain/post-match/events.mjs`.
 
 **04.** Шрифты уже в `assets/fonts/ui/` (2.1.0) — не копировать заново. `src/core/theme.mjs` и `theme-boot.js` пишут кеш `gata-league-palette` (JSON `{mode, light, dark}`) и переводят старые id через ту же таблицу, что `public/maintenance/palettes.mjs`; тест сравнивает `PALETTE_KEYS`, `DEFAULT_PALETTE` и `LEGACY_THEME_PALETTE` обоих модулей. При первом входе в 3.0 выбор записывается в `preferences`, если там пусто (спека выката §5.4).
 
@@ -314,9 +317,11 @@ WHERE NOT EXISTS (
 **09a.** Форма быстрого счёта (`components/games/result-fields.mjs`, режим тренера) удаляется; админский ручной результат остаётся.
 
 **09b.** `scripts/rehearsal-transitions.mjs` (`npm run rehearsal:transitions -- --seed <url 2.1> | --finish <url 3.0>`): `--seed` против сервера `v2.1.0` (worktree, порт 3004) на `gata_rehearsal` создаёт через API и записывает в `output/rehearsal/transitions.json` пять состояний из спеки выката §3.3; `--finish` против 3.0 доводит каждое до конца и проверяет: подготовка продолжается с того же шага; итоги, начатые в 2.x, завершаются без `POST_TEAM_CHANGED`, SPP после = SPP до + статистика матча, записи матча получают `settled_at`; неподтверждённый счёт вносит админ; вызов принимается. Детальный план этапа описывает API-вызовы по `scripts/smoke-post-match.mjs` и `smoke-friendly.mjs`.
+- Из 02b: после смены результата статистика и травмы шага «Игроки» возвращаются из записей, а MVP, crowd/foul casualties, `retire` и уходы обнуляются; восстановленные TD/CAS могут не совпасть с новым счётом (`POST_STATISTICS`), интерфейс показывает расхождение. В `rehearsal:transitions` — настоящая строка итогов 2.x (не строка 3.0 со снятым флагом).
 ActionStepper со значением и приростом читается «4+1» — где экран показывает прирост, добавить sr-only разделитель (заметка этапа 04).
 
 **12.** Админка: «Добавить погибшего задним числом» (`POST /api/admin/teams/:id/fallen {player: {name, position, number?}, cause, pairingId?, diedAt?}`), ввод и подтверждение старых неподтверждённых счетов, перевод `draft → active`, `draft` для новых команд.
+- Брошенный матч (из 02b): «админ может закрыть матч технически, тогда записи учитываются или удаляются» (спека 3.0 §3.7) — в плане 3.0 этого действия нет; без него записи брошенного матча навсегда остаются «ждёт итогов». Решение — у владельца.
 Заголовок «ADMINISTRATION» на 390 переносится посреди слова: «ADMINISTRATIO / N» (в 2.x было «ADMINISTRA / TION»); решить при переносе экранов админки (заметка этапа 04).
 
 **13.**
