@@ -4,9 +4,12 @@
  * A snapshot is taken before and after migrating. Existing data is compared by
  * what it means rather than by whole rows: a migration adds columns to
  * saved_teams, so a team is its roster's hash and its revision, and the season
- * is a hash of its results. Row counts catch anything deleted. What a migration
- * should have produced (stages, fallen players, empty preferences) and what is
- * still open (a match half-way through) go in the report for a person to read.
+ * is a hash of its results. Row counts catch anything deleted, except the
+ * migration log (compared by name) and sessions (moved by every login, so a note).
+ * The stored stage must match the rule: active if a team is entered or has a
+ * played match, draft otherwise. What a migration should have produced (stages,
+ * fallen players, empty preferences) and what is still open (a match half-way
+ * through) go in the report for a person to read.
  */
 const LIST = (rows) => rows.map((row) => ({ id: row.id, matchKind: row.match_kind }));
 
@@ -101,13 +104,19 @@ export async function takeSnapshot(client) {
   };
 }
 
+// The migration log grows by one row per migration; compareSnapshots checks it by name.
+// Sessions grows with every login, so its change is a note, not a problem.
+const MIGRATION_LOG = "schema_migrations";
+
 function compareTables(before, after, problems, notes) {
   for (const [name, count] of Object.entries(before.tables)) {
+    if (name === MIGRATION_LOG || after.tables[name] === count) continue;
     if (!(name in after.tables)) problems.push(`table ${name} is gone`);
-    else if (after.tables[name] !== count) problems.push(`table ${name}: ${count} rows before, ${after.tables[name]} after`);
+    else if (name === "sessions") notes.push(`sessions: ${count} rows before, ${after.tables[name]} after (logins between snapshots)`);
+    else problems.push(`table ${name}: ${count} rows before, ${after.tables[name]} after`);
   }
   for (const name of Object.keys(after.tables)) {
-    if (!(name in before.tables)) notes.push(`new table ${name}: ${after.tables[name]} rows`);
+    if (name !== MIGRATION_LOG && !(name in before.tables)) notes.push(`new table ${name}: ${after.tables[name]} rows`);
   }
 }
 
@@ -127,10 +136,17 @@ export function compareSnapshots(before, after) {
   compareTeams(before, after, problems);
   if (before.season.pairings !== after.season.pairings) problems.push("season_pairings results changed");
   if (before.season.entries !== after.season.entries) problems.push("season_entries changed");
+  if (JSON.stringify(before.open) !== JSON.stringify(after.open)) problems.push("open states changed between the snapshots");
+  for (const name of before.migrations.filter((migration) => !after.migrations.includes(migration))) {
+    problems.push(`migration ${name} is gone`);
+  }
   const added = after.migrations.filter((name) => !before.migrations.includes(name));
   if (added.length) notes.push(`migrations applied: ${added.join(", ")}`);
+  else notes.push("no migrations were applied between the snapshots");
   for (const row of after.stages ?? []) {
     if (!["draft", "active"].includes(row.stage)) problems.push(`team ${row.name}: unexpected stage ${row.stage}`);
+    const expected = row.entered || row.playedMatch ? "active" : "draft";
+    if (row.stage !== expected) problems.push(`team ${row.name}: stage ${row.stage}, expected ${expected} (${reason(row)})`);
   }
   if (after.preferencesSet) problems.push(`${after.preferencesSet} users already have preferences set`);
   return { problems, notes };

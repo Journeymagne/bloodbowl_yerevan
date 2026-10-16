@@ -7,7 +7,7 @@ function snapshot(overrides = {}) {
   return {
     takenAt: "2026-11-01T10:00:00.000Z",
     migrations: ["001_baseline.sql", "008_withdraw_season_entries.sql"],
-    tables: { users: 12, saved_teams: 20, season_pairings: 70 },
+    tables: { users: 12, saved_teams: 20, season_pairings: 70, schema_migrations: 2, sessions: 3 },
     teams: { t1: { name: "Ashgrove Wardens", revision: 14, roster: "aaa" }, t2: { name: "Silverbrook Rangers", revision: 3, roster: "bbb" } },
     season: { pairings: "p-hash", entries: "e-hash" },
     open: { preparing: [], startedWithoutPost: [], awaitingConfirmation: [], pendingChallenges: 0 },
@@ -28,6 +28,56 @@ test("new tables and migrations are notes, not problems", () => {
   assert.deepEqual(result.problems, []);
   assert.ok(result.notes.some((note) => note.includes("009_team_stage.sql")));
   assert.ok(result.notes.some((note) => note.includes("team_ledger")));
+});
+
+test("a clean migration is OK: the migration log and sessions are not data, and stages follow the rule", () => {
+  const laterMigrations = ["009_team_stage.sql", "010_fallen_players.sql", "011_preferences.sql", "012_stage_backfill.sql", "013_team_ledger.sql", "014_season_rounds.sql", "015_pairing_stage.sql"];
+  const after = snapshot({
+    migrations: [...snapshot().migrations, ...laterMigrations],
+    tables: { ...snapshot().tables, schema_migrations: 9, team_ledger: 0 },
+    stages: [
+      { id: "t1", name: "Ashgrove Wardens", stage: "active", entered: true, playedMatch: false },
+      { id: "t2", name: "Silverbrook Rangers", stage: "draft", entered: false, playedMatch: false },
+    ],
+    preferencesSet: 0,
+    fallen: {},
+  });
+  assert.deepEqual(compareSnapshots(snapshot(), after).problems, []);
+});
+
+test("sessions growing between the snapshots is a note, not a problem", () => {
+  const result = compareSnapshots(snapshot(), snapshot({ tables: { ...snapshot().tables, sessions: 5 } }));
+  assert.deepEqual(result.problems, []);
+  assert.ok(result.notes.some((note) => note.includes("sessions") && note.includes("logins between snapshots")));
+});
+
+test("a migration applied before and missing after is a problem", () => {
+  const { problems } = compareSnapshots(snapshot(), snapshot({ migrations: ["001_baseline.sql"] }));
+  assert.ok(problems.some((problem) => problem.includes("008_withdraw_season_entries.sql") && problem.includes("gone")));
+});
+
+test("a stored stage that disagrees with the rule is a problem, whichever way it is wrong", () => {
+  const after = snapshot({
+    stages: [
+      { id: "t1", name: "Ashgrove Wardens", stage: "draft", entered: true, playedMatch: false },
+      { id: "t2", name: "Silverbrook Rangers", stage: "active", entered: false, playedMatch: false },
+    ],
+  });
+  const { problems } = compareSnapshots(snapshot(), after);
+  assert.ok(problems.some((problem) => problem.includes("Ashgrove Wardens") && problem.includes("expected active")));
+  assert.ok(problems.some((problem) => problem.includes("Silverbrook Rangers") && problem.includes("expected draft")));
+});
+
+test("open states changing between the snapshots is a problem", () => {
+  const after = snapshot({ open: { preparing: [{ id: "p1", matchKind: "league" }], startedWithoutPost: [], awaitingConfirmation: [], pendingChallenges: 0 } });
+  const { problems } = compareSnapshots(snapshot(), after);
+  assert.ok(problems.some((problem) => problem.includes("open states changed")));
+});
+
+test("a comparison with no new migrations says so in a note", () => {
+  const { problems, notes } = compareSnapshots(snapshot(), snapshot());
+  assert.deepEqual(problems, []);
+  assert.ok(notes.some((note) => note.includes("no migrations were applied between the snapshots")));
 });
 
 test("a changed roster, revision, row count or season result is a problem", () => {
@@ -59,12 +109,15 @@ test("a stage outside draft and active, or preferences already set, is a problem
 });
 
 test("the report lists stages with reasons, fallen players and open states", () => {
+  // A migration does not touch open states, so both snapshots carry the same ones.
+  const open = { preparing: [{ id: "p1", matchKind: "league" }], startedWithoutPost: [], awaitingConfirmation: [{ id: "p2", matchKind: "friendly" }], pendingChallenges: 1 };
   const after = snapshot({
     stages: [{ id: "t1", name: "Ashgrove Wardens", stage: "active", entered: true, playedMatch: false }, { id: "t2", name: "Silverbrook Rangers", stage: "draft", entered: false, playedMatch: false }],
     fallen: { t1: 2 },
-    open: { preparing: [{ id: "p1", matchKind: "league" }], startedWithoutPost: [], awaitingConfirmation: [{ id: "p2", matchKind: "friendly" }], pendingChallenges: 1 },
+    open,
   });
-  const report = renderReport(snapshot(), after, compareSnapshots(snapshot(), after));
+  const before = snapshot({ open });
+  const report = renderReport(before, after, compareSnapshots(before, after));
   assert.match(report, /Ashgrove Wardens.*active.*entered/);
   assert.match(report, /Silverbrook Rangers.*draft/);
   assert.match(report, /Ashgrove Wardens.*2/);
