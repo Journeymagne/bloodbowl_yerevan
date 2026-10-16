@@ -6,8 +6,8 @@
  * Advancement.md ("Characteristic Improvements"); its AV is `ar` in code. A
  * random skill is a *primary* skill — the advancement table calls it
  * "Randomly Select a Primary Skill" — drawn from the category's column of the
- * Skill Table (content/Gata/Rules/3. Team Management.md): face 1…N, where N is
- * the length of that column, taken in the Skill Table's order. A skill the
+ * Skill Table (content/Gata/Skills and Traits/Skill Table.md): face 1…N, where
+ * N is the length of that column, taken in the Skill Table's order. A skill the
  * player already has (`heldSkillKeys`: base, bought, Favoured, and the
  * captain's Pro, whatever their (+N)) is rolled again, and every attempt is
  * kept so the record shows the whole roll, not just where it ended.
