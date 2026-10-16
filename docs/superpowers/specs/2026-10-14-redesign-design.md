@@ -155,8 +155,8 @@ CREATE TABLE dice_rolls (
   saved_team_id uuid NOT NULL REFERENCES saved_teams(id) ON DELETE CASCADE,
   player_id text NOT NULL,
   purpose text NOT NULL CHECK (purpose IN ('random_skill','stat')),
-  params jsonb NOT NULL,             -- категория, список кандидатов
-  result jsonb NOT NULL,             -- все броски, включая переброшенные дубли
+  params jsonb NOT NULL,             -- категория, список кандидатов и число граней кубика (sides)
+  result jsonb NOT NULL,             -- все броски, включая пустые грани и переброшенные дубли
   rolled_by uuid REFERENCES users(id) ON DELETE SET NULL,
   used_at timestamptz,
   created_at timestamptz NOT NULL DEFAULT now()

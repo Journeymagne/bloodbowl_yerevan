@@ -12,7 +12,9 @@
  * shorter than 16 has faces with no skill on them. A face beyond the column is
  * rolled again, and so is a skill the player already has (`heldSkillKeys`:
  * base, bought, Favoured, and the captain's Pro, whatever their (+N)). Every
- * attempt is kept, so the record shows the whole roll, not just where it ended.
+ * attempt is kept as `{ roll, skill, duplicate }` — `skill` is null for a blank
+ * face beyond the column — so the record shows the whole roll, not just where
+ * it ended.
  *
  * Pure: the die is passed in. `rng(sides)` answers an integer from 1 to `sides`;
  * the server (stage 03) hands in `(sides) => crypto.randomInt(1, sides + 1)`.
@@ -66,7 +68,11 @@ export function statRoll(rng) {
  * @param {(sides: number) => number} args.rng
  * @param {number} [args.maxAttempts] a die stuck on blanks and held skills throws instead of looping. 1000, not 100: a
  *   9-skill column with 8 held leaves one face in 16, and a fair die would miss 100 times running 0.16 % of the time
- * @returns {{ok: true, params: object, result: {attempts: object[], skill: string}} | {ok: false, reason: string}}
+ * @returns {{ok: true,
+ *   params: {category: string, candidates: string[], sides: number},
+ *   result: {attempts: Array<{roll: number, skill: string | null, duplicate: boolean}>, skill: string}}
+ *   | {ok: false, reason: string}}
+ *   `skill` of an attempt is null for a blank face beyond the column; `result.skill` is the free skill the roll ended on
  */
 export function randomSkillRoll({ row, player, category, skillGroups = [], rng, maxAttempts = 1000 }) {
   if (!categoriesForAccess(row.primary ?? []).includes(category)) return { ok: false, reason: "DICE_CATEGORY" };
