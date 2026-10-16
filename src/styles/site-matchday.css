@@ -51,7 +51,7 @@ body { background: var(--bg); font-size: .9375rem; }
 .page-head .toolbar { align-self: center; gap: 12px; }
 .page-back-button { min-height: 44px; }
 .catalog-kicker, .catalog-card-section > span { font: .65rem/1.5 var(--label-font); letter-spacing: .7px; text-transform: uppercase; }
-.filter-panel { padding: 17px 0; border: 0; border-block: 1px solid var(--line-bright); background: none; backdrop-filter: none; }
+.filter-panel { padding: 17px 0; border: 0; border-block: 1px solid var(--line-bright); border-radius: 0; background: none; backdrop-filter: none; }
 .content-panel h2, .side-panel h2 { font: 800 1.9rem/1.2 var(--display-font); letter-spacing: .4px; text-transform: uppercase; color: var(--text); }
 .content-body > h2:not(:first-child), .overview-card-section + .overview-card-section { padding-top: 24px; border-top: 1px solid var(--line); }
 .content-body { font-size: .9rem; }

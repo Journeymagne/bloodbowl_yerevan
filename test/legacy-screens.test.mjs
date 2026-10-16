@@ -117,3 +117,10 @@ test("an improved stat on a roster card is text-accent green, not the button fil
   const selector = ".matchday-player-card .readonly-stat-line .stat-up strong";
   assertReadable("src/styles/matchday.css", selector, "color", ["--surface", "--surface-2"], 4.5);
 });
+
+test("the skills filter panel is the two straight rules 2.x drew: a radius would curl them into stubs", () => {
+  const sheet = "src/styles/site-matchday.css";
+  assert.deepEqual(valuesOf(sheet, ".filter-panel", "border"), ["0"]);
+  assert.deepEqual(valuesOf(sheet, ".filter-panel", "border-block"), ["1px solid var(--line-bright)"]);
+  assert.deepEqual(valuesOf(sheet, ".filter-panel", "border-radius"), ["0"]);
+});
