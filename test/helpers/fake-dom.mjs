@@ -7,7 +7,7 @@
  * inside each test would bury what is being proved.
  *
  * So: real tree semantics (parentNode, insertBefore that moves, removeChild),
- * real attribute storage, real focus and selection, real event bubbling.
+ * real attribute storage, real focus and selection, real event capture and bubbling.
  *
  * Trees come from `el()` and `text()`, handed to `patch()` directly (the second
  * form its signature accepts), or from `parseHtml()` — a strict parser for the
@@ -74,6 +74,17 @@ function createEvent(type, init = {}) {
     stopPropagation() { this.cancelBubble = true; },
     ...init,
   };
+}
+
+/**
+ * The capture flag of addEventListener's third argument: `true`, `false`, or
+ * an object with nothing but `capture` in it. `once`, `passive` and `signal`
+ * change what runs and when; ignoring them would be a guess, so they throw.
+ */
+function captureOf(options) {
+  if (options === undefined || typeof options === "boolean") return Boolean(options);
+  if (options !== null && typeof options === "object" && Object.keys(options).every((name) => name === "capture")) return Boolean(options.capture);
+  throw new Error("fake-dom: addEventListener options other than capture are not supported");
 }
 
 function requireDialog(element, method) {
@@ -170,6 +181,7 @@ class FakeElement extends FakeNode {
     this.tagName = tagName.toUpperCase();
     this.attributes = [];
     this.listeners = new Map();
+    this.captureListeners = new Map();
     this.classList = classListOf(this);
     this.value = undefined;
     this.checked = undefined;
@@ -235,32 +247,40 @@ class FakeElement extends FakeNode {
   }
 
   addEventListener(type, listener, options) {
-    // Capture, once and passive change what runs and when; ignoring them would be a guess.
-    if (options !== undefined) throw new Error("fake-dom: addEventListener options are not supported");
-    const list = this.listeners.get(type) ?? [];
+    const lists = captureOf(options) ? this.captureListeners : this.listeners;
+    const list = lists.get(type) ?? [];
     if (!list.includes(listener)) list.push(listener);
-    this.listeners.set(type, list);
+    lists.set(type, list);
   }
 
-  removeEventListener(type, listener) {
-    const list = this.listeners.get(type);
+  removeEventListener(type, listener, options) {
+    const list = (captureOf(options) ? this.captureListeners : this.listeners).get(type);
     if (list?.includes(listener)) list.splice(list.indexOf(listener), 1);
   }
 
   /**
-   * Walk from here up through `parentNode` (unless the event does not bubble),
-   * calling each node's listeners in subscription order. `stopPropagation()`
-   * ends the walk after the current node's listeners. Returns false when a
-   * listener called `preventDefault()`.
+   * Capture listeners of the ancestors run first, from the top down; then
+   * this node's own, capture ones before bubbling ones; then, unless the event
+   * does not bubble, the bubbling listeners of each ancestor up through
+   * `parentNode`. Within a node listeners run in subscription order.
+   * `stopPropagation()` ends the walk after the current node's listeners.
+   * Returns false when a listener called `preventDefault()`.
    */
   dispatchEvent(event) {
     event.target ??= this;
-    for (let node = this; node; node = node.parentNode) {
+    const ancestors = [];
+    for (let node = this.parentNode; node; node = node.parentNode) ancestors.push(node);
+    const run = (node, ...maps) => {
       event.currentTarget = node;
-      const list = node.listeners.get(event.type) ?? [];
-      // A listener removed by an earlier one on the same node does not run.
-      for (const listener of [...list]) if (list.includes(listener)) listener.call(node, event);
-      if (event.cancelBubble || event.bubbles === false) break;
+      for (const list of maps.map((map) => map.get(event.type) ?? [])) {
+        // A listener removed by an earlier one on the same node does not run.
+        for (const listener of [...list]) if (list.includes(listener)) listener.call(node, event);
+      }
+      return !event.cancelBubble;
+    };
+    const goingDown = [...ancestors].reverse().every((node) => run(node, node.captureListeners));
+    if (goingDown && run(this, this.captureListeners, this.listeners) && event.bubbles !== false) {
+      ancestors.every((node) => run(node, node.listeners));
     }
     // A browser clears it once dispatch is over; keeping it would hide a
     // handler that reads `currentTarget` from a timer. `cancelBubble` stays,

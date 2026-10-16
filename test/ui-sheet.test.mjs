@@ -181,6 +181,40 @@ test("wireSheets needs no options, and a close or back button outside any sheet 
   assert.deepEqual(heard, []);
 });
 
+test("a close request that is no keydown (the Android back gesture, Escape with focus on the body) closes through the same path, once", () => {
+  const fragment = mount(renderSheet({ id: "s6", title: "T", bodyHtml: "<p>x</p>" }));
+  const dialog = fragment.querySelector("dialog");
+  const closed = [];
+  const off = wireSheets(fragment, { onClose: (id) => closed.push(id) });
+  dialog.showModal();
+  const cancel = fireEvent(dialog, "cancel", { bubbles: false });
+  assert.equal(cancel.defaultPrevented, true, "the browser is not left to close it behind the screen's back");
+  assert.equal(dialog.open, false);
+  assert.deepEqual(closed, ["s6"]);
+  dialog.showModal();
+  const escape = fireEvent(fragment.querySelector(".g-sheet__body p"), "keydown", { key: "Escape" });
+  assert.equal(escape.defaultPrevented, true, "a browser told not to close sends no cancel after it");
+  assert.deepEqual(closed, ["s6", "s6"], "an Escape is one report");
+  off();
+  dialog.showModal();
+  const late = fireEvent(dialog, "cancel", { bubbles: false });
+  assert.equal(late.defaultPrevented, false);
+  assert.equal(dialog.open, true, "released");
+  assert.deepEqual(closed, ["s6", "s6"]);
+});
+
+test("a cancel on a dialog that is not a sheet is left to its own screen", () => {
+  const fragment = mount(`${renderSheet({ id: "s7", title: "T", bodyHtml: "<p>x</p>" })}<dialog id="other" class="app-dialog"><p>y</p></dialog>`);
+  const other = fragment.querySelector("#other");
+  const closed = [];
+  wireSheets(fragment, { onClose: (id) => closed.push(id) });
+  other.showModal();
+  const cancel = fireEvent(other, "cancel", { bubbles: false });
+  assert.equal(cancel.defaultPrevented, false);
+  assert.equal(other.open, true);
+  assert.deepEqual(closed, []);
+});
+
 test("an option card escapes what it shows, puts the radio first and the pill last, and draws nothing it was not given", () => {
   const fragment = mount(renderOptionCard({ value: HOSTILE, title: HOSTILE, sub: HOSTILE, pill: HOSTILE, radio: true }));
   const card = fragment.querySelector(".g-option");

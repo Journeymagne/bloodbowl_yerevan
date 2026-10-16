@@ -57,9 +57,15 @@ export function renderSheet({ id, title, sub = "", step = null, canGoBack = fals
  * The close button, a click on the backdrop and Escape are one path: the
  * dialog is closed and `onClose(id)` hears it. Escape is taken here, and its
  * default prevented, so that the browser does not close the dialog behind the
- * screen's back. A click that lands on the dialog element itself is the
- * backdrop: the panel fills the dialog, so a click inside never targets it.
- * Back is the screen's own step and closes nothing.
+ * screen's back. A close request that is no keydown inside `root` (the Android
+ * back gesture, an Escape pressed while focus sits on the body after a click
+ * on part of the sheet that takes none) reaches the dialog as a `cancel`,
+ * which does not bubble: it is heard in the capture phase, the same way the
+ * 2.x screens do, and taken into the same path. A browser that is told not to
+ * close sends no `cancel` after the Escape keydown, so nothing is reported
+ * twice. A click that lands on the dialog element itself is the backdrop: the
+ * panel fills the dialog, so a click inside never targets it. Back is the
+ * screen's own step and closes nothing.
  *
  * @param {Element} root a container that outlives re-renders
  * @param {object} [handlers]
@@ -91,5 +97,14 @@ export function wireSheets(root, { onClose = () => {}, onBack = () => {} } = {})
       dismiss(dialog);
     }),
   ];
-  return () => offs.forEach((off) => off());
+  const onCancel = (event) => {
+    if (!event.target.matches?.(SHEET)) return;
+    event.preventDefault();
+    dismiss(event.target);
+  };
+  root.addEventListener("cancel", onCancel, true);
+  return () => {
+    offs.forEach((off) => off());
+    root.removeEventListener("cancel", onCancel, true);
+  };
 }

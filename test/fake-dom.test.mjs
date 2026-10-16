@@ -191,6 +191,82 @@ test("dispatchEvent reports preventDefault, honours non-bubbling events and clea
   assert.equal(fireEvent(button, "tap", { bubbles: false }).cancelBubble, false);
 });
 
+test("a capture listener on an ancestor runs before the target's own, and bubbling ones after", () => {
+  const root = parseHtml(document, `<section><div><button type="button">b</button></div></section>`);
+  const [section, div, button] = ["section", "div", "button"].map((name) => root.querySelector(name));
+  const order = [];
+  section.addEventListener("click", () => order.push("section bubble"));
+  section.addEventListener("click", (event) => order.push(`section capture ${event.currentTarget.tagName}`), true);
+  div.addEventListener("click", () => order.push("div capture"), { capture: true });
+  button.addEventListener("click", () => order.push("button bubble"));
+  button.addEventListener("click", () => order.push("button capture"), { capture: true });
+  const click = fireEvent(button, "click");
+  assert.deepEqual(order, ["section capture SECTION", "div capture", "button capture", "button bubble", "section bubble"]);
+  assert.equal(click.currentTarget, null);
+});
+
+test("a non-bubbling event goes down through capture listeners and stops short of bubbling ones", () => {
+  const root = parseHtml(document, `<div><dialog id="d"></dialog></div>`);
+  const [div, dialog] = [root.querySelector("div"), root.querySelector("dialog")];
+  const order = [];
+  div.addEventListener("cancel", () => order.push("div bubble"));
+  div.addEventListener("cancel", (event) => { order.push(`div capture ${event.target.id}`); event.preventDefault(); }, true);
+  dialog.addEventListener("cancel", () => order.push("dialog"));
+  const cancel = fireEvent(dialog, "cancel", { bubbles: false });
+  assert.deepEqual(order, ["div capture d", "dialog"]);
+  assert.equal(cancel.defaultPrevented, true);
+  assert.equal(fireEvent(dialog, "cancel").defaultPrevented, true, "a bubbling event runs both");
+  assert.deepEqual(order.slice(2), ["div capture d", "dialog", "div bubble"]);
+});
+
+test("stopPropagation in a capture listener keeps the event from the target, and bubbling is still stopped at the node", () => {
+  const root = parseHtml(document, `<section><button type="button">b</button></section>`);
+  const [section, button] = [root.querySelector("section"), root.querySelector("button")];
+  const order = [];
+  button.addEventListener("go", () => order.push("button"));
+  section.addEventListener("go", () => order.push("section capture 2"), true);
+  const stop = (event) => { order.push("section capture 1"); event.stopPropagation(); };
+  section.addEventListener("go", stop, true);
+  section.addEventListener("go", () => order.push("section bubble"));
+  fireEvent(button, "go");
+  assert.deepEqual(order, ["section capture 2", "section capture 1"], "the same node's other capture listeners still run");
+  section.removeEventListener("go", stop, true);
+  order.length = 0;
+  button.addEventListener("go", (event) => event.stopPropagation());
+  fireEvent(button, "go");
+  assert.deepEqual(order, ["section capture 2", "button"], "stopped at the target: no bubbling");
+});
+
+test("removeEventListener matches the capture flag, and the same function can be both kinds", () => {
+  const button = parseHtml(document, `<button type="button">b</button>`).querySelector("button");
+  const order = [];
+  const listener = () => order.push("ran");
+  button.addEventListener("go", listener, true);
+  button.addEventListener("go", listener, true);
+  button.addEventListener("go", listener, false);
+  button.addEventListener("go", listener, { capture: false });
+  button.addEventListener("go", listener, {});
+  fireEvent(button, "go");
+  assert.equal(order.length, 2, "one capture and one bubbling registration, never twice of a kind");
+  button.removeEventListener("go", listener);
+  order.length = 0;
+  fireEvent(button, "go");
+  assert.equal(order.length, 1, "removed without the flag: only the bubbling one goes");
+  button.removeEventListener("go", listener, { capture: true });
+  order.length = 0;
+  fireEvent(button, "go");
+  assert.equal(order.length, 0);
+});
+
+test("addEventListener options other than capture still throw", () => {
+  const button = parseHtml(document, `<button type="button">b</button>`).querySelector("button");
+  const listener = () => {};
+  for (const options of [{ once: true }, { passive: true }, { signal: new AbortController().signal }, { capture: true, once: true }, null, 1, "capture"]) {
+    assert.throws(() => button.addEventListener("go", listener, options), /options/, JSON.stringify(options));
+    assert.throws(() => button.removeEventListener("go", listener, options), /options/, JSON.stringify(options));
+  }
+});
+
 test("listeners run in subscription order once each, and one removed mid-dispatch does not run", () => {
   const button = parseHtml(document, `<button type="button">b</button>`).querySelector("button");
   const order = [];
