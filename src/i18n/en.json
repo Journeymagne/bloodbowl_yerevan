@@ -863,5 +863,8 @@
   "ui.sheet.back": "Back",
   "ui.sheet.close": "Close",
   "ui.sheet.step": "Step {current} of {total}",
-  "ui.progress.caption": "{label}: {done} of {total}"
+  "ui.progress.caption": "{label}: {done} of {total}",
+  "ui.skills.none": "no skills",
+  "ui.die.waiting": "{type}: not rolled yet",
+  "ui.die.rolled": "{type} roll: {value}"
 }

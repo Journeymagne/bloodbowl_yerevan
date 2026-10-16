@@ -1,0 +1,47 @@
+/*
+ * The five characteristics of a player. dl and dd come with browser margins,
+ * which are taken off here. Font, text-transform and border-radius are set
+ * on purpose, as in every src/ui sheet: the 2.x globals outlive this sheet
+ * until stage 13.
+ */
+.g-stats {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+}
+
+.g-stat {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: var(--space-8) 0 var(--space-10);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.g-stat__k {
+  margin: 0;
+  color: var(--muted);
+  font: 600 12px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: .05em;
+}
+
+.g-stat__v {
+  margin: 0;
+  color: var(--ink);
+  font: 700 26px/1.1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* A characteristic an advancement raised. */
+.g-stat--up { background: var(--accent-tint); }
+.g-stat--up .g-stat__v { color: var(--accent-text); }
