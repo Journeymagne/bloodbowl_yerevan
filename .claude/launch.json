@@ -8,6 +8,12 @@
       "port": 5173
     },
     {
+      "name": "bloodbowl-server",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 3002
+    },
+    {
       "name": "bloodbowl-mock-api",
       "runtimeExecutable": "node",
       "runtimeArgs": ["scripts/mock-api.mjs"],
