@@ -5,7 +5,8 @@
  * A counter is one of the SPP counters without the MVP (the MVP is picked in the post-match),
  * plus the injury. The post-match takes its statistics and injuries from these rows, the
  * "Players" step appends the difference so that the rows and the entered numbers agree, and
- * finishing the post-match sets `settled_at`. A career is the blob plus the rows not yet settled.
+ * finishing the post-match sets `settled_at`. A live career is the blob plus the rows not yet settled
+ * (a preview, see `careerCounters`).
  * Crowd and foul casualties are not tapped, so no row ever carries them.
  *
  * A row is one step of +1 or -1. Sums are plain sums of `delta`; they are clamped to the
@@ -53,6 +54,17 @@ function eventInjury(value) {
   return PLAYER_STATS.includes(value.stat) ? { code: value.code, stat: value.stat } : null;
 }
 
+/**
+ * True for an injury the way an event stores it, as the one `eventInjury` reads out of it: `{ code }`, or
+ * `{ code: 'lasting', stat }`, and no key of its own beyond those. Anything else (none, a stat on another
+ * injury, a lasting one with no characteristic, a stray key, a non-object) would not read back as itself.
+ * The gate for a row about to be written.
+ */
+export function isValidEventInjury(value) {
+  const normal = eventInjury(value);
+  return normal !== null && sameValues(value, normal);
+}
+
 const sameInjury = (left, right) => Boolean(left && right) && left.code === right.code && left.stat === right.stat;
 
 // The injuries still standing for one player, oldest first: +1 puts one on, -1 takes back
@@ -73,6 +85,9 @@ function standingInjuries(events) {
  * The statistics and injuries the events add up to: one row per player of the snapshot, journeymen
  * and stars included, in the snapshot's order. A player outside the snapshot is not read.
  * The injury is the latest one still standing; `retire` is the coach's to set on the Players step.
+ * Injury events record the injury as entered. Rookie protection (`effectiveInjury`, while the player has
+ * fewer than 3 games played) may turn it into Badly Hurt in the roster, so a per-match history of
+ * injuries must apply the same rule instead of reading the events as what happened.
  */
 export function statisticsFromEvents(snapshot, events = []) {
   const groups = groupByPlayer(events);
@@ -124,8 +139,15 @@ export function eventsDiff({ statistics, injuries }, events) {
 }
 
 /**
- * A player's counters for a career: the blob plus the events not yet settled (settled ones are
- * already in the blob), never below zero. The injury is not a counter.
+ * A player's counters for a career while a match is on: the blob plus the events not yet settled, never
+ * below zero. The injury is not a counter (its events are read as entered, see `statisticsFromEvents`).
+ *
+ * It is a preview, not what the finish will leave in the blob. "Settled" means a finished post-match
+ * applied the statistics (`settled_at`), not that every event became SPP: a technical result counts only
+ * the MVPs, a conceded loser and the stars nothing, and prayer bonuses add counters nobody tapped. So
+ * the career can change at the finish, up or down. It can also sit below the roster's value in a live
+ * match: an extra -1, with no tap of its own to take back, comes off the blob's total. Read the blob
+ * and the events in one snapshot, or a finish between the two reads counts a match twice or not at all.
  */
 export function careerCounters(player, events = []) {
   const own = groupByPlayer(events.filter(event => !event.settledAt)).get(player.id) || [];

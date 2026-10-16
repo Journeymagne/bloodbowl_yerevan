@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { loadMatchEvents, recordSideStatistics, settleMatchEvents, writeMatchEvents } from "../server/season/match-events-store.mjs";
-import { sameValues, statisticsFromEvents } from "../src/domain/post-match/events.mjs";
+import { isValidEventInjury, sameValues, statisticsFromEvents } from "../src/domain/post-match/events.mjs";
 import { INJURIES } from "../src/domain/post-match/rules.mjs";
 import { normalizeMatchStats } from "../src/domain/post-match/statistics.mjs";
 import { PLAYER_STATS } from "../src/domain/roster/values.mjs";
@@ -134,7 +134,7 @@ for (const [name, row, message] of REFUSED) {
   });
 }
 
-test("what the store accepts as an injury is what the domain reads back, the same", async () => {
+test("the store accepts an injury exactly when the domain predicate does, and that is what the domain reads back, the same", async () => {
   const readBack = (injury) => {
     const read = statisticsFromEvents({ players: [{ id: "p1" }] }, [tap("p1", "injury", 1, injury)]).injuries.p1;
     return read && { code: read.code, ...(read.stat && { stat: read.stat }) };
@@ -148,7 +148,8 @@ test("what the store accepts as an injury is what the domain reads back, the sam
   let accepted = 0;
   for (const injury of candidates) {
     const written = await writeMatchEvents(fakeClient(), { teamId: "t1", pairingId: "g1", events: [tap("p1", "injury", 1, injury)] }).then(() => true, () => false);
-    assert.equal(written, sameValues(readBack(injury), injury), JSON.stringify(injury));
+    assert.equal(written, isValidEventInjury(injury), `the store uses the domain predicate: ${JSON.stringify(injury)}`);
+    assert.equal(isValidEventInjury(injury), sameValues(readBack(injury), injury), JSON.stringify(injury));
     accepted += written;
   }
   assert.equal(accepted, INJURIES.length - 2 + PLAYER_STATS.length); // the four plain ones and lasting with each characteristic

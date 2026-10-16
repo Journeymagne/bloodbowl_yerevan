@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { EVENT_COUNTERS, careerCounters, eventsDiff, statisticsFromEvents } from "../src/domain/post-match/events.mjs";
+import { EVENT_COUNTERS, careerCounters, eventsDiff, isValidEventInjury, statisticsFromEvents } from "../src/domain/post-match/events.mjs";
 import { INJURIES, POST_STATS } from "../src/domain/post-match/rules.mjs";
 import { normalizeMatchStats } from "../src/domain/post-match/statistics.mjs";
 import { normalizeSppCounters } from "../src/domain/roster/players.mjs";
@@ -59,6 +59,15 @@ test("the injury is the latest one still standing: taking one back uncovers the 
 test("an injury that is not one is not read: none, an unknown code, lasting without a stat, no injury at all", () => {
   assert.deepEqual(injuriesOf(hurt("p1", "none"), hurt("p1", "eaten"), hurt("p1", "lasting"), hurt("p1", "lasting", 1, "luck"), tap("p1", "injury")), {});
   assert.deepEqual(injuriesOf(hurt("p1", "miss", 1, "ag")), { p1: { code: "miss", retire: false } });
+});
+
+test("an injury is valid as stored only when it reads back as itself: no null, no stray key, no stat but on a lasting one", () => {
+  assert.equal(isValidEventInjury({ code: "dead" }), true);
+  assert.equal(isValidEventInjury({ code: "lasting", stat: "ag" }), true);
+  for (const value of [null, undefined, "dead", [], {}, { code: "none" }, { code: "eaten" }, { code: "lasting" }, { code: "lasting", stat: "luck" },
+    { code: "dead", stat: "ag" }, { code: "dead", retire: false }, { code: "lasting", stat: "ag", retire: false }]) {
+    assert.equal(isValidEventInjury(value), false, JSON.stringify(value));
+  }
 });
 
 test("the saved numbers written back as a difference make the events read exactly as saved, and a second difference is empty", () => {

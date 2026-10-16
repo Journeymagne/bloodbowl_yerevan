@@ -15,9 +15,7 @@
  * The table has no CHECK that ties `injury` to `counter = 'injury'`, so `writeMatchEvents`, its only
  * writer, does.
  */
-import { EVENT_COUNTERS, eventsDiff } from "../../src/domain/post-match/events.mjs";
-import { INJURIES } from "../../src/domain/post-match/rules.mjs";
-import { PLAYER_STATS } from "../../src/domain/roster/values.mjs";
+import { EVENT_COUNTERS, eventsDiff, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
 
 const SELECT_EVENTS = `
   SELECT saved_team_id, player_id, counter, delta, injury, settled_at
@@ -33,15 +31,6 @@ const SETTLE_EVENTS = `
   UPDATE match_events SET settled_at = now()
   WHERE saved_team_id = $1 AND pairing_id = $2 AND settled_at IS NULL`;
 
-// What the domain reads as an injury, in the form it reads it: `{ code }`, or `{ code, stat }` for a lasting one.
-// Anything else (none, a stat on another injury, a lasting one with no characteristic) would not read back as itself.
-function validInjury(injury) {
-  if (!injury || typeof injury !== "object" || Array.isArray(injury)) return false;
-  if (!INJURIES.includes(injury.code) || injury.code === "none") return false;
-  if (injury.code === "lasting") return PLAYER_STATS.includes(injury.stat) && Object.keys(injury).length === 2;
-  return Object.keys(injury).length === 1;
-}
-
 // The table checks the counter and the delta; the tie between the injury and its counter is only kept here.
 function assertEventRow(row, at) {
   const label = `match event ${at}`;
@@ -49,7 +38,7 @@ function assertEventRow(row, at) {
   if (!EVENT_COUNTERS.includes(row.counter)) throw new Error(`${label}: counter ${JSON.stringify(row.counter)} is not one of the event counters`);
   if (row.delta !== 1 && row.delta !== -1) throw new Error(`${label}: delta must be 1 or -1`);
   const hasInjury = row.injury !== null && row.injury !== undefined;
-  if (row.counter === "injury" && !validInjury(row.injury)) throw new Error(`${label}: an injury row needs a valid injury ({ code } or { code: "lasting", stat })`);
+  if (row.counter === "injury" && !isValidEventInjury(row.injury)) throw new Error(`${label}: an injury row needs a valid injury ({ code } or { code: "lasting", stat })`);
   if (row.counter !== "injury" && hasInjury) throw new Error(`${label}: only an injury row carries an injury`);
 }
 
@@ -115,6 +104,9 @@ export async function recordSideStatistics(client, pairingId, side, events, acto
 /**
  * Finishing the post-match: the team's open events of this match are now in the blob. Returns how many
  * rows it took, so a repeat takes none.
+ *
+ * Call it in the same transaction as, and after, `applyPostMatchRoster`: rows are settled exactly when
+ * the blob took them in.
  *
  * @param {{ query: Function }} client a pg client inside the post-match transaction
  * @param {{ teamId: string, pairingId: string }} match
