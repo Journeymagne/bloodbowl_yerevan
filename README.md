@@ -103,9 +103,12 @@ Checks:
 ```bash
 npm run check      # unreachable functions + file/function size budgets
 npm test           # unit tests (node:test, no dependencies)
+GATA_TEST_DATABASE_URL=postgres://gata_admin:…@localhost:5437/gata_league npm test   # + database tests
 npm run i18n:check # EN/RU page parity
 npm run smoke      # API + static exposure, needs a running server
 ```
+
+The database tests (migrations, and SQL a fake client cannot check) run only when GATA_TEST_DATABASE_URL names a local Postgres. Each one creates its own gata_test_* database from template0 and drops it afterwards; the database in the URL is never opened. Without the variable they are skipped.
 
 Two optional checks drive a real browser. They need Playwright, which is
 intentionally not a dependency of this project:
