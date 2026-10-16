@@ -5,7 +5,8 @@ import { stripMarkdownFormatting as stripFormatting } from "../src/core/markdown
 import { writeDataFile } from "./lib/write-data-file.mjs";
 import { applyMedicalAccess, medicalAccessByPageId } from "./lib/medical-access.mjs";
 import { assertDataIsUsable } from "./lib/validate-data.mjs";
-import { SENTENCE, autoLinkKnownTerms, escapeHtml } from "./lib/auto-link.mjs";
+import { autoLinkKnownTerms, escapeHtml } from "./lib/auto-link.mjs";
+import { renderTable } from "./lib/render-table.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const primaryContentDir = process.env.SITE_CONTENT_DIR || "Gata";
@@ -173,8 +174,6 @@ function parseFrontmatter(markdown) {
   return { body, tags: tags.map(canonicalLabel) };
 }
 
-const NUMBER_RANGE = /^\d+\s*[-–]\s*\d+$/;
-const UNLINKED_COLUMNS = ["Position", "Позиция", "Result", "Результат"];
 const PROSE_LINKED_KINDS = ["skill", "trait", "page", "inducement"];
 
 function splitTableRow(line) {
@@ -342,12 +341,6 @@ function renderNumberedList(items, pageByTitle, start, options) {
   ].join("\n");
 }
 
-function renderTableCell(cell, headerLabel, pageByTitle, selfPage) {
-  const cellClass = NUMBER_RANGE.test(cell.trim()) ? ` class="nowrap-cell"` : "";
-  const linking = { autoLinkKnown: !UNLINKED_COLUMNS.includes(headerLabel), prose: SENTENCE.test(cell), selfPage };
-  return `<td${cellClass}>${inlineMarkdownToHtml(cell, pageByTitle, linking)}</td>`;
-}
-
 function markdownToHtml(markdown, pageByTitle, options = {}) {
   const lines = markdown.split(/\r?\n/);
   const html = [];
@@ -399,25 +392,18 @@ function markdownToHtml(markdown, pageByTitle, options = {}) {
 
     if (trimmed.startsWith("|") && lines[index + 1]?.trim().startsWith("|")) {
       const header = splitTableRow(lines[index]);
-      const headerLabels = header.map(stripFormatting);
       const separator = splitTableRow(lines[index + 1]);
       if (isSeparatorRow(separator)) {
         flushParagraph();
         closeList();
-        const tableClass = headerLabels[0] === "#" ? " class=\"numbered-table\"" : "";
-        html.push(`<div class="table-scroll"><table${tableClass}><thead><tr>`);
-        html.push(header.map((cell) => `<th>${inlineMarkdownToHtml(cell, pageByTitle)}</th>`).join(""));
-        html.push("</tr></thead><tbody>");
+        const rows = [];
         index += 2;
         while (index < lines.length && lines[index].trim().startsWith("|")) {
-          html.push("<tr>");
-          html.push(splitTableRow(lines[index])
-            .map((cell, cellIndex) => renderTableCell(cell, headerLabels[cellIndex] ?? "", pageByTitle, options.selfPage))
-            .join(""));
-          html.push("</tr>");
+          rows.push(splitTableRow(lines[index]));
           index += 1;
         }
-        html.push("</tbody></table></div>");
+        html.push(...renderTable(header, rows, (cell, linking) =>
+          inlineMarkdownToHtml(cell, pageByTitle, linking && { ...linking, selfPage: options.selfPage })));
         index -= 1;
         continue;
       }

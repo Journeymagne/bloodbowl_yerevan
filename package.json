@@ -30,7 +30,10 @@
     "backup:status": "node scripts/backup-status.mjs",
     "maintenance:on": "node scripts/maintenance.mjs on",
     "maintenance:off": "node scripts/maintenance.mjs off",
-    "maintenance:status": "node scripts/maintenance.mjs status"
+    "maintenance:status": "node scripts/maintenance.mjs status",
+    "rehearsal:restore": "node scripts/rehearsal-restore.mjs",
+    "rehearsal:check": "node scripts/rehearsal-check.mjs",
+    "rehearsal:migrate": "node scripts/rehearsal-migrate.mjs"
   },
   "dependencies": {
     "pg": "^8.13.1"

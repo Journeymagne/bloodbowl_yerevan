@@ -207,6 +207,70 @@ Apply `007_post_match.sql` with `npm.cmd run db:migrate`, then rebuild and resta
 
 `npm.cmd run smoke:post-match` checks league/friendly completion, permissions, revisions, transaction rollback, manual MVP, optional advancement, recovery, legacy game counts and concurrent/idempotent completion on disposable local fixtures. It defaults to `http://localhost:3002` and refuses a non-local database. Add `-- --keep-preview` to leave a separate friendly game at the player step and print its URL; use the preview accounts above. Detailed rules and implementation decisions are in [the post-match implementation notes](docs/superpowers/plans/2026-10-06-post-match-checklist.md).
 
+## Rehearsing a migration on a copy of production
+
+Before a release that changes the schema, restore a production dump locally,
+anonymized, and prove the migrations leave existing data alone. Rehearsals only
+ever touch the local database `gata_rehearsal`.
+
+1. Copy a dump from the server (see DEPLOYMENT.md, "Database Backups") to
+   `~/gata-dumps/` on an encrypted disk. The backup directory is root-only, so
+   hand the dump to `ubuntu` first, and compare checksums before deleting the
+   copy on the server:
+
+```bash
+# on the server, as root (sudo -i)
+install -m 600 -o ubuntu -g ubuntu /var/backups/bloodbowl-league/gata_league-YYYYMMDD-HHMMSS.dump /home/ubuntu/
+sha256sum /home/ubuntu/gata_league-YYYYMMDD-HHMMSS.dump
+
+# on the Mac
+mkdir -p ~/gata-dumps && chmod 700 ~/gata-dumps
+scp ubuntu@<server>:~/gata_league-YYYYMMDD-HHMMSS.dump ~/gata-dumps/
+chmod 600 ~/gata-dumps/*.dump
+shasum -a 256 ~/gata-dumps/gata_league-YYYYMMDD-HHMMSS.dump   # the same sum as on the server
+
+# on the server again, once the sums match
+rm /home/ubuntu/gata_league-YYYYMMDD-HHMMSS.dump
+```
+
+2. Set `REHEARSAL_PASSWORD` in `.env` — every restored account gets it.
+3. Run:
+
+```bash
+npm run rehearsal:restore -- ~/gata-dumps/gata_league-YYYYMMDD-HHMMSS.dump
+npm run rehearsal:check -- --before
+npm run rehearsal:migrate
+npm run rehearsal:check -- --after
+```
+
+`rehearsal:restore` marks the database as anonymized once the hashes, contacts
+and sessions are replaced and read back; `rehearsal:check` and `rehearsal:migrate`
+refuse a `gata_rehearsal` without that mark. A new restore deletes the reports of
+the previous rehearsal.
+
+`rehearsal:check -- --after` compares every column that existed before and
+exits 1 when anything changed. An OK needs migrations to have been applied
+between the two snapshots: with none, it says "OK, but no migrations were
+applied" and nothing was tested. `output/rehearsal/report.md` also says how long
+the migrations took, which stage each team got and why, which fallen players
+were carried over, and which matches are still half-way through.
+
+Do not start the server between `--before` and `--after`: booting it writes to
+`users` (below), and the comparison would call that a change. Afterwards, to
+click through as any coach, start the server with `DATABASE_URL` pointing at
+`gata_rehearsal` (same credentials as your `.env`, database name swapped). Coaches
+sign in with `REHEARSAL_PASSWORD`. Booting resets `ADMIN_LOGIN`'s password to
+`ADMIN_PASSWORD` (and its Telegram to `ADMIN_TELEGRAM`), and inserts that admin
+if production's admin has a different login, so an `--after` taken later sees one
+more user.
+
+Fourteen days after day X (the release), delete the copies:
+
+```bash
+rm -P ~/gata-dumps/*.dump
+docker exec gata-league-postgres dropdb -U gata_admin --if-exists gata_rehearsal
+```
+
 ## Optional Content Re-import
 
 The repository already contains generated Markdown in `content/Gata`, so a deployer does not need the original source files just to publish the site.
