@@ -175,8 +175,8 @@ gh pr edit 10 --body-file <scratchpad>/pr-10.md
 
 ## Фаза 01 · Инструменты репетиции
 
-- [ ] Исполнить `plans/2026-10-14-rehearsal-tooling.md` (Tasks 0–5).
-- [ ] Протокол этапа, шаги 7–10 (ниже).
+- [x] Исполнить `plans/2026-10-14-rehearsal-tooling.md` (Tasks 0–5).
+- [x] Протокол этапа, шаги 7–10 (ниже).
 
 ---
 
