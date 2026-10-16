@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createPostMatch, applyPostAction, validatePostSide } from '../src/domain/post-match/state.mjs';
 import { postIncome, postWinnings, mistakeKind, postFinance, nextDedicatedFans } from '../src/domain/post-match/finance.mjs';
 import { projectPostRoster } from '../src/domain/post-match/roster.mjs';
+import { postMatchLedgerEntries, ledgerRows } from '../src/domain/roster/ledger.mjs';
 import { createMatchSide, calculateMatchCtv } from '../src/domain/match/roster.mjs';
 import { earnedSpp, normalizeMatchStats } from '../src/domain/post-match/statistics.mjs';
 import { playerAvailableSpp } from '../src/domain/roster/progression.mjs';
@@ -374,4 +375,26 @@ test('completed settlement remains historical and cannot be mutated through a pr
   assert.deepEqual(projectPostRoster(f.state, 'home', f.data), settled);
   projectPostRoster(f.state, 'home', f.data).roster.treasury = 999;
   assert.equal(projectPostRoster(f.state, 'home', f.data).roster.treasury, 200);
+});
+
+test('the ledger lines of a post-match add up to its treasury change', () => {
+  const f = agreed(fixture()); f.state.home.reference.team.roster[0].price = '15K';
+  f.state.home.baseRoster.players.push({ ...structuredClone(f.state.home.baseRoster.players[0]), id: 'extra', number: '8' });
+  f.state.home.operations = [{ type: 'sell', playerId: 'extra' }, { type: 'hire', rowIndex: 0, id: 'hired' },
+    { type: 'staff', key: 'assistantCoaches', delta: 1 }];
+  f.state.home.deposit = 20; f.state.home.mistake = { roll: 6 };
+  const { accounting } = projectPostRoster(f.state, 'home', f.data, true);
+  const entries = postMatchLedgerEntries(accounting);
+  assert.deepEqual(entries.map(entry => entry.kind), ['match_income', 'sale', 'hire', 'staff', 'safe']);
+  assert.equal(ledgerRows(accounting.opening, entries).at(-1).balanceAfter, accounting.closing);
+});
+
+test('an expensive mistake is its own ledger line', () => {
+  const f = agreed(fixture()); f.state.home.baseRoster.treasury = 650;
+  f.state.home.operations = [{ type: 'staff', key: 'assistantCoaches', delta: 1 }];
+  f.state.home.deposit = 20; f.state.home.mistake = { roll: 1, first: 2, second: 3 };
+  const { accounting } = projectPostRoster(f.state, 'home', f.data, true);
+  const entries = postMatchLedgerEntries(accounting);
+  assert.deepEqual(entries.map(entry => entry.kind), ['match_income', 'staff', 'safe', 'mistake']);
+  assert.equal(ledgerRows(accounting.opening, entries).at(-1).balanceAfter, 50);
 });
