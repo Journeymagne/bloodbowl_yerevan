@@ -1209,7 +1209,7 @@
 }
 
 .stat-table-cell.stat-up strong {
-  color: #9df0a9;
+  color: var(--on-accent-tint);
 }
 
 .stat-table-cell.stat-down {
@@ -1217,7 +1217,7 @@
 }
 
 .stat-table-cell.stat-down strong {
-  color: #ff9a8f;
+  color: var(--on-danger-tint);
 }
 
 .table-checkbox {

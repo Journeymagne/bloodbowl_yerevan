@@ -91,7 +91,7 @@ function contrast(first, second) {
   return (light + 0.05) / (dark + 0.05);
 }
 
-/** The colour `selector` gives `property` must hold `minimum`:1 on every one of `backgrounds`, in every palette. */
+/** The colour `selector` gives `property` must hold `minimum`:1 on every one of `backgrounds` (tokens or colours), in every palette. */
 function assertReadable(file, selector, property, backgrounds, minimum) {
   const values = valuesOf(file, selector, property);
   assert.ok(values.length, `${file} has no ${property} for ${selector}`);
@@ -99,7 +99,7 @@ function assertReadable(file, selector, property, backgrounds, minimum) {
   for (const palette of Object.keys(PALETTES)) {
     const tokens = tokensOf(palette);
     for (const background of backgrounds) {
-      const ratio = contrast(rgb(value, tokens), rgb(`var(${background})`, tokens));
+      const ratio = contrast(rgb(value, tokens), rgb(background.startsWith("--") ? `var(${background})` : background, tokens));
       assert.ok(ratio >= minimum, `${selector} ${property} ${value} on ${background} in ${palette} is ${ratio.toFixed(2)}:1, below ${minimum}:1`);
     }
   }
@@ -160,4 +160,13 @@ test("a checked checkbox is filled with the accent, not the pale border colour",
     assertReadable(sheet, selector, "accent-color", ["--surface", "--page"], 2.5);
     assert.deepEqual(valuesOf(sheet, selector, "accent-color"), ["var(--accent)"], selector);
   }
+});
+
+test("the improved and reduced stats of the saved roster table read the text-on-tint tokens, not a light green and a light red", () => {
+  const sheet = "src/styles/roster.css";
+  // The cell tints, rgba(63, 167, 92, .16) and rgba(190, 55, 45, .16), over the surface; the strong sits in a --surface-2 stepper.
+  const upTint = "color-mix(in srgb, #3FA75C 16%, var(--surface))";
+  const downTint = "color-mix(in srgb, #BE372D 16%, var(--surface))";
+  assertReadable(sheet, ".stat-table-cell.stat-up strong", "color", ["--surface", "--surface-2", upTint], 4.5);
+  assertReadable(sheet, ".stat-table-cell.stat-down strong", "color", ["--surface", "--surface-2", downTint], 4.5);
 });
