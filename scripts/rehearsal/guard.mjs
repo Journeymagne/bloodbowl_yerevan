@@ -7,6 +7,10 @@
  * local, and the database is always gata_rehearsal whatever DATABASE_URL names.
  * The driver obeys the query string as well as the authority — `?host=` and
  * `?port=` replace the host and port in the URL — so those keys are refused too.
+ *
+ * The restore also runs through `docker exec` on a container called
+ * gata-league-postgres — the production name too. A DOCKER_HOST or a remote
+ * docker context would aim that at the server, so those are refused as well.
  */
 export const REHEARSAL_DATABASE = "gata_rehearsal";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
@@ -34,4 +38,19 @@ export function rehearsalDatabaseUrl(value) {
   const url = assertLocalDatabaseUrl(value);
   url.pathname = `/${REHEARSAL_DATABASE}`;
   return url.toString();
+}
+
+/**
+ * Refuse a Docker that is not the one on this machine.
+ *
+ * @param {{ dockerHost?: string, contextEndpoint?: string }} docker
+ *   `dockerHost` is $DOCKER_HOST; `contextEndpoint` is the current docker
+ *   context's endpoint. Any DOCKER_HOST is refused (it overrides the context we
+ *   would check); otherwise the context must be a local unix socket.
+ */
+export function assertLocalDocker({ dockerHost, contextEndpoint } = {}) {
+  const endpoint = String(contextEndpoint ?? "").trim();
+  if (!dockerHost && endpoint.startsWith("unix://")) return;
+  const shown = dockerHost || endpoint || "no endpoint reported";
+  throw new Error(`refusing to run against a non-local Docker (${shown}) — the container name gata-league-postgres is the same as production's`);
 }

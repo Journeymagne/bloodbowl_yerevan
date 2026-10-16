@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { REHEARSAL_DATABASE, assertLocalDatabaseUrl, rehearsalDatabaseUrl } from "../scripts/rehearsal/guard.mjs";
+import { REHEARSAL_DATABASE, assertLocalDatabaseUrl, assertLocalDocker, rehearsalDatabaseUrl } from "../scripts/rehearsal/guard.mjs";
 
 test("only a database on this machine is accepted", () => {
   for (const url of ["postgres://u:p@localhost:5433/gata_league", "postgres://u:p@127.0.0.1:5433/x", "postgres://u:p@[::1]:5433/x"]) {
@@ -37,4 +37,32 @@ test("a query string that overrides the host or port is refused, whatever its sp
 
 test("other query parameters still pass", () => {
   assert.doesNotThrow(() => assertLocalDatabaseUrl("postgres://u:p@localhost:5433/gata_league?sslmode=require"));
+});
+
+const LOCAL_SOCKET = "unix:///Users/coach/.docker/run/docker.sock";
+
+test("Docker is accepted only as a local unix socket with no DOCKER_HOST override", () => {
+  assert.doesNotThrow(() => assertLocalDocker({ dockerHost: undefined, contextEndpoint: LOCAL_SOCKET }));
+  assert.doesNotThrow(() => assertLocalDocker({ dockerHost: "", contextEndpoint: `${LOCAL_SOCKET}\n` }));
+});
+
+test("a DOCKER_HOST override is refused, whatever it points at", () => {
+  for (const dockerHost of ["tcp://51.81.86.51:2375", "ssh://ubuntu@51.81.86.51", "unix:///var/run/docker.sock"]) {
+    assert.throws(
+      () => assertLocalDocker({ dockerHost, contextEndpoint: LOCAL_SOCKET }),
+      (error) => error.message.includes("non-local Docker") && error.message.includes(dockerHost),
+      dockerHost,
+    );
+  }
+});
+
+test("a context whose endpoint is not a local socket is refused", () => {
+  for (const contextEndpoint of ["tcp://51.81.86.51:2376", "ssh://ubuntu@51.81.86.51", "", undefined, "  \n"]) {
+    assert.throws(
+      () => assertLocalDocker({ dockerHost: undefined, contextEndpoint }),
+      /refusing to run against a non-local Docker \(.+\) — the container name gata-league-postgres is the same as production's/,
+      String(contextEndpoint),
+    );
+  }
+  assert.throws(() => assertLocalDocker({ dockerHost: undefined, contextEndpoint: "ssh://ubuntu@51.81.86.51" }), /ssh:\/\/ubuntu@51\.81\.86\.51/);
 });
