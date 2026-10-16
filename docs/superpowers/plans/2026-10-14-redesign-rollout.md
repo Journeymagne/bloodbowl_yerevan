@@ -292,6 +292,8 @@ WHERE NOT EXISTS (
 
 **06.** `builder-draft` удаляется вместе с ключом из `STORAGE_KEYS`; импорт старого черновика не делаем.
 
+**11.** Таблицы справочника уже получают от сборки классы `fit-cell`, `center-cell`, `number-cell`, `fit-table` (`scripts/lib/render-table.mjs`, перенос из PR #9 на этапе 01). `fit-cell` и `center-cell` пока стилизованы глобальными правилами 2.x в `src/styles/roster.css`; этап 11 даёт всем четырём классам стили на токенах 3.0 (узкие колонки характеристик и бросков по центру, `Cost` вправо с `tabular-nums`, короткие таблицы во всю ширину без прокрутки) и убирает зависимость от `roster.css`.
+
 **09a.** Форма быстрого счёта (`components/games/result-fields.mjs`, режим тренера) удаляется; админский ручной результат остаётся.
 
 **09b.** `scripts/rehearsal-transitions.mjs` (`npm run rehearsal:transitions -- --seed <url 2.1> | --finish <url 3.0>`): `--seed` против сервера `v2.1.0` (worktree, порт 3004) на `gata_rehearsal` создаёт через API и записывает в `output/rehearsal/transitions.json` пять состояний из спеки выката §3.3; `--finish` против 3.0 доводит каждое до конца и проверяет: подготовка продолжается с того же шага; итоги, начатые в 2.x, завершаются без `POST_TEAM_CHANGED`, SPP после = SPP до + статистика матча, записи матча получают `settled_at`; неподтверждённый счёт вносит админ; вызов принимается. Детальный план этапа описывает API-вызовы по `scripts/smoke-post-match.mjs` и `smoke-friendly.mjs`.
