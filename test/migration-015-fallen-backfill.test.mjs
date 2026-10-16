@@ -123,3 +123,13 @@ test("a state without a whole-number gamesPlayed carries nobody", { skip: scratc
     assert.deepEqual(await carried(client), ["h-dead"]);
   }, { through: "011_fallen_players.sql" });
 });
+
+test("a gamesPlayed too large for an integer still counts, and never stops the migration", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await seed(client);
+    await another(client, { pairing: id(43), table: 3, state: { home: { gamesPlayed: "99999999999", injuries: { "h-veteran": { code: "dead" } } } },
+      before: [player("h-veteran", "Veteran")], after: [] });
+    await runMigration(client, "015_backfill_fallen_players.sql");
+    assert.deepEqual(await carried(client), ["h-dead", "h-veteran"]);
+  }, { through: "011_fallen_players.sql" });
+});
