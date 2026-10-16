@@ -1,13 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { compareSnapshots, renderReport } from "../scripts/rehearsal/snapshot.mjs";
+import { columnHashSql, compareSnapshots, renderReport, takeSnapshot } from "../scripts/rehearsal/snapshot.mjs";
+
+// One hash per column; the real ones are md5s of the whole column (see columnHashSql).
+function columns(overrides = {}) {
+  return {
+    users: { id: "h-id", login: "h-login", telegram: "h-telegram" },
+    season_pairings: { id: "h-pid", home_points: "h-home", away_points: "h-away" },
+    ...overrides,
+  };
+}
 
 function snapshot(overrides = {}) {
   return {
     takenAt: "2026-11-01T10:00:00.000Z",
     migrations: ["001_baseline.sql", "008_withdraw_season_entries.sql"],
     tables: { users: 12, saved_teams: 20, season_pairings: 70, schema_migrations: 2, sessions: 3 },
+    columns: columns(),
     teams: { t1: { name: "Ashgrove Wardens", revision: 14, roster: "aaa" }, t2: { name: "Silverbrook Rangers", revision: 3, roster: "bbb" } },
     season: { pairings: "p-hash", entries: "e-hash" },
     open: { preparing: [], startedWithoutPost: [], awaitingConfirmation: [], pendingChallenges: 0 },
@@ -123,4 +133,104 @@ test("the report lists stages with reasons, fallen players and open states", () 
   assert.match(report, /Ashgrove Wardens.*2/);
   assert.match(report, /p2/);
   assert.match(report, /\*\*OK\*\*/);
+});
+
+test("a new column on an existing table is a note, not a problem", () => {
+  const after = snapshot({ columns: columns({ users: { ...columns().users, rehearsal_probe: "h-probe" } }) });
+  const { problems, notes } = compareSnapshots(snapshot(), after);
+  assert.deepEqual(problems, []);
+  assert.ok(notes.includes("new columns in users: rehearsal_probe"), notes.join("\n"));
+});
+
+test("several new columns, and a new table's columns, are one note per table", () => {
+  const after = snapshot({
+    columns: columns({ users: { ...columns().users, preferences: "h-p", stage: "h-s" }, team_ledger: { id: "h-l", amount: "h-a" } }),
+  });
+  const { problems, notes } = compareSnapshots(snapshot(), after);
+  assert.deepEqual(problems, []);
+  assert.ok(notes.includes("new columns in users: preferences, stage"));
+  assert.ok(notes.includes("new columns in team_ledger: id, amount"));
+});
+
+test("a changed value in an existing column is a problem naming the column", () => {
+  const after = snapshot({ columns: columns({ users: { ...columns().users, login: "h-other" } }) });
+  const { problems } = compareSnapshots(snapshot(), after);
+  assert.deepEqual(problems, ["column users.login changed"]);
+});
+
+test("a NULL moving between two adjacent columns is a problem for both: 3/null becomes null/3", () => {
+  // home_points 3, away_points NULL  ->  home_points NULL, away_points 3: every other column and the
+  // row count are the same, and the two columns' hashes trade places.
+  const after = snapshot({ columns: columns({ season_pairings: { ...columns().season_pairings, home_points: "h-away", away_points: "h-home" } }) });
+  const { problems } = compareSnapshots(snapshot(), after);
+  assert.deepEqual(problems, ["column season_pairings.home_points changed", "column season_pairings.away_points changed"]);
+});
+
+test("a dropped column, or every column of a dropped table, is a problem", () => {
+  const { login, ...users } = columns().users;
+  const dropped = compareSnapshots(snapshot(), snapshot({ columns: columns({ users }) }));
+  assert.deepEqual(dropped.problems, ["column users.login is gone"]);
+  const { season_pairings, ...rest } = columns();
+  const table = compareSnapshots(snapshot(), snapshot({ columns: rest }));
+  assert.deepEqual(table.problems, ["column season_pairings.id is gone", "column season_pairings.home_points is gone", "column season_pairings.away_points is gone"]);
+});
+
+test("a snapshot without column hashes cannot be called OK", () => {
+  const { columns: missing, ...old } = snapshot();
+  for (const [before, after] of [[old, snapshot()], [snapshot(), old], [old, old]]) {
+    const { problems } = compareSnapshots(before, after);
+    assert.ok(problems.some((problem) => problem.includes("column hashes")), problems.join("\n"));
+  }
+});
+
+test("the column hash query quotes names, tags SQL NULL apart from a JSON null, and orders by the key", () => {
+  const sql = columnHashSql('we"ird', "col", ["id", "side"]);
+  assert.match(sql, /FROM "we""ird" t$/);
+  assert.match(sql, /to_jsonb\(t\."col"\)::text/);
+  assert.match(sql, /coalesce\(to_jsonb\(t\."col"\)::text, 'NULL'\)/);
+  assert.match(sql, /ORDER BY t\."id", t\."side"\)/);
+});
+
+test("a table without a primary key is ordered by the column's own value", () => {
+  assert.match(columnHashSql("log", "note", []), /ORDER BY to_jsonb\(t\."note"\)::text\)/);
+});
+
+// A client that answers the snapshot's queries from a small fixed database.
+function fakeDatabase({ failOn } = {}) {
+  const statements = [];
+  return {
+    statements,
+    async query(sql, params = []) {
+      statements.push(sql.trim().replace(/\s+/g, " "));
+      if (failOn && sql.includes(failOn)) throw new Error("boom");
+      if (/^(BEGIN|COMMIT|ROLLBACK)/.test(sql.trim())) return { rows: [] };
+      if (sql.includes("information_schema.tables")) return { rows: [{ table_name: "schema_migrations" }, { table_name: "sessions" }, { table_name: "users" }] };
+      if (sql.includes("table_name, column_name")) {
+        return { rows: ["id", "login"].map((column) => ({ table_name: "users", column_name: column })).concat({ table_name: "sessions", column_name: "token_hash" }) };
+      }
+      if (sql.includes("PRIMARY KEY")) return { rows: [{ column_name: "id" }] };
+      if (sql.includes("md5(coalesce(string_agg(coalesce(to_jsonb")) return { rows: [{ h: `hash of ${sql.match(/t\.("\w+")\)::text, 'NULL'/)[1]}` }] };
+      if (sql.includes("to_regclass")) return { rows: [{ ok: false }] };
+      if (sql.includes("count(*)")) return { rows: [{ n: 4 }] };
+      if (sql.includes("FROM schema_migrations")) return { rows: [{ name: "001_baseline.sql" }] };
+      if (sql.includes("information_schema.columns")) return { rows: [] };
+      return { rows: [{ hash: "x" }] };
+    },
+  };
+}
+
+test("the snapshot is one read-only repeatable-read transaction, with a hash for every column of every table but sessions and the migration log", async () => {
+  const client = fakeDatabase();
+  const taken = await takeSnapshot(client);
+  assert.equal(client.statements[0], "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+  assert.equal(client.statements.at(-1), "COMMIT");
+  assert.deepEqual(taken.columns, { users: { id: 'hash of "id"', login: 'hash of "login"' } });
+  assert.deepEqual(Object.keys(taken.tables), ["schema_migrations", "sessions", "users"]);
+});
+
+test("a failure inside the snapshot rolls the transaction back and is reported", async () => {
+  const client = fakeDatabase({ failOn: "md5(coalesce(string_agg(coalesce(to_jsonb" });
+  await assert.rejects(() => takeSnapshot(client), /boom/);
+  assert.equal(client.statements.at(-1), "ROLLBACK");
+  assert.ok(!client.statements.includes("COMMIT"));
 });

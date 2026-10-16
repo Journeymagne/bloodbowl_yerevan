@@ -1,17 +1,30 @@
 /**
- * What a rehearsal proves: the 3.0 migrations added and changed nothing else.
+ * What a rehearsal proves: the 3.0 migrations only added, and changed nothing
+ * that was there.
  *
- * A snapshot is taken before and after migrating. Existing data is compared by
- * what it means rather than by whole rows: a migration adds columns to
- * saved_teams, so a team is its roster's hash and its revision, and the season
- * is a hash of its results. Row counts catch anything deleted, except the
- * migration log (compared by name) and sessions (moved by every login, so a note).
- * The stored stage must match the rule: active if a team is entered or has a
- * played match, draft otherwise. What a migration should have produced (stages,
- * fallen players, empty preferences) and what is still open (a match half-way
- * through) go in the report for a person to read.
+ * A snapshot is taken before and after migrating, in one read-only transaction.
+ * "Nothing that was there changed" is checked exactly: for every column of every
+ * table but sessions and the migration log, a hash of the whole column in primary
+ * key order. A migration may add columns and tables, so those only get a note;
+ * a column that is gone or whose hash moved is a problem.
+ *
+ * The rest is for reading the report: a team is its roster's hash and its
+ * revision, the season is a hash of its results, and row counts name what was
+ * deleted. Sessions are moved by every login (a note), and the migration log is
+ * compared by name. The stored stage must match the rule: active if a team is
+ * entered or has a played match, draft otherwise. What a migration should have
+ * produced (stages, fallen players, empty preferences) and what is still open (a
+ * match half-way through) go in the report for a person to read.
  */
 const LIST = (rows) => rows.map((row) => ({ id: row.id, matchKind: row.match_kind }));
+
+// The migration log grows by one row per migration; compareSnapshots checks it by name.
+// Sessions grows with every login, so its change is a note, not a problem. Neither
+// is hashed column by column.
+const MIGRATION_LOG = "schema_migrations";
+const SESSIONS = "sessions";
+
+const quote = (name) => `"${name.replace(/"/g, '""')}"`;
 
 async function columnExists(client, table, column) {
   const { rows } = await client.query(
@@ -21,16 +34,62 @@ async function columnExists(client, table, column) {
   return rows.length > 0;
 }
 
-async function tableCounts(client) {
+async function baseTables(client) {
   const { rows } = await client.query(
     "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' AND table_type = 'BASE TABLE' ORDER BY table_name",
   );
+  return rows.map((row) => row.table_name);
+}
+
+async function tableCounts(client, tables) {
   const counts = {};
-  for (const { table_name: name } of rows) {
-    const quoted = `"${name.replace(/"/g, '""')}"`;
-    counts[name] = (await client.query(`SELECT count(*)::int AS n FROM ${quoted}`)).rows[0].n;
+  for (const name of tables) {
+    counts[name] = (await client.query(`SELECT count(*)::int AS n FROM ${quote(name)}`)).rows[0].n;
   }
   return counts;
+}
+
+async function primaryKey(client, table) {
+  const { rows } = await client.query(
+    `SELECT kcu.column_name FROM information_schema.table_constraints tc
+     JOIN information_schema.key_column_usage kcu
+       ON kcu.constraint_schema = tc.constraint_schema AND kcu.constraint_name = tc.constraint_name AND kcu.table_name = tc.table_name
+     WHERE tc.table_schema = 'public' AND tc.table_name = $1 AND tc.constraint_type = 'PRIMARY KEY'
+     ORDER BY kcu.ordinal_position`,
+    [table],
+  );
+  return rows.map((row) => row.column_name);
+}
+
+/**
+ * The hash of one column: its values as JSON text, joined in key order.
+ *
+ * to_jsonb keeps every value apart from its neighbours (concat_ws drops a NULL
+ * and shifts the rest: 3/NULL and NULL/3 would hash alike). A SQL NULL is tagged
+ * NULL, which no JSON text is, so it differs from a jsonb null. Every table in
+ * migrations 001–008 has a primary key; for one without, the rows are ordered by
+ * the column's own value instead, which still catches any change to the values
+ * but not a swap between rows.
+ */
+export function columnHashSql(table, column, keyColumns) {
+  const value = `to_jsonb(t.${quote(column)})::text`;
+  const order = keyColumns.length ? keyColumns.map((key) => `t.${quote(key)}`).join(", ") : value;
+  return `SELECT md5(coalesce(string_agg(coalesce(${value}, 'NULL'), ',' ORDER BY ${order}), '')) AS h FROM ${quote(table)} t`;
+}
+
+async function columnHashes(client, tables) {
+  const { rows } = await client.query(
+    "SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' ORDER BY table_name, ordinal_position",
+  );
+  const hashes = {};
+  for (const table of tables.filter((name) => name !== MIGRATION_LOG && name !== SESSIONS)) {
+    const keys = await primaryKey(client, table);
+    hashes[table] = {};
+    for (const { column_name: column } of rows.filter((row) => row.table_name === table)) {
+      hashes[table][column] = (await client.query(columnHashSql(table, column, keys))).rows[0].h;
+    }
+  }
+  return hashes;
 }
 
 async function seasonHashes(client) {
@@ -80,7 +139,8 @@ async function stages(client) {
   return rows.map((row) => ({ id: row.id, name: row.name, stage: row.stage, entered: row.entered, playedMatch: row.played_match }));
 }
 
-export async function takeSnapshot(client) {
+async function collect(client) {
+  const tables = await baseTables(client);
   const teams = {};
   for (const row of (await client.query("SELECT id, name, revision, md5(roster::text) AS roster FROM saved_teams ORDER BY id")).rows) {
     teams[row.id] = { name: row.name, revision: Number(row.revision), roster: row.roster };
@@ -92,7 +152,8 @@ export async function takeSnapshot(client) {
   return {
     takenAt: new Date().toISOString(),
     migrations: (await client.query("SELECT name FROM schema_migrations ORDER BY name")).rows.map((row) => row.name),
-    tables: await tableCounts(client),
+    tables: await tableCounts(client, tables),
+    columns: await columnHashes(client, tables),
     teams,
     season: await seasonHashes(client),
     open: await openStates(client),
@@ -104,15 +165,25 @@ export async function takeSnapshot(client) {
   };
 }
 
-// The migration log grows by one row per migration; compareSnapshots checks it by name.
-// Sessions grows with every login, so its change is a note, not a problem.
-const MIGRATION_LOG = "schema_migrations";
+// One transaction at one point in time: the counts, the hashes and the semantic
+// reads must describe the same database, even if the server is started on it.
+export async function takeSnapshot(client) {
+  await client.query("BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY");
+  try {
+    const snapshot = await collect(client);
+    await client.query("COMMIT");
+    return snapshot;
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    throw error;
+  }
+}
 
 function compareTables(before, after, problems, notes) {
   for (const [name, count] of Object.entries(before.tables)) {
     if (name === MIGRATION_LOG || after.tables[name] === count) continue;
     if (!(name in after.tables)) problems.push(`table ${name} is gone`);
-    else if (name === "sessions") notes.push(`sessions: ${count} rows before, ${after.tables[name]} after (logins between snapshots)`);
+    else if (name === SESSIONS) notes.push(`sessions: ${count} rows before, ${after.tables[name]} after (logins between snapshots)`);
     else problems.push(`table ${name}: ${count} rows before, ${after.tables[name]} after`);
   }
   for (const name of Object.keys(after.tables)) {
@@ -129,10 +200,30 @@ function compareTeams(before, after, problems) {
   }
 }
 
+// Migrations only add (spec 3.0 §0.13): whatever a column held before, it holds now.
+function compareColumns(before, after, problems, notes) {
+  if (!before.columns || !after.columns) {
+    problems.push("a snapshot has no column hashes — take both with this version of rehearsal:check (--before, migrate, --after)");
+    return;
+  }
+  for (const [table, hashes] of Object.entries(before.columns)) {
+    const now = after.columns[table] ?? {};
+    for (const [column, hash] of Object.entries(hashes)) {
+      if (!(column in now)) problems.push(`column ${table}.${column} is gone`);
+      else if (now[column] !== hash) problems.push(`column ${table}.${column} changed`);
+    }
+  }
+  for (const [table, hashes] of Object.entries(after.columns)) {
+    const added = Object.keys(hashes).filter((column) => !(column in (before.columns[table] ?? {})));
+    if (added.length) notes.push(`new columns in ${table}: ${added.join(", ")}`);
+  }
+}
+
 export function compareSnapshots(before, after) {
   const problems = [];
   const notes = [];
   compareTables(before, after, problems, notes);
+  compareColumns(before, after, problems, notes);
   compareTeams(before, after, problems);
   if (before.season.pairings !== after.season.pairings) problems.push("season_pairings results changed");
   if (before.season.entries !== after.season.entries) problems.push("season_entries changed");
