@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
+
+import { assertReadable as assertReadableIn, valuesOf } from "./helpers/contrast.mjs";
 
 /*
  * The 2.x screens were put on the 3.0 tokens through legacy-aliases.css and not
@@ -10,100 +11,8 @@ import test from "node:test";
  * eight palettes.
  */
 
-const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-const PALETTES = { grass: "light", parchment: "light", ice: "light", imperial: "light", night: "dark", dungeon: "dark", embers: "dark", abyss: "dark" };
-
-/** Every innermost `selectors { body }` block, so a rule inside @media keeps its own selector. */
-function blocks(css) {
-  return [...css.replace(/\/\*[\s\S]*?\*\//g, "").matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, selectors, body]) => ({
-    selectors: selectors.split(",").map((part) => part.trim().replace(/\s+/g, " ")),
-    body,
-  }));
-}
-
-/** The values a stylesheet gives a property of one selector, in file order. */
-function valuesOf(file, selector, property) {
-  const declaration = new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g");
-  return blocks(read(file))
-    .filter((block) => block.selectors.includes(selector))
-    .flatMap((block) => [...block.body.matchAll(declaration)].map(([, value]) => value.trim()));
-}
-
-const customProperties = (body) => Object.fromEntries([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]));
-
-/** Every custom property a palette sees: tokens.css for its mode and palette, then the 2.x names. */
-function tokensOf(palette) {
-  const rules = blocks(read("src/styles/tokens.css"));
-  const declared = (selector) => rules.filter((block) => block.selectors.includes(selector)).map((block) => customProperties(block.body));
-  return Object.assign(
-    {},
-    ...declared(":root"),
-    ...(PALETTES[palette] === "dark" ? declared(':root[data-mode="dark"]') : []),
-    ...declared(`:root[data-palette="${palette}"]`),
-    ...blocks(read("src/styles/legacy-aliases.css")).map((block) => customProperties(block.body)),
-  );
-}
-
-/** `a, b, c` at the top level of a function's arguments. */
-function splitArguments(text) {
-  const parts = [];
-  let depth = 0;
-  let start = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    if (text[index] === "(") depth += 1;
-    else if (text[index] === ")") depth -= 1;
-    else if (text[index] === "," && depth === 0) {
-      parts.push(text.slice(start, index).trim());
-      start = index + 1;
-    }
-  }
-  return [...parts, text.slice(start).trim()];
-}
-
-/** [r, g, b] of a colour written as a hex, a `var(--token)` or a two-colour `color-mix(in srgb, …)`. */
-function rgb(value, tokens) {
-  const text = value.trim();
-  const variable = text.match(/^var\(\s*(--[\w-]+)\s*\)$/);
-  if (variable) {
-    assert.ok(tokens[variable[1]], `${variable[1]} is not defined`);
-    return rgb(tokens[variable[1]], tokens);
-  }
-  const hex = text.match(/^#([0-9a-f]{6})$/i);
-  if (hex) return [0, 2, 4].map((at) => parseInt(hex[1].slice(at, at + 2), 16));
-  const mix = text.match(/^color-mix\(\s*in srgb\s*,(.*)\)$/s);
-  assert.ok(mix, `cannot tell what colour "${value}" is: use one token`);
-  const [first, second] = splitArguments(mix[1]).map((part) => part.match(/^(.*?)(?:\s+([\d.]+)%)?$/s));
-  const share = first[2] === undefined ? 50 : Number(first[2]);
-  const [one, other] = [rgb(first[1], tokens), rgb(second[1], tokens)];
-  return one.map((channel, at) => channel * (share / 100) + other[at] * (1 - share / 100));
-}
-
-function luminance(colour) {
-  const [red, green, blue] = colour.map((channel) => {
-    const unit = channel / 255;
-    return unit <= 0.03928 ? unit / 12.92 : ((unit + 0.055) / 1.055) ** 2.4;
-  });
-  return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
-}
-
-function contrast(first, second) {
-  const [light, dark] = [luminance(first), luminance(second)].sort((a, b) => b - a);
-  return (light + 0.05) / (dark + 0.05);
-}
-
-/** The colour `selector` gives `property` must hold `minimum`:1 on every one of `backgrounds` (tokens or colours), in every palette. */
-function assertReadable(file, selector, property, backgrounds, minimum) {
-  const values = valuesOf(file, selector, property);
-  assert.ok(values.length, `${file} has no ${property} for ${selector}`);
-  const value = values.at(-1);
-  for (const palette of Object.keys(PALETTES)) {
-    const tokens = tokensOf(palette);
-    for (const background of backgrounds) {
-      const ratio = contrast(rgb(value, tokens), rgb(background.startsWith("--") ? `var(${background})` : background, tokens));
-      assert.ok(ratio >= minimum, `${selector} ${property} ${value} on ${background} in ${palette} is ${ratio.toFixed(2)}:1, below ${minimum}:1`);
-    }
-  }
-}
+const LEGACY = { layers: ["src/styles/legacy-aliases.css"] };
+const assertReadable = (file, selector, property, backgrounds, minimum) => assertReadableIn(file, selector, property, backgrounds, minimum, LEGACY);
 
 test("the numerals, the tile arrows and the VS between player cards are readable, not a tint of the surface", () => {
   const sheet = "src/styles/site-matchday.css";
@@ -153,22 +62,32 @@ test("the numbers, badges and prices of match preparation and the season table a
   assert.deepEqual(valuesOf(pre, ".pre-badge", "border"), ["1px solid var(--line-bright)"]);
 });
 
-test("a checked checkbox is filled with the accent, not the pale border colour", () => {
+test("a checked checkbox is filled with the text accent, which a control's outline needs at 3:1", () => {
   const sheet = "src/styles/controls.css";
   for (const selector of ['.filter-field input[type="checkbox"]', ".checkbox-field input"]) {
-    // 2.5:1 is "clearly not the 1.5-2.1:1 it was"; dungeon's own accent is 2.91:1 on its surface.
-    assertReadable(sheet, selector, "accent-color", ["--surface", "--page"], 2.5);
-    assert.deepEqual(valuesOf(sheet, selector, "accent-color"), ["var(--accent)"], selector);
+    // The fill accent is 2.91:1 on dungeon's surface; the text accent is the same colour in every light palette.
+    assertReadable(sheet, selector, "accent-color", ["--surface", "--surface-2", "--page"], 3);
+    assert.deepEqual(valuesOf(sheet, selector, "accent-color"), ["var(--accent-text)"], selector);
   }
 });
 
-test("the improved and reduced stats of the saved roster table read the text-on-tint tokens, not a light green and a light red", () => {
+test("the improved and reduced stats of the saved roster table are 3.0 text on the 3.0 tints, not a light green and a light red", () => {
   const sheet = "src/styles/roster.css";
-  // The cell tints, rgba(63, 167, 92, .16) and rgba(190, 55, 45, .16), over the surface; the strong sits in a --surface-2 stepper.
-  const upTint = "color-mix(in srgb, #3FA75C 16%, var(--surface))";
-  const downTint = "color-mix(in srgb, #BE372D 16%, var(--surface))";
-  assertReadable(sheet, ".stat-table-cell.stat-up strong", "color", ["--surface", "--surface-2", upTint], 4.5);
-  assertReadable(sheet, ".stat-table-cell.stat-down strong", "color", ["--surface", "--surface-2", downTint], 4.5);
+  assert.deepEqual(valuesOf(sheet, ".stat-table-cell.stat-up", "background"), ["var(--stat-up-bg)"]);
+  assert.deepEqual(valuesOf(sheet, ".stat-table-cell.stat-down", "background"), ["var(--stat-down-bg)"]);
+  // The strong sits on the cell's tint, inside a --surface-2 stepper.
+  assertReadable(sheet, ".stat-table-cell.stat-up strong", "color", ["--surface", "--surface-2", "--stat-up-bg"], 4.5);
+  assertReadable(sheet, ".stat-table-cell.stat-down strong", "color", ["--surface", "--surface-2", "--stat-down-bg"], 4.5);
+});
+
+test("the error notice of match preparation and results, and a negative budget, are danger text a light page can read", () => {
+  // A notice box is the --md-wash tint; the budget sits on a panel.
+  assertReadable("src/styles/roster.css", ".danger-text", "color", ["--surface", "--surface-2", "--page", "--accent-tint-soft"], 4.5);
+});
+
+test("a started round or game is accent text on its pill, not a pale green made for a dark page", () => {
+  // The pill is the --md-wash tint (site-matchday.css); its label is .6rem, so 4.5:1.
+  assertReadable("src/styles/season.css", '.season-status-pill[data-status="started"]', "color", ["--accent-tint-soft", "--surface"], 4.5);
 });
 
 test("the table stepper is outlined with the 3.0 line, not 2.x taupe", () => {
@@ -176,4 +95,13 @@ test("the table stepper is outlined with the 3.0 line, not 2.x taupe", () => {
   assert.deepEqual(valuesOf(sheet, ".table-stepper", "border"), ["1px solid var(--line-strong)"]);
   assert.deepEqual(valuesOf(sheet, ".table-stepper button", "border-right"), ["1px solid var(--line-strong)"]);
   assert.deepEqual(valuesOf(sheet, ".table-stepper button:last-child", "border-left"), ["1px solid var(--line-strong)"]);
+});
+
+test("the destructive confirm button keeps its label readable in every palette, hovered too", () => {
+  const sheet = "src/styles/season.css";
+  const button = ".primary-button.danger-action";
+  const fill = valuesOf(sheet, button, "background").at(-1);
+  const hovered = valuesOf(sheet, `${button}:hover:not(:disabled)`, "background").at(-1);
+  // Large bold text would need 3:1; the dialog's label is neither, so 4.5:1.
+  assertReadable(sheet, button, "color", [fill, hovered], 4.5);
 });

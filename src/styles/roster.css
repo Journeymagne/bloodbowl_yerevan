@@ -1205,7 +1205,7 @@
 }
 
 .stat-table-cell.stat-up {
-  background: rgba(63, 167, 92, 0.16);
+  background: var(--stat-up-bg);
 }
 
 .stat-table-cell.stat-up strong {
@@ -1213,7 +1213,7 @@
 }
 
 .stat-table-cell.stat-down {
-  background: rgba(190, 55, 45, 0.16);
+  background: var(--stat-down-bg);
 }
 
 .stat-table-cell.stat-down strong {
@@ -1846,7 +1846,7 @@
 }
 
 .danger-text {
-  color: #ffb199;
+  color: var(--danger);
 }
 
 

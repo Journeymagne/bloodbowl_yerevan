@@ -160,7 +160,7 @@
 
 .season-status-pill[data-status="started"] {
   border-color: rgba(138, 160, 75, 0.68);
-  color: #cfe5a4;
+  color: var(--accent-text);
 }
 
 .season-admin-stack {
@@ -402,15 +402,16 @@
   border-color: var(--danger);
 }
 
+/* The 3.0 pair: in dark modes --danger is light and its label dark. */
 .primary-button.danger-action {
   border-color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 80%, #000);
-  color: #fff;
+  background: var(--danger);
+  color: var(--on-danger);
   text-shadow: none;
 }
 
 .primary-button.danger-action:hover:not(:disabled) {
-  background: var(--danger);
+  background: color-mix(in srgb, var(--danger) 80%, #000);
 }
 
 .danger-action:disabled {
