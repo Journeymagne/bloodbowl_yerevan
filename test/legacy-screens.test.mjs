@@ -139,3 +139,16 @@ test("the team roster card's dividers and the stat strip's outline are 3.0 lines
     assert.deepEqual(valuesOf(file, selector, property), [value], `${file} ${selector} ${property}`);
   }
 });
+
+test("the numbers, badges and prices of match preparation and the season table are text colour, not the pale border colour", () => {
+  const pre = "src/styles/pre-match.css";
+  const onPage = ["--surface", "--surface-2", "--page"];
+  assertReadable(pre, ".pre-step-nav a span", "color", onPage, 4.5);
+  assertReadable(pre, ".pre-result strong", "color", onPage, 4.5);
+  assertReadable(pre, ".pre-player-number", "color", onPage, 4.5);
+  assertReadable(pre, ".pre-badge", "color", onPage, 4.5);
+  assertReadable(pre, ".pre-inducement-card header strong", "color", onPage, 4.5);
+  assertReadable("src/styles/season-results.css", ".season-results-table .season-match-number strong", "color", onPage, 4.5);
+  // The badge's outline is a border and keeps the border colour.
+  assert.deepEqual(valuesOf(pre, ".pre-badge", "border"), ["1px solid var(--line-bright)"]);
+});
