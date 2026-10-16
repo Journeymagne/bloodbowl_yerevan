@@ -130,7 +130,8 @@ test("on a real database: the dead player of a finished post-match is in team_fa
     await applyPostMatchRoster(client, G, "home", { team: { id: T1 }, baseRevision: 1, gamesPlayed: 4, injuries: { p2: { code: "dead" } },
       baseRoster: { treasury: 150.5, players: [victim] } }, structuredClone(finished), U1);
     await client.query("COMMIT");
-    const { rows } = await client.query("SELECT saved_team_id, player, cause, pairing_id, recorded_by, died_at IS NOT NULL AS dated FROM team_fallen_players");
-    assert.deepEqual(rows, [{ saved_team_id: T1, player: victim, cause: null, pairing_id: G, recorded_by: U1, dated: true }]);
-  }, { through: "011_fallen_players.sql" });
+    const { rows } = await client.query(`SELECT saved_team_id, player, cause, pairing_id, recorded_by, died_at IS NOT NULL AS dated, from_match
+      FROM team_fallen_players`);
+    assert.deepEqual(rows, [{ saved_team_id: T1, player: victim, cause: null, pairing_id: G, recorded_by: U1, dated: true, from_match: true }]);
+  }, { through: "015_backfill_fallen_players.sql" });
 });

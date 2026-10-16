@@ -136,14 +136,15 @@ CREATE TABLE team_fallen_players (
   cause text,
   pairing_id uuid REFERENCES season_pairings(id) ON DELETE SET NULL,
   recorded_by uuid REFERENCES users(id) ON DELETE SET NULL,
-  died_at timestamptz NOT NULL DEFAULT now()
+  died_at timestamptz NOT NULL DEFAULT now(),
+  from_match boolean NOT NULL DEFAULT false   -- гибель из матча; колонку добавляет 015
 );
 ```
 
 - Post-match при травме `dead` пишет строку туда в той же транзакции, где применяет ростер.
 - Ручная отметка гибели (`POST /api/teams/:id/players/:playerId/death {cause}`) удаляет игрока из блоба и вставляет строку. Отмена (`DELETE /api/teams/:id/fallen/:fallenId`) возвращает игрока, если позволяет лимит состава. В интерфейсе отмена живёт в профиле погибшего игрока, с подтверждением.
-- Отменить можно только ручную отметку (`pairing_id IS NULL`). Гибель из итогов матча отменяет только админ: матч уже рассчитан (SPP, TV, казна). Сервер отвечает `FALLEN_FROM_MATCH`.
-- **`015_backfill_fallen_players.sql` — погибшие до 3.0.** Для каждой строки `match_post_applications` берутся игроки, у которых в `match_post_games.state` этой стороны травма `dead`, и в `team_fallen_players` пишутся снимок из `before_roster`, `pairing_id`, `died_at = created_at` строки и причина, если она есть. Повторный запуск ничего не дублирует (`NOT EXISTS` по команде, матчу и `player->>'id'`). Это гибель «из матча».
+- `from_match` — гибель из матча (итоги или перенос 015); её нельзя отменить (`FALLEN_FROM_MATCH`, этап 03). Ручная отметка — `from_match = false`; `pairing_id` может стать NULL, если админ удалит пару, — это не делает гибель ручной. Гибель из матча отменяет только админ: матч уже рассчитан (SPP, TV, казна).
+- **`015_backfill_fallen_players.sql` — погибшие до 3.0.** Для каждой строки `match_post_applications` берутся игроки, у которых в `match_post_games.state` этой стороны травма `dead` и которых нет в `after_roster` (защита новичков превращает `dead` в Badly Hurt — такой игрок остался в составе), и в `team_fallen_players` пишутся снимок из `before_roster`, `pairing_id`, `died_at = created_at` строки, причина `NULL` (в состояниях 2.x её нет), `recorded_by` `NULL`, `from_match = true`. Повторный запуск ничего не дублирует (`NOT EXISTS` по команде, матчу и `player->>'id'`). Это гибель «из матча».
 - Погибших, удалённых из состава вручную без итогов, из БД восстановить нельзя. Админ дописывает их сам: `POST /api/admin/teams/:id/fallen {player: {name, position, number?}, cause, pairingId?, diedAt?}`.
 
 ### 3.4 `012_dice_rolls.sql` — броски на сайте

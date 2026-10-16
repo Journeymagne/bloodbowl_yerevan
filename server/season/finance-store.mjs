@@ -37,7 +37,7 @@ export async function applyPostMatchRoster(client, pairingId, name, side, projec
   // The dead are the same players, by the same rule, that migration 015 carries over from earlier
   // matches: the player as the roster held him before the match, rookie protection via effectiveInjury.
   for (const player of fallenPlayers(side)) {
-    await client.query(`INSERT INTO team_fallen_players (saved_team_id, player, pairing_id, recorded_by) VALUES ($1, $2, $3, $4)`,
+    await client.query(`INSERT INTO team_fallen_players (saved_team_id, player, pairing_id, recorded_by, from_match) VALUES ($1, $2, $3, $4, true)`,
       [side.team.id, JSON.stringify(player), pairingId, actorId]);
   }
 }
