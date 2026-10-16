@@ -20,7 +20,7 @@ import { fileURLToPath } from "node:url";
 
 import { loadEnvFile } from "../server/config/env-file.mjs";
 import { connect, killAllChromes, launchChrome, openPage, sleep } from "./screenshots/cdp.mjs";
-import { expandShots, parseScreenshotArgs, shotFileName } from "./screenshots/plan.mjs";
+import { expandShots, isLoopbackUrl, parseScreenshotArgs, shotFileName } from "./screenshots/plan.mjs";
 import {
   fromErrorsJson,
   groupProblems,
@@ -70,10 +70,11 @@ function adminCredentials() {
 
 // The credentials are embedded here and nowhere else: not in a log line, not in
 // an error message, not in the states file. The page answers with a status and
-// the token, and only the token comes back out.
-function loginExpression({ login, password }) {
+// the token, and only the token comes back out. The address is the origin that
+// was checked, not one relative to wherever the page ended up after a redirect.
+function loginExpression({ login, password }, origin) {
   return `(async () => {
-    const response = await fetch("/api/auth/login", {
+    const response = await fetch(${JSON.stringify(`${origin}/api/auth/login`)}, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ login: ${JSON.stringify(login)}, password: ${JSON.stringify(password)} }),
@@ -83,10 +84,17 @@ function loginExpression({ login, password }) {
   })()`;
 }
 
-/** One login per server for the whole run: a session each is a hundred rows nobody wants. */
+/**
+ * One login per server for the whole run: a session each is a hundred rows
+ * nobody wants. Only to a server on this machine: a states file can name any
+ * URL, and the password is the one in .env.
+ */
 async function tokenFor(page, shot, session) {
+  if (!isLoopbackUrl(shot.url)) {
+    throw new Error(`login "admin" is only sent to a loopback server (localhost, 127.0.0.1, [::1]), not ${shot.origin}`);
+  }
   if (session.tokens.has(shot.origin)) return session.tokens.get(shot.origin);
-  const { status, token } = await page.evaluate(loginExpression(session.credentials));
+  const { status, token } = await page.evaluate(loginExpression(session.credentials, shot.origin));
   if (!token) throw new Error(`login to ${shot.origin} failed (HTTP ${status})`);
   session.tokens.set(shot.origin, token);
   return token;

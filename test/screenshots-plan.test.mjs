@@ -3,8 +3,10 @@ import assert from "node:assert/strict";
 
 import {
   DEFAULT_MAC_CHROME,
+  chromeEnvironment,
   expandShots,
   heightFor,
+  isLoopbackUrl,
   parseDevToolsActivePort,
   parseScreenshotArgs,
   shotFileName,
@@ -329,4 +331,27 @@ test("retaking some shots replaces them in place and keeps the others on the pag
   assert.deepEqual(merged.map((item) => [item.file, item.failure]), [
     ["A1-390-light.png", null], ["A2-390-light.png", null], ["A3-390-light.png", null],
   ]);
+});
+
+test("the admin login is only for a server on this machine's loopback", () => {
+  for (const url of ["http://localhost:3002/#/", "http://LOCALHOST:5175/admin", "http://127.0.0.1:3022/", "http://[::1]:5194/#/teams", "https://localhost/"]) {
+    assert.equal(isLoopbackUrl(url), true, url);
+  }
+  for (const url of ["https://example.com/", "http://10.0.0.5:3002/", "http://0.0.0.0:3002/", "http://localhost.example.com/", "http://127.0.0.1.nip.io/", "http://[::2]/", "not a url", ""]) {
+    assert.equal(isLoopbackUrl(url), false, url);
+  }
+});
+
+test("Chrome is started with what it needs from the environment, not the .env secrets", () => {
+  const env = {
+    PATH: "/usr/bin", HOME: "/Users/coach", TMPDIR: "/tmp/x", USER: "coach", LANG: "ru_RU.UTF-8", LC_ALL: "ru_RU.UTF-8", LC_CTYPE: "UTF-8", TZ: "Asia/Yerevan",
+    DISPLAY: ":0", XDG_RUNTIME_DIR: "/run/user/1000",
+    ADMIN_LOGIN: "admin", ADMIN_PASSWORD: "secret", DATABASE_URL: "postgres://u:p@127.0.0.1/gata", GATA_TEST_DATABASE_URL: "postgres://x", CHROME_PATH: "/opt/chrome", NODE_OPTIONS: "--inspect",
+    EMPTY: undefined,
+  };
+  assert.deepEqual(chromeEnvironment(env), {
+    PATH: "/usr/bin", HOME: "/Users/coach", TMPDIR: "/tmp/x", USER: "coach", LANG: "ru_RU.UTF-8", LC_ALL: "ru_RU.UTF-8", LC_CTYPE: "UTF-8", TZ: "Asia/Yerevan",
+    DISPLAY: ":0", XDG_RUNTIME_DIR: "/run/user/1000",
+  });
+  assert.deepEqual(chromeEnvironment({}), {});
 });

@@ -1,7 +1,9 @@
 // What scripts/screenshots.mjs is asked to shoot, worked out without a browser:
 // the command line, the states file expanded into one entry per image, the file
-// names, and the one file Chrome writes to say where its debugging port is. All
-// of it is plain data in and out so test/screenshots-plan.test.mjs can cover it.
+// names, the one file Chrome writes to say where its debugging port is, which
+// server may be sent the admin login, and the environment Chrome starts with.
+// All of it is plain data in and out so test/screenshots-plan.test.mjs can
+// cover it.
 //
 // A states file that cannot be shot must fail here, before Chrome starts. A
 // mistyped id or a width of zero found halfway through a hundred shots costs
@@ -109,6 +111,42 @@ export function parseDevToolsActivePort(text) {
   const port = Number(match[1]);
   if (port < 1 || port > 65535) return null;
   return { port, browserPath: match[2].trim() };
+}
+
+// The servers a states file points at run on this machine. A file that names
+// another host still gets its shots, but never the admin password.
+const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
+/** True for a URL on this machine's loopback (localhost, 127.0.0.1, [::1]): the only place the admin login is posted. */
+export function isLoopbackUrl(url) {
+  try {
+    return LOOPBACK_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+// What a headless Chrome needs from the environment: where its programs, home
+// and temporary files are, the locale and time zone the pages are drawn in, and
+// on Linux the display, runtime and font configuration. Nothing else: the .env
+// this script loads for the admin login (ADMIN_PASSWORD, the database URLs)
+// stays out of the browser and every process it starts.
+const CHROME_ENV = new Set([
+  "PATH", "HOME", "TMPDIR", "TMP", "TEMP", "USER", "LOGNAME", "LANG", "LANGUAGE", "TZ",
+  "DISPLAY", "WAYLAND_DISPLAY", "XDG_RUNTIME_DIR", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
+  "DBUS_SESSION_BUS_ADDRESS", "FONTCONFIG_PATH", "FONTCONFIG_FILE",
+  "SYSTEMROOT", "WINDIR", "USERPROFILE", "LOCALAPPDATA", "APPDATA",
+]);
+const LOCALE_VARIABLE = /^LC_[A-Z_]+$/;
+
+/**
+ * The part of `env` Chrome is started with.
+ *
+ * @param {Record<string, string|undefined>} env
+ * @returns {Record<string, string>}
+ */
+export function chromeEnvironment(env) {
+  return Object.fromEntries(Object.entries(env).filter(([name, value]) => value !== undefined && (CHROME_ENV.has(name) || LOCALE_VARIABLE.test(name))));
 }
 
 /** The viewport height for a width: the file's table, ours, then a phone-ish ratio. */

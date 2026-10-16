@@ -12,7 +12,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-import { parseDevToolsActivePort } from "./plan.mjs";
+import { chromeEnvironment, parseDevToolsActivePort } from "./plan.mjs";
 import { describeProblem } from "./report.mjs";
 
 const START_TIMEOUT_MS = 20_000;
@@ -81,9 +81,12 @@ export async function launchChrome(chromePath) {
   let stderr = "";
   // Its own process group, so one signal reaches the renderers and the GPU
   // process too: a browser that has exited can leave them running for a moment.
+  // A minimal environment, so the admin password loaded from .env is not
+  // handed to Chrome.
   const child = spawn(chromePath, [...CHROME_FLAGS, `--user-data-dir=${profile}`], {
     stdio: ["ignore", "ignore", "pipe"],
     detached: true,
+    env: chromeEnvironment(process.env),
   });
   child.on("error", (error) => { spawnError = error; });
   child.stderr.on("data", (chunk) => { stderr = (stderr + chunk).slice(-2000); });
