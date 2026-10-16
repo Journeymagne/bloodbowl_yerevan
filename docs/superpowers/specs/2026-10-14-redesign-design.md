@@ -94,8 +94,8 @@ ALTER TABLE saved_teams ADD COLUMN activated_at TIMESTAMPTZ;
 CREATE TABLE team_ledger (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   saved_team_id uuid NOT NULL REFERENCES saved_teams(id) ON DELETE CASCADE,
-  delta integer NOT NULL,            -- в тысячах, со знаком
-  balance_after integer NOT NULL,
+  delta numeric(12,3) NOT NULL,      -- в тысячах, со знаком, до золотого
+  balance_after numeric(12,3) NOT NULL,
   kind text NOT NULL CHECK (kind IN ('manual','hire','sale','cancel_purchase','staff','staff_refund',
         'match_spend','match_income','safe','mistake','admin')),
   reason text,                       -- для manual: friendly|sponsor|fine|purchase|other
@@ -107,9 +107,10 @@ CREATE TABLE team_ledger (
 CREATE INDEX team_ledger_team_idx ON team_ledger (saved_team_id, created_at DESC);
 ```
 
+- Деньги в коде дробные: продажа за полцены даёт 500 золотых (`src/domain/money.mjs`), поэтому суммы — `numeric(12,3)` в тысячах; `pg` отдаёт их строкой. Строки одной транзакции получают `created_at = clock_timestamp()`, чтобы сохранить порядок.
 - **Казна по-прежнему живёт в блобе** (`roster.treasury`): это источник истины, журнал — объяснение. Задним числом журнал не заполняется, экран пишет «История ведётся с <дата миграции>».
 - Строки пишет только сервер, в той же транзакции, что и изменение казны:
-  - `PATCH /api/teams/:id`: чистая функция `src/domain/roster/ledger.mjs::classifyTreasuryChange(before, after)` раскладывает разницу на найм, продажу, отмену покупки и персонал по диффу игроков и `purchasedStaff`. Остаток, который не объясняется, пишется как `manual` без причины (тренер поправил казну руками), а для админа — как `admin`;
+  - `PATCH /api/teams/:id`: чистая функция `src/domain/roster/ledger.mjs::classifyTreasuryChange(team, before, after, { admin })` раскладывает разницу на найм, продажу, отмену покупки и персонал по диффу игроков и `purchasedStaff`; `team` — справочник расы (цена продажи зависит от позиции и Architect of Fate), а при смене расы передаётся `null` — тогда вся разница одна строка. Остаток, который не объясняется, пишется как `manual` без причины (тренер поправил казну руками), а для админа — как `admin`;
   - `POST /api/teams/:id/treasury` — ручная операция «Зачислить / Списать» с обязательной причиной;
   - старт матча (`finance-store.mjs`) — `match_spend`; завершение post-match — `match_income`, `safe`, `mistake`.
 - **Прямая правка казны остаётся у тренера** (решение §0.5: доверяем игрокам). Основной путь в интерфейсе — «Зачислить / Списать» с причиной, но поле можно поправить и напрямую. Правка тоже попадёт в историю.
