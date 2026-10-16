@@ -14,6 +14,7 @@
  * call it once during startup, before any screen can trigger a 401.
  */
 import { createApiClient } from "./api.mjs";
+import { reloadForMaintenance } from "./maintenance-reload.mjs";
 import { state } from "./state.mjs";
 
 const authTokenKey = "gata-league-auth-token";
@@ -47,6 +48,9 @@ const apiClient = createApiClient({
     setAuthToken("");
     onUnauthorized();
   },
+  // The site was closed for maintenance under us: hand the page over to the
+  // maintenance screen instead of failing every save one by one.
+  onMaintenance: () => reloadForMaintenance(),
 });
 
 /** Errors from here carry a `kind`; see src/core/api.mjs. */

@@ -26,10 +26,19 @@ jobs:
             npm install
             npm run build
             # Schema first: the server refuses to start against a database that
-            # is behind the code, rather than running half-working. Migrations
-            # are idempotent and recorded, so this is a no-op when nothing is
-            # outstanding.
-            npm run db:migrate
+            # is behind the code, rather than running half-working. When
+            # something is outstanding, deploy:migrate takes a labelled dump
+            # first and does not touch the schema if that dump fails. If this
+            # step fails, pm2 is still running the previous code: put that code
+            # back on disk so a later restart cannot start the new code against
+            # the old schema.
+            if ! npm run deploy:migrate; then
+              echo "schema step failed; restoring the code to ${PREVIOUS}"
+              git reset --hard "$PREVIOUS"
+              npm install
+              npm run build
+              exit 1
+            fi
             pm2 restart bloodbowl-league
 
             # Does it actually answer? Until this existed, a deploy that left

@@ -120,3 +120,33 @@ test("a non-JSON body still produces a usable error", async () => {
     },
   );
 });
+
+test("503 MAINTENANCE is its own kind and is reported once", async () => {
+  const seen = [];
+  const client = clientWith(async () => jsonResponse(503, { error: { code: "MAINTENANCE", params: {}, message: "maintenance" } }), {
+    onMaintenance: (error) => seen.push(error),
+  });
+  await assert.rejects(() => client.request("/api/teams"), (error) => error.kind === API_ERROR.MAINTENANCE);
+  assert.equal(seen.length, 1);
+});
+
+test("any other 503 stays a plain HTTP error", async () => {
+  let called = false;
+  const client = clientWith(async () => jsonResponse(503, {}), { onMaintenance: () => { called = true; } });
+  await assert.rejects(() => client.request("/api/teams"), (error) => error.kind === API_ERROR.HTTP);
+  assert.equal(called, false);
+});
+
+test("a failing maintenance hook does not replace the maintenance error", async () => {
+  const client = clientWith(async () => jsonResponse(503, { error: { code: "MAINTENANCE", params: {}, message: "maintenance" } }), {
+    onMaintenance: () => { throw new Error("hook failed"); },
+  });
+  await assert.rejects(
+    () => client.request("/api/teams"),
+    (error) => {
+      assert.ok(error instanceof ApiError);
+      assert.equal(error.kind, API_ERROR.MAINTENANCE);
+      return true;
+    },
+  );
+});

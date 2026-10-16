@@ -184,6 +184,18 @@ Every push to `main` runs `.github/workflows/deploy.yml`, which pulls,
 rebuilds, applies any outstanding migrations, and restarts the
 `bloodbowl-league` pm2 process automatically.
 
+The deploy runs `npm run deploy:migrate` rather than `npm run db:migrate`.
+When migrations are outstanding it first takes a labelled dump,
+`/var/backups/bloodbowl-league/gata_league-premigrate-YYYYMMDD-HHMMSS.dump`,
+and applies nothing if that dump fails. The dump is of `POSTGRES_DB` while the
+migrations go to the database in `DATABASE_URL`, so if those name different
+databases the step refuses before doing either. If the schema step fails, the
+workflow puts the previous code back on disk before exiting, so pm2 (still
+running the previous code) cannot be restarted into the new code against the
+old schema.
+Labelled dumps are outside the nightly rotation: delete them by hand once the
+release they guarded has settled (`ls /var/backups/bloodbowl-league/*premigrate*`).
+
 The deploy then asks the site whether it is actually up — `/api/health` on the
 server's own port, for up to thirty seconds. If it never answers, the deploy
 puts the previous commit back, rebuilds, restarts, and fails the job, so a
@@ -203,7 +215,9 @@ After the first deploy and after each subsequent one:
 curl -f https://bloodbowlyerevan.shitpostsoftware.com/api/health
 ```
 
-Expected: `{"ok":true}`
+Expected: `{"ok":true,"maintenance":null}`
+
+The endpoint answers 200 even while maintenance mode is on, so `maintenance` must be `null` for the public to get the site (`npm run maintenance:status` says the same).
 
 Also open `https://bloodbowlyerevan.shitpostsoftware.com/` in a browser, confirm the
 site renders with a valid TLS certificate, then register a test account
@@ -404,7 +418,9 @@ curl -f https://bloodbowlyerevan.shitpostsoftware.com/api/health
 `admin account is ready` in the log means the app reconnected and rewrote the
 admin password hash from the env file. Then open the site, log in, and confirm
 the data you expected to get back is actually there — the health endpoint only
-says the process is up, not that it is serving the right rows.
+says the process is up, not that it is serving the right rows. It also answers
+200 while maintenance mode is on, so check that `maintenance` is `null`, as in
+the smoke test above.
 
 ## Security Notes (added 2026-08-19)
 
@@ -520,3 +536,57 @@ one. The 2026-08-22 review and its limits are written up in
   built site under exactly that policy, with no violations. Note that
   `dist/local-preview.html` inlines its data in a `<script>` block and so only
   works off a local static server, not through Caddy.
+
+## Maintenance Mode
+
+Run as root on the server: `sudo -i` first, as in the setup steps above, then:
+
+```bash
+cd /opt/bloodbowl-league
+npm run maintenance:on -- --kind planned --ends "2026-11-02T19:00+04:00"
+npm run maintenance:status
+npm run maintenance:off
+```
+
+The site closes the moment `on` runs: the server notices the flag within two
+seconds, and nothing restarts. Running `on` again replaces the flag, `startsAt`
+included. The options are all optional:
+
+- `--kind` is `planned` (the default) or `unplanned`, which shows "outage"
+  instead of "planned maintenance".
+- `--starts` only changes the start time shown on the page; it does not
+  schedule anything. The default is now.
+- `--ends` drives the expected end, the countdown and the progress bar. It is
+  ignored for `--kind unplanned`.
+
+`--starts` and `--ends` must each carry an explicit UTC offset, such as
+`+04:00` or `Z`; the command refuses, with exit status 1 and no change to the
+flag, a missing or empty value, a repeated option, options given to `off` or
+`status`, or an unexpected argument.
+
+While the flag is up:
+
+- every page answers 503 with the maintenance page, in the coach's palette and
+  language, checking `/api/health` every 30 seconds (the page is
+  `dist/public/maintenance/index.html` after a build: edit `public/` and
+  rebuild);
+- if that file cannot be read, pages answer a plain-text 503 instead;
+- `/api/*` answers 503 `MAINTENANCE`, and a tab left open on the site reloads
+  into the maintenance page;
+- `/api/health` answers 200 with `maintenance: {kind, startsAt, endsAt}`.
+
+**Checking the site during maintenance.** Requests from the server itself are
+let through. Open a tunnel and use the site at `http://localhost:3002`:
+
+```bash
+ssh -o ExitOnForwardFailure=yes -L 3002:127.0.0.1:3002 ubuntu@51.81.86.51
+```
+
+If local port 3002 is busy (a local dev server, say), ssh then fails instead of
+silently leaving you looking at your local site.
+
+Sign in again there: it is a different origin, so the browser has no session
+for it. Public requests never get through: Caddy reaches Node from the docker
+network, and `X-Forwarded-For` is not consulted.
+
+If Node itself is down, Caddy answers 502 — the maintenance page needs Node.
