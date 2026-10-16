@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { scratchSkip, withScratchDatabase } from "./helpers/scratch-db.mjs";
+import { runMigration, scratchSkip, withScratchDatabase } from "./helpers/scratch-db.mjs";
 
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
 
@@ -31,5 +31,16 @@ test("012: a roll is for a random skill or a stat, unused until an advancement t
     assert.deepEqual((await client.query("SELECT used_at, rolled_by FROM dice_rolls")).rows, [{ used_at: null, rolled_by: null }]);
     await assert.rejects(client.query(`INSERT INTO dice_rolls (saved_team_id, player_id, purpose, params, result) VALUES ($1, 'p', 'mvp', '{}', '{}')`, [id(11)]),
       { code: "23514" });
+  }, { through: "012_dice_rolls.sql" });
+});
+
+test("013: every user, existing or new, starts with empty preferences, never NULL", { skip: scratchSkip }, async () => {
+  await withScratchDatabase(async ({ client }) => {
+    await client.query("INSERT INTO users (id, login, login_key, telegram, password_hash) VALUES ($1, 'old', 'old', '@o', 'x')", [id(1)]);
+    await runMigration(client, "013_user_preferences.sql");
+    await client.query("INSERT INTO users (id, login, login_key, telegram, password_hash) VALUES ($1, 'new', 'new', '@n', 'x')", [id(2)]);
+    assert.deepEqual((await client.query("SELECT login, preferences FROM users ORDER BY login")).rows,
+      [{ login: "new", preferences: {} }, { login: "old", preferences: {} }]);
+    await assert.rejects(client.query("UPDATE users SET preferences = NULL"), { code: "23502" });
   }, { through: "012_dice_rolls.sql" });
 });
