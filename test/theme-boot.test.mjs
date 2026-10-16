@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import vm from "node:vm";
 
-import { paletteFor } from "../public/maintenance/palettes.mjs";
+import { PALETTE_KEYS, paletteFor } from "../public/maintenance/palettes.mjs";
 import { effectivePalette, readStoredChoice } from "../src/core/theme.mjs";
 import { storedStates } from "./helpers/theme-cases.mjs";
 
@@ -33,6 +33,19 @@ test("theme-boot.js, theme.mjs and the maintenance page agree on every stored st
     assert.deepEqual(applied, paletteFor(state), JSON.stringify(state));
     assert.deepEqual(applied, effectivePalette(readStoredChoice(state.palette, state.legacyTheme).choice, state.prefersDark));
     assert.deepEqual(writes, [], "the boot script only reads; theme.mjs writes");
+  }
+});
+
+test("every palette key of both modes boots as itself", () => {
+  // The matrix never stores a choice for most keys, so a typo in the script's own
+  // table would pass it, and the reader would see the default flash before theme.mjs repaints.
+  for (const [mode, keys] of Object.entries(PALETTE_KEYS)) {
+    for (const key of keys) {
+      for (const prefersDark of [false, true]) {
+        const { applied } = boot({ palette: JSON.stringify({ mode, [mode]: key }), prefersDark });
+        assert.deepEqual(applied, { mode, key }, `${mode}:${key}, system prefers ${prefersDark ? "dark" : "light"}`);
+      }
+    }
   }
 });
 
