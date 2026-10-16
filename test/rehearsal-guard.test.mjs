@@ -20,3 +20,21 @@ test("the rehearsal database keeps the credentials and swaps only the name", () 
   assert.equal(url.port, "5433");
   assert.equal(url.searchParams.get("sslmode"), "disable");
 });
+
+test("a query string that overrides the host or port is refused, whatever its spelling", () => {
+  const forms = [
+    ["?host=51.81.86.51", "host"],
+    ["?%68ost=51.81.86.51", "host"],
+    ["?host=localhost&host=51.81.86.51", "host"],
+    ["?port=5432", "port"],
+  ];
+  for (const [query, key] of forms) {
+    const url = `postgres://u:p@localhost:5433/gata_league${query}`;
+    assert.throws(() => assertLocalDatabaseUrl(url), new RegExp(`\\?${key}=`), url);
+    assert.throws(() => rehearsalDatabaseUrl(url), new RegExp(`\\?${key}=`), url);
+  }
+});
+
+test("other query parameters still pass", () => {
+  assert.doesNotThrow(() => assertLocalDatabaseUrl("postgres://u:p@localhost:5433/gata_league?sslmode=require"));
+});
