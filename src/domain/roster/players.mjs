@@ -10,7 +10,7 @@
  */
 import { advancementRanks, advancementStatCosts, advancementTypeLabels, sppCounterDefinitions } from "../league-rules.mjs";
 import { countToNumber, makeRosterPlayerId, rosterMax, rowsForTeam } from "./values.mjs";
-import { createPlayer, normalizePurchasedStaff } from "./schema.mjs";
+import { createPlayer, normalizeAbsence, normalizePurchasedStaff } from "./schema.mjs";
 import { isMoneyAmount } from "../money.mjs";
 
 export function normalizeExtraSkill(skill) {
@@ -85,6 +85,7 @@ export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
     extendedContracts: countToNumber(player.extendedContracts),
     spp: normalizeSppCounters(player.spp),
     advancements: normalizePlayerAdvancements(player.advancements),
+    absence: normalizeAbsence(player.absence, Boolean(player.skipNextGame || player.temporarilyRetired)),
     purchased: Boolean(player.purchased),
     ...(player.purchased && player.purchaseRefund != null && isMoneyAmount(player.purchaseRefund)
       ? { purchaseRefund: Number(player.purchaseRefund) } : {}),

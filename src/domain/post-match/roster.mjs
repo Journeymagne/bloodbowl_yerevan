@@ -1,4 +1,4 @@
-import { createPlayer } from '../roster/schema.mjs';
+import { createPlayer, normalizeAbsence } from '../roster/schema.mjs';
 import { normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/players.mjs';
 import { playerCurrentCost } from '../roster/costs.mjs';
 import { applyAdvancement, canTakeAdvancement, checkAdvancementGrant } from '../roster/progression.mjs';
@@ -12,9 +12,14 @@ import { postIncome, nextDedicatedFans, postFinance } from './finance.mjs';
 import { isMoneyAmount, sumMoney } from '../money.mjs';
 import { playerSaleValue } from '../roster/transfers.mjs';
 
-function applyInjury(player, injury) {
+function applyInjury(player, injury, pairingId) {
   player.skipNextGame = Boolean(player.temporarilyRetired);
   if (['miss', 'niggling', 'lasting'].includes(injury.code)) player.skipNextGame = true;
+  // The absence explains skipNextGame: this match's injury if there is one, the
+  // earlier reason for a player still retired, none for one who is back.
+  player.absence = ['miss', 'niggling', 'lasting'].includes(injury.code)
+    ? normalizeAbsence({ code: injury.code, stat: injury.code === 'lasting' ? injury.stat : undefined, pairingId })
+    : normalizeAbsence(player.absence, player.skipNextGame);
   if (injury.code === 'niggling') {
     player.nigglingInjuries = Number(player.nigglingInjuries ?? (player.niglingInjury ? 1 : 0)) + 1;
     player.niglingInjury = true;
@@ -47,7 +52,7 @@ export function postPlayers(state, name, data) {
     const earned = earnedCounters(state, name, player.id), prior = normalizeSppCounters(player.spp);
     player.spp = Object.fromEntries(Object.keys(prior).map(key => [key, prior[key] + earned[key]]));
     const injury = effectiveInjury(side, player.id);
-    applyInjury(player, injury);
+    applyInjury(player, injury, state.gameId);
     for (const choice of side.advancements[player.id] || []) {
       if (injury.code === 'dead') throw postError('POST_PLAYER');
       const row = rowsForTeam(side.reference)[player.rowIndex];

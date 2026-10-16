@@ -35,7 +35,8 @@ test("fixtures cover the teams whose special rules the domain branches on", () =
 });
 
 // Keep the pinned pre-extraction arithmetic baseline; new post-match fields
-// with empty defaults are covered by post-match.test.mjs.
+// with empty defaults are covered by post-match.test.mjs, and `absence` with its
+// null default by roster-absence.test.mjs.
 function baselineView(value) {
   if (Array.isArray(value)) return value.map(baselineView);
   if (!value || typeof value !== 'object') return value;
@@ -44,6 +45,7 @@ function baselineView(value) {
     || key === 'nigglingInjuries' && entry === (value.niglingInjury ? 1 : 0)
     || key === 'temporarilyRetired' && entry === false
     || key === 'injuryStatMods' && Object.keys(entry).length === 0
+    || key === 'absence' && entry === null
   )).map(([key, entry]) => [key, baselineView(entry)]));
 }
 

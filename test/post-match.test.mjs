@@ -398,3 +398,25 @@ test('an expensive mistake is its own ledger line', () => {
   assert.deepEqual(entries.map(entry => entry.kind), ['match_income', 'staff', 'safe', 'mistake']);
   assert.equal(ledgerRows(accounting.opening, entries).at(-1).balanceAfter, 50);
 });
+
+test('post-match explains every new absence with its injury and the match; a player back from one has none', () => {
+  const f = agreed(fixture());
+  f.state.home.injuries['home-0'] = { code: 'miss' };
+  f.state.home.injuries['home-1'] = { code: 'niggling' };
+  f.state.home.injuries['home-2'] = { code: 'lasting', stat: 'ag' };
+  Object.assign(f.state.home.baseRoster.players[3], { skipNextGame: true, absence: { code: 'miss', pairingId: 'earlier' } });
+  const players = projectPostRoster(f.state, 'home', f.data).roster.players;
+  assert.deepEqual(players.slice(0, 4).map(player => player.absence), [{ code: 'miss', pairingId: 'game' },
+    { code: 'niggling', pairingId: 'game' }, { code: 'lasting', stat: 'ag', pairingId: 'game' }, null]);
+  assert.equal(players[3].skipNextGame, false);
+});
+
+test('rookie protection leaves no absence; a temporarily retired player keeps the earlier one', () => {
+  const f = agreed(fixture()); f.state.home.gamesPlayed = 2;
+  f.state.home.injuries['home-0'] = { code: 'miss' };
+  Object.assign(f.state.home.baseRoster.players[1], { temporarilyRetired: true, skipNextGame: true,
+    absence: { code: 'lasting', stat: 'st', pairingId: 'earlier' } });
+  const players = projectPostRoster(f.state, 'home', f.data).roster.players;
+  assert.equal(players[0].absence, null); assert.equal(players[0].skipNextGame, false);
+  assert.deepEqual(players[1].absence, { code: 'lasting', stat: 'st', pairingId: 'earlier' });
+});
