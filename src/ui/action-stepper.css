@@ -1,0 +1,78 @@
+/*
+ * A − / count / + cell for SPP actions. Font, border, background,
+ * text-transform, font-weight and border-radius are set here on purpose: the
+ * 2.x globals (button { font: inherit }, :focus-visible { border-radius },
+ * the uppercase label rules) outlive this sheet until stage 13.
+ */
+.g-stepper {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 14px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-stepper__btn {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-3);
+  color: var(--ink);
+  cursor: pointer;
+}
+.g-stepper__btn--inc {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A refusal that explains itself (aria-disabled) looks like the plain one (:disabled). */
+.g-stepper__btn:disabled,
+.g-stepper__btn[aria-disabled="true"] {
+  color: var(--disabled);
+  cursor: default;
+}
+/* A refused plus loses the accent fill, as the counter's does: on it the icon all but disappears in the dark palettes. */
+.g-stepper__btn--inc:disabled,
+.g-stepper__btn--inc[aria-disabled="true"] { background: var(--surface-3); }
+
+.g-stepper__mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+}
+
+.g-stepper__label {
+  color: var(--muted);
+  font: 600 12px/1.1 var(--font-body);
+  letter-spacing: .04em;
+  text-transform: none;
+}
+.g-stepper__spp { color: var(--accent-text); }
+
+.g-stepper__value {
+  color: var(--ink);
+  font: 700 20px/1.1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+/* What this match added to the count, beside the count. */
+.g-stepper__delta {
+  margin-left: 2px;
+  color: var(--accent-text);
+  font-size: 13px;
+  font-weight: 700;
+}

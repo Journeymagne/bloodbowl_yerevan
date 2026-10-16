@@ -1,73 +1,185 @@
 /**
- * The six colour themes.
+ * Mode and palette.
  *
- * Self-contained: the list of themes, the stored preference and the `<select>`
- * in the topbar all live here, so nothing else has to know a theme exists.
+ * 3.0: the reader picks a mode (light, dark, or follow the system) and one
+ * palette for each mode. The choice is cached as JSON in `gata-league-palette`
+ * — {mode, light, dark} — and painted onto <html> as two attributes,
+ * `data-mode` and `data-palette`, which src/styles/tokens.css turns into
+ * colours.
  *
- * index.html applies the stored theme inline before the stylesheet loads, to
- * avoid a flash of the default one. That snippet has its own copy of the theme
- * ids — THEME_IDS below is the list it must agree with.
+ * The cache has three readers: src/theme-boot.js (before first paint), the
+ * maintenance page (public/maintenance/palettes.mjs, served while the app is
+ * not) and this module. The tables below are a copy of the maintenance page's,
+ * and test/theme.test.mjs compares the two. This module is the only writer.
+ *
+ * 2.x stored one theme id under `gata-league-theme`. It is read once, mapped to
+ * the nearest palette and written as a 3.0 choice. The old key is never
+ * deleted, so a rollback to 2.1 still finds the reader's theme.
+ *
+ * `#theme-select` is the interim picker, until `#/settings` arrives in stage 05.
  */
 import { STORAGE_KEYS, storage } from "./storage.mjs";
 
-export const THEME_IDS = Object.freeze([
-  "dark-gata",
-  "dark-dugout",
-  "dark-warpstone",
-  "light-parchment",
-  "light-sideline",
-  "light-altdorf",
-]);
+export const PALETTE_KEYS = Object.freeze({
+  light: Object.freeze(["grass", "parchment", "ice", "imperial"]),
+  dark: Object.freeze(["night", "dungeon", "embers", "abyss"]),
+});
 
-export const DEFAULT_THEME = "dark-gata";
+export const DEFAULT_PALETTE = Object.freeze({ light: "grass", dark: "night" });
 
-/** What the six themes fall back to when the system asks for light. */
-export const DEFAULT_LIGHT_THEME = "light-parchment";
+/** The six 2.x theme ids and the [mode, palette] each one turns into. */
+export const LEGACY_THEME_PALETTE = Object.freeze({
+  "dark-gata": Object.freeze(["dark", "night"]),
+  "dark-dugout": Object.freeze(["dark", "embers"]),
+  "dark-warpstone": Object.freeze(["dark", "dungeon"]),
+  "light-parchment": Object.freeze(["light", "parchment"]),
+  "light-sideline": Object.freeze(["light", "grass"]),
+  "light-altdorf": Object.freeze(["light", "ice"]),
+});
 
-const known = new Set(THEME_IDS);
+export const THEME_MODES = Object.freeze(["light", "dark", "system"]);
 
-export function normalizeTheme(theme) {
-  return known.has(theme) ? theme : DEFAULT_THEME;
+export const DEFAULT_CHOICE = Object.freeze({ mode: "system", ...DEFAULT_PALETTE });
+
+const DARK_QUERY = "(prefers-color-scheme: dark)";
+
+/** @typedef {{mode: "light"|"dark"|"system", light: string, dark: string}} ThemeChoice */
+
+/**
+ * A usable choice out of whatever was stored or sent. Each field is repaired
+ * on its own, so one bad value does not cost the reader the other two.
+ * @returns {ThemeChoice}
+ */
+export function normalizeChoice(value) {
+  const source = value !== null && typeof value === "object" ? value : {};
+  return {
+    mode: THEME_MODES.includes(source.mode) ? source.mode : DEFAULT_CHOICE.mode,
+    light: PALETTE_KEYS.light.includes(source.light) ? source.light : DEFAULT_PALETTE.light,
+    dark: PALETTE_KEYS.dark.includes(source.dark) ? source.dark : DEFAULT_PALETTE.dark,
+  };
+}
+
+/** The cache text as an object, or null when it is not one (nothing, junk, an array, `null`). */
+function parseObject(text) {
+  if (typeof text !== "string") return null;
+  try {
+    const value = JSON.parse(text);
+    return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
- * The theme to use when nobody has picked one.
- *
- * Step 15.6. Before this the site opened dark for everybody, including a
- * reader whose system is set to light because dark is hard for them to read.
- * A stored choice still wins — this only answers the case of no choice.
+ * What the browser has stored, as a choice, and where it came from.
+ * A 3.0 cache wins; a 2.x theme id is mapped to its nearest palette; nothing
+ * usable means the default, which is not a choice and is not to be written down.
+ * @param {string|null} paletteText `gata-league-palette`
+ * @param {string|null} legacyTheme `gata-league-theme`
+ * @returns {{choice: ThemeChoice, source: "palette"|"legacy"|"default"}}
  */
-export function systemTheme(matchMediaFn = globalThis.matchMedia) {
-  return matchMediaFn?.("(prefers-color-scheme: light)")?.matches ? DEFAULT_LIGHT_THEME : DEFAULT_THEME;
+export function readStoredChoice(paletteText, legacyTheme) {
+  const parsed = parseObject(paletteText);
+  if (parsed) return { choice: normalizeChoice(parsed), source: "palette" };
+  if (typeof legacyTheme === "string" && Object.hasOwn(LEGACY_THEME_PALETTE, legacyTheme)) {
+    const [mode, key] = LEGACY_THEME_PALETTE[legacyTheme];
+    const choice = {
+      mode,
+      light: mode === "light" ? key : DEFAULT_PALETTE.light,
+      dark: mode === "dark" ? key : DEFAULT_PALETTE.dark,
+    };
+    return { choice, source: "legacy" };
+  }
+  return { choice: { ...DEFAULT_CHOICE }, source: "default" };
 }
 
-export function storedTheme() {
-  const stored = storage.get(STORAGE_KEYS.theme);
-  return stored === null ? systemTheme() : normalizeTheme(stored);
+/** The palette on screen: "system" is settled by the system's preference. */
+export function effectivePalette(choice, prefersDark) {
+  const mode = choice.mode === "system" ? (prefersDark ? "dark" : "light") : choice.mode;
+  return { mode, key: choice[mode] };
+}
+
+/** The interim picker's value for a choice: "system", or "light:ice". */
+export function selectValue(choice) {
+  return choice.mode === "system" ? "system" : `${choice.mode}:${choice[choice.mode]}`;
+}
+
+/** The choice a picker value stands for; the palette of the other mode stays as it was. */
+export function choiceFromSelect(value, current) {
+  if (value === "system") return { ...current, mode: "system" };
+  const [mode, key] = String(value).split(":");
+  if ((mode === "light" || mode === "dark") && PALETTE_KEYS[mode].includes(key)) {
+    return { ...current, mode, [mode]: key };
+  }
+  return { ...current };
+}
+
+/** The choice as the server's preferences name it (written to them from stage 05). */
+export function themePreferences(choice) {
+  return { themeMode: choice.mode, lightPalette: choice.light, darkPalette: choice.dark };
 }
 
 /**
- * @param {string} theme
- * @param {boolean} persist false while restoring the stored value on boot
+ * The choice held in the server's preferences, or null when they hold none —
+ * then the local choice is what gets written there, not the other way round.
  */
-export function applyTheme(theme, persist = true) {
-  const normalized = normalizeTheme(theme);
-  document.documentElement.dataset.theme = normalized;
-  const select = document.querySelector("#theme-select");
-  if (select) select.value = normalized;
-  if (persist) storage.set(STORAGE_KEYS.theme, normalized);
-  return normalized;
+export function choiceFromPreferences(preferences) {
+  if (preferences === null || typeof preferences !== "object") return null;
+  const { themeMode, lightPalette, darkPalette } = preferences;
+  if ([themeMode, lightPalette, darkPalette].every((field) => field === undefined || field === null)) return null;
+  return normalizeChoice({ mode: themeMode, light: lightPalette, dark: darkPalette });
 }
 
-/** Restore the stored theme and keep the picker in step with it. */
-export function initTheme() {
-  applyTheme(storedTheme(), false);
-  document.querySelector("#theme-select")?.addEventListener("change", (event) => {
-    applyTheme(event.currentTarget.value);
+/** What initTheme() is attached to: the choice, the page it paints and the system preference. */
+let state = null;
+
+/** Put the choice on the page: both attributes, back to back, and the picker. */
+function paint({ choice, root, select, media }) {
+  const { mode, key } = effectivePalette(choice, media?.matches === true);
+  root.dataset.mode = mode;
+  root.dataset.palette = key;
+  if (select) select.value = selectValue(choice);
+}
+
+/**
+ * Read the stored choice, paint it, and keep the page in step with the picker
+ * and, while the mode is "system", with the system's light/dark setting.
+ * `env` is for tests; the defaults are looked up now, not when the module loads.
+ * @returns {ThemeChoice}
+ */
+export function initTheme(env = {}) {
+  const store = env.store ?? storage;
+  const { choice, source } = readStoredChoice(store.get(STORAGE_KEYS.palette), store.get(STORAGE_KEYS.theme));
+  // A 2.x reader is migrated here, once; the next boot finds the 3.0 cache.
+  if (source === "legacy") store.setJson(STORAGE_KEYS.palette, choice);
+  const matchMedia = env.matchMedia ?? globalThis.matchMedia?.bind(globalThis);
+  const select = env.select === undefined ? (globalThis.document?.querySelector("#theme-select") ?? null) : env.select;
+  state = {
+    choice,
+    store,
+    select,
+    root: env.root ?? globalThis.document.documentElement,
+    media: matchMedia?.(DARK_QUERY),
+  };
+  paint(state);
+  select?.addEventListener("change", () => setThemeChoice(choiceFromSelect(select.value, state.choice)));
+  // Someone who follows the system keeps following it, including at sunset.
+  state.media?.addEventListener?.("change", () => {
+    if (state.choice.mode === "system") paint(state);
   });
-  // Someone who has not picked a theme follows their system, including when
-  // it changes at sunset. Someone who has picked one is left alone.
-  globalThis.matchMedia?.("(prefers-color-scheme: light)")?.addEventListener?.("change", () => {
-    if (storage.get(STORAGE_KEYS.theme) === null) applyTheme(systemTheme(), false);
-  });
+  return { ...state.choice };
+}
+
+/** Apply a choice, remember it and move the picker. Returns the repaired choice. */
+export function setThemeChoice(choice) {
+  if (!state) throw new Error("initTheme() has not run");
+  state.choice = normalizeChoice(choice);
+  paint(state);
+  state.store.setJson(STORAGE_KEYS.palette, state.choice);
+  return { ...state.choice };
+}
+
+/** The choice on screen now; the default before initTheme() has run. */
+export function themeChoice() {
+  return { ...(state?.choice ?? DEFAULT_CHOICE) };
 }

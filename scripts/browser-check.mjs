@@ -97,11 +97,11 @@ await check("locale switch", async () => {
 });
 
 await check("theme switch", async () => {
-  await page.selectOption("#theme-select", "light-parchment");
+  await page.selectOption("#theme-select", "light:parchment");
   await page.waitForTimeout(200);
-  const theme = await page.evaluate(() => document.documentElement.dataset.theme);
-  if (theme !== "light-parchment") throw new Error(`theme is ${theme}`);
-  return theme;
+  const { mode, palette } = await page.evaluate(() => ({ ...document.documentElement.dataset }));
+  if (mode !== "light" || palette !== "parchment") throw new Error(`theme is ${mode}/${palette}`);
+  return `${mode}/${palette}`;
 });
 
 for (const pathname of ["/.env", "/package.json", "/server/init.sql"]) {

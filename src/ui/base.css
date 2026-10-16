@@ -1,0 +1,42 @@
+/*
+ * What every src/ui component shares: the icon box, text for screen readers
+ * only, and the keyboard focus ring. Components add their own sheet beside
+ * this one and list it in src/styles.css; test/ui-kit.test.mjs fails for a
+ * sheet that is not listed.
+ */
+
+/* An icon is a box in a flex row, never a baseline-aligned glyph that shifts the line. */
+.g-icon {
+  display: block;
+  flex: none;
+}
+
+/* Visually hidden, still read aloud: the label of a control that draws only an icon. */
+.g-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+/*
+ * The look of --focus-ring, drawn as an outline so it leaves a box-shadow the
+ * component already has (an inset ring, a lift) alone, and in --accent-text:
+ * the same colour as --accent in the light palettes, and the one that keeps
+ * 3:1 on the dark surfaces, where --accent does not. :where() adds no
+ * specificity, so a component that wants another ring sets its own
+ * .g-name:focus-visible and wins. Against the 2.x :focus-visible rule in
+ * styles/overlays.css the specificity is the same, (0,1,0): this one wins on
+ * import order, so the ui/ imports stay after every styles/ import in
+ * src/styles.css.
+ */
+:where([class^="g-"], [class*=" g-"]):focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 0;
+}

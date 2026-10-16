@@ -1,0 +1,61 @@
+/*
+ * Figures: a label over a value, alone or two to a row. Font, border,
+ * background, text-transform and border-radius are set here on purpose: the
+ * 2.x globals outlive this sheet until stage 13.
+ */
+.g-kpis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+}
+
+.g-kpi {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-12) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-kpi__k {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-kpi__v {
+  color: var(--ink);
+  font: 700 30px/1.1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Good news for the coach: an inducement budget, a place in the playoffs. */
+.g-kpi--positive { background: var(--accent-tint); }
+.g-kpi--positive .g-kpi__k,
+.g-kpi--positive .g-kpi__v { color: var(--on-accent-tint); }
+
+/* The small form, for a card: the match card's TV and inducement figures. */
+.g-kpi--compact {
+  padding: var(--space-10) var(--space-12);
+  border-radius: var(--radius-lg);
+}
+.g-kpi--compact .g-kpi__k { font-size: 12px; }
+.g-kpi--compact .g-kpi__v {
+  font: 700 17px/1.2 var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+}

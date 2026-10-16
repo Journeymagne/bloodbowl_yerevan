@@ -8,6 +8,7 @@
  */
 @import url("styles/fonts.css");
 @import url("styles/tokens.css");
+@import url("styles/legacy-aliases.css");
 @import url("styles/shell.css");
 @import url("styles/pages.css");
 @import url("styles/catalog.css");
@@ -27,3 +28,23 @@
 @import url("styles/saved-teams.css");
 @import url("styles/result-form.css");
 @import url("styles/administration.css");
+@import url("ui/base.css");
+@import url("ui/button.css");
+@import url("ui/segmented-control.css");
+@import url("ui/toggle.css");
+@import url("ui/action-stepper.css");
+@import url("ui/resource-counter.css");
+@import url("ui/progress-dots.css");
+@import url("ui/sheet.css");
+@import url("ui/option-card.css");
+@import url("ui/text-field.css");
+@import url("ui/callout.css");
+@import url("ui/list-row.css");
+@import url("ui/skill-chip.css");
+@import url("ui/stat-strip.css");
+@import url("ui/die.css");
+@import url("ui/kpi-tile.css");
+@import url("ui/result-pill.css");
+@import url("ui/form-strip.css");
+@import url("ui/status-chip.css");
+@import url("ui/match-card.css");

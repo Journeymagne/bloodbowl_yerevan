@@ -1,0 +1,100 @@
+/*
+ * A row with a count and a − / + cluster. Font, border, background,
+ * text-transform, font-weight and border-radius are set here on purpose: the
+ * 2.x globals outlive this sheet until stage 13. The buttons are 44px, the
+ * touch size, where the prototype draws 34px.
+ */
+.g-resource {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-height: 58px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 14px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-resource__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-resource__name {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+}
+.g-resource__note {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+}
+.g-resource__lock {
+  display: flex;
+  flex: none;
+}
+
+.g-resource__stepper {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+
+.g-resource__btn {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.g-resource__btn--inc {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* A refusal that explains itself (aria-disabled) looks like the plain one (:disabled). */
+.g-resource__btn:disabled,
+.g-resource__btn[aria-disabled="true"] {
+  color: var(--disabled);
+  cursor: default;
+}
+.g-resource__btn--inc:disabled,
+.g-resource__btn--inc[aria-disabled="true"] { background: var(--surface-3); }
+
+.g-resource__value {
+  min-width: 30px;
+  color: var(--ink);
+  font: 700 20px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/*
+ * A locked counter stays on the page, quiet, and its note says why. The note
+ * keeps --muted: it is the text that explains the lock, and --faint is 3:1.
+ */
+.g-resource--locked .g-resource__name,
+.g-resource--locked .g-resource__value { color: var(--faint); }
+.g-resource--locked .g-resource__btn { background: var(--surface-3); }

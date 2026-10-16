@@ -12,7 +12,9 @@ const KEY_PREFIX = "gata-league-";
 /** Every key the app is allowed to use, so they are greppable from one file. */
 export const STORAGE_KEYS = Object.freeze({
   authToken: "auth-token",
+  // The 2.x key: src/core/theme.mjs reads it once, to carry the reader's theme over to `palette`.
   theme: "theme",
+  palette: "palette",
   locale: "locale",
   builderDraft: "builder-draft",
 });

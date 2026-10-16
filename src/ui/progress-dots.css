@@ -1,0 +1,52 @@
+/*
+ * Counted progress. The dots are plain boxes; the caption is what a screen
+ * reader hears. Font, text-transform and border-radius are set here on
+ * purpose: the 2.x globals outlive this sheet until stage 13.
+ */
+.g-progress {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+}
+
+.g-progress__dots {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.g-progress__dot {
+  flex: none;
+  width: 22px;
+  height: 6px;
+  border-radius: var(--radius-xs);
+  background: var(--line-strong);
+}
+.g-progress__dot--on { background: var(--accent); }
+
+.g-progress__caption {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The step dots of a sheet: the current step is the long one. */
+.g-steps {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-6);
+  padding: var(--space-6) 0 var(--space-4);
+}
+
+.g-steps__dot {
+  flex: none;
+  width: 8px;
+  height: 6px;
+  border-radius: var(--radius-xs);
+  background: var(--line-strong);
+}
+.g-steps__dot--done { background: var(--accent); }
+.g-steps__dot--now {
+  width: 24px;
+  background: var(--accent);
+}

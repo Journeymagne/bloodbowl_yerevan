@@ -1,0 +1,53 @@
+/*
+ * A labelled input. Font, border, background, text-transform and
+ * border-radius are set here on purpose: the 2.x globals (input { font:
+ * inherit }, :focus-visible { border-radius }) outlive this sheet until
+ * stage 13. The keyboard ring is base.css's outline, so none is set here.
+ */
+.g-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  color: var(--ink);
+  font: 400 16px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-field__label {
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-field__input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 48px;
+  margin: 0;
+  padding: 0 var(--space-14);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--field);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 16px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  appearance: none;
+}
+.g-field__input::placeholder { color: var(--muted); }
+
+.g-field__help,
+.g-field__error {
+  margin: 0;
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-field__help { color: var(--muted); }
+.g-field__error { color: var(--danger); }
+
+/* The ring turns into a heavier danger one; the error line says what is wrong. */
+.g-field--invalid .g-field__input { box-shadow: inset 0 0 0 2px var(--danger); }

@@ -1,0 +1,89 @@
+/*
+ * Buttons. Font, border, background, text-transform and border-radius are
+ * set here on purpose: the 2.x globals (button { font: inherit },
+ * :focus-visible { border-radius }) outlive this sheet until stage 13.
+ */
+
+/* Outline is the base look: the secondary, or state-toggling, action. */
+.g-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-6);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-14);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 600 14px/1.2 var(--font-body);
+  text-align: center;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+/* Navigation to a deeper screen. */
+.g-btn--dark {
+  border-color: var(--header);
+  background: var(--header);
+  color: var(--header-ink);
+}
+
+/* The one action of a card or sheet: full width, at its bottom. */
+.g-btn--primary {
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-cta);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 17px/1.2 var(--font-body);
+}
+.g-btn--primary:hover:not(:disabled) { background: var(--accent-ink); }
+
+.g-btn--danger {
+  border-color: var(--danger);
+  background: var(--danger);
+  color: var(--on-danger);
+}
+
+.g-btn--danger-outline {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.g-btn--block { width: 100%; }
+
+.g-btn:disabled {
+  cursor: default;
+  opacity: .6;
+}
+/*
+ * A disabled primary is drawn by its fill, and its label says what is
+ * missing: dimming that label as well would leave it unreadable.
+ */
+.g-btn--primary:disabled {
+  background: var(--disabled);
+  opacity: 1;
+}
+
+/* The round close or back button of a sheet. */
+.g-icon-btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sheet);
+  background: var(--surface-3);
+  color: var(--ink);
+  cursor: pointer;
+}

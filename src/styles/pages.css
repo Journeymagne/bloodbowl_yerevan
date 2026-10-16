@@ -57,7 +57,7 @@
 .league-hero-copy p {
   max-width: 720px;
   margin: 16px 0 0;
-  color: var(--bone);
+  color: var(--ink-2);
   font-size: 1.0625rem;
   line-height: 1.55;
 }
@@ -273,7 +273,7 @@
   display: grid;
   gap: 4px;
   padding: 10px 6px;
-  border-left: 1px solid rgba(85, 69, 51, 0.62);
+  border-left: 1px solid var(--line);
   text-align: center;
 }
 
@@ -297,7 +297,7 @@
   display: grid;
   gap: 7px;
   padding: 11px 12px;
-  border-top: 1px solid rgba(85, 69, 51, 0.45);
+  border-top: 1px solid var(--line);
 }
 
 .team-stat-grid + .team-roster-field {
@@ -320,7 +320,7 @@
 .team-roster-columns {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  border-top: 1px solid rgba(85, 69, 51, 0.45);
+  border-top: 1px solid var(--line);
 }
 
 .team-roster-columns .team-roster-field {
@@ -328,7 +328,7 @@
 }
 
 .team-roster-columns .team-roster-field + .team-roster-field {
-  border-left: 1px solid rgba(85, 69, 51, 0.45);
+  border-left: 1px solid var(--line);
 }
 
 .roster-pill {

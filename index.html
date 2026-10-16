@@ -10,8 +10,14 @@
     <!-- Runs before the stylesheet paints, so a chosen light theme never flashes dark. -->
     <script src="src/theme-boot.js?v=gata-63"></script>
     <link rel="preload" as="image" href="assets/brand/gata-league-logo-96.png" fetchpriority="high">
-    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/comfortaa/comfortaa-latin-wght-normal.woff2" crossorigin>
-    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/comfortaa/comfortaa-cyrillic-wght-normal.woff2" crossorigin>
+    <!-- The faces the first screen paints with: body text, labels and tabs, headings. -->
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/golos-text-cyrillic-400-normal.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/golos-text-cyrillic-600-normal.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/golos-text-latin-400-normal.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/golos-text-latin-600-normal.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/oswald-cyrillic-700-normal.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/oswald-latin-700-normal.woff2" crossorigin>
+    <link rel="stylesheet" href="assets/fonts/ui/fonts.css?v=gata-63">
     <!-- A plain stylesheet link, not preload plus an onload swap: that swap was
          inline JavaScript, and the Content-Security-Policy no longer allows any
          (step 17.5). Render-blocking CSS also cannot flash unstyled content. -->
@@ -80,12 +86,19 @@
             <label class="theme-picker" title="Theme" data-i18n-title="theme.label">
               <span data-i18n="theme.label">Theme</span>
               <select id="theme-select" aria-label="Theme" data-i18n-aria-label="theme.label">
-                <option value="dark-gata">Gata Dark</option>
-                <option value="dark-dugout">Dugout Dark</option>
-                <option value="dark-warpstone">Warpstone Dark</option>
-                <option value="light-parchment">Parchment Light</option>
-                <option value="light-sideline">Sideline Light</option>
-                <option value="light-altdorf">Altdorf Light</option>
+                <option value="system" data-i18n="theme.mode.system">Match system</option>
+                <optgroup label="Light" data-i18n-label="theme.mode.light">
+                  <option value="light:grass" data-i18n="theme.palette.grass">Perfect Conditions</option>
+                  <option value="light:parchment" data-i18n="theme.palette.parchment">Sweltering Heat</option>
+                  <option value="light:ice" data-i18n="theme.palette.ice">Blizzard</option>
+                  <option value="light:imperial" data-i18n="theme.palette.imperial">Imperial Nobility</option>
+                </optgroup>
+                <optgroup label="Dark" data-i18n-label="theme.mode.dark">
+                  <option value="dark:night" data-i18n="theme.palette.night">Under the Floodlights</option>
+                  <option value="dark:dungeon" data-i18n="theme.palette.dungeon">Dark Elves</option>
+                  <option value="dark:embers" data-i18n="theme.palette.embers">Flames of Chaos</option>
+                  <option value="dark:abyss" data-i18n="theme.palette.abyss">Pouring Rain</option>
+                </optgroup>
               </select>
             </label>
             <button id="auth-button" class="icon-text-button auth-button" type="button" data-i18n="auth.login">Login</button>

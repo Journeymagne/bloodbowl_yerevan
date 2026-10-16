@@ -83,6 +83,7 @@ export function applyStaticI18n(root = document) {
     ["data-i18n-placeholder", (element, value) => element.setAttribute("placeholder", value)],
     ["data-i18n-title", (element, value) => element.setAttribute("title", value)],
     ["data-i18n-aria-label", (element, value) => element.setAttribute("aria-label", value)],
+    ["data-i18n-label", (element, value) => element.setAttribute("label", value)],
   ];
   for (const [attribute, apply] of attributes) {
     for (const element of root.querySelectorAll(`[${attribute}]`)) {

@@ -1,0 +1,70 @@
+/*
+ * Skill chips and the list they sit in. Font, border, background,
+ * text-transform, font-weight and border-radius are set here on purpose: the
+ * 2.x globals (button { font: inherit }, :focus-visible { border-radius })
+ * outlive this sheet until stage 13.
+ */
+.g-skills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+}
+.g-skills--cards { gap: var(--space-8); }
+
+/* A skill's name on a button: it opens the rule. */
+.g-skill {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  margin: 0;
+  padding: 0 var(--space-10);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink-2);
+  font: 500 13px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+
+/* Earned by an advancement. */
+.g-skill--gained {
+  background: var(--accent-tint);
+  color: var(--on-accent-tint);
+  font-weight: 700;
+}
+
+/* The larger chip, with room for where the skill came from. */
+.g-skill--card {
+  flex-direction: column;
+  align-items: flex-start;
+  min-height: 0;
+  padding: var(--space-6) var(--space-12);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 600 15px/1.2 var(--font-body);
+  text-align: left;
+}
+.g-skill--card.g-skill--gained {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.g-skill__source {
+  font: 400 11px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  opacity: .85;
+}
+
+/* A player with no skills: a word in the place of the chips. */
+.g-skills-none {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
