@@ -85,9 +85,9 @@ function standingInjuries(events) {
  * The statistics and injuries the events add up to: one row per player of the snapshot, journeymen
  * and stars included, in the snapshot's order. A player outside the snapshot is not read.
  * The injury is the latest one still standing; `retire` is the coach's to set on the Players step.
- * Injury events record the injury as entered. Rookie protection (`effectiveInjury`, while the player has
+ * Injury events record the injury as entered. Rookie protection (`effectiveInjury`, while the team has
  * fewer than 3 games played) may turn it into Badly Hurt in the roster, so a per-match history of
- * injuries must apply the same rule instead of reading the events as what happened.
+ * injuries must apply the same rule, with the side's `gamesPlayed`, instead of reading the events as what happened.
  */
 export function statisticsFromEvents(snapshot, events = []) {
   const groups = groupByPlayer(events);
