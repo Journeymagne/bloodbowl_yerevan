@@ -7,6 +7,8 @@
  * local, and the database is always gata_rehearsal whatever DATABASE_URL names.
  * The driver obeys the query string as well as the authority — `?host=` and
  * `?port=` replace the host and port in the URL — so those keys are refused too.
+ * Only a postgres:// or postgresql:// URL is read as one: the driver takes the
+ * database of any other scheme from its own query string (`socket://localhost/x?db=…`).
  *
  * The restore also runs through `docker exec` on a container called
  * gata-league-postgres — the production name too. A DOCKER_HOST or a remote
@@ -15,6 +17,7 @@
 export const REHEARSAL_DATABASE = "gata_rehearsal";
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
 const OVERRIDE_KEYS = ["host", "hostaddr", "port"];
+const POSTGRES_SCHEMES = new Set(["postgres:", "postgresql:"]);
 
 export function assertLocalDatabaseUrl(value) {
   let url;
@@ -22,6 +25,9 @@ export function assertLocalDatabaseUrl(value) {
     url = new URL(value);
   } catch {
     throw new Error("rehearsal: DATABASE_URL is not a URL; it must name a local database");
+  }
+  if (!POSTGRES_SCHEMES.has(url.protocol)) {
+    throw new Error("rehearsal: DATABASE_URL must start with postgres:// or postgresql://");
   }
   if (!LOCAL_HOSTS.has(url.hostname)) {
     throw new Error(`rehearsal: refusing ${url.hostname}; rehearsals run against a local database only`);

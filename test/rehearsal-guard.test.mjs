@@ -35,6 +35,16 @@ test("a query string that overrides the host or port is refused, whatever its sp
   }
 });
 
+test("only a postgres URL is accepted: any other scheme can carry the database in its own query", () => {
+  for (const url of ["postgres://u:p@localhost:5433/gata_league", "postgresql://u:p@localhost:5433/gata_league"]) {
+    assert.doesNotThrow(() => assertLocalDatabaseUrl(url), url);
+  }
+  for (const url of ["socket://localhost/x?db=gata_league", "http://localhost:5433/gata_league", "mysql://u:p@127.0.0.1/x", "localhost:5433/gata_league"]) {
+    assert.throws(() => assertLocalDatabaseUrl(url), /postgres:\/\/ or postgresql:\/\//, url);
+    assert.throws(() => rehearsalDatabaseUrl(url), /postgres:\/\/ or postgresql:\/\//, url);
+  }
+});
+
 test("other query parameters still pass", () => {
   assert.doesNotThrow(() => assertLocalDatabaseUrl("postgres://u:p@localhost:5433/gata_league?sslmode=require"));
 });
