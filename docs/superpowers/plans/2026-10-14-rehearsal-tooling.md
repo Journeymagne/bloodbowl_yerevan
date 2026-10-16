@@ -47,7 +47,7 @@ git show origin/redesign:package.json | grep '"version"'   # ожидается 
 git worktree add ../bb-rd-01 -b rd/01-rehearsal origin/redesign
 cd ../bb-rd-01
 git log --oneline -1   # тот же коммит, что origin/redesign
-npm install && npm test && npm run check && npm run i18n:check && npm run build
+npm install && npm run build && npm test && npm run check && npm run i18n:check   # build first: tests read the generated public/data.*.json
 ```
 
 ---
