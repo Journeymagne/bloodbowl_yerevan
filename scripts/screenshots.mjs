@@ -19,7 +19,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadEnvFile } from "../server/config/env-file.mjs";
-import { connect, launchChrome, openPage, sleep } from "./screenshots/cdp.mjs";
+import { connect, killAllChromes, launchChrome, openPage, sleep } from "./screenshots/cdp.mjs";
 import { expandShots, parseScreenshotArgs, shotFileName } from "./screenshots/plan.mjs";
 import {
   fromErrorsJson,
@@ -33,11 +33,11 @@ import {
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TOKEN_KEY = "gata-league-auth-token";
 
-// Set once Chrome is up. The exit hook runs for every way out of this process,
-// including an uncaught error, and it must be synchronous: nothing async gets
-// scheduled once the process is on its way out.
-let chrome = null;
-process.on("exit", () => chrome?.killNow());
+// The exit hook runs for every way out of this process, including an uncaught
+// error, and it must be synchronous: nothing async gets scheduled once the
+// process is on its way out. launchChrome registers its Chrome as soon as it is
+// spawned, so this reaches one that is still starting, not only a ready one.
+process.on("exit", killAllChromes);
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     process.stderr.write(`screens interrupted by ${signal}\n`);
@@ -191,7 +191,7 @@ async function run() {
   }
   fs.mkdirSync(args.outDir, { recursive: true });
 
-  chrome = await launchChrome(args.chromePath);
+  const chrome = await launchChrome(args.chromePath);
   const connection = await connect(chrome.wsUrl);
   let results;
   try {

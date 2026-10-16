@@ -34,6 +34,16 @@ const CHROME_FLAGS = [
 
 export const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// The `killNow` of every Chrome that has been spawned and not yet cleaned up.
+// A Chrome is in here from the moment it is spawned, not from the moment it is
+// ready, so an exit hook can reach one that is still starting.
+const liveChromes = new Set();
+
+/** Kill every Chrome this process started and remove its profile. Synchronous, safe to repeat. */
+export function killAllChromes() {
+  for (const killNow of [...liveChromes]) killNow();
+}
+
 function readPort(profile) {
   try {
     return parseDevToolsActivePort(fs.readFileSync(path.join(profile, "DevToolsActivePort"), "utf8"));
@@ -59,7 +69,8 @@ async function waitForPort(profile, isRunning, stderrTail) {
  *
  * `close()` is the orderly way out; `killNow()` is for a signal handler or an
  * exit hook, where nothing asynchronous will run, and is safe to call twice.
- * Either one leaves no process and no profile directory behind.
+ * Either one leaves no process and no profile directory behind. A Chrome that
+ * is still starting is covered too: see `killAllChromes()`.
  *
  * @param {string} chromePath
  * @returns {Promise<{wsUrl: string, close: () => Promise<void>, killNow: () => void}>}
@@ -87,9 +98,13 @@ export async function launchChrome(chromePath) {
     }
   };
   const killNow = () => {
+    liveChromes.delete(killNow);
     signalChrome("SIGKILL");
     fs.rmSync(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
   };
+  // Nothing async runs between the spawn above and this line, so no signal can
+  // slip in before the exit hook knows about this Chrome.
+  liveChromes.add(killNow);
   const close = async () => {
     if (isRunning()) {
       signalChrome("SIGTERM");
