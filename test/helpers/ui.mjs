@@ -18,28 +18,51 @@ setDictionaries({ en: JSON.parse(read("src/i18n/en.json")), ru: JSON.parse(read(
 /** A name a coach could type that would be markup if anything forgot to escape it. */
 export const HOSTILE = `<img src=x onerror="alert(1)"> & 'Grak'`;
 
-/** Parse render output and attach it, so focus and closest() behave as on a page. */
+/**
+ * Parse render output and put it on the page, so focus and closest() behave as
+ * on one. One page at a time: the next mount disconnects the earlier fragment
+ * (and takes focus back to the body if it held it), so document.querySelector,
+ * querySelectorAll and activeElement never see another test's markup. Parsing
+ * comes first: markup that does not parse leaves the page that is up alone.
+ */
 export function mount(markup) {
   const fragment = parseHtml(document, markup);
+  for (const child of [...document.body.childNodes]) document.body.removeChild(child);
   document.body.appendChild(fragment);
   return fragment;
 }
 
-/** No style attribute, no on* handler, no script: the site's CSP refuses all three. */
+/** A render that produced nothing would pass every check below for the wrong reason. */
+function assertRendered(fragment) {
+  assert.ok([...fragment.walk()].length > 1, "nothing rendered");
+}
+
+const URL_ATTRIBUTES = new Set(["href", "src", "action", "formaction"]);
+
+/**
+ * No style attribute, no on* handler, no <style>, no javascript: URL: the site's
+ * CSP refuses all four. Attribute names are compared in lower case, as a browser
+ * reads them. A <script> never gets this far: parseHtml refuses it.
+ */
 export function assertCspSafe(fragment) {
+  assertRendered(fragment);
   for (const node of fragment.walk()) {
     if (node.nodeType !== 1) continue;
-    assert.notEqual(node.tagName, "SCRIPT");
-    for (const { name } of node.attributes) {
-      assert.notEqual(name, "style", `${node.tagName} carries a style attribute`);
-      assert.ok(!name.startsWith("on"), `${node.tagName} carries ${name}`);
+    assert.notEqual(node.tagName, "STYLE", "a <style> element");
+    for (const { name, value } of node.attributes) {
+      const lower = name.toLowerCase();
+      assert.notEqual(lower, "style", `${node.tagName} carries a style attribute`);
+      assert.ok(!lower.startsWith("on"), `${node.tagName} carries ${name}`);
+      if (URL_ATTRIBUTES.has(lower)) assert.doesNotMatch(value, /^\s*javascript:/i, `${node.tagName} ${name} is a javascript: URL`);
     }
   }
 }
 
 /** Every g-* class in the markup is defined in base.css or one of the named src/ui stylesheets. */
 export function assertStyled(fragment, ...sheets) {
-  const css = ["base.css", ...sheets].map((sheet) => read(`src/ui/${sheet}`)).join("\n");
+  assertRendered(fragment);
+  // A class named only in a comment is not styled.
+  const css = ["base.css", ...sheets].map((sheet) => read(`src/ui/${sheet}`)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
   for (const node of fragment.walk()) {
     if (node.nodeType !== 1) continue;
     for (const name of (node.getAttribute("class") ?? "").split(/\s+/).filter((part) => part.startsWith("g-"))) {

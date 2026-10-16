@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { ICON_NAMES, icon } from "../src/ui/icons.mjs";
 import { classNames, dataAttributes } from "../src/ui/markup.mjs";
-import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
+import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const uiFiles = readdirSync(new URL("../src/ui/", import.meta.url));
@@ -63,4 +63,49 @@ test("the kit parses hostile text back as text, in the page, and refuses what th
   assert.throws(() => assertCspSafe(mount('<button onclick="go()"></button>')), /onclick/);
   assert.throws(() => assertStyled(mount('<i class="g-icon g-nowhere"></i>')), /\.g-nowhere is not styled/);
   assert.doesNotThrow(() => assertStyled(mount('<i class="g-icon g-sr-only"></i>')));
+});
+
+test("the kit does not pass an empty render", () => {
+  const empty = mount("");
+  assert.throws(() => assertCspSafe(empty), /nothing rendered/);
+  assert.throws(() => assertStyled(empty), /nothing rendered/);
+  assertCspSafe(mount("text only"));
+});
+
+test("the CSP check ignores attribute case and refuses javascript: URLs and <style>", () => {
+  assert.throws(() => assertCspSafe(mount('<p STYLE="color: red"></p>')), /style attribute/);
+  assert.throws(() => assertCspSafe(mount('<button ONCLICK="go()"></button>')), /ONCLICK/);
+  for (const attribute of ['href="javascript:alert(1)"', 'HREF="  JavaScript:alert(1)"']) {
+    assert.throws(() => assertCspSafe(mount(`<a ${attribute}>x</a>`)), /javascript:/);
+  }
+  assert.throws(() => assertCspSafe(mount('<img src="javascript:alert(1)">')), /javascript:/);
+  assert.throws(() => assertCspSafe(mount('<form action="javascript:alert(1)"></form>')), /javascript:/);
+  assert.throws(() => assertCspSafe(mount('<button formaction="javascript:alert(1)"></button>')), /javascript:/);
+  assert.throws(() => assertCspSafe(mount("<style></style>")), /<style>/);
+  // parseHtml refuses <script> itself, so a render that wrote one never reaches the asserts.
+  assert.throws(() => mount("<script></script>"), /script/);
+  assertCspSafe(mount('<a href="/teams/p1">x</a><a href="#top">y</a><a href="https://example.com/javascript:">z</a>'));
+});
+
+test("a class named only in a stylesheet comment is not styled", () => {
+  const sheet = "../../test/fixtures/ui-commented.css";
+  assertStyled(mount('<i class="g-real"></i>'), sheet);
+  assert.throws(() => assertStyled(mount('<i class="g-ghost"></i>'), sheet), /\.g-ghost is not styled/);
+});
+
+test("mount shows one page at a time", () => {
+  const first = mount('<button id="ok">first</button>');
+  first.querySelector("#ok").focus();
+  assert.equal(document.activeElement, first.querySelector("#ok"));
+  const second = mount('<button id="ok">second</button>');
+  assert.equal(document.querySelector("#ok").textContent, "second");
+  assert.equal(document.querySelectorAll("button").length, 1);
+  assert.equal(document.activeElement, document.body);
+  assert.equal(document.body.childNodes.length, 1);
+  assert.ok(second.isConnected);
+  assert.ok(!first.isConnected);
+  // Markup that does not parse leaves the page that is up where it is.
+  assert.throws(() => mount("<p>"), /never closed/);
+  assert.ok(second.isConnected);
+  assert.equal(document.querySelector("#ok").textContent, "second");
 });

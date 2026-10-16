@@ -27,9 +27,12 @@
 
 /*
  * The same look as --focus-ring, drawn as an outline so it leaves a box-shadow
- * the component already has (an inset ring, a lift) alone. :where() gives it no
- * specificity: a component that wants another ring sets its own :focus-visible
- * and wins without a fight.
+ * the component already has (an inset ring, a lift) alone. :where() adds no
+ * specificity, so a component that wants another ring sets its own
+ * .g-name:focus-visible and wins. Against the 2.x :focus-visible rule in
+ * styles/overlays.css the specificity is the same, (0,1,0): this one wins on
+ * import order, so the ui/ imports stay after every styles/ import in
+ * src/styles.css.
  */
 :where([class^="g-"], [class*=" g-"]):focus-visible {
   outline: 3px solid var(--accent);
