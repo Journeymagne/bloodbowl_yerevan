@@ -207,6 +207,31 @@ Apply `007_post_match.sql` with `npm.cmd run db:migrate`, then rebuild and resta
 
 `npm.cmd run smoke:post-match` checks league/friendly completion, permissions, revisions, transaction rollback, manual MVP, optional advancement, recovery, legacy game counts and concurrent/idempotent completion on disposable local fixtures. It defaults to `http://localhost:3002` and refuses a non-local database. Add `-- --keep-preview` to leave a separate friendly game at the player step and print its URL; use the preview accounts above. Detailed rules and implementation decisions are in [the post-match implementation notes](docs/superpowers/plans/2026-10-06-post-match-checklist.md).
 
+## Rehearsing a migration on a copy of production
+
+Before a release that changes the schema, restore a production dump locally,
+anonymized, and prove the migrations leave existing data alone. Rehearsals only
+ever touch the local database `gata_rehearsal`.
+
+1. Copy a dump from the server (see DEPLOYMENT.md, "Database Backups") into
+   `~/gata-dumps/` on an encrypted disk, mode 600.
+2. Set `REHEARSAL_PASSWORD` in `.env` — every restored account gets it.
+3. Run:
+
+```bash
+npm run rehearsal:restore -- ~/gata-dumps/gata_league-YYYYMMDD-HHMMSS.dump
+npm run rehearsal:check -- --before
+npm run rehearsal:migrate
+npm run rehearsal:check -- --after
+```
+
+`output/rehearsal/report.md` says whether anything existing changed, which stage
+each team got and why, which fallen players were carried over, and which matches
+are still half-way through. To click through as any coach, start the server
+with `DATABASE_URL` pointing at `gata_rehearsal` (same credentials as your
+`.env`, database name swapped). Delete the dumps and `gata_rehearsal` when the
+release has settled.
+
 ## Optional Content Re-import
 
 The repository already contains generated Markdown in `content/Gata`, so a deployer does not need the original source files just to publish the site.
