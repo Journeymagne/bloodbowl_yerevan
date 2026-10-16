@@ -33,17 +33,6 @@ async function recording(run) {
   try { return { result: await run(), log }; } finally { pool.connect = connect; }
 }
 
-/**
- * Opens a few connections in the server's pool and hands them back, so the requests of a race find
- * connections ready and do not open them inside the overlap window. On a busy machine opening one
- * now and then takes five seconds (a dropped SYN, retried), which is the whole window
- * `withForcedOverlap` waits for the requests to queue in, and the race would be reported as no race.
- */
-async function warmPool(connections = 4) {
-  const clients = await Promise.all(Array.from({ length: connections }, () => pool.connect()));
-  for (const client of clients) client.release();
-}
-
 /** `run` with console.error held back, and what was said to it: a 500 is logged on purpose, and the test output stays quiet. */
 async function loggingErrors(run) {
   const original = console.error, logged = [];
@@ -76,7 +65,6 @@ test("going below zero is the roster rule, a stale or missing revision is the te
 
 test("two entries sent on one revision at once: one lands, the other hears the team changed, the ledger has one line", db, () => withApiDatabase(async ({ client, url }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
-  await warmPool();
   const results = await withForcedOverlap(url, { lock: lockRow("saved_teams", id), waiting: 2 },
     [() => treasury(id, coach.token, { delta: 10 }), () => treasury(id, coach.token, { delta: 20 })]);
   assert.deepEqual(results.map((result) => result.value.status).sort(), [201, 409]);
@@ -91,7 +79,6 @@ test("a manual entry and a roster save on one revision at once: one of them, nev
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { players: 0 });
   const save = () => callApi("PATCH", `/api/teams/${id}`, { token: coach.token,
     body: { name: "Lions", baseTeamSlug: "teams/human", revision: 1, roster: { teamSlug: "teams/human", players: [], treasury: 130 } } });
-  await warmPool();
   const results = await withForcedOverlap(url, { lock: lockRow("saved_teams", id), waiting: 2 }, [() => treasury(id, coach.token, { delta: 10 }), save]);
   const [posted, saved] = results.map((result) => result.value.status);
   assert.ok((posted === 201 && saved === 409) || (posted === 409 && saved === 200), `${posted} ${saved}`);

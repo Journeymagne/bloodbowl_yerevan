@@ -83,6 +83,12 @@ async function endPool(pool) {
  *
  * The pool module is imported here and not at the top: it loads the env file, which the tests that
  * only need a scratch database have no use for.
+ *
+ * One connection is opened, and given back, before `run` starts, so the first request finds the pool
+ * warm. Under a burst of CREATE/DROP DATABASE on the same server a connection has been seen to take
+ * about five seconds to open, now and then, and a race test that meets that inside its overlap window
+ * (`withForcedOverlap`) reports a race that never happened. The requests of a race open more
+ * connections than the one warmed here, which is why that window is 15 s.
  */
 export async function withServerPool(url, run) {
   const { pool } = await import("../../server/db/pool.mjs");
@@ -91,6 +97,7 @@ export async function withServerPool(url, run) {
   pool.query = scratch.query.bind(scratch);
   pool.connect = scratch.connect.bind(scratch);
   try {
+    (await scratch.connect()).release();
     return await run();
   } finally {
     pool.query = query;
@@ -120,11 +127,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  *
  * @param {string} url the scratch database
  * @param {{lock: [string, unknown[]?], waiting: number, timeoutMs?: number}} options `lock` is what
- *   `lockRow` returns, and should be the first lock every starter reaches
+ *   `lockRow` returns, and should be the first lock every starter reaches; `timeoutMs` is how long
+ *   the requests have to queue (15 s by default: a connection that stalls for five seconds while
+ *   one of them opens it must not use the window up)
  * @param {Array<() => Promise<unknown>>} starters one per request, all started together
  * @returns {Promise<PromiseSettledResult<unknown>[]>} how each request ended, once every one has
  */
-export async function withForcedOverlap(url, { lock, waiting, timeoutMs = 5000 }, starters) {
+export async function withForcedOverlap(url, { lock, waiting, timeoutMs = 15000 }, starters) {
   const holder = new pg.Client({ connectionString: url });
   await holder.connect();
   try {
