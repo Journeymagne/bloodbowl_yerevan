@@ -57,7 +57,7 @@
 .league-hero-copy p {
   max-width: 720px;
   margin: 16px 0 0;
-  color: var(--bone);
+  color: var(--ink-2);
   font-size: 1.0625rem;
   line-height: 1.55;
 }

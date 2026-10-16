@@ -8,6 +8,7 @@
  */
 @import url("styles/fonts.css");
 @import url("styles/tokens.css");
+@import url("styles/legacy-aliases.css");
 @import url("styles/shell.css");
 @import url("styles/pages.css");
 @import url("styles/catalog.css");
