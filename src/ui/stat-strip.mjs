@@ -23,8 +23,9 @@ const isEmpty = (value) => value === "" || value === null || value === undefined
  */
 export function renderStatStrip({ values, improved = [] }) {
   if (!values) throw new Error("a stat strip needs values: the five characteristics, each as written or null");
-  const unknown = improved.find((stat) => !PLAYER_STATS.includes(stat));
-  if (unknown) throw new Error(`unknown characteristic: ${unknown}`);
+  if (!Array.isArray(improved)) throw new Error("improved is a list of characteristics: empty when an advancement raised none");
+  const unknown = improved.findIndex((stat) => !PLAYER_STATS.includes(stat));
+  if (unknown >= 0) throw new Error(`unknown characteristic: ${JSON.stringify(improved[unknown])}`);
   const cells = PLAYER_STATS.map((stat) => {
     const value = values[stat];
     return `<div class="${classNames("g-stat", improved.includes(stat) && "g-stat--up")}">`

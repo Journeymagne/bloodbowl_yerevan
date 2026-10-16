@@ -8,20 +8,26 @@
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { icon as renderIcon } from "./icons.mjs";
-import { classNames, dataAttributes } from "./markup.mjs";
+import { assertLinkHref, classNames, dataAttributes } from "./markup.mjs";
 
 export const BUTTON_KINDS = ["primary", "outline", "dark", "danger", "danger-outline"];
 
 /**
  * A button or, with an href, a link that looks like one.
  *
- * `outline` is the base look and has no class of its own beyond `g-btn`.
+ * `outline` is the base look and has no class of its own beyond `g-btn`. The
+ * label is required: the icon beside it is decoration, hidden from a screen
+ * reader (an icon on its own is renderIconButton).
  */
 export function renderButton({ label, kind = "outline", type = "button", href = "", disabled = false, icon = "", block = false, data = {} }) {
+  if (!label) throw new Error("a button needs a label: its icon is decoration, and nothing else names it");
   if (!BUTTON_KINDS.includes(kind)) throw new Error(`unknown button kind: ${kind}`);
   const className = classNames("g-btn", kind !== "outline" && `g-btn--${kind}`, block && "g-btn--block");
   const content = `${icon ? renderIcon(icon, kind === "primary" ? 20 : 16) : ""}${escapeHtml(label)}`;
-  if (href) return `<a class="${className}" href="${escapeHtml(href)}"${dataAttributes(data)}>${content}</a>`;
+  if (href) {
+    assertLinkHref(href);
+    return `<a class="${className}" href="${escapeHtml(href)}"${dataAttributes(data)}>${content}</a>`;
+  }
   return `<button type="${escapeHtml(type)}" class="${className}"${disabled ? " disabled" : ""}${dataAttributes(data)}>${content}</button>`;
 }
 

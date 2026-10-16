@@ -240,3 +240,39 @@ test("toggle labels and keys are escaped and the track is hidden from a screen r
   assert.equal(fragment.querySelector(".g-toggle__knob").getAttribute("aria-hidden"), "true");
   assertCspSafe(fragment);
 });
+
+const HIDDEN_SCRIPT = ["javascript:alert(1)", " JavaScript:alert(1)", "java\tscript:alert(1)", "\x01javascript:alert(1)"];
+
+test("a button needs a label: an icon draws nothing a screen reader hears", () => {
+  assert.throws(() => renderButton({}), /label/);
+  assert.throws(() => renderButton({ label: "", icon: "check", kind: "primary" }), /label/);
+});
+
+test("a button link refuses a javascript: href, however it is written", () => {
+  for (const href of HIDDEN_SCRIPT) assert.throws(() => renderButton({ label: "Go", href }), /javascript:/, JSON.stringify(href));
+});
+
+test("a segmented control needs a label, and link segments refuse a javascript: href", () => {
+  assert.throws(() => renderSegmentedControl({ items: MODES, selected: "light" }), /label/);
+  assert.throws(() => renderSegmentedControl({ label: "", items: MODES, selected: "light" }), /label/);
+  for (const href of HIDDEN_SCRIPT) {
+    const items = [{ value: "stats", label: "Stats", href: "#/a" }, { value: "spp", label: "SPP", href }];
+    assert.throws(() => renderSegmentedControl({ label: "View", items, selected: "stats" }), /javascript:/, JSON.stringify(href));
+  }
+});
+
+test("link segments may have no current page; radio segments may not have none checked", () => {
+  const links = [{ value: "stats", label: "Stats", href: "#/a" }, { value: "spp", label: "SPP", href: "#/b" }];
+  const nav = mount(renderSegmentedControl({ label: "View", items: links, selected: "" }));
+  assert.equal(nav.querySelector("[aria-current]"), null);
+  assert.equal(nav.querySelectorAll("a").length, 2);
+  assertCspSafe(nav);
+  assert.throws(() => renderSegmentedControl({ label: "Mode", items: MODES, selected: "" }), /selected/);
+});
+
+test("a toggle needs a key, which is all its wiring reports, and a label", () => {
+  assert.throws(() => renderToggle({ label: "Digest" }), /key/);
+  assert.throws(() => renderToggle({ key: "", label: "Digest" }), /key/);
+  assert.throws(() => renderToggle({ key: "digest" }), /label/);
+  assert.throws(() => renderToggle({ key: "digest", label: "" }), /label/);
+});

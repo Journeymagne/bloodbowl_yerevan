@@ -285,3 +285,14 @@ test("the sheet and the dots speak Russian when the site does", () => {
     initLocale("en");
   }
 });
+
+test("an option list needs a label: it names the group a screen reader enters", () => {
+  assert.throws(() => renderOptionList({ options: OPTIONS, selected: "" }), /label/);
+  assert.throws(() => renderOptionList({ label: "", options: OPTIONS, selected: "" }), /label/);
+});
+
+test("progress dots count numbers: anything else would be read as NaN of 5", () => {
+  for (const [done, total] of [["2", 5], [Number.NaN, 5], [undefined, 5], [2, "5"], [2, Infinity], [2, null]]) {
+    assert.throws(() => renderProgressDots({ done, total, label: "Advancements" }), /number/, `${done} of ${total}`);
+  }
+});

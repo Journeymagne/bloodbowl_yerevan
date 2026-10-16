@@ -39,6 +39,9 @@ function assertRendered(fragment) {
 
 const URL_ATTRIBUTES = new Set(["href", "src", "action", "formaction"]);
 
+/** The check src/ui/markup.mjs assertLinkHref makes: a browser drops tabs, newlines and control characters before it reads the scheme. */
+const isScriptUrl = (value) => /^javascript:/i.test(value.replace(/[\x00-\x20]/g, ""));
+
 /**
  * No style attribute, no on* handler, no <style>, no javascript: URL: the site's
  * CSP refuses all four. Attribute names are compared in lower case, as a browser
@@ -53,7 +56,7 @@ export function assertCspSafe(fragment) {
       const lower = name.toLowerCase();
       assert.notEqual(lower, "style", `${node.tagName} carries a style attribute`);
       assert.ok(!lower.startsWith("on"), `${node.tagName} carries ${name}`);
-      if (URL_ATTRIBUTES.has(lower)) assert.doesNotMatch(value, /^\s*javascript:/i, `${node.tagName} ${name} is a javascript: URL`);
+      if (URL_ATTRIBUTES.has(lower)) assert.ok(!isScriptUrl(value), `${node.tagName} ${name} is a javascript: URL`);
     }
   }
 }

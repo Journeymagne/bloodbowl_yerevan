@@ -23,6 +23,8 @@ import { renderStepButton, wireStepButtons } from "./stepper.mjs";
  * @param {string} [props.lockedReason] why the whole counter is out of reach; it replaces the note and speaks for both buttons
  */
 export function renderResourceCounter({ key, name, note = "", value, decDisabled = value <= 0, incBlockedReason = "", lockedReason = "" }) {
+  if (!key) throw new Error("a resource counter needs a key: it is what wireResourceCounters reports back, and a click without one is dropped");
+  if (!name) throw new Error("a resource counter needs a name: it names the row and its buttons");
   const locked = Boolean(lockedReason);
   const named = { name };
   // A locked − is explained rather than plainly disabled, even at zero: the reason is the useful part.

@@ -127,3 +127,10 @@ test("a die that rolled a zero or a word has rolled; only no value is still wait
   assert.throws(() => renderDie({}), /type/);
   assert.throws(() => renderDie({ type: "" }), /type/);
 });
+
+test("the raised characteristics are a list of known ones: none is an empty list, a blank is not one", () => {
+  assert.throws(() => renderStatStrip({ values: {}, improved: null }), /improved/);
+  assert.throws(() => renderStatStrip({ values: {}, improved: "st" }), /improved/);
+  assert.throws(() => renderStatStrip({ values: {}, improved: [""] }), /unknown characteristic: ""/);
+  assert.throws(() => renderStatStrip({ values: {}, improved: ["st", "MA"] }), /unknown characteristic: "MA"/);
+});

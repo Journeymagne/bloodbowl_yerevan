@@ -43,5 +43,5 @@ export function renderSkillChips({ skills, card = false }) {
 
 /** A tap anywhere on a chip, its source line included, reports `(name, chip)`. */
 export function wireSkillChips(root, onOpen) {
-  return delegate(root, "click", "[data-skill]",(event, chip) => onOpen(chip.getAttribute("data-skill"), chip));
+  return delegate(root, "click", "[data-skill]", (event, chip) => onOpen(chip.getAttribute("data-skill"), chip));
 }

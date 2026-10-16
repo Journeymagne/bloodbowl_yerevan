@@ -20,6 +20,9 @@ const dots = (count, className) => Array.from({ length: count }, (unused, index)
  * clamped, and the caption shows the clamped number the bars show.
  */
 export function renderProgressDots({ total, done, label }) {
+  if (!Number.isFinite(done) || !Number.isFinite(total)) {
+    throw new TypeError(`progress dots count numbers: done and total, not ${String(done)} (${typeof done}) and ${String(total)} (${typeof total})`);
+  }
   const shown = Math.min(Math.max(done, 0), total);
   const bars = dots(total, (n) => classNames("g-progress__dot", shown >= n && "g-progress__dot--on"));
   const caption = escapeHtml(t("ui.progress.caption", { label, done: shown, total }));

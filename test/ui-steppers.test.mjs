@@ -204,3 +204,16 @@ test("a locked counter's note is the reason, so it stays muted text a reader can
   assertContrast(note, ["--page", "--surface", "--surface-2"], 4.5, { what: `the locked note ${note}` });
   assert.deepEqual(valuesOf(sheet, ".g-resource--locked .g-resource__name", "color"), ["var(--faint)"]);
 });
+
+test("a stepper needs the key its wiring reports, and the names its buttons are read by", () => {
+  const { key, label, name, ...rest } = TD;
+  assert.throws(() => renderActionStepper({ ...rest, label, name, value: 0 }), /key/);
+  assert.throws(() => renderActionStepper({ ...rest, key, name, value: 0 }), /label/);
+  assert.throws(() => renderActionStepper({ ...rest, key, label: "", name, value: 0 }), /label/);
+  assert.throws(() => renderActionStepper({ ...rest, key, label, value: 0 }), /name/);
+  assert.throws(() => renderActionStepper({ ...rest, key, label, name: "", value: 0 }), /name/);
+  assert.throws(() => renderResourceCounter({ name: "Team Re-rolls", value: 1 }), /key/);
+  assert.throws(() => renderResourceCounter({ key: "", name: "Team Re-rolls", value: 1 }), /key/);
+  assert.throws(() => renderResourceCounter({ key: "teamRerolls", value: 1 }), /name/);
+  assert.throws(() => renderResourceCounter({ key: "teamRerolls", name: "", value: 1 }), /name/);
+});

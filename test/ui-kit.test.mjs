@@ -118,3 +118,9 @@ test("the keyboard focus ring is the text accent, 3:1 on the page and both surfa
   // --accent is 2.68-2.91:1 on the dungeon and night surfaces (WCAG 1.4.11 asks 3:1 of a focus indicator).
   assertContrast(colour, ["--page", "--surface", "--surface-2"], 3, { what: `the focus ring ${colour}` });
 });
+
+test("the CSP check reads a javascript: URL the way a browser does, through tabs, newlines and control characters", () => {
+  for (const href of ["java&#9;script:alert(1)", "java&#10;script:alert(1)", "&#1;javascript:alert(1)", " &#13;JavaScript:alert(1)"]) {
+    assert.throws(() => assertCspSafe(mount(`<a href="${href}">x</a>`)), /javascript:/, href);
+  }
+});

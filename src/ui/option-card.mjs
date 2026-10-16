@@ -40,6 +40,7 @@ export function renderOptionCard(props) {
  * @param {string} props.selected the value of the checked card, or "" when none is
  */
 export function renderOptionList({ label, options, selected }) {
+  if (!label) throw new Error("an option list needs a label: it names the group for a screen reader");
   const checked = options.findIndex((option) => option.value === selected);
   const entry = [checked, options.findIndex((option) => !option.disabled), 0].find((index) => index >= 0);
   const cards = options.map((option, index) => card({ ...option, selected: index === checked }, index === entry ? 0 : -1));

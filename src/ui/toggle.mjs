@@ -7,6 +7,8 @@ import { dataAttributes } from "./markup.mjs";
 
 /** `key` is what wireToggles reports back; `caption` is the quieter line under the label. */
 export function renderToggle({ key, label, caption = "", checked = false, disabled = false }) {
+  if (!key) throw new Error("a toggle needs a key: it is what wireToggles reports back, and a switch without one is never heard");
+  if (!label) throw new Error("a toggle needs a label: it is what the switch is called");
   const captionLine = caption ? `<span class="g-toggle__caption">${escapeHtml(caption)}</span>` : "";
   const text = `<span class="g-toggle__text"><span class="g-toggle__label">${escapeHtml(label)}</span>${captionLine}</span>`;
   const track = '<span class="g-toggle__track" aria-hidden="true"><span class="g-toggle__knob" aria-hidden="true"></span></span>';

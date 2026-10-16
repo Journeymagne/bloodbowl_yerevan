@@ -24,6 +24,9 @@ import { renderStepButton, wireStepButtons } from "./stepper.mjs";
  * @param {Record<string, string|number|boolean|null>} [props.data] more data attributes for the cell
  */
 export function renderActionStepper({ key, label, name, spp, value, delta = 0, player, incBlockedReason = "", data = {} }) {
+  if (!key) throw new Error("an action stepper needs a key: it is what wireActionSteppers reports back, and a click without one is dropped");
+  if (!label) throw new Error("an action stepper needs a label: the short name in the cell");
+  if (!name) throw new Error("an action stepper needs a name: its buttons are read by it");
   const named = { action: name, player };
   const minus = renderStepButton({ hook: "action", delta: -1, label: t("ui.stepper.decrease", named), disabled: value <= 0, className: "g-stepper__btn" });
   const plus = renderStepButton({ hook: "action", delta: 1, label: t("ui.stepper.increase", named), blockedReason: incBlockedReason, className: "g-stepper__btn g-stepper__btn--inc" });
