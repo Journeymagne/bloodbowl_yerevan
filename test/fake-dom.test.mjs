@@ -74,13 +74,41 @@ test("entities decode once, and only the ones escapeHtml writes are known", () =
   }
 });
 
-test("void and self-closed elements take no closing tag; controls mirror value and checked", () => {
-  const root = parseHtml(document, `<form><br><input type="checkbox" checked><input value="7"><img src="a.svg"/><span/></form>`);
-  assert.deepEqual(root.querySelector("form").childNodes.map((node) => node.tagName), ["BR", "INPUT", "INPUT", "IMG", "SPAN"]);
+test("void elements take no closing tag; controls mirror value and checked", () => {
+  const root = parseHtml(document, `<form><br><input type="checkbox" checked><input value="7"><img src="a.svg"><select><option value="o" selected>O</option></select></form>`);
+  assert.deepEqual(root.querySelector("form").childNodes.map((node) => node.tagName), ["BR", "INPUT", "INPUT", "IMG", "SELECT"]);
   assert.equal(root.querySelector("[type=\"checkbox\"]").checked, true);
   assert.equal(root.querySelector('[value="7"]').value, "7");
+  assert.equal(root.querySelector("option").value, "o");
   assert.equal(root.querySelector("br").childNodes.length, 0);
   assert.throws(() => parseHtml(document, "<br></br>"), /parseHtml/, "a void element has no closing tag");
+});
+
+test("/> closes a void element or anything inside svg, and is refused on other HTML elements", () => {
+  const ok = parseHtml(document, `<p><br/><input value="1"/><img src="a.svg"/></p><svg/><svg viewBox="0 0 1 1"><g><path d="M1 1"/><circle r="1"/></g></svg>`);
+  assert.deepEqual(ok.childNodes.map((node) => node.tagName), ["P", "SVG", "SVG"]);
+  assert.deepEqual(ok.querySelector("p").childNodes.map((node) => node.tagName), ["BR", "INPUT", "IMG"]);
+  assert.deepEqual(ok.querySelectorAll("svg *").map((node) => node.tagName), ["G", "PATH", "CIRCLE"]);
+  // A browser ignores the slash: the span would stay open and swallow what follows it.
+  for (const bad of ["<span/>", "<div/>", '<div><span class="i"/>text<b>x</b></div>', "<svg></svg><span/>", "<svg><path/></svg><div/>", "<textarea/>"]) {
+    assert.throws(() => parseHtml(document, bad), /parseHtml: .*\/>/, bad);
+  }
+});
+
+test("a textarea's value is its text, and a value attribute on textarea or select is refused", () => {
+  const root = parseHtml(document, `<textarea id="a">y &lt; z</textarea><textarea id="b"></textarea><textarea id="c">  </textarea><textarea id="d">
+line</textarea><textarea id="e">
+
+two</textarea>`);
+  assert.equal(root.querySelector("#a").value, "y < z");
+  assert.equal(root.querySelector("#b").value, "");
+  assert.equal(root.querySelector("#c").value, "  ", "blanks inside a textarea are its value, not formatting");
+  assert.equal(root.querySelector("#d").value, "line", "one newline right after the opening tag is dropped");
+  assert.equal(root.querySelector("#e").value, "\ntwo", "only one");
+  assert.equal(root.querySelector("#a").textContent, "y < z");
+  for (const bad of ['<textarea value="x"></textarea>', '<select value="x"><option>a</option></select>', "<textarea><b>x</b></textarea>"]) {
+    assert.throws(() => parseHtml(document, bad), /parseHtml/, bad);
+  }
 });
 
 test("tags and attributes are as strict as the rest", () => {
