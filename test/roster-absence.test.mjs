@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { ABSENCE_CODES, PLAYER_FIELDS, createPlayer, normalizeAbsence, normalizeDraft } from "../src/domain/roster/schema.mjs";
-import { ensureDraftPlayers, normalizeRosterPlayer } from "../src/domain/roster/players.mjs";
+import { ensureDraftPlayers, normalizeRosterPlayer, rosterPlayerView } from "../src/domain/roster/players.mjs";
 import { INJURIES } from "../src/domain/post-match/rules.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
@@ -45,4 +45,23 @@ test("a player who is not sitting out has no absence, whatever the blob says", (
   assert.deepEqual(sitting.absence, { code: "niggling", pairingId: "g1" });
   const retired = normalizeRosterPlayer({ id: "p", rowIndex: 0, temporarilyRetired: true, absence: { code: "lasting", stat: "ag" } }, rows);
   assert.deepEqual(retired.absence, { code: "lasting", stat: "ag" });
+});
+
+test("a note is cut by characters: an emoji straddling the limit is dropped whole, never split", () => {
+  const note = normalizeAbsence({ code: "other", note: `${"x".repeat(499)}\u{1F600}tail` }).note;
+  assert.equal(note, "x".repeat(499) + "\u{1F600}");
+  assert.equal(Array.from(note).length, 500);
+  assert.ok(note.isWellFormed(), "a lone surrogate is not valid JSON text for Postgres");
+  assert.equal(normalizeAbsence({ code: "other", note: `${"x".repeat(498)}\u{1F600}\u{1F600}` }).note, "x".repeat(498) + "\u{1F600}\u{1F600}");
+  assert.equal(normalizeAbsence({ code: "other", note: `${"x".repeat(497)}   y` }).note, "x".repeat(497));
+});
+
+test("a player view re-derives the absence like the stored player does, and never hands out a stale one", () => {
+  const team = { team: { roster: rows } };
+  const stale = rosterPlayerView(team, { id: "p", rowIndex: 0, skipNextGame: false, absence: { code: "miss" } });
+  assert.equal(stale.absence, null);
+  assert.equal(stale.skipNextGame, false);
+  const retired = rosterPlayerView(team, { id: "p", rowIndex: 0, temporarilyRetired: true, absence: { code: "lasting", stat: "ag", junk: 1 } });
+  assert.deepEqual(retired.absence, { code: "lasting", stat: "ag" });
+  assert.equal(retired.skipNextGame, true);
 });

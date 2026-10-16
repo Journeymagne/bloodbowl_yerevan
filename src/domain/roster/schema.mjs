@@ -174,7 +174,8 @@ export function normalizeAbsence(value, skipping = true) {
   if (!skipping || !value || typeof value !== "object" || !ABSENCE_CODES.includes(value.code)) return null;
   const absence = { code: value.code };
   if (PLAYER_STATS.includes(value.stat)) absence.stat = value.stat;
-  const note = typeof value.note === "string" ? value.note.trim().slice(0, ABSENCE_NOTE_MAX) : "";
+  // Cut by characters, not UTF-16 units: a cut through an emoji leaves a lone surrogate, which Postgres jsonb refuses.
+  const note = typeof value.note === "string" ? Array.from(value.note.trim()).slice(0, ABSENCE_NOTE_MAX).join("").trim() : "";
   if (note) absence.note = note;
   if (typeof value.pairingId === "string" && value.pairingId) absence.pairingId = value.pairingId;
   return absence;

@@ -162,6 +162,7 @@ export function canAddRowToDraft(row, rowIndex, draft, enforceMaximum = true) {
 export function rosterPlayerView(team, player, index = 0) {
   const row = rowsForTeam(team)[player.rowIndex];
   if (!row) return null;
+  const skipNextGame = Boolean(player.skipNextGame || player.temporarilyRetired);
   return {
     ...player,
     key: player.id,
@@ -174,7 +175,8 @@ export function rosterPlayerView(team, player, index = 0) {
     statMods: player.statMods ?? {},
     extraSkills: normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     favouredSkills: normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    skipNextGame: Boolean(player.skipNextGame || player.temporarilyRetired),
+    skipNextGame,
+    absence: normalizeAbsence(player.absence, skipNextGame),
     niglingInjury: Boolean(player.niglingInjury),
     isCaptain: Boolean(player.isCaptain ?? player.captain),
     extendedContracts: countToNumber(player.extendedContracts),
