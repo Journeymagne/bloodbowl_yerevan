@@ -44,3 +44,36 @@ export function removeLeaguePlayer(team, draft, playerId, type) {
 export function sealPlayerPurchases(players) {
   return players.map(player => { const sealed = { ...player }; delete sealed.purchaseRefund; return sealed; });
 }
+
+/**
+ * A player leaves the roster for good, as he stood: the roster without him, with the position counts of
+ * who is left, and him as the blob held him — the record the fallen are kept as. Both are copies; the
+ * input is not touched. Null when nobody on the roster has that id.
+ */
+export function removeFallenPlayer(roster, playerId) {
+  const copy = structuredClone(roster ?? {});
+  const players = Array.isArray(copy.players) ? copy.players : [];
+  const player = players.find(item => item.id === playerId);
+  if (!player) return null;
+  copy.players = players.filter(item => item !== player);
+  syncRosterCountsFromPlayers(copy);
+  return { roster: copy, player };
+}
+
+/**
+ * A fallen player back on the roster, last. He keeps the captaincy he had only while nobody else holds
+ * it, so a team never has two. One who is on the roster already (a save put him back) is not added
+ * twice. A copy: neither the roster nor the record is touched.
+ */
+export function returnFallenPlayer(roster, player) {
+  const copy = structuredClone(roster ?? {});
+  const players = Array.isArray(copy.players) ? copy.players : [];
+  if (!players.some(item => item.id === player.id)) {
+    const returning = structuredClone(player);
+    if (returning.isCaptain && players.some(item => item.isCaptain)) returning.isCaptain = false;
+    players.push(returning);
+  }
+  copy.players = players;
+  syncRosterCountsFromPlayers(copy);
+  return copy;
+}

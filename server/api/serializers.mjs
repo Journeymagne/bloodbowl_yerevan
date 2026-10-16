@@ -66,6 +66,27 @@ export function publicSavedTeam(row) {
   };
 }
 
+/**
+ * A `team_fallen_players` row as a client reads it: the player as the roster held him, why he died
+ * and when, and whether a match recorded it (`fromMatch`, which a coach cannot undo). Who recorded it
+ * and for which team stay on the server. `roundNumber` is the season round of the match's pairing,
+ * from `match_pairing_context`: null when there is no pairing, and for a friendly. The row a new
+ * death answers with did not come from that join; it is a coach's own mark, which has no pairing,
+ * so its null is right.
+ */
+export function publicFallen(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    player: row.player,
+    cause: row.cause ?? null,
+    pairingId: row.pairing_id ?? null,
+    roundNumber: row.round_number ?? null,
+    diedAt: row.died_at,
+    fromMatch: row.from_match,
+  };
+}
+
 export function stripEmbeddedLogoData(value) {
   if (Array.isArray(value)) {
     return value.map(stripEmbeddedLogoData);

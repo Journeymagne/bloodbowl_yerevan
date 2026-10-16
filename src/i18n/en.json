@@ -472,6 +472,8 @@
   "error.COACH_REQUIRED": "Coach is required.",
   "error.ENTRY_ALREADY_COMMITTED": "This coach or team is already committed to the season.",
   "error.ENTRY_NOT_FOUND": "Season entry not found.",
+  "error.FALLEN_FROM_MATCH": "This death was recorded by a match's post-match. Only an administrator can undo it.",
+  "error.FALLEN_NOT_FOUND": "Fallen player not found.",
   "error.FIELD_INVALID": "The field {field} is missing or has a value the site does not accept.",
   "error.FIXTURE_NOT_YOURS": "This fixture does not belong to your team.",
   "error.FIXTURE_NOT_PLAYER_SUBMITTABLE": "This fixture cannot receive a player-submitted result.",
