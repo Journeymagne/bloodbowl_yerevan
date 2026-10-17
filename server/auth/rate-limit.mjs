@@ -82,7 +82,10 @@ export function attemptKey(loginKey, user = null) {
   return user ? `user:${user.id}` : `login:${loginKey}`;
 }
 
-/** Test seam, and a way to keep the map from growing without bound. */
+/**
+ * Forget every count whose window has passed, and say how many are left: what keeps the map from growing
+ * with every name somebody tried. The session sweeper runs it on its timer (`startSessionSweeper`).
+ */
 export function forgetExpiredLoginAttempts(options = {}) {
   const now = options.now ?? Date.now;
   const windowMs = options.windowMs ?? DEFAULTS.windowMs;
