@@ -17,13 +17,13 @@
  * open on the roster is refused on its next save (TEAM_SAVED_ELSEWHERE), as it is after any other write.
  */
 import { removeFallenPlayer, returnFallenPlayer } from "../../src/domain/roster/transfers.mjs";
-import { publicFallen, publicSavedTeam } from "../api/serializers.mjs";
+import { publicFallen } from "../api/serializers.mjs";
 import { PLAYER_ID_SOURCE, UUID_SOURCE, teamConflict, teamForUser } from "../api/team-access.mjs";
-import { SAVED_TEAM_COLUMNS } from "../api/team-queries.mjs";
+import { readPublicTeam } from "../api/team-queries.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
-import { blockingViolations, checkRoster, refuseSharedPlayerId } from "../domain/roster.mjs";
+import { blockingViolations, checkRoster, refuseSharedPlayerId, rosterRefusal } from "../domain/roster.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 
 const FALLEN = new RegExp(`^/api/teams/(${UUID_SOURCE})/fallen$`, "i");
@@ -60,14 +60,8 @@ function saveRoster(client, teamId, roster) {
   );
 }
 
-/**
- * The team as every other answer about a team says it, read after the writes: `inActiveSeason`
- * included, which the row of an UPDATE cannot say.
- */
-async function readTeam(client, teamId) {
-  const { rows } = await client.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [teamId]);
-  return publicSavedTeam(rows[0]);
-}
+/** How many players of a stored roster its race can read: normalisation (`checkRoster`) drops the rest. */
+const readablePlayers = (slug, roster) => checkRoster(slug, roster ?? {}).roster.players.length;
 
 /** `GET /api/teams/:id/fallen` — a team's deaths, newest first. */
 async function sendFallen(request, response, teamId) {
@@ -96,7 +90,7 @@ async function writeDeath(client, teamId, user, playerId, cause, revision) {
      VALUES ($1, $2, $3, $4, false) RETURNING *`,
     [team.id, JSON.stringify(removed.player), cause, user.id],
   );
-  return { team: await readTeam(client, team.id), fallen: publicFallen(rows[0]) };
+  return { team: await readPublicTeam(client, team.id), fallen: publicFallen(rows[0]) };
 }
 
 /** `POST /api/teams/:id/players/:pid/death` `{ cause, revision }` — the owner marks a player as dead. */
@@ -114,8 +108,13 @@ async function markDeath(request, response, teamId, playerId) {
 
 /**
  * The transaction of an undo. The team is locked first; then, in this order, the death (of this team
- * and no other), who may undo it, the rules the roster has to keep with him back, the roster with him,
- * and the death forgotten. Refused at any point, nothing is written.
+ * and no other), who may undo it, the rules the roster has to keep with him back, that the roster can
+ * read him as he was kept, the roster with him, and the death forgotten. Refused at any point, nothing
+ * is written.
+ *
+ * A record the roster cannot read — no place on it (`rowIndex`), or one the race has no row for — is not
+ * undone (422 FALLEN_NOT_RESTORABLE): normalisation would drop him, and the death would be forgotten for a
+ * player nobody then sees. Who reads him is counted, the roster as it was and with him back.
  */
 async function returnPlayer(client, teamId, fallenId, user) {
   const team = await teamForUser(client, teamId, user, { lock: true, admin: true });
@@ -124,15 +123,14 @@ async function returnPlayer(client, teamId, fallenId, user) {
   if (!dead) throw httpError(404, "FALLEN_NOT_FOUND");
   if (dead.from_match && !user.is_admin) throw httpError(403, "FALLEN_FROM_MATCH");
   const restored = returnFallenPlayer(team.roster, dead.player);
-  const blocking = blockingViolations(checkRoster(team.base_team_slug, restored).violations);
-  if (blocking.length) {
-    const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
-    error.violations = blocking;
-    throw error;
-  }
+  const { violations, roster: read } = checkRoster(team.base_team_slug, restored);
+  const blocking = blockingViolations(violations);
+  if (blocking.length) throw rosterRefusal(blocking);
+  const returned = restored.players.length - (Array.isArray(team.roster?.players) ? team.roster.players.length : 0);
+  if (read.players.length !== readablePlayers(team.base_team_slug, team.roster) + returned) throw httpError(422, "FALLEN_NOT_RESTORABLE");
   await saveRoster(client, team.id, restored);
   await client.query("DELETE FROM team_fallen_players WHERE id = $1", [dead.id]);
-  return readTeam(client, team.id);
+  return readPublicTeam(client, team.id);
 }
 
 /** `DELETE /api/teams/:id/fallen/:fid` — a death is undone and the player is back on the roster. */

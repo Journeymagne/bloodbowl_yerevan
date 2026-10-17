@@ -103,6 +103,18 @@ test("a note with a NUL in it is refused as the note, before anything is written
   assert.deepEqual([await teamRow(client, id), await lines(client, id)], [before, []]);
 }));
 
+test("the entry an entry answers with is the line it wrote: a line that sorts after it (a clock set back) refuses the entry, and nothing is written", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  await client.query(`INSERT INTO team_ledger (saved_team_id, delta, balance_after, kind, reason, created_at)
+    VALUES ($1, 1, 101, 'manual', 'sponsor', now() + interval '1 day')`, [id]);
+  const before = await teamRow(client, id);
+  const { result, logged } = await loggingErrors(() => recording(() => treasury(id, coach.token, { delta: 5 })));
+  assert.deepEqual([result.result.status, result.result.body.error.code], [500, "SERVER_ERROR"]);
+  assert.deepEqual(result.log.slice(-2), ["ROLLBACK", "release"]);
+  assert.equal(logged.length, 1);
+  assert.deepEqual([await teamRow(client, id), (await lines(client, id)).length], [before, 1]);
+}));
+
 test("the history says since when it is kept, refuses a cursor it did not make, and is the owner's and the admin's only", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), other = await seedCoach(client, "wolf"), admin = await seedCoach(client, "boss", { admin: true });
   const id = await seedTeam(client, coach.id);

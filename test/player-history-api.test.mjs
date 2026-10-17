@@ -195,7 +195,7 @@ test("the whole answer is one snapshot that takes no lock and writes nothing, an
   assert.deepEqual([log[0], ...log.slice(-2)], ["BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY", "COMMIT", "release"]);
   assert.equal(log.filter((sql) => /^BEGIN\b/.test(sql)).length, 1, "one transaction");
   assert.equal(log.filter((sql) => sql === "release").length, 1, "one connection");
-  assert.match(log[1], /^SELECT \* FROM saved_teams WHERE id = \$1 /, "the team is the snapshot's first read");
+  assert.match(log[1], /^SELECT id, base_team_slug, roster, revision FROM saved_teams WHERE id = \$1 /, "the team is the snapshot's first read");
   assert.ok(log.length > 6, "the matches, their records and the player's events were read in it");
   assert.ok(!log.some((sql) => /\bFOR (UPDATE|NO KEY UPDATE|SHARE|KEY SHARE)\b/.test(sql)), log.join("\n"));
   assert.ok(!log.some((sql) => /^(INSERT|UPDATE|DELETE|TRUNCATE|CREATE|ALTER|DROP)\b/.test(sql)), "nothing is written");
@@ -204,7 +204,7 @@ test("the whole answer is one snapshot that takes no lock and writes nothing, an
     assert.equal(refused.result.status, label === "a stranger" ? 404 : 400, label);
     assert.equal(refused.log.length, 4, `${label}: ${refused.log.join(" | ")}`);
     assert.deepEqual([refused.log[0], refused.log[2], refused.log[3]], ["BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY", "ROLLBACK", "release"], label);
-    assert.match(refused.log[1], /^SELECT \* FROM saved_teams/, label);
+    assert.match(refused.log[1], /^SELECT id, base_team_slug, roster, revision FROM saved_teams/, label);
   }
 }));
 

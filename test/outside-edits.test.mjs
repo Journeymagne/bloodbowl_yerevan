@@ -95,7 +95,7 @@ test("an edit outside a match takes only its own team's row, waits on nothing af
   for (const run of [log, made.log]) {
     const locks = run.filter((sql) => /FOR (UPDATE|NO KEY UPDATE|SHARE|KEY SHARE)/.test(sql));
     assert.equal(locks.length, 1, locks.join("\n"));
-    assert.match(locks[0], /^SELECT \* FROM saved_teams WHERE id = \$1 .* FOR UPDATE$/);
+    assert.match(locks[0], /^SELECT id, base_team_slug, roster, revision FROM saved_teams WHERE id = \$1 .* FOR UPDATE$/);
     assert.equal(run.indexOf(locks[0]), 1, "the team's row is the transaction's first statement");
   }
   assert.deepEqual(log.slice(-2), ["ROLLBACK", "release"]);

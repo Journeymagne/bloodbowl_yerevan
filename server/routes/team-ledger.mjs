@@ -13,13 +13,13 @@
 import { isMoneyAmount, sumMoney } from "../../src/domain/money.mjs";
 import { VALIDATION_CODES } from "../../src/domain/roster/validate.mjs";
 import { countToNumber } from "../../src/domain/roster/values.mjs";
-import { publicSavedTeam } from "../api/serializers.mjs";
 import { UUID_SOURCE, teamConflict, teamForUser } from "../api/team-access.mjs";
 import { LEDGER_PAGE_SIZE, checkManualEntry, decodeLedgerCursor, ledgerSince, readLedgerPage, writeLedgerEntries } from "../api/team-ledger.mjs";
-import { SAVED_TEAM_COLUMNS } from "../api/team-queries.mjs";
+import { readPublicTeam } from "../api/team-queries.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
+import { rosterRefusal } from "../domain/roster.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 
 const LEDGER = new RegExp(`^/api/teams/(${UUID_SOURCE})/ledger$`, "i");
@@ -49,11 +49,7 @@ function cursorOf(params) {
  * The refusal for a treasury that would end below zero: the roster rule, in the shape a roster
  * save is refused with, so the client words it the way it words that one.
  */
-function belowZero() {
-  const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
-  error.violations = [{ code: VALIDATION_CODES.TREASURY_INVALID, params: {} }];
-  return error;
-}
+const belowZero = () => rosterRefusal([{ code: VALIDATION_CODES.TREASURY_INVALID, params: {} }]);
 
 /** `GET /api/teams/:id/ledger?before=&limit=` — one page of the history, and since when it is kept. */
 async function sendHistory(request, response, teamId, params) {
@@ -74,8 +70,10 @@ async function sendHistory(request, response, teamId, params) {
  * saw, the rule, the write and the answer read back. A refusal at any point throws, and the whole
  * transaction goes back: the treasury never moves without its line, nor the line without the treasury.
  *
- * The team in the answer is read again after the write, the way `GET` reads it (`inActiveSeason`
- * included), so the client handles one shape of team whichever route it came from.
+ * The team in the answer is read again after the write, the way `GET` reads it (`readPublicTeam`,
+ * `inActiveSeason` included), so the client handles one shape of team whichever route it came from.
+ * The entry is the newest line, which is the one just written: a line that sorts after it, which only
+ * a clock set back can leave, is not passed off as it — the entry is refused (a 500) and rolled back.
  */
 async function writeEntry(client, teamId, user, revision, { delta, reason, note }) {
   const team = await teamForUser(client, teamId, user, { lock: true });
@@ -90,9 +88,9 @@ async function writeEntry(client, teamId, user, revision, { delta, reason, note 
     [team.id, closing],
   );
   await writeLedgerEntries(client, { teamId: team.id, opening, entries: [{ kind: "manual", delta, reason, note }], actorId: user.id });
-  const { rows } = await client.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [team.id]);
-  const { entries } = await readLedgerPage(client, team.id, { limit: 1 });
-  return { team: publicSavedTeam(rows[0]), entry: entries[0] };
+  const { entries: [entry] } = await readLedgerPage(client, team.id, { limit: 1 });
+  if (entry?.balanceAfter !== closing) throw new Error(`the newest ledger line of team ${team.id} is not the entry just written`);
+  return { team: await readPublicTeam(client, team.id), entry };
 }
 
 /** `POST /api/teams/:id/treasury` `{ delta, reason, note?, revision }` — the owner adds a line by hand. */

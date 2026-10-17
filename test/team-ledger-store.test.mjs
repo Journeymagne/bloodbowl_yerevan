@@ -75,6 +75,8 @@ test("a manual entry is a non-zero amount to the gold, one of five reasons and a
   assert.deepEqual(MANUAL_REASONS, ["friendly", "sponsor", "fine", "purchase", "other"]);
   assert.deepEqual(checkManualEntry({ delta: -7.5, reason: "fine", note: "  late  " }), { delta: -7.5, reason: "fine", note: "late" });
   assert.deepEqual(checkManualEntry({ delta: 100000, reason: "other", note: " " }), { delta: 100000, reason: "other", note: null });
+  assert.deepEqual(checkManualEntry({ delta: 0.1 + 0.2, reason: "sponsor" }), { delta: 0.3, reason: "sponsor", note: null }, "the amount in thousands, as the money it is");
+  assert.equal(checkManualEntry({ delta: -(0.1 + 0.2), reason: "fine" }).delta, -0.3);
   for (const [body, field] of [[{ delta: 0, reason: "fine" }, "delta"], [{ delta: 0.0004, reason: "fine" }, "delta"], [{ delta: "5", reason: "fine" }, "delta"],
     [{ delta: 100000.5, reason: "fine" }, "delta"], [{ delta: 5, reason: "gift" }, "reason"], [{ delta: 5, reason: "fine", note: "x".repeat(201) }, "note"]]) {
     assert.throws(() => checkManualEntry(body), { status: 400, code: "FIELD_INVALID", params: { field } }, JSON.stringify(body));

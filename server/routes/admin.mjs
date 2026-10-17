@@ -32,7 +32,7 @@ import {
 } from "../api/serializers.mjs";
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
 import { refuseSiteRolls } from "../api/dice-rolls.mjs";
-import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, userHasFriendlyGames } from "../api/team-queries.mjs";
+import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam, userHasFriendlyGames } from "../api/team-queries.mjs";
 import { UUID_SOURCE } from "../api/team-access.mjs";
 
 // The ids these routes take are UUIDs, and nothing else matches: a path that is no UUID is no route (404)
@@ -258,12 +258,12 @@ async function handleAdminUserTeamRoutes(request, response, url) {
     const result = await pool.query(
       `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [adminUserTeamsMatch[1], name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
+       RETURNING id`,
+      [coach.rows[0].id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );
     return send(response, 201, {
       user: publicUser(coach.rows[0]),
-      team: publicSavedTeam(result.rows[0]),
+      team: await readPublicTeam(pool, result.rows[0].id), // GET's shape, as the coach's own create answers
     });
   }
 

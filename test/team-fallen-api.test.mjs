@@ -435,6 +435,37 @@ test("a player stored the way older rosters left him dies and comes back all the
   assert.deepEqual(await allFallen(client, id), []);
 }));
 
+test("a death kept as a player the roster cannot read is not undone: refused, the death stays, the roster as it was", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), boss = await seedCoach(client, "boss", { admin: true }), id = await seedTeam(client, coach.id);
+  const before = await teamRow(client, id);
+  // Kept without a place on the roster (no rowIndex, or one the race has no row for): normalisation would drop him, and
+  // the undo would forget the death of a player nobody then sees.
+  for (const player of [{ id: "ghost-a" }, { id: "ghost-b", rowIndex: 99 }, { id: "ghost-c", rowIndex: "x" }]) {
+    const fid = await insertFallen(client, id, player, false);
+    for (const token of [coach.token, boss.token]) {
+      const refused = await recording(() => undo(id, fid, token));
+      assert.deepEqual([refused.result.status, refused.result.body.error.code], [422, "FALLEN_NOT_RESTORABLE"], JSON.stringify(player));
+      assert.ok(!refused.log.some((sql) => /^(UPDATE|DELETE)/.test(sql)), "nothing written");
+    }
+    assert.ok((await allFallen(client, id)).some((row) => row.id === fid), "the death is still kept");
+  }
+  assert.deepEqual(await teamRow(client, id), before);
+}));
+
+test("a team has one captain whichever way its roster names him: an old `captain` flag holds the captaincy as `isCaptain` does", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  const id = await seedTeam(client, coach.id, { roster: { players: [{ id: "p0", rowIndex: 0, captain: true }, { id: "p1", rowIndex: 0 }, { id: "p2", rowIndex: 0 }] } });
+  const captains = async () => (await teamRow(client, id)).roster.players.filter((player) => player.isCaptain ?? player.captain).map((player) => player.id);
+  const kept = await insertFallen(client, id, { id: "p9", rowIndex: 0, isCaptain: true }, false);
+  assert.equal((await undo(id, kept, coach.token)).status, 200);
+  assert.deepEqual(await captains(), ["p0"], "p0 holds it by the old flag: the one coming back is no captain");
+  await client.query("UPDATE saved_teams SET roster = jsonb_set(roster, '{players,0}', '{\"id\": \"p0\", \"rowIndex\": 0}') WHERE id = $1", [id]);
+  await client.query("UPDATE saved_teams SET roster = jsonb_set(roster, '{players,1,isCaptain}', 'true') WHERE id = $1", [id]);
+  const old = await insertFallen(client, id, { id: "p8", rowIndex: 0, captain: true }, false);
+  assert.equal((await undo(id, old, coach.token)).status, 200);
+  assert.deepEqual(await captains(), ["p1"], "and one who comes back with the old flag does not take it from p1");
+}));
+
 test("a player who is already on the roster is not put there twice, and his death is forgotten all the same", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   const fid = await insertFallen(client, id, { id: "p3", rowIndex: 0, spp: { touchdowns: 9 } }, false);

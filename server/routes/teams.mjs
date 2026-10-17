@@ -59,10 +59,11 @@ export async function handleTeamRoutes(request, response, url) {
     const result = await pool.query(
       `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
+       RETURNING id`,
       [user.id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );
-    return send(response, 201, { team: publicSavedTeam(result.rows[0]) });
+    // GET's shape, `inActiveSeason` included, which the row of an INSERT cannot say.
+    return send(response, 201, { team: await readPublicTeam(pool, result.rows[0].id) });
   }
 
   // A UUID or no route: anything else would reach `::uuid` and come back as a 500 (22P02).

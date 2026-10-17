@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
+import { httpError } from "../server/http/errors.mjs";
 import { API_ROUTES } from "../server/routes/index.mjs";
 import { callApi, loggingErrors, seedCoach, seedTeam, sessionFor, teamRow, withApiDatabase } from "./helpers/api-db.mjs";
 import { scratchSkip } from "./helpers/scratch-db.mjs";
@@ -14,6 +15,19 @@ test("a path no module answers is a 404 with its code, through the same chain", 
   const { status, body } = await callApi("GET", "/api/no-such-route");
   assert.equal(status, 404);
   assert.equal(body.error.code, "ROUTE_NOT_FOUND");
+});
+
+test("a refusal carries the team and the violations it was given; a server error carries none of it, whatever it was given", async () => {
+  const thrown = (status) => Object.assign(status < 500 ? httpError(status, "TEAM_SAVED_ELSEWHERE") : new Error("boom"),
+    { status, team: { id: "t", roster: { secret: true } }, violations: [{ code: "X", params: {} }] });
+  for (const status of [409, 500, 503]) {
+    API_ROUTES.unshift(async () => { throw thrown(status); });
+    const { result, logged } = await loggingErrors(() => callApi("GET", "/api/any-route"));
+    API_ROUTES.shift();
+    const extras = Object.keys(result.body).filter((key) => key !== "error").sort();
+    assert.deepEqual([result.status, extras], [status, status < 500 ? ["team", "violations"] : []], String(status));
+    assert.equal(logged.length, status < 500 ? 0 : 1, "a server error is in the log, not in the answer");
+  }
 });
 
 test("what the seeding helpers write is what the chain serves: sessions, a password, a team", { skip: scratchSkip }, () => withApiDatabase(async ({ client }) => {

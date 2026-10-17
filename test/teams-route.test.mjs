@@ -32,6 +32,7 @@ function database({ stage = "active", stored = {}, revision = 4, slug = "teams/h
       return { rows: id === row.id && (ownerId === null || ownerId === row.user_id) ? [row] : [] };
     }
     if (text.startsWith("UPDATE saved_teams")) return { rows: [{ ...row, roster: JSON.parse(values[4]), revision: revision + 1 }] };
+    if (text.startsWith("INSERT INTO saved_teams")) return { rows: [{ id: row.id }] }; // a create answers with the team read back
     if (text.includes("in_active_season")) return { rows: [{ ...row, in_active_season: false }] };
     return { rows: [] };
   };

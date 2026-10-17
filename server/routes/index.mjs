@@ -6,7 +6,8 @@
  * the only way to put a request through the real chain was a real HTTP request to
  * a real server. They are here so that a test can call `handleApi` directly
  * (test/helpers/api-db.mjs) and exercise the chain the site runs, not a copy.
- * Nothing in them changed when they moved.
+ * They moved unchanged; `handleApi` has since learnt to answer with what an error
+ * carries besides its code (`violations`, `team`, `retryAfterSeconds`).
  */
 import { sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
@@ -39,7 +40,8 @@ export const API_ROUTES = [
  * An error is answered with its status, its code and its values (`errorPayload`), and with what else it
  * was given to say: `violations` (what a roster breaks), `team` (the team as it stands, `teamConflict`)
  * and `retryAfterSeconds` (when to try again, `httpError`; also sent as the `Retry-After` header).
- * Anything from 500 up is answered as `SERVER_ERROR`, and its detail stays in the log.
+ * Anything from 500 up is answered as `SERVER_ERROR` and nothing else, whatever it was given: its
+ * detail stays in the log.
  */
 export async function handleApi(request, response, url) {
   try {
@@ -60,14 +62,16 @@ export async function handleApi(request, response, url) {
     const payload = status >= 500
       ? errorPayload("SERVER_ERROR")
       : errorPayload(error.code ?? "SERVER_ERROR", error.params ?? {}, error.message);
-    if (Array.isArray(error.violations)) payload.violations = error.violations;
-    // A refusal that says how things stand now (teamConflict): the team travels beside the error.
-    if (error.team) payload.team = error.team;
-    // A refusal that says when to come back (a password guessed too often): the header and the body
-    // field the login's own 429 carries, so a client reads one answer wherever it meets it.
-    if (Number.isFinite(error.retryAfterSeconds)) {
-      response.setHeader?.("Retry-After", String(error.retryAfterSeconds));
-      payload.retryAfterSeconds = error.retryAfterSeconds;
+    if (status < 500) {
+      if (Array.isArray(error.violations)) payload.violations = error.violations;
+      // A refusal that says how things stand now (teamConflict): the team travels beside the error.
+      if (error.team) payload.team = error.team;
+      // A refusal that says when to come back (a password guessed too often): the header and the body
+      // field the login's own 429 carries, so a client reads one answer wherever it meets it.
+      if (Number.isFinite(error.retryAfterSeconds)) {
+        response.setHeader?.("Retry-After", String(error.retryAfterSeconds));
+        payload.retryAfterSeconds = error.retryAfterSeconds;
+      }
     }
     return sendJson(response, status, payload);
   }

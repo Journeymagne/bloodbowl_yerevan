@@ -61,10 +61,14 @@ export function removeFallenPlayer(roster, playerId) {
   return { roster: copy, player };
 }
 
+/** Whether a stored player holds the captaincy, as the roster reads it (`normalizeRosterPlayer`): `isCaptain`, else the older `captain`. */
+const holdsCaptaincy = (player) => Boolean(player?.isCaptain ?? player?.captain);
+
 /**
  * A fallen player back on the roster, last. He keeps the captaincy he had only while nobody else holds
- * it, so a team never has two. One who is on the roster already (a save put him back) is not added
- * twice. A copy: neither the roster nor the record is touched.
+ * it, so a team never has two — read on both sides as the roster reads it, the older `captain` flag
+ * included. One who is on the roster already (a save put him back) is not added twice. A copy: neither
+ * the roster nor the record is touched.
  */
 export function returnFallenPlayer(roster, player) {
   const copy = structuredClone(roster ?? {});
@@ -72,7 +76,7 @@ export function returnFallenPlayer(roster, player) {
   const id = storedPlayerId(player);
   if (id === null || !players.some(item => storedPlayerId(item) === id)) {
     const returning = structuredClone(player);
-    if (returning.isCaptain && players.some(item => item?.isCaptain)) returning.isCaptain = false;
+    if (holdsCaptaincy(returning) && players.some(holdsCaptaincy)) returning.isCaptain = false;
     players.push(returning);
   }
   copy.players = players;

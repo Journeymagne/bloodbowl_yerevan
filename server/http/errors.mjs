@@ -90,6 +90,7 @@ export const API_ERRORS = Object.freeze({
   EVENT_SIDE_LOCKED: "This match's statistics are already saved in your post-match. Change them on its Players step.",
   FALLEN_FROM_MATCH: "This death was recorded by a match's post-match. Only an administrator can undo it.",
   FALLEN_NOT_FOUND: "Fallen player not found.",
+  FALLEN_NOT_RESTORABLE: "This fallen player cannot be put back on this roster: the roster cannot read him as he was kept.",
   FIELD_INVALID: "The field {field} is missing or has a value the site does not accept.",
   FIXTURE_NOT_YOURS: "This fixture does not belong to your team.",
   FIXTURE_NOT_PLAYER_SUBMITTABLE: "This fixture cannot receive a player-submitted result.",

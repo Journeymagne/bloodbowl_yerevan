@@ -47,7 +47,7 @@ test("a team is its owner's: to anybody else it is as missing as a team that is 
   const owner = await seedCoach(client, "lion"), other = await seedCoach(client, "wolf"), boss = await seedCoach(client, "boss", { admin: true });
   const id = await seedTeam(client, owner.id);
   const refusal = (asking) => asking.then(() => assert.fail("let through"), (error) => [error.status, error.code, error.params, error.message]);
-  assert.equal((await teamForUser(client, id, as(owner))).user_id, owner.id);
+  assert.equal((await teamForUser(client, id, as(owner))).id, id);
   const stranger = await refusal(teamForUser(client, id, as(other)));
   assert.deepEqual(stranger, [404, "TEAM_NOT_FOUND", {}, "Team not found."]);
   assert.deepEqual(await refusal(teamForUser(client, NOBODY, as(other))), stranger);
@@ -60,7 +60,7 @@ test("a team is its owner's: to anybody else it is as missing as a team that is 
 test("an unlocked read holds nothing, a locked one holds the team's row until the transaction ends", db, () => withApiDatabase(async ({ client, url }) => {
   const owner = await seedCoach(client, "lion"), id = await seedTeam(client, owner.id, { name: "Lions", stage: "draft" });
   const row = await teamForUser(client, id, as(owner));
-  assert.deepEqual([row.id, row.name, row.stage, row.revision, row.roster.treasury], [id, "Lions", "draft", 1, 100]);
+  assert.deepEqual([row.id, row.revision, row.roster.treasury], [id, 1, 100]);
   const [sql, values] = lockRow("saved_teams", id), other = new pg.Client({ connectionString: url });
   await other.connect();
   try {
@@ -75,6 +75,37 @@ test("an unlocked read holds nothing, a locked one holds the team's row until th
     await client.query("COMMIT");
     await grab();
   } finally { await other.end(); }
+}));
+
+test("a team is read with the columns its routes use, and without its logo: the roster's routes never carry it", db, () => withApiDatabase(async ({ client }) => {
+  const owner = await seedCoach(client, "lion"), id = await seedTeam(client, owner.id);
+  await client.query("UPDATE saved_teams SET logo_data = $2 WHERE id = $1", [id, `data:image/png;base64,${"A".repeat(50000)}`]);
+  for (const options of [{}, { lock: true }, { admin: true }]) {
+    const row = await teamForUser(client, id, as(owner), options);
+    assert.deepEqual(Object.keys(row).sort(), ["base_team_slug", "id", "revision", "roster"], JSON.stringify(options));
+  }
+}));
+
+test("a conflict is built from the row teamForUser returned, never from a path's id: anything else is a mistake of the caller's, thrown", db, () => withApiDatabase(async ({ client }) => {
+  const owner = await seedCoach(client, "lion"), id = await seedTeam(client, owner.id);
+  for (const wrong of [id, undefined, null, {}, { id: "p0" }, { id: 7 }]) {
+    await assert.rejects(teamConflict(client, wrong), TypeError, JSON.stringify(wrong) ?? "undefined");
+  }
+}));
+
+test("a team a coach or an administrator creates answers with the shape GET has, inActiveSeason included", db, () => withApiDatabase(async ({ client }) => {
+  const owner = await seedCoach(client, "lion"), boss = await seedCoach(client, "boss", { admin: true });
+  const body = { name: "New Lions", baseTeamSlug: "teams/human", roster: { teamSlug: "teams/human", treasury: 1000, players: [] } };
+  const keys = (team) => Object.keys(team).sort();
+  const made = await callApi("POST", "/api/teams", { token: owner.token, body });
+  assert.equal(made.status, 201);
+  const read = (await callApi("GET", `/api/teams/${made.body.team.id}`, { token: owner.token })).body.team;
+  assert.ok(keys(read).includes("inActiveSeason"));
+  assert.deepEqual(made.body.team, read, "the team as GET then reads it");
+  const byAdmin = await callApi("POST", `/api/admin/users/${owner.id}/teams`, { token: boss.token, body });
+  assert.equal(byAdmin.status, 201);
+  assert.deepEqual(byAdmin.body.team, (await callApi("GET", `/api/teams/${byAdmin.body.team.id}`, { token: owner.token })).body.team);
+  assert.equal(byAdmin.body.user.id, owner.id);
 }));
 
 test("an id that is no uuid is no team, and the database is never asked", async () => {

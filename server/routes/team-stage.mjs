@@ -5,9 +5,8 @@
  * team from `draft` to `active`; a coach cannot, and there is no way back. The stage decides
  * which re-roll a team may buy (`writeSavedTeam`, `STAGE_PURCHASE_LOCKED`).
  */
-import { publicSavedTeam } from "../api/serializers.mjs";
 import { UUID_SOURCE } from "../api/team-access.mjs";
-import { SAVED_TEAM_COLUMNS } from "../api/team-queries.mjs";
+import { readPublicTeam } from "../api/team-queries.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { withTransaction } from "../db/transaction.mjs";
 import { httpError, sendJson } from "../http/responses.mjs";
@@ -43,9 +42,9 @@ export async function handleActivateRoute(request, response, url) {
         WHERE id = $1 AND stage = 'draft'`,
       [teamId],
     );
-    const { rows } = await client.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [teamId]);
-    if (!rows[0]) throw httpError(404, "TEAM_NOT_FOUND");
-    return publicSavedTeam(rows[0]);
+    const read = await readPublicTeam(client, teamId);
+    if (!read) throw httpError(404, "TEAM_NOT_FOUND");
+    return read;
   });
   sendJson(response, 200, { team });
   return true;

@@ -154,7 +154,8 @@ function isManualAmount(delta) {
  * holds: it would be a 500).
  *
  * @param {unknown} body whatever the request carried; it need not be an object
- * @returns {{ delta: number, reason: string, note: string|null }}
+ * @returns {{ delta: number, reason: string, note: string|null }} `delta` as the money it is (`sumMoney`:
+ *   0.1 + 0.2 is 0.3)
  * @throws 400 FIELD_INVALID naming the first of `delta`, `reason`, `note` that is wrong
  */
 export function checkManualEntry(body) {
@@ -163,5 +164,5 @@ export function checkManualEntry(body) {
   if (!MANUAL_REASONS.includes(reason)) throw httpError(400, "FIELD_INVALID", { field: "reason" });
   const text = note ?? "";
   if (typeof text !== "string" || text.trim().length > MAX_NOTE_LENGTH || text.includes("\u0000")) throw httpError(400, "FIELD_INVALID", { field: "note" });
-  return { delta, reason, note: text.trim() || null };
+  return { delta: sumMoney(delta), reason, note: text.trim() || null };
 }

@@ -12,8 +12,7 @@
  * would answer both with 22P02, and the API would send that on as a 500.
  */
 import { httpError } from "../http/errors.mjs";
-import { publicSavedTeam } from "./serializers.mjs";
-import { SAVED_TEAM_COLUMNS } from "./team-queries.mjs";
+import { readPublicTeam } from "./team-queries.mjs";
 
 /** A UUID as regular-expression source, for building a route's path: `` `^/api/teams/(${UUID_SOURCE})/x$` `` with the `i` flag. */
 export const UUID_SOURCE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
@@ -22,6 +21,9 @@ export const UUID_SOURCE = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9
 export const PLAYER_ID_SOURCE = "[A-Za-z0-9_.-]{1,200}";
 
 const UUID = new RegExp(`^${UUID_SOURCE}$`, "i");
+
+/** What the team's routes read of the row `teamForUser` returns. */
+const TEAM_COLUMNS = "id, base_team_slug, roster, revision";
 
 /** True for a UUID in either case, false for anything else — a value that is not a string too. */
 export function isUuid(value) {
@@ -39,12 +41,16 @@ export function isUuid(value) {
  * transaction, so the row is held before anything else is read from it. It means something only
  * on the client of a transaction (`withTransaction`); on a pool the lock ends with the statement.
  *
+ * The row has the columns the team's routes read (`TEAM_COLUMNS`) and no others: not the logo, a data
+ * URL of up to megabytes, which a ledger page or a tap would otherwise carry for nothing, each time.
+ * An answer that shows the team reads it again (`readPublicTeam`).
+ *
  * @param {{query: Function}} db a pg pool, or the client of a transaction
  * @param {string} teamId
  * @param {{id: string, is_admin?: boolean}|null|undefined} user as `currentUser` returns it; no user at all is
  *   nobody's, not an error of its own
  * @param {{lock?: boolean, admin?: boolean}} [options]
- * @returns {Promise<object>} the saved_teams row
+ * @returns {Promise<{id: string, base_team_slug: string, roster: object, revision: number}>} the saved_teams row
  */
 export async function teamForUser(db, teamId, user, { lock = false, admin = false } = {}) {
   // The query reads a null owner as "any owner", and pg sends a missing id as null: so "any" is
@@ -52,7 +58,7 @@ export async function teamForUser(db, teamId, user, { lock = false, admin = fals
   const anyOwner = admin && user?.is_admin;
   if (isUuid(teamId) && (anyOwner || isUuid(user?.id))) {
     const { rows } = await db.query(
-      `SELECT * FROM saved_teams WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid)${lock ? " FOR UPDATE" : ""}`,
+      `SELECT ${TEAM_COLUMNS} FROM saved_teams WHERE id = $1 AND ($2::uuid IS NULL OR user_id = $2::uuid)${lock ? " FOR UPDATE" : ""}`,
       [teamId, anyOwner ? null : user.id],
     );
     if (rows[0]) return rows[0];
@@ -64,21 +70,23 @@ export async function teamForUser(db, teamId, user, { lock = false, admin = fals
  * The refusal for a save made from a copy of the team that is out of date: 409 TEAM_SAVED_ELSEWHERE
  * with the team as it stands now beside it, so the client can show it instead of guessing. It is the
  * answer `PATCH` gives, and the team is read the way `PATCH` reads it for that answer
- * (`SAVED_TEAM_COLUMNS`, `inActiveSeason` included), so the client handles one shape however a save
+ * (`readPublicTeam`, `inActiveSeason` included), so the client handles one shape however a save
  * was refused. `handleApi` sends `error.team`.
  *
  * Call it inside the transaction that holds the team, with the row `teamForUser` returned, and
  * throw what it returns: `throw await teamConflict(client, row)`. The team is read again; only the
- * row's id is used. It takes the row and not an id so that the id from a path, which may be
- * anything, cannot be passed by mistake.
+ * row's id is used. It takes the row and not an id so that the id from
+ * a path, which may be anything, cannot be passed by mistake — and anything but a row with a UUID id
+ * is such a mistake, thrown as one rather than answered as a 409 with no team in it.
  *
  * @param {{query: Function}} db the client of the transaction
  * @param {{id: string}} row the saved_teams row `teamForUser` returned
  * @returns {Promise<Error>}
+ * @throws {TypeError} when `row` is not a row with a UUID id
  */
 export async function teamConflict(db, row) {
-  const { rows: current } = await db.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [row.id]);
+  if (!isUuid(row?.id)) throw new TypeError("teamConflict takes the row teamForUser returned");
   const error = httpError(409, "TEAM_SAVED_ELSEWHERE");
-  error.team = publicSavedTeam(current[0]);
+  error.team = await readPublicTeam(db, row.id);
   return error;
 }
