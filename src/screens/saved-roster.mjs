@@ -72,7 +72,8 @@ import {
   rosterWarnings,
   sanitizeFavouredSkillsForTeam,
 } from "../components/roster-editor-shared.mjs";
-import { deleteSavedTeam, loadMyTeams } from "./my-teams.mjs";
+import { deleteSavedTeam } from "./my-teams.mjs";
+import { loadMyTeams } from "../data/teams.mjs";
 import { toast, toastError } from "../components/toast.mjs";
 import { confirmAction } from "../components/dialog.mjs";
 import { REMOVE_ICON, iconButton } from "../components/icons.mjs";

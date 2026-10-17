@@ -1,0 +1,111 @@
+/**
+ * The session: who is signed in, and the one place the app hears it change.
+ *
+ * Only a 401 means there is no session; a token survives an offline start; the
+ * login answer carries no preferences, so /me always follows.
+ *
+ * A dead token is not a 401 everywhere. `GET /api/auth/me` answers it with 200
+ * `{user: null}` (server/routes/auth.mjs); `GET /api/teams` is the one of the
+ * pair that answers 401. And the api-client's 401 hook stays quiet while no one
+ * is signed in, which at start is always. So `loadSession` reads either answer
+ * as "no session" and wipes the token itself.
+ *
+ * Every change ends in one notice to the `onSessionChange` listeners; the app
+ * draws from there, so no caller here renders anything.
+ */
+import { API_ERROR } from "../core/api.mjs";
+import { apiRequest, authToken, setAuthToken } from "../core/api-client.mjs";
+import { state } from "../core/state.mjs";
+import { setMyTeams } from "./teams.mjs";
+
+const listeners = new Set();
+
+/** @param {() => void} listener @returns {() => void} what removes it again */
+export function onSessionChange(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+function announce() {
+  for (const listener of listeners) listener();
+}
+
+/** Everything the coach loaded as themselves, back to nothing loaded (as signing out did in 2.x). */
+function resetCoachSlices() {
+  state.myTeams = { items: [], loaded: false, loading: false, error: "" };
+  state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
+  state.admin = { users: [], loaded: false, loading: false, error: "", editingTeams: new Map() };
+  state.season = { data: null, loaded: false, loading: false, error: "" };
+}
+
+const refusedAs = (answer, kind) => answer.status === "rejected" && answer.reason?.kind === kind;
+
+/** What `/me` and `/api/teams`, settled, say together. */
+function statusOf(me, teams) {
+  if (refusedAs(me, API_ERROR.UNAUTHORIZED) || refusedAs(teams, API_ERROR.UNAUTHORIZED)) return "guest";
+  if (me.status === "fulfilled" && !me.value?.user) return "guest";
+  if (me.status === "rejected" || teams.status === "rejected") return "offline";
+  return "signed-in";
+}
+
+/**
+ * Who the stored token belongs to, with their settings and their teams.
+ *
+ * No one is signed in while it asks, so the api-client's 401 hook stays quiet
+ * and the one notice is this function's.
+ *
+ * @returns {Promise<"guest"|"signed-in"|"offline">} "offline" is any failure
+ *   but a 401: the token stays for the next load, and no one is signed in now
+ */
+export async function loadSession() {
+  let status = "guest";
+  state.auth.currentUser = null;
+  if (authToken()) {
+    const [me, teams] = await Promise.allSettled([apiRequest("/api/auth/me"), apiRequest("/api/teams")]);
+    status = statusOf(me, teams);
+    if (status === "guest") setAuthToken("");
+    if (status === "signed-in") {
+      state.auth.currentUser = me.value.user;
+      setMyTeams(teams.value.teams ?? []);
+    }
+  }
+  announce();
+  return status;
+}
+
+/** Sign in or register, then ask /me: a refusal is thrown to the screen with nothing changed. */
+async function startSession(path, body) {
+  const payload = await apiRequest(path, { method: "POST", body: JSON.stringify(body) });
+  setAuthToken(payload.token);
+  // A guest may have loaded the season already; the coach's copy has their own part in it.
+  resetCoachSlices();
+  await loadSession();
+}
+
+/** @param {{login: string, password: string}} credentials */
+export function signIn({ login, password }) {
+  return startSession("/api/auth/login", { login, password });
+}
+
+/** @param {{login: string, password: string, telegram: string}} account */
+export function register({ login, password, telegram }) {
+  return startSession("/api/auth/register", { login, password, telegram });
+}
+
+/** The 401 handler (`setOnUnauthorized`): the session died under us, so the coach's state goes with it. */
+export function sessionEnded() {
+  setAuthToken("");
+  state.auth.currentUser = null;
+  resetCoachSlices();
+  announce();
+}
+
+/** Sign out here whatever the server says: a logout that cannot reach it still forgets the coach. Never throws. */
+export async function signOut() {
+  try {
+    await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
+  } catch {
+    // Signing out locally is the part that matters.
+  }
+  sessionEnded();
+}

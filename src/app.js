@@ -8,29 +8,17 @@
  * src/core/router.mjs.
  */
 import { initTheme } from "./core/theme.mjs";
-import {
-  applyStaticI18n,
-  getLocale,
-  initLocale,
-  isSupportedLocale,
-  loadTranslations,
-  onLocaleChange,
-  setLocale,
-  storedLocale,
-  t,
-} from "./core/i18n.mjs";
+import { applyStaticI18n, getLocale, initLocale, isSupportedLocale, loadTranslations, onLocaleChange, setLocale, storedLocale, t } from "./core/i18n.mjs";
 import { loadReferenceData } from "./data/reference.mjs";
 import { setOnUnauthorized } from "./core/api-client.mjs";
 import { renderRoute } from "./core/router.mjs";
 import { state } from "./core/state.mjs";
 import { view } from "./core/view.mjs";
 import { updateAuthButton } from "./components/auth-button.mjs";
-import {
-  closeAuthModal,
-  loadAuthSession,
-  setAuthMode,
-  wireAuthModal,
-} from "./components/auth-modal.mjs";
+import { closeAuthModal, setAuthMode, wireAuthModal } from "./components/auth-modal.mjs";
+import { toast } from "./components/toast.mjs";
+import { loadSession, onSessionChange, sessionEnded } from "./data/session.mjs";
+import { loadGames } from "./screens/games/my-games.mjs";
 import { rosterStore } from "./screens/saved-roster.mjs";
 
 const searchInput = document.querySelector("#global-search");
@@ -124,9 +112,7 @@ function wireFrame() {
     }
   });
   window.addEventListener("resize", () => {
-    if (window.innerWidth > 900) {
-      setNavOpen(false);
-    }
+    if (window.innerWidth > 900) setNavOpen(false);
   });
   window.addEventListener("beforeunload", (event) => {
     // Even immediate autosave can still have a request in flight. Do not let a
@@ -138,19 +124,26 @@ function wireFrame() {
   window.addEventListener("hashchange", renderRoute);
 }
 
+/** Every change of session, the first load included (it draws the first screen): button, games, screen. */
+function afterSessionChange() {
+  updateAuthButton();
+  if (state.auth.currentUser) void loadGames();
+  renderRoute();
+}
+
 async function init() {
-  setOnUnauthorized(updateAuthButton);
+  setOnUnauthorized(sessionEnded);
+  onSessionChange(afterSessionChange);
   // applyStaticI18n cannot reach the toggle label or the footer date: both are written imperatively.
   onLocaleChange(applyLocaleChrome);
   initTheme();
   state.locale = initLocale(storedLocale());
   await loadTranslations(assetVersion);
   state.data = await loadReferenceData(state.locale, referenceDataOptions);
-  await loadAuthSession();
+  if ((await loadSession()) === "offline") toast(t("request.offline"), { tone: "error" });
   applyLocaleChrome();
   wireFrame();
   wireAuthModal();
-  renderRoute();
 }
 
 init().catch((error) => {

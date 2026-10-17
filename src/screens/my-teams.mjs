@@ -4,10 +4,9 @@
  * Mechanically moved out of src/app.js. `deleteSavedTeam` and
  * `wireTeamDeleteButtons` are exported because the admin screens (still in
  * app.js) reuse the same delete-button wiring on a user's or a player's
- * saved teams; `loadMyTeams` is exported because saved-roster.mjs's team
- * picker reloads the same list.
+ * saved teams. The list itself is loaded by data/teams.mjs, which the session
+ * fills too.
  */
-import { errorText } from "../core/api.mjs";
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
@@ -18,25 +17,7 @@ import { resetBuilderForTeam } from "../data/roster-draft.mjs";
 import { toastError } from "../components/toast.mjs";
 import { renderSavedTeams } from "../components/saved-teams.mjs";
 import { confirmAction } from "../components/dialog.mjs";
-
-export async function loadMyTeams(force = false) {
-  if (!state.auth.currentUser) {
-    state.myTeams = { items: [], loaded: true, loading: false, error: "" };
-    return;
-  }
-  if (state.myTeams.loaded && !force) return;
-  state.myTeams.loading = true;
-  state.myTeams.error = "";
-  try {
-    const payload = await apiRequest("/api/teams");
-    state.myTeams.items = payload.teams ?? [];
-    state.myTeams.loaded = true;
-  } catch (error) {
-    state.myTeams.error = errorText(error);
-  } finally {
-    state.myTeams.loading = false;
-  }
-}
+import { loadMyTeams } from "../data/teams.mjs";
 
 export async function renderMyTeams() {
   setActiveNav("my-teams");

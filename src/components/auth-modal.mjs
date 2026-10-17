@@ -1,10 +1,11 @@
 /**
- * The sign-in / register / account modal, and the session it manages.
+ * The sign-in / register / account modal.
  *
  * Mechanically moved out of src/app.js. The header button it toggles lives in
  * components/auth-button.mjs (moved in 6.8, because the admin screens refresh
  * it too); everything else about the modal is here, so app.js is left as
- * bootstrap only.
+ * bootstrap only. The session it signs in and out is data/session.mjs's, and
+ * so is what follows a change of it: the modal only closes.
  *
  * `wireAuthModal` attaches the listeners app.js used to attach inline, and is
  * the one thing bootstrap has to call.
@@ -16,9 +17,8 @@
 import { errorText } from "../core/api.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
-import { apiRequest, authToken, setAuthToken } from "../core/api-client.mjs";
-import { renderRoute } from "../core/router.mjs";
-import { loadGames } from "../screens/games/my-games.mjs";
+import { apiRequest } from "../core/api-client.mjs";
+import { register, signIn, signOut } from "../data/session.mjs";
 import { authButton, updateAuthButton } from "./auth-button.mjs";
 
 const authModal = document.querySelector("#auth-modal");
@@ -37,24 +37,6 @@ function setAuthError(message = "") {
   if (!authError) return;
   authError.hidden = !message;
   authError.textContent = message;
-}
-
-export async function loadAuthSession() {
-  if (!authToken()) {
-    state.auth.currentUser = null;
-    updateAuthButton();
-    return;
-  }
-
-  try {
-    const payload = await apiRequest("/api/auth/me");
-    state.auth.currentUser = payload.user;
-  } catch {
-    setAuthToken("");
-    state.auth.currentUser = null;
-  }
-  updateAuthButton();
-  if (state.auth.currentUser) void loadGames();
 }
 
 export function setAuthMode(mode) {
@@ -131,25 +113,12 @@ async function handleAuthSubmit(event) {
   }
 
   try {
-    const payload = state.auth.mode === "register"
-      ? await apiRequest("/api/auth/register", {
-        method: "POST",
-        body: JSON.stringify({ login, password, telegram }),
-      })
-      : await apiRequest("/api/auth/login", {
-        method: "POST",
-        body: JSON.stringify({ login, password }),
-      });
-
-    setAuthToken(payload.token);
-    state.auth.currentUser = payload.user;
-    state.myTeams.loaded = false;
-    state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
-    state.season.loaded = false;
-    updateAuthButton();
-    void loadGames();
+    if (state.auth.mode === "register") {
+      await register({ login, password, telegram });
+    } else {
+      await signIn({ login, password });
+    }
     closeAuthModal();
-    renderRoute();
   } catch (error) {
     setAuthError(errorText(error));
   }
@@ -190,20 +159,8 @@ async function handleProfileSubmit(event) {
 }
 
 async function logoutAuth() {
-  try {
-    await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
-  } catch {
-    // Local logout should still happen if the API is unavailable.
-  }
-  setAuthToken("");
-  state.auth.currentUser = null;
-  state.myTeams = { items: [], loaded: false, loading: false, error: "" };
-  state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
-  state.admin = { users: [], loaded: false, loading: false, error: "", editingTeams: new Map() };
-  state.season = { data: null, loaded: false, loading: false, error: "" };
-  updateAuthButton();
+  await signOut();
   closeAuthModal();
-  renderRoute();
 }
 
 
