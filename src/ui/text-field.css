@@ -14,6 +14,14 @@
   letter-spacing: 0;
 }
 
+/* The label's line when a control sits at its end (a "show" toggle for a password). */
+.g-field__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+}
+
 .g-field__label {
   color: var(--muted);
   font: 600 13px/1.35 var(--font-body);
@@ -38,6 +46,20 @@
   appearance: none;
 }
 .g-field__input::placeholder { color: var(--muted); }
+
+/* The input and the control beside it (a "save" button): the input takes what the control leaves. */
+.g-field__control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+.g-field__control > .g-field__input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.g-field__control > :not(.g-field__input) { flex: none; }
+/* A primary or block button is full width on its own; beside an input it is as wide as its label. */
+.g-field__control > .g-btn { width: auto; }
 
 .g-field__help,
 .g-field__error {

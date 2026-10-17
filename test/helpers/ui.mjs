@@ -13,7 +13,8 @@ const read = (file) => readFileSync(new URL(`../../${file}`, import.meta.url), "
 
 export const document = createDocument();
 globalThis.document = document;
-setDictionaries({ en: JSON.parse(read("src/i18n/en.json")), ru: JSON.parse(read("src/i18n/ru.json")) });
+const dictionaries = { en: JSON.parse(read("src/i18n/en.json")), ru: JSON.parse(read("src/i18n/ru.json")) };
+setDictionaries(dictionaries);
 
 /** A name a coach could type that would be markup if anything forgot to escape it. */
 export const HOSTILE = `<img src=x onerror="alert(1)"> & 'Grak'`;
@@ -61,15 +62,30 @@ export function assertCspSafe(fragment) {
   }
 }
 
-/** Every g-* class in the markup is defined in base.css or one of the named src/ui stylesheets. */
+/**
+ * Every g-* class in the markup is defined in base.css or one of the named
+ * stylesheets. A name with a slash is a path from the root of the repository
+ * (`src/shell/app-header.css`); a bare one is a `src/ui` sheet.
+ */
 export function assertStyled(fragment, ...sheets) {
   assertRendered(fragment);
   // A class named only in a comment is not styled.
-  const css = ["base.css", ...sheets].map((sheet) => read(`src/ui/${sheet}`)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+  const css = ["base.css", ...sheets].map((sheet) => read(sheet.includes("/") ? sheet : `src/ui/${sheet}`)).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
   for (const node of fragment.walk()) {
     if (node.nodeType !== 1) continue;
     for (const name of (node.getAttribute("class") ?? "").split(/\s+/).filter((part) => part.startsWith("g-"))) {
       assert.match(css, new RegExp(`\\.${name}(?![\\w-])`), `.${name} is not styled`);
+    }
+  }
+}
+
+/** Every key a file asks `t("…")` for in a literal is in both dictionaries; the files are paths from the root of the repository. */
+export function assertDictionaryCovers(...files) {
+  assert.ok(files.length, "no files to check the dictionaries against");
+  for (const file of files) {
+    for (const [, key] of read(file).matchAll(/\bt\(\s*"([^"]+)"/g)) {
+      assert.ok(dictionaries.en[key], `${file}: en ${key}`);
+      assert.ok(dictionaries.ru[key], `${file}: ru ${key}`);
     }
   }
 }

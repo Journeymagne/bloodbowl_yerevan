@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
@@ -295,4 +296,55 @@ test("progress dots count numbers: anything else would be read as NaN of 5", () 
   for (const [done, total] of [["2", 5], [Number.NaN, 5], [undefined, 5], [2, "5"], [2, Infinity], [2, null]]) {
     assert.throws(() => renderProgressDots({ done, total, label: "Advancements" }), /number/, `${done} of ${total}`);
   }
+});
+
+test("a press that starts inside the sheet and ends over the backdrop leaves it open", () => {
+  const fragment = mount(renderSheet({ id: "press", title: "T", bodyHtml: "<p>inside</p>" }));
+  const dialog = fragment.querySelector("dialog");
+  const closed = [];
+  wireSheets(fragment, { onClose: (id) => closed.push(id) });
+  dialog.showModal();
+  fireEvent(fragment.querySelector(".g-sheet__body p"), "pointerdown");
+  fireEvent(dialog, "click");
+  assert.equal(dialog.open, true);
+  fireEvent(dialog, "pointerdown");
+  fireEvent(dialog, "click");
+  assert.equal(dialog.open, false);
+  assert.deepEqual(closed, ["press"]);
+});
+
+test("the page behind an open sheet does not scroll", () => {
+  assert.match(readFileSync(new URL("../src/ui/sheet.css", import.meta.url), "utf8"), /html:has\(dialog\.g-sheet:modal\)\s*\{\s*overflow:\s*hidden;\s*\}/);
+});
+
+test("a press inside the sheet spares only the click that follows it", () => {
+  const fragment = mount(renderSheet({ id: "once", title: "T", bodyHtml: "<p>inside</p>" }));
+  const dialog = fragment.querySelector("dialog");
+  const closed = [];
+  wireSheets(fragment, { onClose: (id) => closed.push(id) });
+  dialog.showModal();
+  // Pressed and released inside: the click lands on the paragraph, and the press is spent with it.
+  fireEvent(fragment.querySelector(".g-sheet__body p"), "pointerdown");
+  fireEvent(fragment.querySelector(".g-sheet__body p"), "click");
+  // A click on the backdrop with no press before it (a keyboard or a script) closes the sheet.
+  fireEvent(dialog, "click");
+  assert.equal(dialog.open, false);
+  assert.deepEqual(closed, ["once"]);
+});
+
+test("a press that began on the backdrop and ended inside still closes it, and a press elsewhere is not heard", () => {
+  const fragment = mount(`<p id="page">page</p>${renderSheet({ id: "from-out", title: "T", bodyHtml: "<p>inside</p>" })}`);
+  const dialog = fragment.querySelector("dialog");
+  const closed = [];
+  const off = wireSheets(fragment, { onClose: (id) => closed.push(id) });
+  dialog.showModal();
+  fireEvent(fragment.querySelector("#page"), "pointerdown");
+  fireEvent(dialog, "click");
+  assert.equal(dialog.open, false, "no press inside the sheet");
+  dialog.showModal();
+  fireEvent(fragment.querySelector(".g-sheet__body p"), "pointerdown");
+  off();
+  fireEvent(dialog, "click");
+  assert.equal(dialog.open, true, "released: nothing is listening");
+  assert.deepEqual(closed, ["from-out"]);
 });

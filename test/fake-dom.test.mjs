@@ -305,3 +305,78 @@ test("the document queries from html down, body included", () => {
   assert.throws(() => document.querySelector("body > section"), /unsupported selector/);
   document.body.removeChild(holder);
 });
+
+test("innerHTML and a template parse markup as strictly as parseHtml", () => {
+  const document = createDocument();
+  const box = document.createElement("div");
+  box.innerHTML = `<p class="a">x</p><p>y</p>`;
+  assert.equal(box.querySelectorAll("p").length, 2);
+  const template = document.createElement("template");
+  template.innerHTML = "<b>z</b>";
+  assert.equal(template.childNodes.length, 0);
+  assert.equal(template.content.querySelector("b").textContent, "z");
+  assert.throws(() => { box.innerHTML = "<p>"; }, /parseHtml/);
+});
+
+test("patch() takes a markup string in the fake document too, and keeps focus", async () => {
+  const document = createDocument();
+  globalThis.document = document;
+  const { patch } = await import("../src/core/dom.mjs");
+  const root = document.createElement("div");
+  document.body.appendChild(root);
+  patch(root, `<input id="q" value="a"><p>one</p>`);
+  root.querySelector("#q").focus();
+  patch(root, `<input id="q" value="a"><p>two</p>`);
+  assert.equal(document.activeElement, root.querySelector("#q"));
+  assert.equal(root.querySelector("p").textContent, "two");
+});
+
+test("innerHTML replaces the children, takes the focus with them, and is as empty as it is told", () => {
+  const document = createDocument();
+  const box = document.createElement("div");
+  document.body.appendChild(box);
+  box.innerHTML = `<input id="q"><p>a</p>`;
+  const old = box.querySelector("p");
+  box.querySelector("#q").focus();
+  box.innerHTML = "<span>b</span>";
+  assert.equal(old.parentNode, null);
+  assert.equal(box.childNodes.length, 1);
+  assert.equal(box.firstChild.tagName, "SPAN");
+  assert.equal(document.activeElement, document.body, "the focused node left the tree");
+  box.innerHTML = "";
+  assert.equal(box.childNodes.length, 0);
+  // Set a second time the template holds the new markup alone.
+  const template = document.createElement("template");
+  template.innerHTML = "<i>1</i>";
+  template.innerHTML = "<b>2</b>";
+  assert.equal(template.content.childNodes.length, 1);
+  assert.equal(template.content.querySelector("i"), null);
+  assert.equal(template.content, template.content, "one fragment, not a new one per read");
+});
+
+test("what a browser would build differently from innerHTML is refused", () => {
+  const document = createDocument();
+  const box = document.createElement("div");
+  // A table row outside a table is dropped by the parser; a template and a table body keep it.
+  assert.throws(() => { box.innerHTML = "<tr><td>x</td></tr>"; }, /table/);
+  assert.throws(() => { box.innerHTML = "<section><td>x</td></section>"; }, /table/);
+  box.innerHTML = "<table><thead><tr><th>x</th></tr></thead></table>";
+  assert.equal(box.querySelector("th").textContent, "x");
+  const template = document.createElement("template");
+  template.innerHTML = "<tr><td>x</td></tr>";
+  assert.equal(template.content.querySelector("tr td").textContent, "x");
+  const body = document.createElement("tbody");
+  body.innerHTML = "<tr><td>y</td></tr>";
+  assert.equal(body.querySelector("td").textContent, "y");
+  // Inside a textarea the markup is text, not elements.
+  assert.throws(() => { document.createElement("textarea").innerHTML = "<b>x</b>"; }, /textarea/);
+  // A fragment has no innerHTML: a browser would only set a property that parses nothing.
+  assert.throws(() => { template.content.innerHTML = "<b>x</b>"; }, /fragment/);
+  // Nor can it be read back: the tree is not serialised here.
+  assert.throws(() => box.innerHTML, /write-only/);
+  // A markup string cannot carry a template: its children belong in .content, which the parser does not model.
+  assert.throws(() => parseHtml(document, "<template><b>x</b></template>"), /template/);
+  assert.throws(() => { box.innerHTML = "<template></template>"; }, /template/);
+  // Only a template has content.
+  assert.equal(box.content, undefined);
+});

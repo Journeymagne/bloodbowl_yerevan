@@ -64,8 +64,12 @@ export function renderSheet({ id, title, sub = "", step = null, canGoBack = fals
  * 2.x screens do, and taken into the same path. A browser that is told not to
  * close sends no `cancel` after the Escape keydown, so nothing is reported
  * twice. A click that lands on the dialog element itself is the backdrop: the
- * panel fills the dialog, so a click inside never targets it. Back is the
- * screen's own step and closes nothing.
+ * panel fills the dialog, so a click inside never targets it. But a press that
+ * began inside the panel and was let go over the backdrop (a text selection
+ * dragged out of a field) also ends as a click on the dialog, the nearest
+ * element holding both ends: the `pointerdown` says where the press began, and
+ * only a press that began on the backdrop, or none at all (a keyboard, a
+ * script), closes the sheet. Back is the screen's own step and closes nothing.
  *
  * @param {Element} root a container that outlives re-renders
  * @param {object} [handlers]
@@ -78,7 +82,12 @@ export function wireSheets(root, { onClose = () => {}, onBack = () => {} } = {})
     dialog.close();
     onClose(dialog.id);
   };
+  // Where the press that the next click ends began: inside a panel, or not.
+  let pressedInside = false;
   const offs = [
+    delegate(root, "pointerdown", SHEET, (event, dialog) => {
+      pressedInside = event.target !== dialog;
+    }),
     delegate(root, "click", "[data-sheet-close]", (event, button) => {
       const dialog = button.closest(SHEET);
       if (dialog) dismiss(dialog);
@@ -88,7 +97,9 @@ export function wireSheets(root, { onClose = () => {}, onBack = () => {} } = {})
       if (dialog) onBack(dialog.id);
     }),
     delegate(root, "click", SHEET, (event, dialog) => {
-      if (event.target === dialog) dismiss(dialog);
+      const fromInside = pressedInside;
+      pressedInside = false;
+      if (event.target === dialog && !fromInside) dismiss(dialog);
     }),
     delegate(root, "keydown", SHEET, (event, dialog) => {
       // An Escape something inside already used (a menu it closed) is not also the sheet's.
