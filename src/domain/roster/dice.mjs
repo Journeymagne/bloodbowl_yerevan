@@ -137,19 +137,30 @@ export function rollFitsAdvancement({ purpose, result }, { type, grants }) {
 }
 
 /**
- * Whether a roll's rerolls are explained by the roster it is used on: every attempt a random skill threw
- * again as already held names a skill in `held` — `heldSkillKeys` of the player the roll is used on, as
- * that save leaves him. The die rerolls what the player holds when it is asked, and a roster can say a
- * player holds anything: a skill held only while the die was asked, gone by the time its roll is used —
- * or gone a save later — would have steered the die. So it holds when the roll is taken and after every
- * save for as long as the roll is used (`settleRosterRolls`). A characteristic roll throws nothing again.
+ * The skills a random-skill roll threw again as already held, by canonical name, attempt by attempt. The die
+ * rerolls what the player holds when it is asked, and a roster can say a player holds anything: a skill held
+ * only while the die was asked would steer it. So a roll is taken only by a roster that holds all of these
+ * (`rerollsHeldBy`), and while it is used no save may drop one of them (`settleRosterRolls`) — the captain's
+ * Pro excepted, which comes and goes with the captaincy. A characteristic roll throws nothing again.
+ *
+ * @param {{purpose: string, result: object}} roll a `dice_rolls` row, or its public form
+ * @returns {string[]}
+ */
+export function skillsRerolledAgainst({ purpose, result }) {
+  const attempts = purpose === "random_skill" && Array.isArray(result?.attempts) ? result.attempts : [];
+  return attempts.filter((attempt) => attempt?.duplicate).map((attempt) => canonicalSkillName(attempt.skill));
+}
+
+/**
+ * Whether a roll's rerolls are explained by the roster it is used on: every skill it was rerolled against
+ * (`skillsRerolledAgainst`) is in `held` — `heldSkillKeys` of the player the roll is taken for, as that save
+ * leaves him.
  *
  * @param {{purpose: string, result: object}} roll a `dice_rolls` row, or its public form
  * @param {Set<string>} held canonical skill names
  */
-export function rerollsHeldBy({ purpose, result }, held) {
-  const attempts = purpose === "random_skill" && Array.isArray(result?.attempts) ? result.attempts : [];
-  return attempts.every((attempt) => !attempt?.duplicate || held.has(canonicalSkillName(attempt.skill)));
+export function rerollsHeldBy(roll, held) {
+  return skillsRerolledAgainst(roll).every((skill) => held.has(skill));
 }
 
 /** One throw of a die with `sides` faces, refusing an answer the die cannot show. */

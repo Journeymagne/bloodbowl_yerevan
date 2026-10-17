@@ -18,13 +18,16 @@
  *
  * A roll is used by the advancement that names it (`roll: { id, via: "site" }`), by one only, in the
  * order its step handed rolls out, and given back in the reverse order; a used random skill keeps the
- * skills its die was rerolled against for as long as it is used. A save of the roster settles all of that
+ * skills its die was rerolled against for as long as it is used, the captain's Pro excepted, which comes and
+ * goes with the captaincy. A save of the roster settles all of that
  * (`settleRosterRolls`). A team is created with no rolls, so a roster it is created with names none
  * (`refuseSiteRolls`).
  */
 import crypto from "node:crypto";
 
-import { randomSkillRoll, rerollsHeldBy, rollFitsAdvancement, siteRollReferences, statRoll } from "../../src/domain/roster/dice.mjs";
+import {
+  randomSkillRoll, rerollsHeldBy, rollFitsAdvancement, siteRollReferences, skillsRerolledAgainst, statRoll,
+} from "../../src/domain/roster/dice.mjs";
 import { canonicalSkillName, heldSkillKeys, normalizeDraftPlayers } from "../../src/domain/roster/players.mjs";
 import { rowsForTeam } from "../../src/domain/roster/values.mjs";
 import { matchReference } from "../domain/match-reference.mjs";
@@ -53,6 +56,8 @@ const USED_SKILL_ROLLS = `
   SELECT id, player_id, purpose, result FROM dice_rolls
    WHERE saved_team_id = $1 AND player_id = ANY($2::text[]) AND purpose = 'random_skill' AND used_at IS NOT NULL`;
 const USE_ROLLS = "UPDATE dice_rolls SET used_at = now() WHERE id = ANY($1::uuid[]) AND saved_team_id = $2";
+/** The skill the captaincy brings (`skillNamesForPlayer`): held while captain, and no more. */
+const CAPTAINS_SKILL = "Pro";
 const FREE_ROLLS = "UPDATE dice_rolls SET used_at = NULL WHERE saved_team_id = $1 AND id = ANY($2::uuid[])";
 
 /** A die of `sides` faces: an integer from 1 to `sides`, from the system's own randomness. */
@@ -147,17 +152,20 @@ function heldSince(roll, position, player) {
  * already or out of turn, one another player or kind of advancement held before this save, and one two
  * advancements claim are each 409 DICE_ROLL_USED.
  *
- * And after every save, a used random skill still has its rerolls explained: every attempt its die threw
- * again as held names a skill its player holds as saved. A save that drops such a skill — the second of
- * two saves that would otherwise steer the die, the first holding a skill only while the roll is taken —
- * is 422 DICE_ROLL_MISMATCH with the player. It is looked at only for a player who names a random-skill
- * roll and holds less than he did: a player's used random rolls are the ones his random advancements name.
+ * And no save takes from a player a skill one of his used random rolls was rerolled against: a save that
+ * drops such a skill — the second of two saves that would otherwise steer the die, the first holding a skill
+ * only while the roll is taken — is 422 DICE_ROLL_MISMATCH with the player. Only the skills this save drops
+ * are looked at, not every reroll, so a roll left unexplained by a path that settles no rolls holds no later
+ * save up. The captain's Pro is never one of them: captaincy is the match's by the rules, and the Pro it
+ * brings comes and goes with it (the die still counts it while he is captain, so a captain cannot roll Pro).
+ * The rolls are read only for a player who names a random-skill roll and drops a skill: a player's used
+ * random rolls are the ones his random advancements name.
  *
  * Nothing is written until all of it has passed; the rest is the caller's transaction, which takes these
  * writes back with a save that fails after them. Call it inside the transaction that holds the team's row
  * (`writeSavedTeam`): that lock is what keeps a roll from being handed out or used twice meanwhile. A save
- * that adds no reference, changes none, drops none and takes no skill from a player who names a random
- * roll asks nothing of the database.
+ * that adds no reference, changes none, drops none and takes no skill but a captain's Pro from a player
+ * who names a random roll asks nothing of the database.
  *
  * @param {{query: Function}} client the client of the transaction
  * @param {{teamId: string, race?: object|null, raceBefore?: object|null, before: object, after: object}} save
@@ -178,11 +186,12 @@ export async function settleRosterRolls(client, { teamId, race = null, raceBefor
   const freed = [...held].filter((id) => isUuid(id) && !claimed.has(id));
   const naming = new Set(now.filter((reference) => reference.type === "random").map((reference) => reference.playerId));
   if (!changed.length && !freed.length && !naming.size) return { used: [], freed: [] };
-  const heldAfter = heldByPlayer(race, after), holds = (playerId) => heldAfter.get(playerId) ?? new Set();
+  const heldAfter = holdingsByPlayer(race, after), holds = (playerId) => heldAfter.get(playerId)?.held ?? new Set();
   if (changed.length || freed.length) await checkRolls(client, teamId, { added, regranted, freed, holds });
-  const heldBefore = heldByPlayer(raceBefore, before);
-  const losing = [...naming].filter((playerId) => [...(heldBefore.get(playerId) ?? [])].some((skill) => !holds(playerId).has(skill)));
-  if (losing.length) await checkKeptRerolls(client, teamId, { players: losing, freed, holds });
+  const heldBefore = holdingsByPlayer(raceBefore, before);
+  const dropping = new Map([...naming].map((playerId) => [playerId, droppedSkills(heldBefore.get(playerId), holds(playerId))])
+    .filter(([, skills]) => skills.size));
+  if (dropping.size) await checkKeptRerolls(client, teamId, { dropping, freed });
   const used = added.map((reference) => reference.id);
   if (used.length) await client.query(USE_ROLLS, [used, teamId]);
   if (freed.length) await client.query(FREE_ROLLS, [teamId, freed]);
@@ -215,22 +224,32 @@ async function checkRolls(client, teamId, { added, regranted, freed, holds }) {
 }
 
 /**
- * The used random rolls of players who hold less than they did, against what they hold as saved: a skill a
- * used roll was rerolled against cannot go while the roll is used (422 with the player). A roll this save
- * frees is used no more; a roll it takes is not used yet, and `checkRolls` has held it to the same rule.
+ * The used random rolls of the players a save takes skills from (`dropping`: player id to the skills): none of
+ * them may have been rerolled against one of those skills while it is used (422 with the player). A roll this
+ * save frees is used no more; a roll it takes is not used yet, and `checkRolls` has held it to all it rerolled.
  */
-async function checkKeptRerolls(client, teamId, { players, freed, holds }) {
-  const { rows } = await client.query(USED_SKILL_ROLLS, [teamId, players]);
+async function checkKeptRerolls(client, teamId, { dropping, freed }) {
+  const { rows } = await client.query(USED_SKILL_ROLLS, [teamId, [...dropping.keys()]]);
   const given = new Set(freed.map((id) => id.toLowerCase()));
-  const unexplained = rows.find((row) => !given.has(row.id) && !rerollsHeldBy(row, holds(row.player_id)));
-  if (unexplained) throw httpError(422, "DICE_ROLL_MISMATCH", { playerId: unexplained.player_id });
+  const kept = rows.find((row) => !given.has(row.id) && skillsRerolledAgainst(row).some((skill) => dropping.get(row.player_id)?.has(skill)));
+  if (kept) throw httpError(422, "DICE_ROLL_MISMATCH", { playerId: kept.player_id });
 }
 
-/** `heldSkillKeys` of every player of a roster, by id, read through the race's positions; none without a race. */
-function heldByPlayer(race, roster) {
+/**
+ * The skills a save takes from a player: held before, not after (`heldSkillKeys`). The captain's Pro is not
+ * one of them — captaincy moves by the rules, and the Pro goes with it — so a player who was captain may lose
+ * his Pro, however he held it.
+ */
+function droppedSkills(before, after) {
+  return new Set([...(before?.held ?? [])].filter((skill) => !after.has(skill) && !(skill === CAPTAINS_SKILL && before.captain)));
+}
+
+/** What every player of a roster holds, by id: `heldSkillKeys` read through the race's positions, and the captaincy; none without a race. */
+function holdingsByPlayer(race, roster) {
   if (!race) return new Map();
   const positions = rowsForTeam(race);
-  return new Map(normalizeDraftPlayers(race, roster ?? {}).map((player) => [player.id, heldSkillKeys(positions[player.rowIndex], player)]));
+  return new Map(normalizeDraftPlayers(race, roster ?? {})
+    .map((player) => [player.id, { held: heldSkillKeys(positions[player.rowIndex], player), captain: player.isCaptain }]));
 }
 
 /** The same roll named by the same advancement: one id, one player, one type of advancement. */

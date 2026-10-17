@@ -331,6 +331,60 @@ test("a roll given back takes its rerolls with it, and a save answers only for t
   assert.deepEqual([Boolean(await usedAt(client, first.id)), await usedAt(client, second.id), Boolean(await usedAt(client, theirs.id))], [true, null, true]);
 }));
 
+test("dropping a skill a used roll really was rerolled against is refused: an earlier advancement undone under a later random one", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills();
+  const coach = await seedCoach(client, "lion");
+  const held = (...names) => names.map((name) => ({ name, access: "primary" }));
+  // Pro too: bought, not the captaincy's, it is a skill like any other.
+  for (const skill of ["Fend", "Pro"]) {
+    const id = await seedTeam(client, coach.id, { name: `Lions ${skill}` });
+    const chosen = { type: "primary", grants: { skill }, roll: { via: "table" } };
+    assert.equal((await save(id, coach.token, 1, { players: { p0: { advancements: [chosen], extraSkills: held(skill) } } })).status, 200, `${skill} chosen, an advancement of his own`);
+    const die = scriptedServerDie(general.indexOf(skill) + 1, general.indexOf("Block") + 1);
+    let roll;
+    try { roll = (await rollFor(id, coach.token, "p0", { purpose: "random_skill", category: "General" })).body.roll; } finally { die.done(); }
+    const block = { type: "random", grants: { skill: "Block" }, roll: site(roll.id) };
+    assert.equal((await save(id, coach.token, 2, { players: { p0: { advancements: [chosen, block], extraSkills: held(skill, "Block") } } })).status, 200);
+    const undone = await save(id, coach.token, 3, { players: { p0: { advancements: [block], extraSkills: held("Block") } } });
+    assert.deepEqual([undone.status, undone.body.error.code, undone.body.error.params], [422, "DICE_ROLL_MISMATCH", { playerId: "p0" }],
+      `${skill} goes while the roll that was rerolled off it stays: undo the random advancement first`);
+  }
+}));
+
+/** p0 is captain; his General roll is rerolled off Pro (the captaincy's) onto Block and taken, with Kick held beside it. */
+async function captainsRoll(client, { id: ownerId, token }) {
+  const general = await generalSkills();
+  const id = await seedTeam(client, ownerId, {
+    roster: { players: Array.from({ length: 11 }, (_, n) => ({ id: `p${n}`, rowIndex: 0, spp: {}, ...(n === 0 ? { isCaptain: true } : {}) })) } });
+  const die = scriptedServerDie(general.indexOf("Pro") + 1, general.indexOf("Block") + 1);
+  let roll;
+  try { roll = (await rollFor(id, token, "p0", { purpose: "random_skill", category: "General" })).body.roll; } finally { die.done(); }
+  assert.deepEqual(roll.result.attempts.map((attempt) => [attempt.skill, attempt.duplicate]), [["Pro", true], ["Block", false]], "a captain cannot roll Pro");
+  const block = { type: "random", grants: { skill: "Block" }, roll: site(roll.id) };
+  assert.equal((await save(id, token, 1, { players: { p0: { advancements: [block], extraSkills: [{ name: "Block", access: "primary" }, { name: "Kick", access: "primary" }] } } })).status, 200);
+  return { id, roll, block };
+}
+
+test("a captain's Pro may come and go: the captaincy moved off a player whose roll was rerolled off Pro, then an unrelated skill dropped", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  const { id, roll, block } = await captainsRoll(client, coach);
+  const moved = await recording(() => save(id, coach.token, 2, { players: { p0: { isCaptain: false }, p1: { isCaptain: true } } }));
+  assert.equal(moved.result.status, 200, "captaincy is the match's, not the player's: his Pro goes with it");
+  assert.ok(!touchesRolls(moved.log), "losing the captain's Pro takes nothing a roll could be held to");
+  const unrelated = await save(id, coach.token, 3, { players: { p0: { advancements: [block], extraSkills: [{ name: "Block", access: "primary" }] } } });
+  assert.equal(unrelated.status, 200, "Kick dropped: the roll was never rerolled off it");
+  assert.ok(await usedAt(client, roll.id));
+}));
+
+test("a captaincy moved where no roll is settled leaves later saves free to drop what the roll was not rerolled against", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  const { id, block } = await captainsRoll(client, coach);
+  // The post-match sets the captain for the next match straight in the blob, without a settled save: done so here.
+  await client.query(`UPDATE saved_teams SET roster = jsonb_set(jsonb_set(roster, '{players,0,isCaptain}', 'false'), '{players,1,isCaptain}', 'true') WHERE id = $1`, [id]);
+  const unrelated = await save(id, coach.token, 2, { players: { p0: { advancements: [block], extraSkills: [{ name: "Block", access: "primary" }] } } });
+  assert.equal(unrelated.status, 200, "only what this save drops is looked at: Kick, which the roll was not rerolled off");
+}));
+
 test("a player who names no random roll drops skills without a dice query", db, () => withApiDatabase(async ({ client }) => {
   const general = await generalSkills(), [fake] = general.filter((skill) => skill !== "Block");
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
