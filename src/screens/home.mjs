@@ -6,9 +6,24 @@
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { view } from "../core/view.mjs";
-import { refUrl, seasonTabUrl, teamsUrl } from "../core/routes.mjs";
+import { authUrl, refUrl, seasonTabUrl, teamsUrl } from "../core/routes.mjs";
+import { state } from "../core/state.mjs";
 import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { activeOverviewCards } from "./overview.mjs";
+
+/**
+ * The four doors under the hero. A guest has no teams to open, and `#/teams`
+ * would send them on into the team rules; like My Games, which sends them to
+ * sign in, the door asks them to.
+ */
+function quickLinks() {
+  return [
+    [state.auth.currentUser ? teamsUrl() : authUrl(), "nav.myTeams"],
+    ["#/my-games", "nav.myGames"],
+    [seasonTabUrl(""), "nav.season"],
+    [refUrl(), "nav.references"],
+  ];
+}
 
 export function renderHome() {
   setActiveNav("home");
@@ -26,7 +41,7 @@ export function renderHome() {
     </section>
 
     <nav class="site-quick-links" aria-label="${t("nav.navigationAria")}">
-      ${[[teamsUrl(), "nav.myTeams"], ["#/my-games", "nav.myGames"], [seasonTabUrl(""), "nav.season"], [refUrl(), "nav.references"]].map(([href, key], index) => `<a href="${href}"><span aria-hidden="true">0${index + 1}</span><strong>${t(key)}</strong><span aria-hidden="true">↗</span></a>`).join("")}
+      ${quickLinks().map(([href, key], index) => `<a href="${href}"><span aria-hidden="true">0${index + 1}</span><strong>${t(key)}</strong><span aria-hidden="true">↗</span></a>`).join("")}
     </nav>
 
     <section>

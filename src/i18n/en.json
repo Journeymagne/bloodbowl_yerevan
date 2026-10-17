@@ -968,5 +968,21 @@
   "password.doneText": "You'll need to sign in again on your other devices.",
   "password.doneButton": "Done",
   "password.pending": "Saving…",
-  "password.maybeChanged": "The change may have gone through. If your current password is refused, sign in with the new one."
+  "password.maybeChanged": "The change may have gone through. If your current password is refused, sign in with the new one.",
+  "shell.sections": "Sections",
+  "shell.tab.home": "Home",
+  "shell.tab.overview": "Overview",
+  "shell.tab.team": "Team",
+  "shell.tab.roster": "Roster",
+  "shell.tab.matches": "Matches",
+  "shell.tab.table": "Table",
+  "shell.tab.ref": "Reference",
+  "shell.tab.settings": "Settings",
+  "shell.side.season": "Season",
+  "shell.place": "#{place} in the league",
+  "shell.noTeam": "No team yet",
+  "shell.noTeamHint": "Create a team to start",
+  "shell.league": "Gata League",
+  "shell.leagueSub": "Blood Bowl Sevens",
+  "shell.switchTeam": "Switch team"
 }

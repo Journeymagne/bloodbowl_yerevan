@@ -968,5 +968,21 @@
   "password.doneText": "На других устройствах нужно будет войти заново.",
   "password.doneButton": "Готово",
   "password.pending": "Сохраняем…",
-  "password.maybeChanged": "Возможно, пароль уже сменился. Если текущий пароль не подходит, войдите с новым."
+  "password.maybeChanged": "Возможно, пароль уже сменился. Если текущий пароль не подходит, войдите с новым.",
+  "shell.sections": "Разделы",
+  "shell.tab.home": "Главная",
+  "shell.tab.overview": "Обзор",
+  "shell.tab.team": "Команда",
+  "shell.tab.roster": "Состав",
+  "shell.tab.matches": "Матчи",
+  "shell.tab.table": "Таблица",
+  "shell.tab.ref": "Справочник",
+  "shell.tab.settings": "Настройки",
+  "shell.side.season": "Сезон",
+  "shell.place": "{place}-е место в лиге",
+  "shell.noTeam": "Команды пока нет",
+  "shell.noTeamHint": "Создайте команду",
+  "shell.league": "Gata League",
+  "shell.leagueSub": "Blood Bowl Sevens",
+  "shell.switchTeam": "Сменить команду"
 }
