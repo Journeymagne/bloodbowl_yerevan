@@ -28,7 +28,7 @@ test("no token is a guest, asked of nobody, and the app hears it once", async ()
   assert.equal(await session.loadSession(), "guest");
   assert.equal(api.calls.length, 0);
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 test("a token brings the coach, their settings and their teams together", async () => {
@@ -41,7 +41,7 @@ test("a token brings the coach, their settings and their teams together", async 
   assert.deepEqual(state.myTeams.items.map((team) => team.id), ["t1"]);
   assert.equal(state.myTeams.loaded, true);
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 // What the server really answers for a dead token: /me is 200 with no user
@@ -55,7 +55,7 @@ test("a dead token leaves a guest without it, and the app hears it once", async 
   assert.equal(api.items.has(TOKEN), false);
   assert.equal(state.auth.currentUser, null);
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 test("/me saying no one is enough, whatever became of the teams", async () => {
@@ -65,7 +65,7 @@ test("/me saying no one is enough, whatever became of the teams", async () => {
   assert.equal(await session.loadSession(), "guest");
   assert.equal(api.items.has(TOKEN), false);
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 test("a session that dies between the two answers is a guest too", async () => {
@@ -76,7 +76,7 @@ test("a session that dies between the two answers is a guest too", async () => {
   assert.equal(api.items.has(TOKEN), false);
   assert.equal(state.auth.currentUser, null);
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 test("no network at start keeps the token: the next load signs the coach back in", async () => {
@@ -91,7 +91,50 @@ test("no network at start keeps the token: the next load signs the coach back in
   api.reply("GET /api/teams", 200, TEAMS);
   assert.equal(await session.loadSession(), "signed-in");
   assert.equal(state.auth.currentUser.id, "u1");
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
+});
+
+const FORBIDDEN = { error: { code: "ADMIN_REQUIRED", params: {}, message: "x" } };
+const ABORTED = new DOMException("This operation was aborted", "AbortError");
+const KEEPS_THE_TOKEN = {
+  "a 403 on /me": () => { api.reply("GET /api/auth/me", 403, FORBIDDEN); api.reply("GET /api/teams", 200, TEAMS); },
+  "a 403 on the teams": () => { api.reply("GET /api/auth/me", 200, ME); api.reply("GET /api/teams", 403, FORBIDDEN); },
+  "the teams lost on the way": () => { api.reply("GET /api/auth/me", 200, ME); api.fail("GET /api/teams"); },
+  "a timeout": () => { api.fail("GET /api/auth/me", ABORTED); api.fail("GET /api/teams", ABORTED); },
+  "a /me with no user in it": () => { api.reply("GET /api/auth/me", 200, {}); api.reply("GET /api/teams", 200, TEAMS); },
+};
+
+test("a refusal, a lost answer or an unreadable one is not the end of the session", async () => {
+  for (const [name, answer] of Object.entries(KEEPS_THE_TOKEN)) {
+    fresh();
+    answer();
+    assert.equal(await session.loadSession(), "offline", name);
+    assert.equal(api.items.get(TOKEN), "tok", name);
+    assert.equal(state.auth.currentUser, null, name);
+    assert.equal(heard, 1, name);
+    api.assertAnswered();
+  }
+});
+
+test("a listener that throws stops neither the others nor the load", async () => {
+  fresh(null);
+  const logged = [];
+  const consoleError = console.error;
+  console.error = (error) => logged.push(error);
+  let after = 0;
+  const removeThrowing = session.onSessionChange(() => { throw new Error("the first screen broke"); });
+  const removeAfter = session.onSessionChange(() => { after += 1; });
+  try {
+    assert.equal(await session.loadSession(), "guest");
+  } finally {
+    console.error = consoleError;
+    removeThrowing();
+    removeAfter();
+  }
+  assert.equal(after, 1);
+  assert.equal(heard, 1);
+  assert.deepEqual(logged.map((error) => error.message), ["the first screen broke"]);
+  api.assertAnswered();
 });
 
 test("signing in keeps the token and asks /me for the settings the login answer lacks", async () => {
@@ -105,7 +148,7 @@ test("signing in keeps the token and asks /me for the settings the login answer 
   assert.equal(api.calls.find((call) => call.key === "GET /api/auth/me").headers.Authorization, "Bearer new");
   assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "dark" });
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 test("registering signs the new coach in the same way", async () => {
@@ -118,7 +161,7 @@ test("registering signs the new coach in the same way", async () => {
   assert.deepEqual(api.calls[0].body, { login: "rookie", password: "secret", telegram: "@rookie" });
   assert.equal(state.auth.currentUser.id, "u2");
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 test("a wrong password is the screen's to show and changes nothing", async () => {
@@ -127,7 +170,7 @@ test("a wrong password is the screen's to show and changes nothing", async () =>
   await assert.rejects(session.signIn({ login: "coach", password: "nope" }), (error) => error.code === "WRONG_LOGIN_OR_PASSWORD");
   assert.equal(api.items.has(TOKEN), false);
   assert.equal(heard, 0);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 test("signing out forgets the coach even when the server cannot be reached", async () => {
@@ -141,7 +184,7 @@ test("signing out forgets the coach even when the server cannot be reached", asy
   assert.deepEqual(state.myTeams.items, []);
   assert.equal(state.games.loaded, false);
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });
 
 test("a session that dies mid-use resets every slice of the coach", () => {
@@ -152,5 +195,5 @@ test("a session that dies mid-use resets every slice of the coach", () => {
   assert.equal(state.season.loaded, false);
   assert.equal(state.admin.loaded, false);
   assert.equal(heard, 1);
-  assert.deepEqual(api.unanswered, []);
+  api.assertAnswered();
 });

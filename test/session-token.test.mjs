@@ -25,6 +25,7 @@ test("a refusal (403) is not the end of the session", async () => {
     assert.equal(state.auth.currentUser?.id, "u1", code);
     assert.equal(ended, 0, code);
   }
+  api.assertAnswered();
 });
 
 test("a 401 ends it: no token, no user, the app told once", async () => {
@@ -34,4 +35,5 @@ test("a 401 ends it: no token, no user, the app told once", async () => {
   assert.equal(api.items.has("gata-league-auth-token"), false);
   assert.equal(state.auth.currentUser, null);
   assert.equal(ended, 1);
+  api.assertAnswered();
 });

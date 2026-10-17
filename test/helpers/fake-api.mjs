@@ -10,8 +10,8 @@
  * A request nobody replied to rejects, as `fail()` does, and api.mjs reports
  * that as `offline` — the very outcome some tests are about. So a forgotten
  * reply would pass for a dropped connection: it is listed in `unanswered`, and
- * a test that does not mean to leave a request unanswered asserts that list is
- * empty.
+ * a test that does not mean to leave a request unanswered ends with
+ * `assertAnswered()`.
  */
 let installed = null;
 
@@ -49,6 +49,10 @@ export function installFakeApi() {
     calls,
     /** The key of every request that found no reply, in order. */
     unanswered,
+    /** Throw, naming them, if any request found no reply since the last reset. */
+    assertAnswered() {
+      if (unanswered.length) throw new Error(`fake api: no reply for ${unanswered.join(", ")}`);
+    },
     /** The next requests to `key` ("PATCH /api/x") come back with this status and JSON body. */
     reply(key, status, body = {}) {
       replies.set(key, { status, body });

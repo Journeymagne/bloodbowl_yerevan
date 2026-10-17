@@ -8,10 +8,11 @@
  * import each other.
  *
  * One deliberate change: `onUnauthorized` used to call `updateAuthButton()`
- * directly. That function lives in app.js (it touches the auth-modal DOM
- * refs, which nothing outside app.js needs), so calling it here would be the
- * same cycle again. `setOnUnauthorized` lets app.js register it instead —
- * call it once during startup, before any screen can trigger a 401.
+ * directly, which would make this module import the screens' side of the app.
+ * `setOnUnauthorized` lets app.js register the handler instead — it registers
+ * `sessionEnded` (data/session.mjs), which resets the coach's state and tells
+ * the session's listeners — once during startup, before any screen can
+ * trigger a 401.
  *
  * The handler is for a 401 and nothing else. A 403 is a refusal ("not your
  * fixture", "wrong current password"): the server session is alive, so the

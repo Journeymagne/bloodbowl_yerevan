@@ -26,8 +26,19 @@ export function onSessionChange(listener) {
   return () => listeners.delete(listener);
 }
 
+/**
+ * Tell every listener, each on its own: the first screen is drawn by one, and
+ * a screen that throws must not stop the rest, nor the caller (at start, the
+ * frame's wiring comes after `loadSession`).
+ */
 function announce() {
-  for (const listener of listeners) listener();
+  for (const listener of listeners) {
+    try {
+      listener();
+    } catch (error) {
+      console.error(error);
+    }
+  }
 }
 
 /** Everything the coach loaded as themselves, back to nothing loaded (as signing out did in 2.x). */
@@ -40,11 +51,15 @@ function resetCoachSlices() {
 
 const refusedAs = (answer, kind) => answer.status === "rejected" && answer.reason?.kind === kind;
 
-/** What `/me` and `/api/teams`, settled, say together. */
+/**
+ * What `/me` and `/api/teams`, settled, say together. Only the server saying
+ * no one (a 401, or `user: null`) makes a guest; a 403, a lost answer or one
+ * with no `user` at all (an unreadable body comes back as `{}`) is "offline".
+ */
 function statusOf(me, teams) {
   if (refusedAs(me, API_ERROR.UNAUTHORIZED) || refusedAs(teams, API_ERROR.UNAUTHORIZED)) return "guest";
-  if (me.status === "fulfilled" && !me.value?.user) return "guest";
-  if (me.status === "rejected" || teams.status === "rejected") return "offline";
+  if (me.status === "fulfilled" && me.value?.user === null) return "guest";
+  if (me.status === "rejected" || teams.status === "rejected" || !me.value?.user) return "offline";
   return "signed-in";
 }
 
