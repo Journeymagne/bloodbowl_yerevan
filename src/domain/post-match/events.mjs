@@ -170,6 +170,16 @@ export function sameValues(left, right) {
 }
 
 /**
+ * True for a side of an open post-match that still reads its statistics and injuries from the events:
+ * begun in 3.0 (`followsEvents`), its Players step not saved, and not past that step. Any other side
+ * keeps the numbers it holds, and the finish writes the events back to them: a tap on it would be taken
+ * back without a word, so a tap is refused there (server/season/live-match.mjs).
+ */
+export function sideFollowsEvents(side) {
+  return side?.followsEvents === true && !(side.stage > PLAYERS_STAGE);
+}
+
+/**
  * A side follows the match until its coach saves the Players step: each call reads its statistics and
  * injuries from the events again (`eventsBySide.home` / `.away`, none listed means none tapped). A side
  * begun before 3.0 has no `followsEvents` flag and keeps the statistics it was given, as does a side
@@ -183,7 +193,7 @@ export function followEvents(state, eventsBySide = {}) {
   const read = {};
   for (const name of SIDES) {
     const side = state[name];
-    if (side.followsEvents !== true || side.stage > PLAYERS_STAGE) continue;
+    if (!sideFollowsEvents(side)) continue;
     const recorded = statisticsFromEvents(side.snapshot, eventsBySide[name] ?? []);
     if (!sameValues([side.statistics, side.injuries], [recorded.statistics, recorded.injuries])) read[name] = recorded;
   }

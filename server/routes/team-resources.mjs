@@ -6,6 +6,7 @@
  * paths do not overlap, so the order below is the order somebody would look for one in. A
  * resource added later adds its handler to the list and nothing else here.
  */
+import { handleEventRoutes } from "./team-events.mjs";
 import { handleFallenRoutes } from "./team-fallen.mjs";
 import { handleLedgerRoutes } from "./team-ledger.mjs";
 import { handleRollRoutes } from "./team-rolls.mjs";
@@ -17,6 +18,7 @@ const TEAM_RESOURCE_ROUTES = [
   handleLedgerRoutes,
   handleFallenRoutes,
   handleRollRoutes,
+  handleEventRoutes,
 ];
 
 /**

@@ -2,18 +2,20 @@
  * Match events on the server (`match_events`, migration 014): the one place that writes a match's
  * rows and settles them.
  *
- * Every function runs on the client of the post-match transaction, under its locks (the pairing and
- * both teams `FOR UPDATE`, the post-match row `FOR UPDATE`) and after its checks (`POST_REVISION`,
- * `POST_TEAM_CHANGED`, stage and status). So a refused request leaves no row behind and no
- * `settled_at` (the ROLLBACK takes them), and a repeated one finds the rows already there and writes
- * an empty difference.
+ * Every write of a match's rows runs on the client of a transaction that holds the post-match's locks
+ * (the pairing and both teams `FOR UPDATE`, the post-match row `FOR UPDATE`): the post-match's own,
+ * after its checks (`POST_REVISION`, `POST_TEAM_CHANGED`, stage and status), or a tap's, which takes
+ * the same locks in the same order (server/season/live-match.mjs). So a refused request leaves no row
+ * behind and no `settled_at` (the ROLLBACK takes them), a repeated one finds the rows already there and
+ * writes an empty difference, and a tap lands wholly before or after a Players step or a finish.
  *
  * `created_at` is `clock_timestamp()`, not `now()`: `now()` is the same for the whole transaction, and
  * the rows of one save would lose their order. The order matters: an injury is the last one not taken
- * back. A row comes out in the shape the domain reads (`playerId`, `settledAt`; src/domain/post-match/events.mjs).
+ * back. A row comes out in the shape the domain reads (`playerId`, `settledAt`; src/domain/post-match/events.mjs),
+ * and to a client as `publicEvent`, which is that shape and a little more.
  *
- * The table has no CHECK that ties `injury` to `counter = 'injury'`, so `writeMatchEvents`, its only
- * writer, does.
+ * The table has no CHECK that ties `injury` to `counter = 'injury'`, so its two writers here,
+ * `writeMatchEvents` and `recordMatchEvent`, check every row before it is written (`assertEventRow`).
  */
 import { EVENT_COUNTERS, eventsDiff, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
 
@@ -23,9 +25,25 @@ const SELECT_EVENTS = `
   WHERE pairing_id = $1 AND saved_team_id = ANY($2::uuid[])
   ORDER BY created_at, id`;
 
+// What `publicEvent` reads: the row without the team it belongs to and who tapped it.
+const PUBLIC_COLUMNS = "id, pairing_id, player_id, counter, delta, injury, settled_at, created_at";
+
+const SELECT_TEAM_OPEN_EVENTS = `
+  SELECT ${PUBLIC_COLUMNS}
+  FROM match_events
+  WHERE saved_team_id = $1 AND settled_at IS NULL
+  ORDER BY created_at, id`;
+
+const SELECT_TEAM_MATCH_EVENTS = `
+  SELECT ${PUBLIC_COLUMNS}
+  FROM match_events
+  WHERE saved_team_id = $1 AND pairing_id = $2
+  ORDER BY created_at, id`;
+
 const INSERT_EVENT = `
   INSERT INTO match_events (saved_team_id, pairing_id, player_id, counter, delta, injury, created_by, created_at)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, clock_timestamp())`;
+  VALUES ($1, $2, $3, $4, $5, $6, $7, clock_timestamp())
+  RETURNING *`;
 
 const SETTLE_EVENTS = `
   UPDATE match_events SET settled_at = now()
@@ -45,6 +63,24 @@ function assertEventRow(row, at) {
 const toEvent = (row) => ({
   playerId: row.player_id, counter: row.counter, delta: row.delta, injury: row.injury ?? null, settledAt: row.settled_at ?? null,
 });
+
+/**
+ * A `match_events` row as the API shows it: the event the domain reads (`toEvent`) with its id, its
+ * match (null for an edit outside one) and when it was tapped. The team and who tapped stay on the server.
+ *
+ * @param {object} row a row of `match_events`
+ * @returns {{ id: string, pairingId: string|null, playerId: string, counter: string, delta: number,
+ *   injury: object|null, settledAt: Date|null, createdAt: Date }}
+ */
+export function publicEvent(row) {
+  return { id: row.id, pairingId: row.pairing_id ?? null, ...toEvent(row), createdAt: row.created_at };
+}
+
+// One row as written: `event` is checked before this (`assertEventRow`).
+async function insertEvent(client, { teamId, pairingId, actorId }, { playerId, counter, delta, injury }) {
+  const { rows } = await client.query(INSERT_EVENT, [teamId, pairingId, playerId, counter, delta, injury ? JSON.stringify(injury) : null, actorId]);
+  return rows[0];
+}
 
 /**
  * The events of a match, per team, oldest first. Every team of `teamIds` has a key, an empty list
@@ -74,10 +110,41 @@ export async function loadMatchEvents(client, pairingId, teamIds) {
  */
 export async function writeMatchEvents(client, { teamId, pairingId, events, actorId = null }) {
   events.forEach(assertEventRow);
-  for (const { playerId, counter, delta, injury } of events) {
-    await client.query(INSERT_EVENT, [teamId, pairingId, playerId, counter, delta, injury ? JSON.stringify(injury) : null, actorId]);
-  }
+  for (const event of events) await insertEvent(client, { teamId, pairingId, actorId }, event);
   return events.length;
+}
+
+/**
+ * One tap: the row checked as `writeMatchEvents` checks one, the same INSERT, and the row it wrote.
+ *
+ * Call it on the client of the transaction that holds the match (`lockLiveSide`), after the player is
+ * known to be one of the side's: the store checks the row, not whose it is.
+ *
+ * @param {{ query: Function }} client a pg client inside the tap's transaction
+ * @param {{ teamId: string, pairingId: string, event: { playerId: string, counter: string, delta: number, injury?: object|null },
+ *   actorId?: string|null }} tap
+ * @returns {Promise<ReturnType<typeof publicEvent>>}
+ */
+export async function recordMatchEvent(client, { teamId, pairingId, event, actorId = null }) {
+  assertEventRow(event, 0);
+  return publicEvent(await insertEvent(client, { teamId, pairingId, actorId }, event));
+}
+
+/**
+ * A team's events as the API lists them, oldest first. With `pairingId`, every event of the team in that
+ * match, settled or not; without it, every event of the team that is not settled yet, whatever its match,
+ * and the edits outside a match too: the rows a live career adds to the blob.
+ *
+ * @param {{ query: Function }} db a pg pool, or a client (one snapshot with whatever else it reads)
+ * @param {string} teamId
+ * @param {{ pairingId?: string|null }} [options]
+ * @returns {Promise<ReturnType<typeof publicEvent>[]>}
+ */
+export async function loadTeamEvents(db, teamId, { pairingId = null } = {}) {
+  const { rows } = pairingId
+    ? await db.query(SELECT_TEAM_MATCH_EVENTS, [teamId, pairingId])
+    : await db.query(SELECT_TEAM_OPEN_EVENTS, [teamId]);
+  return rows.map(publicEvent);
 }
 
 /**
