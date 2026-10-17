@@ -11,7 +11,7 @@
  * Leaving a screen is core/screen-lifecycle.mjs' job; the router only says
  * when.
  */
-import { matchRoute, resolveRedirect, routeFromHash } from "./routes.mjs";
+import { TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamsUrl } from "./routes.mjs";
 import { peekReturn, setReturn } from "./return-to.mjs";
 import { releaseCurrentScreen } from "./screen-lifecycle.mjs";
 import { t } from "./i18n.mjs";
@@ -20,7 +20,11 @@ import { view } from "./view.mjs";
 import { announce } from "../components/live-region.mjs";
 import { openAuthModal } from "../components/auth-modal.mjs";
 import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
+import { toast } from "../components/toast.mjs";
+import { prepareTeamRoute, syncActiveTeam } from "../data/active-team.mjs";
+import { loadMyTeams } from "../data/teams.mjs";
 import { renderHome } from "../screens/home.mjs";
+import { renderNoTeam } from "../screens/team/empty.mjs";
 import { renderOverviewDetail } from "../screens/overview.mjs";
 import { renderSection } from "../screens/section.mjs";
 import { renderDetail } from "../screens/detail.mjs";
@@ -45,7 +49,8 @@ function findPageBySlug(slug) {
 }
 
 const screens = {
-  home: () => renderHome(),
+  // A coach with an active team never gets here: resolveRedirect sends `#/` on to that team.
+  home: () => (state.auth.currentUser && !state.myTeams.items.length ? renderNoTeam() : renderHome()),
   login: () => renderAuthModal("login"),
   register: () => renderAuthModal("register"),
   settings: () => renderAuthModal("account"),
@@ -92,6 +97,23 @@ function renderNotFound() {
 let ticket = 0;
 
 /**
+ * A team's screen opens only on one of the coach's own teams, which it makes the active
+ * one. A team missing from the list may be the one the builder saved a moment ago, so the
+ * list is read once more before the coach is told it is not there and sent to My Teams.
+ */
+async function renderTeamScreen(name, params, current) {
+  const found = await prepareTeamRoute(params.teamId, { reload: () => loadMyTeams(true) });
+  if (current !== ticket) return undefined;
+  if (!found) {
+    toast(t("error.TEAM_NOT_FOUND"), { tone: "error" });
+    location.replace(teamsUrl());
+    return undefined;
+  }
+  syncActiveTeam({ routeTeamId: params.teamId });
+  return screens[name](params);
+}
+
+/**
  * Draw the screen the hash names, unless resolveRedirect sends the address on:
  * then `location.replace` swaps it (the redirected address does not stay in
  * history) and the hashchange that follows draws the target.
@@ -115,7 +137,7 @@ export function renderRoute() {
   }
   releaseCurrentScreen();
   const { name, params } = matchRoute(route);
-  const rendered = screens[name](params);
+  const rendered = TEAM_ROUTES.has(name) ? renderTeamScreen(name, params, current) : screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so
   // (step 15.5), so the heading is announced instead — after the screen has
   // put one there, which for anything that waits on a fetch is not yet.

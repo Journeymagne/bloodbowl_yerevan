@@ -894,6 +894,9 @@
   "ui.result.tName": "Friendly",
   "ui.form.label": "Recent results",
   "ui.match.vs": "vs",
+  "team.empty.title": "Create your first team",
+  "team.empty.text": "Your roster, treasury and season matches will live here.",
+  "team.empty.create": "Create a team",
   "request.offline": "No connection to the server. Check the internet and try again.",
   "request.timeout": "The server is taking too long to answer. Try again."
 }

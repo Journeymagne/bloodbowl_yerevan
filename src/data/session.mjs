@@ -16,6 +16,8 @@
 import { API_ERROR } from "../core/api.mjs";
 import { apiRequest, authToken, setAuthToken } from "../core/api-client.mjs";
 import { state } from "../core/state.mjs";
+import { storage } from "../core/storage.mjs";
+import { writeActiveTeamCache } from "./active-team.mjs";
 import { setMyTeams } from "./teams.mjs";
 
 const listeners = new Set();
@@ -44,6 +46,7 @@ function announce() {
 /** Everything the coach loaded as themselves, back to nothing loaded (as signing out did in 2.x). */
 function resetCoachSlices() {
   state.myTeams = { items: [], loaded: false, loading: false, error: "" };
+  state.activeTeamId = null;
   state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
   state.admin = { users: [], loaded: false, loading: false, error: "", editingTeams: new Map() };
   state.season = { data: null, loaded: false, loading: false, error: "" };
@@ -133,8 +136,12 @@ export function sessionEnded() {
   announce();
 }
 
-/** Sign out here whatever the server says: a logout that cannot reach it still forgets the coach. Never throws. */
+/**
+ * Sign out here whatever the server says: a logout that cannot reach it still forgets the
+ * coach, and this browser forgets the team it last showed them. Never throws.
+ */
 export async function signOut() {
+  writeActiveTeamCache(storage, null, null);
   try {
     await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
   } catch {

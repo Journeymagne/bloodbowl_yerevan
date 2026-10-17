@@ -17,6 +17,7 @@ import { view } from "./core/view.mjs";
 import { updateAuthButton } from "./components/auth-button.mjs";
 import { closeAuthModal, setAuthMode, wireAuthModal } from "./components/auth-modal.mjs";
 import { toast } from "./components/toast.mjs";
+import { syncActiveTeam } from "./data/active-team.mjs";
 import { syncThemeWithAccount } from "./data/preferences.mjs";
 import { loadSession, onSessionChange, sessionEnded } from "./data/session.mjs";
 import { loadGames } from "./screens/games/my-games.mjs";
@@ -125,9 +126,10 @@ function wireFrame() {
   window.addEventListener("hashchange", renderRoute);
 }
 
-/** Every change of session, the first load included (it draws the first screen): theme, button, games, screen. */
+/** Every change of session, the first load included (it draws the first screen): theme, active team, button, games, screen. */
 function afterSessionChange() {
   void syncThemeWithAccount(); // repaints at once; the account is written in the background
+  syncActiveTeam(); // before the route: a coach's `#/` is their active team
   updateAuthButton();
   if (state.auth.currentUser) void loadGames();
   renderRoute();
