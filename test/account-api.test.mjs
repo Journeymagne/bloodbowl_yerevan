@@ -576,6 +576,14 @@ for (const writerFirst of [true, false]) {
   }));
 }
 
+test("two administrators deleting one user at once: the first deletes him, the second is told there is no such user", db, () => withApiDatabase(async (database) => {
+  const { client } = database;
+  const boss = await seedCoach(client, "pw-consul", { admin: true }), coach = await seedCoach(client, "pw-marten"), id = await seedTeam(client, coach.id);
+  const deleting = () => callApi("DELETE", `/api/admin/users/${coach.id}`, { token: boss.token });
+  const [first, second] = answers(await raceInOrder(database, lockRow("saved_teams", id), deleting, deleting));
+  assert.deepEqual([first.status, second.status, second.body.error?.code], [200, 404, "USER_NOT_FOUND"], JSON.stringify([first.body, second.body]));
+}));
+
 test("an administrator's edit of a user who is deleted while it waits is 404, and writes nothing", db, () => withApiDatabase(async ({ client, url }) => {
   const boss = await seedCoach(client, "pw-legate", { admin: true }), coach = await seedCoach(client, "pw-shrew");
   const [answer] = answers(await withForcedOverlap(url, { lock: ["DELETE FROM users WHERE id = $1", [coach.id]], waiting: 1 },

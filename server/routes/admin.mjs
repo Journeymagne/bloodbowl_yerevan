@@ -186,7 +186,9 @@ async function deleteUser(client, userId, admin) {
   if (target.id === admin.id) throw httpError(409, "SELF_ADMIN_DELETE");
   if (await userHasFriendlyGames(client, target.id)) throw httpError(409, "USER_IN_FRIENDLY_GAMES");
   await client.query("SELECT 1 FROM saved_teams WHERE user_id = $1 ORDER BY id FOR UPDATE", [target.id]);
-  await client.query("DELETE FROM users WHERE id = $1", [target.id]);
+  // Another admin may have deleted him while this one waited on the teams: then there is no one to delete.
+  const deleted = await client.query("DELETE FROM users WHERE id = $1 RETURNING id", [target.id]);
+  if (!deleted.rows[0]) throw httpError(404, "USER_NOT_FOUND");
 }
 
 /**

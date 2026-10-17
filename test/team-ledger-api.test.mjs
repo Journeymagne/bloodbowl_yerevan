@@ -342,7 +342,8 @@ test("the history is paged by limit, 1 to 100 and 20 for anything else, and name
 test("a cursor the history did not make is a 400 for `before`, whatever is wrong with it, and never a 500", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   const at = "2026-10-16 18:00:00+00";
-  for (const before of ["nope", " ", encodeLedgerCursor({ at: "yesterday", id: ROW }), // an empty one is the first page (R11) encodeLedgerCursor({ at, id: "1; DROP" }),
+  // An empty one is the first page (R11), so it is not among these.
+  for (const before of ["nope", " ", encodeLedgerCursor({ at: "yesterday", id: ROW }), encodeLedgerCursor({ at, id: "1; DROP" }),
     encodeLedgerCursor({ at: "2026-13-45 99:99:99+00", id: ROW }), encodeLedgerCursor({ at: "2026-02-30 00:00:00+00", id: ROW }),
     encodeLedgerCursor({ at: "2026-10-16 18:00:00+99", id: ROW })]) {
     const { status, body } = await ledger(id, coach.token, `?before=${encodeURIComponent(before)}`);
