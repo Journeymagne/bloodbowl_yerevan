@@ -5,7 +5,8 @@
  * (`serverDie`), the result is kept as a `dice_rolls` row, and the advancement that takes it
  * refers to that row (`roll: { id, via: "site" }`). Asking again for the same step — a retry
  * after a lost answer, a second tab — is answered with the roll already waiting, never a fresh
- * die: see `rollForPlayer` for what a step is and what holds it to one roll.
+ * die, and asking for the other purpose while it waits is refused: see `rollForPlayer` for what a
+ * step is and what holds a player to one roll.
  *
  * Rolling is the owner's, and an administrator is not the owner: to anybody else the team is not
  * there (`teamForUser`). The request is a transaction that takes the team's row first, so the roll
@@ -33,7 +34,10 @@ function checkRoll(body) {
   return { purpose, category };
 }
 
-/** `POST /api/teams/:id/players/:pid/rolls` `{ purpose, category? }` — the owner asks for the roll of a step: 200 `{ roll }`, new or waiting. */
+/**
+ * `POST /api/teams/:id/players/:pid/rolls` `{ purpose, category? }` — the owner asks for the roll of a step: 200 `{ roll }`,
+ * new or waiting; 409 DICE_ROLL_WAITING while a roll of the other purpose waits for the player.
+ */
 async function rollForOwner(request, response, teamId, playerId) {
   const user = await currentUser(request);
   if (!user) throw httpError(401, "NOT_AUTHORIZED");

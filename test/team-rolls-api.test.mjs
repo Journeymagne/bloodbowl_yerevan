@@ -208,11 +208,14 @@ test("each step has its own roll: a purpose, a player, and a team (two teams bot
   const coach = await seedCoach(client, "lion"), other = await seedCoach(client, "wolf");
   const id = await seedTeam(client, coach.id), theirs = await seedTeam(client, other.id, { name: "Wolves" });
   const ask = (team, token, pid, body) => roll(team, pid, token, body).then((answer) => answer.body.roll.id);
-  const ids = [await ask(id, coach.token, "p0", { purpose: "stat" }), await ask(id, coach.token, "p0", { purpose: "random_skill", category: "General" }),
+  const stat = await ask(id, coach.token, "p0", { purpose: "stat" });
+  // One roll waits for a player at a time (R15): the characteristic is used before p0 rolls for a skill.
+  await client.query("UPDATE dice_rolls SET used_at = now() WHERE id = $1", [stat]);
+  const ids = [stat, await ask(id, coach.token, "p0", { purpose: "random_skill", category: "General" }),
     await ask(id, coach.token, "p1", { purpose: "stat" }), await ask(theirs, other.token, "p0", { purpose: "stat" })];
   assert.equal(new Set(ids).size, 4);
-  assert.deepEqual([await ask(id, coach.token, "p0", { purpose: "stat" }), await ask(id, coach.token, "p0", { purpose: "random_skill", category: "General" }),
-    await ask(id, coach.token, "p1", { purpose: "stat" }), await ask(theirs, other.token, "p0", { purpose: "stat" })], ids);
+  assert.deepEqual([await ask(id, coach.token, "p0", { purpose: "random_skill", category: "General" }),
+    await ask(id, coach.token, "p1", { purpose: "stat" }), await ask(theirs, other.token, "p0", { purpose: "stat" })], ids.slice(1));
   assert.deepEqual([(await rows(client, id)).length, (await rows(client, theirs)).length], [3, 1]);
 }));
 

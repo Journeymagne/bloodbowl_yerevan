@@ -81,6 +81,7 @@ export const API_ERRORS = Object.freeze({
   DICE_NO_SKILL: "The player already has every skill in this category.",
   DICE_ROLL_MISMATCH: "This advancement does not match its roll on the site.",
   DICE_ROLL_USED: "This roll has already been used for an advancement.",
+  DICE_ROLL_WAITING: "This player has a roll waiting for another type of advancement. Use it before rolling again.",
   ENTRY_ALREADY_COMMITTED: "This coach or team is already committed to the season.",
   ENTRY_NOT_FOUND: "Season entry not found.",
   FALLEN_FROM_MATCH: "This death was recorded by a match's post-match. Only an administrator can undo it.",

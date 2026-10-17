@@ -128,7 +128,8 @@ export async function handleTeamRoutes(request, response, url) {
  * only for a coach — `actor.admin` is the admin route, which is not held to it.
  * The site rolls the roster refers to are settled next, for a coach and an admin
  * alike (`settleRosterRolls`): a new reference uses its roll, a dropped one frees
- * it, and a roll that does not fit or is used already refuses the save. The
+ * it, and a roll that does not fit, is used already, or is taken or given back out
+ * of its turn refuses the save. The
  * treasury change is journaled in the same transaction (team_ledger), after
  * the write and before the commit, so a refused or stale save leaves no line
  * and a line never outlives its save — nor does a roll's `used_at`.
@@ -161,7 +162,7 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
     }
     const before = normalizeDraft(locked.roster);
     if (!actor.admin) refuseLockedPurchases(before, roster, locked.stage);
-    await settleRosterRolls(client, { teamId, before, after: roster });
+    await settleRosterRolls(client, { teamId, race: teamBySlug(baseTeamSlug), before, after: roster });
     const result = await client.query(
       `UPDATE saved_teams
           SET name = $2,
