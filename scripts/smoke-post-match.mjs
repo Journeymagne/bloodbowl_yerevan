@@ -18,6 +18,20 @@ async function request(name, path, body, method = 'GET') {
   return { status: response.status, data: await response.json() };
 }
 
+// A read that must answer 200: the failure says what it was and what came back, and the body is returned.
+async function get(name, path) {
+  const response = await request(name, path);
+  assert.equal(response.status, 200, 'GET ' + path + ' -> ' + response.status + ' ' + JSON.stringify(response.data));
+  return response.data;
+}
+
+// The first item of a list that matches, or a failure that says what was looked for and what the list held.
+function found(list, match, what) {
+  const item = Array.isArray(list) ? list.find(match) : undefined;
+  assert.ok(item, 'not found: ' + what + ' in ' + JSON.stringify(list)?.slice(0, 300));
+  return item;
+}
+
 async function logins() {
   for (const name of ['home', 'away']) {
     const login = await request(null, '/api/auth/login', { login: 'preview-' + name, password: 'preview2026' }, 'POST');
@@ -78,18 +92,19 @@ const tapBody = (f, extra = {}) => ({ playerId: f.journeymanId, counter: 'catche
 
 // A tap in the live match, and an edit outside it, both on the home side; then what the team's events say of them.
 async function tapAndEdit(f, homeSnapshot) {
-  f.journeymanId = homeSnapshot.players.find(player => player.kind === 'journeyman').id;
+  f.journeymanId = found(homeSnapshot.players, player => player.kind === 'journeyman', 'a journeyman in the home snapshot').id;
   const tap = await request('home', eventsPath(f), tapBody(f, { pairingId: f.gameId }), 'POST');
   assert.equal(tap.status, 201, JSON.stringify(tap.data));
   const player = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster.players[2];
+  assert.ok(player, 'the home blob has no third player');
   f.outsidePlayer = player.id; f.outsideBefore = player.spp?.completions ?? 0;
   const edit = await request('home', eventsPath(f), { playerId: f.outsidePlayer, counter: 'completions', delta: 1 }, 'POST');
   assert.equal(edit.status, 201, JSON.stringify(edit.data));
   assert.equal(edit.data.event.pairingId, null, 'an edit outside a match has no match');
-  const ofMatch = await request('home', eventsPath(f, '?pairing=' + f.gameId));
-  assert.equal(ofMatch.data.events.length, 1, JSON.stringify(ofMatch.data));
-  const waiting = await request('home', eventsPath(f));
-  assert.equal(waiting.data.events.length, 2, 'the tap and the edit wait to be settled: ' + JSON.stringify(waiting.data));
+  const ofMatch = await get('home', eventsPath(f, '?pairing=' + f.gameId));
+  assert.equal(ofMatch.events.length, 1, 'one event in the match: ' + JSON.stringify(ofMatch));
+  const waiting = await get('home', eventsPath(f));
+  assert.equal(waiting.events.length, 2, 'the tap and the edit wait to be settled: ' + JSON.stringify(waiting));
 }
 
 async function start(f) {
@@ -138,19 +153,19 @@ async function refusedTap(f, code) {
   assert.equal(refused.data.error.code, code);
 }
 
-const historyOf = async (f, playerId) => (await request('home', '/api/teams/' + f.teamIds[0] + '/players/' + playerId + '/history')).data.history;
+const historyOf = async (f, playerId) => (await get('home', '/api/teams/' + f.teamIds[0] + '/players/' + playerId + '/history')).history;
 
 // What the finish did with the tap and the edit: the edit is in the blob, nothing waits, the match is over for taps,
 // and the career has the match as the post-match applied it and the edit outside it.
 async function afterFinish(f) {
   const home = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster;
-  assert.equal(home.players.find(player => player.id === f.outsidePlayer).spp.completions, f.outsideBefore + 1, 'the finish carried the edit into the blob');
-  const waiting = await request('home', eventsPath(f));
-  assert.deepEqual(waiting.data.events, [], 'nothing is left waiting after the finish');
+  const edited = found(home.players, player => player.id === f.outsidePlayer, 'the player of the edit ' + f.outsidePlayer + ' in the home blob');
+  assert.equal(edited.spp.completions, f.outsideBefore + 1, 'the finish carried the edit into the blob');
+  const waiting = await get('home', eventsPath(f));
+  assert.deepEqual(waiting.events, [], 'nothing is left waiting after the finish');
   await refusedTap(f, 'MATCH_NOT_LIVE');
   const scorer = await historyOf(f, f.post.postMatch.home.snapshot.players[0].id);
-  const row = scorer.matches.find(match => match.pairingId === f.gameId);
-  assert.ok(row, 'the match is in the career: ' + JSON.stringify(scorer));
+  const row = found(scorer.matches, match => match.pairingId === f.gameId, 'the match ' + f.gameId + ' in the career');
   assert.equal(row.source, 'applied'); assert.equal(row.counters.touchdowns, 2);
   assert.equal((await historyOf(f, f.outsidePlayer)).outside.completions, 1);
 }

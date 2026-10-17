@@ -5,11 +5,11 @@
  *   npm start          # in one terminal
  *   npm run smoke      # in another
  *
- * Override the target with APP_URL. The script creates a throwaway account,
- * exercises the saved-team endpoints (its treasury and ledger, its fallen, a
- * player's roll), the account's settings and password change, and deletes
- * everything it created. It also checks that files outside the static
- * whitelist are not served.
+ * Override the target with APP_URL. The script creates a throwaway account and
+ * a team, exercises the saved-team endpoints (its treasury and ledger, its
+ * fallen, a player's roll), the account's settings and password change, then
+ * deletes the team and ends its sessions. The account itself stays. It also
+ * checks that files outside the static whitelist are not served.
  */
 import { isDeepStrictEqual } from "node:util";
 
@@ -128,6 +128,7 @@ await step("POST /api/teams/:id/treasury credits with a reason", async () => {
   need(credited.team?.roster?.treasury === 612.5, "the treasury is not 612.5", credited.team?.roster?.treasury);
   need(credited.entry?.kind === "manual", "the entry is not a manual one", credited.entry);
   const ledger = await api(`${teamPath()}/ledger`);
+  need(credited.entry?.id, "the answer's entry has no id", credited.entry);
   need(ledger.entries?.[0]?.id === credited.entry.id, "the first ledger line is not the new entry", ledger.entries?.[0]);
   need(ledger.since, "the ledger does not say since when it is kept", ledger.since);
 });
@@ -143,7 +144,8 @@ await step("POST …/players/:pid/death and DELETE …/fallen/:fid", async () =>
   playerId = team.roster?.players?.[0]?.id;
   need(playerId, "the created team's first player has no id", team.roster?.players?.[0]);
   const died = await api(`${teamPath()}/players/${playerId}/death`, { method: "POST", expect: 201, body: { cause: "smoke", revision: team.revision } });
-  need(!died.team?.roster?.players?.some((player) => player.id === playerId), "the dead player is still on the roster", died.fallen);
+  const alive = died.team?.roster?.players;
+  need(Array.isArray(alive) && !alive.some((player) => player.id === playerId), "the dead player is still on the roster", died.fallen);
   const { fallen } = await api(`${teamPath()}/fallen`);
   const grave = fallen?.find((item) => item.id === died.fallen?.id);
   need(grave?.fromMatch === false && grave.player?.id === playerId, "the death is not in the fallen as a coach's own", fallen);
@@ -177,6 +179,10 @@ await step("PATCH /api/auth/profile needs the current password", async () => {
   // The session that made the change goes on; only the others end.
   const kept = await api("/api/auth/me");
   need(kept.user?.login === login, "the session that changed the password has ended", kept);
+  // That session is the register one; nothing is left behind, as the logout step ends the one that follows.
+  await api("/api/auth/logout", { method: "POST", body: {} });
+  const ended = await api("/api/auth/me"); // /me answers 200 with no user for a token that is not a session
+  need(ended.user === null, "the logged-out session still answers", ended);
   const next = await api("/api/auth/login", { method: "POST", auth: false, body: { login, password: newPassword } });
   need(next.token, "no token for a login with the new password", next);
   token = next.token;
