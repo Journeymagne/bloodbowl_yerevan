@@ -21,6 +21,8 @@ const scroller = { addEventListener: (type, listener) => scrolls.push(listener),
 state.data = { teams: [], generatedAt: "2026-10-07T10:00:00Z" };
 mountShell({ document, scroller });
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
+/** Every script and stylesheet under src, as paths from the root of the repository. */
+const sources = () => readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => /\.(css|m?js)$/.test(name)).map((name) => `src/${name}`);
 
 test("the header folds past 48px, unfolds under 8px and holds between", () => {
   assert.deepEqual([[false, 49], [false, 30], [true, 30], [true, 7], [true, 100]].map(([compact, top]) => nextCompact(compact, top)), [true, false, true, false, true]);
@@ -65,13 +67,35 @@ test("the page has no 2.x chrome left", () => {
     assert.ok(!html.includes(gone), gone);
   }
   assert.ok(html.indexOf("data-skip-to-content") < html.indexOf('id="app-frame"'), "skip link first");
+  // An image preloaded for nothing (the 2.x brand mark's logo) costs a warning on every load and competes with the fonts.
+  const used = [html.replace(/<link rel="preload"[^>]*>/g, ""), ...sources().map(read)].join("\n");
+  for (const [tag] of html.matchAll(/<link rel="preload" as="image"[^>]*>/g)) {
+    const href = /href="([^"]+)"/.exec(tag)[1];
+    assert.ok(used.includes(href.split("/").pop()), `${href} is preloaded and never used`);
+  }
+});
+
+/**
+ * A retired class anywhere in a selector — alone, compound (`body.nav-open`), under another
+ * (`.view .sidebar`), inside `:is()`, `:where()` or `:not()` — with its family (`.brand-mark`,
+ * `.theme-picker__swatch`), and the retired ids.
+ */
+const RETIRED = /\.(?:app-shell|sidebar|nav-toggle|nav-overlay|nav-list|nav-open|brand|legal-note|topbar|top-actions|theme-picker|search-wrap|icon-text-button)(?:[-_][\w-]*)?(?![\w-])|\.auth-[\w-]+|\.main(?![\w-])|#(?:site-sidebar|nav-toggle|nav-overlay|auth-button|lang-toggle|theme-select|generated-at)(?![\w-])/;
+
+test("the retired-chrome pattern finds a retired name wherever a selector puts it, and nothing of 3.0", () => {
+  for (const selector of [".view .sidebar", ":is(.topbar, .page-head)", ".content-panel a:where(:not(.primary-button, .icon-text-button))", "body.nav-open .nav-overlay",
+    ".brand-mark img", ".theme-picker__swatch", ".auth-dialog", "body.auth-open", "#auth-button", "#lang-toggle", "#site-sidebar:hover", ".main"]) {
+    assert.match(selector, RETIRED, selector);
+  }
+  for (const selector of [".matchday-sidebar", ".g-auth__brand", ".page-heading-main", ".g-main", ".g-main__footer", "#app-main", ".g-sidenav", ".g-searchbar", ".g-appbar__team"]) {
+    assert.doesNotMatch(selector, RETIRED, selector);
+  }
 });
 
 test("no stylesheet styles the retired chrome", () => {
-  const RETIRED = /^(\.app-shell|\.sidebar|\.nav-toggle|\.nav-overlay|\.nav-list|\.brand|\.legal-note|\.topbar|\.top-actions|\.theme-picker|\.auth-|\.search-wrap|\.icon-text-button|body\.nav-open|body\.auth-open|\.main\b)/;
-  for (const name of readdirSync(new URL("../src/styles/", import.meta.url)).filter((file) => file.endsWith(".css"))) {
-    for (const { selectors } of blocks(read(`src/styles/${name}`))) {
-      for (const selector of selectors) assert.doesNotMatch(selector.replace(/^body:has\([^)]*\)\s*/, ""), RETIRED, `${name}: ${selector}`);
+  for (const file of sources().filter((name) => name.endsWith(".css"))) {
+    for (const { selectors } of blocks(read(file))) {
+      for (const selector of selectors) assert.doesNotMatch(selector, RETIRED, `${file}: ${selector}`);
     }
   }
 });
@@ -131,6 +155,13 @@ test("the footer under the content carries the data date; the date is read when 
   state.auth.currentUser = null;
   refreshShell({ name: "season", params: {} });
   assert.match(document.querySelector("#site-footer .g-site-footer").textContent, /^Updated 07\/10\/2026 · /);
+});
+
+test("a short page fills the screen without scrolling: the content grows into it, and nothing takes the old top bar's height off", () => {
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "display"), ["flex"]);
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-main", "flex-direction"), ["column"]);
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-frame #app-view", "min-height"), ["0"]);
+  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-frame #app-view", "flex"), ["1 0 auto"]);
 });
 
 test("a sheet's scroll lock does not shift the page, and a hidden search bar stays hidden", () => {

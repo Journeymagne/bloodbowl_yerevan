@@ -100,10 +100,10 @@ const LEGACY_ALIASES = {
   "--md-accent": "var(--accent-text)", "--md-wash": "var(--accent-tint-soft)",
   "--stat-up-bg": "var(--accent-tint)", "--stat-up-text": "var(--on-accent-tint)", "--stat-down-bg": "var(--danger-tint)",
   "--grid-line": "transparent", "--grid-line-soft": "transparent", "--stripe-line": "transparent", "--body-glow": "transparent",
-  "--body-gradient": "linear-gradient(transparent, transparent)", "--sidebar-wash": "transparent",
-  "--sidebar-bg": "var(--surface)", "--topbar-bg": "var(--surface)", "--input-bg": "var(--field)", "--input-bg-soft": "var(--field)",
+  "--body-gradient": "linear-gradient(transparent, transparent)",
+  "--input-bg": "var(--field)", "--input-bg-soft": "var(--field)",
   "--panel-glass": "var(--surface)", "--surface-soft": "var(--surface-2)", "--surface-strong": "var(--surface)",
-  "--table-head": "var(--surface-2)", "--nav-active-bg": "var(--accent-tint)",
+  "--table-head": "var(--surface-2)",
   "--button-bg": "var(--surface)", "--button-bg-hover": "var(--surface-2)", "--button-border": "var(--control-border)",
   "--button-text": "var(--ink-2)", "--button-muted-text": "var(--muted)",
   "--primary-bg": "var(--accent)", "--primary-bg-hover": "var(--accent-ink)", "--primary-border": "var(--accent)",
@@ -164,6 +164,14 @@ test("the 2.x names point at 3.0 tokens and never shadow one", () => {
   assert.deepEqual(rules(aliasesCss).get(":root"), LEGACY_ALIASES);
   const tokens = new Set([...rules(tokensCss).values()].flatMap(Object.keys));
   for (const name of Object.keys(LEGACY_ALIASES)) assert.equal(tokens.has(name), false, `${name} would shadow a 3.0 token`);
+});
+
+// The 2.x frame's own names (--sidebar-bg, --topbar-bg, …) lost their last reader with the frame (stage 05).
+test("every 2.x name is still read by some stylesheet: one nothing reads goes", () => {
+  const css = readdirSync(new URL("../src/", import.meta.url), { recursive: true })
+    .filter((name) => name.endsWith(".css") && !name.endsWith("legacy-aliases.css"))
+    .map((name) => read(`src/${name}`)).join("\n");
+  for (const name of Object.keys(LEGACY_ALIASES)) assert.match(css, new RegExp(`var\\(\\s*${name}\\s*[,)]`), `${name} is read by nothing`);
 });
 
 test("every variable a stylesheet reads is defined", () => {
