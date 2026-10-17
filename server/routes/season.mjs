@@ -18,7 +18,7 @@ import { commitSavedTeamToSeason, ensureActiveSeason, loadSeasonBundle, loadUser
 import { addSeasonPairing, createManualRound, generateSwissRound, startSeasonRound, validateSeasonEntry } from "../season/rounds.mjs";
 import { proposeGameResult, updateSeasonPairing } from "../season/games.mjs";
 import { createSeasonCoachWithTeam } from "../season/coach-entry.mjs";
-import { readTeamBody } from "./teams.mjs";
+import { readTeamBody, refuseRosterPlayers } from "./teams.mjs";
 import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
@@ -111,6 +111,7 @@ async function handleSeasonEntryRoutes(request, response, url) {
       return sendError(response, 400, "LOGO_TOO_LARGE");
     }
     refuseSiteRolls(roster); // stored as sent, so read raw
+    refuseRosterPlayers(roster); // and its players held to what every roster write is
     const coach = await pool.query(`SELECT id FROM users WHERE id = $1`, [userId]);
     if (!coach.rows[0]) return sendError(response, 404, "COACH_NOT_FOUND");
 

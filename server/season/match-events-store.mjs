@@ -217,7 +217,9 @@ export async function settleMatchEvents(client, { teamId, pairingId }) {
  * the post-match holds: the roster is read again from `saved_teams`, where that record left it, and
  * written back with the edits (`applyOutsideEdits`) without moving the revision, which the finish has
  * moved already. A row of a player who is no longer on the roster (he died meanwhile) changes nothing
- * and is settled all the same, so nothing waits for a player who is not coming back.
+ * and is settled all the same, so nothing waits for a player who is not coming back. A counter that a
+ * `PATCH` lowered during the match below what the waiting -1s take back is held at zero by the finish,
+ * so those rows then take back more than the blob lost, by as much as was held.
  *
  * @param {{ query: Function }} client a pg client inside the post-match transaction
  * @param {string} teamId

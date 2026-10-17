@@ -462,6 +462,8 @@
   "roster.conflictReloadAction": "Перезагрузить с сервера",
   "roster.changeRaceAction": "Сменить расу",
   "validation.UNKNOWN_TEAM": "Неизвестная раса «{slug}».",
+  "validation.SPP_OUT_OF_RANGE": "Счётчик SPP {counter} должен быть целым числом от 0 до 999.",
+  "validation.DUPLICATE_PLAYER_ID": "У двух игроков один и тот же id: {playerId}.",
   "roster.raceLockedInSeason": "Команда играет в текущем сезоне — сменить расу нельзя.",
   "error.ADMIN_REQUIRED": "Нужны права администратора.",
   "error.BASE_TEAM_REQUIRED": "Укажите базовую команду.",

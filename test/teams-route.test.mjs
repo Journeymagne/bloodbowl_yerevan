@@ -272,3 +272,22 @@ test("the team a save answers with is read after the write, with every column GE
     assert.equal(answer.payload.team.inActiveSeason, false);
   });
 });
+
+test("a roster with an SPP counter outside 0…999, or two players under one id, is refused before any transaction, on the owner's route and the admin's", async () => {
+  const bad = [
+    [{ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1000 } }] }, [{ code: "SPP_OUT_OF_RANGE", params: { playerId: "a", counter: "touchdowns" } }]],
+    [{ players: [{ id: "a", rowIndex: 0, spp: { mvps: -1 } }] }, [{ code: "SPP_OUT_OF_RANGE", params: { playerId: "a", counter: "mvps" } }]],
+    [{ players: [{ id: "a", rowIndex: 0 }, { id: "a", rowIndex: 0 }] }, [{ code: "DUPLICATE_PLAYER_ID", params: { playerId: "a" } }]],
+  ];
+  for (const [roster, violations] of bad) {
+    for (const [user, send] of [[coach, () => handleTeamRoutes(patch(roster), response(), teamUrl())], [admin, () => handleAdminRoutes(patch(roster), response(), adminUrl)]]) {
+      await withDatabase({ user }, async (db) => {
+        await assert.rejects(send(), (error) => {
+          assert.deepEqual([error.status, error.code, error.violations], [422, "ROSTER_BREAKS_THE_RULES", violations]);
+          return true;
+        }, `${user.login} ${JSON.stringify(roster)}`);
+        assert.deepEqual(db.log.map((entry) => entry.sql).filter((sql) => !sql.includes("FROM sessions")), [], "nothing but who is asking");
+      });
+    }
+  }
+});

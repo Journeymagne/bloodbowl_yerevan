@@ -12,6 +12,7 @@ import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
 import { blockingViolations, checkRoster, normalizeDraft, teamBySlug } from "../domain/roster.mjs";
+import { playerViolations } from "../../src/domain/roster/validate.mjs";
 import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam } from "../api/team-queries.mjs";
@@ -219,10 +220,23 @@ export async function readTeamBody(request) {
 
   const { violations, roster } = checkRoster(baseTeamSlug, body.roster ?? {});
   const blocking = blockingViolations(violations);
-  if (blocking.length) {
-    const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
-    error.violations = blocking;
-    throw error;
-  }
+  if (blocking.length) throw rosterRefusal(blocking);
   return { body, name, baseTeamSlug, logoData, roster };
+}
+
+/** The refusal of a roster that breaks the rules, with what it breaks. */
+function rosterRefusal(violations) {
+  const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
+  error.violations = violations;
+  return error;
+}
+
+/**
+ * Refuse a roster a path stores as sent, without reading it through `readTeamBody`, when a player in
+ * it breaks what every roster write is held to (`playerViolations`): an SPP counter outside 0…999, or
+ * an id two players share. The 422 `readTeamBody` gives for them. Call it before anything is written.
+ */
+export function refuseRosterPlayers(roster) {
+  const violations = playerViolations(roster);
+  if (violations.length) throw rosterRefusal(violations);
 }
