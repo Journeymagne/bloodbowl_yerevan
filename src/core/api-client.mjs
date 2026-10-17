@@ -12,6 +12,10 @@
  * refs, which nothing outside app.js needs), so calling it here would be the
  * same cycle again. `setOnUnauthorized` lets app.js register it instead —
  * call it once during startup, before any screen can trigger a 401.
+ *
+ * The handler is for a 401 and nothing else. A 403 is a refusal ("not your
+ * fixture", "wrong current password"): the server session is alive, so the
+ * token stays and the screen that asked explains the refusal itself.
  */
 import { createApiClient } from "./api.mjs";
 import { reloadForMaintenance } from "./maintenance-reload.mjs";

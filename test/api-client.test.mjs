@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { API_ERROR, ApiError, createApiClient } from "../src/core/api.mjs";
+import { API_ERROR, ApiError, createApiClient, errorText } from "../src/core/api.mjs";
+import { setDictionaries } from "../src/core/i18n.mjs";
 
 function jsonResponse(status, body) {
   return {
@@ -64,7 +65,7 @@ test("an aborted request is a timeout", async () => {
 test("statuses map to the kinds the roster store branches on", async () => {
   const cases = [
     [401, API_ERROR.UNAUTHORIZED],
-    [403, API_ERROR.UNAUTHORIZED],
+    [403, API_ERROR.FORBIDDEN],
     [409, API_ERROR.CONFLICT],
     [422, API_ERROR.INVALID],
     [404, API_ERROR.HTTP],
@@ -103,6 +104,22 @@ test("a 401 notifies once so the session can be cleared in one place", async () 
   });
   await assert.rejects(() => client.request("/api/teams"));
   assert.equal(notified, 1);
+});
+
+test("a 403 is a refusal: the session is not reported dead", async () => {
+  let notified = 0;
+  const client = clientWith(async () => jsonResponse(403, { error: { code: "CURRENT_PASSWORD_WRONG", params: {}, message: "x" } }), {
+    onUnauthorized: () => { notified += 1; },
+  });
+  await assert.rejects(() => client.request("/api/auth/profile", { method: "PATCH" }),
+    (error) => error.kind === API_ERROR.FORBIDDEN && error.code === "CURRENT_PASSWORD_WRONG");
+  assert.equal(notified, 0);
+});
+
+test("no connection and a timeout are told in the page's language", () => {
+  setDictionaries({ en: { "request.offline": "No connection", "request.timeout": "Too slow" }, ru: {} });
+  assert.equal(errorText(new ApiError(API_ERROR.OFFLINE, { message: "Failed to fetch" })), "No connection");
+  assert.equal(errorText(new ApiError(API_ERROR.TIMEOUT, { message: "The operation was aborted" })), "Too slow");
 });
 
 test("a non-JSON body still produces a usable error", async () => {
