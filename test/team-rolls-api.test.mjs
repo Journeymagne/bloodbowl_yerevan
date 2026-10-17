@@ -96,6 +96,23 @@ test("the route's die is the server's: a D8 for a characteristic, a D16 for a sk
   assert.deepEqual((await rows(client, id)).map((row) => row.purpose).sort(), ["random_skill", "stat"]);
 }));
 
+test("a blank face of the D16 is part of the roll: kept as an attempt with no skill, in the answer and in the stored row", db, () => withApiDatabase(async ({ client }) => {
+  const strength = (await matchReference()).skillGroups.find((group) => group.category === "Strength").skills;
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { players: [{ id: "ogre", rowIndex: 5, spp: {} }] } });
+  assert.ok(strength.length < 15, "a column with blank faces");
+  const die = scriptedServerDie(16, strength.length + 1, 1);
+  let rolled;
+  try {
+    const { status, body } = await roll(id, "ogre", coach.token, { purpose: "random_skill", category: "Strength" });
+    assert.equal(status, 200);
+    rolled = body.roll;
+  } finally { die.done(); }
+  const attempts = [{ roll: 16, skill: null, duplicate: false }, { roll: strength.length + 1, skill: null, duplicate: false }, { roll: 1, skill: strength[0], duplicate: false }];
+  assert.deepEqual(rolled.result, { attempts, skill: strength[0] });
+  const stored = (await client.query("SELECT result FROM dice_rolls WHERE id = $1", [rolled.id])).rows[0].result;
+  assert.deepEqual(stored, { attempts, skill: strength[0] });
+}));
+
 test("a player with every skill of the category but one can only roll that one; with all of them there is nothing to roll", db, () => withApiDatabase(async ({ client }) => {
   const general = await generalSkills(), last = general.at(-1);
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { players: [
@@ -227,7 +244,7 @@ test("of the unused rolls of a step the earliest is handed out, then the lowest 
     `INSERT INTO dice_rolls (id, saved_team_id, player_id, purpose, params, result, used_at, created_at)
      VALUES ($1, $2, $3, $4, '{}', '{}', CASE WHEN $5::boolean THEN now() END, now() - $6::interval)`, [uuid(n), team, player, purpose, used, age]);
   await put(1, id, "p0", "stat", { age: "5 hours", used: true });
-  await put(2, id, "p0", "random_skill", { age: "4 hours" });
+  await put(2, id, "p0", "random_skill", { age: "10 minutes" }); // another purpose, later: an earlier one would be p0's turn (R35)
   await put(3, id, "p1", "stat", { age: "3 hours" });
   await put(4, theirs, "p0", "stat", { age: "2 hours" });
   await put(5, id, "p0", "stat", { age: "30 minutes" }); // the lower id, and the later roll

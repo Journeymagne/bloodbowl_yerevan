@@ -6,18 +6,20 @@
  * `dice_rolls` row until an advancement takes it. The rules of the dice are the pure ones in
  * `src/domain/roster/dice.mjs`; this module hands them the die and keeps the answer.
  *
- * A step is a player and a purpose. Declare, then roll, as at the table: while a roll waits for a
- * player, asking again for its purpose hands back the earliest such roll, whatever category is asked
- * this time, and asking for the other purpose is refused — a coach never holds a D8 and a D16 for one
- * player before choosing which advancement to take. A random skill the player has come to hold since it
- * was rolled is still the step's roll: it is handed back marked `stale`, never spent for a fresh die.
+ * A player's rolls take one turn, whatever their purpose. Declare, then roll, as at the table: while a
+ * roll waits for a player, asking for its purpose hands back his earliest waiting roll, whatever category
+ * is asked this time, and asking for the other purpose is refused — a coach never holds a D8 and a D16
+ * for one player before choosing which advancement to take, and an undone site advancement is taken again
+ * before the player gets his next roll. A random skill the player has come to hold since it was rolled is
+ * still his roll: it is handed back marked `stale`, never spent for a fresh die.
  * All of that is held by the team row lock every writer of this table takes first (`teamForUser(…,
  * { lock: true })` inside a transaction, `writeSavedTeam`'s FOR UPDATE), and by nothing else — there is
  * no index for it, on purpose: an undone advancement frees its roll while the next one may already wait,
  * which a unique index over the unused rolls would refuse.
  *
  * A roll is used by the advancement that names it (`roll: { id, via: "site" }`), by one only, in the
- * order its step handed rolls out, and given back in the reverse order; a used random skill keeps the
+ * order the player's rolls were handed out, and given back in the reverse order, whatever their purpose:
+ * the undo of a player's site advancements goes last first. A used random skill keeps the
  * skills its die was rerolled against for as long as it is used, the Pro a captain's die was turned off
  * excepted, which comes and goes with the captaincy (a random skill's roll keeps `params.captain`). A save
  * of the roster settles all of that (`settleRosterRolls`). A team is created with no rolls, so a roster it
@@ -86,8 +88,10 @@ export function publicRoll(row) {
  * and the write of a new one are not safe against another request without the lock. A request that is
  * refused writes nothing, and a roll that was waiting is handed back as it is, with no write at all.
  *
- * One roll waits for a player at a time: while a roll of the other purpose waits, stale or not, asking is
- * refused with that roll's purpose. A waiting random skill the player has come to hold since it was
+ * The player's earliest waiting roll, of either purpose, is the one looked at: asked for its purpose, it is
+ * handed back; asked for the other, the ask is refused with its purpose, stale or not. So one roll waits for
+ * a player at a time, and when an undo has left two waiting — a skill and a characteristic given back, last
+ * first — the earlier is taken again before the later is handed out. A waiting random skill the player has come to hold since it was
  * rolled — taken at the table meanwhile, or added by hand (`heldSkillKeys`, by canonical name, as the die
  * reads it) — comes back marked `stale: true`. It is not spent for a fresh die, which would be a reroll
  * for nothing; the step goes on once the duplicate is gone, or once this roll takes the place of the table
@@ -109,7 +113,8 @@ export function publicRoll(row) {
  * @param {string} step.userId who is asking: the roll is kept as theirs
  * @param {(sides: number) => number} [step.rng] the die; the server's own unless a test hands in another
  * @returns {Promise<object>} the dice_rolls row, with `stale: true` on a stale one
- * @throws 404 PLAYER_NOT_FOUND; 409 DICE_ROLL_WAITING `{ purpose }` while a roll of the other purpose waits;
+ * @throws 404 PLAYER_NOT_FOUND; 409 DICE_ROLL_WAITING `{ purpose }` while the player's earliest waiting roll
+ *   is of the other purpose;
  *   422 DICE_CATEGORY or DICE_NO_SKILL when a random skill cannot be rolled
  */
 export async function rollForPlayer(client, { teamRow, playerId, purpose, category, userId, rng = serverDie }) {
@@ -117,10 +122,9 @@ export async function rollForPlayer(client, { teamRow, playerId, purpose, catego
   const player = team && normalizeDraftPlayers(team, teamRow.roster ?? {}).find((item) => item.id === playerId);
   if (!player) throw httpError(404, "PLAYER_NOT_FOUND");
   const position = rowsForTeam(team)[player.rowIndex];
-  const { rows: waiting } = await client.query(WAITING_ROLLS, [teamRow.id, player.id]);
-  const same = waiting.find((roll) => roll.purpose === purpose);
-  if (same) return heldSince(same, position, player) ? { ...same, stale: true } : same;
-  if (waiting.length) throw httpError(409, "DICE_ROLL_WAITING", { purpose: waiting[0].purpose });
+  const { rows: [earliest] } = await client.query(WAITING_ROLLS, [teamRow.id, player.id]);
+  if (earliest && earliest.purpose !== purpose) throw httpError(409, "DICE_ROLL_WAITING", { purpose: earliest.purpose });
+  if (earliest) return heldSince(earliest, position, player) ? { ...earliest, stale: true } : earliest;
   const rolled = purpose === "stat"
     ? statRoll(rng)
     : randomSkillRoll({ row: position, player, category, skillGroups: (await matchReference()).skillGroups, rng });
@@ -151,8 +155,9 @@ function heldSince(roll, position, player) {
  * advancement (`rollFitsAdvancement`), and whose rerolls the saved roster explains (`rerollsHeldBy`: the
  * die cannot be steered by holding a skill only while it is asked) — else 422 DICE_ROLL_MISMATCH with the
  * player — and that is unused. Rolls are used in the order an ask hands them out and given back last in,
- * first out: after the save, each step it touches must have exactly its earliest rolls used, so a coach
- * who has seen the next roll cannot move an advancement onto it, in one save or over several. A roll used
+ * first out, per player and whatever their purpose: after the save, each player it touches must have
+ * exactly his earliest rolls used, so a coach who has seen the next roll cannot move an advancement onto
+ * it, in one save or over several, nor give a skill back from under a later characteristic. A roll used
  * already or out of turn, one another player or kind of advancement held before this save, and one two
  * advancements claim are each 409 DICE_ROLL_USED.
  *
@@ -205,8 +210,9 @@ export async function settleRosterRolls(client, { teamId, race = null, raceBefor
 
 /**
  * The rolls a save names, checked against their rows: each new or corrected reference against its own row
- * (422), a new one for being unused (409), and then every step the save touches — a roll referenced anew,
- * corrected or dropped — for its used rolls being exactly its earliest, by `created_at, id` (409).
+ * (422), a new one for being unused (409), and then every player the save touches — a roll of his
+ * referenced anew, corrected or dropped — for his used rolls, of both purposes, being exactly his
+ * earliest, by `created_at, id` (409).
  */
 async function checkRolls(client, teamId, { added, regranted, freed, holds }) {
   const references = [...added, ...regranted];
@@ -223,8 +229,8 @@ async function checkRolls(client, teamId, { added, regranted, freed, holds }) {
   const usedAfter = (row) => taken.has(row.id) || (row.used_at !== null && !given.has(row.id));
   const touched = [...references.map((reference) => reference.id), ...given].map((id) => byId.get(id)).filter(Boolean);
   for (const row of touched) {
-    const step = rows.filter((other) => other.player_id === row.player_id && other.purpose === row.purpose);
-    if (step.some((other, at) => at > 0 && usedAfter(other) && !usedAfter(step[at - 1]))) throw httpError(409, "DICE_ROLL_USED");
+    const turn = rows.filter((other) => other.player_id === row.player_id);
+    if (turn.some((other, at) => at > 0 && usedAfter(other) && !usedAfter(turn[at - 1]))) throw httpError(409, "DICE_ROLL_USED");
   }
 }
 
