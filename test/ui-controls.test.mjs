@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
@@ -20,6 +21,16 @@ test("a primary button names its action and can say what is missing", () => {
   assert.ok(button.querySelector("svg.g-icon"));
   assertCspSafe(fragment);
   assertStyled(fragment, "button.css");
+});
+
+test("a button can be drawn hidden, for the screen to show it when it has something to do", () => {
+  for (const props of [{}, { href: "#/login" }]) {
+    const fragment = mount(renderButton({ label: "Save", hidden: true, ...props }));
+    assert.equal(fragment.querySelector(".g-btn").hasAttribute("hidden"), true);
+    assert.equal(mount(renderButton({ label: "Save", ...props })).querySelector(".g-btn").hasAttribute("hidden"), false);
+  }
+  const css = readFileSync(new URL("../src/ui/button.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(css, /\.g-btn\[hidden\]\s*\{\s*display:\s*none;\s*\}/, ".g-btn sets a display, which would show a hidden button");
 });
 
 test("every kind has its class, an unknown kind is a bug", () => {

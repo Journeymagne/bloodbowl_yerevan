@@ -14,10 +14,11 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
 import { requestLocale } from "../../core/locale-request.mjs";
-import { authUrl } from "../../core/routes.mjs";
+import { authUrl, routeFromHash } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
+import { announce } from "../../components/live-region.mjs";
 import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
 import { mergeCurrentUser, signOut } from "../../data/session.mjs";
@@ -34,10 +35,22 @@ function joinedIn(createdAt) {
   return date && !Number.isNaN(date.getTime()) ? date.getFullYear() : null;
 }
 
+/**
+ * Whether the field holds the contact that is on file, which is nothing to save: the same text, or the
+ * contact as the form would send it (a bare name gets its @, blanks are trimmed). A contact on file
+ * without its @ is not the same as one with it: that one can still be saved.
+ */
+function isSameContact(typed, saved) {
+  const onFile = String(saved ?? "");
+  return typed === onFile || normalizeTelegram(typed) === onFile.trim();
+}
+
 function identityHtml(user, teamCount) {
   const initial = Array.from(String(user.login ?? ""))[0]?.toUpperCase() ?? "";
   const year = joinedIn(user.createdAt);
-  const since = year === null ? "" : `<span class="g-settings__since">${escapeHtml(t("settings.coachSince", { year, count: teamCount }))}</span>`;
+  // A count the app has not got (the list is still coming, or could not be read) is left out, not drawn as none.
+  const line = typeof teamCount === "number" ? t("settings.coachSince", { year, count: teamCount }) : t("settings.coachSinceYear", { year });
+  const since = year === null ? "" : `<span class="g-settings__since">${escapeHtml(line)}</span>`;
   return `<div class="g-settings__who">
     <span class="g-settings__avatar" aria-hidden="true">${escapeHtml(initial)}</span>
     <span class="g-settings__identity">
@@ -46,12 +59,6 @@ function identityHtml(user, teamCount) {
       ${since}
     </span>
   </div>`;
-}
-
-/** renderButton cannot draw a button hidden; the stylesheet keeps `.g-btn`'s display from overriding it. */
-function saveButtonHtml(visible) {
-  const save = renderButton({ label: t("common.save"), kind: "primary", data: { telegramSave: true } });
-  return visible ? save : save.replace("<button ", "<button hidden ");
 }
 
 /** The login is text on every account; the contact is a field, and the password a sheet, unless the server keeps them. */
@@ -65,7 +72,7 @@ function editableHtml(user, telegram, telegramError) {
     autocomplete: "off",
     help: t("settings.telegramHint"),
     error: telegramError,
-    actionHtml: saveButtonHtml(telegram !== (user.telegram ?? "")),
+    actionHtml: renderButton({ label: t("common.save"), kind: "primary", hidden: isSameContact(telegram, user.telegram), data: { telegramSave: true } }),
   });
   const password = `<button type="button" class="g-settings__password" data-open-password aria-haspopup="dialog">${icon("lock", 20)}`
     + `<span class="g-settings__password-label">${escapeHtml(t("settings.changePassword"))}</span>${icon("chevron", 16)}</button>`;
@@ -107,7 +114,7 @@ function languageHtml(locale) {
 /**
  * @param {object} props
  * @param {object|null} props.user the signed-in coach, null for a guest
- * @param {number} props.teamCount how many teams the coach has
+ * @param {number|null} props.teamCount how many teams the coach has; null while the app does not know
  * @param {string} props.locale "ru" or "en"
  * @param {string} props.telegram what the contact field holds (the contact on file, or what was typed over it)
  * @param {string} [props.telegramError] why the last save was refused
@@ -137,43 +144,46 @@ export function settingsMarkup({ user, teamCount, locale, telegram = "", telegra
  *
  * @param {Element} root the container the markup is in; it may be drawn again
  * @param {object} callbacks
- * @param {string} callbacks.saved the contact on file: Save shows while the field differs from it
+ * @param {string} callbacks.saved the contact on file: Save shows while the field holds another
  * @param {(value: string) => unknown} callbacks.onSaveTelegram the field's value as typed
  * @param {() => unknown} callbacks.onLogout
  * @param {() => unknown} callbacks.onOpenPassword
- * @param {() => unknown} [callbacks.onLocaleSettled] the app has answered a language request, whether or not it switched
+ * @param {(value: string) => unknown} [callbacks.onInput] the field's value, at every keystroke
+ * @param {(locale: string) => unknown} [callbacks.onLocaleSettled] the app has answered a request for this language, whether or not it switched
  * @returns {() => void} removes the listeners
  */
-export function wireSettings(root, { saved, onSaveTelegram, onLogout, onOpenPassword, onLocaleSettled }) {
+export function wireSettings(root, { saved, onSaveTelegram, onLogout, onOpenPassword, onInput, onLocaleSettled }) {
   const group = listenerGroup(root);
   group.on("input", "#settings-telegram", (event, input) => {
     const button = root.querySelector("[data-telegram-save]");
-    if (input.value === saved) button?.setAttribute("hidden", "");
+    if (isSameContact(input.value, saved)) button?.setAttribute("hidden", "");
     else button?.removeAttribute("hidden");
+    onInput?.(input.value);
   });
   group.on("click", "[data-telegram-save]", () => onSaveTelegram(root.querySelector("#settings-telegram").value));
   group.on("keydown", "#settings-telegram", (event, input) => {
-    if (event.key !== "Enter" || event.isComposing || input.value === saved) return;
+    if (event.key !== "Enter" || event.isComposing || isSameContact(input.value, saved)) return;
     event.preventDefault();
     onSaveTelegram(input.value);
   });
   group.on("click", "[data-open-password]", () => onOpenPassword());
   group.on("click", "[data-logout]", () => onLogout());
   // The control shows the new language at once; the app may not manage it, and then it is redrawn from what is true.
-  const ask = (locale) => Promise.resolve(requestLocale(locale)).catch(console.error).then(onLocaleSettled);
+  const ask = (locale) => Promise.resolve(requestLocale(locale)).catch(console.error).then(() => onLocaleSettled?.(locale));
   group.own(wireSegmentedControls(root, ask, { group: "language" }));
   return () => group.release();
 }
 
 /**
  * Save the contact as the registration form takes it. A new contact has to be
- * in that format; one that is already on file is never checked, because it is
- * never saved (the field offers no Save for it).
+ * in that format; the one already on file is never checked, because it is
+ * never sent (the field offers no Save for it, and nothing here sends it).
  *
  * @param {string} value as typed
- * @returns {Promise<{error: string}|null>} null once saved; otherwise why not, as text
+ * @returns {Promise<{error: string}|null>} null once saved, or when it is the contact on file; otherwise why not, as text
  */
 export async function saveTelegram(value) {
+  if (isSameContact(value, state.auth.currentUser?.telegram)) return null;
   const telegram = normalizeTelegram(value);
   const problem = telegramProblem(telegram);
   if (problem === "TELEGRAM_REQUIRED") return { error: t("error.TELEGRAM_REQUIRED") };
@@ -187,16 +197,22 @@ export async function saveTelegram(value) {
   }
 }
 
-// What the screen holds between its own redraws; it starts afresh each time the route draws it.
-const screen = { open: false, saving: false, telegram: "", telegramError: "" };
+/**
+ * What the screen holds between its own redraws. `telegram` is what the field holds, which a redraw
+ * puts back (a field that is not focused is returned to the markup's value). It outlives a redraw of
+ * this very route (a language switch, a change of session), and is dropped when the coach goes to
+ * another screen or another coach is on: `who`.
+ */
+const screen = { open: false, saving: false, who: null, telegram: "", telegramError: "" };
 let release = null;
 
 function draw() {
   const user = state.auth.currentUser;
+  const teams = state.myTeams;
   release?.();
   patch(view, settingsMarkup({
     user,
-    teamCount: state.myTeams.items.length,
+    teamCount: teams.loaded && !teams.error ? teams.items.length : null,
     locale: getLocale(),
     telegram: screen.telegram,
     telegramError: screen.telegramError,
@@ -204,10 +220,26 @@ function draw() {
   release = wireSettings(view, {
     saved: user?.telegram ?? "",
     onSaveTelegram: submitTelegram,
+    onInput: typed,
     onLogout: logout,
     onOpenPassword() {}, // Task 10 draws the password sheet
-    onLocaleSettled: () => { if (screen.open) draw(); },
+    onLocaleSettled: languageSettled,
   });
+}
+
+/** Typing takes back what was said about the last try, and is what a redraw puts back. */
+function typed(value) {
+  screen.telegram = value;
+  if (!screen.telegramError) return;
+  screen.telegramError = "";
+  draw();
+}
+
+/** A switch that worked has been drawn by the route; one that did not leaves the control on a language that is not the page's. */
+function languageSettled(locale) {
+  if (getLocale() === locale) return;
+  toast(t("settings.languageFailed"), { tone: "error" });
+  if (screen.open) draw();
 }
 
 async function submitTelegram(value) {
@@ -220,9 +252,18 @@ async function submitTelegram(value) {
     if (failure) toast(failure.error, { tone: "error" });
     return;
   }
-  screen.telegram = failure ? value : state.auth.currentUser?.telegram ?? "";
+  // The Save button is about to go; the focus on it would go to the page with it.
+  const onSave = document.activeElement === view.querySelector("[data-telegram-save]");
+  const now = view.querySelector("#settings-telegram")?.value ?? value;
+  const goneOn = now !== value; // the coach kept typing while it was on its way: that is theirs, not the answer's
+  screen.telegram = failure || goneOn ? now : state.auth.currentUser?.telegram ?? "";
   screen.telegramError = failure?.error ?? "";
   draw();
+  const input = view.querySelector("#settings-telegram");
+  // A field that has the focus keeps what it holds through a redraw, so it is told.
+  if (input && input.value !== screen.telegram) input.value = screen.telegram;
+  if (failure) announce(failure.error);
+  else if (onSave) input?.focus();
 }
 
 async function logout() {
@@ -231,8 +272,12 @@ async function logout() {
 }
 
 export function renderSettings() {
+  const user = state.auth.currentUser;
+  if (screen.who !== (user?.id ?? null)) {
+    screen.who = user?.id ?? null;
+    screen.telegram = user?.telegram ?? "";
+  }
   screen.open = true;
-  screen.telegram = state.auth.currentUser?.telegram ?? "";
   screen.telegramError = "";
   setActiveNav("settings");
   setViewSection("settings");
@@ -241,5 +286,7 @@ export function renderSettings() {
     release?.();
     release = null;
     screen.open = false;
+    // The router also releases a screen to draw the same route again: that is not leaving.
+    if (routeFromHash(location.hash) !== "settings") screen.who = null;
   });
 }

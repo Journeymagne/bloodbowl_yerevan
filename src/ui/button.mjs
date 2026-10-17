@@ -17,18 +17,21 @@ export const BUTTON_KINDS = ["primary", "outline", "dark", "danger", "danger-out
  *
  * `outline` is the base look and has no class of its own beyond `g-btn`. The
  * label is required: the icon beside it is decoration, hidden from a screen
- * reader (an icon on its own is renderIconButton).
+ * reader (an icon on its own is renderIconButton). `hidden` draws it out of
+ * sight and out of the tab order until the screen takes the attribute off: a
+ * "save" that only has something to do once a field has changed.
  */
-export function renderButton({ label, kind = "outline", type = "button", href = "", disabled = false, icon = "", block = false, data = {} }) {
+export function renderButton({ label, kind = "outline", type = "button", href = "", disabled = false, hidden = false, icon = "", block = false, data = {} }) {
   if (!label) throw new Error("a button needs a label: its icon is decoration, and nothing else names it");
   if (!BUTTON_KINDS.includes(kind)) throw new Error(`unknown button kind: ${kind}`);
   const className = classNames("g-btn", kind !== "outline" && `g-btn--${kind}`, block && "g-btn--block");
   const content = `${icon ? renderIcon(icon, kind === "primary" ? 20 : 16) : ""}${escapeHtml(label)}`;
+  const out = hidden ? " hidden" : "";
   if (href) {
     assertLinkHref(href);
-    return `<a class="${className}" href="${escapeHtml(href)}"${dataAttributes(data)}>${content}</a>`;
+    return `<a class="${className}" href="${escapeHtml(href)}"${out}${dataAttributes(data)}>${content}</a>`;
   }
-  return `<button type="${escapeHtml(type)}" class="${className}"${disabled ? " disabled" : ""}${dataAttributes(data)}>${content}</button>`;
+  return `<button type="${escapeHtml(type)}" class="${className}"${disabled ? " disabled" : ""}${out}${dataAttributes(data)}>${content}</button>`;
 }
 
 /** The round close or back button of a sheet. Nothing else names it, so the label is required. */

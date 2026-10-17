@@ -115,9 +115,6 @@
   overflow-wrap: anywhere;
 }
 
-/* The Save button is drawn hidden until the field differs from the contact on file; .g-btn's own display would show it. */
-.g-settings [data-telegram-save][hidden] { display: none; }
-
 /* Change password: a row that opens a sheet. */
 .g-settings__password {
   box-sizing: border-box;

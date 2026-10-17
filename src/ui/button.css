@@ -58,6 +58,9 @@
 
 .g-btn--block { width: 100%; }
 
+/* The display above would otherwise win over the attribute's own. */
+.g-btn[hidden] { display: none; }
+
 .g-btn:disabled {
   cursor: default;
   opacity: .6;
