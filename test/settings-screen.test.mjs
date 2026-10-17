@@ -644,3 +644,341 @@ test("saving the contact keeps the account's palette, and the next sync paints i
   assert.deepEqual(themeChoice(), { mode: "light", light: "parchment", dark: "night" });
   api.assertAnswered();
 });
+
+// Task 10: the password sheet, on the screen. The sheet itself is test/password-sheet.test.mjs's.
+const PASSWORD_SHEET = "#password-sheet";
+const sheetOf = () => view.querySelector(PASSWORD_SHEET);
+const modal = () => view.querySelector("dialog:modal");
+const openPassword = () => view.querySelector("[data-open-password]");
+const into = (selector, value) => {
+  const input = view.querySelector(selector);
+  input.focus();
+  input.value = value;
+  fireEvent(input, "input");
+};
+const fillPassword = (current, next, repeat = next) => {
+  into("#password-current", current);
+  into("#password-next", next);
+  into("#password-repeat", repeat);
+};
+const submitPassword = () => fireEvent(view.querySelector("#password-form"), "submit");
+const passwordAnswer = (status, body) => api.reply("PATCH /api/auth/profile", status, body);
+const passwordCalls = () => api.calls.filter((call) => call.key === "PATCH /api/auth/profile");
+function drawSignedIn(over = {}) {
+  api.reset();
+  api.items.set("gata-league-auth-token", "tok");
+  draw({ ...COACH, ...over });
+}
+/** The ways out of the sheet, each as the coach or the browser makes it. */
+const WAYS_OUT = [
+  ["the cross", () => fireEvent(view.querySelector("[data-sheet-close]"), "click")],
+  ["Escape", () => fireEvent(view.querySelector("#password-current"), "keydown", { key: "Escape" })],
+  ["the backdrop", () => fireEvent(sheetOf(), "click")],
+  ["a close request (the Android back gesture)", () => fireEvent(sheetOf(), "cancel", { bubbles: false })],
+];
+
+test("the password row opens the sheet over the screen, modal, with the focus in its first field", () => {
+  drawSignedIn();
+  assert.equal(sheetOf(), null, "nothing is drawn until it is asked for");
+  fireEvent(openPassword(), "click");
+  assert.ok(sheetOf().matches("dialog:modal"), "opened modally, and kept so");
+  assert.ok(document.activeElement === view.querySelector("#password-current"), "the first field has the focus");
+  assert.ok(view.querySelector(".g-settings"), "the screen is under it");
+  assert.equal(view.querySelector("#password-current").getAttribute("value"), "");
+  assert.equal(view.querySelector('.g-sheet__foot button[type="submit"]').hasAttribute("disabled"), true);
+  assert.equal(openPassword().getAttribute("aria-haspopup"), "dialog");
+});
+
+test("typing is kept through every redraw: the sheet stays modal, the field keeps the focus, and the button wakes when the checks pass", () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  const dialog = sheetOf();
+  into("#password-current", "old1");
+  into("#password-next", "abcd");
+  assert.ok(sheetOf() === dialog, "the same dialog, patched in place");
+  assert.ok(sheetOf().matches("dialog:modal"));
+  assert.equal(view.querySelectorAll(".g-check--ok").length, 2, "the length is enough and it differs; the repeat is not typed");
+  into("#password-repeat", "abcd");
+  assert.equal(view.querySelectorAll(".g-check--ok").length, 3);
+  assert.equal(view.querySelector('.g-sheet__foot button[type="submit"]').hasAttribute("disabled"), false);
+  assert.ok(document.activeElement === view.querySelector("#password-repeat"), "the field typed in is the one with the focus");
+  assert.deepEqual(["#password-current", "#password-next", "#password-repeat"].map((id) => view.querySelector(id).value), ["old1", "abcd", "abcd"]);
+  assert.equal(view.querySelector(".g-meter__label").textContent, "Fair", "the meter reads the new password");
+});
+
+test("Show passwords draws the three fields as text, and pressing it again hides them", () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  const types = () => ["#password-current", "#password-next", "#password-repeat"].map((id) => view.querySelector(id).getAttribute("type"));
+  const toggle = () => view.querySelector("[data-password-show]");
+  assert.deepEqual(types(), ["password", "password", "password"]);
+  fireEvent(toggle(), "click");
+  assert.deepEqual(types(), ["text", "text", "text"]);
+  assert.equal(toggle().getAttribute("aria-pressed"), "true");
+  assert.ok(sheetOf().matches("dialog:modal"));
+  assert.equal(view.querySelector("#password-next").value, "abcd", "what was typed is kept");
+  fireEvent(toggle(), "click");
+  assert.deepEqual(types(), ["password", "password", "password"]);
+  assert.equal(toggle().getAttribute("aria-pressed"), "false");
+});
+
+test("a changed password says so, ends the form, and the focus goes to Done; the account's settings and the session stay", async () => {
+  drawSignedIn();
+  passwordAnswer(200, { user: { id: "u1", login: "felstell", telegram: "@felstell", isAdmin: false } });
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  submitPassword();
+  assert.equal(view.querySelector("#password-form").getAttribute("aria-busy"), "true", "busy while it is on its way");
+  await settle();
+  await nextTick();
+  assert.deepEqual(passwordCalls().map((call) => call.body), [{ password: "abcd", currentPassword: "old1" }]);
+  assert.equal(view.querySelector("#password-form"), null);
+  assert.match(text(`${PASSWORD_SHEET} .g-sheet__body`), /Password changed.*sign in again on your other devices/);
+  assert.ok(document.activeElement === view.querySelector("[data-password-done]"), "the button that closes it has the focus");
+  assert.ok(sheetOf().matches("dialog:modal"), "still the same open sheet");
+  assert.equal(view.querySelectorAll("input[type=\"password\"], #password-current, #password-next, #password-repeat").length, 0, "no password is left on the page");
+  assert.ok(spoken().includes("Password changed"), "said aloud, since the focus moved to a button");
+  assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "dark" });
+  assert.equal(api.items.get("gata-league-auth-token"), "tok", "this session goes on");
+});
+
+test("Done closes the sheet and the focus goes back to the row that opened it", async () => {
+  drawSignedIn();
+  passwordAnswer(200, { user: { id: "u1", login: "felstell", telegram: "@felstell", isAdmin: false } });
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  submitPassword();
+  await settle();
+  fireEvent(view.querySelector("[data-password-done]"), "click");
+  assert.equal(sheetOf(), null);
+  assert.equal(modal(), null);
+  assert.ok(document.activeElement === openPassword(), "the focus is on «Change password» again");
+  fireEvent(openPassword(), "click");
+  assert.equal(view.querySelector("#password-current").value, "", "a second visit does not find the passwords");
+  assert.equal(view.querySelector("#password-next").value, "");
+  assert.equal(view.querySelector("#password-repeat").value, "");
+  assert.equal(sheetOf().querySelector("[data-password-done]"), null, "and finds the form, not the news");
+});
+
+for (const [way, close] of WAYS_OUT) {
+  test(`${way} closes the sheet, forgets the passwords, and the focus goes back to the row that opened it`, () => {
+    drawSignedIn();
+    fireEvent(openPassword(), "click");
+    fillPassword("old1", "abcd");
+    fireEvent(view.querySelector("[data-password-show]"), "click");
+    close();
+    assert.equal(sheetOf(), null, "taken off the page after the redraw");
+    assert.equal(modal(), null);
+    assert.ok(document.activeElement === openPassword(), "the focus is on «Change password» again");
+    assert.equal(passwordCalls().length, 0, "nothing was sent");
+    fireEvent(openPassword(), "click");
+    assert.deepEqual(["#password-current", "#password-next", "#password-repeat"].map((id) => view.querySelector(id).value), ["", "", ""]);
+    assert.equal(view.querySelector("#password-current").getAttribute("type"), "password", "and the passwords are hidden again");
+    assert.equal(view.querySelector("[data-password-show]").getAttribute("aria-pressed"), "false");
+  });
+}
+
+test("a wrong current password is said on that field, the focus goes there, and what was typed stays for another try", async () => {
+  drawSignedIn();
+  passwordAnswer(403, refusal("CURRENT_PASSWORD_WRONG"));
+  fireEvent(openPassword(), "click");
+  fillPassword("wrong", "abcd");
+  submitPassword();
+  await settle();
+  assert.equal(text("#password-current-error"), "The current password is wrong.");
+  assert.equal(view.querySelector("#password-current").getAttribute("aria-invalid"), "true");
+  assert.ok(document.activeElement === view.querySelector("#password-current"), "the coach is put in the field, where the reason is read as its description");
+  assert.match(view.querySelector("#password-current").getAttribute("aria-describedby"), /password-current-error/);
+  assert.equal(view.querySelector('[role="alert"]').textContent, "", "said once");
+  assert.deepEqual(["#password-current", "#password-next", "#password-repeat"].map((id) => view.querySelector(id).value), ["wrong", "abcd", "abcd"]);
+  assert.equal(view.querySelector("#password-form").hasAttribute("aria-busy"), false);
+  assert.ok(sheetOf().matches("dialog:modal"));
+  assert.equal(api.items.get("gata-league-auth-token"), "tok");
+  assert.equal(state.auth.currentUser.id, "u1");
+  into("#password-current", "wrong2");
+  assert.equal(view.querySelector("#password-current-error"), null, "typing takes the refusal away");
+  assert.equal(view.querySelector("#password-current").getAttribute("aria-invalid"), null);
+});
+
+test("too many tries and the administrator whose password the server keeps are the alert's text, with no field to blame", async () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  passwordAnswer(429, { ...refusal("TOO_MANY_LOGIN_ATTEMPTS"), retryAfterSeconds: 600 });
+  submitPassword();
+  await settle();
+  assert.equal(text('[role="alert"] .g-callout--danger .g-callout__title'), "Too many attempts for this login. Try again in 10 min.");
+  assert.equal(view.querySelector("#password-current").getAttribute("aria-invalid"), null);
+  assert.equal(view.querySelector("#password-form").hasAttribute("aria-busy"), false);
+  assert.equal(view.querySelector("#password-next").value, "abcd", "what was typed stays for another try");
+  // K5: the .env administrator's password is the server's: its refusal is the sheet's alert.
+  passwordAnswer(409, refusal("ADMIN_PASSWORD_FROM_ENV"));
+  submitPassword();
+  await settle();
+  assert.equal(text('[role="alert"] .g-callout--danger .g-callout__title'), dictionary("en")["error.ADMIN_PASSWORD_FROM_ENV"]);
+  assert.equal(view.querySelector("#password-current-error"), null);
+  into("#password-next", "abcde");
+  assert.equal(view.querySelector('[role="alert"]').textContent, "", "typing takes the refusal away");
+  assert.equal(passwordCalls().length, 2);
+});
+
+test("a lost connection leaves the sheet as it was, with the reason in the alert", async () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  api.fail("PATCH /api/auth/profile");
+  submitPassword();
+  await settle();
+  assert.equal(text('[role="alert"] .g-callout__title'), dictionary("en")["request.offline"]);
+  assert.equal(view.querySelector("#password-next").value, "abcd");
+  assert.equal(view.querySelector("#password-form").hasAttribute("aria-busy"), false);
+});
+
+test("a second press while the first is on its way sends nothing more, and a form that is not ready sends nothing", async () => {
+  drawSignedIn();
+  passwordAnswer(403, refusal("CURRENT_PASSWORD_WRONG"));
+  fireEvent(openPassword(), "click");
+  fillPassword("", "abcd");
+  submitPassword();
+  await settle();
+  assert.equal(passwordCalls().length, 0, "no current password");
+  fillPassword("old1", "abc", "abc");
+  submitPassword();
+  await settle();
+  assert.equal(passwordCalls().length, 0, "too short");
+  fillPassword("old1", "abcd");
+  submitPassword();
+  submitPassword();
+  await settle();
+  assert.equal(passwordCalls().length, 1);
+});
+
+test("an account the server keeps is never offered the sheet, even when the opener is reached", () => {
+  drawSignedIn();
+  const row = openPassword();
+  // /me answered, late, that the account is the server's: the row is still on the page until the next draw.
+  state.auth.currentUser = { ...state.auth.currentUser, managedByServer: true };
+  let wirings = 0;
+  const original = view.addEventListener;
+  view.addEventListener = function counted(...args) {
+    wirings += 1;
+    return original.apply(this, args);
+  };
+  try {
+    fireEvent(row, "click");
+  } finally {
+    delete view.addEventListener;
+  }
+  assert.equal(wirings, 0, "the opener turned it down before it drew anything");
+  assert.equal(sheetOf(), null);
+  assert.equal(modal(), null);
+  drawSignedIn({ managedByServer: true });
+  assert.equal(openPassword(), null, "and the row is not drawn for it");
+  assert.equal(sheetOf(), null);
+});
+
+test("an account that becomes the server's while the sheet is open loses the sheet and its passwords", () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  state.auth.currentUser = { ...state.auth.currentUser, managedByServer: true };
+  redraw();
+  assert.equal(sheetOf(), null);
+  assert.equal(modal(), null);
+  state.auth.currentUser = { ...state.auth.currentUser, managedByServer: false };
+  redraw();
+  fireEvent(openPassword(), "click");
+  assert.equal(view.querySelector("#password-current").value, "");
+  assert.equal(view.querySelector("#password-next").value, "");
+});
+
+test("a session that ends under the sheet takes it away, and the next coach finds no passwords", () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  state.auth.currentUser = null;
+  redraw();
+  assert.equal(sheetOf(), null);
+  assert.equal(modal(), null);
+  assert.equal(view.querySelector("[data-open-password]"), null);
+  state.auth.currentUser = { ...COACH };
+  redraw();
+  fireEvent(openPassword(), "click");
+  assert.equal(view.querySelector("#password-next").value, "");
+  // Another coach straight away, with no guest between them: the sheet is not theirs.
+  fillPassword("old1", "abcd");
+  state.auth.currentUser = { ...COACH, id: "u2", login: "other", telegram: "@other" };
+  redraw();
+  assert.equal(sheetOf(), null);
+  assert.equal(modal(), null);
+});
+
+test("the same screen drawn again (a language switch, a change of session) keeps the sheet and what was typed in it", () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd", "abc");
+  redraw();
+  assert.ok(sheetOf().matches("dialog:modal"), "still open, and modal");
+  assert.deepEqual(["#password-current", "#password-next", "#password-repeat"].map((id) => view.querySelector(id).value), ["old1", "abcd", "abc"]);
+  assert.ok(document.activeElement === view.querySelector("#password-repeat"));
+  redraw();
+  assert.deepEqual(["#password-current", "#password-next", "#password-repeat"].map((id) => view.querySelector(id).value), ["old1", "abcd", "abc"], "and again");
+});
+
+test("leaving the screen with the sheet open forgets the passwords, and takes the sheet's listeners with it", async () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  const form = view.querySelector("#password-form");
+  globalThis.location.hash = "#/teams";
+  releaseCurrentScreen();
+  submitPassword();
+  fireEvent(form, "submit");
+  await settle();
+  assert.equal(passwordCalls().length, 0, "nothing hears the form any more");
+  draw();
+  assert.equal(sheetOf(), null, "the sheet is not there when the coach comes back");
+  assert.equal(modal(), null);
+  fireEvent(openPassword(), "click");
+  assert.deepEqual(["#password-current", "#password-next", "#password-repeat"].map((id) => view.querySelector(id).value), ["", "", ""]);
+});
+
+test("an answer that comes after the coach closed the sheet is said in a toast, and draws no sheet again", async () => {
+  drawSignedIn();
+  passwordAnswer(200, { user: { id: "u1", login: "felstell", telegram: "@felstell", isAdmin: false } });
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  await withoutTimers(async () => {
+    submitPassword();
+    WAYS_OUT[1][1]();
+    await settle();
+  });
+  assert.equal(sheetOf(), null, "the answer does not open it again");
+  assert.ok(spoken().includes("Password changed"));
+  assert.ok(document.activeElement === openPassword());
+  // And a refusal that comes after the coach has gone to another screen.
+  passwordAnswer(403, refusal("CURRENT_PASSWORD_WRONG"));
+  fireEvent(openPassword(), "click");
+  fillPassword("wrong", "abcd");
+  await withoutTimers(async () => {
+    submitPassword();
+    globalThis.location.hash = "#/teams";
+    releaseCurrentScreen();
+    await settle();
+  });
+  assert.ok(spoken().includes("The current password is wrong."));
+});
+
+test("the sheet's own screen texts are in both dictionaries and in Russian", () => {
+  drawSignedIn();
+  setLocale("ru");
+  try {
+    redraw();
+    fireEvent(openPassword(), "click");
+    assert.equal(text("#password-sheet-title"), "Смена пароля");
+    assert.equal(view.querySelector("[data-password-show]").textContent, "Показать пароль");
+  } finally {
+    setLocale("en");
+  }
+});

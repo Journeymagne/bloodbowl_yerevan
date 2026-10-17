@@ -50,5 +50,6 @@
 @import url("ui/match-card.css");
 @import url("screens/team/empty.css");
 @import url("screens/settings/settings.css");
+@import url("screens/settings/password.css");
 @import url("shell/crest.css");
 @import url("screens/auth/login.css");

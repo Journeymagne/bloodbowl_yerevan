@@ -938,5 +938,18 @@
   "auth.tooManyMinutes": "Too many attempts for this login. Try again in {minutes} min.",
   "auth.tooManySeconds": "Too many attempts for this login. Try again in {seconds} s.",
   "auth.signedInReload": "You are signed in: reloading the page opens your account.",
-  "request.noAnswer": "The server did not answer. Try again in a minute."
+  "request.noAnswer": "The server did not answer. Try again in a minute.",
+  "password.title": "Change password",
+  "password.current": "Current password",
+  "password.next": "New password",
+  "password.repeat": "Repeat the new password",
+  "password.check.length": "At least {min} characters",
+  "password.check.different": "Differs from the current one",
+  "password.check.match": "Passwords match",
+  "password.check.ok": "done",
+  "password.check.no": "not yet",
+  "password.submit": "Change password",
+  "password.done": "Password changed",
+  "password.doneText": "You'll need to sign in again on your other devices.",
+  "password.doneButton": "Done"
 }

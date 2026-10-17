@@ -294,6 +294,55 @@ test("a dialog is only a dialog, and closing a closed one says nothing", () => {
   assert.throws(() => root.querySelector("div").close(), /not a dialog/);
 });
 
+test(":modal matches a dialog showModal opened, until it closes, loses its open attribute or leaves the tree", () => {
+  const root = parseHtml(document, `<section id="host"><dialog id="a"><p>x</p></dialog><dialog id="b" open></dialog></section>`);
+  const [host, a, b] = [root.querySelector("#host"), root.querySelector("#a"), root.querySelector("#b")];
+  assert.equal(host.querySelectorAll("dialog:modal").length, 0, "closed, and open without showModal, are not modal");
+  assert.equal(b.matches(":modal"), false, "a dialog drawn open is open, not modal");
+  a.showModal();
+  assert.deepEqual(host.querySelectorAll("dialog:modal").map((node) => node.id), ["a"]);
+  assert.equal(a.matches("dialog:modal"), true);
+  assert.equal(a.querySelector("p").matches(":modal"), false, "only the dialog is");
+  assert.equal(host.querySelector("section:modal"), null);
+  assert.equal(a.closest("dialog:modal"), a);
+  a.close();
+  assert.equal(host.querySelector("dialog:modal"), null);
+  a.showModal();
+  a.removeAttribute("open");
+  assert.equal(a.matches(":modal"), false, "without its open attribute a dialog is closed");
+  a.setAttribute("open", "");
+  assert.equal(a.matches(":modal"), false, "and opening it again that way does not make it modal");
+  a.close();
+  a.showModal();
+  host.removeChild(a);
+  assert.equal(a.matches(":modal"), false, "a dialog taken out of the tree leaves the top layer");
+  assert.equal(a.open, true, "though its open attribute stays");
+  host.appendChild(a);
+  assert.equal(a.matches(":modal"), false, "and is not modal where it is put back");
+  a.close();
+  a.showModal();
+  assert.equal(a.matches(":modal"), true);
+});
+
+test("showModal on a dialog that is open and modal does nothing, and on one open without it throws, as a browser does", () => {
+  const dialog = parseHtml(document, `<dialog id="d"></dialog><dialog id="o" open></dialog>`).querySelector("#d");
+  const open = dialog.parentNode.querySelector("#o");
+  dialog.showModal();
+  dialog.showModal();
+  assert.equal(dialog.matches(":modal"), true);
+  assert.throws(() => open.showModal(), /already open|InvalidState/i);
+  open.close();
+  open.showModal();
+  assert.equal(open.matches(":modal"), true);
+});
+
+test("`:modal` is the one pseudo-class, and it is spelled alone", () => {
+  const root = parseHtml(document, `<div><dialog></dialog></div>`);
+  for (const bad of [":modals", ":modal:modal(", "dialog:", "dialog::modal", ":Modal-x", "dialog:not(:modal)", "dialog:open"]) {
+    assert.throws(() => root.querySelector(bad), /fake-dom: unsupported selector/, JSON.stringify(bad));
+  }
+});
+
 test("the document queries from html down, body included", () => {
   const holder = el(document, "section", { id: "s" }, el(document, "em"));
   document.body.append(holder);

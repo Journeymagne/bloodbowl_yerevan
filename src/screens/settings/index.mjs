@@ -18,6 +18,7 @@ import { authUrl, routeFromHash } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
+import { patchWithModal } from "../../components/dialog.mjs";
 import { announce } from "../../components/live-region.mjs";
 import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
@@ -28,6 +29,7 @@ import { icon } from "../../ui/icons.mjs";
 import { renderKeyValueRow, renderNavRow } from "../../ui/list-row.mjs";
 import { renderSegmentedControl, wireSegmentedControls } from "../../ui/segmented-control.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
+import { changePassword, passwordReady, passwordSheetMarkup, wirePasswordSheet } from "./password-sheet.mjs";
 
 /** The year the coach joined, or null when the account carries no usable date. */
 function joinedIn(createdAt) {
@@ -202,27 +204,40 @@ export async function saveTelegram(value) {
  * puts back (a field that is not focused is returned to the markup's value). It outlives a redraw of
  * this very route (a language switch, a change of session), and is dropped when the coach goes to
  * another screen or another coach is on: `who`.
+ *
+ * `password` is the password sheet while it is open, with the three passwords typed in it, and null
+ * while it is not. It follows the same rule, and more: closing the sheet drops it too, and a password
+ * is never kept past the sheet that holds it.
  */
-const screen = { open: false, saving: false, who: null, telegram: "", telegramError: "" };
+const screen = { open: false, saving: false, who: null, telegram: "", telegramError: "", password: null };
 let release = null;
+let releaseSheet = null;
+
+const BLANK_PASSWORD = { current: "", next: "", repeat: "", show: false, pending: false, done: false, error: null };
+
+/** A guest has no password to change, and the account the server's settings keep has one only there (R4). */
+const canChangePassword = (user) => Boolean(user) && user.managedByServer !== true;
 
 function draw() {
   const user = state.auth.currentUser;
   const teams = state.myTeams;
+  // The sheet is for an account whose password this screen may change, whatever was open when that stopped being so.
+  if (!canChangePassword(user)) screen.password = null;
   release?.();
-  patch(view, settingsMarkup({
+  const sheet = screen.password;
+  patchWithModal(view, settingsMarkup({
     user,
     teamCount: teams.loaded && !teams.error ? teams.items.length : null,
     locale: getLocale(),
     telegram: screen.telegram,
     telegramError: screen.telegramError,
-  }));
+  }) + (sheet ? passwordSheetMarkup(sheet) : ""), sheet ? "#password-sheet" : "");
   release = wireSettings(view, {
     saved: user?.telegram ?? "",
     onSaveTelegram: submitTelegram,
     onInput: typed,
     onLogout: logout,
-    onOpenPassword() {}, // Task 10 draws the password sheet
+    onOpenPassword: openPassword,
     onLocaleSettled: languageSettled,
   });
 }
@@ -271,22 +286,85 @@ async function logout() {
   location.hash = "#/";
 }
 
+/** The row that opens the sheet is not drawn for an account the server keeps, and the opener asks again: a late /me may say so. */
+function openPassword() {
+  if (!canChangePassword(state.auth.currentUser)) return;
+  screen.password = { ...BLANK_PASSWORD };
+  draw();
+  view.querySelector("#password-current")?.focus();
+}
+
+/** Typing takes back what was said about the last try. */
+function typedPassword(name, value) {
+  const sheet = screen.password;
+  if (!sheet) return;
+  sheet[name] = value;
+  sheet.error = null;
+  draw();
+}
+
+function toggleShowPasswords() {
+  if (!screen.password) return;
+  screen.password.show = !screen.password.show;
+  draw();
+}
+
+async function submitPassword() {
+  const sheet = screen.password;
+  if (!sheet || sheet.pending || sheet.done || !passwordReady(sheet)) return;
+  sheet.pending = true;
+  sheet.error = null;
+  draw();
+  const failure = await changePassword({ current: sheet.current, next: sheet.next });
+  if (screen.password !== sheet) {
+    // The coach closed the sheet or left the screen while it was on its way: nothing of it is on the page to say it.
+    toast(failure ? failure.text : t("password.done"), failure ? { tone: "error" } : undefined);
+    return;
+  }
+  sheet.pending = false;
+  if (failure) sheet.error = failure;
+  else Object.assign(sheet, { current: "", next: "", repeat: "", show: false, done: true });
+  draw();
+  if (failure) {
+    // A refusal that is a field's puts the coach in it, where the reason is read as its description.
+    if (failure.field) view.querySelector(`#password-${failure.field}`)?.focus();
+    return;
+  }
+  // The button that was pressed is gone with the form; Done is where the focus goes, and the news is said aloud.
+  view.querySelector("[data-password-done]")?.focus();
+  announce(t("password.done"));
+}
+
+/** Every way out of the sheet: the passwords go with it, and the focus goes back to the row that opened it. */
+function closePassword() {
+  screen.password = null;
+  draw();
+  view.querySelector("[data-open-password]")?.focus();
+}
+
 export function renderSettings() {
   const user = state.auth.currentUser;
   if (screen.who !== (user?.id ?? null)) {
     screen.who = user?.id ?? null;
     screen.telegram = user?.telegram ?? "";
+    screen.password = null;
   }
   screen.open = true;
   screen.telegramError = "";
   setActiveNav("settings");
   setViewSection("settings");
   draw();
+  releaseSheet = wirePasswordSheet(view, { onInput: typedPassword, onToggleShow: toggleShowPasswords, onSubmit: submitPassword, onClose: closePassword });
   onScreenLeave("settings", () => {
     release?.();
     release = null;
+    releaseSheet?.();
+    releaseSheet = null;
     screen.open = false;
     // The router also releases a screen to draw the same route again: that is not leaving.
-    if (routeFromHash(location.hash) !== "settings") screen.who = null;
+    if (routeFromHash(location.hash) !== "settings") {
+      screen.who = null;
+      screen.password = null;
+    }
   });
 }

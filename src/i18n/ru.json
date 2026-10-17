@@ -938,5 +938,18 @@
   "auth.tooManyMinutes": "Слишком много попыток для этого логина. Попробуйте через {minutes} мин.",
   "auth.tooManySeconds": "Слишком много попыток для этого логина. Попробуйте через {seconds} с.",
   "auth.signedInReload": "Вы уже вошли — после перезагрузки страницы откроется ваш аккаунт.",
-  "request.noAnswer": "Сервер не ответил. Попробуйте через минуту."
+  "request.noAnswer": "Сервер не ответил. Попробуйте через минуту.",
+  "password.title": "Смена пароля",
+  "password.current": "Текущий пароль",
+  "password.next": "Новый пароль",
+  "password.repeat": "Повторите новый пароль",
+  "password.check.length": "Не короче {min} символов",
+  "password.check.different": "Отличается от текущего",
+  "password.check.match": "Пароли совпадают",
+  "password.check.ok": "выполнено",
+  "password.check.no": "не выполнено",
+  "password.submit": "Сменить пароль",
+  "password.done": "Пароль изменён",
+  "password.doneText": "На других устройствах нужно будет войти заново.",
+  "password.doneButton": "Готово"
 }

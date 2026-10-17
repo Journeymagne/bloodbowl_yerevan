@@ -133,6 +133,9 @@ class FakeNode {
     if (at === -1) throw new Error("removeChild: not a child");
     this.childNodes.splice(at, 1);
     node.parentNode = null;
+    // A dialog that leaves the tree leaves the top layer with it, and is no longer modal even
+    // where it is put back (a move is a removal and an insertion): `open` stays as it was.
+    for (const inside of node.walk()) if (inside.tagName === "DIALOG") inside.modalOpened = false;
     // A browser drops focus to the body when the focused node leaves the tree.
     // Without this the fake keeps reporting a detached element as focused, and
     // patch()'s restore path would never be exercised.
@@ -192,6 +195,8 @@ class FakeElement extends FakeNode {
     this.classList = classListOf(this);
     this.value = undefined;
     this.checked = undefined;
+    // Whether showModal() opened it, which `isModal` and `:modal` read; only a <dialog> ever sets it.
+    this.modalOpened = false;
     // A text field always has a caret, at 0 until something moves it. Getting
     // this wrong hides the bug patch() is meant to prevent: a rebuilt field
     // that takes focus back but drops the caret to the end.
@@ -231,6 +236,8 @@ class FakeElement extends FakeNode {
 
   removeAttribute(name) {
     this.attributes = this.attributes.filter((attribute) => attribute.name !== name);
+    // A dialog without its `open` attribute is closed, and a closed one is not modal.
+    if (name === "open") this.modalOpened = false;
   }
 
   /** The first descendant that matches — see `parseSelectorList` for the syntax. */
@@ -318,9 +325,21 @@ class FakeElement extends FakeNode {
     return this.hasAttribute("open");
   }
 
+  /**
+   * What `:modal` asks: opened by `showModal()` and still open, in the tree. A dialog that was drawn
+   * with `open`, or opened by setting the attribute, is open and not modal.
+   */
+  get isModal() {
+    return this.tagName === "DIALOG" && this.modalOpened === true && this.hasAttribute("open");
+  }
+
+  /** A modal dialog is a no-op to open again; one that is open without being modal is an error, as in a browser. */
   showModal() {
     requireDialog(this, "showModal");
+    if (this.isModal) return;
+    if (this.open) throw new Error("fake-dom: showModal() on a dialog that is already open and not modal (InvalidStateError)");
     this.setAttribute("open", "");
+    this.modalOpened = true;
   }
 
   /** A closed dialog says nothing; an open one fires a `close` that does not bubble. */

@@ -69,7 +69,10 @@ export function renderSheet({ id, title, sub = "", step = null, canGoBack = fals
  * dragged out of a field) also ends as a click on the dialog, the nearest
  * element holding both ends: the `pointerdown` says where the press began, and
  * only a press that began on the backdrop, or none at all (a keyboard, a
- * script), closes the sheet. Back is the screen's own step and closes nothing.
+ * script), closes the sheet. A press that never ends in a click is forgotten:
+ * a `pointercancel` (a scroll, a system gesture) and the sheet closing, by
+ * whatever means, clear it, so the next click on the backdrop is not taken for
+ * the end of it. Back is the screen's own step and closes nothing.
  *
  * @param {Element} root a container that outlives re-renders
  * @param {object} [handlers]
@@ -78,15 +81,19 @@ export function renderSheet({ id, title, sub = "", step = null, canGoBack = fals
  * @returns {() => void} removes the listeners
  */
 export function wireSheets(root, { onClose = () => {}, onBack = () => {} } = {}) {
+  // Where the press that the next click ends began: inside a panel, or not.
+  let pressedInside = false;
   const dismiss = (dialog) => {
+    pressedInside = false;
     dialog.close();
     onClose(dialog.id);
   };
-  // Where the press that the next click ends began: inside a panel, or not.
-  let pressedInside = false;
   const offs = [
     delegate(root, "pointerdown", SHEET, (event, dialog) => {
       pressedInside = event.target !== dialog;
+    }),
+    delegate(root, "pointercancel", SHEET, () => {
+      pressedInside = false;
     }),
     delegate(root, "click", "[data-sheet-close]", (event, button) => {
       const dialog = button.closest(SHEET);
@@ -113,9 +120,15 @@ export function wireSheets(root, { onClose = () => {}, onBack = () => {} } = {})
     event.preventDefault();
     dismiss(event.target);
   };
+  // A close the screen made itself (patchWithModal, a native form) is no dismiss, and `close` does not bubble.
+  const onClosed = (event) => {
+    if (event.target.matches?.(SHEET)) pressedInside = false;
+  };
   root.addEventListener("cancel", onCancel, true);
+  root.addEventListener("close", onClosed, true);
   return () => {
     offs.forEach((off) => off());
     root.removeEventListener("cancel", onCancel, true);
+    root.removeEventListener("close", onClosed, true);
   };
 }

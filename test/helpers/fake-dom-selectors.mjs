@@ -1,12 +1,15 @@
 /**
  * Selectors for the fake DOM: a comma list of descendant chains of compounds,
  * each a tag or `*` followed by any of `#id`, `.class`, `[attr]`,
- * `[attr="value"]`. Nothing else is understood, and what is not understood
- * throws — a selector that quietly matched nothing would pass a test that
- * should fail.
+ * `[attr="value"]` and `:modal`. Nothing else is understood, and what is not
+ * understood throws — a selector that quietly matched nothing would pass a
+ * test that should fail.
+ *
+ * `:modal` is the one pseudo-class, because `patchWithModal` asks for it: a
+ * dialog that `showModal()` opened and that is still open, in the tree.
  *
  * It reads nodes by duck typing (`tagName`, `id`, `classList`, `getAttribute`,
- * `parentNode`, `walk()`), so it does not import the node classes.
+ * `isModal`, `parentNode`, `walk()`), so it does not import the node classes.
  */
 
 /** The whitespace CSS knows about. */
@@ -15,7 +18,7 @@ const BLANK = /[ \t\n\r\f]/;
 // A CSS identifier, ASCII only: `#1a` is a syntax error in a browser and must be one here.
 const IDENTIFIER = /(?:--|-?[a-zA-Z_])[\w-]*/y;
 
-/** Parse to `[[{ tag, id, classes, attributes }, …], …]`: a list of chains, each a list of compounds. */
+/** Parse to `[[{ tag, id, classes, attributes, modal }, …], …]`: a list of chains, each a list of compounds. */
 export function parseSelectorList(source) {
   const fail = (why) => {
     throw new Error(`fake-dom: unsupported selector ${JSON.stringify(source)} (${why})`);
@@ -45,7 +48,7 @@ export function parseSelectorList(source) {
     const character = source[at];
     if (character === ",") { closeComplex(); at += 1; continue; }
     if (BLANK.test(character)) { closeCompound(); at += 1; continue; }
-    compound ??= { start: at, tag: null, id: null, classes: [], attributes: [] };
+    compound ??= { start: at, tag: null, id: null, classes: [], attributes: [], modal: false };
     if (character === "*" || /[a-zA-Z]/.test(character)) {
       if (at !== compound.start) fail("a tag can only come first in a compound");
       const name = character === "*" ? "*" : identifier(at);
@@ -58,6 +61,11 @@ export function parseSelectorList(source) {
     } else if (character === ".") {
       const name = identifier(at + 1);
       compound.classes.push(name);
+      at += 1 + name.length;
+    } else if (character === ":") {
+      const name = identifier(at + 1);
+      if (name !== "modal") fail(`the pseudo-class ":${name}"`);
+      compound.modal = true;
       at += 1 + name.length;
     } else if (character === "[") {
       const name = identifier(at + 1);
@@ -88,6 +96,7 @@ function matchesCompound(element, compound) {
   if (compound.tag !== null && compound.tag !== "*" && compound.tag !== element.tagName) return false;
   if (compound.id !== null && element.id !== compound.id) return false;
   if (!compound.classes.every((name) => element.classList.contains(name))) return false;
+  if (compound.modal && element.isModal !== true) return false;
   return compound.attributes.every(({ name, value }) => {
     const actual = element.getAttribute(name);
     return actual !== null && (value === null || actual === value);

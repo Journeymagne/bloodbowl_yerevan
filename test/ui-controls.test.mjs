@@ -142,6 +142,15 @@ test("the default button is an outline button of type button, and a form can ask
   assert.equal(mount(renderButton({ label: "Save", type: "submit" })).querySelector("button").getAttribute("type"), "submit");
 });
 
+test("a button in a sheet's footer can belong to the form in its body", () => {
+  const button = mount(renderButton({ label: "Change", kind: "primary", type: "submit", form: "password-form" })).querySelector("button");
+  assert.equal(button.getAttribute("form"), "password-form");
+  assert.equal(button.getAttribute("type"), "submit");
+  assert.equal(mount(renderButton({ label: "Change", type: "submit" })).querySelector("button").hasAttribute("form"), false, "no form unless asked");
+  assert.throws(() => renderButton({ label: "Change", form: 'a" onclick="x' }), /form/);
+  assert.throws(() => renderButton({ label: "Go", href: "#/x", form: "f" }), /form/, "a link has no form to submit");
+});
+
 test("a segmented control refuses what would leave it unusable", () => {
   const linked = [{ value: "stats", label: "Stats", href: "#/a" }, { value: "spp", label: "SPP" }];
   assert.throws(() => renderSegmentedControl({ label: "x", items: linked, selected: "stats" }), /all links or all buttons/);
