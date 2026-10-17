@@ -21,6 +21,7 @@ import { setReturn } from "../core/return-to.mjs";
 import { state } from "../core/state.mjs";
 import { activeTeam } from "../data/active-team.mjs";
 import { renderAppHeader } from "./app-header.mjs";
+import { currentMatch, renderNavMatch } from "./current-match.mjs";
 import { shellModel } from "./navigation.mjs";
 import { renderSideNav, renderSiteFooter } from "./side-nav.mjs";
 
@@ -112,8 +113,9 @@ function revealCurrentTab(header) {
 
 /**
  * Draw the frame for `route` (by default the last one drawn) from the state:
- * the visitor, the active team with its race and place, the page's language
- * and the data's date. Nothing before the frame is mounted or a route is known.
+ * the visitor, the active team with its race, place and current match, the
+ * page's language and the data's date. Nothing before the frame is mounted or
+ * a route is known.
  * @param {{name: string, params?: object}|null} [route] what the router matched
  */
 export function refreshShell(route = lastRoute) {
@@ -124,8 +126,10 @@ export function refreshShell(route = lastRoute) {
   const model = shellModel({ route, user, team, raceTitle: raceTitle(team), place: seasonPlace(team) });
   const locale = getLocale();
   const generatedAt = state.data?.generatedAt ?? "";
+  // The card is the team's: a guest, and a coach with no team yet, have none.
+  const matchHtml = team ? renderNavMatch(currentMatch(state.games.items, team.id), team.id) : "";
   patch(parts.header, renderAppHeader(model));
-  patch(parts.sideNav, renderSideNav(model, { locale, generatedAt }));
+  patch(parts.sideNav, renderSideNav(model, { matchHtml, locale, generatedAt }));
   patch(parts.footer, renderSiteFooter({ generatedAt, locale }));
   parts.frame.setAttribute("data-shell", model.mode);
   if (model.showSearch) parts.search.removeAttribute("hidden");

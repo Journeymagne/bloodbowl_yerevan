@@ -2,10 +2,9 @@
  * "My games": the signed-in coach's fixture list, split into the next
  * game and past ones.
  *
- * Mechanically moved out of src/app.js. `loadGames` is exported because
- * app.js warms the list on sign-in, and the `isGame*` predicates because
- * screens/games/game.mjs decides what a single game page may show from the
- * same rules.
+ * Mechanically moved out of src/app.js; the list's loader and the rules that
+ * sort a game into "next" or "history" now live in src/data/games.mjs, which
+ * the single game page and the SideNav's match card read as well.
  */
 import { errorText } from "../../core/api.mjs";
 import { escapeHtml } from "../../core/dom.mjs";
@@ -13,6 +12,7 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
+import { isCurrentPlayerRoundGame, isGameClosedForPlayers, isGameResultSubmitted, loadGames } from "../../data/games.mjs";
 import { gameUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { gameStatusLabel } from "../../components/game-status.mjs";
@@ -23,24 +23,6 @@ import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 
 function gameOpponent(game) {
   return game.viewerIsHome ? game.away : game.home;
-}
-let gamesLoadPromise = null;
-export async function loadGames(force = false) {
-  if (!state.auth.currentUser) return;
-  if (state.games.loaded && !force) return;
-  if (gamesLoadPromise && !force) return gamesLoadPromise;
-  state.games.loading = true;
-  gamesLoadPromise = (async () => {
-    try {
-      const payload = await apiRequest("/api/games");
-      state.games = { items: payload.games ?? [], currentItems: payload.currentGames ?? [], loaded: true, loading: false, error: "" };
-    } catch (error) {
-      state.games = { items: [], currentItems: [], loaded: true, loading: false, error: errorText(error) };
-    } finally {
-      gamesLoadPromise = null;
-    }
-  })();
-  return gamesLoadPromise;
 }
 function renderGameCard(game) {
   const opponent = gameOpponent(game);
@@ -57,27 +39,6 @@ function renderGameCard(game) {
       ${resultSubmitted ? `<p>${t("season.touchdownsLabel")}: ${escapeHtml(pairingTouchdowns(game))} · ${t("season.casualtiesHeader")}: ${escapeHtml(pairingCasualties(game))}</p>` : ""}
     </a>
   `;
-}
-export function isGameResultSubmitted(game) {
-  return game?.resultStatus === "confirmed"
-    && game.homeTouchdowns !== null
-    && game.homeTouchdowns !== undefined
-    && game.awayTouchdowns !== null
-    && game.awayTouchdowns !== undefined
-    && game.homeCasualties !== null
-    && game.homeCasualties !== undefined
-    && game.awayCasualties !== null
-    && game.awayCasualties !== undefined;
-}
-function isCurrentPlayerRoundGame(game) {
-  if (game.kind === "friendly") return true;
-  return game?.roundStatus === "started"
-    && Number(game?.roundNumber ?? 0) === Number(game?.season?.currentRound ?? 0);
-}
-export function isGameClosedForPlayers(game) {
-  if (game?.kind === "friendly") return game.resultStatus === "confirmed";
-  return game?.roundStatus === "completed"
-    || (game?.roundStatus === "started" && Number(game?.roundNumber ?? 0) < Number(game?.season?.currentRound ?? 0));
 }
 export async function renderMyGames() {
   setActiveNav("my-games");

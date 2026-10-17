@@ -981,5 +981,16 @@
   "shell.noTeamHint": "Create a team to start",
   "shell.league": "Gata League",
   "shell.leagueSub": "Blood Bowl Sevens",
-  "shell.switchTeam": "Switch team"
+  "shell.switchTeam": "Switch team",
+  "shell.match.aria": "Current match",
+  "shell.match.next": "Next match",
+  "shell.match.live": "Match in play",
+  "shell.match.awaiting": "Awaiting confirmation",
+  "shell.match.round": "Round {round} · {venue}",
+  "shell.match.home": "home",
+  "shell.match.away": "away",
+  "shell.match.prepare": "Match preparation",
+  "shell.match.records": "Match records",
+  "shell.match.postMatch": "Post-match",
+  "shell.match.result": "{outcome} {score} · CAS {cas}"
 }

@@ -130,6 +130,114 @@
   margin-top: auto;
 }
 
+/*
+ * The current-match card (shell/current-match.mjs): a washed panel on the
+ * header colour with the phase, the opponent, the round, and what to do next.
+ * Everything pressable in it is 44px. The records link is a text link: the
+ * 44px is its hit area, and what is drawn is its words, which is why its box
+ * is flex-centred and paints nothing. The buttons keep a transparent 2px border
+ * (inside their 44px) so that forced colours, which drop the fill, still draw
+ * the button's edge.
+ */
+.g-navmatch {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: 14px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--header-ink) 8%, transparent);
+  color: var(--header-ink);
+  font: 400 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-navmatch__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--header-tab);
+  font: 600 12px/1.3 var(--font-body);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.g-navmatch__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--live);
+}
+
+.g-navmatch__opp {
+  color: var(--header-ink);
+  font: 600 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.g-navmatch__sub {
+  color: var(--header-muted);
+  font: 400 13px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-navmatch__cta {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch);
+  margin-top: var(--space-4);
+  padding: 0 var(--space-4);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-decoration: none;
+  text-transform: none;
+}
+.g-navmatch__cta:hover { background: var(--accent-ink); }
+.g-navmatch__cta--light {
+  background: var(--header-ink);
+  color: var(--header);
+}
+.g-navmatch__cta--light:hover { background: color-mix(in srgb, var(--header-ink) 88%, var(--header)); }
+/* The records link above it is a target of its own, so the button needs no extra air. */
+.g-navmatch--live .g-navmatch__cta { margin-top: 0; }
+
+.g-navmatch__link {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--header-ink);
+  font: 600 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+.g-navmatch__link:hover { text-decoration: underline; }
+
+.g-navmatch__result {
+  margin-top: 2px;
+  color: var(--header-ink);
+  font: 700 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 /* A guest's way in has a border of its own: the button is the surface colour, and in the dark palettes that is the header's. */
 .g-sidenav__login .g-btn { border-color: var(--header-tab); }
 

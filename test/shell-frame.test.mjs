@@ -123,6 +123,53 @@ test("the header's place is the rank of the active team's standings row, and no 
   }
 });
 
+// Task 15: the SideNav's card is the active team's current match (shell/current-match.mjs), drawn with the frame.
+test("the SideNav carries the active team's current match above the language; a guest and a coach with no team have none", () => {
+  const saved = { user: state.auth.currentUser, myTeams: state.myTeams, activeTeamId: state.activeTeamId, data: state.data, games: state.games };
+  const side = (id, name) => ({ user: { id: `u-${id}`, login: "x" }, team: { id, name } });
+  const fixture = (id, over = {}) => ({ id, kind: "league", roundStatus: "started", roundNumber: 7, season: { currentRound: 7 }, resultStatus: "pending",
+    preparationStatus: "not_started", postMatchStatus: "not_started", viewerIsHome: true, updatedAt: "2026-10-10T10:00:00Z",
+    home: side("t1", "Ashgrove Wardens"), away: side("r1", "Grimtusk Raiders"), ...over });
+  const games = (...items) => { state.games = { items, currentItems: [], loaded: true, loading: false, error: "" }; };
+  const label = () => document.querySelector("#side-nav .g-navmatch .g-navmatch__label")?.textContent ?? null;
+  try {
+    state.auth.currentUser = { id: "u1", login: "coach", isAdmin: false };
+    state.myTeams = { items: [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "human" }], loaded: true, loading: false, error: "" };
+    state.activeTeamId = "t1";
+    state.data = { teams: [{ slug: "human", title: "Human" }], generatedAt: "2026-10-07T10:00:00Z" };
+    games(fixture("g-next"));
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    assert.equal(label(), "Next match");
+    const bottom = document.querySelector("#side-nav .g-sidenav__bottom");
+    assert.deepEqual(bottom.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class").split(" ")[0]), ["g-navmatch", "g-sidenav__foot"]);
+    games(fixture("g-next"), fixture("g-live", { preparationStatus: "in_progress", postMatchStatus: "draft" }));
+    refreshShell();
+    assert.equal(label(), "Match in play", "the list is read again on every refresh");
+    // K8: a started match whose score was confirmed around the post-match is not live, and the card goes back to what is next.
+    games(fixture("g-next"), fixture("g-around", { preparationStatus: "in_progress", resultStatus: "confirmed", homeTouchdowns: 2, awayTouchdowns: 1, homeCasualties: 0, awayCasualties: 0 }));
+    refreshShell();
+    assert.equal(label(), "Next match");
+    games();
+    refreshShell();
+    assert.equal(label(), null, "no match, no card");
+    games(fixture("g-next"));
+    state.activeTeamId = "t9";
+    refreshShell();
+    assert.equal(label(), null, "a team that is not in the coach's list has no card");
+    state.activeTeamId = "t1";
+    state.myTeams = { items: [], loaded: true, loading: false, error: "" };
+    refreshShell();
+    assert.equal(label(), null, "a coach with no team has no card");
+    state.myTeams = saved.myTeams;
+    state.auth.currentUser = null;
+    refreshShell();
+    assert.equal(label(), null, "a guest has no card");
+  } finally {
+    Object.assign(state, { myTeams: saved.myTeams, activeTeamId: saved.activeTeamId, data: saved.data, games: saved.games });
+    state.auth.currentUser = saved.user;
+  }
+});
+
 // Task 12 carry: the 2.x sidebar offered a guest #/my-teams, which the router sends on.
 test("no link a guest is shown, on any page, is one the router sends on: My Teams least of all", () => {
   state.auth.currentUser = null;

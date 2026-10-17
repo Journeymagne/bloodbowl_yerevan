@@ -11,7 +11,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { isGameClosedForPlayers, isGameResultSubmitted } from "./my-games.mjs";
+import { isGameClosedForPlayers, isGameResultSubmitted } from "../../data/games.mjs";
 import { toastError } from "../../components/toast.mjs";
 import { renderGamePreparationPanel } from "../../components/pre-match/game-panel.mjs";
 import { renderGamePostMatchPanel } from "../../components/post-match/game-panel.mjs";
