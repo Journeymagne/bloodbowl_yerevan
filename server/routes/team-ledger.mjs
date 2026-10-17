@@ -33,10 +33,13 @@ function pageSize(params) {
   return size >= 1 && size <= MAX_PAGE_SIZE ? size : LEDGER_PAGE_SIZE;
 }
 
-/** `?before=` as the cursor it names: none when it is left out, and a 400 for `before` when it is no cursor of ours. */
+/**
+ * `?before=` as the cursor it names: none when it is left out or empty — the first page, so a client may send
+ * the cursor it holds, empty while it holds none (R11) — and a 400 for `before` when it is no cursor of ours.
+ */
 function cursorOf(params) {
   const text = params.get("before");
-  if (text === null) return null;
+  if (text === null || text === "") return null;
   const cursor = decodeLedgerCursor(text);
   if (!cursor) throw httpError(400, "FIELD_INVALID", { field: "before" });
   return cursor;

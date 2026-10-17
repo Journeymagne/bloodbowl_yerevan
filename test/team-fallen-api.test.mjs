@@ -312,6 +312,16 @@ test("a body the site does not accept is a 400 naming the cause, opens no transa
   assert.deepEqual(await fallenRows(client, id), []);
 }));
 
+test("a cause with a NUL in it is refused as the cause, before anything is written", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id), before = await teamRow(client, id);
+  for (const cause of ["\u0000", "Eaten\u0000 by a Troll", "  \u0000"]) {
+    const { result, log } = await recording(() => death(id, "p0", coach.token, { cause }));
+    assert.deepEqual([result.status, result.body.error.code, result.body.error.params], [400, "FIELD_INVALID", { field: "cause" }], JSON.stringify(cause));
+    assert.deepEqual(log, [], "no transaction was opened");
+  }
+  assert.deepEqual([await teamRow(client, id), await fallenRows(client, id)], [before, []]);
+}));
+
 test("who may do what: nobody without a session, a stranger is told 404 whatever they send, an admin reads and undoes but marks no death", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), other = await seedCoach(client, "wolf"), admin = await seedCoach(client, "boss", { admin: true });
   const id = await seedTeam(client, coach.id), theirs = await seedTeam(client, other.id, { name: "Wolves" });

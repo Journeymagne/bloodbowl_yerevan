@@ -511,15 +511,19 @@ test("a correct login clears the account's count, whichever door the wrong guess
   assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 200);
 }));
 
-test("an administrator cannot reset their own password by spelling their id another way: 409 for upper case and for no dashes, and nothing changes", db, () => withApiDatabase(async ({ client }) => {
+test("an administrator cannot reset their own password by spelling their id another way: 409 for upper case, no route for no dashes, and nothing changes", db, () => withApiDatabase(async ({ client }) => {
   const boss = await seedCoach(client, "pw-regent", { admin: true }), elsewhere = await sessionFor(client, boss.id);
   const hash = async () => (await client.query("SELECT password_hash FROM users WHERE id = $1", [boss.id])).rows[0].password_hash;
   const sessions = async () => (await client.query("SELECT count(*)::int AS n FROM sessions WHERE user_id = $1", [boss.id])).rows[0].n;
   const [before, count] = [await hash(), await sessions()];
-  const spellings = [boss.id, boss.id.toUpperCase(), boss.id.replaceAll("-", ""), boss.id.toUpperCase().replaceAll("-", "")];
-  for (const spelling of spellings) {
+  for (const spelling of [boss.id, boss.id.toUpperCase()]) {
     const refused = await callApi("POST", `/api/admin/users/${spelling}/reset-password`, { token: boss.token });
     assert.deepEqual([refused.status, refused.body.error.code], [409, "SELF_PASSWORD_RESET"], spelling);
+  }
+  // No dashes is no UUID the route takes (M8): no route, and so nothing reset.
+  for (const spelling of [boss.id.replaceAll("-", ""), boss.id.toUpperCase().replaceAll("-", "")]) {
+    const refused = await callApi("POST", `/api/admin/users/${spelling}/reset-password`, { token: boss.token });
+    assert.deepEqual([refused.status, refused.body.error.code], [404, "ROUTE_NOT_FOUND"], spelling);
   }
   assert.deepEqual([await hash(), await sessions()], [before, count], "the password and the sessions are as they were");
   assert.equal((await login(boss.login, boss.password)).status, 200, "the old password still opens the account");
@@ -531,6 +535,73 @@ test("an administrator cannot reset their own password by spelling their id anot
   assert.equal((await login(coach.login, reset.body.password)).status, 200);
   assert.equal((await login(coach.login, coach.password)).status, 401);
   assert.deepEqual([await whoIs(coach.token), await whoIs(phone)], [null, null]);
+}));
+
+test("an administrator cannot delete their own account by spelling their id another way, and a spelling that is no UUID is no route", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-consul", { admin: true }), coach = await seedCoach(client, "pw-otter");
+  const remove = (spelling) => callApi("DELETE", `/api/admin/users/${spelling}`, { token: boss.token });
+  for (const spelling of [boss.id, boss.id.toUpperCase()]) {
+    const refused = await recording(() => remove(spelling));
+    assert.deepEqual([refused.result.status, refused.result.body.error.code], [409, "SELF_ADMIN_DELETE"], spelling);
+    assert.ok(!refused.log.some((sql) => /^DELETE/.test(sql)), `${spelling}: nothing deleted`);
+  }
+  assert.deepEqual([(await remove(boss.id.replaceAll("-", ""))).body.error.code, (await whoIs(boss.token)).login], ["ROUTE_NOT_FOUND", boss.login]);
+  assert.equal((await remove(coach.id.toUpperCase())).status, 200, "someone else's id, in capitals, is still theirs");
+  assert.equal((await client.query("SELECT count(*)::int AS n FROM users WHERE id = $1", [coach.id])).rows[0].n, 0);
+  assert.equal((await remove(NOBODY)).body.error.code, "USER_NOT_FOUND");
+}));
+
+test("deleting a user takes his teams' rows first, in one transaction, the order every writer of a team takes them in", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-praetor", { admin: true }), coach = await seedCoach(client, "pw-heron");
+  await seedTeam(client, coach.id);
+  await seedTeam(client, coach.id, { name: "Wolves" });
+  const { result, log } = await recording(() => callApi("DELETE", `/api/admin/users/${coach.id}`, { token: boss.token }));
+  assert.equal(result.status, 200);
+  const at = (pattern) => log.findIndex((sql) => pattern.test(sql));
+  const order = [/^BEGIN$/, /FROM saved_teams WHERE user_id = \$1 ORDER BY id FOR UPDATE$/, /^DELETE FROM users /, /^COMMIT$/].map(at);
+  assert.ok(order.every((index) => index >= 0), log.join("\n"));
+  assert.deepEqual(order, [...order].sort((a, b) => a - b), log.join("\n"));
+}));
+
+for (const writerFirst of [true, false]) {
+  test(`deleting a user while a writer of his team is under way, ${writerFirst ? "the writer" : "the delete"} first: no deadlock, both answered`, db, () => withApiDatabase(async (database) => {
+    const { client } = database;
+    const boss = await seedCoach(client, "pw-tribune", { admin: true }), coach = await seedCoach(client, "pw-vole"), id = await seedTeam(client, coach.id);
+    const writing = () => callApi("POST", `/api/teams/${id}/treasury`, { token: coach.token, body: { delta: 5, reason: "sponsor", revision: 1 } });
+    const deleting = () => callApi("DELETE", `/api/admin/users/${coach.id}`, { token: boss.token });
+    const ended = answers(await raceInOrder(database, lockRow("saved_teams", id), ...(writerFirst ? [writing, deleting] : [deleting, writing])));
+    const [written, deleted] = writerFirst ? ended : ended.reverse();
+    assert.deepEqual([written.status, deleted.status], writerFirst ? [201, 200] : [404, 200], JSON.stringify([written.body, deleted.body]));
+    assert.equal((await client.query("SELECT count(*)::int AS n FROM saved_teams WHERE id = $1", [id])).rows[0].n, 0);
+  }));
+}
+
+test("an administrator's edit of a user who is deleted while it waits is 404, and writes nothing", db, () => withApiDatabase(async ({ client, url }) => {
+  const boss = await seedCoach(client, "pw-legate", { admin: true }), coach = await seedCoach(client, "pw-shrew");
+  const [answer] = answers(await withForcedOverlap(url, { lock: ["DELETE FROM users WHERE id = $1", [coach.id]], waiting: 1 },
+    [() => callApi("PATCH", `/api/admin/users/${coach.id}`, { token: boss.token, body: { login: "pw-shrew-2", password: "set-by-admin" } })]));
+  assert.deepEqual([answer.status, answer.body.error?.code], [404, "USER_NOT_FOUND"]);
+}));
+
+test("an id that is no UUID, in a coach's team route or an administrator's, is no route: 404, never a 500", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-stoat"), boss = await seedCoach(client, "pw-censor", { admin: true });
+  const team = { name: "Lions", baseTeamSlug: "teams/human", roster: {} };
+  const { result, logged } = await loggingErrors(async () => {
+    const all = [];
+    for (const bad of ["abc", "0", "-", "deadbeef", "0000000000004000800000000000000a"]) {
+      for (const [method, path, token, body] of [
+        ["GET", `/api/teams/${bad}`, coach.token], ["PATCH", `/api/teams/${bad}`, coach.token, team], ["DELETE", `/api/teams/${bad}`, coach.token],
+        ["GET", `/api/admin/users/${bad}`, boss.token], ["PATCH", `/api/admin/users/${bad}`, boss.token, {}], ["DELETE", `/api/admin/users/${bad}`, boss.token],
+        ["POST", `/api/admin/users/${bad}/reset-password`, boss.token], ["POST", `/api/admin/users/${bad}/teams`, boss.token, team],
+        ["GET", `/api/admin/teams/${bad}`, boss.token], ["PATCH", `/api/admin/teams/${bad}`, boss.token, team], ["DELETE", `/api/admin/teams/${bad}`, boss.token]]) {
+        const { status, body: answer } = await callApi(method, path, { token, body });
+        all.push([`${method} ${path}`, status, answer?.error?.code]);
+      }
+    }
+    return all;
+  });
+  for (const [label, status, code] of result) assert.deepEqual([status, code], [404, "ROUTE_NOT_FOUND"], label);
+  assert.deepEqual(logged, []);
 }));
 
 test("the administrator's edit of a user is one transaction: a taken login leaves everything as it was, and a DELETE of the sessions that fails takes the new password with it", db, () => withApiDatabase(async ({ client }) => {

@@ -18,9 +18,12 @@ import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam } from "../api/team-queries.mjs";
 import { writeLedgerEntries } from "../api/team-ledger.mjs";
 import { refuseSiteRolls, settleRosterRolls } from "../api/dice-rolls.mjs";
+import { UUID_SOURCE } from "../api/team-access.mjs";
 import { writeMatchEvents } from "../season/match-events-store.mjs";
 import { sppEdits } from "../../src/domain/post-match/events.mjs";
 import { handleTeamResourceRoutes } from "./team-resources.mjs";
+
+const TEAM = new RegExp(`^/api/teams/(${UUID_SOURCE})$`, "i");
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -62,7 +65,8 @@ export async function handleTeamRoutes(request, response, url) {
     return send(response, 201, { team: publicSavedTeam(result.rows[0]) });
   }
 
-  const teamMatch = url.pathname.match(/^\/api\/teams\/([0-9a-f-]+)$/i);
+  // A UUID or no route: anything else would reach `::uuid` and come back as a 500 (22P02).
+  const teamMatch = url.pathname.match(TEAM);
   if (teamMatch && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");

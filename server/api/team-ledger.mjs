@@ -150,7 +150,8 @@ function isManualAmount(delta) {
 /**
  * The hand-written entry a request body asks for, checked: an amount to the gold that is not zero and
  * not more than 100000 either way, one of `MANUAL_REASONS`, and a note of at most 200 characters that
- * may be left out (an empty one is none).
+ * may be left out (an empty one is none) and holds no NUL (U+0000, which no text column of Postgres
+ * holds: it would be a 500).
  *
  * @param {unknown} body whatever the request carried; it need not be an object
  * @returns {{ delta: number, reason: string, note: string|null }}
@@ -161,6 +162,6 @@ export function checkManualEntry(body) {
   if (!isManualAmount(delta)) throw httpError(400, "FIELD_INVALID", { field: "delta" });
   if (!MANUAL_REASONS.includes(reason)) throw httpError(400, "FIELD_INVALID", { field: "reason" });
   const text = note ?? "";
-  if (typeof text !== "string" || text.trim().length > MAX_NOTE_LENGTH) throw httpError(400, "FIELD_INVALID", { field: "note" });
+  if (typeof text !== "string" || text.trim().length > MAX_NOTE_LENGTH || text.includes("\u0000")) throw httpError(400, "FIELD_INVALID", { field: "note" });
   return { delta, reason, note: text.trim() || null };
 }

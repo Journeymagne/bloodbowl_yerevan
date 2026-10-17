@@ -247,6 +247,17 @@ test("a refused tap writes nothing: a bad body or a team not his opens no transa
   assert.equal(await count(client), 0);
 }));
 
+test("an empty ?pairing= names no match: the team's open events, as without it", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  assert.equal((await tap(token, "home-0")).status, 201);
+  const without = await callApi("GET", events(teams.home), { token });
+  const empty = await callApi("GET", `${events(teams.home)}?pairing=`, { token });
+  assert.deepEqual([empty.status, empty.body], [200, without.body]);
+  assert.equal(empty.body.events.length, 1);
+  assert.equal((await callApi("GET", `${events(teams.home)}?pairing=%20`, { token })).body.error.params.field, "pairing", "a blank one is no UUID");
+}));
+
 test("the events of a team are its owner's and the admin's to read", db, () => withApiDatabase(async ({ client }) => {
   await startedFriendly(client);
   const away = await sessionFor(client, coaches.away.id), admin = await seedCoach(client, "boss", { admin: true });

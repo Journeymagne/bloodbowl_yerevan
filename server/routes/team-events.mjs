@@ -62,10 +62,11 @@ function checkTap(body) {
   return { pairingId, playerId, counter, delta, injury };
 }
 
-/** `?pairing=` as the match it names: none when it is left out, and a 400 for `pairing` when it is no UUID. */
+/** `?pairing=` as the match it names: none when it is left out or empty (as `?before=` is), and a 400 for `pairing` when it is no UUID. */
 function pairingOf(params) {
   const pairing = params.get("pairing");
-  if (pairing !== null && !isUuid(pairing)) throw invalid("pairing");
+  if (pairing === null || pairing === "") return null;
+  if (!isUuid(pairing)) throw invalid("pairing");
   return pairing;
 }
 

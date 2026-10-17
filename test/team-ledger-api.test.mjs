@@ -83,6 +83,26 @@ test("the history pages newest first by the database's own time and id: 25 lines
   assert.notEqual(last.body.entries[0].id, big.body.entries[25].id);
 }));
 
+test("an empty ?before= is the first page: a client that sends the cursor it holds, empty when it holds none, starts at the top", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  assert.equal((await treasury(id, coach.token, { delta: 5 })).status, 201);
+  const first = await ledger(id, coach.token);
+  const empty = await ledger(id, coach.token, "?before=");
+  assert.deepEqual([empty.status, empty.body], [200, first.body]);
+  assert.deepEqual([(await ledger(id, coach.token, "?before=&limit=1")).body.entries.length, (await ledger(id, coach.token, "?before=%20")).status], [1, 400],
+    "empty is no cursor; a blank one is a cursor that is none");
+}));
+
+test("a note with a NUL in it is refused as the note, before anything is written", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id), before = await teamRow(client, id);
+  for (const note of ["\u0000", "paid\u0000 back", "\u0000   "]) {
+    const { result, log } = await recording(() => treasury(id, coach.token, { delta: 5, note }));
+    assert.deepEqual([result.status, result.body.error.code, result.body.error.params], [400, "FIELD_INVALID", { field: "note" }], JSON.stringify(note));
+    assert.deepEqual(log, [], "no transaction was opened");
+  }
+  assert.deepEqual([await teamRow(client, id), await lines(client, id)], [before, []]);
+}));
+
 test("the history says since when it is kept, refuses a cursor it did not make, and is the owner's and the admin's only", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), other = await seedCoach(client, "wolf"), admin = await seedCoach(client, "boss", { admin: true });
   const id = await seedTeam(client, coach.id);
@@ -307,7 +327,7 @@ test("the history is paged by limit, 1 to 100 and 20 for anything else, and name
 test("a cursor the history did not make is a 400 for `before`, whatever is wrong with it, and never a 500", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   const at = "2026-10-16 18:00:00+00";
-  for (const before of ["nope", "", " ", encodeLedgerCursor({ at: "yesterday", id: ROW }), encodeLedgerCursor({ at, id: "1; DROP" }),
+  for (const before of ["nope", " ", encodeLedgerCursor({ at: "yesterday", id: ROW }), // an empty one is the first page (R11) encodeLedgerCursor({ at, id: "1; DROP" }),
     encodeLedgerCursor({ at: "2026-13-45 99:99:99+00", id: ROW }), encodeLedgerCursor({ at: "2026-02-30 00:00:00+00", id: ROW }),
     encodeLedgerCursor({ at: "2026-10-16 18:00:00+99", id: ROW })]) {
     const { status, body } = await ledger(id, coach.token, `?before=${encodeURIComponent(before)}`);

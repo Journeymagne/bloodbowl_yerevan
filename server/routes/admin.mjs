@@ -32,6 +32,15 @@ import {
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
 import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, userHasFriendlyGames } from "../api/team-queries.mjs";
+import { UUID_SOURCE } from "../api/team-access.mjs";
+
+// The ids these routes take are UUIDs, and nothing else matches: a path that is no UUID is no route (404)
+// rather than a `::uuid` the database refuses (a 500). Postgres reads a UUID in any case, so a self-check
+// compares the id the database gives back, never the path's spelling.
+const USER = new RegExp(`^/api/admin/users/(${UUID_SOURCE})$`, "i");
+const USER_PASSWORD_RESET = new RegExp(`^/api/admin/users/(${UUID_SOURCE})/reset-password$`, "i");
+const USER_TEAMS = new RegExp(`^/api/admin/users/(${UUID_SOURCE})/teams$`, "i");
+const TEAM = new RegExp(`^/api/admin/teams/(${UUID_SOURCE})$`, "i");
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -76,7 +85,7 @@ export async function handleAdminRoutes(request, response, url) {
 async function handleAdminUserRoutes(request, response, url) {
   if (await handleAdminPasswordResetRoute(request, response, url)) return true;
 
-  const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)$/i);
+  const adminUserMatch = url.pathname.match(USER);
   if (adminUserMatch && request.method === "PATCH") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -118,6 +127,7 @@ async function handleAdminUserRoutes(request, response, url) {
       ).catch((error) => {
         throw error.code === "23505" ? httpError(409, "LOGIN_ALREADY_REGISTERED") : error;
       });
+      if (!rows[0]) throw httpError(404, "USER_NOT_FOUND"); // deleted while this request waited for the row
       if (password) await client.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
       return rows[0];
     });
@@ -130,7 +140,7 @@ async function handleAdminUserRoutes(request, response, url) {
 
 /** Replace one password and revoke every session except the admin's current one. */
 async function handleAdminPasswordResetRoute(request, response, url) {
-  const match = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)\/reset-password$/i);
+  const match = url.pathname.match(USER_PASSWORD_RESET);
   if (!match || request.method !== "POST") return false;
 
   const user = await currentUser(request);
@@ -138,7 +148,6 @@ async function handleAdminPasswordResetRoute(request, response, url) {
   if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
 
   const targetId = match[1];
-  if (targetId === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");
   const password = generateTemporaryPassword();
   const passwordHash = hashPassword(password);
   const client = await pool.connect();
@@ -149,8 +158,8 @@ async function handleAdminPasswordResetRoute(request, response, url) {
       [targetId, passwordHash],
     );
     if (!updated.rows[0]) throw httpError(404, "USER_NOT_FOUND");
-    // The id in the path may be spelled another way (upper case, no dashes) and still be one's own: the
-    // database's spelling is the one to compare. The password written just above goes with the rollback.
+    // The id in the path may be spelled another way (upper case) and still be one's own: the database's
+    // spelling is the one to compare. The password written just above goes with the rollback.
     if (updated.rows[0].id === user.id) throw httpError(409, "SELF_PASSWORD_RESET");
     await client.query("DELETE FROM sessions WHERE user_id = $1", [targetId]);
     await client.query("COMMIT");
@@ -164,24 +173,36 @@ async function handleAdminPasswordResetRoute(request, response, url) {
 }
 
 /**
+ * The transaction of deleting a user: who the path names, by the database's id (`SELF_ADMIN_DELETE` for
+ * one's own, however the path spells it), then his teams, locked `ORDER BY id FOR UPDATE`, then the user.
+ * The delete cascades to the teams, and every writer of a team holds the team and then waits on the
+ * user's row (`FOR KEY SHARE`, through a foreign key): taking the user first, as a bare DELETE did, closed
+ * a cycle with each of them (40P01). Taken in the writers' order, team then user, it only waits its turn.
+ *
+ * @throws 404 USER_NOT_FOUND; 409 SELF_ADMIN_DELETE or USER_IN_FRIENDLY_GAMES
+ */
+async function deleteUser(client, userId, admin) {
+  const { rows: [target] } = await client.query("SELECT id FROM users WHERE id = $1", [userId]);
+  if (!target) throw httpError(404, "USER_NOT_FOUND");
+  if (target.id === admin.id) throw httpError(409, "SELF_ADMIN_DELETE");
+  if (await userHasFriendlyGames(client, target.id)) throw httpError(409, "USER_IN_FRIENDLY_GAMES");
+  await client.query("SELECT 1 FROM saved_teams WHERE user_id = $1 ORDER BY id FOR UPDATE", [target.id]);
+  await client.query("DELETE FROM users WHERE id = $1", [target.id]);
+}
+
+/**
  * Deleting a coach, and reading their profile as an admin sees it.
  *
  * Its own function because the check limits one to eighty lines, and the
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleAdminUserReadRoutes(request, response, url) {
-  const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)$/i);
+  const adminUserMatch = url.pathname.match(USER);
   if (adminUserMatch && request.method === "DELETE") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
-    if (adminUserMatch[1] === user.id) {
-      return sendError(response, 409, "SELF_ADMIN_DELETE");
-    }
-
-    if (await userHasFriendlyGames(pool, adminUserMatch[1])) return sendError(response, 409, "USER_IN_FRIENDLY_GAMES");
-    const deleted = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [adminUserMatch[1]]);
-    if (!deleted.rows[0]) return sendError(response, 404, "USER_NOT_FOUND");
+    await withTransaction((client) => deleteUser(client, adminUserMatch[1], user));
     return send(response, 200, { ok: true });
   }
 
@@ -225,7 +246,7 @@ async function handleAdminUserReadRoutes(request, response, url) {
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleAdminUserTeamRoutes(request, response, url) {
-  const adminUserTeamsMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)\/teams$/i);
+  const adminUserTeamsMatch = url.pathname.match(USER_TEAMS);
   if (adminUserTeamsMatch && request.method === "POST") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -257,7 +278,7 @@ async function handleAdminUserTeamRoutes(request, response, url) {
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleAdminTeamRoutes(request, response, url) {
-  const adminTeamMatch = url.pathname.match(/^\/api\/admin\/teams\/([0-9a-f-]+)$/i);
+  const adminTeamMatch = url.pathname.match(TEAM);
   if (adminTeamMatch && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");

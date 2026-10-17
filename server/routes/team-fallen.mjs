@@ -38,11 +38,14 @@ const LIST_SQL = `
    WHERE f.saved_team_id = $1
    ORDER BY f.died_at DESC, f.id DESC`;
 
-/** The cause a body gives, trimmed: 1 to 500 characters. Anything else is a 400 for `cause`. */
+/**
+ * The cause a body gives, trimmed: 1 to 500 characters, with no NUL (U+0000, which no text column of
+ * Postgres holds: it would be a 500). Anything else is a 400 for `cause`.
+ */
 function checkCause(body) {
   const { cause } = body ?? {};
   const text = typeof cause === "string" ? cause.trim() : "";
-  if (!text || text.length > MAX_CAUSE_LENGTH) throw httpError(400, "FIELD_INVALID", { field: "cause" });
+  if (!text || text.length > MAX_CAUSE_LENGTH || text.includes("\u0000")) throw httpError(400, "FIELD_INVALID", { field: "cause" });
   return text;
 }
 
