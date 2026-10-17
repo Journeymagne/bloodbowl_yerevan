@@ -97,10 +97,11 @@ await check("locale switch", async () => {
 });
 
 await check("theme switch", async () => {
-  await page.selectOption("#theme-select", "light:parchment");
-  await page.waitForTimeout(200);
+  await page.goto(`${base}/#/settings`, { waitUntil: "networkidle" });
+  await page.locator('[data-seg-group="mode"] [data-seg-value="light"]').click();
+  await page.locator('[data-palette-key="parchment"]').click();
+  await page.waitForFunction(() => document.documentElement.dataset.mode === "light" && document.documentElement.dataset.palette === "parchment", null, { timeout: 5000 });
   const { mode, palette } = await page.evaluate(() => ({ ...document.documentElement.dataset }));
-  if (mode !== "light" || palette !== "parchment") throw new Error(`theme is ${mode}/${palette}`);
   return `${mode}/${palette}`;
 });
 

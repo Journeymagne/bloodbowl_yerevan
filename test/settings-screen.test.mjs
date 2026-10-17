@@ -15,11 +15,11 @@ const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs"
 const { setLocale } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
-const { renderSegmentedControl, wireSegmentedControls } = await import("../src/ui/segmented-control.mjs");
+const { themePickerMarkup, wireThemePicker } = await import("../src/screens/settings/theme-picker.mjs");
 
 const COACH = { id: "u1", login: "felstell", telegram: "@felstell", isAdmin: false, createdAt: "2025-03-01T10:00:00Z", preferences: { themeMode: "dark" } };
 const markup = (over = {}) => settingsMarkup({ user: COACH, teamCount: 2, locale: "en", telegram: COACH.telegram, ...over });
-const SHEETS = ["src/screens/settings/settings.css", "text-field.css", "button.css", "list-row.css", "segmented-control.css"];
+const SHEETS = ["src/screens/settings/settings.css", "text-field.css", "button.css", "list-row.css", "segmented-control.css", "src/screens/settings/theme-picker.css"];
 const dictionary = (locale) => JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
 const NO_CALLBACKS = { saved: "@felstell", onSaveTelegram() {}, onLogout() {}, onOpenPassword() {} };
 const refusal = (code) => ({ error: { code, params: {}, message: "x" } });
@@ -97,21 +97,29 @@ test("every key the screen asks for is in both dictionaries", () => {
   assertDictionaryCovers("src/screens/settings/index.mjs");
 });
 
-// Task 11 puts the theme mode in this root too: whichever of two wirings ran second used to hear nothing.
-test("the language and a second segmented control on one root each report their own change", () => {
-  const MODES = [{ value: "light", label: "Light" }, { value: "dark", label: "Dark" }, { value: "system", label: "System" }];
-  const mode = renderSegmentedControl({ label: "Mode", items: MODES, selected: "light", data: { segGroup: "mode" } });
+// The theme mode and the language are two segmented controls under one root: whichever wiring ran second used to hear nothing.
+test("the language and the theme mode on one settings root each report their own change, click and arrow key, whichever is wired first", () => {
+  const choice = { mode: "light", light: "grass", dark: "night" };
+  const press = (fragment, group, value, key) => fireEvent(fragment.querySelector(`[data-seg-group="${group}"] [data-seg-value="${value}"]`), "keydown", { key });
   for (const languageFirst of [true, false]) {
+    const label = languageFirst ? "language wired first" : "theme picker wired first";
     const asked = [];
-    const modes = [];
+    const picked = [];
     setLocaleHandler((locale) => asked.push(locale));
-    const fragment = mount(markup() + mode);
+    const fragment = mount(markup({ appearanceHtml: themePickerMarkup(choice) }));
     const wireLanguage = () => wireSettings(fragment, NO_CALLBACKS);
-    const wireMode = () => wireSegmentedControls(fragment, (value) => modes.push(value), { group: "mode" });
+    const wireMode = () => wireThemePicker(fragment, { current: () => choice, onChoice: (next) => picked.push(next) });
     if (languageFirst) { wireLanguage(); wireMode(); } else { wireMode(); wireLanguage(); }
     fireEvent(fragment.querySelector('[data-seg-group="mode"] [data-seg-value="dark"]'), "click");
     fireEvent(fragment.querySelector('[data-seg-group="language"] [data-seg-value="ru"]'), "click");
-    assert.deepEqual([asked, modes], [["ru"], ["dark"]], languageFirst ? "language wired first" : "mode wired first");
+    assert.deepEqual([asked, picked], [["ru"], [{ ...choice, mode: "dark" }]], `${label}: a click`);
+    press(fragment, "mode", "dark", "ArrowRight");
+    assert.deepEqual([asked, picked.length], [["ru"], 2], `${label}: an arrow in the mode control is not the language's`);
+    assert.deepEqual(picked[1], { ...choice, mode: "system" });
+    press(fragment, "language", "ru", "ArrowLeft");
+    assert.deepEqual([asked, picked.length], [["ru", "en"], 2], `${label}: an arrow in the language control is not the mode's`);
+    fireEvent(fragment.querySelector('[data-palette-key="ice"]'), "click");
+    assert.deepEqual([asked.length, picked.length], [2, 3], `${label}: a card is the picker's alone`);
   }
 });
 
@@ -632,7 +640,7 @@ test("saving the contact keeps the account's palette, and the next sync paints i
   // This browser chose another palette than the account did.
   const backend = new Map([["gata-league-palette", JSON.stringify({ mode: "dark", light: "grass", dark: "embers" })]]);
   const store = createStorage({ getItem: (key) => backend.get(key) ?? null, setItem: (key, value) => backend.set(key, String(value)), removeItem: (key) => backend.delete(key) });
-  initTheme({ root: document.documentElement, select: null, store, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
+  initTheme({ root: document.documentElement, store, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
   api.reset();
   api.items.set("gata-league-auth-token", "tok");
   state.auth.currentUser = { ...COACH, preferences: account };
@@ -1017,6 +1025,230 @@ test("the sheet's own screen texts are in both dictionaries and in Russian", () 
     fireEvent(openPassword(), "click");
     assert.equal(text("#password-sheet-title"), "Смена пароля");
     assert.equal(view.querySelector("[data-password-show]").textContent, "Показать пароль");
+  } finally {
+    setLocale("en");
+  }
+});
+
+// Task 11: the theme picker on the screen. The picker itself is test/theme-picker.test.mjs's.
+const THEME_PATCH = "PATCH /api/auth/preferences";
+/** What the toasts say, which a fake page never takes down, so each test that listens starts from none. */
+const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
+const clearToasts = () => { for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node); };
+const NOT_SAVED = dictionary("en")["settings.themeNotSaved"];
+const card = (key) => view.querySelector(`[data-palette-key="${key}"]`);
+const modeItem = (value) => view.querySelector(`[data-seg-group="mode"] [data-seg-value="${value}"]`);
+const checkedCards = () => view.querySelectorAll(".g-palettes").map((row) => row.querySelector('[aria-checked="true"]').getAttribute("data-palette-key"));
+const themeCalls = () => api.calls.filter((call) => call.key === THEME_PATCH);
+
+/** The reader's browser: a cache (the Map) holding `stored`, painted onto the page's <html>. */
+async function startTheme(stored = null) {
+  const { createStorage } = await import("../src/core/storage.mjs");
+  const { initTheme } = await import("../src/core/theme.mjs");
+  const backend = new Map(stored ? [["gata-league-palette", JSON.stringify(stored)]] : []);
+  const store = createStorage({ getItem: (key) => backend.get(key) ?? null, setItem: (key, value) => backend.set(key, String(value)), removeItem: (key) => backend.delete(key) });
+  initTheme({ root: document.documentElement, store, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
+  return { backend, cached: () => JSON.parse(backend.get("gata-league-palette") ?? "null") };
+}
+const LIGHT_GRASS = { mode: "light", light: "grass", dark: "night" };
+
+test("the appearance holds the theme picker, then the language, drawn from the choice on the page", async () => {
+  await startTheme({ mode: "dark", light: "ice", dark: "abyss" });
+  drawSignedIn();
+  const appearance = view.querySelector(".g-settings__appearance");
+  assert.deepEqual(appearance.querySelectorAll(".g-seg").map((control) => control.getAttribute("data-seg-group")), ["mode", "language"]);
+  assert.equal(appearance.querySelector('[data-seg-group="mode"] [aria-checked="true"]').getAttribute("data-seg-value"), "dark");
+  assert.deepEqual(view.querySelectorAll(".g-palettes").map((row) => row.getAttribute("data-palette-mode")), ["dark"]);
+  assert.deepEqual(checkedCards(), ["abyss"]);
+  const guest = mount(markup({ appearanceHtml: themePickerMarkup(LIGHT_GRASS) }));
+  assertCspSafe(guest);
+  assertStyled(guest, ...SHEETS);
+});
+
+test("a guest sees the picker too", async () => {
+  await startTheme(LIGHT_GRASS);
+  api.reset();
+  draw(null);
+  assert.ok(modeItem("light"));
+  assert.deepEqual(checkedCards(), ["grass"]);
+});
+
+test("a signed-in pick paints at once, is cached, and goes to the account as one request with all three keys", async () => {
+  const browser = await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  const saved = { themeMode: "light", lightPalette: "parchment", darkPalette: "night" };
+  api.reply(THEME_PATCH, 200, { preferences: saved });
+  fireEvent(card("parchment"), "click");
+  assert.equal(document.documentElement.getAttribute("data-palette"), "parchment", "painted before the account has answered");
+  assert.deepEqual(browser.cached(), { mode: "light", light: "parchment", dark: "night" });
+  assert.deepEqual(checkedCards(), ["parchment"], "the screen shows it too");
+  await settle();
+  assert.deepEqual(themeCalls().map((call) => call.body), [saved]);
+  assert.equal(api.calls.length, 1);
+  assert.deepEqual(state.auth.currentUser.preferences, saved);
+  api.assertAnswered();
+});
+
+test("every kind of pick is one request that names the whole choice", async () => {
+  await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  api.reply(THEME_PATCH, 200, { preferences: {} });
+  fireEvent(modeItem("system"), "click");
+  await settle();
+  fireEvent(view.querySelector('[data-palette-mode="dark"] [data-palette-key="dungeon"]'), "click");
+  await settle();
+  fireEvent(modeItem("dark"), "click");
+  await settle();
+  assert.deepEqual(themeCalls().map((call) => call.body), [
+    { themeMode: "system", lightPalette: "grass", darkPalette: "night" },
+    { themeMode: "system", lightPalette: "grass", darkPalette: "dungeon" },
+    { themeMode: "dark", lightPalette: "grass", darkPalette: "dungeon" },
+  ]);
+  api.assertAnswered();
+});
+
+test("a guest's pick paints and is cached, and nothing is sent", async () => {
+  const browser = await startTheme(LIGHT_GRASS);
+  api.reset();
+  draw(null);
+  clearToasts();
+  await withoutTimers(async () => {
+    fireEvent(card("ice"), "click");
+    await settle();
+  });
+  assert.deepEqual(toasts(), [], "a guest has no account to fail to save to");
+  assert.equal(document.documentElement.getAttribute("data-palette"), "ice");
+  assert.deepEqual(browser.cached(), { mode: "light", light: "ice", dark: "night" });
+  assert.equal(api.calls.length, 0);
+  const { isThemeChosen } = await import("../src/core/theme.mjs");
+  assert.equal(isThemeChosen(), true, "it is this browser's own choice, for the account that signs in next");
+  api.assertAnswered();
+});
+
+test("the account's own choice, applied here, sends nothing; the next pick sends one", async () => {
+  const browser = await startTheme();
+  const { syncThemeWithAccount } = await import("../src/data/preferences.mjs");
+  const account = { themeMode: "light", lightPalette: "ice", darkPalette: "night" };
+  drawSignedIn({ preferences: account });
+  await syncThemeWithAccount();
+  redraw();
+  assert.equal(document.documentElement.getAttribute("data-palette"), "ice");
+  assert.deepEqual(checkedCards(), ["ice"], "the screen shows what the account holds");
+  assert.deepEqual(browser.cached(), { mode: "light", light: "ice", dark: "night", from: "account" });
+  assert.equal(api.calls.length, 0, "reading the account is not writing to it");
+  api.reply(THEME_PATCH, 200, { preferences: { ...account, lightPalette: "imperial" } });
+  fireEvent(card("imperial"), "click");
+  await settle();
+  assert.deepEqual(themeCalls().map((call) => call.body), [{ ...account, lightPalette: "imperial" }]);
+  assert.deepEqual(browser.cached(), { mode: "light", light: "imperial", dark: "night" }, "the pick is this browser's own now");
+  api.assertAnswered();
+});
+
+test("a pick the account did not take stays on this device, and says so", async () => {
+  const browser = await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  clearToasts();
+  api.fail(THEME_PATCH);
+  await withoutTimers(async () => {
+    fireEvent(card("imperial"), "click");
+    await settle();
+  });
+  assert.deepEqual(toasts(), [NOT_SAVED]);
+  assert.equal(document.documentElement.getAttribute("data-palette"), "imperial");
+  assert.deepEqual(browser.cached(), { mode: "light", light: "imperial", dark: "night" });
+  assert.deepEqual(state.auth.currentUser.preferences, {}, "what the account holds is what it said");
+  assert.deepEqual(checkedCards(), ["imperial"]);
+});
+
+test("a pick the account refused says so too, and a pick it took says nothing of the kind", async () => {
+  await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  clearToasts();
+  api.reply(THEME_PATCH, 400, { error: { code: "INVALID_PREFERENCES", params: {}, message: "x" } });
+  await withoutTimers(async () => {
+    fireEvent(card("ice"), "click");
+    await settle();
+  });
+  assert.deepEqual(toasts(), [NOT_SAVED]);
+  clearToasts();
+  api.reply(THEME_PATCH, 200, { preferences: { themeMode: "light", lightPalette: "grass", darkPalette: "night" } });
+  await withoutTimers(async () => {
+    fireEvent(card("grass"), "click");
+    await settle();
+  });
+  assert.deepEqual(toasts(), [], "no toast");
+});
+
+test("a pick keeps the focus where it is: the card is patched, not drawn again", async () => {
+  await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  api.reply(THEME_PATCH, 200, { preferences: {} });
+  const ice = card("ice");
+  ice.focus();
+  fireEvent(ice, "click");
+  assert.ok(card("ice") === ice, "the same element");
+  assert.ok(document.activeElement === ice, "the focus stays");
+  assert.equal(ice.getAttribute("aria-checked"), "true");
+  assert.equal(card("grass").getAttribute("aria-checked"), "false");
+  // The keyboard: the arrow moves the focus to the next card, and the redraw leaves it there.
+  fireEvent(ice, "keydown", { key: "ArrowRight" });
+  const imperial = card("imperial");
+  assert.ok(document.activeElement === imperial);
+  assert.equal(imperial.getAttribute("aria-checked"), "true");
+  assert.deepEqual(checkedCards(), ["imperial"]);
+  // And the mode control keeps its own focus through a redraw that adds a row.
+  const light = modeItem("light");
+  light.focus();
+  fireEvent(light, "keydown", { key: "ArrowRight" });
+  fireEvent(modeItem("dark"), "keydown", { key: "ArrowRight" });
+  assert.ok(document.activeElement === modeItem("system"));
+  assert.deepEqual(view.querySelectorAll(".g-palettes").map((row) => row.getAttribute("data-palette-mode")), ["light", "dark"]);
+  await settle();
+});
+
+test("system shows two rows and a fixed mode one; the hint follows the mode", async () => {
+  await startTheme({ mode: "system", light: "ice", dark: "abyss" });
+  drawSignedIn({ preferences: {} });
+  api.reply(THEME_PATCH, 200, { preferences: {} });
+  assert.deepEqual(checkedCards(), ["ice", "abyss"]);
+  assert.equal(text(".g-theme__hint"), dictionary("en")["settings.modeHint.system"]);
+  fireEvent(modeItem("dark"), "click");
+  assert.deepEqual(view.querySelectorAll(".g-palettes").map((row) => row.getAttribute("data-palette-mode")), ["dark"]);
+  assert.deepEqual(checkedCards(), ["abyss"]);
+  assert.equal(text(".g-theme__hint"), dictionary("en")["settings.modeHint.dark"]);
+  await settle();
+});
+
+test("the screen drawn again does not wire the picker twice, and leaving it takes the picker's listeners", async () => {
+  await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  api.reply(THEME_PATCH, 200, { preferences: {} });
+  redraw();
+  redraw();
+  redraw();
+  fireEvent(card("parchment"), "click");
+  await settle();
+  assert.equal(themeCalls().length, 1, "one pick, one request");
+  const { themeChoice } = await import("../src/core/theme.mjs");
+  globalThis.location.hash = "#/teams";
+  releaseCurrentScreen();
+  fireEvent(card("ice"), "click");
+  fireEvent(modeItem("dark"), "click");
+  await settle();
+  assert.equal(themeCalls().length, 1);
+  assert.deepEqual(themeChoice(), { mode: "light", light: "parchment", dark: "night" }, "a screen that is gone picks nothing");
+});
+
+test("the picker is drawn in Russian too", async () => {
+  await startTheme({ mode: "system", light: "grass", dark: "night" });
+  drawSignedIn({ preferences: {} });
+  setLocale("ru");
+  try {
+    redraw();
+    assert.deepEqual(view.querySelectorAll('[data-seg-group="mode"] [data-seg-value]').map((item) => item.textContent), ["Светлая", "Тёмная", "Как в системе"]);
+    assert.deepEqual(view.querySelectorAll(".g-palettes").map((row) => row.getAttribute("aria-label")), ["Палитра для светлого режима", "Палитра для тёмного режима"]);
+    assert.equal(card("embers").querySelector(".g-palette__name").textContent, "Пламя Хаоса");
+    assert.equal(card("embers").querySelector(".g-palette__mood").textContent, "уголь и огонь");
   } finally {
     setLocale("en");
   }

@@ -8,19 +8,17 @@ import { applyStaticI18n, setDictionaries } from "../src/core/i18n.mjs";
 import { STORAGE_KEYS, createStorage } from "../src/core/storage.mjs";
 import {
   DEFAULT_CHOICE, DEFAULT_PALETTE, LEGACY_THEME_PALETTE, PALETTE_KEYS, THEME_MODES,
-  choiceFromPreferences, choiceFromSelect, effectivePalette, initTheme, isThemeChosen, normalizeChoice,
-  readStoredChoice, selectValue, setThemeChoice, themeChoice, themePreferences,
+  choiceFromPreferences, effectivePalette, initTheme, isThemeChosen, normalizeChoice,
+  readStoredChoice, setThemeChoice, themeChoice, themePreferences,
 } from "../src/core/theme.mjs";
-import { createDocument, el, fireEvent } from "./helpers/fake-dom.mjs";
+import { createDocument, el } from "./helpers/fake-dom.mjs";
 import { storedStates } from "./helpers/theme-cases.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 
-/** A page with the interim picker, a storage over a Map, and a system preference that can change. */
+/** A page, a storage over a Map, and a system preference that can change. */
 function page({ palette = null, legacy = null, dark = false, refuse = false } = {}) {
   const document = createDocument();
-  const select = el(document, "select", { id: "theme-select" });
-  document.body.appendChild(select);
   const backend = new Map();
   if (palette !== null) backend.set("gata-league-palette", palette);
   if (legacy !== null) backend.set("gata-league-theme", legacy);
@@ -41,8 +39,8 @@ function page({ palette = null, legacy = null, dark = false, refuse = false } = 
   };
   const root = document.documentElement;
   return {
-    root, select, backend,
-    env: { root, select, store, matchMedia: () => media },
+    root, backend,
+    env: { root, store, matchMedia: () => media },
     setSystemDark(value) { media.matches = value; for (const listener of listeners) listener({ matches: value }); },
     /** How many listeners the system preference has now. */
     listenerCount: () => listeners.length,
@@ -76,26 +74,8 @@ test("a broken choice is repaired field by field", () => {
   assert.deepEqual(normalizeChoice({ mode: "dark", light: "night", dark: "grass" }), { mode: "dark", light: "grass", dark: "night" });
 });
 
-test("the interim picker round-trips every choice", () => {
-  const current = { mode: "dark", light: "ice", dark: "abyss" };
-  assert.equal(selectValue({ ...current, mode: "system" }), "system");
-  assert.equal(selectValue(current), "dark:abyss");
-  assert.deepEqual(choiceFromSelect("light:imperial", current), { mode: "light", light: "imperial", dark: "abyss" });
-  assert.deepEqual(choiceFromSelect("system", current), { mode: "system", light: "ice", dark: "abyss" });
-  assert.deepEqual(choiceFromSelect("dark:grass", current), current, "a light palette is not a dark one");
-  assert.deepEqual(choiceFromSelect("bogus", current), current);
-});
-
-test("index.html offers system and every palette, each with a key in both languages", () => {
-  const html = read("index.html");
-  const select = html.slice(html.indexOf('<select id="theme-select"'), html.indexOf("</select>"));
-  const values = [...select.matchAll(/<option value="([^"]+)"/g)].map(([, value]) => value);
-  assert.deepEqual(values, ["system", ...PALETTE_KEYS.light.map((key) => `light:${key}`), ...PALETTE_KEYS.dark.map((key) => `dark:${key}`)]);
-  const en = JSON.parse(read("src/i18n/en.json"));
-  const ru = JSON.parse(read("src/i18n/ru.json"));
-  const keys = [...select.matchAll(/data-i18n(?:-label|-aria-label)?="([^"]+)"/g)].map(([, key]) => key);
-  assert.equal(keys.length, 12);
-  for (const key of keys) { assert.ok(en[key], `en ${key}`); assert.ok(ru[key], `ru ${key}`); }
+test("the header has no interim picker any more", () => {
+  assert.doesNotMatch(read("index.html"), /theme-select|theme-picker/);
 });
 
 test("the server's preference keys carry the same choice", () => {
@@ -133,17 +113,6 @@ test("a second initTheme replaces the first one's listeners", () => {
   assert.equal(p.listenerCount(), 1);
 });
 
-test("a second initTheme leaves one picker listener, and the picker still works", () => {
-  const p = page();
-  initTheme(p.env);
-  initTheme(p.env);
-  assert.equal(p.select.listeners.get("change").length, 1);
-  p.select.value = "dark:abyss";
-  fireEvent(p.select, "change");
-  assert.equal(p.root.getAttribute("data-palette"), "abyss");
-  assert.deepEqual(JSON.parse(p.backend.get("gata-league-palette")), { mode: "dark", light: "grass", dark: "abyss" });
-});
-
 test("a default is not a choice; a stored, a migrated or a picked palette is", () => {
   initTheme(page().env);
   assert.equal(isThemeChosen(), false);
@@ -160,7 +129,6 @@ test("a palette the account applied is cached as the account's and is not this b
   const account = { mode: "light", light: "parchment", dark: "night" };
   assert.deepEqual(setThemeChoice(account, { fromAccount: true }), account, "the choice itself carries no mark");
   assert.equal(p.root.getAttribute("data-palette"), "parchment");
-  assert.equal(p.select.value, "light:parchment");
   assert.deepEqual(JSON.parse(p.backend.get("gata-league-palette")), { ...account, from: "account" });
   assert.equal(isThemeChosen(), false);
   assert.deepEqual(themeChoice(), account);
@@ -180,8 +148,7 @@ test("a boot from the account's cache still knows it is the account's", () => {
 test("a pick after the account's choice is the reader's own, and the cache forgets where it came from", () => {
   const p = page({ palette: JSON.stringify({ mode: "dark", light: "ice", dark: "abyss", from: "account" }) });
   initTheme(p.env);
-  p.select.value = "dark:embers";
-  fireEvent(p.select, "change");
+  setThemeChoice({ mode: "dark", light: "ice", dark: "embers" });
   assert.equal(isThemeChosen(), true);
   assert.deepEqual(JSON.parse(p.backend.get("gata-league-palette")), { mode: "dark", light: "ice", dark: "embers" });
   setThemeChoice({ mode: "dark", light: "ice", dark: "abyss" }, { fromAccount: true });
@@ -205,19 +172,16 @@ test("a 2.x theme is migrated once and then left alone", () => {
   assert.equal(first.root.getAttribute("data-palette"), "dungeon");
   assert.deepEqual(JSON.parse(first.backend.get("gata-league-palette")), { mode: "dark", light: "grass", dark: "dungeon" });
   assert.equal(first.backend.get("gata-league-theme"), "dark-warpstone", "kept for a rollback to 2.1");
-  first.select.value = "light:ice";
-  fireEvent(first.select, "change");
+  setThemeChoice({ mode: "light", light: "ice", dark: "dungeon" });
   const second = page({ palette: first.backend.get("gata-league-palette"), legacy: "dark-warpstone" });
   initTheme(second.env);
   assert.equal(second.root.getAttribute("data-palette"), "ice");
-  assert.equal(second.select.value, "light:ice");
 });
 
 test("nothing stored follows the system, live, and is not written down", () => {
   const p = page({ dark: false });
   assert.deepEqual(initTheme(p.env), DEFAULT_CHOICE);
   assert.equal(p.root.getAttribute("data-palette"), "grass");
-  assert.equal(p.select.value, "system");
   p.setSystemDark(true);
   assert.equal(p.root.getAttribute("data-mode"), "dark");
   assert.equal(p.root.getAttribute("data-palette"), "night");
@@ -231,12 +195,11 @@ test("an explicit mode ignores the system", () => {
   assert.equal(p.root.getAttribute("data-palette"), "imperial");
 });
 
-test("setThemeChoice applies, persists and moves the picker", () => {
+test("setThemeChoice applies and persists", () => {
   const p = page();
   initTheme(p.env);
   assert.deepEqual(setThemeChoice({ mode: "dark", light: "grass", dark: "abyss" }), { mode: "dark", light: "grass", dark: "abyss" });
   assert.equal(p.root.getAttribute("data-palette"), "abyss");
-  assert.equal(p.select.value, "dark:abyss");
   assert.deepEqual(JSON.parse(p.backend.get("gata-league-palette")), themeChoice());
 });
 

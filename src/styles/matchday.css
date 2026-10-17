@@ -287,8 +287,6 @@ body.matchday-modal-open { overflow: hidden; }
   body:has(.matchday-editor) { min-width: 0; }
   body:has(.matchday-editor) .topbar { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; }
   body:has(.matchday-editor) .top-actions { justify-content: flex-end; min-width: 0; }
-  body:has(.matchday-editor) .theme-picker select { width: 78px; }
-  body:has(.matchday-editor) .theme-picker,
   body:has(.matchday-editor) .icon-text-button { min-height: 44px; }
   body:has(.matchday-editor) .auth-button { max-width: 64px; padding: 0 8px; }
   body:has(.matchday-editor) .search-wrap { grid-row: 2; grid-column: 1 / -1; width: 100%; }

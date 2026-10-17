@@ -1,9 +1,9 @@
 /**
- * Settings (`#/settings`): the account and the language. A coach sees who they
- * are, can change the Telegram contact opponents use, and signs out; a guest is
- * shown the way in. The look of the site (the theme) is drawn beside the account
- * as `appearanceHtml` by the screen that owns it; on a phone the language is
- * here too, since the side navigation that holds it on a wide screen is not.
+ * Settings (`#/settings`): the account and the look of the site. A coach sees who
+ * they are, can change the Telegram contact opponents use, and signs out; a guest
+ * is shown the way in. The look is the ThemePicker (theme-picker.mjs), drawn in
+ * the appearance as `appearanceHtml`; on a phone the language is here too, since
+ * the side navigation that holds it on a wide screen is not.
  *
  * Changing the password is a sheet of its own, and the account the server's
  * settings keep (`managedByServer`) cannot change its login, contact or password
@@ -17,11 +17,13 @@ import { requestLocale } from "../../core/locale-request.mjs";
 import { authUrl, routeFromHash } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
+import { setThemeChoice, themeChoice, themePreferences } from "../../core/theme.mjs";
 import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
 import { announce } from "../../components/live-region.mjs";
 import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
+import { savePreferences } from "../../data/preferences.mjs";
 import { mergeCurrentUser, signOut } from "../../data/session.mjs";
 import { normalizeTelegram, telegramProblem } from "../../domain/account.mjs";
 import { renderButton } from "../../ui/button.mjs";
@@ -30,6 +32,7 @@ import { renderKeyValueRow, renderNavRow } from "../../ui/list-row.mjs";
 import { renderSegmentedControl, wireSegmentedControls } from "../../ui/segmented-control.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
 import { changePassword, passwordReady, passwordSheetMarkup, wirePasswordSheet } from "./password-sheet.mjs";
+import { themePickerMarkup, wireThemePicker } from "./theme-picker.mjs";
 
 /** The year the coach joined, or null when the account carries no usable date. */
 function joinedIn(createdAt) {
@@ -120,7 +123,7 @@ function languageHtml(locale) {
  * @param {string} props.locale "ru" or "en"
  * @param {string} props.telegram what the contact field holds (the contact on file, or what was typed over it)
  * @param {string} [props.telegramError] why the last save was refused
- * @param {string} [props.appearanceHtml] markup from a render…() function: the theme
+ * @param {string} [props.appearanceHtml] markup from a render…() function: the theme picker
  */
 export function settingsMarkup({ user, teamCount, locale, telegram = "", telegramError = "", appearanceHtml = "" }) {
   return `<section class="g-settings">
@@ -231,14 +234,41 @@ function draw() {
     locale: getLocale(),
     telegram: screen.telegram,
     telegramError: screen.telegramError,
+    appearanceHtml: themePickerMarkup(themeChoice()),
   }) + (sheet ? passwordSheetMarkup(sheet) : ""), sheet ? "#password-sheet" : "");
-  release = wireSettings(view, {
+  const offSettings = wireSettings(view, {
     saved: user?.telegram ?? "",
     onSaveTelegram: submitTelegram,
     onInput: typed,
     onLogout: logout,
     onOpenPassword: openPassword,
     onLocaleSettled: languageSettled,
+  });
+  const offTheme = wireThemePicker(view, { current: themeChoice, onChoice: pickTheme });
+  release = () => {
+    offSettings();
+    offTheme();
+  };
+}
+
+/** The write of the last pick to the account: the next waits for it, so quick picks reach the account in the order they were made. */
+let themeWrite = Promise.resolve();
+
+/**
+ * A pick in the theme picker is this browser's own choice: painted and cached at once. A coach who is
+ * signed in also has it written to the account, here, by an explicit call: a hook on setThemeChoice
+ * would turn the account's choice being applied (data/preferences.mjs) into a write back to it. A
+ * guest has no account, and nothing is said of one.
+ */
+function pickTheme(choice) {
+  setThemeChoice(choice);
+  draw();
+  const who = state.auth.currentUser?.id;
+  if (who === undefined) return;
+  themeWrite = themeWrite.then(async () => {
+    // The coach left while an earlier pick was on its way: this one is not the next coach's to write.
+    if (state.auth.currentUser?.id !== who) return;
+    if (!(await savePreferences(themePreferences(choice)))) toast(t("settings.themeNotSaved"), { tone: "error" });
   });
 }
 

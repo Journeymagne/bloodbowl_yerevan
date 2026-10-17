@@ -51,5 +51,6 @@
 @import url("screens/team/empty.css");
 @import url("screens/settings/settings.css");
 @import url("screens/settings/password.css");
+@import url("screens/settings/theme-picker.css");
 @import url("shell/crest.css");
 @import url("screens/auth/login.css");

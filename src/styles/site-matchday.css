@@ -22,8 +22,7 @@ body { background: var(--bg); font-size: .9375rem; }
 .sidebar-footer { border-top: 1px solid var(--line); padding-top: 18px; font-size: .7rem; line-height: 1.65; }
 .legal-note { color: var(--muted); }
 .topbar { background: var(--panel); backdrop-filter: none; border-bottom-color: var(--line-bright); }
-.theme-picker, .icon-text-button, .nav-toggle { border-color: var(--line); background: var(--panel-2); min-height: 44px; }
-.theme-picker select { min-height: 40px; }
+.icon-text-button, .nav-toggle { border-color: var(--line); background: var(--panel-2); min-height: 44px; }
 .search-wrap input { border-color: var(--line); background: var(--bg); }
 .search-wrap input::placeholder { color: var(--muted); opacity: .72; }
 .page-head h1, .page-head h2 { font-family: var(--display-font); font-weight: 800; letter-spacing: .3px; text-transform: uppercase; }
@@ -136,7 +135,6 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
   body { min-width: 0; }
   .topbar { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 10px; padding: 12px 16px; }
   .top-actions { justify-content: flex-end; min-width: 0; }
-  .theme-picker select { width: 78px; }
   .auth-button { max-width: 80px; padding: 0 8px; }
   .search-wrap { grid-row: 2; grid-column: 1 / -1; width: 100%; }
   .view { padding: 20px 16px 32px; }

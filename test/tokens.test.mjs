@@ -3,6 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { PALETTE_KEYS } from "../public/maintenance/palettes.mjs";
+import { assertContrast, colourOf, contrast } from "./helpers/contrast.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const tokensCss = read("src/styles/tokens.css");
@@ -37,7 +38,8 @@ const PALETTES = {
   imperial: { header: "#5A1220", page: "#FFFDF8", desk: "#F7F2EA", card: "#FFFFFF", s2: "#F6F0E6", track: "#F0E8DA", segOn: "#FFFFFF", ink: "#1F1414", muted: "#6A5A55", faint: "#998985", line: "#EDE4D8", ring: "#E2D6C6", field: "#FFFFFF", off: "#D6C9BA", acc: "#8E1B2E", accText: "#8E1B2E", tint: "#F6E2E2", tintInk: "#5A1220" },
   night: { header: "#17392C", page: "#0F1A15", desk: "#0F1A15", card: "#15231C", s2: "#1B2B23", track: "#1B2B23", segOn: "#2C4036", ink: "#E8EFEB", muted: "#9AA9A1", faint: "#6F8078", line: "#24352C", ring: "#2C4036", field: "#0F1A15", off: "#3A4D43", acc: "#2F7A52", accText: "#7FD3A2", tint: "#1C3A2B", tintInk: "#7FD3A2" },
   dungeon: { header: "#241A33", page: "#121018", desk: "#121018", card: "#1A1722", s2: "#221E2C", track: "#221E2C", segOn: "#332C42", ink: "#ECE8F3", muted: "#A69EB5", faint: "#7A728A", line: "#2A2534", ring: "#362F44", field: "#121018", off: "#4A4159", acc: "#7A4BB0", accText: "#C3A4E8", tint: "#2E2342", tintInk: "#C3A4E8" },
-  embers: { header: "#2A1A12", page: "#121110", desk: "#121110", card: "#1B1917", s2: "#24211E", track: "#24211E", segOn: "#36302B", ink: "#F1ECE6", muted: "#ADA398", faint: "#7E756C", line: "#2B2724", ring: "#3A342F", field: "#121110", off: "#4E463F", acc: "#C2571A", accText: "#F2A06A", tint: "#3A2416", tintInk: "#F2A06A" },
+  // acc: #C2571A in the prototype; a shade darker so white on it reads 4.5:1, like --neutral-result.
+  embers: { header: "#2A1A12", page: "#121110", desk: "#121110", card: "#1B1917", s2: "#24211E", track: "#24211E", segOn: "#36302B", ink: "#F1ECE6", muted: "#ADA398", faint: "#7E756C", line: "#2B2724", ring: "#3A342F", field: "#121110", off: "#4E463F", acc: "#C1561A", accText: "#F2A06A", tint: "#3A2416", tintInk: "#F2A06A" },
   abyss: { header: "#0F2A3A", page: "#0B141B", desk: "#0B141B", card: "#111D26", s2: "#172631", track: "#172631", segOn: "#223645", ink: "#E6EEF3", muted: "#93A6B3", faint: "#667A88", line: "#1E2E3A", ring: "#29404F", field: "#0B141B", off: "#3A5262", acc: "#1F7A8C", accText: "#7FD0DE", tint: "#143340", tintInk: "#7FD0DE" },
 };
 
@@ -175,6 +177,31 @@ test("every variable a stylesheet reads is defined", () => {
 
 test("the six 2.x themes are gone", () => {
   for (const file of stylesheets()) assert.doesNotMatch(read(file).replace(/\/\*[\s\S]*?\*\//g, ""), /data-theme/, file);
+});
+
+test("every palette can be drawn inside a preview, not only on the page", () => {
+  const map = rules(tokensCss);
+  for (const key of ALL_KEYS) {
+    const preview = map.get(`[data-palette-preview="${key}"]`);
+    assert.ok(preview, key);
+    for (const token of ["--header", "--page", "--surface", "--ink", "--muted", "--line", "--accent", "--accent-tint"]) {
+      assert.equal(preview[token], map.get(`:root[data-palette="${key}"]`)[token], `${key} ${token}`);
+    }
+  }
+});
+
+test("white on the accent reads 4.5:1 in every palette", () => {
+  assertContrast("--on-accent", ["--accent"], 4.5);
+});
+
+test("white on the maintenance page's accent reads 4.5:1 in every palette", () => {
+  const theirs = rules(read("public/maintenance/maintenance.css"));
+  const white = theirs.get(":root")["--on-acc"];
+  for (const key of ALL_KEYS) {
+    const accent = theirs.get(`:root[data-palette="${key}"]`)["--acc"];
+    const ratio = contrast(colourOf(white, {}), colourOf(accent, {}));
+    assert.ok(ratio >= 4.5, `${key}: ${white} on ${accent} is ${ratio.toFixed(2)}:1`);
+  }
 });
 
 test("src/styles.css reads the aliases right after the tokens", () => {

@@ -17,7 +17,7 @@ let backend = new Map();
 function boot() {
   const store = createStorage({ getItem: (key) => backend.get(key) ?? null, setItem: (key, value) => backend.set(key, String(value)), removeItem: (key) => backend.delete(key) });
   const root = createDocument().documentElement;
-  initTheme({ root, select: null, store, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
+  initTheme({ root, store, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
   return root;
 }
 function browser(stored = null) {

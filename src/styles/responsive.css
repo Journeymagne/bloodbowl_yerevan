@@ -29,17 +29,6 @@
     gap: 8px;
   }
 
-  .theme-picker {
-    min-height: 44px;
-    padding: 0 8px;
-  }
-
-  .theme-picker select {
-    width: 108px;
-    min-height: 30px;
-    font-size: inherit;
-  }
-
   .icon-text-button {
     min-width: 48px;
     min-height: 44px;
@@ -201,18 +190,6 @@
 
 /* The topbar controls, once they are not fighting for the width. */
 @media (min-width: 761px) {
-  .theme-picker {
-    padding: 0 10px;
-  }
-
-  .theme-picker span {
-    display: inline;
-  }
-
-  .theme-picker select {
-    width: 138px;
-  }
-
   .auth-button {
     max-width: 148px;
   }

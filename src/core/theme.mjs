@@ -21,7 +21,8 @@
  * the nearest palette and written as a 3.0 choice. The old key is never
  * deleted, so a rollback to 2.1 still finds the reader's theme.
  *
- * `#theme-select` is the interim picker, until `#/settings` arrives in stage 05.
+ * The reader picks in the ThemePicker in Settings (screens/settings/theme-picker.mjs),
+ * which hands the choice to setThemeChoice(); this module paints and remembers it.
  */
 import { STORAGE_KEYS, storage } from "./storage.mjs";
 
@@ -108,21 +109,6 @@ export function effectivePalette(choice, prefersDark) {
   return { mode, key: choice[mode] };
 }
 
-/** The interim picker's value for a choice: "system", or "light:ice". */
-export function selectValue(choice) {
-  return choice.mode === "system" ? "system" : `${choice.mode}:${choice[choice.mode]}`;
-}
-
-/** The choice a picker value stands for; the palette of the other mode stays as it was. */
-export function choiceFromSelect(value, current) {
-  if (value === "system") return { ...current, mode: "system" };
-  const [mode, key] = String(value).split(":");
-  if ((mode === "light" || mode === "dark") && PALETTE_KEYS[mode].includes(key)) {
-    return { ...current, mode, [mode]: key };
-  }
-  return { ...current };
-}
-
 /** The choice as the server's preferences name it (data/preferences.mjs writes it there). */
 export function themePreferences(choice) {
   return { themeMode: choice.mode, lightPalette: choice.light, darkPalette: choice.dark };
@@ -153,17 +139,16 @@ let state = null;
 /** What removes the listeners of the last initTheme(), so a second call does not add a second set. */
 let detach = () => {};
 
-/** Put the choice on the page: both attributes, back to back, and the picker. */
-function paint({ choice, root, select, media }) {
+/** Put the choice on the page: both attributes, back to back. */
+function paint({ choice, root, media }) {
   const { mode, key } = effectivePalette(choice, media?.matches === true);
   root.dataset.mode = mode;
   root.dataset.palette = key;
-  if (select) select.value = selectValue(choice);
 }
 
 /**
- * Read the stored choice, paint it, and keep the page in step with the picker
- * and, while the mode is "system", with the system's light/dark setting.
+ * Read the stored choice, paint it, and keep the page in step with the system's
+ * light/dark setting while the mode is "system".
  * `env` is for tests; the defaults are looked up now, not when the module loads.
  * @returns {ThemeChoice}
  */
@@ -174,33 +159,28 @@ export function initTheme(env = {}) {
   // A 2.x reader is migrated here, once; the next boot finds the 3.0 cache.
   if (source === "legacy") store.setJson(STORAGE_KEYS.palette, choice);
   const matchMedia = env.matchMedia ?? globalThis.matchMedia?.bind(globalThis);
-  const select = env.select === undefined ? (globalThis.document?.querySelector("#theme-select") ?? null) : env.select;
   state = {
     choice,
     source,
     store,
-    select,
     root: env.root ?? globalThis.document.documentElement,
     media: matchMedia?.(DARK_QUERY),
   };
   paint(state);
   const { media } = state;
-  const onPick = () => setThemeChoice(choiceFromSelect(select.value, state.choice));
   // Someone who follows the system keeps following it, including at sunset.
   const onSystemChange = () => {
     if (state.choice.mode === "system") paint(state);
   };
-  select?.addEventListener("change", onPick);
   media?.addEventListener?.("change", onSystemChange);
   detach = () => {
-    select?.removeEventListener("change", onPick);
     media?.removeEventListener?.("change", onSystemChange);
   };
   return { ...state.choice };
 }
 
 /**
- * Apply a choice, remember it and move the picker. Returns the repaired choice.
+ * Apply a choice and remember it. Returns the repaired choice.
  * A choice the reader made is this browser's own. One the account holds
  * (`fromAccount`) is painted and cached all the same, but marked as the
  * account's: it must not be written to the next account that signs in here.

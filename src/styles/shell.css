@@ -224,36 +224,6 @@ body.nav-open .nav-overlay {
   align-items: center;
 }
 
-.theme-picker {
-  display: inline-flex;
-  min-height: 40px;
-  align-items: center;
-  gap: 8px;
-  padding: 0 6px;
-  border: 1px solid var(--button-border);
-  border-radius: var(--radius);
-  background: var(--button-bg);
-  color: var(--button-muted-text);
-  font-size: 0.75rem;
-  font-weight: 900;
-}
-
-/* The label is hidden until there is room for it; see styles/responsive.css. */
-.theme-picker span {
-  display: none;
-}
-
-.theme-picker select {
-  width: 88px;
-  min-height: 28px;
-  border: 0;
-  background: transparent;
-  color: var(--button-text);
-  font: inherit;
-  font-size: 0.6875rem;
-  cursor: pointer;
-}
-
 .auth-button {
   max-width: 104px;
   padding: 0 12px;
@@ -327,7 +297,6 @@ body.nav-open .nav-overlay {
   cursor: pointer;
 }
 
-.theme-picker:hover,
 .nav-toggle:hover,
 .icon-text-button:hover:not(:disabled) {
   border-color: var(--line-bright);
