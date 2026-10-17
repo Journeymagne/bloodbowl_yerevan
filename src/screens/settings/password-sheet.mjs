@@ -13,6 +13,7 @@
  * passwords between keystrokes (settings/index.mjs) and wipes them when the
  * sheet closes.
  */
+import { API_ERROR } from "../../core/api.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -28,6 +29,7 @@ import { renderPasswordMeter } from "../auth/password-meter.mjs";
 
 const SHEET_ID = "password-sheet";
 const FORM_ID = "password-form";
+const CHECKS_ID = "password-checks";
 /** The fields the sheet reports by name: the input's `name`, and the key of the screen's state. */
 const FIELDS = new Set(["current", "next", "repeat"]);
 
@@ -62,23 +64,25 @@ function fieldsHtml(sheet) {
   const type = sheet.show ? "text" : "password";
   const wrong = sheet.error?.field === "current" ? sheet.error.text : "";
   // A password drawn as text is not sent to a spell checker nor capitalised by a keyboard: `verbatim`.
-  const field = (key, label, autocomplete, error = "") => renderTextField({ id: `password-${key}`, name: key, label, type, value: sheet[key],
-    autocomplete, error, verbatim: sheet.show });
+  const field = (key, label, autocomplete, error = "", describedBy = "") => renderTextField({ id: `password-${key}`, name: key, label, type,
+    value: sheet[key], autocomplete, error, describedBy, verbatim: sheet.show });
+  // The new password and its repeat are what the checks are about: a screen reader is told where they stand.
   return field("current", t("password.current"), "current-password", wrong)
-    + field("next", t("password.next"), "new-password")
-    + field("repeat", t("password.repeat"), "new-password");
+    + field("next", t("password.next"), "new-password", "", CHECKS_ID)
+    + field("repeat", t("password.repeat"), "new-password", "", CHECKS_ID);
 }
 
 /** Always on the page, so a screen reader hears what is put in it; empty until a try is refused, and for a refusal that is a field's. */
 function alertHtml(error) {
-  const callout = error && !error.field ? renderCallout({ tone: "danger", title: error.text }) : "";
+  const callout = error && !error.field ? renderCallout({ tone: "danger", title: error.text, sub: error.sub ?? "" }) : "";
   return `<div class="g-password__alert" id="password-alert" role="alert">${callout}</div>`;
 }
 
 function formHtml(sheet) {
   return `<form class="g-password__form" id="${FORM_ID}" novalidate${sheet.pending ? ' aria-busy="true"' : ""}>`
     + `${fieldsHtml(sheet)}${renderPasswordMeter(sheet.next)}`
-    + `<ul class="g-checks">${passwordChangeChecks(sheet).map(checkHtml).join("")}</ul>`
+    // Live, and as a whole: a check that turns done is said with the two that did not, not alone.
+    + `<ul class="g-checks" id="${CHECKS_ID}" aria-live="polite" aria-atomic="true">${passwordChangeChecks(sheet).map(checkHtml).join("")}</ul>`
     + `${showToggleHtml(sheet.show)}${alertHtml(sheet.error)}</form>`;
 }
 
@@ -96,11 +100,13 @@ function doneHtml() {
  * @param {boolean} sheet.show the passwords are drawn as text
  * @param {boolean} sheet.pending a try is on its way
  * @param {boolean} sheet.done the password was changed: the form gives way to the news
- * @param {null|{text: string, field: "current"|null}} sheet.error what was said about the last try
+ * @param {null|{text: string, sub?: string, field: "current"|null}} sheet.error what was said about the last try
  * @returns {string} a closed dialog; `patchWithModal(view, markup, "#password-sheet")` opens it
  */
 export function passwordSheetMarkup(sheet) {
-  const submit = renderButton({ label: t("password.submit"), kind: "primary", type: "submit", form: FORM_ID, disabled: !passwordReady(sheet) });
+  // Not disabled while it waits: a focused button that is disabled drops the focus in Chrome. The screen takes no second press.
+  const submit = renderButton({ label: sheet.pending ? t("password.pending") : t("password.submit"), kind: "primary", type: "submit", form: FORM_ID,
+    disabled: !passwordReady(sheet) });
   return renderSheet({
     id: SHEET_ID,
     title: t("password.title"),
@@ -115,16 +121,20 @@ export function passwordSheetMarkup(sheet) {
  * the settings only /me carries (`mergeCurrentUser` keeps the ones the coach has).
  *
  * @param {{current: string, next: string}} passwords as typed; the server does not trim them
- * @returns {Promise<null|{text: string, field: "current"|null}>} null once changed; otherwise what to say
- *   and the field it is about. A wrong current password is the field's; every other refusal (too many
- *   tries, the administrator whose password is the server's, a lost connection) is the alert's.
+ * @returns {Promise<null|{text: string, sub?: string, field: "current"|null}>} null once changed; otherwise
+ *   what to say and the field it is about. A wrong current password is the field's; every other refusal
+ *   (too many tries, the administrator whose password is the server's, a lost connection) is the alert's.
+ *   An answer that never came (offline, a timeout, a proxy that said nothing) carries a `sub`: the server
+ *   may have changed the password before the answer was lost, and the coach should know to sign in with the new one.
  */
 export async function changePassword({ current, next }) {
   let answer;
   try {
     answer = await apiRequest("/api/auth/profile", { method: "PATCH", body: JSON.stringify({ password: next, currentPassword: current }) });
   } catch (error) {
-    return { text: refusalText(error), field: error?.code === "CURRENT_PASSWORD_WRONG" ? "current" : null };
+    // No answer is no "no": the connection, the timer or a gateway gave up, not the server.
+    const unanswered = error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT || (error?.kind === API_ERROR.HTTP && !error.code);
+    return { text: refusalText(error), field: error?.code === "CURRENT_PASSWORD_WRONG" ? "current" : null, ...(unanswered ? { sub: t("password.maybeChanged") } : {}) };
   }
   // The password is changed whatever the body says; a body that names no one has nothing to merge.
   if (answer?.user) mergeCurrentUser(answer.user);

@@ -738,7 +738,7 @@ test("a changed password says so, ends the form, and the focus goes to Done; the
   assert.ok(document.activeElement === view.querySelector("[data-password-done]"), "the button that closes it has the focus");
   assert.ok(sheetOf().matches("dialog:modal"), "still the same open sheet");
   assert.equal(view.querySelectorAll("input[type=\"password\"], #password-current, #password-next, #password-repeat").length, 0, "no password is left on the page");
-  assert.ok(spoken().includes("Password changed"), "said aloud, since the focus moved to a button");
+  assert.ok(spoken().includes("Password changed. You'll need to sign in again on your other devices."), "both sentences are said aloud, since the focus moved to a button");
   assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "dark" });
   assert.equal(api.items.get("gata-league-auth-token"), "tok", "this session goes on");
 });
@@ -857,22 +857,13 @@ test("a second press while the first is on its way sends nothing more, and a for
 test("an account the server keeps is never offered the sheet, even when the opener is reached", () => {
   drawSignedIn();
   const row = openPassword();
+  row.focus();
   // /me answered, late, that the account is the server's: the row is still on the page until the next draw.
   state.auth.currentUser = { ...state.auth.currentUser, managedByServer: true };
-  let wirings = 0;
-  const original = view.addEventListener;
-  view.addEventListener = function counted(...args) {
-    wirings += 1;
-    return original.apply(this, args);
-  };
-  try {
-    fireEvent(row, "click");
-  } finally {
-    delete view.addEventListener;
-  }
-  assert.equal(wirings, 0, "the opener turned it down before it drew anything");
-  assert.equal(sheetOf(), null);
+  fireEvent(row, "click");
+  assert.equal(sheetOf(), null, "no sheet is drawn");
   assert.equal(modal(), null);
+  assert.ok(document.activeElement === row, "and the focus has not gone anywhere");
   drawSignedIn({ managedByServer: true });
   assert.equal(openPassword(), null, "and the row is not drawn for it");
   assert.equal(sheetOf(), null);
@@ -968,6 +959,54 @@ test("an answer that comes after the coach closed the sheet is said in a toast, 
     await settle();
   });
   assert.ok(spoken().includes("The current password is wrong."));
+});
+
+test("a try on its way shows it: the button says so, keeps the focus and is no second press, and is itself again after a refusal", async () => {
+  drawSignedIn();
+  passwordAnswer(403, refusal("CURRENT_PASSWORD_WRONG"));
+  fireEvent(openPassword(), "click");
+  fillPassword("wrong", "abcd");
+  const button = () => view.querySelector('.g-sheet__foot button[type="submit"]');
+  assert.equal(button().textContent, "Change password");
+  button().focus();
+  submitPassword();
+  assert.equal(button().textContent, "Saving…");
+  assert.equal(button().hasAttribute("disabled"), false);
+  assert.ok(document.activeElement === button(), "the focus stays on the button that was pressed");
+  assert.equal(view.querySelector("#password-form").getAttribute("aria-busy"), "true");
+  submitPassword();
+  await settle();
+  assert.equal(passwordCalls().length, 1, "the second press was not a second request");
+  assert.equal(button().textContent, "Change password");
+  assert.equal(view.querySelector("#password-form").hasAttribute("aria-busy"), false);
+});
+
+test("a lost answer says in the alert that the change may have gone through, and the sheet stays for another look", async () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  api.fail("PATCH /api/auth/profile");
+  submitPassword();
+  await settle();
+  assert.equal(text('[role="alert"] .g-callout__title'), dictionary("en")["request.offline"]);
+  assert.ok(dictionary("en")["password.maybeChanged"], "the sentence exists");
+  assert.equal(text('[role="alert"] .g-callout__sub'), dictionary("en")["password.maybeChanged"]);
+  assert.equal(view.querySelector("#password-next").value, "abcd");
+  into("#password-next", "abcde");
+  assert.equal(view.querySelector('[role="alert"]').textContent, "", "typing takes it away with the rest");
+});
+
+test("a lost answer that comes after the sheet was closed says the same in its toast", async () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  api.fail("PATCH /api/auth/profile");
+  await withoutTimers(async () => {
+    submitPassword();
+    WAYS_OUT[0][1]();
+    await settle();
+  });
+  assert.ok(spoken().includes(`${dictionary("en")["request.offline"]} ${dictionary("en")["password.maybeChanged"]}`));
 });
 
 test("the sheet's own screen texts are in both dictionaries and in Russian", () => {

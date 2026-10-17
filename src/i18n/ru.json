@@ -951,5 +951,7 @@
   "password.submit": "Сменить пароль",
   "password.done": "Пароль изменён",
   "password.doneText": "На других устройствах нужно будет войти заново.",
-  "password.doneButton": "Готово"
+  "password.doneButton": "Готово",
+  "password.pending": "Сохраняем…",
+  "password.maybeChanged": "Возможно, пароль уже сменился. Если текущий пароль не подходит, войдите с новым."
 }

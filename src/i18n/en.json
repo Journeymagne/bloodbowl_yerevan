@@ -951,5 +951,7 @@
   "password.submit": "Change password",
   "password.done": "Password changed",
   "password.doneText": "You'll need to sign in again on your other devices.",
-  "password.doneButton": "Done"
+  "password.doneButton": "Done",
+  "password.pending": "Saving…",
+  "password.maybeChanged": "The change may have gone through. If your current password is refused, sign in with the new one."
 }

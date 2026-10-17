@@ -85,14 +85,36 @@ test("the administrator whose password the server's settings keep is told so, in
   assert.equal(api.items.get("gata-league-auth-token"), "tok");
 });
 
-test("a lost connection and a server that does not answer are the alert's text too", async () => {
+test("a lost connection and a server that does not answer are the alert's text too, and say the change may have gone through", async () => {
   signedIn();
+  const maybe = dictionary("en")["password.maybeChanged"];
+  assert.equal(maybe, "The change may have gone through. If your current password is refused, sign in with the new one.");
   api.fail("PATCH /api/auth/profile");
-  assert.deepEqual(await changePassword({ current: "old1", next: "abcd" }), { text: dictionary("en")["request.offline"], field: null });
+  assert.deepEqual(await changePassword({ current: "old1", next: "abcd" }), { text: dictionary("en")["request.offline"], field: null, sub: maybe });
+  api.fail("PATCH /api/auth/profile", Object.assign(new Error("aborted"), { name: "AbortError" }));
+  assert.deepEqual(await changePassword({ current: "old1", next: "abcd" }), { text: dictionary("en")["request.timeout"], field: null, sub: maybe }, "a timeout: the server may have been quicker than the answer");
   api.reply("PATCH /api/auth/profile", 502, {});
-  assert.deepEqual(await changePassword({ current: "old1", next: "abcd" }), { text: dictionary("en")["request.noAnswer"], field: null }, "a proxy's 502, not 'Request failed with 502'");
-  api.reply("PATCH /api/auth/profile", 422, refusal("PASSWORD_TOO_SHORT"));
-  assert.equal((await changePassword({ current: "old1", next: "abc" })).field, null, "the checks keep a short one from being sent; if the server refuses it all the same, it is the alert's");
+  assert.deepEqual(await changePassword({ current: "old1", next: "abcd" }), { text: dictionary("en")["request.noAnswer"], field: null, sub: maybe }, "a proxy's 502 or 504, not 'Request failed with 502'");
+  // The server did answer, and said no: nothing was changed, and nothing says it might have been.
+  for (const [status, code, extra] of [[400, "PASSWORD_TOO_SHORT"], [403, "CURRENT_PASSWORD_WRONG"], [409, "ADMIN_PASSWORD_FROM_ENV"], [429, "TOO_MANY_LOGIN_ATTEMPTS", { retryAfterSeconds: 30 }]]) {
+    api.reply("PATCH /api/auth/profile", status, refusal(code, extra));
+    assert.equal((await changePassword({ current: "old1", next: "abc" })).sub, undefined, code);
+  }
+  api.reply("PATCH /api/auth/profile", 503, refusal("MAINTENANCE"));
+  assert.equal((await changePassword({ current: "old1", next: "abcd" })).sub, undefined, "a site closed for maintenance did not change it");
+  api.reply("PATCH /api/auth/profile", 400, refusal("PASSWORD_TOO_SHORT"));
+  assert.equal((await changePassword({ current: "old1", next: "abc" })).field, null, "the checks keep a short one from being sent; if the server refuses it all the same (400), it is the alert's");
+});
+
+test("the alert says under its title that the change may have gone through, escaped, and only when told", () => {
+  const maybe = dictionary("en")["password.maybeChanged"];
+  const fragment = mount(passwordSheetMarkup({ ...blank, error: { text: "No answer", sub: maybe, field: null } }));
+  assert.equal(fragment.querySelector('[role="alert"] .g-callout__sub').textContent, maybe);
+  assert.equal(mount(passwordSheetMarkup({ ...blank, error: { text: "No", field: null } })).querySelector(".g-callout__sub"), null);
+  const hostile = mount(passwordSheetMarkup({ ...blank, error: { text: HOSTILE, sub: HOSTILE, field: null } }));
+  assert.equal(hostile.querySelector(".g-callout__sub").textContent, HOSTILE);
+  assert.equal(hostile.querySelector("img"), null);
+  assert.equal(dictionary("ru")["password.maybeChanged"], "Возможно, пароль уже сменился. Если текущий пароль не подходит, войдите с новым.");
 });
 
 test("an alert that names no field says what it is told, escaped", () => {
@@ -193,6 +215,39 @@ test("each check says in words, to a screen reader, whether it is done", () => {
   assert.equal(fragment.querySelector("ul.g-checks").querySelectorAll("li").length, 3);
 });
 
+test("the checks are read out as they change, and the new password's fields point at them", () => {
+  const fragment = mount(passwordSheetMarkup({ ...blank, current: "old1", next: "abcd", repeat: "abc" }));
+  const list = fragment.querySelector("ul.g-checks");
+  assert.equal(list.id, "password-checks");
+  assert.equal(list.getAttribute("aria-live"), "polite", "a change of a check is said while the coach types");
+  assert.equal(list.getAttribute("aria-atomic"), "true", "as the whole list, so 'passwords match: not yet' is not heard without its neighbours");
+  assert.match(fragment.querySelector("#password-next").getAttribute("aria-describedby"), /(^| )password-checks( |$)/);
+  assert.match(fragment.querySelector("#password-repeat").getAttribute("aria-describedby"), /(^| )password-checks( |$)/);
+  assert.equal(fragment.querySelector("#password-current").hasAttribute("aria-describedby"), false, "the current password has no part in the checks");
+  // A refusal on the current password is still read after what it points at.
+  const wrong = mount(passwordSheetMarkup({ ...blank, error: { text: "Wrong", field: "current" } }));
+  assert.equal(wrong.querySelector("#password-current").getAttribute("aria-describedby"), "password-current-error");
+  assertCspSafe(fragment);
+});
+
+test("while a try is on its way the button says so and stays a button the focus can rest on", () => {
+  const idle = submit(mount(passwordSheetMarkup({ ...blank, current: "old1", next: "abcd", repeat: "abcd" })));
+  const busy = submit(mount(passwordSheetMarkup({ ...blank, current: "old1", next: "abcd", repeat: "abcd", pending: true })));
+  assert.equal(idle.textContent, "Change password");
+  assert.equal(busy.textContent, "Saving…");
+  assert.equal(busy.hasAttribute("disabled"), false, "a focused button that is disabled drops the focus in Chrome: the screen's guard stops a second press");
+  assert.equal(busy.getAttribute("form"), "password-form");
+  assert.equal(submit(mount(passwordSheetMarkup({ ...blank, pending: true }))).textContent, "Saving…");
+  initLocale("ru");
+  try {
+    assert.equal(submit(mount(passwordSheetMarkup({ ...blank, current: "a", next: "abcd", repeat: "abcd", pending: true }))).textContent, "Сохраняем…");
+  } finally {
+    initLocale("en");
+  }
+  const css = readFileSync(new URL("../src/screens/settings/password.css", import.meta.url), "utf8");
+  assert.match(css, /\.g-password__form\[aria-busy="true"\]\s*\{[^}]*opacity:[^}]*cursor:\s*progress/, "the form shows that it is busy");
+});
+
 test("passwords are escaped where they are drawn", () => {
   const fragment = mount(passwordSheetMarkup({ ...blank, current: HOSTILE }));
   assert.equal(fragment.querySelector("img"), null);
@@ -229,7 +284,7 @@ test("every key the sheet asks for is in both dictionaries", () => {
 test("the keys the brief names are in both dictionaries with the brief's words", () => {
   for (const locale of ["en", "ru"]) {
     const words = dictionary(locale);
-    for (const key of ["title", "current", "next", "repeat", "check.length", "check.different", "check.match", "check.ok", "check.no", "submit", "done", "doneText", "doneButton"]) {
+    for (const key of ["title", "current", "next", "repeat", "check.length", "check.different", "check.match", "check.ok", "check.no", "submit", "pending", "maybeChanged", "done", "doneText", "doneButton"]) {
       assert.ok(words[`password.${key}`], `${locale} password.${key}`);
     }
     assert.equal(words["password.show"], undefined, "the toggle is auth.showPassword (K10b), not a pair of keys");

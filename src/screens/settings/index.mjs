@@ -309,6 +309,9 @@ function toggleShowPasswords() {
   draw();
 }
 
+/** What a changed password means, both halves: it is changed, and the other devices have to sign in again. */
+const changedNews = () => `${t("password.done")}. ${t("password.doneText")}`;
+
 async function submitPassword() {
   const sheet = screen.password;
   if (!sheet || sheet.pending || sheet.done || !passwordReady(sheet)) return;
@@ -318,12 +321,17 @@ async function submitPassword() {
   const failure = await changePassword({ current: sheet.current, next: sheet.next });
   if (screen.password !== sheet) {
     // The coach closed the sheet or left the screen while it was on its way: nothing of it is on the page to say it.
-    toast(failure ? failure.text : t("password.done"), failure ? { tone: "error" } : undefined);
+    if (failure) toast([failure.text, failure.sub].filter(Boolean).join(" "), { tone: "error" });
+    else toast(changedNews());
     return;
   }
-  sheet.pending = false;
-  if (failure) sheet.error = failure;
-  else Object.assign(sheet, { current: "", next: "", repeat: "", show: false, done: true });
+  if (failure) {
+    sheet.pending = false;
+    sheet.error = failure;
+  } else {
+    // From the blank sheet, so that nothing the form held (a password, whether it was shown) is carried into the news.
+    screen.password = { ...BLANK_PASSWORD, done: true };
+  }
   draw();
   if (failure) {
     // A refusal that is a field's puts the coach in it, where the reason is read as its description.
@@ -332,7 +340,7 @@ async function submitPassword() {
   }
   // The button that was pressed is gone with the form; Done is where the focus goes, and the news is said aloud.
   view.querySelector("[data-password-done]")?.focus();
-  announce(t("password.done"));
+  announce(changedNews());
 }
 
 /** Every way out of the sheet: the passwords go with it, and the focus goes back to the row that opened it. */
