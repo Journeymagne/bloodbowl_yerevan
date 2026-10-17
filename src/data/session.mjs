@@ -16,8 +16,7 @@
 import { API_ERROR } from "../core/api.mjs";
 import { apiRequest, authToken, setAuthToken } from "../core/api-client.mjs";
 import { state } from "../core/state.mjs";
-import { storage } from "../core/storage.mjs";
-import { writeActiveTeamCache } from "./active-team.mjs";
+import { clearActiveTeamCache, resetActiveTeam } from "./active-team.mjs";
 import { setMyTeams } from "./teams.mjs";
 
 const listeners = new Set();
@@ -46,10 +45,11 @@ function announce() {
 /** Everything the coach loaded as themselves, back to nothing loaded (as signing out did in 2.x). */
 function resetCoachSlices() {
   state.myTeams = { items: [], loaded: false, loading: false, error: "" };
-  state.activeTeamId = null;
   state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
   state.admin = { users: [], loaded: false, loading: false, error: "", editingTeams: new Map() };
   state.season = { data: null, loaded: false, loading: false, error: "" };
+  // Last, and through active-team.mjs: its listeners (the header) hear it, with the rest already gone.
+  resetActiveTeam();
 }
 
 const refusedAs = (answer, kind) => answer.status === "rejected" && answer.reason?.kind === kind;
@@ -141,11 +141,13 @@ export function sessionEnded() {
  * coach, and this browser forgets the team it last showed them. Never throws.
  */
 export async function signOut() {
-  writeActiveTeamCache(storage, null, null);
+  clearActiveTeamCache();
   try {
     await apiRequest("/api/auth/logout", { method: "POST", body: "{}" });
   } catch {
     // Signing out locally is the part that matters.
   }
+  // Again: a list that answered while the logout was out, the coach still signed in, wrote it back.
+  clearActiveTeamCache();
   sessionEnded();
 }

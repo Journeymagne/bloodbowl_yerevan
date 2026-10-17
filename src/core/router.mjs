@@ -14,6 +14,7 @@
 import { TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamsUrl } from "./routes.mjs";
 import { peekReturn, setReturn } from "./return-to.mjs";
 import { releaseCurrentScreen } from "./screen-lifecycle.mjs";
+import { escapeHtml } from "./dom.mjs";
 import { t } from "./i18n.mjs";
 import { state } from "./state.mjs";
 import { view } from "./view.mjs";
@@ -96,16 +97,23 @@ function renderNotFound() {
 /** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */
 let ticket = 0;
 
+/** Read the coach's list again with the screen saying so: the one before is released, and must not stay clickable. */
+function reloadTeams() {
+  view.innerHTML = `<div class="loading">${escapeHtml(t("myTeams.loadingTeam"))}</div>`;
+  return loadMyTeams(true);
+}
+
 /**
  * A team's screen opens only on one of the coach's own teams, which it makes the active
  * one. A team missing from the list may be the one the builder saved a moment ago, so the
- * list is read once more before the coach is told it is not there and sent to My Teams.
+ * list is read once more before the coach is told it is not there — or that the list
+ * could not be read — and sent to My Teams.
  */
 async function renderTeamScreen(name, params, current) {
-  const found = await prepareTeamRoute(params.teamId, { reload: () => loadMyTeams(true) });
+  const found = await prepareTeamRoute(params.teamId, { reload: reloadTeams });
   if (current !== ticket) return undefined;
   if (!found) {
-    toast(t("error.TEAM_NOT_FOUND"), { tone: "error" });
+    toast(state.myTeams.error || t("error.TEAM_NOT_FOUND"), { tone: "error" });
     location.replace(teamsUrl());
     return undefined;
   }

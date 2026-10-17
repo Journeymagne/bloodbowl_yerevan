@@ -9,11 +9,17 @@ const { createStorage, storage } = await import("../src/core/storage.mjs");
 const team = await import("../src/data/active-team.mjs");
 const session = await import("../src/data/session.mjs");
 const { loadMyTeams } = await import("../src/data/teams.mjs");
+const { setOnUnauthorized } = await import("../src/core/api-client.mjs");
+
+// Wired as app.js wires it, so a 401 ends the session the way it does on the page.
+setOnUnauthorized(session.sessionEnded);
 
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 const KEY = "gata-league-active-team";
 const IDS = ["t1", "t2", "t3"];
 const PATCH = "PATCH /api/auth/preferences";
+const NOT_AUTHORIZED = { error: { code: "NOT_AUTHORIZED", params: {}, message: "x" } };
+const TEAM_NOT_FOUND = { error: { code: "TEAM_NOT_FOUND", params: {}, message: "x" } };
 /** What the account was asked to hold, in order. */
 const patches = () => api.calls.filter(({ key }) => key === PATCH).map(({ body }) => body);
 function memory() {
@@ -231,6 +237,57 @@ test("a coach with no team has none, and an account that names none is left alon
   api.assertAnswered();
 });
 
+// The only write that could erase anything: a list that came back empty (a 200 `{}` reads as
+// no teams) would clear the team the account keeps. /me already hides a dead id, so it is never sent.
+test("an empty list leaves the account's team alone", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  api.reply("GET /api/teams", 200, {});
+  await loadMyTeams(true);
+  await flush();
+  assert.equal(state.activeTeamId, null);
+  assert.equal(api.items.has(KEY), false);
+  assert.deepEqual(patches(), [], "never {activeTeamId: null}");
+  api.assertAnswered();
+});
+
+test("a write the account refuses or never gets keeps this page's team, and is tried again only at the next sync", async () => {
+  for (const [label, answer] of [["404", () => api.reply(PATCH, 404, TEAM_NOT_FOUND)], ["offline", () => api.fail(PATCH)]]) {
+    const { store } = memory();
+    coachWith({ activeTeamId: "t1" });
+    answer();
+    team.syncActiveTeam({ routeTeamId: "t2", store });
+    await flush();
+    await flush();
+    assert.equal(state.activeTeamId, "t2", label);
+    assert.equal(team.readActiveTeamCache(store, "u1"), "t2", label);
+    assert.equal(state.auth.currentUser.preferences.activeTeamId, "t1", `${label}: the account is as it was`);
+    assert.equal(patches().length, 1, `${label}: no retry on its own`);
+    team.syncActiveTeam({ store });
+    await flush();
+    assert.deepEqual(patches(), [{ activeTeamId: "t2" }, { activeTeamId: "t2" }], `${label}: once more at the next sync`);
+    api.assertAnswered();
+  }
+});
+
+test("a listener that throws does not keep the others from hearing", async () => {
+  coachWith({ activeTeamId: "t1" });
+  const heard = [];
+  const errors = [];
+  const consoleError = console.error;
+  console.error = (error) => errors.push(error);
+  const offs = [team.onActiveTeamChange(() => { throw new Error("a broken screen"); }), team.onActiveTeamChange((id) => heard.push(id))];
+  try {
+    assert.equal(team.syncActiveTeam({ store: memory().store }), "t1");
+  } finally {
+    console.error = consoleError;
+    offs.forEach((off) => off());
+  }
+  assert.deepEqual(heard, ["t1"]);
+  assert.equal(errors.length, 1);
+  api.assertAnswered();
+});
+
 test("the account that already names the team is not written again, and the team is at hand", async () => {
   coachWith({ activeTeamId: "t3" });
   assert.equal(team.syncActiveTeam({ store: memory().store }), "t3");
@@ -248,6 +305,63 @@ test("a guest has no active team, and nothing is asked", async () => {
   await flush();
   assert.equal(state.activeTeamId, null);
   assert.deepEqual(api.calls, []);
+  api.assertAnswered();
+});
+
+test("signing out tells the listeners there is no team", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  api.fail("POST /api/auth/logout");
+  await session.signOut();
+  off();
+  assert.deepEqual(heard, [null]);
+  api.assertAnswered();
+});
+
+test("a session that dies under the coach (a 401) tells the listeners there is no team", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  api.reply("GET /api/teams", 401, NOT_AUTHORIZED);
+  await loadMyTeams(true);
+  off();
+  assert.equal(state.auth.currentUser, null);
+  assert.equal(state.activeTeamId, null);
+  assert.deepEqual(heard, [null]);
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+test("signing in starts from no active team, whatever the coach before had", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  const heard = [];
+  const off = team.onActiveTeamChange((id) => heard.push(id));
+  api.reply("POST /api/auth/login", 200, { token: "tok2" });
+  api.reply("GET /api/auth/me", 200, { user: { id: "u2", login: "other", preferences: {} } });
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t9" }] });
+  await session.signIn({ login: "other", password: "pw" });
+  off();
+  assert.equal(state.activeTeamId, null, "the next sync chooses from the new coach's own");
+  assert.deepEqual(heard, [null]);
+  api.assertAnswered();
+});
+
+test("a list that lands while the logout is on its way does not bring this browser's team back", async () => {
+  coachWith({ activeTeamId: "t1" });
+  team.syncActiveTeam();
+  let answer;
+  api.reply("POST /api/auth/logout", 200, new Promise((resolve) => { answer = resolve; }));
+  const signingOut = session.signOut();
+  team.syncActiveTeam(); // what a loadMyTeams that answers now runs, the coach still signed in
+  const cachedThen = api.items.has(KEY);
+  answer({});
+  await signingOut;
+  assert.equal(cachedThen, true, "written back while the logout was out");
+  assert.equal(api.items.has(KEY), false);
   api.assertAnswered();
 });
 

@@ -21,9 +21,11 @@
  * with no team active yet would get the first of the list, written to the
  * account, a moment before the router wrote the right one.
  *
- * The account is written only when the result differs from what it holds, in the
- * background and one write at a time. Signing out wipes the cache
- * (data/session.mjs).
+ * The account is written only when the result is a team and differs from what
+ * the account holds, in the background and one write at a time. No team is never
+ * written: `/me` already hides a dead id, and a list that came back empty must not
+ * erase the team the account keeps. Signing out wipes the cache and tells the
+ * listeners there is no team (data/session.mjs).
  */
 import { state } from "../core/state.mjs";
 import { STORAGE_KEYS, storage } from "../core/storage.mjs";
@@ -46,9 +48,14 @@ export function readActiveTeamCache(store, userId) {
   return typeof cached.teamId === "string" ? cached.teamId : null;
 }
 
+/** Forget the team this browser last showed, whoever it was for. */
+export function clearActiveTeamCache(store = storage) {
+  store.remove(STORAGE_KEYS.activeTeam);
+}
+
 /** Remember `teamId` for `userId` in this browser; `null` forgets whatever is there. */
 export function writeActiveTeamCache(store, userId, teamId) {
-  if (teamId === null) store.remove(STORAGE_KEYS.activeTeam);
+  if (teamId === null) clearActiveTeamCache(store);
   else store.setJson(STORAGE_KEYS.activeTeam, { userId, teamId });
 }
 
@@ -71,6 +78,11 @@ function setActiveTeamId(teamId) {
       console.error(error);
     }
   }
+}
+
+/** No team, and the listeners hear it: the session calls this when the coach signs in, out, or is signed out. */
+export function resetActiveTeam() {
+  setActiveTeamId(null);
 }
 
 const accountTeamId = (user) => user?.preferences?.activeTeamId ?? null;
@@ -104,7 +116,8 @@ let routeInWait = null;
 /**
  * Settle the active team from the coach's list (`state.myTeams.items`), their account
  * and this browser, and keep all three in step: the cache now names it, and an account
- * that names another (or none) is given it in the background. A guest has none.
+ * that names another (or none) is given it in the background — unless there is none to
+ * give. A guest has none.
  * @param {{routeTeamId?: string|null, store?: object}} [options]
  * @returns {string|null} the active team's id
  */
@@ -123,7 +136,7 @@ export function syncActiveTeam({ routeTeamId = null, store = storage } = {}) {
   });
   writeActiveTeamCache(store, user.id, teamId);
   setActiveTeamId(teamId);
-  if (teamId !== accountTeamId(user)) writeAccount(user.id, teamId);
+  if (teamId !== null && teamId !== accountTeamId(user)) writeAccount(user.id, teamId);
   return teamId;
 }
 
