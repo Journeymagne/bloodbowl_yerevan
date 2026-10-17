@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 
 import { httpError } from "../server/http/errors.mjs";
 import { API_ROUTES } from "../server/routes/index.mjs";
-import { callApi, loggingErrors, seedCoach, seedTeam, sessionFor, teamRow, withApiDatabase } from "./helpers/api-db.mjs";
+import { pool } from "../server/db/pool.mjs";
+import { callApi, loggingErrors, recording, seedCoach, seedTeam, sessionFor, teamRow, withApiDatabase } from "./helpers/api-db.mjs";
 import { scratchSkip } from "./helpers/scratch-db.mjs";
 
 test("the API chain is the one server.mjs ran, in its order", () => {
@@ -77,4 +78,26 @@ test("a body that is no JSON, or JSON whose root is no object, is a 400 for the 
   for (const [label, answer] of answers) assert.deepEqual(answer, [400, "FIELD_INVALID", { field: "body" }], label);
   assert.deepEqual(logged, [], "no request was a server error");
   assert.deepEqual(await teamRow(client, id), before);
+}));
+
+test("an answer that is not JSON comes back as its bytes, with its type: a logo is no JSON to parse", { skip: scratchSkip }, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  await client.query("UPDATE saved_teams SET logo_data = 'data:image/png;base64,dGVzdA==' WHERE id = $1", [id]);
+  const logo = await callApi("GET", `/api/team-logos/${id}`);
+  assert.deepEqual([logo.status, logo.headers["content-type"], Buffer.isBuffer(logo.body), String(logo.body)], [200, "image/png", true, "test"]);
+  const none = await callApi("GET", `/api/team-logos/${coach.id}`);
+  assert.deepEqual([none.status, none.body], [404, null], "an empty answer is still none");
+  assert.equal((await callApi("GET", `/api/teams/${id}`, { token: coach.token })).body.team.id, id, "JSON is still read as JSON");
+}));
+
+test("the statement recorder lets a connection asked for with a callback through, unrecorded", { skip: scratchSkip }, () => withApiDatabase(async () => {
+  const { result, log } = await recording(() => new Promise((resolve, reject) => {
+    pool.connect((error, client, done) => {
+      if (error) { reject(error); return; }
+      client.query("SELECT 1 AS one").then((answer) => { done(); resolve(answer.rows[0].one); }, (failed) => { done(); reject(failed); });
+    });
+  }));
+  assert.deepEqual([result, log], [1, []]);
+  const promised = await recording(async () => { const client = await pool.connect(); try { return (await client.query("SELECT 2 AS two")).rows[0].two; } finally { client.release(); } });
+  assert.deepEqual([promised.result, promised.log], [2, ["SELECT 2 AS two", "release"]], "a promised one is recorded as before");
 }));

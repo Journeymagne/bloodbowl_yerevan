@@ -57,21 +57,35 @@ export async function migrateThrough(client, last = null) {
 }
 
 /**
- * Ends `pool` and returns once every connection it had has closed. `pool.end()` alone returns as soon
- * as it has asked its clients to close, not when they have: the database is dropped right after
+ * A pg.Pool for `url` that knows which of its connections are open: each from the moment the pool says it
+ * connected it (`connect`) until the pool says its socket has closed (`remove`). Known by the client
+ * itself, not counted: a client removed for being idle, or one still closing, is never mistaken for another.
+ */
+function trackedPool(url) {
+  const pool = new pg.Pool({ connectionString: url }), open = new Set();
+  pool.on("connect", (client) => open.add(client));
+  pool.on("remove", (client) => open.delete(client));
+  return { pool, open };
+}
+
+/**
+ * Ends a `trackedPool` and returns once every connection it had has closed. `pool.end()` alone returns as
+ * soon as it has asked its clients to close, not when they have: the database is dropped right after
  * (`DROP DATABASE ... WITH (FORCE)`), and a connection that is still closing then is terminated. The
  * pool reports that as an error nobody listens to, which `node:test` pins on whichever test is
- * finishing. The pool says `remove` for a client when its socket has closed.
+ * finishing. A connection that has not closed after `timeoutMs` is reported instead of waited on for ever.
  */
-async function endPool(pool) {
-  const closing = pool.totalCount;
-  let closed = 0;
+async function endPool({ pool, open }, timeoutMs) {
   const allClosed = new Promise((resolve) => {
-    if (!closing) resolve();
-    pool.on("remove", () => { closed += 1; if (closed >= closing) resolve(); });
+    if (!open.size) resolve();
+    pool.on("remove", () => { if (!open.size) resolve(); });
   });
   await pool.end();
-  await allClosed;
+  let timer;
+  const late = new Promise((resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(`${open.size} connection(s) of the scratch pool still open after ${timeoutMs} ms`)), timeoutMs);
+  });
+  try { await Promise.race([allClosed, late]); } finally { clearTimeout(timer); }
 }
 
 /**
@@ -82,7 +96,8 @@ async function endPool(pool) {
  * tested as they happen.
  *
  * The pool module is imported here and not at the top: it loads the env file, which the tests that
- * only need a scratch database have no use for.
+ * only need a scratch database have no use for. `closeTimeoutMs` is how long its connections have to
+ * close at the end before that is an error of its own.
  *
  * One connection is opened, and given back, before `run` starts, so the first request finds the pool
  * warm. Under a burst of CREATE/DROP DATABASE on the same server a connection has been seen to take
@@ -90,9 +105,9 @@ async function endPool(pool) {
  * (`withForcedOverlap`) reports a race that never happened. The requests of a race open more
  * connections than the one warmed here, which is why that window is 15 s.
  */
-export async function withServerPool(url, run) {
+export async function withServerPool(url, run, { closeTimeoutMs = 10000 } = {}) {
   const { pool } = await import("../../server/db/pool.mjs");
-  const scratch = new pg.Pool({ connectionString: url });
+  const tracked = trackedPool(url), scratch = tracked.pool;
   const { query, connect } = pool;
   pool.query = scratch.query.bind(scratch);
   pool.connect = scratch.connect.bind(scratch);
@@ -102,7 +117,7 @@ export async function withServerPool(url, run) {
   } finally {
     pool.query = query;
     pool.connect = connect;
-    await endPool(scratch);
+    await endPool(tracked, closeTimeoutMs);
   }
 }
 
@@ -125,6 +140,13 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
  * every request queue on it, and counting the queue in pg_stat_activity makes the test know that they
  * did; when they never do, it throws instead of passing.
  *
+ * Every connection of the test must use one Postgres role, the role of `url`: pg_stat_activity shows a
+ * backend's wait only to its own role (or a superuser, or pg_read_all_stats), so a request made as another
+ * role would never be counted as waiting, and the race would be reported as no race.
+ *
+ * The lock statement must take a row: one that matches none holds nothing, and is an error ("the lock
+ * matched no row") before any request is started.
+ *
  * @param {string} url the scratch database
  * @param {{lock: [string, unknown[]?], waiting: number, timeoutMs?: number}} options `lock` is what
  *   `lockRow` returns, and should be the first lock every starter reaches; `timeoutMs` is how long
@@ -138,7 +160,8 @@ export async function withForcedOverlap(url, { lock, waiting, timeoutMs = 15000 
   await holder.connect();
   try {
     await holder.query("BEGIN");
-    await holder.query(...lock);
+    const held = await holder.query(...lock);
+    if (held.rowCount === 0) throw new Error(`the lock matched no row: ${lock[0]}`);
     // Started together and not awaited: they run into the lock while this client counts them.
     const running = Promise.allSettled(starters.map((start) => Promise.resolve().then(start)));
     const deadline = Date.now() + timeoutMs;

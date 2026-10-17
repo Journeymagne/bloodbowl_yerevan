@@ -1,7 +1,7 @@
 /** Local fixtures only. Real teams and results are never edited. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { pool, databaseUrl } from '../server/db/pool.mjs';
 import { hashPassword } from '../server/auth/session.mjs';
 import { calculateMatchCtv } from '../src/domain/match/roster.mjs';
@@ -256,6 +256,7 @@ try {
   assert.equal(veteran.post.postMatch.away.gamesPlayed, 3);
   if (process.argv.includes('--keep-preview')) {
     const candidate = await fixture('friendly', true);
+    await mkdir('.codex_tmp', { recursive: true }); // ignored by git, so a fresh worktree has none
     await writeFile('.codex_tmp/post-match-preview.json', JSON.stringify(candidate)); keep = candidate;
     console.log('Preview: ' + base + '/#/games/' + candidate.gameId + '/post-match/players');
   }

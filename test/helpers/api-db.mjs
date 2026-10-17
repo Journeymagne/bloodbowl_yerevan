@@ -30,7 +30,8 @@ let reference = null;
  * @param {{token?: string, body?: unknown, raw?: string}} [options] a session token, and a body sent as JSON —
  *   or `raw`, a body sent as it is written, for one that is not JSON
  * @returns {Promise<{status: number, body: any, headers: Record<string, string>}>} `body` is the
- *   parsed JSON, null when there is none; header names are lower-case
+ *   parsed JSON of a JSON answer (`application/json`), the bytes (a Buffer) of any other, null when there
+ *   is none; header names are lower-case
  */
 export async function callApi(method, path, { token, body, raw } = {}) {
   reference ??= loadTeamReference(rootDir); // the race tables the roster rules read, loaded once
@@ -45,7 +46,10 @@ export async function callApi(method, path, { token, body, raw } = {}) {
     __request: request,
     setHeader,
     writeHead(code, fields = {}) { status = code; for (const [name, value] of Object.entries(fields)) setHeader(name, value); },
-    end(chunk) { answer = { status, body: chunk?.length ? JSON.parse(String(chunk)) : null, headers }; },
+    end(chunk) {
+      const json = String(headers["content-type"] ?? "").startsWith("application/json");
+      answer = { status, body: chunk?.length ? (json ? JSON.parse(String(chunk)) : Buffer.from(chunk)) : null, headers };
+    },
   };
   await handleApi(request, response, new URL(path, "http://localhost"));
   if (!answer) throw new Error(`${method} ${path} was never answered`);
@@ -99,11 +103,14 @@ export function withApiDatabase(run) {
 /**
  * What `run` did to the database on the connections the server's pool lent it: each statement as written,
  * in order, and `release` when a connection went back. A statement run straight on the pool (who is asking,
- * the first look at the team) is not a transaction's and is not here.
+ * the first look at the team) is not a transaction's and is not here, and nor is a connection asked for with
+ * a callback (`pool.connect((error, client, done) => …)`, which hands back no promise to wrap): it goes
+ * through as it is, unrecorded.
  */
 export async function recording(run) {
   const log = [], connect = pool.connect;
-  pool.connect = async (...args) => {
+  pool.connect = (...args) => (typeof args.at(-1) === "function" ? connect.apply(pool, args) : recorded(args));
+  const recorded = async (args) => {
     const client = await connect.apply(pool, args);
     return new Proxy(client, {
       get(target, key) {

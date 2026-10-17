@@ -27,7 +27,9 @@ export function mergeMigrateRecord(previous, run) {
 }
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
-const isRun = (run) => isObject(run) && Array.isArray(run.applied)
+// A run as mergeMigrateRecord reads it: the names it applied, its time and when it ended (`at`, which the
+// first run gives the whole record).
+const isRun = (run) => isObject(run) && typeof run.at === "string" && Array.isArray(run.applied)
   && run.applied.every((name) => typeof name === "string") && Number.isFinite(run.ms);
 
 /**

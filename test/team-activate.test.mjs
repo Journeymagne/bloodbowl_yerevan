@@ -33,6 +33,7 @@ test("a team says its stage and when it became active; a team active since befor
   const one = await callApi("GET", `/api/teams/${id}`, { token: coach.token });
   assert.deepEqual([one.body.team.stage, one.body.team.activatedAt], ["active", null]);
   const list = await callApi("GET", "/api/teams", { token: coach.token });
+  assert.equal(list.body.teams.length, 1, "the list has the team: every() of nothing would pass");
   assert.ok(list.body.teams.every((team) => team.stage === "active"));
 }));
 

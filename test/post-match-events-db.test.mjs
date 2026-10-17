@@ -80,7 +80,8 @@ test("two coaches finishing at once settle the events once and grow SPP once", {
     await startedFriendly(client);
     await withServerPool(url, async () => {
       const ready = await toReady(await toPlayersStep(), homeScores);
-      const finished = (await withForcedOverlap(url, { lock: lockRow("season_pairings", G), waiting: 2 }, SIDES.map((name) => () => act(name, ready, null, true)))).map((result) => result.value);
+      const finished = (await withForcedOverlap(url, { lock: lockRow("season_pairings", G), waiting: 2 }, SIDES.map((name) => () => act(name, ready, null, true))))
+        .map((result) => { if (result.status === "rejected") throw result.reason; return result.value; }); // a TypeError on .status would hide why
       assert.ok(finished.every((state) => state.status === "completed"));
     });
     assert.deepEqual(await totals(client, teams.home), [{ player_id: "home-0", counter: "touchdowns", total: 1, rows: 1, settled: true }]);

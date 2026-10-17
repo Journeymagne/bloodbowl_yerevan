@@ -9,6 +9,9 @@ const NOBODY = "44444444-4444-4444-8444-444444444444";
 const death = (id, pid, token, body = {}) => callApi("POST", `/api/teams/${id}/players/${pid}/death`, { token, body: { cause: "Crushed by a Rat Ogre", revision: 1, ...body } });
 const undo = (id, fid, token) => callApi("DELETE", `/api/teams/${id}/fallen/${fid}`, { token });
 const fallen = (id, token) => callApi("GET", `/api/teams/${id}/fallen`, { token });
+/** The team's `updated_at` as Postgres writes it, to the microsecond: a JS Date keeps milliseconds, and two writes can share one. */
+const clock = async (client, id) => (await client.query("SELECT updated_at::text AS at FROM saved_teams WHERE id = $1", [id])).rows[0].at;
+const movedOn = async (client, id, since) => (await client.query("SELECT updated_at > $2::timestamptz AS later FROM saved_teams WHERE id = $1", [id, since])).rows[0].later;
 const fallenRows = async (client, id) => (await client.query("SELECT player->>'id' AS player, from_match FROM team_fallen_players WHERE saved_team_id = $1", [id])).rows;
 const allFallen = async (client, id) => (await client.query("SELECT * FROM team_fallen_players WHERE saved_team_id = $1 ORDER BY id", [id])).rows;
 const insertFallen = (client, id, player, fromMatch) => client.query(
@@ -166,7 +169,7 @@ test("a death changes the players, their counts, the revision and the clock and 
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { coachesSafe: 12, notes: "keep me", roster: { 0: 11 } } });
   await insertFallen(client, id, { id: "z", rowIndex: 0, spp: {} }, true); // another death of the team, which neither request has any business with
   const [bystander] = await allFallen(client, id);
-  const before = await teamRow(client, id);
+  const before = await teamRow(client, id), beforeAt = await clock(client, id);
   const rest = (row) => ({ ...row.roster, players: undefined, roster: undefined });
   const same = (row) => [row.user_id, row.name, row.base_team_slug, row.logo_data, row.stage, row.created_at];
   const marked = await recording(() => death(id, "p0", coach.token));
@@ -178,7 +181,8 @@ test("a death changes the players, their counts, the revision and the clock and 
   const dead = await teamRow(client, id);
   assert.deepEqual(rest(dead), rest(before), "every other field of the roster is as it was");
   assert.deepEqual([dead.roster.players.map((player) => player.id), dead.roster.roster, dead.revision], [["p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9", "p10"], { 0: 10 }, 2]);
-  assert.ok(dead.updated_at > before.updated_at);
+  assert.equal(await movedOn(client, id, beforeAt), true, "the clock moved on, to the microsecond");
+  const deadAt = await clock(client, id);
   assert.deepEqual(same(dead), same(before));
   const written = (await allFallen(client, id)).filter((row) => row.id !== bystander.id);
   assert.deepEqual(written.map(({ player, cause, recorded_by, from_match, pairing_id, saved_team_id }) => ({ player, cause, recorded_by, from_match, pairing_id, saved_team_id })),
@@ -192,7 +196,7 @@ test("a death changes the players, their counts, the revision and the clock and 
   const back = await teamRow(client, id);
   assert.deepEqual(rest(back), rest(before));
   assert.deepEqual([back.roster.players.at(-1), back.roster.players.length, back.roster.roster, back.revision], [{ id: "p0", rowIndex: 0, spp: {} }, 11, { 0: 11 }, 3]);
-  assert.ok(back.updated_at > dead.updated_at);
+  assert.equal(await movedOn(client, id, deadAt), true);
   assert.deepEqual(same(back), same(before));
   assert.deepEqual(await allFallen(client, id), [bystander], "only that death is forgotten");
 }));

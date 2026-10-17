@@ -39,7 +39,10 @@ test("a record of the wrong shape is refused before anything is applied; none, a
   assert.equal(assertMigrateRecord(null), null);
   assert.deepEqual(assertMigrateRecord(first), first);
   assert.deepEqual(assertMigrateRecord(mergeMigrateRecord(first, empty)), mergeMigrateRecord(first, empty));
-  for (const bad of [[], {}, 42, { runs: {} }, { runs: [] }, { applied: "x", ms: 1 }, { runs: [{ applied: [], ms: "1" }] }]) {
+  const bads = [[], {}, 42, { runs: {} }, { runs: [] }, { applied: "x", ms: 1 }, { runs: [{ applied: [], ms: "1" }] },
+    { ...first, ms: Infinity }, { ...first, ms: null }, { ...first, applied: [1] }, { runs: [null] }, { runs: [first, { ...empty, ms: "6" }, empty] },
+    { ...first, at: undefined }, { ...first, at: 5 }, { runs: [first, { applied: [], ms: 1 }] }]; // `at` is what the merge reads of the first run
+  for (const bad of bads) {
     assert.throws(() => assertMigrateRecord(bad), /migrate\.json has the wrong shape/, JSON.stringify(bad));
   }
 });
@@ -58,7 +61,7 @@ async function runWithRecord(record) {
     await fs.mkdir(path.join(dir, "output", "rehearsal"), { recursive: true });
     await fs.writeFile(path.join(dir, "output", "rehearsal", "migrate.json"), record);
     return spawnSync(process.execPath, [path.join(dir, "scripts", "rehearsal-migrate.mjs")], {
-      env: { PATH: process.env.PATH, DATABASE_URL: "" }, encoding: "utf8",
+      env: { PATH: process.env.PATH, DATABASE_URL: "" }, encoding: "utf8", timeout: 30_000, // a hung child fails the test, not the run
     });
   } finally {
     for (const link of LINKS) await fs.unlink(path.join(dir, link)).catch(() => {});
@@ -69,7 +72,7 @@ async function runWithRecord(record) {
 test("rehearsal:migrate reads and checks its record first: one of the wrong shape stops the run before the database is reached", async () => {
   const control = await runWithRecord(JSON.stringify(first));
   assert.match(control.stderr, /DATABASE_URL is not a URL/, "a good record goes on to the database guard");
-  for (const bad of ["{}", "[]", '{"runs":[]}', '{"applied":"x","ms":1}']) {
+  for (const bad of ["{}", "[]", '{"runs":[]}', '{"applied":"x","ms":1}', '{"runs":[null]}', '{"applied":[1],"ms":1,"at":"x"}', '{"applied":[],"ms":1}']) {
     const stopped = await runWithRecord(bad);
     assert.equal(stopped.status, 1, bad);
     assert.match(stopped.stderr, /migrate\.json has the wrong shape — run npm run rehearsal:check -- --before to start over/, bad);

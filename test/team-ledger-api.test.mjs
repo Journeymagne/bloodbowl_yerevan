@@ -11,6 +11,9 @@ const ROW = "00000000-0000-4000-8000-000000000099";
 const NOBODY = "44444444-4444-4444-8444-444444444444";
 const treasury = (id, token, body) => callApi("POST", `/api/teams/${id}/treasury`, { token, body: { reason: "sponsor", revision: 1, ...body } });
 const ledger = (id, token, query = "") => callApi("GET", `/api/teams/${id}/ledger${query}`, { token });
+/** The team's `updated_at` as Postgres writes it, to the microsecond: a JS Date keeps milliseconds, and two writes can share one. */
+const clock = async (client, id) => (await client.query("SELECT updated_at::text AS at FROM saved_teams WHERE id = $1", [id])).rows[0].at;
+const movedOn = async (client, id, since) => (await client.query("SELECT updated_at > $2::timestamptz AS later FROM saved_teams WHERE id = $1", [id, since])).rows[0].later;
 const lines = async (client, id) => (await client.query("SELECT kind, delta::float AS delta FROM team_ledger WHERE saved_team_id = $1", [id])).rows;
 
 test("a manual entry moves the treasury once, raises the revision and is journaled with its reason", db, () => withApiDatabase(async ({ client }) => {
@@ -178,7 +181,7 @@ test("an entry the team refuses is rolled back whole: a stale revision or a trea
 
 test("an entry that lands changes the treasury, the revision and the clock and nothing else of the team, and the line says who wrote it", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { coachesSafe: 12, notes: "keep me" } });
-  const before = await teamRow(client, id);
+  const before = await teamRow(client, id), beforeAt = await clock(client, id);
   const { result: { status, body }, log } = await recording(() => treasury(id, coach.token, { delta: 25, reason: "friendly", note: "Win over the Wolves" }));
   assert.equal(status, 201);
   assert.deepEqual(Object.keys(body).sort(), ["entry", "team"]);
@@ -186,7 +189,7 @@ test("an entry that lands changes the treasury, the revision and the clock and n
   const after = await teamRow(client, id);
   assert.deepEqual({ ...after.roster, treasury: before.roster.treasury }, before.roster, "every other field of the roster is as it was");
   assert.deepEqual([after.revision, after.roster.treasury], [2, 125]);
-  assert.ok(after.updated_at > before.updated_at);
+  assert.equal(await movedOn(client, id, beforeAt), true, "the clock moved on, to the microsecond");
   const { user_id: owner, name, base_team_slug: slug, logo_data: logo, stage, created_at: created } = after;
   assert.deepEqual([owner, name, slug, logo, stage, created], [before.user_id, before.name, before.base_team_slug, before.logo_data, before.stage, before.created_at]);
   const { rows } = await client.query(`SELECT kind, reason, note, delta::float AS delta, balance_after::float AS balance_after, pairing_id, actor_user_id

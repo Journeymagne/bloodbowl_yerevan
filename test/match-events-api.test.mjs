@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 
 import { accessPostMatch } from "../server/season/post-match.mjs";
 import { statisticsFromEvents } from "../src/domain/post-match/events.mjs";
+import { addJourneyman, createMatchSide } from "../src/domain/match/roster.mjs";
+import { matchReference } from "../server/domain/match-reference.mjs";
 import { callApi, recording, seedCoach, sessionFor, withApiDatabase } from "./helpers/api-db.mjs";
 import { G, act, coaches, homeScores, id, spp, startedFriendly, teams, toPlayersStep, toReady } from "./helpers/match-db.mjs";
 import { lockRow, raceInOrder, scratchSkip } from "./helpers/scratch-db.mjs";
@@ -49,6 +51,42 @@ test("a tap is refused outside the live match, for a team or a player not in it,
   assert.equal((await tap(home, "home-0")).body.error.code, "MATCH_NOT_LIVE");
   assert.equal((await tapOn(teams.home, home, { pairingId: undefined, playerId: "home-0" })).body.error.code, "MATCH_NOT_LIVE", "no pairing, no match");
   assert.equal(await count(client), 0);
+}));
+
+test("a tap is for the side's match roster, not the blob: a player who sits the match out is refused, a journeyman only the match has is taken", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  // As a start leaves it: home-0 misses the match, and a journeyman makes the seven up.
+  await client.query(`UPDATE saved_teams SET roster = jsonb_set(roster, '{players,0,skipNextGame}', 'true') WHERE id = $1`, [teams.home]);
+  const { rows: [{ roster }] } = await client.query("SELECT roster FROM saved_teams WHERE id = $1", [teams.home]);
+  const side = createMatchSide({ user: { id: coaches.home.id, login: "home" }, team: { id: teams.home, name: "home", revision: 1, baseTeamSlug: "teams/human", roster } }, await matchReference());
+  const journeyman = addJourneyman(side, 0);
+  const players = [...side.players.filter((player) => !player.skipNextGame), journeyman];
+  await client.query("UPDATE match_roster_snapshots SET snapshot = jsonb_set(snapshot, '{players}', $2::jsonb) WHERE pairing_id = $1 AND side = 'home'", [G, JSON.stringify(players)]);
+  const skipped = await tap(token, "home-0");
+  assert.deepEqual([skipped.status, skipped.body.error.code], [422, "POST_PLAYER"], "on the roster, but not in the match");
+  const hired = await tap(token, journeyman.id);
+  assert.deepEqual([hired.status, hired.body.event?.playerId], [201, journeyman.id], "in the match, on no roster");
+  assert.equal(await count(client), 1);
+}));
+
+test("a tap in a live league match is taken as in a friendly: the coaches and teams come from the season's entries", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const L = id(44), token = await sessionFor(client, coaches.home.id);
+  await client.query("UPDATE season_pairings SET preparation_status = 'not_started' WHERE id = $1", [G]); // only the league match is on
+  await client.query("INSERT INTO seasons (id, current_round, status) VALUES ($1, 1, 'active')", [id(61)]);
+  await client.query("INSERT INTO season_rounds (id, season_id, round_number, status) VALUES ($1, $2, 1, 'started')", [id(62), id(61)]);
+  for (const [entry, name] of [[id(63), "home"], [id(64), "away"]]) {
+    await client.query("INSERT INTO season_entries (id, season_id, user_id, saved_team_id) VALUES ($1, $2, $3, $4)", [entry, id(61), coaches[name].id, teams[name]]);
+  }
+  await client.query(`INSERT INTO season_pairings (id, round_id, table_number, home_entry_id, away_entry_id, preparation_status)
+    VALUES ($1, $2, 1, $3, $4, 'in_progress')`, [L, id(62), id(63), id(64)]);
+  await client.query("INSERT INTO match_roster_snapshots (pairing_id, side, saved_team_id, snapshot) SELECT $2, side, saved_team_id, snapshot FROM match_roster_snapshots WHERE pairing_id = $1", [G, L]);
+  const tapped = await tapOn(teams.home, token, { pairingId: L, playerId: "home-0" });
+  assert.deepEqual([tapped.status, tapped.body.event?.pairingId], [201, L]);
+  assert.equal((await tapOn(teams.home, token, { pairingId: G, playerId: "home-0" })).body.error.code, "MATCH_NOT_LIVE", "the friendly is not on");
+  const away = await tapOn(teams.away, await sessionFor(client, coaches.away.id), { pairingId: L, playerId: "away-0" });
+  assert.equal(away.status, 201, "and for the other side, by its own entry");
 }));
 
 /** Two more coaches with a friendly of their own going on, and a bye for the home team in a league round. */
