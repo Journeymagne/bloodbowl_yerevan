@@ -7,6 +7,9 @@
  * "Players" step appends the difference so that the rows and the entered numbers agree, and
  * finishing the post-match sets `settled_at`. A live career is the blob plus the rows not yet settled
  * (a preview, see `careerCounters`).
+ * A row without a match is an edit outside one: a roster save writes its SPP change as settled rows
+ * (`sppEdits`), and one made while a match is on waits for the finish to add it to the blob
+ * (`applyOutsideEdits`).
  * Crowd and foul casualties are not tapped, so no row ever carries them.
  *
  * A row is one step of +1 or -1. Sums are plain sums of `delta`; they are clamped to the
@@ -44,6 +47,17 @@ function sumCounters(events) {
   const sums = Object.fromEntries(COUNTED.map(counter => [counter, 0]));
   for (const event of events) if (Object.hasOwn(sums, event.counter)) sums[event.counter] += event.delta;
   return sums;
+}
+
+/**
+ * The raw sum of one player's steps on one counter: what the rows add up to before any clamp, so it can
+ * be below zero. A -1 is checked against it (server/routes/team-events.mjs): a step down where the rows
+ * it would take back add up to nothing takes back nothing, and the next step up would vanish into it.
+ */
+export function eventTotal(events, playerId, counter) {
+  let total = 0;
+  for (const event of events) if (isStep(event) && event.playerId === playerId && event.counter === counter) total += event.delta;
+  return total;
 }
 
 // `{ code }` for an injury of the table, `{ code, stat }` for a lasting one with a characteristic, else null.
@@ -146,8 +160,9 @@ export function eventsDiff({ statistics, injuries }, events) {
  * applied the statistics (`settled_at`), not that every event became SPP: a technical result counts only
  * the MVPs, a conceded loser and the stars nothing, and prayer bonuses add counters nobody tapped. So
  * the career can change at the finish, up or down. It can also sit below the roster's value in a live
- * match: an extra -1, with no tap of its own to take back, comes off the blob's total. Read the blob
- * and the events in one snapshot, or a finish between the two reads counts a match twice or not at all.
+ * match: an edit outside the match that steps a counter down comes off the blob's total (a -1 of the
+ * match's own only takes back a tap of it). Read the blob and the events in one snapshot, or a finish
+ * between the two reads counts a match twice or not at all.
  */
 export function careerCounters(player, events = []) {
   const own = groupByPlayer(events.filter(event => !event.settledAt)).get(player.id) || [];
@@ -155,6 +170,47 @@ export function careerCounters(player, events = []) {
   const result = normalizeSppCounters(player.spp);
   for (const counter of COUNTED) result[counter] = Math.max(0, result[counter] + sums[counter]);
   return result;
+}
+
+const hasId = player => typeof player?.id === 'string' && player.id !== '';
+
+/**
+ * A roster save's change to SPP, as the rows of an edit outside a match: for every player with an id
+ * in both rosters, in the order of `after`, each counter of the rows (the table's order, no injury) moved
+ * by as many steps of +1 or -1 as its value moved, the values read as the roster reads them
+ * (`normalizeSppCounters`). The MVP is not a counter of the rows, and a player who came or went has no
+ * value to move from or to: neither gets a row.
+ *
+ * An edit outside a match changes the blob at once and is kept as settled rows, so the history can show it.
+ */
+export function sppEdits(before, after) {
+  const was = new Map((before?.players ?? []).filter(hasId).map(player => [player.id, player]));
+  const rows = [];
+  for (const player of (after?.players ?? []).filter(hasId)) {
+    if (!was.has(player.id)) continue;
+    const from = normalizeSppCounters(was.get(player.id).spp), to = normalizeSppCounters(player.spp);
+    for (const counter of COUNTED) rows.push(...stepsOf(to[counter] - from[counter], { playerId: player.id, counter, injury: null }));
+  }
+  return rows;
+}
+
+/**
+ * The roster with the edits outside a match that waited for a finish added to it: each player on the
+ * roster gets the sum of his rows on each counter they step, never below zero, and nothing else of him
+ * changes. A row of an injury, or of a player no longer on the roster, is not read (it is settled all
+ * the same, see server/season/match-events-store.mjs). A copy; the input is left alone.
+ */
+export function applyOutsideEdits(roster, events) {
+  const groups = groupByPlayer(events.filter(event => !isInjuryEvent(event)));
+  const next = structuredClone(roster);
+  for (const player of next?.players ?? []) {
+    const own = groups.get(player?.id);
+    if (!own) continue;
+    const sums = sumCounters(own), base = normalizeSppCounters(player.spp);
+    const stepped = COUNTED.filter(counter => sums[counter] !== 0);
+    if (stepped.length) player.spp = { ...player.spp, ...Object.fromEntries(stepped.map(counter => [counter, Math.max(0, base[counter] + sums[counter])])) };
+  }
+  return next;
 }
 
 // Same values whatever the order of the keys, the way two JSON texts of them would read: Postgres jsonb

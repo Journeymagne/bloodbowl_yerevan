@@ -5,7 +5,7 @@ import { accessPostMatch } from "../server/season/post-match.mjs";
 import { statisticsFromEvents } from "../src/domain/post-match/events.mjs";
 import { callApi, recording, seedCoach, sessionFor, withApiDatabase } from "./helpers/api-db.mjs";
 import { G, act, coaches, homeScores, id, spp, startedFriendly, teams, toPlayersStep, toReady } from "./helpers/match-db.mjs";
-import { lockRow, scratchSkip, withForcedOverlap } from "./helpers/scratch-db.mjs";
+import { lockRow, raceInOrder, scratchSkip } from "./helpers/scratch-db.mjs";
 
 const db = { skip: scratchSkip };
 const events = (team) => `/api/teams/${team}/events`;
@@ -112,6 +112,24 @@ test("a side past its Players step that never saved it — the loser of a techni
   assert.equal((await accessPostMatch(G, coaches.away)).postMatch.away.statistics["away-0"].completions, 1);
 }));
 
+test("a step down in a match takes back one of the match's own: at zero it is refused and writes nothing — the blob and the edits outside the match are not the match's — and an injury is no count", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  await client.query(`UPDATE saved_teams SET roster = jsonb_set(roster, '{players,0,spp}', '{"touchdowns": 3}') WHERE id = $1`, [teams.home]);
+  const refused = await tap(token, "home-0", "touchdowns", -1);
+  assert.deepEqual([refused.status, refused.body.error.code, refused.body.error.params], [409, "EVENT_BELOW_ZERO", { playerId: "home-0", counter: "touchdowns" }]);
+  assert.equal(await count(client), 0);
+  assert.equal((await tapOn(teams.home, token, { pairingId: undefined, playerId: "home-0" })).status, 201, "an edit outside the match");
+  assert.equal((await tap(token, "home-0", "touchdowns", -1)).body.error?.code, "EVENT_BELOW_ZERO", "is not the match's to take back");
+  assert.equal((await tap(token, "home-0")).status, 201);
+  assert.equal((await tap(token, "home-1", "touchdowns", -1)).body.error?.code, "EVENT_BELOW_ZERO", "another player's count");
+  assert.equal((await tap(token, "home-0", "completions", -1)).body.error?.code, "EVENT_BELOW_ZERO", "another counter");
+  assert.equal((await tap(token, "home-0", "touchdowns", -1)).status, 201, "the match's own touchdown");
+  assert.equal((await tap(token, "home-0", "touchdowns", -1)).body.error?.code, "EVENT_BELOW_ZERO", "and no more");
+  assert.equal((await tap(token, "home-1", "injury", -1, { injury: { code: "miss" } })).status, 201, "an injury taken back is not a count");
+  assert.equal(await count(client), 4);
+}));
+
 test("a finished match takes no tap", db, () => withApiDatabase(async ({ client }) => {
   await startedFriendly(client);
   const token = await sessionFor(client, coaches.home.id);
@@ -119,26 +137,8 @@ test("a finished match takes no tap", db, () => withApiDatabase(async ({ client 
   assert.equal((await tap(token, "home-0")).body.error.code, "MATCH_NOT_LIVE");
 }));
 
-const WAITING_ON_A_LOCK = `SELECT count(*)::int AS n FROM pg_stat_activity
-  WHERE datname = current_database() AND wait_event_type = 'Lock' AND pid <> pg_backend_pid()`;
-
-/**
- * A race run in a set order: both requests queue on the pairing's lock, `second` starting only once `first`
- * waits on it, and the lock is let go when both do. Postgres hands a row lock over in the order it was asked
- * for, so `first` runs first. Started together, the post-match request always reached the lock before the
- * tap (the tap asks who is calling and whose team it is first), and half of every race went untested.
- * Answers in the order given.
- */
-async function raceInOrder({ client, url }, first, second) {
-  const queued = async () => {
-    for (const deadline = Date.now() + 15000; (await client.query(WAITING_ON_A_LOCK)).rows[0].n < 1;) {
-      if (Date.now() > deadline) throw new Error("the first request never waited on the pairing's lock");
-      await new Promise((resolve) => setTimeout(resolve, 10));
-    }
-    return second();
-  };
-  return withForcedOverlap(url, { lock: lockRow("season_pairings", G), waiting: 2 }, [first, queued]);
-}
+// Both sides of each race queue on the pairing's lock, the first lock a tap and the post-match take.
+const PAIRING = lockRow("season_pairings", G);
 
 for (const tapFirst of [true, false]) {
   test(`a tap racing the Players step, ${tapFirst ? "the tap" : "the step"} first: exactly one of them lands, and the events still add up to what the post-match holds`, db, () => withApiDatabase(async (database) => {
@@ -148,7 +148,7 @@ for (const tapFirst of [true, false]) {
     const state = await toPlayersStep();
     const step = { type: "statistics", statistics: state.home.statistics, mvps: ["home-6"] };
     const tapping = () => tap(token, "home-0"), saving = () => act("home", state, step);
-    const answers = await raceInOrder(database, ...(tapFirst ? [tapping, saving] : [saving, tapping]));
+    const answers = await raceInOrder(database, PAIRING, ...(tapFirst ? [tapping, saving] : [saving, tapping]));
     const [tapped, saved] = tapFirst ? answers : answers.reverse();
     const outcome = [tapped.value.status === 201 ? "tap" : tapped.value.body.error.code, saved.status === "fulfilled" ? "step" : saved.reason.code];
     assert.deepEqual(outcome, tapFirst ? ["tap", "POST_REVISION"] : ["EVENT_SIDE_LOCKED", "step"]);
@@ -164,7 +164,7 @@ for (const tapFirst of [true, false]) {
     const token = await sessionFor(client, coaches.home.id);
     const ready = await toReady(await toPlayersStep(), homeScores);
     const tapping = () => tap(token, "home-0"), finishing = () => act("home", ready, null, true);
-    const answers = await raceInOrder(database, ...(tapFirst ? [tapping, finishing] : [finishing, tapping]));
+    const answers = await raceInOrder(database, PAIRING, ...(tapFirst ? [tapping, finishing] : [finishing, tapping]));
     const [tapped, finished] = tapFirst ? answers : answers.reverse();
     if (finished.status === "rejected") throw finished.reason;
     assert.equal(finished.value.status, "completed");

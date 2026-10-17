@@ -9,6 +9,11 @@
  * behind and no `settled_at` (the ROLLBACK takes them), a repeated one finds the rows already there and
  * writes an empty difference, and a tap lands wholly before or after a Players step or a finish.
  *
+ * An edit outside a match (no pairing) is written under its team's row lock, which every writer of
+ * such rows holds: a roster save writes its SPP change settled, the blob having taken it (`settled`);
+ * one made while a match is on waits, unsettled, until the finish, which holds the team's row as well,
+ * adds it to the blob (`settleOutsideEdits`).
+ *
  * `created_at` is `clock_timestamp()`, not `now()`: `now()` is the same for the whole transaction, and
  * the rows of one save would lose their order. The order matters: an injury is the last one not taken
  * back. A row comes out in the shape the domain reads (`playerId`, `settledAt`; src/domain/post-match/events.mjs),
@@ -17,7 +22,7 @@
  * The table has no CHECK that ties `injury` to `counter = 'injury'`, so its two writers here,
  * `writeMatchEvents` and `recordMatchEvent`, check every row before it is written (`assertEventRow`).
  */
-import { EVENT_COUNTERS, eventsDiff, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
+import { EVENT_COUNTERS, applyOutsideEdits, eventsDiff, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
 
 const SELECT_EVENTS = `
   SELECT saved_team_id, player_id, counter, delta, injury, settled_at
@@ -45,9 +50,23 @@ const INSERT_EVENT = `
   VALUES ($1, $2, $3, $4, $5, $6, $7, clock_timestamp())
   RETURNING *`;
 
+// The same row, already in the blob: an edit a roster save made, which the blob took as it was saved.
+const INSERT_SETTLED_EVENT = `
+  INSERT INTO match_events (saved_team_id, pairing_id, player_id, counter, delta, injury, created_by, created_at, settled_at)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, clock_timestamp(), now())
+  RETURNING *`;
+
 const SETTLE_EVENTS = `
   UPDATE match_events SET settled_at = now()
   WHERE saved_team_id = $1 AND pairing_id = $2 AND settled_at IS NULL`;
+
+const SELECT_WAITING_OUTSIDE_EDITS = `
+  SELECT id, player_id, counter, delta, injury, settled_at
+  FROM match_events
+  WHERE saved_team_id = $1 AND pairing_id IS NULL AND settled_at IS NULL
+  ORDER BY created_at, id`;
+
+const SETTLE_EVENTS_BY_ID = "UPDATE match_events SET settled_at = now() WHERE id = ANY($1::uuid[])";
 
 // The table checks the counter and the delta; the tie between the injury and its counter is only kept here.
 function assertEventRow(row, at) {
@@ -77,8 +96,9 @@ export function publicEvent(row) {
 }
 
 // One row as written: `event` is checked before this (`assertEventRow`).
-async function insertEvent(client, { teamId, pairingId, actorId }, { playerId, counter, delta, injury }) {
-  const { rows } = await client.query(INSERT_EVENT, [teamId, pairingId, playerId, counter, delta, injury ? JSON.stringify(injury) : null, actorId]);
+async function insertEvent(client, { teamId, pairingId, actorId, settled = false }, { playerId, counter, delta, injury }) {
+  const { rows } = await client.query(settled ? INSERT_SETTLED_EVENT : INSERT_EVENT,
+    [teamId, pairingId, playerId, counter, delta, injury ? JSON.stringify(injury) : null, actorId]);
   return rows[0];
 }
 
@@ -103,14 +123,18 @@ export async function loadMatchEvents(client, pairingId, teamIds) {
  * table's constraints would not catch but the domain would misread throws, and then nothing is written:
  * every row is checked before the first INSERT.
  *
- * @param {{ query: Function }} client a pg client inside the post-match transaction
- * @param {{ teamId: string, pairingId: string, events: object[], actorId?: string|null }} write
+ * `settled` writes the rows as already in the blob (`settled_at = now()`): what a roster save writes,
+ * an edit outside a match (`pairingId` null) that the blob took in the same transaction.
+ *
+ * @param {{ query: Function }} client a pg client inside the transaction that writes the rows: the
+ *   post-match's, or a roster save's
+ * @param {{ teamId: string, pairingId: string|null, events: object[], actorId?: string|null, settled?: boolean }} write
  *   `events` are `{ playerId, counter, delta, injury? }`; `injury` only on an `injury` counter
  * @returns {Promise<number>}
  */
-export async function writeMatchEvents(client, { teamId, pairingId, events, actorId = null }) {
+export async function writeMatchEvents(client, { teamId, pairingId, events, actorId = null, settled = false }) {
   events.forEach(assertEventRow);
-  for (const event of events) await insertEvent(client, { teamId, pairingId, actorId }, event);
+  for (const event of events) await insertEvent(client, { teamId, pairingId, actorId, settled }, event);
   return events.length;
 }
 
@@ -181,4 +205,30 @@ export async function recordSideStatistics(client, pairingId, side, events, acto
  */
 export async function settleMatchEvents(client, { teamId, pairingId }) {
   return (await client.query(SETTLE_EVENTS, [teamId, pairingId])).rowCount;
+}
+
+/**
+ * Finishing the post-match takes in the team's edits outside a match that waited for it: added to the
+ * blob, then settled. Returns how many rows it took; none waiting, nothing is written.
+ *
+ * While a match is on the blob cannot move (its revision is what the finish checks), so edits outside
+ * it wait as rows and the finish takes them in, in its own transaction, after the match's own record
+ * (`after_roster`) is written. Call it there, after `applyPostMatchRoster`, under the team's row lock
+ * the post-match holds: the roster is read again from `saved_teams`, where that record left it, and
+ * written back with the edits (`applyOutsideEdits`) without moving the revision, which the finish has
+ * moved already. A row of a player who is no longer on the roster (he died meanwhile) changes nothing
+ * and is settled all the same, so nothing waits for a player who is not coming back.
+ *
+ * @param {{ query: Function }} client a pg client inside the post-match transaction
+ * @param {string} teamId
+ * @returns {Promise<number>}
+ */
+export async function settleOutsideEdits(client, teamId) {
+  const { rows } = await client.query(SELECT_WAITING_OUTSIDE_EDITS, [teamId]);
+  if (!rows.length) return 0;
+  const { rows: [team] } = await client.query("SELECT roster FROM saved_teams WHERE id = $1", [teamId]);
+  await client.query("UPDATE saved_teams SET roster = $2, updated_at = now() WHERE id = $1",
+    [teamId, JSON.stringify(applyOutsideEdits(team.roster, rows.map(toEvent)))]);
+  await client.query(SETTLE_EVENTS_BY_ID, [rows.map((row) => row.id)]);
+  return rows.length;
 }

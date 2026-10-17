@@ -86,6 +86,8 @@ test("each stage buys its own rerolls, and lowering a locked counter is allowed"
       assert.equal(answer.status, 200, `${stage} ${JSON.stringify(roster)}`);
       assert.equal(wrote(db), true);
       assert.ok(db.log.some((entry) => entry.sql === "COMMIT"));
+      assert.equal(db.log.some((entry) => entry.sql === "ROLLBACK"), false);
+      assert.equal(db.log.at(-1).sql, "release");
     });
   }
 });
@@ -98,6 +100,9 @@ test("a stale revision is a conflict before any stage check, and writes nothing"
     assert.equal(answer.payload.error.code, "TEAM_SAVED_ELSEWHERE");
     assert.equal(answer.payload.team.id, TEAM);
     assert.equal(wrote(db), false);
+    assert.ok(db.log.some((entry) => entry.sql === "ROLLBACK"));
+    assert.equal(db.log.some((entry) => entry.sql === "COMMIT"), false);
+    assert.equal(db.log.at(-1).sql, "release");
   });
 });
 
@@ -228,5 +233,42 @@ test("a stored squad with no player ids is not read as sold: the whole differenc
   await withDatabase({ stored }, async (db) => {
     await handleTeamRoutes(patch({ ...same, treasury: 110 }), response(), teamUrl());
     assert.deepEqual(ledger(db), [[TEAM, 10, 110, "manual", null, null, null, coach.id]]);
+  });
+});
+
+// values of one INSERT INTO match_events: [team, pairing, player, counter, delta, injury, actor]
+const edits = (db) => db.log.filter((entry) => entry.sql.startsWith("INSERT INTO match_events")).map((entry) => entry.values);
+
+test("an SPP change is written as settled rows without a match, in the save's transaction after the journal; a refused or stale save writes none", async () => {
+  const stored = { players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1 } }] };
+  await withDatabase({ stored }, async (db) => {
+    await handleTeamRoutes(patch({ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 2, mvps: 1 } }], treasury: 90 }), response(), teamUrl());
+    assert.deepEqual(edits(db), [[TEAM, null, "a", "touchdowns", 1, null, coach.id]]);
+    const sql = db.log.map((entry) => entry.sql), at = sql.findIndex((text) => text.startsWith("INSERT INTO match_events"));
+    assert.match(sql[at], /settled_at[^]*now\(\)/, "settled as it is written: the blob took it");
+    assert.ok(sql.findIndex((text) => text.startsWith("INSERT INTO team_ledger")) < at && at < sql.indexOf("COMMIT"));
+  });
+  await withDatabase({ stored, user: admin }, async (db) => {
+    await handleAdminRoutes(patch({ players: [{ id: "a", rowIndex: 0, spp: {} }] }), response(), adminUrl);
+    assert.deepEqual(edits(db), [[TEAM, null, "a", "touchdowns", -1, null, admin.id]], "the admin's save is the admin's");
+  });
+  await withDatabase({ stored: { ...stored, startingRerolls: 1 } }, async (db) => {
+    await assert.rejects(handleTeamRoutes(patch({ startingRerolls: 2, players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 5 } }] }), response(), teamUrl()),
+      { code: "STAGE_PURCHASE_LOCKED" });
+    assert.deepEqual(edits(db), []);
+  });
+  await withDatabase({ stored, revision: 5 }, async (db) => {
+    await handleTeamRoutes(patch({ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 5 } }] }, 4), response(), teamUrl());
+    assert.deepEqual(edits(db), []);
+  });
+});
+
+test("the team a save answers with is read after the write, with every column GET reads", async () => {
+  await withDatabase({}, async (db) => {
+    const answer = response();
+    await handleTeamRoutes(patch({ treasury: 90 }), answer, teamUrl());
+    const sql = db.log.map((entry) => entry.sql), read = sql.findIndex((text) => text.includes("in_active_season"));
+    assert.ok(sql.findIndex((text) => text.startsWith("UPDATE saved_teams")) < read && read < sql.indexOf("COMMIT"));
+    assert.equal(answer.payload.team.inActiveSeason, false);
   });
 });

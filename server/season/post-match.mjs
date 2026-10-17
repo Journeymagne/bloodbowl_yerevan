@@ -8,7 +8,7 @@ import { resultAgreed } from '../../src/domain/post-match/rules.mjs';
 import { SIDES, otherSide } from '../../src/domain/match/rules.mjs';
 import { matchPoints } from '../../src/domain/league-rules.mjs';
 import { applyPostMatchRoster } from './finance-store.mjs';
-import { loadMatchEvents, recordSideStatistics, settleMatchEvents } from './match-events-store.mjs';
+import { loadMatchEvents, recordSideStatistics, settleMatchEvents, settleOutsideEdits } from './match-events-store.mjs';
 
 async function postSources(client, fixture) {
   const sources = await loadPreparationSources(client, fixture);
@@ -58,10 +58,15 @@ async function finishPost(client, fixture, state, sources, data, actorId) {
     if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
     const projection = validatePostSide(state, name, data);
     await applyPostMatchRoster(client, fixture.id, name, state[name], projection, actorId);
-    // The difference once more (a post-match begun before 3.0 has no events; a tap may have landed after the
-    // Players step), then settled in this same transaction, so settled events add up to the statistics the post-match applied.
+    // The difference once more, for a post-match begun before 3.0: it has no events, and its statistics
+    // become rows here. A side begun in 3.0 holds what its events read, or wrote its difference on the
+    // Players step, and takes no tap past that step (EVENT_SIDE_LOCKED): for it nothing is left to write.
+    // Settled in this same transaction, so settled events add up to the statistics the post-match applied.
+    // Then the team's edits outside the match, which waited for this, go into the blob after the match's
+    // own record (after_roster).
     await recordSideStatistics(client, fixture.id, state[name], sources[name].events, actorId);
     await settleMatchEvents(client, { teamId: state[name].team.id, pairingId: fixture.id });
+    await settleOutsideEdits(client, state[name].team.id);
     state[name].settlement = projection;
   }
   const result = state.result;

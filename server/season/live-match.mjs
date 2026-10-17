@@ -10,6 +10,9 @@
  * pairing that is anything else — not there, not his, a bye, a match his team does not play, not on or
  * already over — is one answer, MATCH_NOT_LIVE (spec §3.7). Whose team it is was asked before
  * (`teamForUser`): a team that is not the coach's never gets this far.
+ *
+ * An edit outside a match is taken only while the team has a live match (`teamHasLiveMatch`), and holds
+ * nothing but the team's own row: whether a match is on is read without a lock.
  */
 import { httpError } from "../http/errors.mjs";
 import { loadPreparationFixture, loadPreparationSources } from "./preparation-store.mjs";
@@ -21,6 +24,16 @@ import { sideFollowsEvents } from "../../src/domain/post-match/events.mjs";
 const NO_MATCH_OF_YOURS = new Set(["GAME_NOT_FOUND", "FIXTURE_NOT_YOURS", "BYE_NEEDS_NO_CONFIRMATION"]);
 
 const notLive = () => httpError(409, "MATCH_NOT_LIVE");
+
+const TEAM_HAS_LIVE_MATCH = `
+  SELECT EXISTS (
+    SELECT 1
+      FROM match_roster_snapshots s
+      JOIN season_pairings p ON p.id = s.pairing_id
+      LEFT JOIN match_post_games g ON g.pairing_id = s.pairing_id
+     WHERE s.saved_team_id = $1 AND p.preparation_status = 'in_progress'
+       AND (g.state IS NULL OR g.state->>'status' IS DISTINCT FROM 'completed')
+  ) AS live`;
 
 /** The pairing, locked (`FOR UPDATE OF p`), with the loader's refusals told as MATCH_NOT_LIVE. */
 async function lockPairing(client, pairingId, user) {
@@ -59,4 +72,21 @@ export async function lockLiveSide(client, { pairingId, teamId, user }) {
     [fixture.id, side]);
   if (!rows[0]) throw notLive(); // started, the match has both rosters: without one it never started
   return { fixture, side, snapshot: rows[0].snapshot };
+}
+
+/**
+ * True while a match of the team is live: started with the team's own match roster in it (a snapshot of
+ * the team), its post-match not completed.
+ *
+ * A plain read that locks nothing. An edit outside a match asks it holding the team's row, and must not
+ * then wait on the pairing: a tap holds the pairing and waits on the team, and each would wait on the
+ * other. The row is enough against the finish, which ends a match: it takes that row too, so an edit
+ * lands wholly before it, and is carried in, or wholly after it, and is told the match is over.
+ *
+ * @param {{ query: Function }} db the client of the edit's transaction, or a pool
+ * @param {string} teamId the team's id as the database holds it
+ * @returns {Promise<boolean>}
+ */
+export async function teamHasLiveMatch(db, teamId) {
+  return (await db.query(TEAM_HAS_LIVE_MATCH, [teamId])).rows[0].live;
 }

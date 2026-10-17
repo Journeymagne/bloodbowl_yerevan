@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { EVENT_COUNTERS, careerCounters, eventsDiff, isValidEventInjury, statisticsFromEvents } from "../src/domain/post-match/events.mjs";
+import { EVENT_COUNTERS, applyOutsideEdits, careerCounters, eventTotal, eventsDiff, isValidEventInjury, sppEdits, statisticsFromEvents } from "../src/domain/post-match/events.mjs";
 import { INJURIES, POST_STATS } from "../src/domain/post-match/rules.mjs";
 import { normalizeMatchStats } from "../src/domain/post-match/statistics.mjs";
 import { normalizeSppCounters } from "../src/domain/roster/players.mjs";
@@ -201,4 +201,45 @@ test("for any events and any saved numbers: the difference makes them agree, and
     assert.deepEqual(after.injuries, savedInjuries);
     assert.deepEqual(eventsDiff(saved, [...events, ...diff]), []);
   }
+});
+
+test("an edit to the roster's SPP is the steps between the two counters, without the MVP and without players who came or went", () => {
+  const before = { players: [{ id: "a", spp: { touchdowns: 1, mvps: 0 } }, { id: "gone", spp: { touchdowns: 5 } }, { rowIndex: 0, spp: {} }] };
+  const after = { players: [{ id: "new", spp: { touchdowns: 3 } }, { id: "a", spp: { touchdowns: 3, casualties: 0, completions: 0, mvps: 2 } }] };
+  const step = (delta) => ({ playerId: "a", counter: "touchdowns", delta, injury: null });
+  assert.deepEqual(sppEdits(before, after), [step(1), step(1)]);
+  assert.deepEqual(sppEdits(after, before), [step(-1), step(-1)]);
+  assert.deepEqual(sppEdits(after, after), []);
+});
+
+test("an edit's steps come player by player in the new roster's order, each in the table's order of counters, from the counters as the roster reads them", () => {
+  const before = { players: [{ id: "a", spp: { bonus: 1 } }, { id: "b", spp: { touchdowns: "2", casualties: -3 } }, { id: "c" }] };
+  const after = { players: [{ id: "b", spp: { casualties: 1, touchdowns: 2 } }, { id: "c", spp: { landings: 1 } }, { id: "a", spp: { touchdowns: 1 } }] };
+  assert.deepEqual(sppEdits(before, after).map((row) => [row.playerId, row.counter, row.delta]),
+    [["b", "casualties", 1], ["c", "landings", 1], ["a", "touchdowns", 1], ["a", "bonus", -1]]);
+  assert.deepEqual(sppEdits({}, after), [], "a roster with no players had nobody to edit");
+  assert.deepEqual(sppEdits({ players: [{ rowIndex: 0, spp: {} }, { id: "", spp: {} }] }, { players: [{ rowIndex: 0, spp: { touchdowns: 9 } }, { id: "", spp: { bonus: 1 } }] }), [],
+    "a player without an id is nobody's: there is no telling him from another");
+});
+
+test("edits outside a match reach the blob at the finish: summed per player, never below zero, the gone and the injured skipped", () => {
+  const roster = { treasury: 5, players: [{ id: "a", spp: { touchdowns: 1, mvps: 1 } }, { id: "b", spp: {} }] };
+  const edits = [tap("a", "touchdowns"), tap("a", "completions"), tap("b", "casualties", -1), tap("ghost", "touchdowns"), hurt("a", "dead")];
+  const after = applyOutsideEdits(roster, edits);
+  assert.deepEqual([after.players[0].spp.touchdowns, after.players[0].spp.completions, after.players[0].spp.mvps, after.players[1].spp.casualties], [2, 1, 1, 0]);
+  assert.equal(roster.players[0].spp.touchdowns, 1, "the input is left alone");
+});
+
+test("edits outside a match change only the counters they step, and a player they do not name not at all", () => {
+  const roster = { treasury: 5, players: [{ id: "a", spp: { touchdowns: 2, stray: 4 } }, { id: "b", name: "Bo" }] };
+  const after = applyOutsideEdits(roster, [tap("a", "touchdowns", -1), tap("a", "catches"), tap("a", "catches", -1), tap("a", "touchdowns", 2)]);
+  assert.deepEqual(after, { treasury: 5, players: [{ id: "a", spp: { touchdowns: 1, stray: 4 } }, { id: "b", name: "Bo" }] });
+  assert.deepEqual(applyOutsideEdits(roster, []), roster);
+});
+
+test("a counter's total is the raw sum of one player's steps on it, below zero too, and nothing else", () => {
+  const events = [tap("a", "touchdowns"), tap("a", "touchdowns", -1), tap("a", "touchdowns", -1), tap("b", "touchdowns"), tap("a", "completions"),
+    tap("a", "touchdowns", 2), tap("a", "touchdowns", "1"), hurt("a", "dead")];
+  assert.deepEqual([eventTotal(events, "a", "touchdowns"), eventTotal(events, "a", "completions"), eventTotal(events, "b", "touchdowns")], [-1, 1, 1]);
+  assert.deepEqual([eventTotal(events, "ghost", "touchdowns"), eventTotal([], "a", "touchdowns")], [0, 0]);
 });

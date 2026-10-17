@@ -84,6 +84,7 @@ export const API_ERRORS = Object.freeze({
   DICE_ROLL_WAITING: "This player has a roll waiting for another type of advancement. Use it before rolling again.",
   ENTRY_ALREADY_COMMITTED: "This coach or team is already committed to the season.",
   ENTRY_NOT_FOUND: "Season entry not found.",
+  EVENT_BELOW_ZERO: "This counter is already at zero, there is nothing to take back.",
   EVENT_SIDE_LOCKED: "This match's statistics are already saved in your post-match. Change them on its Players step.",
   FALLEN_FROM_MATCH: "This death was recorded by a match's post-match. Only an administrator can undo it.",
   FALLEN_NOT_FOUND: "Fallen player not found.",

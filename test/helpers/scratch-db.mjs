@@ -161,6 +161,30 @@ export async function withForcedOverlap(url, { lock, waiting, timeoutMs = 15000 
   }
 }
 
+/**
+ * A race run in a set order: both requests queue on `lock`, `second` starting only once `first` waits on
+ * a lock, and the lock is let go when both do. Postgres hands a row lock over in the order it was asked
+ * for, so `first` runs first. Started together, one request may reach the lock first every time — a tap
+ * asks who is calling and whose team it is before its first lock — and half of every race would go untested.
+ *
+ * @param {{ client: import("pg").Client, url: string }} database the test's own connection, which watches
+ *   the queue, and the scratch database (what `withApiDatabase` hands its test)
+ * @param {[string, unknown[]?]} lock what `lockRow` returns: the first lock both requests reach
+ * @param {() => Promise<unknown>} first
+ * @param {() => Promise<unknown>} second
+ * @returns {Promise<PromiseSettledResult<unknown>[]>} how each ended, in the order given
+ */
+export async function raceInOrder({ client, url }, lock, first, second) {
+  const queued = async () => {
+    for (const deadline = Date.now() + 15000; (await client.query(WAITING_ON_A_LOCK)).rows[0].n < 1;) {
+      if (Date.now() > deadline) throw new Error("the first request never waited on the lock");
+      await sleep(10);
+    }
+    return second();
+  };
+  return withForcedOverlap(url, { lock, waiting: 2 }, [first, queued]);
+}
+
 export async function withScratchDatabase(run, { through = null } = {}) {
   const name = `gata_test_${randomBytes(6).toString("hex")}`;
   const server = new pg.Client({ connectionString: urlFor("postgres") });

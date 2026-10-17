@@ -14,9 +14,11 @@ import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } fr
 import { blockingViolations, checkRoster, normalizeDraft, teamBySlug } from "../domain/roster.mjs";
 import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
-import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames } from "../api/team-queries.mjs";
+import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam } from "../api/team-queries.mjs";
 import { writeLedgerEntries } from "../api/team-ledger.mjs";
 import { refuseSiteRolls, settleRosterRolls } from "../api/dice-rolls.mjs";
+import { writeMatchEvents } from "../season/match-events-store.mjs";
+import { sppEdits } from "../../src/domain/post-match/events.mjs";
 import { handleTeamResourceRoutes } from "./team-resources.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
@@ -132,7 +134,12 @@ export async function handleTeamRoutes(request, response, url) {
  * of its turn refuses the save. The
  * treasury change is journaled in the same transaction (team_ledger), after
  * the write and before the commit, so a refused or stale save leaves no line
- * and a line never outlives its save — nor does a roll's `used_at`.
+ * and a line never outlives its save — nor does a roll's `used_at`. The SPP
+ * change goes in after it on the same terms, as settled match events without
+ * a match (`sppEdits`, actor included): an edit outside a match, which the blob
+ * takes as it is saved and the player's history shows. The team the save
+ * answers with, like the one a conflict shows, is read in the transaction
+ * (`readPublicTeam`), after the writes: GET's shape, `inActiveSeason` included.
  *
  * @param {string|null} ownerId restricts the write to one owner; null for admin
  * @param {{id?: string, admin?: boolean}} [actor] who is writing
@@ -156,14 +163,14 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
       return null;
     }
     if (expected !== null && locked.revision !== expected) {
-      const current = await client.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [teamId]);
+      const current = await readPublicTeam(client, teamId);
       await client.query("ROLLBACK");
-      return { conflict: publicSavedTeam(current.rows[0]) };
+      return { conflict: current };
     }
     const before = normalizeDraft(locked.roster);
     if (!actor.admin) refuseLockedPurchases(before, roster, locked.stage);
     await settleRosterRolls(client, { teamId, race: teamBySlug(baseTeamSlug), raceBefore: teamBySlug(locked.base_team_slug), before, after: roster });
-    const result = await client.query(
+    await client.query(
       `UPDATE saved_teams
           SET name = $2,
               base_team_slug = $3,
@@ -171,16 +178,17 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
               roster = $5,
               revision = revision + 1,
               updated_at = now()
-        WHERE id = $1
-        RETURNING *`,
+        WHERE id = $1`,
       [teamId, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );
     // The race is what prices a sale; after a race change the old squad has no price here.
-    const team = locked.base_team_slug === baseTeamSlug ? teamBySlug(baseTeamSlug) : null;
-    const entries = classifyTreasuryChange(team, before, roster, { admin: Boolean(actor.admin) });
+    const race = locked.base_team_slug === baseTeamSlug ? teamBySlug(baseTeamSlug) : null;
+    const entries = classifyTreasuryChange(race, before, roster, { admin: Boolean(actor.admin) });
     await writeLedgerEntries(client, { teamId, opening: before.treasury, entries, actorId: actor.id ?? null });
+    await writeMatchEvents(client, { teamId, pairingId: null, events: sppEdits(before, roster), actorId: actor.id ?? null, settled: true });
+    const team = await readPublicTeam(client, teamId);
     await client.query("COMMIT");
-    return { team: publicSavedTeam(result.rows[0]) };
+    return { team };
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
     throw error;
