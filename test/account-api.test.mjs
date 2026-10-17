@@ -202,6 +202,12 @@ const profile = (token, body) => callApi("PATCH", "/api/auth/profile", { token, 
 const login = (name, password) => callApi("POST", "/api/auth/login", { body: { login: name, password } });
 /** Who `token` signs in as: the user /me answers with, or null for a session that is over. */
 const whoIs = async (token) => (await callApi("GET", "/api/auth/me", { token })).body.user;
+/** A burst of cheap requests, so that the pool holds several open connections: two requests started together then run side by side, and do not take turns waiting for a new one. */
+const warmThePool = (token) => Promise.all([1, 2, 3, 4].map(() => whoIs(token)));
+/** Ten wrong current passwords: the account is at its limit. */
+const useUpTheGuesses = async (token) => {
+  for (let attempt = 0; attempt < 10; attempt += 1) await profile(token, { password: "brand-new", currentPassword: `guess-${attempt}` });
+};
 
 test("a new password needs the current one: missing or wrong, nothing changes", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "pw-lion");
@@ -230,7 +236,7 @@ test("guessing the current password counts as guessing the login: after the limi
 }));
 
 test("the profile route's 429 is the login's 429: the same status, code, header and body keys, for the same login after the limit", db, () => withApiDatabase(async ({ client }) => {
-  const coach = await seedCoach(client, "Pw Owl"); // the counter is the login's key, "pw owl", and not the name as it was written
+  const coach = await seedCoach(client, "Pw Owl"); // login finds the account by the normalised name, "pw owl", and it is the account that is counted
   for (let attempt = 0; attempt < 10; attempt += 1) await profile(coach.token, { password: "brand-new", currentPassword: `guess-${attempt}` });
   const changing = await profile(coach.token, { password: "brand-new", currentPassword: coach.password });
   const signingIn = await login("  PW   owl ", coach.password);
@@ -371,14 +377,17 @@ test("a rename keeps the count of wrong guesses: the new name is as limited as t
   assert.equal((await profile(coach.token, { login: stranger.login })).status, 409);
   assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429);
   assert.equal((await login(stranger.login, stranger.password)).status, 200, "the other user's name inherited nothing");
-  const renamed = await profile(coach.token, { login: "pw-ibis-2" });
-  assert.deepEqual([renamed.status, renamed.body.user.login], [200, "pw-ibis-2"]);
-  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429, "the profile route");
-  assert.equal((await login("pw-ibis-2", coach.password)).status, 429, "login under the new name");
-  // Only the capitals change: the key is the same, and the count stays as it is.
-  assert.equal((await profile(coach.token, { login: "PW-IBIS-2" })).status, 200);
-  assert.equal((await login("pw-ibis-2", coach.password)).status, 429);
-  // The old name is nobody's now, and carries nothing.
+  // One rename, and a chain of them: the count is the account's, so it is where the account is.
+  for (const name of ["pw-ibis-2", "pw-ibis-3", "pw-ibis-4"]) {
+    const renamed = await profile(coach.token, { login: name });
+    assert.deepEqual([renamed.status, renamed.body.user.login], [200, name]);
+    assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429, `the profile route, as ${name}`);
+    assert.equal((await login(name, coach.password)).status, 429, `login under ${name}`);
+  }
+  // Only the capitals change: the same account under the same key.
+  assert.equal((await profile(coach.token, { login: "PW-IBIS-4" })).status, 200);
+  assert.equal((await login("pw-ibis-4", coach.password)).status, 429);
+  // The names it left are nobody's, and answer as names of nobody.
   assert.equal((await login("pw-ibis", coach.password)).status, 401);
 }));
 
@@ -435,4 +444,113 @@ test("a user who is gone by the time the profile write gets its turn is not sign
     const [answer] = answers(await withForcedOverlap(url, { lock: ["DELETE FROM users WHERE id = $1", [coach.id]], waiting: 1 }, [() => profile(coach.token, ask(coach))]));
     assert.deepEqual([answer.status, answer.body.error.code], [401, "NOT_AUTHORIZED"], name);
   }
+}));
+
+// Fix round 2 (R31): the count is the account's, so no rename can shed it, however the renames are timed.
+
+test("two renames at once cannot shed the count: both held on the user's row, the account is still limited under whichever name it ends with", db, () => withApiDatabase(async ({ client, url }) => {
+  const coach = await seedCoach(client, "pw-twin");
+  await useUpTheGuesses(coach.token);
+  const [first, second] = answers(await withForcedOverlap(url, { lock: lockRow("users", coach.id), waiting: 2 },
+    [() => profile(coach.token, { login: "pw-twin-a" }), () => profile(coach.token, { login: "pw-twin-b" })]));
+  assert.deepEqual([first.status, second.status], [200, 200]);
+  const { login: name } = (await client.query("SELECT login FROM users WHERE id = $1", [coach.id])).rows[0];
+  assert.match(name, /^pw-twin-[ab]$/);
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429, "the profile route");
+  assert.equal((await login(name, coach.password)).status, 429, `login under ${name}`);
+}));
+
+test("two renames started together, with nothing holding them, cannot shed the count either", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-pair");
+  await useUpTheGuesses(coach.token);
+  await warmThePool(coach.token);
+  const [first, second] = await Promise.all([profile(coach.token, { login: "pw-pair-a" }), profile(coach.token, { login: "pw-pair-b" })]);
+  assert.deepEqual([first.status, second.status], [200, 200]);
+  const { login: name } = (await client.query("SELECT login FROM users WHERE id = $1", [coach.id])).rows[0];
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429, "the profile route");
+  assert.equal((await login(name, coach.password)).status, 429, `login under ${name}`);
+}));
+
+test("two renames of a user by an administrator, started together, cannot shed that user's count", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-marshal", { admin: true }), coach = await seedCoach(client, "pw-duo");
+  const edit = (body) => callApi("PATCH", `/api/admin/users/${coach.id}`, { token: boss.token, body });
+  for (let attempt = 0; attempt < 10; attempt += 1) await login(coach.login, `guess-${attempt}`);
+  await warmThePool(boss.token);
+  const [first, second] = await Promise.all([edit({ login: "pw-duo-a" }), edit({ login: "pw-duo-b" })]);
+  assert.deepEqual([first.status, second.status], [200, 200]);
+  const { login: name } = (await client.query("SELECT login FROM users WHERE id = $1", [coach.id])).rows[0];
+  assert.equal((await login(name, coach.password)).status, 429, `login under ${name}`);
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429, "the profile route");
+}));
+
+test("a newcomer who registers the name an account has left logs in at once and inherits nothing, and the account keeps its count", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-heron");
+  await useUpTheGuesses(coach.token);
+  assert.equal((await profile(coach.token, { login: "pw-heron-2" })).status, 200);
+  const joined = await callApi("POST", "/api/auth/register", { body: { login: "pw-heron", password: "newcomer-pw", telegram: "@heron" } });
+  assert.equal(joined.status, 201);
+  assert.equal((await login("pw-heron", "newcomer-pw")).status, 200, "the newcomer is not limited");
+  assert.equal((await login("pw-heron-2", coach.password)).status, 429, "the account that left the name is");
+}));
+
+test("a login that names nobody is still limited by name: ten failures, then 429 whatever the password, and another name is not held up", db, () => withApiDatabase(async () => {
+  for (let attempt = 0; attempt < 10; attempt += 1) assert.equal((await login("pw-ghost", `guess-${attempt}`)).status, 401);
+  const limited = await login(" PW-Ghost ", "whatever");
+  assert.deepEqual([limited.status, limited.body.error.code], [429, "TOO_MANY_LOGIN_ATTEMPTS"]);
+  assert.match(limited.headers["retry-after"], /^[1-9]\d*$/);
+  assert.equal(limited.headers["retry-after"], String(limited.body.retryAfterSeconds));
+  assert.equal((await login("pw-ghost-2", "whatever")).status, 401, "another name that names nobody is counted on its own");
+}));
+
+test("a correct login clears the account's count, whichever door the wrong guesses came through", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-crane");
+  for (let attempt = 0; attempt < 5; attempt += 1) await profile(coach.token, { password: "brand-new", currentPassword: `guess-${attempt}` });
+  for (let attempt = 0; attempt < 4; attempt += 1) await login(coach.login, `guess-${attempt}`);
+  assert.equal((await login(coach.login, coach.password)).status, 200);
+  for (let attempt = 0; attempt < 9; attempt += 1) assert.equal((await login(coach.login, `again-${attempt}`)).status, 401, "eighteen, had the nine been kept");
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 200);
+}));
+
+test("an administrator cannot reset their own password by spelling their id another way: 409 for upper case and for no dashes, and nothing changes", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-regent", { admin: true }), elsewhere = await sessionFor(client, boss.id);
+  const hash = async () => (await client.query("SELECT password_hash FROM users WHERE id = $1", [boss.id])).rows[0].password_hash;
+  const sessions = async () => (await client.query("SELECT count(*)::int AS n FROM sessions WHERE user_id = $1", [boss.id])).rows[0].n;
+  const [before, count] = [await hash(), await sessions()];
+  const spellings = [boss.id, boss.id.toUpperCase(), boss.id.replaceAll("-", ""), boss.id.toUpperCase().replaceAll("-", "")];
+  for (const spelling of spellings) {
+    const refused = await callApi("POST", `/api/admin/users/${spelling}/reset-password`, { token: boss.token });
+    assert.deepEqual([refused.status, refused.body.error.code], [409, "SELF_PASSWORD_RESET"], spelling);
+  }
+  assert.deepEqual([await hash(), await sessions()], [before, count], "the password and the sessions are as they were");
+  assert.equal((await login(boss.login, boss.password)).status, 200, "the old password still opens the account");
+  assert.deepEqual([(await whoIs(boss.token)).login, (await whoIs(elsewhere)).login], [boss.login, boss.login]);
+  // Someone else's id, spelled any way, is still the administrator's to reset.
+  const coach = await seedCoach(client, "pw-quail"), phone = await sessionFor(client, coach.id);
+  const reset = await callApi("POST", `/api/admin/users/${coach.id.toUpperCase()}/reset-password`, { token: boss.token });
+  assert.equal(reset.status, 200);
+  assert.equal((await login(coach.login, reset.body.password)).status, 200);
+  assert.equal((await login(coach.login, coach.password)).status, 401);
+  assert.deepEqual([await whoIs(coach.token), await whoIs(phone)], [null, null]);
+}));
+
+test("the administrator's edit of a user is one transaction: a taken login leaves everything as it was, and a DELETE of the sessions that fails takes the new password with it", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-sheriff", { admin: true }), coach = await seedCoach(client, "pw-badger"), stranger = await seedCoach(client, "pw-ferret");
+  const phone = await sessionFor(client, coach.id);
+  const edit = (body) => callApi("PATCH", `/api/admin/users/${coach.id}`, { token: boss.token, body });
+  const untouched = async (why) => {
+    assert.equal((await login(coach.login, coach.password)).status, 200, `${why}: the old password still opens the account`);
+    assert.equal((await login(coach.login, "set-by-admin")).status, 401, why);
+    assert.equal((await whoIs(phone)).login, coach.login, `${why}: the other session is still signed in`);
+  };
+  const taken = await edit({ login: stranger.login, password: "set-by-admin" });
+  assert.deepEqual([taken.status, taken.body.error.code], [409, "LOGIN_ALREADY_REGISTERED"]);
+  await untouched("a taken login");
+  // The database, not the route, refuses the second write: a session row cannot be deleted.
+  await client.query("CREATE FUNCTION refuse_delete() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'sessions are kept'; END $$");
+  await client.query("CREATE TRIGGER keep_sessions BEFORE DELETE ON sessions FOR EACH ROW EXECUTE FUNCTION refuse_delete()");
+  const { result, logged } = await loggingErrors(() => edit({ login: "pw-badger-2", password: "set-by-admin" }));
+  assert.deepEqual([result.status, result.body.error.code], [500, "SERVER_ERROR"]);
+  assert.match(String(logged[0]?.[0]?.message), /sessions are kept/, "it failed where the test broke it, on the sessions");
+  await untouched("a failed DELETE");
+  assert.equal((await whoIs(coach.token)).login, coach.login, "and the rename was rolled back with it");
 }));

@@ -11,7 +11,7 @@
  */
 import { checkPreferences, mergePreferences } from "../api/preferences.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
-import { checkLoginAttempt, clearLoginAttempts, moveLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
+import { attemptKey, checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { bearerToken, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
@@ -112,9 +112,10 @@ async function savePreferences(request, response) {
  * Lets a password be replaced only by someone who knows the one it replaces: a stolen session token or
  * a phone left unlocked must not be enough to take the account over.
  *
- * Guessing it is guessing the login, so it is counted the way a login is: under the user's `login_key`,
- * in the same counter `POST /api/auth/login` uses (`rate-limit.mjs`), and a user who has used up the
- * attempts gets the same 429 the login gives. The limit is looked at before the password is verified,
+ * Guessing it is guessing the login, so it is counted the way a login is: under the user's account
+ * (`attemptKey`), in the same counter `POST /api/auth/login` uses, and a user who has used up the
+ * attempts gets the same 429 the login gives. The account and not the name, so that renaming it, even
+ * twice at once, gives nothing back. The limit is looked at before the password is verified,
  * not after: verifying is the expensive part (scrypt, on the one thread), and refusing to is the point.
  *
  * @param {object} user as `currentUser` returns it
@@ -125,13 +126,14 @@ async function savePreferences(request, response) {
  *   it is the password that is wrong.
  */
 function requireCurrentPassword(user, currentPassword) {
-  const attempt = checkLoginAttempt(user.login_key);
+  const key = attemptKey(user.login_key, user);
+  const attempt = checkLoginAttempt(key);
   if (!attempt.allowed) throw httpError(429, "TOO_MANY_LOGIN_ATTEMPTS", {}, { retryAfterSeconds: attempt.retryAfterSeconds });
   if (typeof currentPassword !== "string" || !verifyPassword(currentPassword, user.password_hash)) {
-    recordFailedLogin(user.login_key);
+    recordFailedLogin(key);
     throw httpError(403, "CURRENT_PASSWORD_WRONG");
   }
-  clearLoginAttempts(user.login_key);
+  clearLoginAttempts(key);
 }
 
 /**
@@ -174,9 +176,6 @@ async function writeProfile(db, params) {
  * login that is already taken (409) or a write that fails leaves the old password and every session as
  * they were. The session that made the request goes on. The new password is hashed before the
  * transaction opens: scrypt blocks the thread, and the user's row is not to be held while it does.
- *
- * A rename, which asks for no password, takes the count of wrong guesses along (`moveLoginAttempts`):
- * otherwise a session without the password would only have to change the login to start guessing again.
  */
 async function updateProfile(request, response) {
   const user = await currentUser(request);
@@ -204,7 +203,6 @@ async function updateProfile(request, response) {
   } else {
     updated = await writeProfile(pool, params);
   }
-  if (updated.login_key !== user.login_key) moveLoginAttempts(user.login_key, updated.login_key);
   sendJson(response, 200, { user: publicUser(updated) });
 }
 

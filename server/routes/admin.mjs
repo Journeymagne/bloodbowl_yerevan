@@ -12,6 +12,7 @@
  * admin may put a team right in either stage.
  */
 import { pool } from "../db/pool.mjs";
+import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import {
@@ -19,7 +20,6 @@ import {
   generateTemporaryPassword,
   hashPassword,
 } from "../auth/session.mjs";
-import { moveLoginAttempts } from "../auth/rate-limit.mjs";
 import {
   isAdminUser,
   normalizeLogin,
@@ -101,30 +101,28 @@ async function handleAdminUserRoutes(request, response, url) {
       return sendError(response, 409, "SELF_ADMIN_DEMOTE");
     }
 
+    // A new password and the end of that user's sessions are one transaction: a login that is taken (409)
+    // or a write that fails leaves the old password and every session as they were. Hashed before it opens.
     const passwordHash = password ? hashPassword(password) : null;
-    const updated = await pool.query(
-      `UPDATE users
-       SET login = $2,
-           login_key = $3,
-           password_hash = COALESCE($4, password_hash),
-           is_admin = $5,
-           updated_at = now()
-       WHERE id = $1
-       RETURNING *`,
-      [target.id, login, loginKey, passwordHash, nextIsAdmin],
-    ).catch((error) => {
-      if (error.code === "23505") return null;
-      throw error;
+    const updated = await withTransaction(async (client) => {
+      const { rows } = await client.query(
+        `UPDATE users
+         SET login = $2,
+             login_key = $3,
+             password_hash = COALESCE($4, password_hash),
+             is_admin = $5,
+             updated_at = now()
+         WHERE id = $1
+         RETURNING *`,
+        [target.id, login, loginKey, passwordHash, nextIsAdmin],
+      ).catch((error) => {
+        throw error.code === "23505" ? httpError(409, "LOGIN_ALREADY_REGISTERED") : error;
+      });
+      if (password) await client.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
+      return rows[0];
     });
-    if (!updated) return sendError(response, 409, "LOGIN_ALREADY_REGISTERED");
 
-    // The count of wrong guesses follows the account to its new login; a rename would otherwise start it over.
-    if (updated.rows[0] && loginKey !== target.login_key) moveLoginAttempts(target.login_key, loginKey);
-    if (password) {
-      await pool.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
-    }
-
-    return send(response, 200, { user: publicAdminUser(updated.rows[0]) });
+    return send(response, 200, { user: publicAdminUser(updated) });
   }
 
   return handleAdminUserReadRoutes(request, response, url);
@@ -151,6 +149,9 @@ async function handleAdminPasswordResetRoute(request, response, url) {
       [targetId, passwordHash],
     );
     if (!updated.rows[0]) throw httpError(404, "USER_NOT_FOUND");
+    // The id in the path may be spelled another way (upper case, no dashes) and still be one's own: the
+    // database's spelling is the one to compare. The password written just above goes with the rollback.
+    if (updated.rows[0].id === user.id) throw httpError(409, "SELF_PASSWORD_RESET");
     await client.query("DELETE FROM sessions WHERE user_id = $1", [targetId]);
     await client.query("COMMIT");
   } catch (error) {
