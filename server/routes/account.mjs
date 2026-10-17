@@ -10,13 +10,14 @@
  * thrown (`httpError`) for `handleApi` to send; the module keeps no `send` of its own.
  */
 import { checkPreferences, mergePreferences } from "../api/preferences.mjs";
-import { isEnvAdmin } from "../auth/admin-account.mjs";
+import { changesEnvProfile, isEnvAdmin } from "../auth/admin-account.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
 import { attemptKey, checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { bearerToken, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { LOGIN_MIN_LENGTH, PASSWORD_MIN_LENGTH } from "../../src/domain/account.mjs";
 
 /**
  * Whether `teamId` is one of `userId`'s own teams. A plain read, on purpose: it takes no lock on the
@@ -47,7 +48,10 @@ async function shownPreferences(db, userId, stored) {
 }
 
 /**
- * The user as they see themselves in `GET /api/auth/me`: what `publicUser` says, and their settings.
+ * The user as they see themselves in `GET /api/auth/me`: what `publicUser` says, their settings, and
+ * `managedByServer`: whether the env file keeps this account (`isEnvAdmin`), so that its password, login
+ * and contact are not the user's to change. Made here and nowhere else: no other serializer says it, and
+ * no one else's answer tells who the env file's administrator is.
  *
  * @param {{query: Function}} db a pg pool, or the client of a transaction
  * @param {object|null} user as `currentUser` returns it
@@ -55,7 +59,7 @@ async function shownPreferences(db, userId, stored) {
  */
 export async function accountUser(db, user) {
   if (!user) return null;
-  return { ...publicUser(user), preferences: await shownPreferences(db, user.id, user.preferences) };
+  return { ...publicUser(user), managedByServer: isEnvAdmin(user), preferences: await shownPreferences(db, user.id, user.preferences) };
 }
 
 /**
@@ -167,10 +171,12 @@ async function writeProfile(db, params) {
  * login, contact or password: 200 `{ user }`.
  *
  * The refusals come in an order, the cheap and the certain before the costly: no session is 401; a
- * login under 3 characters, an empty contact and a new password under 4 are the 400s they always were,
- * and none of them looks at the current password or counts as a guess; then, only when there is a new
- * password, 409 ADMIN_PASSWORD_FROM_ENV for the account the env file keeps (`isEnvAdmin`: its password is
- * the file's, rewritten at every start), before any guess is counted or verified; then
+ * login or a new password under their minimum lengths (src/domain/account.mjs) and an empty contact are
+ * the 400s they always were, and none of them looks at the current password or counts as a guess; then,
+ * only when there is a new password, 409 ADMIN_PASSWORD_FROM_ENV for the account the env file keeps
+ * (`isEnvAdmin`: its password is the file's, rewritten at every start), before any guess is counted or
+ * verified; then 409 ADMIN_PROFILE_FROM_ENV for the same account when the login (other than in letter
+ * case) or the contact would change, as the start would put them back; then
  * `requireCurrentPassword` (429 or 403); then the write. A login or contact change without a
  * new password needs no `currentPassword`, ignores one that is sent, ends no session, and is the one
  * statement it always was.
@@ -189,10 +195,11 @@ async function updateProfile(request, response) {
   const telegram = String(body.telegram ?? user.telegram).trim();
   const password = String(body.password ?? "");
 
-  if (login.length < 3) throw httpError(400, "LOGIN_TOO_SHORT");
+  if (login.length < LOGIN_MIN_LENGTH) throw httpError(400, "LOGIN_TOO_SHORT");
   if (!telegram) throw httpError(400, "TELEGRAM_REQUIRED");
-  if (password && password.length < 4) throw httpError(400, "PASSWORD_TOO_SHORT");
+  if (password && password.length < PASSWORD_MIN_LENGTH) throw httpError(400, "PASSWORD_TOO_SHORT");
   if (password && isEnvAdmin(user)) throw httpError(409, "ADMIN_PASSWORD_FROM_ENV");
+  if (changesEnvProfile(user, { login, telegram })) throw httpError(409, "ADMIN_PROFILE_FROM_ENV");
   if (password) requireCurrentPassword(user, body.currentPassword);
 
   const params = [user.id, login, normalizeLogin(login), telegram];

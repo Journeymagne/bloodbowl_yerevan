@@ -71,6 +71,7 @@ export const API_ERRORS = Object.freeze({
   MATCH_ROSTER_CHANGED: "A team has changed. Reload and confirm the new match roster.",
   MATCH_REVISION: "The preparation changed on another device. Review the latest version.",
   ADMIN_PASSWORD_FROM_ENV: "This administrator's password is set in the server's settings and cannot be changed here.",
+  ADMIN_PROFILE_FROM_ENV: "This administrator's login and Telegram are set in the server's settings and cannot be changed here.",
   ADMIN_REQUIRED: "Admin access required.",
   BASE_TEAM_REQUIRED: "Base team is required.",
   BODY_TOO_LARGE: "Request body is larger than {limitKb} KB.",

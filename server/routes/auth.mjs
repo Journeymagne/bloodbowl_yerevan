@@ -14,6 +14,7 @@ import { currentMaintenance } from "../http/maintenance.mjs";
 import { bearerToken, createSession, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
 import { attemptKey, checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
+import { LOGIN_MIN_LENGTH, PASSWORD_MIN_LENGTH } from "../../src/domain/account.mjs";
 import { accountUser, handleAccountRoutes } from "./account.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
@@ -85,8 +86,8 @@ export async function handleAuthRoutes(request, response, url) {
     const telegram = String(body.telegram ?? "").trim();
     const loginKey = normalizeLogin(login);
 
-    if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
-    if (password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
+    if (login.length < LOGIN_MIN_LENGTH) return sendError(response, 400, "LOGIN_TOO_SHORT");
+    if (password.length < PASSWORD_MIN_LENGTH) return sendError(response, 400, "PASSWORD_TOO_SHORT");
     if (!telegram) return sendError(response, 400, "TELEGRAM_REQUIRED");
 
     const passwordHash = hashPassword(password);

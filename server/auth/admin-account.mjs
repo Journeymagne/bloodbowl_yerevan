@@ -8,7 +8,10 @@
  * Every boot rewrites the password and Telegram from the env file, so the file
  * stays the single place an operator changes them. A password set anywhere else
  * would last until the next start, after it had already ended the account's other
- * sessions: the routes that set one refuse this account (`isEnvAdmin`).
+ * sessions: the routes that set one refuse this account (`isEnvAdmin`). The routes
+ * that change its login or Telegram refuse it too (`changesEnvProfile`): the start
+ * finds the account by its login key and writes the Telegram back, so a rename
+ * would make a second account of it and a new contact would last until the restart.
  */
 import { normalizeLogin } from "../api/serializers.mjs";
 import { hashPassword } from "./session.mjs";
@@ -26,6 +29,24 @@ const envAdminLogin = (env) => env.ADMIN_LOGIN || "admin";
  */
 export function isEnvAdmin(user, env = process.env) {
   return typeof user?.login_key === "string" && user.login_key === normalizeLogin(envAdminLogin(env));
+}
+
+/**
+ * Whether saving this login and Telegram would change what the env file keeps of its administrator
+ * beyond the password: a login other than in letter case (the start finds the account by `login_key`,
+ * which the case does not change), or a Telegram other than the one it has. A field left out is not
+ * touched. False for every other account.
+ *
+ * @param {{login_key?: string, telegram?: string}|null|undefined} user a `users` row, as it is now
+ * @param {{login?: string, telegram?: string}} change what the request would save, trimmed
+ * @param {Record<string, string|undefined>} [env]
+ * @returns {boolean}
+ */
+export function changesEnvProfile(user, { login, telegram }, env = process.env) {
+  if (!isEnvAdmin(user, env)) return false;
+  const renamed = login !== undefined && normalizeLogin(login) !== user.login_key;
+  const recontacted = telegram !== undefined && String(telegram).trim() !== String(user.telegram ?? "").trim();
+  return renamed || recontacted;
 }
 
 /**
