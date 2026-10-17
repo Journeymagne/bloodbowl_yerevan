@@ -5,11 +5,14 @@
  * career (`careerCounters`) for everything recorded since 3.0; an injury is shown the way the roster got it
  * (`effectiveInjury`).
  *
- * Even since 3.0 the equality has three holes, each a rare flow that moved the blob without a row to match:
- * where a finish had to hold a counter at zero (a roster save during the match lowered it below the edits
- * waiting on it, so those rows take back more than the blob lost), where a player was gone at the finish
- * (his waiting edits are settled and change nothing), and where a legacy counter outside 0…999 was brought
- * into range without rows (`sppEdits`).
+ * Since 3.0 the equality still has exceptions, of two kinds. The blob changes without a row: an MVP edited
+ * by hand (the rows have no MVP counter), a player who arrives with SPP (a new team, or a save that adds
+ * him: `sppEdits` moves only players on both rosters), a legacy counter outside 0…999 brought into range
+ * (`sppEdits`), and a finish that had to hold a counter at zero (a roster save during the match lowered it
+ * below the edits waiting on it, so the blob loses less than those rows take back). Or the rows and the blob
+ * part ways: a deleted pairing or round takes its applications and rows and the blob keeps the SPP; an undone
+ * match death returns the player as he was before that match while that match's rows stay and still count; a
+ * player gone at the finish has his waiting edits settled, not applied.
  *
  * A match is read from what the server finds of the team's side of it: its roster snapshot, the post-match
  * application (the roster before and after), the side of the stored post-match, and the player's own events.
