@@ -142,16 +142,8 @@ export async function launchChrome(chromePath) {
   }
 }
 
-/**
- * Open the browser-level DevTools socket.
- *
- * `send` carries an optional session id: with `flatten: true` every page's
- * commands and events travel over this one socket, told apart by it.
- *
- * @param {string} wsUrl
- * @param {{timeoutMs?: number}} [options] how long the socket may take to open
- */
-export async function connect(wsUrl, { timeoutMs = CONNECT_TIMEOUT_MS } = {}) {
+/** An open WebSocket to `wsUrl`, or a rejection when it has not opened in `timeoutMs`. */
+async function openSocket(wsUrl, timeoutMs) {
   const socket = new WebSocket(wsUrl);
   await new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -168,9 +160,28 @@ export async function connect(wsUrl, { timeoutMs = CONNECT_TIMEOUT_MS } = {}) {
       reject(new Error(`could not open ${wsUrl}`));
     }, { once: true });
   });
+  return socket;
+}
+
+const closedError = (what) => new Error(`${what}: Chrome closed the connection`);
+
+/**
+ * Open the browser-level DevTools socket.
+ *
+ * `send` carries an optional session id: with `flatten: true` every page's
+ * commands and events travel over this one socket, told apart by it. Once the
+ * socket is closed, `send` and `waitFor` fail at once.
+ *
+ * @param {string} wsUrl
+ * @param {{timeoutMs?: number}} [options] how long the socket may take to open
+ */
+export async function connect(wsUrl, { timeoutMs = CONNECT_TIMEOUT_MS } = {}) {
+  const socket = await openSocket(wsUrl, timeoutMs);
   let lastId = 0;
   const pending = new Map();
   const listeners = new Set();
+  // What is waiting for an event, to be told at once if Chrome goes away.
+  const waiters = new Set();
 
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
@@ -188,13 +199,20 @@ export async function connect(wsUrl, { timeoutMs = CONNECT_TIMEOUT_MS } = {}) {
   socket.addEventListener("close", () => {
     for (const call of pending.values()) {
       clearTimeout(call.timer);
-      call.reject(new Error(`${call.method}: Chrome closed the connection`));
+      call.reject(closedError(call.method));
     }
     pending.clear();
+    for (const stop of [...waiters]) stop();
   });
 
   function send(method, params = {}, sessionId = undefined, timeoutMs = COMMAND_TIMEOUT_MS) {
     return new Promise((resolve, reject) => {
+      // A socket that is not open would swallow the command and the timer would
+      // be the only answer: a Chrome that died mid-run would cost 30 s per command.
+      if (socket.readyState !== WebSocket.OPEN) {
+        reject(closedError(method));
+        return;
+      }
       lastId += 1;
       const id = lastId;
       const timer = setTimeout(() => {
@@ -214,16 +232,22 @@ export async function connect(wsUrl, { timeoutMs = CONNECT_TIMEOUT_MS } = {}) {
   /** The params of the next matching event. Call it before the command that causes the event. */
   function waitFor(method, { sessionId, timeoutMs = COMMAND_TIMEOUT_MS } = {}) {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        off();
-        reject(new Error(`${method}: not seen in ${timeoutMs / 1000} s`));
-      }, timeoutMs);
-      const off = onEvent((message) => {
-        if (message.method !== method || message.sessionId !== sessionId) return;
+      if (socket.readyState !== WebSocket.OPEN) {
+        reject(closedError(method));
+        return;
+      }
+      const finish = (settle, value) => {
         clearTimeout(timer);
         off();
-        resolve(message.params);
+        waiters.delete(gone);
+        settle(value);
+      };
+      const timer = setTimeout(() => finish(reject, new Error(`${method}: not seen in ${timeoutMs / 1000} s`)), timeoutMs);
+      const gone = () => finish(reject, closedError(method));
+      const off = onEvent((message) => {
+        if (message.method === method && message.sessionId === sessionId) finish(resolve, message.params);
       });
+      waiters.add(gone);
     });
   }
 

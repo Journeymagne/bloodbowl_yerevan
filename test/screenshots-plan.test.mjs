@@ -1,8 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import fs from "node:fs";
+import http from "node:http";
 import net from "node:net";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { connect, openPage } from "../scripts/screenshots/cdp.mjs";
+import { startFakeDevTools } from "./helpers/fake-devtools.mjs";
 import {
   DEFAULT_MAC_CHROME,
   chromeEnvironment,
@@ -194,6 +201,31 @@ test("each server a states file needs is named once, in order, to be asked befor
   assert.deepEqual(serverOrigins(shots), ["http://localhost:3002", "http://localhost:5174"]);
 });
 
+test("a key a state or a variant does not have is refused by name, with the keys it does have", () => {
+  const state = (extra) => ({ states: [{ id: "S1", url: "http://localhost:5174/", ...extra }] });
+  const bad = (change, pattern) => assert.throws(() => expandShots(spec(change)), pattern, JSON.stringify(change));
+  bad(state({ clicks: ["#a"] }), /state S1 has an unknown key "clicks"; the keys of a state are id, url, widths, extraWidths, login, storage, click, run, waitMs, runWaitMs, fullPage$/);
+  bad(state({ waitMS: 100 }), /S1.*"waitMS"/);
+  bad(state({ colorScheme: "dark" }), /S1.*"colorScheme".*keys of a state/);
+  bad(state({ clicks: 1, waitMS: 2 }), /S1 has unknown keys "clicks", "waitMS"/);
+  bad({ variants: [{ name: "night", colourScheme: "dark" }] }, /variant "night" has an unknown key "colourScheme"; the keys of a variant are name, storage, colorScheme$/);
+  const everything = {
+    id: "S1", url: "http://localhost:5174/", widths: [390], extraWidths: [768], login: "admin", storage: {},
+    click: "#a", run: "a()", waitMs: 0, runWaitMs: 0, fullPage: true,
+  };
+  assert.doesNotThrow(() => expandShots(spec({ variants: [{ name: "night", storage: {}, colorScheme: "dark" }], states: [everything] })));
+});
+
+test("the check for ?. reads the text: one in a string or a comment is refused too, and the message says so", () => {
+  for (const run of ["fill('#note', 'is it so?. yes')", "// maybe?.click() later\ndocument.querySelector('#x').click()"]) {
+    assert.throws(
+      () => expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", run }] })),
+      /S1.*run.*The check is textual: a \?\. in a string or a comment counts too/,
+      run,
+    );
+  }
+});
+
 test("a conditional is not optional chaining, and a run that is only lines of JavaScript is kept as it is", () => {
   const [shot] = expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", run: ["const n = innerWidth <= 900 ?.5 : 1;", "document.querySelector('#x').click();"] }] }));
   assert.equal(shot.run, "const n = innerWidth <= 900 ?.5 : 1;\ndocument.querySelector('#x').click();");
@@ -309,11 +341,12 @@ test("the summary counts what was written, what failed and which shots had probl
     result(),
     result({ file: "A1-390-dark.png", variant: "dark", problems: { console: [{ text: "a" }, { text: "b" }], exceptions: [{ text: "c" }], requests: [] } }),
     result({ file: "A1-1440-light.png", width: 1440, failure: "login failed (HTTP 401)" }),
+    result({ file: "A1-1440-dark.png", width: 1440, variant: "dark", failure: "click target not found: #x", problems: { console: [{ text: "seen first" }], exceptions: [], requests: [] } }),
   ]);
   assert.equal(summary.written, 2);
-  assert.equal(summary.failed.length, 1);
-  assert.equal(summary.failed[0].file, "A1-1440-light.png");
-  assert.deepEqual(summary.withProblems.map((item) => [item.file, item.count]), [["A1-390-dark.png", 3]]);
+  assert.deepEqual(summary.failed.map((item) => item.file), ["A1-1440-light.png", "A1-1440-dark.png"]);
+  // The errors of a shot that was not taken count: they are listed in the [console] lines, and the header must agree.
+  assert.deepEqual(summary.withProblems.map((item) => [item.file, item.count]), [["A1-390-dark.png", 3], ["A1-1440-dark.png", 1]]);
 });
 
 test("the index page lists every shot with its id, width and variant, and says what went wrong", () => {
@@ -439,5 +472,55 @@ test("a socket that never finishes opening is given up on at the time it was giv
   } finally {
     for (const socket of held) socket.destroy();
     await new Promise((resolve) => silent.close(resolve));
+  }
+});
+
+test("a command to a socket Chrome has closed, or a wait for an event on one, fails at once", async () => {
+  const devtools = await startFakeDevTools();
+  const connection = await connect(`ws://127.0.0.1:${devtools.port}/devtools/browser/fake`);
+  const started = Date.now();
+  try {
+    const waiting = connection.waitFor("Page.loadEventFired", { timeoutMs: 5_000 });
+    devtools.dropConnections();
+    await assert.rejects(waiting, /Page\.loadEventFired: Chrome closed the connection/);
+    // The socket is closed now; a 5 s limit on the command makes a swallowed one show up as "no answer".
+    await assert.rejects(connection.send("Target.createBrowserContext", {}, undefined, 5_000), /Target\.createBrowserContext: Chrome closed the connection/);
+    await assert.rejects(connection.waitFor("Page.loadEventFired", { timeoutMs: 5_000 }), /Chrome closed the connection/);
+    assert.ok(Date.now() - started < 2_000, "none of the three waited for its limit");
+  } finally {
+    connection.close();
+    await devtools.close();
+  }
+});
+
+test("a Chrome that dies in the middle of a run: its shot and every later one are NOT TAKEN at once", async () => {
+  const site = http.createServer((request, response) => response.end("ok"));
+  await new Promise((resolve) => site.listen(0, "127.0.0.1", resolve));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gata-screens-test-"));
+  try {
+    const url = `http://127.0.0.1:${site.address().port}/`;
+    const statesPath = path.join(dir, "states.json");
+    fs.writeFileSync(statesPath, JSON.stringify({
+      widths: [390],
+      variants: [{ name: "a" }, { name: "b" }],
+      states: [{ id: "D1", url }, { id: "D2", url }],
+    }));
+    const script = fileURLToPath(new URL("../scripts/screenshots.mjs", import.meta.url));
+    const chrome = fileURLToPath(new URL("./fixtures/fake-chrome.mjs", import.meta.url));
+    const started = Date.now();
+    // 20 s is far over what it takes and far under the 30 s a single command would wait.
+    const run = await new Promise((resolve) => {
+      execFile(process.execPath, [script, statesPath, "--out", path.join(dir, "out"), "--chrome", chrome], { timeout: 20_000, killSignal: "SIGKILL" },
+        (error, stdout, stderr) => resolve({ code: error ? error.code : 0, stdout, stderr }));
+    });
+    assert.equal(run.code, 1, `${run.stdout}\n${run.stderr}`);
+    const notTaken = run.stdout.split("\n").filter((line) => line.includes("NOT TAKEN"));
+    assert.equal(notTaken.length, 4, run.stdout);
+    assert.ok(notTaken.every((line) => line.includes("Chrome closed the connection")), run.stdout);
+    assert.ok(Date.now() - started < 15_000, "the later shots did not each wait for a command to time out");
+  } finally {
+    site.closeAllConnections();
+    site.close();
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });

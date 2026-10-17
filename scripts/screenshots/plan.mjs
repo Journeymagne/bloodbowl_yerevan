@@ -9,13 +9,16 @@
 // mistyped id or a width of zero found halfway through a hundred shots costs
 // minutes and leaves a half-filled directory that looks like a finished run.
 //
-// The states file:
+// The states file (a key this list does not have is refused, in a state and in a
+// variant alike: a mistyped `waitMS` would otherwise be shot with the default):
 //   widths, heights   the default widths (390, 1440) and the height for a width
 //   variants          [{name, storage?, colorScheme?}]: every state is shot once
 //                     per variant. `storage` is written to localStorage before
 //                     the page is loaded for the shot. `colorScheme` ("light" or
-//                     "dark") is the prefers-color-scheme the page sees, for a
-//                     palette that follows the system rather than a stored choice.
+//                     "dark") is the prefers-color-scheme the page sees. A variant
+//                     without it sees the machine's own appearance, so a Mac in
+//                     dark mode shoots a page that follows the system in dark:
+//                     set it on every variant that shows a palette.
 //   states            [{id, url, ...}] and, per state:
 //                       login      "admin" signs in as the administrator (loopback only)
 //                       storage    entries that win over the variant's
@@ -24,10 +27,13 @@
 //                                  after the page has loaded; one that is not on the
 //                                  page fails the shot, it is never skipped
 //                       run        JavaScript (a string, or lines of one) run after
-//                                  the clicks; `?.` is refused: a run must fail when
-//                                  its element is missing, so write .click()
+//                                  the clicks. It is plain code: it fails the shot
+//                                  only if it throws. `?.` is refused so that a
+//                                  missing element throws: write .click(), not
+//                                  ?.click(). The check is textual: a `?.` in a
+//                                  string or a comment is refused too.
 //                       waitMs, runWaitMs   milliseconds, whole, 0 to 60000: after the
-//                                  load, and after click and run
+//                                  load, and after each click and after run
 //                       fullPage   true shoots the whole scrolling page
 
 export const DEFAULT_MAC_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
@@ -41,6 +47,9 @@ const DEFAULT_RUN_WAIT_MS = 600;
 // A wait is for an animation to finish, not for a build; a minute is already a typo.
 const MAX_WAIT_MS = 60_000;
 const COLOR_SCHEMES = new Set(["light", "dark"]);
+// Every key a state or a variant may have. Anything else is a typo or a field put on the wrong one.
+const STATE_KEYS = ["id", "url", "widths", "extraWidths", "login", "storage", "click", "run", "waitMs", "runWaitMs", "fullPage"];
+const VARIANT_KEYS = ["name", "storage", "colorScheme"];
 // `?.` and not the `?.5` of a conditional, which is not optional chaining.
 const OPTIONAL_CHAINING = /\?\.(?!\d)/;
 // Below this a page is looked at as a phone: Chrome gets the touch viewport
@@ -207,6 +216,14 @@ function storageOf(source, where) {
   return entries;
 }
 
+/** Refuse a key `allowed` does not list: it would be ignored and the shot taken without what it asked for. */
+function checkKeys(item, allowed, where, kind) {
+  const unknown = Object.keys(item).filter((key) => !allowed.includes(key));
+  if (!unknown.length) return;
+  const names = unknown.map((key) => JSON.stringify(key)).join(", ");
+  throw new Error(`screens: ${where} has ${unknown.length > 1 ? "unknown keys" : "an unknown key"} ${names}; the keys of a ${kind} are ${allowed.join(", ")}`);
+}
+
 function colorSchemeOf(value, where) {
   if (value === undefined) return null;
   if (!COLOR_SCHEMES.has(value)) {
@@ -229,6 +246,7 @@ function variantsOf(spec) {
     if (seen.has(name)) throw new Error(`screens: variant "${name}" is listed twice`);
     seen.add(name);
     const where = `variant "${name}"`;
+    checkKeys(variant, VARIANT_KEYS, where, "variant");
     return { name, storage: storageOf(variant.storage, where), colorScheme: colorSchemeOf(variant.colorScheme, where) };
   });
 }
@@ -260,7 +278,7 @@ function runOf(state) {
   }
   const text = lines.join("\n");
   if (OPTIONAL_CHAINING.test(text)) {
-    throw new Error(`screens: state ${state.id} run uses ?. — a run must fail when its element is missing: write .click(), not ?.click()`);
+    throw new Error(`screens: state ${state.id} run uses ?. — a run must fail when its element is missing: write .click(), not ?.click(). The check is textual: a ?. in a string or a comment counts too`);
   }
   return text;
 }
@@ -270,6 +288,7 @@ function checkState(state, seen) {
   if (!SAFE_NAME.test(state.id)) throw new Error(`screens: id "${state.id}" must be letters, digits, - or _`);
   if (seen.has(state.id)) throw new Error(`screens: state ${state.id} is listed twice`);
   seen.add(state.id);
+  checkKeys(state, STATE_KEYS, `state ${state.id}`, "state");
   try {
     new URL(state.url);
   } catch {
