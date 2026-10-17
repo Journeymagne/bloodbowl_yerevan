@@ -202,8 +202,9 @@ test("a body the site does not accept is a 400 naming the field, opens no transa
     [{ delta: 5, note: "x".repeat(201) }, "note"], [{ delta: 0, revision: 99 }, "delta"]]) {
     await asked(() => treasury(id, coach.token, body), field, JSON.stringify(body));
   }
-  for (const body of [[], null, "5", 5, undefined]) {
-    await asked(() => callApi("POST", `/api/teams/${id}/treasury`, { token: coach.token, body }), "delta", `body ${JSON.stringify(body)}`);
+  // A body that is no object is refused as the body, before any field of it is read (readJson); none at all has no delta.
+  for (const [body, field] of [[[], "body"], [null, "body"], ["5", "body"], [5, "body"], [undefined, "delta"]]) {
+    await asked(() => callApi("POST", `/api/teams/${id}/treasury`, { token: coach.token, body }), field, `body ${JSON.stringify(body)}`);
   }
   assert.deepEqual(await teamRow(client, id), before);
   assert.deepEqual(await lines(client, id), []);

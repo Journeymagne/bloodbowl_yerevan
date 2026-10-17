@@ -294,9 +294,9 @@ test("a cause is kept trimmed, and 500 characters of it are the most", db, () =>
 test("a body the site does not accept is a 400 naming the cause, opens no transaction, writes nothing, and comes before a stale revision or a missing player", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   const before = await teamRow(client, id);
-  const asked = async (send, label) => {
+  const asked = async (send, label, field = "cause") => {
     const { result, log } = await recording(send);
-    assert.deepEqual([result.status, result.body.error.code, result.body.error.params], [400, "FIELD_INVALID", { field: "cause" }], label);
+    assert.deepEqual([result.status, result.body.error.code, result.body.error.params], [400, "FIELD_INVALID", { field }], label);
     assert.deepEqual(log, [], `${label}: no transaction was opened`);
   };
   for (const cause of ["", "   ", "\n\t", null, undefined, 7, true, ["x"], { text: "x" }, "x".repeat(501), `  ${"x".repeat(501)}  `]) {
@@ -304,8 +304,9 @@ test("a body the site does not accept is a 400 naming the cause, opens no transa
     await asked(() => death(id, "p0", coach.token, { cause }), said);
     await asked(() => death(id, "ghost", coach.token, { cause, revision: 99 }), `${said}, a missing player, a stale revision`);
   }
-  for (const body of [[], null, "x", 5, undefined]) {
-    await asked(() => callApi("POST", `/api/teams/${id}/players/p0/death`, { token: coach.token, body }), `body ${JSON.stringify(body) ?? "none"}`);
+  // A body that is no object is refused as the body, before any field of it is read (readJson); none at all has no cause.
+  for (const [body, field] of [[[], "body"], [null, "body"], ["x", "body"], [5, "body"], [undefined, "cause"]]) {
+    await asked(() => callApi("POST", `/api/teams/${id}/players/p0/death`, { token: coach.token, body }), `body ${JSON.stringify(body) ?? "none"}`, field);
   }
   assert.deepEqual(await teamRow(client, id), before);
   assert.deepEqual(await fallenRows(client, id), []);

@@ -169,7 +169,7 @@ test("a body the site does not accept is a 400 for its field, costs no transacti
   const die = scriptedServerDie();
   try {
     for (const [body, field] of [
-      [{}, "purpose"], [null, "purpose"], ["stat", "purpose"], [[], "purpose"], [{ purpose: "mvp" }, "purpose"], [{ purpose: "STAT" }, "purpose"],
+      [{}, "purpose"], [null, "body"], ["stat", "body"], [[], "body"], [{ purpose: "mvp" }, "purpose"], [{ purpose: "STAT" }, "purpose"], // no object: the body (readJson)
       [{ purpose: 7 }, "purpose"], [{ purpose: null }, "purpose"], [{ purpose: ["stat"] }, "purpose"], [{ purpose: { stat: true } }, "purpose"],
       [{ purpose: "random_skill" }, "category"], [{ purpose: "random_skill", category: "" }, "category"], [{ purpose: "random_skill", category: null }, "category"],
       [{ purpose: "random_skill", category: 7 }, "category"], [{ purpose: "random_skill", category: ["General"] }, "category"]]) {

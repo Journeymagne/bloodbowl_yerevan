@@ -27,14 +27,16 @@ let reference = null;
  *
  * @param {string} method
  * @param {string} path with its query string
- * @param {{token?: string, body?: unknown}} [options] a session token, and a body sent as JSON
+ * @param {{token?: string, body?: unknown, raw?: string}} [options] a session token, and a body sent as JSON —
+ *   or `raw`, a body sent as it is written, for one that is not JSON
  * @returns {Promise<{status: number, body: any, headers: Record<string, string>}>} `body` is the
  *   parsed JSON, null when there is none; header names are lower-case
  */
-export async function callApi(method, path, { token, body } = {}) {
+export async function callApi(method, path, { token, body, raw } = {}) {
   reference ??= loadTeamReference(rootDir); // the race tables the roster rules read, loaded once
   await reference;
-  const request = Readable.from(body === undefined ? [] : [Buffer.from(JSON.stringify(body))]);
+  const sent = raw ?? (body === undefined ? undefined : JSON.stringify(body));
+  const request = Readable.from(sent === undefined ? [] : [Buffer.from(sent)]);
   Object.assign(request, { method, url: path, headers: token ? { authorization: `Bearer ${token}` } : {} });
   const headers = {};
   let status = null, answer = null;
