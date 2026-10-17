@@ -6,7 +6,9 @@
  * longer follows the events refuses it, because the finish's difference would silently take it back.
  *
  * A match is live from its start (preparation `in_progress`, both match rosters saved) until its
- * post-match is completed. A tap belongs to one team's side of it: to the coach whose team that is, a
+ * post-match is completed — the runbook's «started, post-match open» (`LIVE_MATCH`): a started match whose
+ * score was confirmed around the post-match, as 2.x let both coaches or the admin do, is not live while it
+ * has no post-match row, and is live again once its post-match is opened. A tap belongs to one team's side of it: to the coach whose team that is, a
  * pairing that is anything else — not there, not his, a bye, a match his team does not play, not on or
  * already over — is one answer, MATCH_NOT_LIVE (spec §3.7). Whose team it is was asked before
  * (`teamForUser`): a team that is not the coach's never gets this far.
@@ -25,14 +27,28 @@ const NO_MATCH_OF_YOURS = new Set(["GAME_NOT_FOUND", "FIXTURE_NOT_YOURS", "BYE_N
 
 const notLive = () => httpError(409, "MATCH_NOT_LIVE");
 
+/**
+ * A match is on, as the rollout's runbook counts «started, post-match open»: started (`in_progress`), its
+ * post-match not completed, and either a post-match row to finish or a score nobody has confirmed. One
+ * predicate for a tap and an edit outside a match: `p` is the pairing, `g` its `match_post_games` row joined
+ * LEFT, none when the post-match was never opened.
+ */
+const LIVE_MATCH = `p.preparation_status = 'in_progress'
+  AND (g.pairing_id IS NULL OR g.state->>'status' IS DISTINCT FROM 'completed')
+  AND (g.pairing_id IS NOT NULL OR p.result_status IS DISTINCT FROM 'confirmed')`;
+
 const TEAM_HAS_LIVE_MATCH = `
   SELECT EXISTS (
     SELECT 1
       FROM match_roster_snapshots s
       JOIN season_pairings p ON p.id = s.pairing_id
       LEFT JOIN match_post_games g ON g.pairing_id = s.pairing_id
-     WHERE s.saved_team_id = $1 AND p.preparation_status = 'in_progress'
-       AND (g.state IS NULL OR g.state->>'status' IS DISTINCT FROM 'completed')
+     WHERE s.saved_team_id = $1 AND ${LIVE_MATCH}
+  ) AS live`;
+
+const PAIRING_IS_LIVE = `
+  SELECT EXISTS (
+    SELECT 1 FROM season_pairings p LEFT JOIN match_post_games g ON g.pairing_id = p.id WHERE p.id = $1 AND ${LIVE_MATCH}
   ) AS live`;
 
 /** The pairing, locked (`FOR UPDATE OF p`), with the loader's refusals told as MATCH_NOT_LIVE. */
@@ -49,7 +65,8 @@ async function lockPairing(client, pairingId, user) {
  *
  * Call it first on the client of the tap's transaction. The order is fixed, the post-match's own: the
  * pairing `FOR UPDATE OF p`, both teams `ORDER BY id FOR UPDATE`, then the post-match row, if there is one,
- * `FOR UPDATE`; no lock is taken before them. Refused at any point, the transaction is to be rolled back.
+ * `FOR UPDATE`; no lock is taken before them. Whether the match is on is asked under them, of the rows they
+ * hold (`LIVE_MATCH`, as `teamHasLiveMatch` asks it). Refused at any point, the transaction is to be rolled back.
  *
  * @param {{ query: Function }} client the client of the tap's transaction
  * @param {{ pairingId: string, teamId: string, user: { id: string } }} tap `pairingId` a UUID; `teamId` the
@@ -64,9 +81,9 @@ export async function lockLiveSide(client, { pairingId, teamId, user }) {
   // Both teams, locked as the post-match locks them; what the loader reads of them is not needed here.
   await loadPreparationSources(client, fixture);
   const side = SIDES.find((name) => fixture[`${name}_team_id`] === teamId);
-  if (!side || fixture[`${side}_user_id`] !== user.id || fixture.preparation_status !== "in_progress") throw notLive();
+  if (!side || fixture[`${side}_user_id`] !== user.id) throw notLive();
   const post = (await client.query("SELECT state FROM match_post_games WHERE pairing_id = $1 FOR UPDATE", [fixture.id])).rows[0];
-  if (post?.state.status === "completed") throw notLive();
+  if (!(await client.query(PAIRING_IS_LIVE, [fixture.id])).rows[0].live) throw notLive();
   if (post && !sideFollowsEvents(post.state[side])) throw httpError(409, "EVENT_SIDE_LOCKED");
   const { rows } = await client.query("SELECT snapshot FROM match_roster_snapshots WHERE pairing_id = $1 AND side = $2",
     [fixture.id, side]);
@@ -75,8 +92,8 @@ export async function lockLiveSide(client, { pairingId, teamId, user }) {
 }
 
 /**
- * True while a match of the team is live: started with the team's own match roster in it (a snapshot of
- * the team), its post-match not completed.
+ * True while a match of the team is live (`LIVE_MATCH`) with the team's own match roster in it (a snapshot
+ * of the team).
  *
  * A plain read that locks nothing. An edit outside a match asks it holding the team's row, and must not
  * then wait on the pairing: a tap holds the pairing and waits on the team, and each would wait on the

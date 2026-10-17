@@ -11,7 +11,7 @@ import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
-import { blockingViolations, checkRoster, normalizeDraft, teamBySlug } from "../domain/roster.mjs";
+import { blockingViolations, checkRoster, normalizeDraft, rosterRefusal, teamBySlug } from "../domain/roster.mjs";
 import { MAX_SPP_EDIT_STEPS, VALIDATION_CODES, playerViolations } from "../../src/domain/roster/validate.mjs";
 import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
@@ -235,13 +235,6 @@ export async function readTeamBody(request) {
   const blocking = blockingViolations(violations);
   if (blocking.length) throw rosterRefusal(blocking);
   return { body, name, baseTeamSlug, logoData, roster };
-}
-
-/** The refusal of a roster that breaks the rules, with what it breaks. */
-function rosterRefusal(violations) {
-  const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
-  error.violations = violations;
-  return error;
 }
 
 /**

@@ -23,7 +23,7 @@ import { SAVED_TEAM_COLUMNS } from "../api/team-queries.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
-import { blockingViolations, checkRoster } from "../domain/roster.mjs";
+import { blockingViolations, checkRoster, refuseSharedPlayerId } from "../domain/roster.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 
 const FALLEN = new RegExp(`^/api/teams/(${UUID_SOURCE})/fallen$`, "i");
@@ -77,12 +77,14 @@ async function sendFallen(request, response, teamId) {
 
 /**
  * The transaction of a death. The team is locked first; then, in this order, the revision the client
- * saw, the player, the roster without him and the row that keeps him, and the answer read back. A
- * refusal at any point throws, and the whole transaction goes back.
+ * saw, the player — one only: an id two players of a 2.x blob share is refused (`refuseSharedPlayerId`) —
+ * the roster without him and the row that keeps him, and the answer read back. A refusal at any point
+ * throws, and the whole transaction goes back.
  */
 async function writeDeath(client, teamId, user, playerId, cause, revision) {
   const team = await teamForUser(client, teamId, user, { lock: true });
   if (revision !== team.revision) throw await teamConflict(client, team); // no revision at all is a revision that cannot match
+  refuseSharedPlayerId(team.roster, playerId);
   const removed = removeFallenPlayer(team.roster, playerId);
   if (!removed) throw httpError(404, "PLAYER_NOT_FOUND");
   await saveRoster(client, team.id, removed.roster);

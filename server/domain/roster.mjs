@@ -24,8 +24,9 @@ import path from "node:path";
 import { calculateRosterCosts } from "../../src/domain/roster/costs.mjs";
 import { ensureDraftPlayers, syncRosterCountsFromPlayers } from "../../src/domain/roster/players.mjs";
 import { normalizeDraft } from "../../src/domain/roster/schema.mjs";
-import { playerViolations, validateRoster } from "../../src/domain/roster/validate.mjs";
+import { playerViolations, sharedPlayerId, validateRoster } from "../../src/domain/roster/validate.mjs";
 import { expandCollections } from "../../src/data/reference.mjs";
+import { httpError } from "../http/errors.mjs";
 
 export { normalizeDraft };
 
@@ -108,4 +109,31 @@ const BLOCKING_CODES = new Set(["ROSTER_MAX_PLAYERS", "POSITION_MAX", "UNKNOWN_T
 
 export function blockingViolations(violations) {
   return violations.filter((violation) => BLOCKING_CODES.has(violation.code));
+}
+
+/**
+ * The refusal of a roster that breaks the rules: 422 ROSTER_BREAKS_THE_RULES with what it breaks, which
+ * `handleApi` sends as `violations` and the client words as `validation.<CODE>`.
+ *
+ * @param {{code: string, params: object}[]} violations
+ * @returns {Error}
+ */
+export function rosterRefusal(violations) {
+  const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
+  error.violations = violations;
+  return error;
+}
+
+/**
+ * Refuse an id that names more than one player of a stored roster (`sharedPlayerId`): a route that finds a
+ * player of the blob by his id — a death, a roll, an edit outside a match — calls this before it reads or
+ * writes anything for him, since it would act on either. 422 with DUPLICATE_PLAYER_ID `{ playerId, names }`.
+ * Such a blob is one stored before every write checked its ids; it has to be put right first.
+ *
+ * @param {object} roster the roster as stored
+ * @param {string} playerId the id the request names
+ */
+export function refuseSharedPlayerId(roster, playerId) {
+  const shared = sharedPlayerId(roster, playerId);
+  if (shared) throw rosterRefusal([shared]);
 }

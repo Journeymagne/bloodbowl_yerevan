@@ -9,6 +9,7 @@
  */
 import { rosterSizeLimits, sppCounterDefinitions } from "../league-rules.mjs";
 import { countToNumber, rosterMax, rowsForTeam } from "./values.mjs";
+import { storedPlayerId } from "./players.mjs";
 import { isMoneyAmount } from "../money.mjs";
 
 export const VALIDATION_CODES = Object.freeze({
@@ -77,10 +78,6 @@ export function validateRoster(team, draft, costs) {
   return violations;
 }
 
-// A player's id as the roster stores it (normalizeRosterPlayer): none for a player without one, who is
-// given an id of his own when the roster is read, and so never shares it.
-const storedId = (player) => (player?.id ? String(player.id) : null);
-
 // A player as a person reads him in a message: his name, or his place in the list when he has none.
 const shownName = (player, row) => (typeof player?.name === "string" && player.name.trim()) || `#${row + 1}`;
 
@@ -106,7 +103,7 @@ export function playerViolations(roster) {
   const players = Array.isArray(roster?.players) ? roster.players : [];
   const violations = [];
   players.forEach((player, row) => {
-    const who = { ...(storedId(player) === null ? { row } : { playerId: storedId(player) }), player: shownName(player, row) };
+    const who = { ...(storedPlayerId(player) === null ? { row } : { playerId: storedPlayerId(player) }), player: shownName(player, row) };
     for (const [key, label] of sppCounterDefinitions) {
       const value = countToNumber(player?.spp?.[key]);
       if (!Number.isInteger(value) || value < 0 || value > MAX_SPP_COUNTER) {
@@ -114,13 +111,26 @@ export function playerViolations(roster) {
       }
     }
   });
-  const named = new Map(); // id → the names of the players under it, in the roster's order
-  players.forEach((player, row) => {
-    const id = storedId(player);
-    if (id !== null) named.set(id, [...(named.get(id) ?? []), shownName(player, row)]);
-  });
-  for (const [playerId, names] of named) {
-    if (names.length > 1) violations.push({ code: VALIDATION_CODES.DUPLICATE_PLAYER_ID, params: { playerId, names: names.join(", ") } });
+  // A player without an id is given one of his own when the roster is read, and so never shares it.
+  for (const playerId of new Set(players.map(storedPlayerId).filter((id) => id !== null))) {
+    const shared = sharedPlayerId(roster, playerId);
+    if (shared) violations.push(shared);
   }
   return violations;
+}
+
+/**
+ * The DUPLICATE_PLAYER_ID violation of one id of a roster as it is stored, or null when at most one player
+ * goes by it (`storedPlayerId`). Every write refuses a roster with a repeated id (`playerViolations`), but a
+ * blob stored before that may hold one still: a route that finds a player of the blob by his id asks this
+ * first, since it would act on either of them.
+ *
+ * @param {object} roster the roster as stored
+ * @param {string} playerId the id a request names
+ * @returns {{code: string, params: {playerId: string, names: string}}|null}
+ */
+export function sharedPlayerId(roster, playerId) {
+  const players = Array.isArray(roster?.players) ? roster.players : [];
+  const names = players.flatMap((player, row) => (storedPlayerId(player) === String(playerId) ? [shownName(player, row)] : []));
+  return names.length > 1 ? { code: VALIDATION_CODES.DUPLICATE_PLAYER_ID, params: { playerId: String(playerId), names: names.join(", ") } } : null;
 }

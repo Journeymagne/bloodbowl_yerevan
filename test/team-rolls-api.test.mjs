@@ -299,6 +299,17 @@ test("a player who is not on the roster has no roll, even one that is waiting; a
   assert.equal((await rows(client, id)).length, 1);
 }));
 
+test("a roster stored with two players under one id (2.x) rolls for neither: 422 naming both, and nothing is rolled", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  const id = await seedTeam(client, coach.id, { roster: { players: [{ id: "x", name: "Alpha", rowIndex: 0 }, { id: "x", name: "Bravo", rowIndex: 0 }, { id: 5, rowIndex: 0 }, null] } });
+  const refused = await roll(id, "x", coach.token, { purpose: "stat" });
+  assert.deepEqual([refused.status, refused.body.error.code, refused.body.violations],
+    [422, "ROSTER_BREAKS_THE_RULES", [{ code: "DUPLICATE_PLAYER_ID", params: { playerId: "x", names: "Alpha, Bravo" } }]]);
+  assert.deepEqual(await rows(client, id), []);
+  const numbered = await roll(id, "5", coach.token, { purpose: "stat" });
+  assert.deepEqual([numbered.status, numbered.body.roll?.playerId], [200, "5"], "a number for an id, and a hole in the list, are no reason to fail");
+}));
+
 test("a team with nothing to find a player in — a race the site does not know, a roster that is no object — has no player to roll for: 404, not a crash", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), unknown = await seedTeam(client, coach.id, { slug: "teams/no-such-race" }), empty = await seedTeam(client, coach.id);
   await client.query("UPDATE saved_teams SET roster = 'null'::jsonb WHERE id = $1", [empty]);

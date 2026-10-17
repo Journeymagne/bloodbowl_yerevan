@@ -33,7 +33,7 @@ import {
 import { canonicalSkillName, heldSkillKeys, normalizeDraftPlayers } from "../../src/domain/roster/players.mjs";
 import { rowsForTeam } from "../../src/domain/roster/values.mjs";
 import { matchReference } from "../domain/match-reference.mjs";
-import { teamBySlug } from "../domain/roster.mjs";
+import { refuseSharedPlayerId, teamBySlug } from "../domain/roster.mjs";
 import { httpError } from "../http/errors.mjs";
 import { isUuid } from "./team-access.mjs";
 
@@ -113,11 +113,13 @@ export function publicRoll(row) {
  * @param {string} step.userId who is asking: the roll is kept as theirs
  * @param {(sides: number) => number} [step.rng] the die; the server's own unless a test hands in another
  * @returns {Promise<object>} the dice_rolls row, with `stale: true` on a stale one
- * @throws 404 PLAYER_NOT_FOUND; 409 DICE_ROLL_WAITING `{ purpose }` while the player's earliest waiting roll
+ * @throws 422 ROSTER_BREAKS_THE_RULES (DUPLICATE_PLAYER_ID) for an id two players of the blob share;
+ *   404 PLAYER_NOT_FOUND; 409 DICE_ROLL_WAITING `{ purpose }` while the player's earliest waiting roll
  *   is of the other purpose;
  *   422 DICE_CATEGORY or DICE_NO_SKILL when a random skill cannot be rolled
  */
 export async function rollForPlayer(client, { teamRow, playerId, purpose, category, userId, rng = serverDie }) {
+  refuseSharedPlayerId(teamRow.roster, playerId); // a 2.x blob may name two players by one id: a roll would be for either
   const team = teamBySlug(teamRow.base_team_slug); // null for a race the site no longer knows: it has no players to find
   const player = team && normalizeDraftPlayers(team, teamRow.roster ?? {}).find((item) => item.id === playerId);
   if (!player) throw httpError(404, "PLAYER_NOT_FOUND");

@@ -23,10 +23,12 @@
  * to anybody else the team is not there (`teamForUser`).
  */
 import { EVENT_COUNTERS, careerCounters, eventTotal, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
+import { storedPlayerId } from "../../src/domain/roster/players.mjs";
 import { UUID_SOURCE, isUuid, teamForUser } from "../api/team-access.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
+import { refuseSharedPlayerId } from "../domain/roster.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { lockLiveSide, teamHasLiveMatch } from "../season/live-match.mjs";
 import { loadTeamEvents, loadWaitingOutsideEdits, recordMatchEvent } from "../season/match-events-store.mjs";
@@ -99,7 +101,8 @@ async function writeTap(client, team, user, { pairingId, playerId, counter, delt
 
 /**
  * The transaction of an edit outside a match: the team's row, locked and read again, is the only lock;
- * then a match of the team that is on, the player on the roster, and the one row, waiting for the finish.
+ * then a match of the team that is on, the player on the roster — one only: an id two players of a 2.x
+ * blob share is refused (`refuseSharedPlayerId`) — and the one row, waiting for the finish.
  * A step down is checked against the player's career as the blob and the edits already waiting make it
  * (`careerCounters`), those read as the finish will carry them (`loadWaitingOutsideEdits`) under that lock,
  * which every writer of such rows holds. Refused at any point, nothing is written.
@@ -107,8 +110,9 @@ async function writeTap(client, team, user, { pairingId, playerId, counter, delt
 async function writeOutsideEdit(client, { id }, user, { playerId, counter, delta }) {
   const team = await teamForUser(client, id, user, { lock: true });
   if (!(await teamHasLiveMatch(client, team.id))) throw httpError(409, "MATCH_NOT_LIVE");
+  refuseSharedPlayerId(team.roster, playerId);
   const players = Array.isArray(team.roster?.players) ? team.roster.players : [];
-  const player = players.find((item) => item?.id === playerId);
+  const player = players.find((item) => storedPlayerId(item) === playerId);
   if (!player) throw httpError(422, "POST_PLAYER");
   if (takesBack({ counter, delta }) && careerCounters(player, await loadWaitingOutsideEdits(client, team.id))[counter] <= 0) {
     throw belowZero({ playerId, counter });

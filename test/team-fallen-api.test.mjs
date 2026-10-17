@@ -400,6 +400,30 @@ test("a captain who died comes back a captain only while nobody else has been na
   assert.equal(named.body.team.roster.players.filter((player) => player.isCaptain).length, 1);
 }));
 
+test("a roster stored with two players under one id (2.x) takes no death for that id: 422 naming both, and the roster and the fallen stay as they were", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  const players = [{ id: "x", name: "Alpha", rowIndex: 0 }, { id: "x", name: "Bravo", rowIndex: 0 }, { id: "p2", rowIndex: 0 }];
+  const id = await seedTeam(client, coach.id, { roster: { players } }), before = await teamRow(client, id);
+  const refused = await recording(() => death(id, "x", coach.token));
+  assert.deepEqual([refused.result.status, refused.result.body.error.code, refused.result.body.violations],
+    [422, "ROSTER_BREAKS_THE_RULES", [{ code: "DUPLICATE_PLAYER_ID", params: { playerId: "x", names: "Alpha, Bravo" } }]]);
+  assert.ok(!refused.log.some((sql) => /^(INSERT|UPDATE|DELETE)/.test(sql)), "refused before any write");
+  assert.deepEqual([await teamRow(client, id), await allFallen(client, id)], [before, []]);
+  assert.equal((await death(id, "p2", coach.token)).status, 201, "a player of his own id is still his");
+}));
+
+test("a player stored the way older rosters left him dies and comes back all the same: a number for an id, a hole in the list beside him", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  await client.query(`UPDATE saved_teams SET roster = jsonb_set(roster, '{players}', (roster->'players') || '[null, {"id": 5, "rowIndex": 0}]'::jsonb) WHERE id = $1`, [id]);
+  const died = await death(id, "5", coach.token);
+  assert.deepEqual([died.status, died.body.fallen?.player.id], [201, 5], "the path's 5 is the roster's 5");
+  assert.ok(!(await teamRow(client, id)).roster.players.some((player) => player?.id === 5));
+  const back = await undo(id, died.body.fallen.id, coach.token);
+  assert.equal(back.status, 200);
+  assert.equal((await teamRow(client, id)).roster.players.filter((player) => player?.id === 5).length, 1, "back once");
+  assert.deepEqual(await allFallen(client, id), []);
+}));
+
 test("a player who is already on the roster is not put there twice, and his death is forgotten all the same", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   const fid = await insertFallen(client, id, { id: "p3", rowIndex: 0, spp: { touchdowns: 9 } }, false);

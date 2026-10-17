@@ -114,6 +114,19 @@ test("an edit outside a match takes only its own team's row, waits on nothing af
   }
 }));
 
+test("an edit outside a match for an id two players of a 2.x roster share is refused, naming both, and writes nothing; a number for an id is the path's", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  await client.query(`UPDATE saved_teams SET roster = jsonb_set(roster, '{players}', (roster->'players')
+    || '[{"id": "x", "name": "Alpha", "rowIndex": 0}, {"id": "x", "name": "Bravo", "rowIndex": 0}, null, {"id": 5, "rowIndex": 0}]'::jsonb) WHERE id = $1`, [teams.home]);
+  const before = await teamRow(client, teams.home);
+  const refused = await edit(token, "x");
+  assert.deepEqual([refused.status, refused.body.error.code, refused.body.violations],
+    [422, "ROSTER_BREAKS_THE_RULES", [{ code: "DUPLICATE_PLAYER_ID", params: { playerId: "x", names: "Alpha, Bravo" } }]]);
+  assert.deepEqual([await outside(client, teams.home), await teamRow(client, teams.home)], [[], before]);
+  assert.equal((await edit(token, "5")).status, 201);
+}));
+
 test("outside a match a step down is refused once the blob and the edits waiting on it add up to zero, and writes nothing; the match's taps are not the blob's", db, () => withApiDatabase(async ({ client }) => {
   await startedFriendly(client);
   const token = await sessionFor(client, coaches.home.id);

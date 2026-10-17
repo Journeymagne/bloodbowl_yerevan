@@ -1,7 +1,7 @@
 import { playerCurrentCost } from './costs.mjs';
 import { teamHasSpecialRule } from './team-rules.mjs';
 import { rowsForTeam } from './values.mjs';
-import { syncRosterCountsFromPlayers } from './players.mjs';
+import { storedPlayerId, syncRosterCountsFromPlayers } from './players.mjs';
 import { isMoneyAmount, sumMoney } from '../money.mjs';
 
 /** Sales use current value; Architect of Fate also pays for lasting injuries. */
@@ -48,12 +48,13 @@ export function sealPlayerPurchases(players) {
 /**
  * A player leaves the roster for good, as he stood: the roster without him, with the position counts of
  * who is left, and him as the blob held him — the record the fallen are kept as. Both are copies; the
- * input is not touched. Null when nobody on the roster has that id.
+ * input is not touched. Null when nobody on the roster has that id (`storedPlayerId`: a stored `5` is the
+ * path's `"5"`, and a hole in the list is nobody).
  */
 export function removeFallenPlayer(roster, playerId) {
   const copy = structuredClone(roster ?? {});
   const players = Array.isArray(copy.players) ? copy.players : [];
-  const player = players.find(item => item.id === playerId);
+  const player = players.find(item => storedPlayerId(item) === String(playerId));
   if (!player) return null;
   copy.players = players.filter(item => item !== player);
   syncRosterCountsFromPlayers(copy);
@@ -68,9 +69,10 @@ export function removeFallenPlayer(roster, playerId) {
 export function returnFallenPlayer(roster, player) {
   const copy = structuredClone(roster ?? {});
   const players = Array.isArray(copy.players) ? copy.players : [];
-  if (!players.some(item => item.id === player.id)) {
+  const id = storedPlayerId(player);
+  if (id === null || !players.some(item => storedPlayerId(item) === id)) {
     const returning = structuredClone(player);
-    if (returning.isCaptain && players.some(item => item.isCaptain)) returning.isCaptain = false;
+    if (returning.isCaptain && players.some(item => item?.isCaptain)) returning.isCaptain = false;
     players.push(returning);
   }
   copy.players = players;

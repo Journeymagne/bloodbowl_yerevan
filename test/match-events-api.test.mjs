@@ -130,6 +130,21 @@ test("a step down in a match takes back one of the match's own: at zero it is re
   assert.equal(await count(client), 4);
 }));
 
+test("a started match whose score was confirmed without a post-match is no match on: a tap and an edit outside it are refused, until a post-match is opened for it", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  const outsideEdit = () => tapOn(teams.home, token, { pairingId: undefined, playerId: "home-0" });
+  // Confirmed around the post-match, as 2.x let a coach and his opponent (or the admin) do: the runbook's «started, post-match open» says no.
+  await client.query("UPDATE season_pairings SET result_status = 'confirmed' WHERE id = $1", [G]);
+  for (const [label, refused] of [["a tap", await tap(token, "home-0")], ["an edit outside the match", await outsideEdit()]]) {
+    assert.deepEqual([refused.status, refused.body.error.code], [409, "MATCH_NOT_LIVE"], label);
+  }
+  assert.equal(await count(client), 0);
+  await accessPostMatch(G, coaches.home); // its post-match opened: a match with a post-match row that is not completed is on again
+  assert.equal((await tap(token, "home-0")).status, 201);
+  assert.equal((await outsideEdit()).status, 201);
+}));
+
 test("a finished match takes no tap", db, () => withApiDatabase(async ({ client }) => {
   await startedFriendly(client);
   const token = await sessionFor(client, coaches.home.id);
