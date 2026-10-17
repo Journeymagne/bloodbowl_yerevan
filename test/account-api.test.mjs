@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { publicAdminUser, publicUser } from "../server/api/serializers.mjs";
-import { callApi, recording, seedCoach, seedTeam, withApiDatabase } from "./helpers/api-db.mjs";
+import { hashPassword } from "../server/auth/session.mjs";
+import { callApi, loggingErrors, recording, seedCoach, seedTeam, sessionFor, withApiDatabase } from "./helpers/api-db.mjs";
 import { lockRow, raceInOrder, scratchSkip, withForcedOverlap } from "./helpers/scratch-db.mjs";
 
 const db = { skip: scratchSkip };
@@ -37,7 +38,7 @@ test("a settings change keeps what it does not mention, refuses what it does not
 test("an active team must be the user's own: another coach's or none at all is 404 and nothing is stored; a deleted one stops showing", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), other = await seedCoach(client, "wolf");
   const theirs = await seedTeam(client, other.id), mine = await seedTeam(client, coach.id);
-  for (const activeTeamId of [theirs, "44444444-4444-4444-8444-444444444444"]) {
+  for (const activeTeamId of [theirs, NOBODY]) {
     const refused = await patch(coach.token, { activeTeamId, themeMode: "dark" });
     assert.deepEqual([refused.status, refused.body.error.code], [404, "TEAM_NOT_FOUND"]);
   }
@@ -83,6 +84,22 @@ test("what a settings save locks does not hold up a write that only names the us
     let timer;
     const late = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("the ledger line is waiting on the user's row")), 5000); });
     try { assert.equal((await Promise.race([treasury(2), late])).status, 201); } finally { clearTimeout(timer); }
+  } finally {
+    await client.query("ROLLBACK");
+  }
+}));
+
+test("the route itself does not wait for a write that only names the user: with the user's row held FOR KEY SHARE, as an insert through a foreign key holds it, a save is answered", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  await client.query("BEGIN");
+  try {
+    await client.query("SELECT 1 FROM users WHERE id = $1 FOR KEY SHARE", [coach.id]);
+    let timer;
+    const late = new Promise((_, reject) => { timer = setTimeout(() => reject(new Error("the settings save is waiting on the user's row")), 5000); });
+    try {
+      const saved = await Promise.race([patch(coach.token, { themeMode: "dark" }), late]);
+      assert.deepEqual([saved.status, saved.body.preferences], [200, { themeMode: "dark" }]);
+    } finally { clearTimeout(timer); }
   } finally {
     await client.query("ROLLBACK");
   }
@@ -177,4 +194,149 @@ test("the profile route answers as it did before it moved here: its refusals kee
   assert.deepEqual(Object.keys(changed.body.user).sort(), ["createdAt", "id", "isAdmin", "login", "telegram"]);
   assert.deepEqual([changed.body.user.id, changed.body.user.login, changed.body.user.telegram], [coach.id, "Lion King", "@king"]);
   assert.equal((await callApi("GET", "/api/auth/me", { token: coach.token })).body.user.login, "Lion King");
+}));
+
+// Changing the password: it needs the current one, and wrong guesses are counted as wrong logins.
+// The counter is per login key and lives for the whole process, so each test below has a login of its own.
+const profile = (token, body) => callApi("PATCH", "/api/auth/profile", { token, body });
+const login = (name, password) => callApi("POST", "/api/auth/login", { body: { login: name, password } });
+/** Who `token` signs in as: the user /me answers with, or null for a session that is over. */
+const whoIs = async (token) => (await callApi("GET", "/api/auth/me", { token })).body.user;
+
+test("a new password needs the current one: missing or wrong, nothing changes", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-lion");
+  for (const currentPassword of [undefined, "guess"]) {
+    const refused = await profile(coach.token, { password: "brand-new", currentPassword });
+    assert.deepEqual([refused.status, refused.body.error.code], [403, "CURRENT_PASSWORD_WRONG"]);
+  }
+  assert.equal((await login(coach.login, coach.password)).status, 200);
+  assert.equal((await profile(coach.token, { telegram: "@lion" })).body.user.telegram, "@lion");
+}));
+
+test("with the current password it changes, the other sessions end, and this one goes on", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-wolf"), elsewhere = await sessionFor(client, coach.id);
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 200);
+  assert.equal((await login(coach.login, "brand-new")).status, 200);
+  assert.equal((await login(coach.login, coach.password)).status, 401);
+  assert.equal((await callApi("GET", "/api/auth/me", { token: elsewhere })).body.user, null);
+  assert.equal((await callApi("GET", "/api/auth/me", { token: coach.token })).body.user.login, coach.login);
+}));
+
+test("guessing the current password counts as guessing the login: after the limit the answer is later", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-fox");
+  for (let attempt = 0; attempt < 10; attempt += 1) await profile(coach.token, { password: "brand-new", currentPassword: `guess-${attempt}` });
+  const limited = await profile(coach.token, { password: "brand-new", currentPassword: coach.password });
+  assert.deepEqual([limited.status, limited.body.error.code], [429, "TOO_MANY_LOGIN_ATTEMPTS"]);
+}));
+
+test("the profile route's 429 is the login's 429: the same status, code, header and body keys, for the same login after the limit", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "Pw Owl"); // the counter is the login's key, "pw owl", and not the name as it was written
+  for (let attempt = 0; attempt < 10; attempt += 1) await profile(coach.token, { password: "brand-new", currentPassword: `guess-${attempt}` });
+  const changing = await profile(coach.token, { password: "brand-new", currentPassword: coach.password });
+  const signingIn = await login("  PW   owl ", coach.password);
+  assert.deepEqual([changing.status, signingIn.status], [429, 429]);
+  assert.deepEqual(changing.body.error, signingIn.body.error, "the same code, values and English");
+  assert.deepEqual(Object.keys(changing.body).sort(), ["error", "retryAfterSeconds"]);
+  assert.deepEqual(Object.keys(changing.body).sort(), Object.keys(signingIn.body).sort());
+  assert.deepEqual(Object.keys(changing.headers).sort(), Object.keys(signingIn.headers).sort());
+  for (const answer of [changing, signingIn]) {
+    assert.match(answer.headers["retry-after"], /^[1-9]\d*$/);
+    assert.equal(answer.headers["retry-after"], String(answer.body.retryAfterSeconds), "the header and the field say the same");
+  }
+  // Both read one window; a second may have turned between the two calls.
+  assert.ok(Math.abs(changing.body.retryAfterSeconds - signingIn.body.retryAfterSeconds) <= 1);
+  // The wait is for guessing the password, which is all it holds up: a bad body is still a 400, a contact change still goes through.
+  assert.equal((await profile(coach.token, { password: "abc", currentPassword: coach.password })).body.error.code, "PASSWORD_TOO_SHORT");
+  assert.equal((await profile(coach.token, { telegram: "@owl2" })).status, 200);
+}));
+
+test("anything but a string cannot be the current password, not even what a string would spell: 403, never a crash and never a pass", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-cat");
+  await client.query("UPDATE users SET password_hash = $2 WHERE id = $1", [coach.id, hashPassword("12345678")]);
+  const wrong = { error: { code: "CURRENT_PASSWORD_WRONG", params: {}, message: "The current password is wrong." } };
+  for (const currentPassword of [12345678, null, true, {}, ["12345678"]]) {
+    const refused = await profile(coach.token, { password: "brand-new", currentPassword });
+    assert.deepEqual([refused.status, refused.body, refused.headers["retry-after"]], [403, wrong, undefined], JSON.stringify(currentPassword));
+  }
+  // The same digits as a string are the password: the refusals were about the type, and nothing was changed by them.
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: "12345678" })).status, 200);
+}));
+
+test("the right current password clears the count of wrong ones", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-yak");
+  const wrong = async (times) => {
+    for (let n = 0; n < times; n += 1) assert.equal((await profile(coach.token, { password: "other-one", currentPassword: `guess-${n}` })).status, 403);
+  };
+  await wrong(9);
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 200);
+  await wrong(9); // eighteen, had the nine been kept: the limit is ten
+  assert.equal((await profile(coach.token, { password: "newer-still", currentPassword: "brand-new" })).status, 200);
+}));
+
+test("the body's refusals come first: a bad login, contact or new password is a 400 whatever is said of the current password, and costs no guess", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-elk");
+  const unsigned = await profile(undefined, { login: "ab", password: "abc", currentPassword: "guess" });
+  assert.deepEqual([unsigned.status, unsigned.body.error.code], [401, "NOT_AUTHORIZED"]);
+  const bad = [[{ login: "ab", password: "brand-new" }, "LOGIN_TOO_SHORT"], [{ telegram: "  ", password: "brand-new" }, "TELEGRAM_REQUIRED"], [{ password: "abc" }, "PASSWORD_TOO_SHORT"]];
+  for (let round = 0; round < 4; round += 1) {
+    for (const [body, code] of bad) {
+      for (const currentPassword of [coach.password, `guess-${round}`, undefined]) {
+        const refused = await profile(coach.token, { ...body, currentPassword });
+        assert.deepEqual([refused.status, refused.body.error.code], [400, code], JSON.stringify(body));
+      }
+    }
+  }
+  // Thirty-six refusals, twenty-four of them with a wrong or missing current password, and none was a guess.
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 200);
+}));
+
+test("a login or contact change needs no current password and ends no session; a current password sent without a new one is not looked at", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-hare"), elsewhere = await sessionFor(client, coach.id);
+  for (const body of [{ login: "Hare Prime", telegram: "@hare2", password: "" }, { telegram: "@hare3", password: null }]) {
+    assert.equal((await profile(coach.token, body)).status, 200, JSON.stringify(body));
+  }
+  for (let n = 0; n < 12; n += 1) assert.equal((await profile(coach.token, { telegram: `@hare-${n}`, currentPassword: `stray-${n}` })).status, 200);
+  assert.deepEqual([(await whoIs(elsewhere)).login, (await whoIs(coach.token)).telegram], ["Hare Prime", "@hare-11"]);
+  assert.equal((await login("Hare Prime", coach.password)).status, 200, "the password is what it was");
+  // Twelve stray values were not twelve wrong guesses.
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 200);
+}));
+
+test("a taken login in the same request as a new password changes neither the password nor the sessions", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-ram"), taken = await seedCoach(client, "pw-ewe"), elsewhere = await sessionFor(client, coach.id);
+  const refused = await profile(coach.token, { login: ` ${taken.login.toUpperCase()} `, password: "brand-new", currentPassword: coach.password });
+  assert.deepEqual([refused.status, refused.body.error.code], [409, "LOGIN_ALREADY_REGISTERED"]);
+  assert.equal((await login(coach.login, coach.password)).status, 200, "the old password still opens the account");
+  assert.equal((await login(coach.login, "brand-new")).status, 401);
+  assert.equal((await whoIs(elsewhere)).login, coach.login, "the other session is still signed in");
+}));
+
+test("a password change is one transaction, the user's row and then the other sessions, and a refused one opens none", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-bee"), elsewhere = await sessionFor(client, coach.id);
+  const refused = await recording(() => profile(coach.token, { password: "brand-new", currentPassword: "guess" }));
+  assert.deepEqual([refused.result.status, refused.log], [403, []], "a wrong current password opens no transaction");
+  const contact = await recording(() => profile(coach.token, { telegram: "@bee2" }));
+  assert.deepEqual([contact.result.status, contact.log], [200, []], "a contact change is the one statement it always was, on the pool: no transaction, no session ended");
+  const { result, log } = await recording(() => profile(coach.token, { password: "brand-new", currentPassword: coach.password }));
+  assert.equal(result.status, 200);
+  assert.deepEqual(Object.keys(result.body), ["user"]);
+  assert.deepEqual(Object.keys(result.body.user).sort(), ["createdAt", "id", "isAdmin", "login", "telegram"]);
+  const steps = [/^BEGIN$/, /^UPDATE users SET .*password_hash = \$5.* WHERE id = \$1 RETURNING \*$/,
+    /^DELETE FROM sessions WHERE user_id = \$1 AND token_hash <> \$2$/, /^COMMIT$/, /^release$/];
+  assert.equal(log.length, steps.length, log.join("\n"));
+  for (const [at, step] of steps.entries()) assert.match(log[at], step);
+  assert.equal(await whoIs(elsewhere), null);
+}));
+
+test("a password change that cannot end the other sessions does not change the password either: it is rolled back", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-eel"), elsewhere = await sessionFor(client, coach.id);
+  // The database, not the route, refuses the second write: a session row cannot be deleted.
+  await client.query("CREATE FUNCTION refuse_delete() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE EXCEPTION 'sessions are kept'; END $$");
+  await client.query("CREATE TRIGGER keep_sessions BEFORE DELETE ON sessions FOR EACH ROW EXECUTE FUNCTION refuse_delete()");
+  const { result, logged } = await loggingErrors(() => profile(coach.token, { password: "brand-new", currentPassword: coach.password }));
+  assert.deepEqual([result.status, result.body.error.code], [500, "SERVER_ERROR"]);
+  assert.match(String(logged[0]?.[0]?.message), /sessions are kept/, "it failed where the test broke it, on the sessions");
+  assert.equal((await login(coach.login, coach.password)).status, 200, "the old password still opens the account");
+  assert.equal((await login(coach.login, "brand-new")).status, 401);
+  assert.equal((await whoIs(elsewhere)).login, coach.login);
 }));

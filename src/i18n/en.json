@@ -473,6 +473,7 @@
   "error.COACH_ALREADY_COMMITTED": "This coach already has a committed team.",
   "error.COACH_NOT_FOUND": "Coach not found.",
   "error.COACH_REQUIRED": "Coach is required.",
+  "error.CURRENT_PASSWORD_WRONG": "The current password is wrong.",
   "error.DICE_CATEGORY": "A random skill can only be rolled in one of the player's primary categories.",
   "error.DICE_NO_SKILL": "The player already has every skill in this category.",
   "error.DICE_ROLL_MISMATCH": "This advancement does not match its roll on the site.",

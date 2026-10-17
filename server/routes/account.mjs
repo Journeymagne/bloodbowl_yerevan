@@ -11,7 +11,8 @@
  */
 import { checkPreferences, mergePreferences } from "../api/preferences.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
-import { currentUser, hashPassword } from "../auth/session.mjs";
+import { checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
+import { bearerToken, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
@@ -108,11 +109,70 @@ async function savePreferences(request, response) {
 }
 
 /**
- * `PATCH /api/auth/profile` — change your own login, contact or password.
+ * Lets a password be replaced only by someone who knows the one it replaces: a stolen session token or
+ * a phone left unlocked must not be enough to take the account over.
  *
- * It was a function of its own in auth.mjs because handleAuthRoutes was 97 lines and the limit is 80,
- * and it is here now, with the rest of the user's own account. What it does is what it did; only how
- * it refuses changed: it throws, and `handleApi` sends, instead of answering by itself.
+ * Guessing it is guessing the login, so it is counted the way a login is: under the user's `login_key`,
+ * in the same counter `POST /api/auth/login` uses (`rate-limit.mjs`), and a user who has used up the
+ * attempts gets the same 429 the login gives. The limit is looked at before the password is verified,
+ * not after: verifying is the expensive part (scrypt, on the one thread), and refusing to is the point.
+ *
+ * @param {object} user as `currentUser` returns it
+ * @param {unknown} currentPassword what the request says the password is. Anything that is not a string
+ *   is wrong, and is not turned into one: a number that spells the password does not know it.
+ * @throws 429 TOO_MANY_LOGIN_ATTEMPTS carrying `retryAfterSeconds` (`handleApi` sets the header), or
+ *   403 CURRENT_PASSWORD_WRONG, which counts as a failed login. 403 and not 401: the session is fine,
+ *   it is the password that is wrong.
+ */
+function requireCurrentPassword(user, currentPassword) {
+  const attempt = checkLoginAttempt(user.login_key);
+  if (!attempt.allowed) {
+    throw Object.assign(httpError(429, "TOO_MANY_LOGIN_ATTEMPTS"), { retryAfterSeconds: attempt.retryAfterSeconds });
+  }
+  if (typeof currentPassword !== "string" || !verifyPassword(currentPassword, user.password_hash)) {
+    recordFailedLogin(user.login_key);
+    throw httpError(403, "CURRENT_PASSWORD_WRONG");
+  }
+  clearLoginAttempts(user.login_key);
+}
+
+/**
+ * The write of a profile change: the user's own row, as `RETURNING *` gives it back.
+ *
+ * @param {{query: Function}} db a pg pool, or the client of a transaction
+ * @param {unknown[]} params `[id, login, loginKey, telegram]`, and the new password's hash when there is one
+ * @param {boolean} withPassword whether `params` ends in a hash
+ * @throws 409 LOGIN_ALREADY_REGISTERED when another user has the login. Inside a transaction the
+ *   failed statement has already aborted it: this is thrown to roll it back, not to carry on.
+ */
+async function writeProfile(db, params, withPassword) {
+  const { rows } = await db.query(
+    `UPDATE users
+     SET login = $2, login_key = $3, telegram = $4, updated_at = now()${withPassword ? ", password_hash = $5" : ""}
+     WHERE id = $1
+     RETURNING *`,
+    params,
+  ).catch((error) => {
+    throw error.code === "23505" ? httpError(409, "LOGIN_ALREADY_REGISTERED") : error;
+  });
+  return rows[0];
+}
+
+/**
+ * `PATCH /api/auth/profile` `{ login?, telegram?, password?, currentPassword? }` — change your own
+ * login, contact or password: 200 `{ user }`.
+ *
+ * The refusals come in an order, the cheap and the certain before the costly: no session is 401; a
+ * login under 3 characters, an empty contact and a new password under 4 are the 400s they always were,
+ * and none of them looks at the current password or counts as a guess; then, only when there is a new
+ * password, `requireCurrentPassword` (429 or 403); then the write. A login or contact change without a
+ * new password needs no `currentPassword`, ignores one that is sent, ends no session, and is the one
+ * statement it always was.
+ *
+ * A new password and the end of every other session are one transaction, the user's row first, so a
+ * login that is already taken (409) or a write that fails leaves the old password and every session as
+ * they were. The session that made the request goes on. The new password is hashed before the
+ * transaction opens: scrypt blocks the thread, and the user's row is not to be held while it does.
  */
 async function updateProfile(request, response) {
   const user = await currentUser(request);
@@ -122,32 +182,25 @@ async function updateProfile(request, response) {
   const login = String(body.login ?? user.login).trim();
   const telegram = String(body.telegram ?? user.telegram).trim();
   const password = String(body.password ?? "");
-  const loginKey = normalizeLogin(login);
 
   if (login.length < 3) throw httpError(400, "LOGIN_TOO_SHORT");
   if (!telegram) throw httpError(400, "TELEGRAM_REQUIRED");
   if (password && password.length < 4) throw httpError(400, "PASSWORD_TOO_SHORT");
+  if (password) requireCurrentPassword(user, body.currentPassword);
 
-  const params = [user.id, login, loginKey, telegram];
-  const passwordSql = password ? ", password_hash = $5" : "";
-  if (password) params.push(hashPassword(password));
-  const updated = await pool.query(
-    `UPDATE users
-     SET login = $2,
-         login_key = $3,
-         telegram = $4,
-         updated_at = now()
-         ${passwordSql}
-     WHERE id = $1
-     RETURNING *`,
-    params,
-  ).catch((error) => {
-    if (error.code === "23505") return null;
-    throw error;
-  });
-  if (!updated) throw httpError(409, "LOGIN_ALREADY_REGISTERED");
-
-  sendJson(response, 200, { user: publicUser(updated.rows[0]) });
+  const params = [user.id, login, normalizeLogin(login), telegram];
+  let updated;
+  if (password) {
+    params.push(hashPassword(password));
+    updated = await withTransaction(async (client) => {
+      const row = await writeProfile(client, params, true);
+      await client.query("DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2", [user.id, hashToken(bearerToken(request))]);
+      return row;
+    });
+  } else {
+    updated = await writeProfile(pool, params, false);
+  }
+  sendJson(response, 200, { user: publicUser(updated) });
 }
 
 /**

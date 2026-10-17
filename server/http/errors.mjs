@@ -77,6 +77,7 @@ export const API_ERRORS = Object.freeze({
   COACH_ALREADY_COMMITTED: "This coach already has a committed team.",
   COACH_NOT_FOUND: "Coach not found.",
   COACH_REQUIRED: "Coach is required.",
+  CURRENT_PASSWORD_WRONG: "The current password is wrong.",
   DICE_CATEGORY: "A random skill can only be rolled in one of the player's primary categories.",
   DICE_NO_SKILL: "The player already has every skill in this category.",
   DICE_ROLL_MISMATCH: "This advancement does not match its roll on the site.",

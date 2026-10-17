@@ -55,6 +55,12 @@ export async function handleApi(request, response, url) {
     if (Array.isArray(error.violations)) payload.violations = error.violations;
     // A refusal that says how things stand now (teamConflict): the team travels beside the error.
     if (error.team) payload.team = error.team;
+    // A refusal that says when to come back (a password guessed too often): the header and the body
+    // field the login's own 429 carries, so a client reads one answer wherever it meets it.
+    if (Number.isFinite(error.retryAfterSeconds)) {
+      response.setHeader?.("Retry-After", String(error.retryAfterSeconds));
+      payload.retryAfterSeconds = error.retryAfterSeconds;
+    }
     return sendJson(response, status, payload);
   }
 }

@@ -473,6 +473,7 @@
   "error.COACH_ALREADY_COMMITTED": "У этого тренера уже есть заявленная команда.",
   "error.COACH_NOT_FOUND": "Тренер не найден.",
   "error.COACH_REQUIRED": "Укажите тренера.",
+  "error.CURRENT_PASSWORD_WRONG": "Текущий пароль указан неверно.",
   "error.DICE_CATEGORY": "Случайный навык бросается только в основной категории игрока.",
   "error.DICE_NO_SKILL": "У игрока уже есть все навыки этой категории.",
   "error.DICE_ROLL_MISMATCH": "Прокачка не совпадает со своим броском на сайте.",
