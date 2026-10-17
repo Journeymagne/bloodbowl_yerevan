@@ -243,3 +243,17 @@ test("a counter's total is the raw sum of one player's steps on it, below zero t
   assert.deepEqual([eventTotal(events, "a", "touchdowns"), eventTotal(events, "a", "completions"), eventTotal(events, "b", "touchdowns")], [-1, 1, 1]);
   assert.deepEqual([eventTotal(events, "ghost", "touchdowns"), eventTotal([], "a", "touchdowns")], [0, 0]);
 });
+
+test("an edit is counted from the stored counter held to 0…999 and cut to a whole number: a legacy value outside that changes the blob without rows", () => {
+  // The rows, or how many there are when there are too many to compare one by one.
+  const save = (from, to) => {
+    const rows = sppEdits({ players: [{ id: "a", spp: { touchdowns: from } }] }, { players: [{ id: "a", spp: { touchdowns: to } }] });
+    return rows.length > 10 ? `${rows.length} rows` : rows;
+  };
+  const step = (delta) => ({ playerId: "a", counter: "touchdowns", delta, injury: null });
+  assert.deepEqual(save(5000, 999), [], "a legacy 5000 saved as 999");
+  assert.deepEqual(save(5000, 997), [step(-1), step(-1)], "from 999, not from 5000");
+  assert.deepEqual(save(2.5, 3), [step(1)], "from 2: the fraction was never a step");
+  assert.deepEqual(save(2 ** 32 + 999, 999), [], "no RangeError: the save that fixes it goes through");
+  assert.deepEqual(save(-4, 1), [step(1)]);
+});

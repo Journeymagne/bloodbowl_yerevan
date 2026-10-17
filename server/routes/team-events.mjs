@@ -22,15 +22,14 @@
  * A team is the owner's. Its events may be read by an administrator too; a tap is the owner's alone, and
  * to anybody else the team is not there (`teamForUser`).
  */
-import { EVENT_COUNTERS, eventTotal, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
-import { normalizeSppCounters } from "../../src/domain/roster/players.mjs";
+import { EVENT_COUNTERS, careerCounters, eventTotal, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
 import { UUID_SOURCE, isUuid, teamForUser } from "../api/team-access.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { lockLiveSide, teamHasLiveMatch } from "../season/live-match.mjs";
-import { loadTeamEvents, recordMatchEvent } from "../season/match-events-store.mjs";
+import { loadTeamEvents, loadWaitingOutsideEdits, recordMatchEvent } from "../season/match-events-store.mjs";
 
 const EVENTS = new RegExp(`^/api/teams/(${UUID_SOURCE})/events$`, "i");
 const MAX_PLAYER_ID_LENGTH = 200;
@@ -101,8 +100,9 @@ async function writeTap(client, team, user, { pairingId, playerId, counter, delt
 /**
  * The transaction of an edit outside a match: the team's row, locked and read again, is the only lock;
  * then a match of the team that is on, the player on the roster, and the one row, waiting for the finish.
- * A step down is checked against the blob's counter and the edits already waiting on it, read under that
- * lock (every writer of such rows holds it). Refused at any point, nothing is written.
+ * A step down is checked against the player's career as the blob and the edits already waiting make it
+ * (`careerCounters`), those read as the finish will carry them (`loadWaitingOutsideEdits`) under that lock,
+ * which every writer of such rows holds. Refused at any point, nothing is written.
  */
 async function writeOutsideEdit(client, { id }, user, { playerId, counter, delta }) {
   const team = await teamForUser(client, id, user, { lock: true });
@@ -110,9 +110,8 @@ async function writeOutsideEdit(client, { id }, user, { playerId, counter, delta
   const players = Array.isArray(team.roster?.players) ? team.roster.players : [];
   const player = players.find((item) => item?.id === playerId);
   if (!player) throw httpError(422, "POST_PLAYER");
-  if (takesBack({ counter, delta })) {
-    const waiting = (await loadTeamEvents(client, team.id)).filter((event) => event.pairingId === null);
-    if ((normalizeSppCounters(player.spp)[counter] ?? 0) + eventTotal(waiting, playerId, counter) <= 0) throw belowZero({ playerId, counter });
+  if (takesBack({ counter, delta }) && careerCounters(player, await loadWaitingOutsideEdits(client, team.id))[counter] <= 0) {
+    throw belowZero({ playerId, counter });
   }
   return recordMatchEvent(client, { teamId: team.id, pairingId: null, event: { playerId, counter, delta, injury: null }, actorId: user.id });
 }

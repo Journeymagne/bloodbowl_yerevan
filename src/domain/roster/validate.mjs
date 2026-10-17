@@ -20,10 +20,26 @@ export const VALIDATION_CODES = Object.freeze({
   SAFE_INVALID: "SAFE_INVALID",
   SPP_OUT_OF_RANGE: "SPP_OUT_OF_RANGE",
   DUPLICATE_PLAYER_ID: "DUPLICATE_PLAYER_ID",
+  SPP_EDIT_TOO_LARGE: "SPP_EDIT_TOO_LARGE",
 });
 
 /** The most one SPP counter of a player may hold. */
 export const MAX_SPP_COUNTER = 999;
+
+/**
+ * The most steps one roster save may change SPP by, every player and counter together: each step is a
+ * row of the history, written while the team is held (server/routes/teams.mjs, `writeSavedTeam`).
+ */
+export const MAX_SPP_EDIT_STEPS = 2000;
+
+/**
+ * An SPP counter as the history counts it: what the roster reads (`countToNumber`), held to 0…999 and
+ * cut to a whole number. A roster may only be sent with counters like that (`playerViolations`); a blob
+ * stored before the rule may hold anything, and its steps are counted from here.
+ */
+export function boundedSppCounter(value) {
+  return Math.trunc(Math.min(MAX_SPP_COUNTER, Math.max(0, countToNumber(value))));
+}
 
 /** Minimum quantity a position requires, e.g. 1 from "1-2". */
 export function positionMinimum(qty) {
@@ -65,6 +81,9 @@ export function validateRoster(team, draft, costs) {
 // given an id of his own when the roster is read, and so never shares it.
 const storedId = (player) => (player?.id ? String(player.id) : null);
 
+// A player as a person reads him in a message: his name, or his place in the list when he has none.
+const shownName = (player, row) => (typeof player?.name === "string" && player.name.trim()) || `#${row + 1}`;
+
 /**
  * What a roster as sent breaks player by player, read before normalisation can hide it — it would
  * clamp a counter below zero to zero and give a player without an id one of his own:
@@ -72,10 +91,13 @@ const storedId = (player) => (player?.id ? String(player.id) : null);
  * - SPP_OUT_OF_RANGE: an SPP counter (every one the roster keeps, MVPs included), read as the roster
  *   reads it (`countToNumber`), that is not a whole number from 0 to 999. A roster save writes each
  *   step of its SPP change as a row of the player's history, so a counter has to be one a career
- *   can reach: a typo of 100000 would be a hundred thousand rows. Params: the player's `playerId`, or
- *   his `row` in `players` (from 0) when he has no id, and the `counter`.
+ *   can reach: a typo of 100000 would be a hundred thousand rows. Params: `player` (his name, or
+ *   `#<place in the list>` when he has none) and `counter` (its short label, TD…MVP), which a message
+ *   shows; and his `playerId`, or his `row` in `players` (from 0) when he has no id, for the client to
+ *   find him by.
  * - DUPLICATE_PLAYER_ID: two players under one id, once per id; every rule that finds a player by his
- *   id (rolls, deaths, events) would find either. Params: `playerId`.
+ *   id (rolls, deaths, events) would find either. Params: `names` (theirs, as `player` above, joined
+ *   with ", ") and `playerId`.
  *
  * @param {object} roster the roster as a client sent it
  * @returns {{code: string, params: object}[]} empty when every player is fine
@@ -84,16 +106,21 @@ export function playerViolations(roster) {
   const players = Array.isArray(roster?.players) ? roster.players : [];
   const violations = [];
   players.forEach((player, row) => {
-    const who = storedId(player) === null ? { row } : { playerId: storedId(player) };
-    for (const [counter] of sppCounterDefinitions) {
-      const value = countToNumber(player?.spp?.[counter]);
+    const who = { ...(storedId(player) === null ? { row } : { playerId: storedId(player) }), player: shownName(player, row) };
+    for (const [key, label] of sppCounterDefinitions) {
+      const value = countToNumber(player?.spp?.[key]);
       if (!Number.isInteger(value) || value < 0 || value > MAX_SPP_COUNTER) {
-        violations.push({ code: VALIDATION_CODES.SPP_OUT_OF_RANGE, params: { ...who, counter } });
+        violations.push({ code: VALIDATION_CODES.SPP_OUT_OF_RANGE, params: { ...who, counter: label } });
       }
     }
   });
-  const seen = new Set(), repeated = new Set();
-  for (const id of players.map(storedId).filter((id) => id !== null)) (seen.has(id) ? repeated : seen).add(id);
-  for (const playerId of repeated) violations.push({ code: VALIDATION_CODES.DUPLICATE_PLAYER_ID, params: { playerId } });
+  const named = new Map(); // id → the names of the players under it, in the roster's order
+  players.forEach((player, row) => {
+    const id = storedId(player);
+    if (id !== null) named.set(id, [...(named.get(id) ?? []), shownName(player, row)]);
+  });
+  for (const [playerId, names] of named) {
+    if (names.length > 1) violations.push({ code: VALIDATION_CODES.DUPLICATE_PLAYER_ID, params: { playerId, names: names.join(", ") } });
+  }
   return violations;
 }

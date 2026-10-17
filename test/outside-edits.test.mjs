@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { accessPostMatch } from "../server/season/post-match.mjs";
-import { settleOutsideEdits } from "../server/season/match-events-store.mjs";
+import { loadWaitingOutsideEdits, settleOutsideEdits } from "../server/season/match-events-store.mjs";
 import { callApi, recording, seedCoach, seedTeam, sessionFor, teamRow, withApiDatabase } from "./helpers/api-db.mjs";
 import { G, act, coaches, homeScores, startedFriendly, teams, toPlayersStep, toReady } from "./helpers/match-db.mjs";
 import { lockRow, raceInOrder, scratchSkip } from "./helpers/scratch-db.mjs";
@@ -23,6 +23,8 @@ test("a roster save that changes SPP writes the change as settled edits outside 
   assert.deepEqual(await outside(client, id), [
     { player_id: "a", counter: "touchdowns", delta: 1, settled: true }, { player_id: "a", counter: "touchdowns", delta: 1, settled: true },
     { player_id: "a", counter: "casualties", delta: 1, settled: true }]);
+  const { rows: [stamp] } = await client.query("SELECT bool_and(settled_at = created_at) AS same FROM match_events WHERE saved_team_id = $1", [id]);
+  assert.equal(stamp.same, true, "a row written settled is settled the moment it is written");
 }));
 
 test("an admin's roster save writes its SPP change too, as the admin's, and a coach's as the coach's", db, () => withApiDatabase(async ({ client }) => {
@@ -160,7 +162,11 @@ test("the finish's carry skips a player who is no longer on the roster but settl
   const kept = await teamRow(client, teams.home);
   assert.deepEqual([kept.roster, kept.revision], [before.roster, before.revision], "the roster as it was");
   await row("home-2"); // back through an undo, say
+  const waiting = await loadWaitingOutsideEdits(client, teams.home); // what a step down outside a match is checked against
+  assert.deepEqual(waiting.map((event) => [event.playerId, event.counter, event.delta, event.settledAt]), [["home-2", "completions", 1, null]]);
   assert.equal((await settle()).settled, 1);
+  const { rows: carried } = await client.query("SELECT id FROM match_events WHERE settled_at IS NOT NULL AND player_id = 'home-2' AND pairing_id IS NULL");
+  assert.deepEqual(carried.map((item) => item.id), waiting.map((event) => event.id), "and exactly what the finish carries");
   const after = await teamRow(client, teams.home), expected = structuredClone(before.roster);
   expected.players.find((player) => player.id === "home-2").spp = { completions: 1 };
   assert.deepEqual([after.roster, after.revision], [expected, before.revision], "his edit and nothing else; the revision is the finish's");
@@ -169,6 +175,23 @@ test("the finish's carry skips a player who is no longer on the roster but settl
   const { rows: [tapped] } = await client.query("SELECT settled_at FROM match_events WHERE pairing_id = $1", [G]);
   assert.equal(tapped.settled_at, null, "the match's own row is not this carry's to settle");
   assert.deepEqual(await settle(), { settled: 0, log: ["SELECT"] }, "nothing waiting, nothing written");
+}));
+
+test("a finish that fails after carrying home's edits — away's team changed meanwhile — takes the carry back: the edits wait still, the blob is as it was, no match row is settled", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  await edit(token, "home-2");
+  const ready = await toReady(await toPlayersStep(), homeScores);
+  const before = await teamRow(client, teams.home);
+  await client.query("UPDATE saved_teams SET revision = revision + 1 WHERE id = $1", [teams.away]);
+  const { log } = await recording(() => assert.rejects(act("home", ready, null, true), { status: 409, code: "POST_TEAM_CHANGED" }));
+  assert.ok(log.includes("UPDATE match_events SET settled_at = now() WHERE id = ANY($1::uuid[])"), "home's edits were carried before away was refused");
+  assert.deepEqual(log.slice(-2), ["ROLLBACK", "release"]);
+  const after = await teamRow(client, teams.home);
+  assert.deepEqual([after.roster, after.revision], [before.roster, before.revision]);
+  assert.deepEqual(await outside(client, teams.home), [{ player_id: "home-2", counter: "completions", delta: 1, settled: false }]);
+  const { rows: [settled] } = await client.query("SELECT count(*)::int AS n FROM match_events WHERE pairing_id = $1 AND settled_at IS NOT NULL", [G]);
+  assert.equal(settled.n, 0);
 }));
 
 for (const editFirst of [true, false]) {

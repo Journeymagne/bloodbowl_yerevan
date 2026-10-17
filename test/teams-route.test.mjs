@@ -245,7 +245,7 @@ test("an SPP change is written as settled rows without a match, in the save's tr
     await handleTeamRoutes(patch({ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 2, mvps: 1 } }], treasury: 90 }), response(), teamUrl());
     assert.deepEqual(edits(db), [[TEAM, null, "a", "touchdowns", 1, null, coach.id]]);
     const sql = db.log.map((entry) => entry.sql), at = sql.findIndex((text) => text.startsWith("INSERT INTO match_events"));
-    assert.match(sql[at], /settled_at[^]*now\(\)/, "settled as it is written: the blob took it");
+    assert.match(sql[at], /created_at, settled_at\)\s+SELECT [^]*\bat, at\s+FROM \(SELECT clock_timestamp\(\) AS at\)/, "settled as it is written, at the moment it is written");
     assert.ok(sql.findIndex((text) => text.startsWith("INSERT INTO team_ledger")) < at && at < sql.indexOf("COMMIT"));
   });
   await withDatabase({ stored, user: admin }, async (db) => {
@@ -275,9 +275,9 @@ test("the team a save answers with is read after the write, with every column GE
 
 test("a roster with an SPP counter outside 0…999, or two players under one id, is refused before any transaction, on the owner's route and the admin's", async () => {
   const bad = [
-    [{ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1000 } }] }, [{ code: "SPP_OUT_OF_RANGE", params: { playerId: "a", counter: "touchdowns" } }]],
-    [{ players: [{ id: "a", rowIndex: 0, spp: { mvps: -1 } }] }, [{ code: "SPP_OUT_OF_RANGE", params: { playerId: "a", counter: "mvps" } }]],
-    [{ players: [{ id: "a", rowIndex: 0 }, { id: "a", rowIndex: 0 }] }, [{ code: "DUPLICATE_PLAYER_ID", params: { playerId: "a" } }]],
+    [{ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1000 } }] }, [{ code: "SPP_OUT_OF_RANGE", params: { playerId: "a", player: "#1", counter: "TD" } }]],
+    [{ players: [{ id: "a", name: "Bo", rowIndex: 0, spp: { mvps: -1 } }] }, [{ code: "SPP_OUT_OF_RANGE", params: { playerId: "a", player: "Bo", counter: "MVP" } }]],
+    [{ players: [{ id: "a", rowIndex: 0 }, { id: "a", name: "Al", rowIndex: 0 }] }, [{ code: "DUPLICATE_PLAYER_ID", params: { playerId: "a", names: "#1, Al" } }]],
   ];
   for (const [roster, violations] of bad) {
     for (const [user, send] of [[coach, () => handleTeamRoutes(patch(roster), response(), teamUrl())], [admin, () => handleAdminRoutes(patch(roster), response(), adminUrl)]]) {
@@ -290,4 +290,21 @@ test("a roster with an SPP counter outside 0…999, or two players under one id,
       });
     }
   }
+});
+
+test("a save whose SPP change would be more than 2000 steps is refused before anything is written", async () => {
+  const players = (knockouts) => [{ id: "a", rowIndex: 0, spp: { touchdowns: 999, casualties: 999 } }, { id: "b", rowIndex: 0, spp: { knockouts } }];
+  const stored = { players: [{ id: "a", rowIndex: 0 }, { id: "b", rowIndex: 0 }] };
+  await withDatabase({ stored }, async (db) => {
+    await assert.rejects(handleTeamRoutes(patch({ players: players(3), treasury: 90 }), response(), teamUrl()), (error) => {
+      assert.deepEqual([error.status, error.code, error.violations], [422, "ROSTER_BREAKS_THE_RULES", [{ code: "SPP_EDIT_TOO_LARGE", params: { limit: 2000 } }]]);
+      return true;
+    });
+    assert.deepEqual(db.log.filter((entry) => /^(INSERT|UPDATE|DELETE)/.test(entry.sql)), [], "no write, the rolls' included");
+    assert.deepEqual(db.log.slice(-2).map((entry) => entry.sql), ["ROLLBACK", "release"]);
+  });
+  await withDatabase({ stored }, async (db) => {
+    await handleTeamRoutes(patch({ players: players(2), treasury: 90 }), response(), teamUrl());
+    assert.equal(edits(db).length, 2000);
+  });
 });

@@ -50,10 +50,12 @@ const INSERT_EVENT = `
   VALUES ($1, $2, $3, $4, $5, $6, $7, clock_timestamp())
   RETURNING *`;
 
-// The same row, already in the blob: an edit a roster save made, which the blob took as it was saved.
+// The same row, already in the blob: an edit a roster save made, which the blob took as it was saved —
+// settled the moment it is written, so both times are one reading of the clock.
 const INSERT_SETTLED_EVENT = `
   INSERT INTO match_events (saved_team_id, pairing_id, player_id, counter, delta, injury, created_by, created_at, settled_at)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, clock_timestamp(), now())
+  SELECT $1, $2, $3, $4, $5, $6, $7, at, at
+  FROM (SELECT clock_timestamp() AS at) AS stamp
   RETURNING *`;
 
 const SETTLE_EVENTS = `
@@ -208,6 +210,21 @@ export async function settleMatchEvents(client, { teamId, pairingId }) {
 }
 
 /**
+ * The team's edits outside a match that wait for a finish — no pairing, not settled — oldest first, as the
+ * domain reads an event, with each row's id. The one reading of them: a step down outside a match is
+ * checked against these (server/routes/team-events.mjs) and the finish carries these (`settleOutsideEdits`),
+ * so the two can never count different rows. Read under the team's row lock to have them hold still.
+ *
+ * @param {{ query: Function }} db a pg client inside the transaction that holds the team
+ * @param {string} teamId
+ * @returns {Promise<Array<{ id: string, playerId: string, counter: string, delta: number, injury: object|null, settledAt: null }>>}
+ */
+export async function loadWaitingOutsideEdits(db, teamId) {
+  const { rows } = await db.query(SELECT_WAITING_OUTSIDE_EDITS, [teamId]);
+  return rows.map((row) => ({ id: row.id, ...toEvent(row) }));
+}
+
+/**
  * Finishing the post-match takes in the team's edits outside a match that waited for it: added to the
  * blob, then settled. Returns how many rows it took; none waiting, nothing is written.
  *
@@ -226,11 +243,11 @@ export async function settleMatchEvents(client, { teamId, pairingId }) {
  * @returns {Promise<number>}
  */
 export async function settleOutsideEdits(client, teamId) {
-  const { rows } = await client.query(SELECT_WAITING_OUTSIDE_EDITS, [teamId]);
-  if (!rows.length) return 0;
+  const waiting = await loadWaitingOutsideEdits(client, teamId);
+  if (!waiting.length) return 0;
   const { rows: [team] } = await client.query("SELECT roster FROM saved_teams WHERE id = $1", [teamId]);
   await client.query("UPDATE saved_teams SET roster = $2, updated_at = now() WHERE id = $1",
-    [teamId, JSON.stringify(applyOutsideEdits(team.roster, rows.map(toEvent)))]);
-  await client.query(SETTLE_EVENTS_BY_ID, [rows.map((row) => row.id)]);
-  return rows.length;
+    [teamId, JSON.stringify(applyOutsideEdits(team.roster, waiting))]);
+  await client.query(SETTLE_EVENTS_BY_ID, [waiting.map((event) => event.id)]);
+  return waiting.length;
 }

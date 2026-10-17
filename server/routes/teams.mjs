@@ -12,7 +12,7 @@ import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicSavedTeam, publicSavedTeamSummary, serializeRosterForStorage } from "../api/serializers.mjs";
 import { blockingViolations, checkRoster, normalizeDraft, teamBySlug } from "../domain/roster.mjs";
-import { playerViolations } from "../../src/domain/roster/validate.mjs";
+import { MAX_SPP_EDIT_STEPS, VALIDATION_CODES, playerViolations } from "../../src/domain/roster/validate.mjs";
 import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam } from "../api/team-queries.mjs";
@@ -138,14 +138,17 @@ export async function handleTeamRoutes(request, response, url) {
  * and a line never outlives its save — nor does a roll's `used_at`. The SPP
  * change goes in after it on the same terms, as settled match events without
  * a match (`sppEdits`, actor included): an edit outside a match, which the blob
- * takes as it is saved and the player's history shows. The team the save
- * answers with, like the one a conflict shows, is read in the transaction
- * (`readPublicTeam`), after the writes: GET's shape, `inActiveSeason` included.
+ * takes as it is saved and the player's history shows. A change of more than
+ * MAX_SPP_EDIT_STEPS steps is refused before anything is written, the rolls
+ * included. The team the save answers with, like the one a conflict shows, is
+ * read in the transaction (`readPublicTeam`), after the writes: GET's shape,
+ * `inActiveSeason` included.
  *
  * @param {string|null} ownerId restricts the write to one owner; null for admin
  * @param {{id?: string, admin?: boolean}} [actor] who is writing
  * @returns {Promise<{team: object}|{conflict: object}|null>} null when no such team
  * @throws {Error} a 422 STAGE_PURCHASE_LOCKED when a coach buys what the stage forbids;
+ *   a 422 ROSTER_BREAKS_THE_RULES (SPP_EDIT_TOO_LARGE) for an SPP change too large for one save;
  *   a 422 DICE_ROLL_MISMATCH or 409 DICE_ROLL_USED for a site roll the save cannot take
  */
 export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision, actor = {} }) {
@@ -170,6 +173,7 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
     }
     const before = normalizeDraft(locked.roster);
     if (!actor.admin) refuseLockedPurchases(before, roster, locked.stage);
+    const edits = sppEditsWithin(before, roster);
     await settleRosterRolls(client, { teamId, race: teamBySlug(baseTeamSlug), raceBefore: teamBySlug(locked.base_team_slug), before, after: roster });
     await client.query(
       `UPDATE saved_teams
@@ -186,7 +190,7 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
     const race = locked.base_team_slug === baseTeamSlug ? teamBySlug(baseTeamSlug) : null;
     const entries = classifyTreasuryChange(race, before, roster, { admin: Boolean(actor.admin) });
     await writeLedgerEntries(client, { teamId, opening: before.treasury, entries, actorId: actor.id ?? null });
-    await writeMatchEvents(client, { teamId, pairingId: null, events: sppEdits(before, roster), actorId: actor.id ?? null, settled: true });
+    await writeMatchEvents(client, { teamId, pairingId: null, events: edits, actorId: actor.id ?? null, settled: true });
     const team = await readPublicTeam(client, teamId);
     await client.query("COMMIT");
     return { team };
@@ -196,6 +200,15 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
   } finally {
     client.release();
   }
+}
+
+/** A save's SPP change as the rows it writes, or the refusal of one with more steps than one save may make. */
+function sppEditsWithin(before, after) {
+  const edits = sppEdits(before, after);
+  if (edits.length > MAX_SPP_EDIT_STEPS) {
+    throw rosterRefusal([{ code: VALIDATION_CODES.SPP_EDIT_TOO_LARGE, params: { limit: MAX_SPP_EDIT_STEPS } }]);
+  }
+  return edits;
 }
 
 /** The first re-roll the stage does not allow, as the refusal the client translates. */

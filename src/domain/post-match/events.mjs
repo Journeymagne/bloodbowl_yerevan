@@ -17,6 +17,7 @@
  * sum, so what the clamp hid is taken back too. The module is pure.
  */
 import { normalizeSppCounters } from '../roster/players.mjs';
+import { boundedSppCounter } from '../roster/validate.mjs';
 import { PLAYER_STATS } from '../roster/values.mjs';
 import { SIDES } from '../match/rules.mjs';
 import { INJURIES, POST_STEPS, postCount } from './rules.mjs';
@@ -177,19 +178,23 @@ const hasId = player => typeof player?.id === 'string' && player.id !== '';
 /**
  * A roster save's change to SPP, as the rows of an edit outside a match: for every player with an id
  * in both rosters, in the order of `after`, each counter of the rows (the table's order, no injury) moved
- * by as many steps of +1 or -1 as its value moved, the values read as the roster reads them
- * (`normalizeSppCounters`). The MVP is not a counter of the rows, and a player who came or went has no
- * value to move from or to: neither gets a row.
+ * by as many steps of +1 or -1 as its value moved, the values read as the history counts them
+ * (`boundedSppCounter`: the roster's reading, held to 0…999 and cut to a whole number). The MVP is not a
+ * counter of the rows, and a player who came or went has no value to move from or to: neither gets a row.
  *
  * An edit outside a match changes the blob at once and is kept as settled rows, so the history can show it.
+ * A roster is only taken with counters inside that bound, so the bound bites only a blob stored before
+ * the rule: a legacy value outside it (5000, 2.5) changes the blob without rows for what lies outside.
  */
 export function sppEdits(before, after) {
   const was = new Map((before?.players ?? []).filter(hasId).map(player => [player.id, player]));
   const rows = [];
   for (const player of (after?.players ?? []).filter(hasId)) {
     if (!was.has(player.id)) continue;
-    const from = normalizeSppCounters(was.get(player.id).spp), to = normalizeSppCounters(player.spp);
-    for (const counter of COUNTED) rows.push(...stepsOf(to[counter] - from[counter], { playerId: player.id, counter, injury: null }));
+    const from = was.get(player.id).spp, to = player.spp;
+    for (const counter of COUNTED) {
+      rows.push(...stepsOf(boundedSppCounter(to?.[counter]) - boundedSppCounter(from?.[counter]), { playerId: player.id, counter, injury: null }));
+    }
   }
   return rows;
 }
