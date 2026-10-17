@@ -343,3 +343,36 @@ test("every advancement block reason has a message in both locales", async () =>
     assert.ok(ru[`validation.${reason}`], `missing Russian message for ${reason}`);
   }
 });
+
+// ---------------------------------------------------------------------------
+// What a roster as sent breaks player by player, read before normalisation
+// can hide it: an SPP counter outside 0…999, an id two players share.
+// ---------------------------------------------------------------------------
+
+test("every SPP counter of a player as sent, MVPs included, must be a whole number from 0 to 999, read as the roster reads it", async () => {
+  const { playerViolations, VALIDATION_CODES } = await import("../src/domain/roster/validate.mjs");
+  const out = (who, counter) => ({ code: VALIDATION_CODES.SPP_OUT_OF_RANGE, params: { ...who, counter } });
+  const roster = { players: [
+    { id: "a", name: "  Bo  ", rowIndex: 0, spp: { mvps: 2.5, bonus: 1000, casualties: -1, touchdowns: "100000", completions: 999, catches: "7", knockouts: null, throws: "abc", landings: 0 } },
+    { rowIndex: 0, spp: { interceptions: 1000 } },
+    { id: "b", name: " ", rowIndex: 0, spp: { touchdowns: "1e3", catches: 0.5 } },
+    { id: "c", rowIndex: 0 },
+  ] };
+  // `player` and `counter` are what a person reads (the name, or the place in the list; the counter's short
+  // label); `playerId`, or `row` for a player without an id, is what the client finds him by.
+  const bo = { playerId: "a", player: "Bo" }, third = { playerId: "b", player: "#3" };
+  assert.deepEqual(playerViolations(roster), [out(bo, "TD"), out(bo, "CAS"), out(bo, "BONUS"), out(bo, "MVP"),
+    out({ row: 1, player: "#2" }, "INT"), out(third, "TD"), out(third, "CATCH")]);
+  assert.deepEqual(playerViolations({ players: [{ id: "a", spp: { touchdowns: 999, mvps: 0, bonus: "12" } }] }), []);
+  for (const shapeless of [{}, null, { players: "none" }, { players: [null, 7, { spp: "x" }] }]) assert.deepEqual(playerViolations(shapeless), [], JSON.stringify(shapeless));
+});
+
+test("two players under one id are refused once per id; players without an id never clash, and an id is read as the roster stores it", async () => {
+  const { playerViolations, VALIDATION_CODES } = await import("../src/domain/roster/validate.mjs");
+  const twice = (playerId, names) => ({ code: VALIDATION_CODES.DUPLICATE_PLAYER_ID, params: { playerId, names } });
+  const players = (...ids) => ({ players: ids.map((id) => (id === undefined ? { rowIndex: 0 } : { id, rowIndex: 0 })) });
+  const named = { players: [{ id: "a", name: "Bo" }, { id: "b" }, { id: "a", name: " Al " }, { id: "a" }, { id: "c" }, { id: "b", name: "Cy" }] };
+  assert.deepEqual(playerViolations(named), [twice("a", "Bo, Al, #4"), twice("b", "#2, Cy")]);
+  assert.deepEqual(playerViolations(players(undefined, undefined, "", "", null, null, 0, 0)), [], "no id is nobody's: the roster gives each his own");
+  assert.deepEqual(playerViolations(players(5, "5")), [twice("5", "#1, #2")], "stored, both are \"5\"");
+});

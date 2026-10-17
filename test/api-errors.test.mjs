@@ -48,3 +48,9 @@ test("an error travels as a code, its values, and English to fall back on", () =
     },
   });
 });
+
+test("an error may say when to try again, and has the field only when it does", () => {
+  assert.equal(httpError(429, "TOO_MANY_LOGIN_ATTEMPTS", {}, { retryAfterSeconds: 42 }).retryAfterSeconds, 42);
+  assert.equal(Object.hasOwn(httpError(429, "TOO_MANY_LOGIN_ATTEMPTS"), "retryAfterSeconds"), false);
+  assert.equal(Object.hasOwn(httpError(429, "TOO_MANY_LOGIN_ATTEMPTS", {}, {}), "retryAfterSeconds"), false);
+});

@@ -51,12 +51,39 @@ export function publicSavedTeam(row) {
     logoData: row.logo_data,
     roster: rosterWithoutEmbeddedLogo(row.roster),
     revision: row.revision,
+    // Where the team is in its life (migration 009), and when an admin moved it
+    // to `active` — null for a team that was already playing before there were
+    // stages. Like inActiveSeason below, undefined on a query that does not
+    // select them, never a guess.
+    stage: row.stage,
+    activatedAt: row.activated_at,
     // Only present on the queries that ask for it; undefined elsewhere rather
     // than a confident false, so a screen cannot read "not in a season" out of
     // a query that never looked.
     inActiveSeason: row.in_active_season,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+  };
+}
+
+/**
+ * A `team_fallen_players` row as a client reads it: the player as the roster held him, why he died
+ * and when, and whether a match recorded it (`fromMatch`, which a coach cannot undo). Who recorded it
+ * and for which team stay on the server. `roundNumber` is the season round of the match's pairing,
+ * from `match_pairing_context`: null when there is no pairing, and for a friendly. The row a new
+ * death answers with did not come from that join; it is a coach's own mark, which has no pairing,
+ * so its null is right.
+ */
+export function publicFallen(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    player: row.player,
+    cause: row.cause ?? null,
+    pairingId: row.pairing_id ?? null,
+    roundNumber: row.round_number ?? null,
+    diedAt: row.died_at,
+    fromMatch: row.from_match,
   };
 }
 

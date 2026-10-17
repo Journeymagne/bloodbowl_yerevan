@@ -11,7 +11,8 @@
  * test/preferences.test.mjs holds them equal to SUPPORTED_LOCALES.
  *
  * Whose team `activeTeamId` is, is for the endpoint to check (plan stage 03). Here it is only
- * a UUID, or `null` to say "no active team".
+ * a UUID, kept in lower case the way `saved_teams.id` reads however it was typed, or `null` to
+ * say "no active team".
  */
 import { PALETTE_KEYS } from "../../public/maintenance/palettes.mjs";
 
@@ -36,9 +37,15 @@ function isPlainObject(value) {
   return prototype === Object.prototype || prototype === null;
 }
 
+/** A value as it is kept, once `ACCEPTS` has taken it: a team id in the case Postgres prints a uuid in. */
+function kept(key, value) {
+  return key === "activeTeamId" && value !== null ? value.toLowerCase() : value;
+}
+
 /**
  * The first thing wrong with a body, or the body as the settings it says. Own keys only, in
- * the order they were sent. `null` is a value only for `activeTeamId`, where it clears the key.
+ * the order they were sent, with the active team in lower case. `null` is a value only for
+ * `activeTeamId`, where it clears the key.
  *
  * @param {unknown} input
  * @returns {{ ok: true, value: object } | { ok: false, key: string, reason: "NOT_AN_OBJECT" | "UNKNOWN_KEY" | "INVALID_VALUE" }}
@@ -49,7 +56,7 @@ export function checkPreferences(input) {
   for (const key of Object.keys(input)) {
     if (!PREFERENCE_KEYS.includes(key)) return { ok: false, key, reason: "UNKNOWN_KEY" };
     if (!ACCEPTS[key](input[key])) return { ok: false, key, reason: "INVALID_VALUE" };
-    value[key] = input[key];
+    value[key] = kept(key, input[key]);
   }
   return { ok: true, value };
 }

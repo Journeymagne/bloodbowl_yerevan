@@ -2,72 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { accessPostMatch } from "../server/season/post-match.mjs";
-import { matchReference } from "../server/domain/match-reference.mjs";
-import { createMatchSide } from "../src/domain/match/roster.mjs";
-import { scratchSkip, withScratchDatabase, withServerPool } from "./helpers/scratch-db.mjs";
-
-const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
-const G = id(41), SIDES = ["home", "away"];
-const coaches = { home: { id: id(1), is_admin: false }, away: { id: id(2), is_admin: false } };
-const teams = { home: id(11), away: id(12) };
-const roster = (name) => ({ treasury: 150, players: Array.from({ length: 7 }, (_, i) =>
-  ({ id: `${name}-${i}`, rowIndex: 0, number: String(i + 1), name: `Player ${i + 1}` })) });
-
-/** A friendly that has started: two Human teams, the pairing and both snapshots, as startPreparedMatch leaves them. */
-async function startedFriendly(client) {
-  const data = await matchReference();
-  for (const name of SIDES) {
-    await client.query("INSERT INTO users (id, login, login_key, telegram, password_hash) VALUES ($1, $2, $2, '@c', 'x')", [coaches[name].id, name]);
-    await client.query("INSERT INTO saved_teams (id, user_id, name, base_team_slug, roster) VALUES ($1, $2, $3, 'teams/human', $4)",
-      [teams[name], coaches[name].id, name, JSON.stringify(roster(name))]);
-  }
-  await client.query(`INSERT INTO season_pairings (id, match_kind, table_number, friendly_home_user_id, friendly_away_user_id,
-    friendly_home_team_id, friendly_away_team_id, preparation_status) VALUES ($1, 'friendly', 1, $2, $3, $4, $5, 'in_progress')`,
-  [G, coaches.home.id, coaches.away.id, teams.home, teams.away]);
-  for (const name of SIDES) {
-    const source = { user: { id: coaches[name].id, login: name }, gamesPlayed: 0,
-      team: { id: teams[name], name, revision: 1, baseTeamSlug: "teams/human", roster: roster(name) } };
-    await client.query("INSERT INTO match_roster_snapshots (pairing_id, side, saved_team_id, snapshot) VALUES ($1, $2, $3, $4)",
-      [G, name, teams[name], JSON.stringify({ ...createMatchSide(source, data), fanFactor: 2, effects: {} })]);
-  }
-}
+import { G, SIDES, act, coaches, homeScores, spp, startedFriendly, teams, toPlayersStep, toReady, totals } from "./helpers/match-db.mjs";
+import { lockRow, scratchSkip, withForcedOverlap, withScratchDatabase, withServerPool } from "./helpers/scratch-db.mjs";
 
 /** What 03's endpoint will write for a tap. */
 const tap = (client, team, playerId, counter, delta = 1) => client.query(
   "INSERT INTO match_events (saved_team_id, pairing_id, player_id, counter, delta) VALUES ($1, $2, $3, $4, $5)", [team, G, playerId, counter, delta]);
-
-const totals = async (client, team) => (await client.query(`SELECT player_id, counter, sum(delta)::int AS total, count(*)::int AS rows,
-    bool_and(settled_at IS NOT NULL) AS settled FROM match_events WHERE pairing_id = $1 AND saved_team_id = $2
-  GROUP BY player_id, counter ORDER BY player_id, counter`, [G, team])).rows;
-const spp = async (client, name, playerId) => (await client.query("SELECT roster FROM saved_teams WHERE id = $1", [teams[name]]))
-  .rows[0].roster.players.find((player) => player.id === playerId).spp;
-
-/** One coach's step, through the server function the route calls. */
-const act = async (name, state, action, finish = false) =>
-  (await accessPostMatch(G, coaches[name], { revision: state.revision, ...(finish ? {} : { action }) }, finish)).postMatch;
-
-/** A 1-0 agreed and the fans rolled: both sides on the Players step. */
-async function toPlayersStep() {
-  let state = (await accessPostMatch(G, coaches.home)).postMatch;
-  state = await act("home", state, { type: "result", home: { touchdowns: 1, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } });
-  state = await act("away", state, { type: "agree-result" });
-  for (const name of SIDES) state = await act(name, state, { type: "fans", roll: 3 });
-  return state;
-}
-
-/** The Players step with `statistics(name, side)`, then every later step, up to ready. */
-async function toReady(state, statistics) {
-  for (const name of SIDES) state = await act(name, state, { type: "statistics", statistics: statistics(name, state[name]), mvps: [`${name}-6`] });
-  for (const type of ["lock-players", "lock-roster"]) for (const name of SIDES) state = await act(name, state, { type });
-  for (const name of SIDES) state = await act(name, state, { type: "finance", deposit: 0, mistake: { roll: 6 } });
-  for (const name of SIDES) state = await act(name, state, { type: "next", captain: `${name}-0` });
-  for (const name of SIDES) state = await act(name, state, { type: "confirm" });
-  assert.equal(state.status, "ready");
-  return state;
-}
-
-const homeScores = (name, side) => name === "home"
-  ? { ...side.statistics, "home-0": { ...side.statistics["home-0"], touchdowns: 1 } } : side.statistics;
 
 test("a match tapped in 3.0: the post-match starts from the taps, the Players step corrects them, the finish settles them once", { skip: scratchSkip }, async () => {
   await withScratchDatabase(async ({ client, url }) => {
@@ -127,7 +67,7 @@ test("the Players step sent twice on one revision writes its difference once", {
     await withServerPool(url, async () => {
       const state = await toPlayersStep();
       const step = { type: "statistics", statistics: homeScores("home", state.home), mvps: ["home-6"] };
-      const results = await Promise.allSettled([act("home", state, step), act("home", state, step)]);
+      const results = await withForcedOverlap(url, { lock: lockRow("season_pairings", G), waiting: 2 }, [() => act("home", state, step), () => act("home", state, step)]);
       assert.deepEqual(results.map((result) => result.status).sort(), ["fulfilled", "rejected"]);
       assert.equal(results.find((result) => result.status === "rejected").reason.code, "POST_REVISION");
     });
@@ -140,7 +80,8 @@ test("two coaches finishing at once settle the events once and grow SPP once", {
     await startedFriendly(client);
     await withServerPool(url, async () => {
       const ready = await toReady(await toPlayersStep(), homeScores);
-      const finished = await Promise.all(SIDES.map((name) => act(name, ready, null, true)));
+      const finished = (await withForcedOverlap(url, { lock: lockRow("season_pairings", G), waiting: 2 }, SIDES.map((name) => () => act(name, ready, null, true))))
+        .map((result) => { if (result.status === "rejected") throw result.reason; return result.value; }); // a TypeError on .status would hide why
       assert.ok(finished.every((state) => state.status === "completed"));
     });
     assert.deepEqual(await totals(client, teams.home), [{ player_id: "home-0", counter: "touchdowns", total: 1, rows: 1, settled: true }]);

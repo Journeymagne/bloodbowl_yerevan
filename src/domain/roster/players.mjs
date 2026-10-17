@@ -63,6 +63,15 @@ export function normalizePlayerFavouredSkills(row, skills = []) {
     });
 }
 
+/**
+ * A player's id as a stored roster holds it, as text: what a path or an event names him by, so a 2.x roster's
+ * `5` is the path's `"5"`. Null for an entry that is no player, and for a player with no id, whom
+ * normalisation gives an id of his own (`normalizeRosterPlayer`) and nobody can have named.
+ */
+export function storedPlayerId(player) {
+  return player && typeof player === "object" && player.id ? String(player.id) : null;
+}
+
 export function normalizeRosterPlayer(player, rows, fallbackIndex = 0) {
   if (!player || typeof player !== "object") return null;
   const rowIndex = Number(player.rowIndex);
@@ -158,7 +167,7 @@ export function ensureDraftPlayers(team, draft) {
 export function syncRosterCountsFromPlayers(draft) {
   const counts = {};
   (draft.players ?? []).forEach((player) => {
-    counts[player.rowIndex] = (counts[player.rowIndex] ?? 0) + 1;
+    if (player && typeof player === "object") counts[player.rowIndex] = (counts[player.rowIndex] ?? 0) + 1; // a stored hole is nobody
   });
   draft.roster = counts;
 }
@@ -206,13 +215,16 @@ export function favouredSkillNames(row, player) {
   return new Set(normalizePlayerFavouredSkills(row, player.favouredSkills ?? []).map((skill) => skill.name));
 }
 
+/** The skill the captaincy brings, held for as long as the player is captain. */
+export const CAPTAINS_SKILL = "Pro";
+
 export function skillNamesForPlayer(row, player) {
   const seen = new Set();
   return [
     ...baseSkillsForPlayer(row),
     ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    ...(player.isCaptain ? [{ name: "Pro", access: "captain" }] : []),
+    ...(player.isCaptain ? [{ name: CAPTAINS_SKILL, access: "captain" }] : []),
   ]
     .map((skill) => skill.name)
     .filter((name) => {

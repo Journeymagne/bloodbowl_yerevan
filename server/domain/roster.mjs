@@ -24,8 +24,9 @@ import path from "node:path";
 import { calculateRosterCosts } from "../../src/domain/roster/costs.mjs";
 import { ensureDraftPlayers, syncRosterCountsFromPlayers } from "../../src/domain/roster/players.mjs";
 import { normalizeDraft } from "../../src/domain/roster/schema.mjs";
-import { validateRoster } from "../../src/domain/roster/validate.mjs";
+import { playerViolations, sharedPlayerId, validateRoster } from "../../src/domain/roster/validate.mjs";
 import { expandCollections } from "../../src/data/reference.mjs";
+import { httpError } from "../http/errors.mjs";
 
 export { normalizeDraft };
 
@@ -61,6 +62,11 @@ export function teamBySlug(slug) {
 /**
  * Check an incoming roster against the league's rules.
  *
+ * The balances and the players are read as sent as well as normalised: normalising would turn a bad
+ * treasury into a number, clamp an SPP counter below zero to zero and give a player without an id one
+ * of his own, and the checks of what was sent (`validateRoster`'s balances, `playerViolations`) would
+ * never see what the client did.
+ *
  * @param {string} baseTeamSlug the race the team is playing
  * @param {object} roster whatever the client sent
  * @returns {{violations: {code: string, params: object}[], roster: object}}
@@ -79,7 +85,7 @@ export function checkRoster(baseTeamSlug, roster) {
   syncRosterCountsFromPlayers(draft);
   const costs = calculateRosterCosts(team, draft);
   const balances = { ...draft, treasury: roster.treasury ?? 0, coachesSafe: roster.coachesSafe ?? 0 };
-  return { violations: validateRoster(team, balances, costs), roster: draft };
+  return { violations: [...validateRoster(team, balances, costs), ...playerViolations(roster)], roster: draft };
 }
 
 /**
@@ -94,10 +100,40 @@ export function checkRoster(baseTeamSlug, roster) {
  * Being over a maximum is different: no honest client sends fifteen players or
  * three Blitzers where two are allowed, the roster is wrong for everyone who
  * reads it — the season table, the opponent, the public profile — and there is
- * no editing state that legitimately passes through it.
+ * no editing state that legitimately passes through it. Nor does one send an SPP
+ * counter outside 0…999 — each step of a save's SPP change is a row of the
+ * player's history — or two players under one id.
  */
-const BLOCKING_CODES = new Set(["ROSTER_MAX_PLAYERS", "POSITION_MAX", "UNKNOWN_TEAM", "TREASURY_INVALID", "SAFE_INVALID"]);
+const BLOCKING_CODES = new Set(["ROSTER_MAX_PLAYERS", "POSITION_MAX", "UNKNOWN_TEAM", "TREASURY_INVALID", "SAFE_INVALID",
+  "SPP_OUT_OF_RANGE", "DUPLICATE_PLAYER_ID"]);
 
 export function blockingViolations(violations) {
   return violations.filter((violation) => BLOCKING_CODES.has(violation.code));
+}
+
+/**
+ * The refusal of a roster that breaks the rules: 422 ROSTER_BREAKS_THE_RULES with what it breaks, which
+ * `handleApi` sends as `violations` and the client words as `validation.<CODE>`.
+ *
+ * @param {{code: string, params: object}[]} violations
+ * @returns {Error}
+ */
+export function rosterRefusal(violations) {
+  const error = httpError(422, "ROSTER_BREAKS_THE_RULES");
+  error.violations = violations;
+  return error;
+}
+
+/**
+ * Refuse an id that names more than one player of a stored roster (`sharedPlayerId`): a route that finds a
+ * player of the blob by his id — a death, a roll, an edit outside a match — calls this before it reads or
+ * writes anything for him, since it would act on either. 422 with DUPLICATE_PLAYER_ID `{ playerId, names }`.
+ * Such a blob is one stored before every write checked its ids; it has to be put right first.
+ *
+ * @param {object} roster the roster as stored
+ * @param {string} playerId the id the request names
+ */
+export function refuseSharedPlayerId(roster, playerId) {
+  const shared = sharedPlayerId(roster, playerId);
+  if (shared) throw rosterRefusal([shared]);
 }

@@ -12,6 +12,8 @@
  * list, a single team and the admin view cannot start disagreeing about it.
  */
 
+import { publicSavedTeam } from "./serializers.mjs";
+
 /** Selects every column of saved_teams plus `in_active_season`. */
 export const SAVED_TEAM_COLUMNS = `
   saved_teams.*,
@@ -24,6 +26,20 @@ export const SAVED_TEAM_COLUMNS = `
        AND seasons.status = 'active'
   ) AS in_active_season
 `;
+
+/**
+ * One team as every answer about a team gives it: `publicSavedTeam` of `SAVED_TEAM_COLUMNS`, the
+ * shape `GET /api/teams/:id` has, `inActiveSeason` included. On the client of a transaction that has
+ * just written the team, it is the team as written. Null when there is no such team.
+ *
+ * @param {{query: Function}} db a pg pool, or the client of a transaction
+ * @param {string} id
+ * @returns {Promise<object|null>}
+ */
+export async function readPublicTeam(db, id) {
+  const { rows } = await db.query(`SELECT ${SAVED_TEAM_COLUMNS} FROM saved_teams WHERE id = $1`, [id]);
+  return publicSavedTeam(rows[0]);
+}
 
 /**
  * Has this team ever played in a season?

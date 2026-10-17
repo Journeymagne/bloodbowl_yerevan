@@ -6,7 +6,7 @@ import { projectPostRoster, fallenPlayers } from '../src/domain/post-match/roste
 import { postMatchLedgerEntries, ledgerRows } from '../src/domain/roster/ledger.mjs';
 import { createMatchSide, calculateMatchCtv } from '../src/domain/match/roster.mjs';
 import { earnedSpp, normalizeMatchStats } from '../src/domain/post-match/statistics.mjs';
-import { careerCounters, eventsDiff, followEvents, sameValues } from '../src/domain/post-match/events.mjs';
+import { careerCounters, eventsDiff, followEvents, sameValues, sideFollowsEvents } from '../src/domain/post-match/events.mjs';
 import { playerAvailableSpp } from '../src/domain/roster/progression.mjs';
 import { playerCurrentCost } from '../src/domain/roster/costs.mjs';
 import { normalizeRosterPlayer } from '../src/domain/roster/players.mjs';
@@ -467,6 +467,8 @@ test('a saved Players step, a side past it and a side begun before 3.0 do not fo
   const g = fanSteps(agreed(fixture()));
   g.state.home.stage = 3;
   assert.equal(followEvents(g.state, events).home.statistics['home-0'].completions, 0);
+  assert.deepEqual([f.state.home, f.state.away, g.state.home, g.state.away].map(sideFollowsEvents), [false, false, false, true],
+    'the sides a tap may still reach are the ones followEvents reads');
 });
 
 test('a new result rebuilds both sides, and following the events seeds them again', () => {

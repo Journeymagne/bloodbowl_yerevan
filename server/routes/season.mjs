@@ -18,7 +18,8 @@ import { commitSavedTeamToSeason, ensureActiveSeason, loadSeasonBundle, loadUser
 import { addSeasonPairing, createManualRound, generateSwissRound, startSeasonRound, validateSeasonEntry } from "../season/rounds.mjs";
 import { proposeGameResult, updateSeasonPairing } from "../season/games.mjs";
 import { createSeasonCoachWithTeam } from "../season/coach-entry.mjs";
-import { readTeamBody } from "./teams.mjs";
+import { readTeamBody, refuseRosterPlayers } from "./teams.mjs";
+import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -109,7 +110,8 @@ async function handleSeasonEntryRoutes(request, response, url) {
     if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) {
       return sendError(response, 400, "LOGO_TOO_LARGE");
     }
-
+    refuseSiteRolls(roster); // stored as sent, so read raw
+    refuseRosterPlayers(roster); // and its players held to what every roster write is
     const coach = await pool.query(`SELECT id FROM users WHERE id = $1`, [userId]);
     if (!coach.rows[0]) return sendError(response, 404, "COACH_NOT_FOUND");
 
@@ -142,6 +144,7 @@ async function handleSeasonCoachRoute(request, response, url) {
   if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
   if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
   const { body, name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
+  refuseSiteRolls(roster); // before the season is looked up, or made
   const season = await ensureActiveSeason();
   await createSeasonCoachWithTeam(season.id, { ...body, name, baseTeamSlug, logoData, roster });
   return send(response, 201, await loadSeasonBundle(user));

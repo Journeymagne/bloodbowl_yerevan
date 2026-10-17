@@ -42,3 +42,15 @@ test('conflicts retry once; validation or network failures do not retry', async 
     assert.equal(writes, code === 'POST_REVISION' ? 2 : 1);
   }
 });
+
+test('the retry compares what the coach saw by value: keys jsonb reordered, or a key that held undefined, are not a change', async () => {
+  const original = draft(), latest = draft(), calls = [];
+  original.postMatch.home.note = undefined;
+  latest.postMatch.revision = 2;
+  latest.postMatch.home = { statistics: {}, stage: 2 };
+  latest.postMatch.result = { accepted: { away: true, home: true } };
+  const saved = await savePostMatch(async (path, options) => { calls.push(options); if (calls.length === 1) throw conflict(); return latest; },
+    original, 'home', { type: 'statistics' });
+  assert.equal(saved, latest);
+  assert.equal(calls.length, 3);
+});

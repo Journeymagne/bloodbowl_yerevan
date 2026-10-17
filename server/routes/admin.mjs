@@ -12,6 +12,7 @@
  * admin may put a team right in either stage.
  */
 import { pool } from "../db/pool.mjs";
+import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import {
@@ -19,6 +20,7 @@ import {
   generateTemporaryPassword,
   hashPassword,
 } from "../auth/session.mjs";
+import { isEnvAdmin } from "../auth/admin-account.mjs";
 import {
   isAdminUser,
   normalizeLogin,
@@ -29,7 +31,17 @@ import {
   serializeRosterForStorage,
 } from "../api/serializers.mjs";
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
-import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, userHasFriendlyGames } from "../api/team-queries.mjs";
+import { refuseSiteRolls } from "../api/dice-rolls.mjs";
+import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam, userHasFriendlyGames } from "../api/team-queries.mjs";
+import { UUID_SOURCE } from "../api/team-access.mjs";
+
+// The ids these routes take are UUIDs, and nothing else matches: a path that is no UUID is no route (404)
+// rather than a `::uuid` the database refuses (a 500). Postgres reads a UUID in any case, so a self-check
+// compares the id the database gives back, never the path's spelling.
+const USER = new RegExp(`^/api/admin/users/(${UUID_SOURCE})$`, "i");
+const USER_PASSWORD_RESET = new RegExp(`^/api/admin/users/(${UUID_SOURCE})/reset-password$`, "i");
+const USER_TEAMS = new RegExp(`^/api/admin/users/(${UUID_SOURCE})/teams$`, "i");
+const TEAM = new RegExp(`^/api/admin/teams/(${UUID_SOURCE})$`, "i");
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -74,7 +86,7 @@ export async function handleAdminRoutes(request, response, url) {
 async function handleAdminUserRoutes(request, response, url) {
   if (await handleAdminPasswordResetRoute(request, response, url)) return true;
 
-  const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)$/i);
+  const adminUserMatch = url.pathname.match(USER);
   if (adminUserMatch && request.method === "PATCH") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -92,67 +104,91 @@ async function handleAdminUserRoutes(request, response, url) {
 
     if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
     if (password && password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
+    // The env file's administrator keeps the file's password: every start would write it back.
+    if (password && isEnvAdmin(target)) return sendError(response, 409, "ADMIN_PASSWORD_FROM_ENV");
+    // Your own password is changed in your settings, with the current one (PATCH /api/auth/profile). Here
+    // it would be written with no password asked, and the administrator's other sessions would go on.
+    if (password && target.id === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");
     if (target.id === user.id && !nextIsAdmin) {
       return sendError(response, 409, "SELF_ADMIN_DEMOTE");
     }
 
+    // A new password and the end of that user's sessions are one transaction: a login that is taken (409)
+    // or a write that fails leaves the old password and every session as they were. Hashed before it opens.
     const passwordHash = password ? hashPassword(password) : null;
-    const updated = await pool.query(
-      `UPDATE users
-       SET login = $2,
-           login_key = $3,
-           password_hash = COALESCE($4, password_hash),
-           is_admin = $5,
-           updated_at = now()
-       WHERE id = $1
-       RETURNING *`,
-      [target.id, login, loginKey, passwordHash, nextIsAdmin],
-    ).catch((error) => {
-      if (error.code === "23505") return null;
-      throw error;
+    const updated = await withTransaction(async (client) => {
+      const { rows } = await client.query(
+        `UPDATE users
+         SET login = $2,
+             login_key = $3,
+             password_hash = COALESCE($4, password_hash),
+             is_admin = $5,
+             updated_at = now()
+         WHERE id = $1
+         RETURNING *`,
+        [target.id, login, loginKey, passwordHash, nextIsAdmin],
+      ).catch((error) => {
+        throw error.code === "23505" ? httpError(409, "LOGIN_ALREADY_REGISTERED") : error;
+      });
+      if (!rows[0]) throw httpError(404, "USER_NOT_FOUND"); // deleted while this request waited for the row
+      if (password) await client.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
+      return rows[0];
     });
-    if (!updated) return sendError(response, 409, "LOGIN_ALREADY_REGISTERED");
 
-    if (password && target.id !== user.id) {
-      await pool.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
-    }
-
-    return send(response, 200, { user: publicAdminUser(updated.rows[0]) });
+    return send(response, 200, { user: publicAdminUser(updated) });
   }
 
   return handleAdminUserReadRoutes(request, response, url);
 }
 
-/** Replace one password and revoke every session except the admin's current one. */
+/**
+ * Replace one password and revoke every session of that user.
+ *
+ * Who the path names is read first, and refused before anything is hashed or written: the env file's
+ * administrator, whose password is the file's (ADMIN_PASSWORD_FROM_ENV), and the administrator himself
+ * (SELF_PASSWORD_RESET), by the id the database gives back — the path may spell it in capitals. The new
+ * password and the end of the sessions are one transaction.
+ */
 async function handleAdminPasswordResetRoute(request, response, url) {
-  const match = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)\/reset-password$/i);
+  const match = url.pathname.match(USER_PASSWORD_RESET);
   if (!match || request.method !== "POST") return false;
 
   const user = await currentUser(request);
   if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
   if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
 
-  const targetId = match[1];
-  if (targetId === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");
+  const { rows: [target] } = await pool.query("SELECT id, login_key FROM users WHERE id = $1", [match[1]]);
+  if (!target) return sendError(response, 404, "USER_NOT_FOUND");
+  if (isEnvAdmin(target)) return sendError(response, 409, "ADMIN_PASSWORD_FROM_ENV");
+  if (target.id === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");
   const password = generateTemporaryPassword();
   const passwordHash = hashPassword(password);
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const updated = await client.query(
-      `UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1 RETURNING id`,
-      [targetId, passwordHash],
-    );
-    if (!updated.rows[0]) throw httpError(404, "USER_NOT_FOUND");
-    await client.query("DELETE FROM sessions WHERE user_id = $1", [targetId]);
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => {});
-    throw error;
-  } finally {
-    client.release();
-  }
+  await withTransaction(async (client) => {
+    const updated = await client.query("UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1 RETURNING id", [target.id, passwordHash]);
+    if (!updated.rows[0]) throw httpError(404, "USER_NOT_FOUND"); // deleted since it was read
+    await client.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
+  });
   return send(response, 200, { password });
+}
+
+/**
+ * The transaction of deleting a user: who the path names, by the database's id (`SELF_ADMIN_DELETE` for
+ * one's own, however the path spells it), then his teams, locked `ORDER BY id FOR UPDATE`, then the user.
+ * The delete cascades to the teams, and every writer of a team holds the team and then waits on the
+ * user's row (`FOR KEY SHARE`, through a foreign key): taking the user first, as a bare DELETE did, closed
+ * a cycle with each of them (40P01). Taken in the writers' order, team then user, it only waits its turn.
+ *
+ * @throws 404 USER_NOT_FOUND; 409 SELF_ADMIN_DELETE or USER_IN_FRIENDLY_GAMES
+ */
+async function deleteUser(client, userId, admin) {
+  const { rows: [target] } = await client.query("SELECT id FROM users WHERE id = $1", [userId]);
+  if (!target) throw httpError(404, "USER_NOT_FOUND");
+  if (target.id === admin.id) throw httpError(409, "SELF_ADMIN_DELETE");
+  if (await userHasFriendlyGames(client, target.id)) throw httpError(409, "USER_IN_FRIENDLY_GAMES");
+  await client.query("SELECT 1 FROM saved_teams WHERE user_id = $1 ORDER BY id FOR UPDATE", [target.id]);
+  // Another admin may have deleted him while this one waited on the teams: then there is no one to delete.
+  const deleted = await client.query("DELETE FROM users WHERE id = $1 RETURNING id", [target.id]);
+  if (!deleted.rows[0]) throw httpError(404, "USER_NOT_FOUND");
 }
 
 /**
@@ -162,18 +198,12 @@ async function handleAdminPasswordResetRoute(request, response, url) {
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleAdminUserReadRoutes(request, response, url) {
-  const adminUserMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)$/i);
+  const adminUserMatch = url.pathname.match(USER);
   if (adminUserMatch && request.method === "DELETE") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
-    if (adminUserMatch[1] === user.id) {
-      return sendError(response, 409, "SELF_ADMIN_DELETE");
-    }
-
-    if (await userHasFriendlyGames(pool, adminUserMatch[1])) return sendError(response, 409, "USER_IN_FRIENDLY_GAMES");
-    const deleted = await pool.query("DELETE FROM users WHERE id = $1 RETURNING id", [adminUserMatch[1]]);
-    if (!deleted.rows[0]) return sendError(response, 404, "USER_NOT_FOUND");
+    await withTransaction((client) => deleteUser(client, adminUserMatch[1], user));
     return send(response, 200, { ok: true });
   }
 
@@ -217,25 +247,25 @@ async function handleAdminUserReadRoutes(request, response, url) {
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleAdminUserTeamRoutes(request, response, url) {
-  const adminUserTeamsMatch = url.pathname.match(/^\/api\/admin\/users\/([0-9a-f-]+)\/teams$/i);
+  const adminUserTeamsMatch = url.pathname.match(USER_TEAMS);
   if (adminUserTeamsMatch && request.method === "POST") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
-
+    refuseSiteRolls(roster);
     const coach = await pool.query(`SELECT * FROM users WHERE id = $1`, [adminUserTeamsMatch[1]]);
     if (!coach.rows[0]) return sendError(response, 404, "COACH_NOT_FOUND");
 
     const result = await pool.query(
       `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [adminUserTeamsMatch[1], name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
+       RETURNING id`,
+      [coach.rows[0].id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );
     return send(response, 201, {
       user: publicUser(coach.rows[0]),
-      team: publicSavedTeam(result.rows[0]),
+      team: await readPublicTeam(pool, result.rows[0].id), // GET's shape, as the coach's own create answers
     });
   }
 
@@ -249,7 +279,7 @@ async function handleAdminUserTeamRoutes(request, response, url) {
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleAdminTeamRoutes(request, response, url) {
-  const adminTeamMatch = url.pathname.match(/^\/api\/admin\/teams\/([0-9a-f-]+)$/i);
+  const adminTeamMatch = url.pathname.match(TEAM);
   if (adminTeamMatch && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");

@@ -8,18 +8,35 @@ import { resultAgreed } from '../../src/domain/post-match/rules.mjs';
 import { SIDES, otherSide } from '../../src/domain/match/rules.mjs';
 import { matchPoints } from '../../src/domain/league-rules.mjs';
 import { applyPostMatchRoster } from './finance-store.mjs';
-import { loadMatchEvents, recordSideStatistics, settleMatchEvents } from './match-events-store.mjs';
+import { loadMatchEvents, recordSideStatistics, settleMatchEvents, settleOutsideEdits } from './match-events-store.mjs';
 
-async function postSources(client, fixture) {
-  const sources = await loadPreparationSources(client, fixture);
-  const rows = (await client.query(`SELECT COALESCE(ms.saved_team_id,sides.team_id) AS saved_team_id, count(*)::integer AS games
+/**
+ * The games each of `teamIds` has played, the match `pairingId` left out: its confirmed matches that were not
+ * a technical result. A match is a team's by the team its roster snapshot names, and by the pairing's own
+ * team where it has no snapshot. Rookie protection counts them (`effectiveInjury`: fewer than 3 games), for a
+ * post-match being played (`postSources`) and for the history of a player, which shows an injury the way the
+ * roster gets it (server/season/player-history.mjs).
+ *
+ * @param {{ query: Function }} db a pg pool, or a client (the snapshot a caller reads other tables in)
+ * @param {string[]} teamIds the teams as the database holds their ids
+ * @param {string} pairingId
+ * @returns {Promise<Record<string, number>>} a key for every team of `teamIds`, 0 for a team with no games
+ */
+export async function gamesPlayedBefore(db, teamIds, pairingId) {
+  const rows = (await db.query(`SELECT COALESCE(ms.saved_team_id,sides.team_id) AS saved_team_id, count(*)::integer AS games
     FROM match_pairing_context p
     CROSS JOIN LATERAL (VALUES('home',p.home_team_id),('away',p.away_team_id)) sides(side,team_id)
     LEFT JOIN match_roster_snapshots ms ON ms.pairing_id=p.id AND ms.side=sides.side
     WHERE COALESCE(ms.saved_team_id,sides.team_id)=ANY($1::uuid[]) AND p.result_status='confirmed' AND p.id<>$2
       AND p.result_type<>'technical' GROUP BY COALESCE(ms.saved_team_id,sides.team_id)`,
-  [[fixture.home_team_id, fixture.away_team_id], fixture.id])).rows;
-  SIDES.forEach(name => { sources[name].gamesPlayed = rows.find(row => row.saved_team_id === sources[name].team.id)?.games || 0; });
+  [teamIds, pairingId])).rows;
+  return Object.fromEntries(teamIds.map(teamId => [teamId, rows.find(row => row.saved_team_id === teamId)?.games || 0]));
+}
+
+async function postSources(client, fixture) {
+  const sources = await loadPreparationSources(client, fixture);
+  const games = await gamesPlayedBefore(client, [fixture.home_team_id, fixture.away_team_id], fixture.id);
+  SIDES.forEach(name => { sources[name].gamesPlayed = games[sources[name].team.id]; });
   const events = await loadMatchEvents(client, fixture.id, SIDES.map(name => sources[name].team.id));
   SIDES.forEach(name => { sources[name].events = events[sources[name].team.id]; });
   return sources;
@@ -58,10 +75,15 @@ async function finishPost(client, fixture, state, sources, data, actorId) {
     if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
     const projection = validatePostSide(state, name, data);
     await applyPostMatchRoster(client, fixture.id, name, state[name], projection, actorId);
-    // The difference once more (a post-match begun before 3.0 has no events; a tap may have landed after the
-    // Players step), then settled in this same transaction, so settled events add up to the statistics the post-match applied.
+    // The difference once more, for a post-match begun before 3.0: it has no events, and its statistics
+    // become rows here. A side begun in 3.0 holds what its events read, or wrote its difference on the
+    // Players step, and takes no tap past that step (EVENT_SIDE_LOCKED): for it nothing is left to write.
+    // Settled in this same transaction, so settled events add up to the statistics the post-match applied.
+    // Then the team's edits outside the match, which waited for this, go into the blob after the match's
+    // own record (after_roster).
     await recordSideStatistics(client, fixture.id, state[name], sources[name].events, actorId);
     await settleMatchEvents(client, { teamId: state[name].team.id, pairingId: fixture.id });
+    await settleOutsideEdits(client, state[name].team.id);
     state[name].settlement = projection;
   }
   const result = state.result;

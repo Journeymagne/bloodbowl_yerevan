@@ -38,6 +38,12 @@ export const LEDGER_KINDS = Object.freeze([
   "admin",
 ]);
 
+/**
+ * What a hand-written entry may say it was for — the `reason` of a `manual` line — in the order
+ * migration 010 lists them. The database does not check it; the server does, before it writes.
+ */
+export const MANUAL_REASONS = Object.freeze(["friendly", "sponsor", "fine", "purchase", "other"]);
+
 /** A post-match operation's own line; a staff operation's depends on its sign. */
 const POST_MATCH_OPERATION_KINDS = Object.freeze({ hire: "hire", keep: "hire", raise: "hire", sell: "sale" });
 

@@ -34,11 +34,13 @@ test("every face of the D8 gives the stats of its row, and only 1–8 are faces"
   for (const row of STAT_ROLL_TABLE) for (let face = row.from; face <= row.to; face += 1) assert.deepEqual(statsForRoll(face), [...row.stats]);
   assert.deepEqual(statsForRoll(0), []);
   assert.deepEqual(statsForRoll(9), []);
+  assert.deepEqual(statsForRoll(3.5), []);
+  assert.deepEqual(statsForRoll("3"), []);
 });
 
 test("a stat roll asks for one D8 and records it", () => {
   const rng = scripted(3);
-  assert.deepEqual(statRoll(rng), { ok: true, params: { die: 8 }, result: { roll: 3, stats: ["ar", "ma", "pa"] } });
+  assert.deepEqual(statRoll(rng), { ok: true, params: { sides: 8 }, result: { roll: 3, stats: ["ar", "ma", "pa"] } });
   assert.deepEqual(rng.asked, [8]);
 });
 

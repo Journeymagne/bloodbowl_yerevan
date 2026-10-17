@@ -124,3 +124,8 @@ test("merging drops a null left in the stored value, and a patch value that is n
   assert.deepEqual(mergePreferences({ activeTeamId: null, locale: "ru" }, {}), { locale: "ru" });
   assert.deepEqual(mergePreferences({ locale: "ru" }, { locale: "de" }), {});
 });
+
+test("the active team is stored lower-case, the way saved_teams.id reads", () => {
+  const upper = "ABCDEF12-3456-4789-8ABC-DEF123456789";
+  assert.deepEqual(checkPreferences({ activeTeamId: upper }), { ok: true, value: { activeTeamId: upper.toLowerCase() } });
+});

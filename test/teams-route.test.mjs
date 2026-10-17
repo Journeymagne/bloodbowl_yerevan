@@ -32,6 +32,7 @@ function database({ stage = "active", stored = {}, revision = 4, slug = "teams/h
       return { rows: id === row.id && (ownerId === null || ownerId === row.user_id) ? [row] : [] };
     }
     if (text.startsWith("UPDATE saved_teams")) return { rows: [{ ...row, roster: JSON.parse(values[4]), revision: revision + 1 }] };
+    if (text.startsWith("INSERT INTO saved_teams")) return { rows: [{ id: row.id }] }; // a create answers with the team read back
     if (text.includes("in_active_season")) return { rows: [{ ...row, in_active_season: false }] };
     return { rows: [] };
   };
@@ -86,6 +87,8 @@ test("each stage buys its own rerolls, and lowering a locked counter is allowed"
       assert.equal(answer.status, 200, `${stage} ${JSON.stringify(roster)}`);
       assert.equal(wrote(db), true);
       assert.ok(db.log.some((entry) => entry.sql === "COMMIT"));
+      assert.equal(db.log.some((entry) => entry.sql === "ROLLBACK"), false);
+      assert.equal(db.log.at(-1).sql, "release");
     });
   }
 });
@@ -98,6 +101,9 @@ test("a stale revision is a conflict before any stage check, and writes nothing"
     assert.equal(answer.payload.error.code, "TEAM_SAVED_ELSEWHERE");
     assert.equal(answer.payload.team.id, TEAM);
     assert.equal(wrote(db), false);
+    assert.ok(db.log.some((entry) => entry.sql === "ROLLBACK"));
+    assert.equal(db.log.some((entry) => entry.sql === "COMMIT"), false);
+    assert.equal(db.log.at(-1).sql, "release");
   });
 });
 
@@ -228,5 +234,78 @@ test("a stored squad with no player ids is not read as sold: the whole differenc
   await withDatabase({ stored }, async (db) => {
     await handleTeamRoutes(patch({ ...same, treasury: 110 }), response(), teamUrl());
     assert.deepEqual(ledger(db), [[TEAM, 10, 110, "manual", null, null, null, coach.id]]);
+  });
+});
+
+// values of one INSERT INTO match_events: [team, pairing, player, counter, delta, injury, actor]
+const edits = (db) => db.log.filter((entry) => entry.sql.startsWith("INSERT INTO match_events")).map((entry) => entry.values);
+
+test("an SPP change is written as settled rows without a match, in the save's transaction after the journal; a refused or stale save writes none", async () => {
+  const stored = { players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1 } }] };
+  await withDatabase({ stored }, async (db) => {
+    await handleTeamRoutes(patch({ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 2, mvps: 1 } }], treasury: 90 }), response(), teamUrl());
+    assert.deepEqual(edits(db), [[TEAM, null, "a", "touchdowns", 1, null, coach.id]]);
+    const sql = db.log.map((entry) => entry.sql), at = sql.findIndex((text) => text.startsWith("INSERT INTO match_events"));
+    assert.match(sql[at], /created_at, settled_at\)\s+SELECT [^]*\bat, at\s+FROM \(SELECT clock_timestamp\(\) AS at\)/, "settled as it is written, at the moment it is written");
+    assert.ok(sql.findIndex((text) => text.startsWith("INSERT INTO team_ledger")) < at && at < sql.indexOf("COMMIT"));
+  });
+  await withDatabase({ stored, user: admin }, async (db) => {
+    await handleAdminRoutes(patch({ players: [{ id: "a", rowIndex: 0, spp: {} }] }), response(), adminUrl);
+    assert.deepEqual(edits(db), [[TEAM, null, "a", "touchdowns", -1, null, admin.id]], "the admin's save is the admin's");
+  });
+  await withDatabase({ stored: { ...stored, startingRerolls: 1 } }, async (db) => {
+    await assert.rejects(handleTeamRoutes(patch({ startingRerolls: 2, players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 5 } }] }), response(), teamUrl()),
+      { code: "STAGE_PURCHASE_LOCKED" });
+    assert.deepEqual(edits(db), []);
+  });
+  await withDatabase({ stored, revision: 5 }, async (db) => {
+    await handleTeamRoutes(patch({ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 5 } }] }, 4), response(), teamUrl());
+    assert.deepEqual(edits(db), []);
+  });
+});
+
+test("the team a save answers with is read after the write, with every column GET reads", async () => {
+  await withDatabase({}, async (db) => {
+    const answer = response();
+    await handleTeamRoutes(patch({ treasury: 90 }), answer, teamUrl());
+    const sql = db.log.map((entry) => entry.sql), read = sql.findIndex((text) => text.includes("in_active_season"));
+    assert.ok(sql.findIndex((text) => text.startsWith("UPDATE saved_teams")) < read && read < sql.indexOf("COMMIT"));
+    assert.equal(answer.payload.team.inActiveSeason, false);
+  });
+});
+
+test("a roster with an SPP counter outside 0…999, or two players under one id, is refused before any transaction, on the owner's route and the admin's", async () => {
+  const bad = [
+    [{ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1000 } }] }, [{ code: "SPP_OUT_OF_RANGE", params: { playerId: "a", player: "#1", counter: "TD" } }]],
+    [{ players: [{ id: "a", name: "Bo", rowIndex: 0, spp: { mvps: -1 } }] }, [{ code: "SPP_OUT_OF_RANGE", params: { playerId: "a", player: "Bo", counter: "MVP" } }]],
+    [{ players: [{ id: "a", rowIndex: 0 }, { id: "a", name: "Al", rowIndex: 0 }] }, [{ code: "DUPLICATE_PLAYER_ID", params: { playerId: "a", names: "#1, Al" } }]],
+  ];
+  for (const [roster, violations] of bad) {
+    for (const [user, send] of [[coach, () => handleTeamRoutes(patch(roster), response(), teamUrl())], [admin, () => handleAdminRoutes(patch(roster), response(), adminUrl)]]) {
+      await withDatabase({ user }, async (db) => {
+        await assert.rejects(send(), (error) => {
+          assert.deepEqual([error.status, error.code, error.violations], [422, "ROSTER_BREAKS_THE_RULES", violations]);
+          return true;
+        }, `${user.login} ${JSON.stringify(roster)}`);
+        assert.deepEqual(db.log.map((entry) => entry.sql).filter((sql) => !sql.includes("FROM sessions")), [], "nothing but who is asking");
+      });
+    }
+  }
+});
+
+test("a save whose SPP change would be more than 2000 steps is refused before anything is written", async () => {
+  const players = (knockouts) => [{ id: "a", rowIndex: 0, spp: { touchdowns: 999, casualties: 999 } }, { id: "b", rowIndex: 0, spp: { knockouts } }];
+  const stored = { players: [{ id: "a", rowIndex: 0 }, { id: "b", rowIndex: 0 }] };
+  await withDatabase({ stored }, async (db) => {
+    await assert.rejects(handleTeamRoutes(patch({ players: players(3), treasury: 90 }), response(), teamUrl()), (error) => {
+      assert.deepEqual([error.status, error.code, error.violations], [422, "ROSTER_BREAKS_THE_RULES", [{ code: "SPP_EDIT_TOO_LARGE", params: { limit: 2000 } }]]);
+      return true;
+    });
+    assert.deepEqual(db.log.filter((entry) => /^(INSERT|UPDATE|DELETE)/.test(entry.sql)), [], "no write, the rolls' included");
+    assert.deepEqual(db.log.slice(-2).map((entry) => entry.sql), ["ROLLBACK", "release"]);
+  });
+  await withDatabase({ stored }, async (db) => {
+    await handleTeamRoutes(patch({ players: players(2), treasury: 90 }), response(), teamUrl());
+    assert.equal(edits(db).length, 2000);
   });
 });

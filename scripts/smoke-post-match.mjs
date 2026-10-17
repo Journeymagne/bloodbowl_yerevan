@@ -1,7 +1,7 @@
 /** Local fixtures only. Real teams and results are never edited. */
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { pool, databaseUrl } from '../server/db/pool.mjs';
 import { hashPassword } from '../server/auth/session.mjs';
 import { calculateMatchCtv } from '../src/domain/match/roster.mjs';
@@ -16,6 +16,20 @@ async function request(name, path, body, method = 'GET') {
   const response = await fetch(base + path, { method, headers: { 'Content-Type': 'application/json',
     ...(tokens[name] ? { Authorization: 'Bearer ' + tokens[name] } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   return { status: response.status, data: await response.json() };
+}
+
+// A read that must answer 200: the failure says what it was and what came back, and the body is returned.
+async function get(name, path) {
+  const response = await request(name, path);
+  assert.equal(response.status, 200, 'GET ' + path + ' -> ' + response.status + ' ' + JSON.stringify(response.data));
+  return response.data;
+}
+
+// The first item of a list that matches, or a failure that says what was looked for and what the list held.
+function found(list, match, what) {
+  const item = Array.isArray(list) ? list.find(match) : undefined;
+  assert.ok(item, 'not found: ' + what + ' in ' + JSON.stringify(list)?.slice(0, 300));
+  return item;
 }
 
 async function logins() {
@@ -72,6 +86,27 @@ async function fixture(kind, preview = false, previousGames = 0) {
   await start(f); return f;
 }
 
+// The one path of a team's events, for a tap and for an edit outside a match alike.
+const eventsPath = (f, query = '') => '/api/teams/' + f.teamIds[0] + '/events' + query;
+const tapBody = (f, extra = {}) => ({ playerId: f.journeymanId, counter: 'catches', delta: 1, ...extra });
+
+// A tap in the live match, and an edit outside it, both on the home side; then what the team's events say of them.
+async function tapAndEdit(f, homeSnapshot) {
+  f.journeymanId = found(homeSnapshot.players, player => player.kind === 'journeyman', 'a journeyman in the home snapshot').id;
+  const tap = await request('home', eventsPath(f), tapBody(f, { pairingId: f.gameId }), 'POST');
+  assert.equal(tap.status, 201, JSON.stringify(tap.data));
+  const player = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster.players[2];
+  assert.ok(player, 'the home blob has no third player');
+  f.outsidePlayer = player.id; f.outsideBefore = player.spp?.completions ?? 0;
+  const edit = await request('home', eventsPath(f), { playerId: f.outsidePlayer, counter: 'completions', delta: 1 }, 'POST');
+  assert.equal(edit.status, 201, JSON.stringify(edit.data));
+  assert.equal(edit.data.event.pairingId, null, 'an edit outside a match has no match');
+  const ofMatch = await get('home', eventsPath(f, '?pairing=' + f.gameId));
+  assert.equal(ofMatch.events.length, 1, 'one event in the match: ' + JSON.stringify(ofMatch));
+  const waiting = await get('home', eventsPath(f));
+  assert.equal(waiting.events.length, 2, 'the tap and the edit wait to be settled: ' + JSON.stringify(waiting));
+}
+
 async function start(f) {
   const path = '/api/games/' + f.gameId;
   f.pre = (await request('home', path + '/preparation')).data;
@@ -84,6 +119,7 @@ async function start(f) {
   for (const name of ['home', 'away']) await change(f, name, { type: 'confirm' }, true);
   const started = await request('home', path + '/start', { revision: f.pre.preparation.revision }, 'POST');
   assert.equal(started.status, 200, JSON.stringify(started.data));
+  await tapAndEdit(f, started.data.snapshots.home);
   f.post = (await request('home', path + '/post-match')).data;
   await change(f, 'home', { type: 'result', home: { touchdowns: 2, casualties: 1 }, away: { touchdowns: 1, casualties: 0 } });
   await change(f, 'away', { type: 'agree-result' });
@@ -110,6 +146,30 @@ async function matchEvents(f) {
 }
 const byTeam = (rows, team) => Object.fromEntries(rows.filter(row => row.saved_team_id === team).map(row => [row.counter, row.total]));
 
+// A tap in the match that the side can no longer take: refused with `code` (the tally of the match's events, checked last, shows it wrote nothing).
+async function refusedTap(f, code) {
+  const refused = await request('home', eventsPath(f), tapBody(f, { pairingId: f.gameId }), 'POST');
+  assert.equal(refused.status, 409, JSON.stringify(refused.data));
+  assert.equal(refused.data.error.code, code);
+}
+
+const historyOf = async (f, playerId) => (await get('home', '/api/teams/' + f.teamIds[0] + '/players/' + playerId + '/history')).history;
+
+// What the finish did with the tap and the edit: the edit is in the blob, nothing waits, the match is over for taps,
+// and the career has the match as the post-match applied it and the edit outside it.
+async function afterFinish(f) {
+  const home = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster;
+  const edited = found(home.players, player => player.id === f.outsidePlayer, 'the player of the edit ' + f.outsidePlayer + ' in the home blob');
+  assert.equal(edited.spp.completions, f.outsideBefore + 1, 'the finish carried the edit into the blob');
+  const waiting = await get('home', eventsPath(f));
+  assert.deepEqual(waiting.events, [], 'nothing is left waiting after the finish');
+  await refusedTap(f, 'MATCH_NOT_LIVE');
+  const scorer = await historyOf(f, f.post.postMatch.home.snapshot.players[0].id);
+  const row = found(scorer.matches, match => match.pairingId === f.gameId, 'the match ' + f.gameId + ' in the career');
+  assert.equal(row.source, 'applied'); assert.equal(row.counters.touchdowns, 2);
+  assert.equal((await historyOf(f, f.outsidePlayer)).outside.completions, 1);
+}
+
 async function verify(f) {
   const path = '/api/games/' + f.gameId;
   assert.equal((await request(null, path + '/post-match')).status, 401);
@@ -119,6 +179,7 @@ async function verify(f) {
   const stale = await request('home', path + '/post-match', { revision: 0, action: { type: 'reopen' } }, 'PATCH');
   assert.equal(stale.data.error.code, 'POST_REVISION');
   for (const name of ['home', 'away']) await stats(f, name);
+  await refusedTap(f, 'EVENT_SIDE_LOCKED');
   const jm = f.post.postMatch.home.snapshot.players.find(item => item.kind === 'journeyman');
   await change(f, 'home', { type: 'roster', operation: 'keep', playerId: jm.id });
   await change(f, 'home', { type: 'roster', operation: 'staff', key: 'assistantCoaches', delta: 1 });
@@ -149,8 +210,9 @@ async function verify(f) {
   }
   const count = (await pool.query('SELECT count(*)::integer AS n FROM match_post_applications WHERE pairing_id=$1', [f.gameId])).rows[0].n;
   assert.equal(count, 2);
+  await afterFinish(f);
   const events = await matchEvents(f);
-  assert.deepEqual(byTeam(events, f.teamIds[0]), { casualties: 1, injury: 1, touchdowns: 2 });
+  assert.deepEqual(byTeam(events, f.teamIds[0]), { casualties: 1, catches: 1, injury: 1, touchdowns: 2 });
   assert.deepEqual(byTeam(events, f.teamIds[1]), { touchdowns: 1 });
   assert.ok(events.every(row => row.settled === row.rows), 'every event of the match is settled');
   const rosters = (await pool.query('SELECT roster FROM saved_teams WHERE id=ANY($1::uuid[]) ORDER BY id', [f.teamIds])).rows;
@@ -194,8 +256,9 @@ try {
   assert.equal(veteran.post.postMatch.away.gamesPlayed, 3);
   if (process.argv.includes('--keep-preview')) {
     const candidate = await fixture('friendly', true);
+    await mkdir('.codex_tmp', { recursive: true }); // ignored by git, so a fresh worktree has none
     await writeFile('.codex_tmp/post-match-preview.json', JSON.stringify(candidate)); keep = candidate;
     console.log('Preview: ' + base + '/#/games/' + candidate.gameId + '/post-match/players');
   }
-  console.log('Post-match API smoke passed: rights, revisions, rollback, league/friendly LP, 15k painting bonus, optional advancement, manual MVP, recovery, idempotent completion and match events settled once.');
+  console.log('Post-match API smoke passed: rights, revisions, rollback, league/friendly LP, 15k painting bonus, optional advancement, manual MVP, recovery, idempotent completion, match events settled once, taps, edits outside a match and the player\'s career.');
 } finally { await cleanup(); }

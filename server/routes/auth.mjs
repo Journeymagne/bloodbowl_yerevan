@@ -12,8 +12,9 @@ import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import { currentMaintenance } from "../http/maintenance.mjs";
 import { bearerToken, createSession, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
-import { checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
+import { attemptKey, checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
+import { accountUser, handleAccountRoutes } from "./account.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -27,7 +28,43 @@ function sendError(response, status, code, params) {
 }
 
 /**
- * @returns {Promise<boolean>} true when this module answered the request
+ * `POST /api/auth/login`, out of `handleAuthRoutes`, which is held to a line budget, now that it also
+ * looks the account up before it counts: the guesses are counted against the account (`attemptKey`).
+ *
+ * @returns {Promise<boolean>} true: the request is answered
+ */
+async function signIn(request, response) {
+  const body = await readJson(request);
+  const loginKey = normalizeLogin(body.login ?? "");
+  const password = String(body.password ?? "");
+
+  // The account is looked up first, because it is what the guesses are counted against (attemptKey).
+  const user = (await pool.query("SELECT * FROM users WHERE login_key = $1", [loginKey])).rows[0];
+  const key = attemptKey(loginKey, user);
+
+  // Checked before the password is verified, not after: verifying is the
+  // expensive part, and refusing to do it is the point.
+  const attempt = checkLoginAttempt(key);
+  if (!attempt.allowed) {
+    response.setHeader?.("Retry-After", String(attempt.retryAfterSeconds));
+    return send(response, 429, {
+      ...errorPayload("TOO_MANY_LOGIN_ATTEMPTS"),
+      retryAfterSeconds: attempt.retryAfterSeconds,
+    });
+  }
+
+  if (!user || !verifyPassword(password, user.password_hash)) {
+    recordFailedLogin(key);
+    return sendError(response, 401, "WRONG_LOGIN_OR_PASSWORD");
+  }
+  clearLoginAttempts(key);
+  const token = await createSession(user.id);
+  return send(response, 200, { token, user: publicUser(user) });
+}
+
+/**
+ * @returns {Promise<boolean>} true when this module answered the request; what it does not answer
+ *   it offers last to the signed-in user's own account routes (account.mjs)
  */
 export async function handleAuthRoutes(request, response, url) {
   if (request.method === "GET" && url.pathname === "/api/health") {
@@ -38,7 +75,7 @@ export async function handleAuthRoutes(request, response, url) {
 
   if (request.method === "GET" && url.pathname === "/api/auth/me") {
     const user = await currentUser(request);
-    return send(response, 200, { user: publicUser(user) });
+    return send(response, 200, { user: await accountUser(pool, user) });
   }
 
   if (request.method === "POST" && url.pathname === "/api/auth/register") {
@@ -68,32 +105,7 @@ export async function handleAuthRoutes(request, response, url) {
     return send(response, 201, { token, user: publicUser(result.rows[0]) });
   }
 
-  if (request.method === "POST" && url.pathname === "/api/auth/login") {
-    const body = await readJson(request);
-    const loginKey = normalizeLogin(body.login ?? "");
-    const password = String(body.password ?? "");
-
-    // Checked before the password is verified, not after: verifying is the
-    // expensive part, and refusing to do it is the point.
-    const attempt = checkLoginAttempt(loginKey);
-    if (!attempt.allowed) {
-      response.setHeader?.("Retry-After", String(attempt.retryAfterSeconds));
-      return send(response, 429, {
-        ...errorPayload("TOO_MANY_LOGIN_ATTEMPTS"),
-        retryAfterSeconds: attempt.retryAfterSeconds,
-      });
-    }
-
-    const result = await pool.query("SELECT * FROM users WHERE login_key = $1", [loginKey]);
-    const user = result.rows[0];
-    if (!user || !verifyPassword(password, user.password_hash)) {
-      recordFailedLogin(loginKey);
-      return sendError(response, 401, "WRONG_LOGIN_OR_PASSWORD");
-    }
-    clearLoginAttempts(loginKey);
-    const token = await createSession(user.id);
-    return send(response, 200, { token, user: publicUser(user) });
-  }
+  if (request.method === "POST" && url.pathname === "/api/auth/login") return signIn(request, response);
 
   if (request.method === "POST" && url.pathname === "/api/auth/logout") {
     const token = bearerToken(request);
@@ -103,52 +115,5 @@ export async function handleAuthRoutes(request, response, url) {
     return send(response, 200, { ok: true });
   }
 
-  if (request.method === "PATCH" && url.pathname === "/api/auth/profile") {
-    return updateProfile(request, response);
-  }
-
-  return false;
-}
-
-/**
- * Change your own login, contact or password.
- *
- * Its own function because handleAuthRoutes was 97 lines and the limit is 80 —
- * which is the check doing what it is for: this block was always a separate
- * thing wearing the same `if`.
- */
-async function updateProfile(request, response) {
-  const user = await currentUser(request);
-  if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
-
-  const body = await readJson(request);
-  const login = String(body.login ?? user.login).trim();
-  const telegram = String(body.telegram ?? user.telegram).trim();
-  const password = String(body.password ?? "");
-  const loginKey = normalizeLogin(login);
-
-  if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
-  if (!telegram) return sendError(response, 400, "TELEGRAM_REQUIRED");
-  if (password && password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
-
-  const params = [user.id, login, loginKey, telegram];
-  const passwordSql = password ? ", password_hash = $5" : "";
-  if (password) params.push(hashPassword(password));
-  const updated = await pool.query(
-    `UPDATE users
-     SET login = $2,
-         login_key = $3,
-         telegram = $4,
-         updated_at = now()
-         ${passwordSql}
-     WHERE id = $1
-     RETURNING *`,
-    params,
-  ).catch((error) => {
-    if (error.code === "23505") return null;
-    throw error;
-  });
-  if (!updated) return sendError(response, 409, "LOGIN_ALREADY_REGISTERED");
-
-  return send(response, 200, { user: publicUser(updated.rows[0]) });
+  return handleAccountRoutes(request, response, url);
 }

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createPlayer, normalizeDraft, rosterForStorage } from '../src/domain/roster/schema.mjs';
 import { ensureDraftPlayers } from '../src/domain/roster/players.mjs';
-import { playerPurchaseRefund, playerRemoval, playerSaleValue, removeLeaguePlayer, sealPlayerPurchases } from '../src/domain/roster/transfers.mjs';
+import { playerPurchaseRefund, playerRemoval, playerSaleValue, removeFallenPlayer, removeLeaguePlayer, returnFallenPlayer, sealPlayerPurchases } from '../src/domain/roster/transfers.mjs';
 
 function fixture(rule = 'Old World Classic', price = '50K') {
   const row = { qty: '0-16', position: 'Lineman', price, skills: [], primary: ['G'], secondary: ['A'] };
@@ -80,4 +80,57 @@ test('new purchase receipts survive save/reload while old player shapes stay unc
     draft.players = [{ ...bought, purchaseRefund: invalid }]; ensureDraftPlayers(team, draft);
     assert.equal(playerPurchaseRefund(draft.players[0]), null);
   }
+});
+
+test("a fallen player leaves the roster as he was, and comes back without taking the captaincy from anyone", () => {
+  const roster = { treasury: 10, players: [{ id: "a", rowIndex: 0, isCaptain: true, spp: { touchdowns: 2 } }, { id: "b", rowIndex: 0 }] };
+  const { roster: without, player } = removeFallenPlayer(roster, "a");
+  assert.deepEqual(without.players.map((item) => item.id), ["b"]);
+  assert.deepEqual(player, roster.players[0]);
+  assert.equal(removeFallenPlayer(roster, "ghost"), null);
+  assert.equal(roster.players.length, 2, "the input is left alone");
+  assert.equal(returnFallenPlayer(without, player).players.at(-1).isCaptain, true);
+  const led = { ...without, players: [{ ...without.players[0], isCaptain: true }] };
+  const back = returnFallenPlayer(led, player);
+  assert.deepEqual(back.players.map((item) => [item.id, Boolean(item.isCaptain)]), [["b", true], ["a", false]]);
+  assert.deepEqual(back.players.at(-1).spp, { touchdowns: 2 });
+});
+
+test("a fallen player takes nothing else from the roster than himself and his place in the position counts, and shares nothing with the input", () => {
+  const roster = { treasury: 10, coachesSafe: 5, roster: { 0: 2, 1: 1 }, players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 2 } }, { id: "b", rowIndex: 1 }, { id: "c", rowIndex: 0 }] };
+  const before = structuredClone(roster);
+  const { roster: without, player } = removeFallenPlayer(roster, "b");
+  assert.deepEqual(without, { treasury: 10, coachesSafe: 5, roster: { 0: 2 }, players: [roster.players[0], roster.players[2]] });
+  assert.deepEqual(roster, before, "the input is left alone, its counts included");
+  player.name = "changed";
+  without.players[0].spp.touchdowns = 9;
+  assert.deepEqual(roster, before, "nothing the copies hold is the input's");
+});
+
+test("a roster with no players array has nobody to lose, and a player who is not on it is not lost", () => {
+  for (const roster of [{}, { players: null }, { players: "a" }, null, undefined]) assert.equal(removeFallenPlayer(roster, "a"), null);
+  assert.equal(removeFallenPlayer({ players: [{ id: "a", rowIndex: 0 }] }, "A"), null, "ids are compared as they are");
+  assert.equal(removeFallenPlayer({ players: [{ id: "a", rowIndex: 0 }] }, undefined), null);
+});
+
+test("a returning player goes last, the counts are those of the roster that results, and neither the roster nor the player is touched", () => {
+  const roster = { treasury: 10, roster: { 0: 1 }, players: [{ id: "b", rowIndex: 0 }] };
+  const player = { id: "a", rowIndex: 1, isCaptain: true, spp: { touchdowns: 2 } };
+  const [rosterBefore, playerBefore] = [structuredClone(roster), structuredClone(player)];
+  const back = returnFallenPlayer(roster, player);
+  assert.deepEqual(back, { treasury: 10, roster: { 0: 1, 1: 1 }, players: [{ id: "b", rowIndex: 0 }, player] });
+  back.players.at(-1).spp.touchdowns = 9;
+  back.players[0].name = "changed";
+  assert.deepEqual([roster, player], [rosterBefore, playerBefore], "what the copy holds is not the input's, and a captaincy handed back is not taken out of the record");
+  const led = returnFallenPlayer({ players: [{ id: "b", rowIndex: 0, isCaptain: true }] }, player);
+  assert.deepEqual([led.players.at(-1).isCaptain, player.isCaptain], [false, true], "the record keeps what it was");
+  assert.deepEqual(returnFallenPlayer({}, player), { players: [player], roster: { 1: 1 } });
+  assert.deepEqual(returnFallenPlayer({ players: [{ id: "b", rowIndex: 0 }] }, { id: "n", rowIndex: 0 }).players.at(-1), { id: "n", rowIndex: 0 }, "a player who was no captain gets no flag");
+});
+
+test("a player who is already on the roster does not come back a second time", () => {
+  const roster = { players: [{ id: "a", rowIndex: 0 }, { id: "b", rowIndex: 0 }] };
+  const back = returnFallenPlayer(roster, { id: "a", rowIndex: 0, name: "as he died" });
+  assert.deepEqual(back.players, roster.players);
+  assert.deepEqual(back.roster, { 0: 2 });
 });

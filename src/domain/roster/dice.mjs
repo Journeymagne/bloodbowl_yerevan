@@ -17,10 +17,20 @@
  * it ended.
  *
  * Pure: the die is passed in. `rng(sides)` answers an integer from 1 to `sides`;
- * the server (stage 03) hands in `(sides) => crypto.randomInt(1, sides + 1)`.
- * An answer outside the die's faces is a `RangeError`, never a result.
+ * the server hands in `serverDie` (server/api/dice-rolls.mjs). An answer outside
+ * the die's faces is a `RangeError`, never a result.
+ *
+ * A roll that can be made comes back as `{ ok: true, params, result }`, the two
+ * halves of a `dice_rolls` row. `params` names the die the same way in both rolls,
+ * as `sides` (8 for a characteristic, 16 for a skill, which adds its category and
+ * candidates); `result` is everything that came up.
+ *
+ * An advancement that was rolled on the site names its roll (`roll: { id, via:
+ * "site" }`): `siteRollReferences` lists those of a roster, and
+ * `rollFitsAdvancement` says whether a roll is one the advancement could have
+ * taken. The server holds a save to both (`settleRosterRolls`).
  */
-import { canonicalSkillName, heldSkillKeys } from "./players.mjs";
+import { CAPTAINS_SKILL, canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements } from "./players.mjs";
 import { PLAYER_STATS, categoriesForAccess } from "./values.mjs";
 
 /** In the order of the `dice_rolls.purpose` CHECK (migration 012). */
@@ -54,7 +64,7 @@ export function statsForRoll(roll) {
 /** One D8 for a characteristic improvement. */
 export function statRoll(rng) {
   const roll = face(rng, STAT_DIE);
-  return { ok: true, params: { die: STAT_DIE }, result: { roll, stats: statsForRoll(roll) } };
+  return { ok: true, params: { sides: STAT_DIE }, result: { roll, stats: statsForRoll(roll) } };
 }
 
 /**
@@ -87,6 +97,74 @@ export function randomSkillRoll({ row, player, category, skillGroups = [], rng, 
     if (skill !== null && !duplicate) return { ok: true, params: { category, candidates, sides: SKILL_DIE }, result: { attempts, skill } };
   }
   throw new Error(`no free skill after ${maxAttempts} attempts`);
+}
+
+/**
+ * The site rolls a roster's advancements refer to: one `{ id, playerId, type, grants }` for each
+ * advancement that says it was rolled on the site, `grants` null when it does not say what it granted.
+ * A table roll, or a site roll with no id, refers to no roll.
+ *
+ * A roster is read as it is stored, raw or normalised: the advancements go through
+ * `normalizePlayerAdvancements`, as every reader of them does, so a raw blob and its normalised copy
+ * name the same rolls, and a player who is not an object has none.
+ */
+export function siteRollReferences(roster) {
+  const players = Array.isArray(roster?.players) ? roster.players : [];
+  return players.flatMap((player) => (player && typeof player === "object" ? normalizePlayerAdvancements(player.advancements) : [])
+    .filter((advancement) => advancement.roll?.via === "site")
+    .map(({ type, grants = null, roll }) => ({ id: roll.id, playerId: String(player.id ?? ""), type, grants })));
+}
+
+/**
+ * Whether a roll is one the advancement could have taken. A random skill takes a random-skill roll that
+ * ended on the skill it grants, by canonical name (the Skill Table's `Mighty Blow` is the Rat Ogre's
+ * `Mighty Blow (+1)`). A characteristic takes a D8 whose face may improve the characteristic it grants,
+ * or any skill taken in its place, as the post-match lets a characteristic advancement do. An advancement
+ * that does not say what it granted, or of any other type, takes no roll.
+ *
+ * @param {{purpose: string, result: object}} roll a `dice_rolls` row, or its public form
+ * @param {{type: string, grants?: {skill?: string, stat?: string}|null}} advancement
+ */
+export function rollFitsAdvancement({ purpose, result }, { type, grants }) {
+  if (type === "random") {
+    return purpose === "random_skill" && typeof grants?.skill === "string" && typeof result?.skill === "string"
+      && canonicalSkillName(grants.skill) === canonicalSkillName(result.skill);
+  }
+  if (type === "stat") {
+    return purpose === "stat" && (Boolean(grants?.skill) || (Array.isArray(result?.stats) && result.stats.includes(grants?.stat)));
+  }
+  return false;
+}
+
+/**
+ * The skills a random-skill roll threw again as already held, by canonical name, attempt by attempt, that the
+ * roster it is used on must answer for. The die rerolls what the player holds when it is asked, and a roster can
+ * say a player holds anything: a skill held only while the die was asked would steer it. So a roll is taken only
+ * by a roster that holds all of these (`rerollsHeldBy`), and while it is used no save may drop one of them
+ * (`settleRosterRolls`). The one left out is the captaincy's Pro on a roll made while the player was captain
+ * (`params.captain: true`, which the server keeps with the roll): the captain cannot roll Pro, and the captaincy
+ * moves from match to match by the rules. A roll that does not say so — one made before rolls kept the
+ * captaincy, too — is held to its Pro like any other skill. A characteristic roll throws nothing again.
+ *
+ * @param {{purpose: string, params?: object, result: object}} roll a `dice_rolls` row, or its public form
+ * @returns {string[]}
+ */
+export function skillsRerolledAgainst({ purpose, params, result }) {
+  const attempts = purpose === "random_skill" && Array.isArray(result?.attempts) ? result.attempts : [];
+  return attempts.filter((attempt) => attempt?.duplicate).map((attempt) => canonicalSkillName(attempt.skill))
+    .filter((skill) => !(skill === CAPTAINS_SKILL && params?.captain === true));
+}
+
+/**
+ * Whether a roll's rerolls are explained by the roster it is used on: every skill it was rerolled against
+ * (`skillsRerolledAgainst`) is in `held` — `heldSkillKeys` of the player the roll is taken for, as that save
+ * leaves him.
+ *
+ * @param {{purpose: string, result: object}} roll a `dice_rolls` row, or its public form
+ * @param {Set<string>} held canonical skill names
+ */
+export function rerollsHeldBy(roll, held) {
+  return skillsRerolledAgainst(roll).every((skill) => held.has(skill));
 }
 
 /** One throw of a die with `sides` faces, refusing an answer the die cannot show. */

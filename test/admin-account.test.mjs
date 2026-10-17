@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { ensureAdminAccount } from "../server/auth/admin-account.mjs";
+import { ensureAdminAccount, isEnvAdmin } from "../server/auth/admin-account.mjs";
 import { normalizeLogin } from "../server/api/serializers.mjs";
 import { verifyPassword } from "../server/auth/session.mjs";
 
@@ -28,4 +28,16 @@ test("an env file that says nothing gets the documented defaults", async () => {
   assert.equal(await ensureAdminAccount(pool, {}), "admin");
   assert.equal(pool.calls[0].params[2], "@admin");
   assert.ok(verifyPassword("change-me-site-admin-password", pool.calls[0].params[3]));
+});
+
+test("the account the env file keeps is the one its upsert writes, found by the same login key", async () => {
+  const pool = recordingPool();
+  const env = { ADMIN_LOGIN: "Chief" };
+  await ensureAdminAccount(pool, env);
+  assert.equal(isEnvAdmin({ login_key: pool.calls[0].params[1] }, env), true);
+  assert.equal(isEnvAdmin({ login_key: normalizeLogin("Chief") }, env), true);
+  assert.equal(isEnvAdmin({ login_key: "admin" }, {}), true, "the default login");
+  for (const user of [{ login_key: "admin" }, { login_key: "chief2" }, { login: "Chief" }, null, undefined]) {
+    assert.equal(isEnvAdmin(user, env), false, JSON.stringify(user));
+  }
 });

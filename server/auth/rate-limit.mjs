@@ -12,9 +12,13 @@
  * process, this stops being enough — and the honest version then is a shared
  * store, not a bigger number here.
  *
- * Counted per login name rather than per IP address: the attack this refuses is
+ * Counted per login rather than per IP address: the attack this refuses is
  * guessing one coach's password, and a shared address is the normal case for a
- * league whose members sit in the same city.
+ * league whose members sit in the same city. "Per login" means per account, once the
+ * login names one (`attemptKey`), so that renaming it changes nothing.
+ *
+ * Two doors count here, under the same key: signing in, and changing a password, which asks for the
+ * current one.
  */
 
 const attemptsByLogin = new Map();
@@ -25,7 +29,7 @@ const DEFAULTS = {
 };
 
 /**
- * @param {string} loginKey the normalised login being tried
+ * @param {string} loginKey the attempt key being tried (`attemptKey`: the account's, or the name's when it names nobody)
  * @param {{now?: () => number, limit?: number, windowMs?: number}} [options]
  * @returns {{allowed: boolean, retryAfterSeconds: number}}
  */
@@ -59,7 +63,29 @@ export function clearLoginAttempts(loginKey) {
   attemptsByLogin.delete(loginKey);
 }
 
-/** Test seam, and a way to keep the map from growing without bound. */
+/**
+ * The key a wrong guess is counted under: the account's, when the login names one, and the name's
+ * when it names nobody.
+ *
+ * A name can change and an id cannot. Counted by name, a rename gave the guesses back: someone holding
+ * a session, with no password, only had to change the login, and two renames at once could not be
+ * followed at all (each request read the old name before writing the new one). Counted by account,
+ * nothing a user does to their login touches the count, and a newcomer who registers a name an account
+ * has left starts with nothing, being another account. A login that names nobody is limited by the name
+ * it was tried under, as before. The prefixes keep the two apart: a login that spells `user:…` is a name.
+ *
+ * @param {string} loginKey the normalised login that was tried
+ * @param {{id: string}|null} [user] the account that login names, if there is one
+ * @returns {string}
+ */
+export function attemptKey(loginKey, user = null) {
+  return user ? `user:${user.id}` : `login:${loginKey}`;
+}
+
+/**
+ * Forget every count whose window has passed, and say how many are left: what keeps the map from growing
+ * with every name somebody tried. The session sweeper runs it on its timer (`startSessionSweeper`).
+ */
 export function forgetExpiredLoginAttempts(options = {}) {
   const now = options.now ?? Date.now;
   const windowMs = options.windowMs ?? DEFAULTS.windowMs;
