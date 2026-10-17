@@ -11,7 +11,7 @@
  */
 import { checkPreferences, mergePreferences } from "../api/preferences.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
-import { checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
+import { checkLoginAttempt, clearLoginAttempts, moveLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { bearerToken, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
@@ -126,9 +126,7 @@ async function savePreferences(request, response) {
  */
 function requireCurrentPassword(user, currentPassword) {
   const attempt = checkLoginAttempt(user.login_key);
-  if (!attempt.allowed) {
-    throw Object.assign(httpError(429, "TOO_MANY_LOGIN_ATTEMPTS"), { retryAfterSeconds: attempt.retryAfterSeconds });
-  }
+  if (!attempt.allowed) throw httpError(429, "TOO_MANY_LOGIN_ATTEMPTS", {}, { retryAfterSeconds: attempt.retryAfterSeconds });
   if (typeof currentPassword !== "string" || !verifyPassword(currentPassword, user.password_hash)) {
     recordFailedLogin(user.login_key);
     throw httpError(403, "CURRENT_PASSWORD_WRONG");
@@ -140,21 +138,24 @@ function requireCurrentPassword(user, currentPassword) {
  * The write of a profile change: the user's own row, as `RETURNING *` gives it back.
  *
  * @param {{query: Function}} db a pg pool, or the client of a transaction
- * @param {unknown[]} params `[id, login, loginKey, telegram]`, and the new password's hash when there is one
- * @param {boolean} withPassword whether `params` ends in a hash
+ * @param {unknown[]} params `[id, login, loginKey, telegram]`; a fifth, the new password's hash, is a
+ *   password change
  * @throws 409 LOGIN_ALREADY_REGISTERED when another user has the login. Inside a transaction the
  *   failed statement has already aborted it: this is thrown to roll it back, not to carry on.
+ * @throws 401 NOT_AUTHORIZED when the user is no longer there: deleted while this request waited for
+ *   the row, as in a settings save.
  */
-async function writeProfile(db, params, withPassword) {
+async function writeProfile(db, params) {
   const { rows } = await db.query(
     `UPDATE users
-     SET login = $2, login_key = $3, telegram = $4, updated_at = now()${withPassword ? ", password_hash = $5" : ""}
+     SET login = $2, login_key = $3, telegram = $4, updated_at = now()${params.length > 4 ? ", password_hash = $5" : ""}
      WHERE id = $1
      RETURNING *`,
     params,
   ).catch((error) => {
     throw error.code === "23505" ? httpError(409, "LOGIN_ALREADY_REGISTERED") : error;
   });
+  if (!rows[0]) throw httpError(401, "NOT_AUTHORIZED");
   return rows[0];
 }
 
@@ -173,6 +174,9 @@ async function writeProfile(db, params, withPassword) {
  * login that is already taken (409) or a write that fails leaves the old password and every session as
  * they were. The session that made the request goes on. The new password is hashed before the
  * transaction opens: scrypt blocks the thread, and the user's row is not to be held while it does.
+ *
+ * A rename, which asks for no password, takes the count of wrong guesses along (`moveLoginAttempts`):
+ * otherwise a session without the password would only have to change the login to start guessing again.
  */
 async function updateProfile(request, response) {
   const user = await currentUser(request);
@@ -193,13 +197,14 @@ async function updateProfile(request, response) {
   if (password) {
     params.push(hashPassword(password));
     updated = await withTransaction(async (client) => {
-      const row = await writeProfile(client, params, true);
+      const row = await writeProfile(client, params);
       await client.query("DELETE FROM sessions WHERE user_id = $1 AND token_hash <> $2", [user.id, hashToken(bearerToken(request))]);
       return row;
     });
   } else {
-    updated = await writeProfile(pool, params, false);
+    updated = await writeProfile(pool, params);
   }
+  if (updated.login_key !== user.login_key) moveLoginAttempts(user.login_key, updated.login_key);
   sendJson(response, 200, { user: publicUser(updated) });
 }
 

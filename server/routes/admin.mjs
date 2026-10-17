@@ -19,6 +19,7 @@ import {
   generateTemporaryPassword,
   hashPassword,
 } from "../auth/session.mjs";
+import { moveLoginAttempts } from "../auth/rate-limit.mjs";
 import {
   isAdminUser,
   normalizeLogin,
@@ -93,6 +94,9 @@ async function handleAdminUserRoutes(request, response, url) {
 
     if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
     if (password && password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
+    // Your own password is changed in your settings, with the current one (PATCH /api/auth/profile). Here
+    // it would be written with no password asked, and the administrator's other sessions would go on.
+    if (password && target.id === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");
     if (target.id === user.id && !nextIsAdmin) {
       return sendError(response, 409, "SELF_ADMIN_DEMOTE");
     }
@@ -114,7 +118,9 @@ async function handleAdminUserRoutes(request, response, url) {
     });
     if (!updated) return sendError(response, 409, "LOGIN_ALREADY_REGISTERED");
 
-    if (password && target.id !== user.id) {
+    // The count of wrong guesses follows the account to its new login; a rename would otherwise start it over.
+    if (updated.rows[0] && loginKey !== target.login_key) moveLoginAttempts(target.login_key, loginKey);
+    if (password) {
       await pool.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
     }
 

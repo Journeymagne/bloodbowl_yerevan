@@ -33,6 +33,14 @@ export const API_ROUTES = [
   handleSeasonRoutes,
 ];
 
+/**
+ * Runs a request through the route modules, and answers what they throw.
+ *
+ * An error is answered with its status, its code and its values (`errorPayload`), and with what else it
+ * was given to say: `violations` (what a roster breaks), `team` (the team as it stands, `teamConflict`)
+ * and `retryAfterSeconds` (when to try again, `httpError`; also sent as the `Retry-After` header).
+ * Anything from 500 up is answered as `SERVER_ERROR`, and its detail stays in the log.
+ */
 export async function handleApi(request, response, url) {
   try {
     // Each module answers and says so; the first that does ends the chain.

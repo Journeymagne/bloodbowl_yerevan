@@ -340,3 +340,99 @@ test("a password change that cannot end the other sessions does not change the p
   assert.equal((await login(coach.login, "brand-new")).status, 401);
   assert.equal((await whoIs(elsewhere)).login, coach.login);
 }));
+
+// Fix round 1 (R30): the promise is that a stolen session is not enough to change a password. It had two holes.
+
+test("a refused change ends nothing: after a wrong or missing current password, and after the limit, every session is still signed in", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-kiwi"), elsewhere = await sessionFor(client, coach.id), stranger = await seedCoach(client, "pw-emu");
+  const signedIn = async () => [(await whoIs(coach.token))?.login, (await whoIs(elsewhere))?.login, (await whoIs(stranger.token))?.login];
+  const everyone = [coach.login, coach.login, stranger.login];
+  for (const currentPassword of [undefined, "guess"]) assert.equal((await profile(coach.token, { password: "brand-new", currentPassword })).status, 403);
+  assert.deepEqual(await signedIn(), everyone, "after the 403s");
+  for (let attempt = 0; attempt < 10; attempt += 1) await profile(coach.token, { password: "brand-new", currentPassword: `guess-${attempt}` });
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429);
+  assert.deepEqual(await signedIn(), everyone, "after the 429");
+}));
+
+test("a password change ends this user's other sessions, all of them, and no one else's", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-moth"), phone = await sessionFor(client, coach.id), laptop = await sessionFor(client, coach.id);
+  const stranger = await seedCoach(client, "pw-newt"), theirs = await sessionFor(client, stranger.id);
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 200);
+  assert.deepEqual([await whoIs(phone), await whoIs(laptop)], [null, null]);
+  assert.equal((await whoIs(coach.token)).login, coach.login);
+  assert.deepEqual([(await whoIs(stranger.token)).login, (await whoIs(theirs)).login], [stranger.login, stranger.login], "a stranger's sessions are theirs");
+}));
+
+test("a rename keeps the count of wrong guesses: the new name is as limited as the old one, on the profile route and on login", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "pw-ibis"), stranger = await seedCoach(client, "pw-owlet");
+  for (let attempt = 0; attempt < 10; attempt += 1) await profile(coach.token, { password: "brand-new", currentPassword: `guess-${attempt}` });
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429);
+  // A rename that is refused moves nothing: the count stays, and does not land on someone else's name.
+  assert.equal((await profile(coach.token, { login: stranger.login })).status, 409);
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429);
+  assert.equal((await login(stranger.login, stranger.password)).status, 200, "the other user's name inherited nothing");
+  const renamed = await profile(coach.token, { login: "pw-ibis-2" });
+  assert.deepEqual([renamed.status, renamed.body.user.login], [200, "pw-ibis-2"]);
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429, "the profile route");
+  assert.equal((await login("pw-ibis-2", coach.password)).status, 429, "login under the new name");
+  // Only the capitals change: the key is the same, and the count stays as it is.
+  assert.equal((await profile(coach.token, { login: "PW-IBIS-2" })).status, 200);
+  assert.equal((await login("pw-ibis-2", coach.password)).status, 429);
+  // The old name is nobody's now, and carries nothing.
+  assert.equal((await login("pw-ibis", coach.password)).status, 401);
+}));
+
+test("an administrator's rename of a user keeps that user's count of wrong guesses too", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-chief", { admin: true }), coach = await seedCoach(client, "pw-stag");
+  const edit = (body) => callApi("PATCH", `/api/admin/users/${coach.id}`, { token: boss.token, body });
+  for (let attempt = 0; attempt < 10; attempt += 1) await login(coach.login, `guess-${attempt}`);
+  assert.equal((await login(coach.login, coach.password)).status, 429);
+  // A rename that is refused moves nothing: the count stays, and does not land on someone else's name.
+  assert.equal((await edit({ login: boss.login })).status, 409);
+  assert.equal((await login(coach.login, coach.password)).status, 429);
+  assert.equal((await login(boss.login, boss.password)).status, 200, "the other user's name inherited nothing");
+  const renamed = await edit({ login: "pw-stag-2" });
+  assert.deepEqual([renamed.status, renamed.body.user.login], [200, "pw-stag-2"]);
+  assert.equal((await login("pw-stag-2", coach.password)).status, 429, "login under the new name");
+  assert.equal((await profile(coach.token, { password: "brand-new", currentPassword: coach.password })).status, 429, "the profile route");
+}));
+
+test("an administrator changes their own password in their settings, not in the user edit: 409, and nothing is changed or ended", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-warden", { admin: true }), elsewhere = await sessionFor(client, boss.id);
+  const edit = (body) => callApi("PATCH", `/api/admin/users/${boss.id}`, { token: boss.token, body });
+  const refused = await edit({ login: "Warden Prime", password: "brand-new" });
+  assert.deepEqual([refused.status, refused.body.error.code], [409, "SELF_PASSWORD_RESET"]);
+  // The 400s of the edit come first, as they do for any user.
+  for (const [body, code] of [[{ login: "ab", password: "brand-new" }, "LOGIN_TOO_SHORT"], [{ password: "abc" }, "PASSWORD_TOO_SHORT"]]) {
+    const bad = await edit(body);
+    assert.deepEqual([bad.status, bad.body.error.code], [400, code], JSON.stringify(body));
+  }
+  assert.equal((await login(boss.login, boss.password)).status, 200, "the old password still opens the account");
+  assert.equal((await login(boss.login, "brand-new")).status, 401);
+  assert.deepEqual([(await whoIs(boss.token)).login, (await whoIs(elsewhere)).login], [boss.login, boss.login], "not renamed either, and the second session is still signed in");
+  // The same edit without a password is as it was, and the password has its own door, which asks for the current one.
+  assert.equal((await edit({ login: "Warden Prime" })).status, 200);
+  assert.equal((await profile(boss.token, { password: "brand-new", currentPassword: boss.password })).status, 200);
+  assert.equal(await whoIs(elsewhere), null);
+}));
+
+test("an administrator still sets another user's password in the user edit, and that ends all of that user's sessions and no one else's", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-keeper", { admin: true }), coach = await seedCoach(client, "pw-lamb"), phone = await sessionFor(client, coach.id);
+  const stranger = await seedCoach(client, "pw-sheep");
+  const set = await callApi("PATCH", `/api/admin/users/${coach.id}`, { token: boss.token, body: { password: "set-by-admin" } });
+  assert.deepEqual([set.status, set.body.user.login], [200, coach.login]);
+  assert.equal((await login(coach.login, "set-by-admin")).status, 200);
+  assert.equal((await login(coach.login, coach.password)).status, 401);
+  assert.deepEqual([await whoIs(coach.token), await whoIs(phone)], [null, null]);
+  assert.deepEqual([(await whoIs(boss.token)).login, (await whoIs(stranger.token)).login], [boss.login, stranger.login]);
+}));
+
+test("a user who is gone by the time the profile write gets its turn is not signed in: 401, whatever was asked", db, () => withApiDatabase(async ({ client, url }) => {
+  const asks = [["pw-gone-a", () => ({ telegram: "@gone" })], ["pw-gone-b", (coach) => ({ password: "brand-new", currentPassword: coach.password })]];
+  for (const [name, ask] of asks) {
+    const coach = await seedCoach(client, name);
+    // The lock is the deletion itself: the change has been let in (the session was there) and queues on the row it is about to lose.
+    const [answer] = answers(await withForcedOverlap(url, { lock: ["DELETE FROM users WHERE id = $1", [coach.id]], waiting: 1 }, [() => profile(coach.token, ask(coach))]));
+    assert.deepEqual([answer.status, answer.body.error.code], [401, "NOT_AUTHORIZED"], name);
+  }
+}));

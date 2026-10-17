@@ -148,14 +148,18 @@ function fillMessage(template, params) {
  * @param {number} status
  * @param {string} code a key of API_ERRORS
  * @param {object} [params] values for the message's placeholders
+ * @param {{retryAfterSeconds?: number}} [options] `retryAfterSeconds`: how long until what was refused
+ *   may be tried again. `handleApi` answers with it as the `Retry-After` header and as a field of the
+ *   body, the way the login's own 429 does.
  */
-export function httpError(status, code, params = {}) {
+export function httpError(status, code, params = {}, { retryAfterSeconds } = {}) {
   const template = API_ERRORS[code];
   if (!template) throw new Error(`Unknown API error code: ${code}`);
   const error = new Error(fillMessage(template, params));
   error.status = status;
   error.code = code;
   error.params = params;
+  if (retryAfterSeconds !== undefined) error.retryAfterSeconds = retryAfterSeconds;
   return error;
 }
 
