@@ -21,7 +21,7 @@ import { loadEnvFile } from "../server/config/env-file.mjs";
 import { applyMigrations } from "../server/db/migrate.mjs";
 import { rehearsalDatabaseUrl } from "./rehearsal/guard.mjs";
 import { assertAnonymized } from "./rehearsal/marker.mjs";
-import { mergeMigrateRecord } from "./rehearsal/migrate-record.mjs";
+import { assertMigrateRecord, mergeMigrateRecord } from "./rehearsal/migrate-record.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(rootDir, "output", "rehearsal");
@@ -29,7 +29,7 @@ await loadEnvFile(rootDir);
 
 const recordFile = path.join(outDir, "migrate.json");
 
-// null when there is no record yet; one that is there but not JSON is an error of its own.
+// null when there is no record yet; one that is there but not JSON, or not of a shape a run can be added to, is an error of its own.
 async function readRecord() {
   let text;
   try {
@@ -38,15 +38,17 @@ async function readRecord() {
     if (error.code === "ENOENT") return null;
     throw error;
   }
+  let value;
   try {
-    return JSON.parse(text);
+    value = JSON.parse(text);
   } catch {
     throw new Error("output/rehearsal/migrate.json is not valid JSON — run npm run rehearsal:check -- --before to start over");
   }
+  return assertMigrateRecord(value);
 }
 
 async function main() {
-  // Read first: a record that is not JSON stops the run before anything is applied, not after.
+  // Read first: a record that is not JSON, or of the wrong shape, stops the run before anything is applied, not after.
   const previous = await readRecord();
   const pool = new pg.Pool({ connectionString: rehearsalDatabaseUrl(process.env.DATABASE_URL) });
   try {

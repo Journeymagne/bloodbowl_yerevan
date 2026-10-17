@@ -25,3 +25,22 @@ export function mergeMigrateRecord(previous, run) {
     runs,
   };
 }
+
+const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
+const isRun = (run) => isObject(run) && Array.isArray(run.applied)
+  && run.applied.every((name) => typeof name === "string") && Number.isFinite(run.ms);
+
+/**
+ * The record read back from disk, or an error saying to start over when its shape is not one
+ * mergeMigrateRecord can add to. Checked before the migrations are applied: a record found
+ * wrong afterwards would cost the time of a real run, which cannot be had twice.
+ *
+ * @param value what JSON.parse made of the file: null, a record with `runs`, or a legacy single run
+ * @returns the same value
+ */
+export function assertMigrateRecord(value) {
+  if (value === null) return value;
+  const runs = isObject(value) ? (value.runs ?? [value]) : null;
+  if (Array.isArray(runs) && runs.length > 0 && runs.every(isRun)) return value;
+  throw new Error("output/rehearsal/migrate.json has the wrong shape — run npm run rehearsal:check -- --before to start over");
+}
