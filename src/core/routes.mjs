@@ -191,6 +191,14 @@ const PREFIX_ROUTES = [
 ];
 
 /**
+ * Every name matchRoute can give: the plain routes, the id and prefix shapes, and the two it names
+ * in its own body (a reference section, and the content page it falls back to). A route added to
+ * one of the tables is here with no edit, and the navigation model's test fails until the model
+ * knows it; a name that matchRoute starts giving from its body has to be added here too.
+ */
+export const ROUTE_NAMES = new Set([...PLAIN_ROUTES.values(), ...ID_ROUTES.map(([, name]) => name), ...PREFIX_ROUTES.map(([, name]) => name), "refSection", "page"]);
+
+/**
  * Turn a route string into the screen to render.
  *
  * Order matters: the anchored id routes come before the prefixes, so

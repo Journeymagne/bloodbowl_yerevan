@@ -54,6 +54,9 @@ const OWNERS = {
   adminTeamEdit: ["settings", "administration"],
 };
 
+/** The route names the model has an answer for; test/shell-navigation.test.mjs holds them against the router's. */
+export const OWNED_ROUTES = new Set(Object.keys(OWNERS));
+
 /**
  * What each key looks like: the glyph (named in src/ui/icons.mjs) and the
  * label, read when the model is built so a change of language shows. The mobile
@@ -70,14 +73,20 @@ const FACES = {
   season: { icon: "calendar", label: () => t("shell.side.season") },
   ref: { icon: "book", label: () => t("shell.tab.ref") },
   settings: { icon: "settings", label: () => t("shell.tab.settings") },
-  administration: { icon: "lock", label: () => t("nav.administration") },
+  administration: { icon: "shield", label: () => t("nav.administration") },
 };
 
 /** A guest has no overview of a team: the league's front page is theirs. */
 const guestKey = (key) => (key === "overview" ? "home" : key);
 
+/**
+ * The header's name, its subtitle, and the SideNav's subtitle (`sideSub`), and where the block leads.
+ * The header says where the team stands (race, place); the SideNav, with the table a click away
+ * and the page's own title beside it, says whose league it is (race, league).
+ */
 function leagueBrand() {
-  return { name: t("shell.league"), sub: t("shell.leagueSub"), href: "#/", switchTeam: false };
+  const sub = t("shell.leagueSub");
+  return { name: t("shell.league"), sub, sideSub: sub, href: "#/", switchTeam: false };
 }
 
 /** The race, then the place in the league when there is one: "Human · #2 in the league". */
@@ -111,8 +120,12 @@ function coachLinks(team, isAdmin) {
 }
 
 function coachBrand(team, raceTitle, place) {
-  if (!team) return { name: t("shell.noTeam"), sub: t("shell.noTeamHint"), href: teamsUrl(), switchTeam: true };
-  return { name: team.name, sub: teamSubtitle(raceTitle, place), href: teamsUrl(), switchTeam: true };
+  if (!team) {
+    const sub = t("shell.noTeamHint");
+    return { name: t("shell.noTeam"), sub, sideSub: sub, href: teamsUrl(), switchTeam: true };
+  }
+  const sideSub = [raceTitle, t("shell.league")].filter(Boolean).join(" · ");
+  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub, href: teamsUrl(), switchTeam: true };
 }
 
 /** @typedef {{key: string, label: string, href: string, icon: string, current: boolean}} NavItem */
@@ -128,7 +141,7 @@ function navItems(links, currentKey) {
  * @param {{route: {name: string, params?: object}, user: object|null, team?: {id: string, name: string}|null, raceTitle?: string, place?: number|null}} input
  *   `user` is the signed-in coach or null; `team` is the active team; `raceTitle` and
  *   `place` (the team's place in the season table, null outside it) are the header's subtitle
- * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[], showSearch: boolean}}
+ * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[], showSearch: boolean}}
  */
 export function shellModel({ route, user, team = null, raceTitle = "", place = null }) {
   const showSearch = SEARCH_ROUTES.has(route.name);

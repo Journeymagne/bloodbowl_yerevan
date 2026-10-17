@@ -3,8 +3,9 @@ import test from "node:test";
 
 import { assertDictionaryCovers } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
-import { matchRoute, resolveRedirect, routeFromHash } from "../src/core/routes.mjs";
-import { shellModel } from "../src/shell/navigation.mjs";
+import { ROUTE_NAMES, matchRoute, resolveRedirect, routeFromHash } from "../src/core/routes.mjs";
+import { OWNED_ROUTES, shellModel } from "../src/shell/navigation.mjs";
+import { ICON_NAMES } from "../src/ui/icons.mjs";
 
 const COACH = { id: "u1", login: "coach", isAdmin: false };
 const TEAM = { id: "t1", name: "Ashgrove Wardens" };
@@ -18,7 +19,7 @@ test("a coach with a team gets seven tabs and five side items, each to its place
   assert.deepEqual(keys(model.tabs), ["overview", "team", "roster", "matches", "table", "ref", "settings"]);
   assert.deepEqual(model.tabs.map((tab) => tab.href), ["#/t/t1", "#/t/t1/team", "#/t/t1/roster", "#/t/t1/matches", "#/season", "#/ref", "#/settings"]);
   assert.deepEqual(keys(model.side), ["overview", "roster", "season", "ref", "settings"]);
-  assert.deepEqual(model.brand, { name: "Ashgrove Wardens", sub: "Human · #2 in the league", href: "#/teams", switchTeam: true });
+  assert.deepEqual(model.brand, { name: "Ashgrove Wardens", sub: "Human · #2 in the league", sideSub: "Human · Gata League", href: "#/teams", switchTeam: true });
 });
 
 test("an admin has administration on the desktop; the mobile reaches it from Settings", () => {
@@ -140,7 +141,7 @@ test("a coach without a team still reaches administration, and a name that is no
 test("a guest's home is the front page, and the league is the guest's header", () => {
   const model = shellModel(at("home", { user: null, team: null }));
   assert.deepEqual([current(model.tabs), current(model.side)], [["home"], ["home"]]);
-  assert.deepEqual(model.brand, { name: "Gata League", sub: "Blood Bowl Sevens", href: "#/", switchTeam: false });
+  assert.deepEqual(model.brand, { name: "Gata League", sub: "Blood Bowl Sevens", sideSub: "Blood Bowl Sevens", href: "#/", switchTeam: false });
   assert.deepEqual(model.side.map((item) => item.icon).filter((icon, index, all) => all.indexOf(icon) !== index), [], "one glyph per side item");
   assert.ok(model.tabs.every((tab) => tab.label && tab.icon));
 });
@@ -159,10 +160,54 @@ test("labels and the place read in the language of the page", () => {
     assert.deepEqual(model.tabs.map((tab) => tab.label), ["Обзор", "Команда", "Состав", "Матчи", "Таблица", "Справочник", "Настройки"]);
     assert.deepEqual(model.side.map((item) => item.label), ["Обзор", "Состав", "Сезон", "Справочник", "Настройки", "Администрирование"]);
     assert.equal(model.brand.sub, "Human · 2-е место в лиге");
+    assert.equal(model.brand.sideSub, "Human · Gata League");
     assert.deepEqual(shellModel(at("home", { user: null, team: null })).tabs.map((tab) => tab.label), ["Главная", "Таблица", "Справочник", "Настройки"]);
   } finally {
     initLocale("en");
   }
+});
+
+test("the desktop's subtitle is the race and the league: the place is the table's to say there", () => {
+  assert.equal(shellModel(at("team")).brand.sideSub, "Human · Gata League");
+  assert.equal(shellModel(at("team", { place: null })).brand.sideSub, "Human · Gata League");
+  assert.equal(shellModel(at("team", { raceTitle: "" })).brand.sideSub, "Gata League");
+  const noTeam = shellModel(at("home", { team: null, raceTitle: "", place: null })).brand;
+  assert.deepEqual([noTeam.sideSub, noTeam.sub], ["Create a team to start", "Create a team to start"]);
+});
+
+test("every glyph the model hands out, in every mode, is one icon() can draw", () => {
+  const visitors = [{ user: null, team: null }, { user: COACH, team: TEAM }, { user: ADMIN, team: TEAM }, { user: ADMIN, team: null }];
+  const seen = new Set();
+  for (const name of ["home", "teamRoster", "season", "ref", "settings", "administration", "teams", "login", "register"]) {
+    for (const visitor of visitors) {
+      const model = shellModel(at(name, visitor));
+      for (const item of [...model.tabs, ...model.side]) {
+        assert.ok(ICON_NAMES.includes(item.icon), `${name}: ${item.key} asks for the glyph "${item.icon}", which icons.mjs does not have`);
+        seen.add(item.icon);
+      }
+    }
+  }
+  // The administration item has a glyph of its own, not a borrowed padlock.
+  assert.deepEqual([...seen].sort(), ["book", "calendar", "overview", "roster", "settings", "shield"]);
+});
+
+test("a route the router gains is a route the model must be told about", () => {
+  // The four the model leaves out on purpose: the way to a team and the two screens that bring their own frame.
+  const leftOut = ["teams", "teamNew", "login", "register"];
+  assert.deepEqual([...ROUTE_NAMES].sort(), [...OWNED_ROUTES, ...leftOut].sort());
+  assert.deepEqual(OWNED_ROUTES.size + leftOut.length, ROUTE_NAMES.size, "no route is both owned and left out");
+  // And the names are the router's own: every shape of address lands on one of them, and every one is landed on.
+  const addresses = ["home", "login", "register", "settings", "teams", "teams/new", "ref", "ref/skills", "administration", "legal", "t/t1", "t/t1/team", "t/t1/roster",
+    "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u2", "coaches/u2/teams/t9", "games/g1", "games/g1/pre-match", "games/g1/post-match", "season", "season/rounds",
+    "overview/rules", "administration/users/u2", "administration/users/u2/teams/t9/edit", "no-such-slug"];
+  assert.deepEqual([...new Set(addresses.map((address) => matchRoute(address).name))].sort(), [...ROUTE_NAMES].sort());
+});
+
+test("a team whose id has a space or a slash in it is linked by its encoded id", () => {
+  const model = shellModel(at("teamRoster", { team: { id: "a b", name: "Spaced" } }));
+  assert.equal(model.tabs.find((tab) => tab.key === "roster").href, "#/t/a%20b/roster");
+  assert.equal(model.side.find((item) => item.key === "roster").href, "#/t/a%20b/roster");
+  assert.equal(shellModel(at("teamRoster", { team: { id: "a/b", name: "Slashed" } })).tabs[0].href, "#/t/a%2Fb");
 });
 
 test("the model reads its input and changes none of it", () => {

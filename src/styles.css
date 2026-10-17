@@ -53,4 +53,6 @@
 @import url("screens/settings/password.css");
 @import url("screens/settings/theme-picker.css");
 @import url("shell/crest.css");
+@import url("shell/app-header.css");
+@import url("shell/side-nav.css");
 @import url("screens/auth/login.css");
