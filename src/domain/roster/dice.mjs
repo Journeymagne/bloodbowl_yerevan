@@ -30,7 +30,7 @@
  * `rollFitsAdvancement` says whether a roll is one the advancement could have
  * taken. The server holds a save to both (`settleRosterRolls`).
  */
-import { canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements } from "./players.mjs";
+import { CAPTAINS_SKILL, canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements } from "./players.mjs";
 import { PLAYER_STATS, categoriesForAccess } from "./values.mjs";
 
 /** In the order of the `dice_rolls.purpose` CHECK (migration 012). */
@@ -137,18 +137,22 @@ export function rollFitsAdvancement({ purpose, result }, { type, grants }) {
 }
 
 /**
- * The skills a random-skill roll threw again as already held, by canonical name, attempt by attempt. The die
- * rerolls what the player holds when it is asked, and a roster can say a player holds anything: a skill held
- * only while the die was asked would steer it. So a roll is taken only by a roster that holds all of these
- * (`rerollsHeldBy`), and while it is used no save may drop one of them (`settleRosterRolls`) — the captain's
- * Pro excepted, which comes and goes with the captaincy. A characteristic roll throws nothing again.
+ * The skills a random-skill roll threw again as already held, by canonical name, attempt by attempt, that the
+ * roster it is used on must answer for. The die rerolls what the player holds when it is asked, and a roster can
+ * say a player holds anything: a skill held only while the die was asked would steer it. So a roll is taken only
+ * by a roster that holds all of these (`rerollsHeldBy`), and while it is used no save may drop one of them
+ * (`settleRosterRolls`). The one left out is the captaincy's Pro on a roll made while the player was captain
+ * (`params.captain: true`, which the server keeps with the roll): the captain cannot roll Pro, and the captaincy
+ * moves from match to match by the rules. A roll that does not say so — one made before rolls kept the
+ * captaincy, too — is held to its Pro like any other skill. A characteristic roll throws nothing again.
  *
- * @param {{purpose: string, result: object}} roll a `dice_rolls` row, or its public form
+ * @param {{purpose: string, params?: object, result: object}} roll a `dice_rolls` row, or its public form
  * @returns {string[]}
  */
-export function skillsRerolledAgainst({ purpose, result }) {
+export function skillsRerolledAgainst({ purpose, params, result }) {
   const attempts = purpose === "random_skill" && Array.isArray(result?.attempts) ? result.attempts : [];
-  return attempts.filter((attempt) => attempt?.duplicate).map((attempt) => canonicalSkillName(attempt.skill));
+  return attempts.filter((attempt) => attempt?.duplicate).map((attempt) => canonicalSkillName(attempt.skill))
+    .filter((skill) => !(skill === CAPTAINS_SKILL && params?.captain === true));
 }
 
 /**

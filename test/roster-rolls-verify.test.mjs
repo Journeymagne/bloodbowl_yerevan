@@ -2,7 +2,7 @@ import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import crypto from "node:crypto";
 
-import { rerollsHeldBy, rollFitsAdvancement, siteRollReferences } from "../src/domain/roster/dice.mjs";
+import { rerollsHeldBy, rollFitsAdvancement, siteRollReferences, skillsRerolledAgainst } from "../src/domain/roster/dice.mjs";
 import { normalizePlayerAdvancements } from "../src/domain/roster/players.mjs";
 import { settleRosterRolls } from "../server/api/dice-rolls.mjs";
 import { matchReference } from "../server/domain/match-reference.mjs";
@@ -74,6 +74,17 @@ test("a random skill's rerolls are explained by the roster it is used on: every 
   assert.equal(rerollsHeldBy({ purpose: "random_skill", result: { attempts: [{ roll: 1, skill: "Block", duplicate: false }], skill: "Block" } }, new Set()), true);
   assert.equal(rerollsHeldBy({ purpose: "stat", result: { roll: 3, stats: ["ar", "ma", "pa"] } }, new Set()), true, "a characteristic roll throws nothing again");
   assert.equal(rerollsHeldBy({ purpose: "random_skill", result: {} }, new Set()), true);
+});
+
+test("a Pro thrown again is the captaincy's only on a roll made while the player was captain", () => {
+  const attempts = [{ roll: 6, skill: "Pro", duplicate: true }, { roll: 3, skill: "Fend", duplicate: true }, { roll: 1, skill: "Block", duplicate: false }];
+  const roll = (params) => ({ purpose: "random_skill", params, result: { attempts, skill: "Block" } });
+  assert.deepEqual(skillsRerolledAgainst(roll({ category: "General", captain: true })), ["Fend"], "the captaincy held Pro, and comes and goes");
+  for (const params of [{ category: "General", captain: false }, { category: "General" }, {}, undefined]) {
+    assert.deepEqual(skillsRerolledAgainst(roll(params)), ["Pro", "Fend"], `${JSON.stringify(params)}: a Pro held some other way, or a roll from before rolls kept the captaincy`);
+  }
+  assert.equal(rerollsHeldBy(roll({ captain: true }), new Set(["Fend"])), true);
+  assert.equal(rerollsHeldBy(roll({ captain: false }), new Set(["Fend"])), false);
 });
 
 test("a save that names no new roll and drops none costs no query", async () => {
@@ -370,7 +381,8 @@ test("a captain's Pro may come and go: the captaincy moved off a player whose ro
   const { id, roll, block } = await captainsRoll(client, coach);
   const moved = await recording(() => save(id, coach.token, 2, { players: { p0: { isCaptain: false }, p1: { isCaptain: true } } }));
   assert.equal(moved.result.status, 200, "captaincy is the match's, not the player's: his Pro goes with it");
-  assert.ok(!touchesRolls(moved.log), "losing the captain's Pro takes nothing a roll could be held to");
+  assert.ok(touchesRolls(moved.log) && !moved.log.some((sql) => /^(INSERT INTO|UPDATE) dice_rolls/.test(sql)),
+    "his used rolls are read for whether they were rolled while captain (R18), and none is touched");
   const unrelated = await save(id, coach.token, 3, { players: { p0: { advancements: [block], extraSkills: [{ name: "Block", access: "primary" }] } } });
   assert.equal(unrelated.status, 200, "Kick dropped: the roll was never rerolled off it");
   assert.ok(await usedAt(client, roll.id));
@@ -383,6 +395,46 @@ test("a captaincy moved where no roll is settled leaves later saves free to drop
   await client.query(`UPDATE saved_teams SET roster = jsonb_set(jsonb_set(roster, '{players,0,isCaptain}', 'false'), '{players,1,isCaptain}', 'true') WHERE id = $1`, [id]);
   const unrelated = await save(id, coach.token, 2, { players: { p0: { advancements: [block], extraSkills: [{ name: "Block", access: "primary" }] } } });
   assert.equal(unrelated.status, 200, "only what this save drops is looked at: Kick, which the roll was not rerolled off");
+}));
+
+test("a roll remembers whether its player was the captain: a random skill keeps it with the roll, a characteristic has no use for it", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  // p1 is captain the old way (`captain`, which the roster still reads); p0 is not.
+  const id = await seedTeam(client, coach.id, { roster: { players: [{ id: "p0", rowIndex: 0, spp: {} }, { id: "p1", rowIndex: 0, spp: {}, captain: true }, { id: "p2", rowIndex: 0, spp: {} }] } });
+  const stored = async (rollId) => (await client.query("SELECT params FROM dice_rolls WHERE id = $1", [rollId])).rows[0].params;
+  for (const [player, captain] of [["p0", false], ["p1", true]]) {
+    const { status, body: { roll } } = await rollFor(id, coach.token, player, { purpose: "random_skill", category: "General" });
+    assert.deepEqual([status, roll.params.captain, (await stored(roll.id)).captain], [200, captain, captain], player);
+    assert.deepEqual(Object.keys(roll.params).sort(), ["candidates", "captain", "category", "sides"], player);
+  }
+  const stat = (await rollFor(id, coach.token, "p2", { purpose: "stat" })).body.roll;
+  assert.deepEqual([stat.params, await stored(stat.id)], [{ sides: 8 }, { sides: 8 }]);
+}));
+
+test("the captaincy may move before a captain's roll is taken: the Pro his die was turned off is the captaincy's", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills();
+  const coach = await seedCoach(client, "lion");
+  const id = await seedTeam(client, coach.id, { roster: { players: Array.from({ length: 11 }, (_, n) => ({ id: `p${n}`, rowIndex: 0, spp: {}, ...(n === 0 ? { isCaptain: true } : {}) })) } });
+  const die = scriptedServerDie(general.indexOf("Pro") + 1, general.indexOf("Block") + 1);
+  let roll;
+  try { roll = (await rollFor(id, coach.token, "p0", { purpose: "random_skill", category: "General" })).body.roll; } finally { die.done(); }
+  assert.deepEqual([roll.params.captain, roll.result.attempts.map((attempt) => [attempt.skill, attempt.duplicate])], [true, [["Pro", true], ["Block", false]]]);
+  assert.equal((await save(id, coach.token, 1, { players: { p0: { isCaptain: false }, p1: { isCaptain: true } } })).status, 200);
+  const taken = await save(id, coach.token, 2, { players: { p0: { advancements: [{ type: "random", grants: { skill: "Block" }, roll: site(roll.id) }], extraSkills: [{ name: "Block", access: "primary" }] } } });
+  assert.equal(taken.status, 200, "taken by a player who is captain no more");
+  assert.ok(await usedAt(client, roll.id));
+}));
+
+test("a roll from before rolls kept the captaincy is held to its Pro like any skill", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  const id = await seedTeam(client, coach.id, { roster: { players: Array.from({ length: 11 }, (_, n) => ({ id: `p${n}`, rowIndex: 0, spp: {}, ...(n === 0 ? { isCaptain: true } : {}) })) } });
+  const old = await putRoll(client, id, "p0", "random_skill", { attempts: [{ roll: 6, skill: "Pro", duplicate: true }, { roll: 1, skill: "Block", duplicate: false }], skill: "Block" });
+  const block = { type: "random", grants: { skill: "Block" }, roll: site(old.id) };
+  assert.equal((await save(id, coach.token, 1, { players: { p0: { advancements: [block], extraSkills: [{ name: "Block", access: "primary" }] } } })).status, 200,
+    "taken while captain: the Pro is held");
+  const moved = await save(id, coach.token, 2, { players: { p0: { isCaptain: false }, p1: { isCaptain: true } } });
+  assert.deepEqual([moved.status, moved.body.error.code, moved.body.error.params], [422, "DICE_ROLL_MISMATCH", { playerId: "p0" }],
+    "no `captain` in its params reads as not the captain's: the Pro it was turned off cannot go");
 }));
 
 test("a player who names no random roll drops skills without a dice query", db, () => withApiDatabase(async ({ client }) => {

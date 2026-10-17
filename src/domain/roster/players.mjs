@@ -206,13 +206,16 @@ export function favouredSkillNames(row, player) {
   return new Set(normalizePlayerFavouredSkills(row, player.favouredSkills ?? []).map((skill) => skill.name));
 }
 
+/** The skill the captaincy brings, held for as long as the player is captain. */
+export const CAPTAINS_SKILL = "Pro";
+
 export function skillNamesForPlayer(row, player) {
   const seen = new Set();
   return [
     ...baseSkillsForPlayer(row),
     ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    ...(player.isCaptain ? [{ name: "Pro", access: "captain" }] : []),
+    ...(player.isCaptain ? [{ name: CAPTAINS_SKILL, access: "captain" }] : []),
   ]
     .map((skill) => skill.name)
     .filter((name) => {
