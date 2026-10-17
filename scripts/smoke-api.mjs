@@ -6,9 +6,13 @@
  *   npm run smoke      # in another
  *
  * Override the target with APP_URL. The script creates a throwaway account,
- * exercises the saved-team endpoints and deletes everything it created.
- * It also checks that files outside the static whitelist are not served.
+ * exercises the saved-team endpoints (its treasury and ledger, its fallen, a
+ * player's roll), the account's settings and password change, and deletes
+ * everything it created. It also checks that files outside the static
+ * whitelist are not served.
  */
+import { isDeepStrictEqual } from "node:util";
+
 const baseUrl = (process.env.APP_URL || "http://localhost:3002").replace(/\/$/, "");
 
 let failures = 0;
@@ -47,6 +51,15 @@ async function step(name, run) {
   }
 }
 
+/** The error a step throws when an answer is not what it should be: what was wrong, and what came back. */
+function fault(message, got) {
+  return new Error(`${message}: ${JSON.stringify(got)?.slice(0, 300)}`);
+}
+
+function need(condition, message, got) {
+  if (!condition) throw fault(message, got);
+}
+
 console.log(`Smoke test against ${baseUrl}\n`);
 
 await step("GET /api/health", async () => {
@@ -56,7 +69,9 @@ await step("GET /api/health", async () => {
 
 const login = `smoke-${Date.now().toString(36)}`;
 const password = `pw-${Math.random().toString(36).slice(2, 10)}`;
+const newPassword = `${password}-new`;
 let teamId = "";
+let playerId = "";
 
 await step("POST /api/auth/register", async () => {
   const payload = await api("/api/auth/register", {
@@ -81,7 +96,12 @@ await step("POST /api/teams", async () => {
     body: {
       name: "Smoke Team",
       baseTeamSlug: "teams/amazon",
-      roster: { teamSlug: "teams/amazon", teamName: "Smoke Team", players: [], treasury: 600 },
+      roster: {
+        teamSlug: "teams/amazon",
+        teamName: "Smoke Team",
+        players: Array.from({ length: 11 }, (_, i) => ({ rowIndex: 0, name: `Smoke ${i + 1}` })),
+        treasury: 600,
+      },
     },
   });
   teamId = payload.team?.id;
@@ -93,16 +113,87 @@ await step("GET /api/teams lists the new team", async () => {
   if (!(payload.teams ?? []).some((team) => team.id === teamId)) throw new Error("team missing from list");
 });
 
+const teamPath = () => `/api/teams/${teamId}`;
+const readTeam = async () => (await api(teamPath())).team;
+
+await step("GET /api/teams/:id has stage and activatedAt", async () => {
+  const team = await readTeam();
+  for (const key of ["stage", "activatedAt"]) need(Object.hasOwn(team, key), `the team has no ${key}`, Object.keys(team));
+  need(team.stage === "active", "a new team is not active", { stage: team.stage, activatedAt: team.activatedAt });
+});
+
+await step("POST /api/teams/:id/treasury credits with a reason", async () => {
+  const { revision } = await readTeam();
+  const credited = await api(`${teamPath()}/treasury`, { method: "POST", expect: 201, body: { delta: 12.5, reason: "sponsor", revision } });
+  need(credited.team?.roster?.treasury === 612.5, "the treasury is not 612.5", credited.team?.roster?.treasury);
+  need(credited.entry?.kind === "manual", "the entry is not a manual one", credited.entry);
+  const ledger = await api(`${teamPath()}/ledger`);
+  need(ledger.entries?.[0]?.id === credited.entry.id, "the first ledger line is not the new entry", ledger.entries?.[0]);
+  need(ledger.since, "the ledger does not say since when it is kept", ledger.since);
+});
+
+await step("POST /api/teams/:id/treasury refuses a debit below zero", async () => {
+  const { revision } = await readTeam();
+  const refused = await api(`${teamPath()}/treasury`, { method: "POST", expect: 422, body: { delta: -700, reason: "fine", revision } });
+  need(refused.violations?.[0]?.code === "TREASURY_INVALID", "the refusal is not TREASURY_INVALID", refused);
+});
+
+await step("POST …/players/:pid/death and DELETE …/fallen/:fid", async () => {
+  const team = await readTeam();
+  playerId = team.roster?.players?.[0]?.id;
+  need(playerId, "the created team's first player has no id", team.roster?.players?.[0]);
+  const died = await api(`${teamPath()}/players/${playerId}/death`, { method: "POST", expect: 201, body: { cause: "smoke", revision: team.revision } });
+  need(!died.team?.roster?.players?.some((player) => player.id === playerId), "the dead player is still on the roster", died.fallen);
+  const { fallen } = await api(`${teamPath()}/fallen`);
+  const grave = fallen?.find((item) => item.id === died.fallen?.id);
+  need(grave?.fromMatch === false && grave.player?.id === playerId, "the death is not in the fallen as a coach's own", fallen);
+  const back = await api(`${teamPath()}/fallen/${grave.id}`, { method: "DELETE" });
+  need(back.team?.roster?.players?.some((player) => player.id === playerId), "the undone death did not return the player", back.team?.roster?.players?.length);
+  const rest = (await api(`${teamPath()}/fallen`)).fallen;
+  need(Array.isArray(rest) && rest.length === 0, "the undone death is still in the fallen", rest);
+});
+
+await step("POST …/players/:pid/rolls is one roll a step", async () => {
+  const ask = () => api(`${teamPath()}/players/${playerId}/rolls`, { method: "POST", body: { purpose: "stat" } });
+  const first = await ask();
+  const again = await ask();
+  need(first.roll?.id && first.roll.id === again.roll?.id, "asking twice did not give one roll", { first: first.roll, again: again.roll });
+  need(first.roll.params?.sides === 8, "a characteristic roll is not a D8", first.roll);
+});
+
+await step("PATCH /api/auth/preferences and /api/auth/me", async () => {
+  const saved = await api("/api/auth/preferences", { method: "PATCH", body: { themeMode: "dark", activeTeamId: teamId.toUpperCase() } });
+  need(saved.preferences?.themeMode === "dark" && saved.preferences.activeTeamId === teamId, "the settings were not saved as sent", saved);
+  const me = await api("/api/auth/me");
+  need(isDeepStrictEqual(me.user?.preferences, saved.preferences), "/me shows other settings than the save did", { me: me.user?.preferences, saved: saved.preferences });
+  const foreign = await api("/api/auth/preferences", { method: "PATCH", expect: 404, body: { activeTeamId: "44444444-4444-4444-8444-444444444444" } });
+  need(foreign.error?.code === "TEAM_NOT_FOUND", "a team that is not there is not TEAM_NOT_FOUND", foreign);
+});
+
+await step("PATCH /api/auth/profile needs the current password", async () => {
+  const wrong = await api("/api/auth/profile", { method: "PATCH", expect: 403, body: { password: newPassword } });
+  need(wrong.error?.code === "CURRENT_PASSWORD_WRONG", "a password change without the current one is not refused as such", wrong);
+  await api("/api/auth/profile", { method: "PATCH", body: { password: newPassword, currentPassword: password } });
+  // The session that made the change goes on; only the others end.
+  const kept = await api("/api/auth/me");
+  need(kept.user?.login === login, "the session that changed the password has ended", kept);
+  const next = await api("/api/auth/login", { method: "POST", auth: false, body: { login, password: newPassword } });
+  need(next.token, "no token for a login with the new password", next);
+  token = next.token;
+});
+
 await step("PATCH /api/teams/:id persists a change", async () => {
-  await api(`/api/teams/${teamId}`, {
+  const team = await readTeam();
+  await api(teamPath(), {
     method: "PATCH",
     body: {
       name: "Smoke Team Renamed",
       baseTeamSlug: "teams/amazon",
-      roster: { teamSlug: "teams/amazon", teamName: "Smoke Team Renamed", players: [], treasury: 550 },
+      revision: team.revision,
+      roster: { ...team.roster, teamName: "Smoke Team Renamed", treasury: 550 },
     },
   });
-  const payload = await api(`/api/teams/${teamId}`);
+  const payload = await api(teamPath());
   if (payload.team?.name !== "Smoke Team Renamed") throw new Error(`name not persisted: ${payload.team?.name}`);
   if (payload.team?.roster?.treasury !== 550) throw new Error(`roster not persisted: ${JSON.stringify(payload.team?.roster)}`);
 });
