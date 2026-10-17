@@ -12,6 +12,10 @@ export const STORED_PALETTES = [
   JSON.stringify({ mode: "light", light: "neon" }),
   JSON.stringify({ mode: "sepia" }),
   JSON.stringify({ mode: "dark", dark: "constructor" }),
+  // The account's choice, applied here (theme.mjs adds `from`); every reader takes the palette and ignores the rest.
+  JSON.stringify({ mode: "light", light: "parchment", dark: "night", from: "account" }),
+  JSON.stringify({ mode: "system", light: "ice", dark: "abyss", from: "account" }),
+  JSON.stringify({ mode: "dark", dark: "embers", from: { not: "a string" } }),
 ];
 
 export const STORED_THEMES = [null, "", "sepia", "constructor", "__proto__", "toString", ...Object.keys(LEGACY_THEME_PALETTE)];

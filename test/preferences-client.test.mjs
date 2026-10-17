@@ -7,19 +7,44 @@ import { createDocument } from "./helpers/fake-dom.mjs";
 const api = installFakeApi();
 const { state } = await import("../src/core/state.mjs");
 const { createStorage } = await import("../src/core/storage.mjs");
-const { initTheme, isThemeChosen, themeChoice } = await import("../src/core/theme.mjs");
+const { initTheme, isThemeChosen, setThemeChoice, themeChoice } = await import("../src/core/theme.mjs");
 const { savePreferences, syncThemeWithAccount } = await import("../src/data/preferences.mjs");
+const { loadSession, onSessionChange, signOut } = await import("../src/data/session.mjs");
 
 const PATCH = "PATCH /api/auth/preferences";
-function browser(stored = null) {
-  const backend = new Map(stored ? [["gata-league-palette", JSON.stringify(stored)]] : []);
+let backend = new Map();
+/** The page boots from whatever the browser has stored, as it does at every load. */
+function boot() {
   const store = createStorage({ getItem: (key) => backend.get(key) ?? null, setItem: (key, value) => backend.set(key, String(value)), removeItem: (key) => backend.delete(key) });
   const root = createDocument().documentElement;
   initTheme({ root, select: null, store, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
+  return root;
+}
+function browser(stored = null) {
+  backend = new Map(stored ? [["gata-league-palette", JSON.stringify(stored)]] : []);
+  const root = boot();
   api.reset();
   api.items.set("gata-league-auth-token", "tok");
   return root;
 }
+// As app.js wires it: every change of session starts a sync, which the test then waits for.
+const syncs = [];
+onSessionChange(() => { syncs.push(syncThemeWithAccount()); });
+/** Sign in the way the app learns of it: /me and the teams, then the sync that follows. */
+async function signInAs(user) {
+  api.items.set("gata-league-auth-token", "tok");
+  api.reply("GET /api/auth/me", 200, { user });
+  api.reply("GET /api/teams", 200, { teams: [] });
+  await loadSession();
+  await Promise.all(syncs.splice(0));
+}
+async function signOutNow() {
+  api.reply("POST /api/auth/logout", 200, {});
+  await signOut();
+  await Promise.all(syncs.splice(0));
+}
+const patches = () => api.calls.filter(({ key }) => key === PATCH);
+const PARCHMENT = { themeMode: "light", lightPalette: "parchment", darkPalette: "night" };
 const coach = (preferences) => { state.auth.currentUser = { id: "u1", login: "coach", preferences }; };
 
 test("an account that has a palette repaints this browser, whatever it had chosen", async () => {
@@ -41,12 +66,47 @@ test("an account that has part of a palette takes the rest from this browser, no
   api.assertAnswered();
 });
 
-test("what the account says is this browser's choice afterwards", async () => {
+test("what the account says is the account's, not this browser's choice", async () => {
   browser(null);
   coach({ themeMode: "dark", darkPalette: "abyss" });
   assert.equal(isThemeChosen(), false);
   await syncThemeWithAccount();
-  assert.equal(isThemeChosen(), true);
+  assert.equal(isThemeChosen(), false);
+  assert.equal(JSON.parse(backend.get("gata-league-palette")).from, "account");
+  api.assertAnswered();
+});
+
+test("a palette the account gave this browser does not go to the next coach's empty account", async () => {
+  const root = browser(null);
+  await signInAs({ id: "u1", login: "first", preferences: PARCHMENT });
+  assert.equal(root.getAttribute("data-palette"), "parchment");
+  await signOutNow();
+  await signInAs({ id: "u2", login: "second", preferences: {} });
+  assert.equal(patches().length, 0);
+  assert.deepEqual(state.auth.currentUser.preferences, {});
+  api.assertAnswered();
+});
+
+test("and neither does the cache that remembers it across a reload", async () => {
+  browser(null);
+  await signInAs({ id: "u1", login: "first", preferences: PARCHMENT });
+  await signOutNow();
+  const root = boot();
+  assert.equal(root.getAttribute("data-palette"), "parchment", "the cache still paints it");
+  assert.equal(isThemeChosen(), false);
+  await signInAs({ id: "u2", login: "second", preferences: {} });
+  assert.equal(patches().length, 0);
+  api.assertAnswered();
+});
+
+test("a palette the reader picked after the account's is theirs to give", async () => {
+  browser(null);
+  await signInAs({ id: "u1", login: "first", preferences: PARCHMENT });
+  setThemeChoice({ mode: "dark", light: "parchment", dark: "abyss" });
+  await signOutNow();
+  api.reply(PATCH, 200, { preferences: { themeMode: "dark", lightPalette: "parchment", darkPalette: "abyss" } });
+  await signInAs({ id: "u2", login: "second", preferences: {} });
+  assert.deepEqual(patches().map(({ body }) => body), [{ themeMode: "dark", lightPalette: "parchment", darkPalette: "abyss" }]);
   api.assertAnswered();
 });
 
@@ -69,6 +129,28 @@ test("an account with other settings but no palette still takes this browser's c
   await syncThemeWithAccount();
   assert.deepEqual(api.calls.map(({ body }) => body), [{ themeMode: "light", lightPalette: "parchment", darkPalette: "night" }]);
   assert.equal(state.auth.currentUser.preferences.locale, "ru");
+  api.assertAnswered();
+});
+
+test("two syncs before the first write is answered make one write", async () => {
+  browser({ mode: "dark", light: "ice", dark: "abyss" });
+  coach({});
+  api.reply(PATCH, 200, { preferences: { themeMode: "dark", lightPalette: "ice", darkPalette: "abyss" } });
+  await Promise.all([syncThemeWithAccount(), syncThemeWithAccount()]);
+  assert.equal(patches().length, 1);
+  assert.equal(state.auth.currentUser.preferences.darkPalette, "abyss");
+  api.assertAnswered();
+});
+
+test("another coach's sync is not taken for the first one's write", async () => {
+  browser({ mode: "dark", light: "ice", dark: "abyss" });
+  coach({});
+  api.reply(PATCH, 200, { preferences: { themeMode: "dark", lightPalette: "ice", darkPalette: "abyss" } });
+  const first = syncThemeWithAccount();
+  state.auth.currentUser = { id: "u2", login: "other", preferences: {} };
+  await Promise.all([first, syncThemeWithAccount()]);
+  assert.equal(patches().length, 2);
+  assert.equal(state.auth.currentUser.preferences.darkPalette, "abyss", "the answer went to the coach it was for");
   api.assertAnswered();
 });
 

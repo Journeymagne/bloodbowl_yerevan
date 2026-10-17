@@ -12,6 +12,11 @@
  * not) and this module. The tables below are a copy of the maintenance page's,
  * and test/theme.test.mjs compares the two. This module is the only writer.
  *
+ * The cache may also carry `from: "account"`: the choice came from the reader's
+ * account and was only applied here, so it is not something this browser's
+ * reader picked and is never the account of the next coach to sign in (see
+ * isThemeChosen). The other readers look at `mode`, `light` and `dark` alone.
+ *
  * 2.x stored one theme id under `gata-league-theme`. It is read once, mapped to
  * the nearest palette and written as a 3.0 choice. The old key is never
  * deleted, so a rollback to 2.1 still finds the reader's theme.
@@ -72,15 +77,16 @@ function parseObject(text) {
 
 /**
  * What the browser has stored, as a choice, and where it came from.
- * A 3.0 cache wins; a 2.x theme id is mapped to its nearest palette; nothing
- * usable means the default, which is not a choice and is not to be written down.
+ * A 3.0 cache wins ("account" if it says the account applied it, else
+ * "palette"); a 2.x theme id is mapped to its nearest palette; nothing usable
+ * means the default, which is not a choice and is not to be written down.
  * @param {string|null} paletteText `gata-league-palette`
  * @param {string|null} legacyTheme `gata-league-theme`
- * @returns {{choice: ThemeChoice, source: "palette"|"legacy"|"default"}}
+ * @returns {{choice: ThemeChoice, source: "palette"|"account"|"legacy"|"default"}}
  */
 export function readStoredChoice(paletteText, legacyTheme) {
   const parsed = parseObject(paletteText);
-  if (parsed) return { choice: normalizeChoice(parsed), source: "palette" };
+  if (parsed) return { choice: normalizeChoice(parsed), source: parsed.from === "account" ? "account" : "palette" };
   if (typeof legacyTheme === "string" && Object.hasOwn(LEGACY_THEME_PALETTE, legacyTheme)) {
     const [mode, key] = LEGACY_THEME_PALETTE[legacyTheme];
     const choice = {
@@ -193,13 +199,20 @@ export function initTheme(env = {}) {
   return { ...state.choice };
 }
 
-/** Apply a choice, remember it and move the picker. Returns the repaired choice. */
-export function setThemeChoice(choice) {
+/**
+ * Apply a choice, remember it and move the picker. Returns the repaired choice.
+ * A choice the reader made is this browser's own. One the account holds
+ * (`fromAccount`) is painted and cached all the same, but marked as the
+ * account's: it must not be written to the next account that signs in here.
+ * @param {ThemeChoice} choice
+ * @param {{fromAccount?: boolean}} [options]
+ */
+export function setThemeChoice(choice, { fromAccount = false } = {}) {
   if (!state) throw new Error("initTheme() has not run");
   state.choice = normalizeChoice(choice);
-  state.source = "palette";
+  state.source = fromAccount ? "account" : "palette";
   paint(state);
-  state.store.setJson(STORAGE_KEYS.palette, state.choice);
+  state.store.setJson(STORAGE_KEYS.palette, fromAccount ? { ...state.choice, from: "account" } : state.choice);
   return { ...state.choice };
 }
 
@@ -209,10 +222,11 @@ export function themeChoice() {
 }
 
 /**
- * Whether the reader has made a choice in this browser: one in the cache, one
- * carried over from 2.x, or one picked or taken from the account since. The
- * default is not one, and so is not the account's to be given.
+ * Whether the reader has made a choice in this browser: one picked here, in the
+ * cache or since, or one carried over from 2.x. The default is not one, and nor
+ * is a palette the account applied: both are not the account's to be given, and
+ * the second would carry one coach's palette to the next coach's account.
  */
 export function isThemeChosen() {
-  return state !== null && state.source !== "default";
+  return state !== null && (state.source === "palette" || state.source === "legacy");
 }

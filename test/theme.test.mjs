@@ -154,6 +154,43 @@ test("a default is not a choice; a stored, a migrated or a picked palette is", (
   assert.equal(isThemeChosen(), true);
 });
 
+test("a palette the account applied is cached as the account's and is not this browser's choice", () => {
+  const p = page();
+  initTheme(p.env);
+  const account = { mode: "light", light: "parchment", dark: "night" };
+  assert.deepEqual(setThemeChoice(account, { fromAccount: true }), account, "the choice itself carries no mark");
+  assert.equal(p.root.getAttribute("data-palette"), "parchment");
+  assert.equal(p.select.value, "light:parchment");
+  assert.deepEqual(JSON.parse(p.backend.get("gata-league-palette")), { ...account, from: "account" });
+  assert.equal(isThemeChosen(), false);
+  assert.deepEqual(themeChoice(), account);
+});
+
+test("a boot from the account's cache still knows it is the account's", () => {
+  const cached = JSON.stringify({ mode: "dark", light: "ice", dark: "abyss", from: "account" });
+  assert.deepEqual(readStoredChoice(cached, null), { choice: { mode: "dark", light: "ice", dark: "abyss" }, source: "account" });
+  assert.equal(readStoredChoice(JSON.stringify({ mode: "dark", from: "elsewhere" }), null).source, "palette");
+  assert.equal(readStoredChoice(cached, "dark-gata").source, "account", "the 3.0 cache still wins over a 2.x theme");
+  const p = page({ palette: cached });
+  assert.deepEqual(initTheme(p.env), { mode: "dark", light: "ice", dark: "abyss" });
+  assert.equal(p.root.getAttribute("data-palette"), "abyss");
+  assert.equal(isThemeChosen(), false);
+});
+
+test("a pick after the account's choice is the reader's own, and the cache forgets where it came from", () => {
+  const p = page({ palette: JSON.stringify({ mode: "dark", light: "ice", dark: "abyss", from: "account" }) });
+  initTheme(p.env);
+  p.select.value = "dark:embers";
+  fireEvent(p.select, "change");
+  assert.equal(isThemeChosen(), true);
+  assert.deepEqual(JSON.parse(p.backend.get("gata-league-palette")), { mode: "dark", light: "ice", dark: "embers" });
+  setThemeChoice({ mode: "dark", light: "ice", dark: "abyss" }, { fromAccount: true });
+  assert.equal(isThemeChosen(), false, "the account's word takes the pick back");
+  setThemeChoice({ mode: "dark", light: "ice", dark: "abyss" });
+  assert.equal(isThemeChosen(), true);
+  assert.equal(JSON.parse(p.backend.get("gata-league-palette")).from, undefined);
+});
+
 test("a stored palette is a choice; junk in the cache is not", () => {
   initTheme(page({ palette: JSON.stringify({ mode: "light", light: "ice", dark: "night" }) }).env);
   assert.equal(isThemeChosen(), true);

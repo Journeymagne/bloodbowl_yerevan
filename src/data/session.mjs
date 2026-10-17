@@ -91,16 +91,19 @@ export async function loadSession() {
 /**
  * Take the server's newer copy of the signed-in coach in place of ours, as a profile
  * save answers with one. That copy is `publicUser`, which has no `preferences`: those
- * are only in `/me`, so they are kept unless the copy brings its own. Replacing the user
- * outright would make an account that has a theme look like one that has none, and the
- * next sync would write this browser's palette over it.
+ * are only in `/me`, so the same coach's are kept unless the copy brings its own
+ * (`null` brings none). Replacing the user outright would make an account that has a
+ * theme look like one that has none, and the next sync would write this browser's
+ * palette over it. A copy of anyone else gets none of ours.
  *
  * Not a change of session, since no one signed in or out: nobody is told.
  * @param {object} user
  */
 export function mergeCurrentUser(user) {
-  const preferences = user.preferences ?? state.auth.currentUser?.preferences;
-  state.auth.currentUser = preferences === undefined ? { ...user } : { ...user, preferences };
+  const current = state.auth.currentUser;
+  const { preferences: own, ...rest } = user;
+  const preferences = own ?? (current?.id === user.id ? current.preferences : undefined);
+  state.auth.currentUser = preferences ? { ...rest, preferences } : rest;
 }
 
 /** Sign in or register, then ask /me: a refusal is thrown to the screen with nothing changed. */

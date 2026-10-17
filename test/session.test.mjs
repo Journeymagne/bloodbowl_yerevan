@@ -220,6 +220,26 @@ test("a copy that brings its own settings brings them, even empty ones", () => {
   api.assertAnswered();
 });
 
+test("a copy brings no settings when it says null, and the same coach's are kept", () => {
+  fresh();
+  state.auth.currentUser = { ...ME.user };
+  session.mergeCurrentUser({ id: "u1", login: "renamed", preferences: null });
+  assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "dark" });
+  fresh();
+  session.mergeCurrentUser({ id: "u1", login: "coach", preferences: null });
+  assert.equal(Object.hasOwn(state.auth.currentUser, "preferences"), false, "a null is not kept as if it were settings");
+  api.assertAnswered();
+});
+
+test("a copy of another coach gets none of the settings we hold", () => {
+  fresh();
+  state.auth.currentUser = { ...ME.user };
+  session.mergeCurrentUser({ id: "u2", login: "other", telegram: "@other" });
+  assert.equal(state.auth.currentUser.id, "u2");
+  assert.equal(Object.hasOwn(state.auth.currentUser, "preferences"), false);
+  api.assertAnswered();
+});
+
 test("merging a coach into nobody sets them, and invents no settings", () => {
   fresh();
   const user = { id: "u1", login: "coach" };

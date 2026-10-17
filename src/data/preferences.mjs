@@ -12,7 +12,9 @@
  * follows the coach to the next device. Two rules keep that from going wrong:
  * a palette the account holds always wins, and a browser that never chose one
  * has nothing to give, so it does not write its default over another device's
- * choice.
+ * choice. A palette the account itself applied here is not this browser's choice
+ * either (`setThemeChoice(…, {fromAccount})`), or it would follow the coach who
+ * signs out to the next coach's account.
  */
 import { apiRequest } from "../core/api-client.mjs";
 import { state } from "../core/state.mjs";
@@ -40,23 +42,38 @@ export async function savePreferences(patch) {
   }
 }
 
+/** The theme write a sync has on its way, and whose it is: a second sync for the same coach joins it. */
+let inFlight = null;
+
+function writeTheme(user) {
+  if (inFlight?.userId === user.id) return inFlight.done;
+  const write = { userId: user.id };
+  write.done = savePreferences(themePreferences(themeChoice())).finally(() => {
+    if (inFlight === write) inFlight = null;
+  });
+  inFlight = write;
+  return write.done;
+}
+
 /**
  * Settle the theme between this browser and the coach's account, now that the coach is known.
  *
  * A palette in the account is applied (the page repaints before this returns to its
- * caller); a field it lacks is this browser's. An account with no palette is given this
- * browser's choice, all three keys at once, but only a choice the reader actually made —
- * never the default, or a coach who signs in first on a new device would wipe the palette
- * they picked on another.
+ * caller), as the account's and not as this browser's choice; a field it lacks is this
+ * browser's. An account with no palette is given this browser's choice, all three keys at
+ * once, but only a choice the reader actually made — never the default, or a coach who
+ * signs in first on a new device would wipe the palette they picked on another, and never
+ * another coach's palette that happens to be on the page. Two syncs for the same coach
+ * before the write is answered make one write.
  * @returns {Promise<void>} resolves once the account is written; never rejects
  */
 export async function syncThemeWithAccount() {
   const user = state.auth.currentUser;
   if (!user) return;
-  const fromAccount = choiceFromPreferences(user.preferences, themeChoice());
-  if (fromAccount) {
-    setThemeChoice(fromAccount);
+  const accountChoice = choiceFromPreferences(user.preferences, themeChoice());
+  if (accountChoice) {
+    setThemeChoice(accountChoice, { fromAccount: true });
     return;
   }
-  if (isThemeChosen()) await savePreferences(themePreferences(themeChoice()));
+  if (isThemeChosen()) await writeTheme(user);
 }
