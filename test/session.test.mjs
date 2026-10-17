@@ -231,6 +231,40 @@ test("a copy brings no settings when it says null, and the same coach's are kept
   api.assertAnswered();
 });
 
+// The profile answer is publicUser, and /me's accountUser adds two fields to it: preferences and managedByServer.
+test("a newer copy of the coach keeps whether the server keeps the account", () => {
+  fresh();
+  state.auth.currentUser = { ...ME.user, managedByServer: true };
+  session.mergeCurrentUser({ id: "u1", login: "coach", telegram: "@new", isAdmin: true });
+  assert.equal(state.auth.currentUser.managedByServer, true);
+  assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "dark" }, "both fields at once");
+  session.mergeCurrentUser({ id: "u1", login: "coach", managedByServer: null });
+  assert.equal(state.auth.currentUser.managedByServer, true, "a null brings none");
+  api.assertAnswered();
+});
+
+test("a copy that says whether the server keeps the account is believed, false included", () => {
+  fresh();
+  state.auth.currentUser = { ...ME.user, managedByServer: true };
+  session.mergeCurrentUser({ id: "u1", login: "coach", managedByServer: false });
+  assert.equal(state.auth.currentUser.managedByServer, false);
+  session.mergeCurrentUser({ id: "u1", login: "coach" });
+  assert.equal(state.auth.currentUser.managedByServer, false, "and then it is the one we hold");
+  api.assertAnswered();
+});
+
+test("the flag of another coach is not ours, and none is invented", () => {
+  fresh();
+  state.auth.currentUser = { ...ME.user, managedByServer: true };
+  session.mergeCurrentUser({ id: "u2", login: "other" });
+  assert.equal(Object.hasOwn(state.auth.currentUser, "managedByServer"), false);
+  fresh();
+  state.auth.currentUser = { ...ME.user };
+  session.mergeCurrentUser({ id: "u1", login: "coach" });
+  assert.equal(Object.hasOwn(state.auth.currentUser, "managedByServer"), false);
+  api.assertAnswered();
+});
+
 test("a copy of another coach gets none of the settings we hold", () => {
   fresh();
   state.auth.currentUser = { ...ME.user };

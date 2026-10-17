@@ -11,6 +11,7 @@ import { initTheme } from "./core/theme.mjs";
 import { applyStaticI18n, getLocale, initLocale, isSupportedLocale, loadTranslations, onLocaleChange, setLocale, storedLocale, t } from "./core/i18n.mjs";
 import { loadReferenceData } from "./data/reference.mjs";
 import { setOnUnauthorized } from "./core/api-client.mjs";
+import { setLocaleHandler } from "./core/locale-request.mjs";
 import { renderRoute } from "./core/router.mjs";
 import { state } from "./core/state.mjs";
 import { view } from "./core/view.mjs";
@@ -137,6 +138,7 @@ function afterSessionChange() {
 
 async function init() {
   setOnUnauthorized(sessionEnded);
+  setLocaleHandler(switchLocale); // screens ask for a language; this file reloads the data
   onSessionChange(afterSessionChange);
   // applyStaticI18n cannot reach the toggle label or the footer date: both are written imperatively.
   onLocaleChange(applyLocaleChrome);

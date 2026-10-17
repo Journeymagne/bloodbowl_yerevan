@@ -93,20 +93,28 @@ export async function loadSession() {
 
 /**
  * Take the server's newer copy of the signed-in coach in place of ours, as a profile
- * save answers with one. That copy is `publicUser`, which has no `preferences`: those
- * are only in `/me`, so the same coach's are kept unless the copy brings its own
- * (`null` brings none). Replacing the user outright would make an account that has a
+ * save answers with one. That copy is `publicUser`, which lacks the two fields only
+ * `/me` adds: `preferences` and `managedByServer` (the account the server's settings
+ * keep). The same coach's are kept unless the copy brings its own (`null` brings none;
+ * `false` is an answer). Replacing the user outright would make an account that has a
  * theme look like one that has none, and the next sync would write this browser's
- * palette over it. A copy of anyone else gets none of ours.
+ * palette over it; or make the account the server keeps look like any other, and offer
+ * the coach a password it would refuse. A copy of anyone else gets none of ours.
  *
  * Not a change of session, since no one signed in or out: nobody is told.
  * @param {object} user
  */
 export function mergeCurrentUser(user) {
   const current = state.auth.currentUser;
-  const { preferences: own, ...rest } = user;
-  const preferences = own ?? (current?.id === user.id ? current.preferences : undefined);
-  state.auth.currentUser = preferences ? { ...rest, preferences } : rest;
+  const same = current?.id === user.id;
+  const { preferences: ownPreferences, managedByServer: ownManaged, ...rest } = user;
+  const preferences = ownPreferences ?? (same ? current.preferences : undefined);
+  const managedByServer = ownManaged ?? (same ? current.managedByServer : undefined);
+  state.auth.currentUser = {
+    ...rest,
+    ...(preferences ? { preferences } : {}),
+    ...(managedByServer === undefined ? {} : { managedByServer }),
+  };
 }
 
 /** Sign in or register, then ask /me: a refusal is thrown to the screen with nothing changed. */

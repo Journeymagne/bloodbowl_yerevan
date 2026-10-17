@@ -90,6 +90,22 @@ test("clicking or arrowing moves the selection, reports it, and stops when relea
   assert.deepEqual(seen, ["system", "light"]);
 });
 
+// Both flip aria-checked before they report, so a group wired twice by the same selector reports once.
+test("two groups on one root are wired by name, and each reports only its own", () => {
+  const html = renderSegmentedControl({ label: "Language", items: [{ value: "ru", label: "RU" }, { value: "en", label: "EN" }], selected: "en", data: { segGroup: "language" } })
+    + renderSegmentedControl({ label: "Mode", items: MODES, selected: "light", data: { segGroup: "mode" } });
+  const fragment = mount(html);
+  const seen = [];
+  wireSegmentedControls(fragment, (value) => seen.push(["language", value]), { group: "language" });
+  wireSegmentedControls(fragment, (value) => seen.push(["mode", value]), { group: "mode" });
+  fireEvent(fragment.querySelector('[data-seg-group="mode"] [data-seg-value="dark"]'), "click");
+  fireEvent(fragment.querySelector('[data-seg-group="language"] [data-seg-value="ru"]'), "click");
+  const arrow = fireEvent(fragment.querySelector('[data-seg-group="mode"] [data-seg-value="dark"]'), "keydown", { key: "ArrowRight" });
+  assert.equal(arrow.defaultPrevented, true);
+  assert.deepEqual(seen, [["mode", "dark"], ["language", "ru"], ["mode", "system"]]);
+  assert.throws(() => wireSegmentedControls(fragment, () => {}, { group: 'x"] [y' }), /group/);
+});
+
 test("a toggle is a switch row that flips and reports; a disabled one does not move", () => {
   const fragment = mount(renderToggle({ key: "matchReminders", label: "Match reminders", caption: HOSTILE }) + renderToggle({ key: "locked", label: "Locked", disabled: true }));
   const [live, locked] = fragment.querySelectorAll('[role="switch"]');

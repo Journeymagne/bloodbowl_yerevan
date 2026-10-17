@@ -26,6 +26,7 @@ import { prepareTeamRoute, syncActiveTeam } from "../data/active-team.mjs";
 import { loadMyTeams } from "../data/teams.mjs";
 import { renderHome } from "../screens/home.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
+import { renderSettings } from "../screens/settings/index.mjs";
 import { renderOverviewDetail } from "../screens/overview.mjs";
 import { renderSection } from "../screens/section.mjs";
 import { renderDetail } from "../screens/detail.mjs";
@@ -54,7 +55,7 @@ const screens = {
   home: () => (state.auth.currentUser && !state.myTeams.items.length ? renderNoTeam() : renderHome()),
   login: () => renderAuthModal("login"),
   register: () => renderAuthModal("register"),
-  settings: () => renderAuthModal("account"),
+  settings: () => renderSettings(),
   overview: ({ slug }) => renderOverviewDetail(slug),
   teams: () => renderMyTeams(),
   teamNew: () => renderBuilder(),
@@ -82,7 +83,7 @@ const screens = {
   },
 };
 
-/** Until the sign-in screen (Task 9) and Settings (Task 8) exist: the 2.x modal over the home screen. */
+/** Until the sign-in screen (Task 9) exists: the 2.x modal over the home screen. */
 function renderAuthModal(mode) {
   renderHome();
   openAuthModal(mode);
