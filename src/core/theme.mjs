@@ -93,7 +93,10 @@ export function readStoredChoice(paletteText, legacyTheme) {
   return { choice: { ...DEFAULT_CHOICE }, source: "default" };
 }
 
-/** The palette on screen: "system" is settled by the system's preference. */
+/**
+ * The palette on screen: "system" is settled by the system's preference.
+ * Expects a normalized choice (normalizeChoice): it looks the palette up, it does not repair.
+ */
 export function effectivePalette(choice, prefersDark) {
   const mode = choice.mode === "system" ? (prefersDark ? "dark" : "light") : choice.mode;
   return { mode, key: choice[mode] };
@@ -114,7 +117,7 @@ export function choiceFromSelect(value, current) {
   return { ...current };
 }
 
-/** The choice as the server's preferences name it (written to them from stage 05). */
+/** The choice as the server's preferences name it (data/preferences.mjs writes it there). */
 export function themePreferences(choice) {
   return { themeMode: choice.mode, lightPalette: choice.light, darkPalette: choice.dark };
 }
@@ -122,16 +125,27 @@ export function themePreferences(choice) {
 /**
  * The choice held in the server's preferences, or null when they hold none —
  * then the local choice is what gets written there, not the other way round.
+ * A field they lack is this browser's (`base`), not the default: a device that
+ * picked its own light palette keeps it when another device only set the mode.
+ * @param {object|null} preferences `user.preferences` of `/api/auth/me`
+ * @param {ThemeChoice} [base] the choice on screen now
+ * @returns {ThemeChoice|null}
  */
-export function choiceFromPreferences(preferences) {
+export function choiceFromPreferences(preferences, base = DEFAULT_CHOICE) {
   if (preferences === null || typeof preferences !== "object") return null;
   const { themeMode, lightPalette, darkPalette } = preferences;
   if ([themeMode, lightPalette, darkPalette].every((field) => field === undefined || field === null)) return null;
-  return normalizeChoice({ mode: themeMode, light: lightPalette, dark: darkPalette });
+  return normalizeChoice({ mode: themeMode ?? base.mode, light: lightPalette ?? base.light, dark: darkPalette ?? base.dark });
 }
 
-/** What initTheme() is attached to: the choice, the page it paints and the system preference. */
+/**
+ * What initTheme() is attached to: the choice and where it came from, the page
+ * it paints and the system preference.
+ */
 let state = null;
+
+/** What removes the listeners of the last initTheme(), so a second call does not add a second set. */
+let detach = () => {};
 
 /** Put the choice on the page: both attributes, back to back, and the picker. */
 function paint({ choice, root, select, media }) {
@@ -148,6 +162,7 @@ function paint({ choice, root, select, media }) {
  * @returns {ThemeChoice}
  */
 export function initTheme(env = {}) {
+  detach();
   const store = env.store ?? storage;
   const { choice, source } = readStoredChoice(store.get(STORAGE_KEYS.palette), store.get(STORAGE_KEYS.theme));
   // A 2.x reader is migrated here, once; the next boot finds the 3.0 cache.
@@ -156,17 +171,25 @@ export function initTheme(env = {}) {
   const select = env.select === undefined ? (globalThis.document?.querySelector("#theme-select") ?? null) : env.select;
   state = {
     choice,
+    source,
     store,
     select,
     root: env.root ?? globalThis.document.documentElement,
     media: matchMedia?.(DARK_QUERY),
   };
   paint(state);
-  select?.addEventListener("change", () => setThemeChoice(choiceFromSelect(select.value, state.choice)));
+  const { media } = state;
+  const onPick = () => setThemeChoice(choiceFromSelect(select.value, state.choice));
   // Someone who follows the system keeps following it, including at sunset.
-  state.media?.addEventListener?.("change", () => {
+  const onSystemChange = () => {
     if (state.choice.mode === "system") paint(state);
-  });
+  };
+  select?.addEventListener("change", onPick);
+  media?.addEventListener?.("change", onSystemChange);
+  detach = () => {
+    select?.removeEventListener("change", onPick);
+    media?.removeEventListener?.("change", onSystemChange);
+  };
   return { ...state.choice };
 }
 
@@ -174,6 +197,7 @@ export function initTheme(env = {}) {
 export function setThemeChoice(choice) {
   if (!state) throw new Error("initTheme() has not run");
   state.choice = normalizeChoice(choice);
+  state.source = "palette";
   paint(state);
   state.store.setJson(STORAGE_KEYS.palette, state.choice);
   return { ...state.choice };
@@ -182,4 +206,13 @@ export function setThemeChoice(choice) {
 /** The choice on screen now; the default before initTheme() has run. */
 export function themeChoice() {
   return { ...(state?.choice ?? DEFAULT_CHOICE) };
+}
+
+/**
+ * Whether the reader has made a choice in this browser: one in the cache, one
+ * carried over from 2.x, or one picked or taken from the account since. The
+ * default is not one, and so is not the account's to be given.
+ */
+export function isThemeChosen() {
+  return state !== null && state.source !== "default";
 }

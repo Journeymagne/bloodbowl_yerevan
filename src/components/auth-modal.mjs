@@ -18,7 +18,7 @@ import { errorText } from "../core/api.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { apiRequest } from "../core/api-client.mjs";
-import { register, signIn, signOut } from "../data/session.mjs";
+import { mergeCurrentUser, register, signIn, signOut } from "../data/session.mjs";
 import { authButton, updateAuthButton } from "./auth-button.mjs";
 
 const authModal = document.querySelector("#auth-modal");
@@ -149,7 +149,7 @@ async function handleProfileSubmit(event) {
       method: "PATCH",
       body: JSON.stringify({ login, telegram, password }),
     });
-    state.auth.currentUser = payload.user;
+    mergeCurrentUser(payload.user);
     updateAuthButton();
     setAuthMode("account");
     setAuthError("");

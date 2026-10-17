@@ -3,11 +3,12 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import * as maintenance from "../public/maintenance/palettes.mjs";
+import { THEME_MODES as SERVER_THEME_MODES } from "../server/api/preferences.mjs";
 import { applyStaticI18n, setDictionaries } from "../src/core/i18n.mjs";
 import { STORAGE_KEYS, createStorage } from "../src/core/storage.mjs";
 import {
-  DEFAULT_CHOICE, DEFAULT_PALETTE, LEGACY_THEME_PALETTE, PALETTE_KEYS,
-  choiceFromPreferences, choiceFromSelect, effectivePalette, initTheme, normalizeChoice,
+  DEFAULT_CHOICE, DEFAULT_PALETTE, LEGACY_THEME_PALETTE, PALETTE_KEYS, THEME_MODES,
+  choiceFromPreferences, choiceFromSelect, effectivePalette, initTheme, isThemeChosen, normalizeChoice,
   readStoredChoice, selectValue, setThemeChoice, themeChoice, themePreferences,
 } from "../src/core/theme.mjs";
 import { createDocument, el, fireEvent } from "./helpers/fake-dom.mjs";
@@ -30,12 +31,21 @@ function page({ palette = null, legacy = null, dark = false, refuse = false } = 
     removeItem: (key) => backend.delete(key),
   });
   const listeners = [];
-  const media = { matches: dark, addEventListener: (_type, listener) => listeners.push(listener) };
+  const media = {
+    matches: dark,
+    addEventListener: (_type, listener) => listeners.push(listener),
+    removeEventListener: (_type, listener) => {
+      const at = listeners.indexOf(listener);
+      if (at >= 0) listeners.splice(at, 1);
+    },
+  };
   const root = document.documentElement;
   return {
     root, select, backend,
     env: { root, select, store, matchMedia: () => media },
     setSystemDark(value) { media.matches = value; for (const listener of listeners) listener({ matches: value }); },
+    /** How many listeners the system preference has now. */
+    listenerCount: () => listeners.length,
   };
 }
 
@@ -88,7 +98,7 @@ test("index.html offers system and every palette, each with a key in both langua
   for (const key of keys) { assert.ok(en[key], `en ${key}`); assert.ok(ru[key], `ru ${key}`); }
 });
 
-test("the server's preference keys carry the same choice (wired in stage 05)", () => {
+test("the server's preference keys carry the same choice", () => {
   const choice = { mode: "dark", light: "ice", dark: "embers" };
   assert.deepEqual(themePreferences(choice), { themeMode: "dark", lightPalette: "ice", darkPalette: "embers" });
   assert.deepEqual(choiceFromPreferences(themePreferences(choice)), choice);
@@ -96,6 +106,59 @@ test("the server's preference keys carry the same choice (wired in stage 05)", (
   assert.equal(choiceFromPreferences({ activeTeamId: "t1", locale: "ru" }), null);
   assert.equal(choiceFromPreferences(null), null);
   assert.deepEqual(choiceFromPreferences({ themeMode: "light" }), { mode: "light", light: "grass", dark: "night" });
+});
+
+test("the account's settings lie over this browser's choice, not over the defaults", () => {
+  const local = { mode: "dark", light: "ice", dark: "embers" };
+  assert.deepEqual(choiceFromPreferences({ themeMode: "light" }, local), { mode: "light", light: "ice", dark: "embers" });
+  assert.deepEqual(choiceFromPreferences({ darkPalette: "abyss" }, local), { mode: "dark", light: "ice", dark: "abyss" });
+  assert.equal(choiceFromPreferences({ activeTeamId: "t1" }, local), null);
+  assert.deepEqual(choiceFromPreferences({ themeMode: "light" }), { mode: "light", light: "grass", dark: "night" });
+});
+
+test("a null in the account's settings is as good as a missing one", () => {
+  const local = { mode: "dark", light: "ice", dark: "embers" };
+  assert.deepEqual(choiceFromPreferences({ themeMode: null, darkPalette: "abyss" }, local), { mode: "dark", light: "ice", dark: "abyss" });
+  assert.equal(choiceFromPreferences({ themeMode: null, lightPalette: null, darkPalette: null }, local), null);
+});
+
+test("the client and the server know the same modes", () => {
+  assert.deepEqual([...THEME_MODES], [...SERVER_THEME_MODES]);
+});
+
+test("a second initTheme replaces the first one's listeners", () => {
+  const p = page();
+  initTheme(p.env);
+  initTheme(p.env);
+  assert.equal(p.listenerCount(), 1);
+});
+
+test("a second initTheme leaves one picker listener, and the picker still works", () => {
+  const p = page();
+  initTheme(p.env);
+  initTheme(p.env);
+  assert.equal(p.select.listeners.get("change").length, 1);
+  p.select.value = "dark:abyss";
+  fireEvent(p.select, "change");
+  assert.equal(p.root.getAttribute("data-palette"), "abyss");
+  assert.deepEqual(JSON.parse(p.backend.get("gata-league-palette")), { mode: "dark", light: "grass", dark: "abyss" });
+});
+
+test("a default is not a choice; a stored, a migrated or a picked palette is", () => {
+  initTheme(page().env);
+  assert.equal(isThemeChosen(), false);
+  initTheme(page({ legacy: "dark-gata" }).env);
+  assert.equal(isThemeChosen(), true);
+  initTheme(page().env);
+  setThemeChoice({ mode: "light", light: "ice", dark: "night" });
+  assert.equal(isThemeChosen(), true);
+});
+
+test("a stored palette is a choice; junk in the cache is not", () => {
+  initTheme(page({ palette: JSON.stringify({ mode: "light", light: "ice", dark: "night" }) }).env);
+  assert.equal(isThemeChosen(), true);
+  initTheme(page({ palette: "not json" }).env);
+  assert.equal(isThemeChosen(), false);
 });
 
 test("a 2.x theme is migrated once and then left alone", () => {

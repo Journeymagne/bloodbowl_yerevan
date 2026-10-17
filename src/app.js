@@ -17,6 +17,7 @@ import { view } from "./core/view.mjs";
 import { updateAuthButton } from "./components/auth-button.mjs";
 import { closeAuthModal, setAuthMode, wireAuthModal } from "./components/auth-modal.mjs";
 import { toast } from "./components/toast.mjs";
+import { syncThemeWithAccount } from "./data/preferences.mjs";
 import { loadSession, onSessionChange, sessionEnded } from "./data/session.mjs";
 import { loadGames } from "./screens/games/my-games.mjs";
 import { rosterStore } from "./screens/saved-roster.mjs";
@@ -124,8 +125,9 @@ function wireFrame() {
   window.addEventListener("hashchange", renderRoute);
 }
 
-/** Every change of session, the first load included (it draws the first screen): button, games, screen. */
+/** Every change of session, the first load included (it draws the first screen): theme, button, games, screen. */
 function afterSessionChange() {
+  void syncThemeWithAccount(); // repaints at once; the account is written in the background
   updateAuthButton();
   if (state.auth.currentUser) void loadGames();
   renderRoute();

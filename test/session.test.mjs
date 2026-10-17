@@ -197,3 +197,35 @@ test("a session that dies mid-use resets every slice of the coach", () => {
   assert.equal(heard, 1);
   api.assertAnswered();
 });
+
+// A profile save answers with publicUser, which has no preferences: those are only in /me.
+test("a newer copy of the coach keeps the settings only /me brings", () => {
+  fresh();
+  state.auth.currentUser = { ...ME.user };
+  session.mergeCurrentUser({ id: "u1", login: "renamed", telegram: "@new", isAdmin: false });
+  assert.equal(state.auth.currentUser.login, "renamed");
+  assert.equal(state.auth.currentUser.telegram, "@new");
+  assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "dark" });
+  assert.equal(heard, 0, "no one signed in or out: nobody is told");
+  api.assertAnswered();
+});
+
+test("a copy that brings its own settings brings them, even empty ones", () => {
+  fresh();
+  state.auth.currentUser = { ...ME.user };
+  session.mergeCurrentUser({ ...ME.user, preferences: { themeMode: "light" } });
+  assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "light" });
+  session.mergeCurrentUser({ ...ME.user, preferences: {} });
+  assert.deepEqual(state.auth.currentUser.preferences, {});
+  api.assertAnswered();
+});
+
+test("merging a coach into nobody sets them, and invents no settings", () => {
+  fresh();
+  const user = { id: "u1", login: "coach" };
+  session.mergeCurrentUser(user);
+  assert.deepEqual(state.auth.currentUser, { id: "u1", login: "coach" });
+  assert.equal(Object.hasOwn(state.auth.currentUser, "preferences"), false);
+  assert.deepEqual(user, { id: "u1", login: "coach" }, "the argument is left as it was");
+  api.assertAnswered();
+});
