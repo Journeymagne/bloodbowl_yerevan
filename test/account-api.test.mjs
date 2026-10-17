@@ -604,6 +604,50 @@ test("an id that is no UUID, in a coach's team route or an administrator's, is n
   assert.deepEqual(logged, []);
 }));
 
+/** The login of the account the env file keeps (server/auth/admin-account.mjs), as the server reads it. */
+const envAdminLogin = () => process.env.ADMIN_LOGIN || "admin";
+
+test("the env file's administrator keeps the file's password: his settings, a user edit and a reset are 409 before any guess or write, and nothing changes", db, () => withApiDatabase(async ({ client }) => {
+  const env = await seedCoach(client, envAdminLogin(), { admin: true }), boss = await seedCoach(client, "pw-envoy", { admin: true });
+  const elsewhere = await sessionFor(client, env.id);
+  const hash = async () => (await client.query("SELECT password_hash FROM users WHERE id = $1", [env.id])).rows[0].password_hash;
+  const before = await hash();
+  const asks = [
+    ["his settings", () => profile(env.token, { password: "brand-new", currentPassword: env.password })],
+    ["his settings, with a wrong current password", () => profile(env.token, { password: "brand-new", currentPassword: "wrong" })],
+    ["another administrator's user edit", () => callApi("PATCH", `/api/admin/users/${env.id}`, { token: boss.token, body: { password: "set-by-admin" } })],
+    ["his own user edit", () => callApi("PATCH", `/api/admin/users/${env.id}`, { token: env.token, body: { password: "set-by-admin" } })],
+    ["a reset by another administrator", () => callApi("POST", `/api/admin/users/${env.id}/reset-password`, { token: boss.token })],
+    ["a reset by himself", () => callApi("POST", `/api/admin/users/${env.id.toUpperCase()}/reset-password`, { token: env.token })],
+  ];
+  for (const [label, ask] of asks) {
+    const { result, log } = await recording(ask);
+    assert.deepEqual([result.status, result.body.error.code, result.body.error.message],
+      [409, "ADMIN_PASSWORD_FROM_ENV", "This administrator's password is set in the server's settings and cannot be changed here."], label);
+    assert.ok(!log.some((sql) => /^(INSERT|UPDATE|DELETE)/.test(sql)), `${label}: nothing written`);
+  }
+  for (let attempt = 0; attempt < 12; attempt += 1) await profile(env.token, { password: "brand-new", currentPassword: `guess-${attempt}` });
+  assert.equal((await login(env.login, "wrong")).status, 401, "none of those was counted as a guess: no 429");
+  assert.equal(await hash(), before);
+  assert.equal((await login(env.login, env.password)).status, 200);
+  assert.equal((await whoIs(elsewhere)).login, env.login, "and no session was ended");
+  // What is not the password is his to change, like anybody's.
+  const contact = await profile(env.token, { telegram: "@the-env-admin" });
+  assert.deepEqual([contact.status, contact.body.user.telegram], [200, "@the-env-admin"]);
+  assert.equal((await callApi("PATCH", `/api/admin/users/${env.id}`, { token: boss.token, body: { login: env.login } })).status, 200);
+}));
+
+test("any other administrator still changes his own password in settings, and is still reset by another", db, () => withApiDatabase(async ({ client }) => {
+  const env = await seedCoach(client, envAdminLogin(), { admin: true }), deputy = await seedCoach(client, "pw-deputy", { admin: true });
+  assert.equal((await profile(deputy.token, { password: "brand-new", currentPassword: deputy.password })).status, 200);
+  assert.equal((await login(deputy.login, "brand-new")).status, 200);
+  const reset = await callApi("POST", `/api/admin/users/${deputy.id}/reset-password`, { token: env.token });
+  assert.equal(reset.status, 200);
+  assert.equal((await login(deputy.login, reset.body.password)).status, 200);
+  assert.equal((await callApi("PATCH", `/api/admin/users/${deputy.id}`, { token: env.token, body: { password: "set-by-env" } })).status, 200);
+  assert.equal((await login(deputy.login, "set-by-env")).status, 200);
+}));
+
 test("the administrator's edit of a user is one transaction: a taken login leaves everything as it was, and a DELETE of the sessions that fails takes the new password with it", db, () => withApiDatabase(async ({ client }) => {
   const boss = await seedCoach(client, "pw-sheriff", { admin: true }), coach = await seedCoach(client, "pw-badger"), stranger = await seedCoach(client, "pw-ferret");
   const phone = await sessionFor(client, coach.id);

@@ -20,6 +20,7 @@ import {
   generateTemporaryPassword,
   hashPassword,
 } from "../auth/session.mjs";
+import { isEnvAdmin } from "../auth/admin-account.mjs";
 import {
   isAdminUser,
   normalizeLogin,
@@ -103,6 +104,8 @@ async function handleAdminUserRoutes(request, response, url) {
 
     if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
     if (password && password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
+    // The env file's administrator keeps the file's password: every start would write it back.
+    if (password && isEnvAdmin(target)) return sendError(response, 409, "ADMIN_PASSWORD_FROM_ENV");
     // Your own password is changed in your settings, with the current one (PATCH /api/auth/profile). Here
     // it would be written with no password asked, and the administrator's other sessions would go on.
     if (password && target.id === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");
@@ -138,7 +141,14 @@ async function handleAdminUserRoutes(request, response, url) {
   return handleAdminUserReadRoutes(request, response, url);
 }
 
-/** Replace one password and revoke every session except the admin's current one. */
+/**
+ * Replace one password and revoke every session of that user.
+ *
+ * Who the path names is read first, and refused before anything is hashed or written: the env file's
+ * administrator, whose password is the file's (ADMIN_PASSWORD_FROM_ENV), and the administrator himself
+ * (SELF_PASSWORD_RESET), by the id the database gives back — the path may spell it in capitals. The new
+ * password and the end of the sessions are one transaction.
+ */
 async function handleAdminPasswordResetRoute(request, response, url) {
   const match = url.pathname.match(USER_PASSWORD_RESET);
   if (!match || request.method !== "POST") return false;
@@ -147,28 +157,17 @@ async function handleAdminPasswordResetRoute(request, response, url) {
   if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
   if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
 
-  const targetId = match[1];
+  const { rows: [target] } = await pool.query("SELECT id, login_key FROM users WHERE id = $1", [match[1]]);
+  if (!target) return sendError(response, 404, "USER_NOT_FOUND");
+  if (isEnvAdmin(target)) return sendError(response, 409, "ADMIN_PASSWORD_FROM_ENV");
+  if (target.id === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");
   const password = generateTemporaryPassword();
   const passwordHash = hashPassword(password);
-  const client = await pool.connect();
-  try {
-    await client.query("BEGIN");
-    const updated = await client.query(
-      `UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1 RETURNING id`,
-      [targetId, passwordHash],
-    );
-    if (!updated.rows[0]) throw httpError(404, "USER_NOT_FOUND");
-    // The id in the path may be spelled another way (upper case) and still be one's own: the database's
-    // spelling is the one to compare. The password written just above goes with the rollback.
-    if (updated.rows[0].id === user.id) throw httpError(409, "SELF_PASSWORD_RESET");
-    await client.query("DELETE FROM sessions WHERE user_id = $1", [targetId]);
-    await client.query("COMMIT");
-  } catch (error) {
-    await client.query("ROLLBACK").catch(() => {});
-    throw error;
-  } finally {
-    client.release();
-  }
+  await withTransaction(async (client) => {
+    const updated = await client.query("UPDATE users SET password_hash = $2, updated_at = now() WHERE id = $1 RETURNING id", [target.id, passwordHash]);
+    if (!updated.rows[0]) throw httpError(404, "USER_NOT_FOUND"); // deleted since it was read
+    await client.query("DELETE FROM sessions WHERE user_id = $1", [target.id]);
+  });
   return send(response, 200, { password });
 }
 

@@ -10,6 +10,7 @@
  * thrown (`httpError`) for `handleApi` to send; the module keeps no `send` of its own.
  */
 import { checkPreferences, mergePreferences } from "../api/preferences.mjs";
+import { isEnvAdmin } from "../auth/admin-account.mjs";
 import { normalizeLogin, publicUser } from "../api/serializers.mjs";
 import { attemptKey, checkLoginAttempt, clearLoginAttempts, recordFailedLogin } from "../auth/rate-limit.mjs";
 import { bearerToken, currentUser, hashPassword, hashToken, verifyPassword } from "../auth/session.mjs";
@@ -168,7 +169,9 @@ async function writeProfile(db, params) {
  * The refusals come in an order, the cheap and the certain before the costly: no session is 401; a
  * login under 3 characters, an empty contact and a new password under 4 are the 400s they always were,
  * and none of them looks at the current password or counts as a guess; then, only when there is a new
- * password, `requireCurrentPassword` (429 or 403); then the write. A login or contact change without a
+ * password, 409 ADMIN_PASSWORD_FROM_ENV for the account the env file keeps (`isEnvAdmin`: its password is
+ * the file's, rewritten at every start), before any guess is counted or verified; then
+ * `requireCurrentPassword` (429 or 403); then the write. A login or contact change without a
  * new password needs no `currentPassword`, ignores one that is sent, ends no session, and is the one
  * statement it always was.
  *
@@ -189,6 +192,7 @@ async function updateProfile(request, response) {
   if (login.length < 3) throw httpError(400, "LOGIN_TOO_SHORT");
   if (!telegram) throw httpError(400, "TELEGRAM_REQUIRED");
   if (password && password.length < 4) throw httpError(400, "PASSWORD_TOO_SHORT");
+  if (password && isEnvAdmin(user)) throw httpError(409, "ADMIN_PASSWORD_FROM_ENV");
   if (password) requireCurrentPassword(user, body.currentPassword);
 
   const params = [user.id, login, normalizeLogin(login), telegram];
