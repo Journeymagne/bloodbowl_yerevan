@@ -79,6 +79,8 @@ export const API_ERRORS = Object.freeze({
   COACH_REQUIRED: "Coach is required.",
   DICE_CATEGORY: "A random skill can only be rolled in one of the player's primary categories.",
   DICE_NO_SKILL: "The player already has every skill in this category.",
+  DICE_ROLL_MISMATCH: "This advancement does not match its roll on the site.",
+  DICE_ROLL_USED: "This roll has already been used for an advancement.",
   ENTRY_ALREADY_COMMITTED: "This coach or team is already committed to the season.",
   ENTRY_NOT_FOUND: "Season entry not found.",
   FALLEN_FROM_MATCH: "This death was recorded by a match's post-match. Only an administrator can undo it.",

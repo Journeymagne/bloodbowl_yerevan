@@ -16,6 +16,7 @@ import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames } from "../api/team-queries.mjs";
 import { writeLedgerEntries } from "../api/team-ledger.mjs";
+import { settleRosterRolls } from "../api/dice-rolls.mjs";
 import { handleTeamResourceRoutes } from "./team-resources.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
@@ -125,14 +126,18 @@ export async function handleTeamRoutes(request, response, url) {
  * the check and the UPDATE. The stage rule is checked on the same row, after
  * the revision (a stale tab hears "saved elsewhere" before anything else), and
  * only for a coach — `actor.admin` is the admin route, which is not held to it.
- * The treasury change is journaled in the same transaction (team_ledger), after
+ * The site rolls the roster refers to are settled next, for a coach and an admin
+ * alike (`settleRosterRolls`): a new reference uses its roll, a dropped one frees
+ * it, and a roll that does not fit or is used already refuses the save. The
+ * treasury change is journaled in the same transaction (team_ledger), after
  * the write and before the commit, so a refused or stale save leaves no line
- * and a line never outlives its save.
+ * and a line never outlives its save — nor does a roll's `used_at`.
  *
  * @param {string|null} ownerId restricts the write to one owner; null for admin
  * @param {{id?: string, admin?: boolean}} [actor] who is writing
  * @returns {Promise<{team: object}|{conflict: object}|null>} null when no such team
- * @throws {Error} a 422 STAGE_PURCHASE_LOCKED when a coach buys what the stage forbids
+ * @throws {Error} a 422 STAGE_PURCHASE_LOCKED when a coach buys what the stage forbids;
+ *   a 422 DICE_ROLL_MISMATCH or 409 DICE_ROLL_USED for a site roll the save cannot take
  */
 export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision, actor = {} }) {
   const expected = Number.isInteger(revision) ? revision : null;
@@ -156,6 +161,7 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
     }
     const before = normalizeDraft(locked.roster);
     if (!actor.admin) refuseLockedPurchases(before, roster, locked.stage);
+    await settleRosterRolls(client, { teamId, before, after: roster });
     const result = await client.query(
       `UPDATE saved_teams
           SET name = $2,

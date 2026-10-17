@@ -24,8 +24,13 @@
  * halves of a `dice_rolls` row. `params` names the die the same way in both rolls,
  * as `sides` (8 for a characteristic, 16 for a skill, which adds its category and
  * candidates); `result` is everything that came up.
+ *
+ * An advancement that was rolled on the site names its roll (`roll: { id, via:
+ * "site" }`): `siteRollReferences` lists those of a roster, and
+ * `rollFitsAdvancement` says whether a roll is one the advancement could have
+ * taken. The server holds a save to both (`settleRosterRolls`).
  */
-import { canonicalSkillName, heldSkillKeys } from "./players.mjs";
+import { canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements } from "./players.mjs";
 import { PLAYER_STATS, categoriesForAccess } from "./values.mjs";
 
 /** In the order of the `dice_rolls.purpose` CHECK (migration 012). */
@@ -92,6 +97,43 @@ export function randomSkillRoll({ row, player, category, skillGroups = [], rng, 
     if (skill !== null && !duplicate) return { ok: true, params: { category, candidates, sides: SKILL_DIE }, result: { attempts, skill } };
   }
   throw new Error(`no free skill after ${maxAttempts} attempts`);
+}
+
+/**
+ * The site rolls a roster's advancements refer to: one `{ id, playerId, type, grants }` for each
+ * advancement that says it was rolled on the site, `grants` null when it does not say what it granted.
+ * A table roll, or a site roll with no id, refers to no roll.
+ *
+ * A roster is read as it is stored, raw or normalised: the advancements go through
+ * `normalizePlayerAdvancements`, as every reader of them does, so a raw blob and its normalised copy
+ * name the same rolls, and a player who is not an object has none.
+ */
+export function siteRollReferences(roster) {
+  const players = Array.isArray(roster?.players) ? roster.players : [];
+  return players.flatMap((player) => (player && typeof player === "object" ? normalizePlayerAdvancements(player.advancements) : [])
+    .filter((advancement) => advancement.roll?.via === "site")
+    .map(({ type, grants = null, roll }) => ({ id: roll.id, playerId: String(player.id ?? ""), type, grants })));
+}
+
+/**
+ * Whether a roll is one the advancement could have taken. A random skill takes a random-skill roll that
+ * ended on the skill it grants, by canonical name (the Skill Table's `Mighty Blow` is the Rat Ogre's
+ * `Mighty Blow (+1)`). A characteristic takes a D8 whose face may improve the characteristic it grants,
+ * or any skill taken in its place, as the post-match lets a characteristic advancement do. An advancement
+ * that does not say what it granted, or of any other type, takes no roll.
+ *
+ * @param {{purpose: string, result: object}} roll a `dice_rolls` row, or its public form
+ * @param {{type: string, grants?: {skill?: string, stat?: string}|null}} advancement
+ */
+export function rollFitsAdvancement({ purpose, result }, { type, grants }) {
+  if (type === "random") {
+    return purpose === "random_skill" && typeof grants?.skill === "string" && typeof result?.skill === "string"
+      && canonicalSkillName(grants.skill) === canonicalSkillName(result.skill);
+  }
+  if (type === "stat") {
+    return purpose === "stat" && (Boolean(grants?.skill) || (Array.isArray(result?.stats) && result.stats.includes(grants?.stat)));
+  }
+  return false;
 }
 
 /** One throw of a die with `sides` faces, refusing an answer the die cannot show. */
