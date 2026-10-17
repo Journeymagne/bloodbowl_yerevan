@@ -197,7 +197,7 @@ test("the profile route answers as it did before it moved here: its refusals kee
 }));
 
 // Changing the password: it needs the current one, and wrong guesses are counted as wrong logins.
-// The counter is per login key and lives for the whole process, so each test below has a login of its own.
+// The counter is per account (`attemptKey`) and lives for the whole process, so each test below has an account of its own.
 const profile = (token, body) => callApi("PATCH", "/api/auth/profile", { token, body });
 const login = (name, password) => callApi("POST", "/api/auth/login", { body: { login: name, password } });
 /** Who `token` signs in as: the user /me answers with, or null for a session that is over. */

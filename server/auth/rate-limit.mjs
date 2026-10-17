@@ -29,7 +29,7 @@ const DEFAULTS = {
 };
 
 /**
- * @param {string} loginKey the normalised login being tried
+ * @param {string} loginKey the attempt key being tried (`attemptKey`: the account's, or the name's when it names nobody)
  * @param {{now?: () => number, limit?: number, windowMs?: number}} [options]
  * @returns {{allowed: boolean, retryAfterSeconds: number}}
  */

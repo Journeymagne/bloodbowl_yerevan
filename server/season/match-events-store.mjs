@@ -125,7 +125,8 @@ export async function loadMatchEvents(client, pairingId, teamIds) {
  * table's constraints would not catch but the domain would misread throws, and then nothing is written:
  * every row is checked before the first INSERT.
  *
- * `settled` writes the rows as already in the blob (`settled_at = now()`): what a roster save writes,
+ * `settled` writes the rows as already in the blob, each settled the moment it is written (`settled_at`
+ * is the row's own `created_at`, one `clock_timestamp()`): what a roster save writes,
  * an edit outside a match (`pairingId` null) that the blob took in the same transaction.
  *
  * @param {{ query: Function }} client a pg client inside the transaction that writes the rows: the
