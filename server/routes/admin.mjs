@@ -29,6 +29,7 @@ import {
   serializeRosterForStorage,
 } from "../api/serializers.mjs";
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
+import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, userHasFriendlyGames } from "../api/team-queries.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
@@ -223,7 +224,7 @@ async function handleAdminUserTeamRoutes(request, response, url) {
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
     const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
-
+    refuseSiteRolls(roster);
     const coach = await pool.query(`SELECT * FROM users WHERE id = $1`, [adminUserTeamsMatch[1]]);
     if (!coach.rows[0]) return sendError(response, 404, "COACH_NOT_FOUND");
 

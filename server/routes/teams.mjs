@@ -16,7 +16,7 @@ import { classifyTreasuryChange } from "../../src/domain/roster/ledger.mjs";
 import { stageViolations } from "../../src/domain/roster/stage.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames } from "../api/team-queries.mjs";
 import { writeLedgerEntries } from "../api/team-ledger.mjs";
-import { settleRosterRolls } from "../api/dice-rolls.mjs";
+import { refuseSiteRolls, settleRosterRolls } from "../api/dice-rolls.mjs";
 import { handleTeamResourceRoutes } from "./team-resources.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
@@ -49,7 +49,7 @@ export async function handleTeamRoutes(request, response, url) {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
-
+    refuseSiteRolls(roster);
     const result = await pool.query(
       `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
        VALUES ($1, $2, $3, $4, $5)
