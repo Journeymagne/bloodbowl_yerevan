@@ -6,6 +6,7 @@
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { view } from "../core/view.mjs";
+import { refUrl, seasonTabUrl, teamsUrl } from "../core/routes.mjs";
 import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { activeOverviewCards } from "./overview.mjs";
 
@@ -25,7 +26,7 @@ export function renderHome() {
     </section>
 
     <nav class="site-quick-links" aria-label="${t("nav.navigationAria")}">
-      ${[["my-teams", "nav.myTeams"], ["my-games", "nav.myGames"], ["season", "nav.season"], ["pages", "nav.references"]].map(([route, key], index) => `<a href="#/${route}"><span aria-hidden="true">0${index + 1}</span><strong>${t(key)}</strong><span aria-hidden="true">↗</span></a>`).join("")}
+      ${[[teamsUrl(), "nav.myTeams"], ["#/my-games", "nav.myGames"], [seasonTabUrl(""), "nav.season"], [refUrl(), "nav.references"]].map(([href, key], index) => `<a href="${href}"><span aria-hidden="true">0${index + 1}</span><strong>${t(key)}</strong><span aria-hidden="true">↗</span></a>`).join("")}
     </nav>
 
     <section>

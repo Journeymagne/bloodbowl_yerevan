@@ -12,29 +12,20 @@
  * and parameters, and the builders turn ids back into hashes. Nothing in this
  * module touches `document`, `location` or application state, so the routing
  * table is covered by ordinary tests.
+ *
+ * 3.0 routes render the 2.x screens until their stage (plan stage 05,
+ * "Маршруты этапа 05"); every decision about where an address leads lives in
+ * resolveRedirect, pure.
  */
 
-/** Catalogue sections: a route name that is also the collection it lists. */
-export const SECTION_ROUTES = new Map([
-  ["teams", "teams"],
-  ["skills", "skills"],
-  ["traits", "traits"],
-  ["rules", "rules"],
-  ["cheatsheets", "cheatsheets"],
-  ["inducements", "inducements"],
-  ["star-players", "star-players"],
-  ["pages", "pages"],
-]);
+/** The reference lists under `#/ref/<section>`; each is also the collection it lists. */
+export const REF_SECTIONS = new Set(["teams", "skills", "traits", "rules", "cheatsheets", "inducements", "star-players"]);
 
-/** Screens that are not driven by the content vault. */
-export const STATIC_ROUTES = new Set([
-  "builder",
-  "legal",
-  "my-teams",
-  "my-games",
-  "season",
-  "administration",
-]);
+/** The screens of one of the coach's own teams, `#/t/:teamId[/…]`. */
+export const TEAM_ROUTES = new Set(["team", "teamManage", "teamRoster", "teamPlayer", "teamMatches", "teamChallenges"]);
+
+/** The tail of a team address for each team screen but the player, which has an id of its own. */
+const TEAM_SECTIONS = new Set(["", "team", "roster", "matches", "challenges"]);
 
 /** Accept either an entity or its id, because call sites have both. */
 function idOf(entityOrId) {
@@ -54,12 +45,45 @@ export function pageUrl(page) {
   return `#/${page.slug}`;
 }
 
+/** A team's screen: `""` is its overview, the others are its tabs. */
+export function teamUrl(teamOrId, section = "") {
+  if (!TEAM_SECTIONS.has(section)) throw new Error(`Unknown team section: ${section}`);
+  return `#/t/${segment(teamOrId)}${section ? `/${section}` : ""}`;
+}
+
+export function teamPlayerUrl(teamOrId, playerOrId) {
+  return `${teamUrl(teamOrId, "roster")}/${segment(playerOrId)}`;
+}
+
+export function teamsUrl() {
+  return "#/teams";
+}
+
+export function newTeamUrl() {
+  return "#/teams/new";
+}
+
+/** @param {"login"|"register"} mode */
+export function authUrl(mode = "login") {
+  return mode === "register" ? "#/register" : "#/login";
+}
+
+export function settingsUrl() {
+  return "#/settings";
+}
+
+/** `""` and `"pages"` (the 2.x name of the whole list) are the reference itself. */
+export function refUrl(section = "") {
+  return section && section !== "pages" ? `#/ref/${encodeURIComponent(section)}` : "#/ref";
+}
+
+/** A coach's public profile (2.x called coaches players). */
 export function playerUrl(userOrId) {
-  return `#/players/${segment(userOrId)}`;
+  return `#/coaches/${segment(userOrId)}`;
 }
 
 export function playerTeamUrl(userOrId, teamOrId) {
-  return `#/players/${segment(userOrId)}/teams/${segment(teamOrId)}`;
+  return `#/coaches/${segment(userOrId)}/teams/${segment(teamOrId)}`;
 }
 
 export function adminTeamEditUrl(userOrId, teamOrId) {
@@ -78,8 +102,9 @@ export function postMatchUrl(gameOrId, step = "") {
   return `${gameUrl(gameOrId)}/post-match${step ? `/${encodeURIComponent(step)}` : ""}`;
 }
 
+/** The 2.x saved-roster editor, which the team's roster tab draws until stage 07. */
 export function savedRosterUrl(teamOrId) {
-  return `#/my-teams/${segment(teamOrId)}`;
+  return teamUrl(teamOrId, "roster");
 }
 
 /** Bare `#/season` is the default tab; only a non-default tab gets a segment. */
@@ -87,8 +112,9 @@ export function seasonTabUrl(tab) {
   return tab ? `#/season/${encodeURIComponent(tab)}` : "#/season";
 }
 
+/** The list a content page goes back to: a reference section, or home. */
 export function listUrlForRoute(route) {
-  return route === "home" ? "#/" : `#/${route}`;
+  return route === "home" ? "#/" : refUrl(route);
 }
 
 // ---------------------------------------------------------------------------
@@ -112,7 +138,7 @@ export function routeFromHash(hash = "") {
   return decoded || "home";
 }
 
-/** Which nav item owns a content page. */
+/** Which reference list owns a content page. */
 export function navRouteForPage(page) {
   if (page.kind === "team") return "teams";
   if (page.kind === "skill") return "skills";
@@ -124,86 +150,147 @@ export function navRouteForPage(page) {
   return "pages";
 }
 
-/**
- * Which nav section should look active for a route.
- *
- * @param {string} route
- * @param {(slug: string) => object|null} [findPage] resolves a content slug;
- *   defaults to "not found", so this stays usable without the content vault.
- */
-export function routeSection(route, findPage = () => null) {
-  if (!route || route === "home") return "home";
-  if (route.startsWith("overview/")) return "home";
-  if (route.startsWith("administration/")) return "administration";
-  if (route.startsWith("games/")) return "my-games";
-  if (route.startsWith("players/")) return "players";
-  if (route.startsWith("season/")) return "season";
-  if (SECTION_ROUTES.has(route)) return route;
-  if (STATIC_ROUTES.has(route)) return route;
-  const page = findPage(route);
-  return page ? navRouteForPage(page) : "home";
-}
+/** Whole routes with no parameters: the route string → the screen's name. */
+const PLAIN_ROUTES = new Map([
+  ["home", "home"],
+  ["login", "login"],
+  ["register", "register"],
+  ["settings", "settings"],
+  ["teams", "teams"],
+  ["teams/new", "teamNew"],
+  ["ref", "ref"],
+  ["administration", "administration"],
+  ["legal", "legal"],
+]);
 
-const ADMIN_TEAM_EDIT = /^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit$/;
-const PUBLIC_TEAM = /^players\/([^/]+)\/teams\/([^/]+)$/;
+/**
+ * Routes with ids: `[pattern, name, ...param names]`. Anchored, so a segment
+ * too many is a content slug and not the screen with an odd id. An optional
+ * group that did not match is `""`.
+ */
+const ID_ROUTES = [
+  [/^t\/([^/]+)$/, "team", "teamId"],
+  [/^t\/([^/]+)\/team$/, "teamManage", "teamId"],
+  [/^t\/([^/]+)\/roster$/, "teamRoster", "teamId"],
+  [/^t\/([^/]+)\/roster\/([^/]+)$/, "teamPlayer", "teamId", "playerId"],
+  [/^t\/([^/]+)\/matches$/, "teamMatches", "teamId"],
+  [/^t\/([^/]+)\/challenges$/, "teamChallenges", "teamId"],
+  [/^coaches\/([^/]+)$/, "coach", "userId"],
+  [/^coaches\/([^/]+)\/teams\/([^/]+)$/, "coachTeam", "userId", "teamId"],
+  [/^games\/([^/]+)\/pre-match(?:\/([^/]+))?$/, "preMatch", "gameId", "step"],
+  [/^games\/([^/]+)\/post-match(?:\/([^/]+))?$/, "postMatch", "gameId", "step"],
+  [/^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit$/, "adminTeamEdit", "ownerId", "teamId"],
+];
+
+/** The 2.x shapes that take the rest of the route as one parameter: `[prefix, name, param]`. */
+const PREFIX_ROUTES = [
+  ["overview/", "overview", "slug"],
+  ["games/", "game", "gameId"],
+  ["season/", "season", "tab"],
+  ["administration/users/", "adminUserProfile", "userId"],
+];
 
 /**
  * Turn a route string into the screen to render.
  *
- * Order matters and mirrors the original if-chain: the more specific patterns
- * come first, so `administration/users/x/teams/y/edit` is the roster editor and
- * not a user profile whose id happens to contain slashes.
+ * Order matters: the anchored id routes come before the prefixes, so
+ * `administration/users/x/teams/y/edit` is the roster editor and not a user
+ * profile whose id happens to contain slashes, and `games/g/pre-match` is the
+ * preparation and not a game.
  *
  * The `page` result is the fallback — the caller looks the slug up in the
  * content vault and renders "not found" when there is nothing there. Resolving
- * it here would drag application state into a pure function.
+ * it here would drag application state into a pure function. The 2.x
+ * addresses (`#/my-teams`, `#/skills`…) are pages here too: resolveRedirect
+ * sends them on before anything is drawn.
  *
  * @returns {{name: string, params: object}}
  */
 export function matchRoute(route) {
-  if (route === "home") return { name: "home", params: {} };
-  if (route.startsWith("overview/")) {
-    return { name: "overview", params: { slug: route.slice("overview/".length) } };
-  }
-  if (SECTION_ROUTES.has(route)) return { name: "section", params: { route } };
-  if (route === "builder") return { name: "builder", params: {} };
-  if (route.startsWith("my-teams/")) {
-    return { name: "savedRoster", params: { teamId: route.slice("my-teams/".length) } };
-  }
-  if (route === "my-teams") return { name: "myTeams", params: {} };
-  const preparation = route.match(/^games\/([^/]+)\/pre-match(?:\/([^/]+))?$/);
-  if (preparation) return { name: "preMatch", params: { gameId: preparation[1], step: preparation[2] || "" } };
-  const postMatch = route.match(/^games\/([^/]+)\/post-match(?:\/([^/]+))?$/);
-  if (postMatch) return { name: "postMatch", params: { gameId: postMatch[1], step: postMatch[2] || "" } };
-  if (route.startsWith("games/")) {
-    return { name: "game", params: { gameId: route.slice("games/".length) } };
-  }
-  if (route === "my-games") return { name: "myGames", params: {} };
+  if (PLAIN_ROUTES.has(route)) return { name: PLAIN_ROUTES.get(route), params: {} };
   if (route === "season") return { name: "season", params: { tab: "" } };
-  if (route.startsWith("season/")) {
-    return { name: "season", params: { tab: route.slice("season/".length) } };
+  const section = route.match(/^ref\/([^/]+)$/)?.[1];
+  if (REF_SECTIONS.has(section)) return { name: "refSection", params: { section } };
+  for (const [pattern, name, ...keys] of ID_ROUTES) {
+    const match = route.match(pattern);
+    if (match) return { name, params: Object.fromEntries(keys.map((key, index) => [key, match[index + 1] ?? ""])) };
   }
-
-  const adminEdit = route.match(ADMIN_TEAM_EDIT);
-  if (adminEdit) {
-    return { name: "adminTeamEdit", params: { ownerId: adminEdit[1], teamId: adminEdit[2] } };
+  for (const [prefix, name, key] of PREFIX_ROUTES) {
+    if (route.startsWith(prefix)) return { name, params: { [key]: route.slice(prefix.length) } };
   }
-  if (route.startsWith("administration/users/")) {
-    return {
-      name: "adminUserProfile",
-      params: { userId: route.slice("administration/users/".length) },
-    };
-  }
-  if (route === "administration") return { name: "administration", params: {} };
-
-  const publicTeam = route.match(PUBLIC_TEAM);
-  if (publicTeam) {
-    return { name: "publicTeam", params: { userId: publicTeam[1], teamId: publicTeam[2] } };
-  }
-  if (route.startsWith("players/")) {
-    return { name: "playerProfile", params: { userId: route.slice("players/".length) } };
-  }
-  if (route === "legal") return { name: "legal", params: {} };
-
   return { name: "page", params: { slug: route } };
+}
+
+// ---------------------------------------------------------------------------
+// Where an address leads
+// ---------------------------------------------------------------------------
+
+/** What a guest cannot open: the way in is to sign in (plan stage 05, decision 5). */
+const SIGNED_IN_ROUTES = new Set([
+  "teams",
+  ...TEAM_ROUTES,
+  "coach",
+  "coachTeam",
+  "game",
+  "preMatch",
+  "postMatch",
+  "administration",
+  "adminUserProfile",
+  "adminTeamEdit",
+]);
+
+/**
+ * The 2.x addresses and where they live now: `[pattern, (match, context) →
+ * hash or null]`. Null is "not for this visitor", and the rest of
+ * resolveRedirect decides: a guest's `#/my-games` asks for a session like any
+ * coach page, a coach's `#/teams` is My Teams.
+ */
+const OLD_ADDRESSES = [
+  [/^my-teams$/, () => teamsUrl()],
+  [/^my-teams\/([^/]+)$/, ([, teamId]) => teamUrl(teamId, "roster")],
+  [/^builder$/, () => newTeamUrl()],
+  [/^my-games$/, (match, { signedIn, activeTeamId }) => {
+    if (!signedIn) return null;
+    return activeTeamId ? teamUrl(activeTeamId, "matches") : teamsUrl();
+  }],
+  [/^players\/([^/]+)$/, ([, userId]) => playerUrl(userId)],
+  [/^players\/([^/]+)\/teams\/([^/]+)$/, ([, userId, teamId]) => playerTeamUrl(userId, teamId)],
+  [/^(?:ref\/)?pages$/, () => refUrl()],
+  [/^(skills|traits|rules|cheatsheets|inducements|star-players)$/, ([, name]) => refUrl(name)],
+  // In 2.x #/teams was the team rules list, and a guest's old link still means that.
+  [/^teams$/, (match, { signedIn }) => (signedIn ? null : refUrl("teams"))],
+];
+
+function oldAddressTarget(route, context) {
+  for (const [pattern, lead] of OLD_ADDRESSES) {
+    const match = route.match(pattern);
+    if (match) return lead(match, context);
+  }
+  return null;
+}
+
+/**
+ * Where a route leads before anything is drawn, in this order: (1) a 2.x
+ * address goes to its 3.0 one; (2) a signed-in visitor on the sign-in screens
+ * goes back where they were sent from, or home; (3) a coach's home is the
+ * active team; (4) a guest on a coach page signs in first, and the address is
+ * remembered; (5) otherwise the route stays.
+ *
+ * Every target is a different route and settles within two hops (the tests
+ * walk them), so the router can apply it with `location.replace` and let the
+ * next hashchange draw.
+ *
+ * @param {string} route as `routeFromHash` gives it
+ * @param {{signedIn: boolean, activeTeamId?: string|null, returnTo?: string}} context
+ * @returns {{target: string|null, returnTo: string}} the hash to go to (null:
+ *   draw this route), and the address to come back to after signing in
+ */
+export function resolveRedirect(route, { signedIn, activeTeamId = null, returnTo = "" }) {
+  const old = oldAddressTarget(route, { signedIn, activeTeamId });
+  if (old) return { target: old, returnTo };
+  const { name } = matchRoute(route);
+  if (signedIn && (name === "login" || name === "register")) return { target: returnTo || "#/", returnTo: "" };
+  if (signedIn && activeTeamId && name === "home") return { target: teamUrl(activeTeamId), returnTo };
+  if (!signedIn && (SIGNED_IN_ROUTES.has(name) || route === "my-games")) return { target: authUrl(), returnTo: `#/${route}` };
+  return { target: null, returnTo };
 }

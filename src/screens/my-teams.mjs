@@ -12,6 +12,7 @@ import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
+import { newTeamUrl, savedRosterUrl } from "../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { resetBuilderForTeam } from "../data/roster-draft.mjs";
 import { toastError } from "../components/toast.mjs";
@@ -43,7 +44,7 @@ export async function renderMyTeams() {
   }
   view.innerHTML = `
     ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"), `<button class="primary-button" type="button" data-new-team>${t("myTeams.createTeam")}</button>`)}
-    ${state.myTeams.items.length ? renderSavedTeams(state.myTeams.items, { owner: state.auth.currentUser, canManage: true, editUrl: team => "#/my-teams/" + encodeURIComponent(team.id) }) : `<div class="empty-state">${t("myTeams.noSavedTeams")}</div>`}
+    ${state.myTeams.items.length ? renderSavedTeams(state.myTeams.items, { owner: state.auth.currentUser, canManage: true, editUrl: savedRosterUrl }) : `<div class="empty-state">${t("myTeams.noSavedTeams")}</div>`}
   `;
   wireMyTeams();
 }
@@ -52,7 +53,7 @@ export async function renderMyTeams() {
 function wireMyTeams() {
   view.querySelector("[data-new-team]")?.addEventListener("click", () => {
     resetBuilderForTeam(state.data.teams[0]);
-    location.hash = "#/builder";
+    location.hash = newTeamUrl();
   });
   wireTeamDeleteButtons(() => renderMyTeams());
 }

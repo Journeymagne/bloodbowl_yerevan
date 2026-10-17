@@ -53,7 +53,7 @@ await check("home screen renders", async () => {
 });
 
 await check("teams list", async () => {
-  await page.goto(`${base}/#/teams`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/ref/teams`, { waitUntil: "networkidle" });
   await page.waitForSelector(".card-grid .card", { timeout: 15000 });
   const count = await page.locator(".card-grid .card").count();
   if (count !== 37) throw new Error(`expected 37 team cards, found ${count}`);
@@ -67,7 +67,7 @@ await check("team detail", async () => {
 });
 
 await check("builder hires exactly one player per click", async () => {
-  await page.goto(`${base}/#/builder`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/teams/new`, { waitUntil: "networkidle" });
   await page.waitForSelector("[data-matchday-open-hire]", { timeout: 15000 });
   const unique = () => page.evaluate(() =>
     new Set([...document.querySelectorAll("[data-remove-player]")].map((node) => node.dataset.removePlayer)).size);

@@ -2,18 +2,23 @@
  * The route table, and what a route change has to tear down.
  *
  * `core/routes.mjs` stays pure — it turns a hash into a name and parameters,
- * and is covered by ordinary tests. This module is the half that needs the
- * DOM: it maps those names onto screen modules and runs the dispatch.
+ * and decides where an address leads (`resolveRedirect`); both are covered by
+ * ordinary tests. This module is the half that needs the DOM: it applies the
+ * redirect, maps the names onto screen modules and runs the dispatch. The 3.0
+ * names draw the 2.x screens until their own stage (plan stage 05, "Маршруты
+ * этапа 05").
  *
  * Leaving a screen is core/screen-lifecycle.mjs' job; the router only says
  * when.
  */
-import { matchRoute, routeFromHash } from "./routes.mjs";
+import { matchRoute, resolveRedirect, routeFromHash } from "./routes.mjs";
+import { peekReturn, setReturn } from "./return-to.mjs";
 import { releaseCurrentScreen } from "./screen-lifecycle.mjs";
 import { t } from "./i18n.mjs";
 import { state } from "./state.mjs";
 import { view } from "./view.mjs";
 import { announce } from "../components/live-region.mjs";
+import { openAuthModal } from "../components/auth-modal.mjs";
 import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderHome } from "../screens/home.mjs";
 import { renderOverviewDetail } from "../screens/overview.mjs";
@@ -41,21 +46,29 @@ function findPageBySlug(slug) {
 
 const screens = {
   home: () => renderHome(),
+  login: () => renderAuthModal("login"),
+  register: () => renderAuthModal("register"),
+  settings: () => renderAuthModal("account"),
   overview: ({ slug }) => renderOverviewDetail(slug),
-  section: ({ route }) => renderSection(route),
-  builder: () => renderBuilder(),
-  savedRoster: ({ teamId }) => renderSavedRoster(teamId),
-  myTeams: () => renderMyTeams(),
+  teams: () => renderMyTeams(),
+  teamNew: () => renderBuilder(),
+  team: () => renderHome(),
+  teamManage: ({ teamId }) => renderSavedRoster(teamId),
+  teamRoster: ({ teamId }) => renderSavedRoster(teamId),
+  teamPlayer: ({ teamId }) => renderSavedRoster(teamId),
+  teamMatches: () => renderMyGames(),
+  teamChallenges: () => renderMyGames(),
+  coach: ({ userId }) => renderPlayerProfile(userId),
+  coachTeam: ({ userId, teamId }) => renderPublicTeamProfile(userId, teamId),
+  ref: () => renderSection("pages"),
+  refSection: ({ section }) => renderSection(section),
   game: ({ gameId }) => renderGamePage(gameId),
   preMatch: ({ gameId, step }) => renderPreMatch(gameId, step),
   postMatch: ({ gameId, step }) => renderPostMatch(gameId, step),
-  myGames: () => renderMyGames(),
   season: ({ tab }) => renderSeason(true, tab),
   adminTeamEdit: ({ ownerId, teamId }) => renderSavedRoster(teamId, true, { adminOwnerId: ownerId }),
   adminUserProfile: ({ userId }) => renderAdminUserProfile(userId),
   administration: () => renderAdministration(),
-  publicTeam: ({ userId, teamId }) => renderPublicTeamProfile(userId, teamId),
-  playerProfile: ({ userId }) => renderPlayerProfile(userId),
   legal: () => renderLegal(),
   page: ({ slug }) => {
     const page = findPageBySlug(slug);
@@ -63,23 +76,51 @@ const screens = {
   },
 };
 
+/** Until the sign-in screen (Task 9) and Settings (Task 8) exist: the 2.x modal over the home screen. */
+function renderAuthModal(mode) {
+  renderHome();
+  openAuthModal(mode);
+}
+
 function renderNotFound() {
   setActiveNav("home");
   setViewSection("home");
   view.innerHTML = `<div class="empty-state">${t("app.pageNotFound")}</div>`;
 }
 
+/** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */
+let ticket = 0;
+
+/**
+ * Draw the screen the hash names, unless resolveRedirect sends the address on:
+ * then `location.replace` swaps it (the redirected address does not stay in
+ * history) and the hashchange that follows draws the target.
+ *
+ * The 2.x screens still set their own nav highlight on the way in; the 3.0
+ * shell takes it from the route name (Task 12), which is why routes.mjs no
+ * longer derives a section from the route.
+ */
 export function renderRoute() {
-  // Each screen sets its own nav highlight on the way in. core/routes.mjs also
-  // exports routeSection(), which derives the same thing from the route alone —
-  // the two disagree today (a player profile highlights "season"), so switching
-  // to it is a visible change and belongs in its own commit, not this one.
+  const current = ++ticket;
+  const route = routeFromHash(location.hash);
+  const { target, returnTo } = resolveRedirect(route, {
+    signedIn: Boolean(state.auth.currentUser),
+    activeTeamId: state.activeTeamId ?? null,
+    returnTo: peekReturn(),
+  });
+  setReturn(returnTo);
+  if (target) {
+    location.replace(target);
+    return undefined;
+  }
   releaseCurrentScreen();
-  const { name, params } = matchRoute(routeFromHash(location.hash));
+  const { name, params } = matchRoute(route);
   const rendered = screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so
   // (step 15.5), so the heading is announced instead — after the screen has
   // put one there, which for anything that waits on a fetch is not yet.
-  Promise.resolve(rendered).then(() => announce(view.querySelector("h1, h2")?.textContent ?? ""));
+  Promise.resolve(rendered).then(() => {
+    if (current === ticket) announce(view.querySelector("h1, h2")?.textContent ?? "");
+  });
   return rendered;
 }

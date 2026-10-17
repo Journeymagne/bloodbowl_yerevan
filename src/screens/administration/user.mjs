@@ -10,7 +10,7 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { adminTeamEditUrl } from "../../core/routes.mjs";
+import { adminTeamEditUrl, savedRosterUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPlayerLink } from "../../components/content-links.mjs";
 import { updateAuthButton } from "../../components/auth-button.mjs";
@@ -277,5 +277,5 @@ function canManageProfileTeams(user) {
 function profileTeamEditUrl(owner, team) {
   return state.auth.currentUser?.isAdmin
     ? adminTeamEditUrl(owner, team)
-    : `#/my-teams/${encodeURIComponent(team.id)}`;
+    : savedRosterUrl(team);
 }

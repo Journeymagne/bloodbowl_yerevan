@@ -1,6 +1,6 @@
 /**
- * The league roster editor: `#/my-teams/:id`, the admin equivalent, and the
- * public player-team edit route.
+ * The league roster editor: `#/t/:id/roster` (2.x `#/my-teams/:id`), the
+ * admin equivalent, and the public player-team edit route.
  *
  * One of the two editors design spec section 5.1 counts — screens/builder.mjs
  * is the other. Task 7b is folding the shared parts into
@@ -18,7 +18,7 @@ import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
-import { pageUrl } from "../core/routes.mjs";
+import { pageUrl, teamsUrl } from "../core/routes.mjs";
 import { onScreenLeave } from "../core/screen-lifecycle.mjs";
 import {
   builderStaffMaximums,
@@ -163,7 +163,7 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
   sanitizeFavouredSkillsForTeam(team, draft);
   const costs = calculateRosterCosts(team, draft);
   const warnings = rosterWarnings(team, draft, costs);
-  const backUrl = isAdminEdit ? `#/administration/users/${encodeURIComponent(owner?.id || options.adminOwnerId)}` : "#/my-teams";
+  const backUrl = isAdminEdit ? `#/administration/users/${encodeURIComponent(owner?.id || options.adminOwnerId)}` : teamsUrl();
   const titlePrefix = isAdminEdit ? `${t("common.editing")} "${draft.teamName || savedTeam.name || team.title}"` : `${t("sidebar.teamHeading")} "${draft.teamName || savedTeam.name || team.title}"`;
 
   patchMatchdayEditor(view, `
@@ -360,7 +360,7 @@ function wireSavedRoster(savedTeam, team, draft, options = {}) {
         teamName: draft.teamName || savedTeam.name || team.title,
       });
       if (!deleted) return;
-      location.hash = options.adminOwnerId ? `#/administration/users/${encodeURIComponent(ownerId)}` : "#/my-teams";
+      location.hash = options.adminOwnerId ? `#/administration/users/${encodeURIComponent(ownerId)}` : teamsUrl();
     } catch (error) {
       toastError(error);
     }

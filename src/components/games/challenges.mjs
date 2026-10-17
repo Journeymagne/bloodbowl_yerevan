@@ -2,7 +2,7 @@ import { t } from "../../core/i18n.mjs";
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { state } from "../../core/state.mjs";
-import { gameUrl } from "../../core/routes.mjs";
+import { gameUrl, teamsUrl } from "../../core/routes.mjs";
 import { toastError } from "../toast.mjs";
 
 const safe = escapeHtml;
@@ -20,7 +20,7 @@ export function renderChallenges(payload) {
   const incoming = pending.filter(challenge => challenge.recipient.id === ours), outgoing = pending.filter(challenge => challenge.sender.id === ours);
   const answered = payload.challenges.filter(challenge => challenge.status !== "pending").slice(0, 8);
   return `<section class="content-panel challenge-panel"><h2>${t("challenges.title")}</h2><p class="muted-text">${t("games.friendlyRules")}</p>
-    ${!payload.teams.length ? `<p class="notice-box">${t("challenges.needTeam")} <a href="#/my-teams">${t("nav.myTeams")}</a></p>` : ""}
+    ${!payload.teams.length ? `<p class="notice-box">${t("challenges.needTeam")} <a href="${teamsUrl()}">${t("nav.myTeams")}</a></p>` : ""}
     <div class="challenge-columns">${[["challenges.incoming", incoming, true], ["challenges.outgoing", outgoing, false]].map(([title, items, isIncoming]) => `<section><h3 class="challenge-column-heading">${t(title)} <span>${items.length}</span></h3><div class="challenge-list">${items.length ? items.map(item => challengeCard(item, isIncoming, payload.teams)).join("") : `<p class="challenge-empty">${t("challenges.none")}</p>`}</div></section>`).join("")}</div>
     ${answered.length ? `<details class="challenge-history"><summary>${t("challenges.recentResponses")}</summary><ul>${answered.map(item => `<li><span>${safe(item.sender.id === ours ? item.recipient.login : item.sender.login)} · ${t(`challenges.status.${item.status}`)}</span>${item.gameId ? `<a href="${gameUrl(item.gameId)}">${t("challenges.openGame")}</a>` : ""}</li>`).join("")}</ul></details>` : ""}</section>
     <dialog class="matchday-hire-dialog challenge-dialog" data-challenge-dialog aria-labelledby="challenge-dialog-title"><header><div><span class="matchday-eyebrow">${t("games.friendlyMatch")}</span><h2 id="challenge-dialog-title">${t("challenges.send")}</h2></div><button class="filter-button" type="button" data-close-challenge>${t("common.close")}</button></header>
