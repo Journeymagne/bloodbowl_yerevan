@@ -73,7 +73,7 @@ const FACES = {
   season: { icon: "calendar", label: () => t("shell.side.season") },
   ref: { icon: "book", label: () => t("shell.tab.ref") },
   settings: { icon: "settings", label: () => t("shell.tab.settings") },
-  administration: { icon: "shield", label: () => t("nav.administration") },
+  administration: { icon: "shield", label: () => t("shell.side.administration") },
 };
 
 /** A guest has no overview of a team: the league's front page is theirs. */

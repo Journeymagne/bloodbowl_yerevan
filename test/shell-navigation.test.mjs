@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { assertDictionaryCovers } from "./helpers/ui.mjs";
@@ -158,7 +159,8 @@ test("labels and the place read in the language of the page", () => {
   try {
     const model = shellModel(at("teamRoster", { user: ADMIN }));
     assert.deepEqual(model.tabs.map((tab) => tab.label), ["Обзор", "Команда", "Состав", "Матчи", "Таблица", "Справочник", "Настройки"]);
-    assert.deepEqual(model.side.map((item) => item.label), ["Обзор", "Состав", "Сезон", "Справочник", "Настройки", "Администрирование"]);
+    // The administration item carries a soft hyphen: in the 200px column the word would not fit, and breaks there.
+    assert.deepEqual(model.side.map((item) => item.label), ["Обзор", "Состав", "Сезон", "Справочник", "Настройки", "Администри\u00ADрование"]);
     assert.equal(model.brand.sub, "Human · 2-е место в лиге");
     assert.equal(model.brand.sideSub, "Human · Gata League");
     assert.deepEqual(shellModel(at("home", { user: null, team: null })).tabs.map((tab) => tab.label), ["Главная", "Таблица", "Справочник", "Настройки"]);
@@ -201,6 +203,19 @@ test("a route the router gains is a route the model must be told about", () => {
     "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u2", "coaches/u2/teams/t9", "games/g1", "games/g1/pre-match", "games/g1/post-match", "season", "season/rounds",
     "overview/rules", "administration/users/u2", "administration/users/u2/teams/t9/edit", "no-such-slug"];
   assert.deepEqual([...new Set(addresses.map((address) => matchRoute(address).name))].sort(), [...ROUTE_NAMES].sort());
+});
+
+test("every name matchRoute gives from its own body is a name the router lists", () => {
+  // ROUTE_NAMES is built from the route tables; a name written into matchRoute's body has to be added by hand, and this is what tells.
+  const source = readFileSync(new URL("../src/core/routes.mjs", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  const written = [...source.matchAll(/\bname:\s*"([^"]+)"/g)].map(([, name]) => name);
+  assert.ok(written.length >= 2, "the names written into matchRoute were found");
+  for (const name of written) assert.ok(ROUTE_NAMES.has(name), `matchRoute gives "${name}", which ROUTE_NAMES does not list`);
+});
+
+test("the administration item has its own words in the SideNav, and its English is plain", () => {
+  const model = shellModel(at("administration", { user: ADMIN }));
+  assert.equal(model.side.at(-1).label, "Administration");
 });
 
 test("a team whose id has a space or a slash in it is linked by its encoded id", () => {

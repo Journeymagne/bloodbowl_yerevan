@@ -112,7 +112,11 @@
   white-space: nowrap;
 }
 
-/* The tabs scroll sideways and fade out at the right edge, which says there are more. */
+/*
+ * The tabs scroll sideways and fade out at the right edge, which says there
+ * are more. The row ends in as much room as the fade covers (15%, the 85% of
+ * the mask below), so the last tab, scrolled to, stands clear of it.
+ */
 .g-tabs {
   display: flex;
   gap: 6px;
@@ -123,6 +127,11 @@
   mask-image: linear-gradient(to right, #000 85%, transparent);
 }
 .g-tabs::-webkit-scrollbar { display: none; }
+.g-tabs::after {
+  content: "";
+  flex: none;
+  width: 15%;
+}
 
 .g-tab {
   box-sizing: border-box;
@@ -154,9 +163,11 @@
 
 /*
  * The folded header: a small crest, a short name, no subtitle. The team link
- * keeps its 44px, which stands in for the prototype's 6px of padding above it.
+ * keeps its 44px, which stands in for the prototype's 6px of padding above it,
+ * and 3px stay above it: the bar sits at the top of the page, and its focus
+ * ring would be cut off there.
  */
-.g-appbar--compact { padding-top: 0; }
+.g-appbar--compact { padding-top: 3px; }
 .g-appbar--compact .g-crest {
   width: 24px;
   height: 27px;
@@ -168,4 +179,14 @@
   .g-appbar,
   .g-appbar .g-crest,
   .g-appbar__name { transition: none; }
+}
+
+/*
+ * Forced colours take the colour and the transparent border away from every
+ * tab alike, so the current one is told by its underline alone: the others
+ * draw theirs in the page colour, the current one in the highlight.
+ */
+@media (forced-colors: active) {
+  .g-tab { border-bottom-color: Canvas; }
+  .g-tab[aria-current="page"] { border-bottom-color: Highlight; }
 }

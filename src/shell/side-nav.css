@@ -59,7 +59,13 @@
   min-width: 0;
 }
 
+/* A name of any length ends at three lines; its title carries the whole of it. */
 .g-sidenav__name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
   color: var(--header-ink);
   font: 700 22px/1.05 var(--font-display);
   letter-spacing: 0;
@@ -97,6 +103,16 @@
   text-transform: none;
   letter-spacing: 0;
 }
+/*
+ * The label may shrink and break, so a word longer than the 200px pill allows
+ * (the Russian «Администрирование», which carries a soft hyphen) goes on a second
+ * line inside it: the link is 44px at least, and two lines of 16px fit.
+ */
+.g-sidenav__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
 .g-sidenav__link:hover {
   background: color-mix(in srgb, var(--header-ink) 8%, transparent);
   color: var(--header-ink);
@@ -113,6 +129,9 @@
   gap: var(--space-16);
   margin-top: auto;
 }
+
+/* A guest's way in has a border of its own: the button is the surface colour, and in the dark palettes that is the header's. */
+.g-sidenav__login .g-btn { border-color: var(--header-tab); }
 
 .g-sidenav__foot {
   display: flex;
@@ -162,6 +181,7 @@
 }
 .g-lang__item::before {
   content: "";
+  box-sizing: border-box;
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -190,3 +210,17 @@
 
 /* The ring of base.css is --accent-text, which is under 3:1 on the light palettes' header. */
 .g-sidenav :focus-visible { outline-color: var(--header-ink); }
+
+/*
+ * Forced colours take the wash and the colour away: the item that is current
+ * and the language that is on are then told by a border. The item's padding
+ * gives back the border's width, so nothing moves; the pill is border-box, so
+ * it stays 36×28.
+ */
+@media (forced-colors: active) {
+  .g-sidenav__link[aria-current="page"] {
+    padding: 0 calc(var(--space-12) - 2px);
+    border: 2px solid CanvasText;
+  }
+  .g-lang__item[aria-pressed="true"]::before { border: 2px solid CanvasText; }
+}

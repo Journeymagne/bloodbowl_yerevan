@@ -52,18 +52,21 @@ export function renderSiteFooter({ generatedAt = "", locale }) {
   return `<p class="g-site-footer">${updated}${escapeHtml(t("footer.unofficialNote"))} <a href="${LEGAL_URL}">${escapeHtml(t("footer.legalLink"))}</a></p>`;
 }
 
-/** The crest and the name with the line under it, as one link to where the teams are; a chevron and a hidden hint when the team can be switched. */
+/**
+ * The crest and the name with the line under it, as one link to where the teams are; a chevron and a
+ * hidden hint when the team can be switched. The name is cut at three lines, so it carries itself whole as its title.
+ */
 function renderTeamBlock({ name, sideSub, href, switchTeam }) {
   assertLinkHref(href);
   const chevron = switchTeam ? renderIcon("down", 16) : "";
   const hint = switchTeam ? `<span class="g-sr-only">${escapeHtml(t("shell.switchTeam"))}</span>` : "";
   return `<a class="g-sidenav__team" href="${escapeHtml(href)}">${renderCrest({ size: "sm" })}`
-    + `<span class="g-sidenav__titles"><span class="g-sidenav__name">${escapeHtml(name)}</span><span class="g-sidenav__sub">${escapeHtml(sideSub)}</span></span>${chevron}${hint}</a>`;
+    + `<span class="g-sidenav__titles"><span class="g-sidenav__name" title="${escapeHtml(name)}">${escapeHtml(name)}</span><span class="g-sidenav__sub">${escapeHtml(sideSub)}</span></span>${chevron}${hint}</a>`;
 }
 
 function renderLink({ label, href, icon, current }) {
   assertLinkHref(href);
-  return `<a class="g-sidenav__link" href="${escapeHtml(href)}"${current ? ' aria-current="page"' : ""}>${renderIcon(icon, 18)}${escapeHtml(label)}</a>`;
+  return `<a class="g-sidenav__link" href="${escapeHtml(href)}"${current ? ' aria-current="page"' : ""}>${renderIcon(icon, 18)}<span class="g-sidenav__label">${escapeHtml(label)}</span></a>`;
 }
 
 /**
@@ -76,7 +79,7 @@ function renderLink({ label, href, icon, current }) {
  */
 export function renderSideNav(model, { matchHtml = "", locale, generatedAt = "" }) {
   if (model.mode === "bare") return "";
-  const login = model.mode === "guest" ? renderButton({ label: t("auth.toLogin"), href: authUrl(), block: true }) : "";
+  const login = model.mode === "guest" ? `<div class="g-sidenav__login">${renderButton({ label: t("auth.toLogin"), href: authUrl(), block: true })}</div>` : "";
   return renderTeamBlock(model.brand)
     + `<nav class="g-sidenav__nav" aria-label="${escapeHtml(t("shell.sections"))}">${model.side.map(renderLink).join("")}</nav>`
     + `<div class="g-sidenav__bottom">${matchHtml}${login}<div class="g-sidenav__foot">${renderLanguageSwitch(locale)}${renderSiteFooter({ generatedAt, locale })}</div></div>`;

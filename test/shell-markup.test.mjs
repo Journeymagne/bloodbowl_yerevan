@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
-import { assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { ROUTE_NAMES } from "../src/core/routes.mjs";
 import { shellModel } from "../src/shell/navigation.mjs";
@@ -70,6 +70,8 @@ test("text on the header band reads in every palette, and focus there is drawn i
   assertReadable("src/shell/side-nav.css", ".g-sidenav .g-site-footer", "color", ["--header"], 4.5);
   assert.deepEqual(valuesOf("src/shell/app-header.css", ".g-appbar :focus-visible", "outline-color"), ["var(--header-ink)"]);
   assert.deepEqual(valuesOf("src/shell/side-nav.css", ".g-sidenav :focus-visible", "outline-color"), ["var(--header-ink)"]);
+  // The ring, the current tab's underline and the pill's letters are all header ink: a header lighter than that would lose them.
+  assertContrast("--header-ink", ["--header"], 3, { what: "header ink on the header" });
 });
 
 test("every shell stylesheet reaches the page, and every key is in both dictionaries", () => {
@@ -108,6 +110,8 @@ test("the header folds to a small crest and a short name, and the fold stands st
   const css = read(HEADER_CSS);
   assert.deepEqual([valuesOf(HEADER_CSS, ".g-appbar--compact .g-crest", "width"), valuesOf(HEADER_CSS, ".g-appbar--compact .g-crest", "height")], [["24px"], ["27px"]]);
   assert.deepEqual(valuesOf(HEADER_CSS, ".g-appbar--compact .g-appbar__sub", "display"), ["none"]);
+  // The folded bar's team link is 44px high at the top of a page: its ring is 3px, so the bar keeps 3px above it.
+  assert.deepEqual(valuesOf(HEADER_CSS, ".g-appbar--compact", "padding-top"), ["3px"]);
   assert.match(css, /\.g-appbar--compact \.g-appbar__name\s*\{[^}]*font-size:\s*18px/);
   assert.match(css, /@media \(prefers-reduced-motion: reduce\)\s*\{[^@]*transition:\s*none/);
 });
@@ -227,4 +231,68 @@ test("a team whose id needs encoding is a link that goes there, in the tabs and 
   const fragment = mount(renderAppHeader(model) + renderSideNav(model, { locale: "en" }));
   assert.ok(fragment.querySelector('.g-tab[href="#/t/a%20b/roster"]'));
   assert.ok(fragment.querySelector('.g-sidenav__link[href="#/t/a%20b/roster"]'));
+});
+
+// Fix round 1: what the review of the first commit measured.
+
+test("the tab row has as much room after its last tab as the fade at its edge covers", () => {
+  const [, solid] = valuesOf(HEADER_CSS, ".g-tabs", "mask-image")[0].match(/#000 (\d+)%/);
+  const fade = 100 - Number(solid);
+  assert.deepEqual(valuesOf(HEADER_CSS, ".g-tabs::after", "width"), [`${fade}%`], "the room after the last tab is the width of the fade");
+  assert.deepEqual(valuesOf(HEADER_CSS, ".g-tabs::after", "flex"), ["none"]);
+  assert.deepEqual(valuesOf(HEADER_CSS, ".g-tabs::after", "content"), ['""']);
+  assert.deepEqual(valuesOf(HEADER_CSS, ".g-tabs", "-webkit-mask-image"), valuesOf(HEADER_CSS, ".g-tabs", "mask-image"), "both prefixes fade alike");
+});
+
+test("every SideNav label sits in a span that may shrink and break, so a long word stays in its pill", () => {
+  const fragment = mount(renderSideNav(coach(), { locale: "en" }));
+  const links = fragment.querySelectorAll(".g-sidenav__link");
+  assert.deepEqual(links.map((link) => link.querySelector(".g-sidenav__label").textContent), ["Overview", "Roster", "Season", "Reference", "Settings"]);
+  assert.deepEqual(links.map((link) => link.textContent), ["Overview", "Roster", "Season", "Reference", "Settings"], "the span adds no words");
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-sidenav__label", "min-width"), ["0"]);
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-sidenav__label", "overflow-wrap"), ["anywhere"]);
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-sidenav__label", "hyphens"), ["auto"]);
+});
+
+test("the administration item breaks at its soft hyphen in Russian, and its page keeps its own word", () => {
+  initLocale("ru");
+  try {
+    const admin = shellModel({ route: { name: "administration", params: {} }, user: { id: "u1", isAdmin: true }, team: null });
+    const fragment = mount(renderSideNav(admin, { locale: "ru" }));
+    const label = fragment.querySelector('.g-sidenav__link[aria-current="page"] .g-sidenav__label').textContent;
+    assert.equal(label, "Администри\u00ADрование");
+    assert.equal(label.replace("\u00AD", ""), "Администрирование", "taken out, the soft hyphen leaves the word whole");
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("the current SideNav item and the pressed language show without colour: a border, where forced colours remove the rest", () => {
+  const forced = read(SIDE_CSS).match(/@media \(forced-colors: active\)\s*\{([\s\S]*?)\n\}/);
+  assert.ok(forced, "a forced-colors block");
+  for (const selector of ['.g-sidenav__link[aria-current="page"]', '.g-lang__item[aria-pressed="true"]::before']) {
+    assert.ok(forced[1].includes(selector), `${selector} is drawn in the forced-colors block`);
+    assert.match(valuesOf(SIDE_CSS, selector, "border")[0], /^\d+px solid \w+$/, selector);
+  }
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-lang__item::before", "box-sizing"), ["border-box"], "a border on the pill leaves it 36×28");
+  const tabs = read(HEADER_CSS).match(/@media \(forced-colors: active\)\s*\{([\s\S]*?)\n\}/);
+  assert.ok(tabs?.[1].includes('.g-tab[aria-current="page"]'), "the current tab is told from the others by more than its colour");
+});
+
+test("a long team name is cut at three lines in the SideNav, and the whole name is its title", () => {
+  const fragment = mount(renderSideNav(coach({ id: "t1", name: HOSTILE }), { locale: "en" }));
+  assert.equal(fragment.querySelector(".g-sidenav__name").getAttribute("title"), HOSTILE);
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-sidenav__name", "-webkit-line-clamp"), ["3"]);
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-sidenav__name", "display"), ["-webkit-box"]);
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-sidenav__name", "-webkit-box-orient"), ["vertical"]);
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-sidenav__name", "overflow"), ["hidden"]);
+  assertCspSafe(fragment);
+});
+
+test("a guest's sign-in button has a border of its own on the dark band, and a match card's buttons are left as they are", () => {
+  const fragment = mount(renderSideNav(guest, { locale: "en" }));
+  assert.ok(fragment.querySelector('.g-sidenav__bottom .g-sidenav__login a.g-btn[href="#/login"]'));
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-sidenav__login .g-btn", "border-color"), ["var(--header-tab)"]);
+  assert.equal(mount(renderSideNav(coach(), { locale: "en" })).querySelector(".g-sidenav__login"), null);
+  assertStyled(fragment, ...SIDE, "button.css");
 });

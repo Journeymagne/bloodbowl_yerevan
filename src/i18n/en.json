@@ -979,6 +979,7 @@
   "shell.tab.ref": "Reference",
   "shell.tab.settings": "Settings",
   "shell.side.season": "Season",
+  "shell.side.administration": "Administration",
   "shell.place": "#{place} in the league",
   "shell.noTeam": "No team yet",
   "shell.noTeamHint": "Create a team to start",
