@@ -170,8 +170,13 @@
 /* Empty, it takes no room; the next field's gap is given back. */
 .g-auth__alert:empty { margin-bottom: calc(-1 * var(--space-14)); }
 
-/* Show password: a word at the end of the label's line, with the tap target of a button. */
+/*
+ * Show password: a word at the end of the label's line, with the tap target of a button. Its
+ * 44px overhang the input below, so it sits above it: the lower part still takes the press.
+ */
 .g-auth__show {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch);
@@ -237,6 +242,8 @@
 .g-auth__link {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch);
   min-height: var(--size-touch);
   color: var(--accent-text);
   font-weight: 700;
@@ -252,7 +259,7 @@
   padding: 0 var(--space-16) var(--space-16);
   border: 0;
   background: var(--surface-2);
-  color: var(--faint);
+  color: var(--muted);
   font: 400 11px/1.5 var(--font-body);
   text-align: center;
   text-transform: none;

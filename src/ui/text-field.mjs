@@ -30,6 +30,10 @@ const attribute = (name, value) => (value ? ` ${name}="${escapeHtml(value)}"` : 
  * @param {string} [props.error] what is wrong with the value; draws the field as invalid
  * @param {boolean} [props.invalid] draws the field as invalid without a line of its own: the
  *   reason is said once for the whole form (a refused sign-in names two fields in one alert)
+ * @param {string} [props.describedBy] the id of what is said about the field elsewhere (that
+ *   form's alert), read after the field's own lines
+ * @param {boolean} [props.verbatim] what is typed is taken as it is: no capital letter, no
+ *   correction and no spell check (a login, a Telegram name)
  * @param {string} [props.autocomplete]
  * @param {string} [props.inputmode]
  * @param {string} [props.placeholder]
@@ -37,16 +41,18 @@ const attribute = (name, value) => (value ? ` ${name}="${escapeHtml(value)}"` : 
  * @param {string} [props.asideHtml] markup from a render…() function, at the end of the label's line (a "show" toggle)
  * @param {string} [props.actionHtml] markup from a render…() function, beside the input (a "save" button)
  */
-export function renderTextField({ id, name, label, value = "", type = "text", help = "", error = "", invalid = false, autocomplete = "", inputmode = "", placeholder = "", required = false, asideHtml = "", actionHtml = "" }) {
+export function renderTextField({ id, name, label, value = "", type = "text", help = "", error = "", invalid = false, describedBy = "", verbatim = false, autocomplete = "", inputmode = "", placeholder = "", required = false, asideHtml = "", actionHtml = "" }) {
   if (typeof id !== "string" || !ID.test(id)) throw new Error(`a text field id is a plain name, not ${JSON.stringify(id)}`);
+  if (describedBy && !ID.test(describedBy)) throw new Error(`a text field is described by a plain id, not ${JSON.stringify(describedBy)}`);
   if (!TEXT_FIELD_TYPES.includes(type)) throw new Error(`a text field type is one of ${TEXT_FIELD_TYPES.join(", ")}, not ${JSON.stringify(type)}`);
   if (!label) throw new Error("a text field needs a label: nothing else names it");
   const helpId = `${id}-help`;
   const errorId = `${id}-error`;
-  const described = [help && helpId, error && errorId].filter(Boolean).join(" ");
+  const described = [help && helpId, error && errorId, describedBy].filter(Boolean).join(" ");
   const wrong = Boolean(error) || invalid;
   const input = `<input class="g-field__input" id="${escapeHtml(id)}" name="${escapeHtml(name)}" type="${escapeHtml(type)}" value="${escapeHtml(value ?? "")}"`
     + `${attribute("autocomplete", autocomplete)}${attribute("inputmode", inputmode)}${attribute("placeholder", placeholder)}`
+    + `${verbatim ? ' autocapitalize="none" autocorrect="off" spellcheck="false"' : ""}`
     + `${required ? " required" : ""}${wrong ? ' aria-invalid="true"' : ""}${attribute("aria-describedby", described)}>`;
   const helpLine = help ? `<p class="g-field__help" id="${escapeHtml(helpId)}">${escapeHtml(help)}</p>` : "";
   const errorLine = error ? `<p class="g-field__error" id="${escapeHtml(errorId)}">${escapeHtml(error)}</p>` : "";

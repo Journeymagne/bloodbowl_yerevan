@@ -74,15 +74,17 @@ function fieldsHtml(form) {
   const problems = registering && form.touched ? registrationProblems(form) : {};
   const refused = new Set(form.error?.fields ?? []);
   const type = form.show ? "text" : "password";
-  const field = (key, props) => renderTextField({ ...props, name: key, error: problemText(problems[key]), invalid: refused.has(key) });
-  const login = field("login", { id: "auth-login", label: t("auth.loginField"), value: form.login, autocomplete: "username",
+  // A field the server refused is marked, and points at the alert that says why.
+  const field = (key, props) => renderTextField({ ...props, name: key, error: problemText(problems[key]), invalid: refused.has(key),
+    describedBy: refused.has(key) ? "auth-alert" : "" });
+  const login = field("login", { id: "auth-login", label: t("auth.loginField"), value: form.login, autocomplete: "username", verbatim: true,
     help: registering && !problems.login ? t("auth.loginHint") : "" });
   if (!registering) {
     return login + field("password", { id: "auth-password", label: t("auth.passwordField"), type, value: form.password,
       autocomplete: "current-password", asideHtml: renderShowToggle(form.show) });
   }
   return login
-    + field("telegram", { id: "auth-telegram", label: t("auth.telegramField"), value: form.telegram, autocomplete: "off",
+    + field("telegram", { id: "auth-telegram", label: t("auth.telegramField"), value: form.telegram, autocomplete: "off", verbatim: true,
       placeholder: t("auth.telegramPlaceholder"), help: problems.telegram ? "" : t("auth.telegramHint") })
     + field("password", { id: "auth-password", label: t("auth.passwordField"), type, value: form.password,
       autocomplete: "new-password", asideHtml: renderShowToggle(form.show) })
@@ -92,7 +94,7 @@ function fieldsHtml(form) {
 
 /** Always on the page, so a screen reader hears what is put in it; empty until a try is refused. */
 function alertHtml(error) {
-  return `<div class="g-auth__alert" role="alert">${error ? renderCallout({ tone: "danger", title: error.text, sub: error.sub ?? "" }) : ""}</div>`;
+  return `<div class="g-auth__alert" id="auth-alert" role="alert">${error ? renderCallout({ tone: "danger", title: error.text, sub: error.sub ?? "" }) : ""}</div>`;
 }
 
 function forgotHtml(open) {
@@ -116,19 +118,21 @@ function switchHtml(registering) {
  * @param {boolean} form.touched a registration was tried: its rules are said on its fields
  * @param {boolean} form.forgotOpen the password help is open
  * @param {boolean} form.pending a try is on its way
- * @param {null|{text: string, sub?: string, fields: string[]}} form.error what the server said about the last try
+ * @param {boolean} [form.created] the account was made but the session not read: the button signs in to it now
+ * @param {null|{text: string, sub?: string, fields: string[], created?: boolean}} form.error what was said about the last try
  * @returns {string}
  */
 export function loginMarkup(form) {
   const registering = form.mode === "register";
+  const signsIn = !registering || Boolean(form.created);
   // Signing in waits for both fields; a registration may always be tried, and is then told what is missing.
-  const ready = registering || (form.login.trim() !== "" && form.password !== "");
+  const ready = !signsIn || (form.login.trim() !== "" && form.password !== "");
   const modes = renderSegmentedControl({
     label: t("auth.modes"),
     items: [{ value: "login", label: t("auth.login"), href: authUrl("login") }, { value: "register", label: t("auth.register"), href: authUrl("register") }],
     selected: form.mode,
   });
-  const submit = renderButton({ label: registering ? t("auth.createAccount") : t("auth.toLogin"), kind: "primary", type: "submit", disabled: !ready });
+  const submit = renderButton({ label: signsIn ? t("auth.toLogin") : t("auth.createAccount"), kind: "primary", type: "submit", disabled: !ready });
   const after = registering ? `<p class="g-auth__note">${escapeHtml(t("auth.registerNote"))}</p>` : forgotHtml(form.forgotOpen);
   return `<div class="g-auth">
   ${brandHtml()}
@@ -151,25 +155,37 @@ export function loginMarkup(form) {
 
 /**
  * Sign in or register with what the form holds; the contact goes as the server should keep
- * it (`normalizeTelegram`). A registration's own rules are the screen's to check before.
+ * it (`normalizeTelegram`). A registration's own rules are the screen's to check before. An
+ * account already made (`form.created`) is signed in to, not registered again.
+ *
+ * Only a session that /me then read is a success. The 2.x modal closed on any answer to the
+ * POST and left the coach a guest without a word; here the coach is told, and the form keeps
+ * what was typed.
  *
  * @param {object} form as loginMarkup takes it
- * @returns {Promise<null|{text: string, sub?: string, fields: string[]}>} null once signed in (the
- *   session's listeners and the router take it from there); otherwise what to say, and the fields it is about
+ * @returns {Promise<null|{text: string, sub?: string, fields: string[], created?: boolean}>} null once
+ *   signed in (the session's listeners and the router take it from there); otherwise what to say, the
+ *   fields it is about, and `created` when the account was made all the same
  */
 export async function submitAuth(form) {
   const login = String(form.login ?? "").trim();
   const password = String(form.password ?? "");
+  const registering = form.mode === "register" && !form.created;
+  let status;
   try {
-    const status = form.mode === "register"
+    status = registering
       ? await register({ login, password, telegram: normalizeTelegram(form.telegram) })
       : await signIn({ login, password });
-    // In, with the account unread: the token stays and the next load reads it. The 2.x modal closed here and left a guest without a word.
-    if (status === "offline") return { text: sessionFailureText(), sub: t("auth.signedInReload"), fields: [] };
-    return null;
   } catch (error) {
     return { text: refusalText(error), fields: refusedFields(error?.code) };
   }
+  if (status === "signed-in") return null;
+  // "offline": in, with the account unread; the token stays and the next load reads it. "guest": /me said
+  // no one straight after the server said yes, and the session took the token back.
+  const said = status === "offline"
+    ? { text: sessionFailureText(), sub: t("auth.signedInReload"), fields: [] }
+    : { text: t("request.noAnswer"), fields: [] };
+  return registering ? { ...said, created: true } : said;
 }
 
 // ---------------------------------------------------------------------------
@@ -177,7 +193,7 @@ export async function submitAuth(form) {
 // ---------------------------------------------------------------------------
 
 /** What the screen holds between keystrokes. It outlives a redraw and the switch between the two modes. */
-const form = { mode: "login", login: "", password: "", telegram: "", repeat: "", show: false, touched: false, forgotOpen: false, pending: false, error: null };
+const form = { mode: "login", login: "", password: "", telegram: "", repeat: "", show: false, touched: false, forgotOpen: false, pending: false, created: false, error: null };
 const TYPED = new Set(["login", "telegram", "password", "repeat"]);
 /** The mode on the page, or null while the coach is elsewhere: an answer that comes after they left draws nothing. */
 let shown = null;
@@ -194,12 +210,14 @@ function typed(event, input) {
   if (!TYPED.has(name)) return;
   form[name] = input.value;
   form.error = null;
+  // Another login is another account: the one made a moment ago is not it.
+  if (name === "login") form.created = false;
   draw();
 }
 
 async function submit() {
   if (form.pending) return;
-  if (form.mode === "register") {
+  if (form.mode === "register" && !form.created) {
     form.touched = true;
     if (Object.keys(registrationProblems(form)).length) {
       draw();
@@ -214,13 +232,17 @@ async function submit() {
   draw();
   const error = await submitAuth({ ...form });
   form.pending = false;
-  if (!error) {
+  if (error) {
+    form.error = error;
+    if (error.created) form.created = true;
+  } else {
     // Signed in, and the router is already on its way: the form is done with.
-    Object.assign(form, { login: "", password: "", telegram: "", repeat: "", show: false, touched: false });
-    return;
+    Object.assign(form, { login: "", password: "", telegram: "", repeat: "", show: false, touched: false, created: false });
   }
-  form.error = error;
-  if (shown) draw();
+  if (!shown) return;
+  draw();
+  // A refusal about a field puts the coach in it, where the alert is read again as its description.
+  if (error?.fields.length) view.querySelector(`#auth-${error.fields[0]}`)?.focus();
 }
 
 function wire() {
@@ -251,11 +273,11 @@ export function renderLogin(mode) {
     // The router also releases a screen to draw it again, or to draw the other mode: that is not leaving.
     if (isSignInScreen(location.hash)) return;
     shown = null;
-    Object.assign(form, { password: "", repeat: "", show: false, touched: false, forgotOpen: false, error: null });
+    Object.assign(form, { password: "", repeat: "", show: false, touched: false, forgotOpen: false, created: false, error: null });
   });
   if (shown !== next) {
     // Arriving, or switching modes: what was said about the last try is not about this one.
-    Object.assign(form, { mode: next, touched: false, forgotOpen: false, error: null });
+    Object.assign(form, { mode: next, touched: false, forgotOpen: false, created: false, error: null });
   }
   shown = next;
   setActiveNav("login");

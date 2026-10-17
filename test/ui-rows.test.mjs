@@ -58,6 +58,20 @@ test("a field the form's one message is about is marked invalid without a line o
   assert.equal(mount(renderTextField({ id: "f", name: "f", label: "F", invalid: false })).querySelector("input").hasAttribute("aria-invalid"), false);
 });
 
+test("a field can point at what a form says about it elsewhere, and only at an id", () => {
+  const input = mount(renderTextField({ id: "f", name: "f", label: "F", help: "Seen by opponents", invalid: true, describedBy: "form-alert" })).querySelector("input");
+  assert.equal(input.getAttribute("aria-describedby"), "f-help form-alert");
+  assert.equal(mount(renderTextField({ id: "f", name: "f", label: "F", describedBy: "form-alert" })).querySelector("input").getAttribute("aria-describedby"), "form-alert");
+  for (const id of ["two ids", 'a"b']) assert.throws(() => renderTextField({ id: "f", name: "f", label: "F", describedBy: id }), /described/);
+});
+
+test("a verbatim field is not capitalised, corrected or spell-checked; any other field is left to the browser", () => {
+  const verbatim = mount(renderTextField({ id: "f", name: "login", label: "Login", verbatim: true })).querySelector("input");
+  assert.deepEqual(["autocapitalize", "autocorrect", "spellcheck"].map((name) => verbatim.getAttribute(name)), ["none", "off", "false"]);
+  const plain = mount(renderTextField({ id: "f", name: "nick", label: "Nick" })).querySelector("input");
+  for (const name of ["autocapitalize", "autocorrect", "spellcheck"]) assert.equal(plain.hasAttribute(name), false, name);
+});
+
 test("a text field is a text input unless told otherwise, and says only what it was told", () => {
   const plain = mount(renderTextField({ id: "f", name: "nick", label: "F" })).querySelector("input");
   assert.equal(plain.getAttribute("type"), "text");

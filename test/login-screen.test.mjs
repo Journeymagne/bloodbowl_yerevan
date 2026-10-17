@@ -3,11 +3,15 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
+import { assertContrast, valuesOf } from "./helpers/contrast.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 
 const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
+// The 2.x header's button: auth-button.mjs finds it when it loads.
+const headerButton = el(document, "button", { id: "auth-button" });
+document.body.appendChild(headerButton);
 globalThis.location = { hash: "#/login" };
 const { loginMarkup, problemText, renderLogin, submitAuth } = await import("../src/screens/auth/login.mjs");
 const { renderPasswordMeter } = await import("../src/screens/auth/password-meter.mjs");
@@ -15,6 +19,8 @@ const { renderCrest } = await import("../src/shell/crest.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
+const { wireAuthButton } = await import("../src/components/auth-button.mjs");
+const { peekReturn, setReturn } = await import("../src/core/return-to.mjs");
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const empty = { mode: "login", login: "", password: "", telegram: "", repeat: "", show: false, touched: false, forgotOpen: false, pending: false, error: null };
@@ -27,6 +33,8 @@ test("signing in: two fields, a button that waits for both, the password help an
   assert.equal(fragment.querySelector("h1").textContent, "Login");
   assert.equal(fragment.querySelector('[aria-current="page"]').getAttribute("href"), "#/login");
   assert.equal(fragment.querySelector("#auth-login").getAttribute("autocomplete"), "username");
+  assert.equal(fragment.querySelector("#auth-login").getAttribute("autocapitalize"), "none", "a login is typed as it is");
+  assert.equal(fragment.querySelector("#auth-login").getAttribute("autocorrect"), "off");
   assert.equal(fragment.querySelector("#auth-password").getAttribute("type"), "password");
   assert.equal(fragment.querySelector("#auth-password").getAttribute("autocomplete"), "current-password");
   assert.ok(fragment.querySelector('[data-auth-form] button[type="submit"]').hasAttribute("disabled"));
@@ -99,6 +107,9 @@ test("the server's refusals land on the fields they are about", async () => {
   assert.deepEqual((await submitAuth(form)).fields, ["login", "password"]);
   api.reply("POST /api/auth/login", 429, { error: { code: "TOO_MANY_LOGIN_ATTEMPTS", params: {}, message: "x" }, retryAfterSeconds: 30 });
   assert.match((await submitAuth(form)).text, /30/);
+  // The server's window is a quarter of an hour: its first refusal says 899 seconds.
+  api.reply("POST /api/auth/login", 429, { error: { code: "TOO_MANY_LOGIN_ATTEMPTS", params: {}, message: "x" }, retryAfterSeconds: 899 });
+  assert.deepEqual(await submitAuth(form), { text: "Too many attempts for this login. Try again in 15 min.", fields: [] });
   api.reply("POST /api/auth/register", 409, { error: { code: "LOGIN_ALREADY_REGISTERED", params: {}, message: "x" } });
   assert.deepEqual((await submitAuth({ ...form, mode: "register", telegram: "felstell", repeat: "qwerty" })).fields, ["login"]);
   assert.deepEqual(api.calls.at(-1).body, { login: "felstell", password: "qwerty", telegram: "@felstell" });
@@ -144,6 +155,26 @@ test("a sign-in that went through while the account could not be read keeps the 
   }
 });
 
+// I1: the 2.x path read any answer to the POST as success; a session /me then refuses is no sign-in.
+test("a sign-in the session refuses straight after is said, and the account made is remembered", async () => {
+  const NOT_AUTHORIZED = { error: { code: "NOT_AUTHORIZED", params: {}, message: "x" } };
+  for (const [name, answer] of [
+    ["/me says no one", () => { api.reply("GET /api/auth/me", 200, { user: null }); api.reply("GET /api/teams", 200, { teams: [] }); }],
+    ["a 401", () => { api.reply("GET /api/auth/me", 401, NOT_AUTHORIZED); api.reply("GET /api/teams", 401, NOT_AUTHORIZED); }],
+  ]) {
+    api.reset();
+    state.auth.currentUser = null;
+    api.reply("POST /api/auth/login", 200, { token: "dead", user: { id: "u1", login: "felstell" } });
+    api.reply("POST /api/auth/register", 201, { token: "dead", user: { id: "u1", login: "felstell" } });
+    answer();
+    assert.deepEqual(await submitAuth({ ...empty, login: "felstell", password: "right" }), { text: NO_ANSWER, fields: [] }, name);
+    assert.equal(api.items.has("gata-league-auth-token"), false, name);
+    assert.deepEqual(await submitAuth({ ...empty, mode: "register", login: "felstell", password: "right", repeat: "right", telegram: "felstell" }),
+      { text: NO_ANSWER, fields: [], created: true }, `${name}: registered`);
+    api.assertAnswered();
+  }
+});
+
 test("every rule a registration can break has its words", () => {
   for (const [code, text] of [
     ["LOGIN_TOO_SHORT", "Login must be at least 3 characters."], ["TELEGRAM_REQUIRED", "Telegram contact is required."],
@@ -169,6 +200,23 @@ test("the sign-in modal is gone from the page and from the code", () => {
   for (const sheet of ["screens/auth/login.css", "shell/crest.css"]) assert.ok(imports.includes(`@import url("${sheet}");`), sheet);
 });
 
+// M4: the phone's footer was --faint on --surface-2, 2.8 to 3.6:1, at 11px.
+test("the screen's small print is readable in every palette, on a phone and on a wide screen", () => {
+  const sheet = "src/screens/auth/login.css";
+  const colour = (selector, at = 0) => {
+    const value = valuesOf(sheet, selector, "color")[at];
+    assert.ok(value, `${selector} has no colour ${at}`);
+    return value;
+  };
+  for (const selector of [".g-auth__tagline", ".g-auth__point-desc"]) assertContrast(colour(selector), ["--header"], 4.5, { what: selector });
+  for (const selector of [".g-auth__footer", ".g-auth__footer .g-auth__link", ".g-auth__switch", ".g-auth__note", ".g-auth__link", ".g-auth__show",
+    ".g-auth__forgot-toggle", ".g-auth__forgot", ".g-meter__label"]) {
+    assertContrast(colour(selector), ["--surface-2", "--surface"], 4.5, { what: selector });
+  }
+  // From 901px the footer is the league column's, on the header.
+  for (const selector of [".g-auth__footer", ".g-auth__footer .g-auth__link"]) assertContrast(colour(selector, 1), ["--header"], 4.5, { what: `${selector} (wide)` });
+});
+
 test("every key the screen asks for is in both dictionaries", () => {
   assertDictionaryCovers("src/screens/auth/login.mjs", "src/screens/auth/password-meter.mjs", "src/data/session.mjs");
 });
@@ -183,6 +231,14 @@ const input = (id, value) => {
   fireEvent(field, "input");
 };
 const submitButton = () => view.querySelector('[data-auth-form] button[type="submit"]');
+const settle = () => new Promise((resolve) => setImmediate(resolve));
+const posts = (path) => api.calls.filter((call) => call.key === `POST ${path}`).length;
+function signingIn(hash = "#/login") {
+  api.reset();
+  state.auth.currentUser = null;
+  globalThis.location.hash = hash;
+  renderLogin(hash === "#/register" ? "register" : "login");
+}
 function leaveTo(hash) {
   globalThis.location.hash = hash;
   releaseCurrentScreen();
@@ -247,12 +303,133 @@ test("a refused sign-in is drawn on the screen, and typing takes it back", async
   api.reply("POST /api/auth/login", 401, { error: { code: "WRONG_LOGIN_OR_PASSWORD", params: {}, message: "x" } });
   const submitted = fireEvent(view.querySelector("[data-auth-form]"), "submit");
   assert.equal(submitted.defaultPrevented, true, "the page does not post the form");
-  await new Promise((resolve) => setImmediate(resolve));
+  await settle();
   assert.equal(view.querySelector('[role="alert"]').textContent, "Wrong login or password.");
   assert.equal(view.querySelector("#auth-password").getAttribute("aria-invalid"), "true");
+  // M5: the coach is put in the first field the refusal is about, and both fields name the alert as their description.
+  assert.equal(document.activeElement, view.querySelector("#auth-login"));
+  assert.equal(view.querySelector('[role="alert"]').getAttribute("id"), "auth-alert");
+  for (const id of ["#auth-login", "#auth-password"]) assert.equal(view.querySelector(id).getAttribute("aria-describedby"), "auth-alert", id);
+  assert.equal(view.querySelector("[data-auth-form]").hasAttribute("aria-busy"), false);
   input("auth-password", "right");
   assert.equal(view.querySelector('[role="alert"]').textContent, "");
   assert.equal(view.querySelector("#auth-password").hasAttribute("aria-invalid"), false);
   leaveTo("#/legal");
   api.assertAnswered();
+});
+
+test("a sign-in the session refuses leaves the form as it was, says so, and stops waiting", async () => {
+  signingIn();
+  input("auth-login", "felstell");
+  input("auth-password", "right");
+  api.reply("POST /api/auth/login", 200, { token: "dead", user: { id: "u1", login: "felstell" } });
+  api.reply("GET /api/auth/me", 200, { user: null });
+  api.reply("GET /api/teams", 200, { teams: [] });
+  fireEvent(view.querySelector("[data-auth-form]"), "submit");
+  assert.equal(view.querySelector("[data-auth-form]").getAttribute("aria-busy"), "true", "waiting while the answer is out");
+  await settle();
+  assert.equal(view.querySelector("[data-auth-form]").hasAttribute("aria-busy"), false);
+  assert.equal(view.querySelector('[role="alert"]').textContent, NO_ANSWER);
+  assert.equal(view.querySelector("#auth-login").getAttribute("value"), "felstell");
+  assert.equal(view.querySelector("#auth-password").getAttribute("value"), "right");
+  leaveTo("#/legal");
+  api.assertAnswered();
+});
+
+// M7
+test("a second press while the first is out sends nothing more", async () => {
+  signingIn();
+  input("auth-login", "felstell");
+  input("auth-password", "wrong");
+  api.reply("POST /api/auth/login", 401, { error: { code: "WRONG_LOGIN_OR_PASSWORD", params: {}, message: "x" } });
+  fireEvent(view.querySelector("[data-auth-form]"), "submit");
+  fireEvent(view.querySelector("[data-auth-form]"), "submit");
+  await settle();
+  assert.equal(posts("/api/auth/login"), 1);
+  leaveTo("#/legal");
+  api.assertAnswered();
+});
+
+test("signed in, the form is emptied and stops waiting", async () => {
+  signingIn();
+  input("auth-login", "felstell");
+  input("auth-password", "right");
+  fireEvent(view.querySelector("[data-toggle-password]"), "click");
+  api.reply("POST /api/auth/login", 200, { token: "new", user: { id: "u1", login: "felstell" } });
+  api.reply("GET /api/auth/me", 200, { user: { id: "u1", login: "felstell", preferences: {} } });
+  api.reply("GET /api/teams", 200, { teams: [] });
+  fireEvent(view.querySelector("[data-auth-form]"), "submit");
+  await settle();
+  assert.equal(state.auth.currentUser?.login, "felstell");
+  assert.deepEqual(["#auth-login", "#auth-password"].map((id) => view.querySelector(id).getAttribute("value")), ["", ""]);
+  assert.equal(view.querySelector("#auth-password").getAttribute("type"), "password");
+  assert.equal(view.querySelector("[data-auth-form]").hasAttribute("aria-busy"), false);
+  assert.equal(view.querySelector('[role="alert"]').textContent, "");
+  leaveTo("#/");
+  state.auth.currentUser = null;
+  api.assertAnswered();
+});
+
+// M5: today the second press registered again and was told the login is taken.
+test("an account made while the session could not be read is signed in to by the next press", async () => {
+  signingIn("#/register");
+  input("auth-login", "rookie");
+  input("auth-telegram", "rookie_one");
+  input("auth-password", "secret");
+  input("auth-repeat", "secret");
+  api.reply("POST /api/auth/register", 201, { token: "kept", user: { id: "u2", login: "rookie" } });
+  api.fail("GET /api/auth/me");
+  api.reply("GET /api/teams", 200, { teams: [] });
+  fireEvent(view.querySelector("[data-auth-form]"), "submit");
+  await settle();
+  assert.equal(view.querySelector('[role="alert"] .g-callout__sub').textContent, "You are signed in: reloading the page opens your account.");
+  assert.equal(submitButton().textContent, "Sign in");
+  api.reply("GET /api/auth/me", 200, { user: { id: "u2", login: "rookie", preferences: {} } });
+  api.reply("POST /api/auth/login", 200, { token: "fresh", user: { id: "u2", login: "rookie" } });
+  fireEvent(view.querySelector("[data-auth-form]"), "submit");
+  await settle();
+  assert.deepEqual([posts("/api/auth/register"), posts("/api/auth/login")], [1, 1]);
+  assert.deepEqual(api.calls.find((call) => call.key === "POST /api/auth/login").body, { login: "rookie", password: "secret" });
+  assert.equal(state.auth.currentUser?.login, "rookie");
+  leaveTo("#/");
+  state.auth.currentUser = null;
+});
+
+test("another login typed after that is another account to register", async () => {
+  signingIn("#/register");
+  input("auth-login", "rookie");
+  input("auth-telegram", "rookie_one");
+  input("auth-password", "secret");
+  input("auth-repeat", "secret");
+  api.reply("POST /api/auth/register", 201, { token: "kept", user: { id: "u2", login: "rookie" } });
+  api.fail("GET /api/auth/me");
+  api.reply("GET /api/teams", 200, { teams: [] });
+  fireEvent(view.querySelector("[data-auth-form]"), "submit");
+  await settle();
+  input("auth-login", "rookie2");
+  assert.equal(submitButton().textContent, "Create account");
+  leaveTo("#/legal");
+});
+
+// M6: the 2.x modal opened over the page a guest was reading; the screen brings them back to it.
+test("the header's button brings a guest back to the page they were on, and a coach to settings", () => {
+  wireAuthButton();
+  state.auth.currentUser = null;
+  setReturn("");
+  globalThis.location.hash = "#/teams/new";
+  fireEvent(headerButton, "click");
+  assert.deepEqual([globalThis.location.hash, peekReturn()], ["#/login", "#/teams/new"]);
+  // On the sign-in screens there is no page to come back to; the one a coach page left is kept.
+  for (const hash of ["#/login", "#/register"]) {
+    setReturn("#/t/t1/roster");
+    globalThis.location.hash = hash;
+    fireEvent(headerButton, "click");
+    assert.deepEqual([globalThis.location.hash, peekReturn()], ["#/login", "#/t/t1/roster"], hash);
+  }
+  setReturn("");
+  state.auth.currentUser = { id: "u1", login: "felstell" };
+  globalThis.location.hash = "#/ref";
+  fireEvent(headerButton, "click");
+  assert.deepEqual([globalThis.location.hash, peekReturn()], ["#/settings", ""]);
+  state.auth.currentUser = null;
 });

@@ -935,7 +935,8 @@
   "auth.noAccount": "Нет аккаунта?",
   "auth.toRegister": "Зарегистрироваться",
   "auth.haveAccountShort": "Уже есть аккаунт?",
-  "auth.retryAfter": "Попробуйте через {seconds} с.",
+  "auth.tooManyMinutes": "Слишком много попыток для этого логина. Попробуйте через {minutes} мин.",
+  "auth.tooManySeconds": "Слишком много попыток для этого логина. Попробуйте через {seconds} с.",
   "auth.signedInReload": "Вы уже вошли — после перезагрузки страницы откроется ваш аккаунт.",
   "request.noAnswer": "Сервер не ответил. Попробуйте через минуту."
 }

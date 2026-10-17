@@ -347,12 +347,19 @@ test("a session that could not be read says whose fault it was: the connection's
   }
 });
 
-test("a refusal reads as the server's words; too many tries also say when to try again", () => {
+// The server's window is 15 minutes, so the first 429 says 899 seconds: a wait that long is said in minutes.
+test("a refusal reads as the server's words; too many tries say how long to wait, in minutes until the last one", () => {
   const refused = (status, body) => new ApiError(status === 429 ? API_ERROR.HTTP : API_ERROR.CONFLICT, { status, payload: body });
   const tooMany = { error: { code: "TOO_MANY_LOGIN_ATTEMPTS", params: {}, message: "x" } };
-  assert.equal(session.refusalText(refused(429, { ...tooMany, retryAfterSeconds: 30 })),
-    "Too many attempts for this login. Try again shortly. Try again in 30 s.");
-  assert.equal(session.refusalText(refused(429, tooMany)), "Too many attempts for this login. Try again shortly.", "no number, no promise");
+  const wait = (retryAfterSeconds) => session.refusalText(refused(429, { ...tooMany, retryAfterSeconds }));
+  assert.equal(wait(899), "Too many attempts for this login. Try again in 15 min.");
+  assert.equal(wait(61), "Too many attempts for this login. Try again in 2 min.");
+  assert.equal(wait(60), "Too many attempts for this login. Try again in 1 min.");
+  assert.equal(wait(59), "Too many attempts for this login. Try again in 59 s.");
+  assert.equal(wait(0.4), "Too many attempts for this login. Try again in 1 s.");
+  for (const unknown of [undefined, 0, -5, "soon"]) {
+    assert.equal(wait(unknown), "Too many attempts for this login. Try again shortly.", `no number, no promise: ${unknown}`);
+  }
   assert.equal(session.refusalText(refused(409, { error: { code: "LOGIN_ALREADY_REGISTERED", params: {}, message: "x" } })), "This login is already registered.");
   assert.equal(session.refusalText(new ApiError(API_ERROR.HTTP, { status: 502, payload: {} })), NO_ANSWER);
   assert.equal(session.refusalText(new ApiError(API_ERROR.OFFLINE)), OFFLINE);

@@ -8,7 +8,8 @@
  * or a guest's way in. The 3.0 shell (Task 14) takes its place.
  */
 import { t } from "../core/i18n.mjs";
-import { authUrl, settingsUrl } from "../core/routes.mjs";
+import { setReturn } from "../core/return-to.mjs";
+import { authUrl, matchRoute, routeFromHash, settingsUrl } from "../core/routes.mjs";
 import { state } from "../core/state.mjs";
 
 export const authButton = document.querySelector("#auth-button");
@@ -27,9 +28,19 @@ export function updateAuthButton() {
   }
 }
 
-/** Attach the press. Called once, from bootstrap. */
+/**
+ * Attach the press. Called once, from bootstrap. A guest is brought back to the page they
+ * were reading once signed in, as the 2.x modal over that page did. On the sign-in screens
+ * there is no page to come back to, and the one they remember (a coach page that sent the
+ * guest there) is kept.
+ */
 export function wireAuthButton() {
   authButton?.addEventListener("click", () => {
-    location.hash = state.auth.currentUser ? settingsUrl() : authUrl();
+    if (state.auth.currentUser) {
+      location.hash = settingsUrl();
+      return;
+    }
+    if (!["login", "register"].includes(matchRoute(routeFromHash(location.hash)).name)) setReturn(location.hash);
+    location.hash = authUrl();
   });
 }

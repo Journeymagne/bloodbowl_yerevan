@@ -935,7 +935,8 @@
   "auth.noAccount": "No account?",
   "auth.toRegister": "Register",
   "auth.haveAccountShort": "Already have an account?",
-  "auth.retryAfter": "Try again in {seconds} s.",
+  "auth.tooManyMinutes": "Too many attempts for this login. Try again in {minutes} min.",
+  "auth.tooManySeconds": "Too many attempts for this login. Try again in {seconds} s.",
   "auth.signedInReload": "You are signed in: reloading the page opens your account.",
   "request.noAnswer": "The server did not answer. Try again in a minute."
 }
