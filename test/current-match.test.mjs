@@ -100,6 +100,43 @@ test("within a phase the freshest match is the card; the phase still beats the d
   assert.equal(currentMatch([newer, { ...LIVE, updatedAt: "2026-09-01T10:00:00Z" }], "t1").game.id, "g-live");
 });
 
+test("a league match comes before a friendly of the same phase, then the freshest; a later phase still beats both", () => {
+  const friendly = (id, over = {}) => game(id, { kind: "friendly", season: null, roundNumber: 0, roundStatus: "draft", ...over });
+  const league = game("g-league", { updatedAt: "2026-10-01T10:00:00Z" });
+  const accepted = friendly("g-friendly", { updatedAt: "2026-10-15T10:00:00Z" });
+  assert.equal(currentMatch([accepted, league], "t1").game.id, "g-league", "a friendly accepted later does not hide this round's match");
+  assert.equal(currentMatch([league, accepted], "t1").game.id, "g-league");
+  assert.equal(currentMatch([accepted, friendly("g-friendly-2", { updatedAt: "2026-10-16T10:00:00Z" })], "t1").game.id, "g-friendly-2", "friendlies go by date");
+  const playing = (over) => ({ preparationStatus: "in_progress", postMatchStatus: "draft", ...over });
+  assert.equal(currentMatch([friendly("g-f-live", playing({ updatedAt: "2026-10-15T10:00:00Z" })), game("g-l-live", playing({ updatedAt: "2026-10-01T10:00:00Z" }))], "t1").game.id, "g-l-live", "in every phase");
+  assert.equal(currentMatch([friendly("g-f-live", playing()), league], "t1").game.id, "g-f-live", "a friendly in play beats a league match still to prepare");
+});
+
+test("two teams: the card is the active team's, and switching teams switches the card", () => {
+  const other = game("g-t2", { home: side("t2", "Ironmaw Brawlers"), away: side("r2", "Dunmere Mudlarks") });
+  const games = [NEXT, other];
+  assert.deepEqual([currentMatch(games, "t1").game.id, currentMatch(games, "t2").game.id], ["g-next", "g-t2"]);
+  assert.equal(mount(renderNavMatch(currentMatch(games, "t2"), "t2")).querySelector(".g-navmatch__opp").textContent, "Dunmere Mudlarks");
+  assert.equal(mount(renderNavMatch(currentMatch(games, "t1"), "t1")).querySelector(".g-navmatch__opp").textContent, "Grimtusk Raiders");
+  assert.equal(currentMatch([NEXT, { ...LIVE, home: side("t2", "Ironmaw Brawlers") }], "t1").phase, "idle", "another team's match in play is not this team's");
+});
+
+test("a score the opponent proposed is the coach's to confirm: the card says so and opens the game", () => {
+  const theirs = mount(renderNavMatch(currentMatch([{ ...SENT, viewerIsProposer: false }], "t1"), "t1"));
+  assert.deepEqual(theirs.querySelectorAll("a").map((link) => [link.textContent, link.getAttribute("href"), link.getAttribute("class")]), [["Confirm the score", "#/games/g-sent", "g-navmatch__cta"]]);
+  assert.equal(theirs.querySelector(".g-navmatch__result").textContent, "Win 2–1 · CAS 1–0", "the score they proposed is still in front of the coach");
+  assert.deepEqual(theirs.querySelector("section").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class")).slice(-2), ["g-navmatch__result", "g-navmatch__cta"]);
+  assertCspSafe(theirs);
+  assertStyled(theirs, "src/shell/side-nav.css");
+  assert.equal(mount(renderNavMatch(currentMatch([{ ...SENT, viewerIsProposer: true }], "t1"), "t1")).querySelector("a"), null, "the coach's own proposal waits for the opponent");
+  initLocale("ru");
+  try {
+    assert.equal(mount(renderNavMatch(currentMatch([{ ...SENT, viewerIsProposer: false }], "t1"), "t1")).querySelector("a").textContent, "Подтвердить счёт");
+  } finally {
+    initLocale("en");
+  }
+});
+
 test("the card is the team's own: its opponent is the other side, whichever side the team plays", () => {
   const away = game("g-away", { viewerIsHome: false, home: side("r1", "Grimtusk Raiders"), away: side("t1", "Ashgrove Wardens") });
   const fragment = mount(renderNavMatch(currentMatch([away], "t1"), "t1"));

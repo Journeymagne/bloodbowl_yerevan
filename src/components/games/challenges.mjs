@@ -2,6 +2,7 @@ import { t } from "../../core/i18n.mjs";
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { state } from "../../core/state.mjs";
+import { invalidateGames } from "../../data/games.mjs";
 import { gameUrl, teamsUrl } from "../../core/routes.mjs";
 import { toastError } from "../toast.mjs";
 
@@ -39,7 +40,7 @@ export function mountChallenges(root, refresh) {
     try {
       const response = await apiRequest(path, { method: "POST", body: JSON.stringify(body) });
       if (disposed) return;
-      state.games.loaded = false; dirty = false;
+      void invalidateGames(); dirty = false;
       root.querySelector("[data-challenge-dialog]")?.close();
       if (openGame && response.gameId) location.hash = gameUrl(response.gameId);
       else await refresh();

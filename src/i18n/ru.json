@@ -992,5 +992,6 @@
   "shell.match.prepare": "Подготовка к матчу",
   "shell.match.records": "Записи матча",
   "shell.match.postMatch": "Итоги матча",
-  "shell.match.result": "{outcome} {score} · CAS {cas}"
+  "shell.match.result": "{outcome} {score} · CAS {cas}",
+  "shell.match.confirm": "Подтвердить счёт"
 }

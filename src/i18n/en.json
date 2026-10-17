@@ -992,5 +992,6 @@
   "shell.match.prepare": "Match preparation",
   "shell.match.records": "Match records",
   "shell.match.postMatch": "Post-match",
-  "shell.match.result": "{outcome} {score} · CAS {cas}"
+  "shell.match.result": "{outcome} {score} · CAS {cas}",
+  "shell.match.confirm": "Confirm the score"
 }

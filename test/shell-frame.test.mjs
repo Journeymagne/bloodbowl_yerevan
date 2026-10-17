@@ -170,6 +170,36 @@ test("the SideNav carries the active team's current match above the language; a 
   }
 });
 
+test("a coach with two teams: switching the active team switches the card, and each team shows only its own match", () => {
+  const saved = { user: state.auth.currentUser, myTeams: state.myTeams, activeTeamId: state.activeTeamId, data: state.data, games: state.games };
+  const side = (id, name) => ({ user: { id: `u-${id}`, login: "x" }, team: { id, name } });
+  const fixture = (id, home, away, over = {}) => ({ id, kind: "league", roundStatus: "started", roundNumber: 7, season: { currentRound: 7 }, resultStatus: "pending",
+    preparationStatus: "not_started", postMatchStatus: "not_started", viewerIsHome: true, updatedAt: "2026-10-10T10:00:00Z", home, away, ...over });
+  const card = () => [".g-navmatch__label", ".g-navmatch__opp", ".g-navmatch__cta"].map((selector) => document.querySelector(`#side-nav ${selector}`)?.textContent ?? null);
+  try {
+    state.auth.currentUser = { id: "u1", login: "coach", isAdmin: false };
+    state.myTeams = { items: [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "human" }, { id: "t2", name: "Ironmaw Brawlers", baseTeamSlug: "human" }], loaded: true, loading: false, error: "" };
+    state.data = { teams: [{ slug: "human", title: "Human" }], generatedAt: "2026-10-07T10:00:00Z" };
+    state.games = { loaded: true, loading: false, error: "", currentItems: [], items: [
+      fixture("g-one", side("t1", "Ashgrove Wardens"), side("r1", "Grimtusk Raiders")),
+      fixture("g-two", side("r2", "Dunmere Mudlarks"), side("t2", "Ironmaw Brawlers"), { viewerIsHome: false, preparationStatus: "in_progress", postMatchStatus: "draft" }),
+    ] };
+    state.activeTeamId = "t1";
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    assert.deepEqual(card(), ["Next match", "Grimtusk Raiders", "Match preparation"]);
+    state.activeTeamId = "t2";
+    refreshShell();
+    assert.deepEqual(card().slice(0, 2), ["Match in play", "Dunmere Mudlarks"], "the other team's match, the other opponent");
+    assert.equal(document.querySelector("#side-nav .g-navmatch__sub").textContent, "Round 7 · away");
+    state.activeTeamId = "t1";
+    refreshShell();
+    assert.deepEqual(card(), ["Next match", "Grimtusk Raiders", "Match preparation"]);
+  } finally {
+    Object.assign(state, { myTeams: saved.myTeams, activeTeamId: saved.activeTeamId, data: saved.data, games: saved.games });
+    state.auth.currentUser = saved.user;
+  }
+});
+
 // Task 12 carry: the 2.x sidebar offered a guest #/my-teams, which the router sends on.
 test("no link a guest is shown, on any page, is one the router sends on: My Teams least of all", () => {
   state.auth.currentUser = null;

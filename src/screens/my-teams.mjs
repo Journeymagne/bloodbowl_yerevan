@@ -18,6 +18,7 @@ import { resetBuilderForTeam } from "../data/roster-draft.mjs";
 import { toastError } from "../components/toast.mjs";
 import { renderSavedTeams } from "../components/saved-teams.mjs";
 import { confirmAction } from "../components/dialog.mjs";
+import { invalidateGames } from "../data/games.mjs";
 import { loadMyTeams } from "../data/teams.mjs";
 
 export async function renderMyTeams() {
@@ -77,7 +78,7 @@ export async function deleteSavedTeam(teamId, options = {}) {
   await apiRequest(options.endpoint || deleteTeamEndpoint(teamId, options.ownerId), { method: "DELETE" });
   state.myTeams.loaded = false;
   state.season.loaded = false;
-  state.games.loaded = false;
+  void invalidateGames();
   state.admin.loaded = false;
   state.admin.editingTeams?.delete(teamId);
   return true;

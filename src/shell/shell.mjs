@@ -5,10 +5,12 @@
  * index.html holds the empty frame; this module fills it. `mountShell` finds
  * the parts and wires what lives as long as the page does — the header folding
  * as the document scrolls (plan stage 05, decision 10), the language buttons,
- * a guest's way in — and registers nothing with core/screen-lifecycle.mjs: a
- * route change tears down a screen, never the frame. `refreshShell` draws the
- * frame for a route; the router calls it on every route, and app.js whenever
- * the session, the active team, the language or the loaded data change.
+ * a guest's way in, the list of games the match card is drawn from — and
+ * registers nothing with core/screen-lifecycle.mjs: a route change tears down
+ * a screen, never the frame. `refreshShell` draws the frame for a route; the
+ * router calls it on every route, app.js whenever the session, the active
+ * team, the language or the loaded data change, and the shell itself whenever
+ * the games are read again (data/games.mjs).
  *
  * What the frame says comes from shell/navigation.mjs, drawn by
  * shell/app-header.mjs and shell/side-nav.mjs; the sizes and breakpoints are
@@ -20,6 +22,7 @@ import { requestLocale } from "../core/locale-request.mjs";
 import { setReturn } from "../core/return-to.mjs";
 import { state } from "../core/state.mjs";
 import { activeTeam } from "../data/active-team.mjs";
+import { onGamesChange } from "../data/games.mjs";
 import { renderAppHeader } from "./app-header.mjs";
 import { currentMatch, renderNavMatch } from "./current-match.mjs";
 import { shellModel } from "./navigation.mjs";
@@ -37,6 +40,9 @@ const TABS_CLEAR = 0.85;
 
 /** A guest's way in, in the header and the SideNav (shell/app-header.mjs, shell/side-nav.mjs). */
 const SIGN_IN_LINKS = "a.g-appbar__login, .g-sidenav__login a";
+
+/** What the frame does when the games change: draw itself again for the route it has (one function, so mounting twice listens once). */
+const redraw = () => refreshShell();
 
 /** @type {{frame: Element, header: Element, sideNav: Element, footer: Element, search: Element}|null} */
 let parts = null;
@@ -86,6 +92,8 @@ export function mountShell({ document = globalThis.document, scroller = globalTh
   delegate(parts.sideNav, "click", "[data-locale-switch]", (event, button) => requestLocale(button.getAttribute("data-locale-switch")));
   // A guest who signs in comes back to the page they were reading, as the 2.x header's button brought them.
   for (const root of [parts.header, parts.sideNav]) delegate(root, "click", SIGN_IN_LINKS, () => setReturn(globalThis.location?.hash ?? ""));
+  // The match card is drawn from the games: a screen that changes one (data/games.mjs `invalidateGames`) redraws the frame when the list is read again.
+  onGamesChange(redraw);
 }
 
 /** The race the reference calls the team's base team; "" when the data has not come. */

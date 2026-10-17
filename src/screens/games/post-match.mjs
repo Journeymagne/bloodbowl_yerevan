@@ -6,6 +6,7 @@ import { apiRequest } from '../../core/api-client.mjs';
 import { renderChecklistLayout } from "../../components/games/checklist-layout.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
 import { savePostMatch } from '../../data/post-match-client.mjs';
+import { invalidateGames } from '../../data/games.mjs';
 import { errorText } from '../../core/api.mjs';
 import { onScreenLeave } from '../../core/screen-lifecycle.mjs';
 import { renderHeader, setActiveNav, setViewSection } from '../../components/page-chrome.mjs';
@@ -65,7 +66,7 @@ export async function renderPostMatch(gameId, requestedStep = '') {
     ui.busy = true; ui.error = '';
     try {
       payload = await savePostMatch(apiRequest, payload, name, action, finish);
-      ui.dirty = false; state.games.loaded = false;
+      ui.dirty = false; void invalidateGames();
       if (finish) { state.myTeams.loaded = false; location.hash = gameUrl(gameId); return true; }
       if (payload.postMatch[name].stage > previousStage && viewedStage === previousStage) {
         location.hash = postMatchUrl(gameId, POST_STEPS[payload.postMatch[name].stage]);

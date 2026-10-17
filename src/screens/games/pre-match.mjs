@@ -4,6 +4,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { errorText } from "../../core/api.mjs";
+import { invalidateGames } from "../../data/games.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { gameUrl, preMatchUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
@@ -62,7 +63,7 @@ export async function renderPreMatch(gameId, requestedStep = "") {
     ui.busy = true; ui.error = "";
     try {
       payload = await apiRequest(`/api/games/${gameId}/${start ? "start" : "preparation"}`, { method: start ? "POST" : "PATCH", body: JSON.stringify({ revision: payload.preparation.revision, side: sideName, action }) });
-      ui.dirty = false; state.games.loaded = false;
+      ui.dirty = false; void invalidateGames();
       if (start) { location.hash = gameUrl(gameId); return; }
     } catch (error) {
       ui.error = errorText(error);
