@@ -162,7 +162,7 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
     }
     const before = normalizeDraft(locked.roster);
     if (!actor.admin) refuseLockedPurchases(before, roster, locked.stage);
-    await settleRosterRolls(client, { teamId, race: teamBySlug(baseTeamSlug), before, after: roster });
+    await settleRosterRolls(client, { teamId, race: teamBySlug(baseTeamSlug), raceBefore: teamBySlug(locked.base_team_slug), before, after: roster });
     const result = await client.query(
       `UPDATE saved_teams
           SET name = $2,

@@ -140,8 +140,9 @@ export function rollFitsAdvancement({ purpose, result }, { type, grants }) {
  * Whether a roll's rerolls are explained by the roster it is used on: every attempt a random skill threw
  * again as already held names a skill in `held` — `heldSkillKeys` of the player the roll is used on, as
  * that save leaves him. The die rerolls what the player holds when it is asked, and a roster can say a
- * player holds anything: a skill held only while the die was asked, gone by the time its roll is used,
- * would have steered the die. A characteristic roll throws nothing again.
+ * player holds anything: a skill held only while the die was asked, gone by the time its roll is used —
+ * or gone a save later — would have steered the die. So it holds when the roll is taken and after every
+ * save for as long as the roll is used (`settleRosterRolls`). A characteristic roll throws nothing again.
  *
  * @param {{purpose: string, result: object}} roll a `dice_rolls` row, or its public form
  * @param {Set<string>} held canonical skill names

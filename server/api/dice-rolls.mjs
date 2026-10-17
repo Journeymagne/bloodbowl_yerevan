@@ -17,7 +17,8 @@
  * which a unique index over the unused rolls would refuse.
  *
  * A roll is used by the advancement that names it (`roll: { id, via: "site" }`), by one only, in the
- * order its step handed rolls out, and given back in the reverse order: a save of the roster settles that
+ * order its step handed rolls out, and given back in the reverse order; a used random skill keeps the
+ * skills its die was rerolled against for as long as it is used. A save of the roster settles all of that
  * (`settleRosterRolls`). A team is created with no rolls, so a roster it is created with names none
  * (`refuseSiteRolls`).
  */
@@ -47,6 +48,10 @@ const ROLLS_OF_PLAYERS = `
    WHERE saved_team_id = $1
      AND player_id IN (SELECT player_id FROM dice_rolls WHERE saved_team_id = $1 AND id = ANY($2::uuid[]))
    ORDER BY created_at, id`;
+/** The used random-skill rolls of some players of the team ($2). */
+const USED_SKILL_ROLLS = `
+  SELECT id, player_id, purpose, result FROM dice_rolls
+   WHERE saved_team_id = $1 AND player_id = ANY($2::text[]) AND purpose = 'random_skill' AND used_at IS NOT NULL`;
 const USE_ROLLS = "UPDATE dice_rolls SET used_at = now() WHERE id = ANY($1::uuid[]) AND saved_team_id = $2";
 const FREE_ROLLS = "UPDATE dice_rolls SET used_at = NULL WHERE saved_team_id = $1 AND id = ANY($2::uuid[])";
 
@@ -140,20 +145,28 @@ function heldSince(roll, position, player) {
  * first out: after the save, each step it touches must have exactly its earliest rolls used, so a coach
  * who has seen the next roll cannot move an advancement onto it, in one save or over several. A roll used
  * already or out of turn, one another player or kind of advancement held before this save, and one two
- * advancements claim are each 409 DICE_ROLL_USED. Nothing is written until every reference has passed;
- * the rest is the caller's transaction, which takes these writes back with a save that fails after them.
+ * advancements claim are each 409 DICE_ROLL_USED.
  *
- * Call it inside the transaction that holds the team's row (`writeSavedTeam`): that lock is what keeps a
- * roll from being handed out or used twice meanwhile. A save that adds no reference, changes none and
- * drops none asks nothing of the database.
+ * And after every save, a used random skill still has its rerolls explained: every attempt its die threw
+ * again as held names a skill its player holds as saved. A save that drops such a skill — the second of
+ * two saves that would otherwise steer the die, the first holding a skill only while the roll is taken —
+ * is 422 DICE_ROLL_MISMATCH with the player. It is looked at only for a player who names a random-skill
+ * roll and holds less than he did: a player's used random rolls are the ones his random advancements name.
+ *
+ * Nothing is written until all of it has passed; the rest is the caller's transaction, which takes these
+ * writes back with a save that fails after them. Call it inside the transaction that holds the team's row
+ * (`writeSavedTeam`): that lock is what keeps a roll from being handed out or used twice meanwhile. A save
+ * that adds no reference, changes none, drops none and takes no skill from a player who names a random
+ * roll asks nothing of the database.
  *
  * @param {{query: Function}} client the client of the transaction
- * @param {{teamId: string, race?: object|null, before: object, after: object}} save the team; its race (the
- *   team page `teamBySlug` gives), whose positions say what a player holds; its roster as stored and as saved
+ * @param {{teamId: string, race?: object|null, raceBefore?: object|null, before: object, after: object}} save
+ *   the team; its race as saved and as stored (team pages `teamBySlug` gives: their positions say what a player
+ *   holds; `raceBefore` is `race` unless the save changes it); its roster as stored and as saved
  * @returns {Promise<{used: string[], freed: string[]}>} the rolls this save used and the rolls it freed
  * @throws 422 DICE_ROLL_MISMATCH `{ playerId }`; 409 DICE_ROLL_USED
  */
-export async function settleRosterRolls(client, { teamId, race = null, before, after }) {
+export async function settleRosterRolls(client, { teamId, race = null, raceBefore = race, before, after }) {
   const was = siteRollReferences(before), now = siteRollReferences(after);
   const changed = now.filter((reference) => !was.some((old) => sameAdvancement(old, reference) && sameGrant(old, reference)));
   const notARoll = changed.find((reference) => !isUuid(reference.id));
@@ -163,7 +176,13 @@ export async function settleRosterRolls(client, { teamId, race = null, before, a
   const regranted = changed.filter((reference) => was.some((old) => sameAdvancement(old, reference)));
   if (claimed.size < now.length || added.length + regranted.length < changed.length) throw httpError(409, "DICE_ROLL_USED");
   const freed = [...held].filter((id) => isUuid(id) && !claimed.has(id));
-  if (changed.length || freed.length) await checkRolls(client, teamId, { added, regranted, freed, holds: heldSkillsIn(after, race) });
+  const naming = new Set(now.filter((reference) => reference.type === "random").map((reference) => reference.playerId));
+  if (!changed.length && !freed.length && !naming.size) return { used: [], freed: [] };
+  const heldAfter = heldByPlayer(race, after), holds = (playerId) => heldAfter.get(playerId) ?? new Set();
+  if (changed.length || freed.length) await checkRolls(client, teamId, { added, regranted, freed, holds });
+  const heldBefore = heldByPlayer(raceBefore, before);
+  const losing = [...naming].filter((playerId) => [...(heldBefore.get(playerId) ?? [])].some((skill) => !holds(playerId).has(skill)));
+  if (losing.length) await checkKeptRerolls(client, teamId, { players: losing, freed, holds });
   const used = added.map((reference) => reference.id);
   if (used.length) await client.query(USE_ROLLS, [used, teamId]);
   if (freed.length) await client.query(FREE_ROLLS, [teamId, freed]);
@@ -195,14 +214,23 @@ async function checkRolls(client, teamId, { added, regranted, freed, holds }) {
   }
 }
 
-/** `heldSkillKeys` of a player as the save leaves him, by id: what a random skill's rerolls are held to. */
-function heldSkillsIn(after, race) {
-  const positions = race ? rowsForTeam(race) : [];
-  return (playerId) => {
-    const player = (Array.isArray(after?.players) ? after.players : []).find((item) => item?.id === playerId);
-    const position = player ? positions[player.rowIndex] : undefined;
-    return position ? heldSkillKeys(position, player) : new Set();
-  };
+/**
+ * The used random rolls of players who hold less than they did, against what they hold as saved: a skill a
+ * used roll was rerolled against cannot go while the roll is used (422 with the player). A roll this save
+ * frees is used no more; a roll it takes is not used yet, and `checkRolls` has held it to the same rule.
+ */
+async function checkKeptRerolls(client, teamId, { players, freed, holds }) {
+  const { rows } = await client.query(USED_SKILL_ROLLS, [teamId, players]);
+  const given = new Set(freed.map((id) => id.toLowerCase()));
+  const unexplained = rows.find((row) => !given.has(row.id) && !rerollsHeldBy(row, holds(row.player_id)));
+  if (unexplained) throw httpError(422, "DICE_ROLL_MISMATCH", { playerId: unexplained.player_id });
+}
+
+/** `heldSkillKeys` of every player of a roster, by id, read through the race's positions; none without a race. */
+function heldByPlayer(race, roster) {
+  if (!race) return new Map();
+  const positions = rowsForTeam(race);
+  return new Map(normalizeDraftPlayers(race, roster ?? {}).map((player) => [player.id, heldSkillKeys(positions[player.rowIndex], player)]));
 }
 
 /** The same roll named by the same advancement: one id, one player, one type of advancement. */

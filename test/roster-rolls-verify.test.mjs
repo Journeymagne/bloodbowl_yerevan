@@ -263,6 +263,87 @@ test("a random skill used on a roster that does not hold what its die threw agai
   assert.ok(await usedAt(client, roll.id));
 }));
 
+/** A General skill roll for p0 with `held` held while it is asked, the die turned off `rerolled` onto Block. */
+async function steeredRoll(id, token, rerolled, held) {
+  const general = await generalSkills();
+  assert.equal((await save(id, token, 1, { players: { p0: { extraSkills: held.map((name) => ({ name, access: "primary" })) } } })).status, 200);
+  const die = scriptedServerDie(general.indexOf(rerolled) + 1, general.indexOf("Block") + 1);
+  try { return (await rollFor(id, token, "p0", { purpose: "random_skill", category: "General" })).body.roll; } finally { die.done(); }
+}
+
+test("a used random roll keeps the skills it was rerolled against: a later save that drops one is refused, and nothing of it is saved", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills(), [fake] = general.filter((skill) => skill !== "Block");
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const held = (...names) => names.map((name) => ({ name, access: "primary" }));
+  const roll = await steeredRoll(id, coach.token, fake, [fake]);
+  const block = { type: "random", grants: { skill: "Block" }, roll: site(roll.id) };
+  assert.equal((await save(id, coach.token, 2, { players: { p0: { advancements: [block], extraSkills: held(fake, "Block") } } })).status, 200,
+    "taken with the skill it was rerolled against still held");
+  const before = await stored(client, id);
+  const dropped = await recording(() => save(id, coach.token, 3, { players: { p0: { advancements: [block], extraSkills: held("Block") } } }));
+  assert.deepEqual([dropped.result.status, dropped.result.body.error.code, dropped.result.body.error.params], [422, "DICE_ROLL_MISMATCH", { playerId: "p0" }],
+    `${fake} dropped a save later: the roll that was rerolled against it would be explained by nothing`);
+  assert.ok(touchesRolls(dropped.log) && !wrote(dropped.log), "the used rolls were read, nothing was written");
+  assert.deepEqual(dropped.log.slice(-2), ["ROLLBACK", "release"]);
+  assert.deepEqual(await stored(client, id), before, `${fake} is still held, the revision as it was`);
+  assert.ok(await usedAt(client, roll.id));
+  assert.equal((await save(id, coach.token, 3, { players: { p0: { advancements: [], extraSkills: [] } } })).status, 200,
+    "the roll given back with the skill: a roll no longer used has nothing to explain");
+  assert.equal(await usedAt(client, roll.id), null);
+}));
+
+test("a save that drops a skill no used roll was rerolled against is let be; one that drops none does not look", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills(), [fake, other] = general.filter((skill) => skill !== "Block");
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const held = (...names) => names.map((name) => ({ name, access: "primary" }));
+  const roll = await steeredRoll(id, coach.token, fake, [fake, other]);
+  const block = { type: "random", grants: { skill: "Block" }, roll: site(roll.id) };
+  assert.equal((await save(id, coach.token, 2, { players: { p0: { advancements: [block], extraSkills: held(fake, other, "Block") } } })).status, 200);
+  const honest = await recording(() => save(id, coach.token, 3, { players: { p0: { advancements: [block], extraSkills: held(fake, "Block") } } }));
+  assert.equal(honest.result.status, 200, `${other} dropped: the die never threw it`);
+  assert.ok(touchesRolls(honest.log), "p0 holds less and names a random roll: his used rolls were looked at");
+  const renamed = await recording(() => save(id, coach.token, 4, { players: { p0: { name: "Griff", advancements: [block], extraSkills: held(fake, "Block") } } }));
+  assert.equal(renamed.result.status, 200);
+  assert.ok(!touchesRolls(renamed.log), "he holds what he held: nothing to look at");
+}));
+
+test("a roll given back takes its rerolls with it, and a save answers only for the players who hold less", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills(), [fake] = general.filter((skill) => skill !== "Block" && skill !== "Tackle");
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const held = (...names) => names.map((name) => ({ name, access: "primary" }));
+  const ask = async (...faces) => {
+    const die = scriptedServerDie(...faces);
+    try { return (await rollFor(id, coach.token, "p0", { purpose: "random_skill", category: "General" })).body.roll; } finally { die.done(); }
+  };
+  const first = await ask(general.indexOf("Tackle") + 1); // nothing thrown again
+  const tackle = { type: "random", grants: { skill: "Tackle" }, roll: site(first.id) };
+  assert.equal((await save(id, coach.token, 1, { players: { p0: { advancements: [tackle], extraSkills: held("Tackle", fake) } } })).status, 200);
+  const second = await ask(general.indexOf(fake) + 1, general.indexOf("Block") + 1); // thrown again off the skill p0 holds
+  const block = { type: "random", grants: { skill: "Block" }, roll: site(second.id) };
+  assert.equal((await save(id, coach.token, 2, { players: { p0: { advancements: [tackle, block], extraSkills: held("Tackle", fake, "Block") } } })).status, 200);
+  // p1 answers for nothing here: his roll's reroll is unexplained already (left so by a path that settles no rolls), and he holds what he held.
+  const theirs = await putRoll(client, id, "p1", "random_skill", { attempts: [{ roll: 2, skill: fake, duplicate: true }, { roll: 5, skill: "Kick", duplicate: false }], skill: "Kick" });
+  await client.query("UPDATE dice_rolls SET used_at = now() WHERE id = $1", [theirs.id]);
+  await client.query("UPDATE saved_teams SET roster = jsonb_set(roster, '{players,1,advancements}', $2::jsonb) WHERE id = $1",
+    [id, JSON.stringify([{ type: "random", grants: { skill: "Kick" }, roll: site(theirs.id) }])]);
+  const back = await save(id, coach.token, 3, { players: { p0: { advancements: [tackle], extraSkills: held("Tackle") } } });
+  assert.equal(back.status, 200, `the later roll given back, ${fake} dropped with it; the first roll threw nothing again`);
+  assert.deepEqual([Boolean(await usedAt(client, first.id)), await usedAt(client, second.id), Boolean(await usedAt(client, theirs.id))], [true, null, true]);
+}));
+
+test("a player who names no random roll drops skills without a dice query", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills(), [fake] = general.filter((skill) => skill !== "Block");
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const roll = await steeredRoll(id, coach.token, fake, [fake]);
+  const stat = (await rollFor(id, coach.token, "p1", { purpose: "stat" })).body.roll;
+  assert.equal((await save(id, coach.token, 2, { players: {
+    p0: { advancements: [{ type: "random", grants: { skill: "Block" }, roll: site(roll.id) }], extraSkills: [{ name: fake, access: "primary" }, { name: "Block", access: "primary" }] },
+    p1: { advancements: [taking(stat)], extraSkills: [{ name: "Kick", access: "primary" }, { name: "Fend", access: "primary" }] } } })).status, 200);
+  const dropped = await recording(() => save(id, coach.token, 3, { players: { p1: { advancements: [taking(stat)], extraSkills: [] } } }));
+  assert.equal(dropped.result.status, 200);
+  assert.ok(!touchesRolls(dropped.log), "p1's only roll is a characteristic: no random roll of his to look at");
+}));
+
 test("one roll waits for a player at a time: another purpose is refused until it is used, and the same purpose is the same roll", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   const skillAsk = () => rollFor(id, coach.token, "p0", { purpose: "random_skill", category: "General" });
