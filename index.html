@@ -10,11 +10,13 @@
     <!-- Runs before the stylesheet paints, so a chosen light theme never flashes dark. -->
     <script src="src/theme-boot.js?v=gata-63"></script>
     <link rel="preload" as="image" href="assets/brand/gata-league-logo-96.png" fetchpriority="high">
-    <!-- The faces the first screen paints with: body text, labels and tabs, headings. -->
+    <!-- The faces the first screen paints with: body text, labels and tabs, the team's name in the header (600), headings. -->
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/golos-text-cyrillic-400-normal.woff2" crossorigin>
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/golos-text-cyrillic-600-normal.woff2" crossorigin>
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/golos-text-latin-400-normal.woff2" crossorigin>
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/golos-text-latin-600-normal.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/oswald-cyrillic-600-normal.woff2" crossorigin>
+    <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/oswald-latin-600-normal.woff2" crossorigin>
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/oswald-cyrillic-700-normal.woff2" crossorigin>
     <link rel="preload" as="font" type="font/woff2" href="assets/fonts/ui/oswald-latin-700-normal.woff2" crossorigin>
     <link rel="stylesheet" href="assets/fonts/ui/fonts.css?v=gata-63">
@@ -24,74 +26,35 @@
     <link rel="stylesheet" href="src/styles.css?v=gata-63">
   </head>
   <body>
-    <!-- First tab stop: 44 navigation links stand between the top of the page
-         and the content, and a keyboard had to walk all of them. A button, not
-         a link: an href="#app-view" would rewrite the hash, and the hash is
-         what the router reads. -->
+    <!-- First tab stop: the header's tabs or the SideNav's items stand between
+         the top of the page and the content, and a keyboard had to walk all
+         of them. A button, not a link: an href="#app-view" would rewrite the
+         hash, and the hash is what the router reads. -->
     <button class="skip-link" type="button" data-skip-to-content data-i18n="a11y.skipToContent">Skip to content</button>
-    <div class="app-shell">
-      <aside id="site-sidebar" class="sidebar" aria-label="Navigation">
-        <a class="brand" href="#/">
-          <span class="brand-mark">
-            <img src="assets/brand/gata-league-logo-96.png" width="48" height="48" alt="" decoding="async" fetchpriority="high">
-          </span>
-          <span>
-            <strong>Gata League</strong>
-            <small>Blood Bowl Sevens</small>
-          </span>
-        </a>
-
-        <!--
-          Team Builder is not here either: a coach reaches it from the Create
-          button in My Teams, which is where making a team starts.
-
-          The five reference sections (Inducements, Skills, Traits, Star
-          Players, Team's Rules) are reached through References now: the
-          sidebar was eleven items and only the first few were things a coach
-          opens on a match day.
-        -->
-        <nav class="nav-list">
-          <a href="#/" data-nav="home" data-i18n="nav.overview">Overview</a>
-          <a href="#/my-teams" data-nav="my-teams" data-i18n="nav.myTeams">My Teams</a>
-          <a href="#/pages" data-nav="pages" data-i18n="nav.references">References</a>
-          <a href="#/my-games" data-nav="my-games" data-i18n="nav.myGames">My Games</a>
-          <a href="#/season" data-nav="season" data-i18n="nav.season">Season</a>
-          <a href="#/administration" data-nav="administration" data-admin-nav hidden data-i18n="nav.administration">Administration</a>
-        </nav>
-
-        <div class="sidebar-footer">
-          <span id="generated-at" data-i18n="footer.loadingData">Loading data</span>
-          <p class="legal-note">
-            <span data-i18n="footer.unofficialNote">Unofficial fan-made league reference.</span>
-            <a href="#/legal" data-nav="legal" data-i18n="footer.legalLink">Legal Information</a>
-          </p>
-        </div>
-      </aside>
-      <button id="nav-overlay" class="nav-overlay" type="button" aria-label="Close menu"></button>
-
-      <main class="main">
-        <header class="topbar">
-          <button id="nav-toggle" class="nav-toggle" type="button" aria-label="Open menu" data-i18n-aria-label="nav.openMenu" aria-controls="site-sidebar" aria-expanded="false">
-            <svg aria-hidden="true" viewBox="0 0 24 24">
-              <path d="M4 7h16M4 12h16M4 17h16"></path>
-            </svg>
-          </button>
-          <div class="search-wrap">
-            <svg aria-hidden="true" viewBox="0 0 24 24">
+    <!--
+      The 3.0 frame, empty until src/shell/shell.mjs draws it for the route:
+      the SideNav from 901px, the header up to 900px, the footer line under the
+      content up to 900px (the SideNav carries it on a desktop). Sizes and
+      breakpoints are src/shell/frame.css's. The 2.x search stays as a strip
+      over the content on the reference lists until stage 11.
+    -->
+    <div class="g-frame" id="app-frame" data-shell="guest">
+      <aside class="g-sidenav" id="side-nav" aria-label="Navigation" data-i18n-aria-label="nav.navigationAria"></aside>
+      <div class="g-frame__main">
+        <header class="g-appbar" id="app-header"></header>
+        <main class="g-main" id="app-main">
+          <div class="g-searchbar" id="ref-search" hidden>
+            <svg class="g-searchbar__icon" aria-hidden="true" viewBox="0 0 24 24">
               <path d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"></path>
             </svg>
-            <input id="global-search" type="search" placeholder="Search teams, skills, rules..." data-i18n-placeholder="search.placeholder" autocomplete="off">
+            <input id="global-search" class="g-searchbar__input" type="search" placeholder="Search teams, skills, rules..." data-i18n-placeholder="search.placeholder" autocomplete="off">
           </div>
-          <div class="top-actions">
-            <button id="auth-button" class="icon-text-button auth-button" type="button" data-i18n="auth.login">Login</button>
-            <button id="lang-toggle" class="icon-text-button" type="button" title="Switch to Russian">EN</button>
-          </div>
-        </header>
-
-        <section id="app-view" class="view" tabindex="-1">
-          <div class="loading">Loading reference...</div>
-        </section>
-      </main>
+          <section id="app-view" class="view" tabindex="-1">
+            <div class="loading">Loading reference...</div>
+          </section>
+          <footer class="g-main__footer" id="site-footer"></footer>
+        </main>
+      </div>
     </div>
 
     <script type="module" src="src/app.js?v=gata-97"></script>

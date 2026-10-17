@@ -9,9 +9,6 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 
 const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
-// The 2.x header's button: auth-button.mjs finds it when it loads.
-const headerButton = el(document, "button", { id: "auth-button" });
-document.body.appendChild(headerButton);
 globalThis.location = { hash: "#/login" };
 const { loginMarkup, problemText, renderLogin, submitAuth } = await import("../src/screens/auth/login.mjs");
 const { renderPasswordMeter } = await import("../src/screens/auth/password-meter.mjs");
@@ -19,8 +16,6 @@ const { renderCrest } = await import("../src/shell/crest.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
-const { wireAuthButton } = await import("../src/components/auth-button.mjs");
-const { peekReturn, setReturn } = await import("../src/core/return-to.mjs");
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const empty = { mode: "login", login: "", password: "", telegram: "", repeat: "", show: false, touched: false, forgotOpen: false, pending: false, error: null };
@@ -409,27 +404,4 @@ test("another login typed after that is another account to register", async () =
   input("auth-login", "rookie2");
   assert.equal(submitButton().textContent, "Create account");
   leaveTo("#/legal");
-});
-
-// M6: the 2.x modal opened over the page a guest was reading; the screen brings them back to it.
-test("the header's button brings a guest back to the page they were on, and a coach to settings", () => {
-  wireAuthButton();
-  state.auth.currentUser = null;
-  setReturn("");
-  globalThis.location.hash = "#/teams/new";
-  fireEvent(headerButton, "click");
-  assert.deepEqual([globalThis.location.hash, peekReturn()], ["#/login", "#/teams/new"]);
-  // On the sign-in screens there is no page to come back to; the one a coach page left is kept.
-  for (const hash of ["#/login", "#/register"]) {
-    setReturn("#/t/t1/roster");
-    globalThis.location.hash = hash;
-    fireEvent(headerButton, "click");
-    assert.deepEqual([globalThis.location.hash, peekReturn()], ["#/login", "#/t/t1/roster"], hash);
-  }
-  setReturn("");
-  state.auth.currentUser = { id: "u1", login: "felstell" };
-  globalThis.location.hash = "#/ref";
-  fireEvent(headerButton, "click");
-  assert.deepEqual([globalThis.location.hash, peekReturn()], ["#/settings", ""]);
-  state.auth.currentUser = null;
 });

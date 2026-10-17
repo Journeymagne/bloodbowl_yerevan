@@ -37,7 +37,7 @@
 .ghost-button { justify-content: center; }
 .filter-button:disabled { cursor: default; opacity: .45; }
 .filter-button.active { border-color: var(--active-button-border); background: var(--active-button-bg); color: var(--active-button-text); }
-.table-icon-button, .icon-text-button { min-height: 44px; min-width: 44px; }
+.table-icon-button { min-height: 44px; min-width: 44px; }
 .filter-field { display: grid; gap: 8px; min-width: 0; }
 .filter-field > span { color: var(--muted); font: .65rem/1.5 var(--label-font); letter-spacing: .7px; text-transform: uppercase; }
 .filter-field :is(input, select), .pre-match :is(input, select),

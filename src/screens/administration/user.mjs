@@ -13,10 +13,10 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { adminTeamEditUrl, savedRosterUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPlayerLink } from "../../components/content-links.mjs";
-import { updateAuthButton } from "../../components/auth-button.mjs";
 import { renderSavedTeams } from "../../components/saved-teams.mjs";
 import { wireTeamDeleteButtons } from "../my-teams.mjs";
 import { makeSeasonStarterRoster } from "../season/season-data.mjs";
+import { refreshShell } from "../../shell/shell.mjs";
 import { toast, toastError } from "../../components/toast.mjs";
 import { confirmAction } from "../../components/dialog.mjs";
 
@@ -168,7 +168,7 @@ function wireAdminUserProfile(user, rerender) {
       });
       if (payload.user?.id === state.auth.currentUser?.id) {
         state.auth.currentUser = { ...state.auth.currentUser, ...payload.user };
-        updateAuthButton();
+        refreshShell();
       }
       state.admin.loaded = false;
       toast(t("admin.userUpdatedMessage"));

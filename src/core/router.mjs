@@ -43,6 +43,7 @@ import { renderAdministration } from "../screens/administration/users.mjs";
 import { renderAdminUserProfile } from "../screens/administration/user.mjs";
 import { renderPlayerProfile } from "../screens/players/profile.mjs";
 import { renderPublicTeamProfile } from "../screens/players/team.mjs";
+import { refreshShell } from "../shell/shell.mjs";
 
 function findPageBySlug(slug) {
   return state.data.pages.find((page) => page.slug === slug)
@@ -121,9 +122,9 @@ async function renderTeamScreen(name, params, current) {
  * then `location.replace` swaps it (the redirected address does not stay in
  * history) and the hashchange that follows draws the target.
  *
- * The 2.x screens still set their own nav highlight on the way in; the 3.0
- * shell takes it from the route name (Task 12), which is why routes.mjs no
- * longer derives a section from the route.
+ * The 2.x screens still set their own nav highlight on the way in, which
+ * lights nothing now; the 3.0 frame takes its tabs and items from the route
+ * name (shell/navigation.mjs), redrawn here before the screen.
  */
 export function renderRoute() {
   const current = ++ticket;
@@ -141,6 +142,7 @@ export function renderRoute() {
   }
   releaseCurrentScreen();
   const { name, params } = matchRoute(route);
+  refreshShell({ name, params });
   const rendered = TEAM_ROUTES.has(name) ? renderTeamScreen(name, params, current) : screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so
   // (step 15.5), so the heading is announced instead — after the screen has

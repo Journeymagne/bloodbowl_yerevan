@@ -23,7 +23,9 @@ test("the preloads are the faces the first screen paints with, exactly as fonts.
     "assets/fonts/ui/golos-text-cyrillic-600-normal.woff2",
     "assets/fonts/ui/golos-text-latin-400-normal.woff2",
     "assets/fonts/ui/golos-text-latin-600-normal.woff2",
+    "assets/fonts/ui/oswald-cyrillic-600-normal.woff2",
     "assets/fonts/ui/oswald-cyrillic-700-normal.woff2",
+    "assets/fonts/ui/oswald-latin-600-normal.woff2",
     "assets/fonts/ui/oswald-latin-700-normal.woff2",
   ]);
   for (const tag of tags) {

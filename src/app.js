@@ -1,11 +1,11 @@
 /**
  * Bootstrap: load translations and content, restore the session, attach the
- * listeners that belong to the page frame rather than to any one screen, and
- * start the router.
+ * listeners that belong to the page rather than to any one screen, and start
+ * the router.
  *
  * Everything else now lives in a module — screens under src/screens/, the
- * pieces they share under src/components/, and the route table itself in
- * src/core/router.mjs.
+ * pieces they share under src/components/, the frame around them under
+ * src/shell/, and the route table itself in src/core/router.mjs.
  */
 import { initTheme } from "./core/theme.mjs";
 import { applyStaticI18n, getLocale, initLocale, isSupportedLocale, loadTranslations, onLocaleChange, setLocale, storedLocale, t } from "./core/i18n.mjs";
@@ -15,20 +15,16 @@ import { setLocaleHandler } from "./core/locale-request.mjs";
 import { renderRoute } from "./core/router.mjs";
 import { state } from "./core/state.mjs";
 import { view } from "./core/view.mjs";
-import { updateAuthButton, wireAuthButton } from "./components/auth-button.mjs";
 import { toast } from "./components/toast.mjs";
-import { syncActiveTeam } from "./data/active-team.mjs";
+import { onActiveTeamChange, syncActiveTeam } from "./data/active-team.mjs";
 import { syncThemeWithAccount } from "./data/preferences.mjs";
 import { loadSession, onSessionChange, sessionEnded, sessionFailureText } from "./data/session.mjs";
 import { loadGames } from "./screens/games/my-games.mjs";
+import { loadSeason } from "./screens/season/season-data.mjs";
 import { rosterStore } from "./screens/saved-roster.mjs";
+import { mountShell, refreshShell } from "./shell/shell.mjs";
 
 const searchInput = document.querySelector("#global-search");
-const generatedAt = document.querySelector("#generated-at");
-const langToggle = document.querySelector("#lang-toggle");
-const navToggle = document.querySelector("#nav-toggle");
-const navOverlay = document.querySelector("#nav-overlay");
-const navList = document.querySelector(".nav-list");
 
 // Cache-busting token: index.html loads this module as `src/app.js?v=<version>`
 // and the build stamps that value, so data and i18n fetches reuse it rather
@@ -36,18 +32,10 @@ const navList = document.querySelector(".nav-list");
 const assetVersion = new URL(import.meta.url).searchParams.get("v") || "dev";
 const referenceDataOptions = { version: assetVersion, inlineData: globalThis.__REFERENCE_DATA__ };
 
-/** The bits of the frame that carry locale-dependent text. */
+/** The page's text in the language: the static attributes, and the frame, which is drawn. */
 function applyLocaleChrome() {
   applyStaticI18n();
-  updateAuthButton();
-  if (langToggle) {
-    langToggle.textContent = getLocale() === "en" ? "RU" : "EN";
-    langToggle.title = t("lang.toggleTitle");
-  }
-  if (generatedAt && state.data) {
-    const dateLocale = getLocale() === "ru" ? "ru-RU" : "en-GB";
-    generatedAt.textContent = `${t("footer.updated")} ${new Date(state.data.generatedAt).toLocaleDateString(dateLocale)}`;
-  }
+  refreshShell();
 }
 
 /**
@@ -69,12 +57,6 @@ async function switchLocale(nextLocale) {
   if (previous !== nextLocale) renderRoute();
 }
 
-function setNavOpen(isOpen) {
-  document.body.classList.toggle("nav-open", isOpen);
-  navToggle?.setAttribute("aria-expanded", String(isOpen));
-  navToggle?.setAttribute("aria-label", isOpen ? "Close menu" : "Open menu");
-}
-
 function handleHistoryBack(event) {
   const trigger = event.target instanceof Element ? event.target.closest("[data-history-back]") : null;
   if (!trigger) return;
@@ -94,24 +76,6 @@ function wireFrame() {
   });
   view.addEventListener("click", handleHistoryBack);
   document.querySelector("[data-skip-to-content]")?.addEventListener("click", () => view.focus());
-  navToggle?.addEventListener("click", () => {
-    setNavOpen(!document.body.classList.contains("nav-open"));
-  });
-  navOverlay?.addEventListener("click", () => setNavOpen(false));
-  navList?.addEventListener("click", (event) => {
-    if (event.target instanceof Element && event.target.closest("a")) {
-      setNavOpen(false);
-    }
-  });
-  langToggle?.addEventListener("click", () => {
-    switchLocale(state.locale === "en" ? "ru" : "en");
-  });
-  window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") setNavOpen(false);
-  });
-  window.addEventListener("resize", () => {
-    if (window.innerWidth > 900) setNavOpen(false);
-  });
   window.addEventListener("beforeunload", (event) => {
     // Even immediate autosave can still have a request in flight. Do not let a
     // tab close silently until the server has acknowledged it.
@@ -122,29 +86,31 @@ function wireFrame() {
   window.addEventListener("hashchange", renderRoute);
 }
 
-/** Every change of session, the first load included (it draws the first screen): theme, active team, button, games, screen. */
+/** Every change of session, the first load included (it draws the first screen): theme, active team, games and table, screen. */
 function afterSessionChange() {
   void syncThemeWithAccount(); // repaints at once; the account is written in the background
   syncActiveTeam(); // before the route: a coach's `#/` is their active team
-  updateAuthButton();
-  if (state.auth.currentUser) void loadGames();
+  // The frame's match card and place wait on these; the screen does not.
+  void Promise.allSettled([loadGames(true), loadSeason()]).then(() => refreshShell());
   renderRoute();
 }
 
 async function init() {
   setOnUnauthorized(sessionEnded);
-  setLocaleHandler(switchLocale); // screens ask for a language; this file reloads the data
+  setLocaleHandler(switchLocale); // screens and the SideNav ask for a language; this file reloads the data
+  mountShell(); // before the session: its first change draws the first screen, and the frame with it
   onSessionChange(afterSessionChange);
-  // applyStaticI18n cannot reach the toggle label or the footer date: both are written imperatively.
+  onActiveTeamChange(() => refreshShell());
+  // applyStaticI18n cannot reach the frame: it is drawn, not marked up.
   onLocaleChange(applyLocaleChrome);
   initTheme();
   state.locale = initLocale(storedLocale());
   await loadTranslations(assetVersion);
   state.data = await loadReferenceData(state.locale, referenceDataOptions);
   if ((await loadSession()) === "offline") toast(sessionFailureText(), { tone: "error" });
+  // No await from here on: a first-load redirect's hashchange must find the listener wireFrame adds.
   applyLocaleChrome();
   wireFrame();
-  wireAuthButton();
 }
 
 init().catch((error) => {

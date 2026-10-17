@@ -87,7 +87,8 @@ await check("locale switch", async () => {
   await page.goto(`${base}/#/my-teams`, { waitUntil: "networkidle" });
   const before = await page.evaluate(() => document.documentElement.lang);
   const textBefore = (await page.locator("#app-view").innerText()).slice(0, 120);
-  await page.locator("#lang-toggle").click();
+  // The language buttons sit at the foot of the SideNav (the desktop frame); the one not pressed is the other language.
+  await page.locator('#side-nav [data-locale-switch][aria-pressed="false"]').click();
   await page.waitForTimeout(1000);
   const after = await page.evaluate(() => document.documentElement.lang);
   const textAfter = (await page.locator("#app-view").innerText()).slice(0, 120);

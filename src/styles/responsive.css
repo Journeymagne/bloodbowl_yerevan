@@ -15,26 +15,6 @@
 /* Anything wider than a phone. */
 @media (min-width: 601px) {
 
-  /* Room for the topbar to breathe. */
-  .topbar {
-    flex-direction: row;
-    padding: 18px 24px;
-  }
-
-  .search-wrap {
-    min-width: auto;
-  }
-
-  .top-actions {
-    gap: 8px;
-  }
-
-  .icon-text-button {
-    min-width: 48px;
-    min-height: 44px;
-  }
-
-
   /* Page furniture. */
   .view {
     padding: 28px;
@@ -188,39 +168,8 @@
 
 }
 
-/* The topbar controls, once they are not fighting for the width. */
-@media (min-width: 761px) {
-  .auth-button {
-    max-width: 148px;
-  }
-}
-
-/* The wide layout: a sidebar beside the page, and panels side by side. */
+/* The wide layout: panels side by side. The SideNav beside the page is src/shell/frame.css's. */
 @media (min-width: 901px) {
-  .app-shell {
-    grid-template-columns: 280px minmax(0, 1fr);
-  }
-
-  .sidebar {
-    position: sticky;
-    z-index: auto;
-    inset: 0 auto auto auto;
-    width: auto;
-    height: 100vh;
-    box-shadow: none;
-    transform: none;
-    transition: none;
-  }
-
-  body.nav-open {
-    overflow: visible;
-  }
-
-  .nav-overlay,
-  .nav-toggle {
-    display: none;
-  }
-
   .detail-layout {
     grid-template-columns: minmax(0, 1fr) 260px;
   }
