@@ -17,13 +17,13 @@ import { requestLocale } from "../../core/locale-request.mjs";
 import { authUrl, routeFromHash } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
-import { setThemeChoice, themeChoice, themePreferences } from "../../core/theme.mjs";
+import { setThemeChoice, themeChoice } from "../../core/theme.mjs";
 import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
 import { announce } from "../../components/live-region.mjs";
 import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
-import { savePreferences } from "../../data/preferences.mjs";
+import { saveTheme } from "../../data/preferences.mjs";
 import { mergeCurrentUser, signOut } from "../../data/session.mjs";
 import { normalizeTelegram, telegramProblem } from "../../domain/account.mjs";
 import { renderButton } from "../../ui/button.mjs";
@@ -251,25 +251,17 @@ function draw() {
   };
 }
 
-/** The write of the last pick to the account: the next waits for it, so quick picks reach the account in the order they were made. */
-let themeWrite = Promise.resolve();
-
 /**
  * A pick in the theme picker is this browser's own choice: painted and cached at once. A coach who is
  * signed in also has it written to the account, here, by an explicit call: a hook on setThemeChoice
- * would turn the account's choice being applied (data/preferences.mjs) into a write back to it. A
- * guest has no account, and nothing is said of one.
+ * would turn the account's choice being applied (data/preferences.mjs) into a write back to it.
+ * saveTheme queues the writes and says what came of the last one; only a write that failed for the
+ * coach who is still here is worth a word. A guest has no account, and nothing is said of one.
  */
-function pickTheme(choice) {
+async function pickTheme(choice) {
   setThemeChoice(choice);
   draw();
-  const who = state.auth.currentUser?.id;
-  if (who === undefined) return;
-  themeWrite = themeWrite.then(async () => {
-    // The coach left while an earlier pick was on its way: this one is not the next coach's to write.
-    if (state.auth.currentUser?.id !== who) return;
-    if (!(await savePreferences(themePreferences(choice)))) toast(t("settings.themeNotSaved"), { tone: "error" });
-  });
+  if (await saveTheme(choice) === "failed") toast(t("settings.themeNotSaved"), { tone: "error" });
 }
 
 /** Typing takes back what was said about the last try, and is what a redraw puts back. */

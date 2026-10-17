@@ -4,14 +4,13 @@ import test from "node:test";
 
 import * as maintenance from "../public/maintenance/palettes.mjs";
 import { THEME_MODES as SERVER_THEME_MODES } from "../server/api/preferences.mjs";
-import { applyStaticI18n, setDictionaries } from "../src/core/i18n.mjs";
 import { STORAGE_KEYS, createStorage } from "../src/core/storage.mjs";
 import {
   DEFAULT_CHOICE, DEFAULT_PALETTE, LEGACY_THEME_PALETTE, PALETTE_KEYS, THEME_MODES,
   choiceFromPreferences, effectivePalette, initTheme, isThemeChosen, normalizeChoice,
   readStoredChoice, setThemeChoice, themeChoice, themePreferences,
 } from "../src/core/theme.mjs";
-import { createDocument, el } from "./helpers/fake-dom.mjs";
+import { createDocument } from "./helpers/fake-dom.mjs";
 import { storedStates } from "./helpers/theme-cases.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -210,13 +209,4 @@ test("a browser that refuses storage still switches palettes for the session", (
   setThemeChoice({ mode: "light", light: "parchment", dark: "night" });
   assert.equal(p.root.getAttribute("data-palette"), "parchment");
   assert.equal(themeChoice().light, "parchment");
-});
-
-test("optgroup labels are translated like the rest of the chrome", () => {
-  setDictionaries({ en: { "theme.mode.light": "Light" }, ru: {} });
-  const document = createDocument();
-  const group = el(document, "optgroup", { label: "x", "data-i18n-label": "theme.mode.light" });
-  document.body.appendChild(group);
-  applyStaticI18n(document.body);
-  assert.equal(group.getAttribute("label"), "Light");
 });

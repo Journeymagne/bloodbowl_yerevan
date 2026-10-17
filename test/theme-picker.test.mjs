@@ -95,13 +95,30 @@ test("the mode is offered as light, dark, system; each has its label and its hin
   }
 });
 
-test("the preview is a picture: hidden from a screen reader, so the card is read as its name and mood", () => {
+test("the preview is a picture, hidden from a screen reader", () => {
   const fragment = mount(themePickerMarkup({ mode: "light", light: "grass", dark: "night" }));
   for (const card of fragment.querySelectorAll(".g-palette")) {
     assert.equal(card.querySelector("[data-palette-preview]").getAttribute("aria-hidden"), "true");
     assert.equal(card.getAttribute("type"), "button");
     assert.equal(card.getAttribute("role"), "radio");
   }
+});
+
+test("a card is named for its palette and described by its mood, through ids of its own", () => {
+  const system = mount(themePickerMarkup({ mode: "system", light: "ice", dark: "night" }));
+  const cards = system.querySelectorAll(".g-palette");
+  assert.equal(cards.length, 8);
+  for (const card of cards) {
+    const key = card.getAttribute("data-palette-key");
+    assert.equal(card.getAttribute("aria-labelledby"), `palette-${key}-name`);
+    assert.equal(card.getAttribute("aria-describedby"), `palette-${key}-mood`);
+    assert.ok(system.querySelector(`#palette-${key}-name`) === card.querySelector(".g-palette__name"), `${key}: the name is what names it`);
+    assert.ok(system.querySelector(`#palette-${key}-mood`) === card.querySelector(".g-palette__mood"), `${key}: the mood is what describes it`);
+  }
+  const ids = system.querySelectorAll("[id]").map((node) => node.getAttribute("id"));
+  assert.equal(new Set(ids).size, ids.length, "no id twice, with both rows drawn");
+  assert.equal(ids.length, 16);
+  assertCspSafe(system);
 });
 
 test("one card is in the tab order in each row, the checked one", () => {

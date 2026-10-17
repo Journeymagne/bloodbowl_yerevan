@@ -1179,6 +1179,96 @@ test("a pick the account refused says so too, and a pick it took says nothing of
   assert.deepEqual(toasts(), [], "no toast");
 });
 
+const OFFLINE = { error: new TypeError("Failed to fetch") };
+const LIGHT = (light) => ({ themeMode: "light", lightPalette: light, darkPalette: "night" });
+
+test("quick picks go out one at a time, the last one last, and an account that took them is not apologised to", async () => {
+  await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  clearToasts();
+  api.reply(THEME_PATCH, 200, { preferences: LIGHT("parchment") });
+  const gate = api.hold(THEME_PATCH);
+  await withoutTimers(async () => {
+    fireEvent(card("ice"), "click");
+    fireEvent(card("imperial"), "click");
+    fireEvent(card("parchment"), "click");
+    await settle();
+    assert.deepEqual(themeCalls().map((call) => call.body), [LIGHT("ice")], "one request on its way, the rest behind it");
+    gate.release();
+    await settle();
+  });
+  assert.deepEqual(themeCalls().map((call) => call.body), [LIGHT("ice"), LIGHT("parchment")], "two requests for three picks, the last pick last");
+  assert.deepEqual(toasts(), []);
+  assert.deepEqual(state.auth.currentUser.preferences, LIGHT("parchment"));
+  assert.equal(document.documentElement.getAttribute("data-palette"), "parchment", "the page followed every pick at once");
+  api.assertAnswered();
+});
+
+test("a request that failed with a newer pick behind it is not said; the account ends on the last pick", async () => {
+  await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  clearToasts();
+  api.reply(THEME_PATCH, 200, { preferences: LIGHT("imperial") });
+  const gate = api.hold(THEME_PATCH);
+  await withoutTimers(async () => {
+    fireEvent(card("ice"), "click");
+    fireEvent(card("imperial"), "click");
+    await settle();
+    gate.release(OFFLINE);
+    await settle();
+  });
+  assert.deepEqual(toasts(), [], "the failure was about a pick the account no longer needs");
+  assert.deepEqual(themeCalls().map((call) => call.body), [LIGHT("ice"), LIGHT("imperial")]);
+  assert.deepEqual(state.auth.currentUser.preferences, LIGHT("imperial"));
+  api.assertAnswered();
+});
+
+test("the toast is about the final state: the last pick failing is said, though the one before it was saved", async () => {
+  await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  clearToasts();
+  api.fail(THEME_PATCH);
+  const gate = api.hold(THEME_PATCH);
+  await withoutTimers(async () => {
+    fireEvent(card("ice"), "click");
+    fireEvent(card("imperial"), "click");
+    await settle();
+    gate.release({ status: 200, body: { preferences: LIGHT("ice") } });
+    await settle();
+  });
+  assert.deepEqual(toasts(), [NOT_SAVED], "the account holds ice, the page wears imperial, and that is what is said");
+  assert.deepEqual(state.auth.currentUser.preferences, LIGHT("ice"));
+});
+
+test("a coach who signs out while a pick is on its way: nothing is said, and nothing is written for the next one", async () => {
+  await startTheme(LIGHT_GRASS);
+  drawSignedIn({ preferences: {} });
+  clearToasts();
+  const gate = api.hold(THEME_PATCH);
+  await withoutTimers(async () => {
+    fireEvent(card("ice"), "click");
+    fireEvent(card("imperial"), "click");
+    await settle();
+    state.auth.currentUser = null;
+    gate.release(OFFLINE);
+    await settle();
+  });
+  assert.deepEqual(toasts(), [], "the next person is not told about the last coach's pick");
+  assert.deepEqual(themeCalls().map((call) => call.body), [LIGHT("ice")], "the pick behind it was not sent for nobody");
+  // Someone else signs in on this screen's page and the first coach's request is answered late.
+  drawSignedIn({ preferences: {} });
+  const second = api.hold(THEME_PATCH);
+  await withoutTimers(async () => {
+    fireEvent(card("parchment"), "click");
+    await settle();
+    state.auth.currentUser = { id: "u2", login: "other", preferences: { themeMode: "dark" } };
+    second.release(OFFLINE);
+    await settle();
+  });
+  assert.deepEqual(toasts(), [], "nor is the next coach told about the one before");
+  assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "dark" }, "and what they hold is theirs");
+});
+
 test("a pick keeps the focus where it is: the card is patched, not drawn again", async () => {
   await startTheme(LIGHT_GRASS);
   drawSignedIn({ preferences: {} });

@@ -8,7 +8,7 @@ const api = installFakeApi();
 const { state } = await import("../src/core/state.mjs");
 const { createStorage } = await import("../src/core/storage.mjs");
 const { initTheme, isThemeChosen, setThemeChoice, themeChoice } = await import("../src/core/theme.mjs");
-const { savePreferences, syncThemeWithAccount } = await import("../src/data/preferences.mjs");
+const { savePreferences, saveTheme, syncThemeWithAccount } = await import("../src/data/preferences.mjs");
 const { loadSession, onSessionChange, signOut } = await import("../src/data/session.mjs");
 
 const PATCH = "PATCH /api/auth/preferences";
@@ -44,6 +44,7 @@ async function signOutNow() {
   await Promise.all(syncs.splice(0));
 }
 const patches = () => api.calls.filter(({ key }) => key === PATCH);
+const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 const PARCHMENT = { themeMode: "light", lightPalette: "parchment", darkPalette: "night" };
 const coach = (preferences) => { state.auth.currentUser = { id: "u1", login: "coach", preferences }; };
 
@@ -254,5 +255,143 @@ test("a guest's sync does nothing, whatever the browser chose", async () => {
   await syncThemeWithAccount();
   assert.equal(api.calls.length, 0);
   assert.equal(root.getAttribute("data-palette"), "ice");
+  api.assertAnswered();
+});
+
+// saveTheme: the one way the theme gets to the account after a pick. Requests are held so the test stands in the middle of one.
+const ICE = { mode: "light", light: "ice", dark: "night" };
+const IMPERIAL = { mode: "light", light: "imperial", dark: "night" };
+const PARCHMENT_CHOICE = { mode: "light", light: "parchment", dark: "night" };
+const body = ({ mode, light, dark }) => ({ themeMode: mode, lightPalette: light, darkPalette: dark });
+const OFFLINE = { error: new TypeError("Failed to fetch") };
+
+test("quick picks go out one at a time, the last one last, and at most two requests are made", async () => {
+  browser(null);
+  coach({});
+  api.reply(PATCH, 200, { preferences: PARCHMENT });
+  const gate = api.hold(PATCH);
+  const results = [saveTheme(ICE), saveTheme(IMPERIAL), saveTheme(PARCHMENT_CHOICE)];
+  await settle();
+  assert.deepEqual(patches().map((call) => call.body), [body(ICE)], "the others wait for the one on its way");
+  assert.equal(gate.count, 1);
+  gate.release();
+  assert.deepEqual(await Promise.all(results), ["superseded", "superseded", "saved"], "only the last pick reports");
+  assert.deepEqual(patches().map((call) => call.body), [body(ICE), PARCHMENT], "the one in the middle was never sent");
+  assert.deepEqual(state.auth.currentUser.preferences, PARCHMENT);
+  api.assertAnswered();
+});
+
+test("a request that fails with a newer pick behind it is not reported, and the account ends on the last pick", async () => {
+  browser(null);
+  coach({});
+  api.reply(PATCH, 200, { preferences: PARCHMENT });
+  const gate = api.hold(PATCH);
+  const first = saveTheme(ICE);
+  const last = saveTheme(PARCHMENT_CHOICE);
+  await settle();
+  gate.release(OFFLINE);
+  assert.deepEqual([await first, await last], ["superseded", "saved"]);
+  assert.deepEqual(patches().map((call) => call.body), [body(ICE), PARCHMENT]);
+  assert.deepEqual(state.auth.currentUser.preferences, PARCHMENT, "what the account holds is the last pick");
+  api.assertAnswered();
+});
+
+test("the word is about the final state: a last write that fails says so, once, and so does a lone failure or refusal", async () => {
+  browser(null);
+  coach({});
+  api.fail(PATCH);
+  const gate = api.hold(PATCH);
+  const first = saveTheme(ICE);
+  const last = saveTheme(IMPERIAL);
+  await settle();
+  gate.release();
+  assert.deepEqual([await first, await last], ["superseded", "failed"]);
+  assert.equal(await saveTheme(PARCHMENT_CHOICE), "failed");
+  api.reply(PATCH, 400, { error: { code: "FIELD_INVALID", params: { field: "darkPalette" }, message: "x" } });
+  assert.equal(await saveTheme(ICE), "failed", "a refusal is no different from a lost connection");
+  api.reply(PATCH, 200, {});
+  assert.equal(await saveTheme(IMPERIAL), "failed", "an answer that is not settings is not a save");
+  api.assertAnswered();
+});
+
+test("after a failure the queue still works", async () => {
+  browser(null);
+  coach({});
+  api.fail(PATCH);
+  assert.equal(await saveTheme(ICE), "failed");
+  api.reply(PATCH, 200, { preferences: PARCHMENT });
+  assert.equal(await saveTheme(PARCHMENT_CHOICE), "saved");
+  assert.deepEqual(state.auth.currentUser.preferences, PARCHMENT);
+  api.assertAnswered();
+});
+
+test("a coach who signs out while the write is on its way: nothing for the next one, and nothing to say", async () => {
+  browser(null);
+  coach({});
+  api.reply(PATCH, 200, { preferences: { locale: "ru" } });
+  const gate = api.hold(PATCH);
+  const first = saveTheme(ICE);
+  const behind = saveTheme(IMPERIAL);
+  await settle();
+  state.auth.currentUser = null;
+  gate.release(OFFLINE);
+  assert.deepEqual([await first, await behind], ["gone", "gone"]);
+  assert.equal(patches().length, 1, "the one behind it was not sent for nobody");
+  assert.equal(state.auth.currentUser, null);
+  assert.equal(await saveTheme(PARCHMENT_CHOICE), "gone", "a guest has nothing to write to");
+  assert.equal(patches().length, 1);
+  api.assertAnswered();
+});
+
+test("a different coach who signs in while the write is on its way gets none of it, and writes their own pick after it", async () => {
+  browser(null);
+  coach({});
+  api.reply(PATCH, 200, { preferences: { ...PARCHMENT, locale: "ru" } });
+  const gate = api.hold(PATCH);
+  const first = saveTheme(ICE);
+  const behind = saveTheme(IMPERIAL);
+  await settle();
+  state.auth.currentUser = { id: "u2", login: "other", preferences: { locale: "en" } };
+  gate.release();
+  assert.deepEqual([await first, await behind], ["gone", "gone"]);
+  assert.deepEqual(patches().map((call) => call.body), [body(ICE)], "only the first, which went out as the first coach");
+  assert.deepEqual(state.auth.currentUser.preferences, { locale: "en" }, "the answer is not put on the coach who is here now");
+  assert.equal(await saveTheme(PARCHMENT_CHOICE), "saved");
+  assert.deepEqual(patches().map((call) => call.body).at(-1), PARCHMENT);
+  assert.deepEqual(state.auth.currentUser.preferences, { ...PARCHMENT, locale: "ru" }, "now the second coach's own pick is theirs");
+  api.assertAnswered();
+});
+
+test("a pick made while the sync's write is on its way waits for it, and is sent after it", async () => {
+  browser(ICE);
+  coach({});
+  api.reply(PATCH, 200, { preferences: PARCHMENT });
+  const gate = api.hold(PATCH);
+  const sync = syncThemeWithAccount();
+  setThemeChoice(IMPERIAL);
+  const pick = saveTheme(IMPERIAL);
+  await settle();
+  assert.deepEqual(patches().map((call) => call.body), [body(ICE)], "the pick does not race the sync's write");
+  gate.release();
+  await sync;
+  assert.equal(await pick, "saved");
+  assert.deepEqual(patches().map((call) => call.body), [body(ICE), body(IMPERIAL)]);
+  api.assertAnswered();
+});
+
+test("a pick that is the choice already on its way is that request, and takes what waited behind it", async () => {
+  browser(ICE);
+  coach({});
+  api.reply(PATCH, 200, { preferences: PARCHMENT });
+  const gate = api.hold(PATCH);
+  const sync = syncThemeWithAccount();
+  const middle = saveTheme(IMPERIAL);
+  const same = saveTheme(ICE);
+  await settle();
+  gate.release();
+  assert.equal(await middle, "superseded", "what waited is no longer the latest");
+  assert.equal(await same, "saved");
+  await sync;
+  assert.deepEqual(patches().map((call) => call.body), [body(ICE)], "one request for the choice, none for the one that was taken back");
   api.assertAnswered();
 });

@@ -42,16 +42,78 @@ export async function savePreferences(patch) {
   }
 }
 
-/** The theme write a sync has on its way, and whose it is: a second sync for the same coach joins it. */
-let inFlight = null;
+/**
+ * The theme's writes to the account: one request on its way, and at most one more behind it.
+ * `sending` and `waiting` are `{userId, body, done, finish}`; `done` is what `saveTheme` hands back.
+ */
+let sending = null;
+let waiting = null;
 
-function writeTheme(user) {
-  if (inFlight?.userId === user.id) return inFlight.done;
-  const write = { userId: user.id };
-  write.done = savePreferences(themePreferences(themeChoice())).finally(() => {
-    if (inFlight === write) inFlight = null;
-  });
-  inFlight = write;
+const isCoach = (userId) => state.auth.currentUser?.id === userId;
+const sameBody = (one, other) => one.themeMode === other.themeMode && one.lightPalette === other.lightPalette && one.darkPalette === other.darkPalette;
+
+/** What came of one request: its answer, unless the coach it was for is no longer the one signed in. */
+async function attempt({ userId, body }) {
+  if (!isCoach(userId)) return "gone";
+  const saved = await savePreferences(body);
+  if (!isCoach(userId)) return "gone";
+  return saved ? "saved" : "failed";
+}
+
+/**
+ * Send one write, then the one that waited behind it, if any. An answer with a newer pick behind it is
+ * not the final word, saved or not: it is "superseded", and only the last write reports.
+ * The queue never stays stuck: whatever `attempt` does, the next write goes.
+ */
+async function transmit(write) {
+  sending = write;
+  let result = await attempt(write).catch(() => "failed");
+  sending = null;
+  const next = waiting;
+  waiting = null;
+  if (next) {
+    if (result !== "gone" && next.userId === write.userId) result = "superseded";
+    transmit(next);
+  }
+  write.finish(result);
+}
+
+function queued(userId, body) {
+  const write = { userId, body };
+  write.done = new Promise((finish) => { write.finish = finish; });
+  return write;
+}
+
+/**
+ * Write the theme to the signed-in coach's account, one request at a time and the latest pick last:
+ * a pick made while one is on its way waits for it, and a newer pick takes the place of the one
+ * waiting. The same choice as the one on its way is that request, so it is not sent twice. The coach is
+ * looked at before a request goes out and again when it comes back, so nothing is written for, or said
+ * to, a coach who left meanwhile.
+ *
+ * Settings and the sync after sign-in both write here, so the two never race.
+ * @param {import("../core/theme.mjs").ThemeChoice} choice
+ * @returns {Promise<"saved"|"failed"|"superseded"|"gone">} the account took it; it did not (a refusal, a lost
+ *   connection) and nothing newer has been asked; a newer pick took its place; the coach left (or there was none).
+ *   Never rejects.
+ */
+export function saveTheme(choice) {
+  const userId = state.auth.currentUser?.id;
+  if (userId === undefined) return Promise.resolve("gone");
+  const body = themePreferences(choice);
+  if (sending?.userId === userId && sameBody(sending.body, body)) {
+    // What is on its way already says this, so whatever waited behind it is not the latest any more.
+    waiting?.finish("superseded");
+    waiting = null;
+    return sending.done;
+  }
+  const write = queued(userId, body);
+  if (!sending) {
+    transmit(write);
+    return write.done;
+  }
+  waiting?.finish("superseded");
+  waiting = write;
   return write.done;
 }
 
@@ -75,5 +137,5 @@ export async function syncThemeWithAccount() {
     setThemeChoice(accountChoice, { fromAccount: true });
     return;
   }
-  if (isThemeChosen()) await writeTheme(user);
+  if (isThemeChosen()) await saveTheme(themeChoice());
 }

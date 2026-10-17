@@ -9,6 +9,10 @@
  * [data-palette-preview="<key>"] the colours of :root[data-palette="<key>"],
  * so whatever the page wears, everything inside the preview reads its own
  * palette's tokens. The name and the mood under it are the page's.
+ *
+ * Only the tokens a palette block sets are the preview's own. The derived ones
+ * (--ink-2, --header-tab, --accent-ink, --ring, ...) are worked out on :root, so
+ * inside a preview they come from the page's palette: the preview must not use them.
  */
 .g-theme {
   box-sizing: border-box;

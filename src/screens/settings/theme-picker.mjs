@@ -50,13 +50,19 @@ const PREVIEW = `<span class="g-palette__bar"><span class="g-palette__crest"></s
   + `<span class="g-palette__sheet"><span class="g-palette__line g-palette__line--ink"></span><span class="g-palette__line g-palette__line--muted"></span>`
   + `<span class="g-palette__chips"><span class="g-palette__chip g-palette__chip--accent"></span><span class="g-palette__chip g-palette__chip--tint"></span></span></span>`;
 
-/** A card is a radio of its row. The preview is a picture: a screen reader reads the card as its name and its mood. */
+/**
+ * A card is a radio of its row. The preview is a picture: a screen reader is told the palette's name
+ * (`aria-labelledby`) and, after it, its mood (`aria-describedby`), rather than the two run together.
+ * The ids come from the palette's key, which no other card shares.
+ */
 function cardHtml(key, checked) {
+  const [nameId, moodId] = [`palette-${key}-name`, `palette-${key}-mood`];
   const preview = `<span class="g-palette__preview" aria-hidden="true"${dataAttributes({ palettePreview: key })}>${PREVIEW}</span>`;
   const name = escapeHtml(t(`theme.palette.${key}`));
   const mood = escapeHtml(t(`theme.palette.${key}.mood`));
-  const text = `<span class="g-palette__text"><span class="g-palette__name">${name}</span><span class="g-palette__mood">${mood}</span></span>`;
-  return `<button type="button" class="g-palette" role="radio" aria-checked="${checked}" tabindex="${checked ? 0 : -1}"${dataAttributes({ paletteKey: key })}>${preview}${text}</button>`;
+  const text = `<span class="g-palette__text"><span class="g-palette__name" id="${nameId}">${name}</span><span class="g-palette__mood" id="${moodId}">${mood}</span></span>`;
+  const named = `aria-labelledby="${nameId}" aria-describedby="${moodId}"`;
+  return `<button type="button" class="g-palette" role="radio" aria-checked="${checked}" tabindex="${checked ? 0 : -1}" ${named}${dataAttributes({ paletteKey: key })}>${preview}${text}</button>`;
 }
 
 /** The palettes of one mode, named for it only when the other mode's are drawn beside them. */
