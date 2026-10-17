@@ -377,4 +377,6 @@ const server = http.createServer(async (request, response) => {
   }
 });
 
-server.listen(port, () => console.log(`mock api on http://localhost:${port}`));
+// The loopback address only: it answers with whatever is signed in to anyone who asks, so
+// it must not be reachable from the network the machine is on.
+server.listen(port, "127.0.0.1", () => console.log(`mock api on http://127.0.0.1:${port}`));

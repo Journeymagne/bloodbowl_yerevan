@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import net from "node:net";
 
+import { connect, openPage } from "../scripts/screenshots/cdp.mjs";
 import {
   DEFAULT_MAC_CHROME,
   chromeEnvironment,
@@ -9,6 +11,7 @@ import {
   isLoopbackUrl,
   parseDevToolsActivePort,
   parseScreenshotArgs,
+  serverOrigins,
   shotFileName,
 } from "../scripts/screenshots/plan.mjs";
 import {
@@ -158,6 +161,47 @@ test("a states file that cannot be shot is refused with the reason", () => {
   bad({ states: [{ id: "A1", url: "http://localhost:3002/", widths: [0] }] }, /A1.*widths/);
   bad({ variants: [{ name: "a/b" }] }, /variant/);
   bad({ variants: [light, light] }, /variant "light".*twice/);
+});
+
+test("a variant may set the colour scheme the page sees", () => {
+  const shots = expandShots(spec({ variants: [{ name: "night", colorScheme: "dark", storage: {} }, light] }));
+  assert.deepEqual(shots.map((shot) => shot.colorScheme), ["dark", null, "dark", null]);
+  assert.throws(() => expandShots(spec({ variants: [{ name: "x", colorScheme: "sepia" }] })), /colorScheme/);
+});
+
+test("clicks are a list of selectors", () => {
+  const [shot] = expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", click: "[data-open-password]" }] }));
+  assert.deepEqual(shot.click, ["[data-open-password]"]);
+  assert.deepEqual(expandShots(spec())[0].click, []);
+});
+
+test("a states file that would shoot the wrong state quietly is refused before Chrome starts", () => {
+  const bad = (state, pattern) => assert.throws(() => expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", ...state }] })), pattern, JSON.stringify(state));
+  bad({ run: "document.querySelector('#x')?.click()" }, /S1.*run/);
+  bad({ run: 42 }, /S1.*run/);
+  bad({ click: "" }, /S1.*click/);
+  bad({ click: ["#a", 3] }, /S1.*click/);
+  bad({ waitMs: -1 }, /S1.*waitMs/);
+  bad({ waitMs: 600000 }, /S1.*waitMs/);
+  bad({ runWaitMs: 1.5 }, /S1.*runWaitMs/);
+  bad({ fullPage: "yes" }, /S1.*fullPage/);
+});
+
+test("each server a states file needs is named once, in order, to be asked before Chrome starts", () => {
+  const shots = expandShots(spec({ states: [
+    { id: "A", url: "http://localhost:3002/#/" }, { id: "B", url: "http://localhost:5174/#/x" }, { id: "C", url: "http://localhost:3002/#/y" },
+  ] }));
+  assert.deepEqual(serverOrigins(shots), ["http://localhost:3002", "http://localhost:5174"]);
+});
+
+test("a conditional is not optional chaining, and a run that is only lines of JavaScript is kept as it is", () => {
+  const [shot] = expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", run: ["const n = innerWidth <= 900 ?.5 : 1;", "document.querySelector('#x').click();"] }] }));
+  assert.equal(shot.run, "const n = innerWidth <= 900 ?.5 : 1;\ndocument.querySelector('#x').click();");
+});
+
+test("a page that is not on the web needs no server to be asked", () => {
+  const shots = expandShots(spec({ states: [{ id: "A", url: "file:///tmp/x.html" }, { id: "B", url: "http://localhost:5174/" }] }));
+  assert.deepEqual(serverOrigins(shots), ["http://localhost:5174"]);
 });
 
 test("a shot is named id, width, variant", () => {
@@ -354,4 +398,46 @@ test("Chrome is started with what it needs from the environment, not the .env se
     DISPLAY: ":0", XDG_RUNTIME_DIR: "/run/user/1000",
   });
   assert.deepEqual(chromeEnvironment({}), {});
+});
+
+// A stand-in for the browser socket: it records what a page is told and answers
+// the three commands that open one.
+function fakeConnection() {
+  const calls = [];
+  return {
+    calls,
+    async send(method, params) {
+      calls.push({ method, params });
+      return { browserContextId: "context", targetId: "target", sessionId: "session" };
+    },
+    onEvent: () => () => {},
+  };
+}
+
+test("a page opened with a colour scheme is told to emulate it, and one opened without is left to the browser", async () => {
+  const viewport = { width: 390, height: 844, mobile: true };
+  const dark = fakeConnection();
+  await openPage(dark, { ...viewport, colorScheme: "dark" });
+  assert.deepEqual(
+    dark.calls.filter(({ method }) => method === "Emulation.setEmulatedMedia").map(({ params }) => params),
+    [{ features: [{ name: "prefers-color-scheme", value: "dark" }] }],
+  );
+  const plain = fakeConnection();
+  await openPage(plain, { ...viewport, colorScheme: null });
+  assert.equal(plain.calls.some(({ method }) => method === "Emulation.setEmulatedMedia"), false);
+});
+
+test("a socket that never finishes opening is given up on at the time it was given", async () => {
+  // Accepts the connection and says nothing: the WebSocket handshake never completes.
+  const held = [];
+  const silent = net.createServer((socket) => held.push(socket));
+  await new Promise((resolve) => silent.listen(0, "127.0.0.1", resolve));
+  const started = Date.now();
+  try {
+    await assert.rejects(connect(`ws://127.0.0.1:${silent.address().port}/devtools/browser/x`, { timeoutMs: 300 }), /could not open.*in 0\.3 s/);
+    assert.ok(Date.now() - started < 3000, "it did not wait for the 10 s default");
+  } finally {
+    for (const socket of held) socket.destroy();
+    await new Promise((resolve) => silent.close(resolve));
+  }
 });

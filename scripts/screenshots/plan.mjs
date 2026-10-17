@@ -8,6 +8,27 @@
 // A states file that cannot be shot must fail here, before Chrome starts. A
 // mistyped id or a width of zero found halfway through a hundred shots costs
 // minutes and leaves a half-filled directory that looks like a finished run.
+//
+// The states file:
+//   widths, heights   the default widths (390, 1440) and the height for a width
+//   variants          [{name, storage?, colorScheme?}]: every state is shot once
+//                     per variant. `storage` is written to localStorage before
+//                     the page is loaded for the shot. `colorScheme` ("light" or
+//                     "dark") is the prefers-color-scheme the page sees, for a
+//                     palette that follows the system rather than a stored choice.
+//   states            [{id, url, ...}] and, per state:
+//                       login      "admin" signs in as the administrator (loopback only)
+//                       storage    entries that win over the variant's
+//                       widths, extraWidths   replace / add to the file's widths
+//                       click      a selector or a list of them, pressed in order
+//                                  after the page has loaded; one that is not on the
+//                                  page fails the shot, it is never skipped
+//                       run        JavaScript (a string, or lines of one) run after
+//                                  the clicks; `?.` is refused: a run must fail when
+//                                  its element is missing, so write .click()
+//                       waitMs, runWaitMs   milliseconds, whole, 0 to 60000: after the
+//                                  load, and after click and run
+//                       fullPage   true shoots the whole scrolling page
 
 export const DEFAULT_MAC_CHROME = "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome";
 
@@ -17,6 +38,11 @@ const DEFAULT_WIDTHS = [390, 1440];
 const DEFAULT_HEIGHTS = { 390: 844, 768: 1024, 1024: 768, 1440: 900 };
 const DEFAULT_WAIT_MS = 800;
 const DEFAULT_RUN_WAIT_MS = 600;
+// A wait is for an animation to finish, not for a build; a minute is already a typo.
+const MAX_WAIT_MS = 60_000;
+const COLOR_SCHEMES = new Set(["light", "dark"]);
+// `?.` and not the `?.5` of a conditional, which is not optional chaining.
+const OPTIONAL_CHAINING = /\?\.(?!\d)/;
 // Below this a page is looked at as a phone: Chrome gets the touch viewport
 // rules, as it would on a real device.
 const MOBILE_BELOW = 768;
@@ -25,7 +51,10 @@ const MOBILE_BELOW = 768;
 const SAFE_NAME = /^[A-Za-z0-9_-]+$/;
 
 export const SCREENSHOTS_USAGE =
-  "usage: npm run screens -- <states.json> --out <dir> [--chrome <path>] [--only <id,id>]";
+  "usage: npm run screens -- <states.json> --out <dir> [--chrome <path>] [--only <id,id>]\n"
+  + "states file: {widths?, heights?, variants?: [{name, storage?, colorScheme?: \"light\"|\"dark\"}],\n"
+  + "  states: [{id, url, login?, storage?, widths?, extraWidths?, click?: selector|[selector],\n"
+  + "  run?, waitMs?, runWaitMs?, fullPage?}]}; the format is described in scripts/screenshots/plan.mjs";
 
 const OPTIONS = new Set(["--out", "--chrome", "--only"]);
 
@@ -178,8 +207,16 @@ function storageOf(source, where) {
   return entries;
 }
 
+function colorSchemeOf(value, where) {
+  if (value === undefined) return null;
+  if (!COLOR_SCHEMES.has(value)) {
+    throw new Error(`screens: ${where} colorScheme must be "light" or "dark", got ${JSON.stringify(value)}`);
+  }
+  return value;
+}
+
 function variantsOf(spec) {
-  if (spec.variants === undefined) return [{ name: "default", storage: {} }];
+  if (spec.variants === undefined) return [{ name: "default", storage: {}, colorScheme: null }];
   if (!Array.isArray(spec.variants) || !spec.variants.length) {
     throw new Error("screens: variants must be a list with at least one variant");
   }
@@ -191,8 +228,41 @@ function variantsOf(spec) {
     }
     if (seen.has(name)) throw new Error(`screens: variant "${name}" is listed twice`);
     seen.add(name);
-    return { name, storage: storageOf(variant.storage, `variant "${name}"`) };
+    const where = `variant "${name}"`;
+    return { name, storage: storageOf(variant.storage, where), colorScheme: colorSchemeOf(variant.colorScheme, where) };
   });
+}
+
+function checkWait(state, field) {
+  const value = state[field];
+  if (value === undefined) return;
+  if (!Number.isInteger(value) || value < 0 || value > MAX_WAIT_MS) {
+    throw new Error(`screens: state ${state.id} ${field} must be a whole number of milliseconds from 0 to ${MAX_WAIT_MS}, got ${JSON.stringify(value)}`);
+  }
+}
+
+/** The selectors a state presses, in order. A blank one, or one that is not text, is a mistake in the file. */
+function clicksOf(state) {
+  if (state.click === undefined) return [];
+  const list = Array.isArray(state.click) ? state.click : [state.click];
+  if (!list.every((selector) => typeof selector === "string" && selector.trim())) {
+    throw new Error(`screens: state ${state.id} click must be a selector or a list of selectors, got ${JSON.stringify(state.click)}`);
+  }
+  return list;
+}
+
+/** The state's JavaScript as one text. `?.` would turn a missing element into a shot of the wrong state. */
+function runOf(state) {
+  if (state.run === undefined) return "";
+  const lines = Array.isArray(state.run) ? state.run : [state.run];
+  if (!lines.every((line) => typeof line === "string")) {
+    throw new Error(`screens: state ${state.id} run must be a string or a list of strings, got ${JSON.stringify(state.run)}`);
+  }
+  const text = lines.join("\n");
+  if (OPTIONAL_CHAINING.test(text)) {
+    throw new Error(`screens: state ${state.id} run uses ?. — a run must fail when its element is missing: write .click(), not ?.click()`);
+  }
+  return text;
 }
 
 function checkState(state, seen) {
@@ -208,6 +278,13 @@ function checkState(state, seen) {
   if (state.login !== undefined && state.login !== "admin") {
     throw new Error(`screens: state ${state.id} login must be "admin", got ${JSON.stringify(state.login)}`);
   }
+  checkWait(state, "waitMs");
+  checkWait(state, "runWaitMs");
+  if (state.fullPage !== undefined && typeof state.fullPage !== "boolean") {
+    throw new Error(`screens: state ${state.id} fullPage must be true or false, got ${JSON.stringify(state.fullPage)}`);
+  }
+  clicksOf(state);
+  runOf(state);
 }
 
 function widthsFor(state, defaults) {
@@ -217,7 +294,8 @@ function widthsFor(state, defaults) {
 }
 
 function stateShots(state, { defaults, heights, variants }) {
-  const run = Array.isArray(state.run) ? state.run.join("\n") : state.run ?? "";
+  const run = runOf(state);
+  const click = clicksOf(state);
   const origin = new URL(state.url).origin;
   const ownStorage = storageOf(state.storage, `state ${state.id}`);
   const shots = [];
@@ -235,6 +313,8 @@ function stateShots(state, { defaults, heights, variants }) {
         // handed (a Russian-only page, say) without a variant of its own.
         storage: { ...variant.storage, ...ownStorage },
         login: state.login ?? null,
+        colorScheme: variant.colorScheme,
+        click,
         run,
         waitMs: state.waitMs ?? DEFAULT_WAIT_MS,
         runWaitMs: state.runWaitMs ?? DEFAULT_RUN_WAIT_MS,
@@ -268,4 +348,15 @@ export function expandShots(spec, { only = null } = {}) {
   }
   const wanted = spec.states.filter((state) => !only || only.includes(state.id));
   return wanted.flatMap((state) => stateShots(state, shared));
+}
+
+/**
+ * The servers a run needs, each once, in the order the file first names them.
+ * A page that is not on the web (file:, about:blank) needs no server to answer.
+ *
+ * @param {{origin: string}[]} shots
+ * @returns {string[]}
+ */
+export function serverOrigins(shots) {
+  return [...new Set(shots.map((shot) => shot.origin).filter((origin) => /^https?:\/\//.test(origin)))];
 }

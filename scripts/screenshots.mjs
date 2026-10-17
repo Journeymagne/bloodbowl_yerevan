@@ -13,14 +13,16 @@
 //
 // Exit code 1 means a shot could not be taken. Console errors do not: they are
 // the point of errors.json, and a page that had them before the change being
-// photographed is not a reason to throw the run away.
+// photographed is not a reason to throw the run away. Exit code 2 means the run
+// could not start: a states file that cannot be shot, or a server that is not
+// running.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadEnvFile } from "../server/config/env-file.mjs";
 import { connect, killAllChromes, launchChrome, openPage, sleep } from "./screenshots/cdp.mjs";
-import { expandShots, isLoopbackUrl, parseScreenshotArgs, shotFileName } from "./screenshots/plan.mjs";
+import { expandShots, isLoopbackUrl, parseScreenshotArgs, serverOrigins, shotFileName } from "./screenshots/plan.mjs";
 import {
   fromErrorsJson,
   groupProblems,
@@ -32,6 +34,8 @@ import {
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const TOKEN_KEY = "gata-league-auth-token";
+// A server on this machine answers at once or not at all.
+const SERVER_TIMEOUT_MS = 3_000;
 
 // The exit hook runs for every way out of this process, including an uncaught
 // error, and it must be synchronous: nothing async gets scheduled once the
@@ -100,6 +104,24 @@ async function tokenFor(page, shot, session) {
   return token;
 }
 
+/**
+ * Ask every server the run needs whether it is there, before Chrome is
+ * started: a dead one found shot by shot costs a page load's timeout each.
+ * Any answer counts, a 404 included; only silence does not.
+ */
+async function requireServers(origins) {
+  const silent = await Promise.all(origins.map(async (origin) => {
+    try {
+      await fetch(origin, { signal: AbortSignal.timeout(SERVER_TIMEOUT_MS) });
+      return null;
+    } catch {
+      return origin;
+    }
+  }));
+  const dead = silent.filter(Boolean);
+  if (dead.length) throw new Error(dead.map((origin) => `screens: nothing answers at ${origin}; start it first`).join("\n"));
+}
+
 function storageExpression(entries) {
   return `(() => {
     localStorage.clear();
@@ -107,9 +129,22 @@ function storageExpression(entries) {
   })()`;
 }
 
+/** Press the first element the selector finds; false when there is none, so a missing one is not skipped. */
+function clickExpression(selector) {
+  return `(() => {
+    const element = document.querySelector(${JSON.stringify(selector)});
+    if (!element) return false;
+    element.click();
+    return true;
+  })()`;
+}
+
 /**
  * Take one shot. The first load only gets the page's origin so its storage can
  * be set; the reload after it is the load that is measured and photographed.
+ *
+ * A shot that fails throws with `problems` on the error: what the page had
+ * complained about by then is often why it failed.
  */
 async function captureShot(connection, shot, session) {
   const page = await openPage(connection, shot);
@@ -122,6 +157,10 @@ async function captureShot(connection, shot, session) {
     page.takeProblems();
     await page.reload();
     await sleep(shot.waitMs);
+    for (const selector of shot.click) {
+      if (!(await page.evaluate(clickExpression(selector)))) throw new Error(`click target not found: ${selector}`);
+      await sleep(shot.runWaitMs);
+    }
     if (shot.run) {
       await page.evaluate(shot.run);
       await sleep(shot.runWaitMs);
@@ -130,6 +169,9 @@ async function captureShot(connection, shot, session) {
     await page.evaluate("document.fonts ? document.fonts.ready.then(() => true) : true");
     const png = await page.screenshot({ fullPage: shot.fullPage });
     return { png, problems: page.takeProblems() };
+  } catch (error) {
+    if (error && typeof error === "object") error.problems = page.takeProblems();
+    throw error;
   } finally {
     await page.close();
   }
@@ -179,9 +221,12 @@ async function takeShots(connection, shots, outDir, session) {
       result.problems = problems;
     } catch (error) {
       result.failure = error.message;
+      // Kept, not dropped: the errors the page had by then sit beside the reason in errors.json.
+      if (error.problems) result.problems = error.problems;
     }
     const count = Object.values(result.problems).reduce((sum, list) => sum + list.length, 0);
-    const note = result.failure ? `NOT TAKEN: ${result.failure}` : count ? `${count} browser error(s)` : "";
+    const errors = count ? `${count} browser error(s)` : "";
+    const note = result.failure ? `NOT TAKEN: ${result.failure}${errors ? ` (${errors})` : ""}` : errors;
     console.log(`[${index + 1}/${shots.length}] ${file} ${note}`.trimEnd());
     results.push(result);
   }
@@ -197,15 +242,17 @@ async function run() {
     await loadEnvFile(rootDir);
     session.credentials = adminCredentials();
   }
+  await requireServers(serverOrigins(shots));
   fs.mkdirSync(args.outDir, { recursive: true });
 
   const chrome = await launchChrome(args.chromePath);
-  const connection = await connect(chrome.wsUrl);
+  let connection = null;
   let results;
   try {
+    connection = await connect(chrome.wsUrl);
     results = await takeShots(connection, shots, args.outDir, session);
   } finally {
-    connection.close();
+    connection?.close();
     await chrome.close();
   }
   // A full run describes the whole states file. A --only run retakes a few
