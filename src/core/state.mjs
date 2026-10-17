@@ -23,7 +23,6 @@ export const state = {
     roll: null,
   },
   auth: {
-    mode: "login",
     currentUser: null,
   },
   myTeams: {

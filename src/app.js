@@ -15,12 +15,11 @@ import { setLocaleHandler } from "./core/locale-request.mjs";
 import { renderRoute } from "./core/router.mjs";
 import { state } from "./core/state.mjs";
 import { view } from "./core/view.mjs";
-import { updateAuthButton } from "./components/auth-button.mjs";
-import { closeAuthModal, setAuthMode, wireAuthModal } from "./components/auth-modal.mjs";
+import { updateAuthButton, wireAuthButton } from "./components/auth-button.mjs";
 import { toast } from "./components/toast.mjs";
 import { syncActiveTeam } from "./data/active-team.mjs";
 import { syncThemeWithAccount } from "./data/preferences.mjs";
-import { loadSession, onSessionChange, sessionEnded } from "./data/session.mjs";
+import { loadSession, onSessionChange, sessionEnded, sessionFailureText } from "./data/session.mjs";
 import { loadGames } from "./screens/games/my-games.mjs";
 import { rosterStore } from "./screens/saved-roster.mjs";
 
@@ -41,7 +40,6 @@ const referenceDataOptions = { version: assetVersion, inlineData: globalThis.__R
 function applyLocaleChrome() {
   applyStaticI18n();
   updateAuthButton();
-  setAuthMode(state.auth.mode);
   if (langToggle) {
     langToggle.textContent = getLocale() === "en" ? "RU" : "EN";
     langToggle.title = t("lang.toggleTitle");
@@ -109,10 +107,7 @@ function wireFrame() {
     switchLocale(state.locale === "en" ? "ru" : "en");
   });
   window.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      setNavOpen(false);
-      closeAuthModal();
-    }
+    if (event.key === "Escape") setNavOpen(false);
   });
   window.addEventListener("resize", () => {
     if (window.innerWidth > 900) setNavOpen(false);
@@ -146,10 +141,10 @@ async function init() {
   state.locale = initLocale(storedLocale());
   await loadTranslations(assetVersion);
   state.data = await loadReferenceData(state.locale, referenceDataOptions);
-  if ((await loadSession()) === "offline") toast(t("request.offline"), { tone: "error" });
+  if ((await loadSession()) === "offline") toast(sessionFailureText(), { tone: "error" });
   applyLocaleChrome();
   wireFrame();
-  wireAuthModal();
+  wireAuthButton();
 }
 
 init().catch((error) => {

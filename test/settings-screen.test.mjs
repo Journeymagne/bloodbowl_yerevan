@@ -622,3 +622,25 @@ test("a coach who left the screen is told their contact was saved all the same",
   assert.ok(spoken().includes("Contact saved"));
   assert.equal(state.auth.currentUser.telegram, "@another");
 });
+
+// Carried over from the 2.x modal's profile test (deleted with the modal, Task 9): the same save, now the screen's.
+test("saving the contact keeps the account's palette, and the next sync paints it instead of writing over it", async () => {
+  const { createStorage } = await import("../src/core/storage.mjs");
+  const { initTheme, themeChoice } = await import("../src/core/theme.mjs");
+  const { syncThemeWithAccount } = await import("../src/data/preferences.mjs");
+  const account = { themeMode: "light", lightPalette: "parchment", darkPalette: "night", locale: "ru" };
+  // This browser chose another palette than the account did.
+  const backend = new Map([["gata-league-palette", JSON.stringify({ mode: "dark", light: "grass", dark: "embers" })]]);
+  const store = createStorage({ getItem: (key) => backend.get(key) ?? null, setItem: (key, value) => backend.set(key, String(value)), removeItem: (key) => backend.delete(key) });
+  initTheme({ root: document.documentElement, select: null, store, matchMedia: () => ({ matches: false, addEventListener() {}, removeEventListener() {} }) });
+  api.reset();
+  api.items.set("gata-league-auth-token", "tok");
+  state.auth.currentUser = { ...COACH, preferences: account };
+  api.reply("PATCH /api/auth/profile", 200, { user: { id: "u1", login: "felstell", telegram: "@another", isAdmin: false } });
+  assert.equal(await saveTelegram("another"), null);
+  assert.deepEqual(state.auth.currentUser.preferences, account);
+  await syncThemeWithAccount();
+  assert.deepEqual(api.calls.map(({ key }) => key), ["PATCH /api/auth/profile"], "no PATCH /api/auth/preferences went out");
+  assert.deepEqual(themeChoice(), { mode: "light", light: "parchment", dark: "night" });
+  api.assertAnswered();
+});

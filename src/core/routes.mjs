@@ -225,7 +225,10 @@ export function matchRoute(route) {
 // Where an address leads
 // ---------------------------------------------------------------------------
 
-/** What a guest cannot open: the way in is to sign in (plan stage 05, decision 5). */
+/**
+ * What a guest cannot open: the way in is to sign in (plan stage 05, decision 5). A guest's
+ * `#/teams` never gets this far: rule (1) sends it to the team rules first, as in 2.x.
+ */
 const SIGNED_IN_ROUTES = new Set([
   "teams",
   ...TEAM_ROUTES,
@@ -269,28 +272,36 @@ function oldAddressTarget(route, context) {
   return null;
 }
 
+const isSignInRoute = (name) => name === "login" || name === "register";
+
 /**
  * Where a route leads before anything is drawn, in this order: (1) a 2.x
  * address goes to its 3.0 one; (2) a signed-in visitor on the sign-in screens
  * goes back where they were sent from, or home; (3) a coach's home is the
  * active team; (4) a guest on a coach page signs in first, and the address is
- * remembered; (5) otherwise the route stays.
+ * remembered; (5) otherwise the route stays, and a remembered address outlives
+ * it only on the sign-in screens: a guest who went elsewhere gave up on it.
  *
  * Every target is a different route and settles within two hops (the tests
  * walk them), so the router can apply it with `location.replace` and let the
- * next hashchange draw.
+ * next hashchange draw. A sign-in screen is never remembered, nor returned to:
+ * coming back to one would only send the coach on again.
  *
  * @param {string} route as `routeFromHash` gives it
- * @param {{signedIn: boolean, activeTeamId?: string|null, returnTo?: string}} context
+ * @param {{signedIn: boolean, activeTeamId?: string|null, returnTo?: string, hash?: string}} context
+ *   `hash` is the address as it was typed (`location.hash`): it is what (4)
+ *   remembers, since one rebuilt from the decoded route is another address for
+ *   an id with an encoded character in it
  * @returns {{target: string|null, returnTo: string}} the hash to go to (null:
  *   draw this route), and the address to come back to after signing in
  */
-export function resolveRedirect(route, { signedIn, activeTeamId = null, returnTo = "" }) {
+export function resolveRedirect(route, { signedIn, activeTeamId = null, returnTo = "", hash = "" }) {
+  const back = returnTo && isSignInRoute(matchRoute(routeFromHash(returnTo)).name) ? "" : returnTo;
   const old = oldAddressTarget(route, { signedIn, activeTeamId });
-  if (old) return { target: old, returnTo };
+  if (old) return { target: old, returnTo: back };
   const { name } = matchRoute(route);
-  if (signedIn && (name === "login" || name === "register")) return { target: returnTo || "#/", returnTo: "" };
-  if (signedIn && activeTeamId && name === "home") return { target: teamUrl(activeTeamId), returnTo };
-  if (!signedIn && (SIGNED_IN_ROUTES.has(name) || route === "my-games")) return { target: authUrl(), returnTo: `#/${route}` };
-  return { target: null, returnTo };
+  if (signedIn && isSignInRoute(name)) return { target: back || "#/", returnTo: "" };
+  if (signedIn && activeTeamId && name === "home") return { target: teamUrl(activeTeamId), returnTo: back };
+  if (!signedIn && (SIGNED_IN_ROUTES.has(name) || route === "my-games")) return { target: authUrl(), returnTo: hash || `#/${route}` };
+  return { target: null, returnTo: isSignInRoute(name) ? back : "" };
 }

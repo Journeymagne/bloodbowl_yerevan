@@ -13,8 +13,10 @@
  * Every change ends in one notice to the `onSessionChange` listeners; the app
  * draws from there, so no caller here renders anything.
  */
-import { API_ERROR } from "../core/api.mjs";
+import { API_ERROR, errorText } from "../core/api.mjs";
 import { apiRequest, authToken, setAuthToken } from "../core/api-client.mjs";
+import { t } from "../core/i18n.mjs";
+import { setReturn } from "../core/return-to.mjs";
 import { state } from "../core/state.mjs";
 import { clearActiveTeamCache, resetActiveTeam } from "./active-team.mjs";
 import { setMyTeams } from "./teams.mjs";
@@ -66,6 +68,35 @@ function statusOf(me, teams) {
   return "signed-in";
 }
 
+/** What kept the last load from reading the session: the first failure of the pair, or null (none, or an answer with no coach in it). */
+let failure = null;
+
+/**
+ * What to tell a coach whose session the last load could not read. A lost or a slow
+ * connection is said as such, and so is maintenance; anything else (a 500, a 503 that is
+ * not maintenance, a 403, an answer with no coach in it) is the server's: "no connection"
+ * would send the coach to check a network that works.
+ */
+export function sessionFailureText() {
+  const kind = failure?.kind;
+  if (kind === API_ERROR.OFFLINE || kind === API_ERROR.TIMEOUT || kind === API_ERROR.MAINTENANCE) return errorText(failure);
+  return t("request.noAnswer");
+}
+
+/**
+ * A refused request as a sentence, for the forms that sign in or change a password:
+ * errorText's, but too many tries also say when to try again (the 429 carries
+ * `retryAfterSeconds`), and an answer without a code (a proxy's 502 while the server
+ * restarts) says the server did not answer instead of "Request failed with 502".
+ * @param {unknown} error
+ */
+export function refusalText(error) {
+  if (error?.kind === API_ERROR.HTTP && !error.code) return t("request.noAnswer");
+  const text = errorText(error);
+  const seconds = Number(error?.payload?.retryAfterSeconds);
+  return error?.status === 429 && seconds > 0 ? `${text} ${t("auth.retryAfter", { seconds })}` : text;
+}
+
 /**
  * Who the stored token belongs to, with their settings and their teams.
  *
@@ -78,9 +109,11 @@ function statusOf(me, teams) {
 export async function loadSession() {
   let status = "guest";
   state.auth.currentUser = null;
+  failure = null;
   if (authToken()) {
     const [me, teams] = await Promise.allSettled([apiRequest("/api/auth/me"), apiRequest("/api/teams")]);
     status = statusOf(me, teams);
+    if (status === "offline") failure = [me, teams].find((answer) => answer.status === "rejected")?.reason ?? null;
     if (status === "guest") setAuthToken("");
     if (status === "signed-in") {
       state.auth.currentUser = me.value.user;
@@ -117,21 +150,27 @@ export function mergeCurrentUser(user) {
   };
 }
 
-/** Sign in or register, then ask /me: a refusal is thrown to the screen with nothing changed. */
+/**
+ * Sign in or register, then ask /me: a refusal is thrown to the screen with nothing changed.
+ *
+ * @returns {Promise<"signed-in"|"offline"|"guest">} what /me said. "offline" is a sign-in
+ *   that went through while the account could not be read: the token stays, so the next
+ *   load signs the coach in, and `sessionFailureText` says why not now
+ */
 async function startSession(path, body) {
   const payload = await apiRequest(path, { method: "POST", body: JSON.stringify(body) });
   setAuthToken(payload.token);
   // A guest may have loaded the season already; the coach's copy has their own part in it.
   resetCoachSlices();
-  await loadSession();
+  return loadSession();
 }
 
-/** @param {{login: string, password: string}} credentials */
+/** @param {{login: string, password: string}} credentials @returns {ReturnType<typeof startSession>} */
 export function signIn({ login, password }) {
   return startSession("/api/auth/login", { login, password });
 }
 
-/** @param {{login: string, password: string, telegram: string}} account */
+/** @param {{login: string, password: string, telegram: string}} account @returns {ReturnType<typeof startSession>} */
 export function register({ login, password, telegram }) {
   return startSession("/api/auth/register", { login, password, telegram });
 }
@@ -157,5 +196,7 @@ export async function signOut() {
   }
   // Again: a list that answered while the logout was out, the coach still signed in, wrote it back.
   clearActiveTeamCache();
+  // Nor is the page signed out on where the next sign-in lands. A 401 keeps it: the router remembers that page.
+  setReturn("");
   sessionEnded();
 }

@@ -345,9 +345,11 @@ function wireBuilder(team) {
 }
 async function saveTeam(team) {
   if (!state.auth.currentUser) {
-    // The draft is kept locally; after signing in the router brings the guest back here.
+    // The draft is kept locally; after signing in the router brings the guest back here. The sign-in
+    // screen takes the builder's place in history, as the router's own redirects do: pushed, it would
+    // leave the builder in history twice once the router replaced it with the builder again.
     setReturn(location.hash);
-    location.hash = authUrl();
+    location.replace(authUrl());
     return;
   }
   syncRosterCountsFromPlayers(state.builder);

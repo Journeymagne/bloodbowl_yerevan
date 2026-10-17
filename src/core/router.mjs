@@ -19,12 +19,12 @@ import { t } from "./i18n.mjs";
 import { state } from "./state.mjs";
 import { view } from "./view.mjs";
 import { announce } from "../components/live-region.mjs";
-import { openAuthModal } from "../components/auth-modal.mjs";
 import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { toast } from "../components/toast.mjs";
 import { prepareTeamRoute, syncActiveTeam } from "../data/active-team.mjs";
 import { loadMyTeams } from "../data/teams.mjs";
 import { renderHome } from "../screens/home.mjs";
+import { renderLogin } from "../screens/auth/login.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
 import { renderSettings } from "../screens/settings/index.mjs";
 import { renderOverviewDetail } from "../screens/overview.mjs";
@@ -53,8 +53,8 @@ function findPageBySlug(slug) {
 const screens = {
   // A coach with an active team never gets here: resolveRedirect sends `#/` on to that team.
   home: () => (state.auth.currentUser && !state.myTeams.items.length ? renderNoTeam() : renderHome()),
-  login: () => renderAuthModal("login"),
-  register: () => renderAuthModal("register"),
+  login: () => renderLogin("login"),
+  register: () => renderLogin("register"),
   settings: () => renderSettings(),
   overview: ({ slug }) => renderOverviewDetail(slug),
   teams: () => renderMyTeams(),
@@ -82,12 +82,6 @@ const screens = {
     return page ? renderDetail(page) : renderNotFound();
   },
 };
-
-/** Until the sign-in screen (Task 9) exists: the 2.x modal over the home screen. */
-function renderAuthModal(mode) {
-  renderHome();
-  openAuthModal(mode);
-}
 
 function renderNotFound() {
   setActiveNav("home");
@@ -138,6 +132,7 @@ export function renderRoute() {
     signedIn: Boolean(state.auth.currentUser),
     activeTeamId: state.activeTeamId ?? null,
     returnTo: peekReturn(),
+    hash: location.hash,
   });
   setReturn(returnTo);
   if (target) {

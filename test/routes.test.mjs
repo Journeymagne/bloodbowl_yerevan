@@ -224,7 +224,33 @@ test("a guest is sent to sign in and brought back to where the link pointed", ()
   assert.deepEqual(resolveRedirect("my-games", guest), { target: "#/login", returnTo: "#/my-games" });
   assert.deepEqual(resolveRedirect("login", { ...coach, returnTo: first.returnTo }), { target: "#/t/t1/roster", returnTo: "" });
   assert.deepEqual(resolveRedirect("register", coach), { target: "#/", returnTo: "" });
-  assert.deepEqual(resolveRedirect("season", { ...guest, returnTo: "#/x" }), { target: null, returnTo: "#/x" });
+  // The address as it was typed: one rebuilt from the decoded route would be another address for an encoded id.
+  assert.deepEqual(resolveRedirect(routeFromHash("#/t/t%201/roster"), { ...guest, hash: "#/t/t%201/roster" }), { target: "#/login", returnTo: "#/t/t%201/roster" });
+});
+
+// Task 3 carry (c): a guest who gave up on signing in is not taken back to that page by a sign-in much later.
+test("a guest who leaves the sign-in screens for another page is not brought back later", () => {
+  const remembered = { ...guest, returnTo: "#/t/t1/roster" };
+  assert.deepEqual(resolveRedirect("login", remembered), { target: null, returnTo: "#/t/t1/roster" });
+  assert.deepEqual(resolveRedirect("register", remembered), { target: null, returnTo: "#/t/t1/roster" });
+  for (const route of ["home", "season", "ref", "ref/skills", "skills/block", "legal", "settings", "teams/new"]) {
+    assert.deepEqual(resolveRedirect(route, remembered), { target: null, returnTo: "" }, route);
+  }
+  // An old address hands it on to the page it leads to, which drops it.
+  const old = resolveRedirect("skills", remembered);
+  assert.deepEqual(old, { target: "#/ref/skills", returnTo: "#/t/t1/roster" });
+  assert.equal(resolveRedirect(routeFromHash(old.target), { ...guest, returnTo: old.returnTo }).returnTo, "");
+  // Another coach page asks again, for itself.
+  assert.deepEqual(resolveRedirect("coaches/u2", remembered), { target: "#/login", returnTo: "#/coaches/u2" });
+});
+
+// Task 3 carry (a): coming back to a sign-in screen would only send the coach on again.
+test("a sign-in screen is never the address to come back to", () => {
+  for (const returnTo of ["#/login", "#/register", "#login", "#/%6Cogin"]) {
+    assert.deepEqual(resolveRedirect("login", { ...coach, returnTo }), { target: "#/", returnTo: "" }, returnTo);
+    assert.deepEqual(resolveRedirect("register", { ...teamless, returnTo }), { target: "#/", returnTo: "" }, returnTo);
+    assert.deepEqual(resolveRedirect("login", { ...guest, returnTo }), { target: null, returnTo: "" }, returnTo);
+  }
 });
 
 test("a guest may open the public pages, and every coach page asks for a session", () => {
@@ -241,12 +267,18 @@ test("a guest may open the public pages, and every coach page asks for a session
 test("no redirect loops: every route settles within two hops", () => {
   const routes = ["home", "login", "register", "settings", "teams", "teams/new", "my-teams", "my-teams/t9", "builder", "my-games",
     "players/u2", "players/u2/teams/t2", "pages", "ref/pages", "skills", "teams/amazon", "t/t1", "t/t1/roster", "games/g1", "administration"];
-  for (const context of [guest, coach, teamless, { ...coach, returnTo: "#/my-games" }]) {
+  const isSignIn = (hash) => ["login", "register"].includes(matchRoute(routeFromHash(hash)).name);
+  const contexts = [guest, coach, teamless, { ...coach, returnTo: "#/my-games" }, { ...coach, returnTo: "#/login" },
+    { ...teamless, returnTo: "#/register" }, { ...guest, returnTo: "#/login" }, { ...guest, returnTo: "#/t/t1/roster" }];
+  for (const context of contexts) {
     for (const start of routes) {
       let route = start;
       let current = context;
       for (let hop = 0; ; hop += 1) {
         const { target: next, returnTo } = resolveRedirect(route, current);
+        const where = `${start} (hop ${hop}) for ${JSON.stringify(context)}`;
+        assert.ok(!returnTo || !isSignIn(returnTo), `${where} remembers a sign-in screen: ${returnTo}`);
+        if (current.signedIn) assert.ok(!next || !isSignIn(next), `${where} sends a coach to sign in: ${next}`);
         if (!next) break;
         assert.ok(hop < 2, `${start} does not settle for ${JSON.stringify(context)}`);
         current = { ...current, returnTo };

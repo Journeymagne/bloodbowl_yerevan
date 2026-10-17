@@ -47,6 +47,17 @@ test("a text field names only the lines it draws, and draws only what it was giv
   assert.equal(errorOnly.querySelector("input").getAttribute("aria-invalid"), "true");
 });
 
+test("a field the form's one message is about is marked invalid without a line of its own", () => {
+  const fragment = mount(renderTextField({ id: "f", name: "f", label: "F", help: "Seen by opponents", invalid: true }));
+  const input = fragment.querySelector("input");
+  assert.equal(input.getAttribute("aria-invalid"), "true");
+  assert.equal(input.getAttribute("aria-describedby"), "f-help");
+  assert.ok(fragment.querySelector(".g-field--invalid"));
+  assert.equal(fragment.querySelector(".g-field__error"), null);
+  assertStyled(fragment, "text-field.css");
+  assert.equal(mount(renderTextField({ id: "f", name: "f", label: "F", invalid: false })).querySelector("input").hasAttribute("aria-invalid"), false);
+});
+
 test("a text field is a text input unless told otherwise, and says only what it was told", () => {
   const plain = mount(renderTextField({ id: "f", name: "nick", label: "F" })).querySelector("input");
   assert.equal(plain.getAttribute("type"), "text");

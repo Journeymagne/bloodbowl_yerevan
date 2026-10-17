@@ -112,54 +112,6 @@
       </main>
     </div>
 
-    <div id="auth-modal" class="auth-modal" hidden role="dialog" aria-modal="true" aria-labelledby="auth-title">
-      <button class="auth-backdrop" type="button" data-auth-close aria-label="Close authorization" data-i18n-aria-label="auth.closeAriaLabel"></button>
-      <section class="auth-dialog">
-        <header>
-          <h2 id="auth-title" data-i18n="auth.login">Login</h2>
-          <button class="ghost-button" type="button" data-auth-close data-i18n="auth.close">Close</button>
-        </header>
-
-        <div id="auth-account" class="auth-account" hidden>
-          <p id="auth-account-text"></p>
-          <form id="auth-profile-form" class="auth-form">
-            <label class="filter-field">
-              <span data-i18n="auth.loginField">Login</span>
-              <input name="login" autocomplete="username" required>
-            </label>
-            <label class="filter-field">
-              <span data-i18n="auth.telegramField">Telegram contact</span>
-              <input name="telegram" autocomplete="off" required>
-            </label>
-            <label class="filter-field">
-              <span data-i18n="auth.newPasswordField">New password</span>
-              <input name="password" type="password" autocomplete="new-password" placeholder="Leave empty to keep current" data-i18n-placeholder="auth.newPasswordPlaceholder">
-            </label>
-            <button class="primary-button" type="submit" data-i18n="auth.saveProfile">Save profile</button>
-          </form>
-          <button id="auth-logout" class="primary-button" type="button" data-i18n="auth.logout">Log out</button>
-        </div>
-
-        <form id="auth-form" class="auth-form">
-          <label class="filter-field">
-            <span data-i18n="auth.loginField">Login</span>
-            <input name="login" autocomplete="username" required>
-          </label>
-          <label class="filter-field">
-            <span data-i18n="auth.passwordField">Password</span>
-            <input name="password" type="password" autocomplete="current-password" required>
-          </label>
-          <label class="filter-field" data-auth-telegram>
-            <span data-i18n="auth.telegramField">Telegram contact</span>
-            <input name="telegram" autocomplete="off" placeholder="@username">
-          </label>
-          <p id="auth-error" class="auth-error" hidden></p>
-          <button id="auth-submit" class="primary-button" type="submit" data-i18n="auth.login">Login</button>
-          <button id="auth-switch" class="filter-button" type="button" data-i18n="auth.createAccount">Create account</button>
-        </form>
-      </section>
-    </div>
-
     <script type="module" src="src/app.js?v=gata-97"></script>
   </body>
 </html>

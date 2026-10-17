@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { installFakeApi } from "./helpers/fake-api.mjs";
@@ -7,6 +8,14 @@ const api = installFakeApi();
 const session = await import("../src/data/session.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { setOnUnauthorized } = await import("../src/core/api-client.mjs");
+const { API_ERROR, ApiError } = await import("../src/core/api.mjs");
+const { setDictionaries } = await import("../src/core/i18n.mjs");
+const { peekReturn, setReturn } = await import("../src/core/return-to.mjs");
+
+const dictionary = (locale) => JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
+setDictionaries({ en: dictionary("en"), ru: dictionary("ru") });
+const OFFLINE = "No connection to the server. Check the internet and try again.";
+const NO_ANSWER = "The server did not answer. Try again in a minute.";
 
 // Wired as app.js wires it, so a 401 that reached the hook would be heard twice.
 setOnUnauthorized(session.sessionEnded);
@@ -282,4 +291,69 @@ test("merging a coach into nobody sets them, and invents no settings", () => {
   assert.equal(Object.hasOwn(state.auth.currentUser, "preferences"), false);
   assert.deepEqual(user, { id: "u1", login: "coach" }, "the argument is left as it was");
   api.assertAnswered();
+});
+
+// Task 3 carry (b): the page a coach signed out on is not where the next sign-in, maybe someone else's, should land.
+test("signing out leaves no page to come back to; a session that dies keeps the one the router remembered", async () => {
+  fresh();
+  state.auth.currentUser = ME.user;
+  setReturn("#/t/t1/roster");
+  api.reply("POST /api/auth/logout", 200, { ok: true });
+  await session.signOut();
+  assert.equal(peekReturn(), "");
+  fresh();
+  state.auth.currentUser = ME.user;
+  setReturn("#/t/t1/roster");
+  session.sessionEnded();
+  assert.equal(peekReturn(), "#/t/t1/roster");
+  setReturn("");
+  api.assertAnswered();
+});
+
+// Task 2 carry (a): the login answer is in, the token with it; only /me did not come.
+test("a sign-in that went through while /me did not answer keeps the token and says offline", async () => {
+  fresh(null);
+  api.reply("POST /api/auth/login", 200, { token: "new", user: { id: "u1", login: "coach" } });
+  api.fail("GET /api/auth/me");
+  api.reply("GET /api/teams", 200, TEAMS);
+  assert.equal(await session.signIn({ login: "coach", password: "secret" }), "offline");
+  assert.equal(api.items.get(TOKEN), "new");
+  assert.equal(state.auth.currentUser, null);
+  assert.equal(session.sessionFailureText(), OFFLINE);
+  fresh(null);
+  api.reply("POST /api/auth/register", 201, { token: "fresh", user: { id: "u2", login: "rookie" } });
+  api.reply("GET /api/auth/me", 200, { user: { id: "u2", login: "rookie", preferences: {} } });
+  api.reply("GET /api/teams", 200, { teams: [] });
+  assert.equal(await session.register({ login: "rookie", password: "secret", telegram: "@rookie" }), "signed-in");
+  api.assertAnswered();
+});
+
+// Task 2 carry (b): "no connection" sends a coach to check a network that works.
+test("a session that could not be read says whose fault it was: the connection's or the server's", async () => {
+  const cases = [
+    ["no network", () => { api.fail("GET /api/auth/me"); api.fail("GET /api/teams"); }, OFFLINE],
+    ["a timeout", () => { api.fail("GET /api/auth/me", ABORTED); api.reply("GET /api/teams", 200, TEAMS); }, "The server is taking too long to answer. Try again."],
+    ["a 500", () => { api.reply("GET /api/auth/me", 500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } }); api.reply("GET /api/teams", 200, TEAMS); }, NO_ANSWER],
+    ["a 503 that is not maintenance", () => { api.reply("GET /api/auth/me", 200, ME); api.reply("GET /api/teams", 503, {}); }, NO_ANSWER],
+    ["a 403", () => { api.reply("GET /api/auth/me", 403, FORBIDDEN); api.reply("GET /api/teams", 200, TEAMS); }, NO_ANSWER],
+    ["a /me with no user in it", () => { api.reply("GET /api/auth/me", 200, {}); api.reply("GET /api/teams", 200, TEAMS); }, NO_ANSWER],
+  ];
+  for (const [name, answer, text] of cases) {
+    fresh();
+    answer();
+    assert.equal(await session.loadSession(), "offline", name);
+    assert.equal(session.sessionFailureText(), text, name);
+    api.assertAnswered();
+  }
+});
+
+test("a refusal reads as the server's words; too many tries also say when to try again", () => {
+  const refused = (status, body) => new ApiError(status === 429 ? API_ERROR.HTTP : API_ERROR.CONFLICT, { status, payload: body });
+  const tooMany = { error: { code: "TOO_MANY_LOGIN_ATTEMPTS", params: {}, message: "x" } };
+  assert.equal(session.refusalText(refused(429, { ...tooMany, retryAfterSeconds: 30 })),
+    "Too many attempts for this login. Try again shortly. Try again in 30 s.");
+  assert.equal(session.refusalText(refused(429, tooMany)), "Too many attempts for this login. Try again shortly.", "no number, no promise");
+  assert.equal(session.refusalText(refused(409, { error: { code: "LOGIN_ALREADY_REGISTERED", params: {}, message: "x" } })), "This login is already registered.");
+  assert.equal(session.refusalText(new ApiError(API_ERROR.HTTP, { status: 502, payload: {} })), NO_ANSWER);
+  assert.equal(session.refusalText(new ApiError(API_ERROR.OFFLINE)), OFFLINE);
 });
