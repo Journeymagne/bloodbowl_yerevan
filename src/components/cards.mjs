@@ -1,6 +1,6 @@
 /**
  * Catalogue cards: the plain list card plus the richer team/star-player
- * cards used by screens/section.mjs.
+ * cards the 2.x reference lists drew (the lists are screens/ref/list.mjs now).
  *
  * Mechanically moved out of src/app.js.
  */

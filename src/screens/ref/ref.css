@@ -7,8 +7,11 @@
  * other reference screen, and the table of contents is the index itself, one tap up (the way back is
  * the link at the top of a screen). From 901px the head is a white band across the top with the title
  * at the left and the search at the right, the table of contents stands beside the content, and the
- * index lays its groups out in two columns. Only the head and the groups are laid out here; the lists,
- * the articles and the panel are the sheets of the screens that draw them.
+ * index lays its groups out in two columns. A list (list.mjs) is the same page with its own head: up to
+ * 900px a column of rows, and a split page (skills, traits) shows either the list or, once one is
+ * chosen, its panel; from 901px the contents, the list in a card and, on a split page, the panel stand
+ * in columns that shrink with the window and never wrap. The articles and the panel's content are the
+ * sheets of the screens that draw them.
  */
 .g-ref {
   box-sizing: border-box;
@@ -135,6 +138,146 @@
 /* The table of contents is the desktop's; a phone has the index. */
 .g-ref-toc { display: none; }
 
+/* A list: its title and how many it shows, its search and categories, then its rows. */
+.g-ref-list {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-list__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.g-ref-list__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.g-ref-list__title {
+  margin: 0;
+  color: var(--ink);
+  font: 700 32px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-list__count {
+  flex: none;
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-list__body {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-8);
+}
+
+/* The league's rules are two lists under a heading each. */
+.g-ref-list__subtitle {
+  margin: var(--space-16) 0 var(--space-4);
+  color: var(--muted);
+  font: 700 13px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.g-ref-list__subtitle:first-child { margin-top: 0; }
+
+/* A skill or a trait: its letter on the category's colour, its name, and whether it is used or always there. */
+.g-ref-row {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 48px;
+  padding: var(--space-6) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.g-ref-row__name {
+  min-width: 0;
+  overflow-wrap: break-word;
+  font: 500 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Passive is the word and the colour: the colour alone would say nothing to everyone who cannot tell it. */
+.g-ref-row__meta {
+  color: var(--muted);
+  font: 700 11px/1.2 var(--font-body);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.g-ref-row__meta--passive { color: var(--danger); }
+
+.g-ref-badge {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--cat-trait);
+  color: var(--on-accent);
+  font: 700 14px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-ref-badge--agility { background: var(--cat-agility); }
+.g-ref-badge--devious { background: var(--cat-devious); }
+.g-ref-badge--general { background: var(--cat-general); }
+.g-ref-badge--mutation { background: var(--cat-mutation); }
+.g-ref-badge--passing { background: var(--cat-passing); }
+.g-ref-badge--strength { background: var(--cat-strength); }
+.g-ref-badge--trait { background: var(--cat-trait); }
+
+/* What the panel says until a skill or a trait is chosen. */
+.g-ref-pick {
+  margin: 0;
+  padding: var(--space-24);
+  color: var(--ink-2);
+  font: 400 15px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/*
+ * A split page is two screens on a phone: the list, or (once something is chosen, which the page says
+ * with g-ref--open) the panel of the chosen one, whose way back is the link at its top.
+ */
+@media (max-width: 900px) {
+  .g-ref--split .g-ref__panel { display: none; }
+  .g-ref--split.g-ref--open .g-ref__main { display: none; }
+  .g-ref--split.g-ref--open .g-ref__panel { display: block; }
+}
+
 @media (min-width: 901px) {
   /*
    * The band runs edge to edge, so the 2.x padding of the screen (which stage 13 takes away) is
@@ -249,4 +392,72 @@
   .g-ref-results { max-width: 760px; }
   .g-ref-group .g-list-row:last-child,
   .g-ref-results .g-list-row:last-child { border-bottom: 0; }
+
+  /*
+   * The lists and the split pages are a grid, not a row that wraps: the contents and the panel take
+   * what the window gives them between a floor and a ceiling, and the list takes the rest. A row that
+   * wrapped would drop the panel under the list from a window as wide as 1256px.
+   */
+  .g-ref--list .g-ref__body,
+  .g-ref--split .g-ref__body {
+    display: grid;
+    align-items: start;
+  }
+  .g-ref--list .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr); }
+  .g-ref--split .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr) clamp(200px, 22vw, 440px); }
+  .g-ref--split .g-ref__panel {
+    position: sticky;
+    top: 24px;
+  }
+
+  /* The list is a card: its head, then its rows in columns, scrolling from 720px. */
+  .g-ref-list {
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-ref-list__head {
+    padding: var(--space-16) var(--space-20) var(--space-12);
+    border-bottom: 1px solid var(--line);
+  }
+  .g-ref-list__title {
+    font: 700 28px/1.1 var(--font-display);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .g-ref-list .g-chips { flex-wrap: wrap; }
+  .g-ref-list__body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+    gap: 2px var(--space-8);
+    align-content: start;
+    max-height: 720px;
+    margin-top: 0;
+    padding: var(--space-6) var(--space-8) var(--space-10);
+    overflow-y: auto;
+  }
+  /* A row that says two lines and has a chevron wants more room than a letter and a name. */
+  .g-ref-list--nav .g-ref-list__body { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+  .g-ref-list__body .g-list-row { padding-inline: var(--space-10); }
+  .g-ref-list__subtitle,
+  .g-ref-list__body .g-ref-empty { grid-column: 1 / -1; }
+  .g-ref-list__subtitle { padding: 0 var(--space-10); }
+  .g-ref-list__body .g-ref-empty { padding-inline: var(--space-10); }
+
+  .g-ref-row {
+    padding: var(--space-6) var(--space-10);
+    border-bottom: 0;
+    border-radius: var(--radius-md);
+  }
+  .g-ref-row[aria-current="page"] {
+    background: var(--accent-tint-soft);
+    box-shadow: var(--ring-selected);
+  }
+  .g-ref-row[aria-current="page"] .g-ref-row__name { font-weight: 700; }
+
+  .g-ref-pick {
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
 }

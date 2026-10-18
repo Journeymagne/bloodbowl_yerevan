@@ -65,13 +65,16 @@ export function backLinkMarkup({ href, label }) {
  * the panel beside it. `layout` names what the page is — the index, a list, an article, a list with
  * the card of its chosen item — and is a class the stylesheet lays the parts out by.
  *
+ * `open` says an item of a split page is chosen: a phone shows the list or the panel, not both, and
+ * shows the panel then (`g-ref--open`).
+ *
  * `headHtml`, `tocHtml`, `mainHtml` and `panelHtml` are markup from the render…() functions above and
  * the screens'.
  */
-export function refPageMarkup({ layout, headHtml, tocHtml = "", mainHtml, panelHtml = "" }) {
+export function refPageMarkup({ layout, open = false, headHtml, tocHtml = "", mainHtml, panelHtml = "" }) {
   if (!LAYOUTS.has(layout)) throw new Error(`a reference page is one of ${[...LAYOUTS].join(", ")}, not ${JSON.stringify(layout)}`);
   const panel = panelHtml ? `<aside class="g-ref__panel">${panelHtml}</aside>` : "";
-  return `<div class="g-ref g-ref--${layout}">${headHtml}<div class="g-ref__body">${tocHtml}<div class="g-ref__main">${mainHtml}</div>${panel}</div></div>`;
+  return `<div class="g-ref g-ref--${layout}${open ? " g-ref--open" : ""}">${headHtml}<div class="g-ref__body">${tocHtml}<div class="g-ref__main">${mainHtml}</div>${panel}</div></div>`;
 }
 
 /**

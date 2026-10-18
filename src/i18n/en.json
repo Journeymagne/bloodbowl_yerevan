@@ -1004,5 +1004,16 @@
   "ref.toc": "Reference sections",
   "ref.search": "Search the reference",
   "ref.found": "Found: {count}",
-  "ref.foundFirst": "Showing {shown} of {count}"
+  "ref.foundFirst": "Showing {shown} of {count}",
+  "ref.count": "{shown} of {total}",
+  "ref.allCategories": "All",
+  "ref.listSearch.skills": "Find a skill",
+  "ref.listSearch.traits": "Find a trait",
+  "ref.listSearch.teams": "Find a team",
+  "ref.listSearch.starPlayers": "Find a star player",
+  "ref.listSearch.inducements": "Find an inducement",
+  "ref.rules.brief": "In brief",
+  "ref.rules.full": "Full text",
+  "ref.skill.pick": "Choose a skill to read its rule",
+  "ref.trait.pick": "Choose a trait to read its rule"
 }

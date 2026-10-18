@@ -1004,5 +1004,16 @@
   "ref.toc": "Разделы справочника",
   "ref.search": "Поиск по справочнику",
   "ref.found": "Найдено: {count}",
-  "ref.foundFirst": "Показаны {shown} из {count}"
+  "ref.foundFirst": "Показаны {shown} из {count}",
+  "ref.count": "{shown} из {total}",
+  "ref.allCategories": "Все",
+  "ref.listSearch.skills": "Найти навык",
+  "ref.listSearch.traits": "Найти черту",
+  "ref.listSearch.teams": "Найти команду",
+  "ref.listSearch.starPlayers": "Найти Star Player",
+  "ref.listSearch.inducements": "Найти inducement",
+  "ref.rules.brief": "Кратко",
+  "ref.rules.full": "Полный текст",
+  "ref.skill.pick": "Выберите навык, чтобы прочитать правило",
+  "ref.trait.pick": "Выберите черту, чтобы прочитать правило"
 }
