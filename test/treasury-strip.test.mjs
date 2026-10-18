@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test, { afterEach } from "node:test";
 
 import { assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
@@ -155,12 +155,18 @@ test("a team with no treasury written has 0k, and a team id is text, not markup"
   assertCspSafe(fragment);
 });
 
+test("a team with no roster at all draws a strip of nothing, and does not throw", () => {
+  coach({ team: { ...TEAM, roster: null } });
+  mount(renderTreasuryStrip({ team: state.myTeams.items[0] }));
+  assert.deepEqual(labels(), ["Treasury", "Start RR", "Team RR", "Fans", "Coaches", "Cheer", "Apo"]);
+  assert.deepEqual(values(), ["0k", "0", "0", "0", "0", "0", "no"]);
+});
+
 test("the strip's button opens the same sheet as the team page, and leaving takes it away", () => {
   coach();
   const take = `<button type="button" data-treasury-money="t1" data-treasury-sign="-1">Take</button>`;
   stand(take);
   const off = unwire;
-  unwire = () => {};
   assert.equal(sheetHost().querySelector("dialog"), null, "the host is mounted at wiring, empty; the dialog is drawn by the press");
   assert.equal(document.body.childNodes.at(-1), sheetHost(), "at the end of the body, as the sheet host puts it");
   const button = edit();
@@ -179,8 +185,51 @@ test("the strip's button opens the same sheet as the team page, and leaving take
   assert.equal(sheetDialog().querySelector('[data-seg-value="out"]').getAttribute("aria-checked"), "true");
   off();
   assert.equal(sheetHost(), null, "leaving takes the host, and the sheet in it, away");
-  fireEvent(button, "click");
-  assert.equal(sheetHost(), null, "and the strip no longer answers a press");
+});
+
+test("after leaving the strip hears nothing: the teams and the games change and it stays as it was, and a shut button says nothing", async () => {
+  coach();
+  stand();
+  const button = edit();
+  unwire();
+  setMyTeams([{ ...state.myTeams.items[0], roster: { ...TEAM.roster, treasury: 30 } }]);
+  api.reply("GET /api/games", 200, { games: [LIVE] });
+  await invalidateGames();
+  assert.equal(root.querySelector(".g-funds__cell--money .g-funds__v").textContent, "70k", "a strip that was still listening would read 30k");
+  assert.equal(edit(), button);
+  assert.equal(button.hasAttribute("aria-disabled"), false, "nor does it lock for the match");
+  // A press on a shut button is answered by a toast while the strip listens; not after it has left.
+  button.setAttribute("aria-disabled", "true");
+  button.setAttribute("title", "shut");
+  await withoutTimers(async () => {
+    fireEvent(button, "click");
+  });
+  assert.deepEqual(toasts(), []);
+  assert.equal(sheetHost(), null);
+});
+
+test("wired twice on one root the strip has one host and opens one dialog; the first release leaves it working, the last takes everything away", () => {
+  coach();
+  stand();
+  const first = unwire;
+  const second = wireTreasuryStrip(root);
+  assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "the second wiring mounts nothing");
+  fireEvent(edit(), "click");
+  assert.equal(document.querySelectorAll("dialog#treasury-money").length, 1, "one press, one sheet");
+  first();
+  first();
+  assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "a release is spent once: the other holder keeps the wiring");
+  fireEvent(sheetDialog().querySelector("[data-sheet-close]"), "click");
+  fireEvent(edit(), "click");
+  assert.ok(sheetDialog().matches(":modal"), "and the strip still answers a press");
+  setMyTeams([{ ...state.myTeams.items[0], roster: { ...TEAM.roster, treasury: 30 } }]);
+  assert.equal(root.querySelector(".g-funds__cell--money .g-funds__v").textContent, "30k", "and still draws itself");
+  second();
+  assert.equal(sheetHost(), null, "the last release takes the host and the sheet away");
+  setMyTeams([{ ...state.myTeams.items[0], roster: { ...TEAM.roster, treasury: 40 } }]);
+  assert.equal(root.querySelector(".g-funds__cell--money .g-funds__v").textContent, "30k");
+  unwire = wireTreasuryStrip(root);
+  assert.equal(document.querySelectorAll(SHEET_HOST).length, 1, "a root left can be wired again, afresh");
 });
 
 test("an entry made from the strip shows on the strip without the screen drawing it again, and the write is announced with the new revision", async () => {
@@ -229,6 +278,17 @@ test("a team gone from the list leaves its strip as it was, and a strip of anoth
   setMyTeams([{ ...state.myTeams.items[0], roster: { ...TEAM.roster, treasury: 30 } }]);
   assert.equal(first.querySelector(".g-funds__cell--money .g-funds__v").textContent, "30k");
   assert.equal(second.querySelector(".g-funds__cell--money .g-funds__v").textContent, "5k", "t2 is not on the list: its strip stays");
+});
+
+test("a shut button that carries no reason of its own (the phone's treasury card) says the one the strip knows", async () => {
+  coach();
+  stand(`<button type="button" id="card" data-treasury-money="t1" data-treasury-sign="1" aria-disabled="true">Treasury</button>`);
+  await withoutTimers(async () => {
+    fireEvent(root.querySelector("#card"), "click");
+  });
+  assert.deepEqual(toasts().map((toast) => toast.text), ["After the match's post-match"]);
+  assert.match(toasts()[0].tone, /toast-error/);
+  assert.equal(document.querySelector("dialog"), null);
 });
 
 test("a live match: the button is refused with its reason, no sheet opens", async () => {
@@ -293,5 +353,9 @@ test("from 901px only, and the cells wrap rather than clip", () => {
   assert.deepEqual(valuesOf(CSS, ".g-funds__k", "font"), ["600 11px/1.2 var(--font-body)"]);
   assert.deepEqual(valuesOf(CSS, ".g-funds__v", "font"), ["700 20px/1.1 var(--font-display)"]);
   assert.deepEqual(valuesOf(CSS, ".g-funds__edit", "min-height"), ["var(--size-touch)"]);
+  // The button is 44px wide, and the strip leaves exactly that much room at its right edge for it.
+  assert.deepEqual(valuesOf(CSS, ".g-funds__edit", "width"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-funds", "padding"), ["0 var(--size-touch) 0 0"]);
+  assert.equal(tokensOf("grass")["--size-touch"], "44px");
   assert.deepEqual(valuesOf(CSS, ".g-funds__edit:focus-visible", "outline-offset"), ["-3px"], "the strip clips what lies outside it: the ring of the button at its edge is drawn inside");
 });
