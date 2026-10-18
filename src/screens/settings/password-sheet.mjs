@@ -13,11 +13,11 @@
  * passwords between keystrokes (settings/index.mjs) and wipes them when the
  * sheet closes.
  */
-import { API_ERROR } from "../../core/api.mjs";
+import { API_ERROR, refusalText } from "../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../core/api-client.mjs";
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { mergeCurrentUser, refusalText } from "../../data/session.mjs";
+import { mergeCurrentUser } from "../../data/session.mjs";
 import { PASSWORD_MIN_LENGTH, passwordChangeChecks } from "../../domain/account.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";

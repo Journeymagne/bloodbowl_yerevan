@@ -108,22 +108,6 @@ export function sessionFailureText() {
   return t("request.noAnswer");
 }
 
-/**
- * A refused request as a sentence, for the forms that sign in, change a password or save a contact:
- * errorText's, with two exceptions. Too many tries say when to try again: the 429 carries
- * `retryAfterSeconds`, and the window is a quarter of an hour, so the wait is said in
- * minutes, and in seconds only for its last minute; without the number, "shortly" is all
- * there is to say. And an answer without a code (a proxy's 502 while the server restarts)
- * says the server did not answer instead of "Request failed with 502".
- * @param {unknown} error
- */
-export function refusalText(error) {
-  if (error?.kind === API_ERROR.HTTP && !error.code) return t("request.noAnswer");
-  const seconds = Math.ceil(Number(error?.payload?.retryAfterSeconds));
-  if (error?.code !== "TOO_MANY_LOGIN_ATTEMPTS" || !(seconds > 0)) return errorText(error);
-  return seconds < 60 ? t("auth.tooManySeconds", { seconds }) : t("auth.tooManyMinutes", { minutes: Math.ceil(seconds / 60) });
-}
-
 /** Reads of the session started, and the promise of the newest: a read that a newer one overtook says nothing of its own. */
 let reads = 0;
 let newestRead = null;

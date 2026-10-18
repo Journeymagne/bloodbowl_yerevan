@@ -9,6 +9,7 @@
  * settings keep (`managedByServer`) cannot change its login, contact or password
  * from here at all, so those are text and a note.
  */
+import { refusalText } from "../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../core/api-client.mjs";
 import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
@@ -24,7 +25,7 @@ import { announce } from "../../components/live-region.mjs";
 import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
 import { saveTheme } from "../../data/preferences.mjs";
-import { mergeCurrentUser, refusalText, signOut } from "../../data/session.mjs";
+import { mergeCurrentUser, signOut } from "../../data/session.mjs";
 import { normalizeTelegram, telegramProblem } from "../../domain/account.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { icon } from "../../ui/icons.mjs";

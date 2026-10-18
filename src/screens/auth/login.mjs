@@ -13,13 +13,14 @@
  * router sends the coach back where they were sent from, or home
  * (core/routes.mjs, resolveRedirect).
  */
+import { refusalText } from "../../core/api.mjs";
 import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { authUrl, matchRoute, routeFromHash } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { view } from "../../core/view.mjs";
 import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { refusalText, register, sessionFailureText, signIn } from "../../data/session.mjs";
+import { register, sessionFailureText, signIn } from "../../data/session.mjs";
 import { normalizeTelegram, registrationProblems } from "../../domain/account.mjs";
 import { renderCrest } from "../../shell/crest.mjs";
 import { renderButton } from "../../ui/button.mjs";
