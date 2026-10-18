@@ -494,3 +494,12 @@ test("a write to the account while another tab holds another token sends nothing
   assert.equal(heard, 1);
   api.assertAnswered();
 });
+
+// Final-wave item 2: one way to take a newer copy of the coach, so no screen drops what only /me carries.
+test("who is signed in is set by the session alone; a screen that has a newer copy of the coach merges it", async () => {
+  const { readdirSync } = await import("node:fs");
+  const root = new URL("../src/", import.meta.url);
+  const files = readdirSync(root, { recursive: true }).filter((file) => file.endsWith(".mjs") || file.endsWith(".js"));
+  const setters = files.filter((file) => /state\.auth\.currentUser\s*=(?!=)/.test(readFileSync(new URL(file, root), "utf8")));
+  assert.deepEqual(setters.sort(), ["core/api-client.mjs", "data/session.mjs"], "the session, and the api-client's 401 hook letting go of the coach");
+});
