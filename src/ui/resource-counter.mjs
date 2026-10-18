@@ -39,7 +39,7 @@ export function renderResourceCounter({ key, name, note = "", value, decDisabled
     + "</div>";
 }
 
-/** A click on a live − or + reports `({ key, delta, element }, button)`; see wireStepButtons. */
-export function wireResourceCounters(root, onStep) {
-  return wireStepButtons(root, "resource", onStep);
+/** A click on a live − or + reports `({ key, delta, element }, button)`, on a refused one `options.onRefused`; see wireStepButtons. */
+export function wireResourceCounters(root, onStep, options) {
+  return wireStepButtons(root, "resource", onStep, options);
 }

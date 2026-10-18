@@ -1,0 +1,698 @@
+/*
+ * The new team (`#/teams/new`). This part is the builder, the second step
+ * (screens/teams/builder-view.mjs): the head and the budget, the team, the
+ * players, the numbers, the staff and the save. Font, border, background,
+ * text-transform and font-weight are set here on purpose: the 2.x global rules
+ * (h1 at weight 800, a { color: inherit }, p and dl margins, bare inputs)
+ * outlive this sheet until stage 13.
+ *
+ * The page has its own frame (`bare`: no header, tabs or SideNav) and #app-view
+ * has no padding in it, so `.g-build` brings its own: 16px at the sides on a
+ * phone, 28px on a desk.
+ *
+ * Up to 900px: one column in the order of the markup. The head and the budget
+ * are one dark band (--header), the budget a card in it; the save is a bar at
+ * the foot of the screen. From 901px: two columns, 1fr and 360px, under the
+ * head. The players and the staff are cards on the left; the budget, the save,
+ * the team and the numbers on the right. The columns are laid out by grid
+ * placement alone, never by reordering the markup, so the keyboard's focus order
+ * on a desk jumps between the columns (budget, team, players, numbers, staff,
+ * save); every block makes sense by itself, which is what lets it.
+ */
+.g-build {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0 var(--space-16) var(--space-24);
+  border: 0;
+  background: var(--page);
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The 2.x globals give a heading a weight of 800 and a paragraph or a list its margins. */
+.g-build :where(p, dl, dd, dt, h1, h2) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The sticky save needs the page's column to be the one that scrolls; the frame clips sideways with overflow-x, which would take that away. */
+.g-main:has(.g-build) { overflow-x: clip; }
+
+/* ---- The head ---- */
+.g-build__head {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "back titles chip" ". restart restart";
+  align-items: center;
+  gap: var(--space-10);
+  margin: 0 calc(-1 * var(--space-16));
+  padding: var(--space-10) var(--space-16) var(--space-14);
+  background: var(--header);
+  color: var(--header-ink);
+}
+.g-build__head :focus-visible { outline-color: var(--header-ink); }
+
+.g-build__head > .g-icon-btn {
+  grid-area: back;
+  background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+  color: var(--header-ink);
+}
+.g-build__titles {
+  grid-area: titles;
+  min-width: 0;
+}
+.g-build__head > .g-status { grid-area: chip; }
+.g-build__head > .g-btn { grid-area: restart; }
+
+.g-build__title {
+  color: var(--header-ink);
+  font: 600 22px/1.15 var(--font-display);
+  overflow-wrap: anywhere;
+}
+/* The screen focuses it on arrival: a place the keyboard starts from, not a control. */
+.g-build__title:focus { outline: none; }
+
+.g-build__sub {
+  margin-top: 2px;
+  color: var(--header-muted);
+  font: 400 13px/1.35 var(--font-body);
+}
+
+/* The one quiet button of the head, in the ring every outline button has, on the dark colour. */
+.g-build__head .g-btn {
+  justify-self: start;
+  border-color: color-mix(in srgb, var(--header-ink) 40%, transparent);
+  background: transparent;
+  color: var(--header-ink);
+}
+
+/* ---- The budget ---- */
+.g-build__budget {
+  box-sizing: border-box;
+  margin: 0 calc(-1 * var(--space-16)) var(--space-4);
+  padding: 0 var(--space-16) var(--space-14);
+  background: var(--header);
+}
+
+.g-build__budget-card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-8) var(--space-10);
+  padding: var(--space-12) var(--space-14);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.g-build__figures {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  white-space: nowrap;
+}
+.g-build__figures b {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.g-build__remains {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.g-build__remains--over { color: var(--danger); }
+
+.g-build__left {
+  color: inherit;
+  font: 700 28px/1.05 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+.g-build__left-label {
+  color: inherit;
+  font: 600 12px/1.3 var(--font-body);
+}
+
+/* The bar is a track; its fill is the ::before, as wide as the step class says (no inline width, the CSP). */
+.g-build__bar {
+  position: relative;
+  grid-column: 1 / -1;
+  height: 8px;
+  border-radius: var(--radius-xs);
+  background: var(--line);
+  overflow: hidden;
+}
+.g-build__bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 0;
+  border-radius: inherit;
+  background: var(--accent);
+}
+.g-build__bar--over::before { background: var(--danger); }
+.g-build__bar--0::before { width: 0; }
+.g-build__bar--10::before { width: 10%; }
+.g-build__bar--20::before { width: 20%; }
+.g-build__bar--30::before { width: 30%; }
+.g-build__bar--40::before { width: 40%; }
+.g-build__bar--50::before { width: 50%; }
+.g-build__bar--60::before { width: 60%; }
+.g-build__bar--70::before { width: 70%; }
+.g-build__bar--80::before { width: 80%; }
+.g-build__bar--90::before { width: 90%; }
+.g-build__bar--100::before { width: 100%; }
+
+/* The three sums are the desk's; a phone has the two figures and what is left. */
+.g-build__totals { display: none; }
+
+/* ---- Sections ---- */
+.g-build__team,
+.g-build__players,
+.g-build__roster,
+.g-build__staff {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  background: none;
+}
+
+.g-build__sec-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-10);
+  padding: 18px 0 var(--space-4);
+}
+.g-build__h {
+  color: var(--ink);
+  font: 700 26px/1.1 var(--font-display);
+}
+
+.g-build__count {
+  color: var(--muted);
+  font: 600 12px/1.3 var(--font-body);
+  text-align: right;
+}
+.g-build__count--short { color: var(--danger); }
+
+/* ---- The team ---- */
+.g-build__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-height: 52px;
+  border-bottom: 1px solid var(--line);
+}
+.g-build__row--logo { min-height: 60px; }
+
+.g-build__label {
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+}
+.g-build__value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-10);
+  min-width: 0;
+  color: var(--ink);
+  font: 700 15px/1.3 var(--font-body);
+  text-align: right;
+}
+.g-build__value b {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.g-build__change { flex: none; }
+
+.g-build__logo-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-width: 0;
+}
+.g-build__logo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: var(--ring);
+  color: var(--faint);
+  overflow: hidden;
+}
+.g-build__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.g-build__logo-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-build__logo-name {
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+}
+.g-build__hint {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+}
+
+.g-build__logo-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+}
+/* The input is the keyboard's way to the picker; the label beside it is the button, and takes its ring. */
+.g-build__file:focus-visible + .g-build__upload {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 0;
+}
+.g-build__upload { cursor: pointer; }
+
+/* ---- The players ---- */
+.g-hire {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 72px;
+  padding: var(--space-8) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.g-hire__avatar {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-badge);
+  height: var(--size-badge);
+  border-radius: var(--radius-full);
+  background: var(--pos-lineman);
+  color: var(--on-accent);
+  font: 700 17px/1 var(--font-display);
+}
+.g-hire__avatar--lineman { background: var(--pos-lineman); }
+.g-hire__avatar--thrower { background: var(--pos-thrower); }
+.g-hire__avatar--catcher { background: var(--pos-catcher); }
+.g-hire__avatar--blitzer { background: var(--pos-blitzer); }
+.g-hire__avatar--big { background: var(--pos-big); }
+
+.g-hire__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+.g-hire__name {
+  overflow: hidden;
+  color: var(--ink);
+  font: 700 15px/1.3 var(--font-body);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.g-hire__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+}
+.g-hire__price {
+  color: var(--accent-text);
+  font: 700 15px/1.3 var(--font-body);
+}
+.g-hire__limit {
+  color: var(--muted);
+  font: 600 12px/1.3 var(--font-body);
+}
+/* A position at its limit: a pill on the warning tint, the pair the warning is drawn in everywhere else. */
+.g-hire__limit--max {
+  padding: 0 var(--space-6);
+  border-radius: var(--radius-xs);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+}
+.g-hire__stats {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+}
+.g-hire__skills {
+  color: var(--ink-2);
+  font: 400 12px/1.4 var(--font-body);
+}
+
+.g-hire__stepper {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.g-hire__btn {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+.g-hire__inc {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+/* Dearer than what is left: still bought, and drawn as the money's refusal would be, quieter than the accent. */
+.g-hire__inc--poor {
+  background: var(--surface-3);
+  color: var(--muted);
+}
+/* A refusal that explains itself (aria-disabled) looks like the plain one (:disabled): the rule says why. */
+.g-hire__btn:disabled,
+.g-hire__btn[aria-disabled="true"] {
+  color: var(--disabled);
+  cursor: default;
+}
+.g-hire__inc:disabled,
+.g-hire__inc[aria-disabled="true"] { background: var(--surface-3); }
+
+.g-hire__count {
+  min-width: 30px;
+  color: var(--ink);
+  font: 700 20px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+/* ---- Numbers, names and the captain ---- */
+.g-build__roster-title { display: none; }
+
+.g-build__roster-toggle {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 48px;
+  margin: var(--space-10) 0 0;
+  padding: 0 var(--space-14);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 600 14px/1.3 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-build__roster-toggle[aria-expanded="true"] .g-icon { transform: rotate(180deg); }
+
+.g-build__roster-list {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-4);
+}
+
+.g-roster-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 60px;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.g-roster-row__num {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--muted);
+  font: 400 13px/1 var(--font-body);
+}
+.g-roster-row__number,
+.g-roster-row__name {
+  box-sizing: border-box;
+  height: var(--size-touch);
+  margin: 0;
+  padding: 0 var(--space-8);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--ink);
+  letter-spacing: 0;
+  text-transform: none;
+  appearance: none;
+}
+.g-roster-row__number {
+  width: 52px;
+  padding: 0 var(--space-4);
+  font: 700 16px/1 var(--font-display);
+  text-align: center;
+  -moz-appearance: textfield;
+}
+.g-roster-row__number::-webkit-inner-spin-button,
+.g-roster-row__number::-webkit-outer-spin-button { appearance: none; }
+.g-roster-row__name {
+  width: 100%;
+  min-width: 0;
+  font: 600 15px/1.2 var(--font-body);
+}
+.g-roster-row__name::placeholder { color: var(--muted); }
+
+.g-roster-row__who {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-roster-row__position {
+  padding-left: var(--space-8);
+  color: var(--muted);
+  font: 400 12px/1.3 var(--font-body);
+}
+
+.g-roster-row__captain {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--muted);
+  font: 700 16px/1 var(--font-display);
+  text-transform: none;
+  cursor: pointer;
+}
+.g-roster-row__captain[aria-checked="true"] {
+  background: var(--crest-gold);
+  box-shadow: none;
+  color: var(--pitch-900);
+}
+
+/* ---- The staff ---- */
+.g-build__reroll-note {
+  margin-top: var(--space-12);
+  color: var(--muted);
+  font: 400 12px/1.45 var(--font-body);
+}
+
+/* ---- The save ---- */
+.g-build__cta {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  background: var(--surface);
+}
+.g-build__note {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-align: center;
+}
+
+/* ---- A phone ---- */
+@media (max-width: 900px) {
+  .g-build__roster-list--shut { display: none; }
+
+  /* The save is a bar at the foot of the screen, the width of the page, over the 24px the page leaves under it. */
+  .g-build__cta {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    margin: auto calc(-1 * var(--space-16)) calc(-1 * var(--space-24));
+    padding: var(--space-10) var(--space-16) 18px;
+    border-top: 1px solid var(--line);
+  }
+}
+
+/* ---- A desk ---- */
+@media (min-width: 901px) {
+  .g-build {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;
+    grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+    column-gap: var(--space-20);
+    align-items: start;
+    padding: var(--space-24) 28px 40px;
+    background: transparent;
+  }
+
+  /* The head is a band across the page: it reaches the page's edges over the padding. */
+  .g-build__head {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: calc(-1 * var(--space-24)) -28px var(--space-24);
+    padding: 18px 32px;
+  }
+  .g-build__head > .g-status { margin-left: auto; }
+  .g-build__head > .g-btn { margin-left: 0; }
+  .g-build__title { font-size: 28px; line-height: 1.1; }
+  .g-build__sub { font-size: 14px; }
+
+  /* Row gaps are margins, so the budget and the save can meet as one card. */
+  .g-build__budget {
+    grid-column: 2;
+    grid-row: 2;
+    margin: 0;
+    padding: 0;
+    border: 1px solid var(--line-strong);
+    border-bottom: 0;
+    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
+    background: var(--surface);
+  }
+  .g-build__budget-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--space-20) var(--space-24) var(--space-14);
+    border-radius: 0;
+  }
+  .g-build__remains { margin-left: auto; }
+  .g-build__bar { flex: 1 0 100%; margin-top: var(--space-8); }
+  .g-build__totals {
+    display: flex;
+    flex: 1 0 100%;
+    flex-direction: column;
+    margin-top: var(--space-6);
+    font-size: 14px;
+  }
+  .g-build__totals > div {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 36px;
+    border-bottom: 1px solid var(--line);
+  }
+  .g-build__totals > div:last-child { border-bottom: 0; }
+  .g-build__totals dt {
+    color: var(--muted);
+    font: 400 14px/1.3 var(--font-body);
+  }
+  .g-build__totals dd {
+    color: var(--ink);
+    font: 700 14px/1.3 var(--font-body);
+  }
+
+  .g-build__cta {
+    position: static;
+    grid-column: 2;
+    grid-row: 3;
+    gap: var(--space-8);
+    padding: 0 var(--space-24) var(--space-20);
+    border: 1px solid var(--line-strong);
+    border-top: 0;
+    border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
+  }
+  .g-build__note {
+    font-size: 13px;
+    text-align: left;
+  }
+
+  .g-build__team,
+  .g-build__players,
+  .g-build__roster,
+  .g-build__staff {
+    padding: var(--space-4) var(--space-24) var(--space-20);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-build__team {
+    grid-column: 2;
+    grid-row: 4;
+    margin-top: var(--space-20);
+  }
+  /* The players' card runs down beside the budget, the save and the team; the row they share is the one that gives way. */
+  .g-build__players {
+    grid-column: 1;
+    grid-row: 2 / 5;
+  }
+  .g-build__roster {
+    grid-column: 2;
+    grid-row: 5;
+    margin-top: var(--space-20);
+  }
+  .g-build__staff {
+    grid-column: 1;
+    grid-row: 5;
+    margin-top: var(--space-20);
+  }
+
+  .g-hire__count,
+  .g-build__count { font-size: 13px; }
+  /* The count after the title would take the 312px of the column to a second line at 26px. */
+  .g-build__roster .g-build__h { font-size: 22px; }
+
+  /* The list of numbers is always there on a desk, with a heading of its own in place of the button. */
+  .g-build__roster-toggle { display: none; }
+  .g-build__roster-title { display: flex; }
+}
