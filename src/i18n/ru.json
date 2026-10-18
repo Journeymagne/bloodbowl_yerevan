@@ -1089,6 +1089,7 @@
   "treasury.fix.safe": "Coach's Safe, k",
   "treasury.fix.sub": "Изменение казны попадёт в историю как ручная правка",
   "treasury.fix.title": "Исправить вручную",
+  "treasury.fix.tooMuch": "Не больше {max}",
   "treasury.fix.treasury": "Казна, k",
   "treasury.fix.unchanged": "Ничего не изменено",
   "treasury.history": "История",

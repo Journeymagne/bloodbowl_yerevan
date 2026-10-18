@@ -77,12 +77,17 @@ test("a text field is a text input unless told otherwise, and says only what it 
   assert.equal(plain.getAttribute("type"), "text");
   assert.equal(plain.getAttribute("name"), "nick");
   assert.equal(plain.getAttribute("value"), "");
-  for (const attribute of ["autocomplete", "inputmode", "placeholder", "required"]) assert.equal(plain.hasAttribute(attribute), false, attribute);
+  for (const attribute of ["autocomplete", "inputmode", "placeholder", "required", "readonly", "disabled"]) assert.equal(plain.hasAttribute(attribute), false, attribute);
 
   const full = mount(renderTextField({ id: "f", name: "f", label: "F", type: "tel", autocomplete: "tel", inputmode: "numeric", placeholder: HOSTILE })).querySelector("input");
   assert.equal(full.getAttribute("type"), "tel");
   assert.equal(full.getAttribute("inputmode"), "numeric");
   assert.equal(full.getAttribute("placeholder"), HOSTILE);
+});
+
+test("a read-only field can be focused and read but not typed over, and is not disabled", () => {
+  const input = mount(renderTextField({ id: "f", name: "f", label: "F", value: "70", readonly: true })).querySelector("input");
+  assert.deepEqual([input.hasAttribute("readonly"), input.hasAttribute("disabled"), input.getAttribute("value")], [true, false, "70"]);
 });
 
 test("a text field escapes every string it is given", () => {

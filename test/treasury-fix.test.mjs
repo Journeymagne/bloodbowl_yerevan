@@ -19,6 +19,7 @@ const { classifyTreasuryChange } = await import("../src/domain/roster/ledger.mjs
 const { ensureDraftPlayers } = await import("../src/domain/roster/players.mjs");
 const { normalizeDraft } = await import("../src/domain/roster/schema.mjs");
 const { checkRoster, loadTeamReference, teamBySlug } = await import("../server/domain/roster.mjs");
+const { MAX_ENTRY } = await import("../src/domain/roster/ledger.mjs");
 const { FIX_SHEET_ID, fixSheetMarkup, wireFixSheet } = await import("../src/screens/team/manage/fix-sheet.mjs");
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -223,11 +224,55 @@ test("a value that is no amount is said at its field and nothing is sent", () =>
   assert.deepEqual(errors(), ["Safe must contain a nonnegative amount in whole gold pieces."]);
   assert.equal(save().hasAttribute("disabled"), true, "one field right does not make the other one so");
   type("#fix-safe", "99999999999999999999");
-  assert.equal(errors().length, 1, "an amount the server cannot count in gold is no amount");
+  assert.deepEqual(errors(), ["At most 100,000k"], "an amount the server cannot count in gold is above the limit, and says so");
   type("#fix-safe", "25");
   assert.deepEqual(errors(), []);
   assert.equal(save().hasAttribute("disabled"), false);
   assert.equal(api.calls.length, 0);
+});
+
+test("an amount above MAX_ENTRY is refused at its field, in both, and sends nothing; MAX_ENTRY itself is taken", async () => {
+  coach();
+  opened();
+  const LIMIT = "At most 100,000k";
+  assert.equal(MAX_ENTRY, 100000);
+  for (const [selector, text] of [["#fix-treasury", String(MAX_ENTRY + 1)], ["#fix-safe", "100000,1"], ["#fix-treasury", "1000000000"], ["#fix-safe", "1000000000000"]]) {
+    type(selector, text);
+    assert.deepEqual(errors(), [LIMIT], `${selector} ${text}`);
+    assert.equal($(selector).getAttribute("aria-invalid"), "true");
+    assert.equal(label(), "Save");
+    assert.equal(save().hasAttribute("disabled"), true, "the button stays off");
+    click("[data-fix-save]");
+    type(selector, selector === "#fix-treasury" ? "70" : "20");
+  }
+  assert.equal(api.calls.length, 0, "nothing is sent, and nothing is said to be possibly written");
+  assert.deepEqual(errors(), []);
+  assert.equal($(".g-fix__preview").textContent, "Treasury: 70k → 70k", "a treasury above the limit is not previewed");
+  // The limit itself, in any spelling of it, is an amount.
+  for (const text of [String(MAX_ENTRY), "100000.0", "100000,0"]) {
+    type("#fix-treasury", text);
+    assert.deepEqual(errors(), [], text);
+    assert.equal(label(), "Save");
+    assert.equal(save().hasAttribute("disabled"), false, text);
+  }
+  assert.equal($(".g-fix__preview").textContent, "Treasury: 70k → 100,000k");
+  api.reply(PATCH, 200, saved({ treasury: MAX_ENTRY }));
+  api.reply(FIRST_PAGE, 200, { entries: [], next: null, since: null, total: 0 });
+  type("#fix-safe", String(MAX_ENTRY));
+  await withoutTimers(async () => {
+    click("[data-fix-save]");
+    await settle();
+  });
+  const [sent] = api.calls.filter((call) => call.key === PATCH);
+  assert.deepEqual([sent.body.roster.treasury, sent.body.roster.coachesSafe], [MAX_ENTRY, MAX_ENTRY]);
+  assert.equal($("dialog"), null);
+  takeAway();
+  initLocale("ru");
+  coach();
+  opened();
+  type("#fix-treasury", String(MAX_ENTRY + 1));
+  assert.match(errors()[0], /^Не больше 100\s000k$/, "the limit is said in Russian, with the figure as the page writes money");
+  assert.equal(errors().length, 1);
 });
 
 test("what is typed in a field stays text, and the field keeps its focus and its caret through the redraw", () => {
@@ -293,6 +338,41 @@ test("a match that went live while the sheet was open: the button says why and n
   assert.equal(label(), "After the match's post-match");
   assert.equal(save().hasAttribute("disabled"), true);
   assert.equal(document.activeElement, $("#fix-treasury"), "the button that had the focus is disabled now: the focus goes to the field");
+});
+
+test("while the save is on its way both fields are read-only, not disabled; after the answer they are not", async () => {
+  coach();
+  opened();
+  type("#fix-treasury", "85");
+  api.reply(PATCH, 422, VIOLATION);
+  const gate = api.hold(PATCH);
+  assert.deepEqual([$("#fix-treasury").hasAttribute("readonly"), $("#fix-safe").hasAttribute("readonly")], [false, false]);
+  click("[data-fix-save]");
+  for (const selector of ["#fix-treasury", "#fix-safe"]) {
+    assert.equal($(selector).hasAttribute("readonly"), true, selector);
+    assert.equal($(selector).hasAttribute("disabled"), false, `${selector} keeps its focus`);
+  }
+  gate.release();
+  await settle();
+  for (const selector of ["#fix-treasury", "#fix-safe"]) assert.equal($(selector).hasAttribute("readonly"), false, selector);
+  assert.equal($("#fix-treasury").value, "85", "an ordinary refusal keeps what was typed");
+});
+
+test("a field the coach clicked into while the save was on its way shows the team a 409 brought, not the text typed before", async () => {
+  coach();
+  opened();
+  type("#fix-treasury", "85");
+  type("#fix-safe", "30");
+  api.reply(PATCH, 409, { ...ELSEWHERE, team: { ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90, coachesSafe: 25 } } });
+  api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });
+  const gate = api.hold(PATCH);
+  click("[data-fix-save]");
+  $("#fix-safe").focus();
+  gate.release();
+  await settle();
+  assert.equal(document.activeElement, $("#fix-treasury"), "the answer moves the focus to the field of the disarmed sheet");
+  assert.deepEqual([$("#fix-treasury").value, $("#fix-safe").value], ["90", "25"]);
+  assert.equal(label(), "Nothing changed");
 });
 
 test("a refusal is said in the sheet, which stays open, with what was typed kept for another try", async () => {
@@ -581,7 +661,7 @@ test("the sheet reads in Russian, and every word of it, the fields' errors and t
   assertDictionaryCovers("src/screens/team/manage/fix-sheet.mjs", "src/screens/team/manage/sheet-host.mjs");
   for (const key of Object.keys(en).filter((name) => name.startsWith("treasury.fix."))) assert.ok(ru[key], `ru ${key}`);
   assert.deepEqual(Object.keys(en).filter((name) => name.startsWith("treasury.fix.")).sort(), [
-    "treasury.fix.done", "treasury.fix.open", "treasury.fix.safe", "treasury.fix.sub", "treasury.fix.title", "treasury.fix.treasury", "treasury.fix.unchanged",
+    "treasury.fix.done", "treasury.fix.open", "treasury.fix.safe", "treasury.fix.sub", "treasury.fix.title", "treasury.fix.tooMuch", "treasury.fix.treasury", "treasury.fix.unchanged",
   ]);
   assert.equal(ru["treasury.fix.safe"], en["treasury.fix.safe"], "Coach's Safe stays English in both languages");
   assert.equal(ru["treasury.fix.open"], "Исправить казну вручную");

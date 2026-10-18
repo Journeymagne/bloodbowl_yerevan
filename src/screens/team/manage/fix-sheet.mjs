@@ -16,18 +16,18 @@
  */
 import { toast } from "../../../components/toast.mjs";
 import { delegate, listenerGroup } from "../../../core/dom.mjs";
+import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { loadMyTeams, onMyTeamsChange } from "../../../data/teams.mjs";
 import { readLedger, saveTeamRoster } from "../../../data/treasury.mjs";
-import { isMoneyAmount } from "../../../domain/money.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { countToNumber } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
 import { renderSheet, wireSheets } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
-import { matchLock, readAmount } from "./model.mjs";
+import { MAX_ENTRY, matchLock, readAmount } from "./model.mjs";
 import { previewHtml } from "./money-sheet.mjs";
 import { mountSheetHost, sheetController, unmountSheetHost } from "./sheet-host.mjs";
 
@@ -36,20 +36,35 @@ export const FIX_SHEET_ID = "treasury-fix";
 const TREASURY_FIELD = "#fix-treasury";
 const SAFE_FIELD = "#fix-safe";
 
-/** What a text says as an amount: one `readAmount` reads and the server can count in gold; null for anything else. */
-function amountOf(text) {
+/**
+ * What a field says: its amount (the balance itself where the coach has not touched it), or why it says none:
+ * `invalid`, a text `readAmount` does not read, or `tooMuch`, more than `MAX_ENTRY`. A tenth of a thousand
+ * up to `MAX_ENTRY` is always an amount the server counts in gold; above it the history's column overflows (the
+ * server answers 500, which would read as a write that may have gone through), so the field refuses it first.
+ */
+function fieldOf(text, balance) {
+  if (text === null) return { amount: balance, problem: null };
   const amount = readAmount(text);
-  return amount !== null && isMoneyAmount(amount) ? amount : null;
+  if (amount === null) return { amount: null, problem: "invalid" };
+  return amount > MAX_ENTRY ? { amount: null, problem: "tooMuch" } : { amount, problem: null };
 }
 
-/**
- * What the form says against the balances now: each amount (the balance itself where the field is untouched, null
- * where the text is no amount) and whether the two are as they were.
- */
+/** What the form says against the balances now: each field, and whether the two amounts are as they were. */
 function fixCheck(form, before) {
-  const treasury = form.treasuryText === null ? before.treasury : amountOf(form.treasuryText);
-  const safe = form.safeText === null ? before.safe : amountOf(form.safeText);
-  return { treasury, safe, unchanged: treasury === before.treasury && safe === before.safe };
+  const treasury = fieldOf(form.treasuryText, before.treasury);
+  const safe = fieldOf(form.safeText, before.safe);
+  return {
+    treasury,
+    safe,
+    invalid: Boolean(treasury.problem || safe.problem),
+    unchanged: treasury.amount === before.treasury && safe.amount === before.safe,
+  };
+}
+
+/** What a field with no amount says at itself: the limit, or what `invalid` is for that balance. */
+function errorOf(field, invalid) {
+  if (field.problem === "tooMuch") return t("treasury.fix.tooMuch", { max: formatMoney(MAX_ENTRY) });
+  return field.problem ? invalid : "";
 }
 
 /** The button's words: waiting, a match on, nothing to save, or what it does. A match on is said before the rest, since nothing the coach types changes it. */
@@ -74,19 +89,20 @@ const alertHtml = (refusal) => `<div class="g-fix__alert" role="alert">${refusal
  */
 export function fixSheetMarkup({ form, before, locked }) {
   const check = fixCheck(form, before);
+  // Read-only while the save is on its way (not disabled: a focused field that is disabled drops the focus): what is
+  // typed then would meet the team the answer brings, and be shown over it.
   const treasuryField = renderTextField({
     id: "fix-treasury", name: "treasury", label: t("treasury.fix.treasury"), value: form.treasuryText ?? String(before.treasury),
-    inputmode: "decimal", verbatim: true, autocomplete: "off", error: check.treasury === null ? t("validation.TREASURY_INVALID") : "",
+    inputmode: "decimal", verbatim: true, autocomplete: "off", readonly: form.pending, error: errorOf(check.treasury, t("validation.TREASURY_INVALID")),
   });
   const safeField = renderTextField({
     id: "fix-safe", name: "safe", label: t("treasury.fix.safe"), value: form.safeText ?? String(before.safe),
-    inputmode: "decimal", verbatim: true, autocomplete: "off", error: check.safe === null ? t("validation.SAFE_INVALID") : "",
+    inputmode: "decimal", verbatim: true, autocomplete: "off", readonly: form.pending, error: errorOf(check.safe, t("validation.SAFE_INVALID")),
   });
-  const preview = previewHtml("g-fix__preview", before.treasury, check.treasury ?? before.treasury);
-  const invalid = check.treasury === null || check.safe === null;
+  const preview = previewHtml("g-fix__preview", before.treasury, check.treasury.amount ?? before.treasury);
   // Not disabled while it waits (`busy`): a focused button that is disabled drops the focus in Chrome. The press is refused in `submit`.
   const button = renderButton({
-    kind: "primary", label: saveLabel(form, check, locked), busy: form.pending, disabled: !form.pending && (locked || invalid || check.unchanged), data: { fixSave: "" },
+    kind: "primary", label: saveLabel(form, check, locked), busy: form.pending, disabled: !form.pending && (locked || check.invalid || check.unchanged), data: { fixSave: "" },
   });
   return renderSheet({
     id: FIX_SHEET_ID,
@@ -104,20 +120,24 @@ const balancesOf = (teamId) => ({ treasury: countToNumber(teamOf(teamId)?.roster
 const drawn = (form) => fixSheetMarkup({ form, before: balancesOf(form.teamId), locked: isLive(form.teamId) });
 
 /**
- * The team moved (a write of this sheet's or of the page's, a list read after a lost answer): the sheet is drawn
- * again, and a field the coach has not typed in shows the balance as it is now. `patch` leaves the control that
- * has the focus alone, so as not to fight a person typing, and after a disarm the focus is on the treasury field:
- * it is set here, or the field would say a balance the team no longer has.
+ * A field the coach has not typed in shows the balance as it is now. `patch` leaves the control that has the focus
+ * alone, so as not to fight a person typing, and the focus may be on such a field (after a disarm it is on the
+ * treasury field; the coach may have clicked into the other while the save was on its way): its value is set here,
+ * or it would say a balance the team no longer has.
  */
-function teamMoved(host, sheet) {
-  sheet.redraw();
-  const form = sheet.form;
+function followBalances(host, form) {
   if (!form) return;
   const before = balancesOf(form.teamId);
   for (const [selector, text, balance] of [[TREASURY_FIELD, form.treasuryText, before.treasury], [SAFE_FIELD, form.safeText, before.safe]]) {
     const field = host.querySelector(selector);
     if (field && text === null && field.value !== String(balance)) field.value = String(balance);
   }
+}
+
+/** The team moved (a write of this sheet's or of the page's, a list read after a lost answer): the sheet is drawn again. */
+function teamMoved(host, sheet) {
+  sheet.redraw();
+  followBalances(host, sheet.form);
 }
 
 /**
@@ -144,7 +164,7 @@ function press(sheet, button) {
  * and nothing is sent. The roster goes as the team has it, read the way the 2.x editor reads one
  * (`normalizeDraft` of a copy: the list's own object is not touched), with the two balances replaced.
  */
-async function apply(sheet) {
+async function apply(host, sheet) {
   const form = sheet.form;
   if (!form || form.pending) return;
   const team = teamOf(form.teamId);
@@ -153,13 +173,13 @@ async function apply(sheet) {
     return;
   }
   const check = fixCheck(form, balancesOf(form.teamId));
-  if (check.treasury === null || check.safe === null || check.unchanged || isLive(form.teamId)) {
+  if (check.invalid || check.unchanged || isLive(form.teamId)) {
     // The button that was pressed is disabled by the redraw, and the focus on it would be dropped.
     sheet.redraw();
     sheet.focus(TREASURY_FIELD);
     return;
   }
-  const draft = { ...normalizeDraft(structuredClone(team.roster)), treasury: check.treasury, coachesSafe: check.safe };
+  const draft = { ...normalizeDraft(structuredClone(team.roster)), treasury: check.treasury.amount, coachesSafe: check.safe.amount };
   await sheet.submit(() => saveTeamRoster(form.teamId, draft), {
     // The correction may be written already (a 409 brings the team as it is; a lost answer says nothing): the fields
     // follow the team again, so that a new correction is the coach's deliberate act, after the history.
@@ -172,6 +192,8 @@ async function apply(sheet) {
     },
     done: () => toast(t("treasury.fix.done")),
   });
+  // A refusal that put the fields back (`startOver`) drew them while a field may have had the focus.
+  followBalances(host, sheet.form);
 }
 
 /**
@@ -192,7 +214,7 @@ export function wireFixSheet(root) {
   group.own(wireSheets(host, { onClose: (id) => { if (id === FIX_SHEET_ID) sheet.close(); } }));
   group.on("input", TREASURY_FIELD, (event, input) => sheet.change({ treasuryText: input.value }));
   group.on("input", SAFE_FIELD, (event, input) => sheet.change({ safeText: input.value }));
-  group.on("click", "[data-fix-save]", () => { void apply(sheet); });
+  group.on("click", "[data-fix-save]", () => { void apply(host, sheet); });
   // The team moved (a write of this sheet's or of the page's, which may land while the sheet is open): the preview is read again.
   group.own(onMyTeamsChange(() => teamMoved(host, sheet)));
   return () => {

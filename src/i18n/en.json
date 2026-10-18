@@ -1089,6 +1089,7 @@
   "treasury.fix.safe": "Coach's Safe, k",
   "treasury.fix.sub": "A change of the treasury goes into the history as a correction by hand",
   "treasury.fix.title": "Correct by hand",
+  "treasury.fix.tooMuch": "At most {max}",
   "treasury.fix.treasury": "Treasury, k",
   "treasury.fix.unchanged": "Nothing changed",
   "treasury.history": "History",
