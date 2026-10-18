@@ -14,17 +14,7 @@
     { "id": "A6", "url": "http://localhost:3002/#/weather" },
     { "id": "A7", "url": "http://localhost:3002/#/season" },
     { "id": "A8", "url": "http://localhost:3002/#/legal" },
-    {
-      "id": "A9",
-      "url": "http://localhost:3002/#/",
-      "run": "document.querySelector('#auth-button').click()"
-    },
-    {
-      "id": "A10",
-      "url": "http://localhost:3002/#/",
-      "widths": [390],
-      "run": "document.querySelector('#nav-toggle').click()"
-    },
+    { "id": "A9", "url": "http://localhost:3002/#/login" },
     { "id": "B1", "url": "http://localhost:3002/#/my-teams", "login": "admin" },
     {
       "id": "B2",

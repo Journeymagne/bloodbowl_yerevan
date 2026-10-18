@@ -240,6 +240,20 @@ test("every states file kept under docs/redesign/screens passes the plan check, 
   }
 });
 
+// Final-wave item 9: a state that presses what the 3.0 frame removed fails a real run ("a missing target fails").
+test("no states file presses or clicks a part of the 2.x chrome that the 3.0 frame removed", () => {
+  const RETIRED_ID = /#(?:site-sidebar|nav-toggle|nav-overlay|auth-button|lang-toggle|theme-select|generated-at)(?![\w-])/;
+  const dir = fileURLToPath(new URL("../docs/redesign/screens/", import.meta.url));
+  for (const name of fs.readdirSync(dir).filter((file) => file.endsWith(".json"))) {
+    for (const state of JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")).states) {
+      for (const key of ["run", "click"]) {
+        const text = [state[key] ?? ""].flat().join("\n");
+        assert.doesNotMatch(text, RETIRED_ID, `${name} ${state.id} ${key}`);
+      }
+    }
+  }
+});
+
 test("the check for ?. reads the text: one in a string or a comment is refused too, and the message says so", () => {
   for (const run of ["fill('#note', 'is it so?. yes')", "// maybe?.click() later\ndocument.querySelector('#x').click()"]) {
     assert.throws(

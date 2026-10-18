@@ -64,16 +64,7 @@
     },
     {
       "id": "A9",
-      "url": "http://localhost:3002/#/",
-      "run": "document.querySelector('#auth-button').click()"
-    },
-    {
-      "id": "A10",
-      "url": "http://localhost:3002/#/",
-      "widths": [
-        390
-      ],
-      "run": "document.querySelector('#nav-toggle').click()"
+      "url": "http://localhost:3002/#/login"
     },
     {
       "id": "B1",
