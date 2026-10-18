@@ -47,8 +47,9 @@ function textFrame(text) {
 }
 
 /**
- * @param {{onCommand?: (command: object) => boolean}} [options] return true from
- *   `onCommand` to take over a command, so that it is not answered
+ * @param {{onCommand?: (command: object, send: (message: object) => void) => boolean}} [options]
+ *   return true from `onCommand` to take over a command, so that it is not answered
+ *   here; `send` writes a message of its own to the socket, an answer or an event
  * @returns {Promise<{port: number, dropConnections: () => void, close: () => Promise<void>}>}
  */
 export async function startFakeDevTools({ onCommand } = {}) {
@@ -70,7 +71,7 @@ export async function startFakeDevTools({ onCommand } = {}) {
       for (const { opcode, payload } of frames) {
         if (opcode !== 1) continue;
         const command = JSON.parse(payload.toString());
-        if (onCommand?.(command)) continue;
+        if (onCommand?.(command, (message) => socket.write(textFrame(JSON.stringify(message))))) continue;
         socket.write(textFrame(JSON.stringify({ id: command.id, result: ANSWERS[command.method] ?? {} })));
       }
     });

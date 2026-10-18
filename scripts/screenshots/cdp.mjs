@@ -315,7 +315,6 @@ export async function openPage(connection, viewport) {
 
   return {
     navigate: (url) => load("Page.navigate", { url }),
-    reload: () => load("Page.reload", {}),
     takeProblems: problems.take,
 
     /** Run JavaScript in the page, waiting for a promise it returns. */

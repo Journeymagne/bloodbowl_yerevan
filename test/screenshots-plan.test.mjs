@@ -524,3 +524,34 @@ test("a Chrome that dies in the middle of a run: its shot and every later one ar
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test("a page that sends a guest elsewhere is shot at its own address: after the storage, a fresh load of the url, not a reload", async () => {
+  // The first load is a guest's: a coach page sends it to #/login, and a reload would photograph the sign-in screen.
+  const site = http.createServer((request, response) => response.end("ok"));
+  await new Promise((resolve) => site.listen(0, "127.0.0.1", resolve));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gata-screens-test-"));
+  try {
+    const url = `http://127.0.0.1:${site.address().port}/#/t/t2/roster`;
+    const statesPath = path.join(dir, "states.json");
+    fs.writeFileSync(statesPath, JSON.stringify({
+      widths: [390],
+      variants: [{ name: "light", colorScheme: "light" }],
+      states: [{ id: "C3", url, storage: { "gata-league-auth-token": "mock" } }],
+    }));
+    const script = fileURLToPath(new URL("../scripts/screenshots.mjs", import.meta.url));
+    const chrome = fileURLToPath(new URL("./fixtures/fake-chrome-recorder.mjs", import.meta.url));
+    // The fake Chrome's profile, and the loads.json it keeps beside it, land in this directory.
+    const env = { ...process.env, TMPDIR: dir };
+    const run = await new Promise((resolve) => {
+      execFile(process.execPath, [script, statesPath, "--out", path.join(dir, "out"), "--chrome", chrome], { env, timeout: 20_000, killSignal: "SIGKILL" },
+        (error, stdout, stderr) => resolve({ code: error ? error.code : 0, stdout, stderr }));
+    });
+    assert.equal(run.code, 0, `${run.stdout}\n${run.stderr}`);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "loads.json"), "utf8")), [url, "about:blank", url]);
+    assert.ok(fs.existsSync(path.join(dir, "out", "C3-390-light.png")), run.stdout);
+  } finally {
+    site.closeAllConnections();
+    site.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

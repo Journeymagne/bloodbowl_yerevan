@@ -141,7 +141,11 @@ function clickExpression(selector) {
 
 /**
  * Take one shot. The first load only gets the page's origin so its storage can
- * be set; the reload after it is the load that is measured and photographed.
+ * be set; the load after it is the one that is measured and photographed. It is
+ * a fresh load of the shot's url, not a reload: the first load had no token, and
+ * a coach page sends a guest to sign in, so a reload would photograph #/login.
+ * The blank page between the two makes the second a whole new document; going
+ * straight to a url that differs only after the # would just change the hash.
  *
  * A shot that fails throws with `problems` on the error: what the page had
  * complained about by then is often why it failed.
@@ -154,8 +158,9 @@ async function captureShot(connection, shot, session) {
     if (shot.login) entries[TOKEN_KEY] = await tokenFor(page, shot, session);
     await page.evaluate(storageExpression(entries));
 
+    await page.navigate("about:blank");
     page.takeProblems();
-    await page.reload();
+    await page.navigate(shot.url);
     await sleep(shot.waitMs);
     for (const selector of shot.click) {
       if (!(await page.evaluate(clickExpression(selector)))) throw new Error(`click target not found: ${selector}`);
