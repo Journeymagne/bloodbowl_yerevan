@@ -50,8 +50,8 @@ async function shownPreferences(db, userId, stored) {
 /**
  * The user as they see themselves in `GET /api/auth/me`: what `publicUser` says, their settings, and
  * `managedByServer`: whether the env file keeps this account (`isEnvAdmin`), so that its password, login
- * and contact are not the user's to change. Made here and nowhere else: no other serializer says it, and
- * no one else's answer tells who the env file's administrator is.
+ * and contact are not the user's to change. Made here and nowhere else: no serializer says it, and no
+ * one else's answer tells who the env file's administrator is.
  *
  * @param {{query: Function}} db a pg pool, or the client of a transaction
  * @param {object|null} user as `currentUser` returns it
@@ -176,7 +176,8 @@ async function writeProfile(db, params) {
  * only when there is a new password, 409 ADMIN_PASSWORD_FROM_ENV for the account the env file keeps
  * (`isEnvAdmin`: its password is the file's, rewritten at every start), before any guess is counted or
  * verified; then 409 ADMIN_PROFILE_FROM_ENV for the same account when the login (other than in letter
- * case) or the contact would change, as the start would put them back; then
+ * case) or the contact would change: the start puts the contact back, and it finds the account by its
+ * login, so a renamed login would make the next start create a second administrator beside it; then
  * `requireCurrentPassword` (429 or 403); then the write. A login or contact change without a
  * new password needs no `currentPassword`, ignores one that is sent, ends no session, and is the one
  * statement it always was.
