@@ -455,3 +455,53 @@ test("markup set into a table part or a template may start inside the table", ()
   assert.equal(template.content.querySelector("td").textContent, "y");
   assert.throws(() => { document.createElement("tr").innerHTML = "<tr><td>z</td></tr>"; }, /<tr>/);
 });
+
+test("a <col> belongs in a <colgroup>, and the top level of a table part takes what a browser lets start there (07a)", () => {
+  assert.throws(() => parseHtml(document, "<table><col></table>"), /<col>/);
+  assert.throws(() => parseHtml(document, "<div><col></div>"), /<col>/);
+  assert.doesNotThrow(() => parseHtml(document, "<table><colgroup><col><col></colgroup></table>"));
+  const group = document.createElement("colgroup");
+  group.innerHTML = "<col>";
+  assert.equal(group.querySelector("col").tagName, "COL");
+  const row = document.createElement("tr");
+  row.innerHTML = "<td>x</td>";
+  assert.equal(row.querySelector("td").textContent, "x");
+  // A paragraph the markup did not open is not one a browser closes: the context element is not on its stack.
+  const paragraph = document.createElement("p");
+  paragraph.innerHTML = "<div>x</div>";
+  assert.equal(paragraph.querySelector("div").textContent, "x");
+  // A cell wants a row; a table body does not make one up.
+  assert.throws(() => { document.createElement("tbody").innerHTML = "<td>x</td>"; }, /<td>/);
+});
+
+test("only a table part's own children stand in it: anything else a browser moves out of the table (07a)", () => {
+  assert.throws(() => parseHtml(document, "<table><tbody><tr><span>x</span><td>y</td></tr></tbody></table>"), /<span> straight in a <tr>/);
+  assert.throws(() => parseHtml(document, "<table><tbody>text<tr><td>x</td></tr></tbody></table>"), /text straight in a <tbody>/);
+  assert.throws(() => parseHtml(document, "<table><div>x</div><tbody></tbody></table>"), /<div> straight in a <table>/);
+  assert.throws(() => parseHtml(document, "<table><thead>t<tr><th>a</th></tr></thead></table>"), /text straight in a <thead>/);
+  assert.throws(() => parseHtml(document, "<table><colgroup><span></span><col></colgroup></table>"), /<span> straight in a <colgroup>/);
+  assert.throws(() => parseHtml(document, "<table><tbody><tr><td>x</td>y</tr></tbody></table>"), /text straight in a <tr>/);
+  // The cells and the caption hold anything, and blanks between the parts are formatting, as everywhere.
+  assert.doesNotThrow(() => parseHtml(document, `<table>
+    <caption>c <b>d</b></caption>
+    <thead>
+      <tr><th>a</th><th><span>b</span></th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>text</td>
+        <td><div>block</div><p>paragraph</p></td>
+      </tr>
+    </tbody>
+  </table>`));
+});
+
+test("what a table part's innerHTML starts with is as written: the element is not on the parser's stack, what it opens is", () => {
+  const body = document.createElement("tbody");
+  body.innerHTML = "<tr><td>x</td></tr>";
+  assert.throws(() => { body.innerHTML = "<tr><span>x</span><td>y</td></tr>"; }, /<span> straight in a <tr>/);
+  assert.equal(body.querySelector("td").textContent, "x", "a refused assignment leaves the old children");
+  // A browser keeps these where they were written; only what the markup itself opens is a table part it can move out of.
+  document.createElement("tr").innerHTML = "<span>x</span><td>y</td>";
+  document.createElement("tbody").innerHTML = "<span>x</span>";
+});
