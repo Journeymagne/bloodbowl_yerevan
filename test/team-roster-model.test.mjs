@@ -6,13 +6,17 @@ import { expandCollections } from "../src/data/reference.mjs";
 import {
   EXTRA_COUNTERS, MAIN_COUNTERS, SORT_KEYS, counterSlots, nextSort, rosterCounts, rosterLines, rosterMode, sortLines, stepRule,
 } from "../src/screens/team/roster/model.mjs";
-import { HOSTILE } from "./helpers/ui.mjs";
+import { currentMatch } from "../src/shell/current-match.mjs";
 
+// Not test/helpers/ui.mjs's: that sets up a document and the dictionaries, and a model that reached for either would go unnoticed.
+const HOSTILE = `<img src=x onerror="alert(1)"> & 'Grak'`;
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
 const race = (slug) => data.teams.find((team) => team.slug === slug);
 // The rows of Human: 0 Lineman, 1 Thrower, 2 Catcher, 3 Blitzer, 4 Halfling Hopeful, 5 Ogre. Dwarf: 0 Blocker, 1 Runner, 2 Blitzer, 3 Troll Slayer, 4 Deathroller.
+// Chaos Dwarfs: 5 Minotaur, whose PA the vault writes as a dash ("—"), where the Troll Slayer's is a hyphen.
 const HUMAN = race("teams/human");
 const DWARF = race("teams/dwarf");
+const CHAOS_DWARFS = race("teams/chaos-dwarfs");
 
 const player = (rowIndex, over = {}) => ({ id: `p${rowIndex}`, rowIndex, number: String(rowIndex + 1), ...over });
 const PLAIN = { kind: "plain" };
@@ -73,6 +77,31 @@ test("a match on beats a preparation; league beats friendly and then the freshes
   assert.equal(rosterMode([game("old", { ...LIVE, updatedAt: "2026-10-09T10:00:00Z" }), game("new", { ...LIVE, updatedAt: "2026-10-11T10:00:00Z" })], "t1").game.id, "new");
   assert.equal(rosterMode([game("f", { preparationStatus: "ready", ...friendly }), game("l", { preparationStatus: "preparing" })], "t1").game.id, "l");
   assert.equal(rosterMode([game("f", { preparationStatus: "ready", ...friendly })], "t1").round, null);
+});
+
+test("the match on is the one the SideNav's card and stage 08's lock pick: currentMatch's live game", () => {
+  const friendly = { kind: "friendly", season: null, roundNumber: null };
+  const sets = {
+    "two live league matches": [game("old", { ...LIVE, updatedAt: "2026-10-09T10:00:00Z" }), game("new", { ...LIVE, updatedAt: "2026-10-11T10:00:00Z" })],
+    "the same, the fresher first": [game("new", { ...LIVE, updatedAt: "2026-10-11T10:00:00Z" }), game("old", { ...LIVE, updatedAt: "2026-10-09T10:00:00Z" })],
+    "a league match and a fresher friendly": [game("f", { ...LIVE, ...friendly, updatedAt: "2026-10-12T10:00:00Z" }), game("l", LIVE)],
+    "a friendly and an older league match, the friendly first": [game("l", { ...LIVE, updatedAt: "2026-10-01T10:00:00Z" }), game("f", { ...LIVE, ...friendly })],
+    "two live friendlies": [game("a", { ...LIVE, ...friendly, updatedAt: "2026-10-09T10:00:00Z" }), game("b", { ...LIVE, ...friendly, updatedAt: "2026-10-10T10:00:00Z" })],
+    "a stamp that cannot be read": [game("a", { ...LIVE, updatedAt: "soon" }), game("b", { ...LIVE, updatedAt: "2026-10-09T10:00:00Z" })],
+    "a live match among others": [game("n"), game("p", { preparationStatus: "preparing" }), game("m", LIVE), game("x", { ...LIVE, home: rivalSide })],
+    "a score confirmed around the post-match": [game("c", { ...LIVE, postMatchStatus: "not_started", resultStatus: "confirmed" }), game("m", LIVE)],
+  };
+  for (const [name, games] of Object.entries(sets)) {
+    const current = currentMatch(games, "t1");
+    assert.equal(current.phase, "live", name);
+    assert.equal(rosterMode(games, "t1").game, current.game, name);
+    assert.equal(rosterMode(games, "t1").kind, "match", name);
+  }
+  // Where the card has no match on, neither has the roster.
+  for (const games of [[], [game("g1")], [game("p", { preparationStatus: "ready" })], [game("x", { ...LIVE, home: rivalSide })]]) {
+    assert.notEqual(rosterMode(games, "t1").kind, "match");
+    assert.notEqual(currentMatch(games, "t1")?.phase, "live");
+  }
 });
 
 test("a line is what the roster and the unsettled rows say: the career, the match's own, and the blob with the edits waiting", () => {
@@ -162,6 +191,18 @@ test("a characteristic raised or lowered is marked; AG and PA read the other way
   const [advanced] = rosterLines({ draft: { players: [player(3, { statMods: { pa: 1 } })] }, race: DWARF, mode: PLAIN });
   assert.deepEqual(advanced.stats.pa, { text: "–", change: "", order: null }, "nothing to raise in a characteristic he has not");
   assert.deepEqual(linesOf([player(0, { statMods: { ma: "x" } })])[0].stats.ma, { text: "6", change: "", order: 6 }, "a modifier that is no number is none");
+});
+
+test("a characteristic the vault writes as a dash is none, whichever dash it is", () => {
+  const [minotaur, raised] = rosterLines({ draft: { players: [player(5), player(5, { id: "p5b", statMods: { pa: 1 } })] }, race: CHAOS_DWARFS, mode: PLAIN });
+  assert.equal(CHAOS_DWARFS.team.roster[5].pa, "—", "the em dash, as the vault has it");
+  assert.deepEqual(minotaur.stats.pa, { text: "–", change: "", order: null });
+  assert.deepEqual(raised.stats.pa, { text: "–", change: "", order: null }, "nothing to raise in a characteristic he has not");
+  assert.deepEqual([minotaur.stats.ag.text, minotaur.stats.ar.text], ["4+", "9+"], "the rest are as written");
+  const slayer = rosterLines({ draft: { players: [3, 4].map((at) => player(at)) }, race: DWARF, mode: PLAIN });
+  assert.deepEqual(slayer.map((line) => line.stats.pa), [{ text: "–", change: "", order: null }, { text: "–", change: "", order: null }], "and the hyphen still is");
+  const sorted = sortLines(rosterLines({ draft: { players: [player(5), player(0, { id: "p0" })] }, race: CHAOS_DWARFS, mode: PLAIN }), { key: "pa", dir: "desc" });
+  assert.deepEqual(sorted.map(({ index }) => index), [1, 0], "a Minotaur is last by PA both ways");
 });
 
 test("skills come with where they came from, and the captain's Pro once", () => {

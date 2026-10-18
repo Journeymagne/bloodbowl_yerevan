@@ -16,7 +16,7 @@ import {
   CAPTAINS_SKILL, baseSkillsForPlayer, normalizePlayerExtraSkills, normalizePlayerFavouredSkills, normalizeSppCounters, positionKind, selectedRosterPlayers, storedPlayerId,
 } from "../../../domain/roster/players.mjs";
 import { PLAYER_STATS, categoriesForAccess, countToNumber, statValueForDisplayByStat } from "../../../domain/roster/values.mjs";
-import { isMatchLive } from "../../../shell/current-match.mjs";
+import { currentMatch } from "../../../shell/current-match.mjs";
 
 /** The counters a player's cell shows in full, in the order of the table's columns. */
 export const MAIN_COUNTERS = Object.freeze(["touchdowns", "casualties", "completions", "knockouts", "interceptions", "mvps"]);
@@ -46,9 +46,8 @@ const PREPARING = ["preparing", "ready"];
 const changedAt = (game) => Date.parse(game.updatedAt) || 0;
 
 /**
- * The game of several that the screen is about: a league match before a friendly, and then the one that
- * changed last. The SideNav's card (shell/current-match.mjs) picks its match by the same two things, so
- * the card and the roster name one match.
+ * The preparation of several that the screen is about: a league match before a friendly, and then the one
+ * that changed last, as the SideNav's card ranks its games. (The match on is the card's own pick, `currentMatch`.)
  */
 const foremost = (games) => [...games].sort((first, second) => (first.kind === "friendly") - (second.kind === "friendly") || changedAt(second) - changedAt(first))[0];
 
@@ -56,8 +55,9 @@ const foremost = (games) => [...games].sort((first, second) => (first.kind === "
 const roundOf = (game) => (game.kind === "friendly" ? null : game.roundNumber ?? null);
 
 /**
- * What the roster is for just now, by the games the coach has: the team's match on (`isMatchLive`, as
- * the server counts it), else a preparation under way in a game players may still play
+ * What the roster is for just now, by the games the coach has: the team's match on (`currentMatch`'s
+ * live phase, which is `isMatchLive` as the server counts it, and the same pick the SideNav's card and
+ * stage 08's lock make), else a preparation under way in a game players may still play
  * (`isGameClosedForPlayers`, as the shell's card does), else neither.
  *
  * @param {object[]} games the coach's games, as /api/games sends them
@@ -66,8 +66,8 @@ const roundOf = (game) => (game.kind === "friendly" ? null : game.roundNumber ??
  */
 export function rosterMode(games, teamId) {
   const own = games.filter((game) => gameSides(game, teamId));
-  const live = foremost(own.filter(isMatchLive));
-  if (live) return { kind: "match", game: live, round: roundOf(live) };
+  const current = currentMatch(own, teamId);
+  if (current?.phase === "live") return { kind: "match", game: current.game, round: roundOf(current.game) };
   const preparing = foremost(own.filter((game) => PREPARING.includes(game.preparationStatus) && !isGameClosedForPlayers(game)));
   return preparing ? { kind: "prep", game: preparing, round: roundOf(preparing) } : { kind: "plain" };
 }
@@ -90,8 +90,9 @@ function statsOf(row, player) {
   return Object.fromEntries(PLAYER_STATS.map((stat) => {
     const mod = countToNumber(player.statMods?.[stat]);
     const written = String(statValueForDisplayByStat(stat, row[stat] ?? "", mod));
-    const none = written === "-" || written === "";
+    // The vault writes a characteristic a position has not as "-" or as a dash ("—", the Minotaur's PA): a value with no digit in it is none.
     const digits = /\d+/.exec(written);
+    const none = !digits;
     return [stat, { text: none ? NO_VALUE : written, change: none ? "" : changeOf(mod), order: digits ? Number(digits[0]) : null }];
   }));
 }
@@ -236,7 +237,8 @@ export function rosterCounts(lines) {
  *   - outside: an edit of the roster made while a match is on waits as a row for its finish. The − stops where the
  *     roster's count and the edits waiting on it add up to nothing; here the MVP and the one who sits out are allowed.
  *
- * @param {PlayerLine} line
+ * @param {PlayerLine} line built by `rosterLines` with the same `mode` it is given here: a line made outside a
+ *   match has no rows of a match in it, and a rule for a match read from it would stop the minus at zero
  * @param {string} counter one of `SPP_EVENT_COUNTERS`
  * @param {{mode: {kind: string}, outside?: boolean}} options `outside` is the screen's «edit outside the match»
  * @returns {{via: "roster"|"match"|"outside", decDisabled: boolean, incBlocked: ""|"mvp", locked: ""|"notPlaying"}}
