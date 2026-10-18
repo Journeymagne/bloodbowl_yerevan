@@ -125,6 +125,7 @@ async function renderTeamScreen(name, params, current) {
  */
 export function renderRoute() {
   const current = ++ticket;
+  const startedAt = location.hash;
   const route = routeFromHash(location.hash);
   const { target, returnTo } = resolveRedirect(route, {
     signedIn: Boolean(state.auth.currentUser),
@@ -143,9 +144,11 @@ export function renderRoute() {
   const rendered = TEAM_ROUTES.has(name) ? renderTeamScreen(name, params, current) : screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so
   // (step 15.5), so the heading is announced instead — after the screen has
-  // put one there, which for anything that waits on a fetch is not yet.
+  // put one there, which for anything that waits on a fetch is not yet. A
+  // screen that sent the address on drew nothing: the heading still in the
+  // view is the screen before's, and the hashchange to come announces the next.
   Promise.resolve(rendered).then(() => {
-    if (current === ticket) announce(view.querySelector("h1, h2")?.textContent ?? "");
+    if (current === ticket && location.hash === startedAt) announce(view.querySelector("h1, h2")?.textContent ?? "");
   });
   return rendered;
 }

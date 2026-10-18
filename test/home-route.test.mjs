@@ -9,7 +9,8 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
 const replaced = [];
-globalThis.location = { hash: "#/", replace(url) { replaced.push(url); } };
+// A browser's replace() changes the hash at once; the hashchange that draws the new screen comes later.
+globalThis.location = { hash: "#/", replace(url) { replaced.push(url); this.hash = url; } };
 const { renderRoute } = await import("../src/core/router.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
@@ -21,8 +22,8 @@ const { clearActiveTeamCache } = await import("../src/data/active-team.mjs");
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 const TEAMS = [{ id: "t1", name: "Ashgrove Wardens" }, { id: "t2", name: "Grimtusk Raiders" }];
 
-/** A coach on `#/` with this list and account, no team active and the page empty, then the route drawn. */
-function coachHome(myTeams, preferences = {}, replies = []) {
+/** A coach on `#/` with this list and account, no team active and the page holding `before` (the screen they came from), then the route drawn. */
+function coachHome(myTeams, preferences = {}, replies = [], before = "") {
   api.reset();
   for (const [key, status, body] of replies) api.reply(key, status, body);
   api.items.set("gata-league-auth-token", "tok");
@@ -30,7 +31,7 @@ function coachHome(myTeams, preferences = {}, replies = []) {
   clearActiveTeamCache(); // the browser's memory of the team before, which outlives the fake storage's reset
   replaced.length = 0;
   releaseCurrentScreen();
-  view.innerHTML = "";
+  view.innerHTML = before;
   globalThis.location.hash = "#/";
   state.auth.currentUser = { id: "u1", login: "coach", preferences };
   state.myTeams = { loading: false, error: "", ...myTeams };
@@ -75,5 +76,24 @@ test("a coach whose list could not be read is told so, with a way to read it aga
   assert.ok(view.querySelector("button[data-teams-retry]"));
   assert.equal(view.querySelector('a[href="#/teams/new"]'), null);
   assert.deepEqual(replaced, []);
+  releaseCurrentScreen();
+});
+
+// announce() keeps its region in module state and writes on a zero timeout: the heading is spoken a tick after the route.
+const statusRegion = () => document.body.querySelector('[role="status"]');
+const spoken = () => statusRegion()?.textContent ?? "";
+const afterAnnouncements = async () => { await settle(); await new Promise((resolve) => { setTimeout(resolve, 5); }); };
+const silence = async () => { await afterAnnouncements(); if (statusRegion()) statusRegion().textContent = ""; };
+
+test("a coach sent on to their team is not told the heading of the screen they came from; one who stays is told the heading of the screen drawn", async () => {
+  await silence();
+  coachHome({ items: TEAMS, loaded: true }, { activeTeamId: "t2" }, [], "<section><h1>Settings</h1></section>");
+  assert.deepEqual(replaced, ["#/t/t2"]);
+  await afterAnnouncements();
+  assert.equal(spoken(), "", "the old screen's heading is not the new place's");
+  api.assertAnswered();
+  coachHome({ items: [], loaded: true }, {}, [], "<section><h1>Settings</h1></section>");
+  await afterAnnouncements();
+  assert.equal(spoken(), "Create your first team", "where the address stays, the screen that was drawn is announced");
   releaseCurrentScreen();
 });
