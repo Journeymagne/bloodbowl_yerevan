@@ -17,6 +17,8 @@ const { raceTeamOf } = await import("../src/data/teams.mjs");
 const { medicalStaffDefinitions } = await import("../src/domain/league-rules.mjs");
 const { COUNTER_KEYS, resourceRows } = await import("../src/screens/team/manage/model.mjs");
 const { resourceWords, resourcesMarkup, wireResources } = await import("../src/screens/team/manage/resources.mjs");
+const { renderResourceCounter } = await import("../src/ui/resource-counter.mjs");
+const { renderToggle } = await import("../src/ui/toggle.mjs");
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const [en, ru] = ["en", "ru"].map((locale) => JSON.parse(read(`src/i18n/${locale}.json`)));
@@ -306,6 +308,7 @@ test("a refusal of the save is said", async () => {
   assert.equal(said.text, en["error.STAGE_PURCHASE_LOCKED"]);
   assert.match(said.tone, /toast-error/);
   assert.equal(state.myTeams.items[0].roster.cheerleaders, 1, "nothing changed");
+  assert.equal(api.calls.some((call) => call.key === "GET /api/teams"), false, "a refusal is an answer: nothing to find out");
 });
 
 test("a lost answer to a step is said in its own words: the change may have been saved, look at the counters", async () => {
@@ -319,6 +322,22 @@ test("a lost answer to a step is said in its own words: the change may have been
   assert.equal(toasts()[0].text, en["treasury.resources.mayHaveSaved"]);
   assert.match(en["treasury.resources.mayHaveSaved"], /counters/);
   assert.match(ru["treasury.resources.mayHaveSaved"], /счётчик/);
+});
+
+test("a lost answer reads the coach's list again, so the counters show what the server holds", async () => {
+  coach();
+  draw();
+  api.fail(PATCH);
+  // The server wrote the step and only its answer was lost.
+  api.reply("GET /api/teams", 200, { teams: [{ ...TEAM, revision: 4, roster: { ...TEAM.roster, cheerleaders: 2, treasury: 90 } }] });
+  await withoutTimers(async () => {
+    click(plus("cheerleaders"));
+    await settle();
+    await settle();
+  });
+  assert.equal(toasts()[0].text, en["treasury.resources.mayHaveSaved"]);
+  assert.equal(api.calls.filter((call) => call.key === "GET /api/teams").length, 1);
+  assert.deepEqual([state.myTeams.items[0].roster.cheerleaders, state.myTeams.items[0].roster.treasury, state.myTeams.items[0].revision], [2, 90, 4]);
 });
 
 test("a second press while the first save is on its way is told, and sends nothing", async () => {
@@ -338,6 +357,57 @@ test("a second press while the first save is on its way is told, and sends nothi
     await settle();
   });
   assert.equal(patches().length, 1);
+});
+
+test("a switch pressed twice while its first save is on its way stays on until the answer comes", async () => {
+  coach();
+  draw();
+  api.reply(PATCH, 200, saved({ apothecary: 1, treasury: 50, purchasedStaff: { apothecary: 1 } }));
+  const gate = api.hold(PATCH);
+  await withoutTimers(async () => {
+    click(toggle("apothecary"));
+    click(toggle("apothecary"));
+    await settle();
+    assert.equal(toggle("apothecary").getAttribute("aria-checked"), "true", "the second press is not a way back: the first save is still on its way");
+    assert.equal(toasts()[0].text, en["treasury.writing"]);
+    assert.equal(patches().length, 1);
+    gate.release();
+    await settle();
+  });
+  assert.equal(toggle("apothecary").getAttribute("aria-checked"), "true");
+  assert.equal(state.myTeams.items[0].roster.apothecary, 1);
+  assert.equal(patches().length, 1);
+});
+
+test("a switch that is on and shut by a match stays on, and says why", () => {
+  coach({ games: [LIVE], roster: { apothecary: 1 } });
+  draw({ locked: true });
+  assert.equal(toggle("apothecary").getAttribute("aria-checked"), "true");
+  assert.equal(toggle("apothecary").hasAttribute("disabled"), true);
+  assert.equal(toggle("apothecary").querySelector(".g-toggle__caption").textContent, "After the match's post-match", "the lock's reason, not «yes · 50k»: the track shows the state");
+  click(toggle("apothecary"));
+  assert.equal(toggle("apothecary").getAttribute("aria-checked"), "true");
+  assert.equal(api.calls.length, 0);
+});
+
+test("a press the page did not draw for the team is not judged: a stray switch is left alone, and a failing step is said, not lost", async () => {
+  coach();
+  unwire();
+  mount(resourcesMarkup({ rows: rowsOf() })
+    + renderToggle({ key: "mortuaryAssistant", label: "Mortuary Assistant" })
+    + renderResourceCounter({ key: "plagueDoctor", name: "Plague Doctor", value: 1 }));
+  unwire = wireResources(document.body, "t1");
+  await withoutTimers(async () => {
+    click(document.querySelector('.g-toggle[data-toggle-key="mortuaryAssistant"]'));
+    await settle();
+    assert.deepEqual(toasts(), [], "a medic the Human race cannot have is not a row of the team: nothing to step, nothing to say");
+    click(document.querySelector('[data-resource-key="plagueDoctor"] [data-resource-step="1"]'));
+    await settle();
+  });
+  // The step of a counter that is no row throws; the press says so instead of leaving an unhandled rejection to fail the run.
+  assert.equal(toasts().length, 1);
+  assert.match(toasts()[0].tone, /toast-error/);
+  assert.equal(api.calls.length, 0);
 });
 
 test("a step is the team's own: one that has left the list is not written", async () => {

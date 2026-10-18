@@ -8,12 +8,12 @@
  * row is never silent. A step is one save of the whole roster, as the 2.x editor makes it; the answer replaces the
  * team in `state.myTeams`, and the page draws the new numbers from there (it listens to `onMyTeamsChange`).
  */
-import { toast } from "../../../components/toast.mjs";
+import { toast, toastError } from "../../../components/toast.mjs";
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
-import { raceTeamOf } from "../../../data/teams.mjs";
+import { loadMyTeams, raceTeamOf } from "../../../data/teams.mjs";
 import { isWriting, saveTeamRoster } from "../../../data/treasury.mjs";
 import { combinedRerollsMaximum, medicalStaffDefinitions } from "../../../domain/league-rules.mjs";
 import { renderResourceCounter, wireResourceCounters } from "../../../ui/resource-counter.mjs";
@@ -118,30 +118,12 @@ export function resourcesMarkup({ rows, busy = false }) {
 }
 
 const teamOf = (teamId) => state.myTeams.items.find((item) => item.id === teamId);
+const rowsOf = (team) => resourceRows({ race: raceTeamOf(team.baseTeamSlug), roster: team.roster ?? {}, stage: team.stage });
 
 /** The words for a step the model refused: «+» has its reason, a «−» that is not allowed has none to give. */
 function refusedWords(row, delta) {
   const words = resourceWords(row);
   return words.lockedReason || (delta > 0 ? words.incBlockedReason : "");
-}
-
-/**
- * One step of one resource: judged on the team as the list holds it now, and sent as the whole roster. Said
- * where it does not go through. A lost answer is said in its own words: the roster may have been written, and
- * the counters, which the page draws from the team, are what to look at before pressing again.
- *
- * @returns {Promise<boolean>} whether the roster was saved
- */
-async function step(teamId, key, delta) {
-  const team = teamOf(teamId);
-  if (!team) return notTaken(t("error.TEAM_NOT_FOUND"));
-  if (isWriting(teamId)) return notTaken(t("treasury.writing"), "info");
-  const locked = matchLock(state.games.items, teamId)?.kind === "live";
-  const taken = stepResource({ race: raceTeamOf(team.baseTeamSlug), roster: team.roster ?? {}, stage: team.stage, key, delta, locked });
-  if (taken.refused) return notTaken(refusedWords(taken.refused, delta));
-  const answer = await saveTeamRoster(teamId, taken.roster);
-  if (answer.team) return true;
-  return notTaken(answer.unknown ? t("treasury.resources.mayHaveSaved") : answer.refusal);
 }
 
 /** Say why a step was not taken, and answer false, as `step` does. */
@@ -150,25 +132,78 @@ function notTaken(words, tone = "error") {
   return false;
 }
 
+/** Another save of the team is on its way: said, and answered `"busy"`, which is not a refusal: nothing was judged. */
+function saveOnItsWay() {
+  toast(t("treasury.writing"), { tone: "info" });
+  return "busy";
+}
+
+/**
+ * One step of one resource: judged on the team as the list holds it now, and sent as the whole roster. Said
+ * where it does not go through. A lost answer is said in its own words: the roster may have been written, so the
+ * list is read again (the counters, which the page draws from it, then show what the server holds) and the coach
+ * is sent to look at them before pressing again.
+ *
+ * A press made while a save of the team is on its way is not judged at all: the list is still the one from before
+ * that save, and a refusal read off it would be wrong.
+ *
+ * @returns {Promise<boolean|"busy">} whether the roster was saved; `"busy"` when another save was on its way
+ */
+async function step(teamId, key, delta) {
+  const team = teamOf(teamId);
+  if (!team) return notTaken(t("error.TEAM_NOT_FOUND"));
+  if (isWriting(teamId)) return saveOnItsWay();
+  const locked = matchLock(state.games.items, teamId)?.kind === "live";
+  const taken = stepResource({ race: raceTeamOf(team.baseTeamSlug), roster: team.roster ?? {}, stage: team.stage, key, delta, locked });
+  if (taken.refused) return notTaken(refusedWords(taken.refused, delta));
+  const answer = await saveTeamRoster(teamId, taken.roster);
+  if (answer.team) return true;
+  // `saveTeamRoster` is sent only after the check above, which reads the same flag: this is a guard, so that a press is never met with silence.
+  if (answer.ignored) return saveOnItsWay();
+  if (answer.unknown) void loadMyTeams(true);
+  return notTaken(answer.unknown ? t("treasury.resources.mayHaveSaved") : answer.refusal);
+}
+
+/** A step whose failure is said, never lost as an unhandled rejection; answers as `step` does. */
+function press(teamId, key, delta) {
+  return step(teamId, key, delta).catch((error) => {
+    toastError(error);
+    return false;
+  });
+}
+
+/** Whether `key` is a medic's row of the team, which is what a switch the page drew is. A team that is gone has no rows: `step` says so. */
+function isDrawnMedic(teamId, key) {
+  const team = teamOf(teamId);
+  return !team || rowsOf(team).some((row) => row.kind === "medic" && row.key === key);
+}
+
 /** A switch the press did not change goes back to what the team holds (a team changed elsewhere shows the new one). */
 function restoreSwitch(button, teamId, key) {
   const team = teamOf(teamId);
-  const row = team && resourceRows({ race: raceTeamOf(team.baseTeamSlug), roster: team.roster ?? {}, stage: team.stage }).find((item) => item.key === key);
+  const row = team && rowsOf(team).find((item) => item.key === key);
   button.setAttribute("aria-checked", String(row ? row.value > 0 : button.getAttribute("aria-checked") !== "true"));
 }
 
 /**
- * Every press in the section under `root`: a counter's «−» and «+» (a closed one tells its reason in a toast), and
- * a medic's switch, which moves at once and goes back when the step is not taken.
+ * Every press in the section: a counter's «−» and «+» (a closed one tells its reason in a toast), and a medic's
+ * switch, which moves at once and goes back when the step is not taken (to what the team holds, or, when the
+ * press found another save on its way, to what it was before the press).
  *
- * @param {Element} root a container that outlives the page's redraws
+ * @param {Element} root the section's container, which outlives the page's redraws. It holds this section's
+ *   switches and no others: `wireToggles` flips every switch under it before it reports, and a switch whose key
+ *   is not one of the team's medics is left alone here.
  * @param {string} teamId
  * @returns {() => void} removes the listeners
  */
 export function wireResources(root, teamId) {
-  const offCounters = wireResourceCounters(root, ({ key, delta }) => { void step(teamId, key, delta); }, { onRefused: ({ reason }) => toast(reason, { tone: "error" }) });
+  const offCounters = wireResourceCounters(root, ({ key, delta }) => { void press(teamId, key, delta); }, { onRefused: ({ reason }) => toast(reason, { tone: "error" }) });
   const offToggles = wireToggles(root, (key, on, button) => {
-    void step(teamId, key, on ? 1 : -1).then((saved) => { if (!saved) restoreSwitch(button, teamId, key); });
+    if (!isDrawnMedic(teamId, key)) return;
+    void press(teamId, key, on ? 1 : -1).then((result) => {
+      if (result === "busy") button.setAttribute("aria-checked", String(!on));
+      else if (!result) restoreSwitch(button, teamId, key);
+    });
   });
   return () => {
     offCounters();
