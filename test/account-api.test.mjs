@@ -670,9 +670,12 @@ test("the env file's administrator keeps the file's login, Telegram and rights t
   for (const [label, ask] of asks) {
     const { result, log } = await recording(ask);
     assert.deepEqual([result.status, result.body.error.code, result.body.error.message], [409, "ADMIN_PROFILE_FROM_ENV", FROM_ENV], label);
-    assert.deepEqual(writes(log), [], `${label}: nothing written`);
+    // `recording` sees the clients of transactions only. The user edit writes in one; the profile route's change
+    // without a password is a single statement on the pool, which it does not see. So the row is what says no
+    // write went through, after every ask.
+    assert.deepEqual(writes(log), [], `${label}: no transaction wrote`);
+    assert.deepEqual(await rowOf(client, env.id), before, `${label}: his row is as the file left it`);
   }
-  assert.deepEqual(await rowOf(client, env.id), before, "his row is as the file left it");
   assert.equal((await whoIs(elsewhere)).login, env.login, "and no session was ended");
   // The 400s come first, as they do for everybody: a too short login or an empty contact is not "from the file".
   assert.deepEqual((await profile(env.token, { login: "ab" })).body.error.code, "LOGIN_TOO_SHORT");
@@ -774,4 +777,24 @@ test("the administrator's edit of a user is one transaction: a taken login leave
   assert.match(String(logged[0]?.[0]?.message), /sessions are kept/, "it failed where the test broke it, on the sessions");
   await untouched("a failed DELETE");
   assert.equal((await whoIs(coach.token)).login, coach.login, "and the rename was rolled back with it");
+}));
+
+// Final-wave item 7: the lengths are the same constants everywhere (test/account-rules.test.mjs reads them in each
+// file); these pin each door's edge itself, one character either side: a login of 2 or 3, a password of 3 or 4.
+test("registration takes a login of three and a password of four, and refuses one character less of either", db, () => withApiDatabase(async () => {
+  const register = (login, password) => callApi("POST", "/api/auth/register", { body: { login, password, telegram: "@edge_coach" } });
+  assert.deepEqual([(await register("ab", "long-enough")).body.error.code, (await register("abx", "abc")).body.error.code], ["LOGIN_TOO_SHORT", "PASSWORD_TOO_SHORT"]);
+  assert.equal((await register(" ab ", "long-enough")).body.error.code, "LOGIN_TOO_SHORT", "blanks around it are not characters");
+  assert.equal((await register("abc", "long-enough")).status, 201);
+  assert.equal((await register("pw-edge", "abcd")).status, 201);
+}));
+
+test("an administrator's user edit takes a login of three and a password of four, and refuses one character less of either", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-edge-boss", { admin: true }), coach = await seedCoach(client, "pw-edge-coach");
+  const edit = (body) => callApi("PATCH", `/api/admin/users/${coach.id}`, { token: boss.token, body });
+  assert.deepEqual([(await edit({ login: "ab" })).body.error.code, (await edit({ password: "abc" })).body.error.code], ["LOGIN_TOO_SHORT", "PASSWORD_TOO_SHORT"]);
+  const renamed = await edit({ login: "abc" });
+  assert.deepEqual([renamed.status, renamed.body.user.login], [200, "abc"]);
+  assert.equal((await edit({ password: "abcd" })).status, 200);
+  assert.equal((await login("abc", "abcd")).status, 200, "the four-character password is the one now set");
 }));

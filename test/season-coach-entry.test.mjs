@@ -92,6 +92,20 @@ for (const [fields, code] of [
   });
 }
 
+// Final-wave item 7: the edge itself, one character either side, as at the other doors that make an account.
+test("a season coach takes a login of three and a password of four, and is refused one character less of either", async () => {
+  for (const [fields, code] of [[{ login: " ab " }, "LOGIN_TOO_SHORT"], [{ password: "abc" }, "PASSWORD_TOO_SHORT"]]) {
+    const db = databaseFixture();
+    await assert.rejects(createSeasonCoachWithTeam("ongoing-season", { ...data, ...fields }, db), { status: 400, code });
+    assert.equal(db.writes.length, 0, code);
+  }
+  for (const fields of [{ login: " abc " }, { password: "abcd" }]) {
+    const db = databaseFixture();
+    await createSeasonCoachWithTeam("ongoing-season", { ...data, ...fields }, db);
+    assert.equal(db.committed, true, JSON.stringify(fields));
+  }
+});
+
 test("only admins may create season coaches", async () => {
   const original = pool.query;
   const response = () => ({ writeHead(status) { this.status = status; }, end(body) { this.payload = JSON.parse(body); } });
