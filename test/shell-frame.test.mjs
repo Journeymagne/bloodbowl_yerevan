@@ -248,6 +248,18 @@ test("a sheet's scroll lock does not shift the page, and a hidden search bar sta
   assertReadable("src/shell/frame.css", ".g-searchbar__input::placeholder", "color", ["--surface-2"], 4.5);
 });
 
+// R13-M6 (WCAG 2.4.11): the phone's header sticks to the top, 102px drawn and 91px folded (measured live). An element
+// the keyboard reaches above the view, as Shift+Tab does, is scrolled to stand under it, not behind it.
+test("on a phone, an element scrolled into view by the keyboard stands clear of the sticky header", () => {
+  const css = read("src/shell/frame.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const phone = css.match(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/)[1];
+  const padding = phone.match(/(?:^|\n)\s*html \{[^}]*scroll-padding-top: (\d+)px;/);
+  assert.ok(padding, "html sets scroll-padding-top under 900px");
+  assert.ok(Number(padding[1]) >= 102, `${padding[1]}px clears a 102px header`);
+  assert.equal(valuesOf("src/shell/frame.css", "html", "scroll-padding-top").length, 1, "and only there: the desktop has no sticky header");
+  assert.deepEqual(valuesOf("src/shell/app-header.css", ".g-appbar", "position"), ["sticky"]);
+});
+
 test("every frame class the page names is styled, the frame reaches the page, and it breaks at 900/901 only", () => {
   const css = ["src/shell/frame.css", "src/shell/app-header.css", "src/shell/side-nav.css"].map(read).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
   const names = new Set([...read("index.html").matchAll(/class="([^"]*)"/g)].flatMap(([, list]) => list.split(/\s+/)).filter((name) => name.startsWith("g-")));

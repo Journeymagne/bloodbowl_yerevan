@@ -117,6 +117,11 @@ html { scrollbar-gutter: stable; }
 
 @media (max-width: 900px) {
   .g-frame > .g-sidenav { display: none; }
+  /*
+   * The header sticks to the top of a phone's page, 102px drawn and 91px folded: an element the keyboard
+   * reaches above the view (Shift+Tab) is scrolled to stand under it, not behind it (WCAG 2.4.11).
+   */
+  html { scroll-padding-top: 110px; }
 }
 
 @media (min-width: 901px) {
