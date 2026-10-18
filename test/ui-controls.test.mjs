@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
+import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { BUTTON_KINDS, renderButton, renderIconButton } from "../src/ui/button.mjs";
 import { wireRadioGroups } from "../src/ui/choice.mjs";
@@ -40,6 +41,16 @@ test("every kind has its class, an unknown kind is a bug", () => {
     assert.ok(fragment.querySelector(".g-btn--block"), kind);
   }
   assert.throws(() => renderButton({ label: "x", kind: "ghost" }), /kind/);
+});
+
+test("Log out is red words in a grey ring, not a red border (M1, 6)", () => {
+  const fragment = mount(renderButton({ label: "Log out", kind: "danger-quiet" }));
+  assert.ok(fragment.querySelector("button.g-btn--danger-quiet"));
+  assert.ok(BUTTON_KINDS.includes("danger-quiet"));
+  assertStyled(fragment, "button.css");
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn--danger-quiet", "border-color"), ["var(--control-border)"]);
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn--danger-quiet", "color"), ["var(--danger)"]);
+  assertReadable("src/ui/button.css", ".g-btn--danger-quiet", "color", ["--surface"], 4.5);
 });
 
 test("a button with an href is a link and never disabled", () => {

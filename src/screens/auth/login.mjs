@@ -140,7 +140,7 @@ export function loginMarkup(form) {
   ${brandHtml()}
   <div class="g-auth__sheet">
     <div class="g-auth__panel">
-      <h1 class="g-auth__title">${escapeHtml(registering ? t("auth.register") : t("auth.login"))}</h1>
+      <h1 class="g-auth__title">${escapeHtml(registering ? t("auth.title.register") : t("auth.title.login"))}</h1>
       ${modes}
       <form class="g-auth__form" data-auth-form novalidate${form.pending ? ' aria-busy="true"' : ""}>
         ${alertHtml(form.error)}

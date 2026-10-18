@@ -270,10 +270,10 @@
   text-decoration: underline;
 }
 
-/* The strength of a new password: three bars and a word. */
+/* The strength of a new password: three bars across the whole width, and the word under them. */
 .g-meter {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: center;
   gap: var(--space-4);
   margin-top: calc(-1 * var(--space-6));
@@ -291,11 +291,12 @@
 .g-meter--3 .g-meter__bar { background: var(--accent); }
 
 .g-meter__label {
-  min-width: 7em;
-  margin-left: var(--space-6);
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin: 0;
   color: var(--muted);
   font: 600 12px/1.2 var(--font-body);
-  text-align: right;
+  text-align: left;
   text-transform: none;
 }
 
@@ -327,7 +328,10 @@
 
   .g-auth__tagline { font-size: 15px; }
 
-  .g-auth__pitch { display: block; }
+  .g-auth__pitch {
+    display: block;
+    font: 700 52px/1.05 var(--font-display);
+  }
   .g-auth__points { display: flex; }
 
   .g-auth__footer {

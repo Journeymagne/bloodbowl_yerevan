@@ -194,6 +194,23 @@ test("Show passwords is one button that is pressed or not, and it is wired", () 
   assert.deepEqual(heard, ["show"]);
 });
 
+test("Show passwords sits in the footer beside the button, and still says whether it is on (DeskCoachPassword, M1, 3)", () => {
+  for (const show of [false, true]) {
+    const fragment = mount(passwordSheetMarkup({ ...blank, show }));
+    const toggle = fragment.querySelector(".g-sheet__foot .g-sheet__foot-start [data-password-show]");
+    assert.ok(toggle, "in the footer's start, not in the form");
+    assert.equal(toggle.getAttribute("aria-pressed"), String(show));
+    assert.equal(fragment.querySelector("form [data-password-show]"), null);
+    const foot = fragment.querySelector(".g-sheet__foot");
+    assert.deepEqual(foot.childNodes.map((node) => node.getAttribute("class")?.split(" ")[0]), ["g-sheet__foot-start", "g-btn"], "the one button follows it");
+    assert.equal(foot.childNodes[1].getAttribute("type"), "submit");
+    assertStyled(fragment, ...SHEETS);
+  }
+  const done = mount(passwordSheetMarkup({ ...blank, done: true }));
+  assert.equal(done.querySelector("[data-password-show]"), null, "the news has no form to show passwords of");
+  assert.equal(done.querySelector(".g-sheet__foot"), null);
+});
+
 test("the form submits by the button in the footer, and says it is busy while a try is on its way", () => {
   const fragment = mount(passwordSheetMarkup({ ...blank, current: "old1", next: "abcd", repeat: "abcd", pending: true }));
   const form = fragment.querySelector("form");

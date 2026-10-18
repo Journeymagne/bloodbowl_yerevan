@@ -1,5 +1,5 @@
 /**
- * Buttons: the five kinds the design names, and the round icon button.
+ * Buttons: the six kinds the design names, and the round icon button.
  *
  * A button that has an href is a link (navigation to a deeper screen), and a
  * link is never disabled: a screen that cannot go there does not draw it.
@@ -10,7 +10,7 @@ import { escapeHtml } from "../core/dom.mjs";
 import { icon as renderIcon } from "./icons.mjs";
 import { assertLinkHref, classNames, dataAttributes } from "./markup.mjs";
 
-export const BUTTON_KINDS = ["primary", "outline", "dark", "danger", "danger-outline"];
+export const BUTTON_KINDS = ["primary", "outline", "dark", "danger", "danger-outline", "danger-quiet"];
 
 // The id lands in a `form="…"` attribute that is not escaped for it, as a text field's does in `for`.
 const FORM_ID = /^[A-Za-z][\w-]*$/;

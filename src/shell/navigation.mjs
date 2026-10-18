@@ -83,7 +83,8 @@ const guestKey = (key) => (key === "overview" ? "home" : key);
 /**
  * The header's name, its subtitle, and the SideNav's subtitle (`sideSub`), and where the block leads.
  * The header says where the team stands (race, place); the SideNav, with the table a click away
- * and the page's own title beside it, says whose league it is (race, league).
+ * and the page's own title beside it, says the race alone: the league and the race together broke
+ * onto two lines for almost every race in the column.
  */
 function leagueBrand() {
   const sub = t("shell.leagueSub");
@@ -125,8 +126,8 @@ function coachBrand(team, raceTitle, place) {
     const sub = t("shell.noTeamHint");
     return { name: t("shell.noTeam"), sub, sideSub: sub, href: teamsUrl(), switchTeam: true };
   }
-  const sideSub = [raceTitle, t("shell.league")].filter(Boolean).join(" · ");
-  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub, href: teamsUrl(), switchTeam: true };
+  // A race the data does not know names the league, so the line is never empty under a team.
+  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub: raceTitle || t("shell.league"), href: teamsUrl(), switchTeam: true };
 }
 
 /** @typedef {{key: string, label: string, href: string, icon: string, current: boolean}} NavItem */

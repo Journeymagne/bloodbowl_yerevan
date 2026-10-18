@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document,
 import { assertContrast, valuesOf } from "./helpers/contrast.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
+import { initLocale } from "../src/core/i18n.mjs";
 
 const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
@@ -25,7 +26,7 @@ const NO_ANSWER = "The server did not answer. Try again in a minute.";
 
 test("signing in: two fields, a button that waits for both, the password help and the way to register", () => {
   const fragment = mount(loginMarkup(empty));
-  assert.equal(fragment.querySelector("h1").textContent, "Login");
+  assert.equal(fragment.querySelector("h1").textContent, "Sign in to your account");
   assert.equal(fragment.querySelector('[aria-current="page"]').getAttribute("href"), "#/login");
   assert.equal(fragment.querySelector("#auth-login").getAttribute("autocomplete"), "username");
   assert.equal(fragment.querySelector("#auth-login").getAttribute("autocapitalize"), "none", "a login is typed as it is");
@@ -50,6 +51,33 @@ test("a refused sign-in keeps what was typed and says why, on both fields", () =
   // The alert says it once: the fields are marked, not given a line each.
   assert.equal(fragment.querySelector(".g-field__error"), null);
   assertStyled(fragment, ...SHEETS);
+});
+
+test("the form is titled «Sign in to your account» / «Coach registration», and the username field is not called the same as the tab (M1, 4)", () => {
+  const titles = () => ["login", "register"].map((mode) => mount(loginMarkup({ ...empty, mode })).querySelector("h1.g-auth__title").textContent);
+  assert.deepEqual(titles(), ["Sign in to your account", "Coach registration"]);
+  const fragment = mount(loginMarkup(empty));
+  assert.equal(fragment.querySelector('label[for="auth-login"]').textContent, "Username");
+  assert.equal(fragment.querySelector('.g-seg__item[href="#/login"]').textContent, "Login", "the tab keeps its name");
+  initLocale("ru");
+  try {
+    assert.deepEqual(titles(), ["Вход в аккаунт", "Регистрация тренера"]);
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("a refusal on sign-in leads with the «!» sign (LoginError)", () => {
+  const fragment = mount(loginMarkup({ ...empty, login: "felstell", password: "qwerty", error: { text: "Wrong login or password.", fields: ["login", "password"] } }));
+  assert.ok(fragment.querySelector('[role="alert"] .g-callout__icon svg.g-icon'));
+  assert.equal(mount(loginMarkup(empty)).querySelector('[role="alert"] .g-callout__icon'), null, "nothing to lead with until a try is refused");
+  assertStyled(fragment, ...SHEETS);
+});
+
+test("the pitch is 52px on a desk (DeskLogin) and the strength bars take the whole width with the word under them (M1, 4–5)", () => {
+  assert.ok(valuesOf("src/screens/auth/login.css", ".g-auth__pitch", "font").includes("700 52px/1.05 var(--font-display)"));
+  assert.deepEqual(valuesOf("src/screens/auth/login.css", ".g-meter", "grid-template-columns"), ["repeat(3, minmax(0, 1fr))"]);
+  assert.deepEqual(valuesOf("src/screens/auth/login.css", ".g-meter__label", "grid-column"), ["1 / -1"]);
 });
 
 test("registering asks for a contact and a repeat, and shows its rules only after the first try", () => {

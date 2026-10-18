@@ -29,9 +29,18 @@
   color: var(--on-warn-tint);
 }
 
+/* A fault leads with its sign, which stands at the first line of what it says, not at the middle of it. */
 .g-callout--danger {
+  align-items: flex-start;
   background: var(--danger-tint);
   color: var(--on-danger-tint);
+}
+
+/* The «!» is the fault's own red, not the text's: the words stay readable on the tint. */
+.g-callout__icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--danger);
 }
 
 /*

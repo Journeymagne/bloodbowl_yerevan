@@ -13,6 +13,8 @@ const SHAPES = {
   back: '<path d="M15 18l-6-6 6-6"/>',
   chevron: '<path d="M9 6l6 6-6 6"/>',
   check: '<path d="M5 12l5 5 9-10"/>',
+  // A fault's sign: a ring with the «!» in it, the line and its dot.
+  alert: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>',
   lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
   // The shell's: a chevron for the team that can be switched, and one glyph for each place the SideNav leads to.
   down: '<path d="M8 10l4 4 4-4"/>',

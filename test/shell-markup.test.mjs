@@ -131,13 +131,20 @@ test("a tab's focus ring is drawn inside it: the row scrolls, and a ring outside
   assert.deepEqual(valuesOf(HEADER_CSS, ".g-tabs", "overflow-x"), ["auto"]);
 });
 
-test("the header says the team with its race and place; the SideNav says the race and the league", () => {
+test("the header says the team with its race and place; the SideNav says the race alone, and the league for a guest", () => {
   const side = mount(renderSideNav(coach(), { locale: "en" }));
-  assert.equal(side.querySelector(".g-sidenav__sub").textContent, "Human · Gata League");
+  assert.equal(side.querySelector(".g-sidenav__sub").textContent, "Human");
   assert.equal(side.querySelector(".g-sidenav__name").textContent, "Ashgrove Wardens");
   const guestSide = mount(renderSideNav(guest, { locale: "en" }));
   assert.equal(guestSide.querySelector(".g-sidenav__name").textContent, "Gata League");
   assert.equal(guestSide.querySelector(".g-sidenav__sub").textContent, "Blood Bowl Sevens");
+});
+
+test("a race longer than the column is cut, not wrapped, and says itself whole on hover", () => {
+  const fragment = mount(renderSideNav(coach(), { locale: "en" }));
+  assert.equal(fragment.querySelector(".g-sidenav__sub").getAttribute("title"), "Human");
+  assert.deepEqual(valuesOf("src/shell/side-nav.css", ".g-sidenav__sub", "white-space"), ["nowrap"]);
+  assert.deepEqual(valuesOf("src/shell/side-nav.css", ".g-sidenav__sub", "text-overflow"), ["ellipsis"]);
 });
 
 test("only a team the coach can switch carries the chevron and its hint; a guest's league does not", () => {

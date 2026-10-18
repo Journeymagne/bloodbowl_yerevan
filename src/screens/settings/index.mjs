@@ -29,6 +29,7 @@ import { normalizeTelegram, telegramProblem } from "../../domain/account.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { renderKeyValueRow, renderNavRow } from "../../ui/list-row.mjs";
+import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderSegmentedControl, wireSegmentedControls } from "../../ui/segmented-control.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
 import { changePassword, passwordReady, passwordSheetMarkup, wirePasswordSheet } from "./password-sheet.mjs";
@@ -96,7 +97,7 @@ function accountHtml({ user, teamCount, telegram, telegramError }) {
   return identityHtml(user, teamCount)
     + (user.managedByServer === true ? managedHtml(user) : editableHtml(user, telegram, telegramError))
     + admin
-    + renderButton({ label: t("auth.logout"), kind: "danger-outline", block: true, data: { logout: true } });
+    + renderButton({ label: t("auth.logout"), kind: "danger-quiet", block: true, data: { logout: true } });
 }
 
 function guestHtml() {
@@ -126,11 +127,7 @@ function languageHtml(locale) {
  * @param {string} [props.appearanceHtml] markup from a render…() function: the theme picker
  */
 export function settingsMarkup({ user, teamCount, locale, telegram = "", telegramError = "", appearanceHtml = "" }) {
-  return `<section class="g-settings">
-    <div class="g-settings__head">
-      <h1 class="g-settings__title">${escapeHtml(t("settings.title"))}</h1>
-      <p class="g-settings__subtitle">${escapeHtml(t("settings.subtitle"))}</p>
-    </div>
+  return renderPageHead({ title: t("settings.title"), sub: t("settings.subtitle") }) + `<section class="g-settings">
     <section class="g-settings__section g-settings__account" aria-labelledby="settings-account-title">
       <h2 class="g-settings__heading" id="settings-account-title">${escapeHtml(t("auth.account"))}</h2>
       ${user ? accountHtml({ user, teamCount, telegram, telegramError }) : guestHtml()}

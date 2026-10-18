@@ -20,7 +20,7 @@ test("a coach with a team gets seven tabs and five side items, each to its place
   assert.deepEqual(keys(model.tabs), ["overview", "team", "roster", "matches", "table", "ref", "settings"]);
   assert.deepEqual(model.tabs.map((tab) => tab.href), ["#/t/t1", "#/t/t1/team", "#/t/t1/roster", "#/t/t1/matches", "#/season", "#/ref", "#/settings"]);
   assert.deepEqual(keys(model.side), ["overview", "roster", "season", "ref", "settings"]);
-  assert.deepEqual(model.brand, { name: "Ashgrove Wardens", sub: "Human · #2 in the league", sideSub: "Human · Gata League", href: "#/teams", switchTeam: true });
+  assert.deepEqual(model.brand, { name: "Ashgrove Wardens", sub: "Human · #2 in the league", sideSub: "Human", href: "#/teams", switchTeam: true });
 });
 
 test("an admin has administration on the desktop; the mobile reaches it from Settings", () => {
@@ -145,7 +145,7 @@ test("a coach without a team still reaches administration, and a name that is no
   assert.deepEqual(keys(model.side), ["overview", "season", "ref", "settings", "administration"]);
   assert.deepEqual(keys(model.tabs), ["overview", "table", "ref", "settings"]);
   assert.equal(model.brand.name, "No team yet");
-  assert.equal(model.brand.sub, "Create a team to start");
+  assert.equal(model.brand.sub, "Create a team");
   for (const name of ["constructor", "toString", "nowhere"]) {
     const unknown = shellModel(at(name));
     assert.deepEqual([current(unknown.tabs), current(unknown.side)], [[], []], name);
@@ -175,19 +175,21 @@ test("labels and the place read in the language of the page", () => {
     // The administration item carries a soft hyphen: in the 200px column the word would not fit, and breaks there.
     assert.deepEqual(model.side.map((item) => item.label), ["Обзор", "Состав", "Сезон", "Справочник", "Настройки", "Администри\u00ADрование"]);
     assert.equal(model.brand.sub, "Human · 2-е место в лиге");
-    assert.equal(model.brand.sideSub, "Human · Gata League");
+    assert.equal(model.brand.sideSub, "Human");
     assert.deepEqual(shellModel(at("home", { user: null, team: null })).tabs.map((tab) => tab.label), ["Главная", "Таблица", "Справочник", "Настройки"]);
   } finally {
     initLocale("en");
   }
 });
 
-test("the desktop's subtitle is the race and the league: the place is the table's to say there", () => {
-  assert.equal(shellModel(at("team")).brand.sideSub, "Human · Gata League");
-  assert.equal(shellModel(at("team", { place: null })).brand.sideSub, "Human · Gata League");
-  assert.equal(shellModel(at("team", { raceTitle: "" })).brand.sideSub, "Gata League");
+test("the SideNav names the race alone: «Human · Gata League» broke onto two lines for almost every race (M1, 1)", () => {
+  const model = (raceTitle) => shellModel({ route: { name: "teamRoster", params: {} }, user: { id: "u1" }, team: { id: "t1", name: "W" }, raceTitle, place: 2 });
+  assert.equal(model("Underworld Denizens").brand.sideSub, "Underworld Denizens");
+  assert.equal(model("").brand.sideSub, "Gata League", "a race the data does not know names the league");
+  assert.equal(model("Human").brand.sub, "Human · #2 in the league", "the phone's header keeps the place");
+  assert.equal(shellModel(at("team", { place: null })).brand.sideSub, "Human", "the place is the table's to say on a desk");
   const noTeam = shellModel(at("home", { team: null, raceTitle: "", place: null })).brand;
-  assert.deepEqual([noTeam.sideSub, noTeam.sub], ["Create a team to start", "Create a team to start"]);
+  assert.deepEqual([noTeam.sideSub, noTeam.sub], ["Create a team", "Create a team"]);
 });
 
 test("every glyph the model hands out, in every mode, is one icon() can draw", () => {

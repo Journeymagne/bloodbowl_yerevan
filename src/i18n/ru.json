@@ -84,6 +84,8 @@
   "auth.signedInAs": "Вы вошли как",
   "auth.account": "Аккаунт",
   "auth.register": "Регистрация",
+  "auth.title.login": "Вход в аккаунт",
+  "auth.title.register": "Регистрация тренера",
   "home.heroTitle": "Gata Blood Bowl League",
   "home.heroSubtitle": "Команды, звёздные игроки, навыки, черты и правила лиги — всё в одном справочнике с поиском.",
   "home.overviewTitle": "Обзор",

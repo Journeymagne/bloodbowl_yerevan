@@ -5,6 +5,7 @@ import test from "node:test";
 import { assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
+import { valuesOf } from "./helpers/contrast.mjs";
 
 const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
@@ -27,6 +28,11 @@ test("a coach with no team sees an empty overview with one way forward", () => {
 test("the empty overview's stylesheet reaches the page", () => {
   const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.ok(styles.includes('@import url("screens/team/empty.css");'));
+});
+
+test("on a desk «Create a team» is as wide as its words, not the whole content (M1, 7)", () => {
+  assert.ok(valuesOf("src/screens/team/empty.css", ".g-team-empty .g-btn--primary", "width").includes("auto"));
+  assert.ok(valuesOf("src/screens/team/empty.css", ".g-team-empty .g-btn--primary", "min-width").includes("240px"));
 });
 
 // R10: a coach /me knows, whose list of teams could not be read, is not a coach with no team.

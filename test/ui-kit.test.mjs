@@ -47,6 +47,8 @@ test("icons are decorative stroke SVGs and an unknown one is a bug", () => {
     assertCspSafe(fragment);
     assertStyled(fragment);
   }
+  // The fault's sign: a ring with the «!» in it, the line and its dot.
+  assert.ok(icon("alert").includes('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'));
   assert.throws(() => icon("rocket"), /unknown icon/);
   // A name Object.prototype owns is no more an icon than a name nobody wrote.
   assert.throws(() => icon("toString"), /unknown icon/);

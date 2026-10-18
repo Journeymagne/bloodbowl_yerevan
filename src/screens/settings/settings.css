@@ -4,12 +4,12 @@
  * (shell.css h1/h2 at weight 800, the roster tables' headings) outlive this
  * sheet until stage 13.
  *
- * Up to 900px it is one column, the account first, and the page title is only
- * for a screen reader (the shell's header names the screen). From 901px the
- * appearance sits at the left and the account at the right (below it, where
- * the two do not fit), each on a card under the title; the language and the
- * way into administration are the side navigation's then, so they are not
- * drawn here.
+ * Up to 900px it is one column, the account first. The title is the page
+ * head's (ui/page-head.mjs), drawn before this section: only for a screen
+ * reader on a phone, a band on a desk. From 901px the appearance sits at the
+ * left and the account at the right (below it, where the two do not fit),
+ * each on a card under the band; the language and the way into administration
+ * are the side navigation's then, so they are not drawn here.
  */
 .g-settings {
   box-sizing: border-box;
@@ -22,35 +22,6 @@
   font: 400 16px/1.3 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
-}
-
-/* The title is for a screen reader on a phone. */
-.g-settings__head {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  margin: -1px;
-  padding: 0;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
-  clip-path: inset(50%);
-  white-space: nowrap;
-  border: 0;
-}
-
-.g-settings__title {
-  margin: 0;
-  color: var(--ink);
-  font: 700 32px/1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-settings__subtitle {
-  margin: var(--space-4) 0 0;
-  color: var(--muted);
-  font: 400 14px/1.4 var(--font-body);
-  text-transform: none;
 }
 
 .g-settings__section {
@@ -169,7 +140,7 @@
 .g-settings__admin .g-list-row__title { font: 700 15px/1.3 var(--font-body); }
 .g-settings__admin .g-list-row__desc { font-size: 12px; }
 
-.g-settings .g-btn--danger-outline { min-height: 48px; }
+.g-settings .g-btn--danger-quiet { min-height: 48px; }
 
 .g-settings__language {
   display: flex;
@@ -198,18 +169,6 @@
     flex-wrap: wrap;
     align-items: flex-start;
     gap: var(--space-20);
-  }
-
-  .g-settings__head {
-    position: static;
-    flex: 1 0 100%;
-    width: auto;
-    height: auto;
-    margin: 0;
-    overflow: visible;
-    clip: auto;
-    clip-path: none;
-    white-space: normal;
   }
 
   .g-settings__section {

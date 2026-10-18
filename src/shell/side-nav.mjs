@@ -54,14 +54,15 @@ export function renderSiteFooter({ generatedAt = "", locale }) {
 
 /**
  * The crest and the name with the line under it, as one link to where the teams are; a chevron and a
- * hidden hint when the team can be switched. The name is cut at three lines, so it carries itself whole as its title.
+ * hidden hint when the team can be switched. The name is cut at three lines and the race at one, so each
+ * carries itself whole as its title.
  */
 function renderTeamBlock({ name, sideSub, href, switchTeam }) {
   assertLinkHref(href);
   const chevron = switchTeam ? renderIcon("down", 16) : "";
   const hint = switchTeam ? `<span class="g-sr-only">${escapeHtml(t("shell.switchTeam"))}</span>` : "";
   return `<a class="g-sidenav__team" href="${escapeHtml(href)}">${renderCrest({ size: "sm" })}`
-    + `<span class="g-sidenav__titles"><span class="g-sidenav__name" title="${escapeHtml(name)}">${escapeHtml(name)}</span><span class="g-sidenav__sub">${escapeHtml(sideSub)}</span></span>${chevron}${hint}</a>`;
+    + `<span class="g-sidenav__titles"><span class="g-sidenav__name" title="${escapeHtml(name)}">${escapeHtml(name)}</span><span class="g-sidenav__sub" title="${escapeHtml(sideSub)}">${escapeHtml(sideSub)}</span></span>${chevron}${hint}</a>`;
 }
 
 function renderLink({ label, href, icon, current }) {
