@@ -4,7 +4,7 @@ import { playerCurrentCost } from '../roster/costs.mjs';
 import { applyAdvancement, canTakeAdvancement, checkAdvancementGrant } from '../roster/progression.mjs';
 import { rowsForTeam, rosterMax, costToNumber } from '../roster/values.mjs';
 import { teamHasSpecialRule, availableMedicalStaffDefinitions, hasBribery, favouredSkillsForChoice } from '../roster/team-rules.mjs';
-import { builderStaffCosts, builderStaffMaximums } from '../league-rules.mjs';
+import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from '../league-rules.mjs';
 import { isLineman } from '../match/roster.mjs';
 import { effectiveInjury, postError, FAVOURED_ROLLS, postDie, postCount } from './rules.mjs';
 import { earnedCounters } from './statistics.mjs';
@@ -130,7 +130,7 @@ function applyStaff(roster, side, operation) {
   if (key === 'teamRerolls' && delta === -1) throw postError('POST_ACTION');
   const next = Number(roster[key]) + delta;
   const rerolls = next + Number(roster.startingRerolls || 0);
-  if (next < 0 || next > builderStaffMaximums[key] || (key === 'teamRerolls' && rerolls > 8)) throw postError('POST_POSITION');
+  if (next < 0 || next > builderStaffMaximums[key] || (key === 'teamRerolls' && rerolls > combinedRerollsMaximum)) throw postError('POST_POSITION');
   roster[key] = next;
   if (delta > 0) { roster.treasury = sumMoney(roster.treasury, -builderStaffCosts[key]); roster.purchasedStaff[key] = Number(roster.purchasedStaff[key] || 0) + 1; }
   else roster.purchasedStaff[key] = Math.min(roster.purchasedStaff[key], next);

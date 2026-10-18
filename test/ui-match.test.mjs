@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { assertContrast, assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
-import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
+import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderButton } from "../src/ui/button.mjs";
 import { renderFormStrip } from "../src/ui/form-strip.mjs";
@@ -84,6 +84,29 @@ test("an empty grid draws nothing, an odd one gives its last tile the row, and a
   assert.match(desk, /\.g-kpis--row \{[^}]*grid-auto-flow: column/);
   assert.match(desk, /\.g-kpis--row > \.g-kpi:last-child:nth-child\(odd\) \{[^}]*grid-column: auto/);
   assert.ok(!css.replace(desk, "").includes(".g-kpis--row"), "the row rules are not outside the 901px query");
+});
+
+test("a tile may lead somewhere: a link with the same face (06 → 08: the treasury tile)", () => {
+  const fragment = mount(renderKpiGrid([{ label: "Treasury", value: "120k", href: "#/t/t1/team" }, { label: "TV", value: "1 000k" }]));
+  assert.equal(fragment.querySelector("a.g-kpi.g-kpi--link").getAttribute("href"), "#/t/t1/team");
+  assert.equal(fragment.querySelector("a.g-kpi .g-kpi__k").textContent, "Treasury");
+  assert.equal(fragment.querySelectorAll("div.g-kpi").length, 1);
+  assert.throws(() => renderKpiTile({ label: "x", value: 1, href: "javascript:alert(1)" }));
+  assertStyled(fragment, "kpi-tile.css");
+  const link = mount(renderKpiTile({ label: HOSTILE, value: "1", href: `#/t/${HOSTILE}` })).querySelector("a");
+  assert.deepEqual([link.getAttribute("class"), link.getAttribute("href"), link.querySelector(".g-kpi__k").textContent], ["g-kpi g-kpi--link", `#/t/${HOSTILE}`, HOSTILE]);
+  assert.equal(document.querySelector("img"), null);
+  assertCspSafe(mount(renderKpiTile({ label: "Treasury", value: "1", href: "#/t/t1/team" })));
+});
+
+test("a link tile has no underline and shows a hover in every palette: a shade of the ink, not --surface-3 (K13)", () => {
+  const sheet = "src/ui/kpi-tile.css";
+  assert.deepEqual(valuesOf(sheet, "a.g-kpi--link", "text-decoration"), ["none"]);
+  assert.deepEqual(valuesOf(sheet, "a.g-kpi--link", "cursor"), ["pointer"]);
+  const [hover] = valuesOf(sheet, "a.g-kpi--link:hover", "background");
+  // The tile is --surface-2; --surface-3 is the same colour in the dark palettes, and a hover there would show nothing.
+  assertContrast(hover, ["--surface-2"], 1.1, { what: "the hover of a link tile" });
+  assert.deepEqual(valuesOf(sheet, "a.g-kpi--link:focus-visible", "outline"), [], "the keyboard ring is base.css's");
 });
 
 test("a result pill is the letter, with the word for screen readers", () => {

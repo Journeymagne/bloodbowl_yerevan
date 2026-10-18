@@ -16,11 +16,17 @@
  * editor's staff steppers still had. The "-" stays plainly `disabled`, because
  * the only reason it ever refuses is that the number next to it already reads
  * zero, and that needs no explaining.
+ *
+ * A re-roll the team's stage may not buy (stage.mjs) refuses its "+" with the
+ * reason, as the server would answer 422 STAGE_PURCHASE_LOCKED — and a refused
+ * autosave would stay at the head of the store's queue and fail every save
+ * after it. The admin route is held to no stage, so it passes none.
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { builderStaffCosts, builderStaffMaximums, startingBudget } from "../../domain/league-rules.mjs";
 import { countToNumber } from "../../domain/roster/values.mjs";
+import { canBuy } from "../../domain/roster/stage.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "../../domain/roster/team-rules.mjs";
 
 /**
@@ -31,9 +37,13 @@ import { availableMedicalStaffDefinitions, hasBribery } from "../../domain/roste
  * @param {number|string} value what the draft holds now
  * @param {object} mode CREATE_MODE or LEAGUE_MODE
  * @param {number} committedTotal what the roster already costs, for the budget check
+ * @param {string|null} stage the team's stage, or nothing when no stage applies
  * @returns {{blocked: boolean, title: string}}
  */
-function staffStepVerdict(key, title, value, mode, committedTotal = 0) {
+function staffStepVerdict(key, title, value, mode, committedTotal = 0, stage = null) {
+  // The stage comes first: a team at the maximum of a re-roll its stage locks is
+  // told about the stage, which is the reason that will still hold after it sells one.
+  if (stage != null && !canBuy(stage, key)) return { blocked: true, title: t(`treasury.lock.${key}`) };
   const max = builderStaffMaximums[key] ?? 6;
   if (countToNumber(value) >= max) return { blocked: true, title: t("validation.STAFF_MAX", { title, max }) };
   if (mode.enforcesBudget && committedTotal + (builderStaffCosts[key] ?? 0) > startingBudget) {
@@ -66,10 +76,12 @@ export function staffCostDescription(key) {
  * @param {string} [options.description] overrides the price line — a dedicated fan
  *   in a league team was not bought, it accrued, so its card says so instead
  * @param {boolean} [options.readOnly] disable buttons and omit mutation attributes
+ * @param {string|null} [options.stage] the team's stage; a re-roll it may not
+ *   buy refuses the "+". Nothing (an administrator, a public team) checks none.
  */
-export function renderStaffControl({ key, title, value, mode, committedTotal = 0, description, readOnly = false }) {
+export function renderStaffControl({ key, title, value, mode, committedTotal = 0, description, readOnly = false, stage = null }) {
   const current = countToNumber(value);
-  const verdict = staffStepVerdict(key, title, value, mode, committedTotal);
+  const verdict = staffStepVerdict(key, title, value, mode, committedTotal, stage);
   const down = readOnly || current <= 0 ? "disabled" : "";
   return `
     <div class="builder-addon compact-staff-control ${mode.staffCardClass}">

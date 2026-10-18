@@ -1,0 +1,504 @@
+/*
+ * The team page and its sheets (stage 08): the treasury, the resources, the history, Coach's Safe; the strip is
+ * strip.css. Font, border, background, text-transform, letter-spacing and font-weight are set here on purpose: the
+ * 2.x globals (button { font: inherit }, p, h2) outlive this sheet until stage 13. The keyboard ring is base.css's.
+ */
+
+/* «Add / Take»: the sign, the amounts, the reason, the comment, the treasury after it. */
+.g-money {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* «Correct by hand»: the two amounts, the treasury after it, the refusal. */
+.g-fix {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The sign's segments are a finger's size, as the login's and the settings' are: the kit's segment is 40px. */
+.g-money .g-seg__item { min-height: var(--size-touch); }
+
+/* The amounts to press and the reasons: rows that wrap, not a strip that scrolls. */
+.g-money__presets,
+.g-money__reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+}
+
+.g-money__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+/* The field label's own look (text-field.css); the group's name is read from the radio group, so this one is not. */
+.g-money__label {
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-money__preset,
+.g-money__reason {
+  box-sizing: border-box;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0 var(--space-16);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--ink);
+  font: 600 14px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.g-money__preset[aria-pressed="true"],
+.g-money__reason[aria-checked="true"] {
+  border-color: var(--header);
+  background: var(--header);
+  color: var(--header-ink);
+}
+
+/* «Treasury: 70k → 112.5k»: the sentence at the left, the figure it comes to at the right. The fix sheet's line is the same. */
+.g-money__preview,
+.g-fix__preview {
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-money__preview > :last-child,
+.g-fix__preview > :last-child {
+  color: var(--ink);
+  font: 700 22px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A debit the treasury cannot cover: the figure is below zero. */
+.g-money__preview--short > :last-child,
+.g-fix__preview--short > :last-child { color: var(--danger); }
+
+/* A live region that must stand on the page before it speaks, and takes no room while it is empty: it gives back the column's gap. */
+.g-money__alert,
+.g-fix__alert { margin: 0; }
+.g-money__alert:empty,
+.g-fix__alert:empty { margin-top: calc(-1 * var(--space-16)); }
+
+/* «Resources», «History» and «Coach's Safe»: cards of one look. Resources is a card of counters and switches, each row its own line (resource-counter.css, toggle.css). */
+.g-manage__resources,
+.g-manage__history,
+.g-manage__safe {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-4) var(--space-16) var(--space-12);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/*
+ * The sub line does not wrap, so on a narrow card (a phone, a desk just past 900px) it drops under the title: the h2's
+ * margin is the space between them, and the sub's own margin keeps the head's 12px above the first row.
+ */
+.g-manage__resources-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-12);
+}
+
+.g-manage__resources-title,
+.g-manage__history-title {
+  margin: var(--space-12) 0;
+  color: var(--ink);
+  font: 700 26px/1.1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Beside the title its margin ends above the h2's, so a head on one line keeps its height. */
+.g-manage__resources-sub {
+  margin-bottom: var(--space-12);
+  color: var(--muted);
+  font: 400 12px/1.3 var(--font-body);
+  white-space: nowrap;
+}
+
+/*
+ * A medic's switch that cannot be pressed says why under its name (resources.mjs). The kit dims a disabled switch
+ * whole (toggle.css), which left the reason at 2.5:1; here it is drawn as a locked counter is (resource-counter.css):
+ * the name --faint, the reason --muted, the track dimmed.
+ */
+.g-manage__resources .g-toggle:disabled { opacity: 1; }
+.g-manage__resources .g-toggle:disabled .g-toggle__label { color: var(--faint); }
+.g-manage__resources .g-toggle:disabled .g-toggle__caption { color: var(--muted); }
+.g-manage__resources .g-toggle:disabled .g-toggle__track { opacity: .6; }
+
+/* The explanation under a card's rows. */
+.g-manage__note {
+  margin: var(--space-12) 0 0;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* «History»: a line is its title, its comment, its day and, spanning them at the right, its amount. A row is 60px, the touch size and a little over. */
+.g-ledger {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-ledger__row {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-12);
+  align-items: center;
+  min-height: 60px;
+  margin: 0;
+  padding: var(--space-8) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.g-ledger__title {
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The comment is the coach's own words and can be long, or one word with no breaks in it. */
+.g-ledger__note,
+.g-ledger__when {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-ledger__amount {
+  grid-row: 1 / span 3;
+  grid-column: 2;
+  color: var(--ink);
+  font: 700 15px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.g-ledger__amount--in { color: var(--accent-text); }
+.g-ledger__amount--out { color: var(--danger); }
+
+/* Not read yet, nothing yet, or not read at all: one quiet line in the card's place for the list. */
+.g-ledger__state {
+  margin: 0;
+  padding: var(--space-12) 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-ledger__actions {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-16);
+}
+
+.g-ledger__action {
+  box-sizing: border-box;
+  min-width: var(--size-touch);
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: 600 15px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-ledger__action:hover { text-decoration: underline; }
+
+.g-ledger__since {
+  margin: 0;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* «Coach's Safe»: the name and the rule at the left, what the safe holds at the right. */
+.g-manage__safe {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-12);
+  align-items: center;
+  padding: var(--space-12) var(--space-16);
+}
+
+.g-manage__safe-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-manage__safe-title {
+  margin: 0;
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-manage__safe-rule,
+.g-manage__safe-last {
+  margin: 0;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-manage__safe-amount {
+  color: var(--ink);
+  font: 700 28px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/*
+ * The page (index.mjs): the head, the callout of a match, the strip (a desk's) or the treasury card (a phone's), then
+ * the safe and its correction, the resources and the history, in that order on a phone (TeamManage). From 901px the
+ * card gives way to the strip and the rest stands in two columns (DeskRosterFunds): the resources at the left, the
+ * safe, the correction and the history at the right, placed by grid areas. The DOM stays in the phone's order, so on a
+ * desk the keyboard goes from the safe to the resources and then to the history: each block is whole on its own, as
+ * the build's (stage 06).
+ */
+.g-manage {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The column's gap is the space under the head on a phone; on a desk the band keeps its 24px (with the gap). */
+.g-manage .g-pagehead { margin-bottom: 0; }
+
+/* The phone's treasury: the dark card of the header's colour, the sum and the team's value at the left, the two buttons at the right. */
+.g-manage__card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-12);
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-16) var(--space-20);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The keyboard ring on the dark card is the header's ink, as on the app bar: the accent is for a page. */
+.g-manage__card :focus-visible { outline-color: var(--header-ink); }
+
+.g-manage__card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-manage__card-title {
+  margin: 0;
+  padding: 0;
+  color: var(--header-muted);
+  font: 600 12px/1.2 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.g-manage__card-sum {
+  color: var(--header-ink);
+  font: 700 40px/1 var(--font-display);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-manage__card-tv {
+  color: var(--header-muted);
+  font: 400 13px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-manage__card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/*
+ * «+ Add» is the light button of the dark band (the match board's): the header's ink with the header's colour, which
+ * stands out on the card in every palette, where a dark palette's --surface would not. «− Take» is outlined.
+ */
+.g-manage__in,
+.g-manage__out {
+  box-sizing: border-box;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0 var(--space-16);
+  border-radius: var(--radius-md);
+  font: 700 15px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.g-manage__in {
+  border: 1px solid var(--header-ink);
+  background: var(--header-ink);
+  color: var(--header);
+}
+
+.g-manage__out {
+  border: 1px solid var(--header-muted);
+  background: transparent;
+  color: var(--header-ink);
+}
+
+.g-manage__in[aria-disabled="true"],
+.g-manage__out[aria-disabled="true"],
+.g-manage__fix[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* The safe and its correction; on a desk, the right column's top. */
+.g-manage__cols,
+.g-manage__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* «Correct the treasury by hand»: a text button under the safe, as tall as a finger. */
+.g-manage__fix {
+  box-sizing: border-box;
+  align-self: flex-start;
+  min-height: var(--size-touch);
+  margin: calc(-1 * var(--space-8)) 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: 600 15px/1 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-manage__fix:hover:not([aria-disabled="true"]) { text-decoration: underline; }
+
+/* On a phone the team's value is in the card: the head says the title and the phase. */
+@media (max-width: 900px) {
+  .g-manage .g-pagehead__sub { display: none; }
+}
+
+@media (min-width: 901px) {
+  .g-manage .g-pagehead { margin-bottom: var(--space-8); }
+
+  /* The strip says the treasury. */
+  .g-manage__card { display: none; }
+
+  .g-manage__cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "resources side" "resources history";
+    gap: var(--space-16) var(--space-20);
+    align-items: start;
+  }
+
+  .g-manage__resources { grid-area: resources; }
+  .g-manage__side { grid-area: side; }
+  .g-manage__history { grid-area: history; }
+}

@@ -86,6 +86,19 @@ test("the history pages newest first by the database's own time and id: 25 lines
   assert.notEqual(last.body.entries[0].id, big.body.entries[25].id);
 }));
 
+test("the history counts every line of the team whatever page is asked for, and no other team's (08: «Вся история · N»)", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id), other = await seedTeam(client, coach.id, { name: "Wolves" });
+  assert.equal((await ledger(id, coach.token)).body.total, 0);
+  await client.query("BEGIN");
+  await writeLedgerEntries(client, { teamId: id, opening: 0, entries: Array.from({ length: 25 }, (_, i) => ({ kind: "manual", delta: i + 1 })) });
+  await writeLedgerEntries(client, { teamId: other, opening: 0, entries: [{ kind: "manual", delta: 1 }] });
+  await client.query("COMMIT");
+  const first = await ledger(id, coach.token, "?limit=3");
+  assert.deepEqual([first.body.entries.length, first.body.total], [3, 25]);
+  assert.equal((await ledger(id, coach.token, `?before=${first.body.next}&limit=3`)).body.total, 25);
+  assert.equal((await ledger(other, coach.token)).body.total, 1);
+}));
+
 test("an empty ?before= is the first page: a client that sends the cursor it holds, empty when it holds none, starts at the top", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   assert.equal((await treasury(id, coach.token, { delta: 5 })).status, 201);

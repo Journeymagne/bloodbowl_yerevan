@@ -7,14 +7,15 @@
  * `created_at` is `clock_timestamp()`, not `now()`: `now()` is the same for the
  * whole transaction, and the several lines of one save would lose their order.
  *
- * Reading. `readLedgerPage` pages the history newest first. `pg` returns the `numeric` amounts as
- * strings and the reader turns them into numbers: they are thousands to the gold, three decimals
- * at most, which a double holds exactly. The cursor is the row's own `created_at::text` and id:
- * a JS `Date` keeps milliseconds, two lines of one save share one, and paging by it would skip or
- * repeat them. The text keeps the microseconds, and the id settles a tie.
+ * Reading. `readLedgerPage` pages the history newest first, and `countLedgerLines` says how long it
+ * is. `pg` returns the `numeric` amounts as strings and the reader turns them into numbers: they are
+ * thousands to the gold, three decimals at most, which a double holds exactly. The cursor is the
+ * row's own `created_at::text` and id: a JS `Date` keeps milliseconds, two lines of one save share
+ * one, and paging by it would skip or repeat them. The text keeps the microseconds, and the id
+ * settles a tie.
  */
 import { isMoneyAmount, sumMoney } from "../../src/domain/money.mjs";
-import { MANUAL_REASONS, ledgerRows } from "../../src/domain/roster/ledger.mjs";
+import { MANUAL_REASONS, MAX_ENTRY, MAX_NOTE, ledgerRows } from "../../src/domain/roster/ledger.mjs";
 import { httpError } from "../http/errors.mjs";
 import { isUuid } from "./team-access.mjs";
 
@@ -128,6 +129,19 @@ export async function readLedgerPage(db, teamId, { before = null, limit = LEDGER
 }
 
 /**
+ * How many lines the team's history holds, whatever page is read: what a screen says as «all the
+ * history, N». Read in the page's own snapshot, so the number and the page agree.
+ *
+ * @param {{ query: Function }} db a pg pool, or the client of a transaction
+ * @param {string} teamId
+ * @returns {Promise<number>}
+ */
+export async function countLedgerLines(db, teamId) {
+  const { rows } = await db.query("SELECT count(*)::int AS total FROM team_ledger WHERE saved_team_id = $1", [teamId]);
+  return rows[0].total;
+}
+
+/**
  * When the history begins: the day migration 010 was applied. Nothing before it was recorded, and
  * nothing is guessed (the ledger is not backfilled).
  *
@@ -139,18 +153,15 @@ export async function ledgerSince(db) {
   return rows[0]?.applied_at ?? null;
 }
 
-const MAX_MANUAL_AMOUNT = 100000;
-const MAX_NOTE_LENGTH = 200;
-
 /** A number of thousands, either sign, that moves at least a gold and not more than one entry may. */
 function isManualAmount(delta) {
-  return typeof delta === "number" && sumMoney(delta) !== 0 && isMoneyAmount(Math.abs(delta)) && Math.abs(delta) <= MAX_MANUAL_AMOUNT;
+  return typeof delta === "number" && sumMoney(delta) !== 0 && isMoneyAmount(Math.abs(delta)) && Math.abs(delta) <= MAX_ENTRY;
 }
 
 /**
  * The hand-written entry a request body asks for, checked: an amount to the gold that is not zero and
- * not more than 100000 either way, one of `MANUAL_REASONS`, and a note of at most 200 characters that
- * may be left out (an empty one is none) and holds no NUL (U+0000, which no text column of Postgres
+ * not more than `MAX_ENTRY` either way, one of `MANUAL_REASONS`, and a note of at most `MAX_NOTE` characters
+ * that may be left out (an empty one is none) and holds no NUL (U+0000, which no text column of Postgres
  * holds: it would be a 500).
  *
  * @param {unknown} body whatever the request carried; it need not be an object
@@ -163,6 +174,6 @@ export function checkManualEntry(body) {
   if (!isManualAmount(delta)) throw httpError(400, "FIELD_INVALID", { field: "delta" });
   if (!MANUAL_REASONS.includes(reason)) throw httpError(400, "FIELD_INVALID", { field: "reason" });
   const text = note ?? "";
-  if (typeof text !== "string" || text.trim().length > MAX_NOTE_LENGTH || text.includes("\u0000")) throw httpError(400, "FIELD_INVALID", { field: "note" });
+  if (typeof text !== "string" || text.trim().length > MAX_NOTE || text.includes("\u0000")) throw httpError(400, "FIELD_INVALID", { field: "note" });
   return { delta: sumMoney(delta), reason, note: text.trim() || null };
 }

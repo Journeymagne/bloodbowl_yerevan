@@ -123,15 +123,18 @@ export function addMyTeam(team) {
 /**
  * The request got no answer to stand behind: the connection was lost, it took too long, a proxy answered with none of
  * the server's words in it, or the server failed (a 5xx: its INSERT may have committed before `readPublicTeam` did).
- * The team may exist all the same.
+ * The team may exist all the same. The treasury's writes ask it too (data/treasury.mjs): a line may be written.
  */
-function unanswered(error) {
+export function unanswered(error) {
   return error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT || error?.status >= 500
     || (error?.kind === API_ERROR.HTTP && !error.code);
 }
 
-/** The refusal, and with it each rule a roster breaks (422), worded as the roster editor words them. */
-function createRefusal(error) {
+/**
+ * The refusal, and with it each rule a roster breaks (422), worded as the roster editor words them. A build, an
+ * entry in the treasury and a roster save are refused the same way (data/treasury.mjs words its writes with it).
+ */
+export function refusalWithRules(error) {
   const rules = error?.code === "ROSTER_BREAKS_THE_RULES" ? error.violations ?? [] : [];
   return [refusalText(error), ...rules.map(({ code, params }) => t(`validation.${code}`, params))].join(" ");
 }
@@ -179,7 +182,7 @@ async function lookForMade(attempt) {
 
 /** A build that got no answer may still have made the team: look for it, and remember that it is not known. */
 async function recoverMade(error, attempt) {
-  if (!unanswered(error)) return { refusal: createRefusal(error) };
+  if (!unanswered(error)) return { refusal: refusalWithRules(error) };
   attempt.error = error;
   const found = await lookForMade(attempt);
   if (found?.team) return found;

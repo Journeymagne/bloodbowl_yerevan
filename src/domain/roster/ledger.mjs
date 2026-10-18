@@ -44,6 +44,12 @@ export const LEDGER_KINDS = Object.freeze([
  */
 export const MANUAL_REASONS = Object.freeze(["friendly", "sponsor", "fine", "purchase", "other"]);
 
+/** The largest hand-written entry, in thousands either way. The server refuses more; the team page checks it before it sends. */
+export const MAX_ENTRY = 100000;
+
+/** The longest note on a hand-written entry, in characters once trimmed. */
+export const MAX_NOTE = 200;
+
 /** A post-match operation's own line; a staff operation's depends on its sign. */
 const POST_MATCH_OPERATION_KINDS = Object.freeze({ hire: "hire", keep: "hire", raise: "hire", sell: "sale" });
 
