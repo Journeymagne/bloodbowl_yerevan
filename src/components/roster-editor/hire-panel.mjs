@@ -34,7 +34,6 @@ import { costToNumber, rosterMax, rowCost, rowsForTeam } from "../../domain/rost
 import { renderRosterLinks } from "../content-links.mjs";
 import { iconButton } from "../icons.mjs";
 import { renderAccessCell, renderRosterStatCells } from "../roster-editor-shared.mjs";
-import { renderRosterStatGrid } from "../../screens/detail.mjs";
 import { toast } from "../toast.mjs";
 
 /**
@@ -145,6 +144,18 @@ export function renderHirePanel(team, draft, mode, { cardsOnly = false } = {}) {
         ${rows.map((row, rowIndex) => renderHireCard(row, fields[rowIndex])).join("")}
       </div>
     ` : ""}
+  `;
+}
+
+export function renderRosterStatGrid(row) {
+  return `
+    <dl class="team-stat-grid">
+      <div><dt>${t("stats.ma")}</dt><dd>${escapeHtml(row.ma || "-")}</dd></div>
+      <div><dt>${t("stats.st")}</dt><dd>${escapeHtml(row.st || "-")}</dd></div>
+      <div><dt>${t("stats.ag")}</dt><dd>${escapeHtml(row.ag || "-")}</dd></div>
+      <div><dt>${t("stats.pa")}</dt><dd>${escapeHtml(row.pa || "-")}</dd></div>
+      <div><dt>${t("stats.ar")}</dt><dd>${escapeHtml(row.ar || "-")}</dd></div>
+    </dl>
   `;
 }
 

@@ -6,7 +6,7 @@
  * `wireRegistration` used to call `renderSeason(false)` directly; it now
  * takes the re-render as a `rerender` callback so this module and
  * screens/season/index.mjs don't import each other — the same shape as
- * components/filters.mjs's `wireFilters`.
+ * `wireRosterNotices(root, handlers)` in components/roster-notices.mjs.
  */
 import { escapeHtml, renderOption } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";

@@ -68,10 +68,6 @@ function handleHistoryBack(event) {
 }
 
 function wireFrame() {
-  document.querySelector("#global-search")?.addEventListener("input", (event) => {
-    state.query = event.currentTarget.value;
-    renderRoute();
-  });
   view.addEventListener("click", handleHistoryBack);
   document.querySelector("[data-skip-to-content]")?.addEventListener("click", () => view.focus());
   window.addEventListener("beforeunload", (event) => {

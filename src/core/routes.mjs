@@ -112,11 +112,6 @@ export function seasonTabUrl(tab) {
   return tab ? `#/season/${encodeURIComponent(tab)}` : "#/season";
 }
 
-/** The list a content page goes back to: a reference section, or home. */
-export function listUrlForRoute(route) {
-  return route === "home" ? "#/" : refUrl(route);
-}
-
 // ---------------------------------------------------------------------------
 // Reading links
 // ---------------------------------------------------------------------------

@@ -1,0 +1,496 @@
+/*
+ * The reference's frame (screens/ref/frame.mjs) and its index (index.mjs). Font, border, background,
+ * text-transform and letter-spacing are set here on purpose: the 2.x globals (h1 to h6, a, the form
+ * controls) outlive this sheet until stage 13.
+ *
+ * Up to 900px it is one column and the head shows on the index only: the phone's header names every
+ * other reference screen, and the table of contents is the index itself, one tap up (the way back is
+ * the link at the top of a screen). From 901px the head is a white band across the top with the title
+ * at the left and the search at the right, the table of contents stands beside the content, and the
+ * index lays its groups out in two columns. A list (list.mjs) is the same page with its own head: up to
+ * 900px a column of rows, and a split page (skills, traits) shows either the list or, once one is
+ * chosen, its panel; from 901px the contents, the list in a card and, on a split page, the panel stand
+ * in columns that shrink with the window and never wrap. The articles and the panel's content are the
+ * sheets of the screens that draw them.
+ */
+.g-ref {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The head: the title, the league's name under it, then the search. */
+.g-ref-head {
+  box-sizing: border-box;
+  display: none;
+  flex-direction: column;
+  gap: var(--space-4);
+  border: 0;
+  background: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-ref--index .g-ref-head { display: flex; }
+
+.g-ref-head__title {
+  margin: 0;
+  color: var(--ink);
+  font: 700 32px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-head__sub {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-head .g-search { margin-top: var(--space-16); }
+
+.g-ref__body {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+}
+
+.g-ref__main,
+.g-ref__panel {
+  min-width: 0;
+}
+
+/* The index: its groups one under another. */
+.g-ref-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.g-ref-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  background: none;
+}
+
+.g-ref-group__title {
+  margin: 0 0 var(--space-4);
+  color: var(--muted);
+  font: 700 13px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* What a search found, and how many; or that it found nothing. */
+.g-ref-results {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  background: none;
+}
+
+.g-ref-found {
+  margin: 0 0 var(--space-4);
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-empty {
+  margin: 0;
+  padding: var(--space-16) 0;
+  color: var(--ink-2);
+  font: 400 15px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The way up from a screen, for a phone. */
+.g-ref-back {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-6);
+  min-height: 44px;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+/* On a phone the panel of a chosen skill is the screen, and this is its way up to the list. */
+.g-ref__panel > .g-ref-back { margin-bottom: var(--space-8); }
+
+/* The table of contents is the desktop's; a phone has the index. */
+.g-ref-toc { display: none; }
+
+/* A list: its title and how many it shows, its search and categories, then its rows. */
+.g-ref-list {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-list__head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.g-ref-list__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.g-ref-list__title {
+  margin: 0;
+  color: var(--ink);
+  font: 700 32px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-list__count {
+  flex: none;
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-list__body {
+  display: flex;
+  flex-direction: column;
+  margin-top: var(--space-8);
+}
+
+/* The league's rules are two lists under a heading each. */
+.g-ref-list__subtitle {
+  margin: var(--space-16) 0 var(--space-4);
+  color: var(--muted);
+  font: 700 13px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.g-ref-list__subtitle:first-child { margin-top: 0; }
+
+/*
+ * A skill or a trait: its letter on the category's colour, its name, and whether it is used or always there.
+ * The row is positioned so that the category it says to a screen reader (an absolutely placed span) stays in
+ * the row: left to the page, from 901px it would sit where the row scrolled to, outside the box that clips the
+ * rows, and widen what the page can be scrolled by.
+ */
+.g-ref-row {
+  position: relative;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 48px;
+  padding: var(--space-6) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.g-ref-row__name {
+  min-width: 0;
+  overflow-wrap: break-word;
+  font: 500 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* Passive is the word and the colour: the colour alone would say nothing to everyone who cannot tell it. */
+.g-ref-row__meta {
+  color: var(--muted);
+  font: 700 11px/1.2 var(--font-body);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.g-ref-row__meta--passive { color: var(--danger); }
+
+.g-ref-badge {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-md);
+  background: var(--cat-trait);
+  color: var(--on-accent);
+  font: 700 14px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-ref-badge--agility { background: var(--cat-agility); }
+.g-ref-badge--devious { background: var(--cat-devious); }
+.g-ref-badge--general { background: var(--cat-general); }
+.g-ref-badge--mutation { background: var(--cat-mutation); }
+.g-ref-badge--passing { background: var(--cat-passing); }
+.g-ref-badge--strength { background: var(--cat-strength); }
+.g-ref-badge--trait { background: var(--cat-trait); }
+
+/* The panel's: the same letter on the same colours, as large as the name beside it. */
+.g-ref-badge--lg {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-xl);
+  font: 700 26px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* What the panel says until a skill or a trait is chosen. */
+.g-ref-pick {
+  margin: 0;
+  padding: var(--space-24);
+  color: var(--ink-2);
+  font: 400 15px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/*
+ * A split page is two screens on a phone: the list, or (once something is chosen, which the page says
+ * with g-ref--open) the panel of the chosen one, whose way back is the link at its top.
+ */
+@media (max-width: 900px) {
+  .g-ref--split .g-ref__panel { display: none; }
+  .g-ref--split.g-ref--open .g-ref__main { display: none; }
+  .g-ref--split.g-ref--open .g-ref__panel { display: block; }
+}
+
+@media (min-width: 901px) {
+  /*
+   * The band runs edge to edge, so the 2.x padding of the screen (which stage 13 takes away) is
+   * given up for the reference and the parts keep their own.
+   */
+  #app-view:has(> .g-ref) { padding: 0; }
+  /*
+   * The frame keeps a wide 2.x table from pushing the page sideways with `overflow-x: hidden`, which
+   * makes it a box that scrolls (though it never does) and so the one a sticky panel sticks to: it
+   * would never stick. Cut off with `clip` it is not a box, and the panel sticks to the window. Only
+   * here: the frame's other screens have sticky panels of their own that are held still by it today.
+   *
+   * Temporary: when stage 13 deletes the 2.x `.builder-summary` sticky (styles/responsive.css), the
+   * `overflow-x: clip` belongs on `.g-main` in shell/frame.css and this rule goes (with the pin in
+   * test/ref-skill.test.mjs that frame.css still says `hidden`).
+   */
+  .g-main:has(.g-ref) { overflow-x: clip; }
+  #app-view > .g-ref {
+    max-width: none;
+    margin: 0;
+    gap: 0;
+  }
+
+  .g-ref .g-ref-head {
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, 420px);
+    align-items: center;
+    column-gap: var(--space-16);
+    row-gap: var(--space-4);
+    padding: var(--space-20) 32px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .g-ref-head__title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .g-ref-head__sub {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .g-ref-head .g-search {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-top: 0;
+  }
+
+  .g-ref__body {
+    flex-flow: row wrap;
+    align-items: flex-start;
+    padding: 24px 32px 40px;
+  }
+  .g-ref__main {
+    flex: 2 1 380px;
+  }
+  .g-ref__panel {
+    flex: 1 1 320px;
+  }
+
+  .g-ref-toc {
+    display: flex;
+    flex: 1 1 220px;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    max-width: 260px;
+  }
+  .g-ref-toc__group {
+    margin: 0;
+    padding: 0 var(--space-10) var(--space-4);
+    color: var(--muted);
+    font: 700 12px/1.3 var(--font-body);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .g-ref-toc__group:not(:first-child) { margin-top: var(--space-16); }
+  .g-ref-toc__link {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    min-height: 48px;
+    padding: 0 var(--space-10);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--ink-2);
+    font: 500 15px/1.3 var(--font-body);
+    letter-spacing: 0;
+    text-decoration: none;
+    text-transform: none;
+  }
+  .g-ref-toc__link[aria-current="page"] {
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .g-ref-toc__count {
+    flex: none;
+    color: var(--muted);
+    font: 400 12px/1.2 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .g-ref-back { display: none; }
+
+  /* Two columns of groups, each a card; the rows keep their own dividers except the last. */
+  .g-ref--index .g-ref__main { flex: 1 1 auto; }
+  .g-ref-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-24);
+  }
+  .g-ref-group,
+  .g-ref-results {
+    padding: var(--space-16) var(--space-20) var(--space-8);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-ref-results { max-width: 760px; }
+  .g-ref-group .g-list-row:last-child,
+  .g-ref-results .g-list-row:last-child { border-bottom: 0; }
+
+  /*
+   * The lists and the split pages are a grid, not a row that wraps: the contents and the panel take
+   * what the window gives them between a floor and a ceiling, and the list takes the rest. A row that
+   * wrapped would drop the panel under the list from a window as wide as 1256px.
+   */
+  .g-ref--list .g-ref__body,
+  .g-ref--split .g-ref__body {
+    display: grid;
+    align-items: start;
+  }
+  .g-ref--list .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr); }
+  .g-ref--split .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr) clamp(200px, 22vw, 440px); }
+  /* A card taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
+  .g-ref--split .g-ref__panel {
+    position: sticky;
+    top: 24px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
+  }
+
+  /* The list is a card: its head, then its rows in columns, scrolling from 720px. */
+  .g-ref-list {
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-ref-list__head {
+    padding: var(--space-16) var(--space-20) var(--space-12);
+    border-bottom: 1px solid var(--line);
+  }
+  .g-ref-list__title {
+    font: 700 28px/1.1 var(--font-display);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .g-ref-list .g-chips { flex-wrap: wrap; }
+  .g-ref-list__body {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(220px, 100%), 1fr));
+    gap: 2px var(--space-8);
+    align-content: start;
+    max-height: 720px;
+    margin-top: 0;
+    padding: var(--space-6) var(--space-8) var(--space-10);
+    overflow-y: auto;
+  }
+  /* A row that says two lines and has a chevron wants more room than a letter and a name. */
+  .g-ref-list--nav .g-ref-list__body { grid-template-columns: repeat(auto-fill, minmax(min(300px, 100%), 1fr)); }
+  .g-ref-list__body .g-list-row { padding-inline: var(--space-10); }
+  .g-ref-list__subtitle,
+  .g-ref-list__body .g-ref-empty { grid-column: 1 / -1; }
+  .g-ref-list__subtitle { padding: 0 var(--space-10); }
+  .g-ref-list__body .g-ref-empty { padding-inline: var(--space-10); }
+
+  .g-ref-row {
+    padding: var(--space-6) var(--space-10);
+    border-bottom: 0;
+    border-radius: var(--radius-md);
+  }
+  .g-ref-row[aria-current="page"] {
+    background: var(--accent-tint-soft);
+    box-shadow: var(--ring-selected);
+  }
+  .g-ref-row[aria-current="page"] .g-ref-row__name { font-weight: 700; }
+
+  .g-ref-pick {
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+}

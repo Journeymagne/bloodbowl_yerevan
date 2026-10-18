@@ -9,7 +9,7 @@ import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
 
 const frame = el(document, "div", { id: "app-frame", "data-shell": "guest" },
   el(document, "aside", { id: "side-nav" }), el(document, "header", { id: "app-header" }),
-  el(document, "div", { id: "ref-search", hidden: "" }), el(document, "section", { id: "app-view" }), el(document, "footer", { id: "site-footer" }));
+  el(document, "section", { id: "app-view" }), el(document, "footer", { id: "site-footer" }));
 document.body.appendChild(frame);
 // K9b: before the shell is imported, which reaches the API through the client that picks `fetch` up when it loads.
 const api = installFakeApi();
@@ -37,16 +37,14 @@ test("a current tab past the edge is scrolled into view; one already visible is 
   assert.equal(tabScrollLeft({ tabLeft: 10, tabWidth: 60, viewWidth: 358, scrollLeft: 200 }), 0);
 });
 
-test("refreshing draws the mode, the header, the SideNav and the search bar the route asks for", () => {
+test("refreshing draws the mode, the header and the SideNav the route asks for", () => {
   state.auth.currentUser = null;
   refreshShell({ name: "refSection", params: { section: "skills" } });
   assert.equal(frame.getAttribute("data-shell"), "guest");
   assert.ok(document.querySelector("#app-header nav.g-tabs"));
   assert.ok(document.querySelector("#side-nav .g-sidenav__nav"));
-  assert.equal(document.querySelector("#ref-search").hasAttribute("hidden"), false);
   refreshShell({ name: "login", params: {} });
   assert.equal(frame.getAttribute("data-shell"), "bare");
-  assert.equal(document.querySelector("#ref-search").hasAttribute("hidden"), true);
 });
 
 test("a language button asks the app, and scrolling folds the header", () => {
@@ -90,7 +88,7 @@ test("the retired-chrome pattern finds a retired name wherever a selector puts i
     ".brand-mark img", ".theme-picker__swatch", ".auth-dialog", "body.auth-open", "#auth-button", "#lang-toggle", "#site-sidebar:hover", ".main"]) {
     assert.match(selector, RETIRED, selector);
   }
-  for (const selector of [".matchday-sidebar", ".g-auth__brand", ".page-heading-main", ".g-main", ".g-main__footer", "#app-main", ".g-sidenav", ".g-searchbar", ".g-appbar__team"]) {
+  for (const selector of [".matchday-sidebar", ".g-auth__brand", ".page-heading-main", ".g-main", ".g-main__footer", "#app-main", ".g-sidenav", ".g-appbar__team"]) {
     assert.doesNotMatch(selector, RETIRED, selector);
   }
 });
@@ -244,11 +242,8 @@ test("a short page fills the screen without scrolling: the content grows into it
   assert.deepEqual(valuesOf("src/shell/frame.css", ".g-frame #app-view", "flex"), ["1 0 auto"]);
 });
 
-test("a sheet's scroll lock does not shift the page, and a hidden search bar stays hidden", () => {
+test("a sheet's scroll lock does not shift the page", () => {
   assert.deepEqual(valuesOf("src/shell/frame.css", "html", "scrollbar-gutter"), ["stable"]);
-  assert.deepEqual(valuesOf("src/shell/frame.css", ".g-searchbar[hidden]", "display"), ["none"]);
-  assertReadable("src/shell/frame.css", ".g-searchbar__input", "color", ["--surface-2"], 4.5);
-  assertReadable("src/shell/frame.css", ".g-searchbar__input::placeholder", "color", ["--surface-2"], 4.5);
 });
 
 // R13-M6 (WCAG 2.4.11): the phone's header sticks to the top, 102px drawn and 91px folded (measured live). An element
@@ -273,7 +268,7 @@ test("the content takes the focus without a ring drawn round the whole screen", 
 test("every frame class the page names is styled, the frame reaches the page, and it breaks at 900/901 only", () => {
   const css = ["src/shell/frame.css", "src/shell/app-header.css", "src/shell/side-nav.css"].map(read).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
   const names = new Set([...read("index.html").matchAll(/class="([^"]*)"/g)].flatMap(([, list]) => list.split(/\s+/)).filter((name) => name.startsWith("g-")));
-  assert.ok(names.has("g-frame") && names.has("g-searchbar"));
+  assert.ok(names.has("g-frame"));
   for (const name of names) assert.match(css, new RegExp(`\\.${name}(?![\\w-])`), `.${name} is not styled`);
   assert.match(read("src/styles.css"), /@import url\("shell\/frame\.css"\);/);
   for (const [, query] of read("src/shell/frame.css").matchAll(/@media\s*([^{]+)\{/g)) {

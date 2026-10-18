@@ -1,6 +1,6 @@
 /**
- * The 3.0 frame on the page: the mobile header, the desktop SideNav, the
- * reference search strip and the footer line under the content.
+ * The 3.0 frame on the page: the mobile header, the desktop SideNav and the
+ * footer line under the content.
  *
  * index.html holds the empty frame; this module fills it. `mountShell` finds
  * the parts and wires what lives as long as the page does — the header folding
@@ -54,7 +54,7 @@ const redraw = () => refreshShell();
 /** Where the team switcher is shown: the last child of the frame, which takes no room of its own (team-switcher.css). */
 const SWITCHER_HOST = "team-switcher-host";
 
-/** @type {{frame: Element, header: Element, sideNav: Element, footer: Element, search: Element, switcher: Element}|null} */
+/** @type {{frame: Element, header: Element, sideNav: Element, footer: Element, switcher: Element}|null} */
 let parts = null;
 /** The route the frame was last drawn for: a refresh without one redraws it. */
 let lastRoute = null;
@@ -94,7 +94,7 @@ export function tabScrollLeft({ tabLeft, tabWidth, viewWidth, scrollLeft }) {
  */
 export function mountShell({ document = globalThis.document, scroller = globalThis } = {}) {
   const find = (id) => document.querySelector(`#${id}`);
-  parts = { frame: find("app-frame"), header: find("app-header"), sideNav: find("side-nav"), footer: find("site-footer"), search: find("ref-search"), switcher: find(SWITCHER_HOST) };
+  parts = { frame: find("app-frame"), header: find("app-header"), sideNav: find("side-nav"), footer: find("site-footer"), switcher: find(SWITCHER_HOST) };
   if (!parts.switcher) {
     parts.switcher = document.createElement("div");
     parts.switcher.setAttribute("id", SWITCHER_HOST);
@@ -196,8 +196,6 @@ export function refreshShell(route = lastRoute) {
   patch(parts.sideNav, renderSideNav(model, { matchHtml, locale, generatedAt }));
   patch(parts.footer, renderSiteFooter({ generatedAt, locale }));
   parts.frame.setAttribute("data-shell", model.mode);
-  if (model.showSearch) parts.search.removeAttribute("hidden");
-  else parts.search.setAttribute("hidden", "");
   revealCurrentTab(parts.header);
   if (moved) closeSwitcher();
 }

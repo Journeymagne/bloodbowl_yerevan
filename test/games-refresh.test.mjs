@@ -9,7 +9,7 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 const api = installFakeApi();
 document.body.appendChild(el(document, "div", { id: "app-frame" },
   el(document, "aside", { id: "side-nav" }), el(document, "header", { id: "app-header" }),
-  el(document, "div", { id: "ref-search", hidden: "" }), el(document, "section", { id: "app-view" }), el(document, "footer", { id: "site-footer" })));
+  el(document, "section", { id: "app-view" }), el(document, "footer", { id: "site-footer" })));
 const { mountShell, refreshShell } = await import("../src/shell/shell.mjs");
 const { invalidateGames, loadGames, onGamesChange } = await import("../src/data/games.mjs");
 const { state } = await import("../src/core/state.mjs");

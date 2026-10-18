@@ -1,0 +1,48 @@
+/*
+ * One row of chips that scrolls sideways when it does not fit; the chosen
+ * chip is filled with the header colour. Font, border, background,
+ * text-transform and border-radius are set here on purpose: the 2.x globals
+ * (button { font: inherit }, :focus-visible { border-radius }) outlive this
+ * sheet until stage 13.
+ */
+.g-chips {
+  display: flex;
+  gap: var(--space-6);
+  /* A scrolling box clips what is drawn outside it, the 3px keyboard ring among it: the padding is the ring's room, the margin gives the space back. */
+  margin: -3px;
+  padding: 3px;
+  overflow-x: auto;
+}
+
+/* 44px is the touch target of spec §0, over the 36px of the design system's README. */
+.g-chip {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 44px;
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 600 14px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.g-chip[aria-checked="true"] {
+  background: var(--header);
+  box-shadow: none;
+  color: var(--header-ink);
+}
+
+.g-chip__count {
+  font-size: 12px;
+  opacity: 0.75;
+}

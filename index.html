@@ -34,20 +34,13 @@
       The 3.0 frame, empty until src/shell/shell.mjs draws it for the route:
       the SideNav from 901px, the header up to 900px, the footer line under the
       content up to 900px (the SideNav carries it on a desktop). Sizes and
-      breakpoints are src/shell/frame.css's. The 2.x search stays as a strip
-      over the content on the reference lists until stage 11.
+      breakpoints are src/shell/frame.css's.
     -->
     <div class="g-frame" id="app-frame" data-shell="guest">
       <aside class="g-sidenav" id="side-nav" aria-label="Navigation" data-i18n-aria-label="nav.navigationAria"></aside>
       <div class="g-frame__main">
         <header class="g-appbar" id="app-header"></header>
         <main class="g-main" id="app-main">
-          <div class="g-searchbar" id="ref-search" hidden>
-            <svg class="g-searchbar__icon" aria-hidden="true" viewBox="0 0 24 24">
-              <path d="m21 21-4.3-4.3m1.3-5.2a6.5 6.5 0 1 1-13 0 6.5 6.5 0 0 1 13 0Z"></path>
-            </svg>
-            <input id="global-search" class="g-searchbar__input" type="search" placeholder="Search teams, skills, rules..." data-i18n-placeholder="search.placeholder" autocomplete="off">
-          </div>
           <section id="app-view" class="view" tabindex="-1">
             <div class="loading">Loading reference...</div>
           </section>

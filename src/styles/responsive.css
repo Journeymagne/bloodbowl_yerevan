@@ -33,24 +33,6 @@
     justify-content: flex-end;
   }
 
-  .league-reference-card header {
-    display: flex;
-    gap: 10px;
-  }
-
-  .league-hero {
-    min-height: 320px;
-    padding: 30px;
-  }
-
-  .league-hero-media {
-    min-height: 220px;
-  }
-
-  .league-hero-media img {
-    max-height: 270px;
-  }
-
   .content-panel {
     padding: 22px;
   }
@@ -67,10 +49,6 @@
   .saved-player-grid,
   .season-action-row {
     grid-template-columns: minmax(0, 1fr) auto;
-  }
-
-  .skill-roll-controls {
-    grid-template-columns: minmax(160px, 1fr) auto;
   }
 
   .advancement-add-row {
@@ -108,15 +86,6 @@
     grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   }
 
-  /* Wider cards, which used to win by sitting later in the file. */
-  .overview-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  }
-
-  .filter-panel {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
 .summary-actions {
     grid-template-columns: 1fr 1fr;
   }
@@ -132,16 +101,10 @@
 
 
   /* Tables, rather than the cards that stand in for them. */
-  .team-roster-desktop,
-  .skill-table-desktop,
-  .reference-table-desktop,
   .builder-available-table-wrap {
     display: block;
   }
 
-  .team-roster-mobile,
-  .skill-table-mobile,
-  .reference-table-mobile,
   .builder-mobile-card-list {
     display: none;
   }
@@ -162,14 +125,6 @@
 
 /* The wide layout: panels side by side. The SideNav beside the page is src/shell/frame.css's. */
 @media (min-width: 901px) {
-  .detail-layout {
-    grid-template-columns: minmax(0, 1fr) 260px;
-  }
-
-  .league-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
-  }
-
   .saved-roster-top-grid {
     grid-template-columns: minmax(360px, 1fr) minmax(280px, 360px);
   }
@@ -188,10 +143,6 @@
 
   .roster-slots {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .skill-roll-panel {
-    grid-template-columns: minmax(260px, 420px) minmax(220px, 1fr);
   }
 
   .season-overview-grid {
@@ -249,14 +200,6 @@
 
   .summary-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .filter-panel {
-    grid-template-columns: repeat(5, minmax(150px, 1fr)) auto;
-  }
-
-  .league-hero-media {
-    min-height: 260px;
   }
 
   .saved-roster-table-wrap {

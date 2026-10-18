@@ -63,7 +63,7 @@ test("a teardown that throws does not strand the rest", () => {
 test("the frame is not a screen: mounting and refreshing the shell owes a route change nothing", async () => {
   const { document } = await import("./helpers/ui.mjs");
   const { el, fireEvent } = await import("./helpers/fake-dom.mjs");
-  for (const id of ["app-frame", "app-header", "side-nav", "ref-search", "app-view", "site-footer"]) document.body.appendChild(el(document, "div", { id }));
+  for (const id of ["app-frame", "app-header", "side-nav", "app-view", "site-footer"]) document.body.appendChild(el(document, "div", { id }));
   const { mountShell, refreshShell } = await import("../src/shell/shell.mjs");
   const { setLocaleHandler } = await import("../src/core/locale-request.mjs");
   releaseCurrentScreen();

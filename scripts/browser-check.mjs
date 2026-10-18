@@ -48,15 +48,15 @@ console.log(`Browser check against ${base}\n`);
 
 await check("home screen renders", async () => {
   await page.goto(base, { waitUntil: "networkidle" });
-  await page.waitForSelector(".overview-grid .card", { timeout: 15000 });
-  return `${await page.locator(".overview-grid .card").count()} overview cards`;
+  await page.waitForSelector(".g-guest h1", { timeout: 15000 });
+  return (await page.locator(".g-guest h1").textContent())?.trim();
 });
 
 await check("teams list", async () => {
   await page.goto(`${base}/#/ref/teams`, { waitUntil: "networkidle" });
-  await page.waitForSelector(".card-grid .card", { timeout: 15000 });
-  const count = await page.locator(".card-grid .card").count();
-  if (count !== 37) throw new Error(`expected 37 team cards, found ${count}`);
+  await page.waitForSelector(".g-ref-list a.g-list-row", { timeout: 15000 });
+  const count = await page.locator(".g-ref-list a.g-list-row").count();
+  if (count !== 37) throw new Error(`expected 37 team rows, found ${count}`);
   return `${count} teams`;
 });
 

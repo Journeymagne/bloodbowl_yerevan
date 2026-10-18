@@ -1,0 +1,41 @@
+/*
+ * A search box: the magnifier sits over the left end of the input, which is
+ * the whole 48px field. The input is the one focusable box, so the keyboard
+ * ring from base.css goes round the field and no ring is set here. In a
+ * scrolling flex column the field needs flex: none, and has it. Font, border,
+ * background, text-transform and border-radius are set here on purpose: the
+ * 2.x globals (input { font: inherit }, :focus-visible { border-radius })
+ * outlive this sheet until stage 13.
+ */
+.g-search {
+  position: relative;
+  flex: none;
+  color: var(--muted);
+}
+
+.g-search > .g-icon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-14);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.g-search__input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  height: 48px;
+  margin: 0;
+  /* The room of the magnifier: its 18px and the gap after it. */
+  padding: 0 var(--space-14) 0 calc(var(--space-14) + 18px + var(--space-10));
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 400 16px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  appearance: none;
+}
+.g-search__input::placeholder { color: var(--muted); }

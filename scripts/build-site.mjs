@@ -3,6 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
 
+import { minifyCss } from "./lib/minify-css.mjs";
+
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const distDir = path.join(rootDir, "dist");
 
@@ -37,16 +39,6 @@ async function inlineCssImports(file) {
   }
   if (!parts.length) return source;
   return parts.join(String.fromCharCode(10));
-}
-
-function minifyCss(source) {
-  return source
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .replace(/\s+/g, " ")
-    // A space before :is/:where can be a descendant combinator, not decoration.
-    .replace(/\s*([{};,>+~])\s*/g, "$1")
-    .replace(/;}/g, "}")
-    .trim();
 }
 
 /**

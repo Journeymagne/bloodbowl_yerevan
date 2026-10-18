@@ -11,16 +11,6 @@
 export const state = {
   data: null,
   locale: "en",
-  query: "",
-  skillFilters: {
-    category: "all",
-    application: "all",
-  },
-  skillTableRoller: {
-    group: "Agility",
-    result: "",
-    roll: null,
-  },
   auth: {
     currentUser: null,
   },

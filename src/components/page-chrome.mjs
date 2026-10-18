@@ -3,9 +3,8 @@
  * highlight, and which section the current view belongs to.
  *
  * Mechanically moved out of src/app.js — every screen used these, so unlike
- * the reference-only helpers in components/cards.mjs and components/
- * content-links.mjs, this one has to be genuinely shared rather than owned
- * by a single screens/*.mjs file.
+ * the reference-only helpers in components/content-links.mjs, this one has
+ * to be genuinely shared rather than owned by a single screens/*.mjs file.
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";

@@ -11,7 +11,7 @@
  * Leaving a screen is core/screen-lifecycle.mjs' job; the router only says
  * when.
  */
-import { TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamsUrl } from "./routes.mjs";
+import { TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamUrl, teamsUrl } from "./routes.mjs";
 import { peekReturn, setReturn } from "./return-to.mjs";
 import { releaseCurrentScreen } from "./screen-lifecycle.mjs";
 import { escapeHtml } from "./dom.mjs";
@@ -19,19 +19,17 @@ import { t } from "./i18n.mjs";
 import { state } from "./state.mjs";
 import { view } from "./view.mjs";
 import { announce } from "../components/live-region.mjs";
-import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { toast } from "../components/toast.mjs";
 import { prepareTeamRoute, syncActiveTeam } from "../data/active-team.mjs";
 import { loadMyTeams } from "../data/teams.mjs";
-import { renderHome } from "../screens/home.mjs";
+import { renderGuestHome } from "../screens/home/guest.mjs";
 import { renderLogin } from "../screens/auth/login.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
 import { renderTeamOverview } from "../screens/team/overview.mjs";
 import { renderSettings } from "../screens/settings/index.mjs";
-import { renderOverviewDetail } from "../screens/overview.mjs";
-import { renderSection } from "../screens/section.mjs";
-import { renderDetail } from "../screens/detail.mjs";
-import { renderLegal } from "../screens/legal.mjs";
+import { renderLegal, renderOverviewArticle, renderReferencePage } from "../screens/ref/article.mjs";
+import { renderRef } from "../screens/ref/index.mjs";
+import { renderRefSection } from "../screens/ref/list.mjs";
 import { renderTeams } from "../screens/teams/index.mjs";
 import { renderSavedRoster } from "../screens/saved-roster.mjs";
 import { renderNewTeam } from "../screens/teams/new.mjs";
@@ -46,19 +44,27 @@ import { renderPlayerProfile } from "../screens/players/profile.mjs";
 import { renderPublicTeamProfile } from "../screens/players/team.mjs";
 import { refreshShell } from "../shell/shell.mjs";
 
-function findPageBySlug(slug) {
-  return state.data.pages.find((page) => page.slug === slug)
-    ?? state.data.pages.find((page) => page.slug.endsWith(`/${slug}`))
-    ?? null;
+/**
+ * A coach's `#/` with no team active (one with a team active never gets here: resolveRedirect sends
+ * `#/` on to it). A coach with teams has one settled and goes on to it, the address replaced as
+ * resolveRedirect would have; nothing is drawn, the team's screen comes with the hashchange. A coach
+ * with none, or whose list could not be read, gets the overview of no team (screens/team/empty.mjs),
+ * which goes on by itself once a team appears.
+ */
+function renderCoachHome() {
+  const { items } = state.myTeams;
+  if (!items.length) return renderNoTeam();
+  // With a team in the list the sync always settles on one (the first, when nothing names another), so it cannot be null here.
+  location.replace(teamUrl(syncActiveTeam()));
+  return undefined;
 }
 
 const screens = {
-  // A coach with an active team never gets here: resolveRedirect sends `#/` on to that team.
-  home: () => (state.auth.currentUser && !state.myTeams.items.length ? renderNoTeam() : renderHome()),
+  home: () => (state.auth.currentUser ? renderCoachHome() : renderGuestHome()),
   login: () => renderLogin("login"),
   register: () => renderLogin("register"),
   settings: () => renderSettings(),
-  overview: ({ slug }) => renderOverviewDetail(slug),
+  overview: ({ slug }) => renderOverviewArticle(slug),
   teams: () => renderTeams(),
   teamNew: () => renderNewTeam(),
   team: ({ teamId }) => renderTeamOverview(teamId),
@@ -69,8 +75,8 @@ const screens = {
   teamChallenges: () => renderMyGames(),
   coach: ({ userId }) => renderPlayerProfile(userId),
   coachTeam: ({ userId, teamId }) => renderPublicTeamProfile(userId, teamId),
-  ref: () => renderSection("pages"),
-  refSection: ({ section }) => renderSection(section),
+  ref: () => renderRef(),
+  refSection: ({ section }) => renderRefSection(section),
   game: ({ gameId }) => renderGamePage(gameId),
   preMatch: ({ gameId, step }) => renderPreMatch(gameId, step),
   postMatch: ({ gameId, step }) => renderPostMatch(gameId, step),
@@ -79,17 +85,8 @@ const screens = {
   adminUserProfile: ({ userId }) => renderAdminUserProfile(userId),
   administration: () => renderAdministration(),
   legal: () => renderLegal(),
-  page: ({ slug }) => {
-    const page = findPageBySlug(slug);
-    return page ? renderDetail(page) : renderNotFound();
-  },
+  page: ({ slug }) => renderReferencePage(slug),
 };
-
-function renderNotFound() {
-  setActiveNav("home");
-  setViewSection("home");
-  view.innerHTML = `<div class="empty-state">${t("app.pageNotFound")}</div>`;
-}
 
 /** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */
 let ticket = 0;
@@ -129,6 +126,7 @@ async function renderTeamScreen(name, params, current) {
  */
 export function renderRoute() {
   const current = ++ticket;
+  const startedAt = location.hash;
   const route = routeFromHash(location.hash);
   const { target, returnTo } = resolveRedirect(route, {
     signedIn: Boolean(state.auth.currentUser),
@@ -147,9 +145,11 @@ export function renderRoute() {
   const rendered = TEAM_ROUTES.has(name) ? renderTeamScreen(name, params, current) : screens[name](params);
   // A sighted reader sees the screen change; #app-view no longer says so
   // (step 15.5), so the heading is announced instead — after the screen has
-  // put one there, which for anything that waits on a fetch is not yet.
+  // put one there, which for anything that waits on a fetch is not yet. A
+  // screen that sent the address on drew nothing: the heading still in the
+  // view is the screen before's, and the hashchange to come announces the next.
   Promise.resolve(rendered).then(() => {
-    if (current === ticket) announce(view.querySelector("h1, h2")?.textContent ?? "");
+    if (current === ticket && location.hash === startedAt) announce(view.querySelector("h1, h2")?.textContent ?? "");
   });
   return rendered;
 }

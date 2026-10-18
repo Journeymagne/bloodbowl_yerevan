@@ -27,7 +27,6 @@ export function bootPage(api, { hash }) {
     el(document, "aside", { id: "side-nav" }),
     el(document, "div", { class: "g-frame__main" },
       el(document, "header", { id: "app-header" }),
-      el(document, "div", { id: "ref-search", hidden: "" }, el(document, "input", { id: "global-search" })),
       el(document, "section", { id: "app-view", tabindex: "-1" }),
       el(document, "footer", { id: "site-footer" }))));
   const window = new EventTarget();
