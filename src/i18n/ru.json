@@ -446,6 +446,7 @@
   "savedRoster.saleNotice": "Продать по текущей стоимости и специальным правилам команды.",
   "validation.SAFE_INVALID": "Сейф должен содержать неотрицательную сумму в целых золотых.",
   "validation.STAFF_MAX": "{title}: максимум {max}.",
+  "validation.STAFF_UNAVAILABLE": "{title}: этой расе недоступно.",
   "validation.BUDGET_EXCEEDED": "Бюджет {budget}k, из него уже потрачено {total}k.",
   "roster.notEnoughSpp": "не хватает SPP",
   "validation.ADVANCEMENT_MAX_LEVEL": "Игрок достиг максимального уровня.",

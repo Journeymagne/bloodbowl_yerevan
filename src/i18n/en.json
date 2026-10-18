@@ -446,6 +446,7 @@
   "savedRoster.saleNotice": "Sell at current value under the team's special rules.",
   "validation.SAFE_INVALID": "Safe must contain a nonnegative amount in whole gold pieces.",
   "validation.STAFF_MAX": "{title}: maximum is {max}.",
+  "validation.STAFF_UNAVAILABLE": "{title}: not for this race.",
   "validation.BUDGET_EXCEEDED": "Only {budget}k to spend, and {total}k of it is committed.",
   "roster.notEnoughSpp": "not enough SPP",
   "validation.ADVANCEMENT_MAX_LEVEL": "This player has reached the highest level.",
