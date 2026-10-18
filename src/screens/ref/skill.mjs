@@ -9,10 +9,10 @@
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { canonicalSkillName, heldSkillKeys, skillNamesForPlayer } from "../../domain/roster/players.mjs";
-import { ruleLookupKey } from "../../domain/roster/team-rules.mjs";
+import { canonicalSkillName, skillNamesForPlayer } from "../../domain/roster/players.mjs";
 import { rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderKeyValueRow } from "../../ui/list-row.mjs";
+import { hasNumericParameter, nameMatchesTitle, withoutParameter } from "./catalog.mjs";
 
 /** The categories that have a colour of their own; any other tag is drawn as a trait is. */
 const TONES = new Set(["agility", "devious", "general", "mutation", "passing", "strength"]);
@@ -57,25 +57,14 @@ export function skillRoll(data, title) {
 }
 
 /**
- * A skill's name as the pages and a roster spell it alike: with no parameter (`Loner (4+)` and
- * `Animosity (All)` are the pages `Loner (X+)` and `Animosity (X)`), and with no case, space or hyphen
- * (`Bone Head` is `Bonehead`, `Throw Team-mate` is `Throw Team-Mate`), as catalog.mjs `pageForName` reads them.
- */
-const skillKey = (name) => ruleLookupKey(String(name).replace(/\s*\([^)]*\)\s*$/, ""));
-
-/** A parameter that is a number (`Mighty Blow (+1)`, `Loner (4+)`), not a placeholder (`Loner (X+)`, `Animosity (X)`). */
-const NUMBERED = /\(\s*[+-]?\d+\+?\s*\)\s*$/;
-const spaced = (name) => String(name).replace(/\s+/g, " ").trim();
-
-/**
- * Whether a player holds the skill a page is about. A page with a number in its title (`Mighty Blow (+1)`
- * and `(+2)` are skills of their own) is held by the players who have exactly that; any other page (a plain
- * `Mighty Blow`, a placeholder `Loner (X+)`) by whoever has it under any parameter or spelling (`skillKey`).
+ * Whether a player holds the skill a page is about: a name of theirs that the page stands for (catalog.mjs
+ * `nameMatchesTitle`, the rule that links a roster's skills to their pages), so that the panel and the link
+ * agree. A page with a number in its title (`Mighty Blow (+1)` and `(+2)` are skills of their own) is held by
+ * the players who have exactly that (R3); any other page (a plain `Mighty Blow`) also by whoever has it under a parameter.
  */
 function holds(row, player, title) {
-  if (NUMBERED.test(title)) return skillNamesForPlayer(row, player).some((name) => spaced(name) === spaced(title));
-  const wanted = skillKey(title);
-  return [...heldSkillKeys(row, player)].some((name) => skillKey(name) === wanted);
+  const numbered = hasNumericParameter(title);
+  return skillNamesForPlayer(row, player).some((name) => nameMatchesTitle(name, title) || (!numbered && nameMatchesTitle(withoutParameter(name), title)));
 }
 
 /**

@@ -24,7 +24,7 @@ import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectio
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
-import { teamContext, teamRulesMarkup, watchSeason } from "./team.mjs";
+import { teamContext, teamRulesMarkup, watchTeamData } from "./team.mjs";
 
 /** The two pages whose body is drawn by bodies.mjs, not taken from the vault. */
 const LEAGUES_ID = "general-information-leagues";
@@ -164,12 +164,12 @@ function show(markup, wireBody = null) {
 
 /**
  * A team's rules: drawn at once, with the league's teams of the race if the season has been read, and
- * drawn again in its place when the season comes (the page is not wired twice, and a visitor who has left
- * is not drawn into).
+ * drawn again in its place when the season comes, or the coach's own teams (the page is not wired twice,
+ * and a visitor who has left is not drawn into).
  */
 function renderTeamRules(page, groups) {
   const markup = () => articleMarkup({ data: state.data, page, groups, context: teamContext() });
-  show(markup(), () => watchSeason(() => patch(view, markup())));
+  show(markup(), () => watchTeamData(() => patch(view, markup())));
 }
 
 /** Draw the page `slug` names (see `findPage`), or say there is none. */

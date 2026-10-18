@@ -19,16 +19,16 @@ const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf
 const draw = (markup) => parseHtml(document, markup);
 const type = (value) => { const input = view.querySelector("#ref-query"); input.value = value; fireEvent(input, "input"); };
 
-// Every article starts as a coach finds it on arrival: English, nothing typed.
+// Every article starts as a coach finds it on arrival: English, nothing typed, and a season that has been read
+// (a team's article reads the season when it opens; here none goes to the network).
 beforeEach(() => {
   releaseCurrentScreen();
   useLocale("en");
   setRefQuery("");
+  state.season = { data: { standings: [] }, loaded: true, loading: false, error: "" };
 });
 
 test("every page of both vaults draws as an article: one h1, its title, nothing the CSP refuses", () => {
-  // A team's article reads the season when it opens; here the season is read, so that none goes to the network.
-  state.season = { data: { standings: [] }, loaded: true, loading: false, error: "" };
   for (const locale of ["en", "ru"]) {
     useLocale(locale);
     for (const page of state.data.pages) {

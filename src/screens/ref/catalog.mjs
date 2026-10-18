@@ -171,19 +171,66 @@ export function articleNeighbours(data, pageId) {
   };
 }
 
+const PARAMETER = /^(.*?)\s*\(([^()]*)\)$/;
+const NUMBER = /^[+-]?\d+\+?$/;
+const spaced = (name) => String(name ?? "").replace(/\s+/g, " ").trim();
+
+/** A name with a parameter at its end: the base and the parameter, or null for a name with none. */
+function splitParameter(name) {
+  const match = PARAMETER.exec(spaced(name));
+  return match ? { base: match[1], parameter: match[2].trim() } : null;
+}
+
+/** A parameter that is a number (`Loner (4+)`, `Mighty Blow (+1)`), not a placeholder (`Loner (X+)`) or a word (`Animosity (All)`). */
+export function hasNumericParameter(name) {
+  return NUMBER.test(splitParameter(name)?.parameter ?? "");
+}
+
+/** The name without its parameter: `Mighty Blow (+1)` is `Mighty Blow`; a name with none is as it is. */
+export function withoutParameter(name) {
+  return splitParameter(name)?.base ?? spaced(name);
+}
+
 /**
- * The skill, trait or page a name in a roster stands for: the exact title; a parametrised trait
- * under its template (`Loner (3+)` is `Loner (X+)`); then the same name spelled another way
- * (`Bone Head` is `Bonehead`, `Side Step` is `Sidestep`).
+ * The titles a name in a roster is looked for under, best first: the name itself; then the page the
+ * parameter stands for. A number has its own page where the vault has one (`Mighty Blow (+1)`), else the
+ * template's (`Loner (4+)` is `Loner (X+)`); a word is the template's (`Animosity (All)` is `Animosity (X)`).
+ */
+function titlesForName(name) {
+  const wanted = spaced(name);
+  const split = splitParameter(wanted);
+  if (!split) return wanted ? [wanted] : [];
+  const templates = hasNumericParameter(wanted) ? [`${split.base} (X+)`, `${split.base} (X)`] : [`${split.base} (X)`];
+  return [wanted, ...templates];
+}
+
+/** The same name spelled another way (`Bone Head` is `Bonehead`): equal keys, and a key that is something. A name in no Latin letter has none. */
+function sameSpelling(name, title) {
+  const key = ruleLookupKey(name);
+  return Boolean(key) && key === ruleLookupKey(title);
+}
+
+/**
+ * Whether a name in a roster stands for the page titled `title`: the one rule for what a skill name
+ * points to, which `pageForName` finds the page by and the panel of a skill finds its holders by.
+ */
+export function nameMatchesTitle(name, title) {
+  return titlesForName(name).includes(title) || sameSpelling(name, title);
+}
+
+/**
+ * The skill, trait or page a name in a roster stands for (see `nameMatchesTitle`): the exact title; the
+ * title of the template a parameter stands for (`Loner (3+)` is `Loner (X+)`, `Animosity (All)` is
+ * `Animosity (X)`); then the same name spelled another way (`Bone Head` is `Bonehead`, `Side Step` is
+ * `Sidestep`).
  */
 export function pageForName(data, name) {
-  const wanted = String(name ?? "").trim();
+  const wanted = spaced(name);
   if (!wanted) return null;
   const candidates = [...(data.skills ?? []), ...(data.traits ?? []), ...(data.pages ?? [])];
-  const titled = (title) => candidates.find((page) => page.title === title);
-  const key = ruleLookupKey(wanted);
-  return titled(wanted)
-    ?? titled(wanted.replace(/\(\d+\+\)$/, "(X+)"))
-    ?? candidates.find((page) => ruleLookupKey(page.title) === key)
-    ?? null;
+  for (const title of titlesForName(wanted)) {
+    const page = candidates.find((candidate) => candidate.title === title);
+    if (page) return page;
+  }
+  return candidates.find((page) => sameSpelling(wanted, page.title)) ?? null;
 }

@@ -1,10 +1,10 @@
 /*
  * The reference's articles (screens/ref/article.mjs): the kicker, the title, the vault's own text in
- * the prose frame (prose.css) and the way on to the article before and after; and the two bodies that
- * are not the vault's text (screens/ref/bodies.mjs), Leagues and the Skill Table; a team's rules
- * (screens/ref/team.mjs); and the panel of a skill or a trait (screens/ref/skill.mjs). Font, border,
- * background, text-transform and letter-spacing are set here on purpose: the 2.x globals (h1 to h6, p, a)
- * outlive this sheet until stage 13.
+ * the prose frame (prose.css) and the way on to the article before and after; the two bodies that are
+ * not the vault's text (screens/ref/bodies.mjs), Leagues and the Skill Table; and the panel of a skill
+ * or a trait (screens/ref/skill.mjs). A team's rules have a sheet of their own (team.css). Font,
+ * border, background, text-transform and letter-spacing are set here on purpose: the 2.x globals (h1 to
+ * h6, p, a) outlive this sheet until stage 13.
  *
  * Up to 900px an article is the page itself, with no frame; the way up is the link at its top. From
  * 901px it is a card beside the table of contents, in columns that shrink with the window and never
@@ -426,169 +426,9 @@
   text-transform: none;
 }
 
-/*
- * A team's rules (screens/ref/team.mjs): its facts as rows, the roster, the special rules, and the league's
- * teams of the race. The roster is drawn twice, as a card for each position and as the vault's kind of
- * table, and the width shows one: the cards up to 900px, the table from 901px.
- */
-.g-ref-team {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-24);
-  min-width: 0;
-  color: var(--ink);
-  font: 400 16px/1.55 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-ref-team h2 {
-  margin: 0;
-  color: var(--ink);
-  font: 600 24px/1.25 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-ref-team__section {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-10);
-  min-width: 0;
-  border: 0;
-  background: none;
-}
-
-/* The rows are each other's rules; the first has one above it. */
-.g-ref-team__facts {
-  border-top: 1px solid var(--line);
-}
-
-.g-ref-positions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-10);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.g-ref-position {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-10);
-  min-width: 0;
-  margin: 0;
-  padding: var(--space-12) var(--space-14);
-  border: 0;
-  border-radius: var(--radius-xl);
-  background: var(--surface);
-  box-shadow: var(--ring);
-  list-style: none;
-}
-
-.g-ref-position__head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-10);
-  min-width: 0;
-}
-
-.g-ref-position__who {
-  display: flex;
-  flex-direction: column;
-  gap: 1px;
-  min-width: 0;
-}
-
-.g-ref-position__name {
-  margin: 0;
-  color: var(--ink);
-  font: 700 17px/1.25 var(--font-body);
-  letter-spacing: 0;
-  overflow-wrap: anywhere;
-  text-transform: none;
-}
-
-.g-ref-position__caption {
-  margin: 0;
-  color: var(--muted);
-  font: 400 13px/1.35 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-ref-position__cost {
-  flex: none;
-  color: var(--accent-text);
-  font: 700 22px/1.1 var(--font-display);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-/* The skills are links in a line of text, so the line is tall enough to touch one. */
-.g-ref-position__skills {
-  margin: 0;
-  color: var(--ink-2);
-  font: 400 14px/1.8 var(--font-body);
-  letter-spacing: 0;
-  overflow-wrap: break-word;
-  text-transform: none;
-}
-
-/* The table is ten columns: the cells are tighter than the prose's, the position is the row's name, the cost the accent. */
-.g-ref-roster th,
-.g-ref-roster td {
-  padding: var(--space-10) var(--space-8);
-}
-
-.g-ref-roster td:first-child {
-  font-weight: 700;
-}
-
-.g-ref-roster td.number-cell {
-  color: var(--accent-text);
-  font-weight: 700;
-}
-
-/* A rule is its name over the page's text, set off by a line at its side; the text is prose, the name is not a section of one. */
-.g-ref-rule {
-  box-sizing: border-box;
-  padding-left: var(--space-14);
-  border-left: 3px solid var(--line-strong);
-}
-
-.g-ref-rule h3 {
-  margin: 0 0 var(--space-4);
-  color: var(--ink);
-  font: 700 18px/1.3 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-ref-rule > :last-child {
-  margin-bottom: 0;
-}
-
-/* A guest's rows have no number at their left: the place is said under the name. */
-.g-ref-inleague .g-ranked {
-  grid-template-columns: minmax(0, 1fr) auto;
-}
-
-.g-ref-inleague .g-ranked__lead {
-  display: none;
-}
-
-/* A phone has the lists and the cards; the vault's table is for the desktop. */
+/* A phone has the lists; the vault's table is for the desktop. */
 @media (max-width: 900px) {
   .g-ref-skilltable__desk {
-    display: none;
-  }
-
-  .g-ref-roster {
     display: none;
   }
 }
@@ -621,20 +461,6 @@
 
   .g-ref-skilltable {
     display: none;
-  }
-
-  .g-ref-positions {
-    display: none;
-  }
-
-  /* The roster has ten columns: it takes the card's whole width, where the prose keeps to a line's. */
-  .g-article .g-ref-roster {
-    max-width: none;
-  }
-
-  .g-ref-team__facts,
-  .g-ref-inleague {
-    max-width: 820px;
   }
 
   .g-skill-detail {

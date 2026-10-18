@@ -14,6 +14,7 @@ const view = mountView();
 const { renderReferencePage } = await import("../src/screens/ref/article.mjs");
 const { leagueTeamsOf, specialRuleSections, specialRuleText, teamRulesMarkup } = await import("../src/screens/ref/team.mjs");
 const { teamLeagueOptions, teamSpecialRuleTokens } = await import("../src/domain/roster/team-rules.mjs");
+const { setMyTeams } = await import("../src/data/teams.mjs");
 const { setRefQuery, refQuery } = await import("../src/screens/ref/memory.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
@@ -231,8 +232,7 @@ test("in Russian: the lines, the headings and the place are in Russian; the rule
   renderReferencePage("teams/human");
   assert.deepEqual(view.querySelectorAll(".g-kv__label").map((label) => label.textContent), ["Уровень", "Рероллы", "Апотекарий", "Доступ к лигам"]);
   assert.deepEqual(view.querySelectorAll(".g-ref-team h2").map((h2) => h2.textContent), ["Состав", "Особые правила", "В лиге играют"]);
-  assert.deepEqual(view.querySelectorAll(".g-ref-roster th").map((th) => th.textContent).slice(0, 3), ["Позиция", "Кол-во", "Стоимость"]);
-  assert.equal(view.querySelectorAll(".g-ref-roster th").at(-1).textContent, "Кат.");
+  assert.deepEqual(view.querySelectorAll(".g-ref-roster th").map((th) => th.textContent), ["Позиция", "Кол-во", "Стоимость", "MA", "ST", "AG", "PA", "AR", "Навыки", "Кат."], "every column, as in English: the five characteristics from stats.ma to stats.ar too");
   assert.match(view.querySelector(".g-ref-position__caption").textContent, /^0-16 · навыки G \/ A S D$/);
   assert.equal(view.querySelector(".g-ranked__caption").textContent, "1-е место · очков: 8");
 });
@@ -250,6 +250,21 @@ test("the season arrives into the page that is up: one search, one pager, a coac
   type("dodge");
   assert.equal(refQuery(), "dodge", "the band still hears its field after the redraw");
   assert.equal(view.querySelector(".g-ref-inleague a").textContent.includes("Ashgrove Wardens"), true);
+});
+
+test("a coach's list that comes after the page was drawn turns their team from a rival's page into their own, in the same page; a page left first is not drawn into", () => {
+  state.auth.currentUser = { id: "u1", login: "c1" };
+  state.season = { data: { standings: STANDINGS }, loaded: true, loading: false, error: "" };
+  renderReferencePage("teams/human");
+  assert.deepEqual(hrefsIn(view.querySelector(".g-ref-inleague")), ["#/coaches/u1/teams/a", "#/coaches/u2/teams/b"], "opened before the list was read, their team is taken for a rival's");
+  setMyTeams([{ id: "a" }]);
+  assert.deepEqual(hrefsIn(view.querySelector(".g-ref-inleague")), ["#/t/a", "#/coaches/u2/teams/b"]);
+  assert.equal(view.listeners.get("input").length, 1, "one listener for the band, however often the page was drawn");
+  assert.equal(view.listeners.get("click").length, 1, "and one for the pager");
+  releaseCurrentScreen();
+  view.innerHTML = "<p>elsewhere</p>";
+  setMyTeams([]);
+  assert.equal(view.textContent, "elsewhere");
 });
 
 test("a season already read is drawn at once, and the server is not asked", async () => {
@@ -272,13 +287,20 @@ test("a visitor who has left is not drawn into: the season that comes late goes 
 
 // The sheet.
 
-const SHEET = "src/screens/ref/article.css";
+test("a team's rules have a sheet of their own, read after the article's, and the article's holds none of their classes", () => {
+  const styles = read("src/styles.css");
+  assert.ok(styles.includes('@import url("screens/ref/team.css");'));
+  assert.ok(styles.indexOf("screens/ref/team.css") > styles.indexOf("screens/ref/article.css"), "the roster's full width is decided after the article's line width");
+  assert.ok(!/\.g-ref-(team|position|roster|rule|inleague)/.test(read("src/screens/ref/article.css")));
+});
 
-test("the markup a team draws is styled by the reference's sheets and the list rows'", () => {
+const SHEET = "src/screens/ref/team.css";
+
+test("the markup a team draws is styled by its own sheet, the article's (the skill links), the prose's and the list rows'", () => {
   const coach = draw(teamRulesMarkup({ data: state.data, page: pageOf("teams/khorne"), standings: [row(1, { id: "k", name: "Skull", baseTeamSlug: "teams/khorne" })], viewer: COACH }));
-  assertStyled(coach, SHEET, "src/screens/ref/prose.css", "list-row.css", "stat-strip.css");
+  assertStyled(coach, SHEET, "src/screens/ref/article.css", "src/screens/ref/prose.css", "list-row.css", "stat-strip.css");
   const guest = draw(teamRulesMarkup({ data: state.data, page: pageOf("teams/khorne"), standings: [row(1, { id: "k", name: "Skull", baseTeamSlug: "teams/khorne" })], viewer: GUEST }));
-  assertStyled(guest, SHEET, "src/screens/ref/prose.css", "list-row.css", "stat-strip.css");
+  assertStyled(guest, SHEET, "src/screens/ref/article.css", "src/screens/ref/prose.css", "list-row.css", "stat-strip.css");
 });
 
 test("a phone has the cards and a desktop the table; the table is not cut to the prose's width", () => {

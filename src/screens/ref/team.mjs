@@ -9,14 +9,15 @@
  * table: a coach is taken to the team (their own, or a rival's); a guest, who cannot open a coach's page,
  * is shown the names and the places.
  *
- * The roster is drawn twice, as a card for each position and as a table, and the width shows one (the
- * article's sheet). The place is the server's rank as it is: it has gaps where a coach withdrew, as the
+ * The roster is drawn twice, as a card for each position and as a table, and the width shows one
+ * (team.css). The place is the server's rank as it is: it has gaps where a coach withdrew, as the
  * season's table does.
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { playerTeamUrl, teamUrl } from "../../core/routes.mjs";
 import { state } from "../../core/state.mjs";
+import { onMyTeamsChange } from "../../data/teams.mjs";
 import { specialRuleMatchKey, teamApothecaryAccess, teamLeagueOptions, teamSpecialRuleTokens } from "../../domain/roster/team-rules.mjs";
 import { PLAYER_STATS, parseAccessCodes, rowCost, rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderKeyValueRow, renderNavRow, renderRankedRow } from "../../ui/list-row.mjs";
@@ -165,7 +166,7 @@ export function teamContext() {
  * @param {() => void} redraw draws the article again, now that the table is there
  * @returns {() => void} the visitor has left: the season that comes after this is not said
  */
-export function watchSeason(redraw) {
+function watchSeason(redraw) {
   let here = true;
   if (!state.season.loaded) {
     loadSeason().then(() => {
@@ -175,4 +176,17 @@ export function watchSeason(redraw) {
   return () => {
     here = false;
   };
+}
+
+/**
+ * What a team's article waits for while it is up: the season, and the coach's list of teams. The list is
+ * what tells a coach's own team from a rival's in the league's block (`teamContext`), and it comes after
+ * the page was drawn when the page is the first thing opened, before the session has read it.
+ *
+ * @param {() => void} redraw draws the article again, from what the app holds by now
+ * @returns {() => void} the visitor has left: neither is said after this
+ */
+export function watchTeamData(redraw) {
+  const stops = [watchSeason(redraw), onMyTeamsChange(redraw)];
+  return () => stops.forEach((stop) => stop());
 }

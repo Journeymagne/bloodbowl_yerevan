@@ -5,11 +5,13 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
-import { assertNotSentOn, hrefsIn, mountView, useLocale } from "./helpers/ref-screen.mjs";
+import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
 const { renderReferencePage } = await import("../src/screens/ref/article.mjs");
 const { badgeMarkup, categoryOf, skillDetailMarkup, skillHolders, skillRoll } = await import("../src/screens/ref/skill.mjs");
+const { pageForName } = await import("../src/screens/ref/catalog.mjs");
+const { rowsForTeam } = await import("../src/domain/roster/values.mjs");
 const { renderRefSection } = await import("../src/screens/ref/list.mjs");
 const { setListFilter } = await import("../src/screens/ref/memory.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
@@ -120,6 +122,32 @@ test("a skill with a number in its title is its own skill: Mighty Blow (+2) is n
   assert.deepEqual(numbers("Loner (X+)"), ["3"], "a placeholder is any number");
   const captain = { roster: { players: [{ rowIndex: 3, number: 9, name: "Cap", isCaptain: true }] } };
   assert.deepEqual(skillHolders({ team: captain, teamPage: race, title: "Pro" }).map((holder) => holder.number), ["9"], "and what the captaincy brings is held by name too");
+});
+
+test("a word for a parameter is the placeholder's: Hatred (Troll) holds Hatred (X) and Animosity (Underworld Goblin Linemen) holds Animosity (X), not each other's", () => {
+  const race = { team: { roster: [{ position: "Dwarf Troll Slayer", skills: ["Hatred (Troll)"] }, { position: "Underworld Lineman", skills: ["Animosity (Underworld Goblin Linemen)"] }] } };
+  const team = { roster: { players: [1, 2].map((number) => ({ rowIndex: number - 1, number, name: `P${number}` })) } };
+  const numbers = (title) => skillHolders({ team, teamPage: race, title }).map((holder) => holder.number);
+  assert.deepEqual([numbers("Hatred (X)"), numbers("Animosity (X)"), numbers("Loner (X+)")], [["1"], ["2"], []]);
+});
+
+test("a skill in a roster is held, on the page the reference links it to, by the position that has it — in every team of both vaults", () => {
+  let seen = 0;
+  for (const locale of ["en", "ru"]) {
+    const data = referenceData(locale);
+    for (const teamPage of data.teams) {
+      rowsForTeam(teamPage).forEach((row, rowIndex) => {
+        const team = { roster: { players: [{ rowIndex, number: 1, name: "P" }] } };
+        for (const skill of row.skills ?? []) {
+          const page = pageForName(data, skill);
+          assert.ok(page, `${locale}: ${teamPage.slug}: ${skill} has a page`);
+          assert.equal(skillHolders({ team, teamPage, title: page.title }).length, 1, `${locale}: ${teamPage.slug}: ${row.position} holds ${skill} on the page ${page.title}`);
+          seen += 1;
+        }
+      });
+    }
+  }
+  assert.ok(seen > 200, `the walk saw ${seen} skills`);
 });
 
 test("with a signed-in coach's active team the panel on its page says who has the skill; the guest's has no such block", () => {

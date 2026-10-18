@@ -6,6 +6,7 @@ import "./helpers/ui.mjs"; // the real dictionaries
 import { initLocale } from "../src/core/i18n.mjs";
 import { REF_SECTIONS } from "../src/core/routes.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
+import { rowsForTeam } from "../src/domain/roster/values.mjs";
 import {
   REF_GROUPS, SECTION_COLLECTIONS, articleNeighbours, groupTitle, itemKeyOf, overviewUrl, pageForName, refGroups, sectionDescription, sectionPages, sectionTitle,
 } from "../src/screens/ref/catalog.mjs";
@@ -56,6 +57,37 @@ test("a name in a roster finds its page whatever the spelling", () => {
   const slugOf = (name) => pageForName(en, name)?.slug ?? null;
   assert.deepEqual(["Block", "Bone Head", "Loner (3+)", "Mighty Blow (+1)", "Side Step", "No Such Skill"].map(slugOf),
     ["skills/block", "traits/bonehead", "traits/loner-x", "skills/mighty-blow-1", "skills/sidestep", null]);
+});
+
+test("a parameter that is a word stands for the template page: Animosity (All) is Animosity (X), Hatred (Troll) is Hatred (X)", () => {
+  const slugOf = (name) => pageForName(en, name)?.slug ?? null;
+  assert.deepEqual(["Animosity (All)", "Animosity (Underworld Goblin Linemen)", "Hatred (Troll)", "Animosity (X)", "  Hatred  (Troll) "].map(slugOf),
+    ["traits/animosity-x", "traits/animosity-x", "traits/hatred-x", "traits/animosity-x", "traits/hatred-x"]);
+  assert.equal(slugOf("Mighty Blow (+3)"), null, "a number is the skill's own: it has its page or the template's, never the plain skill's");
+  assert.equal(slugOf("Block (All)"), null, "a template the vault does not have is no page");
+});
+
+// A position's skills that have no page to link to. A name added here is a decision about the vault, not a way to a green test.
+const EXPECTED_UNLINKED = [];
+
+test("every skill of every position of every team has a page to link to, in both vaults", () => {
+  for (const [locale, vault] of [["en", en], ["ru", ru]]) {
+    const unlinked = new Set();
+    let checked = 0;
+    for (const team of vault.teams) for (const row of rowsForTeam(team)) for (const skill of row.skills ?? []) {
+      checked += 1;
+      if (!pageForName(vault, skill)) unlinked.add(`${team.slug}: ${skill}`);
+    }
+    assert.ok(checked > 100, `${locale}: the walk saw ${checked} skills`);
+    assert.deepEqual([...unlinked].sort(), EXPECTED_UNLINKED, locale);
+  }
+});
+
+test("every skill and every trait is found under its own title, and a name in no Latin letters is nobody's", () => {
+  for (const vault of [en, ru]) for (const page of [...vault.skills, ...vault.traits]) assert.equal(pageForName(vault, page.title)?.slug, page.slug, page.title);
+  assert.equal(pageForName(ru, "Блок"), null);
+  assert.equal(pageForName({ pages: [{ title: "Блок", slug: "block" }] }, "Ёж"), null, "two names with no letters of the key's alphabet are not the same name");
+  assert.equal(pageForName({ pages: [{ title: "Блок", slug: "block" }] }, "Блок")?.slug, "block", "but a title is still found as it is written");
 });
 
 test("every description the groups and the league rules ask for is in both dictionaries", () => {
