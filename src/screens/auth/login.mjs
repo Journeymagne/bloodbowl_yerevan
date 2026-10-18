@@ -243,8 +243,11 @@ async function submit() {
   }
   if (!shown) return;
   draw();
+  // Signed in, the router takes the coach on and this form goes: the keyboard starts at the next screen, not
+  // at the top of the page, where the pressed button would leave it once it is gone.
+  if (!error) view.focus();
   // A refusal about a field puts the coach in it, where the alert is read again as its description.
-  if (error?.fields.length) view.querySelector(`#auth-${error.fields[0]}`)?.focus();
+  else if (error.fields.length) view.querySelector(`#auth-${error.fields[0]}`)?.focus();
 }
 
 function wire() {

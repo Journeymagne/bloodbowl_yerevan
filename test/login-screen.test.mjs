@@ -365,6 +365,42 @@ test("signed in, the form is emptied and stops waiting", async () => {
   api.assertAnswered();
 });
 
+// R13-M5: the form that was pressed is about to go; the keyboard starts at the screen the router brings, not at the page's top.
+test("signed in or registered, the focus is on the screen that comes next, not dropped to the page", async () => {
+  for (const [hash, path, user] of [["#/login", "/api/auth/login", { id: "u1", login: "felstell" }], ["#/register", "/api/auth/register", { id: "u2", login: "rookie" }]]) {
+    signingIn(hash);
+    input("auth-login", user.login);
+    if (hash === "#/register") {
+      input("auth-telegram", "rookie_one");
+      input("auth-repeat", "secret1");
+    }
+    input("auth-password", "secret1");
+    api.reply(`POST ${path}`, 200, { token: "new", user });
+    api.reply("GET /api/auth/me", 200, { user: { ...user, preferences: {} } });
+    api.reply("GET /api/teams", 200, { teams: [] });
+    submitButton().focus();
+    fireEvent(view.querySelector("[data-auth-form]"), "submit");
+    await settle();
+    assert.equal(state.auth.currentUser?.id, user.id, hash);
+    assert.ok(document.activeElement === view, `${hash}: #app-view has the focus`);
+    leaveTo("#/");
+    state.auth.currentUser = null;
+    api.assertAnswered();
+  }
+});
+
+test("a refusal keeps the focus in the form, on the field it is about", async () => {
+  signingIn();
+  input("auth-login", "felstell");
+  input("auth-password", "wrong");
+  api.reply("POST /api/auth/login", 401, { error: { code: "WRONG_LOGIN_OR_PASSWORD", params: {}, message: "x" } });
+  fireEvent(view.querySelector("[data-auth-form]"), "submit");
+  await settle();
+  assert.ok(document.activeElement === view.querySelector("#auth-login"));
+  leaveTo("#/legal");
+  api.assertAnswered();
+});
+
 // M5: today the second press registered again and was told the login is taken.
 test("an account made while the session could not be read is signed in to by the next press", async () => {
   signingIn("#/register");

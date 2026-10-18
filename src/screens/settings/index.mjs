@@ -310,9 +310,11 @@ async function submitTelegram(value) {
   else if (onSave) input?.focus();
 }
 
+/** Signed out, home; the button pressed goes with the account, so the keyboard starts at the next screen. */
 async function logout() {
   await signOut();
   location.hash = "#/";
+  view.focus();
 }
 
 /** The row that opens the sheet is not drawn for an account the server keeps, and the opener asks again: a late /me may say so. */

@@ -393,6 +393,19 @@ test("signing out forgets the coach and goes home", async () => {
   assert.equal(globalThis.location.hash, "#/");
 });
 
+// R13-M5: the button pressed goes with the account section; the keyboard starts at the screen that comes next.
+test("signed out, the focus is on the screen, not dropped to the page", async () => {
+  api.reset();
+  api.items.set("gata-league-auth-token", "tok");
+  api.reply("POST /api/auth/logout", 200, {});
+  draw();
+  view.querySelector("[data-logout]").focus();
+  fireEvent(view.querySelector("[data-logout]"), "click");
+  await settle();
+  assert.equal(globalThis.location.hash, "#/");
+  assert.ok(document.activeElement === view);
+});
+
 test("leaving the screen takes its listeners with it", () => {
   api.reset();
   draw();
