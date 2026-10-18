@@ -107,13 +107,11 @@ const FORBIDDEN = { error: { code: "ADMIN_REQUIRED", params: {}, message: "x" } 
 const ABORTED = new DOMException("This operation was aborted", "AbortError");
 const KEEPS_THE_TOKEN = {
   "a 403 on /me": () => { api.reply("GET /api/auth/me", 403, FORBIDDEN); api.reply("GET /api/teams", 200, TEAMS); },
-  "a 403 on the teams": () => { api.reply("GET /api/auth/me", 200, ME); api.reply("GET /api/teams", 403, FORBIDDEN); },
-  "the teams lost on the way": () => { api.reply("GET /api/auth/me", 200, ME); api.fail("GET /api/teams"); },
   "a timeout": () => { api.fail("GET /api/auth/me", ABORTED); api.fail("GET /api/teams", ABORTED); },
   "a /me with no user in it": () => { api.reply("GET /api/auth/me", 200, {}); api.reply("GET /api/teams", 200, TEAMS); },
 };
 
-test("a refusal, a lost answer or an unreadable one is not the end of the session", async () => {
+test("a refusal, a lost answer or an unreadable one on /me is not the end of the session", async () => {
   for (const [name, answer] of Object.entries(KEEPS_THE_TOKEN)) {
     fresh();
     answer();
@@ -123,6 +121,35 @@ test("a refusal, a lost answer or an unreadable one is not the end of the sessio
     assert.equal(heard, 1, name);
     api.assertAnswered();
   }
+});
+
+// R10 (final review I1): /me is the session; the list of teams is only the coach's list. A list that failed without
+// a 401 used to make the coach a guest on every load: locked out of their pages, and "already signed in" at the door.
+const LIST_FAILS = {
+  "a 500 on the teams": () => api.reply("GET /api/teams", 500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } }),
+  "a 403 on the teams": () => api.reply("GET /api/teams", 403, FORBIDDEN),
+  "the teams lost on the way": () => api.fail("GET /api/teams"),
+  "the teams timed out": () => api.fail("GET /api/teams", ABORTED),
+};
+
+test("a coach /me knows is signed in whatever became of the teams: the list is not read, and says why", async () => {
+  for (const [name, listFails] of Object.entries(LIST_FAILS)) {
+    fresh();
+    api.reply("GET /api/auth/me", 200, ME);
+    listFails();
+    assert.equal(await session.loadSession(), "signed-in", name);
+    assert.equal(state.auth.currentUser?.id, "u1", name);
+    assert.equal(api.items.get(TOKEN), "tok", name);
+    assert.deepEqual([state.myTeams.items, state.myTeams.loaded, state.myTeams.loading], [[], false, false], name);
+    assert.notEqual(state.myTeams.error, "", name);
+    assert.equal(heard, 1, name);
+    api.assertAnswered();
+  }
+  fresh();
+  api.reply("GET /api/auth/me", 200, ME);
+  api.fail("GET /api/teams");
+  await session.loadSession();
+  assert.equal(state.myTeams.error, OFFLINE, "the list's own failure, as a sentence");
 });
 
 test("a listener that throws stops neither the others nor the load", async () => {
@@ -334,7 +361,7 @@ test("a session that could not be read says whose fault it was: the connection's
     ["no network", () => { api.fail("GET /api/auth/me"); api.fail("GET /api/teams"); }, OFFLINE],
     ["a timeout", () => { api.fail("GET /api/auth/me", ABORTED); api.reply("GET /api/teams", 200, TEAMS); }, "The server is taking too long to answer. Try again."],
     ["a 500", () => { api.reply("GET /api/auth/me", 500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } }); api.reply("GET /api/teams", 200, TEAMS); }, NO_ANSWER],
-    ["a 503 that is not maintenance", () => { api.reply("GET /api/auth/me", 200, ME); api.reply("GET /api/teams", 503, {}); }, NO_ANSWER],
+    ["a 503 that is not maintenance", () => { api.reply("GET /api/auth/me", 503, {}); api.reply("GET /api/teams", 200, TEAMS); }, NO_ANSWER],
     ["a 403", () => { api.reply("GET /api/auth/me", 403, FORBIDDEN); api.reply("GET /api/teams", 200, TEAMS); }, NO_ANSWER],
     ["a /me with no user in it", () => { api.reply("GET /api/auth/me", 200, {}); api.reply("GET /api/teams", 200, TEAMS); }, NO_ANSWER],
   ];

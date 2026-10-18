@@ -25,7 +25,7 @@ import { t } from "../core/i18n.mjs";
 import { setReturn } from "../core/return-to.mjs";
 import { state } from "../core/state.mjs";
 import { clearActiveTeamCache, resetActiveTeam } from "./active-team.mjs";
-import { setMyTeams } from "./teams.mjs";
+import { setMyTeams, setMyTeamsUnread } from "./teams.mjs";
 
 const listeners = new Set();
 
@@ -64,13 +64,15 @@ const refusedAs = (answer, kind) => answer.status === "rejected" && answer.reaso
 
 /**
  * What `/me` and `/api/teams`, settled, say together. Only the server saying
- * no one (a 401, or `user: null`) makes a guest; a 403, a lost answer or one
- * with no `user` at all (an unreadable body comes back as `{}`) is "offline".
+ * no one (a 401 on either, or `user: null`) makes a guest; a 403 on `/me`, a
+ * lost answer or one with no `user` at all (an unreadable body comes back as
+ * `{}`) is "offline". The session is `/me`'s: a coach it names is signed in
+ * whatever became of the list, which is then not read (`setMyTeamsUnread`).
  */
 function statusOf(me, teams) {
   if (refusedAs(me, API_ERROR.UNAUTHORIZED) || refusedAs(teams, API_ERROR.UNAUTHORIZED)) return "guest";
   if (me.status === "fulfilled" && me.value?.user === null) return "guest";
-  if (me.status === "rejected" || teams.status === "rejected" || !me.value?.user) return "offline";
+  if (me.status === "rejected" || !me.value?.user) return "offline";
   return "signed-in";
 }
 
@@ -142,7 +144,8 @@ async function readSession(read) {
     }
     if (status === "signed-in") {
       state.auth.currentUser = me.value.user;
-      setMyTeams(teams.value.teams ?? []);
+      if (teams.status === "fulfilled") setMyTeams(teams.value.teams ?? []);
+      else setMyTeamsUnread(teams.reason);
     }
   }
   announce();

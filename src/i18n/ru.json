@@ -895,6 +895,8 @@
   "team.empty.title": "Создайте первую команду",
   "team.empty.text": "Здесь будут состав, казна и матчи сезона.",
   "team.empty.create": "Создать команду",
+  "team.unread.title": "Команды не загрузились",
+  "team.unread.retry": "Повторить",
   "settings.title": "Настройки",
   "settings.subtitle": "Аккаунт и оформление сайта",
   "settings.coachSince": "Тренер с {year} · команд: {count}",

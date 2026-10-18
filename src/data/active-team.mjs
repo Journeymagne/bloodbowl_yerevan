@@ -24,8 +24,9 @@
  * The account is written only when the result is a team and differs from what
  * the account holds, in the background and one write at a time. No team is never
  * written: `/me` already hides a dead id, and a list that came back empty must not
- * erase the team the account keeps. Signing out wipes the cache and tells the
- * listeners there is no team (data/session.mjs).
+ * erase the team the account keeps. A list that could not be read at all decides
+ * nothing. Signing out wipes the cache and tells the listeners there is no team
+ * (data/session.mjs).
  */
 import { state } from "../core/state.mjs";
 import { STORAGE_KEYS, storage } from "../core/storage.mjs";
@@ -126,6 +127,12 @@ export function syncActiveTeam({ routeTeamId = null, store = storage } = {}) {
   if (!user) {
     setActiveTeamId(null);
     return null;
+  }
+  // A list that was never read (it failed at sign-in) says nothing of which team is the coach's: the team
+  // already active, else the account's (which /me has checked), and nothing is written to either store.
+  if (!state.myTeams.loaded && !state.myTeams.items.length) {
+    setActiveTeamId(state.activeTeamId ?? accountTeamId(user));
+    return state.activeTeamId;
   }
   const teamId = resolveActiveTeamId({
     teamIds: state.myTeams.items.map((item) => item.id),

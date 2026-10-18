@@ -36,3 +36,11 @@ export async function loadMyTeams(force = false) {
 export function setMyTeams(items) {
   state.myTeams = { items, loaded: true, loading: false, error: "" };
 }
+
+/**
+ * The list as a request that failed left it: not read, so no team is known (not "no team"), and why
+ * (`error`). The session is signed in all the same; the overview offers to read the list again.
+ */
+export function setMyTeamsUnread(error) {
+  state.myTeams = { items: [], loaded: false, loading: false, error: errorText(error) };
+}

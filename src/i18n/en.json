@@ -895,6 +895,8 @@
   "team.empty.title": "Create your first team",
   "team.empty.text": "Your roster, treasury and season matches will live here.",
   "team.empty.create": "Create a team",
+  "team.unread.title": "Your teams did not load",
+  "team.unread.retry": "Try again",
   "settings.title": "Settings",
   "settings.subtitle": "Account and site appearance",
   "settings.coachSince": "Coach since {year} · teams: {count}",

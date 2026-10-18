@@ -30,7 +30,7 @@ function coachWith(preferences, ids = IDS) {
   api.reset();
   api.items.set("gata-league-auth-token", "tok");
   state.auth.currentUser = { id: "u1", login: "coach", preferences };
-  state.myTeams.items = ids.map((id) => ({ id }));
+  state.myTeams = { items: ids.map((id) => ({ id })), loaded: true, loading: false, error: "" };
   state.activeTeamId = null;
 }
 
@@ -374,5 +374,50 @@ test("signing out forgets the active team here and in this browser", async () =>
   assert.equal(state.activeTeamId, null);
   assert.equal(api.items.has(KEY), false);
   assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+// R10: /me answered with the coach, the list of teams did not. The session holds; the list says nothing of
+// which team is the coach's, so nothing is decided from it and nothing is written.
+test("a list that could not be read decides nothing: the account's team stays active, and neither the account nor the cache is written", async () => {
+  const { store, backend } = memory();
+  team.writeActiveTeamCache(store, "u1", "t3");
+  const cached = backend.get(KEY);
+  api.reset();
+  api.items.set("gata-league-auth-token", "tok");
+  api.reply("GET /api/auth/me", 200, { user: { id: "u1", login: "coach", preferences: { activeTeamId: "t2" } } });
+  api.reply("GET /api/teams", 500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } });
+  const off = session.onSessionChange(() => team.syncActiveTeam({ store }));
+  try {
+    assert.equal(await session.loadSession(), "signed-in");
+  } finally {
+    off();
+  }
+  await flush();
+  assert.deepEqual([state.myTeams.loaded, state.myTeams.items.length], [false, 0]);
+  assert.equal(state.activeTeamId, "t2", "the account's, which /me has already checked");
+  assert.equal(backend.get(KEY), cached, "the cache keeps what it had");
+  assert.deepEqual(patches(), []);
+  // An account that names no team: none is active, and none is made up.
+  coachWith({}, []);
+  state.myTeams = { items: [], loaded: false, loading: false, error: "The server did not answer." };
+  assert.equal(team.syncActiveTeam({ store }), null);
+  await flush();
+  assert.equal(backend.get(KEY), cached);
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+test("the list read again after such a failure decides as usual", async () => {
+  const { store } = memory();
+  coachWith({ activeTeamId: "gone" }, []);
+  state.myTeams = { items: [], loaded: false, loading: false, error: "The server did not answer." };
+  team.syncActiveTeam({ store });
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t3" }, { id: "t1" }] });
+  api.reply(PATCH, 200, { preferences: { activeTeamId: "t3" } });
+  await loadMyTeams(true);
+  await flush();
+  assert.equal(state.activeTeamId, "t3");
+  assert.deepEqual(patches(), [{ activeTeamId: "t3" }]);
   api.assertAnswered();
 });
