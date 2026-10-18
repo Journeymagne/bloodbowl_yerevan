@@ -645,11 +645,11 @@ test("the env file's administrator keeps the file's password: his settings, a us
   assert.equal((await callApi("PATCH", `/api/admin/users/${env.id}`, { token: boss.token, body: { login: env.login } })).status, 200);
 }));
 
-const FROM_ENV = "This administrator's login and Telegram are set in the server's settings and cannot be changed here.";
+const FROM_ENV = "This administrator's login, Telegram and rights are set in the server's settings and cannot be changed here.";
 const writes = (log) => log.filter((sql) => /^(INSERT|UPDATE|DELETE)/.test(sql));
-const rowOf = async (client, id) => (await client.query("SELECT login, login_key, telegram, password_hash FROM users WHERE id = $1", [id])).rows[0];
+const rowOf = async (client, id) => (await client.query("SELECT login, login_key, telegram, password_hash, is_admin FROM users WHERE id = $1", [id])).rows[0];
 
-test("the env file's administrator keeps the file's login and Telegram too: a change is 409 after the 400s, before any guess or write", db, () => withApiDatabase(async ({ client }) => {
+test("the env file's administrator keeps the file's login, Telegram and rights too: a change is 409 after the 400s, before any guess or write", db, () => withApiDatabase(async ({ client }) => {
   const env = await seedCoach(client, envAdminLogin(), { admin: true }), boss = await seedCoach(client, "pw-envoy-2", { admin: true });
   const elsewhere = await sessionFor(client, env.id);
   const before = await rowOf(client, env.id);
@@ -662,6 +662,10 @@ test("the env file's administrator keeps the file's login and Telegram too: a ch
     ["a new Telegram, with a wrong current password sent along", () => profile(env.token, { telegram: "@the-env-admin", currentPassword: "wrong" })],
     ["another administrator's user edit", () => edit(boss.token, { login: "renamed-admin" })],
     ["his own user edit", () => edit(env.token, { login: "renamed-admin" })],
+    // R7: the start writes is_admin TRUE back, so a demotion here would only last until the next one.
+    ["another administrator taking away his rights", () => edit(boss.token, { login: env.login, isAdmin: false })],
+    ["another administrator taking them away under a recase", () => edit(boss.token, { login: env.login.toUpperCase(), isAdmin: false })],
+    ["his own user edit taking them away", () => edit(env.token, { isAdmin: false })],
   ];
   for (const [label, ask] of asks) {
     const { result, log } = await recording(ask);
@@ -694,15 +698,15 @@ test("what the file keeps of the env administrator is still accepted when it is 
   assert.deepEqual([recased.status, recased.body.user.login], [200, upper]);
   assert.equal((await whoIs(env.token)).login, upper);
   const title = `${upper.slice(0, 1)}${envAdminLogin().slice(1).toLowerCase()}`;
-  const byBoss = await callApi("PATCH", `/api/admin/users/${env.id}`, { token: boss.token, body: { login: title } });
-  assert.deepEqual([byBoss.status, byBoss.body.user.login], [200, title], "another administrator may recase it too");
+  const byBoss = await callApi("PATCH", `/api/admin/users/${env.id}`, { token: boss.token, body: { login: title, isAdmin: true } });
+  assert.deepEqual([byBoss.status, byBoss.body.user.login], [200, title], "another administrator may recase it too, leaving his rights as they are");
   // The boot finds the account by its login_key: the recased one is the one it keeps, not a second one beside it.
   await ensureAdminAccount(pool, { ADMIN_LOGIN: envAdminLogin() });
   const rows = (await client.query("SELECT login_key, is_admin FROM users WHERE login_key = $1", [envAdminLogin().toLowerCase()])).rows;
   assert.deepEqual(rows, [{ login_key: envAdminLogin().toLowerCase(), is_admin: true }]);
 }));
 
-test("only the env administrator's login and Telegram are the file's: another administrator and a coach change theirs, and have another's changed", db, () => withApiDatabase(async ({ client }) => {
+test("only the env administrator's login, Telegram and rights are the file's: another administrator and a coach change theirs, and have another's changed", db, () => withApiDatabase(async ({ client }) => {
   const env = await seedCoach(client, envAdminLogin(), { admin: true }), deputy = await seedCoach(client, "pw-deputy-2", { admin: true }), coach = await seedCoach(client, "pw-coach-2");
   for (const who of [deputy, coach]) {
     const own = await profile(who.token, { login: `${who.login}-renamed`, telegram: `@${who.login}_new` });
@@ -712,6 +716,10 @@ test("only the env administrator's login and Telegram are the file's: another ad
     const edited = await callApi("PATCH", `/api/admin/users/${who.id}`, { token: env.token, body: { login: `${who.login}-by-env` } });
     assert.deepEqual([edited.status, edited.body.user.login], [200, `${who.login}-by-env`]);
   }
+  const demoted = await callApi("PATCH", `/api/admin/users/${deputy.id}`, { token: env.token, body: { isAdmin: false } });
+  assert.deepEqual([demoted.status, demoted.body.user.isAdmin], [200, false], "another administrator's rights are the administrators' to change");
+  const promoted = await callApi("PATCH", `/api/admin/users/${coach.id}`, { token: env.token, body: { isAdmin: true } });
+  assert.deepEqual([promoted.status, promoted.body.user.isAdmin], [200, true]);
 }));
 
 test("/me says so when the account is the file's, and only /me does: no user, list, login or edit answer carries it", db, () => withApiDatabase(async ({ client }) => {

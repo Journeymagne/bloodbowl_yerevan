@@ -107,8 +107,10 @@ async function handleAdminUserRoutes(request, response, url) {
     if (password && password.length < PASSWORD_MIN_LENGTH) return sendError(response, 400, "PASSWORD_TOO_SHORT");
     // The env file's administrator keeps the file's password: every start would write it back.
     if (password && isEnvAdmin(target)) return sendError(response, 409, "ADMIN_PASSWORD_FROM_ENV");
-    // Nor does the login: the start finds the account by it. Only its letter case is a user's to change.
-    if (changesEnvProfile(target, { login })) return sendError(response, 409, "ADMIN_PROFILE_FROM_ENV");
+    // Nor does the login (the start finds the account by it; only its letter case is a user's to change), nor
+    // the rights: the start makes it an administrator again, so a demotion here would last until the restart.
+    const rights = Object.hasOwn(body, "isAdmin") ? nextIsAdmin : undefined;
+    if (changesEnvProfile(target, { login, isAdmin: rights })) return sendError(response, 409, "ADMIN_PROFILE_FROM_ENV");
     // Your own password is changed in your settings, with the current one (PATCH /api/auth/profile). Here
     // it would be written with no password asked, and the administrator's other sessions would go on.
     if (password && target.id === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");

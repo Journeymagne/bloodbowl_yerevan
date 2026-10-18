@@ -59,3 +59,17 @@ test("a change of the env administrator's login or Telegram is told from one tha
   assert.equal(changesEnvProfile(other, { login: "Renamed", telegram: "@elsewhere" }, env), false, "another account is nobody's but its user's");
   assert.equal(changesEnvProfile(null, { login: "Renamed" }, env), false);
 });
+
+// R7: another administrator could drop is_admin of the env file's administrator, and the next start quietly put it back.
+test("the env administrator's rights are the file's too: a request that changes them is a change, one that leaves them is not", () => {
+  const env = { ADMIN_LOGIN: "Chief" };
+  const chief = { login: "Chief", login_key: "chief", telegram: "@chief", is_admin: true };
+  const changes = (change) => changesEnvProfile(chief, change, env);
+  assert.equal(changes({ isAdmin: false }), true);
+  assert.equal(changes({ login: "CHIEF", isAdmin: false }), true, "a recase does not carry a demotion through");
+  assert.equal(changes({ isAdmin: true }), false, "the administrator he already is");
+  assert.equal(changes({ login: "Chief", telegram: "@chief", isAdmin: true }), false);
+  assert.equal(changes({}), false, "left out, not touched");
+  const deputy = { login: "Deputy", login_key: "deputy", telegram: "@deputy", is_admin: true };
+  assert.equal(changesEnvProfile(deputy, { isAdmin: false }, env), false, "another administrator's rights are the administrators' to change");
+});

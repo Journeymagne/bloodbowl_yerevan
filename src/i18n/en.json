@@ -464,7 +464,7 @@
   "validation.SPP_EDIT_TOO_LARGE": "One save can change SPP by at most {limit} steps. Save the changes in parts.",
   "roster.raceLockedInSeason": "This team is playing in the current season, so its race cannot be changed.",
   "error.ADMIN_PASSWORD_FROM_ENV": "This administrator's password is set in the server's settings and cannot be changed here.",
-  "error.ADMIN_PROFILE_FROM_ENV": "This administrator's login and Telegram are set in the server's settings and cannot be changed here.",
+  "error.ADMIN_PROFILE_FROM_ENV": "This administrator's login, Telegram and rights are set in the server's settings and cannot be changed here.",
   "error.ADMIN_REQUIRED": "Admin access required.",
   "error.BASE_TEAM_REQUIRED": "Base team is required.",
   "error.BODY_TOO_LARGE": "Request body is larger than {limitKb} KB.",
