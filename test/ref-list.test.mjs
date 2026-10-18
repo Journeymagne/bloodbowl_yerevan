@@ -194,10 +194,11 @@ test("a skill that is open is marked in the list, which keeps its filter; the li
   const current = view.querySelectorAll('a.g-ref-row[aria-current="page"]');
   assert.deepEqual(current.map((row) => row.getAttribute("href")), ["#/skills/dodge"]);
   assert.equal(view.querySelectorAll("a.g-ref-row").length, 13);
-  assert.equal(view.querySelectorAll("h1").length, 0, "the open article owns the h1");
+  assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Dodge"], "the open skill's panel owns the h1");
   assert.equal(view.querySelector("p.g-ref-list__title").textContent, "Skills");
   assert.ok(view.querySelector(".g-ref.g-ref--split.g-ref--open"));
-  assert.equal(view.querySelector(".g-ref__panel .g-ref-pick").textContent, "Choose a skill to read its rule", "until the panel is drawn the hint stands");
+  assert.ok(view.querySelector(".g-ref__panel .g-skill-detail"), "the panel stands where the hint did");
+  assert.equal(view.querySelector(".g-ref-pick"), null);
   renderRefSection("skills");
   assert.equal(view.querySelector(".g-ref--open"), null, "nothing chosen: the list is the whole screen on a phone");
   assert.equal(view.querySelectorAll('a.g-ref-row[aria-current="page"]').length, 0, "and no row is marked");

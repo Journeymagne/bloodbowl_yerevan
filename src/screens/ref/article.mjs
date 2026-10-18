@@ -5,9 +5,10 @@
  *
  * An article says where it lives (its kicker: the group and the section), what it is, and, when the
  * reference's groups name it, which article comes before it and after it. A page that is a member of
- * a list (a team, a skill, an inducement) goes back to that list. An address with no page is an
+ * a list (a team, an inducement) goes back to that list. An address with no page is an
  * article too, and says so, rather than leaving the coach on a bare screen. Two pages are drawn by
- * bodies.mjs instead of from the vault's text: Leagues and the Skill Table.
+ * bodies.mjs instead of from the vault's text: Leagues and the Skill Table. A skill or a trait is not
+ * an article: it is the panel beside its list (list.mjs).
  */
 import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -20,6 +21,7 @@ import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
 import { leaguesBody, skillTableBody, wireSkillTableRoller } from "./bodies.mjs";
 import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectionTitle } from "./catalog.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
+import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
 
 /** The two pages whose body is drawn by bodies.mjs, not taken from the vault. */
@@ -161,6 +163,10 @@ export function renderReferencePage(slug) {
   const page = findPage(state.data, slug);
   if (!page) {
     show(notFoundMarkup());
+    return;
+  }
+  if (page.kind === "skill" || page.kind === "trait") {
+    renderRefSection(navRouteForPage(page), { selected: page });
     return;
   }
   const groups = currentGroups();

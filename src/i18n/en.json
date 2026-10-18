@@ -1018,5 +1018,10 @@
   "ref.trait.pick": "Choose a trait to read its rule",
   "ref.kicker": "{group} · league reference",
   "ref.pager": "More articles",
-  "ref.roll.hint": "Pick a category and roll the D16"
+  "ref.roll.hint": "Pick a category and roll the D16",
+  "ref.skill.roll": "Random roll",
+  "ref.skill.rollValue": "{category} · {face} on D16",
+  "ref.skill.notInTable": "Not on the Skill Table",
+  "ref.skill.ours": "In your team",
+  "ref.skill.noneOurs": "No one has it"
 }

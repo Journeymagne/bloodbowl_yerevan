@@ -14,6 +14,7 @@ import { pageUrl, refUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
+import { activeTeam } from "../../data/active-team.mjs";
 import { renderFilterChips, wireFilterChips } from "../../ui/filter-chips.mjs";
 import { renderNavRow } from "../../ui/list-row.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
@@ -23,16 +24,16 @@ import { overviewUrl, refGroups, sectionPages, sectionTitle } from "./catalog.mj
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { listFilter, refQuery, setListFilter } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
+import { badgeMarkup, skillDetailMarkup, tagsOf } from "./skill.mjs";
 
 /** The lists whose rows are a letter, a name and a type, and which keep a panel beside them. */
 const SPLIT_SECTIONS = new Set(["skills", "traits"]);
 
-/** The categories that have a colour of their own; any other tag is drawn as a trait is. */
-const TONES = new Set(["agility", "devious", "general", "mutation", "passing", "strength"]);
-const TYPES = new Set(["Active", "Passive"]);
-
 /** How much of an inducement's rule its row quotes. */
 const INDUCEMENT_PREVIEW = 90;
+
+/** The width up to which a split page shows its list or its panel, not both (ref.css). */
+const PHONE = "(max-width: 900px)";
 
 /** The chip row is one of its screen's rows by name, for the reason `wireFilterChips` gives. */
 const CHIP_GROUP = "category";
@@ -60,22 +61,14 @@ export function listRows(data, section, { query = "", category = "all" } = {}) {
   });
 }
 
-/** What a skill or a trait is, as its tags have it: the category, and whether it is used or always there. */
-function tagsOf(page) {
-  const tags = page.tags ?? [];
-  return { category: tags.find((tag) => !TYPES.has(tag)) ?? "", type: tags.find((tag) => TYPES.has(tag)) ?? "" };
-}
-
 function referenceRow(page, selectedSlug) {
   const href = pageUrl(page);
   assertLinkHref(href);
   const { category, type } = tagsOf(page);
-  const tone = category.toLowerCase();
-  const known = TONES.has(tone);
   const meta = type ? `<span class="g-ref-row__meta${type === "Passive" ? " g-ref-row__meta--passive" : ""}">${escapeHtml(type)}</span>` : "";
   const current = page.slug === selectedSlug ? ' aria-current="page"' : "";
   return `<a class="g-ref-row" href="${escapeHtml(href)}"${current}>`
-    + `<span class="g-ref-badge g-ref-badge--${known ? tone : "trait"}" aria-hidden="true">${escapeHtml(known ? category[0].toUpperCase() : "•")}</span>`
+    + badgeMarkup(category)
     + `<span class="g-sr-only">${escapeHtml(category)}</span>`
     + `<span class="g-ref-row__name">${escapeHtml(page.title)}</span>${meta}</a>`;
 }
@@ -152,7 +145,8 @@ export function refListMarkup({ data, section, filter, overviewCards = [], selec
   const search = label ? renderSearchField({ id: "ref-list-query", label, placeholder: label, value: filter.query, data: { listSearch: section } }) : "";
   const chips = section === "skills" ? categoryChips(data, categories, category) : "";
   const shape = SPLIT_SECTIONS.has(section) ? "" : " g-ref-list--nav";
-  return `<section class="g-ref-list${shape}" data-section="${escapeHtml(section)}"><header class="g-ref-list__head">`
+  // Keyed, so that the redraw which opens a skill beside the list (its way up is no longer in front of it) keeps the list's box, and with it the scroll.
+  return `<section class="g-ref-list${shape}" data-section="${escapeHtml(section)}" data-key="ref-list"><header class="g-ref-list__head">`
     + `<div class="g-ref-list__top">${heading}<p class="g-ref-list__count" role="status">${escapeHtml(count)}</p></div>${search}${chips}</header>`
     + `<div class="g-ref-list__body">${rowsMarkup(section, pages, cards, selectedSlug)}</div></section>`;
 }
@@ -169,25 +163,41 @@ function rewind() {
   if (body) body.scrollTop = 0;
 }
 
+/**
+ * The panel of a split page: what is said until a skill or a trait is chosen, then the chosen one's
+ * card, with the coach's active team beside it. On a phone the panel is the whole screen, so it carries
+ * the way back to the list (a link the sheet shows only there).
+ */
+function panelMarkup(section, selected) {
+  if (!selected) return `<p class="g-ref-pick">${escapeHtml({ skills: t("ref.skill.pick"), traits: t("ref.trait.pick") }[section])}</p>`;
+  const team = activeTeam();
+  const teamPage = team ? (state.data.teams ?? []).find((page) => page.slug === team.baseTeamSlug) ?? null : null;
+  return backLinkMarkup({ href: refUrl(section), label: sectionTitle(section) })
+    + skillDetailMarkup({ data: state.data, page: selected, team, teamPage });
+}
+
 function draw(section, selected) {
   const overviewCards = activeOverviewCards();
   const filter = listFilter(section);
   const split = SPLIT_SECTIONS.has(section);
-  const hint = { skills: t("ref.skill.pick"), traits: t("ref.trait.pick") }[section];
   const sameList = view.querySelector(".g-ref-list")?.getAttribute("data-section") === section;
+  const wasOpen = Boolean(view.querySelector(".g-ref--open"));
   patch(view, refPageMarkup({
     layout: split ? "split" : "list",
     open: Boolean(selected),
     headHtml: refHeadMarkup({ query: refQuery() }),
     tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
-    mainHtml: backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") })
+    // With something chosen the list is hidden on a phone, and the panel brings the way back.
+    mainHtml: (selected ? "" : backLinkMarkup({ href: refUrl(), label: t("shell.tab.ref") }))
       + refListMarkup({ data: state.data, section, filter, overviewCards, selectedSlug: selected?.slug ?? null }),
-    panelHtml: split ? `<p class="g-ref-pick">${escapeHtml(hint)}</p>` : "",
+    panelHtml: split ? panelMarkup(section, selected) : "",
   }));
   syncField("#ref-list-query", filter.query);
   syncField("#ref-query", refQuery());
   // Opening a skill redraws the same list beside it, which must stay where the coach scrolled it to.
   if (!sameList) rewind();
+  // A phone shows the panel in the list's place, a screen of its own: from its top, not from wherever the list was read to.
+  if (selected && !wasOpen && globalThis.matchMedia?.(PHONE).matches) globalThis.scrollTo?.(0, 0);
 }
 
 /**
