@@ -159,12 +159,13 @@ export function phaseOf(team, seasonData) {
   return { key: "season", round: round > 0 ? round : null };
 }
 
-const AMOUNT = /^\s*\d+(?:[.,]\d{1,3})?\s*$/;
+const AMOUNT = /^\s*\d+(?:[.,]\d)?\s*$/;
 
 /**
- * An amount typed in thousands: whole or with up to three decimals (a half-price
- * sale leaves individual gold), a comma read as a dot. Zero is 0; a sign, an
- * exponent, letters or nothing at all is null.
+ * An amount typed in thousands: whole or with one decimal, a tenth of a thousand
+ * (100 gold, as the page writes money: `formatMoney` rounds to tenths), a comma
+ * read as a dot. Zero is 0; a sign, a second decimal, an exponent, letters or
+ * nothing at all is null (controller ruling K14).
  *
  * @param {string} text
  * @returns {number|null}

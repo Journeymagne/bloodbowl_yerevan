@@ -132,8 +132,9 @@ test("a season whose first round has not begun has no round to name, never «rou
   assert.deepEqual(model.phaseOf({ stage: "draft", inActiveSeason: true }, { season: { currentRound: 3 } }), { key: "draft", round: null }, "a build is a build whatever the table says");
 });
 
-test("amounts are read with a dot or a comma, to the gold, and nothing else", () => {
-  assert.deepEqual(["20", " 42,5 ", "0.005", "0", "", "-5", "1.0005", "1e3", "abc"].map(model.readAmount), [20, 42.5, 0.005, 0, null, null, null, null, null]);
+test("amounts are read with a dot or a comma, to the tenth of a thousand, and nothing else", () => {
+  assert.deepEqual(["20", " 42,5 ", "12.5", "0.5", "0", "", "-5", "0.05", "0.005", "1.0005", "1e3", "abc"].map(model.readAmount),
+    [20, 42.5, 12.5, 0.5, 0, null, null, null, null, null, null, null]);
 });
 
 test("the check says what the button waits for, in order", () => {
@@ -152,7 +153,8 @@ test("the check reads what is typed without drifting, and each problem comes bef
   assert.deepEqual(check({ amountText: "", reason: "" }), { delta: null, after: 70, short: 0, problem: "amount" }, "no sum yet: the treasury as it is");
   assert.equal(Object.is(check({ sign: -1, amountText: "0" }).delta, 0), true, "a debit of nothing is 0, not −0");
   assert.equal(check({ amountText: "100000" }).problem, null, "the largest entry is allowed");
-  assert.equal(check({ amountText: "100000.001" }).problem, "tooMuch");
+  assert.equal(check({ amountText: "100000.1" }).problem, "tooMuch");
+  assert.equal(check({ amountText: "20.05" }).problem, "amount", "a second decimal is no amount, not a rounded one");
   assert.equal(check({ note: "x".repeat(200) }).problem, null);
   assert.equal(check({ note: `  ${"x".repeat(200)}  ` }).problem, null, "the spaces around a note are not counted");
   assert.equal(check({ sign: -1, amountText: "80", reason: "", note: "x".repeat(201) }).problem, "reason", "a missing reason is said before a long note, and before the shortfall");
