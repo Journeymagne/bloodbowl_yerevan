@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { afterEach, beforeEach } from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { assertReadable } from "./helpers/contrast.mjs";
@@ -28,8 +28,17 @@ const VIOLATION = { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, messag
 const ELSEWHERE = { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" } };
 
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
-const host = document.body.appendChild(el(document, "div"));
-sheet.wireMoneySheet(host);
+// A host of its own for each test, taken away at its end: nothing a test leaves open or wired reaches the next.
+let host = null;
+let unwire = () => {};
+beforeEach(() => {
+  host = mountSheetHost("treasury-money");
+  unwire = sheet.wireMoneySheet(host);
+});
+afterEach(() => {
+  unwire();
+  unmountSheetHost(host);
+});
 const $ = (selector) => host.querySelector(selector);
 const type = (selector, value) => {
   const field = $(selector);
@@ -75,9 +84,14 @@ test("a reason, then an amount typed with a comma: the preview and the button fo
   coach();
   sheet.openMoneySheet(host, { teamId: "t1", sign: 1 });
   fireEvent($('[data-money-reason="friendly"]'), "click");
-  $("#money-amount").focus();
+  const field = $("#money-amount");
+  field.focus();
+  // The coach is typing in the middle of the text: the redraw must leave the field, its focus and its caret as they are.
+  field.setSelectionRange(1, 3);
   type("#money-amount", "42,5");
-  assert.equal(document.activeElement, $("#money-amount"));
+  assert.equal($("#money-amount"), field, "the same node: a field that is replaced loses what the coach was doing in it");
+  assert.equal(document.activeElement, field);
+  assert.deepEqual([field.selectionStart, field.selectionEnd], [1, 3]);
   assert.equal($(".g-money__preview").textContent, "Treasury: 70k → 112.5k");
   assert.equal(label(), "Add 42.5k");
   assert.equal(host.querySelectorAll('[data-money-preset][aria-pressed="true"]').length, 0);
@@ -137,6 +151,7 @@ test("one press sends one entry; the sheet closes, says it, and gives the focus 
     fireEvent(apply(), "click");
     assert.equal(label(), "Saving…");
     assert.equal(apply().hasAttribute("disabled"), false, "a focused button that is disabled drops the focus");
+    assert.deepEqual([apply().getAttribute("aria-busy"), apply().getAttribute("aria-disabled")], ["true", "true"]);
     fireEvent(apply(), "click");
     gate.release();
     await settle();
@@ -188,12 +203,14 @@ test("a team changed elsewhere: said, the amount put back, the treasury the new 
   openOn("friendly");
   api.reply(POST, 409, { ...ELSEWHERE, team: { ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90 } } });
   api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });
+  apply().focus();
   click("[data-money-apply]");
   await settle();
   assert.equal($('[role="alert"] .g-callout__title').textContent, en["treasury.changedElsewhere"]);
   assert.ok($("dialog#treasury-money").matches(":modal"));
   assert.equal(label(), "Enter an amount");
   assert.equal(apply().hasAttribute("disabled"), true);
+  assert.equal(document.activeElement, $("#money-amount"), "the button that had the focus is disabled now: the focus goes to the amount");
   assert.equal($("#money-amount").value, "");
   assert.equal($(".g-money__preview").textContent, "Treasury: 90k → 90k");
   click("[data-money-apply]");
@@ -215,15 +232,61 @@ test("an entry whose answer never came: said, the amount put back, and the histo
   openOn("friendly");
   api.fail(POST);
   api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });
+  apply().focus();
   click("[data-money-apply]");
   await settle();
   assert.equal($('[role="alert"] .g-callout__title').textContent, en["treasury.mayHaveWritten"]);
   assert.ok($("dialog#treasury-money").matches(":modal"));
   assert.equal(label(), "Enter an amount");
   assert.equal(apply().hasAttribute("disabled"), true);
+  assert.equal(document.activeElement, $("#money-amount"));
   assert.ok(api.calls.some((call) => call.key === FIRST_PAGE), "the history is read at once");
   click("[data-money-apply]");
   assert.equal(api.calls.filter((call) => call.key === POST).length, 1, "no second try on the same press");
+});
+
+test("a write that throws is a write whose fate is not known: said as such, disarmed, the history read, never stuck on «Saving…»", async () => {
+  coach();
+  openOn("friendly");
+  // An answer with no team in it: the write is made, and what follows it throws.
+  api.reply(POST, 201, {});
+  api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });
+  apply().focus();
+  click("[data-money-apply]");
+  assert.equal(label(), "Saving…");
+  await settle();
+  assert.equal($('[role="alert"] .g-callout__title').textContent, en["treasury.mayHaveWritten"]);
+  assert.ok($("dialog#treasury-money").matches(":modal"));
+  assert.equal(label(), "Enter an amount");
+  assert.equal(apply().hasAttribute("aria-busy"), false);
+  assert.equal(document.activeElement, $("#money-amount"));
+  assert.ok(api.calls.some((call) => call.key === FIRST_PAGE), "the history is read at once");
+  click("[data-money-apply]");
+  assert.equal(api.calls.filter((call) => call.key === POST).length, 1);
+});
+
+test("a sheet opened again while the entry of the one before is on its way: one entry goes out, the press is answered, and the preview is current once it lands", async () => {
+  coach();
+  openOn("sponsor");
+  api.reply(POST, 201, { team: { ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90 } }, entry: ENTRY });
+  const gate = api.hold(POST);
+  click("[data-money-apply]");
+  click("[data-sheet-close]");
+  openOn("friendly");
+  click("[data-money-apply]");
+  await settle();
+  assert.equal(api.calls.filter((call) => call.key === POST).length, 1, "the second press sends nothing while the first is on its way");
+  assert.equal($('[role="alert"] .g-callout__title').textContent, en["treasury.writing"], "and it is not met with silence");
+  assert.equal(label(), "Add 20k", "nor left on «Saving…»");
+  assert.equal($(".g-money__preview").textContent, "Treasury: 70k → 90k");
+  await withoutTimers(async () => {
+    gate.release();
+    await settle();
+  });
+  assert.ok($("dialog#treasury-money").matches(":modal"), "the first entry landing does not close the sheet opened since");
+  assert.equal($(".g-money__preview").textContent, "Treasury: 90k → 110k", "the preview is read again from the team the write brought");
+  assert.deepEqual(toasts().map((toast) => toast.text), ["Added 20k"], "the first entry is still said");
+  assert.equal(api.calls.filter((call) => call.key === POST).length, 1);
 });
 
 test("a match that went live while the sheet was open: the button says why and nothing is sent", () => {
@@ -231,10 +294,12 @@ test("a match that went live while the sheet was open: the button says why and n
   sheet.openMoneySheet(host, { teamId: "t1", sign: 1 });
   fireEvent($('[data-money-reason="friendly"]'), "click");
   state.games.items = [LIVE];
+  apply().focus();
   fireEvent(apply(), "click");
   assert.equal(api.calls.length, 0);
   assert.equal(label(), "After the match's post-match");
   assert.equal(apply().hasAttribute("disabled"), true);
+  assert.equal(document.activeElement, $("#money-amount"), "the button that had the focus is disabled now: the focus goes to the amount");
 });
 
 test("a sheet opened while a match is on says so at once", () => {
@@ -329,7 +394,7 @@ test("every word of the sheet is in both dictionaries, the reasons too; a commen
   assert.equal($("#money-note").getAttribute("value"), HOSTILE);
   assertCspSafe(host);
   assertStyled(host, CSS, "sheet.css", "segmented-control.css", "text-field.css", "button.css", "callout.css");
-  assertDictionaryCovers("src/screens/team/manage/money-sheet.mjs");
+  assertDictionaryCovers("src/screens/team/manage/money-sheet.mjs", "src/screens/team/manage/sheet-host.mjs");
   for (const reason of MANUAL_REASONS) assert.ok(en[`treasury.reason.${reason}`] && ru[`treasury.reason.${reason}`], reason);
   for (const key of Object.keys(en).filter((name) => name.startsWith("treasury."))) assert.ok(ru[key], `ru ${key}`);
 });

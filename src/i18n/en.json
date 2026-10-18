@@ -1113,5 +1113,6 @@
   "treasury.reason.friendly": "Friendly match",
   "treasury.reason.other": "Other",
   "treasury.reason.purchase": "Purchase",
-  "treasury.reason.sponsor": "Sponsor or prize"
+  "treasury.reason.sponsor": "Sponsor or prize",
+  "treasury.writing": "Another save is still on its way. Wait a moment and press again."
 }
