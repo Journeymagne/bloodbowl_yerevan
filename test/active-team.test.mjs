@@ -421,3 +421,41 @@ test("the list read again after such a failure decides as usual", async () => {
   assert.deepEqual(patches(), [{ activeTeamId: "t3" }]);
   api.assertAnswered();
 });
+
+// R13-M1: a list is the teams of the coach it was asked for, and only the last one asked is written.
+test("a list that comes back after its coach signed out is not written into the next one's, nor made active", async () => {
+  coachWith({}, []);
+  const gate = api.hold("GET /api/teams");
+  const loading = loadMyTeams(true);
+  await flush();
+  api.reply("PATCH /api/auth/preferences", 404, TEAM_NOT_FOUND);
+  state.auth.currentUser = { id: "u2", login: "next", preferences: {} };
+  state.myTeams = { items: [{ id: "n1" }], loaded: true, loading: false, error: "" }; // as the next coach's /me left it
+  state.activeTeamId = "n1";
+  gate.release({ status: 200, body: { teams: [{ id: "t1" }] } });
+  await loading;
+  await flush();
+  assert.deepEqual(state.myTeams.items, [{ id: "n1" }]);
+  assert.equal(state.activeTeamId, "n1");
+  assert.deepEqual(patches(), [], "no PATCH of the coach before's team to the next one's account");
+});
+
+test("a list read that a newer one overtook writes nothing, and its caller waits for the newer list", async () => {
+  coachWith({ activeTeamId: "t1" });
+  api.reply(PATCH, 200, { preferences: { activeTeamId: "t1" } });
+  const first = api.hold("GET /api/teams");
+  let olderDone = false;
+  const older = loadMyTeams(true).then(() => { olderDone = true; });
+  await flush();
+  const second = api.hold("GET /api/teams");
+  const newer = loadMyTeams(true);
+  await flush();
+  first.release({ status: 200, body: { teams: [{ id: "t1" }] } });
+  await flush();
+  assert.equal(olderDone, false, "its caller reads state.myTeams when it returns, so it waits for the list that will be there");
+  assert.deepEqual(state.myTeams.items.map((item) => item.id), IDS, "the list from before is not written");
+  second.release({ status: 200, body: { teams: [{ id: "t1" }, { id: "new" }] } });
+  await Promise.all([older, newer]);
+  assert.deepEqual(state.myTeams.items.map((item) => item.id), ["t1", "new"]);
+  assert.equal(state.myTeams.loading, false);
+});

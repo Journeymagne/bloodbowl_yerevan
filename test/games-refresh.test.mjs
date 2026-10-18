@@ -131,3 +131,33 @@ test("a visitor who is not signed in has no games to read, and nothing is sent",
   await invalidateGames();
   assert.equal(sent(), 0);
 });
+
+// Final-wave item 3: an answer is the games of the coach it was asked for.
+test("games that come back after their coach signed out are not written, nor heard", async () => {
+  signedIn([NEXT]);
+  const heard = [];
+  const stop = onGamesChange(() => heard.push(state.games.items.length));
+  const gate = api.hold(GAMES);
+  const loading = loadGames(true);
+  state.auth.currentUser = null;
+  state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" }; // as signing out leaves it
+  gate.release(AFTER);
+  await loading;
+  stop();
+  assert.deepEqual([state.games.items, state.games.loaded], [[], false]);
+  assert.deepEqual(heard, []);
+});
+
+test("games that come back after another coach signed in are not that coach's", async () => {
+  signedIn([NEXT]);
+  const gate = api.hold(GAMES);
+  const loading = loadGames(true);
+  state.auth.currentUser = { id: "u2", login: "other", isAdmin: false };
+  state.games = { items: [], currentItems: [], loaded: false, loading: false, error: "" };
+  gate.release(AFTER);
+  await loading;
+  assert.deepEqual([state.games.items, state.games.loaded], [[], false]);
+  api.reply(GAMES, 200, { games: [NEXT], currentGames: [] });
+  await loadGames();
+  assert.deepEqual(state.games.items, [NEXT], "the next coach's own read is not held up by the dropped one");
+});

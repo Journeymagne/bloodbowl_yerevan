@@ -41,10 +41,13 @@ let loadTicket = 0;
  * Read the list into `state.games` and tell the listeners — on an answer and on a failure alike. A failed
  * read keeps what was there and sets `error`, so a blip in the network does not empty the frame's card; the
  * screen that shows the error reads it from `state.games.error`. A forced call sends a request of its own; the
- * answer of one that has been overtaken by a newer is dropped, and its caller waits for the newer one.
+ * answer of one that has been overtaken by a newer is dropped, and its caller waits for the newer one. So is
+ * the answer for a coach who is no longer the one signed in (signed out, or another signed in meanwhile):
+ * those are not the games of whoever is here now.
  */
 export async function loadGames(force = false) {
-  if (!state.auth.currentUser) return;
+  const userId = state.auth.currentUser?.id;
+  if (userId === undefined) return;
   if (state.games.loaded && !force) return;
   if (gamesLoadPromise && !force) return gamesLoadPromise;
   state.games.loading = true;
@@ -59,6 +62,7 @@ export async function loadGames(force = false) {
     }
     if (ticket !== loadTicket) return gamesLoadPromise;
     gamesLoadPromise = null;
+    if (state.auth.currentUser?.id !== userId) return;
     state.games = next;
     gamesChanged();
   })();
