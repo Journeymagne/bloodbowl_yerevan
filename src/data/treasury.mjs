@@ -20,8 +20,9 @@ import { loadMyTeams, refusalWithRules, setMyTeams, unanswered } from "./teams.m
 export const LEDGER_PAGE = 20;
 
 /**
- * What is kept of a team's history is kept for the coach who read it: another coach signed in on this page (or
- * the same one signed in again) is shown none of it, and an answer asked for one is never written for the other.
+ * What is kept of a team's history is kept for the coach who read it: another coach signed in on this page is
+ * shown none of it, and an answer asked for one is never written for the other. The same coach signed out and in
+ * again finds the cache as they left it (it is keyed by who read it, not by the session).
  */
 const slotOf = (userId, teamId) => `${userId}:${teamId}`;
 const mySlot = (teamId) => slotOf(state.auth.currentUser?.id, teamId);

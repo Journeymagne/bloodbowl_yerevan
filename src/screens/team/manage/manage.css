@@ -1,0 +1,104 @@
+/*
+ * The team page and its sheets (stage 08): the treasury, the resources, the history, Coach's Safe; the strip is
+ * strip.css. Font, border, background, text-transform, letter-spacing and font-weight are set here on purpose: the
+ * 2.x globals (button { font: inherit }, p, h2) outlive this sheet until stage 13. The keyboard ring is base.css's.
+ */
+
+/* «Add / Take»: the sign, the amounts, the reason, the comment, the treasury after it. */
+.g-money {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The amounts to press and the reasons: rows that wrap, not a strip that scrolls. */
+.g-money__presets,
+.g-money__reasons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+}
+
+.g-money__group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+/* The field label's own look (text-field.css); the group's name is read from the radio group, so this one is not. */
+.g-money__label {
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-money__preset,
+.g-money__reason {
+  box-sizing: border-box;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0 var(--space-16);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  color: var(--ink);
+  font: 600 14px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.g-money__preset[aria-pressed="true"],
+.g-money__reason[aria-checked="true"] {
+  border-color: var(--header);
+  background: var(--header);
+  color: var(--header-ink);
+}
+
+/* «Treasury: 70k → 112.5k»: the sentence at the left, the figure it comes to at the right. The fix sheet's line is the same. */
+.g-money__preview,
+.g-fix__preview {
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-14) var(--space-16);
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-money__preview > :last-child,
+.g-fix__preview > :last-child {
+  color: var(--ink);
+  font: 700 22px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A debit the treasury cannot cover: the figure is below zero. */
+.g-money__preview--short > :last-child,
+.g-fix__preview--short > :last-child { color: var(--danger); }
+
+/* A live region that must stand on the page before it speaks, and takes no room while it is empty: it gives back the column's gap. */
+.g-money__alert { margin: 0; }
+.g-money__alert:empty { margin-top: calc(-1 * var(--space-16)); }
