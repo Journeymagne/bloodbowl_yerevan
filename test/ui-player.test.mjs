@@ -195,9 +195,11 @@ test("a badge's number reads on every position's colour, and the captain's «C»
   assert.deepEqual(valuesOf("src/ui/number-badge.css", ".g-num--lg", "width"), ["60px"]);
 });
 
-test("a lowered characteristic is a red value on the plain tile, and the red reads in every palette", () => {
+test("a lowered characteristic is a red value on the plain tile, and both changed values read in every palette", () => {
   assert.deepEqual(valuesOf("src/ui/stat-strip.css", ".g-stat--down", "background"), ["var(--surface-2)"]);
   assertReadable("src/ui/stat-strip.css", ".g-stat--down .g-stat__v", "color", ["--surface-2"], 4.5);
+  // The raised value is 26px bold, large text: 3:1 is its bar (WCAG 1.4.3), and 4.46:1 in grass is above it.
+  assertReadable("src/ui/stat-strip.css", ".g-stat--up .g-stat__v", "color", ["--accent-tint"], 3);
 });
 
 test("a stat strip's words are escaped and follow the site's language", () => {

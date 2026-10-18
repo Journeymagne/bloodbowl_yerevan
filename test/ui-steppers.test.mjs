@@ -256,23 +256,37 @@ test("a stepper needs the key its wiring reports, and the names its buttons are 
 
 // Stage 07a: the roster table's counters (compact, locked, a minus that stops above zero, a count that reads aloud).
 
-test("a compact stepper puts its label over the − count + row (07a)", () => {
-  const fragment = mount(renderActionStepper({ ...TD, value: 2, compact: true }));
+test("a compact stepper is two rows: the label, the count and its addition over a − + pair (07a, R2)", () => {
+  const fragment = mount(renderActionStepper({ ...TD, value: 7, delta: 1, compact: true }));
   const cell = fragment.querySelector(".g-stepper.g-stepper--compact");
   assert.ok(cell, "the compact class");
-  assert.deepEqual(cell.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__label", "g-stepper__row"], "the label over the row");
-  const row = cell.querySelector(".g-stepper__row");
-  assert.deepEqual(row.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__btn", "g-stepper__value", "g-stepper__btn g-stepper__btn--inc"], "− count +");
-  assert.equal(cell.querySelector(".g-stepper__label").textContent, "TD +3");
+  assert.deepEqual(cell.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__top", "g-stepper__row"], "two rows");
+  const [top, row] = cell.childNodes;
+  assert.deepEqual(top.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__label", "g-stepper__value"], "the label and the count share the top row");
+  assert.deepEqual(row.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__btn", "g-stepper__btn g-stepper__btn--inc"], "− and + side by side under them");
+  assert.equal(top.querySelector(".g-stepper__label").textContent, "TD +3");
+  assert.equal(top.querySelector(".g-stepper__value .g-stepper__delta").textContent, "+1", "the addition is seen beside the count");
   assert.equal(cell.getAttribute("data-action-key"), "touchdowns");
-  assert.ok(valuesOf("src/ui/action-stepper.css", ".g-stepper--compact", "flex-direction").includes("column"));
-  assert.ok(valuesOf("src/ui/action-stepper.css", ".g-stepper__row", "display").includes("grid"));
-  for (const selector of [".g-stepper__btn"]) assert.deepEqual(valuesOf("src/ui/action-stepper.css", selector, "width"), ["var(--size-touch)"], selector);
   assertCspSafe(fragment);
   assertStyled(fragment, "action-stepper.css");
   const plain = mount(renderActionStepper({ ...TD, value: 2 }));
   assert.equal(plain.querySelector(".g-stepper--compact"), null, "not compact unless asked");
   assert.equal(plain.querySelector(".g-stepper__row"), null, "the one-row cell keeps its markup");
+  assert.equal(plain.querySelector(".g-stepper__top"), null);
+});
+
+test("a compact stepper's two rows fit a third of a phone: the count never shares a line with a button, and the buttons stay a thumb wide (07a, R2)", () => {
+  const sheet = "src/ui/action-stepper.css";
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--compact", "flex-direction"), ["column"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__top", "display"), ["flex"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__top", "justify-content"), ["space-between"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__top", "flex-wrap"), ["wrap"], "a label too long for the line sends the count under it, not under the label");
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__top .g-stepper__value", "margin-left"), ["auto"], "the count stays at the right edge on its own line too");
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__row", "display"), ["grid"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__row", "grid-template-columns"), ["repeat(2, minmax(var(--size-touch), 1fr))"], "two buttons, each from 44px up");
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--compact .g-stepper__btn", "min-width"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__btn", "height"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__btn", "width"), ["var(--size-touch)"], "the one-row cell's buttons are as they were");
 });
 
 test("a compact stepper steps and refuses as the plain one does", () => {
