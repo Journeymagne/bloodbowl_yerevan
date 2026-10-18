@@ -10,10 +10,10 @@
  * Creating and deleting a team are writes to the account: they ask whose token it is first and, when
  * another tab has moved it, send nothing (stage 05, R12).
  */
-import { API_ERROR, errorText, refusalText } from "../core/api.mjs";
+import { API_ERROR, ApiError, errorText, refusalText } from "../core/api.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
-import { apiRequest, sessionTokenHolds } from "../core/api-client.mjs";
+import { apiRequest, sessionTokenHolds, tokenMoved } from "../core/api-client.mjs";
 import { syncActiveTeam } from "./active-team.mjs";
 import { invalidateGames } from "./games.mjs";
 
@@ -107,9 +107,14 @@ export function addMyTeam(team) {
   myTeamsChanged();
 }
 
-/** The request got no answer from the server: no connection, too slow, or a proxy's 502 with none of the server's words in it. */
+/**
+ * The request got no answer to stand behind: the connection was lost, it took too long, a proxy answered with none of
+ * the server's words in it, or the server failed (a 5xx: its INSERT may have committed before `readPublicTeam` did).
+ * The team may exist all the same.
+ */
 function unanswered(error) {
-  return error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT || (error?.kind === API_ERROR.HTTP && !error.code);
+  return error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT || error?.status >= 500
+    || (error?.kind === API_ERROR.HTTP && !error.code);
 }
 
 /** The refusal, and with it each rule a roster breaks (422), worded as the roster editor words them. */
@@ -121,58 +126,96 @@ function createRefusal(error) {
 const madeAt = (item) => Date.parse(item.createdAt) || 0;
 
 /**
- * The team the server made from `body`, among the list read after the answer was lost: one with the name (the
- * server trims it) and the race of the build, whose id the list did not hold before it was sent. Its time
- * is no proof: `createdAt` is the server's clock and `startedAt` the coach's, which may run ahead. So time
- * only chooses where the id cannot: between several new teams alike (another tab made one) it is the latest;
+ * The team an attempt made, among the list read after its answer was lost: one with the name (the server
+ * trims it) and the race of the build, whose id the list did not hold before it was sent. Its time is no
+ * proof: `createdAt` is the server's clock and `startedAt` the coach's, which may run ahead. So time only
+ * chooses where the id cannot: between several new teams alike (another tab made one) it is the latest;
  * and a list that was never read (`known` null) cannot say which team is new, so a team made since the
  * build began is the only one taken.
- * @param {object} body @param {Set<string>|null} known @param {number} startedAt @returns {object|null}
+ * @param {{name: string, baseTeamSlug: string, known: Set<string>|null, startedAt: number}} attempt @returns {object|null}
  */
-function findMade(body, known, startedAt) {
-  const name = body.name.trim();
-  const fresh = state.myTeams.items.filter((item) => item.name === name && item.baseTeamSlug === body.baseTeamSlug
+function findMade({ name, baseTeamSlug, known, startedAt }) {
+  const fresh = state.myTeams.items.filter((item) => item.name === name && item.baseTeamSlug === baseTeamSlug
     && (known ? !known.has(item.id) : madeAt(item) >= startedAt));
   return fresh.sort((a, b) => madeAt(b) - madeAt(a))[0] ?? null;
 }
 
-/** A build that got no answer may still have made the team: read the list, and take it if it is there. */
-async function recoverMade(error, body, { known, userId, startedAt }) {
-  if (unanswered(error)) {
-    await loadMyTeams(true);
-    // A list for another coach (signed in while this was out) is not the one the team was made on.
-    const team = state.auth.currentUser?.id === userId ? findMade(body, known, startedAt) : null;
-    if (team) return { team, recovered: true };
-  }
-  return { refusal: createRefusal(error) };
+/**
+ * The attempt whose fate is not known: its answer was lost and the list could not be read, or was read and
+ * the team was not there (yet: a request that timed out may still be running). `createTeam` looks for it
+ * before it sends that coach's next build of that name and race, with the ids the list held before the first
+ * send; a retry that sent at once would make the team twice. One at a time; another coach forgets it.
+ * @type {{userId: string|undefined, name: string, baseTeamSlug: string, known: Set<string>|null, startedAt: number, error: Error|null}|null}
+ */
+let pending = null;
+
+/**
+ * Read the list again and look in it for what an attempt made.
+ * @returns {Promise<{team: object, recovered: true}|{refusal: string}|null>} a refusal where the list cannot be
+ *   trusted (not read, another coach's, or read under a token another tab has moved); null where it is not there
+ */
+async function lookForMade(attempt) {
+  await loadMyTeams(true);
+  // The request went out under the token it found, which another tab may have changed since the page last read it.
+  if (tokenMoved()) return { refusal: t("auth.otherTab") };
+  const read = state.auth.currentUser?.id === attempt.userId && state.myTeams.loaded && !state.myTeams.error;
+  if (!read) return { refusal: refusalText(attempt.error) };
+  const team = findMade(attempt);
+  return team ? { team, recovered: true } : null;
+}
+
+/** A build that got no answer may still have made the team: look for it, and remember that it is not known. */
+async function recoverMade(error, attempt) {
+  if (!unanswered(error)) return { refusal: createRefusal(error) };
+  attempt.error = error;
+  const found = await lookForMade(attempt);
+  if (found?.team) return found;
+  pending = attempt;
+  return found ?? { refusal: refusalText(error) };
 }
 
 /**
- * Make a team on the server and put it first on the coach's list. Sent once: an answer that does not come
- * (a dropped connection, a timeout) may mean the team was made, so it is looked for rather than made again, and
- * handed back with `recovered`. Never throws.
+ * Make a team on the server and put it first on the coach's list. Sent once: an answer that does not come (a
+ * dropped connection, a timeout, a server that failed) may mean the team was made, so it is looked for rather
+ * than made again, and handed back with `recovered`; and when that cannot be told either, the next call for
+ * the same coach, name and race looks again before it sends anything (`pending`). Never throws.
  * @param {{name: string, baseTeamSlug: string, logoData: string|null, roster: object}} body
- * @param {{startedAt: number}} options when the build began (`Date.now()`): a team made before it is not this build's
- *   where the list cannot say otherwise (`findMade`)
+ * @param {{startedAt?: number}} [options] when the build began (`Date.now()`, the default): a team made before it
+ *   is not this build's where the list cannot say otherwise (`findMade`)
  * @returns {Promise<{team: object, recovered?: true}|{refusal: string}>}
  */
-export async function createTeam(body, { startedAt }) {
+export async function createTeam(body, { startedAt = Date.now() } = {}) {
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
   const userId = state.auth.currentUser?.id;
-  const known = state.myTeams.loaded ? new Set(state.myTeams.items.map((item) => item.id)) : null;
-  let team;
+  const attempt = { userId, name: String(body?.name ?? "").trim(), baseTeamSlug: body?.baseTeamSlug, known: null, startedAt, error: null };
+  if (pending && pending.userId !== userId) pending = null;
+  if (pending && pending.name === attempt.name && pending.baseTeamSlug === attempt.baseTeamSlug) {
+    const found = await lookForMade(pending);
+    if (found?.team) pending = null;
+    if (found) return found;
+    pending = null;
+  }
+  // The ids the list holds before the build is sent: the team the server makes is the one that is not here yet.
+  if (!state.myTeams.loaded) await loadMyTeams(true);
+  if (state.myTeams.loaded) attempt.known = new Set(state.myTeams.items.map((item) => item.id));
+  // The reads above took time: the token or the coach may have changed meanwhile.
+  if (!sessionTokenHolds() || state.auth.currentUser?.id !== userId) return { refusal: t("auth.otherTab") };
+  let answer;
   try {
-    ({ team } = await apiRequest("/api/teams", { method: "POST", body: JSON.stringify(body) }));
+    answer = await apiRequest("/api/teams", { method: "POST", body: JSON.stringify(body) });
+    // A 2xx with no team in it is no answer to stand behind: the team may be made.
+    if (!answer?.team?.id) throw new ApiError(API_ERROR.HTTP, { status: 200 });
   } catch (error) {
-    return recoverMade(error, body, { known, userId, startedAt });
+    return recoverMade(error, attempt);
   }
   // Another coach's list (signed in while this was out) is not given the team. Nor is a list that was never
-  // read: with this one team on it, it would call itself complete, so it is read again instead.
+  // read (with this one team on it it would call itself complete), or one being read (its answer may be from
+  // before the team was made, and would overwrite it): those are read again instead.
   if (state.auth.currentUser?.id === userId) {
-    if (known) addMyTeam(team);
+    if (attempt.known && !state.myTeams.loading) addMyTeam(answer.team);
     else await loadMyTeams(true);
   }
-  return { team };
+  return { team: answer.team };
 }
 
 /**
@@ -187,6 +230,7 @@ export async function deleteTeam(teamId, { endpoint = "" } = {}) {
   } catch (error) {
     return { refusal: refusalText(error) };
   }
+  state.season.loaded = false;
   await loadMyTeams(true);
   void invalidateGames();
   return {};
