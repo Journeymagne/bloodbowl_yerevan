@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertContrast, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
@@ -156,6 +156,15 @@ test("a locked counter is explained even at zero, and a free one only disables i
   assert.equal(full.querySelector('[data-resource-step="-1"]').hasAttribute("disabled"), false);
   assert.equal(full.querySelector('[data-resource-step="1"]').getAttribute("title"), "At the maximum");
   assert.equal(mount(renderResourceCounter({ key: "d", name: "D", value: 3, decDisabled: true })).querySelector('[data-resource-step="-1"]').hasAttribute("disabled"), true);
+});
+
+test("a note may speak up: a shortage is red, a price is not", () => {
+  const short = mount(renderResourceCounter({ key: "rr", name: "Re-rolls", value: 1, note: "Not enough · 120k", noteTone: "danger" }));
+  assert.ok(short.querySelector(".g-resource__note.g-resource__note--danger"));
+  assert.equal(mount(renderResourceCounter({ key: "rr", name: "Re-rolls", value: 1, note: "120k" })).querySelector(".g-resource__note--danger"), null);
+  assertReadable("src/ui/resource-counter.css", ".g-resource__note--danger", "color", ["--surface"], 4.5);
+  // A lock's reason replaces the note and is not a shortage, whatever tone the note was given.
+  assert.equal(mount(renderResourceCounter({ key: "rr", name: "Re-rolls", value: 1, note: "Not enough", noteTone: "danger", lockedReason: "Why" })).querySelector(".g-resource__note--danger"), null);
 });
 
 test("counter names and notes are escaped", () => {

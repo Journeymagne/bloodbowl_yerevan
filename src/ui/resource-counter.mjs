@@ -17,12 +17,13 @@ import { renderStepButton, wireStepButtons } from "./stepper.mjs";
  * @param {string} props.key what wireResourceCounters reports back
  * @param {string} props.name what the row is called
  * @param {string} [props.note] the quieter line under the name (a price)
+ * @param {"danger"|""} [props.noteTone] `danger` for a note that speaks of a shortage (not enough money); a price is left plain, and a lock's reason, which replaces the note, is never red
  * @param {number} props.value how many the team has
  * @param {boolean} [props.decDisabled] the − is plainly off; defaults to a count of zero
  * @param {string} [props.incBlockedReason] why the + is refused; empty when it is not
  * @param {string} [props.lockedReason] why the whole counter is out of reach; it replaces the note and speaks for both buttons
  */
-export function renderResourceCounter({ key, name, note = "", value, decDisabled = value <= 0, incBlockedReason = "", lockedReason = "" }) {
+export function renderResourceCounter({ key, name, note = "", noteTone = "", value, decDisabled = value <= 0, incBlockedReason = "", lockedReason = "" }) {
   if (!key) throw new Error("a resource counter needs a key: it is what wireResourceCounters reports back, and a click without one is dropped");
   if (!name) throw new Error("a resource counter needs a name: it names the row and its buttons");
   const locked = Boolean(lockedReason);
@@ -32,7 +33,7 @@ export function renderResourceCounter({ key, name, note = "", value, decDisabled
   const plus = renderStepButton({ hook: "resource", delta: 1, label: t("ui.counter.increase", named), blockedReason: lockedReason || incBlockedReason, className: "g-resource__btn g-resource__btn--inc" });
   const lock = locked ? `<span class="g-resource__lock" role="img" aria-label="${escapeHtml(t("ui.counter.locked"))}">${icon("lock", 13)}</span>` : "";
   const line = lockedReason || note;
-  const caption = line ? `<span class="g-resource__note">${escapeHtml(line)}</span>` : "";
+  const caption = line ? `<span class="${classNames("g-resource__note", !locked && noteTone === "danger" && "g-resource__note--danger")}">${escapeHtml(line)}</span>` : "";
   return `<div class="${classNames("g-resource", locked && "g-resource--locked")}"${dataAttributes({ resourceKey: key })}>`
     + `<span class="g-resource__text"><span class="g-resource__name">${lock}${escapeHtml(name)}</span>${caption}</span>`
     + `<span class="g-resource__stepper">${minus}<span class="g-resource__value">${escapeHtml(value)}</span>${plus}</span>`

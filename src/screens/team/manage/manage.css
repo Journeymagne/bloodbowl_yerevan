@@ -102,3 +102,49 @@
 /* A live region that must stand on the page before it speaks, and takes no room while it is empty: it gives back the column's gap. */
 .g-money__alert { margin: 0; }
 .g-money__alert:empty { margin-top: calc(-1 * var(--space-16)); }
+
+/* «Resources»: a card of counters and switches, each row its own line (resource-counter.css, toggle.css). */
+.g-manage__resources {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-4) var(--space-16) var(--space-12);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The sub line does not wrap, so on a very narrow phone it drops under the title (the h2's margin is the space between). */
+.g-manage__resources-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 var(--space-12);
+}
+
+.g-manage__resources-title {
+  margin: var(--space-12) 0;
+  color: var(--ink);
+  font: 700 26px/1.1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-manage__resources-sub {
+  color: var(--muted);
+  font: 400 12px/1.3 var(--font-body);
+  white-space: nowrap;
+}
+
+/* The explanation under a card's rows. */
+.g-manage__note {
+  margin: var(--space-12) 0 0;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}

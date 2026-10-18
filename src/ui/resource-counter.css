@@ -38,6 +38,8 @@
   color: var(--muted);
   font: 400 12px/1.4 var(--font-body);
 }
+/* A note that says the treasury cannot pay. */
+.g-resource__note--danger { color: var(--danger); }
 .g-resource__lock {
   display: flex;
   flex: none;
