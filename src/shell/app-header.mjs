@@ -17,16 +17,20 @@ import { renderCrest } from "./crest.mjs";
 
 /**
  * The crest, the name with a chevron when the team can be switched, and the
- * line under it, as one link to where the teams are. The chevron says so to the
- * eye; the hidden words say so to a screen reader.
+ * line under it. A team that can be switched is a button that opens the
+ * switcher (shell/team-switcher.mjs), a league that cannot is a link to its
+ * front page. The chevron says so to the eye; the hidden words say so to a
+ * screen reader.
  */
 function renderTeamLink({ name, sub, href, switchTeam }) {
   assertLinkHref(href);
   const chevron = switchTeam ? icon("down", 16) : "";
   const hint = switchTeam ? `<span class="g-sr-only">${escapeHtml(t("shell.switchTeam"))}</span>` : "";
   const line = sub ? `<span class="g-appbar__sub">${escapeHtml(sub)}</span>` : "";
-  return `<a class="g-appbar__team" href="${escapeHtml(href)}">${renderCrest({ size: "md" })}`
-    + `<span class="g-appbar__titles"><span class="g-appbar__name"><span class="g-appbar__label">${escapeHtml(name)}</span>${chevron}</span>${line}</span>${hint}</a>`;
+  const tag = switchTeam ? "button" : "a";
+  const attributes = switchTeam ? 'type="button" data-team-switcher aria-haspopup="dialog"' : `href="${escapeHtml(href)}"`;
+  return `<${tag} class="g-appbar__team" ${attributes}>${renderCrest({ size: "md" })}`
+    + `<span class="g-appbar__titles"><span class="g-appbar__name"><span class="g-appbar__label">${escapeHtml(name)}</span>${chevron}</span>${line}</span>${hint}</${tag}>`;
 }
 
 function renderTab({ label, href, current }) {

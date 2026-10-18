@@ -33,7 +33,7 @@ import { availableMedicalStaffDefinitions, hasBribery } from "../../domain/roste
  * @param {number} committedTotal what the roster already costs, for the budget check
  * @returns {{blocked: boolean, title: string}}
  */
-export function staffStepVerdict(key, title, value, mode, committedTotal = 0) {
+function staffStepVerdict(key, title, value, mode, committedTotal = 0) {
   const max = builderStaffMaximums[key] ?? 6;
   if (countToNumber(value) >= max) return { blocked: true, title: t("validation.STAFF_MAX", { title, max }) };
   if (mode.enforcesBudget && committedTotal + (builderStaffCosts[key] ?? 0) > startingBudget) {

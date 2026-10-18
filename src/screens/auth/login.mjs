@@ -13,13 +13,14 @@
  * router sends the coach back where they were sent from, or home
  * (core/routes.mjs, resolveRedirect).
  */
+import { refusalText } from "../../core/api.mjs";
 import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { authUrl, matchRoute, routeFromHash } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { view } from "../../core/view.mjs";
 import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { refusalText, register, sessionFailureText, signIn } from "../../data/session.mjs";
+import { register, sessionFailureText, signIn } from "../../data/session.mjs";
 import { normalizeTelegram, registrationProblems } from "../../domain/account.mjs";
 import { renderCrest } from "../../shell/crest.mjs";
 import { renderButton } from "../../ui/button.mjs";
@@ -140,7 +141,7 @@ export function loginMarkup(form) {
   ${brandHtml()}
   <div class="g-auth__sheet">
     <div class="g-auth__panel">
-      <h1 class="g-auth__title">${escapeHtml(registering ? t("auth.register") : t("auth.login"))}</h1>
+      <h1 class="g-auth__title">${escapeHtml(registering ? t("auth.title.register") : t("auth.title.login"))}</h1>
       ${modes}
       <form class="g-auth__form" data-auth-form novalidate${form.pending ? ' aria-busy="true"' : ""}>
         ${alertHtml(form.error)}

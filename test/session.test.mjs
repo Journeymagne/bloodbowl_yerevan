@@ -8,7 +8,7 @@ const api = installFakeApi();
 const session = await import("../src/data/session.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { setOnUnauthorized } = await import("../src/core/api-client.mjs");
-const { API_ERROR, ApiError } = await import("../src/core/api.mjs");
+const { API_ERROR, ApiError, refusalText } = await import("../src/core/api.mjs");
 const { setDictionaries } = await import("../src/core/i18n.mjs");
 const { peekReturn, setReturn } = await import("../src/core/return-to.mjs");
 
@@ -378,18 +378,18 @@ test("a session that could not be read says whose fault it was: the connection's
 test("a refusal reads as the server's words; too many tries say how long to wait, in minutes until the last one", () => {
   const refused = (status, body) => new ApiError(status === 429 ? API_ERROR.HTTP : API_ERROR.CONFLICT, { status, payload: body });
   const tooMany = { error: { code: "TOO_MANY_LOGIN_ATTEMPTS", params: {}, message: "x" } };
-  const wait = (retryAfterSeconds) => session.refusalText(refused(429, { ...tooMany, retryAfterSeconds }));
-  assert.equal(wait(899), "Too many attempts for this login. Try again in 15 min.");
-  assert.equal(wait(61), "Too many attempts for this login. Try again in 2 min.");
-  assert.equal(wait(60), "Too many attempts for this login. Try again in 1 min.");
-  assert.equal(wait(59), "Too many attempts for this login. Try again in 59 s.");
-  assert.equal(wait(0.4), "Too many attempts for this login. Try again in 1 s.");
+  const wait = (retryAfterSeconds) => refusalText(refused(429, { ...tooMany, retryAfterSeconds }));
+  assert.equal(wait(899), "Too many attempts for this username. Try again in 15 min.");
+  assert.equal(wait(61), "Too many attempts for this username. Try again in 2 min.");
+  assert.equal(wait(60), "Too many attempts for this username. Try again in 1 min.");
+  assert.equal(wait(59), "Too many attempts for this username. Try again in 59 s.");
+  assert.equal(wait(0.4), "Too many attempts for this username. Try again in 1 s.");
   for (const unknown of [undefined, 0, -5, "soon"]) {
-    assert.equal(wait(unknown), "Too many attempts for this login. Try again shortly.", `no number, no promise: ${unknown}`);
+    assert.equal(wait(unknown), "Too many attempts for this username. Try again shortly.", `no number, no promise: ${unknown}`);
   }
-  assert.equal(session.refusalText(refused(409, { error: { code: "LOGIN_ALREADY_REGISTERED", params: {}, message: "x" } })), "This login is already registered.");
-  assert.equal(session.refusalText(new ApiError(API_ERROR.HTTP, { status: 502, payload: {} })), NO_ANSWER);
-  assert.equal(session.refusalText(new ApiError(API_ERROR.OFFLINE)), OFFLINE);
+  assert.equal(refusalText(refused(409, { error: { code: "LOGIN_ALREADY_REGISTERED", params: {}, message: "x" } })), "This username is already registered.");
+  assert.equal(refusalText(new ApiError(API_ERROR.HTTP, { status: 502, payload: {} })), NO_ANSWER);
+  assert.equal(refusalText(new ApiError(API_ERROR.OFFLINE)), OFFLINE);
 });
 
 // R12: the token is the browser's and every tab shares it. Another tab that signs out, or in as someone else,

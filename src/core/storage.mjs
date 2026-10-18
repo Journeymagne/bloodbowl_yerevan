@@ -16,10 +16,15 @@ export const STORAGE_KEYS = Object.freeze({
   theme: "theme",
   palette: "palette",
   locale: "locale",
-  builderDraft: "builder-draft",
   // `{userId, teamId}`: the team this browser last showed that coach (src/data/active-team.mjs).
   activeTeam: "active-team",
 });
+
+/**
+ * Keys an earlier version wrote and nothing reads any more: the 2.x builder's draft. It may hold
+ * a logo of nearly 2 MB of the browser's quota, so it is wiped, never imported.
+ */
+export const RETIRED_KEYS = Object.freeze(["builder-draft"]);
 
 function fullKey(key) {
   return key.startsWith(KEY_PREFIX) ? key : `${KEY_PREFIX}${key}`;
@@ -90,3 +95,8 @@ export function createStorage(backend = globalThis.localStorage) {
 }
 
 export const storage = createStorage();
+
+/** Erases what `RETIRED_KEYS` names, wherever the browser kept it; a key that is not there is nothing to do. */
+export function forgetRetiredKeys(store = storage) {
+  for (const key of RETIRED_KEYS) store.remove(key);
+}

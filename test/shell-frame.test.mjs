@@ -4,12 +4,15 @@ import test from "node:test";
 
 import { document } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
+import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
 
 const frame = el(document, "div", { id: "app-frame", "data-shell": "guest" },
   el(document, "aside", { id: "side-nav" }), el(document, "header", { id: "app-header" }),
   el(document, "div", { id: "ref-search", hidden: "" }), el(document, "section", { id: "app-view" }), el(document, "footer", { id: "site-footer" }));
 document.body.appendChild(frame);
+// K9b: before the shell is imported, which reaches the API through the client that picks `fetch` up when it loads.
+const api = installFakeApi();
 const { mountShell, nextCompact, refreshShell, tabScrollLeft } = await import("../src/shell/shell.mjs");
 const { setLocaleHandler } = await import("../src/core/locale-request.mjs");
 const { state } = await import("../src/core/state.mjs");
@@ -218,12 +221,12 @@ test("no link a guest is shown, on any page, is one the router sends on: My Team
 // What the 2.x header button did (Task 9, M6): a guest who signs in comes back to the page they were reading.
 test("a guest's sign-in link, in the header or the SideNav, keeps the page they were on to come back to", () => {
   state.auth.currentUser = null;
-  refreshShell({ name: "teamNew", params: {} });
+  refreshShell({ name: "season", params: {} });
   for (const selector of ["#app-header a.g-appbar__login", "#side-nav .g-sidenav__login a"]) {
     setReturn("");
-    globalThis.location = { hash: "#/teams/new" };
+    globalThis.location = { hash: "#/season" };
     fireEvent(document.querySelector(selector), "click");
-    assert.equal(peekReturn(), "#/teams/new", selector);
+    assert.equal(peekReturn(), "#/season", selector);
   }
   setReturn("");
 });
@@ -281,4 +284,164 @@ test("every frame class the page names is styled, the frame reaches the page, an
 test("a current tab is scrolled clear of the fade at the row's edge, not only inside the row", () => {
   assert.match(read("src/shell/app-header.css"), /mask-image: linear-gradient\(to right, #000 85%, transparent\);/);
   assert.match(read("src/shell/shell.mjs"), /const TABS_CLEAR = 0\.85;/);
+});
+
+// Stage 06, Task 4: the block at the top of the header and the SideNav opens the switcher.
+
+const PATCH = "PATCH /api/auth/preferences";
+const flush = () => new Promise((resolve) => setImmediate(resolve));
+const switcherHost = () => document.querySelector("#team-switcher-host");
+const openDialog = () => switcherHost().querySelector("dialog#team-switcher");
+
+/** A coach with two teams, the first active, who is on the page at `hash`; the state and the address are put back after. */
+async function asCoach(hash, run) {
+  const saved = { user: state.auth.currentUser, myTeams: state.myTeams, activeTeamId: state.activeTeamId, data: state.data, games: state.games, season: state.season.data, location: globalThis.location };
+  api.reset();
+  api.items.set("gata-league-auth-token", "tok");
+  globalThis.location = { hash };
+  state.auth.currentUser = { id: "u1", login: "coach", isAdmin: false, preferences: { activeTeamId: "t1" } };
+  state.myTeams = { items: [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "human", stage: "active", inActiveSeason: true }, { id: "t2", name: "Ironmaw Brawlers", baseTeamSlug: "human", stage: "active", inActiveSeason: false }], loaded: true, loading: false, error: "" };
+  state.activeTeamId = "t1";
+  state.data = { teams: [{ slug: "human", title: "Human" }], generatedAt: "2026-10-07T10:00:00Z" };
+  state.games = { items: [], currentItems: [], loaded: true, loading: false, error: "" };
+  try {
+    await run();
+  } finally {
+    refreshShell({ name: "login", params: {} });
+    Object.assign(state, { myTeams: saved.myTeams, activeTeamId: saved.activeTeamId, data: saved.data, games: saved.games });
+    state.auth.currentUser = saved.user;
+    state.season.data = saved.season;
+    globalThis.location = saved.location;
+  }
+}
+
+test("the frame keeps a place for the switcher after everything else, and it takes no room of its own", () => {
+  const host = switcherHost();
+  assert.ok(host, "mountShell added it");
+  assert.equal(frame.childNodes.filter((node) => node.nodeType === 1).at(-1), host);
+  assert.equal(document.querySelectorAll("#team-switcher-host").length, 1);
+  assert.deepEqual(valuesOf("src/shell/team-switcher.css", "#team-switcher-host", "display"), ["contents"], "an empty grid item would still be a cell of the desk's grid");
+});
+
+test("the header and the SideNav open the same switcher, and closing gives the focus back to the button that opened it", async () => {
+  await asCoach("#/t/t1/roster", () => {
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    for (const selector of ["#side-nav [data-team-switcher]", "#app-header [data-team-switcher]"]) {
+      const opener = document.querySelector(selector);
+      fireEvent(opener, "click");
+      assert.ok(openDialog().isModal, `${selector} opens it modally`);
+      assert.deepEqual(switcherHost().querySelectorAll("[data-switch-team]").map((row) => row.getAttribute("data-switch-team")), ["t1", "t2"]);
+      // Where the focus goes on opening is the browser's (showModal moves it into the dialog; the fake page does not), so only
+      // the way back is asserted here, below; the opening was looked at in a real tab.
+      fireEvent(switcherHost().querySelector("[data-sheet-close]"), "click");
+      assert.equal(switcherHost().querySelector("dialog"), null, "closed, the host is empty");
+      assert.equal(document.activeElement, opener, selector);
+    }
+    // Escape and the backdrop are the same way out as the cross.
+    const opener = document.querySelector("#app-header [data-team-switcher]");
+    for (const leave of [(dialog) => fireEvent(dialog, "keydown", { key: "Escape" }), (dialog) => fireEvent(dialog, "click")]) {
+      document.querySelector("#side-nav [data-team-switcher]").focus();
+      fireEvent(opener, "click");
+      leave(openDialog());
+      assert.equal(switcherHost().querySelector("dialog"), null);
+      assert.equal(document.activeElement, opener);
+    }
+  });
+});
+
+test("the switcher's rows come from the coach's own list: the active team ticked, the place and the record from the table and the games", async () => {
+  await asCoach("#/t/t1/roster", () => {
+    const win = { id: "g1", kind: "league", season: { id: "s1" }, roundNumber: 1, resultStatus: "confirmed", homeTouchdowns: 2, awayTouchdowns: 1, homeCasualties: 0, awayCasualties: 0, home: { team: { id: "t1" } }, away: { team: { id: "x" } } };
+    state.season.data = { season: { id: "s1" }, standings: [{ rank: 1, team: { id: "x" } }, { rank: 3, team: { id: "t1" } }] };
+    state.games = { items: [win], currentItems: [], loaded: true, loading: false, error: "" };
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    const rows = switcherHost().querySelectorAll(".g-switcher__row");
+    assert.deepEqual(rows.map((row) => row.querySelector(".g-teamface__line").textContent), ["Human · #3 · 1-0-0", "Human"]);
+    assert.deepEqual(rows.map((row) => row.getAttribute("aria-current")), ["true", null]);
+    fireEvent(switcherHost().querySelector("[data-sheet-close]"), "click");
+  });
+});
+
+test("choosing a team on a team page goes to the same section of the other one; on the season page it only makes it active", async () => {
+  await asCoach("#/t/t1/roster", async () => {
+    const choose = (route, hash, id) => {
+      globalThis.location = { hash };
+      refreshShell(route);
+      fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+      fireEvent(switcherHost().querySelector(`[data-switch-team="${id}"]`), "click");
+      assert.equal(switcherHost().querySelector("dialog"), null, "a choice closes it");
+    };
+    choose({ name: "teamRoster", params: { teamId: "t1" } }, "#/t/t1/roster", "t2");
+    await flush();
+    assert.equal(location.hash, "#/t/t2/roster");
+    assert.equal(state.activeTeamId, "t1", "the address makes it active, as the router does for any team's page, not the switcher");
+    assert.equal(api.calls.filter(({ key }) => key === PATCH).length, 0);
+    api.reply(PATCH, 200, { preferences: { activeTeamId: "t2" } });
+    choose({ name: "season", params: {} }, "#/season", "t2");
+    await flush();
+    assert.equal(state.activeTeamId, "t2");
+    assert.equal(location.hash, "#/season", "the page stays");
+    assert.deepEqual(api.calls.filter(({ key }) => key === PATCH).map(({ body }) => body), [{ activeTeamId: "t2" }], "the account is told once");
+    api.assertAnswered();
+  });
+});
+
+test("choosing the team whose page it is only closes the switcher: a player's page does not jump to the roster", async () => {
+  await asCoach("#/t/t1/roster/p1", async () => {
+    refreshShell({ name: "teamPlayer", params: { teamId: "t1", playerId: "p1" } });
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    assert.equal(switcherHost().querySelector('[data-switch-team="t1"]').getAttribute("aria-current"), "true");
+    fireEvent(switcherHost().querySelector('[data-switch-team="t1"]'), "click");
+    await flush();
+    assert.equal(switcherHost().querySelector("dialog"), null, "closed");
+    assert.equal(location.hash, "#/t/t1/roster/p1", "the player stays");
+    assert.equal(api.calls.length, 0, "nothing is sent: it was the active team already");
+    // The other team from the same page is still the roster of that team.
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    fireEvent(switcherHost().querySelector('[data-switch-team="t2"]'), "click");
+    assert.equal(location.hash, "#/t/t2/roster");
+  });
+});
+
+test("choosing the team that is active on a page that is no team's sends nothing to the account", async () => {
+  await asCoach("#/season", async () => {
+    refreshShell({ name: "season", params: {} });
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    fireEvent(switcherHost().querySelector('[data-switch-team="t1"]'), "click");
+    await flush();
+    assert.equal(switcherHost().querySelector("dialog"), null);
+    assert.equal(location.hash, "#/season", "the page stays");
+    assert.equal(state.activeTeamId, "t1");
+    assert.equal(api.calls.filter(({ key }) => key === PATCH).length, 0, "the account already names it");
+  });
+});
+
+test("a link in the switcher closes it, and a route change closes it too; a redraw for the same route leaves it", async () => {
+  await asCoach("#/t/t1/roster", () => {
+    const route = { name: "teamRoster", params: { teamId: "t1" } };
+    refreshShell(route);
+    fireEvent(document.querySelector("#side-nav [data-team-switcher]"), "click");
+    refreshShell();
+    assert.ok(openDialog(), "the games came in, the frame is drawn again: the switcher stays");
+    fireEvent(switcherHost().querySelector("a.g-switcher__new"), "click");
+    assert.equal(switcherHost().querySelector("dialog"), null, "the way to a new team closes it");
+    fireEvent(document.querySelector("#side-nav [data-team-switcher]"), "click");
+    refreshShell({ name: "season", params: {} });
+    assert.equal(switcherHost().querySelector("dialog"), null, "a new page takes it with it");
+  });
+});
+
+test("a switcher closed over a button that is gone, as a guest's block is a link, does not look for it", async () => {
+  await asCoach("#/t/t1/roster", () => {
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    const opener = document.querySelector("#app-header [data-team-switcher]");
+    fireEvent(opener, "click");
+    state.auth.currentUser = null;
+    refreshShell({ name: "home", params: {} });
+    assert.equal(switcherHost().querySelector("dialog"), null);
+    assert.equal(opener.isConnected, false, "the coach's button is gone");
+    assert.notEqual(document.activeElement, opener);
+    assert.ok(document.querySelector("#app-header a.g-appbar__team"));
+  });
 });

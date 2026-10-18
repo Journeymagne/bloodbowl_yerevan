@@ -67,10 +67,10 @@ test("too many guesses says when to try again, in minutes, and in seconds only f
   api.reply("PATCH /api/auth/profile", 429, refusal("TOO_MANY_LOGIN_ATTEMPTS", { retryAfterSeconds: 120 }));
   const error = await changePassword({ current: "x", next: "abcd" });
   assert.equal(error.field, null);
-  assert.equal(error.text, "Too many attempts for this login. Try again in 2 min.");
+  assert.equal(error.text, "Too many attempts for this username. Try again in 2 min.");
   assert.ok(mount(passwordSheetMarkup({ ...blank, error })).querySelector('[role="alert"] .g-callout--danger'));
   api.reply("PATCH /api/auth/profile", 429, refusal("TOO_MANY_LOGIN_ATTEMPTS", { retryAfterSeconds: 45 }));
-  assert.equal((await changePassword({ current: "x", next: "abcd" })).text, "Too many attempts for this login. Try again in 45 s.");
+  assert.equal((await changePassword({ current: "x", next: "abcd" })).text, "Too many attempts for this username. Try again in 45 s.");
   assert.equal(state.auth.currentUser.id, "u1", "a refusal changes nothing");
 });
 
@@ -192,6 +192,23 @@ test("Show passwords is one button that is pressed or not, and it is wired", () 
   wirePasswordSheet(off, { onInput() {}, onToggleShow: () => heard.push("show"), onSubmit() {}, onClose() {} });
   fireEvent(toggle(off), "click");
   assert.deepEqual(heard, ["show"]);
+});
+
+test("Show passwords sits in the footer beside the button, and still says whether it is on (DeskCoachPassword, M1, 3)", () => {
+  for (const show of [false, true]) {
+    const fragment = mount(passwordSheetMarkup({ ...blank, show }));
+    const toggle = fragment.querySelector(".g-sheet__foot .g-sheet__foot-start [data-password-show]");
+    assert.ok(toggle, "in the footer's start, not in the form");
+    assert.equal(toggle.getAttribute("aria-pressed"), String(show));
+    assert.equal(fragment.querySelector("form [data-password-show]"), null);
+    const foot = fragment.querySelector(".g-sheet__foot");
+    assert.deepEqual(foot.childNodes.map((node) => node.getAttribute("class")?.split(" ")[0]), ["g-sheet__foot-start", "g-btn"], "the one button follows it");
+    assert.equal(foot.childNodes[1].getAttribute("type"), "submit");
+    assertStyled(fragment, ...SHEETS);
+  }
+  const done = mount(passwordSheetMarkup({ ...blank, done: true }));
+  assert.equal(done.querySelector("[data-password-show]"), null, "the news has no form to show passwords of");
+  assert.equal(done.querySelector(".g-sheet__foot"), null);
 });
 
 test("the form submits by the button in the footer, and says it is busy while a try is on its way", () => {

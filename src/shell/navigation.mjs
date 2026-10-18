@@ -7,8 +7,9 @@
  * caller passes the route, the visitor and the active team, and draws the
  * answer.
  *
- * Three modes. `bare` is the sign-in and registration screens, which bring
- * their own frame: no tabs, no items. `guest` has the league without a team.
+ * Three modes. `bare` is the sign-in and registration screens and the new
+ * team's builder (Builder, DeskBuilder), which bring their own frame: no tabs,
+ * no items. `guest` has the league without a team.
  * `coach` has the team's screens beside the league's, or — with no team yet —
  * the league's alone and a header that leads to creating one. A coach whose
  * list of teams could not be read may have teams: the header names the league.
@@ -20,7 +21,7 @@ import { refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/ro
 const ADMINISTRATION_URL = "#/administration";
 
 /** The routes the shell stays out of. */
-const BARE_ROUTES = new Set(["login", "register"]);
+const BARE_ROUTES = new Set(["login", "register", "teamNew"]);
 
 /** The routes whose screen carries the reference search bar. */
 const SEARCH_ROUTES = new Set(["ref", "refSection"]);
@@ -83,7 +84,8 @@ const guestKey = (key) => (key === "overview" ? "home" : key);
 /**
  * The header's name, its subtitle, and the SideNav's subtitle (`sideSub`), and where the block leads.
  * The header says where the team stands (race, place); the SideNav, with the table a click away
- * and the page's own title beside it, says whose league it is (race, league).
+ * and the page's own title beside it, says the race alone: the league and the race together broke
+ * onto two lines for almost every race in the column.
  */
 function leagueBrand() {
   const sub = t("shell.leagueSub");
@@ -125,8 +127,8 @@ function coachBrand(team, raceTitle, place) {
     const sub = t("shell.noTeamHint");
     return { name: t("shell.noTeam"), sub, sideSub: sub, href: teamsUrl(), switchTeam: true };
   }
-  const sideSub = [raceTitle, t("shell.league")].filter(Boolean).join(" · ");
-  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub, href: teamsUrl(), switchTeam: true };
+  // A race the data does not know names the league, so the line is never empty under a team.
+  return { name: team.name, sub: teamSubtitle(raceTitle, place), sideSub: raceTitle || t("shell.league"), href: teamsUrl(), switchTeam: true };
 }
 
 /** @typedef {{key: string, label: string, href: string, icon: string, current: boolean}} NavItem */

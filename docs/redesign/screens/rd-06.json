@@ -1,0 +1,359 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "G1",
+      "url": "http://localhost:3016/#/login",
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "G2",
+      "url": "http://localhost:5116/#/login",
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#auth-login', 'felstell');",
+        "fill('#auth-password', 'qwerty');",
+        "document.querySelector('[data-auth-form] [type=\"submit\"]').click();"
+      ]
+    },
+    {
+      "id": "G3",
+      "url": "http://localhost:3016/#/register",
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#auth-password', 'abcdefgh');"
+      ]
+    },
+    {
+      "id": "G4",
+      "url": "http://localhost:3016/#/register",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "G5",
+      "url": "http://localhost:3016/#/teams/new",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "G6",
+      "url": "http://localhost:3016/#/builder",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "C1",
+      "url": "http://localhost:5116/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        320,
+        768,
+        901,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "C2",
+      "url": "http://localhost:5116/#/t/t2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "C3",
+      "url": "http://localhost:5116/#/t/t3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "C4",
+      "url": "http://localhost:5116/#/t/t4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "C5",
+      "url": "http://localhost:5116/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "#app-header [data-team-switcher]"
+      ]
+    },
+    {
+      "id": "C6",
+      "url": "http://localhost:5116/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "#side-nav [data-team-switcher]"
+      ]
+    },
+    {
+      "id": "C7",
+      "url": "http://localhost:5116/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "C8",
+      "url": "http://localhost:5116/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-delete-team=\"t4\"]"
+      ]
+    },
+    {
+      "id": "C9",
+      "url": "http://localhost:5116/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-delete-team=\"t5\"]",
+        "[data-delete-confirm]"
+      ]
+    },
+    {
+      "id": "C10",
+      "url": "http://localhost:5116/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ]
+    },
+    {
+      "id": "C11",
+      "url": "http://localhost:5116/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#new-team-name', 'Iron Rooks');",
+        "document.querySelector('[data-race=\"teams/human\"]').click();"
+      ]
+    },
+    {
+      "id": "C12",
+      "url": "http://localhost:5116/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#new-team-name', 'Iron Rooks');",
+        "document.querySelector('[data-race=\"teams/human\"]').click();",
+        "document.querySelector('[data-new-team-create]').click();",
+        "const hire = (row, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-hire-key=\"${row}\"] [data-hire-step=\"1\"]`).click(); };",
+        "const staff = (key, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-resource-key=\"${key}\"] [data-resource-step=\"1\"]`).click(); };",
+        "hire(0, 5); hire(1, 1); hire(2, 1); hire(3, 1); staff('startingRerolls', 1); staff('dedicatedFans', 1);"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "C13",
+      "url": "http://localhost:5116/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#new-team-name', 'Iron Rooks');",
+        "document.querySelector('[data-race=\"teams/human\"]').click();",
+        "document.querySelector('[data-new-team-create]').click();",
+        "const hire = (row, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-hire-key=\"${row}\"] [data-hire-step=\"1\"]`).click(); };",
+        "const staff = (key, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-resource-key=\"${key}\"] [data-resource-step=\"1\"]`).click(); };",
+        "hire(0, 5); hire(1, 1); hire(2, 1); hire(3, 1); staff('startingRerolls', 1); staff('dedicatedFans', 1);",
+        "document.querySelector('[data-roster-toggle]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "C14",
+      "url": "http://localhost:5116/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#new-team-name', 'Iron Rooks');",
+        "document.querySelector('[data-race=\"teams/human\"]').click();",
+        "document.querySelector('[data-new-team-create]').click();",
+        "const hire = (row, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-hire-key=\"${row}\"] [data-hire-step=\"1\"]`).click(); };",
+        "const staff = (key, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-resource-key=\"${key}\"] [data-resource-step=\"1\"]`).click(); };",
+        "hire(0, 3); hire(1, 1); hire(2, 2); hire(3, 2); hire(5, 1); staff('startingRerolls', 2); staff('dedicatedFans', 2);"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "C15",
+      "url": "http://localhost:5116/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#new-team-name', 'Iron Rooks');",
+        "document.querySelector('[data-race=\"teams/human\"]').click();",
+        "document.querySelector('[data-new-team-create]').click();"
+      ]
+    },
+    {
+      "id": "C16",
+      "url": "http://localhost:5116/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "C17",
+      "url": "http://localhost:5116/#/settings",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-open-password]"
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#password-current', 'gata2025');",
+        "fill('#password-next', 'Wardens!77');",
+        "fill('#password-repeat', 'Wardens!77');"
+      ]
+    },
+    {
+      "id": "E1",
+      "url": "http://localhost:5118/#/",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "E2",
+      "url": "http://localhost:5118/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "R1",
+      "url": "http://localhost:5116/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R2",
+      "url": "http://localhost:5116/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#new-team-name', 'Iron Rooks');",
+        "document.querySelector('[data-race=\"teams/human\"]').click();",
+        "document.querySelector('[data-new-team-create]').click();",
+        "const hire = (row, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-hire-key=\"${row}\"] [data-hire-step=\"1\"]`).click(); };",
+        "const staff = (key, n) => { for (let i = 0; i < n; i += 1) document.querySelector(`[data-resource-key=\"${key}\"] [data-resource-step=\"1\"]`).click(); };",
+        "hire(0, 5); hire(1, 1); hire(2, 1); hire(3, 1); staff('startingRerolls', 1); staff('dedicatedFans', 1);"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "X1",
+      "url": "http://localhost:5116/#/teams",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "const bin = document.querySelector('[data-delete-team=\"t4\"]');",
+        "if (bin) { bin.click(); document.querySelector('[data-delete-confirm]').click(); }"
+      ],
+      "runWaitMs": 800
+    }
+  ]
+}

@@ -2,9 +2,9 @@
  * The address to come back to after signing in.
  *
  * resolveRedirect (core/routes.mjs) decides it; the router keeps it here
- * between one hashchange and the next, and the 2.x builder sets it before it
- * sends a guest to sign in. A leaf with no imports, so the router and a screen
- * can both reach it without a cycle.
+ * between one hashchange and the next, and the shell's and the settings' sign-in
+ * links set it before they send a guest to sign in. A leaf with no imports, so
+ * the router and a screen can both reach it without a cycle.
  *
  * It lives in memory, not in storage: signing in happens on the same page
  * load, and a reload of the sign-in screen forgets it (the visitor then lands

@@ -85,6 +85,42 @@ test("each wiring hears only its own buttons and skips refused ones", () => {
   assert.deepEqual(resources, [["cheerleaders", 1]]);
 });
 
+test("a refused step is heard with its reason; a plainly disabled one is not (05–13)", () => {
+  const root = mount(renderResourceCounter({ key: "rr", name: "Re-rolls", value: 0, incBlockedReason: "Re-rolls: at most 8." }));
+  const refused = [];
+  const off = wireResourceCounters(root, () => assert.fail("a refused step is no step"), { onRefused: (step) => refused.push([step.key, step.delta, step.reason]) });
+  fireEvent(root.querySelector('[data-resource-step="1"]'), "click");
+  fireEvent(root.querySelector('[data-resource-step="-1"]'), "click");
+  assert.deepEqual(refused, [["rr", 1, "Re-rolls: at most 8."]]);
+  off();
+});
+
+test("the action stepper passes its options on too, and the refusal names the cell and the button it came from", () => {
+  const root = mount(renderActionStepper({ ...TD, key: "mvp", label: "MVP", name: "MVP", spp: 5, value: 0, incBlockedReason: "MVP is chosen in the post-match" }));
+  const heard = [];
+  const off = wireActionSteppers(root, () => assert.fail("a refused step is no step"), { onRefused: (step, button) => heard.push([step.key, step.element, button.getAttribute("data-action-step"), step.reason]) });
+  fireEvent(root.querySelector('[data-action-step="1"] svg'), "click");
+  assert.deepEqual(heard, [["mvp", root.querySelector("[data-action-key]"), "1", "MVP is chosen in the post-match"]]);
+  off();
+});
+
+test("a locked counter's refusal is heard on both buttons, with the lock's reason", () => {
+  const root = mount(renderResourceCounter({ key: "bribes", name: "Bribes", value: 0, lockedReason: "Only for teams with Bribery and Corruption" }));
+  const heard = [];
+  const off = wireResourceCounters(root, () => assert.fail("a locked counter takes no step"), { onRefused: (step) => heard.push([step.delta, step.reason]) });
+  fireEvent(root.querySelector('[data-resource-step="-1"]'), "click");
+  fireEvent(root.querySelector('[data-resource-step="1"]'), "click");
+  assert.deepEqual(heard, [[-1, "Only for teams with Bribery and Corruption"], [1, "Only for teams with Bribery and Corruption"]]);
+  off();
+});
+
+test("without onRefused a refused click is silent, as it always was", () => {
+  const root = mount(renderResourceCounter({ key: "rr", name: "Re-rolls", value: 0, incBlockedReason: "No" }));
+  const off = wireResourceCounters(root, () => assert.fail("a refused step is no step"));
+  fireEvent(root.querySelector('[data-resource-step="1"]'), "click");
+  off();
+});
+
 test("a counter at zero adds nothing, and one that added shows only a positive delta", () => {
   const fragment = mount(renderActionStepper({ ...TD, value: 0, delta: 0 }));
   assert.equal(fragment.querySelector(".g-stepper__delta"), null);

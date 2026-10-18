@@ -14,20 +14,26 @@
  *
  * What the frame says comes from shell/navigation.mjs, drawn by
  * shell/app-header.mjs and shell/side-nav.mjs; the sizes and breakpoints are
- * frame.css's.
+ * frame.css's. The team block of the header and the SideNav opens the team
+ * switcher (shell/team-switcher.mjs) in a host at the end of the frame; what
+ * the shell does is open it, close it with the focus back where it was, and act
+ * on a team chosen.
  */
+import { patchWithModal } from "../components/dialog.mjs";
 import { delegate, patch } from "../core/dom.mjs";
 import { getLocale } from "../core/i18n.mjs";
 import { requestLocale } from "../core/locale-request.mjs";
 import { setReturn } from "../core/return-to.mjs";
+import { TEAM_ROUTES } from "../core/routes.mjs";
 import { state } from "../core/state.mjs";
-import { activeTeam, isTeamListRead } from "../data/active-team.mjs";
+import { activeTeam, isTeamListRead, syncActiveTeam } from "../data/active-team.mjs";
 import { onGamesChange } from "../data/games.mjs";
-import { onMyTeamsChange } from "../data/teams.mjs";
+import { onMyTeamsChange, raceTitleOf } from "../data/teams.mjs";
 import { renderAppHeader } from "./app-header.mjs";
 import { currentMatch, renderNavMatch } from "./current-match.mjs";
 import { shellModel } from "./navigation.mjs";
 import { renderSideNav, renderSiteFooter } from "./side-nav.mjs";
+import { SWITCHER_ID, renderTeamSwitcher, switchTarget, switcherRows, wireTeamSwitcher } from "./team-switcher.mjs";
 
 /** Hysteresis of the fold: a page that settles between the two keeps the header as it was. */
 const FOLD_PAST = 48;
@@ -45,10 +51,15 @@ const SIGN_IN_LINKS = "a.g-appbar__login, .g-sidenav__login a";
 /** What the frame does when the games or the teams change: draw itself again for the route it has (one function, so mounting twice listens once). */
 const redraw = () => refreshShell();
 
-/** @type {{frame: Element, header: Element, sideNav: Element, footer: Element, search: Element}|null} */
+/** Where the team switcher is shown: the last child of the frame, which takes no room of its own (team-switcher.css). */
+const SWITCHER_HOST = "team-switcher-host";
+
+/** @type {{frame: Element, header: Element, sideNav: Element, footer: Element, search: Element, switcher: Element}|null} */
 let parts = null;
 /** The route the frame was last drawn for: a refresh without one redraws it. */
 let lastRoute = null;
+/** The button that opened the switcher while it is open: the focus goes back to it. */
+let opener = null;
 
 /**
  * Whether the header is folded once the page stands `scrollTop` pixels down.
@@ -83,7 +94,12 @@ export function tabScrollLeft({ tabLeft, tabWidth, viewWidth, scrollLeft }) {
  */
 export function mountShell({ document = globalThis.document, scroller = globalThis } = {}) {
   const find = (id) => document.querySelector(`#${id}`);
-  parts = { frame: find("app-frame"), header: find("app-header"), sideNav: find("side-nav"), footer: find("site-footer"), search: find("ref-search") };
+  parts = { frame: find("app-frame"), header: find("app-header"), sideNav: find("side-nav"), footer: find("site-footer"), search: find("ref-search"), switcher: find(SWITCHER_HOST) };
+  if (!parts.switcher) {
+    parts.switcher = document.createElement("div");
+    parts.switcher.setAttribute("id", SWITCHER_HOST);
+    parts.frame.appendChild(parts.switcher);
+  }
   let compact = false;
   scroller.addEventListener("scroll", () => {
     const next = nextCompact(compact, (scroller.document ?? document).scrollingElement?.scrollTop ?? 0);
@@ -93,6 +109,9 @@ export function mountShell({ document = globalThis.document, scroller = globalTh
   delegate(parts.sideNav, "click", "[data-locale-switch]", (event, button) => requestLocale(button.getAttribute("data-locale-switch")));
   // A guest who signs in comes back to the page they were reading, as the 2.x header's button brought them.
   for (const root of [parts.header, parts.sideNav]) delegate(root, "click", SIGN_IN_LINKS, () => setReturn(globalThis.location?.hash ?? ""));
+  // The team block of either opens the one switcher, which is wired here once: the host outlives every sheet shown in it.
+  for (const root of [parts.header, parts.sideNav]) delegate(root, "click", "[data-team-switcher]", (event, button) => openSwitcher(button));
+  wireTeamSwitcher(parts.switcher, { onSwitch: chooseTeam, onClose: closeSwitcher });
   // The match card is drawn from the games: a screen that changes one (data/games.mjs `invalidateGames`) redraws the frame when the list is read again.
   onGamesChange(redraw);
   // The team's name, tabs and card come from the coach's list: one read after the frame was drawn redraws it (R14).
@@ -101,7 +120,39 @@ export function mountShell({ document = globalThis.document, scroller = globalTh
 
 /** The race the reference calls the team's base team; "" when the data has not come. */
 function raceTitle(team) {
-  return state.data?.teams?.find((item) => item.slug === team?.baseTeamSlug)?.title ?? "";
+  return raceTitleOf(team?.baseTeamSlug);
+}
+
+/** Show the switcher over the page, built from the coach's list, the table and the games as they stand now. */
+function openSwitcher(button) {
+  const rows = switcherRows({ teams: state.myTeams.items, activeTeamId: state.activeTeamId, raceTitleOf, seasonData: state.season.data, games: state.games.items });
+  opener = button;
+  patchWithModal(parts.switcher, renderTeamSwitcher(rows), `#${SWITCHER_ID}`);
+}
+
+/**
+ * Take the switcher away, if it is open, and give the focus back to the button that opened it, if that
+ * button is still on the page (a coach who signed out has a link there now).
+ */
+function closeSwitcher() {
+  if (!opener) return;
+  const button = opener;
+  opener = null;
+  patch(parts.switcher, "");
+  if (button.isConnected) button.focus();
+}
+
+/**
+ * A team chosen: on one of a team's pages the same page of the other team, whose address makes it the active
+ * one (the router); anywhere else the page stays and the team only becomes the active one. The team whose page
+ * it is already stays where it is: its address would only be the roster for a player's page.
+ */
+function chooseTeam(teamId) {
+  closeSwitcher();
+  if (TEAM_ROUTES.has(lastRoute?.name) && lastRoute.params?.teamId === teamId) return;
+  const target = switchTarget(lastRoute, teamId);
+  if (target) globalThis.location.hash = target;
+  else syncActiveTeam({ routeTeamId: teamId });
 }
 
 /** The team's place in the season table: its standings row's `rank` (the server's order is not the place); null outside the table. */
@@ -130,6 +181,8 @@ function revealCurrentTab(header) {
  * @param {{name: string, params?: object}|null} [route] what the router matched
  */
 export function refreshShell(route = lastRoute) {
+  // A page of its own takes an open switcher with it; the frame drawn again for the same page (the games came in) leaves it.
+  const moved = route !== lastRoute;
   lastRoute = route;
   if (!parts || !route) return;
   const user = state.auth.currentUser;
@@ -146,4 +199,5 @@ export function refreshShell(route = lastRoute) {
   if (model.showSearch) parts.search.removeAttribute("hidden");
   else parts.search.setAttribute("hidden", "");
   revealCurrentTab(parts.header);
+  if (moved) closeSwitcher();
 }

@@ -21,7 +21,7 @@ const { themePickerMarkup, wireThemePicker } = await import("../src/screens/sett
 
 const COACH = { id: "u1", login: "felstell", telegram: "@felstell", isAdmin: false, createdAt: "2025-03-01T10:00:00Z", preferences: { themeMode: "dark" } };
 const markup = (over = {}) => settingsMarkup({ user: COACH, teamCount: 2, locale: "en", telegram: COACH.telegram, ...over });
-const SHEETS = ["src/screens/settings/settings.css", "text-field.css", "button.css", "list-row.css", "segmented-control.css", "src/screens/settings/theme-picker.css"];
+const SHEETS = ["src/screens/settings/settings.css", "page-head.css", "text-field.css", "button.css", "list-row.css", "segmented-control.css", "src/screens/settings/theme-picker.css"];
 const dictionary = (locale) => JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
 const NO_CALLBACKS = { saved: "@felstell", onSaveTelegram() {}, onLogout() {}, onOpenPassword() {} };
 const refusal = (code) => ({ error: { code, params: {}, message: "x" } });
@@ -33,11 +33,25 @@ test("a coach sees who they are, since when, their contact and the ways out", ()
   assert.equal(fragment.querySelector("#settings-telegram").getAttribute("value"), "@felstell");
   assert.equal(fragment.querySelector("[data-telegram-save]").hasAttribute("hidden"), true);
   assert.equal(fragment.querySelector("[data-open-password]").getAttribute("aria-haspopup"), "dialog");
-  assert.ok(fragment.querySelector("button.g-btn--danger-outline[data-logout]"));
+  assert.ok(fragment.querySelector("button.g-btn--danger-quiet[data-logout]"));
   assert.equal(fragment.querySelector('a[href="#/administration"]'), null);
   assert.equal(fragment.querySelectorAll("h1").length, 1);
   assertCspSafe(fragment);
   assertStyled(fragment, ...SHEETS);
+});
+
+test("Settings on a desk open under a band: the title and its line (DeskCoach, M1, 2)", () => {
+  api.reset();
+  draw();
+  const head = view.querySelector("header.g-pagehead");
+  assert.equal(head.querySelector("h1").textContent, "Settings");
+  assert.equal(head.querySelector(".g-pagehead__sub").textContent, "Account and site appearance");
+  assert.equal(head.classList.contains("g-pagehead--phone"), false, "a phone's header names the screen already");
+  assert.equal(view.querySelector(".g-settings__head"), null);
+  assert.equal(view.querySelector(".g-settings h1"), null, "the band is the page's, drawn before the cards and not inside them");
+  assert.equal(view.querySelectorAll("h1").length, 1);
+  const css = readFileSync(new URL("../src/screens/settings/settings.css", import.meta.url), "utf8");
+  for (const gone of ["head", "title", "subtitle"]) assert.doesNotMatch(css, new RegExp(`\\.g-settings__${gone}(?![\\w-])`), `.g-settings__${gone} is page-head.css's now`);
 });
 
 test("an admin also finds the way into administration", () => {
@@ -862,7 +876,7 @@ test("too many tries and the administrator whose password the server keeps are t
   passwordAnswer(429, { ...refusal("TOO_MANY_LOGIN_ATTEMPTS"), retryAfterSeconds: 600 });
   submitPassword();
   await settle();
-  assert.equal(text('[role="alert"] .g-callout--danger .g-callout__title'), "Too many attempts for this login. Try again in 10 min.");
+  assert.equal(text('[role="alert"] .g-callout--danger .g-callout__title'), "Too many attempts for this username. Try again in 10 min.");
   assert.equal(view.querySelector("#password-current").getAttribute("aria-invalid"), null);
   assert.equal(view.querySelector("#password-form").hasAttribute("aria-busy"), false);
   assert.equal(view.querySelector("#password-next").value, "abcd", "what was typed stays for another try");

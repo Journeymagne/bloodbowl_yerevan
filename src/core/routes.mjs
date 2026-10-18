@@ -236,9 +236,13 @@ export function matchRoute(route) {
 /**
  * What a guest cannot open: the way in is to sign in (plan stage 05, decision 5). A guest's
  * `#/teams` never gets this far: rule (1) sends it to the team rules first, as in 2.x.
+ * `teamNew` is here since stage 06: stage 05 left the builder open to a guest because the 2.x one
+ * kept its draft in the browser and asked for the session only at the save; the new one saves on
+ * the server at once, so it is a coach's page like the rest, and a guest comes back to it after signing in.
  */
 const SIGNED_IN_ROUTES = new Set([
   "teams",
+  "teamNew",
   ...TEAM_ROUTES,
   "coach",
   "coachTeam",
@@ -259,6 +263,7 @@ const SIGNED_IN_ROUTES = new Set([
 const OLD_ADDRESSES = [
   [/^my-teams$/, () => teamsUrl()],
   [/^my-teams\/([^/]+)$/, ([, teamId]) => teamUrl(teamId, "roster")],
+  // A guest goes on from there to sign in (rule 4), so the old address takes two hops, and signing in leads back to the builder.
   [/^builder$/, () => newTeamUrl()],
   [/^my-games$/, (match, { signedIn, activeTeamId }) => {
     if (!signedIn) return null;
