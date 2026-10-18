@@ -21,8 +21,9 @@ import { getLocale } from "../core/i18n.mjs";
 import { requestLocale } from "../core/locale-request.mjs";
 import { setReturn } from "../core/return-to.mjs";
 import { state } from "../core/state.mjs";
-import { activeTeam } from "../data/active-team.mjs";
+import { activeTeam, isTeamListRead } from "../data/active-team.mjs";
 import { onGamesChange } from "../data/games.mjs";
+import { onMyTeamsChange } from "../data/teams.mjs";
 import { renderAppHeader } from "./app-header.mjs";
 import { currentMatch, renderNavMatch } from "./current-match.mjs";
 import { shellModel } from "./navigation.mjs";
@@ -41,7 +42,7 @@ const TABS_CLEAR = 0.85;
 /** A guest's way in, in the header and the SideNav (shell/app-header.mjs, shell/side-nav.mjs). */
 const SIGN_IN_LINKS = "a.g-appbar__login, .g-sidenav__login a";
 
-/** What the frame does when the games change: draw itself again for the route it has (one function, so mounting twice listens once). */
+/** What the frame does when the games or the teams change: draw itself again for the route it has (one function, so mounting twice listens once). */
 const redraw = () => refreshShell();
 
 /** @type {{frame: Element, header: Element, sideNav: Element, footer: Element, search: Element}|null} */
@@ -94,6 +95,8 @@ export function mountShell({ document = globalThis.document, scroller = globalTh
   for (const root of [parts.header, parts.sideNav]) delegate(root, "click", SIGN_IN_LINKS, () => setReturn(globalThis.location?.hash ?? ""));
   // The match card is drawn from the games: a screen that changes one (data/games.mjs `invalidateGames`) redraws the frame when the list is read again.
   onGamesChange(redraw);
+  // The team's name, tabs and card come from the coach's list: one read after the frame was drawn redraws it (R14).
+  onMyTeamsChange(redraw);
 }
 
 /** The race the reference calls the team's base team; "" when the data has not come. */
@@ -131,7 +134,7 @@ export function refreshShell(route = lastRoute) {
   if (!parts || !route) return;
   const user = state.auth.currentUser;
   const team = user ? activeTeam() : null;
-  const model = shellModel({ route, user, team, raceTitle: raceTitle(team), place: seasonPlace(team) });
+  const model = shellModel({ route, user, team, raceTitle: raceTitle(team), place: seasonPlace(team), teamsRead: isTeamListRead() });
   const locale = getLocale();
   const generatedAt = state.data?.generatedAt ?? "";
   // The card is the team's: a guest, and a coach with no team yet, have none.

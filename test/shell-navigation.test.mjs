@@ -51,6 +51,19 @@ test("a coach without a team keeps the league's tabs and a header that leads to 
   assert.equal(model.brand.href, "#/teams");
 });
 
+// R14 (N1): a coach whose list could not be read may have five teams; the header does not offer a first one.
+test("a coach whose list of teams was not read gets the league's name, not an offer to create a team", () => {
+  const model = shellModel(at("team", { team: null, raceTitle: "", place: null, teamsRead: false }));
+  assert.equal(model.mode, "coach");
+  assert.equal(model.brand.name, "Gata League");
+  assert.equal(model.brand.sub, "Blood Bowl Sevens");
+  assert.equal(model.brand.switchTeam, false);
+  assert.equal(model.brand.href, "#/");
+  assert.deepEqual(keys(model.tabs), ["overview", "table", "ref", "settings"]);
+  assert.equal(shellModel(at("team", { team: null, teamsRead: true })).brand.name, "No team yet", "a list read and empty is no team");
+  assert.equal(shellModel(at("team", { teamsRead: false })).brand.name, "Ashgrove Wardens", "a team in hand is named whatever the list says");
+});
+
 test("a guest gets home, table, reference and settings, and no team", () => {
   const model = shellModel(at("season", { user: null, team: null }));
   assert.equal(model.mode, "guest");

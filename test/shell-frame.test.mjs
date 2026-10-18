@@ -260,6 +260,13 @@ test("on a phone, an element scrolled into view by the keyboard stands clear of 
   assert.deepEqual(valuesOf("src/shell/app-header.css", ".g-appbar", "position"), ["sticky"]);
 });
 
+// R14 (N3): #app-view takes the focus after a form's navigation and from the skip link, as a tabindex="-1"
+// container; it is a place to start from, not a control, and draws no ring around the whole screen.
+test("the content takes the focus without a ring drawn round the whole screen", () => {
+  assert.deepEqual(valuesOf("src/shell/frame.css", "#app-view:focus", "outline"), ["none"]);
+  assert.match(read("index.html"), /<section id="app-view" class="view" tabindex="-1">/);
+});
+
 test("every frame class the page names is styled, the frame reaches the page, and it breaks at 900/901 only", () => {
   const css = ["src/shell/frame.css", "src/shell/app-header.css", "src/shell/side-nav.css"].map(read).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
   const names = new Set([...read("index.html").matchAll(/class="([^"]*)"/g)].flatMap(([, list]) => list.split(/\s+/)).filter((name) => name.startsWith("g-")));

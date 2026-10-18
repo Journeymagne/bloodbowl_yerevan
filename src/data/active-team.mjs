@@ -130,7 +130,7 @@ export function syncActiveTeam({ routeTeamId = null, store = storage } = {}) {
   }
   // A list that was never read (it failed at sign-in) says nothing of which team is the coach's: the team
   // already active, else the account's (which /me has checked), and nothing is written to either store.
-  if (!state.myTeams.loaded && !state.myTeams.items.length) {
+  if (!isTeamListRead()) {
     setActiveTeamId(state.activeTeamId ?? accountTeamId(user));
     return state.activeTeamId;
   }
@@ -145,6 +145,15 @@ export function syncActiveTeam({ routeTeamId = null, store = storage } = {}) {
   setActiveTeamId(teamId);
   if (teamId !== null && teamId !== accountTeamId(user)) writeAccount(user.id, teamId);
   return teamId;
+}
+
+/**
+ * Whether the coach's list of teams has been read: loaded, or holding the teams a read brought before it was
+ * marked to be read again. A list that failed at sign-in (data/teams.mjs `setMyTeamsUnread`) has not: no team
+ * is known, which is not the same as no team.
+ */
+export function isTeamListRead() {
+  return state.myTeams.loaded || state.myTeams.items.length > 0;
 }
 
 /** The active team itself, as the list holds it. */

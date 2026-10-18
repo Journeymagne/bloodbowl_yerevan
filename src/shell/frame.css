@@ -48,6 +48,13 @@ html { scrollbar-gutter: stable; }
 }
 
 /*
+ * #app-view takes the focus from the skip link and after a form's navigation (sign-in, registration,
+ * sign-out), as a tabindex="-1" container: a place the keyboard starts from, not a control, so no ring
+ * is drawn round the whole screen. Its first link or field draws its own when Tab reaches it.
+ */
+#app-view:focus { outline: none; }
+
+/*
  * The 2.x search, kept over #app-view on the reference lists only (plan stage
  * 05, decision 20) until stage 11 replaces it. `hidden` has to win over the
  * flex box, which would otherwise show it on every page.

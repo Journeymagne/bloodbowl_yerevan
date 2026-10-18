@@ -10,7 +10,8 @@
  * Three modes. `bare` is the sign-in and registration screens, which bring
  * their own frame: no tabs, no items. `guest` has the league without a team.
  * `coach` has the team's screens beside the league's, or — with no team yet —
- * the league's alone and a header that leads to creating one.
+ * the league's alone and a header that leads to creating one. A coach whose
+ * list of teams could not be read may have teams: the header names the league.
  */
 import { t } from "../core/i18n.mjs";
 import { refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
@@ -138,12 +139,13 @@ function navItems(links, currentKey) {
 /**
  * What the shell draws around a route.
  *
- * @param {{route: {name: string, params?: object}, user: object|null, team?: {id: string, name: string}|null, raceTitle?: string, place?: number|null}} input
+ * @param {{route: {name: string, params?: object}, user: object|null, team?: {id: string, name: string}|null, raceTitle?: string, place?: number|null, teamsRead?: boolean}} input
  *   `user` is the signed-in coach or null; `team` is the active team; `raceTitle` and
- *   `place` (the team's place in the season table, null outside it) are the header's subtitle
+ *   `place` (the team's place in the season table, null outside it) are the header's subtitle;
+ *   `teamsRead` is false while the coach's list of teams has not been read (no team is known)
  * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[], showSearch: boolean}}
  */
-export function shellModel({ route, user, team = null, raceTitle = "", place = null }) {
+export function shellModel({ route, user, team = null, raceTitle = "", place = null, teamsRead = true }) {
   const showSearch = SEARCH_ROUTES.has(route.name);
   if (BARE_ROUTES.has(route.name)) return { mode: "bare", brand: leagueBrand(), tabs: [], side: [], showSearch };
   const owners = Object.hasOwn(OWNERS, route.name) ? OWNERS[route.name] : [];
@@ -154,5 +156,6 @@ export function shellModel({ route, user, team = null, raceTitle = "", place = n
   }
   const [tabKey, sideKey] = owners;
   const links = coachLinks(team, Boolean(user.isAdmin));
-  return { mode: "coach", brand: coachBrand(team, raceTitle, place), tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey), showSearch };
+  const brand = !team && !teamsRead ? leagueBrand() : coachBrand(team, raceTitle, place);
+  return { mode: "coach", brand, tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey), showSearch };
 }

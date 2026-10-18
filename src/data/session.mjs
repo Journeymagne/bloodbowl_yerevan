@@ -36,12 +36,16 @@ export function onSessionChange(listener) {
   return () => listeners.delete(listener);
 }
 
+/** The coach the page was last told of (null for none): what a read of the session compares its answer with. */
+let shownCoachId = null;
+
 /**
  * Tell every listener, each on its own: the first screen is drawn by one, and
  * a screen that throws must not stop the rest, nor the caller (at start, the
  * frame's wiring comes after `loadSession`).
  */
 function announce() {
+  shownCoachId = state.auth.currentUser?.id ?? null;
   for (const listener of listeners) {
     try {
       listener();
@@ -147,20 +151,26 @@ async function readSession(read) {
   failure = null;
   const token = authToken();
   rememberSessionToken(token);
+  let answers = null;
   if (token) {
-    const [me, teams] = await Promise.allSettled([apiRequest("/api/auth/me"), apiRequest("/api/teams")]);
+    answers = await Promise.allSettled([apiRequest("/api/auth/me"), apiRequest("/api/teams")]);
     if (read !== reads) return newestRead;
-    status = statusOf(me, teams);
-    if (status === "offline") failure = [me, teams].find((answer) => answer.status === "rejected")?.reason ?? null;
+    status = statusOf(...answers);
+    if (status === "offline") failure = answers.find((answer) => answer.status === "rejected")?.reason ?? null;
     if (status === "guest") {
       setAuthToken("");
       rememberSessionToken("");
     }
-    if (status === "signed-in") {
-      state.auth.currentUser = me.value.user;
-      if (teams.status === "fulfilled") setMyTeams(teams.value.teams ?? []);
-      else setMyTeamsUnread(teams.reason);
-    }
+  }
+  const [me, teams] = answers ?? [];
+  const user = status === "signed-in" ? me.value.user : null;
+  // Another coach than the page was showing, or none (another tab signed in as someone else, or out): nothing
+  // loaded for the one before is theirs, from the active team to the season (R14).
+  if (shownCoachId !== null && shownCoachId !== (user?.id ?? null)) resetCoachSlices();
+  if (user) {
+    state.auth.currentUser = user;
+    if (teams.status === "fulfilled") setMyTeams(teams.value.teams ?? []);
+    else setMyTeamsUnread(teams.reason);
   }
   announce();
   return status;

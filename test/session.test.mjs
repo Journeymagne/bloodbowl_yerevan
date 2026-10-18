@@ -400,6 +400,8 @@ const { savePreferences } = await import("../src/data/preferences.mjs");
 const SECOND = { user: { id: "u2", login: "second", preferences: {} } };
 /** A few turns of the event loop: a session read that a storage event started has no promise to await. */
 const settled = async () => { for (let turn = 0; turn < 10; turn += 1) await new Promise((resolve) => { setImmediate(resolve); }); };
+/** Signed in as u1 with "tok", the session's listeners told. */
+const signedInWithAnUnreadOrReadList = () => signedInWith("tok");
 async function signedInWith(token) {
   fresh(token);
   api.reply("GET /api/auth/me", 200, ME);
@@ -502,4 +504,56 @@ test("who is signed in is set by the session alone; a screen that has a newer co
   const files = readdirSync(root, { recursive: true }).filter((file) => file.endsWith(".mjs") || file.endsWith(".js"));
   const setters = files.filter((file) => /state\.auth\.currentUser\s*=(?!=)/.test(readFileSync(new URL(file, root), "utf8")));
   assert.deepEqual(setters.sort(), ["core/api-client.mjs", "data/session.mjs"], "the session, and the api-client's 401 hook letting go of the coach");
+});
+
+// R14 (N2): another tab signed in as someone else. Nothing the page loaded for the coach before is the new one's.
+test("a coach another tab swapped in starts clean: no active team, games, season or administration of the one before", async () => {
+  await signedInWithAnUnreadOrReadList();
+  state.activeTeamId = "t1";
+  state.games = { items: [{ id: "g1" }], currentItems: [], loaded: true, loading: false, error: "" };
+  state.season = { data: { myEntry: { id: "e1" } }, loaded: true, loading: false, error: "" };
+  state.admin = { users: [{ id: "u9" }], loaded: true, loading: false, error: "", editingTeams: new Map() };
+  api.items.set(TOKEN, "other");
+  api.reply("GET /api/auth/me", 200, SECOND);
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t5" }] });
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  assert.equal(state.auth.currentUser?.id, "u2");
+  assert.equal(state.activeTeamId, null);
+  assert.deepEqual([state.games.items, state.games.loaded], [[], false]);
+  assert.deepEqual([state.season.data, state.season.loaded], [null, false]);
+  assert.deepEqual([state.admin.users, state.admin.loaded], [[], false]);
+  assert.deepEqual(state.myTeams.items, [{ id: "t5" }], "the new coach's own list");
+  api.assertAnswered();
+});
+
+test("the same coach signed in again in another tab keeps what the page has", async () => {
+  await signedInWithAnUnreadOrReadList();
+  state.games = { items: [{ id: "g1" }], currentItems: [], loaded: true, loading: false, error: "" };
+  api.items.set(TOKEN, "renewed");
+  api.reply("GET /api/auth/me", 200, ME);
+  api.reply("GET /api/teams", 200, TEAMS);
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  assert.equal(state.auth.currentUser?.id, "u1");
+  assert.deepEqual(state.games.items, [{ id: "g1" }]);
+  api.assertAnswered();
+});
+
+test("a coach swapped while an earlier read was still on its way starts clean too", async () => {
+  await signedInWithAnUnreadOrReadList();
+  state.games = { items: [{ id: "g1" }], currentItems: [], loaded: true, loading: false, error: "" };
+  api.items.set(TOKEN, "first-swap");
+  api.reply("GET /api/auth/me", 200, SECOND);
+  api.reply("GET /api/teams", 200, { teams: [] });
+  const gate = api.hold("GET /api/auth/me");
+  otherTabs.dispatchEvent(new Event("storage"));
+  api.items.set(TOKEN, "second-swap");
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  gate.release();
+  await settled();
+  assert.equal(state.auth.currentUser?.id, "u2");
+  assert.deepEqual([state.games.items, state.games.loaded], [[], false]);
+  api.assertAnswered();
 });

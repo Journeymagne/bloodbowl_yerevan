@@ -12,6 +12,30 @@ import { state } from "../core/state.mjs";
 import { apiRequest } from "../core/api-client.mjs";
 import { syncActiveTeam } from "./active-team.mjs";
 
+const listeners = new Set();
+
+/**
+ * Hear every write of `state.myTeams`: an answer, a failure, a list a session brought. The frame listens
+ * (shell/shell.mjs): a list that comes in after the frame was drawn, read again on a team's page once it
+ * failed at sign-in, changes the header and the SideNav though the active team does not change.
+ * @param {() => void} listener @returns {() => void} what removes it again
+ */
+export function onMyTeamsChange(listener) {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
+}
+
+/** Every listener hears it, each on its own: one that throws does not stop the rest. */
+function myTeamsChanged() {
+  for (const listener of listeners) {
+    try {
+      listener();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+}
+
 /** Reads of the list sent, and the promise of the newest: only the last one sent is written. */
 let reads = 0;
 let newestRead = null;
@@ -26,6 +50,7 @@ export async function loadMyTeams(force = false) {
   const user = state.auth.currentUser;
   if (!user) {
     state.myTeams = { items: [], loaded: true, loading: false, error: "" };
+    myTeamsChanged();
     return;
   }
   if (state.myTeams.loaded && !force) return;
@@ -48,16 +73,18 @@ async function readMyTeams(read, userId) {
   state.myTeams.loading = false;
   if (failure) {
     state.myTeams.error = errorText(failure);
-    return;
+  } else {
+    state.myTeams.items = payload.teams ?? [];
+    state.myTeams.loaded = true;
+    syncActiveTeam();
   }
-  state.myTeams.items = payload.teams ?? [];
-  state.myTeams.loaded = true;
-  syncActiveTeam();
+  myTeamsChanged();
 }
 
 /** The list as an answer already brought it: loaded, nothing in flight. */
 export function setMyTeams(items) {
   state.myTeams = { items, loaded: true, loading: false, error: "" };
+  myTeamsChanged();
 }
 
 /**
@@ -66,4 +93,5 @@ export function setMyTeams(items) {
  */
 export function setMyTeamsUnread(error) {
   state.myTeams = { items: [], loaded: false, loading: false, error: errorText(error) };
+  myTeamsChanged();
 }
