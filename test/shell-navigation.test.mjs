@@ -83,8 +83,8 @@ test("outside the season table the subtitle is the race alone", () => {
   assert.equal(shellModel(at("team", { place: null })).brand.sub, "Human");
 });
 
-test("the search bar belongs to the reference lists only", () => {
-  assert.deepEqual(["ref", "refSection", "page", "settings"].map((name) => shellModel(at(name)).showSearch), [true, true, false, false]);
+test("the shell draws no search bar: the reference brings its own", () => {
+  for (const name of ["ref", "refSection"]) assert.equal("showSearch" in shellModel(at(name)), false, name);
   assertDictionaryCovers("src/shell/navigation.mjs");
 });
 

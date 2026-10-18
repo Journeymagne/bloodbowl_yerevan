@@ -1000,5 +1000,9 @@
   "ref.group.match": "Перед матчем и в игре",
   "ref.group.players": "Игроки",
   "ref.group.teams": "Команды",
-  "ref.group.league": "Лига"
+  "ref.group.league": "Лига",
+  "ref.toc": "Разделы справочника",
+  "ref.search": "Поиск по справочнику",
+  "ref.found": "Найдено: {count}",
+  "ref.foundFirst": "Показаны {shown} из {count}"
 }

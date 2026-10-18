@@ -1,6 +1,6 @@
 /**
- * The 3.0 frame on the page: the mobile header, the desktop SideNav, the
- * reference search strip and the footer line under the content.
+ * The 3.0 frame on the page: the mobile header, the desktop SideNav and the
+ * footer line under the content.
  *
  * index.html holds the empty frame; this module fills it. `mountShell` finds
  * the parts and wires what lives as long as the page does — the header folding
@@ -45,7 +45,7 @@ const SIGN_IN_LINKS = "a.g-appbar__login, .g-sidenav__login a";
 /** What the frame does when the games or the teams change: draw itself again for the route it has (one function, so mounting twice listens once). */
 const redraw = () => refreshShell();
 
-/** @type {{frame: Element, header: Element, sideNav: Element, footer: Element, search: Element}|null} */
+/** @type {{frame: Element, header: Element, sideNav: Element, footer: Element}|null} */
 let parts = null;
 /** The route the frame was last drawn for: a refresh without one redraws it. */
 let lastRoute = null;
@@ -83,7 +83,7 @@ export function tabScrollLeft({ tabLeft, tabWidth, viewWidth, scrollLeft }) {
  */
 export function mountShell({ document = globalThis.document, scroller = globalThis } = {}) {
   const find = (id) => document.querySelector(`#${id}`);
-  parts = { frame: find("app-frame"), header: find("app-header"), sideNav: find("side-nav"), footer: find("site-footer"), search: find("ref-search") };
+  parts = { frame: find("app-frame"), header: find("app-header"), sideNav: find("side-nav"), footer: find("site-footer") };
   let compact = false;
   scroller.addEventListener("scroll", () => {
     const next = nextCompact(compact, (scroller.document ?? document).scrollingElement?.scrollTop ?? 0);
@@ -143,7 +143,5 @@ export function refreshShell(route = lastRoute) {
   patch(parts.sideNav, renderSideNav(model, { matchHtml, locale, generatedAt }));
   patch(parts.footer, renderSiteFooter({ generatedAt, locale }));
   parts.frame.setAttribute("data-shell", model.mode);
-  if (model.showSearch) parts.search.removeAttribute("hidden");
-  else parts.search.setAttribute("hidden", "");
   revealCurrentTab(parts.header);
 }

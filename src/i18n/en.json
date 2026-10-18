@@ -1000,5 +1000,9 @@
   "ref.group.match": "Before and during a match",
   "ref.group.players": "Players",
   "ref.group.teams": "Teams",
-  "ref.group.league": "League"
+  "ref.group.league": "League",
+  "ref.toc": "Reference sections",
+  "ref.search": "Search the reference",
+  "ref.found": "Found: {count}",
+  "ref.foundFirst": "Showing {shown} of {count}"
 }

@@ -28,6 +28,7 @@ import { renderLogin } from "../screens/auth/login.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
 import { renderSettings } from "../screens/settings/index.mjs";
 import { renderOverviewDetail } from "../screens/overview.mjs";
+import { renderRef } from "../screens/ref/index.mjs";
 import { renderSection } from "../screens/section.mjs";
 import { renderDetail } from "../screens/detail.mjs";
 import { renderLegal } from "../screens/legal.mjs";
@@ -68,7 +69,7 @@ const screens = {
   teamChallenges: () => renderMyGames(),
   coach: ({ userId }) => renderPlayerProfile(userId),
   coachTeam: ({ userId, teamId }) => renderPublicTeamProfile(userId, teamId),
-  ref: () => renderSection("pages"),
+  ref: () => renderRef(),
   refSection: ({ section }) => renderSection(section),
   game: ({ gameId }) => renderGamePage(gameId),
   preMatch: ({ gameId, step }) => renderPreMatch(gameId, step),

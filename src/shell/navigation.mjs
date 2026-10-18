@@ -22,9 +22,6 @@ const ADMINISTRATION_URL = "#/administration";
 /** The routes the shell stays out of. */
 const BARE_ROUTES = new Set(["login", "register"]);
 
-/** The routes whose screen carries the reference search bar. */
-const SEARCH_ROUTES = new Set(["ref", "refSection"]);
-
 /**
  * Which tab and which side item own a route: `[tab, side item]`. A route that
  * is not here — My Teams, the builder — lights nothing, because it is the way
@@ -143,19 +140,18 @@ function navItems(links, currentKey) {
  *   `user` is the signed-in coach or null; `team` is the active team; `raceTitle` and
  *   `place` (the team's place in the season table, null outside it) are the header's subtitle;
  *   `teamsRead` is false while the coach's list of teams has not been read (no team is known)
- * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[], showSearch: boolean}}
+ * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[]}}
  */
 export function shellModel({ route, user, team = null, raceTitle = "", place = null, teamsRead = true }) {
-  const showSearch = SEARCH_ROUTES.has(route.name);
-  if (BARE_ROUTES.has(route.name)) return { mode: "bare", brand: leagueBrand(), tabs: [], side: [], showSearch };
+  if (BARE_ROUTES.has(route.name)) return { mode: "bare", brand: leagueBrand(), tabs: [], side: [] };
   const owners = Object.hasOwn(OWNERS, route.name) ? OWNERS[route.name] : [];
   if (!user) {
     const [tabKey, sideKey] = owners.map(guestKey);
     const links = guestLinks();
-    return { mode: "guest", brand: leagueBrand(), tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey), showSearch };
+    return { mode: "guest", brand: leagueBrand(), tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey) };
   }
   const [tabKey, sideKey] = owners;
   const links = coachLinks(team, Boolean(user.isAdmin));
   const brand = !team && !teamsRead ? leagueBrand() : coachBrand(team, raceTitle, place);
-  return { mode: "coach", brand, tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey), showSearch };
+  return { mode: "coach", brand, tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey) };
 }

@@ -1,0 +1,252 @@
+/*
+ * The reference's frame (screens/ref/frame.mjs) and its index (index.mjs). Font, border, background,
+ * text-transform and letter-spacing are set here on purpose: the 2.x globals (h1 to h6, a, the form
+ * controls) outlive this sheet until stage 13.
+ *
+ * Up to 900px it is one column and the head shows on the index only: the phone's header names every
+ * other reference screen, and the table of contents is the index itself, one tap up (the way back is
+ * the link at the top of a screen). From 901px the head is a white band across the top with the title
+ * at the left and the search at the right, the table of contents stands beside the content, and the
+ * index lays its groups out in two columns. Only the head and the groups are laid out here; the lists,
+ * the articles and the panel are the sheets of the screens that draw them.
+ */
+.g-ref {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The head: the title, the league's name under it, then the search. */
+.g-ref-head {
+  box-sizing: border-box;
+  display: none;
+  flex-direction: column;
+  gap: var(--space-4);
+  border: 0;
+  background: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-ref--index .g-ref-head { display: flex; }
+
+.g-ref-head__title {
+  margin: 0;
+  color: var(--ink);
+  font: 700 32px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-head__sub {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-head .g-search { margin-top: var(--space-16); }
+
+.g-ref__body {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+}
+
+.g-ref__main,
+.g-ref__panel {
+  min-width: 0;
+}
+
+/* The index: its groups one under another. */
+.g-ref-groups {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.g-ref-group {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  background: none;
+}
+
+.g-ref-group__title {
+  margin: 0 0 var(--space-4);
+  color: var(--muted);
+  font: 700 13px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* What a search found, and how many; or that it found nothing. */
+.g-ref-results {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 0;
+  background: none;
+}
+
+.g-ref-found {
+  margin: 0 0 var(--space-4);
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-empty {
+  margin: 0;
+  padding: var(--space-16) 0;
+  color: var(--ink-2);
+  font: 400 15px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The way up from a screen, for a phone. */
+.g-ref-back {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: var(--space-6);
+  min-height: 44px;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+/* The table of contents is the desktop's; a phone has the index. */
+.g-ref-toc { display: none; }
+
+@media (min-width: 901px) {
+  /*
+   * The band runs edge to edge, so the 2.x padding of the screen (which stage 13 takes away) is
+   * given up for the reference and the parts keep their own.
+   */
+  #app-view:has(> .g-ref) { padding: 0; }
+  #app-view > .g-ref {
+    max-width: none;
+    margin: 0;
+    gap: 0;
+  }
+
+  .g-ref .g-ref-head {
+    display: grid;
+    grid-template-columns: minmax(max-content, 1fr) minmax(0, 420px);
+    align-items: center;
+    column-gap: var(--space-16);
+    row-gap: var(--space-4);
+    padding: var(--space-20) 32px;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .g-ref-head__title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .g-ref-head__sub {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  .g-ref-head .g-search {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    margin-top: 0;
+  }
+
+  .g-ref__body {
+    flex-flow: row wrap;
+    align-items: flex-start;
+    padding: 24px 32px 40px;
+  }
+  .g-ref__main {
+    flex: 2 1 380px;
+  }
+  .g-ref__panel {
+    flex: 1 1 320px;
+  }
+
+  .g-ref-toc {
+    display: flex;
+    flex: 1 1 220px;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    max-width: 260px;
+  }
+  .g-ref-toc__group {
+    margin: 0;
+    padding: 0 var(--space-10) var(--space-4);
+    color: var(--muted);
+    font: 700 12px/1.3 var(--font-body);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .g-ref-toc__group:not(:first-child) { margin-top: var(--space-16); }
+  .g-ref-toc__link {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-8);
+    min-height: 48px;
+    padding: 0 var(--space-10);
+    border-radius: var(--radius-sm);
+    background: none;
+    color: var(--ink-2);
+    font: 500 15px/1.3 var(--font-body);
+    letter-spacing: 0;
+    text-decoration: none;
+    text-transform: none;
+  }
+  .g-ref-toc__link[aria-current="page"] {
+    background: var(--surface);
+    color: var(--ink);
+    font-weight: 700;
+  }
+  .g-ref-toc__count {
+    flex: none;
+    color: var(--muted);
+    font: 400 12px/1.2 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .g-ref-back { display: none; }
+
+  /* Two columns of groups, each a card; the rows keep their own dividers except the last. */
+  .g-ref--index .g-ref__main { flex: 1 1 auto; }
+  .g-ref-groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: var(--space-24);
+  }
+  .g-ref-group,
+  .g-ref-results {
+    padding: var(--space-16) var(--space-20) var(--space-8);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-ref-results { max-width: 760px; }
+  .g-ref-group .g-list-row:last-child,
+  .g-ref-results .g-list-row:last-child { border-bottom: 0; }
+}
