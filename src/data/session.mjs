@@ -105,7 +105,7 @@ export function sessionFailureText() {
 }
 
 /**
- * A refused request as a sentence, for the forms that sign in or change a password:
+ * A refused request as a sentence, for the forms that sign in, change a password or save a contact:
  * errorText's, with two exceptions. Too many tries say when to try again: the 429 carries
  * `retryAfterSeconds`, and the window is a quarter of an hour, so the wait is said in
  * minutes, and in seconds only for its last minute; without the number, "shortly" is all

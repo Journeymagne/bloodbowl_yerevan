@@ -245,6 +245,19 @@ test("a lost connection is the field's text too", async () => {
   assert.equal(state.auth.currentUser.telegram, "@felstell");
 });
 
+// R13-M3: the forms that talk to the account say a server's silence the same way (refusalText).
+test("a gateway's answer with no code says the server did not answer, in the page's language, not 'Request failed with 502'", async () => {
+  api.reset();
+  state.auth.currentUser = { ...COACH };
+  for (const locale of ["en", "ru"]) {
+    setLocale(locale);
+    api.reply("PATCH /api/auth/profile", 502, {});
+    assert.equal((await saveTelegram("@another")).error, dictionary(locale)["request.noAnswer"], locale);
+  }
+  setLocale("en");
+  assert.equal(state.auth.currentUser.telegram, "@felstell");
+});
+
 test("a saved contact leaves the account's other /me-only fields as they were", async () => {
   api.reset();
   state.auth.currentUser = { ...COACH, managedByServer: false };
