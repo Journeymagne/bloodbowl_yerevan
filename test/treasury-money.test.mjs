@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test, { afterEach, beforeEach } from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
-import { assertReadable } from "./helpers/contrast.mjs";
+import { assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
@@ -478,6 +478,12 @@ test("the hint names the one decimal in both languages, and the refusal copy spe
     assert.doesNotMatch(en[key], /\bentry\b/, key);
     assert.match(ru[key], /изменени/, key);
   }
+});
+
+test("the sign's two segments are a finger's size, as the presets and the reasons are: the kit's segment is 40px", () => {
+  assert.equal(tokensOf("grass")["--size-touch"], "44px");
+  assert.deepEqual(valuesOf(CSS, ".g-money .g-seg__item", "min-height"), ["var(--size-touch)"]);
+  assert.ok(valuesOf(CSS, ".g-money__preset", "min-height").includes("var(--size-touch)"));
 });
 
 test("the chips and the preview are readable on their grounds, in every palette", () => {

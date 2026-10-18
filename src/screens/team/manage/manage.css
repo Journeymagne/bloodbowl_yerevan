@@ -38,6 +38,9 @@
   letter-spacing: 0;
 }
 
+/* The sign's segments are a finger's size, as the login's and the settings' are: the kit's segment is 40px. */
+.g-money .g-seg__item { min-height: var(--size-touch); }
+
 /* The amounts to press and the reasons: rows that wrap, not a strip that scrolls. */
 .g-money__presets,
 .g-money__reasons {
