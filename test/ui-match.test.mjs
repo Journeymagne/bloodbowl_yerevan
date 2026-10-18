@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderButton } from "../src/ui/button.mjs";
@@ -414,10 +414,15 @@ test("the status and the overline sit in the middle: the overline over the score
   assert.equal(fragment.querySelector(".g-board__overline").textContent, "Round 3 · home");
 });
 
-test("a match in play rings the board", () => {
+test("a match in play rings the board, inside the band where the ring can be seen, in every palette", () => {
   assert.equal(mount(renderMatchBoard({ own, live: true })).querySelector("section").getAttribute("class"), "g-board g-board--live");
   assert.equal(mount(renderMatchBoard({ own })).querySelector(".g-board--live"), null);
-  assert.match(valuesOf(BOARD_CSS, ".g-board--live", "box-shadow")[0], /var\(--live\)/);
+  // An outline inside the card: a shadow outside it sits on the page (the live green is 1.7:1 there in the light palettes) and goes in forced-colours mode.
+  const [ring] = valuesOf(BOARD_CSS, ".g-board--live", "outline");
+  assert.match(ring, /^2px solid var\(--live\)$/);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board--live", "outline-offset"), ["-2px"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board--live", "box-shadow"), []);
+  assertContrast(ring.match(/var\(--[\w-]+\)/)[0], ["--header"], 3, { what: "the live ring on the band" });
 });
 
 test("a square says its round and its result, and is the colour of the result; the current one keeps its colour", () => {
@@ -428,6 +433,7 @@ test("a square says its round and its result, and is the colour of the result; t
     "g-board__square g-board__square--w", "g-board__square g-board__square--d", "g-board__square g-board__square--l",
     "g-board__square g-board__square--t g-board__square--current", "g-board__square g-board__square--none"]);
   assert.deepEqual(squares.map((square) => square.getAttribute("aria-label")), ["1: Win", "2: Draw", "3: Loss", "4: Friendly", "5: Not played"]);
+  assert.deepEqual(squares.map((square) => square.getAttribute("aria-current")), [null, null, null, "true", null], "only the match the page is about says it is the current one");
   assert.deepEqual(squares.map((square) => square.textContent), ["1", "2", "3", "4", "5"]);
   assertStyled(fragment, "match-board.css");
   assert.throws(() => renderMatchBoard({ own, pager: [{ label: "1", result: "x", current: false }] }), /unknown result/);
@@ -435,6 +441,27 @@ test("a square says its round and its result, and is the colour of the result; t
   const tricky = mount(renderMatchBoard({ own, pager: [{ label: HOSTILE, result: null, current: false }] }));
   assert.equal(tricky.querySelector("img"), null);
   assert.equal(tricky.querySelector(".g-board__square").textContent, HOSTILE);
+});
+
+test("the list of squares keeps its list role where list-style: none takes it from Safari, and the current square says it is current", () => {
+  const fragment = mount(renderMatchBoard({ own, pager: [{ label: "1", result: "w", current: false }, { label: "2", result: null, current: true }] }));
+  assert.equal(fragment.querySelector("ol.g-board__pager").getAttribute("role"), "list");
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__pager", "list-style"), ["none"]);
+  assert.deepEqual(fragment.querySelectorAll("li").map((square) => [square.getAttribute("aria-label"), square.getAttribute("aria-current")]), [["1: Win", null], ["2: Not played", "true"]]);
+  assert.deepEqual(fragment.querySelectorAll("[aria-current]").map((node) => node.tagName), ["LI"]);
+  assertCspSafe(fragment);
+});
+
+test("a status on a phone fits the middle column: the chip is tightened so «подтверждения» and its dot are no wider than the 124px it has", () => {
+  // The longest word of the Russian «Ожидает подтверждения» is 103px at the chip's 13px, 95px at 12px; with the dot (8px), the gap and the padding
+  // that was 137px in a 124px column (measured in Chrome at 375 and 320). The numbers below are what is left to fit it in: 95 + 8 + 4 + 2 × 6 = 119px.
+  const chip = ".g-board__mid .g-status";
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__mid", "max-width"), ["124px"]);
+  assert.deepEqual([valuesOf(BOARD_CSS, chip, "font-size"), valuesOf(BOARD_CSS, chip, "gap"), valuesOf(BOARD_CSS, chip, "padding")],
+    [["12px"], ["var(--space-4)"], ["var(--space-4) var(--space-6)"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, chip, "white-space"), ["normal"], "a longer status still wraps");
+  const tokens = tokensOf("grass");
+  assert.deepEqual([tokens["--space-4"], tokens["--space-6"]], ["4px", "6px"]);
 });
 
 test("the board reads in Russian: the dash pair, the list's name and the word for a square not yet played", () => {

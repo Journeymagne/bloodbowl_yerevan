@@ -34,11 +34,12 @@ function renderOpponent(opponent, pendingText) {
   return `<div class="g-board__side g-board__side--away"><span class="g-board__pending">${escapeHtml(pendingText)}</span></div>`;
 }
 
-/** One square: the round's label, coloured by the result, and named by both. */
+/** One square: the round's label, coloured by the result, and named by both; the match the page is about says so. */
 function renderSquare({ label, result, current }) {
   const state = result ? resultLabels(result).name : t("ui.board.notPlayed");
   const className = classNames("g-board__square", `g-board__square--${result || "none"}`, current && "g-board__square--current");
-  return `<li class="${className}" aria-label="${escapeHtml(`${label}: ${state}`)}">${escapeHtml(label)}</li>`;
+  const mark = current ? ' aria-current="true"' : "";
+  return `<li class="${className}" aria-label="${escapeHtml(`${label}: ${state}`)}"${mark}>${escapeHtml(label)}</li>`;
 }
 
 /**
@@ -58,7 +59,7 @@ export function renderMatchBoard({ overline = "", own, opponent = null, pendingT
   const over = overline ? `<span class="g-board__overline">${escapeHtml(overline)}</span>` : "";
   const middle = `<div class="g-board__mid">${over}<span class="g-board__score">${escapeHtml(score || t("ui.board.empty"))}</span>${statusHtml}</div>`;
   const main = `<div class="g-board__main">${renderTeam(own, false)}${middle}${renderOpponent(opponent, pendingText)}</div>`;
-  const squares = pager.length ? `<ol class="g-board__pager" aria-label="${escapeHtml(t("ui.board.pager"))}">${pager.map(renderSquare).join("")}</ol>` : "";
+  const squares = pager.length ? `<ol class="g-board__pager" role="list" aria-label="${escapeHtml(t("ui.board.pager"))}">${pager.map(renderSquare).join("")}</ol>` : "";
   const actions = actionsHtml ? `<div class="g-board__actions">${actionsHtml}</div>` : "";
   const bar = squares || actions ? `<div class="g-board__bar">${squares}${actions}</div>` : "";
   return `<section class="${classNames("g-board", live && "g-board--live")}">${main}${bar}</section>`;

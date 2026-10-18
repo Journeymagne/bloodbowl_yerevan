@@ -27,8 +27,15 @@
   letter-spacing: 0;
 }
 
-/* A match in progress: the match card rings it in the accent, the dark band in the live green. */
-.g-board--live { box-shadow: 0 0 0 2px var(--live); }
+/*
+ * A match in progress: the match card rings it in the accent, the dark band in the live green. The ring is drawn inside
+ * the band, on the dark: outside it would sit on the page, where the live green is 1.7:1 in the light palettes, and an
+ * outline, unlike a shadow, stays in forced-colours mode.
+ */
+.g-board--live {
+  outline: 2px solid var(--live);
+  outline-offset: -2px;
+}
 
 /* Our team at the left, theirs at the right, the score between them. */
 .g-board__main {
@@ -240,16 +247,19 @@
 
 /*
  * On a phone the middle column is held narrow, so the names keep their room: the overline wraps, and so does a
- * status such as «Waiting for confirmation», which the chip's own sheet would keep on one line.
+ * status such as «Waiting for confirmation», which the chip's own sheet would keep on one line. The chip is
+ * tightened so the longest word of a status, with the dot, fits the column: «подтверждения» at 12px is 95px,
+ * plus the dot, the gap and the padding, 119px of the 124.
  */
 @media (max-width: 900px) {
   .g-board__mid { max-width: 124px; }
 
   .g-board__mid .g-status {
+    gap: var(--space-4);
     height: auto;
     min-height: 26px;
-    padding-top: var(--space-4);
-    padding-bottom: var(--space-4);
+    padding: var(--space-4) var(--space-6);
+    font-size: 12px;
     line-height: 1.2;
     text-align: center;
     white-space: normal;
