@@ -20,8 +20,8 @@
  * and the password `mock-pass`.
  *
  * It keeps one user and the coach's teams in memory (a team made or deleted
- * stays so until the mock restarts), records every PATCH of the first team into
- * .codex_tmp/mock-saves.json, and answers just enough of the API for the shell
+ * stays so until the mock restarts), records every accepted PATCH of the first team
+ * into .codex_tmp/mock-saves.json, and answers just enough of the API for the shell
  * (sign-in, settings, the SideNav's match card, the header's place), the teams
  * list, a team's overview, a new team, the saved roster, my-games (with its
  * challenges), game, administration (including editing a user's team) and
@@ -60,6 +60,14 @@
  *                                TEAM_IN_SEASON_CANNOT_BE_DELETED (t1, t2, t3, t5); any other
  *                                (t4, a team made here) goes off the list: `{ok: true}`, which,
  *                                like the server, an id nobody has gets too.
+ *   PATCH /api/teams/:id         a save of any team, held as the server holds it (scripts/mock/treasury.mjs):
+ *                                an integer `revision` that is not the team's is 409 TEAM_SAVED_ELSEWHERE
+ *                                with the team; a re-roll the stage forbids is 422 STAGE_PURCHASE_LOCKED;
+ *                                else `{team}` with the revision one up and the treasury's change journaled.
+ *   GET   /api/teams/:id/ledger  the treasury's history, newest first: `{entries, next, since, total}`.
+ *                                t1 has six lines (the last ends at its treasury, 120), t5 one, t4 none.
+ *   POST  /api/teams/:id/treasury  an entry by hand `{delta, reason, note?, revision}`: 400, 409 or 422 as
+ *                                the server gives them, else 201 `{team, entry}`.
  *   GET   /api/games             round 3 is on. g1 is "next match" (Mock Team, started, no
  *                                preparation), g2 "match in play" (Mock Humans, preparation on,
  *                                post-match a draft), g3 "awaiting confirmation" (Mock Orcs; the
@@ -89,6 +97,7 @@ import { fileURLToPath } from "node:url";
 
 import { errorPayload } from "../server/http/errors.mjs";
 import { resolveStaticPath } from "../server/http/static-path.mjs";
+import { treasuryRoutes } from "./mock/treasury.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const savesPath = path.join(rootDir, ".codex_tmp", "mock-saves.json");
@@ -173,7 +182,7 @@ const teamOf = (id, name, baseTeamSlug, players, changes = {}) => ({
   ...changes,
 });
 
-// t1 is the team the roster editor saves to. t2 and t3 are copies of its small roster under other races, so
+// t1 is the team whose saves the browser checks read back (any team may be saved). t2 and t3 are copies of its small roster under other races, so
 // that the coach has a team for each phase of the SideNav's match card (g1, g2, g3 below). t4 is still being
 // built and has played nothing, so it can be deleted; t5 played a season that is over, so it cannot be.
 const team = teamOf("t1", "Mock Team", "teams/amazon", amazons);
@@ -399,6 +408,13 @@ const seasonBundle = {
 
 export const saves = [];
 
+/** A PATCH of t1 that was accepted, kept for scripts/browser-check-roster.mjs in .codex_tmp/mock-saves.json. */
+async function recordSave(body) {
+  saves.push(body);
+  await fs.mkdir(path.dirname(savesPath), { recursive: true });
+  await fs.writeFile(savesPath, JSON.stringify(saves, null, 1));
+}
+
 /** A body that is no JSON object: the 400 `readJson` (server/http/responses.mjs) gives it. */
 async function readBody(request) {
   const chunks = [];
@@ -417,6 +433,9 @@ async function readBody(request) {
 
 const reply = (payload, status = 200) => ({ status, payload });
 const refuse = (status, code, params = {}) => reply(errorPayload(code, params), status);
+
+/** A team's history, an entry by hand and the save of any team (scripts/mock/treasury.mjs); it gives t1, t4 and t5 their fixtures too. */
+const answerTreasury = treasuryRoutes({ teams, readBody, onSave: recordSave });
 
 /** Sign-in, the account and its settings: the routes of server/routes/auth.mjs and account.mjs. */
 async function answerAuth(request, pathname) {
@@ -468,7 +487,7 @@ function deleteTeam(id) {
   return reply({ ok: true });
 }
 
-/** The coach's teams: the list, one of them, making and deleting one, and the first, which the roster editor saves. */
+/** The coach's teams: the list, one of them, making and deleting one. Saving one is the treasury's (`answerTreasury`). */
 async function answerTeams(request, pathname) {
   const { method } = request;
   if (pathname === "/api/teams" && method === "GET") return reply({ teams });
@@ -480,14 +499,6 @@ async function answerTeams(request, pathname) {
     return found ? reply({ team: found }) : refuse(404, "TEAM_NOT_FOUND");
   }
   if (method === "DELETE") return deleteTeam(id);
-  if (id === "t1" && method === "PATCH" && teams.includes(team)) {
-    const body = await readBody(request);
-    saves.push(body);
-    await fs.mkdir(path.dirname(savesPath), { recursive: true });
-    await fs.writeFile(savesPath, JSON.stringify(saves, null, 1));
-    Object.assign(team, { name: body.name, roster: body.roster, revision: team.revision + 1, updatedAt: new Date().toISOString() });
-    return reply({ team });
-  }
   return null;
 }
 
@@ -527,7 +538,7 @@ function answerPeople(request, pathname) {
 }
 
 async function answerApi(request, pathname) {
-  for (const answer of [answerAuth, answerTeams, answerLeague, answerPeople]) {
+  for (const answer of [answerAuth, answerTreasury, answerTeams, answerLeague, answerPeople]) {
     const answered = await answer(request, pathname);
     if (answered) return answered;
   }
