@@ -52,6 +52,7 @@
 @import url("screens/team/empty.css");
 @import url("screens/teams/teams.css");
 @import url("screens/teams/builder.css");
+@import url("screens/teams/new.css");
 @import url("screens/settings/settings.css");
 @import url("screens/settings/password.css");
 @import url("screens/settings/theme-picker.css");

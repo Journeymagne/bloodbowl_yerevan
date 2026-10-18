@@ -233,7 +233,7 @@ test("a guest who leaves the sign-in screens for another page is not brought bac
   const remembered = { ...guest, returnTo: "#/t/t1/roster" };
   assert.deepEqual(resolveRedirect("login", remembered), { target: null, returnTo: "#/t/t1/roster" });
   assert.deepEqual(resolveRedirect("register", remembered), { target: null, returnTo: "#/t/t1/roster" });
-  for (const route of ["home", "season", "ref", "ref/skills", "skills/block", "legal", "settings", "teams/new"]) {
+  for (const route of ["home", "season", "ref", "ref/skills", "skills/block", "legal", "settings"]) {
     assert.deepEqual(resolveRedirect(route, remembered), { target: null, returnTo: "" }, route);
   }
   // An old address hands it on to the page it leads to, which drops it.
@@ -254,7 +254,7 @@ test("a sign-in screen is never the address to come back to", () => {
 });
 
 test("a guest may open the public pages, and every coach page asks for a session", () => {
-  for (const route of ["home", "login", "register", "settings", "teams/new", "season", "season/standings", "ref", "ref/skills", "skills/block", "overview/x", "legal"]) {
+  for (const route of ["home", "login", "register", "settings", "season", "season/standings", "ref", "ref/skills", "skills/block", "overview/x", "legal"]) {
     assert.equal(target(route, guest), null, route);
   }
   for (const route of ["t/t1", "t/t1/team", "t/t1/roster", "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u1",
@@ -262,6 +262,13 @@ test("a guest may open the public pages, and every coach page asks for a session
     "administration/users/u1/teams/t1/edit"]) {
     assert.equal(target(route, guest), "#/login", route);
   }
+});
+
+test("a guest is sent to sign in from the builder and brought back to it, from its old address too", () => {
+  assert.deepEqual(resolveRedirect("teams/new", { signedIn: false, hash: "#/teams/new" }), { target: "#/login", returnTo: "#/teams/new" });
+  const first = resolveRedirect("builder", { signedIn: false });
+  assert.equal(first.target, "#/teams/new");
+  assert.deepEqual(resolveRedirect(routeFromHash(first.target), { signedIn: false, returnTo: first.returnTo, hash: first.target }), { target: "#/login", returnTo: "#/teams/new" });
 });
 
 test("no redirect loops: every route settles within two hops", () => {

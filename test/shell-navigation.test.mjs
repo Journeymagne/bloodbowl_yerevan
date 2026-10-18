@@ -79,6 +79,11 @@ test("sign-in and registration are drawn without the shell", () => {
   }
 });
 
+test("the builder brings its own frame: no header, no tabs, no SideNav (Builder, DeskBuilder)", () => {
+  const model = shellModel({ route: { name: "teamNew", params: {} }, user: { id: "u1" }, team: TEAM });
+  assert.deepEqual([model.mode, model.tabs, model.side], ["bare", [], []]);
+});
+
 test("outside the season table the subtitle is the race alone", () => {
   assert.equal(shellModel(at("team", { place: null })).brand.sub, "Human");
 });
@@ -134,10 +139,8 @@ test("every address the router knows lights one tab and one side item, or none f
     const model = shellModel({ ...at("home"), user: ADMIN, route: matchRoute(route || "home") });
     assert.deepEqual([current(model.tabs).length, current(model.side).length], [1, 1], route || "home");
   }
-  for (const route of ["teams", "teams/new"]) {
-    const model = shellModel({ ...at("home"), route: matchRoute(route) });
-    assert.deepEqual([current(model.tabs), current(model.side)], [[], []], route);
-  }
+  const teams = shellModel({ ...at("home"), route: matchRoute("teams") });
+  assert.deepEqual([current(teams.tabs), current(teams.side)], [[], []], "teams");
 });
 
 test("a coach without a team still reaches administration, and a name that is no route lights nothing", () => {

@@ -221,12 +221,12 @@ test("no link a guest is shown, on any page, is one the router sends on: My Team
 // What the 2.x header button did (Task 9, M6): a guest who signs in comes back to the page they were reading.
 test("a guest's sign-in link, in the header or the SideNav, keeps the page they were on to come back to", () => {
   state.auth.currentUser = null;
-  refreshShell({ name: "teamNew", params: {} });
+  refreshShell({ name: "season", params: {} });
   for (const selector of ["#app-header a.g-appbar__login", "#side-nav .g-sidenav__login a"]) {
     setReturn("");
-    globalThis.location = { hash: "#/teams/new" };
+    globalThis.location = { hash: "#/season" };
     fireEvent(document.querySelector(selector), "click");
-    assert.equal(peekReturn(), "#/teams/new", selector);
+    assert.equal(peekReturn(), "#/season", selector);
   }
   setReturn("");
 });

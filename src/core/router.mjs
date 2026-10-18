@@ -33,7 +33,7 @@ import { renderDetail } from "../screens/detail.mjs";
 import { renderLegal } from "../screens/legal.mjs";
 import { renderTeams } from "../screens/teams/index.mjs";
 import { renderSavedRoster } from "../screens/saved-roster.mjs";
-import { renderBuilder } from "../screens/builder.mjs";
+import { renderNewTeam } from "../screens/teams/new.mjs";
 import { renderSeason } from "../screens/season/index.mjs";
 import { renderMyGames } from "../screens/games/my-games.mjs";
 import { renderGamePage } from "../screens/games/game.mjs";
@@ -59,7 +59,7 @@ const screens = {
   settings: () => renderSettings(),
   overview: ({ slug }) => renderOverviewDetail(slug),
   teams: () => renderTeams(),
-  teamNew: () => renderBuilder(),
+  teamNew: () => renderNewTeam(),
   team: () => renderHome(),
   teamManage: ({ teamId }) => renderSavedRoster(teamId),
   teamRoster: ({ teamId }) => renderSavedRoster(teamId),
