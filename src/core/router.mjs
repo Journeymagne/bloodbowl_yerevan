@@ -19,7 +19,6 @@ import { t } from "./i18n.mjs";
 import { state } from "./state.mjs";
 import { view } from "./view.mjs";
 import { announce } from "../components/live-region.mjs";
-import { setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { toast } from "../components/toast.mjs";
 import { prepareTeamRoute, syncActiveTeam } from "../data/active-team.mjs";
 import { loadMyTeams } from "../data/teams.mjs";
@@ -27,11 +26,9 @@ import { renderHome } from "../screens/home.mjs";
 import { renderLogin } from "../screens/auth/login.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
 import { renderSettings } from "../screens/settings/index.mjs";
-import { renderOverviewDetail } from "../screens/overview.mjs";
+import { renderLegal, renderOverviewArticle, renderReferencePage } from "../screens/ref/article.mjs";
 import { renderRef } from "../screens/ref/index.mjs";
 import { renderRefSection } from "../screens/ref/list.mjs";
-import { renderDetail } from "../screens/detail.mjs";
-import { renderLegal } from "../screens/legal.mjs";
 import { renderMyTeams } from "../screens/my-teams.mjs";
 import { renderSavedRoster } from "../screens/saved-roster.mjs";
 import { renderBuilder } from "../screens/builder.mjs";
@@ -46,19 +43,13 @@ import { renderPlayerProfile } from "../screens/players/profile.mjs";
 import { renderPublicTeamProfile } from "../screens/players/team.mjs";
 import { refreshShell } from "../shell/shell.mjs";
 
-function findPageBySlug(slug) {
-  return state.data.pages.find((page) => page.slug === slug)
-    ?? state.data.pages.find((page) => page.slug.endsWith(`/${slug}`))
-    ?? null;
-}
-
 const screens = {
   // A coach with an active team never gets here: resolveRedirect sends `#/` on to that team.
   home: () => (state.auth.currentUser && !state.myTeams.items.length ? renderNoTeam() : renderHome()),
   login: () => renderLogin("login"),
   register: () => renderLogin("register"),
   settings: () => renderSettings(),
-  overview: ({ slug }) => renderOverviewDetail(slug),
+  overview: ({ slug }) => renderOverviewArticle(slug),
   teams: () => renderMyTeams(),
   teamNew: () => renderBuilder(),
   team: () => renderHome(),
@@ -79,17 +70,8 @@ const screens = {
   adminUserProfile: ({ userId }) => renderAdminUserProfile(userId),
   administration: () => renderAdministration(),
   legal: () => renderLegal(),
-  page: ({ slug }) => {
-    const page = findPageBySlug(slug);
-    return page ? renderDetail(page) : renderNotFound();
-  },
+  page: ({ slug }) => renderReferencePage(slug),
 };
-
-function renderNotFound() {
-  setActiveNav("home");
-  setViewSection("home");
-  view.innerHTML = `<div class="empty-state">${t("app.pageNotFound")}</div>`;
-}
 
 /** Counts route changes, so a screen that finishes drawing after the next one started is not announced. */
 let ticket = 0;

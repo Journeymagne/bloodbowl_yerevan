@@ -1,7 +1,8 @@
 /**
  * The "Leagues" reference page: which teams and star players each league
- * card grants access to. Special-cased inside screens/detail.mjs because it
- * replaces a content page's normal body instead of rendering it.
+ * card grants access to. Special-cased among the reference's articles
+ * (screens/ref/article.mjs) because it replaces a content page's normal body
+ * instead of rendering it.
  *
  * Mechanically moved out of src/app.js.
  */

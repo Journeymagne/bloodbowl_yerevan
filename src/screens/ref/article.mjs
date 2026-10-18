@@ -1,0 +1,193 @@
+/**
+ * The reference's articles, in reading mode: a page of the vault at its own address (`#/<slug>`), a
+ * card of the league overview (`#/overview/<slug>`) and the legal page (`#/legal`), each under the
+ * reference's head and beside its table of contents, with the way up at the top for a phone.
+ *
+ * An article says where it lives (its kicker: the group and the section), what it is, and, when the
+ * reference's groups name it, which article comes before it and after it. A page that is a member of
+ * a list (a team, a skill, an inducement) goes back to that list. An address with no page is an
+ * article too, and says so, rather than leaving the coach on a bare screen.
+ */
+import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
+import { t } from "../../core/i18n.mjs";
+import { REF_SECTIONS, navRouteForPage, refUrl } from "../../core/routes.mjs";
+import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
+import { state } from "../../core/state.mjs";
+import { view } from "../../core/view.mjs";
+import { assertLinkHref } from "../../ui/markup.mjs";
+import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
+import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectionTitle } from "./catalog.mjs";
+import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
+import { refQuery } from "./memory.mjs";
+
+/**
+ * The page an address names: the slug as it is, or the one slug that ends with it (2.x let `#/block`
+ * stand for `skills/block`). Null when there is none.
+ */
+export function findPage(data, slug) {
+  const pages = data.pages ?? [];
+  return pages.find((page) => page.slug === slug) ?? pages.find((page) => page.slug.endsWith(`/${slug}`)) ?? null;
+}
+
+/** The reference list a page is a member of, or null for a page that belongs to none. */
+function sectionOf(page) {
+  const section = navRouteForPage(page);
+  return REF_SECTIONS.has(section) ? section : null;
+}
+
+const groupOfSection = (section) => REF_GROUPS.find((group) => group.items.some((item) => item.section === section));
+const groupOfPage = (page) => REF_GROUPS.find((group) => group.items.some((item) => item.page === page.id));
+
+/** Where the way up from a page leads: its list, or the reference. */
+export function parentOf(page) {
+  const section = sectionOf(page);
+  return section ? { href: refUrl(section), label: sectionTitle(section) } : { href: refUrl(), label: t("shell.tab.ref") };
+}
+
+/**
+ * The line over an article's title that says where it lives: "Teams · Team's Rules" for a member of
+ * a list, "Players · league reference" for an article of a group, "Reference" for any other page.
+ */
+export function kickerOf(page) {
+  const section = sectionOf(page);
+  if (section) {
+    const group = groupOfSection(section);
+    return group ? `${groupTitle(group.key)} · ${sectionTitle(section)}` : sectionTitle(section);
+  }
+  const group = groupOfPage(page);
+  return group ? t("ref.kicker", { group: groupTitle(group.key) }) : t("shell.tab.ref");
+}
+
+/**
+ * What an article says under its title. The page's own text unless the page is drawn some other way;
+ * `context` is what such a body needs besides the page.
+ */
+export function articleBody(page, context = {}) {
+  return `<div class="g-prose">${page.html || `<p>${escapeHtml(page.text)}</p>`}</div>`;
+}
+
+function pagerLink(item, side) {
+  assertLinkHref(item.href);
+  return `<a class="g-article__${side}" href="${escapeHtml(item.href)}">${escapeHtml(item.title)}</a>`;
+}
+
+/** The article before and the article after, when the groups have either; the arrows are the sheet's. */
+function pagerMarkup({ prev, next }) {
+  if (!prev && !next) return "";
+  return `<nav class="g-article__pager" aria-label="${escapeHtml(t("ref.pager"))}">${prev ? pagerLink(prev, "prev") : ""}${next ? pagerLink(next, "next") : ""}</nav>`;
+}
+
+/**
+ * The reference page that holds an article: the head, the table of contents with `currentKey` lit,
+ * and the article itself. `kicker` and `sub` are left out when empty.
+ */
+function articleFrame({ groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "" }) {
+  const head = `<div class="g-article__head">`
+    + `${kicker ? `<p class="g-article__kicker">${escapeHtml(kicker)}</p>` : ""}`
+    + `<h1 class="g-article__title">${escapeHtml(title)}</h1>`
+    + `${sub ? `<p class="g-article__sub">${escapeHtml(sub)}</p>` : ""}</div>`;
+  return refPageMarkup({
+    layout: "article",
+    headHtml: refHeadMarkup({ query: refQuery() }),
+    tocHtml: refTocMarkup(groups, currentKey),
+    mainHtml: `<article class="g-article">${backLinkMarkup(back)}${head}${bodyHtml}${pagerHtml}</article>`,
+  });
+}
+
+/**
+ * A page of the vault as an article.
+ *
+ * @param {object} props
+ * @param {object} props.data the content vault of the language
+ * @param {object} props.page the page to draw
+ * @param {object[]} props.groups the table of contents, as catalog.mjs `refGroups` gives it
+ * @param {object} [props.context] what the page's body needs besides the page (see `articleBody`)
+ */
+export function articleMarkup({ data, page, groups, context = {} }) {
+  return articleFrame({
+    groups,
+    currentKey: itemKeyOf(page),
+    back: parentOf(page),
+    kicker: kickerOf(page),
+    title: page.title,
+    bodyHtml: articleBody(page, context),
+    pagerHtml: pagerMarkup(articleNeighbours(data, page.id)),
+  });
+}
+
+/** The table of contents as the page has it: the league rules count the overview's cards ahead of their pages. */
+function currentGroups() {
+  return refGroups(state.data, { overviewCount: activeOverviewCards().length });
+}
+
+const referenceBack = () => ({ href: refUrl(), label: t("shell.tab.ref") });
+
+/** An address with no page behind it: said in the article's own place, with the reference all round it. */
+export function notFoundMarkup() {
+  return articleFrame({ groups: currentGroups(), back: referenceBack(), title: t("app.pageNotFound") });
+}
+
+/** A click that opens the address here: not one that asks for another tab or window. */
+const isPlainClick = (event) => event.button === 0 && !(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey);
+
+/**
+ * The reference draws the screen and hears two things: its band's search, and the pager, whose next
+ * article should be read from its top, not from the foot where the link was. Drawing another article
+ * in its place hooks them once.
+ */
+function show(markup) {
+  patch(view, markup);
+  const listeners = listenerGroup(view);
+  listeners.own(wireRefSearch(view, { onQuery: goSearch }));
+  listeners.on("click", ".g-article__pager a", (event) => {
+    if (isPlainClick(event)) globalThis.scrollTo?.(0, 0);
+  });
+  onScreenLeave("ref:article", listeners.release);
+}
+
+/** Draw the page `slug` names (see `findPage`), or say there is none. */
+export function renderReferencePage(slug) {
+  const page = findPage(state.data, slug);
+  show(page ? articleMarkup({ data: state.data, page, groups: currentGroups() }) : notFoundMarkup());
+}
+
+/** An item written "Label: text" keeps its label in strong. */
+function overviewItem(item = "") {
+  const match = String(item).match(/^([^:]{2,42}):\s+(.+)$/);
+  if (!match) return escapeHtml(item);
+  return `<strong>${escapeHtml(match[1])}:</strong> ${escapeHtml(match[2])}`;
+}
+
+function overviewSection(section) {
+  const items = (section.items ?? []).map((item) => `<li>${overviewItem(item)}</li>`);
+  return `<section><h2>${escapeHtml(section.title)}</h2><ul>${items.join("")}</ul></section>`;
+}
+
+/** A card of the league overview: an article of the league rules, whose list is its way up. */
+export function renderOverviewArticle(slug) {
+  const card = findOverviewCard(slug);
+  if (!card) {
+    show(notFoundMarkup());
+    return;
+  }
+  show(articleFrame({
+    groups: currentGroups(),
+    currentKey: "rules",
+    back: { href: refUrl("rules"), label: sectionTitle("rules") },
+    kicker: sectionTitle("rules"),
+    title: card.title,
+    bodyHtml: `<div class="g-prose">${(card.sections ?? []).map(overviewSection).join("")}</div>`,
+  }));
+}
+
+/** The legal notice, an article of the reference. */
+export function renderLegal() {
+  const paragraphs = [t("legal.paragraph1"), t("legal.paragraph2"), t("legal.paragraph3")];
+  show(articleFrame({
+    groups: currentGroups(),
+    back: referenceBack(),
+    title: t("legal.title"),
+    sub: t("legal.subtitle"),
+    bodyHtml: `<div class="g-prose">${paragraphs.map((text) => `<p>${escapeHtml(text)}</p>`).join("")}</div>`,
+  }));
+}

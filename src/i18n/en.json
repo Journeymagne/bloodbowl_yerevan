@@ -1015,5 +1015,7 @@
   "ref.rules.brief": "In brief",
   "ref.rules.full": "Full text",
   "ref.skill.pick": "Choose a skill to read its rule",
-  "ref.trait.pick": "Choose a trait to read its rule"
+  "ref.trait.pick": "Choose a trait to read its rule",
+  "ref.kicker": "{group} · league reference",
+  "ref.pager": "More articles"
 }
