@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertContrast, assertReadable, read, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, blocks, read, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { renderPlayerBadge } from "../src/ui/number-badge.mjs";
@@ -115,7 +115,22 @@ test("a short label has a name for a screen reader, and a column that is not sor
   const plain = fragment.querySelectorAll('thead th[scope="col"]').find((head) => head.textContent === "Total");
   assert.equal(plain.querySelector("button"), null);
   assert.equal(plain.hasAttribute("aria-sort"), false, "no button, nothing to sort by, nothing to say");
+  assert.equal(plain.hasAttribute("aria-label"), false, "no name given, none said");
   assert.equal(fragment.querySelector(".g-sort__arrow"), null);
+});
+
+test("a column that cannot be sorted keeps the name a screen reader hears for its short label, on its header", () => {
+  const columns = COLUMNS.map((column) => (column.key === "touchdowns" ? { ...column, sortable: false } : column));
+  const fragment = mount(table({ columns }));
+  const head = fragment.querySelectorAll('thead th[scope="col"]').find((cell) => cell.textContent === "TD");
+  assert.equal(head.getAttribute("aria-label"), "touchdowns");
+  assert.equal(head.querySelector("button"), null);
+  assert.equal(fragment.querySelectorAll("[aria-label]").filter((node) => node.getAttribute("aria-label") === "touchdowns").length, 1, "once: the foot is hidden and says nothing");
+  assert.equal(fragment.querySelector("tfoot [aria-label]"), null);
+  // A sortable one says it on its button and not on its header as well.
+  const sortable = mount(table()).querySelectorAll('thead th[scope="col"]').find((cell) => cell.textContent === "TD");
+  assert.equal(sortable.hasAttribute("aria-label"), false);
+  assert.equal(sortable.querySelector("button").getAttribute("aria-label"), "touchdowns");
 });
 
 test("the player's header carries what the caller puts before it, and the foot does not", () => {
@@ -166,7 +181,7 @@ test("an open row carries its panel in a row of its own, and its button says it 
   const button = open.querySelector(".g-rtable__toggle");
   assert.equal(button.getAttribute("aria-expanded"), "true");
   const panel = open.querySelector("tr.g-rtable__panelrow");
-  assert.equal(panel.getAttribute("id"), "rt-panel-1");
+  assert.equal(panel.getAttribute("id"), "rt-panel-p2", "the id is made of the row's key");
   assert.equal(button.getAttribute("aria-controls"), panel.getAttribute("id"));
   assert.equal(panel.querySelector(".g-panel-test").textContent, "Panel of Brug");
   assert.ok(open.classList.contains("is-expanded"));
@@ -177,12 +192,30 @@ test("an open row carries its panel in a row of its own, and its button says it 
   assert.equal(fragment.querySelector("main"), null);
 });
 
+test("two tables on one page never share the id of a panel, and a key that would make a list of ids is refused", () => {
+  const open = (key) => row(key, { expanded: true, panelHtml: `<span>panel of ${key}</span>` });
+  const fragment = mount(table({ label: "Active", rows: [open("p1"), row("p2")] }) + table({ label: "Reserves", rows: [open("p9")] }));
+  const ids = fragment.querySelectorAll("[id]").map((node) => node.getAttribute("id"));
+  assert.deepEqual(ids, ["rt-panel-p1", "rt-panel-p9"]);
+  assert.equal(new Set(ids).size, ids.length);
+  for (const [key, id] of [["p1", "rt-panel-p1"], ["p9", "rt-panel-p9"]]) {
+    const button = fragment.querySelector(`[data-row-key="${key}"]`);
+    assert.equal(button.getAttribute("aria-controls"), id);
+    assert.match(fragment.querySelector(`#${id}`).textContent, new RegExp(`panel of ${key}`));
+  }
+  for (const key of ["p 1", "p\t1", "p1\n", " p1"]) assert.throws(() => table({ rows: [row(key)] }), /blank/, JSON.stringify(key));
+});
+
 test("the row of the player in the side panel is marked, and one that is not is not", () => {
   const fragment = mount(table({ rows: [row("p1", { selected: true }), row("p2")] }));
   const [first, second] = fragment.querySelectorAll("tbody.g-rtable__player");
   assert.ok(first.classList.contains("is-selected"));
   assert.equal(second.classList.contains("is-selected"), false);
   assert.equal(second.classList.contains("is-expanded"), false);
+  // The mark is for the eye alone unless the button says it too.
+  assert.equal(first.querySelector(".g-rtable__toggle").getAttribute("aria-current"), "true");
+  assert.equal(second.querySelector(".g-rtable__toggle").hasAttribute("aria-current"), false);
+  assert.equal(mount(table()).querySelector("[aria-current]"), null);
 });
 
 test("a row's extra rows span the columns a phone shows, so a hidden column never leaves a phantom one for the player's to share", () => {
@@ -312,6 +345,23 @@ test("the focus ring of a head's button is drawn inside it, where the frame cann
   assert.equal(valuesOf(SHEET, ".g-sort:focus-visible", "outline").length, 0, "the ring itself is base.css's");
 });
 
+test("a header's button fills its whole column: no padding on the header, so 36px on a phone and 32px on a desk, 44px high", () => {
+  assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h", "padding-inline"), ["0"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "width"), ["100%"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "padding"), ["0"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "box-sizing"), ["border-box"]);
+  // Nothing after the rule takes the padding back: the player's header (a desk's 12px on the left) is the one exception, with its own, stronger rule.
+  const { narrow, wide } = parts(read(SHEET));
+  assert.ok(!/th\.g-rtable__h\s*\{[^}]*padding/.test(narrow + wide));
+  assert.match(wide, /th\.g-rtable__h--who\s*\{[^}]*padding-left:\s*var\(--space-12\)/);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "min-height"), ["var(--size-touch)"]);
+});
+
+test("a strong value keeps its digits tabular after the font shorthand that would reset them", () => {
+  const [strong] = blocks(read(SHEET)).filter((block) => block.selectors.includes(".g-rtable__c--strong"));
+  assert.ok(strong.body.indexOf("font:") >= 0 && strong.body.indexOf("font:") < strong.body.indexOf("font-variant-numeric: tabular-nums"));
+});
+
 test("what a finger presses is 44px", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-sort", "min-height"), ["var(--size-touch)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__toggle", "min-height"), ["var(--size-touch)"]);
@@ -352,10 +402,10 @@ test("the colours of the table are readable in every palette", () => {
   assertReadable(SHEET, ".g-rtable__c--strong", "color", grounds, 4.5);
   assertReadable(SHEET, ".g-rtable__delta", "color", grounds, 4.5);
   assertReadable(SHEET, ".g-rtable", "color", grounds, 4.5);
-  // A zero is meant to fade: the same 3:1 as the locked counter's value (src/ui/resource-counter.css). On the tint of an open row --faint is 2.9:1, so there it is --muted.
-  assertReadable(SHEET, ".g-rtable__c--zero", "color", ["--page", "--surface"], 3);
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--zero", "color"), ["var(--faint)"]);
-  assertReadable(SHEET, ".g-rtable__player.is-expanded .g-rtable__c--zero", "color", ["--surface-2"], 4.5);
+  // A zero is quiet (muted), not faint: --faint is 3.1-3.35:1 on the light palettes, too little for 15px text, and 2.9:1 on an open row's tint.
+  assertReadable(SHEET, ".g-rtable__c--zero", "color", grounds, 4.5);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--zero", "color"), ["var(--muted)"]);
+  assert.ok(!read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").includes("--faint"), "nothing in the table is faint");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded", "background"), ["var(--surface-2)"]);
   // The selected row is a desk's, on the frame's --surface.
   assertContrast("--accent-text", ["--surface"], 3, { what: "the selected row's outline" });
@@ -393,7 +443,12 @@ test("a table that would draw wrong refuses", () => {
   assert.throws(() => table({ columns: [] }), /column/);
   assert.throws(() => table({ columns: COLUMNS.map((column, index) => (index === 1 ? { ...column, group: "extra" } : column)) }), /extra/);
   assert.throws(() => table({ rows: [row("p1", { cells: cells({ 0: { text: "6", tone: "loud" } }) })] }), /loud/);
+  assert.throws(() => table({ columns: COLUMNS.map((column, index) => (index === 1 ? { key: column.key, label: column.label } : column)) }), /column "ma" has no group/);
+  assert.throws(() => table({ columns: COLUMNS.map((column, index) => (index === 1 ? { ...column, group: "" } : column)) }), /group/);
   assert.throws(() => table({ sort: { key: "ag", dir: "sideways" } }), /sideways/);
+  // A word every object has is no direction either.
+  assert.throws(() => table({ sort: { key: "ag", dir: "toString" } }), /toString/);
+  assert.throws(() => table({ sort: { key: "ag", dir: "constructor" } }), /constructor/);
   assert.throws(() => table({ groups: [{ label: "Characteristics", span: 5 }] }), /group/);
   assert.throws(() => table({ groups: [{ label: "x", span: 0 }, { label: "y", span: 9 }] }), /group/);
   assert.throws(() => table({ rows: [row("p1", { badgeHtml: undefined })] }), /badge/);

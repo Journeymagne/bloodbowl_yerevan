@@ -100,10 +100,10 @@
   white-space: nowrap;
 }
 
-.g-rtable__c--zero { color: var(--faint); }
+.g-rtable__c--zero { color: var(--muted); }
 .g-rtable__c--up { color: var(--accent-text); font-weight: 700; }
 .g-rtable__c--down { color: var(--danger); font-weight: 700; }
-.g-rtable__c--strong { color: var(--accent-text); font: 700 17px/1 var(--font-body); }
+.g-rtable__c--strong { color: var(--accent-text); font: 700 17px/1 var(--font-body); font-variant-numeric: tabular-nums; }
 
 /* What this match added, small and raised, with its words for a screen reader. */
 .g-rtable__delta {
@@ -128,8 +128,12 @@
   vertical-align: middle;
   white-space: nowrap;
 }
-th.g-rtable__h { border-bottom: 1px solid var(--line); }
-.g-rtable__h--who { padding-left: 0; text-align: left; }
+/* A header's button is the whole of its column, so the column's width is the button's: 36px on a phone, 32px on a desk. */
+th.g-rtable__h {
+  padding-inline: 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-rtable__h--who { text-align: left; }
 .g-rtable__foot > .g-rtable__h { padding: var(--space-12) var(--space-4); }
 .g-rtable__foot > .g-rtable__h--who { padding-left: 0; }
 
@@ -212,8 +216,6 @@ th.g-rtable__h { border-bottom: 1px solid var(--line); }
   .g-rtable__player { border-bottom: 1px solid var(--line); }
   .g-rtable__skillrow > td { padding-left: 46px; }
   .g-rtable__player.is-expanded { background: var(--surface-2); }
-  /* --faint is 2.9:1 on the open row's tint: a zero there is muted, not faint. */
-  .g-rtable__player.is-expanded .g-rtable__c--zero { color: var(--muted); }
 }
 
 @media (min-width: 901px) {
@@ -239,7 +241,7 @@ th.g-rtable__h { border-bottom: 1px solid var(--line); }
     background: var(--surface);
   }
   .g-rtable__who { padding-left: var(--space-12); }
-  .g-rtable__h--who { padding-left: var(--space-12); }
+  th.g-rtable__h--who { padding-left: var(--space-12); }
   .g-rtable__foot > .g-rtable__h--who { padding-left: var(--space-12); }
 
   /* A line between the groups: the stats, the career, the SPP. */
