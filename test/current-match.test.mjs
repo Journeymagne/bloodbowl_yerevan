@@ -229,6 +229,11 @@ test("the card is drawn as the brief says: a washed 14px panel, 12px caps, an 8p
   assert.deepEqual(valuesOf(SIDE_CSS, ".g-navmatch__link", "color"), ["var(--header-ink)"]);
 });
 
+test("the card's label stays on one line: «Awaiting confirmation» in its caps is a fraction of a pixel wider than the card leaves it", () => {
+  // Measured in Chrome at 1440: 172.4px of text in a 172px box broke it into two lines (screenshot C4).
+  assert.deepEqual(valuesOf(SIDE_CSS, ".g-navmatch__label", "white-space"), ["nowrap"]);
+});
+
 test("the sheet names no hex colour: the card's colours are the header's tokens", () => {
   assert.doesNotMatch(readFileSync(new URL(`../${SIDE_CSS}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, ""), /#[0-9a-f]{3,8}\b/i);
 });
