@@ -16,7 +16,7 @@ import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { onGamesChange } from "../../../data/games.mjs";
-import { onMyTeamsChange } from "../../../data/teams.mjs";
+import { loadMyTeams, onMyTeamsChange } from "../../../data/teams.mjs";
 import { addTreasuryEntry, readLedger } from "../../../data/treasury.mjs";
 import { MANUAL_REASONS } from "../../../domain/roster/ledger.mjs";
 import { countToNumber } from "../../../domain/roster/values.mjs";
@@ -184,8 +184,9 @@ async function apply(sheet) {
     // The entry may be written already; a new one is the coach's deliberate act, after the history.
     startOver: { amountText: "" },
     refocus: AMOUNT_FIELD,
-    // A lost answer is read again by `addTreasuryEntry`; an entry whose own code threw is not, so the history is read here.
-    unknown: () => { void readLedger(form.teamId); },
+    // A lost answer is read again by `addTreasuryEntry`; an entry whose own code threw is not, so the history and the
+    // team are read here (the fix sheet does the same), or the card would say a treasury the history does not.
+    unknown: () => { void readLedger(form.teamId); void loadMyTeams(true); },
     done: () => teamToast(form.teamId, form.sign > 0 ? t("treasury.money.doneIn", { amount }) : t("treasury.money.doneOut", { amount })),
   });
 }

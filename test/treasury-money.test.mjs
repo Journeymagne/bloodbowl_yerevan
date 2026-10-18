@@ -269,6 +269,7 @@ test("a write that throws is a write whose fate is not known: said as such, disa
   assert.equal(apply().hasAttribute("aria-busy"), false);
   assert.equal(document.activeElement, $("#money-amount"));
   assert.ok(api.calls.some((call) => call.key === FIRST_PAGE), "the history is read at once");
+  assert.ok(api.calls.some((call) => call.key === "GET /api/teams"), "and the team with it, or the card would say a treasury the history does not");
   click("[data-money-apply]");
   assert.equal(api.calls.filter((call) => call.key === POST).length, 1);
 });

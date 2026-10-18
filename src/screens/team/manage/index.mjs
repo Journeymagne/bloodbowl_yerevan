@@ -88,13 +88,16 @@ function phaseChip({ key, round }) {
 const resetSteps = () => ({ roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
 
 /**
- * What a match does to the page, said above it, with the way to where it is finished or prepared. Without one, games
- * that could not be read are said quietly: the page stays open, but a write may land in a match it does not know of.
+ * What a match does to the page, said above it, with the way to where it is finished or prepared. Games that could
+ * not be read are said quietly, but for a live match (which closes the page anyway): the page stays open, and a write
+ * may land in a match it does not know of.
  */
 function lockCallout(lock, gamesUnknown) {
   if (lock?.kind === "live") return renderCallout({ tone: "warn", title: t("treasury.liveTitle"), sub: t("treasury.liveSub"), href: postMatchUrl(lock.game) });
-  if (lock?.kind === "preparing") return renderCallout({ tone: "warn", title: t("treasury.prepTitle"), sub: t("treasury.prepSub", resetSteps()), href: preMatchUrl(lock.game) });
-  return gamesUnknown ? renderCallout({ tone: "warn", title: t("treasury.gamesUnknown") }) : "";
+  const unknown = gamesUnknown ? renderCallout({ tone: "warn", title: t("treasury.gamesUnknown") }) : "";
+  // A preparation known from games read before is the state most likely to have gone live since: both are said.
+  if (lock?.kind === "preparing") return renderCallout({ tone: "warn", title: t("treasury.prepTitle"), sub: t("treasury.prepSub", resetSteps()), href: preMatchUrl(lock.game) }) + unknown;
+  return unknown;
 }
 
 /**

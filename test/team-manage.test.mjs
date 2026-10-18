@@ -439,6 +439,13 @@ test("entering the page reads the games again, though they were read before: a m
   assert.ok(view.querySelectorAll(".g-resource").every((row) => row.classList.contains("g-resource--locked")));
 });
 
+test("a preparation known from games read before, and games that could not be read now: both are said, since the match may have gone live", () => {
+  const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")], gamesUnknown: true })));
+  const titles = fragment.querySelectorAll(".g-callout__title").map((node) => node.textContent);
+  assert.deepEqual(titles, ["Match preparation is on", en["treasury.gamesUnknown"]]);
+  assert.equal(fragment.querySelector("[data-treasury-money]").hasAttribute("aria-disabled"), false);
+});
+
 test("a games read that fails says the match state is unknown and leaves the page open; a read that comes takes it away (final Minor 1)", async () => {
   coach({ userId: "u-games" });
   api.reply(FIRST_PAGE, 200, pageOf([]));
