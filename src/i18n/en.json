@@ -1083,7 +1083,8 @@
   "teamOverview.resultLine": "Round {round} · CAS {cas}",
   "teamOverview.friendlyLine": "Friendly · CAS {cas}",
   "teamOverview.wholeSeason": "Whole season →",
-  "treasury.changedElsewhere": "The team was changed somewhere else. Check the treasury and try again.",
+  "treasury.changedElsewhere": "The team was changed elsewhere — perhaps by this entry, if its answer was lost. Check the history before you enter it again.",
   "treasury.lock.startingRerolls": "Starting rerolls are bought only while the team is being built",
-  "treasury.lock.teamRerolls": "Team Rerolls open once the team leaves the build"
+  "treasury.lock.teamRerolls": "Team Rerolls open once the team leaves the build",
+  "treasury.mayHaveWritten": "No answer came — the entry may have been written. Check the history before you enter it again."
 }

@@ -1083,7 +1083,8 @@
   "teamOverview.resultLine": "Тур {round} · CAS {cas}",
   "teamOverview.friendlyLine": "Товарищеский · CAS {cas}",
   "teamOverview.wholeSeason": "Весь сезон →",
-  "treasury.changedElsewhere": "Команду изменили в другом месте. Проверьте казну и повторите.",
+  "treasury.changedElsewhere": "Команду изменили в другом месте — возможно, этой же операцией, если ответ потерялся. Проверьте историю, прежде чем вводить её снова.",
   "treasury.lock.startingRerolls": "Стартовые рероллы покупаются только в наборе команды",
-  "treasury.lock.teamRerolls": "Командные рероллы откроются, когда команду переведут из набора"
+  "treasury.lock.teamRerolls": "Командные рероллы откроются, когда команду переведут из набора",
+  "treasury.mayHaveWritten": "Ответ не пришёл — операция могла записаться. Проверьте историю, прежде чем вводить её снова."
 }

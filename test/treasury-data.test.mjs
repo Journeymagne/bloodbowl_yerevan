@@ -7,12 +7,12 @@ const api = installFakeApi();
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { setDictionaries } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
-const { onMyTeamsChange } = await import("../src/data/teams.mjs");
+const { loadMyTeams, onMyTeamsChange } = await import("../src/data/teams.mjs");
 const treasury = await import("../src/data/treasury.mjs");
 
 setDictionaries({ en: { "auth.otherTab": "Other tab", "request.offline": "No connection.", "treasury.changedElsewhere": "Changed elsewhere.",
   "error.ROSTER_BREAKS_THE_RULES": "Breaks the rules.", "validation.TREASURY_INVALID": "Treasury below zero.", "error.STAGE_PURCHASE_LOCKED": "Locked by the stage.",
-  "error.TEAM_NOT_FOUND": "Team not found." }, ru: {} });
+  "error.TEAM_NOT_FOUND": "Team not found.", "treasury.mayHaveWritten": "May have written." }, ru: {} });
 const TOKEN = "gata-league-auth-token";
 const TEAM = { id: "t1", name: "Wardens", baseTeamSlug: "teams/human", logoData: "data:image/png;base64,AA", revision: 3, stage: "active", roster: { treasury: 70, cheerleaders: 1, players: [] } };
 const ENTRY = { id: "l9", kind: "manual", delta: 20, balanceAfter: 90, reason: "friendly", note: null, pairingId: null, createdAt: "2026-10-18T12:00:00Z" };
@@ -48,14 +48,17 @@ test("the history is read a page at a time, with its count and since when it is 
 
 test("an entry goes once, and its answer replaces the team and heads the history", async () => {
   coach();
+  // A history of its own: 21 lines, the page of the first two read.
+  api.reply(FIRST_PAGE, 200, { entries: [ENTRY, { ...ENTRY, id: "l8" }], next: null, since: null, total: 21 });
+  await treasury.readLedger("t1");
   const heard = [];
   const off = treasury.onLedgerChange(() => heard.push("ledger"));
   const fresh = { ...ENTRY, id: "l10" };
   api.reply("POST /api/teams/t1/treasury", 201, { team: { ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90 } }, entry: fresh });
   assert.deepEqual(await treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly", note: "" }), { entry: fresh });
-  assert.deepEqual(api.calls[0].body, { delta: 20, reason: "friendly", note: null, revision: 3 });
+  assert.deepEqual(api.calls.at(-1).body, { delta: 20, reason: "friendly", note: null, revision: 3 });
   assert.deepEqual(state.myTeams.items.map((item) => [item.id, item.revision ?? null]), [["t0", null], ["t1", 4]]);
-  // The history the first test loaded (l9, l8; 21 lines) gets the new line on top and counts it.
+  // The history read above (l9, l8; 21 lines) gets the new line on top and counts it.
   assert.deepEqual([treasury.ledgerOf("t1").entries.map((entry) => entry.id), treasury.ledgerOf("t1").total], [["l10", "l9", "l8"], 22]);
   assert.ok(heard.length >= 1);
   off();
@@ -90,11 +93,13 @@ test("a second write while one is on its way is not sent", async () => {
 test("a retry after a lost answer meets the revision: the team is taken as it is, no second entry", async () => {
   coach();
   api.fail("POST /api/teams/t1/treasury");
-  assert.deepEqual(await treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" }), { refusal: "No connection." });
+  assert.deepEqual(await treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" }), { refusal: "May have written.", unknown: true });
   const applied = { ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90 } };
   api.reply("POST /api/teams/t1/treasury", 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: applied });
   api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });
-  assert.deepEqual(await treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" }), { refusal: "Changed elsewhere." });
+  assert.deepEqual(await treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" }), { refusal: "Changed elsewhere.", changed: true });
+  // The first try changed nothing here, so the retry goes out with the revision the team had: it is the server that says it moved.
+  assert.deepEqual(api.calls.filter((call) => call.key === "POST /api/teams/t1/treasury").map((call) => call.body.revision), [3, 3]);
   assert.equal(state.myTeams.items[1].roster.treasury, 90);
   await settle();
   assert.ok(api.calls.some((call) => call.key === FIRST_PAGE), "the history is read again");
@@ -223,4 +228,121 @@ test("a write whose coach has gone by the time it is answered leaves the next co
   gate.release();
   assert.deepEqual(await writing, { entry: ENTRY });
   assert.deepEqual(state.myTeams, { items: [], loaded: false, loading: false, error: "" });
+});
+
+test("an answer that never came says the entry may have been written; a refusal the server gave does not", async () => {
+  coach();
+  const entry = { delta: 20, reason: "friendly" };
+  const unknown = { refusal: "May have written.", unknown: true };
+  api.fail("POST /api/teams/t1/treasury");
+  assert.deepEqual(await treasury.addTreasuryEntry("t1", entry), unknown);
+  api.reply("POST /api/teams/t1/treasury", 500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } });
+  assert.deepEqual(await treasury.addTreasuryEntry("t1", entry), unknown);
+  api.reply("PATCH /api/teams/t1", 502, {});
+  assert.deepEqual(await treasury.saveTeamRoster("t1", TEAM.roster), unknown);
+  api.reply("PATCH /api/teams/t1", 422, { error: { code: "STAGE_PURCHASE_LOCKED", params: {}, message: "x" } });
+  assert.deepEqual(await treasury.saveTeamRoster("t1", TEAM.roster), { refusal: "Locked by the stage." });
+});
+
+test("a 409 on a roster save is marked as changed too, and takes the team as it is", async () => {
+  coach();
+  const applied = { ...TEAM, revision: 4, roster: { ...TEAM.roster, cheerleaders: 2 } };
+  api.reply("PATCH /api/teams/t1", 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: applied });
+  api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });
+  assert.deepEqual(await treasury.saveTeamRoster("t1", TEAM.roster), { refusal: "Changed elsewhere.", changed: true });
+  assert.deepEqual(state.myTeams.items[1], applied);
+});
+
+test("a line a read already brought is not added a second time when the entry's answer comes", async () => {
+  coach();
+  const known = { ...ENTRY, id: "l1" };
+  const fresh = { ...ENTRY, id: "l10" };
+  api.reply(FIRST_PAGE, 200, { entries: [known], next: null, since: null, total: 1 });
+  await treasury.readLedger("t1");
+  // The server has written the line when this read is answered; the entry's own answer is still on its way.
+  api.reply("POST /api/teams/t1/treasury", 201, { team: { ...TEAM, revision: 4 }, entry: fresh });
+  const gate = api.hold("POST /api/teams/t1/treasury");
+  const adding = treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" });
+  await waitHeld(gate);
+  api.reply(FIRST_PAGE, 200, { entries: [fresh, known], next: null, since: null, total: 2 });
+  await treasury.readLedger("t1");
+  assert.deepEqual([ids(), treasury.ledgerOf("t1").total], [["l10", "l1"], 2]);
+  gate.release();
+  assert.deepEqual(await adding, { entry: fresh });
+  assert.deepEqual([ids(), treasury.ledgerOf("t1").total], [["l10", "l1"], 2], "each line once, counted once");
+  await settle();
+  assert.deepEqual([ids(), treasury.ledgerOf("t1").total, treasury.ledgerOf("t1").loading], [["l10", "l1"], 2, false]);
+  assert.equal(api.calls.filter((call) => call.key === FIRST_PAGE).length, 3, "a read was sent while the write was on its way: the first page is read once more");
+});
+
+test("a page read after the entry was written, before its answer, is put right by reading the first page again", async () => {
+  coach();
+  const [l2, l1, l0, fresh] = ["l2", "l1", "l0", "l10"].map((id) => ({ ...ENTRY, id }));
+  api.reply(FIRST_PAGE, 200, { entries: [l2, l1], next: "c1", since: null, total: 3 });
+  await treasury.readLedger("t1");
+  api.reply("POST /api/teams/t1/treasury", 201, { team: { ...TEAM, revision: 4 }, entry: fresh });
+  const gate = api.hold("POST /api/teams/t1/treasury");
+  const adding = treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" });
+  await waitHeld(gate);
+  // The count the page says already holds the new line (4), the lines it brings do not.
+  api.reply("GET /api/teams/t1/ledger?before=c1&limit=20", 200, { entries: [l0], next: null, since: null, total: 4 });
+  await treasury.readLedger("t1", { more: true });
+  api.reply(FIRST_PAGE, 200, { entries: [fresh, l2, l1, l0], next: null, since: null, total: 4 });
+  gate.release();
+  await adding;
+  await settle();
+  assert.deepEqual([ids(), treasury.ledgerOf("t1").total, treasury.ledgerOf("t1").next], [["l10", "l2", "l1", "l0"], 4, null]);
+});
+
+test("a list read on its way when a write lands is read again, so it cannot bring the old revision back", async () => {
+  coach();
+  state.auth.currentUser.preferences = { activeTeamId: "t1" };
+  state.activeTeamId = "t1";
+  const stale = { teams: [{ id: "t0", name: "Other" }, structuredClone(TEAM)] };
+  const older = api.hold("GET /api/teams");
+  const listing = loadMyTeams(true);
+  await waitHeld(older);
+  // The list read the write sends once it lands stands at its own gate.
+  const newer = api.hold("GET /api/teams");
+  api.reply("POST /api/teams/t1/treasury", 201, { team: { ...TEAM, revision: 4 }, entry: ENTRY });
+  await treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" });
+  await waitHeld(newer);
+  older.release({ status: 200, body: stale });
+  await settle();
+  assert.equal(state.myTeams.items[1].revision, 4, "the answer asked before the write wrote nothing");
+  newer.release({ status: 200, body: { teams: [{ id: "t0", name: "Other" }, { ...TEAM, revision: 4 }] } });
+  await listing;
+  assert.deepEqual(state.myTeams.items.map((item) => [item.id, item.revision ?? null]), [["t0", null], ["t1", 4]]);
+});
+
+test("a coach is never shown another coach's history on the same page", async () => {
+  coach();
+  api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: "c1", since: null, total: 5 });
+  await treasury.readLedger("t1");
+  state.auth.currentUser = { id: "u2", login: "other" };
+  assert.deepEqual(treasury.ledgerOf("t1"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "" });
+  await treasury.readLedger("t1", { more: true });
+  assert.equal(api.calls.length, 1, "the cursor of the other coach's history is not used");
+  state.auth.currentUser = { id: "u1", login: "coach" };
+  assert.deepEqual([ids(), treasury.ledgerOf("t1").total], [["l9"], 5]);
+});
+
+test("a read whose coach has gone writes nothing, and leaves nothing on its way behind", async () => {
+  coach();
+  state.myTeams.items.push({ ...TEAM, id: "t5" });
+  const gate = api.hold("GET /api/teams/t5/ledger?limit=20");
+  const reading = treasury.readLedger("t5");
+  await waitHeld(gate);
+  assert.equal(treasury.ledgerOf("t5").loading, true);
+  state.auth.currentUser = { id: "u2", login: "other" };
+  gate.release({ status: 200, body: { entries: [ENTRY], next: null, since: null, total: 1 } });
+  await reading;
+  assert.deepEqual(treasury.ledgerOf("t5"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "" });
+  state.auth.currentUser = { id: "u1", login: "coach" };
+  assert.deepEqual(treasury.ledgerOf("t5"), { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "" }, "not written, and no longer loading");
+  // Nothing is on its way: a write that lands sends no read after it.
+  api.reply("POST /api/teams/t5/treasury", 201, { team: { ...TEAM, id: "t5", revision: 4 }, entry: ENTRY });
+  await treasury.addTreasuryEntry("t5", { delta: 20, reason: "friendly" });
+  await settle();
+  assert.equal(api.calls.filter((call) => call.key.startsWith("GET")).length, 1);
 });
