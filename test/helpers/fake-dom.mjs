@@ -15,14 +15,17 @@
  * five escapes `escapeHtml` emits, no comments, no scripts. It throws on
  * anything else instead of guessing the way a browser does, so a component
  * that emits sloppy markup fails its test rather than passing against a tree
- * the real parser would build differently. Selectors are as strict: tags,
- * `#id`, `.class`, `[attr]`, `[attr="value"]`, descendants and lists; any
- * other syntax throws, never "matches nothing".
+ * the real parser would build differently. A block that a browser would put
+ * after a `<p>` it closes, and a table part a browser would wrap or drop,
+ * throw too (stage 07a, before the first `<table>` in src/ui). Selectors are
+ * as strict: tags, `#id`, `.class`, `[attr]`, `[attr="value"]`, descendants
+ * and lists; any other syntax throws, never "matches nothing".
  *
  * `element.innerHTML = markup` and a `<template>`'s `innerHTML` go through that
  * same parser, so the markup-string form of `patch()` works here and is as
  * strict as everything else. What a browser would build differently from an
- * element's innerHTML is refused too: a table row outside a table, markup
+ * element's innerHTML is refused too: a table part where the element it is
+ * set into would not take it (a row in a div, a cell in a table), markup
  * assigned to a textarea, a fragment's innerHTML. A template's children live in
  * its `content`, never in its `childNodes`, and a `<template>` cannot be written
  * inside markup (its children would belong there). innerHTML is write-only.
@@ -474,14 +477,20 @@ function decodeEntities(text, fail) {
  * mirrored into properties the way `el()` does it. Everything a browser would
  * quietly repair — an unclosed tag, a stray `</p>`, single-quoted or unquoted
  * attributes, a bare `&` or `<`, a comment, a script — throws.
+ *
+ * `context` is the tag name of the element the markup is set into (`"TBODY"`,
+ * `"TR"`, `"TEMPLATE"`…); `null` is an ordinary element of the page. A browser
+ * reads innerHTML against that element, so what may stand at the top level
+ * depends on it.
  */
-export function parseHtml(document, markup) {
+export function parseHtml(document, markup, { context = null } = {}) {
   const fail = (message, at) => {
     throw new Error(`parseHtml: ${message} (at ${at}: ${JSON.stringify(String(markup).slice(at, at + 24))})`);
   };
   if (typeof markup !== "string") fail("markup must be a string", 0);
   const root = new FakeFragment(document);
   const open = [root];
+  const rootTag = context?.toUpperCase() ?? null;
 
   let at = 0;
   while (at < markup.length) {
@@ -510,15 +519,49 @@ export function parseHtml(document, markup) {
       if (closed.tagName === "TEXTAREA") closed.value = closed.textContent;
       at = CLOSING_TAG.lastIndex;
     } else {
-      at = parseOpeningTag(document, markup, at, open, fail);
+      at = parseOpeningTag(document, markup, at, open, fail, rootTag);
     }
   }
   if (open.length > 1) fail(`<${open.at(-1).tagName.toLowerCase()}> is never closed`, markup.length);
   return root;
 }
 
+// Opening tags that close an open <p> in a browser, so the tree it builds has them after the paragraph, not in it.
+const CLOSES_P = new Set([
+  "address", "article", "aside", "blockquote", "dd", "details", "dialog", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form",
+  "h1", "h2", "h3", "h4", "h5", "h6", "header", "hgroup", "hr", "li", "main", "menu", "nav", "ol", "p", "pre", "section", "summary", "table", "ul",
+]);
+// A <p> beyond one of these is out of reach: the parser looks for the <p> to close no further.
+const P_SCOPE_EDGES = new Set(["BUTTON", "TABLE", "TD", "TH", "CAPTION"]);
+const OR = new Intl.ListFormat("en", { type: "disjunction" });
+// Where each table part must stand. Anywhere else a browser wraps it in the part it needs (a <tbody> around a <tr>) or drops it.
+const TABLE_PLACES = [
+  { parts: ["tr"], parents: ["THEAD", "TBODY", "TFOOT"], noun: "table section" },
+  { parts: ["td", "th"], parents: ["TR"], noun: "table row" },
+  { parts: ["thead", "tbody", "tfoot", "caption", "colgroup"], parents: ["TABLE"], noun: "table" },
+  { parts: ["col"], parents: ["COLGROUP"], noun: "column group" },
+];
+
+/**
+ * The two ways a browser builds another tree from tags that parse: it closes an open <p> before a block, and
+ * it fixes a table part that is not where it belongs. `rootTag` is the element the markup is set into; the
+ * top level of a <template> takes any table part, as a browser lets its contents start in the middle of a table.
+ */
+function checkPlacement(lower, open, rootTag, fail) {
+  if (CLOSES_P.has(lower)) {
+    for (let index = open.length - 1; index > 0 && !P_SCOPE_EDGES.has(open[index].tagName); index -= 1) {
+      if (open[index].tagName === "P") fail(`<${lower}> inside a <p>: a browser closes the <p> before it`);
+    }
+  }
+  const place = TABLE_PLACES.find(({ parts }) => parts.includes(lower));
+  const parent = open.length === 1 ? rootTag : open.at(-1).tagName;
+  if (!place || parent === "TEMPLATE" || place.parents.includes(parent)) return;
+  if (lower === "tr" && parent === "TABLE") fail("<tr> straight in a <table>: a browser puts a <tbody> around it; write the <tbody>");
+  fail(`<${lower}> outside a ${place.noun}: put it in a ${OR.format(place.parents.map((tag) => `<${tag.toLowerCase()}>`))}`);
+}
+
 /** One `<name …>` or `<name …/>`: builds the element, nests it, and returns where scanning resumes. */
-function parseOpeningTag(document, markup, start, open, fail) {
+function parseOpeningTag(document, markup, start, open, fail, rootTag) {
   TAG_NAME.lastIndex = start;
   const named = TAG_NAME.exec(markup);
   if (!named) fail('a bare "<" — write &lt;', start);
@@ -527,6 +570,7 @@ function parseOpeningTag(document, markup, start, open, fail) {
   if (lower === "script") fail("<script> is not supported", start);
   if (lower === "template") fail("a <template> in markup keeps its children in .content, which is not modelled; set innerHTML on a template element instead", start);
   if (open.at(-1).tagName === "TEXTAREA") fail("a <textarea> holds text only", start);
+  checkPlacement(lower, open, rootTag, (message) => fail(message, start));
 
   const element = document.createElement(name);
   const seen = new Set();
@@ -563,28 +607,19 @@ function parseOpeningTag(document, markup, start, open, fail) {
 
 // Contexts whose innerHTML a browser reads as text, not as markup.
 const TEXT_CONTEXTS = new Set(["TEXTAREA", "TITLE", "STYLE", "SCRIPT"]);
-// A browser's parser drops these where no table is being built, and a template or a table part is where one is.
-const TABLE_PARTS = new Set(["TR", "TD", "TH", "TBODY", "THEAD", "TFOOT", "CAPTION", "COLGROUP", "COL"]);
-const TABLE_CONTEXTS = new Set(["TEMPLATE", "TABLE", "THEAD", "TBODY", "TFOOT", "TR", "COLGROUP"]);
 
 /**
  * `element.innerHTML = markup`: the children (a template's content) are replaced
  * by what `parseHtml` builds. Parsing comes first, so markup that does not parse
  * leaves the element as it was; the old children are removed one by one, so
  * focus drops to the body when the focused node leaves, as it does in a browser.
+ * The element's tag is the parse context: a row may start `<tbody>`'s markup, not a `<div>`'s.
  */
 function setInnerHtml(element, markup) {
   const name = element.tagName.toLowerCase();
   if (element.isFragment) throw new Error("fake-dom: a fragment has no innerHTML; a browser would set a property that parses nothing");
   if (TEXT_CONTEXTS.has(element.tagName)) throw new Error(`fake-dom: innerHTML on a <${name}> is text in a browser, not markup; set textContent`);
-  const parsed = parseHtml(element.ownerDocument, markup);
-  if (!TABLE_CONTEXTS.has(element.tagName)) {
-    for (const node of parsed.walk()) {
-      if (TABLE_PARTS.has(node.tagName) && !node.closest("table")) {
-        throw new Error(`fake-dom: a browser drops <${node.tagName.toLowerCase()}> assigned to a <${name}>'s innerHTML outside a table; parse it in a <template>`);
-      }
-    }
-  }
+  const parsed = parseHtml(element.ownerDocument, markup, { context: element.tagName });
   const target = element.content ?? element;
   for (const child of [...target.childNodes]) target.removeChild(child);
   for (const child of [...parsed.childNodes]) target.appendChild(child);

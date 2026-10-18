@@ -429,3 +429,29 @@ test("what a browser would build differently from innerHTML is refused", () => {
   // Only a template has content.
   assert.equal(box.content, undefined);
 });
+
+test("a block inside a paragraph is a parse error: a browser closes the <p> before it (07a)", () => {
+  assert.throws(() => parseHtml(document, "<p>a<div>b</div></p>"), /<div> inside a <p>/);
+  assert.throws(() => parseHtml(document, "<p><span><ul><li>x</li></ul></span></p>"), /<ul> inside a <p>/);
+  assert.throws(() => parseHtml(document, "<p>a<p>b</p></p>"), /<p> inside a <p>/);
+  assert.doesNotThrow(() => parseHtml(document, '<p><span>a</span><button type="button"><span>b</span></button></p><div>c</div>'));
+});
+
+test("a row straight in a table, a cell outside a row, a section outside a table are parse errors (07a)", () => {
+  assert.throws(() => parseHtml(document, "<table><tr><td>x</td></tr></table>"), /<tbody>/);
+  assert.throws(() => parseHtml(document, "<table><tbody><td>x</td></tbody></table>"), /<td>/);
+  assert.throws(() => parseHtml(document, "<div><tr><td>x</td></tr></div>"), /<tr>/);
+  assert.throws(() => parseHtml(document, "<div><tbody></tbody></div>"), /<tbody>/);
+  assert.doesNotThrow(() => parseHtml(document,
+    "<table><caption>c</caption><thead><tr><th>a</th></tr></thead><tbody><tr><th>n</th><td>x</td></tr></tbody><tfoot><tr><td>y</td></tr></tfoot></table>"));
+});
+
+test("markup set into a table part or a template may start inside the table", () => {
+  const body = document.createElement("tbody");
+  body.innerHTML = "<tr><td>x</td></tr>";
+  assert.equal(body.querySelector("td").textContent, "x");
+  const template = document.createElement("template");
+  template.innerHTML = "<tr><td>y</td></tr>";
+  assert.equal(template.content.querySelector("td").textContent, "y");
+  assert.throws(() => { document.createElement("tr").innerHTML = "<tr><td>z</td></tr>"; }, /<tr>/);
+});
