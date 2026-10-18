@@ -218,6 +218,24 @@ test("the row of the player in the side panel is marked, and one that is not is 
   assert.equal(mount(table()).querySelector("[aria-current]"), null);
 });
 
+test("a row whose button chooses the player for a panel beside the table names that panel and says nothing of opening (R11)", () => {
+  const fragment = mount(table({ rows: [row("p1", { selected: true, controls: "roster-aside" }), row("p2", { controls: "roster-aside" })] }));
+  const [chosen, other] = fragment.querySelectorAll(".g-rtable__toggle");
+  for (const button of [chosen, other]) {
+    assert.equal(button.getAttribute("aria-controls"), "roster-aside");
+    assert.equal(button.hasAttribute("aria-expanded"), false, "it opens nothing: no aria-expanded");
+  }
+  assert.equal(chosen.getAttribute("aria-current"), "true");
+  assert.equal(other.hasAttribute("aria-current"), false);
+  assert.equal(fragment.querySelector(".g-rtable__panelrow"), null);
+  // Without it the button is the phone's: it opens the row's own panel.
+  assert.equal(mount(table()).querySelector(".g-rtable__toggle").getAttribute("aria-expanded"), "false");
+  for (const controls of ["", "roster aside", "1aside", null]) {
+    assert.throws(() => table({ rows: [row("p1", { controls })] }), /plain id/, JSON.stringify(controls));
+  }
+  assert.throws(() => table({ rows: [row("p1", { controls: "roster-aside", expanded: true, panelHtml: "<span>x</span>" })] }), /does one/);
+});
+
 test("a row's extra rows span the columns a phone shows, so a hidden column never leaves a phantom one for the player's to share", () => {
   const fragment = mount(table({ rows: [row("p1", { expanded: true, panelHtml: "<span>x</span>" })] }));
   const phone = COLUMNS.filter((column) => !column.desk).length;
@@ -407,6 +425,9 @@ test("the colours of the table are readable in every palette", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--zero", "color"), ["var(--muted)"]);
   assert.ok(!read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").includes("--faint"), "nothing in the table is faint");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded", "background"), ["var(--surface-2)"]);
+  // A plain chip is --surface-2 itself: on the open row's tint it takes --surface, or it would have no edge.
+  assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill", "background"), ["var(--surface-2)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded .g-skill:not(.g-skill--gained)", "background"), ["var(--surface)"]);
   // The selected row is a desk's, on the frame's --surface.
   assertContrast("--accent-text", ["--surface"], 3, { what: "the selected row's outline" });
 });

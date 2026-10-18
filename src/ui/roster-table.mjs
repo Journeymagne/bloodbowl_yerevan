@@ -22,6 +22,8 @@ const GROUPS = ["stats", "career", "spp"];
 const TONES = ["zero", "up", "down", "strong"];
 const ARROWS = { asc: "▲", desc: "▼" };
 const ARIA_SORT = { asc: "ascending", desc: "descending" };
+/** An id an aria-controls names: one, with no blank to make it a list. */
+const PLAIN_ID = /^[A-Za-z][\w-]*$/;
 
 /** A table that would draw wrong is a bug in the caller, found where the caller is. */
 function check({ label, columns, groups, rows, sort }) {
@@ -43,6 +45,8 @@ function check({ label, columns, groups, rows, sort }) {
     if (keys.has(row.key)) throw new Error(`two rows with the key ${JSON.stringify(row.key)}: a key is unique among the rows`);
     keys.add(row.key);
     if (!row.badgeHtml) throw new Error(`row ${JSON.stringify(row.key)} needs a badge: the markup of renderPlayerBadge`);
+    if (row.controls !== undefined && !(typeof row.controls === "string" && PLAIN_ID.test(row.controls))) throw new Error(`row ${JSON.stringify(row.key)} controls ${JSON.stringify(row.controls)}: a plain id, as aria-controls reads it`);
+    if (row.controls && row.expanded) throw new Error(`row ${JSON.stringify(row.key)} both opens its own panel and controls ${JSON.stringify(row.controls)}: a button does one`);
     if (row.cells?.length !== columns.length - 1) {
       throw new Error(`row ${JSON.stringify(row.key)} has ${row.cells?.length ?? "no"} cells for ${columns.length - 1} columns after the player's`);
     }
@@ -93,12 +97,17 @@ function renderCell(cell, column) {
 
 /**
  * The player's cell: the button that opens his row, and, for a desk, his skills under it. The panel's id is made
- * of the row's key (a player's id, unique on the page), so two tables on one screen never share one.
+ * of the row's key (a player's id, unique on the page), so two tables on one screen never share one. A button
+ * that chooses the player for a panel elsewhere (`controls`) opens nothing: it names that panel, and says no
+ * aria-expanded.
  */
 function renderWho(row) {
   const skills = row.skillsHtml ? `<div class="g-rtable__skills g-rtable__skills--desk">${row.skillsHtml}</div>` : "";
   const sub = `<span class="${classNames("g-rtable__sub", row.alert && "g-rtable__sub--alert")}">${escapeHtml(row.sub ?? "")}</span>`;
-  return `<th scope="row" class="g-rtable__who"><button type="button" class="g-rtable__toggle" aria-expanded="${row.expanded ? "true" : "false"}" aria-controls="rt-panel-${escapeHtml(row.key)}"${row.selected ? ' aria-current="true"' : ""}${dataAttributes({ rowKey: row.key })}>`
+  const relation = row.controls
+    ? `aria-controls="${escapeHtml(row.controls)}"`
+    : `aria-expanded="${row.expanded ? "true" : "false"}" aria-controls="rt-panel-${escapeHtml(row.key)}"`;
+  return `<th scope="row" class="g-rtable__who"><button type="button" class="g-rtable__toggle" ${relation}${row.selected ? ' aria-current="true"' : ""}${dataAttributes({ rowKey: row.key })}>`
     + `${row.badgeHtml}<span class="g-rtable__text"><span class="g-rtable__name">${escapeHtml(row.name)}</span>${sub}</span></button>${skills}</th>`;
 }
 
@@ -146,6 +155,8 @@ function renderFoot(columns) {
  * @property {string} [skillsHtml] markup from renderSkillChips
  * @property {boolean} [expanded] the row's panel is open (up to 900px)
  * @property {boolean} [selected] the row's player is the one in the side panel (from 901px); his button says `aria-current`
+ * @property {string} [controls] the id of the panel beside the table that the row's button chooses the player for (a desk's,
+ *   R11): the button names it in `aria-controls` and says no `aria-expanded`; such a row opens no panel of its own
  * @property {string} [panelHtml] what the open row shows
  */
 export function renderRosterTable({ label, columns, groups = [], rows, sort = null, headLeadHtml = "" }) {

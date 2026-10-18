@@ -1,0 +1,347 @@
+/*
+ * The team's roster (screens/team/roster/). The table, the badges, the chips,
+ * the stat strip, the dots, the buttons and the sheet are the ui/ sheets'; this
+ * one lays them out and draws the panel beside the table, the open row's panel
+ * and the lines of text between them. Font, border, background, text-transform,
+ * letter-spacing and font-weight are set here on purpose: the 2.x global rules
+ * (h2, h3, p, dl, dt, dd, a) outlive this sheet until stage 13.
+ *
+ * Written for a phone first: the table is the page's width and a player's row
+ * opens under him. From 901px the panel stands beside the table, 320px wide,
+ * and stays in view while the page scrolls (DeskRoster.html).
+ */
+.g-roster {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+}
+
+.g-roster__main {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* «Active roster» with the number; the save's status stands at the right of it (Task 10). */
+.g-roster__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-width: 0;
+}
+
+.g-roster__heading {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 26px/1.1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__count {
+  color: var(--muted);
+  font: 500 18px var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* What stands in place of the table: the wait, nobody on the roster, a read that failed. */
+.g-roster__loading,
+.g-roster__empty {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 15px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+  margin: 0;
+}
+
+/* A player's row opened on a phone: his counters, and the way to his page. */
+.g-roster__rowpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding: var(--space-4) var(--space-16) var(--space-14);
+}
+
+/* The career's counters as text, three to a line: the abbreviation, and the number at the right. */
+.g-roster__tally {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.g-roster__tallyitem {
+  box-sizing: border-box;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-6);
+  min-width: 0;
+  padding: var(--space-6) var(--space-10);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.g-roster__tallyk {
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font: 600 12px/1.2 var(--font-body);
+  letter-spacing: 0.04em;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.g-roster__tallyv {
+  margin: 0;
+  color: var(--ink);
+  font: 700 17px/1.2 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+/* The panel's head: the badge, the name with the position and the value under it, the pencil at the right. */
+.g-roster__phead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-14);
+  min-width: 0;
+}
+
+.g-roster__pwho {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-roster__pname {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 30px/1.05 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-roster__pline {
+  margin: 0;
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__edit {
+  margin-left: auto;
+  text-decoration: none;
+}
+
+/* The SPP: what he may spend, large; what he earned and spent; the advancements; «Advance»; the cheapest one. */
+.g-roster__spp {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-14);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+}
+
+.g-roster__spptop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.g-roster__avail {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-6);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.g-roster__availn {
+  color: var(--accent-text);
+  font: 700 40px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.g-roster__availl {
+  color: var(--ink);
+  font: 600 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+}
+
+.g-roster__ledger {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.g-roster__ledgerline { display: block; }
+
+/* In a 320px panel the caption does not fit beside the six bars: it goes under them whole rather than in two lines. */
+.g-roster__spp .g-progress {
+  flex-wrap: wrap;
+  row-gap: var(--space-6);
+}
+
+.g-roster__spp .g-progress__caption { white-space: nowrap; }
+
+.g-roster__cheapest {
+  margin: 0;
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+}
+
+/* His skills as cards, and the categories he may take them from. */
+.g-roster__pblock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.g-roster__ptitle {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 22px/1.1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__access {
+  margin: 0;
+  color: var(--muted);
+  font: 400 13px/1.4 var(--font-body);
+  letter-spacing: 0;
+}
+
+.g-roster__next {
+  margin: 0;
+  padding: var(--space-14) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+}
+
+/* The skill's sheet: whose skill it is and where he got it, under the rule; a skill the reference has no page for. */
+.g-roster__from {
+  margin: var(--space-12) 0 0;
+  padding: var(--space-10) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font: 400 13px/1.4 var(--font-body);
+  letter-spacing: 0;
+}
+
+.g-roster__nopage {
+  margin: 0;
+  color: var(--muted);
+  font: 400 15px/1.4 var(--font-body);
+  letter-spacing: 0;
+}
+
+@media (max-width: 900px) {
+  .g-roster__aside { display: none; }
+}
+
+@media (min-width: 901px) {
+  /*
+   * The frame's `overflow-x: hidden` makes .g-main a box that scrolls (though it never does), and a sticky
+   * panel would stick to it and so never stick. Cut off with `clip` it is no box, and the panel sticks to
+   * the window, as the reference's and the builder's do (ref.css, builder.css). Stage 13 makes it global.
+   */
+  .g-main:has(.g-roster) { overflow-x: clip; }
+
+  .g-roster__layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: var(--space-16);
+    align-items: start;
+  }
+
+  .g-roster__aside {
+    box-sizing: border-box;
+    position: sticky;
+    top: var(--space-16);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-16);
+    min-width: 0;
+    margin: 0;
+    padding: var(--space-16);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    /* A panel taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
+    max-height: calc(100vh - 2 * var(--space-16));
+    overflow-y: auto;
+  }
+}

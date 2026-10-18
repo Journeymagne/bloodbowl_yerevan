@@ -216,6 +216,8 @@ th.g-rtable__h {
   .g-rtable__player { border-bottom: 1px solid var(--line); }
   .g-rtable__skillrow > td { padding-left: 46px; }
   .g-rtable__player.is-expanded { background: var(--surface-2); }
+  /* A plain chip is --surface-2 too: on the open row it takes the page's colour, or it would lose its edge. */
+  .g-rtable__player.is-expanded .g-skill:not(.g-skill--gained) { background: var(--surface); }
 }
 
 @media (min-width: 901px) {
