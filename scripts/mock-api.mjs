@@ -7,7 +7,7 @@
  *   node scripts/browser-check-roster.mjs
  *
  * Ports and variants (the launch configs in .claude/launch.json):
- *   :5174  bloodbowl-mock-api          a coach with three teams and three matches
+ *   :5174  bloodbowl-mock-api          a coach with five teams and six matches
  *   :5175  bloodbowl-mock-api-admin    MOCK_ADMIN=1, the same coach as an administrator
  *   :5176  bloodbowl-mock-api-empty    MOCK_EMPTY=1, a coach with no team and no match
  * MOCK_PORT picks the port. The launch configs set these through `env` (as the
@@ -19,12 +19,14 @@
  * any value: "mock" in the screenshots) or by the sign-in form with any login
  * and the password `mock-pass`.
  *
- * It keeps one user and one saved team in memory, records every PATCH of that
- * team into .codex_tmp/mock-saves.json, and answers just enough of the API for
- * the shell (sign-in, settings, the SideNav's match card, the header's place),
- * the saved roster, my-games (with its challenges), game, administration
- * (including editing a user's team) and player-profile screens. Not a
- * substitute for `npm run smoke`, which exercises the real server.
+ * It keeps one user and the coach's teams in memory (a team made or deleted
+ * stays so until the mock restarts), records every PATCH of the first team into
+ * .codex_tmp/mock-saves.json, and answers just enough of the API for the shell
+ * (sign-in, settings, the SideNav's match card, the header's place), the teams
+ * list, a team's overview, a new team, the saved roster, my-games (with its
+ * challenges), game, administration (including editing a user's team) and
+ * player-profile screens. Not a substitute for `npm run smoke`, which exercises
+ * the real server.
  *
  * What it answers, where it is not obvious (the real server is the reference):
  *   GET   /api/auth/me           the coach as `accountUser` (server/routes/account.mjs)
@@ -42,14 +44,39 @@
  *                                to be `mock-pass`, else 403 CURRENT_PASSWORD_WRONG.
  *   POST  /api/auth/login        `{token: "mock", user}`; any other password is 401
  *                                WRONG_LOGIN_OR_PASSWORD. /register is 201, /logout `{ok}`.
- *   GET   /api/games             g1 is "next match" (Mock Team, round 1 started, no preparation),
- *                                g2 "match in play" (Mock Humans, preparation on, post-match a
- *                                draft), g3 "awaiting confirmation" (Mock Orcs; the rival sent
- *                                the score, so `viewerIsProposer` is false and the coach may
- *                                confirm it). Each side has `team.id`. GET /api/games/:id is one.
- *   GET   /api/season            one active season whose standings put the rival first and
- *                                Mock Team second, Mock Humans third, Mock Orcs fourth, each
- *                                row with its `rank` (the header's place reads it).
+ *   GET   /api/teams             the coach's teams, each as `publicSavedTeam` has it (`stage`,
+ *                                `activatedAt`, `revision`, `inActiveSeason`): t1 Mock Team
+ *                                (Amazon; seven players, whose counters give the overview its
+ *                                leaders), t2 Mock Humans, t3 Mock Orcs, t4 Mock Draft (Norse,
+ *                                `stage: "draft"`, no season, no match) and t5 Mock Veterans
+ *                                (Dwarf, from a past season: in no active season, and played).
+ *                                GET /api/teams/:id is one, or 404 TEAM_NOT_FOUND.
+ *   POST  /api/teams             no `name` is 400 TEAM_NAME_REQUIRED, no `baseTeamSlug` 400
+ *                                BASE_TEAM_REQUIRED (`readTeamBody`); else 201 `{team}`: the
+ *                                next `t<n>` (an id is not used twice), `stage: "active"`, in no
+ *                                season, first on the list. The roster is kept as sent, not
+ *                                checked against the race.
+ *   DELETE /api/teams/:id        a team of the active season or of a past one is 409
+ *                                TEAM_IN_SEASON_CANNOT_BE_DELETED (t1, t2, t3, t5); any other
+ *                                (t4, a team made here) goes off the list: `{ok: true}`, which,
+ *                                like the server, an id nobody has gets too.
+ *   GET   /api/games             round 3 is on. g1 is "next match" (Mock Team, started, no
+ *                                preparation), g2 "match in play" (Mock Humans, preparation on,
+ *                                post-match a draft), g3 "awaiting confirmation" (Mock Orcs; the
+ *                                rival sent the score, so `viewerIsProposer` is false and the
+ *                                coach may confirm it). Played: g4 (round 1, Mock Team at home,
+ *                                won 2-1), g5 (round 2, Mock Team away, lost 0-2) and g6, a
+ *                                friendly of Mock Team that ended 1-1 (`kind: "friendly"`,
+ *                                `season: null`, no round, no points). Each side has `team.id`.
+ *                                The list is in the server's order (the friendly, then the
+ *                                rounds from the last); `currentGames` (administrator) holds the
+ *                                matches in play and waiting. GET /api/games/:id is one.
+ *   GET   /api/season            one active season at round 3 whose standings put the rival
+ *                                first (6 points, two games), Mock Team second (3 points, two
+ *                                games, 2 touchdowns, 1 casualty: g4 and g5), Mock Humans third,
+ *                                Mock Orcs fourth, each row with its `rank` (the header's place
+ *                                reads it). Rival Raiders and Rival Wardens have no row: the table
+ *                                is cut down to the leader and the coach's teams in the season.
  * Errors are the server's `errorPayload`: `{error: {code, params, message}}`.
  * MOCK_EMPTY=1 leaves no team, game or challenge; the season still has the rival.
  * Its ids are `t1`, `g1`, not UUIDs: the server would refuse `t1` as an active team (400), the mock takes it.
@@ -81,39 +108,86 @@ const mime = new Map([
 ]);
 
 const now = new Date().toISOString();
+/** A stamp `days` before the mock started; the days may be fractions. */
+const daysAgo = (days) => new Date(Date.parse(now) - days * 86_400_000).toISOString();
 
-/** A roster of two players; the copies for other races differ in their race and their player ids. */
-const rosterOf = (teamSlug, teamName, idPrefix) => ({
+/** A player of the roster; `changes` replace what a fresh recruit has. */
+const playerOf = (idPrefix, number, rowIndex, name, changes = {}) => ({
+  id: `${idPrefix}${number}`,
+  rowIndex,
+  number: String(number),
+  name,
+  statMods: {},
+  extraSkills: [],
+  favouredSkills: [],
+  spp: {},
+  advancements: [],
+  ...changes,
+});
+/** The two players of a small roster; the copies for other teams differ in their player ids. */
+const startersOf = (idPrefix) => [
+  playerOf(idPrefix, 1, 0, "Linewoman One", { spp: { touchdowns: 1 } }),
+  playerOf(idPrefix, 2, 1, "Thrower Two", { statMods: { ma: 1 }, extraSkills: [{ name: "Block", access: "primary" }] }),
+];
+// Mock Team's seven (rows of teams/amazon: 0 Linewoman, 1 Thrower, 2 Blitzer, 3 Blocker), the counters spread so
+// that every leader of the overview is somebody else: SPP and touchdowns Three, casualties Four, completions
+// Two, and the MVP, who is no leader of a counter, Five.
+const amazons = [
+  playerOf("p", 1, 0, "Linewoman One", { spp: { touchdowns: 1 } }),
+  playerOf("p", 2, 1, "Thrower Two", { statMods: { ma: 1 }, extraSkills: [{ name: "Block", access: "primary" }], spp: { completions: 3 } }),
+  playerOf("p", 3, 2, "Blitzer Three", { spp: { touchdowns: 4 } }),
+  playerOf("p", 4, 3, "Blocker Four", { spp: { casualties: 2 } }),
+  playerOf("p", 5, 0, "Linewoman Five", { spp: { mvps: 1 } }),
+  playerOf("p", 6, 0, "Linewoman Six"),
+  playerOf("p", 7, 2, "Blitzer Seven"),
+];
+
+/** A roster of `players`; the counts are how many stand in each row of the race. */
+const rosterOf = (teamSlug, teamName, players) => ({
   teamSlug,
   teamName,
-  players: [
-    { id: `${idPrefix}1`, rowIndex: 0, number: "1", name: "Linewoman One", statMods: {}, extraSkills: [], favouredSkills: [], spp: { touchdowns: 1 }, advancements: [] },
-    { id: `${idPrefix}2`, rowIndex: 1, number: "2", name: "Thrower Two", statMods: { ma: 1 }, extraSkills: [{ name: "Block", access: "primary" }], favouredSkills: [], spp: {}, advancements: [] },
-  ],
-  roster: { 0: 1, 1: 1 },
+  players,
+  roster: players.reduce((counts, { rowIndex }) => ({ ...counts, [rowIndex]: (counts[rowIndex] ?? 0) + 1 }), {}),
   treasury: 120,
   coachesSafe: 0,
   teamRerolls: 1,
   startingRerolls: 1,
   purchasedStaff: {},
 });
-const teamOf = (id, name, baseTeamSlug, idPrefix) => ({
+/** A team as `publicSavedTeam` (server/api/serializers.mjs) sends it; `changes` replace what a team of the season has. */
+const teamOf = (id, name, baseTeamSlug, players, changes = {}) => ({
   id,
   name,
   baseTeamSlug,
   logoData: null,
+  roster: rosterOf(baseTeamSlug, name, players),
+  revision: 1,
+  stage: "active",
+  // Null, as for a team that was playing before there were stages.
+  activatedAt: null,
   // The real API sends this on every list query; without it the mock cannot
   // exercise anything that depends on a team being in play.
   inActiveSeason: true,
-  roster: rosterOf(baseTeamSlug, name, idPrefix),
   createdAt: now,
   updatedAt: now,
+  ...changes,
 });
 
-// t1 is the team the roster editor saves to. t2 and t3 are copies of its roster under other races, so
-// that the coach has a team for each phase of the SideNav's match card (g1, g2, g3 below).
-const team = teamOf("t1", "Mock Team", "teams/amazon", "p");
-const teams = empty ? [] : [team, teamOf("t2", "Mock Humans", "teams/human", "q"), teamOf("t3", "Mock Orcs", "teams/orc", "r")];
+// t1 is the team the roster editor saves to. t2 and t3 are copies of its small roster under other races, so
+// that the coach has a team for each phase of the SideNav's match card (g1, g2, g3 below). t4 is still being
+// built and has played nothing, so it can be deleted; t5 played a season that is over, so it cannot be.
+const team = teamOf("t1", "Mock Team", "teams/amazon", amazons);
+const teams = empty ? [] : [
+  team,
+  teamOf("t2", "Mock Humans", "teams/human", startersOf("q")),
+  teamOf("t3", "Mock Orcs", "teams/orc", startersOf("r")),
+  teamOf("t4", "Mock Draft", "teams/norse", startersOf("s"), { stage: "draft", inActiveSeason: false }),
+  teamOf("t5", "Mock Veterans", "teams/dwarf", startersOf("v"), { inActiveSeason: false }),
+];
+/** Teams that have played a season which is not the active one: what a delete is refused for besides the active season. */
+const pastSeasonTeamIds = new Set(["t5"]);
+/** The number of the last team id given out: an id is not given twice, nor to a team made after another was deleted. */
+let lastTeamNumber = Math.max(0, ...teams.map(({ id }) => Number(id.slice(1))));
 
 const user = {
   id: "u1",
@@ -121,9 +195,14 @@ const user = {
   telegram: "@coach",
   isAdmin: process.env.MOCK_ADMIN === "1",
   createdAt: now,
-  // The administrator's lists carry these (`publicAdminUser`); `/api/auth/me` does not.
-  savedTeamCount: teams.length,
-  lastTeamUpdatedAt: teams.length ? now : null,
+  // The administrator's lists carry these (`publicAdminUser`); `/api/auth/me` does not. They follow the teams
+  // made and deleted since the mock started.
+  get savedTeamCount() {
+    return teams.length;
+  },
+  get lastTeamUpdatedAt() {
+    return teams.length ? now : null;
+  },
 };
 const rival = {
   id: "u2",
@@ -147,50 +226,90 @@ const rivals = [
   { id: "rt2", name: "Rival Raiders", baseTeamSlug: "teams/skaven" },
   { id: "rt3", name: "Rival Wardens", baseTeamSlug: "teams/lizardmen" },
 ];
-const season = { id: "s1", name: "Mock Season", status: "active", currentRound: 1 };
+// As a game carries it (`publicGame`); the table's has the stamps too (`publicSeason`).
+const season = { id: "s1", name: "Mock Season", status: "active", currentRound: 3 };
 
 const coach = ({ id, login }) => ({ id, login });
 const gameSide = (owner, { id, name, baseTeamSlug }) => ({ user: coach(owner), team: { id, name, baseTeamSlug, logoUrl: null } });
 
 /**
- * A league match of round 1 as `/api/games` sends it (`publicGame`): the round is on, nobody has sent a
- * result, the match has not begun. `changes` says how far it has got. The coach's team is the home side.
+ * A league match of round 3 as `/api/games` sends it (`publicGame`): the round is on, nobody has sent a
+ * result, the match has not begun. `changes` says how far it has got, or what else it is. The coach's team
+ * is the home side unless `viewerIsHome` says otherwise.
  */
-const pairingOf = (id, tableNumber, own, opposing, changes = {}) => ({
-  id,
-  roundId: "r1",
-  roundNumber: 1,
-  roundStatus: "started",
-  tableNumber,
-  homeEntryId: `e-${own.id}`,
-  awayEntryId: `e-${opposing.id}`,
-  homeTouchdowns: null,
-  awayTouchdowns: null,
-  homeCasualties: null,
-  awayCasualties: null,
-  homePoints: null,
-  awayPoints: null,
-  resultStatus: "pending",
-  preparationStatus: "not_started",
-  postMatchStatus: "not_started",
-  proposedByUserId: null,
-  proposedHomeTouchdowns: null,
-  proposedAwayTouchdowns: null,
-  proposedHomeCasualties: null,
-  proposedAwayCasualties: null,
-  proposedAt: null,
-  confirmedAt: null,
-  createdAt: now,
-  updatedAt: now,
-  ...changes,
-  kind: "league",
-  season,
-  home: gameSide(user, own),
-  away: gameSide(rival, opposing),
-  viewerIsHome: true,
-  viewerIsProposer: (changes.proposedByUserId ?? null) === user.id,
+const pairingOf = (id, tableNumber, own, opposing, changes = {}) => {
+  const viewerIsHome = changes.viewerIsHome ?? true;
+  const [home, away] = viewerIsHome ? [[user, own], [rival, opposing]] : [[rival, opposing], [user, own]];
+  return {
+    id,
+    roundId: "r3",
+    roundNumber: 3,
+    roundStatus: "started",
+    tableNumber,
+    homeEntryId: `e-${home[1].id}`,
+    awayEntryId: `e-${away[1].id}`,
+    homeTouchdowns: null,
+    awayTouchdowns: null,
+    homeCasualties: null,
+    awayCasualties: null,
+    homePoints: null,
+    awayPoints: null,
+    resultStatus: "pending",
+    preparationStatus: "not_started",
+    postMatchStatus: "not_started",
+    proposedByUserId: null,
+    proposedHomeTouchdowns: null,
+    proposedAwayTouchdowns: null,
+    proposedHomeCasualties: null,
+    proposedAwayCasualties: null,
+    proposedAt: null,
+    confirmedAt: null,
+    createdAt: daysAgo(30),
+    updatedAt: now,
+    kind: "league",
+    season,
+    ...changes,
+    home: gameSide(...home),
+    away: gameSide(...away),
+    viewerIsHome,
+    viewerIsProposer: (changes.proposedByUserId ?? null) === user.id,
+  };
+};
+
+/**
+ * A score that `proposer` sent and the other coach confirmed `days` ago. `touchdowns`, `casualties` and `points`
+ * are [home, away]; the points are the league's (`matchPoints`: a win is 3, 1 more for a shutout), a friendly's 0.
+ */
+const confirmedScore = (proposer, days, { touchdowns, casualties, points }) => ({
+  resultStatus: "confirmed",
+  homeTouchdowns: touchdowns[0],
+  awayTouchdowns: touchdowns[1],
+  homeCasualties: casualties[0],
+  awayCasualties: casualties[1],
+  homePoints: points[0],
+  awayPoints: points[1],
+  proposedByUserId: proposer.id,
+  proposedHomeTouchdowns: touchdowns[0],
+  proposedAwayTouchdowns: touchdowns[1],
+  proposedHomeCasualties: casualties[0],
+  proposedAwayCasualties: casualties[1],
+  proposedAt: daysAgo(days + 0.1),
+  confirmedAt: daysAgo(days),
+  updatedAt: daysAgo(days),
 });
+// The server's order: by the season's start, then the rounds from the last, and a friendly, which has no season,
+// by its own: it was made after the season began, so it comes first.
 const games = empty ? [] : [
+  // A friendly of Mock Team against the first rival, 1-1: it has no season, round or table entry, and no points.
+  pairingOf("g6", 1, teams[0], rivals[0], {
+    kind: "friendly",
+    season: null,
+    roundId: null,
+    roundNumber: 0,
+    homeEntryId: null,
+    awayEntryId: null,
+    ...confirmedScore(rival, 2, { touchdowns: [1, 1], casualties: [0, 0], points: [0, 0] }),
+  }),
   // Next match: Mock Team's preparation has not begun.
   pairingOf("g1", 1, teams[0], rivals[0]),
   // Match in play: the preparation is on and the post-match is a draft.
@@ -204,6 +323,21 @@ const games = empty ? [] : [
     proposedHomeCasualties: 1,
     proposedAwayCasualties: 0,
     proposedAt: now,
+  }),
+  // Round 2, away: Mock Team lost 0-2, the casualty was the rival's, and a win to nil is worth 4.
+  pairingOf("g5", 1, teams[0], rivals[2], {
+    roundId: "r2",
+    roundNumber: 2,
+    roundStatus: "completed",
+    viewerIsHome: false,
+    ...confirmedScore(rival, 6, { touchdowns: [2, 0], casualties: [1, 0], points: [4, 0] }),
+  }),
+  // Round 1, at home: Mock Team won 2-1, and took the casualty.
+  pairingOf("g4", 1, teams[0], rivals[1], {
+    roundId: "r1",
+    roundNumber: 1,
+    roundStatus: "completed",
+    ...confirmedScore(user, 13, { touchdowns: [2, 1], casualties: [1, 0], points: [3, 0] }),
   }),
 ];
 
@@ -221,32 +355,42 @@ const challenges = {
     challenge("c2", user, rival, team, "pending"),
     challenge("c3", rival, user, rivals[0], "accepted", "g1"),
   ],
-  teams: teams.map(({ id, name, baseTeamSlug, createdAt, updatedAt }) => ({ id, name, baseTeamSlug, logoData: null, roster: {}, createdAt, updatedAt })),
+  // The teams the coach has now, made and deleted since the mock started included.
+  get teams() {
+    return teams.map(({ id, name, baseTeamSlug, createdAt, updatedAt }) => ({ id, name, baseTeamSlug, logoData: null, roster: {}, createdAt, updatedAt }));
+  },
   opponents: [coach(rival)],
 };
 
 /**
- * GET /api/season (server/season/store.mjs loadSeasonBundle), cut down to the table: nobody has entered or
- * played yet, so every row is on zero, and the order is the one the screens are photographed in. The rows
- * are `computeSeasonStandings`' (server/season/scoring.mjs), `rank` included: the header's place reads it.
+ * GET /api/season (server/season/store.mjs loadSeasonBundle), cut down to the table, in the order the screens
+ * are photographed in. The rows are `computeSeasonStandings`' (server/season/scoring.mjs), `rank` included: the
+ * header's place reads it. `figures` is what a row has played: nothing, for a team that has not.
  */
-const standingRow = (owner, entryTeam, rank) => ({
+const standingRow = (owner, entryTeam, rank, figures = {}) => ({
   entryId: `e-${entryTeam.id}`,
   withdrawnAt: null,
   user: { id: owner.id, login: owner.login, telegram: owner.telegram, isAdmin: owner.isAdmin },
-  team: { id: entryTeam.id, name: entryTeam.name, baseTeamSlug: entryTeam.baseTeamSlug },
+  team: { id: entryTeam.id, name: entryTeam.name, baseTeamSlug: entryTeam.baseTeamSlug, logoData: null, roster: {}, createdAt: now, updatedAt: now },
   points: 0,
   games: 0,
   byes: 0,
   touchdowns: 0,
   casualties: 0,
+  ...figures,
   rank,
 });
+// Only the teams of the active season have a row. Mock Team's figures are g4 and g5 added up; the leader's are
+// two wins of 3.
 const seasonBundle = {
-  season,
+  season: { ...season, createdAt: daysAgo(30), updatedAt: now },
   entries: [],
   historicalEntries: [],
-  standings: [standingRow(rival, rivals[0], 1), ...teams.map((entryTeam, index) => standingRow(user, entryTeam, index + 2))],
+  standings: [
+    standingRow(rival, rivals[0], 1, { points: 6, games: 2, touchdowns: 4, casualties: 2 }),
+    ...teams.filter(({ inActiveSeason }) => inActiveSeason)
+      .map((entryTeam, index) => standingRow(user, entryTeam, index + 2, entryTeam === team ? { points: 3, games: 2, touchdowns: 2, casualties: 1 } : {})),
+  ],
   rounds: [],
   myEntry: null,
   currentFixture: null,
@@ -296,25 +440,65 @@ async function answerAuth(request, pathname) {
   return null;
 }
 
-/** The coach's teams and the one the roster editor saves. */
+/** `POST /api/teams` (server/routes/teams.mjs, `readTeamBody`): the team made, in no season, first on the list. */
+function makeTeam(body) {
+  const name = String(body.name ?? "").trim();
+  const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
+  if (!name) return refuse(400, "TEAM_NAME_REQUIRED");
+  if (!baseTeamSlug) return refuse(400, "BASE_TEAM_REQUIRED");
+  lastTeamNumber += 1;
+  const stamp = new Date().toISOString();
+  const made = teamOf(`t${lastTeamNumber}`, name, baseTeamSlug, [], {
+    logoData: body.logoData ? String(body.logoData) : null,
+    roster: body.roster ?? {},
+    inActiveSeason: false,
+    createdAt: stamp,
+    updatedAt: stamp,
+  });
+  teams.unshift(made);
+  return reply({ team: made }, 201);
+}
+
+/** `DELETE /api/teams/:id`: a team that has played a season stays, any other goes; an id nobody has is no error, as on the server. */
+function deleteTeam(id) {
+  const index = teams.findIndex((item) => item.id === id);
+  if (index === -1) return reply({ ok: true });
+  if (teams[index].inActiveSeason || pastSeasonTeamIds.has(id)) return refuse(409, "TEAM_IN_SEASON_CANNOT_BE_DELETED");
+  teams.splice(index, 1);
+  return reply({ ok: true });
+}
+
+/** The coach's teams: the list, one of them, making and deleting one, and the first, which the roster editor saves. */
 async function answerTeams(request, pathname) {
-  if (pathname === "/api/teams" && request.method === "GET") return reply({ teams });
-  if (pathname === "/api/teams/t1" && request.method === "PATCH" && teams.includes(team)) {
+  const { method } = request;
+  if (pathname === "/api/teams" && method === "GET") return reply({ teams });
+  if (pathname === "/api/teams" && method === "POST") return makeTeam(await readBody(request));
+  const id = pathname.match(/^\/api\/teams\/([^/]+)$/)?.[1];
+  if (!id) return null;
+  if (method === "GET") {
+    const found = teams.find((item) => item.id === id);
+    return found ? reply({ team: found }) : refuse(404, "TEAM_NOT_FOUND");
+  }
+  if (method === "DELETE") return deleteTeam(id);
+  if (id === "t1" && method === "PATCH" && teams.includes(team)) {
     const body = await readBody(request);
     saves.push(body);
     await fs.mkdir(path.dirname(savesPath), { recursive: true });
     await fs.writeFile(savesPath, JSON.stringify(saves, null, 1));
-    Object.assign(team, { name: body.name, roster: body.roster, updatedAt: new Date().toISOString() });
+    Object.assign(team, { name: body.name, roster: body.roster, revision: team.revision + 1, updatedAt: new Date().toISOString() });
     return reply({ team });
   }
   return null;
 }
 
+/** Whether a match is one the administrator's list of current matches holds: started and not confirmed (server/season/store.mjs). */
+const isCurrent = (game) => game.roundStatus === "started" && game.resultStatus !== "confirmed";
+
 /** Challenges, matches and the season. */
 function answerLeague(request, pathname) {
   if (pathname === "/api/challenges" && request.method === "GET") return reply(challenges);
   if (pathname === "/api/season" && request.method === "GET") return reply(seasonBundle);
-  if (pathname === "/api/games") return reply({ games, currentGames: user.isAdmin ? games : [] });
+  if (pathname === "/api/games") return reply({ games, currentGames: user.isAdmin ? games.filter(isCurrent) : [] });
   if (pathname.startsWith("/api/games/")) {
     const game = games.find((item) => item.id === pathname.split("/")[3]);
     if (!game) return refuse(404, "GAME_NOT_FOUND");

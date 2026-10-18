@@ -55,7 +55,7 @@ await check("saved roster editor renders", async () => {
   await page.waitForSelector("[data-roster-player]", { timeout: 10000 });
   const players = await page.evaluate(() =>
     new Set([...document.querySelectorAll("[data-roster-player]")].map((n) => n.dataset.rosterPlayer)).size);
-  if (players !== 2) throw new Error(`expected 2 players, found ${players}`);
+  if (players !== 7) throw new Error(`expected the 7 players of Mock Team, found ${players}`);
   return `${players} players`;
 });
 
