@@ -303,3 +303,17 @@ test("a password change while another tab holds another token is not sent: the c
   assert.equal(api.calls.length, 0);
   rememberSessionToken("");
 });
+
+// Final-wave item 4: a password manager saves the new password against a login; a form with no login field
+// leaves it to guess (or to save it against nothing). The field is hidden: the login is not changed here.
+test("the password form names the account for a password manager, in a field no one sees or types in", () => {
+  const fragment = mount(passwordSheetMarkup(blank, { login: HOSTILE }));
+  const username = fragment.querySelectorAll('#password-form input[autocomplete="username"]');
+  assert.equal(username.length, 1);
+  assert.equal(username[0].getAttribute("value"), HOSTILE, "escaped, and the login as it is");
+  assert.equal(username[0].getAttribute("type"), "text");
+  assert.ok(username[0].hasAttribute("hidden"));
+  assert.ok(username[0].hasAttribute("readonly"));
+  assert.equal(fragment.querySelector("img"), null);
+  assertCspSafe(fragment);
+});

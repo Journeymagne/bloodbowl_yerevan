@@ -405,3 +405,29 @@ test("another login typed after that is another account to register", async () =
   assert.equal(submitButton().textContent, "Create account");
   leaveTo("#/legal");
 });
+
+// Final-wave item 4: a password shown as text is a text field, which a browser spell-checks (and may send to a
+// spell service) and a phone capitalises and corrects, unless told not to: as the password sheet does (`verbatim`).
+test("a password shown as text is taken as it is typed: no spell check, no capital, no correction", () => {
+  const fields = (form) => {
+    const fragment = mount(loginMarkup(form));
+    return ["#auth-password", "#auth-repeat"].map((id) => fragment.querySelector(id)).filter(Boolean)
+      .map((input) => ["spellcheck", "autocapitalize", "autocorrect"].map((name) => input.getAttribute(name)));
+  };
+  assert.deepEqual(fields({ ...empty, show: true }), [["false", "none", "off"]]);
+  assert.deepEqual(fields({ ...empty, mode: "register", show: true }), [["false", "none", "off"], ["false", "none", "off"]]);
+  assert.deepEqual(fields({ ...empty, mode: "register" }), [[null, null, null], [null, null, null]], "a password field hidden as dots is the browser's to leave alone");
+});
+
+// Final-wave item 5: the league's name is the dictionary's, like the frame's.
+test("the league's name on the sign-in screen is the one the dictionary gives", async () => {
+  const { setDictionaries } = await import("../src/core/i18n.mjs");
+  const en = JSON.parse(read("src/i18n/en.json"));
+  const ru = JSON.parse(read("src/i18n/ru.json"));
+  setDictionaries({ en: { ...en, "shell.league": "Test League" }, ru });
+  try {
+    assert.equal(mount(loginMarkup(empty)).querySelector(".g-auth__name").textContent, "Test League");
+  } finally {
+    setDictionaries({ en, ru });
+  }
+});

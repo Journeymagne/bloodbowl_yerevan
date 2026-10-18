@@ -237,7 +237,7 @@ function draw() {
     telegram: screen.telegram,
     telegramError: screen.telegramError,
     appearanceHtml: themePickerMarkup(themeChoice()),
-  }) + (sheet ? passwordSheetMarkup(sheet) : ""), sheet ? "#password-sheet" : "");
+  }) + (sheet ? passwordSheetMarkup(sheet, { login: user.login }) : ""), sheet ? "#password-sheet" : "");
   const offSettings = wireSettings(view, {
     saved: user?.telegram ?? "",
     onSaveTelegram: submitTelegram,

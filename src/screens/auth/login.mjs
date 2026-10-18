@@ -56,7 +56,7 @@ function brandHtml() {
     + `<span class="g-auth__point-desc">${escapeHtml(text)}</span></span></li>`;
   return `<div class="g-auth__brand">
     <div class="g-auth__mark">${renderCrest({ size: "lg" })}<span class="g-auth__names">`
-    + `<span class="g-auth__name">Gata League</span><span class="g-auth__tagline">${escapeHtml(t("auth.tagline"))}</span></span></div>
+    + `<span class="g-auth__name">${escapeHtml(t("shell.league"))}</span><span class="g-auth__tagline">${escapeHtml(t("auth.tagline"))}</span></span></div>
     <p class="g-auth__pitch">${escapeHtml(t("auth.pitch"))}</p>
     <ol class="g-auth__points">${point(1, t("auth.point.roster"), t("auth.point.rosterText"))}`
     + `${point(2, t("auth.point.season"), t("auth.point.seasonText"))}${point(3, t("auth.point.ref"), t("auth.point.refText"))}</ol>
@@ -74,6 +74,8 @@ function fieldsHtml(form) {
   const problems = registering && form.touched ? registrationProblems(form) : {};
   const refused = new Set(form.error?.fields ?? []);
   const type = form.show ? "text" : "password";
+  // A password drawn as text is not sent to a spell checker nor capitalised by a keyboard: `verbatim`, as in the password sheet.
+  const shown = form.show;
   // A field the server refused is marked, and points at the alert that says why.
   const field = (key, props) => renderTextField({ ...props, name: key, error: problemText(problems[key]), invalid: refused.has(key),
     describedBy: refused.has(key) ? "auth-alert" : "" });
@@ -81,15 +83,15 @@ function fieldsHtml(form) {
     help: registering && !problems.login ? t("auth.loginHint") : "" });
   if (!registering) {
     return login + field("password", { id: "auth-password", label: t("auth.passwordField"), type, value: form.password,
-      autocomplete: "current-password", asideHtml: renderShowToggle(form.show) });
+      autocomplete: "current-password", verbatim: shown, asideHtml: renderShowToggle(form.show) });
   }
   return login
     + field("telegram", { id: "auth-telegram", label: t("auth.telegramField"), value: form.telegram, autocomplete: "off", verbatim: true,
       placeholder: t("auth.telegramPlaceholder"), help: problems.telegram ? "" : t("auth.telegramHint") })
     + field("password", { id: "auth-password", label: t("auth.passwordField"), type, value: form.password,
-      autocomplete: "new-password", asideHtml: renderShowToggle(form.show) })
+      autocomplete: "new-password", verbatim: shown, asideHtml: renderShowToggle(form.show) })
     + renderPasswordMeter(form.password)
-    + field("repeat", { id: "auth-repeat", label: t("auth.repeatPassword"), type, value: form.repeat, autocomplete: "new-password" });
+    + field("repeat", { id: "auth-repeat", label: t("auth.repeatPassword"), type, value: form.repeat, autocomplete: "new-password", verbatim: shown });
 }
 
 /** Always on the page, so a screen reader hears what is put in it; empty until a try is refused. */

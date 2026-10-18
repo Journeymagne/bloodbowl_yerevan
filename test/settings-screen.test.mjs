@@ -716,6 +716,12 @@ test("typing is kept through every redraw: the sheet stays modal, the field keep
   assert.equal(view.querySelector(".g-meter__label").textContent, "Fair", "the meter reads the new password");
 });
 
+test("the sheet's form carries the coach's login for a password manager", () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  assert.equal(view.querySelector('#password-form input[autocomplete="username"]').getAttribute("value"), "felstell");
+});
+
 test("Show passwords draws the three fields as text, and pressing it again hides them", () => {
   drawSignedIn();
   fireEvent(openPassword(), "click");

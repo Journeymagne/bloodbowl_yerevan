@@ -78,9 +78,17 @@ function alertHtml(error) {
   return `<div class="g-password__alert" id="password-alert" role="alert">${callout}</div>`;
 }
 
-function formHtml(sheet) {
+/**
+ * The account the password is for, for a password manager: it saves a new password against the login in
+ * the same form, and a form with none leaves it to guess. Hidden and read-only: the login is not changed here.
+ */
+function usernameHtml(login) {
+  return `<input type="text" name="username" autocomplete="username" value="${escapeHtml(login)}" hidden readonly>`;
+}
+
+function formHtml(sheet, login) {
   return `<form class="g-password__form" id="${FORM_ID}" novalidate${sheet.pending ? ' aria-busy="true"' : ""}>`
-    + `${fieldsHtml(sheet)}${renderPasswordMeter(sheet.next)}`
+    + `${usernameHtml(login)}${fieldsHtml(sheet)}${renderPasswordMeter(sheet.next)}`
     // Live, and as a whole: a check that turns done is said with the two that did not, not alone.
     + `<ul class="g-checks" id="${CHECKS_ID}" aria-live="polite" aria-atomic="true">${passwordChangeChecks(sheet).map(checkHtml).join("")}</ul>`
     + `${showToggleHtml(sheet.show)}${alertHtml(sheet.error)}</form>`;
@@ -101,16 +109,17 @@ function doneHtml() {
  * @param {boolean} sheet.pending a try is on its way
  * @param {boolean} sheet.done the password was changed: the form gives way to the news
  * @param {null|{text: string, sub?: string, field: "current"|null}} sheet.error what was said about the last try
+ * @param {{login?: string}} [account] the coach whose password it is
  * @returns {string} a closed dialog; `patchWithModal(view, markup, "#password-sheet")` opens it
  */
-export function passwordSheetMarkup(sheet) {
+export function passwordSheetMarkup(sheet, { login = "" } = {}) {
   // Not disabled while it waits: a focused button that is disabled drops the focus in Chrome. The screen takes no second press.
   const submit = renderButton({ label: sheet.pending ? t("password.pending") : t("password.submit"), kind: "primary", type: "submit", form: FORM_ID,
     disabled: !passwordReady(sheet) });
   return renderSheet({
     id: SHEET_ID,
     title: t("password.title"),
-    bodyHtml: sheet.done ? doneHtml() : formHtml(sheet),
+    bodyHtml: sheet.done ? doneHtml() : formHtml(sheet, login),
     footHtml: sheet.done ? "" : submit,
   });
 }
