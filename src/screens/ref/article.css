@@ -1,12 +1,15 @@
 /*
  * The reference's articles (screens/ref/article.mjs): the kicker, the title, the vault's own text in
- * the prose frame (prose.css) and the way on to the article before and after. Font, border,
+ * the prose frame (prose.css) and the way on to the article before and after; and the two bodies that
+ * are not the vault's text (screens/ref/bodies.mjs), Leagues and the Skill Table. Font, border,
  * background, text-transform and letter-spacing are set here on purpose: the 2.x globals (h1 to h6, p,
  * a) outlive this sheet until stage 13.
  *
  * Up to 900px an article is the page itself, with no frame; the way up is the link at its top. From
  * 901px it is a card beside the table of contents, in columns that shrink with the window and never
  * wrap (the contents as wide as a list's, the card the rest), its text no wider than a line can be read.
+ * The Skill Table draws its columns twice, as a list for each category and as the vault's table, and the
+ * width shows one: the lists up to 900px, the table from 901px.
  */
 .g-article {
   box-sizing: border-box;
@@ -100,6 +103,200 @@
   content: "→" / "";
 }
 
+/* A link the bodies draw: a skill, a team, a star player. Its ring is src/ui/base.css's, for it has a g- class. */
+.g-ref-link {
+  color: var(--accent-text);
+  font: inherit;
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-transform: none;
+}
+
+/* Leagues: a section for each league, set off by a line, with how many teams and stars it has under its name. */
+.g-ref-leagues {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.g-ref-league {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--space-20) 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+}
+.g-ref-league:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.g-ref-league h2 {
+  margin: 0;
+  color: var(--ink);
+  font: 600 24px/1.25 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-league__sum {
+  margin: var(--space-4) 0 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-league h3 {
+  margin: var(--space-16) 0 var(--space-4);
+  color: var(--muted);
+  font: 700 12px/1.3 var(--font-body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* The names run together, a comma after each; they are links in a line of text, so the line is tall enough to touch one. */
+.g-ref-links {
+  margin: 0;
+  color: var(--ink-2);
+  font: 400 15px/1.9 var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: break-word;
+  text-transform: none;
+}
+.g-ref-links--none {
+  color: var(--muted);
+}
+
+/*
+ * The Skill Table's die: the categories, the die and what it showed, the button. It is a box with a
+ * padding of its own because its chip row scrolls, and a scrolling row clips the keyboard ring of the
+ * chips at its edge (ui/filter-chips.css makes room for it inside the row; the box keeps that room
+ * inside the page, whose column clips what sticks out).
+ */
+.g-ref-roller {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  padding: var(--space-16);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-roller__throw {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  min-width: 0;
+}
+.g-ref-roller .g-die {
+  flex: none;
+}
+
+.g-ref-roller__result {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-10);
+  min-width: 0;
+}
+
+/* The same height for the hint and for a skill, so that a throw does not move the button. */
+.g-ref-roller__skill {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 0;
+  color: var(--ink);
+  font: 700 22px/1.2 var(--font-display);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+.g-ref-roller__skill .g-ref-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font: 700 22px/1.2 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-roller__hint {
+  color: var(--ink-2);
+  font: 400 15px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The table by category: a list for each, a skill to a line, each line numbered by its face on the die. */
+.g-ref-skilltable {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-skilltable__group {
+  min-width: 0;
+}
+
+.g-ref-skilltable h2 {
+  margin: 0 0 var(--space-4);
+  color: var(--ink);
+  font: 600 22px/1.25 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-ref-skilltable ol {
+  margin: 0;
+  padding: 0 0 0 28px;
+  list-style: decimal outside;
+}
+
+.g-ref-skilltable li {
+  margin: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-ref-skilltable li::marker {
+  color: var(--muted);
+  font: 700 13px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+
+.g-ref-skilltable li .g-ref-link {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  font: 500 16px/1.3 var(--font-body);
+  text-decoration: none;
+}
+
+/* A phone has the lists; the vault's table is for the desktop. */
+@media (max-width: 900px) {
+  .g-ref-skilltable__desk {
+    display: none;
+  }
+}
+
 @media (min-width: 901px) {
   .g-ref--article .g-ref__body {
     display: grid;
@@ -124,5 +321,9 @@
     font: 700 44px/1 var(--font-display);
     letter-spacing: 0;
     text-transform: none;
+  }
+
+  .g-ref-skilltable {
+    display: none;
   }
 }

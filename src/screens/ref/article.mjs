@@ -6,7 +6,8 @@
  * An article says where it lives (its kicker: the group and the section), what it is, and, when the
  * reference's groups name it, which article comes before it and after it. A page that is a member of
  * a list (a team, a skill, an inducement) goes back to that list. An address with no page is an
- * article too, and says so, rather than leaving the coach on a bare screen.
+ * article too, and says so, rather than leaving the coach on a bare screen. Two pages are drawn by
+ * bodies.mjs instead of from the vault's text: Leagues and the Skill Table.
  */
 import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -16,9 +17,14 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
+import { leaguesBody, skillTableBody, wireSkillTableRoller } from "./bodies.mjs";
 import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectionTitle } from "./catalog.mjs";
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
-import { refQuery } from "./memory.mjs";
+import { refQuery, rollerState } from "./memory.mjs";
+
+/** The two pages whose body is drawn by bodies.mjs, not taken from the vault. */
+const LEAGUES_ID = "general-information-leagues";
+const SKILL_TABLE_ID = "skills-and-traits-skill-table";
 
 /**
  * The page an address names: the slug as it is, or the one slug that ends with it (2.x let `#/block`
@@ -59,10 +65,13 @@ export function kickerOf(page) {
 }
 
 /**
- * What an article says under its title. The page's own text unless the page is drawn some other way;
- * `context` is what such a body needs besides the page.
+ * What an article says under its title. The page's own text unless the page is drawn some other way
+ * (Leagues, the Skill Table: bodies.mjs); `context` is what such a body needs besides the page, the
+ * content vault (`data`) for these two.
  */
 export function articleBody(page, context = {}) {
+  if (page.id === LEAGUES_ID) return leaguesBody(context.data);
+  if (page.id === SKILL_TABLE_ID) return skillTableBody(context.data, page, context.roller ?? rollerState());
   return `<div class="g-prose">${page.html || `<p>${escapeHtml(page.text)}</p>`}</div>`;
 }
 
@@ -101,7 +110,7 @@ function articleFrame({ groups, currentKey = null, back, kicker = "", title, sub
  * @param {object} props.data the content vault of the language
  * @param {object} props.page the page to draw
  * @param {object[]} props.groups the table of contents, as catalog.mjs `refGroups` gives it
- * @param {object} [props.context] what the page's body needs besides the page (see `articleBody`)
+ * @param {object} [props.context] what the page's body needs besides the page and the vault (see `articleBody`)
  */
 export function articleMarkup({ data, page, groups, context = {} }) {
   return articleFrame({
@@ -110,7 +119,7 @@ export function articleMarkup({ data, page, groups, context = {} }) {
     back: parentOf(page),
     kicker: kickerOf(page),
     title: page.title,
-    bodyHtml: articleBody(page, context),
+    bodyHtml: articleBody(page, { data, ...context }),
     pagerHtml: pagerMarkup(articleNeighbours(data, page.id)),
   });
 }
@@ -133,22 +142,31 @@ const isPlainClick = (event) => event.button === 0 && !(event.ctrlKey || event.m
 /**
  * The reference draws the screen and hears two things: its band's search, and the pager, whose next
  * article should be read from its top, not from the foot where the link was. Drawing another article
- * in its place hooks them once.
+ * in its place hooks them once. `wireBody` is how a body that listens too (the Skill Table's die) joins
+ * them, so that it is let go with them.
  */
-function show(markup) {
+function show(markup, wireBody = null) {
   patch(view, markup);
   const listeners = listenerGroup(view);
   listeners.own(wireRefSearch(view, { onQuery: goSearch }));
   listeners.on("click", ".g-article__pager a", (event) => {
     if (isPlainClick(event)) globalThis.scrollTo?.(0, 0);
   });
+  if (wireBody) listeners.own(wireBody());
   onScreenLeave("ref:article", listeners.release);
 }
 
 /** Draw the page `slug` names (see `findPage`), or say there is none. */
 export function renderReferencePage(slug) {
   const page = findPage(state.data, slug);
-  show(page ? articleMarkup({ data: state.data, page, groups: currentGroups() }) : notFoundMarkup());
+  if (!page) {
+    show(notFoundMarkup());
+    return;
+  }
+  const groups = currentGroups();
+  const markup = () => articleMarkup({ data: state.data, page, groups });
+  // The die changes the article, not the screen around it: the page is drawn again in its place and nothing is wired twice.
+  show(markup(), page.id === SKILL_TABLE_ID ? () => wireSkillTableRoller(view, () => patch(view, markup())) : null);
 }
 
 /** An item written "Label: text" keeps its label in strong. */
