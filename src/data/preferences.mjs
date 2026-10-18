@@ -22,9 +22,14 @@ import { choiceFromPreferences, isThemeChosen, setThemeChoice, themeChoice, them
 
 /**
  * Change the keys named in `patch` and keep the rest, for the coach who is signed in.
+ *
+ * The answer is every setting the server holds, and the session takes from it only the keys this
+ * request sent. Two writers share the settings (the theme, `saveTheme` below, and the active
+ * team, data/active-team.mjs), each with its own queue, so their answers can come back out of order:
+ * an older answer taken whole would put back the other writer's key as it was before that write.
  * @param {object} patch `{themeMode?, lightPalette?, darkPalette?, activeTeamId?, locale?}`
- * @returns {Promise<object|null>} the settings the server now holds, which are also
- *   `state.auth.currentUser.preferences`; null for a guest, a refusal (400, a team that
+ * @returns {Promise<object|null>} the settings the server now holds, whose sent keys are now
+ *   `state.auth.currentUser.preferences`'s; null for a guest, a refusal (400, a team that
  *   is not theirs: 404), a lost connection, a coach who left while it was on its way, or a
  *   token another tab changed (nothing is sent: it is that tab's account, and the session follows it)
  */
@@ -36,7 +41,12 @@ export async function savePreferences(patch) {
     const saved = answer?.preferences;
     // Whoever is signed in now, if anyone, is not the coach this was for.
     if (!saved || typeof saved !== "object" || state.auth.currentUser?.id !== user.id) return null;
-    state.auth.currentUser.preferences = saved;
+    const preferences = { ...state.auth.currentUser.preferences };
+    for (const key of Object.keys(patch)) {
+      if (Object.hasOwn(saved, key)) preferences[key] = saved[key];
+      else delete preferences[key];
+    }
+    state.auth.currentUser.preferences = preferences;
     return saved;
   } catch {
     return null;

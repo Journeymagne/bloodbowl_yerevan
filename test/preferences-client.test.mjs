@@ -199,14 +199,43 @@ test("a team that is not the coach's is refused the same way", async () => {
   api.assertAnswered();
 });
 
-test("a saved answer replaces the coach's settings in the session and comes back", async () => {
+// R13-M2: two writers share the account's settings (the theme queue and the active team), and their answers
+// can come back out of order; each one's answer is taken for the keys it sent, never for the other's.
+test("a saved answer is taken for the keys that were sent, and comes back whole", async () => {
   browser(null);
-  coach({ locale: "en", themeMode: "dark" });
-  const saved = { locale: "ru", themeMode: "dark", lightPalette: "ice" };
+  coach({ locale: "en", themeMode: "dark", activeTeamId: "t1" });
+  const saved = { locale: "ru", themeMode: "light", lightPalette: "ice", activeTeamId: "t9" };
   api.reply(PATCH, 200, { preferences: saved });
   assert.deepEqual(await savePreferences({ locale: "ru", lightPalette: "ice" }), saved);
   assert.deepEqual(api.calls[0].body, { locale: "ru", lightPalette: "ice" });
-  assert.deepEqual(state.auth.currentUser.preferences, saved);
+  assert.deepEqual(state.auth.currentUser.preferences, { locale: "ru", themeMode: "dark", lightPalette: "ice", activeTeamId: "t1" },
+    "what was not sent is not this answer's to change");
+  api.assertAnswered();
+});
+
+test("an older answer that lands last does not take back the key a newer write set", async () => {
+  browser(null);
+  coach({ themeMode: "dark", activeTeamId: "t1" });
+  const theme = api.hold(PATCH);
+  const themeWrite = savePreferences({ themeMode: "light" });
+  await settle();
+  const team = api.hold(PATCH);
+  const teamWrite = savePreferences({ activeTeamId: "t2" });
+  await settle();
+  team.release({ status: 200, body: { preferences: { themeMode: "light", activeTeamId: "t2" } } });
+  await teamWrite;
+  theme.release({ status: 200, body: { preferences: { themeMode: "light", activeTeamId: "t1" } } });
+  await themeWrite;
+  assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "light", activeTeamId: "t2" });
+  api.assertAnswered();
+});
+
+test("a key that was sent and that the answer no longer holds is gone from the session too", async () => {
+  browser(null);
+  coach({ themeMode: "dark", activeTeamId: "t1" });
+  api.reply(PATCH, 200, { preferences: { themeMode: "dark" } });
+  await savePreferences({ activeTeamId: null });
+  assert.deepEqual(state.auth.currentUser.preferences, { themeMode: "dark" });
   api.assertAnswered();
 });
 
@@ -358,7 +387,7 @@ test("a different coach who signs in while the write is on its way gets none of 
   assert.deepEqual(state.auth.currentUser.preferences, { locale: "en" }, "the answer is not put on the coach who is here now");
   assert.equal(await saveTheme(PARCHMENT_CHOICE), "saved");
   assert.deepEqual(patches().map((call) => call.body).at(-1), PARCHMENT);
-  assert.deepEqual(state.auth.currentUser.preferences, { ...PARCHMENT, locale: "ru" }, "now the second coach's own pick is theirs");
+  assert.deepEqual(state.auth.currentUser.preferences, { ...PARCHMENT, locale: "en" }, "now the second coach's own pick is theirs, and only the pick");
   api.assertAnswered();
 });
 
