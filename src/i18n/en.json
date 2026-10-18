@@ -1088,5 +1088,7 @@
   "teamOverview.resultLine": "Round {round} · CAS {cas}",
   "teamOverview.friendlyLine": "Friendly · CAS {cas}",
   "teamOverview.wholeSeason": "Whole season →",
-  "teamRoster.readMismatch": "The roster kept changing while it was read. Try again."
+  "teamRoster.readMismatch": "The roster kept changing while it was read. Try again.",
+  "teamRoster.tapLost": "The answer to the record did not arrive: the records are read again to see whether it was written.",
+  "teamRoster.tapDropped": "Not sent: the record before it did not go through. The records are read again."
 }

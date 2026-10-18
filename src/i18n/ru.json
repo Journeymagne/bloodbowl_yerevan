@@ -1088,5 +1088,7 @@
   "teamOverview.resultLine": "Тур {round} · CAS {cas}",
   "teamOverview.friendlyLine": "Товарищеский · CAS {cas}",
   "teamOverview.wholeSeason": "Весь сезон →",
-  "teamRoster.readMismatch": "Состав менялся, пока читался. Повторите."
+  "teamRoster.readMismatch": "Состав менялся, пока читался. Повторите.",
+  "teamRoster.tapLost": "Ответ на запись не пришёл: записи перечитываются, чтобы узнать, сохранилась ли она.",
+  "teamRoster.tapDropped": "Не отправлено: предыдущая запись не прошла. Записи перечитываются."
 }

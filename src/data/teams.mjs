@@ -125,7 +125,7 @@ export function addMyTeam(team) {
  * the server's words in it, or the server failed (a 5xx: its INSERT may have committed before `readPublicTeam` did).
  * The team may exist all the same.
  */
-function unanswered(error) {
+export function unanswered(error) {
   return error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT || error?.status >= 500
     || (error?.kind === API_ERROR.HTTP && !error.code);
 }
