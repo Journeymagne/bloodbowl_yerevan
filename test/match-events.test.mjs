@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
-import { EVENT_COUNTERS, applyOutsideEdits, careerCounters, eventTotal, eventsDiff, isValidEventInjury, sppEdits, statisticsFromEvents } from "../src/domain/post-match/events.mjs";
+import { EVENT_COUNTERS, MATCH_COUNTERS, SPP_EVENT_COUNTERS, applyOutsideEdits, careerCounters, eventTotal, eventsDiff, isValidEventInjury, sppEdits, statisticsFromEvents } from "../src/domain/post-match/events.mjs";
 import { INJURIES, POST_STATS } from "../src/domain/post-match/rules.mjs";
 import { normalizeMatchStats } from "../src/domain/post-match/statistics.mjs";
 import { normalizeSppCounters } from "../src/domain/roster/players.mjs";
@@ -15,13 +15,13 @@ const hurt = (playerId, code, delta = 1, stat) => ({ ...tap(playerId, "injury", 
 const stats = (values = {}) => ({ ...normalizeMatchStats(), ...values });
 const injuriesOf = (...events) => statisticsFromEvents(snapshot, events).injuries;
 
-test("the counters are the ones 014 allows: the SPP counters without the MVP, plus injury", () => {
-  const sql = readFileSync(new URL("../server/db/migrations/014_match_events.sql", import.meta.url), "utf8");
+test("the counters are the ones 016 allows: the roster's SPP counters, MVP included, plus injury; a match taps all of them but the MVP", () => {
+  const sql = readFileSync(new URL("../server/db/migrations/016_match_event_mvps.sql", import.meta.url), "utf8");
   const allowed = sql.match(/CHECK \(counter IN \(([^)]*)\)\)/)[1].split(",").map((value) => value.trim().replace(/'/g, ""));
   assert.deepEqual(allowed, [...EVENT_COUNTERS]);
-  const counted = EVENT_COUNTERS.filter((counter) => counter !== "injury");
-  assert.deepEqual(counted, sppCounterDefinitions.map(([key]) => key).filter((key) => key !== "mvps"));
-  assert.ok(counted.every((counter) => POST_STATS.includes(counter)));
+  assert.deepEqual([...SPP_EVENT_COUNTERS], sppCounterDefinitions.map(([key]) => key));
+  assert.deepEqual([...MATCH_COUNTERS], SPP_EVENT_COUNTERS.filter((counter) => counter !== "mvps"));
+  assert.ok(MATCH_COUNTERS.every((counter) => POST_STATS.includes(counter)));
 });
 
 test("every snapshot player starts at zero, taps add up, and a tap taken back cancels", () => {
@@ -187,7 +187,7 @@ test("for any events and any saved numbers: the difference makes them agree, and
       const code = codes[next(codes.length)];
       return hurt(playerId, code, delta, code === "lasting" ? PLAYER_STATS[next(PLAYER_STATS.length)] : undefined);
     });
-    const savedStats = Object.fromEntries(snapshot.players.map(({ id }) => [id, stats(Object.fromEntries(EVENT_COUNTERS.slice(0, 9).map((counter) => [counter, next(4)])))]));
+    const savedStats = Object.fromEntries(snapshot.players.map(({ id }) => [id, stats(Object.fromEntries(MATCH_COUNTERS.map((counter) => [counter, next(4)])))]));
     const savedInjuries = {};
     for (const { id } of snapshot.players) {
       const pick = next(codes.length + 2);
@@ -203,13 +203,27 @@ test("for any events and any saved numbers: the difference makes them agree, and
   }
 });
 
-test("an edit to the roster's SPP is the steps between the two counters, without the MVP and without players who came or went", () => {
+test("an edit to the roster's SPP is the steps between the two counters, the MVP among them, without players who came or went", () => {
   const before = { players: [{ id: "a", spp: { touchdowns: 1, mvps: 0 } }, { id: "gone", spp: { touchdowns: 5 } }, { rowIndex: 0, spp: {} }] };
   const after = { players: [{ id: "new", spp: { touchdowns: 3 } }, { id: "a", spp: { touchdowns: 3, casualties: 0, completions: 0, mvps: 2 } }] };
-  const step = (delta) => ({ playerId: "a", counter: "touchdowns", delta, injury: null });
-  assert.deepEqual(sppEdits(before, after), [step(1), step(1)]);
-  assert.deepEqual(sppEdits(after, before), [step(-1), step(-1)]);
+  const step = (counter, delta) => ({ playerId: "a", counter, delta, injury: null });
+  assert.deepEqual(sppEdits(before, after), [step("touchdowns", 1), step("touchdowns", 1), step("mvps", 1), step("mvps", 1)]);
+  assert.deepEqual(sppEdits(after, before), [step("touchdowns", -1), step("touchdowns", -1), step("mvps", -1), step("mvps", -1)]);
   assert.deepEqual(sppEdits(after, after), []);
+});
+
+test("an MVP row is no match statistic: the post-match reads none and writes none back", () => {
+  const events = [tap("p1", "mvps"), tap("p1", "mvps"), tap("p1", "touchdowns")];
+  assert.deepEqual(statisticsFromEvents(snapshot, events).statistics.p1, stats({ touchdowns: 1 }));
+  assert.deepEqual(eventsDiff({ statistics: { p1: stats({ touchdowns: 1 }) }, injuries: {} }, events), []);
+});
+
+test("an MVP edited outside a match is in the career at once and in the blob at the finish", () => {
+  const player = { id: "a", spp: { mvps: 1 } };
+  assert.equal(careerCounters(player, [tap("a", "mvps")]).mvps, 2);
+  assert.equal(careerCounters(player, [{ ...tap("a", "mvps"), settledAt: "2026-10-19T10:00:00Z" }]).mvps, 1, "a settled row is in the blob already");
+  assert.equal(applyOutsideEdits({ players: [player] }, [tap("a", "mvps"), tap("a", "mvps")]).players[0].spp.mvps, 3);
+  assert.equal(eventTotal([tap("a", "mvps"), tap("a", "mvps", -1), tap("a", "mvps")], "a", "mvps"), 1);
 });
 
 test("an edit's steps come player by player in the new roster's order, each in the table's order of counters, from the counters as the roster reads them", () => {

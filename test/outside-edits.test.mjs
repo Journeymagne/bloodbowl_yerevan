@@ -13,7 +13,7 @@ const outside = async (client, team) => (await client.query(
 const edit = (token, playerId, counter = "completions", delta = 1) => callApi("POST", `/api/teams/${teams.home}/events`, { token, body: { playerId, counter, delta } });
 const keys = (team) => Object.keys(team).sort();
 
-test("a roster save that changes SPP writes the change as settled edits outside a match; MVP, a refused save and no change write none", db, () => withApiDatabase(async ({ client }) => {
+test("a roster save that changes SPP writes the change as settled edits outside a match, the MVP among them; a refused save and no change write none", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1 } }] } });
   const save = (revision, spp) => callApi("PATCH", `/api/teams/${id}`, { token: coach.token,
     body: { name: "Lions", baseTeamSlug: "teams/human", revision, roster: { teamSlug: "teams/human", treasury: 100, players: [{ id: "a", rowIndex: 0, spp }] } } });
@@ -22,7 +22,7 @@ test("a roster save that changes SPP writes the change as settled edits outside 
   assert.equal((await save(2, { touchdowns: 3, casualties: 1, mvps: 1 })).status, 200);
   assert.deepEqual(await outside(client, id), [
     { player_id: "a", counter: "touchdowns", delta: 1, settled: true }, { player_id: "a", counter: "touchdowns", delta: 1, settled: true },
-    { player_id: "a", counter: "casualties", delta: 1, settled: true }]);
+    { player_id: "a", counter: "casualties", delta: 1, settled: true }, { player_id: "a", counter: "mvps", delta: 1, settled: true }]);
   const { rows: [stamp] } = await client.query("SELECT bool_and(settled_at = created_at) AS same FROM match_events WHERE saved_team_id = $1", [id]);
   assert.equal(stamp.same, true, "a row written settled is settled the moment it is written");
 }));
@@ -157,6 +157,20 @@ test("the finish carries an edit made outside the match into the blob and settle
   assert.deepEqual(await outside(client, teams.home), [{ player_id: "home-2", counter: "completions", delta: 1, settled: true }]);
   const { rows: [applied] } = await client.query("SELECT after_roster FROM match_post_applications WHERE pairing_id = $1 AND side = 'home'", [G]);
   assert.equal(applied.after_roster.players.find((item) => item.id === "home-2").spp.completions ?? 0, 0);
+}));
+
+test("during a live match an MVP edited outside it waits and the finish carries it in; a tap of the match on the MVP is refused", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  assert.equal((await edit(token, "home-2", "mvps")).status, 201);
+  const tapped = await callApi("POST", `/api/teams/${teams.home}/events`, { token, body: { pairingId: G, playerId: "home-2", counter: "mvps", delta: 1 } });
+  assert.deepEqual([tapped.status, tapped.body.error.params.field], [400, "counter"]);
+  const ready = await toReady(await toPlayersStep(), homeScores);
+  assert.equal((await act("home", ready, null, true)).status, "completed");
+  const { rows: [applied] } = await client.query("SELECT after_roster FROM match_post_applications WHERE pairing_id = $1 AND side = 'home'", [G]);
+  const picked = applied.after_roster.players.find((item) => item.id === "home-2").spp?.mvps ?? 0; // what the post-match itself gave him
+  assert.equal((await teamRow(client, teams.home)).roster.players.find((item) => item.id === "home-2").spp.mvps, picked + 1);
+  assert.deepEqual(await outside(client, teams.home), [{ player_id: "home-2", counter: "mvps", delta: 1, settled: true }]);
 }));
 
 test("the finish's carry skips a player who is no longer on the roster but settles his rows all the same, applies those of one who is, and leaves the match's own rows and the revision alone", db, () => withApiDatabase(async ({ client }) => {

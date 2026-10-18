@@ -97,14 +97,16 @@ async function tapAndEdit(f, homeSnapshot) {
   assert.equal(tap.status, 201, JSON.stringify(tap.data));
   const player = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster.players[2];
   assert.ok(player, 'the home blob has no third player');
-  f.outsidePlayer = player.id; f.outsideBefore = player.spp?.completions ?? 0;
+  f.outsidePlayer = player.id; f.outsideBefore = player.spp?.completions ?? 0; f.outsideMvpBefore = player.spp?.mvps ?? 0;
   const edit = await request('home', eventsPath(f), { playerId: f.outsidePlayer, counter: 'completions', delta: 1 }, 'POST');
   assert.equal(edit.status, 201, JSON.stringify(edit.data));
   assert.equal(edit.data.event.pairingId, null, 'an edit outside a match has no match');
+  const mvp = await request('home', eventsPath(f), { playerId: f.outsidePlayer, counter: 'mvps', delta: 1 }, 'POST');
+  assert.equal(mvp.status, 201, JSON.stringify(mvp.data));
   const ofMatch = await get('home', eventsPath(f, '?pairing=' + f.gameId));
   assert.equal(ofMatch.events.length, 1, 'one event in the match: ' + JSON.stringify(ofMatch));
   const waiting = await get('home', eventsPath(f));
-  assert.equal(waiting.events.length, 2, 'the tap and the edit wait to be settled: ' + JSON.stringify(waiting));
+  assert.equal(waiting.events.length, 3, 'the tap and the two edits wait to be settled: ' + JSON.stringify(waiting));
 }
 
 async function start(f) {
@@ -161,6 +163,7 @@ async function afterFinish(f) {
   const home = (await pool.query('SELECT roster FROM saved_teams WHERE id=$1', [f.teamIds[0]])).rows[0].roster;
   const edited = found(home.players, player => player.id === f.outsidePlayer, 'the player of the edit ' + f.outsidePlayer + ' in the home blob');
   assert.equal(edited.spp.completions, f.outsideBefore + 1, 'the finish carried the edit into the blob');
+  assert.equal(edited.spp.mvps, f.outsideMvpBefore + 1, 'the finish carried the MVP edit into the blob');
   const waiting = await get('home', eventsPath(f));
   assert.deepEqual(waiting.events, [], 'nothing is left waiting after the finish');
   await refusedTap(f, 'MATCH_NOT_LIVE');
@@ -168,6 +171,7 @@ async function afterFinish(f) {
   const row = found(scorer.matches, match => match.pairingId === f.gameId, 'the match ' + f.gameId + ' in the career');
   assert.equal(row.source, 'applied'); assert.equal(row.counters.touchdowns, 2);
   assert.equal((await historyOf(f, f.outsidePlayer)).outside.completions, 1);
+  assert.equal((await historyOf(f, f.outsidePlayer)).outside.mvps, 1);
 }
 
 async function verify(f) {
@@ -260,5 +264,5 @@ try {
     await writeFile('.codex_tmp/post-match-preview.json', JSON.stringify(candidate)); keep = candidate;
     console.log('Preview: ' + base + '/#/games/' + candidate.gameId + '/post-match/players');
   }
-  console.log('Post-match API smoke passed: rights, revisions, rollback, league/friendly LP, 15k painting bonus, optional advancement, manual MVP, recovery, idempotent completion, match events settled once, taps, edits outside a match and the player\'s career.');
+  console.log('Post-match API smoke passed: rights, revisions, rollback, league/friendly LP, 15k painting bonus, optional advancement, manual MVP, recovery, idempotent completion, match events settled once, taps, edits outside a match, an MVP edited outside a match and the player\'s career.');
 } finally { await cleanup(); }

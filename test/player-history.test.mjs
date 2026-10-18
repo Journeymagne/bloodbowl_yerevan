@@ -46,11 +46,20 @@ test("edits outside a match are their own sum, and every row together is the car
   assert.deepEqual([total("touchdowns"), total("mvps")], [career.touchdowns, career.mvps]);
 });
 
+test("an MVP edited by hand is a row outside the matches, so the rows add up to the career, MVP included", () => {
+  const blob = { id: "p", spp: { touchdowns: 2, mvps: 2 } }; // the match gave two TD and an MVP; the coach added an MVP by hand
+  const outside = [tap("p", "mvps", 1, "2026-10-19T10:00:00Z")];
+  const history = playerHistory("p", [match({ application: { before: { players: [{ id: "p", spp: {} }] }, after: { players: [{ id: "p", spp: { touchdowns: 2, mvps: 1 } }] } } })], outside);
+  assert.equal(history.outside.mvps, 1);
+  const total = (key) => history.matches.reduce((sum, row) => sum + (row.counters?.[key] ?? 0), history.outside[key]);
+  assert.deepEqual([total("touchdowns"), total("mvps")], [blob.spp.touchdowns, blob.spp.mvps]);
+});
+
 test("outside is the raw sum of the player's own edits outside a match on every counter of the rows — below zero too, settled or waiting — and a counter nobody edited is 0", () => {
   const { outside } = playerHistory("p", [], [tap("p", "touchdowns", -1), tap("p", "touchdowns", -1, "2026-10-16T18:00:00Z"), tap("p", "catches"), tap("q", "catches"),
     tap("p", "casualties", 1, "2026-10-16T18:00:00Z"), tap("p", "casualties", -1), tap("p", "casualties")]);
-  assert.deepEqual(outside, { touchdowns: -2, casualties: 1, knockouts: 0, completions: 0, catches: 1, interceptions: 0, throws: 0, landings: 0, bonus: 0 });
-  assert.deepEqual(playerHistory("p", [], []).outside, { touchdowns: 0, casualties: 0, knockouts: 0, completions: 0, catches: 0, interceptions: 0, throws: 0, landings: 0, bonus: 0 },
+  assert.deepEqual(outside, { touchdowns: -2, casualties: 1, knockouts: 0, completions: 0, catches: 1, interceptions: 0, throws: 0, landings: 0, bonus: 0, mvps: 0 });
+  assert.deepEqual(playerHistory("p", [], []).outside, { touchdowns: 0, casualties: 0, knockouts: 0, completions: 0, catches: 0, interceptions: 0, throws: 0, landings: 0, bonus: 0, mvps: 0 },
     "a player nobody edited has zeros, not a missing counter");
 });
 

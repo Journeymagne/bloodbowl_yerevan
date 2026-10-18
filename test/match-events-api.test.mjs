@@ -41,6 +41,7 @@ test("a tap is refused outside the live match, for a team or a player not in it,
   const stranger = await tap(home, "away-0");
   assert.deepEqual([stranger.status, stranger.body.error.code], [422, "POST_PLAYER"]);
   assert.equal((await tap(away, "home-0")).body.error.code, "TEAM_NOT_FOUND", "the team is not his: as if it were not there");
+  // the MVP is picked in the post-match: no tap of a match carries it (016 lets an edit outside a match carry it)
   for (const [body, field] of [[{ counter: "mvps" }, "counter"], [{ delta: 2 }, "delta"], [{ counter: "injury" }, "injury"],
     [{ counter: "injury", injury: { code: "none" } }, "injury"], [{ injury: { code: "dead" } }, "injury"], [{ pairingId: "x" }, "pairingId"],
     [{ delta: "1" }, "delta"], [{ playerId: "" }, "playerId"], [{ playerId: "p".repeat(201) }, "playerId"], [{ playerId: 7 }, "playerId"]]) {

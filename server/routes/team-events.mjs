@@ -15,6 +15,10 @@
  * it edits — holds the team's row and nothing else, and is never an injury, which only a match deals out.
  * Without a match on, SPP is edited in the roster itself (`PATCH`), which writes the change as settled rows.
  *
+ * The MVP is no tap of a match: the post-match picks it and neither reads nor writes a row of it, so a tap
+ * that names a match is refused for it. Outside a match it is an edit like the rest (016): the roster's
+ * MVP is among the counters an edit steps, so a hand-edited MVP has its row in the history.
+ *
  * A step down takes back a step up: a -1 where the rows it would take back add up to nothing (a match's
  * own rows in a match; outside one, the blob's counter and the edits waiting on it) is refused, since it
  * would take back nothing now and the next +1 later.
@@ -22,7 +26,7 @@
  * A team is the owner's. Its events may be read by an administrator too; a tap is the owner's alone, and
  * to anybody else the team is not there (`teamForUser`).
  */
-import { EVENT_COUNTERS, careerCounters, eventTotal, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
+import { MATCH_COUNTERS, SPP_EVENT_COUNTERS, careerCounters, eventTotal, isValidEventInjury } from "../../src/domain/post-match/events.mjs";
 import { storedPlayerId } from "../../src/domain/roster/players.mjs";
 import { UUID_SOURCE, isUuid, teamForUser } from "../api/team-access.mjs";
 import { currentUser } from "../auth/session.mjs";
@@ -36,6 +40,9 @@ import { loadTeamEvents, loadWaitingOutsideEdits, recordMatchEvent } from "../se
 const EVENTS = new RegExp(`^/api/teams/(${UUID_SOURCE})/events$`, "i");
 const MAX_PLAYER_ID_LENGTH = 200;
 
+// What a tap of a match carries: the counters a match taps, and the injury. The MVP is picked in the post-match.
+const TAPPED_COUNTERS = [...MATCH_COUNTERS, "injury"];
+
 const invalid = (field) => httpError(400, "FIELD_INVALID", { field });
 
 /** A -1 on a counter (an injury is no count): what may be refused as taking back nothing. */
@@ -46,9 +53,9 @@ const belowZero = ({ playerId, counter }) => httpError(409, "EVENT_BELOW_ZERO", 
 /**
  * What a tap's body says, checked field by field, and a 400 for the first that is wrong: `pairingId` a
  * UUID, or none (null or left out: an edit outside a match); `playerId` a string of 1 to 200 characters;
- * `counter` one of the event counters, and not the injury without a match; `delta` 1 or -1; `injury` a
- * valid one on the injury counter, and none on any other. Whether the player is one of the side's, or of
- * the roster, is for the transaction to say.
+ * `counter` one a match taps or the injury when there is a `pairingId`, one of the SPP counters (the MVP
+ * too, no injury) when there is none; `delta` 1 or -1; `injury` a valid one on the injury counter, and none
+ * on any other. Whether the player is one of the side's, or of the roster, is for the transaction to say.
  *
  * @returns {{ pairingId: string|null, playerId: string, counter: string, delta: number, injury: object|null }}
  */
@@ -56,7 +63,7 @@ function checkTap(body) {
   const { pairingId = null, playerId, counter, delta, injury = null } = body ?? {};
   if (pairingId !== null && !isUuid(pairingId)) throw invalid("pairingId");
   if (typeof playerId !== "string" || !playerId || playerId.length > MAX_PLAYER_ID_LENGTH) throw invalid("playerId");
-  if (!EVENT_COUNTERS.includes(counter) || (pairingId === null && counter === "injury")) throw invalid("counter");
+  if (!(pairingId === null ? SPP_EVENT_COUNTERS : TAPPED_COUNTERS).includes(counter)) throw invalid("counter");
   if (delta !== 1 && delta !== -1) throw invalid("delta");
   if (counter === "injury" ? !isValidEventInjury(injury) : injury !== null) throw invalid("injury");
   return { pairingId, playerId, counter, delta, injury };

@@ -34,6 +34,12 @@ test("a tap is the same INSERT, read back as the API shows a row: the team and w
   assert.match(db.log[0].sql, /^INSERT INTO match_events [^]*clock_timestamp\(\)\)\s+RETURNING \*$/);
 });
 
+test("an MVP row is written like any other: since 016 the table has the counter, and an edit outside a match steps it", async () => {
+  const db = fakeClient();
+  assert.equal(await writeMatchEvents(db, { teamId: "t1", pairingId: null, actorId: "u1", events: [tap("p1", "mvps"), tap("p1", "mvps", -1)] }), 2);
+  assert.deepEqual(db.log.map((entry) => entry.values), [["t1", null, "p1", "mvps", 1, null, "u1"], ["t1", null, "p1", "mvps", -1, null, "u1"]]);
+});
+
 test("no events, no statement", async () => {
   const db = fakeClient();
   assert.equal(await writeMatchEvents(db, { teamId: "t1", pairingId: "g1", events: [] }), 0);
@@ -128,7 +134,7 @@ const REFUSED = [
   ["an injury with a key of its own beyond the code and the characteristic", tap("p1", "injury", 1, { code: "lasting", stat: "ag", retire: false }), /injury/],
   ["an injury that is not an object", tap("p1", "injury", 1, "dead"), /injury/],
   ["an injury on a counter that is not the injury", tap("p1", "touchdowns", 1, { code: "miss" }), /injury/],
-  ["a counter the table does not have", tap("p1", "mvps"), /counter/],
+  ["a counter the table does not have", tap("p1", "stray"), /counter/],
   ["a counter the post-match has but nobody taps (crowd casualties)", tap("p1", "crowdCasualties"), /counter/],
   ["a delta of zero", tap("p1", "touchdowns", 0), /delta/],
   ["a delta of two", tap("p1", "touchdowns", 2), /delta/],

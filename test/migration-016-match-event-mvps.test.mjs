@@ -42,9 +42,10 @@ test("after 016 an MVP is a row, and the table still refuses what 014 refused", 
   await withScratchDatabase(async ({ client }) => {
     await friendly(client);
     await insert(client, [H, null, "a", "mvps", 1]);
-    await insert(client, [H, GAME, "a", "mvps", -1]); // the table takes it: refusing a match's MVP is the endpoint's (Task 2)
-    for (const [counter, delta] of [["stray", 1], ["mvps", 2], ["mvps", 0], ["crowdCasualties", 1]]) {
-      await assert.rejects(insert(client, [H, null, "a", counter, delta]), { code: "23514" }, `${counter} ${delta}`);
+    await insert(client, [H, GAME, "a", "mvps", -1]); // the table takes it: refusing a match's MVP is the endpoint's (checkTap, server/routes/team-events.mjs)
+    for (const [counter, delta, constraint] of [["stray", 1, "match_events_counter_check"], ["mvps", 2, "match_events_delta_check"],
+      ["mvps", 0, "match_events_delta_check"], ["crowdCasualties", 1, "match_events_counter_check"]]) {
+      await assert.rejects(insert(client, [H, null, "a", counter, delta]), { code: "23514", constraint }, `${counter} ${delta}`);
     }
   }, { through: "016_match_event_mvps.sql" });
 });
