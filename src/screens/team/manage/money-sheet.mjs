@@ -82,13 +82,17 @@ function reasonsHtml(chosen) {
     + `<div class="g-money__reasons" role="radiogroup" aria-label="${label}" data-money-reasons>${chips}</div></div>`;
 }
 
-/** «Treasury: 70k → 112.5k», the figure after the arrow set apart; the sentence is the dictionary's, so the figure is found in it. */
-function previewHtml(treasury, check) {
-  const after = formatMoney(check.after);
-  const text = t("treasury.money.preview", { before: formatMoney(treasury), after });
-  const at = text.lastIndexOf(after);
+/**
+ * «Treasury: 70k → 112.5k», the figure after the arrow set apart; the sentence is the dictionary's, so the figure
+ * is found in it. `block` is the class of the line (`g-money__preview`, and the fix sheet's `g-fix__preview`), which
+ * gets its `--short` where the treasury would stand below zero.
+ */
+export function previewHtml(block, before, after) {
+  const figure = formatMoney(after);
+  const text = t("treasury.money.preview", { before: formatMoney(before), after: figure });
+  const at = text.lastIndexOf(figure);
   const line = at < 0 ? escapeHtml(text) : `<span>${escapeHtml(text.slice(0, at))}</span><span>${escapeHtml(text.slice(at))}</span>`;
-  return `<p class="g-money__preview${check.after < 0 ? " g-money__preview--short" : ""}">${line}</p>`;
+  return `<p class="${block}${after < 0 ? ` ${block}--short` : ""}">${line}</p>`;
 }
 
 /** Always on the page, so a screen reader hears what is put in it. */
@@ -108,7 +112,7 @@ function bodyHtml(form, treasury, check) {
     help: t("treasury.money.amountHelp"), invalid: form.amountText.trim() !== "" && amount === null,
   });
   const noteField = renderTextField({ id: "money-note", name: "note", label: t("treasury.money.note"), value: form.note, autocomplete: "off" });
-  return `<div class="g-money">${sign}${presetsHtml(amount)}${amountField}${reasonsHtml(form.reason)}${noteField}${previewHtml(treasury, check)}${alertHtml(form.refusal)}</div>`;
+  return `<div class="g-money">${sign}${presetsHtml(amount)}${amountField}${reasonsHtml(form.reason)}${noteField}${previewHtml("g-money__preview", treasury, check.after)}${alertHtml(form.refusal)}</div>`;
 }
 
 /**
