@@ -237,7 +237,7 @@ test("in Russian: the lines, the headings and the place are in Russian; the rule
   assert.equal(view.querySelector(".g-ranked__caption").textContent, "1-е место · очков: 8");
 });
 
-test("the season arrives into the page that is up: one search, one pager, a coach's own team a link to itself", async () => {
+test("the season arrives into the page that is up: one search, a coach's own team a link to itself", async () => {
   state.auth.currentUser = { id: "u1", login: "c1" };
   state.myTeams.items = [{ id: "a" }];
   api.reply("GET /api/season", 200, { standings: STANDINGS });
@@ -245,7 +245,7 @@ test("the season arrives into the page that is up: one search, one pager, a coac
   await turns();
   assert.deepEqual(hrefsIn(view.querySelector(".g-ref-inleague")), ["#/t/a", "#/coaches/u2/teams/b"]);
   assert.equal(view.listeners.get("input").length, 1, "one listener for the band, however often the page was drawn");
-  assert.equal(view.listeners.get("click").length, 1, "and one for the pager");
+  assert.equal(view.listeners.get("click")?.length ?? 0, 0, "and none for a pager: its links are plain");
   globalThis.location = { hash: "#/teams/human" };
   type("dodge");
   assert.equal(refQuery(), "dodge", "the band still hears its field after the redraw");
@@ -260,7 +260,7 @@ test("a coach's list that comes after the page was drawn turns their team from a
   setMyTeams([{ id: "a" }]);
   assert.deepEqual(hrefsIn(view.querySelector(".g-ref-inleague")), ["#/t/a", "#/coaches/u2/teams/b"]);
   assert.equal(view.listeners.get("input").length, 1, "one listener for the band, however often the page was drawn");
-  assert.equal(view.listeners.get("click").length, 1, "and one for the pager");
+  assert.equal(view.listeners.get("click")?.length ?? 0, 0, "and none for a pager: its links are plain");
   releaseCurrentScreen();
   view.innerHTML = "<p>elsewhere</p>";
   setMyTeams([]);

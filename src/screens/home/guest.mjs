@@ -12,7 +12,7 @@
  * Up to 900px the page is a column; from 901px it is the league's band, a dark ribbon with the call to
  * sign in, and the two cards side by side (guest.css).
  */
-import { escapeHtml, patch } from "../../core/dom.mjs";
+import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { authUrl, pageUrl, refUrl, seasonTabUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
@@ -20,6 +20,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderRankedRow } from "../../ui/list-row.mjs";
+import { drawScreen } from "../ref/frame.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 
 /** How many teams the box shows; the full table is one link away. */
@@ -98,13 +99,13 @@ function referenceMarkup() {
  */
 export function guestHomeMarkup({ season, data }) {
   const round = guestTable(season.data, data).round;
-  return `<div class="g-guest">${headMarkup(season.data?.season?.name ?? "", round)}${heroMarkup()}`
+  return `<div class="g-guest" data-screen="guest">${headMarkup(season.data?.season?.name ?? "", round)}${heroMarkup()}`
     + `<div class="g-guest__grid">${tableMarkup(season, data)}${referenceMarkup()}</div></div>`;
 }
 
-/** The page as the app holds the season and the content now. */
+/** The page as the app holds the season and the content now; coming from another screen it starts at the top (`drawScreen`). */
 function redraw() {
-  patch(view, guestHomeMarkup({ season: state.season, data: state.data }));
+  drawScreen(view, guestHomeMarkup({ season: state.season, data: state.data }));
 }
 
 /**

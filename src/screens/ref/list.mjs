@@ -8,21 +8,22 @@
  * it was left. Skills and traits are drawn as a split page: the list, and beside it (on a phone, instead
  * of it, once something is chosen) the panel of the chosen one.
  */
-import { delegate, escapeHtml, patch } from "../../core/dom.mjs";
+import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { pageUrl, refUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { activeTeam } from "../../data/active-team.mjs";
+import { activeTeam, onActiveTeamChange } from "../../data/active-team.mjs";
+import { onMyTeamsChange } from "../../data/teams.mjs";
 import { renderFilterChips, wireFilterChips } from "../../ui/filter-chips.mjs";
 import { renderNavRow } from "../../ui/list-row.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
 import { activeOverviewCards } from "../overview.mjs";
 import { overviewUrl, refGroups, sectionPages, sectionTitle } from "./catalog.mjs";
-import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
-import { listFilter, refQuery, setListFilter } from "./memory.mjs";
+import { backLinkMarkup, drawScreen, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
+import { listFilter, listScroll, refQuery, setListFilter, setListScroll } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
 import { badgeMarkup, skillDetailMarkup, tagsOf } from "./skill.mjs";
 
@@ -191,15 +192,30 @@ function panelMarkup(section, selected) {
     + skillDetailMarkup({ data: state.data, page: selected, team, teamPage });
 }
 
+/**
+ * What `drawScreen` takes a list for. A list is one screen with or without an item chosen: on a wide
+ * screen the panel sits beside the list, so going from one skill to the next leaves the page where it
+ * is. On a phone the panel takes the list's place, a screen of its own that starts at its top; the same
+ * panel drawn again (a keystroke, a language switch) is still that screen.
+ */
+function screenOfList(section, selected, phone) {
+  return phone && selected ? `list:${section}:${selected.slug}` : `list:${section}`;
+}
+
 function draw(section, selected) {
   const overviewCards = activeOverviewCards();
   const filter = listFilter(section);
   const split = SPLIT_SECTIONS.has(section);
+  const phone = Boolean(globalThis.matchMedia?.(PHONE).matches);
   const sameList = view.querySelector(".g-ref-list")?.getAttribute("data-section") === section;
   // The page the panel is showing now, before the redraw: a different one is a new screen on a phone.
   const shown = view.querySelector(".g-skill-detail")?.getAttribute("data-page") ?? null;
-  patch(view, refPageMarkup({
+  // A phone swaps the list for the panel, and the panel's screen starts at its top. Where the list was
+  // read to is kept for the way back (below); a panel opened from anywhere but that list leaves the list at its top.
+  if (phone && selected && !(sameList && shown !== null)) setListScroll(section, sameList ? (globalThis.scrollY ?? 0) : 0);
+  drawScreen(view, refPageMarkup({
     layout: split ? "split" : "list",
+    screen: screenOfList(section, selected, phone),
     open: Boolean(selected),
     headHtml: refHeadMarkup({ query: refQuery() }),
     tocHtml: refTocMarkup(refGroups(state.data, { overviewCount: overviewCards.length }), section),
@@ -212,10 +228,12 @@ function draw(section, selected) {
   syncField("#ref-query", refQuery());
   // Opening a skill redraws the same list beside it, which must stay where the coach scrolled it to.
   if (!sameList) rewind();
-  if (!selected || selected.slug === shown) return;
-  revealSelected();
-  // A phone shows the panel in the list's place, a screen of its own: from its top, not from wherever the list (or the panel before it) was read to.
-  if (globalThis.matchMedia?.(PHONE).matches) globalThis.scrollTo?.(0, 0);
+  // The way back from a phone's panel is the list as it was left, not its top.
+  if (!selected) {
+    if (phone && shown !== null) globalThis.scrollTo?.(0, listScroll(section));
+    return;
+  }
+  if (selected.slug !== shown) revealSelected();
 }
 
 /**
@@ -241,5 +259,7 @@ export function renderRefSection(section, { selected = null } = {}) {
     }, { group: CHIP_GROUP }),
     wireRefSearch(view, { onQuery: goSearch }),
   ];
+  // The panel's "In your team" is the active team's: it follows a switch of team and a list that comes in late.
+  if (SPLIT_SECTIONS.has(section)) release.push(onActiveTeamChange(redraw), onMyTeamsChange(redraw));
   onScreenLeave("ref:list", () => release.forEach((stop) => stop()));
 }

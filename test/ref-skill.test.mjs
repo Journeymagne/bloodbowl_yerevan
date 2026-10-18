@@ -5,7 +5,7 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
-import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
+import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
 const { renderReferencePage } = await import("../src/screens/ref/article.mjs");
@@ -16,6 +16,9 @@ const { renderRefSection } = await import("../src/screens/ref/list.mjs");
 const { setListFilter } = await import("../src/screens/ref/memory.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
+const { createStorage } = await import("../src/core/storage.mjs");
+const { resetActiveTeam, syncActiveTeam } = await import("../src/data/active-team.mjs");
+const { setMyTeams } = await import("../src/data/teams.mjs");
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const draw = (markup) => parseHtml(document, markup);
 const pageOf = (slug) => state.data.pages.find((page) => page.slug === slug);
@@ -63,6 +66,33 @@ test("a coach sees who in the active team has the skill, captaincy and the posit
   assert.deepEqual(skillHolders({ team: null, teamPage: null, title: "Evasive" }), []);
   const page = pageOf("skills/evasive");
   assert.equal(draw(skillDetailMarkup({ data: state.data, page })).querySelector(".g-skill-detail__ours"), null);
+});
+
+const RIVALS = { id: "t2", name: "Rivals", baseTeamSlug: "teams/amazon", roster: { players: [{ id: "q1", rowIndex: 0, number: 11, name: "Solo" }] } };
+const holders = () => view.querySelectorAll(".g-skill-detail__who").map((who) => who.textContent);
+
+test("an open panel follows the coach's team: a switch of the active team and a list that comes in late redraw it; a screen that was left is not drawn into", () => {
+  const backend = new Map();
+  const store = createStorage({ getItem: (key) => backend.get(key) ?? null, setItem: (key, value) => backend.set(key, String(value)), removeItem: (key) => backend.delete(key) });
+  // The account already names the team switched to, so the switch writes nothing.
+  state.auth.currentUser = { id: "u1", login: "coach", preferences: { activeTeamId: "t2" } };
+  state.myTeams = { items: [TEAM, RIVALS], loaded: true, loading: false, error: "" };
+  state.activeTeamId = "t1";
+  try {
+    renderReferencePage("skills/evasive");
+    assert.deepEqual(holders(), ["Itzel", HOSTILE]);
+    syncActiveTeam({ routeTeamId: "t2", store });
+    assert.deepEqual(holders(), ["Solo"], "the panel left open shows the team switched to");
+    setMyTeams([]);
+    assert.equal(view.querySelector(".g-skill-detail__ours"), null, "a list that came back without the team takes the block away");
+    setMyTeams([TEAM, RIVALS]);
+    assert.deepEqual(holders(), ["Solo"], "and brings it back when it comes");
+    releaseCurrentScreen();
+    resetActiveTeam();
+    assert.deepEqual(holders(), ["Solo"], "nothing listens once the screen is left");
+  } finally {
+    state.auth.currentUser = null;
+  }
 });
 
 test("a player's name in the active team is text, not markup", () => {
@@ -218,34 +248,94 @@ test("a phone gets the way back from the panel to the list, not to the reference
   assert.deepEqual(view.querySelectorAll("a.g-ref-back").map((link) => [link.getAttribute("href"), link.textContent]), [["#/ref/traits", "Traits"]], "the glossary keeps the section's name in English");
 });
 
-test("a phone starts a panel at its top, wherever the list or the panel before it was read to; a wide screen, and the same panel redrawn, stay where they are", () => {
-  const scrolls = [];
-  globalThis.scrollTo = (x, y) => scrolls.push([x, y]);
-  try {
-    globalThis.matchMedia = () => ({ matches: false });
+/** Another screen is on the page, as when the coach comes to the reference from the roster. */
+const elsewhere = () => { view.innerHTML = "<p>elsewhere</p>"; };
+
+test("a phone starts a panel at its top, wherever the list or the panel before it was read to; the same panel redrawn stays where it is", () => {
+  withWindow({ phone: true }, ({ scrolls, scrollPage }) => {
+    elsewhere();
     renderRefSection("skills");
-    renderReferencePage("skills/dodge");
-    assert.deepEqual(scrolls, [], "a wide screen shows the list beside the panel: nothing to start over");
-    globalThis.matchMedia = (query) => ({ matches: query === "(max-width: 900px)" });
-    renderRefSection("skills");
+    scrollPage(500);
+    scrolls.length = 0;
     renderReferencePage("skills/dodge");
     assert.deepEqual(scrolls, [[0, 0]], "a phone swaps the list for the panel");
+    scrollPage(300);
+    scrolls.length = 0;
     const field = view.querySelector("#ref-list-query");
     field.value = "d";
     fireEvent(field, "input");
     assert.ok(view.querySelector(".g-ref--open"), "the panel stays up while the list is searched");
-    assert.equal(scrolls.length, 1, "and the redraw does not start it over");
     renderReferencePage("skills/dodge");
-    assert.equal(scrolls.length, 1, "nor does the same address again");
+    assert.deepEqual(scrolls, [], "neither the redraw nor the same address again starts it over");
     renderReferencePage("skills/block");
-    assert.equal(scrolls.length, 2, "a link in a rule to another skill is another screen, and starts at its top");
+    assert.deepEqual(scrolls, [[0, 0]], "a link in a rule to another skill is another screen, and starts at its top");
+    elsewhere();
+    scrollPage(800);
+    scrolls.length = 0;
+    renderReferencePage("skills/block");
+    assert.deepEqual(scrolls, [[0, 0]], "so is a skill opened from another screen");
+  });
+});
+
+test("a wide screen shows the panel beside the list: going from one skill to the next leaves the page where it is", () => {
+  withWindow({ phone: false }, ({ scrolls, scrollPage }) => {
+    elsewhere();
     renderRefSection("skills");
+    scrollPage(500);
+    scrolls.length = 0;
+    renderReferencePage("skills/dodge");
     renderReferencePage("skills/block");
-    assert.equal(scrolls.length, 3, "and so is the same skill after the list");
-  } finally {
-    delete globalThis.matchMedia;
-    delete globalThis.scrollTo;
-  }
+    renderReferencePage("skills/dodge");
+    renderRefSection("skills");
+    useLocale("ru");
+    renderReferencePage("skills/dodge");
+    assert.deepEqual(scrolls, [], "the list, a panel, another panel, the list again, the other language: one page");
+    assert.equal(globalThis.scrollY, 500);
+    renderRefSection("traits");
+    assert.deepEqual(scrolls, [[0, 0]], "another list is another page");
+  });
+});
+
+test("a phone going back from a panel finds the list where it was read to; a list reached any other way starts at its top", () => {
+  withWindow({ phone: true }, ({ scrolls, scrollPage }) => {
+    elsewhere();
+    renderRefSection("skills");
+    scrollPage(640);
+    renderReferencePage("skills/dodge");
+    assert.equal(globalThis.scrollY, 0, "the panel starts at its top");
+    renderReferencePage("skills/block");
+    assert.equal(globalThis.scrollY, 0, "so does the next one");
+    renderRefSection("skills");
+    assert.equal(globalThis.scrollY, 640, "the way back is the list as it was left, not the offset of the panels read since");
+    scrollPage(100);
+    scrolls.length = 0;
+    const field = view.querySelector("#ref-list-query");
+    field.value = "a";
+    fireEvent(field, "input");
+    assert.deepEqual(scrolls, [], "a search typed in the list is not a way back");
+    elsewhere();
+    scrollPage(900);
+    renderReferencePage("skills/dodge");
+    renderRefSection("skills");
+    assert.equal(globalThis.scrollY, 0, "a panel opened from another screen leaves the list at its top, not at the offset of that screen");
+    elsewhere();
+    renderRefSection("skills");
+    scrollPage(700);
+    renderReferencePage("skills/dodge");
+    renderReferencePage("traits/bonehead");
+    renderRefSection("traits");
+    assert.equal(globalThis.scrollY, 0, "a trait reached by a link from a skill: the traits were never read, and the skills' place is not theirs");
+  });
+  withWindow({ phone: false }, ({ scrolls, scrollPage }) => {
+    elsewhere();
+    renderRefSection("skills");
+    scrollPage(640);
+    renderReferencePage("skills/dodge");
+    scrollPage(30);
+    renderRefSection("skills");
+    assert.deepEqual(scrolls, [[0, 0]], "a wide screen never had the list taken away: only the first draw started the page");
+    assert.equal(globalThis.scrollY, 30);
+  });
 });
 
 /**

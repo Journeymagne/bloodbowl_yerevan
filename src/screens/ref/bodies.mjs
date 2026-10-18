@@ -66,7 +66,8 @@ function linkLine(pages, none) {
 function leagueSection(data, league) {
   const teams = teamsForLeague(data, league);
   const stars = starsForLeague(data, league);
-  const sum = `${teams.length} ${t("leagueRef.teamsSuffix")} · ${stars.length} ${t("leagueRef.starPlayersSuffix")}`;
+  // A label and a number, which needs no plural form ("1 команд" would).
+  const sum = [t("ref.league.teams", { count: teams.length }), t("ref.league.starPlayers", { count: stars.length })].join(" · ");
   return `<section class="g-ref-league"><h2>${escapeHtml(league)}</h2><p class="g-ref-league__sum">${escapeHtml(sum)}</p>`
     + `<h3>${escapeHtml(t("common.teams"))}</h3>${linkLine(teams, t("leagueRef.noTeams"))}`
     + `<h3>${escapeHtml(t("nav.starPlayers"))}</h3>${linkLine(stars, t("leagueRef.noStarPlayers"))}</section>`;

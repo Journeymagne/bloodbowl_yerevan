@@ -55,7 +55,7 @@ test("each league says how many teams and star players it has, and links every o
     const stars = starsForLeague(state.data, league);
     const section = sections[at];
     assert.equal(section.querySelector("h2").textContent, league);
-    assert.equal(section.querySelector(".g-ref-league__sum").textContent, `${teams.length} teams · ${stars.length} star players`, league);
+    assert.equal(section.querySelector(".g-ref-league__sum").textContent, `Teams: ${teams.length} · Star players: ${stars.length}`, league);
     assert.deepEqual(section.querySelectorAll("h3").map((h) => h.textContent), ["Teams", "Star Players"], league);
     const links = section.querySelectorAll(".g-ref-links");
     assert.deepEqual(links[0].querySelectorAll("a").map((a) => a.getAttribute("href")), teams.map((page) => `#/${page.slug}`), league);
@@ -78,6 +78,17 @@ test("a team is in the leagues its rules name; a star player in the leagues its 
   assert.deepEqual(sorted, [...sorted].sort((a, b) => a.localeCompare(b, "en")), "by name");
 });
 
+test("a league's count is a label and a number, so that one team and twenty-one read as right as five", () => {
+  for (const count of [0, 1, 2, 5, 21]) {
+    assert.equal(t("ref.league.teams", { count }), `Teams: ${count}`);
+    assert.equal(t("ref.league.starPlayers", { count }), `Star players: ${count}`);
+  }
+  useLocale("ru");
+  assert.deepEqual([1, 2, 5, 21].map((count) => t("ref.league.teams", { count })), ["Команд: 1", "Команд: 2", "Команд: 5", "Команд: 21"]);
+  assert.equal(t("ref.league.starPlayers", { count: 1 }), "Звёздных игроков: 1");
+  useLocale("en");
+});
+
 test("a league with nobody in it says so, and a name a person could have typed is text", () => {
   const league = leagueAccessNames[0];
   const hostile = { title: HOSTILE, slug: "teams/hostile", team: { meta: { specialRules: league } } };
@@ -88,7 +99,7 @@ test("a league with nobody in it says so, and a name a person could have typed i
   assert.deepEqual(first.querySelectorAll(".g-ref-links").map((p) => p.textContent), [HOSTILE, "No star players"]);
   const second = fragment.querySelectorAll(".g-ref-league")[1];
   assert.deepEqual(second.querySelectorAll(".g-ref-links").map((p) => p.textContent), ["No teams", "No star players"]);
-  assert.equal(second.querySelector(".g-ref-league__sum").textContent, "0 teams · 0 star players");
+  assert.equal(second.querySelector(".g-ref-league__sum").textContent, "Teams: 0 · Star players: 0");
   assertCspSafe(fragment);
   assert.equal(draw(leaguesBody({})).querySelectorAll(".g-ref-league").length, leagueAccessNames.length, "a vault with no teams or stars has the leagues, empty");
 });
@@ -261,7 +272,7 @@ test("both special bodies draw in both languages, every link on them is one the 
   }
   useLocale("ru");
   renderReferencePage("leagues");
-  assert.match(view.querySelector(".g-ref-league__sum").textContent, /^\d+ команд · \d+ звёздных игроков$/);
+  assert.match(view.querySelector(".g-ref-league__sum").textContent, /^Команд: \d+ · Звёздных игроков: \d+$/);
   renderReferencePage("skill-table");
   assert.equal(view.querySelector(".g-ref-roller__skill").textContent, "Выберите категорию и бросьте D16");
   assert.equal(view.querySelector("[data-roll-skill]").textContent, t("skillRoll.rollButton"));

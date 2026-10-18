@@ -5,11 +5,11 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
-import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
+import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
 const { renderRef } = await import("../src/screens/ref/index.mjs");
-const { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } = await import("../src/screens/ref/frame.mjs");
+const { backLinkMarkup, drawScreen, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } = await import("../src/screens/ref/frame.mjs");
 const { refGroups } = await import("../src/screens/ref/catalog.mjs");
 const { refQuery, setRefQuery, takeSearchFocus } = await import("../src/screens/ref/memory.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
@@ -175,14 +175,48 @@ test("the table of contents names every group and lights exactly the item it is 
 
 test("a page is one of four layouts, and only the index head is the page's h1", () => {
   for (const layout of ["index", "list", "article", "split"]) {
-    const fragment = draw(refPageMarkup({ layout, headHtml: refHeadMarkup({ isIndex: layout === "index" }), mainHtml: "<p>text</p>" }));
+    const fragment = draw(refPageMarkup({ layout, screen: `test:${layout}`, headHtml: refHeadMarkup({ isIndex: layout === "index" }), mainHtml: "<p>text</p>" }));
     assert.ok(fragment.querySelector(`.g-ref.g-ref--${layout} .g-ref__body .g-ref__main`), layout);
     assert.equal(fragment.querySelector(".g-ref__panel"), null, `${layout}: no panel without one`);
     assert.equal(fragment.querySelectorAll("h1").length, layout === "index" ? 1 : 0, layout);
   }
-  assert.throws(() => refPageMarkup({ layout: "nope", headHtml: "", mainHtml: "" }), /nope/);
-  const split = draw(refPageMarkup({ layout: "split", headHtml: "", tocHtml: '<nav class="g-ref-toc"></nav>', mainHtml: "<p>list</p>", panelHtml: "<p>card</p>" }));
+  assert.throws(() => refPageMarkup({ layout: "nope", screen: "x", headHtml: "", mainHtml: "" }), /nope/);
+  assert.throws(() => refPageMarkup({ layout: "index", headHtml: "", mainHtml: "" }), /names the screen/);
+  const split = draw(refPageMarkup({ layout: "split", screen: "test:split", headHtml: "", tocHtml: '<nav class="g-ref-toc"></nav>', mainHtml: "<p>list</p>", panelHtml: "<p>card</p>" }));
   assert.deepEqual(split.querySelector(".g-ref__body").childNodes.map((node) => node.getAttribute("class")), ["g-ref-toc", "g-ref__main", "g-ref__panel"]);
+});
+
+test("the index is a screen: it starts at the top when it is opened, and a keystroke in its search or a language switch keeps the page", () => {
+  withWindow({}, ({ scrolls, scrollPage }) => {
+    view.innerHTML = "<p>elsewhere</p>";
+    open();
+    assert.equal(view.querySelector(".g-ref").getAttribute("data-screen"), "index");
+    assert.deepEqual(scrolls, [[0, 0]], "from another screen");
+    scrollPage(400);
+    scrolls.length = 0;
+    type("dodge");
+    type("");
+    useLocale("ru");
+    renderRef();
+    assert.deepEqual(scrolls, []);
+    assert.equal(globalThis.scrollY, 400);
+    useLocale("en");
+  });
+});
+
+test("drawScreen starts the page over for another screen, and for that alone", () => {
+  withWindow({}, ({ scrolls }) => {
+    view.innerHTML = "<p>a screen of another module</p>";
+    drawScreen(view, '<div data-screen="a">one</div>');
+    assert.deepEqual(scrolls, [[0, 0]], "a screen that carries an identity replaces one that has none");
+    drawScreen(view, '<div data-screen="a">two</div>');
+    assert.deepEqual(scrolls, [[0, 0]], "the same screen with other content: the page stays");
+    assert.equal(view.querySelector("[data-screen]").textContent, "two");
+    drawScreen(view, '<div data-screen="b">three</div>');
+    assert.deepEqual(scrolls, [[0, 0], [0, 0]]);
+  });
+  drawScreen(view, '<div data-screen="c">no window to scroll</div>');
+  assert.equal(view.querySelector("[data-screen]").textContent, "no window to scroll", "without scrollTo (a test, a prerender) it only draws");
 });
 
 test("the head names the screen, the league and the search; off the index the title is a paragraph", () => {

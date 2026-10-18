@@ -157,7 +157,7 @@
   text-transform: uppercase;
 }
 
-/* The names run together, a comma after each; they are links in a line of text, so the line is tall enough to touch one. */
+/* The names run together, a comma after each. They are links in a line of text, so the line is about 28px (15px at 1.9) and they rely on WCAG 2.5.8's exception for inline links; it is not touch height. */
 .g-ref-links {
   margin: 0;
   color: var(--ink-2);

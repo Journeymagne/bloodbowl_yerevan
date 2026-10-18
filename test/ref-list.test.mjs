@@ -49,7 +49,7 @@ test("a category chip narrows the skills to it and says how many of how many; Al
   assert.equal(view.querySelectorAll("a.g-ref-row").length, 82);
 });
 
-test("the list search narrows by name and keeps the caret in the field as the list is redrawn", () => {
+test("the list search narrows by name and keeps focus in the field as the list is redrawn", () => {
   renderRefSection("skills");
   const input = view.querySelector("#ref-list-query");
   input.focus();

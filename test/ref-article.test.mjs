@@ -5,13 +5,15 @@ import test, { beforeEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent, parseHtml } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
-import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
+import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 const view = mountView();
 const { articleBody, articleMarkup, findPage, kickerOf, notFoundMarkup, parentOf, renderLegal, renderOverviewArticle, renderReferencePage } = await import("../src/screens/ref/article.mjs");
 const { refGroups } = await import("../src/screens/ref/catalog.mjs");
 const { activeOverviewCards } = await import("../src/screens/overview.mjs");
 const { refQuery, setRefQuery } = await import("../src/screens/ref/memory.mjs");
+const { renderRefSection } = await import("../src/screens/ref/list.mjs");
+const { renderRef } = await import("../src/screens/ref/index.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { t } = await import("../src/core/i18n.mjs");
@@ -271,30 +273,47 @@ test("leaving an article unhooks its search, and drawing one after another hooks
   renderOverviewArticle("code-of-conduct");
   renderLegal();
   assert.equal(view.listeners.get("input").length, 1, "one listener for the band, however many articles were drawn");
-  assert.equal(view.listeners.get("click").length, 1, "and one for the pager");
+  assert.equal(view.listeners.get("click")?.length ?? 0, 0, "the pager is a plain link: nothing listens for its clicks");
   type("dodge");
   assert.equal(refQuery(), "dodge");
 });
 
-test("the pager takes the coach to the top of the next article, but a click that opens another tab leaves this one where it is", () => {
-  const scrolled = [];
-  globalThis.scrollTo = (x, y) => scrolled.push([x, y]);
-  try {
-    renderReferencePage("casualties");
-    fireEvent(view.querySelector(".g-article__next"), "click", { button: 0 });
-    fireEvent(view.querySelector(".g-article__prev"), "click", { button: 0 });
-    assert.deepEqual(scrolled, [[0, 0], [0, 0]]);
-    fireEvent(view.querySelector(".g-article__next"), "click", { button: 0, ctrlKey: true });
-    fireEvent(view.querySelector(".g-article__next"), "click", { button: 0, metaKey: true });
-    fireEvent(view.querySelector(".g-article__next"), "click", { button: 1 });
-    fireEvent(view.querySelector(".g-ref-toc__link"), "click", { button: 0 });
-    assert.equal(scrolled.length, 2, "only the pager's own plain clicks scroll");
-    releaseCurrentScreen();
-    fireEvent(view.querySelector(".g-article__next"), "click", { button: 0 });
-    assert.equal(scrolled.length, 2, "nothing hears the pager after the screen is left");
-  } finally {
-    delete globalThis.scrollTo;
-  }
+test("an article opened from a list, the index, a search result or the pager starts at its top; the same article drawn again stays where it is", () => {
+  withWindow({}, ({ scrolls, scrollPage }) => {
+    const from = (screen) => {
+      screen();
+      scrollPage(700);
+      scrolls.length = 0;
+    };
+    from(() => renderRefSection("inducements"));
+    renderReferencePage("inducements/assistant-coaches");
+    assert.equal(view.querySelector("h1").textContent, "Assistant Coaches");
+    assert.deepEqual(scrolls, [[0, 0]], "a row of a list");
+    from(() => renderRef());
+    renderReferencePage("weather");
+    assert.deepEqual(scrolls, [[0, 0]], "a row of the index or of a search result");
+    scrollPage(700);
+    scrolls.length = 0;
+    renderReferencePage("weather");
+    useLocale("ru");
+    renderReferencePage("weather");
+    assert.deepEqual(scrolls, [], "a redraw, and the other language, keep the page");
+    assert.equal(globalThis.scrollY, 700);
+    useLocale("en");
+    const next = view.querySelector(".g-article__next").getAttribute("href").slice(2);
+    renderReferencePage(next);
+    assert.deepEqual(scrolls, [[0, 0]], "the pager's next article, however it was reached: at its own top, also when the coach comes back to the one before");
+    scrollPage(700);
+    scrolls.length = 0;
+    renderOverviewArticle("code-of-conduct");
+    renderLegal();
+    renderReferencePage("nothing-here");
+    assert.deepEqual(scrolls, [[0, 0], [0, 0], [0, 0]], "a card of the league overview, the legal page and an address with no page are articles of their own");
+    from(() => renderReferencePage("nothing-here"));
+    renderReferencePage("nothing-here");
+    renderReferencePage("nothing-else");
+    assert.deepEqual(scrolls, [[0, 0]], "and an address with no page is that address: the same one stays, another starts over");
+  });
 });
 
 test("the dictionary has the kicker and the pager's name in both languages", () => {
@@ -349,7 +368,7 @@ function split(css) {
 test("up to 900px an article has no frame; from 901px it is a card of the surface, 16px round, in the ring", () => {
   const { wide, rest } = split(read(SHEET));
   for (const property of ["box-shadow", "padding"]) {
-    assert.ok(!/\.g-article\s*\{[^}]*\b(box-shadow|padding)\s*:/.test(rest), `.g-article has no ${property} on a phone`);
+    assert.ok(!new RegExp(`\\.g-article\\s*\\{[^}]*\\b${property}\\s*:`).test(rest), `.g-article has no ${property} on a phone`);
   }
   assert.ok(!/\.g-article\s*\{[^}]*\bbackground\s*:\s*var\(--surface\)/.test(rest), "a phone's article has no card");
   assert.match(wide, /\.g-article\s*\{[^}]*padding:\s*32px 40px;/);

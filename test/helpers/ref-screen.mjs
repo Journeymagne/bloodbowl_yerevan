@@ -35,6 +35,38 @@ export function mountView() {
   return view;
 }
 
+/**
+ * A window that scrolls, for the length of `run`: `scrollTo` moves `scrollY` and is recorded, and `phone`
+ * says whether `(max-width: 900px)` matches. `run` is handed the record (`scrolls`, each `[x, y]`) and
+ * `scrollPage(y)`, which is the coach reading the page down to `y` (it is not a `scrollTo` of the screen).
+ * `run` may be async; the window is taken down when it settles.
+ */
+export function withWindow({ phone = false } = {}, run) {
+  const scrolls = [];
+  globalThis.scrollY = 0;
+  globalThis.scrollTo = (x, y) => {
+    scrolls.push([x, y]);
+    globalThis.scrollY = y;
+  };
+  globalThis.matchMedia = (query) => ({ matches: phone && query === "(max-width: 900px)" });
+  const restore = () => {
+    delete globalThis.scrollY;
+    delete globalThis.scrollTo;
+    delete globalThis.matchMedia;
+  };
+  let result;
+  try {
+    result = run({ scrolls, scrollPage: (y) => { globalThis.scrollY = y; } });
+  } catch (error) {
+    restore();
+    throw error;
+  }
+  // An async `run` keeps the window until it has settled.
+  if (typeof result?.finally === "function") return result.finally(restore);
+  restore();
+  return result;
+}
+
 /** The page speaks `locale` and holds its content, as after a language switch. */
 export function useLocale(locale) {
   setLocale(locale);

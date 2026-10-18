@@ -7,7 +7,7 @@
  * The query is the reference's (`memory.mjs`), so it survives going into an article and back, and a
  * screen that has no index of its own can hand its coach here with the field ready to type in.
  */
-import { escapeHtml, patch } from "../../core/dom.mjs";
+import { escapeHtml } from "../../core/dom.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
@@ -15,7 +15,7 @@ import { view } from "../../core/view.mjs";
 import { renderNavRow } from "../../ui/list-row.mjs";
 import { activeOverviewCards } from "../overview.mjs";
 import { refGroups } from "./catalog.mjs";
-import { refHeadMarkup, refPageMarkup, wireRefSearch } from "./frame.mjs";
+import { drawScreen, refHeadMarkup, refPageMarkup, wireRefSearch } from "./frame.mjs";
 import { refQuery, takeSearchFocus } from "./memory.mjs";
 import { normalizeText, searchReference } from "./search.mjs";
 
@@ -46,6 +46,7 @@ export function refIndexMarkup({ data, overviewCards, query }) {
   const searching = normalizeText(query) !== "";
   return refPageMarkup({
     layout: "index",
+    screen: "index",
     headHtml: refHeadMarkup({ isIndex: true, query }),
     mainHtml: searching ? resultsMarkup(data, overviewCards, query) : groupsMarkup(data, overviewCards),
   });
@@ -53,7 +54,7 @@ export function refIndexMarkup({ data, overviewCards, query }) {
 
 /** The index as the page and the memory have it. The field shows the query even when it holds the focus, which `patch` leaves alone. */
 function redraw() {
-  patch(view, refIndexMarkup({ data: state.data, overviewCards: activeOverviewCards(), query: refQuery() }));
+  drawScreen(view, refIndexMarkup({ data: state.data, overviewCards: activeOverviewCards(), query: refQuery() }));
   const field = view.querySelector("#ref-query");
   if (field.value !== refQuery()) field.value = refQuery();
   return field;

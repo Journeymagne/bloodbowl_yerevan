@@ -5,12 +5,13 @@ import test, { beforeEach } from "node:test";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled } from "./helpers/ui.mjs";
 import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
-import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale } from "./helpers/ref-screen.mjs";
+import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 
 // The fake API comes first: api-client.mjs picks `fetch` up when it loads.
 const api = installFakeApi();
 const view = mountView();
 const { guestHomeMarkup, guestTable, renderGuestHome } = await import("../src/screens/home/guest.mjs");
+const { sectionTitle } = await import("../src/screens/ref/catalog.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
 
@@ -126,6 +127,27 @@ test("a visit after a failed one starts with the loading line, not the old error
   assert.equal(view.querySelectorAll(".g-guest__table .g-ranked").length, 5);
 });
 
+test("the page opens at its top, whatever screen it comes from; the season arriving and a language switch keep the coach where they are", async () => {
+  await withWindow({}, async ({ scrolls, scrollPage }) => {
+    state.season = { data: null, loaded: false, loading: false, error: "" };
+    api.reply("GET /api/season", 200, season(SIX));
+    view.innerHTML = "<p>the reference, scrolled down</p>";
+    scrollPage(900);
+    renderGuestHome();
+    assert.equal(view.querySelector(".g-guest").getAttribute("data-screen"), "guest");
+    assert.deepEqual(scrolls, [[0, 0]], "a tap on the logo or Back from the reference: a fresh page");
+    scrollPage(260);
+    scrolls.length = 0;
+    await turns();
+    assert.equal(view.querySelectorAll(".g-guest__table .g-ranked").length, 5, "the season did come");
+    useLocale("ru");
+    renderGuestHome();
+    assert.deepEqual(scrolls, []);
+    assert.equal(globalThis.scrollY, 260);
+    useLocale("en");
+  });
+});
+
 test("a guest who has gone on is not redrawn by a season that comes after", async () => {
   state.season = { data: null, loaded: false, loading: false, error: "" };
   const gate = api.hold("GET /api/season");
@@ -171,7 +193,7 @@ test("the band over a desktop's page names the league and the season, and the ro
   assert.equal(view.querySelector("img"), null);
 });
 
-test("a place is the server's rank as it is, gaps and all, and a tie keeps the server's order", () => {
+test("a place is the server's rank as it is, gaps and all", () => {
   const table = guestTable(season([row(3, "Third", "teams/human"), row(1, "First", "teams/human"), row(4, "Fourth", "teams/human", { withdrawnAt: "x" }), row(7, "Seventh", "teams/human")]), state.data, 2);
   assert.deepEqual(table.rows.map((r) => [r.rank, r.name, r.points]), [[1, "First", 19], [3, "Third", 17]]);
   state.season = loaded(season([row(2, "Second", "teams/human"), row(5, "Fifth", "teams/human")]));
@@ -195,13 +217,23 @@ test("the reference tiles lead to pages that exist in both languages", () => {
   }
 });
 
+test("the Skills tile is named as the list it opens, in both languages", () => {
+  for (const locale of ["en", "ru"]) {
+    useLocale(locale);
+    renderGuestHome();
+    const tile = view.querySelectorAll(".g-guest__tile").find((a) => a.getAttribute("href") === "#/ref/skills");
+    assert.equal(tile.querySelector(".g-guest__tile-title").textContent, sectionTitle("skills"), locale);
+  }
+  useLocale("en");
+});
+
 test("the whole page is in the language of the visitor", () => {
   useLocale("ru");
   renderGuestHome();
   assert.equal(view.querySelector(".g-guest__table h2").textContent, "Таблица");
   assert.equal(view.querySelector(".g-guest__more").textContent, "Вся таблица и календарь");
   assert.deepEqual(view.querySelectorAll(".g-guest__hero a").map((a) => a.textContent), ["Войти", "Регистрация"]);
-  assert.deepEqual(view.querySelectorAll(".g-guest__tile-title").map((b) => b.textContent), ["Правила команд", "Навыки", "Перед матчем", "Изменения Gata"]);
+  assert.deepEqual(view.querySelectorAll(".g-guest__tile-title").map((b) => b.textContent), ["Правила команд", "Skills", "Перед матчем", "Изменения Gata"]);
   state.season = loaded(season(SIX, [{ roundNumber: 6, status: "completed" }]));
   renderGuestHome();
   assert.equal(view.querySelector(".g-guest__table h2").textContent, "Таблица · после 6 тура");

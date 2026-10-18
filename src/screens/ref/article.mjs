@@ -21,7 +21,7 @@ import { assertLinkHref } from "../../ui/markup.mjs";
 import { activeOverviewCards, findOverviewCard } from "../overview.mjs";
 import { leaguesBody, skillTableBody, wireSkillTableRoller } from "./bodies.mjs";
 import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectionTitle } from "./catalog.mjs";
-import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
+import { backLinkMarkup, drawScreen, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
 import { teamContext, teamRulesMarkup, watchTeamData } from "./team.mjs";
@@ -94,15 +94,17 @@ function pagerMarkup({ prev, next }) {
 
 /**
  * The reference page that holds an article: the head, the table of contents with `currentKey` lit,
- * and the article itself. `kicker` and `sub` are left out when empty.
+ * and the article itself. `kicker` and `sub` are left out when empty. `screen` is what makes it this
+ * article and no other (`drawScreen`): the page's slug, so that the same article drawn again stays put.
  */
-function articleFrame({ groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "" }) {
+function articleFrame({ screen, groups, currentKey = null, back, kicker = "", title, sub = "", bodyHtml = "", pagerHtml = "" }) {
   const head = `<div class="g-article__head">`
     + `${kicker ? `<p class="g-article__kicker">${escapeHtml(kicker)}</p>` : ""}`
     + `<h1 class="g-article__title">${escapeHtml(title)}</h1>`
     + `${sub ? `<p class="g-article__sub">${escapeHtml(sub)}</p>` : ""}</div>`;
   return refPageMarkup({
     layout: "article",
+    screen: `article:${screen}`,
     headHtml: refHeadMarkup({ query: refQuery() }),
     tocHtml: refTocMarkup(groups, currentKey),
     mainHtml: `<article class="g-article">${backLinkMarkup(back)}${head}${bodyHtml}${pagerHtml}</article>`,
@@ -120,6 +122,7 @@ function articleFrame({ groups, currentKey = null, back, kicker = "", title, sub
  */
 export function articleMarkup({ data, page, groups, context = {} }) {
   return articleFrame({
+    screen: page.slug,
     groups,
     currentKey: itemKeyOf(page),
     back: parentOf(page),
@@ -137,27 +140,22 @@ function currentGroups() {
 
 const referenceBack = () => ({ href: refUrl(), label: t("shell.tab.ref") });
 
-/** An address with no page behind it: said in the article's own place, with the reference all round it. */
-export function notFoundMarkup() {
-  return articleFrame({ groups: currentGroups(), back: referenceBack(), title: t("app.pageNotFound") });
+/** An address with no page behind it (`slug`: what the address said, which is also what tells it from another): said in the article's own place, with the reference all round it. */
+export function notFoundMarkup(slug = "") {
+  return articleFrame({ screen: slug, groups: currentGroups(), back: referenceBack(), title: t("app.pageNotFound") });
 }
 
-/** A click that opens the address here: not one that asks for another tab or window. */
-const isPlainClick = (event) => event.button === 0 && !(event.ctrlKey || event.metaKey || event.shiftKey || event.altKey);
-
 /**
- * The reference draws the screen and hears two things: its band's search, and the pager, whose next
- * article should be read from its top, not from the foot where the link was. Drawing another article
- * in its place hooks them once. `wireBody` is how a body that listens too (the Skill Table's die) joins
- * them, so that it is let go with them.
+ * The reference draws the screen and hears its band's search; drawing another article in its place
+ * hooks it once. An article that is another one than the page held starts at the top (`drawScreen`),
+ * the pager's next article included, wherever the link was and whichever way the coach came (a tap, a
+ * Back). `wireBody` is how a body that listens too (the Skill Table's die) joins the search, so that it
+ * is let go with it.
  */
 function show(markup, wireBody = null) {
-  patch(view, markup);
+  drawScreen(view, markup);
   const listeners = listenerGroup(view);
   listeners.own(wireRefSearch(view, { onQuery: goSearch }));
-  listeners.on("click", ".g-article__pager a", (event) => {
-    if (isPlainClick(event)) globalThis.scrollTo?.(0, 0);
-  });
   if (wireBody) listeners.own(wireBody());
   onScreenLeave("ref:article", listeners.release);
 }
@@ -176,7 +174,7 @@ function renderTeamRules(page, groups) {
 export function renderReferencePage(slug) {
   const page = findPage(state.data, slug);
   if (!page) {
-    show(notFoundMarkup());
+    show(notFoundMarkup(slug));
     return;
   }
   if (page.kind === "skill" || page.kind === "trait") {
@@ -209,10 +207,11 @@ function overviewSection(section) {
 export function renderOverviewArticle(slug) {
   const card = findOverviewCard(slug);
   if (!card) {
-    show(notFoundMarkup());
+    show(notFoundMarkup(`overview/${slug}`));
     return;
   }
   show(articleFrame({
+    screen: `overview/${slug}`,
     groups: currentGroups(),
     currentKey: "rules",
     back: { href: refUrl("rules"), label: sectionTitle("rules") },
@@ -226,6 +225,7 @@ export function renderOverviewArticle(slug) {
 export function renderLegal() {
   const paragraphs = [t("legal.paragraph1"), t("legal.paragraph2"), t("legal.paragraph3")];
   show(articleFrame({
+    screen: "legal",
     groups: currentGroups(),
     back: referenceBack(),
     title: t("legal.title"),

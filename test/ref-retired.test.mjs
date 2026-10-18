@@ -21,7 +21,7 @@ test("no stylesheet styles the retired reference screens", () => {
 });
 
 test("the stage's stylesheets set their own type on every heading and break at 900/901 only", () => {
-  for (const file of ["src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "src/screens/home/guest.css", "src/ui/search-field.css", "src/ui/filter-chips.css"]) {
+  for (const file of ["src/screens/ref/ref.css", "src/screens/ref/article.css", "src/screens/ref/prose.css", "src/screens/ref/team.css", "src/screens/home/guest.css", "src/ui/search-field.css", "src/ui/filter-chips.css"]) {
     const css = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
     for (const { selectors, body } of blocks(css)) {
       if (!selectors.some((selector) => /\bh[1-6]\b|__title|__lead/.test(selector)) || !/(^|;|\s)(color|font-family):/.test(body)) continue; // a breakpoint's size override is not a heading's base rule
