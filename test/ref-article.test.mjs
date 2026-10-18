@@ -27,6 +27,8 @@ beforeEach(() => {
 });
 
 test("every page of both vaults draws as an article: one h1, its title, nothing the CSP refuses", () => {
+  // A team's article reads the season when it opens; here the season is read, so that none goes to the network.
+  state.season = { data: { standings: [] }, loaded: true, loading: false, error: "" };
   for (const locale of ["en", "ru"]) {
     useLocale(locale);
     for (const page of state.data.pages) {

@@ -1023,5 +1023,10 @@
   "ref.skill.rollValue": "{category} · {face} on D16",
   "ref.skill.notInTable": "Not on the Skill Table",
   "ref.skill.ours": "In your team",
-  "ref.skill.noneOurs": "No one has it"
+  "ref.skill.noneOurs": "No one has it",
+  "ref.team.positions": "Roster",
+  "ref.team.caption": "{qty} · skills {access}",
+  "ref.team.access": "Access",
+  "ref.team.inLeague": "Playing in the league",
+  "ref.team.place": "#{rank} · {points} pts"
 }

@@ -7,8 +7,9 @@
  * reference's groups name it, which article comes before it and after it. A page that is a member of
  * a list (a team, an inducement) goes back to that list. An address with no page is an
  * article too, and says so, rather than leaving the coach on a bare screen. Two pages are drawn by
- * bodies.mjs instead of from the vault's text: Leagues and the Skill Table. A skill or a trait is not
- * an article: it is the panel beside its list (list.mjs).
+ * bodies.mjs instead of from the vault's text: Leagues and the Skill Table; a team's page is drawn by
+ * team.mjs from the team's data. A skill or a trait is not an article: it is the panel beside its list
+ * (list.mjs).
  */
 import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -23,6 +24,7 @@ import { REF_GROUPS, articleNeighbours, groupTitle, itemKeyOf, refGroups, sectio
 import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { renderRefSection } from "./list.mjs";
 import { refQuery, rollerState } from "./memory.mjs";
+import { teamContext, teamRulesMarkup, watchSeason } from "./team.mjs";
 
 /** The two pages whose body is drawn by bodies.mjs, not taken from the vault. */
 const LEAGUES_ID = "general-information-leagues";
@@ -68,12 +70,14 @@ export function kickerOf(page) {
 
 /**
  * What an article says under its title. The page's own text unless the page is drawn some other way
- * (Leagues, the Skill Table: bodies.mjs); `context` is what such a body needs besides the page, the
- * content vault (`data`) for these two.
+ * (Leagues, the Skill Table: bodies.mjs; a team: team.mjs); `context` is what such a body needs besides
+ * the page: the content vault (`data`) for these, and for a team the season's `standings` and the
+ * `viewer` (team.mjs `teamContext`).
  */
 export function articleBody(page, context = {}) {
   if (page.id === LEAGUES_ID) return leaguesBody(context.data);
   if (page.id === SKILL_TABLE_ID) return skillTableBody(context.data, page, context.roller ?? rollerState());
+  if (page.kind === "team") return teamRulesMarkup({ data: context.data, page, standings: context.standings, viewer: context.viewer });
   return `<div class="g-prose">${page.html || `<p>${escapeHtml(page.text)}</p>`}</div>`;
 }
 
@@ -158,6 +162,16 @@ function show(markup, wireBody = null) {
   onScreenLeave("ref:article", listeners.release);
 }
 
+/**
+ * A team's rules: drawn at once, with the league's teams of the race if the season has been read, and
+ * drawn again in its place when the season comes (the page is not wired twice, and a visitor who has left
+ * is not drawn into).
+ */
+function renderTeamRules(page, groups) {
+  const markup = () => articleMarkup({ data: state.data, page, groups, context: teamContext() });
+  show(markup(), () => watchSeason(() => patch(view, markup())));
+}
+
 /** Draw the page `slug` names (see `findPage`), or say there is none. */
 export function renderReferencePage(slug) {
   const page = findPage(state.data, slug);
@@ -170,6 +184,10 @@ export function renderReferencePage(slug) {
     return;
   }
   const groups = currentGroups();
+  if (page.kind === "team") {
+    renderTeamRules(page, groups);
+    return;
+  }
   const markup = () => articleMarkup({ data: state.data, page, groups });
   // The die changes the article, not the screen around it: the page is drawn again in its place and nothing is wired twice.
   show(markup(), page.id === SKILL_TABLE_ID ? () => wireSkillTableRoller(view, () => patch(view, markup())) : null);

@@ -108,7 +108,7 @@ function rollerGroup(data, roller) {
 }
 
 /** A skill as a link to its page, or its name where the vault has no page for it. */
-function skillLink(data, skill) {
+export function skillLink(data, skill) {
   const page = pageForName(data, skill);
   return page ? link(pageUrl(page), skill) : escapeHtml(skill);
 }
