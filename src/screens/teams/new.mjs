@@ -24,6 +24,7 @@ import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../core/logo-
 import { refUrl, teamUrl, teamsUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
+import { forgetRetiredKeys } from "../../core/storage.mjs";
 import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
 import { toast } from "../../components/toast.mjs";
@@ -328,6 +329,8 @@ async function save(build) {
 // ---------------------------------------------------------------------------
 
 export function renderNewTeam() {
+  // The 2.x builder's draft is not offered back; it is erased, since its logo can hold much of the browser's quota.
+  forgetRetiredKeys();
   watchSession();
   const userId = state.auth.currentUser?.id;
   if (flow?.userId !== userId) flow = freshFlow(userId);

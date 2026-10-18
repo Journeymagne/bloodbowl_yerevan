@@ -2,10 +2,10 @@
  * The league roster editor: `#/t/:id/roster` (2.x `#/my-teams/:id`), the
  * admin equivalent, and the public player-team edit route.
  *
- * One of the two editors design spec section 5.1 counts — screens/builder.mjs
- * is the other. Task 7b is folding the shared parts into
- * components/roster-editor/*; what stays here is what a team already in play
- * needs and a brand-new one does not.
+ * One of the two editors design spec section 5.1 counted — the 2.x builder was
+ * the other, and is gone (stage 06): a new team is made in screens/teams/new.mjs.
+ * Task 7b is folding the shared parts into components/roster-editor/*; what
+ * stays here is what a team already in play needs and a brand-new one does not.
  *
  * `renderSavedRoster` and `rosterStore` are exported: the former is a
  * screens-map entry in app.js, the latter is read by app.js's `beforeunload`

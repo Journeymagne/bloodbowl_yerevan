@@ -307,22 +307,9 @@
   gap: 18px;
 }
 
-.detail-layout > *,
-.builder-layout > * {
+.detail-layout > * {
   min-width: 0;
 }
-
-.builder-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
-}
-
-.builder-layout-main {
-  grid-template-columns: minmax(0, 1fr);
-}
-
 
 /* A section card sits among the page cards on References; its count stands out. */
 .reference-section-card .meta-line {

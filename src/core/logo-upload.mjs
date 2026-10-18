@@ -1,9 +1,9 @@
 /**
  * Turning a picked logo file into a small data URL.
  *
- * Mechanically moved out of src/app.js. Used by both the builder and the
- * saved-roster editor's logo picker, so — same reasoning as core/state.mjs —
- * it has to live somewhere both screens/builder.mjs and screens/saved-roster.mjs
+ * Mechanically moved out of src/app.js. Used by both the new-team builder and
+ * the saved-roster editor's logo picker, so — same reasoning as core/state.mjs —
+ * it has to live somewhere both screens/teams/new.mjs and screens/saved-roster.mjs
  * can import it from.
  */
 

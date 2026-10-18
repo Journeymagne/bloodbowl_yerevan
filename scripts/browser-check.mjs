@@ -66,21 +66,12 @@ await check("team detail", async () => {
   return (await page.locator("h1").first().textContent())?.trim();
 });
 
-await check("builder hires exactly one player per click", async () => {
+await check("a guest's builder asks to sign in", async () => {
   await page.goto(`${base}/#/teams/new`, { waitUntil: "networkidle" });
-  await page.waitForSelector("[data-matchday-open-hire]", { timeout: 15000 });
-  const unique = () => page.evaluate(() =>
-    new Set([...document.querySelectorAll("[data-remove-player]")].map((node) => node.dataset.removePlayer)).size);
-  const before = await unique();
-  const summary = () => page.locator(".builder-info-panel .stat-list, .builder-summary .stat-list").first().innerText();
-  const costBefore = await summary();
-  await page.locator("[data-matchday-open-hire]:visible").first().click();
-  await page.locator("[data-add-row]").first().click();
-  await page.waitForTimeout(300);
-  const after = await unique();
-  if (after !== before + 1) throw new Error(`expected ${before + 1} players, found ${after}`);
-  if ((await summary()) === costBefore) throw new Error("cost did not change");
-  return `${before} -> ${after} players`;
+  await page.waitForSelector("[data-auth-form]", { timeout: 15000 });
+  const hash = await page.evaluate(() => location.hash);
+  if (hash !== "#/login") throw new Error(`expected #/login, found ${hash}`);
+  return hash;
 });
 
 await check("locale switch", async () => {

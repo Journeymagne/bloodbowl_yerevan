@@ -7,7 +7,6 @@
  * uses instead of each screen closing over an app.js-local variable, which
  * would make every screen module and app.js import each other.
  */
-import { createDraft } from "../domain/roster/schema.mjs";
 
 export const state = {
   data: null,
@@ -50,7 +49,4 @@ export const state = {
     loading: false,
     error: "",
   },
-  // The shape lives in domain/roster/schema.mjs, which is the only place that
-  // describes it; this used to be a fourth copy that had already drifted.
-  builder: createDraft(),
 };

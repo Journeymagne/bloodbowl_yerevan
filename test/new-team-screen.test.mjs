@@ -32,6 +32,7 @@ const { initLocale } = await import("../src/core/i18n.mjs");
 const { logoUploadMaxBytes } = await import("../src/core/logo-upload.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
+const { storage } = await import("../src/core/storage.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { expandCollections } = await import("../src/data/reference.mjs");
 const { sessionEnded } = await import("../src/data/session.mjs");
@@ -383,6 +384,15 @@ test("coming back to the builder twice draws it once: the first visit's listener
   renderNewTeam();
   hire("teams/human", "Thrower");
   assert.equal(count(rowOf("teams/human", "Thrower")), "1", "one click, one hire");
+});
+
+test("the page wipes the 2.x builder's draft where it opens, and starts from nothing instead of importing it (stage 06)", () => {
+  open();
+  storage.setJson("builder-draft", { draft: { teamName: "Old Rooks", teamSlug: "teams/human", logoData: "data:image/png;base64,AAAA" } });
+  renderNewTeam();
+  assert.equal(storage.get("builder-draft"), null, "the key and the logo in it are gone");
+  assert.equal(view.querySelector("#new-team-name").value, "", "nothing of the draft is offered back");
+  assert.equal(view.querySelector("h1").textContent, "New team");
 });
 
 test("another coach on this browser starts from nothing", () => {
