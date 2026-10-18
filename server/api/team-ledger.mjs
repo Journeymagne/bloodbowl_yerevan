@@ -15,7 +15,7 @@
  * settles a tie.
  */
 import { isMoneyAmount, sumMoney } from "../../src/domain/money.mjs";
-import { MANUAL_REASONS, ledgerRows } from "../../src/domain/roster/ledger.mjs";
+import { MANUAL_REASONS, MAX_ENTRY, MAX_NOTE, ledgerRows } from "../../src/domain/roster/ledger.mjs";
 import { httpError } from "../http/errors.mjs";
 import { isUuid } from "./team-access.mjs";
 
@@ -153,12 +153,9 @@ export async function ledgerSince(db) {
   return rows[0]?.applied_at ?? null;
 }
 
-const MAX_MANUAL_AMOUNT = 100000;
-const MAX_NOTE_LENGTH = 200;
-
 /** A number of thousands, either sign, that moves at least a gold and not more than one entry may. */
 function isManualAmount(delta) {
-  return typeof delta === "number" && sumMoney(delta) !== 0 && isMoneyAmount(Math.abs(delta)) && Math.abs(delta) <= MAX_MANUAL_AMOUNT;
+  return typeof delta === "number" && sumMoney(delta) !== 0 && isMoneyAmount(Math.abs(delta)) && Math.abs(delta) <= MAX_ENTRY;
 }
 
 /**
@@ -177,6 +174,6 @@ export function checkManualEntry(body) {
   if (!isManualAmount(delta)) throw httpError(400, "FIELD_INVALID", { field: "delta" });
   if (!MANUAL_REASONS.includes(reason)) throw httpError(400, "FIELD_INVALID", { field: "reason" });
   const text = note ?? "";
-  if (typeof text !== "string" || text.trim().length > MAX_NOTE_LENGTH || text.includes("\u0000")) throw httpError(400, "FIELD_INVALID", { field: "note" });
+  if (typeof text !== "string" || text.trim().length > MAX_NOTE || text.includes("\u0000")) throw httpError(400, "FIELD_INVALID", { field: "note" });
   return { delta: sumMoney(delta), reason, note: text.trim() || null };
 }

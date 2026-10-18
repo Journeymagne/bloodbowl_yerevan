@@ -11,24 +11,22 @@
  * team-rules.mjs's; this file asks them in the order the page needs.
  */
 import { applyPaidStaffChange } from "../../../domain/roster/costs.mjs";
+import { MANUAL_REASONS, MAX_ENTRY, MAX_NOTE } from "../../../domain/roster/ledger.mjs";
 import { canBuy } from "../../../domain/roster/stage.mjs";
 import { normalizeDraft, normalizePurchasedStaff } from "../../../domain/roster/schema.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "../../../domain/roster/team-rules.mjs";
 import { countToNumber } from "../../../domain/roster/values.mjs";
-import { builderStaffCosts, builderStaffMaximums } from "../../../domain/league-rules.mjs";
+import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from "../../../domain/league-rules.mjs";
 import { sumMoney } from "../../../domain/money.mjs";
 import { isGameClosedForPlayers } from "../../../data/games.mjs";
 import { gameSides } from "../../../data/team-record.mjs";
-import { isMatchLive } from "../../../shell/current-match.mjs";
+import { currentMatch } from "../../../shell/current-match.mjs";
 
 /** The plain counters the page edits, in the order it draws them; the race's medics follow. */
 export const COUNTER_KEYS = Object.freeze(["startingRerolls", "teamRerolls", "dedicatedFans", "assistantCoaches", "cheerleaders", "bribes"]);
 
-/** The largest entry the treasury takes at once, in thousands; `checkManualEntry` (server/api/team-ledger.mjs) refuses more. */
-export const MAX_ENTRY = 100000;
-
-/** The longest note an entry carries, in characters (trimmed), as the server counts it. */
-export const MAX_NOTE = 200;
+// What the server takes of a hand-written entry (domain/roster/ledger.mjs), where the sheet reads it from.
+export { MAX_ENTRY, MAX_NOTE };
 
 /**
  * Why a resource is closed, or null when it is open. The first reason that
@@ -39,7 +37,12 @@ export const MAX_NOTE = 200;
  *    throws, and `staffAvailable` (build.mjs) does not know `teamRerolls`.
  *  - `live`: a match is on.
  *  - `stage`: the rule of the stage (`canBuy`), Starting rerolls only in a
- *    build and Team rerolls only once the team is active.
+ *    build and Team rerolls only once the team is active. The rule refuses
+ *    growth alone (`stageViolations`, which the server applies), so a purchase
+ *    on record can still be taken back: `canStepDown` lets «−» through a
+ *    `stage` lock when `refund > 0`, and only then — a re-roll that was never
+ *    bought is not dropped, because the coach could not buy it again.
+ *    The other locks close the row whole.
  *  - `fans`: Dedicated Fans change after matches, not by the coach's hand.
  *    A saved team's fans move no money (`applyPaidStaffChange` skips them) and
  *    no stage rule covers them; the build sells them at 10k in the builder
@@ -50,6 +53,17 @@ function lockOf(key, { race, stage, locked }) {
   if (locked) return "live";
   if (!canBuy(stage, key)) return "stage";
   return key === "dedicatedFans" ? "fans" : null;
+}
+
+/**
+ * How many of a counter the team may hold. Starting and Team rerolls share
+ * `combinedRerollsMaximum`, so each has what the other leaves, never below 0;
+ * every other counter has its own maximum.
+ */
+function maxOf(key, draft) {
+  const other = { startingRerolls: "teamRerolls", teamRerolls: "startingRerolls" }[key];
+  if (!other) return builderStaffMaximums[key];
+  return Math.max(0, Math.min(builderStaffMaximums[key], combinedRerollsMaximum - draft[other]));
 }
 
 /** Why «+» would be refused on an open row: the maximum, or a treasury short of the price; null when it works. */
@@ -67,7 +81,9 @@ function incRefusalOf(value, max, price, treasury) {
  * so a count kept under the first builder's name still shows). `refund` is what
  * «−» pays back: the price, only while the roster records a purchase of it
  * (`normalizePurchasedStaff`; a Team Reroll of a team saved before purchases
- * were recorded counts as bought), otherwise 0.
+ * were recorded counts as bought), otherwise 0. `max` is the counter's own
+ * maximum, except that the two re-roll counters share 8 between them (`maxOf`).
+ * A closed row's «−» is `canStepDown`'s to say, not `decDisabled`'s alone.
  *
  * @param {{race: object|null, roster: object, stage: string|undefined, locked?: boolean}} input
  *   `race` is the reference's entry for the team's race; `locked` is a match on
@@ -80,7 +96,7 @@ export function resourceRows({ race, roster, stage, locked = false }) {
   const medics = race ? availableMedicalStaffDefinitions(race).map(({ key }) => ({ key, kind: "medic" })) : [];
   const keys = [...COUNTER_KEYS.map((key) => ({ key, kind: "counter" })), ...medics];
   return keys.map(({ key, kind }) => {
-    const [value, max, price] = [draft[key], builderStaffMaximums[key], builderStaffCosts[key]];
+    const [value, max, price] = [draft[key], maxOf(key, draft), builderStaffCosts[key]];
     const lock = lockOf(key, { race, stage, locked });
     return {
       key, kind, value, max, price, lock,
@@ -89,6 +105,20 @@ export function resourceRows({ race, roster, stage, locked = false }) {
       refund: purchased[key] > 0 ? price : 0,
     };
   });
+}
+
+/**
+ * Whether «−» works on a row: not at zero, and not on a closed row, except one
+ * the stage closed, which still lets a purchase on record be taken back
+ * (`refund > 0`; see `lockOf`). The page draws «−» from this, and `stepResource`
+ * decides by it, so the button and the step never disagree.
+ *
+ * @param {{lock: string|null, decDisabled: boolean, refund: number}} row a row of `resourceRows`
+ * @returns {boolean}
+ */
+export function canStepDown(row) {
+  if (row.decDisabled) return false;
+  return row.lock === null || (row.lock === "stage" && row.refund > 0);
 }
 
 /**
@@ -105,14 +135,19 @@ export function resourceRows({ race, roster, stage, locked = false }) {
 export function stepResource({ race, roster, stage, key, delta, locked = false }) {
   const row = resourceRows({ race, roster, stage, locked }).find((candidate) => candidate.key === key);
   if (!row) throw new Error(`stepResource: no resource "${key}" on this team`);
-  if (row.lock || (delta > 0 && row.incRefusal) || (delta < 0 && row.decDisabled)) return { refused: row };
+  const closed = delta < 0 ? !canStepDown(row) : Boolean(row.lock || (delta > 0 && row.incRefusal));
+  if (closed) return { refused: row };
   const draft = normalizeDraft(structuredClone(roster));
   draft[key] = row.value + delta;
   applyPaidStaffChange(draft, key, row.value, row.value + delta);
   return { roster: draft };
 }
 
-/** Whether a game of the team is being got ready: both sides still preparing or ready, and the round still the players'. */
+/**
+ * Whether a game of the team is being got ready: `preparing` (the sides have not
+ * both confirmed their preparation) or `ready` (both have), the post-match not
+ * done, and the round still the players'.
+ */
 function isPreparing(game) {
   return (game.preparationStatus === "preparing" || game.preparationStatus === "ready")
     && game.postMatchStatus !== "completed"
@@ -120,25 +155,25 @@ function isPreparing(game) {
 }
 
 /**
- * What a match does to the page. A match on (`isMatchLive`, the SideNav card's
- * own question) closes the resources and the money; a match being prepared only
- * warns, since buying then resets the roster-bound steps but is not forbidden.
- * A preparation counts only in a round the players can still play
- * (`isGameClosedForPlayers`, as the SideNav card judges it), so the team page
- * and the roster never disagree. A match on wins over a preparation.
+ * What a match does to the page. A match on closes the resources and the money;
+ * a match being prepared only warns, since buying then resets the roster-bound
+ * steps but is not forbidden. A match on is the SideNav card's own pick
+ * (`currentMatch`: the card's phases put a match in play first, a league match
+ * before a friendly, then the freshest), so with two on, the page and the card
+ * name the same game. A preparation counts only in a round the players can
+ * still play (`isGameClosedForPlayers`, as the card judges it), so the team
+ * page and the roster never disagree. A match on wins over a preparation.
  *
  * @param {object[]} games the coach's games (`state.games.items`)
  * @param {string|null} teamId
  * @returns {{kind: "live"|"preparing", game: object}|null}
  */
 export function matchLock(games, teamId) {
-  let preparing = null;
-  for (const game of games ?? []) {
-    if (!gameSides(game, teamId)) continue;
-    if (isMatchLive(game)) return { kind: "live", game };
-    if (!preparing && isPreparing(game)) preparing = { kind: "preparing", game };
-  }
-  return preparing;
+  const own = games ?? [];
+  const current = currentMatch(own, teamId);
+  if (current?.phase === "live") return { kind: "live", game: current.game };
+  const game = own.find((candidate) => gameSides(candidate, teamId) && isPreparing(candidate));
+  return game ? { kind: "preparing", game } : null;
 }
 
 /**
@@ -178,9 +213,11 @@ export function readAmount(text) {
 /**
  * What the sheet's button waits for. The checks go in this order and the first
  * that fails is the `problem`: no amount (unreadable, or 0), too much, no
- * reason, a note too long, a debit the treasury cannot cover. `delta` is the
- * signed amount (null while there is none), `after` the treasury once it is
- * made (summed in gold, so 70 + 0.3 is 70.3), `short` how much it lacks.
+ * reason (or one the server does not know), a note too long, a debit the
+ * treasury cannot cover. `delta` is the signed amount (null while there is
+ * none, and when it is too large to enter: it is not added up then), `after`
+ * the treasury once it is made (summed in gold, so 70 + 0.3 is 70.3), `short`
+ * how much it lacks.
  *
  * @param {{treasury: number, sign: 1|-1, amountText: string, reason: string, note: string}} input
  * @returns {{delta: number|null, after: number, short: number,
@@ -188,12 +225,13 @@ export function readAmount(text) {
  */
 export function moneyCheck({ treasury, sign, amountText, reason, note }) {
   const amount = readAmount(amountText);
-  const delta = amount === null ? null : sign * amount || 0;
+  const enterable = amount !== null && amount <= MAX_ENTRY;
+  const delta = enterable ? sign * amount || 0 : null;
   const after = sumMoney(countToNumber(treasury), delta ?? 0);
   const problem = [
     [!amount, "amount"],
-    [amount > MAX_ENTRY, "tooMuch"],
-    [!reason, "reason"],
+    [!enterable, "tooMuch"],
+    [!MANUAL_REASONS.includes(reason), "reason"],
     [String(note ?? "").trim().length > MAX_NOTE, "note"],
     [after < 0, "short"],
   ].find(([failed]) => failed)?.[1] ?? null;

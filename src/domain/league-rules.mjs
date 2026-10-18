@@ -32,6 +32,14 @@ export const builderStaffMaximums = {
   plagueDoctor: 1,
 };
 
+/**
+ * Starting and Team rerolls together. Each kind has its own maximum above, but a
+ * team never holds more than this many of both: the post-match flow refuses a
+ * Team Reroll past it (domain/post-match/roster.mjs), and the team page leaves
+ * each counter the room the other leaves.
+ */
+export const combinedRerollsMaximum = 8;
+
 export const medicalStaffDefinitions = [
   { key: "apothecary", title: "Apothecary", access: "apothecary" },
   { key: "mortuaryAssistant", title: "Mortuary Assistant", access: "mortuary" },
