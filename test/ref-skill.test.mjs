@@ -102,12 +102,24 @@ test("a holder is shown by number, name and position; a skill nobody has says so
   assert.equal(nobody.querySelector("li"), null);
 });
 
-test("a name in a roster finds its page whatever the spelling or the parameter: Bone Head is Bonehead, Loner (4+) is Loner (X+)", () => {
+test("a name in a roster finds its page whatever the spelling or a placeholder's parameter: Bone Head is Bonehead, Loner (4+) is Loner (X+)", () => {
   const race = { team: { roster: [{ position: "Ogre Blocker", skills: ["Bone Head", "Loner (4+)", "Throw Team-mate", "Animosity (All)", "Mighty Blow (+1)", "Kick Team-mate"] }] } };
   const team = { roster: { players: [{ rowIndex: 0, number: 5, name: "Grunt" }] } };
   const has = (title) => skillHolders({ team, teamPage: race, title }).length;
-  for (const title of ["Bonehead", "Loner (X+)", "Throw Team-Mate", "Animosity (X)", "Mighty Blow", "Mighty Blow (+2)", "Kick Team-Mate"]) assert.equal(has(title), 1, title);
-  for (const title of ["Block", "Kick", "Hatred (X)", "Throw"]) assert.equal(has(title), 0, title);
+  for (const title of ["Bonehead", "Loner (X+)", "Throw Team-Mate", "Animosity (X)", "Mighty Blow", "Kick Team-Mate", "Mighty Blow (+1)"]) assert.equal(has(title), 1, title);
+  for (const title of ["Block", "Kick", "Hatred (X)", "Throw", "Mighty Blow (+2)"]) assert.equal(has(title), 0, title);
+});
+
+test("a skill with a number in its title is its own skill: Mighty Blow (+2) is not held by whoever has (+1) or none; a plain title lists all", () => {
+  const race = { team: { roster: [{ position: "Troll", skills: ["Mighty Blow (+1)"] }, { position: "Ogre", skills: ["Mighty Blow"] }, { position: "Giant", skills: ["Mighty Blow (+2)", "Loner (4+)"] }, { position: "Lineman", skills: ["Block"] }] } };
+  const team = { roster: { players: [1, 2, 3, 4].map((number) => ({ rowIndex: number - 1, number, name: `P${number}` })) } };
+  const numbers = (title) => skillHolders({ team, teamPage: race, title }).map((holder) => holder.number);
+  assert.deepEqual(numbers("Mighty Blow (+1)"), ["1"]);
+  assert.deepEqual(numbers("Mighty Blow (+2)"), ["3"]);
+  assert.deepEqual(numbers("Mighty Blow"), ["1", "2", "3"], "the plain skill is held under any parameter");
+  assert.deepEqual(numbers("Loner (X+)"), ["3"], "a placeholder is any number");
+  const captain = { roster: { players: [{ rowIndex: 3, number: 9, name: "Cap", isCaptain: true }] } };
+  assert.deepEqual(skillHolders({ team: captain, teamPage: race, title: "Pro" }).map((holder) => holder.number), ["9"], "and what the captaincy brings is held by name too");
 });
 
 test("with a signed-in coach's active team the panel on its page says who has the skill; the guest's has no such block", () => {
@@ -126,7 +138,7 @@ test("with a signed-in coach's active team the panel on its page says who has th
   assert.equal(view.querySelector(".g-skill-detail__none").textContent, "No one has it", "a race the vault lacks has no one");
 });
 
-test("a trait has a dot for a letter, its tags for a caption and no roll; a skill the table leaves out says so", () => {
+test("a trait has a dot for a letter, its tags for a caption and no roll", () => {
   renderReferencePage("traits/throw-team-mate");
   const panel = view.querySelector(".g-ref__panel .g-skill-detail");
   assert.equal(panel.querySelector("h1").textContent, "Throw Team-Mate");
@@ -139,9 +151,16 @@ test("a trait has a dot for a letter, its tags for a caption and no roll; a skil
   assert.equal(view.querySelector(".g-ref-back").getAttribute("href"), "#/ref/traits");
   renderReferencePage("traits/always-hungry");
   assert.equal(view.querySelector(".g-skill-detail__caption").textContent, "Trait");
-  renderReferencePage("skills/cannoneer");
-  assert.equal(view.querySelector(".g-kv__value").textContent, "Not on the Skill Table");
-  assert.equal(view.querySelector(".g-skill-detail__caption").textContent, "Passing · Active");
+});
+
+test("a skill the Skill Table leaves out says so, with the category its tags give", () => {
+  // Written out, not taken from the vault: which skills the table lacks is the content's to settle.
+  const data = { skillGroups: [{ category: "Passing", skills: ["Pass"] }] };
+  const page = { kind: "skill", slug: "skills/x", title: "Cannon", tags: ["Active", "Passing"], html: "<p>Rule.</p>" };
+  const panel = draw(skillDetailMarkup({ data, page }));
+  assert.equal(panel.querySelector(".g-kv__value").textContent, "Not on the Skill Table");
+  assert.equal(panel.querySelector(".g-skill-detail__caption").textContent, "Passing · Active");
+  assert.equal(draw(skillDetailMarkup({ data, page: { ...page, title: "Pass" } })).querySelector(".g-kv__value").textContent, "Passing · 1 on D16");
 });
 
 test("the category is the first tag the Skill Table has; a trait has none, and a tag without a colour is drawn as a trait", () => {
@@ -171,7 +190,7 @@ test("a phone gets the way back from the panel to the list, not to the reference
   assert.deepEqual(view.querySelectorAll("a.g-ref-back").map((link) => [link.getAttribute("href"), link.textContent]), [["#/ref/traits", "Traits"]], "the glossary keeps the section's name in English");
 });
 
-test("a phone starts the panel at its top, wherever the list was read to; a wide screen, and the open panel redrawn, stay where they are", () => {
+test("a phone starts a panel at its top, wherever the list or the panel before it was read to; a wide screen, and the same panel redrawn, stay where they are", () => {
   const scrolls = [];
   globalThis.scrollTo = (x, y) => scrolls.push([x, y]);
   try {
@@ -188,10 +207,65 @@ test("a phone starts the panel at its top, wherever the list was read to; a wide
     fireEvent(field, "input");
     assert.ok(view.querySelector(".g-ref--open"), "the panel stays up while the list is searched");
     assert.equal(scrolls.length, 1, "and the redraw does not start it over");
+    renderReferencePage("skills/dodge");
+    assert.equal(scrolls.length, 1, "nor does the same address again");
+    renderReferencePage("skills/block");
+    assert.equal(scrolls.length, 2, "a link in a rule to another skill is another screen, and starts at its top");
+    renderRefSection("skills");
+    renderReferencePage("skills/block");
+    assert.equal(scrolls.length, 3, "and so is the same skill after the list");
   } finally {
     delete globalThis.matchMedia;
     delete globalThis.scrollTo;
   }
+});
+
+/**
+ * Give the fake page a layout for the list's box: 720px of 48px rows, one to a line, which scrolls. The
+ * rows' tops follow the box's `scrollTop`, as a browser's do.
+ */
+function withListLayout(run) {
+  const proto = Object.getPrototypeOf(view);
+  const classOf = (node) => node.getAttribute("class") ?? "";
+  const body = (node) => node.closest(".g-ref-list__body");
+  const original = Object.getOwnPropertyDescriptor(proto, "getBoundingClientRect");
+  Object.defineProperty(proto, "getBoundingClientRect", {
+    configurable: true,
+    value() {
+      if (classOf(this).includes("g-ref-list__body")) return { top: 100, bottom: 820 };
+      const index = body(this).querySelectorAll("a.g-ref-row").indexOf(this);
+      const top = 100 + index * 48 - body(this).scrollTop;
+      return { top, bottom: top + 48 };
+    },
+  });
+  Object.defineProperty(proto, "clientHeight", { configurable: true, get() { return classOf(this).includes("g-ref-list__body") ? 720 : 0; } });
+  Object.defineProperty(proto, "offsetHeight", { configurable: true, get() { return 48; } });
+  try {
+    run();
+  } finally {
+    Object.defineProperty(proto, "getBoundingClientRect", original);
+    delete proto.clientHeight;
+    delete proto.offsetHeight;
+  }
+}
+
+test("a skill opened by a link is brought into view in the list's box, which is all that moves; a row already in view stays", () => {
+  withListLayout(() => {
+    const rows = () => view.querySelectorAll("a.g-ref-row");
+    const body = () => view.querySelector(".g-ref-list__body");
+    const indexOf = (slug) => rows().findIndex((row) => row.getAttribute("href") === `#/${slug}`);
+    renderReferencePage("skills/evasive");
+    const at = indexOf("skills/evasive");
+    assert.ok(at * 48 > 720, "the row is below the fold of a box that shows fifteen");
+    assert.equal(body().scrollTop, at * 48 - (720 - 48) / 2, "it is in the middle of the box");
+    const kept = body().scrollTop;
+    renderReferencePage(rows()[at + 1].getAttribute("href").slice(2));
+    assert.equal(body().scrollTop, kept, "the next row is in view: nothing moves");
+    renderReferencePage("skills/accurate");
+    assert.equal(body().scrollTop, 0, "a link from the panel to a skill above is brought down to the top: it cannot be centred");
+    renderRefSection("skills");
+    assert.equal(body().scrollTop, 0, "a list with nothing chosen starts at its top");
+  });
 });
 
 test("every skill and trait of both vaults draws in the panel: one h1 with its name, nothing the CSP refuses, no link the router sends on", () => {
@@ -281,7 +355,15 @@ test("from 901px the split page's columns never wrap, and its panel stays in vie
   // Sticking needs the frame's box not to be one that scrolls: `overflow-x: hidden` makes it one, which never scrolls, so nothing would stick.
   assert.deepEqual(valuesOf(REF, ".g-main:has(.g-ref)", "overflow-x"), ["clip"]);
   assert.ok(split(REF).wide.includes(".g-main:has(.g-ref)"), "and only where the panel is: from 901px");
+  // Temporary, with the scoped rule above: stage 13 deletes the 2.x `.builder-summary` sticky, and `clip` goes into frame.css for every screen.
   assert.equal(valuesOf("src/shell/frame.css", ".g-main", "overflow-x")[0], "hidden", "the frame's other screens stay as they were");
+});
+
+test("a panel taller than the window scrolls in itself, so that its foot (who in the team has the skill) is not out of reach while it is stuck", () => {
+  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "max-height"), ["calc(100vh - 48px)"], "the window less 24px above and below, as the panel's `top`");
+  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "overflow-y"), ["auto"]);
+  assert.deepEqual(valuesOf(REF, ".g-ref--split .g-ref__panel", "top"), ["24px"]);
+  assert.ok(split(REF).wide.includes("max-height: calc(100vh - 48px)"), "only from 901px, where the panel is a column and sticks");
 });
 
 test("a row holds the category it says to a screen reader, so that the page cannot be scrolled past the rows' box", () => {

@@ -308,6 +308,10 @@
    * makes it a box that scrolls (though it never does) and so the one a sticky panel sticks to: it
    * would never stick. Cut off with `clip` it is not a box, and the panel sticks to the window. Only
    * here: the frame's other screens have sticky panels of their own that are held still by it today.
+   *
+   * Temporary: when stage 13 deletes the 2.x `.builder-summary` sticky (styles/responsive.css), the
+   * `overflow-x: clip` belongs on `.g-main` in shell/frame.css and this rule goes (with the pin in
+   * test/ref-skill.test.mjs that frame.css still says `hidden`).
    */
   .g-main:has(.g-ref) { overflow-x: clip; }
   #app-view > .g-ref {
@@ -431,9 +435,12 @@
   }
   .g-ref--list .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr); }
   .g-ref--split .g-ref__body { grid-template-columns: clamp(140px, 14vw, 220px) minmax(0, 1fr) clamp(200px, 22vw, 440px); }
+  /* A card taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
   .g-ref--split .g-ref__panel {
     position: sticky;
     top: 24px;
+    max-height: calc(100vh - 48px);
+    overflow-y: auto;
   }
 
   /* The list is a card: its head, then its rows in columns, scrolling from 720px. */

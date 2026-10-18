@@ -9,7 +9,7 @@
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { canonicalSkillName, heldSkillKeys } from "../../domain/roster/players.mjs";
+import { canonicalSkillName, heldSkillKeys, skillNamesForPlayer } from "../../domain/roster/players.mjs";
 import { ruleLookupKey } from "../../domain/roster/team-rules.mjs";
 import { rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderKeyValueRow } from "../../ui/list-row.mjs";
@@ -63,9 +63,24 @@ export function skillRoll(data, title) {
  */
 const skillKey = (name) => ruleLookupKey(String(name).replace(/\s*\([^)]*\)\s*$/, ""));
 
+/** A parameter that is a number (`Mighty Blow (+1)`, `Loner (4+)`), not a placeholder (`Loner (X+)`, `Animosity (X)`). */
+const NUMBERED = /\(\s*[+-]?\d+\+?\s*\)\s*$/;
+const spaced = (name) => String(name).replace(/\s+/g, " ").trim();
+
+/**
+ * Whether a player holds the skill a page is about. A page with a number in its title (`Mighty Blow (+1)`
+ * and `(+2)` are skills of their own) is held by the players who have exactly that; any other page (a plain
+ * `Mighty Blow`, a placeholder `Loner (X+)`) by whoever has it under any parameter or spelling (`skillKey`).
+ */
+function holds(row, player, title) {
+  if (NUMBERED.test(title)) return skillNamesForPlayer(row, player).some((name) => spaced(name) === spaced(title));
+  const wanted = skillKey(title);
+  return [...heldSkillKeys(row, player)].some((name) => skillKey(name) === wanted);
+}
+
 /**
  * The players of a team who have the skill, in the roster's order: from their position, their
- * advancements, the skills they favour and the captaincy (`heldSkillKeys`). No team, or a team whose
+ * advancements, the skills they favour and the captaincy (`skillNamesForPlayer`). No team, or a team whose
  * race has no page, has none; a player whose row the race no longer has is left out.
  *
  * @param {{team: object|null, teamPage: object|null, title: string}} props `team` the coach's team as the server has it, `teamPage` the page of its race
@@ -74,10 +89,9 @@ const skillKey = (name) => ruleLookupKey(String(name).replace(/\s*\([^)]*\)\s*$/
 export function skillHolders({ team, teamPage, title }) {
   if (!team || !teamPage) return [];
   const rows = rowsForTeam(teamPage);
-  const wanted = skillKey(title);
   return (team.roster?.players ?? []).flatMap((player) => {
     const row = rows[player.rowIndex];
-    if (!row || ![...heldSkillKeys(row, player)].some((name) => skillKey(name) === wanted)) return [];
+    if (!row || !holds(row, player, title)) return [];
     return [{ number: String(player.number ?? ""), name: String(player.name ?? ""), position: String(row.position ?? "") }];
   });
 }
@@ -113,7 +127,7 @@ export function skillDetailMarkup({ data, page, team = null, teamPage = null }) 
   const caption = [category ?? tagged, type].filter(Boolean).join(" · ");
   const roll = page.kind === "skill" ? renderKeyValueRow({ label: t("ref.skill.roll"), value: rollValue(skillRoll(data, page.title)) }) : "";
   const rule = page.html || `<p>${escapeHtml(page.text ?? "")}</p>`;
-  return `<article class="g-skill-detail"><header class="g-skill-detail__head">${badgeMarkup(category, { large: true })}`
+  return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}"><header class="g-skill-detail__head">${badgeMarkup(category, { large: true })}`
     + `<div class="g-skill-detail__title"><h1 class="g-skill-detail__name">${escapeHtml(page.title)}</h1>`
     + `<p class="g-skill-detail__caption">${escapeHtml(caption)}</p></div></header>`
     + `<div class="g-prose">${rule}</div>${roll}`

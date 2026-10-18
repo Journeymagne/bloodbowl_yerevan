@@ -359,6 +359,11 @@ class FakeElement extends FakeNode {
     this.selectionStart = start;
     this.selectionEnd = end;
   }
+
+  /** The fake page has no layout: every box is a point at the origin, so nothing is out of view. A test that needs a layout stubs this. */
+  getBoundingClientRect() {
+    return { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 };
+  }
 }
 
 /** What `parseHtml` returns: a holder for the top-level nodes, which selectors never treat as an element. */

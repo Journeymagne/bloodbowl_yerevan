@@ -164,6 +164,21 @@ function rewind() {
 }
 
 /**
+ * A skill opened by a link (from a roster, from another skill's rule) may be a row below the fold of the
+ * box that scrolls: the box moves to put it in the middle. Only the box: `scrollIntoView` would move the
+ * page too. A row already in view stays where it is.
+ */
+function revealSelected() {
+  const body = view.querySelector(".g-ref-list__body");
+  const row = body?.querySelector('[aria-current="page"]');
+  if (!row) return;
+  const box = body.getBoundingClientRect();
+  const at = row.getBoundingClientRect();
+  if (at.top >= box.top && at.bottom <= box.bottom) return;
+  body.scrollTop = Math.max(0, at.top - box.top + body.scrollTop - (body.clientHeight - row.offsetHeight) / 2);
+}
+
+/**
  * The panel of a split page: what is said until a skill or a trait is chosen, then the chosen one's
  * card, with the coach's active team beside it. On a phone the panel is the whole screen, so it carries
  * the way back to the list (a link the sheet shows only there).
@@ -181,7 +196,8 @@ function draw(section, selected) {
   const filter = listFilter(section);
   const split = SPLIT_SECTIONS.has(section);
   const sameList = view.querySelector(".g-ref-list")?.getAttribute("data-section") === section;
-  const wasOpen = Boolean(view.querySelector(".g-ref--open"));
+  // The page the panel is showing now, before the redraw: a different one is a new screen on a phone.
+  const shown = view.querySelector(".g-skill-detail")?.getAttribute("data-page") ?? null;
   patch(view, refPageMarkup({
     layout: split ? "split" : "list",
     open: Boolean(selected),
@@ -196,8 +212,10 @@ function draw(section, selected) {
   syncField("#ref-query", refQuery());
   // Opening a skill redraws the same list beside it, which must stay where the coach scrolled it to.
   if (!sameList) rewind();
-  // A phone shows the panel in the list's place, a screen of its own: from its top, not from wherever the list was read to.
-  if (selected && !wasOpen && globalThis.matchMedia?.(PHONE).matches) globalThis.scrollTo?.(0, 0);
+  if (!selected || selected.slug === shown) return;
+  revealSelected();
+  // A phone shows the panel in the list's place, a screen of its own: from its top, not from wherever the list (or the panel before it) was read to.
+  if (globalThis.matchMedia?.(PHONE).matches) globalThis.scrollTo?.(0, 0);
 }
 
 /**
