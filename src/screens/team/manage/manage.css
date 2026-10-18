@@ -103,8 +103,10 @@
 .g-money__alert { margin: 0; }
 .g-money__alert:empty { margin-top: calc(-1 * var(--space-16)); }
 
-/* «Resources»: a card of counters and switches, each row its own line (resource-counter.css, toggle.css). */
-.g-manage__resources {
+/* «Resources», «History» and «Coach's Safe»: cards of one look. Resources is a card of counters and switches, each row its own line (resource-counter.css, toggle.css). */
+.g-manage__resources,
+.g-manage__history,
+.g-manage__safe {
   box-sizing: border-box;
   min-width: 0;
   padding: var(--space-4) var(--space-16) var(--space-12);
@@ -126,7 +128,8 @@
   gap: 0 var(--space-12);
 }
 
-.g-manage__resources-title {
+.g-manage__resources-title,
+.g-manage__history-title {
   margin: var(--space-12) 0;
   color: var(--ink);
   font: 700 26px/1.1 var(--font-display);
@@ -147,4 +150,137 @@
   font: 400 12px/1.4 var(--font-body);
   text-transform: none;
   letter-spacing: 0;
+}
+
+/* «History»: a line is its title, its comment, its day and, spanning them at the right, its amount. A row is 60px, the touch size and a little over. */
+.g-ledger {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-ledger__row {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-12);
+  align-items: center;
+  min-height: 60px;
+  margin: 0;
+  padding: var(--space-8) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.g-ledger__title {
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The comment is the coach's own words and can be long, or one word with no breaks in it. */
+.g-ledger__note,
+.g-ledger__when {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-ledger__amount {
+  grid-row: 1 / span 3;
+  grid-column: 2;
+  color: var(--ink);
+  font: 700 15px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+.g-ledger__amount--in { color: var(--accent-text); }
+.g-ledger__amount--out { color: var(--danger); }
+
+/* Not read yet, nothing yet, or not read at all: one quiet line in the card's place for the list. */
+.g-ledger__state {
+  margin: 0;
+  padding: var(--space-12) 0;
+  color: var(--muted);
+  font: 400 14px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-ledger__actions {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-16);
+}
+
+.g-ledger__action {
+  box-sizing: border-box;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: 600 15px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-ledger__action:hover { text-decoration: underline; }
+
+.g-ledger__since {
+  margin: 0;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* «Coach's Safe»: the name and the rule at the left, what the safe holds at the right. */
+.g-manage__safe {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  column-gap: var(--space-12);
+  align-items: center;
+  padding: var(--space-12) var(--space-16);
+}
+
+.g-manage__safe-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-manage__safe-title {
+  margin: 0;
+  color: var(--muted);
+  font: 600 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-manage__safe-rule,
+.g-manage__safe-last {
+  margin: 0;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-manage__safe-amount {
+  color: var(--ink);
+  font: 700 28px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
 }
