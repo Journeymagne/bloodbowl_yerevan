@@ -1114,5 +1114,18 @@
   "treasury.reason.other": "Другое",
   "treasury.reason.purchase": "Покупка",
   "treasury.reason.sponsor": "Спонсор / приз",
+  "treasury.strip.apothecary": "Апот.",
+  "treasury.strip.assistantCoaches": "Coaches",
+  "treasury.strip.bribes": "Bribes",
+  "treasury.strip.cheerleaders": "Cheer",
+  "treasury.strip.dedicatedFans": "Фаны",
+  "treasury.strip.edit": "Зачислить или списать",
+  "treasury.strip.mortuaryAssistant": "Mortuary",
+  "treasury.strip.no": "нет",
+  "treasury.strip.plagueDoctor": "Plague",
+  "treasury.strip.startingRerolls": "Старт. рер.",
+  "treasury.strip.teamRerolls": "Ком. рер.",
+  "treasury.strip.yes": "есть",
+  "treasury.title": "Казна и ресурсы",
   "treasury.writing": "Другое сохранение ещё идёт. Подождите немного и нажмите снова."
 }

@@ -1114,5 +1114,18 @@
   "treasury.reason.other": "Other",
   "treasury.reason.purchase": "Purchase",
   "treasury.reason.sponsor": "Sponsor or prize",
+  "treasury.strip.apothecary": "Apo",
+  "treasury.strip.assistantCoaches": "Coaches",
+  "treasury.strip.bribes": "Bribes",
+  "treasury.strip.cheerleaders": "Cheer",
+  "treasury.strip.dedicatedFans": "Fans",
+  "treasury.strip.edit": "Add to or take from the treasury",
+  "treasury.strip.mortuaryAssistant": "Mortuary",
+  "treasury.strip.no": "no",
+  "treasury.strip.plagueDoctor": "Plague",
+  "treasury.strip.startingRerolls": "Start RR",
+  "treasury.strip.teamRerolls": "Team RR",
+  "treasury.strip.yes": "yes",
+  "treasury.title": "Treasury and resources",
   "treasury.writing": "Another save is still on its way. Wait a moment and press again."
 }
