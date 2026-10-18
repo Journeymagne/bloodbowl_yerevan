@@ -1,10 +1,14 @@
 /*
  * A sheet on the native <dialog>: from the bottom of the screen up to 900px,
- * a modal in the middle from 901px. Nothing here sets `display` on the
- * dialog, so a closed one stays hidden by the browser's own rule. Font,
- * border, background, text-transform, font-weight and border-radius are set
- * on purpose: the 2.x globals (h2 { font: 800 … }, :focus-visible {
- * border-radius }) outlive this sheet until stage 13.
+ * a modal in the middle from 901px. On a phone the title is centred and the
+ * footer is a column; on a desk the title stands left over a rule and the
+ * footer's button sits at its right. Nothing here sets `display` on the
+ * dialog, so a closed one stays hidden by the browser's own rule. The team
+ * switcher is an `anchored` sheet: the same from the bottom up to 900px, a
+ * 300px panel by the SideNav from 901px. Font, border, background,
+ * text-transform, font-weight and border-radius are set on purpose: the 2.x
+ * globals (h2 { font: 800 … }, :focus-visible { border-radius }) outlive this
+ * sheet until stage 13.
  */
 dialog.g-sheet {
   box-sizing: border-box;
@@ -88,10 +92,19 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
 /* A scroller the keyboard can reach: its ring sits inside, where the panel does not clip it. */
 .g-sheet__body:focus-visible { outline-offset: -3px; }
 
+/* On a phone the footer is a column: the quiet control (if the sheet has one) over the one button. */
 .g-sheet__foot {
+  display: flex;
   flex: none;
+  flex-direction: column;
+  gap: var(--space-8);
   padding: var(--space-10) var(--space-16) var(--space-24);
   border-top: 1px solid var(--line);
+}
+
+.g-sheet__foot-start {
+  display: flex;
+  align-items: center;
 }
 
 @media (max-width: 900px) {
@@ -113,6 +126,59 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
     border-radius: var(--radius-2xl);
   }
   dialog.g-sheet.g-sheet--wide { width: min(640px, calc(100% - 32px)); }
+  /* The team switcher: a panel at the left, by the SideNav's team block, not a modal in the middle; its bottom keeps 24px from the window's edge. */
+  dialog.g-sheet.g-sheet--anchored {
+    width: 300px;
+    max-height: calc(100dvh - 96px);
+    margin: 72px auto auto 12px;
+    border-radius: var(--radius-2xl);
+  }
   /* The handle is a bottom sheet's; a modal has nothing to drag. */
   .g-sheet__handle { display: none; }
+
+  /* The title stands at the left over a rule, the close at the right; the spacer that centred it is not needed. */
+  .g-sheet__head {
+    display: flex;
+    align-items: center;
+    gap: var(--space-12);
+    padding: var(--space-20) var(--space-24) var(--space-16);
+    border-bottom: 1px solid var(--line);
+  }
+  .g-sheet__spacer { display: none; }
+  .g-sheet__titles { flex: 1 1 auto; }
+  .g-sheet__title {
+    font-size: 26px;
+    text-align: left;
+  }
+  .g-sheet__sub { text-align: left; }
+  /* A panel's title is a small caption over its list, with no rule and no cross: the backdrop and Escape close it. */
+  .g-sheet--anchored .g-sheet__head {
+    padding: var(--space-12) var(--space-16) var(--space-4);
+    border-bottom: 0;
+  }
+  .g-sheet--anchored .g-sheet__title {
+    color: var(--muted);
+    font: 700 13px/1.2 var(--font-body);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .g-sheet--anchored .g-sheet__head .g-icon-btn { display: none; }
+  .g-sheet--anchored .g-sheet__body { padding: var(--space-4) var(--space-8) var(--space-8); }
+
+  /* The button sits at the right of the footer, as wide as its words; the quiet control goes to the left. */
+  .g-sheet__foot {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-end;
+    gap: var(--space-12);
+    padding: var(--space-16) var(--space-24) var(--space-20);
+    border-top: 0;
+  }
+  .g-sheet__foot .g-btn--primary {
+    width: auto;
+    height: var(--size-touch);
+    padding: 0 var(--space-20);
+    font-size: 15px;
+  }
+  .g-sheet__foot-start { margin-right: auto; }
 }

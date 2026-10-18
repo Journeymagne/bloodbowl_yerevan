@@ -37,7 +37,7 @@ export function renderActionStepper({ key, label, name, spp, value, delta = 0, p
   return `<div class="g-stepper"${dataAttributes({ ...data, actionKey: key })}>${minus}${mid}${plus}</div>`;
 }
 
-/** A click on a live − or + reports `({ key, delta, element }, button)`; see wireStepButtons. */
-export function wireActionSteppers(root, onStep) {
-  return wireStepButtons(root, "action", onStep);
+/** A click on a live − or + reports `({ key, delta, element }, button)`, on a refused one `options.onRefused`; see wireStepButtons. */
+export function wireActionSteppers(root, onStep, options) {
+  return wireStepButtons(root, "action", onStep, options);
 }

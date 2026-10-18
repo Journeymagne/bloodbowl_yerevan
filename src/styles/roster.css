@@ -19,18 +19,6 @@
   margin-bottom: 0;
 }
 
-.builder-panel {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-  min-width: 0;
-}
-
-.builder-panel > * {
-  min-width: 0;
-  max-width: 100%;
-}
-
 .builder-form {
   display: grid;
   grid-template-columns: repeat(3, minmax(140px, 1fr));
@@ -137,48 +125,10 @@
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
 }
 
-.builder-info-panel {
-  display: grid;
-  gap: 16px;
-  margin-bottom: 18px;
-}
-
-.builder-info-section {
-  display: grid;
-  min-width: 0;
-  gap: 12px;
-  align-content: start;
-}
-
-.builder-info-section h2 {
-  margin: 0;
-}
-
-.builder-info-identity .builder-form {
-  grid-template-columns: 1fr;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  backdrop-filter: none;
-}
-
-.builder-info-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-
-.builder-info-panel .team-rules-panel,
 .public-team-overview .team-rules-panel {
   padding: 0;
   border: 0;
   background: transparent;
-}
-
-.builder-info-purchases .builder-tracker-list {
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 .roster-purchase-card {
@@ -254,10 +204,6 @@
   gap: 7px;
 }
 
-.builder-mode-field {
-  min-width: 0;
-}
-
 .segmented-control {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -289,18 +235,6 @@
 .segmented-control button.active {
   background: var(--active-button-bg);
   color: var(--active-button-text);
-}
-
-.builder-roster {
-  display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-
-.builder-addons {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
 }
 
 .builder-addon {
@@ -399,92 +333,14 @@
   font-size: 1.125rem;
 }
 
-.builder-row {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  align-items: start;
-  min-width: 0;
-  max-width: 100%;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel);
-  backdrop-filter: blur(2px);
-}
-
-.builder-row-head strong,
-.builder-row-head span {
-  display: block;
-  min-width: 0;
-}
-
-.builder-row-head span {
-  margin-top: 5px;
-  color: var(--muted);
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.builder-row-body {
-  display: grid;
-  min-width: 0;
-}
-
-.builder-row-main {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
-  align-items: center;
-  min-width: 0;
-}
-
-.builder-row-head {
-  min-width: 0;
-}
-
-.builder-row .team-stat-grid {
-  width: 100%;
-  max-width: 100%;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  overflow: hidden;
-  border: 1px solid rgba(85, 69, 51, 0.62);
-  border-radius: var(--radius);
-}
-
-.builder-row .team-stat-grid div {
-  padding: 6px 5px;
-}
-
-.builder-row-skills,
-.builder-summary-skills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-}
-
-.builder-row-skills .roster-pill {
-  min-height: 28px;
-  padding: 0 10px;
-  font-size: 0.8125rem;
-}
-
-.builder-pool,
 .builder-selected {
   display: grid;
   gap: 10px;
 }
 
-.builder-pool h2,
 .builder-selected h2 {
   margin: 4px 0 0;
   font-size: 1.25rem;
-}
-
-.builder-player-pool {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 10px;
 }
 
 .available-player-card {
@@ -595,10 +451,6 @@
   font-size: 0.75rem;
 }
 
-.builder-selected-table {
-  min-width: 940px;
-}
-
 .saved-roster-table th {
   white-space: normal;
 }
@@ -638,7 +490,6 @@
   transition: background 0.14s ease, opacity 0.14s ease;
 }
 
-.builder-selected-table tbody tr:hover > td,
 .saved-roster-table tbody tr:hover > td {
   background-image: linear-gradient(
     color-mix(in srgb, var(--focus) 6%, transparent),
@@ -726,7 +577,6 @@
 
 /* On a phone the wide tables are replaced by these cards; see responsive.css. */
 .builder-available-table-wrap,
-.builder-selected-table-wrap,
 .saved-roster-table-wrap {
   display: none;
 }
@@ -858,10 +708,6 @@
 .readonly-stat-line .player-stat-editor {
   min-height: 54px;
   align-content: center;
-}
-
-.builder-selected-player-card .team-stat-grid {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .mobile-player-title {
@@ -1241,30 +1087,11 @@
   margin-top: 4px;
 }
 
-.saved-team-name-cell {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.saved-team-name-cell img {
-  width: 36px;
-  height: 36px;
-  flex: 0 0 auto;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: rgba(239, 224, 183, 0.08);
-  object-fit: contain;
-}
-
-.builder-player-list,
 .saved-roster-player-list {
   display: grid;
   gap: 10px;
 }
 
-.builder-player-card,
 .saved-roster-player-card {
   display: grid;
   gap: 10px;
@@ -1275,7 +1102,6 @@
   background: var(--panel);
 }
 
-.builder-player-card header,
 .saved-roster-player-card header {
   display: flex;
   align-items: flex-start;
@@ -1283,7 +1109,6 @@
   gap: 10px;
 }
 
-.builder-player-card header span,
 .saved-roster-player-card header span {
   display: block;
   margin-top: 4px;
@@ -1393,44 +1218,6 @@
 .builder-team-link:hover {
   text-decoration: underline;
   text-underline-offset: 3px;
-}
-
-.builder-summary-roster {
-  display: grid;
-  gap: 10px;
-}
-
-.builder-summary-player {
-  overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-glass);
-}
-
-.builder-summary-player header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px;
-  border-bottom: 1px solid var(--line);
-  background: var(--table-head);
-}
-
-.builder-summary-player header strong {
-  min-width: 0;
-  color: var(--text);
-  line-height: 1.25;
-}
-
-.builder-summary-player header span {
-  flex: 0 0 auto;
-  color: var(--soft);
-  font-weight: 800;
-}
-
-.builder-summary-player .team-stat-grid {
-  grid-template-columns: repeat(5, minmax(34px, 1fr));
 }
 
 .builder-logo-preview {
@@ -1590,11 +1377,6 @@
   gap: 7px;
 }
 
-.builder-summary-skills {
-  padding: 10px;
-  border-top: 1px solid rgba(85, 69, 51, 0.45);
-}
-
 .builder-empty-roster {
   padding: 12px;
   border: 1px solid var(--line);
@@ -1659,18 +1441,6 @@
   gap: 14px;
   position: static;
   top: 96px;
-}
-
-.builder-summary-horizontal {
-  position: static;
-  grid-template-columns: 1fr;
-  align-items: center;
-  margin-bottom: 18px;
-  padding: 16px;
-}
-
-.builder-summary-horizontal:not(:has(.summary-logo-block)) {
-  grid-template-columns: 1fr;
 }
 
 .saved-roster-summary-panel {

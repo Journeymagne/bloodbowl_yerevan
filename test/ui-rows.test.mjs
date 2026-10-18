@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertReadable } from "./helpers/contrast.mjs";
+import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { renderButton } from "../src/ui/button.mjs";
 import { CALLOUT_TONES, renderCallout } from "../src/ui/callout.mjs";
@@ -112,6 +112,22 @@ test("a callout with a link is one link with a chevron", () => {
   assert.ok(link.querySelector("svg.g-icon"));
   assertCspSafe(fragment);
   assertStyled(fragment, "callout.css");
+});
+
+test("a fault leads with the «!» sign; news and a warning do not", () => {
+  assert.ok(mount(renderCallout({ title: "Wrong", tone: "danger" })).querySelector(".g-callout--danger .g-callout__icon svg.g-icon"));
+  assert.equal(mount(renderCallout({ title: "News" })).querySelector(".g-callout__icon"), null);
+  assert.equal(mount(renderCallout({ title: "Mind", tone: "warn" })).querySelector(".g-callout__icon"), null);
+  const link = mount(renderCallout({ title: "Wrong", tone: "danger", href: "#/x" })).querySelector("a.g-callout");
+  assert.equal(link.firstChild.getAttribute("class"), "g-callout__icon", "a danger link leads with it too, before its text");
+  assert.equal(mount(renderCallout({ title: "Wrong", tone: "danger" })).querySelector(".g-callout").firstChild.getAttribute("class"), "g-callout__icon", "and so does a plain banner");
+  assert.equal(mount(renderCallout({ title: "Wrong", tone: "danger" })).querySelector(".g-callout__icon svg").getAttribute("aria-hidden"), "true");
+  const fragment = mount(renderCallout({ title: "Wrong", tone: "danger" }));
+  assertStyled(fragment, "callout.css");
+  assert.deepEqual(valuesOf("src/ui/callout.css", ".g-callout__icon", "color"), ["var(--danger)"]);
+  assertReadable("src/ui/callout.css", ".g-callout__icon", "color", ["--danger-tint"], 3);
+  assert.deepEqual(valuesOf("src/ui/callout.css", ".g-callout--danger", "align-items"), ["flex-start"], "the sign stands at the first line of a refusal; an accent or warn banner's chevron or action stays centred");
+  assert.deepEqual(valuesOf("src/ui/callout.css", ".g-callout--danger", "align-content"), ["center"], "a one-line refusal sits in the middle of the box, not at its top");
 });
 
 test("a match banner carries its toggle and is not a link", () => {

@@ -13,11 +13,11 @@
  * passwords between keystrokes (settings/index.mjs) and wipes them when the
  * sheet closes.
  */
-import { API_ERROR } from "../../core/api.mjs";
+import { API_ERROR, refusalText } from "../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../core/api-client.mjs";
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { mergeCurrentUser, refusalText } from "../../data/session.mjs";
+import { mergeCurrentUser } from "../../data/session.mjs";
 import { PASSWORD_MIN_LENGTH, passwordChangeChecks } from "../../domain/account.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
@@ -55,7 +55,7 @@ function checkHtml({ key, ok }) {
     + `<span class="g-sr-only">: ${escapeHtml(ok ? t("password.check.ok") : t("password.check.no"))}</span></li>`;
 }
 
-/** One name in both states; whether it is pressed says which (K10b). */
+/** One name in both states; whether it is pressed says which (K10b). It is in the sheet's footer, outside the form: a button that submits nothing. */
 function showToggleHtml(show) {
   return `<button type="button" class="g-password__show" data-password-show aria-pressed="${show ? "true" : "false"}">${escapeHtml(t("auth.showPassword"))}</button>`;
 }
@@ -91,7 +91,7 @@ function formHtml(sheet, login) {
     + `${usernameHtml(login)}${fieldsHtml(sheet)}${renderPasswordMeter(sheet.next)}`
     // Live, and as a whole: a check that turns done is said with the two that did not, not alone.
     + `<ul class="g-checks" id="${CHECKS_ID}" aria-live="polite" aria-atomic="true">${passwordChangeChecks(sheet).map(checkHtml).join("")}</ul>`
-    + `${showToggleHtml(sheet.show)}${alertHtml(sheet.error)}</form>`;
+    + `${alertHtml(sheet.error)}</form>`;
 }
 
 function doneHtml() {
@@ -121,6 +121,8 @@ export function passwordSheetMarkup(sheet, { login = "" } = {}) {
     title: t("password.title"),
     bodyHtml: sheet.done ? doneHtml() : formHtml(sheet, login),
     footHtml: sheet.done ? "" : submit,
+    // Beside the button, not under the checks: on a desk it stands at the footer's left, on a phone over the button.
+    footStartHtml: sheet.done ? "" : showToggleHtml(sheet.show),
   });
 }
 

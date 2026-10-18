@@ -5,7 +5,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
-import { currentMatch, isMatchLive, renderNavMatch } from "../src/shell/current-match.mjs";
+import { currentMatch, isMatchLive, matchActions, renderNavMatch } from "../src/shell/current-match.mjs";
 
 const side = (teamId, name) => ({ user: { id: `u-${teamId}`, login: "x" }, team: { id: teamId, name } });
 const game = (id, over = {}) => ({
@@ -236,4 +236,57 @@ test("the card's label stays on one line: «Awaiting confirmation» in its caps 
 
 test("the sheet names no hex colour: the card's colours are the header's tokens", () => {
   assert.doesNotMatch(readFileSync(new URL(`../${SIDE_CSS}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, ""), /#[0-9a-f]{3,8}\b/i);
+});
+
+// One description of what a match offers, for the card and for the overview's board (plan stage 05, decision 12; stage 06, task 10).
+
+const G1 = game("g1");
+const G2 = game("g2", { preparationStatus: "in_progress", postMatchStatus: "draft", home: side("t2", "Ironmaw Brawlers") });
+const G3 = game("g3", { resultStatus: "awaiting_confirmation", viewerIsHome: false, home: side("r1", "Grimtusk Raiders"), away: side("t3", "Dunmere Mudlarks"),
+  proposedHomeTouchdowns: 1, proposedAwayTouchdowns: 2, proposedHomeCasualties: 0, proposedAwayCasualties: 1 });
+
+test("the card and the overview's board offer the same actions: one description of each phase", () => {
+  const idle = matchActions({ game: G1, phase: "idle" }, "t1");
+  assert.deepEqual(idle.links.map(({ kind, href }) => [kind, href]), [["primary", "#/games/g1/pre-match"]]);
+  const live = matchActions({ game: G2, phase: "live" }, "t2");
+  assert.deepEqual(live.links.map(({ kind }) => kind), ["text", "light"]);
+  const sent = matchActions({ game: G3, phase: "sent" }, "t3");
+  assert.match(sent.sentLine, /2–1/);
+  assert.deepEqual(matchActions(null, "t1"), { links: [], sentLine: "" });
+});
+
+test("each phase's actions in full: the words, the way, and which kind of button each is", () => {
+  assert.deepEqual(matchActions({ game: G1, phase: "idle" }, "t1"), { links: [{ label: "Match preparation", href: "#/games/g1/pre-match", kind: "primary" }], sentLine: "" });
+  assert.deepEqual(matchActions({ game: G2, phase: "live" }, "t2"), { sentLine: "", links: [
+    { label: "Match records", href: "#/t/t2/roster", kind: "text" }, { label: "Post-match", href: "#/games/g2/post-match", kind: "light" }] });
+  assert.deepEqual(matchActions({ game: G3, phase: "sent" }, "t3"), { links: [], sentLine: "Win 2–1 · CAS 1–0" }, "the coach's own proposal waits: a line, no button");
+  assert.deepEqual(matchActions({ game: { ...G3, viewerIsProposer: false }, phase: "sent" }, "t3"), {
+    links: [{ label: "Confirm the score", href: "#/games/g3", kind: "primary" }], sentLine: "Win 2–1 · CAS 1–0" }, "the opponent's proposal is the coach's to confirm");
+});
+
+test("the actions are plain text and words in the language of the page: the renderers escape and wrap", () => {
+  const sent = matchActions({ game: { ...G3, viewerIsProposer: false }, phase: "sent" }, "t3");
+  assert.equal(sent.sentLine.includes("<"), false, "no markup in the line");
+  initLocale("ru");
+  try {
+    assert.deepEqual(matchActions({ game: G2, phase: "live" }, "t2").links.map(({ label }) => label), ["Записи матча", "Итоги матча"]);
+    assert.equal(matchActions({ game: G3, phase: "sent" }, "t3").sentLine, "Победа 2–1 · CAS 1–0");
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("there are no actions for a team the match is not about, a phase it does not know, or a score with a number missing", () => {
+  assert.deepEqual(matchActions({ game: G1, phase: "idle" }, "t9"), { links: [], sentLine: "" });
+  assert.deepEqual(matchActions({ game: G1, phase: "idle" }, null), { links: [], sentLine: "" });
+  assert.deepEqual(matchActions({ game: { ...G1, away: null }, phase: "idle" }, "t1"), { links: [], sentLine: "" }, "a bye");
+  assert.deepEqual(matchActions({ game: G1, phase: "over" }, "t1"), { links: [], sentLine: "" });
+  assert.equal(matchActions({ game: { ...G3, proposedHomeTouchdowns: null }, phase: "sent" }, "t3").sentLine, "");
+});
+
+test("the card is drawn from the same actions: a link of each kind, the class that kind has on the card", () => {
+  const classes = (current, teamId) => mount(renderNavMatch(current, teamId)).querySelectorAll("a").map((link) => link.getAttribute("class"));
+  assert.deepEqual(classes({ game: G1, phase: "idle" }, "t1"), ["g-navmatch__cta"]);
+  assert.deepEqual(classes({ game: G2, phase: "live" }, "t2"), ["g-navmatch__link", "g-navmatch__cta g-navmatch__cta--light"]);
+  assert.deepEqual(classes({ game: { ...G3, viewerIsProposer: false }, phase: "sent" }, "t3"), ["g-navmatch__cta"]);
 });

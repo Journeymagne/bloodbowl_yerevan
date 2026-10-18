@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
+import { valuesOf } from "./helpers/contrast.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderButton } from "../src/ui/button.mjs";
@@ -63,6 +64,47 @@ test("no back button on the first step, no footer without one", () => {
   assert.ok(fragment.querySelector(".g-sheet__spacer"));
   assert.equal(fragment.querySelector(".g-sheet__foot"), null);
   assert.equal(fragment.querySelector(".g-steps"), null);
+});
+
+test("a sheet's footer may start with a quiet control beside its one button", () => {
+  const fragment = mount(renderSheet({ id: "s1", title: "T", bodyHtml: "<p>b</p>", footHtml: renderButton({ label: "Go", kind: "primary" }), footStartHtml: '<button type="button" data-x>Show</button>' }));
+  const foot = fragment.querySelector(".g-sheet__foot");
+  assert.equal(foot.firstChild.getAttribute("class"), "g-sheet__foot-start");
+  assert.ok(foot.querySelector(".g-sheet__foot-start [data-x]"));
+  assert.ok(foot.querySelector(".g-btn--primary"), "the one button follows it");
+  assert.equal(mount(renderSheet({ id: "s2", title: "T", bodyHtml: "<p>b</p>", footStartHtml: "<b>x</b>" })).querySelector(".g-sheet__foot"), null, "no button, no footer");
+  assert.equal(mount(renderSheet({ id: "s3", title: "T", bodyHtml: "<p>b</p>", footHtml: renderButton({ label: "Go", kind: "primary" }) })).querySelector(".g-sheet__foot-start"), null, "no control, no slot");
+  assertStyled(fragment, "sheet.css", "button.css");
+});
+
+test("on a desk a sheet's title stands left over a rule and its button sits at the right of the footer (DeskCoachPassword, M1, 3)", () => {
+  const sheet = "src/ui/sheet.css";
+  assert.deepEqual(valuesOf(sheet, ".g-sheet__title", "text-align"), ["center", "left"]);
+  assert.ok(valuesOf(sheet, ".g-sheet__head", "border-bottom").includes("1px solid var(--line)"));
+  assert.ok(valuesOf(sheet, ".g-sheet__foot", "justify-content").includes("flex-end"));
+  assert.ok(valuesOf(sheet, ".g-sheet__foot .g-btn--primary", "width").includes("auto"));
+  assert.ok(valuesOf(sheet, ".g-sheet__foot-start", "margin-right").includes("auto"));
+});
+
+test("on a phone the footer is a column: the quiet control over the button, as SettingsPassword.html draws it", () => {
+  const sheet = "src/ui/sheet.css";
+  assert.deepEqual(valuesOf(sheet, ".g-sheet__foot", "display"), ["flex"]);
+  assert.deepEqual(valuesOf(sheet, ".g-sheet__foot", "flex-direction"), ["column", "row"], "a column up to 900px, a row from 901px");
+});
+
+// Stage 06: the team switcher is a panel by the SideNav on a desk and an ordinary sheet on a phone.
+test("an anchored sheet carries its modifier and sits by the SideNav from 901px", () => {
+  const fragment = mount(renderSheet({ id: "a1", title: "My teams", bodyHtml: "<p>x</p>", anchored: true }));
+  assert.ok(fragment.querySelector("dialog").classList.contains("g-sheet--anchored"));
+  assert.equal(mount(renderSheet({ id: "a2", title: "T", bodyHtml: "<p>x</p>" })).querySelector("dialog").classList.contains("g-sheet--anchored"), false);
+  const sheet = "src/ui/sheet.css";
+  assert.ok(valuesOf(sheet, "dialog.g-sheet.g-sheet--anchored", "width").includes("300px"));
+  assert.ok(valuesOf(sheet, "dialog.g-sheet.g-sheet--anchored", "margin").includes("72px auto auto 12px"));
+  const phone = readFileSync(new URL(`../${sheet}`, import.meta.url), "utf8").match(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/)[1];
+  assert.ok(!phone.includes("anchored"), "up to 900px it is the ordinary sheet from the bottom");
+  assert.deepEqual(valuesOf(sheet, ".g-sheet--anchored .g-sheet__title", "text-transform"), ["uppercase"], "on a desk the title is a small caption over the list");
+  assert.deepEqual(valuesOf(sheet, ".g-sheet--anchored .g-sheet__head", "border-bottom"), ["0"], "with no rule under it");
+  assertStyled(fragment, "sheet.css", "button.css");
 });
 
 test("closing by button, backdrop or Escape goes through one path; back is its own", () => {

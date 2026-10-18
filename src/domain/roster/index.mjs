@@ -13,4 +13,5 @@ export * from "./players.mjs";
 export * from "./progression.mjs";
 export * from "./costs.mjs";
 export * from "./validate.mjs";
+export * from "./build.mjs";
 export { default as LEAGUE_RULES } from "../league-rules.mjs";

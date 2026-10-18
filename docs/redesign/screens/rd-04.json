@@ -16,21 +16,6 @@
     { "id": "A8", "url": "http://localhost:3002/#/legal" },
     { "id": "A9", "url": "http://localhost:3002/#/login" },
     { "id": "B1", "url": "http://localhost:3002/#/my-teams", "login": "admin" },
-    {
-      "id": "B2",
-      "url": "http://localhost:3002/#/builder",
-      "login": "admin",
-      "fullPage": true,
-      "run": [
-        "(async () => {",
-        "  const select = document.querySelector('[data-builder-team]');",
-        "  select.value = 'teams/human';",
-        "  select.dispatchEvent(new Event('change', { bubbles: true }));",
-        "  await new Promise((resolve) => setTimeout(resolve, 500));",
-        "  document.querySelector('[data-add-row=\"0\"]').click();",
-        "})()"
-      ]
-    },
     { "id": "B3", "url": "http://localhost:3002/#/administration", "login": "admin" },
     { "id": "C1", "url": "http://localhost:5174/#/my-teams", "storage": { "gata-league-auth-token": "mock" } },
     {

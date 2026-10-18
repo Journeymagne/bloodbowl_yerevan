@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { SAVE_STATUS, createRosterStore } from "../src/data/roster-store.mjs";
-import { createStorage } from "../src/core/storage.mjs";
+import { STORAGE_KEYS, createStorage, forgetRetiredKeys } from "../src/core/storage.mjs";
 
 // ---------------------------------------------------------------------------
 // Harness: a transport whose responses we can hold open, and manual timers, so
@@ -432,12 +432,20 @@ test("storage round-trips JSON and survives corrupt values", () => {
     removeItem: (key) => backing.delete(key),
   });
 
-  store.setJson("builder-draft", { players: [1, 2, 3] });
-  assert.deepEqual(store.getJson("builder-draft"), { players: [1, 2, 3] });
+  store.setJson("some-key", { players: [1, 2, 3] });
+  assert.deepEqual(store.getJson("some-key"), { players: [1, 2, 3] });
   assert.ok([...backing.keys()][0].startsWith("gata-league-"), "keys are namespaced");
 
-  backing.set("gata-league-builder-draft", "{not json");
-  assert.deepEqual(store.getJson("builder-draft", "fallback"), "fallback");
+  backing.set("gata-league-some-key", "{not json");
+  assert.deepEqual(store.getJson("some-key", "fallback"), "fallback");
+});
+
+test("the 2.x builder's draft is never read again, and is wiped where the builder opens (stage 06)", () => {
+  const backing = new Map([["gata-league-builder-draft", JSON.stringify({ draft: { logoData: "data:image/png;base64,AAAA" } })]]);
+  const store = createStorage({ getItem: (key) => backing.get(key) ?? null, setItem: (key, value) => backing.set(key, value), removeItem: (key) => backing.delete(key) });
+  assert.equal(Object.values(STORAGE_KEYS).includes("builder-draft"), false);
+  forgetRetiredKeys(store);
+  assert.equal(backing.has("gata-league-builder-draft"), false);
 });
 
 test("a timeout is treated like being offline: keep the edit and retry", async () => {

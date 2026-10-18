@@ -46,7 +46,7 @@ test("the redirect's hashchange finds the listener: nothing between the session 
   await turns();
   assert.equal(games.count, 1, "the games are still on their way");
   assert.equal(location.hash, "#/t/t2");
-  assert.ok(view.querySelector(".league-hero h1"), "the team's screen is drawn, so its hashchange was heard");
+  assert.ok(view.querySelector(".g-pagehead h1"), "the team's screen is drawn, so its hashchange was heard");
   assert.match(document.querySelector("#side-nav").textContent, /Grimtusk Raiders/, "and the frame around it names the team");
   games.release();
   await turns();

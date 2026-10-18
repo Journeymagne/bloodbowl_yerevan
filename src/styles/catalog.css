@@ -82,18 +82,3 @@
   color: var(--soft);
   font-size: 0.75rem;
 }
-
-.builder-layout > * {
-  min-width: 0;
-}
-
-.builder-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-  align-items: start;
-}
-
-.builder-layout-main {
-  grid-template-columns: minmax(0, 1fr);
-}

@@ -131,3 +131,19 @@ export function errorText(error) {
   }
   return error?.message ?? String(error);
 }
+
+/**
+ * A refused request as a sentence, for the writes that sign in, change a password, save a contact or
+ * make and delete a team: errorText's, with two exceptions. Too many tries say when to try again: the 429 carries
+ * `retryAfterSeconds`, and the window is a quarter of an hour, so the wait is said in
+ * minutes, and in seconds only for its last minute; without the number, "shortly" is all
+ * there is to say. And an answer without a code (a proxy's 502 while the server restarts)
+ * says the server did not answer instead of "Request failed with 502".
+ * @param {unknown} error
+ */
+export function refusalText(error) {
+  if (error?.kind === API_ERROR.HTTP && !error.code) return t("request.noAnswer");
+  const seconds = Math.ceil(Number(error?.payload?.retryAfterSeconds));
+  if (error?.code !== "TOO_MANY_LOGIN_ATTEMPTS" || !(seconds > 0)) return errorText(error);
+  return seconds < 60 ? t("auth.tooManySeconds", { seconds }) : t("auth.tooManyMinutes", { minutes: Math.ceil(seconds / 60) });
+}

@@ -1,7 +1,7 @@
 /*
- * Figures: a label over a value, alone or two to a row. Font, border,
- * background, text-transform and border-radius are set here on purpose: the
- * 2.x globals outlive this sheet until stage 13.
+ * Figures: a label over a value, two to a row. Font, border, background,
+ * text-transform and border-radius are set here on purpose: the 2.x globals
+ * outlive this sheet until stage 13.
  */
 .g-kpis {
   display: grid;
@@ -9,6 +9,19 @@
   gap: var(--space-8);
   margin: 0;
   padding: 0;
+}
+
+/* An odd count leaves the last tile alone on its row: it takes the row. */
+.g-kpis > .g-kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* The overview's figures: one line from 901px, however many there are; on a phone it stays two columns. */
+@media (min-width: 901px) {
+  .g-kpis--row {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
+  .g-kpis--row > .g-kpi:last-child:nth-child(odd) { grid-column: auto; }
 }
 
 .g-kpi {

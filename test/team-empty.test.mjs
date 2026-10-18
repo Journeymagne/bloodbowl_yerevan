@@ -5,6 +5,7 @@ import test from "node:test";
 import { assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
+import { valuesOf } from "./helpers/contrast.mjs";
 
 const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
@@ -14,6 +15,8 @@ const { noTeamMarkup, renderNoTeam } = await import("../src/screens/team/empty.m
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
+const { rememberSessionToken } = await import("../src/core/api-client.mjs");
+const { addMyTeam, setMyTeams } = await import("../src/data/teams.mjs");
 
 test("a coach with no team sees an empty overview with one way forward", () => {
   const fragment = mount(noTeamMarkup());
@@ -27,6 +30,11 @@ test("a coach with no team sees an empty overview with one way forward", () => {
 test("the empty overview's stylesheet reaches the page", () => {
   const styles = readFileSync(new URL("../src/styles.css", import.meta.url), "utf8");
   assert.ok(styles.includes('@import url("screens/team/empty.css");'));
+});
+
+test("on a desk «Create a team» is as wide as its words, not the whole content (M1, 7)", () => {
+  assert.ok(valuesOf("src/screens/team/empty.css", ".g-team-empty .g-btn--primary", "width").includes("auto"));
+  assert.ok(valuesOf("src/screens/team/empty.css", ".g-team-empty .g-btn--primary", "min-width").includes("240px"));
 });
 
 // R10: a coach /me knows, whose list of teams could not be read, is not a coach with no team.
@@ -91,4 +99,42 @@ test("an answer that comes after the coach left draws nothing over the next scre
   await settle();
   assert.equal(view.querySelector("p").textContent, "the next screen");
   api.assertAnswered();
+});
+
+// A coach who pressed «Save team» and went back to `#/` before the answer came is looking at this screen when the team appears.
+function noTeam() {
+  api.reset();
+  api.items.set("gata-league-auth-token", "tok");
+  rememberSessionToken("tok");
+  replaced.length = 0;
+  state.auth.currentUser = { id: "u1", login: "coach", preferences: {} };
+  state.myTeams = { items: [], loaded: true, loading: false, error: "" };
+  state.activeTeamId = null;
+  releaseCurrentScreen();
+  renderNoTeam();
+}
+
+test("a team that appears while the screen offers a first team takes the coach to it, with the team active", async () => {
+  noTeam();
+  api.reply("PATCH /api/auth/preferences", 200, { preferences: { activeTeamId: "t9" } });
+  assert.equal(view.querySelector("h1").textContent, "Create your first team");
+  addMyTeam({ id: "t9", name: "Iron Rooks" });
+  assert.deepEqual(replaced, ["#/t/t9"], "the address replaced, as resolveRedirect sends a coach's #/ on");
+  assert.equal(state.activeTeamId, "t9", "settled here too: the list is announced before the builder settles it");
+  await settle();
+  api.assertAnswered();
+});
+
+test("a list that is still empty, or a screen already left, is not taken anywhere", () => {
+  noTeam();
+  setMyTeams([]);
+  assert.deepEqual(replaced, []);
+  releaseCurrentScreen();
+  addMyTeam({ id: "t9", name: "Iron Rooks" });
+  assert.deepEqual(replaced, [], "the listener is released with the screen");
+  noTeam();
+  state.auth.currentUser = null;
+  addMyTeam({ id: "t9", name: "Iron Rooks" });
+  assert.deepEqual(replaced, [], "nor a list nobody is signed in for");
+  releaseCurrentScreen();
 });

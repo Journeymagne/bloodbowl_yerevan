@@ -16,19 +16,24 @@ import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { loadMyTeams } from "../../data/teams.mjs";
+import { syncActiveTeam } from "../../data/active-team.mjs";
+import { loadMyTeams, onMyTeamsChange } from "../../data/teams.mjs";
 import { renderButton } from "../../ui/button.mjs";
 
 export function noTeamMarkup() {
   return `<section class="g-team-empty">
-    <h1 class="g-team-empty__title">${escapeHtml(t("team.empty.title"))}</h1>
+    <h1 class="g-team-empty__title" tabindex="-1">${escapeHtml(t("team.empty.title"))}</h1>
     <p class="g-team-empty__text">${escapeHtml(t("team.empty.text"))}</p>
     ${renderButton({ label: t("team.empty.create"), kind: "primary", href: newTeamUrl() })}
   </section>`;
 }
 
-/** @param {string} error why the list was not read, as a sentence */
-function unreadMarkup(error) {
+/**
+ * A list that could not be read, and the button (`data-teams-retry`) that reads it again: what the retry then
+ * draws is the screen's, so the screen wires it.
+ * @param {string} error why the list was not read, as a sentence
+ */
+export function unreadMarkup(error) {
   return `<section class="g-team-empty">
     <h1 class="g-team-empty__title">${escapeHtml(t("team.unread.title"))}</h1>
     <p class="g-team-empty__text">${escapeHtml(error)}</p>
@@ -49,12 +54,25 @@ async function retry(isHere) {
   else renderNoTeam();
 }
 
+/**
+ * A team has come onto the list while the screen offers a first one: the builder's answer, which came after the coach
+ * had left the builder for this page, or a list read again. `#/` is that team's now, and the address is replaced as
+ * resolveRedirect would have sent it. The change is heard before the builder settles the active team, so it is
+ * settled here too (the same answer, written once).
+ */
+function goOnToTeam() {
+  if (!state.auth.currentUser || !state.myTeams.items.length) return;
+  const teamId = syncActiveTeam();
+  if (teamId) location.replace(teamUrl(teamId));
+}
+
 export function renderNoTeam() {
   setActiveNav("home");
   setViewSection("home");
   const { loaded, error } = state.myTeams;
   if (loaded || !error) {
     view.innerHTML = noTeamMarkup();
+    onScreenLeave("team-empty", onMyTeamsChange(goOnToTeam));
     return;
   }
   let here = true;

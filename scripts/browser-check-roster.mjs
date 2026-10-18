@@ -45,8 +45,9 @@ await page.evaluate(() => localStorage.setItem("gata-league-auth-token", "mock")
 
 await check("my teams list opens", async () => {
   await page.goto(`${base}/#/teams`, { waitUntil: "networkidle" });
-  await page.waitForSelector("a[href*='#/t/t1/roster'], [data-open-team], td, .card", { timeout: 10000 });
-  return (await page.locator("#app-view").innerText()).split("\n").slice(0, 2).join(" / ");
+  await page.waitForSelector("a.g-teams__open[href='#/t/t1']", { timeout: 10000 });
+  const rows = await page.locator("a.g-teams__open").evaluateAll((links) => links.map((link) => link.getAttribute("href")));
+  return `${rows.length} teams: ${rows.join(", ")}`;
 });
 
 await check("saved roster editor renders", async () => {
@@ -54,7 +55,7 @@ await check("saved roster editor renders", async () => {
   await page.waitForSelector("[data-roster-player]", { timeout: 10000 });
   const players = await page.evaluate(() =>
     new Set([...document.querySelectorAll("[data-roster-player]")].map((n) => n.dataset.rosterPlayer)).size);
-  if (players !== 2) throw new Error(`expected 2 players, found ${players}`);
+  if (players !== 7) throw new Error(`expected the 7 players of Mock Team, found ${players}`);
   return `${players} players`;
 });
 
