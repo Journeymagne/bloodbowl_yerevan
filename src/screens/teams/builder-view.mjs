@@ -10,7 +10,7 @@
  * draft, and not a second copy of its test.
  *
  * The page is in the order a phone reads it: the head and the budget, the team,
- * the players, the numbers, the staff, then the save. From 901px new.css puts
+ * the players, the numbers, the staff, then the save. From 901px builder.css puts
  * the blocks in two columns without reordering the markup, so a keyboard walks
  * the desk's columns in the phone's order.
  */
@@ -39,6 +39,8 @@ const CHOICE_ID = "new-team-choice";
 const ROSTER_ID = "new-team-roster";
 const LOGO_ID = "new-team-logo";
 const CHOICE_KINDS = ["league", "favoured"];
+/** The ids of a player's row, each followed by his id. */
+const CAPTAIN_PREFIX = { name: "new-team-name-", position: "new-team-position-", radio: "new-team-captain-" };
 
 /** A picture a coach picked, and nothing else, is drawn as one; the optimiser may turn a PNG into a WebP. */
 const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
@@ -66,7 +68,7 @@ function staffTitle(key) {
  *
  * @param {{code: string, params?: object}} refusal what hirePlayer or stepStaff returned
  */
-export function refusalText({ code, params = {} }) {
+export function buildRefusalText({ code, params = {} }) {
   return t(`validation.${code}`, params.key ? { ...params, title: staffTitle(params.key) } : params);
 }
 
@@ -196,7 +198,7 @@ function hireRow(race, draft, totals, row, rowIndex) {
     hook: "hire",
     delta: 1,
     label: t("newTeam.hire", { position: row.position }),
-    blockedReason: refusal ? refusalText(refusal) : "",
+    blockedReason: refusal ? buildRefusalText(refusal) : "",
     className: classNames("g-hire__btn", "g-hire__inc", price > totals.left && "g-hire__inc--poor"),
   });
   const skills = (row.skills ?? []).join(", ") || t("newTeam.noSkills");
@@ -221,13 +223,18 @@ function playersMarkup(race, draft, totals) {
 // Numbers, names and the captain
 // ---------------------------------------------------------------------------
 
+/**
+ * One player's row. The ids are built from the player's id (generated: no whitespace in it), so that the
+ * captain radio can be named by the player's name and position (aria-labelledby) and the group can own it.
+ */
 function rosterRow(player, row, entry) {
   const id = escapeHtml(player.id);
   return `<div class="g-roster-row" data-key="player-${id}">`
     + `<label class="g-roster-row__num"><span aria-hidden="true">#</span><input class="g-roster-row__number" type="number" min="1" max="99" inputmode="numeric" value="${escapeHtml(player.number)}" data-player-number="${id}" aria-label="${escapeHtml(t("newTeam.number"))}"></label>`
-    + `<span class="g-roster-row__who"><input class="g-roster-row__name" type="text" value="${escapeHtml(player.name)}" placeholder="${escapeHtml(row.position)}" data-player-name="${id}" aria-label="${escapeHtml(t("newTeam.playerName"))}">`
-    + `<span class="g-roster-row__position">${escapeHtml(row.position)}</span></span>`
-    + `<button type="button" class="g-roster-row__captain" role="radio" aria-checked="${Boolean(player.isCaptain)}" tabindex="${entry ? 0 : -1}" data-captain="${id}" aria-label="${escapeHtml(t("roster.captain"))}">C</button></div>`;
+    + `<span class="g-roster-row__who"><input class="g-roster-row__name" type="text" id="${CAPTAIN_PREFIX.name}${id}" value="${escapeHtml(player.name)}" placeholder="${escapeHtml(row.position)}" data-player-name="${id}" aria-label="${escapeHtml(t("newTeam.playerName"))}">`
+    + `<span class="g-roster-row__position" id="${CAPTAIN_PREFIX.position}${id}">${escapeHtml(row.position)}</span></span>`
+    // The visible «C» is a design glyph, the same in the Russian prototype, and not text: the radio is named by its player.
+    + `<button type="button" class="g-roster-row__captain" id="${CAPTAIN_PREFIX.radio}${id}" role="radio" aria-checked="${Boolean(player.isCaptain)}" tabindex="${entry ? 0 : -1}" data-captain="${id}" aria-labelledby="${CAPTAIN_PREFIX.name}${id} ${CAPTAIN_PREFIX.position}${id}">C</button></div>`;
 }
 
 function rosterMarkup(race, draft, rosterOpen) {
@@ -241,9 +248,12 @@ function rosterMarkup(race, draft, rosterOpen) {
   const title = t("newTeam.roster", { count: players.length });
   const toggle = `<button type="button" class="g-build__roster-toggle" data-roster-toggle aria-expanded="${Boolean(rosterOpen)}" aria-controls="${ROSTER_ID}">`
     + `<span>${escapeHtml(rosterOpen ? t("newTeam.rosterHide") : title)}</span>${icon("down", 16)}</button>`;
+  // The radio group owns the captain radios (aria-owns) and wraps nothing: the number and name fields sit in the
+  // same list, and inside a radiogroup they would each be announced as "Captain, radio group".
+  const owner = `<div role="radiogroup" data-captains aria-label="${escapeHtml(t("roster.captain"))}" aria-owns="${players.map((player) => `${CAPTAIN_PREFIX.radio}${escapeHtml(player.id)}`).join(" ")}"></div>`;
   return '<section class="g-build__roster" data-key="build-roster">'
     + `<div class="g-build__sec-head g-build__roster-title"><h2 class="g-build__h">${escapeHtml(title)}</h2></div>${toggle}`
-    + `<div class="${classNames("g-build__roster-list", !rosterOpen && "g-build__roster-list--shut")}" id="${ROSTER_ID}" role="radiogroup" data-captains aria-label="${escapeHtml(t("roster.captain"))}">${list}</div></section>`;
+    + `<div class="${classNames("g-build__roster-list", !rosterOpen && "g-build__roster-list--shut")}" id="${ROSTER_ID}">${owner}${list}</div></section>`;
 }
 
 // ---------------------------------------------------------------------------
@@ -258,7 +268,7 @@ function staffCounter(race, draft, key) {
     name: staffTitle(key),
     note: key === "dedicatedFans" ? t("newTeam.fansNote", { price }) : t("newTeam.price", { price }),
     value: countToNumber(draft[key]),
-    incBlockedReason: refusal ? refusalText(refusal) : "",
+    incBlockedReason: refusal ? buildRefusalText(refusal) : "",
     // Of the counted staff only the bribes can be out of the race's reach.
     lockedReason: staffAvailable(race, key) ? "" : t("newTeam.bribesLocked"),
   });
@@ -352,7 +362,8 @@ export function wireBuilder(root, handlers) {
     delegate(root, "click", "[data-roster-toggle]", () => handlers.onRosterToggle()),
     delegate(root, "input", "[data-player-number]", (event, input) => handlers.onNumber(input.getAttribute("data-player-number"), input.value)),
     delegate(root, "input", "[data-player-name]", (event, input) => handlers.onName(input.getAttribute("data-player-name"), input.value)),
-    wireRadioGroups(root, { group: "[data-captains]", item: "[data-captain]", attribute: "data-captain", onChange: (playerId) => handlers.onCaptain(playerId) }),
+    // The list holds the radios in the DOM; the radiogroup that owns them for a screen reader is the empty [data-captains].
+    wireRadioGroups(root, { group: ".g-build__roster-list", item: "[data-captain]", attribute: "data-captain", onChange: (playerId) => handlers.onCaptain(playerId) }),
     delegate(root, "change", `#${LOGO_ID}`, (event, input) => {
       const file = input.files?.[0];
       // Emptied, so that the same file can be picked again after it was taken away.

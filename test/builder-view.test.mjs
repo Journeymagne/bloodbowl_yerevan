@@ -11,9 +11,9 @@ import { builderStaffMaximums, medicalStaffDefinitions } from "../src/domain/lea
 import { BUILD_STAFF_KEYS, buildTotals, hirePlayer, newBuild, stepStaff } from "../src/domain/roster/build.mjs";
 import { setRosterCaptain } from "../src/domain/roster/players.mjs";
 import { PLAYER_STATS, rowsForTeam } from "../src/domain/roster/values.mjs";
-import { builderMarkup, refusalText, wireBuilder } from "../src/screens/teams/builder-view.mjs";
+import { builderMarkup, buildRefusalText, wireBuilder } from "../src/screens/teams/builder-view.mjs";
 
-const NEW_CSS = "src/screens/teams/new.css";
+const BUILDER_CSS = "src/screens/teams/builder.css";
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
 const human = data.teams.find((team) => team.slug === "teams/human");
 const goblin = data.teams.find((team) => team.slug === "teams/goblin");
@@ -67,7 +67,7 @@ test("the builder shows the budget, the race, the positions with their limits an
   assert.match(fragment.querySelector('[data-resource-key="bribes"]').getAttribute("class"), /g-resource--locked/, "humans have no Bribery and Corruption");
   assert.ok(fragment.querySelector('.g-toggle[data-toggle-key="apothecary"]'));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/teams/new.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
+  assertStyled(fragment, "src/screens/teams/builder.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
   assertDictionaryCovers("src/screens/teams/builder-view.mjs");
 });
 
@@ -115,7 +115,7 @@ test("the bar fills in steps of ten, and goes red and full over the budget", () 
   const small = newBuild(human, { name: "R" });
   stepStaff(human, small, "cheerleaders", 1);
   assert.match(steps(small), /g-build__bar--10(\s|$)/, "10k of 600k is a sliver, not nothing");
-  const css = readFileSync(new URL(`../${NEW_CSS}`, import.meta.url), "utf8");
+  const css = readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8");
   for (let step = 0; step <= 100; step += 10) assert.match(css, new RegExp(`\\.g-build__bar--${step}(?![\\d-])`), `.g-build__bar--${step} is drawn`);
 });
 
@@ -209,10 +209,10 @@ test("a position says its price, its limit, its stats and its skills; none is no
 
 test("drawing the screen hires nobody: the refusals are asked of a copy", () => {
   const draft = filled();
-  const before = JSON.stringify([draft.players.map((player) => player.id), draft.roster, draft.startingRerolls, draft.cheerleaders]);
+  const before = JSON.stringify(draft);
   mount(builderMarkup({ race: human, draft }));
   mount(builderMarkup({ race: human, draft }));
-  assert.equal(JSON.stringify([draft.players.map((player) => player.id), draft.roster, draft.startingRerolls, draft.cheerleaders]), before);
+  assert.equal(JSON.stringify(draft), before, "not a field of the draft is touched");
   assert.equal(draft.players.length, 8);
 });
 
@@ -243,7 +243,7 @@ test("the list is shut on a phone until it is asked for, and the toggle says wha
   const open = mount(builderMarkup({ race: human, draft: filled(), rosterOpen: true }));
   assert.match(open.querySelector("[data-roster-toggle]").textContent, /Hide/);
   assert.equal(open.querySelector("#new-team-roster").getAttribute("class").includes("--shut"), false);
-  const css = readFileSync(new URL(`../${NEW_CSS}`, import.meta.url), "utf8");
+  const css = readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8");
   assert.match(css, /@media \(max-width: 900px\)\s*\{[^@]*\.g-build__roster-list--shut\s*\{\s*display:\s*none/, "shut on a phone only");
   assert.match(css, /@media \(min-width: 901px\)\s*\{[^@]*\.g-build__roster-toggle\s*\{\s*display:\s*none/, "no toggle on a desk, where the list is always there");
 });
@@ -260,12 +260,55 @@ test("a row of the list: the number, the name with the position as its hint, the
   assert.equal(name.getAttribute("value"), draft.players[0].name);
   assert.equal(name.getAttribute("placeholder"), "Human Lineman");
   assert.equal(name.getAttribute("aria-label"), "Player's name");
+  assert.equal(name.getAttribute("id"), `new-team-name-${draft.players[0].id}`);
+  assert.equal(rows[0].querySelector(".g-roster-row__position").getAttribute("id"), `new-team-position-${draft.players[0].id}`);
   const checked = fragment.querySelectorAll('[data-captain][aria-checked="true"]');
   assert.equal(checked.length, 1);
   assert.equal(checked[0].getAttribute("data-captain"), draft.players[2].id);
   assert.equal(checked[0].getAttribute("role"), "radio");
   assert.deepEqual(fragment.querySelectorAll("[data-captain]").map((radio) => radio.getAttribute("tabindex")), ["-1", "-1", "0", "-1", "-1", "-1", "-1", "-1"], "Tab enters the group once, at the captain");
   assert.deepEqual(mount(builderMarkup({ race: human, draft: filled() })).querySelectorAll("[data-captain]").map((radio) => radio.getAttribute("tabindex")).slice(0, 2), ["0", "-1"], "with no captain, at the first");
+});
+
+/** What a screen reader calls an element: its aria-labelledby resolved (a text field gives its value), else its aria-label or its text. */
+function accessibleName(root, element) {
+  const ids = (element.getAttribute("aria-labelledby") ?? "").split(/\s+/).filter(Boolean);
+  if (!ids.length) return element.getAttribute("aria-label") ?? element.textContent.trim();
+  return ids.map((id) => {
+    const target = root.querySelector(`#${id}`);
+    assert.ok(target, `aria-labelledby points at #${id}, which is not on the page`);
+    return target.tagName === "INPUT" ? target.getAttribute("value") : target.textContent.trim();
+  }).join(" ").trim();
+}
+
+test("each captain is named by its player, and the text fields stand outside the radio group", () => {
+  const draft = filled();
+  draft.players[0].name = "Brandt";
+  const fragment = mount(builderMarkup({ race: human, draft, rosterOpen: true }));
+  const radios = fragment.querySelectorAll("[data-captain]");
+  const names = radios.map((radio) => accessibleName(fragment, radio));
+  assert.equal(new Set(names).size, 8, "a screen reader hears eight different radios, not eight times «Captain»");
+  assert.equal(names[0], "Brandt Human Lineman", "the player's name, then the position");
+  draft.players.forEach((player, index) => assert.ok(names[index].includes(player.name), `${names[index]} has ${player.name}`));
+  assert.equal(radios.some((radio) => radio.hasAttribute("aria-label")), false, "the name is the labelledby's: an aria-label would be a second, losing one");
+  // The group owns the radios and wraps nothing else: focusing a number or a name does not announce «Captain, radio group».
+  const group = fragment.querySelector('[role="radiogroup"][data-captains]');
+  assert.equal(group.getAttribute("aria-label"), "Captain");
+  assert.equal(group.childNodes.length, 0);
+  assert.deepEqual(group.getAttribute("aria-owns").split(" "), radios.map((radio) => radio.getAttribute("id")));
+  assert.ok(radios.every((radio) => radio.getAttribute("id")));
+  for (const field of fragment.querySelectorAll("input")) assert.equal(field.closest('[role="radiogroup"]'), null, `${field.getAttribute("data-player-name") ?? field.getAttribute("type")} is inside the radio group`);
+  // The visible «C» is the same in every row; it is not what names the radio.
+  assert.ok(radios.every((radio) => radio.textContent === "C" && !names.includes("C")));
+});
+
+test("a typed name is the radio's name too, and a cleared one leaves the position", () => {
+  const draft = filled();
+  draft.players[1].name = "";
+  const fragment = mount(builderMarkup({ race: human, draft, rosterOpen: true }));
+  assert.equal(accessibleName(fragment, fragment.querySelectorAll("[data-captain]")[1]), "Human Lineman");
+  draft.players[1].name = HOSTILE;
+  assert.equal(accessibleName(mount(builderMarkup({ race: human, draft, rosterOpen: true })), document.querySelectorAll("[data-captain]")[1]), `${HOSTILE} Human Lineman`);
 });
 
 test("a name a coach typed is text, in the title and in the fields", () => {
@@ -286,7 +329,7 @@ test("a race with a choice of league opens a sheet of options; one with a single
   assert.equal(choosing.querySelector('dialog#new-team-choice [aria-checked="true"]').getAttribute("data-option-value"), "Halfling Thimble Cup");
   assert.equal(mount(builderMarkup({ race: human, draft: newBuild(human, { name: "H" }) })).querySelector('[data-new-team-choice="league"]'), null);
   assert.equal(mount(builderMarkup({ race: human, draft: newBuild(human, { name: "H" }) })).querySelector(".g-build__team").textContent.includes("Old World Classic"), true);
-  assertStyled(choosing, "src/screens/teams/new.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css", "sheet.css", "option-card.css");
+  assertStyled(choosing, "src/screens/teams/builder.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css", "sheet.css", "option-card.css");
 });
 
 test("the league and the favoured alignment are each chosen from a sheet, when there are two or more to choose from", () => {
@@ -317,8 +360,11 @@ test("the sheet and the buttons of the screen tell what was chosen, asked or clo
   fireEvent(fragment.querySelector('[data-option-value="Woodland League"]'), "click");
   fireEvent(fragment.querySelector("[data-sheet-close]"), "click");
   fireEvent(fragment.querySelector('[data-new-team-choice="league"]'), "click");
-  fireEvent(fragment.querySelector("[data-new-team-restart]"), "click");
-  fireEvent(fragment.querySelector("[data-new-team-save]"), "click");
+  // The save is heard from a squad that may be saved: a disabled button takes no click in a browser.
+  const legal = mount(builderMarkup({ race: human, draft: filled() }));
+  assert.equal(legal.querySelector("[data-new-team-save]").hasAttribute("disabled"), false);
+  fireEvent(legal.querySelector("[data-new-team-restart]"), "click");
+  fireEvent(legal.querySelector("[data-new-team-save]"), "click");
   assert.deepEqual(heard, [["choose", "league", "Woodland League"], ["close"], ["open", "league"], ["restart"], ["save"]]);
 });
 
@@ -442,7 +488,7 @@ test("a refusal of the save is said above the button, and a name typed is text",
   assert.equal(fragment.querySelector("img"), null);
   assert.ok(fragment.querySelector(".g-build__cta .g-callout--danger .g-callout__icon"), "a fault leads with its sign");
   assert.equal(mount(builderMarkup({ race: human, draft: filled() })).querySelector('.g-build__cta [role="alert"]'), null);
-  assertStyled(fragment, "src/screens/teams/new.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
+  assertStyled(fragment, "src/screens/teams/builder.css", "button.css", "resource-counter.css", "toggle.css", "status-chip.css", "callout.css");
 });
 
 test("the rule's words for the four refusals the build gives are in both dictionaries, and fill every placeholder (K5c)", () => {
@@ -466,7 +512,7 @@ test("the rule's words for the four refusals the build gives are in both diction
   for (const locale of ["en", "ru"]) {
     initLocale(locale);
     try {
-      assert.deepEqual(refusals.map(refusalText), said[locale], locale);
+      assert.deepEqual(refusals.map(buildRefusalText), said[locale], locale);
     } finally {
       initLocale("en");
     }
@@ -481,11 +527,11 @@ test("every staff the build sells has a name, every medic its own, and every sta
   const dictionaries = {};
   for (const locale of ["en", "ru"]) dictionaries[locale] = JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
   for (const key of BUILD_STAFF_KEYS) {
-    const text = refusalText({ code: "STAFF_MAX", params: { key, max: 1 } });
+    const text = buildRefusalText({ code: "STAFF_MAX", params: { key, max: 1 } });
     assert.match(text, /^[A-Z][A-Za-z ]+: maximum is 1\.$/, `${key}: "${text}"`);
     assert.notEqual(text.split(":")[0], key, `${key} is named, not shown as its key`);
   }
-  for (const staff of medicalStaffDefinitions) assert.ok(refusalText({ code: "STAFF_UNAVAILABLE", params: { key: staff.key } }).startsWith(`${staff.title}: `));
+  for (const staff of medicalStaffDefinitions) assert.ok(buildRefusalText({ code: "STAFF_UNAVAILABLE", params: { key: staff.key } }).startsWith(`${staff.title}: `));
   for (const locale of ["en", "ru"]) for (const stat of PLAYER_STATS) assert.ok(dictionaries[locale][`stats.${stat}`], `${locale} stats.${stat}`);
 });
 
@@ -551,25 +597,33 @@ test("a screen that is released stops hearing the buttons, and one wired without
 });
 
 test("the look: contrast on what each text sits on, no inline widths, and the breakpoints are 900 and 901", () => {
-  const css = readFileSync(new URL(`../${NEW_CSS}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const css = readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   // The limit at its maximum is a pill on the warning tint (K5b): no new token.
-  assertReadable(NEW_CSS, ".g-hire__limit--max", "color", ["--warn-tint"], 4.5);
-  assert.deepEqual(valuesOf(NEW_CSS, ".g-hire__limit--max", "background"), ["var(--warn-tint)"]);
+  assertReadable(BUILDER_CSS, ".g-hire__limit--max", "color", ["--warn-tint"], 4.5);
+  assert.deepEqual(valuesOf(BUILDER_CSS, ".g-hire__limit--max", "background"), ["var(--warn-tint)"]);
   assert.doesNotMatch(css, /--warn-text/);
-  assertReadable(NEW_CSS, ".g-hire__limit", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, ".g-hire__price", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, ".g-hire__stats", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, ".g-hire__skills", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, ".g-build__remains", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, ".g-build__remains--over", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, ".g-build__count--short", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, ".g-build__label", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, ".g-build__title", "color", ["--header"], 4.5);
-  assertReadable(NEW_CSS, ".g-build__sub", "color", ["--header"], 4.5);
-  assertReadable(NEW_CSS, ".g-build__head .g-btn", "color", ["--header"], 4.5);
-  assertReadable(NEW_CSS, ".g-hire__avatar", "color", ["--pos-lineman", "--pos-big", "--pos-thrower", "--pos-catcher", "--pos-blitzer"], 4.5);
-  assertReadable(NEW_CSS, ".g-roster-row__captain", "color", ["--surface"], 4.5);
-  assertReadable(NEW_CSS, '.g-roster-row__captain[aria-checked="true"]', "color", ["--crest-gold"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-hire__limit", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-hire__price", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-hire__stats", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-hire__skills", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__remains", "color", ["--surface"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__remains--over", "color", ["--surface"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__count--short", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__label", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__hint", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__reroll-note", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-roster-row__position", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__h", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-hire__name", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__title", "color", ["--header"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__sub", "color", ["--header"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-build__head .g-btn", "color", ["--header"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-hire__avatar", "color", ["--pos-lineman", "--pos-big", "--pos-thrower", "--pos-catcher", "--pos-blitzer"], 4.5);
+  assertReadable(BUILDER_CSS, ".g-roster-row__captain", "color", ["--surface", "--page"], 4.5);
+  assertReadable(BUILDER_CSS, '.g-roster-row__captain[aria-checked="true"]', "color", ["--crest-gold"], 4.5);
+  // The first band's two cards end on one line on a desk.
+  assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__players", "align-self"), ["stretch"]);
+  assert.deepEqual(valuesOf(BUILDER_CSS, ".g-build__team", "align-self"), ["stretch"]);
   assert.doesNotMatch(css, /\bstyle\s*=/);
   const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
   assert.ok(queries.length >= 2 && queries.every((query) => query === "(max-width: 900px)" || query === "(min-width: 901px)"), `only the stage's two breakpoints: ${queries}`);
@@ -577,5 +631,5 @@ test("the look: contrast on what each text sits on, no inline widths, and the br
   assert.match(css, /@media \(max-width: 900px\)\s*\{[^@]*\.g-build__cta\s*\{[^}]*position:\s*sticky;[^}]*bottom:\s*0/);
   assert.match(css, /@media \(min-width: 901px\)\s*\{[^@]*\.g-build__cta\s*\{[^}]*position:\s*static/);
   assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) 360px/);
-  assert.match(readFileSync(new URL(`../${NEW_CSS}`, import.meta.url), "utf8"), /focus order/i, "the desk's columns reorder the page; the sheet says so");
+  assert.match(readFileSync(new URL(`../${BUILDER_CSS}`, import.meta.url), "utf8"), /focus order/i, "the desk's columns reorder the page; the sheet says so");
 });

@@ -1,10 +1,10 @@
 /*
- * The new team (`#/teams/new`). This part is the builder, the second step
- * (screens/teams/builder-view.mjs): the head and the budget, the team, the
- * players, the numbers, the staff and the save. Font, border, background,
- * text-transform and font-weight are set here on purpose: the 2.x global rules
- * (h1 at weight 800, a { color: inherit }, p and dl margins, bare inputs)
- * outlive this sheet until stage 13.
+ * The builder (screens/teams/builder-view.mjs), the second step of
+ * `#/teams/new` (the first, the name and the race, is new.css's): the head and
+ * the budget, the team, the players, the numbers, the staff and the save. Font,
+ * border, background, text-transform and font-weight are set here on purpose:
+ * the 2.x global rules (h1 at weight 800, a { color: inherit }, p and dl
+ * margins, bare inputs) outlive this sheet until stage 13.
  *
  * The page has its own frame (`bare`: no header, tabs or SideNav) and #app-view
  * has no padding in it, so `.g-build` brings its own: 16px at the sides on a
@@ -43,7 +43,11 @@
   letter-spacing: 0;
 }
 
-/* The sticky save needs the page's column to be the one that scrolls; the frame clips sideways with overflow-x, which would take that away. */
+/*
+ * The sticky save needs the page itself to be the one that scrolls; the frame clips sideways with
+ * overflow-x: hidden, which makes .g-main the container a sticky element sticks in, and it never scrolls.
+ * Scoped to this screen with :has() for now. Stage 13 makes it global in frame.css and removes this rule.
+ */
 .g-main:has(.g-build) { overflow-x: clip; }
 
 /* ---- The head ---- */
@@ -676,6 +680,9 @@
     grid-column: 1;
     grid-row: 2 / 5;
   }
+  /* The first band's two cards end on one line, whichever of the two is the taller. */
+  .g-build__players,
+  .g-build__team { align-self: stretch; }
   .g-build__roster {
     grid-column: 2;
     grid-row: 5;
