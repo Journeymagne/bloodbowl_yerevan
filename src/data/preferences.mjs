@@ -14,7 +14,8 @@
  * has nothing to give, so it does not write its default over another device's
  * choice. A palette the account itself applied here is not this browser's choice
  * either (`setThemeChoice(…, {fromAccount})`), or it would follow the coach who
- * signs out to the next coach's account.
+ * signs out to the next coach's account; nor, once its coach has left, is one the
+ * coach picked here, which went to their account (data/session.mjs marks it so).
  */
 import { apiRequest, sessionTokenHolds } from "../core/api-client.mjs";
 import { state } from "../core/state.mjs";

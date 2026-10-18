@@ -38,7 +38,7 @@ export function setAuthToken(token = "") {
 
 let onUnauthorized = () => {};
 
-/** Register what happens when a request comes back 401. Call once, at startup. */
+/** Register what happens when a request comes back 401; it is handed the coach whose session it was. Call once, at startup. */
 export function setOnUnauthorized(handler) {
   onUnauthorized = handler;
 }
@@ -83,11 +83,12 @@ const apiClient = createApiClient({
   getToken: authToken,
   onUnauthorized: () => {
     // The session died under us. Say so once, instead of letting every screen
-    // report its own mystery failure.
-    if (!state.auth.currentUser) return;
+    // report its own mystery failure — and say whose it was.
+    const user = state.auth.currentUser;
+    if (!user) return;
     state.auth.currentUser = null;
     setAuthToken("");
-    onUnauthorized();
+    onUnauthorized(user);
   },
   // The site was closed for maintenance under us: hand the page over to the
   // maintenance screen instead of failing every save one by one.

@@ -13,8 +13,9 @@
  * and test/theme.test.mjs compares the two. This module is the only writer.
  *
  * The cache may also carry `from: "account"`: the choice came from the reader's
- * account and was only applied here, so it is not something this browser's
- * reader picked and is never the account of the next coach to sign in (see
+ * account and was only applied here, or it was the account's by the time its
+ * coach left (data/session.mjs), so it is not something this browser's reader
+ * picked and is never the account of the next coach to sign in (see
  * isThemeChosen). The other readers look at `mode`, `light` and `dark` alone.
  *
  * 2.x stored one theme id under `gata-league-theme`. It is read once, mapped to

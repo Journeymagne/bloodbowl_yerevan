@@ -9,7 +9,11 @@ const { state } = await import("../src/core/state.mjs");
 const { createStorage } = await import("../src/core/storage.mjs");
 const { initTheme, isThemeChosen, setThemeChoice, themeChoice } = await import("../src/core/theme.mjs");
 const { savePreferences, saveTheme, syncThemeWithAccount } = await import("../src/data/preferences.mjs");
-const { loadSession, onSessionChange, signOut } = await import("../src/data/session.mjs");
+const { followSessionAcrossTabs, loadSession, onSessionChange, sessionEnded, signOut } = await import("../src/data/session.mjs");
+const { apiRequest, setOnUnauthorized } = await import("../src/core/api-client.mjs");
+
+// As app.js wires it: a 401 ends the session through the session module.
+setOnUnauthorized(sessionEnded);
 
 const PATCH = "PATCH /api/auth/preferences";
 let backend = new Map();
@@ -100,15 +104,78 @@ test("and neither does the cache that remembers it across a reload", async () =>
   api.assertAnswered();
 });
 
-test("a palette the reader picked after the account's is theirs to give", async () => {
+// R11 (final review I2) revises R6's edge: a palette a coach picked went to their account, so it is that account's
+// as much as one the account applied; when the coach leaves, it is not this browser's to give the next one.
+const ABYSS = { themeMode: "dark", lightPalette: "parchment", darkPalette: "abyss" };
+test("a palette a coach picked after the account's is their account's: it does not follow them to the next coach's empty account", async () => {
   browser(null);
   await signInAs({ id: "u1", login: "first", preferences: PARCHMENT });
   setThemeChoice({ mode: "dark", light: "parchment", dark: "abyss" });
   await signOutNow();
-  api.reply(PATCH, 200, { preferences: { themeMode: "dark", lightPalette: "parchment", darkPalette: "abyss" } });
   await signInAs({ id: "u2", login: "second", preferences: {} });
-  assert.deepEqual(patches().map(({ body }) => body), [{ themeMode: "dark", lightPalette: "parchment", darkPalette: "abyss" }]);
+  assert.deepEqual(patches(), []);
   api.assertAnswered();
+});
+
+test("a guest's pick goes to the empty account it signs into, and no further: the next empty account gets nothing", async () => {
+  browser(null);
+  state.auth.currentUser = null;
+  setThemeChoice({ mode: "dark", light: "parchment", dark: "abyss" });
+  api.reply(PATCH, 200, { preferences: ABYSS });
+  await signInAs({ id: "u1", login: "first", preferences: {} });
+  assert.deepEqual(patches().map(({ body }) => body), [ABYSS], "the guest's own pick is theirs to give, once");
+  await signOutNow();
+  await signInAs({ id: "u2", login: "second", preferences: {} });
+  assert.equal(patches().length, 1, "and the second coach's account is left empty");
+  api.assertAnswered();
+});
+
+test("nor after a reload between the two", async () => {
+  browser(null);
+  state.auth.currentUser = null;
+  setThemeChoice({ mode: "dark", light: "parchment", dark: "abyss" });
+  api.reply(PATCH, 200, { preferences: ABYSS });
+  await signInAs({ id: "u1", login: "first", preferences: {} });
+  await signOutNow();
+  const root = boot();
+  assert.equal(root.getAttribute("data-palette"), "abyss", "the cache still paints it");
+  assert.equal(isThemeChosen(), false);
+  await signInAs({ id: "u2", login: "second", preferences: {} });
+  assert.equal(patches().length, 1);
+  api.assertAnswered();
+});
+
+test("a session that dies under the coach (a 401) leaves their palette theirs too", async () => {
+  browser(null);
+  await signInAs({ id: "u1", login: "first", preferences: {} });
+  setThemeChoice({ mode: "dark", light: "parchment", dark: "abyss" });
+  api.reply("GET /api/games", 401, { error: { code: "NOT_AUTHORIZED", params: {}, message: "x" } });
+  await apiRequest("/api/games").catch(() => {});
+  await Promise.all(syncs.splice(0));
+  assert.equal(state.auth.currentUser, null);
+  await signInAs({ id: "u2", login: "second", preferences: {} });
+  assert.deepEqual(patches(), []);
+  api.assertAnswered();
+});
+
+test("so does a coach another tab replaced: the page that follows the token gives the next coach nothing", async () => {
+  browser(null);
+  await signInAs({ id: "u1", login: "first", preferences: {} });
+  setThemeChoice({ mode: "dark", light: "parchment", dark: "abyss" });
+  const otherTabs = new EventTarget();
+  followSessionAcrossTabs(otherTabs);
+  api.items.set("gata-league-auth-token", "second-tok");
+  api.reply("GET /api/auth/me", 200, { user: { id: "u2", login: "second", preferences: {} } });
+  try {
+    otherTabs.dispatchEvent(new Event("storage"));
+    for (let turn = 0; turn < 10; turn += 1) await settle();
+    await Promise.all(syncs.splice(0));
+    assert.equal(state.auth.currentUser?.id, "u2");
+    assert.deepEqual(patches(), []);
+    api.assertAnswered();
+  } finally {
+    await signOutNow(); // the page's session token is "" again, as the tests below take it
+  }
 });
 
 test("an empty account takes this browser's choice once, with all three keys", async () => {

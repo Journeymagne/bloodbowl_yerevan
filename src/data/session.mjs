@@ -24,6 +24,7 @@ import { apiRequest, authToken, rememberSessionToken, setAuthToken, setOnTokenMo
 import { t } from "../core/i18n.mjs";
 import { setReturn } from "../core/return-to.mjs";
 import { state } from "../core/state.mjs";
+import { isThemeChosen, setThemeChoice, themeChoice } from "../core/theme.mjs";
 import { clearActiveTeamCache, resetActiveTeam } from "./active-team.mjs";
 import { setMyTeams, setMyTeamsUnread } from "./teams.mjs";
 
@@ -58,6 +59,18 @@ function resetCoachSlices() {
   state.season = { data: null, loaded: false, loading: false, error: "" };
   // Last, and through active-team.mjs: its listeners (the header) hear it, with the rest already gone.
   resetActiveTeam();
+}
+
+/**
+ * The coach this page showed has left it (signed out, signed out by a 401, or replaced by the coach another
+ * tab signed in). A palette on the page now is theirs: their account gave it, or was given it by the sync
+ * after they signed in, or by their own pick in Settings. So it is marked as the account's, and is not this
+ * browser's to give the next coach's empty account (R11, revising R6's edge). A guest's own pick, made
+ * before anyone signed in, stays this browser's and goes to the account it signs into.
+ * @param {object|null} user who was signed in
+ */
+function coachLeft(user) {
+  if (user && isThemeChosen()) setThemeChoice(themeChoice(), { fromAccount: true });
 }
 
 const refusedAs = (answer, kind) => answer.status === "rejected" && answer.reason?.kind === kind;
@@ -129,6 +142,7 @@ export function loadSession() {
 
 async function readSession(read) {
   let status = "guest";
+  coachLeft(state.auth.currentUser);
   state.auth.currentUser = null;
   failure = null;
   const token = authToken();
@@ -203,8 +217,13 @@ export function register({ login, password, telegram }) {
   return startSession("/api/auth/register", { login, password, telegram });
 }
 
-/** The 401 handler (`setOnUnauthorized`): the session died under us, so the coach's state goes with it. */
-export function sessionEnded() {
+/**
+ * The 401 handler (`setOnUnauthorized`): the session died under us, so the coach's state goes with it.
+ * @param {object|null} [user] the coach whose session it was: the api-client has already let go of them
+ *   when it calls this; signing out and a token another tab took away leave them in the state till here
+ */
+export function sessionEnded(user = state.auth.currentUser) {
+  coachLeft(user);
   setAuthToken("");
   rememberSessionToken("");
   state.auth.currentUser = null;
