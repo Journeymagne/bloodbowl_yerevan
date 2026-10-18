@@ -17,7 +17,7 @@ session.onSessionChange(() => {
   atFirstChange.push({
     shell: document.querySelector("#app-frame").getAttribute("data-shell"),
     header: document.querySelector("#app-header").textContent.trim() !== "",
-    screen: Boolean(document.querySelector("#app-view .league-hero h1")),
+    screen: Boolean(document.querySelector("#app-view .g-guest h1")),
   });
 });
 const turns = async (count = 20) => { for (let turn = 0; turn < count; turn += 1) await new Promise((resolve) => { setImmediate(resolve); }); };

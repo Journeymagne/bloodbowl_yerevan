@@ -1028,5 +1028,20 @@
   "ref.team.caption": "{qty} · skills {access}",
   "ref.team.access": "Access",
   "ref.team.inLeague": "Playing in the league",
-  "ref.team.place": "#{rank} · {points} pts"
+  "ref.team.place": "#{rank} · {points} pts",
+  "guestHome.lead": "A league for Blood Bowl Sevens coaches",
+  "guestHome.text": "Rosters, SPP and advancement, the season's matches and the Gata rules reference, all in one place.",
+  "guestHome.table": "Table",
+  "guestHome.tableAfter": "Table · after round {round}",
+  "guestHome.season": "{season} · after round {round}",
+  "guestHome.tableAll": "Full table and schedule",
+  "guestHome.tableEmpty": "The table fills in once coaches enter the season.",
+  "guestHome.tile.teams": "Team rules",
+  "guestHome.tile.teamsText": "Every race in the league",
+  "guestHome.tile.skills": "Skills",
+  "guestHome.tile.skillsText": "Search by category",
+  "guestHome.tile.match": "Before the match",
+  "guestHome.tile.matchText": "Weather, Kick-off, Inducements",
+  "guestHome.tile.changes": "Gata changes",
+  "guestHome.tile.changesText": "How the league differs from Blood Bowl"
 }

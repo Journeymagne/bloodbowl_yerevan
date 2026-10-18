@@ -23,6 +23,7 @@ import { toast } from "../components/toast.mjs";
 import { prepareTeamRoute, syncActiveTeam } from "../data/active-team.mjs";
 import { loadMyTeams } from "../data/teams.mjs";
 import { renderHome } from "../screens/home.mjs";
+import { renderGuestHome } from "../screens/home/guest.mjs";
 import { renderLogin } from "../screens/auth/login.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
 import { renderSettings } from "../screens/settings/index.mjs";
@@ -45,7 +46,8 @@ import { refreshShell } from "../shell/shell.mjs";
 
 const screens = {
   // A coach with an active team never gets here: resolveRedirect sends `#/` on to that team.
-  home: () => (state.auth.currentUser && !state.myTeams.items.length ? renderNoTeam() : renderHome()),
+  // A guest's front page is the 3.0 guest home (stage 11); a coach's `#/` is stage 06's.
+  home: () => (!state.auth.currentUser ? renderGuestHome() : state.myTeams.items.length ? renderHome() : renderNoTeam()),
   login: () => renderLogin("login"),
   register: () => renderLogin("register"),
   settings: () => renderSettings(),
