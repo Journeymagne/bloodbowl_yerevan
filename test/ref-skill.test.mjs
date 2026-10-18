@@ -129,6 +129,10 @@ test("a holder is shown by number, name and position; a skill nobody has says so
   assert.equal(ours.querySelector("h2").textContent, "In your team");
   const first = ours.querySelectorAll(".g-skill-detail__holder")[0];
   assert.deepEqual(["num", "who", "pos"].map((part) => first.querySelector(`.g-skill-detail__${part}`).textContent), ["3", "Itzel", "Eagle Warrior Linewoman"]);
+  assert.equal(first.textContent, "3ItzelEagle Warrior Linewoman", "a row reads number, name, position");
+  const text = first.querySelector(".g-skill-detail__text");
+  assert.ok(text.querySelector(".g-skill-detail__who") && text.querySelector(".g-skill-detail__pos"), "the name and the position are stacked in one block");
+  assert.equal(first.querySelector(".g-skill-detail__num").closest(".g-skill-detail__text"), null, "and the number is the badge beside it, not a column of the block");
   const nobody = draw(skillDetailMarkup({ data: state.data, page: pageOf("skills/block"), team: TEAM, teamPage: amazon() })).querySelector(".g-skill-detail__ours");
   assert.equal(nobody.querySelector(".g-skill-detail__none").textContent, "No one has it");
   assert.equal(nobody.querySelector("li"), null);
@@ -457,6 +461,16 @@ test("a holder row is a 44px line with a 32px badge for the number; what is said
   for (const part of ["name", "caption", "ours-title", "who", "pos", "none"]) {
     assertReadable(ARTICLE, `.g-skill-detail__${part}`, "color", ["--surface", "--page"], 4.5);
   }
+});
+
+test("a holder's name is one line that gives way with an ellipsis, its position a caption under it", () => {
+  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__text", "display"), ["flex"]);
+  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__text", "flex-direction"), ["column"]);
+  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__text", "min-width"), ["0"]);
+  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__who", "white-space"), ["nowrap"]);
+  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__who", "text-overflow"), ["ellipsis"]);
+  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__who", "overflow"), ["hidden"]);
+  assert.deepEqual(valuesOf(ARTICLE, ".g-skill-detail__pos", "font"), ["400 13px/1.35 var(--font-body)"]);
 });
 
 test("the way back is a phone's link: shown up to 900px, hidden from 901px", () => {

@@ -375,7 +375,7 @@
   list-style: none;
 }
 
-/* The player's number on a round badge, then the name, then the position. */
+/* The player's number on a round badge, then the name with the position under it, as a caption. */
 .g-skill-detail__holder {
   display: flex;
   align-items: center;
@@ -400,13 +400,22 @@
   text-transform: none;
 }
 
+.g-skill-detail__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* The name is one line; a name longer than the panel is cut short rather than wrapped. */
 .g-skill-detail__who {
   min-width: 0;
+  overflow: hidden;
   color: var(--ink);
   font: 600 15px/1.3 var(--font-body);
   letter-spacing: 0;
-  overflow-wrap: anywhere;
+  text-overflow: ellipsis;
   text-transform: none;
+  white-space: nowrap;
 }
 
 .g-skill-detail__pos {

@@ -90,8 +90,10 @@ function rollValue(roll) {
 }
 
 function holderRow({ number, name, position }) {
+  // The badge, then the name with the position under it; the source order is the reading order: number, name, position.
   return `<li class="g-skill-detail__holder"><span class="g-skill-detail__num">${escapeHtml(number)}</span>`
-    + `<span class="g-skill-detail__who">${escapeHtml(name)}</span><span class="g-skill-detail__pos">${escapeHtml(position)}</span></li>`;
+    + `<span class="g-skill-detail__text"><span class="g-skill-detail__who">${escapeHtml(name)}</span>`
+    + `<span class="g-skill-detail__pos">${escapeHtml(position)}</span></span></li>`;
 }
 
 function oursMarkup(holders) {
