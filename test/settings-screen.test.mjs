@@ -876,7 +876,7 @@ test("too many tries and the administrator whose password the server keeps are t
   passwordAnswer(429, { ...refusal("TOO_MANY_LOGIN_ATTEMPTS"), retryAfterSeconds: 600 });
   submitPassword();
   await settle();
-  assert.equal(text('[role="alert"] .g-callout--danger .g-callout__title'), "Too many attempts for this login. Try again in 10 min.");
+  assert.equal(text('[role="alert"] .g-callout--danger .g-callout__title'), "Too many attempts for this username. Try again in 10 min.");
   assert.equal(view.querySelector("#password-current").getAttribute("aria-invalid"), null);
   assert.equal(view.querySelector("#password-form").hasAttribute("aria-busy"), false);
   assert.equal(view.querySelector("#password-next").value, "abcd", "what was typed stays for another try");

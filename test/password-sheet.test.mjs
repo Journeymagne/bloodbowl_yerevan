@@ -67,10 +67,10 @@ test("too many guesses says when to try again, in minutes, and in seconds only f
   api.reply("PATCH /api/auth/profile", 429, refusal("TOO_MANY_LOGIN_ATTEMPTS", { retryAfterSeconds: 120 }));
   const error = await changePassword({ current: "x", next: "abcd" });
   assert.equal(error.field, null);
-  assert.equal(error.text, "Too many attempts for this login. Try again in 2 min.");
+  assert.equal(error.text, "Too many attempts for this username. Try again in 2 min.");
   assert.ok(mount(passwordSheetMarkup({ ...blank, error })).querySelector('[role="alert"] .g-callout--danger'));
   api.reply("PATCH /api/auth/profile", 429, refusal("TOO_MANY_LOGIN_ATTEMPTS", { retryAfterSeconds: 45 }));
-  assert.equal((await changePassword({ current: "x", next: "abcd" })).text, "Too many attempts for this login. Try again in 45 s.");
+  assert.equal((await changePassword({ current: "x", next: "abcd" })).text, "Too many attempts for this username. Try again in 45 s.");
   assert.equal(state.auth.currentUser.id, "u1", "a refusal changes nothing");
 });
 

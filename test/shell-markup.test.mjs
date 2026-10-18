@@ -143,6 +143,7 @@ test("the header says the team with its race and place; the SideNav says the rac
 test("a race longer than the column is cut, not wrapped, and says itself whole on hover", () => {
   const fragment = mount(renderSideNav(coach(), { locale: "en" }));
   assert.equal(fragment.querySelector(".g-sidenav__sub").getAttribute("title"), "Human");
+  assert.deepEqual(valuesOf("src/shell/side-nav.css", ".g-sidenav__sub", "overflow"), ["hidden"], "what does not fit is cut");
   assert.deepEqual(valuesOf("src/shell/side-nav.css", ".g-sidenav__sub", "white-space"), ["nowrap"]);
   assert.deepEqual(valuesOf("src/shell/side-nav.css", ".g-sidenav__sub", "text-overflow"), ["ellipsis"]);
 });

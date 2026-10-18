@@ -43,8 +43,8 @@ test("signing in: two fields, a button that waits for both, the password help an
 });
 
 test("a refused sign-in keeps what was typed and says why, on both fields", () => {
-  const fragment = mount(loginMarkup({ ...empty, login: "felstell", password: "qwerty", error: { text: "Wrong login or password.", fields: ["login", "password"] } }));
-  assert.equal(fragment.querySelector('[role="alert"]').textContent, "Wrong login or password.");
+  const fragment = mount(loginMarkup({ ...empty, login: "felstell", password: "qwerty", error: { text: "Wrong username or password.", fields: ["login", "password"] } }));
+  assert.equal(fragment.querySelector('[role="alert"]').textContent, "Wrong username or password.");
   assert.equal(fragment.querySelector("#auth-login").getAttribute("aria-invalid"), "true");
   assert.equal(fragment.querySelector("#auth-password").getAttribute("aria-invalid"), "true");
   assert.equal(fragment.querySelector("#auth-login").getAttribute("value"), "felstell");
@@ -68,7 +68,7 @@ test("the form is titled «Sign in to your account» / «Coach registration», a
 });
 
 test("a refusal on sign-in leads with the «!» sign (LoginError)", () => {
-  const fragment = mount(loginMarkup({ ...empty, login: "felstell", password: "qwerty", error: { text: "Wrong login or password.", fields: ["login", "password"] } }));
+  const fragment = mount(loginMarkup({ ...empty, login: "felstell", password: "qwerty", error: { text: "Wrong username or password.", fields: ["login", "password"] } }));
   assert.ok(fragment.querySelector('[role="alert"] .g-callout__icon svg.g-icon'));
   assert.equal(mount(loginMarkup(empty)).querySelector('[role="alert"] .g-callout__icon'), null, "nothing to lead with until a try is refused");
   assertStyled(fragment, ...SHEETS);
@@ -89,7 +89,7 @@ test("registering asks for a contact and a repeat, and shows its rules only afte
   assert.equal(quiet.querySelector("#auth-repeat").getAttribute("autocomplete"), "new-password");
   const told = mount(loginMarkup({ ...form, touched: true }));
   assert.deepEqual(told.querySelectorAll(".g-field__error").map((node) => node.textContent), [
-    "Login must be at least 3 characters.", "Format: @username, at least 5 characters after @",
+    "Username must be at least 3 characters.", "Format: @username, at least 5 characters after @",
     "Password must be at least 4 characters.", "Passwords do not match",
   ]);
   assertStyled(told, ...SHEETS);
@@ -132,7 +132,7 @@ test("the server's refusals land on the fields they are about", async () => {
   assert.match((await submitAuth(form)).text, /30/);
   // The server's window is a quarter of an hour: its first refusal says 899 seconds.
   api.reply("POST /api/auth/login", 429, { error: { code: "TOO_MANY_LOGIN_ATTEMPTS", params: {}, message: "x" }, retryAfterSeconds: 899 });
-  assert.deepEqual(await submitAuth(form), { text: "Too many attempts for this login. Try again in 15 min.", fields: [] });
+  assert.deepEqual(await submitAuth(form), { text: "Too many attempts for this username. Try again in 15 min.", fields: [] });
   api.reply("POST /api/auth/register", 409, { error: { code: "LOGIN_ALREADY_REGISTERED", params: {}, message: "x" } });
   assert.deepEqual((await submitAuth({ ...form, mode: "register", telegram: "felstell", repeat: "qwerty" })).fields, ["login"]);
   assert.deepEqual(api.calls.at(-1).body, { login: "felstell", password: "qwerty", telegram: "@felstell" });
@@ -200,7 +200,7 @@ test("a sign-in the session refuses straight after is said, and the account made
 
 test("every rule a registration can break has its words", () => {
   for (const [code, text] of [
-    ["LOGIN_TOO_SHORT", "Login must be at least 3 characters."], ["TELEGRAM_REQUIRED", "Telegram contact is required."],
+    ["LOGIN_TOO_SHORT", "Username must be at least 3 characters."], ["TELEGRAM_REQUIRED", "Telegram contact is required."],
     ["TELEGRAM_FORMAT", "Format: @username, at least 5 characters after @"], ["PASSWORD_TOO_SHORT", "Password must be at least 4 characters."],
     ["PASSWORDS_DIFFER", "Passwords do not match"],
   ]) assert.equal(problemText(code), text, code);
@@ -311,7 +311,7 @@ test("a registration that breaks a rule is told so on its fields and sends nothi
   assert.equal(view.querySelector(".g-field__error"), null, "nothing is said before the first try");
   fireEvent(view.querySelector("[data-auth-form]"), "submit");
   assert.equal(api.calls.length, 0);
-  assert.equal(view.querySelector("#auth-login-error").textContent, "Login must be at least 3 characters.");
+  assert.equal(view.querySelector("#auth-login-error").textContent, "Username must be at least 3 characters.");
   assert.equal(document.activeElement, view.querySelector("#auth-login"), "the first field to fix has the focus");
   leaveTo("#/legal");
 });
@@ -327,7 +327,7 @@ test("a refused sign-in is drawn on the screen, and typing takes it back", async
   const submitted = fireEvent(view.querySelector("[data-auth-form]"), "submit");
   assert.equal(submitted.defaultPrevented, true, "the page does not post the form");
   await settle();
-  assert.equal(view.querySelector('[role="alert"]').textContent, "Wrong login or password.");
+  assert.equal(view.querySelector('[role="alert"]').textContent, "Wrong username or password.");
   assert.equal(view.querySelector("#auth-password").getAttribute("aria-invalid"), "true");
   // M5: the coach is put in the first field the refusal is about, and both fields name the alert as their description.
   assert.equal(document.activeElement, view.querySelector("#auth-login"));

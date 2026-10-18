@@ -126,7 +126,8 @@ test("a fault leads with the «!» sign; news and a warning do not", () => {
   assertStyled(fragment, "callout.css");
   assert.deepEqual(valuesOf("src/ui/callout.css", ".g-callout__icon", "color"), ["var(--danger)"]);
   assertReadable("src/ui/callout.css", ".g-callout__icon", "color", ["--danger-tint"], 3);
-  assert.deepEqual(valuesOf("src/ui/callout.css", ".g-callout--danger", "align-items"), ["flex-start"], "the sign stands at the first line of a refusal; a banner's chevron or action stays centred");
+  assert.deepEqual(valuesOf("src/ui/callout.css", ".g-callout--danger", "align-items"), ["flex-start"], "the sign stands at the first line of a refusal; an accent or warn banner's chevron or action stays centred");
+  assert.deepEqual(valuesOf("src/ui/callout.css", ".g-callout--danger", "align-content"), ["center"], "a one-line refusal sits in the middle of the box, not at its top");
 });
 
 test("a match banner carries its toggle and is not a link", () => {
