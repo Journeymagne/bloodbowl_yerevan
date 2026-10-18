@@ -318,6 +318,26 @@ test("the Skill Table's two shapes: up to 900px the lists, from 901px the vault'
   for (const query of queries) assert.match(query, /^\((max-width: 900px|min-width: 901px)\)$/);
 });
 
+test("from 901px the vault's Skill Table has the card's whole width, past the article's 820px, with snug cells so seven columns fit at 1440", () => {
+  const { wide } = parts(read(SHEET));
+  const rules = blocks(wide);
+  const classes = (selector) => (selector.match(/\./g) ?? []).length;
+  const declared = (selector, property) => rules.filter((rule) => rule.selectors.includes(selector)).flatMap((rule) => [...rule.body.matchAll(new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g"))].map((match) => match[1].trim()));
+  const cap = ".g-article .g-prose";
+  const desk = ".g-article .g-prose.g-ref-skilltable__desk";
+  assert.deepEqual(declared(cap, "max-width"), ["820px"], "the cap that the table has to get past");
+  assert.deepEqual(declared(desk, "max-width"), ["none"]);
+  assert.ok(classes(desk) > classes(cap), "and it wins by specificity, not by coming later");
+  for (const part of ["th", "td"]) {
+    const cell = `.g-article .g-ref-skilltable__desk ${part}`;
+    assert.deepEqual(declared(cell, "padding-left"), ["6px"], cell);
+    assert.deepEqual(declared(cell, "padding-right"), ["6px"], cell);
+    const first = `.g-article .g-ref-skilltable__desk .numbered-table ${part}:first-child`;
+    assert.deepEqual(declared(first, "min-width"), ["0"], "the 2.x 48px of the number column gives way");
+    assert.deepEqual(declared(first, "width"), ["auto"], first);
+  }
+});
+
 test("the roller is a padded box, so the chips' keyboard ring is not cut by the screen's edge", () => {
   assert.match(valuesOf(SHEET, ".g-ref-roller", "padding")[0], /^var\(--space-(12|14|16|20|24)\)$/);
   assert.deepEqual(valuesOf(SHEET, ".g-ref-roller", "box-sizing"), ["border-box"]);

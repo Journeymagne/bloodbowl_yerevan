@@ -8,7 +8,8 @@
  *
  * Up to 900px an article is the page itself, with no frame; the way up is the link at its top. From
  * 901px it is a card beside the table of contents, in columns that shrink with the window and never
- * wrap (the contents as wide as a list's, the card the rest), its text no wider than a line can be read.
+ * wrap (the contents as wide as a list's, the card the rest), its text no wider than a line can be read
+ * (the Skill Table's table, which is not text, takes the card's whole width).
  * The Skill Table draws its columns twice, as a list for each category and as the vault's table, and the
  * width shows one: the lists up to 900px, the table from 901px.
  */
@@ -466,6 +467,30 @@
     font: 700 44px/1 var(--font-display);
     letter-spacing: 0;
     text-transform: none;
+  }
+
+  /*
+   * The vault's Skill Table is seven columns, not a text to read: it takes the card's whole width, and
+   * its cells are snug enough that at 1440px none of them hides behind the table's own scroll (the
+   * natural width is about 810px of the 842px the card has). On a narrower desktop it scrolls sideways.
+   * Out-specifies the 820px of .g-article .g-prose above, and the 2.x first-column width of 48px.
+   */
+  .g-article .g-prose.g-ref-skilltable__desk {
+    max-width: none;
+  }
+
+  .g-article .g-ref-skilltable__desk th,
+  .g-article .g-ref-skilltable__desk td {
+    padding-right: 6px;
+    padding-left: 6px;
+  }
+
+  .g-article .g-ref-skilltable__desk .numbered-table th:first-child,
+  .g-article .g-ref-skilltable__desk .numbered-table td:first-child {
+    width: auto;
+    min-width: 0;
+    padding-right: 4px;
+    padding-left: 4px;
   }
 
   .g-ref-skilltable {
