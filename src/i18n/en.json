@@ -996,5 +996,9 @@
   "shell.match.records": "Match records",
   "shell.match.postMatch": "Post-match",
   "shell.match.result": "{outcome} {score} · CAS {cas}",
-  "shell.match.confirm": "Confirm the score"
+  "shell.match.confirm": "Confirm the score",
+  "ref.group.match": "Before and during a match",
+  "ref.group.players": "Players",
+  "ref.group.teams": "Teams",
+  "ref.group.league": "League"
 }
