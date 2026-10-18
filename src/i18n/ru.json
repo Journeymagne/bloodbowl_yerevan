@@ -1087,5 +1087,6 @@
   "teamOverview.results": "Последние матчи",
   "teamOverview.resultLine": "Тур {round} · CAS {cas}",
   "teamOverview.friendlyLine": "Товарищеский · CAS {cas}",
-  "teamOverview.wholeSeason": "Весь сезон →"
+  "teamOverview.wholeSeason": "Весь сезон →",
+  "teamRoster.readMismatch": "Состав менялся, пока читался. Повторите."
 }

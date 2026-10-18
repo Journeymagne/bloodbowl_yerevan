@@ -1087,5 +1087,6 @@
   "teamOverview.results": "Recent matches",
   "teamOverview.resultLine": "Round {round} · CAS {cas}",
   "teamOverview.friendlyLine": "Friendly · CAS {cas}",
-  "teamOverview.wholeSeason": "Whole season →"
+  "teamOverview.wholeSeason": "Whole season →",
+  "teamRoster.readMismatch": "The roster kept changing while it was read. Try again."
 }
