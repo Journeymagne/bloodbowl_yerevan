@@ -44,6 +44,12 @@
   text-decoration: underline;
 }
 
+/* The ring of src/ui/base.css, written out: that rule only reaches a g- class, and a link in an article has none. */
+.g-prose a:focus-visible {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 0;
+}
+
 .g-prose img {
   max-width: 100%;
   height: auto;
@@ -82,11 +88,26 @@
   border-radius: var(--radius-lg);
   box-shadow: inset 0 0 0 1px var(--line-strong);
   background: var(--surface);
+  scrollbar-color: var(--faint) transparent;
+  scrollbar-width: thin;
 }
 
 /* The 2.x fade at the right edge. */
 .g-prose .table-scroll::after {
   display: none;
+}
+
+/*
+ * The 2.x scrollbar is a hard-coded gold. Where scrollbar-color is supported
+ * it wins over these; they are for the engines that still read the webkit
+ * pseudo-elements. --faint is the one token that reads on --surface (3:1).
+ */
+.g-prose .table-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.g-prose .table-scroll::-webkit-scrollbar-thumb {
+  background: var(--faint);
 }
 
 .g-prose table {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
 
 const SHEET = "src/screens/ref/prose.css";
 const css = readFileSync(new URL(`../${SHEET}`, import.meta.url), "utf8");
@@ -63,4 +63,22 @@ test("the sheet reaches only what sits inside .g-prose", () => {
   for (const { selectors } of blocks(css)) {
     for (const selector of selectors) assert.match(selector, /^\.g-prose\b/, selector);
   }
+});
+
+test("a scrolling table wears the page's scrollbar, not the 2.x gold one, and it shows on the card", () => {
+  assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll", "scrollbar-color"), ["var(--faint) transparent"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll", "scrollbar-width"), ["thin"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll::-webkit-scrollbar-track", "background"), ["transparent"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-prose .table-scroll::-webkit-scrollbar-thumb", "background"), ["var(--faint)"]);
+  assertContrast("--faint", ["--surface"], 3, { what: "the scrollbar thumb" });
+});
+
+test("a link in an article shows keyboard focus with the ring base.css draws, which .g-prose a does not reach for want of a g- class", () => {
+  const ring = ':where([class^="g-"], [class*=" g-"]):focus-visible';
+  for (const property of ["outline", "outline-offset"]) {
+    assert.deepEqual(valuesOf(SHEET, ".g-prose a:focus-visible", property), valuesOf("src/ui/base.css", ring, property), property);
+    assert.equal(valuesOf(SHEET, ".g-prose a:focus-visible", property).length, 1, property);
+  }
+  assert.equal(valuesOf(SHEET, ".g-prose a:focus-visible", "outline")[0], "3px solid var(--accent-text)");
+  assertContrast("--accent-text", ["--surface", "--page"], 3, { what: "the focus ring" });
 });
