@@ -14,6 +14,7 @@ import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
 import { requestLocale } from "../../core/locale-request.mjs";
 import { authUrl, routeFromHash } from "../../core/routes.mjs";
+import { setReturn } from "../../core/return-to.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { setThemeChoice, themeChoice } from "../../core/theme.mjs";
@@ -100,8 +101,8 @@ function accountHtml({ user, teamCount, telegram, telegramError }) {
 
 function guestHtml() {
   return `<p class="g-settings__guest">${escapeHtml(t("settings.guestText"))}</p>`
-    + renderButton({ label: t("auth.toLogin"), kind: "primary", href: authUrl("login") })
-    + renderButton({ label: t("auth.register"), block: true, href: authUrl("register") });
+    + renderButton({ label: t("auth.toLogin"), kind: "primary", href: authUrl("login"), data: { signIn: true } })
+    + renderButton({ label: t("auth.register"), block: true, href: authUrl("register"), data: { signIn: true } });
 }
 
 function languageHtml(locale) {
@@ -172,6 +173,8 @@ export function wireSettings(root, { saved, onSaveTelegram, onLogout, onOpenPass
   });
   group.on("click", "[data-open-password]", () => onOpenPassword());
   group.on("click", "[data-logout]", () => onLogout());
+  // A guest who signs in from here comes back here, as from the header's and the SideNav's way in (shell/shell.mjs).
+  group.on("click", "[data-sign-in]", () => setReturn(globalThis.location?.hash ?? ""));
   // The control shows the new language at once; the app may not manage it, and then it is redrawn from what is true.
   const ask = (locale) => Promise.resolve(requestLocale(locale)).catch(console.error).then(() => onLocaleSettled?.(locale));
   group.own(wireSegmentedControls(root, ask, { group: "language" }));

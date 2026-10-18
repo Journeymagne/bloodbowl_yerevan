@@ -316,6 +316,18 @@ test("the screen counts the coach's teams from the list the app holds", () => {
   assert.ok(view.querySelector('a[href="#/login"]'));
 });
 
+// R13-M4: as the header's and the SideNav's way in does, a guest who signs in from Settings comes back to it.
+test("a guest who goes to sign in or register from Settings is brought back to Settings", async () => {
+  const { peekReturn, setReturn } = await import("../src/core/return-to.mjs");
+  for (const href of ["#/login", "#/register"]) {
+    setReturn("");
+    draw(null);
+    fireEvent(view.querySelector(`.g-settings__account a[href="${href}"]`), "click");
+    assert.equal(peekReturn(), "#/settings", href);
+  }
+  setReturn("");
+});
+
 test("a refused contact stays in the field with its reason, until it is fixed", async () => {
   api.reset();
   draw();
