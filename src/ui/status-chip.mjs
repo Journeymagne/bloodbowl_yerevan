@@ -4,12 +4,13 @@
  *
  * The chip draws the words it is given. What state a match is in, and what it
  * is called, is the caller's; the tone only says how it is coloured: `live`
- * is the accent, `wait` is the warning colour, and `neutral` is the rest.
+ * is the accent, `wait` is the warning colour, `danger` is a fault's red, and
+ * `neutral` is the rest.
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { classNames } from "./markup.mjs";
 
-export const STATUS_TONES = ["neutral", "live", "wait"];
+export const STATUS_TONES = ["neutral", "live", "wait", "danger"];
 
 /**
  * @param {object} props

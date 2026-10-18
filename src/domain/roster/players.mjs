@@ -211,6 +211,15 @@ export function baseSkillsForPlayer(row) {
   return (row.skills ?? []).map((name) => ({ name, access: "base" }));
 }
 
+/** What a position does on the pitch, from its tags, in this order; whatever is not named is a lineman's. */
+const POSITION_KINDS = [["Big Guy", "big"], ["Thrower", "thrower"], ["Catcher", "catcher"], ["Blitzer", "blitzer"]];
+
+/** @returns {"big"|"thrower"|"catcher"|"blitzer"|"lineman"} the colour of a position's badge */
+export function positionKind(row) {
+  const tags = row.tags ?? [];
+  return POSITION_KINDS.find(([tag]) => tags.includes(tag))?.[1] ?? "lineman";
+}
+
 export function favouredSkillNames(row, player) {
   return new Set(normalizePlayerFavouredSkills(row, player.favouredSkills ?? []).map((skill) => skill.name));
 }

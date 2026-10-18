@@ -1,9 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
+import { initLocale } from "../src/core/i18n.mjs";
 import { renderDie } from "../src/ui/die.mjs";
+import { PLAYER_BADGE_KINDS, renderPlayerBadge } from "../src/ui/number-badge.mjs";
 import { renderSkillChip, renderSkillChips, wireSkillChips } from "../src/ui/skill-chip.mjs";
 import { renderStatStrip } from "../src/ui/stat-strip.mjs";
 
@@ -41,7 +44,7 @@ test("a card chip carries its source, names are escaped, a tap reports the skill
 test("a stat strip is the five characteristics in roster order", () => {
   const fragment = mount(renderStatStrip({ values: { ma: "6", st: "3", ag: "3+", pa: null, ar: "9+" }, improved: ["ma"] }));
   assert.deepEqual(fragment.querySelectorAll(".g-stat__k").map((node) => node.textContent), ["MA", "ST", "AG", "PA", "AR"]);
-  assert.deepEqual(fragment.querySelectorAll(".g-stat__v").map((node) => node.textContent), ["6", "3", "3+", "–", "9+"]);
+  assert.deepEqual(fragment.querySelectorAll(".g-stat__v").map((node) => node.textContent), ["6 improved", "3", "3+", "–", "9+"]);
   assert.equal(fragment.querySelectorAll(".g-stat--up").length, 1);
   assert.ok(fragment.querySelector("dl.g-stats .g-stat--up dd"));
   assertCspSafe(fragment);
@@ -133,4 +136,80 @@ test("the raised characteristics are a list of known ones: none is an empty list
   assert.throws(() => renderStatStrip({ values: {}, improved: "st" }), /improved/);
   assert.throws(() => renderStatStrip({ values: {}, improved: [""] }), /unknown characteristic: ""/);
   assert.throws(() => renderStatStrip({ values: {}, improved: ["st", "MA"] }), /unknown characteristic: "MA"/);
+});
+
+test("a player's badge is his number on his position's colour; the captain's has a «C» that says the word", () => {
+  const fragment = mount(renderPlayerBadge({ number: "3", kind: "catcher", captain: true }));
+  const badge = fragment.querySelector(".g-num.g-num--catcher");
+  assert.equal(badge.querySelector(".g-num__n").textContent, "3");
+  assert.equal(badge.querySelector(".g-num__captain").getAttribute("aria-hidden"), "true");
+  assert.equal(badge.querySelector(".g-sr-only").textContent, "Captain");
+  assert.ok(mount(renderPlayerBadge({ number: "12", kind: "big", large: true })).querySelector(".g-num.g-num--big.g-num--lg"));
+  assert.equal(mount(renderPlayerBadge({ number: HOSTILE })).querySelector(".g-num__n").textContent, HOSTILE);
+  assert.throws(() => renderPlayerBadge({ number: "1", kind: "ogre" }), /kind/);
+  assertCspSafe(fragment);
+  assertStyled(fragment, "number-badge.css");
+  assert.ok(valuesOf("src/ui/number-badge.css", ".g-num--catcher", "background").includes("var(--pos-catcher)"));
+  assert.ok(valuesOf("src/ui/number-badge.css", ".g-num__captain", "background").includes("var(--crest-gold)"));
+});
+
+test("a changed characteristic says so in words, not only in colour (WCAG 1.4.1, 07a)", () => {
+  const values = { ma: "7", st: "3", ag: "2+", pa: "4+", ar: "8+" };
+  const fragment = mount(renderStatStrip({ values, improved: ["ag"], lowered: ["ar"] }));
+  const [ma, , ag, , ar] = fragment.querySelectorAll(".g-stat");
+  assert.ok(ag.classList.contains("g-stat--up"));
+  assert.equal(ag.querySelector("dd .g-sr-only").textContent.trim(), "improved");
+  assert.ok(ar.classList.contains("g-stat--down"));
+  assert.equal(ar.querySelector("dd .g-sr-only").textContent.trim(), "lowered");
+  assert.equal(ma.querySelector(".g-sr-only"), null);
+  assert.throws(() => renderStatStrip({ values, improved: ["ag"], lowered: ["ag"] }), /both/);
+  assertStyled(fragment, "stat-strip.css");
+});
+
+test("a badge is drawn for every kind of position the roster has, and for no other", () => {
+  for (const kind of PLAYER_BADGE_KINDS) {
+    const fragment = mount(renderPlayerBadge({ number: "1", kind }));
+    assert.ok(fragment.querySelector(`.g-num--${kind}`), kind);
+    assert.equal(fragment.querySelector(".g-num__captain"), null, "no captain mark unless he is the captain");
+    assert.ok(valuesOf("src/ui/number-badge.css", `.g-num--${kind}`, "background").includes(`var(--pos-${kind})`), kind);
+  }
+  assert.deepEqual(PLAYER_BADGE_KINDS, ["blitzer", "catcher", "thrower", "lineman", "big"]);
+  assert.ok(mount(renderPlayerBadge({ number: "1" })).querySelector(".g-num--lineman"), "no kind is a lineman's");
+});
+
+test("a characteristic neither raised nor lowered has no word; the two lists are lists of known ones", () => {
+  const values = { ma: "6", st: "3", ag: "3+", pa: null, ar: "9+" };
+  const bare = mount(renderStatStrip({ values }));
+  assert.equal(bare.querySelector(".g-sr-only"), null);
+  assert.equal(bare.querySelector(".g-stat--down"), null);
+  assert.throws(() => renderStatStrip({ values, lowered: null }), /lowered/);
+  assert.throws(() => renderStatStrip({ values, lowered: ["mv"] }), /mv/);
+});
+
+test("a badge's number reads on every position's colour, and the captain's «C» on the gold, in every palette", () => {
+  const colours = PLAYER_BADGE_KINDS.map((kind) => `--pos-${kind}`);
+  assertContrast("--on-accent", colours, 4.5, { what: "the number on a position's colour" });
+  assert.deepEqual(valuesOf("src/ui/number-badge.css", ".g-num", "color"), ["var(--on-accent)"]);
+  assertReadable("src/ui/number-badge.css", ".g-num__captain", "color", ["--crest-gold"], 4.5);
+  assert.deepEqual(valuesOf("src/ui/number-badge.css", ".g-num", "width"), ["var(--size-badge)"]);
+  assert.deepEqual(valuesOf("src/ui/number-badge.css", ".g-num--lg", "width"), ["60px"]);
+});
+
+test("a lowered characteristic is a red value on the plain tile, and the red reads in every palette", () => {
+  assert.deepEqual(valuesOf("src/ui/stat-strip.css", ".g-stat--down", "background"), ["var(--surface-2)"]);
+  assertReadable("src/ui/stat-strip.css", ".g-stat--down .g-stat__v", "color", ["--surface-2"], 4.5);
+});
+
+test("a stat strip's words are escaped and follow the site's language", () => {
+  const fragment = mount(renderStatStrip({ values: { ma: HOSTILE, st: "3", ag: "3+", pa: null, ar: "9+" }, improved: ["ma"], lowered: ["ar"] }));
+  assert.equal(fragment.querySelector("img"), null);
+  assertCspSafe(fragment);
+  initLocale("ru");
+  try {
+    const russian = mount(renderStatStrip({ values: { ma: "6", st: "3", ag: "3+", pa: null, ar: "9+" }, improved: ["ma"], lowered: ["ar"] }));
+    assert.deepEqual(russian.querySelectorAll(".g-stat .g-sr-only").map((node) => node.textContent.trim()), ["улучшена", "снижена"]);
+    assert.equal(mount(renderPlayerBadge({ number: "1", captain: true })).querySelector(".g-sr-only").textContent, "Капитан");
+  } finally {
+    initLocale("en");
+  }
 });

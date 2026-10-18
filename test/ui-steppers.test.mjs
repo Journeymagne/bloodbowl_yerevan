@@ -253,3 +253,86 @@ test("a stepper needs the key its wiring reports, and the names its buttons are 
   assert.throws(() => renderResourceCounter({ key: "teamRerolls", value: 1 }), /name/);
   assert.throws(() => renderResourceCounter({ key: "teamRerolls", name: "", value: 1 }), /name/);
 });
+
+// Stage 07a: the roster table's counters (compact, locked, a minus that stops above zero, a count that reads aloud).
+
+test("a compact stepper puts its label over the − count + row (07a)", () => {
+  const fragment = mount(renderActionStepper({ ...TD, value: 2, compact: true }));
+  const cell = fragment.querySelector(".g-stepper.g-stepper--compact");
+  assert.ok(cell, "the compact class");
+  assert.deepEqual(cell.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__label", "g-stepper__row"], "the label over the row");
+  const row = cell.querySelector(".g-stepper__row");
+  assert.deepEqual(row.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__btn", "g-stepper__value", "g-stepper__btn g-stepper__btn--inc"], "− count +");
+  assert.equal(cell.querySelector(".g-stepper__label").textContent, "TD +3");
+  assert.equal(cell.getAttribute("data-action-key"), "touchdowns");
+  assert.ok(valuesOf("src/ui/action-stepper.css", ".g-stepper--compact", "flex-direction").includes("column"));
+  assert.ok(valuesOf("src/ui/action-stepper.css", ".g-stepper__row", "display").includes("grid"));
+  for (const selector of [".g-stepper__btn"]) assert.deepEqual(valuesOf("src/ui/action-stepper.css", selector, "width"), ["var(--size-touch)"], selector);
+  assertCspSafe(fragment);
+  assertStyled(fragment, "action-stepper.css");
+  const plain = mount(renderActionStepper({ ...TD, value: 2 }));
+  assert.equal(plain.querySelector(".g-stepper--compact"), null, "not compact unless asked");
+  assert.equal(plain.querySelector(".g-stepper__row"), null, "the one-row cell keeps its markup");
+});
+
+test("a compact stepper steps and refuses as the plain one does", () => {
+  const root = mount(renderActionStepper({ ...TD, value: 0, compact: true, incBlockedReason: "No more" }));
+  const taken = [];
+  const refused = [];
+  wireActionSteppers(root, (step) => taken.push(step), { onRefused: (step) => refused.push([step.key, step.delta, step.reason]) });
+  fireEvent(root.querySelector('[data-action-step="-1"]'), "click");
+  fireEvent(root.querySelector('[data-action-step="1"]'), "click");
+  assert.deepEqual(taken, []);
+  assert.deepEqual(refused, [["touchdowns", 1, "No more"]]);
+  const live = mount(renderActionStepper({ ...TD, value: 1, compact: true }));
+  wireActionSteppers(live, (step) => taken.push([step.key, step.delta]));
+  fireEvent(live.querySelector('[data-action-step="-1"]'), "click");
+  assert.deepEqual(taken, [["touchdowns", -1]]);
+});
+
+test("a locked stepper refuses both ways and says why on each button", () => {
+  const reason = "Change them on the Players step";
+  const root = mount(renderActionStepper({ ...TD, value: 2, lockedReason: reason }));
+  for (const button of root.querySelectorAll("[data-action-step]")) {
+    assert.equal(button.getAttribute("aria-disabled"), "true");
+    assert.equal(button.getAttribute("title"), reason);
+    assert.equal(button.hasAttribute("disabled"), false, "a locked button keeps its focus and its tooltip");
+  }
+  const heard = [];
+  wireActionSteppers(root, () => assert.fail("a locked stepper takes no step"), { onRefused: (step) => heard.push([step.key, step.delta, step.reason]) });
+  fireEvent(root.querySelector('[data-action-step="-1"]'), "click");
+  fireEvent(root.querySelector('[data-action-step="1"]'), "click");
+  assert.deepEqual(heard, [["touchdowns", -1, reason], ["touchdowns", 1, reason]]);
+});
+
+test("a locked stepper is explained even at zero, and the lock outranks an explained plus", () => {
+  const root = mount(renderActionStepper({ ...TD, value: 0, compact: true, lockedReason: "Locked", incBlockedReason: "No more" }));
+  const [minus, plus] = root.querySelectorAll("[data-action-step]");
+  assert.equal(minus.hasAttribute("disabled"), false);
+  assert.equal(minus.getAttribute("title"), "Locked");
+  assert.equal(plus.getAttribute("title"), "Locked");
+  assert.equal(mount(renderActionStepper({ ...TD, value: 0, lockedReason: HOSTILE })).querySelector('[data-action-step="1"]').getAttribute("title"), HOSTILE);
+  assert.equal(mount(renderActionStepper({ ...TD, value: 0, lockedReason: HOSTILE })).querySelector("img"), null);
+});
+
+test("the minus may stop above zero: the caller says where (07a)", () => {
+  assert.ok(mount(renderActionStepper({ ...TD, value: 3, decDisabled: true })).querySelector('[data-action-step="-1"]').hasAttribute("disabled"));
+  assert.equal(mount(renderActionStepper({ ...TD, value: 3 })).querySelector('[data-action-step="-1"]').hasAttribute("disabled"), false);
+  assert.ok(mount(renderActionStepper({ ...TD, value: 0 })).querySelector('[data-action-step="-1"]').hasAttribute("disabled"), "at zero, as it was");
+  assert.equal(mount(renderActionStepper({ ...TD, value: 0, decDisabled: false })).querySelector('[data-action-step="-1"]').hasAttribute("disabled"), false);
+});
+
+test("a count with this match's addition reads \"7, this match +1\" (stage 04 note)", () => {
+  const text = (props) => mount(renderActionStepper({ ...TD, ...props })).querySelector(".g-stepper__value").textContent.replace(/\s+/g, " ").trim();
+  assert.equal(text({ value: 7, delta: 1 }), "7, this match +1");
+  assert.equal(text({ value: 7, delta: 0 }), "7", "no addition, nothing more to hear");
+  const fragment = mount(renderActionStepper({ ...TD, value: 7, delta: 1 }));
+  assert.equal(fragment.querySelector(".g-stepper__value .g-sr-only").textContent, ", this match ");
+  assert.equal(fragment.querySelector(".g-stepper__delta").textContent, "+1");
+  initLocale("ru");
+  try {
+    assert.equal(text({ value: 7, delta: 1 }), "7, в этом матче +1");
+  } finally {
+    initLocale("en");
+  }
+});

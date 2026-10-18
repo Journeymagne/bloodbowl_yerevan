@@ -45,3 +45,7 @@
 /* A characteristic an advancement raised. */
 .g-stat--up { background: var(--accent-tint); }
 .g-stat--up .g-stat__v { color: var(--accent-text); }
+
+/* A characteristic an injury lowered: red value on the plain tile. The words say it too (stat-strip.mjs). */
+.g-stat--down { background: var(--surface-2); }
+.g-stat--down .g-stat__v { color: var(--danger); }

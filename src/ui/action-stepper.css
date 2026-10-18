@@ -76,3 +76,21 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/*
+ * The compact cell: the label over a − count + row, for a narrow tile
+ * (the post-match's TTM, landing and bonus; the roster panel's tiles).
+ */
+.g-stepper--compact {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+.g-stepper--compact .g-stepper__label { text-align: center; }
+
+.g-stepper__row {
+  display: grid;
+  grid-template-columns: var(--size-touch) minmax(0, 1fr) var(--size-touch);
+  align-items: center;
+}
+.g-stepper--compact .g-stepper__value { text-align: center; }
