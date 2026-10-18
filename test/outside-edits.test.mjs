@@ -12,6 +12,13 @@ const outside = async (client, team) => (await client.query(
   "SELECT player_id, counter, delta, settled_at IS NOT NULL AS settled FROM match_events WHERE saved_team_id = $1 AND pairing_id IS NULL ORDER BY created_at, id", [team])).rows;
 const edit = (token, playerId, counter = "completions", delta = 1) => callApi("POST", `/api/teams/${teams.home}/events`, { token, body: { playerId, counter, delta } });
 const keys = (team) => Object.keys(team).sort();
+// Home's third player as a 2.x roster stores him, a number for an id (the match's snapshot reads it as the text "5"), with `spp` in the blob.
+const numbered = async (client, spp = {}) => {
+  await client.query("UPDATE saved_teams SET roster = jsonb_set(roster, '{players,2}', $2::jsonb) WHERE id = $1",
+    [teams.home, JSON.stringify({ id: 5, rowIndex: 0, number: "3", name: "Player 3", spp })]);
+  await client.query(`UPDATE match_roster_snapshots SET snapshot = jsonb_set(snapshot, '{players,2,id}', '"5"') WHERE pairing_id = $1 AND side = 'home'`, [G]);
+};
+const completionsOf = async (client) => (await teamRow(client, teams.home)).roster.players.find((item) => String(item.id) === "5").spp.completions;
 
 test("a roster save that changes SPP writes the change as settled edits outside a match, the MVP among them; a refused save and no change write none", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1 } }] } });
@@ -244,3 +251,52 @@ for (const editFirst of [true, false]) {
     }
   }));
 }
+
+test("a player with an old numeric id is the player the path names by its text: an edit waiting for him is counted by the step-down check", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  await numbered(client);
+  const token = await sessionFor(client, coaches.home.id);
+  assert.equal((await edit(token, "5", "completions", -1)).body.error?.code, "EVENT_BELOW_ZERO", "nothing in the blob, nothing waiting");
+  assert.equal((await edit(token, "5")).status, 201);
+  assert.equal((await edit(token, "5", "completions", -1)).status, 201, "the edit waiting for him is what it takes back");
+  assert.equal((await edit(token, "5", "completions", -1)).body.error?.code, "EVENT_BELOW_ZERO", "and no further");
+  assert.deepEqual((await outside(client, teams.home)).map((row) => [row.player_id, row.delta]), [["5", 1], ["5", -1]]);
+}));
+
+// The finish writes the roster with its ids as text (the post-match reads it through ensureDraftPlayers) before the carry
+// reads it again, so this holds with or without a fix of the carry itself: the next test is the one that reads a stored number.
+test("the finish carries an edit waiting for a player with an old numeric id into the blob: the SPP he had plus the edit", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  await numbered(client, { completions: 2 });
+  const token = await sessionFor(client, coaches.home.id);
+  await edit(token, "5");
+  const ready = await toReady(await toPlayersStep(), homeScores);
+  assert.equal((await act("home", ready, null, true)).status, "completed");
+  assert.equal(await completionsOf(client), 3);
+  assert.deepEqual(await outside(client, teams.home), [{ player_id: "5", counter: "completions", delta: 1, settled: true }]);
+}));
+
+test("the carry reads the roster as the team holds it: the edits waiting for a player stored with a number for an id reach the blob and are settled", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  await numbered(client, { completions: 2 });
+  const token = await sessionFor(client, coaches.home.id);
+  await edit(token, "5");
+  await edit(token, "5");
+  await edit(token, "5", "completions", -1);
+  await client.query("BEGIN");
+  try { assert.equal(await settleOutsideEdits(client, teams.home), 3); } finally { await client.query("COMMIT"); }
+  assert.equal(await completionsOf(client), 3, "2 + 1 + 1 - 1");
+  assert.deepEqual((await outside(client, teams.home)).map((row) => row.settled), [true, true, true]);
+}));
+
+test("a roster save that changes SPP of a player stored with an old numeric id writes settled rows for him, named by the text of his id", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { players: [{ id: 5, rowIndex: 0, spp: { touchdowns: 1 } }] } });
+  const save = (revision, spp) => callApi("PATCH", `/api/teams/${id}`, { token: coach.token,
+    body: { name: "Lions", baseTeamSlug: "teams/human", revision, roster: { teamSlug: "teams/human", treasury: 100, players: [{ id: 5, rowIndex: 0, spp }] } } });
+  assert.equal((await save(1, { touchdowns: 3, mvps: 1 })).status, 200);
+  assert.deepEqual(await outside(client, id), [
+    { player_id: "5", counter: "touchdowns", delta: 1, settled: true }, { player_id: "5", counter: "touchdowns", delta: 1, settled: true },
+    { player_id: "5", counter: "mvps", delta: 1, settled: true }]);
+  assert.equal((await save(2, { touchdowns: 2, mvps: 1 })).status, 200, "the stored id is the text now: the same player still");
+  assert.deepEqual((await outside(client, id)).slice(3), [{ player_id: "5", counter: "touchdowns", delta: -1, settled: true }]);
+}));

@@ -18,7 +18,7 @@
  * 0..99 `postCount` allows only when read as statistics, and a difference aims at the raw
  * sum, so what the clamp hid is taken back too. The module is pure.
  */
-import { normalizeSppCounters } from '../roster/players.mjs';
+import { normalizeSppCounters, storedPlayerId } from '../roster/players.mjs';
 import { boundedSppCounter } from '../roster/validate.mjs';
 import { PLAYER_STATS } from '../roster/values.mjs';
 import { SIDES } from '../match/rules.mjs';
@@ -172,34 +172,35 @@ export function eventsDiff({ statistics, injuries }, events) {
  * between the two reads counts a match twice or not at all.
  */
 export function careerCounters(player, events = []) {
-  const own = groupByPlayer(events.filter(event => !event.settledAt)).get(player.id) || [];
+  const own = groupByPlayer(events.filter(event => !event.settledAt)).get(storedPlayerId(player)) || [];
   const sums = sumCounters(own, SPP_EVENT_COUNTERS);
   const result = normalizeSppCounters(player.spp);
   for (const counter of SPP_EVENT_COUNTERS) result[counter] = Math.max(0, result[counter] + sums[counter]);
   return result;
 }
 
-const hasId = player => typeof player?.id === 'string' && player.id !== '';
-
 /**
  * A roster save's change to SPP, as the rows of an edit outside a match: for every player with an id
  * in both rosters, in the order of `after`, each SPP counter (`SPP_EVENT_COUNTERS`: the table's order, the
  * MVP last, no injury) moved by as many steps of +1 or -1 as its value moved, the values read as the history
  * counts them (`boundedSppCounter`: the roster's reading, held to 0…999 and cut to a whole number). A player
- * who came or went has no value to move from or to: he gets no row.
+ * who came or went has no value to move from or to: he gets no row. The id is the text of the stored one
+ * (`storedPlayerId`), so a 2.x roster's `5` is the `"5"` a row names him by.
  *
  * An edit outside a match changes the blob at once and is kept as settled rows, so the history can show it.
  * A roster is only taken with counters inside that bound, so the bound bites only a blob stored before
  * the rule: a legacy value outside it (5000, 2.5) changes the blob without rows for what lies outside.
  */
 export function sppEdits(before, after) {
-  const was = new Map((before?.players ?? []).filter(hasId).map(player => [player.id, player]));
+  const was = new Map();
+  for (const player of before?.players ?? []) if (storedPlayerId(player) !== null) was.set(storedPlayerId(player), player);
   const rows = [];
-  for (const player of (after?.players ?? []).filter(hasId)) {
-    if (!was.has(player.id)) continue;
-    const from = was.get(player.id).spp, to = player.spp;
+  for (const player of after?.players ?? []) {
+    const playerId = storedPlayerId(player);
+    if (playerId === null || !was.has(playerId)) continue;
+    const from = was.get(playerId).spp, to = player.spp;
     for (const counter of SPP_EVENT_COUNTERS) {
-      rows.push(...stepsOf(boundedSppCounter(to?.[counter]) - boundedSppCounter(from?.[counter]), { playerId: player.id, counter, injury: null }));
+      rows.push(...stepsOf(boundedSppCounter(to?.[counter]) - boundedSppCounter(from?.[counter]), { playerId, counter, injury: null }));
     }
   }
   return rows;
@@ -215,7 +216,7 @@ export function applyOutsideEdits(roster, events) {
   const groups = groupByPlayer(events.filter(event => !isInjuryEvent(event)));
   const next = structuredClone(roster);
   for (const player of next?.players ?? []) {
-    const own = groups.get(player?.id);
+    const own = groups.get(storedPlayerId(player));
     if (!own) continue;
     const sums = sumCounters(own, SPP_EVENT_COUNTERS), base = normalizeSppCounters(player.spp);
     const stepped = SPP_EVENT_COUNTERS.filter(counter => sums[counter] !== 0);

@@ -226,6 +226,16 @@ test("an MVP edited outside a match is in the career at once and in the blob at 
   assert.equal(eventTotal([tap("a", "mvps"), tap("a", "mvps", -1), tap("a", "mvps")], "a", "mvps"), 1);
 });
 
+test("a player whose stored id is a number is the player the events name by its text: his career, the carry of his edits and a save's steps", () => {
+  const player = { id: 5, spp: { touchdowns: 1 } };
+  assert.equal(careerCounters(player, [tap("5", "touchdowns"), tap("5", "touchdowns", -1), tap("5", "touchdowns")]).touchdowns, 2, "his waiting edits are in it");
+  assert.equal(applyOutsideEdits({ players: [player] }, [tap("5", "touchdowns"), tap("5", "touchdowns")]).players[0].spp.touchdowns, 3);
+  const was = { players: [{ id: 5, spp: { touchdowns: 1 } }] };
+  const row = (delta) => ({ playerId: "5", counter: "touchdowns", delta, injury: null });
+  assert.deepEqual(sppEdits(was, { players: [{ id: "5", spp: { touchdowns: 2 } }] }), [row(1)], "a number before and its text after are one player");
+  assert.deepEqual(sppEdits({ players: [{ id: "5", spp: { touchdowns: 2 } }] }, { players: [{ id: 5, spp: { touchdowns: 0 } }] }), [row(-1), row(-1)], "and the other way round");
+});
+
 test("an edit's steps come player by player in the new roster's order, each in the table's order of counters, from the counters as the roster reads them", () => {
   const before = { players: [{ id: "a", spp: { bonus: 1 } }, { id: "b", spp: { touchdowns: "2", casualties: -3 } }, { id: "c" }] };
   const after = { players: [{ id: "b", spp: { casualties: 1, touchdowns: 2 } }, { id: "c", spp: { landings: 1 } }, { id: "a", spp: { touchdowns: 1 } }] };
