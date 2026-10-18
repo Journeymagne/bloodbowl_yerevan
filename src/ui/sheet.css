@@ -3,10 +3,12 @@
  * a modal in the middle from 901px. On a phone the title is centred and the
  * footer is a column; on a desk the title stands left over a rule and the
  * footer's button sits at its right. Nothing here sets `display` on the
- * dialog, so a closed one stays hidden by the browser's own rule. Font,
- * border, background, text-transform, font-weight and border-radius are set
- * on purpose: the 2.x globals (h2 { font: 800 … }, :focus-visible {
- * border-radius }) outlive this sheet until stage 13.
+ * dialog, so a closed one stays hidden by the browser's own rule. The team
+ * switcher is an `anchored` sheet: the same from the bottom up to 900px, a
+ * 300px panel by the SideNav from 901px. Font, border, background,
+ * text-transform, font-weight and border-radius are set on purpose: the 2.x
+ * globals (h2 { font: 800 … }, :focus-visible { border-radius }) outlive this
+ * sheet until stage 13.
  */
 dialog.g-sheet {
   box-sizing: border-box;
@@ -124,6 +126,13 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
     border-radius: var(--radius-2xl);
   }
   dialog.g-sheet.g-sheet--wide { width: min(640px, calc(100% - 32px)); }
+  /* The team switcher: a panel at the left, by the SideNav's team block, not a modal in the middle; its bottom keeps 24px from the window's edge. */
+  dialog.g-sheet.g-sheet--anchored {
+    width: 300px;
+    max-height: calc(100dvh - 96px);
+    margin: 72px auto auto 12px;
+    border-radius: var(--radius-2xl);
+  }
   /* The handle is a bottom sheet's; a modal has nothing to drag. */
   .g-sheet__handle { display: none; }
 
@@ -142,6 +151,19 @@ html:has(dialog.g-sheet:modal) { overflow: hidden; }
     text-align: left;
   }
   .g-sheet__sub { text-align: left; }
+  /* A panel's title is a small caption over its list, with no rule and no cross: the backdrop and Escape close it. */
+  .g-sheet--anchored .g-sheet__head {
+    padding: var(--space-12) var(--space-16) var(--space-4);
+    border-bottom: 0;
+  }
+  .g-sheet--anchored .g-sheet__title {
+    color: var(--muted);
+    font: 700 13px/1.2 var(--font-body);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  .g-sheet--anchored .g-sheet__head .g-icon-btn { display: none; }
+  .g-sheet--anchored .g-sheet__body { padding: var(--space-4) var(--space-8) var(--space-8); }
 
   /* The button sits at the right of the footer, as wide as its words; the quiet control goes to the left. */
   .g-sheet__foot {

@@ -17,8 +17,9 @@ const SIDE = ["src/shell/side-nav.css", "src/shell/crest.css"];
 
 test("the mobile header: crest, the team with its switch hint, the subtitle, tabs with one current", () => {
   const fragment = mount(renderAppHeader(coach()));
-  const team = fragment.querySelector("a.g-appbar__team");
-  assert.equal(team.getAttribute("href"), "#/teams");
+  const team = fragment.querySelector("button.g-appbar__team[data-team-switcher]");
+  assert.equal(team.getAttribute("aria-haspopup"), "dialog");
+  assert.equal(team.getAttribute("type"), "button");
   assert.ok(team.querySelector("svg.g-crest"));
   assert.match(team.querySelector(".g-appbar__name").textContent, /^Ashgrove Wardens/);
   assert.equal(team.querySelector(".g-sr-only").textContent, "Switch team");
@@ -38,7 +39,8 @@ test("a team name a coach typed is text, not markup", () => {
 
 test("the SideNav: team block, items with icons, language and the footer line", () => {
   const fragment = mount(renderSideNav(coach(), { locale: "en", generatedAt: "2026-10-07T10:00:00Z" }));
-  assert.equal(fragment.querySelector("a.g-sidenav__team").getAttribute("href"), "#/teams");
+  const team = fragment.querySelector("button.g-sidenav__team[data-team-switcher]");
+  assert.equal(team.getAttribute("aria-haspopup"), "dialog");
   const links = fragment.querySelectorAll(".g-sidenav__link");
   assert.deepEqual(links.map((link) => link.getAttribute("href")), ["#/t/t1", "#/t/t1/roster", "#/season", "#/ref", "#/settings"]);
   assert.ok(links.every((link) => link.querySelector("svg.g-icon")));
@@ -150,13 +152,39 @@ test("a race longer than the column is cut, not wrapped, and says itself whole o
 
 test("only a team the coach can switch carries the chevron and its hint; a guest's league does not", () => {
   const withTeam = mount(renderSideNav(coach(), { locale: "en" }));
-  assert.ok(withTeam.querySelector("a.g-sidenav__team svg.g-icon"));
-  assert.equal(withTeam.querySelector("a.g-sidenav__team .g-sr-only").textContent, "Switch team");
+  assert.ok(withTeam.querySelector("button.g-sidenav__team svg.g-icon"));
+  assert.equal(withTeam.querySelector("button.g-sidenav__team .g-sr-only").textContent, "Switch team");
   const league = mount(renderSideNav(guest, { locale: "en" }));
   assert.equal(league.querySelector("a.g-sidenav__team").getAttribute("href"), "#/");
   assert.equal(league.querySelector("a.g-sidenav__team svg.g-icon"), null);
   assert.equal(league.querySelector("a.g-sidenav__team .g-sr-only"), null);
   assert.equal(mount(renderAppHeader(guest)).querySelector("a.g-appbar__team .g-appbar__name svg.g-icon"), null);
+});
+
+// Stage 06: the block that led to My Teams is the switcher's button; a guest's league, and a list that was never read, keep their links.
+test("the team block opens the switcher for a coach, and stays a link for a guest and for a list that could not be read", () => {
+  const unread = shellModel({ route: { name: "team", params: {} }, user: { id: "u1", isAdmin: false }, team: null, teamsRead: false });
+  for (const [what, model] of [["a guest", guest], ["an unread list", unread]]) {
+    const fragment = mount(renderAppHeader(model) + renderSideNav(model, { locale: "en" }));
+    for (const selector of ["a.g-appbar__team", "a.g-sidenav__team"]) assert.equal(fragment.querySelector(selector).getAttribute("href"), "#/", `${what}: ${selector}`);
+    assert.equal(fragment.querySelector("[data-team-switcher]"), null, what);
+  }
+  const noTeam = shellModel({ route: { name: "home", params: {} }, user: { id: "u1", isAdmin: false }, team: null });
+  const first = mount(renderAppHeader(noTeam) + renderSideNav(noTeam, { locale: "en" }));
+  assert.equal(first.querySelectorAll("button[data-team-switcher]").length, 2, "a coach with no team yet opens the same panel, which offers the first one");
+  const buttons = mount(renderAppHeader(coach()) + renderSideNav(coach(), { locale: "en" })).querySelectorAll("[data-team-switcher]");
+  assert.equal(buttons.length, 2);
+  for (const button of buttons) {
+    assert.equal(button.hasAttribute("href"), false, "a button has no address");
+    assert.equal(button.querySelector(".g-sr-only").textContent, "Switch team");
+  }
+});
+
+test("a team block that is a button looks like the link it replaced: no button chrome, and it reads as pressable", () => {
+  for (const [file, selector] of [[HEADER_CSS, ".g-appbar__team"], [SIDE_CSS, ".g-sidenav__team"]]) {
+    for (const [property, value] of [["font", "inherit"], ["cursor", "pointer"], ["text-align", "left"]]) assert.deepEqual(valuesOf(file, selector, property), [value], `${selector} ${property}`);
+  }
+  assert.deepEqual(valuesOf(HEADER_CSS, ".g-appbar__team", "padding"), ["0"], "the bar's own padding, not the button's");
 });
 
 test("the sign-in link is a guest's: a coach has none, in the header or the SideNav", () => {

@@ -7,11 +7,13 @@
  * purpose: the 2.x globals (a { color: inherit }, button { font: inherit })
  * outlive this sheet until stage 13.
  *
- * Everything pressable is 44px. The crest is drawn at the prototype's 34×39
- * (Team.html), a size of its own beside crest.css's three. The tabs sit 6px
- * apart with 6px of padding each side, so their words stand 18px apart as
- * drawn, and a focus ring fits inside each tab: the row scrolls, and a ring
- * drawn outside the box would be cut at the row's top and bottom.
+ * The team is a button that opens the switcher (a link for a guest), so its
+ * rule resets what a button brings and a link does not. Everything pressable
+ * is 44px. The crest is drawn at the prototype's 34×39 (Team.html), a size of
+ * its own beside crest.css's three. The tabs sit 6px apart with 6px of
+ * padding each side, so their words stand 18px apart as drawn, and a focus
+ * ring fits inside each tab: the row scrolls, and a ring drawn outside the
+ * box would be cut at the row's top and bottom.
  */
 .g-appbar {
   position: sticky;
@@ -42,10 +44,15 @@
   gap: var(--space-10);
   min-width: 0;
   min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
   border: 0;
   background: transparent;
   color: var(--header-ink);
+  font: inherit;
+  text-align: left;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .g-appbar .g-crest {

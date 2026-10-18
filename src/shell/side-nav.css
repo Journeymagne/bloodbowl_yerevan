@@ -29,7 +29,10 @@
   letter-spacing: 0;
 }
 
-/* The team block bleeds 8px into the column's padding, so its hover wash reaches past its text. */
+/*
+ * The team block bleeds 8px into the column's padding, so its hover wash reaches past its text. It is a button that
+ * opens the switcher (a link for a guest): the column stretches it as wide as a link would be.
+ */
 .g-sidenav__team {
   box-sizing: border-box;
   display: flex;
@@ -42,8 +45,10 @@
   border-radius: var(--radius-lg);
   background: transparent;
   color: var(--header-ink);
+  font: inherit;
   text-align: left;
   text-decoration: none;
+  cursor: pointer;
 }
 .g-sidenav__team:hover { background: color-mix(in srgb, var(--header-ink) 8%, transparent); }
 .g-sidenav .g-crest {

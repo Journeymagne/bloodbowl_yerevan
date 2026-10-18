@@ -92,6 +92,21 @@ test("on a phone the footer is a column: the quiet control over the button, as S
   assert.deepEqual(valuesOf(sheet, ".g-sheet__foot", "flex-direction"), ["column", "row"], "a column up to 900px, a row from 901px");
 });
 
+// Stage 06: the team switcher is a panel by the SideNav on a desk and an ordinary sheet on a phone.
+test("an anchored sheet carries its modifier and sits by the SideNav from 901px", () => {
+  const fragment = mount(renderSheet({ id: "a1", title: "My teams", bodyHtml: "<p>x</p>", anchored: true }));
+  assert.ok(fragment.querySelector("dialog").classList.contains("g-sheet--anchored"));
+  assert.equal(mount(renderSheet({ id: "a2", title: "T", bodyHtml: "<p>x</p>" })).querySelector("dialog").classList.contains("g-sheet--anchored"), false);
+  const sheet = "src/ui/sheet.css";
+  assert.ok(valuesOf(sheet, "dialog.g-sheet.g-sheet--anchored", "width").includes("300px"));
+  assert.ok(valuesOf(sheet, "dialog.g-sheet.g-sheet--anchored", "margin").includes("72px auto auto 12px"));
+  const phone = readFileSync(new URL(`../${sheet}`, import.meta.url), "utf8").match(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/)[1];
+  assert.ok(!phone.includes("anchored"), "up to 900px it is the ordinary sheet from the bottom");
+  assert.deepEqual(valuesOf(sheet, ".g-sheet--anchored .g-sheet__title", "text-transform"), ["uppercase"], "on a desk the title is a small caption over the list");
+  assert.deepEqual(valuesOf(sheet, ".g-sheet--anchored .g-sheet__head", "border-bottom"), ["0"], "with no rule under it");
+  assertStyled(fragment, "sheet.css", "button.css");
+});
+
 test("closing by button, backdrop or Escape goes through one path; back is its own", () => {
   const fragment = mount(renderSheet({ id: "s2", title: "T", bodyHtml: "<p>inside</p>", canGoBack: true }));
   const dialog = fragment.querySelector("dialog");
