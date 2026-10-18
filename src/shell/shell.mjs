@@ -27,7 +27,7 @@ import { setReturn } from "../core/return-to.mjs";
 import { state } from "../core/state.mjs";
 import { activeTeam, isTeamListRead, syncActiveTeam } from "../data/active-team.mjs";
 import { onGamesChange } from "../data/games.mjs";
-import { onMyTeamsChange } from "../data/teams.mjs";
+import { onMyTeamsChange, raceTitleOf } from "../data/teams.mjs";
 import { renderAppHeader } from "./app-header.mjs";
 import { currentMatch, renderNavMatch } from "./current-match.mjs";
 import { shellModel } from "./navigation.mjs";
@@ -115,11 +115,6 @@ export function mountShell({ document = globalThis.document, scroller = globalTh
   onGamesChange(redraw);
   // The team's name, tabs and card come from the coach's list: one read after the frame was drawn redraws it (R14).
   onMyTeamsChange(redraw);
-}
-
-/** The race the reference calls a base team; "" when the data has not come. */
-function raceTitleOf(slug) {
-  return state.data?.teams?.find((item) => item.slug === slug)?.title ?? "";
 }
 
 /** The race the reference calls the team's base team; "" when the data has not come. */

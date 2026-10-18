@@ -99,8 +99,8 @@ export function currentMatch(games, teamId) {
   return best && { game: best.game, phase: best.phase };
 }
 
-/** «Round 7 · home», or the word for a friendly, which has no round. */
-function subLine(game, own) {
+/** «Round 7 · home», or the word for a friendly, which has no round: the card's line, and the overview's board's. */
+export function subLine(game, own) {
   if (game.kind === "friendly") return t("games.friendlyMatch");
   return t("shell.match.round", { round: game.roundNumber, venue: own === "home" ? t("shell.match.home") : t("shell.match.away") });
 }

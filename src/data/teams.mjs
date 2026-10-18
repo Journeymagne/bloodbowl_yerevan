@@ -17,6 +17,16 @@ import { apiRequest, sessionTokenHolds, tokenMoved } from "../core/api-client.mj
 import { syncActiveTeam } from "./active-team.mjs";
 import { invalidateGames } from "./games.mjs";
 
+/** The race's page in the reference by the slug a team is based on; null while the data has not come, or when the slug names none. */
+export function raceTeamOf(slug) {
+  return state.data?.teams?.find((item) => item.slug === slug) ?? null;
+}
+
+/** The race the reference calls a base team; "" when the data has not come. */
+export function raceTitleOf(slug) {
+  return raceTeamOf(slug)?.title ?? "";
+}
+
 const listeners = new Set();
 
 /**

@@ -25,7 +25,7 @@ import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { toast } from "../../components/toast.mjs";
 import { isTeamListRead, onActiveTeamChange } from "../../data/active-team.mjs";
 import { loadGames } from "../../data/games.mjs";
-import { deleteTeam, loadMyTeams, onMyTeamsChange } from "../../data/teams.mjs";
+import { deleteTeam, loadMyTeams, onMyTeamsChange, raceTitleOf } from "../../data/teams.mjs";
 import { renderTeamFace, switcherRows } from "../../shell/team-switcher.mjs";
 import { renderButton, renderIconButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
@@ -100,9 +100,6 @@ export function teamsMarkup({ rows, deleting = null }) {
 
 /** @type {Visit|null} */
 let visit = null;
-
-/** The race the reference calls a base team; "" when the data has not come. */
-const raceTitleOf = (slug) => state.data?.teams?.find((item) => item.slug === slug)?.title ?? "";
 
 /** Draw the screen from the state: the list, the empty overview, or the list that did not load; the sheet over it if one is open. */
 function draw() {

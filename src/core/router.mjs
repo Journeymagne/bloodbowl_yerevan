@@ -26,6 +26,7 @@ import { loadMyTeams } from "../data/teams.mjs";
 import { renderHome } from "../screens/home.mjs";
 import { renderLogin } from "../screens/auth/login.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
+import { renderTeamOverview } from "../screens/team/overview.mjs";
 import { renderSettings } from "../screens/settings/index.mjs";
 import { renderOverviewDetail } from "../screens/overview.mjs";
 import { renderSection } from "../screens/section.mjs";
@@ -60,7 +61,7 @@ const screens = {
   overview: ({ slug }) => renderOverviewDetail(slug),
   teams: () => renderTeams(),
   teamNew: () => renderNewTeam(),
-  team: () => renderHome(),
+  team: ({ teamId }) => renderTeamOverview(teamId),
   teamManage: ({ teamId }) => renderSavedRoster(teamId),
   teamRoster: ({ teamId }) => renderSavedRoster(teamId),
   teamPlayer: ({ teamId }) => renderSavedRoster(teamId),

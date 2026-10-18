@@ -266,6 +266,23 @@
   }
 }
 
+/*
+ * At 320px the sides are 62px wide, and a word of a team or a race (Grimtusk, Lizardmen) needs 68 at the sizes above, so it
+ * broke in the middle. A narrower middle column would not hold «подтверждения» (see above); the names are one size smaller
+ * and the gaps and the padding give the sides 68.
+ */
+@media (max-width: 359px) {
+  .g-board__main {
+    gap: var(--space-4);
+    padding-right: var(--space-10);
+    padding-left: var(--space-10);
+  }
+
+  .g-board__name { font-size: 16px; }
+
+  .g-board__sub { font-size: 12px; }
+}
+
 @media (min-width: 901px) {
   .g-board__main {
     gap: var(--space-24);
