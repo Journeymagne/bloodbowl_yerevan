@@ -1,7 +1,7 @@
 /**
- * The catalogue screens: #/teams, #/skills, #/traits, #/rules,
- * #/cheatsheets, #/inducements, #/star-players, #/pages — one route per
- * entry in core/routes.mjs's SECTION_ROUTES.
+ * The catalogue screens: #/ref (the whole reference, "pages") and
+ * #/ref/<section> for each entry in core/routes.mjs's REF_SECTIONS — #/teams,
+ * #/skills… in 2.x.
  *
  * Mechanically moved out of src/app.js, with one deliberate change: filters
  * used to call `renderSection(route)` directly (see components/filters.mjs's
@@ -11,6 +11,7 @@ import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
+import { refUrl } from "../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { renderFilters, normalizeSkillFilters, wireFilters } from "../components/filters.mjs";
 import { renderListCard } from "../components/cards.mjs";
@@ -135,7 +136,7 @@ export function renderSection(route) {
 
   // The five nested sections get a way back up: they are inside References
   // now, and the sidebar no longer holds a link to where they came from.
-  const headerOptions = route === "pages" ? {} : { back: true, backFallback: "#/pages" };
+  const headerOptions = route === "pages" ? {} : { back: true, backFallback: refUrl() };
 
   const cards = route === "pages"
     ? referenceCards(items)
@@ -171,7 +172,7 @@ const REFERENCE_SECTIONS = [
 /** One card for a section, with the size of it, since a catalogue has one. */
 function sectionCard({ route, title, description, count }) {
   return `
-    <a class="card reference-section-card" href="#/${route}">
+    <a class="card reference-section-card" href="${refUrl(route)}">
       <h3>${escapeHtml(title)}</h3>
       <p>${escapeHtml(description)}</p>
       <div class="meta-line">${count} ${t("section.entries")}</div>

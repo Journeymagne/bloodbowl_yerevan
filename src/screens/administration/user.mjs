@@ -10,13 +10,14 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
-import { adminTeamEditUrl } from "../../core/routes.mjs";
+import { adminTeamEditUrl, savedRosterUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPlayerLink } from "../../components/content-links.mjs";
-import { updateAuthButton } from "../../components/auth-button.mjs";
 import { renderSavedTeams } from "../../components/saved-teams.mjs";
 import { wireTeamDeleteButtons } from "../my-teams.mjs";
 import { makeSeasonStarterRoster } from "../season/season-data.mjs";
+import { mergeCurrentUser } from "../../data/session.mjs";
+import { refreshShell } from "../../shell/shell.mjs";
 import { toast, toastError } from "../../components/toast.mjs";
 import { confirmAction } from "../../components/dialog.mjs";
 
@@ -166,9 +167,10 @@ function wireAdminUserProfile(user, rerender) {
         method: "PATCH",
         body: JSON.stringify({ login, password, isAdmin }),
       });
+      // An administrator who edited their own account: the answer is publicUser, merged as every newer copy of the coach is.
       if (payload.user?.id === state.auth.currentUser?.id) {
-        state.auth.currentUser = { ...state.auth.currentUser, ...payload.user };
-        updateAuthButton();
+        mergeCurrentUser(payload.user);
+        refreshShell();
       }
       state.admin.loaded = false;
       toast(t("admin.userUpdatedMessage"));
@@ -277,5 +279,5 @@ function canManageProfileTeams(user) {
 function profileTeamEditUrl(owner, team) {
   return state.auth.currentUser?.isAdmin
     ? adminTeamEditUrl(owner, team)
-    : `#/my-teams/${encodeURIComponent(team.id)}`;
+    : savedRosterUrl(team);
 }

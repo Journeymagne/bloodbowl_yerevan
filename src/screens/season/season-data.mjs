@@ -14,6 +14,9 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
 import { emptyBuilderState } from "../../data/roster-draft.mjs";
 
+/** The request on its way, and whom it was sent for: `{userId, done}`, or null. */
+let inFlight = null;
+
 /**
  * Fetch the season, signed in or not.
  *
@@ -21,19 +24,38 @@ import { emptyBuilderState } from "../../data/roster-draft.mjs";
  * the server at all, which was correct while /api/season answered 401. Since
  * step 10.3 it answers the public half — the table, the schedule, the results —
  * and short-circuiting here would have made that change invisible.
+ *
+ * One request at a time: a call while one is on its way, forced or not, waits
+ * for that one (the shell asks for the table as the season screen forces it,
+ * and two answers racing would each reset `loading`). Unless the visitor has
+ * changed since it was sent — a guest's answer is not a coach's — then a new
+ * one goes out and the older answer is dropped.
+ *
+ * @returns {Promise<void>}
  */
-export async function loadSeason(force = false) {
-  if (state.season.loaded && !force) return;
+export function loadSeason(force = false) {
+  const userId = state.auth.currentUser?.id ?? null;
+  if (inFlight && inFlight.userId === userId) return inFlight.done;
+  if (state.season.loaded && !force) return Promise.resolve();
   state.season.loading = true;
   state.season.error = "";
-  try {
-    state.season.data = await apiRequest("/api/season");
-    state.season.loaded = true;
-  } catch (error) {
-    state.season.error = errorText(error);
-  } finally {
-    state.season.loading = false;
-  }
+  const load = { userId, done: null };
+  const current = () => inFlight === load;
+  inFlight = load;
+  load.done = (async () => {
+    try {
+      const data = await apiRequest("/api/season");
+      if (current()) Object.assign(state.season, { data, loaded: true });
+    } catch (error) {
+      if (current()) state.season.error = errorText(error);
+    } finally {
+      if (current()) {
+        state.season.loading = false;
+        inFlight = null;
+      }
+    }
+  })();
+  return load.done;
 }
 
 /** Apply a server response after a mutation, without a full reload. */

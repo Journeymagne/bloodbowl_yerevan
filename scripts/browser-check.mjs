@@ -53,7 +53,7 @@ await check("home screen renders", async () => {
 });
 
 await check("teams list", async () => {
-  await page.goto(`${base}/#/teams`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/ref/teams`, { waitUntil: "networkidle" });
   await page.waitForSelector(".card-grid .card", { timeout: 15000 });
   const count = await page.locator(".card-grid .card").count();
   if (count !== 37) throw new Error(`expected 37 team cards, found ${count}`);
@@ -67,7 +67,7 @@ await check("team detail", async () => {
 });
 
 await check("builder hires exactly one player per click", async () => {
-  await page.goto(`${base}/#/builder`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/teams/new`, { waitUntil: "networkidle" });
   await page.waitForSelector("[data-matchday-open-hire]", { timeout: 15000 });
   const unique = () => page.evaluate(() =>
     new Set([...document.querySelectorAll("[data-remove-player]")].map((node) => node.dataset.removePlayer)).size);
@@ -84,10 +84,11 @@ await check("builder hires exactly one player per click", async () => {
 });
 
 await check("locale switch", async () => {
-  await page.goto(`${base}/#/my-teams`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/ref/teams`, { waitUntil: "networkidle" });
   const before = await page.evaluate(() => document.documentElement.lang);
   const textBefore = (await page.locator("#app-view").innerText()).slice(0, 120);
-  await page.locator("#lang-toggle").click();
+  // The language buttons sit at the foot of the SideNav (the desktop frame); the one not pressed is the other language.
+  await page.locator('#side-nav [data-locale-switch][aria-pressed="false"]').click();
   await page.waitForTimeout(1000);
   const after = await page.evaluate(() => document.documentElement.lang);
   const textAfter = (await page.locator("#app-view").innerText()).slice(0, 120);
@@ -97,10 +98,11 @@ await check("locale switch", async () => {
 });
 
 await check("theme switch", async () => {
-  await page.selectOption("#theme-select", "light:parchment");
-  await page.waitForTimeout(200);
+  await page.goto(`${base}/#/settings`, { waitUntil: "networkidle" });
+  await page.locator('[data-seg-group="mode"] [data-seg-value="light"]').click();
+  await page.locator('[data-palette-key="parchment"]').click();
+  await page.waitForFunction(() => document.documentElement.dataset.mode === "light" && document.documentElement.dataset.palette === "parchment", null, { timeout: 5000 });
   const { mode, palette } = await page.evaluate(() => ({ ...document.documentElement.dataset }));
-  if (mode !== "light" || palette !== "parchment") throw new Error(`theme is ${mode}/${palette}`);
   return `${mode}/${palette}`;
 });
 

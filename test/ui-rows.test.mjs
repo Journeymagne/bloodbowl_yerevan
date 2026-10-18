@@ -3,9 +3,10 @@ import test from "node:test";
 
 import { assertReadable } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
+import { renderButton } from "../src/ui/button.mjs";
 import { CALLOUT_TONES, renderCallout } from "../src/ui/callout.mjs";
 import { renderKeyValueRow, renderNavRow, renderRankedRow } from "../src/ui/list-row.mjs";
-import { renderTextField } from "../src/ui/text-field.mjs";
+import { TEXT_FIELD_TYPES, renderTextField } from "../src/ui/text-field.mjs";
 import { renderToggle } from "../src/ui/toggle.mjs";
 
 test("a text field ties its label, help and error to the input", () => {
@@ -44,6 +45,31 @@ test("a text field names only the lines it draws, and draws only what it was giv
   const errorOnly = mount(renderTextField({ id: "f", name: "f", label: "F", error: "Required" }));
   assert.equal(errorOnly.querySelector(".g-field__help"), null);
   assert.equal(errorOnly.querySelector("input").getAttribute("aria-invalid"), "true");
+});
+
+test("a field the form's one message is about is marked invalid without a line of its own", () => {
+  const fragment = mount(renderTextField({ id: "f", name: "f", label: "F", help: "Seen by opponents", invalid: true }));
+  const input = fragment.querySelector("input");
+  assert.equal(input.getAttribute("aria-invalid"), "true");
+  assert.equal(input.getAttribute("aria-describedby"), "f-help");
+  assert.ok(fragment.querySelector(".g-field--invalid"));
+  assert.equal(fragment.querySelector(".g-field__error"), null);
+  assertStyled(fragment, "text-field.css");
+  assert.equal(mount(renderTextField({ id: "f", name: "f", label: "F", invalid: false })).querySelector("input").hasAttribute("aria-invalid"), false);
+});
+
+test("a field can point at what a form says about it elsewhere, and only at an id", () => {
+  const input = mount(renderTextField({ id: "f", name: "f", label: "F", help: "Seen by opponents", invalid: true, describedBy: "form-alert" })).querySelector("input");
+  assert.equal(input.getAttribute("aria-describedby"), "f-help form-alert");
+  assert.equal(mount(renderTextField({ id: "f", name: "f", label: "F", describedBy: "form-alert" })).querySelector("input").getAttribute("aria-describedby"), "form-alert");
+  for (const id of ["two ids", 'a"b']) assert.throws(() => renderTextField({ id: "f", name: "f", label: "F", describedBy: id }), /described/);
+});
+
+test("a verbatim field is not capitalised, corrected or spell-checked; any other field is left to the browser", () => {
+  const verbatim = mount(renderTextField({ id: "f", name: "login", label: "Login", verbatim: true })).querySelector("input");
+  assert.deepEqual(["autocapitalize", "autocorrect", "spellcheck"].map((name) => verbatim.getAttribute(name)), ["none", "off", "false"]);
+  const plain = mount(renderTextField({ id: "f", name: "nick", label: "Nick" })).querySelector("input");
+  for (const name of ["autocapitalize", "autocorrect", "spellcheck"]) assert.equal(plain.hasAttribute(name), false, name);
 });
 
 test("a text field is a text input unless told otherwise, and says only what it was told", () => {
@@ -214,4 +240,46 @@ test("a ranked row escapes what is text and inserts what is markup", () => {
 test("a placeholder is text a reader can read in the field, not the faint grey", () => {
   // --faint is 3.1-3.4:1 on the light palettes' field.
   assertReadable("src/ui/text-field.css", ".g-field__input::placeholder", "color", ["--field"], 4.5);
+});
+
+test("a text field takes the input types a form uses, and nothing else", () => {
+  for (const type of TEXT_FIELD_TYPES) assert.equal(mount(renderTextField({ id: `f-${type}`, name: "x", label: "X", type })).querySelector("input").getAttribute("type"), type);
+  for (const type of ["hidden", "checkbox", '"onfocus=x']) assert.throws(() => renderTextField({ id: "f", name: "x", label: "X", type }), /type/);
+});
+
+test("a missing value is an empty field, not the word null", () => {
+  assert.equal(mount(renderTextField({ id: "n1", name: "x", label: "X", value: null })).querySelector("input").getAttribute("value"), "");
+  assert.equal(mount(renderKeyValueRow({ label: "Apothecary", value: null })).querySelector(".g-kv__value").textContent, "");
+});
+
+test("a field can carry a control beside its label and one beside its input", () => {
+  const fragment = mount(renderTextField({
+    id: "pw", name: "password", label: "Password", type: "password",
+    asideHtml: renderButton({ label: "Show", data: { togglePassword: "" } }),
+    actionHtml: renderButton({ label: "Save", kind: "primary" }),
+  }));
+  assert.ok(fragment.querySelector(".g-field__head label[for=\"pw\"]"));
+  assert.ok(fragment.querySelector(".g-field__head [data-toggle-password]"));
+  const control = fragment.querySelector(".g-field__control");
+  assert.deepEqual(control.childNodes.map((node) => node.tagName), ["INPUT", "BUTTON"]);
+  assertCspSafe(fragment);
+  assertStyled(fragment, "text-field.css", "button.css");
+});
+
+test("each side control wraps only what it sits beside, and a field without them is label and input as before", () => {
+  const row = (props) => mount(renderTextField({ id: "f", name: "f", label: "F", help: "h", ...props })).querySelector(".g-field");
+  const tags = (node) => node.childNodes.map((child) => child.tagName);
+  assert.deepEqual(tags(row({})), ["LABEL", "INPUT", "P"]);
+  assert.deepEqual(tags(row({ asideHtml: "<a href=\"#/x\">Forgot</a>" })), ["DIV", "INPUT", "P"]);
+  assert.deepEqual(tags(row({ actionHtml: "<span>go</span>" })), ["LABEL", "DIV", "P"]);
+  assert.deepEqual(tags(row({ asideHtml: "<i></i>", actionHtml: "<i></i>" })), ["DIV", "DIV", "P"]);
+  assert.deepEqual(row({ asideHtml: "<i></i>" }).querySelector(".g-field__head").childNodes.map((node) => node.tagName), ["LABEL", "I"]);
+});
+
+test("a value of zero is a value, and an undefined one is as empty as null; a type must be a string of the list", () => {
+  assert.equal(mount(renderTextField({ id: "z", name: "x", label: "X", value: 0 })).querySelector("input").getAttribute("value"), "0");
+  assert.equal(mount(renderTextField({ id: "u", name: "x", label: "X", value: undefined })).querySelector("input").getAttribute("value"), "");
+  assert.equal(mount(renderKeyValueRow({ label: "Rerolls", value: undefined })).querySelector(".g-kv__value").textContent, "");
+  assert.throws(() => renderTextField({ id: "f", name: "x", label: "X", type: null }), /type/);
+  assert.throws(() => renderTextField({ id: "f", name: "x", label: "X", type: "TEXT" }), /type/);
 });

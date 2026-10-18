@@ -4,39 +4,22 @@
  * Mechanically moved out of src/app.js. `deleteSavedTeam` and
  * `wireTeamDeleteButtons` are exported because the admin screens (still in
  * app.js) reuse the same delete-button wiring on a user's or a player's
- * saved teams; `loadMyTeams` is exported because saved-roster.mjs's team
- * picker reloads the same list.
+ * saved teams. The list itself is loaded by data/teams.mjs, which the session
+ * fills too.
  */
-import { errorText } from "../core/api.mjs";
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
+import { newTeamUrl, savedRosterUrl } from "../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../components/page-chrome.mjs";
 import { resetBuilderForTeam } from "../data/roster-draft.mjs";
 import { toastError } from "../components/toast.mjs";
 import { renderSavedTeams } from "../components/saved-teams.mjs";
 import { confirmAction } from "../components/dialog.mjs";
-
-export async function loadMyTeams(force = false) {
-  if (!state.auth.currentUser) {
-    state.myTeams = { items: [], loaded: true, loading: false, error: "" };
-    return;
-  }
-  if (state.myTeams.loaded && !force) return;
-  state.myTeams.loading = true;
-  state.myTeams.error = "";
-  try {
-    const payload = await apiRequest("/api/teams");
-    state.myTeams.items = payload.teams ?? [];
-    state.myTeams.loaded = true;
-  } catch (error) {
-    state.myTeams.error = errorText(error);
-  } finally {
-    state.myTeams.loading = false;
-  }
-}
+import { invalidateGames } from "../data/games.mjs";
+import { loadMyTeams } from "../data/teams.mjs";
 
 export async function renderMyTeams() {
   setActiveNav("my-teams");
@@ -62,7 +45,7 @@ export async function renderMyTeams() {
   }
   view.innerHTML = `
     ${renderHeader(t("myTeams.title"), t("myTeams.subtitle"), `<button class="primary-button" type="button" data-new-team>${t("myTeams.createTeam")}</button>`)}
-    ${state.myTeams.items.length ? renderSavedTeams(state.myTeams.items, { owner: state.auth.currentUser, canManage: true, editUrl: team => "#/my-teams/" + encodeURIComponent(team.id) }) : `<div class="empty-state">${t("myTeams.noSavedTeams")}</div>`}
+    ${state.myTeams.items.length ? renderSavedTeams(state.myTeams.items, { owner: state.auth.currentUser, canManage: true, editUrl: savedRosterUrl }) : `<div class="empty-state">${t("myTeams.noSavedTeams")}</div>`}
   `;
   wireMyTeams();
 }
@@ -71,7 +54,7 @@ export async function renderMyTeams() {
 function wireMyTeams() {
   view.querySelector("[data-new-team]")?.addEventListener("click", () => {
     resetBuilderForTeam(state.data.teams[0]);
-    location.hash = "#/builder";
+    location.hash = newTeamUrl();
   });
   wireTeamDeleteButtons(() => renderMyTeams());
 }
@@ -95,7 +78,7 @@ export async function deleteSavedTeam(teamId, options = {}) {
   await apiRequest(options.endpoint || deleteTeamEndpoint(teamId, options.ownerId), { method: "DELETE" });
   state.myTeams.loaded = false;
   state.season.loaded = false;
-  state.games.loaded = false;
+  void invalidateGames();
   state.admin.loaded = false;
   state.admin.editingTeams?.delete(teamId);
   return true;

@@ -18,8 +18,10 @@ export const API_ERROR = Object.freeze({
   OFFLINE: "offline",
   /** It took too long and was aborted. */
   TIMEOUT: "timeout",
-  /** 401/403: the session is gone or the account may not do this. */
+  /** 401: the session is gone. The only status that ends it on the client. */
   UNAUTHORIZED: "unauthorized",
+  /** 403: the session is alive, the account just may not do this. */
+  FORBIDDEN: "forbidden",
   /** 409: someone else changed this first. */
   CONFLICT: "conflict",
   /** 422: the server rejected the payload, `violations` says why. */
@@ -47,7 +49,8 @@ export class ApiError extends Error {
 }
 
 function kindForStatus(status, payload) {
-  if (status === 401 || status === 403) return API_ERROR.UNAUTHORIZED;
+  if (status === 401) return API_ERROR.UNAUTHORIZED;
+  if (status === 403) return API_ERROR.FORBIDDEN;
   if (status === 409) return API_ERROR.CONFLICT;
   if (status === 422) return API_ERROR.INVALID;
   if (status === 503 && payload?.error?.code === "MAINTENANCE") return API_ERROR.MAINTENANCE;
@@ -112,8 +115,14 @@ export function createApiClient({ fetchFn = fetch, getToken = () => "", onUnauth
  * refusal reads in whichever language the page is in. `message` is the
  * English the server sends alongside, and stays the fallback: a dictionary
  * that lacks the key should show a sentence, not error.SOMETHING.
+ *
+ * A request that never got an answer has no code, and its `message` is
+ * whatever the browser's fetch said ("Failed to fetch"), in the browser's
+ * language rather than the page's. Those two are told here instead.
  */
 export function errorText(error) {
+  if (error?.kind === API_ERROR.OFFLINE) return t("request.offline");
+  if (error?.kind === API_ERROR.TIMEOUT) return t("request.timeout");
   const code = error?.code;
   if (code) {
     const key = `error.${code}`;

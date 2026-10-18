@@ -13,6 +13,7 @@ import { t } from "../../core/i18n.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
+import { newTeamUrl } from "../../core/routes.mjs";
 import { renderPlayerLink } from "../../components/content-links.mjs";
 import { iconButton } from "../../components/icons.mjs";
 import { seasonTeamProfileLink, seasonTeamRulesLink } from "./season-links.mjs";
@@ -99,7 +100,7 @@ function renderSeasonCommitPanel(data) {
         </div>
       ` : `
         <p>${t("myTeams.noSavedTeams")}</p>
-        <a class="primary-button" href="#/builder">${t("myTeams.createTeam")}</a>
+        <a class="primary-button" href="${newTeamUrl()}">${t("myTeams.createTeam")}</a>
       `}
     </section>
   `;

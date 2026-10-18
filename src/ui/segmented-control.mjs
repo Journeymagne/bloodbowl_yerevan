@@ -47,7 +47,19 @@ export function renderSegmentedControl({ label, items, selected, data = {} }) {
   return `<div class="${className}" role="radiogroup" ${named}>${renderRadios(items, selected)}</div>`;
 }
 
-/** Click and arrow keys for every radio-style segmented control under `root`. */
-export function wireSegmentedControls(root, onChange) {
-  return wireRadioGroups(root, { group: '.g-seg[role="radiogroup"]', item: "[data-seg-value]", attribute: "data-seg-value", onChange });
+/**
+ * Click and arrow keys for the radio-style segmented controls under `root`.
+ *
+ * A screen with two of them wires each by the name it gave in `data.segGroup`:
+ * the first wiring would otherwise flip the second control's state before its own
+ * wiring saw the change, and that one would never report.
+ *
+ * @param {Element} root
+ * @param {(value: string, groupElement: Element) => void} onChange
+ * @param {{group?: string}} [options] `group`: only the control rendered with this `data.segGroup`; every one by default
+ */
+export function wireSegmentedControls(root, onChange, { group = "" } = {}) {
+  if (group && !/^[\w-]+$/.test(group)) throw new Error(`a segmented control group is a plain name, not ${JSON.stringify(group)}`);
+  const selector = `.g-seg[role="radiogroup"]${group ? `[data-seg-group="${group}"]` : ""}`;
+  return wireRadioGroups(root, { group: selector, item: "[data-seg-value]", attribute: "data-seg-value", onChange });
 }

@@ -19,9 +19,8 @@ import {
 } from "../administration/user.mjs";
 
 export async function renderPlayerProfile(userId) {
-  // "players" matches no nav item, so nothing lights up — which is what
-  // routeSection() in core/routes.mjs already says these routes are. The two
-  // used to disagree, and this screen highlighted "Season".
+  // "players" matches no nav item, so nothing lights up; this screen used to
+  // highlight "Season". The 3.0 shell lights its nav from the route name.
   setActiveNav("players");
   setViewSection("players");
   view.innerHTML = `

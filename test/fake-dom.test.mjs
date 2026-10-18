@@ -294,6 +294,55 @@ test("a dialog is only a dialog, and closing a closed one says nothing", () => {
   assert.throws(() => root.querySelector("div").close(), /not a dialog/);
 });
 
+test(":modal matches a dialog showModal opened, until it closes, loses its open attribute or leaves the tree", () => {
+  const root = parseHtml(document, `<section id="host"><dialog id="a"><p>x</p></dialog><dialog id="b" open></dialog></section>`);
+  const [host, a, b] = [root.querySelector("#host"), root.querySelector("#a"), root.querySelector("#b")];
+  assert.equal(host.querySelectorAll("dialog:modal").length, 0, "closed, and open without showModal, are not modal");
+  assert.equal(b.matches(":modal"), false, "a dialog drawn open is open, not modal");
+  a.showModal();
+  assert.deepEqual(host.querySelectorAll("dialog:modal").map((node) => node.id), ["a"]);
+  assert.equal(a.matches("dialog:modal"), true);
+  assert.equal(a.querySelector("p").matches(":modal"), false, "only the dialog is");
+  assert.equal(host.querySelector("section:modal"), null);
+  assert.equal(a.closest("dialog:modal"), a);
+  a.close();
+  assert.equal(host.querySelector("dialog:modal"), null);
+  a.showModal();
+  a.removeAttribute("open");
+  assert.equal(a.matches(":modal"), false, "without its open attribute a dialog is closed");
+  a.setAttribute("open", "");
+  assert.equal(a.matches(":modal"), false, "and opening it again that way does not make it modal");
+  a.close();
+  a.showModal();
+  host.removeChild(a);
+  assert.equal(a.matches(":modal"), false, "a dialog taken out of the tree leaves the top layer");
+  assert.equal(a.open, true, "though its open attribute stays");
+  host.appendChild(a);
+  assert.equal(a.matches(":modal"), false, "and is not modal where it is put back");
+  a.close();
+  a.showModal();
+  assert.equal(a.matches(":modal"), true);
+});
+
+test("showModal on a dialog that is open and modal does nothing, and on one open without it throws, as a browser does", () => {
+  const dialog = parseHtml(document, `<dialog id="d"></dialog><dialog id="o" open></dialog>`).querySelector("#d");
+  const open = dialog.parentNode.querySelector("#o");
+  dialog.showModal();
+  dialog.showModal();
+  assert.equal(dialog.matches(":modal"), true);
+  assert.throws(() => open.showModal(), /already open|InvalidState/i);
+  open.close();
+  open.showModal();
+  assert.equal(open.matches(":modal"), true);
+});
+
+test("`:modal` is the one pseudo-class, and it is spelled alone", () => {
+  const root = parseHtml(document, `<div><dialog></dialog></div>`);
+  for (const bad of [":modals", ":modal:modal(", "dialog:", "dialog::modal", ":Modal-x", "dialog:not(:modal)", "dialog:open"]) {
+    assert.throws(() => root.querySelector(bad), /fake-dom: unsupported selector/, JSON.stringify(bad));
+  }
+});
+
 test("the document queries from html down, body included", () => {
   const holder = el(document, "section", { id: "s" }, el(document, "em"));
   document.body.append(holder);
@@ -304,4 +353,79 @@ test("the document queries from html down, body included", () => {
   assert.equal(document.querySelector("#nope"), null);
   assert.throws(() => document.querySelector("body > section"), /unsupported selector/);
   document.body.removeChild(holder);
+});
+
+test("innerHTML and a template parse markup as strictly as parseHtml", () => {
+  const document = createDocument();
+  const box = document.createElement("div");
+  box.innerHTML = `<p class="a">x</p><p>y</p>`;
+  assert.equal(box.querySelectorAll("p").length, 2);
+  const template = document.createElement("template");
+  template.innerHTML = "<b>z</b>";
+  assert.equal(template.childNodes.length, 0);
+  assert.equal(template.content.querySelector("b").textContent, "z");
+  assert.throws(() => { box.innerHTML = "<p>"; }, /parseHtml/);
+});
+
+test("patch() takes a markup string in the fake document too, and keeps focus", async () => {
+  const document = createDocument();
+  globalThis.document = document;
+  const { patch } = await import("../src/core/dom.mjs");
+  const root = document.createElement("div");
+  document.body.appendChild(root);
+  patch(root, `<input id="q" value="a"><p>one</p>`);
+  root.querySelector("#q").focus();
+  patch(root, `<input id="q" value="a"><p>two</p>`);
+  assert.equal(document.activeElement, root.querySelector("#q"));
+  assert.equal(root.querySelector("p").textContent, "two");
+});
+
+test("innerHTML replaces the children, takes the focus with them, and is as empty as it is told", () => {
+  const document = createDocument();
+  const box = document.createElement("div");
+  document.body.appendChild(box);
+  box.innerHTML = `<input id="q"><p>a</p>`;
+  const old = box.querySelector("p");
+  box.querySelector("#q").focus();
+  box.innerHTML = "<span>b</span>";
+  assert.equal(old.parentNode, null);
+  assert.equal(box.childNodes.length, 1);
+  assert.equal(box.firstChild.tagName, "SPAN");
+  assert.equal(document.activeElement, document.body, "the focused node left the tree");
+  box.innerHTML = "";
+  assert.equal(box.childNodes.length, 0);
+  // Set a second time the template holds the new markup alone.
+  const template = document.createElement("template");
+  template.innerHTML = "<i>1</i>";
+  template.innerHTML = "<b>2</b>";
+  assert.equal(template.content.childNodes.length, 1);
+  assert.equal(template.content.querySelector("i"), null);
+  assert.equal(template.content, template.content, "one fragment, not a new one per read");
+});
+
+test("what a browser would build differently from innerHTML is refused", () => {
+  const document = createDocument();
+  const box = document.createElement("div");
+  // A table row outside a table is dropped by the parser; a template and a table body keep it.
+  assert.throws(() => { box.innerHTML = "<tr><td>x</td></tr>"; }, /table/);
+  assert.throws(() => { box.innerHTML = "<section><td>x</td></section>"; }, /table/);
+  box.innerHTML = "<table><thead><tr><th>x</th></tr></thead></table>";
+  assert.equal(box.querySelector("th").textContent, "x");
+  const template = document.createElement("template");
+  template.innerHTML = "<tr><td>x</td></tr>";
+  assert.equal(template.content.querySelector("tr td").textContent, "x");
+  const body = document.createElement("tbody");
+  body.innerHTML = "<tr><td>y</td></tr>";
+  assert.equal(body.querySelector("td").textContent, "y");
+  // Inside a textarea the markup is text, not elements.
+  assert.throws(() => { document.createElement("textarea").innerHTML = "<b>x</b>"; }, /textarea/);
+  // A fragment has no innerHTML: a browser would only set a property that parses nothing.
+  assert.throws(() => { template.content.innerHTML = "<b>x</b>"; }, /fragment/);
+  // Nor can it be read back: the tree is not serialised here.
+  assert.throws(() => box.innerHTML, /write-only/);
+  // A markup string cannot carry a template: its children belong in .content, which the parser does not model.
+  assert.throws(() => parseHtml(document, "<template><b>x</b></template>"), /template/);
+  assert.throws(() => { box.innerHTML = "<template></template>"; }, /template/);
+  // Only a template has content.
+  assert.equal(box.content, undefined);
 });

@@ -2,7 +2,9 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { publicAdminUser, publicUser } from "../server/api/serializers.mjs";
+import { ensureAdminAccount } from "../server/auth/admin-account.mjs";
 import { hashPassword } from "../server/auth/session.mjs";
+import { pool } from "../server/db/pool.mjs";
 import { callApi, loggingErrors, recording, seedCoach, seedTeam, sessionFor, withApiDatabase } from "./helpers/api-db.mjs";
 import { lockRow, raceInOrder, scratchSkip, withForcedOverlap } from "./helpers/scratch-db.mjs";
 
@@ -639,10 +641,109 @@ test("the env file's administrator keeps the file's password: his settings, a us
   assert.equal(await hash(), before);
   assert.equal((await login(env.login, env.password)).status, 200);
   assert.equal((await whoIs(elsewhere)).login, env.login, "and no session was ended");
-  // What is not the password is his to change, like anybody's.
-  const contact = await profile(env.token, { telegram: "@the-env-admin" });
-  assert.deepEqual([contact.status, contact.body.user.telegram], [200, "@the-env-admin"]);
+  // An edit that leaves him as he is still goes through (his login and Telegram are the next test's).
   assert.equal((await callApi("PATCH", `/api/admin/users/${env.id}`, { token: boss.token, body: { login: env.login } })).status, 200);
+}));
+
+const FROM_ENV = "This administrator's login, Telegram and rights are set in the server's settings and cannot be changed here.";
+const writes = (log) => log.filter((sql) => /^(INSERT|UPDATE|DELETE)/.test(sql));
+const rowOf = async (client, id) => (await client.query("SELECT login, login_key, telegram, password_hash, is_admin FROM users WHERE id = $1", [id])).rows[0];
+
+test("the env file's administrator keeps the file's login, Telegram and rights too: a change is 409 after the 400s, before any guess or write", db, () => withApiDatabase(async ({ client }) => {
+  const env = await seedCoach(client, envAdminLogin(), { admin: true }), boss = await seedCoach(client, "pw-envoy-2", { admin: true });
+  const elsewhere = await sessionFor(client, env.id);
+  const before = await rowOf(client, env.id);
+  const edit = (token, body) => callApi("PATCH", `/api/admin/users/${env.id}`, { token, body });
+  const asks = [
+    ["a new login in his settings", () => profile(env.token, { login: "renamed-admin" })],
+    ["a login that only gains a character", () => profile(env.token, { login: `${env.login}2` })],
+    ["a new Telegram in his settings", () => profile(env.token, { telegram: "@the-env-admin" })],
+    ["both, in his settings", () => profile(env.token, { login: "renamed-admin", telegram: "@the-env-admin" })],
+    ["a new Telegram, with a wrong current password sent along", () => profile(env.token, { telegram: "@the-env-admin", currentPassword: "wrong" })],
+    ["another administrator's user edit", () => edit(boss.token, { login: "renamed-admin" })],
+    ["his own user edit", () => edit(env.token, { login: "renamed-admin" })],
+    // R7: the start writes is_admin TRUE back, so a demotion here would only last until the next one.
+    ["another administrator taking away his rights", () => edit(boss.token, { login: env.login, isAdmin: false })],
+    ["another administrator taking them away under a recase", () => edit(boss.token, { login: env.login.toUpperCase(), isAdmin: false })],
+    ["his own user edit taking them away", () => edit(env.token, { isAdmin: false })],
+  ];
+  for (const [label, ask] of asks) {
+    const { result, log } = await recording(ask);
+    assert.deepEqual([result.status, result.body.error.code, result.body.error.message], [409, "ADMIN_PROFILE_FROM_ENV", FROM_ENV], label);
+    // `recording` sees the clients of transactions only. The user edit writes in one; the profile route's change
+    // without a password is a single statement on the pool, which it does not see. So the row is what says no
+    // write went through, after every ask.
+    assert.deepEqual(writes(log), [], `${label}: no transaction wrote`);
+    assert.deepEqual(await rowOf(client, env.id), before, `${label}: his row is as the file left it`);
+  }
+  assert.equal((await whoIs(elsewhere)).login, env.login, "and no session was ended");
+  // The 400s come first, as they do for everybody: a too short login or an empty contact is not "from the file".
+  assert.deepEqual((await profile(env.token, { login: "ab" })).body.error.code, "LOGIN_TOO_SHORT");
+  assert.deepEqual((await profile(env.token, { telegram: "   " })).body.error.code, "TELEGRAM_REQUIRED");
+  assert.deepEqual((await profile(env.token, { login: "renamed-admin", password: "abc" })).body.error.code, "PASSWORD_TOO_SHORT");
+  assert.deepEqual((await edit(boss.token, { login: "ab" })).body.error.code, "LOGIN_TOO_SHORT");
+  assert.deepEqual((await edit(boss.token, { login: "renamed-admin", password: "abc" })).body.error.code, "PASSWORD_TOO_SHORT");
+  // With a new password asked for too, it is still the password's 409 that answers, and no guess is counted.
+  for (let attempt = 0; attempt < 12; attempt += 1) {
+    const mixed = await profile(env.token, { login: "renamed-admin", password: "brand-new", currentPassword: `guess-${attempt}` });
+    assert.deepEqual([mixed.status, mixed.body.error.code], [409, "ADMIN_PASSWORD_FROM_ENV"]);
+  }
+  assert.equal((await login(env.login, "wrong")).status, 401, "no 429: none of those was counted");
+  assert.deepEqual(await rowOf(client, env.id), before);
+}));
+
+test("what the file keeps of the env administrator is still accepted when it is not a change: his own letter case, the Telegram he already has", db, () => withApiDatabase(async ({ client }) => {
+  const env = await seedCoach(client, envAdminLogin(), { admin: true }), boss = await seedCoach(client, "pw-envoy-3", { admin: true });
+  const upper = envAdminLogin().toUpperCase();
+  const sameTelegram = await profile(env.token, { login: ` ${envAdminLogin()} `, telegram: ` @${env.login} ` });
+  assert.deepEqual([sameTelegram.status, sameTelegram.body.user.telegram], [200, `@${env.login}`], "what he already has, even padded, is no change");
+  const recased = await profile(env.token, { login: upper });
+  assert.deepEqual([recased.status, recased.body.user.login], [200, upper]);
+  assert.equal((await whoIs(env.token)).login, upper);
+  const title = `${upper.slice(0, 1)}${envAdminLogin().slice(1).toLowerCase()}`;
+  const byBoss = await callApi("PATCH", `/api/admin/users/${env.id}`, { token: boss.token, body: { login: title, isAdmin: true } });
+  assert.deepEqual([byBoss.status, byBoss.body.user.login], [200, title], "another administrator may recase it too, leaving his rights as they are");
+  // The boot finds the account by its login_key: the recased one is the one it keeps, not a second one beside it.
+  await ensureAdminAccount(pool, { ADMIN_LOGIN: envAdminLogin() });
+  const rows = (await client.query("SELECT login_key, is_admin FROM users WHERE login_key = $1", [envAdminLogin().toLowerCase()])).rows;
+  assert.deepEqual(rows, [{ login_key: envAdminLogin().toLowerCase(), is_admin: true }]);
+}));
+
+test("only the env administrator's login, Telegram and rights are the file's: another administrator and a coach change theirs, and have another's changed", db, () => withApiDatabase(async ({ client }) => {
+  const env = await seedCoach(client, envAdminLogin(), { admin: true }), deputy = await seedCoach(client, "pw-deputy-2", { admin: true }), coach = await seedCoach(client, "pw-coach-2");
+  for (const who of [deputy, coach]) {
+    const own = await profile(who.token, { login: `${who.login}-renamed`, telegram: `@${who.login}_new` });
+    assert.deepEqual([own.status, own.body.user.login, own.body.user.telegram], [200, `${who.login}-renamed`, `@${who.login}_new`]);
+  }
+  for (const who of [deputy, coach]) {
+    const edited = await callApi("PATCH", `/api/admin/users/${who.id}`, { token: env.token, body: { login: `${who.login}-by-env` } });
+    assert.deepEqual([edited.status, edited.body.user.login], [200, `${who.login}-by-env`]);
+  }
+  const demoted = await callApi("PATCH", `/api/admin/users/${deputy.id}`, { token: env.token, body: { isAdmin: false } });
+  assert.deepEqual([demoted.status, demoted.body.user.isAdmin], [200, false], "another administrator's rights are the administrators' to change");
+  const promoted = await callApi("PATCH", `/api/admin/users/${coach.id}`, { token: env.token, body: { isAdmin: true } });
+  assert.deepEqual([promoted.status, promoted.body.user.isAdmin], [200, true]);
+}));
+
+test("/me says so when the account is the file's, and only /me does: no user, list, login or edit answer carries it", db, () => withApiDatabase(async ({ client }) => {
+  const env = await seedCoach(client, envAdminLogin(), { admin: true }), deputy = await seedCoach(client, "pw-deputy-3", { admin: true }), coach = await seedCoach(client, "pw-coach-3");
+  assert.equal((await whoIs(env.token)).managedByServer, true);
+  for (const who of [deputy, coach]) assert.equal((await whoIs(who.token)).managedByServer, false, `${who.login}: the key is there and false`);
+  const shown = [
+    ["the user list", await callApi("GET", "/api/admin/users", { token: deputy.token })],
+    ["a user as an admin sees him", await callApi("GET", `/api/admin/users/${env.id}`, { token: deputy.token })],
+    ["a player page", await callApi("GET", `/api/players/${env.id}`, { token: coach.token })],
+    ["the season", await callApi("GET", "/api/season", { token: deputy.token })],
+    ["his own settings answer", await profile(env.token, { telegram: `@${env.login}` })],
+    ["a user edit", await callApi("PATCH", `/api/admin/users/${env.id}`, { token: deputy.token, body: { login: env.login } })],
+    ["his sign-in", await login(env.login, env.password)],
+  ];
+  for (const [label, { status, body }] of shown) {
+    assert.ok(status < 300, `${label}: ${status}`);
+    assert.doesNotMatch(JSON.stringify(body), /managedByServer/, label);
+  }
+  const row = { id: "u", login: envAdminLogin(), login_key: envAdminLogin(), telegram: "@t", is_admin: true, created_at: null, saved_team_count: 0 };
+  for (const serialized of [publicUser(row), publicAdminUser(row)]) assert.equal(Object.hasOwn(serialized, "managedByServer"), false);
 }));
 
 test("any other administrator still changes his own password in settings, and is still reset by another", db, () => withApiDatabase(async ({ client }) => {
@@ -676,4 +777,24 @@ test("the administrator's edit of a user is one transaction: a taken login leave
   assert.match(String(logged[0]?.[0]?.message), /sessions are kept/, "it failed where the test broke it, on the sessions");
   await untouched("a failed DELETE");
   assert.equal((await whoIs(coach.token)).login, coach.login, "and the rename was rolled back with it");
+}));
+
+// Final-wave item 7: the lengths are the same constants everywhere (test/account-rules.test.mjs reads them in each
+// file); these pin each door's edge itself, one character either side: a login of 2 or 3, a password of 3 or 4.
+test("registration takes a login of three and a password of four, and refuses one character less of either", db, () => withApiDatabase(async () => {
+  const register = (login, password) => callApi("POST", "/api/auth/register", { body: { login, password, telegram: "@edge_coach" } });
+  assert.deepEqual([(await register("ab", "long-enough")).body.error.code, (await register("abx", "abc")).body.error.code], ["LOGIN_TOO_SHORT", "PASSWORD_TOO_SHORT"]);
+  assert.equal((await register(" ab ", "long-enough")).body.error.code, "LOGIN_TOO_SHORT", "blanks around it are not characters");
+  assert.equal((await register("abc", "long-enough")).status, 201);
+  assert.equal((await register("pw-edge", "abcd")).status, 201);
+}));
+
+test("an administrator's user edit takes a login of three and a password of four, and refuses one character less of either", db, () => withApiDatabase(async ({ client }) => {
+  const boss = await seedCoach(client, "pw-edge-boss", { admin: true }), coach = await seedCoach(client, "pw-edge-coach");
+  const edit = (body) => callApi("PATCH", `/api/admin/users/${coach.id}`, { token: boss.token, body });
+  assert.deepEqual([(await edit({ login: "ab" })).body.error.code, (await edit({ password: "abc" })).body.error.code], ["LOGIN_TOO_SHORT", "PASSWORD_TOO_SHORT"]);
+  const renamed = await edit({ login: "abc" });
+  assert.deepEqual([renamed.status, renamed.body.user.login], [200, "abc"]);
+  assert.equal((await edit({ password: "abcd" })).status, 200);
+  assert.equal((await login("abc", "abcd")).status, 200, "the four-character password is the one now set");
 }));

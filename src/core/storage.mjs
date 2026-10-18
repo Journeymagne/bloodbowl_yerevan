@@ -17,6 +17,8 @@ export const STORAGE_KEYS = Object.freeze({
   palette: "palette",
   locale: "locale",
   builderDraft: "builder-draft",
+  // `{userId, teamId}`: the team this browser last showed that coach (src/data/active-team.mjs).
+  activeTeam: "active-team",
 });
 
 function fullKey(key) {

@@ -1,0 +1,336 @@
+/*
+ * The desktop SideNav (shell/side-nav.mjs): a column on the header colour, the
+ * team at the top, the places to go, and the match card, the language and the
+ * footer line at the bottom. `#side-nav` carries `g-sidenav`. Which viewport
+ * shows it (from 901px) is the frame's, not this sheet's. Font, border,
+ * background, text-transform and font-weight are set here on purpose: the 2.x
+ * globals outlive this sheet until stage 13.
+ *
+ * Everything pressable is 44px. The crest is drawn at the prototype's 36×41
+ * (DeskOverview.html). The footer's base style is the frame's (a quiet line on
+ * the page); here it sits on the header colour.
+ */
+.g-sidenav {
+  box-sizing: border-box;
+  position: sticky;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  width: var(--size-sidebar);
+  height: 100vh;
+  height: 100dvh;
+  padding: 24px 16px 20px;
+  overflow-y: auto;
+  background: var(--header);
+  color: var(--header-ink);
+  font: 400 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The team block bleeds 8px into the column's padding, so its hover wash reaches past its text. */
+.g-sidenav__team {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--size-touch);
+  margin: -8px -8px 0;
+  padding: 8px;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: transparent;
+  color: var(--header-ink);
+  text-align: left;
+  text-decoration: none;
+}
+.g-sidenav__team:hover { background: color-mix(in srgb, var(--header-ink) 8%, transparent); }
+.g-sidenav .g-crest {
+  width: 36px;
+  height: 41px;
+}
+
+.g-sidenav__titles {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* A name of any length ends at three lines; its title carries the whole of it. */
+.g-sidenav__name {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+  color: var(--header-ink);
+  font: 700 22px/1.05 var(--font-display);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.g-sidenav__sub {
+  color: var(--header-muted);
+  font: 400 13px/1.3 var(--font-body);
+  text-transform: none;
+}
+
+.g-sidenav__team .g-icon { color: var(--header-tab); }
+
+.g-sidenav__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.g-sidenav__link {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: var(--size-touch);
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--header-tab);
+  font: 600 16px/1.2 var(--font-body);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+/*
+ * The label may shrink and break, so a word longer than the 200px pill allows
+ * (the Russian «Администрирование», which carries a soft hyphen) goes on a second
+ * line inside it: the link is 44px at least, and two lines of 16px fit.
+ */
+.g-sidenav__label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  hyphens: auto;
+}
+.g-sidenav__link:hover {
+  background: color-mix(in srgb, var(--header-ink) 8%, transparent);
+  color: var(--header-ink);
+}
+.g-sidenav__link[aria-current="page"] {
+  background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+  color: var(--header-ink);
+}
+
+/* The match card, a guest's way in, then the language and the footer under a rule. */
+.g-sidenav__bottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin-top: auto;
+}
+
+/*
+ * The current-match card (shell/current-match.mjs): a washed panel on the
+ * header colour with the phase, the opponent, the round, and what to do next.
+ * Everything pressable in it is 44px. The records link is a text link: the
+ * 44px is its hit area, and what is drawn is its words, which is why its box
+ * is flex-centred and paints nothing. The buttons keep a transparent 2px border
+ * (inside their 44px) so that forced colours, which drop the fill, still draw
+ * the button's edge.
+ */
+.g-navmatch {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: 14px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: color-mix(in srgb, var(--header-ink) 8%, transparent);
+  color: var(--header-ink);
+  font: 400 16px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* One line, as drawn: the English «Awaiting confirmation» is 172.4px of caps in the card's 172. */
+.g-navmatch__label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  color: var(--header-tab);
+  font: 600 12px/1.3 var(--font-body);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.g-navmatch__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  background: var(--live);
+}
+
+.g-navmatch__opp {
+  color: var(--header-ink);
+  font: 600 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+  text-transform: none;
+}
+
+.g-navmatch__sub {
+  color: var(--header-muted);
+  font: 400 13px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-navmatch__cta {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch);
+  margin-top: var(--space-4);
+  padding: 0 var(--space-4);
+  border: 2px solid transparent;
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--on-accent);
+  font: 700 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-decoration: none;
+  text-transform: none;
+}
+.g-navmatch__cta:hover { background: var(--accent-ink); }
+.g-navmatch__cta--light {
+  background: var(--header-ink);
+  color: var(--header);
+}
+.g-navmatch__cta--light:hover { background: color-mix(in srgb, var(--header-ink) 88%, var(--header)); }
+/* The records link above it is a target of its own, so the button needs no extra air. */
+.g-navmatch--live .g-navmatch__cta { margin-top: 0; }
+
+.g-navmatch__link {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--header-ink);
+  font: 600 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+.g-navmatch__link:hover { text-decoration: underline; }
+
+.g-navmatch__result {
+  margin-top: 2px;
+  color: var(--header-ink);
+  font: 700 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A guest's way in has a border of its own: the button is the surface colour, and in the dark palettes that is the header's. */
+.g-sidenav__login .g-btn { border-color: var(--header-tab); }
+
+.g-sidenav__foot {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding: var(--space-12) var(--space-4) 0;
+  border-top: 1px solid color-mix(in srgb, var(--header-ink) 12%, transparent);
+}
+
+.g-lang {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.g-lang__label {
+  margin-right: var(--space-6);
+  color: var(--header-tab);
+  font: 600 13px/1.2 var(--font-body);
+  text-transform: none;
+}
+
+/*
+ * A language button is pressed anywhere in 44×44; what is drawn is the
+ * 36×28 pill of the prototype, a pseudo-element behind the letters, which
+ * keeps the button's own box free to be the target. isolation keeps the
+ * pill's z-index inside the button.
+ */
+.g-lang__item {
+  position: relative;
+  isolation: isolate;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch);
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--header-tab);
+  font: 700 13px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-lang__item::before {
+  content: "";
+  box-sizing: border-box;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 36px;
+  height: 28px;
+  margin: auto;
+  border-radius: var(--radius-sm);
+  background: transparent;
+}
+.g-lang__item[aria-pressed="true"] { color: var(--header-ink); }
+.g-lang__item[aria-pressed="true"]::before { background: color-mix(in srgb, var(--header-ink) 14%, transparent); }
+
+/* The footer line on the header colour. Its link is underlined, and padded to a 44px target without moving the lines. */
+.g-sidenav .g-site-footer {
+  margin: 0;
+  color: var(--header-tab);
+  font: 400 11px/1.5 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-sidenav .g-site-footer a {
+  padding: 16px 0;
+  color: var(--header-muted);
+  text-decoration: underline;
+}
+
+/* The ring of base.css is --accent-text, which is under 3:1 on the light palettes' header. */
+.g-sidenav :focus-visible { outline-color: var(--header-ink); }
+
+/*
+ * Forced colours take the wash and the colour away: the item that is current
+ * and the language that is on are then told by a border. The item's padding
+ * gives back the border's width, so nothing moves; the pill is border-box, so
+ * it stays 36×28.
+ */
+@media (forced-colors: active) {
+  .g-sidenav__link[aria-current="page"] {
+    padding: 0 calc(var(--space-12) - 2px);
+    border: 2px solid CanvasText;
+  }
+  .g-lang__item[aria-pressed="true"]::before { border: 2px solid CanvasText; }
+}

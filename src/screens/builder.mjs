@@ -1,5 +1,5 @@
 /**
- * The team builder: `#/builder`, a fresh team creation flow.
+ * The team builder: `#/teams/new` (2.x `#/builder`), a new team's flow.
  *
  * Mechanically moved out of src/app.js. This is the other of the two
  * "roster editor" implementations design spec section 5.1 counts —
@@ -13,7 +13,8 @@ import { view } from "../core/view.mjs";
 import { apiRequest } from "../core/api-client.mjs";
 import { storage } from "../core/storage.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes, optimizeLogoDataUrl } from "../core/logo-upload.mjs";
-import { pageUrl } from "../core/routes.mjs";
+import { authUrl, pageUrl, savedRosterUrl, teamsUrl } from "../core/routes.mjs";
+import { setReturn } from "../core/return-to.mjs";
 import { onScreenLeave } from "../core/screen-lifecycle.mjs";
 import { builderStaffMaximums, startingBudget } from "../domain/league-rules.mjs";
 import { PLAYER_STATS, clamp, countToNumber, rowCost, rowsForTeam, statValueForDisplayByStat } from "../domain/roster/values.mjs";
@@ -39,7 +40,6 @@ import { wireHirePanel } from "../components/roster-editor/hire-panel.mjs";
 import { renderPlayerList } from "../components/roster-editor/player-list.mjs";
 import { renderIdentityFields } from "../components/roster-editor/identity.mjs";
 import { closeMatchdayHire, patchMatchdayEditor, renderMatchdayEditor, wireMatchdayEditor } from "../components/roster-editor/matchday-layout.mjs";
-import { openAuthModal } from "../components/auth-modal.mjs";
 import { iconButton } from "../components/icons.mjs";
 import {
   ensureDraftLeagueChoice,
@@ -83,7 +83,7 @@ export function renderBuilder() {
 
   patchMatchdayEditor(view, `
     <div class="matchday-editor" data-key="matchday-editor">
-    ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="primary-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`, { back: true, backFallback: "#/my-teams" })}
+    ${renderHeader(t("nav.builder"), t("builder.subtitle"), `<button class="primary-button" type="button" data-builder-reset>${t("builder.startOver")}</button>`, { back: true, backFallback: teamsUrl() })}
     ${restoredDraft ? `<p class="notice-box" data-key="builder-restored" data-builder-restored>${t("builder.draftRestored")}</p>` : ""}
     ${renderMatchdayEditor({ team, draft: state.builder, costs, mode: CREATE_MODE,
       identityHtml: renderIdentityFields({ team, draft: state.builder, teams, mode: CREATE_MODE }),
@@ -345,7 +345,11 @@ function wireBuilder(team) {
 }
 async function saveTeam(team) {
   if (!state.auth.currentUser) {
-    openAuthModal("login");
+    // The draft is kept locally; after signing in the router brings the guest back here. The sign-in
+    // screen takes the builder's place in history, as the router's own redirects do: pushed, it would
+    // leave the builder in history twice once the router replaced it with the builder again.
+    setReturn(location.hash);
+    location.replace(authUrl());
     return;
   }
   syncRosterCountsFromPlayers(state.builder);
@@ -372,7 +376,7 @@ async function saveTeam(team) {
     if (button) {
       button.textContent = t("roster.savedStatus");
       setTimeout(() => {
-        location.hash = `#/my-teams/${encodeURIComponent(result.team.id)}`;
+        location.hash = savedRosterUrl(result.team);
       }, 700);
     }
   } catch (error) {

@@ -20,7 +20,7 @@ import {
   generateTemporaryPassword,
   hashPassword,
 } from "../auth/session.mjs";
-import { isEnvAdmin } from "../auth/admin-account.mjs";
+import { changesEnvProfile, isEnvAdmin } from "../auth/admin-account.mjs";
 import {
   isAdminUser,
   normalizeLogin,
@@ -34,6 +34,7 @@ import { readTeamBody, writeSavedTeam } from "./teams.mjs";
 import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam, userHasFriendlyGames } from "../api/team-queries.mjs";
 import { UUID_SOURCE } from "../api/team-access.mjs";
+import { LOGIN_MIN_LENGTH, PASSWORD_MIN_LENGTH } from "../../src/domain/account.mjs";
 
 // The ids these routes take are UUIDs, and nothing else matches: a path that is no UUID is no route (404)
 // rather than a `::uuid` the database refuses (a 500). Postgres reads a UUID in any case, so a self-check
@@ -102,10 +103,14 @@ async function handleAdminUserRoutes(request, response, url) {
     const loginKey = normalizeLogin(login);
     const nextIsAdmin = Object.hasOwn(body, "isAdmin") ? isAdminUser({ is_admin: body.isAdmin }) : isAdminUser(target);
 
-    if (login.length < 3) return sendError(response, 400, "LOGIN_TOO_SHORT");
-    if (password && password.length < 4) return sendError(response, 400, "PASSWORD_TOO_SHORT");
+    if (login.length < LOGIN_MIN_LENGTH) return sendError(response, 400, "LOGIN_TOO_SHORT");
+    if (password && password.length < PASSWORD_MIN_LENGTH) return sendError(response, 400, "PASSWORD_TOO_SHORT");
     // The env file's administrator keeps the file's password: every start would write it back.
     if (password && isEnvAdmin(target)) return sendError(response, 409, "ADMIN_PASSWORD_FROM_ENV");
+    // Nor does the login (the start finds the account by it; only its letter case is a user's to change), nor
+    // the rights: the start makes it an administrator again, so a demotion here would last until the restart.
+    const rights = Object.hasOwn(body, "isAdmin") ? nextIsAdmin : undefined;
+    if (changesEnvProfile(target, { login, isAdmin: rights })) return sendError(response, 409, "ADMIN_PROFILE_FROM_ENV");
     // Your own password is changed in your settings, with the current one (PATCH /api/auth/profile). Here
     // it would be written with no password asked, and the administrator's other sessions would go on.
     if (password && target.id === user.id) return sendError(response, 409, "SELF_PASSWORD_RESET");

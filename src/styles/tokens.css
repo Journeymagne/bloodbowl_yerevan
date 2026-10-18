@@ -17,6 +17,10 @@
  * palette so the page that stands in for the app wears the reader's choice;
  * test/tokens.test.mjs checks the two against each other.
  *
+ * Each palette block also answers to [data-palette-preview="<key>"], so the
+ * ThemePicker (screens/settings/theme-picker.css) can draw a palette's card in
+ * its own colours whichever palette the page wears.
+ *
  * The 2.x variable names live in legacy-aliases.css until stage 13.
  */
 :root {
@@ -108,7 +112,8 @@
 
 /* grass (light): Perfect Conditions, the default */
 :root,
-:root[data-palette="grass"] {
+:root[data-palette="grass"],
+[data-palette-preview="grass"] {
   --header: #17392C;
   --page: #FFFFFF;
   --desk: #F3F6F4;
@@ -143,7 +148,8 @@
 }
 
 /* parchment (light) */
-:root[data-palette="parchment"] {
+:root[data-palette="parchment"],
+[data-palette-preview="parchment"] {
   --header: #3B2A1A;
   --page: #FBF6EC;
   --desk: #F3EBDB;
@@ -165,7 +171,8 @@
 }
 
 /* ice (light) */
-:root[data-palette="ice"] {
+:root[data-palette="ice"],
+[data-palette-preview="ice"] {
   --header: #1E3A5F;
   --page: #FFFFFF;
   --desk: #F1F5F9;
@@ -187,7 +194,8 @@
 }
 
 /* imperial (light) */
-:root[data-palette="imperial"] {
+:root[data-palette="imperial"],
+[data-palette-preview="imperial"] {
   --header: #5A1220;
   --page: #FFFDF8;
   --desk: #F7F2EA;
@@ -209,7 +217,8 @@
 }
 
 /* night (dark): Under the Floodlights */
-:root[data-palette="night"] {
+:root[data-palette="night"],
+[data-palette-preview="night"] {
   --header: #17392C;
   --page: #0F1A15;
   --desk: #0F1A15;
@@ -231,7 +240,8 @@
 }
 
 /* dungeon (dark) */
-:root[data-palette="dungeon"] {
+:root[data-palette="dungeon"],
+[data-palette-preview="dungeon"] {
   --header: #241A33;
   --page: #121018;
   --desk: #121018;
@@ -253,7 +263,8 @@
 }
 
 /* embers (dark) */
-:root[data-palette="embers"] {
+:root[data-palette="embers"],
+[data-palette-preview="embers"] {
   --header: #2A1A12;
   --page: #121110;
   --desk: #121110;
@@ -268,14 +279,16 @@
   --line-strong: #3A342F;
   --field: #121110;
   --control-border: #4E463F;
-  --accent: #C2571A;
+  /* #C2571A in the prototype; a shade darker so white on it reads 4.5:1, like --neutral-result. */
+  --accent: #C1561A;
   --accent-text: #F2A06A;
   --accent-tint: #3A2416;
   --on-accent-tint: #F2A06A;
 }
 
 /* abyss (dark) */
-:root[data-palette="abyss"] {
+:root[data-palette="abyss"],
+[data-palette-preview="abyss"] {
   --header: #0F2A3A;
   --page: #0B141B;
   --desk: #0B141B;

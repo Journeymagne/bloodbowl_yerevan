@@ -1,0 +1,105 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "palette",
+      "colorScheme": "dark"
+    }
+  ],
+  "states": [
+    {
+      "id": "P1",
+      "url": "http://localhost:5174/#/settings",
+      "widths": [
+        390
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "P2",
+      "url": "http://localhost:5174/#/settings",
+      "widths": [
+        390
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"parchment\",\"dark\":\"night\"}"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "P3",
+      "url": "http://localhost:5174/#/settings",
+      "widths": [
+        390
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"embers\"}"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "P4",
+      "url": "http://localhost:5174/#/settings",
+      "widths": [
+        1440
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "P5",
+      "url": "http://localhost:5174/#/settings",
+      "widths": [
+        1440
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"ice\",\"dark\":\"night\"}"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "P6",
+      "url": "http://localhost:5174/#/settings",
+      "widths": [
+        1440
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"dungeon\"}"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "P7",
+      "url": "http://localhost:5174/#/settings",
+      "widths": [
+        390,
+        1440
+      ],
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-palette": "{\"mode\":\"system\",\"light\":\"ice\",\"dark\":\"abyss\"}"
+      },
+      "fullPage": true
+    }
+  ]
+}

@@ -44,13 +44,13 @@ await page.goto(base, { waitUntil: "domcontentloaded" });
 await page.evaluate(() => localStorage.setItem("gata-league-auth-token", "mock"));
 
 await check("my teams list opens", async () => {
-  await page.goto(`${base}/#/my-teams`, { waitUntil: "networkidle" });
-  await page.waitForSelector("a[href*='#/my-teams/t1'], [data-open-team], td, .card", { timeout: 10000 });
+  await page.goto(`${base}/#/teams`, { waitUntil: "networkidle" });
+  await page.waitForSelector("a[href*='#/t/t1/roster'], [data-open-team], td, .card", { timeout: 10000 });
   return (await page.locator("#app-view").innerText()).split("\n").slice(0, 2).join(" / ");
 });
 
 await check("saved roster editor renders", async () => {
-  await page.goto(`${base}/#/my-teams/t1`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/t/t1/roster`, { waitUntil: "networkidle" });
   await page.waitForSelector("[data-roster-player]", { timeout: 10000 });
   const players = await page.evaluate(() =>
     new Set([...document.querySelectorAll("[data-roster-player]")].map((n) => n.dataset.rosterPlayer)).size);

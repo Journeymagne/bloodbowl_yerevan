@@ -18,6 +18,11 @@ import { view } from "../core/view.mjs";
  * The reference sections live inside References and the builder is reached
  * from My Teams, so that is what should look active while a coach is in one —
  * otherwise the whole sidebar goes dark and nothing says where they are.
+ *
+ * The 2.x sidebar is gone (stage 05): no `[data-nav]` link is left on the
+ * page, and the 3.0 shell lights its tab and item from the route name
+ * (shell/navigation.mjs). This map and the two calls below stay only because
+ * the 2.x screens still make them (plan stage 05, decision 23).
  */
 const NAV_PARENT = new Map([
   ["builder", "my-teams"],
@@ -30,6 +35,7 @@ const NAV_PARENT = new Map([
   ["star-players", "pages"],
 ]);
 
+/** A no-op until stage 13 removes the calls: it lights `[data-nav]` links, and there are none any more. */
 export function setActiveNav(route) {
   const active = NAV_PARENT.get(route) ?? route;
   document.querySelectorAll("[data-nav]").forEach((link) => {
@@ -37,6 +43,7 @@ export function setActiveNav(route) {
   });
 }
 
+/** Nothing reads `#app-view[data-section]` since the 2.x sidebar went; a no-op in effect until stage 13 removes the calls. */
 export function setViewSection(section) {
   view.dataset.section = section;
 }

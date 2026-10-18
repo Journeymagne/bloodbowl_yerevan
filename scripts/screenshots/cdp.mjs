@@ -16,6 +16,10 @@ import { chromeEnvironment, parseDevToolsActivePort } from "./plan.mjs";
 import { describeProblem } from "./report.mjs";
 
 const START_TIMEOUT_MS = 20_000;
+// A Chrome that wrote its port file answers within milliseconds; one that does
+// not is dead or wedged, and 30 s of waiting would not change that.
+const VERSION_TIMEOUT_MS = 5_000;
+const CONNECT_TIMEOUT_MS = 10_000;
 const COMMAND_TIMEOUT_MS = 30_000;
 const SHOT_TIMEOUT_MS = 60_000;
 const SHUTDOWN_GRACE_MS = 3_000;
@@ -62,6 +66,17 @@ async function waitForPort(profile, isRunning, stderrTail) {
     await sleep(50);
   }
   throw new Error(`Chrome did not open a debugging port in ${START_TIMEOUT_MS / 1000} s\n${stderrTail()}`);
+}
+
+/** Chrome's /json/version, which holds the browser socket's address; an answer is waited for, not hoped for. */
+async function chromeVersion(port, stderrTail) {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/json/version`, { signal: AbortSignal.timeout(VERSION_TIMEOUT_MS) });
+    return await response.json();
+  } catch (error) {
+    const why = error?.name === "TimeoutError" ? `no answer in ${VERSION_TIMEOUT_MS / 1000} s` : error.message;
+    throw new Error(`Chrome's debugging port ${port} did not give its address: ${why}\n${stderrTail()}`.trim());
+  }
 }
 
 /**
@@ -119,7 +134,7 @@ export async function launchChrome(chromePath) {
   try {
     const stderrTail = () => (spawnError ? spawnError.message : stderr.trim());
     const { port } = await waitForPort(profile, isRunning, stderrTail);
-    const version = await (await fetch(`http://127.0.0.1:${port}/json/version`)).json();
+    const version = await chromeVersion(port, stderrTail);
     return { wsUrl: version.webSocketDebuggerUrl, close, killNow };
   } catch (error) {
     await close();
@@ -127,23 +142,46 @@ export async function launchChrome(chromePath) {
   }
 }
 
+/** An open WebSocket to `wsUrl`, or a rejection when it has not opened in `timeoutMs`. */
+async function openSocket(wsUrl, timeoutMs) {
+  const socket = new WebSocket(wsUrl);
+  await new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      // Rejected before the close: closing a socket still opening raises its "error" at once.
+      reject(new Error(`could not open ${wsUrl} in ${timeoutMs / 1000} s`));
+      socket.close();
+    }, timeoutMs);
+    socket.addEventListener("open", () => {
+      clearTimeout(timer);
+      resolve();
+    }, { once: true });
+    socket.addEventListener("error", () => {
+      clearTimeout(timer);
+      reject(new Error(`could not open ${wsUrl}`));
+    }, { once: true });
+  });
+  return socket;
+}
+
+const closedError = (what) => new Error(`${what}: Chrome closed the connection`);
+
 /**
  * Open the browser-level DevTools socket.
  *
  * `send` carries an optional session id: with `flatten: true` every page's
- * commands and events travel over this one socket, told apart by it.
+ * commands and events travel over this one socket, told apart by it. Once the
+ * socket is closed, `send` and `waitFor` fail at once.
  *
  * @param {string} wsUrl
+ * @param {{timeoutMs?: number}} [options] how long the socket may take to open
  */
-export async function connect(wsUrl) {
-  const socket = new WebSocket(wsUrl);
-  await new Promise((resolve, reject) => {
-    socket.addEventListener("open", resolve, { once: true });
-    socket.addEventListener("error", () => reject(new Error(`could not open ${wsUrl}`)), { once: true });
-  });
+export async function connect(wsUrl, { timeoutMs = CONNECT_TIMEOUT_MS } = {}) {
+  const socket = await openSocket(wsUrl, timeoutMs);
   let lastId = 0;
   const pending = new Map();
   const listeners = new Set();
+  // What is waiting for an event, to be told at once if Chrome goes away.
+  const waiters = new Set();
 
   socket.addEventListener("message", (event) => {
     const message = JSON.parse(event.data);
@@ -161,13 +199,20 @@ export async function connect(wsUrl) {
   socket.addEventListener("close", () => {
     for (const call of pending.values()) {
       clearTimeout(call.timer);
-      call.reject(new Error(`${call.method}: Chrome closed the connection`));
+      call.reject(closedError(call.method));
     }
     pending.clear();
+    for (const stop of [...waiters]) stop();
   });
 
   function send(method, params = {}, sessionId = undefined, timeoutMs = COMMAND_TIMEOUT_MS) {
     return new Promise((resolve, reject) => {
+      // A socket that is not open would swallow the command and the timer would
+      // be the only answer: a Chrome that died mid-run would cost 30 s per command.
+      if (socket.readyState !== WebSocket.OPEN) {
+        reject(closedError(method));
+        return;
+      }
       lastId += 1;
       const id = lastId;
       const timer = setTimeout(() => {
@@ -187,16 +232,22 @@ export async function connect(wsUrl) {
   /** The params of the next matching event. Call it before the command that causes the event. */
   function waitFor(method, { sessionId, timeoutMs = COMMAND_TIMEOUT_MS } = {}) {
     return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        off();
-        reject(new Error(`${method}: not seen in ${timeoutMs / 1000} s`));
-      }, timeoutMs);
-      const off = onEvent((message) => {
-        if (message.method !== method || message.sessionId !== sessionId) return;
+      if (socket.readyState !== WebSocket.OPEN) {
+        reject(closedError(method));
+        return;
+      }
+      const finish = (settle, value) => {
         clearTimeout(timer);
         off();
-        resolve(message.params);
+        waiters.delete(gone);
+        settle(value);
+      };
+      const timer = setTimeout(() => finish(reject, new Error(`${method}: not seen in ${timeoutMs / 1000} s`)), timeoutMs);
+      const gone = () => finish(reject, closedError(method));
+      const off = onEvent((message) => {
+        if (message.method === method && message.sessionId === sessionId) finish(resolve, message.params);
       });
+      waiters.add(gone);
     });
   }
 
@@ -230,12 +281,16 @@ function watchProblems(connection, sessionId) {
   return { take, stop: off };
 }
 
-async function attachPage(connection, { width, height, mobile }) {
+async function attachPage(connection, { width, height, mobile, colorScheme = null }) {
   const { browserContextId } = await connection.send("Target.createBrowserContext");
   const { targetId } = await connection.send("Target.createTarget", { url: "about:blank", browserContextId });
   const { sessionId } = await connection.send("Target.attachToTarget", { targetId, flatten: true });
   const send = (method, params, timeoutMs) => connection.send(method, params, sessionId, timeoutMs);
   await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile });
+  // What `prefers-color-scheme` answers on the page; left alone, Chrome answers for the machine.
+  if (colorScheme) {
+    await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: colorScheme }] });
+  }
   for (const domain of ["Page", "Runtime", "Log", "Network"]) await send(`${domain}.enable`);
   return { browserContextId, targetId, sessionId, send };
 }
@@ -244,7 +299,7 @@ async function attachPage(connection, { width, height, mobile }) {
  * A blank page of the given size, in a browser context of its own.
  *
  * @param {Awaited<ReturnType<typeof connect>>} connection
- * @param {{width: number, height: number, mobile: boolean}} viewport
+ * @param {{width: number, height: number, mobile: boolean, colorScheme?: "light"|"dark"|null}} viewport
  */
 export async function openPage(connection, viewport) {
   const { browserContextId, targetId, sessionId, send } = await attachPage(connection, viewport);
@@ -260,7 +315,6 @@ export async function openPage(connection, viewport) {
 
   return {
     navigate: (url) => load("Page.navigate", { url }),
-    reload: () => load("Page.reload", {}),
     takeProblems: problems.take,
 
     /** Run JavaScript in the page, waiting for a promise it returns. */

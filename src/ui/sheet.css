@@ -20,6 +20,9 @@ dialog.g-sheet {
 }
 dialog.g-sheet::backdrop { background: var(--scrim); }
 
+/* The page under an open sheet stays where it is: a scroll over the backdrop does not move it. */
+html:has(dialog.g-sheet:modal) { overflow: hidden; }
+
 /* The panel is the dialog's whole height, so the body is what scrolls. */
 .g-sheet__panel {
   display: flex;

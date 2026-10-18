@@ -1,6 +1,15 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { execFile } from "node:child_process";
+import fs from "node:fs";
+import http from "node:http";
+import net from "node:net";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
+import { connect, openPage } from "../scripts/screenshots/cdp.mjs";
+import { startFakeDevTools } from "./helpers/fake-devtools.mjs";
 import {
   DEFAULT_MAC_CHROME,
   chromeEnvironment,
@@ -9,6 +18,7 @@ import {
   isLoopbackUrl,
   parseDevToolsActivePort,
   parseScreenshotArgs,
+  serverOrigins,
   shotFileName,
 } from "../scripts/screenshots/plan.mjs";
 import {
@@ -160,6 +170,122 @@ test("a states file that cannot be shot is refused with the reason", () => {
   bad({ variants: [light, light] }, /variant "light".*twice/);
 });
 
+test("a variant may set the colour scheme the page sees", () => {
+  const shots = expandShots(spec({ variants: [{ name: "night", colorScheme: "dark", storage: {} }, light] }));
+  assert.deepEqual(shots.map((shot) => shot.colorScheme), ["dark", null, "dark", null]);
+  assert.throws(() => expandShots(spec({ variants: [{ name: "x", colorScheme: "sepia" }] })), /colorScheme/);
+});
+
+test("clicks are a list of selectors", () => {
+  const [shot] = expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", click: "[data-open-password]" }] }));
+  assert.deepEqual(shot.click, ["[data-open-password]"]);
+  assert.deepEqual(expandShots(spec())[0].click, []);
+});
+
+test("a states file that would shoot the wrong state quietly is refused before Chrome starts", () => {
+  const bad = (state, pattern) => assert.throws(() => expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", ...state }] })), pattern, JSON.stringify(state));
+  bad({ run: "document.querySelector('#x')?.click()" }, /S1.*run/);
+  bad({ run: 42 }, /S1.*run/);
+  bad({ click: "" }, /S1.*click/);
+  bad({ click: ["#a", 3] }, /S1.*click/);
+  bad({ waitMs: -1 }, /S1.*waitMs/);
+  bad({ waitMs: 600000 }, /S1.*waitMs/);
+  bad({ runWaitMs: 1.5 }, /S1.*runWaitMs/);
+  bad({ fullPage: "yes" }, /S1.*fullPage/);
+});
+
+test("each server a states file needs is named once, in order, to be asked before Chrome starts", () => {
+  const shots = expandShots(spec({ states: [
+    { id: "A", url: "http://localhost:3002/#/" }, { id: "B", url: "http://localhost:5174/#/x" }, { id: "C", url: "http://localhost:3002/#/y" },
+  ] }));
+  assert.deepEqual(serverOrigins(shots), ["http://localhost:3002", "http://localhost:5174"]);
+});
+
+test("a key a state or a variant does not have is refused by name, with the keys it does have", () => {
+  const state = (extra) => ({ states: [{ id: "S1", url: "http://localhost:5174/", ...extra }] });
+  const bad = (change, pattern) => assert.throws(() => expandShots(spec(change)), pattern, JSON.stringify(change));
+  bad(state({ clicks: ["#a"] }), /state S1 has an unknown key "clicks"; the keys of a state are id, url, widths, extraWidths, login, storage, click, run, waitMs, runWaitMs, fullPage$/);
+  bad(state({ waitMS: 100 }), /S1.*"waitMS"/);
+  bad(state({ colorScheme: "dark" }), /S1.*"colorScheme".*keys of a state/);
+  bad(state({ clicks: 1, waitMS: 2 }), /S1 has unknown keys "clicks", "waitMS"/);
+  bad({ variants: [{ name: "night", colourScheme: "dark" }] }, /variant "night" has an unknown key "colourScheme"; the keys of a variant are name, storage, colorScheme$/);
+  const everything = {
+    id: "S1", url: "http://localhost:5174/", widths: [390], extraWidths: [768], login: "admin", storage: {},
+    click: "#a", run: "a()", waitMs: 0, runWaitMs: 0, fullPage: true,
+  };
+  assert.doesNotThrow(() => expandShots(spec({ variants: [{ name: "night", storage: {}, colorScheme: "dark" }], states: [everything] })));
+});
+
+test("a key the states file itself does not have is refused by name, before its states are looked at", () => {
+  const bad = (change, pattern) => assert.throws(() => expandShots(spec(change)), pattern, JSON.stringify(change));
+  const keys = "the keys of a states file are widths, heights, variants, states$";
+  bad({ variant: [light] }, new RegExp(`the states file has an unknown key "variant"; ${keys}`));
+  bad({ colorScheme: "dark" }, /"colorScheme".*keys of a states file/);
+  bad({ out: "shots", description: "x" }, /the states file has unknown keys "out", "description"/);
+  // A states list under the wrong name is the unknown key, not "no states".
+  bad({ states: undefined, state: [{ id: "S1", url: "http://localhost:5174/" }] }, /unknown key "state"/);
+  // The four it has, and a file that is not an object, are read as before.
+  assert.doesNotThrow(() => expandShots(spec({ widths: [390], heights: { 390: 844 }, variants: [light], states: [{ id: "S1", url: "http://localhost:5174/" }] })));
+  assert.throws(() => expandShots(null), /at least one state/);
+  assert.throws(() => expandShots([]), /at least one state/);
+});
+
+test("every states file kept under docs/redesign/screens passes the plan check, so a stage's shots can be taken again", () => {
+  const dir = fileURLToPath(new URL("../docs/redesign/screens/", import.meta.url));
+  const files = fs.readdirSync(dir).filter((name) => name.endsWith(".json"));
+  assert.ok(files.length > 0, "no states files found");
+  for (const name of files) {
+    const shots = expandShots(JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")));
+    assert.ok(shots.length > 0, name);
+  }
+});
+
+// R13-M8: `npx --yes cross-env` fetched an unpinned package from the registry each time a mock started.
+test("the dev launch configs the shots start their servers from run nothing fetched at start, and set the mocks' variant and port", () => {
+  const { configurations } = JSON.parse(fs.readFileSync(fileURLToPath(new URL("../.claude/launch.json", import.meta.url)), "utf8"));
+  for (const { name, runtimeExecutable, runtimeArgs } of configurations) {
+    assert.notEqual(runtimeExecutable, "npx", name);
+    assert.ok(!runtimeArgs.includes("cross-env"), name);
+  }
+  const mock = (name) => configurations.find((config) => config.name === name);
+  assert.deepEqual([mock("bloodbowl-mock-api-admin").runtimeExecutable, mock("bloodbowl-mock-api-admin").runtimeArgs], ["env", ["MOCK_ADMIN=1", "MOCK_PORT=5175", "node", "scripts/mock-api.mjs"]]);
+  assert.deepEqual([mock("bloodbowl-mock-api-empty").runtimeExecutable, mock("bloodbowl-mock-api-empty").runtimeArgs], ["env", ["MOCK_EMPTY=1", "MOCK_PORT=5176", "node", "scripts/mock-api.mjs"]]);
+});
+
+// Final-wave item 9: a state that presses what the 3.0 frame removed fails a real run ("a missing target fails").
+test("no states file presses or clicks a part of the 2.x chrome that the 3.0 frame removed", () => {
+  const RETIRED_ID = /#(?:site-sidebar|nav-toggle|nav-overlay|auth-button|lang-toggle|theme-select|generated-at)(?![\w-])/;
+  const dir = fileURLToPath(new URL("../docs/redesign/screens/", import.meta.url));
+  for (const name of fs.readdirSync(dir).filter((file) => file.endsWith(".json"))) {
+    for (const state of JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")).states) {
+      for (const key of ["run", "click"]) {
+        const text = [state[key] ?? ""].flat().join("\n");
+        assert.doesNotMatch(text, RETIRED_ID, `${name} ${state.id} ${key}`);
+      }
+    }
+  }
+});
+
+test("the check for ?. reads the text: one in a string or a comment is refused too, and the message says so", () => {
+  for (const run of ["fill('#note', 'is it so?. yes')", "// maybe?.click() later\ndocument.querySelector('#x').click()"]) {
+    assert.throws(
+      () => expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", run }] })),
+      /S1.*run.*The check is textual: a \?\. in a string or a comment counts too/,
+      run,
+    );
+  }
+});
+
+test("a conditional is not optional chaining, and a run that is only lines of JavaScript is kept as it is", () => {
+  const [shot] = expandShots(spec({ states: [{ id: "S1", url: "http://localhost:5174/", run: ["const n = innerWidth <= 900 ?.5 : 1;", "document.querySelector('#x').click();"] }] }));
+  assert.equal(shot.run, "const n = innerWidth <= 900 ?.5 : 1;\ndocument.querySelector('#x').click();");
+});
+
+test("a page that is not on the web needs no server to be asked", () => {
+  const shots = expandShots(spec({ states: [{ id: "A", url: "file:///tmp/x.html" }, { id: "B", url: "http://localhost:5174/" }] }));
+  assert.deepEqual(serverOrigins(shots), ["http://localhost:5174"]);
+});
+
 test("a shot is named id, width, variant", () => {
   assert.equal(shotFileName({ id: "C2", width: 1024, variant: "dark" }), "C2-1024-dark.png");
 });
@@ -265,11 +391,12 @@ test("the summary counts what was written, what failed and which shots had probl
     result(),
     result({ file: "A1-390-dark.png", variant: "dark", problems: { console: [{ text: "a" }, { text: "b" }], exceptions: [{ text: "c" }], requests: [] } }),
     result({ file: "A1-1440-light.png", width: 1440, failure: "login failed (HTTP 401)" }),
+    result({ file: "A1-1440-dark.png", width: 1440, variant: "dark", failure: "click target not found: #x", problems: { console: [{ text: "seen first" }], exceptions: [], requests: [] } }),
   ]);
   assert.equal(summary.written, 2);
-  assert.equal(summary.failed.length, 1);
-  assert.equal(summary.failed[0].file, "A1-1440-light.png");
-  assert.deepEqual(summary.withProblems.map((item) => [item.file, item.count]), [["A1-390-dark.png", 3]]);
+  assert.deepEqual(summary.failed.map((item) => item.file), ["A1-1440-light.png", "A1-1440-dark.png"]);
+  // The errors of a shot that was not taken count: they are listed in the [console] lines, and the header must agree.
+  assert.deepEqual(summary.withProblems.map((item) => [item.file, item.count]), [["A1-390-dark.png", 3], ["A1-1440-dark.png", 1]]);
 });
 
 test("the index page lists every shot with its id, width and variant, and says what went wrong", () => {
@@ -354,4 +481,127 @@ test("Chrome is started with what it needs from the environment, not the .env se
     DISPLAY: ":0", XDG_RUNTIME_DIR: "/run/user/1000",
   });
   assert.deepEqual(chromeEnvironment({}), {});
+});
+
+// A stand-in for the browser socket: it records what a page is told and answers
+// the three commands that open one.
+function fakeConnection() {
+  const calls = [];
+  return {
+    calls,
+    async send(method, params) {
+      calls.push({ method, params });
+      return { browserContextId: "context", targetId: "target", sessionId: "session" };
+    },
+    onEvent: () => () => {},
+  };
+}
+
+test("a page opened with a colour scheme is told to emulate it, and one opened without is left to the browser", async () => {
+  const viewport = { width: 390, height: 844, mobile: true };
+  const dark = fakeConnection();
+  await openPage(dark, { ...viewport, colorScheme: "dark" });
+  assert.deepEqual(
+    dark.calls.filter(({ method }) => method === "Emulation.setEmulatedMedia").map(({ params }) => params),
+    [{ features: [{ name: "prefers-color-scheme", value: "dark" }] }],
+  );
+  const plain = fakeConnection();
+  await openPage(plain, { ...viewport, colorScheme: null });
+  assert.equal(plain.calls.some(({ method }) => method === "Emulation.setEmulatedMedia"), false);
+});
+
+test("a socket that never finishes opening is given up on at the time it was given", async () => {
+  // Accepts the connection and says nothing: the WebSocket handshake never completes.
+  const held = [];
+  const silent = net.createServer((socket) => held.push(socket));
+  await new Promise((resolve) => silent.listen(0, "127.0.0.1", resolve));
+  const started = Date.now();
+  try {
+    await assert.rejects(connect(`ws://127.0.0.1:${silent.address().port}/devtools/browser/x`, { timeoutMs: 300 }), /could not open.*in 0\.3 s/);
+    assert.ok(Date.now() - started < 3000, "it did not wait for the 10 s default");
+  } finally {
+    for (const socket of held) socket.destroy();
+    await new Promise((resolve) => silent.close(resolve));
+  }
+});
+
+test("a command to a socket Chrome has closed, or a wait for an event on one, fails at once", async () => {
+  const devtools = await startFakeDevTools();
+  const connection = await connect(`ws://127.0.0.1:${devtools.port}/devtools/browser/fake`);
+  const started = Date.now();
+  try {
+    const waiting = connection.waitFor("Page.loadEventFired", { timeoutMs: 5_000 });
+    devtools.dropConnections();
+    await assert.rejects(waiting, /Page\.loadEventFired: Chrome closed the connection/);
+    // The socket is closed now; a 5 s limit on the command makes a swallowed one show up as "no answer".
+    await assert.rejects(connection.send("Target.createBrowserContext", {}, undefined, 5_000), /Target\.createBrowserContext: Chrome closed the connection/);
+    await assert.rejects(connection.waitFor("Page.loadEventFired", { timeoutMs: 5_000 }), /Chrome closed the connection/);
+    assert.ok(Date.now() - started < 2_000, "none of the three waited for its limit");
+  } finally {
+    connection.close();
+    await devtools.close();
+  }
+});
+
+test("a Chrome that dies in the middle of a run: its shot and every later one are NOT TAKEN at once", async () => {
+  const site = http.createServer((request, response) => response.end("ok"));
+  await new Promise((resolve) => site.listen(0, "127.0.0.1", resolve));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gata-screens-test-"));
+  try {
+    const url = `http://127.0.0.1:${site.address().port}/`;
+    const statesPath = path.join(dir, "states.json");
+    fs.writeFileSync(statesPath, JSON.stringify({
+      widths: [390],
+      variants: [{ name: "a" }, { name: "b" }],
+      states: [{ id: "D1", url }, { id: "D2", url }],
+    }));
+    const script = fileURLToPath(new URL("../scripts/screenshots.mjs", import.meta.url));
+    const chrome = fileURLToPath(new URL("./fixtures/fake-chrome.mjs", import.meta.url));
+    const started = Date.now();
+    // 20 s is far over what it takes and far under the 30 s a single command would wait.
+    const run = await new Promise((resolve) => {
+      execFile(process.execPath, [script, statesPath, "--out", path.join(dir, "out"), "--chrome", chrome], { timeout: 20_000, killSignal: "SIGKILL" },
+        (error, stdout, stderr) => resolve({ code: error ? error.code : 0, stdout, stderr }));
+    });
+    assert.equal(run.code, 1, `${run.stdout}\n${run.stderr}`);
+    const notTaken = run.stdout.split("\n").filter((line) => line.includes("NOT TAKEN"));
+    assert.equal(notTaken.length, 4, run.stdout);
+    assert.ok(notTaken.every((line) => line.includes("Chrome closed the connection")), run.stdout);
+    assert.ok(Date.now() - started < 15_000, "the later shots did not each wait for a command to time out");
+  } finally {
+    site.closeAllConnections();
+    site.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a page that sends a guest elsewhere is shot at its own address: after the storage, a fresh load of the url, not a reload", async () => {
+  // The first load is a guest's: a coach page sends it to #/login, and a reload would photograph the sign-in screen.
+  const site = http.createServer((request, response) => response.end("ok"));
+  await new Promise((resolve) => site.listen(0, "127.0.0.1", resolve));
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gata-screens-test-"));
+  try {
+    const url = `http://127.0.0.1:${site.address().port}/#/t/t2/roster`;
+    const statesPath = path.join(dir, "states.json");
+    fs.writeFileSync(statesPath, JSON.stringify({
+      widths: [390],
+      variants: [{ name: "light", colorScheme: "light" }],
+      states: [{ id: "C3", url, storage: { "gata-league-auth-token": "mock" } }],
+    }));
+    const script = fileURLToPath(new URL("../scripts/screenshots.mjs", import.meta.url));
+    const chrome = fileURLToPath(new URL("./fixtures/fake-chrome-recorder.mjs", import.meta.url));
+    // The fake Chrome's profile, and the loads.json it keeps beside it, land in this directory.
+    const env = { ...process.env, TMPDIR: dir };
+    const run = await new Promise((resolve) => {
+      execFile(process.execPath, [script, statesPath, "--out", path.join(dir, "out"), "--chrome", chrome], { env, timeout: 20_000, killSignal: "SIGKILL" },
+        (error, stdout, stderr) => resolve({ code: error ? error.code : 0, stdout, stderr }));
+    });
+    assert.equal(run.code, 0, `${run.stdout}\n${run.stderr}`);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, "loads.json"), "utf8")), [url, "about:blank", url]);
+    assert.ok(fs.existsSync(path.join(dir, "out", "C3-390-light.png")), run.stdout);
+  } finally {
+    site.closeAllConnections();
+    site.close();
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });

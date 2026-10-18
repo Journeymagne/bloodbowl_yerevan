@@ -3,14 +3,15 @@ import { pool } from "../db/pool.mjs";
 import { httpError } from "../http/responses.mjs";
 import { hashPassword } from "../auth/session.mjs";
 import { normalizeLogin, serializeRosterForStorage } from "../api/serializers.mjs";
+import { LOGIN_MIN_LENGTH, PASSWORD_MIN_LENGTH } from "../../src/domain/account.mjs";
 
 /** The team has already passed readTeamBody's roster validation. */
 export async function createSeasonCoachWithTeam(seasonId, data, database = pool) {
   const login = String(data.login ?? "").trim();
   const password = String(data.password ?? "");
   const telegram = String(data.telegram ?? "").trim();
-  if (login.length < 3) throw httpError(400, "LOGIN_TOO_SHORT");
-  if (password.length < 4) throw httpError(400, "PASSWORD_TOO_SHORT");
+  if (login.length < LOGIN_MIN_LENGTH) throw httpError(400, "LOGIN_TOO_SHORT");
+  if (password.length < PASSWORD_MIN_LENGTH) throw httpError(400, "PASSWORD_TOO_SHORT");
   if (!telegram) throw httpError(400, "TELEGRAM_REQUIRED");
 
   const passwordHash = hashPassword(password);

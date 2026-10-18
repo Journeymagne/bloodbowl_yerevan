@@ -31,9 +31,9 @@ export function renderNavRow({ href, title, desc = "", count = "" }) {
   return `<a class="g-list-row" href="${escapeHtml(href)}">${text}${records}${renderIcon("chevron", 16)}</a>`;
 }
 
-/** A label on the left and its value, heavier, on the right: the staff a team has, a price. */
+/** A label on the left and its value, heavier, on the right: the staff a team has, a price. A missing value (`null`, `undefined`) is drawn empty. */
 export function renderKeyValueRow({ label, value }) {
-  return `<div class="g-kv"><span class="g-kv__label">${escapeHtml(label)}</span><span class="g-kv__value">${escapeHtml(value)}</span></div>`;
+  return `<div class="g-kv"><span class="g-kv__label">${escapeHtml(label)}</span><span class="g-kv__value">${escapeHtml(value ?? "")}</span></div>`;
 }
 
 /**

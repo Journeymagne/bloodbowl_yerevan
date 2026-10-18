@@ -38,12 +38,12 @@
   padding-left: 4px;
 }
 
-.content-panel a:where(:not(.primary-button, .filter-button, .ghost-button, .icon-text-button, .table-icon-button)) {
+.content-panel a:where(:not(.primary-button, .filter-button, .ghost-button, .table-icon-button)) {
   color: var(--focus);
   text-decoration: none;
 }
 
-.content-panel a:where(:not(.primary-button, .filter-button, .ghost-button, .icon-text-button, .table-icon-button)):hover {
+.content-panel a:where(:not(.primary-button, .filter-button, .ghost-button, .table-icon-button)):hover {
   text-decoration: underline;
 }
 

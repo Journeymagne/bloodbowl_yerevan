@@ -23,7 +23,6 @@ export const state = {
     roll: null,
   },
   auth: {
-    mode: "login",
     currentUser: null,
   },
   myTeams: {
@@ -32,6 +31,8 @@ export const state = {
     loading: false,
     error: "",
   },
+  // The id of one of `myTeams.items`, chosen by data/active-team.mjs; null for a guest or a coach with no team.
+  activeTeamId: null,
   games: { items: [], currentItems: [], loaded: false, loading: false, error: "" },
   savedRosterUi: {
     expandedPlayers: new Set(),

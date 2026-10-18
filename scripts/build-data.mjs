@@ -77,9 +77,9 @@ const coreTeamTitles = new Set([
   "Wood Elves",
 ]);
 const virtualLinks = new Map([
-  ["Team List", "#/teams"],
-  ["Teams", "#/teams"],
-  ["РЎРїРёСЃРѕРє РєРѕРјР°РЅРґ", "#/teams"],
+  ["Team List", "#/ref/teams"], // not #/teams, which is a coach's My Teams now (test/routes.test.mjs)
+  ["Teams", "#/ref/teams"],
+  ["РЎРїРёСЃРѕРє РєРѕРјР°РЅРґ", "#/ref/teams"],
 ]);
 
 const cyrillicMap = new Map();

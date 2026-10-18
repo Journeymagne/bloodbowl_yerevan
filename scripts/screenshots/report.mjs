@@ -68,8 +68,10 @@ function problemCount(problems) {
  */
 export function summarizeResults(results) {
   const failed = results.filter((result) => result.failure);
+  // A shot that was not taken counts too: its errors are on the page and in the
+  // [console] lines, and the header has to say the same.
   const withProblems = results
-    .filter((result) => !result.failure && problemCount(result.problems) > 0)
+    .filter((result) => problemCount(result.problems) > 0)
     .map((result) => ({ file: result.file, count: problemCount(result.problems) }));
   return { written: results.length - failed.length, failed, withProblems };
 }

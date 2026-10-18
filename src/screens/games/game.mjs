@@ -11,7 +11,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { apiRequest } from "../../core/api-client.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
-import { isGameClosedForPlayers, isGameResultSubmitted } from "./my-games.mjs";
+import { invalidateGames, isGameClosedForPlayers, isGameResultSubmitted } from "../../data/games.mjs";
 import { toastError } from "../../components/toast.mjs";
 import { renderGamePreparationPanel } from "../../components/pre-match/game-panel.mjs";
 import { renderGamePostMatchPanel } from "../../components/post-match/game-panel.mjs";
@@ -67,7 +67,7 @@ function wireGamePage(game) {
   view.querySelector("[data-admin-game-result]")?.addEventListener("submit", async (event) => {
     event.preventDefault();
     const form = Object.fromEntries(new FormData(event.currentTarget));
-    try { await apiRequest(`/api/games/${game.id}`, { method: "PATCH", body: JSON.stringify(form) }); state.games.loaded = false; renderGamePage(game.id); } catch (error) { toastError(error); }
+    try { await apiRequest(`/api/games/${game.id}`, { method: "PATCH", body: JSON.stringify(form) }); void invalidateGames(); renderGamePage(game.id); } catch (error) { toastError(error); }
   });
   view.querySelector("[data-game-proposal]")?.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -76,7 +76,7 @@ function wireGamePage(game) {
   });
   for (const [selector, action] of [["[data-game-confirm]", "confirm"], ["[data-game-reject]", "reject"]]) {
     view.querySelector(selector)?.addEventListener("click", async () => {
-      try { await apiRequest(`/api/games/${game.id}/${action}`, { method: "POST", body: "{}" }); state.games.loaded = false; renderGamePage(game.id); } catch (error) { toastError(error); }
+      try { await apiRequest(`/api/games/${game.id}/${action}`, { method: "POST", body: "{}" }); void invalidateGames(); renderGamePage(game.id); } catch (error) { toastError(error); }
     });
   }
 }

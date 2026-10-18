@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
@@ -20,6 +21,16 @@ test("a primary button names its action and can say what is missing", () => {
   assert.ok(button.querySelector("svg.g-icon"));
   assertCspSafe(fragment);
   assertStyled(fragment, "button.css");
+});
+
+test("a button can be drawn hidden, for the screen to show it when it has something to do", () => {
+  for (const props of [{}, { href: "#/login" }]) {
+    const fragment = mount(renderButton({ label: "Save", hidden: true, ...props }));
+    assert.equal(fragment.querySelector(".g-btn").hasAttribute("hidden"), true);
+    assert.equal(mount(renderButton({ label: "Save", ...props })).querySelector(".g-btn").hasAttribute("hidden"), false);
+  }
+  const css = readFileSync(new URL("../src/ui/button.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(css, /\.g-btn\[hidden\]\s*\{\s*display:\s*none;\s*\}/, ".g-btn sets a display, which would show a hidden button");
 });
 
 test("every kind has its class, an unknown kind is a bug", () => {
@@ -90,6 +101,22 @@ test("clicking or arrowing moves the selection, reports it, and stops when relea
   assert.deepEqual(seen, ["system", "light"]);
 });
 
+// Both flip aria-checked before they report, so a group wired twice by the same selector reports once.
+test("two groups on one root are wired by name, and each reports only its own", () => {
+  const html = renderSegmentedControl({ label: "Language", items: [{ value: "ru", label: "RU" }, { value: "en", label: "EN" }], selected: "en", data: { segGroup: "language" } })
+    + renderSegmentedControl({ label: "Mode", items: MODES, selected: "light", data: { segGroup: "mode" } });
+  const fragment = mount(html);
+  const seen = [];
+  wireSegmentedControls(fragment, (value) => seen.push(["language", value]), { group: "language" });
+  wireSegmentedControls(fragment, (value) => seen.push(["mode", value]), { group: "mode" });
+  fireEvent(fragment.querySelector('[data-seg-group="mode"] [data-seg-value="dark"]'), "click");
+  fireEvent(fragment.querySelector('[data-seg-group="language"] [data-seg-value="ru"]'), "click");
+  const arrow = fireEvent(fragment.querySelector('[data-seg-group="mode"] [data-seg-value="dark"]'), "keydown", { key: "ArrowRight" });
+  assert.equal(arrow.defaultPrevented, true);
+  assert.deepEqual(seen, [["mode", "dark"], ["language", "ru"], ["mode", "system"]]);
+  assert.throws(() => wireSegmentedControls(fragment, () => {}, { group: 'x"] [y' }), /group/);
+});
+
 test("a toggle is a switch row that flips and reports; a disabled one does not move", () => {
   const fragment = mount(renderToggle({ key: "matchReminders", label: "Match reminders", caption: HOSTILE }) + renderToggle({ key: "locked", label: "Locked", disabled: true }));
   const [live, locked] = fragment.querySelectorAll('[role="switch"]');
@@ -113,6 +140,15 @@ test("the default button is an outline button of type button, and a form can ask
   assert.equal(plain.hasAttribute("disabled"), false);
   assert.equal(plain.querySelector("svg"), null);
   assert.equal(mount(renderButton({ label: "Save", type: "submit" })).querySelector("button").getAttribute("type"), "submit");
+});
+
+test("a button in a sheet's footer can belong to the form in its body", () => {
+  const button = mount(renderButton({ label: "Change", kind: "primary", type: "submit", form: "password-form" })).querySelector("button");
+  assert.equal(button.getAttribute("form"), "password-form");
+  assert.equal(button.getAttribute("type"), "submit");
+  assert.equal(mount(renderButton({ label: "Change", type: "submit" })).querySelector("button").hasAttribute("form"), false, "no form unless asked");
+  assert.throws(() => renderButton({ label: "Change", form: 'a" onclick="x' }), /form/);
+  assert.throws(() => renderButton({ label: "Go", href: "#/x", form: "f" }), /form/, "a link has no form to submit");
 });
 
 test("a segmented control refuses what would leave it unusable", () => {

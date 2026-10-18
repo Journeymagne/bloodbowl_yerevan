@@ -5,7 +5,7 @@ import test from "node:test";
 import { ICON_NAMES, icon } from "../src/ui/icons.mjs";
 import { classNames, dataAttributes } from "../src/ui/markup.mjs";
 import { assertContrast, valuesOf } from "./helpers/contrast.mjs";
-import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
+import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const uiFiles = readdirSync(new URL("../src/ui/", import.meta.url));
@@ -18,14 +18,13 @@ test("every component stylesheet reaches the page", () => {
 });
 
 test("every key src/ui asks t() for exists in both dictionaries", () => {
-  const en = JSON.parse(read("src/i18n/en.json"));
-  const ru = JSON.parse(read("src/i18n/ru.json"));
-  for (const file of uiFiles.filter((name) => name.endsWith(".mjs"))) {
-    for (const [, key] of read(`src/ui/${file}`).matchAll(/\bt\(\s*"([^"]+)"/g)) {
-      assert.ok(en[key], `${file}: en ${key}`);
-      assert.ok(ru[key], `${file}: ru ${key}`);
-    }
-  }
+  assertDictionaryCovers(...uiFiles.filter((name) => name.endsWith(".mjs")).map((name) => `src/ui/${name}`));
+});
+
+test("the dictionary check names the file and the key a dictionary lacks, and will not pass on no files", () => {
+  assert.doesNotThrow(() => assertDictionaryCovers("src/ui/sheet.mjs", "src/ui/text-field.mjs"));
+  assert.throws(() => assertDictionaryCovers("src/ui/sheet.mjs", "test/fixtures/ui-missing-key.txt"), /ui-missing-key\.txt: en no\.such\.key/);
+  assert.throws(() => assertDictionaryCovers(), /no files/);
 });
 
 test("data attributes are dashed, escaped and skip empty values", () => {
@@ -89,9 +88,14 @@ test("the CSP check ignores attribute case and refuses javascript: URLs and <sty
 });
 
 test("a class named only in a stylesheet comment is not styled", () => {
-  const sheet = "../../test/fixtures/ui-commented.css";
+  // A name with a slash is a path from the root of the repository; a bare one is a src/ui sheet.
+  const sheet = "test/fixtures/ui-commented.css";
   assertStyled(mount('<i class="g-real"></i>'), sheet);
   assert.throws(() => assertStyled(mount('<i class="g-ghost"></i>'), sheet), /\.g-ghost is not styled/);
+  // The same name without the path is looked for in src/ui, where there is no such sheet.
+  assert.throws(() => assertStyled(mount('<i class="g-real"></i>'), "ui-commented.css"), /ENOENT/);
+  // A path reaches a sheet in src/ui too; the shell's own sheets are named this way.
+  assertStyled(mount('<i class="g-btn"></i>'), "src/ui/button.css");
 });
 
 test("mount shows one page at a time", () => {

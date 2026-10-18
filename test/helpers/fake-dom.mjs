@@ -17,8 +17,15 @@
  * that emits sloppy markup fails its test rather than passing against a tree
  * the real parser would build differently. Selectors are as strict: tags,
  * `#id`, `.class`, `[attr]`, `[attr="value"]`, descendants and lists; any
- * other syntax throws, never "matches nothing". The markup-string form of
- * `patch()` goes through `<template>` and is proved in the browser check.
+ * other syntax throws, never "matches nothing".
+ *
+ * `element.innerHTML = markup` and a `<template>`'s `innerHTML` go through that
+ * same parser, so the markup-string form of `patch()` works here and is as
+ * strict as everything else. What a browser would build differently from an
+ * element's innerHTML is refused too: a table row outside a table, markup
+ * assigned to a textarea, a fragment's innerHTML. A template's children live in
+ * its `content`, never in its `childNodes`, and a `<template>` cannot be written
+ * inside markup (its children would belong there). innerHTML is write-only.
  */
 
 import { matchesList, parseSelectorList, select } from "./fake-dom-selectors.mjs";
@@ -126,6 +133,9 @@ class FakeNode {
     if (at === -1) throw new Error("removeChild: not a child");
     this.childNodes.splice(at, 1);
     node.parentNode = null;
+    // A dialog that leaves the tree leaves the top layer with it, and is no longer modal even
+    // where it is put back (a move is a removal and an insertion): `open` stays as it was.
+    for (const inside of node.walk()) if (inside.tagName === "DIALOG") inside.modalOpened = false;
     // A browser drops focus to the body when the focused node leaves the tree.
     // Without this the fake keeps reporting a detached element as focused, and
     // patch()'s restore path would never be exercised.
@@ -185,6 +195,8 @@ class FakeElement extends FakeNode {
     this.classList = classListOf(this);
     this.value = undefined;
     this.checked = undefined;
+    // Whether showModal() opened it, which `isModal` and `:modal` read; only a <dialog> ever sets it.
+    this.modalOpened = false;
     // A text field always has a caret, at 0 until something moves it. Getting
     // this wrong hides the bug patch() is meant to prevent: a rebuilt field
     // that takes focus back but drops the caret to the end.
@@ -224,6 +236,8 @@ class FakeElement extends FakeNode {
 
   removeAttribute(name) {
     this.attributes = this.attributes.filter((attribute) => attribute.name !== name);
+    // A dialog without its `open` attribute is closed, and a closed one is not modal.
+    if (name === "open") this.modalOpened = false;
   }
 
   /** The first descendant that matches — see `parseSelectorList` for the syntax. */
@@ -289,14 +303,43 @@ class FakeElement extends FakeNode {
     return !event.defaultPrevented;
   }
 
+  /** A template keeps what it holds in `content`, a fragment of its own, and its `childNodes` stay empty. */
+  get content() {
+    if (this.tagName !== "TEMPLATE") return undefined;
+    this.templateContent ??= new FakeFragment(this.ownerDocument);
+    return this.templateContent;
+  }
+
+  /** Writing replaces the children (a template's, its content) with what `parseHtml` builds; see `setInnerHtml`. */
+  set innerHTML(markup) {
+    setInnerHtml(this, markup);
+  }
+
+  /** Serialising a tree would be a second source of truth for the parser; read it with queries and textContent. */
+  get innerHTML() {
+    throw new Error("fake-dom: innerHTML is write-only; read the tree with querySelector and textContent");
+  }
+
   /** Reflects the `open` attribute, as `<dialog>` and `<details>` do. */
   get open() {
     return this.hasAttribute("open");
   }
 
+  /**
+   * What `:modal` asks: opened by `showModal()` and still open, in the tree. A dialog that was drawn
+   * with `open`, or opened by setting the attribute, is open and not modal.
+   */
+  get isModal() {
+    return this.tagName === "DIALOG" && this.modalOpened === true && this.hasAttribute("open");
+  }
+
+  /** A modal dialog is a no-op to open again; one that is open without being modal is an error, as in a browser. */
   showModal() {
     requireDialog(this, "showModal");
+    if (this.isModal) return;
+    if (this.open) throw new Error("fake-dom: showModal() on a dialog that is already open and not modal (InvalidStateError)");
     this.setAttribute("open", "");
+    this.modalOpened = true;
   }
 
   /** A closed dialog says nothing; an open one fires a `close` that does not bubble. */
@@ -477,6 +520,7 @@ function parseOpeningTag(document, markup, start, open, fail) {
   const name = named[1];
   const lower = name.toLowerCase();
   if (lower === "script") fail("<script> is not supported", start);
+  if (lower === "template") fail("a <template> in markup keeps its children in .content, which is not modelled; set innerHTML on a template element instead", start);
   if (open.at(-1).tagName === "TEXTAREA") fail("a <textarea> holds text only", start);
 
   const element = document.createElement(name);
@@ -510,6 +554,35 @@ function parseOpeningTag(document, markup, start, open, fail) {
   open.at(-1).appendChild(element);
   if (!selfClosing && !isVoid) open.push(element);
   return at;
+}
+
+// Contexts whose innerHTML a browser reads as text, not as markup.
+const TEXT_CONTEXTS = new Set(["TEXTAREA", "TITLE", "STYLE", "SCRIPT"]);
+// A browser's parser drops these where no table is being built, and a template or a table part is where one is.
+const TABLE_PARTS = new Set(["TR", "TD", "TH", "TBODY", "THEAD", "TFOOT", "CAPTION", "COLGROUP", "COL"]);
+const TABLE_CONTEXTS = new Set(["TEMPLATE", "TABLE", "THEAD", "TBODY", "TFOOT", "TR", "COLGROUP"]);
+
+/**
+ * `element.innerHTML = markup`: the children (a template's content) are replaced
+ * by what `parseHtml` builds. Parsing comes first, so markup that does not parse
+ * leaves the element as it was; the old children are removed one by one, so
+ * focus drops to the body when the focused node leaves, as it does in a browser.
+ */
+function setInnerHtml(element, markup) {
+  const name = element.tagName.toLowerCase();
+  if (element.isFragment) throw new Error("fake-dom: a fragment has no innerHTML; a browser would set a property that parses nothing");
+  if (TEXT_CONTEXTS.has(element.tagName)) throw new Error(`fake-dom: innerHTML on a <${name}> is text in a browser, not markup; set textContent`);
+  const parsed = parseHtml(element.ownerDocument, markup);
+  if (!TABLE_CONTEXTS.has(element.tagName)) {
+    for (const node of parsed.walk()) {
+      if (TABLE_PARTS.has(node.tagName) && !node.closest("table")) {
+        throw new Error(`fake-dom: a browser drops <${node.tagName.toLowerCase()}> assigned to a <${name}>'s innerHTML outside a table; parse it in a <template>`);
+      }
+    }
+  }
+  const target = element.content ?? element;
+  for (const child of [...target.childNodes]) target.removeChild(child);
+  for (const child of [...parsed.childNodes]) target.appendChild(child);
 }
 
 /** A shorthand for asserting structure: tag names and keys, nested. */
