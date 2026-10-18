@@ -240,6 +240,18 @@ test("every states file kept under docs/redesign/screens passes the plan check, 
   }
 });
 
+// R13-M8: `npx --yes cross-env` fetched an unpinned package from the registry each time a mock started.
+test("the dev launch configs the shots start their servers from run nothing fetched at start, and set the mocks' variant and port", () => {
+  const { configurations } = JSON.parse(fs.readFileSync(fileURLToPath(new URL("../.claude/launch.json", import.meta.url)), "utf8"));
+  for (const { name, runtimeExecutable, runtimeArgs } of configurations) {
+    assert.notEqual(runtimeExecutable, "npx", name);
+    assert.ok(!runtimeArgs.includes("cross-env"), name);
+  }
+  const mock = (name) => configurations.find((config) => config.name === name);
+  assert.deepEqual([mock("bloodbowl-mock-api-admin").runtimeExecutable, mock("bloodbowl-mock-api-admin").runtimeArgs], ["env", ["MOCK_ADMIN=1", "MOCK_PORT=5175", "node", "scripts/mock-api.mjs"]]);
+  assert.deepEqual([mock("bloodbowl-mock-api-empty").runtimeExecutable, mock("bloodbowl-mock-api-empty").runtimeArgs], ["env", ["MOCK_EMPTY=1", "MOCK_PORT=5176", "node", "scripts/mock-api.mjs"]]);
+});
+
 // Final-wave item 9: a state that presses what the 3.0 frame removed fails a real run ("a missing target fails").
 test("no states file presses or clicks a part of the 2.x chrome that the 3.0 frame removed", () => {
   const RETIRED_ID = /#(?:site-sidebar|nav-toggle|nav-overlay|auth-button|lang-toggle|theme-select|generated-at)(?![\w-])/;

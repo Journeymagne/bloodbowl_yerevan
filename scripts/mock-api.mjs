@@ -10,9 +10,14 @@
  *   :5174  bloodbowl-mock-api          a coach with three teams and three matches
  *   :5175  bloodbowl-mock-api-admin    MOCK_ADMIN=1, the same coach as an administrator
  *   :5176  bloodbowl-mock-api-empty    MOCK_EMPTY=1, a coach with no team and no match
- * MOCK_PORT picks the port. A page is signed in by a token in localStorage
- * (`gata-league-auth-token`, any value: "mock" in the screenshots) or by the
- * sign-in form with any login and the password `mock-pass`.
+ * MOCK_PORT picks the port. The launch configs set these through `env` (as the
+ * release 2.1.0 maintenance config did): the config format names a command and
+ * its arguments, not an environment, and `npx --yes cross-env` fetched an
+ * unpinned package from the registry at every start.
+ *
+ * A page is signed in by a token in localStorage (`gata-league-auth-token`,
+ * any value: "mock" in the screenshots) or by the sign-in form with any login
+ * and the password `mock-pass`.
  *
  * It keeps one user and one saved team in memory, records every PATCH of that
  * team into .codex_tmp/mock-saves.json, and answers just enough of the API for

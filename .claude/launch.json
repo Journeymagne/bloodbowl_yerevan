@@ -21,14 +21,14 @@
     },
     {
       "name": "bloodbowl-mock-api-admin",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "cross-env", "MOCK_ADMIN=1", "MOCK_PORT=5175", "node", "scripts/mock-api.mjs"],
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["MOCK_ADMIN=1", "MOCK_PORT=5175", "node", "scripts/mock-api.mjs"],
       "port": 5175
     },
     {
       "name": "bloodbowl-mock-api-empty",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["--yes", "cross-env", "MOCK_EMPTY=1", "MOCK_PORT=5176", "node", "scripts/mock-api.mjs"],
+      "runtimeExecutable": "env",
+      "runtimeArgs": ["MOCK_EMPTY=1", "MOCK_PORT=5176", "node", "scripts/mock-api.mjs"],
       "port": 5176
     }
   ]
