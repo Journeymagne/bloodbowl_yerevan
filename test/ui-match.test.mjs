@@ -77,6 +77,12 @@ test("an empty grid draws nothing, an odd one gives its last tile the row, and a
   assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["1 / -1"]);
   assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "grid-auto-flow"), ["column"]);
   assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["auto"]);
+  // valuesOf reads every rule whatever its at-rule, so "from 901px" is read from the source text: the row rules are inside that query, and nowhere else.
+  const css = readFileSync(new URL("../src/ui/kpi-tile.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const desk = css.match(/@media \(min-width: 901px\) \{([\s\S]*?)\n\}/)[1];
+  assert.match(desk, /\.g-kpis--row \{[^}]*grid-auto-flow: column/);
+  assert.match(desk, /\.g-kpis--row > \.g-kpi:last-child:nth-child\(odd\) \{[^}]*grid-column: auto/);
+  assert.ok(!css.replace(desk, "").includes(".g-kpis--row"), "the row rules are not outside the 901px query");
 });
 
 test("a result pill is the letter, with the word for screen readers", () => {

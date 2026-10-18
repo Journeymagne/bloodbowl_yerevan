@@ -94,12 +94,14 @@ test("a recent result names the opponent and the round; a friendly has no round"
 });
 
 test("team value is the roster's cost without fans; an unknown race has none", () => {
-  const savedTeam = { roster: { players: [{ id: "p1", rowIndex: 0 }], dedicatedFans: 3 } };
-  const value = record.teamValue(savedTeam, amazon);
-  assert.equal(typeof value, "number");
-  assert.ok(value > 0);
-  assert.equal(record.teamValue(savedTeam, null), null);
-  assert.deepEqual(savedTeam.roster, { players: [{ id: "p1", rowIndex: 0 }], dedicatedFans: 3 }, "the blob is not rewritten");
+  const withFans = { roster: { players: [{ id: "p1", rowIndex: 0 }], dedicatedFans: 3 } };
+  const withoutFans = { roster: { players: [{ id: "p1", rowIndex: 0 }], dedicatedFans: 0 } };
+  const linemanCost = Number.parseInt(amazon.team.roster[0].price, 10); // "50K": the one player is the first row's
+  assert.ok(linemanCost > 0);
+  assert.equal(record.teamValue(withoutFans, amazon), linemanCost, "a roster of one player is worth that player");
+  assert.equal(record.teamValue(withFans, amazon), record.teamValue(withoutFans, amazon), "dedicated fans are not part of the value");
+  assert.equal(record.teamValue(withFans, null), null);
+  assert.deepEqual(withFans.roster, { players: [{ id: "p1", rowIndex: 0 }], dedicatedFans: 3 }, "the blob is not rewritten");
 });
 
 test("leaders are the best of each counter, the first on a tie, and a counter nobody scored is left out", () => {

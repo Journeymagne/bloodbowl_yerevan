@@ -26,5 +26,7 @@ const NO_MONEY = "—";
 export function formatMoney(amount) {
   if (typeof amount !== "number" || !Number.isFinite(amount)) return NO_MONEY;
   const tag = INTL_TAGS[getLocale()] ?? INTL_TAGS.en;
-  return `${new Intl.NumberFormat(tag, { maximumFractionDigits: 1 }).format(amount)}k`;
+  // Rounded to tenths before Intl sees it: Intl writes -0 and -0.04 as "-0", and `|| 0` turns the -0 left over into 0.
+  const tenths = Math.round(amount * 10) / 10 || 0;
+  return `${new Intl.NumberFormat(tag, { maximumFractionDigits: 1 }).format(tenths)}k`;
 }
