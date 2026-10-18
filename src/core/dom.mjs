@@ -283,6 +283,26 @@ export function patch(root, next) {
   return root;
 }
 
+/** The identity (`data-screen`) of the screen `root` holds, or null for one that carries none. */
+const screenOf = (root) => root.querySelector("[data-screen]")?.getAttribute("data-screen") ?? null;
+
+/**
+ * Draw a screen into `root` (the view) and start the page over when it is another screen than the one
+ * that was there. Nothing resets the window's scroll on a hash change and `patch` keeps it, so a tap on
+ * a row, a search result, a prose link or a tile would show the next screen at the old screen's offset.
+ * The same screen drawn again (a language switch, a keystroke in a field, a season that arrived) keeps
+ * the page where it is. A screen is what its root's `data-screen` says; the screen of another module,
+ * which carries none, is another one than any of these.
+ *
+ * @param {Element} root
+ * @param {string} markup the screen's markup, whose root carries the identity
+ */
+export function drawScreen(root, markup) {
+  const before = screenOf(root);
+  patch(root, markup);
+  if (screenOf(root) !== before) globalThis.scrollTo?.(0, 0);
+}
+
 /**
  * One listener for a whole list instead of one per row.
  *

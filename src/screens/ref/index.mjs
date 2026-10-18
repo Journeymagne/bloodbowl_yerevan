@@ -7,7 +7,7 @@
  * The query is the reference's (`memory.mjs`), so it survives going into an article and back, and a
  * screen that has no index of its own can hand its coach here with the field ready to type in.
  */
-import { escapeHtml } from "../../core/dom.mjs";
+import { drawScreen, escapeHtml } from "../../core/dom.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
@@ -15,7 +15,7 @@ import { view } from "../../core/view.mjs";
 import { renderNavRow } from "../../ui/list-row.mjs";
 import { activeOverviewCards } from "../overview.mjs";
 import { refGroups } from "./catalog.mjs";
-import { drawScreen, refHeadMarkup, refPageMarkup, wireRefSearch } from "./frame.mjs";
+import { refHeadMarkup, refPageMarkup, wireRefSearch } from "./frame.mjs";
 import { refQuery, takeSearchFocus } from "./memory.mjs";
 import { normalizeText, searchReference } from "./search.mjs";
 

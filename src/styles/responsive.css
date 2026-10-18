@@ -33,19 +33,6 @@
     justify-content: flex-end;
   }
 
-  .league-hero {
-    min-height: 320px;
-    padding: 30px;
-  }
-
-  .league-hero-media {
-    min-height: 220px;
-  }
-
-  .league-hero-media img {
-    max-height: 270px;
-  }
-
   .content-panel {
     padding: 22px;
   }
@@ -99,11 +86,6 @@
     grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
   }
 
-  /* Wider cards, which used to win by sitting later in the file. */
-  .overview-grid {
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  }
-
 .summary-actions {
     grid-template-columns: 1fr 1fr;
   }
@@ -143,10 +125,6 @@
 
 /* The wide layout: panels side by side. The SideNav beside the page is src/shell/frame.css's. */
 @media (min-width: 901px) {
-  .league-hero {
-    grid-template-columns: minmax(0, 1fr) minmax(220px, 320px);
-  }
-
   .saved-roster-top-grid {
     grid-template-columns: minmax(360px, 1fr) minmax(280px, 360px);
   }
@@ -222,10 +200,6 @@
 
   .summary-actions {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .league-hero-media {
-    min-height: 260px;
   }
 
   .saved-roster-table-wrap {

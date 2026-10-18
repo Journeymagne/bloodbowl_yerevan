@@ -8,7 +8,7 @@
  * it was left. Skills and traits are drawn as a split page: the list, and beside it (on a phone, instead
  * of it, once something is chosen) the panel of the chosen one.
  */
-import { delegate, escapeHtml } from "../../core/dom.mjs";
+import { delegate, drawScreen, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { pageUrl, refUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
@@ -22,7 +22,7 @@ import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderSearchField } from "../../ui/search-field.mjs";
 import { activeOverviewCards } from "../overview.mjs";
 import { overviewUrl, refGroups, sectionPages, sectionTitle } from "./catalog.mjs";
-import { backLinkMarkup, drawScreen, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
+import { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } from "./frame.mjs";
 import { listFilter, listScroll, refQuery, setListFilter, setListScroll } from "./memory.mjs";
 import { normalizeText } from "./search.mjs";
 import { badgeMarkup, skillDetailMarkup, tagsOf } from "./skill.mjs";

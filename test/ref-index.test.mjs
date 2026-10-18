@@ -9,7 +9,8 @@ import { assertNotSentOn, hrefsIn, mountView, referenceData, useLocale, withWind
 
 const view = mountView();
 const { renderRef } = await import("../src/screens/ref/index.mjs");
-const { backLinkMarkup, drawScreen, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } = await import("../src/screens/ref/frame.mjs");
+const { backLinkMarkup, goSearch, refHeadMarkup, refPageMarkup, refTocMarkup, wireRefSearch } = await import("../src/screens/ref/frame.mjs");
+const { drawScreen } = await import("../src/core/dom.mjs");
 const { refGroups } = await import("../src/screens/ref/catalog.mjs");
 const { refQuery, setRefQuery, takeSearchFocus } = await import("../src/screens/ref/memory.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");

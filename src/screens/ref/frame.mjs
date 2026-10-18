@@ -3,12 +3,12 @@
  * contents beside the content, the way back on a phone, and the page that holds them in one of four
  * layouts. The index (`index.mjs`) is the first screen to wear it; the lists and the articles follow.
  *
- * Markup only, plus the one listener the search needs and `drawScreen`, which draws a screen into the
- * view and starts the page over when it is another screen than the one that was there. What goes in the
- * head's field is the reference's (`memory.mjs`): typing on the index narrows the index, typing on any
- * other screen takes the coach to the index with what was typed.
+ * Markup only, plus the one listener the search needs; the screens put the page in the view with
+ * `drawScreen` (core/dom.mjs), which starts it over when it is another screen than the one that was there.
+ * What goes in the head's field is the reference's (`memory.mjs`): typing on the index narrows the
+ * index, typing on any other screen takes the coach to the index with what was typed.
  */
-import { delegate, escapeHtml, patch } from "../../core/dom.mjs";
+import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { refUrl } from "../../core/routes.mjs";
 import { icon } from "../../ui/icons.mjs";
@@ -80,26 +80,6 @@ export function refPageMarkup({ layout, screen, open = false, headHtml, tocHtml 
   if (!screen) throw new Error("a reference page names the screen it is");
   const panel = panelHtml ? `<aside class="g-ref__panel">${panelHtml}</aside>` : "";
   return `<div class="g-ref g-ref--${layout}${open ? " g-ref--open" : ""}" data-screen="${escapeHtml(screen)}">${headHtml}<div class="g-ref__body">${tocHtml}<div class="g-ref__main">${mainHtml}</div>${panel}</div></div>`;
-}
-
-/** The identity (`data-screen`) of the screen `root` holds, or null for one that carries none. */
-const screenOf = (root) => root.querySelector("[data-screen]")?.getAttribute("data-screen") ?? null;
-
-/**
- * Draw a screen into `root` (the view) and start the page over when it is another screen than the one
- * that was there. Nothing resets the window's scroll on a hash change and `patch` keeps it, so a tap on
- * a row, a search result, a prose link or a tile would show the next screen at the old screen's offset.
- * The same screen drawn again (a language switch, a keystroke in a field, a season that arrived) keeps
- * the page where it is. A screen is what its root's `data-screen` says; the screen of another module,
- * which carries none, is another one than any of these.
- *
- * @param {Element} root
- * @param {string} markup the screen's markup, whose root carries the identity
- */
-export function drawScreen(root, markup) {
-  const before = screenOf(root);
-  patch(root, markup);
-  if (screenOf(root) !== before) globalThis.scrollTo?.(0, 0);
 }
 
 /**

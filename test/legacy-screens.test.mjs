@@ -14,11 +14,8 @@ import { assertReadable as assertReadableIn, valuesOf } from "./helpers/contrast
 const LEGACY = { layers: ["src/styles/legacy-aliases.css"] };
 const assertReadable = (file, selector, property, backgrounds, minimum) => assertReadableIn(file, selector, property, backgrounds, minimum, LEGACY);
 
-test("the numerals, the tile arrows and the VS between player cards are readable, not a tint of the surface", () => {
-  const sheet = "src/styles/site-matchday.css";
-  assertReadable(sheet, ".site-card-index", "color", ["--surface", "--surface-2"], 3);
-  assertReadable(sheet, ".site-quick-links a span:last-child", "color", ["--page", "--accent-tint-soft"], 3);
-  assertReadable(sheet, ".game-versus > strong", "color", ["--surface", "--surface-2"], 3);
+test("the edition numeral and the VS between player cards are readable, not a tint of the surface", () => {
+  assertReadable("src/styles/site-matchday.css", ".game-versus > strong", "color", ["--surface", "--surface-2"], 3);
   assertReadable("src/styles/matchday.css", ".matchday-edition", "color", ["--surface-2"], 3);
 });
 

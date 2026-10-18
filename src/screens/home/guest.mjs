@@ -12,7 +12,7 @@
  * Up to 900px the page is a column; from 901px it is the league's band, a dark ribbon with the call to
  * sign in, and the two cards side by side (guest.css).
  */
-import { escapeHtml } from "../../core/dom.mjs";
+import { drawScreen, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { authUrl, pageUrl, refUrl, seasonTabUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
@@ -20,7 +20,6 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderRankedRow } from "../../ui/list-row.mjs";
-import { drawScreen } from "../ref/frame.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 
 /** How many teams the box shows; the full table is one link away. */

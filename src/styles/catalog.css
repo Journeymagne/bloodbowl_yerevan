@@ -61,17 +61,6 @@
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.78);
 }
 
-.overview-grid {
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  align-items: start;
-}
-
-.overview-index-card {
-  display: grid;
-  gap: 10px;
-  min-height: 156px;
-}
-
 .badge {
   display: inline-flex;
   min-height: 24px;

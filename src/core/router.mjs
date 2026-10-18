@@ -11,7 +11,7 @@
  * Leaving a screen is core/screen-lifecycle.mjs' job; the router only says
  * when.
  */
-import { TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamsUrl } from "./routes.mjs";
+import { TEAM_ROUTES, matchRoute, resolveRedirect, routeFromHash, teamUrl, teamsUrl } from "./routes.mjs";
 import { peekReturn, setReturn } from "./return-to.mjs";
 import { releaseCurrentScreen } from "./screen-lifecycle.mjs";
 import { escapeHtml } from "./dom.mjs";
@@ -22,7 +22,6 @@ import { announce } from "../components/live-region.mjs";
 import { toast } from "../components/toast.mjs";
 import { prepareTeamRoute, syncActiveTeam } from "../data/active-team.mjs";
 import { loadMyTeams } from "../data/teams.mjs";
-import { renderHome } from "../screens/home.mjs";
 import { renderGuestHome } from "../screens/home/guest.mjs";
 import { renderLogin } from "../screens/auth/login.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
@@ -45,10 +44,22 @@ import { renderPlayerProfile } from "../screens/players/profile.mjs";
 import { renderPublicTeamProfile } from "../screens/players/team.mjs";
 import { refreshShell } from "../shell/shell.mjs";
 
+/**
+ * A coach's `#/` with no team active (one with a team active never gets here: resolveRedirect sends
+ * `#/` on to it). A coach with teams has one settled and goes on to it, the address replaced as
+ * resolveRedirect would have; nothing is drawn, the team's screen comes with the hashchange. A coach
+ * with none, or whose list could not be read, gets the overview of no team (screens/team/empty.mjs),
+ * which goes on by itself once a team appears.
+ */
+function renderCoachHome() {
+  const { items } = state.myTeams;
+  if (!items.length) return renderNoTeam();
+  location.replace(teamUrl(syncActiveTeam() ?? items[0].id));
+  return undefined;
+}
+
 const screens = {
-  // A coach with an active team never gets here: resolveRedirect sends `#/` on to that team.
-  // A guest's front page is the 3.0 guest home (stage 11); a coach's `#/` is stage 06's.
-  home: () => (!state.auth.currentUser ? renderGuestHome() : state.myTeams.items.length ? renderHome() : renderNoTeam()),
+  home: () => (state.auth.currentUser ? renderCoachHome() : renderGuestHome()),
   login: () => renderLogin("login"),
   register: () => renderLogin("register"),
   settings: () => renderSettings(),
