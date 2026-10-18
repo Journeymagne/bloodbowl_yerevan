@@ -65,14 +65,18 @@ test("a kpi grid keeps its tiles in order, two to a row", () => {
   assert.deepEqual(grid.childNodes.map((node) => node.classList.contains("g-kpi--positive")), [false, true, false, false]);
 });
 
-test("a kpi grid is whole rows: an odd tile would leave a hole, none draws nothing", () => {
-  const tile = { label: "TV", value: "1" };
-  assert.throws(() => renderKpiGrid([tile, tile, tile]), /tiles/);
-  assert.throws(() => renderKpiGrid([tile]), /tiles/);
-  assert.throws(() => renderKpiGrid([]), /tiles/);
+test("an empty grid draws nothing, an odd one gives its last tile the row, and a row grid is one line from 901px (05–13)", () => {
+  const tile = { label: "TV", value: "1 120k" };
+  assert.equal(renderKpiGrid([]), "");
+  assert.equal(mount(renderKpiGrid([tile, tile, tile])).querySelectorAll(".g-kpi").length, 3);
+  assert.equal(mount(renderKpiGrid([tile])).querySelectorAll(".g-kpi").length, 1);
+  assert.ok(mount(renderKpiGrid([tile, tile], { row: true })).querySelector(".g-kpis.g-kpis--row"));
+  assert.equal(mount(renderKpiGrid([tile, tile])).querySelector(".g-kpis--row"), null);
   assert.throws(() => renderKpiGrid(), /tiles/);
   assert.throws(() => renderKpiGrid("tiles"), /tiles/);
-  assert.doesNotThrow(() => renderKpiGrid([tile, tile]));
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["1 / -1"]);
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "grid-auto-flow"), ["column"]);
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["auto"]);
 });
 
 test("a result pill is the letter, with the word for screen readers", () => {

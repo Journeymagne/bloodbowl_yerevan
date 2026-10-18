@@ -25,12 +25,16 @@ export function renderKpiTile({ label, value, positive = false, compact = false 
 }
 
 /**
- * Tiles in two columns. The count is even because a third tile would sit
- * alone on its row: two or four is what the design draws.
+ * Tiles in two columns, any number of them: an odd last tile takes the whole
+ * row (kpi-tile.css), so three tiles are a pair and a wide one. No tiles draw
+ * nothing, not an error: a team with no figures yet has no grid.
  *
  * @param {{label: string, value: string|number, positive?: boolean}[]} tiles
+ * @param {object} [options]
+ * @param {boolean} [options.row] one line of tiles from 901px, instead of two columns (the overview's figures)
  */
-export function renderKpiGrid(tiles) {
-  if (!Array.isArray(tiles) || !tiles.length || tiles.length % 2) throw new Error("a kpi grid needs tiles in whole rows of two: an even number, not zero");
-  return `<div class="g-kpis">${tiles.map(renderKpiTile).join("")}</div>`;
+export function renderKpiGrid(tiles, { row = false } = {}) {
+  if (!Array.isArray(tiles)) throw new Error("a kpi grid needs an array of tiles");
+  if (!tiles.length) return "";
+  return `<div class="${classNames("g-kpis", row && "g-kpis--row")}">${tiles.map(renderKpiTile).join("")}</div>`;
 }
