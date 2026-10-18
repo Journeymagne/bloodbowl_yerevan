@@ -1,5 +1,6 @@
 /*
- * Cards: the card grid, the front page's index cards, badges, the builder's layout.
+ * Cards and badges the 2.x screens still draw: the card grid and the game cards of My Games, and the
+ * season badge on a saved team.
  *
  * Part of src/styles.css, which imports the eight files in this directory in
  * order. The split is by position, not by theme: the cuts fall between rules

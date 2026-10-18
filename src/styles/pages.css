@@ -1,5 +1,7 @@
 /*
- * A screen's own furniture — headings, the toolbar, the stat grid, pills — and the 2.x front page's hero.
+ * A screen's own furniture, as the 2.x screens and shared components still use it: the backdrop of the
+ * view, the page heading and its toolbar (components/page-chrome.mjs), the team stat grid, roster pills
+ * and muted text.
  *
  * Part of src/styles.css, which imports the eight files in this directory in
  * order. The split is by position, not by theme: the cuts fall between rules
