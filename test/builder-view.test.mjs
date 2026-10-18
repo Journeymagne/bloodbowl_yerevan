@@ -278,7 +278,7 @@ function accessibleName(root, element) {
     const target = root.querySelector(`#${id}`);
     assert.ok(target, `aria-labelledby points at #${id}, which is not on the page`);
     return target.tagName === "INPUT" ? target.getAttribute("value") : target.textContent.trim();
-  }).join(" ").trim();
+  }).filter(Boolean).join(" ").trim();
 }
 
 test("each captain is named by its player, and the text fields stand outside the radio group", () => {
@@ -288,8 +288,14 @@ test("each captain is named by its player, and the text fields stand outside the
   const radios = fragment.querySelectorAll("[data-captain]");
   const names = radios.map((radio) => accessibleName(fragment, radio));
   assert.equal(new Set(names).size, 8, "a screen reader hears eight different radios, not eight times «Captain»");
-  assert.equal(names[0], "Brandt Human Lineman", "the player's name, then the position");
+  // The word is in each name, not only in the group's: Safari does not follow aria-owns, and there a radio is read alone.
+  assert.equal(names[0], "Captain Brandt Human Lineman", "the word, then the player's name, then the position");
+  assert.ok(names.every((name) => name.startsWith("Captain ")), names.join(" | "));
   draft.players.forEach((player, index) => assert.ok(names[index].includes(player.name), `${names[index]} has ${player.name}`));
+  const word = fragment.querySelector("#new-team-captain-label");
+  assert.equal(word.textContent, "Captain");
+  assert.ok(word.getAttribute("class").includes("g-sr-only"), "for a screen reader, not for the eye: the radio shows a «C»");
+  assert.equal(radios[0].getAttribute("aria-labelledby").split(" ")[0], "new-team-captain-label");
   assert.equal(radios.some((radio) => radio.hasAttribute("aria-label")), false, "the name is the labelledby's: an aria-label would be a second, losing one");
   // The group owns the radios and wraps nothing else: focusing a number or a name does not announce «Captain, radio group».
   const group = fragment.querySelector('[role="radiogroup"][data-captains]');
@@ -306,9 +312,9 @@ test("a typed name is the radio's name too, and a cleared one leaves the positio
   const draft = filled();
   draft.players[1].name = "";
   const fragment = mount(builderMarkup({ race: human, draft, rosterOpen: true }));
-  assert.equal(accessibleName(fragment, fragment.querySelectorAll("[data-captain]")[1]), "Human Lineman");
+  assert.equal(accessibleName(fragment, fragment.querySelectorAll("[data-captain]")[1]), "Captain Human Lineman");
   draft.players[1].name = HOSTILE;
-  assert.equal(accessibleName(mount(builderMarkup({ race: human, draft, rosterOpen: true })), document.querySelectorAll("[data-captain]")[1]), `${HOSTILE} Human Lineman`);
+  assert.equal(accessibleName(mount(builderMarkup({ race: human, draft, rosterOpen: true })), document.querySelectorAll("[data-captain]")[1]), `Captain ${HOSTILE} Human Lineman`);
 });
 
 test("a name a coach typed is text, in the title and in the fields", () => {
@@ -546,6 +552,7 @@ test("the screen speaks Russian when the site does, and leaves no placeholder, n
     assert.equal(fragment.querySelector('[data-hire-key="0"] .g-hire__limit').textContent, "5 из 16");
     assert.equal(fragment.querySelector('[data-hire-key="0"] .g-hire__skills').textContent, "без навыков");
     assert.equal(fragment.querySelector('[role="radiogroup"][data-captains]').getAttribute("aria-label"), "Капитан");
+    assert.equal(accessibleName(fragment, fragment.querySelector("[data-captain]")), "Капитан Human Lineman 1 Human Lineman");
     assert.equal(fragment.querySelector('[data-resource-key="bribes"] .g-resource__note').textContent, "Только для команд с Bribery and Corruption");
     const text = fragment.querySelector(".g-build").textContent;
     assert.doesNotMatch(text, /[{}]|undefined|NaN|newTeam\.|validation\./);

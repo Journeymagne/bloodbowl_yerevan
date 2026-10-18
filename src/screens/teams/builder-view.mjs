@@ -39,6 +39,8 @@ const CHOICE_ID = "new-team-choice";
 const ROSTER_ID = "new-team-roster";
 const LOGO_ID = "new-team-logo";
 const CHOICE_KINDS = ["league", "favoured"];
+/** The word «Captain» for a screen reader, once on the page: every captain radio's name starts with it. */
+const CAPTAIN_WORD_ID = "new-team-captain-label";
 /** The ids of a player's row, each followed by his id. */
 const CAPTAIN_PREFIX = { name: "new-team-name-", position: "new-team-position-", radio: "new-team-captain-" };
 
@@ -225,7 +227,9 @@ function playersMarkup(race, draft, totals) {
 
 /**
  * One player's row. The ids are built from the player's id (generated: no whitespace in it), so that the
- * captain radio can be named by the player's name and position (aria-labelledby) and the group can own it.
+ * captain radio can be named by the word «Captain», the player's name and his position (aria-labelledby),
+ * and the group can own it. The word is in each name because Safari does not follow aria-owns: there a radio
+ * is read without its group, and "Brandt Human Lineman, radio button" would not say what choosing it does.
  */
 function rosterRow(player, row, entry) {
   const id = escapeHtml(player.id);
@@ -234,7 +238,7 @@ function rosterRow(player, row, entry) {
     + `<span class="g-roster-row__who"><input class="g-roster-row__name" type="text" id="${CAPTAIN_PREFIX.name}${id}" value="${escapeHtml(player.name)}" placeholder="${escapeHtml(row.position)}" data-player-name="${id}" aria-label="${escapeHtml(t("newTeam.playerName"))}">`
     + `<span class="g-roster-row__position" id="${CAPTAIN_PREFIX.position}${id}">${escapeHtml(row.position)}</span></span>`
     // The visible «C» is a design glyph, the same in the Russian prototype, and not text: the radio is named by its player.
-    + `<button type="button" class="g-roster-row__captain" id="${CAPTAIN_PREFIX.radio}${id}" role="radio" aria-checked="${Boolean(player.isCaptain)}" tabindex="${entry ? 0 : -1}" data-captain="${id}" aria-labelledby="${CAPTAIN_PREFIX.name}${id} ${CAPTAIN_PREFIX.position}${id}">C</button></div>`;
+    + `<button type="button" class="g-roster-row__captain" id="${CAPTAIN_PREFIX.radio}${id}" role="radio" aria-checked="${Boolean(player.isCaptain)}" tabindex="${entry ? 0 : -1}" data-captain="${id}" aria-labelledby="${CAPTAIN_WORD_ID} ${CAPTAIN_PREFIX.name}${id} ${CAPTAIN_PREFIX.position}${id}">C</button></div>`;
 }
 
 function rosterMarkup(race, draft, rosterOpen) {
@@ -250,10 +254,11 @@ function rosterMarkup(race, draft, rosterOpen) {
     + `<span>${escapeHtml(rosterOpen ? t("newTeam.rosterHide") : title)}</span>${icon("down", 16)}</button>`;
   // The radio group owns the captain radios (aria-owns) and wraps nothing: the number and name fields sit in the
   // same list, and inside a radiogroup they would each be announced as "Captain, radio group".
+  const word = `<span class="g-sr-only" id="${CAPTAIN_WORD_ID}">${escapeHtml(t("roster.captain"))}</span>`;
   const owner = `<div role="radiogroup" data-captains aria-label="${escapeHtml(t("roster.captain"))}" aria-owns="${players.map((player) => `${CAPTAIN_PREFIX.radio}${escapeHtml(player.id)}`).join(" ")}"></div>`;
   return '<section class="g-build__roster" data-key="build-roster">'
     + `<div class="g-build__sec-head g-build__roster-title"><h2 class="g-build__h">${escapeHtml(title)}</h2></div>${toggle}`
-    + `<div class="${classNames("g-build__roster-list", !rosterOpen && "g-build__roster-list--shut")}" id="${ROSTER_ID}">${owner}${list}</div></section>`;
+    + `<div class="${classNames("g-build__roster-list", !rosterOpen && "g-build__roster-list--shut")}" id="${ROSTER_ID}">${word}${owner}${list}</div></section>`;
 }
 
 // ---------------------------------------------------------------------------
