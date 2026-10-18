@@ -5,8 +5,9 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 
 const api = installFakeApi();
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
-const { setDictionaries } = await import("../src/core/i18n.mjs");
+const { setDictionaries, setLocale } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
+const session = await import("../src/data/session.mjs");
 const { readRoster } = await import("../src/screens/team/roster/data.mjs");
 const save = await import("../src/screens/team/roster/save.mjs");
 
@@ -19,7 +20,7 @@ setDictionaries({
     "error.TEAM_SAVED_ELSEWHERE": "The team was saved elsewhere.",
     "validation.DUPLICATE_PLAYER_ID": "Players {names} are stored under one id.",
   },
-  ru: {},
+  ru: { "auth.otherTab": "Кто-то вошёл или вышел в другой вкладке, поэтому здесь ничего не сохранено." },
 });
 
 const TOKEN = "gata-league-auth-token";
@@ -38,6 +39,8 @@ const teamAt = (revision, spp = { touchdowns: 2 }, over = {}) => ({
 const tdOf = (playerId, delta = 1) => ({ playerId, counter: "touchdowns", delta, pairingId: null, settledAt: null, injury: null });
 const patches = () => api.calls.filter((call) => call.key === PATCH_URL);
 const tick = () => new Promise((resolve) => setImmediate(resolve));
+/** `saveState` with no failure behind it. */
+const quiet = (status, waiting = 0) => ({ status, waiting, refusal: "", kind: "", code: "" });
 
 /** Wait until `count` requests are held at the gate. */
 async function waitHeld(gate, count = 1) {
@@ -118,7 +121,7 @@ test("a tap writes the stored counter plus one, never the career, with the team 
   api.reply(PATCH_URL, 200, { team: teamAt(5, { touchdowns: 3 }) });
   assert.deepEqual(save.stepSpp("t1", "p1", "touchdowns", 1), { ok: true });
   assert.equal(draft.players[0].spp.touchdowns, 3);
-  assert.deepEqual(await settle(), { status: "saved", waiting: 0, refusal: "" });
+  assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
   const [{ body }] = patches();
   assert.equal(body.roster.players[0].spp.touchdowns, 3, "the 2 of the blob, plus one; the waiting +1 TD of the records is not in it");
@@ -147,13 +150,13 @@ test("two quick taps are two PATCHes in order, the second on the revision the fi
   const first = api.hold(PATCH_URL);
   save.stepSpp("t1", "p1", "touchdowns", 1);
   await waitHeld(first);
-  assert.deepEqual(save.saveState("t1"), { status: "saving", waiting: 1, refusal: "" });
+  assert.deepEqual(save.saveState("t1"), quiet("saving", 1));
   api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 4 }) });
   save.stepSpp("t1", "p1", "touchdowns", 1);
   assert.equal(save.saveState("t1").waiting, 2);
   assert.equal(patches().length, 1, "the second waits for the first's answer");
   first.release({ status: 200, body: { team: teamAt(5, { touchdowns: 3 }) } });
-  assert.deepEqual(await settle(), { status: "saved", waiting: 0, refusal: "" });
+  assert.deepEqual(await settle(), quiet("saved"));
   assert.deepEqual(patches().map(({ body }) => [body.revision, body.roster.players[0].spp.touchdowns]), [[4, 3], [5, 4]]);
 });
 
@@ -197,7 +200,7 @@ test("a 409 that carries our own counters is a save that landed while its answer
   const landed = teamAt(5, { touchdowns: 3 }, { roster: { ...sent.roster, logoData: undefined } });
   api.reply(PATCH_URL, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: landed });
   assert.equal(await save.retrySaves("t1"), "saved");
-  assert.deepEqual(save.saveState("t1"), { status: "saved", waiting: 0, refusal: "" });
+  assert.deepEqual(save.saveState("t1"), quiet("saved"));
   assert.equal(state.myTeams.items[1].revision, 5);
   api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 4 }) });
   save.stepSpp("t1", "p1", "touchdowns", 1);
@@ -218,7 +221,7 @@ test("a 409 with anything else is another device: it waits for the coach, and no
   assert.equal(draft.players[0].spp.touchdowns, 3, "his own tap stays on the screen until the coach takes the server's");
   const taken = save.takeServerTeam(elsewhere);
   assert.equal(taken.players[0].spp.touchdowns, 9);
-  assert.deepEqual(save.saveState("t1"), { status: "idle", waiting: 0, refusal: "" });
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
   api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 10 }) });
   assert.deepEqual(save.stepSpp("t1", "p1", "touchdowns", 1), { ok: true });
   await settle();
@@ -233,7 +236,7 @@ test("no network: the step waits, counted, and goes when asked again", async () 
   assert.deepEqual([offline.status, offline.waiting], ["offline", 1]);
   api.reply(PATCH_URL, 200, { team: teamAt(5, { touchdowns: 3 }) });
   assert.equal(await save.retrySaves("t1"), "saved");
-  assert.deepEqual(save.saveState("t1"), { status: "saved", waiting: 0, refusal: "" });
+  assert.deepEqual(save.saveState("t1"), quiet("saved"));
   assert.deepEqual(patches().map(({ body }) => body.revision), [4, 4]);
 });
 
@@ -251,7 +254,7 @@ test("steps taken offline go in order when the network is back, each on the revi
   api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 4 }) });
   first.release({ status: 200, body: { team: teamAt(5, { touchdowns: 3 }) } });
   await retried;
-  assert.deepEqual(await settle(), { status: "saved", waiting: 0, refusal: "" });
+  assert.deepEqual(await settle(), quiet("saved"));
   assert.deepEqual(patches().slice(-2).map(({ body }) => [body.revision, body.roster.players[0].spp.touchdowns]), [[4, 3], [5, 4]]);
 });
 
@@ -263,7 +266,7 @@ test("a stored 0 takes no step down, 999 no step up, and a player the roster has
   assert.deepEqual(save.stepSpp("t1", "", "touchdowns", 1), { ok: false });
   assert.deepEqual(save.stepSpp("t1", "p1", "goals", 1), { ok: false });
   assert.deepEqual(save.stepSpp("t2", "p1", "touchdowns", 1), { ok: false }, "a team the queue does not hold");
-  assert.deepEqual(save.saveState("t1"), { status: "idle", waiting: 0, refusal: "" });
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
   await tick();
   assert.equal(api.calls.length, 0);
   // The ends themselves are reachable.
@@ -278,7 +281,7 @@ test("another tab's coach: nothing is sent", async () => {
   const refused = save.stepSpp("t1", "p1", "touchdowns", 1);
   assert.match(refused.refusal, /another tab/);
   assert.equal(draft.players[0].spp.touchdowns, 2);
-  assert.deepEqual(save.saveState("t1"), { status: "idle", waiting: 0, refusal: "" });
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
   await tick();
   assert.equal(api.calls.length, 0);
 });
@@ -310,7 +313,7 @@ test("a refusal names the rule", async () => {
   assert.match(refused.refusal, /Ann, Bo/);
   assert.equal(refused.refusal, "The roster breaks the rules. Players Ann, Bo are stored under one id.");
   save.takeServerTeam(teamAt(4));
-  assert.deepEqual(save.saveState("t1"), { status: "idle", waiting: 0, refusal: "" });
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
 });
 
 test("the screen hears every change of the state, and the first at once; a listener that left hears no more", async () => {
@@ -370,4 +373,147 @@ test("the browser asks before the tab closes while a step waits", async () => {
   assert.equal(ask(), false, "a guard taken off is silent");
   assert.notEqual(save.guardUnload(target), release, "and may be put on again");
   save.takeServerTeam(teamAt(4));
+});
+
+// The review's interleaving, step by step: a 409, a retry, the coach takes the server's team, a retry again.
+test("a conflict is the coach's to settle: a retry sends nothing, and nothing stale is left to go over the server's team", async () => {
+  await open();
+  const elsewhere = teamAt(5, { touchdowns: 9 });
+  api.reply(PATCH_URL, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: elsewhere });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.equal((await settle()).status, "conflict");
+  assert.equal(await save.retrySaves("t1"), "conflict");
+  await tick();
+  assert.equal(patches().length, 1, "the step that met the 409 is not put in the air again");
+  assert.equal(save.takeServerTeam(elsewhere).players[0].spp.touchdowns, 9);
+  // A server that takes anything: a step left in the queue would be accepted on the revision taken, and 9 would become 3.
+  api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 3 }) });
+  assert.equal(await save.retrySaves("t1"), "idle");
+  await tick();
+  assert.equal(patches().length, 1, "nothing is left in the queue to send");
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
+});
+
+test("the server's team is not taken while a request is in the air; the 409 that comes back leaves no stale step behind", async () => {
+  const draft = await open();
+  const elsewhere = teamAt(5, { touchdowns: 9 });
+  api.reply(PATCH_URL, 422, {
+    error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" },
+    violations: [{ code: "DUPLICATE_PLAYER_ID", params: { names: "Ann, Bo" } }],
+  });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.equal((await settle()).status, "error");
+  // The retry of a refused step is in the air when the coach asks for the server's team.
+  const gate = api.hold(PATCH_URL);
+  const retrying = save.retrySaves("t1");
+  await waitHeld(gate);
+  assert.equal(save.takeServerTeam(elsewhere), null, "not now");
+  assert.equal(draft.players[0].spp.touchdowns, 3, "the draft is as it was");
+  assert.deepEqual(save.saveState("t1"), quiet("saving", 1));
+  gate.release({ status: 409, body: { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: elsewhere } });
+  assert.equal(await retrying, "conflict");
+  assert.equal(save.takeServerTeam(elsewhere).players[0].spp.touchdowns, 9, "once it has answered");
+  api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 3 }) });
+  assert.equal(await save.retrySaves("t1"), "idle");
+  assert.equal(patches().length, 2, "the step that came back was not kept");
+  api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 10 }) });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  await settle();
+  assert.deepEqual([patches().at(-1).body.revision, patches().at(-1).body.roster.players[0].spp.touchdowns], [5, 10]);
+});
+
+test("what failed is told by kind and code, for the screen to act on, not only in words", async () => {
+  await open();
+  const failure = () => {
+    const { status, kind, code } = save.saveState("t1");
+    return [status, kind, code];
+  };
+  const refuse = async (status, body) => {
+    api.reply(PATCH_URL, status, body);
+    await save.retrySaves("t1");
+    return failure();
+  };
+  assert.deepEqual(failure(), ["idle", "", ""]);
+  api.reply(PATCH_URL, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [] });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  await settle();
+  assert.deepEqual(failure(), ["error", "invalid", "ROSTER_BREAKS_THE_RULES"], "a 422: the screen takes the server's team");
+  assert.deepEqual(await refuse(404, { error: { code: "TEAM_NOT_FOUND", params: {}, message: "x" } }), ["error", "http", "TEAM_NOT_FOUND"]);
+  assert.deepEqual(await refuse(500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } }), ["error", "http", "SERVER_ERROR"]);
+  assert.deepEqual(await refuse(502, {}), ["error", "http", ""], "a proxy's answer has no code");
+  api.fail(PATCH_URL);
+  await save.retrySaves("t1");
+  assert.deepEqual(failure(), ["offline", "offline", ""]);
+  api.items.set(TOKEN, "someone-else");
+  await save.retrySaves("t1");
+  assert.deepEqual(failure(), ["error", "forbidden", "OTHER_TAB"], "another tab's coach");
+  api.reply(PATCH_URL, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: teamAt(5, { touchdowns: 9 }) });
+  api.items.set(TOKEN, "tok");
+  await save.retrySaves("t1");
+  assert.deepEqual(failure(), ["conflict", "conflict", "TEAM_SAVED_ELSEWHERE"]);
+  save.takeServerTeam(teamAt(4));
+  assert.deepEqual(failure(), ["idle", "", ""]);
+});
+
+test("the other-tab refusal is worded when it is read, in the language of that moment", async () => {
+  await open();
+  api.fail(PATCH_URL);
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  await settle();
+  api.items.set(TOKEN, "someone-else");
+  assert.equal(await save.retrySaves("t1"), "error");
+  assert.match(save.saveState("t1").refusal, /another tab/);
+  // setLocale writes the page's language and its static texts: a page that has them.
+  globalThis.document = { documentElement: {}, querySelectorAll: () => [] };
+  try {
+    setLocale("ru");
+    assert.match(save.saveState("t1").refusal, /другой вкладке/);
+  } finally {
+    setLocale("en");
+    delete globalThis.document;
+  }
+  assert.match(save.saveState("t1").refusal, /another tab/);
+  save.takeServerTeam(teamAt(4));
+});
+
+test("a team the queue does not hold can be listened to: it is at rest, and says so once", () => {
+  const heard = [];
+  const stop = save.onSaveState("nobody", (now) => heard.push(now));
+  assert.deepEqual(heard, [quiet("idle")]);
+  assert.equal(typeof stop, "function");
+  stop();
+});
+
+test("a session that ends takes the queue with it: a step that can never go is not asked about", async () => {
+  await open();
+  const target = new EventTarget();
+  const release = save.guardUnload(target);
+  const asks = () => {
+    const leaving = new Event("beforeunload", { cancelable: true });
+    target.dispatchEvent(leaving);
+    return leaving.defaultPrevented;
+  };
+  api.fail(PATCH_URL);
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  await settle();
+  assert.equal(asks(), true);
+  session.sessionEnded();
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
+  assert.equal(asks(), false, "nothing waits for a coach who has gone");
+  assert.deepEqual(save.stepSpp("t1", "p1", "touchdowns", 1), { ok: false }, "nor is the team held for whoever comes next");
+  release();
+});
+
+test("a session read again for the same coach keeps the steps that wait; another coach's does not", async () => {
+  await open();
+  api.fail(PATCH_URL);
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  await settle();
+  api.reply("GET /api/auth/me", 200, { user: { id: state.auth.currentUser.id, login: "coach" } });
+  api.reply("GET /api/teams", 200, { teams: [] });
+  assert.equal(await session.loadSession(), "signed-in");
+  assert.equal(save.saveState("t1").waiting, 1, "another tab moved the token, and the same coach is still here");
+  api.reply("GET /api/auth/me", 200, { user: { id: "someone-else", login: "other" } });
+  assert.equal(await session.loadSession(), "signed-in");
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
 });

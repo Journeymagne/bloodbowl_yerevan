@@ -17,6 +17,7 @@ import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { normalizeSavedRoster, rosterForStorage } from "../../../data/roster-draft.mjs";
 import { SAVE_STATUS, createRosterStore } from "../../../data/roster-store.mjs";
+import { onSessionChange } from "../../../data/session.mjs";
 import { refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
 import { sameValues } from "../../../domain/post-match/events.mjs";
 import { normalizeSppCounters, storedPlayerId } from "../../../domain/roster/players.mjs";
@@ -26,6 +27,18 @@ import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 /** The steps taken and not yet confirmed by an answer, by team. */
 const waiting = new Map();
 const waitingFor = (teamId) => waiting.get(teamId) ?? 0;
+
+/** An answer stood behind one step. */
+function confirmStep(teamId) {
+  if (waitingFor(teamId) > 1) waiting.set(teamId, waitingFor(teamId) - 1);
+  else waiting.delete(teamId);
+}
+
+/**
+ * What a save refused for another tab's coach throws, and the `code` the screen reads it by. The text is not in
+ * the error: it is said when it is read (`stateOf`), in the language the page is in then.
+ */
+const OTHER_TAB = "OTHER_TAB";
 
 /**
  * The team as the server last said it takes its place in the coach's list, where it stands: the switcher and
@@ -63,16 +76,37 @@ async function patchTeam(endpoint, request) {
 const transport = {
   async save(teamId, request, { endpoint }) {
     // A step queued behind another, or one that waited for the network, leaves later than the tap that made it.
-    if (!sessionTokenHolds()) throw new ApiError(API_ERROR.FORBIDDEN, { message: t("auth.otherTab") });
+    if (!sessionTokenHolds()) throw new ApiError(API_ERROR.FORBIDDEN, { payload: { error: { code: OTHER_TAB } } });
     const userId = state.auth.currentUser?.id;
     const answer = await patchTeam(endpoint, request);
-    waiting.set(teamId, Math.max(0, waitingFor(teamId) - 1));
+    confirmStep(teamId);
     if (state.auth.currentUser?.id === userId) putInPlace(answer?.team);
     return answer;
   },
 };
 
-const store = createRosterStore({ transport, debounceMs: 0 });
+const newStore = () => createRosterStore({ transport, debounceMs: 0 });
+let store = newStore();
+
+/** The coach whose steps the queue holds: the session that is not theirs takes the queue with it. */
+let owner;
+let watchingSession = false;
+
+/**
+ * A session that ends takes the queue with it, and so does another coach's: a step left waiting would be one that
+ * can never go, and the unload guard would go on asking about it. A session read again for the same coach (another
+ * tab moved the token) keeps it. Heard from the first team tracked on, for as long as the page lives.
+ */
+function watchSession() {
+  if (watchingSession) return;
+  watchingSession = true;
+  onSessionChange(() => {
+    if (state.auth.currentUser?.id === owner) return;
+    store = newStore();
+    waiting.clear();
+    owner = undefined;
+  });
+}
 
 /**
  * What the store is told of a team: its draft, and `meta`, which the server's answers move (its revision)
@@ -102,6 +136,8 @@ function tracking(meta, draft) {
  */
 export function trackRoster(team) {
   guardUnload();
+  watchSession();
+  owner = state.auth.currentUser?.id;
   if (waitingFor(team.id) > 0) return store.getDraft(team.id);
   const meta = structuredClone(team);
   return store.track(meta.id, tracking(meta, normalizeSavedRoster(meta)));
@@ -126,12 +162,23 @@ export function stepSpp(teamId, playerId, counter, delta) {
   return { ok: true };
 }
 
-const stateOf = (teamId, { status, error }) => ({ status, waiting: waitingFor(teamId), refusal: error ? refusalWithRules(error) : "" });
+const refusalOf = (error) => (error.code === OTHER_TAB ? t("auth.otherTab") : refusalWithRules(error));
+
+const stateOf = (teamId, { status, error }) => ({
+  status,
+  waiting: waitingFor(teamId),
+  refusal: error ? refusalOf(error) : "",
+  kind: error?.kind ?? "",
+  code: error?.code ?? "",
+});
 
 /**
  * Where the queue stands: its status (`SAVE_STATUS`), the steps no answer has confirmed, and the last
- * refusal in words, with the rules a 422 names.
- * @returns {{status: string, waiting: number, refusal: string}}
+ * refusal in words (with the rules a 422 names, and in the language of the moment it is read), and what kind
+ * of failure it was, for the screen to act on: `kind` is the `API_ERROR` of the last error ("invalid" for a 422,
+ * which is for `takeServerTeam`; "offline"; "http" for a 404 or a 5xx, told by `code`), `code` the server's
+ * ("ROSTER_BREAKS_THE_RULES"…) or `OTHER_TAB` for a coach another tab has changed. Both are "" without an error.
+ * @returns {{status: string, waiting: number, refusal: string, kind: string, code: string}}
  */
 export function saveState(teamId) {
   let seen = { status: SAVE_STATUS.IDLE, error: null };
@@ -140,19 +187,30 @@ export function saveState(teamId) {
 }
 
 /**
- * Hear every change of `saveState`, the present one at once.
- * @param {(now: {status: string, waiting: number, refusal: string}) => void} listener @returns {() => void} what stops it
+ * Hear every change of `saveState`, the present one at once. A team the queue does not hold has none to hear: the
+ * listener gets the state of rest and nothing after it, so subscribe once `trackRoster` has been called.
+ * @param {(now: ReturnType<typeof saveState>) => void} listener @returns {() => void} what stops it
  */
 export function onSaveState(teamId, listener) {
+  if (!store.getDraft(teamId)) {
+    listener(saveState(teamId));
+    return () => {};
+  }
   return store.subscribe(teamId, (snapshot) => listener(stateOf(teamId, snapshot)));
 }
 
 /**
  * The server's team in place of the draft, after a conflict or a refused save: the queue gives up its steps,
  * and the next one is taken on the server's roster and sent on its revision.
- * @param {object} team GET's shape @returns {object} the draft to draw
+ *
+ * Not while a request is in the air: its answer may be a refusal, which puts its step back in the queue, and
+ * that step, sent on the revision taken here, would be laid over the very roster that was just taken. So the
+ * team is not taken then, and `null` says so; the screen asks again when `onSaveState` next speaks (the answer
+ * is a state of its own: saved, offline, conflict, error).
+ * @param {object} team GET's shape @returns {object|null} the draft to draw; null while a request is in the air
  */
 export function takeServerTeam(team) {
+  if (store.statusOf(team.id) === SAVE_STATUS.SAVING) return null;
   const meta = structuredClone(team);
   const draft = normalizeSavedRoster(meta);
   waiting.delete(meta.id);
@@ -160,8 +218,13 @@ export function takeServerTeam(team) {
   return store.track(meta.id, tracking(meta, draft));
 }
 
-/** Send what waits now (the network is back, the coach asks); the status it comes to. */
+/**
+ * Send what waits now (the network is back, the coach asks); the status it comes to. Not after a conflict: a 409
+ * is the coach's to settle (`takeServerTeam`), and the step that met it would be refused again, or, once the
+ * server's team is taken, laid over it.
+ */
 export async function retrySaves(teamId) {
+  if (store.statusOf(teamId) === SAVE_STATUS.CONFLICT) return SAVE_STATUS.CONFLICT;
   return (await store.flush(teamId)) ?? SAVE_STATUS.IDLE;
 }
 
