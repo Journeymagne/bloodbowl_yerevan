@@ -1082,5 +1082,7 @@
   "teamOverview.results": "Последние матчи",
   "teamOverview.resultLine": "Тур {round} · CAS {cas}",
   "teamOverview.friendlyLine": "Товарищеский · CAS {cas}",
-  "teamOverview.wholeSeason": "Весь сезон →"
+  "teamOverview.wholeSeason": "Весь сезон →",
+  "treasury.lock.startingRerolls": "Стартовые рероллы покупаются только в наборе команды",
+  "treasury.lock.teamRerolls": "Командные рероллы откроются, когда команду переведут из набора"
 }
