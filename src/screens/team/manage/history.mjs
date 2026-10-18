@@ -17,6 +17,8 @@ import { lastSafeDeposit } from "./model.mjs";
 
 /** How many lines the history shows before the coach asks for the whole of it. */
 export const HISTORY_PREVIEW = 3;
+/** The history's heading, which takes the focus when the button that had it goes. */
+const HEADING_ID = "manage-history-title";
 
 /** The teams whose history is unfolded. */
 const unfolded = new Set();
@@ -64,7 +66,8 @@ function rowMarkup(entry, games) {
     + `<span class="g-ledger__amount g-ledger__amount--${tone}">${escapeHtml(amount)}</span></li>`;
 }
 
-const stateMarkup = (text) => `<p class="g-ledger__state">${escapeHtml(text)}</p>`;
+/** A status, so a screen reader hears the history loading, empty or failed as the line changes. */
+const stateMarkup = (text) => `<p class="g-ledger__state" role="status">${escapeHtml(text)}</p>`;
 
 /**
  * A text button of the history. Keyed, like the row of buttons it stands in (a line saying the history did not
@@ -73,10 +76,13 @@ const stateMarkup = (text) => `<p class="g-ledger__state">${escapeHtml(text)}</p
  */
 const actionMarkup = (name, label) => `<button type="button" class="g-ledger__action" data-key="ledger-${name}" data-ledger-${name}>${escapeHtml(label)}</button>`;
 
-/** What stands in place of the list, or under it: nothing yet, nothing at all, or the reason the history did not come. */
-function statusMarkup({ entries, loaded, error }) {
+/**
+ * What stands in place of the list, or under it: nothing yet, nothing at all, the reason the history did not come,
+ * or, under the lines, that a read is on its way (a «More» pressed is not left looking as if nothing happened).
+ */
+function statusMarkup({ entries, loaded, loading, error }) {
   if (error) return stateMarkup(t("treasury.history.failed", { reason: error }));
-  if (entries.length) return "";
+  if (entries.length) return loading ? stateMarkup(t("treasury.history.loading")) : "";
   return loaded ? stateMarkup(t("treasury.history.empty")) : stateMarkup(t("treasury.history.loading"));
 }
 
@@ -95,7 +101,7 @@ function actionsMarkup({ entries, next, total, error }, expanded) {
  * The card of the history.
  *
  * @param {object} input
- * @param {{entries: object[], next: string|null, since: string|null, total: number, loaded: boolean, error: string}} input.ledger
+ * @param {{entries: object[], next: string|null, since: string|null, total: number, loaded: boolean, loading: boolean, error: string}} input.ledger
  *   what `ledgerOf` holds
  * @param {object[]} [input.games] the coach's games, to name the round of a match line
  * @param {boolean} [input.expanded] the whole of the lines read so far, not the first `HISTORY_PREVIEW`
@@ -106,15 +112,38 @@ export function historyMarkup({ ledger, games = [], expanded = false }) {
   const list = shown.length ? `<ol class="g-ledger">${shown.map((entry) => rowMarkup(entry, games)).join("")}</ol>` : "";
   const actions = actionsMarkup(ledger, expanded);
   const since = ledger.since ? `<p class="g-ledger__since">${escapeHtml(t("treasury.history.since", { date: formatDay(ledger.since, { year: true }) }))}</p>` : "";
-  return `<section class="g-manage__history" aria-labelledby="manage-history-title">`
-    + `<h2 class="g-manage__history-title" id="manage-history-title">${escapeHtml(t("treasury.history"))}</h2>`
+  return `<section class="g-manage__history" aria-labelledby="${HEADING_ID}">`
+    + `<h2 class="g-manage__history-title" id="${HEADING_ID}" tabindex="-1">${escapeHtml(t("treasury.history"))}</h2>`
     + `${list}${statusMarkup(ledger)}${actions ? `<div class="g-ledger__actions" data-key="ledger-actions">${actions}</div>` : ""}${since}</section>`;
+}
+
+/**
+ * A read a button of the history started, and where the keyboard focus goes. The page keeps it on a button that is
+ * still there once it is drawn again, but «Try again» goes as soon as its read starts and the last «More» once its page
+ * comes: the focus would fall to the body, and goes to the heading of the history instead. Asked when the read starts
+ * and when it ends; a press made with the focus elsewhere (a mouse in Safari) moves nothing.
+ *
+ * @param {Element} root @param {Element} button the one pressed @param {Function} read the read, asynchronous: it answers when it is done
+ */
+function readKeepingFocus(root, button, read) {
+  const document = root.ownerDocument;
+  const held = document?.activeElement === button;
+  const reading = read();
+  if (!held) return;
+  const keep = () => {
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
+    root.querySelector(`#${HEADING_ID}`)?.focus();
+  };
+  keep();
+  void reading.then(keep);
 }
 
 /**
  * The buttons of the history: «All history» folds and unfolds the list and tells the page to draw it again,
  * «More» reads the page after the lines the page holds, and «Try again» reads the first page again. The reads
- * announce themselves (`onLedgerChange`), so the page draws their answers without being told here.
+ * announce themselves (`onLedgerChange`), so the page draws their answers without being told here; the focus on a
+ * button that goes with its read goes to the heading (`readKeepingFocus`).
  *
  * @param {Element} root the page's element, which outlives its redraws
  * @param {string} teamId
@@ -127,8 +156,8 @@ export function wireHistory(root, teamId, onChange) {
     if (!unfolded.delete(teamId)) unfolded.add(teamId);
     onChange();
   });
-  group.on("click", "[data-ledger-more]", () => { void readLedger(teamId, { more: true }); });
-  group.on("click", "[data-ledger-retry]", () => { void readLedger(teamId); });
+  group.on("click", "[data-ledger-more]", (event, button) => readKeepingFocus(root, button, () => readLedger(teamId, { more: true })));
+  group.on("click", "[data-ledger-retry]", (event, button) => readKeepingFocus(root, button, () => readLedger(teamId)));
   return group.release;
 }
 

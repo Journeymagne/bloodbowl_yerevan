@@ -13,12 +13,13 @@ import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
-import { loadMyTeams, raceTeamOf } from "../../../data/teams.mjs";
+import { raceTeamOf } from "../../../data/teams.mjs";
 import { isWriting, saveTeamRoster } from "../../../data/treasury.mjs";
 import { combinedRerollsMaximum, medicalStaffDefinitions } from "../../../domain/league-rules.mjs";
 import { renderResourceCounter, wireResourceCounters } from "../../../ui/resource-counter.mjs";
 import { renderToggle, wireToggles } from "../../../ui/toggle.mjs";
 import { canStepDown, matchLock, resourceRows, stepResource } from "./model.mjs";
+import { teamToast } from "./sheet-host.mjs";
 
 /** The two counters that share `combinedRerollsMaximum` between them. */
 const REROLLS = ["startingRerolls", "teamRerolls"];
@@ -140,9 +141,10 @@ function saveOnItsWay() {
 
 /**
  * One step of one resource: judged on the team as the list holds it now, and sent as the whole roster. Said
- * where it does not go through. A lost answer is said in its own words: the roster may have been written, so the
- * list is read again (the counters, which the page draws from it, then show what the server holds) and the coach
- * is sent to look at them before pressing again.
+ * where it does not go through, with the team's name when the answer finds the coach on another team's page. A lost
+ * answer is said in its own words: the roster may have been written, so `saveTeamRoster` reads the list again (the
+ * counters, which the page draws from it, then show what the server holds) and the coach is sent to look at them
+ * before pressing again.
  *
  * A press made while a save of the team is on its way is not judged at all: the list is still the one from before
  * that save, and a refusal read off it would be wrong.
@@ -160,8 +162,8 @@ async function step(teamId, key, delta) {
   if (answer.team) return true;
   // `saveTeamRoster` is sent only after the check above, which reads the same flag: this is a guard, so that a press is never met with silence.
   if (answer.ignored) return saveOnItsWay();
-  if (answer.unknown) void loadMyTeams(true);
-  return notTaken(answer.unknown ? t("treasury.resources.mayHaveSaved") : answer.refusal);
+  teamToast(teamId, answer.unknown ? t("treasury.resources.mayHaveSaved") : answer.refusal, { tone: "error" });
+  return false;
 }
 
 /** A step whose failure is said, never lost as an unhandled rejection; answers as `step` does. */

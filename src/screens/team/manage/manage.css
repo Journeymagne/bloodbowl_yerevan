@@ -240,6 +240,7 @@
 
 .g-ledger__action {
   box-sizing: border-box;
+  min-width: var(--size-touch);
   min-height: var(--size-touch);
   margin: 0;
   padding: 0;

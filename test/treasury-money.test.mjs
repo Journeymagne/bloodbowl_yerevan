@@ -11,6 +11,7 @@ import { withoutTimers } from "./helpers/without-timers.mjs";
 const api = installFakeApi();
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { state } = await import("../src/core/state.mjs");
+const { invalidateGames } = await import("../src/data/games.mjs");
 const { MANUAL_REASONS } = await import("../src/domain/roster/ledger.mjs");
 const { mountSheetHost, unmountSheetHost } = await import("../src/screens/team/manage/sheet-host.mjs");
 const sheet = await import("../src/screens/team/manage/money-sheet.mjs");
@@ -57,6 +58,8 @@ function coach({ treasury = 70, games = [] } = {}) {
   rememberSessionToken("tok");
   for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
   state.auth.currentUser = { id: "u1", login: "coach" };
+  // The coach is on t1's page, which the router makes the active team: a write's toast names no team (final Minor 10).
+  state.activeTeamId = "t1";
   state.myTeams = { items: [{ ...structuredClone(TEAM), roster: { ...TEAM.roster, treasury } }], loaded: true, loading: false, error: "" };
   state.games.items = games;
 }
@@ -227,11 +230,13 @@ test("a team changed elsewhere: said, the amount put back, the treasury the new 
   assert.equal($("dialog"), null);
 });
 
-test("an entry whose answer never came: said, the amount put back, and the history read to see whether it went through", async () => {
+test("an entry whose answer never came: said, the amount put back, and the history and the team read to see whether it went through", async () => {
   coach();
   openOn("friendly");
   api.fail(POST);
   api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });
+  // The server wrote it and only the answer was lost.
+  api.reply("GET /api/teams", 200, { teams: [{ ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90 } }] });
   apply().focus();
   click("[data-money-apply]");
   await settle();
@@ -240,7 +245,10 @@ test("an entry whose answer never came: said, the amount put back, and the histo
   assert.equal(label(), "Enter an amount");
   assert.equal(apply().hasAttribute("disabled"), true);
   assert.equal(document.activeElement, $("#money-amount"));
-  assert.ok(api.calls.some((call) => call.key === FIRST_PAGE), "the history is read at once");
+  assert.equal(api.calls.filter((call) => call.key === FIRST_PAGE).length, 1, "the history is read at once, once");
+  assert.equal(api.calls.filter((call) => call.key === "GET /api/teams").length, 1, "and the team, once (final I-1)");
+  await settle();
+  assert.equal($(".g-money__preview").textContent, "Treasury: 90k → 90k", "the preview is the treasury the server holds");
   click("[data-money-apply]");
   assert.equal(api.calls.filter((call) => call.key === POST).length, 1, "no second try on the same press");
 });
@@ -287,6 +295,69 @@ test("a sheet opened again while the entry of the one before is on its way: one 
   assert.equal($(".g-money__preview").textContent, "Treasury: 90k → 110k", "the preview is read again from the team the write brought");
   assert.deepEqual(toasts().map((toast) => toast.text), ["Added 20k"], "the first entry is still said");
   assert.equal(api.calls.filter((call) => call.key === POST).length, 1);
+});
+
+test("the note that another save is on its way goes once that save has landed, or been refused (final Minor 3)", async () => {
+  coach();
+  openOn("sponsor");
+  api.reply(POST, 201, { team: { ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90 } }, entry: ENTRY });
+  const landing = api.hold(POST);
+  click("[data-money-apply]");
+  click("[data-sheet-close]");
+  openOn("friendly");
+  click("[data-money-apply]");
+  await settle();
+  assert.equal($('[role="alert"] .g-callout__title').textContent, en["treasury.writing"], "shown while the first is on its way");
+  await withoutTimers(async () => {
+    landing.release();
+    await settle();
+  });
+  assert.equal($('[role="alert"]').textContent, "", "gone once it landed: nothing to wait for");
+  // The same with a first save that the server refused: the list does not move, the note goes all the same.
+  click("[data-sheet-close]");
+  openOn("sponsor");
+  api.reply(POST, 422, VIOLATION);
+  const refused = api.hold(POST);
+  click("[data-money-apply]");
+  click("[data-sheet-close]");
+  openOn("friendly");
+  click("[data-money-apply]");
+  await settle();
+  assert.equal($('[role="alert"] .g-callout__title').textContent, en["treasury.writing"]);
+  await withoutTimers(async () => {
+    refused.release();
+    await settle();
+  });
+  assert.equal($('[role="alert"]').textContent, "");
+  assert.ok($("dialog#treasury-money").matches(":modal"), "the sheet opened since stays open");
+});
+
+test("a refusal that comes after the coach went to another team says whose it was (final Minor 10)", async () => {
+  coach();
+  openOn("friendly");
+  api.reply(POST, 422, VIOLATION);
+  const gate = api.hold(POST);
+  click("[data-money-apply]");
+  click("[data-sheet-close]");
+  state.activeTeamId = "t9";
+  await withoutTimers(async () => {
+    gate.release();
+    await settle();
+  });
+  const [said] = toasts();
+  assert.ok(said.text.startsWith("Wardens: "), said.text);
+  assert.match(said.tone, /toast-error/);
+});
+
+test("a match that goes live while the sheet is open: the sheet says so at once, before any press (final Minor 2)", async () => {
+  coach();
+  openOn("friendly");
+  assert.equal(label(), "Add 20k");
+  api.reply("GET /api/games", 200, { games: [LIVE], currentGames: [] });
+  await invalidateGames();
+  assert.equal(label(), "After the match's post-match");
+  assert.equal(apply().hasAttribute("disabled"), true);
+  assert.equal(api.calls.filter((call) => call.key === POST).length, 0);
 });
 
 test("a match that went live while the sheet was open: the button says why and nothing is sent", () => {

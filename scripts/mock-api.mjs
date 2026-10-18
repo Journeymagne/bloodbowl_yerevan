@@ -15,6 +15,9 @@
  * its arguments, not an environment, and `npx --yes cross-env` fetched an
  * unpinned package from the registry at every start.
  *
+ * Run `npm run build` first: the races are read from the built data when the mock
+ * starts (scripts/mock/treasury.mjs), and it stops without them.
+ *
  * A page is signed in by a token in localStorage (`gata-league-auth-token`,
  * any value: "mock" in the screenshots) or by the sign-in form with any login
  * and the password `mock-pass`.
@@ -64,6 +67,8 @@
  *                                an integer `revision` that is not the team's is 409 TEAM_SAVED_ELSEWHERE
  *                                with the team; a re-roll the stage forbids is 422 STAGE_PURCHASE_LOCKED;
  *                                else `{team}` with the revision one up and the treasury's change journaled.
+ *                                The roster rules (`checkRoster`) are not applied: a roster the server
+ *                                would refuse with 422 ROSTER_BREAKS_THE_RULES is kept.
  *   GET   /api/teams/:id/ledger  the treasury's history, newest first: `{entries, next, since, total}`.
  *                                t1 has six lines (the last ends at its treasury, 120), t5 one, t4 none.
  *   POST  /api/teams/:id/treasury  an entry by hand `{delta, reason, note?, revision}`: 400, 409 or 422 as

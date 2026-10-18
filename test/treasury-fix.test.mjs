@@ -13,6 +13,7 @@ const api = installFakeApi();
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { initLocale } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
+const { invalidateGames } = await import("../src/data/games.mjs");
 const { expandCollections } = await import("../src/data/reference.mjs");
 const { sumMoney } = await import("../src/domain/money.mjs");
 const { classifyTreasuryChange } = await import("../src/domain/roster/ledger.mjs");
@@ -51,6 +52,8 @@ function coach({ team = TEAM, games = [] } = {}) {
   rememberSessionToken("tok");
   for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
   state.auth.currentUser = { id: "u1", login: "coach" };
+  // The coach is on t1's page, which the router makes the active team: a write's toast names no team (final Minor 10).
+  state.activeTeamId = "t1";
   state.myTeams = { items: [structuredClone(team)], loaded: true, loading: false, error: "" };
   state.games.items = games;
 }
@@ -340,6 +343,19 @@ test("a match that went live while the sheet was open: the button says why and n
   assert.equal(document.activeElement, $("#fix-treasury"), "the button that had the focus is disabled now: the focus goes to the field");
 });
 
+test("a match that goes live while the sheet is open: the sheet says so at once, before any press, and keeps what was typed (final Minor 2)", async () => {
+  coach();
+  opened();
+  type("#fix-treasury", "85");
+  assert.equal(label(), "Save");
+  api.reply("GET /api/games", 200, { games: [LIVE], currentGames: [] });
+  await invalidateGames();
+  assert.equal(label(), "After the match's post-match");
+  assert.equal(save().hasAttribute("disabled"), true);
+  assert.equal($("#fix-treasury").value, "85");
+  assert.equal(api.calls.filter((call) => call.key === PATCH).length, 0);
+});
+
 test("while the save is on its way both fields are read-only, not disabled; after the answer they are not", async () => {
   coach();
   opened();
@@ -506,6 +522,7 @@ test("a sheet opened again while the correction of the one before is on its way:
     await settle();
   });
   assert.ok($("dialog#treasury-fix").matches(":modal"), "the first correction landing does not close the sheet opened since");
+  assert.equal($('[role="alert"]').textContent, "", "the note to wait goes with the save it waited for (final Minor 3)");
   assert.equal($(".g-fix__preview").textContent, "Treasury: 85k → 90k", "the preview is read again from the team the write brought");
   assert.deepEqual(toasts().map((toast) => toast.text), ["The treasury is corrected"], "the first correction is still said");
 });

@@ -245,6 +245,102 @@ test("the toggle keeps the keyboard focus through the page's redraw, though a bu
   document.body.removeChild(host);
 });
 
+/** The history drawn as the page draws it, patched in place (a keyed button that stays is the same node), wired and following the cache. */
+function standPatched(teamId) {
+  for (const child of [...document.body.childNodes]) document.body.removeChild(child);
+  const host = el(document, "div");
+  document.body.appendChild(host);
+  const draw = () => patch(host, historyMarkup({ ledger: ledgerOf(teamId), games: GAMES, expanded: historyExpanded(teamId) }));
+  draw();
+  const offWire = wireHistory(host, teamId, draw);
+  const offLedger = onLedgerChange(draw);
+  unwire = () => {
+    offWire();
+    offLedger();
+  };
+  return host;
+}
+const heading = () => document.querySelector("#manage-history-title");
+
+test("a pressed «Try again» that its read takes away leaves the focus on the history's heading, never the body (final Minor 4)", async () => {
+  coach();
+  api.reply(pageOf("t-focus-retry"), 500, { error: { code: "SERVER_ERROR", message: "x" } });
+  await readLedger("t-focus-retry");
+  standPatched("t-focus-retry");
+  assert.equal(heading().getAttribute("tabindex"), "-1", "a heading the page can give the focus to, out of the tab order");
+  api.reply(pageOf("t-focus-retry"), 200, { entries: lines(2), next: null, since: null, total: 2 });
+  document.querySelector("[data-ledger-retry]").focus();
+  click("[data-ledger-retry]");
+  assert.ok(document.querySelector("[data-ledger-retry]") === null, "the read is on its way: no «Try again»");
+  assert.ok(document.activeElement === heading(), "the focus is on the heading");
+  await settle();
+  assert.equal(rows().length, 2);
+  assert.ok(document.activeElement === heading(), "and it stays there once the lines come");
+  api.assertAnswered();
+});
+
+test("the last «More» leaves the focus on the history's heading; a «More» that stays keeps it (final Minor 4)", async () => {
+  coach();
+  api.reply(pageOf("t-focus-more"), 200, { entries: lines(5, 25), next: "c", since: null, total: 25 });
+  await readLedger("t-focus-more");
+  standPatched("t-focus-more");
+  click("[data-ledger-all]");
+  // A page with another after it: «More» stays, and so does the focus.
+  api.reply(pageOf("t-focus-more", "before=c&limit=20"), 200, { entries: lines(5, 20), next: "d", since: null, total: 25 });
+  const more = document.querySelector("[data-ledger-more]");
+  more.focus();
+  click("[data-ledger-more]");
+  await settle();
+  assert.equal(rows().length, 10);
+  assert.ok(document.activeElement === more, "the same button, still there, has the focus");
+  // The last page: «More» goes.
+  api.reply(pageOf("t-focus-more", "before=d&limit=20"), 200, { entries: lines(5, 15), next: null, since: null, total: 25 });
+  click("[data-ledger-more]");
+  await settle();
+  assert.equal(rows().length, 15);
+  assert.ok(document.querySelector("[data-ledger-more]") === null, "the end of the history");
+  assert.ok(document.activeElement === heading(), "the focus is on the heading");
+  api.assertAnswered();
+});
+
+test("a press made with the focus elsewhere moves nothing (final Minor 4)", async () => {
+  coach();
+  api.reply(pageOf("t-focus-none"), 500, { error: { code: "SERVER_ERROR", message: "x" } });
+  await readLedger("t-focus-none");
+  const host = standPatched("t-focus-none");
+  const elsewhere = el(document, "button");
+  document.body.appendChild(elsewhere);
+  elsewhere.focus();
+  api.reply(pageOf("t-focus-none"), 200, { entries: lines(2), next: null, since: null, total: 2 });
+  fireEvent(host.querySelector("[data-ledger-retry]"), "click");
+  await settle();
+  assert.ok(document.activeElement === elsewhere, "the focus stays where it was");
+});
+
+test("the line that says how the history stands is a status a screen reader hears, and a «More» on its way says it is loading under the lines (final Minor 4)", async () => {
+  for (const ledger of [held({ loaded: false }), held(), held({ error: "No connection." }), held({ entries: lines(2), total: 2, loading: true })]) {
+    markup(ledger);
+    assert.equal(document.querySelector(".g-ledger__state").getAttribute("role"), "status", JSON.stringify(ledger));
+  }
+  coach();
+  api.reply(pageOf("t-loading"), 200, { entries: lines(5, 25), next: "c", since: null, total: 25 });
+  await readLedger("t-loading");
+  stand("t-loading");
+  click("[data-ledger-all]");
+  assert.ok(document.querySelector(".g-ledger__state") === null, "nothing on its way: nothing to say");
+  api.reply(pageOf("t-loading", "before=c&limit=20"), 200, { entries: lines(5, 20), next: null, since: null, total: 25 });
+  const gate = api.hold(pageOf("t-loading", "before=c&limit=20"));
+  click("[data-ledger-more]");
+  assert.equal(rows().length, 5, "the lines stay");
+  assert.equal(text(".g-ledger__state"), "Loading the history…");
+  const all = [...document.body.walk()];
+  assert.ok(all.indexOf(document.querySelector(".g-ledger__state")) > all.indexOf(document.querySelector("ol.g-ledger")), "under the lines");
+  gate.release();
+  await settle();
+  assert.equal(rows().length, 10);
+  assert.ok(document.querySelector(".g-ledger__state") === null, "the page came: nothing on its way");
+});
+
 test("what wireHistory wired is gone when it is released, and a press that is not the history's does nothing", async () => {
   coach();
   const heard = [];
@@ -314,6 +410,7 @@ test("the cards are surfaces with their own text, a row is 60px, a button is tou
   assert.deepEqual(valuesOf(CSS, ".g-manage__safe", "background"), ["var(--surface)"]);
   assert.deepEqual(valuesOf(CSS, ".g-ledger__row", "min-height"), ["60px"]);
   assert.deepEqual(valuesOf(CSS, ".g-ledger__action", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-ledger__action", "min-width"), ["var(--size-touch)"], "«Ещё» is narrower than a finger (final Minor 5)");
   assert.deepEqual(valuesOf(CSS, ".g-ledger__amount", "white-space"), ["nowrap"]);
   assertReadable(CSS, ".g-ledger__amount--out", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-ledger__amount--in", "color", ["--surface"], 4.5);

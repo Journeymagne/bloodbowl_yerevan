@@ -46,6 +46,8 @@ function coach({ team = TEAM, games = [] } = {}) {
   rememberSessionToken("tok");
   for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
   state.auth.currentUser = { id: "u1", login: "coach" };
+  // The coach is on t1's page, which the router makes the active team: a write's toast names no team (final Minor 10).
+  state.activeTeamId = "t1";
   state.data = { teams: RACES };
   state.myTeams = { items: [structuredClone(team)], loaded: true, loading: false, error: "" };
   state.games.items = games;

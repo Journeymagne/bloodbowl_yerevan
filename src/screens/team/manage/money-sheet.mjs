@@ -11,11 +11,11 @@
  * comment may be come from `moneyCheck` (model.mjs) and the domain, whether a match is on from `matchLock`, and
  * the write from `addTreasuryEntry`. The sheet decides again at the press, on what the page holds then.
  */
-import { toast } from "../../../components/toast.mjs";
 import { escapeHtml, listenerGroup } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
+import { onGamesChange } from "../../../data/games.mjs";
 import { onMyTeamsChange } from "../../../data/teams.mjs";
 import { addTreasuryEntry, readLedger } from "../../../data/treasury.mjs";
 import { MANUAL_REASONS } from "../../../domain/roster/ledger.mjs";
@@ -27,7 +27,7 @@ import { renderSegmentedControl, wireSegmentedControls } from "../../../ui/segme
 import { renderSheet, wireSheets } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
 import { MAX_ENTRY, MAX_NOTE, matchLock, moneyCheck, readAmount } from "./model.mjs";
-import { sheetController } from "./sheet-host.mjs";
+import { sheetController, teamToast } from "./sheet-host.mjs";
 
 export const MONEY_SHEET_ID = "treasury-money";
 /** The amounts to press, in thousands. */
@@ -184,8 +184,9 @@ async function apply(sheet) {
     // The entry may be written already; a new one is the coach's deliberate act, after the history.
     startOver: { amountText: "" },
     refocus: AMOUNT_FIELD,
+    // A lost answer is read again by `addTreasuryEntry`; an entry whose own code threw is not, so the history is read here.
     unknown: () => { void readLedger(form.teamId); },
-    done: () => toast(form.sign > 0 ? t("treasury.money.doneIn", { amount }) : t("treasury.money.doneOut", { amount })),
+    done: () => teamToast(form.teamId, form.sign > 0 ? t("treasury.money.doneIn", { amount }) : t("treasury.money.doneOut", { amount })),
   });
 }
 
@@ -208,7 +209,9 @@ export function wireMoneySheet(host) {
   group.on("input", AMOUNT_FIELD, (event, input) => sheet.change({ amountText: input.value }));
   group.on("input", "#money-note", (event, input) => sheet.change({ note: input.value }));
   group.on("click", "[data-money-apply]", () => { void apply(sheet); });
-  // The team moved (a write of this sheet's or of the page's, which may have landed after the sheet was opened again): the preview is read again.
-  group.own(onMyTeamsChange(() => sheet.redraw()));
+  // The team moved (a write of this sheet's or of the page's, which may have landed after the sheet was opened again): the preview is read
+  // again. A match that went live shuts the button at once, not only at the press.
+  group.own(onMyTeamsChange(() => sheet.follow()));
+  group.own(onGamesChange(() => sheet.follow()));
   return () => group.release();
 }

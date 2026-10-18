@@ -165,15 +165,23 @@ export function isWriting(teamId) {
 
 /**
  * A write refused. The team a 409 brings is taken as it is (the write may have been applied, its answer lost):
- * `changed`. A request that got no answer to stand behind may have been applied as well: `unknown`. Both say so in
- * words that send the coach to the history before another try; any other refusal is the server's own.
+ * `changed`. A request that got no answer to stand behind may have been applied as well: `unknown`, and the team and
+ * its history are read again, so the page shows what the server holds (one or the other alone would show them
+ * disagreeing, and the next write would meet a revision the list does not have). Both say so in words that send the
+ * coach to the history before another try; any other refusal is the server's own.
  */
 function refusal(teamId, error, userId) {
   if (error?.code === "TEAM_SAVED_ELSEWHERE" && error.payload?.team) {
     if (adopt(error.payload.team, userId)) void readLedger(teamId);
     return { refusal: t("treasury.changedElsewhere"), changed: true };
   }
-  if (unanswered(error)) return { refusal: t("treasury.mayHaveWritten"), unknown: true };
+  if (unanswered(error)) {
+    if (state.auth.currentUser?.id === userId) {
+      void readLedger(teamId);
+      void loadMyTeams(true);
+    }
+    return { refusal: t("treasury.mayHaveWritten"), unknown: true };
+  }
   return { refusal: refusalWithRules(error) };
 }
 
@@ -209,7 +217,8 @@ async function write(teamId, send, done) {
  * @param {string} teamId @param {{delta: number, reason: string, note?: string}} entry
  * @returns {Promise<{entry: object}|{refusal: string, changed?: true, unknown?: true}|{ignored: true}>} `changed`: the
  *   team was changed elsewhere (a 409, perhaps by this very entry whose answer was lost) and is taken as it stands;
- *   `unknown`: no answer came, the entry may have been written. The sheet that sent it starts over on either.
+ *   `unknown`: no answer came, the entry may have been written, and the team and its history are being read again.
+ *   The sheet that sent it starts over on either.
  */
 export function addTreasuryEntry(teamId, { delta, reason, note }) {
   const send = (team) => apiRequest(`/api/teams/${encodeURIComponent(teamId)}/treasury`, {

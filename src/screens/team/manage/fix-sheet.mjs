@@ -19,6 +19,7 @@ import { delegate, listenerGroup } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
+import { onGamesChange } from "../../../data/games.mjs";
 import { loadMyTeams, onMyTeamsChange } from "../../../data/teams.mjs";
 import { readLedger, saveTeamRoster } from "../../../data/treasury.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
@@ -29,7 +30,7 @@ import { renderSheet, wireSheets } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
 import { MAX_ENTRY, matchLock, readAmount } from "./model.mjs";
 import { previewHtml } from "./money-sheet.mjs";
-import { mountSheetHost, sheetController, unmountSheetHost } from "./sheet-host.mjs";
+import { mountSheetHost, sheetController, teamToast, unmountSheetHost } from "./sheet-host.mjs";
 
 export const FIX_SHEET_ID = "treasury-fix";
 /** The treasury field: where the focus goes when the button it was on is disabled under it. */
@@ -136,7 +137,7 @@ function followBalances(host, form) {
 
 /** The team moved (a write of this sheet's or of the page's, a list read after a lost answer): the sheet is drawn again. */
 function teamMoved(host, sheet) {
-  sheet.redraw();
+  sheet.follow();
   followBalances(host, sheet.form);
 }
 
@@ -185,12 +186,13 @@ async function apply(host, sheet) {
     // follow the team again, so that a new correction is the coach's deliberate act, after the history.
     startOver: { treasuryText: null, safeText: null },
     refocus: TREASURY_FIELD,
-    // The list is read as well as the history: the fields show the balances, and the write may have changed them.
+    // A lost answer is read again by `saveTeamRoster`; a save whose own code threw is not. The list is read as well as
+    // the history: the fields show the balances, and the write may have changed them.
     unknown: () => {
       void readLedger(form.teamId);
       void loadMyTeams(true);
     },
-    done: () => toast(t("treasury.fix.done")),
+    done: () => teamToast(form.teamId, t("treasury.fix.done")),
   });
   // A refusal that put the fields back (`startOver`) drew them while a field may have had the focus.
   followBalances(host, sheet.form);
@@ -216,7 +218,9 @@ export function wireFixSheet(root) {
   group.on("input", SAFE_FIELD, (event, input) => sheet.change({ safeText: input.value }));
   group.on("click", "[data-fix-save]", () => { void apply(host, sheet); });
   // The team moved (a write of this sheet's or of the page's, which may land while the sheet is open): the preview is read again.
+  // A match that went live shuts the button at once, not only at the press.
   group.own(onMyTeamsChange(() => teamMoved(host, sheet)));
+  group.own(onGamesChange(() => sheet.follow()));
   return () => {
     group.release();
     unmountSheetHost(host);

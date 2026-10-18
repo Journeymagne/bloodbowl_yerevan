@@ -65,9 +65,9 @@ const preparingGame = (teamId) => game(teamId, { preparationStatus: "preparing" 
 
 const raceOf = (team) => RACES.find((race) => race.slug === team.baseTeamSlug) ?? null;
 /** What the screen gives the model for a team of the fixtures: the games given (none by default), its history read. */
-function model(id, { games = [], ledger = held(), expanded = false, busy = false } = {}) {
+function model(id, { games = [], ledger = held(), expanded = false, busy = false, gamesUnknown = false } = {}) {
   const team = TEAMS.find((item) => item.id === id);
-  return manageModel({ team, race: raceOf(team), seasonData: SEASON, games, ledger, expanded, busy });
+  return manageModel({ team, race: raceOf(team), seasonData: SEASON, games, ledger, expanded, busy, gamesUnknown });
 }
 
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
@@ -94,6 +94,8 @@ function coach({ games = [], userId = "u1" } = {}) {
   state.data = { teams: RACES };
   state.season = { data: SEASON, loaded: true, loading: false, error: "" };
   state.games = { items: games, currentItems: [], loaded: true, loading: false, error: "" };
+  // The page reads the games again on entry (final I-2): the server answers the same list unless a test says otherwise.
+  api.reply("GET /api/games", 200, { games, currentGames: [] });
 }
 
 /** The server answering the games again: the list as it is now. */
@@ -190,10 +192,28 @@ test("a preparation warns and locks nothing", () => {
   const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")] })));
   assert.equal(fragment.querySelector("a.g-callout").getAttribute("href"), "#/games/g1/pre-match");
   assert.equal(fragment.querySelector(".g-callout__title").textContent, "Match preparation is on");
+  // The steps are named as the pre-match names them (final Minor 6): the server's reset keeps only fans and weather.
+  assert.equal(fragment.querySelector(".g-callout__sub").textContent,
+    "A purchase or a change of the treasury resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
   assert.equal(fragment.querySelector("[data-treasury-money]").hasAttribute("aria-disabled"), false);
   assert.equal(fragment.querySelector("[data-treasury-fix]").hasAttribute("aria-disabled"), false);
   assert.equal(fragment.querySelector(".g-resource--locked .g-resource__name").textContent.includes("Team Rerolls"), false);
   assert.equal(mount(manageMarkup(model("t1"))).querySelector(".g-callout"), null, "no match, no callout");
+});
+
+test("games that could not be read say the match state is unknown, quietly, and leave the writes open (final Minor 1)", () => {
+  const fragment = mount(manageMarkup(model("t1", { gamesUnknown: true })));
+  const callout = fragment.querySelector(".g-callout");
+  assert.equal(callout.querySelector(".g-callout__title").textContent, "Could not check whether a match is on: a change now may keep a post-match from finishing.");
+  assert.match(callout.getAttribute("class"), /g-callout--warn/);
+  assert.equal(callout.tagName === "A", false, "nowhere to go: no link");
+  for (const selector of ["[data-treasury-money]", "[data-treasury-fix]"]) {
+    assert.ok(fragment.querySelectorAll(selector).every((button) => !button.hasAttribute("aria-disabled")), selector);
+  }
+  assert.equal(fragment.querySelector(".g-resource--locked .g-resource__name").textContent.includes("Team Rerolls"), false);
+  assert.equal(mount(manageMarkup(model("t1"))).querySelector(".g-callout"), null, "games read: nothing to say");
+  const live = mount(manageMarkup(model("t1", { games: [liveGame("t1")], gamesUnknown: true })));
+  assert.deepEqual(live.querySelectorAll(".g-callout__title").map((title) => title.textContent), ["A match is on"], "a page shut by a match says only that");
 });
 
 test("the safe says the last deposit from the whole history, not the three lines shown; the history folds them (T8 carry)", () => {
@@ -226,6 +246,10 @@ test("the Russian page: the head, the chip, the card and the callout", () => {
     assert.deepEqual(fragment.querySelectorAll(".g-manage__card button").map((button) => button.textContent), ["+ Зачислить", "− Списать"]);
     assert.equal(fragment.querySelector(".g-callout__title").textContent, "Идёт матч");
     assert.equal(mount(manageMarkup(model("t4"))).querySelector(".g-pagehead__meta .g-status").textContent, "Набор команды");
+    const steps = mount(manageMarkup(model("t1", { games: [preparingGame("t1")] }))).querySelector(".g-callout__sub").textContent;
+    assert.ok(steps.includes("«Удар / приём»") && steps.includes("«Индусменты»") && steps.includes("«Состав»"), steps);
+    assert.equal(mount(manageMarkup(model("t1", { gamesUnknown: true }))).querySelector(".g-callout__title").textContent,
+      "Не удалось проверить, идёт ли матч: правка сейчас может помешать завершить итоги.");
   } finally {
     initLocale("en");
   }
@@ -403,10 +427,97 @@ test("a step of a resource on the page is drawn from the team the answer brings"
   assert.equal(view.querySelector(".g-manage__card-sum").textContent, "60k");
 });
 
+test("entering the page reads the games again, though they were read before: a match that went live since locks it (final I-2)", async () => {
+  coach({ userId: "u-fresh" });
+  assert.equal(state.games.loaded, true);
+  api.reply(FIRST_PAGE, 200, pageOf([]));
+  api.reply("GET /api/games", 200, { games: [liveGame("t1")], currentGames: [] });
+  await renderTeamManage("t1");
+  assert.equal(api.calls.filter((call) => call.key === "GET /api/games").length, 1);
+  assert.equal(view.querySelector("a.g-callout").getAttribute("href"), "#/games/g1/post-match");
+  assert.ok(view.querySelectorAll("[data-treasury-money], [data-treasury-fix]").every((button) => button.getAttribute("aria-disabled") === "true"));
+  assert.ok(view.querySelectorAll(".g-resource").every((row) => row.classList.contains("g-resource--locked")));
+});
+
+test("a games read that fails says the match state is unknown and leaves the page open; a read that comes takes it away (final Minor 1)", async () => {
+  coach({ userId: "u-games" });
+  api.reply(FIRST_PAGE, 200, pageOf([]));
+  api.fail("GET /api/games");
+  await renderTeamManage("t1");
+  assert.equal(view.querySelector(".g-callout__title").textContent, en["treasury.gamesUnknown"]);
+  assert.ok(view.querySelectorAll("[data-treasury-money], [data-treasury-fix]").every((button) => !button.hasAttribute("aria-disabled")), "the writes stay open");
+  await notifyGames([]);
+  assert.equal(view.querySelector(".g-callout"), null);
+});
+
+test("an entry whose answer was lost reads the team and the history again, once each: the card, the strip and the history agree (final I-1)", async () => {
+  coach({ userId: "u-lost" });
+  api.reply(FIRST_PAGE, 200, pageOf([]));
+  await renderTeamManage("t1");
+  fireEvent(view.querySelector('.g-manage__card [data-treasury-sign="1"]'), "click");
+  const sheet = document.querySelector('[data-sheet-host="treasury-money"]');
+  fireEvent(sheet.querySelector('[data-money-reason="sponsor"]'), "click");
+  const gate = api.hold("POST /api/teams/t1/treasury");
+  fireEvent(sheet.querySelector("[data-money-apply]"), "click");
+  // The server wrote it; only its answer is lost.
+  const entry = line("l5", { kind: "manual", reason: "sponsor", delta: 20, balanceAfter: 90 });
+  api.reply(FIRST_PAGE, 200, pageOf([entry]));
+  api.reply("GET /api/teams", 200, { teams: [t1With({ treasury: 90 }), ...structuredClone(TEAMS.slice(1))] });
+  const sent = api.calls.length;
+  gate.release({ error: new TypeError("Failed to fetch") });
+  await settle();
+  await settle();
+  const after = api.calls.slice(sent).map((call) => call.key);
+  assert.equal(after.filter((key) => key === FIRST_PAGE).length, 1, "the history once");
+  assert.equal(after.filter((key) => key === "GET /api/teams").length, 1, "the team once");
+  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "90k");
+  assert.match(view.querySelector(".g-funds__cell--money").textContent, /90k/);
+  assert.equal(view.querySelector(".g-ledger__title").textContent, "Sponsor or prize");
+  assert.equal(sheet.querySelector(".g-money__preview").textContent, "Treasury: 90k → 90k", "the sheet's preview too");
+  assert.equal(state.myTeams.items[0].revision, 4, "the next write meets the revision the server holds");
+});
+
+test("a write that lands after the coach went to another team says whose it was (final Minor 10)", async () => {
+  coach({ userId: "u-late" });
+  api.reply(FIRST_PAGE, 200, pageOf([]));
+  await renderTeamManage("t1");
+  const away = async () => {
+    releaseCurrentScreen();
+    state.activeTeamId = "t5";
+    api.reply("GET /api/teams/t5/ledger?limit=20", 200, pageOf([]));
+    await renderTeamManage("t5");
+  };
+  // An entry of the money sheet, answered once the coach is on t5's page.
+  fireEvent(view.querySelector('.g-manage__card [data-treasury-sign="1"]'), "click");
+  fireEvent(document.querySelector('[data-money-reason="sponsor"]'), "click");
+  api.reply("POST /api/teams/t1/treasury", 201, { team: t1With({ treasury: 90 }), entry: line("l5", { kind: "manual", reason: "sponsor", delta: 20 }) });
+  const entry = api.hold("POST /api/teams/t1/treasury");
+  fireEvent(document.querySelector("[data-money-apply]"), "click");
+  await away();
+  await withoutTimers(async () => {
+    entry.release();
+    await settle();
+  });
+  assert.deepEqual(toasts().map(({ text }) => text), ["Ashgrove Wardens: Added 20k"]);
+  // A step of a resource, refused once the coach is on t5's page.
+  state.activeTeamId = "t1";
+  releaseCurrentScreen();
+  await renderTeamManage("t1");
+  const step = api.hold("PATCH /api/teams/t1");
+  fireEvent(view.querySelector('[data-resource-key="assistantCoaches"] [data-resource-step="1"]'), "click");
+  await away();
+  await withoutTimers(async () => {
+    step.release({ status: 422, body: { error: { code: "STAGE_PURCHASE_LOCKED", params: {}, message: "x" } } });
+    await settle();
+  });
+  assert.equal(toasts().at(-1).text, `Ashgrove Wardens: ${en["error.STAGE_PURCHASE_LOCKED"]}`);
+  assert.match(toasts().at(-1).tone, /toast-error/);
+});
+
 test("every word of the page is in both dictionaries, the phases too; nothing unstyled, nothing the CSP refuses", () => {
   assertDictionaryCovers("src/screens/team/manage/index.mjs");
   for (const phase of ["draft", "season", "seasonNoRound", "out"]) assert.ok(en[`treasury.phase.${phase}`] && ru[`treasury.phase.${phase}`], phase);
-  for (const key of ["treasury.tv", "treasury.phase.season"]) {
+  for (const key of ["treasury.tv", "treasury.phase.season", "treasury.prepSub", "treasury.otherTeam"]) {
     assert.deepEqual([...en[key].matchAll(/\{(\w+)\}/g)].map(([, name]) => name), [...ru[key].matchAll(/\{(\w+)\}/g)].map(([, name]) => name), key);
   }
   const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")] })));

@@ -160,8 +160,8 @@ function isManualAmount(delta) {
 
 /**
  * The hand-written entry a request body asks for, checked: an amount to the gold that is not zero and
- * not more than 100000 either way, one of `MANUAL_REASONS`, and a note of at most 200 characters that
- * may be left out (an empty one is none) and holds no NUL (U+0000, which no text column of Postgres
+ * not more than `MAX_ENTRY` either way, one of `MANUAL_REASONS`, and a note of at most `MAX_NOTE` characters
+ * that may be left out (an empty one is none) and holds no NUL (U+0000, which no text column of Postgres
  * holds: it would be a 500).
  *
  * @param {unknown} body whatever the request carried; it need not be an object

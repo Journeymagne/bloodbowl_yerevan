@@ -117,6 +117,10 @@ test("a stage-closed counter lets «−» take back a purchase on record, and on
   assert.equal(step({ delta: 1 }).refused.lock, "stage", "«+» stays shut");
   assert.equal(step({ delta: -1, roster: { ...bought, purchasedStaff: {} } }).refused.lock, "stage", "nothing on record: the row is closed whole, a re-roll that cannot be bought back is not dropped");
   assert.equal(step({ delta: -1, roster: { ...bought, startingRerolls: 0 } }).refused.decDisabled, true, "nothing to take back at zero");
+  // A match on comes before the stage (final T3): the purchase on record does not open «−» while it is on.
+  const live = step({ delta: -1, locked: true });
+  assert.equal(live.roster, undefined, "nothing to send");
+  assert.equal(live.refused.lock, "live");
   assert.equal(model.stepResource({ race: human, roster: { ...ROSTER, teamRerolls: 2, purchasedStaff: { teamRerolls: 2 } }, stage: "draft", key: "teamRerolls", delta: -1 }).roster.treasury, 620, "the other re-roll, the other stage");
 });
 

@@ -48,11 +48,14 @@ import { renderTreasuryStrip, wireTreasuryStrip } from "./strip.mjs";
  * @param {object} input.ledger what `ledgerOf` holds for the team: the whole of the lines read so far
  * @param {boolean} [input.expanded] the history is unfolded (`historyExpanded`)
  * @param {boolean} [input.busy] a save of the team is on its way (`isWriting`)
+ * @param {boolean} [input.gamesUnknown] the games could not be read (`state.games.error`): whether a match is on is
+ *   not known, and the lock judges the list read before, if any
  * @returns {{teamId: string, team: object, treasury: number, safe: number, worth: number|null,
  *   phase: ReturnType<typeof phaseOf>, lock: ReturnType<typeof matchLock>, rows: ReturnType<typeof resourceRows>,
- *   ledger: object, games: object[], expanded: boolean, busy: boolean}} `team` is what the strip is drawn from
+ *   ledger: object, games: object[], expanded: boolean, busy: boolean, gamesUnknown: boolean}} `team` is what the
+ *   strip is drawn from
  */
-export function manageModel({ team, race, seasonData, games, ledger, expanded = false, busy = false }) {
+export function manageModel({ team, race, seasonData, games, ledger, expanded = false, busy = false, gamesUnknown = false }) {
   const roster = team.roster ?? {};
   const list = games ?? [];
   const lock = matchLock(list, team.id);
@@ -69,6 +72,7 @@ export function manageModel({ team, race, seasonData, games, ledger, expanded = 
     games: list,
     expanded,
     busy,
+    gamesUnknown,
   };
 }
 
@@ -80,11 +84,17 @@ function phaseChip({ key, round }) {
   return renderStatusChip({ label, tone: "live" });
 }
 
-/** What a match does to the page, said above it, with the way to where it is finished or prepared; nothing without one. */
-function lockCallout(lock) {
+/** The steps of the pre-match a purchase resets, named as the pre-match names them (the server keeps fans and weather). */
+const resetSteps = () => ({ roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
+
+/**
+ * What a match does to the page, said above it, with the way to where it is finished or prepared. Without one, games
+ * that could not be read are said quietly: the page stays open, but a write may land in a match it does not know of.
+ */
+function lockCallout(lock, gamesUnknown) {
   if (lock?.kind === "live") return renderCallout({ tone: "warn", title: t("treasury.liveTitle"), sub: t("treasury.liveSub"), href: postMatchUrl(lock.game) });
-  if (lock?.kind === "preparing") return renderCallout({ tone: "warn", title: t("treasury.prepTitle"), sub: t("treasury.prepSub"), href: preMatchUrl(lock.game) });
-  return "";
+  if (lock?.kind === "preparing") return renderCallout({ tone: "warn", title: t("treasury.prepTitle"), sub: t("treasury.prepSub", resetSteps()), href: preMatchUrl(lock.game) });
+  return gamesUnknown ? renderCallout({ tone: "warn", title: t("treasury.gamesUnknown") }) : "";
 }
 
 /**
@@ -119,7 +129,7 @@ export function manageMarkup(model) {
   const side = `<div class="g-manage__side">${safeMarkup({ safe: model.safe, entries: model.ledger.entries })}`
     + `${opener("g-manage__fix", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live)}</div>`;
   const history = historyMarkup({ ledger: model.ledger, games: model.games, expanded: model.expanded });
-  return `<div class="g-manage" data-screen="team-manage">${head}${lockCallout(model.lock)}`
+  return `<div class="g-manage" data-screen="team-manage">${head}${lockCallout(model.lock, model.gamesUnknown)}`
     + `${renderTreasuryStrip({ team: model.team, games: model.games })}${cardMarkup(model, live)}`
     + `<div class="g-manage__cols">${side}${resourcesMarkup({ rows: model.rows, busy: model.busy })}${history}</div></div>`;
 }
@@ -137,6 +147,7 @@ function markupOf(teamId) {
     expanded: historyExpanded(teamId),
     // As fresh as this draw: a write's start is not announced, and a redraw then would turn a medic's switch back while its save is on its way.
     busy: isWriting(teamId),
+    gamesUnknown: Boolean(state.games.error),
   }));
 }
 
@@ -175,7 +186,8 @@ export async function renderTeamManage(teamId) {
     here = false;
     for (const release of releases) release();
   });
-  // A read that failed before is made again: the games say whether a match closes the page.
-  await Promise.allSettled([loadGames(Boolean(state.games.error)), loadSeason(Boolean(state.season.error)), readLedger(teamId)]);
+  // The games are read again whatever the page holds of them: a list read at sign-in may be hours old, and a match that
+  // went live since must close the page (nothing polls them while it is up). A season read that failed is made again.
+  await Promise.allSettled([loadGames(true), loadSeason(Boolean(state.season.error)), readLedger(teamId)]);
   draw();
 }

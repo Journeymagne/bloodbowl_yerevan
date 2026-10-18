@@ -377,3 +377,33 @@ test("a read whose coach has gone writes nothing, and leaves nothing on its way 
   await settle();
   assert.equal(api.calls.filter((call) => call.key.startsWith("GET")).length, 1);
 });
+
+test("a write whose answer was lost reads the team and its history again, once each, for the coach who wrote it (final I-1)", async () => {
+  coach();
+  const fresh = { ...TEAM, revision: 4, roster: { ...TEAM.roster, treasury: 90 } };
+  api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t0", name: "Other" }, fresh] });
+  const reads = () => api.calls.filter((call) => call.key === FIRST_PAGE || call.key === "GET /api/teams").map((call) => call.key);
+  for (const [key, write] of [
+    ["POST /api/teams/t1/treasury", () => treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" })],
+    ["PATCH /api/teams/t1", () => treasury.saveTeamRoster("t1", TEAM.roster)],
+  ]) {
+    api.calls.length = 0;
+    api.fail(key);
+    assert.deepEqual(await write(), { refusal: "May have written.", unknown: true }, key);
+    await settle();
+    assert.deepEqual(reads().sort(), ["GET /api/teams", FIRST_PAGE].sort(), key);
+    assert.equal(state.myTeams.items[1].revision, 4, "the list holds what the server holds");
+    assert.deepEqual(ids(), ["l9"]);
+  }
+  // A coach who signed out while the answer was lost: nothing is read for them.
+  api.calls.length = 0;
+  const gate = api.hold("POST /api/teams/t1/treasury");
+  const writing = treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" });
+  await waitHeld(gate);
+  state.auth.currentUser = { id: "u2", login: "other" };
+  gate.release({ error: new TypeError("Failed to fetch") });
+  assert.equal((await writing).unknown, true);
+  await settle();
+  assert.deepEqual(reads(), []);
+});
