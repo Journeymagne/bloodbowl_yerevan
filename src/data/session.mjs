@@ -12,9 +12,15 @@
  *
  * Every change ends in one notice to the `onSessionChange` listeners; the app
  * draws from there, so no caller here renders anything.
+ *
+ * The token is the browser's, and every tab of it shares one. A tab that signs
+ * out, or in as someone else, changes it under the others: each page follows
+ * the token it finds (`followSessionAcrossTabs`), and the writes to an account
+ * ask first whether it is still the one the session was read with
+ * (`sessionTokenHolds`, core/api-client.mjs).
  */
 import { API_ERROR, errorText } from "../core/api.mjs";
-import { apiRequest, authToken, setAuthToken } from "../core/api-client.mjs";
+import { apiRequest, authToken, rememberSessionToken, setAuthToken, setOnTokenMoved, tokenMoved } from "../core/api-client.mjs";
 import { t } from "../core/i18n.mjs";
 import { setReturn } from "../core/return-to.mjs";
 import { state } from "../core/state.mjs";
@@ -99,24 +105,41 @@ export function refusalText(error) {
   return seconds < 60 ? t("auth.tooManySeconds", { seconds }) : t("auth.tooManyMinutes", { minutes: Math.ceil(seconds / 60) });
 }
 
+/** Reads of the session started, and the promise of the newest: a read that a newer one overtook says nothing of its own. */
+let reads = 0;
+let newestRead = null;
+
 /**
  * Who the stored token belongs to, with their settings and their teams.
  *
  * No one is signed in while it asks, so the api-client's 401 hook stays quiet
- * and the one notice is this function's.
+ * and the one notice is this function's. Another tab may store another token
+ * while it asks; the read that follows it is then the one that counts, and
+ * this one hands its caller that read's answer.
  *
  * @returns {Promise<"guest"|"signed-in"|"offline">} "offline" is any failure
  *   but a 401: the token stays for the next load, and no one is signed in now
  */
-export async function loadSession() {
+export function loadSession() {
+  newestRead = readSession(++reads);
+  return newestRead;
+}
+
+async function readSession(read) {
   let status = "guest";
   state.auth.currentUser = null;
   failure = null;
-  if (authToken()) {
+  const token = authToken();
+  rememberSessionToken(token);
+  if (token) {
     const [me, teams] = await Promise.allSettled([apiRequest("/api/auth/me"), apiRequest("/api/teams")]);
+    if (read !== reads) return newestRead;
     status = statusOf(me, teams);
     if (status === "offline") failure = [me, teams].find((answer) => answer.status === "rejected")?.reason ?? null;
-    if (status === "guest") setAuthToken("");
+    if (status === "guest") {
+      setAuthToken("");
+      rememberSessionToken("");
+    }
     if (status === "signed-in") {
       state.auth.currentUser = me.value.user;
       setMyTeams(teams.value.teams ?? []);
@@ -180,6 +203,7 @@ export function register({ login, password, telegram }) {
 /** The 401 handler (`setOnUnauthorized`): the session died under us, so the coach's state goes with it. */
 export function sessionEnded() {
   setAuthToken("");
+  rememberSessionToken("");
   state.auth.currentUser = null;
   resetCoachSlices();
   announce();
@@ -201,4 +225,24 @@ export async function signOut() {
   // Nor is the page signed out on where the next sign-in lands. A 401 keeps it: the router remembers that page.
   setReturn("");
   sessionEnded();
+}
+
+/** A token another tab stored or took away: the session is read again with the one there now, or ends with none. */
+function followStoredToken() {
+  if (authToken()) void loadSession();
+  else sessionEnded();
+}
+
+/**
+ * Keep the page's session the stored token's. A tab that signs out, or in as someone else, changes the
+ * token, and the browser tells every other tab with `storage`; until a page follows, it shows one coach
+ * while its requests go out as another. A write to an account that finds the token moved before the event
+ * came follows it the same way (`sessionTokenHolds`). Once, at startup.
+ * @param {EventTarget} [target] the window
+ */
+export function followSessionAcrossTabs(target = globalThis) {
+  setOnTokenMoved(followStoredToken);
+  target.addEventListener("storage", () => {
+    if (tokenMoved()) followStoredToken();
+  });
 }

@@ -16,7 +16,7 @@
  * either (`setThemeChoice(…, {fromAccount})`), or it would follow the coach who
  * signs out to the next coach's account.
  */
-import { apiRequest } from "../core/api-client.mjs";
+import { apiRequest, sessionTokenHolds } from "../core/api-client.mjs";
 import { state } from "../core/state.mjs";
 import { choiceFromPreferences, isThemeChosen, setThemeChoice, themeChoice, themePreferences } from "../core/theme.mjs";
 
@@ -25,11 +25,12 @@ import { choiceFromPreferences, isThemeChosen, setThemeChoice, themeChoice, them
  * @param {object} patch `{themeMode?, lightPalette?, darkPalette?, activeTeamId?, locale?}`
  * @returns {Promise<object|null>} the settings the server now holds, which are also
  *   `state.auth.currentUser.preferences`; null for a guest, a refusal (400, a team that
- *   is not theirs: 404), a lost connection, or a coach who left while it was on its way
+ *   is not theirs: 404), a lost connection, a coach who left while it was on its way, or a
+ *   token another tab changed (nothing is sent: it is that tab's account, and the session follows it)
  */
 export async function savePreferences(patch) {
   const user = state.auth.currentUser;
-  if (!user) return null;
+  if (!user || !sessionTokenHolds()) return null;
   try {
     const answer = await apiRequest("/api/auth/preferences", { method: "PATCH", body: JSON.stringify(patch) });
     const saved = answer?.preferences;
@@ -89,7 +90,8 @@ function queued(userId, body) {
  * a pick made while one is on its way waits for it, and a newer pick takes the place of the one
  * waiting. The same choice as the one on its way is that request, so it is not sent twice. The coach is
  * looked at before a request goes out and again when it comes back, so nothing is written for, or said
- * to, a coach who left meanwhile.
+ * to, a coach who left meanwhile; and the token too (savePreferences), since this page's coach is not who
+ * the request goes out as once another tab has signed in or out.
  *
  * Settings and the sync after sign-in both write here, so the two never race.
  * @param {import("../core/theme.mjs").ThemeChoice} choice

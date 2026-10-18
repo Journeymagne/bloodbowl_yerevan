@@ -364,3 +364,106 @@ test("a refusal reads as the server's words; too many tries say how long to wait
   assert.equal(session.refusalText(new ApiError(API_ERROR.HTTP, { status: 502, payload: {} })), NO_ANSWER);
   assert.equal(session.refusalText(new ApiError(API_ERROR.OFFLINE)), OFFLINE);
 });
+
+// R12: the token is the browser's and every tab shares it. Another tab that signs out, or in as someone else,
+// changes it under this page, and the browser tells this one with a `storage` event.
+const otherTabs = new EventTarget();
+session.followSessionAcrossTabs(otherTabs);
+const { savePreferences } = await import("../src/data/preferences.mjs");
+const SECOND = { user: { id: "u2", login: "second", preferences: {} } };
+/** A few turns of the event loop: a session read that a storage event started has no promise to await. */
+const settled = async () => { for (let turn = 0; turn < 10; turn += 1) await new Promise((resolve) => { setImmediate(resolve); }); };
+async function signedInWith(token) {
+  fresh(token);
+  api.reply("GET /api/auth/me", 200, ME);
+  api.reply("GET /api/teams", 200, TEAMS);
+  assert.equal(await session.loadSession(), "signed-in");
+  api.reset();
+  api.items.set(TOKEN, token);
+  heard = 0;
+}
+
+test("a token another tab stored is this page's session too: it is read again with that token, and the app hears it once", async () => {
+  await signedInWith("tok");
+  api.items.set(TOKEN, "other");
+  api.reply("GET /api/auth/me", 200, SECOND);
+  api.reply("GET /api/teams", 200, { teams: [] });
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  assert.equal(state.auth.currentUser?.id, "u2");
+  assert.deepEqual(api.calls.map((call) => call.headers.Authorization), ["Bearer other", "Bearer other"]);
+  assert.equal(heard, 1);
+  api.assertAnswered();
+});
+
+test("a token another tab removed ends the session here, with nothing asked", async () => {
+  await signedInWith("tok");
+  api.items.delete(TOKEN);
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  assert.equal(state.auth.currentUser, null);
+  assert.equal(state.myTeams.loaded, false);
+  assert.equal(api.calls.length, 0);
+  assert.equal(heard, 1);
+  api.assertAnswered();
+});
+
+test("a storage event that leaves the token as it was is nothing to this page", async () => {
+  await signedInWith("tok");
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  assert.equal(state.auth.currentUser.id, "u1");
+  assert.deepEqual([api.calls.length, heard], [0, 0]);
+  fresh(null);
+  assert.equal(await session.loadSession(), "guest");
+  heard = 0;
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  assert.deepEqual([api.calls.length, heard], [0, 0], "a guest page stays a guest while no tab signs in");
+  api.assertAnswered();
+});
+
+test("a guest page that another tab signed in is signed in too", async () => {
+  fresh(null);
+  assert.equal(await session.loadSession(), "guest");
+  heard = 0;
+  api.items.set(TOKEN, "other");
+  api.reply("GET /api/auth/me", 200, SECOND);
+  api.reply("GET /api/teams", 200, { teams: [] });
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  assert.equal(state.auth.currentUser?.id, "u2");
+  assert.equal(heard, 1);
+  api.assertAnswered();
+});
+
+test("a read of the session that another tab overtook says nothing of its own: the newer one is heard, once", async () => {
+  fresh("tok");
+  api.reply("GET /api/auth/me", 200, SECOND);
+  api.reply("GET /api/teams", 200, { teams: [] });
+  const gate = api.hold("GET /api/auth/me");
+  const first = session.loadSession();
+  api.items.set(TOKEN, "other");
+  otherTabs.dispatchEvent(new Event("storage"));
+  await settled();
+  assert.equal(gate.count, 2, "both reads are on their way");
+  gate.release();
+  assert.equal(await first, "signed-in", "the first caller hears what the newer read found");
+  await settled();
+  assert.equal(heard, 1);
+  assert.equal(state.auth.currentUser.id, "u2");
+  api.assertAnswered();
+});
+
+test("a write to the account while another tab holds another token sends nothing, and the page follows the token", async () => {
+  await signedInWith("tok");
+  api.items.set(TOKEN, "other");
+  api.reply("GET /api/auth/me", 200, SECOND);
+  api.reply("GET /api/teams", 200, { teams: [] });
+  assert.equal(await savePreferences({ locale: "ru" }), null);
+  await settled();
+  assert.equal(api.calls.some((call) => call.key === "PATCH /api/auth/preferences"), false);
+  assert.equal(state.auth.currentUser?.id, "u2", "the session was read again with the token that is there now");
+  assert.equal(heard, 1);
+  api.assertAnswered();
+});

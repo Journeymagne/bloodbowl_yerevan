@@ -19,12 +19,10 @@ import { toast } from "./components/toast.mjs";
 import { onActiveTeamChange, syncActiveTeam } from "./data/active-team.mjs";
 import { loadGames } from "./data/games.mjs";
 import { syncThemeWithAccount } from "./data/preferences.mjs";
-import { loadSession, onSessionChange, sessionEnded, sessionFailureText } from "./data/session.mjs";
+import { followSessionAcrossTabs, loadSession, onSessionChange, sessionEnded, sessionFailureText } from "./data/session.mjs";
 import { loadSeason } from "./screens/season/season-data.mjs";
 import { rosterStore } from "./screens/saved-roster.mjs";
 import { mountShell, refreshShell } from "./shell/shell.mjs";
-
-const searchInput = document.querySelector("#global-search");
 
 // Cache-busting token: index.html loads this module as `src/app.js?v=<version>`
 // and the build stamps that value, so data and i18n fetches reuse it rather
@@ -70,7 +68,7 @@ function handleHistoryBack(event) {
 }
 
 function wireFrame() {
-  searchInput?.addEventListener("input", (event) => {
+  document.querySelector("#global-search")?.addEventListener("input", (event) => {
     state.query = event.currentTarget.value;
     renderRoute();
   });
@@ -97,6 +95,7 @@ function afterSessionChange() {
 
 async function init() {
   setOnUnauthorized(sessionEnded);
+  followSessionAcrossTabs(window); // another tab that signs in or out moves this page's session too
   setLocaleHandler(switchLocale); // screens and the SideNav ask for a language; this file reloads the data
   mountShell(); // before the session: its first change draws the first screen, and the frame with it
   onSessionChange(afterSessionChange);

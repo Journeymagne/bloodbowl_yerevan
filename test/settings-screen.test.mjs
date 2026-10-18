@@ -15,6 +15,7 @@ const { setLocaleHandler } = await import("../src/core/locale-request.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { setLocale } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
+const { rememberSessionToken, setOnTokenMoved } = await import("../src/core/api-client.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { themePickerMarkup, wireThemePicker } = await import("../src/screens/settings/theme-picker.mjs");
 
@@ -1355,4 +1356,69 @@ test("from 901px the appearance and the account share a row only where both fit,
   assert.deepEqual(valuesOf(SETTINGS_CSS, ".g-settings__account", "flex"), ["1 1 340px"]);
   // The account comes first in the markup, for a phone; on a wide screen the appearance is at the left.
   assert.deepEqual([valuesOf(SETTINGS_CSS, ".g-settings__appearance", "order"), valuesOf(SETTINGS_CSS, ".g-settings__account", "order")], [["1"], ["2"]]);
+});
+
+// R12: another tab stored another token; this page still shows the coach it read with the one before.
+/** Empty the live regions, so what a test hears is what it caused. */
+const hush = () => document.querySelectorAll('[role="status"]').forEach((region) => { region.textContent = ""; });
+test("a contact is not saved while another tab holds another token: it would go to that tab's account", async () => {
+  api.reset();
+  api.items.set("gata-league-auth-token", "other-tab");
+  rememberSessionToken("tok");
+  state.auth.currentUser = { ...COACH };
+  try {
+    assert.deepEqual(await saveTelegram("@another"), { error: dictionary("en")["auth.otherTab"] });
+    assert.equal(api.calls.length, 0);
+    assert.equal(state.auth.currentUser.telegram, "@felstell");
+  } finally {
+    rememberSessionToken("");
+  }
+});
+
+test("the screen says so in a toast, since the session it was drawn for is being read again", async () => {
+  api.reset();
+  api.items.set("gata-league-auth-token", "other-tab");
+  draw();
+  rememberSessionToken("tok");
+  // What the session does when it hears of it: no coach until the new token has been read.
+  setOnTokenMoved(() => { state.auth.currentUser = null; });
+  hush();
+  try {
+    await withoutTimers(async () => {
+      type("@another");
+      fireEvent(save(), "click");
+      await settle();
+    });
+  } finally {
+    setOnTokenMoved(() => {});
+    rememberSessionToken("");
+  }
+  assert.equal(api.calls.length, 0);
+  assert.ok(spoken().includes(dictionary("en")["auth.otherTab"]));
+  assert.equal(view.querySelector("#settings-telegram-error"), null, "nor is it said on a field of a coach who is not here");
+});
+
+test("a password change found the token moved: nothing is sent, the toast says why, and no password is kept for the coach who comes back", async () => {
+  drawSignedIn();
+  fireEvent(openPassword(), "click");
+  fillPassword("old1", "abcd");
+  api.items.set("gata-league-auth-token", "other-tab");
+  rememberSessionToken("tok");
+  setOnTokenMoved(() => { state.auth.currentUser = null; });
+  hush();
+  try {
+    await withoutTimers(async () => {
+      submitPassword();
+      await settle();
+    });
+  } finally {
+    setOnTokenMoved(() => {});
+    rememberSessionToken("");
+  }
+  assert.equal(passwordCalls().length, 0);
+  assert.ok(spoken().includes(dictionary("en")["auth.otherTab"]));
+  // The session read again finds the same coach (the other tab signed in as them): the sheet is not back, half sent.
+  state.auth.currentUser = { ...COACH };
+  redraw();
+  assert.equal(sheetOf(), null);
 });

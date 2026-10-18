@@ -14,7 +14,7 @@
  * sheet closes.
  */
 import { API_ERROR } from "../../core/api.mjs";
-import { apiRequest } from "../../core/api-client.mjs";
+import { apiRequest, sessionTokenHolds } from "../../core/api-client.mjs";
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { mergeCurrentUser, refusalText } from "../../data/session.mjs";
@@ -126,8 +126,11 @@ export function passwordSheetMarkup(sheet) {
  *   (too many tries, the administrator whose password is the server's, a lost connection) is the alert's.
  *   An answer that never came (offline, a timeout, a proxy that said nothing) carries a `sub`: the server
  *   may have changed the password before the answer was lost, and the coach should know to sign in with the new one.
+ *   Nothing is sent while another tab holds another token: the current password would be tried against that
+ *   account, and a wrong one counted against it.
  */
 export async function changePassword({ current, next }) {
+  if (!sessionTokenHolds()) return { text: t("auth.otherTab"), field: null };
   let answer;
   try {
     answer = await apiRequest("/api/auth/profile", { method: "PATCH", body: JSON.stringify({ password: next, currentPassword: current }) });

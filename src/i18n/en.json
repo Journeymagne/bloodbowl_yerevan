@@ -949,6 +949,7 @@
   "auth.tooManyMinutes": "Too many attempts for this login. Try again in {minutes} min.",
   "auth.tooManySeconds": "Too many attempts for this login. Try again in {seconds} s.",
   "auth.signedInReload": "You are signed in: reloading the page opens your account.",
+  "auth.otherTab": "Someone signed in or out in another tab, so nothing was saved here.",
   "request.noAnswer": "The server did not answer. Try again in a minute.",
   "password.title": "Change password",
   "password.current": "Current password",

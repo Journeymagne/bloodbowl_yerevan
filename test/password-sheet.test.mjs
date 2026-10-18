@@ -11,6 +11,7 @@ document.body.appendChild(el(document, "section", { id: "app-view" }));
 const { changePassword, passwordReady, passwordSheetMarkup, wirePasswordSheet } = await import("../src/screens/settings/password-sheet.mjs");
 const { initLocale } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
+const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 
 const blank = { current: "", next: "", repeat: "", show: false, pending: false, done: false, error: null };
 const submit = (fragment) => fragment.querySelector('.g-sheet__foot button[type="submit"]');
@@ -290,4 +291,15 @@ test("the keys the brief names are in both dictionaries with the brief's words",
     assert.equal(words["password.show"], undefined, "the toggle is auth.showPassword (K10b), not a pair of keys");
     assert.equal(words["password.hide"], undefined);
   }
+});
+
+// R12: the token another tab stored is not the one the coach on this page was read with.
+test("a password change while another tab holds another token is not sent: the current password would be tried against that account", async () => {
+  signedIn();
+  rememberSessionToken("tok");
+  api.items.set("gata-league-auth-token", "other-tab");
+  const error = await changePassword({ current: "old1", next: "abcd" });
+  assert.deepEqual(error, { text: dictionary("en")["auth.otherTab"], field: null });
+  assert.equal(api.calls.length, 0);
+  rememberSessionToken("");
 });

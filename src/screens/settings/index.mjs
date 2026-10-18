@@ -10,7 +10,7 @@
  * from here at all, so those are text and a note.
  */
 import { errorText } from "../../core/api.mjs";
-import { apiRequest } from "../../core/api-client.mjs";
+import { apiRequest, sessionTokenHolds } from "../../core/api-client.mjs";
 import { escapeHtml, listenerGroup, patch } from "../../core/dom.mjs";
 import { getLocale, t } from "../../core/i18n.mjs";
 import { requestLocale } from "../../core/locale-request.mjs";
@@ -185,7 +185,8 @@ export function wireSettings(root, { saved, onSaveTelegram, onLogout, onOpenPass
  * never sent (the field offers no Save for it, and nothing here sends it).
  *
  * @param {string} value as typed
- * @returns {Promise<{error: string}|null>} null once saved, or when it is the contact on file; otherwise why not, as text
+ * @returns {Promise<{error: string}|null>} null once saved, or when it is the contact on file; otherwise why not, as
+ *   text. Nothing is sent while another tab holds another token: the contact would be that tab's account's.
  */
 export async function saveTelegram(value) {
   if (isSameContact(value, state.auth.currentUser?.telegram)) return null;
@@ -193,6 +194,7 @@ export async function saveTelegram(value) {
   const problem = telegramProblem(telegram);
   if (problem === "TELEGRAM_REQUIRED") return { error: t("error.TELEGRAM_REQUIRED") };
   if (problem) return { error: t("auth.telegramFormat") };
+  if (!sessionTokenHolds()) return { error: t("auth.otherTab") };
   try {
     const answer = await apiRequest("/api/auth/profile", { method: "PATCH", body: JSON.stringify({ telegram }) });
     mergeCurrentUser(answer.user);
@@ -282,10 +284,12 @@ function languageSettled(locale) {
 async function submitTelegram(value) {
   if (screen.saving) return;
   screen.saving = true;
+  const who = state.auth.currentUser?.id;
   const failure = await saveTelegram(value);
   screen.saving = false;
   if (!failure) toast(t("settings.telegramSaved"));
-  if (!screen.open) {
+  // Gone from the screen, or the coach it was drawn for is (another tab moved the session): no field to say it on.
+  if (!screen.open || state.auth.currentUser?.id !== who) {
     if (failure) toast(failure.error, { tone: "error" });
     return;
   }
@@ -340,9 +344,12 @@ async function submitPassword() {
   sheet.pending = true;
   sheet.error = null;
   draw();
+  const who = state.auth.currentUser?.id;
   const failure = await changePassword({ current: sheet.current, next: sheet.next });
-  if (screen.password !== sheet) {
-    // The coach closed the sheet or left the screen while it was on its way: nothing of it is on the page to say it.
+  if (screen.password !== sheet || state.auth.currentUser?.id !== who) {
+    // The coach closed the sheet or left the screen while it was on its way, or the session the sheet was drawn
+    // for is being read again (another tab moved it): nothing of it is on the page to say it.
+    if (screen.password === sheet) screen.password = null;
     if (failure) toast([failure.text, failure.sub].filter(Boolean).join(" "), { tone: "error" });
     else toast(changedNews());
     return;

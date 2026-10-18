@@ -43,6 +43,42 @@ export function setOnUnauthorized(handler) {
   onUnauthorized = handler;
 }
 
+/**
+ * The token the page's session was read with ("" for none): data/session.mjs says which each time it
+ * reads or ends one. The token itself is the browser's, shared by every tab: another tab that signs out,
+ * or in as someone else, stores another one under this page, which still shows the coach it read.
+ */
+let sessionToken = "";
+let onTokenMoved = () => {};
+
+/** @param {string} token what the session was just read with, or "" once it has none */
+export function rememberSessionToken(token) {
+  sessionToken = token;
+}
+
+/** Register what follows a token another tab changed (data/session.mjs reads the session again, or ends it). Once, at startup. */
+export function setOnTokenMoved(handler) {
+  onTokenMoved = handler;
+}
+
+/** Whether the stored token is not the one the session was read with: another tab signed in or out since. */
+export function tokenMoved() {
+  return authToken() !== sessionToken;
+}
+
+/**
+ * Ask before a write to the coach's account: false when another tab has moved the token, and then the
+ * page follows it (the registered handler) and the caller sends nothing, since the request would go out
+ * as whoever that tab signed in, under the coach this page shows. A page that read no token has no coach
+ * of its own to write for, so there is nothing to hold.
+ * @returns {boolean}
+ */
+export function sessionTokenHolds() {
+  if (!sessionToken || !tokenMoved()) return true;
+  onTokenMoved();
+  return false;
+}
+
 const apiClient = createApiClient({
   getToken: authToken,
   onUnauthorized: () => {
