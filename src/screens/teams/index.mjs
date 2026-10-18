@@ -200,6 +200,10 @@ export function renderTeams() {
   group.own(onMyTeamsChange(draw));
   group.own(onActiveTeamChange(draw));
   draw();
+  // The list is read again on every visit, as the 2.x screen did, and drawn when it comes (onMyTeamsChange): a team
+  // registered for the season since the list was read has no bin now, but a chip. Not before the first draw, and
+  // not for a list that never loaded: that one has its own retry, and a read begun under it would clear its reason.
+  if (isTeamListRead()) void loadMyTeams(true);
   // A page opened on this address has not read the games and the table yet; the lines say where each team stands once they are in.
   void Promise.allSettled([loadGames(), loadSeason()]).then(() => {
     if (visit === mine) draw();

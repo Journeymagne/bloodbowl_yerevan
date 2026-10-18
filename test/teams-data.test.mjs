@@ -420,6 +420,37 @@ test("a team is deleted at the address the caller names (an admin's), and a lost
   assert.deepEqual(ids(), ["t1"]);
 });
 
+test("a delete that went through takes the team off the list, and the active team with it, even when the list cannot be read again", async () => {
+  coach([{ id: "t1" }, { id: "t2" }]);
+  const heard = [];
+  const stop = teams.onMyTeamsChange(() => heard.push([ids().join()]));
+  api.reply("DELETE /api/teams/t1", 200, { ok: true });
+  api.reply("GET /api/teams", 500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } });
+  api.reply("GET /api/games", 200, { games: [] });
+  api.reply("PATCH /api/auth/preferences", 200, { preferences: { activeTeamId: "t2" } });
+  assert.deepEqual(await teams.deleteTeam("t1"), {});
+  stop();
+  assert.deepEqual(ids(), ["t2"], "the deleted team is not on the list the failed read left");
+  assert.equal(state.activeTeamId, "t2", "the active team moved off the deleted one");
+  assert.equal(state.myTeams.error, "The server failed.", "the failed read is said, and does not bring the team back");
+  assert.equal(heard[0][0], "t2", "the frame's first word is the list without the team");
+  assert.deepEqual(api.calls.filter((call) => call.key === "PATCH /api/auth/preferences").map((call) => call.body), [{ activeTeamId: "t2" }], "the account is told once, never the dead id");
+  api.assertAnswered();
+});
+
+test("a delete of a team that is not on the coach's list (an admin's) leaves the list as it is until it is read again", async () => {
+  coach([{ id: "t1" }]);
+  const heard = [];
+  const stop = teams.onMyTeamsChange(() => heard.push(ids().join()));
+  api.reply("DELETE /api/admin/teams/t9", 200, { ok: true });
+  api.reply("GET /api/teams", 200, { teams: [{ id: "t1" }] });
+  api.reply("GET /api/games", 200, { games: [] });
+  assert.deepEqual(await teams.deleteTeam("t9", { endpoint: "/api/admin/teams/t9" }), {});
+  stop();
+  assert.deepEqual(heard, ["t1"], "one word, from the read; nothing was taken off first");
+  assert.equal(state.activeTeamId, "t1");
+});
+
 // The words of a refusal are made from a template (`validation.${code}`): every code the server can send a new team back with.
 test("every rule a new team can be refused over is worded in both languages", () => {
   const source = readFileSync(new URL("../server/domain/roster.mjs", import.meta.url), "utf8");

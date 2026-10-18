@@ -219,18 +219,32 @@ export async function createTeam(body, { startedAt = Date.now() } = {}) {
 }
 
 /**
- * Delete a team on the server, then read the list again (which settles the active team, a deleted one
- * included) and the games (the SideNav's match card). `endpoint` is where an admin deletes another coach's.
+ * A team the server has deleted is off the list at once, and the active team is settled without it: the read that
+ * follows may fail, and a row left would offer a team that is gone (and a header still naming it). Another coach's
+ * list (signed in while the request was out), and a team the list does not hold (an admin's delete of someone
+ * else's), are left alone.
+ */
+function forgetTeam(teamId, userId) {
+  if (state.auth.currentUser?.id !== userId || !state.myTeams.items.some((item) => item.id === teamId)) return;
+  setMyTeams(state.myTeams.items.filter((item) => item.id !== teamId));
+  syncActiveTeam();
+}
+
+/**
+ * Delete a team on the server, take it off the list, then read the list again (which settles the active team
+ * once more) and the games (the SideNav's match card). `endpoint` is where an admin deletes another coach's.
  * @param {string} teamId @param {{endpoint?: string}} [options] @returns {Promise<{refusal?: string}>}
  */
 export async function deleteTeam(teamId, { endpoint = "" } = {}) {
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
+  const userId = state.auth.currentUser?.id;
   try {
     await apiRequest(endpoint || `/api/teams/${encodeURIComponent(teamId)}`, { method: "DELETE" });
   } catch (error) {
     return { refusal: refusalText(error) };
   }
   state.season.loaded = false;
+  forgetTeam(teamId, userId);
   await loadMyTeams(true);
   void invalidateGames();
   return {};

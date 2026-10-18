@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import test from "node:test";
+import test, { afterEach } from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
@@ -56,7 +56,15 @@ function coach({ active = "t1", items = TEAMS, loaded = true, error = "" } = {})
   state.season = { data: SEASON, loaded: true, loading: false, error: "" };
   state.games = { items: [], currentItems: [], loaded: true, loading: false, error: "" };
   state.admin = { users: [], loaded: true, loading: false, error: "", editingTeams: new Map() };
+  // The screen reads the list again on entry (a list that loaded); unless a test says otherwise, it gets the list it has.
+  api.reply("GET /api/teams", 200, { teams: items });
 }
+
+/** What is still on its way when a test ends (the list read on entry) is let finish before the next test starts over. */
+afterEach(async () => {
+  await settle();
+  await settle();
+});
 
 test("the coach's teams, the active one marked, each opening its overview", () => {
   coach();
@@ -104,7 +112,7 @@ test("deleting asks first, in a sheet with one red button naming the team; closi
   fireEvent(sheet.querySelector("[data-sheet-close]"), "click");
   assert.equal(view.querySelector("dialog#team-delete"), null);
   assert.equal(document.activeElement?.getAttribute("data-delete-team"), "t2");
-  assert.equal(api.calls.length, 0);
+  assert.deepEqual(api.calls.map((call) => call.key), ["GET /api/teams"], "the list is read again on entry, and nothing is deleted");
 });
 
 test("Escape and the backdrop close the sheet the same way, and the focus is back on that team's bin", () => {
@@ -118,7 +126,7 @@ test("Escape and the backdrop close the sheet the same way, and the focus is bac
   fireEvent(view.querySelector("dialog#team-delete"), "click");
   assert.equal(view.querySelector("dialog#team-delete"), null);
   assert.equal(document.activeElement?.getAttribute("data-delete-team"), "t2");
-  assert.equal(api.calls.length, 0);
+  assert.deepEqual(api.calls.map((call) => call.key), ["GET /api/teams"]);
 });
 
 test("a refusal is said in the sheet and the list stays", async () => {
@@ -155,10 +163,11 @@ test("while it is on its way the button says so; a refusal gives the button back
 test("a deleted team leaves the list, and the header moves to another one", async () => {
   coach({ active: "t2" });
   api.reply("DELETE /api/teams/t2", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [TEAMS[0], TEAMS[2]] });
   api.reply("GET /api/games", 200, { games: [] });
   api.reply("PATCH /api/auth/preferences", 200, { preferences: { activeTeamId: "t1" } });
   renderTeams();
+  await settle(); // the list read on entry comes first, with the three teams
+  api.reply("GET /api/teams", 200, { teams: [TEAMS[0], TEAMS[2]] });
   fireEvent(view.querySelector('[data-delete-team="t2"]'), "click");
   fireEvent(view.querySelector("[data-delete-confirm]"), "click");
   await withoutTimers(async () => {
@@ -168,14 +177,17 @@ test("a deleted team leaves the list, and the header moves to another one", asyn
   assert.deepEqual(view.querySelectorAll("a.g-teams__open").map((link) => link.getAttribute("href")), ["#/t/t1", "#/t/t3"]);
   assert.equal(state.activeTeamId, "t1");
   assert.ok(api.calls.every((call) => call.body?.activeTeamId !== "t2"), "no dead id written to the account");
+  assert.equal(api.calls.filter((call) => call.key === "PATCH /api/auth/preferences" && call.body?.activeTeamId === "t1").length, 1, "the account is told the team that is left, once");
+  api.assertAnswered();
 });
 
 test("a deleted team: the sheet closes, the coach is told, and the focus goes to the page's title", async () => {
   coach();
   api.reply("DELETE /api/teams/t2", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [TEAMS[0], TEAMS[2]] });
   api.reply("GET /api/games", 200, { games: [] });
   renderTeams();
+  await settle();
+  api.reply("GET /api/teams", 200, { teams: [TEAMS[0], TEAMS[2]] });
   fireEvent(view.querySelector('[data-delete-team="t2"]'), "click");
   fireEvent(view.querySelector("[data-delete-confirm]"), "click");
   await withoutTimers(async () => {
@@ -192,9 +204,10 @@ test("a deleted team: the sheet closes, the coach is told, and the focus goes to
 test("the last team deleted leaves the way to a first one, with the focus on its title", async () => {
   coach({ items: [TEAMS[1]], active: "t2" });
   api.reply("DELETE /api/teams/t2", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [] });
   api.reply("GET /api/games", 200, { games: [] });
   renderTeams();
+  await settle();
+  api.reply("GET /api/teams", 200, { teams: [] });
   fireEvent(view.querySelector('[data-delete-team="t2"]'), "click");
   fireEvent(view.querySelector("[data-delete-confirm]"), "click");
   await withoutTimers(async () => {
@@ -209,10 +222,11 @@ test("the last team deleted leaves the way to a first one, with the focus on its
 test("a sheet closed while the delete is on its way: the answer is said as a message, and the list is the screen's", async () => {
   coach();
   api.reply("DELETE /api/teams/t2", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [TEAMS[0], TEAMS[2]] });
   api.reply("GET /api/games", 200, { games: [] });
   const gate = api.hold("DELETE /api/teams/t2");
   renderTeams();
+  await settle();
+  api.reply("GET /api/teams", 200, { teams: [TEAMS[0], TEAMS[2]] });
   fireEvent(view.querySelector('[data-delete-team="t2"]'), "click");
   fireEvent(view.querySelector("[data-delete-confirm]"), "click");
   fireEvent(view.querySelector("[data-sheet-close]"), "click");
@@ -246,10 +260,11 @@ test("a refusal that comes after the sheet was closed is a message, not a sheet 
 test("a delete answered after the coach left says so in a message and touches nothing of the screen that is there now", async () => {
   coach();
   api.reply("DELETE /api/teams/t2", 200, { ok: true });
-  api.reply("GET /api/teams", 200, { teams: [TEAMS[0], TEAMS[2]] });
   api.reply("GET /api/games", 200, { games: [] });
   const gate = api.hold("DELETE /api/teams/t2");
   renderTeams();
+  await settle();
+  api.reply("GET /api/teams", 200, { teams: [TEAMS[0], TEAMS[2]] });
   fireEvent(view.querySelector('[data-delete-team="t2"]'), "click");
   fireEvent(view.querySelector("[data-delete-confirm]"), "click");
   releaseCurrentScreen();
@@ -271,7 +286,7 @@ test("another tab's token: nothing is sent, and the sheet says so", async () => 
   fireEvent(view.querySelector('[data-delete-team="t2"]'), "click");
   fireEvent(view.querySelector("[data-delete-confirm]"), "click");
   await settle();
-  assert.equal(api.calls.length, 0);
+  assert.equal(api.calls.some((call) => call.key.startsWith("DELETE")), false);
   assert.equal(view.querySelector('#team-delete [role="alert"] .g-callout__title').textContent, "Someone signed in or out in another tab, so nothing was saved here.");
 });
 
@@ -288,6 +303,7 @@ test("a list that did not load is read again here, and the screen is the list on
   coach({ items: [], loaded: false, error: "The server did not answer." });
   api.reply("GET /api/teams", 500, refusal("SERVER_ERROR"));
   renderTeams();
+  assert.equal(api.calls.length, 0, "a list that never loaded has its retry; a read begun behind it would clear its reason");
   assert.equal(view.querySelector(".g-team-empty__text").textContent, "The server did not answer.");
   fireEvent(view.querySelector("button[data-teams-retry]"), "click");
   assert.equal(view.querySelector(".loading").textContent, "Loading teams...");
@@ -346,6 +362,49 @@ test("a page that has not read the games and the table yet reads them, and draws
   await settle();
   assert.equal(view.querySelector("a[href=\"#/t/t1\"] .g-teamface__line").textContent, "Human · #2 · 0-0-0");
   api.assertAnswered();
+});
+
+test("the list is read again on every visit, after the first draw; a team registered since shows its chip where the bin was", async () => {
+  coach();
+  api.reply("GET /api/teams", 200, { teams: TEAMS.map((team) => (team.id === "t2" ? { ...team, inActiveSeason: true } : team)) });
+  renderTeams();
+  assert.deepEqual(api.calls.map((call) => call.key), ["GET /api/teams"], "sent on entry");
+  assert.ok(view.querySelector('[data-delete-team="t2"]'), "the first draw is the list as it stood: nothing waits for the read");
+  await settle();
+  await settle();
+  assert.equal(view.querySelector('[data-delete-team="t2"]'), null);
+  assert.equal(view.querySelector('a[href="#/t/t2"]').closest(".g-teams__item").querySelector(".g-status").textContent, "In the season");
+  assert.equal(api.calls.length, 1);
+});
+
+test("a list that cannot be read again on entry stays as it was, with no screen of its own for the failure", async () => {
+  coach();
+  api.reply("GET /api/teams", 500, refusal("SERVER_ERROR"));
+  renderTeams();
+  await settle();
+  await settle();
+  assert.deepEqual(hrefs(), ["#/t/t1", "#/t/t2", "#/t/t3"]);
+  assert.equal(view.querySelector("button[data-teams-retry]"), null);
+});
+
+test("a delete that went through is gone from the list even when the list cannot be read again", async () => {
+  coach({ active: "t2" });
+  api.reply("DELETE /api/teams/t2", 200, { ok: true });
+  api.reply("GET /api/games", 200, { games: [] });
+  api.reply("PATCH /api/auth/preferences", 200, { preferences: { activeTeamId: "t1" } });
+  renderTeams();
+  await settle();
+  api.reply("GET /api/teams", 500, refusal("SERVER_ERROR"));
+  fireEvent(view.querySelector('[data-delete-team="t2"]'), "click");
+  fireEvent(view.querySelector("[data-delete-confirm]"), "click");
+  await withoutTimers(async () => {
+    await settle();
+    await settle();
+  });
+  assert.deepEqual(hrefs(), ["#/t/t1", "#/t/t3"]);
+  assert.equal(view.querySelector("dialog#team-delete"), null);
+  assert.equal(state.activeTeamId, "t1", "the header names a team that is there");
+  assert.deepEqual(toasts(), ["Anji Magritta is deleted"]);
 });
 
 test("a team named with markup is a name, in the list, the bin's label and the sheet", () => {
