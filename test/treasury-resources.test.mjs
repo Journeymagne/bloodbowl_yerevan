@@ -463,3 +463,12 @@ test("the card is a surface with its own text, readable in every palette, and it
   assert.deepEqual(valuesOf(CSS, ".g-manage__resources-head", "flex-wrap"), ["wrap"]);
   assert.deepEqual(valuesOf(CSS, ".g-manage__resources-sub", "white-space"), ["nowrap"]);
 });
+
+test("a switch that cannot be pressed keeps its reason readable, as a locked counter keeps its note: the name goes quiet, not the words", () => {
+  // The kit dims a disabled switch whole (toggle.css, opacity .6), which left «After the match's post-match» at 2.5:1 (T6).
+  assert.deepEqual(valuesOf(CSS, ".g-manage__resources .g-toggle:disabled", "opacity"), ["1"]);
+  assertReadable(CSS, ".g-manage__resources .g-toggle:disabled .g-toggle__caption", "color", ["--surface"], 4.5);
+  assert.deepEqual(valuesOf(CSS, ".g-manage__resources .g-toggle:disabled .g-toggle__label", "color"), ["var(--faint)"]);
+  assert.deepEqual(valuesOf("src/ui/resource-counter.css", ".g-resource--locked .g-resource__name", "color"), ["var(--faint)"], "the name a locked counter has");
+  assert.deepEqual(valuesOf(CSS, ".g-manage__resources .g-toggle:disabled .g-toggle__track", "opacity"), [".6"]);
+});
