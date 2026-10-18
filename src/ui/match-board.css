@@ -1,0 +1,282 @@
+/*
+ * The match board (ui/match-board.mjs): a dark card, the two teams with the
+ * score between them, and a bar of squares and actions. Font, border,
+ * background, text-transform and border-radius are set here on purpose: the
+ * 2.x globals (h1…h6 { font }, :focus-visible { border-radius }) outlive this
+ * sheet until stage 13.
+ *
+ * The design system's MatchBoard README is older than 0.9 (its actions are
+ * «Start the match» and «Cancel the start»); the anatomy and the drawing are
+ * DeskOverview.html's, the actions are 0.9's (matchActions in
+ * shell/current-match.mjs). Written for a phone first: the same three columns,
+ * compact; from 901px the desk's size.
+ */
+.g-board {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* A match in progress: the match card rings it in the accent, the dark band in the live green. */
+.g-board--live { box-shadow: 0 0 0 2px var(--live); }
+
+/* Our team at the left, theirs at the right, the score between them. */
+.g-board__main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-12);
+}
+
+.g-board__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  text-align: left;
+}
+.g-board__side--away {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.g-board__name {
+  color: var(--header-ink);
+  font: 700 18px/1.1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-board__sub {
+  color: var(--header-muted);
+  font: 400 13px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+/* In the opponent's place while the next round is not paired: when there will be one. */
+.g-board__pending {
+  color: var(--header-muted);
+  font: 400 14px/1.35 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-board__mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  text-align: center;
+}
+
+.g-board__overline {
+  color: var(--header-muted);
+  font: 700 12px/1.2 var(--font-body);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+
+.g-board__score {
+  color: var(--header-ink);
+  font: 700 40px/1 var(--font-display);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+/* Squares and actions on a bar darker than the card. */
+.g-board__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12) var(--space-20);
+  padding: var(--space-10) var(--space-12);
+  background: color-mix(in srgb, #000 20%, transparent);
+}
+
+/* The season's matches, one square each. They are no links: a square is smaller than a tap. */
+.g-board__pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-board__square {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  font: 700 12px/1 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* Not played: a wash of the ink. */
+.g-board__square--none {
+  background: color-mix(in srgb, var(--header-ink) 14%, transparent);
+  color: var(--header-ink);
+}
+
+/* The match the page is about. It comes before the results so a played match keeps its colours: the ring is what marks it. */
+.g-board__square--current {
+  outline: 2px solid var(--header-ink);
+  color: var(--header-ink);
+}
+
+.g-board__square--w {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.g-board__square--d {
+  background: var(--neutral-result);
+  color: var(--on-accent);
+}
+.g-board__square--l {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+.g-board__square--t {
+  background: var(--result-friendly);
+  color: var(--on-accent);
+}
+
+/* On a phone the actions are a column, each the width of the bar. */
+.g-board__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-8);
+  width: 100%;
+}
+
+/* The line of a score that is sent, over its buttons. */
+.g-board__note {
+  color: var(--header-ink);
+  font: 700 14px/1.3 var(--font-body);
+  text-align: center;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/*
+ * The buttons on the band. The primary is the light one, the rest are outlined
+ * in the ink; both set what button.css would otherwise leave to a page (a
+ * primary there is the accent, the full width and 52px high).
+ */
+.g-board__actions .g-btn {
+  box-sizing: border-box;
+  width: 100%;
+  height: auto;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-16);
+  border: 1px solid var(--header-ink);
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--header-ink);
+  font: 600 15px/1.2 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-board__actions .g-btn:hover { background: color-mix(in srgb, var(--header-ink) 12%, transparent); }
+
+.g-board__actions .g-btn--primary {
+  background: var(--header-ink);
+  color: var(--header);
+  font-weight: 700;
+}
+/* button.css turns a primary into the dark accent on hover; here it only dims a little. */
+.g-board__actions .g-btn--primary:hover:not(:disabled) { background: color-mix(in srgb, var(--header-ink) 88%, var(--header)); }
+
+/* A plain link: the words, and a 44px box for the finger to find. */
+.g-board__link {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch);
+  padding: 0 var(--space-12);
+  border: 0;
+  background: transparent;
+  color: var(--header-ink);
+  font: 600 15px/1.2 var(--font-body);
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-board__link:hover { text-decoration: underline; }
+
+/* The keyboard ring on the dark band is the header's ink (decision 19 of stage 05): the accent is for a page. */
+.g-board__actions .g-btn:focus-visible,
+.g-board__link:focus-visible { outline-color: var(--header-ink); }
+
+/*
+ * On a phone the middle column is held narrow, so the names keep their room: the overline wraps, and so does a
+ * status such as «Waiting for confirmation», which the chip's own sheet would keep on one line.
+ */
+@media (max-width: 900px) {
+  .g-board__mid { max-width: 124px; }
+
+  .g-board__mid .g-status {
+    height: auto;
+    min-height: 26px;
+    padding-top: var(--space-4);
+    padding-bottom: var(--space-4);
+    line-height: 1.2;
+    text-align: center;
+    white-space: normal;
+  }
+}
+
+@media (min-width: 901px) {
+  .g-board__main {
+    gap: var(--space-24);
+    padding: var(--space-22) 28px;
+  }
+
+  .g-board__bar { padding-right: var(--space-16); padding-left: var(--space-16); }
+
+  .g-board__name { font: 700 32px/1 var(--font-display); }
+
+  .g-board__score { font: 700 72px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+
+  /* The actions go to the right of the bar, side by side, as wide as their words. */
+  .g-board__actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    width: auto;
+    margin-left: auto;
+  }
+
+  .g-board__actions .g-btn { width: auto; }
+}

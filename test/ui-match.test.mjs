@@ -2,12 +2,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { assertContrast, valuesOf } from "./helpers/contrast.mjs";
-import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
+import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderButton } from "../src/ui/button.mjs";
 import { renderFormStrip } from "../src/ui/form-strip.mjs";
 import { renderKpiGrid, renderKpiTile } from "../src/ui/kpi-tile.mjs";
+import { renderBoardActions, renderMatchBoard } from "../src/ui/match-board.mjs";
 import { renderMatchCard } from "../src/ui/match-card.mjs";
 import { RESULT_KINDS, renderResultPill, resultLabels } from "../src/ui/result-pill.mjs";
 import { STATUS_TONES, renderStatusChip } from "../src/ui/status-chip.mjs";
@@ -339,4 +340,171 @@ test("a compact kpi figure keeps tabular digits: its font shorthand would reset 
   assert.deepEqual(valuesOf(sheet, ".g-kpi--compact .g-kpi__v", "font-variant-numeric"), ["tabular-nums"]);
   const body = readFileSync(new URL("../src/ui/kpi-tile.css", import.meta.url), "utf8").match(/\.g-kpi--compact \.g-kpi__v\s*\{([^}]*)\}/)[1];
   assert.ok(body.indexOf("font-variant-numeric") > body.indexOf("font:"), "after the shorthand, or the shorthand wins");
+});
+
+test("a match board: the overline, both teams, the score or a dash pair, the status, the season's squares with the current one ringed, the actions", () => {
+  const fragment = mount(renderMatchBoard({
+    overline: "Round 3 · home", own: { name: "Wardens", sub: "Human · #2" }, opponent: { name: "Raiders", sub: "Skaven" },
+    statusHtml: renderStatusChip({ label: "Not started", onDark: true }),
+    pager: [{ label: "1", result: "w", current: false }, { label: "2", result: "l", current: false }, { label: "3", result: null, current: true }],
+    actionsHtml: renderButton({ label: "Match preparation", href: "#/games/g1/pre-match" }),
+  }));
+  assert.equal(fragment.querySelector(".g-board__mid").textContent.includes("–:–"), true);
+  assert.deepEqual(fragment.querySelectorAll(".g-board__square").map((square) => square.getAttribute("aria-label")), ["1: Win", "2: Loss", "3: Not played"]);
+  assert.ok(fragment.querySelector(".g-board__square--current.g-board__square--none"));
+  assert.equal(fragment.querySelector("ol.g-board__pager").getAttribute("aria-label"), "Season matches");
+  assert.equal(fragment.querySelector(".g-board__square a"), null, "squares are no links: they are smaller than a tap");
+  assertCspSafe(fragment);
+  assertStyled(fragment, "match-board.css", "status-chip.css", "button.css");
+  assertDictionaryCovers("src/ui/match-board.mjs");
+});
+
+test("with no opponent yet the board says when there will be one; names and lines are text", () => {
+  const fragment = mount(renderMatchBoard({ own: { name: HOSTILE, sub: HOSTILE }, pendingText: "Opponent — after round 2" }));
+  assert.equal(fragment.querySelector(".g-board__side--away").textContent, "Opponent — after round 2");
+  assert.equal(fragment.querySelector("img"), null);
+  assert.throws(() => renderMatchBoard({ own: {} }), /own/);
+});
+
+test("the board's dark band reads in every palette", () => {
+  assertReadable("src/ui/match-board.css", ".g-board__name", "color", ["--header"], 4.5);
+  assertReadable("src/ui/match-board.css", ".g-board__sub", "color", ["--header"], 4.5);
+  assertReadable("src/ui/match-board.css", ".g-board__square--current", "color", ["--header"], 4.5);
+});
+
+// Beyond the brief's table: the parts of the board it leaves to the component.
+
+const BOARD_CSS = "src/ui/match-board.css";
+const own = { name: "Wardens", sub: "Human · #2" };
+
+test("the board is one section: the main row of three columns, then a bar that is there only when it has something to hold", () => {
+  const bare = mount(renderMatchBoard({ own, opponent: { name: "Raiders" } }));
+  assert.equal(bare.querySelector("section.g-board").getAttribute("class"), "g-board");
+  assert.deepEqual(bare.querySelector(".g-board__main").childNodes.map((node) => node.getAttribute("class")), ["g-board__side", "g-board__mid", "g-board__side g-board__side--away"]);
+  assert.equal(bare.querySelector(".g-board__bar"), null, "no squares and no actions: no bar");
+  assert.equal(bare.querySelector(".g-board__overline"), null);
+  assert.equal(bare.querySelectorAll(".g-board__sub").length, 1, "the opponent had no line");
+  const squares = mount(renderMatchBoard({ own, pager: [{ label: "1", result: "w", current: true }] }));
+  assert.deepEqual(squares.querySelector(".g-board__bar").childNodes.map((node) => node.getAttribute("class")), ["g-board__pager"], "squares only: no empty actions box");
+  const actions = mount(renderMatchBoard({ own, actionsHtml: renderButton({ label: "Go", href: "#/x" }) }));
+  assert.deepEqual(actions.querySelector(".g-board__bar").childNodes.map((node) => node.getAttribute("class")), ["g-board__actions"], "actions only: no empty list of squares");
+  assert.equal(actions.querySelector("ol"), null);
+});
+
+test("the board's two teams are named by the caller; a line under a name is there only when given", () => {
+  const fragment = mount(renderMatchBoard({ own, opponent: { name: "Raiders", sub: "Skaven · #1" } }));
+  assert.deepEqual(fragment.querySelectorAll(".g-board__name").map((node) => node.textContent), ["Wardens", "Raiders"]);
+  assert.deepEqual(fragment.querySelectorAll(".g-board__sub").map((node) => node.textContent), ["Human · #2", "Skaven · #1"]);
+  assert.equal(mount(renderMatchBoard({ own: { name: "Solo" } })).querySelector(".g-board__sub"), null);
+  assert.throws(() => renderMatchBoard({}), /own/);
+  assert.throws(() => renderMatchBoard({ own: { name: "" } }), /own/);
+});
+
+test("a score is text between the names; the dash pair stands in until there is one", () => {
+  const score = (props) => mount(renderMatchBoard({ own, ...props })).querySelector(".g-board__score").textContent;
+  assert.equal(score({}), "–:–");
+  assert.equal(score({ score: "2:1" }), "2:1");
+  assert.equal(score({ score: "0:0" }), "0:0", "a goalless score is a score");
+  assert.equal(mount(renderMatchBoard({ own, score: HOSTILE, overline: HOSTILE })).querySelector("img"), null);
+});
+
+test("the status and the overline sit in the middle: the overline over the score, the status under it", () => {
+  const fragment = mount(renderMatchBoard({ own, overline: "Round 3 · home", statusHtml: renderStatusChip({ label: "Live", tone: "live", onDark: true }) }));
+  assert.deepEqual(fragment.querySelector(".g-board__mid").childNodes.map((node) => node.getAttribute("class")), ["g-board__overline", "g-board__score", "g-status g-status--live g-status--on-dark"]);
+  assert.equal(fragment.querySelector(".g-board__overline").textContent, "Round 3 · home");
+});
+
+test("a match in play rings the board", () => {
+  assert.equal(mount(renderMatchBoard({ own, live: true })).querySelector("section").getAttribute("class"), "g-board g-board--live");
+  assert.equal(mount(renderMatchBoard({ own })).querySelector(".g-board--live"), null);
+  assert.match(valuesOf(BOARD_CSS, ".g-board--live", "box-shadow")[0], /var\(--live\)/);
+});
+
+test("a square says its round and its result, and is the colour of the result; the current one keeps its colour", () => {
+  const pager = [["w", "1"], ["d", "2"], ["l", "3"], ["t", "4"], [null, "5"]].map(([result, label], at) => ({ label, result, current: at === 3 }));
+  const fragment = mount(renderMatchBoard({ own, pager }));
+  const squares = fragment.querySelectorAll(".g-board__square");
+  assert.deepEqual(squares.map((square) => square.getAttribute("class")), [
+    "g-board__square g-board__square--w", "g-board__square g-board__square--d", "g-board__square g-board__square--l",
+    "g-board__square g-board__square--t g-board__square--current", "g-board__square g-board__square--none"]);
+  assert.deepEqual(squares.map((square) => square.getAttribute("aria-label")), ["1: Win", "2: Draw", "3: Loss", "4: Friendly", "5: Not played"]);
+  assert.deepEqual(squares.map((square) => square.textContent), ["1", "2", "3", "4", "5"]);
+  assertStyled(fragment, "match-board.css");
+  assert.throws(() => renderMatchBoard({ own, pager: [{ label: "1", result: "x", current: false }] }), /unknown result/);
+  assert.equal(mount(renderMatchBoard({ own, pager: [{ label: "1", result: "", current: false }] })).querySelector(".g-board__square").getAttribute("class"), "g-board__square g-board__square--none", "no result is not played, however it is written");
+  const tricky = mount(renderMatchBoard({ own, pager: [{ label: HOSTILE, result: null, current: false }] }));
+  assert.equal(tricky.querySelector("img"), null);
+  assert.equal(tricky.querySelector(".g-board__square").textContent, HOSTILE);
+});
+
+test("the board reads in Russian: the dash pair, the list's name and the word for a square not yet played", () => {
+  const fragment = inRussian(() => mount(renderMatchBoard({ own, pager: [{ label: "1", result: "d", current: false }, { label: "2", result: null, current: true }] })));
+  assert.equal(fragment.querySelector(".g-board__score").textContent, "–:–");
+  assert.equal(fragment.querySelector("ol").getAttribute("aria-label"), "Матчи сезона");
+  assert.deepEqual(fragment.querySelectorAll(".g-board__square").map((square) => square.getAttribute("aria-label")), ["1: Ничья", "2: Не сыгран"]);
+});
+
+test("a square's letter and number read on its colour in every palette", () => {
+  const ink = (selector) => valuesOf(BOARD_CSS, selector, "color").at(-1);
+  for (const [selector, fill] of [[".g-board__square--w", "--accent"], [".g-board__square--d", "--neutral-result"], [".g-board__square--l", "--danger"], [".g-board__square--t", "--result-friendly"]]) {
+    assert.deepEqual(valuesOf(BOARD_CSS, selector, "background"), [`var(${fill})`], `${selector} fill`);
+    assertContrast(ink(selector), [`var(${fill})`], 4.5, { what: `${selector} ${ink(selector)}` });
+  }
+  const wash = "color-mix(in srgb, var(--header-ink) 14%, var(--header))";
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__square--none", "background"), ["color-mix(in srgb, var(--header-ink) 14%, transparent)"]);
+  assertContrast(ink(".g-board__square--none"), [wash], 4.5, { what: "an unplayed square" });
+  assertContrast(ink(".g-board__square--current"), [wash], 4.5, { what: "the current square" });
+});
+
+test("the board is drawn as the design says: a dark 16px card, a 72px score on a desk and 40px on a phone, 30px squares, a darker bar", () => {
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board", "background"), valuesOf(BOARD_CSS, ".g-board", "color"), valuesOf(BOARD_CSS, ".g-board", "border-radius")], [["var(--header)"], ["var(--header-ink)"], ["var(--radius-2xl)"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__main", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__score", "font"), ["700 40px/1 var(--font-display)", "700 72px/1 var(--font-display)"]);
+  assert.match(valuesOf(BOARD_CSS, ".g-board__overline", "font")[0], /^700 12px\//);
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__overline", "text-transform"), valuesOf(BOARD_CSS, ".g-board__overline", "color")], [["uppercase"], ["var(--header-muted)"]]);
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__square", "width"), valuesOf(BOARD_CSS, ".g-board__square", "height"), valuesOf(BOARD_CSS, ".g-board__square", "border-radius")], [["30px"], ["30px"], ["var(--radius-sm)"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__square--current", "outline"), ["2px solid var(--header-ink)"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__bar", "background"), ["color-mix(in srgb, #000 20%, transparent)"]);
+  const css = readFileSync(new URL(`../${BOARD_CSS}`, import.meta.url), "utf8");
+  assert.match(css, /@media \(min-width: 901px\)/);
+});
+
+test("on the band a primary action is the light button and the rest are outlined; every one is a 44px target", () => {
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__actions .g-btn--primary", "background"), valuesOf(BOARD_CSS, ".g-board__actions .g-btn--primary", "color")], [["var(--header-ink)"], ["var(--header)"]]);
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__actions .g-btn", "background"), valuesOf(BOARD_CSS, ".g-board__actions .g-btn", "border")], [["transparent"], ["1px solid var(--header-ink)"]]);
+  for (const selector of [".g-board__actions .g-btn", ".g-board__link"]) assert.deepEqual(valuesOf(BOARD_CSS, selector, "min-height"), ["var(--size-touch)"], selector);
+  assertReadable(BOARD_CSS, ".g-board__actions .g-btn--primary", "color", ["--header-ink"], 4.5);
+  for (const selector of [".g-board__actions .g-btn", ".g-board__link", ".g-board__note", ".g-board__pending"]) assertReadable(BOARD_CSS, selector, "color", ["--header", "color-mix(in srgb, #000 20%, var(--header))"], 4.5);
+  assertReadable(BOARD_CSS, ".g-board__overline", "color", ["--header"], 4.5);
+});
+
+test("the focus ring on the board's dark band is the header's ink, not the page's accent", () => {
+  for (const selector of [".g-board__actions .g-btn:focus-visible", ".g-board__link:focus-visible"]) assert.deepEqual(valuesOf(BOARD_CSS, selector, "outline-color"), ["var(--header-ink)"], selector);
+});
+
+test("the board's actions: a primary and a light button, a plain link, and a note that is text", () => {
+  const fragment = mount(renderBoardActions({
+    links: [{ label: "Match records", href: "#/t/t1/roster", kind: "text" }, { label: "Post-match", href: "#/games/g1/post-match", kind: "light" }, { label: "Preparation", href: "#/games/g1/pre-match", kind: "primary" }],
+    sentLine: "Win 2–1 · CAS 1–0",
+  }));
+  assert.deepEqual(fragment.childNodes.map((node) => [node.tagName, node.getAttribute("class"), node.textContent]), [
+    ["SPAN", "g-board__note", "Win 2–1 · CAS 1–0"],
+    ["A", "g-board__link", "Match records"],
+    ["A", "g-btn", "Post-match"],
+    ["A", "g-btn g-btn--primary", "Preparation"],
+  ]);
+  assert.deepEqual(fragment.querySelectorAll("a").map((link) => link.getAttribute("href")), ["#/t/t1/roster", "#/games/g1/post-match", "#/games/g1/pre-match"]);
+  assertCspSafe(fragment);
+  assertStyled(fragment, "match-board.css", "button.css");
+});
+
+test("the board's actions draw nothing for nothing, and refuse a kind or a link they cannot draw", () => {
+  assert.equal(renderBoardActions({ links: [], sentLine: "" }), "");
+  assert.equal(renderBoardActions({}), "");
+  for (const kind of ["outline", "danger", "toString", undefined]) assert.throws(() => renderBoardActions({ links: [{ label: "L", href: "#/x", kind }] }), /action kind/, String(kind));
+  assert.throws(() => renderBoardActions({ links: [{ label: "L", href: "javascript:alert(1)", kind: "text" }] }), /javascript/);
+  const hostile = mount(renderBoardActions({ links: [{ label: HOSTILE, href: '#/x"onmouseover="1', kind: "text" }, { label: HOSTILE, href: "#/y", kind: "light" }], sentLine: HOSTILE }));
+  assert.equal(hostile.querySelector("img"), null);
+  assert.deepEqual(hostile.querySelectorAll("a").map((link) => link.textContent), [HOSTILE, HOSTILE]);
+  assertCspSafe(hostile);
 });
