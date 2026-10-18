@@ -16,10 +16,6 @@ import { state } from "../core/state.mjs";
 import { pageUrl, playerTeamUrl, playerUrl } from "../core/routes.mjs";
 import { canonicalLeagueName, canonicalSpecialRuleName, ruleLookupKey } from "../domain/roster/team-rules.mjs";
 
-export function uniqueSorted(values) {
-  return [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b, "en"));
-}
-
 export function pageForSkillTableEntry(title) {
   const pages = [...state.data.skills, ...state.data.traits, ...state.data.pages];
   const lookupTitle = title.trim().replace(/^Loner\s*(?:\(\s*(?:[1-6]|X)\s*\+\s*\)|(?:[1-6]|X)\s*\+)$/i, "Loner (X+)");

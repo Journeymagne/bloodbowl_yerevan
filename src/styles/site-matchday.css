@@ -32,12 +32,7 @@ body { background: var(--bg); font-size: .9375rem; }
 .matchday-editor > .page-head { padding: 0; border: 0; background: none; box-shadow: none; }
 .page-head .toolbar { align-self: center; gap: 12px; }
 .page-back-button { min-height: 44px; }
-.catalog-kicker, .catalog-card-section > span { font: .65rem/1.5 var(--label-font); letter-spacing: .7px; text-transform: uppercase; }
-.filter-panel { padding: 17px 0; border: 0; border-block: 1px solid var(--line-bright); border-radius: 0; background: none; backdrop-filter: none; }
 .content-panel h2, .side-panel h2 { font: 800 1.9rem/1.2 var(--display-font); letter-spacing: .4px; text-transform: uppercase; color: var(--text); }
-.content-body > h2:not(:first-child), .overview-card-section + .overview-card-section { padding-top: 24px; border-top: 1px solid var(--line); }
-.content-body { font-size: .9rem; }
-.content-body > p { max-width: 85ch; }
 .card { background: var(--panel); border-color: var(--line-bright); backdrop-filter: none; padding: 22px; }
 .card::before { display: none; }
 .card:hover { background: var(--panel-2); border-color: var(--focus); }
@@ -45,23 +40,15 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .card h2, .card h3 { font: 800 1.7rem/1.2 var(--display-font); letter-spacing: .3px; text-transform: uppercase; text-shadow: none; color: var(--text); }
 .card p { font-size: .85rem; text-shadow: none; line-height: 1.65; }
 .card-grid { gap: 20px; }
-.badge, .roster-pill, .catalog-price, .season-status-pill, .season-tab,
-.skill-roll-die, .skill-roll-result, .team-stat-grid, .admin-reset-password-result,
-.reference-table-card header strong, .skill-table-group, .content-panel .skill-table-list li { border-radius: 0; }
+.badge, .roster-pill, .season-status-pill, .season-tab,
+.team-stat-grid, .admin-reset-password-result { border-radius: 0; }
 .badge, .season-status-pill { background: var(--md-wash); border-color: var(--line); font: .6rem/1.5 var(--label-font); letter-spacing: .3px; padding: 5px 8px; }
 .roster-pill { background: var(--panel-2); border-color: var(--line); padding: 7px 10px; font-size: .8rem; line-height: 1.5; }
 .roster-pill:is(a, button), .chip { min-height: 44px; align-items: center; }
-.catalog-price { border: 1px solid var(--line-bright); background: var(--panel-2); color: var(--text); font: 1.15rem/1 var(--label-font); }
-.catalog-card-stats, .catalog-stat-strip { border-block: 1px solid var(--line-bright); background: none; }
-.catalog-card-stats dt, .catalog-stat-strip dt { font: .6rem/1.5 var(--label-font); color: var(--muted); }
-.catalog-card-stats dd, .catalog-stat-strip dd { font: 1.15rem/1.4 var(--label-font); color: var(--text); }
-.catalog-card-actions { border-top-color: var(--line); padding-top: 18px; }
-.catalog-card .primary-button { width: 100%; }
 .content-panel table th, .side-panel table th { background: var(--panel-2); font: .65rem/1.5 var(--label-font); letter-spacing: .3px; color: var(--muted); }
 .content-panel table td { border-color: var(--line); }
 .table-scroll { border-color: var(--line); }
-.league-reference-card, .team-roster-card, .reference-table-card,
-.skill-roll-panel, .season-admin-block, .fixture-headline > div, .season-score-summary,
+.season-admin-block, .fixture-headline > div, .season-score-summary,
 .game-versus > div { background: var(--panel-2); border-color: var(--line); box-shadow: none; }
 .season-tabs { padding: 0; border: 0; background: none; gap: 7px; margin-bottom: 24px; }
 .season-tab { min-height: 48px; font-size: .8rem; background: var(--panel); border-color: var(--line); }

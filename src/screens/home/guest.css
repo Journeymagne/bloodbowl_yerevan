@@ -240,6 +240,7 @@
   .g-guest__lead {
     color: var(--header-ink);
     font: 700 44px/1.05 var(--font-display);
+    text-transform: none;
   }
   .g-guest__hero .g-guest__text {
     color: var(--header-muted);

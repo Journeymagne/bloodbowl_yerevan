@@ -6,7 +6,6 @@ import {
   adminTeamEditUrl,
   authUrl,
   gameUrl,
-  listUrlForRoute,
   matchRoute,
   navRouteForPage,
   newTeamUrl,
@@ -61,8 +60,6 @@ test("a missing id gives an empty segment rather than the string 'undefined'", (
 test("the remaining link shapes are what the screens expect", () => {
   assert.equal(pageUrl({ slug: "teams/amazon" }), "#/teams/amazon");
   assert.equal(savedRosterUrl("t1"), "#/t/t1/roster");
-  assert.equal(listUrlForRoute("home"), "#/", "home is the bare hash, not #/home");
-  assert.equal(listUrlForRoute("skills"), "#/ref/skills");
   assert.equal(seasonTabUrl(""), "#/season", "the default tab is the bare hash, not a trailing slash");
   assert.equal(seasonTabUrl("standings"), "#/season/standings");
 });
@@ -77,7 +74,6 @@ test("3.0 links are built from ids, encoded, and the 2.x builders point at them"
   assert.deepEqual([teamsUrl(), newTeamUrl(), authUrl(), authUrl("register"), settingsUrl()],
     ["#/teams", "#/teams/new", "#/login", "#/register", "#/settings"]);
   assert.deepEqual([refUrl(), refUrl("pages"), refUrl("skills")], ["#/ref", "#/ref", "#/ref/skills"]);
-  assert.deepEqual([listUrlForRoute("home"), listUrlForRoute("skills"), listUrlForRoute("pages")], ["#/", "#/ref/skills", "#/ref"]);
   assert.throws(() => teamUrl("t1", "treasury"), /section/);
 });
 
