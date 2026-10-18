@@ -1,0 +1,262 @@
+/*
+ * The roster as a table. Font, border, background, padding, text-transform and
+ * letter-spacing are set on purpose, on every element the 2.x globals reach
+ * (table { min-width: 760px }, th and td with their padding, border and
+ * background, button { font: inherit }): they outlive this sheet until stage 13.
+ *
+ * Widths live on the <col>s. A fixed table takes its column widths from its
+ * first row, and from 901px that row is the over-heads', whose cells span
+ * columns and have no width of their own; a width on a cell below it, or a
+ * min-width on one, is not read. The player's column has none up to 900px and
+ * takes what the characteristics leave; from 901px it is 180px and the table
+ * grows past its frame (which scrolls) before it narrows below the sum.
+ */
+.g-rtable {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  border-collapse: collapse;
+  table-layout: fixed;
+  background: transparent;
+  color: var(--ink);
+  font: 400 15px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The player's cell: the button that opens his row and, from 901px, his skills under it. */
+.g-rtable__who {
+  box-sizing: border-box;
+  padding: var(--space-4) var(--space-8) var(--space-4) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  vertical-align: middle;
+}
+
+.g-rtable__toggle {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  width: 100%;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.g-rtable__text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-rtable__name {
+  font: 600 15px/1.2 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+/* The position, or why he misses the match. */
+.g-rtable__sub {
+  color: var(--muted);
+  font: 400 13px/1.2 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-rtable__sub--alert { color: var(--danger); }
+
+/* The skills under the name: the badge and the gap are 46px, and the chips start under the name. */
+.g-rtable__skills { padding: 0 0 var(--space-6) 46px; }
+
+/* One value of the row. */
+.g-rtable__row { height: var(--size-row); }
+
+.g-rtable__c {
+  box-sizing: border-box;
+  padding: var(--space-8) var(--space-4);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.g-rtable__c--zero { color: var(--faint); }
+.g-rtable__c--up { color: var(--accent-text); font-weight: 700; }
+.g-rtable__c--down { color: var(--danger); font-weight: 700; }
+.g-rtable__c--strong { color: var(--accent-text); font: 700 17px/1 var(--font-body); }
+
+/* What this match added, small and raised, with its words for a screen reader. */
+.g-rtable__delta {
+  margin-left: 1px;
+  color: var(--accent-text);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 0;
+}
+
+/* The labels: the head's, and the foot's, which repeats them. */
+.g-rtable__h {
+  box-sizing: border-box;
+  padding: 0 var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 600 11px/1 var(--font-body);
+  letter-spacing: .06em;
+  text-align: center;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+th.g-rtable__h { border-bottom: 1px solid var(--line); }
+.g-rtable__h--who { padding-left: 0; text-align: left; }
+.g-rtable__foot > .g-rtable__h { padding: var(--space-12) var(--space-4); }
+.g-rtable__foot > .g-rtable__h--who { padding-left: 0; }
+
+/* The button of a header. The arrow of the sorted column sits under its label and takes no width: a column is 32px. */
+.g-sort {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--muted);
+  font: 600 11px/1 var(--font-body);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  cursor: pointer;
+}
+[aria-sort] .g-sort { color: var(--accent-text); }
+
+.g-sort__arrow {
+  position: absolute;
+  right: 0;
+  bottom: var(--space-4);
+  left: 0;
+  font-size: 10px;
+  line-height: 1;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+/* The frame clips at its edge, and the head's buttons stand at it: the focus ring of base.css is drawn inside them. */
+.g-sort:focus-visible,
+.g-rtable__toggle:focus-visible { outline-offset: -3px; }
+
+.g-rtable__h--who .g-sort { width: auto; justify-content: flex-start; }
+.g-rtable__h--who .g-sort__arrow { position: static; margin-left: var(--space-4); }
+
+/* The over-heads: a line over the columns of a group. */
+.g-rtable__g {
+  padding: var(--space-8) var(--space-4) var(--space-4);
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font: 600 11px/1 var(--font-body);
+  letter-spacing: .06em;
+  text-align: center;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Skills in a row of their own, and the open row's panel: a phone's. */
+.g-rtable__skillrow > td,
+.g-rtable__panelrow > td {
+  padding: 0 0 var(--space-10);
+  border: 0;
+  background: transparent;
+  text-align: left;
+  vertical-align: top;
+}
+
+@media (max-width: 900px) {
+  .g-rtable__col--stats { width: 36px; }
+
+  .g-rtable__c--desk,
+  .g-rtable__h.g-rtable__c--desk,
+  .g-rtable__col--desk,
+  .g-rtable__skills--desk,
+  .g-rtable__groups { display: none; }
+
+  /* The line is under the whole body (the row, its skills, its panel), not under the row alone. */
+  .g-rtable__who,
+  .g-rtable__c { border-bottom: 0; }
+  .g-rtable__player { border-bottom: 1px solid var(--line); }
+  .g-rtable__skillrow > td { padding-left: 46px; }
+  .g-rtable__player.is-expanded { background: var(--surface-2); }
+  /* --faint is 2.9:1 on the open row's tint: a zero there is muted, not faint. */
+  .g-rtable__player.is-expanded .g-rtable__c--zero { color: var(--muted); }
+}
+
+@media (min-width: 901px) {
+  .g-rtable-frame {
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+
+  .g-rtable__col--who { width: 180px; }
+  .g-rtable__col--stats { width: 32px; }
+  .g-rtable__col--career { width: 36px; }
+  .g-rtable__col--spp { width: 48px; }
+
+  /* The player stays while the numbers scroll under him. */
+  .g-rtable__who,
+  .g-rtable__h--who,
+  .g-rtable__g--who {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--surface);
+  }
+  .g-rtable__who { padding-left: var(--space-12); }
+  .g-rtable__h--who { padding-left: var(--space-12); }
+  .g-rtable__foot > .g-rtable__h--who { padding-left: var(--space-12); }
+
+  /* A line between the groups: the stats, the career, the SPP. */
+  .g-rtable__c--stats + .g-rtable__c--career,
+  .g-rtable__c--stats + .g-rtable__c--spp,
+  .g-rtable__c--career + .g-rtable__c--spp { border-left: 1px solid var(--line); }
+
+  .g-rtable__skillrow,
+  .g-rtable__panelrow { display: none; }
+
+  /* --accent-text, as the focus ring in base.css: --accent is 2.9:1 on the dark surfaces, and this outline is what marks the row. */
+  .g-rtable__player.is-selected .g-rtable__row {
+    outline: 2px solid var(--accent-text);
+    outline-offset: -2px;
+  }
+  /* The player's cell is drawn over the row's outline: the same line, drawn on it. */
+  .g-rtable__player.is-selected .g-rtable__who {
+    box-shadow: inset 2px 0 0 var(--accent-text), inset 0 2px 0 var(--accent-text), inset 0 -2px 0 var(--accent-text);
+  }
+}
