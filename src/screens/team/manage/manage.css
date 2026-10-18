@@ -141,7 +141,10 @@
   letter-spacing: 0;
 }
 
-/* The sub line does not wrap, so on a very narrow phone it drops under the title (the h2's margin is the space between). */
+/*
+ * The sub line does not wrap, so on a narrow card (a phone, a desk just past 900px) it drops under the title: the h2's
+ * margin is the space between them, and the sub's own margin keeps the head's 12px above the first row.
+ */
 .g-manage__resources-head {
   display: flex;
   flex-wrap: wrap;
@@ -159,7 +162,9 @@
   letter-spacing: 0;
 }
 
+/* Beside the title its margin ends above the h2's, so a head on one line keeps its height. */
 .g-manage__resources-sub {
+  margin-bottom: var(--space-12);
   color: var(--muted);
   font: 400 12px/1.3 var(--font-body);
   white-space: nowrap;

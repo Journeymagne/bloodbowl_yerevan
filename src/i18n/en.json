@@ -1167,7 +1167,7 @@
   "treasury.safeLast": "Last deposit: {amount} · {date}",
   "treasury.safeRule": "Up to 50k of the winnings after each match. It can be spent only after the season.",
   "treasury.safeTitle": "Coach's Safe",
-  "treasury.short": "Not enough in the treasury · {price}",
+  "treasury.short": "Not enough in the treasury\u00a0·\u00a0{price}",
   "treasury.strip.apothecary": "Apo",
   "treasury.strip.assistantCoaches": "Coaches",
   "treasury.strip.bribes": "Bribes",

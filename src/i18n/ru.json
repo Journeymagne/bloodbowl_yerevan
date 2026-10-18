@@ -1167,7 +1167,7 @@
   "treasury.safeLast": "Последний взнос: {amount} · {date}",
   "treasury.safeRule": "До 50k из дохода после каждого матча. Тратить можно только после сезона.",
   "treasury.safeTitle": "Coach's Safe",
-  "treasury.short": "Не хватает казны · {price}",
+  "treasury.short": "Не хватает казны\u00a0·\u00a0{price}",
   "treasury.strip.apothecary": "Апот.",
   "treasury.strip.assistantCoaches": "Coaches",
   "treasury.strip.bribes": "Bribes",

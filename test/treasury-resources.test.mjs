@@ -92,9 +92,9 @@ test("an active team's resources: Starting rerolls closed with the stage's words
   assert.deepEqual(section.querySelectorAll("[data-resource-key]").map((node) => node.getAttribute("data-resource-key")), COUNTER_KEYS);
 
   assert.equal(document.querySelector('[data-resource-key="startingRerolls"].g-resource--locked .g-resource__note').textContent, "Starting rerolls are bought only while the team is being built");
-  assert.equal(document.querySelector('[data-resource-key="teamRerolls"] .g-resource__note--danger').textContent, "Not enough in the treasury · 120k");
+  assert.equal(document.querySelector('[data-resource-key="teamRerolls"] .g-resource__note--danger').textContent, "Not enough in the treasury\u00a0·\u00a0120k");
   assert.equal(plus("teamRerolls").getAttribute("aria-disabled"), "true");
-  assert.equal(plus("teamRerolls").getAttribute("title"), "Not enough in the treasury · 120k");
+  assert.equal(plus("teamRerolls").getAttribute("title"), "Not enough in the treasury\u00a0·\u00a0120k");
   assert.equal(counter("teamRerolls").classList.contains("g-resource--locked"), false, "a shortage is not a lock");
   assert.equal(minus("teamRerolls").hasAttribute("disabled"), false);
   assert.equal(document.querySelector('[data-resource-key="dedicatedFans"].g-resource--locked .g-resource__note').textContent, "Change only after matches");
@@ -284,7 +284,7 @@ test("a switch that cannot be afforded is off and says why, a refused save puts 
   coach({ roster: { treasury: 40 } });
   draw();
   assert.equal(toggle("apothecary").hasAttribute("disabled"), true);
-  assert.equal(toggle("apothecary").querySelector(".g-toggle__caption").textContent, "Not enough in the treasury · 50k");
+  assert.equal(toggle("apothecary").querySelector(".g-toggle__caption").textContent, "Not enough in the treasury\u00a0·\u00a050k");
 
   // The treasury allows it on the page, but another tab has bought the apothecary meanwhile.
   coach();
@@ -438,7 +438,7 @@ test("the words of a row, by what closes it", () => {
   coach();
   const words = Object.fromEntries(rowsOf().map((row) => [row.key, resourceWords(row)]));
   assert.deepEqual(words.startingRerolls, { name: "Starting rerolls", note: "60k · only while building", noteTone: "", lockedReason: en["treasury.lock.startingRerolls"], incBlockedReason: en["treasury.lock.startingRerolls"], caption: "" });
-  assert.deepEqual(words.teamRerolls, { name: "Team Rerolls", note: "Not enough in the treasury · 120k", noteTone: "danger", lockedReason: "", incBlockedReason: "Not enough in the treasury · 120k", caption: "" });
+  assert.deepEqual(words.teamRerolls, { name: "Team Rerolls", note: "Not enough in the treasury\u00a0·\u00a0120k", noteTone: "danger", lockedReason: "", incBlockedReason: "Not enough in the treasury\u00a0·\u00a0120k", caption: "" });
   assert.equal(words.dedicatedFans.lockedReason, "Change only after matches");
   assert.equal(words.bribes.lockedReason, en["newTeam.bribesLocked"]);
   assert.deepEqual([words.apothecary.name, words.apothecary.caption, words.apothecary.lockedReason], ["Apothecary", "no · buy for 50k", ""]);
@@ -451,7 +451,7 @@ test("the section speaks Russian when the site does", () => {
   assert.equal(document.querySelector("h2#manage-resources-title").textContent, "Ресурсы");
   assert.equal(document.querySelector('[data-resource-key="startingRerolls"] .g-resource__note').textContent, ru["treasury.lock.startingRerolls"]);
   assert.equal(document.querySelector('[data-resource-key="startingRerolls"] .g-resource__name').textContent, "Стартовые рероллы");
-  assert.match(document.querySelector('[data-resource-key="teamRerolls"] .g-resource__note--danger').textContent, /^Не хватает казны · 120/);
+  assert.match(document.querySelector('[data-resource-key="teamRerolls"] .g-resource__note--danger').textContent, /^Не хватает казны\u00a0·\u00a0120/);
   assert.match(toggle("apothecary").querySelector(".g-toggle__caption").textContent, /^нет · купить за 50/);
 });
 
@@ -462,6 +462,27 @@ test("the card is a surface with its own text, readable in every palette, and it
   assertReadable(CSS, ".g-manage__note", "color", ["--surface"], 4.5);
   assert.deepEqual(valuesOf(CSS, ".g-manage__resources-head", "flex-wrap"), ["wrap"]);
   assert.deepEqual(valuesOf(CSS, ".g-manage__resources-sub", "white-space"), ["nowrap"]);
+});
+
+test("a sub line dropped under the title keeps the head's gap above the first row, as the title keeps it beside the sub line", () => {
+  // T1 at 390 (and a desk at 901px): the sub line sat on «Starting rerolls». The title's bottom margin is the head's gap.
+  assert.deepEqual(valuesOf(CSS, ".g-manage__resources-title", "margin"), ["var(--space-12) 0"]);
+  assert.deepEqual(valuesOf(CSS, ".g-manage__resources-sub", "margin-bottom"), ["var(--space-12)"]);
+  // One rule for every width: beside the title the sub's margin ends above the h2's, so no breakpoint undoes it.
+  assert.equal(read(CSS).match(/\.g-manage__resources-sub\s*\{/g).length, 1);
+});
+
+test("a shortfall keeps its amount on the line of its words: «treasury · 120k» is joined by no-break spaces in both dictionaries", () => {
+  // X1 at 390 in English: «120k» wrapped onto a line of its own after «·».
+  for (const [locale, dictionary] of [["en", en], ["ru", ru]]) {
+    assert.match(dictionary["treasury.short"], /\S · \{price\}$/, locale);
+  }
+  // The rest still wraps: neither the counter's note nor a switch's caption keeps the whole line from breaking.
+  assert.deepEqual(valuesOf("src/ui/resource-counter.css", ".g-resource__note", "white-space"), []);
+  assert.deepEqual(valuesOf("src/ui/toggle.css", ".g-toggle__caption", "white-space"), []);
+  coach();
+  draw();
+  assert.match(document.querySelector('[data-resource-key="teamRerolls"] .g-resource__note--danger').textContent, /treasury · 120k$/);
 });
 
 test("a switch that cannot be pressed keeps its reason readable, as a locked counter keeps its note: the name goes quiet, not the words", () => {
