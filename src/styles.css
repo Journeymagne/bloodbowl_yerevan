@@ -48,6 +48,8 @@
 @import url("ui/form-strip.css");
 @import url("ui/status-chip.css");
 @import url("ui/match-card.css");
+@import url("ui/search-field.css");
+@import url("ui/filter-chips.css");
 @import url("screens/team/empty.css");
 @import url("screens/settings/settings.css");
 @import url("screens/settings/password.css");
