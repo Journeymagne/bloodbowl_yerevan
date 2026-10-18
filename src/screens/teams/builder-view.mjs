@@ -88,7 +88,7 @@ function staffRefusal(race, draft, key) {
 // ---------------------------------------------------------------------------
 
 function headMarkup(race, name) {
-  const back = `<a class="g-icon-btn" href="${escapeHtml(teamsUrl())}" data-history-back data-history-fallback="${escapeHtml(teamsUrl())}" aria-label="${escapeHtml(t("teams.title"))}">${icon("back", 18)}</a>`;
+  const back = `<a class="g-icon-btn" href="${escapeHtml(teamsUrl())}" data-history-back data-history-fallback="${escapeHtml(teamsUrl())}" aria-label="${escapeHtml(t("common.back"))}">${icon("back", 18)}</a>`;
   const titles = `<div class="g-build__titles"><h1 class="g-build__title" tabindex="-1">${escapeHtml(name || race.title)}</h1>`
     + `<p class="g-build__sub">${escapeHtml(t("newTeam.subtitle", { race: race.title }))}</p></div>`;
   return `<header class="g-build__head" data-key="build-head">${back}${titles}${renderStatusChip({ label: t("teams.stage.draft"), onDark: true })}`
@@ -187,7 +187,17 @@ function positionKind(row) {
   return POSITION_KINDS.find(([tag]) => tags.includes(tag))?.[1] ?? "lineman";
 }
 
-const statsLine = (row) => PLAYER_STATS.map((stat) => `${t(`stats.${stat}`)} ${statValueForDisplayByStat(stat, row[stat])}`).join(" · ");
+const NBSP = "\u00a0";
+
+/**
+ * "MA 6 · ST 3 · …": a stat is its label and its value tied by a no-break space, and the dot is tied to the pair
+ * before it, so that a phone's line wraps between the pairs, never inside one, and never begins with a dot.
+ */
+function statsLine(row) {
+  const pairs = PLAYER_STATS.map((stat) => `${t(`stats.${stat}`)}${NBSP}${statValueForDisplayByStat(stat, row[stat])}`);
+  const last = pairs.length - 1;
+  return pairs.map((pair, index) => `${pair}${index < last ? `${NBSP}·` : ""}`).join(" ");
+}
 
 function hireRow(race, draft, totals, row, rowIndex) {
   const count = rowCountInPlayers(draft, rowIndex);
@@ -271,7 +281,7 @@ function staffCounter(race, draft, key) {
   return renderResourceCounter({
     key,
     name: staffTitle(key),
-    note: key === "dedicatedFans" ? t("newTeam.fansNote", { price }) : t("newTeam.price", { price }),
+    note: key === "dedicatedFans" ? t("newTeam.fansNote", { price: formatMoney(price) }) : t("newTeam.price", { price: formatMoney(price) }),
     value: countToNumber(draft[key]),
     incBlockedReason: refusal ? buildRefusalText(refusal) : "",
     // Of the counted staff only the bribes can be out of the race's reach.
@@ -283,7 +293,7 @@ function staffMarkup(race, draft) {
   const staff = BUILD_STAFF_KEYS.filter((key) => (isMedic(key) ? staffAvailable(race, key) : true)).map((key) => (isMedic(key)
     ? renderToggle({ key, label: staffTitle(key), caption: formatMoney(builderStaffCosts[key]), checked: countToNumber(draft[key]) > 0 })
     : staffCounter(race, draft, key)));
-  const note = t("newTeam.rerollNote", { start: builderStaffCosts.startingRerolls, team: builderStaffCosts.teamRerolls });
+  const note = t("newTeam.rerollNote", { start: formatMoney(builderStaffCosts.startingRerolls), team: formatMoney(builderStaffCosts.teamRerolls) });
   return '<section class="g-build__staff" data-key="build-staff" aria-labelledby="new-team-staff-title">'
     + `<div class="g-build__sec-head"><h2 class="g-build__h" id="new-team-staff-title">${escapeHtml(t("newTeam.staff"))}</h2></div>`
     + `${staff.join("")}<p class="g-build__reroll-note">${escapeHtml(note)}</p></section>`;
@@ -294,13 +304,13 @@ function staffMarkup(race, draft) {
 // ---------------------------------------------------------------------------
 
 function ctaMarkup({ totals, named, pending, refusal }) {
-  let label = t("newTeam.save", { total: totals.total });
+  let label = t("newTeam.save", { total: formatMoney(totals.total) });
   if (pending) label = t("newTeam.saving");
-  else if (totals.over) label = t("newTeam.overBy", { over: totals.over });
+  else if (totals.over) label = t("newTeam.overBy", { over: formatMoney(totals.over) });
   else if (totals.short) label = t("newTeam.short", { count: totals.short });
   let note = t("newTeam.noteShort", { min: rosterSizeLimits.min, max: rosterSizeLimits.max });
-  if (totals.over) note = t("newTeam.noteOver", { budget: startingBudget });
-  else if (totals.ready) note = t("newTeam.noteOk", { left: totals.left });
+  if (totals.over) note = t("newTeam.noteOver", { budget: formatMoney(startingBudget) });
+  else if (totals.ready) note = t("newTeam.noteOk", { left: formatMoney(totals.left) });
   const alert = refusal ? `<div role="alert">${renderCallout({ tone: "danger", title: refusal })}</div>` : "";
   // The button stays on while the request is on its way: a disabled button that holds the focus loses it in Chrome.
   // The second press is the screen's to drop.

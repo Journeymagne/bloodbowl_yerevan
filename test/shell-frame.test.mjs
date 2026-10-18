@@ -331,7 +331,8 @@ test("the header and the SideNav open the same switcher, and closing gives the f
       fireEvent(opener, "click");
       assert.ok(openDialog().isModal, `${selector} opens it modally`);
       assert.deepEqual(switcherHost().querySelectorAll("[data-switch-team]").map((row) => row.getAttribute("data-switch-team")), ["t1", "t2"]);
-      assert.notEqual(document.activeElement, opener);
+      // Where the focus goes on opening is the browser's (showModal moves it into the dialog; the fake page does not), so only
+      // the way back is asserted here, below; the opening was looked at in a real tab.
       fireEvent(switcherHost().querySelector("[data-sheet-close]"), "click");
       assert.equal(switcherHost().querySelector("dialog"), null, "closed, the host is empty");
       assert.equal(document.activeElement, opener, selector);
@@ -383,6 +384,36 @@ test("choosing a team on a team page goes to the same section of the other one; 
     assert.equal(location.hash, "#/season", "the page stays");
     assert.deepEqual(api.calls.filter(({ key }) => key === PATCH).map(({ body }) => body), [{ activeTeamId: "t2" }], "the account is told once");
     api.assertAnswered();
+  });
+});
+
+test("choosing the team whose page it is only closes the switcher: a player's page does not jump to the roster", async () => {
+  await asCoach("#/t/t1/roster/p1", async () => {
+    refreshShell({ name: "teamPlayer", params: { teamId: "t1", playerId: "p1" } });
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    assert.equal(switcherHost().querySelector('[data-switch-team="t1"]').getAttribute("aria-current"), "true");
+    fireEvent(switcherHost().querySelector('[data-switch-team="t1"]'), "click");
+    await flush();
+    assert.equal(switcherHost().querySelector("dialog"), null, "closed");
+    assert.equal(location.hash, "#/t/t1/roster/p1", "the player stays");
+    assert.equal(api.calls.length, 0, "nothing is sent: it was the active team already");
+    // The other team from the same page is still the roster of that team.
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    fireEvent(switcherHost().querySelector('[data-switch-team="t2"]'), "click");
+    assert.equal(location.hash, "#/t/t2/roster");
+  });
+});
+
+test("choosing the team that is active on a page that is no team's sends nothing to the account", async () => {
+  await asCoach("#/season", async () => {
+    refreshShell({ name: "season", params: {} });
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    fireEvent(switcherHost().querySelector('[data-switch-team="t1"]'), "click");
+    await flush();
+    assert.equal(switcherHost().querySelector("dialog"), null);
+    assert.equal(location.hash, "#/season", "the page stays");
+    assert.equal(state.activeTeamId, "t1");
+    assert.equal(api.calls.filter(({ key }) => key === PATCH).length, 0, "the account already names it");
   });
 });
 

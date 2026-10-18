@@ -24,6 +24,7 @@ import { delegate, patch } from "../core/dom.mjs";
 import { getLocale } from "../core/i18n.mjs";
 import { requestLocale } from "../core/locale-request.mjs";
 import { setReturn } from "../core/return-to.mjs";
+import { TEAM_ROUTES } from "../core/routes.mjs";
 import { state } from "../core/state.mjs";
 import { activeTeam, isTeamListRead, syncActiveTeam } from "../data/active-team.mjs";
 import { onGamesChange } from "../data/games.mjs";
@@ -143,10 +144,12 @@ function closeSwitcher() {
 
 /**
  * A team chosen: on one of a team's pages the same page of the other team, whose address makes it the active
- * one (the router); anywhere else the page stays and the team only becomes the active one.
+ * one (the router); anywhere else the page stays and the team only becomes the active one. The team whose page
+ * it is already stays where it is: its address would only be the roster for a player's page.
  */
 function chooseTeam(teamId) {
   closeSwitcher();
+  if (TEAM_ROUTES.has(lastRoute?.name) && lastRoute.params?.teamId === teamId) return;
   const target = switchTarget(lastRoute, teamId);
   if (target) globalThis.location.hash = target;
   else syncActiveTeam({ routeTeamId: teamId });

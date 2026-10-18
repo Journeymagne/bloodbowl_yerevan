@@ -225,8 +225,14 @@ export async function createTeam(body, { startedAt = Date.now() } = {}) {
   // read (with this one team on it it would call itself complete), or one being read (its answer may be from
   // before the team was made, and would overwrite it): those are read again instead.
   if (state.auth.currentUser?.id === userId) {
-    if (attempt.known && !state.myTeams.loading) addMyTeam(answer.team);
-    else await loadMyTeams(true);
+    if (attempt.known && !state.myTeams.loading) {
+      addMyTeam(answer.team);
+      // A first team has no active one to wait on, and the coach may have left the builder before this answer came,
+      // so no route will make it active: the header, `#/` and the SideNav need one. A coach who has an active team keeps it.
+      syncActiveTeam();
+    } else {
+      await loadMyTeams(true);
+    }
   }
   return { team: answer.team };
 }

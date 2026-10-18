@@ -48,6 +48,15 @@ test("the switcher is a labelled sheet anchored by the SideNav on a desk: every 
   assertDictionaryCovers("src/shell/team-switcher.mjs");
 });
 
+test("a coach with no team is shown the way to a new one and to all, and no empty group of rows", () => {
+  const fragment = mount(renderTeamSwitcher([]));
+  assert.equal(fragment.querySelector('[role="group"]'), null, "a group with nothing in it is announced for nothing");
+  assert.equal(fragment.querySelector(".g-switcher"), null);
+  assert.equal(fragment.querySelector("a.g-switcher__new").getAttribute("href"), "#/teams/new");
+  assert.equal(fragment.querySelector("a.g-switcher__all").getAttribute("href"), "#/teams");
+  assert.equal(mount(renderTeamSwitcher(rows())).querySelector('[role="group"]').getAttribute("aria-label"), "My teams", "with rows the group is named");
+});
+
 test("a team name a coach typed is text", () => {
   const fragment = mount(renderTeamSwitcher(switcherRows({ teams: [{ id: "t1", name: HOSTILE }], activeTeamId: "t1", raceTitleOf: () => "", seasonData: null, games: [] })));
   assert.equal(fragment.querySelector("img"), null);

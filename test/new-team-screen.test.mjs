@@ -358,14 +358,14 @@ test("the build waits in memory while the coach looks elsewhere, and a reload as
   assert.equal(view.querySelector('[data-hire-key="0"] .g-hire__count').textContent, "5");
 });
 
-test("a reload asks only for a build with something in it, and the first step has nothing to lose", () => {
+test("a reload asks only for a build with something in it, on either step", () => {
   open();
   const unload = () => {
     const event = new Event("beforeunload", { cancelable: true });
     page.dispatchEvent(event);
     return event.defaultPrevented;
   };
-  assert.equal(unload(), false, "the first step");
+  assert.equal(unload(), false, "the first step, before any build");
   pick("Iron Rooks", "teams/human");
   assert.equal(unload(), false, "a build with nobody and nothing bought");
   hire("teams/human", "Thrower");
@@ -375,7 +375,18 @@ test("a reload asks only for a build with something in it, and the first step ha
   staff("cheerleaders");
   assert.equal(unload(), true, "staff alone");
   click("[data-new-team-restart]");
-  assert.equal(unload(), false, "on the first step again, whatever the build holds");
+  assert.ok(view.querySelector(".g-races__resets"), "the first step says the squad is kept");
+  assert.equal(unload(), true, "on the first step again the squad is kept, so a reload would lose it");
+  click(create());
+  staff("cheerleaders", -1);
+  click("[data-new-team-restart]");
+  assert.equal(unload(), false, "the first step again, and the draft holds nothing");
+  click(create());
+  staff("cheerleaders");
+  click("[data-new-team-restart]");
+  assert.equal(unload(), true);
+  releaseCurrentScreen();
+  assert.equal(unload(), false, "nothing asks once the screen is left, on either step");
 });
 
 test("coming back to the builder twice draws it once: the first visit's listeners are gone", () => {
@@ -653,6 +664,7 @@ test("an answer that comes after the coach left is told in a toast, and does not
     assert.equal(location.hash, "#/season");
     assert.ok(toasts().includes("Iron Rooks is created"));
     assert.equal(state.myTeams.items[0].id, "t9");
+    assert.equal(state.activeTeamId, "t9", "a first team is the active one though the coach was elsewhere: the header names it");
     renderNewTeam();
     assert.equal(view.querySelector("h1").textContent, "New team", "the team is made: the build is not kept for another");
   });
@@ -748,6 +760,7 @@ test("the first step is the page of the address: a way back to the list, the sea
   open();
   const back = view.querySelector(".g-new__head a.g-icon-btn");
   assert.deepEqual([back.getAttribute("href"), back.hasAttribute("data-history-back"), back.getAttribute("data-history-fallback")], ["#/teams", true, "#/teams"]);
+  assert.equal(back.getAttribute("aria-label"), "Back", "the arrow goes back in history; the list is only where it lands with no history");
   assert.equal(view.querySelector(".g-new__sub").textContent, "Mock Season");
   assert.equal(view.querySelector("h1").getAttribute("tabindex"), "-1");
   assert.equal(view.querySelectorAll("[data-race]").length, data.en.teams.length);
@@ -820,6 +833,7 @@ test("the first step speaks Russian when the site does, and leaves no placeholde
       assert.equal(view.querySelector('[role="radiogroup"]').getAttribute("aria-label"), "Раса");
       assert.equal(view.querySelector("a[href=\"#/ref/teams\"]").textContent.trim(), "Правила рас и стартовый бюджет — в справочнике →");
       assert.match(view.querySelector(".g-new__foot a.g-btn").textContent, /Мои команды/);
+      assert.equal(view.querySelector(".g-new__head a.g-icon-btn").getAttribute("aria-label"), "Назад", "the arrow is the way back, not the list's name");
       assert.doesNotMatch(view.textContent, /[{}]|undefined|NaN|newTeam\.|teams\./);
       click(create());
       hire("teams/human", "Thrower");

@@ -182,6 +182,13 @@
 }
 
 @media (min-width: 901px) {
+  /*
+   * The tile row stands beside the SideNav: its four tiles share the screen less 289px, so a tile is 119px of content at
+   * 901px and 134px at 960px, and the longest figure («33 · 10/3/0», 4.6 times its font size wide) wraps in it until about
+   * 990px. The size follows the width again, from 25px at 901px to the tile's own 30px at 1000px and wider.
+   */
+  .g-overview .g-kpi__v { font-size: clamp(24px, calc(5.4vw - 24px), 30px); }
+
   .g-overview__cols {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

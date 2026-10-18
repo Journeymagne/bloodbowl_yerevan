@@ -9,6 +9,7 @@ const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { setDictionaries } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
 const teams = await import("../src/data/teams.mjs");
+const activeTeam = await import("../src/data/active-team.mjs");
 
 setDictionaries({
   en: {
@@ -55,6 +56,28 @@ test("a new team goes to the server once and to the head of the list without a r
   assert.deepEqual(api.calls.map((call) => call.key), ["POST /api/teams"]);
   assert.deepEqual(api.calls[0].body, BODY);
   assert.deepEqual(ids(), ["t2", "t1"]);
+});
+
+// A coach's first team: nothing is active yet, and the header, `#/` and the SideNav wait on the active team.
+test("a first team becomes the active team at once, and the account is told; a coach who has one is not written for", async () => {
+  coach([]);
+  state.auth.currentUser.preferences = {};
+  api.reply("POST /api/teams", 201, { team: { id: "t2", name: "Iron Rooks" } });
+  api.reply("PATCH /api/auth/preferences", 200, { preferences: { activeTeamId: "t2" } });
+  const heard = [];
+  const stop = activeTeam.onActiveTeamChange((teamId) => heard.push(teamId));
+  await teams.createTeam(BODY, { startedAt: 0 });
+  stop();
+  assert.equal(state.activeTeamId, "t2");
+  assert.deepEqual(heard, ["t2"]);
+  await tick();
+  assert.deepEqual(api.calls.filter((call) => call.key === "PATCH /api/auth/preferences").map((call) => call.body), [{ activeTeamId: "t2" }]);
+  // The coach who already has an active team keeps it: a new team is not made active, and nothing is written.
+  coach();
+  api.reply("POST /api/teams", 201, { team: { id: "t3", name: "Iron Rooks" } });
+  await teams.createTeam(BODY, { startedAt: 0 });
+  assert.equal(state.activeTeamId, "t1");
+  assert.deepEqual(api.calls.map((call) => call.key), ["POST /api/teams"]);
 });
 
 test("a team the server refused is said with the rules it breaks", async () => {
@@ -263,6 +286,17 @@ test("an answer lost and the list unreadable: the retry finds the team the first
   assert.deepEqual(api.calls.slice(before).map((call) => call.key), ["POST /api/teams"]);
 });
 
+test("a team found on the first look leaves nothing pending: the next build of that name is sent", async () => {
+  coach();
+  api.fail("POST /api/teams");
+  api.reply("GET /api/teams", 200, { teams: [MADE, { id: "t1", name: "Old" }] });
+  assert.deepEqual(await teams.createTeam(BODY, { startedAt: STARTED }), { team: MADE, recovered: true });
+  api.reply("POST /api/teams", 201, { team: { id: "t3", ...IRON_ROOKS } });
+  const before = api.calls.length;
+  assert.equal((await teams.createTeam(BODY, { startedAt: STARTED })).team.id, "t3");
+  assert.deepEqual(api.calls.slice(before).map((call) => call.key), ["POST /api/teams"], "no look first, no GET: the attempt was over when the team was found");
+});
+
 test("a retry whose list cannot be read is refused with nothing sent", async () => {
   coach();
   api.fail("POST /api/teams");
@@ -293,8 +327,10 @@ test("an undecided build is forgotten when another coach signs in", async () => 
   api.fail("POST /api/teams");
   api.fail("GET /api/teams");
   await teams.createTeam(BODY, { startedAt: STARTED });
-  state.auth.currentUser = { id: "other", login: "other" };
-  state.myTeams = { items: [], loaded: true, loading: false, error: "" };
+  // A coach with a team of their own and an active one: the build is sent, and the account is not written for.
+  state.auth.currentUser = { id: "other", login: "other", preferences: { activeTeamId: "o1" } };
+  state.myTeams = { items: [{ id: "o1", name: "Theirs" }], loaded: true, loading: false, error: "" };
+  state.activeTeamId = "o1";
   api.reply("POST /api/teams", 201, { team: { id: "x1", ...IRON_ROOKS } });
   const before = api.calls.length;
   assert.equal((await teams.createTeam(BODY, { startedAt: STARTED })).team.id, "x1");

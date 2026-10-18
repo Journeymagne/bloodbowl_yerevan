@@ -84,7 +84,7 @@ function racesMarkup(races, raceSlug) {
 export function pickMarkup({ name, raceSlug, races, seasonName, resets }) {
   const trimmed = String(name).trim();
   const raceChosen = races.some((race) => race.slug === raceSlug);
-  const back = `<a class="g-icon-btn" href="${escapeHtml(teamsUrl())}" data-history-back data-history-fallback="${escapeHtml(teamsUrl())}" aria-label="${escapeHtml(t("teams.title"))}">${icon("back", 18)}</a>`;
+  const back = `<a class="g-icon-btn" href="${escapeHtml(teamsUrl())}" data-history-back data-history-fallback="${escapeHtml(teamsUrl())}" aria-label="${escapeHtml(t("common.back"))}">${icon("back", 18)}</a>`;
   const head = `<header class="g-new__head">${back}<div class="g-new__titles"><h1 class="g-new__title" tabindex="-1">${escapeHtml(t("newTeam.title"))}</h1>`
     + `<p class="g-new__sub">${escapeHtml(seasonName || t("shell.league"))}</p></div></header>`;
   const field = renderTextField({ id: "new-team-name", name: "name", label: t("newTeam.name"), placeholder: t("newTeam.namePlaceholder"), value: name, autocomplete: "off" });
@@ -146,9 +146,12 @@ function watchSession() {
   });
 }
 
-/** A reload or a closed tab while a squad is begun asks first; the first step and an empty build have nothing to lose. */
+/**
+ * A reload or a closed tab while a squad is begun asks first, on either step: the first step keeps the squad of the
+ * same race (it says so), and a reload would lose it. A build with nobody and nothing bought has nothing to lose.
+ */
 function askBeforeLeaving(event) {
-  if (flow?.step !== "build" || !holdsPicks(flow.draft)) return;
+  if (!holdsPicks(flow?.draft)) return;
   event.preventDefault();
   // Browsers that ask only for a returnValue are asked too; an event that has no setter for it is not an error.
   Reflect.set(event, "returnValue", "");

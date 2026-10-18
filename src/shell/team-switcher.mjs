@@ -97,8 +97,9 @@ function renderRow(row) {
  */
 export function renderTeamSwitcher(rows) {
   const title = escapeHtml(t("teams.title"));
-  const bodyHtml = `<div class="g-switcher" role="group" aria-label="${title}">${rows.map(renderRow).join("")}</div>`
-    + `<a class="g-switcher__new" href="${escapeHtml(newTeamUrl())}"><span class="g-switcher__plus">${icon("plus")}</span>${escapeHtml(t("teams.new"))}</a>`
+  // A coach with no team has no rows: a group with nothing in it would be announced for nothing.
+  const list = rows.length ? `<div class="g-switcher" role="group" aria-label="${title}">${rows.map(renderRow).join("")}</div>` : "";
+  const bodyHtml = `${list}<a class="g-switcher__new" href="${escapeHtml(newTeamUrl())}"><span class="g-switcher__plus">${icon("plus")}</span>${escapeHtml(t("teams.new"))}</a>`
     + `<a class="g-switcher__all" href="${escapeHtml(teamsUrl())}">${escapeHtml(t("teams.all"))}</a>`;
   return renderSheet({ id: SWITCHER_ID, title: t("teams.title"), anchored: true, bodyHtml });
 }

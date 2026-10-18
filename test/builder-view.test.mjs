@@ -74,7 +74,7 @@ test("the builder shows the budget, the race, the positions with their limits an
 test("the head names the team and the race and leads back to the list; the budget says what is spent and left", () => {
   const fragment = mount(builderMarkup({ race: human, draft: filled() }));
   const back = fragment.querySelector(".g-build__head a.g-icon-btn");
-  assert.deepEqual([back.getAttribute("href"), back.getAttribute("aria-label"), back.hasAttribute("data-history-back"), back.getAttribute("data-history-fallback")], ["#/teams", "My teams", true, "#/teams"]);
+  assert.deepEqual([back.getAttribute("href"), back.getAttribute("aria-label"), back.hasAttribute("data-history-back"), back.getAttribute("data-history-fallback")], ["#/teams", "Back", true, "#/teams"]);
   assert.equal(fragment.querySelector(".g-build__head p").textContent, "Human · new team");
   assert.equal(fragment.querySelector(".g-build__head .g-status").textContent, "Draft");
   assert.equal(fragment.querySelector(".g-build__head [data-new-team-restart]").textContent.trim(), "Change the race or the name");
@@ -195,7 +195,7 @@ test("a position says its price, its limit, its stats and its skills; none is no
   assert.equal(lineman.querySelector(".g-hire__name").textContent, "Human Lineman");
   assert.equal(lineman.querySelector(".g-hire__price").textContent, "50k");
   assert.equal(lineman.querySelector(".g-hire__limit").textContent, "5 of 16");
-  assert.equal(lineman.querySelector(".g-hire__stats").textContent, "MA 6 · ST 3 · AG 3+ · PA 4+ · AR 9+");
+  assert.equal(lineman.querySelector(".g-hire__stats").textContent.replaceAll("\u00a0", " "), "MA 6 · ST 3 · AG 3+ · PA 4+ · AR 9+");
   assert.equal(lineman.querySelector(".g-hire__skills").textContent, "no skills");
   assert.equal(lineman.querySelector(".g-hire__avatar").textContent, "H");
   const thrower = fragment.querySelector(`[data-hire-key="${rowOf(human, "Thrower")}"]`);
@@ -205,6 +205,45 @@ test("a position says its price, its limit, its stats and its skills; none is no
   assert.equal(fragment.querySelector(`[data-hire-key="${ogre}"] [data-hire-step="-1"]`).hasAttribute("disabled"), true);
   assert.equal(thrower.querySelector('[data-hire-step="-1"]').hasAttribute("disabled"), false);
   assert.equal(fragment.querySelector(".g-build__players").textContent.includes("8 of 14 · at least 7"), true);
+});
+
+test("a position's stats are kept in pairs: a line may wrap between them and nowhere inside one, and never before a dot", () => {
+  for (const locale of ["en", "ru"]) {
+    initLocale(locale);
+    try {
+      const text = mount(builderMarkup({ race: human, draft: filled() })).querySelector('[data-hire-key="0"] .g-hire__stats').textContent;
+      const units = text.split(" ");
+      assert.equal(units.length, PLAYER_STATS.length, `${locale}: ${PLAYER_STATS.length} units to wrap between, not one more`);
+      for (const unit of units.slice(0, -1)) assert.match(unit, /^\S+\u00a0\S+\u00a0·$/, `${locale}: label, value and the dot that follows`);
+      assert.match(units.at(-1), /^\S+\u00a0\S+$/, `${locale}: the last pair has no dot`);
+    } finally {
+      initLocale("en");
+    }
+  }
+});
+
+test("every amount on the screen is written as the rest of it is: a thousand and over has its separator (formatMoney)", () => {
+  const rich = filled();
+  rich.startingRerolls = 30; // 1,800k of re-rolls: no rule in the draft stops a count, the totals only add
+  const fragment = mount(builderMarkup({ race: human, draft: rich }));
+  const totals = buildTotals(human, rich);
+  assert.ok(totals.over > 1000 && totals.total > 1000, `${totals.total} spent, ${totals.over} over`);
+  const { over, total } = totals;
+  const written = (amount) => `${new Intl.NumberFormat("en", { maximumFractionDigits: 1 }).format(amount)}k`;
+  assert.equal(fragment.querySelector("[data-new-team-save]").textContent.trim(), `Over budget by ${written(over)}`);
+  assert.match(written(over), /^\d,\d{3}k$/);
+  assert.match(fragment.querySelector(".g-build__left").textContent, new RegExp(written(over)));
+  assert.match(fragment.querySelector(".g-build__figures").textContent, new RegExp(`Spent ${written(total)}`));
+  assert.doesNotMatch(fragment.querySelector(".g-build__cta").textContent + fragment.querySelector(".g-build__left").textContent, /\b\d{4}k/);
+  // The sentences take the amount written, so the unit is not in them twice (nor once in two ways).
+  for (const locale of ["en", "ru"]) {
+    const dictionary = JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
+    for (const key of ["save", "overBy", "noteOk", "noteOver", "price", "fansNote", "rerollNote"]) assert.doesNotMatch(dictionary[`newTeam.${key}`], /\}k/, `${locale} newTeam.${key}`);
+  }
+  // The ready squad's button and notes carry the same writing.
+  const ready = mount(builderMarkup({ race: human, draft: filled() }));
+  assert.equal(ready.querySelector("[data-new-team-save]").textContent.trim(), "Save team · 555k");
+  assert.match(ready.querySelector(".g-build__cta").textContent, /Left in the treasury: 45k/);
 });
 
 test("drawing the screen hires nobody: the refusals are asked of a copy", () => {
@@ -547,6 +586,7 @@ test("the screen speaks Russian when the site does, and leaves no placeholder, n
     const fragment = mount(builderMarkup({ race: human, draft: filled(), rosterOpen: true }));
     assert.equal(fragment.querySelector("[data-new-team-save]").textContent.trim(), "Сохранить команду · 555k");
     assert.equal(fragment.querySelector(".g-build__head p").textContent, "Human · новая команда");
+    assert.equal(fragment.querySelector(".g-build__head a.g-icon-btn").getAttribute("aria-label"), "Назад");
     assert.equal(fragment.querySelector(".g-build__head .g-status").textContent, "Набор");
     assert.match(fragment.querySelector("[data-roster-toggle]").textContent, /Свернуть/);
     assert.equal(fragment.querySelector('[data-hire-key="0"] .g-hire__limit').textContent, "5 из 16");
@@ -558,6 +598,10 @@ test("the screen speaks Russian when the site does, and leaves no placeholder, n
     assert.doesNotMatch(text, /[{}]|undefined|NaN|newTeam\.|validation\./);
     const over = mount(builderMarkup({ race: human, draft: overBudget() }));
     assert.equal(over.querySelector("[data-new-team-save]").textContent.trim(), "Перерасход 220k");
+    const rich = filled();
+    rich.startingRerolls = 30;
+    const russian = (amount) => `${new Intl.NumberFormat("ru", { maximumFractionDigits: 1 }).format(amount)}k`;
+    assert.equal(mount(builderMarkup({ race: human, draft: rich })).querySelector("[data-new-team-save]").textContent.trim(), `Перерасход ${russian(buildTotals(human, rich).over)}`);
     assert.match(over.querySelector(".g-build__cta").textContent, /Уберите игроков или персонал, чтобы уложиться в 600k\./);
     const ogreDraft = newBuild(human, { name: "R" });
     hirePlayer(human, ogreDraft, ogre);

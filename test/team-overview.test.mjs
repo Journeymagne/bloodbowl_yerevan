@@ -471,7 +471,12 @@ test("the stylesheet reaches the page, and the result rows keep their size and t
   assert.match(text(css), /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__cols\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
   assert.ok(valuesOf(css, ".g-overview__score", "font").includes("700 22px/1.1 var(--font-display)"));
   assert.ok(valuesOf(css, ".g-overview__score", "font-variant-numeric").includes("tabular-nums"));
-  assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)"], "«0 · 0/0/0» keeps to one line at 320px, with no breakpoint of its own");
+  assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)", "clamp(24px, calc(5.4vw - 24px), 30px)"], "«33 · 10/3/0» keeps to one line at 320px, and from 901px beside the SideNav, with no breakpoint of its own");
+  // The figure is 4.6 times its font size wide, in a tile whose content is a quarter of the screen less 106px from 901px.
+  for (const width of [901, 930, 960, 990, 1024, 1440]) {
+    const size = Math.min(30, Math.max(24, 5.4 * (width / 100) - 24));
+    assert.ok(4.62 * size <= width / 4 - 106.25, `${width}px: «33 · 10/3/0» at ${size.toFixed(1)}px is ${(4.62 * size).toFixed(0)}px wide in ${(width / 4 - 106.25).toFixed(0)}px`);
+  }
   assert.ok(valuesOf(css, ".g-overview__leaderlist", "grid-template-columns").includes("repeat(auto-fit, minmax(120px, 1fr))"), "the cards wrap as the column narrows");
   assert.doesNotMatch(text(css), /1360px|359px/, "the sheet has the 900/901 breakpoints only");
   assertReadable(css, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
