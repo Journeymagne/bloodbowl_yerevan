@@ -29,6 +29,8 @@ export function renderHome() {
   setActiveNav("home");
   setViewSection("home");
 
+  // The overview's heading is an h2, not an h1: the hero above is this screen's heading, and a second h1
+  // tells a screen reader the page starts again there.
   view.innerHTML = `
     <section class="league-hero matchday-hero">
       <div class="league-hero-mark" aria-hidden="true"><img src="assets/brand/gata-league-logo.png" alt=""></div>
@@ -47,8 +49,6 @@ export function renderHome() {
     <section>
       <div class="page-head">
         <div>
-          <!-- h2, not h1: the hero above is this screen's heading, and a second
-               h1 tells a screen reader the page starts again here. -->
           <h2>${t("home.overviewTitle")}</h2>
           <p>${t("home.overviewSubtitle")}</p>
         </div>

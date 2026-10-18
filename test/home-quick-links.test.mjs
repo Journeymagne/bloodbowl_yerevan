@@ -1,15 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { document, mount } from "./helpers/ui.mjs";
+import { document } from "./helpers/ui.mjs";
+import { el } from "./helpers/fake-dom.mjs";
 
-// The page keeps an HTML comment the fake document cannot parse, so the screen
-// draws into a stand-in that keeps the markup as text; the doors are mounted from it.
-const stage = { dataset: {}, innerHTML: "" };
-const find = document.querySelector.bind(document);
-document.querySelector = (selector) => (selector === "#app-view" ? stage : find(selector));
+// The screen draws into the page's own #app-view: its markup is parsed as a browser would parse it.
+document.body.appendChild(el(document, "section", { id: "app-view" }));
 
 const { state } = await import("../src/core/state.mjs");
+const { view } = await import("../src/core/view.mjs");
 const { renderHome } = await import("../src/screens/home.mjs");
 const { matchRoute, resolveRedirect, routeFromHash } = await import("../src/core/routes.mjs");
 
@@ -17,8 +16,7 @@ const { matchRoute, resolveRedirect, routeFromHash } = await import("../src/core
 function quickLinks(currentUser) {
   state.auth.currentUser = currentUser;
   renderHome();
-  const nav = stage.innerHTML.match(/<nav class="site-quick-links"[\s\S]*?<\/nav>/)[0];
-  return mount(nav).querySelectorAll("a").map((link) => [link.getAttribute("href"), link.querySelector("strong").textContent]);
+  return view.querySelectorAll(".site-quick-links a").map((link) => [link.getAttribute("href"), link.querySelector("strong").textContent]);
 }
 
 test("a coach's front page opens their teams and their games", () => {
@@ -36,4 +34,12 @@ test("a guest is not offered My Teams, which would land in the reference; both c
   assert.equal(teams[1], "My Teams");
   assert.equal(matchRoute(routeFromHash(teams[0])).name, "login");
   assert.equal(resolveRedirect(routeFromHash(games[0]), { signedIn: false, hash: games[0] }).target, "#/login");
+});
+
+// Final-wave item 6: the reason for the h2 is a comment in the code, not in the page.
+test("the hero is the screen's one heading, and the overview under it is a section of it", () => {
+  quickLinks(null);
+  assert.equal(view.querySelectorAll("h1").length, 1);
+  assert.equal(view.querySelector(".page-head h2").textContent, "Overview");
+  assert.equal(view.querySelector(".page-head h1"), null);
 });
