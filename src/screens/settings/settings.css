@@ -6,9 +6,10 @@
  *
  * Up to 900px it is one column, the account first, and the page title is only
  * for a screen reader (the shell's header names the screen). From 901px the
- * appearance sits at the left and the account at the right, each on a card
- * under the title; the language and the way into administration are the
- * side navigation's then, so they are not drawn here.
+ * appearance sits at the left and the account at the right (below it, where
+ * the two do not fit), each on a card under the title; the language and the
+ * way into administration are the side navigation's then, so they are not
+ * drawn here.
  */
 .g-settings {
   box-sizing: border-box;
@@ -186,20 +187,22 @@
 /* A segment is a tap target: 44px, where the control alone draws 40. */
 .g-settings__language .g-seg__item { min-height: var(--size-touch); }
 
+/*
+ * As in DeskCoach.html: the appearance grows twice as fast as the account, and
+ * where their two bases do not fit side by side (a 1024px screen) the account
+ * takes a row of its own, so neither squeezes a segment or a name onto two lines.
+ */
 @media (min-width: 901px) {
   .g-settings {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-      "head head"
-      "appearance account";
-    align-items: start;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
     gap: var(--space-20);
   }
 
   .g-settings__head {
     position: static;
-    grid-area: head;
+    flex: 1 0 100%;
     width: auto;
     height: auto;
     margin: 0;
@@ -215,8 +218,16 @@
     background: var(--surface);
     box-shadow: var(--ring);
   }
-  .g-settings__appearance { grid-area: appearance; }
-  .g-settings__account { grid-area: account; }
+  .g-settings__appearance {
+    order: 1;
+    flex: 2 1 520px;
+    max-width: 760px;
+  }
+  .g-settings__account {
+    order: 2;
+    flex: 1 1 340px;
+    max-width: 440px;
+  }
 
   .g-settings__admin,
   .g-settings__language { display: none; }

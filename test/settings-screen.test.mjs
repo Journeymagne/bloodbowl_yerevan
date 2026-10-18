@@ -5,6 +5,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
+import { valuesOf } from "./helpers/contrast.mjs";
 
 const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
@@ -1342,4 +1343,16 @@ test("the picker is drawn in Russian too", async () => {
   } finally {
     setLocale("en");
   }
+});
+
+test("from 901px the appearance and the account share a row only where both fit, as in DeskCoach.html", () => {
+  // Two equal columns left 1024px a segment and a palette name squeezed onto two lines: the appearance
+  // grows twice as fast as the account, and below their two bases the account takes a row of its own.
+  const SETTINGS_CSS = "src/screens/settings/settings.css";
+  assert.deepEqual(valuesOf(SETTINGS_CSS, ".g-settings", "flex-wrap"), ["wrap"]);
+  assert.deepEqual(valuesOf(SETTINGS_CSS, ".g-settings", "grid-template-columns"), []);
+  assert.deepEqual(valuesOf(SETTINGS_CSS, ".g-settings__appearance", "flex"), ["2 1 520px"]);
+  assert.deepEqual(valuesOf(SETTINGS_CSS, ".g-settings__account", "flex"), ["1 1 340px"]);
+  // The account comes first in the markup, for a phone; on a wide screen the appearance is at the left.
+  assert.deepEqual([valuesOf(SETTINGS_CSS, ".g-settings__appearance", "order"), valuesOf(SETTINGS_CSS, ".g-settings__account", "order")], [["1"], ["2"]]);
 });
