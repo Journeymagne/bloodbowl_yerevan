@@ -117,7 +117,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
   const record = gamesRead && standing ? seasonRecord(list, team.id, season?.id ?? null) : null;
   const own = [
     { label: t("teamOverview.tile.value"), value: formatMoney(worth) },
-    { label: t("roster.treasuryTitle"), value: formatMoney(normalizeDraft(team.roster ?? {}).treasury) },
+    { label: t("roster.treasuryTitle"), value: formatMoney(normalizeDraft(team.roster ?? {}).treasury), href: teamUrl(team.id, "team") },
   ];
   return {
     teamId: team.id,
@@ -202,12 +202,18 @@ function resultsMarkup(results, teamId) {
     + `<ul class="g-overview__list">${results.map(resultRow).join("")}</ul></section>`;
 }
 
-/** @param {ReturnType<typeof overviewModel>} model */
+/**
+ * A team in its build says so: in the page head on a desk, and as the first line of the page on a phone, where the
+ * head is only for a screen reader (the owner's ruling R4 of stage 08). The phone's line is hidden from a screen
+ * reader, which hears the head's, and from a desk (overview.css), so the chip is never said twice.
+ * @param {ReturnType<typeof overviewModel>} model
+ */
 export function overviewMarkup(model) {
   const draft = model.draft ? renderStatusChip({ label: t("teams.stage.draft") }) : "";
   const head = renderPageHead({ title: t("shell.tab.overview"), sub: model.seasonLine, metaHtml: draft });
+  const stage = draft ? `<div class="g-overview__stage" aria-hidden="true">${draft}</div>` : "";
   const lists = leadersMarkup(model.leaders) + resultsMarkup(model.results, model.teamId);
-  return `${head}<div class="g-overview">${renderKpiGrid(model.tiles, { row: true })}${boardSlot(model)}`
+  return `${head}<div class="g-overview">${stage}${renderKpiGrid(model.tiles, { row: true })}${boardSlot(model)}`
     + `${lists ? `<div class="g-overview__cols">${lists}</div>` : ""}</div>`;
 }
 

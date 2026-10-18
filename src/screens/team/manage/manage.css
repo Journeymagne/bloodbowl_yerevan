@@ -303,3 +303,183 @@
   letter-spacing: 0;
   white-space: nowrap;
 }
+
+/*
+ * The page (index.mjs): the head, the callout of a match, the strip (a desk's) or the treasury card (a phone's), then
+ * the safe and its correction, the resources and the history, in that order on a phone (TeamManage). From 901px the
+ * card gives way to the strip and the rest stands in two columns (DeskRosterFunds): the resources at the left, the
+ * safe, the correction and the history at the right, placed by grid areas. The DOM stays in the phone's order, so on a
+ * desk the keyboard goes from the safe to the resources and then to the history: each block is whole on its own, as
+ * the build's (stage 06).
+ */
+.g-manage {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The column's gap is the space under the head on a phone; on a desk the band keeps its 24px (with the gap). */
+.g-manage .g-pagehead { margin-bottom: 0; }
+
+/* The phone's treasury: the dark card of the header's colour, the sum and the team's value at the left, the two buttons at the right. */
+.g-manage__card {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-12);
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-16) var(--space-20);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The keyboard ring on the dark card is the header's ink, as on the app bar: the accent is for a page. */
+.g-manage__card :focus-visible { outline-color: var(--header-ink); }
+
+.g-manage__card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-manage__card-title {
+  margin: 0;
+  padding: 0;
+  color: var(--header-muted);
+  font: 600 12px/1.2 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.g-manage__card-sum {
+  color: var(--header-ink);
+  font: 700 40px/1 var(--font-display);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-manage__card-tv {
+  color: var(--header-muted);
+  font: 400 13px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-manage__card-actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/*
+ * «+ Add» is the light button of the dark band (the match board's): the header's ink with the header's colour, which
+ * stands out on the card in every palette, where a dark palette's --surface would not. «− Take» is outlined.
+ */
+.g-manage__in,
+.g-manage__out {
+  box-sizing: border-box;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0 var(--space-16);
+  border-radius: var(--radius-md);
+  font: 700 15px/1 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.g-manage__in {
+  border: 1px solid var(--header-ink);
+  background: var(--header-ink);
+  color: var(--header);
+}
+
+.g-manage__out {
+  border: 1px solid var(--header-muted);
+  background: transparent;
+  color: var(--header-ink);
+}
+
+.g-manage__in[aria-disabled="true"],
+.g-manage__out[aria-disabled="true"],
+.g-manage__fix[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* The safe and its correction; on a desk, the right column's top. */
+.g-manage__cols,
+.g-manage__side {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* «Correct the treasury by hand»: a text button under the safe, as tall as a finger. */
+.g-manage__fix {
+  box-sizing: border-box;
+  align-self: flex-start;
+  min-height: var(--size-touch);
+  margin: calc(-1 * var(--space-8)) 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: 600 15px/1 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-manage__fix:hover:not([aria-disabled="true"]) { text-decoration: underline; }
+
+/* On a phone the team's value is in the card: the head says the title and the phase. */
+@media (max-width: 900px) {
+  .g-manage .g-pagehead__sub { display: none; }
+}
+
+@media (min-width: 901px) {
+  .g-manage .g-pagehead { margin-bottom: var(--space-8); }
+
+  /* The strip says the treasury. */
+  .g-manage__card { display: none; }
+
+  .g-manage__cols {
+    display: grid;
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "resources side" "resources history";
+    gap: var(--space-16) var(--space-20);
+    align-items: start;
+  }
+
+  .g-manage__resources { grid-area: resources; }
+  .g-manage__side { grid-area: side; }
+  .g-manage__history { grid-area: history; }
+}

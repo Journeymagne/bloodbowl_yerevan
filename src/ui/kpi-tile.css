@@ -56,6 +56,18 @@
   letter-spacing: 0;
 }
 
+/*
+ * A figure managed on a page of its own (the overview's treasury): the whole tile is the link, with the same face.
+ * The hover is a shade of the ink over the tile, not --surface-3, which is --surface-2 itself in the dark palettes;
+ * the keyboard ring is base.css's.
+ */
+a.g-kpi--link {
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+a.g-kpi--link:hover { background: color-mix(in srgb, var(--ink) 6%, var(--surface-2)); }
+
 /* Good news for the coach: an inducement budget, a place in the playoffs. */
 .g-kpi--positive { background: var(--accent-tint); }
 .g-kpi--positive .g-kpi__k,

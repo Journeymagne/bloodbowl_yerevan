@@ -116,10 +116,15 @@ test("a team in the season: its place, its points with the record, its value and
   assert.deepEqual(model.tiles.map(({ label, value }) => [label, value]), [
     ["Place in the league", "2 / 4"], ["Points · W/D/L", "3 · 1/0/1"], ["Team value", model.tiles[2].value], ["Treasury", "120k"]]);
   assert.match(model.tiles[2].value, /^\d[\d,]*k$/);
+  assert.equal(model.tiles[3].href, "#/t/t1/team", "the treasury is managed on the team page (06 → 08)");
+  assert.deepEqual(model.tiles.slice(0, 3).map((tile) => tile.href), [undefined, undefined, undefined]);
   const fragment = mount(overviewMarkup(model));
   assert.ok(fragment.querySelector(".g-kpis.g-kpis--row"));
+  assert.equal(fragment.querySelector('a.g-kpi[href="#/t/t1/team"] .g-kpi__k').textContent, "Treasury");
+  assert.equal(fragment.querySelectorAll("a.g-kpi").length, 1);
   assert.equal(fragment.querySelector("h1").textContent, "Overview");
   assert.equal(fragment.querySelector(".g-pagehead__sub").textContent, "Mock Season · round 3");
+  assert.equal(fragment.querySelector(".g-overview__stage"), null, "an active team has no stage to say");
 });
 
 test("the board shows the next match with «Match preparation» and «Friendlies», the season's squares as its form", () => {
@@ -178,6 +183,22 @@ test("a team outside the season: two tiles, and a way to enter it instead of a b
   assert.equal(fragment.querySelector(".g-pagehead__meta .g-status").textContent, "Draft");
   assert.equal(fragment.querySelector(".g-board"), null);
   assert.deepEqual(fragment.querySelectorAll(".g-kpi__k").map((label) => label.textContent), ["Team value", "Treasury"]);
+  assert.equal(fragment.querySelector("a.g-kpi").getAttribute("href"), "#/t/t4/team");
+});
+
+test("a team in its build says so on a phone too: the chip is the page's first line there, and the desk's head has it (R4)", () => {
+  const fragment = mount(overviewMarkup(overviewModel(input("t4"))));
+  const stage = fragment.querySelector(".g-overview .g-overview__stage");
+  assert.equal(stage.querySelector(".g-status").textContent, "Draft");
+  assert.equal(stage.getAttribute("aria-hidden"), "true", "a screen reader hears the head's chip, not this one too");
+  assert.equal(fragment.querySelector(".g-overview").childNodes[0], stage, "the first line of the page");
+  assert.equal(fragment.querySelectorAll(".g-status").length, 2, "one for each width");
+  const css = "src/screens/team/overview.css";
+  assert.deepEqual(valuesOf(css, ".g-overview__stage", "display"), ["flex", "none"]);
+  const source = text(css).replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(source, /@media \(min-width: 901px\)\s*\{\s*\.g-overview__stage \{ display: none; \}/, "never twice on a desk");
+  assert.match(text("src/ui/page-head.css"), /@media \(max-width: 900px\)\s*\{\s*\.g-pagehead:not\(\.g-pagehead--phone\)/, "the head a phone does not show");
+  for (const id of ["t1", "t2", "t3"]) assert.equal(mount(overviewMarkup(overviewModel(input(id)))).querySelector(".g-overview__stage"), null, id);
 });
 
 test("an unknown race leaves a dash, not a crash", () => {
