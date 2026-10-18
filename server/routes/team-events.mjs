@@ -15,9 +15,10 @@
  * it edits — holds the team's row and nothing else, and is never an injury, which only a match deals out.
  * Without a match on, SPP is edited in the roster itself (`PATCH`), which writes the change as settled rows.
  *
- * The MVP is no tap of a match: the post-match picks it and neither reads nor writes a row of it, so a tap
- * that names a match is refused for it. Outside a match it is an edit like the rest (016): the roster's
- * MVP is among the counters an edit steps, so a hand-edited MVP has its row in the history.
+ * The MVP is no tap of a match: the post-match picks it, and its statistics neither read nor write a row of
+ * it (its finish carries a waiting MVP edit like any other), so a tap that names a match is refused for it.
+ * Outside a match it is an edit like the rest (016): the roster's MVP is among the counters an edit steps,
+ * so a hand-edited MVP has its row in the history.
  *
  * A step down takes back a step up: a -1 where the rows it would take back add up to nothing (a match's
  * own rows in a match; outside one, the blob's counter and the edits waiting on it) is refused, since it

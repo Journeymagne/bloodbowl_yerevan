@@ -10,9 +10,10 @@
 --
 -- What is not here. A match does not tap the MVP: it is picked in the post-match,
 -- and a tap that names a match is refused by the endpoint (checkTap in
--- server/routes/team-events.mjs), not by this table. The post-match neither reads
--- nor writes a row of the MVP (MATCH_COUNTERS, src/domain/post-match/events.mjs).
--- The table takes `mvps` with a match as it takes it without one.
+-- server/routes/team-events.mjs), not by this table. The post-match's statistics
+-- neither read nor write a row of the MVP (MATCH_COUNTERS,
+-- src/domain/post-match/events.mjs); its finish carries a waiting MVP edit like
+-- any other. The table takes `mvps` with a match as it takes it without one.
 --
 -- What it does. The CHECK on `counter` was written inline in 014, so Postgres
 -- named it match_events_counter_check. A CHECK cannot be widened in place: this

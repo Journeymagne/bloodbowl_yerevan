@@ -167,9 +167,10 @@ test("during a live match an MVP edited outside it waits and the finish carries 
   assert.deepEqual([tapped.status, tapped.body.error.params.field], [400, "counter"]);
   const ready = await toReady(await toPlayersStep(), homeScores);
   assert.equal((await act("home", ready, null, true)).status, "completed");
-  const { rows: [applied] } = await client.query("SELECT after_roster FROM match_post_applications WHERE pairing_id = $1 AND side = 'home'", [G]);
-  const picked = applied.after_roster.players.find((item) => item.id === "home-2").spp?.mvps ?? 0; // what the post-match itself gave him
-  assert.equal((await teamRow(client, teams.home)).roster.players.find((item) => item.id === "home-2").spp.mvps, picked + 1);
+  const { rows: [applied] } = await client.query("SELECT before_roster, after_roster FROM match_post_applications WHERE pairing_id = $1 AND side = 'home'", [G]);
+  const mvpsOf = (roster) => roster.players.find((item) => item.id === "home-2").spp?.mvps ?? 0;
+  assert.equal(mvpsOf(applied.after_roster), mvpsOf(applied.before_roster), "the post-match picked home-6, not him: it gave him no MVP of its own");
+  assert.equal(mvpsOf((await teamRow(client, teams.home)).roster), mvpsOf(applied.before_roster) + 1, "the edit is counted once, by the finish");
   assert.deepEqual(await outside(client, teams.home), [{ player_id: "home-2", counter: "mvps", delta: 1, settled: true }]);
 }));
 

@@ -50,7 +50,7 @@ test("after 016 an MVP is a row, and the table still refuses what 014 refused", 
   }, { through: "016_match_event_mvps.sql" });
 });
 
-test("016 alters the table and touches no row: nothing is read, written or deleted", () => {
+test("016 alters the table and touches no row: no row is written or deleted", () => {
   const sql = readFileSync(new URL("../server/db/migrations/016_match_event_mvps.sql", import.meta.url), "utf8").replace(/--.*$/gm, "");
   assert.doesNotMatch(sql, /\b(INSERT|UPDATE|DELETE|SELECT|TRUNCATE|DROP\s+TABLE)\b/i);
   assert.match(sql, /ALTER TABLE match_events\s+DROP CONSTRAINT match_events_counter_check,\s+ADD CONSTRAINT match_events_counter_check CHECK \(counter IN \(/);
