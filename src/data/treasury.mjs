@@ -75,10 +75,23 @@ function readerOf(slot) {
   return reads.get(slot);
 }
 
+const textOrNone = (value) => value === null || value === undefined || typeof value === "string";
+
+/**
+ * Whether an answer is a page of the history as everything that draws one reads it: its lines (objects, in an
+ * array), how many there are (a whole number), the cursor and the date each a text or none. A page that is not
+ * would make every draw of the history throw, so it is not kept.
+ */
+function isLedgerPage(page) {
+  return Array.isArray(page?.entries) && page.entries.every((entry) => entry !== null && typeof entry === "object")
+    && Number.isInteger(page.total) && page.total >= 0 && textOrNone(page.next) && textOrNone(page.since);
+}
+
 /**
  * Read the history: its first page, which replaces what the page holds, or with `more` the page after the
  * lines it holds, which is added at the end (and nothing is sent where there is no page after). A failure keeps
- * the lines and says why in `error`. The answer of a read that a newer one overtook, or of a coach who is no
+ * the lines and says why in `error`; so does an answer that is not a page (`isLedgerPage`), which is a failed read
+ * and not an empty history. The answer of a read that a newer one overtook, or of a coach who is no
  * longer the one signed in, is not written.
  * @param {string} teamId @param {{more?: boolean}} [options] @returns {Promise<void>}
  */
@@ -105,8 +118,8 @@ export async function readLedger(teamId, { more = false } = {}) {
     setLedger(slot, { loading: false });
     return;
   }
-  if (failure) {
-    setLedger(slot, { loading: false, error: errorText(failure) });
+  if (failure || !isLedgerPage(page)) {
+    setLedger(slot, { loading: false, error: failure ? errorText(failure) : t("treasury.history.unreadable") });
     return;
   }
   const entries = more ? [...heldAt(slot).entries, ...page.entries] : page.entries;

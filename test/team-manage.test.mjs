@@ -283,6 +283,50 @@ test("the page follows the team, the games and the history while it is on screen
   assert.equal(document.body.querySelector("[data-sheet-host]"), null, "the sheets' hosts go with the screen");
 });
 
+test("a history that fails to load says why and offers to read it again; the rest of the page stands (K7, M-1)", async () => {
+  coach({ userId: "u-500" });
+  api.reply(FIRST_PAGE, 500, { error: { code: "INTERNAL_ERROR", params: {}, message: "Internal server error" } });
+  await renderTeamManage("t1");
+  assert.match(view.querySelector(".g-ledger__state").textContent, /^The history did not load: ./);
+  assert.equal(view.querySelector("[data-ledger-retry]").textContent, "Try again");
+  assert.equal(view.querySelector(".g-ledger"), null, "no lines are made up");
+  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "70k");
+  assert.ok(view.querySelector('[data-resource-key="teamRerolls"]'));
+  api.reply(FIRST_PAGE, 200, pageOf());
+  fireEvent(view.querySelector("[data-ledger-retry]"), "click");
+  await settle();
+  assert.equal(view.querySelectorAll(".g-ledger__row").length, 3, "«Try again» reads it, and the page draws what came");
+  assert.equal(view.querySelector("[data-ledger-retry]"), null);
+});
+
+test("a history answer that is not a page is a failed read: the page says so, offers it again, and still follows the team and the games (I-1)", async () => {
+  coach({ userId: "u-bad" });
+  api.reply(FIRST_PAGE, 200, {});
+  await renderTeamManage("t1");
+  assert.equal(view.querySelector(".g-ledger__state").textContent, "The history did not load: The server's answer could not be read.");
+  assert.ok(view.querySelector("[data-ledger-retry]"));
+  assert.equal(view.querySelector(".g-manage__safe-last"), null);
+  // A second visit draws, over the screen before it.
+  releaseCurrentScreen();
+  view.innerHTML = "<p>the screen before</p>";
+  await renderTeamManage("t1");
+  assert.ok(!view.textContent.includes("the screen before"));
+  assert.ok(view.querySelector('[data-screen="team-manage"] [data-ledger-retry]'));
+  // The page still follows the team and the games: a match that goes live locks it.
+  setMyTeams(state.myTeams.items.map((team) => (team.id === "t1" ? { ...team, roster: { ...team.roster, treasury: 85 } } : team)));
+  assert.equal(view.querySelector(".g-manage__card-sum").textContent, "85k");
+  await notifyGames([liveGame("t1")]);
+  assert.equal(view.querySelector("a.g-callout").getAttribute("href"), "#/games/g1/post-match");
+  assert.ok(view.querySelectorAll("[data-treasury-money], [data-treasury-fix]").every((button) => button.getAttribute("aria-disabled") === "true"));
+  // «Try again» with a good answer: the history is drawn.
+  api.reply(FIRST_PAGE, 200, pageOf());
+  fireEvent(view.querySelector("[data-ledger-retry]"), "click");
+  await settle();
+  assert.equal(view.querySelectorAll(".g-ledger__row").length, 3);
+  assert.equal(view.querySelector("[data-ledger-retry]"), null);
+  assert.match(view.querySelector(".g-manage__safe-last").textContent, /^Last deposit: 20k/);
+});
+
 test("a screen left before its reads came draws nothing over the next one", async () => {
   coach({ userId: "u-left" });
   api.reply(FIRST_PAGE, 200, pageOf());

@@ -1101,6 +1101,7 @@
   "treasury.history.more": "More",
   "treasury.history.retry": "Try again",
   "treasury.history.since": "History is kept since {date}",
+  "treasury.history.unreadable": "The server's answer could not be read.",
   "treasury.in": "+ Add",
   "treasury.kind.admin": "Changed by the administrator",
   "treasury.kind.cancel_purchase": "Purchase cancelled",

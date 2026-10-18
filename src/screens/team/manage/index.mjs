@@ -135,6 +135,7 @@ function markupOf(teamId) {
     games: state.games.items,
     ledger: ledgerOf(teamId),
     expanded: historyExpanded(teamId),
+    // As fresh as this draw: a write's start is not announced, and a redraw then would turn a medic's switch back while its save is on its way.
     busy: isWriting(teamId),
   }));
 }

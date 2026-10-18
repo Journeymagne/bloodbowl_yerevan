@@ -12,7 +12,7 @@ const treasury = await import("../src/data/treasury.mjs");
 
 setDictionaries({ en: { "auth.otherTab": "Other tab", "request.offline": "No connection.", "treasury.changedElsewhere": "Changed elsewhere.",
   "error.ROSTER_BREAKS_THE_RULES": "Breaks the rules.", "validation.TREASURY_INVALID": "Treasury below zero.", "error.STAGE_PURCHASE_LOCKED": "Locked by the stage.",
-  "error.TEAM_NOT_FOUND": "Team not found.", "treasury.mayHaveWritten": "May have written." }, ru: {} });
+  "error.TEAM_NOT_FOUND": "Team not found.", "treasury.mayHaveWritten": "May have written.", "treasury.history.unreadable": "Unreadable." }, ru: {} });
 const TOKEN = "gata-league-auth-token";
 const TEAM = { id: "t1", name: "Wardens", baseTeamSlug: "teams/human", logoData: "data:image/png;base64,AA", revision: 3, stage: "active", roster: { treasury: 70, cheerleaders: 1, players: [] } };
 const ENTRY = { id: "l9", kind: "manual", delta: 20, balanceAfter: 90, reason: "friendly", note: null, pairingId: null, createdAt: "2026-10-18T12:00:00Z" };
@@ -175,6 +175,37 @@ test("only the newest read of a team is written: the older answer, coming late, 
   older.release({ status: 200, body: { entries: [{ ...ENTRY, id: "l8" }], next: null, since: null, total: 21 } });
   await more;
   assert.deepEqual([ids(), treasury.ledgerOf("t1").total, treasury.ledgerOf("t1").loading], [["l20"], 22, false]);
+});
+
+test("an answer that is not a page of the history is a failed read, not an empty one: nothing is kept, the reason is said (T10 I-1)", async () => {
+  coach();
+  // A coach of its own: the cache is kept per coach, and this one has read nothing yet.
+  state.auth.currentUser = { id: "u-shape", login: "coach" };
+  const nothing = { entries: [], next: null, since: null, total: 0, loaded: false, loading: false, error: "Unreadable." };
+  const pages = [{}, { entries: null, total: 0 }, { entries: {}, total: 0 }, { entries: [null], total: 1 }, { entries: ["l1"], total: 1 },
+    { entries: [], total: "3" }, { entries: [], total: -1 }, { entries: [], total: 1.5 }, { entries: [] },
+    { entries: [], total: 0, next: 5 }, { entries: [], total: 0, since: {} }];
+  for (const body of pages) {
+    api.reply(FIRST_PAGE, 200, body);
+    await treasury.readLedger("t1");
+    assert.deepEqual(treasury.ledgerOf("t1"), nothing, JSON.stringify(body));
+  }
+  api.reply(FIRST_PAGE, 200, null);
+  await treasury.readLedger("t1");
+  assert.deepEqual([treasury.ledgerOf("t1").loaded, treasury.ledgerOf("t1").loading, Boolean(treasury.ledgerOf("t1").error)], [false, false, true], "null");
+});
+
+test("a history read, then an answer that is not a page: the lines read stay, and so does «More»'s cursor", async () => {
+  coach();
+  state.auth.currentUser = { id: "u-shape-2", login: "coach" };
+  api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: "c1", since: null, total: 21 });
+  await treasury.readLedger("t1");
+  api.reply("GET /api/teams/t1/ledger?before=c1&limit=20", 200, { entries: "l8", next: null, since: null, total: 21 });
+  await treasury.readLedger("t1", { more: true });
+  assert.deepEqual([ids(), treasury.ledgerOf("t1").next, treasury.ledgerOf("t1").total, treasury.ledgerOf("t1").loaded, treasury.ledgerOf("t1").error], [["l9"], "c1", 21, true, "Unreadable."]);
+  api.reply(FIRST_PAGE, 200, {});
+  await treasury.readLedger("t1");
+  assert.deepEqual([ids(), treasury.ledgerOf("t1").error], [["l9"], "Unreadable."]);
 });
 
 test("one listener that throws does not stop the rest from hearing the cache", async () => {

@@ -1101,6 +1101,7 @@
   "treasury.history.more": "Ещё",
   "treasury.history.retry": "Повторить",
   "treasury.history.since": "История ведётся с {date}",
+  "treasury.history.unreadable": "Ответ сервера не удалось прочитать.",
   "treasury.in": "+ Зачислить",
   "treasury.kind.admin": "Правка администратора",
   "treasury.kind.cancel_purchase": "Отмена покупки",
