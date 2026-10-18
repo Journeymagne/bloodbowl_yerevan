@@ -6,7 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
-import { mountView, withWindow } from "./helpers/ref-screen.mjs";
+import { mountView, useLocale, withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 
@@ -60,8 +60,8 @@ function coach({ teamAnswer = team(), events = [] } = {}) {
   view.innerHTML = "";
   if (save.saveState("t1").status !== "idle") save.takeServerTeam(team());
   for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
-  // The memory lives as long as the page, which is the whole file: each test starts from the roster's order and no choice.
-  Object.assign(rosterMemory("t1"), { sort: null, selected: null });
+  // The memory lives as long as the page, which is the whole file: each test starts from the roster's order, no choice and taps of the match.
+  Object.assign(rosterMemory("t1"), { sort: null, selected: null, outside: false });
   state.auth.currentUser = { id: "u1", login: "coach", preferences: { activeTeamId: "t1" } };
   state.myTeams = { items: [team()], loaded: true, loading: false, error: "" };
   state.activeTeamId = "t1";
@@ -91,6 +91,24 @@ const LIVE_GAME = {
   id: "g2", kind: "league", roundStatus: "started", roundNumber: 3, season: { currentRound: 3 }, resultStatus: "pending", preparationStatus: "in_progress",
   postMatchStatus: "draft", updatedAt: "2026-10-10T10:00:00Z", home: { user: { id: "u1" }, team: { id: "t1" } }, away: { user: { id: "u9" }, team: { id: "r1" } },
 };
+// The same round's match of t1 before its start: the preparation is under way.
+const PREP_GAME = { ...LIVE_GAME, id: "g1", preparationStatus: "preparing", postMatchStatus: "not_started" };
+const EVENTS = "POST /api/teams/t1/events";
+const posts = () => api.calls.filter(({ key }) => key === EVENTS);
+/** A row as POST …/events answers it: by default the match's +1 TD of Ann. */
+const rowOf = (over = {}) => ({ id: "e1", pairingId: "g2", playerId: "p1", counter: "touchdowns", delta: 1, injury: null, settledAt: null, ...over });
+const refused = (code) => ({ error: { code, params: {}, message: "x" } });
+/** The games the server answers with from now on. */
+const gamesAre = (games) => api.reply("GET /api/games", 200, { games, currentGames: [] });
+/** The banner of a preparation or a match, the first of the notices. */
+const banner = () => view.querySelector(".g-roster__notices .g-callout");
+const titleOf = (callout) => callout.querySelector(".g-callout__title").textContent;
+const subOf = (callout) => callout.querySelector(".g-callout__sub").textContent;
+const outsideSwitch = () => view.querySelector('[role="switch"]');
+/** The «+N» a count shows for the match: in a counter, or in the table's cell. */
+const deltaOf = (counter, root) => stepper(counter, root).querySelector(".g-stepper__delta")?.textContent ?? null;
+const SIDE_LOCKED = "This match's statistics are already saved in your post-match. Change them on its Players step.";
+const AFTER_POST = "Advancement — after the post-match";
 
 const bodies = () => view.querySelectorAll("tbody.g-rtable__player");
 const order = () => bodies().map((body) => body.querySelector(".g-rtable__name").textContent);
@@ -715,10 +733,12 @@ test("another device's save that was a match's start: «Load the new one» reads
     assert.ok(callKeys().includes("GET /api/games"));
     assert.equal(view.querySelector(".g-callout--danger"), null);
     assert.ok(minus("touchdowns").hasAttribute("disabled"), "the match's own rule: its records for him add up to nothing");
+    api.reply(EVENTS, 201, { event: rowOf() });
     fireEvent(plus("touchdowns"), "click");
     fireEvent(plus("casualties"), "click");
     await settle();
     assert.equal(patches().length, 0, "no save of the roster during the match");
+    assert.deepEqual(posts().map(({ body }) => [body.pairingId, body.counter]), [["g2", "touchdowns"], ["g2", "casualties"]], "records of the match instead");
     assert.equal(toasts().some((text) => text.startsWith("A match has begun")), true, "the edit the 409 met is said lost");
   });
 });
@@ -825,6 +845,391 @@ test("a redraw that takes the focused button away: the minus stopped at zero giv
     assert.equal(sheet(), null);
     assert.equal(toggle("p2#1"), null, "he has left the roster");
     assert.ok(document.activeElement === view.querySelector("h1"), "the title, not the body");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// A preparation and a match (Task 11)
+// ---------------------------------------------------------------------------
+
+test("a preparation that is on: a yellow banner, the round, what any save resets, and the way to it; the counters still write the roster", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([PREP_GAME]);
+    await renderTeamRoster("t1");
+    const callout = notice("warn");
+    assert.ok(callout && callout === banner(), "the first banner");
+    assert.equal(titleOf(callout), "Preparation for round 3 is on");
+    // R12: the steps as the pre-match names them; resetChangedRosters keeps the fans and the weather only.
+    assert.equal(subOf(callout), "Any save of the roster, SPP included, resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
+    const link = callout.querySelector(".g-callout__action .g-roster__calloutlink");
+    assert.equal(link.getAttribute("href"), "#/games/g1/pre-match");
+    assert.equal(link.textContent, "To the preparation →");
+    assert.equal(outsideSwitch(), null, "nothing is a match's yet");
+    api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 5 }) });
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.deepEqual([patches().length, posts().length], [1, 0], "a save of the roster, as outside a match");
+    assert.equal(aside().querySelector("a.g-btn--primary").textContent, "Advance", "a preparation closes nothing");
+    // A friendly has no round.
+    coach();
+    gamesAre([{ ...PREP_GAME, kind: "friendly", season: null, roundStatus: null, roundNumber: null }]);
+    await renderTeamRoster("t1");
+    assert.equal(titleOf(notice("warn")), "Preparation for a friendly is on");
+    // The steps in Russian are the pre-match's own words.
+    coach();
+    gamesAre([PREP_GAME]);
+    useLocale("ru");
+    try {
+      await renderTeamRoster("t1");
+      assert.equal(titleOf(notice("warn")), "Идёт подготовка к туру 3");
+      assert.match(subOf(notice("warn")), /«Индусменты» и «Удар \/ приём»/);
+    } finally {
+      useLocale("en");
+    }
+  });
+});
+
+test("a match on: a green banner with the round and the records, the switch and the post-match; a tap is a record of the match, and the count shows «+1» for it in the table and in the counter", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    const callout = banner();
+    assert.equal(callout.getAttribute("class"), "g-callout", "the accent tone, the banner's base look");
+    assert.equal(titleOf(callout), "Match on · round 3 · records: 0");
+    assert.equal(subOf(callout), "Taps are recorded in the match: they count in the career at once and fill in the post-match. Hiring, sales, advancements and the treasury — after the post-match.");
+    // K9: the action is the switch and the link; the switch's caption is what describes it, not a part of its name.
+    const action = callout.querySelector(".g-callout__action");
+    assert.deepEqual(action.querySelectorAll("button, a").map((node) => node.tagName), ["BUTTON", "A"]);
+    assert.equal(outsideSwitch().getAttribute("aria-checked"), "false");
+    assert.equal(outsideSwitch().textContent, "Edit outside the match");
+    const described = view.querySelector(`#${outsideSwitch().getAttribute("aria-describedby")}`);
+    assert.equal(described.textContent, "fix an old mistake without touching the round 3");
+    assert.ok(described.hasAttribute("hidden"), "read to a screen reader as the switch's description, not drawn in the banner");
+    const link = action.querySelector("a.g-roster__calloutlink");
+    assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/games/g2/post-match", "Post-match →"]);
+    api.reply(EVENTS, 201, { event: rowOf() });
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.deepEqual(posts().map(({ body }) => body), [{ pairingId: "g2", playerId: "p1", counter: "touchdowns", delta: 1 }]);
+    assert.equal(patches().length, 0, "no save of the roster during a match (R8)");
+    const cell = bodyOf("p1#0").querySelectorAll(".g-rtable__row td")[5];
+    assert.equal(cell.querySelector("sup.g-rtable__delta").textContent, ", this match +1");
+    assert.equal(cell.childNodes[0].textContent, "1", "the career counts it at once");
+    assert.equal(deltaOf("touchdowns"), "+1");
+    assert.equal(titleOf(banner()), "Match on · round 3 · records: 1");
+    // The panel's block is the match's records, worth +3 SPP; the MVP and the advancements wait for the post-match.
+    const block = aside().querySelector(".g-roster__manual");
+    assert.deepEqual(sppLine(block), ["Match records · round 3", "+3 SPP in the match"]);
+    assert.equal(block.querySelector(".g-roster__matchnote").textContent, "MVP — in the post-match. Advancement and sales — after it.");
+    assert.equal(aside().querySelector(".g-roster__availn").textContent, "3", "SPP available at once");
+    assertStyled(view, "src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+      "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css");
+    api.assertAnswered();
+  });
+});
+
+test("on a phone the open row of a match says what the match has given him: «SPP 3 · round 3 · counts at once» and its SPP", async () => {
+  await withWindow({ phone: true }, async () => {
+    coach({ events: [rowOf()] });
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(toggle("p1#0"), "click");
+    assert.deepEqual(sppLine(openRow()), ["SPP 3 · round 3 · counts at once", "+3 SPP"]);
+    assert.equal(deltaOf("touchdowns", openRow()), "+1");
+    // A friendly is named so.
+    coach({ events: [] });
+    gamesAre([{ ...LIVE_GAME, kind: "friendly", season: null, roundStatus: null, roundNumber: null }]);
+    await renderTeamRoster("t1");
+    fireEvent(toggle("p1#0"), "click");
+    assert.deepEqual(sppLine(openRow()), ["SPP 0 · friendly · counts at once", "no changes yet"]);
+    assert.equal(titleOf(banner()), "Match on · friendly · records: 0");
+  });
+});
+
+test("the MVP is no tap of the match: its plus says why; with the switch on it is an edit outside the match", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    assert.equal(plus("mvps").getAttribute("aria-disabled"), "true");
+    assert.equal(plus("mvps").getAttribute("title"), "The MVP is picked in the post-match");
+    fireEvent(plus("mvps"), "click");
+    assert.equal(toasts().at(-1), "The MVP is picked in the post-match");
+    await settle();
+    assert.deepEqual([posts().length, patches().length], [0, 0]);
+    fireEvent(outsideSwitch(), "click");
+    assert.equal(outsideSwitch().getAttribute("aria-checked"), "true");
+    assert.equal(plus("mvps").hasAttribute("aria-disabled"), false);
+    api.reply(EVENTS, 201, { event: rowOf({ pairingId: null, counter: "mvps" }) });
+    fireEvent(plus("mvps"), "click");
+    await settle();
+    assert.deepEqual(posts().map(({ body }) => body), [{ pairingId: null, playerId: "p1", counter: "mvps", delta: 1 }]);
+    assert.equal(patches().length, 0);
+  });
+});
+
+test("a player who sits the match out takes no tap of it, and says why; with the switch on he does", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(toggle("p4#3"), "click");
+    const steps = aside().querySelectorAll("[data-action-step]");
+    assert.equal(steps.length, 18);
+    for (const button of steps) {
+      assert.equal(button.getAttribute("aria-disabled"), "true");
+      assert.equal(button.getAttribute("title"), "Not playing this match");
+    }
+    fireEvent(plus("touchdowns"), "click");
+    assert.equal(toasts().at(-1), "Not playing this match");
+    await settle();
+    assert.equal(posts().length, 0);
+    fireEvent(outsideSwitch(), "click");
+    api.reply(EVENTS, 201, { event: rowOf({ pairingId: null, playerId: "p4" }) });
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.deepEqual(posts().map(({ body }) => body), [{ pairingId: null, playerId: "p4", counter: "touchdowns", delta: 1 }]);
+  });
+});
+
+// Review Focus 4: the minus of an edit outside the match stops where the roster and the edits waiting add up to nothing.
+test("with the switch on a tap is an edit outside the match: no pairing, the banner turns yellow, the minus stops at the roster and the edits waiting", async () => {
+  await withoutTimers(async () => {
+    coach({ events: [rowOf({ id: "e0" })] });
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    assert.equal(countOf("touchdowns").startsWith("1"), true);
+    assert.equal(minus("touchdowns").hasAttribute("disabled"), false, "a tap of the match takes back the match's record");
+    fireEvent(outsideSwitch(), "click");
+    const callout = notice("warn");
+    assert.ok(callout && callout === banner(), "the first banner");
+    assert.equal(titleOf(callout), "Match on · round 3 · records: 1");
+    assert.equal(subOf(callout), "Taps change the career and do not go into the match: for an old mistake.");
+    assert.ok(minus("touchdowns").hasAttribute("disabled"), "the roster's 0 and no edit waiting: an edit has nothing to take back");
+    assert.deepEqual(sppLine(aside().querySelector(".g-roster__manual")), ["SPP · manual edit", "no changes yet"]);
+    api.reply(EVENTS, 201, { event: rowOf({ id: "e1", pairingId: null }) });
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.deepEqual(posts().map(({ body }) => body.pairingId), [null]);
+    assert.equal(patches().length, 0);
+    assert.equal(countOf("touchdowns").startsWith("2"), true, "the career counts the edit");
+    assert.equal(deltaOf("touchdowns"), "+1", "the match's own: the edit is not one of its records");
+    assert.equal(titleOf(banner()), "Match on · round 3 · records: 1");
+    assert.equal(minus("touchdowns").hasAttribute("disabled"), false, "the edit waiting can be taken back");
+    assert.deepEqual(sppLine(aside().querySelector(".g-roster__manual")), ["SPP · manual edit", "+3 SPP"]);
+    // Off again: the match's rule.
+    fireEvent(outsideSwitch(), "click");
+    assert.equal(banner().getAttribute("class"), "g-callout");
+  });
+});
+
+test("advancement waits for the post-match: «Profile and advancement», «Advance» and the pencil say so", async () => {
+  await withoutTimers(async () => {
+    const check = (control) => {
+      assert.equal(control.tagName, "BUTTON");
+      assert.equal(control.hasAttribute("href"), false);
+      assert.equal(control.getAttribute("aria-disabled"), "true");
+      assert.equal(control.getAttribute("title"), AFTER_POST);
+      fireEvent(control, "click");
+      assert.equal(toasts().at(-1), AFTER_POST);
+    };
+    await withWindow({ phone: true }, async () => {
+      coach();
+      gamesAre([LIVE_GAME]);
+      await renderTeamRoster("t1");
+      fireEvent(toggle("p2#1"), "click");
+      const profile = openRow().querySelector(".g-roster__closed");
+      assert.equal(profile.textContent, "Profile and advancement");
+      check(profile);
+      assert.equal(openRow().querySelector("a"), null);
+      assertCspSafe(view);
+      assertStyled(view, "src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+        "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css");
+    });
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(toggle("p2#1"), "click");
+    const [pencil, advance] = aside().querySelectorAll(".g-roster__closed");
+    assert.equal(pencil.getAttribute("aria-label"), "Edit Bors");
+    check(pencil);
+    assert.equal(advance.textContent, "Advance");
+    check(advance);
+    assert.equal(aside().querySelector(".g-roster__cheapest").textContent, AFTER_POST);
+    assert.equal(aside().querySelector("a"), null);
+    // The switch edits the career, not the roster's advancements: they stay closed.
+    fireEvent(outsideSwitch(), "click");
+    assert.equal(aside().querySelectorAll(".g-roster__closed").length, 2);
+  });
+});
+
+// Review Focus 1: a step down in the match waits for the step up it takes back, and is open as soon as the plus is taken.
+test("a minus right after a plus counts the plus still on its way", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    assert.ok(minus("touchdowns").hasAttribute("disabled"));
+    const held = api.hold(EVENTS);
+    fireEvent(plus("touchdowns"), "click");
+    assert.equal(minus("touchdowns").hasAttribute("disabled"), false, "open at once: the plus on its way counts");
+    assert.equal(deltaOf("touchdowns"), "+1");
+    fireEvent(minus("touchdowns"), "click");
+    assert.equal(deltaOf("touchdowns"), null);
+    assert.ok(minus("touchdowns").hasAttribute("disabled"));
+    await settle();
+    assert.deepEqual([held.count, posts().length], [1, 1], "the minus waits for the plus");
+    api.reply(EVENTS, 201, { event: rowOf({ id: "e2", delta: -1 }) });
+    held.release({ status: 201, body: { event: rowOf({ id: "e1" }) } });
+    await settle();
+    assert.deepEqual(posts().map(({ body }) => body.delta), [1, -1]);
+    assert.equal(countOf("touchdowns"), "0");
+    assert.equal(deltaOf("touchdowns"), null);
+    assert.ok(minus("touchdowns").hasAttribute("disabled"));
+    assert.equal(bodyOf("p1#0").querySelectorAll(".g-rtable__row td")[5].textContent, "0");
+    api.assertAnswered();
+  });
+});
+
+// Review Focus 2: a match that ended (or never began) as the server counts it.
+test("a match that ended elsewhere: the tap is refused, the screen reads the games and the records again and leaves the match mode", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    api.calls.length = 0;
+    api.reply(EVENTS, 409, refused("MATCH_NOT_LIVE"));
+    gamesAre([{ ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" }]);
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.equal(toasts().at(-1), "There is no match in progress to record this in.");
+    assert.deepEqual(callKeys().sort(), ["GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events", EVENTS]);
+    assert.equal(view.querySelector(".g-roster__notices"), null, "no banner of a match");
+    assert.equal(countOf("touchdowns"), "0", "the refused step is gone");
+    api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 5 }) });
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.deepEqual([posts().length, patches().length], [1, 1], "a save of the roster now");
+  });
+});
+
+test("a side that saved its Players step: the refusal is said, and the match's steppers say it before the next tap; the switch still works", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    api.reply(EVENTS, 409, refused("EVENT_SIDE_LOCKED"));
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.equal(toasts().at(-1), SIDE_LOCKED);
+    assert.equal(posts().length, 1);
+    for (const button of aside().querySelectorAll("[data-action-step]")) {
+      assert.equal(button.getAttribute("aria-disabled"), "true");
+      assert.equal(button.getAttribute("title"), SIDE_LOCKED);
+    }
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.equal(posts().length, 1, "said, not sent");
+    fireEvent(outsideSwitch(), "click");
+    assert.equal(plus("casualties").hasAttribute("aria-disabled"), false, "an edit outside the match is no step of the post-match");
+    api.reply(EVENTS, 201, { event: rowOf({ pairingId: null, counter: "casualties" }) });
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.deepEqual(posts().map(({ body }) => body.pairingId), ["g2", null]);
+    // Off again, the match's steppers still say it: nothing has been read since.
+    fireEvent(outsideSwitch(), "click");
+    assert.equal(plus("touchdowns").getAttribute("title"), SIDE_LOCKED);
+    // The records read again (an edit whose answer was lost), the next tap of the match asks the server again.
+    fireEvent(outsideSwitch(), "click");
+    api.fail(EVENTS);
+    api.calls.length = 0;
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.ok(callKeys().includes("GET /api/teams/t1/events"));
+    fireEvent(outsideSwitch(), "click");
+    assert.equal(plus("touchdowns").hasAttribute("aria-disabled"), false);
+  });
+});
+
+test("a tap whose answer was lost: the records are read again, not the tap sent again — once for the taps behind it, which are not sent", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    api.calls.length = 0;
+    const held = api.hold(EVENTS);
+    fireEvent(plus("touchdowns"), "click");
+    fireEvent(plus("casualties"), "click");
+    assert.deepEqual([deltaOf("touchdowns"), deltaOf("casualties")], ["+1", "+1"]);
+    await settle();
+    // The touchdown was written after all; its answer never came.
+    api.reply("GET /api/teams/t1/events", 200, { events: [rowOf()], revision: 4 });
+    held.release({ error: new TypeError("Failed to fetch") });
+    await settle();
+    assert.equal(posts().length, 1, "neither sent again nor the casualty sent");
+    assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1/events").length, 1, "read once for both");
+    assert.deepEqual(toasts().filter((text) => text.startsWith("The answer") || text.startsWith("Not sent")),
+      ["The answer to the record did not arrive: the records are read again to see whether it was written."]);
+    assert.deepEqual([deltaOf("touchdowns"), deltaOf("casualties")], ["+1", null], "what the server has");
+    assert.equal(titleOf(banner()), "Match on · round 3 · records: 1");
+  });
+});
+
+test("a tap answered while the records are read again: its row is neither lost to a read made before it nor counted twice by one made after", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    // A lost answer: the records are read again, and the read is on its way.
+    api.fail(EVENTS);
+    let reading = api.hold("GET /api/teams/t1/events");
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.equal(reading.count, 1);
+    // A casualty is written and answered meanwhile, after the read was made.
+    api.reply(EVENTS, 201, { event: rowOf({ id: "e5", counter: "casualties" }) });
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    reading.release({ status: 200, body: { events: [], revision: 4 } });
+    await settle();
+    assert.deepEqual([deltaOf("touchdowns"), deltaOf("casualties")], [null, "+1"], "the casualty the read did not see is kept");
+    // Again; this time a knockout's answer comes after a read that has its row.
+    api.fail(EVENTS);
+    reading = api.hold("GET /api/teams/t1/events");
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    const sending = api.hold(EVENTS);
+    fireEvent(plus("knockouts"), "click");
+    await settle();
+    const knockout = rowOf({ id: "e6", counter: "knockouts" });
+    reading.release({ status: 200, body: { events: [rowOf({ id: "e5", counter: "casualties" }), knockout], revision: 4 } });
+    await settle();
+    sending.release({ status: 201, body: { event: knockout } });
+    await settle();
+    assert.deepEqual([deltaOf("touchdowns"), deltaOf("casualties"), deltaOf("knockouts")], [null, "+1", "+1"], "each row once");
+    assert.equal(titleOf(banner()), "Match on · round 3 · records: 2");
+  });
+});
+
+test("the switch is kept per team while the page lives", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME, { ...LIVE_GAME, id: "g3", home: { user: { id: "u1" }, team: { id: "t2" } } }]);
+    await renderTeamRoster("t1");
+    fireEvent(outsideSwitch(), "click");
+    releaseCurrentScreen();
+    view.innerHTML = "<p>elsewhere</p>";
+    await renderTeamRoster("t1");
+    assert.equal(outsideSwitch().getAttribute("aria-checked"), "true");
+    assert.ok(notice("warn"));
+    api.reply("GET /api/teams/t2", 200, { team: team({ id: "t2", name: "Grimtusk Raiders" }) });
+    api.reply("GET /api/teams/t2/events", 200, { events: [], revision: 4 });
+    releaseCurrentScreen();
+    await renderTeamRoster("t2");
+    assert.equal(outsideSwitch().getAttribute("aria-checked"), "false");
+    assert.equal(banner().getAttribute("class"), "g-callout");
   });
 });
 
@@ -986,6 +1391,21 @@ test("the words of the screen are readable in every palette, on the page, the pa
   // The SPP line and its sum stand on the open row's tint and on the panel's block, the sheet's lines on the sheet.
   for (const selector of [".g-roster__sppline", ".g-roster__sppdelta", ".g-roster__sppdelta--none", ".g-roster__manualtitle"]) assertReadable(sheet, selector, "color", ["--surface-2"], 4.5);
   for (const selector of [".g-roster__from", ".g-roster__nopage"]) assertReadable(sheet, selector, "color", ["--surface"], 4.5);
+  // The match's note under the panel's tiles, on its block.
+  assertReadable(sheet, ".g-roster__matchnote", "color", ["--surface-2"], 4.5);
+});
+
+test("the banner's action: up to 900px a line of its own whose switch and link may wrap; the link one line and a thumb tall (K9)", () => {
+  const sheet = "src/screens/team/roster/roster.css";
+  const phone = [...text(sheet).matchAll(/@media \(max-width: 900px\) \{([\s\S]*?)\n\}/g)].map(([, body]) => body).join("\n");
+  assert.match(phone, /\.g-roster__notices \.g-callout__action \{[^}]*white-space: normal;[^}]*flex-basis: 100%;/);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__notices .g-callout__action", "white-space"), ["normal"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__notices .g-callout__action", "flex-basis"), ["100%"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__calloutactions", "flex-wrap"), ["wrap"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__calloutlink", "white-space"), ["nowrap"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__calloutlink", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__calloutlink", "color"), ["inherit"], "the banner's own ink, readable on its tint");
+  for (const selector of [".g-roster__calloutlink", ".g-roster__matchnote"]) assert.deepEqual(valuesOf(sheet, selector, "text-transform"), ["none"], selector);
 });
 
 test("the player's address still draws the 2.x editor until stage 07d", () => {

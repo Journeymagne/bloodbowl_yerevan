@@ -1,14 +1,17 @@
 /**
  * What the roster hears, on the view that outlives its redraws: a header pressed, a player pressed, a skill chip
  * pressed (in a row or in the panel), the skill's sheet closed, «Try again» after a read that failed, a counter's
- * − or + (a refused one too), and «Load the new one» after another device's save. What each one does is the
- * screen's (index.mjs); this file only says who was pressed.
+ * − or + (a refused one too), «Load the new one» after another device's save, the switch «Edit outside the match»,
+ * and a way to the player's page that a match has closed. What each one does is the screen's (index.mjs); this
+ * file only says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
 import { wireRosterTable } from "../../../ui/roster-table.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
 import { wireSkillChips } from "../../../ui/skill-chip.mjs";
+import { wireToggles } from "../../../ui/toggle.mjs";
+import { OUTSIDE_TOGGLE } from "./view.mjs";
 
 /** The line a chip belongs to: the panel's player, or the player of the table's body it stands in. */
 function lineKeyOf(chip) {
@@ -24,11 +27,12 @@ function lineKeyOf(chip) {
  * @param {(id: string) => void} handlers.onSheetClose
  * @param {() => void} handlers.onRetry
  * @param {(playerId: string, counter: string, delta: number) => void} handlers.onStep a counter's − or +, by the player's stored id
- * @param {(reason: string) => void} handlers.onRefused a − or + that says why it takes no step
+ * @param {(reason: string) => void} handlers.onRefused a − or + that says why it takes no step, and a closed way to the player's page
  * @param {() => void} handlers.onReload «Load the new one»
+ * @param {(on: boolean) => void} handlers.onOutside «Edit outside the match» switched on or off
  * @returns {() => void} takes every listener off
  */
-export function wireRoster(root, { onSort, onToggle, onSkill, onSheetClose, onRetry, onStep, onRefused, onReload }) {
+export function wireRoster(root, { onSort, onToggle, onSkill, onSheetClose, onRetry, onStep, onRefused, onReload, onOutside }) {
   const offs = [
     wireRosterTable(root, { onSort, onToggle }),
     wireSkillChips(root, (name, chip) => {
@@ -39,6 +43,10 @@ export function wireRoster(root, { onSort, onToggle, onSkill, onSheetClose, onRe
     wireActionSteppers(root, ({ key, delta, element }) => onStep(element.getAttribute("data-player") ?? "", key, delta), { onRefused: ({ reason }) => onRefused(reason) }),
     delegate(root, "click", "[data-roster-retry]", () => onRetry()),
     delegate(root, "click", "[data-roster-reload]", () => onReload()),
+    wireToggles(root, (key, on) => {
+      if (key === OUTSIDE_TOGGLE) onOutside(on);
+    }),
+    delegate(root, "click", "[data-roster-closed]", (event, button) => onRefused(button.getAttribute("title") ?? "")),
   ];
   return () => offs.forEach((off) => off());
 }

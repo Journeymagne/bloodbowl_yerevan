@@ -107,6 +107,37 @@
 }
 .g-roster__offline > .g-callout { padding-left: calc(var(--space-14) + 22px + var(--space-10)); }
 
+/*
+ * A banner's action (Task 11): «Edit outside the match» and the way to the post-match, or the way to the
+ * preparation alone. On a desk it stands at the right of the words, on one line; up to 900px it is a line of
+ * its own, the switch across it and the link under it (StatsLive.html, K9).
+ */
+.g-roster__calloutactions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-16);
+  min-width: 0;
+}
+
+/* The way to where the banner's news is dealt with: one line, a thumb tall, in the banner's own ink. */
+.g-roster__calloutlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 700 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-transform: none;
+  white-space: nowrap;
+}
+
 /* What stands in place of the table: the wait, nobody on the roster, a read that failed. */
 .g-roster__loading,
 .g-roster__empty {
@@ -204,6 +235,18 @@
   text-transform: none;
 }
 
+/* Under the match's tiles: what waits for the post-match. */
+.g-roster__matchnote {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 12px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
 /* The panel's head: the badge, the name with the position and the value under it, the pencil at the right. */
 .g-roster__phead {
   display: flex;
@@ -243,6 +286,19 @@
 .g-roster__edit {
   margin-left: auto;
   text-decoration: none;
+}
+
+/*
+ * A way to the player's page that a match has closed until its post-match: still in reach, it says why when pressed,
+ * in the look button.css gives a disabled button (a primary keeps its words readable on the disabled fill).
+ */
+.g-roster__closed {
+  cursor: default;
+  opacity: .6;
+}
+.g-btn--primary.g-roster__closed {
+  background: var(--disabled);
+  opacity: 1;
 }
 
 /* The SPP: what he may spend, large; what he earned and spent; the advancements; «Advance»; the cheapest one. */
@@ -398,6 +454,14 @@
 
 @media (max-width: 900px) {
   .g-roster__aside { display: none; }
+
+  /* K9: the banner's switch and link take a line of their own, and wrap rather than push the page sideways. */
+  .g-roster__notices .g-callout__action {
+    white-space: normal;
+    flex-basis: 100%;
+    margin-left: 0;
+  }
+  .g-roster__calloutactions .g-toggle { flex: 1 1 100%; }
 }
 
 @media (min-width: 901px) {

@@ -144,6 +144,17 @@ test("a toggle is a switch row that flips and reports; a disabled one does not m
   assertStyled(fragment, "toggle.css");
 });
 
+test("a toggle another element describes names it, and is named by its label alone", () => {
+  const fragment = mount(`${renderToggle({ key: "outside", label: "Edit outside the match", describedBy: "outside-note" })}<span id="outside-note" hidden>fix an old mistake</span>`
+    + renderToggle({ key: "plain", label: "Plain" }));
+  const [described, plain] = fragment.querySelectorAll('[role="switch"]');
+  assert.equal(described.getAttribute("aria-describedby"), "outside-note");
+  assert.equal(described.textContent, "Edit outside the match");
+  assert.equal(plain.hasAttribute("aria-describedby"), false);
+  // An id with a blank in it would be a list of two; with a quote, an attribute broken.
+  for (const describedBy of ["two ids", 'x" onclick="y', "9x"]) assert.throws(() => renderToggle({ key: "x", label: "X", describedBy }), /describedBy/);
+});
+
 test("the default button is an outline button of type button, and a form can ask for submit", () => {
   const plain = mount(renderButton({ label: "Skip" })).querySelector("button");
   assert.equal(plain.getAttribute("class"), "g-btn");

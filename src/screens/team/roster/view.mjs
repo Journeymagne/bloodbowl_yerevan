@@ -7,9 +7,13 @@
  * (`aria-expanded`, and the row's panel it controls), from 901px it chooses him for the panel beside the table
  * (`aria-controls` names the panel, `aria-current` marks the one in it). The screen draws again when the width
  * crosses 900px.
+ *
+ * Above the table stand what the coach has to keep in mind: a preparation or a match that is on (Task 11,
+ * decisions 12 and 13), and the save's trouble (Task 10).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
+import { postMatchUrl, preMatchUrl } from "../../../core/routes.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
@@ -20,12 +24,17 @@ import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderPageHead } from "../../../ui/page-head.mjs";
 import { renderRosterTable } from "../../../ui/roster-table.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
+import { renderToggle } from "../../../ui/toggle.mjs";
 import { MAIN_COUNTERS, rosterCounts } from "./model.mjs";
-import { rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
+import { matchWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { skillSheetMarkup } from "./sheets.mjs";
 
 /** The id of the panel beside the table, which a desk's player buttons control. */
 export const ASIDE_ID = "roster-aside";
+/** What wireToggles reports for «Edit outside the match». */
+export const OUTSIDE_TOGGLE = "roster-outside";
+/** The id of what the switch is described by: why it is there, which does not fit beside it in the banner (K9). */
+const OUTSIDE_NOTE = "roster-outside-note";
 
 /**
  * @typedef {object} RosterScreen
@@ -39,6 +48,9 @@ export const ASIDE_ID = "roster-aside";
  * @property {{status: string, waiting: number, refusal: string}} save where the roster's save queue stands (`saveState`)
  * @property {string} lock why every counter is closed just now: the games unread («Loading the matches…») or unreadable
  *   (the failure), or a conflict the coach has to settle; "" when none
+ * @property {string} sideLocked why the match's own taps are closed: the server's refusal `EVENT_SIDE_LOCKED` (the
+ *   side has saved its Players step), until the records are read again; "" when they are open
+ * @property {number} records the rows of the match on that the team has, as last read: what its banner counts
  * @property {{kind: "skill", key: string, name: string}|null} sheet the sheet that is open
  * @property {string} error a read that failed, "" when none
  * @property {boolean} loading the roster has not been read yet (or is read again after a failure)
@@ -74,10 +86,12 @@ function statCell({ text, change }) {
 /** A count: quiet at zero. */
 const countCell = (count) => ({ text: String(count), tone: count === 0 ? "zero" : "" });
 
-function cellsOf(line) {
+/** A line's cells; in a match each count of the career says what the match has added to it («+1»). */
+function cellsOf(line, { mode }) {
+  const added = (counter) => (mode.kind === "match" ? line.match[counter] : 0);
   return [
     ...PLAYER_STATS.map((stat) => statCell(line.stats[stat])),
-    ...MAIN_COUNTERS.map((counter) => countCell(line.career[counter] ?? 0)),
+    ...MAIN_COUNTERS.map((counter) => ({ ...countCell(line.career[counter] ?? 0), delta: added(counter) })),
     { text: String(line.earned) },
     { text: String(line.available), tone: "strong" },
   ];
@@ -100,7 +114,7 @@ function rowOf(line, screen, choice) {
     name: line.name,
     sub: line.skip ? t("teamRoster.skip") : line.position,
     alert: line.skip,
-    cells: cellsOf(line),
+    cells: cellsOf(line, screen),
     skillsHtml: skillChipsMarkup(line),
   };
   if (!screen.phone) return { ...row, selected: choice.chosen === line.key, controls: ASIDE_ID };
@@ -121,21 +135,57 @@ function statusMarkup({ status, waiting }) {
   return `<span class="g-roster__status" role="status">${chip}</span>`;
 }
 
+/** A banner's way to where its news is dealt with: one line, a thumb tall, in the banner's own ink. */
+const calloutLink = (href, label) => `<a class="g-roster__calloutlink" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+
 /**
- * What the coach has to know of the save above the table (spec UI §8): another device's save, which only he can
- * settle — «Load the new one» reads the team again and gives his edit up; no network, with the edits that wait
- * and the offline sign before the words.
+ * A preparation that is on (decision 12): yellow, what any save of the roster resets — the steps named as the
+ * pre-match names them (R12) — and the way to it. Nothing is closed: a save only sends the coach back to those steps.
  */
-function noticesMarkup({ save }) {
-  let notice = "";
+function prepMarkup({ mode }) {
+  const title = mode.round === null ? t("teamRoster.prep.titleFriendly") : t("teamRoster.prep.title", { round: mode.round });
+  const sub = t("teamRoster.prep.sub", { roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
+  return renderCallout({ tone: "warn", title, sub, actionHtml: calloutLink(preMatchUrl(mode.game), t("teamRoster.prep.link")) });
+}
+
+/**
+ * A match that is on (decision 13): green while a tap is a record of it, yellow with «Edit outside the match» on (as
+ * StatsLive and spec §7); its records counted, the switch, and the way to the post-match. The switch's explanation
+ * is its description (K9), not a line beside it: the banner's action is the switch and the link.
+ */
+function matchMarkup({ mode, memory, records }) {
+  const match = matchWords(mode);
+  const toggle = renderToggle({ key: OUTSIDE_TOGGLE, label: t("teamRoster.match.outside"), checked: memory.outside, describedBy: OUTSIDE_NOTE });
+  const note = `<span id="${OUTSIDE_NOTE}" hidden>${escapeHtml(t("teamRoster.match.outsideCaption", { match }))}</span>`;
+  const actionHtml = `<div class="g-roster__calloutactions">${toggle}${note}${calloutLink(postMatchUrl(mode.game), t("teamRoster.match.postMatch"))}</div>`;
+  return renderCallout({
+    tone: memory.outside ? "warn" : "accent",
+    title: t("teamRoster.match.title", { match, count: records }),
+    sub: memory.outside ? t("teamRoster.match.outsideSub") : t("teamRoster.match.sub"),
+    actionHtml,
+  });
+}
+
+/**
+ * What the coach has to know of the save (spec UI §8): another device's save, which only he can settle — «Load the
+ * new one» reads the team again and gives his edit up; no network, with the edits that wait and the offline sign
+ * before the words.
+ */
+function saveNoticeMarkup({ save }) {
   if (save.status === SAVE_STATUS.CONFLICT) {
     const actionHtml = renderButton({ label: t("teamRoster.conflict.reload"), kind: "primary", data: { rosterReload: true } });
-    notice = renderCallout({ tone: "danger", title: t("teamRoster.conflict.title"), sub: t("teamRoster.conflict.sub"), actionHtml });
-  } else if (save.status === SAVE_STATUS.OFFLINE) {
-    const callout = renderCallout({ tone: "warn", title: t("teamRoster.offline.title"), sub: t("teamRoster.offline.sub", { count: save.waiting }) });
-    notice = `<div class="g-roster__offline">${icon("offline", 22)}${callout}</div>`;
+    return renderCallout({ tone: "danger", title: t("teamRoster.conflict.title"), sub: t("teamRoster.conflict.sub"), actionHtml });
   }
-  return notice ? `<div class="g-roster__notices">${notice}</div>` : "";
+  if (save.status !== SAVE_STATUS.OFFLINE) return "";
+  const callout = renderCallout({ tone: "warn", title: t("teamRoster.offline.title"), sub: t("teamRoster.offline.sub", { count: save.waiting }) });
+  return `<div class="g-roster__offline">${icon("offline", 22)}${callout}</div>`;
+}
+
+/** The banners above the table: the preparation or the match that is on, then the save's trouble. */
+function noticesMarkup(screen) {
+  const kind = screen.mode.kind;
+  const notices = `${kind === "prep" ? prepMarkup(screen) : kind === "match" ? matchMarkup(screen) : ""}${saveNoticeMarkup(screen)}`;
+  return notices ? `<div class="g-roster__notices">${notices}</div>` : "";
 }
 
 /** The table and the panel beside it; a roster with nobody on it says so instead. */
