@@ -7,11 +7,12 @@
  * `created_at` is `clock_timestamp()`, not `now()`: `now()` is the same for the
  * whole transaction, and the several lines of one save would lose their order.
  *
- * Reading. `readLedgerPage` pages the history newest first. `pg` returns the `numeric` amounts as
- * strings and the reader turns them into numbers: they are thousands to the gold, three decimals
- * at most, which a double holds exactly. The cursor is the row's own `created_at::text` and id:
- * a JS `Date` keeps milliseconds, two lines of one save share one, and paging by it would skip or
- * repeat them. The text keeps the microseconds, and the id settles a tie.
+ * Reading. `readLedgerPage` pages the history newest first, and `countLedgerLines` says how long it
+ * is. `pg` returns the `numeric` amounts as strings and the reader turns them into numbers: they are
+ * thousands to the gold, three decimals at most, which a double holds exactly. The cursor is the
+ * row's own `created_at::text` and id: a JS `Date` keeps milliseconds, two lines of one save share
+ * one, and paging by it would skip or repeat them. The text keeps the microseconds, and the id
+ * settles a tie.
  */
 import { isMoneyAmount, sumMoney } from "../../src/domain/money.mjs";
 import { MANUAL_REASONS, ledgerRows } from "../../src/domain/roster/ledger.mjs";
@@ -125,6 +126,19 @@ export async function readLedgerPage(db, teamId, { before = null, limit = LEDGER
     entries: page.map(ledgerEntry),
     next: rows.length > limit ? encodeLedgerCursor(page[page.length - 1]) : null,
   };
+}
+
+/**
+ * How many lines the team's history holds, whatever page is read: what a screen says as «all the
+ * history, N». Read in the page's own snapshot, so the number and the page agree.
+ *
+ * @param {{ query: Function }} db a pg pool, or the client of a transaction
+ * @param {string} teamId
+ * @returns {Promise<number>}
+ */
+export async function countLedgerLines(db, teamId) {
+  const { rows } = await db.query("SELECT count(*)::int AS total FROM team_ledger WHERE saved_team_id = $1", [teamId]);
+  return rows[0].total;
 }
 
 /**

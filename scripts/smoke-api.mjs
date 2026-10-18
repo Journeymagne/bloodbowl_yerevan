@@ -131,6 +131,7 @@ await step("POST /api/teams/:id/treasury credits with a reason", async () => {
   need(credited.entry?.id, "the answer's entry has no id", credited.entry);
   need(ledger.entries?.[0]?.id === credited.entry.id, "the first ledger line is not the new entry", ledger.entries?.[0]);
   need(ledger.since, "the ledger does not say since when it is kept", ledger.since);
+  need(ledger.total >= 1, "the ledger does not count its lines", ledger.total);
 });
 
 await step("POST /api/teams/:id/treasury refuses a debit below zero", async () => {
