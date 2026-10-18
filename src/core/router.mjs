@@ -54,7 +54,8 @@ import { refreshShell } from "../shell/shell.mjs";
 function renderCoachHome() {
   const { items } = state.myTeams;
   if (!items.length) return renderNoTeam();
-  location.replace(teamUrl(syncActiveTeam() ?? items[0].id));
+  // With a team in the list the sync always settles on one (the first, when nothing names another), so it cannot be null here.
+  location.replace(teamUrl(syncActiveTeam()));
   return undefined;
 }
 
