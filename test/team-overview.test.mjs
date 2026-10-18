@@ -7,6 +7,7 @@ import { el } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
+import { setDictionaries } from "../src/core/i18n.mjs";
 
 const api = installFakeApi();
 const appView = el(document, "section", { id: "app-view" });
@@ -237,6 +238,33 @@ test("games that failed to load leave the figures and say so where the board was
   assert.equal(fragment.querySelectorAll(".g-kpi__v")[1].textContent, "3", "the points without a record that was not read");
 });
 
+test("a table that failed to load says so where the board would stand; the team's own figures stay", () => {
+  const model = overviewModel({ ...input("t1"), seasonData: null, seasonError: "No connection" });
+  assert.equal(model.tiles.length, 2, "no place without a table");
+  const fragment = mount(overviewMarkup(model));
+  assert.deepEqual(fragment.querySelectorAll(".g-overview__failed .g-callout__title").map((title) => title.textContent), ["The league table did not load: No connection"]);
+  assert.equal(fragment.querySelector("a.g-callout"), null, "a team in the season is not told it is not entered");
+  assert.equal(fragment.querySelector(".g-board"), null);
+  assert.ok(fragment.querySelector(".g-overview__leaders"), "the leaders come from the team itself");
+});
+
+test("when the table and the games both failed, both are said: the games' line is not lost", () => {
+  const model = overviewModel({ ...input("t1"), seasonData: null, seasonError: "No table", games: [], gamesError: "No games" });
+  const fragment = mount(overviewMarkup(model));
+  assert.deepEqual(fragment.querySelectorAll(".g-overview__failed .g-callout__title").map((title) => title.textContent),
+    ["The league table did not load: No table", "The matches did not load: No games"]);
+  assert.equal(fragment.querySelectorAll(".g-overview__failed").length, 1, "one alert holds both");
+  const gamesOnly = mount(overviewMarkup(overviewModel({ ...input("t1"), seasonData: null, games: [], gamesError: "No games" })));
+  assert.deepEqual(gamesOnly.querySelectorAll(".g-overview__failed .g-callout__title").map((title) => title.textContent), ["The matches did not load: No games"], "while the table is still on its way");
+});
+
+test("a table read again that failed leaves the table the page had: nothing is said of it", () => {
+  const model = overviewModel({ ...input("t1"), seasonError: "No connection" });
+  assert.equal(model.seasonError, "");
+  assert.equal(model.board.status, "idle");
+  assert.equal(mount(overviewMarkup(model)).querySelector(".g-overview__failed"), null);
+});
+
 test("a team outside the season whose games failed still offers to enter it", () => {
   const fragment = mount(overviewMarkup(overviewModel({ ...input("t4"), games: [], gamesError: "No connection" })));
   assert.ok(fragment.querySelector("a.g-callout"));
@@ -274,9 +302,17 @@ test("names from other coaches are text: the opponent, the leader's name and the
   assertCspSafe(fragment);
 });
 
-test("the leaders' tag is escaped text, whatever the dictionary holds", () => {
-  const source = text("src/screens/team/overview.mjs");
-  assert.ok(!/leadHtml:\s*t\(/.test(source) && !/leadHtml:\s*`/.test(source), "no translation goes into a …Html prop unescaped (K7c)");
+test("the leaders' tag is escaped text, whatever the dictionary holds (K7c)", () => {
+  const real = { en: dictionary("en"), ru: dictionary("ru") };
+  setDictionaries({ ...real, en: { ...real.en, "teamOverview.leader.spp": HOSTILE } });
+  try {
+    const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
+    assert.equal(fragment.querySelector("img"), null);
+    assert.equal(fragment.querySelector(".g-overview__leaders .g-ranked__lead").textContent, HOSTILE);
+    assertCspSafe(fragment);
+  } finally {
+    setDictionaries(real);
+  }
 });
 
 test("the overview follows the games while it is on screen, and nothing after it is left", async () => {
@@ -322,6 +358,47 @@ test("a read that failed is made again when the coach comes back to the overview
   assert.equal(view.querySelector(".g-overview__failed"), null);
   assert.equal(view.querySelector(".g-board__side--away .g-board__name").textContent, "Rival Team");
   api.assertAnswered();
+});
+
+test("a failure an earlier read left is not drawn while the read that repeats it is on its way; its answer decides", async () => {
+  coach({ gamesError: "No connection (before)", season: null, seasonLoaded: true });
+  state.season.error = "No connection (before)";
+  api.reply("GET /api/season", 200, SEASON);
+  const gamesHold = api.hold("GET /api/games");
+  const drawing = renderTeamOverview("t1");
+  assert.equal(view.querySelector(".g-overview__failed"), null, "neither the games' nor the table's old failure is drawn");
+  await settle();
+  gamesHold.release({ error: new TypeError("Failed to fetch") });
+  await drawing;
+  assert.deepEqual(view.querySelectorAll(".g-overview__failed .g-callout__title").map((title) => title.textContent.replace(/:.*/, "")), ["The matches did not load"], "the games failed again; the table came");
+  assert.equal(view.querySelectorAll(".g-kpi").length, 4);
+  assert.equal(view.querySelectorAll(".g-kpi__v")[1].textContent, "3", "the points without a record that was not read");
+});
+
+test("a table that fails on the page is said, and a team in the season sees why it has no place", async () => {
+  coach({ season: null, seasonLoaded: false, games: [], gamesLoaded: false });
+  api.fail("GET /api/season");
+  api.reply("GET /api/games", 200, { games: GAMES, currentGames: [] });
+  await renderTeamOverview("t1");
+  assert.deepEqual(view.querySelectorAll(".g-overview__failed .g-callout__title").map((title) => title.textContent.replace(/:.*/, "")), ["The league table did not load"]);
+  assert.equal(view.querySelectorAll(".g-kpi").length, 2);
+});
+
+test("a team A left for a team B: A's answer, late, does not draw over B", async () => {
+  coach({ gamesError: "No connection" });
+  const gamesHold = api.hold("GET /api/games");
+  const a = renderTeamOverview("t1");
+  await settle();
+  // The router's move: the screen of A is released, then B is drawn; both read the games again, and A's answer is dropped for B's.
+  releaseCurrentScreen();
+  const b = renderTeamOverview("t2");
+  gamesHold.release({ status: 200, body: { games: GAMES, currentGames: [] } });
+  await b;
+  const drawn = view.textContent;
+  assert.equal(view.querySelector(".g-board__name").textContent, "Grimtusk Raiders");
+  await a;
+  assert.equal(view.textContent, drawn);
+  assert.equal(view.querySelector(".g-board__name").textContent, "Grimtusk Raiders");
 });
 
 test("a team that has left the list while the games were on their way leaves the screen as it was", async () => {
@@ -394,8 +471,9 @@ test("the stylesheet reaches the page, and the result rows keep their size and t
   assert.match(text(css), /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__cols\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
   assert.ok(valuesOf(css, ".g-overview__score", "font").includes("700 22px/1.1 var(--font-display)"));
   assert.ok(valuesOf(css, ".g-overview__score", "font-variant-numeric").includes("tabular-nums"));
-  assert.match(text(css), /@media \(max-width: 359px\)\s*\{[^@]*\.g-overview \.g-kpi__v\s*\{[^}]*font-size: 24px/, "at 320px «0 · 0/0/0» keeps to one line");
-  assert.match(text(css), /@media \(min-width: 1360px\)\s*\{[^@]*\.g-overview__leaderlist\s*\{[^}]*repeat\(4, minmax\(0, 1fr\)\)/, "four cards across where a column holds four");
+  assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)"], "«0 · 0/0/0» keeps to one line at 320px, with no breakpoint of its own");
+  assert.ok(valuesOf(css, ".g-overview__leaderlist", "grid-template-columns").includes("repeat(auto-fit, minmax(120px, 1fr))"), "the cards wrap as the column narrows");
+  assert.doesNotMatch(text(css), /1360px|359px/, "the sheet has the 900/901 breakpoints only");
   assertReadable(css, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
   assertReadable(css, ".g-overview__leaders .g-ranked__value", "color", ["--surface", "--page"], 4.5);
 });

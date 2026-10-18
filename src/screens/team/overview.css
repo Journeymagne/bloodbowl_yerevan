@@ -26,8 +26,11 @@
   text-transform: none;
 }
 
-/* Where the board stood when the games did not come: the callout says so. */
+/* Where the board stood when a read did not come: a callout for each. */
 .g-overview__failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
   min-width: 0;
   margin: 0;
 }
@@ -74,6 +77,13 @@
 .g-overview__leaders .g-ranked:last-child { border-bottom: 0; }
 
 .g-overview__leaders .g-ranked__value { color: var(--accent-text); }
+
+/*
+ * The figures of the tiles keep to one line on the narrowest phones: a tile is 112px of content at 320px, and the longest
+ * figure («33 · 10/3/0») is 4.6 times its font size wide. The size follows the width of the screen from 24px at 320px to
+ * the tile's own 30px at 375px, and is 30px on every wider one.
+ */
+.g-overview .g-kpi__v { font-size: clamp(24px, calc(10.8vw - 10px), 30px); }
 
 /* The recent matches: the title, and the way to the whole season at its end. */
 .g-overview__bar {
@@ -171,11 +181,6 @@
   .g-overview__result:nth-child(3) { border-bottom: 0; }
 }
 
-/* At 320px a tile is 112px of content and «0 · 0/0/0» at 30px is 125: the figure keeps to one line a size smaller. */
-@media (max-width: 359px) {
-  .g-overview .g-kpi__v { font-size: 24px; }
-}
-
 @media (min-width: 901px) {
   .g-overview__cols {
     display: grid;
@@ -186,17 +191,14 @@
   .g-overview__cols > :only-child { grid-column: 1 / -1; }
 
   /*
-   * The leaders are cards (DeskOverview.html): two across, and four from 1360px, where a column is wide enough for
-   * four. In a card the tag and the figure share the top line and the player is under them, so a card stays readable
-   * as narrow as 120px.
+   * The leaders are cards that wrap as the column narrows (DeskOverview.html). In a card the tag and the figure share
+   * the top line and the player is under them, so a card stays readable as narrow as 120px.
    */
   .g-overview__leaderlist {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
     gap: var(--space-12);
   }
-  /* An odd one out takes the row, as a figure does (kpi-tile.css). */
-  .g-overview__leaderlist > .g-ranked:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
   .g-overview__leaders .g-ranked {
     grid-template-columns: minmax(0, 1fr) auto;
@@ -227,9 +229,4 @@
     background: var(--surface);
     box-shadow: var(--ring);
   }
-}
-
-@media (min-width: 1360px) {
-  .g-overview__leaderlist { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .g-overview__leaderlist > .g-ranked:last-child:nth-child(odd) { grid-column: auto; }
 }

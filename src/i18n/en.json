@@ -1066,6 +1066,7 @@
   "teamOverview.notInSeason": "Not entered in the season",
   "teamOverview.notInSeasonSub": "Enter it in the Season section; the administrator confirms the entry.",
   "teamOverview.gamesFailed": "The matches did not load: {reason}",
+  "teamOverview.seasonFailed": "The league table did not load: {reason}",
   "teamOverview.leaders": "Team leaders",
   "teamOverview.leader.spp": "SPP",
   "teamOverview.leader.td": "TD",

@@ -1066,6 +1066,7 @@
   "teamOverview.notInSeason": "Команда не заявлена в сезон",
   "teamOverview.notInSeasonSub": "Заявить её можно в разделе «Сезон» — администратор подтвердит заявку.",
   "teamOverview.gamesFailed": "Матчи не загрузились: {reason}",
+  "teamOverview.seasonFailed": "Таблица лиги не загрузилась: {reason}",
   "teamOverview.leaders": "Лидеры команды",
   "teamOverview.leader.spp": "SPP",
   "teamOverview.leader.td": "TD",

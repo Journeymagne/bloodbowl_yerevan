@@ -9,6 +9,9 @@
  *
  * Creating and deleting a team are writes to the account: they ask whose token it is first and, when
  * another tab has moved it, send nothing (stage 05, R12).
+ *
+ * The reference lookups a team needs live here too: `raceTeamOf` finds the race's page by the slug a team is
+ * based on, `raceTitleOf` its name; the shell, the teams screens and the overview all ask them.
  */
 import { API_ERROR, ApiError, errorText, refusalText } from "../core/api.mjs";
 import { t } from "../core/i18n.mjs";

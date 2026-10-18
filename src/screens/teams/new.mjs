@@ -29,7 +29,7 @@ import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
 import { toast } from "../../components/toast.mjs";
 import { onSessionChange } from "../../data/session.mjs";
-import { createTeam } from "../../data/teams.mjs";
+import { createTeam, raceTeamOf } from "../../data/teams.mjs";
 import { BUILD_STAFF_KEYS, buildRequest, buildTotals, dropPlayer, hirePlayer, newBuild, stepStaff } from "../../domain/roster/build.mjs";
 import { setRosterCaptain } from "../../domain/roster/players.mjs";
 import { teamFavouredOptions, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
@@ -128,8 +128,6 @@ let visit = null;
 /** @returns {Flow} */
 const freshFlow = (userId) => ({ userId, step: "pick", name: "", raceSlug: "", draft: null, startedAt: 0, rosterOpen: false, choice: null, pending: false, refusal: "" });
 
-const raceOf = (slug) => state.data.teams.find((race) => race.slug === slug);
-
 /** A player or a purchase is something a reload would lose. */
 const holdsPicks = (draft) => Boolean(draft) && (draft.players.length > 0 || BUILD_STAFF_KEYS.some((key) => countToNumber(draft[key]) > 0));
 
@@ -164,7 +162,7 @@ function askBeforeLeaving(event) {
 function draw() {
   if (!visit?.open || !flow) return;
   if (flow.step === "build") {
-    patchWithModal(view, builderMarkup({ race: raceOf(flow.raceSlug), draft: flow.draft, rosterOpen: flow.rosterOpen, choice: flow.choice, pending: flow.pending, refusal: flow.refusal }), flow.choice ? "#new-team-choice" : "");
+    patchWithModal(view, builderMarkup({ race: raceTeamOf(flow.raceSlug), draft: flow.draft, rosterOpen: flow.rosterOpen, choice: flow.choice, pending: flow.pending, refusal: flow.refusal }), flow.choice ? "#new-team-choice" : "");
     // The button stays enabled while the request is on its way (a disabled one that holds the focus loses it); this says so, and the press is dropped in save().
     if (flow.pending) view.querySelector("[data-new-team-save]")?.setAttribute("aria-busy", "true");
   } else {
@@ -202,7 +200,7 @@ function onStep(step, act) {
  */
 function create(build) {
   const name = build.name.trim();
-  const race = raceOf(build.raceSlug);
+  const race = raceTeamOf(build.raceSlug);
   if (!name || !race) return;
   if (build.draft?.teamSlug === race.slug) {
     build.draft.teamName = name;
@@ -222,13 +220,13 @@ function said(refusal) {
 }
 
 function hire(build, rowIndex, delta) {
-  if (delta > 0) said(hirePlayer(raceOf(build.raceSlug), build.draft, rowIndex));
-  else dropPlayer(raceOf(build.raceSlug), build.draft, rowIndex);
+  if (delta > 0) said(hirePlayer(raceTeamOf(build.raceSlug), build.draft, rowIndex));
+  else dropPlayer(raceTeamOf(build.raceSlug), build.draft, rowIndex);
   draw();
 }
 
 function stepStaffBy(build, key, delta) {
-  said(stepStaff(raceOf(build.raceSlug), build.draft, key, delta));
+  said(stepStaff(raceTeamOf(build.raceSlug), build.draft, key, delta));
   draw();
 }
 
@@ -285,7 +283,7 @@ function closeChoice(build) {
 }
 
 function choose(build, kind, value) {
-  if (Object.hasOwn(CHOICES, kind) && CHOICES[kind].options(raceOf(build.raceSlug)).includes(value)) build.draft[CHOICES[kind].field] = value;
+  if (Object.hasOwn(CHOICES, kind) && CHOICES[kind].options(raceTeamOf(build.raceSlug)).includes(value)) build.draft[CHOICES[kind].field] = value;
   closeChoice(build);
 }
 
@@ -297,7 +295,7 @@ function choose(build, kind, value) {
  * session ended or changed), or whose token another tab has moved, is not told of at all.
  */
 async function save(build) {
-  const race = raceOf(build.raceSlug);
+  const race = raceTeamOf(build.raceSlug);
   const { draft } = build;
   if (build.pending || !buildTotals(race, draft).ready || !String(draft.teamName).trim()) return;
   build.pending = true;

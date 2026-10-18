@@ -106,8 +106,9 @@ function tableTiles(standing, record) {
  * @param {object|null} input.seasonData the answer of `/api/season`; null while it is not read
  * @param {object[]|null} input.games the answer of `/api/games`; null while it is not read
  * @param {string} [input.gamesError] why the games could not be read, as a sentence
+ * @param {string} [input.seasonError] why the table could not be read; said only while there is no table to show
  */
-export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "" }) {
+export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "" }) {
   const season = seasonData?.season ?? null;
   const standing = standingOf(seasonData, team.id);
   const gamesRead = Array.isArray(games) && !gamesError;
@@ -129,6 +130,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     leaders: teamLeaders(team, raceTeam),
     results: recentResults(list, team.id, RECENT_MATCHES),
     gamesError,
+    seasonError: seasonData ? "" : seasonError,
   };
 }
 
@@ -156,13 +158,19 @@ function boardMarkup(board, teamId) {
   });
 }
 
-/** Where the board stands: the board, the words that it could not be drawn, the call to enter the season, or nothing yet. */
+/** A read that failed, in a danger callout. */
+const failedLine = (title) => renderCallout({ tone: "danger", title });
+
+/**
+ * Where the board stands: the board; the words for each read that failed, when it could not be drawn (the table, and the
+ * games for a team in the table or while the table is not there to say); the call to enter the season; or nothing yet.
+ */
 function boardSlot(model) {
   if (model.board) return boardMarkup(model.board, model.teamId);
-  if (model.inSeason) {
-    const reason = t("teamOverview.gamesFailed", { reason: model.gamesError });
-    return `<div class="g-overview__failed" role="alert">${renderCallout({ tone: "danger", title: reason })}</div>`;
-  }
+  const failures = [];
+  if (model.seasonError) failures.push(failedLine(t("teamOverview.seasonFailed", { reason: model.seasonError })));
+  if (model.gamesError && (model.inSeason || !model.seasonRead)) failures.push(failedLine(t("teamOverview.gamesFailed", { reason: model.gamesError })));
+  if (failures.length) return `<div class="g-overview__failed" role="alert">${failures.join("")}</div>`;
   if (!model.seasonRead) return "";
   return renderCallout({ title: t("teamOverview.notInSeason"), sub: t("teamOverview.notInSeasonSub"), href: seasonTabUrl("registration") });
 }
@@ -205,38 +213,58 @@ export function overviewMarkup(model) {
 
 /**
  * The overview of `teamId` as the state has it now; "" when the team is not on the coach's list (it was deleted
- * while the games were on their way), and the screen is left as it was.
+ * while the games were on their way), and the screen is left as it was. A failure `held` back is one an earlier
+ * read left, which the read repeating it has not yet answered: it is not drawn, nor the games it left.
+ * @param {{games: boolean, season: boolean}} held
  */
-function markupOf(teamId) {
+function markupOf(teamId, held) {
   const team = state.myTeams.items.find((item) => item.id === teamId);
   if (!team) return "";
   const { items, loaded, error } = state.games;
-  return overviewMarkup(overviewModel({ team, raceTeam: raceTeamOf(team.baseTeamSlug), seasonData: state.season.data, games: loaded ? items : null, gamesError: error }));
+  return overviewMarkup(overviewModel({
+    team,
+    raceTeam: raceTeamOf(team.baseTeamSlug),
+    seasonData: state.season.data,
+    games: loaded && !held.games ? items : null,
+    gamesError: held.games ? "" : error,
+    seasonError: held.season ? "" : state.season.error,
+  }));
 }
 
 /**
  * The overview of one of the coach's teams. Drawn at once from the state, the title taking the focus; again when
  * the table and the games come, if the coach is still here, and whenever the games change while they are (a start,
  * a score sent). The later draws patch the page, so the focus stays where the coach has put it.
+ *
+ * A read that failed is made again on this visit (nothing else would, and the overview would say so until a
+ * reload); what it said before is not drawn while the new answer is on its way.
  * @param {string} teamId
  */
 export async function renderTeamOverview(teamId) {
   let here = true;
+  const held = { games: Boolean(state.games.error), season: Boolean(state.season.error) };
   const draw = () => {
-    const markup = markupOf(teamId);
-    if (markup && here) patch(view, markup);
+    if (!here) return;
+    const markup = markupOf(teamId, held);
+    if (markup) patch(view, markup);
   };
-  const stopListening = onGamesChange(draw);
+  // Any answer to the games heard from here on is to the read started below, or to a newer one: no old failure outlives it.
+  const stopListening = onGamesChange(() => {
+    held.games = false;
+    draw();
+  });
   onScreenLeave("team-overview", () => {
     here = false;
     stopListening();
   });
-  const first = markupOf(teamId);
+  const reads = Promise.allSettled([loadGames(held.games), loadSeason(held.season)]);
+  const first = markupOf(teamId, held);
   if (first) {
     view.innerHTML = first;
     view.querySelector("h1")?.focus();
   }
-  // A read that failed is made again on the next visit: nothing else would, and the overview would say so until a reload.
-  await Promise.allSettled([loadGames(Boolean(state.games.error)), loadSeason(Boolean(state.season.error))]);
+  await reads;
+  held.games = false;
+  held.season = false;
   draw();
 }
