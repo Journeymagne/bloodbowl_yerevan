@@ -1147,5 +1147,21 @@
   "teamRoster.noRace": "The reference does not know this team's race ({slug}): the roster cannot be drawn.",
   "teamRoster.readAgain": "Try again",
   "teamRoster.loading": "Loading the roster…",
-  "teamRoster.empty": "No players on the roster yet."
+  "teamRoster.empty": "No players on the roster yet.",
+  "teamRoster.manual": "SPP · manual edit",
+  "teamRoster.sppLine": "SPP {spp} · manual edit",
+  "teamRoster.noChanges": "no changes yet",
+  "teamRoster.sppDelta": "{delta} SPP",
+  "teamRoster.gamesLoading": "Loading the matches…",
+  "teamRoster.status.saving": "Saving…",
+  "teamRoster.status.saved": "Saved",
+  "teamRoster.status.unsaved": "Not saved",
+  "teamRoster.status.waiting": "Waiting for the network · edits: {count}",
+  "teamRoster.conflict.title": "The roster was changed on another device",
+  "teamRoster.conflict.sub": "Your last edit was not saved: the server has a newer version. Load it and make the edit again.",
+  "teamRoster.conflict.reload": "Load the new one",
+  "teamRoster.offline.title": "No network",
+  "teamRoster.offline.sub": "Edits waiting: {count}. They go once the connection is back. Do not close the page.",
+  "teamRoster.noId": "This player has no id in the roster, so his counters cannot be saved. Ask the league administrator to fix the roster.",
+  "teamRoster.matchDropped": "A match has begun, so the edits that were waiting were not saved ({count}). Make them again as an edit outside the match."
 }

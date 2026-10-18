@@ -24,6 +24,8 @@
   font: 400 14px/1.4 var(--font-body);
   letter-spacing: 0;
   text-transform: none;
+  /* A narrow counter tile is two thumb-wide buttons, the gap between them, the cell's padding and border (action-stepper.css). */
+  --roster-tile: calc(2 * var(--size-touch) + 10px);
 }
 
 .g-roster__layout {
@@ -44,12 +46,16 @@
   background: none;
 }
 
-/* «Active roster» with the number; the save's status stands at the right of it (Task 10). */
+/*
+ * «Active roster» with the number; the save's status stands at the right of it. On a phone a long status
+ * («Waiting for the network · edits: 1») goes under the heading rather than breaking it in two.
+ */
 .g-roster__bar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: var(--space-12);
+  gap: var(--space-4) var(--space-12);
   min-width: 0;
 }
 
@@ -70,6 +76,34 @@
   letter-spacing: 0;
   text-transform: none;
 }
+
+.g-roster__status {
+  display: inline-flex;
+  flex: none;
+}
+
+/* What the coach has to know of the save, above the table: another device's save, no network. */
+.g-roster__notices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+/* No network leads with its sign, in the banner's own colour, before the words (SaveOffline.html). */
+.g-roster__offline {
+  display: grid;
+  min-width: 0;
+}
+.g-roster__offline > * { grid-area: 1 / 1; }
+.g-roster__offline > .g-icon {
+  z-index: 1;
+  align-self: center;
+  margin-left: var(--space-14);
+  color: var(--on-warn-tint);
+  pointer-events: none;
+}
+.g-roster__offline > .g-callout { padding-left: calc(var(--space-14) + 22px + var(--space-10)); }
 
 /* What stands in place of the table: the wait, nobody on the roster, a read that failed. */
 .g-roster__loading,
@@ -100,46 +134,71 @@
   padding: var(--space-4) var(--space-16) var(--space-14);
 }
 
-/* The career's counters as text, three to a line: the abbreviation, and the number at the right. */
-.g-roster__tally {
+/*
+ * The counters: on a phone the six main ones two to a row, the narrow ones under them; in the desk's panel all of
+ * them as narrow tiles. Narrow tiles go as many to a row as leave each of their buttons a thumb's width: three on a
+ * phone from about 375px, two below it and in the 320px panel (Carry T4).
+ */
+.g-roster__counters {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: var(--space-6);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+.g-roster__extra,
+.g-roster__tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(var(--roster-tile), 1fr));
+  gap: var(--space-8);
+}
+
+/* «SPP 3 · manual edit» and, at the right, what the coach's edits have moved it since the screen opened. */
+/* In the 320px panel «SPP · manual edit» and the sum do not share a line in Russian: the sum goes under it, not the title in two. */
+.g-roster__sppline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 2px var(--space-10);
+  min-width: 0;
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-roster__sppctx { min-width: 0; }
+
+.g-roster__sppdelta {
+  flex: none;
+  color: var(--accent-text);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.g-roster__sppdelta--none { color: var(--muted); }
+
+/* The desk panel's block of counters, «SPP · manual edit» (DeskRoster.html's records block). */
+.g-roster__manual {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  margin: 0;
+  padding: var(--space-12);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+}
+
+.g-roster__manualtitle {
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
-}
-
-.g-roster__tallyitem {
-  box-sizing: border-box;
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-6);
-  min-width: 0;
-  padding: var(--space-6) var(--space-10);
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-}
-
-.g-roster__tallyk {
-  min-width: 0;
-  margin: 0;
-  color: var(--muted);
-  font: 600 12px/1.2 var(--font-body);
-  letter-spacing: 0.04em;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-.g-roster__tallyv {
-  margin: 0;
   color: var(--ink);
-  font: 700 17px/1.2 var(--font-body);
-  font-variant-numeric: tabular-nums;
+  font: 700 14px/1.3 var(--font-body);
   letter-spacing: 0;
+  text-transform: none;
 }
 
 /* The panel's head: the badge, the name with the position and the value under it, the pencil at the right. */
@@ -206,6 +265,10 @@
   align-items: baseline;
   gap: var(--space-6);
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-transform: none;
   white-space: nowrap;
 }
 
@@ -214,22 +277,28 @@
   font: 700 40px/1 var(--font-display);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
+  text-transform: none;
 }
 
 .g-roster__availl {
   color: var(--ink);
   font: 600 15px/1.2 var(--font-body);
   letter-spacing: 0;
+  text-transform: none;
 }
 
 .g-roster__ledger {
   display: flex;
   flex-direction: column;
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--muted);
   font: 400 13px/1.35 var(--font-body);
   letter-spacing: 0;
   text-align: right;
+  text-transform: none;
   white-space: nowrap;
 }
 
@@ -245,10 +314,14 @@
 
 .g-roster__cheapest {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--muted);
   font: 400 13px/1.3 var(--font-body);
   letter-spacing: 0;
   text-align: center;
+  text-transform: none;
 }
 
 /* His skills as cards, and the categories he may take them from. */
@@ -275,9 +348,13 @@
 
 .g-roster__access {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--muted);
   font: 400 13px/1.4 var(--font-body);
   letter-spacing: 0;
+  text-transform: none;
 }
 
 .g-roster__next {
@@ -285,9 +362,11 @@
   padding: var(--space-14) 0 0;
   border: 0;
   border-top: 1px solid var(--line);
+  background: none;
   color: var(--muted);
   font: 400 14px/1.4 var(--font-body);
   letter-spacing: 0;
+  text-transform: none;
 }
 
 /* The skill's sheet: whose skill it is and where he got it, under the rule; a skill the reference has no page for. */
@@ -296,16 +375,22 @@
   padding: var(--space-10) 0 0;
   border: 0;
   border-top: 1px solid var(--line);
+  background: none;
   color: var(--muted);
   font: 400 13px/1.4 var(--font-body);
   letter-spacing: 0;
+  text-transform: none;
 }
 
 .g-roster__nopage {
   margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--muted);
   font: 400 15px/1.4 var(--font-body);
   letter-spacing: 0;
+  text-transform: none;
 }
 
 @media (max-width: 900px) {

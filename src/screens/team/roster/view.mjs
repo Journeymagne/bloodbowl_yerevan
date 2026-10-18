@@ -10,13 +10,16 @@
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
+import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
+import { icon } from "../../../ui/icons.mjs";
 import { dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderPageHead } from "../../../ui/page-head.mjs";
 import { renderRosterTable } from "../../../ui/roster-table.mjs";
+import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { MAIN_COUNTERS, rosterCounts } from "./model.mjs";
 import { rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { skillSheetMarkup } from "./sheets.mjs";
@@ -29,9 +32,13 @@ export const ASIDE_ID = "roster-aside";
  * @property {object|null} team the team as last read: id, name, baseTeamSlug; null before the first answer
  * @property {object|null} race its page in the reference
  * @property {object} data the reference (state.data): the skills' pages
- * @property {import("./model.mjs").PlayerLine[]} lines in the order of `memory.sort`
+ * @property {(import("./model.mjs").PlayerLine & {sessionSpp: number})[]} lines in the order of `memory.sort`; `sessionSpp`
+ *   is what his SPP has moved since the screen opened (`sessionSppOf`)
  * @property {{kind: "plain"|"prep"|"match", game?: object, round?: number|null}} mode
  * @property {{sort: object|null, selected: string|null, outside: boolean}} memory
+ * @property {{status: string, waiting: number, refusal: string}} save where the roster's save queue stands (`saveState`)
+ * @property {string} lock why every counter is closed just now: the games unread («Loading the matches…») or unreadable
+ *   (the failure), or a conflict the coach has to settle; "" when none
  * @property {{kind: "skill", key: string, name: string}|null} sheet the sheet that is open
  * @property {string} error a read that failed, "" when none
  * @property {boolean} loading the roster has not been read yet (or is read again after a failure)
@@ -101,12 +108,42 @@ function rowOf(line, screen, choice) {
   return { ...row, expanded, panelHtml: expanded ? rowPanelMarkup(line, screen) : "" };
 }
 
+/**
+ * The save's state in a few words at the right of «Active roster», in a live region a screen reader hears: on the
+ * way, saved (until the next step), waiting for the network with the edits that wait, not saved; nothing at rest.
+ */
+function statusMarkup({ status, waiting }) {
+  let chip = "";
+  if (status === SAVE_STATUS.SAVING || status === SAVE_STATUS.DIRTY) chip = renderStatusChip({ label: t("teamRoster.status.saving"), tone: "wait" });
+  else if (status === SAVE_STATUS.SAVED) chip = renderStatusChip({ label: t("teamRoster.status.saved"), tone: "live" });
+  else if (status === SAVE_STATUS.OFFLINE) chip = renderStatusChip({ label: t("teamRoster.status.waiting", { count: waiting }), tone: "wait" });
+  else if (status === SAVE_STATUS.CONFLICT || status === SAVE_STATUS.ERROR) chip = renderStatusChip({ label: t("teamRoster.status.unsaved"), tone: "danger" });
+  return `<span class="g-roster__status" role="status">${chip}</span>`;
+}
+
+/**
+ * What the coach has to know of the save above the table (spec UI §8): another device's save, which only he can
+ * settle — «Load the new one» reads the team again and gives his edit up; no network, with the edits that wait
+ * and the offline sign before the words.
+ */
+function noticesMarkup({ save }) {
+  let notice = "";
+  if (save.status === SAVE_STATUS.CONFLICT) {
+    const actionHtml = renderButton({ label: t("teamRoster.conflict.reload"), kind: "primary", data: { rosterReload: true } });
+    notice = renderCallout({ tone: "danger", title: t("teamRoster.conflict.title"), sub: t("teamRoster.conflict.sub"), actionHtml });
+  } else if (save.status === SAVE_STATUS.OFFLINE) {
+    const callout = renderCallout({ tone: "warn", title: t("teamRoster.offline.title"), sub: t("teamRoster.offline.sub", { count: save.waiting }) });
+    notice = `<div class="g-roster__offline">${icon("offline", 22)}${callout}</div>`;
+  }
+  return notice ? `<div class="g-roster__notices">${notice}</div>` : "";
+}
+
 /** The table and the panel beside it; a roster with nobody on it says so instead. */
 function layoutMarkup(screen) {
   const { lines, team } = screen;
   const choice = choiceOf(screen);
   const heading = `<div class="g-roster__bar"><h2 class="g-roster__heading" id="roster-heading">${escapeHtml(t("teamRoster.heading"))} `
-    + `<span class="g-roster__count">${escapeHtml(lines.length)}</span></h2></div>`;
+    + `<span class="g-roster__count">${escapeHtml(lines.length)}</span></h2>${statusMarkup(screen.save)}</div>`;
   const table = lines.length
     ? renderRosterTable({ label: t("teamRoster.tableLabel", { team: team.name }), columns: columnsOf(), groups: groupsOf(), rows: lines.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort })
     : `<p class="g-roster__empty">${escapeHtml(t("teamRoster.empty"))}</p>`;
@@ -114,7 +151,7 @@ function layoutMarkup(screen) {
   const aside = chosen
     ? `<aside class="g-roster__aside" id="${ASIDE_ID}" aria-label="${escapeHtml(t("teamRoster.panelLabel"))}"${dataAttributes({ panelPlayer: chosen.key })}>${sidePanelMarkup(chosen, screen)}</aside>`
     : "";
-  return `<div class="g-roster__layout"><section class="g-roster__main" aria-labelledby="roster-heading">${heading}${table}</section>${aside}</div>`;
+  return `${noticesMarkup(screen)}<div class="g-roster__layout"><section class="g-roster__main" aria-labelledby="roster-heading">${heading}${table}</section>${aside}</div>`;
 }
 
 /** A fault in place of the table, in a danger callout; a read that failed offers to read again. */

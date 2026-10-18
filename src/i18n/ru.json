@@ -1147,5 +1147,21 @@
   "teamRoster.noRace": "Справочник не знает расу этой команды ({slug}): состав не нарисовать.",
   "teamRoster.readAgain": "Повторить",
   "teamRoster.loading": "Загружаем состав…",
-  "teamRoster.empty": "В составе пока никого нет."
+  "teamRoster.empty": "В составе пока никого нет.",
+  "teamRoster.manual": "SPP · ручная правка",
+  "teamRoster.sppLine": "SPP {spp} · ручная правка",
+  "teamRoster.noChanges": "пока без действий",
+  "teamRoster.sppDelta": "{delta} SPP",
+  "teamRoster.gamesLoading": "Загружаем матчи…",
+  "teamRoster.status.saving": "Сохраняем…",
+  "teamRoster.status.saved": "Сохранено",
+  "teamRoster.status.unsaved": "Не сохранено",
+  "teamRoster.status.waiting": "Ждёт сети · правок: {count}",
+  "teamRoster.conflict.title": "Состав изменили на другом устройстве",
+  "teamRoster.conflict.sub": "Ваши последние правки не сохранились: на сервере уже есть более новая версия. Загрузите её и повторите правку.",
+  "teamRoster.conflict.reload": "Загрузить новую",
+  "teamRoster.offline.title": "Нет сети",
+  "teamRoster.offline.sub": "Правок ждут отправки: {count}. Сохраним, как только связь вернётся. Не закрывайте страницу.",
+  "teamRoster.noId": "У игрока нет id в составе, поэтому его счётчики не сохранить. Попросите администратора лиги исправить состав.",
+  "teamRoster.matchDropped": "Начался матч, поэтому ждавшие отправки правки не сохранены ({count}). Повторите их как правку вне матча."
 }

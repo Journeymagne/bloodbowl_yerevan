@@ -3,22 +3,26 @@
  * on a desk (plan 07a, decisions 20 and 21). Both lead to the player's own page — the 2.x editor until stage
  * 07d — for what the roster does not do yet: advancements, the name, the number, the captaincy.
  *
- * Until the counters come (Task 10) the row and the panel show the career's numbers as text. A player the roster
- * stores no id for (`line.id === ""`) has no page to lead to: an empty id would make the roster's own address.
+ * Both hold his SPP counters with − and + (Task 10): outside a match a step is a save of the roster (save.mjs), and
+ * the count is the career. A player the roster stores no id for (`line.id === ""`) has no page to lead to — an empty
+ * id would make the roster's own address — and no save can name him, so his counters are closed.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { teamPlayerUrl } from "../../../core/routes.mjs";
 import { advancementRanks } from "../../../domain/league-rules.mjs";
+import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
+import { renderActionStepper } from "../../../ui/action-stepper.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { icon } from "../../../ui/icons.mjs";
+import { classNames } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderProgressDots } from "../../../ui/progress-dots.mjs";
 import { renderSkillChips } from "../../../ui/skill-chip.mjs";
 import { renderStatStrip } from "../../../ui/stat-strip.mjs";
-import { counterSlots } from "./model.mjs";
+import { counterSlots, stepRule } from "./model.mjs";
 
 /** The player's page, or "" for one with no stored id. */
 const profileUrl = (line, screen) => (line.id ? teamPlayerUrl(screen.team.id, line.id) : "");
@@ -34,17 +38,51 @@ export function skillChipsMarkup(line, { card = false } = {}) {
   return renderSkillChips({ skills, card });
 }
 
-/** The counters of the race, each with the career's number: the abbreviation for the eye, the name for a screen reader. */
-function tallyMarkup(line, race) {
-  const { main, extra } = counterSlots(race);
-  const items = [...main, ...extra].map(({ key }) => `<div class="g-roster__tallyitem"><dt class="g-roster__tallyk">`
-    + `<span aria-hidden="true">${escapeHtml(t(`teamRoster.counter.${key}`))}</span><span class="g-sr-only">${escapeHtml(t(`teamRoster.counterName.${key}`))}</span></dt>`
-    + `<dd class="g-roster__tallyv">${escapeHtml(line.career[key] ?? 0)}</dd></div>`);
-  return `<dl class="g-roster__tally">${items.join("")}</dl>`;
+/**
+ * What keeps a step of one counter from being taken, as the stepper is told it: the minus where `stepRule` stops
+ * it; a refused plus at the most a roster takes, which save.mjs refuses without a request (Carry T6), said in the
+ * words of the server's own refusal; every button closed while the screen's lock stands, or for a player no save
+ * can name. The reasons of a match (the MVP, a player who sits it out) are the match's taps' (Task 11).
+ */
+function stepsOf(line, key, screen) {
+  const rule = stepRule(line, key, { mode: screen.mode, outside: screen.memory.outside });
+  const full = rule.via === "roster" && line.blob[key] >= MAX_SPP_COUNTER;
+  return {
+    decDisabled: rule.decDisabled,
+    incBlockedReason: full ? t("validation.SPP_OUT_OF_RANGE", { player: line.name, counter: t(`teamRoster.counter.${key}`) }) : "",
+    lockedReason: screen.lock || (line.id ? "" : t("teamRoster.noId")),
+  };
 }
 
 /**
- * The row of a player opened on a phone: his counters, and the way to his page.
+ * The player's SPP counters with − and +, each with what one is worth to his race and the career's count. A phone
+ * lays the six main ones out two to a row and the narrow ones under them; a desk's panel has them all as narrow
+ * tiles. The cell carries the player's id, which the save names him by.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {import("./view.mjs").RosterScreen} screen
+ * @param {{desk?: boolean}} [options]
+ * @returns {string}
+ */
+export function countersMarkup(line, screen, { desk = false } = {}) {
+  const { main, extra } = counterSlots(screen.race);
+  const cells = (slots, compact) => slots.map(({ key, spp }) => renderActionStepper({
+    key, label: t(`teamRoster.counter.${key}`), name: t(`teamRoster.counterName.${key}`), spp, value: line.career[key] ?? 0, player: line.name,
+    compact, data: { player: line.id }, ...stepsOf(line, key, screen),
+  })).join("");
+  if (desk) return `<div class="g-roster__tiles">${cells([...main, ...extra], true)}</div>`;
+  return `<div class="g-roster__counters">${cells(main, false)}</div><div class="g-roster__extra">${cells(extra, true)}</div>`;
+}
+
+/** What the coach's edits have moved his SPP since the screen opened: «+3 SPP», or none yet. */
+function sessionMarkup(line) {
+  const moved = line.sessionSpp;
+  const sum = moved ? t("teamRoster.sppDelta", { delta: `${moved > 0 ? "+" : "−"}${Math.abs(moved)}` }) : t("teamRoster.noChanges");
+  return `<span class="${classNames("g-roster__sppdelta", !moved && "g-roster__sppdelta--none")}">${escapeHtml(sum)}</span>`;
+}
+
+/**
+ * The row of a player opened on a phone: his SPP and what the edits have moved it, his counters, and the way to his page.
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./view.mjs").RosterScreen} screen
@@ -52,7 +90,8 @@ function tallyMarkup(line, race) {
 export function rowPanelMarkup(line, screen) {
   const href = profileUrl(line, screen);
   const profile = href ? renderButton({ label: t("teamRoster.profile"), kind: "dark", block: true, href }) : "";
-  return `<div class="g-roster__rowpanel">${tallyMarkup(line, screen.race)}${profile}</div>`;
+  const spp = `<div class="g-roster__sppline"><span class="g-roster__sppctx">${escapeHtml(t("teamRoster.sppLine", { spp: line.earned }))}</span>${sessionMarkup(line)}</div>`;
+  return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}</div>`;
 }
 
 /** The badge, the name, the position with what he is worth, and the pencil to his page. */
@@ -69,6 +108,12 @@ function headMarkup(line, href) {
 function statsMarkup(line) {
   const changed = (change) => PLAYER_STATS.filter((stat) => line.stats[stat].change === change);
   return renderStatStrip({ values: Object.fromEntries(PLAYER_STATS.map((stat) => [stat, line.stats[stat].text])), improved: changed("up"), lowered: changed("down") });
+}
+
+/** The panel's block of counters, «SPP · manual edit», with what the edits have moved his SPP at the right (plan 07a, owner's question 2). */
+function manualMarkup(line, screen) {
+  return `<section class="g-roster__manual"><div class="g-roster__sppline"><h3 class="g-roster__manualtitle">${escapeHtml(t("teamRoster.manual"))}</h3>`
+    + `${sessionMarkup(line)}</div>${countersMarkup(line, screen, { desk: true })}</section>`;
 }
 
 /** His SPP: what he may spend, what he has earned and spent, his advancements, and the cheapest next one. */
@@ -102,6 +147,6 @@ function skillsMarkup(line) {
 export function sidePanelMarkup(line, screen) {
   const href = profileUrl(line, screen);
   const next = t("teamRoster.nextMatch", { state: line.skip ? t("teamRoster.sits") : t("teamRoster.plays") });
-  return `${headMarkup(line, href)}${statsMarkup(line)}${tallyMarkup(line, screen.race)}${sppMarkup(line, href)}${skillsMarkup(line)}`
+  return `${headMarkup(line, href)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, href)}${skillsMarkup(line)}`
     + `<p class="g-roster__next">${escapeHtml(next)}</p>`;
 }
