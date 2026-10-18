@@ -8,7 +8,9 @@
  * Outside a match a counter's step is a save of the roster (save.mjs), drawn at once from the queue's draft. The
  * queue outlives the visit: what waits for the network is sent again on entry and when the network is back, and
  * never while a match is on (R8): a PATCH during a match breaks its finish (POST_TEAM_CHANGED), so a match that
- * begins while steps wait gives them up for the server's roster, and the coach is told to make them again.
+ * begins while steps wait gives them up for the server's roster, and the coach is told how many SPP steps the server
+ * does not have. A team is never taken on games older than it: the games are read with it, and the counters stay
+ * closed until they have answered.
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
@@ -21,6 +23,7 @@ import { toast } from "../../../components/toast.mjs";
 import { loadGames, onGamesChange } from "../../../data/games.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { raceTeamOf } from "../../../data/teams.mjs";
+import { sppEdits } from "../../../domain/post-match/events.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { readRoster } from "./data.mjs";
 import { rosterMemory, sessionSppOf } from "./memory.mjs";
@@ -81,14 +84,18 @@ function lockOf(save) {
   return save.status === SAVE_STATUS.CONFLICT ? t("teamRoster.conflict.title") : "";
 }
 
+/** The race of the visit's team, and its lines in the roster's own order for `mode`: what the queue's draft and the records say, and nothing more. */
+function linesOf(visit, mode) {
+  const race = visit.team ? raceTeamOf(visit.team.baseTeamSlug) : null;
+  const draft = normalizeDraft(visit.draft ?? visit.team?.roster ?? {});
+  return { race, lines: race ? rosterLines({ draft, race, events: visit.events, mode }) : [] };
+}
+
 /** @returns {import("./view.mjs").RosterScreen} */
 function screenOf(teamId, visit, memory) {
-  const race = visit.team ? raceTeamOf(visit.team.baseTeamSlug) : null;
   const mode = modeOf(teamId);
-  const draft = normalizeDraft(visit.draft ?? visit.team?.roster ?? {});
-  const lines = race
-    ? sortLines(rosterLines({ draft, race, events: visit.events, mode }), memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line) }))
-    : [];
+  const { race, lines: own } = linesOf(visit, mode);
+  const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line) }));
   // A sheet whose player has left the roster (read again) closes with him.
   if (visit.sheet && !lines.some((line) => line.key === visit.sheet.key)) Object.assign(visit, { sheet: null, opener: null });
   const save = saveState(teamId);
@@ -142,29 +149,35 @@ function holdTeam(saving, { team, events }, draft) {
 
 /**
  * Read the team and its records again and take the server's roster in place of the coach's: after another device's
- * save, a refused one, or steps a match has made impossible. Not while a request is in the air (`takeServerTeam`
- * says null): the state the queue comes to next asks again (Carry T7 d). The coach's SPP are counted afresh.
+ * save, a refused one, or steps a match has made impossible. The games are read with it, and the team is taken once
+ * both have answered: a 409 is often how a coach learns that a match has begun, and a team read after its start,
+ * drawn on the games from before it, would let the next tap save the roster during the match (R8). Not while a
+ * request is in the air (`takeServerTeam` says null): the state the queue comes to next asks again (Carry T7 d).
+ *
+ * In a match the coach is told how many SPP steps of his the server does not have (a step whose answer was lost
+ * may have landed: it is not one of them). After another device's save his SPP are counted afresh; after a
+ * refusal or a match the server holds his saved steps as they were, and they still count.
  * @param {Saving} saving
- * @param {{dropped?: boolean}} [options] the steps that waited are given up for a match: the coach is told how many
  */
-async function reloadRoster(saving, { dropped = false } = {}) {
+async function reloadRoster(saving) {
   const { teamId, visit, memory, draw } = saving;
   const ticket = ++visit.reads;
-  const answer = await readRoster(teamId);
+  const [answer] = await Promise.all([readRoster(teamId), loadGames(true)]);
   if (!visit.here || ticket !== visit.reads) return;
   visit.answered = ticket;
   if (answer.error) {
     toast(answer.error, { tone: "error" });
     return;
   }
-  const { waiting } = saveState(teamId);
+  const lost = sppEdits(answer.team.roster, visit.draft).length;
+  const conflict = saveState(teamId).status === SAVE_STATUS.CONFLICT;
   const draft = takeServerTeam(answer.team);
   visit.retake = !draft;
   if (!draft) return;
-  memory.baseline.clear();
+  if (conflict) memory.baseline.clear();
   holdTeam(saving, answer, draft);
   draw();
-  if (dropped && waiting) toast(t("teamRoster.matchDropped", { count: waiting }), { tone: "error" });
+  if (lost && modeOf(teamId).kind === "match") toast(t("teamRoster.matchDropped", { count: lost }), { tone: "error" });
 }
 
 /**
@@ -178,7 +191,7 @@ function settleWaiting(saving, { retry }) {
   if (!visit.here || !visit.team || visit.answered !== visit.reads || !gamesKnown()) return;
   const { status, waiting } = saveState(teamId);
   if (!waiting || busy(status)) return;
-  if (modeOf(teamId).kind === "match") void reloadRoster(saving, { dropped: true });
+  if (modeOf(teamId).kind === "match") void reloadRoster(saving);
   else if (retry && status !== SAVE_STATUS.CONFLICT) void retrySaves(teamId);
 }
 
@@ -195,13 +208,14 @@ function heardSave(saving, now) {
   if (!visit.here) return;
   try {
     saving.draw();
-    if (before && before !== SAVE_STATUS.ERROR && now.status === SAVE_STATUS.ERROR) {
-      toast(now.refusal, { tone: "error" });
-      if (now.kind === API_ERROR.INVALID) void reloadRoster(saving);
-    } else if (visit.retake && !busy(now.status)) {
+    const refused = before && before !== SAVE_STATUS.ERROR && now.status === SAVE_STATUS.ERROR;
+    if (refused) toast(now.refusal, { tone: "error" });
+    let take = refused && now.kind === API_ERROR.INVALID;
+    if (visit.retake && !busy(now.status)) {
       visit.retake = false;
-      if (now.status !== SAVE_STATUS.SAVED) void reloadRoster(saving);
+      take ||= now.status !== SAVE_STATUS.SAVED;
     }
+    if (take) void reloadRoster(saving);
     settleWaiting(saving, { retry: false });
   } catch (error) {
     // A listener of the queue that throws would leave its request in the air for good (roster-store's notify).
@@ -238,15 +252,17 @@ function pressHandlers({ read, ...saving }) {
       draw();
       if (opener?.isConnected) opener.focus();
     },
+    // The games are read with the team, so that it is not taken on games older than it (R8).
     onRetry: () => {
       Object.assign(visit, { loading: true, error: "" });
       draw();
-      return read();
+      return Promise.all([read(), loadGames(true)]);
     },
     // The lock is asked again: the games may have begun to be read since the counter was drawn. A step during a match is the match's (Task 11).
     onStep: (playerId, counter, delta) => {
-      const { lock, lines, mode } = screenOf(teamId, visit, memory);
-      const line = lines.find((item) => item.id && item.id === playerId);
+      const lock = lockOf(saveState(teamId));
+      const mode = modeOf(teamId);
+      const line = linesOf(visit, mode).lines.find((item) => item.id && item.id === playerId);
       if (lock) toast(lock);
       else if (line && stepRule(line, counter, { mode, outside: memory.outside }).via === "roster") {
         const { refusal } = stepSpp(teamId, playerId, counter, delta);

@@ -26,6 +26,8 @@
   text-transform: none;
   /* A narrow counter tile is two thumb-wide buttons, the gap between them, the cell's padding and border (action-stepper.css). */
   --roster-tile: calc(2 * var(--size-touch) + 10px);
+  /* A full one is the two buttons with the label's longest word («COMP», 38px) between them, padding and border. */
+  --roster-full: calc(2 * var(--size-touch) + 48px);
 }
 
 .g-roster__layout {
@@ -137,11 +139,12 @@
 /*
  * The counters: on a phone the six main ones two to a row, the narrow ones under them; in the desk's panel all of
  * them as narrow tiles. Narrow tiles go as many to a row as leave each of their buttons a thumb's width: three on a
- * phone from about 375px, two below it and in the 320px panel (Carry T4).
+ * phone from about 375px, two below it and in the 320px panel (Carry T4). The main ones are two to a row, or one
+ * where two would squeeze «COMP» between their buttons (a 320px phone): never more than two, and no breakpoint.
  */
 .g-roster__counters {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(max(var(--roster-full), calc((100% - var(--space-8)) / 2)), 1fr));
   gap: var(--space-8);
 }
 

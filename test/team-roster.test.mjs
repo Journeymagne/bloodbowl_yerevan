@@ -501,7 +501,7 @@ test("another device: a red banner and «Load the new one», which reads the tea
     assert.equal(reload.textContent, "Load the new one");
     fireEvent(reload, "click");
     await settle();
-    assert.deepEqual(callKeys().sort(), ["GET /api/teams/t1", "GET /api/teams/t1/events"]);
+    assert.deepEqual(callKeys().sort(), ["GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events"], "the games with the team: it is not taken on games older than it");
     assert.equal(countOf("touchdowns"), "4", "the server's");
     assert.equal(view.querySelector(".g-callout--danger"), null);
     assert.equal(status(), "");
@@ -641,7 +641,8 @@ test("a match that began while the network was gone: back online, the edits that
     page.dispatchEvent(new Event("online"));
     await settle();
     assert.equal(patches().length, 0, "no step leaves during a match");
-    assert.deepEqual(callKeys(), ["GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events"], "the games first, then the server's roster");
+    assert.equal(callKeys()[0], "GET /api/games", "the games first");
+    assert.deepEqual(callKeys().slice(1).sort(), ["GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events"], "then the server's roster, the games with it");
     assert.equal(toasts().at(-1), "A match has begun, so the edits that were waiting were not saved (1). Make them again as an edit outside the match.");
     assert.equal(save.saveState("t1").waiting, 0);
     assert.equal(leaving(), false, "nothing waits: nothing to ask about");
@@ -689,7 +690,78 @@ test("a step in the air when a match is learned of is let be; what still waits o
     await settle();
     assert.match(toasts().at(-1), /^A match has begun/);
     assert.deepEqual([save.saveState("t1").waiting, patches().length], [0, 0]);
-    assert.deepEqual(callKeys(), ["GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events"]);
+    assert.deepEqual(callKeys().sort(), ["GET /api/games", "GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events"]);
+  });
+});
+
+// Fix round 1, Important 1: a 409 is often how the coach learns that a match has begun.
+test("another device's save that was a match's start: «Load the new one» reads the games with the team, and the next tap saves nothing (R8)", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    // The match began elsewhere: the start moved the team's revision, and the games now say so.
+    const started = team({ revision: 5 });
+    api.reply(PATCH, 409, conflictOf(started));
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.ok(notice("danger"));
+    api.calls.length = 0;
+    api.reply("GET /api/teams/t1", 200, { team: started });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    api.reply("GET /api/games", 200, { games: [LIVE_GAME], currentGames: [] });
+    api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 6 }) });
+    fireEvent(view.querySelector("[data-roster-reload]"), "click");
+    await settle();
+    assert.ok(callKeys().includes("GET /api/games"));
+    assert.equal(view.querySelector(".g-callout--danger"), null);
+    assert.ok(minus("touchdowns").hasAttribute("disabled"), "the match's own rule: its records for him add up to nothing");
+    fireEvent(plus("touchdowns"), "click");
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.equal(patches().length, 0, "no save of the roster during the match");
+    assert.equal(toasts().some((text) => text.startsWith("A match has begun")), true, "the edit the 409 met is said lost");
+  });
+});
+
+// Fix round 1, Important 2: a step whose answer was lost may be on the server; it is not counted lost.
+test("the edits a match gives up are counted against the server's roster: a step that landed with its answer lost is not one of them", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.fail(PATCH);
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.equal(save.saveState("t1").waiting, 2);
+    // The server has the touchdown (its answer was lost), not the casualty; then the match begins.
+    api.reply("GET /api/teams/t1", 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 6 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 6 });
+    api.reply("GET /api/games", 200, { games: [LIVE_GAME], currentGames: [] });
+    await invalidateGames();
+    await settle();
+    assert.equal(toasts().at(-1), "A match has begun, so the edits that were waiting were not saved (1). Make them again as an edit outside the match.");
+    assert.deepEqual([countOf("touchdowns"), countOf("casualties")], ["1", "0"]);
+    assert.equal(save.saveState("t1").waiting, 0);
+  });
+});
+
+// Fix round 1, Minor 4: after a refusal the server holds the coach's saved steps as they were.
+test("a refusal takes the server's roster but keeps what the coach's saved edits have moved since the screen opened", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 5 }) });
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.deepEqual(sppLine(aside().querySelector(".g-roster__manual")), ["SPP · manual edit", "+3 SPP"]);
+    api.reply(PATCH, 422, refusalOf([{ code: "SPP_EDIT_TOO_LARGE", params: { limit: 50 } }]));
+    api.reply("GET /api/teams/t1", 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.deepEqual([countOf("touchdowns"), countOf("casualties")], ["1", "0"], "the server's roster");
+    assert.deepEqual(sppLine(aside().querySelector(".g-roster__manual")), ["SPP · manual edit", "+3 SPP"], "his saved touchdown still counts");
   });
 });
 
@@ -777,12 +849,14 @@ test("a roster that could not be read says why, and reads again on «Try again»
   assert.equal(retry.textContent, "Try again");
   api.reply("GET /api/teams/t1", 200, { team: team() });
   retry.focus();
+  api.calls.length = 0;
   fireEvent(retry, "click");
   assert.equal(view.querySelector(".g-roster__loading").textContent, "Loading the roster…");
   assert.equal(document.activeElement, view.querySelector("h1"), "the button is gone: the focus is on the title");
   await settle();
   assert.equal(view.querySelector(".g-callout--danger"), null);
   assert.equal(bodies().length, 7);
+  assert.deepEqual(callKeys().sort(), ["GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events"], "the games with the team (R8)");
 });
 
 test("a screen left before the roster came draws nothing", async () => {
@@ -879,9 +953,11 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   assert.ok(text("src/styles.css").trimEnd().endsWith('@import url("screens/team/roster/roster.css");'));
 });
 
-test("the counters: six in two columns, the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
+test("the counters: six two to a row (one on the narrowest phone), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
   const sheet = "src/screens/team/roster/roster.css";
-  assert.deepEqual(valuesOf(sheet, ".g-roster__counters", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))"]);
+  // Two to a row, or one where two do not fit (320px): never more than two.
+  assert.deepEqual(valuesOf(sheet, ".g-roster__counters", "grid-template-columns"), ["repeat(auto-fit, minmax(max(var(--roster-full), calc((100% - var(--space-8)) / 2)), 1fr))"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster", "--roster-full"), ["calc(2 * var(--size-touch) + 48px)"]);
   // A narrow tile is two 44px buttons, their gap, the cell's padding and border: three of them do not fit a 320px panel or a 360px phone.
   for (const selector of [".g-roster__extra", ".g-roster__tiles"]) {
     assert.deepEqual(valuesOf(sheet, selector, "grid-template-columns"), ["repeat(auto-fit, minmax(var(--roster-tile), 1fr))"], selector);
