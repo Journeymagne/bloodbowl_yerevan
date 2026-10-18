@@ -65,7 +65,7 @@
     {
       "id": "A9",
       "url": "http://localhost:3002/#/",
-      "run": "document.querySelector('#auth-button')?.click()"
+      "run": "document.querySelector('#auth-button').click()"
     },
     {
       "id": "A10",
@@ -73,7 +73,7 @@
       "widths": [
         390
       ],
-      "run": "document.querySelector('#nav-toggle')?.click()"
+      "run": "document.querySelector('#nav-toggle').click()"
     },
     {
       "id": "B1",
@@ -118,7 +118,7 @@
         1024
       ],
       "fullPage": true,
-      "run": "if (innerWidth <= 900) document.querySelector('[data-saved-player-expand]')?.click()"
+      "run": "if (innerWidth <= 900) document.querySelector('[data-saved-player-expand]').click()"
     },
     {
       "id": "C3",
@@ -158,7 +158,7 @@
       "storage": {
         "gata-league-auth-token": "mock"
       },
-      "run": "document.querySelector('[data-delete-team]')?.click()"
+      "run": "document.querySelector('[data-delete-team]').click()"
     },
     {
       "id": "D1",
@@ -209,7 +209,7 @@
         "gata-league-locale": "ru"
       },
       "fullPage": true,
-      "run": "if (innerWidth <= 900) document.querySelector('[data-saved-player-expand]')?.click()",
+      "run": "if (innerWidth <= 900) document.querySelector('[data-saved-player-expand]').click()",
       "widths": [
         390
       ]

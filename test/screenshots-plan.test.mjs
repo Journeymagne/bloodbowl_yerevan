@@ -216,6 +216,30 @@ test("a key a state or a variant does not have is refused by name, with the keys
   assert.doesNotThrow(() => expandShots(spec({ variants: [{ name: "night", storage: {}, colorScheme: "dark" }], states: [everything] })));
 });
 
+test("a key the states file itself does not have is refused by name, before its states are looked at", () => {
+  const bad = (change, pattern) => assert.throws(() => expandShots(spec(change)), pattern, JSON.stringify(change));
+  const keys = "the keys of a states file are widths, heights, variants, states$";
+  bad({ variant: [light] }, new RegExp(`the states file has an unknown key "variant"; ${keys}`));
+  bad({ colorScheme: "dark" }, /"colorScheme".*keys of a states file/);
+  bad({ out: "shots", description: "x" }, /the states file has unknown keys "out", "description"/);
+  // A states list under the wrong name is the unknown key, not "no states".
+  bad({ states: undefined, state: [{ id: "S1", url: "http://localhost:5174/" }] }, /unknown key "state"/);
+  // The four it has, and a file that is not an object, are read as before.
+  assert.doesNotThrow(() => expandShots(spec({ widths: [390], heights: { 390: 844 }, variants: [light], states: [{ id: "S1", url: "http://localhost:5174/" }] })));
+  assert.throws(() => expandShots(null), /at least one state/);
+  assert.throws(() => expandShots([]), /at least one state/);
+});
+
+test("every states file kept under docs/redesign/screens passes the plan check, so a stage's shots can be taken again", () => {
+  const dir = fileURLToPath(new URL("../docs/redesign/screens/", import.meta.url));
+  const files = fs.readdirSync(dir).filter((name) => name.endsWith(".json"));
+  assert.ok(files.length > 0, "no states files found");
+  for (const name of files) {
+    const shots = expandShots(JSON.parse(fs.readFileSync(path.join(dir, name), "utf8")));
+    assert.ok(shots.length > 0, name);
+  }
+});
+
 test("the check for ?. reads the text: one in a string or a comment is refused too, and the message says so", () => {
   for (const run of ["fill('#note', 'is it so?. yes')", "// maybe?.click() later\ndocument.querySelector('#x').click()"]) {
     assert.throws(

@@ -44,7 +44,7 @@ await page.goto(base, { waitUntil: "domcontentloaded" });
 await page.evaluate(() => localStorage.setItem("gata-league-auth-token", "mock"));
 
 await check("my teams list opens", async () => {
-  await page.goto(`${base}/#/my-teams`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/teams`, { waitUntil: "networkidle" });
   await page.waitForSelector("a[href*='#/t/t1/roster'], [data-open-team], td, .card", { timeout: 10000 });
   return (await page.locator("#app-view").innerText()).split("\n").slice(0, 2).join(" / ");
 });

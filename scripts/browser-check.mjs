@@ -84,7 +84,7 @@ await check("builder hires exactly one player per click", async () => {
 });
 
 await check("locale switch", async () => {
-  await page.goto(`${base}/#/my-teams`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/ref/teams`, { waitUntil: "networkidle" });
   const before = await page.evaluate(() => document.documentElement.lang);
   const textBefore = (await page.locator("#app-view").innerText()).slice(0, 120);
   // The language buttons sit at the foot of the SideNav (the desktop frame); the one not pressed is the other language.

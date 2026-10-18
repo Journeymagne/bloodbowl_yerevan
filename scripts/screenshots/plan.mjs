@@ -9,8 +9,9 @@
 // mistyped id or a width of zero found halfway through a hundred shots costs
 // minutes and leaves a half-filled directory that looks like a finished run.
 //
-// The states file (a key this list does not have is refused, in a state and in a
-// variant alike: a mistyped `waitMS` would otherwise be shot with the default):
+// The states file (a key this list does not have is refused, in the file, in a
+// state and in a variant alike: a mistyped `waitMS` would otherwise be shot with
+// the default, and a `variant` for `variants` with none of the variants asked for):
 //   widths, heights   the default widths (390, 1440) and the height for a width
 //   variants          [{name, storage?, colorScheme?}]: every state is shot once
 //                     per variant. `storage` is written to localStorage before
@@ -47,7 +48,8 @@ const DEFAULT_RUN_WAIT_MS = 600;
 // A wait is for an animation to finish, not for a build; a minute is already a typo.
 const MAX_WAIT_MS = 60_000;
 const COLOR_SCHEMES = new Set(["light", "dark"]);
-// Every key a state or a variant may have. Anything else is a typo or a field put on the wrong one.
+// Every key a states file, a state or a variant may have. Anything else is a typo or a field put on the wrong one.
+const SPEC_KEYS = ["widths", "heights", "variants", "states"];
 const STATE_KEYS = ["id", "url", "widths", "extraWidths", "login", "storage", "click", "run", "waitMs", "runWaitMs", "fullPage"];
 const VARIANT_KEYS = ["name", "storage", "colorScheme"];
 // `?.` and not the `?.5` of a conditional, which is not optional chaining.
@@ -353,6 +355,7 @@ function stateShots(state, { defaults, heights, variants }) {
  * @returns {object[]}
  */
 export function expandShots(spec, { only = null } = {}) {
+  if (spec && typeof spec === "object" && !Array.isArray(spec)) checkKeys(spec, SPEC_KEYS, "the states file", "states file");
   if (!Array.isArray(spec?.states) || !spec.states.length) {
     throw new Error("screens: the states file needs at least one state");
   }

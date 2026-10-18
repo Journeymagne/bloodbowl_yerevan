@@ -288,13 +288,53 @@ test("no redirect loops: every route settles within two hops", () => {
   }
 });
 
+const readData = (file) => JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"));
+const DATA_FILES = ["public/data.en.json", "public/data.ru.json"];
+
 test("every reference page still opens at its own address", () => {
-  for (const file of ["public/data.en.json", "public/data.ru.json"]) {
-    const { pages } = JSON.parse(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"));
-    for (const { slug } of pages) {
-      assert.equal(matchRoute(slug).name, "page", `${file}: ${slug}`);
-      assert.equal(target(slug, guest), null, `${file}: ${slug}`);
-      assert.equal(target(slug, coach), null, `${file}: ${slug}`);
+  for (const file of DATA_FILES) {
+    const { pages } = readData(file);
+    // An empty list would pass every assertion below without checking one page (a build that was not run).
+    assert.ok(pages.length > 0, `${file} has no pages: run npm run build first`);
+    for (const page of pages) {
+      // Through the address the link is built with, as a click on it would arrive.
+      const route = routeFromHash(pageUrl(page));
+      assert.equal(matchRoute(route).name, "page", `${file}: ${page.slug}`);
+      for (const context of [guest, coach, teamless]) assert.equal(target(route, context), null, `${file}: ${page.slug}`);
     }
+  }
+});
+
+/** Every string anywhere in a parsed JSON value. */
+function* stringsIn(value) {
+  if (typeof value === "string") yield value;
+  else if (value && typeof value === "object") for (const inner of Object.values(value)) yield* stringsIn(inner);
+}
+
+test("no page links to an address that is redirected: #/teams is My Teams now, the list is #/ref/teams", () => {
+  for (const file of DATA_FILES) {
+    const hashes = new Set();
+    for (const text of stringsIn(readData(file))) {
+      for (const [, hash] of text.matchAll(/href="(#[^"]*)"/g)) hashes.add(hash.replaceAll("&amp;", "&"));
+    }
+    assert.ok(hashes.size > 0, `${file} links to no page at all: run npm run build first`);
+    for (const hash of hashes) {
+      for (const context of [guest, coach, teamless]) {
+        assert.equal(target(routeFromHash(hash), context), null, `${file}: ${hash} is redirected for ${JSON.stringify(context)}`);
+      }
+    }
+  }
+});
+
+// The build writes these links itself (no vault page uses them today), and it cannot be imported: it runs the build.
+test("the wiki links the build maps to a screen of the app lead to addresses that are not redirected", () => {
+  const source = readFileSync(new URL("../scripts/build-data.mjs", import.meta.url), "utf8");
+  const mapped = source.match(/const virtualLinks = new Map\(\[([\s\S]*?)\]\);/)?.[1];
+  assert.ok(mapped, "build-data.mjs no longer has a virtualLinks map: update this test");
+  const hashes = [...mapped.matchAll(/"(#\/[^"]*)"/g)].map((match) => match[1]);
+  assert.ok(hashes.length > 0);
+  for (const hash of hashes) {
+    assert.notEqual(matchRoute(routeFromHash(hash)).name, "page", `${hash} is not a screen of the app`);
+    for (const context of [guest, coach, teamless]) assert.equal(target(routeFromHash(hash), context), null, `${hash} is redirected`);
   }
 });
