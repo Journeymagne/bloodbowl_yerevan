@@ -107,7 +107,7 @@ test("on a wide screen the list stays beside the article, the open skill marked 
   setListFilter("skills", { query: "", category: "Agility" });
   renderReferencePage("skills/dodge");
   assert.equal(view.querySelector('a.g-ref-row[aria-current="page"]').getAttribute("href"), "#/skills/dodge");
-  assert.equal(view.querySelectorAll("a.g-ref-row").length, 13);
+  assert.equal(view.querySelectorAll("a.g-ref-row").length, 14);
   assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Dodge"]);
   assert.equal(view.querySelector(".g-ref-back").getAttribute("href"), "#/ref/skills");
   setListFilter("skills", { category: "all" });
