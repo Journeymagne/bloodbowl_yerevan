@@ -598,6 +598,7 @@
   "newTeam.needRace": "Выберите расу",
   "newTeam.create": "Создать «{name}»",
   "newTeam.created": "Команда «{name}» создана",
+  "newTeam.logoUnreadable": "Не удалось прочитать логотип: выберите картинку PNG или JPG.",
   "reference.tableRegion": "Таблица: {page}",
   "a11y.skipToContent": "К содержимому",
   "preview.rules-1-league-basics": "Формат лиги, тон мероприятий, требования к кубикам и моделям, правила поведения на играх Gata.",

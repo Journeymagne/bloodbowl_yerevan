@@ -18,6 +18,7 @@
  * patches the screen to match, so that the focus and the caret stay where they are.
  */
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
+import { tokenMoved } from "../../core/api-client.mjs";
 import { t } from "../../core/i18n.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../core/logo-upload.mjs";
 import { refUrl, teamUrl, teamsUrl } from "../../core/routes.mjs";
@@ -38,6 +39,9 @@ import { icon } from "../../ui/icons.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { buildRefusalText, builderMarkup, wireBuilder } from "./builder-view.mjs";
+
+/** What a logo may be once it is read: the pictures the file field offers, and the WebP the optimiser makes of them. */
+const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
 
 /** What each choice of the team's card changes in the draft, and what it may be chosen from. */
 const CHOICES = {
@@ -233,14 +237,28 @@ function rename(build, playerId, field, value) {
   if (player) player[field] = String(value);
 }
 
-/** A picture of up to 2 MB, read and made smaller. It goes to the draft it was picked for: one the coach has since replaced (another race) or left behind keeps it, and no other build gets it. */
+/**
+ * A picture of up to 2 MB, read and made smaller. It goes to the draft it was picked for: one the coach has since
+ * replaced (another race) or left behind keeps it, and no other build gets it. A file that cannot be read, or that
+ * is not a picture the builder can show (and offer to take away), leaves the logo the draft had and says so.
+ */
 async function takeLogo(build, file) {
   if (file.size > logoUploadMaxBytes) {
     toast(t("savedRoster.logoTooLarge"), { tone: "error" });
     return;
   }
   const { draft } = build;
-  draft.logoData = await fileToOptimizedLogoDataUrl(file);
+  let logo = "";
+  try {
+    logo = await fileToOptimizedLogoDataUrl(file);
+  } catch {
+    logo = "";
+  }
+  if (!LOGO_DATA_URL.test(logo)) {
+    toast(t("newTeam.logoUnreadable"), { tone: "error" });
+    return;
+  }
+  draft.logoData = logo;
   draw();
 }
 
@@ -275,7 +293,7 @@ function choose(build, kind, value) {
  * saved sends nothing, whoever presses (a disabled button takes no click in a browser, but the screen does not rely
  * on it). The team made, the build is done: the toast and the team's overview. A refusal stays by the button and the
  * build stays. A coach who has left meanwhile is told in a toast and not taken anywhere; a build that is gone (the
- * session ended or changed) is not told of at all.
+ * session ended or changed), or whose token another tab has moved, is not told of at all.
  */
 async function save(build) {
   const race = raceOf(build.raceSlug);
@@ -298,6 +316,9 @@ async function save(build) {
     return;
   }
   flow = null;
+  // Another tab has moved the token while the request was out: the page is about to read the session again, and the
+  // team is not for whoever is signed in now, so it is neither told of nor opened (the list is read again with the session).
+  if (tokenMoved()) return;
   toast(t("newTeam.created", { name: request.name }));
   if (visit?.open) location.hash = teamUrl(answer.team.id);
 }

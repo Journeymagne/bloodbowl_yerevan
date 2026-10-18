@@ -13,13 +13,13 @@ const page = new EventTarget();
 globalThis.addEventListener = page.addEventListener.bind(page);
 globalThis.removeEventListener = page.removeEventListener.bind(page);
 
-// A file read by the logo picker: the reader answers with what the "file" carries.
+// A file read by the logo picker: the reader answers with what the "file" carries, or fails as its `failure` says.
 globalThis.FileReader = class {
   constructor() { this.listeners = new Map(); }
   addEventListener(type, listener) { this.listeners.set(type, listener); }
   readAsDataURL(file) {
     this.result = file.dataUrl;
-    queueMicrotask(() => this.listeners.get("load")?.());
+    queueMicrotask(() => (file.failure ? this.listeners.get("error")?.(file.failure) : this.listeners.get("load")?.()));
   }
 };
 
@@ -27,7 +27,7 @@ const api = installFakeApi();
 document.body.appendChild(el(document, "section", { id: "app-view" }));
 globalThis.location = { hash: "#/teams/new", replace() {} };
 const { renderNewTeam, pickMarkup } = await import("../src/screens/teams/new.mjs");
-const { rememberSessionToken } = await import("../src/core/api-client.mjs");
+const { authToken, rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { initLocale } = await import("../src/core/i18n.mjs");
 const { logoUploadMaxBytes } = await import("../src/core/logo-upload.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
@@ -547,6 +547,57 @@ test("a logo of up to 2 MB is shown and sent; a larger one is refused in words; 
   });
 });
 
+test("a file that cannot be read, or is no picture, leaves the logo as it was and says so", async () => {
+  await withoutTimers(async () => {
+    open();
+    fillLegal();
+    const pickFile = (file) => fireEvent(Object.assign(view.querySelector("input#new-team-logo"), { files: [file], value: "C:\\fakepath\\logo" }), "change");
+    const logo = () => view.querySelector(".g-build__team img")?.getAttribute("src") ?? null;
+    const unreadable = "The logo could not be read: choose a PNG or JPG picture.";
+    pickFile({ name: "logo.png", size: 100, dataUrl: "data:image/png;base64,AAAA" });
+    await settle();
+    assert.equal(logo(), "data:image/png;base64,AAAA");
+    assert.deepEqual(toasts(), []);
+    for (const file of [
+      { name: "broken.png", size: 100, failure: new Error("the file went away") },
+      { name: "paper.pdf", size: 100, dataUrl: "data:application/pdf;base64,JVBERi0=" },
+      { name: "moving.gif", size: 100, dataUrl: "data:image/gif;base64,R0lGOD" },
+      { name: "plain.png", size: 100, dataUrl: "" },
+    ]) {
+      pickFile(file);
+      await settle();
+      assert.equal(logo(), "data:image/png;base64,AAAA", `${file.name}: the old logo stays`);
+      assert.equal(toasts().at(-1), unreadable, `${file.name}: and the coach is told`);
+      assert.equal(view.querySelector("[data-new-team-logo-remove]").textContent.trim(), "Remove logo");
+    }
+    api.reply("POST /api/teams", 201, { team: { id: "t9", name: "Iron Rooks" } });
+    click(save());
+    await settle();
+    assert.equal(api.calls.find((call) => call.key === "POST /api/teams").body.logoData, "data:image/png;base64,AAAA", "what is sent is a picture");
+  });
+});
+
+test("a picture the builder can show is taken in each of its three kinds; a build with no logo sends none when one was refused", async () => {
+  await withoutTimers(async () => {
+    open();
+    fillLegal();
+    const pickFile = (dataUrl) => fireEvent(Object.assign(view.querySelector("input#new-team-logo"), { files: [{ name: "logo", size: 100, dataUrl }] }), "change");
+    for (const kind of ["png", "jpeg", "webp"]) {
+      pickFile(`data:image/${kind};base64,AAAA`);
+      await settle();
+      assert.equal(view.querySelector(".g-build__team img").getAttribute("src"), `data:image/${kind};base64,AAAA`);
+    }
+    click("[data-new-team-logo-remove]");
+    pickFile("data:application/pdf;base64,JVBERi0=");
+    await settle();
+    assert.equal(view.querySelector(".g-build__team img"), null);
+    api.reply("POST /api/teams", 201, { team: { id: "t9", name: "Iron Rooks" } });
+    click(save());
+    await settle();
+    assert.equal(api.calls.find((call) => call.key === "POST /api/teams").body.logoData, null);
+  });
+});
+
 test("taking the logo away leaves the focus on the file field: the button that held it is gone", async () => {
   open();
   fillLegal();
@@ -594,6 +645,75 @@ test("an answer that comes after the coach left is told in a toast, and does not
     assert.equal(state.myTeams.items[0].id, "t9");
     renderNewTeam();
     assert.equal(view.querySelector("h1").textContent, "New team", "the team is made: the build is not kept for another");
+  });
+});
+
+test("a build whose session ended while the request was out is not told of, and nobody is taken anywhere (the guard on `flow`)", async () => {
+  await withoutTimers(async () => {
+    open();
+    fillLegal();
+    api.reply("POST /api/teams", 201, { team: { id: "t9", name: "Iron Rooks" } });
+    const gate = api.hold("POST /api/teams");
+    click(save());
+    sessionEnded();
+    gate.release();
+    await settle();
+    assert.equal(location.hash, "#/teams/new");
+    assert.deepEqual(toasts(), []);
+  });
+});
+
+test("another coach who took the screen while the request was out is not taken to the first coach's team, and keeps what they began", async () => {
+  await withoutTimers(async () => {
+    open();
+    fillLegal();
+    api.reply("POST /api/teams", 201, { team: { id: "t9", name: "Iron Rooks" } });
+    const gate = api.hold("POST /api/teams");
+    click(save());
+    state.auth.currentUser = { id: "coach-b", login: "b", preferences: {} };
+    releaseCurrentScreen();
+    renderNewTeam();
+    type("#new-team-name", "Second Wind");
+    gate.release();
+    await settle();
+    assert.equal(location.hash, "#/teams/new");
+    assert.deepEqual(toasts(), []);
+    assert.equal(view.querySelector("#new-team-name").value, "Second Wind", "the other coach's build is theirs, not dropped with the first one's");
+    releaseCurrentScreen();
+    renderNewTeam();
+    assert.equal(view.querySelector("#new-team-name").value, "Second Wind");
+  });
+});
+
+test("a token another tab moved while the request was out: the team is neither told of nor opened for whoever is signed in now", async () => {
+  await withoutTimers(async () => {
+    open();
+    fillLegal();
+    api.reply("POST /api/teams", 201, { team: { id: "t9", name: "Iron Rooks" } });
+    const gate = api.hold("POST /api/teams");
+    click(save());
+    api.items.set("gata-league-auth-token", "another-coach-token");
+    assert.notEqual(authToken(), "tok");
+    gate.release();
+    await settle();
+    assert.equal(location.hash, "#/teams/new");
+    assert.deepEqual(toasts(), []);
+    assert.equal(state.myTeams.items[0].id, "t9", "the team is made all the same, and on the list");
+  });
+});
+
+test("a token that did not move leaves the answer as it was: told, and opened", async () => {
+  await withoutTimers(async () => {
+    open();
+    fillLegal();
+    api.reply("POST /api/teams", 201, { team: { id: "t9", name: "Iron Rooks" } });
+    const gate = api.hold("POST /api/teams");
+    click(save());
+    assert.equal(authToken(), "tok");
+    gate.release();
+    await settle();
+    assert.equal(location.hash, "#/t/t9");
+    assert.deepEqual(toasts(), ["Iron Rooks is created"]);
   });
 });
 

@@ -598,6 +598,7 @@
   "newTeam.needRace": "Choose a race",
   "newTeam.create": "Create «{name}»",
   "newTeam.created": "{name} is created",
+  "newTeam.logoUnreadable": "The logo could not be read: choose a PNG or JPG picture.",
   "reference.tableRegion": "{page} table",
   "a11y.skipToContent": "Skip to content",
   "preview.rules-1-league-basics": "League format, event tone, dice/model expectations and core conduct for Gata league games.",
