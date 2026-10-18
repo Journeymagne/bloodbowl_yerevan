@@ -8,14 +8,18 @@
  * after a lost answer may write it twice, and a minus after a plus that was never written takes a real point. So a
  * tap that fails in any way takes the taps queued behind it with it, and the screen reads the rows again.
  */
+import { ApiError } from "../../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../../core/api-client.mjs";
 import { t } from "../../../core/i18n.mjs";
+import { state } from "../../../core/state.mjs";
+import { onSessionChange } from "../../../data/session.mjs";
 import { refusalWithRules, unanswered } from "../../../data/teams.mjs";
 
 /**
  * The taps of a team that no answer has settled, in the order they were taken, by team. The first is in the air
  * (it leaves as soon as it is taken when nothing is); the others wait for it. A team with none has no entry.
- * @type {Map<string, {tap: object, settle: (answer: object) => void}[]>}
+ * `coach` is who was signed in when the tap was taken.
+ * @type {Map<string, {tap: object, settle: (answer: object) => void, coach: string|undefined}[]>}
  */
 const lanes = new Map();
 
@@ -24,34 +28,76 @@ const bodyOf = ({ pairingId = null, playerId, counter, delta, injury = null }) =
   pairingId, playerId, counter, delta, ...(counter === "injury" ? { injury } : {}),
 });
 
-/** One tap to the server, whatever comes of it; it does not throw. */
+/** It is not known whether the row was written: the screen reads the rows again, and the tap is not sent again. */
+const lost = () => ({ refusal: t("teamRoster.tapLost"), code: null, lost: true });
+
+/** The tap was not sent because the one before it did not go through, or because the coach who took it has gone. */
+const dropped = () => ({ refusal: t("teamRoster.tapDropped"), code: null, lost: true });
+
+/**
+ * What a failed request comes to. Only the server's own refusal is told in its words; no answer, and anything that
+ * is not an `ApiError` (a body that could not be built: a bug is no reason to show the reader a JS message), is a
+ * tap whose fate is not known.
+ */
+function failure(error) {
+  if (!(error instanceof ApiError) || unanswered(error)) return lost();
+  return { refusal: refusalWithRules(error), code: error.code ?? null };
+}
+
+/**
+ * One tap to the server, whatever comes of it. It does not throw but for the words of a refusal (a 422 whose
+ * violations are not the list the server sends): `work` answers for that.
+ */
 async function send(teamId, tap) {
   try {
     // A tap queued behind another leaves later than the call that made it: the token is asked as it leaves.
     if (!sessionTokenHolds()) return { refusal: t("auth.otherTab"), code: null };
     const { event } = await apiRequest(`/api/teams/${encodeURIComponent(teamId)}/events`, { method: "POST", body: JSON.stringify(bodyOf(tap)) });
-    return { event };
+    // A 2xx without the row is not the server's word that it was written (a proxy's page, a body that is not JSON).
+    return event ? { event } : lost();
   } catch (error) {
     // No answer, so no words of the server's to say; and not sent again, since it may have been written.
-    if (unanswered(error)) return { refusal: t("teamRoster.tapLost"), code: null, lost: true };
-    return { refusal: refusalWithRules(error), code: error?.code ?? null };
+    return failure(error);
   }
 }
 
 /**
  * Send the taps of a lane one after another until it is empty. A tap is out of the lane (and out of
  * `tapsWaiting`) when its answer is known, before the caller is told; the taps behind a failed one are out with
- * it, and a tap taken after that is a lane of its own.
+ * it, and a tap taken after that is a lane of its own. Whatever the head comes to, it is settled: a lane that
+ * waited for an answer that never came would hold every tap of the team after it.
  */
 async function work(teamId, lane) {
   while (lane.length) {
-    const answer = await send(teamId, lane[0].tap);
+    const answer = await send(teamId, lane[0].tap).catch(lost);
     const [{ settle }] = lane.splice(0, 1);
-    const dropped = "refusal" in answer ? lane.splice(0) : [];
+    const behind = "refusal" in answer ? lane.splice(0) : [];
     if (!lane.length) lanes.delete(teamId);
     settle(answer);
-    for (const behind of dropped) behind.settle({ refusal: t("teamRoster.tapDropped"), code: null, lost: true });
+    for (const entry of behind) entry.settle(dropped());
   }
+}
+
+let watchingSession = false;
+
+/**
+ * A coach who has gone leaves no taps for whoever comes next (as save.mjs gives up its steps): the taps still waiting
+ * behind the one in the air are dropped unsent, and the one in the air finishes on its own. A session read again for
+ * the same coach (another tab moved the token) keeps them. Heard from the first tap on, for as long as the page lives.
+ */
+function watchSession() {
+  if (watchingSession) return;
+  watchingSession = true;
+  onSessionChange(() => {
+    const coach = state.auth.currentUser?.id;
+    const gone = [];
+    for (const lane of lanes.values()) {
+      for (let at = lane.length - 1; at > 0; at -= 1) {
+        if (lane[at].coach !== coach) gone.unshift(...lane.splice(at, 1));
+      }
+    }
+    for (const entry of gone) entry.settle(dropped());
+  });
 }
 
 /**
@@ -64,13 +110,15 @@ async function work(teamId, lane) {
  *   dropped tap), `lost` where it is not known whether the row was written (read the rows again).
  */
 export function sendTap(teamId, tap) {
+  watchSession();
   return new Promise((settle) => {
+    const entry = { tap, settle, coach: state.auth.currentUser?.id };
     const lane = lanes.get(teamId);
     if (lane) {
-      lane.push({ tap, settle });
+      lane.push(entry);
       return;
     }
-    const fresh = [{ tap, settle }];
+    const fresh = [entry];
     lanes.set(teamId, fresh);
     void work(teamId, fresh);
   });

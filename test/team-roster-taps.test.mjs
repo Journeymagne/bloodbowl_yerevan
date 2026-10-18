@@ -7,6 +7,8 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 const api = installFakeApi();
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { setDictionaries } = await import("../src/core/i18n.mjs");
+const { state } = await import("../src/core/state.mjs");
+const session = await import("../src/data/session.mjs");
 const { sendTap, tapsWaiting } = await import("../src/screens/team/roster/taps.mjs");
 
 const dictionary = (locale) => JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
@@ -52,7 +54,12 @@ function open() {
   api.reset();
   api.items.set(TOKEN, "tok");
   rememberSessionToken("tok");
+  state.auth.currentUser = { id: "u1", login: "coach" };
 }
+
+/** What a tap that was not sent comes to. */
+const DROPPED_ANSWER = { refusal: DROPPED, code: null, lost: true };
+const LOST_ANSWER = { refusal: LOST, code: null, lost: true };
 
 test("the words of a tap are in both dictionaries", () => {
   const keys = ["teamRoster.tapLost", "teamRoster.tapDropped", "auth.otherTab", "error.EVENT_SIDE_LOCKED", "error.EVENT_BELOW_ZERO",
@@ -266,4 +273,101 @@ test("a failure on one team does not take the taps of another", async () => {
   gate.release({ error: new TypeError("Failed to fetch") });
   assert.equal((await lost).lost, true);
   assert.deepEqual(await other, { event: eventOf(1) });
+});
+
+// A lane that waits for an answer that never comes holds every tap of the team after it, and the unload guard with it.
+test("a refusal whose words cannot be made is a lost answer, and the queue drains", async () => {
+  open();
+  const gate = api.hold(URL_T2);
+  const first = sendTap("t2", plus);
+  const second = sendTap("t2", minus);
+  await waitHeld(gate);
+  // A 422 of the rules whose violations are not the list the server sends: wording it throws.
+  gate.release({
+    status: 422,
+    body: { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "english" }, violations: [null] },
+  });
+  assert.deepEqual(await first, LOST_ANSWER);
+  assert.deepEqual(await second, DROPPED_ANSWER);
+  assert.equal(tapsWaiting("t2"), 0);
+  assert.equal(sent().length, 1);
+  api.reply(URL_T2, 201, { event: eventOf(1) });
+  assert.deepEqual(await sendTap("t2", plus), { event: eventOf(1) });
+  assert.equal(sent().length, 2);
+  assert.equal(tapsWaiting("t2"), 0);
+});
+
+test("a tap that cannot be built is lost without a request, the queue drains, and the next tap goes out", async () => {
+  open();
+  const injury = { code: "lasting", stat: "ag" };
+  injury.again = injury;
+  const first = sendTap("t2", { pairingId: "g2", playerId: "q1", counter: "injury", delta: 1, injury });
+  const second = sendTap("t2", minus);
+  // Not a JS message ("Converting circular structure to JSON…") but the same words as any answer that did not come.
+  assert.deepEqual(await first, LOST_ANSWER);
+  assert.deepEqual(await second, DROPPED_ANSWER);
+  assert.equal(api.calls.length, 0);
+  assert.equal(tapsWaiting("t2"), 0);
+  api.reply(URL_T2, 201, { event: eventOf(1) });
+  assert.deepEqual(await sendTap("t2", plus), { event: eventOf(1) });
+  assert.equal(tapsWaiting("t2"), 0);
+  // And a tap that is not even a tap.
+  assert.deepEqual(await sendTap("t2", undefined), LOST_ANSWER);
+  assert.equal(tapsWaiting("t2"), 0);
+});
+
+test("a 2xx without the row is not a success: it is lost, and the taps behind it are not sent", async () => {
+  open();
+  api.reply(URL_T2, 200, {});
+  const gate = api.hold(URL_T2);
+  const first = sendTap("t2", plus);
+  const second = sendTap("t2", minus);
+  await waitHeld(gate);
+  gate.release({ status: 200, body: {} });
+  assert.deepEqual(await first, LOST_ANSWER);
+  assert.deepEqual(await second, DROPPED_ANSWER);
+  assert.equal(sent().length, 1);
+  assert.equal(tapsWaiting("t2"), 0);
+  assert.deepEqual(await sendTap("t2", plus), LOST_ANSWER, "the reply that is none of the server's is lost each time it comes");
+});
+
+test("a session that ends drops the taps that wait, unsent, and leaves the one in the air to finish", async () => {
+  open();
+  const gate = api.hold(URL_T2);
+  const inAir = sendTap("t2", plus);
+  const waiting = sendTap("t2", minus);
+  const later = sendTap("t2", plus);
+  await waitHeld(gate);
+  assert.equal(tapsWaiting("t2"), 3);
+  session.sessionEnded();
+  assert.deepEqual(await waiting, DROPPED_ANSWER);
+  assert.deepEqual(await later, DROPPED_ANSWER);
+  assert.equal(tapsWaiting("t2"), 1, "the one in the air is not taken back");
+  gate.release({ status: 201, body: { event: eventOf(1) } });
+  assert.deepEqual(await inAir, { event: eventOf(1) });
+  assert.equal(tapsWaiting("t2"), 0);
+  assert.equal(sent().length, 1);
+});
+
+test("a session read again for the same coach keeps the taps that wait; another coach's does not", async () => {
+  open();
+  api.reply(URL_T2, 201, { event: eventOf(-1) });
+  const gate = api.hold(URL_T2);
+  const inAir = sendTap("t2", plus);
+  const waiting = sendTap("t2", minus);
+  await waitHeld(gate);
+  api.reply("GET /api/auth/me", 200, { user: { id: "u1", login: "coach" } });
+  api.reply("GET /api/teams", 200, { teams: [] });
+  assert.equal(await session.loadSession(), "signed-in");
+  assert.equal(tapsWaiting("t2"), 2, "another tab moved the token, and the same coach is still here");
+  api.reply("GET /api/auth/me", 200, { user: { id: "someone-else", login: "other" } });
+  assert.equal(await session.loadSession(), "signed-in");
+  assert.deepEqual(await waiting, DROPPED_ANSWER);
+  assert.equal(tapsWaiting("t2"), 1);
+  gate.release({ status: 201, body: { event: eventOf(1) } });
+  assert.deepEqual(await inAir, { event: eventOf(1) });
+  assert.equal(sent().length, 1);
+  // The coach who is here now taps as any other.
+  assert.deepEqual(await sendTap("t2", plus), { event: eventOf(-1) });
+  assert.equal(sent().length, 2);
 });
