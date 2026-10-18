@@ -31,7 +31,7 @@ import { renderOverviewDetail } from "../screens/overview.mjs";
 import { renderSection } from "../screens/section.mjs";
 import { renderDetail } from "../screens/detail.mjs";
 import { renderLegal } from "../screens/legal.mjs";
-import { renderMyTeams } from "../screens/my-teams.mjs";
+import { renderTeams } from "../screens/teams/index.mjs";
 import { renderSavedRoster } from "../screens/saved-roster.mjs";
 import { renderBuilder } from "../screens/builder.mjs";
 import { renderSeason } from "../screens/season/index.mjs";
@@ -58,7 +58,7 @@ const screens = {
   register: () => renderLogin("register"),
   settings: () => renderSettings(),
   overview: ({ slug }) => renderOverviewDetail(slug),
-  teams: () => renderMyTeams(),
+  teams: () => renderTeams(),
   teamNew: () => renderBuilder(),
   team: () => renderHome(),
   teamManage: ({ teamId }) => renderSavedRoster(teamId),

@@ -14,7 +14,7 @@ import { adminTeamEditUrl, savedRosterUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderPlayerLink } from "../../components/content-links.mjs";
 import { renderSavedTeams } from "../../components/saved-teams.mjs";
-import { wireTeamDeleteButtons } from "../my-teams.mjs";
+import { wireTeamDeleteButtons } from "../../components/team-delete.mjs";
 import { makeSeasonStarterRoster } from "../season/season-data.mjs";
 import { mergeCurrentUser } from "../../data/session.mjs";
 import { refreshShell } from "../../shell/shell.mjs";

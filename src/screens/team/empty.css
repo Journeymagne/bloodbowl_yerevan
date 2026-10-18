@@ -19,6 +19,8 @@
   letter-spacing: 0;
   text-transform: none;
 }
+/* A screen focuses it when the coach has just deleted the last team: a place the keyboard starts from, not a control. */
+.g-team-empty__title:focus { outline: none; }
 
 .g-team-empty__text {
   margin: 0;

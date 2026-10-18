@@ -7,7 +7,7 @@
  * team's own name, slug and logo are stored in their own columns as well as in
  * the roster blob, and the columns win.
  *
- * `normalizeSavedRoster` alone is called from my-teams, the admin screens, the
+ * `normalizeSavedRoster` alone is called from the admin screens, the
  * public player profile and saved-roster — genuinely everywhere a saved team
  * gets displayed — so this has to be importable without pulling in a screen.
  */

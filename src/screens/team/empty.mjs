@@ -21,14 +21,18 @@ import { renderButton } from "../../ui/button.mjs";
 
 export function noTeamMarkup() {
   return `<section class="g-team-empty">
-    <h1 class="g-team-empty__title">${escapeHtml(t("team.empty.title"))}</h1>
+    <h1 class="g-team-empty__title" tabindex="-1">${escapeHtml(t("team.empty.title"))}</h1>
     <p class="g-team-empty__text">${escapeHtml(t("team.empty.text"))}</p>
     ${renderButton({ label: t("team.empty.create"), kind: "primary", href: newTeamUrl() })}
   </section>`;
 }
 
-/** @param {string} error why the list was not read, as a sentence */
-function unreadMarkup(error) {
+/**
+ * A list that could not be read, and the button (`data-teams-retry`) that reads it again: what the retry then
+ * draws is the screen's, so the screen wires it.
+ * @param {string} error why the list was not read, as a sentence
+ */
+export function unreadMarkup(error) {
   return `<section class="g-team-empty">
     <h1 class="g-team-empty__title">${escapeHtml(t("team.unread.title"))}</h1>
     <p class="g-team-empty__text">${escapeHtml(error)}</p>
