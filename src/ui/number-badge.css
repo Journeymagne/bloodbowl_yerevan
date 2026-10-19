@@ -28,6 +28,8 @@
 .g-num--catcher { background: var(--pos-catcher); }
 .g-num--blitzer { background: var(--pos-blitzer); }
 .g-num--big { background: var(--pos-big); }
+/* A player who has died: no position's colour. After the positions' classes, so it wins over a class that is also there. */
+.g-num--fallen { background: var(--surface-3); color: var(--muted); }
 
 /* At the head of a player's page, on the dark header colour. */
 .g-num--lg {
