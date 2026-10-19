@@ -863,6 +863,29 @@ test("a refusal takes the server's roster but keeps what the coach's saved edits
   });
 });
 
+// Final wave re-review: a 422 whose re-read failed left no way forward on the screen.
+test("a step refused for a 422 whose re-read failed: the next tap reads the roster again, so the coach is never stuck", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.reply(PATCH, 422, refusalOf([{ code: "SPP_EDIT_TOO_LARGE", params: { limit: 50 } }]));
+    api.fail("GET /api/teams/t1");
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    api.calls.length = 0;
+    api.reply("GET /api/teams/t1", 200, { team: withSpp("p1", {}, { revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.equal(patches().length, 0, "the refused step is not sent again");
+    assert.ok(callKeys().includes("GET /api/teams/t1"), "the roster is read again");
+    api.reply(PATCH, 200, { team: withSpp("p1", { casualties: 1 }, { revision: 6 }) });
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.equal(patches().length, 1, "on the server's roster the next tap saves");
+  });
+});
+
 test("edits that wait when the roster is entered again go once the games say no match is on (R8)", async () => {
   coach();
   await renderTeamRoster("t1");
