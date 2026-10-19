@@ -649,7 +649,7 @@ test("the action pair: «Sell» second, beside «Miss a match…» or «Back on 
   });
 });
 
-test("in a match «Sell» stands closed beside «Match injury…», and says why", async () => {
+test("in a match «Sell» stands closed beside «Injury in the match…», and says why", async () => {
   await withoutTimers(async () => {
     for (const phone of [true, false]) {
       await withWindow({ phone }, async () => {
@@ -657,7 +657,8 @@ test("in a match «Sell» stands closed beside «Match injury…», and says why
         const [injury, sell, ...rest] = pairOf(placeOf(phone));
         assert.equal(rest.length, 0);
         assert.ok(injury.hasAttribute("data-roster-injury"));
-        assert.equal(injury.textContent, "Match injury…");
+        // The owner's answer after 07c: the old English words, wrapping gracefully beside «Sell» on a phone (marks.css).
+        assert.equal(injury.textContent, "Injury in the match…");
         assert.equal(sell.textContent, "Sell");
         assert.equal(sell.getAttribute("data-roster-sell"), "p1#0");
         assert.equal(sell.getAttribute("aria-disabled"), "true");
@@ -683,6 +684,7 @@ test("in a match «Sell» stands closed beside «Match injury…», and says why
         assertStyled(view, ...STYLES, "toggle.css");
       });
     }
+    assert.equal(JSON.parse(text("src/i18n/ru.json"))["teamRoster.injury.open"], "Травма в матче…", "the Russian words, StatsLive.html's, unchanged");
   });
 });
 

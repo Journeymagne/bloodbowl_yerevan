@@ -173,13 +173,16 @@
 
 /*
  * A player's pair of actions (Stats.html, DeskRoster.html): «Miss a match…», «Back on the roster» or
- * «Match injury…» in the first column, stage 07c's «Sell» in the second — alone, it keeps there
- * (market.css) — a thumb tall on a phone, 40px on a desk (frame.css).
+ * «Injury in the match…» in the first column, stage 07c's «Sell» in the second — alone, it keeps there
+ * (market.css) — a thumb tall on a phone, 40px on a desk (frame.css). A label longer than its half (the
+ * owner's «Injury in the match…» at 390 and 360px) wraps to two balanced lines, centred, 4px clear of the
+ * edges; the row stretches both halves to the taller one, so the pair stays level.
  */
 .g-roster__actions {
   display: grid;
   /* Two columns while a half holds «Miss a match…» on one line (150px); in a narrower place (the 340px panel), one. */
   grid-template-columns: repeat(auto-fill, minmax(max(150px, calc((100% - var(--space-8)) / 2)), 1fr));
+  align-items: stretch;
   gap: var(--space-8);
   min-width: 0;
   margin: 0;
@@ -193,7 +196,8 @@
 .g-roster__actions > .g-btn {
   min-width: 0;
   min-height: var(--size-touch);
-  padding: 0 var(--space-10);
+  padding: var(--space-4) var(--space-10);
+  text-wrap: balance;
 }
 
 /* The sheet of a missed match: what a Serious or a Lasting Injury leaves behind, said before it is done. */
