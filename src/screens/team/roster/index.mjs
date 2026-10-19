@@ -34,8 +34,9 @@ import { readRoster } from "./data.mjs";
 import { rosterMemory, sessionSppOf } from "./memory.mjs";
 import { nextSort, rosterLines, rosterMode, sortLines, stepRule } from "./model.mjs";
 import { onSaveState, retrySaves, saveState, stepSpp, takeServerTeam, trackRoster } from "./save.mjs";
+import { closeSheet, injuryHandlers, sheetOf } from "./injury.mjs";
 import { recordsOf, sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
-import { SKILL_SHEET } from "./sheets.mjs";
+import { INJURY_SHEET, SKILL_SHEET } from "./sheets.mjs";
 import { rosterMarkup } from "./view.mjs";
 import { wireRoster } from "./wire.mjs";
 
@@ -79,8 +80,8 @@ function listen(target, type, listener) {
  * @property {string|null} match the game id of the match on as the games last said it, null for none
  * @property {boolean} stale the roster drawn was read during a match that is no longer on: no counter takes a step
  *   while the read that replaces it is in the air
- * @property {object|null} sheet the sheet that is open
- * @property {Element|null} opener the chip that opened it
+ * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`
+ * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
  * @property {string} status the save queue's status as last heard, "" before
@@ -125,35 +126,44 @@ function linesOf(visit, mode) {
 /** @returns {import("./view.mjs").RosterScreen} */
 function screenOf(teamId, visit, memory) {
   const mode = modeOf(teamId);
+  const outside = outsideOf(memory, mode);
   const { race, lines: own } = linesOf(visit, mode);
   const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line), sessionOutside: sessionSppOf(memory, line, { outside: true }) }));
-  // A sheet whose player has left the roster (read again) closes with him.
-  if (visit.sheet && !lines.some((line) => line.key === visit.sheet.key)) Object.assign(visit, { sheet: null, opener: null });
+  // A sheet whose player has left the roster (read again) closes with him; an injury's, with the match (injury.mjs).
+  const sheet = sheetOf(visit, lines, { mode, outside });
+  if (!sheet) Object.assign(visit, { sheet: null, opener: null });
   const save = saveState(teamId);
   return {
-    team: visit.team, race, data: state.data, lines, mode, memory, sheet: visit.sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
-    save, lock: lockOf(save, visit, mode), outside: outsideOf(memory, mode), sideLocked: visit.sideLocked, records: recordsOf(visit, mode),
+    team: visit.team, race, data: state.data, lines, mode, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
+    save, lock: lockOf(save, visit, mode), outside, sideLocked: visit.sideLocked, records: recordsOf(visit, mode),
   };
 }
 
-/** Where the focus is before a redraw: the line it belongs to (his row, his panel, his skill's sheet) and the counter it is on. */
+/** Where the focus is before a redraw: the line it belongs to (his row, his panel, his sheet), the counter it is on, whether it is in a sheet. */
 function focusPlace(visit) {
   const active = document.activeElement;
   if (!active || active === document.body) return null;
   const cell = active.closest?.("[data-action-key]");
+  const sheet = Boolean(active.closest?.("dialog"));
   const row = active.closest?.("tbody[data-key]")?.getAttribute("data-key") ?? active.closest?.("[data-panel-player]")?.getAttribute("data-panel-player")
-    ?? (active.closest?.("dialog") ? visit.sheet?.key : null);
-  return { row: row ?? null, counter: cell?.getAttribute("data-action-key") ?? null, player: cell?.getAttribute("data-player") ?? null };
+    ?? (sheet ? visit.sheet?.key : null);
+  return { row: row ?? null, counter: cell?.getAttribute("data-action-key") ?? null, player: cell?.getAttribute("data-player") ?? null, sheet };
 }
 
 /**
  * A redraw that took the focused element away, or shut it (a minus stopped at zero), gives the focus to the nearest
  * one left (Carry T9): the same counter's other button, the player's own button in the table, else the title, where a
- * keyboard starts from — never the page's body.
+ * keyboard starts from — never the page's body. A sheet still open keeps it (a button busy with its row, R14): on
+ * what is chosen in it, else its close.
  */
 function restoreFocus(place) {
   const active = document.activeElement;
   if (!place || (active && active !== document.body && active.isConnected && !active.hasAttribute("disabled"))) return;
+  const dialog = place.sheet ? view.querySelector("dialog:modal") : null;
+  if (dialog) {
+    (dialog.querySelector('[aria-checked="true"]') ?? dialog.querySelector("[data-sheet-close]"))?.focus();
+    return;
+  }
   // A browser's NodeList has no `find`: spread it (the test page's lists are arrays and would not say so).
   const all = (root, selector) => [...(root?.querySelectorAll(selector) ?? [])];
   const cell = all(view, "[data-action-key]").find((item) => item.getAttribute("data-action-key") === place.counter && item.getAttribute("data-player") === place.player);
@@ -275,6 +285,21 @@ function followMatch(saving) {
 }
 
 /**
+ * What the rows of a match are sent with (match-taps.mjs): the visit, and its read of the records once they have
+ * answered — a read already in the air was made while they were: it is made again then, and stands for this one.
+ * @param {Saving} saving
+ * @returns {import("./match-taps.mjs").Tapping}
+ */
+function tappingOf(saving) {
+  return {
+    ...saving,
+    readAgain: () => {
+      if (!reading(saving.visit)) void readAgain(saving);
+    },
+  };
+}
+
+/**
  * Where a step goes (`stepRule`): outside a match it is a save of the roster (Task 10); in a match a row, a record of
  * it or with «Edit outside the match» an edit of the career, never a save of the roster (R8; match-taps.mjs).
  * @param {Saving} saving
@@ -283,14 +308,7 @@ function takeStep(saving, line, counter, delta, mode) {
   const { teamId, memory } = saving;
   const { via } = stepRule(line, counter, { mode, outside: outsideOf(memory, mode) });
   if (via !== "roster") {
-    const tapping = {
-      ...saving,
-      // A read already in the air was made while the taps were: it is made again once they have answered, and stands for this one.
-      readAgain: () => {
-        if (!reading(saving.visit)) void readAgain(saving);
-      },
-    };
-    sendRow(tapping, { pairingId: via === "match" ? mode.game.id : null, playerId: line.id, counter, delta });
+    void sendRow(tappingOf(saving), { pairingId: via === "match" ? mode.game.id : null, playerId: line.id, counter, delta });
     return;
   }
   const { refusal } = stepSpp(teamId, line.id, counter, delta);
@@ -344,12 +362,18 @@ function heardSave(saving, now) {
  * What a press does: a header sorts, a player's button opens his row (a phone) or chooses him for the panel (a desk),
  * a chip opens its skill's sheet and the sheet's close gives the focus back to it, «Try again» reads again; a
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
- * server's, the switch makes the match's taps edits outside it and back.
+ * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
+ * injury.mjs's, their rows the match's taps (R14).
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */
 function pressHandlers({ read, ...saving }) {
   const { teamId, memory, visit, draw } = saving;
+  const now = () => {
+    const mode = modeOf(teamId);
+    return { mode, outside: outsideOf(memory, mode), lines: linesOf(visit, mode).lines, lock: lockOf(saveState(teamId), visit, mode) };
+  };
   return {
+    ...injuryHandlers(saving, { tapping: tappingOf(saving), now }),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();
@@ -364,11 +388,7 @@ function pressHandlers({ read, ...saving }) {
       draw();
     },
     onSheetClose: (id) => {
-      if (id !== SKILL_SHEET) return;
-      const { opener } = visit;
-      Object.assign(visit, { sheet: null, opener: null });
-      draw();
-      if (opener?.isConnected) opener.focus();
+      if (id === SKILL_SHEET || id === INJURY_SHEET) closeSheet(saving);
     },
     // The games are read with the team, so that it is not taken on games older than it (R8).
     onRetry: () => {
@@ -404,7 +424,7 @@ function drawVisit(teamId, visit, memory) {
   const place = focusPlace(visit);
   const markup = rosterMarkup(screenOf(teamId, visit, memory));
   if (visit.drawn) {
-    patchWithModal(view, markup, visit.sheet ? `#${SKILL_SHEET}` : "");
+    patchWithModal(view, markup, visit.sheet ? `#${visit.sheet.kind === "injury" ? INJURY_SHEET : SKILL_SHEET}` : "");
     restoreFocus(place);
     return;
   }

@@ -9,7 +9,8 @@
  *
  * During a match (Task 11, decision 13) a step is a record of the match, and the count says beside it what the
  * match has added; the switch «Edit outside the match» makes it an edit of the career instead. The way to his page
- * is closed until the post-match: an advancement there would change the roster the match's finish checks.
+ * is closed until the post-match: an advancement there would change the roster the match's finish checks. A player
+ * who plays the match has «Injury in the match…» under all that (Task 12, decision 14), closed with the match's taps.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -83,6 +84,32 @@ function closedReason(line, rule, screen) {
 }
 
 /**
+ * Why no injury can be recorded for a player who plays the match just now, as no tap of it can be (R14): the
+ * screen's lock («Reading the records…» among them), no id to name him by, the side's Players step saved; "" when
+ * one can.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {{lock: string, sideLocked: string}} screen
+ */
+export function injuryClosed(line, screen) {
+  return closedReason(line, { via: "match", locked: "" }, screen);
+}
+
+/**
+ * «Injury in the match…» (Task 12): for a player who plays the match, while a tap is a record of it — not for one
+ * who sits it out, nor with «Edit outside the match» on (an edit of the career deals no injury). Closed when the
+ * match's taps are, saying why (`injuryClosed`) as the closed ways to his page do; it keeps its key either way, so
+ * the focus finds it when the sheet it opened closes.
+ */
+function injuryMarkup(line, screen) {
+  if (!tapsTheMatch(screen) || line.skip) return "";
+  const reason = injuryClosed(line, screen);
+  const closed = reason ? ` aria-disabled="true" title="${escapeHtml(reason)}"` : "";
+  return `<button type="button" class="${classNames("g-btn g-btn--block", reason && "g-roster__closed")}" aria-haspopup="dialog"${closed}`
+    + `${dataAttributes({ rosterInjury: line.key, rosterClosed: Boolean(reason) })}>${escapeHtml(t("teamRoster.injury.open"))}</button>`;
+}
+
+/**
  * What keeps a step of one counter from being taken, as the stepper is told it: the minus where `stepRule` stops
  * it — the lines count the steps still on their way, so a minus right after a plus is open (Review Focus 1); the
  * plus where it is refused; the whole counter where it is closed.
@@ -145,7 +172,7 @@ export function rowPanelMarkup(line, screen) {
     ? [t("teamRoster.sppLineMatch", { spp: line.earned, match: matchWords(screen.mode) }), sumMarkup(matchSppOf(line), t("teamRoster.sppDelta", { delta: `+${matchSppOf(line)}` }))]
     : [t("teamRoster.sppLine", { spp: line.earned }), sessionMarkup(line, screen)];
   const spp = `<div class="g-roster__sppline"><span class="g-roster__sppctx">${escapeHtml(context)}</span>${sum}</div>`;
-  return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}</div>`;
+  return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}${injuryMarkup(line, screen)}</div>`;
 }
 
 /** The badge, the name, the position with what he is worth, and the pencil to his page (`closed` in a match). */
@@ -216,5 +243,5 @@ export function sidePanelMarkup(line, screen) {
   const closed = screen.mode.kind === "match";
   const next = t("teamRoster.nextMatch", { state: line.skip ? t("teamRoster.sits") : t("teamRoster.plays") });
   return `${headMarkup(line, href, closed)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, href, closed)}${skillsMarkup(line)}`
-    + `<p class="g-roster__next">${escapeHtml(next)}</p>`;
+    + `<p class="g-roster__next">${escapeHtml(next)}</p>${injuryMarkup(line, screen)}`;
 }

@@ -28,6 +28,7 @@ const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { invalidateGames, loadGames } = await import("../src/data/games.mjs");
 const { SPP_EVENT_COUNTERS } = await import("../src/domain/post-match/events.mjs");
+const { INJURIES } = await import("../src/domain/post-match/rules.mjs");
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
@@ -1445,6 +1446,272 @@ test("the switch is kept per match too: the same team's next match starts with i
   });
 });
 
+// ---------------------------------------------------------------------------
+// An injury in the match (Task 12)
+// ---------------------------------------------------------------------------
+
+const injurySheet = () => view.querySelector("dialog#roster-injury");
+/** «Injury in the match…»: the desk panel's by default, or the open row's. */
+const injuryButton = (root = aside()) => root.querySelector("[data-roster-injury]");
+const injuryOptions = () => injurySheet().querySelectorAll('.g-option[role="radio"]');
+const optionFor = (code) => injuryOptions().find((card) => card.getAttribute("data-option-value") === code);
+const statChips = () => injurySheet().querySelectorAll('[data-chip-group="injury-stat"] .g-chip');
+const chipFor = (stat) => statChips().find((chip) => chip.getAttribute("data-chip-value") === stat);
+const recordButton = () => injurySheet().querySelector('[data-injury-step="1"]');
+const removeButton = () => injurySheet().querySelector('[data-injury-step="-1"]');
+/** The line under a player's name in the table. */
+const subLine = (key) => bodyOf(key).querySelector(".g-rtable__sub");
+/** An injury row of the match as POST …/events answers it: Ann's. */
+const injuryRow = (injury, over = {}) => rowOf({ counter: "injury", injury, ...over });
+const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
+  "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "sheet.css", "option-card.css", "filter-chips.css"];
+
+test("«Injury in the match…» opens a sheet of five injuries; a lasting one asks for the characteristic; «Record in the match» sends one injury row", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    const opener = injuryButton();
+    assert.equal(opener.textContent, "Injury in the match…");
+    assert.equal(opener.getAttribute("data-roster-injury"), "p1#0");
+    assert.equal(opener.getAttribute("aria-haspopup"), "dialog");
+    opener.focus();
+    fireEvent(opener, "click");
+    const dialog = injurySheet();
+    assert.ok(dialog?.isModal, "the sheet is open, modally");
+    assert.equal(dialog.querySelector("h2").textContent, "Injury in the match");
+    assert.equal(dialog.querySelector(".g-sheet__sub").textContent, "#1 Ann · Human Lineman");
+    assert.equal(dialog.querySelector('[role="radiogroup"]').getAttribute("aria-label"), "Injury");
+    assert.deepEqual(injuryOptions().map((card) => [card.querySelector(".g-option__title").textContent, card.querySelector(".g-option__sub").textContent, card.getAttribute("aria-checked")]), [
+      ["Badly Hurt", "no lasting effect after the match", "false"],
+      ["Seriously Hurt", "misses the next match", "false"],
+      ["Serious Injury", "a Niggling Injury and a missed match", "false"],
+      ["Lasting Injury", "−1 to a characteristic and a missed match", "false"],
+      ["Dead", "the player died", "false"],
+    ]);
+    assert.equal(dialog.querySelector(".g-roster__injurynote").textContent,
+      "It is recorded in the round 3 and fills in the post-match's Players step, where the injury is applied to the roster. While the team has played fewer than 3 matches, any injury becomes Badly Hurt.");
+    assert.equal(recordButton().textContent, "Record in the match");
+    assert.ok(recordButton().classList.contains("g-btn--primary"));
+    assert.ok(recordButton().hasAttribute("disabled"), "nothing chosen yet");
+    assert.ok(!removeButton(), "no injury stands to take back");
+    assert.equal(statChips().length, 0, "no characteristic but for a lasting injury");
+    fireEvent(optionFor("lasting"), "click");
+    assert.equal(dialog.querySelector(".g-roster__injurylabel").textContent, "Which characteristic");
+    assert.equal(dialog.querySelector('[data-chip-group="injury-stat"]').getAttribute("aria-label"), "Which characteristic");
+    assert.deepEqual(statChips().map((chip) => [chip.textContent, chip.getAttribute("aria-checked")]), [["MA", "false"], ["ST", "false"], ["AG", "false"], ["PA", "false"], ["AR", "false"]]);
+    assert.ok(recordButton().hasAttribute("disabled"), "a lasting injury needs its characteristic");
+    fireEvent(chipFor("ag"), "click");
+    assert.equal(recordButton().hasAttribute("disabled"), false);
+    assertCspSafe(view);
+    assertStyled(view, ...INJURY_SHEETS);
+    api.reply(EVENTS, 201, { event: injuryRow({ code: "lasting", stat: "ag" }) });
+    fireEvent(recordButton(), "click");
+    await settle();
+    assert.deepEqual(posts().map(({ body }) => body), [{ pairingId: "g2", playerId: "p1", counter: "injury", delta: 1, injury: { code: "lasting", stat: "ag" } }]);
+    assert.equal(patches().length, 0);
+    assert.ok(!injurySheet(), "closed once written");
+    assert.ok(document.activeElement === injuryButton(), "the focus back on the button that opened it");
+    assert.equal(subLine("p1#0").textContent, "Lasting Injury (AG) · round 3");
+    assert.ok(subLine("p1#0").classList.contains("g-rtable__sub--alert"));
+    assert.equal(titleOf(banner()), "Match on · round 3 · records: 1");
+    api.assertAnswered();
+  });
+});
+
+test("a standing injury can be taken back by its own −1", async () => {
+  await withoutTimers(async () => {
+    coach({ events: [injuryRow({ code: "miss" })] });
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3");
+    fireEvent(injuryButton(), "click");
+    assert.equal(removeButton().textContent, "Remove the record");
+    assert.ok(removeButton().classList.contains("g-btn--danger-quiet"));
+    assert.ok(removeButton().closest(".g-sheet__foot-start"), "the quiet control beside the sheet's button");
+    assert.ok(recordButton().hasAttribute("disabled"), "a new one is still to be chosen");
+    api.reply(EVENTS, 201, { event: injuryRow({ code: "miss" }, { id: "e2", delta: -1 }) });
+    fireEvent(removeButton(), "click");
+    await settle();
+    assert.deepEqual(posts().map(({ body }) => body), [{ pairingId: "g2", playerId: "p1", counter: "injury", delta: -1, injury: { code: "miss" } }]);
+    assert.ok(!injurySheet());
+    assert.equal(subLine("p1#0").textContent, "Human Lineman");
+    assert.equal(subLine("p1#0").classList.contains("g-rtable__sub--alert"), false);
+    // A friendly names itself in the line.
+    coach({ events: [injuryRow({ code: "dead" })] });
+    gamesAre([{ ...LIVE_GAME, kind: "friendly", season: null, roundStatus: null, roundNumber: null }]);
+    await renderTeamRoster("t1");
+    assert.equal(subLine("p1#0").textContent, "Dead · friendly");
+  });
+});
+
+test("the choice keeps the focus on the card it moved to", async () => {
+  coach();
+  gamesAre([LIVE_GAME]);
+  await renderTeamRoster("t1");
+  fireEvent(injuryButton(), "click");
+  const cards = injuryOptions();
+  assert.deepEqual(cards.map((card) => card.getAttribute("tabindex")), ["0", "-1", "-1", "-1", "-1"], "Tab enters the group at the first");
+  cards[0].focus();
+  fireEvent(cards[0], "keydown", { key: "ArrowDown" });
+  assert.ok(document.activeElement === cards[1], "the next card");
+  assert.ok(injuryOptions()[1] === cards[1], "the same node after the redraw");
+  assert.equal(cards[1].getAttribute("aria-checked"), "true");
+  assert.equal(recordButton().hasAttribute("disabled"), false);
+  fireEvent(cards[1], "keydown", { key: "ArrowDown" });
+  fireEvent(cards[2], "keydown", { key: "ArrowDown" });
+  assert.ok(document.activeElement === cards[3] && injuryOptions()[3] === cards[3], "a lasting injury's characteristics drawn under it, the focus kept");
+  assert.equal(statChips().length, 5);
+  assert.ok(recordButton().hasAttribute("disabled"));
+  assert.ok(injurySheet()?.isModal);
+});
+
+test("a refused record says why and the sheet stays open", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(injuryButton(), "click");
+    fireEvent(optionFor("dead"), "click");
+    api.reply(EVENTS, 409, refused("EVENT_SIDE_LOCKED"));
+    fireEvent(recordButton(), "click");
+    await settle();
+    assert.equal(toasts().at(-1), SIDE_LOCKED);
+    assert.ok(injurySheet()?.isModal, "open, the choice still in it");
+    assert.equal(optionFor("dead").getAttribute("aria-checked"), "true");
+    assert.equal(subLine("p1#0").textContent, "Human Lineman", "nothing written");
+    // Pressed again it says why, and sends nothing: the side is locked until the records are read again.
+    fireEvent(recordButton(), "click");
+    await settle();
+    assert.equal(posts().length, 1);
+    fireEvent(injurySheet().querySelector("[data-sheet-close]"), "click");
+    assert.ok(!injurySheet());
+    assert.ok(document.activeElement === injuryButton());
+    assert.equal(injuryButton().getAttribute("aria-disabled"), "true");
+    assert.equal(injuryButton().getAttribute("title"), SIDE_LOCKED);
+    fireEvent(injuryButton(), "click");
+    assert.ok(!injurySheet(), "a locked side opens no sheet");
+    assert.equal(toasts().at(-1), SIDE_LOCKED);
+  });
+});
+
+test("no injury for a player who sits the match out, nor with the switch on, nor outside a match", async () => {
+  await withWindow({ phone: true }, async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(toggle("p1#0"), "click");
+    assert.equal(injuryButton(openRow()).textContent, "Injury in the match…", "in the open row on a phone");
+    fireEvent(toggle("p4#3"), "click");
+    assert.ok(!injuryButton(openRow()), "Dell sits it out");
+    fireEvent(toggle("p1#0"), "click");
+    fireEvent(outsideSwitch(), "click");
+    assert.ok(!injuryButton(openRow()), "an edit outside the match deals no injury");
+    assertStyled(view, ...INJURY_SHEETS);
+  });
+  coach();
+  await renderTeamRoster("t1");
+  assert.ok(!view.querySelector("[data-roster-injury]"), "no match, no injury");
+});
+
+test("every injury the table knows has its words in both languages", () => {
+  const codes = INJURIES.filter((code) => code !== "none");
+  assert.equal(codes.length, 5);
+  for (const locale of ["en", "ru"]) {
+    const words = dictionary(locale);
+    for (const code of codes) {
+      assert.ok(words[`teamRoster.injury.${code}`], `${locale} teamRoster.injury.${code}`);
+      assert.ok(words[`teamRoster.injuryCaption.${code}`], `${locale} teamRoster.injuryCaption.${code}`);
+    }
+  }
+  // The vault's Casualties page names them so; Badly Hurt stays English (docs/i18n-glossary.md).
+  assert.deepEqual(codes.map((code) => dictionary("ru")[`teamRoster.injury.${code}`]), ["Badly Hurt", "Серьёзная травма", "Тяжёлое повреждение", "Стойкая травма", "Смерть"]);
+});
+
+// R14: the injury is a tap of the match, and its answer is heard as every tap's is (Task 11).
+test("an injury in the air keeps the sheet busy: a second press sends nothing", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(injuryButton(), "click");
+    fireEvent(optionFor("miss"), "click");
+    const held = api.hold(EVENTS);
+    recordButton().focus();
+    fireEvent(recordButton(), "click");
+    assert.ok(recordButton().hasAttribute("disabled"), "busy while it is in the air");
+    assert.ok(document.activeElement === optionFor("miss"), "the focus stays in the sheet, on the choice");
+    assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3", "counted at once, as every tap on its way");
+    assert.ok(removeButton().hasAttribute("disabled"), "nothing taken back while it is in the air either");
+    fireEvent(recordButton(), "click");
+    await settle();
+    assert.deepEqual([held.count, posts().length], [1, 1]);
+    held.release({ status: 201, body: { event: injuryRow({ code: "miss" }) } });
+    await settle();
+    assert.equal(posts().length, 1);
+    assert.ok(!injurySheet());
+    assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3");
+  });
+});
+
+test("an injury whose answer was lost: the sheet closes and the records are read again before another can be recorded", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    api.calls.length = 0;
+    fireEvent(injuryButton(), "click");
+    fireEvent(optionFor("dead"), "click");
+    api.fail(EVENTS);
+    // It was written after all; its answer never came.
+    const reading = api.hold("GET /api/teams/t1/events");
+    fireEvent(recordButton(), "click");
+    await settle();
+    assert.ok(!injurySheet(), "closed: whether it was written is not known");
+    assert.equal(toasts().at(-1), "The answer to the record did not arrive: the records are read again to see whether it was written.");
+    assert.ok(document.activeElement === injuryButton());
+    assert.equal(injuryButton().getAttribute("aria-disabled"), "true");
+    assert.equal(injuryButton().getAttribute("title"), READING);
+    fireEvent(injuryButton(), "click");
+    assert.ok(!injurySheet(), "no second injury before the read says whether the first was written");
+    assert.equal(toasts().at(-1), READING);
+    reading.release({ status: 200, body: { events: [injuryRow({ code: "dead" })], revision: 4 } });
+    await settle();
+    assert.equal(posts().length, 1, "not sent again");
+    assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1/events").length, 1, "read once");
+    assert.equal(subLine("p1#0").textContent, "Dead · round 3", "what the server has");
+    assert.equal(injuryButton().hasAttribute("aria-disabled"), false);
+  });
+});
+
+test("an injury refused because the match is over: said, and the sheet goes with the match", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(injuryButton(), "click");
+    fireEvent(optionFor("badly-hurt"), "click");
+    api.reply(EVENTS, 409, refused("MATCH_NOT_LIVE"));
+    gamesAre([{ ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" }]);
+    fireEvent(recordButton(), "click");
+    await settle();
+    assert.equal(toasts().at(-1), "There is no match in progress to record this in.");
+    assert.ok(!injurySheet(), "no match to record it in");
+    assert.ok(!view.querySelector("[data-roster-injury]"));
+    assert.equal(posts().length, 1);
+  });
+});
+
+test("the sheet's player is text", async () => {
+  coach({ teamAnswer: team({ roster: { players: [{ id: "p1", rowIndex: 0, number: "1", name: HOSTILE }] } }) });
+  gamesAre([LIVE_GAME]);
+  await renderTeamRoster("t1");
+  fireEvent(injuryButton(), "click");
+  assert.equal(injurySheet().querySelector(".g-sheet__sub").textContent, `#1 ${HOSTILE} · Human Lineman`);
+  assert.ok(!view.querySelector("img"));
+  assertCspSafe(view);
+});
+
 test("a team whose race the reference does not know: a line that says so, and no table", async () => {
   coach({ teamAnswer: team({ baseTeamSlug: "teams/unknown" }) });
   await renderTeamRoster("t1");
@@ -1620,6 +1887,18 @@ test("the banner's action: up to 900px a line of its own whose switch and link m
   // A closed «Advance» keeps its resting look under the pointer: button.css lights a primary that is not :disabled.
   assert.deepEqual(valuesOf(sheet, '.g-btn--primary.g-roster__closed[aria-disabled="true"]:hover', "background"), ["var(--disabled)"]);
   for (const selector of [".g-roster__calloutlink", ".g-roster__matchnote"]) assert.deepEqual(valuesOf(sheet, selector, "text-transform"), ["none"], selector);
+});
+
+test("the injury's sheet: the characteristic's caption over its five chips in one row, the note quiet and readable", () => {
+  const sheet = "src/screens/team/roster/roster.css";
+  assert.deepEqual(valuesOf(sheet, ".g-roster__injurystat .g-chips", "grid-template-columns"), ["repeat(5, minmax(0, 1fr))"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__injurystat .g-chip", "justify-content"), ["center"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__injurylabel", "text-transform"), ["uppercase"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__injurynote", "text-transform"), ["none"]);
+  for (const selector of [".g-roster__injurylabel", ".g-roster__injurynote"]) {
+    assert.deepEqual([valuesOf(sheet, selector, "border"), valuesOf(sheet, selector, "background")], [["0"], ["none"]], selector);
+    assertReadable(sheet, selector, "color", ["--surface"], 4.5);
+  }
 });
 
 test("the player's address still draws the 2.x editor until stage 07d", () => {

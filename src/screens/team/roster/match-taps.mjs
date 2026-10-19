@@ -53,14 +53,20 @@ function heardTap(tapping, step, answer) {
 }
 
 /**
- * Send one row (`{pairingId, playerId, counter, delta}`): drawn at once, on its way, and after the taps before it.
+ * Send one row (`{pairingId, playerId, counter, delta}`, an injury's with its `injury`): drawn at once, on its way,
+ * and after the taps before it. Its answer is heard here, as every tap's is (`heardTap`); what is sent back is that
+ * answer, once heard, for what is waiting on this row alone (the injury's sheet, R14) to follow it.
  * @param {Tapping} tapping
+ * @returns {Promise<{event: object} | {refusal: string, code: string|null, lost?: true}>} `sendTap`'s answer
  */
 export function sendRow(tapping, step) {
   tapping.visit.pending.push(step);
   tapping.visit.sent += 1;
   tapping.draw();
-  void sendTap(tapping.teamId, step).then((answer) => heardTap(tapping, step, answer));
+  return sendTap(tapping.teamId, step).then((answer) => {
+    heardTap(tapping, step, answer);
+    return answer;
+  });
 }
 
 /** Settles once no tap of the visit is on its way: at once when none is. */

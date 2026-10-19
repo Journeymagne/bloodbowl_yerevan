@@ -1,7 +1,7 @@
 /**
  * The roster's markup: the band with its counts, the table, and beside it on a desk the chosen player's panel;
- * the skill's sheet over it when one is open. What a line says is model.mjs's, the row's panel and the side
- * panel panel.mjs's, the sheet sheets.mjs's.
+ * a skill's or an injury's sheet over it when one is open. What a line says is model.mjs's, the row's panel and
+ * the side panel panel.mjs's, the sheets sheets.mjs's.
  *
  * The player's button does what the width it is drawn at does with it (R11): up to 900px it opens his row
  * (`aria-expanded`, and the row's panel it controls), from 901px it chooses him for the panel beside the table
@@ -27,7 +27,7 @@ import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
 import { MAIN_COUNTERS, rosterCounts } from "./model.mjs";
 import { matchWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
-import { skillSheetMarkup } from "./sheets.mjs";
+import { injuryLine, injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 
 /** The id of the panel beside the table, which a desk's player buttons control. */
 export const ASIDE_ID = "roster-aside";
@@ -54,7 +54,9 @@ const OUTSIDE_NOTE = "roster-outside-note";
  * @property {string} sideLocked why the match's own taps are closed: the server's refusal `EVENT_SIDE_LOCKED` (the
  *   side has saved its Players step), until the records are read again; "" when they are open
  * @property {number} records the rows of the match on that the team has, as last read: what its banner counts
- * @property {{kind: "skill", key: string, name: string}|null} sheet the sheet that is open
+ * @property {{kind: "skill", key: string, name: string}|{kind: "injury", key: string, choice: {code: string, stat: string}, busy: boolean}|null} sheet
+ *   the sheet that is open: a skill's rule, or an injury of the match with what is chosen in it ("" for nothing yet)
+ *   and whether an injury of the player is on its way (R14)
  * @property {string} error a read that failed, "" when none
  * @property {boolean} loading the roster has not been read yet (or is read again after a failure)
  * @property {boolean} phone the width the screen is drawn at is a phone's (`(max-width: 900px)`)
@@ -109,14 +111,18 @@ function choiceOf({ lines, memory }) {
   return { open, chosen: open ?? lines[0]?.key ?? null };
 }
 
-/** A player's row: the open row's panel on a phone, the mark of the panel's player on a desk. */
+/**
+ * A player's row: the open row's panel on a phone, the mark of the panel's player on a desk. Under his name an
+ * injury the match on has dealt him (Task 12), else that he misses the next match, else his position.
+ */
 function rowOf(line, screen, choice) {
+  const injury = injuryLine(line, screen.mode);
   const row = {
     key: line.key,
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
     name: line.name,
-    sub: line.skip ? t("teamRoster.skip") : line.position,
-    alert: line.skip,
+    sub: injury || (line.skip ? t("teamRoster.skip") : line.position),
+    alert: Boolean(injury) || line.skip,
     cells: cellsOf(line, screen),
     skillsHtml: skillChipsMarkup(line),
   };
@@ -221,10 +227,13 @@ function bodyMarkup(screen) {
   return layoutMarkup(screen);
 }
 
-/** The skill's sheet, while its player is still on the roster. */
+/** The sheet that is open, while its player is still on the roster: a skill's, or an injury's (`screenOf` closes one that no longer stands). */
 function sheetMarkup(screen) {
-  const line = screen.sheet && screen.race ? screen.lines.find((item) => item.key === screen.sheet.key) : null;
-  return line ? skillSheetMarkup({ data: screen.data, line, name: screen.sheet.name }) : "";
+  const { sheet } = screen;
+  const line = sheet && screen.race ? screen.lines.find((item) => item.key === sheet.key) : null;
+  if (!line) return "";
+  if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy });
+  return skillSheetMarkup({ data: screen.data, line, name: sheet.name });
 }
 
 /** @param {RosterScreen} screen */
