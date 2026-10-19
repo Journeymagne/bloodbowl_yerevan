@@ -16,6 +16,7 @@ setDictionaries({
     "teamRoster.readMismatch": "The roster kept changing while it was read. Try again.",
     "auth.otherTab": "Someone signed in or out in another tab, so nothing was saved here.",
     "request.offline": "No connection.",
+    "request.noAnswer": "The server did not answer.",
     "error.ROSTER_BREAKS_THE_RULES": "The roster breaks the rules.",
     "error.TEAM_SAVED_ELSEWHERE": "The team was saved elsewhere.",
     "validation.DUPLICATE_PLAYER_ID": "Players {names} are stored under one id.",
@@ -113,6 +114,32 @@ test("three readings that never agree give up with words; a failed read says why
   api.reply(EVENTS_URL, 200, { events: [], revision: 3 });
   assert.equal((await readRoster("t1", { attempts: 1 })).error, "The roster kept changing while it was read. Try again.");
   assert.equal(api.calls.filter((call) => call.key === TEAM_URL).length, 1);
+});
+
+// Final review, Important 1: a 2xx whose body is not JSON comes back from api.mjs as `{}` — a proxy's page, not the server's word.
+test("a read answered 2xx without the team or without its records is a read that failed, said in words, not in a script's", async () => {
+  for (const [teamBody, eventsBody] of [[{}, { events: [], revision: 4 }], [{ team: teamAt(4) }, {}], [null, { events: [], revision: 4 }]]) {
+    api.reset();
+    api.reply(TEAM_URL, 200, teamBody);
+    api.reply(EVENTS_URL, 200, eventsBody);
+    assert.deepEqual(await readRoster("t1"), { error: "The server did not answer." });
+  }
+});
+
+test("a save answered 2xx without the team is an answer that did not come: the step waits, and its retry finds it landed by the 409", async () => {
+  await open();
+  api.reply(PATCH_URL, 200, {});
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  const lost = await settle();
+  assert.deepEqual([lost.status, lost.waiting, lost.kind, lost.refusal], ["offline", 1, "offline", "No connection."], "not «Saved»");
+  assert.equal(save.savedRevision("t1"), 4);
+  assert.equal(state.myTeams.items[1].name, "Old name", "nothing is put in the coach's list");
+  const sent = patches()[0].body;
+  const landed = teamAt(5, { touchdowns: 3 }, { roster: { ...sent.roster, logoData: undefined } });
+  api.reply(PATCH_URL, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: landed });
+  assert.equal(await save.retrySaves("t1"), "saved");
+  assert.deepEqual(save.saveState("t1"), quiet("saved"));
+  assert.equal(save.savedRevision("t1"), 5);
 });
 
 // Review Focus 4: the screen shows the career, the PATCH carries the blob.

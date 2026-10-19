@@ -81,6 +81,9 @@ const transport = {
     if (!sessionTokenHolds()) throw new ApiError(API_ERROR.FORBIDDEN, { payload: { error: { code: OTHER_TAB } } });
     const userId = state.auth.currentUser?.id;
     const answer = await patchTeam(endpoint, request);
+    // A 2xx without the team (a proxy's page, which api.mjs reads as `{}`) says nothing of the save: it is an answer
+    // that did not come, and the step waits as it does for the network. If it landed, its retry is a 409 that holds it.
+    if (!answer?.team) throw new ApiError(API_ERROR.OFFLINE, { message: "The save's answer holds no team" });
     confirmStep(teamId);
     if (state.auth.currentUser?.id === userId) putInPlace(answer?.team);
     return answer;

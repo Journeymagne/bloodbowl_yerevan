@@ -20,8 +20,11 @@ export async function readRoster(teamId, { attempts = 3 } = {}) {
   const path = `/api/teams/${encodeURIComponent(teamId)}`;
   try {
     for (let read = 0; read < attempts; read += 1) {
-      const [{ team }, { events, revision }] = await Promise.all([apiRequest(path), apiRequest(`${path}/events`)]);
-      if (revision === team.revision) return { team, events };
+      const [teamAnswer, eventsAnswer] = await Promise.all([apiRequest(path), apiRequest(`${path}/events`)]);
+      const [team, events] = [teamAnswer?.team, eventsAnswer?.events];
+      // A 2xx whose body is not the team or its records (a proxy's page, which api.mjs reads as `{}`) is no answer.
+      if (!team || !Array.isArray(events)) return { error: t("request.noAnswer") };
+      if (eventsAnswer.revision === team.revision) return { team, events };
     }
   } catch (error) {
     return { error: refusalText(error) };
