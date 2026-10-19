@@ -4,7 +4,8 @@
  * one after an injury whose answer was lost), a counter's − or + (a refused one too), «Load the new one» after
  * another device's save, the switch «Edit outside the match», a way to the player's page that a match has closed
  * (or «Injury in the match…» closed with its taps), and the injury's button, its cards, its characteristics and its
- * two buttons. What each one does is the screen's (index.mjs, injury.mjs); this file only says who was pressed.
+ * two buttons; «Miss a match…», its sheet's reasons, characteristic, words and button, and «Back on the roster»
+ * (stage 07b). What each one does is the screen's (index.mjs, injury.mjs, marks.mjs); this file only says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
@@ -14,7 +15,8 @@ import { wireRosterTable } from "../../../ui/roster-table.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
 import { wireSkillChips } from "../../../ui/skill-chip.mjs";
 import { wireToggles } from "../../../ui/toggle.mjs";
-import { INJURY_STAT } from "./sheets.mjs";
+import { MARK_TEXT } from "./mark-sheet.mjs";
+import { INJURY_STAT, MARK_SHEET, MARK_STAT } from "./sheets.mjs";
 import { OUTSIDE_TOGGLE } from "./view.mjs";
 
 /** The line a chip belongs to: the panel's player, or the player of the table's body it stands in. */
@@ -22,17 +24,40 @@ function lineKeyOf(chip) {
   return chip.closest("[data-panel-player]")?.getAttribute("data-panel-player") ?? chip.closest("tbody[data-key]")?.getAttribute("data-key") ?? null;
 }
 
-/** The injury's presses (Task 12). A closed «Injury in the match…» opens nothing: it says why as `[data-roster-closed]` does (wireRoster). */
+/** A press on a button of one player's, by his line's key, which it carries; a closed one says why as `[data-roster-closed]` does (wireRoster). */
+function onPlayerButton(root, attribute, handler) {
+  return delegate(root, "click", `[${attribute}]`, (event, button) => {
+    if (button.getAttribute("aria-disabled") !== "true") handler(button.getAttribute(attribute), button);
+  });
+}
+
+/** The injury's presses (Task 12). A closed «Injury in the match…» opens nothing. */
 function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep }) {
   return [
-    delegate(root, "click", "[data-roster-injury]", (event, button) => {
-      if (button.getAttribute("aria-disabled") !== "true") onInjury(button.getAttribute("data-roster-injury"), button);
-    }),
-    wireOptionLists(root, (code) => onInjuryChoice({ code })),
+    onPlayerButton(root, "data-roster-injury", onInjury),
     wireFilterChips(root, (stat) => onInjuryChoice({ stat }), { group: INJURY_STAT }),
     // A busy button is `disabled`, which a browser does not click: the press is refused again where it is taken (injury.mjs).
     delegate(root, "click", "[data-injury-step]", (event, button) => onInjuryStep(Number(button.getAttribute("data-injury-step")))),
   ];
+}
+
+/** The marks' presses (stage 07b): «Miss a match…» and «Back on the roster» (not when closed), the sheet's characteristic, words and button. */
+function wireMarks(root, { onMark, onMarkChoice, onMarkText, onMarkSend, onReturn }) {
+  return [
+    onPlayerButton(root, "data-roster-mark", onMark),
+    onPlayerButton(root, "data-roster-return", onReturn),
+    wireFilterChips(root, (stat) => onMarkChoice({ stat }), { group: MARK_STAT }),
+    delegate(root, "input", `#${MARK_TEXT}`, (event, field) => onMarkText(field.value)),
+    delegate(root, "click", "[data-mark-send]", () => onMarkSend()),
+  ];
+}
+
+/**
+ * The cards of whichever sheet is open, by the sheet they stand in. One wiring for the root: two would not work, since
+ * the first flips the group's cards and the second then hears no change (wireFilterChips says the same of chip rows).
+ */
+function wireReasons(root, { onInjuryChoice, onMarkChoice }) {
+  return wireOptionLists(root, (code, list) => (list.closest("dialog")?.id === MARK_SHEET ? onMarkChoice({ code }) : onInjuryChoice({ code })));
 }
 
 /**
@@ -51,6 +76,11 @@ function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep }) {
  * @param {(key: string, button: Element) => void} handlers.onInjury «Injury in the match…», by the line's key (not when it is closed)
  * @param {(change: {code?: string, stat?: string}) => void} handlers.onInjuryChoice an injury or its characteristic chosen in the sheet
  * @param {(delta: 1|-1) => void} handlers.onInjuryStep «Record in the match» (+1) or «Remove the record» (−1)
+ * @param {(key: string, button: Element) => void} handlers.onMark «Miss a match…», by the line's key (not when it is closed)
+ * @param {(change: {code?: string, stat?: string}) => void} handlers.onMarkChoice a reason or its characteristic chosen in the sheet
+ * @param {(text: string) => void} handlers.onMarkText another reason's words, as typed
+ * @param {() => void} handlers.onMarkSend «Mark the missed match»
+ * @param {(key: string) => void} handlers.onReturn «Back on the roster», by the line's key (not when it is closed)
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
@@ -70,7 +100,9 @@ export function wireRoster(root, handlers) {
       if (key === OUTSIDE_TOGGLE) onOutside(on);
     }),
     delegate(root, "click", "[data-roster-closed]", (event, button) => onRefused(button.getAttribute("title") ?? "")),
+    wireReasons(root, handlers),
     ...wireInjury(root, handlers),
+    ...wireMarks(root, handlers),
   ];
   return () => offs.forEach((off) => off());
 }

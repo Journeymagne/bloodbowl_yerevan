@@ -167,3 +167,47 @@
   color: var(--muted);
   font: 400 13px/1.4 var(--font-body);
 }
+
+/*
+ * A player's row of actions outside a match (StatsMng, DeskRosterInjured): «Miss a match…» or «Back on the roster»,
+ * and stage 07c's «Sell» beside it, each as wide as the others and a thumb tall.
+ */
+.g-roster__actions {
+  display: flex;
+  gap: var(--space-10);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.g-roster__actions > .g-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: var(--size-touch);
+}
+
+/* The sheet of a missed match: what a Serious or a Lasting Injury leaves behind, said before it is done. */
+.g-roster__markeffect {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A press the sheet refused (another tab's coach, the rules): said in it, where the coach is looking. */
+.g-roster__markrefusal {
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  font: 600 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}

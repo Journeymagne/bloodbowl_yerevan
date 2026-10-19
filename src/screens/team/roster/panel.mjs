@@ -11,11 +11,16 @@
  * match has added; the switch «Edit outside the match» makes it an edit of the career instead. The way to his page
  * is closed until the post-match: an advancement there would change the roster the match's finish checks. A player
  * who plays the match has «Injury in the match…» under all that (Task 12, decision 14), closed with the match's taps.
+ *
+ * Outside a match the row of actions stands there instead (stage 07b, decisions 16 and 17): «Miss a match…» for a
+ * player who plays the next one, «Back on the roster» for one who misses it — never a second mark over the first.
+ * Stage 07c puts «Sell» beside them.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { teamPlayerUrl } from "../../../core/routes.mjs";
+import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { advancementRanks } from "../../../domain/league-rules.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
@@ -87,14 +92,66 @@ function nextMatchWords(line) {
 const tapsTheMatch = (screen) => screen.mode.kind === "match" && !screen.outside;
 
 /**
- * A way to the player's page that a match has closed: a button that says why (`teamRoster.afterPost`) as its
- * tooltip and, pressed, in a message (wire.mjs), in the look of the link it stands for (button.css). With a `glyph`
- * the label is its name for a screen reader, as the pencil's link has it.
+ * A control that is closed: a button that says why (`reason`; for a way to the player's page a match has closed,
+ * `teamRoster.afterPost`) as its tooltip and, pressed, in a message (wire.mjs), in the look of what it stands for
+ * (button.css). With a `glyph` the label is its name for a screen reader, as the pencil's link has it; `data` keeps
+ * what names the control (an action's player), so the focus finds it again.
  */
-function closedMarkup({ className, label, glyph = "" }) {
+function closedMarkup({ className, label, glyph = "", reason = t("teamRoster.afterPost"), data = {} }) {
   const named = glyph ? ` aria-label="${escapeHtml(label)}"` : "";
-  return `<button type="button" class="${className} g-roster__closed"${named} aria-disabled="true" title="${escapeHtml(t("teamRoster.afterPost"))}"`
-    + `${dataAttributes({ rosterClosed: true })}>${glyph ? icon(glyph, 18) : escapeHtml(label)}</button>`;
+  return `<button type="button" class="${className} g-roster__closed"${named} aria-disabled="true" title="${escapeHtml(reason)}"`
+    + `${dataAttributes({ rosterClosed: true, ...data })}>${glyph ? icon(glyph, 18) : escapeHtml(label)}</button>`;
+}
+
+/**
+ * Why no missed match, nor its end, nor a death can be marked for a player just now, "" when it can (stage 07b): a
+ * match is on (R8: the roster is not written during one, and the match's injury is the place for it), the screen's
+ * lock, no id to name him by; and for a write the queue does not carry (`direct`: a death, its undo), a step of the
+ * queue that waits or is on its way, which that write would move the revision under.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {{mode: {kind: string}, lock: string, save: {status: string, waiting: number}}} screen
+ * @param {{direct?: boolean}} [options]
+ */
+export function markClosed(line, screen, { direct = false } = {}) {
+  if (screen.mode.kind === "match") return t("teamRoster.mark.closed");
+  if (screen.lock) return screen.lock;
+  if (!line.id) return t("teamRoster.mark.noId");
+  const saving = screen.save.status === SAVE_STATUS.SAVING || screen.save.status === SAVE_STATUS.DIRTY;
+  return direct && (screen.save.waiting > 0 || saving) ? t("teamRoster.mark.waitSave") : "";
+}
+
+/**
+ * Why «Back on the roster» is closed for a player who misses the next match: a retirement for the season, which it
+ * does not end (owner's question 2: the roster would read him as missing it again), else as a mark is.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {Parameters<typeof markClosed>[1]} screen
+ */
+export function returnClosed(line, screen) {
+  return line.retired ? t("teamRoster.skips.retiredClosed") : markClosed(line, screen);
+}
+
+/** One button of the row of actions, as wide as the others; closed, it says why and keeps what names it. */
+function actionMarkup({ label, reason, data, dialog = false }) {
+  if (reason) return closedMarkup({ className: "g-btn", label, reason, data });
+  return `<button type="button" class="g-btn"${dialog ? ' aria-haspopup="dialog"' : ""}${dataAttributes(data)}>${escapeHtml(label)}</button>`;
+}
+
+/**
+ * The player's row of actions outside a match (decisions 16, 17): «Miss a match…», which opens the sheet of reasons,
+ * for one who plays the next match; «Back on the roster» for one who misses it. None during a match, whose injury
+ * is their place (decision 7). Stage 07c adds «Sell» to the row.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {import("./view.mjs").RosterScreen} screen
+ */
+export function actionsMarkup(line, screen) {
+  if (screen.mode.kind === "match") return "";
+  const action = line.skip
+    ? { label: t("teamRoster.skips.return"), reason: returnClosed(line, screen), data: { rosterReturn: line.key } }
+    : { label: t("teamRoster.mark.open"), reason: markClosed(line, screen), data: { rosterMark: line.key }, dialog: true };
+  return `<div class="g-roster__actions">${actionMarkup(action)}</div>`;
 }
 
 /**
@@ -204,8 +261,9 @@ function sessionMarkup(line, screen) {
 const matchSppOf = (line) => Math.max(0, line.matchSpp);
 
 /**
- * The row of a player opened on a phone: his SPP and what the edits have moved it, his counters, and the way to his
- * page. In a match the line says what the match's records give him, and the way to his page waits for its post-match.
+ * The row of a player opened on a phone: his SPP and what the edits have moved it, his counters, the way to his
+ * page, and under it his row of actions. In a match the line says what the match's records give him, and the way to
+ * his page waits for its post-match.
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./view.mjs").RosterScreen} screen
@@ -219,7 +277,7 @@ export function rowPanelMarkup(line, screen) {
     ? [t("teamRoster.sppLineMatch", { spp: line.earned, match: matchWords(screen.mode) }), sumMarkup(matchSppOf(line), t("teamRoster.sppDelta", { delta: `+${matchSppOf(line)}` }))]
     : [t("teamRoster.sppLine", { spp: line.earned }), sessionMarkup(line, screen)];
   const spp = `<div class="g-roster__sppline"><span class="g-roster__sppctx">${escapeHtml(context)}</span>${sum}</div>`;
-  return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}${injuryMarkup(line, screen)}</div>`;
+  return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}${actionsMarkup(line, screen)}${injuryMarkup(line, screen)}</div>`;
 }
 
 /** The badge, the name, the position with what he is worth, and the pencil to his page (`closed` in a match). */
@@ -289,5 +347,5 @@ export function sidePanelMarkup(line, screen) {
   const href = profileUrl(line, screen);
   const closed = screen.mode.kind === "match";
   return `${headMarkup(line, href, closed)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, href, closed)}${skillsMarkup(line)}`
-    + `<p class="g-roster__next">${escapeHtml(nextMatchWords(line))}</p>${injuryMarkup(line, screen)}`;
+    + `<p class="g-roster__next">${escapeHtml(nextMatchWords(line))}</p>${actionsMarkup(line, screen)}${injuryMarkup(line, screen)}`;
 }

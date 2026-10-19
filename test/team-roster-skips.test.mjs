@@ -29,7 +29,7 @@ const { teamPlayerUrl } = await import("../src/core/routes.mjs");
 const { formatDay } = await import("../src/core/format.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
-const { invalidateGames } = await import("../src/data/games.mjs");
+const { invalidateGames, loadGames } = await import("../src/data/games.mjs");
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const data = expandCollections(JSON.parse(text("public/data.en.json")));
@@ -452,4 +452,470 @@ test("the fallen are grey and readable: their cells, the line under the name and
     assertReadable(sheet, selector, "color", ["--surface", "--surface-2"], 4.5);
   }
   assertReadable(sheet, ".g-fallen__cause", "color", ["--surface", "--surface-2"], 4.5);
+});
+
+// Stage 07b, Task 7: «Miss a match…» and its sheet of reasons, saved as a step of the roster's queue; «Back on the roster».
+const PATCH = "PATCH /api/teams/t1";
+const patches = () => api.calls.filter(({ key }) => key === PATCH);
+const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
+const gamesAre = (games) => api.reply("GET /api/games", 200, { games, currentGames: [] });
+const status = () => view.querySelector(".g-roster__status").textContent;
+const markSheet = () => view.querySelector("dialog#roster-mark");
+/** «Miss a match…» and «Back on the roster»: the desk panel's by default, or the open row's. */
+const markButton = (root = aside()) => root.querySelector("[data-roster-mark]");
+const returnButton = (root = aside()) => root.querySelector("[data-roster-return]");
+const markOptions = () => markSheet().querySelectorAll('.g-option[role="radio"]');
+const markOption = (code) => markOptions().find((card) => card.getAttribute("data-option-value") === code);
+const markChips = () => markSheet().querySelectorAll('[data-chip-group="mark-stat"] .g-chip');
+const markChip = (stat) => markChips().find((chip) => chip.getAttribute("data-chip-value") === stat);
+const markText = () => markSheet().querySelector("#mark-text");
+const sendButton = () => markSheet().querySelector("[data-mark-send]");
+const effectLine = () => markSheet().querySelector(".g-roster__markeffect");
+/** The coach types `value` into the reason's field. */
+const typeNote = (value) => {
+  const field = markText();
+  field.focus();
+  field.value = value;
+  fireEvent(field, "input");
+};
+/** Ann's line on the server once her mark has landed. */
+const annMarked = (fields) => withPlayers(PLAYERS.map((player) => (player.id === "p1" ? { ...player, skipNextGame: true, ...fields } : player)), { revision: 5 });
+const EFFECTS_STAY = "The injury's effect stays: «Back on the roster» only ends the missed match.";
+const OTHER_TAB = "Someone signed in or out in another tab, so nothing was saved here.";
+const MATCH_DROPPED_MARKS = "A match has begun, so the missed-match marks that were waiting were not saved (1). Make them again after the post-match.";
+const MARK_SHEETS = [...STYLES, "option-card.css", "filter-chips.css", "text-field.css"];
+
+test("a playing player's row has «Miss a match…», a skipper's «Back on the roster»; a match draws neither", async () => {
+  await withWindow({ phone: true }, async () => {
+    coach();
+    await renderTeamRoster("t1");
+    fireEvent(toggle("p1#0"), "click");
+    const panel = openRow().querySelector(".g-roster__rowpanel");
+    const actions = panel.querySelector(".g-roster__actions");
+    assert.ok(actions, "a row of actions in the open row");
+    assert.ok(panel.childNodes.indexOf(actions) > panel.childNodes.indexOf(panel.querySelector("a.g-btn")), "under «Profile and advancement»");
+    const mark = markButton(openRow());
+    assert.equal(mark.textContent, "Miss a match…");
+    assert.equal(mark.getAttribute("data-roster-mark"), "p1#0");
+    assert.equal(mark.getAttribute("aria-haspopup"), "dialog");
+    assert.ok(!mark.hasAttribute("aria-disabled"));
+    assert.ok(!returnButton(openRow()));
+    fireEvent(toggle("p4#3"), "click");
+    const back = returnButton(openRow());
+    assert.equal(back.textContent, "Back on the roster");
+    assert.equal(back.getAttribute("data-roster-return"), "p4#3");
+    assert.ok(!back.hasAttribute("aria-disabled"));
+    assert.ok(!markButton(openRow()), "no second mark over the first: he is brought back first");
+    assertStyled(view, ...STYLES);
+  });
+  coach();
+  await renderTeamRoster("t1");
+  const next = aside().querySelector(".g-roster__next");
+  const actions = aside().querySelector(".g-roster__actions");
+  assert.ok(aside().childNodes.indexOf(actions) > aside().childNodes.indexOf(next), "on a desk under «Next match»");
+  assert.equal(markButton().textContent, "Miss a match…");
+  fireEvent(toggle("p7#6"), "click");
+  assert.equal(returnButton().textContent, "Back on the roster");
+  assert.ok(!markButton());
+  // A match on: their place is the match's injury.
+  for (const phone of [true, false]) {
+    await withWindow({ phone }, async () => {
+      coach();
+      gamesAre([LIVE_GAME]);
+      await renderTeamRoster("t1");
+      for (const key of ["p1#0", "p4#3"]) {
+        fireEvent(toggle(key), "click");
+        assert.ok(!view.querySelector(".g-roster__actions"));
+        assert.ok(!view.querySelector("[data-roster-mark]"));
+        assert.ok(!view.querySelector("[data-roster-return]"));
+      }
+    });
+  }
+});
+
+test("the sheet: who, the reasons with what each does, and a button that says what it waits for", async () => {
+  coach();
+  await renderTeamRoster("t1");
+  fireEvent(markButton(), "click");
+  const dialog = markSheet();
+  assert.ok(dialog?.isModal, "the sheet is open, modally");
+  assert.equal(dialog.querySelector("h2").textContent, "Missing the next match");
+  assert.equal(dialog.querySelector(".g-sheet__sub").textContent, "#1 Ann · Human Lineman");
+  assert.equal(dialog.querySelector('[role="radiogroup"]').getAttribute("aria-label"), "Reason");
+  assert.deepEqual(markOptions().map((card) => [card.querySelector(".g-option__title").textContent, card.querySelector(".g-option__sub").textContent, card.getAttribute("aria-checked")]), [
+    ["Seriously Hurt", "misses the next match", "false"],
+    ["Serious Injury", "a Niggling Injury and a missed match", "false"],
+    ["Lasting Injury", "−1 to a characteristic and a missed match", "false"],
+    ["Another reason", "The league's or the coach's decision", "false"],
+  ]);
+  assert.equal(sendButton().textContent, "Choose a reason");
+  assert.ok(sendButton().classList.contains("g-btn--primary"));
+  assert.ok(sendButton().hasAttribute("disabled"));
+  assert.equal(markChips().length, 0);
+  assert.ok(!markText());
+  fireEvent(markOption("lasting"), "click");
+  assert.equal(markSheet().querySelector(".g-roster__injurylabel").textContent, "Which characteristic goes down");
+  assert.equal(markSheet().querySelector('[data-chip-group="mark-stat"]').getAttribute("aria-label"), "Which characteristic goes down");
+  assert.deepEqual(markChips().map((chip) => [chip.textContent, chip.getAttribute("aria-checked")]), [["MA", "false"], ["ST", "false"], ["AG", "false"], ["PA", "false"], ["AR", "false"]]);
+  assert.equal(sendButton().textContent, "Choose a characteristic");
+  assert.ok(sendButton().hasAttribute("disabled"));
+  fireEvent(markChip("ag"), "click");
+  assert.equal(sendButton().textContent, "Mark the missed match");
+  assert.equal(sendButton().hasAttribute("disabled"), false);
+  fireEvent(markOption("other"), "click");
+  assert.equal(markChips().length, 0, "the characteristic is a lasting injury's");
+  const field = markText();
+  assert.equal(field.getAttribute("name"), "mark-text");
+  assert.equal(markSheet().querySelector('label[for="mark-text"]').textContent, "Reason");
+  assert.equal(sendButton().textContent, "Write the reason");
+  assert.ok(sendButton().hasAttribute("disabled"));
+  typeNote("   ");
+  assert.equal(sendButton().textContent, "Write the reason");
+  typeNote("x".repeat(501));
+  assert.equal(sendButton().textContent, "No longer than 500 characters");
+  assert.ok(sendButton().hasAttribute("disabled"));
+  typeNote(` ${"x".repeat(500)} `);
+  assert.equal(sendButton().textContent, "Mark the missed match", "counted as the server counts it: trimmed");
+  // K9: a NUL the database refuses would hang the queue; it is no reason, nor is half of an emoji.
+  for (const broken of ["Wed\u0000ding", "Wedding \ud83d"]) {
+    typeNote(broken);
+    assert.equal(sendButton().textContent, "Write the reason", JSON.stringify(broken));
+    assert.ok(sendButton().hasAttribute("disabled"));
+  }
+  typeNote("Wedding 💍");
+  assert.equal(sendButton().textContent, "Mark the missed match", "a whole emoji is words like any");
+  typeNote("Wedding");
+  assert.equal(sendButton().textContent, "Mark the missed match");
+  assert.ok(markText() === field, "the field the coach types in is kept through the redraws");
+  assert.ok(document.activeElement === field);
+  assert.ok(markSheet()?.isModal);
+  assertCspSafe(view);
+  assertStyled(view, ...MARK_SHEETS);
+  fireEvent(markOption("lasting"), "click");
+  assert.equal(markChip("ag").getAttribute("aria-checked"), "true", "the choice is kept while the sheet is open");
+  fireEvent(markSheet(), "keydown", { key: "Escape" });
+  assert.ok(!markSheet());
+  assert.ok(document.activeElement === markButton(), "closed, the focus is back on «Miss a match…»");
+  assert.equal(patches().length, 0);
+  fireEvent(markButton(), "click");
+  assert.equal(markOption("lasting").getAttribute("aria-checked"), "false", "opened again, it starts afresh");
+});
+
+test("a missed match marked: one PATCH, the sheet closes, he moves to «Missing the match» with his reason, the focus on his row's button", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    assert.equal(aside().getAttribute("data-panel-player"), "p1#0");
+    markButton().focus();
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("lasting"), "click");
+    fireEvent(markChip("ag"), "click");
+    api.reply(PATCH, 200, { team: annMarked({ absence: { code: "lasting", stat: "ag" }, statMods: { ag: -1 }, injuryStatMods: { ag: -1 } }) });
+    fireEvent(sendButton(), "click");
+    assert.ok(!markSheet(), "closed at once: the step is the queue's");
+    assert.equal(subOf("p1#0").textContent, "Lasting Injury (AG)", "drawn at once from the queue's draft");
+    assert.ok(document.activeElement === toggle("p1#0"), "the focus on his row's button");
+    await settle();
+    assert.equal(patches().length, 1);
+    const { body } = patches()[0];
+    assert.equal(body.revision, 4);
+    const ann = body.roster.players.find((player) => player.id === "p1");
+    assert.equal(ann.skipNextGame, true);
+    assert.deepEqual(ann.absence, { code: "lasting", stat: "ag" });
+    assert.equal(ann.statMods.ag, -1);
+    assert.match(headingText("roster-heading"), /^Active roster 2$/);
+    assert.match(headingText("roster-skips-heading"), /^Missing the match 5$/);
+    assert.deepEqual(tables().map(namesIn).slice(0, 2), [["Bors", "Cade"], ["Ann", "Dell", "Edda", "Finn", "Grom"]]);
+    assert.equal(subOf("p1#0").textContent, "Lasting Injury (AG)");
+    assert.ok(subOf("p1#0").classList.contains("g-rtable__sub--alert"));
+    assert.equal(aside().getAttribute("data-panel-player"), "p1#0", "the panel keeps him");
+    assert.equal(nextLine(), "Next match: sits it out · Lasting Injury (AG)");
+    assert.equal(returnButton().textContent, "Back on the roster");
+    assert.equal(status(), "Saved");
+    api.assertAnswered();
+  });
+});
+
+test("the injury's effect is said before it is done", async () => {
+  coach();
+  await renderTeamRoster("t1");
+  fireEvent(markButton(), "click");
+  assert.ok(!effectLine());
+  for (const [code, said] of [["miss", false], ["niggling", true], ["lasting", true], ["other", false]]) {
+    fireEvent(markOption(code), "click");
+    assert.equal(effectLine()?.textContent ?? null, said ? EFFECTS_STAY : null, code);
+  }
+});
+
+test("back on the roster: one PATCH, he plays the next match again", async () => {
+  await withWindow({ phone: true }, async () => {
+    await withoutTimers(async () => {
+      coach();
+      await renderTeamRoster("t1");
+      fireEvent(toggle("p4#3"), "click");
+      const back = returnButton(openRow());
+      back.focus();
+      api.reply(PATCH, 200, { team: withPlayers(PLAYERS.map((player) => (player.id === "p4" ? { ...player, skipNextGame: false, absence: null } : player)), { revision: 5 }) });
+      fireEvent(back, "click");
+      assert.deepEqual(tables().map(namesIn).slice(0, 2), [["Ann", "Bors", "Cade", "Dell"], ["Edda", "Finn", "Grom"]], "drawn at once");
+      assert.equal(subOf("p4#3").textContent, "Human Lineman");
+      assert.ok(document.activeElement === toggle("p4#3"), "the focus on his row's button, in its new place");
+      assert.equal(markButton(openRow()).textContent, "Miss a match…", "his row stays open, with the mark");
+      await settle();
+      assert.equal(patches().length, 1);
+      const dell = patches()[0].body.roster.players.find((player) => player.id === "p4");
+      assert.deepEqual([dell.skipNextGame, dell.absence], [false, null]);
+      assert.equal(dell.statMods.ma, -1, "what the injury did stays");
+      assert.match(headingText("roster-heading"), /^Active roster 4$/);
+      assert.match(headingText("roster-skips-heading"), /^Missing the match 3$/);
+      api.assertAnswered();
+    });
+  });
+});
+
+test("a player retired for the season cannot be brought back here, and says why", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    fireEvent(toggle("p6#5"), "click");
+    const back = returnButton();
+    assert.equal(back.textContent, "Back on the roster");
+    assert.equal(back.getAttribute("aria-disabled"), "true");
+    assert.equal(back.getAttribute("title"), "Retired for the season: he cannot be brought back here.");
+    assert.ok(back.classList.contains("g-roster__closed"));
+    assert.ok(!markButton(), "nor is a mark laid over his");
+    fireEvent(back, "click");
+    assert.equal(toasts().at(-1), "Retired for the season: he cannot be brought back here.");
+    assert.equal(toasts().filter((said) => said === "Retired for the season: he cannot be brought back here.").length, 1, "said once");
+    await settle();
+    assert.equal(patches().length, 0);
+    assert.match(headingText("roster-skips-heading"), /^Missing the match 4$/);
+  });
+});
+
+test("closed while the games are unread, the roster is read or a conflict waits", async () => {
+  await withoutTimers(async () => {
+    coach();
+    const games = api.hold("GET /api/games");
+    const drawing = renderTeamRoster("t1");
+    await settle();
+    assert.equal(markButton().getAttribute("aria-disabled"), "true");
+    assert.equal(markButton().getAttribute("title"), "Loading the matches…");
+    fireEvent(markButton(), "click");
+    assert.equal(toasts().at(-1), "Loading the matches…");
+    assert.ok(!markSheet());
+    fireEvent(toggle("p4#3"), "click");
+    assert.equal(returnButton().getAttribute("aria-disabled"), "true");
+    assert.equal(returnButton().getAttribute("title"), "Loading the matches…");
+    fireEvent(returnButton(), "click");
+    assert.equal(toasts().at(-1), "Loading the matches…");
+    games.release();
+    await drawing;
+    await settle();
+    assert.equal(patches().length, 0);
+    // A conflict lands while the sheet is open: its button says so, and a press sends nothing.
+    fireEvent(toggle("p1#0"), "click");
+    const step = api.hold(PATCH);
+    fireEvent(aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
+    await settle();
+    assert.equal(step.count, 1);
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("miss"), "click");
+    assert.equal(sendButton().hasAttribute("disabled"), false);
+    step.release({ status: 409, body: { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: team({ revision: 6 }) } });
+    await settle();
+    assert.ok(markSheet()?.isModal, "the sheet stays: the coach settles the conflict");
+    assert.equal(sendButton().getAttribute("aria-disabled"), "true");
+    assert.equal(sendButton().getAttribute("title"), "The roster was changed on another device");
+    assert.equal(sendButton().hasAttribute("disabled"), false, "in reach, to say why");
+    fireEvent(sendButton(), "click");
+    assert.equal(toasts().at(-1), "The roster was changed on another device");
+    fireEvent(markSheet().querySelector("[data-sheet-close]"), "click");
+    assert.ok(!markSheet());
+    assert.equal(markButton().getAttribute("title"), "The roster was changed on another device");
+    await settle();
+    assert.equal(patches().length, 1, "the step that met the conflict, and no mark");
+  });
+  // A match ended elsewhere: until the roster it left is read, nothing is marked.
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    gamesAre([{ ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" }]);
+    const read = api.hold("GET /api/teams/t1");
+    await invalidateGames();
+    await settle();
+    assert.equal(markButton().getAttribute("aria-disabled"), "true");
+    assert.equal(markButton().getAttribute("title"), "Reading the records…");
+    fireEvent(markButton(), "click");
+    assert.equal(toasts().at(-1), "Reading the records…");
+    assert.ok(!markSheet());
+    read.release();
+    await settle();
+    assert.ok(!markButton().hasAttribute("aria-disabled"));
+    assert.equal(patches().length, 0);
+  });
+  // A player the roster stores no id for: no write can name him.
+  coach({ teamAnswer: withPlayers([{ rowIndex: 0, number: "1", name: "Nobody" }]), fallen: [] });
+  await renderTeamRoster("t1");
+  assert.equal(markButton().getAttribute("aria-disabled"), "true");
+  assert.equal(markButton().getAttribute("title"), "This player has no id in the roster, so nothing can be marked for him. Ask the league administrator to fix the roster.");
+});
+
+test("another tab's coach: no mark is sent, and the coach is told", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("miss"), "click");
+    api.items.set("gata-league-auth-token", "another-tab");
+    fireEvent(sendButton(), "click");
+    const refusal = markSheet().querySelector(".g-roster__markrefusal");
+    assert.equal(refusal.textContent, OTHER_TAB);
+    assert.equal(refusal.getAttribute("role"), "alert");
+    assert.ok(markSheet()?.isModal, "the sheet stays, the choice in it");
+    assert.equal(markOption("miss").getAttribute("aria-checked"), "true");
+    assert.equal(subOf("p1#0").textContent, "Human Lineman", "nothing marked");
+    fireEvent(markSheet().querySelector("[data-sheet-close]"), "click");
+    fireEvent(toggle("p4#3"), "click");
+    fireEvent(returnButton(), "click");
+    assert.equal(toasts().at(-1), OTHER_TAB);
+    await settle();
+    assert.equal(patches().length, 0);
+    assert.equal(subOf("p4#3").textContent, "Lasting Injury (MA)");
+  });
+});
+
+test("a sheet whose match began closes, and the focus goes back to the row", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    markButton().focus();
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("miss"), "click");
+    markOption("miss").focus();
+    gamesAre([LIVE_GAME]);
+    await loadGames(true);
+    await settle();
+    assert.ok(!markSheet(), "a mark's place in a match is the match's injury");
+    assert.ok(!view.querySelector("dialog:modal"));
+    assert.ok(document.activeElement === toggle("p1#0"), "his row's button, where the keyboard was");
+    assert.equal(patches().length, 0);
+  });
+});
+
+test("a mark offline waits like a step: «Waiting for the network · edits: 1»", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.fail(PATCH);
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("other"), "click");
+    typeNote("Wedding");
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.ok(!markSheet());
+    assert.equal(status(), "Waiting for the network · edits: 1");
+    assert.equal(subOf("p1#0").textContent, "Wedding", "the mark stays on the screen");
+    assert.equal(save.saveState("t1").waiting, 1);
+    assert.deepEqual(patches()[0].body.roster.players.find((player) => player.id === "p1").absence, { code: "other", note: "Wedding" });
+    api.reply(PATCH, 200, { team: annMarked({ absence: { code: "other", note: "Wedding" } }) });
+    page.dispatchEvent(new Event("online"));
+    await settle();
+    assert.equal(status(), "Saved");
+    assert.equal(save.saveState("t1").waiting, 0);
+    assert.equal(subOf("p1#0").textContent, "Wedding");
+  });
+});
+
+test("a mark that waited for the network is given up when a match begins, and the coach is told how many", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.fail(PATCH);
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("niggling"), "click");
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(save.saveState("t1").waiting, 1);
+    api.reply("GET /api/teams/t1", 200, { team: team({ revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    gamesAre([LIVE_GAME]);
+    await invalidateGames();
+    await settle();
+    assert.equal(toasts().at(-1), MATCH_DROPPED_MARKS);
+    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.ok(!toasts().some((said) => said.startsWith("A match has begun, so the edits")), "no SPP step was given up");
+    assert.equal(save.saveState("t1").waiting, 0);
+    assert.equal(patches().length, 1, "the one try before the network went");
+    assert.deepEqual(tables()[0] && namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "the server's roster: Ann plays");
+    assert.equal(subOf("p1#0").textContent, "Human Lineman");
+  });
+  // A step of SPP and a mark waited: each is counted in its own words.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.fail(PATCH);
+    fireEvent(aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
+    await settle();
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("miss"), "click");
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(save.saveState("t1").waiting, 2);
+    api.reply("GET /api/teams/t1", 200, { team: team({ revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    gamesAre([LIVE_GAME]);
+    await invalidateGames();
+    await settle();
+    assert.deepEqual(toasts().slice(-2), ["A match has begun, so the edits that were waiting were not saved (1). Make them again as an edit outside the match.", MATCH_DROPPED_MARKS]);
+    assert.equal(save.saveState("t1").waiting, 0);
+  });
+});
+
+test("the option lists of two sheets do not answer for each other", async () => {
+  await withoutTimers(async () => {
+    // The injury's sheet in a match still takes its injury and its characteristic.
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(aside().querySelector("[data-roster-injury]"), "click");
+    const injury = () => view.querySelector("dialog#roster-injury");
+    const injuryOption = (code) => injury().querySelectorAll(".g-option").find((card) => card.getAttribute("data-option-value") === code);
+    fireEvent(injuryOption("lasting"), "click");
+    assert.equal(injuryOption("lasting").getAttribute("aria-checked"), "true");
+    const chip = injury().querySelectorAll('[data-chip-group="injury-stat"] .g-chip').find((item) => item.getAttribute("data-chip-value") === "st");
+    fireEvent(chip, "click");
+    assert.equal(injury().querySelector('[data-injury-step="1"]').hasAttribute("disabled"), false, "a whole injury chosen");
+    assert.ok(!markSheet());
+    // The mark's sheet outside one takes its own.
+    coach();
+    await renderTeamRoster("t1");
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("lasting"), "click");
+    fireEvent(markChip("pa"), "click");
+    assert.equal(markOption("lasting").getAttribute("aria-checked"), "true");
+    assert.equal(sendButton().textContent, "Mark the missed match");
+    api.reply(PATCH, 200, { team: annMarked({ absence: { code: "lasting", stat: "pa" } }) });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.deepEqual(patches()[0].body.roster.players.find((player) => player.id === "p1").absence, { code: "lasting", stat: "pa" });
+  });
+});
+
+test("every key the marks ask for is in both dictionaries", () => {
+  assertDictionaryCovers("src/screens/team/roster/mark-sheet.mjs", "src/screens/team/roster/marks.mjs", "src/screens/team/roster/panel.mjs", "src/screens/team/roster/sheets.mjs");
+});
+
+test("the row of actions: buttons side by side, a thumb tall; the sheet's refusal and the injury's effect readable", () => {
+  const sheet = "src/screens/team/roster/marks.css";
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "display"), ["flex"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "gap"), ["var(--space-10)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "flex"), ["1 1 0"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "min-height"), ["var(--size-touch)"]);
+  for (const selector of [".g-roster__markrefusal", ".g-roster__markeffect"]) {
+    assert.deepEqual([valuesOf(sheet, selector, "border"), valuesOf(sheet, selector, "background"), valuesOf(sheet, selector, "text-transform")], [["0"], ["none"], ["none"]], selector);
+    assert.equal(valuesOf(sheet, selector, "font").length, 1, selector);
+    assertReadable(sheet, selector, "color", ["--surface"], 4.5);
+  }
 });
