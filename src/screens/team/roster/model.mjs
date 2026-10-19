@@ -5,9 +5,9 @@
  *
  * A line is one player: his characteristics and skills, his counters in the three senses the screen needs
  * (what is in the roster, what a match has added, what an edit outside a match is waiting for), his
- * SPP, the advancements he has taken and what the next would cost him, his injuries, and what parting with him gives (a sale, or the
- * cancel of his purchase) and whether the roster may. The mode is
- * what the team's games say the roster is for just now: plain, a preparation, a match.
+ * SPP, the advancements he has taken and what the next would cost him, his injuries, and what parting with him
+ * gives (a sale, or the cancel of his purchase) and whether the roster may. The mode is what the team's games
+ * say the roster is for just now: plain, a preparation, a match.
  *
  * The fallen are lines too (stage 07b): what the roster held when each died, read the way a player of the
  * roster is, with how and when he fell; one the roster as read still holds is drawn there and only there.
@@ -247,7 +247,7 @@ export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }
   const players = selectedRosterPlayers(race, draft);
   const ids = players.map((player) => storedPlayerId(player) ?? "");
   const keys = keysOf(ids);
-  const { injuries } = statisticsFromEvents({ players: ids.map((id) => ({ id })) }, rows.match);
+  const { injuries: matchInjuries } = statisticsFromEvents({ players: ids.map((id) => ({ id })) }, rows.match);
   return players.map((player, at) => {
     const { row, index } = player;
     const id = ids[at];
@@ -258,7 +258,7 @@ export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }
       captain: Boolean(player.isCaptain), skip: player.skipNextGame, absence: player.absence, retired: Boolean(player.temporarilyRetired),
       stats: statsOf(row, player), skills: skillsOf(row, player, advancements),
       primary: categoriesForAccess(row.primary), secondary: categoriesForAccess(row.secondary),
-      ...counters, injury: mode.kind === "match" ? injuryOf(injuries, id) : null,
+      ...counters, injury: mode.kind === "match" ? injuryOf(matchInjuries, id) : null,
       ...progressOf(race, player, counters.career), value: playerCurrentCost(row, player),
       advancements, offers: skillGroups ? advancementOffers(race, row, player, skillGroups) : null, injuries: playerInjuries(player),
       // What he brings back is the league's rule, kept where the server's save reads it (transfers.mjs): half his value, his full value and ten for each
@@ -285,13 +285,14 @@ export function rosterSections(lines) {
 /**
  * @typedef {PlayerLine & {bare: boolean, fallen: {id: string, cause: string|null, fromMatch: boolean, round: number|null, diedAt: string}}} FallenLine
  *   A fallen player as a line: `key` is `fallen-<record id>`, `index` the place in the server's list; he does not miss
- *   a match, is not the captain and takes no advancement (`skip`, `captain`, `ready` false; no captain's Pro among his
- *   skills), no match is on for him (`injury` null, `match` zeros). `round` is the match's round, null for a friendly,
- *   a death by hand and a record the server has no round for. `bare`: a record the roster cannot read — no row of the
- *   race for its snapshot, or no player in it at all — drawn from what it says of itself; the server would not give
- *   him back to the roster (FALLEN_NOT_RESTORABLE), so no undo of it is offered (K11). One with no id is bare too: no
- *   write could name him back, and no read could find him on the roster to say whether an undo landed. `price` and
- *   `removal` are there for the shape's sake: the dead are neither hired nor sold, and no screen reads them for him.
+ *   a match, is not the captain and takes no advancement (`skip`, `captain`, `ready` false, `offers` maxed with nothing
+ *   to offer — never null, which a view reads as «unknown»; no captain's Pro among his skills), no match is on for him
+ *   (`injury` null, `match` zeros). `round` is the match's round, null for a friendly, a death by hand and a record the
+ *   server has no round for. `bare`: a record the roster cannot read — no row of the race for its snapshot, or no
+ *   player in it at all — drawn from what it says of itself; the server would not give him back to the roster
+ *   (FALLEN_NOT_RESTORABLE), so no undo of it is offered (K11). One with no id is bare too: no write could name him
+ *   back, and no read could find him on the roster to say whether an undo landed. `price` and `removal` are there for
+ *   the shape's sake: the dead are neither hired nor sold, and no screen reads them for him.
  */
 
 /** No rows: the dead have none, so the counters of a line made for them are the snapshot's own. */
@@ -343,7 +344,7 @@ export function fallenLines({ fallen, race, rosterIds = [] }) {
       ...line,
       // The captain's Pro goes with the captaincy, which the dead do not hold (and an undo gives back only to an empty chair).
       skills: line.skills.filter(({ source }) => source !== "captain"),
-      key: `fallen-${record.id}`, index, skip: false, captain: false, ready: false, absence: null, retired: false, injury: null, bare: !read || !line.id,
+      key: `fallen-${record.id}`, index, skip: false, captain: false, ready: false, offers: { level: line.level, maxed: true, available: 0, offers: [] }, absence: null, retired: false, injury: null, bare: !read || !line.id,
       fallen: { id: record.id, cause: record.cause ?? null, fromMatch: Boolean(record.fromMatch), round: record.roundNumber ?? null, diedAt: record.diedAt },
     }];
   });

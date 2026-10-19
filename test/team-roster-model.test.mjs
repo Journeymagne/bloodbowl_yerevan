@@ -286,6 +286,8 @@ test("what each type of advancement costs him now is the roster's own SPP, not t
   const [line] = linesOf([player(3, { spp: { touchdowns: 2 } })], { events: [1, 2, 3].map(() => row("p3", "touchdowns", 1)), skillGroups });
   assert.deepEqual([line.earned, line.available], [15, 15], "the career counts the edit outside a match");
   assert.equal(line.offers.available, 6, "the roster's own: two touchdowns of three");
+  const [inMatch] = linesOf([player(3, { spp: { touchdowns: 2 } })], { mode: MATCH, events: [...[1, 2, 3].map(() => row("p3", "touchdowns", 1)), row("p3", "touchdowns", 1, { pairingId: "g2" })], skillGroups });
+  assert.deepEqual([inMatch.available, inMatch.offers.available], [18, 6], "nor does a touchdown of the match on: the career counts it, the roster's own does not");
   assert.deepEqual(line.offers.offers.map(({ type, cost }) => [type, cost]), [["random", 3], ["primary", 6], ["secondary", 10], ["stat", 14]]);
   assert.deepEqual(line.offers.offers.map(({ refusal }) => refusal?.code ?? null), [null, null, "ADVANCEMENT_NOT_ENOUGH_SPP", "ADVANCEMENT_NOT_ENOUGH_SPP"]);
   assert.deepEqual([line.offers.level, line.offers.maxed], [0, false]);
@@ -568,7 +570,9 @@ test("a fallen record the roster cannot read has no advancement to offer", () =>
   assert.equal(bare.bare, true);
   assert.deepEqual(bare.offers, { level: 0, maxed: true, available: 0, offers: [] });
   assert.deepEqual([bare.advancements, bare.injuries], [[], { niggling: 0, lasting: [] }]);
-  assert.equal(fallenLines({ fallen: [died("f2", { id: "d2", rowIndex: 3 })], race: HUMAN })[0].offers, null, "a record the race reads is made the same way as a line: unknown without the table");
+  const [dead] = fallenLines({ fallen: [died("f2", { id: "d2", rowIndex: 3, spp: { touchdowns: 9 }, advancements: [{ type: "random" }] })], race: HUMAN });
+  assert.deepEqual(dead.offers, { level: 1, maxed: true, available: 0, offers: [] }, "a readable dead player is maxed too, never «unknown»: no view reads him as one who can advance");
+  assert.deepEqual([dead.ready, dead.level], [false, 1]);
 });
 
 test("a record whose player is no object is a bare line from nothing, not an error", () => {
