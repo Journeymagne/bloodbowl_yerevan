@@ -25,8 +25,11 @@ const isRecord = (value) => isObject(value) && typeof value.id === "string";
 /** The team as the queue and the list take it from an answer: its `id`, and the whole `revision` the next write stands on. */
 const isTeam = (value) => isObject(value) && typeof value.id === "string" && Number.isInteger(value.revision);
 
-/** It is not known whether the server wrote it: the screen reads the roster again, and the write is not sent again. */
-const lost = () => ({ refusal: t("teamRoster.fallen.lost"), code: null, lost: true });
+/**
+ * It is not known whether the server wrote it: the screen reads the roster again and tells the coach what it holds, and
+ * the write is not sent again. No words of its own: none would be said (final review, Minor 2).
+ */
+const lost = () => ({ refusal: "", code: null, lost: true });
 
 /** The server's words for a refusal and the rules it names; a body that is not the list the server sends still has its code's words. */
 function wordsOf(error) {
@@ -100,10 +103,10 @@ export async function readFallen(teamId) {
  * @param {string} teamId @param {string} playerId
  * @param {{cause: string, revision: number}} death
  * @returns {Promise<{team: object, fallen: object} | {refusal: string, code: string|null, conflict?: object|null, lost?: true} | {ignored: true}>}
- *   the team as it is now and the record of his death; or why not: the refusal in words and its code (`code` null where
- *   the server said none: another tab's coach, a lost answer), `conflict` the server's team where it was saved
- *   elsewhere (null when the 409 carried none), `lost` where it is not known whether he died (read the roster again);
- *   or `ignored` where a write of the team's fallen is on its way and nothing was sent
+ *   the team as it is now and the record of his death; or why not: the refusal in words ("" for a lost answer) and its
+ *   code (`code` null where the server said none: another tab's coach, a lost answer), `conflict` the server's team
+ *   where it was saved elsewhere (null when the 409 carried none), `lost` where it is not known whether he died (read
+ *   the roster again); or `ignored` where a write of the team's fallen is on its way and nothing was sent
  */
 export function markDeath(teamId, playerId, death) {
   return write(

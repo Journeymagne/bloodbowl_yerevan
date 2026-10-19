@@ -222,22 +222,57 @@ test("an undo the rules refuse is said in the sheet, and nothing changes", async
   });
 });
 
-test("an undo of a record the server no longer has reads the roster again, and says so", async () => {
+// The final review's R2 with the T10 words: what is said is what the read shows — never «not found» over him back.
+test("an undo of a record the server no longer has reads the roster again, and says what the read shows", async () => {
+  const NOT_FOUND = "Fallen player not found.";
+  const GONE = { status: 404, body: { error: { code: "FALLEN_NOT_FOUND", params: {}, message: "x" } } };
+  // Another device has undone it meanwhile: he is back, as if the undo were this one.
   await withoutTimers(async () => {
     coach();
     await renderTeamRoster("t1");
     askUndo();
-    api.reply(UNDO, 404, { error: { code: "FALLEN_NOT_FOUND", params: {}, message: "x" } });
-    // Another device has undone it meanwhile.
+    api.reply(UNDO, GONE.status, GONE.body);
     serverHolds(withPike(), [JOE]);
     fireEvent(restoreButton(), "click");
     await settle(12);
     assert.equal(teamReads(), 2, "read again");
     assert.ok(!undoSheet(), "the read took the record away, and the sheet with it");
-    assert.equal(toasts().at(-1), "Fallen player not found.", "the words stay with the coach");
-    assert.ok(lastToastIsError());
+    assert.equal(toasts().at(-1), BACK);
+    assert.ok(!toasts().includes(NOT_FOUND), "nothing says he is not found");
     assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade", "Pike"]);
+    assert.equal(aside().getAttribute("data-panel-player"), PIKE_BACK, "the panel takes him, as the sheet's own undo does");
+    assert.ok(document.activeElement === toggle(PIKE_BACK));
     assert.equal(undos().length, 1);
+  });
+  // Gone from the fallen and not on the roster either: the server's words, in a message once the sheet has gone.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    askUndo();
+    api.reply(UNDO, GONE.status, GONE.body);
+    serverHolds(team(), [JOE]);
+    fireEvent(restoreButton(), "click");
+    await settle(12);
+    assert.ok(!undoSheet());
+    assert.equal(toasts().at(-1), NOT_FOUND);
+    assert.ok(lastToastIsError());
+    assert.ok(!toasts().includes(BACK));
+  });
+  // The sheet closed while the undo was on its way: nothing is said before the read, and then only what it shows.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    askUndo();
+    const undo = api.hold(UNDO);
+    fireEvent(restoreButton(), "click");
+    await settle();
+    fireEvent(undoSheet(), "keydown", { key: "Escape" });
+    serverHolds(withPike(), [JOE]);
+    undo.release(GONE);
+    await settle(12);
+    assert.equal(toasts().at(-1), BACK);
+    assert.ok(!toasts().includes(NOT_FOUND));
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade", "Pike"]);
   });
 });
 

@@ -1387,6 +1387,56 @@ test("a refusal is said in the sheet and nothing changes", async () => {
   });
 });
 
+// The final review's Minor 1 and R2: a refusal whose read takes the sheet away goes on in a message, and words said
+// where no sheet is left to press in never ask to press again.
+test("a death's refusal whose sheet is gone is said in a message, never with «press again»", async () => {
+  const CHANGED_CLOSED = "The roster was changed on another device and has been read again. The death was not marked.";
+  const elsewhere = (roster) => ({ error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: roster });
+  // She is no longer on the server's roster: the read takes her away, and the sheet with her.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.reply(DEATH, 404, { error: { code: "PLAYER_NOT_FOUND", params: {}, message: "x" } });
+    serverHolds(withoutAnn(), FALLEN);
+    fireEvent(sendButton(), "click");
+    await settle(12);
+    assert.equal(teamReads(), 2, "read again");
+    assert.ok(!markSheet(), "the read took her away, and the sheet with her");
+    assert.equal(toasts().at(-1), "Player not found.", "the words stay with the coach");
+    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+  });
+  // Another device's save without her: the read takes the sheet away too.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.reply(DEATH, 409, elsewhere(withoutAnn({ revision: 6 })));
+    serverHolds(withoutAnn({ revision: 6 }), FALLEN);
+    fireEvent(sendButton(), "click");
+    await settle(12);
+    assert.ok(!markSheet());
+    assert.equal(toasts().at(-1), CHANGED_CLOSED);
+  });
+  // The coach closed the sheet while the death was on its way: the conflict is said in a message, which has no button.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    const death = api.hold(DEATH);
+    fireEvent(sendButton(), "click");
+    await settle();
+    fireEvent(markSheet(), "keydown", { key: "Escape" });
+    serverHolds(team({ revision: 6 }), FALLEN);
+    death.release({ status: 409, body: elsewhere(team({ revision: 6 })) });
+    await settle(12);
+    assert.ok(!markSheet());
+    assert.equal(toasts().at(-1), CHANGED_CLOSED);
+    assert.ok(!toasts().some((said) => said.includes("press again")));
+    assert.equal(save.savedRevision("t1"), 6, "the roster was read again");
+  });
+});
+
 test("another tab's coach: no death is sent", async () => {
   await withoutTimers(async () => {
     coach();

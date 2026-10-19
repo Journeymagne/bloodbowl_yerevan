@@ -37,7 +37,8 @@ function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep }) {
   return [
     onPlayerButton(root, "data-roster-injury", onInjury),
     wireFilterChips(root, (stat) => onInjuryChoice({ stat }), { group: INJURY_STAT }),
-    // A busy button is `disabled`, which a browser does not click: the press is refused again where it is taken (injury.mjs).
+    // A busy button is `aria-busy` and keeps the focus, so a browser still clicks it: the press is refused where it is
+    // taken (injury.mjs's `record`, while the injury is in the air).
     delegate(root, "click", "[data-injury-step]", (event, button) => onInjuryStep(Number(button.getAttribute("data-injury-step")))),
   ];
 }

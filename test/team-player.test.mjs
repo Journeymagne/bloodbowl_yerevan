@@ -453,6 +453,7 @@ test("an undo whose answer was lost on the profile is read back and told", async
   });
 });
 
+// The final review's R2 with the T10 words: the page says what the read shows — never «not found» over him back.
 test("an undo of a record the server no longer has reads again: another device put him back", async () => {
   await withoutTimers(async () => {
     coach();
@@ -465,10 +466,25 @@ test("an undo of a record the server no longer has reads again: another device p
     await settle(12);
     assert.equal(callsTo(FALLEN_READ).length, 2, "read again");
     assert.ok(!undoSheet());
-    assert.equal(toasts().at(-1), "Fallen player not found.");
+    assert.ok(!toasts().includes("Fallen player not found."), "no «not found» over a page that says he is back");
     assert.equal(calloutTitle(), BACK, "the roster has him");
     assert.ok(document.activeElement === rosterLink(), "the sheet it stood in is gone: the focus goes to the way back");
     assert.equal(callsTo(UNDO).length, 1);
+  });
+  // The sheet closed while the undo was on its way: nothing is said before the read, and then the page says he is back.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamPlayer("t1", "d1");
+    askUndo();
+    const undo = api.hold(UNDO);
+    fireEvent(restoreButton(), "click");
+    await settle();
+    fireEvent(undoSheet(), "keydown", { key: "Escape" });
+    serverHolds([withPike()], [JOE]);
+    undo.release({ status: 404, body: { error: { code: "FALLEN_NOT_FOUND", params: {}, message: "x" } } });
+    await settle(12);
+    assert.ok(!toasts().includes("Fallen player not found."));
+    assert.equal(calloutTitle(), BACK);
   });
   // Gone from the fallen and not on the roster either: the page says it is not found.
   await withoutTimers(async () => {

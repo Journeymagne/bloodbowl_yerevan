@@ -179,11 +179,12 @@ function deathLost(saving, lent, { line, mine }) {
 
 /**
  * A refusal of a write of the fallen: said in the sheet that sent it, which stays as it was and no longer waits; closed
- * meanwhile, in a message while the roster is on the coach's screen.
+ * meanwhile, in a message while the roster is on the coach's screen — in `closed`, words that ask for no press where no
+ * sheet is left to press in (R2).
  */
-function refusalSaid({ visit, draw }, { sheet, mine }, refusal) {
+function refusalSaid({ visit, draw }, { sheet, mine }, refusal, closed = refusal) {
   if (mine) Object.assign(sheet, { refusal, busy: false });
-  else if (visit.here) toast(refusal, { tone: "error" });
+  else if (visit.here) toast(closed, { tone: "error" });
   draw();
 }
 
@@ -192,7 +193,8 @@ function refusalSaid({ visit, draw }, { sheet, mine }, refusal) {
  * (K8), with his record first among the fallen (K5). The sheet, while it is still the one that sent it, closes and
  * gives the focus, or says why not; closed meanwhile, the coach is told in a message while the roster is on his screen.
  * Another device's save reads the roster again; a lost answer reads it back (`deathLost`); a player the server no
- * longer has is read again too; any other refusal is only said.
+ * longer has is read again too — a read that takes him away takes the sheet with him, and its words go on in a message
+ * (M1); any other refusal is only said.
  */
 async function heardDeath(saving, lent, { sheet, line, answer }) {
   const { visit } = saving;
@@ -213,8 +215,11 @@ async function heardDeath(saving, lent, { sheet, line, answer }) {
   }
   const conflict = "conflict" in answer;
   const again = conflict ? lent.reload() : answer.code === "PLAYER_NOT_FOUND" ? lent.readAgain() : null;
-  refusalSaid(saving, { sheet, mine }, conflict ? t("teamRoster.mark.changed") : answer.refusal);
+  const [refusal, closed] = conflict ? [t("teamRoster.mark.changed"), t("teamRoster.mark.changedClosed")] : [answer.refusal, answer.refusal];
+  refusalSaid(saving, { sheet, mine }, refusal, closed);
+  if (!again) return;
   await again;
+  if (mine && visit.here && visit.sheet !== sheet) toast(closed, { tone: "error" });
 }
 
 /**
@@ -289,10 +294,13 @@ function backSaid({ memory, draw }, { now, back: told }, { line, mine }) {
   toast(t("teamRoster.fallen.back", { name: line.name }));
 }
 
+/** An undo as a read tells it (`writeRead`): his record, and he on the roster. */
+const undoneWrite = (line) => ({ recorded: (record) => record.id === line.fallen.id, playerId: line.id, death: false });
+
 /** An undo whose answer was lost, read back (`readBack`): his record gone from the fallen, and he back on the roster. */
 function undoLost(saving, lent, { line, mine }) {
   return readBack(saving, lent, {
-    write: { recorded: (record) => record.id === line.fallen.id, playerId: line.id, death: false },
+    write: undoneWrite(line),
     landed: () => backSaid(saving, lent, { line, mine }),
     none: t("teamRoster.fallen.undoLost"),
     unknown: t("teamRoster.fallen.undoUnknown"),
@@ -300,11 +308,23 @@ function undoLost(saving, lent, { line, mine }) {
 }
 
 /**
+ * An undo of a record the server no longer has (another device undid it, most often): the roster and the fallen are read
+ * again before a word is said, and the coach is told what the read shows (T10, R2) — that he is back, as for an undo of
+ * the coach's own (`backSaid`), else the server's words: in the sheet while it stands, in a message once the read has
+ * taken it. Never «not found» over a screen that shows him back.
+ */
+async function undoGone(saving, lent, { sheet, line, mine }, refusal) {
+  const { visit } = saving;
+  const read = await lent.readAgain();
+  if (read && writeRead(visit, lent.now().lines, undoneWrite(line)) === "landed") backSaid(saving, lent, { line, mine });
+  else refusalSaid(saving, { sheet, mine: visit.here && visit.sheet === sheet }, refusal);
+}
+
+/**
  * An undo's answer, heard by the coach who sent it. The team it brings is always taken, whatever became of the sheet
  * (K8), his record gone from the fallen; the sheet, while it is still the one that sent it, closes and the panel and the
  * focus take him back on the roster; else the coach is told in a message. A lost answer reads the roster back
- * (`undoLost`). A record the server no longer has (another device undid it) reads it again: the read most often takes
- * his line away and the sheet with it, so its words then go to a message. Any other refusal is said in the sheet.
+ * (`undoLost`); a record the server no longer has reads it again (`undoGone`). Any other refusal is said in the sheet.
  */
 async function heardUndo(saving, lent, { sheet, line, answer }) {
   const { visit } = saving;
@@ -322,11 +342,8 @@ async function heardUndo(saving, lent, { sheet, line, answer }) {
     await read;
     return;
   }
-  const again = answer.code === "FALLEN_NOT_FOUND" ? lent.readAgain() : null;
-  refusalSaid(saving, { sheet, mine }, answer.refusal);
-  if (!again) return;
-  await again;
-  if (mine && visit.here && visit.sheet !== sheet) toast(answer.refusal, { tone: "error" });
+  if (answer.code === "FALLEN_NOT_FOUND") await undoGone(saving, lent, { sheet, line, mine }, answer.refusal);
+  else refusalSaid(saving, { sheet, mine }, answer.refusal);
 }
 
 /** «Back on the roster» in the undo's sheet (`writeOnce`): one `DELETE …/fallen/:fid` of his record. */

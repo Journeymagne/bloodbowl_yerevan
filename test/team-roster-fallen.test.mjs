@@ -14,13 +14,13 @@ const { fallenWriting, markDeath, readFallen, undoDeath } = await import("../src
 const dictionary = (locale) => JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
 
 const NO_ANSWER = "The server did not answer.";
-const LOST = "The answer did not come: the roster is read again to see what the server holds.";
+/** A lost answer has no words of its own: the screen reads the roster back and says what it holds (final review, Minor 2). */
+const LOST = "";
 const OTHER_TAB = "Someone signed in or out in another tab, so nothing was saved here.";
 
 setDictionaries({
   en: {
     "auth.otherTab": OTHER_TAB,
-    "teamRoster.fallen.lost": LOST,
     "request.offline": "No connection.",
     "request.noAnswer": NO_ANSWER,
     "error.TEAM_SAVED_ELSEWHERE": "The team was saved elsewhere.",
@@ -74,14 +74,14 @@ const sent = (key) => api.calls.filter((call) => call.key === key);
 const DEATH = { cause: "Foul", revision: 4 };
 
 test("the words of the fallen are in both dictionaries", () => {
-  const keys = ["teamRoster.fallen.lost", "auth.otherTab", "error.TEAM_SAVED_ELSEWHERE", "error.ROSTER_BREAKS_THE_RULES", "error.PLAYER_NOT_FOUND",
+  const keys = ["auth.otherTab", "error.TEAM_SAVED_ELSEWHERE", "error.ROSTER_BREAKS_THE_RULES", "error.PLAYER_NOT_FOUND",
     "error.FALLEN_FROM_MATCH", "error.FALLEN_NOT_FOUND", "error.FALLEN_NOT_RESTORABLE"];
   for (const locale of ["en", "ru"]) {
     const words = dictionary(locale);
     for (const key of keys) assert.ok(typeof words[key] === "string" && words[key].trim(), `${locale} has ${key}`);
   }
-  assert.equal(dictionary("en")["teamRoster.fallen.lost"], "The answer did not come: the roster is read again to see what the server holds.");
-  assert.equal(dictionary("ru")["teamRoster.fallen.lost"], "Ответ не пришёл: состав перечитывается, чтобы узнать, что на сервере.");
+  // No words for a lost answer, which no coach is ever shown: the read back says what the server holds.
+  for (const locale of ["en", "ru"]) assert.ok(!("teamRoster.fallen.lost" in dictionary(locale)), locale);
 });
 
 test("the fallen are read for the team, and an answer that is not a list is a read that failed", async () => {
