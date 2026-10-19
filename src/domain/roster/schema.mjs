@@ -157,7 +157,7 @@ export function draftPayload(draft = {}) {
  */
 export const ABSENCE_CODES = Object.freeze(["miss", "niggling", "lasting", "other"]);
 
-const ABSENCE_NOTE_MAX = 500;
+export const ABSENCE_NOTE_MAX = 500;
 
 /**
  * A stored absence read into `{ code, stat?, note?, pairingId? }`, or `null`.

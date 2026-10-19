@@ -46,7 +46,7 @@ const PLAYERS = [
   { id: "p6", rowIndex: 0, number: "6", name: "Finn" },
   { id: "p7", rowIndex: 5, number: "7", name: "Grom" },
 ];
-const KEYS = PLAYERS.map(({ id }, index) => `${id}#${index}`);
+const KEYS = PLAYERS.map(({ id }) => `${id}#0`);
 const NAMES = PLAYERS.map(({ name }) => name);
 const team = (over = {}) => ({ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", revision: 4, roster: { players: PLAYERS }, ...over });
 
@@ -71,12 +71,14 @@ function coach({ teamAnswer = team(), events = [] } = {}) {
   state.games = { items: [], currentItems: [], loaded: true, loading: false, error: "" };
   api.reply("GET /api/teams/t1", 200, { team: teamAnswer });
   api.reply("GET /api/teams/t1/events", 200, { events, revision: teamAnswer.revision });
+  api.reply("GET /api/teams/t1/fallen", 200, { fallen: [] });
   api.reply("GET /api/games", 200, { games: [], currentGames: [] });
 }
 
 const PATCH = "PATCH /api/teams/t1";
 const patches = () => api.calls.filter(({ key }) => key === PATCH);
-const callKeys = () => api.calls.map(({ key }) => key);
+// The fallen are read with the roster (stage 07b) and are not what these tests count.
+const callKeys = () => api.calls.map(({ key }) => key).filter((key) => key !== "GET /api/teams/t1/fallen");
 const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
 /** Whether the browser would ask before the tab closes. */
 const leaving = () => {
@@ -142,12 +144,14 @@ test("the roster of a team: a band «Roster» with its counts, «Active roster»
   assert.equal(view.querySelector("h1").textContent, "Roster");
   assert.equal(document.activeElement, view.querySelector("h1"), "the title takes the focus");
   assert.equal(view.querySelector(".g-pagehead__sub").textContent, "On the roster: 7 · missing a match: 1 · can advance: 1");
-  assert.match(view.querySelector("#roster-heading").textContent, /^Active roster 7$/);
+  assert.match(view.querySelector("#roster-heading").textContent, /^Active roster 6$/);
   assert.equal(view.querySelector("[data-screen]").getAttribute("data-screen"), "team-roster");
   assert.equal(view.querySelector("table.g-rtable").getAttribute("aria-label"), "Players of Ashgrove Wardens");
-  assert.deepEqual(order(), NAMES);
-  assert.deepEqual(bodies().map((body) => body.getAttribute("data-key")), KEYS);
-  assert.deepEqual(view.querySelectorAll(".g-rtable__groups .g-rtable__g").map((cell) => cell.textContent), ["", "Characteristics", "Career", "SPP"]);
+  // Dell misses the next match: he is in «Missing the match», under the others (stage 07b).
+  const last = (list) => [...list.slice(0, 3), ...list.slice(4), list[3]];
+  assert.deepEqual(order(), last(NAMES));
+  assert.deepEqual(bodies().map((body) => body.getAttribute("data-key")), last(KEYS));
+  assert.deepEqual(view.querySelector("table.g-rtable").querySelectorAll(".g-rtable__groups .g-rtable__g").map((cell) => cell.textContent), ["", "Characteristics", "Career", "SPP"]);
   api.assertAnswered();
 });
 
@@ -167,14 +171,14 @@ test("before the roster comes the screen says it is loading it", async () => {
 test("a row: the number on the position's colour, the captain's «C», the name, the position and the five characteristics; a changed one says so; one who misses the match says that instead", async () => {
   coach();
   await renderTeamRoster("t1");
-  const captain = bodyOf("p2#1");
+  const captain = bodyOf("p2#0");
   assert.ok(captain.querySelector(".g-num--blitzer .g-num__captain"));
   assert.equal(captain.querySelector(".g-rtable__sub").textContent, "Blitzer");
   assert.deepEqual(captain.querySelectorAll(".g-rtable__row td").slice(0, 5).map((cell) => cell.textContent), ["7", "3", "3+", "4+", "9+"]);
-  const agility = bodyOf("p3#2").querySelectorAll(".g-rtable__row td")[2];
+  const agility = bodyOf("p3#0").querySelectorAll(".g-rtable__row td")[2];
   assert.ok(agility.classList.contains("g-rtable__c--up"));
   assert.equal(agility.textContent, "2+ improved");
-  const skipping = bodyOf("p4#3").querySelector(".g-rtable__sub");
+  const skipping = bodyOf("p4#0").querySelector(".g-rtable__sub");
   assert.ok(skipping.classList.contains("g-rtable__sub--alert"));
   assert.equal(skipping.textContent, "Misses the next match");
   // The career and the SPP: a zero is quiet, what he may spend is strong.
@@ -191,12 +195,12 @@ test("on a desk the first player stands in the panel; a press on another moves h
     await renderTeamRoster("t1");
     assert.equal(aside().getAttribute("data-panel-player"), "p1#0");
     assert.ok(bodyOf("p1#0").classList.contains("is-selected"));
-    fireEvent(toggle("p2#1"), "click");
-    assert.equal(aside().getAttribute("data-panel-player"), "p2#1");
-    assert.ok(bodyOf("p2#1").classList.contains("is-selected"));
+    fireEvent(toggle("p2#0"), "click");
+    assert.equal(aside().getAttribute("data-panel-player"), "p2#0");
+    assert.ok(bodyOf("p2#0").classList.contains("is-selected"));
     assert.equal(bodyOf("p1#0").classList.contains("is-selected"), false);
-    fireEvent(toggle("p2#1"), "click");
-    assert.equal(aside().getAttribute("data-panel-player"), "p2#1", "a second press keeps him");
+    fireEvent(toggle("p2#0"), "click");
+    assert.equal(aside().getAttribute("data-panel-player"), "p2#0", "a second press keeps him");
     assert.equal(view.querySelector(".g-rtable__panelrow"), null, "a desk opens no row");
   });
 });
@@ -223,14 +227,14 @@ test("on a phone a press opens the player's row and the next press closes it; on
     assert.deepEqual(open(), [], "nothing is open at first");
     assert.equal(toggle("p1#0").getAttribute("aria-expanded"), "false");
     assert.equal(toggle("p1#0").hasAttribute("aria-current"), false, "a phone marks no player for a panel it does not show");
-    fireEvent(toggle("p2#1"), "click");
-    assert.deepEqual(open(), ["p2#1"]);
-    assert.equal(toggle("p2#1").getAttribute("aria-expanded"), "true");
-    assert.equal(toggle("p2#1").getAttribute("aria-controls"), view.querySelector(".g-rtable__panelrow").getAttribute("id"));
-    fireEvent(toggle("p3#2"), "click");
-    assert.deepEqual(open(), ["p3#2"]);
-    assert.equal(toggle("p2#1").getAttribute("aria-expanded"), "false");
-    fireEvent(toggle("p3#2"), "click");
+    fireEvent(toggle("p2#0"), "click");
+    assert.deepEqual(open(), ["p2#0"]);
+    assert.equal(toggle("p2#0").getAttribute("aria-expanded"), "true");
+    assert.equal(toggle("p2#0").getAttribute("aria-controls"), view.querySelector(".g-rtable__panelrow").getAttribute("id"));
+    fireEvent(toggle("p3#0"), "click");
+    assert.deepEqual(open(), ["p3#0"]);
+    assert.equal(toggle("p2#0").getAttribute("aria-expanded"), "false");
+    fireEvent(toggle("p3#0"), "click");
     assert.deepEqual(open(), []);
   });
 });
@@ -243,12 +247,12 @@ test("the row's button follows the width: crossing 900px draws the screen again,
     coach();
     await renderTeamRoster("t1");
     assert.equal(listeners.size, 1);
-    fireEvent(toggle("p2#1"), "click");
-    assert.equal(toggle("p2#1").getAttribute("aria-current"), "true");
+    fireEvent(toggle("p2#0"), "click");
+    assert.equal(toggle("p2#0").getAttribute("aria-current"), "true");
     media.matches = true;
     listeners.forEach((listener) => listener());
-    assert.equal(toggle("p2#1").getAttribute("aria-expanded"), "true", "the player chosen on the desk is the row open on the phone");
-    assert.ok(bodyOf("p2#1").querySelector(".g-rtable__panelrow"));
+    assert.equal(toggle("p2#0").getAttribute("aria-expanded"), "true", "the player chosen on the desk is the row open on the phone");
+    assert.ok(bodyOf("p2#0").querySelector(".g-rtable__panelrow"));
     releaseCurrentScreen();
     assert.equal(listeners.size, 0);
   } finally {
@@ -269,6 +273,7 @@ test("another team's roster starts at the top of the page; the same team's drawn
     // The switcher opens the other team's roster from this one: a page of its own.
     api.reply("GET /api/teams/t2", 200, { team: team({ id: "t2", name: "Grimtusk Raiders" }) });
     api.reply("GET /api/teams/t2/events", 200, { events: [], revision: 4 });
+    api.reply("GET /api/teams/t2/fallen", 200, { fallen: [] });
     releaseCurrentScreen();
     await renderTeamRoster("t2");
     assert.deepEqual(scrolls.at(-1), [0, 0]);
@@ -281,25 +286,26 @@ test("a header sorts the table, the next press turns it round, and the order sta
   await renderTeamRoster("t1");
   const head = () => view.querySelector('[data-sort-key="ma"]').closest("th");
   fireEvent(view.querySelector('[data-sort-key="ma"]'), "click");
-  assert.deepEqual(order(), ["Cade", "Bors", "Ann", "Dell", "Edda", "Finn", "Grom"]);
+  // Dell, who misses the next match, is sorted in his own table under the others (stage 07b).
+  assert.deepEqual(order(), ["Cade", "Bors", "Ann", "Edda", "Finn", "Grom", "Dell"]);
   assert.equal(head().getAttribute("aria-sort"), "descending");
   fireEvent(view.querySelector('[data-sort-key="ma"]'), "click");
-  assert.deepEqual(order(), ["Grom", "Ann", "Dell", "Edda", "Finn", "Bors", "Cade"]);
+  assert.deepEqual(order(), ["Grom", "Ann", "Edda", "Finn", "Bors", "Cade", "Dell"]);
   assert.equal(head().getAttribute("aria-sort"), "ascending");
   releaseCurrentScreen();
   view.innerHTML = "<p>elsewhere</p>";
   await renderTeamRoster("t1");
-  assert.deepEqual(order(), ["Grom", "Ann", "Dell", "Edda", "Finn", "Bors", "Cade"]);
+  assert.deepEqual(order(), ["Grom", "Ann", "Edda", "Finn", "Bors", "Cade", "Dell"]);
   assert.equal(head().getAttribute("aria-sort"), "ascending");
   // The player's column puts them back by their numbers, the lowest first.
   fireEvent(view.querySelector('[data-sort-key="player"]'), "click");
-  assert.deepEqual(order(), NAMES);
+  assert.deepEqual(order(), ["Ann", "Bors", "Cade", "Edda", "Finn", "Grom", "Dell"]);
 });
 
 test("a skill chip opens its rule: the name as written, its category and type, the rule, the player and where the skill came from; closed, the focus is back on the chip", async () => {
   coach();
   await renderTeamRoster("t1");
-  const chip = chipIn(bodyOf("p2#1").querySelector(".g-rtable__skills--desk"), "Mighty Blow");
+  const chip = chipIn(bodyOf("p2#0").querySelector(".g-rtable__skills--desk"), "Mighty Blow");
   fireEvent(chip, "click");
   const dialog = sheet();
   assert.ok(dialog?.isModal, "the sheet is open, modally");
@@ -315,7 +321,7 @@ test("a skill chip opens its rule: the name as written, its category and type, t
 test("a chip in the panel opens the same rule; a skill with a number in it opens its template's rule under the name the player has", async () => {
   coach();
   await renderTeamRoster("t1");
-  fireEvent(toggle("p7#6"), "click");
+  fireEvent(toggle("p7#0"), "click");
   const loner = chipIn(aside(), "Loner (3+)");
   assert.ok(loner.classList.contains("g-skill--card"));
   fireEvent(loner, "click");
@@ -346,7 +352,7 @@ test("«Profile and advancement» on a phone, «Advance» and the pencil on a de
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
-    fireEvent(toggle("p2#1"), "click");
+    fireEvent(toggle("p2#0"), "click");
     const profile = view.querySelector(".g-rtable__panelrow a.g-btn--dark");
     assert.equal(profile.textContent, "Profile and advancement");
     assert.equal(profile.getAttribute("href"), teamPlayerUrl("t1", "p2"));
@@ -354,7 +360,7 @@ test("«Profile and advancement» on a phone, «Advance» and the pencil on a de
   await withWindow({ phone: false }, async () => {
     coach();
     await renderTeamRoster("t1");
-    fireEvent(toggle("p2#1"), "click");
+    fireEvent(toggle("p2#0"), "click");
     const advance = aside().querySelector("a.g-btn--primary");
     assert.equal(advance.textContent, "Advance");
     assert.equal(advance.getAttribute("href"), teamPlayerUrl("t1", "p2"));
@@ -403,12 +409,12 @@ test("the desk panel: badge, name, position and value, the characteristics, SPP 
   assert.equal(panel.querySelector(".g-roster__access").textContent, "Primary: General · Secondary: Agility, Strength, Devious");
   assert.equal(panel.querySelector(".g-roster__next").textContent, "Next match: plays");
   // The captain: his skills as cards, each with where it came from; the one who sits out says so.
-  fireEvent(toggle("p2#1"), "click");
+  fireEvent(toggle("p2#0"), "click");
   assert.deepEqual(aside().querySelectorAll(".g-skill--card").map((card) => [card.getAttribute("data-skill"), card.querySelector(".g-skill__source").textContent]),
     [["Block", "starting"], ["Tackle", "starting"], ["Mighty Blow", "primary"], ["Pro", "the captain's"]]);
   assert.ok(aside().querySelector('.g-skill--card.g-skill--gained[data-skill="Mighty Blow"]'));
   assert.equal(aside().querySelector(".g-roster__availn").textContent, "3");
-  fireEvent(toggle("p4#3"), "click");
+  fireEvent(toggle("p4#0"), "click");
   assert.equal(aside().querySelector(".g-roster__next").textContent, "Next match: sits it out");
 });
 
@@ -416,7 +422,7 @@ test("the open row has six counters in two columns and a row of three, each with
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
-    fireEvent(toggle("p2#1"), "click");
+    fireEvent(toggle("p2#0"), "click");
     const main = openRow().querySelectorAll(".g-roster__counters .g-stepper");
     assert.deepEqual(main.map(labelOf), ["TD +3", "CAS +2", "COMP +1", "KO +1", "INT +2", "MVP +5"]);
     assert.ok(main.every((cell) => !cell.classList.contains("g-stepper--compact")), "the main ones in full");
@@ -514,7 +520,7 @@ test("another device: a red banner and «Load the new one», which reads the tea
     }
     fireEvent(plus("touchdowns"), "click");
     assert.equal(toasts().at(-1), "The roster was changed on another device", "a tap while it stands is told why it is not taken");
-    assertStyled(view, "src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+    assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
       "progress-dots.css", "button.css", "callout.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     api.calls.length = 0;
     api.reply("GET /api/teams/t1", 200, { team: elsewhere });
@@ -932,7 +938,7 @@ test("a redraw that takes the focused button away: the minus stopped at zero giv
     assert.ok(document.activeElement === plus("touchdowns"), "the plus beside it");
     await settle();
     // Bors's sheet is open when the roster is read again without him (a refusal reads it).
-    fireEvent(toggle("p2#1"), "click");
+    fireEvent(toggle("p2#0"), "click");
     const held = api.hold(PATCH);
     fireEvent(plus("touchdowns"), "click");
     await settle();
@@ -944,7 +950,7 @@ test("a redraw that takes the focused button away: the minus stopped at zero giv
     held.release({ status: 422, body: refusalOf([{ code: "SPP_EDIT_TOO_LARGE", params: { limit: 50 } }]) });
     await settle();
     assert.equal(sheet(), null);
-    assert.equal(toggle("p2#1"), null, "he has left the roster");
+    assert.equal(toggle("p2#0"), null, "he has left the roster");
     assert.ok(document.activeElement === view.querySelector("h1"), "the title, not the body");
   });
 });
@@ -1025,7 +1031,7 @@ test("a match on: a green banner with the round and the records, the switch and 
     assert.deepEqual(sppLine(block), ["Match records · round 3", "+3 SPP in the match"]);
     assert.equal(block.querySelector(".g-roster__matchnote").textContent, "MVP — in the post-match. Advancement and sales — after it.");
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "3", "SPP available at once");
-    assertStyled(view, "src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+    assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
       "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     api.assertAnswered();
   });
@@ -1076,7 +1082,7 @@ test("a player who sits the match out takes no tap of it, and says why; with the
     coach();
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     const steps = aside().querySelectorAll("[data-action-step]");
     assert.equal(steps.length, 18);
     for (const button of steps) {
@@ -1148,19 +1154,19 @@ test("advancement waits for the post-match: «Profile and advancement», «Advan
       coach();
       gamesAre([LIVE_GAME]);
       await renderTeamRoster("t1");
-      fireEvent(toggle("p2#1"), "click");
+      fireEvent(toggle("p2#0"), "click");
       const profile = openRow().querySelector(".g-roster__closed");
       assert.equal(profile.textContent, "Profile and advancement");
       check(profile);
       assert.equal(openRow().querySelector("a"), null);
       assertCspSafe(view);
-      assertStyled(view, "src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
         "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     });
     coach();
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
-    fireEvent(toggle("p2#1"), "click");
+    fireEvent(toggle("p2#0"), "click");
     const [pencil, advance] = aside().querySelectorAll(".g-roster__closed");
     assert.equal(pencil.getAttribute("aria-label"), "Edit Bors");
     check(pencil);
@@ -1517,6 +1523,7 @@ test("the switch is kept per team while the page lives", async () => {
     assert.ok(notice("warn"));
     api.reply("GET /api/teams/t2", 200, { team: team({ id: "t2", name: "Grimtusk Raiders" }) });
     api.reply("GET /api/teams/t2/events", 200, { events: [], revision: 4 });
+    api.reply("GET /api/teams/t2/fallen", 200, { fallen: [] });
     releaseCurrentScreen();
     await renderTeamRoster("t2");
     assert.equal(outsideSwitch().getAttribute("aria-checked"), "false");
@@ -1563,7 +1570,7 @@ const removeButton = () => injurySheet().querySelector('[data-injury-step="-1"]'
 const subLine = (key) => bodyOf(key).querySelector(".g-rtable__sub");
 /** An injury row of the match as POST …/events answers it: Ann's. */
 const injuryRow = (injury, over = {}) => rowOf({ counter: "injury", injury, ...over });
-const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
+const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
   "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "sheet.css", "option-card.css", "filter-chips.css",
   "src/screens/team/manage/strip.css"];
 
@@ -1729,7 +1736,7 @@ test("no injury for a player who sits the match out, nor with the switch on, nor
     await renderTeamRoster("t1");
     fireEvent(toggle("p1#0"), "click");
     assert.equal(injuryButton(openRow()).textContent, "Injury in the match…", "in the open row on a phone");
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     assert.ok(!injuryButton(openRow()), "Dell sits it out");
     fireEvent(toggle("p1#0"), "click");
     fireEvent(outsideSwitch(), "click");
@@ -1766,10 +1773,13 @@ test("an injury in the air keeps the sheet busy: a second press sends nothing", 
     const held = api.hold(EVENTS);
     recordButton().focus();
     fireEvent(recordButton(), "click");
-    assert.ok(recordButton().hasAttribute("disabled"), "busy while it is in the air");
+    assert.equal(recordButton().getAttribute("aria-busy"), "true", "busy while it is in the air");
+    assert.ok(!recordButton().hasAttribute("disabled"), "not disabled: a focused button that is drops the focus (button.mjs)");
+    // «Remove the record» is drawn before it now (the injury on its way is counted), so the button is drawn anew.
     assert.ok(document.activeElement === optionFor("miss"), "the focus stays in the sheet, on the choice");
     assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3", "counted at once, as every tap on its way");
-    assert.ok(removeButton().hasAttribute("disabled"), "nothing taken back while it is in the air either");
+    assert.equal(removeButton().getAttribute("aria-busy"), "true", "nothing taken back while it is in the air either");
+    fireEvent(removeButton(), "click");
     fireEvent(recordButton(), "click");
     await settle();
     assert.deepEqual([held.count, posts().length], [1, 1]);
@@ -2192,15 +2202,15 @@ test("a player's and a skill's name are text", async () => {
 });
 
 test("every class the screen draws is styled and nothing the CSP refuses is on it, on a phone and on a desk, with a sheet open", async () => {
-  const sheets = ["src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+  const sheets = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
     "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
     "src/screens/team/manage/strip.css"];
   for (const phone of [true, false]) {
     await withWindow({ phone }, async () => {
       coach();
       await renderTeamRoster("t1");
-      fireEvent(toggle("p2#1"), "click");
-      fireEvent(chipIn(bodyOf("p2#1"), "Block"), "click");
+      fireEvent(toggle("p2#0"), "click");
+      fireEvent(chipIn(bodyOf("p2#0"), "Block"), "click");
       assertCspSafe(view);
       assertStyled(view, ...sheets);
     });
@@ -2235,7 +2245,8 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   const breakpoints = [...text(sheet).matchAll(/@media[^{]+/g)].map(([query]) => query.trim());
   assert.ok(breakpoints.length > 0);
   for (const query of breakpoints) assert.match(query, /^@media \((max-width: 900px|min-width: 901px)\)$/);
-  assert.ok(text("src/styles.css").trimEnd().endsWith('@import url("screens/team/roster/roster.css");'));
+  // The last import is 07b's marks.css, right after the roster's own sheet.
+  assert.ok(text("src/styles.css").trimEnd().endsWith('@import url("screens/team/roster/roster.css");\n@import url("screens/team/roster/marks.css");'));
 });
 
 test("the counters: six two to a row (one on the narrowest phone), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
@@ -2307,8 +2318,8 @@ test("the injury's sheet: the characteristic's caption over its five chips in on
   }
 });
 
-test("the player's address still draws the 2.x editor until stage 07d", () => {
+test("the player's address: a fallen player's profile, else the 2.x editor until stage 07d", () => {
   const router = text("src/core/router.mjs");
   assert.ok(router.includes("teamRoster: ({ teamId }) => renderTeamRoster(teamId),"));
-  assert.ok(router.includes("teamPlayer: ({ teamId }) => renderSavedRoster(teamId),"));
+  assert.ok(router.includes("teamPlayer: ({ teamId, playerId }) => renderTeamPlayer(teamId, playerId),"));
 });

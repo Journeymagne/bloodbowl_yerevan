@@ -1,4 +1,5 @@
 import { createPlayer, normalizeAbsence } from '../roster/schema.mjs';
+import { applyInjuryEffects } from '../roster/absence.mjs';
 import { normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/players.mjs';
 import { playerCurrentCost } from '../roster/costs.mjs';
 import { applyAdvancement, canTakeAdvancement, checkAdvancementGrant } from '../roster/progression.mjs';
@@ -20,16 +21,8 @@ function applyInjury(player, injury, pairingId) {
   player.absence = ['miss', 'niggling', 'lasting'].includes(injury.code)
     ? normalizeAbsence({ code: injury.code, stat: injury.code === 'lasting' ? injury.stat : undefined, pairingId })
     : normalizeAbsence(player.absence, player.skipNextGame);
-  if (injury.code === 'niggling') {
-    player.nigglingInjuries = Number(player.nigglingInjuries ?? (player.niglingInjury ? 1 : 0)) + 1;
-    player.niglingInjury = true;
-  }
-  if (injury.code === 'lasting') {
-    player.statMods[injury.stat] = Number(player.statMods[injury.stat] || 0) - 1;
-    player.injuryStatMods ||= {};
-    player.injuryStatMods[injury.stat] = Number(player.injuryStatMods[injury.stat] || 0) - 1;
-    if (injury.retire) player.temporarilyRetired = true;
-  }
+  applyInjuryEffects(player, injury);
+  if (injury.code === 'lasting' && injury.retire) player.temporarilyRetired = true;
 }
 
 function applyFavoured(side, player, choice) {

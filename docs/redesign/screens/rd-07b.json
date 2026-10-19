@@ -1,0 +1,268 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "F1",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "F2",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-row-key^=\"p1#\"]').click();",
+        "  await wait(300);",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('[data-roster-mark]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-mark [data-option-value=\"lasting\"]').click();",
+        "  await wait(200);",
+        "  document.querySelector('#roster-mark [data-chip-value=\"ma\"]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "F3",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-row-key^=\"p1#\"]').click();",
+        "  await wait(300);",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('[data-roster-mark]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-mark [data-option-value=\"dead\"]').click();",
+        "  await wait(200);",
+        "  const f = document.querySelector('#mark-text');",
+        "  f.value = 'Foul by the Duskspire Knives in round 4, Casualty 16';",
+        "  f.dispatchEvent(new Event('input', { bubbles: true }));",
+        "})()"
+      ]
+    },
+    {
+      "id": "F4",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-row-key=\"fallen-f1\"]"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "F5",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-row-key=\"fallen-f1\"]"
+      ],
+      "run": [
+        "document.querySelector('[data-row-key=\"fallen-f1\"]').scrollIntoView({ block: 'center' });"
+      ]
+    },
+    {
+      "id": "F6",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-row-key=\"fallen-f2\"]"
+      ],
+      "run": [
+        "document.querySelector('[data-row-key=\"fallen-f2\"]').scrollIntoView({ block: 'center' });"
+      ]
+    },
+    {
+      "id": "F7",
+      "url": "http://localhost:5172/#/t/t1/roster/p8",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "F8",
+      "url": "http://localhost:5172/#/t/t1/roster/p8",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-roster-undo]"
+      ]
+    },
+    {
+      "id": "F9",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "F10",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  document.querySelector('[data-row-key^=\"p6#\"]').click();",
+        "  await new Promise((resolve) => setTimeout(resolve, 300));",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('[data-roster-return]').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "F11",
+      "url": "http://localhost:5172/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-row-key^=\"q4#\"]"
+      ],
+      "run": [
+        "const aside = document.querySelector('.g-roster__aside');",
+        "aside.scrollTop = aside.scrollHeight;"
+      ]
+    },
+    {
+      "id": "G1",
+      "url": "http://localhost:3072/#/t/x/roster/y",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "F12",
+      "url": "http://localhost:5172/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p1#\"]').click();",
+        "  await wait(300);",
+        "  const back = copy().querySelector('[data-roster-return]');",
+        "  if (back) {",
+        "    back.click();",
+        "    await wait(1000);",
+        "  }",
+        "  copy().querySelector('[data-roster-mark]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-mark [data-option-value=\"miss\"]').click();",
+        "  await wait(200);",
+        "  document.querySelector('#roster-mark [data-mark-send]').click();",
+        "  await wait(1000);",
+        "  // The panel scrolls in itself on a desk: «Back on the roster» brought into it, the page itself back at its top.",
+        "  copy().querySelector('[data-roster-return]').scrollIntoView({ block: 'nearest' });",
+        "  window.scrollTo(0, 0);",
+        "})()"
+      ],
+      "runWaitMs": 1200,
+      "fullPage": true
+    },
+    {
+      "id": "F13",
+      "url": "http://localhost:5172/#/t/t1/roster/p8",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "runWaitMs": 1200,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  if (!document.querySelector('[data-roster-undo]')) {",
+        "    // A shot before this one undid his death: he is marked again on the roster, as a coach would, and his page opened once that mark's message is gone.",
+        "    location.hash = '#/t/t1/roster';",
+        "    await wait(1000);",
+        "    document.querySelector('[data-row-key^=\"p8#\"]').click();",
+        "    await wait(300);",
+        "    document.querySelector('.g-rtable__panelrow [data-roster-mark]').click();",
+        "    await wait(300);",
+        "    document.querySelector('#roster-mark [data-option-value=\"dead\"]').click();",
+        "    await wait(200);",
+        "    const f = document.querySelector('#mark-text');",
+        "    f.value = 'Foul by the Grimtusk Raiders, Casualty 15';",
+        "    f.dispatchEvent(new Event('input', { bubbles: true }));",
+        "    document.querySelector('#roster-mark [data-mark-send]').click();",
+        "    await wait(1000);",
+        "    location.hash = '#/t/t1/roster/p8';",
+        "    await wait(6500);",
+        "  }",
+        "  document.querySelector('[data-roster-undo]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-undo [data-undo-send]').click();",
+        "})()"
+      ]
+    }
+  ]
+}

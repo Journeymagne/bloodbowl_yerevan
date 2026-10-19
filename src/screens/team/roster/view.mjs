@@ -1,7 +1,7 @@
 /**
  * The roster's markup: the band with its counts, the table, and beside it on a desk the chosen player's panel;
- * a skill's or an injury's sheet over it when one is open. What a line says is model.mjs's, the row's panel and
- * the side panel panel.mjs's, the sheets sheets.mjs's.
+ * a skill's, an injury's, a missed match's or a death's undo's sheet over it when one is open. What a line says is
+ * model.mjs's, the row's panel and the side panel panel.mjs's, the sheets sheets.mjs's, mark-sheet.mjs's and fallen-view.mjs's.
  *
  * The player's button does what the width it is drawn at does with it (R11): up to 900px it opens his row
  * (`aria-expanded`, and the row's panel it controls), from 901px it chooses him for the panel beside the table
@@ -10,6 +10,11 @@
  *
  * Above the table stand what the coach has to keep in mind: a preparation or a match that is on (Task 11,
  * decisions 12 and 13), and the save's trouble (Task 10); then, on a desk, stage 08's treasury strip (Task 15).
+ *
+ * The roster is three tables (stage 07b, decision 13): «Active roster», those who play the next match; «Missing the
+ * match», each saying why under his name; and «Fallen», the dead in grey, whose row and panel are fallen-view.mjs's.
+ * One sort orders the three, one choice picks the row that is open or the player in the panel among them all, and the
+ * labels repeat once, under the last table drawn.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -19,14 +24,16 @@ import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
 import { icon } from "../../../ui/icons.mjs";
-import { dataAttributes } from "../../../ui/markup.mjs";
+import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderPageHead } from "../../../ui/page-head.mjs";
 import { renderRosterTable } from "../../../ui/roster-table.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
-import { MAIN_COUNTERS, rosterCounts } from "./model.mjs";
-import { matchWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
+import { causeOf, fallenName, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
+import { MAIN_COUNTERS, rosterCounts, rosterSections } from "./model.mjs";
+import { absenceWords, injuryWords, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
+import { markSheetMarkup } from "./mark-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
 
@@ -36,6 +43,10 @@ export const ASIDE_ID = "roster-aside";
 export const OUTSIDE_TOGGLE = "roster-outside";
 /** The id of what the switch is described by: why it is there, which does not fit beside it in the banner (K9). */
 const OUTSIDE_NOTE = "roster-outside-note";
+/** The ids of the three sections' headings, which name the sections. */
+const HEADINGS = Object.freeze({ active: "roster-heading", skipping: "roster-skips-heading", fallen: "roster-fallen-heading" });
+/** No match is on for the dead: no count of theirs says what one added. */
+const NO_MATCH = Object.freeze({ kind: "plain" });
 
 /**
  * @typedef {object} RosterScreen
@@ -45,6 +56,8 @@ const OUTSIDE_NOTE = "roster-outside-note";
  * @property {(import("./model.mjs").PlayerLine & {sessionSpp: number, sessionOutside: number})[]} lines in the order of
  *   `memory.sort`; `sessionSpp` is what his SPP has moved since the screen opened, `sessionOutside` what the edits
  *   outside the match alone have moved it (`sessionSppOf`)
+ * @property {import("./model.mjs").FallenLine[]} fallen the team's dead the roster as read does not hold, in the order of
+ *   `memory.sort` (none: the server's, the newest first)
  * @property {{kind: "plain"|"prep"|"match", game?: object, round?: number|null}} mode
  * @property {{sort: object|null, selected: string|null, outside: string|null}} memory (memory.mjs)
  * @property {boolean} outside «Edit outside the match» is on for the match on (`memory.outside` is its game id, R13)
@@ -55,9 +68,13 @@ const OUTSIDE_NOTE = "roster-outside-note";
  * @property {string} sideLocked why the match's own taps are closed: the server's refusal `EVENT_SIDE_LOCKED` (the
  *   side has saved its Players step), until the records are read again; "" when they are open
  * @property {number} records the rows of the match on that the team has, as last read: what its banner counts
- * @property {{kind: "skill", key: string, name: string}|{kind: "injury", key: string, gameId: string, choice: {code: string, stat: string}, busy: boolean, reason: string}|null} sheet
- *   the sheet that is open: a skill's rule, or an injury of the match `gameId` with what is chosen in it ("" for
- *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now
+ * @property {{kind: "skill", key: string, name: string}|{kind: "injury", key: string, gameId: string, choice: {code: string, stat: string}, busy: boolean, reason: string}
+ *   |{kind: "mark", key: string, choice: import("./mark-sheet.mjs").MarkChoice, busy: boolean, refusal: string, reason: string}
+ *   |{kind: "undo", key: string, busy: boolean, refusal: string, reason: string}|null} sheet
+ *   the sheet that is open: a skill's rule; an injury of the match `gameId` with what is chosen in it ("" for
+ *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now; a
+ *   missed match's reasons (stage 07b) with what is chosen, the last refusal, and why no mark can be made just now; or
+ *   a death's undo (Task 9), whether it is on its way, the last refusal, and why none can be sent just now
  * @property {boolean} unsure an injury's answer was lost and the read that followed failed: whether it was written is
  *   not known, so no injury is recorded until a read of the records succeeds (R14)
  * @property {string} error a read that failed, "" when none
@@ -91,12 +108,6 @@ function statCell({ text, change }) {
   return { text, tone: change, note };
 }
 
-/** An injury in words: «Seriously Hurt», a lasting one with its characteristic, «Lasting Injury (AG)». */
-function injuryWords({ code, stat }) {
-  const injury = t(`teamRoster.injury.${code}`);
-  return stat ? t("teamRoster.injury.withStat", { injury, stat: t(`stats.${stat}`) }) : injury;
-}
-
 /** The line under a player's name while an injury of the match on stands for him (Task 12): «Lasting Injury (AG) · round 3»; "" when none does. */
 function injuryLine(line, mode) {
   return mode.kind === "match" && line.injury ? t("teamRoster.injury.line", { injury: injuryWords(line.injury), match: matchWords(mode) }) : "";
@@ -117,32 +128,54 @@ function cellsOf(line, { mode }) {
 }
 
 /**
- * Whose row is open (a phone) and who stands in the panel (a desk): the player the coach chose while he is
- * still on the roster; on a desk the table's first when there is none.
+ * Whose row is open (a phone) and who stands in the panel (a desk): the player the coach chose while he is still
+ * on the screen; on a desk, when there is none, the first of `lines` — those who play, then those who miss the
+ * match, then the fallen.
  */
-function choiceOf({ lines, memory }) {
+function choiceOf(lines, { memory }) {
   const open = lines.some((line) => line.key === memory.selected) ? memory.selected : null;
   return { open, chosen: open ?? lines[0]?.key ?? null };
 }
 
 /**
- * A player's row: the open row's panel on a phone, the mark of the panel's player on a desk. Under his name an
- * injury the match on has dealt him (Task 12), else that he misses the next match, else his position.
+ * A player of the roster: under his name an injury the match on has dealt him (Task 12), else why he misses the next
+ * match (decision 14), else his position.
  */
-function rowOf(line, screen, choice) {
+function playerRowOf(line, screen) {
   const injury = injuryLine(line, screen.mode);
-  const row = {
+  return {
     key: line.key,
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain }),
     name: line.name,
-    sub: injury || (line.skip ? t("teamRoster.skip") : line.position),
+    sub: injury || (line.skip ? absenceWords(line) : line.position),
     alert: Boolean(injury) || line.skip,
     cells: cellsOf(line, screen),
     skillsHtml: skillChipsMarkup(line),
   };
+}
+
+/** A fallen player (decision 15): his number grey, «Fallen · <cause>» quiet under his name, his numbers as they were. */
+function fallenRowOf(line) {
+  const cause = causeOf(line);
+  return {
+    key: line.key,
+    badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true }),
+    name: fallenName(line),
+    sub: cause ? t("teamRoster.fallen.sub", { cause }) : t("teamRoster.fallen.status"),
+    alert: false,
+    cells: cellsOf(line, { mode: NO_MATCH }),
+    skillsHtml: skillChipsMarkup(line),
+  };
+}
+
+/** A row of any of the three tables: the open row's panel on a phone, the mark of the panel's player on a desk. */
+function rowOf(line, screen, choice) {
+  const row = line.fallen ? fallenRowOf(line) : playerRowOf(line, screen);
   if (!screen.phone) return { ...row, selected: choice.chosen === line.key, controls: ASIDE_ID };
   const expanded = choice.open === line.key;
-  return { ...row, expanded, panelHtml: expanded ? rowPanelMarkup(line, screen) : "" };
+  let panelHtml = "";
+  if (expanded) panelHtml = line.fallen ? fallenRowMarkup(line, screen) : rowPanelMarkup(line, screen);
+  return { ...row, expanded, panelHtml };
 }
 
 /**
@@ -167,8 +200,7 @@ const calloutLink = (href, label) => `<a class="g-roster__calloutlink" href="${e
  */
 function prepMarkup({ mode }) {
   const title = mode.round === null ? t("teamRoster.prep.titleFriendly") : t("teamRoster.prep.title", { round: mode.round });
-  const sub = t("teamRoster.prep.sub", { roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
-  return renderCallout({ tone: "warn", title, sub, actionHtml: calloutLink(preMatchUrl(mode.game), t("teamRoster.prep.link")) });
+  return renderCallout({ tone: "warn", title, sub: prepResetWords(), actionHtml: calloutLink(preMatchUrl(mode.game), t("teamRoster.prep.link")) });
 }
 
 /**
@@ -221,22 +253,44 @@ function noticesMarkup(screen) {
 }
 
 /**
- * The banners, stage 08's treasury strip on a desk (strip.mjs), then the table and the panel beside it; a roster with
- * nobody on it says so instead of the table.
+ * One section of the roster, named by its heading: the band — the heading with its number, and what stands at the
+ * right of it (the save's status, by «Active roster») — then its table or what stands in place of one.
+ */
+function sectionMarkup({ which, heading, count, barHtml = "", bodyHtml }) {
+  const id = HEADINGS[which];
+  return `<section class="${classNames("g-roster__section", which === "fallen" && "g-roster__section--fallen")}" aria-labelledby="${id}">`
+    + `<div class="g-roster__bar"><h2 class="g-roster__heading" id="${id}">${escapeHtml(heading)} <span class="g-roster__count">${escapeHtml(count)}</span></h2>`
+    + `${barHtml}</div>${bodyHtml}</section>`;
+}
+
+/**
+ * The banners, stage 08's treasury strip on a desk (strip.mjs), then the three sections and the panel beside them.
+ * «Active roster» always stands, with the save's status: a roster with nobody on it says so, and one whose players
+ * all miss the match says that, in place of its table; the other two are drawn only with someone in them. The
+ * labels repeat under the last table alone; the first one's header leads with `headLeadHtml` (stage 07c's «+»).
  */
 function layoutMarkup(screen) {
-  const { lines, team } = screen;
-  const choice = choiceOf(screen);
-  const heading = `<div class="g-roster__bar"><h2 class="g-roster__heading" id="roster-heading">${escapeHtml(t("teamRoster.heading"))} `
-    + `<span class="g-roster__count">${escapeHtml(lines.length)}</span></h2>${statusMarkup(screen.save)}</div>`;
-  const table = lines.length
-    ? renderRosterTable({ label: t("teamRoster.tableLabel", { team: team.name }), columns: columnsOf(), groups: groupsOf(), rows: lines.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort })
-    : `<p class="g-roster__empty">${escapeHtml(t("teamRoster.empty"))}</p>`;
-  const chosen = lines.find((line) => line.key === choice.chosen);
+  const { lines, fallen, team } = screen;
+  const { active, skipping } = rosterSections(lines);
+  const choice = choiceOf([...active, ...skipping, ...fallen], screen);
+  const last = fallen.length ? fallen : skipping.length ? skipping : active;
+  const table = (label, rows, headLeadHtml = "") => renderRosterTable({
+    label, columns: columnsOf(), groups: groupsOf(), rows: rows.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort, headLeadHtml, foot: rows === last,
+  });
+  const first = active.length
+    ? table(t("teamRoster.tableLabel", { team: team.name }), active)
+    : `<p class="g-roster__empty">${escapeHtml(lines.length ? t("teamRoster.skips.noneActive") : t("teamRoster.empty"))}</p>`;
+  const sections = [sectionMarkup({ which: "active", heading: t("teamRoster.heading"), count: active.length, barHtml: statusMarkup(screen.save), bodyHtml: first })];
+  if (skipping.length) {
+    sections.push(sectionMarkup({ which: "skipping", heading: t("teamRoster.skips.heading"), count: skipping.length, bodyHtml: table(t("teamRoster.skips.tableLabel", { team: team.name }), skipping) }));
+  }
+  if (fallen.length) sections.push(sectionMarkup({ which: "fallen", heading: t("teamRoster.fallen.heading"), count: fallen.length, bodyHtml: table(t("teamRoster.fallen.tableLabel", { team: team.name }), fallen) }));
+  const chosen = [...lines, ...fallen].find((line) => line.key === choice.chosen);
   const aside = chosen
-    ? `<aside class="g-roster__aside" id="${ASIDE_ID}" aria-label="${escapeHtml(t("teamRoster.panelLabel"))}"${dataAttributes({ panelPlayer: chosen.key })}>${sidePanelMarkup(chosen, screen)}</aside>`
+    ? `<aside class="g-roster__aside" id="${ASIDE_ID}" aria-label="${escapeHtml(t("teamRoster.panelLabel"))}"${dataAttributes({ panelPlayer: chosen.key })}>`
+      + `${chosen.fallen ? fallenPanelMarkup(chosen, screen) : sidePanelMarkup(chosen, screen)}</aside>`
     : "";
-  return `${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__layout"><section class="g-roster__main" aria-labelledby="roster-heading">${heading}${table}</section>${aside}</div>`;
+  return `${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__layout"><div class="g-roster__main">${sections.join("")}</div>${aside}</div>`;
 }
 
 /** A fault in place of the table, in a danger callout; a read that failed offers to read again. */
@@ -253,12 +307,17 @@ function bodyMarkup(screen) {
   return layoutMarkup(screen);
 }
 
-/** The sheet that is open, while its player is still on the roster: a skill's, or an injury's (`screenOf` closes one that no longer stands). */
+/**
+ * The sheet that is open, while its player is still on the screen: a skill's — a fallen player's chip opens its rule
+ * too — an injury's, a missed match's, or a death's undo (`screenOf` closes one that no longer stands).
+ */
 function sheetMarkup(screen) {
   const { sheet } = screen;
-  const line = sheet && screen.race ? screen.lines.find((item) => item.key === sheet.key) : null;
+  const line = sheet && screen.race ? [...screen.lines, ...screen.fallen].find((item) => item.key === sheet.key) : null;
   if (!line) return "";
   if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy, reason: sheet.reason });
+  if (sheet.kind === "mark") return markSheetMarkup({ line, choice: sheet.choice, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason });
+  if (sheet.kind === "undo") return undoSheetMarkup({ line, mode: screen.mode, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason });
   return skillSheetMarkup({ data: screen.data, line, name: sheet.name });
 }
 

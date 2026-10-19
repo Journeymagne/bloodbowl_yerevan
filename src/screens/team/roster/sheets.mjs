@@ -7,6 +7,10 @@
  * An injury in the match (Task 12, decision 14): the five results of the Casualty Table, a lasting one with the
  * characteristic it lowers, recorded in the match as a row of it, and the standing one taken back by its own −1.
  * The post-match's Players step reads it from the rows; the roster is changed there, not here.
+ *
+ * Stage 07b's sheets — a missed match's reasons (mark-sheet.mjs) and the undo of a death — are drawn by their own
+ * modules; what they share with the injury's is here: the ids the screen shows each by, the row of characteristics
+ * and the foot's button.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -27,6 +31,20 @@ export const SKILL_SHEET = "roster-skill";
 export const INJURY_SHEET = "roster-injury";
 /** The name its row of characteristics is wired by (wireFilterChips). */
 export const INJURY_STAT = "injury-stat";
+/** What the sheet of a missed match's reasons is shown by (`#roster-mark`) and what wireSheets reports. */
+export const MARK_SHEET = "roster-mark";
+/** What the sheet that undoes a death is shown by (`#roster-undo`) and what wireSheets reports. */
+export const UNDO_SHEET = "roster-undo";
+/** The name the mark's row of characteristics is wired by: a row of its own, so that neither sheet hears the other's (wireFilterChips). */
+export const MARK_STAT = "mark-stat";
+
+/** The id of each kind of sheet the visit holds (index.mjs's `visit.sheet.kind`). */
+const SHEET_IDS = Object.freeze({ skill: SKILL_SHEET, injury: INJURY_SHEET, mark: MARK_SHEET, undo: UNDO_SHEET });
+
+/** The id a sheet of `kind` is shown by, which wireSheets reports when it is closed; "" for a kind there is none of. */
+export function sheetIdOf(kind) {
+  return SHEET_IDS[kind] ?? "";
+}
 
 /** The injuries a match deals: the Casualty Table's results, «none» being none. */
 const INJURY_CODES = INJURIES.filter((code) => code !== "none");
@@ -62,23 +80,34 @@ export function chosenInjury({ code, stat }) {
   return PLAYER_STATS.includes(stat) ? { code, stat } : null;
 }
 
-/** «Which characteristic» a lasting injury lowers, as a row of chips under its caption. */
-function statMarkup(stat) {
-  const label = t("teamRoster.injury.stat");
+/**
+ * The characteristic a lasting injury lowers, as a row of chips under its caption: the injury's, and a missed match's.
+ *
+ * @param {object} props
+ * @param {string} props.stat the one chosen, "" for none yet
+ * @param {string} props.group the name the row is wired by (`INJURY_STAT`, `MARK_STAT`)
+ * @param {string} props.label the caption, which names the row for a screen reader too
+ */
+export function statChipsMarkup({ stat, group, label }) {
   const items = PLAYER_STATS.map((value) => ({ value, label: t(`stats.${value}`) }));
   return `<div class="g-roster__injurystat"><p class="g-roster__injurylabel" aria-hidden="true">${escapeHtml(label)}</p>`
-    + `${renderFilterChips({ label, items, selected: stat, data: { chipGroup: INJURY_STAT } })}</div>`;
+    + `${renderFilterChips({ label, items, selected: stat, data: { chipGroup: group } })}</div>`;
 }
 
 /**
- * A button of the sheet's foot. `disabled` while it has nothing to send: busy with a row of his, or (the record)
- * nothing whole chosen. Closed with the match's taps (`reason`), it says why as the steppers behind the sheet do —
+ * A button of a sheet's foot, `data` naming what it does. `busy` while a write of his is on its way: it says so
+ * (`aria-busy`, `aria-disabled`) but is not `disabled`, which would take the focus from it in Chrome (button.mjs) —
+ * the screen refuses a press meanwhile (injury.mjs, marks.mjs). `disabled` while it has nothing to send: nothing whole
+ * chosen. Closed (`reason`: the match's taps, the screen's lock), it says why as the controls behind the sheet do —
  * `aria-disabled` and the reason as its title, in the look of a closed control (roster.css) — and stays in reach: a
- * press says it again and sends nothing (injury.mjs).
+ * press says it again and sends nothing.
+ *
+ * @param {{label: string, kind: string, data: object, disabled?: boolean, busy?: boolean, reason?: string}} props
  */
-function footButton({ label, kind, step, disabled, reason }) {
-  if (disabled || !reason) return renderButton({ label, kind, disabled, data: { injuryStep: step } });
-  return `<button type="button" class="g-btn g-btn--${kind} g-roster__closed" aria-disabled="true" title="${escapeHtml(reason)}"${dataAttributes({ injuryStep: step })}>`
+export function footButton({ label, kind, data, disabled = false, busy = false, reason = "" }) {
+  if (busy) return renderButton({ label, kind, busy, data });
+  if (disabled || !reason) return renderButton({ label, kind, disabled, data });
+  return `<button type="button" class="g-btn g-btn--${kind} g-roster__closed" aria-disabled="true" title="${escapeHtml(reason)}"${dataAttributes(data)}>`
     + `${escapeHtml(label)}</button>`;
 }
 
@@ -96,10 +125,10 @@ function footButton({ label, kind, step, disabled, reason }) {
 export function injurySheetMarkup({ line, mode, choice, busy = false, reason = "" }) {
   const options = INJURY_CODES.map((code) => ({ value: code, title: t(`teamRoster.injury.${code}`), sub: t(`teamRoster.injuryCaption.${code}`), radio: true }));
   const list = renderOptionList({ label: t("teamRoster.injury.choose"), options, selected: choice.code });
-  const stat = choice.code === "lasting" ? statMarkup(choice.stat) : "";
+  const stat = choice.code === "lasting" ? statChipsMarkup({ stat: choice.stat, group: INJURY_STAT, label: t("teamRoster.injury.stat") }) : "";
   const note = `<p class="g-roster__injurynote">${escapeHtml(t("teamRoster.injury.note", { match: matchWords(mode) }))}</p>`;
-  const remove = line.injury ? footButton({ label: t("teamRoster.injury.remove"), kind: "danger-quiet", step: -1, disabled: busy, reason }) : "";
-  const record = footButton({ label: t("teamRoster.injury.record"), kind: "primary", step: 1, disabled: busy || (!reason && !chosenInjury(choice)), reason });
+  const remove = line.injury ? footButton({ label: t("teamRoster.injury.remove"), kind: "danger-quiet", data: { injuryStep: -1 }, busy, reason }) : "";
+  const record = footButton({ label: t("teamRoster.injury.record"), kind: "primary", data: { injuryStep: 1 }, busy, disabled: !reason && !chosenInjury(choice), reason });
   return renderSheet({
     id: INJURY_SHEET,
     title: t("teamRoster.injury.title"),

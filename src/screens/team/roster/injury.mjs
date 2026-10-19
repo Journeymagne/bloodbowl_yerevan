@@ -45,15 +45,25 @@ export function sheetOf(visit, lines, where) {
   return { ...sheet, busy: inTheAir(visit, line.id), reason: injuryClosed(line, where) };
 }
 
+/** The buttons that open a sheet of a player's, by the sheet's kind: they carry his line's key. */
+const OPENERS = Object.freeze({ injury: "data-roster-injury", mark: "data-roster-mark", undo: "data-roster-undo" });
+
+/** The element under the view whose `attribute` names `key`, or null: matched as text, so no key can break a selector. */
+export const keyed = (attribute, key) => [...view.querySelectorAll(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === key) ?? null;
+
 /**
- * Where the focus goes back to when a sheet has closed: what opened it, or for an injury's the button of the same
- * player drawn in its place; null when there is none (the match is over: the screen gives it to the title).
+ * Where the focus goes back to when a sheet has closed: what opened it, or the button of the same player drawn in its
+ * place; for a mark's or an undo's (stage 07b), else his row's own button — a match begun takes the actions away, a
+ * mark moves him to another table. Null when there is none (the match is over: the screen gives it to the title).
  * @param {{opener: Element|null, sheet: object|null}} closed the sheet that was open, and what opened it
  */
 export function openerOf({ opener, sheet }) {
   if (opener?.isConnected) return opener;
-  if (sheet?.kind !== "injury") return null;
-  return [...view.querySelectorAll("[data-roster-injury]")].find((button) => button.getAttribute("data-roster-injury") === sheet.key) ?? null;
+  const attribute = OPENERS[sheet?.kind];
+  if (!attribute) return null;
+  const again = keyed(attribute, sheet.key);
+  if (again || sheet.kind === "injury") return again;
+  return keyed("data-row-key", sheet.key);
 }
 
 /**

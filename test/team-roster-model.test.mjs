@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { expandCollections } from "../src/data/reference.mjs";
 import {
-  EXTRA_COUNTERS, MAIN_COUNTERS, SORT_KEYS, counterSlots, nextSort, rosterCounts, rosterLines, rosterMode, sortLines, stepRule,
+  EXTRA_COUNTERS, MAIN_COUNTERS, SORT_KEYS, counterSlots, fallenLines, nextSort, rosterCounts, rosterLines, rosterMode, rosterSections, sortLines, stepRule, undoable,
 } from "../src/screens/team/roster/model.mjs";
 import { currentMatch } from "../src/shell/current-match.mjs";
 
@@ -132,7 +132,7 @@ test("a line says who the player is: his place, number, position, colour, cost a
   assert.deepEqual([lineman.key, lineman.id, lineman.index, lineman.number, lineman.name, lineman.position, lineman.kind],
     ["p0#0", "p0", 0, "1", "Human Lineman 1", "Human Lineman", "lineman"]);
   assert.deepEqual([lineman.primary, lineman.secondary, lineman.value], [["General"], ["Agility", "Strength", "Devious"], 50]);
-  assert.deepEqual([catcher.key, catcher.number, catcher.name, catcher.position, catcher.kind], ["p2#1", "9", "Ashby", "Catcher", "catcher"]);
+  assert.deepEqual([catcher.key, catcher.number, catcher.name, catcher.position, catcher.kind], ["p2#0", "9", "Ashby", "Catcher", "catcher"]);
   assert.equal(catcher.value, 75 + 40, "the price and a characteristic raised");
   assert.deepEqual([lineman.captain, lineman.skip, lineman.injury], [false, false, null]);
   const [ogre, captain, absent] = linesOf([player(5), player(3, { isCaptain: true }), player(1, { skipNextGame: true })]);
@@ -317,7 +317,7 @@ test("an odd roster: no race, a row the race has not, a shared id, a missing PA"
   assert.deepEqual(rosterLines({ draft: { players: [] }, race: HUMAN, mode: PLAIN }), []);
   assert.deepEqual(rosterLines({ draft: {}, race: HUMAN, mode: PLAIN }), []);
   const gap = linesOf([player(0), player(99), player(2)]);
-  assert.deepEqual(gap.map(({ key }) => key), ["p0#0", "p2#2"], "nobody for a row the race has not, and the places stay as they were stored");
+  assert.deepEqual(gap.map(({ key, index }) => [key, index]), [["p0#0", 0], ["p2#0", 2]], "nobody for a row the race has not, and the places stay as they were stored");
   const shared = linesOf([player(0, { id: "dup" }), player(1, { id: "dup" })]);
   assert.deepEqual(shared.map(({ key, id }) => [key, id]), [["dup#0", "dup"], ["dup#1", "dup"]]);
   assert.equal(linesOf([player(0, { name: HOSTILE })])[0].name, HOSTILE, "the markup escapes it, the model does not");
@@ -331,13 +331,214 @@ test("an id is the text a write names: a 2.x number, a blank in it, none at all"
   const [spaced] = linesOf([player(0, { id: "a b\tc" })]);
   assert.deepEqual([spaced.id, spaced.key], ["a b\tc", "a_b_c#0"], "a blank would make a list of the id of his panel");
   const [nameless, other] = linesOf([player(0, { id: undefined }), player(1)], { events: [row("p1", "touchdowns", 1)] });
-  assert.deepEqual([nameless.id, nameless.key, nameless.career.touchdowns, other.key, other.career.touchdowns], ["", "#0", 0, "p1#1", 1], "nobody can name him, so no row is his");
+  assert.deepEqual([nameless.id, nameless.key, nameless.career.touchdowns, other.key, other.career.touchdowns], ["", "#0", 0, "p1#0", 1], "nobody can name him, so no row is his");
   const [odd] = linesOf([player(0, { id: "constructor" })], { mode: MATCH, events: [row("constructor", "touchdowns", 1, { pairingId: "g2" })] });
   assert.deepEqual([odd.injury, odd.match.touchdowns], [null, 1]);
+});
+
+// The final review's row keys (T8): a key is not the player's place, so a place taken out of the roster re-keys nobody.
+test("a key is the id and how many before him share it: a player taken out re-keys nobody after him", () => {
+  const roster = [player(0), player(3, { id: "dup" }), player(2), player(1, { id: "dup" }), player(5)];
+  const keys = (players) => linesOf(players).map(({ key }) => key);
+  assert.deepEqual(keys(roster), ["p0#0", "dup#0", "p2#0", "dup#1", "p5#0"]);
+  assert.deepEqual(keys(roster.slice(1)), ["dup#0", "p2#0", "dup#1", "p5#0"], "the first gone, the rest keep theirs");
+  assert.deepEqual(keys([roster[0], roster[2], roster[3], roster[4]]), ["p0#0", "p2#0", "dup#0", "p5#0"], "the first twin gone, the other is the first of the id now");
+  // Ids a blank alone tells apart make the same key: they are counted as one, so the keys stay apart.
+  assert.deepEqual(keys([player(0, { id: "a b" }), player(1, { id: "a_b" }), player(2, { id: "a\tb" })]), ["a_b#0", "a_b#1", "a_b#2"]);
 });
 
 test("counts: the roster, those who miss a match, those who can advance", () => {
   const lines = linesOf([player(0, { spp: { touchdowns: 1 } }), player(1, { skipNextGame: true }), player(2)]);
   assert.deepEqual(rosterCounts(lines), { players: 3, skipping: 1, ready: 1 });
   assert.deepEqual(rosterCounts([]), { players: 0, skipping: 0, ready: 0 });
+});
+
+test("a line says why he misses the match, and whether he is retired for the season", () => {
+  const [niggling, lasting, noReason, retired, playing, stale] = linesOf([
+    player(0, { skipNextGame: true, absence: { code: "niggling" } }),
+    player(1, { skipNextGame: true, absence: { code: "lasting", stat: "ag", pairingId: "g2", extra: 1 } }),
+    player(2, { skipNextGame: true }),
+    player(3, { temporarilyRetired: true }),
+    player(4),
+    player(5, { absence: { code: "miss", note: "left over" } }),
+  ]);
+  assert.deepEqual([niggling.skip, niggling.absence, niggling.retired], [true, { code: "niggling" }, false]);
+  assert.deepEqual(lasting.absence, { code: "lasting", stat: "ag", pairingId: "g2" }, "as the roster reads it: a code, a characteristic, the match, nothing else");
+  assert.deepEqual([noReason.skip, noReason.absence, noReason.retired], [true, null, false], "a 2.x skip has no reason");
+  assert.deepEqual([retired.skip, retired.retired, retired.absence], [true, true, null], "a temporary retirement misses the match, and the season");
+  assert.deepEqual([playing.skip, playing.retired, playing.absence], [false, false, null]);
+  assert.equal(stale.absence, null, "a reason that is left over on a player who plays is none");
+  assert.deepEqual(linesOf([player(0, { skipNextGame: true, absence: { code: "dead" } })])[0].absence, null, "an unknown code is none");
+});
+
+test("the roster in two: those who play the next match, then those who miss it, each in the roster's order", () => {
+  const lines = linesOf([player(0, { skipNextGame: true }), player(1), player(2, { temporarilyRetired: true }), player(3), player(4, { skipNextGame: true })]);
+  const sections = rosterSections(lines);
+  assert.deepEqual(Object.keys(sections), ["active", "skipping"]);
+  assert.deepEqual(sections.active.map(({ index }) => index), [1, 3]);
+  assert.deepEqual(sections.skipping.map(({ index }) => index), [0, 2, 4]);
+  assert.equal(sections.active[0], lines[1], "the lines themselves, not copies");
+  const shuffled = sortLines(lines, { key: "player", dir: "desc" });
+  assert.deepEqual(rosterSections(shuffled).skipping.map(({ index }) => index), [4, 2, 0], "the order it is given");
+  assert.deepEqual(rosterSections([]), { active: [], skipping: [] });
+});
+
+/** A record as GET /api/teams/:id/fallen sends it. */
+const died = (id, snapshot, over = {}) => ({ id, player: snapshot, cause: "Foul", pairingId: null, roundNumber: null, diedAt: "2026-10-18T10:00:00Z", fromMatch: false, ...over });
+
+test("the fallen as lines: what the roster held when he died, the cause and how it was recorded", () => {
+  const record = { id: "f1", player: { id: "d1", rowIndex: 3, number: "8", name: "Pike", spp: { touchdowns: 2 } }, cause: "Foul", pairingId: null, roundNumber: null, diedAt: "2026-10-18T10:00:00Z", fromMatch: false };
+  const before = structuredClone(record);
+  const [line] = fallenLines({ fallen: [record], race: race("teams/human") });
+  assert.deepEqual([line.key, line.id, line.name, line.position, line.career.touchdowns, line.earned], ["fallen-f1", "d1", "Pike", "Blitzer", 2, 6]);
+  assert.deepEqual(line.fallen, { id: "f1", cause: "Foul", fromMatch: false, round: null, diedAt: "2026-10-18T10:00:00Z" });
+  assert.deepEqual(line.skills.map(({ name }) => name), ["Block", "Tackle"]);
+  assert.deepEqual([line.skip, line.captain, line.ready], [false, false, false]);
+  assert.deepEqual(record, before, "the record is only read");
+  assert.deepEqual([line.number, line.kind, line.index, line.injury, line.absence, line.retired], ["8", "blitzer", 0, null, null, false]);
+  assert.deepEqual([line.stats.ma.text, line.value], ["7", 80], "his position's characteristics and his price, as the roster reads them");
+  assert.deepEqual(Object.values(line.match), Object.values(line.match).map(() => 0), "no match is on for the dead");
+  assert.deepEqual([line.matchSpp, line.outsideSpp], [0, 0]);
+});
+
+test("a fallen line is the roster's own line made for the dead: nothing he could still do, and the same fields", () => {
+  const snapshot = { id: "d1", rowIndex: 3, number: "8", name: "Pike", skipNextGame: true, absence: { code: "niggling" }, isCaptain: true, spp: { casualties: 4 } };
+  const [dead] = fallenLines({ fallen: [died("f1", snapshot, { roundNumber: 7, fromMatch: true, cause: null })], race: HUMAN });
+  const [alive] = linesOf([snapshot]);
+  assert.deepEqual(Object.keys(dead).sort(), [...Object.keys(alive), "bare", "fallen"].sort());
+  assert.equal(dead.bare, false, "the race reads him");
+  assert.deepEqual([dead.skip, dead.captain, dead.ready, dead.injury, dead.absence, dead.retired], [false, false, false, null, null, false], "he is not marked, not the captain, not about to advance");
+  assert.deepEqual(dead.fallen, { id: "f1", cause: null, fromMatch: true, round: 7, diedAt: "2026-10-18T10:00:00Z" });
+  assert.deepEqual([dead.career.casualties, dead.blob.casualties, dead.waiting.casualties, dead.earned], [4, 4, 4, 8], "the career is the counters of the snapshot, no rows");
+  assert.equal(fallenLines({ fallen: [died("f2", snapshot, { cause: undefined })], race: HUMAN })[0].fallen.cause, null, "a cause the server did not send is none");
+  assert.deepEqual(fallenLines({ fallen: [died("f3", snapshot, { roundNumber: undefined })], race: HUMAN })[0].fallen.round, null);
+});
+
+test("a dead captain is no captain: neither the mark nor the captain's Pro, which goes with the captaincy (R1)", () => {
+  const captain = { id: "d1", rowIndex: 3, number: "8", name: "Pike", isCaptain: true, extraSkills: [{ name: "Mighty Blow", access: "primary" }] };
+  const [dead] = fallenLines({ fallen: [died("f1", captain)], race: HUMAN });
+  assert.deepEqual(dead.skills.map(({ name, source }) => [name, source]), [["Block", "base"], ["Tackle", "base"], ["Mighty Blow", "primary"]]);
+  assert.equal(dead.captain, false);
+  const [took] = fallenLines({ fallen: [died("f2", { ...captain, extraSkills: [{ name: "Pro", access: "secondary" }] })], race: HUMAN });
+  assert.deepEqual(took.skills.filter(({ name }) => name === "Pro"), [{ name: "Pro", gained: true, source: "secondary" }], "a Pro he took is his");
+  assert.deepEqual(linesOf([captain])[0].skills.at(-1), { name: "Pro", gained: false, source: "captain" }, "the living captain keeps it");
+});
+
+test("no race, no lines; the places are those of the server's list", () => {
+  assert.deepEqual(fallenLines({ fallen: [died("f1", { id: "d1", rowIndex: 0 })], race: null }), []);
+  assert.deepEqual(fallenLines({ fallen: [], race: HUMAN }), []);
+  assert.deepEqual(fallenLines({ fallen: undefined, race: HUMAN }), []);
+  const lines = fallenLines({ fallen: [died("a", { id: "x", rowIndex: 0 }), died("b", { id: "y", rowIndex: 1 }), died("c", { id: "z", rowIndex: 2 })], race: HUMAN });
+  assert.deepEqual(lines.map(({ key, index }) => [key, index]), [["fallen-a", 0], ["fallen-b", 1], ["fallen-c", 2]]);
+});
+
+test("a fallen record the roster cannot read is a line all the same: his name, dashes and no skills", () => {
+  const records = [
+    died("f1", { id: "d1", number: "3", name: "No Row" }),
+    died("f2", { id: "d2", rowIndex: 99, number: "4", name: "Far Row", spp: { touchdowns: 9 } }),
+    died("f3", { name: "Old Joe", position: "Lineman", number: 5 }),
+  ];
+  const lines = fallenLines({ fallen: records, race: HUMAN });
+  assert.equal(lines.length, 3);
+  assert.deepEqual(lines.map(({ key }) => key), ["fallen-f1", "fallen-f2", "fallen-f3"]);
+  for (const line of lines) {
+    assert.deepEqual(line.stats.ma, { text: "–", change: "", order: null });
+    assert.deepEqual(Object.keys(line.stats), ["ma", "st", "ag", "pa", "ar"]);
+    assert.deepEqual([line.skills, line.primary, line.secondary, line.earned, line.spent, line.available, line.level], [[], [], [], 0, 0, 0, 0]);
+    assert.deepEqual([line.kind, line.cheapest, line.ready, line.value, line.matchSpp, line.outsideSpp, line.injury], ["lineman", null, false, 0, 0, 0, null]);
+    assert.deepEqual([line.skip, line.captain, line.absence, line.retired], [false, false, null, false]);
+  }
+  assert.deepEqual(lines.map(({ id, number, name, position }) => [id, number, name, position]),
+    [["d1", "3", "No Row", ""], ["d2", "4", "Far Row", ""], ["", "5", "Old Joe", "Lineman"]], "the text of the snapshot, a number as text, none as nothing");
+  assert.deepEqual(lines[1].career, lines[2].career);
+  assert.deepEqual(Object.values(lines[1].career), Object.values(lines[1].career).map(() => 0), "a counter nobody can price is not shown");
+  const read = fallenLines({ fallen: [died("f4", { id: "d4", rowIndex: 3 })], race: HUMAN })[0];
+  for (const field of ["blob", "career", "match", "waiting"]) assert.deepEqual(Object.keys(lines[0][field]), Object.keys(read[field]), field);
+  assert.deepEqual(Object.keys(lines[0]).sort(), Object.keys(read).sort(), "the same fields as a line the race reads");
+  assert.deepEqual(lines[2].fallen, { id: "f3", cause: "Foul", fromMatch: false, round: null, diedAt: "2026-10-18T10:00:00Z" });
+});
+
+test("a record whose player is no object is a bare line from nothing, not an error", () => {
+  const records = [died("n1", null), died("n2", undefined), died("n3", "Joe"), died("n4", 7), died("n5", []), died("n6", { id: "d6", rowIndex: null, name: null, number: null })];
+  const lines = fallenLines({ fallen: records, race: HUMAN });
+  assert.deepEqual(lines.map(({ key, id, number, name, position }) => [key, id, number, name, position]), [
+    ["fallen-n1", "", "", "", ""], ["fallen-n2", "", "", "", ""], ["fallen-n3", "", "", "", ""], ["fallen-n4", "", "", "", ""], ["fallen-n5", "", "", "", ""],
+    ["fallen-n6", "d6", "", "", ""],
+  ]);
+  for (const line of lines) assert.deepEqual([line.stats.st.text, line.skills, line.earned, line.fallen.cause], ["–", [], 0, "Foul"]);
+  assert.equal(JSON.stringify(lines).includes("undefined"), false);
+});
+
+// K11: the server would not undo such a record (FALLEN_NOT_RESTORABLE), so the screen offers no undo of it.
+test("a record the roster cannot read is bare: no row of the race for it, or no player at all", () => {
+  const records = [
+    died("b1", { id: "d1", number: "3", name: "No Row" }),
+    died("b2", { id: "d2", rowIndex: 99, name: "Far Row" }),
+    died("b3", { name: "Old Joe", position: "Lineman", number: 5 }),
+    died("b4", null),
+    died("b5", []),
+    // A snapshot the race reads but with no id: the roster could not name him back, nor a read find him there.
+    died("b6", { rowIndex: 0, name: "No Id" }),
+    died("b7", { id: "", rowIndex: 0, name: "Blank Id" }),
+    died("r1", { id: "d6", rowIndex: 3, name: "Pike" }),
+    died("r2", { id: 7, rowIndex: 0, name: "A 2.x number" }),
+  ];
+  assert.deepEqual(fallenLines({ fallen: records, race: HUMAN }).map(({ key, bare }) => [key, bare]), [
+    ["fallen-b1", true], ["fallen-b2", true], ["fallen-b3", true], ["fallen-b4", true], ["fallen-b5", true], ["fallen-b6", true], ["fallen-b7", true],
+    ["fallen-r1", false], ["fallen-r2", false],
+  ]);
+  assert.equal("bare" in linesOf([{ id: "d6", rowIndex: 3, name: "Pike" }])[0], false, "a player of the roster is none");
+});
+
+test("a death the screen undoes: one a coach marked, in a record the roster reads (K11)", () => {
+  const [manual, fromMatch, bare, noId] = fallenLines({
+    fallen: [died("u1", { id: "d1", rowIndex: 3 }), died("u2", { id: "d2", rowIndex: 3 }, { fromMatch: true }), died("u3", { id: "d3" }), died("u4", { rowIndex: 3 })],
+    race: HUMAN,
+  });
+  assert.deepEqual([manual, fromMatch, bare, noId].map(undoable), [true, false, false, false]);
+  assert.equal(undoable(linesOf([{ id: "d6", rowIndex: 3 }])[0]), false, "a player of the roster has no death to undo");
+  assert.equal(undoable(null), false);
+});
+
+test("a fallen player who is on the roster as read is drawn once, on the roster", () => {
+  const record = died("f1", { id: "d1", rowIndex: 3, name: "Pike" });
+  assert.deepEqual(fallenLines({ fallen: [record], race: HUMAN, rosterIds: ["d1"] }), []);
+  assert.equal(fallenLines({ fallen: [record], race: HUMAN, rosterIds: ["d2"] }).length, 1);
+  assert.equal(fallenLines({ fallen: [record], race: HUMAN, rosterIds: [] }).length, 1);
+  assert.equal(fallenLines({ fallen: [record], race: HUMAN }).length, 1, "none given, none held back");
+  const numbered = died("f2", { id: 5, rowIndex: 0 });
+  assert.deepEqual(fallenLines({ fallen: [numbered], race: HUMAN, rosterIds: ["5"] }), [], "a 2.x number is the id's text on the roster as well");
+  const bare = died("f3", { id: "d3", name: "Old Joe" });
+  assert.deepEqual(fallenLines({ fallen: [bare], race: HUMAN, rosterIds: ["d3"] }), [], "a snapshot the roster cannot read, whose id it holds, too");
+  const nobody = died("f4", { rowIndex: 0, name: "No Id" });
+  assert.equal(fallenLines({ fallen: [nobody], race: HUMAN, rosterIds: [""] }).length, 1, "a roster player with no id is not every dead one with none");
+  const several = fallenLines({ fallen: [record, died("f5", { id: "d5", rowIndex: 1 }), died("f6", { id: "d6", rowIndex: 2 })], race: HUMAN, rosterIds: ["d5"] });
+  assert.deepEqual(several.map(({ key, index }) => [key, index]), [["fallen-f1", 0], ["fallen-f6", 2]], "the others keep their places in the server's list");
+});
+
+test("the fallen sort with the roster's sort; with none, in the server's order", () => {
+  const lines = fallenLines({
+    fallen: [
+      died("a", { id: "a", rowIndex: 3, number: "9" }), // Blitzer, MA 7
+      died("b", { name: "Old Joe", number: "1" }), // bare
+      died("c", { id: "c", rowIndex: 0, number: "2" }), // Lineman, MA 6
+      died("d", { id: "d", rowIndex: 2, number: "4", spp: { touchdowns: 2 } }), // Catcher, MA 8
+    ],
+    race: HUMAN,
+  });
+  const order = (sort) => sortLines([lines[2], lines[3], lines[0], lines[1]], sort).map(({ fallen }) => fallen.id);
+  assert.deepEqual(order(null), ["a", "b", "c", "d"], "the server's order");
+  assert.deepEqual(order({ key: "ma", dir: "desc" }), ["d", "a", "c", "b"], "a bare line, with no MA, last");
+  assert.deepEqual(order({ key: "ma", dir: "asc" }), ["c", "a", "d", "b"], "and last going up");
+  assert.deepEqual(order({ key: "player", dir: "asc" }), ["b", "c", "d", "a"]);
+  assert.deepEqual(order({ key: "earned", dir: "desc" }), ["d", "a", "b", "c"], "6, then the three with none in the server's order");
+});
+
+test("a name and a cause are kept as they are", () => {
+  const [read, bare] = fallenLines({
+    fallen: [died("f1", { id: "d1", rowIndex: 0, name: HOSTILE, number: HOSTILE }, { cause: HOSTILE }), died("f2", { name: HOSTILE, position: HOSTILE }, { cause: HOSTILE })],
+    race: HUMAN,
+  });
+  assert.deepEqual([read.name, read.number, read.fallen.cause], [HOSTILE, HOSTILE, HOSTILE], "the markup escapes it, the model does not");
+  assert.deepEqual([bare.name, bare.position, bare.fallen.cause], [HOSTILE, HOSTILE, HOSTILE]);
 });

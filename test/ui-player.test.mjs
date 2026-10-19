@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, read, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertStyled, mount } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
@@ -151,6 +151,27 @@ test("a player's badge is his number on his position's colour; the captain's has
   assertStyled(fragment, "number-badge.css");
   assert.ok(valuesOf("src/ui/number-badge.css", ".g-num--catcher", "background").includes("var(--pos-catcher)"));
   assert.ok(valuesOf("src/ui/number-badge.css", ".g-num__captain", "background").includes("var(--crest-gold)"));
+});
+
+test("a fallen player's number is grey: no position's colour, no captain's mark, readable in every palette", () => {
+  const fragment = mount(renderPlayerBadge({ number: "8", kind: "blitzer", captain: true, fallen: true }));
+  const badge = fragment.querySelector(".g-num.g-num--fallen");
+  assert.ok(badge);
+  assert.equal(badge.querySelector(".g-num__n").textContent, "8");
+  assert.ok(!fragment.querySelector(".g-num--blitzer"), "his position's colour is not worn");
+  assert.ok(!fragment.querySelector(".g-num__captain"), "a captain who has fallen wears no mark");
+  assert.ok(!fragment.querySelector(".g-sr-only"), "and says no word for it");
+  assert.ok(mount(renderPlayerBadge({ number: "8", kind: "big", large: true, fallen: true })).querySelector(".g-num.g-num--fallen.g-num--lg"));
+  assert.ok(mount(renderPlayerBadge({ number: "8" })).querySelector(".g-num--lineman"), "a player still on the roster is not grey");
+  assert.ok(!mount(renderPlayerBadge({ number: "8", captain: true, fallen: false })).querySelector(".g-num--fallen"));
+  assert.throws(() => renderPlayerBadge({ number: "1", kind: "ogre", fallen: true }), /kind/, "a kind that is no kind is a bug of the caller even for a fallen player");
+  assertCspSafe(fragment);
+  assertStyled(fragment, "number-badge.css");
+  assert.deepEqual(valuesOf("src/ui/number-badge.css", ".g-num--fallen", "background"), ["var(--surface-3)"]);
+  assertReadable("src/ui/number-badge.css", ".g-num--fallen", "color", ["--surface-3"], 4.5);
+  // After the positions' classes: the same specificity, so the later one wins.
+  const css = read("src/ui/number-badge.css");
+  assert.ok(css.indexOf(".g-num--fallen {") > css.indexOf(".g-num--big {"));
 });
 
 test("a changed characteristic says so in words, not only in colour (WCAG 1.4.1, 07a)", () => {

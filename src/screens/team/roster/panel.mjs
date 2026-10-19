@@ -11,11 +11,16 @@
  * match has added; the switch «Edit outside the match» makes it an edit of the career instead. The way to his page
  * is closed until the post-match: an advancement there would change the roster the match's finish checks. A player
  * who plays the match has «Injury in the match…» under all that (Task 12, decision 14), closed with the match's taps.
+ *
+ * Outside a match the row of actions stands there instead (stage 07b, decisions 16 and 17): «Miss a match…» for a
+ * player who plays the next one, «Back on the roster» for one who misses it — never a second mark over the first.
+ * Stage 07c puts «Sell» beside them.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { teamPlayerUrl } from "../../../core/routes.mjs";
+import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { advancementRanks } from "../../../domain/league-rules.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
@@ -37,18 +42,120 @@ export function matchWords(mode) {
   return mode.round === null || mode.round === undefined ? t("teamRoster.match.friendly") : t("teamRoster.match.round", { round: mode.round });
 }
 
+/** An injury in words: «Seriously Hurt», a lasting one with its characteristic, «Lasting Injury (AG)». */
+export function injuryWords({ code, stat }) {
+  const injury = t(`teamRoster.injury.${code}`);
+  return stat ? t("teamRoster.injury.withStat", { injury, stat: t(`stats.${stat}`) }) : injury;
+}
+
+/**
+ * Why a player who misses the next match misses it (stage 07b, decision 14), "" where nothing says why: the season's
+ * retirement; another reason as the coach wrote it; an injury as the match's are said. A 2.x skip, which has no reason,
+ * and another reason with no words written (K10) say nothing here.
+ */
+function absenceReason({ retired, absence }) {
+  if (retired) return t("teamRoster.skips.retired");
+  if (!absence) return "";
+  if (absence.code === "other") return absence.note ?? "";
+  return injuryWords(absence);
+}
+
+/**
+ * The line under the name of a player who misses the next match: why, or where nothing says why, that he misses it
+ * (the words 07a drew for every skip).
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ */
+export function absenceWords(line) {
+  return absenceReason(line) || t("teamRoster.skip");
+}
+
+/**
+ * What any save of the roster resets during a preparation, the steps named as the pre-match names them (R12): the
+ * preparation's banner says it, and so does a sheet whose write is a save of the roster.
+ */
+export function prepResetWords() {
+  return t("teamRoster.prep.sub", { roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
+}
+
+/**
+ * «Next match: plays», or that he sits it out — with why, when something says it (K3: a 2.x skip keeps 07a's words,
+ * which would only say it twice).
+ */
+function nextMatchWords(line) {
+  if (!line.skip) return t("teamRoster.nextMatch", { state: t("teamRoster.plays") });
+  const reason = absenceReason(line);
+  return t("teamRoster.nextMatch", { state: reason ? t("teamRoster.skips.sits", { reason }) : t("teamRoster.sits") });
+}
+
 /** A step is a record of the match on: the match is on and the switch does not make it an edit outside it. */
 const tapsTheMatch = (screen) => screen.mode.kind === "match" && !screen.outside;
 
 /**
- * A way to the player's page that a match has closed: a button that says why (`teamRoster.afterPost`) as its
- * tooltip and, pressed, in a message (wire.mjs), in the look of the link it stands for (button.css). With a `glyph`
- * the label is its name for a screen reader, as the pencil's link has it.
+ * A control that is closed: a button that says why (`reason`; for a way to the player's page a match has closed,
+ * `teamRoster.afterPost`) as its tooltip and, pressed, in a message (wire.mjs), in the look of what it stands for
+ * (button.css). With a `glyph` the label is its name for a screen reader, as the pencil's link has it; `data` keeps
+ * what names the control (an action's player, a fallen player's undo), so the focus finds it again.
  */
-function closedMarkup({ className, label, glyph = "" }) {
+export function closedMarkup({ className, label, glyph = "", reason = t("teamRoster.afterPost"), data = {} }) {
   const named = glyph ? ` aria-label="${escapeHtml(label)}"` : "";
-  return `<button type="button" class="${className} g-roster__closed"${named} aria-disabled="true" title="${escapeHtml(t("teamRoster.afterPost"))}"`
-    + `${dataAttributes({ rosterClosed: true })}>${glyph ? icon(glyph, 18) : escapeHtml(label)}</button>`;
+  return `<button type="button" class="${className} g-roster__closed"${named} aria-disabled="true" title="${escapeHtml(reason)}"`
+    + `${dataAttributes({ rosterClosed: true, ...data })}>${glyph ? icon(glyph, 18) : escapeHtml(label)}</button>`;
+}
+
+/**
+ * Why no missed match, nor its end, nor a death can be marked for a player just now, "" when it can (stage 07b): a
+ * match is on (R8: the roster is not written during one, and the match's injury is the place for it), the screen's
+ * lock, no id to name him by; and for a write the queue does not carry (`direct`: a death, its undo), a step of the
+ * queue that waits or is on its way, which that write would move the revision under.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {{mode: {kind: string}, lock: string, save: {status: string, waiting: number}}} screen
+ * @param {{direct?: boolean}} [options]
+ */
+export function markClosed(line, screen, { direct = false } = {}) {
+  if (screen.mode.kind === "match") return t("teamRoster.mark.closed");
+  if (screen.lock) return screen.lock;
+  if (!line.id) return t("teamRoster.mark.noId");
+  const saving = screen.save.status === SAVE_STATUS.SAVING || screen.save.status === SAVE_STATUS.DIRTY;
+  return direct && (screen.save.waiting > 0 || saving) ? t("teamRoster.mark.waitSave") : "";
+}
+
+/**
+ * Why «Back on the roster» is closed for a player who misses the next match: a retirement for the season, which it
+ * does not end (owner's question 2: the roster would read him as missing it again), else as a mark is.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {Parameters<typeof markClosed>[1]} screen
+ */
+export function returnClosed(line, screen) {
+  return line.retired ? t("teamRoster.skips.retiredClosed") : markClosed(line, screen);
+}
+
+/**
+ * One button of the row of actions, as wide as the others; closed, it says why and keeps what names it. `data.key`
+ * tells the two apart when the screen is patched: «Back on the roster» pressed twice is not, the second time, the
+ * «Miss a match…» drawn in its place.
+ */
+function actionMarkup({ label, reason, data, dialog = false }) {
+  if (reason) return closedMarkup({ className: "g-btn", label, reason, data });
+  return `<button type="button" class="g-btn"${dialog ? ' aria-haspopup="dialog"' : ""}${dataAttributes(data)}>${escapeHtml(label)}</button>`;
+}
+
+/**
+ * The player's row of actions outside a match (decisions 16, 17): «Miss a match…», which opens the sheet of reasons,
+ * for one who plays the next match; «Back on the roster» for one who misses it. None during a match, whose injury
+ * is their place (decision 7). Stage 07c adds «Sell» to the row.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {import("./view.mjs").RosterScreen} screen
+ */
+export function actionsMarkup(line, screen) {
+  if (screen.mode.kind === "match") return "";
+  const action = line.skip
+    ? { label: t("teamRoster.skips.return"), reason: returnClosed(line, screen), data: { key: "roster-return", rosterReturn: line.key } }
+    : { label: t("teamRoster.mark.open"), reason: markClosed(line, screen), data: { key: "roster-mark", rosterMark: line.key }, dialog: true };
+  return `<div class="g-roster__actions">${actionMarkup(action)}</div>`;
 }
 
 /**
@@ -158,8 +265,9 @@ function sessionMarkup(line, screen) {
 const matchSppOf = (line) => Math.max(0, line.matchSpp);
 
 /**
- * The row of a player opened on a phone: his SPP and what the edits have moved it, his counters, and the way to his
- * page. In a match the line says what the match's records give him, and the way to his page waits for its post-match.
+ * The row of a player opened on a phone: his SPP and what the edits have moved it, his counters, the way to his
+ * page, and under it his row of actions. In a match the line says what the match's records give him, and the way to
+ * his page waits for its post-match.
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./view.mjs").RosterScreen} screen
@@ -173,7 +281,7 @@ export function rowPanelMarkup(line, screen) {
     ? [t("teamRoster.sppLineMatch", { spp: line.earned, match: matchWords(screen.mode) }), sumMarkup(matchSppOf(line), t("teamRoster.sppDelta", { delta: `+${matchSppOf(line)}` }))]
     : [t("teamRoster.sppLine", { spp: line.earned }), sessionMarkup(line, screen)];
   const spp = `<div class="g-roster__sppline"><span class="g-roster__sppctx">${escapeHtml(context)}</span>${sum}</div>`;
-  return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}${injuryMarkup(line, screen)}</div>`;
+  return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}${actionsMarkup(line, screen)}${injuryMarkup(line, screen)}</div>`;
 }
 
 /** The badge, the name, the position with what he is worth, and the pencil to his page (`closed` in a match). */
@@ -187,8 +295,8 @@ function headMarkup(line, href, closed) {
     + `<p class="g-roster__pline">${escapeHtml(t("teamRoster.value", { position: line.position, value: formatMoney(line.value) }))}</p></div>${pencil}</div>`;
 }
 
-/** The five characteristics, a changed one said in words as well as in colour. */
-function statsMarkup(line) {
+/** The five characteristics, a changed one said in words as well as in colour (a fallen player's profile has them too). */
+export function statsMarkup(line) {
   const changed = (change) => PLAYER_STATS.filter((stat) => line.stats[stat].change === change);
   return renderStatStrip({ values: Object.fromEntries(PLAYER_STATS.map((stat) => [stat, line.stats[stat].text])), improved: changed("up"), lowered: changed("down") });
 }
@@ -242,7 +350,6 @@ function skillsMarkup(line) {
 export function sidePanelMarkup(line, screen) {
   const href = profileUrl(line, screen);
   const closed = screen.mode.kind === "match";
-  const next = t("teamRoster.nextMatch", { state: line.skip ? t("teamRoster.sits") : t("teamRoster.plays") });
   return `${headMarkup(line, href, closed)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, href, closed)}${skillsMarkup(line)}`
-    + `<p class="g-roster__next">${escapeHtml(next)}</p>${injuryMarkup(line, screen)}`;
+    + `<p class="g-roster__next">${escapeHtml(nextMatchWords(line))}</p>${actionsMarkup(line, screen)}${injuryMarkup(line, screen)}`;
 }

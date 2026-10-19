@@ -6,6 +6,9 @@
  * A line is one player: his characteristics and skills, his counters in the three senses the screen needs
  * (what is in the roster, what a match has added, what an edit outside a match is waiting for), and his
  * SPP. The mode is what the team's games say the roster is for just now: plain, a preparation, a match.
+ *
+ * The fallen are lines too (stage 07b): what the roster held when each died, read the way a player of the
+ * roster is, with how and when he fell; one the roster as read still holds is drawn there and only there.
  */
 import { gameSides } from "../../../data/team-record.mjs";
 import { isGameClosedForPlayers } from "../../../data/games.mjs";
@@ -134,12 +137,27 @@ function injuryOf(injuries, id) {
   return standing ? { code: standing.code, ...(standing.stat ? { stat: standing.stat } : {}) } : null;
 }
 
-/** An id is the text a write names him by, and a blank in it would make a list of the id of his panel (RosterTable). */
-const keyOf = (id, index) => `${id.replace(/\s+/g, "_")}#${index}`;
+/**
+ * The keys of the lines, in the roster's order: his id — the text a write names him by, a blank in it made `_`, since it
+ * would make a list of the id of his panel (RosterTable) — and how many lines before him have that much of a key, so
+ * that two 2.x players who share an id are told apart. Not his place in the roster: a death, which takes a place out of
+ * it, would re-key every player after it, and his row open on a phone, his place in the panel and his SPP since the
+ * screen opened (memory.mjs) would go with the old key (final review, T8).
+ * @param {string[]} ids @returns {string[]}
+ */
+function keysOf(ids) {
+  const seen = new Map();
+  return ids.map((id) => {
+    const base = id.replace(/\s+/g, "_");
+    const nth = seen.get(base) ?? 0;
+    seen.set(base, nth + 1);
+    return `${base}#${nth}`;
+  });
+}
 
 /**
  * @typedef {object} PlayerLine
- * @property {string} key `<id>#<index>`: unique in the page even where two 2.x players share an id
+ * @property {string} key `<id>#<n>`, n the lines before him with the same id (`keysOf`): unique in the page even where two 2.x players share an id
  * @property {string} id the stored id a write names (`storedPlayerId`); empty for a player the roster stores none for, whom no write can name
  * @property {number} index the place in the roster
  * @property {string} number
@@ -148,6 +166,8 @@ const keyOf = (id, index) => `${id.replace(/\s+/g, "_")}#${index}`;
  * @property {string} kind positionKind(row)
  * @property {boolean} captain
  * @property {boolean} skip skipNextGame
+ * @property {{code: string, stat?: string, note?: string, pairingId?: string}|null} absence why he misses the next match, as the roster reads it (normalizeAbsence); null for one who plays, and for a 2.x skip that has no reason
+ * @property {boolean} retired temporarilyRetired: out for the season, which `skip` is true for as well
  * @property {Record<"ma"|"st"|"ag"|"pa"|"ar", {text: string, change: "up"|"down"|"", order: number|null}>} stats
  *   `text` as statValueForDisplayByStat writes it, "–" for a characteristic the player has not; `order` — the number to sort by (the target for AG and PA, "3+" → 3), null for none
  * @property {{name: string, gained: boolean, source: "base"|"primary"|"secondary"|"favoured"|"captain"}[]} skills
@@ -203,14 +223,15 @@ export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }
   };
   const players = selectedRosterPlayers(race, draft);
   const ids = players.map((player) => storedPlayerId(player) ?? "");
+  const keys = keysOf(ids);
   const { injuries } = statisticsFromEvents({ players: ids.map((id) => ({ id })) }, rows.match);
   return players.map((player, at) => {
     const { row, index } = player;
     const id = ids[at];
     const counters = countersOf(race, id, player.spp, rows);
     return {
-      key: keyOf(id, index), id, index, number: player.number, name: player.name, position: row.position, kind: positionKind(row),
-      captain: Boolean(player.isCaptain), skip: player.skipNextGame,
+      key: keys[at], id, index, number: player.number, name: player.name, position: row.position, kind: positionKind(row),
+      captain: Boolean(player.isCaptain), skip: player.skipNextGame, absence: player.absence, retired: Boolean(player.temporarilyRetired),
       stats: statsOf(row, player), skills: skillsOf(row, player),
       primary: categoriesForAccess(row.primary), secondary: categoriesForAccess(row.secondary),
       ...counters, injury: mode.kind === "match" ? injuryOf(injuries, id) : null,
@@ -223,6 +244,86 @@ export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }
 export function rosterCounts(lines) {
   return { players: lines.length, skipping: lines.filter(({ skip }) => skip).length, ready: lines.filter(({ ready }) => ready).length };
 }
+
+/** The roster in two: those who play the next match, then those who miss it; each in the order the lines are given. */
+export function rosterSections(lines) {
+  return { active: lines.filter(({ skip }) => !skip), skipping: lines.filter(({ skip }) => skip) };
+}
+
+// ---------------------------------------------------------------------------
+// The fallen
+// ---------------------------------------------------------------------------
+
+/**
+ * @typedef {PlayerLine & {bare: boolean, fallen: {id: string, cause: string|null, fromMatch: boolean, round: number|null, diedAt: string}}} FallenLine
+ *   A fallen player as a line: `key` is `fallen-<record id>`, `index` the place in the server's list; he does not miss
+ *   a match, is not the captain and takes no advancement (`skip`, `captain`, `ready` false; no captain's Pro among his
+ *   skills), no match is on for him (`injury` null, `match` zeros). `round` is the match's round, null for a friendly,
+ *   a death by hand and a record the server has no round for. `bare`: a record the roster cannot read — no row of the
+ *   race for its snapshot, or no player in it at all — drawn from what it says of itself; the server would not give
+ *   him back to the roster (FALLEN_NOT_RESTORABLE), so no undo of it is offered (K11). One with no id is bare too: no
+ *   write could name him back, and no read could find him on the roster to say whether an undo landed.
+ */
+
+/** No rows: the dead have none, so the counters of a line made for them are the snapshot's own. */
+const NO_ROWS = Object.freeze({ unsettled: [], match: [], outside: [] });
+
+/** A field of a snapshot as text: a number is its digits (an admin writes 5, not "5"), anything else that is not text is none. */
+const textOf = (value) => (typeof value === "string" ? value : typeof value === "number" ? String(value) : "");
+
+/**
+ * The line of a snapshot that no row of the race fits: no position index, one the race has not, the shape
+ * a league admin writes (`{name, position, number}`). Only what the snapshot says of himself, dashes where
+ * the characteristics would be, and nothing to count.
+ */
+function bareLine(race, snapshot) {
+  const id = storedPlayerId(snapshot) ?? "";
+  const counters = countersOf(race, id, {}, NO_ROWS);
+  return {
+    key: "", id, index: 0, number: textOf(snapshot.number), name: textOf(snapshot.name), position: textOf(snapshot.position), kind: "lineman",
+    captain: false, skip: false, absence: null, retired: false,
+    stats: Object.fromEntries(PLAYER_STATS.map((stat) => [stat, { text: NO_VALUE, change: "", order: null }])), skills: [], primary: [], secondary: [],
+    ...counters, injury: null,
+    earned: 0, spent: 0, available: 0, level: 0, cheapest: null, ready: false, value: 0,
+  };
+}
+
+/**
+ * The fallen as lines, in the order the server lists them. A player the roster as read still holds is not
+ * one (he is drawn on the roster, once: decision 21), and with no race there is nothing to read them by.
+ * A snapshot the race has a row for is read as a player of the roster is, its career the counters it
+ * carries; one it has none for (and an entry that is no object) is a bare line.
+ *
+ * @param {object} props
+ * @param {object[]} props.fallen GET /api/teams/:id/fallen: `{id, player, cause, roundNumber, diedAt, fromMatch}`
+ * @param {object|null} props.race
+ * @param {string[]} [props.rosterIds] the stored ids (`PlayerLine.id`) of the roster as read
+ * @returns {FallenLine[]}
+ */
+export function fallenLines({ fallen, race, rosterIds = [] }) {
+  if (!race) return [];
+  const held = new Set(rosterIds);
+  return (Array.isArray(fallen) ? fallen : []).flatMap((record, index) => {
+    const snapshot = record.player && typeof record.player === "object" ? record.player : {};
+    if (held.has(storedPlayerId(snapshot))) return [];
+    const [read] = rosterLines({ draft: { players: [snapshot] }, race });
+    const line = read ?? bareLine(race, snapshot);
+    return [{
+      ...line,
+      // The captain's Pro goes with the captaincy, which the dead do not hold (and an undo gives back only to an empty chair).
+      skills: line.skills.filter(({ source }) => source !== "captain"),
+      key: `fallen-${record.id}`, index, skip: false, captain: false, ready: false, absence: null, retired: false, injury: null, bare: !read || !line.id,
+      fallen: { id: record.id, cause: record.cause ?? null, fromMatch: Boolean(record.fromMatch), round: record.roundNumber ?? null, diedAt: record.diedAt },
+    }];
+  });
+}
+
+/**
+ * A death the screen undoes (K11): one a coach marked, in a record the roster reads; one a post-match recorded, and a
+ * bare record, are the league administrator's to correct.
+ * @param {FallenLine|PlayerLine|null} line
+ */
+export const undoable = (line) => Boolean(line?.fallen) && !line.fallen.fromMatch && !line.bare;
 
 // ---------------------------------------------------------------------------
 // Where a tap goes

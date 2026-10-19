@@ -75,6 +75,15 @@ test("a roster table is a table: a head of sortable columns, a body per player, 
   assertStyled(fragment, ...SHEETS);
 });
 
+test("a table drawn above another has no foot: the labels repeat once, at the end of the list", () => {
+  const bare = mount(table({ foot: false })).querySelector("table.g-rtable");
+  assert.ok(!bare.querySelector("tfoot"));
+  assert.deepEqual(elements(bare).map((child) => child.tagName), ["COLGROUP", "THEAD", "TBODY", "TBODY"]);
+  assert.ok(mount(table({ foot: true })).querySelector("tfoot"));
+  assert.ok(mount(table()).querySelector("tfoot"), "a foot is drawn unless the caller leaves it to the last");
+  assert.equal(mount(table()).querySelectorAll("tfoot").length, 1);
+});
+
 test("the over-heads, the head and the foot are in the order a browser keeps them", () => {
   const grid = mount(table()).querySelector("table.g-rtable");
   assert.deepEqual(elements(grid).map((child) => child.tagName), ["COLGROUP", "THEAD", "TBODY", "TBODY", "TFOOT"]);

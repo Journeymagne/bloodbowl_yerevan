@@ -143,6 +143,8 @@ function renderFoot(columns) {
  * @param {RosterTableRow[]} props.rows
  * @param {{key: string, dir: "asc"|"desc"}|null} [props.sort]
  * @param {string} [props.headLeadHtml] markup before the player's header button (stage 07c's «+»)
+ * @param {boolean} [props.foot] the foot that repeats the labels; true by default. A table drawn above another one
+ *   leaves the foot to the last: the labels repeat once, at the end of the list
  * @returns {string} `<div class="g-rtable-frame"><table class="g-rtable" aria-label="…">…</table></div>`
  *
  * @typedef {object} RosterTableRow
@@ -159,13 +161,13 @@ function renderFoot(columns) {
  *   R11): the button names it in `aria-controls` and says no `aria-expanded`; such a row opens no panel of its own
  * @property {string} [panelHtml] what the open row shows
  */
-export function renderRosterTable({ label, columns, groups = [], rows, sort = null, headLeadHtml = "" }) {
+export function renderRosterTable({ label, columns, groups = [], rows, sort = null, headLeadHtml = "", foot = true }) {
   check({ label, columns, groups, rows, sort });
   const phoneSpan = columns.filter((column) => !column.desk).length;
   const heads = columns.map((column, index) => renderHeadCell(column, index, sort, headLeadHtml)).join("");
   const players = rows.map((row) => renderPlayer(row, columns, phoneSpan)).join("");
   return `<div class="g-rtable-frame"><table class="g-rtable" aria-label="${escapeHtml(label)}">${renderColumns(columns)}`
-    + `<thead>${renderGroups(groups)}<tr>${heads}</tr></thead>${players}${renderFoot(columns)}</table></div>`;
+    + `<thead>${renderGroups(groups)}<tr>${heads}</tr></thead>${players}${foot ? renderFoot(columns) : ""}</table></div>`;
 }
 
 /** A header button reports `onSort(columnKey)`, a player's button `onToggle(rowKey)`. @returns {() => void} */
