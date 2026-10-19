@@ -1,0 +1,171 @@
+/*
+ * The roster's frame as the prototypes draw it (owner's fidelity pass, 2026-10-19): the banners' parts, the line
+ * under the tables, and from 901px the desk — the page band's 24px, the three tables in one card with the other two
+ * sections as bands across it (DeskRosterInjured.html), and the panel's compact sizes (D2: a desk's controls are
+ * compact, never under WCAG 2.5.8's 24px; a phone keeps 44px). roster.css lays the screen out; this sheet follows it.
+ * Font, border, background, text-transform and letter-spacing are set on purpose: the 2.x globals outlive this sheet
+ * until stage 13.
+ */
+/* A banner as StatsLive.html draws it: 12px over and under, its detail at 1.45. */
+.g-roster__notices .g-callout { padding: var(--space-12) var(--space-14); }
+.g-roster__notices .g-callout__sub { line-height: 1.45; }
+
+/* The match's title: a dot — the accent, the warn's gold with «Edit outside the match» on — the match, its records. */
+.g-roster__live {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.g-roster__livedot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin-right: var(--space-8);
+  border-radius: var(--radius-full);
+  background: var(--accent);
+}
+.g-callout--warn .g-roster__livedot { background: var(--warn); }
+.g-roster__livetitle { min-width: 0; }
+/* A flex item loses the blanks at its ends: the separator keeps its own. */
+.g-roster__livesep { white-space: pre; }
+
+/* Another device's save (SaveConflict.html): no sign, and «Load the new one» under the words, half the banner wide. */
+.g-roster__conflict .g-callout__icon { display: none; }
+.g-roster__notices .g-roster__conflict .g-callout { padding: var(--space-14); }
+.g-roster__conflict .g-callout__sub { font-size: 14px; }
+.g-roster__conflict .g-callout__action {
+  display: grid;
+  flex-basis: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-left: 0;
+}
+.g-roster__conflict .g-btn--primary {
+  height: auto;
+  min-height: var(--size-touch);
+  font: 700 14px/1.2 var(--font-body);
+}
+
+/* How to read the table, under it (DeskRoster.html, Stats.html). */
+.g-roster__caption {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.5 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+@media (max-width: 900px) {
+  /* StatsLive.html: the records at the right of the title; the switch on a rule, its caption under its name. */
+  .g-roster__livesep { display: none; }
+  .g-roster__livecount {
+    margin-left: auto;
+    padding-left: var(--space-10);
+    font-size: 13px;
+  }
+  .g-roster__calloutactions .g-toggle { border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent); }
+  .g-roster__calloutactions .g-toggle__caption {
+    color: inherit;
+    font-size: 12px;
+    opacity: .85;
+  }
+}
+
+@media (min-width: 901px) {
+  /* The page band to the first block: the band's own 24px (page-head.css), the roster's gap taken off it. */
+  .g-roster > .g-pagehead { margin-bottom: var(--space-8); }
+
+  .g-roster__notices .g-callout { padding: var(--space-12) var(--space-16); }
+  .g-roster__conflict .g-callout__action { display: flex; }
+  .g-roster__conflict .g-btn--primary {
+    width: auto;
+    min-height: 40px;
+    padding: 0 var(--space-16);
+  }
+  .g-roster__strip .g-funds {
+    border-color: var(--line-strong);
+    border-radius: var(--radius-xl);
+  }
+
+  /*
+   * One card for the three tables (DeskRosterInjured.html): it scrolls them together at 901 to 1279px. Each table's
+   * own frame gives way to it, and the sections touch.
+   */
+  .g-roster__sections {
+    overflow-x: auto;
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+  }
+  .g-roster__sections .g-rtable-frame {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+  .g-roster__sections .g-roster__section {
+    gap: 0;
+    margin-top: 0;
+  }
+  .g-roster__sections .g-roster__empty { padding: var(--space-16); }
+
+  /* «Missing the match N» and «Fallen N»: a band across the card, held at its left edge while the numbers scroll. */
+  .g-roster__sections .g-roster__bar {
+    position: sticky;
+    left: 0;
+    z-index: 2;
+    justify-content: flex-start;
+    align-items: baseline;
+    padding: 18px var(--space-16) var(--space-8);
+    border-bottom: 1px solid var(--line-strong);
+    background: color-mix(in srgb, var(--surface-2) 60%, var(--surface));
+  }
+  .g-roster__sections .g-roster__heading { font: 700 20px/1.1 var(--font-display); }
+  .g-roster__sections .g-roster__count { font: 400 14px var(--font-body); }
+
+  /*
+   * «Active roster» is for a screen reader on a desk (DeskRoster.html has no heading over the players): its band is
+   * the save's status alone, at the right, and nothing at rest.
+   */
+  .g-roster__sections .g-roster__section--active > .g-roster__bar {
+    justify-content: flex-end;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .g-roster__sections .g-roster__section--active > .g-roster__bar:has(.g-status) { padding: var(--space-10) var(--space-16) 0; }
+  .g-roster__section--active .g-roster__heading {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  /* The panel (DeskRoster.html): a 56px badge with no ring, a 40px pencil, 24px characteristics. */
+  .g-roster__aside .g-num--lg {
+    width: 56px;
+    height: 56px;
+    box-shadow: none;
+    font-size: 26px;
+  }
+  .g-roster__aside .g-roster__edit {
+    width: 40px;
+    height: 40px;
+  }
+  .g-roster__aside .g-stat__v { font-size: 24px; }
+
+  /* «Advance»: 48px, 16px, under it the cheapest one 4px closer. */
+  .g-roster__aside .g-roster__spp .g-btn--primary {
+    height: 48px;
+    font-size: 16px;
+  }
+  .g-roster__aside .g-roster__cheapest { margin-top: -4px; }
+
+  /* The pair of actions, 40px (D2). */
+  .g-roster__actions > .g-btn { min-height: 40px; }
+}

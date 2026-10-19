@@ -37,15 +37,32 @@ test("the roster in three: those who play, those who miss the next match with wh
   api.assertAnswered();
 });
 
-test("one sort for the three tables: a header of any of them sorts all three", async () => {
+test("one sort for the three tables: on a phone a header of any of them sorts all three; a desk shows and sorts the labels once, at the top", async () => {
+  await withWindow({ phone: true }, async () => {
+    coach();
+    await renderTeamRoster("t1");
+    fireEvent(tables()[2].querySelector('[data-sort-key="ma"]'), "click");
+    // MA: Cade 8, Bors 7, Ann 6 · Edda 6, Finn 6, Dell 5 (lowered), Grom 5 · Pike 7, Joe 6.
+    assert.deepEqual(tables().map(namesIn), [["Cade", "Bors", "Ann"], ["Edda", "Finn", "Dell", "Grom"], ["Pike", "Joe"]]);
+    for (const table of tables()) assert.equal(table.querySelector('[data-sort-key="ma"]').closest("th").getAttribute("aria-sort"), "descending");
+    fireEvent(tables()[0].querySelector('[data-sort-key="player"]'), "click");
+    assert.deepEqual(tables().map(namesIn), [["Ann", "Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Pike", "Joe"]]);
+  });
+  // DeskRosterInjured.html: one card, the labels once. The other tables keep their column headers for a screen reader,
+  // with no button and no over-heads: the first table's sort orders all three.
   coach();
   await renderTeamRoster("t1");
-  fireEvent(tables()[2].querySelector('[data-sort-key="ma"]'), "click");
-  // MA: Cade 8, Bors 7, Ann 6 · Edda 6, Finn 6, Dell 5 (lowered), Grom 5 · Pike 7, Joe 6.
+  assert.equal(tables()[0].querySelectorAll("thead .g-sort").length, 14);
+  for (const table of tables().slice(1)) {
+    assert.equal(table.querySelector("thead .g-sort"), null);
+    assert.equal(table.querySelector("thead .g-rtable__groups"), null);
+    const heads = table.querySelectorAll('thead th[scope="col"]');
+    assert.equal(heads.length, 14);
+    assert.ok(heads.every((head) => head.querySelector(".g-sr-only")), "said, not drawn");
+    assert.ok(table.querySelector("thead tr").classList.contains("g-rtable__quiet"));
+  }
+  fireEvent(tables()[0].querySelector('[data-sort-key="ma"]'), "click");
   assert.deepEqual(tables().map(namesIn), [["Cade", "Bors", "Ann"], ["Edda", "Finn", "Dell", "Grom"], ["Pike", "Joe"]]);
-  for (const table of tables()) assert.equal(table.querySelector('[data-sort-key="ma"]').closest("th").getAttribute("aria-sort"), "descending");
-  fireEvent(tables()[0].querySelector('[data-sort-key="player"]'), "click");
-  assert.deepEqual(tables().map(namesIn), [["Ann", "Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Pike", "Joe"]]);
 });
 
 test("a reason in words under a name: an injury, another reason, the season's retirement, none from 2.x", async () => {
@@ -98,7 +115,7 @@ test("a fallen row: a grey number, grey numbers and «Fallen · cause»; open on
     assert.ok(pike.querySelector(".g-num--fallen"));
     assert.ok(!pike.querySelector(".g-num--blitzer"), "no position's colour");
     assert.equal(subOf("fallen-f1").textContent, "Fallen · Foul by the Raiders");
-    assert.ok(!subOf("fallen-f1").classList.contains("g-rtable__sub--alert"), "grey, not red");
+    assert.ok(subOf("fallen-f1").classList.contains("g-rtable__sub--alert"), "red, as every absence (StatsInjured.html)");
     assert.deepEqual(pike.querySelectorAll(".g-rtable__row td").slice(0, 5).map((cell) => cell.textContent), ["7", "3", "3+", "4+", "9+"]);
     assert.ok(!pike.querySelector(".g-rtable__delta"));
     fireEvent(toggle("fallen-f1"), "click");
@@ -198,16 +215,16 @@ test("a skipper's panel says why he sits the next match out", async () => {
     coach();
     await renderTeamRoster("t1");
     fireEvent(toggle("p4#0"), "click");
-    assert.equal(nextLine(), "Next match: sits it out · Lasting Injury (MA)");
+    assert.equal(nextLine(), "Next match: Lasting Injury (MA) · sits it out");
     fireEvent(toggle("p6#0"), "click");
-    assert.equal(nextLine(), "Next match: sits it out · Temporarily retired for the season");
+    assert.equal(nextLine(), "Next match: Temporarily retired for the season · sits it out");
     fireEvent(toggle("p7#0"), "click");
-    assert.equal(nextLine(), "Next match: sits it out · Suspended");
+    assert.equal(nextLine(), "Next match: Suspended · sits it out");
     // A 2.x skip says no why, and the line does not say it twice (K3).
     fireEvent(toggle("p5#0"), "click");
-    assert.equal(nextLine(), "Next match: sits it out");
+    assert.equal(nextLine(), "Next match: Sits it out");
     fireEvent(toggle("p1#0"), "click");
-    assert.equal(nextLine(), "Next match: plays");
+    assert.equal(nextLine(), "Next match: Plays");
   });
 });
 
@@ -235,8 +252,9 @@ test("the fallen are read with the roster; a list that cannot be read fails the 
 });
 
 test("every read of the team reads the fallen with it: a match that ends brings its dead, and the counters wait for both", async () => {
-  await withoutTimers(async () => {
-    coach({ fallen: [] });
+  // On a phone, Bors's row open: the counters are drawn in a match and after it (D3: a desk's panel has them in a match only).
+  await withWindow({ phone: true }, async () => withoutTimers(async () => {
+    coach({ fallen: [], open: "p2#0" });
     api.reply("GET /api/games", 200, { games: [LIVE_GAME], currentGames: [] });
     await renderTeamRoster("t1");
     assert.equal(tables().length, 2);
@@ -257,7 +275,7 @@ test("every read of the team reads the fallen with it: a match that ends brings 
     assert.deepEqual(tables().map(namesIn), [["Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Ann"]]);
     assert.equal(subOf("fallen-f9").textContent, "Fallen · Crowd");
     assert.ok(!view.querySelector('[data-action-key="touchdowns"] [data-action-step="1"]').hasAttribute("aria-disabled"));
-  });
+  }));
 });
 
 test("a fallen player on the roster as read is drawn once", async () => {
@@ -348,7 +366,7 @@ test("the cause and the note are text", async () => {
       assert.ok(words(where).includes(HOSTILE));
       if (!phone) {
         fireEvent(toggle("p7#0"), "click");
-        assert.equal(nextLine(), `Next match: sits it out · ${HOSTILE}`);
+        assert.equal(nextLine(), `Next match: ${HOSTILE} · sits it out`);
       }
       assert.ok(!view.querySelector("img"));
       assert.ok(!view.querySelector("[onerror]"));
@@ -383,17 +401,23 @@ test("a section stands 18px under the table before it, as in StatsInjured and De
   const tokens = tokensOf("grass");
   const px = ([value]) => Number(tokens[value.match(/^var\((--[\w-]+)\)$/)[1]].replace(/px$/, ""));
   const margin = px(valuesOf("src/screens/team/roster/marks.css", ".g-roster__section", "margin-top"));
-  const gap = px(valuesOf("src/screens/team/roster/roster.css", ".g-roster__main", "gap"));
+  const gap = px(valuesOf("src/screens/team/roster/roster.css", ".g-roster__sections", "gap"));
   assert.equal(margin + gap, 18);
   assert.deepEqual(valuesOf("src/screens/team/roster/marks.css", ".g-roster__section:first-child", "margin-top"), ["0"], "the first stays at the top");
+  // A desk's one card (DeskRosterInjured.html): the sections touch, the other two led by their band.
+  const frame = "src/screens/team/roster/frame.css";
+  assert.deepEqual([valuesOf(frame, ".g-roster__sections .g-roster__section", "margin-top"), valuesOf(frame, ".g-roster__sections .g-roster__section", "gap")], [["0"], ["0"]]);
+  assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__bar", "padding"), ["18px var(--space-16) var(--space-8)"]);
+  assert.deepEqual(valuesOf(frame, ".g-roster__sections .g-roster__heading", "font"), ["700 20px/1.1 var(--font-display)"]);
 });
 
 test("the fallen are grey and readable: their cells, the line under the name and the characteristics of the profile", () => {
   const sheet = "src/screens/team/roster/marks.css";
-  for (const selector of [".g-roster__section--fallen .g-rtable__c", ".g-roster__section--fallen .g-rtable__sub"]) {
-    assert.deepEqual(valuesOf(sheet, selector, "color"), ["var(--muted)"]);
-    assertReadable(sheet, selector, "color", ["--surface", "--surface-2", "--page"], 4.5);
-  }
+  assert.deepEqual(valuesOf(sheet, ".g-roster__section--fallen .g-rtable__c", "color"), ["var(--muted)"]);
+  assertReadable(sheet, ".g-roster__section--fallen .g-rtable__c", "color", ["--surface", "--surface-2", "--page"], 4.5);
+  // The line under a fallen name is red, as every absence's (StatsInjured.html): roster-table.css's alert.
+  assert.deepEqual(valuesOf(sheet, ".g-roster__section--fallen .g-rtable__sub", "color"), []);
+  assertReadable("src/ui/roster-table.css", ".g-rtable__sub--alert", "color", ["--surface", "--surface-2", "--page"], 4.5);
   assertReadable(sheet, ".g-fallen__stats .g-stat__v", "color", ["--surface-2"], 4.5);
   for (const selector of [".g-fallen__when", ".g-fallen__label", ".g-fallen__note", ".g-fallen__rules", ".g-fallen__career", ".g-fallen__rowpanel .g-fallen__career", ".g-fallen__cause--none"]) {
     assertReadable(sheet, selector, "color", ["--surface", "--surface-2"], 4.5);
@@ -408,6 +432,16 @@ const toasts = () => document.querySelectorAll("output").map((node) => node.text
 const gamesAre = (games) => api.reply("GET /api/games", 200, { games, currentGames: [] });
 const status = () => view.querySelector(".g-roster__status").textContent;
 const markSheet = () => view.querySelector("dialog#roster-mark");
+/**
+ * A step of the roster's queue from the desk's panel, `who` back on the roster — Edda by default (D3: a desk taps no
+ * counter outside a match; «Back on the roster» is a save of the roster as a step was) — then `then` in the panel
+ * again for what follows, Ann by default.
+ */
+const stepOfTheRoster = (then = "p1#0", who = "p5#0") => {
+  fireEvent(toggle(who), "click");
+  fireEvent(returnButton(), "click");
+  if (then) fireEvent(toggle(then), "click");
+};
 /** «Miss a match…» and «Back on the roster»: the desk panel's by default, or the open row's. */
 const markButton = (root = aside()) => root.querySelector("[data-roster-mark]");
 const returnButton = (root = aside()) => root.querySelector("[data-roster-return]");
@@ -457,9 +491,10 @@ test("a playing player's row has «Miss a match…», a skipper's «Back on the 
   });
   coach();
   await renderTeamRoster("t1");
-  const next = aside().querySelector(".g-roster__next");
-  const actions = aside().querySelector(".g-roster__actions");
-  assert.ok(aside().childNodes.indexOf(actions) > aside().childNodes.indexOf(next), "on a desk under «Next match»");
+  const block = aside().querySelector(".g-roster__nextblock");
+  const next = block.querySelector(".g-roster__next");
+  const actions = block.querySelector(".g-roster__actions");
+  assert.ok(block.childNodes.indexOf(actions) > block.childNodes.indexOf(next), "on a desk under «Next match», in the same block");
   assert.equal(markButton().textContent, "Miss a match…");
   fireEvent(toggle("p7#0"), "click");
   assert.equal(returnButton().textContent, "Back on the roster");
@@ -472,10 +507,13 @@ test("a playing player's row has «Miss a match…», a skipper's «Back on the 
       await renderTeamRoster("t1");
       for (const key of ["p1#0", "p4#0"]) {
         fireEvent(toggle(key), "click");
-        assert.ok(!view.querySelector(".g-roster__actions"));
         assert.ok(!view.querySelector("[data-roster-mark]"));
         assert.ok(!view.querySelector("[data-roster-return]"));
       }
+      // The pair holds «Injury in the match…» for one who plays it (Stats.html), and nothing for one who sits it out.
+      assert.ok(!view.querySelector(".g-roster__actions"), "Dell sits it out");
+      fireEvent(toggle("p1#0"), "click");
+      assert.deepEqual(view.querySelector(".g-roster__actions").childNodes.filter((node) => node.nodeType === 1).map((button) => button.textContent), ["Injury in the match…"]);
     });
   }
 });
@@ -577,7 +615,7 @@ test("a missed match marked: one PATCH, the sheet closes, he moves to «Missing 
     assert.equal(subOf("p1#0").textContent, "Lasting Injury (AG)");
     assert.ok(subOf("p1#0").classList.contains("g-rtable__sub--alert"));
     assert.equal(aside().getAttribute("data-panel-player"), "p1#0", "the panel keeps him");
-    assert.equal(nextLine(), "Next match: sits it out · Lasting Injury (AG)");
+    assert.equal(nextLine(), "Next match: Lasting Injury (AG) · sits it out");
     assert.equal(returnButton().textContent, "Back on the roster");
     assert.equal(status(), "Saved");
     api.assertAnswered();
@@ -662,9 +700,8 @@ test("closed while the games are unread, the roster is read or a conflict waits"
     await settle();
     assert.equal(patches().length, 0);
     // A conflict lands while the sheet is open: its button says so, and a press sends nothing.
-    fireEvent(toggle("p1#0"), "click");
     const step = api.hold(PATCH);
-    fireEvent(aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
+    stepOfTheRoster();
     await settle();
     assert.equal(step.count, 1);
     fireEvent(markButton(), "click");
@@ -768,7 +805,7 @@ test("a mark or a return refused after a 422 whose read failed reads the roster 
     await renderTeamRoster("t1");
     api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
     api.fail("GET /api/teams/t1");
-    fireEvent(aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
+    stepOfTheRoster();
     await settle();
     assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"], "the read after the refusal failed");
     const reads = () => api.calls.filter(({ key }) => key === "GET /api/teams/t1").length;
@@ -871,14 +908,14 @@ test("a mark that waited for the network is given up when a match begins, and th
     assert.deepEqual(tables()[0] && namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "the server's roster: Ann plays");
     assert.equal(subOf("p1#0").textContent, "Human Lineman");
   });
-  // A step of SPP and a mark waited: each is counted in its own words.
-  await withoutTimers(async () => {
-    coach();
+  // A step of SPP and a mark waited: each is counted in its own words. A phone's open row has both (D3).
+  await withWindow({ phone: true }, async () => withoutTimers(async () => {
+    coach({ open: "p1#0" });
     await renderTeamRoster("t1");
     api.fail(PATCH);
-    fireEvent(aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
+    fireEvent(openRow().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
     await settle();
-    fireEvent(markButton(), "click");
+    fireEvent(markButton(openRow()), "click");
     fireEvent(markOption("miss"), "click");
     fireEvent(sendButton(), "click");
     await settle();
@@ -890,7 +927,7 @@ test("a mark that waited for the network is given up when a match begins, and th
     await settle();
     assert.deepEqual(toasts().slice(-2), ["A match has begun, so the edits that were waiting were not saved (1). Make them again as an edit outside the match.", MATCH_DROPPED_MARKS]);
     assert.equal(save.saveState("t1").waiting, 0);
-  });
+  }));
 });
 
 test("the option lists of two sheets do not answer for each other", async () => {
@@ -927,12 +964,14 @@ test("every key the marks ask for is in both dictionaries", () => {
   assertDictionaryCovers("src/screens/team/roster/mark-sheet.mjs", "src/screens/team/roster/marks.mjs", "src/screens/team/roster/panel.mjs", "src/screens/team/roster/sheets.mjs");
 });
 
-test("the row of actions: buttons side by side, a thumb tall; the sheet's refusal and the injury's effect readable", () => {
+test("the pair of actions: two columns, the second stage 07c's «Sell»; a thumb tall on a phone, 40px on a desk (D2); the sheet's refusal and the injury's effect readable", () => {
   const sheet = "src/screens/team/roster/marks.css";
-  assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "display"), ["flex"]);
-  assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "gap"), ["var(--space-10)"]);
-  assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "flex"), ["1 1 0"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "display"), ["grid"]);
+  // Two columns while a half holds an action on one line, one in a narrower place; auto-fill keeps «Sell»'s empty column.
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "grid-template-columns"), ["repeat(auto-fill, minmax(max(150px, calc((100% - var(--space-8)) / 2)), 1fr))"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "gap"), ["var(--space-8)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf("src/screens/team/roster/frame.css", ".g-roster__actions > .g-btn", "min-height"), ["40px"]);
   assert.deepEqual([valuesOf(sheet, ".g-roster__actions", "font"), valuesOf(sheet, ".g-roster__actions", "letter-spacing"), valuesOf(sheet, ".g-roster__actions", "text-transform")],
     [["600 14px/1.2 var(--font-body)"], ["0"], ["none"]]);
   for (const selector of [".g-roster__markrefusal", ".g-roster__markeffect"]) {
@@ -949,7 +988,6 @@ const TEAM_READ = "GET /api/teams/t1";
 const FALLEN_READ = "GET /api/teams/t1/fallen";
 const deaths = () => api.calls.filter(({ key }) => key === DEATH);
 const teamReads = () => api.calls.filter(({ key }) => key === TEAM_READ).length;
-const plusTd = () => aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]');
 /** The team on the server once Ann has died: rev 5 by default, without her. */
 const withoutAnn = (over = {}) => withPlayers(PLAYERS.filter((player) => player.id !== "p1"), { revision: 5, ...over });
 /** The record of Ann's death as the server answers it and reads it back. */
@@ -1047,9 +1085,8 @@ test("a death marked: one POST with the cause and the revision; he moves to «Fa
     assert.ok(document.activeElement === toggle("fallen-f9"), "the focus on his row in «Fallen»");
     assert.equal(teamReads(), 1, "the answer is taken as it is: nothing is read again");
     // The next step goes on the revision the death came back with.
-    fireEvent(toggle("p2#0"), "click");
     api.reply(PATCH, 200, { team: withoutAnn({ revision: 6 }) });
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster(null);
     await settle();
     assert.equal(patches().length, 1);
     assert.equal(patches()[0].body.revision, 5);
@@ -1064,7 +1101,7 @@ test("while steps of the roster wait or one is in the air, no death is sent and 
     coach();
     await renderTeamRoster("t1");
     const step = api.hold(PATCH);
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster();
     await settle();
     assert.equal(step.count, 1, "a step in the air");
     chooseDeath();
@@ -1081,9 +1118,9 @@ test("while steps of the roster wait or one is in the air, no death is sent and 
     await settle();
     assert.ok(!sendButton().hasAttribute("aria-disabled"), "saved: the death may go");
     fireEvent(markSheet().querySelector("[data-sheet-close]"), "click");
-    // A step that waits for the network.
+    // A step that waits for the network: Grom back on the roster.
     api.fail(PATCH);
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster("p1#0", "p7#0");
     await settle();
     assert.equal(status(), "Waiting for the network · edits: 1");
     chooseDeath();
@@ -1099,7 +1136,7 @@ test("while steps of the roster wait or one is in the air, no death is sent and 
     coach();
     await renderTeamRoster("t1");
     const step = api.hold(PATCH);
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster();
     await settle();
     chooseDeath();
     step.release({ status: 409, body: { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: team({ revision: 6 }) } });
@@ -1114,7 +1151,7 @@ test("while steps of the roster wait or one is in the air, no death is sent and 
     await renderTeamRoster("t1");
     api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
     api.fail(TEAM_READ);
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster();
     await settle();
     assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"]);
     const before = teamReads();
@@ -1147,10 +1184,7 @@ test("while a death is on its way every step and mark waits, and a second press 
     assert.equal(markOption("miss").getAttribute("aria-checked"), "false");
     fireEvent(markSheet(), "keydown", { key: "Escape" });
     assert.ok(!markSheet(), "the coach may close the sheet");
-    assert.equal(plusTd().getAttribute("aria-disabled"), "true");
-    assert.equal(plusTd().getAttribute("title"), WRITING);
-    fireEvent(plusTd(), "click");
-    assert.equal(toasts().at(-1), WRITING);
+    // A desk's panel taps no counter outside a match (D3): its mark and its return say it.
     assert.equal(markButton().getAttribute("title"), WRITING);
     fireEvent(markButton(), "click");
     assert.ok(!markSheet());
@@ -1167,7 +1201,7 @@ test("while a death is on its way every step and mark waits, and a second press 
     assert.equal(save.savedRevision("t1"), 5);
     assert.equal(toasts().at(-1), DEAD_DONE, "told in a message, the sheet being gone");
     assert.notEqual(aside().getAttribute("data-panel-player"), "fallen-f9", "the panel is not taken from where the coach put it");
-    assert.ok(!plusTd().hasAttribute("aria-disabled"), "open again once it has answered");
+    assert.ok(!returnButton().hasAttribute("aria-disabled"), "open again once it has answered");
     assert.equal(deaths().length, 1);
   });
   // The coach left the roster: the list takes the answer all the same; the queue, which no visit draws now, is left as
@@ -1196,7 +1230,7 @@ test("while a death is on its way every step and mark waits, and a second press 
 // switch draws it again too). The visit that sent it is gone, so the list alone takes the answer; the visit on the
 // screen draws the queue's draft and reads the team again once the list is ahead of what the queue saves on (`followList`).
 test("a death's answer that lands under another visit of the roster: the visit draws what it saves, and reads the team again when the list is ahead", async () => {
-  const tdValue = () => aside().querySelector('[data-action-key="touchdowns"] .g-stepper__value').textContent;
+  const eddaPlays = () => namesIn(tables()[0]).includes("Edda");
   const leaveAndDie = async () => {
     coach();
     await renderTeamRoster("t1");
@@ -1215,14 +1249,13 @@ test("a death's answer that lands under another visit of the roster: the visit d
     death.release({ status: 201, body: { team: withoutAnn(), fallen: annFell() } });
     await settle();
     assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[0].revision], [5, 5]);
-    fireEvent(toggle("p2#0"), "click");
-    assert.equal(tdValue(), "0");
+    assert.equal(eddaPlays(), false);
     api.reply(PATCH, 200, { team: withoutAnn({ revision: 6 }) });
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster(null);
+    assert.equal(eddaPlays(), true, "the step is drawn: the screen draws the draft the queue saves");
     await settle();
-    assert.equal(tdValue(), "1", "the step is drawn: the screen draws the draft the queue saves");
     assert.equal(patches().at(-1).body.revision, 5);
-    assert.equal(patches().at(-1).body.roster.players.find((player) => player.id === "p2").spp.touchdowns, 1);
+    assert.equal(patches().at(-1).body.roster.players.find((player) => player.id === "p5").skipNextGame, false);
     assert.equal(teamReads(), 2, "nothing is read again: the visit has the death");
   });
   // The new visit read the team before the death landed: the answer puts the list ahead of the queue, the team is read
@@ -1237,11 +1270,10 @@ test("a death's answer that lands under another visit of the roster: the visit d
     assert.equal(teamReads(), 3, "read again");
     assert.deepEqual(tables().map(namesIn), [["Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Ann", "Pike", "Joe"]]);
     assert.equal(save.savedRevision("t1"), 5);
-    fireEvent(toggle("p2#0"), "click");
     api.reply(PATCH, 200, { team: withoutAnn({ revision: 6 }) });
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster(null);
+    assert.equal(eddaPlays(), true);
     await settle();
-    assert.equal(tdValue(), "1");
     assert.equal(patches().at(-1).body.revision, 5);
     api.assertAnswered();
   });
@@ -1249,22 +1281,25 @@ test("a death's answer that lands under another visit of the roster: the visit d
 
 // The final review's row keys (T8): a line's key is his id and how many before him share it, not his place — a death,
 // which takes a place out of the roster, re-keys nobody after it.
-test("a death re-keys nobody: the players after her keep their keys, the panel its player and his «+N SPP»", async () => {
+test("a death re-keys nobody: the players after her keep their keys, the open row its player and his «+N SPP»", async () => {
   const keysOf = (table) => table.querySelectorAll("tbody.g-rtable__player").map((body) => body.getAttribute("data-key"));
-  const delta = () => aside().querySelector(".g-roster__sppdelta").textContent;
+  const delta = () => openRow().querySelector(".g-roster__sppdelta").textContent;
   const withCade = (players) => players.map((player) => (player.id === "p3" ? { ...player, spp: { touchdowns: 1 } } : player));
-  await withoutTimers(async () => {
+  // On a phone: Cade's row has his counters and his «+N SPP» outside a match (D3: a desk's panel has none then).
+  await withWindow({ phone: true }, async () => withoutTimers(async () => {
     coach();
     await renderTeamRoster("t1");
     const [annKey, , cadeKey] = keysOf(tables()[0]);
     const later = [...keysOf(tables()[0]).slice(1), ...keysOf(tables()[1])];
     fireEvent(toggle(cadeKey), "click");
     api.reply(PATCH, 200, { team: withPlayers(withCade(PLAYERS), { revision: 5 }) });
-    fireEvent(plusTd(), "click");
+    fireEvent(openRow().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
     await settle();
     assert.equal(delta(), "+3 SPP");
     fireEvent(toggle(annKey), "click");
-    chooseDeath();
+    fireEvent(markButton(openRow()), "click");
+    fireEvent(markOption("dead"), "click");
+    typeNote("Foul");
     const death = api.hold(DEATH);
     fireEvent(sendButton(), "click");
     await settle();
@@ -1274,9 +1309,9 @@ test("a death re-keys nobody: the players after her keep their keys, the panel i
     await settle();
     assert.deepEqual(namesIn(tables()[2]), ["Ann", "Pike", "Joe"]);
     assert.deepEqual([...keysOf(tables()[0]), ...keysOf(tables()[1])], later, "the players after her keep their keys");
-    assert.equal(aside().getAttribute("data-panel-player"), cadeKey, "the panel keeps Cade");
+    assert.ok(bodyOf(cadeKey).classList.contains("is-expanded"), "the open row stays Cade's");
     assert.equal(delta(), "+3 SPP", "and his SPP since the screen opened");
-  });
+  }));
 });
 
 // The T3 review's carry (c) and (d): a step no screen press can make now (K7), but the queue can hold one.

@@ -18,7 +18,7 @@ import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { undoable } from "./model.mjs";
-import { closedMarkup, markClosed, prepResetWords, skillChipsMarkup, statsMarkup } from "./panel.mjs";
+import { closedMarkup, markClosed, prepResetWords, profileLinkMarkup, skillChipsMarkup, statsMarkup } from "./panel.mjs";
 import { UNDO_SHEET, footButton } from "./sheets.mjs";
 
 /**
@@ -95,7 +95,7 @@ export function undoMarkup(line, reason) {
  */
 export function fallenRowMarkup(line, screen) {
   const career = t("teamRoster.fallen.careerWhen", { spp: line.earned, when: fallenWhen(line) });
-  const profile = line.id ? renderButton({ label: t("teamRoster.fallen.profile"), kind: "dark", block: true, href: teamPlayerUrl(screen.team.id, line.id) }) : "";
+  const profile = line.id ? profileLinkMarkup(t("teamRoster.fallen.profile"), teamPlayerUrl(screen.team.id, line.id)) : "";
   let note = adminMarkup(line);
   if (!note && line.id) note = noteMarkup("teamRoster.fallen.undoInProfile");
   return `<div class="g-fallen__rowpanel">${causeMarkup(line)}<p class="g-fallen__career">${escapeHtml(career)}</p>${profile}${note}</div>`;
@@ -150,8 +150,8 @@ export function fallenPanelMarkup(line, screen) {
 }
 
 /**
- * «Undo the mark?» (decision 20, PlayerDeadConfirm): who comes back, and to what; during a preparation, what a save of
- * the roster resets (R12) — an undo is one. «Keep» closes it; «Back on the roster» sends the undo — the main button, not
+ * «Undo the mark?» (decision 20, PlayerDeadConfirm): who comes back, and to what, and — quiet, under it — that a death
+ * a post-match recorded is not undone so; during a preparation, what a save of the roster resets (R12) — an undo is one. «Keep» closes it; «Back on the roster» sends the undo — the main button, not
  * a red one: a new mark undoes it in turn. While the undo is on its way the button says it waits (`busy`, the focus
  * kept on it); while none can be sent, it says why and stays in reach (`reason`, as the mark's sheet's does).
  *
@@ -169,7 +169,8 @@ export function undoSheetMarkup({ line, mode, busy = false, refusal = "", reason
   return renderSheet({
     id: UNDO_SHEET,
     title: t("teamRoster.fallen.undoTitle"),
-    bodyHtml: `<p class="g-fallen__undotext">${escapeHtml(t("teamRoster.fallen.undoBody", { name: line.name }))}</p>${prep}${refused}`,
+    bodyHtml: `<p class="g-fallen__undotext">${escapeHtml(t("teamRoster.fallen.undoBody", { name: line.name }))}</p>`
+      + `<p class="g-fallen__undoprep">${escapeHtml(t("teamRoster.fallen.fromMatch"))}</p>${prep}${refused}`,
     footStartHtml: renderButton({ label: t("teamRoster.fallen.keep"), data: { undoKeep: true } }),
     footHtml: footButton({ label: t("teamRoster.fallen.restore"), kind: "primary", data: { undoSend: true }, busy, reason }),
   });

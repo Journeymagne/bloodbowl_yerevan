@@ -7,8 +7,9 @@
  * (h2, h3, p, dl, dt, dd, a) outlive this sheet until stage 13.
  *
  * Written for a phone first: the table is the page's width and a player's row
- * opens under him. From 901px the panel stands beside the table, 320px wide,
- * and stays in view while the page scrolls (DeskRoster.html).
+ * opens under him. From 901px the panel stands beside the column of banners,
+ * strip and tables, 320 to 380px wide, and stays in view while the page
+ * scrolls (DeskRoster.html); desk.css draws the desk's frame and panel.
  */
 .g-roster {
   box-sizing: border-box;
@@ -37,15 +38,24 @@
   min-width: 0;
 }
 
+/* The column of banners, strip, tables and the caption: 16px apart on a phone, 14px on a desk (DeskRoster.html). */
 .g-roster__main {
   display: flex;
   flex-direction: column;
-  gap: var(--space-10);
+  gap: var(--space-16);
   min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
+}
+
+/* The three sections, one under the other; a desk draws them in one card (frame.css). */
+.g-roster__sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
 }
 
 /*
@@ -72,9 +82,10 @@
   text-transform: none;
 }
 
+/* The number beside a heading: the body's face, quiet (Stats.html: 15px at 500). */
 .g-roster__count {
   color: var(--muted);
-  font: 500 18px var(--font-display);
+  font: 500 15px var(--font-body);
   letter-spacing: 0;
   text-transform: none;
 }
@@ -84,6 +95,18 @@
   flex: none;
 }
 
+/*
+ * The save's status as SaveOffline.html draws it: a dot and the words in the state's colour, no capsule. The words
+ * waiting for the network keep the warn tint's ink: the prototype's gold is 2.6:1 on the page; the dot is the gold.
+ */
+.g-roster__status .g-status {
+  height: auto;
+  padding: 0;
+  background: transparent;
+  font: 600 13px/1.3 var(--font-body);
+}
+.g-roster__status .g-status--live { color: var(--accent-text); }
+
 /* What the coach has to know of the save, above the table: another device's save, no network. */
 .g-roster__notices {
   display: flex;
@@ -91,7 +114,6 @@
   gap: var(--space-8);
   min-width: 0;
 }
-
 /*
  * Stage 08's treasury strip between the banners and the table, on a desk (DeskRoster): strip.css draws it, and the
  * roster's gap spaces it, as it does the banners and the table, so it needs no margin of its own.
@@ -178,9 +200,9 @@
 }
 
 /*
- * The counters: on a phone the six main ones two to a row, the narrow ones under them; in the desk's panel all of
- * them as narrow tiles. Narrow tiles go as many to a row as leave each of their buttons a thumb's width: three on a
- * phone from about 375px, two below it and in the 320px panel (Carry T4). The main ones are two to a row, or one
+ * The counters: on a phone the six main ones two to a row, the narrow ones under them; in the desk's panel, during a
+ * match only (D3), all of them as tiles three by three (D1). A phone's narrow tiles go as many to a row as leave each of
+ * their buttons a thumb's width: three from about 375px, two below it (Carry T4). The main ones are two to a row, or one
  * where two would squeeze «COMP» between their buttons (a 320px phone): never more than two, and no breakpoint.
  */
 .g-roster__counters {
@@ -189,15 +211,21 @@
   gap: var(--space-8);
 }
 
-.g-roster__extra,
-.g-roster__tiles {
+.g-roster__extra {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(var(--roster-tile), 1fr));
   gap: var(--space-8);
 }
 
+/* A desk's nine tiles, three by three (D1, DeskRosterLive.html); a tenth (CATCH) starts a fourth row. */
+.g-roster__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
 /* «SPP 3 · manual edit» and, at the right, what the coach's edits have moved it since the screen opened. */
-/* In the 320px panel «SPP · manual edit» and the sum do not share a line in Russian: the sum goes under it, not the title in two. */
+/* In a narrow place the title and the sum do not share a line: the sum goes under it, not the title in two. */
 .g-roster__sppline {
   display: flex;
   flex-wrap: wrap;
@@ -212,6 +240,11 @@
 }
 
 .g-roster__sppctx { min-width: 0; }
+/* «SPP **12** · manual edit»: the figure in the ink, bold (Stats.html). */
+.g-roster__sppctx b {
+  color: var(--ink);
+  font-weight: 700;
+}
 
 .g-roster__sppdelta {
   flex: none;
@@ -222,7 +255,7 @@
 
 .g-roster__sppdelta--none { color: var(--muted); }
 
-/* The desk panel's block of counters, «SPP · manual edit» (DeskRoster.html's records block). */
+/* The desk panel's block of counters in a match, «Match records · round 3» (DeskRosterLive.html's records block). */
 .g-roster__manual {
   display: flex;
   flex-direction: column;
@@ -431,78 +464,33 @@
   text-transform: none;
 }
 
+/* «Next match: **Plays**»: the state bold in the ink, in red when he will not play (DeskRoster.html). */
 .g-roster__next {
   margin: 0;
-  padding: var(--space-14) 0 0;
+  padding: 0;
   border: 0;
-  border-top: 1px solid var(--line);
   background: none;
   color: var(--muted);
   font: 400 14px/1.4 var(--font-body);
   letter-spacing: 0;
   text-transform: none;
 }
+.g-roster__next b {
+  color: var(--ink);
+  font-weight: 700;
+}
+.g-roster__next .g-roster__nextstate--alert { color: var(--danger); }
 
-/* The skill's sheet: whose skill it is and where he got it, under the rule; a skill the reference has no page for. */
-.g-roster__from {
-  margin: var(--space-12) 0 0;
-  padding: var(--space-10) 0 0;
+/* The next match and the pair of actions under a rule, 10px apart. */
+.g-roster__nextblock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin: 0;
+  padding: var(--space-14) 0 0;
   border: 0;
   border-top: 1px solid var(--line);
   background: none;
-  color: var(--muted);
-  font: 400 13px/1.4 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-roster__nopage {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-  font: 400 15px/1.4 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-/*
- * The injury's sheet (Task 12, StatsLiveInjury.html): under the five cards a lasting one's characteristic, its
- * caption over the five chips in one row, and what becomes of the record.
- */
-.g-roster__injurystat {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  padding-top: var(--space-4);
-}
-.g-roster__injurystat .g-chips {
-  display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-}
-.g-roster__injurystat .g-chip { justify-content: center; }
-
-.g-roster__injurylabel,
-.g-roster__injurynote {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--muted);
-}
-
-.g-roster__injurylabel {
-  font: 700 12px/1.3 var(--font-body);
-  letter-spacing: .06em;
-  text-transform: uppercase;
-}
-
-.g-roster__injurynote {
-  margin-top: var(--space-4);
-  font: 400 12px/1.45 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
 }
 
 @media (max-width: 900px) {
@@ -527,28 +515,34 @@
    */
   .g-main:has(.g-roster) { overflow-x: clip; }
 
+  /*
+   * The column and the panel 20px apart. The panel is DeskRoster.html's 380px (340 and its padding) where the page
+   * has room, a third of the content, and never under 320px: at 901 to 1279px the table scrolls in its frame beside it.
+   */
   .g-roster__layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 320px;
-    gap: var(--space-16);
+    grid-template-columns: minmax(0, 1fr) clamp(320px, 34%, 380px);
+    gap: var(--space-20);
     align-items: start;
   }
+
+  .g-roster__main { gap: var(--space-14); }
 
   .g-roster__aside {
     box-sizing: border-box;
     position: sticky;
-    top: var(--space-16);
+    top: var(--space-24);
     display: flex;
     flex-direction: column;
-    gap: var(--space-16);
+    gap: 18px;
     min-width: 0;
     margin: 0;
-    padding: var(--space-16);
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
+    padding: var(--space-20);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2xl);
     background: var(--surface);
     /* A panel taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
-    max-height: calc(100vh - 2 * var(--space-16));
+    max-height: calc(100vh - 2 * var(--space-24));
     overflow-y: auto;
   }
 }

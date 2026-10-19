@@ -7,9 +7,9 @@
  */
 
 /*
- * A section of the roster: its band, then its table (StatsInjured, DeskRosterInjured). Each stands 18px below the
- * table before it, as in both: this margin and the column's gap (roster.css, .g-roster__main). The first stays at the
- * top of its column, level with the panel beside it on a desk.
+ * A section of the roster: its band, then its table (StatsInjured). On a phone each stands 18px below the table before
+ * it: this margin and the sections' gap (roster.css, .g-roster__sections). A desk draws the three in one card, touching,
+ * the band of the other two across it (frame.css, DeskRosterInjured).
  */
 .g-roster__section {
   display: flex;
@@ -24,9 +24,11 @@
 }
 .g-roster__section:first-child { margin-top: 0; }
 
-/* The fallen in grey: their numbers and the line under the name (the badge is grey of itself, number-badge.css). */
-.g-roster__section--fallen .g-rtable__c,
-.g-roster__section--fallen .g-rtable__sub { color: var(--muted); }
+/*
+ * The fallen in grey: their numbers (the badge is grey of itself, number-badge.css). The line under the name is red,
+ * as every absence's (StatsInjured.html, DeskRosterInjured.html).
+ */
+.g-roster__section--fallen .g-rtable__c { color: var(--muted); }
 
 /* A fallen player's profile, in the desk's panel and on his own page (PlayerDead): one column of blocks. */
 .g-fallen {
@@ -170,12 +172,15 @@
 }
 
 /*
- * A player's row of actions outside a match (StatsMng, DeskRosterInjured): «Miss a match…» or «Back on the roster»,
- * and stage 07c's «Sell» beside it, each as wide as the others and a thumb tall.
+ * A player's pair of actions (Stats.html, DeskRoster.html): «Miss a match…», «Back on the roster» or «Injury in the
+ * match…» in the first column, stage 07c's «Sell» in the second — empty until then — a thumb tall on a phone, 40px on
+ * a desk (desk.css).
  */
 .g-roster__actions {
-  display: flex;
-  gap: var(--space-10);
+  display: grid;
+  /* Two columns while a half holds «Miss a match…» on one line (150px); in a narrower place (the 320px panel), one. */
+  grid-template-columns: repeat(auto-fill, minmax(max(150px, calc((100% - var(--space-8)) / 2)), 1fr));
+  gap: var(--space-8);
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -186,9 +191,9 @@
   text-transform: none;
 }
 .g-roster__actions > .g-btn {
-  flex: 1 1 0;
   min-width: 0;
   min-height: var(--size-touch);
+  padding: 0 var(--space-10);
 }
 
 /* The sheet of a missed match: what a Serious or a Lasting Injury leaves behind, said before it is done. */

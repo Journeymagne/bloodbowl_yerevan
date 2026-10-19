@@ -8,13 +8,16 @@
  * (`aria-controls` names the panel, `aria-current` marks the one in it). The screen draws again when the width
  * crosses 900px.
  *
- * Above the table stand what the coach has to keep in mind: a preparation or a match that is on (Task 11,
- * decisions 12 and 13), and the save's trouble (Task 10); then, on a desk, stage 08's treasury strip (Task 15).
+ * Above the table, in its column (DeskRoster.html: the panel stands beside them from the top), stand what the coach
+ * has to keep in mind: a preparation or a match that is on (Task 11, decisions 12 and 13), and the save's trouble
+ * (Task 10); then, on a desk, stage 08's treasury strip (Task 15). Under the tables a line says how to read them.
  *
  * The roster is three tables (stage 07b, decision 13): «Active roster», those who play the next match; «Missing the
- * match», each saying why under his name; and «Fallen», the dead in grey, whose row and panel are fallen-view.mjs's.
- * One sort orders the three, one choice picks the row that is open or the player in the panel among them all, and the
- * labels repeat once, under the last table drawn.
+ * match», each saying why under his name; and «Fallen», the dead, whose row and panel are fallen-view.mjs's. One sort
+ * orders the three, one choice picks the row that is open or the player in the panel among them all, and the labels
+ * repeat once, under the last table drawn. A desk draws the three in one frame, as DeskRosterInjured.html's one table:
+ * the headings of the other two are bands across it, «Active roster» is for a screen reader, and the column labels
+ * show once at the top (roster.css).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -31,7 +34,7 @@ import { renderRosterTable } from "../../../ui/roster-table.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
 import { causeOf, fallenName, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
-import { MAIN_COUNTERS, rosterCounts, rosterSections } from "./model.mjs";
+import { MAIN_COUNTERS, counterSlots, rosterCounts, rosterSections } from "./model.mjs";
 import { absenceWords, injuryWords, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
@@ -116,14 +119,19 @@ function injuryLine(line, mode) {
 /** A count: quiet at zero. */
 const countCell = (count) => ({ text: String(count), tone: count === 0 ? "zero" : "" });
 
-/** A line's cells; in a match each count of the career says what the match has added to it («+1»). */
+/**
+ * A line's cells; in a match each count of the career says what the match has added to it («+1»). What he may
+ * spend is green when it buys an advancement — he plays, and has the cheapest one's SPP — and quiet when it does not
+ * (DeskRoster.html).
+ */
 function cellsOf(line, { mode }) {
   const added = (counter) => (mode.kind === "match" ? line.match[counter] : 0);
+  const buys = line.ready && !line.skip && !line.fallen;
   return [
     ...PLAYER_STATS.map((stat) => statCell(line.stats[stat])),
     ...MAIN_COUNTERS.map((counter) => ({ ...countCell(line.career[counter] ?? 0), delta: added(counter) })),
     { text: String(line.earned) },
-    { text: String(line.available), tone: "strong" },
+    { text: String(line.available), tone: buys ? "strong" : "quiet" },
   ];
 }
 
@@ -154,7 +162,7 @@ function playerRowOf(line, screen) {
   };
 }
 
-/** A fallen player (decision 15): his number grey, «Fallen · <cause>» quiet under his name, his numbers as they were. */
+/** A fallen player (decision 15): his number grey, «Fallen · <cause>» in red under his name as every absence (StatsInjured.html), his numbers as they were. */
 function fallenRowOf(line) {
   const cause = causeOf(line);
   return {
@@ -162,7 +170,7 @@ function fallenRowOf(line) {
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true }),
     name: fallenName(line),
     sub: cause ? t("teamRoster.fallen.sub", { cause }) : t("teamRoster.fallen.status"),
-    alert: false,
+    alert: true,
     cells: cellsOf(line, { mode: NO_MATCH }),
     skillsHtml: skillChipsMarkup(line),
   };
@@ -181,6 +189,7 @@ function rowOf(line, screen, choice) {
 /**
  * The save's state in a few words at the right of «Active roster», in a live region a screen reader hears: on the
  * way, saved (until the next step), waiting for the network with the edits that wait, not saved; nothing at rest.
+ * Drawn as a dot and its words, with no capsule (SaveOffline.html; roster.css).
  */
 function statusMarkup({ status, waiting }) {
   let chip = "";
@@ -205,20 +214,23 @@ function prepMarkup({ mode }) {
 
 /**
  * A match that is on (decision 13): green while a tap is a record of it, yellow with «Edit outside the match» on (as
- * StatsLive and spec §7); its records counted, the switch, and the way to the post-match. The switch's explanation
- * is its description (K9), not a line beside it: the banner's action is the switch and the link.
+ * StatsLive and spec §7); a dot, the match and its records counted, the switch, and the way to the post-match. On a
+ * desk the count follows the match on the title's line («● Match on · round 3 · records: 3») and the switch's
+ * explanation is its description (K9); on a phone the count stands at the right of the title, and the switch says it
+ * under its name (StatsLive.html).
  */
-function matchMarkup({ mode, outside, records }) {
+function matchMarkup({ mode, outside, records, phone }) {
   const match = matchWords(mode);
-  const toggle = renderToggle({ key: OUTSIDE_TOGGLE, label: t("teamRoster.match.outside"), checked: outside, describedBy: OUTSIDE_NOTE });
-  const note = `<span id="${OUTSIDE_NOTE}" hidden>${escapeHtml(t("teamRoster.match.outsideCaption", { match }))}</span>`;
-  const actionHtml = `<div class="g-roster__calloutactions">${toggle}${note}${calloutLink(postMatchUrl(mode.game), t("teamRoster.match.postMatch"))}</div>`;
-  return renderCallout({
-    tone: outside ? "warn" : "accent",
-    title: t("teamRoster.match.title", { match, count: records }),
-    sub: outside ? t("teamRoster.match.outsideSub") : t("teamRoster.match.sub"),
-    actionHtml,
-  });
+  const caption = t("teamRoster.match.outsideCaption", { match });
+  const toggle = phone
+    ? renderToggle({ key: OUTSIDE_TOGGLE, label: t("teamRoster.match.outside"), caption, checked: outside })
+    : `${renderToggle({ key: OUTSIDE_TOGGLE, label: t("teamRoster.match.outside"), checked: outside, describedBy: OUTSIDE_NOTE })}<span id="${OUTSIDE_NOTE}" hidden>${escapeHtml(caption)}</span>`;
+  const actionHtml = `<div class="g-roster__calloutactions">${toggle}${calloutLink(postMatchUrl(mode.game), t("teamRoster.match.postMatch"))}</div>`;
+  const title = t("teamRoster.match.title", { match });
+  const callout = renderCallout({ tone: outside ? "warn" : "accent", title, sub: outside ? t("teamRoster.match.outsideSub") : t("teamRoster.match.sub"), actionHtml });
+  const drawn = `<span class="g-roster__livedot" aria-hidden="true"></span><span class="g-roster__livetitle">${escapeHtml(title)}</span>`
+    + `<span class="g-roster__livesep"> · </span><span class="g-roster__livecount">${escapeHtml(t("teamRoster.match.records", { count: records }))}</span>`;
+  return callout.replace(`<span class="g-callout__title">${escapeHtml(title)}</span>`, `<span class="g-callout__title g-roster__live">${drawn}</span>`);
 }
 
 /**
@@ -228,8 +240,9 @@ function matchMarkup({ mode, outside, records }) {
  */
 function saveNoticeMarkup({ save }) {
   if (save.status === SAVE_STATUS.CONFLICT) {
+    // Under the words, half the banner wide (SaveConflict.html): roster.css lays it out and takes the sign away.
     const actionHtml = renderButton({ label: t("teamRoster.conflict.reload"), kind: "primary", data: { rosterReload: true } });
-    return renderCallout({ tone: "danger", title: t("teamRoster.conflict.title"), sub: t("teamRoster.conflict.sub"), actionHtml });
+    return `<div class="g-roster__conflict">${renderCallout({ tone: "danger", title: t("teamRoster.conflict.title"), sub: t("teamRoster.conflict.sub"), actionHtml })}</div>`;
   }
   if (save.status !== SAVE_STATUS.OFFLINE) return "";
   const callout = renderCallout({ tone: "warn", title: t("teamRoster.offline.title"), sub: t("teamRoster.offline.sub", { count: save.waiting }) });
@@ -258,29 +271,44 @@ function noticesMarkup(screen) {
  */
 function sectionMarkup({ which, heading, count, barHtml = "", bodyHtml }) {
   const id = HEADINGS[which];
-  return `<section class="${classNames("g-roster__section", which === "fallen" && "g-roster__section--fallen")}" aria-labelledby="${id}">`
+  return `<section class="${classNames("g-roster__section", which !== "skipping" && `g-roster__section--${which}`)}" aria-labelledby="${id}">`
     + `<div class="g-roster__bar"><h2 class="g-roster__heading" id="${id}">${escapeHtml(heading)} <span class="g-roster__count">${escapeHtml(count)}</span></h2>`
     + `${barHtml}</div>${bodyHtml}</section>`;
 }
 
 /**
- * The banners, stage 08's treasury strip on a desk (strip.mjs), then the three sections and the panel beside them.
- * «Active roster» always stands, with the save's status: a roster with nobody on it says so, and one whose players
- * all miss the match says that, in place of its table; the other two are drawn only with someone in them. The
- * labels repeat under the last table alone; the first one's header leads with `headLeadHtml` (stage 07c's «+»).
+ * How to read the table, under it (DeskRoster.html, Stats.html): on a desk what the SPP columns are, the green and
+ * the click; on a phone the tap, the green, and what each action is worth to the race.
+ */
+function captionMarkup(screen) {
+  if (!screen.phone) return `<p class="g-roster__caption">${escapeHtml(t("teamRoster.caption.desk"))}</p>`;
+  const weights = counterSlots(screen.race).main.map(({ key, spp }) => `${t(`teamRoster.counter.${key}`)} ${spp}`).join(" · ");
+  const key = screen.mode.kind === "match" ? "teamRoster.caption.phoneMatch" : "teamRoster.caption.phone";
+  return `<p class="g-roster__caption">${escapeHtml(t(key, { weights }))}</p>`;
+}
+
+/**
+ * The banners, stage 08's treasury strip on a desk (strip.mjs), the three sections and the line on how to read
+ * them, in one column, and the panel beside it from its top (DeskRoster.html). «Active roster» always stands, with
+ * the save's status: a roster with nobody on it says so, and one whose players all miss the match says that, in place
+ * of its table; the other two are drawn only with someone in them. The labels repeat under the last table alone;
+ * the first one's header leads with `headLeadHtml` (stage 07c's «+»).
  */
 function layoutMarkup(screen) {
   const { lines, fallen, team } = screen;
   const { active, skipping } = rosterSections(lines);
   const choice = choiceOf([...active, ...skipping, ...fallen], screen);
   const last = fallen.length ? fallen : skipping.length ? skipping : active;
+  const first = active.length ? active : skipping.length ? skipping : fallen;
+  // A desk shows the labels once, over the first table drawn: the others keep theirs for a screen reader (DeskRosterInjured.html).
   const table = (label, rows, headLeadHtml = "") => renderRosterTable({
-    label, columns: columnsOf(), groups: groupsOf(), rows: rows.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort, headLeadHtml, foot: rows === last,
+    label, columns: columnsOf(), groups: groupsOf(), rows: rows.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort, headLeadHtml,
+    foot: rows === last, quietHead: !screen.phone && rows !== first,
   });
-  const first = active.length
+  const activeBody = active.length
     ? table(t("teamRoster.tableLabel", { team: team.name }), active)
     : `<p class="g-roster__empty">${escapeHtml(lines.length ? t("teamRoster.skips.noneActive") : t("teamRoster.empty"))}</p>`;
-  const sections = [sectionMarkup({ which: "active", heading: t("teamRoster.heading"), count: active.length, barHtml: statusMarkup(screen.save), bodyHtml: first })];
+  const sections = [sectionMarkup({ which: "active", heading: t("teamRoster.heading"), count: active.length, barHtml: statusMarkup(screen.save), bodyHtml: activeBody })];
   if (skipping.length) {
     sections.push(sectionMarkup({ which: "skipping", heading: t("teamRoster.skips.heading"), count: skipping.length, bodyHtml: table(t("teamRoster.skips.tableLabel", { team: team.name }), skipping) }));
   }
@@ -290,7 +318,8 @@ function layoutMarkup(screen) {
     ? `<aside class="g-roster__aside" id="${ASIDE_ID}" aria-label="${escapeHtml(t("teamRoster.panelLabel"))}"${dataAttributes({ panelPlayer: chosen.key })}>`
       + `${chosen.fallen ? fallenPanelMarkup(chosen, screen) : sidePanelMarkup(chosen, screen)}</aside>`
     : "";
-  return `${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__layout"><div class="g-roster__main">${sections.join("")}</div>${aside}</div>`;
+  const main = `${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__sections">${sections.join("")}</div>${lines.length || fallen.length ? captionMarkup(screen) : ""}`;
+  return `<div class="g-roster__layout"><div class="g-roster__main">${main}</div>${aside}</div>`;
 }
 
 /** A fault in place of the table, in a danger callout; a read that failed offers to read again. */
