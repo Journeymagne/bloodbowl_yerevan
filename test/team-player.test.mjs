@@ -7,8 +7,8 @@ import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
-  FALLEN, JOE, LIVE_GAME, PIKE, PLAYERS, STYLES, api, coach, died, formatDay, invalidateGames, releaseCurrentScreen, save, settle, state, team, view, withPlayers,
-  words,
+  FALLEN, JOE, LIVE_GAME, PIKE, PLAYERS, STYLES, api, coach, died, formatDay, invalidateGames, releaseCurrentScreen, save, settle, state, team, text, view,
+  withPlayers, words,
 } from "./helpers/roster-page.mjs";
 
 const { renderTeamPlayer } = await import("../src/screens/team/player/index.mjs");
@@ -35,7 +35,8 @@ const keepButton = () => undoSheet().querySelector("[data-undo-keep]");
 const restoreButton = () => undoSheet().querySelector("[data-undo-send]");
 const callout = (tone = "") => view.querySelector(`.g-callout${tone ? `.g-callout--${tone}` : ""}`);
 const calloutTitle = (tone) => callout(tone)?.querySelector(".g-callout__title").textContent ?? null;
-const rosterLink = () => view.querySelector("a.g-fallen-page__link");
+/** The way back to the roster in the page's banners: the roster's own banner link. */
+const rosterLink = () => view.querySelector("a.g-roster__calloutlink");
 /** The team on the server once Pike is back: at the end of the roster, rev 5 by default. */
 const withPike = (over = {}) => withPlayers([...PLAYERS, PIKE.player], { revision: 5, ...over });
 /** The server holds `teams` (the coach's list) and `fallen` when the page reads them again. */
@@ -190,10 +191,14 @@ test("undo from the profile: the sheet, one DELETE, «Pike is on the roster agai
     await renderTeamPlayer("t1", "d1");
     askUndo();
     api.reply(UNDO, 200, { team: withPike() });
+    restoreButton().focus();
     fireEvent(restoreButton(), "click");
     await settle();
     assert.equal(save.savedRevision("t1"), 5);
     assert.equal(state.myTeams.items[0].revision, 5);
+    assert.equal(calloutTitle(), BACK);
+    // The queue, taking the team, draws the page while his profile still stands: the focus is not left on his name.
+    assert.ok(document.activeElement === rosterLink(), "the focus on the way back to the roster");
   });
 });
 
@@ -515,6 +520,142 @@ test("a visit left before the fallen are read draws nothing", async () => {
   }
 });
 
+// The T6 carry, the review's Important 1: a post-match finished in this tab marks the list to be read again and keeps the
+// roster from before the match, which still holds the player who died in it.
+test("a list marked to be read again is read before it says whose the id is", async () => {
+  // He died in the match: the list read again does not hold him, and his profile opens.
+  coach();
+  state.myTeams = { items: [withPike()], loaded: false, loading: false, error: "" };
+  api.reply(LIST_READ, 200, { teams: [team()] });
+  const drawing = renderTeamPlayer("t1", "d1");
+  assert.equal(view.querySelector(".g-roster__loading").textContent, "Loading the player…", "the wait, while the list is read");
+  assert.ok(!editorWaits());
+  await drawing;
+  assert.ok(screen(), "his profile, not the 2.x editor");
+  assert.equal(title().textContent, "Pike");
+  assert.ok(undoButton());
+  assert.ok(!editor());
+  assert.equal(callsTo(LIST_READ).length, 1);
+  assert.ok(callsTo(LIST_READ)[0] && api.calls.indexOf(callsTo(LIST_READ)[0]) < api.calls.indexOf(callsTo(FALLEN_READ)[0]), "the list first");
+  api.assertAnswered();
+  // A player the list read again still holds: the 2.x editor, and the fallen are not read.
+  coach();
+  state.myTeams = { items: [team()], loaded: false, loading: false, error: "" };
+  api.reply(LIST_READ, 200, { teams: [team()] });
+  await renderTeamPlayer("t1", "p1");
+  await settle();
+  assert.ok(editor());
+  assert.ok(!screen());
+  assert.equal(callsTo(FALLEN_READ).length, 0);
+  // A list read from a list read, untouched: the editor at once, nothing read first.
+  coach();
+  api.reply(LIST_READ, 200, { teams: [team()] });
+  renderTeamPlayer("t1", "p1");
+  assert.ok(editorWaits(), "at once");
+  await settle();
+  // The visit left while the list is read: nothing is drawn, nothing handed over.
+  coach();
+  state.myTeams = { items: [withPike()], loaded: false, loading: false, error: "" };
+  api.reply(LIST_READ, 200, { teams: [team()] });
+  const list = api.hold(LIST_READ);
+  const left = renderTeamPlayer("t1", "d1");
+  await settle();
+  releaseCurrentScreen();
+  view.innerHTML = '<p id="elsewhere">Elsewhere</p>';
+  list.release();
+  await left;
+  await settle();
+  assert.ok(view.querySelector("#elsewhere"));
+  assert.equal(callsTo(FALLEN_READ).length, 0);
+});
+
+// The review's Important 2 (R8): nothing else reads the games, and the server does not refuse an undo in a match (K20).
+test("the games are read again when the tab is seen again; a match begun meanwhile closes the undo", async () => {
+  const events = new EventTarget();
+  Object.assign(document, { addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events), visibilityState: "visible" });
+  const gameReads = () => callsTo("GET /api/games").length;
+  try {
+    await withoutTimers(async () => {
+      coach();
+      await renderTeamPlayer("t1", "d1");
+      assert.equal(gameReads(), 1, "on entry");
+      assert.ok(!undoButton().hasAttribute("aria-disabled"));
+      gamesAre([LIVE_GAME]);
+      document.visibilityState = "hidden";
+      events.dispatchEvent(new Event("visibilitychange"));
+      assert.equal(gameReads(), 1, "a tab put away reads nothing");
+      document.visibilityState = "visible";
+      events.dispatchEvent(new Event("visibilitychange"));
+      assert.equal(undoButton().getAttribute("title"), "Loading the matches…", "the undo waits for them");
+      await settle();
+      assert.equal(gameReads(), 2);
+      assert.equal(undoButton().getAttribute("aria-disabled"), "true");
+      assert.equal(undoButton().getAttribute("title"), CLOSED);
+      fireEvent(undoButton(), "click");
+      assert.ok(!undoSheet());
+      releaseCurrentScreen();
+      events.dispatchEvent(new Event("visibilitychange"));
+      await settle();
+      assert.equal(gameReads(), 2, "a page left reads nothing");
+      assert.equal(callsTo(UNDO).length, 0);
+    });
+  } finally {
+    for (const name of ["addEventListener", "removeEventListener", "visibilityState"]) delete document[name];
+  }
+});
+
+test("games that cannot be read close the undo and offer to read them again", async () => {
+  await withoutTimers(async () => {
+    coach();
+    api.reply("GET /api/games", 500, { error: { code: "INTERNAL", params: {}, message: "x" } });
+    await renderTeamPlayer("t1", "d1");
+    const error = state.games.error;
+    assert.ok(error);
+    assert.equal(undoButton().getAttribute("aria-disabled"), "true");
+    assert.equal(undoButton().getAttribute("title"), error);
+    assert.equal(calloutTitle("danger"), error);
+    const again = view.querySelector("[data-player-games]");
+    assert.equal(again.textContent, "Try again");
+    gamesAre([]);
+    fireEvent(again, "click");
+    assert.equal(undoButton().getAttribute("title"), "Loading the matches…");
+    assert.ok(!view.querySelector("[data-player-games]"), "no second press while they are read");
+    await settle();
+    assert.ok(!undoButton().hasAttribute("aria-disabled"), "read: the undo is open");
+    assert.ok(!callout());
+    // A death the page does not undo has nothing to wait for: no banner.
+    coach();
+    api.reply("GET /api/games", 500, { error: { code: "INTERNAL", params: {}, message: "x" } });
+    await renderTeamPlayer("t1", "d2");
+    assert.ok(!callout());
+  });
+});
+
+test("a 2.x player's numeric id: the address carries it as text", async () => {
+  const LIVING = { id: 5, rowIndex: 0, number: "5", name: "Numa" };
+  coach();
+  state.myTeams = { items: [withPlayers([...PLAYERS, LIVING])], loaded: true, loading: false, error: "" };
+  api.reply(LIST_READ, 200, { teams: [withPlayers([...PLAYERS, LIVING])] });
+  renderTeamPlayer("t1", "5");
+  assert.ok(editorWaits(), "a player of the roster: the 2.x editor");
+  await settle();
+  assert.equal(callsTo(FALLEN_READ).length, 0);
+  coach({ fallen: [died("f9", { id: 9, rowIndex: 3, number: "9", name: "Nine" }, { cause: "Foul" })] });
+  await renderTeamPlayer("t1", "9");
+  assert.equal(title().textContent, "Nine");
+  assert.ok(undoButton(), "his death undone by its record, as any other");
+});
+
+test("a fallen record's position and cause are text", async () => {
+  coach({ fallen: [died("f8", { id: "d8", name: "Grim", position: HOSTILE, number: "12" }, { cause: HOSTILE })] });
+  await renderTeamPlayer("t1", "d8");
+  assert.equal(view.querySelector(".g-pagehead__sub").textContent, `${HOSTILE} · Human · fallen`);
+  assert.equal(view.querySelector(".g-fallen__cause").textContent, HOSTILE);
+  assert.ok(!view.querySelector("img"));
+  assert.ok(!view.querySelector("[onerror]"));
+  assertCspSafe(view);
+});
+
 test("his name is text on the page and in the sheet", async () => {
   coach({ fallen: [{ ...PIKE, player: { ...PIKE.player, name: HOSTILE } }] });
   await renderTeamPlayer("t1", "d1");
@@ -526,16 +667,17 @@ test("his name is text on the page and in the sheet", async () => {
   assertCspSafe(view);
 });
 
-test("the page is a column; its ways back to the roster are a thumb tall and readable on their banner", () => {
+test("the page is a column; its ways back to the roster are the roster's banner link, a thumb tall and in the banner's ink", () => {
   const sheet = "src/screens/team/roster/marks.css";
   assert.deepEqual(valuesOf(sheet, ".g-fallen-page__body", "max-width"), ["640px"]);
   assert.deepEqual(valuesOf(sheet, ".g-fallen-page__body", "gap"), ["var(--space-16)"]);
-  assert.deepEqual(valuesOf(sheet, ".g-fallen-page__link", "min-height"), ["var(--size-touch)"]);
-  assert.deepEqual(valuesOf(sheet, ".g-fallen-page__link", "color"), ["inherit"], "the banner's own ink");
-  for (const selector of [".g-fallen-page", ".g-fallen-page__link"]) {
-    assert.deepEqual([valuesOf(sheet, selector, "border"), valuesOf(sheet, selector, "background"), valuesOf(sheet, selector, "text-transform")], [["0"], ["none"], ["none"]], selector);
-    assert.equal(valuesOf(sheet, selector, "font").length, 1, selector);
-    assert.deepEqual(valuesOf(sheet, selector, "letter-spacing"), ["0"], selector);
-  }
-  assertReadable(sheet, ".g-fallen-page", "color", ["--surface"], 4.5);
+  const selector = ".g-fallen-page";
+  assert.deepEqual([valuesOf(sheet, selector, "border"), valuesOf(sheet, selector, "background"), valuesOf(sheet, selector, "text-transform")], [["0"], ["none"], ["none"]]);
+  assert.equal(valuesOf(sheet, selector, "font").length, 1);
+  assert.deepEqual(valuesOf(sheet, selector, "letter-spacing"), ["0"]);
+  assertReadable(sheet, selector, "color", ["--surface"], 4.5);
+  // K14: the link is the roster's own, styled for any banner (roster.css), not a copy of it.
+  assert.deepEqual(valuesOf("src/screens/team/roster/roster.css", ".g-roster__calloutlink", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf("src/screens/team/roster/roster.css", ".g-roster__calloutlink", "color"), ["inherit"]);
+  assert.ok(!/\.g-fallen-page__link/.test(text("src/screens/team/roster/marks.css")), "no second set of rules for it");
 });

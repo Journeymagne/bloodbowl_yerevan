@@ -242,7 +242,8 @@
 /*
  * A fallen player's own page (screens/team/player, PlayerDead): his head — his grey number before his name, at any
  * width — then a column of what the page says, no wider than 640px on a desk. The head keeps the band and the margins
- * page-head.css gives it, so the column's gap is the one between its blocks.
+ * page-head.css gives it, so the column's gap is the one between its blocks. The way back to the roster in its banners
+ * is the roster's own banner link (`.g-roster__calloutlink`, roster.css: a thumb tall, in the banner's ink).
  */
 .g-fallen-page {
   box-sizing: border-box;
@@ -282,22 +283,4 @@
   padding: 0;
   border: 0;
   background: none;
-}
-
-/* The way back to the roster in the page's banners (K14, an undo landed): one line, a thumb tall, in the banner's own ink. */
-.g-fallen-page__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: var(--size-touch);
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: 700 14px/1.2 var(--font-body);
-  letter-spacing: 0;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-transform: none;
-  white-space: nowrap;
 }

@@ -49,7 +49,8 @@ const undoneOf = (where, key) => where.fallen.find((line) => line.key === key &&
  * @property {() => void} refused the server's roster asked again, after a refusal of the queue's 422 whose read failed
  * @property {(answer: {team: object, fallen: object[]}) => void} hold a death's or an undo's answer taken: its team, and the fallen to draw (K5)
  * @property {function(): Promise<boolean>} readAgain the roster and the fallen read again; true when the read was taken
- * @property {function(): Promise<void>} reload the server's roster in place of the queue's, while no step waits or is on its way
+ * @property {function(): Promise<void>} [reload] the server's roster in place of the queue's, while no step waits or is on its
+ *   way: a death's conflict asks for it, so only a page that marks deaths (the roster) lends it
  * @property {(line: import("./model.mjs").FallenLine, mine: boolean) => void} [back] what a page that draws no roster (the
  *   player's own, screens/team/player) does once he is back, in place of his row and the message (`backSaid`)
  */
