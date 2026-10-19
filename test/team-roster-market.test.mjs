@@ -12,6 +12,8 @@ import {
 } from "./helpers/roster-page.mjs";
 
 const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
+const { droppedWords } = await import("../src/screens/team/roster/market.mjs");
+const { markAbsence } = await import("../src/domain/roster/absence.mjs");
 
 // Stage 07c, Task 5: the «+» beside «Player» in the active roster's header (StatsHire.html, DeskRosterHire.html) and the
 // cart it opens: the race's positions with their limits, the treasury and what the cart leaves of it, and «Buy», one
@@ -1415,5 +1417,50 @@ test("the sale's sheet is styled, and its colours are readable", async () => {
     assert.deepEqual(valuesOf(MARKET, ".g-market__flownum", "font"), ["700 26px/normal var(--font-display)"]);
     assert.deepEqual(valuesOf(MARKET, ".g-market__note", "font-size"), ["13px"]);
     assert.deepEqual(valuesOf(MARKET, ".g-market__note", "font"), ["400 12px/1.45 var(--font-body)"]);
+  });
+});
+
+// Stage 07d, Review Focus 4: a player's edit or advancement a match took from the coach, said after the hires and sales.
+const PLAYERS_DROPPED = "A match has begun, so the player edits and advancements that were waiting were not saved. Make them again after the post-match.";
+
+test("droppedWords: the player edits and advancements given up when a match begins are said last, with no number, and only when they waited", () => {
+  const server = { players: [{ id: "p1", rowIndex: 0, number: "1", name: "Ann" }, { id: "p3", rowIndex: 2, number: "3", name: "Cade", spp: { touchdowns: 10 } }] };
+  const edited = structuredClone(server);
+  edited.players[0].number = "9";
+  Object.assign(edited.players[1], { advancements: [{ type: "random", grants: { skill: "Frenzy" } }], extraSkills: [{ name: "Frenzy", access: "primary" }] });
+  assert.deepEqual(droppedWords(server, edited, 2), [PLAYERS_DROPPED], "two players changed, one line and no number");
+  assert.deepEqual(droppedWords(server, edited, 0), [], "nothing of his waited: another device's change");
+  // With SPP and a hire before it: the player edits come last.
+  const all = structuredClone(edited);
+  all.players[0].spp = { touchdowns: 1 };
+  all.players.push({ id: "p9", rowIndex: 0, number: "10", name: "New", purchased: true, purchaseRefund: 50 });
+  assert.deepEqual(droppedWords(server, all, 3), [SPP_DROPPED, MARKET_DROPPED, PLAYERS_DROPPED]);
+  // A mark brings its injury: that is the mark's, and no edit of the player.
+  const marked = structuredClone(server);
+  marked.players[0] = markAbsence(marked.players[0], { code: "lasting", stat: "ma" });
+  assert.deepEqual(droppedWords(server, marked, 1), [MARKS_DROPPED]);
+  // K26: one hire waited; the server's roster renamed a player meanwhile (another device): that is not the coach's.
+  const renamed = structuredClone(server);
+  renamed.players[0].name = "Anne";
+  const hired = structuredClone(server);
+  hired.players.push({ id: "p9", rowIndex: 0, number: "10", name: "New", purchased: true, purchaseRefund: 50 });
+  assert.deepEqual(droppedWords(renamed, hired, 1), [MARKET_DROPPED]);
+});
+
+// K8 (stage 07d): a 409 without the team — a site roll given back out of its turn — is no other device's save. The screen
+// takes a 422's way: it says why and reads the server's roster again; no «changed on another device», no step sent again.
+test("a 409 that refuses a roll's turn is said and the roster read again, as a 422 is: never the conflict", async () => {
+  await withoutTimers(async () => {
+    coach({ teamAnswer: rich() });
+    await renderTeamRoster("t1");
+    const before = teamReads();
+    api.reply(PATCH, 409, { error: { code: "DICE_ROLL_USED", params: {}, message: "x" } });
+    stepOfTheRoster();
+    await settle();
+    assert.equal(toasts().at(-1), "Undo the later advancement first: its roll was taken after this one.");
+    assert.equal(teamReads(), before + 1, "the server's roster is read again");
+    assert.deepEqual([save.saveState("t1").status, save.saveState("t1").waiting], ["idle", 0], "and taken: the refused step is given up");
+    assert.equal(patches().length, 1, "never sent again");
+    assert.ok(!view.textContent.includes("The roster was changed on another device"));
   });
 });

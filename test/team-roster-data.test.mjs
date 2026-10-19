@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 import { installFakeApi } from "./helpers/fake-api.mjs";
+import { expandCollections } from "../src/data/reference.mjs";
+import { EDIT_REFUSALS, FIX_REFUSALS } from "../src/domain/roster/edits.mjs";
+import { ADVANCE_REFUSALS } from "../src/domain/roster/progression.mjs";
 
 const api = installFakeApi();
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
@@ -18,6 +22,14 @@ const { checkRoster, loadTeamReference, teamBySlug } = await import("../server/d
 await loadTeamReference(fileURLToPath(new URL("..", import.meta.url)));
 // Human: 0 Human Lineman 50k (0-16), 1 Thrower 80k (0-2), 2 Catcher 75k (0-2), 3 Blitzer 80k (0-2), 4 Halfling Hopeful 30k (0-3), 5 Ogre 140k (0-1).
 const human = teamBySlug("teams/human");
+// Nurgle, Favoured of Nurgle: 0 Rotter Lineman. The Skill Table as public/data.en.json has it.
+const nurgle = teamBySlug("teams/nurgle");
+const { skillGroups } = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
+const dictionary = (file) => JSON.parse(readFileSync(new URL(`../src/i18n/${file}`, import.meta.url), "utf8"));
+const EN = dictionary("en.json");
+const RU = dictionary("ru.json");
+/** Stage 07d's words as src/i18n/en.json has them, with the characteristics they name. */
+const words07d = Object.fromEntries(Object.entries(EN).filter(([key]) => /^(teamPlayer|teamAdvance|stats)\./.test(key)));
 
 setDictionaries({
   en: {
@@ -33,6 +45,9 @@ setDictionaries({
     "validation.TREASURY_INVALID": "Treasury must be a nonnegative amount in whole gold pieces.",
     "validation.PLAYER_SALE_MIN": "A sale cannot leave fewer than seven players on the team.",
     "validation.PLAYER_PURCHASE_CLOSED": "This purchase can no longer be cancelled. Use a sale under the league rules.",
+    "validation.PLAYER_NOT_FOUND": "This player is no longer on the team.",
+    "error.DICE_ROLL_MISMATCH": "This advancement does not match its roll on the site.",
+    ...words07d,
   },
   ru: { "auth.otherTab": "Кто-то вошёл или вышел в другой вкладке, поэтому здесь ничего не сохранено." },
 });
@@ -1015,4 +1030,280 @@ test("a list read on its way when a save answers is asked again: the older list 
   await first;
   assert.equal(state.myTeams.items[1].revision, 6);
   api.assertAnswered();
+});
+
+// Stage 07d: a player's edit, a fix by hand, an advancement, its undo, a roll bound and a god's bonus are steps of the
+// same queue, one player's fields changed and the whole roster saved, one step one PATCH.
+
+/** Ann; Bors the Blitzer, captain; Cade the Catcher with 10 TD (30 SPP); Dell with a Niggling Injury and MA −1 that lasts. */
+const squad = (cade = {}) => [
+  { id: "p1", rowIndex: 0, number: "1", name: "Ann" },
+  { id: "p2", rowIndex: 3, number: "2", name: "Bors", isCaptain: true },
+  { id: "p3", rowIndex: 2, number: "3", name: "Cade", spp: { touchdowns: 10 }, ...cade },
+  { id: "p4", rowIndex: 0, number: "4", name: "Dell", nigglingInjuries: 1, niglingInjury: true, statMods: { ma: -1 }, injuryStatMods: { ma: -1 } },
+];
+/** A random skill rolled on the site for Cade, as GET …/rolls and POST …/rolls send it: Frenzy, at the first try. */
+const ROLL = {
+  id: "r1", playerId: "p3", purpose: "random_skill", params: { category: "General", sides: 16, captain: false },
+  result: { skill: "Frenzy", attempts: [{ roll: 4, skill: "Frenzy", duplicate: false }] }, usedAt: null, createdAt: "2026-10-19T10:00:00Z",
+};
+const SITE = { id: "r1", via: "site" };
+const frenzy = (over = {}) => ({ type: "random", grant: { skill: "Frenzy" }, roll: SITE, siteRoll: ROLL, ...over });
+/** Cade with Frenzy taken by a random advancement, rolled on the site (`roll`) or at the table. */
+const frenzied = (roll = SITE) => squad({ advancements: [{ type: "random", grants: { skill: "Frenzy" }, roll }], extraSkills: [{ name: "Frenzy", access: "primary" }] });
+/** A fix of Dell that leaves him as he is but for `over`. */
+const fixOf = (over = {}) => ({ niggling: 1, lasting: {}, stats: {}, contracts: 0, favoured: { add: [], remove: [] }, dropSkills: [], ...over });
+/** t1 as a Nurgle team that chose Nurgle's favour, with Rot, a Rotter Lineman. */
+const nurgleTeam = (revision) => teamAt(revision, undefined, {
+  baseTeamSlug: "teams/nurgle",
+  roster: { teamSlug: "teams/nurgle", teamName: "Iron Rooks", treasury: 50, favouredChoice: "Nurgle", players: [{ id: "n1", rowIndex: 0, number: "1", name: "Rot" }] },
+});
+const USED = "Undo the later advancement first: its roll was taken after this one.";
+
+test("a player's number, name and captaincy are one PATCH of the whole roster on the revision as read; the armband moves from the one who had it", async () => {
+  const draft = await open(storedTeam(4, squad()));
+  api.reply(PATCH_URL, 200, { team: teamAt(5) });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "9", name: "Anna", captain: true }), { ok: true });
+  assert.deepEqual([draft.players[0].name, draft.players[1].isCaptain, save.saveState("t1").waiting], ["Anna", false, 1], "the draft has it at once, and it waits");
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const [{ body }] = patches();
+  const [ann, bors] = body.roster.players;
+  assert.deepEqual([body.revision, ann.number, ann.name, ann.isCaptain, bors.isCaptain], [4, "9", "Anna", true, false]);
+  assert.deepEqual([body.name, body.baseTeamSlug, body.logoData, body.roster.players.length], ["Iron Rooks", "teams/human", LOGO, 4]);
+});
+
+test("an edit the rules refuse sends nothing and says why; an edit that changes nothing sends nothing", async () => {
+  const draft = await open(storedTeam(4, squad()));
+  const before = structuredClone(draft);
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "2", name: "Ann" }), { ok: false, refusal: "Number 2 is Bors's already" });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "0", name: "Ann" }), { ok: false, refusal: "The number is from 1 to 99" });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "1", name: "  " }), { ok: false, refusal: "The name cannot be empty" });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "1", name: "Ann", captain: false }), { ok: false }, "the same fields");
+  assert.deepEqual(save.amendPlayer("t1", "p2", { number: "02", name: " Bors ", captain: true }), { ok: false }, "the same, as the server stores them");
+  assert.deepEqual(save.amendPlayer("t1", "p9", { number: "9", name: "Nobody" }), { ok: false, refusal: "This player is no longer on the team." });
+  assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
+});
+
+test("an advancement is one PATCH: the skill, its type and its roll as the server reads it; what it cost and added is said", async () => {
+  const draft = await open(storedTeam(4, squad()));
+  api.reply(PATCH_URL, 200, { team: teamAt(5) });
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups), { ok: true, cost: 3, value: 20, level: 1 });
+  // A second press of the same roll: the roll is the draft's already, and the server uses a roll once.
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups), { ok: false });
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const [{ body }] = patches();
+  const cade = body.roster.players[2];
+  assert.deepEqual(cade.advancements, [{ type: "random", grants: { skill: "Frenzy" }, roll: SITE }]);
+  assert.deepEqual(cade.extraSkills.map((skill) => skill.name), ["Frenzy"]);
+  assert.equal(JSON.stringify(body).includes("siteRoll"), false, "the roll's data stays on the screen");
+  assert.deepEqual([body.revision, draft.players[2].advancements.length], [4, 1]);
+  // A chosen skill names no roll; a characteristic at the table names it so.
+  api.reply(PATCH_URL, 200, { team: teamAt(6) });
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups), { ok: true, cost: 8, value: 20, level: 2 });
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.deepEqual(patches()[1].body.roster.players[2].advancements.at(-1), { type: "primary", grants: { skill: "Block" } });
+});
+
+// Review Focus 1: the step sent again is the snapshot sent first, the roll's id with it.
+test("an advancement whose answer was lost is the 409 that holds it: taken as saved, never taken twice", async () => {
+  const draft = await open(storedTeam(4, squad()));
+  api.fail(PATCH_URL);
+  assert.equal(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups).ok, true);
+  const offline = await settle();
+  assert.deepEqual([offline.status, offline.waiting], ["offline", 1]);
+  const sent = patches()[0].body;
+  api.reply(PATCH_URL, 409, { error: elsewhereError, team: teamAt(5, undefined, { roster: stored(sent.roster) }) });
+  assert.equal(await save.retrySaves("t1"), "saved");
+  assert.deepEqual(save.saveState("t1"), quiet("saved"));
+  assert.equal(save.savedRevision("t1"), 5);
+  assert.equal(patches().length, 2);
+  assert.deepEqual(patches()[1].body, sent, "the same body, the same roll r1");
+  assert.deepEqual(draft.players[2].advancements, [{ type: "random", grants: { skill: "Frenzy" }, roll: SITE }], "one advancement");
+});
+
+// Review Focus 3: the server would refuse the save that takes it; the coach is told before anything goes.
+test("a site roll the player can no longer take sends nothing and says why", async () => {
+  const draft = await open(storedTeam(4, squad()));
+  const before = structuredClone(draft);
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy({ siteRoll: { ...ROLL, stale: true } }), skillGroups), {
+    ok: false,
+    refusal: "Frenzy came up, and the player has this skill already: the roll cannot be taken. Take the skill off, or take this advancement at the table.",
+  });
+  const rerolled = { ...ROLL, result: { skill: "Frenzy", attempts: [{ roll: 1, skill: "Block", duplicate: true }, { roll: 4, skill: "Frenzy", duplicate: false }] } };
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy({ siteRoll: rerolled }), skillGroups), {
+    ok: false,
+    refusal: "This roll was rolled again past Block, which the player has no more: give the skill back before taking the roll, or take this advancement at the table.",
+  });
+  assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
+});
+
+test("an advancement the rules refuse sends nothing and says why, a characteristic by its name", async () => {
+  await open(storedTeam(4, squad({ spp: {} })));
+  const refusal = (choice, playerId = "p3") => save.advancePlayer("t1", human, playerId, choice, skillGroups).refusal;
+  assert.equal(refusal(frenzy()), "3 SPP short", "Cade without SPP: a random skill costs 3");
+  assert.equal(refusal({ type: "primary", grant: { skill: "Block" } }), "6 SPP short");
+  save.takeServerTeam(storedTeam(4, squad({ statMods: { ag: 2 } })));
+  // Cade: Catcher, AG 3+ raised twice to 1+ — at its limit, and +2 taken by advancements.
+  assert.equal(refusal({ type: "stat", grant: { stat: "ag" } }), "AG: +2 taken already");
+  assert.equal(refusal({ type: "primary", grant: { skill: "Pass" } }), "Pass cannot be taken with this advancement", "a skill of no primary category");
+  assert.equal(refusal({ type: "stat", grant: { skill: "Tentacles" } }), "Tentacles cannot be taken with this advancement", "in place of a characteristic, no access to name");
+  assert.equal(refusal({ type: "random", grant: { stat: "ma" } }), "This advancement does not give that");
+  assert.equal(refusal(frenzy(), "p9"), "This player is no longer on the team.");
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
+  await tick();
+  assert.equal(api.calls.length, 0);
+});
+
+// Review Focus 5: the server frees the roll the save no longer names.
+test("the last advancement undone is one PATCH: what it gave gone, its roll no longer named, so the server frees it", async () => {
+  const draft = await open(storedTeam(4, frenzied()));
+  api.reply(PATCH_URL, 200, { team: teamAt(5) });
+  assert.deepEqual(save.undoAdvancement("t1", "p3"), { ok: true, cost: 3, type: "random", grants: { skill: "Frenzy" }, roll: SITE });
+  assert.deepEqual(save.undoAdvancement("t1", "p3"), { ok: false }, "none left: nothing to undo");
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const cade = patches()[0].body.roster.players[2];
+  assert.deepEqual([cade.advancements, cade.extraSkills.map((skill) => skill.name)], [[], []]);
+  assert.deepEqual(draft.players[2].advancements, []);
+});
+
+test("a stale roll put on the table advancement that gave its skill: one PATCH naming the roll there", async () => {
+  await open(storedTeam(4, frenzied({ via: "table" })));
+  api.reply(PATCH_URL, 200, { team: teamAt(5) });
+  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, result: { ...ROLL.result, skill: "Block" } }), { ok: false }, "no advancement gave Block");
+  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, stale: true }), { ok: true });
+  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, stale: true }), { ok: false }, "a second press: the advancement names a site roll now");
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const cade = patches()[0].body.roster.players[2];
+  assert.deepEqual(cade.advancements, [{ type: "random", grants: { skill: "Frenzy" }, roll: SITE }]);
+  assert.deepEqual(cade.extraSkills.map((skill) => skill.name), ["Frenzy"], "the skill as it was");
+});
+
+test("a fix by hand is one PATCH: the Niggling Injuries, a characteristic, the contracts, a skill no advancement gave; a fix the rules refuse sends nothing", async () => {
+  const draft = await open(storedTeam(4, squad()));
+  const before = structuredClone(draft);
+  const fix = (over) => save.fixPlayer("t1", human, "p4", fixOf(over));
+  assert.deepEqual(fix({ stats: { ma: 5 } }), { ok: false, refusal: "MA cannot improve further" }, "MA 5, then +5 is past 9");
+  assert.deepEqual(fix({ lasting: { ma: 1 }, stats: { ma: 4 } }), { ok: false, refusal: "MA cannot improve further" }, "MA 5, back to 6, then +4");
+  // AG is a target: up is a lower number, and the words say better, never higher.
+  assert.deepEqual(fix({ stats: { ag: 3 } }), { ok: false, refusal: "AG cannot improve further" }, "AG 3+ cannot become 0+");
+  assert.deepEqual(fix({ stats: { ag: -4 } }), { ok: false, refusal: "AG cannot be changed that far" }, "AG 3+ cannot become 7+");
+  assert.deepEqual(fix({ stats: { ma: -5 } }), { ok: false, refusal: "MA cannot be changed that far" }, "MA 5 cannot become 0");
+  assert.deepEqual(fix({ niggling: 10 }), { ok: false, refusal: "Niggling Injuries: from 0 to 9" });
+  assert.deepEqual(fix({ contracts: 21 }), { ok: false, refusal: "Extended contracts: from 0 to 20" });
+  assert.deepEqual(fix({ dropSkills: ["Block"] }), { ok: false, refusal: "Block came with an advancement: undo the advancement instead" });
+  assert.deepEqual(fix({}), { ok: false }, "nothing changes");
+  assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
+  api.reply(PATCH_URL, 200, { team: teamAt(5) });
+  assert.deepEqual(fix({ niggling: 0, lasting: { ma: 1 }, contracts: 1 }), { ok: true, value: 70 }, "a Lineman's 50k and a contract's 20k");
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const dell = patches()[0].body.roster.players[3];
+  assert.deepEqual([dell.nigglingInjuries, dell.niglingInjury, dell.injuryStatMods?.ma, dell.statMods?.ma, dell.extendedContracts], [0, false, undefined, undefined, 1]);
+});
+
+test("a god's bonus is one PATCH: the skill among his favoured", async () => {
+  const draft = await open(nurgleTeam(4));
+  api.reply(PATCH_URL, 200, { team: nurgleTeam(5) });
+  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Tentacles"), { ok: true });
+  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Tentacles"), { ok: false, refusal: "The player has this skill already." });
+  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Block"), { ok: false, refusal: "This skill is not on the bonus list." });
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  assert.deepEqual(patches()[0].body.roster.players[0].favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
+  assert.deepEqual(draft.players[0].favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
+});
+
+// K15: what closes the screen just now is asked at the press, whatever the sheet drew before it.
+test("another tab's coach, or a write the screen has closed at the press: none of them is sent", async () => {
+  const draft = await open(storedTeam(4, frenzied({ via: "table" })));
+  const before = structuredClone(draft);
+  const presses = (options) => [
+    save.amendPlayer("t1", "p1", { number: "9", name: "Anna" }, options),
+    save.fixPlayer("t1", human, "p4", fixOf({ niggling: 0 }), options),
+    save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups, options),
+    save.undoAdvancement("t1", "p3", options),
+    save.bindRoll("t1", "p3", ROLL, options),
+    save.addFavoured("t1", human, "p1", "Tentacles", options),
+  ];
+  const AFTER = "Advancement — after the post-match";
+  let asked = 0;
+  for (const refused of presses({ closed: () => { asked += 1; return AFTER; } })) assert.deepEqual(refused, { ok: false, refusal: AFTER });
+  assert.equal(asked, 6, "each press asks");
+  api.items.set(TOKEN, "someone-else");
+  // Human has no god's favour to give: that press is refused by the rules before the token is asked.
+  const [amend, fix, advance, undo, bind] = presses({ closed: () => "" });
+  for (const refused of [amend, fix, advance, undo, bind]) assert.match(refused.refusal, /another tab/);
+  assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
+  const rot = (await open(nurgleTeam(4))).players[0];
+  api.items.set(TOKEN, "someone-else");
+  assert.match(save.addFavoured("t1", nurgle, "n1", "Tentacles").refusal, /another tab/);
+  assert.deepEqual([rot.favouredSkills ?? [], api.calls.length], [[], 0]);
+});
+
+// K8: the server gives a player's rolls back last first; a 409 without the team is not another device's save.
+test("a roll given back out of its turn is refused in words, not a conflict: nothing more goes until the server's roster is taken", async () => {
+  const draft = await open(storedTeam(4, frenzied()));
+  api.reply(PATCH_URL, 409, { error: { code: "DICE_ROLL_USED", params: {}, message: "x" } });
+  assert.equal(save.undoAdvancement("t1", "p3").ok, true);
+  const refused = await settle();
+  assert.deepEqual([refused.status, refused.kind, refused.code, refused.refusal, refused.waiting], ["error", "invalid", "DICE_ROLL_USED", USED, 1]);
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "9", name: "Anna" }), { ok: false, refusal: USED });
+  await tick();
+  assert.equal(patches().length, 1, "the refused step is not sent again");
+  assert.deepEqual(draft.players[2].advancements, [], "his own undo stays on the screen until the server's roster is taken");
+  const taken = save.takeServerTeam(storedTeam(4, frenzied()));
+  assert.deepEqual([taken.players[2].advancements.length, save.saveState("t1")], [1, quiet("idle")]);
+});
+
+// K16: a skill a used site roll was rerolled against stays; the server's 422 is said for the step that met it.
+test("a 422 of a site roll is said in the words of the step that met it: an edit's, an advancement's, a counter's the server's", async () => {
+  await open(storedTeam(4, frenzied({ via: "table" })));
+  const mismatch = { error: { code: "DICE_ROLL_MISMATCH", params: { playerId: "p3" }, message: "x" } };
+  const refusalAfter = async (press) => {
+    save.takeServerTeam(storedTeam(4, frenzied({ via: "table" })));
+    api.reply(PATCH_URL, 422, mismatch);
+    assert.equal(press().ok, true);
+    const refused = await settle();
+    assert.deepEqual([refused.status, refused.kind, refused.code], ["error", "invalid", "DICE_ROLL_MISMATCH"]);
+    return refused.refusal;
+  };
+  assert.equal(await refusalAfter(() => save.undoAdvancement("t1", "p3")), "A roll on the site was rerolled against this skill, so it stays.");
+  assert.equal(await refusalAfter(() => save.fixPlayer("t1", human, "p4", fixOf({ niggling: 0 }))), "A roll on the site was rerolled against this skill, so it stays.");
+  assert.equal(await refusalAfter(() => save.bindRoll("t1", "p3", ROLL)), "This advancement does not match its roll on the site.");
+  assert.equal(await refusalAfter(() => save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups)),
+    "This advancement does not match its roll on the site.");
+  assert.equal(await refusalAfter(() => save.stepSpp("t1", "p1", "touchdowns", 1)), "This advancement does not match its roll on the site.", "error.DICE_ROLL_MISMATCH");
+  save.takeServerTeam(storedTeam(4, squad()));
+});
+
+test("every refusal an advancement or an edit can meet is worded in both dictionaries, with the same placeholders", () => {
+  const keys = [
+    ...[...ADVANCE_REFUSALS, "DICE_ROLL_USED", "DICE_ROLL_MISMATCH"].map((code) => `teamAdvance.refusal.${code}`),
+    ...[...EDIT_REFUSALS, ...FIX_REFUSALS, "DICE_ROLL_MISMATCH"].map((code) => `teamPlayer.refusal.${code}`),
+    "teamPlayer.matchDropped", "teamPlayer.favoured.held", "teamPlayer.favoured.unknown",
+  ];
+  const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map(([, name]) => name).sort();
+  for (const key of keys) {
+    assert.ok(EN[key] && RU[key], `${key} in both`);
+    assert.deepEqual(placeholders(RU[key]), placeholders(EN[key]), key);
+  }
+  // A skill in place of a characteristic names no access (`access: ""`): the words read the same with one and without.
+  for (const access of ["primary", ""]) {
+    for (const [words, skill] of [[EN, "Block"], [RU, "Block"]]) {
+      const said = words["teamAdvance.refusal.GRANT_NOT_AVAILABLE"].replace(/\{(\w+)\}/g, (_, name) => ({ skill, access })[name]);
+      assert.ok(said.startsWith("Block ") && !/\{|\s{2}|\s[.,:]/.test(said), `${said} (access "${access}")`);
+    }
+  }
 });

@@ -25,6 +25,11 @@
  * the treasury moved — and the whole roster saved, one step one PATCH, so that the server journals exactly that step
  * (`classifyTreasuryChange`). The players a purchase makes are the server's shape, which is what lets a lost answer's 409
  * be known as this very purchase.
+ *
+ * A player's edit, a fix by hand, an advancement, its undo, a roll put on a table advancement and a god's bonus are steps
+ * of the queue too (stage 07d): one player's fields changed in the draft and the whole roster saved, checked first on a
+ * copy of him by the rules the server stores them by. An advancement names its site roll by id, and a lost answer's
+ * resend names the same one: the server uses a roll once.
  */
 import { API_ERROR, ApiError } from "../../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../../core/api-client.mjs";
@@ -36,21 +41,26 @@ import { onSessionChange } from "../../../data/session.mjs";
 import { loadMyTeams, refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
 import { sameValues } from "../../../domain/post-match/events.mjs";
 import { clearAbsence, markAbsence, sitsOut } from "../../../domain/roster/absence.mjs";
-import { normalizeSppCounters, storedPlayerId } from "../../../domain/roster/players.mjs";
+import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
+import { rollRefusal, siteRollReferences, tableAdvancementFor } from "../../../domain/roster/dice.mjs";
+import { addFavouredSkill, applyFix, editPlayer } from "../../../domain/roster/edits.mjs";
+import { normalizePlayerAdvancements, normalizeSppCounters, storedPlayerId } from "../../../domain/roster/players.mjs";
+import { playerAdvancementLevel, takeAdvancement, undoLastAdvancement } from "../../../domain/roster/progression.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { hirePlayers, hireQuote, playerRemoval, removeLeaguePlayer } from "../../../domain/roster/transfers.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { rowsForTeam } from "../../../domain/roster/values.mjs";
 
-/** The steps taken and not yet confirmed by an answer, by team. */
+/** The steps taken and not yet confirmed by an answer, by team, in order, the first in the air: each its words (`space`, 07d). */
 const waiting = new Map();
-const waitingFor = (teamId) => waiting.get(teamId) ?? 0;
+const waitingFor = (teamId) => waiting.get(teamId)?.length ?? 0;
 /** The team the store saves on, by team: the object it was handed, whose revision each answer moves (`mergeServerTeam`). */
 const tracked = new Map();
 
-/** An answer stood behind one step. */
+/** An answer stood behind one step: the first. */
 function confirmStep(teamId) {
-  if (waitingFor(teamId) > 1) waiting.set(teamId, waitingFor(teamId) - 1);
+  const rest = waiting.get(teamId)?.slice(1) ?? [];
+  if (rest.length) waiting.set(teamId, rest);
   else waiting.delete(teamId);
 }
 
@@ -93,8 +103,10 @@ async function patchTeam(endpoint, request) {
     return await apiRequest(endpoint, { method: "PATCH", body: JSON.stringify(request) });
   } catch (error) {
     const team = landedTeam(error, request);
-    if (!team) throw error;
-    return { team };
+    if (team) return { team };
+    // K8: a roll given back out of its turn is a 409 without the team, no other device's save: refused as a 422 is.
+    if (error?.code !== "DICE_ROLL_USED") throw error;
+    throw new ApiError(API_ERROR.INVALID, { status: error.status, message: error.message, payload: error.payload });
   }
 }
 
@@ -186,14 +198,18 @@ export function savedRevision(teamId) {
 /**
  * One step on the whole draft, saved as it is taken: `plan(draft)` says what the step does — null when it has nothing
  * to do, `{refusal}` when the rules refuse it (in words), else `{apply}`, which changes the draft and hands back what
- * the caller is told beside `ok`. Nothing is sent either for a team the queue does not hold, or while the queue waits
- * for the coach to settle a conflict — or for the server's roster after a 422: the refused step heads the queue, and a
- * step would send it again (`takeServerTeam` gives it up), so it gets the refusal's words instead. Another tab's coach
- * is told, and nothing is changed.
- * @param {string} teamId @param {(draft: object) => null | {refusal: string} | {apply: () => object}} plan
+ * the caller is told beside `ok`, if anything. Nothing is sent either for a team the queue does not hold, or while the
+ * queue waits for the coach to settle a conflict — or for the server's roster after a 422: the refused step heads the
+ * queue, and a step would send it again (`takeServerTeam` gives it up), so it gets the refusal's words instead. Another
+ * tab's coach is told, and nothing is changed. `closed`, asked first, is why the screen sends nothing just now, at the
+ * press (K15: a match begun before it was drawn again); `space`, the step's words for a refusal of its roll (`refusalOf`).
+ * @param {string} teamId @param {(draft: object) => null | {refusal: string} | {apply: () => object|void}} plan
+ * @param {{closed?: () => string, space?: string}} [options]
  * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}} with what `apply` handed back when `ok`
  */
-function stepRoster(teamId, plan) {
+function stepRoster(teamId, plan, { closed, space = "" } = {}) {
+  const reason = closed?.() ?? "";
+  if (reason) return { ok: false, refusal: reason };
   const draft = store.getDraft(teamId);
   if (!draft || store.statusOf(teamId) === SAVE_STATUS.CONFLICT) return { ok: false };
   const failed = store.statusOf(teamId) === SAVE_STATUS.ERROR ? saveState(teamId) : null;
@@ -203,7 +219,7 @@ function stepRoster(teamId, plan) {
   if (step.refusal) return { ok: false, refusal: step.refusal };
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
   const applied = step.apply();
-  waiting.set(teamId, waitingFor(teamId) + 1);
+  waiting.set(teamId, [...(waiting.get(teamId) ?? []), space]);
   store.saveChange(teamId);
   return { ok: true, ...applied };
 }
@@ -316,12 +332,107 @@ export function removePlayer(teamId, race, playerId, type) {
   });
 }
 
-const refusalOf = (error) => (error.code === OTHER_TAB ? t("auth.otherTab") : refusalWithRules(error));
+/**
+ * A refusal `{code, params}` of a player's step in words (stage 07d): `${space}.refusal.${code}` (`teamPlayer`, `teamAdvance`),
+ * a characteristic by its name (`stats.*`); a player the roster has not, as the server says it. The sheets word theirs so.
+ */
+export function refusalWordsOf(space, { code, params = {} }) {
+  if (code === "PLAYER_NOT_FOUND") return t("validation.PLAYER_NOT_FOUND");
+  return t(`${space}.refusal.${code}`, params.stat ? { ...params, stat: t(`stats.${params.stat}`) } : params);
+}
+const refusedAs = (space, refusal) => ({ refusal: refusalWordsOf(space, refusal) });
+
+/**
+ * One step on one player (`stepRoster`, stage 07d): `plan(draft, player, row)`, `row` his position in `race` when given;
+ * a player the roster (or his position the race) has not is refused in words. Each step below tries itself on a copy
+ * first, so a refused one changes nothing and one that would change nothing sends nothing; `options.closed`: why the screen
+ * sends nothing just now (K15). Each answers `{ok: true, …what it says}`, `{ok: false, refusal?}` or `{refusal}` (another tab).
+ */
+function stepPlayer(teamId, { playerId, race, space, closed }, plan) {
+  return stepRoster(teamId, (draft) => {
+    const player = playerId ? draft.players.find((candidate) => storedPlayerId(candidate) === String(playerId)) : null;
+    const row = player && race ? rowsForTeam(race)[Number(player.rowIndex)] : null;
+    return player && (row || !race) ? plan(draft, player, row) : refusedAs(space, { code: "PLAYER_NOT_FOUND" });
+  }, { closed, space });
+}
+
+/** A player's number, name and captaincy (`editPlayer`), tried on a copy of the draft, where the armband moves. */
+export function amendPlayer(teamId, playerId, edit, options = {}) {
+  return stepPlayer(teamId, { ...options, playerId, space: "teamPlayer" }, (draft) => {
+    const tried = editPlayer(structuredClone(draft), playerId, edit);
+    if (!tried.applied) return refusedAs("teamPlayer", tried);
+    return tried.changed ? { apply: () => void editPlayer(draft, playerId, edit) } : null;
+  });
+}
+
+/** A fix by hand (`applyFix`), saying `value`: the player's after it, in thousands. */
+export function fixPlayer(teamId, race, playerId, fix, options = {}) {
+  return stepPlayer(teamId, { ...options, playerId, race, space: "teamPlayer" }, (draft, player, row) => {
+    const tried = applyFix(race, structuredClone(draft), playerId, fix);
+    if (!tried.applied) return refusedAs("teamPlayer", tried);
+    return tried.changed ? { apply: () => { applyFix(race, draft, playerId, fix); return { value: playerCurrentCost(row, player) }; } } : null;
+  });
+}
+
+/**
+ * An advancement (`takeAdvancement`), saying `cost`, `value` and `level` after it. A site roll's data (`choice.siteRoll`,
+ * which no body carries) asks whether the player can take it (`rollRefusal`); a roll the draft names already sends nothing.
+ */
+export function advancePlayer(teamId, race, playerId, choice, skillGroups, options = {}) {
+  const { siteRoll, ...taken } = choice ?? {}, site = taken.roll?.via === "site";
+  return stepPlayer(teamId, { ...options, playerId, race, space: "teamAdvance" }, (draft, player, row) => {
+    if (site && siteRollReferences(draft).some(({ id }) => id === taken.roll.id)) return null;
+    const tried = (site && siteRoll ? rollRefusal(siteRoll, row, player) : null)
+      ?? takeAdvancement(race, row, structuredClone(player), taken, skillGroups);
+    if (!tried.applied) return refusedAs("teamAdvance", tried);
+    const apply = () => {
+      const { cost, value } = takeAdvancement(race, row, player, taken, skillGroups);
+      return { cost, value, level: playerAdvancementLevel(player) };
+    };
+    return { apply };
+  });
+}
+
+/** The last advancement undone (`undoLastAdvancement`), saying its `cost`, `type`, `grants` and `roll`, which the save frees. */
+export function undoAdvancement(teamId, playerId, options = {}) {
+  return stepPlayer(teamId, { ...options, playerId, space: "teamPlayer" }, (draft, player) => {
+    if (!undoLastAdvancement(structuredClone(player)).removed) return null;
+    return { apply: () => { const { cost, type, grants, roll } = undoLastAdvancement(player); return { cost, type, grants, roll }; } };
+  });
+}
+
+/** A waiting site roll named by the table advancement that gave its skill (`tableAdvancementFor`). */
+export function bindRoll(teamId, playerId, roll, options = {}) {
+  return stepPlayer(teamId, { ...options, playerId, space: "teamAdvance" }, (draft, player) => {
+    const index = tableAdvancementFor(roll, player), id = typeof roll?.id === "string" ? roll.id : "";
+    const named = (advancement, at) => (at === index ? { ...advancement, roll: { id, via: "site" } } : advancement);
+    return index >= 0 && id ? { apply: () => { player.advancements = normalizePlayerAdvancements(player.advancements).map(named); } } : null;
+  });
+}
+
+/** A god's bonus skill among the player's favoured (`addFavouredSkill`); one he holds, or off the list, is refused in words. */
+export function addFavoured(teamId, race, playerId, skill, options = {}) {
+  return stepPlayer(teamId, { ...options, playerId, race, space: "teamPlayer" }, (draft, player, row) => {
+    const tried = addFavouredSkill(race, draft, row, structuredClone(player), skill);
+    if (!tried.applied) return { refusal: t(`teamPlayer.favoured.${tried.code === "FAVOURED_SKILL_HELD" ? "held" : "unknown"}`) };
+    return { apply: () => void addFavouredSkill(race, draft, row, player, skill) };
+  });
+}
+
+/**
+ * A failed save in words: a roll given back out of its turn says which undo goes first (K8); a skill a used roll was
+ * rerolled against, in the words of the step that met it (K16, `space`: the first that waits), else the server's.
+ */
+function refusalOf(error, space) {
+  if (error.code === OTHER_TAB) return t("auth.otherTab");
+  if (error.code === "DICE_ROLL_USED") return t("teamAdvance.refusal.DICE_ROLL_USED");
+  return error.code === "DICE_ROLL_MISMATCH" && space ? t(`${space}.refusal.DICE_ROLL_MISMATCH`) : refusalWithRules(error);
+}
 
 const stateOf = (teamId, { status, error }) => ({
   status,
   waiting: waitingFor(teamId),
-  refusal: error ? refusalOf(error) : "",
+  refusal: error ? refusalOf(error, waiting.get(teamId)?.[0]) : "",
   kind: error?.kind ?? "",
   code: error?.code ?? "",
 });
@@ -434,7 +545,7 @@ export function guardUnload(target = globalThis) {
   if (typeof target?.addEventListener !== "function") return () => {};
   if (guards.has(target)) return guards.get(target);
   const ask = (event) => {
-    if (![...waiting.values()].some((count) => count > 0)) return;
+    if (![...waiting.values()].some((steps) => steps.length > 0)) return;
     event.preventDefault();
     // What browsers asked for before preventDefault was enough; an event without a setter for it is left as it is.
     Reflect.set(event, "returnValue", "");
