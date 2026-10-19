@@ -5,8 +5,8 @@
  * from docs/redesign/handoff-0.9.1/design-system/tokens.json, the eight
  * palettes from the PALETTES object of
  * docs/redesign/handoff-0.9.1/prototypes/mobile/Settings.html. The mode (light
- * or dark) sets the status colours (danger, warn, disabled, scrim); the palette
- * sets everything else.
+ * or dark) sets the status colours (danger and its fill, warn, disabled, scrim);
+ * the palette sets everything else.
  *
  * theme-boot.js puts data-mode and data-palette on <html> before the first
  * paint. Without them the page is "Perfect Conditions", or "Under the
@@ -103,6 +103,12 @@
   --danger-tint: #FBEDEA;
   --on-danger-tint: #7A2E22;
   --on-danger: #FFFFFF;
+  /*
+   * The fill of the one red button of an irreversible step (button.css's .g-btn--danger): the prototypes'
+   * bright #C4352A (StatsSell, DeskRosterSell), while red words keep --danger. White on it reads 5.4:1.
+   */
+  --danger-fill: #C4352A;
+  --on-danger-fill: #FFFFFF;
   --warn: #B07A1E;
   --warn-tint: #FBF1DD;
   --on-warn-tint: #6B4A0E;
@@ -140,6 +146,12 @@
   --danger-tint: #45201A;
   --on-danger-tint: #F2A99C;
   --on-danger: #45201A;
+  /*
+   * No prototype draws a dark filled danger button, so the fill stays the light one, as a dark palette keeps its
+   * --accent fill and lightens only its words: white on it 5.4:1, and the fill 3:1 off every dark --surface.
+   */
+  --danger-fill: #C4352A;
+  --on-danger-fill: #FFFFFF;
   --warn: #E8C26A;
   --warn-tint: #3B2E14;
   --on-warn-tint: #F2D08A;
@@ -317,6 +329,8 @@
     --danger-tint: #45201A;
     --on-danger-tint: #F2A99C;
     --on-danger: #45201A;
+    --danger-fill: #C4352A;
+    --on-danger-fill: #FFFFFF;
     --warn: #E8C26A;
     --warn-tint: #3B2E14;
     --on-warn-tint: #F2D08A;

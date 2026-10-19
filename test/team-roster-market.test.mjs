@@ -800,6 +800,11 @@ test("the sheet on a phone: his card, the same lines, one red button", async () 
     assert.deepEqual(valuesOf(MARKET, danger, "width"), ["100%", "auto"]);
     assert.deepEqual(valuesOf(MARKET, danger, "height"), ["var(--size-cta)", "44px"]);
     assert.deepEqual(valuesOf(MARKET, danger, "font"), ["700 17px/1.2 var(--font-body)"]);
+    // The owner's answer after 07c: the colours are button.css's bright fill (--danger-fill, #C4352A, as StatsSell and
+    // DeskRosterSell) with white words, readable in every palette; the sheet sizes the button and never recolours it.
+    for (const property of ["background", "color", "border-color"]) assert.deepEqual(valuesOf(MARKET, danger, property), [], property);
+    assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn--danger", "background"), ["var(--danger-fill)"]);
+    assertReadable("src/ui/button.css", ".g-btn--danger", "color", ["--danger-fill"], 4.5);
   });
 });
 

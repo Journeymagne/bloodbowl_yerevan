@@ -105,6 +105,10 @@ test("deleting asks first, in a sheet with one red button naming the team; closi
   assert.ok(sheet.matches(":modal"));
   assert.equal(sheet.querySelectorAll(".g-btn--danger").length, 1);
   assert.equal(sheet.querySelector(".g-btn--danger").textContent.trim(), "Delete Anji Magritta");
+  // The owner's answer after 07c: button.css's bright fill (--danger-fill, #C4352A) with white words; no sheet here recolours it.
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn--danger", "background"), ["var(--danger-fill)"]);
+  assertReadable("src/ui/button.css", ".g-btn--danger", "color", ["--danger-fill"], 4.5);
+  for (const file of ["src/screens/teams/teams.css", "src/shell/team-switcher.css", "src/ui/sheet.css"]) assert.doesNotMatch(readFileSync(new URL(`../${file}`, import.meta.url), "utf8"), /btn--danger\b/, file);
   assert.equal(sheet.querySelector(".g-sheet__title").textContent, "Delete the team?");
   assert.equal(sheet.querySelector(".g-sheet__body").textContent.trim(), "Anji Magritta and its roster are deleted for good.");
   assertCspSafe(view);

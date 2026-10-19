@@ -45,10 +45,11 @@
 }
 .g-btn--primary:hover:not(:disabled) { background: var(--accent-ink); }
 
+/* The one red button of an irreversible step (§0): the prototypes' bright fill; red words keep --danger. */
 .g-btn--danger {
-  border-color: var(--danger);
-  background: var(--danger);
-  color: var(--on-danger);
+  border-color: var(--danger-fill);
+  background: var(--danger-fill);
+  color: var(--on-danger-fill);
 }
 
 .g-btn--danger-outline {

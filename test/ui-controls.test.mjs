@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
@@ -58,6 +58,24 @@ test("Log out is red words in a grey ring, not a red border (M1, 6)", () => {
   assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn--danger-quiet", "border-color"), ["var(--control-border)"]);
   assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn--danger-quiet", "color"), ["var(--danger)"]);
   assertReadable("src/ui/button.css", ".g-btn--danger-quiet", "color", ["--surface"], 4.5);
+});
+
+// The owner's answer after 07c: the one red filled button of an irreversible step (the sale, a team's delete) wears the
+// prototypes' bright fill, #C4352A, with white words; red words elsewhere keep --danger (#A0473A in a light palette).
+test("the filled danger button wears --danger-fill with --on-danger-fill, readable in every palette; nothing else wears the fill", () => {
+  const fragment = mount(renderButton({ label: "Sell for 47.5k", kind: "danger" }));
+  assert.ok(fragment.querySelector("button.g-btn--danger"));
+  assertStyled(fragment, "button.css");
+  const css = "src/ui/button.css";
+  assert.deepEqual(valuesOf(css, ".g-btn--danger", "background"), ["var(--danger-fill)"]);
+  assert.deepEqual(valuesOf(css, ".g-btn--danger", "border-color"), ["var(--danger-fill)"]);
+  assert.deepEqual(valuesOf(css, ".g-btn--danger", "color"), ["var(--on-danger-fill)"]);
+  assertReadable(css, ".g-btn--danger", "color", ["--danger-fill"], 4.5);
+  assertReadable(css, ".g-btn--danger", "background", ["--surface"], 3);
+  for (const selector of [".g-btn--danger-outline", ".g-btn--danger-quiet"]) assert.deepEqual(valuesOf(css, selector, "color"), ["var(--danger)"], selector);
+  const sheets = readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => name.endsWith(".css") && !name.endsWith("tokens.css"));
+  const wearers = sheets.filter((name) => /var\(\s*--(?:on-)?danger-fill\s*\)/.test(readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8")));
+  assert.deepEqual(wearers.map((name) => name.split("\\").join("/")), ["ui/button.css"]);
 });
 
 test("a button with an href is a link and never disabled", () => {
