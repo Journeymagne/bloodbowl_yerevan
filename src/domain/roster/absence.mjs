@@ -56,7 +56,8 @@ export function clearAbsence(player) {
   return { ...structuredClone(player), skipNextGame: false, absence: null };
 }
 
-const sitsOut = (player) => Boolean(player.skipNextGame || player.temporarilyRetired);
+/** He misses the next match already: marked (`skipNextGame`), or retired for the season (`temporarilyRetired`). */
+export const sitsOut = (player) => Boolean(player.skipNextGame || player.temporarilyRetired);
 const reasonOf = (player) => JSON.stringify(normalizeAbsence(player.absence, sitsOut(player)));
 
 /**

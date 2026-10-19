@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { ABSENCE_CODES, ABSENCE_NOTE_MAX, PLAYER_FIELDS, createPlayer, normalizeAbsence, normalizeDraft } from "../src/domain/roster/schema.mjs";
-import { applyInjuryEffects, clearAbsence, markAbsence, markEdits } from "../src/domain/roster/absence.mjs";
+import { applyInjuryEffects, clearAbsence, markAbsence, markEdits, sitsOut } from "../src/domain/roster/absence.mjs";
 import { ensureDraftPlayers, normalizeRosterPlayer, rosterPlayerView } from "../src/domain/roster/players.mjs";
 import { INJURIES } from "../src/domain/post-match/rules.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
@@ -65,6 +65,12 @@ test("a player view re-derives the absence like the stored player does, and neve
   const retired = rosterPlayerView(team, { id: "p", rowIndex: 0, temporarilyRetired: true, absence: { code: "lasting", stat: "ag", junk: 1 } });
   assert.deepEqual(retired.absence, { code: "lasting", stat: "ag" });
   assert.equal(retired.skipNextGame, true);
+});
+
+// The final review: the screen's queue asks the domain whether he misses the next match already (save.mjs's markSkip).
+test("he sits the next match out when he is marked for it or retired for the season", () => {
+  assert.deepEqual([{}, { skipNextGame: true }, { temporarilyRetired: true }, { skipNextGame: true, temporarilyRetired: true }, { skipNextGame: 0 }].map(sitsOut),
+    [false, true, true, true, false]);
 });
 
 const pick = (player) => ({ skipNextGame: player.skipNextGame, absence: player.absence, nigglingInjuries: player.nigglingInjuries, statMods: player.statMods });

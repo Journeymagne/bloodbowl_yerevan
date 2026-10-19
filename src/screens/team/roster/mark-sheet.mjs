@@ -7,9 +7,10 @@
  * «Dead», which takes the player off the roster with its cause (Task 8: no step of the queue, but stage 03's write of
  * the fallen, marks.mjs), and another reason, which is the league's or the coach's (decision 10). A Serious or a
  * Lasting Injury does to the player what the post-match does with it (owner's question 1), and the sheet says so
- * before it is done: «Back on the roster» ends the missed match only (decision 2). The words of another reason are counted as the server counts a
- * cause, trimmed (decision 11); a NUL or a broken surrogate, which the database refuses and which would hang the
- * queue, is no reason (K9). A cause of death is counted the same way, and the server refuses a NUL in it too.
+ * before it is done: «Back on the roster» ends the missed match only (decision 2). The words of another reason are
+ * counted as the server counts a cause, trimmed (decision 11); a NUL or a broken surrogate, which the database refuses
+ * and which would hang the queue, is no reason (K9). A cause of death is counted the same way, and the server refuses a
+ * NUL in it too.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";

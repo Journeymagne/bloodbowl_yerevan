@@ -30,7 +30,7 @@ import { SAVE_STATUS, createRosterStore } from "../../../data/roster-store.mjs";
 import { onSessionChange } from "../../../data/session.mjs";
 import { refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
 import { sameValues } from "../../../domain/post-match/events.mjs";
-import { clearAbsence, markAbsence } from "../../../domain/roster/absence.mjs";
+import { clearAbsence, markAbsence, sitsOut } from "../../../domain/roster/absence.mjs";
 import { normalizeSppCounters, storedPlayerId } from "../../../domain/roster/players.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
@@ -206,9 +206,6 @@ export function stepSpp(teamId, playerId, counter, delta) {
     return { spp: { ...player.spp, [counter]: value } };
   });
 }
-
-/** He misses the next match already: marked, or retired for the season. */
-const sitsOut = (player) => Boolean(player.skipNextGame || player.temporarilyRetired);
 
 /**
  * A coach's missed-match mark (`markAbsence`): the reason, the missed match, and what the injury does, one step of the
