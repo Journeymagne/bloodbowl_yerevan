@@ -1102,6 +1102,7 @@
   "teamRoster.fallen.status": "Fallen",
   "teamRoster.fallen.sub": "Fallen · {cause}",
   "teamRoster.fallen.who": "{position} · {race} · fallen",
+  "teamRoster.fallen.whoRace": "{race} · fallen",
   "teamRoster.fallen.cause": "Cause of death",
   "teamRoster.fallen.noCause": "No cause was recorded.",
   "teamRoster.fallen.manual": "marked by hand · {date}",

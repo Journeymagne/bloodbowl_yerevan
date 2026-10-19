@@ -21,6 +21,13 @@ import { undoable } from "./model.mjs";
 import { closedMarkup, markClosed, prepResetWords, skillChipsMarkup, statsMarkup } from "./panel.mjs";
 import { UNDO_SHEET, footButton } from "./sheets.mjs";
 
+/**
+ * His name as his row, the desk's panel and his own page head it: a record may name nobody (a snapshot with no player
+ * data, model.mjs's bare line), and is «Fallen» then, so the row's button and the head still say who he is.
+ * @param {{name: string}} line
+ */
+export const fallenName = (line) => String(line.name ?? "").trim() || t("teamRoster.fallen.status");
+
 /** The cause as it was recorded, "" for none: a death the 2.x list carried over (migration 015) has none. */
 export function causeOf(line) {
   return typeof line.fallen.cause === "string" ? line.fallen.cause.trim() : "";
@@ -116,18 +123,29 @@ export function fallenProfileMarkup(line, { undoHtml = "" } = {}) {
 }
 
 /**
+ * The line under a fallen player's name (`fallenName`), on the desk's panel and his own page: «<position> · <race> ·
+ * fallen», and for a record that names no position, «<race> · fallen».
+ * @param {import("./model.mjs").FallenLine} line @param {string} baseTeamSlug the team's
+ */
+export function fallenWho(line, baseTeamSlug) {
+  const race = raceTitleOf(baseTeamSlug);
+  return String(line.position ?? "").trim() ? t("teamRoster.fallen.who", { position: line.position, race }) : t("teamRoster.fallen.whoRace", { race });
+}
+
+/**
  * The desk's panel for a fallen player (decision 17: the panel is his profile): his number grey and large, his name,
- * «<position> · <race> · fallen», then the profile's body, with «Undo the mark» for a death a coach marked — closed, as
- * the sheet's button would be, while a match is on, the screen is locked or a step of the roster waits (K6).
+ * «<position> · <race> · fallen» (`fallenWho`), then the profile's body, with «Undo the mark» for a death a coach
+ * marked — closed, as the sheet's button would be, while a match is on, the screen is locked or a step of the roster
+ * waits (K6).
  *
  * @param {import("./model.mjs").FallenLine} line
  * @param {import("./view.mjs").RosterScreen} screen
  */
 export function fallenPanelMarkup(line, screen) {
-  const who = t("teamRoster.fallen.who", { position: line.position, race: raceTitleOf(screen.team.baseTeamSlug) });
+  const who = fallenWho(line, screen.team.baseTeamSlug);
   const reason = undoable(line) ? markClosed(line, screen, { direct: true }) : "";
   return `<div class="g-roster__phead">${renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true })}`
-    + `<div class="g-roster__pwho"><h2 class="g-roster__pname">${escapeHtml(line.name)}</h2><p class="g-roster__pline">${escapeHtml(who)}</p></div></div>`
+    + `<div class="g-roster__pwho"><h2 class="g-roster__pname">${escapeHtml(fallenName(line))}</h2><p class="g-roster__pline">${escapeHtml(who)}</p></div></div>`
     + fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason) });
 }
 

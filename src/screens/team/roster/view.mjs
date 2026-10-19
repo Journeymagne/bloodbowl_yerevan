@@ -30,7 +30,7 @@ import { renderPageHead } from "../../../ui/page-head.mjs";
 import { renderRosterTable } from "../../../ui/roster-table.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
-import { causeOf, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
+import { causeOf, fallenName, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
 import { MAIN_COUNTERS, rosterCounts, rosterSections } from "./model.mjs";
 import { absenceWords, injuryWords, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
@@ -160,7 +160,7 @@ function fallenRowOf(line) {
   return {
     key: line.key,
     badgeHtml: renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true }),
-    name: line.name,
+    name: fallenName(line),
     sub: cause ? t("teamRoster.fallen.sub", { cause }) : t("teamRoster.fallen.status"),
     alert: false,
     cells: cellsOf(line, { mode: NO_MATCH }),

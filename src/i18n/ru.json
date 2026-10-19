@@ -1102,6 +1102,7 @@
   "teamRoster.fallen.status": "Погиб",
   "teamRoster.fallen.sub": "Погиб · {cause}",
   "teamRoster.fallen.who": "{position} · {race} · погиб",
+  "teamRoster.fallen.whoRace": "{race} · погиб",
   "teamRoster.fallen.cause": "Причина гибели",
   "teamRoster.fallen.noCause": "Причина не записана.",
   "teamRoster.fallen.manual": "отмечено вручную · {date}",

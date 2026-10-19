@@ -29,7 +29,7 @@ import { announce } from "../../../components/live-region.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { loadGames, onGamesChange } from "../../../data/games.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
-import { loadMyTeams, raceTeamOf, raceTitleOf } from "../../../data/teams.mjs";
+import { loadMyTeams, raceTeamOf } from "../../../data/teams.mjs";
 import { storedPlayerId } from "../../../domain/roster/players.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { renderButton } from "../../../ui/button.mjs";
@@ -40,7 +40,7 @@ import { wireSheets } from "../../../ui/sheet.mjs";
 import { wireSkillChips } from "../../../ui/skill-chip.mjs";
 import { renderSavedRoster } from "../../saved-roster.mjs";
 import { fallenWriting, readFallen } from "../roster/fallen.mjs";
-import { fallenProfileMarkup, undoMarkup, undoSheetMarkup } from "../roster/fallen-view.mjs";
+import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup, undoSheetMarkup } from "../roster/fallen-view.mjs";
 import { closeSheet, sheetOf } from "../roster/injury.mjs";
 import { markHandlers, markSheetOf } from "../roster/marks.mjs";
 import { fallenLines, rosterLines, rosterMode, undoable } from "../roster/model.mjs";
@@ -122,9 +122,6 @@ function nowOf({ teamId, playerId, visit }) {
   };
 }
 
-/** A name to head the page with: a record may hold none. */
-const nameOf = (line) => String(line.name ?? "").trim() || t("teamRoster.fallen.status");
-
 /** The way back to the roster in a banner: the roster's own banner link — one line, a thumb tall, in the banner's ink. */
 const ROSTER_LINK = "g-roster__calloutlink";
 const rosterLinkMarkup = (teamId) => `<a class="${ROSTER_LINK}" href="${escapeHtml(teamUrl(teamId, "roster"))}">${escapeHtml(t("teamRoster.fallen.toRoster"))}</a>`;
@@ -149,10 +146,10 @@ function noticeMarkup(now, teamId) {
  */
 function profileMarkup(now, teamId) {
   const { line, team } = now;
-  const who = t("teamRoster.fallen.who", { position: line.position, race: raceTitleOf(team.baseTeamSlug) });
+  const who = fallenWho(line, team.baseTeamSlug);
   const badge = renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true });
   const reason = undoable(line) ? markClosed(line, now, { direct: true }) : "";
-  return `${renderPageHead({ title: nameOf(line), sub: who, metaHtml: badge, phone: true })}`
+  return `${renderPageHead({ title: fallenName(line), sub: who, metaHtml: badge, phone: true })}`
     + `<div class="g-fallen-page__body">${noticeMarkup(now, teamId)}${fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason) })}</div>`;
 }
 
@@ -187,7 +184,7 @@ function screenOf(page) {
   const lines = now.line ? [now.line] : [];
   const sheet = (visit.sheet?.kind === "undo" ? markSheetOf : sheetOf)(visit, lines, now);
   if (!sheet) Object.assign(visit, { sheet: null, opener: null });
-  if (now.line) visit.name = nameOf(now.line);
+  if (now.line) visit.name = fallenName(now.line);
   return { ...now, sheet };
 }
 
@@ -314,7 +311,7 @@ function lentOf(page) {
     back: (line) => {
       visit.back = true;
       page.draw();
-      announce(t("teamRoster.fallen.back", { name: nameOf(line) }));
+      announce(t("teamRoster.fallen.back", { name: fallenName(line) }));
       const active = document.activeElement;
       if (!active || active === document.body || view.contains(active)) view.querySelector(`.${ROSTER_LINK}`)?.focus();
     },

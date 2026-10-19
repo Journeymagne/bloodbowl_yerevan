@@ -286,6 +286,24 @@ test("a fallen record the roster cannot read is drawn with dashes, and the scree
   });
 });
 
+// The final review's T6 carry: a record with no player data still has a name for the panel's head and the row's button,
+// and the line under it says no position it does not have.
+test("a fallen record with no player data is named «Fallen» in its row and its panel, with no empty position", async () => {
+  await withWindow({ phone: false }, async () => {
+    coach({ fallen: [died("f4", { name: "Old Joe", position: "Lineman", number: 5 }), died("f5", null), died("f6", { name: "  ", position: "", number: "" })] });
+    await renderTeamRoster("t1");
+    const head = () => [aside().querySelector(".g-roster__pname").textContent, aside().querySelector(".g-roster__pline").textContent];
+    fireEvent(toggle("fallen-f4"), "click");
+    assert.deepEqual(head(), ["Old Joe", "Lineman · Human · fallen"]);
+    for (const key of ["fallen-f5", "fallen-f6"]) {
+      fireEvent(toggle(key), "click");
+      assert.equal(aside().getAttribute("data-panel-player"), key);
+      assert.deepEqual(head(), ["Fallen", "Human · fallen"], key);
+      assert.equal(bodyOf(key).querySelector(".g-rtable__name").textContent, "Fallen", `${key}: the row's button has a name`);
+    }
+  });
+});
+
 test("a skill chip of a fallen player opens its rule, in his row and in the panel", async () => {
   await withWindow({ phone: false }, async () => {
     coach();

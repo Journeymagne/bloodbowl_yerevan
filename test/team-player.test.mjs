@@ -697,6 +697,13 @@ test("a 2.x player's numeric id: the address carries it as text", async () => {
   assert.ok(undoButton(), "his death undone by its record, as any other");
 });
 
+test("a record that names nobody and no position: «Fallen», and no empty position under it", async () => {
+  coach({ fallen: [died("f7", { id: "d7", name: " ", number: "7" }, { cause: "Old age" })] });
+  await renderTeamPlayer("t1", "d7");
+  assert.equal(title().textContent, "Fallen");
+  assert.equal(view.querySelector(".g-pagehead__sub").textContent, "Human · fallen");
+});
+
 test("a fallen record's position and cause are text", async () => {
   coach({ fallen: [died("f8", { id: "d8", name: "Grim", position: HOSTILE, number: "12" }, { cause: HOSTILE })] });
   await renderTeamPlayer("t1", "d8");
