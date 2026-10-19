@@ -377,7 +377,9 @@ test("from 901px the table scrolls inside its frame and the player's column stay
   assert.ok(!/sticky/.test(narrow), "a phone's table is the page's width and does not scroll");
   // The chosen row's ring is drawn by its cells (fix round 1): one line through the sticky player cell, which a row's
   // outline would pass under — its top and bottom on every cell, its sides on the first and the last.
-  assert.ok(!/is-selected[^{]*\{[^}]*outline:/.test(wide), "no row outline");
+  assert.ok(!/is-selected[^{]*\{[^}]*outline:(?!\s*2px solid transparent)/.test(wide), "no visible row outline");
+  // Forced colours drop the shadows and the tint; a transparent outline on the cells is drawn there in the system's colour.
+  assert.ok(valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > *", "outline").includes("2px solid transparent"));
   const ring = "inset 0 2px 0 var(--accent-text), inset 0 -2px 0 var(--accent-text)";
   const cells = valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > *", "box-shadow");
   assert.deepEqual(cells, [ring]);
