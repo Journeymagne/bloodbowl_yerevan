@@ -10,13 +10,13 @@
  * `validation.PLAYER_NOT_FOUND`; every other refusal is one of `EDIT_REFUSALS` or `FIX_REFUSALS`.
  */
 import { FAVOURED_ROLLS } from "../post-match/rules.mjs";
-import { sitsOut } from "./absence.mjs";
+import { applyInjuryEffects, markChanged, sitsOut } from "./absence.mjs";
 import { LAST_SHIRT_NUMBER } from "./build.mjs";
 import {
   canonicalSkillName, favouredSkillNames, heldSkillKeys, normalizePlayerAdvancements, normalizePlayerExtraSkills,
   normalizePlayerFavouredSkills, setRosterCaptain, storedPlayerId,
 } from "./players.mjs";
-import { STAT_LIMITS } from "./progression.mjs";
+import { STAT_LIMITS, TARGET_STATS } from "./progression.mjs";
 import { normalizeAbsence } from "./schema.mjs";
 import { favouredSkillsForChoice, ruleLookupKey, teamFavouredOptions } from "./team-rules.mjs";
 import { PLAYER_STATS, categoriesForAccess, countToNumber, rowsForTeam } from "./values.mjs";
@@ -48,8 +48,6 @@ export const MAX_STAT_CORRECTION = 10;
  *   A field left out leaves that part of the player as it is.
  */
 
-/** The characteristics written as a target, where better is lower. */
-const TARGET_STATS = Object.freeze(["ag", "pa"]);
 /** The worst a fix may leave a characteristic at: MA 1, ST 1, AG 6+, PA 6+, AR 3+. */
 const STAT_FLOORS = Object.freeze({ ma: 1, st: 1, ag: 6, pa: 6, ar: 3 });
 /** No position: what `normalizePlayer…Skills` reads to keep every skill of a player, for comparing players apart from their rows. */
@@ -178,16 +176,17 @@ export function legacySkills(row, player) {
 
 /**
  * Why a characteristic cannot be put right by `step`, or null. `healed` is what the fix's lasting injury gives it
- * back first. The value after both may not pass the rule's limit (`STAT_LIMITS`), nor be worse than the floor; and
- * the correction, what injuries took apart, stays within the 2.x editor's whole steps of ±10.
+ * back first. A step up may not take the value after both past the rule's limit (`STAT_LIMITS`), a step down not
+ * below the floor: a value 2.x left outside them can always be brought back toward them. Either way the correction,
+ * what injuries took apart, stays within the 2.x editor's whole steps of ±10.
  */
 function statRefusal(row, player, stat, step, healed) {
   const base = parseInt(row[stat], 10), target = TARGET_STATS.includes(stat);
   if (!PLAYER_STATS.includes(stat) || !Number.isFinite(base)) return { code: "STAT_NONE", params: { stat } };
   const mod = statMod(player.statMods, stat) + healed + Number(step), value = target ? base - mod : base + mod;
-  if (target ? value < STAT_LIMITS[stat] : value > STAT_LIMITS[stat]) return { code: "STAT_LIMIT", params: { stat } };
+  if (step > 0 && (target ? value < STAT_LIMITS[stat] : value > STAT_LIMITS[stat])) return { code: "STAT_LIMIT", params: { stat } };
   const correction = statMod(player.statMods, stat) - statMod(player.injuryStatMods, stat) + Number(step);
-  const floored = target ? value > STAT_FLOORS[stat] : value < STAT_FLOORS[stat];
+  const floored = step < 0 && (target ? value > STAT_FLOORS[stat] : value < STAT_FLOORS[stat]);
   return !Number.isInteger(step) || Math.abs(correction) > MAX_STAT_CORRECTION || floored ? { code: "STAT_FLOOR", params: { stat } } : null;
 }
 
@@ -257,6 +256,19 @@ function editedValues(player) {
 const injuryValues = (player) => JSON.stringify(playerInjuries(player));
 
 /**
+ * The player before, with what the draft's own mark did to him: when he sits out differently now (`markChanged`) for
+ * a Niggling or a lasting injury, that injury applied once (`applyInjuryEffects`), a copy. A mark's injury is the
+ * mark's (`markEdits` counts it); any other change to his injuries beside it is an edit.
+ */
+function markedAs(prior, player) {
+  const absence = markChanged(prior, player) ? normalizeAbsence(player.absence, sitsOut(player)) : null;
+  if (!absence || !["niggling", "lasting"].includes(absence.code)) return prior;
+  const expected = structuredClone(prior);
+  applyInjuryEffects(expected, { code: absence.code, stat: absence.stat });
+  return expected;
+}
+
+/**
  * Make a manual fix of a player, in place, once `fixRefusal` has none, as the server stores it: the Niggling
  * Injuries as a count (and the 2.x flag with it), the lasting injuries taken off (`healInjuries`), each
  * characteristic's correction on `statMods` alone (a key left at zero goes; `injuryStatMods` is the injuries'), the
@@ -286,20 +298,18 @@ export function applyFix(team, draft, playerId, fix) {
  * How many players a roster save changes by an edit, a fix or an advancement: the same id (as text,
  * `storedPlayerId`) in both, and a different number, name, captaincy, advancements, favoured skills, other skills,
  * contracts, correction of a characteristic (`statMods` without `injuryStatMods`) or injuries (the Niggling
- * Injuries, `injuryStatMods`). Injuries count only for a player who sits out as he did and for the same reason: an
- * injury that came with a mark is the mark's, which `markEdits` counts. A player who came or went is not counted;
- * a roster without `players` has none.
+ * Injuries, `injuryStatMods`). The injury a mark of his brought is the mark's, which `markEdits` counts, so his
+ * injuries are compared with those before plus that one (`markedAs`): a heal or a count put right beside a mark is
+ * still an edit. A mark, its clearing and a mark again on one player may read as an edit too — said rather than
+ * lost (R8). A player who came or went is not counted; a roster without `players` has none.
  */
 export function playerEdits(before, after) {
   const was = new Map();
   for (const player of before?.players ?? []) if (storedPlayerId(player) !== null) was.set(storedPlayerId(player), player);
-  const reason = (player) => JSON.stringify([sitsOut(player), normalizeAbsence(player.absence, sitsOut(player))]);
   let count = 0;
   for (const player of after?.players ?? []) {
     const prior = was.get(storedPlayerId(player));
-    if (!prior) continue;
-    const injured = reason(prior) === reason(player) && injuryValues(prior) !== injuryValues(player);
-    if (injured || editedValues(prior) !== editedValues(player)) count += 1;
+    if (prior && (editedValues(prior) !== editedValues(player) || injuryValues(markedAs(prior, player)) !== injuryValues(player))) count += 1;
   }
   return count;
 }

@@ -61,6 +61,12 @@ export const sitsOut = (player) => Boolean(player.skipNextGame || player.tempora
 const reasonOf = (player) => JSON.stringify(normalizeAbsence(player.absence, sitsOut(player)));
 
 /**
+ * Whether a player sits out differently from before: whether he misses the next match, or why (`normalizeAbsence`).
+ * What a mark counts (`markEdits`), and what `playerEdits` leaves the mark's own injury to.
+ */
+export const markChanged = (prior, player) => sitsOut(prior) !== sitsOut(player) || reasonOf(prior) !== reasonOf(player);
+
+/**
  * How many players of a roster save sit out differently from what they did before it: the same id (as text,
  * `storedPlayerId`) in both, whether he misses the next match (`skipNextGame` or `temporarilyRetired`)
  * or why (`normalizeAbsence`) not the same. A player who was not on the roster before is not counted. Both
@@ -72,7 +78,7 @@ export function markEdits(before, after) {
   let count = 0;
   for (const player of after?.players ?? []) {
     const prior = was.get(storedPlayerId(player));
-    if (prior && (sitsOut(prior) !== sitsOut(player) || reasonOf(prior) !== reasonOf(player))) count += 1;
+    if (prior && markChanged(prior, player)) count += 1;
   }
   return count;
 }

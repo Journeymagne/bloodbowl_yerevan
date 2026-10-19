@@ -267,7 +267,7 @@ export const STAT_LIMITS = Object.freeze({ ma: 9, st: 8, ag: 1, pa: 1, ar: 11 })
 export const MAX_STAT_GAIN = 2;
 
 /** The characteristics written as a target, where better is lower. */
-const TARGET_STATS = Object.freeze(["ag", "pa"]);
+export const TARGET_STATS = Object.freeze(["ag", "pa"]);
 
 /** The types whose result is rolled, and so may name the roll. */
 const ROLLED_TYPES = Object.freeze(["random", "stat"]);

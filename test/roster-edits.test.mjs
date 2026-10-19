@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { expandCollections } from "../src/data/reference.mjs";
 import { sameValues } from "../src/domain/post-match/events.mjs";
-import { markAbsence, markEdits } from "../src/domain/roster/absence.mjs";
+import { clearAbsence, markAbsence, markEdits } from "../src/domain/roster/absence.mjs";
 import { LAST_SHIRT_NUMBER } from "../src/domain/roster/build.mjs";
 import {
   EDIT_REFUSALS, FIX_REFUSALS, MAX_CONTRACTS, MAX_NIGGLING, MAX_STAT_CORRECTION, addFavouredSkill, applyFix, editPlayer,
@@ -206,6 +206,11 @@ test("a characteristic is put right within the rule's limit above and the 2.x bo
   assert.equal(refusalOf({ stats: { ma: -1 } }, offset), null, "MA 5, ten off and nine back");
   assert.deepEqual(refusalOf({ stats: { ma: 1 } }, offset), statRefusal("STAT_FLOOR", "ma"), "MA 7, but eleven put right: the 2.x bound");
   assert.deepEqual(refusalOf({ stats: { ma: 0.5 } }, lineman), statRefusal("STAT_FLOOR", "ma"), "a step is whole");
+  const fast = { ...catcher, statMods: { ma: 3 } }, clumsy = { ...lineman, statMods: { ag: -5 } };
+  assert.equal(refusalOf({ stats: { ma: -1 } }, fast), null, "MA 11 from 2.x: one down, toward the limit");
+  assert.deepEqual(refusalOf({ stats: { ma: 1 } }, fast), statRefusal("STAT_LIMIT", "ma"), "but not up");
+  assert.equal(refusalOf({ stats: { ag: 1 } }, clumsy), null, "AG 8+ from 2.x: one better, toward the floor");
+  assert.deepEqual(refusalOf({ stats: { ag: -1 } }, clumsy), statRefusal("STAT_FLOOR", "ag"), "but not worse");
   assert.deepEqual(refusalOf({ stats: { pa: 1 } }, ROTSPAWN, nurgle, NURGLE), statRefusal("STAT_NONE", "pa"));
   assert.deepEqual(refusalOf({ stats: { pa: -1 } }, ROTSPAWN, nurgle, NURGLE), statRefusal("STAT_NONE", "pa"));
   assert.equal(refusalOf({ stats: { pa: 0 } }, ROTSPAWN, nurgle, NURGLE), null, "no step, nothing to refuse");
@@ -281,6 +286,25 @@ test("the players an edit, a fix or an advancement changes, a mark's injury left
     marked.players[0].name = "Ann B";
     assert.equal(playerEdits(before, marked), 1, "a mark and a name");
   }
+  const at = before.players.findIndex(({ id }) => id === "p8");
+  const beside = [
+    ["a missed match, and AG healed", { code: "miss" }, { lasting: { ag: 1 } }],
+    ["a lasting MA mark, and the older AG healed", { code: "lasting", stat: "ma" }, { lasting: { ag: 1 } }],
+    ["a Niggling mark, and the count put right", { code: "niggling" }, { niggling: 1 }],
+  ];
+  for (const [what, mark, over] of beside) {
+    const after = structuredClone(before);
+    after.players[at] = markAbsence(after.players[at], mark);
+    assert.deepEqual(fix("p8", over)(after), { applied: true, changed: true }, what);
+    assert.deepEqual([playerEdits(before, after), markEdits(before, after)], [1, 1], `${what}: both said (R8)`);
+  }
+  const out = structuredClone(before);
+  out.players[at] = markAbsence(out.players[at], { code: "lasting", stat: "ag" });
+  const back = structuredClone(out);
+  back.players[at] = clearAbsence(back.players[at]);
+  assert.deepEqual([playerEdits(out, back), markEdits(out, back)], [0, 1], "back on the roster: the mark's alone");
+  assert.equal(fix("p8", { lasting: { ag: 2 } })(back).applied, true);
+  assert.deepEqual([playerEdits(out, back), markEdits(out, back)], [1, 1], "back on the roster, and AG healed");
   const spp = structuredClone(before);
   named(spp, "Ann").spp = { touchdowns: 1 };
   assert.equal(playerEdits(before, spp), 0, "SPP are counted by the SPP");
