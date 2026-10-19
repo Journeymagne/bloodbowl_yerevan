@@ -103,7 +103,7 @@ function reasonOptions() {
  */
 function detailMarkup(choice, busy) {
   let detail = "";
-  if (choice.code === "lasting") detail = statChipsMarkup({ stat: choice.stat, group: MARK_STAT, label: t("teamRoster.mark.stat") });
+  if (choice.code === "lasting") detail = statChipsMarkup({ stat: choice.stat, group: MARK_STAT, label: t("teamRoster.mark.stat"), plain: true });
   if (choice.code === "other") detail = renderTextField({ id: MARK_TEXT, name: MARK_TEXT, label: t("teamRoster.mark.note"), value: choice.text });
   if (choice.code === "dead") {
     const help = t("teamRoster.mark.causeHelp");

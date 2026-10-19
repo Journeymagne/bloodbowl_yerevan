@@ -52,6 +52,7 @@ import { recordsOf, sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { markHandlers, markSheetOf } from "./marks.mjs";
 import { sheetIdOf } from "./sheets.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
+import { wireAsideFit } from "./aside-fit.mjs";
 import { rosterMarkup } from "./view.mjs";
 import { wireRoster } from "./wire.mjs";
 
@@ -106,6 +107,7 @@ function listen(target, type, listener) {
  * @property {string} status the save queue's status as last heard, "" before
  * @property {boolean} retake the server's roster was to be taken while a request was in the air: asked again when it answers
  * @property {(() => void)|null} saveOff stops hearing the queue
+ * @property {() => void} [fit] measures whether the desk panel fits the window, after each draw (aside-fit.mjs)
  */
 
 /** What the roster is for just now, by the games as last read (`rosterMode`). */
@@ -514,6 +516,7 @@ function drawVisit(teamId, visit, memory) {
   const markup = rosterMarkup(screenOf(teamId, visit, memory));
   if (visit.drawn) {
     patchWithModal(view, markup, visit.sheet ? `#${sheetIdOf(visit.sheet.kind)}` : "");
+    visit.fit?.();
     restoreFocus(place);
     return;
   }
@@ -521,6 +524,7 @@ function drawVisit(teamId, visit, memory) {
   const another = shownTeam !== teamId;
   shownTeam = teamId;
   drawScreen(view, markup);
+  visit.fit?.();
   if (another) globalThis.scrollTo?.(0, 0);
   view.querySelector("h1")?.focus();
 }
@@ -560,7 +564,11 @@ export async function renderTeamRoster(teamId) {
     visit.here = false;
     while (offs.length) offs.pop()();
   });
+  // The desk panel sticks only while the whole of it fits the window (aside-fit.mjs).
+  const fitter = wireAsideFit(view);
+  visit.fit = fitter.fit;
   offs.push(
+    fitter.release,
     () => visit.saveOff?.(),
     wireRoster(view, pressHandlers({ ...saving, read })),
     onGamesChange(() => {

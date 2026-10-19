@@ -87,10 +87,11 @@ export function chosenInjury({ code, stat }) {
  * @param {string} props.stat the one chosen, "" for none yet
  * @param {string} props.group the name the row is wired by (`INJURY_STAT`, `MARK_STAT`)
  * @param {string} props.label the caption, which names the row for a screen reader too
+ * @param {boolean} [props.plain] the caption as a sentence, not in capitals (a missed match's, StatsMng.html)
  */
-export function statChipsMarkup({ stat, group, label }) {
+export function statChipsMarkup({ stat, group, label, plain = false }) {
   const items = PLAYER_STATS.map((value) => ({ value, label: t(`stats.${value}`) }));
-  return `<div class="g-roster__injurystat"><p class="g-roster__injurylabel" aria-hidden="true">${escapeHtml(label)}</p>`
+  return `<div class="g-roster__injurystat"><p class="g-roster__injurylabel${plain ? " g-roster__injurylabel--plain" : ""}" aria-hidden="true">${escapeHtml(label)}</p>`
     + `${renderFilterChips({ label, items, selected: stat, data: { chipGroup: group } })}</div>`;
 }
 

@@ -8,9 +8,12 @@
  * Two widths, one markup. Up to 900px the table is the page's width: the
  * player, the five characteristics, and under each player a row of his skills
  * (and, once he is opened, his panel); the career columns and the over-heads are
- * hidden. From 901px every column shows, the skills stand under the name, the
- * table scrolls inside its frame with the player's column held in place, and
- * the panel is the screen's, beside the table.
+ * hidden. From 901px every column shows as DeskRoster.html draws it: the name and
+ * the position on one line, the skills as small chips under them, a gap before
+ * each group after the first (`lead`), the over-heads on their rules at the head
+ * and the foot; the table scrolls inside its frame with the player's column held
+ * in place, and the panel is the screen's, beside the table. A table drawn under
+ * another (`quietHead`) keeps its column headers for a screen reader alone.
  */
 import { delegate, escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
@@ -18,8 +21,8 @@ import { classNames, dataAttributes } from "./markup.mjs";
 
 /** The column groups a width is set for: see roster-table.css. */
 const GROUPS = ["stats", "career", "spp"];
-/** The tones a value can wear; a value with none is plain. */
-const TONES = ["zero", "up", "down", "strong"];
+/** The tones a value can wear; a value with none is plain. `quiet` is `strong`'s size in the muted ink: SPP that buy nothing yet. */
+const TONES = ["zero", "up", "down", "strong", "quiet"];
 const ARROWS = { asc: "▲", desc: "▼" };
 const ARIA_SORT = { asc: "ascending", desc: "descending" };
 /** An id an aria-controls names: one, with no blank to make it a list. */
@@ -53,28 +56,55 @@ function check({ label, columns, groups, rows, sort }) {
   }
 }
 
+/**
+ * Where each column stands: its group, whether it is a desk's, whether it leads a group after the first (`lead`: a
+ * desk sets the groups apart by a gap before it, DeskRoster.html's 12px), and whether it is the last (`last`: the
+ * row's end, flush right). Worked out once per table from the columns' order.
+ */
+function placesOf(columns) {
+  return columns.map((column, index) => ({
+    group: column.group,
+    desk: Boolean(column.desk),
+    lead: index > 1 && column.group !== columns[index - 1].group,
+    last: index > 0 && index === columns.length - 1,
+  }));
+}
+
 /** The classes that say where a column stands, on its header, its cells and its foot. */
-const placeOf = (column) => classNames(column.group && `g-rtable__c--${column.group}`, column.desk && "g-rtable__c--desk");
+const placeOf = (place) => classNames(place.group && `g-rtable__c--${place.group}`, place.desk && "g-rtable__c--desk", place.lead && "g-rtable__c--lead", place.last && "g-rtable__c--last");
 
-/** The `<col>` of a column: its width is its group's, and the player's column has its own. */
-function renderCol(column, first) {
-  return `<col class="${classNames(first && "g-rtable__col--who", column.group && `g-rtable__col--${column.group}`, column.desk && "g-rtable__col--desk")}">`;
+/** The `<col>` of a column: its width is its group's (and its place's), and the player's column has its own. */
+function renderCol(place, first) {
+  return `<col class="${classNames(first && "g-rtable__col--who", place.group && `g-rtable__col--${place.group}`, place.desk && "g-rtable__col--desk",
+    place.lead && "g-rtable__col--lead", place.last && "g-rtable__col--last")}">`;
 }
 
-function renderColumns(columns) {
-  return `<colgroup>${columns.map((column, index) => renderCol(column, index === 0)).join("")}</colgroup>`;
+function renderColumns(places) {
+  return `<colgroup>${places.map((place, index) => renderCol(place, index === 0)).join("")}</colgroup>`;
 }
 
-/** The over-heads: one cell over the player's column, then a cell over each group. */
+/**
+ * The over-heads: one cell over the player's column, then a cell over each group, its label on a rule (under it at
+ * the head, over it at the foot); a group after the first leads with the desk's gap, as its first column does.
+ */
 function renderGroups(groups) {
   if (!groups.length) return "";
-  const cells = groups.map(({ label, span }) => `<td class="g-rtable__g" colspan="${span}">${escapeHtml(label)}</td>`).join("");
+  const cells = groups.map(({ label, span }, index) => `<td class="${classNames("g-rtable__g", index > 0 && "g-rtable__g--lead")}" colspan="${span}">`
+    + `<span class="g-rtable__glabel">${escapeHtml(label)}</span></td>`).join("");
   return `<tr class="g-rtable__groups" aria-hidden="true"><td class="g-rtable__g g-rtable__g--who"></td>${cells}</tr>`;
 }
 
-/** A column's header: a button that sorts by it, or, for a column that cannot be sorted, its label (and the name a screen reader hears for it, on the cell). */
-function renderHeadCell(column, index, sort, headLeadHtml) {
+/**
+ * A column's header: a button that sorts by it, or, for a column that cannot be sorted, its label (and the name a
+ * screen reader hears for it, on the cell). A quiet header (`quiet`) is a label for a screen reader alone: no button,
+ * nothing on the screen — the table above it shows the labels and sorts them all.
+ */
+function renderHeadCell(column, place, index, sort, headLeadHtml, quiet) {
   const first = index === 0;
+  if (quiet) {
+    const name = column.name ? ` aria-label="${escapeHtml(column.name)}"` : "";
+    return `<th scope="col" class="${classNames("g-rtable__h", first && "g-rtable__h--who", placeOf(place))}"${name}><span class="g-sr-only">${escapeHtml(column.label)}</span></th>`;
+  }
   const sortable = column.sortable !== false;
   const sorted = sortable && sort?.key === column.key;
   const arrow = sorted ? `<span class="g-sort__arrow" aria-hidden="true">${ARROWS[sort.dir]}</span>` : "";
@@ -84,15 +114,15 @@ function renderHeadCell(column, index, sort, headLeadHtml) {
     : escapeHtml(column.label);
   const direction = sorted ? ` aria-sort="${ARIA_SORT[sort.dir]}"` : "";
   const cellName = sortable ? "" : name;
-  return `<th scope="col" class="${classNames("g-rtable__h", first && "g-rtable__h--who", placeOf(column))}"${direction}${cellName}>${first ? headLeadHtml : ""}${control}</th>`;
+  return `<th scope="col" class="${classNames("g-rtable__h", first && "g-rtable__h--who", placeOf(place))}"${direction}${cellName}>${first ? headLeadHtml : ""}${control}</th>`;
 }
 
 /** One value: its words for a screen reader (a tint is not a message), and what this match added to it. */
-function renderCell(cell, column) {
+function renderCell(cell, place) {
   if (cell.tone && !TONES.includes(cell.tone)) throw new Error(`unknown cell tone: ${JSON.stringify(cell.tone)}`);
   const added = cell.delta > 0 ? `<sup class="g-rtable__delta"><span class="g-sr-only">, ${escapeHtml(t("ui.stepper.thisMatch"))} </span>+${escapeHtml(cell.delta)}</sup>` : "";
   const note = cell.note ? `<span class="g-sr-only"> ${escapeHtml(cell.note)}</span>` : "";
-  return `<td class="${classNames("g-rtable__c", placeOf(column), cell.tone && `g-rtable__c--${cell.tone}`)}">${escapeHtml(cell.text ?? "")}${added}${note}</td>`;
+  return `<td class="${classNames("g-rtable__c", placeOf(place), cell.tone && `g-rtable__c--${cell.tone}`)}">${escapeHtml(cell.text ?? "")}${added}${note}</td>`;
 }
 
 /**
@@ -117,18 +147,21 @@ function renderWho(row) {
  * `colspan` over columns that are hidden would make the browser add the
  * missing ones, and the player's column would share the width with them.
  */
-function renderPlayer(row, columns, phoneSpan) {
-  const cells = row.cells.map((cell, index) => renderCell(cell, columns[index + 1])).join("");
+function renderPlayer(row, places, phoneSpan) {
+  const cells = row.cells.map((cell, index) => renderCell(cell, places[index + 1])).join("");
   const skillRow = row.skillsHtml ? `<tr class="g-rtable__skillrow"><td colspan="${phoneSpan}">${row.skillsHtml}</td></tr>` : "";
   const panelRow = row.expanded ? `<tr class="g-rtable__panelrow" id="rt-panel-${escapeHtml(row.key)}"><td colspan="${phoneSpan}">${row.panelHtml ?? ""}</td></tr>` : "";
   const className = classNames("g-rtable__player", row.expanded && "is-expanded", row.selected && "is-selected");
   return `<tbody class="${className}"${dataAttributes({ key: row.key })}><tr class="g-rtable__row">${renderWho(row)}${cells}</tr>${skillRow}${panelRow}</tbody>`;
 }
 
-/** The labels again, at the end of a long list: for the eye, so a screen reader hears them once. */
-function renderFoot(columns) {
-  const cells = columns.map((column, index) => `<td class="${classNames("g-rtable__h", index === 0 && "g-rtable__h--who", placeOf(column))}">${escapeHtml(column.label)}</td>`);
-  return `<tfoot aria-hidden="true"><tr class="g-rtable__foot">${cells.join("")}</tr></tfoot>`;
+/**
+ * The labels again, at the end of a long list, and the over-heads under them (DeskRoster.html): for the eye, so a
+ * screen reader hears them once.
+ */
+function renderFoot(columns, places, groups) {
+  const cells = columns.map((column, index) => `<td class="${classNames("g-rtable__h", index === 0 && "g-rtable__h--who", placeOf(places[index]))}">${escapeHtml(column.label)}</td>`);
+  return `<tfoot aria-hidden="true"><tr class="g-rtable__foot">${cells.join("")}</tr>${renderGroups(groups)}</tfoot>`;
 }
 
 /**
@@ -145,6 +178,8 @@ function renderFoot(columns) {
  * @param {string} [props.headLeadHtml] markup before the player's header button (stage 07c's «+»)
  * @param {boolean} [props.foot] the foot that repeats the labels; true by default. A table drawn above another one
  *   leaves the foot to the last: the labels repeat once, at the end of the list
+ * @param {boolean} [props.quietHead] the header row is for a screen reader alone, with no over-heads and no buttons: a
+ *   table drawn under another one that shows the labels and sorts (a desk's sections, DeskRosterInjured.html)
  * @returns {string} `<div class="g-rtable-frame"><table class="g-rtable" aria-label="…">…</table></div>`
  *
  * @typedef {object} RosterTableRow
@@ -153,7 +188,7 @@ function renderFoot(columns) {
  * @property {string} name
  * @property {string} sub the line under the name (the position, or why he misses the match)
  * @property {boolean} [alert] `sub` states an injury or a missed match: drawn in --danger
- * @property {{text: string, tone?: ""|"zero"|"up"|"down"|"strong", note?: string, delta?: number}[]} cells one per column after the first
+ * @property {{text: string, tone?: ""|"zero"|"up"|"down"|"strong"|"quiet", note?: string, delta?: number}[]} cells one per column after the first
  * @property {string} [skillsHtml] markup from renderSkillChips
  * @property {boolean} [expanded] the row's panel is open (up to 900px)
  * @property {boolean} [selected] the row's player is the one in the side panel (from 901px); his button says `aria-current`
@@ -161,13 +196,14 @@ function renderFoot(columns) {
  *   R11): the button names it in `aria-controls` and says no `aria-expanded`; such a row opens no panel of its own
  * @property {string} [panelHtml] what the open row shows
  */
-export function renderRosterTable({ label, columns, groups = [], rows, sort = null, headLeadHtml = "", foot = true }) {
+export function renderRosterTable({ label, columns, groups = [], rows, sort = null, headLeadHtml = "", foot = true, quietHead = false }) {
   check({ label, columns, groups, rows, sort });
   const phoneSpan = columns.filter((column) => !column.desk).length;
-  const heads = columns.map((column, index) => renderHeadCell(column, index, sort, headLeadHtml)).join("");
-  const players = rows.map((row) => renderPlayer(row, columns, phoneSpan)).join("");
-  return `<div class="g-rtable-frame"><table class="g-rtable" aria-label="${escapeHtml(label)}">${renderColumns(columns)}`
-    + `<thead>${renderGroups(groups)}<tr>${heads}</tr></thead>${players}${foot ? renderFoot(columns) : ""}</table></div>`;
+  const places = placesOf(columns);
+  const heads = columns.map((column, index) => renderHeadCell(column, places[index], index, sort, quietHead ? "" : headLeadHtml, quietHead)).join("");
+  const players = rows.map((row) => renderPlayer(row, places, phoneSpan)).join("");
+  return `<div class="g-rtable-frame"><table class="g-rtable" aria-label="${escapeHtml(label)}">${renderColumns(places)}`
+    + `<thead>${quietHead ? "" : renderGroups(groups)}<tr${quietHead ? ' class="g-rtable__quiet"' : ""}>${heads}</tr></thead>${players}${foot ? renderFoot(columns, places, groups) : ""}</table></div>`;
 }
 
 /** A header button reports `onSort(columnKey)`, a player's button `onToggle(rowKey)`. @returns {() => void} */

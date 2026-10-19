@@ -112,3 +112,54 @@
   width: auto;
   min-width: var(--size-touch);
 }
+
+/*
+ * A desk's tile (D1, DeskRosterLive.html's records block): the label with its worth centred on top, then the −, the
+ * count and the + on one line. The buttons are 32px, a desk's compact size (D2), and give way first where the tile is
+ * narrow (a 340px panel), down to WCAG 2.5.8's 24px; the count never does: its size follows the tile's width
+ * (17px in DeskRosterLive's 380px panel, 13.5px in a 340px one), and what the match added is a superscript beside it, as
+ * the table's. So a two-digit count and its «+1» fit between two 24px buttons at the narrowest. A phone never draws a
+ * tile (the panel is a desk's), so its 44px are untouched.
+ */
+.g-stepper--tile {
+  container-type: inline-size;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: var(--space-6) 2px 2px;
+  border-color: var(--line-strong);
+}
+.g-stepper--tile .g-stepper__label {
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+}
+.g-stepper__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.g-stepper--tile .g-stepper__btn {
+  flex: 0 1 32px;
+  width: auto;
+  min-width: 24px;
+  height: 32px;
+  border-radius: 9px;
+}
+.g-stepper--tile .g-stepper__btn .g-icon {
+  width: 14px;
+  height: 14px;
+}
+/* 17px in a 95px tile (DeskRosterLive's), 13.5px in the narrowest (81px): a straight line between, never under 13px. */
+.g-stepper--tile .g-stepper__value {
+  flex: none;
+  margin-inline: 1px;
+  font-size: clamp(13px, calc(26cqi - 7.6px), 17px);
+  white-space: nowrap;
+}
+.g-stepper--tile .g-stepper__delta {
+  margin-left: 1px;
+  font-size: 10px;
+  line-height: 0;
+  vertical-align: super;
+}

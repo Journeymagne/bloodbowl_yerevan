@@ -56,8 +56,11 @@ export const PIKE = died("f1", { id: "d1", rowIndex: 3, number: "8", name: "Pike
 export const JOE = died("f2", { id: "d2", rowIndex: 0, number: "9", name: "Joe" }, { pairingId: "g7", roundNumber: 2, diedAt: "2026-10-12T10:00:00Z", fromMatch: true });
 export const FALLEN = [PIKE, JOE];
 
-/** A coach on a page that has read his teams and the reference; the server answers the roster, its events, its fallen and the games. */
-export function coach({ teamAnswer = team(), fallen = FALLEN } = {}) {
+/**
+ * A coach on a page that has read his teams and the reference; the server answers the roster, its events, its fallen and
+ * the games. `open` is the player chosen from the first draw: his row open on a phone, him in the panel on a desk.
+ */
+export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}) {
   api.reset();
   api.items.set("gata-league-auth-token", "tok");
   rememberSessionToken("tok");
@@ -65,7 +68,7 @@ export function coach({ teamAnswer = team(), fallen = FALLEN } = {}) {
   view.innerHTML = "";
   if (save.saveState("t1").status !== "idle") save.takeServerTeam(team());
   for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
-  Object.assign(rosterMemory("t1"), { sort: null, selected: null, outside: null });
+  Object.assign(rosterMemory("t1"), { sort: null, selected: open, outside: null });
   state.auth.currentUser = { id: "u1", login: "coach", preferences: { activeTeamId: "t1" } };
   state.myTeams = { items: [team()], loaded: true, loading: false, error: "" };
   state.activeTeamId = "t1";
@@ -93,6 +96,6 @@ export const LIVE_GAME = {
   id: "g2", kind: "league", roundStatus: "started", roundNumber: 3, season: { currentRound: 3 }, resultStatus: "pending", preparationStatus: "in_progress",
   postMatchStatus: "draft", updatedAt: "2026-10-10T10:00:00Z", home: { user: { id: "u1" }, team: { id: "t1" } }, away: { user: { id: "u9" }, team: { id: "r1" } },
 };
-export const STYLES = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
+export const STYLES = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
   "stat-strip.css", "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
   "src/screens/team/manage/strip.css"];

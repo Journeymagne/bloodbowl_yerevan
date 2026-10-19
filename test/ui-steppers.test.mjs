@@ -359,3 +359,58 @@ test("a count with this match's addition reads \"7, this match +1\" (stage 04 no
     initLocale("en");
   }
 });
+
+// The owner's fidelity pass (2026-10-19): a desk's tile, D1 and D2.
+
+test("a desk's tile is its label on top and «− count +» on one line under it (D1, DeskRosterLive.html)", () => {
+  const fragment = mount(renderActionStepper({ ...TD, value: 7, delta: 1, tile: true }));
+  const cell = fragment.querySelector(".g-stepper.g-stepper--tile");
+  assert.ok(cell, "the tile class");
+  assert.equal(cell.classList.contains("g-stepper--compact"), false);
+  assert.deepEqual(cell.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__label", "g-stepper__line"]);
+  assert.equal(cell.querySelector(".g-stepper__label").textContent, "TD +3");
+  const line = cell.querySelector(".g-stepper__line");
+  assert.deepEqual(line.childNodes.map((node) => node.getAttribute("class")), ["g-stepper__btn", "g-stepper__value", "g-stepper__btn g-stepper__btn--inc"]);
+  assert.equal(line.querySelector(".g-stepper__delta").textContent, "+1");
+  assert.equal(cell.getAttribute("data-action-key"), "touchdowns");
+  assertCspSafe(fragment);
+  assertStyled(fragment, "action-stepper.css");
+  assert.throws(() => renderActionStepper({ ...TD, value: 1, tile: true, compact: true }), /compact.*tile|tile.*compact/);
+});
+
+test("a desk's tile steps and refuses as the others do", () => {
+  const root = mount(renderActionStepper({ ...TD, value: 0, tile: true, incBlockedReason: "No more" }));
+  const steps = [];
+  const refused = [];
+  wireActionSteppers(root, ({ key, delta }) => steps.push([key, delta]), { onRefused: ({ reason }) => refused.push(reason) });
+  fireEvent(root.querySelector('[data-action-step="-1"]'), "click");
+  fireEvent(root.querySelector('[data-action-step="1"]'), "click");
+  assert.deepEqual(steps, [], "the minus at zero is off, the plus refused");
+  assert.deepEqual(refused, ["No more"]);
+  assert.ok(root.querySelector('[data-action-step="-1"]').hasAttribute("disabled"));
+});
+
+test("D2: a desk's tile has DeskRosterLive.html's 32px buttons, giving way down to 24px before the count does; every other stepper keeps a thumb's 44px", () => {
+  const sheet = "src/ui/action-stepper.css";
+  const px = (value) => Number(String(value).replace(/px$/, ""));
+  // 32px where the tile has room, shrinking first (flex-shrink 1), never under WCAG 2.5.8's 24px.
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__btn", "flex"), ["0 1 32px"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__btn", "height"), ["32px"]);
+  const [least] = valuesOf(sheet, ".g-stepper--tile .g-stepper__btn", "min-width");
+  assert.equal(least, "24px");
+  assert.ok(px(least) >= 24);
+  for (const property of ["width", "height"]) {
+    assert.deepEqual(valuesOf(sheet, ".g-stepper__btn", property), ["var(--size-touch)"], `${property}: a phone's and the post-match's`);
+  }
+  // The count never gives way: no shrinking, no wrapping; its size follows the tile's (17px in a 95px one, 13px at the least).
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "flex"), ["none"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "white-space"), ["nowrap"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "font-size"), ["clamp(13px, calc(26cqi - 7.6px), 17px)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile", "container-type"), ["inline-size"], "what the count's size is measured against");
+  // What the match added is a superscript beside the count, as the table's.
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__delta", "vertical-align"), ["super"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__delta", "line-height"), ["0"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile", "flex-direction"), ["column"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper__line", "display"), ["flex"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__label", "font-size"), ["11px"]);
+});

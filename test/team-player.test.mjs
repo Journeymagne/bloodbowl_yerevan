@@ -205,8 +205,6 @@ test("undo from the profile: the sheet, one DELETE, «Pike is on the roster agai
 // The final review's Important 1, from the profile: an undo sent there lands while the roster is open again. The list
 // takes it, and the roster, which the list is now ahead of, reads the team again; its queue is never swapped under it.
 test("an undo sent from the profile that lands while the roster is open: the roster reads the team again, and draws what it saves", async () => {
-  const tdValue = () => aside().querySelector('[data-action-key="touchdowns"] .g-stepper__value').textContent;
-  const plusTd = () => aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]');
   await withoutTimers(async () => {
     coach();
     await renderTeamRoster("t1");
@@ -227,12 +225,14 @@ test("an undo sent from the profile that lands while the roster is open: the ros
     assert.equal(callsTo("GET /api/teams/t1").length, 3, "the roster reads the team again");
     assert.deepEqual(tables().map(namesIn), [["Ann", "Bors", "Cade", "Pike"], ["Dell", "Edda", "Finn", "Grom"], ["Joe"]]);
     assert.equal(save.savedRevision("t1"), 5);
-    fireEvent(toggle("d1#0"), "click");
+    // A step of the roster from the desk's panel, Edda back on it (D3: a desk taps no counter outside a match).
+    fireEvent(toggle("p5#0"), "click");
     api.reply(PATCH, 200, { team: withPike({ revision: 6 }) });
-    fireEvent(plusTd(), "click");
+    fireEvent(aside().querySelector("[data-roster-return]"), "click");
+    assert.ok(namesIn(tables()[0]).includes("Edda"), "the step is drawn: the screen draws the draft the queue saves");
     await settle();
-    assert.equal(tdValue(), "3", "the step is drawn: Pike had two");
     assert.equal(callsTo(PATCH).at(-1).body.revision, 5);
+    assert.ok(callsTo(PATCH).at(-1).body.roster.players.some((player) => player.id === "d1"), "on the roster Pike is back on");
     api.assertAnswered();
   });
 });

@@ -33,7 +33,14 @@ const undoSheet = () => view.querySelector("dialog#roster-undo");
 const keepButton = () => undoSheet().querySelector("[data-undo-keep]");
 const restoreButton = () => undoSheet().querySelector("[data-undo-send]");
 const refusal = () => undoSheet().querySelector(".g-roster__markrefusal");
-const plusTd = () => aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]');
+/**
+ * A step of the roster's queue from the desk's panel: Edda back on the roster (D3: a desk taps no counter outside a
+ * match; «Back on the roster» is a save of the roster as a step was).
+ */
+const stepOfTheRoster = () => {
+  fireEvent(toggle("p5#0"), "click");
+  fireEvent(aside().querySelector("[data-roster-return]"), "click");
+};
 /** The team on the server once Pike is back: at the end of the roster, rev 5 by default. */
 const withPike = (over = {}) => withPlayers([...PLAYERS, PIKE.player], { revision: 5, ...over });
 /** His line's key on the roster he is back on: his id and his place in it. */
@@ -178,7 +185,7 @@ test("undone: one DELETE, he is back on the roster and stands in the panel; the 
     assert.equal(teamReads(), 1, "the answer is taken as it is: nothing is read again");
     // The next step goes on the revision the undo came back with.
     api.reply(PATCH, 200, { team: withPike({ revision: 6 }) });
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster();
     await settle();
     assert.equal(patches().length, 1);
     assert.equal(patches()[0].body.revision, 5);
@@ -389,7 +396,7 @@ test("in a match, while steps wait, or before the games are read, the undo says 
     coach();
     await renderTeamRoster("t1");
     const step = api.hold(PATCH);
-    fireEvent(plusTd(), "click");
+    stepOfTheRoster();
     await settle();
     assert.equal(step.count, 1, "a step in the air");
     fireEvent(toggle("fallen-f1"), "click");
@@ -472,12 +479,11 @@ test("while an undo is on its way every step and mark waits, and a second press 
     fireEvent(undoSheet(), "keydown", { key: "Escape" });
     assert.ok(!undoSheet(), "the coach may close the sheet");
     assert.equal(undoButton().getAttribute("title"), WRITING);
+    // A desk's panel taps no counter outside a match (D3): its mark says it, and its press is told why.
     fireEvent(toggle("p1#0"), "click");
-    assert.equal(plusTd().getAttribute("aria-disabled"), "true");
-    assert.equal(plusTd().getAttribute("title"), WRITING);
-    fireEvent(plusTd(), "click");
-    assert.equal(toasts().at(-1), WRITING);
     assert.equal(aside().querySelector("[data-roster-mark]").getAttribute("title"), WRITING);
+    fireEvent(aside().querySelector("[data-roster-mark]"), "click");
+    assert.equal(toasts().at(-1), WRITING);
     await settle();
     assert.equal(patches().length, 0);
     undo.release({ status: 200, body: { team: withPike() } });
@@ -487,7 +493,7 @@ test("while an undo is on its way every step and mark waits, and a second press 
     assert.equal(save.savedRevision("t1"), 5);
     assert.equal(toasts().at(-1), BACK, "told in a message, the sheet being gone");
     assert.equal(aside().getAttribute("data-panel-player"), "p1#0", "the panel stays where the coach put it");
-    assert.ok(!plusTd().hasAttribute("aria-disabled"), "open again once it has answered");
+    assert.ok(!aside().querySelector("[data-roster-mark]").hasAttribute("aria-disabled"), "open again once it has answered");
     assert.equal(undos().length, 1);
   });
   // The coach left the roster: the list takes the answer all the same; the queue, which no visit draws now, is left as
