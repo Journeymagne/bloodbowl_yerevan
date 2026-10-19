@@ -191,19 +191,19 @@
   margin: 0;
 }
 
-/* A player's row opened on a phone: his counters, and the way to his page. */
+/* A row opened on a phone: the counters, the way to the profile; 16px in, the view's padding (Stats.html). */
 .g-roster__rowpanel {
   display: flex;
   flex-direction: column;
   gap: var(--space-10);
-  padding: var(--space-4) var(--space-16) var(--space-14);
+  padding: var(--space-4) 0 var(--space-14);
 }
 
 /*
  * The counters: on a phone the six main ones two to a row, the narrow ones under them; in the desk's panel, during a
  * match only (D3), all of them as tiles three by three (D1). A phone's narrow tiles go as many to a row as leave each of
- * their buttons a thumb's width: three from about 375px, two below it (Carry T4). The main ones are two to a row, or one
- * where two would squeeze «COMP» between their buttons (a 320px phone): never more than two, and no breakpoint.
+ * their buttons a thumb's width: three from about 342px, two below it (Carry T4). The main ones are two to a row, or one
+ * where two would squeeze «COMP» between their buttons (under about 312px): never more than two, and no breakpoint.
  */
 .g-roster__counters {
   display: grid;

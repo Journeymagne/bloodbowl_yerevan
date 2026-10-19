@@ -2343,6 +2343,12 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   assert.deepEqual([valuesOf(sheet, ".g-roster__aside", "padding"), valuesOf(sheet, ".g-roster__aside", "border-radius")], [["var(--space-20)"], ["var(--radius-2xl)"]]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__heading", "font"), ["700 26px/1.1 var(--font-display)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__heading", "text-transform"), ["none"]);
+  // Stats.html's and StatsMngDead.html's open row: its words 16px from the screen's edge, which is the view's padding
+  // here, so the panel pads none of its own; its band is the screen's width, carried over that padding (roster-table.css).
+  for (const [file, selector] of [[sheet, ".g-roster__rowpanel"], ["src/screens/team/roster/marks.css", ".g-fallen__rowpanel"]]) {
+    assert.deepEqual(valuesOf(file, selector, "padding"), ["var(--space-4) 0 var(--space-14)"], selector);
+  }
+  assert.deepEqual(valuesOf("src/ui/roster-table.css", ".g-rtable__player.is-expanded", "box-shadow"), ["-20px 0 var(--surface-2), 20px 0 var(--surface-2)"]);
   for (const file of [sheet, "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css"]) {
     const breakpoints = [...text(file).matchAll(/@media[^{]+/g)].map(([query]) => query.trim());
     assert.ok(breakpoints.length > 0, file);
@@ -2352,12 +2358,12 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   assert.ok(text("src/styles.css").trimEnd().endsWith(['roster.css', 'marks.css', 'sheets.css', 'frame.css', 'market.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
 });
 
-test("the counters: six two to a row (one on the narrowest phone), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
+test("the counters: six two to a row (one where two do not fit), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
   const sheet = "src/screens/team/roster/roster.css";
-  // Two to a row, or one where two do not fit (320px): never more than two.
+  // Two to a row, or one where two do not fit (under about 312px): never more than two.
   assert.deepEqual(valuesOf(sheet, ".g-roster__counters", "grid-template-columns"), ["repeat(auto-fit, minmax(max(var(--roster-full), calc((100% - var(--space-8)) / 2)), 1fr))"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster", "--roster-full"), ["calc(2 * var(--size-touch) + 48px)"]);
-  // A phone's narrow tile is two 44px buttons, their gap, the cell's padding and border: three of them do not fit a 360px phone.
+  // A phone's narrow tile is two 44px buttons, their gap, the cell's padding and border: three of them fit from about 342px.
   assert.deepEqual(valuesOf(sheet, ".g-roster__extra", "grid-template-columns"), ["repeat(auto-fit, minmax(var(--roster-tile), 1fr))"]);
   // D1: a desk's nine, three by three (DeskRosterLive.html), 6px apart.
   assert.deepEqual([valuesOf(sheet, ".g-roster__tiles", "grid-template-columns"), valuesOf(sheet, ".g-roster__tiles", "gap")], [["repeat(3, minmax(0, 1fr))"], ["var(--space-6)"]]);
