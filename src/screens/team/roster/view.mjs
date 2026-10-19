@@ -35,7 +35,7 @@ import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
 import { causeOf, fallenName, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
 import { MAIN_COUNTERS, counterSlots, rosterCounts, rosterSections } from "./model.mjs";
-import { absenceWords, injuryWords, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
+import { absenceWords, injuryWords, matchTarget, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
@@ -207,9 +207,10 @@ const calloutLink = (href, label) => `<a class="g-roster__calloutlink" href="${e
  * A preparation that is on (decision 12): yellow, what any save of the roster resets — the steps named as the
  * pre-match names them (R12) — and the way to it. Nothing is closed: a save only sends the coach back to those steps.
  */
-function prepMarkup({ mode }) {
+function prepMarkup({ mode, phone }) {
   const title = mode.round === null ? t("teamRoster.prep.titleFriendly") : t("teamRoster.prep.title", { round: mode.round });
-  return renderCallout({ tone: "warn", title, sub: prepResetWords(), actionHtml: calloutLink(preMatchUrl(mode.game), t("teamRoster.prep.link")) });
+  const sub = prepResetWords(phone ? "teamRoster.prep.bannerPhone" : "teamRoster.prep.banner");
+  return renderCallout({ tone: "warn", title, sub, actionHtml: calloutLink(preMatchUrl(mode.game), t("teamRoster.prep.link")) });
 }
 
 /**
@@ -220,14 +221,17 @@ function prepMarkup({ mode }) {
  * under its name (StatsLive.html).
  */
 function matchMarkup({ mode, outside, records, phone }) {
-  const match = matchWords(mode);
-  const caption = t("teamRoster.match.outsideCaption", { match });
+  const target = matchTarget(mode);
+  const caption = t("teamRoster.match.outsideCaption", { target });
   const toggle = phone
     ? renderToggle({ key: OUTSIDE_TOGGLE, label: t("teamRoster.match.outside"), caption, checked: outside })
     : `${renderToggle({ key: OUTSIDE_TOGGLE, label: t("teamRoster.match.outside"), checked: outside, describedBy: OUTSIDE_NOTE })}<span id="${OUTSIDE_NOTE}" hidden>${escapeHtml(caption)}</span>`;
   const actionHtml = `<div class="g-roster__calloutactions">${toggle}${calloutLink(postMatchUrl(mode.game), t("teamRoster.match.postMatch"))}</div>`;
-  const title = t("teamRoster.match.title", { match });
-  const callout = renderCallout({ tone: outside ? "warn" : "accent", title, sub: outside ? t("teamRoster.match.outsideSub") : t("teamRoster.match.sub"), actionHtml });
+  const title = outside ? t("teamRoster.match.outside") : t("teamRoster.match.title", { match: matchWords(mode) });
+  // The words are each width's prototype's: a phone taps (StatsLive), a desk's counters stand on the right (DeskRosterLive).
+  const desk = outside ? "teamRoster.match.outsideSubDesk" : "teamRoster.match.subDesk";
+  const sub = t(phone ? (outside ? "teamRoster.match.outsideSub" : "teamRoster.match.sub") : desk, { target });
+  const callout = renderCallout({ tone: outside ? "warn" : "accent", title, sub, actionHtml });
   const drawn = `<span class="g-roster__livedot" aria-hidden="true"></span><span class="g-roster__livetitle">${escapeHtml(title)}</span>`
     + `<span class="g-roster__livesep"> · </span><span class="g-roster__livecount">${escapeHtml(t("teamRoster.match.records", { count: records }))}</span>`;
   return callout.replace(`<span class="g-callout__title">${escapeHtml(title)}</span>`, `<span class="g-callout__title g-roster__live">${drawn}</span>`);

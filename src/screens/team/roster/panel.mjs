@@ -31,7 +31,7 @@ import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderActionStepper } from "../../../ui/action-stepper.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { icon } from "../../../ui/icons.mjs";
-import { classNames, dataAttributes } from "../../../ui/markup.mjs";
+import { assertLinkHref, classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderProgressDots } from "../../../ui/progress-dots.mjs";
 import { renderSkillChips } from "../../../ui/skill-chip.mjs";
@@ -49,7 +49,8 @@ export function boldWords(key, params, bold, boldClass = "") {
   const marks = Object.fromEntries(bold.map((name, index) => [name, `\u0001${index}\u0001`]));
   const html = escapeHtml(t(key, { ...params, ...marks }));
   const open = boldClass ? `<b class="${boldClass}">` : "<b>";
-  return bold.reduce((out, name, index) => out.replace(`\u0001${index}\u0001`, `${open}${escapeHtml(params[name])}</b>`), html);
+  // A function, not a string: a «$&» or «$<» in a coach's note is his text, not a replacement pattern.
+  return bold.reduce((out, name, index) => out.replace(`\u0001${index}\u0001`, () => `${open}${escapeHtml(params[name])}</b>`), html);
 }
 
 /** The player's page, or "" for one with no stored id. */
@@ -58,6 +59,11 @@ const profileUrl = (line, screen) => (line.id ? teamPlayerUrl(screen.team.id, li
 /** The match on, in the words a line about it uses: «round 3», or «friendly» for a match that has no round. */
 export function matchWords(mode) {
   return mode.round === null || mode.round === undefined ? t("teamRoster.match.friendly") : t("teamRoster.match.round", { round: mode.round });
+}
+
+/** The match on as what records go into (the banners'): «round 3», or «the friendly» for a match that has no round. */
+export function matchTarget(mode) {
+  return mode.round === null || mode.round === undefined ? t("teamRoster.match.friendlyTarget") : t("teamRoster.match.round", { round: mode.round });
 }
 
 /** An injury in words: «Seriously Hurt», a lasting one with its characteristic, «Lasting Injury (AG)». */
@@ -89,11 +95,13 @@ export function absenceWords(line) {
 }
 
 /**
- * What any save of the roster resets during a preparation, the steps named as the pre-match names them (R12): the
- * preparation's banner says it, and so does a sheet whose write is a save of the roster.
+ * What a save of the roster resets during a preparation, the steps named as the pre-match names them (R12): a sheet
+ * whose write is a save of the roster says it (`teamRoster.prep.sub`, any save); the banner says it in its prototype's
+ * words (`teamRoster.prep.banner`: a desk's saves are hiring, selling and missed matches; a phone's
+ * `…bannerPhone` adds its SPP edits, which save the roster too).
  */
-export function prepResetWords() {
-  return t("teamRoster.prep.sub", { roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
+export function prepResetWords(key = "teamRoster.prep.sub") {
+  return t(key, { roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
 }
 
 /**
@@ -315,8 +323,12 @@ export function rowPanelMarkup(line, screen) {
   return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}${actionsMarkup(line, screen)}</div>`;
 }
 
-/** A way to a player's page in the dark of navigation, its chevron after the words (Stats.html: «Profile and advancement ›»). */
+/**
+ * A way to a player's page in the dark of navigation, its chevron after the words (Stats.html: «Profile and
+ * advancement ›»); its address is checked as every link's is (`assertLinkHref`).
+ */
 export function profileLinkMarkup(label, href) {
+  assertLinkHref(href);
   return `<a class="g-btn g-btn--dark g-btn--block" href="${escapeHtml(href)}">${escapeHtml(label)}${icon("chevron", 14)}</a>`;
 }
 
@@ -346,7 +358,7 @@ export function statsMarkup(line) {
 function manualMarkup(line, screen) {
   if (screen.mode.kind !== "match") return "";
   const records = tapsTheMatch(screen);
-  const title = records ? t("teamRoster.records", { match: matchWords(screen.mode) }) : `${t("teamRoster.match.outside")} · ${line.name}`;
+  const title = records ? t("teamRoster.records", { match: matchWords(screen.mode) }) : t("teamRoster.match.outsideTitle", { name: line.name });
   const sum = records ? sumMarkup(matchSppOf(line), t("teamRoster.matchSpp", { spp: matchSppOf(line) })) : sessionMarkup(line, screen);
   const note = records ? `<p class="g-roster__matchnote">${escapeHtml(t("teamRoster.matchNote"))}</p>` : "";
   return `<section class="g-roster__manual"><div class="g-roster__sppline"><h3 class="g-roster__manualtitle">${escapeHtml(title)}</h3>`

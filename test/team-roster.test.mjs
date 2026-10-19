@@ -1038,8 +1038,8 @@ test("a preparation that is on: a yellow banner, the round, what any save resets
       const callout = notice("warn");
       assert.ok(callout && callout === banner(), "the first banner");
       assert.equal(titleOf(callout), "Preparation for round 3 is on");
-      // R12: the steps as the pre-match names them; resetChangedRosters keeps the fans and the weather only.
-      assert.equal(subOf(callout), "Any save of the roster, SPP included, resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
+      // StatsPrep.html's words, with a phone's SPP edits (they save the roster too); R12: the steps as the pre-match names them.
+      assert.equal(subOf(callout), "Hiring, selling, missed matches and SPP edits reset the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
       const link = callout.querySelector(".g-callout__action .g-roster__calloutlink");
       assert.equal(link.getAttribute("href"), "#/games/g1/pre-match");
       assert.equal(link.textContent, "To the preparation →");
@@ -1077,14 +1077,15 @@ test("a match on: a green banner with the round and the records, the switch and 
     const callout = banner();
     assert.equal(callout.getAttribute("class"), "g-callout", "the accent tone, the banner's base look");
     assert.equal(titleOf(callout), "Match on · round 3 · records: 0");
-    assert.equal(subOf(callout), "Taps are recorded in the match: they count in the career at once and fill in the post-match. Hiring, sales, advancements and the treasury — after the post-match.");
+    // DeskRosterLive.html's words: a desk's counters stand on the right, and the table's green index is theirs.
+    assert.equal(subOf(callout), "The counters of the player on the right write records into round 3: they show in the career at once (the green index in the table) and fill in the post-match by themselves. Hiring, selling, advancement and the treasury — after the post-match.");
     // K9: the action is the switch and the link; the switch's caption is what describes it, not a part of its name.
     const action = callout.querySelector(".g-callout__action");
     assert.deepEqual(action.querySelectorAll("button, a").map((node) => node.tagName), ["BUTTON", "A"]);
     assert.equal(outsideSwitch().getAttribute("aria-checked"), "false");
     assert.equal(outsideSwitch().textContent, "Edit outside the match");
     const described = view.querySelector(`#${outsideSwitch().getAttribute("aria-describedby")}`);
-    assert.equal(described.textContent, "fix an old mistake without touching this match (round 3)");
+    assert.equal(described.textContent, "fix an old mistake without touching round 3");
     assert.ok(described.hasAttribute("hidden"), "read to a screen reader as the switch's description, not drawn in the banner");
     const link = action.querySelector("a.g-roster__calloutlink");
     assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/games/g2/post-match", "Post-match →"]);
@@ -1188,8 +1189,8 @@ test("with the switch on a tap is an edit outside the match: no pairing, the ban
     fireEvent(outsideSwitch(), "click");
     const callout = notice("warn");
     assert.ok(callout && callout === banner(), "the first banner");
-    assert.equal(titleOf(callout), "Match on · round 3 · records: 2");
-    assert.equal(subOf(callout), "Taps change the career and do not go into the match: for an old mistake.");
+    assert.equal(titleOf(callout), "Edit outside the match · records: 2", "DeskRosterLive.html: the title says the switch is on");
+    assert.equal(subOf(callout), "Edits change the career but will not go into round 3.");
     assert.ok(minus("touchdowns").hasAttribute("disabled"), "the roster's 0 and no edit waiting: an edit has nothing to take back");
     assert.deepEqual(sppLine(aside().querySelector(".g-roster__manual")), ["Edit outside the match · Ann", "no changes yet"], "the casualty of the match is not counted");
     api.reply(EVENTS, 201, { event: rowOf({ id: "e1", pairingId: null }) });
@@ -1199,7 +1200,7 @@ test("with the switch on a tap is an edit outside the match: no pairing, the ban
     assert.equal(patches().length, 0);
     assert.equal(countOf("touchdowns").startsWith("2"), true, "the career counts the edit");
     assert.equal(deltaOf("touchdowns"), "+1", "the match's own: the edit is not one of its records");
-    assert.equal(titleOf(banner()), "Match on · round 3 · records: 2");
+    assert.equal(titleOf(banner()), "Edit outside the match · records: 2");
     assert.equal(minus("touchdowns").hasAttribute("disabled"), false, "the edit waiting can be taken back");
     assert.deepEqual(sppLine(aside().querySelector(".g-roster__manual")), ["Edit outside the match · Ann", "+3 SPP"], "the edit's touchdown alone");
     await withWindow({ phone: true }, async () => {
@@ -1736,16 +1737,17 @@ test("a standing injury can be taken back by its own −1", async () => {
 });
 
 // Final review, Minor 4: a friendly's {match} is the adjective «товарищеский», so the Russian sentences name the match around it.
-test("in Russian a friendly keeps its noun: the switch's description and the injury's note say «этот матч (товарищеский)»", async () => {
+test("in Russian a friendly keeps its noun: the banner and the switch's description say «товарищеский матч», the injury's note «этот матч (товарищеский)»", async () => {
   const FRIENDLY = { ...LIVE_GAME, kind: "friendly", season: null, roundStatus: null, roundNumber: null };
   const described = () => view.querySelector(`#${outsideSwitch().getAttribute("aria-describedby")}`).textContent;
   try {
-    for (const [game, match] of [[FRIENDLY, "товарищеский"], [LIVE_GAME, "тур 3"]]) {
+    for (const [game, match, target] of [[FRIENDLY, "товарищеский", "товарищеский матч"], [LIVE_GAME, "тур 3", "тур 3"]]) {
       coach();
       gamesAre([game]);
       useLocale("ru");
       await renderTeamRoster("t1");
-      assert.equal(described(), `исправить старую ошибку, не трогая этот матч (${match})`);
+      assert.equal(described(), `исправить старую ошибку, не трогая ${target}`, "StatsLive.html: «не трогая тур 7»");
+      assert.ok(subOf(banner()).startsWith(`Счётчики игрока справа пишут записи в ${target}: сразу видны в карьере (зелёный индекс в таблице)`));
       fireEvent(injuryButton(), "click");
       assert.ok(injurySheet().querySelector(".g-roster__injurynote").textContent.startsWith(`Запишется в этот матч (${match}) и подставится в итоги`));
     }
@@ -2472,13 +2474,13 @@ test("a match's banner: a dot, the match and its records on one line on a desk; 
     assert.ok(title.querySelector(".g-roster__livedot"));
     assert.equal(title.querySelector(".g-roster__livecount").textContent, "records: 1");
     assert.equal(outsideSwitch().querySelector(".g-toggle__caption"), null, "a desk: the caption is the switch's description");
-    assert.equal(view.querySelector(`#${outsideSwitch().getAttribute("aria-describedby")}`).textContent, "fix an old mistake without touching this match (round 3)");
+    assert.equal(view.querySelector(`#${outsideSwitch().getAttribute("aria-describedby")}`).textContent, "fix an old mistake without touching round 3");
     await withWindow({ phone: true }, async () => {
       coach({ events: [rowOf({ id: "e0" })] });
       gamesAre([LIVE_GAME]);
       await renderTeamRoster("t1");
       assert.equal(titleOf(banner()), "Match on · round 3 · records: 1", "the same words");
-      assert.equal(outsideSwitch().querySelector(".g-toggle__caption").textContent, "fix an old mistake without touching this match (round 3)");
+      assert.equal(outsideSwitch().querySelector(".g-toggle__caption").textContent, "fix an old mistake without touching round 3");
       assert.equal(outsideSwitch().hasAttribute("aria-describedby"), false, "said once, in the switch");
     });
     const frame = "src/screens/team/roster/frame.css";
@@ -2506,6 +2508,90 @@ test("another device's save: the banner has no sign, and «Load the new one» st
   assert.deepEqual(valuesOf(frame, ".g-roster__conflict .g-btn--primary", "min-height"), ["var(--size-touch)", "40px"], "a thumb on a phone, 40px on a desk (D2)");
   // The status is a dot and its words, no capsule.
   assert.deepEqual([valuesOf("src/screens/team/roster/roster.css", ".g-roster__status .g-status", "background"), valuesOf("src/screens/team/roster/roster.css", ".g-roster__status .g-status", "padding")], [["transparent"], ["0"]]);
+});
+
+// Fix round 1 of the fidelity pass.
+test("an injury recorded in the match names itself: «Injury: Seriously Hurt» in the pair, and the next match says it in red", async () => {
+  await withoutTimers(async () => {
+    coach({ events: [injuryRow({ code: "miss" })] });
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    assert.equal(injuryButton().textContent, "Injury: Seriously Hurt", "the pair's first place (DeskRosterLive.html)");
+    assert.ok(injuryButton().closest(".g-roster__actions"));
+    const next = aside().querySelector(".g-roster__next");
+    assert.equal(next.textContent, "Next match: injury in the match: Seriously Hurt");
+    assert.ok(next.querySelector("b").classList.contains("g-roster__nextstate--alert"));
+    // A lasting one with its characteristic; one with none recorded keeps «Injury in the match…».
+    coach({ events: [injuryRow({ code: "lasting", stat: "ag" })] });
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    assert.equal(injuryButton().textContent, "Injury: Lasting Injury (AG)");
+    assert.equal(aside().querySelector(".g-roster__next").textContent, "Next match: injury in the match: Lasting Injury (AG)");
+    fireEvent(toggle("p2#0"), "click");
+    assert.equal(injuryButton().textContent, "Injury in the match…");
+    assert.equal(aside().querySelector(".g-roster__next").textContent, "Next match: Plays");
+    await withWindow({ phone: true }, async () => {
+      coach({ events: [injuryRow({ code: "miss" })] });
+      gamesAre([LIVE_GAME]);
+      await renderTeamRoster("t1");
+      fireEvent(toggle("p1#0"), "click");
+      assert.equal(injuryButton(openRow()).textContent, "Injury: Seriously Hurt", "the phone's pair too (Stats.html)");
+    });
+  });
+});
+
+test("bold words keep a coach's «$&» and «$<» as he wrote them: they are no replacement patterns", async () => {
+  const { boldWords } = await import("../src/screens/team/roster/panel.mjs");
+  assert.equal(boldWords("teamRoster.nextMatch", { state: "Paid $& twice $<x> $' $1" }, ["state"]), "Next match: <b>Paid $&amp; twice $&lt;x&gt; $&#39; $1</b>");
+  coach({ teamAnswer: team({ roster: { players: PLAYERS.map((player) => (player.id === "p4" ? { ...player, absence: { code: "other", note: "Paid $& twice" } } : player)) } }) });
+  await renderTeamRoster("t1");
+  fireEvent(toggle("p4#0"), "click");
+  assert.equal(aside().querySelector(".g-roster__next").textContent, "Next match: Paid $& twice · sits it out");
+});
+
+test("the way to a player's page is checked as every link is: a javascript: address throws", async () => {
+  const { profileLinkMarkup } = await import("../src/screens/team/roster/panel.mjs");
+  assert.match(profileLinkMarkup("Profile", "#/t/t1/roster/p1"), /^<a class="g-btn g-btn--dark g-btn--block" href="#\/t\/t1\/roster\/p1">Profile<svg/);
+  assert.throws(() => profileLinkMarkup("Profile", " javascript:alert(1)"), /javascript/);
+});
+
+test("the banners say their prototype's words: a desk's preparation (DeskRosterPrep), a phone's match with the switch on (StatsLive)", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([PREP_GAME]);
+    await renderTeamRoster("t1");
+    assert.equal(subOf(banner()), "Hiring, selling and missed matches reset the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.",
+      "a desk saves the roster by hiring, selling and marks only (D3)");
+    await withWindow({ phone: true }, async () => {
+      coach();
+      gamesAre([LIVE_GAME]);
+      await renderTeamRoster("t1");
+      assert.equal(subOf(banner()), "Taps are recorded in round 3: they show in the career at once and fill in the post-match by themselves. Hiring, selling, advancement and the treasury — after the post-match.");
+      fireEvent(outsideSwitch(), "click");
+      assert.equal(titleOf(banner()), "Edit outside the match · records: 0");
+      assert.equal(subOf(banner()), "Taps change the career but will not go into round 3 or its post-match. Switch it off to record the match again.");
+    });
+  });
+  // At 901 to about 1100px the column is narrow: the banner's action gives way and wraps under the words.
+  const frame = "src/screens/team/roster/frame.css";
+  assert.deepEqual([valuesOf(frame, ".g-roster__notices .g-callout__action", "flex"), valuesOf(frame, ".g-roster__notices .g-callout__action", "white-space"),
+    valuesOf(frame, ".g-roster__notices .g-callout__action", "min-width")], [["0 1 auto"], ["normal"], ["0"]]);
+});
+
+test("D2: every compact control a desk's roster draws is 24px or more", () => {
+  const px = (value) => Number(String(value).replace(/px$/, ""));
+  const desk = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "").match(/@media \(min-width: 901px\) \{([\s\S]*)\n\}/)[1];
+  const sizes = [
+    ["src/screens/team/roster/frame.css", /\.g-roster__aside \.g-roster__edit \{[^}]*width: (\d+)px;[^}]*height: (\d+)px;/, "the pencil"],
+    ["src/screens/team/roster/frame.css", /\.g-roster__aside \.g-roster__spp \.g-btn--primary \{[^}]*height: (\d+)px;/, "«Advance»"],
+    ["src/screens/team/roster/frame.css", /\.g-roster__actions > \.g-btn \{ min-height: (\d+)px; \}/, "the pair of actions"],
+    ["src/screens/team/roster/sheets.css", /\.g-roster__injurystat \.g-chip \{ min-height: (\d+)px; \}/, "a modal sheet's characteristic chip"],
+  ];
+  for (const [file, rule, what] of sizes) {
+    const found = desk(file).match(rule);
+    assert.ok(found, `${what}: ${file}`);
+    for (const value of found.slice(1)) assert.ok(px(value) >= 24, `${what}: ${value}px`);
+  }
 });
 
 test("the player's address: a fallen player's profile, else the 2.x editor until stage 07d", () => {
