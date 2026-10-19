@@ -394,7 +394,8 @@ test("a fallen line is the roster's own line made for the dead: nothing he could
   const snapshot = { id: "d1", rowIndex: 3, number: "8", name: "Pike", skipNextGame: true, absence: { code: "niggling" }, isCaptain: true, spp: { casualties: 4 } };
   const [dead] = fallenLines({ fallen: [died("f1", snapshot, { roundNumber: 7, fromMatch: true, cause: null })], race: HUMAN });
   const [alive] = linesOf([snapshot]);
-  assert.deepEqual(Object.keys(dead).sort(), [...Object.keys(alive), "fallen"].sort());
+  assert.deepEqual(Object.keys(dead).sort(), [...Object.keys(alive), "bare", "fallen"].sort());
+  assert.equal(dead.bare, false, "the race reads him");
   assert.deepEqual([dead.skip, dead.captain, dead.ready, dead.injury, dead.absence, dead.retired], [false, false, false, null, null, false], "he is not marked, not the captain, not about to advance");
   assert.deepEqual(dead.fallen, { id: "f1", cause: null, fromMatch: true, round: 7, diedAt: "2026-10-18T10:00:00Z" });
   assert.deepEqual([dead.career.casualties, dead.blob.casualties, dead.waiting.casualties, dead.earned], [4, 4, 4, 8], "the career is the counters of the snapshot, no rows");
@@ -455,6 +456,23 @@ test("a record whose player is no object is a bare line from nothing, not an err
   ]);
   for (const line of lines) assert.deepEqual([line.stats.st.text, line.skills, line.earned, line.fallen.cause], ["–", [], 0, "Foul"]);
   assert.equal(JSON.stringify(lines).includes("undefined"), false);
+});
+
+// K11: the server would not undo such a record (FALLEN_NOT_RESTORABLE), so the screen offers no undo of it.
+test("a record the roster cannot read is bare: no row of the race for it, or no player at all", () => {
+  const records = [
+    died("b1", { id: "d1", number: "3", name: "No Row" }),
+    died("b2", { id: "d2", rowIndex: 99, name: "Far Row" }),
+    died("b3", { name: "Old Joe", position: "Lineman", number: 5 }),
+    died("b4", null),
+    died("b5", []),
+    died("r1", { id: "d6", rowIndex: 3, name: "Pike" }),
+    died("r2", { rowIndex: 0, name: "No Id" }),
+  ];
+  assert.deepEqual(fallenLines({ fallen: records, race: HUMAN }).map(({ key, bare }) => [key, bare]), [
+    ["fallen-b1", true], ["fallen-b2", true], ["fallen-b3", true], ["fallen-b4", true], ["fallen-b5", true], ["fallen-r1", false], ["fallen-r2", false],
+  ]);
+  assert.equal("bare" in linesOf([{ id: "d6", rowIndex: 3, name: "Pike" }])[0], false, "a player of the roster is none");
 });
 
 test("a fallen player who is on the roster as read is drawn once, on the roster", () => {

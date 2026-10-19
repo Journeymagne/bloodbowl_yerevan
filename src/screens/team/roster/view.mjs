@@ -1,7 +1,7 @@
 /**
  * The roster's markup: the band with its counts, the table, and beside it on a desk the chosen player's panel;
- * a skill's, an injury's or a missed match's sheet over it when one is open. What a line says is model.mjs's, the row's panel and
- * the side panel panel.mjs's, the sheets sheets.mjs's.
+ * a skill's, an injury's, a missed match's or a death's undo's sheet over it when one is open. What a line says is
+ * model.mjs's, the row's panel and the side panel panel.mjs's, the sheets sheets.mjs's, mark-sheet.mjs's and fallen-view.mjs's.
  *
  * The player's button does what the width it is drawn at does with it (R11): up to 900px it opens his row
  * (`aria-expanded`, and the row's panel it controls), from 901px it chooses him for the panel beside the table
@@ -30,7 +30,7 @@ import { renderPageHead } from "../../../ui/page-head.mjs";
 import { renderRosterTable } from "../../../ui/roster-table.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
-import { causeOf, fallenPanelMarkup, fallenRowMarkup } from "./fallen-view.mjs";
+import { causeOf, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
 import { MAIN_COUNTERS, rosterCounts, rosterSections } from "./model.mjs";
 import { absenceWords, injuryWords, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
@@ -69,10 +69,12 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  *   side has saved its Players step), until the records are read again; "" when they are open
  * @property {number} records the rows of the match on that the team has, as last read: what its banner counts
  * @property {{kind: "skill", key: string, name: string}|{kind: "injury", key: string, gameId: string, choice: {code: string, stat: string}, busy: boolean, reason: string}
- *   |{kind: "mark", key: string, choice: import("./mark-sheet.mjs").MarkChoice, busy: boolean, refusal: string, reason: string}|null} sheet
+ *   |{kind: "mark", key: string, choice: import("./mark-sheet.mjs").MarkChoice, busy: boolean, refusal: string, reason: string}
+ *   |{kind: "undo", key: string, busy: boolean, refusal: string, reason: string}|null} sheet
  *   the sheet that is open: a skill's rule; an injury of the match `gameId` with what is chosen in it ("" for
- *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now; or a
- *   missed match's reasons (stage 07b) with what is chosen, the last refusal, and why no mark can be made just now
+ *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now; a
+ *   missed match's reasons (stage 07b) with what is chosen, the last refusal, and why no mark can be made just now; or
+ *   a death's undo (Task 9), whether it is on its way, the last refusal, and why none can be sent just now
  * @property {boolean} unsure an injury's answer was lost and the read that followed failed: whether it was written is
  *   not known, so no injury is recorded until a read of the records succeeds (R14)
  * @property {string} error a read that failed, "" when none
@@ -307,7 +309,7 @@ function bodyMarkup(screen) {
 
 /**
  * The sheet that is open, while its player is still on the screen: a skill's — a fallen player's chip opens its rule
- * too — an injury's, or a missed match's (`screenOf` closes one that no longer stands).
+ * too — an injury's, a missed match's, or a death's undo (`screenOf` closes one that no longer stands).
  */
 function sheetMarkup(screen) {
   const { sheet } = screen;
@@ -315,6 +317,7 @@ function sheetMarkup(screen) {
   if (!line) return "";
   if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy, reason: sheet.reason });
   if (sheet.kind === "mark") return markSheetMarkup({ line, choice: sheet.choice, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason });
+  if (sheet.kind === "undo") return undoSheetMarkup({ line, mode: screen.mode, busy: sheet.busy, refusal: sheet.refusal, reason: sheet.reason });
   return skillSheetMarkup({ data: screen.data, line, name: sheet.name });
 }
 

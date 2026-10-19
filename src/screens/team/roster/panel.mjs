@@ -95,9 +95,9 @@ const tapsTheMatch = (screen) => screen.mode.kind === "match" && !screen.outside
  * A control that is closed: a button that says why (`reason`; for a way to the player's page a match has closed,
  * `teamRoster.afterPost`) as its tooltip and, pressed, in a message (wire.mjs), in the look of what it stands for
  * (button.css). With a `glyph` the label is its name for a screen reader, as the pencil's link has it; `data` keeps
- * what names the control (an action's player), so the focus finds it again.
+ * what names the control (an action's player, a fallen player's undo), so the focus finds it again.
  */
-function closedMarkup({ className, label, glyph = "", reason = t("teamRoster.afterPost"), data = {} }) {
+export function closedMarkup({ className, label, glyph = "", reason = t("teamRoster.afterPost"), data = {} }) {
   const named = glyph ? ` aria-label="${escapeHtml(label)}"` : "";
   return `<button type="button" class="${className} g-roster__closed"${named} aria-disabled="true" title="${escapeHtml(reason)}"`
     + `${dataAttributes({ rosterClosed: true, ...data })}>${glyph ? icon(glyph, 18) : escapeHtml(label)}</button>`;

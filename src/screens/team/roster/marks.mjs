@@ -13,13 +13,16 @@
  * waits, is on its way, or meets a conflict or a 422 (its button says so, K6), and every step and mark waits for its
  * answer (index.mjs's lock, K7). That answer is the queue's and the list's however the sheet has fared (K8), and only
  * for the coach who sent it; a lost one is never sent again: the roster and the fallen are read back, and the coach is
- * told what they say — and only what both say (K15).
+ * told what they say — and only what both say (K15). Its undo (Task 9), asked first in a sheet of its own, is written
+ * the same way (`writeOnce`, `readBack`): it names its record and no revision, so it meets no conflict, and a record
+ * the server no longer has reads the roster again.
  */
 import { toast } from "../../../components/toast.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { storedPlayerId } from "../../../domain/roster/players.mjs";
-import { fallenWriting, markDeath } from "./fallen.mjs";
+import { fallenWriting, markDeath, undoDeath } from "./fallen.mjs";
+import { undoable } from "./fallen-view.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { chosenMark } from "./mark-sheet.mjs";
 import { markClosed, returnClosed } from "./panel.mjs";
@@ -35,20 +38,24 @@ import { markSkip, savedRevision, unmarkSkip } from "./save.mjs";
 /** The player of `key` on the roster as it stands, or null: the sheet's, a row's. */
 const lineOf = (where, key) => where.lines.find((line) => line.key === key) ?? null;
 
+/** The fallen player of `key` while his death is one the screen undoes (`undoable`), or null: the undo's sheet's, the panel's. */
+const undoneOf = (where, key) => where.fallen.find((line) => line.key === key && undoable(line)) ?? null;
+
 /**
  * What the screen lends the marks (index.mjs).
  * @typedef {object} Lent
  * @property {() => Now} now the screen as it stands at a press
  * @property {() => void} refused the server's roster asked again, after a refusal of the queue's 422 whose read failed
- * @property {(answer: {team: object, fallen: object[]}) => void} hold a death's answer taken: its team, and the fallen to draw (K5)
+ * @property {(answer: {team: object, fallen: object[]}) => void} hold a death's or an undo's answer taken: its team, and the fallen to draw (K5)
  * @property {function(): Promise<boolean>} readAgain the roster and the fallen read again; true when the read was taken
  * @property {function(): Promise<void>} reload the server's roster in place of the queue's, while no step waits or is on its way
  */
 
 /**
  * The sheet as the screen draws it, or null when it stands no longer: a mark's while its player is on the roster, plays
- * the next match and no match is on. It says why no mark can be made just now (`markClosed`) — for a death, a step of
- * the queue that waits too (K6).
+ * the next match and no match is on; an undo's while his death is among the fallen and the screen undoes it — open
+ * in a match too, saying why it waits. Each says why nothing can be sent just now (`markClosed`) — for a death and its
+ * undo, a step of the queue that waits too (K6).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines the roster's lines and the fallen
@@ -57,6 +64,10 @@ const lineOf = (where, key) => where.lines.find((line) => line.key === key) ?? n
  */
 export function markSheetOf(visit, lines, where) {
   const { sheet } = visit;
+  if (sheet?.kind === "undo") {
+    const fallen = lines.find((item) => item.key === sheet.key && undoable(item));
+    return fallen ? { ...sheet, reason: markClosed(fallen, where, { direct: true }) } : null;
+  }
   const line = sheet?.kind === "mark" ? lines.find((item) => item.key === sheet.key && !item.fallen) : null;
   if (!line || line.skip || where.mode.kind === "match") return null;
   return { ...sheet, reason: markClosed(line, where, { direct: sheet.choice.code === "dead" }) };
@@ -95,15 +106,44 @@ function sendMark({ teamId, visit, memory, draw }, { now, refused }) {
 }
 
 /**
- * What a read says of his death: his record among the fallen and he gone from the roster is a death (K15), neither is
- * none; one without the other is a read that caught the write half done.
- * @returns {"marked"|"none"|"split"}
+ * What a read says of a write of the fallen (K15): `landed` where the fallen and the roster agree it was written — for
+ * a death his record is there and he is gone from the roster, for an undo the record is gone and he is back — `none`
+ * where both say it was not, `split` where the read caught the write half done (the two are read side by side).
+ * @param {{fallen: object[]}} visit
+ * @param {import("./model.mjs").PlayerLine[]} lines the roster's
+ * @param {{recorded: (record: object) => boolean, playerId: string, death: boolean}} write the record it is known by, the
+ *   player, and whether it was a death (else an undo)
+ * @returns {"landed"|"none"|"split"}
  */
-function deathRead(visit, lines, playerId) {
-  const recorded = visit.fallen.some((record) => storedPlayerId(record.player) === playerId);
-  const onRoster = lines.some((line) => line.id === playerId);
-  if (recorded !== onRoster) return recorded ? "marked" : "none";
-  return "split";
+function writeRead(visit, lines, { recorded, playerId, death }) {
+  const kept = visit.fallen.some(recorded);
+  if (kept === lines.some((line) => line.id === playerId)) return "split";
+  return kept === death ? "landed" : "none";
+}
+
+/**
+ * A write of the fallen whose answer was lost: never sent again. The roster and the fallen are read back, and the coach
+ * is told what they hold (`landed`, or the words of `none`); a read that caught the write half done is made once more,
+ * and if it too is split, or a read fails, the coach is told the server could not be told (`unknown`, K15). Nothing is
+ * said once the visit is over.
+ * @param {import("./index.mjs").Saving} saving
+ * @param {Lent} lent
+ * @param {{write: Parameters<typeof writeRead>[2], landed: () => void, none: string, unknown: string}} told
+ */
+async function readBack({ visit }, { now, readAgain }, { write, landed, none, unknown }) {
+  for (let read = 0; read < 2; read += 1) {
+    if (!(await readAgain())) break;
+    const verdict = writeRead(visit, now().lines, write);
+    if (verdict === "landed") {
+      landed();
+      return;
+    }
+    if (verdict === "none") {
+      toast(none, { tone: "error" });
+      return;
+    }
+  }
+  if (visit.here) toast(unknown, { tone: "error" });
 }
 
 /**
@@ -119,29 +159,27 @@ function fallenSaid({ memory }, { fallenId, name, mine }) {
   };
 }
 
+/** A death whose answer was lost, read back (`readBack`): his record among the fallen, and he gone from the roster. */
+function deathLost(saving, lent, { line, mine }) {
+  const recorded = (record) => storedPlayerId(record.player) === line.id;
+  const landed = () => {
+    const said = fallenSaid(saving, { fallenId: saving.visit.fallen.find(recorded).id, name: line.name, mine });
+    saving.draw();
+    said();
+  };
+  return readBack(saving, lent, {
+    write: { recorded, playerId: line.id, death: true }, landed, none: t("teamRoster.mark.deadLost"), unknown: t("teamRoster.fallen.unknown"),
+  });
+}
+
 /**
- * A death whose answer was lost: never sent again. The roster and the fallen are read back, and the coach is told
- * what they hold; a read that caught the write half done is made once more, and if it too is split, or a read fails,
- * the coach is told the server could not be told (K15). Nothing is said once the visit is over.
+ * A refusal of a write of the fallen: said in the sheet that sent it, which stays as it was and no longer waits; closed
+ * meanwhile, in a message while the roster is on the coach's screen.
  */
-async function deathLost(saving, { now, readAgain }, { line, mine }) {
-  const { visit, draw } = saving;
-  for (let read = 0; read < 2; read += 1) {
-    if (!(await readAgain())) break;
-    const verdict = deathRead(visit, now().lines, line.id);
-    if (verdict === "none") {
-      toast(t("teamRoster.mark.deadLost"), { tone: "error" });
-      return;
-    }
-    if (verdict === "marked") {
-      const record = visit.fallen.find((item) => storedPlayerId(item.player) === line.id);
-      const said = fallenSaid(saving, { fallenId: record.id, name: line.name, mine });
-      draw();
-      said();
-      return;
-    }
-  }
-  if (visit.here) toast(t("teamRoster.fallen.unknown"), { tone: "error" });
+function refusalSaid({ visit, draw }, { sheet, mine }, refusal) {
+  if (mine) Object.assign(sheet, { refusal, busy: false });
+  else if (visit.here) toast(refusal, { tone: "error" });
+  draw();
 }
 
 /**
@@ -152,7 +190,7 @@ async function deathLost(saving, { now, readAgain }, { line, mine }) {
  * longer has is read again too; any other refusal is only said.
  */
 async function heardDeath(saving, lent, { sheet, line, answer }) {
-  const { visit, draw } = saving;
+  const { visit } = saving;
   const mine = visit.here && visit.sheet === sheet;
   if (answer.team) {
     const said = visit.here ? fallenSaid(saving, { fallenId: answer.fallen.id, name: line.name, mine }) : null;
@@ -170,38 +208,42 @@ async function heardDeath(saving, lent, { sheet, line, answer }) {
   }
   const conflict = "conflict" in answer;
   const again = conflict ? lent.reload() : answer.code === "PLAYER_NOT_FOUND" ? lent.readAgain() : null;
-  const refusal = conflict ? t("teamRoster.mark.changed") : answer.refusal;
-  if (mine) Object.assign(sheet, { refusal, busy: false });
-  else if (visit.here) toast(refusal, { tone: "error" });
-  draw();
+  refusalSaid(saving, { sheet, mine }, conflict ? t("teamRoster.mark.changed") : answer.refusal);
   await again;
 }
 
 /**
- * «Mark the death»: the closure asked again, a step of the queue that waits included (K6; after a 422 whose read
- * failed the server's roster is asked for again, `refused`); nothing while a write of the fallen is on its way; then
- * one `POST …/death` on the revision the queue stands on, the sheet busy with it. Its answer is taken only for the
- * coach who sent it (T4 review's carry): another coach signed in since has nothing of it.
+ * One write of the fallen from the sheet of `kind` that is open, a death's or an undo's: the closure asked again, a
+ * step of the queue that waits included (K6; after a 422 whose read failed the server's roster is asked for again,
+ * `refused`); nothing while a write of the fallen is on its way, nor while the sheet is not whole (`send` says null);
+ * then the one request `send` makes, the sheet busy with it. Its answer is `heard` only for the coach who sent it (T4
+ * review's carry): another coach signed in since has nothing of it.
  *
  * @param {import("./index.mjs").Saving} saving
  * @param {Lent} lent
+ * @param {object} write
+ * @param {string} write.kind the sheet's
+ * @param {(where: Now, key: string) => object|null} write.find the player of the sheet, as the screen stands
+ * @param {function(object, object): (function(): Promise<object>)|null} write.send the request for the player and the sheet,
+ *   or null where there is none to make
+ * @param {function(object, Lent, {sheet: object, line: object, answer: object}): Promise<void>} write.heard what its answer does
  */
-async function sendDeath(saving, lent) {
+async function writeOnce(saving, lent, { kind, find, send, heard }) {
   const { teamId, visit, draw } = saving;
   const { sheet } = visit;
-  if (sheet?.kind !== "mark" || sheet.busy) return;
+  if (sheet?.kind !== kind || sheet.busy) return;
   const where = lent.now();
-  const line = lineOf(where, sheet.key);
+  const line = find(where, sheet.key);
   const reason = line ? markClosed(line, where, { direct: true }) : "";
-  const death = chosenMark(sheet.choice);
   if (reason) {
     toast(reason);
     lent.refused();
   }
-  if (reason || fallenWriting(teamId) || !line || death?.code !== "dead") return;
+  const request = reason || !line || fallenWriting(teamId) ? null : send(line, sheet);
+  if (!request) return;
   const coach = state.auth.currentUser?.id;
   sheet.busy = true;
-  const sent = markDeath(teamId, line.id, { cause: death.cause, revision: savedRevision(teamId) });
+  const sent = request();
   // Drawn once it is sent, so that every step and mark is drawn waiting for it (index.mjs's lock).
   draw();
   const answer = await sent;
@@ -210,16 +252,86 @@ async function sendDeath(saving, lent) {
     draw();
     return;
   }
-  await heardDeath(saving, lent, { sheet, line, answer });
+  await heard(saving, lent, { sheet, line, answer });
+}
+
+/** «Mark the death» (`writeOnce`): one `POST …/death` with the cause, on the revision the queue stands on. */
+function sendDeath(saving, lent) {
+  const { teamId } = saving;
+  const send = (line, sheet) => {
+    const death = chosenMark(sheet.choice);
+    return death?.code === "dead" ? () => markDeath(teamId, line.id, { cause: death.cause, revision: savedRevision(teamId) }) : null;
+  };
+  return writeOnce(saving, lent, { kind: "mark", find: lineOf, send, heard: heardDeath });
+}
+
+/**
+ * He is back on the roster, as the server says: the coach is told; and when the sheet that sent it was still open, the
+ * panel takes him — his line on the roster drawn now, by his id — and the focus his row.
+ */
+function backSaid({ memory, draw }, { now }, { line, mine }) {
+  const back = mine ? now().lines.find((item) => item.id === line.id) : null;
+  if (back) {
+    memory.selected = back.key;
+    draw();
+    keyed("data-row-key", back.key)?.focus();
+  }
+  toast(t("teamRoster.fallen.back", { name: line.name }));
+}
+
+/** An undo whose answer was lost, read back (`readBack`): his record gone from the fallen, and he back on the roster. */
+function undoLost(saving, lent, { line, mine }) {
+  return readBack(saving, lent, {
+    write: { recorded: (record) => record.id === line.fallen.id, playerId: line.id, death: false },
+    landed: () => backSaid(saving, lent, { line, mine }),
+    none: t("teamRoster.fallen.undoLost"),
+    unknown: t("teamRoster.fallen.undoUnknown"),
+  });
+}
+
+/**
+ * An undo's answer, heard by the coach who sent it. The team it brings is always taken, whatever became of the sheet
+ * (K8), his record gone from the fallen; the sheet, while it is still the one that sent it, closes and the panel and the
+ * focus take him back on the roster; else the coach is told in a message. A lost answer reads the roster back
+ * (`undoLost`). A record the server no longer has (another device undid it) reads it again: the read most often takes
+ * his line away and the sheet with it, so its words then go to a message. Any other refusal is said in the sheet.
+ */
+async function heardUndo(saving, lent, { sheet, line, answer }) {
+  const { visit } = saving;
+  const mine = visit.here && visit.sheet === sheet;
+  if (answer.team) {
+    if (mine) Object.assign(visit, { sheet: null, opener: null });
+    lent.hold({ team: answer.team, fallen: visit.fallen.filter((record) => record.id !== line.fallen.id) });
+    if (visit.here) backSaid(saving, lent, { line, mine });
+    return;
+  }
+  if (answer.lost) {
+    // The read is sent first, so that the screen the sheet closes on has every step closed until it answers.
+    const read = undoLost(saving, lent, { line, mine });
+    if (mine) closeSheet(saving);
+    await read;
+    return;
+  }
+  const again = answer.code === "FALLEN_NOT_FOUND" ? lent.readAgain() : null;
+  refusalSaid(saving, { sheet, mine }, answer.refusal);
+  if (!again) return;
+  await again;
+  if (mine && visit.here && visit.sheet !== sheet) toast(answer.refusal, { tone: "error" });
+}
+
+/** «Back on the roster» in the undo's sheet (`writeOnce`): one `DELETE …/fallen/:fid` of his record. */
+function sendUndo(saving, lent) {
+  return writeOnce(saving, lent, { kind: "undo", find: undoneOf, send: (line) => () => undoDeath(saving.teamId, line.fallen.id), heard: heardUndo });
 }
 
 /**
  * What the marks' presses do (wire.mjs): «Miss a match…» opens the sheet, a reason, its characteristic or its words
- * are kept in it, «Mark the missed match» takes the step (`sendMark`), «Back on the roster» takes its own. A press on
- * one that is closed says why and does nothing.
+ * are kept in it, «Mark the missed match» takes the step (`sendMark`), «Back on the roster» takes its own. «Undo the
+ * mark» opens its own sheet, which «Keep» closes, the focus back on the button, and whose «Back on the roster» sends the
+ * undo (`sendUndo`). A press on one that is closed says why and does nothing.
  *
- * The sheet's `busy` is a write of it on its way: a missed match never is one (a step of the queue closes the sheet at
- * once), a death is (`sendDeath`), and the sheet's button sends nothing while it is.
+ * A sheet's `busy` is a write of it on its way: a missed match never is one (a step of the queue closes the sheet at
+ * once), a death and an undo are (`sendDeath`, `sendUndo`), and the sheet's button sends nothing while it is.
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {Lent} lent what the screen lends: `now` is the screen as it stands at the press; `refused` is what a step the
@@ -266,5 +378,19 @@ export function markHandlers(saving, lent) {
       toast(refusal, { tone: "error" });
       refused();
     },
+    onUndo: (key, button) => {
+      const where = now();
+      const line = undoneOf(where, key);
+      const reason = line ? markClosed(line, where, { direct: true }) : "";
+      if (reason) toast(reason);
+      else if (line) {
+        Object.assign(visit, { sheet: { kind: "undo", key, busy: false, refusal: "" }, opener: button });
+        draw();
+      }
+    },
+    onUndoKeep: () => {
+      if (visit.sheet?.kind === "undo") closeSheet(saving);
+    },
+    onUndoSend: () => void sendUndo(saving, lent),
   };
 }

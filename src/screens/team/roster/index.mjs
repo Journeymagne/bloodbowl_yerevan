@@ -23,8 +23,8 @@
  * The team's fallen are read with it, every time (stage 07b, `readSnapshot`): they are drawn under the roster, and a
  * read of one without the other would draw a player twice or not at all. A missed match and back on the roster are
  * steps of the queue like a counter's (marks.mjs): a match that begins while one waits gives it up as it gives up
- * the SPP steps, and the coach is told how many of each. A death is no step of it: it goes only when none waits, every
- * step and mark waits while it is on its way, and its answer is the queue's and the list's whatever became of its sheet.
+ * the SPP steps, and the coach is told how many of each. A death and its undo are no step of it: each goes only when
+ * none waits, every step and mark waits while one is on its way, and its answer is the queue's and the list's.
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
@@ -98,7 +98,7 @@ function listen(target, type, listener) {
  *   treasury strip: no counter takes a step while the read that replaces it is in the air
  * @property {number|null} followed the revision of the coach's list the visit last read the team again for (`followList`)
  * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`, a
- *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}` (marks.mjs)
+ *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs)
  * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
@@ -261,8 +261,8 @@ async function reloadRoster(saving) {
 
 /**
  * The team and its records read again (`readWithGames`) after a tap whose fate is not known, a minus that found
- * nothing to take back, a match that is no longer on, a death whose answer was lost. The team is taken as a read takes
- * it (`trackRoster`): a step of the roster's queue that waits keeps its draft, and during a match none leaves (R8).
+ * nothing to take back, a match that is no longer on, a death or an undo whose answer was lost. The team is taken as a
+ * read takes it (`trackRoster`): a step of the roster's queue that waits keeps its draft, and during a match none leaves (R8).
  * @param {Saving} saving
  * @returns {Promise<boolean>} whether a read was taken: none when it failed, or the visit or a later read has it
  */
@@ -287,7 +287,7 @@ async function reloadFree(saving) {
 }
 
 /**
- * The team a death was answered with, and the fallen to draw with it (marks.mjs, K5): the queue's and the list's at
+ * The team a death or its undo was answered with, and the fallen to draw (marks.mjs, K5): the queue's and the list's at
  * once (`takeAnswerTeam`), whatever became of the visit (K8); drawn while it is here. A team the queue does not take —
  * older than what it holds, or met by a step that waits — is not drawn: the roster is read again (`reloadFree`).
  * @param {Saving} saving @param {{team: object, fallen: object[]}} answer

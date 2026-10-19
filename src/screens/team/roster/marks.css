@@ -214,3 +214,27 @@
   text-transform: none;
   overflow-wrap: anywhere;
 }
+
+/* The sheet that undoes a death (PlayerDeadConfirm): who comes back and to what, then what a preparation resets. */
+.g-fallen__undotext {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 400 15px/1.5 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-fallen__undoprep {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}

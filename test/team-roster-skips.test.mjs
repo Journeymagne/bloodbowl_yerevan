@@ -1,100 +1,20 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
-import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
-import { mountView, withWindow } from "./helpers/ref-screen.mjs";
+import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
-import { expandCollections } from "../src/data/reference.mjs";
+import {
+  FALLEN, JOE, LIVE_GAME, PIKE, PLAYERS, READING, STYLES, api, aside, bodyOf, callKeys, coach, died, formatDay, headingText, invalidateGames, loadGames,
+  namesIn, nextLine, openRow, page, releaseCurrentScreen, renderTeamRoster, save, settle, state, subOf, tables, team, teamPlayerUrl, text, toggle, view,
+  withPlayers, words,
+} from "./helpers/roster-page.mjs";
 
 // Stage 07b, Task 6: the roster's sections «Missing the match» and «Fallen», a fallen player's row and his profile in the
-// desk panel. The page is set up as test/team-roster.test.mjs sets it up (lines 1–80): the window's events, the fake API
-// before the imports, the view.
-
-const page = new EventTarget();
-for (const name of ["addEventListener", "removeEventListener", "dispatchEvent"]) globalThis[name] = page[name].bind(page);
-
-const api = installFakeApi();
-mountView();
-globalThis.location = { hash: "#/t/t1/roster", replace() {} };
-const { renderTeamRoster } = await import("../src/screens/team/roster/index.mjs");
-const { rosterMemory } = await import("../src/screens/team/roster/memory.mjs");
-const save = await import("../src/screens/team/roster/save.mjs");
-const { rememberSessionToken } = await import("../src/core/api-client.mjs");
-const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
-const { teamPlayerUrl } = await import("../src/core/routes.mjs");
-const { formatDay } = await import("../src/core/format.mjs");
-const { state } = await import("../src/core/state.mjs");
-const { view } = await import("../src/core/view.mjs");
-const { invalidateGames, loadGames } = await import("../src/data/games.mjs");
-
-const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-const data = expandCollections(JSON.parse(text("public/data.en.json")));
-const settle = async (turns = 6) => { for (let turn = 0; turn < turns; turn += 1) await new Promise((resolve) => { setImmediate(resolve); }); };
-
-// Human's rows: 0 Lineman, 1 Thrower, 2 Catcher, 3 Blitzer, 5 Ogre. Three play the next match, four miss it, each for his reason.
-const PLAYERS = [
-  { id: "p1", rowIndex: 0, number: "1", name: "Ann" },
-  { id: "p2", rowIndex: 3, number: "2", name: "Bors", isCaptain: true },
-  { id: "p3", rowIndex: 2, number: "3", name: "Cade" },
-  { id: "p4", rowIndex: 0, number: "4", name: "Dell", skipNextGame: true, absence: { code: "lasting", stat: "ma" }, statMods: { ma: -1 } },
-  { id: "p5", rowIndex: 1, number: "5", name: "Edda", skipNextGame: true },
-  { id: "p6", rowIndex: 0, number: "6", name: "Finn", skipNextGame: true, temporarilyRetired: true },
-  { id: "p7", rowIndex: 5, number: "7", name: "Grom", skipNextGame: true, absence: { code: "other", note: "Suspended" } },
-];
-const team = (over = {}) => ({ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", revision: 4, roster: { players: PLAYERS }, ...over });
-const withPlayers = (players, over = {}) => team({ roster: { players }, ...over });
-
-/** A record as GET /api/teams/:id/fallen sends it. */
-const died = (id, player, over = {}) => ({ id, player, cause: null, pairingId: null, roundNumber: null, diedAt: "2026-10-18T10:00:00Z", fromMatch: false, ...over });
-// A Blitzer a coach marked dead by hand, with a cause; a Lineman the post-match of round 2 recorded, with none.
-const PIKE = died("f1", { id: "d1", rowIndex: 3, number: "8", name: "Pike", spp: { touchdowns: 2 } }, { cause: "Foul by the Raiders" });
-const JOE = died("f2", { id: "d2", rowIndex: 0, number: "9", name: "Joe" }, { pairingId: "g7", roundNumber: 2, diedAt: "2026-10-12T10:00:00Z", fromMatch: true });
-const FALLEN = [PIKE, JOE];
-
-/** A coach on a page that has read his teams and the reference; the server answers the roster, its events, its fallen and the games. */
-function coach({ teamAnswer = team(), fallen = FALLEN } = {}) {
-  api.reset();
-  api.items.set("gata-league-auth-token", "tok");
-  rememberSessionToken("tok");
-  releaseCurrentScreen();
-  view.innerHTML = "";
-  if (save.saveState("t1").status !== "idle") save.takeServerTeam(team());
-  for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
-  Object.assign(rosterMemory("t1"), { sort: null, selected: null, outside: null });
-  state.auth.currentUser = { id: "u1", login: "coach", preferences: { activeTeamId: "t1" } };
-  state.myTeams = { items: [team()], loaded: true, loading: false, error: "" };
-  state.activeTeamId = "t1";
-  state.data = data;
-  state.games = { items: [], currentItems: [], loaded: true, loading: false, error: "" };
-  api.reply("GET /api/teams/t1", 200, { team: teamAnswer });
-  api.reply("GET /api/teams/t1/events", 200, { events: [], revision: teamAnswer.revision });
-  api.reply("GET /api/teams/t1/fallen", 200, { fallen });
-  api.reply("GET /api/games", 200, { games: [], currentGames: [] });
-}
-
-const callKeys = () => api.calls.map(({ key }) => key);
-const headingText = (id) => view.querySelector(`#${id}`)?.textContent ?? null;
-const tables = () => view.querySelectorAll("table.g-rtable");
-const namesIn = (root) => root.querySelectorAll("tbody.g-rtable__player").map((body) => body.querySelector(".g-rtable__name").textContent);
-const bodyOf = (key) => view.querySelectorAll("tbody.g-rtable__player").find((body) => body.getAttribute("data-key") === key);
-const toggle = (key) => view.querySelector(`[data-row-key="${key}"]`);
-const subOf = (key) => bodyOf(key).querySelector(".g-rtable__sub");
-const aside = () => view.querySelector(".g-roster__aside");
-const openRow = () => view.querySelector(".g-rtable__panelrow");
-const nextLine = () => aside().querySelector(".g-roster__next").textContent;
-const words = (root) => root.querySelectorAll("p, span, h2, h3, a, small, dd, dt").map((node) => node.textContent);
-const READING = "Reading the records…";
-const LIVE_GAME = {
-  id: "g2", kind: "league", roundStatus: "started", roundNumber: 3, season: { currentRound: 3 }, resultStatus: "pending", preparationStatus: "in_progress",
-  postMatchStatus: "draft", updatedAt: "2026-10-10T10:00:00Z", home: { user: { id: "u1" }, team: { id: "t1" } }, away: { user: { id: "u9" }, team: { id: "r1" } },
-};
-const STYLES = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
-  "stat-strip.css", "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
-  "src/screens/team/manage/strip.css"];
+// desk panel. The page, the coach and his team are helpers/roster-page.mjs's, which test/team-roster-fallen-undo.test.mjs
+// stands on too.
 
 test("the roster in three: those who play, those who miss the next match with why, and the fallen; the counts are the roster's", async () => {
   coach();

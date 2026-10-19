@@ -4,8 +4,9 @@
  * one after an injury whose answer was lost), a counter's − or + (a refused one too), «Load the new one» after
  * another device's save, the switch «Edit outside the match», a way to the player's page that a match has closed
  * (or «Injury in the match…» closed with its taps), and the injury's button, its cards, its characteristics and its
- * two buttons; «Miss a match…», its sheet's reasons, characteristic, words and button, and «Back on the roster»
- * (stage 07b). What each one does is the screen's (index.mjs, injury.mjs, marks.mjs); this file only says who was pressed.
+ * two buttons; «Miss a match…», its sheet's reasons, characteristic, words and button, «Back on the roster», and a
+ * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b). What each one does is
+ * the screen's (index.mjs, injury.mjs, marks.mjs); this file only says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
@@ -41,14 +42,20 @@ function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep }) {
   ];
 }
 
-/** The marks' presses (stage 07b): «Miss a match…» and «Back on the roster» (not when closed), the sheet's characteristic, words and button. */
-function wireMarks(root, { onMark, onMarkChoice, onMarkText, onMarkSend, onReturn }) {
+/**
+ * The marks' presses (stage 07b): «Miss a match…», «Back on the roster» and «Undo the mark» (not when closed), the mark's
+ * sheet's characteristic, words and button, and the undo's sheet's two buttons.
+ */
+function wireMarks(root, { onMark, onMarkChoice, onMarkText, onMarkSend, onReturn, onUndo, onUndoKeep, onUndoSend }) {
   return [
     onPlayerButton(root, "data-roster-mark", onMark),
     onPlayerButton(root, "data-roster-return", onReturn),
+    onPlayerButton(root, "data-roster-undo", onUndo),
     wireFilterChips(root, (stat) => onMarkChoice({ stat }), { group: MARK_STAT }),
     delegate(root, "input", `#${MARK_TEXT}`, (event, field) => onMarkText(field.value)),
     delegate(root, "click", "[data-mark-send]", () => onMarkSend()),
+    delegate(root, "click", "[data-undo-keep]", () => onUndoKeep()),
+    delegate(root, "click", "[data-undo-send]", () => onUndoSend()),
   ];
 }
 
@@ -81,6 +88,9 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice }) {
  * @param {(text: string) => void} handlers.onMarkText another reason's words, as typed
  * @param {() => void} handlers.onMarkSend «Mark the missed match»
  * @param {(key: string) => void} handlers.onReturn «Back on the roster», by the line's key (not when it is closed)
+ * @param {(key: string, button: Element) => void} handlers.onUndo «Undo the mark», by the fallen line's key (not when it is closed)
+ * @param {() => void} handlers.onUndoKeep «Keep» in the undo's sheet
+ * @param {() => void} handlers.onUndoSend «Back on the roster» in the undo's sheet
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
