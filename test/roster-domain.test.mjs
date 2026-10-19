@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { describeCase, stableJson } from "./helpers/roster-cases.mjs";
 import { calculateRosterCosts, playerCurrentCost, skillModCost, statModCost } from "../src/domain/roster/costs.mjs";
-import { ensureDraftPlayers, positionKind, selectedRosterPlayers } from "../src/domain/roster/players.mjs";
+import { ensureDraftPlayers, positionKind, selectedRosterPlayers, skillNamesForPlayer, skillsForPlayer } from "../src/domain/roster/players.mjs";
 import { playerAvailableSpp, playerSppTotal, playerLevelRank } from "../src/domain/roster/progression.mjs";
 import { teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
 import { costToNumber, countToNumber, rosterMax, rowCost } from "../src/domain/roster/values.mjs";
@@ -397,6 +397,22 @@ test("two players under one id are refused once per id; players without an id ne
   assert.deepEqual(playerViolations(named), [twice("a", "Bo, Al, #4"), twice("b", "#2, Cy")]);
   assert.deepEqual(playerViolations(players(undefined, undefined, "", "", null, null, 0, 0)), [], "no id is nobody's: the roster gives each his own");
   assert.deepEqual(playerViolations(players(5, "5")), [twice("5", "#1, #2")], "stored, both are \"5\"");
+});
+
+test("skillsForPlayer is what skillNamesForPlayer names, with where each came from", () => {
+  const catcher = { skills: ["Catch", "Dodge"] };
+  const player = {
+    extraSkills: [{ name: "Frenzy", access: "primary" }, { name: "Dodge", access: "secondary" }, { name: "Block", access: "secondary" }],
+    favouredSkills: [{ name: "Block" }, { name: "Tackle" }, "Wrestle"], isCaptain: true,
+  };
+  assert.deepEqual(skillsForPlayer(catcher, player), [
+    { name: "Catch", access: "base" }, { name: "Dodge", access: "base" }, { name: "Frenzy", access: "primary" }, { name: "Block", access: "secondary" },
+    { name: "Tackle", access: "favoured" }, { name: "Wrestle", access: "favoured" }, { name: "Pro", access: "captain" },
+  ], "a skill he starts with is not an advancement's, and each name is listed once");
+  assert.deepEqual(skillNamesForPlayer(catcher, player), skillsForPlayer(catcher, player).map(({ name }) => name));
+  assert.deepEqual(skillsForPlayer(catcher, { extraSkills: [{ name: "Pro", access: "primary" }], isCaptain: true }).map(({ name, access }) => [name, access]),
+    [["Catch", "base"], ["Dodge", "base"], ["Pro", "primary"]], "the captain's Pro, once, as the one he took");
+  assert.deepEqual(skillsForPlayer({}, {}), []);
 });
 
 test("a position's kind is read from its tags: a big guy, a thrower, a catcher, a blitzer, else a lineman's", () => {

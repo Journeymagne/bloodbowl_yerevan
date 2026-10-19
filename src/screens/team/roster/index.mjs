@@ -148,7 +148,7 @@ const outsideOf = (memory, mode) => mode.kind === "match" && memory.outside === 
 function linesOf(visit, mode) {
   const race = visit.team ? raceTeamOf(visit.team.baseTeamSlug) : null;
   const draft = normalizeDraft(visit.draft ?? visit.team?.roster ?? {});
-  const lines = race ? rosterLines({ draft, race, events: [...visit.events, ...visit.pending], mode }) : [];
+  const lines = race ? rosterLines({ draft, race, events: [...visit.events, ...visit.pending], mode, skillGroups: state.data?.skillGroups ?? null }) : [];
   return { race, draft, lines, fallen: fallenLines({ fallen: visit.fallen, race, rosterIds: lines.map(({ id }) => id) }) };
 }
 

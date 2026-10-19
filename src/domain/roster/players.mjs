@@ -227,20 +227,29 @@ export function favouredSkillNames(row, player) {
 /** The skill the captaincy brings, held for as long as the player is captain. */
 export const CAPTAINS_SKILL = "Pro";
 
-export function skillNamesForPlayer(row, player) {
+/**
+ * The skills a player holds, in the order he came by them — his position's, the advancements', the favoured, the captain's
+ * Pro — each once, with where it came from: `base` for the position's, `primary` or `secondary` for the access an advancement
+ * took it at, `favoured`, `captain`. A name a source lists after an earlier one is the earlier source's.
+ *
+ * @returns {{name: string, access: "base"|"primary"|"secondary"|"favoured"|"captain"}[]}
+ */
+export function skillsForPlayer(row, player) {
   const seen = new Set();
   return [
     ...baseSkillsForPlayer(row),
     ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
     ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
     ...(player.isCaptain ? [{ name: CAPTAINS_SKILL, access: "captain" }] : []),
-  ]
-    .map((skill) => skill.name)
-    .filter((name) => {
-      if (!name || seen.has(name)) return false;
-      seen.add(name);
-      return true;
-    });
+  ].filter(({ name }) => {
+    if (!name || seen.has(name)) return false;
+    seen.add(name);
+    return true;
+  });
+}
+
+export function skillNamesForPlayer(row, player) {
+  return skillsForPlayer(row, player).map(({ name }) => name);
 }
 
 /**
