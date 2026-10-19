@@ -12,10 +12,10 @@
  * does not have. A team is never taken on games older than it: the games are read with it, and the counters stay
  * closed until they have answered.
  *
- * During a match a step is a row the server adds (taps.mjs): a record of the match, or with «Edit outside the match»
- * an edit of the career that waits for the match's finish (Task 11). It is drawn at once as a row on its way, and its
- * answer puts the written row in its place; a failure is said once and, where the server may hold what the screen
- * does not, the records are read again — never the tap sent again.
+ * During a match a step is a row the server adds (match-taps.mjs, taps.mjs): a record of the match, or with «Edit
+ * outside the match» an edit of the career that waits for the match's finish (Task 11). The counters wait while the
+ * records are read: in a match, and after one ends, what they hold is not known until the read answers. A match that
+ * ends while the screen is open, as the games say it, reads the roster and the records again.
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
@@ -34,8 +34,8 @@ import { readRoster } from "./data.mjs";
 import { rosterMemory, sessionSppOf } from "./memory.mjs";
 import { nextSort, rosterLines, rosterMode, sortLines, stepRule } from "./model.mjs";
 import { onSaveState, retrySaves, saveState, stepSpp, takeServerTeam, trackRoster } from "./save.mjs";
+import { recordsOf, sendRow, withHeard } from "./match-taps.mjs";
 import { SKILL_SHEET } from "./sheets.mjs";
-import { sendTap } from "./taps.mjs";
 import { rosterMarkup } from "./view.mjs";
 import { wireRoster } from "./wire.mjs";
 
@@ -74,6 +74,9 @@ function listen(target, type, listener) {
  * @property {string} sideLocked the server's words for `EVENT_SIDE_LOCKED`, which close the match's own taps until the records are read again
  * @property {boolean} failed a tap of the taps on their way has failed: its words are said, and those of the taps dropped behind it are not
  * @property {boolean} reread the records are read again once the taps on their way have answered
+ * @property {string|null} match the game id of the match on as the games last said it, null for none
+ * @property {boolean} stale the roster drawn was read during a match that is no longer on: no counter takes a step
+ *   while the read that replaces it is in the air
  * @property {object|null} sheet the sheet that is open
  * @property {Element|null} opener the chip that opened it
  * @property {number} reads the number of the last read sent
@@ -89,12 +92,23 @@ const modeOf = (teamId) => rosterMode(state.games.loaded ? state.games.items ?? 
 /** The games are read and say what they say: until then a step might go into a match (plan 07a, decision 18). */
 const gamesKnown = () => state.games.loaded && !state.games.loading && !state.games.error;
 
-/** Why no counter takes a step just now: the games unread or unreadable, or another device's save to settle; "" when none. */
-function lockOf(save) {
+/** A read of the visit is in the air. */
+const reading = (visit) => visit.answered !== visit.reads;
+
+/**
+ * Why no counter takes a step just now, "" when none: the games unread or unreadable; the records read during a match
+ * or after one ended (fix round 1: a read may land with a tap already in it, and a roster read during the match is no
+ * roster to save); another device's save to settle.
+ */
+function lockOf(save, visit, mode) {
   if (!state.games.loaded || state.games.loading) return t("teamRoster.gamesLoading");
   if (state.games.error) return state.games.error;
+  if (reading(visit) && (mode.kind === "match" || visit.stale)) return t("teamRoster.readingRecords");
   return save.status === SAVE_STATUS.CONFLICT ? t("teamRoster.conflict.title") : "";
 }
+
+/** «Edit outside the match» is on for the match on: the switch is the team's and that match's (R13). */
+const outsideOf = (memory, mode) => mode.kind === "match" && memory.outside === mode.game.id;
 
 /**
  * The race of the visit's team, and its lines in the roster's own order for `mode`: what the queue's draft, the
@@ -106,20 +120,17 @@ function linesOf(visit, mode) {
   return { race, lines: race ? rosterLines({ draft, race, events: [...visit.events, ...visit.pending], mode }) : [] };
 }
 
-/** The rows of the match on that the team has, as last read and written: what its banner counts (decision 13). */
-const recordsOf = (visit, mode) => (mode.kind === "match" ? visit.events.filter((event) => !event.settledAt && event.pairingId === mode.game.id).length : 0);
-
 /** @returns {import("./view.mjs").RosterScreen} */
 function screenOf(teamId, visit, memory) {
   const mode = modeOf(teamId);
   const { race, lines: own } = linesOf(visit, mode);
-  const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line) }));
+  const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line), sessionOutside: sessionSppOf(memory, line, { outside: true }) }));
   // A sheet whose player has left the roster (read again) closes with him.
   if (visit.sheet && !lines.some((line) => line.key === visit.sheet.key)) Object.assign(visit, { sheet: null, opener: null });
   const save = saveState(teamId);
   return {
     team: visit.team, race, data: state.data, lines, mode, memory, sheet: visit.sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
-    save, lock: lockOf(save), sideLocked: visit.sideLocked, records: recordsOf(visit, mode),
+    save, lock: lockOf(save, visit, mode), outside: outsideOf(memory, mode), sideLocked: visit.sideLocked, records: recordsOf(visit, mode),
   };
 }
 
@@ -165,18 +176,42 @@ const busy = (status) => status === SAVE_STATUS.SAVING || status === SAVE_STATUS
  */
 function holdTeam(saving, { team, events }, draft, since) {
   const { visit } = saving;
-  const later = visit.heard.slice(since).filter((row) => !events.some((event) => event.id === row.id));
-  Object.assign(visit, { team, events: [...events, ...later], draft, sideLocked: "" });
+  Object.assign(visit, { team, events: withHeard(visit, events, since), draft, sideLocked: "", stale: false });
   visit.saveOff?.();
   visit.saveOff = onSaveState(team.id, (now) => heardSave(saving, now));
 }
 
 /**
+ * The one read of the team and its records with the games (Carry T10) that every taking of a team goes through: a
+ * team is never taken on games older than it. The answer is taken only when it is the visit's last read and no tap is
+ * on its way: a read that lands while one is in the air may already hold its row, and the counters stay closed until
+ * the tap has answered and the read is made again (match-taps.mjs). A read that fails says why, and opens them.
+ * @param {Saving} saving
+ * @returns {Promise<{answer: {team: object, events: object[]}, since: number}|null>} null when there is nothing to take
+ */
+async function readWithGames(saving) {
+  const { teamId, visit, draw } = saving;
+  const ticket = ++visit.reads;
+  const since = visit.heard.length;
+  const [answer] = await Promise.all([readRoster(teamId), loadGames(true)]);
+  if (!visit.here || ticket !== visit.reads) return null;
+  if (visit.pending.length) {
+    visit.reread = true;
+    return null;
+  }
+  visit.answered = ticket;
+  if (!answer.error) return { answer, since };
+  toast(answer.error, { tone: "error" });
+  draw();
+  return null;
+}
+
+/**
  * Read the team and its records again and take the server's roster in place of the coach's: after another device's
- * save, a refused one, or steps a match has made impossible. The games are read with it, and the team is taken once
- * both have answered: a 409 is often how a coach learns that a match has begun, and a team read after its start,
- * drawn on the games from before it, would let the next tap save the roster during the match (R8). Not while a
- * request is in the air (`takeServerTeam` says null): the state the queue comes to next asks again (Carry T7 d).
+ * save, a refused one, or steps a match has made impossible (`readWithGames`: a 409 is often how a coach learns that a
+ * match has begun, and a team read after its start, drawn on the games from before it, would let the next tap save
+ * the roster during the match, R8). Not while a request is in the air (`takeServerTeam` says null): the state the
+ * queue comes to next asks again (Carry T7 d).
  *
  * In a match the coach is told how many SPP steps of his the server does not have (a step whose answer was lost
  * may have landed: it is not one of them). After another device's save his SPP are counted afresh; after a
@@ -185,100 +220,68 @@ function holdTeam(saving, { team, events }, draft, since) {
  */
 async function reloadRoster(saving) {
   const { teamId, visit, memory, draw } = saving;
-  const ticket = ++visit.reads;
-  const since = visit.heard.length;
-  const [answer] = await Promise.all([readRoster(teamId), loadGames(true)]);
-  if (!visit.here || ticket !== visit.reads) return;
-  visit.answered = ticket;
-  if (answer.error) {
-    toast(answer.error, { tone: "error" });
-    return;
-  }
+  const read = await readWithGames(saving);
+  if (!read) return;
+  const { answer, since } = read;
   const lost = sppEdits(answer.team.roster, visit.draft).length;
   const conflict = saveState(teamId).status === SAVE_STATUS.CONFLICT;
   const draft = takeServerTeam(answer.team);
   visit.retake = !draft;
-  if (!draft) return;
-  if (conflict) memory.baseline.clear();
-  holdTeam(saving, answer, draft, since);
+  if (draft) {
+    if (conflict) memory.baseline.clear();
+    holdTeam(saving, answer, draft, since);
+  }
   draw();
-  if (lost && modeOf(teamId).kind === "match") toast(t("teamRoster.matchDropped", { count: lost }), { tone: "error" });
+  if (draft && lost && modeOf(teamId).kind === "match") toast(t("teamRoster.matchDropped", { count: lost }), { tone: "error" });
 }
 
 /**
- * The team and its records read again, the games with them (Carry T10): after a tap whose fate is not known, a minus
- * that found nothing to take back, a match the server says is not on. The team is taken as a read takes it
- * (`trackRoster`): a step of the roster's queue that waits keeps its draft, and during a match none leaves (R8). A
- * read that fails says why and leaves the screen as it was.
+ * The team and its records read again (`readWithGames`) after a tap whose fate is not known, a minus that found
+ * nothing to take back, a match that is no longer on. The team is taken as a read takes it (`trackRoster`): a step
+ * of the roster's queue that waits keeps its draft, and during a match none leaves (R8).
  * @param {Saving} saving
  */
 async function readAgain(saving) {
-  const { teamId, visit } = saving;
-  const ticket = ++visit.reads;
-  const since = visit.heard.length;
-  const [answer] = await Promise.all([readRoster(teamId), loadGames(true)]);
-  if (!visit.here || ticket !== visit.reads) return;
-  visit.answered = ticket;
-  if (answer.error) {
-    toast(answer.error, { tone: "error" });
-    return;
-  }
-  holdTeam(saving, answer, trackRoster(answer.team), since);
+  const read = await readWithGames(saving);
+  if (!read) return;
+  holdTeam(saving, read.answer, trackRoster(read.answer.team), read.since);
   saving.draw();
   settleWaiting(saving, { retry: false });
 }
 
-/** The refusals after which the server holds what the screen does not: the records are read again. */
-const READ_AGAIN = new Set(["MATCH_NOT_LIVE", "EVENT_BELOW_ZERO"]);
-
 /**
- * A tap answered. Its row on the way is out whatever the answer (R10), and a written one joins the records. A failure
- * is the first of its taps on the way — those behind it were dropped unsent (taps.mjs) — and the only one said; once
- * they have all answered, the records are read again if the server may hold what the screen does not: an answer that
- * was lost, a minus with nothing to take back, a match that is not on (which the games read with them end). A side
- * whose Players step is saved closes the match's own taps until the records are read again (Review Focus 2).
+ * The games say another match than the one on when they were last heard, or none any more: the match ended
+ * elsewhere (its finish wrote the roster and settled the records) or another began (Carry T10). The roster and the
+ * records are read again with the games, and no counter takes a step until they answer (`stale`). A read already in
+ * the air answers for it — most often it is that read's own games that say so (`MATCH_NOT_LIVE`); one sent before
+ * the finish would leave a save to meet the server's 409, not to overwrite it.
  * @param {Saving} saving
  */
-function heardTap(saving, step, answer) {
-  const { visit } = saving;
-  const at = visit.pending.indexOf(step);
-  if (at >= 0) visit.pending.splice(at, 1);
-  if (!visit.here) return;
-  if (answer.event) {
-    if (!visit.events.some((event) => event.id === answer.event.id)) visit.events.push(answer.event);
-    visit.heard.push(answer.event);
-  } else if (!visit.failed) {
-    visit.failed = true;
-    toast(answer.refusal, { tone: "error" });
-    if (answer.code === "EVENT_SIDE_LOCKED") visit.sideLocked = answer.refusal;
-    else if (answer.lost || READ_AGAIN.has(answer.code)) visit.reread = true;
-  }
-  if (!visit.pending.length) {
-    visit.failed = false;
-    if (visit.reread) void readAgain(saving);
-    visit.reread = false;
-  }
-  saving.draw();
+function followMatch(saving) {
+  const { teamId, visit } = saving;
+  const mode = modeOf(teamId);
+  const now = mode.kind === "match" ? mode.game.id : null;
+  const was = visit.match;
+  visit.match = now;
+  if (!was || was === now) return;
+  visit.stale = true;
+  if (!reading(visit)) void readAgain(saving);
 }
 
 /**
- * Where a step goes (`stepRule`): outside a match it is a save of the roster (Task 10); in a match a record of it, or
- * with «Edit outside the match» an edit of the career — both rows, never a save of the roster (R8). A row is drawn at
- * once, on its way, and goes after the taps before it (taps.mjs).
+ * Where a step goes (`stepRule`): outside a match it is a save of the roster (Task 10); in a match a row, a record of
+ * it or with «Edit outside the match» an edit of the career, never a save of the roster (R8; match-taps.mjs).
  * @param {Saving} saving
  */
 function takeStep(saving, line, counter, delta, mode) {
-  const { teamId, visit, memory } = saving;
-  const { via } = stepRule(line, counter, { mode, outside: memory.outside });
-  if (via === "roster") {
-    const { refusal } = stepSpp(teamId, line.id, counter, delta);
-    if (refusal) toast(refusal, { tone: "error" });
+  const { teamId, memory } = saving;
+  const { via } = stepRule(line, counter, { mode, outside: outsideOf(memory, mode) });
+  if (via !== "roster") {
+    sendRow({ ...saving, readAgain: () => void readAgain(saving) }, { pairingId: via === "match" ? mode.game.id : null, playerId: line.id, counter, delta });
     return;
   }
-  const step = { pairingId: via === "match" ? mode.game.id : null, playerId: line.id, counter, delta };
-  visit.pending.push(step);
-  saving.draw();
-  void sendTap(teamId, step).then((answer) => heardTap(saving, step, answer));
+  const { refusal } = stepSpp(teamId, line.id, counter, delta);
+  if (refusal) toast(refusal, { tone: "error" });
 }
 
 /**
@@ -362,17 +365,18 @@ function pressHandlers({ read, ...saving }) {
     },
     // The lock is asked again: the games may have begun to be read since the counter was drawn.
     onStep: (playerId, counter, delta) => {
-      const lock = lockOf(saveState(teamId));
       const mode = modeOf(teamId);
+      const lock = lockOf(saveState(teamId), visit, mode);
       const line = linesOf(visit, mode).lines.find((item) => item.id && item.id === playerId);
       if (lock) toast(lock);
       else if (line) takeStep(saving, line, counter, delta, mode);
     },
     onRefused: (reason) => toast(reason),
     onReload: () => void reloadRoster(saving),
-    // Kept for the team while the page lives (memory.mjs): a visit elsewhere and back finds it as it was.
+    // Kept for the team and the match on while the page lives (memory.mjs, R13): a visit elsewhere and back finds it as it was.
     onOutside: (on) => {
-      memory.outside = on;
+      const mode = modeOf(teamId);
+      memory.outside = on && mode.kind === "match" ? mode.game.id : null;
       draw();
     },
   };
@@ -413,6 +417,7 @@ export async function renderTeamRoster(teamId) {
   const visit = {
     here: true, drawn: false, loading: true, error: "", team: null, draft: null, events: [], sheet: null, opener: null,
     reads: 0, answered: 0, status: "", retake: false, saveOff: null, pending: [], heard: [], sideLocked: "", failed: false, reread: false,
+    match: null, stale: false,
   };
   const saving = { teamId, visit, memory, draw: () => drawVisit(teamId, visit, memory) };
   const read = async () => {
@@ -434,6 +439,7 @@ export async function renderTeamRoster(teamId) {
     () => visit.saveOff?.(),
     wireRoster(view, pressHandlers({ ...saving, read })),
     onGamesChange(() => {
+      followMatch(saving);
       saving.draw();
       settleWaiting(saving, { retry: false });
     }),

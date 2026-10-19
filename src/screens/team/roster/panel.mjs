@@ -37,7 +37,7 @@ export function matchWords(mode) {
 }
 
 /** A step is a record of the match on: the match is on and the switch does not make it an edit outside it. */
-const tapsTheMatch = (screen) => screen.mode.kind === "match" && !screen.memory.outside;
+const tapsTheMatch = (screen) => screen.mode.kind === "match" && !screen.outside;
 
 /**
  * A way to the player's page that a match has closed: a button that says why (`teamRoster.afterPost`) as its
@@ -88,7 +88,7 @@ function closedReason(line, rule, screen) {
  * plus where it is refused; the whole counter where it is closed.
  */
 function stepsOf(line, key, screen) {
-  const rule = stepRule(line, key, { mode: screen.mode, outside: screen.memory.outside });
+  const rule = stepRule(line, key, { mode: screen.mode, outside: screen.outside });
   return { decDisabled: rule.decDisabled, incBlockedReason: plusRefusal(line, key, rule), lockedReason: closedReason(line, rule, screen) };
 }
 
@@ -117,9 +117,12 @@ function sumMarkup(sum, words) {
   return `<span class="${classNames("g-roster__sppdelta", !sum && "g-roster__sppdelta--none")}">${escapeHtml(sum ? words : t("teamRoster.noChanges"))}</span>`;
 }
 
-/** What the coach's edits have moved his SPP since the screen opened: «+3 SPP», or none yet. */
-function sessionMarkup(line) {
-  const moved = line.sessionSpp;
+/**
+ * What the coach's edits have moved his SPP since the screen opened: «+3 SPP», or none yet. With «Edit outside the
+ * match» on, the edits outside it alone: a record of the match made on this visit is none (fix round 1, Minor 4).
+ */
+function sessionMarkup(line, screen) {
+  const moved = screen.outside ? line.sessionOutside : line.sessionSpp;
   return sumMarkup(moved, t("teamRoster.sppDelta", { delta: `${moved > 0 ? "+" : "−"}${Math.abs(moved)}` }));
 }
 
@@ -140,7 +143,7 @@ export function rowPanelMarkup(line, screen) {
   const profile = closed ? closedMarkup({ className: "g-btn g-btn--dark g-btn--block", label }) : href ? renderButton({ label, kind: "dark", block: true, href }) : "";
   const [context, sum] = tapsTheMatch(screen)
     ? [t("teamRoster.sppLineMatch", { spp: line.earned, match: matchWords(screen.mode) }), sumMarkup(matchSppOf(line), t("teamRoster.sppDelta", { delta: `+${matchSppOf(line)}` }))]
-    : [t("teamRoster.sppLine", { spp: line.earned }), sessionMarkup(line)];
+    : [t("teamRoster.sppLine", { spp: line.earned }), sessionMarkup(line, screen)];
   const spp = `<div class="g-roster__sppline"><span class="g-roster__sppctx">${escapeHtml(context)}</span>${sum}</div>`;
   return `<div class="g-roster__rowpanel">${spp}${countersMarkup(line, screen)}${profile}</div>`;
 }
@@ -170,7 +173,7 @@ function statsMarkup(line) {
 function manualMarkup(line, screen) {
   const records = tapsTheMatch(screen);
   const title = records ? t("teamRoster.records", { match: matchWords(screen.mode) }) : t("teamRoster.manual");
-  const sum = records ? sumMarkup(matchSppOf(line), t("teamRoster.matchSpp", { spp: matchSppOf(line) })) : sessionMarkup(line);
+  const sum = records ? sumMarkup(matchSppOf(line), t("teamRoster.matchSpp", { spp: matchSppOf(line) })) : sessionMarkup(line, screen);
   const note = records ? `<p class="g-roster__matchnote">${escapeHtml(t("teamRoster.matchNote"))}</p>` : "";
   return `<section class="g-roster__manual"><div class="g-roster__sppline"><h3 class="g-roster__manualtitle">${escapeHtml(title)}</h3>`
     + `${sum}</div>${countersMarkup(line, screen, { desk: true })}${note}</section>`;

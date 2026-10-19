@@ -300,6 +300,8 @@
   background: var(--disabled);
   opacity: 1;
 }
+/* button.css lights a primary that is not :disabled under the pointer; an aria-disabled one keeps its resting look. */
+.g-btn--primary.g-roster__closed[aria-disabled="true"]:hover { background: var(--disabled); }
 
 /* The SPP: what he may spend, large; what he earned and spent; the advancements; «Advance»; the cheapest one. */
 .g-roster__spp {

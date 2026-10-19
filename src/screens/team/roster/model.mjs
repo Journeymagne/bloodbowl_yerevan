@@ -166,16 +166,19 @@ const keyOf = (id, index) => `${id.replace(/\s+/g, "_")}#${index}`;
  * @property {boolean} ready cheapest !== null && available >= cheapest
  * @property {number} value playerCurrentCost(row, player), in thousands
  * @property {number} matchSpp the SPP of the match's own rows (weights × match)
+ * @property {number} outsideSpp the SPP of the edits outside a match waiting for its finish (weights × (waiting − blob))
  */
 
 /** The part of a line that is the player's counters, each read from the rows that are its own. */
 function countersOf(race, id, spp, rows) {
   const own = { id, spp };
   const match = Object.fromEntries(SPP_EVENT_COUNTERS.map((counter) => [counter, eventTotal(rows.match, id, counter)]));
+  const blob = normalizeSppCounters(spp);
+  const waiting = careerCounters(own, rows.outside);
   // The SPP of the match are the rows' worth; a sum below zero (the server refuses a minus that takes back nothing) is read as none.
   return {
-    blob: normalizeSppCounters(spp), career: careerCounters(own, rows.unsettled), match, waiting: careerCounters(own, rows.outside),
-    matchSpp: playerSppTotal(race, { spp: match }),
+    blob, career: careerCounters(own, rows.unsettled), match, waiting,
+    matchSpp: playerSppTotal(race, { spp: match }), outsideSpp: playerSppTotal(race, { spp: waiting }) - playerSppTotal(race, { spp: blob }),
   };
 }
 

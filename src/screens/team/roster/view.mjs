@@ -41,10 +41,12 @@ const OUTSIDE_NOTE = "roster-outside-note";
  * @property {object|null} team the team as last read: id, name, baseTeamSlug; null before the first answer
  * @property {object|null} race its page in the reference
  * @property {object} data the reference (state.data): the skills' pages
- * @property {(import("./model.mjs").PlayerLine & {sessionSpp: number})[]} lines in the order of `memory.sort`; `sessionSpp`
- *   is what his SPP has moved since the screen opened (`sessionSppOf`)
+ * @property {(import("./model.mjs").PlayerLine & {sessionSpp: number, sessionOutside: number})[]} lines in the order of
+ *   `memory.sort`; `sessionSpp` is what his SPP has moved since the screen opened, `sessionOutside` what the edits
+ *   outside the match alone have moved it (`sessionSppOf`)
  * @property {{kind: "plain"|"prep"|"match", game?: object, round?: number|null}} mode
- * @property {{sort: object|null, selected: string|null, outside: boolean}} memory
+ * @property {{sort: object|null, selected: string|null, outside: string|null}} memory (memory.mjs)
+ * @property {boolean} outside «Edit outside the match» is on for the match on (`memory.outside` is its game id, R13)
  * @property {{status: string, waiting: number, refusal: string}} save where the roster's save queue stands (`saveState`)
  * @property {string} lock why every counter is closed just now: the games unread («Loading the matches…») or unreadable
  *   (the failure), or a conflict the coach has to settle; "" when none
@@ -153,15 +155,15 @@ function prepMarkup({ mode }) {
  * StatsLive and spec §7); its records counted, the switch, and the way to the post-match. The switch's explanation
  * is its description (K9), not a line beside it: the banner's action is the switch and the link.
  */
-function matchMarkup({ mode, memory, records }) {
+function matchMarkup({ mode, outside, records }) {
   const match = matchWords(mode);
-  const toggle = renderToggle({ key: OUTSIDE_TOGGLE, label: t("teamRoster.match.outside"), checked: memory.outside, describedBy: OUTSIDE_NOTE });
+  const toggle = renderToggle({ key: OUTSIDE_TOGGLE, label: t("teamRoster.match.outside"), checked: outside, describedBy: OUTSIDE_NOTE });
   const note = `<span id="${OUTSIDE_NOTE}" hidden>${escapeHtml(t("teamRoster.match.outsideCaption", { match }))}</span>`;
   const actionHtml = `<div class="g-roster__calloutactions">${toggle}${note}${calloutLink(postMatchUrl(mode.game), t("teamRoster.match.postMatch"))}</div>`;
   return renderCallout({
-    tone: memory.outside ? "warn" : "accent",
+    tone: outside ? "warn" : "accent",
     title: t("teamRoster.match.title", { match, count: records }),
-    sub: memory.outside ? t("teamRoster.match.outsideSub") : t("teamRoster.match.sub"),
+    sub: outside ? t("teamRoster.match.outsideSub") : t("teamRoster.match.sub"),
     actionHtml,
   });
 }
