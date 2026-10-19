@@ -542,8 +542,12 @@
     border: 1px solid var(--line-strong);
     border-radius: var(--radius-2xl);
     background: var(--surface);
-    /* A panel taller than the window scrolls in itself: stuck at the top, its foot would be out of reach until the page ended. */
-    max-height: calc(100vh - 2 * var(--space-24));
-    overflow-y: auto;
   }
+
+  /*
+   * The panel shows the whole of itself and the page scrolls (DeskRosterLive.html): no scroll box of its own. Taller
+   * than the window below its top offset, it does not stick — stuck, its foot (the next match, the pair of actions)
+   * would be out of reach until the table ended; aside-fit.mjs gives it this class then.
+   */
+  .g-roster__aside--tall { position: static; }
 }

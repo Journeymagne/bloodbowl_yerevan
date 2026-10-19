@@ -2594,6 +2594,55 @@ test("D2: every compact control a desk's roster draws is 24px or more", () => {
   }
 });
 
+// Fix round 2: the desk panel shows the whole of itself, as DeskRosterLive.html's, and the page scrolls.
+test("the desk panel sticks only while the whole of it fits the window; taller, it goes with the page; it never scrolls in itself", async () => {
+  const { STICKY_TOP, TALL, fitsWindow } = await import("../src/screens/team/roster/aside-fit.mjs");
+  assert.equal(STICKY_TOP, 24, "roster.css's top: var(--space-24)");
+  assert.equal(fitsWindow(876, 900), true, "876 + 24 = the window's 900");
+  assert.equal(fitsWindow(877, 900), false);
+  let height = 600;
+  const sized = () => {
+    aside().getBoundingClientRect = () => ({ top: 0, bottom: height, left: 0, right: 380, width: 380, height });
+  };
+  globalThis.innerHeight = 900;
+  try {
+    coach();
+    await renderTeamRoster("t1");
+    sized();
+    page.dispatchEvent(new Event("resize"));
+    assert.equal(aside().classList.contains(TALL), false, "it fits: it sticks");
+    height = 1200;
+    page.dispatchEvent(new Event("resize"));
+    assert.equal(aside().classList.contains(TALL), true, "taller than the window: it goes with the page");
+    // A draw measures it again, with no resize: the class follows the panel's height, not the markup's.
+    fireEvent(toggle("p2#0"), "click");
+    sized();
+    fireEvent(toggle("p3#0"), "click");
+    assert.ok(!text("src/screens/team/roster/view.mjs").includes("aside--tall"), "the markup never carries it: only the measure does");
+    assert.equal(aside().classList.contains(TALL), true, "re-measured after the draw");
+    height = 500;
+    page.dispatchEvent(new Event("resize"));
+    assert.equal(aside().classList.contains(TALL), false, "it fits again: it sticks again");
+    // Left, the screen measures nothing more.
+    releaseCurrentScreen();
+    height = 1300;
+    page.dispatchEvent(new Event("resize"));
+    assert.equal(aside().classList.contains(TALL), false, "the window's resize is no longer heard");
+  } finally {
+    delete globalThis.innerHeight;
+  }
+  // No scroll box of its own on a desk; sticky unless tall.
+  const sheet = "src/screens/team/roster/roster.css";
+  for (const property of ["overflow", "overflow-y", "max-height"]) {
+    assert.deepEqual(valuesOf(sheet, ".g-roster__aside", property), [], `.g-roster__aside sets no ${property}`);
+    assert.deepEqual(valuesOf("src/screens/team/roster/frame.css", ".g-roster__aside", property), [], `frame.css: no ${property}`);
+  }
+  assert.deepEqual(valuesOf(sheet, ".g-roster__aside", "position"), ["sticky"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__aside", "top"), ["var(--space-24)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__aside--tall", "position"), ["static"]);
+  assert.ok(!/style=/.test(text("src/screens/team/roster/aside-fit.mjs").replace(/\/\*[\s\S]*?\*\//g, "")), "a class, never an inline style");
+});
+
 test("the player's address: a fallen player's profile, else the 2.x editor until stage 07d", () => {
   const router = text("src/core/router.mjs");
   assert.ok(router.includes("teamRoster: ({ teamId }) => renderTeamRoster(teamId),"));
