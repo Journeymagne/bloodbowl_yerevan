@@ -7,9 +7,10 @@
  * Widths live on the <col>s. A fixed table takes its column widths from its
  * first row, and from 901px that row is the over-heads', whose cells span
  * columns and have no width of their own; a width on a cell below it, or a
- * min-width on one, is not read. The player's column has none up to 900px and
- * takes what the characteristics leave; from 901px it is 180px and the table
- * grows past its frame (which scrolls) before it narrows below the sum.
+ * min-width on one, is not read. The player's column has none: it takes what
+ * the numbers leave, on a phone and on a desk alike (DeskRoster.html's
+ * minmax(180px, 1fr)); from 901px the table is never narrower than the numbers
+ * and 180px for him, and grows past its frame (which scrolls) before that.
  */
 .g-rtable {
   box-sizing: border-box;
@@ -68,8 +69,9 @@
   min-width: 0;
 }
 
+/* Stats.html: 16px at 500 on a phone; a desk's name is 600 (below). */
 .g-rtable__name {
-  font: 600 15px/1.2 var(--font-body);
+  font: 500 16px/1.25 var(--font-body);
   overflow-wrap: anywhere;
 }
 
@@ -100,10 +102,15 @@
   white-space: nowrap;
 }
 
+/* The characteristics: 17px on a phone, 15px on a desk (Stats.html, DeskRoster.html), at 500 either way. */
+.g-rtable__c.g-rtable__c--stats { font-size: 17px; font-weight: 500; }
+
 .g-rtable__c--zero { color: var(--muted); }
 .g-rtable__c--up { color: var(--accent-text); font-weight: 700; }
 .g-rtable__c--down { color: var(--danger); font-weight: 700; }
 .g-rtable__c--strong { color: var(--accent-text); font: 700 17px/1 var(--font-body); font-variant-numeric: tabular-nums; }
+/* SPP that buy no advancement yet (fewer than the cheapest, a player who misses the match, the fallen): the same figure, quiet. */
+.g-rtable__c--quiet { color: var(--muted); font: 700 17px/1 var(--font-body); font-variant-numeric: tabular-nums; }
 
 /* What this match added, small and raised, with its words for a screen reader. */
 .g-rtable__delta {
@@ -121,8 +128,8 @@
   border: 0;
   background: transparent;
   color: var(--muted);
-  font: 600 11px/1 var(--font-body);
-  letter-spacing: .06em;
+  font: 600 12px/1 var(--font-body);
+  letter-spacing: .04em;
   text-align: center;
   text-transform: uppercase;
   vertical-align: middle;
@@ -152,8 +159,8 @@ th.g-rtable__h {
   border-radius: var(--radius-sm);
   background: none;
   color: var(--muted);
-  font: 600 11px/1 var(--font-body);
-  letter-spacing: .06em;
+  font: 600 12px/1 var(--font-body);
+  letter-spacing: .04em;
   text-transform: uppercase;
   white-space: nowrap;
   cursor: pointer;
@@ -179,17 +186,28 @@ th.g-rtable__h {
 .g-rtable__h--who .g-sort { width: auto; min-width: var(--size-touch); justify-content: flex-start; }
 .g-rtable__h--who .g-sort__arrow { position: static; margin-left: var(--space-4); }
 
-/* The over-heads: a line over the columns of a group. */
+/* The over-heads: a label over the columns of a group, on a rule under it (over it at the foot). */
 .g-rtable__g {
-  padding: var(--space-8) var(--space-4) var(--space-4);
+  padding: var(--space-12) 0 0;
   border: 0;
   background: transparent;
   color: var(--muted);
-  font: 600 11px/1 var(--font-body);
-  letter-spacing: .06em;
+  font: 700 11px/1 var(--font-body);
+  letter-spacing: .03em;
   text-align: center;
   text-transform: uppercase;
   white-space: nowrap;
+}
+.g-rtable__glabel {
+  display: block;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--line-strong);
+}
+tfoot .g-rtable__g { padding: 0 0 var(--space-12); }
+tfoot .g-rtable__glabel {
+  padding: var(--space-4) 0 0;
+  border-top: 1px solid var(--line-strong);
+  border-bottom: 0;
 }
 
 /* Skills in a row of their own, and the open row's panel: a phone's. */
@@ -216,23 +234,45 @@ th.g-rtable__h {
   .g-rtable__c { border-bottom: 0; }
   .g-rtable__player { border-bottom: 1px solid var(--line); }
   .g-rtable__skillrow > td { padding-left: 46px; }
+  /* The open row on --surface-2, as Stats.html: its plain chips are --surface-2 too and melt into it, as there. */
   .g-rtable__player.is-expanded { background: var(--surface-2); }
-  /* A plain chip is --surface-2 too: on the open row it takes the page's colour, or it would lose its edge. */
-  .g-rtable__player.is-expanded .g-skill:not(.g-skill--gained) { background: var(--surface); }
 }
 
 @media (min-width: 901px) {
+  /* The frame: a card with a ring, its corners 16px (DeskRoster.html). The roster draws its three tables in one (roster.css). */
   .g-rtable-frame {
     overflow-x: auto;
-    border: 1px solid var(--line);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--radius-2xl);
     background: var(--surface);
   }
 
-  .g-rtable__col--who { width: 180px; }
+  /*
+   * The numbers' widths (DeskRoster.html): 32px a characteristic, 36px a count of the career, 44px «Total» and 52px
+   * «Avail.»; a group after the first leads with a 12px gap, and the last column ends 16px short of the edge. The
+   * player takes the rest and never less than 180px: 180 + 160 + 228 + 56 + 68.
+   */
+  .g-rtable { min-width: 692px; }
+  .g-rtable__col--who { width: auto; }
   .g-rtable__col--stats { width: 32px; }
   .g-rtable__col--career { width: 36px; }
-  .g-rtable__col--spp { width: 48px; }
+  .g-rtable__col--career.g-rtable__col--lead { width: 48px; }
+  .g-rtable__col--spp.g-rtable__col--lead { width: 56px; }
+  .g-rtable__col--spp.g-rtable__col--last { width: 68px; }
+
+  .g-rtable__c { padding: var(--space-10) 0; }
+  .g-rtable__c--lead,
+  th.g-rtable__h.g-rtable__c--lead,
+  .g-rtable__foot > .g-rtable__h.g-rtable__c--lead { padding-left: var(--space-12); }
+  .g-rtable__g--lead .g-rtable__glabel { margin-left: var(--space-12); }
+  .g-rtable__g:last-child .g-rtable__glabel { margin-right: var(--space-16); }
+  .g-rtable__c--last,
+  th.g-rtable__h.g-rtable__c--last,
+  .g-rtable__foot > .g-rtable__h.g-rtable__c--last {
+    padding-right: var(--space-16);
+    text-align: right;
+  }
+  .g-rtable__c--last .g-sort { justify-content: flex-end; }
 
   /* The player stays while the numbers scroll under him. */
   .g-rtable__who,
@@ -243,19 +283,85 @@ th.g-rtable__h {
     z-index: 1;
     background: var(--surface);
   }
-  .g-rtable__who { padding-left: var(--space-12); }
-  th.g-rtable__h--who { padding-left: var(--space-12); }
-  .g-rtable__foot > .g-rtable__h--who { padding-left: var(--space-12); }
 
-  /* A line between the groups: the stats, the career, the SPP. */
-  .g-rtable__c--stats + .g-rtable__c--career,
-  .g-rtable__c--stats + .g-rtable__c--spp,
-  .g-rtable__c--career + .g-rtable__c--spp { border-left: 1px solid var(--line); }
+  /*
+   * A row (DeskRoster.html): 10px over and under, the badge at the top beside the name, his position on the
+   * name's line, and his skills under them from the name's edge — 36px of badge and a 12px gap.
+   */
+  .g-rtable__row { height: auto; }
+  .g-rtable__who { padding: var(--space-10) var(--space-12) var(--space-10) var(--space-16); }
+  th.g-rtable__h--who,
+  .g-rtable__foot > .g-rtable__h--who { padding-left: var(--space-16); }
+  .g-rtable__c.g-rtable__c--stats { font-size: 15px; }
+  /* The career's counts at 400, a hair lighter than the characteristics (DeskRoster.html). */
+  .g-rtable__c.g-rtable__c--career { font-weight: 400; }
+  /* «Total» is the quiet one of the two: what he may spend is the figure that matters. */
+  .g-rtable__c--spp.g-rtable__c--lead { color: var(--muted); }
+
+  /*
+   * The button is his name's line; the badge hangs at its left, as tall as it is (36px), so his skills start right
+   * under the name, as DeskRoster.html's do, and not under the badge. The cell is at least the badge and its padding
+   * tall, and its content sits at the top.
+   */
+  .g-rtable__who {
+    height: 56px;
+    vertical-align: top;
+  }
+  .g-rtable__toggle {
+    position: relative;
+    display: block;
+    min-height: 24px;
+    padding-left: 48px;
+  }
+  .g-rtable__toggle > .g-num {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+  .g-rtable__text {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--space-8);
+  }
+  .g-rtable__name { font-weight: 600; }
+
+  .g-rtable__skills { padding: var(--space-4) 0 0 48px; }
+  .g-rtable__skills .g-skills { gap: var(--space-4); }
+  /* D2: a chip as small as DeskRoster.html's, and never under the 24px of WCAG 2.5.8. */
+  .g-rtable__skills .g-skill {
+    min-height: 24px;
+    padding: 0 var(--space-8);
+    border-radius: 6px;
+    font: 500 12px/1.2 var(--font-body);
+  }
+  .g-rtable__skills .g-skill--gained { font-weight: 700; }
+  /* A desk's row says nothing of skills a player does not have (DeskRoster.html); the phone's says «no skills». */
+  .g-rtable__skills:has(> .g-skills-none) { display: none; }
+
+  /* The labels: 40px tall on a desk (D2), over a rule. */
+  .g-sort { min-height: 40px; }
+  .g-rtable__h--who .g-sort { min-width: 0; }
+  th.g-rtable__h { border-bottom-color: var(--line-strong); }
+  .g-rtable__foot > .g-rtable__h {
+    height: 40px;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top: 1px solid var(--line-strong);
+  }
+
+  /* A quiet header row: its labels are for a screen reader, and it takes no height. */
+  .g-rtable__quiet > th {
+    height: 0;
+    padding: 0;
+    border: 0;
+  }
 
   .g-rtable__skillrow,
   .g-rtable__panelrow { display: none; }
 
-  /* --accent-text, as the focus ring in base.css: --accent is 2.9:1 on the dark surfaces, and this outline is what marks the row. */
+  /* The chosen row on the accent's soft tint, and a ring of --accent-text, as the focus ring in base.css: --accent is 2.9:1 on the dark surfaces. */
+  .g-rtable__player.is-selected .g-rtable__row > * { background: var(--accent-tint-soft); }
   .g-rtable__player.is-selected .g-rtable__row {
     outline: 2px solid var(--accent-text);
     outline-offset: -2px;

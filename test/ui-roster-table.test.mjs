@@ -70,7 +70,9 @@ test("a roster table is a table: a head of sortable columns, a body per player, 
   }
   const foot = grid.querySelector('tfoot[aria-hidden="true"]');
   assert.equal(foot.querySelector("button"), null);
-  assert.deepEqual(foot.querySelectorAll("td").map((cell) => cell.textContent), COLUMNS.map((column) => column.label));
+  assert.deepEqual(foot.querySelectorAll("tr.g-rtable__foot td").map((cell) => cell.textContent), COLUMNS.map((column) => column.label));
+  // Under the labels the over-heads again, as DeskRoster.html's foot has them (a desk's only, like those at the head).
+  assert.deepEqual(foot.querySelectorAll(".g-rtable__groups td").map((cell) => cell.textContent), ["", "Characteristics", "Career", "SPP"]);
   assertCspSafe(fragment);
   assertStyled(fragment, ...SHEETS);
 });
@@ -89,9 +91,12 @@ test("the over-heads, the head and the foot are in the order a browser keeps the
   assert.deepEqual(elements(grid).map((child) => child.tagName), ["COLGROUP", "THEAD", "TBODY", "TBODY", "TFOOT"]);
   assert.deepEqual(elements(grid.querySelector("thead")).map((child) => child.getAttribute("class")), ["g-rtable__groups", null]);
   assert.equal(grid.querySelector("thead tr").getAttribute("aria-hidden"), "true");
-  const over = grid.querySelectorAll(".g-rtable__groups td");
+  const over = grid.querySelectorAll("thead .g-rtable__groups td");
   assert.deepEqual(over.map((cell) => cell.textContent), ["", "Characteristics", "Career", "SPP"]);
   assert.deepEqual(over.map((cell) => Number(cell.getAttribute("colspan") ?? 1)), [1, 5, 2, 2]);
+  // Each label on its rule (DeskRoster.html); a group after the first leads with the desk's gap.
+  assert.deepEqual(over.map((cell) => cell.querySelector(".g-rtable__glabel")?.textContent ?? null), [null, "Characteristics", "Career", "SPP"]);
+  assert.deepEqual(over.map((cell) => cell.classList.contains("g-rtable__g--lead")), [false, false, true, true]);
   const withoutGroups = mount(table({ groups: [] })).querySelector("table.g-rtable");
   assert.equal(withoutGroups.querySelector(".g-rtable__groups"), null);
 });
@@ -304,9 +309,11 @@ test("the cells of a group carry its class, and a column with none carries no gr
   const body = mount(table()).querySelector("tbody.g-rtable__player");
   const classes = body.querySelectorAll("tr.g-rtable__row td").map((cell) => cell.getAttribute("class"));
   assert.deepEqual(classes.slice(0, 5), Array(5).fill("g-rtable__c g-rtable__c--stats"));
-  assert.equal(classes[5], "g-rtable__c g-rtable__c--career g-rtable__c--desk");
+  // A group's first column after the first group leads it (a desk's gap before it); the last column ends the row.
+  assert.equal(classes[5], "g-rtable__c g-rtable__c--career g-rtable__c--desk g-rtable__c--lead");
   assert.equal(classes[6], "g-rtable__c g-rtable__c--career g-rtable__c--desk g-rtable__c--zero");
-  assert.equal(classes[8], "g-rtable__c g-rtable__c--spp g-rtable__c--desk g-rtable__c--strong");
+  assert.equal(classes[7], "g-rtable__c g-rtable__c--spp g-rtable__c--desk g-rtable__c--lead");
+  assert.equal(classes[8], "g-rtable__c g-rtable__c--spp g-rtable__c--desk g-rtable__c--last g-rtable__c--strong");
 });
 
 test("a desk column is hidden on a phone, and the over-heads are the desk's", () => {
@@ -321,7 +328,9 @@ test("a desk column is hidden on a phone, and the over-heads are the desk's", ()
   const { narrow, wide } = parts(read(SHEET));
   assert.match(narrow, /\.g-rtable__c--desk[^{]*\{[^}]*display:\s*none/);
   assert.match(narrow, /\.g-rtable__groups[^{]*\{[^}]*display:\s*none/);
-  assert.ok(!/display:\s*none/.test(wide.replace(/\.g-rtable__(skillrow|panelrow)[^{]*\{[^}]*\}/g, "")), "from 901px nothing but the phone's extra rows is hidden");
+  // From 901px nothing is hidden but the phone's extra rows, and the skills of a player who has none (DeskRoster.html says nothing of them).
+  const hidden = wide.replace(/\.g-rtable__(skillrow|panelrow)[^{]*\{[^}]*\}/g, "").replace(/\.g-rtable__skills:has\(> \.g-skills-none\)\s*\{[^}]*\}/, "");
+  assert.ok(!/display:\s*none/.test(hidden), "from 901px nothing but the phone's extra rows is hidden");
 });
 
 test("the columns' widths are on the <col>s, because a fixed table takes them from its first row and from 901px that is the row of over-heads", () => {
@@ -330,25 +339,30 @@ test("the columns' widths are on the <col>s, because a fixed table takes them fr
   assert.deepEqual(cols.map((col) => col.getAttribute("class")), [
     "g-rtable__col--who",
     ...Array(5).fill("g-rtable__col--stats"),
-    ...Array(2).fill("g-rtable__col--career g-rtable__col--desk"),
-    ...Array(2).fill("g-rtable__col--spp g-rtable__col--desk"),
+    "g-rtable__col--career g-rtable__col--desk g-rtable__col--lead",
+    "g-rtable__col--career g-rtable__col--desk",
+    "g-rtable__col--spp g-rtable__col--desk g-rtable__col--lead",
+    "g-rtable__col--spp g-rtable__col--desk g-rtable__col--last",
   ]);
   // The same number of columns in every row of the grid: nothing here makes the browser add one.
   assert.equal(cols.length, COLUMNS.length);
   assert.equal(grid.querySelectorAll("thead th").length, COLUMNS.length);
-  assert.equal(grid.querySelectorAll("tfoot td").length, COLUMNS.length);
+  assert.equal(grid.querySelectorAll("tfoot tr.g-rtable__foot td").length, COLUMNS.length);
   assert.deepEqual(grid.querySelectorAll("tbody tr.g-rtable__row").map((tr) => elements(tr).length), [10, 10]);
   assert.equal(valuesOf(SHEET, ".g-rtable", "table-layout").at(-1), "fixed");
   const { narrow, wide } = parts(read(SHEET));
   const declared = (css, selector) => [...css.matchAll(new RegExp(`${selector.replace(/\./g, "\\.")}\\s*\\{[^}]*?(?:^|[;\\s])width:\\s*([^;]+);`, "g"))].map((match) => match[1].trim());
   assert.deepEqual(declared(narrow, ".g-rtable__col--stats"), ["36px"], "a phone: the characteristics' 36px, the player's column takes the rest");
   assert.deepEqual(declared(narrow, ".g-rtable__col--who"), [], "a phone gives the player's column no width of its own");
+  // DeskRoster.html: the player takes what the numbers leave (minmax(180px, 1fr)): 32px a characteristic, 36px a count of the
+  // career, 44px «Total» and 52px «Avail.», a 12px gap before each group after the first, 16px at the row's end.
   assert.deepEqual(
-    [".g-rtable__col--who", ".g-rtable__col--stats", ".g-rtable__col--career", ".g-rtable__col--spp"].map((selector) => declared(wide, selector)),
-    [["180px"], ["32px"], ["36px"], ["48px"]],
-    "a desk: the player 180px, then 32, 36 and 48",
+    [".g-rtable__col--who", ".g-rtable__col--stats", ".g-rtable__col--career", ".g-rtable__col--career.g-rtable__col--lead",
+      ".g-rtable__col--spp.g-rtable__col--lead", ".g-rtable__col--spp.g-rtable__col--last"].map((selector) => declared(wide, selector)),
+    [["auto"], ["32px"], ["36px"], ["48px"], ["56px"], ["68px"]],
   );
-  assert.ok(valuesOf(SHEET, ".g-rtable__col--stats", "width").length && valuesOf(SHEET, ".g-rtable__col--who", "width").includes("180px"));
+  // The player's 180px at the least: the table is never narrower than them and the numbers (180 + 160 + 228 + 56 + 68).
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "692px"]);
   assert.match(narrow, /\.g-rtable__col--desk[^{]*\{[^}]*display:\s*none/, "a column that is hidden is gone from the grid, its <col> too");
 });
 
@@ -380,8 +394,9 @@ test("a header's button fills its whole column: no padding on the header, so 36p
   // Nothing after the rule takes the padding back: the player's header (a desk's 12px on the left) is the one exception, with its own, stronger rule.
   const { narrow, wide } = parts(read(SHEET));
   assert.ok(!/th\.g-rtable__h\s*\{[^}]*padding/.test(narrow + wide));
-  assert.match(wide, /th\.g-rtable__h--who\s*\{[^}]*padding-left:\s*var\(--space-12\)/);
-  assert.deepEqual(valuesOf(SHEET, ".g-sort", "min-height"), ["var(--size-touch)"]);
+  assert.match(wide, /th\.g-rtable__h--who,[^{]*\{[^}]*padding-left:\s*var\(--space-16\)/);
+  // 44px on a phone; 40px on a desk (D2: a desk's controls are compact, never under 24px), as DeskRoster.html's labels.
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "min-height"), ["var(--size-touch)", "40px"]);
 });
 
 test("a strong value keeps its digits tabular after the font shorthand that would reset them", () => {
@@ -389,12 +404,22 @@ test("a strong value keeps its digits tabular after the font shorthand that woul
   assert.ok(strong.body.indexOf("font:") >= 0 && strong.body.indexOf("font:") < strong.body.indexOf("font-variant-numeric: tabular-nums"));
 });
 
-test("what a finger presses is 44px", () => {
-  assert.deepEqual(valuesOf(SHEET, ".g-sort", "min-height"), ["var(--size-touch)"]);
+test("what a finger presses on a phone is 44px; a desk's is compact and never under 24px (D2, WCAG 2.5.8)", () => {
+  const { narrow, wide } = parts(read(SHEET));
+  const base = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").replace(wide, "").replace(narrow, "");
+  const value = (css, selector, property) => [...css.matchAll(new RegExp(`(?:^|\\})\\s*${selector.replace(/[.()>]/g, "\\$&")}\\s*\\{[^}]*?(?:^|[;\\s])${property}:\\s*([^;]+);`, "g"))].map((match) => match[1].trim());
+  assert.deepEqual(value(base, ".g-sort", "min-height"), ["var(--size-touch)"]);
   // The player's button is as wide as its word, not its column: «ИГРОК» alone is 41px.
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable__h--who .g-sort", "min-width"), ["var(--size-touch)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable__toggle", "min-height"), ["var(--size-touch)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable__row", "height"), ["var(--size-row)"]);
+  assert.deepEqual(value(base, ".g-rtable__h--who .g-sort", "min-width"), ["var(--size-touch)"]);
+  assert.deepEqual(value(base, ".g-rtable__toggle", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual(value(base, ".g-rtable__row", "height"), ["var(--size-row)"]);
+  assert.deepEqual(value(wide, ".g-sort", "min-height"), ["40px"]);
+  assert.deepEqual(value(wide, ".g-rtable__toggle", "min-height"), ["24px"], "the name's line, the badge hung beside it");
+  // A skill chip in a desk's row: DeskRoster.html's small chip, 24px at the least.
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__skills .g-skill", "min-height"), ["24px"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__skills .g-skill", "font"), ["500 12px/1.2 var(--font-body)"]);
+  // A phone's chip keeps skill-chip.css's own (Stats.html's 32px, as before).
+  assert.ok(!narrow.includes(".g-skill"), "the phone's chips are untouched");
 });
 
 test("the sheet sets what the 2.x globals for table, th, td and button would otherwise set", () => {
@@ -408,7 +433,7 @@ test("the sheet sets what the 2.x globals for table, th, td and button would oth
   ]) {
     assert.ok(valuesOf(SHEET, selector, property).length, `${selector} sets its ${property}`);
   }
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable", "min-width"), ["0", "692px"], "none on a phone; a desk's numbers and 180px for the player");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable", "width"), ["100%"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable", "border-collapse"), ["collapse"]);
 });
@@ -436,9 +461,12 @@ test("the colours of the table are readable in every palette", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--zero", "color"), ["var(--muted)"]);
   assert.ok(!read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "").includes("--faint"), "nothing in the table is faint");
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded", "background"), ["var(--surface-2)"]);
-  // A plain chip is --surface-2 itself: on the open row's tint it takes --surface, or it would have no edge.
+  // A plain chip is --surface-2 itself and melts into the open row, as Stats.html's do: its words name it.
   assert.deepEqual(valuesOf("src/ui/skill-chip.css", ".g-skill", "background"), ["var(--surface-2)"]);
-  assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded .g-skill:not(.g-skill--gained)", "background"), ["var(--surface)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-expanded .g-skill:not(.g-skill--gained)", "background"), []);
+  // SPP that buy nothing yet: quiet, and readable; the chosen row's tint under the row's words.
+  assertReadable(SHEET, ".g-rtable__c--quiet", "color", grounds, 4.5);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > *", "background"), ["var(--accent-tint-soft)"]);
   // The selected row is a desk's, on the frame's --surface.
   assertContrast("--accent-text", ["--surface"], 3, { what: "the selected row's outline" });
 });
