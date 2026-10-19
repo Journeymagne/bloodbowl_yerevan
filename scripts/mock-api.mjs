@@ -157,8 +157,8 @@ const amazons = [
   playerOf("p", 3, 2, "Blitzer Three", { spp: { touchdowns: 4 } }),
   playerOf("p", 4, 3, "Blocker Four", { spp: { casualties: 2 } }),
   playerOf("p", 5, 0, "Linewoman Five", { spp: { mvps: 1 } }),
-  playerOf("p", 6, 0, "Linewoman Six"),
-  playerOf("p", 7, 2, "Blitzer Seven"),
+  playerOf("p", 6, 0, "Linewoman Six", { skipNextGame: true, absence: { code: "niggling" }, nigglingInjuries: 1, niglingInjury: true }),
+  playerOf("p", 7, 2, "Blitzer Seven", { skipNextGame: true, absence: { code: "other", note: "Suspended by the league" } }),
 ];
 
 /** A roster of `players`; the counts are how many stand in each row of the race. */
