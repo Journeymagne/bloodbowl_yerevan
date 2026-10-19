@@ -12,7 +12,7 @@ import { sendTap } from "./taps.mjs";
 
 /**
  * What the screen lends this file: the route's team, the visit (index.mjs's `Visit`), the draw, and the read of the
- * team and its records with the games.
+ * team and its records with the games (which a read already in the air stands for: it is made again, index.mjs).
  * @typedef {{teamId: string, visit: object, draw: () => void, readAgain: () => void}} Tapping
  */
 
@@ -24,17 +24,18 @@ const READ_AGAIN = new Set(["MATCH_NOT_LIVE", "EVENT_BELOW_ZERO"]);
  * is the first of its taps on the way — those behind it were dropped unsent (taps.mjs) — and the only one said; once
  * they have all answered, the records are read again if the server may hold what the screen does not: an answer that
  * was lost, a minus with nothing to take back, a match that is not on (which the games read with them end). A side
- * whose Players step is saved closes the match's own taps until the records are read again (Review Focus 2). A read
- * that landed while taps were on their way was not taken (index.mjs): it is made again here too.
+ * whose Players step is saved closes the match's own taps until the records are read again (Review Focus 2). When
+ * they have all answered, a read made while they were in the air is let go on (`whenQuiet`).
  * @param {Tapping} tapping
  */
 function heardTap(tapping, step, answer) {
   const { visit } = tapping;
   const at = visit.pending.indexOf(step);
   if (at >= 0) visit.pending.splice(at, 1);
+  if (!visit.pending.length) for (const resolve of visit.quiet.splice(0)) resolve();
   if (!visit.here) return;
   if (answer.event) {
-    // Kept once: a read that already holds it (a safety net, since a read is not taken while a tap is on its way).
+    // Kept once: a safety net, since no read made while a tap was in the air is taken (index.mjs).
     if (!visit.events.some((event) => event.id === answer.event.id)) visit.events.push(answer.event);
     visit.heard.push(answer.event);
   } else if (!visit.failed) {
@@ -57,13 +58,19 @@ function heardTap(tapping, step, answer) {
  */
 export function sendRow(tapping, step) {
   tapping.visit.pending.push(step);
+  tapping.visit.sent += 1;
   tapping.draw();
   void sendTap(tapping.teamId, step).then((answer) => heardTap(tapping, step, answer));
 }
 
+/** Settles once no tap of the visit is on its way: at once when none is. */
+export function whenQuiet(visit) {
+  return visit.pending.length ? new Promise((resolve) => { visit.quiet.push(resolve); }) : Promise.resolve();
+}
+
 /**
  * The records a read brought, and the rows the answers to taps have brought since it was sent (`since`, a place in
- * `visit.heard`) that it does not hold: a read made before a tap was written does not take its row away.
+ * `visit.heard`) that it does not hold. A safety net: no read made while a tap was in the air is taken (index.mjs).
  */
 export function withHeard(visit, events, since) {
   const later = visit.heard.slice(since).filter((row) => !events.some((event) => event.id === row.id));

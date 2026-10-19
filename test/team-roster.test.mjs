@@ -1111,9 +1111,20 @@ test("a match that ended elsewhere: the tap is refused, the screen reads the gam
     api.calls.length = 0;
     api.reply(EVENTS, 409, refused("MATCH_NOT_LIVE"));
     gamesAre([{ ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" }]);
+    const reading = api.hold("GET /api/teams/t1");
     fireEvent(plus("touchdowns"), "click");
     await settle();
     assert.equal(toasts().at(-1), "There is no match in progress to record this in.");
+    // The games have said the match is over; the roster read during it is no roster to save until the read answers (fix round 2, N2).
+    assert.equal(reading.count, 1);
+    assert.equal(view.querySelector(".g-roster__notices"), null);
+    assert.equal(plus("touchdowns").getAttribute("title"), READING);
+    fireEvent(plus("touchdowns"), "click");
+    assert.equal(toasts().at(-1), READING);
+    await settle();
+    assert.equal(patches().length, 0, "nothing saved on the roster read during the match");
+    reading.release();
+    await settle();
     assert.deepEqual(callKeys().sort(), ["GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events", EVENTS]);
     assert.equal(view.querySelector(".g-roster__notices"), null, "no banner of a match");
     assert.equal(countOf("touchdowns"), "0", "the refused step is gone");
@@ -1278,27 +1289,79 @@ test("a read that lands while a tap is in the air is not taken: the counters sta
   });
 });
 
-test("a tap answered while the records are read again is kept though the read was made before it was written", async () => {
+// Fix round 2, N1: a read made while a tap was in the air is not trusted, though the tap has answered before it lands.
+test("a read made while a tap was in the air is made again once it has answered: a finish between them has the tap in the roster, not twice", async () => {
   await withoutTimers(async () => {
     coach();
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     const sending = api.hold(EVENTS);
-    fireEvent(plus("casualties"), "click");
+    fireEvent(plus("touchdowns"), "click");
     await settle();
-    // Another match of the team is on now (another game): the records are read again while the casualty is on its way.
-    gamesAre([{ ...LIVE_GAME, id: "g7" }]);
+    // The match is finished elsewhere: the touchdown is in the roster the finish wrote, its record settled.
+    gamesAre([{ ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" }]);
+    api.reply("GET /api/teams/t1", 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
     const reading = api.hold("GET /api/teams/t1/events");
     await invalidateGames();
     await settle();
-    assert.equal(reading.count, 1);
-    sending.release({ status: 201, body: { event: rowOf({ id: "e5", counter: "casualties" }) } });
+    // The tap's answer comes first, as it was before the finish: a record not settled yet.
+    sending.release({ status: 201, body: { event: rowOf() } });
     await settle();
-    reading.release({ status: 200, body: { events: [], revision: 4 } });
+    api.calls.length = 0;
+    reading.release();
+    const again = api.hold("GET /api/teams/t1/events");
     await settle();
-    assert.equal(countOf("casualties"), "1", "the row the read did not see");
-    assert.equal(deltaOf("casualties"), null, "a record of g2, not of g7");
-    assert.equal(titleOf(banner()), "Match on · round 3 · records: 0");
+    // Taken, the first read's roster (the touchdown in it) and the tap's row (added on top) would show 2.
+    assert.equal(countOf("touchdowns"), "1", "the first read is not taken");
+    assert.equal(again.count, 1, "read again: the first read may or may not have the tap");
+    assert.equal(minus("touchdowns").getAttribute("title"), READING);
+    fireEvent(minus("touchdowns"), "click");
+    assert.equal(toasts().at(-1), READING);
+    await settle();
+    assert.equal(patches().length, 0, "no save lowers the roster meanwhile");
+    again.release();
+    await settle();
+    assert.equal(countOf("touchdowns"), "1", "the server's one touchdown, not the roster's and the record's");
+    assert.equal(minus("touchdowns").hasAttribute("aria-disabled"), false);
+    assert.equal(patches().length, 0);
+  });
+});
+
+// Fix round 2, N3: the read that replaces one made while a tap was in the air does what the first was asked to.
+test("«Load the new one» pressed while a tap is in the air takes the server's roster once the tap has answered", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    // A save of the roster is on its way when the match begins; a record of it follows.
+    const saving = api.hold(PATCH);
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    gamesAre([LIVE_GAME]);
+    await invalidateGames();
+    await settle();
+    const sending = api.hold(EVENTS);
+    fireEvent(plus("casualties"), "click");
+    await settle();
+    assert.equal(sending.count, 1);
+    // The match ends elsewhere; the save meets another device's roster.
+    gamesAre([{ ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" }]);
+    const elsewhere = withSpp("p1", { touchdowns: 4 }, { revision: 6 });
+    api.reply("GET /api/teams/t1", 200, { team: elsewhere });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 6 });
+    await invalidateGames();
+    await settle();
+    saving.release({ status: 409, body: conflictOf(elsewhere) });
+    await settle();
+    assert.ok(notice("danger"));
+    fireEvent(view.querySelector("[data-roster-reload]"), "click");
+    await settle();
+    assert.ok(notice("danger"), "not taken while the record is in the air");
+    sending.release({ status: 409, body: refused("MATCH_NOT_LIVE") });
+    await settle();
+    assert.ok(!notice("danger"), "the server's roster, as «Load the new one» asked");
+    assert.equal(countOf("touchdowns"), "4");
+    assert.equal(save.saveState("t1").waiting, 0);
   });
 });
 

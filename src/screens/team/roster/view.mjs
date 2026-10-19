@@ -49,7 +49,8 @@ const OUTSIDE_NOTE = "roster-outside-note";
  * @property {boolean} outside «Edit outside the match» is on for the match on (`memory.outside` is its game id, R13)
  * @property {{status: string, waiting: number, refusal: string}} save where the roster's save queue stands (`saveState`)
  * @property {string} lock why every counter is closed just now: the games unread («Loading the matches…») or unreadable
- *   (the failure), or a conflict the coach has to settle; "" when none
+ *   (the failure); the records read again during a match or after one ended («Reading the records…»); or a conflict
+ *   the coach has to settle; "" when none
  * @property {string} sideLocked why the match's own taps are closed: the server's refusal `EVENT_SIDE_LOCKED` (the
  *   side has saved its Players step), until the records are read again; "" when they are open
  * @property {number} records the rows of the match on that the team has, as last read: what its banner counts
