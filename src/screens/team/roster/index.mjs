@@ -16,6 +16,9 @@
  * outside the match» an edit of the career that waits for the match's finish (Task 11). The counters wait while the
  * records are read: in a match, and after one ends, what they hold is not known until the read answers. A match that
  * ends while the screen is open, as the games say it, reads the roster and the records again.
+ *
+ * On a desk stage 08's treasury strip stands over the table (strip.mjs). Its writes land in the coach's list, and the
+ * roster reads the team again when the list moves past the revision its queue saves on (`followList`).
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
@@ -33,10 +36,11 @@ import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { readRoster } from "./data.mjs";
 import { rosterMemory, sessionSppOf } from "./memory.mjs";
 import { nextSort, rosterLines, rosterMode, sortLines, stepRule } from "./model.mjs";
-import { onSaveState, retrySaves, saveState, stepSpp, takeServerTeam, trackRoster } from "./save.mjs";
+import { onSaveState, retrySaves, saveState, savedRevision, stepSpp, takeServerTeam, trackRoster } from "./save.mjs";
 import { closeSheet, injuryHandlers, openerOf, sheetOf } from "./injury.mjs";
 import { recordsOf, sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { INJURY_SHEET, SKILL_SHEET } from "./sheets.mjs";
+import { listAhead, wireStrip } from "./strip.mjs";
 import { rosterMarkup } from "./view.mjs";
 import { wireRoster } from "./wire.mjs";
 
@@ -79,8 +83,9 @@ function listen(target, type, listener) {
  * @property {number} sent how many taps the visit has sent: a read during which one was sent is not taken
  * @property {(() => void)[]} quiet what waits for the taps on their way to have all answered (`whenQuiet`)
  * @property {string|null} match the game id of the match on as the games last said it, null for none
- * @property {boolean} stale the roster drawn was read during a match that is no longer on: no counter takes a step
- *   while the read that replaces it is in the air
+ * @property {boolean} stale the roster drawn was read during a match that is no longer on, or before a write of the
+ *   treasury strip: no counter takes a step while the read that replaces it is in the air
+ * @property {number|null} followed the revision of the coach's list the visit last read the team again for (`followList`)
  * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`
  * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
@@ -344,9 +349,33 @@ function settleWaiting(saving, { retry }) {
 }
 
 /**
+ * A write elsewhere on the page — the treasury strip's (stage 08), which lands in the coach's list — has moved the team
+ * past the revision the queue saves on (`listAhead`): the next step, sent on the one before, would meet a 409 and lay
+ * the roster as read over the entry. The team and its records are read again (`readAgain`), the counters closed until
+ * they answer, so that step goes on the new revision with the new roster (K4 b).
+ *
+ * Only when no step waits and none is in the air, and no read is: a step that waits keeps its draft and meets the new
+ * revision as the conflict the coach settles; the queue's own saves put their answer in the list and in the queue
+ * alike, so they never ask. Heard on every change of the list and of the queue, so a write heard while a request or
+ * a read was in the air is followed once it has answered; each revision of the list once, so a read that fails is
+ * not made again for it.
+ * @param {Saving} saving
+ */
+function followList(saving) {
+  const { teamId, visit } = saving;
+  const { status, waiting } = saveState(teamId);
+  if (!visit.here || !visit.team || reading(visit) || waiting || busy(status)) return;
+  const ahead = listAhead(teamId, savedRevision(teamId));
+  if (ahead === null || ahead === visit.followed) return;
+  Object.assign(visit, { followed: ahead, stale: true });
+  saving.draw();
+  void readAgain(saving);
+}
+
+/**
  * Every change of the queue's state: drawn at once; a refusal said, a 422 taking the server's roster (the steps break
  * the rules as the server reads them); a take that had to wait asked again unless a save has since landed; the
- * steps that wait settled.
+ * steps that wait settled; a write of the strip heard meanwhile followed.
  * @param {Saving} saving
  */
 function heardSave(saving, now) {
@@ -365,6 +394,7 @@ function heardSave(saving, now) {
     }
     if (take) void reloadRoster(saving);
     settleWaiting(saving, { retry: false });
+    followList(saving);
   } catch (error) {
     // A listener of the queue that throws would leave its request in the air for good (roster-store's notify).
     console.error(error);
@@ -468,7 +498,7 @@ export async function renderTeamRoster(teamId) {
   const visit = {
     here: true, drawn: false, loading: true, error: "", team: null, draft: null, events: [], sheet: null, opener: null,
     reads: 0, answered: 0, status: "", retake: false, saveOff: null, pending: [], heard: [], sideLocked: "", failed: false, reread: false,
-    match: null, stale: false, sent: 0, quiet: [], unsure: false,
+    match: null, stale: false, sent: 0, quiet: [], unsure: false, followed: null,
   };
   const saving = { teamId, visit, memory, draw: () => drawVisit(teamId, visit, memory) };
   const read = async () => {
@@ -504,6 +534,7 @@ export async function renderTeamRoster(teamId) {
       settleWaiting(saving, { retry: true });
     }),
   );
+  wireStrip(view, () => followList(saving));
   saving.draw();
   await Promise.all([read(), loadGames(true)]);
   // The steps an earlier visit left waiting go now, if no match is on: an `online` may never come (R8).

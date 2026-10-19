@@ -27,6 +27,8 @@ import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 /** The steps taken and not yet confirmed by an answer, by team. */
 const waiting = new Map();
 const waitingFor = (teamId) => waiting.get(teamId) ?? 0;
+/** The team the store saves on, by team: the object it was handed, whose revision each answer moves (`mergeServerTeam`). */
+const tracked = new Map();
 
 /** An answer stood behind one step. */
 function confirmStep(teamId) {
@@ -104,6 +106,7 @@ function watchSession() {
     if (state.auth.currentUser?.id === owner) return;
     store = newStore();
     waiting.clear();
+    tracked.clear();
     owner = undefined;
   });
 }
@@ -140,7 +143,18 @@ export function trackRoster(team) {
   owner = state.auth.currentUser?.id;
   if (waitingFor(team.id) > 0) return store.getDraft(team.id);
   const meta = structuredClone(team);
+  tracked.set(meta.id, meta);
   return store.track(meta.id, tracking(meta, normalizeSavedRoster(meta)));
+}
+
+/**
+ * The revision the team's next save is sent on: the one it was read or taken on, moved by each answer of the queue's
+ * own saves; null for a team the queue does not hold. A write made elsewhere on the page (the treasury strip, stage
+ * 08) leaves the coach's list ahead of it; the queue's own saves put their answer in the list and here alike.
+ * @param {string} teamId @returns {number|null}
+ */
+export function savedRevision(teamId) {
+  return tracked.get(teamId)?.revision ?? null;
 }
 
 /**
@@ -214,6 +228,8 @@ export function takeServerTeam(team) {
   const meta = structuredClone(team);
   const draft = normalizeSavedRoster(meta);
   waiting.delete(meta.id);
+  // Before the store is told: the state it announces is heard with the revision taken here.
+  tracked.set(meta.id, meta);
   store.adoptServerRoster(meta.id, draft);
   return store.track(meta.id, tracking(meta, draft));
 }

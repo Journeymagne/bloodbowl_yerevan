@@ -9,7 +9,7 @@
  * crosses 900px.
  *
  * Above the table stand what the coach has to keep in mind: a preparation or a match that is on (Task 11,
- * decisions 12 and 13), and the save's trouble (Task 10).
+ * decisions 12 and 13), and the save's trouble (Task 10); then, on a desk, stage 08's treasury strip (Task 15).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -28,6 +28,7 @@ import { renderToggle } from "../../../ui/toggle.mjs";
 import { MAIN_COUNTERS, rosterCounts } from "./model.mjs";
 import { matchWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
+import { stripMarkup } from "./strip.mjs";
 
 /** The id of the panel beside the table, which a desk's player buttons control. */
 export const ASIDE_ID = "roster-aside";
@@ -219,7 +220,10 @@ function noticesMarkup(screen) {
   return notices ? `<div class="g-roster__notices">${notices}</div>` : "";
 }
 
-/** The table and the panel beside it; a roster with nobody on it says so instead. */
+/**
+ * The banners, stage 08's treasury strip on a desk (strip.mjs), then the table and the panel beside it; a roster with
+ * nobody on it says so instead of the table.
+ */
 function layoutMarkup(screen) {
   const { lines, team } = screen;
   const choice = choiceOf(screen);
@@ -232,7 +236,7 @@ function layoutMarkup(screen) {
   const aside = chosen
     ? `<aside class="g-roster__aside" id="${ASIDE_ID}" aria-label="${escapeHtml(t("teamRoster.panelLabel"))}"${dataAttributes({ panelPlayer: chosen.key })}>${sidePanelMarkup(chosen, screen)}</aside>`
     : "";
-  return `${noticesMarkup(screen)}<div class="g-roster__layout"><section class="g-roster__main" aria-labelledby="roster-heading">${heading}${table}</section>${aside}</div>`;
+  return `${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__layout"><section class="g-roster__main" aria-labelledby="roster-heading">${heading}${table}</section>${aside}</div>`;
 }
 
 /** A fault in place of the table, in a danger callout; a read that failed offers to read again. */

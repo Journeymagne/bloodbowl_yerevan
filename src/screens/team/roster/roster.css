@@ -92,6 +92,16 @@
   min-width: 0;
 }
 
+/*
+ * Stage 08's treasury strip between the banners and the table, on a desk (DeskRoster): strip.css draws it, and the
+ * roster's gap spaces it, as it does the banners and the table, so it needs no margin of its own.
+ */
+.g-roster__strip {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
 /* No network leads with its sign, in the banner's own colour, before the words (SaveOffline.html). */
 .g-roster__offline {
   display: grid;
@@ -494,6 +504,8 @@
 
 @media (max-width: 900px) {
   .g-roster__aside { display: none; }
+  /* The phone's treasury is the Team tab's card. Hidden whole, the strip leaves no empty place in the roster's gap. */
+  .g-roster__strip { display: none; }
 
   /* K9: the banner's switch and link take a line of their own, and wrap rather than push the page sideways. */
   .g-roster__notices .g-callout__action {
