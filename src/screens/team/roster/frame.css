@@ -32,6 +32,8 @@
 /* Another device's save (SaveConflict.html): no sign, and «Load the new one» under the words, half the banner wide. */
 .g-roster__conflict .g-callout__icon { display: none; }
 .g-roster__notices .g-roster__conflict .g-callout { padding: var(--space-14); }
+/* No network leads with its sign (SaveOffline.html): the words start after it, past the banner's own padding above. */
+.g-roster__notices .g-roster__offline > .g-callout { padding-left: calc(var(--space-14) + 22px + var(--space-10)); }
 .g-roster__conflict .g-callout__sub { font-size: 14px; }
 .g-roster__conflict .g-callout__action {
   display: grid;
@@ -78,6 +80,8 @@
   .g-roster > .g-pagehead { margin-bottom: var(--space-8); }
 
   .g-roster__notices .g-callout { padding: var(--space-12) var(--space-16); }
+  .g-roster__notices .g-roster__offline > .g-callout { padding-left: calc(var(--space-16) + 22px + var(--space-10)); }
+  .g-roster__offline > .g-icon { margin-left: var(--space-16); }
   .g-roster__conflict .g-callout__action { display: flex; }
   .g-roster__conflict .g-btn--primary {
     width: auto;
