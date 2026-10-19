@@ -21,6 +21,7 @@ import { sheetOf } from "./injury.mjs";
 import { recordsOf } from "./match-taps.mjs";
 import { markSheetOf } from "./marks.mjs";
 import { marketSheetOf } from "./market.mjs";
+import { playerSheetOf } from "./player.mjs";
 
 /** The width up to which a player's button opens his row; from 901px it chooses him for the panel. */
 export const PHONE = "(max-width: 900px)";
@@ -68,8 +69,11 @@ export function linesOf(visit, mode) {
   return { race, draft, lines, fallen: fallenLines({ fallen: visit.fallen, race, rosterIds: lines.map(({ id }) => id) }) };
 }
 
-/** Who keeps or closes a sheet of each kind: marks.mjs a missed match's and a death's undo, market.mjs the cart and a sale; injury.mjs the rest. */
-const KEEPERS = { mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf };
+/**
+ * Who keeps or closes a sheet of each kind: marks.mjs a missed match's and a death's undo, market.mjs the cart and a sale,
+ * player.mjs a player's edit (stage 07d); injury.mjs the rest.
+ */
+const KEEPERS = { mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf, edit: playerSheetOf };
 
 /** @returns {import("./view.mjs").RosterScreen} */
 export function screenOf(teamId, visit, memory) {
@@ -81,7 +85,8 @@ export function screenOf(teamId, visit, memory) {
   const save = saveState(teamId);
   const where = { mode, outside, lock: lockOf(teamId, save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit), save, race, draft };
   // A sheet whose player has left the screen (read again) closes with him; an injury's, with its match (injury.mjs); a
-  // mark's, with a match begun or the mark taken (marks.mjs); the cart, with a match begun (market.mjs). A fallen player's chip opens a skill's sheet too.
+  // mark's, with a match begun or the mark taken (marks.mjs); the cart, with a match begun (market.mjs); a player's edit, with a
+  // match begun (player.mjs). A fallen player's chip opens a skill's sheet too.
   const sheet = (KEEPERS[visit.sheet?.kind] ?? sheetOf)(visit, [...lines, ...fallen], where);
   if (!sheet) Object.assign(visit, { sheet: null, opener: null });
   // The player mode: his row open on a phone, him in the panel on a desk — once, so that the coach's next choice stands.

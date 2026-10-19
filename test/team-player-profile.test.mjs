@@ -679,7 +679,10 @@ test("every key is in both dictionaries; everything drawn is styled; the head's 
   }
   assertReadable(PROFILE, ".g-profile__availn", "color", ["--surface"], 3, { what: "44px" });
   const breakpoints = [...text(PROFILE).matchAll(/@media[^{]+/g)].map(([query]) => query.trim());
-  assert.deepEqual(breakpoints, ["@media (max-width: 900px)"], "a phone's page: no rule of a desk's");
+  assert.ok(breakpoints.every((query) => query === "@media (max-width: 900px)" || query === "@media (min-width: 901px)"), `the stage's two breakpoints: ${breakpoints}`);
+  // Task 8: a desk's rules in this file are the player edit's window alone (DeskRosterEdit.html), never the page's.
+  const desk = text(PROFILE).split("@media (min-width: 901px) {").slice(1).map((part) => part.slice(0, part.indexOf("\n}"))).join("");
+  assert.ok(!/\.g-profile/.test(desk), "a phone's page: no rule of a desk's");
   assert.ok(!/--focus-ring/.test(text(PROFILE)), "the focus ring is base.css's");
   // K5: 07d's sheets come after 07c's market.css, in the order of their tasks; this file need not be the last.
   const styles = text("src/styles.css");

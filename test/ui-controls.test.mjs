@@ -169,6 +169,20 @@ test("a toggle is a switch row that flips and reports; a disabled one does not m
   assertStyled(fragment, "toggle.css");
 });
 
+// Stage 07d, Task 8: «Team captain» has the «C» before its words (PlayerEdit.html, DeskRosterEdit.html).
+test("a switch may carry a mark before its words", () => {
+  const plain = renderToggle({ key: "captain", label: "Team captain", caption: "The team has no captain" });
+  const marked = renderToggle({ key: "captain", label: "Team captain", caption: "The team has no captain", leadHtml: '<span class="g-mark" aria-hidden="true">C</span>' });
+  assert.equal(renderToggle({ key: "captain", label: "Team captain", caption: "The team has no captain", leadHtml: "" }), plain, "without one, as it was");
+  assert.equal(marked, plain.replace('<span class="g-toggle__text">', '<span class="g-mark" aria-hidden="true">C</span><span class="g-toggle__text">'));
+  const fragment = mount(marked);
+  const button = fragment.querySelector('[role="switch"]');
+  const parts = button.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  assert.deepEqual(parts, ["g-mark", "g-toggle__text", "g-toggle__track"], "the mark first, then the words and the track");
+  assert.equal(button.querySelector(".g-mark").getAttribute("aria-hidden"), "true");
+  assertCspSafe(fragment);
+});
+
 test("a toggle another element describes names it, and is named by its label alone", () => {
   const fragment = mount(`${renderToggle({ key: "outside", label: "Edit outside the match", describedBy: "outside-note" })}<span id="outside-note" hidden>fix an old mistake</span>`
     + renderToggle({ key: "plain", label: "Plain" }));

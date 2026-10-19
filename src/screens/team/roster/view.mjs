@@ -1,8 +1,8 @@
 /**
  * The roster's markup: the band with its counts, the table, and beside it on a desk the chosen player's panel;
- * a skill's, an injury's, a missed match's, a death's undo's, the hire cart's or a sale's sheet over it when one is
- * open. What a line says is model.mjs's, the row's panel and the side panel panel.mjs's, the sheets sheets.mjs's,
- * mark-sheet.mjs's, fallen-view.mjs's, hire-sheet.mjs's and sell-sheet.mjs's.
+ * a skill's, an injury's, a missed match's, a death's undo's, the hire cart's, a sale's or a player's edit's sheet over
+ * it when one is open. What a line says is model.mjs's, the row's panel and the side panel panel.mjs's, the sheets
+ * sheets.mjs's, mark-sheet.mjs's, fallen-view.mjs's, hire-sheet.mjs's, sell-sheet.mjs's and player-sheets.mjs's.
  *
  * The player's button does what the width it is drawn at does with it (R11): up to 900px it opens his row
  * (`aria-expanded`, and the row's panel it controls), from 901px it chooses him for the panel beside the table
@@ -39,6 +39,7 @@ import { MAIN_COUNTERS, counterSlots, rosterCounts, rosterSections } from "./mod
 import { absenceWords, injuryWords, matchTarget, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { hireButtonMarkup, hireSheetMarkup } from "./hire-sheet.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
+import { editSheetMarkup } from "./player-sheets.mjs";
 import { sellSheetMarkup } from "./sell-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
@@ -81,14 +82,15 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  *   |{kind: "undo", key: string, busy: boolean, refusal: string, reason: string}
  *   |{kind: "hire", key: "hire", cart: import("../../../domain/roster/transfers.mjs").HireCart, refusal: string,
  *   quote: import("../../../domain/roster/transfers.mjs").HireQuote, reason: string}
- *   |{kind: "sell", key: string, refusal: string, reason: string}|null} sheet
+ *   |{kind: "sell", key: string, refusal: string, reason: string}
+ *   |{kind: "edit", key: string, form: {number: string, name: string, captain: boolean}, refusal: string, reason: string}|null} sheet
  *   the sheet that is open: a skill's rule; an injury of the match `gameId` with what is chosen in it ("" for
  *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now; a
  *   missed match's reasons (stage 07b) with what is chosen, the last refusal, and why no mark can be made just now; or
  *   a death's undo (Task 9), whether it is on its way, the last refusal, and why none can be sent just now; or the
  *   hire cart (stage 07c) with what it holds, the last refusal of «Buy», what it buys on the draft, and why nothing can
  *   be bought just now; or a player's sale or cancelled purchase (stage 07c), the last refusal, and why he cannot go
- *   just now
+ *   just now; or a player's edit (stage 07d) with its form as typed, the last refusal of «Save», and why it is closed
  * @property {boolean} unsure an injury's answer was lost and the read that followed failed: whether it was written is
  *   not known, so no injury is recorded until a read of the records succeeds (R14)
  * @property {string} error a read that failed, "" when none
@@ -357,8 +359,8 @@ function bodyMarkup(screen) {
 
 /**
  * The sheet that is open, while its player is still on the screen: a skill's — a fallen player's chip opens its rule
- * too — an injury's, a missed match's, a death's undo, or a sale's, on the draft's treasury; the hire cart, which is no
- * player's (`screenOf` closes one that no longer stands).
+ * too — an injury's, a missed match's, a death's undo, a sale's, on the draft's treasury, or a player's edit (stage
+ * 07d); the hire cart, which is no player's (`screenOf` closes one that no longer stands).
  */
 export function sheetMarkup(screen) {
   const { sheet } = screen;
@@ -371,6 +373,7 @@ export function sheetMarkup(screen) {
   if (sheet.kind === "sell") {
     return sellSheetMarkup({ line, race: screen.race, treasury: screen.draft.treasury, mode: screen.mode, refusal: sheet.refusal, reason: sheet.reason });
   }
+  if (sheet.kind === "edit") return editSheetMarkup({ line, lines: screen.lines, screen, sheet });
   return skillSheetMarkup({ data: screen.data, line, name: sheet.name });
 }
 

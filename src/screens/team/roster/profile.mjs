@@ -8,8 +8,9 @@
  *
  * Every state of the address stands under the head: the wait and a read that failed under «‹ Roster» alone, a fallen
  * player under his grey number (PlayerDead.html) with the roster's undo (stage 07b), an id the roster holds nowhere
- * with the way back. The pencil and «Advancement» are buttons that name him; what they open is the next tasks' (07d,
- * Tasks 8 and 9). Closed, each says why, as the roster's closed controls do.
+ * with the way back. The pencil and «Advancement» are buttons that name him: the pencil opens his edit, a sheet over
+ * the page (player-sheets.mjs, Task 8); what «Advancement» opens is Task 9's. Closed, each says why, as the roster's
+ * closed controls do.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -105,8 +106,8 @@ function skillsMarkup(line) {
 }
 
 /**
- * The pencil, which opens the edit of his number, name and captaincy (Task 8): closed in a match, by the screen's lock
- * and for a player no write can name, saying why.
+ * The pencil, which opens the edit of his number, name and captaincy (PlayerEdit.html; player.mjs): closed in a match,
+ * by the screen's lock and for a player no write can name, saying why — keeping his key, so the focus finds it again.
  */
 function pencilMarkup(line, screen) {
   const label = t("teamPlayer.edit.open");

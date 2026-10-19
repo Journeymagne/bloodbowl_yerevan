@@ -1,14 +1,15 @@
 /**
  * What the roster says of one player beyond his row: the row opened on a phone, and the panel beside the table
  * on a desk (plan 07a, decisions 20 and 21). Both lead to the player's own address — on a phone his profile, on a
- * desk the roster with him in the panel (stage 07d) — and say why an advancement or an edit of him is closed.
+ * desk the roster with him in the panel (stage 07d) — and say why an advancement or an edit of him is closed. The
+ * panel's pencil opens his edit (stage 07d, player-sheets.mjs), as the profile's does.
  *
  * The phone's open row holds his SPP counters with − and + (Task 10): outside a match a step is a save of the roster
  * (save.mjs), and the count is the career. The desk's panel holds them only while a match is on (owner's D3,
  * DeskRoster.html): outside one a desk shows his SPP, skills and actions, and his manual SPP edits are stage 07d's
- * player edit — no save of the roster starts from its counters then. A player the roster stores no id for
- * (`line.id === ""`) has no page to lead to — an empty id would make the roster's own address — and no save can name
- * him, so his counters are closed.
+ * player edit, whose window carries the same tiles (player-sheets.mjs) — no save of the roster starts from the panel
+ * then. A player the roster stores no id for (`line.id === ""`) has no page to lead to — an empty id would make the
+ * roster's own address — and no save can name him, so his counters are closed.
  *
  * During a match (Task 11, decision 13) a step is a record of the match, and the count says beside it what the
  * match has added; the switch «Edit outside the match» makes it an edit of the career instead. A desk lays the nine
@@ -410,7 +411,7 @@ function sumMarkup(sum, words) {
  * What the coach's edits have moved his SPP since the screen opened: «+3 SPP», or none yet. With «Edit outside the
  * match» on, the edits outside it alone: a record of the match made on this visit is none (fix round 1, Minor 4).
  */
-function sessionMarkup(line, screen) {
+export function sessionMarkup(line, screen) {
   const moved = screen.outside ? line.sessionOutside : line.sessionSpp;
   return sumMarkup(moved, t("teamRoster.sppDelta", { delta: `${moved > 0 ? "+" : "−"}${Math.abs(moved)}` }));
 }
@@ -445,12 +446,18 @@ export function profileLinkMarkup(label, href) {
   return `<a class="g-btn g-btn--dark g-btn--block" href="${escapeHtml(href)}">${escapeHtml(label)}${icon("chevron", 14)}</a>`;
 }
 
-/** The badge, the name, the position with what he is worth, and the pencil to his page (`closed` in a match). */
-function headMarkup(line, href, closed) {
-  const ariaLabel = t("teamRoster.edit", { name: line.name });
-  let pencil = "";
-  if (href && closed) pencil = closedMarkup({ className: "g-icon-btn g-roster__edit", label: ariaLabel, glyph: "pencil" });
-  else if (href) pencil = `<a class="g-icon-btn g-roster__edit" href="${escapeHtml(href)}" aria-label="${escapeHtml(ariaLabel)}">${icon("pencil", 18)}</a>`;
+/**
+ * The badge, the name, the position with what he is worth, and the pencil, which opens the edit of his number, name and
+ * captaincy (stage 07d, DeskRosterEdit.html) — closed, saying why, in a match, by the screen's lock and for a player no
+ * write can name (`editClosed`); it keeps his key either way, so the focus finds it when the edit closes.
+ */
+function headMarkup(line, screen) {
+  const label = t("teamRoster.edit", { name: line.name });
+  const reason = editClosed(line, screen);
+  const data = { playerEdit: line.key };
+  const pencil = reason
+    ? closedMarkup({ className: "g-icon-btn g-roster__edit", label, glyph: "pencil", reason, data })
+    : `<button type="button" class="g-icon-btn g-roster__edit" aria-haspopup="dialog" aria-label="${escapeHtml(label)}"${dataAttributes(data)}>${icon("pencil", 18)}</button>`;
   return `<div class="g-roster__phead">${renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain, large: true })}`
     + `<div class="g-roster__pwho"><h2 class="g-roster__pname">${escapeHtml(line.name)}</h2>`
     + `<p class="g-roster__pline">${escapeHtml(t("teamRoster.value", { position: line.position, value: formatMoney(line.value) }))}</p></div>${pencil}</div>`;
@@ -525,7 +532,6 @@ function skillsMarkup(line) {
  */
 export function sidePanelMarkup(line, screen) {
   const href = profileUrl(line, screen);
-  const closed = screen.mode.kind === "match";
-  return `${headMarkup(line, href, closed)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, screen, href)}${skillsMarkup(line)}`
+  return `${headMarkup(line, screen)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, screen, href)}${skillsMarkup(line)}`
     + `<section class="g-roster__nextblock">${nextMatchMarkup(line, screen)}${actionsMarkup(line, screen)}</section>`;
 }

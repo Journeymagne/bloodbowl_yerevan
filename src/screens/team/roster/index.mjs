@@ -46,6 +46,7 @@ import { closeSheet, injuryHandlers } from "./injury.mjs";
 import { sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { markHandlers } from "./marks.mjs";
 import { droppedWords, marketHandlers } from "./market.mjs";
+import { playerHandlers } from "./player.mjs";
 import { sheetIdOf } from "./sheets.mjs";
 import { PHONE, gamesKnown, isPhone, linesOf, lockOf, modeOf, outsideOf, patchVisit, putBack, reading, screenOf, unsureOf } from "./screen.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
@@ -94,7 +95,8 @@ function listen(target, type, listener) {
  * @property {number|null} followed the revision of the coach's list the visit last read the team again for (`followList`)
  * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`, a
  *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs),
- *   the hire cart `{kind: "hire", key: "hire", cart, refusal}` and a player's sale `{kind: "sell", key, refusal}` (market.mjs, stage 07c)
+ *   the hire cart `{kind: "hire", key: "hire", cart, refusal}` and a player's sale `{kind: "sell", key, refusal}` (market.mjs, stage 07c),
+ *   a player's edit `{kind: "edit", key, form: {number, name, captain}, refusal}` (player.mjs, stage 07d)
  * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
@@ -372,10 +374,11 @@ function heardSave(saving, now) {
 
 /**
  * What a press does: a header sorts, a player's button opens his row (a phone) or chooses him for the panel (a desk),
- * a chip opens its skill's sheet and the sheet's close gives the focus back to it, «Try again» reads again; a
+ * a sheet's close gives the focus back to what opened it, «Try again» reads again; a
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
  * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
- * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's.
+ * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's;
+ * a skill's chip, the pencil and the player's edit player.mjs's (stage 07d).
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */
 function pressHandlers({ read, ...saving }) {
@@ -394,6 +397,7 @@ function pressHandlers({ read, ...saving }) {
     ...injuryHandlers(saving, { tapping: tappingOf(saving), now }),
     ...markHandlers(saving, marks),
     ...marketHandlers(saving, marks),
+    ...playerHandlers(saving, marks),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();
@@ -401,10 +405,6 @@ function pressHandlers({ read, ...saving }) {
     // A phone opens the row and closes it again; a desk chooses the player for the panel, and a second press keeps him.
     onToggle: (key) => {
       memory.selected = isPhone() && memory.selected === key ? null : key;
-      draw();
-    },
-    onSkill: (key, name, chip) => {
-      Object.assign(visit, { sheet: { kind: "skill", key, name }, opener: chip });
       draw();
     },
     onSheetClose: (id) => {

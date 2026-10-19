@@ -367,7 +367,7 @@ test("a skill the reference has no page for opens all the same and says so", asy
   assert.equal(sheet().querySelector(".g-roster__from").textContent, "Ann · primary");
 });
 
-test("«Profile and advancement» on a phone, «Advance» and the pencil on a desk lead to the player's address (the roster's player mode, stage 07d)", async () => {
+test("«Profile and advancement» on a phone and «Advance» on a desk lead to the player's address (the roster's player mode, stage 07d); the pencil opens his edit", async () => {
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
@@ -383,9 +383,12 @@ test("«Profile and advancement» on a phone, «Advance» and the pencil on a de
     const advance = aside().querySelector("a.g-btn--primary");
     assert.equal(advance.textContent, "Advance");
     assert.equal(advance.getAttribute("href"), teamPlayerUrl("t1", "p2"));
-    const pencil = aside().querySelector("a.g-roster__edit");
+    // Stage 07d, Task 8: the pencil is a button that opens the edit of his number, name and captaincy, not a link.
+    assert.ok(!aside().querySelector("a.g-roster__edit"), "no link");
+    const pencil = aside().querySelector('button.g-roster__edit[data-player-edit="p2#0"]');
     assert.equal(pencil.getAttribute("aria-label"), "Edit Bors");
-    assert.equal(pencil.getAttribute("href"), "#/t/t1/roster/p2");
+    assert.equal(pencil.getAttribute("aria-haspopup"), "dialog");
+    assert.equal(pencil.hasAttribute("href"), false);
   });
 });
 
@@ -1216,13 +1219,13 @@ test("with the switch on a tap is an edit outside the match: no pairing, the ban
 
 test("advancement waits for the post-match: «Advance» and the pencil say so; «Profile and advancement» stays open (K20)", async () => {
   await withoutTimers(async () => {
-    const check = (control) => {
+    const check = (control, title = AFTER_POST) => {
       assert.equal(control.tagName, "BUTTON");
       assert.equal(control.hasAttribute("href"), false);
       assert.equal(control.getAttribute("aria-disabled"), "true");
-      assert.equal(control.getAttribute("title"), AFTER_POST);
+      assert.equal(control.getAttribute("title"), title);
       fireEvent(control, "click");
-      assert.equal(toasts().at(-1), AFTER_POST);
+      assert.equal(toasts().at(-1), title);
     };
     await withWindow({ phone: true }, async () => {
       coach();
@@ -1244,7 +1247,8 @@ test("advancement waits for the post-match: «Advance» and the pencil say so; �
     fireEvent(toggle("p2#0"), "click");
     const [pencil, advance] = aside().querySelectorAll(".g-roster__closed");
     assert.equal(pencil.getAttribute("aria-label"), "Edit Bors");
-    check(pencil);
+    // Stage 07d, Task 8: the pencil edits his number, name and captaincy, and says so.
+    check(pencil, "Number, name and captain — after the post-match");
     assert.equal(advance.textContent, "Advance");
     check(advance);
     assert.equal(aside().querySelector(".g-roster__cheapest").textContent, AFTER_POST);

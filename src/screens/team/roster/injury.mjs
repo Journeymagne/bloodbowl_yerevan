@@ -45,8 +45,13 @@ export function sheetOf(visit, lines, where) {
   return { ...sheet, busy: inTheAir(visit, line.id), reason: injuryClosed(line, where) };
 }
 
-/** The buttons that open a sheet, by the sheet's kind: a player's carry his line's key; the hire cart's «+» carries "hire" (stage 07c). */
-const OPENERS = Object.freeze({ injury: "data-roster-injury", mark: "data-roster-mark", undo: "data-roster-undo", hire: "data-roster-hire", sell: "data-roster-sell" });
+/**
+ * The buttons that open a sheet, by the sheet's kind: a player's carry his line's key — his pencil too (stage 07d); the
+ * hire cart's «+» carries "hire" (stage 07c).
+ */
+const OPENERS = Object.freeze({
+  injury: "data-roster-injury", mark: "data-roster-mark", undo: "data-roster-undo", hire: "data-roster-hire", sell: "data-roster-sell", edit: "data-player-edit",
+});
 
 /** The element under the view whose `attribute` names `key`, or null: matched as text, so no key can break a selector. */
 export const keyed = (attribute, key) => [...view.querySelectorAll(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === key) ?? null;

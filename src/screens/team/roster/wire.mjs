@@ -7,8 +7,9 @@
  * two buttons; «Miss a match…», its sheet's reasons, characteristic, words and button, «Back on the roster», and a
  * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b); the «+» beside «Player»,
  * its cart's + and −, «Cancel» and «Buy», and «Sell» or «Cancel purchase» with its sheet's «Cancel» and button (stage
- * 07c). What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs); this file only says who was
- * pressed.
+ * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save» (stage
+ * 07d). What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs); this file only
+ * says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
@@ -20,6 +21,7 @@ import { wireSkillChips } from "../../../ui/skill-chip.mjs";
 import { wireStepButtons } from "../../../ui/stepper.mjs";
 import { wireToggles } from "../../../ui/toggle.mjs";
 import { MARK_TEXT } from "./mark-sheet.mjs";
+import { CAPTAIN_TOGGLE, EDIT_FIELDS } from "./player-sheets.mjs";
 import { INJURY_STAT, MARK_SHEET, MARK_STAT } from "./sheets.mjs";
 import { OUTSIDE_TOGGLE } from "./view.mjs";
 
@@ -81,6 +83,21 @@ function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused
 }
 
 /**
+ * A player's own presses (stage 07d): his pencil (not when closed), the edit's number and name as they are typed — the
+ * screen is patched, so the field keeps its focus and its caret — and its «Cancel» and «Save». The switch «Team
+ * captain» is heard with the roster's other switch (`wireRoster`); the SPP tiles of a desk's edit are the roster's
+ * counters, whose − and + `wireActionSteppers` hears.
+ */
+function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave }) {
+  return [
+    onPlayerButton(root, "data-player-edit", onEdit),
+    ...Object.entries(EDIT_FIELDS).map(([field, id]) => delegate(root, "input", `#${id}`, (event, input) => onEditField(field, input.value))),
+    delegate(root, "click", "[data-edit-keep]", () => onEditKeep()),
+    delegate(root, "click", "[data-edit-save]", () => onEditSave()),
+  ];
+}
+
+/**
  * The cards of whichever sheet is open, by the sheet they stand in. One wiring for the root: two would not work, since
  * the first flips the group's cards and the second then hears no change (wireFilterChips says the same of chip rows).
  */
@@ -119,10 +136,15 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice }) {
  * @param {(key: string, button: Element) => void} handlers.onSell «Sell» or «Cancel purchase», by the line's key (not when it is closed)
  * @param {() => void} handlers.onSellKeep «Cancel» in the sale's sheet
  * @param {() => void} handlers.onSellSend the sale's sheet's button: «Sell for …» or «Cancel and get … back»
+ * @param {(key: string, button: Element) => void} handlers.onEdit a player's pencil, by his line's key (not when it is closed)
+ * @param {(field: "number"|"name", value: string) => void} handlers.onEditField a field of his edit, as typed
+ * @param {(on: boolean) => void} handlers.onEditCaptain «Team captain» switched on or off
+ * @param {() => void} handlers.onEditKeep «Cancel» in the edit
+ * @param {() => void} handlers.onEditSave «Save» in the edit
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
-  const { onSort, onToggle, onSkill, onSheetClose, onRetry, onStep, onRefused, onReload, onReread, onOutside } = handlers;
+  const { onSort, onToggle, onSkill, onSheetClose, onRetry, onStep, onRefused, onReload, onReread, onOutside, onEditCaptain } = handlers;
   const offs = [
     wireRosterTable(root, { onSort, onToggle }),
     wireSkillChips(root, (name, chip) => {
@@ -136,12 +158,14 @@ export function wireRoster(root, handlers) {
     delegate(root, "click", "[data-roster-reread]", () => onReread()),
     wireToggles(root, (key, on) => {
       if (key === OUTSIDE_TOGGLE) onOutside(on);
+      else if (key === CAPTAIN_TOGGLE) onEditCaptain(on);
     }),
     delegate(root, "click", "[data-roster-closed]", (event, button) => onRefused(button.getAttribute("title") ?? "")),
     wireReasons(root, handlers),
     ...wireInjury(root, handlers),
     ...wireMarks(root, handlers),
     ...wireMarket(root, handlers),
+    ...wirePlayer(root, handlers),
   ];
   return () => offs.forEach((off) => off());
 }
