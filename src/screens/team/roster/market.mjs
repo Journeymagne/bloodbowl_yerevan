@@ -9,15 +9,20 @@
  * the domain on the queue's draft at every draw and every press (`hireQuote`), so a step taken meanwhile is counted.
  * «Buy» is one step and closes the sheet in the same turn, with no wait between (Review Focus 3): the queue cannot
  * tell a second «Buy» of the same cart from a new purchase, so a second press must find no sheet to buy from.
+ *
+ * A sale is the visit's too (`{kind: "sell", key, refusal}`): the player's line, by its key, and the last press's
+ * refusal. What it does — a sale or a purchase cancelled, for how much — is the line's (`line.removal`, on the draft),
+ * so the press sends what the sheet said; it is one step and closes the sheet in the same turn, as «Buy» does.
  */
 import { toast } from "../../../components/toast.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
+import { view } from "../../../core/view.mjs";
 import { hireQuote } from "../../../domain/roster/transfers.mjs";
 import { refusalWords } from "./hire-sheet.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
-import { hireClosed } from "./panel.mjs";
-import { buyPlayers } from "./save.mjs";
+import { hireClosed, sellClosed } from "./panel.mjs";
+import { buyPlayers, removePlayer } from "./save.mjs";
 
 /**
  * The screen as it stands at a press, as far as the market goes: the marks' (`Now`, marks.mjs) with the team's race
@@ -25,10 +30,13 @@ import { buyPlayers } from "./save.mjs";
  * @typedef {import("./marks.mjs").Now & {race: object|null, draft: object}} MarketNow
  */
 
+/** The player of `key` on the roster as it stands, never one of the fallen (the dead are not sold), or null. */
+const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;
+
 /**
- * The market's sheet as the screen draws it, or null when it stands no longer: the cart while no match is on and the
- * race is known, with what it buys on the queue's draft (`quote`) and why nothing can be bought just now (`reason`).
- * The sale's sheet is Task 6's.
+ * The market's sheet as the screen draws it, or null when it stands no longer — a match has begun (R8), or the
+ * player has left the roster (read again): the cart while the race is known, with what it buys on the queue's draft
+ * (`quote`) and why nothing can be bought just now (`reason`); a sale's, with why he cannot go just now (`sellClosed`).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines the roster's lines and the fallen
@@ -37,7 +45,12 @@ import { buyPlayers } from "./save.mjs";
  */
 export function marketSheetOf(visit, lines, where) {
   const { sheet } = visit;
-  if (sheet?.kind !== "hire" || where.mode.kind === "match" || !where.race) return null;
+  if (where.mode.kind === "match") return null;
+  if (sheet?.kind === "sell") {
+    const line = rosterLineOf(lines, sheet.key);
+    return line ? { ...sheet, reason: sellClosed(line, where) } : null;
+  }
+  if (sheet?.kind !== "hire" || !where.race) return null;
   return { ...sheet, quote: hireQuote(where.race, where.draft, sheet.cart), reason: hireClosed(where) };
 }
 
@@ -114,10 +127,70 @@ function buyCart(saving, { now, refused }) {
   toast(t("teamRoster.hire.done", { players, treasury: formatMoney(answer.treasury) }));
 }
 
+/** «Sell» or «Cancel purchase»: the sheet that asks first, unless something closes it just now (said instead). */
+function openSale({ visit, draw }, { now }, key, button) {
+  const where = now();
+  const line = rosterLineOf(where.lines, key);
+  if (!line) return;
+  const reason = sellClosed(line, where);
+  if (reason) {
+    toast(reason);
+    return;
+  }
+  Object.assign(visit, { sheet: { kind: "sell", key, refusal: "" }, opener: button });
+  draw();
+}
+
+/**
+ * «Sell for 47.5k» or «Cancel and get 50k back»: only from the sheet that is open (K8) — a press that finds none is a
+ * second press, and sends nothing. The closure is asked again, then one step of the queue (`removePlayer`) with what
+ * the line says parting with him is, as the draft stands — the sheet was drawn from the same. In the same turn the
+ * sheet closes; his row is gone, so the focus goes to the page's title, the panel to the first player (DeskRosterSell),
+ * and the coach is told what came back and what the treasury holds (K13). A refusal (another tab's coach, the rules a
+ * 422 left the queue on) is said in the sheet, which stays as it was; one of the queue's 422 asks for the server's
+ * roster again (`refused`).
+ *
+ * @param {import("./index.mjs").Saving} saving
+ * @param {{now: () => MarketNow, refused: () => void}} lent
+ */
+function sellPlayer(saving, { now, refused }) {
+  const { teamId, visit, memory, draw } = saving;
+  const { sheet } = visit;
+  if (sheet?.kind !== "sell") return;
+  const where = now();
+  const line = rosterLineOf(where.lines, sheet.key);
+  if (!line) return;
+  const reason = sellClosed(line, where);
+  if (reason) {
+    toast(reason);
+    return;
+  }
+  const answer = removePlayer(teamId, where.race, line.id, line.removal.type);
+  if (answer.refusal) {
+    sheet.refusal = answer.refusal;
+    draw();
+    refused();
+    return;
+  }
+  if (!answer.ok) return;
+  Object.assign(visit, { sheet: null, opener: null });
+  if (memory.selected === line.key) memory.selected = null;
+  draw();
+  view.querySelector("h1")?.focus();
+  const words = { name: line.name, amount: formatMoney(answer.amount), treasury: formatMoney(answer.treasury) };
+  toast(line.removal.type === "cancel-purchase" ? t("teamRoster.sell.cancelled", words) : t("teamRoster.sell.done", words));
+}
+
+/** «Cancel» in the sheet `kind`: closed, the focus back on what opened it. */
+const keepOf = (saving, kind) => () => {
+  if (saving.visit.sheet?.kind === kind) closeSheet(saving);
+};
+
 /**
  * What the market's presses do (wire.mjs): the «+» opens the cart (`openCart`), a + or a − of a card changes it
- * (`stepCart`), «Cancel» closes it, the focus back on the «+», and «Buy» buys it (`buyCart`). A press on one that is
- * closed says why and does nothing.
+ * (`stepCart`), «Cancel» closes it, the focus back on the «+», and «Buy» buys it (`buyCart`); «Sell» or «Cancel
+ * purchase» opens the sheet that asks first (`openSale`), its «Cancel» closes it, the focus back on the button, and its
+ * button lets him go (`sellPlayer`). A press on one that is closed says why and does nothing.
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {{now: () => MarketNow, refused: () => void}} lent what the screen lends: `now` is the screen as it stands at the
@@ -127,9 +200,10 @@ export function marketHandlers(saving, lent) {
   return {
     onHire: (key, button) => openCart(saving, lent, button),
     onHireStep: (rowIndex, delta) => stepCart(saving, lent, rowIndex, delta),
-    onHireKeep: () => {
-      if (saving.visit.sheet?.kind === "hire") closeSheet(saving);
-    },
+    onHireKeep: keepOf(saving, "hire"),
     onHireBuy: () => buyCart(saving, lent),
+    onSell: (key, button) => openSale(saving, lent, key, button),
+    onSellKeep: keepOf(saving, "sell"),
+    onSellSend: () => sellPlayer(saving, lent),
   };
 }

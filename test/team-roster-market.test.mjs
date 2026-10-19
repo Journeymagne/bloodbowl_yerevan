@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
+import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
@@ -86,6 +86,7 @@ test("the «+» stands right after «Player» in the active roster's header, on 
         assert.ok(plus.classList.contains("g-roster__hire"));
         assert.equal(plus.getAttribute("aria-haspopup"), "dialog");
         assert.equal(plus.getAttribute("aria-label"), "Hire players");
+        assert.equal(plus.getAttribute("title"), "Add players", "the prototypes' title (the T5 review's carry)");
         assert.ok(!plus.hasAttribute("aria-disabled"));
         assert.ok(plus.querySelector("svg.g-icon"), "a plus, named by its label");
         assert.equal(others.length, 2, phone ? "a phone" : "a desk");
@@ -567,7 +568,7 @@ test("on a phone: no «Cancel», the + alone, a 44px target", async () => {
       assertStyled(view, ...STYLES);
     });
     const phone = mediaBlock(MARKET, "max-width: 900px");
-    assert.match(phone, /#roster-hire \.g-sheet__foot-start \{\s*display: none;\s*\}/, "no «Cancel» on a phone (K7)");
+    assert.match(phone, /:is\(#roster-hire, #roster-sell\) \.g-sheet__foot-start \{\s*display: none;\s*\}/, "no «Cancel» on a phone (K7)");
     assert.match(phone, /\.g-market__addword \{\s*display: none;\s*\}/, "the + alone");
     // A phone's targets are a thumb wide (D2): the «+» a 26px circle in its 44px.
     for (const selector of [".g-roster__hire", ".g-market__add", ".g-market__step"]) {
@@ -579,7 +580,465 @@ test("on a phone: no «Cancel», the + alone, a 44px target", async () => {
   });
 });
 
-// K6: D2's compact sizes from 901px, as DeskRosterHire.html draws them, never under 24px.
+// Stage 07c, Task 6: «Sell» second in the pair of actions (StatsHire/StatsLive on a phone, DeskRosterPrep/DeskRosterLive on
+// a desk), the sheet that asks first (StatsSell.html, DeskRosterSell.html) and a purchase cancelled. Hal is a Catcher
+// (75k) with Block (+20k) and two touchdowns (6 SPP); Ivo a Lineman bought after the last match for 50k; 120k in the treasury.
+const HAL = { id: "p8", rowIndex: 2, number: "8", name: "Hal", extraSkills: [{ name: "Block", access: "primary" }], spp: { touchdowns: 2 } };
+const IVO = { id: "p9", rowIndex: 0, number: "9", name: "Ivo", purchased: true, purchaseRefund: 50 };
+const SALE_PLAYERS = [...PLAYERS, HAL, IVO];
+/** The team of nine with 120k (`players` in place of them), on revision 4 unless `over` says. */
+const forSale = (players = SALE_PLAYERS, over = {}) => team({ roster: { players, treasury: 120 }, ...over });
+const without = (id, players = SALE_PLAYERS) => players.filter((player) => player.id !== id);
+const SALE_MIN = "A sale cannot leave fewer than seven players on the team.";
+const NOTE = "The player leaves the team for good: SPP, skills and improvements are lost. Half his current value comes back. Nobody can be sold while the roster has 7 players or fewer.";
+
+const { setMyTeams } = await import("../src/data/teams.mjs");
+const sellSheet = () => view.querySelector("dialog#roster-sell");
+const sellIn = (root) => root.querySelector("[data-roster-sell]");
+const sendButton = () => sellSheet().querySelector("[data-sell-send]");
+const keepSale = () => sellSheet().querySelector("[data-sell-keep]");
+const facts = () => sellSheet().querySelectorAll(".g-market__fact").map((fact) => [fact.querySelector("dt.g-market__factkey").textContent, fact.querySelector("dd.g-market__factvalue").textContent]);
+const factValue = (index) => sellSheet().querySelectorAll(".g-market__fact")[index].querySelector("dd");
+const flow = () => sellSheet().querySelectorAll(".g-market__flowside").map((side) => [side.querySelector(".g-market__flowlabel").textContent, side.querySelector(".g-market__flownum").textContent]);
+const notes = () => sellSheet().querySelectorAll(".g-market__note").map((note) => note.textContent);
+const saleRefusal = () => sellSheet().querySelector(".g-market__refusal");
+/** The buttons of the pair of actions under `root` (the open row on a phone, the panel on a desk). */
+const pairOf = (root) => root.querySelector(".g-roster__actions").childNodes.filter((node) => node.nodeType === 1);
+/** Where a player's actions stand: his open row on a phone, the panel on a desk. */
+const placeOf = (phone) => (phone ? view.querySelector(".g-rtable__panelrow") : aside());
+/** The roster drawn with `key` chosen: his row open on a phone, him in the panel on a desk. */
+const drawFor = async (key, { teamAnswer = forSale(), games = [] } = {}) => {
+  coach({ teamAnswer, open: key });
+  gamesAre(games);
+  await renderTeamRoster("t1");
+};
+
+test("the action pair: «Sell» second, beside «Miss a match…» or «Back on the roster»; a fresh purchase says «Cancel purchase»", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        for (const [key, first, second] of [["p1#0", "data-roster-mark", "Sell"], ["p4#0", "data-roster-return", "Sell"], ["p9#0", "data-roster-mark", "Cancel purchase"]]) {
+          await drawFor(key);
+          const [one, two, ...rest] = pairOf(placeOf(phone));
+          assert.equal(rest.length, 0, key);
+          assert.ok(one.hasAttribute(first), `${key}: ${first} first`);
+          assert.equal(two.getAttribute("data-roster-sell"), key);
+          assert.equal(two.textContent, second);
+          assert.equal(two.tagName, "BUTTON");
+          assert.ok(two.classList.contains("g-btn"));
+          assert.equal(two.getAttribute("aria-haspopup"), "dialog");
+          assert.equal(two.getAttribute("data-key"), "roster-sell", "kept apart from the first when the screen is patched");
+          assert.ok(!two.hasAttribute("aria-disabled"));
+          // A phone opens his row alone; a desk's table opens none (the panel is drawn on both, a phone's hidden by roster.css).
+          assert.equal(view.querySelectorAll("table.g-rtable [data-roster-sell]").length, phone ? 1 : 0, "only in the chosen player's place");
+        }
+        assertStyled(view, ...STYLES);
+      });
+    }
+    // On a phone under «Profile and advancement» (StatsHire.html), on a desk under «Next match» (DeskRosterPrep.html).
+    await withWindow({ phone: true }, async () => {
+      await drawFor("p8#0");
+      const panel = view.querySelector(".g-roster__rowpanel").childNodes.filter((node) => node.nodeType === 1);
+      assert.ok(panel.at(-1).classList.contains("g-roster__actions"));
+      assert.ok(panel.at(-2).classList.contains("g-btn--dark"), "right under the way to his page");
+    });
+    await drawFor("p8#0");
+    const block = aside().querySelector(".g-roster__nextblock");
+    assert.ok(block.childNodes.indexOf(block.querySelector(".g-roster__actions")) > block.childNodes.indexOf(block.querySelector(".g-roster__next")));
+  });
+});
+
+test("in a match «Sell» stands closed beside «Injury in the match…», and says why", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("p1#0", { games: [LIVE_GAME] });
+        const [injury, sell, ...rest] = pairOf(placeOf(phone));
+        assert.equal(rest.length, 0);
+        assert.ok(injury.hasAttribute("data-roster-injury"));
+        assert.equal(injury.textContent, "Injury in the match…");
+        assert.equal(sell.textContent, "Sell");
+        assert.equal(sell.getAttribute("data-roster-sell"), "p1#0");
+        assert.equal(sell.getAttribute("aria-disabled"), "true");
+        assert.equal(sell.getAttribute("title"), CLOSED);
+        assert.ok(sell.classList.contains("g-roster__closed"));
+        fireEvent(sell, "click");
+        assert.equal(toasts().at(-1), CLOSED);
+        assert.ok(!sellSheet());
+        // A purchase is sealed by the match's start: «Sell», closed, as the prototypes have it.
+        fireEvent(toggle("p9#0"), "click");
+        assert.equal(sellIn(placeOf(phone)).textContent, "Sell");
+        // One who sits the match out: one closed «Sell», and no injury.
+        fireEvent(toggle("p4#0"), "click");
+        const [alone, ...more] = pairOf(placeOf(phone));
+        assert.equal(more.length, 0, "Dell sits it out");
+        assert.equal(alone.textContent, "Sell");
+        assert.equal(alone.getAttribute("title"), CLOSED);
+        // «Edit outside the match» on (K2): no injury for anyone, the one shut «Sell».
+        fireEvent(toggle("p1#0"), "click");
+        fireEvent(view.querySelector('[role="switch"]'), "click");
+        assert.deepEqual(pairOf(placeOf(phone)).map((button) => [button.textContent, button.getAttribute("aria-disabled")]), [["Sell", "true"]]);
+        assert.equal(patches().length, 0);
+        assertStyled(view, ...STYLES, "toggle.css");
+      });
+    }
+  });
+});
+
+test("at seven players «Sell» is closed and says why; «Cancel purchase» is not", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p1#0", { teamAnswer: forSale([...PLAYERS, IVO]) });
+    assert.ok(!sellIn(aside()).hasAttribute("aria-disabled"), "eight on the roster: Ann can go");
+    await drawFor("p1#0", { teamAnswer: forSale([...without("p7", PLAYERS), IVO]) });
+    const sell = sellIn(aside());
+    assert.equal(sell.textContent, "Sell");
+    assert.equal(sell.getAttribute("aria-disabled"), "true");
+    assert.equal(sell.getAttribute("title"), SALE_MIN);
+    fireEvent(sell, "click");
+    assert.equal(toasts().at(-1), SALE_MIN);
+    assert.ok(!sellSheet());
+    // The owner's Q1: a purchase is cancelled at seven too — it puts the roster back as it was before it.
+    fireEvent(toggle("p9#0"), "click");
+    const cancel = sellIn(aside());
+    assert.equal(cancel.textContent, "Cancel purchase");
+    assert.ok(!cancel.hasAttribute("aria-disabled"));
+    fireEvent(cancel, "click");
+    assert.ok(sellSheet()?.isModal);
+    assert.ok(!sendButton().hasAttribute("aria-disabled"));
+  });
+});
+
+test("the sheet on a desk: who he is, what he cost, what he gained, what he is worth, the SPP that go, half back, the treasury now and after; «Cancel» and a red «Sell for 47.5k»", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p8#0");
+    const opener = sellIn(aside());
+    opener.focus();
+    fireEvent(opener, "click");
+    const dialog = sellSheet();
+    assert.ok(dialog?.isModal, "the sheet is open, modally");
+    assert.ok(!dialog.classList.contains("g-sheet--wide"), "a sheet of its own width (DeskRosterSell.html: 520px)");
+    assert.equal(dialog.querySelector("h2").textContent, "Sell the player");
+    assert.equal(dialog.querySelector(".g-sheet__sub").textContent, "Hal · #8 Catcher");
+    assert.ok(dialog.querySelector("dl.g-market__rows"));
+    assert.deepEqual(facts(), [
+      ["Hire price Catcher", "75k"], ["Skills and improvements", "+20k"], ["Current value", "95k"], ["Career SPP", "6 · lost"], ["Back to the treasury · half", "+47.5k"],
+    ]);
+    assert.ok(factValue(2).classList.contains("g-market__factvalue--total"));
+    assert.ok(factValue(3).classList.contains("g-market__lost"));
+    assert.ok(factValue(4).classList.contains("g-market__back"));
+    assert.deepEqual(flow(), [["Treasury now", "120k"], ["After the sale", "167.5k"]]);
+    assert.ok(dialog.querySelector(".g-market__flow .g-market__arrow"), "the arrow between them");
+    assert.deepEqual(notes(), [NOTE]);
+    assert.ok(!dialog.querySelector(".g-market__prep"));
+    assert.ok(!saleRefusal());
+    const send = sendButton();
+    assert.equal(send.textContent, "Sell for 47.5k");
+    assert.ok(send.classList.contains("g-btn--danger"), "the screen's one red button: a sale cannot be undone");
+    assert.ok(!send.hasAttribute("disabled"));
+    assert.ok(!send.hasAttribute("aria-disabled"));
+    assert.equal(keepSale().textContent, "Cancel");
+    assert.ok(keepSale().closest(".g-sheet__foot-start"));
+    assertCspSafe(view);
+    assertStyled(view, ...STYLES);
+    fireEvent(keepSale(), "click");
+    assert.ok(!sellSheet(), "«Cancel» closes it");
+    assert.ok(document.activeElement === sellIn(aside()), "the focus back on his «Sell»");
+    assert.equal(sellIn(aside()).getAttribute("data-roster-sell"), "p8#0");
+    fireEvent(sellIn(aside()), "click");
+    fireEvent(sellSheet(), "keydown", { key: "Escape" });
+    assert.ok(!sellSheet(), "Escape too");
+    await settle();
+    assert.equal(patches().length, 0);
+  });
+});
+
+test("the sheet on a phone: his card, the same lines, one red button", async () => {
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await drawFor("p8#0");
+      fireEvent(sellIn(placeOf(true)), "click");
+      assert.ok(sellSheet()?.isModal, "the same sheet, from the bottom (sheet.css)");
+      const who = sellSheet().querySelector(".g-market__who");
+      assert.equal(who.querySelector(".g-num .g-num__n").textContent, "8");
+      assert.ok(who.querySelector(".g-num--catcher"), "his number on his position's colour");
+      assert.equal(who.querySelector(".g-market__whoname").textContent, "Hal");
+      // StatsSell.html: his position's skills and those he gained, as his row lists them.
+      assert.equal(who.querySelector(".g-market__wholine").textContent, "Catcher · 6 SPP · Catch, Dodge, Block");
+      assert.equal(facts().length, 5);
+      assert.equal(sellSheet().querySelectorAll("[data-sell-send]").length, 1);
+      assert.ok(sendButton().classList.contains("g-btn--danger"));
+      assertStyled(view, ...STYLES);
+    });
+    const phone = mediaBlock(MARKET, "max-width: 900px");
+    const desk = mediaBlock(MARKET, "min-width: 901px");
+    assert.match(desk, /\.g-market__who \{\s*display: none;\s*\}/, "no card on a desk: the sub says who");
+    assert.match(phone, /:is\(#roster-hire, #roster-sell\) \.g-sheet__foot-start \{\s*display: none;\s*\}/, "no «Cancel» on a phone: the cross");
+    assert.match(phone, /#roster-sell \.g-sheet__sub \{\s*display: none;\s*\}/, "no sub on a phone: the card says who");
+    // As big as the sheet's main button (D2): the whole width and 52px on a phone, 44px on a desk.
+    const danger = "#roster-sell .g-sheet__foot .g-btn--danger";
+    assert.deepEqual(valuesOf(MARKET, danger, "width"), ["100%", "auto"]);
+    assert.deepEqual(valuesOf(MARKET, danger, "height"), ["var(--size-cta)", "44px"]);
+    assert.deepEqual(valuesOf(MARKET, danger, "font"), ["700 17px/1.2 var(--font-body)"]);
+  });
+});
+
+test("Architect of Fate: full value and the injuries back, said so", async () => {
+  await withoutTimers(async () => {
+    // Tzeentch: 0 Blue Horror 30k, 1 Pink Horror 75k. Eight on the roster, so one can be sold.
+    const blues = Array.from({ length: 7 }, (_, n) => ({ id: `b${n + 1}`, rowIndex: 0, number: String(n + 1), name: `Blue ${n + 1}` }));
+    const pink = { id: "pink", rowIndex: 1, number: "8", name: "Pinky", nigglingInjuries: 1 };
+    coach({ teamAnswer: team({ baseTeamSlug: "teams/tzeentch", roster: { players: [...blues, pink], treasury: 50 } }), fallen: [], open: "pink#0" });
+    await renderTeamRoster("t1");
+    fireEvent(sellIn(aside()), "click");
+    assert.deepEqual(facts().at(-1), ["Back to the treasury · full value and injuries", "+85k"]);
+    assert.ok(factValue(4).classList.contains("g-market__back"));
+    assert.deepEqual(flow().map(([, value]) => value), ["50k", "135k"]);
+    assert.deepEqual(notes(), ["The player leaves the team for good: SPP, skills and improvements are lost. Architect of Fate: his full value comes back, and 10k for each injury. Nobody can be sold while the roster has 7 players or fewer."]);
+    assert.equal(sendButton().textContent, "Sell for 85k");
+  });
+});
+
+test("a cancelled purchase: what was paid comes back in full, and its button is not red", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p9#0");
+    fireEvent(sellIn(aside()), "click");
+    assert.equal(sellSheet().querySelector("h2").textContent, "Cancel the purchase");
+    assert.equal(sellSheet().querySelector(".g-sheet__sub").textContent, "Ivo · #9 Human Lineman");
+    assert.deepEqual(facts(), [["Bought this time for", "50k"], ["Back to the treasury", "+50k"]]);
+    assert.ok(factValue(1).classList.contains("g-market__back"));
+    assert.deepEqual(flow(), [["Treasury now", "120k"], ["After the cancel", "170k"]]);
+    assert.deepEqual(notes(), ["He was bought after the last match, so the full price comes back. Once a match starts the purchase cannot be cancelled."]);
+    const send = sendButton();
+    assert.equal(send.textContent, "Cancel and get 50k back");
+    assert.ok(send.classList.contains("g-btn--primary"), "a cancel can be bought again: the sheet's main button");
+    assert.ok(!send.classList.contains("g-btn--danger"));
+    assertStyled(view, ...STYLES);
+  });
+});
+
+test("a captain sold: the sheet says the team is left without one", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p2#0");
+    fireEvent(sellIn(aside()), "click");
+    assert.ok(notes().includes("He is the captain: the team has none until you name another in a player's profile."));
+    fireEvent(keepSale(), "click");
+    fireEvent(toggle("p8#0"), "click");
+    fireEvent(sellIn(aside()), "click");
+    assert.deepEqual(notes(), [NOTE], "not for one who is not");
+  });
+});
+
+test("during a preparation the sale's sheet says what a change of the roster resets", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p8#0", { games: [PREP_GAME] });
+    assert.ok(!sellIn(aside()).hasAttribute("aria-disabled"), "nothing is closed in a preparation");
+    fireEvent(sellIn(aside()), "click");
+    assert.equal(sellSheet().querySelector(".g-market__prep").textContent, prepResetWords());
+    assertStyled(view, ...STYLES);
+  });
+});
+
+test("sold: one PATCH without him, the treasury up by the sale, on the revision as read; the sheet closes, the coach is told, the focus on the title", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("p8#0");
+        assert.match(headingText("roster-heading"), /^Active roster 5$/);
+        fireEvent(sellIn(placeOf(phone)), "click");
+        api.reply(PATCH, 200, { team: team({ roster: { players: without("p8"), treasury: 167.5 }, revision: 5 }) });
+        fireEvent(sendButton(), "click");
+        assert.ok(!sellSheet(), "closed at once: the sale is a step of the queue");
+        assert.equal(toasts().at(-1), "Sold: Hal · +47.5k · treasury 167.5k");
+        assert.ok(document.activeElement === view.querySelector("h1"), "his row is gone: the title");
+        assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade", "Ivo"], "drawn at once from the queue's draft");
+        if (!phone) assert.equal(aside().getAttribute("data-panel-player"), "p1#0", "the panel takes the first player (DeskRosterSell.html)");
+        await settle();
+        assert.equal(patches().length, 1);
+        const { body } = patches()[0];
+        assert.equal(body.revision, 4);
+        assert.equal(body.roster.treasury, 167.5);
+        assert.deepEqual(body.roster.players.map((player) => player.id), without("p8").map((player) => player.id));
+        assert.equal(status(), "Saved");
+        assert.equal(save.saveState("t1").waiting, 0);
+      });
+    }
+  });
+});
+
+test("a purchase cancelled: one PATCH without him, the full price back", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p9#0");
+    fireEvent(sellIn(aside()), "click");
+    api.reply(PATCH, 200, { team: team({ roster: { players: without("p9"), treasury: 170 }, revision: 5 }) });
+    fireEvent(sendButton(), "click");
+    assert.ok(!sellSheet());
+    assert.equal(toasts().at(-1), "Purchase cancelled: Ivo · +50k · treasury 170k");
+    assert.ok(document.activeElement === view.querySelector("h1"));
+    await settle();
+    assert.equal(patches().length, 1);
+    assert.equal(patches()[0].body.roster.treasury, 170);
+    assert.deepEqual(patches()[0].body.roster.players.map((player) => player.id), without("p9").map((player) => player.id));
+  });
+});
+
+// Review Focus 3: the sale is one step; a second press finds no sheet to sell from.
+test("a second press on «Sell» sends nothing more", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p8#0");
+    fireEvent(sellIn(aside()), "click");
+    const send = sendButton();
+    api.reply(PATCH, 200, { team: team({ roster: { players: without("p8"), treasury: 167.5 }, revision: 5 }) });
+    fireEvent(send, "click");
+    fireEvent(send, "click");
+    const late = document.createElement("button");
+    late.setAttribute("type", "button");
+    late.setAttribute("data-sell-send", "true");
+    view.appendChild(late);
+    fireEvent(late, "click");
+    view.removeChild(late);
+    await settle();
+    assert.equal(patches().length, 1);
+    assert.equal(patches()[0].body.roster.players.length, 8, "Hal, sold once");
+    assert.equal(patches()[0].body.roster.treasury, 167.5);
+    assert.equal(toasts().filter((said) => said.startsWith("Sold:")).length, 1);
+    assert.equal(save.saveState("t1").waiting, 0);
+  });
+});
+
+// Review Focus 4 and K5: R8 — nothing is sold in a match; the focus goes back to what opened the sheet, closed now.
+test("a sheet whose match began closes, and the focus goes back to his «Sell», closed now", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("p8#0");
+        fireEvent(sellIn(placeOf(phone)), "click");
+        sendButton().focus();
+        gamesAre([LIVE_GAME]);
+        await loadGames(true);
+        await settle();
+        assert.ok(!sellSheet(), "R8");
+        assert.ok(!view.querySelector("dialog:modal"));
+        const sell = sellIn(placeOf(phone));
+        assert.ok(document.activeElement === sell, "Hal's «Sell», where the keyboard was");
+        assert.equal(sell.getAttribute("data-roster-sell"), "p8#0");
+        assert.equal(sell.getAttribute("aria-disabled"), "true");
+        assert.equal(sell.getAttribute("title"), CLOSED);
+        assert.equal(patches().length, 0);
+      });
+    }
+  });
+});
+
+test("a player gone from the roster as read takes his sheet with him", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p8#0");
+    fireEvent(sellIn(aside()), "click");
+    assert.ok(sellSheet()?.isModal);
+    // The treasury strip's write elsewhere on the page moved the team on: the roster is read again, and Hal is not on it.
+    const read = forSale(without("p8"), { revision: 5 });
+    api.reply(TEAM_READ, 200, { team: read });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    setMyTeams([read]);
+    await settle();
+    assert.equal(teamReads(), 2, "read again");
+    assert.ok(!sellSheet(), "his sheet went with him");
+    assert.ok(!view.querySelector("dialog:modal"));
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade", "Ivo"]);
+    assert.equal(patches().length, 0);
+  });
+});
+
+test("another tab's coach: nothing is sold, and the coach is told", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p8#0");
+    fireEvent(sellIn(aside()), "click");
+    api.items.set("gata-league-auth-token", "another-tab");
+    fireEvent(sendButton(), "click");
+    assert.equal(saleRefusal().textContent, OTHER_TAB);
+    assert.equal(saleRefusal().getAttribute("role"), "alert");
+    assert.ok(sellSheet()?.isModal, "the sheet stays");
+    assert.match(headingText("roster-heading"), /^Active roster 5$/, "Hal is still there");
+    await settle();
+    assert.equal(patches().length, 0);
+    assertStyled(view, ...STYLES);
+  });
+});
+
+// The T4 review's carry (07a's c088324): after a 422 whose read of the server's roster failed, a press must not only say the rule again.
+test("a sale refused after a 422 whose read failed reads the roster again; once it is read, the sale saves", async () => {
+  await withoutTimers(async () => {
+    await drawFor(null);
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail(TEAM_READ);
+    fireEvent(toggle("p5#0"), "click");
+    fireEvent(aside().querySelector("[data-roster-return]"), "click");
+    await settle();
+    assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"], "the read after the refusal failed");
+    const before = teamReads();
+    fireEvent(toggle("p8#0"), "click");
+    fireEvent(sellIn(aside()), "click");
+    fireEvent(sendButton(), "click");
+    assert.match(saleRefusal().textContent, /Ann/, "the rule that refused the queue, in the sheet");
+    assert.ok(sellSheet()?.isModal);
+    await settle();
+    assert.equal(teamReads(), before + 1, "and the roster is read again");
+    assert.equal(patches().length, 1, "the refused step, and no sale");
+    api.reply(TEAM_READ, 200, { team: forSale(SALE_PLAYERS, { revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(teamReads(), before + 2);
+    assert.equal(save.saveState("t1").status, "idle", "the server's roster taken");
+    assert.ok(sellSheet()?.isModal, "the sheet stays for the coach to press again");
+    api.reply(PATCH, 200, { team: team({ roster: { players: without("p8"), treasury: 167.5 }, revision: 6 }) });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.ok(!sellSheet());
+    assert.equal(patches().length, 2);
+    assert.equal(patches()[1].body.revision, 5);
+    assert.deepEqual(patches()[1].body.roster.players.map((player) => player.id), without("p8").map((player) => player.id));
+    assert.equal(patches()[1].body.roster.treasury, 167.5);
+  });
+});
+
+test("a fallen player has no «Sell»", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("fallen-f1");
+        const place = placeOf(phone);
+        assert.ok(place, phone ? "his row open" : "him in the panel");
+        assert.ok(!place.querySelector("[data-roster-sell]"));
+        assert.ok(!view.querySelector("[data-roster-sell]"));
+      });
+    }
+  });
+});
+
+test("the name and the skills are text", async () => {
+  await withoutTimers(async () => {
+    const hostile = { ...HAL, name: HOSTILE, extraSkills: [{ name: HOSTILE, access: "primary" }] };
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("p8#0", { teamAnswer: forSale([...PLAYERS, hostile, IVO]) });
+        fireEvent(sellIn(placeOf(phone)), "click");
+        assert.equal(sellSheet().querySelector(".g-sheet__sub").textContent, `${HOSTILE} · #8 Catcher`);
+        assert.equal(sellSheet().querySelector(".g-market__whoname").textContent, HOSTILE);
+        assert.match(sellSheet().querySelector(".g-market__wholine").textContent, /Catch, Dodge, <img src=x onerror="alert\(1\)"> & 'Grak'$/);
+        assert.ok(!view.querySelector("img"));
+        assert.ok(!view.querySelector("[onerror]"));
+        assertCspSafe(view);
+        api.reply(PATCH, 200, { team: team({ roster: { players: without("p8"), treasury: 167.5 }, revision: 5 }) });
+        fireEvent(sendButton(), "click");
+        assert.equal(toasts().at(-1), `Sold: ${HOSTILE} · +47.5k · treasury 167.5k`);
+        assert.ok(!view.querySelector("img"));
+        await settle();
+      });
+    }
+  });
+});
+
+// K6: D2's compact sizes from 901px, as DeskRosterHire.html and DeskRosterSell.html draw them, never under 24px.
 test("D2: the market's compact controls on a desk are the prototype's and 24px or more", () => {
   const desk = mediaBlock(MARKET, "min-width: 901px");
   const px = (value) => Number(String(value).replace(/px$/, ""));
@@ -587,7 +1046,8 @@ test("D2: the market's compact controls on a desk are the prototype's and 24px o
     [/\.g-roster__hire \{[^}]*width: (\d+)px;[^}]*height: (\d+)px;/, [24, 24], "the «+»"],
     [/\.g-market__add \{[^}]*min-height: (\d+)px;/, [40], "«+ To the cart»"],
     [/\.g-market__step \{[^}]*width: (\d+)px;[^}]*height: (\d+)px;/, [36, 36], "the stepper's buttons"],
-    [/#roster-hire \.g-sheet__foot \.g-btn \{[^}]*min-height: (\d+)px;/, [44], "the foot's buttons"],
+    [/:is\(#roster-hire, #roster-sell\) \.g-sheet__foot \.g-btn \{[^}]*min-height: (\d+)px;/, [44], "the foot's buttons"],
+    [/#roster-sell \.g-sheet__foot \.g-btn--danger \{[^}]*height: (\d+)px;/, [44], "the sale's red button, as tall as «Cancel»"],
   ];
   for (const [rule, want, what] of sizes) {
     const found = desk.match(rule);
@@ -598,7 +1058,7 @@ test("D2: the market's compact controls on a desk are the prototype's and 24px o
 });
 
 test("every key the new files ask for is in both dictionaries", () => {
-  assertDictionaryCovers("src/screens/team/roster/market.mjs", "src/screens/team/roster/hire-sheet.mjs", "src/screens/team/roster/panel.mjs");
+  assertDictionaryCovers("src/screens/team/roster/market.mjs", "src/screens/team/roster/hire-sheet.mjs", "src/screens/team/roster/sell-sheet.mjs", "src/screens/team/roster/panel.mjs");
 });
 
 test("everything drawn is styled, and the cart's colours are readable", async () => {
@@ -634,5 +1094,36 @@ test("everything drawn is styled, and the cart's colours are readable", async ()
     assertReadable(MARKET, ".g-market__refusal", "color", ["--surface"], 4.5);
     // 07c's market.css after the fidelity pass's frame.css (K3), last of all.
     assert.ok(text("src/styles.css").trimEnd().endsWith(['frame.css', 'market.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
+  });
+});
+
+test("the sale's sheet is styled, and its colours are readable", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p2#0", { games: [PREP_GAME] });
+    fireEvent(sellIn(aside()), "click");
+    assert.ok(sellSheet().querySelector(".g-market__prep"));
+    assertCspSafe(view);
+    assertStyled(view, ...STYLES);
+    await withWindow({ phone: true }, async () => {
+      await drawFor("p9#0");
+      fireEvent(sellIn(placeOf(true)), "click");
+      assertStyled(view, ...STYLES);
+    });
+    for (const selector of [".g-market__whoname", ".g-market__wholine", ".g-market__rows", ".g-market__factkey", ".g-market__factvalue", ".g-market__flow", ".g-market__flowlabel", ".g-market__flownum", ".g-market__note"]) {
+      for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(MARKET, selector, property).length >= 1, `${selector} ${property}`);
+    }
+    assertReadable(MARKET, ".g-market__whoname", "color", ["--surface-2"], 4.5);
+    assertReadable(MARKET, ".g-market__wholine", "color", ["--surface-2"], 4.5);
+    assertReadable(MARKET, ".g-market__factkey", "color", ["--surface"], 4.5);
+    assertReadable(MARKET, ".g-market__factvalue", "color", ["--surface"], 4.5);
+    assertReadable(MARKET, ".g-market__lost", "color", ["--surface"], 4.5);
+    assertReadable(MARKET, ".g-market__back", "color", ["--surface"], 4.5);
+    assertReadable(MARKET, ".g-market__flow", "color", ["--accent-tint"], 4.5);
+    assertReadable(MARKET, ".g-market__note", "color", ["--surface"], 4.5);
+    // StatsSell.html and DeskRosterSell.html: the numbers of the flow 26px on a phone, 28px on a desk; the note 12px, then 13px.
+    assert.deepEqual(valuesOf(MARKET, ".g-market__flownum", "font-size"), ["28px"]);
+    assert.deepEqual(valuesOf(MARKET, ".g-market__flownum", "font"), ["700 26px/normal var(--font-display)"]);
+    assert.deepEqual(valuesOf(MARKET, ".g-market__note", "font-size"), ["13px"]);
+    assert.deepEqual(valuesOf(MARKET, ".g-market__note", "font"), ["400 12px/1.45 var(--font-body)"]);
   });
 });

@@ -6,8 +6,9 @@
  * (or «Injury in the match…» closed with its taps), and the injury's button, its cards, its characteristics and its
  * two buttons; «Miss a match…», its sheet's reasons, characteristic, words and button, «Back on the roster», and a
  * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b); the «+» beside «Player»,
- * its cart's + and −, «Cancel» and «Buy» (stage 07c). What each one does is the screen's (index.mjs, injury.mjs,
- * marks.mjs, market.mjs); this file only says who was pressed.
+ * its cart's + and −, «Cancel» and «Buy», and «Sell» or «Cancel purchase» with its sheet's «Cancel» and button (stage
+ * 07c). What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs); this file only says who was
+ * pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
@@ -64,14 +65,18 @@ function wireMarks(root, { onMark, onMarkChoice, onMarkText, onMarkSend, onRetur
 
 /**
  * The market's presses (stage 07c): the «+» (not when closed), a card's + or − — «+ To the cart» and the stepper's
- * buttons alike carry `data-hire-step`; a refused + says why — and the cart's «Cancel» and «Buy».
+ * buttons alike carry `data-hire-step`; a refused + says why — and the cart's «Cancel» and «Buy»; «Sell» or «Cancel
+ * purchase» (not when closed), and its sheet's «Cancel» and button.
  */
-function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused }) {
+function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused, onSell, onSellKeep, onSellSend }) {
   return [
     onPlayerButton(root, "data-roster-hire", onHire),
     wireStepButtons(root, "hire", ({ key, delta }) => onHireStep(Number(key), delta), { onRefused: ({ reason }) => onRefused(reason) }),
     delegate(root, "click", "[data-hire-keep]", () => onHireKeep()),
     delegate(root, "click", "[data-hire-buy]", () => onHireBuy()),
+    onPlayerButton(root, "data-roster-sell", onSell),
+    delegate(root, "click", "[data-sell-keep]", () => onSellKeep()),
+    delegate(root, "click", "[data-sell-send]", () => onSellSend()),
   ];
 }
 
@@ -111,6 +116,9 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice }) {
  * @param {(rowIndex: number, delta: 1|-1) => void} handlers.onHireStep a card's + or −, by the line of the race's table (not a refused +)
  * @param {() => void} handlers.onHireKeep «Cancel» in the cart
  * @param {() => void} handlers.onHireBuy «Buy» in the cart
+ * @param {(key: string, button: Element) => void} handlers.onSell «Sell» or «Cancel purchase», by the line's key (not when it is closed)
+ * @param {() => void} handlers.onSellKeep «Cancel» in the sale's sheet
+ * @param {() => void} handlers.onSellSend the sale's sheet's button: «Sell for …» or «Cancel and get … back»
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {

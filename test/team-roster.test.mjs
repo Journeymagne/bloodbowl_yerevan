@@ -1247,9 +1247,9 @@ test("advancement waits for the post-match: «Profile and advancement», «Advan
     check(advance);
     assert.equal(aside().querySelector(".g-roster__cheapest").textContent, AFTER_POST);
     assert.equal(aside().querySelector("a"), null);
-    // The switch edits the career, not the roster's advancements: they stay closed.
+    // The switch edits the career, not the roster's advancements: they stay closed, and stage 07c's «Sell» with them (K2).
     fireEvent(outsideSwitch(), "click");
-    assert.equal(aside().querySelectorAll(".g-roster__closed").length, 2);
+    assert.equal(aside().querySelectorAll(".g-roster__closed").length, 3);
   });
 });
 

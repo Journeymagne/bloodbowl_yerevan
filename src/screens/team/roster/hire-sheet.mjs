@@ -29,10 +29,11 @@ export function refusalWords({ code, params = {} }) {
 }
 
 /**
- * The «+» (decision 12): after «Player» in the active roster's header, a round plus named «Hire players»; where that
- * table is not drawn (nobody on the roster plays the next match), the button as wide as the column under the words
- * (`block`). Closed (`hireClosed`: a match, the screen's lock) it says why as every closed control does, and keeps
- * what names it, so the focus finds it again when the cart it opened closes.
+ * The «+» (decision 12): after «Player» in the active roster's header, a round plus named «Hire players», its title
+ * «Add players» as the prototypes give it; where that table is not drawn (nobody on the roster plays the next match),
+ * the button as wide as the column under the words (`block`). Closed (`hireClosed`: a match, the screen's lock) it
+ * says why as every closed control does, and keeps what names it, so the focus finds it again when the cart it opened
+ * closes.
  *
  * @param {import("./view.mjs").RosterScreen} screen
  * @param {{block?: boolean}} [options]
@@ -43,7 +44,8 @@ export function hireButtonMarkup(screen, { block = false } = {}) {
   const reason = hireClosed(screen);
   if (reason) return closedMarkup({ className: block ? "g-btn g-btn--primary g-btn--block" : "g-roster__hire", label, glyph: block ? "" : "plus", reason, data });
   if (block) return renderButton({ label, kind: "primary", block: true, data });
-  return `<button type="button" class="g-roster__hire" aria-haspopup="dialog" aria-label="${escapeHtml(label)}"${dataAttributes(data)}>${icon("plus", 14)}</button>`;
+  return `<button type="button" class="g-roster__hire" aria-haspopup="dialog" aria-label="${escapeHtml(label)}" title="${escapeHtml(t("teamRoster.hire.openTitle"))}"`
+    + `${dataAttributes(data)}>${icon("plus", 14)}</button>`;
 }
 
 /**
