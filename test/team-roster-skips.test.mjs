@@ -1496,6 +1496,46 @@ test("a death's refusal whose sheet is gone is said in a message, never with «p
   });
 });
 
+// The Task 12 copy pass: another device's save that is this very death says it is marked, not that it was not.
+test("another device marked the same death first: read again she is among the fallen, and the coach is told it is marked", async () => {
+  const MARKED = "The roster was changed on another device and has been read again. Ann: the death is already marked.";
+  const elsewhere = (roster) => ({ error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: roster });
+  const told = () => {
+    assert.equal(toasts().at(-1), MARKED);
+    assert.ok(!toasts().some((said) => said.includes("not marked")), "no words that she was not marked");
+    assert.doesNotMatch(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.ok(namesIn(tables().at(-1)).includes("Ann"), "she stands among the fallen");
+  };
+  // The sheet open: the read takes her into «Fallen», and the sheet with her.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.reply(DEATH, 409, elsewhere(withoutAnn({ revision: 6 })));
+    serverHolds(withoutAnn({ revision: 6 }), [annFell(), ...FALLEN]);
+    fireEvent(sendButton(), "click");
+    await settle(12);
+    assert.ok(!markSheet());
+    told();
+  });
+  // The sheet closed while the death was on its way: nothing is said before the read is in, then the same.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    const death = api.hold(DEATH);
+    fireEvent(sendButton(), "click");
+    await settle();
+    fireEvent(markSheet(), "keydown", { key: "Escape" });
+    serverHolds(withoutAnn({ revision: 6 }), [annFell(), ...FALLEN]);
+    death.release({ status: 409, body: elsewhere(withoutAnn({ revision: 6 })) });
+    await settle(12);
+    assert.equal(teamReads(), 2, "read again");
+    told();
+    assert.equal(toasts().filter((said) => said.startsWith("The roster was changed")).length, 1, "said once");
+  });
+});
+
 test("another tab's coach: no death is sent", async () => {
   await withoutTimers(async () => {
     coach();

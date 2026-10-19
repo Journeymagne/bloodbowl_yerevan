@@ -180,7 +180,7 @@ function deathLost(saving, lent, { line, mine }) {
 /**
  * A refusal of a write of the fallen: said in the sheet that sent it, which stays as it was and no longer waits; closed
  * meanwhile, in a message while the roster is on the coach's screen — in `closed`, words that ask for no press where no
- * sheet is left to press in (R2).
+ * sheet is left to press in (R2); "" says nothing yet (the words wait for a read).
  */
 function refusalSaid({ visit, draw }, { sheet, mine }, refusal, closed = refusal) {
   if (mine) Object.assign(sheet, { refusal, busy: false });
@@ -188,13 +188,18 @@ function refusalSaid({ visit, draw }, { sheet, mine }, refusal, closed = refusal
   draw();
 }
 
+/** Whether the fallen as last read hold his record: another device marked his death first. */
+const fallenAlready = ({ fallen }, line) => fallen.some((record) => storedPlayerId(record.player) === line.id);
+
 /**
  * A death's answer, heard by the coach who sent it. The team it brings is always taken, whatever became of the sheet
  * (K8), with his record first among the fallen (K5). The sheet, while it is still the one that sent it, closes and
  * gives the focus, or says why not; closed meanwhile, the coach is told in a message while the roster is on his screen.
  * Another device's save reads the roster again; a lost answer reads it back (`deathLost`); a player the server no
  * longer has is read again too — a read that takes him away takes the sheet with him, and its words go on in a message
- * (M1); any other refusal is only said.
+ * (M1); any other refusal is only said. Another device's save may be this very death: read again, he stands among the
+ * fallen, and a coach with no sheet left is told his death is marked, not that it was not — so those words wait for the
+ * read.
  */
 async function heardDeath(saving, lent, { sheet, line, answer }) {
   const { visit } = saving;
@@ -215,11 +220,12 @@ async function heardDeath(saving, lent, { sheet, line, answer }) {
   }
   const conflict = "conflict" in answer;
   const again = conflict ? lent.reload() : answer.code === "PLAYER_NOT_FOUND" ? lent.readAgain() : null;
-  const [refusal, closed] = conflict ? [t("teamRoster.mark.changed"), t("teamRoster.mark.changedClosed")] : [answer.refusal, answer.refusal];
-  refusalSaid(saving, { sheet, mine }, refusal, closed);
+  refusalSaid(saving, { sheet, mine }, conflict ? t("teamRoster.mark.changed") : answer.refusal, conflict ? "" : answer.refusal);
   if (!again) return;
   await again;
-  if (mine && visit.here && visit.sheet !== sheet) toast(closed, { tone: "error" });
+  if (!visit.here || (mine ? visit.sheet === sheet : !conflict)) return;
+  if (conflict && fallenAlready(visit, line)) toast(t("teamRoster.mark.changedFallen", { name: line.name }));
+  else toast(conflict ? t("teamRoster.mark.changedClosed") : answer.refusal, { tone: "error" });
 }
 
 /**

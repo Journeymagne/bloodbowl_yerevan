@@ -1152,6 +1152,7 @@
   "teamRoster.mark.deadLost": "The death is not on the server: mark it again.",
   "teamRoster.mark.changed": "The roster was changed on another device and has been read again. The death was not marked: press again.",
   "teamRoster.mark.changedClosed": "The roster was changed on another device and has been read again. The death was not marked.",
+  "teamRoster.mark.changedFallen": "The roster was changed on another device and has been read again. {name}: the death is already marked.",
   "teamRoster.mark.writing": "Saving the mark…",
   "teamRoster.skips.return": "Back on the roster",
   "teamRoster.skips.retiredClosed": "Retired for the season: he cannot be brought back here.",

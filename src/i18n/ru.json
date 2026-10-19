@@ -1152,6 +1152,7 @@
   "teamRoster.mark.deadLost": "Гибели на сервере нет: отметьте её ещё раз.",
   "teamRoster.mark.changed": "Состав изменили на другом устройстве, он перечитан. Гибель не отмечена: нажмите ещё раз.",
   "teamRoster.mark.changedClosed": "Состав изменили на другом устройстве, он перечитан. Гибель не отмечена.",
+  "teamRoster.mark.changedFallen": "Состав изменили на другом устройстве, он перечитан. {name}: гибель уже отмечена.",
   "teamRoster.mark.writing": "Сохраняем отметку…",
   "teamRoster.skips.return": "Вернуть в состав",
   "teamRoster.skips.retiredClosed": "Временный уход до конца сезона: здесь его не вернуть.",
