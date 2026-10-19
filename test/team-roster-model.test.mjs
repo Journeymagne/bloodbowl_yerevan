@@ -140,6 +140,45 @@ test("a line says who the player is: his place, number, position, colour, cost a
   assert.deepEqual([captain.captain, captain.kind, absent.skip], [true, "blitzer", true]);
 });
 
+/** Eight Human players with ids of their own: a Catcher with a skill he took, then linemen; `over` is the first's. */
+const eightHumans = (over = {}) => [player(2, over), ...Array.from({ length: 7 }, (_, at) => player(0, { id: `m${at}`, number: String(at + 2) }))];
+
+test("a line says what letting him go brings back, and whether the roster may lose him", () => {
+  const block = [{ name: "Block", access: "primary" }];
+  const [catcher, ...linemen] = linesOf(eightHumans({ extraSkills: block }));
+  assert.equal(catcher.price, 75, "his position's price, in thousands, not his value");
+  assert.equal(catcher.value, 95);
+  assert.deepEqual(catcher.removal, { type: "sell", amount: 47.5, blocked: false }, "half his value, the advancement's worth too");
+  assert.deepEqual([linemen[0].price, linemen[0].removal], [50, { type: "sell", amount: 25, blocked: false }]);
+  const bought = linesOf(eightHumans({ purchased: true, purchaseRefund: 50 }))[0];
+  assert.deepEqual(bought.removal, { type: "cancel-purchase", amount: 50, blocked: false }, "what he was bought for, not half of it");
+  assert.equal(bought.price, 75);
+  const seven = eightHumans({ extraSkills: block, id: "c" }).slice(1);
+  assert.deepEqual(linesOf(seven)[0].removal, { type: "sell", amount: 25, blocked: true }, "a sale would leave fewer than seven");
+  const [left, ...rest] = linesOf([player(2, { id: "c", purchased: true, purchaseRefund: 50 }), ...seven.slice(1)]);
+  assert.deepEqual([left.removal.type, left.removal.blocked], ["cancel-purchase", false], "a purchase is cancelled at seven (the owner's Q1)");
+  assert.deepEqual(rest.map(({ removal }) => removal.blocked), rest.map(() => true), "the others cannot be sold");
+  assert.equal(linesOf([player(2, { id: "c", purchased: true })])[0].removal.type, "sell", "a purchased flag with no refund is no purchase to cancel");
+});
+
+test("the seven a sale leaves is everyone on the roster: those who miss the next match count", () => {
+  const missing = (players) => players.map((one, at) => (at < 3 ? { ...one, skipNextGame: true } : one));
+  assert.deepEqual(linesOf(missing(eightHumans())).map(({ removal }) => removal.blocked), eightHumans().map(() => false), "eight, three of them out, may lose one");
+  assert.deepEqual(linesOf(missing(eightHumans().slice(1))).map(({ removal }) => removal.blocked), eightHumans().slice(1).map(() => true), "seven may not");
+});
+
+test("Architect of Fate: his full value and his injuries", () => {
+  const TZEENTCH = race("teams/tzeentch");
+  const horrors = (over = {}) => [player(1, { id: "h0", ...over }), ...Array.from({ length: 7 }, (_, at) => player(1, { id: `h${at + 1}`, number: String(at + 2) }))];
+  const [hurt, whole] = rosterLines({ draft: { players: horrors({ nigglingInjuries: 1 }) }, race: TZEENTCH, mode: PLAIN });
+  assert.deepEqual([hurt.position, hurt.price, hurt.value], ["Pink Horror", 75, 75]);
+  assert.deepEqual(hurt.removal, { type: "sell", amount: 85, blocked: false }, "his value and ten for the injury");
+  assert.equal(whole.removal.amount, 75, "his full value, not half");
+  const maimed = rosterLines({ draft: { players: horrors({ nigglingInjuries: 1, injuryStatMods: { ma: -1, st: -1 } }) }, race: TZEENTCH })[0];
+  assert.equal(maimed.removal.amount, 75 + 30, "a niggling injury and two lost points of characteristics");
+  assert.equal(linesOf(eightHumans({ nigglingInjuries: 2 }))[0].removal.amount, 37.5, "any other team gets half and nothing for injuries");
+});
+
 test("the minus of each kind of edit stops where the server would refuse it", () => {
   const withBlob = (count, events = [], mode = PLAIN) => linesOf([player(0, { spp: { touchdowns: count } })], { events, mode })[0];
   // Outside a match: the blob's counter. A career of 1 made of a row waiting is no blob to take from.
@@ -456,6 +495,13 @@ test("a fallen record the roster cannot read is a line all the same: his name, d
   for (const field of ["blob", "career", "match", "waiting"]) assert.deepEqual(Object.keys(lines[0][field]), Object.keys(read[field]), field);
   assert.deepEqual(Object.keys(lines[0]).sort(), Object.keys(read).sort(), "the same fields as a line the race reads");
   assert.deepEqual(lines[2].fallen, { id: "f3", cause: "Foul", fromMatch: false, round: null, diedAt: "2026-10-18T10:00:00Z" });
+});
+
+test("a fallen record the roster cannot read lets nobody go: no price, a sale that is blocked", () => {
+  const [joe] = fallenLines({ fallen: [died("f3", { name: "Old Joe", position: "Lineman", number: 5 })], race: HUMAN });
+  assert.deepEqual([joe.bare, joe.price, joe.removal], [true, 0, { type: "sell", amount: 0, blocked: true }]);
+  const [read] = fallenLines({ fallen: [died("f4", { id: "d4", rowIndex: 3 })], race: HUMAN });
+  assert.deepEqual([read.price, read.value], [80, 80], "a fallen line the race reads has the price of his position");
 });
 
 test("a record whose player is no object is a bare line from nothing, not an error", () => {

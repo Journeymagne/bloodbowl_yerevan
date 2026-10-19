@@ -4,8 +4,8 @@
  * the tests run it on the real vault.
  *
  * A line is one player: his characteristics and skills, his counters in the three senses the screen needs
- * (what is in the roster, what a match has added, what an edit outside a match is waiting for), and his
- * SPP. The mode is what the team's games say the roster is for just now: plain, a preparation, a match.
+ * (what is in the roster, what a match has added, what an edit outside a match is waiting for), his
+ * SPP, and what parting with him gives (a sale, or the cancel of his purchase) and whether the roster may. The mode is what the team's games say the roster is for just now: plain, a preparation, a match.
  *
  * The fallen are lines too (stage 07b): what the roster held when each died, read the way a player of the
  * roster is, with how and when he fell; one the roster as read still holds is drawn there and only there.
@@ -15,10 +15,11 @@ import { isGameClosedForPlayers } from "../../../data/games.mjs";
 import { SPP_EVENT_COUNTERS, careerCounters, eventTotal, statisticsFromEvents } from "../../../domain/post-match/events.mjs";
 import { ADVANCEMENT_BLOCKED, canTakeAdvancement, playerAdvancementLevel, playerAdvancementSpent, playerSppTotal, sppCounterWeights } from "../../../domain/roster/progression.mjs";
 import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
+import { playerRemoval } from "../../../domain/roster/transfers.mjs";
 import {
   CAPTAINS_SKILL, baseSkillsForPlayer, normalizePlayerExtraSkills, normalizePlayerFavouredSkills, normalizeSppCounters, positionKind, selectedRosterPlayers, storedPlayerId,
 } from "../../../domain/roster/players.mjs";
-import { PLAYER_STATS, categoriesForAccess, countToNumber, statValueForDisplayByStat } from "../../../domain/roster/values.mjs";
+import { PLAYER_STATS, categoriesForAccess, costToNumber, countToNumber, rowCost, statValueForDisplayByStat } from "../../../domain/roster/values.mjs";
 import { currentMatch } from "../../../shell/current-match.mjs";
 
 /** The counters a player's cell shows in full, in the order of the table's columns. */
@@ -185,6 +186,8 @@ function keysOf(ids) {
  * @property {number|null} cheapest the random skill's cost at the next rank, null at the last
  * @property {boolean} ready cheapest !== null && available >= cheapest
  * @property {number} value playerCurrentCost(row, player), in thousands
+ * @property {number} price what his position costs to hire, in thousands (costToNumber(rowCost(row))): not his value, which the advancements and the injuries move
+ * @property {{type: "sell"|"cancel-purchase", amount: number, blocked: boolean}} removal what parting with him gives, in thousands (playerRemoval, on the draft the lines are made of): a purchase still open is cancelled for what he cost, any other player is sold; `blocked` is a sale that would leave the roster under seven, which a cancel never is
  * @property {number} matchSpp the SPP of the match's own rows (weights × match)
  * @property {number} outsideSpp the SPP of the edits outside a match waiting for its finish (weights × (waiting − blob))
  */
@@ -236,6 +239,9 @@ export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }
       primary: categoriesForAccess(row.primary), secondary: categoriesForAccess(row.secondary),
       ...counters, injury: mode.kind === "match" ? injuryOf(injuries, id) : null,
       ...progressOf(race, player, counters.career), value: playerCurrentCost(row, player),
+      // What he brings back is the league's rule, kept where the server's save reads it (transfers.mjs): half his value, his full value and ten for each
+      // injury under Architect of Fate (content/Gata/General Information/Special Rules.md), and no sale that leaves under seven (content/Gata/Rules/3. Team Management.md).
+      price: costToNumber(rowCost(row)), removal: playerRemoval(race, draft, player),
     };
   });
 }
@@ -262,7 +268,8 @@ export function rosterSections(lines) {
  *   a death by hand and a record the server has no round for. `bare`: a record the roster cannot read — no row of the
  *   race for its snapshot, or no player in it at all — drawn from what it says of itself; the server would not give
  *   him back to the roster (FALLEN_NOT_RESTORABLE), so no undo of it is offered (K11). One with no id is bare too: no
- *   write could name him back, and no read could find him on the roster to say whether an undo landed.
+ *   write could name him back, and no read could find him on the roster to say whether an undo landed. `price` and
+ *   `removal` are there for the shape's sake: the dead are neither hired nor sold, and no screen reads them for him.
  */
 
 /** No rows: the dead have none, so the counters of a line made for them are the snapshot's own. */
@@ -285,6 +292,7 @@ function bareLine(race, snapshot) {
     stats: Object.fromEntries(PLAYER_STATS.map((stat) => [stat, { text: NO_VALUE, change: "", order: null }])), skills: [], primary: [], secondary: [],
     ...counters, injury: null,
     earned: 0, spent: 0, available: 0, level: 0, cheapest: null, ready: false, value: 0,
+    price: 0, removal: { type: "sell", amount: 0, blocked: true },
   };
 }
 
