@@ -13,9 +13,11 @@
  *                                 (TREASURY_INVALID); else 201 `{team, entry}`, the revision one up.
  *   PATCH /api/teams/:id          a save of any team: an integer `revision` that is not the team's is 409
  *                                 (a body without one writes unconditionally, as the server does); a
- *                                 re-roll the stage does not allow is 422 STAGE_PURCHASE_LOCKED; else the
- *                                 name, race, logo and roster are stored, the lines `classifyTreasuryChange`
- *                                 finds are written, and the answer is `{team}`.
+ *                                 re-roll the stage does not allow is 422 STAGE_PURCHASE_LOCKED, and a
+ *                                 treasury below zero 422 ROSTER_BREAKS_THE_RULES (TREASURY_INVALID, as a
+ *                                 hire the treasury cannot pay is); else the name, race, logo and roster are
+ *                                 stored, the lines `classifyTreasuryChange` finds (a hire, a cancelled
+ *                                 purchase, a sale) are written, and the answer is `{team}`.
  *
  * The history of each team lives in memory with the teams. Two are given one when the routes are made
  * (and nothing under MOCK_EMPTY, which has no team): t1 six lines, ending at its treasury, and t5 a sponsor's.
@@ -129,7 +131,7 @@ function addEntry(store, found, body) {
   return reply({ team: found, entry }, 201);
 }
 
-/** `PATCH`: the team body's checks (`readTeamBody`), then the revision, the stage, and the write with its lines. */
+/** `PATCH`: the team body's checks (`readTeamBody`), then the revision, the stage, the treasury, and the write with its lines. */
 async function save(store, found, body, onSave) {
   const name = String(body.name ?? "").trim();
   const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
@@ -140,6 +142,7 @@ async function save(store, found, body, onSave) {
   const roster = normalizeDraft(body.roster ?? {});
   const [locked] = stageViolations(before, roster, found.stage);
   if (locked) return refuse(422, "STAGE_PURCHASE_LOCKED", locked.params);
+  if (!isMoneyAmount(roster.treasury)) return reply({ ...errorPayload("ROSTER_BREAKS_THE_RULES"), violations: [{ code: VALIDATION_CODES.TREASURY_INVALID, params: {} }] }, 422);
   // The race prices a sale; after a race change the old squad has no price here.
   const race = found.baseTeamSlug === baseTeamSlug ? teamBySlug(baseTeamSlug) : null;
   const rows = ledgerRows(before.treasury, classifyTreasuryChange(race, before, roster));
