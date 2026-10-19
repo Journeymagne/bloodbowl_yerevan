@@ -10,6 +10,7 @@ import { teamFavouredOptions, teamLeagueOptions } from "../src/domain/roster/tea
 import { renderSppControls } from "../src/components/roster-editor/spp-controls.mjs";
 import { renderStaffControl } from "../src/components/roster-editor/staff-control.mjs";
 import { renderTeamRuleAccess } from "../src/components/roster-editor-shared.mjs";
+import * as modes from "../src/components/roster-editor/modes.mjs";
 import { LEAGUE_MODE } from "../src/components/roster-editor/modes.mjs";
 
 // The layout's hire wiring imports the screen container; these tests render only.
@@ -77,4 +78,16 @@ test("public Matchday omits hire actions and dialogs instead of hiding active co
   assert.match(html, /matchday-hero/);
   assert.match(html, /data-total-spp-display/);
   assert.match(renderMatchdayEditor(options), /data-matchday-open-hire/);
+});
+
+test("the editor has one mode: the league's", () => {
+  assert.deepEqual(Object.keys(modes), ["LEAGUE_MODE"]);
+  assert.equal(modes.CREATE_MODE, undefined);
+  // The flags only the 2.x builder ever set, or that the league always held, are gone.
+  for (const flag of ["enforcesBudget", "enforcesPositionLimit", "showsHireCards", "spendsTreasury", "marksPurchased"]) {
+    assert.ok(!(flag in LEAGUE_MODE), flag);
+  }
+  // What the league does differently from nothing stays: the strings the components read.
+  assert.deepEqual(Object.keys(LEAGUE_MODE).sort(), ["hireAttribute", "hireCountHeadingKey", "id", "identityAttribute",
+    "identityFormClass", "staffAttribute", "staffCardClass"]);
 });

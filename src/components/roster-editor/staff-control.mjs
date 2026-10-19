@@ -1,14 +1,14 @@
 /**
- * The stepper a coach buys staff with, shared by both editors.
+ * The stepper a coach buys staff with.
  *
  * There used to be two: renderBuilderStaffControl and renderRosterStaffControl,
  * the same card and the same stepper, differing in the wrapper class, the data
  * attribute the buttons carried, and what stops the "+" — the league's starting
- * budget in one, the position maximum in both. Another of the duplicate pairs
- * section 5.1 of the design spec counts.
+ * budget in one, the position maximum in both. The builder is gone (the 3.0 team
+ * builder replaced it), and this is the one that stayed.
  *
- * What differs between the two situations lives in modes.mjs; this file reads
- * flags and never asks which mode it is in.
+ * What the mode says about the card lives in modes.mjs; this file reads it and
+ * never asks which mode it is in.
  *
  * The "+" is marked `aria-disabled`, never `disabled`: a disabled button takes
  * no click and shows no tooltip, so the reason it refused never reaches the
@@ -24,7 +24,7 @@
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { builderStaffCosts, builderStaffMaximums, startingBudget } from "../../domain/league-rules.mjs";
+import { builderStaffCosts, builderStaffMaximums } from "../../domain/league-rules.mjs";
 import { countToNumber } from "../../domain/roster/values.mjs";
 import { canBuy } from "../../domain/roster/stage.mjs";
 import { availableMedicalStaffDefinitions, hasBribery } from "../../domain/roster/team-rules.mjs";
@@ -35,24 +35,19 @@ import { availableMedicalStaffDefinitions, hasBribery } from "../../domain/roste
  * @param {string} key staff field on the draft, e.g. "cheerleaders"
  * @param {string} title translated label, used in the refusal
  * @param {number|string} value what the draft holds now
- * @param {object} mode CREATE_MODE or LEAGUE_MODE
- * @param {number} committedTotal what the roster already costs, for the budget check
  * @param {string|null} stage the team's stage, or nothing when no stage applies
  * @returns {{blocked: boolean, title: string}}
  */
-function staffStepVerdict(key, title, value, mode, committedTotal = 0, stage = null) {
+function staffStepVerdict(key, title, value, stage = null) {
   // The stage comes first: a team at the maximum of a re-roll its stage locks is
   // told about the stage, which is the reason that will still hold after it sells one.
   if (stage != null && !canBuy(stage, key)) return { blocked: true, title: t(`treasury.lock.${key}`) };
   const max = builderStaffMaximums[key] ?? 6;
   if (countToNumber(value) >= max) return { blocked: true, title: t("validation.STAFF_MAX", { title, max }) };
-  if (mode.enforcesBudget && committedTotal + (builderStaffCosts[key] ?? 0) > startingBudget) {
-    return { blocked: true, title: t("validation.BUDGET_EXCEEDED", { budget: startingBudget, total: committedTotal }) };
-  }
   return { blocked: false, title: "" };
 }
 
-/** The refusal, as attributes. Kept apart so the hire pool's rule reads the same. */
+/** The refusal, as attributes. */
 export function blockedAttributes(verdict) {
   return verdict.blocked ? `aria-disabled="true" title="${escapeHtml(verdict.title)}"` : "";
 }
@@ -71,17 +66,16 @@ export function staffCostDescription(key) {
  * @param {string} options.key staff field on the draft
  * @param {string} options.title translated label
  * @param {number|string} options.value what the draft holds now
- * @param {object} options.mode CREATE_MODE or LEAGUE_MODE
- * @param {number} [options.committedTotal] roster cost so far, for the budget check
+ * @param {object} options.mode LEAGUE_MODE
  * @param {string} [options.description] overrides the price line — a dedicated fan
  *   in a league team was not bought, it accrued, so its card says so instead
  * @param {boolean} [options.readOnly] disable buttons and omit mutation attributes
  * @param {string|null} [options.stage] the team's stage; a re-roll it may not
  *   buy refuses the "+". Nothing (an administrator, a public team) checks none.
  */
-export function renderStaffControl({ key, title, value, mode, committedTotal = 0, description, readOnly = false, stage = null }) {
+export function renderStaffControl({ key, title, value, mode, description, readOnly = false, stage = null }) {
   const current = countToNumber(value);
-  const verdict = staffStepVerdict(key, title, value, mode, committedTotal, stage);
+  const verdict = staffStepVerdict(key, title, value, stage);
   const down = readOnly || current <= 0 ? "disabled" : "";
   return `
     <div class="builder-addon compact-staff-control ${mode.staffCardClass}">
@@ -99,43 +93,36 @@ export function renderStaffControl({ key, title, value, mode, committedTotal = 0
 }
 
 /**
- * Dedicated fans, worded for the situation.
+ * Dedicated fans, worded for a team in play: not a price but a post-match value
+ * the team accrued.
  *
- * The same number means two different things: while the starting budget is
- * being spent they are a price, and once the team is playing they are a
- * post-match value it accrued. That is what `enforcesBudget` distinguishes.
- *
- * Kept apart from the hired staff because the two editors file it differently —
- * the builder lists it with the purchases, the league editor with the team's
+ * Kept apart from the hired staff because the editor files it with the team's
  * resources, next to the treasury.
  */
-export function renderDedicatedFansLine({ draft, mode, committedTotal = 0, readOnly = false }) {
+export function renderDedicatedFansLine({ draft, mode, readOnly = false }) {
   return renderStaffControl({
     key: "dedicatedFans",
     title: t("savedRoster.dedicatedFans"),
     value: draft.dedicatedFans,
     mode,
-    committedTotal,
     readOnly,
-    description: mode.enforcesBudget ? undefined : t("roster.postMatchValue"),
+    description: t("roster.postMatchValue"),
   });
 }
 
 /**
- * The staff a coach hires, in the order both editors listed them.
+ * The staff a coach hires, in the order the editor lists them.
  *
- * Rerolls and money are not here: a brand-new team buys starting rerolls out of
- * the budget and has no treasury, a league team also has team rerolls and two
- * money fields. Those stay with their editors.
+ * Rerolls and money are not here: a league team also has team rerolls and two
+ * money fields. Those stay with the editor.
  *
  * @param {object} options
  * @param {object} options.team the race, for bribery and medical staff
  * @param {object} options.draft the roster being edited
- * @param {object} options.mode CREATE_MODE or LEAGUE_MODE
- * @param {number} [options.committedTotal] roster cost so far, for the budget check
+ * @param {object} options.mode LEAGUE_MODE
  */
-export function renderHiredStaffLines({ team, draft, mode, committedTotal = 0, readOnly = false }) {
-  const line = (key, title) => renderStaffControl({ key, title, value: draft[key], mode, committedTotal, readOnly });
+export function renderHiredStaffLines({ team, draft, mode, readOnly = false }) {
+  const line = (key, title) => renderStaffControl({ key, title, value: draft[key], mode, readOnly });
   return [
     hasBribery(team) ? line("bribes", t("savedRoster.bribes")) : "",
     line("assistantCoaches", t("savedRoster.assistantCoaches")),
