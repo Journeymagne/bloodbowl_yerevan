@@ -14,15 +14,12 @@ import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { state } from "../core/state.mjs";
 import { pageUrl, playerTeamUrl, playerUrl } from "../core/routes.mjs";
-import { canonicalLeagueName, canonicalSpecialRuleName, ruleLookupKey } from "../domain/roster/team-rules.mjs";
+import { canonicalLeagueName, canonicalSpecialRuleName } from "../domain/roster/team-rules.mjs";
+import { pageForName } from "../screens/ref/catalog.mjs";
 
-// The two name-to-page rules below stay in this file; their convergence with `pageForName` (screens/ref/catalog.mjs) is stage 07a's.
+// A name finds its page by the reference's one rule (`pageForName`, screens/ref/catalog.mjs); a league and a special rule are sections of their own pages.
 function pageForSkillTableEntry(title) {
-  const pages = [...state.data.skills, ...state.data.traits, ...state.data.pages];
-  const lookupTitle = title.trim().replace(/^Loner\s*(?:\(\s*(?:[1-6]|X)\s*\+\s*\)|(?:[1-6]|X)\s*\+)$/i, "Loner (X+)");
-  return pages.find((page) => page.title === title)
-    ?? pages.find((page) => page.title.toLowerCase() === lookupTitle.toLowerCase())
-    ?? null;
+  return pageForName(state.data, title);
 }
 
 /** @param {Set<string>} [favoured] names to mark as favoured-skill pills */
@@ -44,9 +41,7 @@ function pageForRuleEntry(title) {
   if (canonicalSpecialRuleName(title)) {
     return state.data.pages.find((page) => page.title === "Special Rules") ?? null;
   }
-  const key = ruleLookupKey(title);
-  return [...state.data.pages, ...state.data.skills, ...state.data.traits].find((page) => ruleLookupKey(page.title) === key)
-    ?? null;
+  return pageForName(state.data, title);
 }
 
 export function renderCaptainBadge(className = "roster-pill roster-pill-muted") {
