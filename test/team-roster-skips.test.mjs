@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -377,6 +377,15 @@ test("everything drawn is styled: the three sections, a skipper's row, a fallen 
     });
   }
   assert.ok(text("src/styles.css").includes('@import url("screens/team/roster/marks.css");'));
+});
+
+test("a section stands 18px under the table before it, as in StatsInjured and DeskRosterInjured: its margin and the column's gap", () => {
+  const tokens = tokensOf("grass");
+  const px = ([value]) => Number(tokens[value.match(/^var\((--[\w-]+)\)$/)[1]].replace(/px$/, ""));
+  const margin = px(valuesOf("src/screens/team/roster/marks.css", ".g-roster__section", "margin-top"));
+  const gap = px(valuesOf("src/screens/team/roster/roster.css", ".g-roster__main", "gap"));
+  assert.equal(margin + gap, 18);
+  assert.deepEqual(valuesOf("src/screens/team/roster/marks.css", ".g-roster__section:first-child", "margin-top"), ["0"], "the first stays at the top");
 });
 
 test("the fallen are grey and readable: their cells, the line under the name and the characteristics of the profile", () => {
