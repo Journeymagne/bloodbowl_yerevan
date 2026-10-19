@@ -611,8 +611,59 @@ test("while the games are unread no tap writes the roster", async () => {
   });
 });
 
+// Final review, Minor 1: a team is never taken on games older than it, so the games are asked for once the roster has answered.
+test("the games are read after the roster has answered — on entry, on «Try again» and on a read again — and the counters wait for both", async () => {
+  await withoutTimers(async () => {
+    /** A tap is told to wait for the games, and sends nothing. */
+    const waits = () => {
+      const said = toasts().length;
+      fireEvent(plus("casualties"), "click");
+      assert.deepEqual(toasts().slice(said), ["Loading the matches…"]);
+    };
+    /**
+     * `act` reads the roster: no games are asked for until it has answered, and a tap waits for both. A roster drawn
+     * by the read (`drawn`: the first, or the one «Try again» brings) has its counters drawn closed until the games answer.
+     */
+    const gamesAfterRoster = async (act, { during = () => {}, drawn = false } = {}) => {
+      api.calls.length = 0;
+      const roster = api.hold("GET /api/teams/t1");
+      const acting = act();
+      await settle();
+      assert.equal(roster.count, 1);
+      assert.ok(!callKeys().includes("GET /api/games"), "no games while the roster is read");
+      during();
+      const games = api.hold("GET /api/games");
+      roster.release();
+      await settle();
+      assert.equal(games.count, 1, "the games once the roster has answered");
+      if (drawn) assert.equal(plus("casualties").getAttribute("title"), "Loading the matches…", "the counters drawn closed");
+      waits();
+      games.release();
+      await acting;
+      await settle();
+      assert.equal(plus("casualties").hasAttribute("aria-disabled"), false);
+      assert.equal(patches().filter(({ body }) => body.roster.players[0].spp?.casualties).length, 0, "no tap was sent");
+    };
+    coach();
+    await gamesAfterRoster(() => renderTeamRoster("t1"), { drawn: true });
+    // A read again, here a refusal's.
+    api.reply(PATCH, 422, refusalOf([{ code: "SPP_EDIT_TOO_LARGE", params: { limit: 50 } }]));
+    await gamesAfterRoster(() => fireEvent(plus("touchdowns"), "click"), { during: waits });
+    assert.equal(patches().length, 1, "the refused step, and nothing after it");
+    // «Try again» after a read that failed.
+    coach();
+    api.fail("GET /api/teams/t1");
+    await renderTeamRoster("t1");
+    api.reply("GET /api/teams/t1", 200, { team: team() });
+    await gamesAfterRoster(() => fireEvent(view.querySelector("[data-roster-retry]"), "click"), { drawn: true });
+    api.assertAnswered();
+  });
+});
+
 // R8: no step of the roster's queue leaves during a match.
-// Carry T7 (d) and its correction: takeServerTeam says null while a request is in the air.
+// Carry T7 (d) and its correction: takeServerTeam says null while a request is in the air, and the take that had to wait
+// is made on the state the request comes to (final review, T10). A tap while the roster is read sends nothing (Minor 1,
+// Minor 5), so the request in the air here is the refused step, which the queue is asked to send again.
 test("the server's roster is not taken over a step in the air: it is read and taken again once the step has answered, and not at all if it was saved", async () => {
   await withoutTimers(async () => {
     for (const saved of [false, true]) {
@@ -623,24 +674,25 @@ test("the server's roster is not taken over a step in the air: it is read and ta
       fireEvent(plus("touchdowns"), "click");
       await settle();
       assert.equal(reading.count, 1, "the refusal reads the roster again");
-      // The coach taps again before it comes: the refused step and his new one go out.
       const sending = api.hold(PATCH);
-      fireEvent(plus("casualties"), "click");
+      const retrying = save.retrySaves("t1");
       await settle();
+      assert.equal(sending.count, 1, "the refused step is in the air when the read comes");
       reading.release();
       await settle();
-      assert.equal(countOf("casualties"), "1", "the roster is not swapped under the step in the air");
+      assert.equal(countOf("touchdowns"), "1", "the roster is not swapped under the step in the air");
       api.calls.length = 0;
-      if (saved) api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1, casualties: 1 }, { revision: 6 }) });
+      if (saved) api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 6 }) });
       sending.release(saved ? undefined : { error: new TypeError("Failed to fetch") });
+      await retrying;
       await settle();
       const reads = callKeys().filter((key) => key.startsWith("GET /api/teams/")).sort();
       if (saved) {
         assert.deepEqual(reads, [], "a save that landed makes the take needless: an older roster would be laid over it");
-        assert.deepEqual([status(), countOf("casualties")], ["Saved", "1"]);
+        assert.deepEqual([status(), countOf("touchdowns")], ["Saved", "1"]);
       } else {
         assert.deepEqual(reads, ["GET /api/teams/t1", "GET /api/teams/t1/events"], "read again, not the copy from before the step");
-        assert.deepEqual([status(), countOf("casualties"), save.saveState("t1").waiting], ["", "0", 0]);
+        assert.deepEqual([status(), countOf("touchdowns"), save.saveState("t1").waiting], ["", "0", 0]);
       }
     }
   });
@@ -716,34 +768,35 @@ test("a step in the air when a match is learned of is let be; what still waits o
   });
 });
 
-// Fix round 1, Important 1: a 409 is often how the coach learns that a match has begun.
-test("another device's save that was a match's start: «Load the new one» reads the games with the team, and the next tap saves nothing (R8)", async () => {
+// Fix round 1, Important 1: a 409 is often how the coach learns that a match has begun. The final review's Minor 3: so a
+// fresh conflict reads the games, and a match they name settles the step R8's way, without the coach pressing first.
+test("another device's save that was a match's start: the 409 reads the games, the server's roster is taken with the match's words and no press, and the next tap saves nothing (R8)", async () => {
   await withoutTimers(async () => {
-    coach();
+    // Ann has a touchdown in the blob: outside a match her minus would take it back (Minor 7).
+    coach({ teamAnswer: withSpp("p1", { touchdowns: 1 }) });
     await renderTeamRoster("t1");
+    assert.equal(minus("touchdowns").hasAttribute("disabled"), false, "outside a match the stored touchdown can be taken back");
     // The match began elsewhere: the start moved the team's revision, and the games now say so.
-    const started = team({ revision: 5 });
+    const started = withSpp("p1", { touchdowns: 1 }, { revision: 5 });
     api.reply(PATCH, 409, conflictOf(started));
-    fireEvent(plus("touchdowns"), "click");
-    await settle();
-    assert.ok(notice("danger"));
-    api.calls.length = 0;
     api.reply("GET /api/teams/t1", 200, { team: started });
     api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
-    api.reply("GET /api/games", 200, { games: [LIVE_GAME], currentGames: [] });
-    api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 6 }) });
-    fireEvent(view.querySelector("[data-roster-reload]"), "click");
+    gamesAre([LIVE_GAME]);
+    api.calls.length = 0;
+    fireEvent(plus("touchdowns"), "click");
     await settle();
-    assert.ok(callKeys().includes("GET /api/games"));
+    assert.deepEqual(callKeys(), [PATCH, "GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events", "GET /api/games"],
+      "the conflict reads the games; they name a match, so the roster is read, and the games after it");
+    assert.ok(!view.querySelector("[data-roster-reload]"), "nothing is left for the coach to press");
     assert.equal(view.querySelector(".g-callout--danger"), null);
+    assert.equal(toasts().at(-1), "A match has begun, so the edits that were waiting were not saved (1). Make them again as an edit outside the match.");
     assert.ok(minus("touchdowns").hasAttribute("disabled"), "the match's own rule: its records for him add up to nothing");
     api.reply(EVENTS, 201, { event: rowOf() });
     fireEvent(plus("touchdowns"), "click");
     fireEvent(plus("casualties"), "click");
     await settle();
-    assert.equal(patches().length, 0, "no save of the roster during the match");
+    assert.equal(patches().length, 1, "the step that met the 409: no save of the roster during the match");
     assert.deepEqual(posts().map(({ body }) => [body.pairingId, body.counter]), [["g2", "touchdowns"], ["g2", "casualties"]], "records of the match instead");
-    assert.equal(toasts().some((text) => text.startsWith("A match has begun")), true, "the edit the 409 met is said lost");
   });
 });
 
@@ -766,6 +819,27 @@ test("the edits a match gives up are counted against the server's roster: a step
     await settle();
     assert.equal(toasts().at(-1), "A match has begun, so the edits that were waiting were not saved (1). Make them again as an edit outside the match.");
     assert.deepEqual([countOf("touchdowns"), countOf("casualties")], ["1", "0"]);
+    assert.equal(save.saveState("t1").waiting, 0);
+  });
+});
+
+// Final review, Minor 2: the server's roster may hold another device's SPP changes too; they are no steps of the coach's.
+test("the edits a match gives up are never counted above the steps that waited: another device's SPP change is not one of them", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.fail(PATCH);
+    fireEvent(plus("touchdowns"), "click");
+    await settle();
+    assert.equal(save.saveState("t1").waiting, 1);
+    // Another device gave Bors two casualties; then the match begins.
+    const elsewhere = PLAYERS.map((player) => (player.id === "p2" ? { ...player, spp: { touchdowns: 1, casualties: 2 } } : player));
+    api.reply("GET /api/teams/t1", 200, { team: team({ revision: 6, roster: { players: elsewhere } }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 6 });
+    gamesAre([LIVE_GAME]);
+    await invalidateGames();
+    await settle();
+    assert.equal(toasts().at(-1), "A match has begun, so the edits that were waiting were not saved (1). Make them again as an edit outside the match.");
     assert.equal(save.saveState("t1").waiting, 0);
   });
 });
@@ -1118,9 +1192,10 @@ test("a match that ended elsewhere: the tap is refused, the screen reads the gam
     fireEvent(plus("touchdowns"), "click");
     await settle();
     assert.equal(toasts().at(-1), "There is no match in progress to record this in.");
-    // The games have said the match is over; the roster read during it is no roster to save until the read answers (fix round 2, N2).
+    // The roster and its records are read again, and the games once they have answered (final review, Minor 1); the
+    // roster read during the match is no roster to save until the read answers (fix round 2, N2).
     assert.equal(reading.count, 1);
-    assert.equal(view.querySelector(".g-roster__notices"), null);
+    assert.ok(!callKeys().includes("GET /api/games"), "the games after the roster");
     assert.equal(plus("touchdowns").getAttribute("title"), READING);
     fireEvent(plus("touchdowns"), "click");
     assert.equal(toasts().at(-1), READING);
@@ -1128,8 +1203,8 @@ test("a match that ended elsewhere: the tap is refused, the screen reads the gam
     assert.equal(patches().length, 0, "nothing saved on the roster read during the match");
     reading.release();
     await settle();
-    assert.deepEqual(callKeys().sort(), ["GET /api/games", "GET /api/teams/t1", "GET /api/teams/t1/events", EVENTS]);
-    assert.equal(view.querySelector(".g-roster__notices"), null, "no banner of a match");
+    assert.deepEqual(callKeys(), [EVENTS, "GET /api/teams/t1", "GET /api/teams/t1/events", "GET /api/games"]);
+    assert.ok(!view.querySelector(".g-roster__notices"), "no banner of a match");
     assert.equal(countOf("touchdowns"), "0", "the refused step is gone");
     api.reply(PATCH, 200, { team: withSpp("p1", { touchdowns: 1 }, { revision: 5 }) });
     fireEvent(plus("touchdowns"), "click");
@@ -1962,7 +2037,7 @@ test("a change the strip writes while a step is in the air is followed by nothin
     held.release({ status: 409, body: conflictOf(funded()) });
     await settle();
     assert.equal(titleOf(notice("danger")), "The roster was changed on another device");
-    assert.deepEqual(callKeys(), [TREASURY]);
+    assert.deepEqual(callKeys(), [TREASURY, "GET /api/games"], "a fresh conflict reads the games (final review, Minor 3), and no team");
   });
 });
 

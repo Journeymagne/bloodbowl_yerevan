@@ -163,13 +163,16 @@ export function savedRevision(teamId) {
 /**
  * One step of one SPP counter of one player, saved as it is taken. Nothing is sent when the player is not on
  * the roster, the counter would leave 0…999 (the server refuses anything else), or the queue is waiting for the
- * coach to settle a conflict.
+ * coach to settle a conflict — or for the server's roster after a 422: the refused step heads the queue, and a tap
+ * would send it again (`takeServerTeam` gives it up), so the tap gets the refusal's words instead.
  * @param {string} teamId @param {string} playerId his id in the roster @param {string} counter @param {number} delta
- * @returns {{ok: true} | {ok: false} | {refusal: string}}
+ * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}}
  */
 export function stepSpp(teamId, playerId, counter, delta) {
   const player = playerId ? store.getDraft(teamId)?.players.find((candidate) => storedPlayerId(candidate) === playerId) : null;
   if (!player || store.statusOf(teamId) === SAVE_STATUS.CONFLICT) return { ok: false };
+  const failed = store.statusOf(teamId) === SAVE_STATUS.ERROR ? saveState(teamId) : null;
+  if (failed?.kind === API_ERROR.INVALID) return { ok: false, refusal: failed.refusal };
   const value = normalizeSppCounters(player.spp)[counter] + delta;
   if (!Number.isInteger(value) || value < 0 || value > MAX_SPP_COUNTER) return { ok: false };
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };

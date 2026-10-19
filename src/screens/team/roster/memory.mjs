@@ -32,8 +32,9 @@ export function rosterMemory(teamId) {
 /**
  * What a line's SPP has moved since the screen was opened: the sum of the coach's edits (plan 07a, decision 11);
  * with `outside`, only what the edits outside the match have moved it — a record of the match is no edit.
- * The first time a visit shows the line is where it is counted from; a visit, and the server's roster taken in
- * place of the coach's, starts the count again (`memory.baseline.clear()`).
+ * The first time a visit shows the line is where it is counted from; a visit starts the count again
+ * (`memory.baseline.clear()`), and so does the server's roster taken after a conflict — another device's save — but not
+ * one taken after a refusal or a match, which holds the coach's saved steps as they were (index.mjs, `reloadRoster`).
  *
  * @param {RosterMemory} memory
  * @param {{key: string, earned: number, outsideSpp: number}} line

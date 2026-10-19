@@ -343,6 +343,33 @@ test("a refusal names the rule", async () => {
   assert.deepEqual(save.saveState("t1"), quiet("idle"));
 });
 
+// Final review, Minor 5: failSave puts the refused step back at the head of the queue, and a tap would send it again.
+test("a step the rules refused is not sent again by a tap while the server's roster is read: the tap says why and changes nothing", async () => {
+  const draft = await open();
+  api.reply(PATCH_URL, 422, {
+    error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" },
+    violations: [{ code: "DUPLICATE_PLAYER_ID", params: { names: "Ann, Bo" } }],
+  });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.equal((await settle()).status, "error");
+  assert.deepEqual(save.stepSpp("t1", "p1", "casualties", 1), { ok: false, refusal: "The roster breaks the rules. Players Ann, Bo are stored under one id." });
+  await tick();
+  assert.equal(patches().length, 1, "the refused step is not sent again");
+  assert.deepEqual([draft.players[0].spp.casualties, save.saveState("t1").waiting], [undefined, 1]);
+  // Once the server's roster is taken, a tap goes.
+  save.takeServerTeam(teamAt(4));
+  api.reply(PATCH_URL, 200, { team: teamAt(5, { touchdowns: 2, casualties: 1 }) });
+  assert.deepEqual(save.stepSpp("t1", "p1", "casualties", 1), { ok: true });
+  assert.deepEqual(await settle(), quiet("saved"));
+  // Another failure (a 5xx) is no refusal by the rules: a tap sends the step that waits and his own.
+  api.reply(PATCH_URL, 500, { error: { code: "SERVER_ERROR", params: {}, message: "x" } });
+  save.stepSpp("t1", "p1", "casualties", 1);
+  assert.equal((await settle()).kind, "http");
+  api.reply(PATCH_URL, 200, { team: teamAt(7, { touchdowns: 2, casualties: 3 }) });
+  assert.deepEqual(save.stepSpp("t1", "p1", "casualties", 1), { ok: true });
+  assert.deepEqual(await settle(), quiet("saved"));
+});
+
 test("the screen hears every change of the state, and the first at once; a listener that left hears no more", async () => {
   await open();
   const heard = [];

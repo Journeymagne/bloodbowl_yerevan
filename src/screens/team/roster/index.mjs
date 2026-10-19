@@ -9,8 +9,8 @@
  * queue outlives the visit: what waits for the network is sent again on entry and when the network is back, and
  * never while a match is on (R8): a PATCH during a match breaks its finish (POST_TEAM_CHANGED), so a match that
  * begins while steps wait gives them up for the server's roster, and the coach is told how many SPP steps the server
- * does not have. A team is never taken on games older than it: the games are read with it, and the counters stay
- * closed until they have answered.
+ * does not have. A team is never taken on games older than it: the games are read once it has answered, and the
+ * counters stay closed until both have.
  *
  * During a match a step is a row the server adds (match-taps.mjs, taps.mjs): a record of the match, or with «Edit
  * outside the match» an edit of the career that waits for the match's finish (Task 11). The counters wait while the
@@ -105,14 +105,14 @@ const gamesKnown = () => state.games.loaded && !state.games.loading && !state.ga
 const reading = (visit) => visit.answered !== visit.reads;
 
 /**
- * Why no counter takes a step just now, "" when none: the games unread or unreadable; the records read during a match
- * or after one ended (fix round 1: a read may land with a tap already in it, and a roster read during the match is no
- * roster to save); another device's save to settle.
+ * Why no counter takes a step just now, "" when none: the games unread or unreadable, or to be read after the roster
+ * in the air (`readWithGames`); the records read during a match or after one ended (fix round 1: a read may land with
+ * a tap already in it, and a roster read during the match is no roster to save); another device's save to settle.
  */
 function lockOf(save, visit, mode) {
   if (!state.games.loaded || state.games.loading) return t("teamRoster.gamesLoading");
   if (state.games.error) return state.games.error;
-  if (reading(visit) && (mode.kind === "match" || visit.stale)) return t("teamRoster.readingRecords");
+  if (reading(visit)) return t(mode.kind === "match" || visit.stale ? "teamRoster.readingRecords" : "teamRoster.gamesLoading");
   return save.status === SAVE_STATUS.CONFLICT ? t("teamRoster.conflict.title") : "";
 }
 
@@ -212,8 +212,9 @@ function holdTeam(saving, { team, events }, draft, since) {
 }
 
 /**
- * The one read of the team and its records with the games (Carry T10) that every taking of a team goes through: a
- * team is never taken on games older than it. The answer is taken only when it is the visit's last read and no tap
+ * The one read of the team and its records, then of the games (Carry T10), that every taking of a team goes through: a
+ * team is never taken on games older than it — read side by side, the games could answer before a match's start and
+ * the team after it (final review, Minor 1). The answer is taken only when it is the visit's last read and no tap
  * was in the air while it was made (fix round 2, N1): such a read may hold the tap's row or not, in the records or,
  * after a finish, in the roster — so it is made again once the taps have answered, the counters closed meanwhile,
  * and its caller takes the read that replaces it (N3). A read that fails says why, and opens them.
@@ -226,7 +227,9 @@ async function readWithGames(saving) {
   const current = () => visit.here && ticket === visit.reads;
   for (;;) {
     const [since, sent, quiet] = [visit.heard.length, visit.sent, !visit.pending.length];
-    const [answer] = await Promise.all([readRoster(teamId), loadGames(true)]);
+    const answer = await readRoster(teamId);
+    if (!current()) return null;
+    await loadGames(true);
     if (!current()) return null;
     if (quiet && !visit.pending.length && visit.sent === sent) {
       visit.answered = ticket;
@@ -248,8 +251,9 @@ async function readWithGames(saving) {
  * queue comes to next asks again (Carry T7 d).
  *
  * In a match the coach is told how many SPP steps of his the server does not have (a step whose answer was lost
- * may have landed: it is not one of them). After another device's save his SPP are counted afresh; after a
- * refusal or a match the server holds his saved steps as they were, and they still count.
+ * may have landed: it is not one of them), never more than waited: another device's SPP change is not his. After
+ * another device's save his SPP are counted afresh; after a refusal or a match the server holds his saved steps as
+ * they were, and they still count.
  * @param {Saving} saving
  */
 async function reloadRoster(saving) {
@@ -257,8 +261,9 @@ async function reloadRoster(saving) {
   const read = await readWithGames(saving);
   if (!read) return;
   const { answer, since } = read;
-  const lost = sppEdits(answer.team.roster, visit.draft).length;
-  const conflict = saveState(teamId).status === SAVE_STATUS.CONFLICT;
+  const { status, waiting } = saveState(teamId);
+  const lost = Math.min(sppEdits(answer.team.roster, visit.draft).length, waiting);
+  const conflict = status === SAVE_STATUS.CONFLICT;
   const draft = takeServerTeam(answer.team);
   visit.retake = !draft;
   if (draft) {
@@ -368,14 +373,16 @@ function followList(saving) {
   const ahead = listAhead(teamId, savedRevision(teamId));
   if (ahead === null || ahead === visit.followed) return;
   Object.assign(visit, { followed: ahead, stale: true });
-  saving.draw();
+  // Drawn once the read is sent, so that the counters say they wait for it: the games, read after the roster, draw nothing before then.
   void readAgain(saving);
+  saving.draw();
 }
 
 /**
  * Every change of the queue's state: drawn at once; a refusal said, a 422 taking the server's roster (the steps break
- * the rules as the server reads them); a take that had to wait asked again unless a save has since landed; the
- * steps that wait settled; a write of the strip heard meanwhile followed.
+ * the rules as the server reads them); a take that had to wait asked again unless a save has since landed; a fresh
+ * conflict reading the games, since it is often a match's start, which the games then settle R8's way (final review,
+ * Minor 3: `onGamesChange` → `settleWaiting`); the steps that wait settled; a write of the strip heard meanwhile followed.
  * @param {Saving} saving
  */
 function heardSave(saving, now) {
@@ -393,6 +400,7 @@ function heardSave(saving, now) {
       take ||= now.status !== SAVE_STATUS.SAVED;
     }
     if (take) void reloadRoster(saving);
+    else if (before && before !== SAVE_STATUS.CONFLICT && now.status === SAVE_STATUS.CONFLICT) void loadGames(true);
     settleWaiting(saving, { retry: false });
     followList(saving);
   } catch (error) {
@@ -434,11 +442,11 @@ function pressHandlers({ read, ...saving }) {
     onSheetClose: (id) => {
       if (id === SKILL_SHEET || id === INJURY_SHEET) closeSheet(saving);
     },
-    // The games are read with the team, so that it is not taken on games older than it (R8).
+    // The games are read after the team, so that it is not taken on games older than it (R8; `read`).
     onRetry: () => {
       Object.assign(visit, { loading: true, error: "" });
       draw();
-      return Promise.all([read(), loadGames(true)]);
+      return read();
     },
     // The lock is asked again: the games may have begun to be read since the counter was drawn.
     onStep: (playerId, counter, delta) => {
@@ -501,14 +509,17 @@ export async function renderTeamRoster(teamId) {
     match: null, stale: false, sent: 0, quiet: [], unsure: false, followed: null,
   };
   const saving = { teamId, visit, memory, draw: () => drawVisit(teamId, visit, memory) };
+  // The team, then the games (R8): asked for before the team is drawn, so that its counters are drawn closed until they answer.
   const read = async () => {
     const ticket = ++visit.reads;
     const since = visit.heard.length;
     const answer = await readRoster(teamId);
     if (!visit.here || ticket !== visit.reads) return;
+    const games = loadGames(true);
     Object.assign(visit, { answered: ticket, loading: false, error: answer.error ?? "" });
     if (!answer.error) holdTeam(saving, answer, trackRoster(answer.team), since);
     saving.draw();
+    await games;
   };
   const offs = [];
   // Registered first: the visit before this one (the same route drawn again) is released before this one is wired.
@@ -536,7 +547,7 @@ export async function renderTeamRoster(teamId) {
   );
   wireStrip(view, () => followList(saving));
   saving.draw();
-  await Promise.all([read(), loadGames(true)]);
+  await read();
   // The steps an earlier visit left waiting go now, if no match is on: an `online` may never come (R8).
   settleWaiting(saving, { retry: true });
 }
