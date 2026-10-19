@@ -54,6 +54,13 @@ test('ordinary sales cannot leave fewer than seven, while undo restores a short 
   assert.equal(draft.players.length, 6); assert.equal(draft.treasury, 150);
 });
 
+test("a player is found by his id as stored: a 2.x roster's 5 is \"5\"", () => {
+  const { team, draft, player } = fixture(); player.id = 5;
+  assert.deepEqual(removeLeaguePlayer(team, draft, '5', 'sell'), { applied: true, amount: 25 });
+  assert.equal(draft.players.includes(player), false);
+  assert.equal(draft.treasury, 125);
+});
+
 test('Architect of Fate pays full current value plus each lasting injury', () => {
   const { team, player } = fixture('Architect of Fate');
   player.extraSkills = [{ name: 'Block', access: 'primary' }];
