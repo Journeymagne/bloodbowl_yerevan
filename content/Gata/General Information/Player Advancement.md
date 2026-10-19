@@ -19,6 +19,7 @@ Elite skill combinations increase a player's value by an additional 15k if they 
 - Claws + Mighty Blow: +15k
 - Guard + Defensive: +15k
 - Wrestle + Evasive: +15k
+- Sneaky Git + Dirty Player: +15k
 
 ## Advancement Table
 

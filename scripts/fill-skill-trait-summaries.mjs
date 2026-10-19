@@ -94,7 +94,7 @@ add("Secret Weapon", "At the end of any drive in which this player took part, th
 add("Shadowing", "When an opponent Dodges out of this player's tackle zone, this player may roll. On 4+ they move into the square the opponent left. Uses per turn are limited by this player's MA.");
 add("Shiv", "Gata skill. Works like Stab, but only one player with Shiv on the team may use it each turn.");
 add(["Side Step", "Sidestep"], "When this player is Pushed Back, their coach chooses the destination from available adjacent squares instead of the opposing coach.");
-add(["Snail Sh", "Snail Sh..."], "Gata trait. At the start of activation, after any Very Stupid check, this player may hide in or come out of its shell. While hidden, MA becomes 0 and AV becomes 11+, and the player cannot receive adjacent-player bonuses for Very Stupid checks.");
+add("Snail Shell", "Gata trait. At the start of activation, after any Very Stupid check, this player may hide in or come out of its shell. While hidden, MA becomes 0 and AV becomes 11+, and the player cannot receive adjacent-player bonuses for Very Stupid checks.");
 add("Sneaky Git", "When this player Fouls and rolls natural doubles on the Armour roll, they are not Sent-off if the target's armour is not broken. If armour is broken, the normal sending-off rules apply.");
 add("Sprint", "When this player makes a Move Action, they may attempt one extra Rush beyond the normal limit.");
 add("Stand Firm", "When this player would be Pushed Back during a Block Action or chain push, they may stay in their current square instead. Frenzy can still continue if this player remains standing.");
