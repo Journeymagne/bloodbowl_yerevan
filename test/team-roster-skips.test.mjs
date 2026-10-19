@@ -546,6 +546,7 @@ test("the sheet: who, the reasons with what each does, and a button that says wh
     ["Seriously Hurt", "misses the next match", "false"],
     ["Serious Injury", "a Niggling Injury and a missed match", "false"],
     ["Lasting Injury", "−1 to a characteristic and a missed match", "false"],
+    ["Dead", "the player leaves the roster", "false"],
     ["Another reason", "The league's or the coach's decision", "false"],
   ]);
   assert.equal(sendButton().textContent, "Choose a reason");
@@ -992,4 +993,446 @@ test("the row of actions: buttons side by side, a thumb tall; the sheet's refusa
     assert.equal(valuesOf(sheet, selector, "font").length, 1, selector);
     assertReadable(sheet, selector, "color", ["--surface"], 4.5);
   }
+});
+
+// Stage 07b, Task 8: «Dead» in the mark's sheet, with its cause, sent once through stage 03's route (`POST …/death`); its
+// answer taken into the queue and the coach's list without ever giving up a step of the roster that waits (K7, K8).
+const DEATH = "POST /api/teams/t1/players/p1/death";
+const TEAM_READ = "GET /api/teams/t1";
+const FALLEN_READ = "GET /api/teams/t1/fallen";
+const deaths = () => api.calls.filter(({ key }) => key === DEATH);
+const teamReads = () => api.calls.filter(({ key }) => key === TEAM_READ).length;
+const plusTd = () => aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]');
+/** The team on the server once Ann has died: rev 5 by default, without her. */
+const withoutAnn = (over = {}) => withPlayers(PLAYERS.filter((player) => player.id !== "p1"), { revision: 5, ...over });
+/** The record of Ann's death as the server answers it and reads it back. */
+const annFell = () => died("f9", { ...PLAYERS[0] }, { cause: "Foul", diedAt: "2026-10-19T10:00:00Z" });
+/** The server holds `roster` and `fallen` when the screen reads them again. */
+const serverHolds = (roster, fallen) => {
+  api.reply(TEAM_READ, 200, { team: roster });
+  api.reply("GET /api/teams/t1/events", 200, { events: [], revision: roster.revision });
+  api.reply(FALLEN_READ, 200, { fallen });
+};
+/** Ann's sheet open, «Dead» chosen, `cause` written. */
+const chooseDeath = (cause = "Foul") => {
+  fireEvent(markButton(), "click");
+  fireEvent(markOption("dead"), "click");
+  typeNote(cause);
+};
+const DEAD_DONE = "Ann: the death is marked";
+const DEAD_LOST = "The death is not on the server: mark it again.";
+const UNKNOWN = "Could not tell what the server holds: look at the roster before you mark the death again.";
+const CHANGED = "The roster was changed on another device and has been read again. The death was not marked: press again.";
+const WAIT_SAVE = "Wait until your edits are saved";
+const WRITING = "Saving the mark…";
+
+test("«Dead» asks for a cause; the button waits for it, then says «Mark the death»", async () => {
+  coach();
+  await renderTeamRoster("t1");
+  fireEvent(markButton(), "click");
+  assert.deepEqual(markOptions().map((card) => [card.getAttribute("data-option-value"), card.querySelector(".g-option__title").textContent, card.querySelector(".g-option__sub").textContent]), [
+    ["miss", "Seriously Hurt", "misses the next match"],
+    ["niggling", "Serious Injury", "a Niggling Injury and a missed match"],
+    ["lasting", "Lasting Injury", "−1 to a characteristic and a missed match"],
+    ["dead", "Dead", "the player leaves the roster"],
+    ["other", "Another reason", "The league's or the coach's decision"],
+  ]);
+  fireEvent(markOption("dead"), "click");
+  const field = markText();
+  assert.ok(field, "a field for the cause");
+  assert.equal(field.getAttribute("name"), "mark-text");
+  assert.equal(markSheet().querySelector('label[for="mark-text"]').textContent, "Cause of death");
+  assert.equal(markSheet().querySelector("#mark-text-help").textContent, "Seen on the roster and in the team's history. The player moves to «Fallen».");
+  assert.equal(field.getAttribute("aria-describedby"), "mark-text-help");
+  assert.ok(!effectLine(), "a death has no injury's effect to stay");
+  assert.equal(markChips().length, 0);
+  assert.equal(sendButton().textContent, "Write the cause of death");
+  assert.ok(sendButton().hasAttribute("disabled"));
+  typeNote("   ");
+  assert.equal(sendButton().textContent, "Write the cause of death");
+  typeNote("x".repeat(501));
+  assert.equal(sendButton().textContent, "No longer than 500 characters");
+  assert.ok(sendButton().hasAttribute("disabled"));
+  typeNote(` ${"x".repeat(500)} `);
+  assert.equal(sendButton().textContent, "Mark the death", "counted as the server counts a cause: trimmed");
+  // The server refuses a NUL in a cause (checkCause); half of an emoji is no words either.
+  for (const broken of ["Fo\u0000ul", "Foul \ud83d"]) {
+    typeNote(broken);
+    assert.equal(sendButton().textContent, "Write the cause of death", JSON.stringify(broken));
+    assert.ok(sendButton().hasAttribute("disabled"));
+  }
+  typeNote("Foul");
+  assert.equal(sendButton().textContent, "Mark the death");
+  assert.equal(sendButton().hasAttribute("disabled"), false);
+  assert.ok(markText() === field, "the field is kept through the redraws");
+  assertCspSafe(view);
+  assertStyled(view, ...MARK_SHEETS);
+  // The words are the reason's too, as typed: «Another reason» asks for them under its own label.
+  fireEvent(markOption("other"), "click");
+  assert.equal(markSheet().querySelector('label[for="mark-text"]').textContent, "Reason");
+  assert.equal(sendButton().textContent, "Mark the missed match");
+  fireEvent(markOption("dead"), "click");
+  assert.equal(sendButton().textContent, "Mark the death");
+  assert.equal(deaths().length, 0);
+  assert.equal(patches().length, 0);
+});
+
+test("a death marked: one POST with the cause and the revision; he moves to «Fallen», the panel and the list take the server's team; the coach is told", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    assert.equal(aside().getAttribute("data-panel-player"), "p1#0");
+    chooseDeath("  Foul  ");
+    api.reply(DEATH, 201, { team: withoutAnn(), fallen: annFell() });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(deaths().length, 1);
+    assert.deepEqual(deaths()[0].body, { cause: "Foul", revision: 4 });
+    assert.ok(!markSheet(), "the sheet closes");
+    assert.deepEqual(tables().map(namesIn), [["Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Ann", "Pike", "Joe"]]);
+    assert.match(headingText("roster-heading"), /^Active roster 2$/);
+    assert.match(headingText("roster-fallen-heading"), /^Fallen 3$/);
+    assert.equal(subOf("fallen-f9").textContent, "Fallen · Foul");
+    assert.ok(view.querySelector('.g-roster__aside[data-panel-player="fallen-f9"]'), "the panel is his profile now");
+    assert.equal(state.myTeams.items[0].revision, 5, "the coach's list has the server's team");
+    assert.equal(save.savedRevision("t1"), 5, "and so has the queue");
+    assert.equal(toasts().at(-1), DEAD_DONE);
+    assert.ok(document.activeElement === toggle("fallen-f9"), "the focus on his row in «Fallen»");
+    assert.equal(teamReads(), 1, "the answer is taken as it is: nothing is read again");
+    // The next step goes on the revision the death came back with.
+    fireEvent(toggle("p2#0"), "click");
+    api.reply(PATCH, 200, { team: withoutAnn({ revision: 6 }) });
+    fireEvent(plusTd(), "click");
+    await settle();
+    assert.equal(patches().length, 1);
+    assert.equal(patches()[0].body.revision, 5);
+    assert.ok(!patches()[0].body.roster.players.some((player) => player.id === "p1"), "the roster without her");
+    api.assertAnswered();
+  });
+});
+
+// Review Focus 2 and the T3 review's carry (a): a death moves the revision under a step that waits.
+test("while steps of the roster wait or one is in the air, no death is sent and the button says why", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    const step = api.hold(PATCH);
+    fireEvent(plusTd(), "click");
+    await settle();
+    assert.equal(step.count, 1, "a step in the air");
+    chooseDeath();
+    assert.equal(sendButton().textContent, "Mark the death");
+    assert.equal(sendButton().getAttribute("aria-disabled"), "true");
+    assert.equal(sendButton().getAttribute("title"), WAIT_SAVE);
+    assert.equal(sendButton().hasAttribute("disabled"), false, "in reach, to say why");
+    fireEvent(sendButton(), "click");
+    assert.equal(toasts().at(-1), WAIT_SAVE);
+    fireEvent(markOption("miss"), "click");
+    assert.ok(!sendButton().hasAttribute("aria-disabled"), "a missed match is a step of the queue: it waits its turn");
+    fireEvent(markOption("dead"), "click");
+    step.release({ status: 200, body: { team: team({ revision: 5 }) } });
+    await settle();
+    assert.ok(!sendButton().hasAttribute("aria-disabled"), "saved: the death may go");
+    fireEvent(markSheet().querySelector("[data-sheet-close]"), "click");
+    // A step that waits for the network.
+    api.fail(PATCH);
+    fireEvent(plusTd(), "click");
+    await settle();
+    assert.equal(status(), "Waiting for the network · edits: 1");
+    chooseDeath();
+    assert.equal(sendButton().getAttribute("aria-disabled"), "true");
+    assert.equal(sendButton().getAttribute("title"), WAIT_SAVE);
+    fireEvent(sendButton(), "click");
+    assert.equal(toasts().at(-1), WAIT_SAVE);
+    await settle();
+    assert.equal(deaths().length, 0);
+  });
+  // The queue waits for the coach to settle another device's save, or for the server's roster after a 422.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    const step = api.hold(PATCH);
+    fireEvent(plusTd(), "click");
+    await settle();
+    chooseDeath();
+    step.release({ status: 409, body: { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: team({ revision: 6 }) } });
+    await settle();
+    assert.ok(markSheet()?.isModal);
+    assert.equal(sendButton().getAttribute("title"), "The roster was changed on another device");
+    fireEvent(sendButton(), "click");
+    assert.equal(toasts().at(-1), "The roster was changed on another device");
+    await settle();
+    assert.equal(deaths().length, 0);
+    coach();
+    await renderTeamRoster("t1");
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail(TEAM_READ);
+    fireEvent(plusTd(), "click");
+    await settle();
+    assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"]);
+    const before = teamReads();
+    chooseDeath();
+    assert.equal(sendButton().getAttribute("title"), WAIT_SAVE);
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(deaths().length, 0);
+    assert.equal(teamReads(), before + 1, "the press asks for the server's roster again, as a mark's does (07a, c088324)");
+  });
+});
+
+// The T3 review's carry (b) and K8: nothing of the roster's is written while a death is on its way, and its answer is
+// taken whatever has become of the sheet.
+test("while a death is on its way every step and mark waits, and a second press sends nothing; the sheet closed meanwhile, its answer is still taken", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    const death = api.hold(DEATH);
+    fireEvent(sendButton(), "click");
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(death.count, 1, "one POST");
+    assert.ok(sendButton().hasAttribute("disabled"), "busy with it");
+    assert.equal(markText().hasAttribute("readonly"), true, "the cause is not typed over while it goes");
+    fireEvent(markOption("miss"), "click");
+    assert.equal(markOption("dead").getAttribute("aria-checked"), "true", "nor is the reason changed");
+    assert.equal(markOption("miss").getAttribute("aria-checked"), "false");
+    fireEvent(markSheet(), "keydown", { key: "Escape" });
+    assert.ok(!markSheet(), "the coach may close the sheet");
+    assert.equal(plusTd().getAttribute("aria-disabled"), "true");
+    assert.equal(plusTd().getAttribute("title"), WRITING);
+    fireEvent(plusTd(), "click");
+    assert.equal(toasts().at(-1), WRITING);
+    assert.equal(markButton().getAttribute("title"), WRITING);
+    fireEvent(markButton(), "click");
+    assert.ok(!markSheet());
+    fireEvent(toggle("p4#3"), "click");
+    assert.equal(returnButton().getAttribute("title"), WRITING);
+    fireEvent(returnButton(), "click");
+    assert.equal(toasts().at(-1), WRITING);
+    await settle();
+    assert.equal(patches().length, 0);
+    death.release({ status: 201, body: { team: withoutAnn(), fallen: annFell() } });
+    await settle();
+    assert.deepEqual(namesIn(tables()[2]), ["Ann", "Pike", "Joe"], "taken though the sheet was closed");
+    assert.equal(state.myTeams.items[0].revision, 5);
+    assert.equal(save.savedRevision("t1"), 5);
+    assert.equal(toasts().at(-1), DEAD_DONE, "told in a message, the sheet being gone");
+    assert.notEqual(aside().getAttribute("data-panel-player"), "fallen-f9", "the panel is not taken from where the coach put it");
+    assert.ok(!plusTd().hasAttribute("aria-disabled"), "open again once it has answered");
+    assert.equal(deaths().length, 1);
+  });
+  // The coach left the roster: the queue and the list take the answer all the same, for the next visit.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    const death = api.hold(DEATH);
+    fireEvent(sendButton(), "click");
+    await settle();
+    releaseCurrentScreen();
+    death.release({ status: 201, body: { team: withoutAnn(), fallen: annFell() } });
+    await settle();
+    assert.equal(state.myTeams.items[0].revision, 5);
+    assert.equal(save.savedRevision("t1"), 5);
+    assert.ok(!toasts().includes(DEAD_DONE));
+  });
+});
+
+// The T3 review's carry (c) and (d): a step no screen press can make now (K7), but the queue can hold one.
+test("a death's answer that meets a step of the roster waiting keeps the step: the list takes the team, the queue keeps its draft", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    const death = api.hold(DEATH);
+    fireEvent(sendButton(), "click");
+    await settle();
+    api.fail(PATCH);
+    assert.deepEqual(save.stepSpp("t1", "p2", "touchdowns", 1), { ok: true });
+    await settle();
+    assert.equal(save.saveState("t1").waiting, 1);
+    const reads = teamReads();
+    death.release({ status: 201, body: { team: withoutAnn(), fallen: annFell() } });
+    await settle();
+    assert.equal(save.saveState("t1").waiting, 1, "the step still waits");
+    assert.equal(save.savedRevision("t1"), 4, "on the revision it was taken on");
+    assert.equal(state.myTeams.items[0].revision, 5, "the list has the answer");
+    assert.equal(teamReads(), reads, "no read whose taking would give the step up");
+    // The step meets the death as another device's save, which the coach settles.
+    api.reply(PATCH, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: withoutAnn() });
+    page.dispatchEvent(new Event("online"));
+    await settle();
+    const sent = patches().at(-1).body;
+    assert.equal(sent.revision, 4);
+    assert.equal(sent.roster.players.find((player) => player.id === "p2").spp.touchdowns, 1, "the step went, as it was taken");
+    assert.equal(save.saveState("t1").status, "conflict");
+    assert.equal(status(), "Not saved");
+  });
+});
+
+// Review Focus 1, the T3 review's carry (e), K15.
+test("a death whose answer was lost: the sheet closes, the roster and the fallen are read, and the coach is told what the server holds", async () => {
+  const cases = [
+    ["landed", { fail: true }, withoutAnn(), [annFell(), ...FALLEN], DEAD_DONE],
+    ["not landed", { fail: true }, team(), FALLEN, DEAD_LOST],
+    ["a 2xx without the team", { body: {} }, withoutAnn(), [annFell(), ...FALLEN], DEAD_DONE],
+  ];
+  for (const [label, answer, roster, fallen, said] of cases) {
+    await withoutTimers(async () => {
+      coach();
+      await renderTeamRoster("t1");
+      chooseDeath();
+      if (answer.fail) api.fail(DEATH);
+      else api.reply(DEATH, 201, answer.body);
+      serverHolds(roster, fallen);
+      fireEvent(sendButton(), "click");
+      await settle(12);
+      assert.ok(!markSheet(), label);
+      assert.equal(deaths().length, 1, `${label}: never sent twice`);
+      assert.equal(teamReads(), 2, `${label}: read back once`);
+      assert.equal(toasts().at(-1), said, label);
+      if (said === DEAD_LOST) {
+        assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+        assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], label);
+      } else {
+        assert.deepEqual(namesIn(tables()[2]), ["Ann", "Pike", "Joe"], label);
+        assert.ok(view.querySelector('.g-roster__aside[data-panel-player="fallen-f9"]'), label);
+        assert.ok(document.activeElement === toggle("fallen-f9"), label);
+      }
+      api.assertAnswered();
+    });
+  }
+});
+
+test("a lost death whose read is split is read once more; still split, the coach is told the server could not be told", async () => {
+  // The roster read without her, the fallen read before the death landed: read again, and the second read agrees.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.fail(DEATH);
+    serverHolds(withoutAnn(), [annFell(), ...FALLEN]);
+    const first = api.hold(FALLEN_READ);
+    fireEvent(sendButton(), "click");
+    await settle();
+    first.release({ status: 200, body: { fallen: FALLEN } });
+    await settle(12);
+    assert.equal(teamReads(), 3, "read twice");
+    assert.equal(toasts().at(-1), DEAD_DONE);
+    assert.deepEqual(namesIn(tables()[2]), ["Ann", "Pike", "Joe"]);
+  });
+  // Split twice: no verdict the reads cannot give.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.fail(DEATH);
+    serverHolds(withoutAnn(), FALLEN);
+    fireEvent(sendButton(), "click");
+    await settle(12);
+    assert.equal(teamReads(), 3);
+    assert.equal(deaths().length, 1);
+    assert.equal(toasts().at(-1), UNKNOWN);
+    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+  });
+  // A read that fails says why, and that the death's fate is not known.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.fail(DEATH);
+    api.fail(TEAM_READ);
+    fireEvent(sendButton(), "click");
+    await settle(12);
+    assert.equal(teamReads(), 2);
+    assert.equal(toasts().at(-1), UNKNOWN);
+    assert.equal(deaths().length, 1);
+  });
+});
+
+test("another device's save: the roster is read again and the sheet stays open, saying so; the next press goes on the new revision", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.reply(DEATH, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: team({ revision: 6 }) });
+    serverHolds(team({ revision: 6 }), FALLEN);
+    fireEvent(sendButton(), "click");
+    await settle(12);
+    assert.equal(teamReads(), 2, "read again");
+    assert.ok(markSheet()?.isModal, "the sheet stays: he is still on the roster");
+    const refusal = markSheet().querySelector(".g-roster__markrefusal");
+    assert.equal(refusal.getAttribute("role"), "alert");
+    assert.equal(refusal.textContent, CHANGED);
+    assert.equal(markOption("dead").getAttribute("aria-checked"), "true", "the choice is kept");
+    assert.equal(markText().value, "Foul");
+    assert.equal(sendButton().hasAttribute("disabled"), false);
+    assert.ok(!sendButton().hasAttribute("aria-disabled"));
+    assert.equal(save.savedRevision("t1"), 6);
+    api.reply(DEATH, 201, { team: withoutAnn({ revision: 7 }), fallen: annFell() });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(deaths().length, 2);
+    assert.equal(deaths()[1].body.revision, 6);
+    assert.ok(!markSheet());
+    assert.equal(toasts().at(-1), DEAD_DONE);
+  });
+});
+
+test("a refusal is said in the sheet and nothing changes", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.reply(DEATH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "DUPLICATE_PLAYER_ID", params: { names: "Ann, Bo" } }] });
+    fireEvent(sendButton(), "click");
+    await settle();
+    const refusal = () => markSheet().querySelector(".g-roster__markrefusal");
+    assert.ok(markSheet()?.isModal, "the sheet stays");
+    assert.match(refusal().textContent, /Ann, Bo/);
+    assert.equal(refusal().getAttribute("role"), "alert");
+    assert.equal(sendButton().hasAttribute("disabled"), false, "no longer busy");
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "Ann is on the roster");
+    assert.equal(state.myTeams.items[0].revision, 4);
+    assert.equal(teamReads(), 1);
+    // He is no longer on the server's roster: said, and the roster read again.
+    api.reply(DEATH, 404, { error: { code: "PLAYER_NOT_FOUND", params: {}, message: "x" } });
+    fireEvent(sendButton(), "click");
+    await settle(12);
+    assert.equal(refusal().textContent, "Player not found.");
+    assert.equal(teamReads(), 2, "read again");
+    assert.equal(deaths().length, 2);
+  });
+});
+
+test("another tab's coach: no death is sent", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    api.items.set("gata-league-auth-token", "another-tab");
+    fireEvent(sendButton(), "click");
+    await settle();
+    const refusal = markSheet().querySelector(".g-roster__markrefusal");
+    assert.equal(refusal.textContent, OTHER_TAB);
+    assert.ok(markSheet()?.isModal);
+    assert.equal(deaths().length, 0);
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"]);
+  });
+  // The T4 review's carry: an answer that comes when another coach is signed in is not his to take.
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    const death = api.hold(DEATH);
+    fireEvent(sendButton(), "click");
+    await settle();
+    state.auth.currentUser = { id: "u2", login: "another", preferences: {} };
+    death.release({ status: 201, body: { team: withoutAnn(), fallen: annFell() } });
+    await settle();
+    assert.equal(state.myTeams.items[0].revision, 4);
+    assert.equal(save.savedRevision("t1"), 4);
+    assert.ok(!toasts().includes(DEAD_DONE));
+  });
 });
