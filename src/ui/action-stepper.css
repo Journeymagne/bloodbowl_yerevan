@@ -76,3 +76,39 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/*
+ * The compact cell, for a narrow tile (the post-match's TTM, landing and
+ * bonus, three to a phone's row; the roster panel's tiles): two rows. The top
+ * one holds the label and the count with what this match added; under it the
+ * − and the + sit side by side, each at least a thumb wide. A count never
+ * shares a line with a button, so a two-digit count and its "+1" are never
+ * covered; a third of a 360px phone is about 98px, and 2 x 44px and a gap fit.
+ * Under about 98px the + would overhang the cell.
+ */
+.g-stepper--compact {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+}
+
+/* When the label and the count do not fit one line (a long label in a third of a phone), the count drops under the label: they never overlap. */
+.g-stepper__top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: var(--space-6);
+  padding: 0 2px;
+}
+.g-stepper__top .g-stepper__value { margin-left: auto; }
+
+.g-stepper__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(var(--size-touch), 1fr));
+  gap: 2px;
+}
+.g-stepper--compact .g-stepper__btn {
+  width: auto;
+  min-width: var(--size-touch);
+}

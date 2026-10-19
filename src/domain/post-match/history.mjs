@@ -5,14 +5,14 @@
  * career (`careerCounters`) for everything recorded since 3.0; an injury is shown the way the roster got it
  * (`effectiveInjury`).
  *
- * Since 3.0 the equality still has exceptions, of two kinds. The blob changes without a row: an MVP edited
- * by hand (the rows have no MVP counter), a player who arrives with SPP (a new team, or a save that adds
- * him: `sppEdits` moves only players on both rosters), a legacy counter outside 0…999 brought into range
- * (`sppEdits`), and a finish that had to hold a counter at zero (a roster save during the match lowered it
- * below the edits waiting on it, so the blob loses less than those rows take back). Or the rows and the blob
- * part ways: a deleted pairing or round takes its applications and rows and the blob keeps the SPP; an undone
- * match death returns the player as he was before that match while that match's rows stay and still count; a
- * player gone at the finish has his waiting edits settled, not applied.
+ * Since 3.0 the equality still has exceptions, of two kinds. The blob changes without a row: a player who
+ * arrives with SPP (a new team, or a save that adds him: `sppEdits` moves only players on both rosters), a
+ * legacy counter outside 0…999 brought into range (`sppEdits`), and a finish that had to hold a counter at
+ * zero (a roster save during the match lowered it below the edits waiting on it, so the blob loses less than
+ * those rows take back). Or the rows and the blob part ways: a deleted pairing or round takes its
+ * applications and rows and the blob keeps the SPP; an undone match death returns the player as he was
+ * before that match while that match's rows stay and still count; a player gone at the finish has his
+ * waiting edits settled, not applied.
  *
  * A match is read from what the server finds of the team's side of it: its roster snapshot, the post-match
  * application (the roster before and after), the side of the stored post-match, and the player's own events.
@@ -24,7 +24,7 @@
  * is not over, and the blob does not have it.
  *
  * `outside` is the player's rows without a match, settled or waiting, added up as they stand — below zero
- * too — with a key for each counter of the rows (not the MVP, not the injury): a counter nobody edited is
+ * too — with a key for each counter of an edit (the MVP too, not the injury): a counter nobody edited is
  * 0, so a client reads the same keys for any player, one nobody ever recorded included. A row is added up
  * by `eventTotal`, the one place that adds rows.
  *
@@ -32,11 +32,8 @@
  * decides whether that is an answer. The module is pure.
  */
 import { normalizeSppCounters } from '../roster/players.mjs';
-import { EVENT_COUNTERS, eventTotal, statisticsFromEvents } from './events.mjs';
+import { SPP_EVENT_COUNTERS, eventTotal, statisticsFromEvents } from './events.mjs';
 import { effectiveInjury } from './rules.mjs';
-
-// The counters an edit outside a match steps: those of the rows, not the injury (its step is no count).
-const COUNTED = EVENT_COUNTERS.filter(counter => counter !== 'injury');
 
 const playerOf = (roster, playerId) => (Array.isArray(roster?.players) ? roster.players : []).find(player => player?.id === playerId);
 
@@ -52,7 +49,7 @@ function appliedCounters(playerId, { before, after }) {
   return Object.fromEntries(Object.keys(now).map(counter => [counter, now[counter] - was[counter]]));
 }
 
-// His taps added up the way the post-match reads them; `mvps` is 0, since it is picked there and tapped nowhere.
+// His taps added up the way the post-match reads them; `mvps` is 0, since it is picked there and no match taps it.
 const tappedCounters = (playerId, events) => normalizeSppCounters(statisticsFromEvents(alone(playerId), events).statistics[playerId]);
 
 const wholeGames = gamesPlayed => (Number.isInteger(gamesPlayed) ? gamesPlayed : 0);
@@ -105,6 +102,6 @@ function historyRow(playerId, { pairingId, snapshot, application, post, gamesPla
 export function playerHistory(playerId, matches, outside = []) {
   return {
     matches: matches.map(match => historyRow(playerId, match)),
-    outside: Object.fromEntries(COUNTED.map(counter => [counter, eventTotal(outside, playerId, counter)])),
+    outside: Object.fromEntries(SPP_EVENT_COUNTERS.map(counter => [counter, eventTotal(outside, playerId, counter)])),
   };
 }

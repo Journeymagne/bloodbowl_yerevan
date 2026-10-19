@@ -324,7 +324,7 @@ WHERE NOT EXISTS (
 - Из 03: редактор состава сохраняет SPP блоба из GET, не `careerCounters`, а ждущие записи показывает сверху; во время матча он не опускает SPP ниже ждущих правок вне матча (иначе итоги удержат счётчик на нуле, и история разойдётся с блобом).
 - Из 03, 07b: `GET`/`DELETE …/fallen`; отмену не показывать при `fromMatch`.
 - Из 03, 07d: `POST …/rolls` возвращает тот же бросок, пока он не использован; прокачка — `roll: {id, via: "site"}`; отмена прокачки освобождает бросок. Тип прокачки объявляют до броска (`DICE_ROLL_WAITING`, пока ждёт бросок другого типа), отмена прокачек с сайта идёт с последней к первой по игроку, какого бы типа они ни были (иначе `DICE_ROLL_USED`). Отменённую прокачку с сайта игрок должен взять снова, прежде чем получит следующий бросок: до тех пор запрос другого типа отвечает `DICE_ROLL_WAITING` с её типом, и экран говорит, какую прокачку взять. Бросок случайного навыка с `stale: true` взять нельзя: тренер убирает дубль навыка или берёт прокачку за столом, экран говорит почему. Маршрута для чтения попыток соперником нет — решить здесь.
-- Из 03, 07e: `GET …/players/:pid/history` → `{history: {playerId, matches, outside}}`; `pending` читать как «ждёт итогов»; у `source: "none"` нули не рисовать (`counters: null`); у оставленного journeyman история начинается заново под новым id; MVP, правленный руками, строки не имеет. `GET …/events` отдаёт `revision` — сверять с блобом.
+- Из 03, 07e: `GET …/players/:pid/history` → `{history: {playerId, matches, outside}}`; `pending` читать как «ждёт итогов»; у `source: "none"` нули не рисовать (`counters: null`); у оставленного journeyman история начинается заново под новым id; MVP, правленный руками, с `016` (этап 07a) пишет строку, как остальные счётчики правки, и `outside` истории получает ключ `mvps`; MVP, правленный до `016`, строки не имеет. `GET …/events` отдаёт `revision` — сверять с блобом.
 
 **08.** Счётчик ресурсов (Start Re-rolls, Team Re-rolls) отключает «+» у Start Re-rolls для команд в `active` и у Team Re-rolls для команд в `draft` и показывает переведённую причину (по смыслу `error.STAGE_PURCHASE_LOCKED`). С 02a `PATCH /api/teams/:id` отвечает 422 `STAGE_PURCHASE_LOCKED`, а включённый «+» старого редактора 2.x ломает все последующие автосохранения в этой сессии. Это должно попасть в `redesign` до того, как тренеры начнут пользоваться любой сборкой с редизайном.
 - Из 03: `GET …/ledger` → `{entries, next, since, total}` (`since` — «История ведётся с …», `total` — число строк истории для «Вся история · N», добавлен этапом 08); `POST …/treasury` → `{team, entry}`, 422 с `TREASURY_INVALID`, 409 с командой.
@@ -496,7 +496,7 @@ cat /root/cutover-before.txt
 
 и ещё раз запрос открытых состояний из T−15 (ничего нового не появилось).
 
-- [ ] **T+10 · владелец вливает PR `redesign → main`** (GitHub, merge commit). Claude следит за job Deploy: ожидается `deploy:migrate: pending: 009_…, …, 015_…`, `backup ok: …premigrate…`, `applied …`, `deployed and answering on port 3002`.
+- [ ] **T+10 · владелец вливает PR `redesign → main`** (GitHub, merge commit). Claude следит за job Deploy: ожидается `deploy:migrate: pending: 009_…, …, 016_…`, `backup ok: …premigrate…`, `applied …`, `deployed and answering on port 3002`.
 
 - [ ] **T+15 · проверка схемы и данных**
 
@@ -507,7 +507,7 @@ diff /root/cutover-before.txt /root/cutover-after.txt
 pm2 logs bloodbowl-league --lines 100 --nostream
 ```
 
-Ожидается: `database is up to date`; в `diff` — только новые таблицы (`dice_rolls`, `match_events`, `team_fallen_players`, `team_ledger`) и `schema_migrations` (+7); строки `teams=` и `pairings=` совпадают; в логах нет ошибок.
+Ожидается: `database is up to date`; в `diff` — только новые таблицы (`dice_rolls`, `match_events`, `team_fallen_players`, `team_ledger`) и `schema_migrations` (+8); строки `teams=` и `pairings=` совпадают; в логах нет ошибок.
 
 - [ ] **T+20 · проверка через туннель** (Mac): `ssh -L 3002:127.0.0.1:3002 ubuntu@51.81.86.51`, затем `http://localhost:3002` — чек-лист спеки выката §6.5 (12 пунктов).
 

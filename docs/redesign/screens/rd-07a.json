@@ -1,0 +1,213 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "R1",
+      "url": "http://localhost:5171/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        901,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R2",
+      "url": "http://localhost:5171/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.querySelector('[data-row-key^=\"p3#\"]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R3",
+      "url": "http://localhost:5171/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.querySelector('[data-row-key^=\"p3#\"]').click();",
+        "window.scrollTo(0, 420);"
+      ]
+    },
+    {
+      "id": "R4",
+      "url": "http://localhost:5171/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "const copy = matchMedia('(min-width: 901px)').matches ? '.g-rtable__skills--desk' : '.g-rtable__skillrow';",
+        "document.querySelector(`tbody[data-key^=\"p2#\"] ${copy} [data-skill=\"Block\"]`).click();"
+      ]
+    },
+    {
+      "id": "R5",
+      "url": "http://localhost:5171/#/t/t5/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.querySelector('[data-row-key]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R6",
+      "url": "http://localhost:5171/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "run": [
+        "document.querySelector('[data-row-key^=\"q4#\"]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R7",
+      "url": "http://localhost:5171/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-row-key^=\"q4#\"]",
+        "[data-toggle-key=\"roster-outside\"]"
+      ]
+    },
+    {
+      "id": "R8",
+      "url": "http://localhost:5171/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-row-key^=\"q4#\"]",
+        "[data-roster-injury^=\"q4#\"]",
+        "#roster-injury [data-option-value=\"lasting\"]",
+        "#roster-injury [data-chip-value=\"ag\"]"
+      ]
+    },
+    {
+      "id": "R9",
+      "url": "http://localhost:5171/#/t/t2/roster",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "document.querySelector('[data-row-key^=\"q4#\"]').click();"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R10",
+      "url": "http://localhost:5171/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-sort-key=\"ag\"]"
+      ]
+    },
+    {
+      "id": "R13",
+      "url": "http://localhost:5171/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        901,
+        1100
+      ]
+    },
+    {
+      "id": "G1",
+      "url": "http://localhost:3071/#/t/x/roster",
+      "widths": [
+        390
+      ]
+    },
+    {
+      "id": "R11",
+      "url": "http://localhost:5171/#/t/t3/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "document.querySelector('[data-row-key]').click();",
+        "const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "copy.querySelector('[data-action-key=\"touchdowns\"] [data-action-step=\"1\"]').click();"
+      ],
+      "runWaitMs": 1200,
+      "fullPage": true
+    },
+    {
+      "id": "R12",
+      "url": "http://localhost:5171/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const { team } = await (await fetch('/api/teams/t1')).json();",
+        "  await fetch('/api/teams/t1', { method: 'PATCH', body: JSON.stringify(team) });",
+        "  document.querySelector('[data-row-key]').click();",
+        "  await new Promise((resolve) => setTimeout(resolve, 300));",
+        "  const copy = document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  copy.querySelector('[data-action-key=\"touchdowns\"] [data-action-step=\"1\"]').click();",
+        "})()"
+      ],
+      "runWaitMs": 1200,
+      "fullPage": true
+    }
+  ]
+}

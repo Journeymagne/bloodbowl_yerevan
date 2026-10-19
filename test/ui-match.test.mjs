@@ -200,7 +200,7 @@ test("a form strip refuses a result it does not know, even one that would be cut
   assert.throws(() => renderFormStrip({ results: "wdl" }), /results/);
 });
 
-test("status chips carry the caller's words in three tones, on light or dark", () => {
+test("status chips carry the caller's words in four tones, on light or dark", () => {
   for (const tone of STATUS_TONES) {
     const fragment = mount(renderStatusChip({ label: HOSTILE, tone, onDark: tone === "live" }));
     assert.equal(fragment.querySelector(".g-status").textContent, HOSTILE);
@@ -211,15 +211,26 @@ test("status chips carry the caller's words in three tones, on light or dark", (
 });
 
 test("a status chip is neutral unless told otherwise, and neutral is the base look", () => {
-  assert.deepEqual(STATUS_TONES, ["neutral", "live", "wait"]);
+  assert.deepEqual(STATUS_TONES, ["neutral", "live", "wait", "danger"]);
   const classOf = (props) => mount(renderStatusChip({ label: "Not started", ...props })).querySelector(".g-status").getAttribute("class");
   assert.equal(classOf({}), "g-status");
   assert.equal(classOf({ tone: "neutral" }), "g-status");
   assert.equal(classOf({ tone: "live" }), "g-status g-status--live");
   assert.equal(classOf({ tone: "wait" }), "g-status g-status--wait");
+  assert.equal(classOf({ tone: "danger" }), "g-status g-status--danger");
   assert.equal(classOf({ onDark: true }), "g-status g-status--on-dark");
   assert.equal(classOf({ tone: "wait", onDark: true }), "g-status g-status--wait g-status--on-dark");
   assertCspSafe(mount(renderStatusChip({ label: "Waiting for confirmation", tone: "wait" })));
+});
+
+test("a fault is a red chip (07a)", () => {
+  const fragment = mount(renderStatusChip({ label: "Not saved", tone: "danger" }));
+  assert.ok(fragment.querySelector(".g-status.g-status--danger"));
+  assert.equal(fragment.querySelector(".g-status").textContent, "Not saved");
+  assertStyled(fragment, "status-chip.css");
+  assert.deepEqual(valuesOf("src/ui/status-chip.css", ".g-status--danger::before", "background"), ["var(--danger)"], "the dot is the colour of the word");
+  // The page behind the chip is --page (tokens.css has no --bg: that is the 2.x alias), and the chip itself sits on --surface-3.
+  assertReadable("src/ui/status-chip.css", ".g-status--danger", "color", ["--surface", "--page", "--surface-3"], 4.5);
 });
 
 test("a status chip says its state in words, so it has a label and a known tone", () => {

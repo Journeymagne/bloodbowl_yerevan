@@ -1,9 +1,11 @@
 /**
- * Match events: what the coaches tap during a game (`match_events`, migration 014), read into the
+ * Match events: what the coaches tap during a game (`match_events`, migrations 014 and 016), read into the
  * numbers the post-match works with.
  *
- * A counter is one of the SPP counters without the MVP (the MVP is picked in the post-match),
- * plus the injury. The post-match takes its statistics and injuries from these rows, the
+ * A counter is one of the roster's SPP counters, plus the injury. A match taps all of them but the MVP
+ * (`MATCH_COUNTERS`), which is picked in the post-match; an edit outside a match steps any of them, the
+ * MVP included (016, the owner's decision at M1), so a hand-edited MVP has its row in the history.
+ * The post-match takes its statistics and injuries from the rows of a match, the
  * "Players" step appends the difference so that the rows and the entered numbers agree, and
  * finishing the post-match sets `settled_at`. A live career is the blob plus the rows not yet settled
  * (a preview, see `careerCounters`).
@@ -16,17 +18,19 @@
  * 0..99 `postCount` allows only when read as statistics, and a difference aims at the raw
  * sum, so what the clamp hid is taken back too. The module is pure.
  */
-import { normalizeSppCounters } from '../roster/players.mjs';
+import { normalizeSppCounters, storedPlayerId } from '../roster/players.mjs';
 import { boundedSppCounter } from '../roster/validate.mjs';
 import { PLAYER_STATS } from '../roster/values.mjs';
 import { SIDES } from '../match/rules.mjs';
 import { INJURIES, POST_STEPS, postCount } from './rules.mjs';
 import { normalizeMatchStats } from './statistics.mjs';
 
-// The order of the CHECK on `counter` in 014.
-export const EVENT_COUNTERS = Object.freeze(['touchdowns', 'casualties', 'knockouts', 'completions', 'catches', 'interceptions', 'throws', 'landings', 'bonus', 'injury']);
-
-const COUNTED = EVENT_COUNTERS.filter(counter => counter !== 'injury');
+// The order of the CHECK on `counter` in 016.
+export const EVENT_COUNTERS = Object.freeze(['touchdowns', 'casualties', 'knockouts', 'completions', 'catches', 'interceptions', 'throws', 'landings', 'bonus', 'mvps', 'injury']);
+// What an edit outside a match steps: the roster's SPP counters, the MVP among them (the injury's step is no count).
+export const SPP_EVENT_COUNTERS = Object.freeze(EVENT_COUNTERS.filter(counter => counter !== 'injury'));
+// What a match taps and the post-match reads: the MVP is picked there, never tapped.
+export const MATCH_COUNTERS = Object.freeze(SPP_EVENT_COUNTERS.filter(counter => counter !== 'mvps'));
 const MAX_COUNT = 99; // postCount's bound
 const PLAYERS_STAGE = POST_STEPS.indexOf('players'); // a side past it keeps what its coach saved
 const isStep = event => event.delta === 1 || event.delta === -1;
@@ -43,9 +47,9 @@ function groupByPlayer(events) {
   return groups;
 }
 
-// Raw sum of the steps of every counter; a counter that is not tapped (mvps, crowdCasualties, injury) is no sum.
-function sumCounters(events) {
-  const sums = Object.fromEntries(COUNTED.map(counter => [counter, 0]));
+// Raw sum of the steps of each of `counters`; a counter outside them (the injury, crowdCasualties, and the MVP of a match) is no sum.
+function sumCounters(events, counters) {
+  const sums = Object.fromEntries(counters.map(counter => [counter, 0]));
   for (const event of events) if (Object.hasOwn(sums, event.counter)) sums[event.counter] += event.delta;
   return sums;
 }
@@ -109,8 +113,8 @@ export function statisticsFromEvents(snapshot, events = []) {
   const statistics = {}, injuries = {};
   for (const { id } of snapshot.players) {
     const own = groups.get(id) || [];
-    const sums = sumCounters(own);
-    statistics[id] = normalizeMatchStats(Object.fromEntries(COUNTED.map(counter => [counter, Math.min(MAX_COUNT, Math.max(0, sums[counter]))])));
+    const sums = sumCounters(own, MATCH_COUNTERS);
+    statistics[id] = normalizeMatchStats(Object.fromEntries(MATCH_COUNTERS.map(counter => [counter, Math.min(MAX_COUNT, Math.max(0, sums[counter]))])));
     const standing = standingInjuries(own.filter(isInjuryEvent)).at(-1);
     if (standing) injuries[id] = { ...standing, retire: false };
   }
@@ -138,7 +142,7 @@ function injuryRows(playerId, own, target) {
  * The rows that make the events add up to the entered numbers: `{ statistics, injuries }` is a side
  * of the post-match (or what `statisticsFromEvents` returned), the rows are ±1 steps. Players in key
  * order, each with their counters in table order and then the injury. A player outside `statistics`
- * is not touched, and a counter the table does not have (crowd and foul casualties) gets no row.
+ * is not touched, and a counter a match does not tap (the MVP; crowd and foul casualties) gets no row.
  * Applied, the rows make `statisticsFromEvents` read exactly what was entered; a second difference is empty.
  */
 export function eventsDiff({ statistics, injuries }, events) {
@@ -146,8 +150,8 @@ export function eventsDiff({ statistics, injuries }, events) {
   const rows = [];
   for (const playerId of Object.keys(statistics)) {
     const own = groups.get(playerId) || [], entered = statistics[playerId] || {};
-    const sums = sumCounters(own);
-    for (const counter of COUNTED) rows.push(...stepsOf(postCount(entered[counter]) - sums[counter], { playerId, counter }));
+    const sums = sumCounters(own, MATCH_COUNTERS);
+    for (const counter of MATCH_COUNTERS) rows.push(...stepsOf(postCount(entered[counter]) - sums[counter], { playerId, counter }));
     rows.push(...injuryRows(playerId, own.filter(isInjuryEvent), eventInjury(injuries?.[playerId])));
   }
   return rows;
@@ -156,6 +160,8 @@ export function eventsDiff({ statistics, injuries }, events) {
 /**
  * A player's counters for a career while a match is on: the blob plus the events not yet settled, never
  * below zero. The injury is not a counter (its events are read as entered, see `statisticsFromEvents`).
+ * The MVP a match will give is picked at its finish, so no tap of the match is in it; one edited outside
+ * the match is.
  *
  * It is a preview, not what the finish will leave in the blob. "Settled" means a finished post-match
  * applied the statistics (`settled_at`), not that every event became SPP: a technical result counts only
@@ -166,34 +172,35 @@ export function eventsDiff({ statistics, injuries }, events) {
  * between the two reads counts a match twice or not at all.
  */
 export function careerCounters(player, events = []) {
-  const own = groupByPlayer(events.filter(event => !event.settledAt)).get(player.id) || [];
-  const sums = sumCounters(own);
+  const own = groupByPlayer(events.filter(event => !event.settledAt)).get(storedPlayerId(player)) || [];
+  const sums = sumCounters(own, SPP_EVENT_COUNTERS);
   const result = normalizeSppCounters(player.spp);
-  for (const counter of COUNTED) result[counter] = Math.max(0, result[counter] + sums[counter]);
+  for (const counter of SPP_EVENT_COUNTERS) result[counter] = Math.max(0, result[counter] + sums[counter]);
   return result;
 }
 
-const hasId = player => typeof player?.id === 'string' && player.id !== '';
-
 /**
  * A roster save's change to SPP, as the rows of an edit outside a match: for every player with an id
- * in both rosters, in the order of `after`, each counter of the rows (the table's order, no injury) moved
- * by as many steps of +1 or -1 as its value moved, the values read as the history counts them
- * (`boundedSppCounter`: the roster's reading, held to 0…999 and cut to a whole number). The MVP is not a
- * counter of the rows, and a player who came or went has no value to move from or to: neither gets a row.
+ * in both rosters, in the order of `after`, each SPP counter (`SPP_EVENT_COUNTERS`: the table's order, the
+ * MVP last, no injury) moved by as many steps of +1 or -1 as its value moved, the values read as the history
+ * counts them (`boundedSppCounter`: the roster's reading, held to 0…999 and cut to a whole number). A player
+ * who came or went has no value to move from or to: he gets no row. The id is the text of the stored one
+ * (`storedPlayerId`), so a 2.x roster's `5` is the `"5"` a row names him by.
  *
  * An edit outside a match changes the blob at once and is kept as settled rows, so the history can show it.
  * A roster is only taken with counters inside that bound, so the bound bites only a blob stored before
  * the rule: a legacy value outside it (5000, 2.5) changes the blob without rows for what lies outside.
  */
 export function sppEdits(before, after) {
-  const was = new Map((before?.players ?? []).filter(hasId).map(player => [player.id, player]));
+  const was = new Map();
+  for (const player of before?.players ?? []) if (storedPlayerId(player) !== null) was.set(storedPlayerId(player), player);
   const rows = [];
-  for (const player of (after?.players ?? []).filter(hasId)) {
-    if (!was.has(player.id)) continue;
-    const from = was.get(player.id).spp, to = player.spp;
-    for (const counter of COUNTED) {
-      rows.push(...stepsOf(boundedSppCounter(to?.[counter]) - boundedSppCounter(from?.[counter]), { playerId: player.id, counter, injury: null }));
+  for (const player of after?.players ?? []) {
+    const playerId = storedPlayerId(player);
+    if (playerId === null || !was.has(playerId)) continue;
+    const from = was.get(playerId).spp, to = player.spp;
+    for (const counter of SPP_EVENT_COUNTERS) {
+      rows.push(...stepsOf(boundedSppCounter(to?.[counter]) - boundedSppCounter(from?.[counter]), { playerId, counter, injury: null }));
     }
   }
   return rows;
@@ -209,10 +216,10 @@ export function applyOutsideEdits(roster, events) {
   const groups = groupByPlayer(events.filter(event => !isInjuryEvent(event)));
   const next = structuredClone(roster);
   for (const player of next?.players ?? []) {
-    const own = groups.get(player?.id);
+    const own = groups.get(storedPlayerId(player));
     if (!own) continue;
-    const sums = sumCounters(own), base = normalizeSppCounters(player.spp);
-    const stepped = COUNTED.filter(counter => sums[counter] !== 0);
+    const sums = sumCounters(own, SPP_EVENT_COUNTERS), base = normalizeSppCounters(player.spp);
+    const stepped = SPP_EVENT_COUNTERS.filter(counter => sums[counter] !== 0);
     if (stepped.length) player.spp = { ...player.spp, ...Object.fromEntries(stepped.map(counter => [counter, Math.max(0, base[counter] + sums[counter])])) };
   }
   return next;

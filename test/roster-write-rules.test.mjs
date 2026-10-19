@@ -27,7 +27,7 @@ test("an SPP counter outside 0…999 refuses a roster save, the owner's and the 
     [before.revision, before.roster, before.updated_at.getTime(), 0], "nothing is written");
   const saved = await save(coach.token, `/api/teams/${id}`, { touchdowns: 999, mvps: 999 });
   assert.equal(saved.status, 200);
-  assert.deepEqual([saved.body.team.roster.players[0].spp.touchdowns, saved.body.team.roster.players[0].spp.mvps, await count(client, "match_events")], [999, 999, 1]);
+  assert.deepEqual([saved.body.team.roster.players[0].spp.touchdowns, saved.body.team.roster.players[0].spp.mvps, await count(client, "match_events")], [999, 999, 1000]);
 }));
 
 test("two players under one id refuse a roster on every write — PATCH, the admin's PATCH, a create that reads it, a create that stores it as sent — and nothing is written; two players without an id are fine", db, () => withApiDatabase(async ({ client }) => {

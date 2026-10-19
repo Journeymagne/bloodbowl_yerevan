@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 
 import { describeCase, stableJson } from "./helpers/roster-cases.mjs";
 import { calculateRosterCosts, playerCurrentCost, skillModCost, statModCost } from "../src/domain/roster/costs.mjs";
-import { ensureDraftPlayers, selectedRosterPlayers } from "../src/domain/roster/players.mjs";
+import { ensureDraftPlayers, positionKind, selectedRosterPlayers } from "../src/domain/roster/players.mjs";
 import { playerAvailableSpp, playerSppTotal, playerLevelRank } from "../src/domain/roster/progression.mjs";
 import { teamHasSpecialRule } from "../src/domain/roster/team-rules.mjs";
 import { costToNumber, countToNumber, rosterMax, rowCost } from "../src/domain/roster/values.mjs";
@@ -375,4 +375,14 @@ test("two players under one id are refused once per id; players without an id ne
   assert.deepEqual(playerViolations(named), [twice("a", "Bo, Al, #4"), twice("b", "#2, Cy")]);
   assert.deepEqual(playerViolations(players(undefined, undefined, "", "", null, null, 0, 0)), [], "no id is nobody's: the roster gives each his own");
   assert.deepEqual(playerViolations(players(5, "5")), [twice("5", "#1, #2")], "stored, both are \"5\"");
+});
+
+test("a position's kind is read from its tags: a big guy, a thrower, a catcher, a blitzer, else a lineman's", () => {
+  assert.equal(positionKind({ tags: ["Ogre", "Big Guy"] }), "big");
+  assert.equal(positionKind({ tags: ["Human", "Thrower"] }), "thrower");
+  assert.equal(positionKind({ tags: ["Human", "Catcher"] }), "catcher");
+  assert.equal(positionKind({ tags: ["Human", "Blitzer"] }), "blitzer");
+  assert.equal(positionKind({ tags: ["Human", "Blocker"] }), "lineman");
+  assert.equal(positionKind({}), "lineman");
+  assert.equal(positionKind({ tags: ["Thrower", "Big Guy"] }), "big", "a big guy comes first, as the order of the tags in the list says");
 });

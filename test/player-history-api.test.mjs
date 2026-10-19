@@ -14,7 +14,7 @@ const history = (token, query = "") => callApi("GET", `/api/teams/${teams.home}/
 const historyOf = (team, player, token, query = "") => callApi("GET", `/api/teams/${team}/players/${player}/history${query}`, { token });
 const tapHome = (token, body) => callApi("POST", `/api/teams/${teams.home}/events`, { token, body });
 const keys = (value) => Object.keys(value).sort();
-const COUNTERS = ["touchdowns", "casualties", "knockouts", "completions", "catches", "interceptions", "throws", "landings", "bonus"];
+const COUNTERS = ["touchdowns", "casualties", "knockouts", "completions", "catches", "interceptions", "throws", "landings", "bonus", "mvps"];
 
 /** A friendly finished through the post-match before this one: 2-1, home-0 scored twice and was MVP, then a Niggling Injury. */
 async function finishedEarlier(client) {
@@ -305,5 +305,5 @@ test("a roster save that changes SPP is a sum of its own outside any match", db,
   assert.equal((await save(2, { touchdowns: 2, casualties: 1, mvps: 1 })).status, 200);
   const { body: { history: career } } = await historyOf(team, "a", coach.token);
   assert.deepEqual(career.matches, []);
-  assert.deepEqual(career.outside, { ...Object.fromEntries(COUNTERS.map((counter) => [counter, 0])), touchdowns: 1, casualties: 1 }, "+2 and -1 on touchdowns; the MVP is no row");
+  assert.deepEqual(career.outside, { ...Object.fromEntries(COUNTERS.map((counter) => [counter, 0])), touchdowns: 1, casualties: 1, mvps: 1 }, "+2 and -1 on touchdowns; the MVP is a row too (016)");
 }));

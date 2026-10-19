@@ -32,6 +32,11 @@ test("filter chips are one radio group with their counts, one checked", () => {
   assert.throws(() => renderFilterChips({ ...CHIPS, selected: "Mutation" }), /selected/);
 });
 
+test("a row whose choice is still to be made has no chip checked, and Tab enters it at the first", () => {
+  const fragment = mount(renderFilterChips({ ...CHIPS, selected: "" }));
+  assert.deepEqual(fragment.querySelectorAll(".g-chip").map((chip) => [chip.getAttribute("aria-checked"), chip.getAttribute("tabindex")]), [["false", "0"], ["false", "-1"]]);
+});
+
 test("a chip reports its value once; a redraw after an arrow keeps the focus on it; the listener can be removed", () => {
   const root = document.createElement("div");
   document.body.appendChild(root);

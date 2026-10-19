@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 /**
- * Drive the saved roster editor in a real browser against scripts/mock-api.mjs.
+ * Drive the 2.x editor, which draws the player's address until stage 07d, in a
+ * real browser against scripts/mock-api.mjs. The team's roster address
+ * (`#/t/:id/roster`) is the 3.0 roster since stage 07a; the editor is opened on
+ * a player's (`#/t/t1/roster/p1`).
  *
  *   node scripts/mock-api.mjs &
  *   node scripts/browser-check-roster.mjs
@@ -51,7 +54,7 @@ await check("my teams list opens", async () => {
 });
 
 await check("saved roster editor renders", async () => {
-  await page.goto(`${base}/#/t/t1/roster`, { waitUntil: "networkidle" });
+  await page.goto(`${base}/#/t/t1/roster/p1`, { waitUntil: "networkidle" });
   await page.waitForSelector("[data-roster-player]", { timeout: 10000 });
   const players = await page.evaluate(() =>
     new Set([...document.querySelectorAll("[data-roster-player]")].map((n) => n.dataset.rosterPlayer)).size);

@@ -27,6 +27,7 @@ import { renderLogin } from "../screens/auth/login.mjs";
 import { renderNoTeam } from "../screens/team/empty.mjs";
 import { renderTeamOverview } from "../screens/team/overview.mjs";
 import { renderTeamManage } from "../screens/team/manage/index.mjs";
+import { renderTeamRoster } from "../screens/team/roster/index.mjs";
 import { renderSettings } from "../screens/settings/index.mjs";
 import { renderLegal, renderOverviewArticle, renderReferencePage } from "../screens/ref/article.mjs";
 import { renderRef } from "../screens/ref/index.mjs";
@@ -70,7 +71,7 @@ const screens = {
   teamNew: () => renderNewTeam(),
   team: ({ teamId }) => renderTeamOverview(teamId),
   teamManage: ({ teamId }) => renderTeamManage(teamId),
-  teamRoster: ({ teamId }) => renderSavedRoster(teamId),
+  teamRoster: ({ teamId }) => renderTeamRoster(teamId),
   teamPlayer: ({ teamId }) => renderSavedRoster(teamId),
   teamMatches: () => renderMyGames(),
   teamChallenges: () => renderMyGames(),

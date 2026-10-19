@@ -244,7 +244,7 @@ test("an SPP change is written as settled rows without a match, in the save's tr
   const stored = { players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 1 } }] };
   await withDatabase({ stored }, async (db) => {
     await handleTeamRoutes(patch({ players: [{ id: "a", rowIndex: 0, spp: { touchdowns: 2, mvps: 1 } }], treasury: 90 }), response(), teamUrl());
-    assert.deepEqual(edits(db), [[TEAM, null, "a", "touchdowns", 1, null, coach.id]]);
+    assert.deepEqual(edits(db), [[TEAM, null, "a", "touchdowns", 1, null, coach.id], [TEAM, null, "a", "mvps", 1, null, coach.id]]);
     const sql = db.log.map((entry) => entry.sql), at = sql.findIndex((text) => text.startsWith("INSERT INTO match_events"));
     assert.match(sql[at], /created_at, settled_at\)\s+SELECT [^]*\bat, at\s+FROM \(SELECT clock_timestamp\(\) AS at\)/, "settled as it is written, at the moment it is written");
     assert.ok(sql.findIndex((text) => text.startsWith("INSERT INTO team_ledger")) < at && at < sql.indexOf("COMMIT"));

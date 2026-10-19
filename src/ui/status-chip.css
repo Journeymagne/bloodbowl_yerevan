@@ -45,6 +45,10 @@
 }
 .g-status--wait::before { background: var(--warn); }
 
+/* A fault: the colour is the word's, the dot has it too. */
+.g-status--danger { color: var(--danger); }
+.g-status--danger::before { background: var(--danger); }
+
 /* On the dark header colour. This comes after the tones, so it wins their fill and ink. */
 .g-status--on-dark {
   background: color-mix(in srgb, var(--header-ink) 12%, transparent);

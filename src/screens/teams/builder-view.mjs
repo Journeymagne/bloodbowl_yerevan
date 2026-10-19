@@ -20,7 +20,7 @@ import { t } from "../../core/i18n.mjs";
 import { teamsUrl } from "../../core/routes.mjs";
 import { builderStaffCosts, medicalStaffDefinitions, rosterSizeLimits, startingBudget } from "../../domain/league-rules.mjs";
 import { BUILD_STAFF_KEYS, buildTotals, hirePlayer, staffAvailable, stepStaff } from "../../domain/roster/build.mjs";
-import { rowCountInPlayers } from "../../domain/roster/players.mjs";
+import { positionKind, rowCountInPlayers } from "../../domain/roster/players.mjs";
 import { teamFavouredOptions, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
 import { PLAYER_STATS, costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam, statValueForDisplayByStat } from "../../domain/roster/values.mjs";
 import { renderButton } from "../../ui/button.mjs";
@@ -178,14 +178,6 @@ function choiceSheet(race, draft, choice) {
 // ---------------------------------------------------------------------------
 // The players
 // ---------------------------------------------------------------------------
-
-/** The colour of a position's letter, by what it does on the pitch; whatever is not named is a lineman's grey. */
-const POSITION_KINDS = [["Big Guy", "big"], ["Thrower", "thrower"], ["Catcher", "catcher"], ["Blitzer", "blitzer"]];
-
-function positionKind(row) {
-  const tags = row.tags ?? [];
-  return POSITION_KINDS.find(([tag]) => tags.includes(tag))?.[1] ?? "lineman";
-}
 
 const NBSP = "\u00a0";
 
