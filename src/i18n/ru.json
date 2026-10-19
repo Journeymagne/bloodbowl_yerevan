@@ -1203,5 +1203,6 @@
   "teamRoster.injury.record": "Записать в матч",
   "teamRoster.injury.remove": "Убрать запись",
   "teamRoster.injury.line": "{injury} · {match}",
-  "teamRoster.injury.withStat": "{injury} ({stat})"
+  "teamRoster.injury.withStat": "{injury} ({stat})",
+  "teamRoster.injury.unsure": "Записи не прочитаны: неизвестно, записалась ли травма."
 }

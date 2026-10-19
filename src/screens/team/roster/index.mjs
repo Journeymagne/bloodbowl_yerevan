@@ -34,7 +34,7 @@ import { readRoster } from "./data.mjs";
 import { rosterMemory, sessionSppOf } from "./memory.mjs";
 import { nextSort, rosterLines, rosterMode, sortLines, stepRule } from "./model.mjs";
 import { onSaveState, retrySaves, saveState, stepSpp, takeServerTeam, trackRoster } from "./save.mjs";
-import { closeSheet, injuryHandlers, sheetOf } from "./injury.mjs";
+import { closeSheet, injuryHandlers, openerOf, sheetOf } from "./injury.mjs";
 import { recordsOf, sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { INJURY_SHEET, SKILL_SHEET } from "./sheets.mjs";
 import { rosterMarkup } from "./view.mjs";
@@ -75,6 +75,7 @@ function listen(target, type, listener) {
  * @property {string} sideLocked the server's words for `EVENT_SIDE_LOCKED`, which close the match's own taps until the records are read again
  * @property {boolean} failed a tap of the taps on their way has failed: its words are said, and those of the taps dropped behind it are not
  * @property {boolean} reread the records are read again once the taps on their way have answered
+ * @property {boolean} unsure an injury's answer was lost: no injury is recorded until a read of the records is taken (R14)
  * @property {number} sent how many taps the visit has sent: a read during which one was sent is not taken
  * @property {(() => void)[]} quiet what waits for the taps on their way to have all answered (`whenQuiet`)
  * @property {string|null} match the game id of the match on as the games last said it, null for none
@@ -110,6 +111,9 @@ function lockOf(save, visit, mode) {
   return save.status === SAVE_STATUS.CONFLICT ? t("teamRoster.conflict.title") : "";
 }
 
+/** An injury's answer was lost and no read is in the air: the one that followed failed (R14, fix round 1). */
+const unsureOf = (visit) => visit.unsure && !reading(visit);
+
 /** «Edit outside the match» is on for the match on: the switch is the team's and that match's (R13). */
 const outsideOf = (memory, mode) => mode.kind === "match" && memory.outside === mode.game.id;
 
@@ -129,24 +133,28 @@ function screenOf(teamId, visit, memory) {
   const outside = outsideOf(memory, mode);
   const { race, lines: own } = linesOf(visit, mode);
   const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line), sessionOutside: sessionSppOf(memory, line, { outside: true }) }));
-  // A sheet whose player has left the roster (read again) closes with him; an injury's, with the match (injury.mjs).
-  const sheet = sheetOf(visit, lines, { mode, outside });
-  if (!sheet) Object.assign(visit, { sheet: null, opener: null });
   const save = saveState(teamId);
+  const where = { mode, outside, lock: lockOf(save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit) };
+  // A sheet whose player has left the roster (read again) closes with him; an injury's, with its match (injury.mjs).
+  const sheet = sheetOf(visit, lines, where);
+  if (!sheet) Object.assign(visit, { sheet: null, opener: null });
   return {
-    team: visit.team, race, data: state.data, lines, mode, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
-    save, lock: lockOf(save, visit, mode), outside, sideLocked: visit.sideLocked, records: recordsOf(visit, mode),
+    team: visit.team, race, data: state.data, lines, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
+    save, ...where, records: recordsOf(visit, mode),
   };
 }
 
-/** Where the focus is before a redraw: the line it belongs to (his row, his panel, his sheet), the counter it is on, whether it is in a sheet. */
+/**
+ * Where the focus is before a redraw: the line it belongs to (his row, his panel, his sheet), the counter it is on,
+ * and in a sheet, that sheet and what opened it.
+ */
 function focusPlace(visit) {
   const active = document.activeElement;
   if (!active || active === document.body) return null;
   const cell = active.closest?.("[data-action-key]");
-  const sheet = Boolean(active.closest?.("dialog"));
+  const sheet = active.closest?.("dialog") ? { opener: visit.opener, sheet: visit.sheet } : null;
   const row = active.closest?.("tbody[data-key]")?.getAttribute("data-key") ?? active.closest?.("[data-panel-player]")?.getAttribute("data-panel-player")
-    ?? (sheet ? visit.sheet?.key : null);
+    ?? sheet?.sheet?.key;
   return { row: row ?? null, counter: cell?.getAttribute("data-action-key") ?? null, player: cell?.getAttribute("data-player") ?? null, sheet };
 }
 
@@ -154,7 +162,8 @@ function focusPlace(visit) {
  * A redraw that took the focused element away, or shut it (a minus stopped at zero), gives the focus to the nearest
  * one left (Carry T9): the same counter's other button, the player's own button in the table, else the title, where a
  * keyboard starts from — never the page's body. A sheet still open keeps it (a button busy with its row, R14): on
- * what is chosen in it, else its close.
+ * what is chosen in it, else its close. A sheet the redraw closed (its match over, another on) gives it back to
+ * what opened it, else to the title.
  */
 function restoreFocus(place) {
   const active = document.activeElement;
@@ -162,6 +171,10 @@ function restoreFocus(place) {
   const dialog = place.sheet ? view.querySelector("dialog:modal") : null;
   if (dialog) {
     (dialog.querySelector('[aria-checked="true"]') ?? dialog.querySelector("[data-sheet-close]"))?.focus();
+    return;
+  }
+  if (place.sheet) {
+    (openerOf(place.sheet) ?? view.querySelector("h1"))?.focus();
     return;
   }
   // A browser's NodeList has no `find`: spread it (the test page's lists are arrays and would not say so).
@@ -188,7 +201,7 @@ const busy = (status) => status === SAVE_STATUS.SAVING || status === SAVE_STATUS
  */
 function holdTeam(saving, { team, events }, draft, since) {
   const { visit } = saving;
-  Object.assign(visit, { team, events: withHeard(visit, events, since), draft, sideLocked: "", stale: false });
+  Object.assign(visit, { team, events: withHeard(visit, events, since), draft, sideLocked: "", stale: false, unsure: false });
   visit.saveOff?.();
   visit.saveOff = onSaveState(team.id, (now) => heardSave(saving, now));
 }
@@ -370,7 +383,8 @@ function pressHandlers({ read, ...saving }) {
   const { teamId, memory, visit, draw } = saving;
   const now = () => {
     const mode = modeOf(teamId);
-    return { mode, outside: outsideOf(memory, mode), lines: linesOf(visit, mode).lines, lock: lockOf(saveState(teamId), visit, mode) };
+    const lock = lockOf(saveState(teamId), visit, mode);
+    return { mode, outside: outsideOf(memory, mode), lines: linesOf(visit, mode).lines, lock, sideLocked: visit.sideLocked, unsure: unsureOf(visit) };
   };
   return {
     ...injuryHandlers(saving, { tapping: tappingOf(saving), now }),
@@ -406,6 +420,10 @@ function pressHandlers({ read, ...saving }) {
     },
     onRefused: (reason) => toast(reason),
     onReload: () => void reloadRoster(saving),
+    // An injury whose fate is not known, after a read that failed: «Try again» reads the records (R14).
+    onReread: () => {
+      if (!reading(visit)) void readAgain(saving);
+    },
     // Kept for the team and the match on while the page lives (memory.mjs, R13): a visit elsewhere and back finds it as it was.
     onOutside: (on) => {
       const mode = modeOf(teamId);
@@ -450,7 +468,7 @@ export async function renderTeamRoster(teamId) {
   const visit = {
     here: true, drawn: false, loading: true, error: "", team: null, draft: null, events: [], sheet: null, opener: null,
     reads: 0, answered: 0, status: "", retake: false, saveOff: null, pending: [], heard: [], sideLocked: "", failed: false, reread: false,
-    match: null, stale: false, sent: 0, quiet: [],
+    match: null, stale: false, sent: 0, quiet: [], unsure: false,
   };
   const saving = { teamId, visit, memory, draw: () => drawVisit(teamId, visit, memory) };
   const read = async () => {

@@ -1174,7 +1174,7 @@
   "teamRoster.match.sub": "Taps are recorded in the match: they count in the career at once and fill in the post-match. Hiring, sales, advancements and the treasury — after the post-match.",
   "teamRoster.match.outsideSub": "Taps change the career and do not go into the match: for an old mistake.",
   "teamRoster.match.outside": "Edit outside the match",
-  "teamRoster.match.outsideCaption": "fix an old mistake without touching the {match}",
+  "teamRoster.match.outsideCaption": "fix an old mistake without touching this match ({match})",
   "teamRoster.match.postMatch": "Post-match →",
   "teamRoster.sppLineMatch": "SPP {spp} · {match} · counts at once",
   "teamRoster.records": "Match records · {match}",
@@ -1199,9 +1199,10 @@
   "teamRoster.injuryCaption.dead": "the player died",
   "teamRoster.injury.choose": "Injury",
   "teamRoster.injury.stat": "Which characteristic",
-  "teamRoster.injury.note": "It is recorded in the {match} and fills in the post-match's Players step, where the injury is applied to the roster. While the team has played fewer than 3 matches, any injury becomes Badly Hurt.",
+  "teamRoster.injury.note": "It is recorded in this match ({match}) and fills in the post-match's Players step, where the injury is applied to the roster. While the team has played fewer than 3 matches, any injury becomes Badly Hurt.",
   "teamRoster.injury.record": "Record in the match",
   "teamRoster.injury.remove": "Remove the record",
   "teamRoster.injury.line": "{injury} · {match}",
-  "teamRoster.injury.withStat": "{injury} ({stat})"
+  "teamRoster.injury.withStat": "{injury} ({stat})",
+  "teamRoster.injury.unsure": "The records could not be read: whether the injury was recorded is not known."
 }

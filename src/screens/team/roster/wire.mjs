@@ -1,10 +1,10 @@
 /**
  * What the roster hears, on the view that outlives its redraws: a header pressed, a player pressed, a skill chip
- * pressed (in a row or in the panel), a sheet closed, «Try again» after a read that failed, a counter's − or + (a
- * refused one too), «Load the new one» after another device's save, the switch «Edit outside the match», a way to
- * the player's page that a match has closed (or «Injury in the match…» closed with its taps), and the injury's
- * button, its cards, its characteristics and its two buttons. What each one does is the screen's (index.mjs,
- * injury.mjs); this file only says who was pressed.
+ * pressed (in a row or in the panel), a sheet closed, «Try again» after a read that failed (the roster's, or the
+ * one after an injury whose answer was lost), a counter's − or + (a refused one too), «Load the new one» after
+ * another device's save, the switch «Edit outside the match», a way to the player's page that a match has closed
+ * (or «Injury in the match…» closed with its taps), and the injury's button, its cards, its characteristics and its
+ * two buttons. What each one does is the screen's (index.mjs, injury.mjs); this file only says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
@@ -46,6 +46,7 @@ function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep }) {
  * @param {(playerId: string, counter: string, delta: number) => void} handlers.onStep a counter's − or +, by the player's stored id
  * @param {(reason: string) => void} handlers.onRefused a − or + that says why it takes no step, and a closed way to the player's page
  * @param {() => void} handlers.onReload «Load the new one»
+ * @param {() => void} handlers.onReread «Try again» after an injury whose fate the read that followed could not say
  * @param {(on: boolean) => void} handlers.onOutside «Edit outside the match» switched on or off
  * @param {(key: string, button: Element) => void} handlers.onInjury «Injury in the match…», by the line's key (not when it is closed)
  * @param {(change: {code?: string, stat?: string}) => void} handlers.onInjuryChoice an injury or its characteristic chosen in the sheet
@@ -53,7 +54,7 @@ function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep }) {
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
-  const { onSort, onToggle, onSkill, onSheetClose, onRetry, onStep, onRefused, onReload, onOutside } = handlers;
+  const { onSort, onToggle, onSkill, onSheetClose, onRetry, onStep, onRefused, onReload, onReread, onOutside } = handlers;
   const offs = [
     wireRosterTable(root, { onSort, onToggle }),
     wireSkillChips(root, (name, chip) => {
@@ -64,6 +65,7 @@ export function wireRoster(root, handlers) {
     wireActionSteppers(root, ({ key, delta, element }) => onStep(element.getAttribute("data-player") ?? "", key, delta), { onRefused: ({ reason }) => onRefused(reason) }),
     delegate(root, "click", "[data-roster-retry]", () => onRetry()),
     delegate(root, "click", "[data-roster-reload]", () => onReload()),
+    delegate(root, "click", "[data-roster-reread]", () => onReread()),
     wireToggles(root, (key, on) => {
       if (key === OUTSIDE_TOGGLE) onOutside(on);
     }),

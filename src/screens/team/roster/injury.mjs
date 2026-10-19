@@ -5,8 +5,9 @@
  * that is no longer live, and the one read of the records when a row's fate is not known. The sheet only follows
  * that answer: a row written closes it; a refusal, said, leaves it open as it was; a row whose fate is not known
  * (its answer lost, or dropped behind a tap that failed) closes it while the records are read, so that no second
- * injury leaves before the read says whether the first was written. While one of his is on its way the sheet's
- * buttons wait for it.
+ * injury leaves before the read says whether the first was written — and if that read fails, none does until a read
+ * succeeds (`visit.unsure`, fix round 1). While one of his is on its way the sheet's buttons wait for it; while the
+ * match's taps are closed they say why. A sheet is its match's: another match on, or none, closes it.
  */
 import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
@@ -21,12 +22,18 @@ const inTheAir = (visit, playerId) => visit.pending.some((step) => step.counter 
 const injuryStands = (line, { mode, outside }) => mode.kind === "match" && !outside && !line.skip;
 
 /**
+ * What the screen is drawn with, as far as an injury goes: the mode and the switch, and why the match's taps are
+ * closed — the screen's lock, the side lock, an injury whose fate is not known (`injuryClosed`).
+ * @typedef {{mode: object, outside: boolean, lock: string, sideLocked: string, unsure: boolean}} Where
+ */
+
+/**
  * The sheet as the screen draws it, or null when it stands no longer: its player has left the roster (read again),
- * or no injury may be recorded for him any more (the match is over, the switch is on).
+ * or no injury may be recorded for him in its match any more (the match is over, another is on, the switch is on).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines
- * @param {{mode: object, outside: boolean}} where the mode and the switch, as the screen is drawn with them
+ * @param {Where} where
  * @returns {import("./view.mjs").RosterScreen["sheet"]}
  */
 export function sheetOf(visit, lines, where) {
@@ -34,26 +41,30 @@ export function sheetOf(visit, lines, where) {
   const line = sheet ? lines.find((item) => item.key === sheet.key) : null;
   if (!line) return null;
   if (sheet.kind !== "injury") return sheet;
-  return injuryStands(line, where) ? { ...sheet, busy: inTheAir(visit, line.id) } : null;
+  if (!injuryStands(line, where) || where.mode.game.id !== sheet.gameId) return null;
+  return { ...sheet, busy: inTheAir(visit, line.id), reason: injuryClosed(line, where) };
 }
 
-/** The injury's button of the player a closed sheet was for, as drawn now. */
-function injuryButtonOf(sheet) {
+/**
+ * Where the focus goes back to when a sheet has closed: what opened it, or for an injury's the button of the same
+ * player drawn in its place; null when there is none (the match is over: the screen gives it to the title).
+ * @param {{opener: Element|null, sheet: object|null}} closed the sheet that was open, and what opened it
+ */
+export function openerOf({ opener, sheet }) {
+  if (opener?.isConnected) return opener;
   if (sheet?.kind !== "injury") return null;
   return [...view.querySelectorAll("[data-roster-injury]")].find((button) => button.getAttribute("data-roster-injury") === sheet.key) ?? null;
 }
 
 /**
- * The sheet that is open closed, and the focus given back to what opened it: the chip of a skill, the injury's
- * button (or the one drawn in its place).
+ * The sheet that is open closed, and the focus given back to what opened it.
  * @param {{visit: object, draw: () => void}} saving the visit and its draw (index.mjs)
  */
 export function closeSheet({ visit, draw }) {
-  const { opener, sheet } = visit;
+  const closed = { opener: visit.opener, sheet: visit.sheet };
   Object.assign(visit, { sheet: null, opener: null });
   draw();
-  const back = opener?.isConnected ? opener : injuryButtonOf(sheet);
-  back?.focus();
+  openerOf(closed)?.focus();
 }
 
 /**
@@ -73,6 +84,8 @@ function record(saving, tapping, delta, playerOf) {
   if (!injury) return;
   const step = { pairingId: player.mode.game.id, playerId: player.line.id, counter: "injury", delta, injury };
   void sendRow(tapping, step).then((answer) => {
+    // Not known whether it was written: no injury until a read of the records says (index.mjs's holdTeam clears it).
+    if (answer.lost) visit.unsure = true;
     // A refusal is said (heardTap) and leaves the sheet as it was; another sheet opened meanwhile is not this one's.
     if (!visit.here || visit.sheet !== sheet || (!answer.event && !answer.lost)) return;
     closeSheet(saving);
@@ -86,8 +99,8 @@ function record(saving, tapping, delta, playerOf) {
  * @param {{visit: object, draw: () => void}} saving the visit's side of the queue (index.mjs's `Saving`)
  * @param {object} options
  * @param {import("./match-taps.mjs").Tapping} options.tapping what `sendRow` is lent
- * @param {() => {mode: object, outside: boolean, lines: import("./model.mjs").PlayerLine[], lock: string}} options.now
- *   the screen as it stands at the press: the mode, the switch, the lines, and why no tap is taken just now
+ * @param {() => Where & {lines: import("./model.mjs").PlayerLine[]}} options.now the screen as it stands at the
+ *   press: the mode, the switch, why no tap is taken just now, and the lines
  */
 export function injuryHandlers(saving, { tapping, now }) {
   const { visit, draw } = saving;
@@ -96,14 +109,14 @@ export function injuryHandlers(saving, { tapping, now }) {
     const where = now();
     const line = where.lines.find((item) => item.key === key);
     if (!line || !injuryStands(line, where)) return null;
-    return { line, mode: where.mode, reason: injuryClosed(line, { lock: where.lock, sideLocked: visit.sideLocked }) };
+    return { line, mode: where.mode, reason: injuryClosed(line, where) };
   };
   return {
     onInjury: (key, button) => {
       const player = playerOf(key);
       if (player?.reason) toast(player.reason);
       else if (player) {
-        Object.assign(visit, { sheet: { kind: "injury", key, choice: { code: "", stat: "" } }, opener: button });
+        Object.assign(visit, { sheet: { kind: "injury", key, gameId: player.mode.game.id, choice: { code: "", stat: "" } }, opener: button });
         draw();
       }
     },

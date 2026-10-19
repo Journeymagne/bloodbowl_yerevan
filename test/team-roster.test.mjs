@@ -110,6 +110,7 @@ const outsideSwitch = () => view.querySelector('[role="switch"]');
 const deltaOf = (counter, root) => stepper(counter, root).querySelector(".g-stepper__delta")?.textContent ?? null;
 const SIDE_LOCKED = "This match's statistics are already saved in your post-match. Change them on its Players step.";
 const READING = "Reading the records…";
+const UNSURE = "The records could not be read: whether the injury was recorded is not known.";
 const AFTER_POST = "Advancement — after the post-match";
 
 const bodies = () => view.querySelectorAll("tbody.g-rtable__player");
@@ -907,7 +908,7 @@ test("a match on: a green banner with the round and the records, the switch and 
     assert.equal(outsideSwitch().getAttribute("aria-checked"), "false");
     assert.equal(outsideSwitch().textContent, "Edit outside the match");
     const described = view.querySelector(`#${outsideSwitch().getAttribute("aria-describedby")}`);
-    assert.equal(described.textContent, "fix an old mistake without touching the round 3");
+    assert.equal(described.textContent, "fix an old mistake without touching this match (round 3)");
     assert.ok(described.hasAttribute("hidden"), "read to a screen reader as the switch's description, not drawn in the banner");
     const link = action.querySelector("a.g-roster__calloutlink");
     assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/games/g2/post-match", "Post-match →"]);
@@ -1490,7 +1491,7 @@ test("«Injury in the match…» opens a sheet of five injuries; a lasting one a
       ["Dead", "the player died", "false"],
     ]);
     assert.equal(dialog.querySelector(".g-roster__injurynote").textContent,
-      "It is recorded in the round 3 and fills in the post-match's Players step, where the injury is applied to the roster. While the team has played fewer than 3 matches, any injury becomes Badly Hurt.");
+      "It is recorded in this match (round 3) and fills in the post-match's Players step, where the injury is applied to the roster. While the team has played fewer than 3 matches, any injury becomes Badly Hurt.");
     assert.equal(recordButton().textContent, "Record in the match");
     assert.ok(recordButton().classList.contains("g-btn--primary"));
     assert.ok(recordButton().hasAttribute("disabled"), "nothing chosen yet");
@@ -1580,8 +1581,15 @@ test("a refused record says why and the sheet stays open", async () => {
     assert.ok(injurySheet()?.isModal, "open, the choice still in it");
     assert.equal(optionFor("dead").getAttribute("aria-checked"), "true");
     assert.equal(subLine("p1#0").textContent, "Human Lineman", "nothing written");
+    // The button says it before the next press, as the match's steppers behind the sheet do; it stays in reach to say why.
+    assert.equal(recordButton().getAttribute("aria-disabled"), "true");
+    assert.equal(recordButton().getAttribute("title"), SIDE_LOCKED);
+    assert.equal(recordButton().hasAttribute("disabled"), false);
+    assert.ok(recordButton().classList.contains("g-roster__closed"));
     // Pressed again it says why, and sends nothing: the side is locked until the records are read again.
+    for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
     fireEvent(recordButton(), "click");
+    assert.equal(toasts().at(-1), SIDE_LOCKED);
     await settle();
     assert.equal(posts().length, 1);
     fireEvent(injurySheet().querySelector("[data-sheet-close]"), "click");
@@ -1672,6 +1680,7 @@ test("an injury whose answer was lost: the sheet closes and the records are read
     assert.ok(document.activeElement === injuryButton());
     assert.equal(injuryButton().getAttribute("aria-disabled"), "true");
     assert.equal(injuryButton().getAttribute("title"), READING);
+    assert.ok(!notice("danger"), "nothing to read again while the read is in the air");
     fireEvent(injuryButton(), "click");
     assert.ok(!injurySheet(), "no second injury before the read says whether the first was written");
     assert.equal(toasts().at(-1), READING);
@@ -1681,6 +1690,104 @@ test("an injury whose answer was lost: the sheet closes and the records are read
     assert.equal(callKeys().filter((key) => key === "GET /api/teams/t1/events").length, 1, "read once");
     assert.equal(subLine("p1#0").textContent, "Dead · round 3", "what the server has");
     assert.equal(injuryButton().hasAttribute("aria-disabled"), false);
+  });
+});
+
+test("while the records are read the sheet's buttons say so, and a press sends nothing", async () => {
+  await withoutTimers(async () => {
+    coach({ events: [injuryRow({ code: "miss" })] });
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(injuryButton(), "click");
+    fireEvent(optionFor("badly-hurt"), "click");
+    // The server has the match over before the games say so: the refusal reads the records again, and the sheet stays.
+    api.reply(EVENTS, 409, refused("MATCH_NOT_LIVE"));
+    const reading = api.hold("GET /api/teams/t1/events");
+    fireEvent(recordButton(), "click");
+    await settle();
+    assert.ok(injurySheet()?.isModal, "a refusal leaves it open");
+    for (const button of [recordButton(), removeButton()]) {
+      assert.equal(button.getAttribute("aria-disabled"), "true");
+      assert.equal(button.getAttribute("title"), READING);
+      assert.equal(button.hasAttribute("disabled"), false, "in reach, to say why");
+    }
+    fireEvent(removeButton(), "click");
+    assert.equal(toasts().at(-1), READING);
+    await settle();
+    assert.equal(posts().length, 1, "nothing taken back while the records are read");
+    reading.release();
+    await settle();
+    assert.ok(injurySheet()?.isModal);
+    for (const button of [recordButton(), removeButton()]) assert.equal(button.hasAttribute("aria-disabled") || button.hasAttribute("disabled"), false);
+  });
+});
+
+// R14: «never a second injury before the read says whether the first was written» — a read that fails says nothing.
+test("an injury whose answer was lost, and whose read then failed, stays closed until a read succeeds; «Try again» reads", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(injuryButton(), "click");
+    fireEvent(optionFor("dead"), "click");
+    api.fail(EVENTS);
+    api.fail("GET /api/teams/t1/events");
+    fireEvent(recordButton(), "click");
+    await settle();
+    assert.ok(!injurySheet());
+    assert.equal(toasts().at(-1), "No connection to the server. Check the internet and try again.");
+    assert.equal(injuryButton().getAttribute("aria-disabled"), "true");
+    assert.equal(injuryButton().getAttribute("title"), UNSURE);
+    fireEvent(injuryButton(), "click");
+    assert.ok(!injurySheet(), "no second injury while it is not known whether the first was written");
+    assert.equal(toasts().at(-1), UNSURE);
+    const callout = notice("danger");
+    assert.equal(titleOf(callout), UNSURE);
+    const again = callout.querySelector("[data-roster-reread]");
+    assert.equal(again.textContent, "Try again");
+    // The match's other taps keep Task 11's rule: a read that failed opens them.
+    assert.equal(plus("touchdowns").hasAttribute("aria-disabled"), false);
+    // Read again while the network is still gone: still closed.
+    fireEvent(again, "click");
+    await settle();
+    assert.equal(injuryButton().getAttribute("title"), UNSURE);
+    api.reply("GET /api/teams/t1/events", 200, { events: [injuryRow({ code: "dead" })], revision: 4 });
+    fireEvent(notice("danger").querySelector("[data-roster-reread]"), "click");
+    await settle();
+    assert.ok(!notice("danger"));
+    assert.equal(injuryButton().hasAttribute("aria-disabled"), false);
+    assert.equal(subLine("p1#0").textContent, "Dead · round 3", "what the server has");
+    assert.equal(posts().length, 1);
+  });
+});
+
+test("an open injury sheet is its match's: another match on, or none, closes it, the focus back on its button or on the title", async () => {
+  await withoutTimers(async () => {
+    coach();
+    gamesAre([LIVE_GAME]);
+    await renderTeamRoster("t1");
+    fireEvent(injuryButton(), "click");
+    fireEvent(optionFor("miss"), "click");
+    optionFor("miss").focus();
+    // Round 3's post-match was finished elsewhere, and round 4's match has begun.
+    const ended = { ...LIVE_GAME, postMatchStatus: "completed", resultStatus: "confirmed" };
+    const next = { ...LIVE_GAME, id: "g7", roundNumber: 4, season: { currentRound: 4 } };
+    gamesAre([ended, next]);
+    await invalidateGames();
+    await settle();
+    assert.ok(!injurySheet(), "not a sheet of round 4's match");
+    assert.equal(titleOf(banner()), "Match on · round 4 · records: 0");
+    assert.ok(document.activeElement === injuryButton(), "back on the button that opened it");
+    // Opened for round 4, which then ends: no button to go back to, and the title takes the focus.
+    fireEvent(injuryButton(), "click");
+    assert.match(injurySheet().querySelector(".g-roster__injurynote").textContent, /^It is recorded in this match \(round 4\)/);
+    optionFor("dead").focus();
+    gamesAre([ended, { ...next, postMatchStatus: "completed", resultStatus: "confirmed" }]);
+    await invalidateGames();
+    await settle();
+    assert.ok(!injurySheet());
+    assert.ok(!view.querySelector("[data-roster-injury]"));
+    assert.ok(document.activeElement === view.querySelector("h1"), "the title, not the body");
   });
 });
 

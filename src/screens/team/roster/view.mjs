@@ -27,7 +27,7 @@ import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
 import { MAIN_COUNTERS, rosterCounts } from "./model.mjs";
 import { matchWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
-import { injuryLine, injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
+import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 
 /** The id of the panel beside the table, which a desk's player buttons control. */
 export const ASIDE_ID = "roster-aside";
@@ -54,9 +54,11 @@ const OUTSIDE_NOTE = "roster-outside-note";
  * @property {string} sideLocked why the match's own taps are closed: the server's refusal `EVENT_SIDE_LOCKED` (the
  *   side has saved its Players step), until the records are read again; "" when they are open
  * @property {number} records the rows of the match on that the team has, as last read: what its banner counts
- * @property {{kind: "skill", key: string, name: string}|{kind: "injury", key: string, choice: {code: string, stat: string}, busy: boolean}|null} sheet
- *   the sheet that is open: a skill's rule, or an injury of the match with what is chosen in it ("" for nothing yet)
- *   and whether an injury of the player is on its way (R14)
+ * @property {{kind: "skill", key: string, name: string}|{kind: "injury", key: string, gameId: string, choice: {code: string, stat: string}, busy: boolean, reason: string}|null} sheet
+ *   the sheet that is open: a skill's rule, or an injury of the match `gameId` with what is chosen in it ("" for
+ *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now
+ * @property {boolean} unsure an injury's answer was lost and the read that followed failed: whether it was written is
+ *   not known, so no injury is recorded until a read of the records succeeds (R14)
  * @property {string} error a read that failed, "" when none
  * @property {boolean} loading the roster has not been read yet (or is read again after a failure)
  * @property {boolean} phone the width the screen is drawn at is a phone's (`(max-width: 900px)`)
@@ -86,6 +88,17 @@ function groupsOf() {
 function statCell({ text, change }) {
   const note = change === "up" ? t("ui.stat.improved") : change === "down" ? t("ui.stat.lowered") : "";
   return { text, tone: change, note };
+}
+
+/** An injury in words: «Seriously Hurt», a lasting one with its characteristic, «Lasting Injury (AG)». */
+function injuryWords({ code, stat }) {
+  const injury = t(`teamRoster.injury.${code}`);
+  return stat ? t("teamRoster.injury.withStat", { injury, stat: t(`stats.${stat}`) }) : injury;
+}
+
+/** The line under a player's name while an injury of the match on stands for him (Task 12): «Lasting Injury (AG) · round 3»; "" when none does. */
+function injuryLine(line, mode) {
+  return mode.kind === "match" && line.injury ? t("teamRoster.injury.line", { injury: injuryWords(line.injury), match: matchWords(mode) }) : "";
 }
 
 /** A count: quiet at zero. */
@@ -190,10 +203,19 @@ function saveNoticeMarkup({ save }) {
   return `<div class="g-roster__offline">${icon("offline", 22)}${callout}</div>`;
 }
 
-/** The banners above the table: the preparation or the match that is on, then the save's trouble. */
+/**
+ * An injury whose fate is not known (R14): its answer was lost and the read that followed failed. No injury is
+ * recorded until a read succeeds, and «Try again» reads the records again.
+ */
+function unsureMarkup({ mode, unsure }) {
+  if (mode.kind !== "match" || !unsure) return "";
+  return renderCallout({ tone: "danger", title: t("teamRoster.injury.unsure"), actionHtml: renderButton({ label: t("teamRoster.readAgain"), data: { rosterReread: true } }) });
+}
+
+/** The banners above the table: the preparation or the match that is on, an injury whose fate is not known, then the save's trouble. */
 function noticesMarkup(screen) {
   const kind = screen.mode.kind;
-  const notices = `${kind === "prep" ? prepMarkup(screen) : kind === "match" ? matchMarkup(screen) : ""}${saveNoticeMarkup(screen)}`;
+  const notices = `${kind === "prep" ? prepMarkup(screen) : kind === "match" ? matchMarkup(screen) : ""}${unsureMarkup(screen)}${saveNoticeMarkup(screen)}`;
   return notices ? `<div class="g-roster__notices">${notices}</div>` : "";
 }
 
@@ -232,7 +254,7 @@ function sheetMarkup(screen) {
   const { sheet } = screen;
   const line = sheet && screen.race ? screen.lines.find((item) => item.key === sheet.key) : null;
   if (!line) return "";
-  if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy });
+  if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy, reason: sheet.reason });
   return skillSheetMarkup({ data: screen.data, line, name: sheet.name });
 }
 

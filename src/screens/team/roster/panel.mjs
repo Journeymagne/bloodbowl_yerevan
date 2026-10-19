@@ -85,14 +85,15 @@ function closedReason(line, rule, screen) {
 
 /**
  * Why no injury can be recorded for a player who plays the match just now, as no tap of it can be (R14): the
- * screen's lock («Reading the records…» among them), no id to name him by, the side's Players step saved; "" when
+ * screen's lock («Reading the records…» among them), no id to name him by, the side's Players step saved; and, the
+ * injury's own, an injury whose fate is not known since the read after its lost answer failed (`unsure`). "" when
  * one can.
  *
  * @param {import("./model.mjs").PlayerLine} line
- * @param {{lock: string, sideLocked: string}} screen
+ * @param {{lock: string, sideLocked: string, unsure: boolean}} screen
  */
 export function injuryClosed(line, screen) {
-  return closedReason(line, { via: "match", locked: "" }, screen);
+  return closedReason(line, { via: "match", locked: "" }, screen) || (screen.unsure ? t("teamRoster.injury.unsure") : "");
 }
 
 /**
