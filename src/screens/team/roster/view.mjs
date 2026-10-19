@@ -56,6 +56,7 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
 
 /**
  * @typedef {object} RosterScreen
+ * @property {string} teamId the route's team, which the screen is drawn for before its first answer too
  * @property {object|null} team the team as last read: id, name, baseTeamSlug; null before the first answer
  * @property {object|null} race its page in the reference
  * @property {object} draft the save queue's draft, normalised (`players`, `treasury`): what the lines are drawn from and the cart is priced on
@@ -93,6 +94,8 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {string} error a read that failed, "" when none
  * @property {boolean} loading the roster has not been read yet (or is read again after a failure)
  * @property {boolean} phone the width the screen is drawn at is a phone's (`(max-width: 900px)`)
+ * @property {string} player the player mode's stored id, as the address carries it (stage 07d); "" for the roster itself
+ * @property {object[]|null} rolls the team's rolls on the site as last read (stage 07d), null while none is
  */
 
 /** The table's columns: the player, the five characteristics, and on a desk the career and the SPP. */
@@ -201,7 +204,7 @@ function rowOf(line, screen, choice) {
  * way, saved (until the next step), waiting for the network with the edits that wait, not saved; nothing at rest.
  * Drawn as a dot and its words, with no capsule (SaveOffline.html; roster.css).
  */
-function statusMarkup({ status, waiting }) {
+export function statusMarkup({ status, waiting }) {
   let chip = "";
   if (status === SAVE_STATUS.SAVING || status === SAVE_STATUS.DIRTY) chip = renderStatusChip({ label: t("teamRoster.status.saving"), tone: "wait" });
   else if (status === SAVE_STATUS.SAVED) chip = renderStatusChip({ label: t("teamRoster.status.saved"), tone: "live" });
@@ -217,7 +220,7 @@ const calloutLink = (href, label) => `<a class="g-roster__calloutlink" href="${e
  * A preparation that is on (decision 12): yellow, what any save of the roster resets — the steps named as the
  * pre-match names them (R12) — and the way to it. Nothing is closed: a save only sends the coach back to those steps.
  */
-function prepMarkup({ mode, phone }) {
+export function prepMarkup({ mode, phone }) {
   const title = mode.round === null ? t("teamRoster.prep.titleFriendly") : t("teamRoster.prep.title", { round: mode.round });
   const sub = prepResetWords(phone ? "teamRoster.prep.bannerPhone" : "teamRoster.prep.banner");
   return renderCallout({ tone: "warn", title, sub, actionHtml: calloutLink(preMatchUrl(mode.game), t("teamRoster.prep.link")) });
@@ -252,7 +255,7 @@ function matchMarkup({ mode, outside, records, phone }) {
  * new one» reads the team again and gives his edit up; no network, with the edits that wait and the offline sign
  * before the words.
  */
-function saveNoticeMarkup({ save }) {
+export function saveNoticeMarkup({ save }) {
   if (save.status === SAVE_STATUS.CONFLICT) {
     // Under the words, half the banner wide (SaveConflict.html): roster.css lays it out and takes the sign away.
     const actionHtml = renderButton({ label: t("teamRoster.conflict.reload"), kind: "primary", data: { rosterReload: true } });
@@ -339,7 +342,7 @@ function layoutMarkup(screen) {
 }
 
 /** A fault in place of the table, in a danger callout; a read that failed offers to read again. */
-function failedMarkup(title, { retry = false } = {}) {
+export function failedMarkup(title, { retry = false } = {}) {
   const actionHtml = retry ? renderButton({ label: t("teamRoster.readAgain"), data: { rosterRetry: true } }) : "";
   return `<div class="g-roster__failed" role="alert">${renderCallout({ tone: "danger", title, actionHtml })}</div>`;
 }
@@ -357,7 +360,7 @@ function bodyMarkup(screen) {
  * too — an injury's, a missed match's, a death's undo, or a sale's, on the draft's treasury; the hire cart, which is no
  * player's (`screenOf` closes one that no longer stands).
  */
-function sheetMarkup(screen) {
+export function sheetMarkup(screen) {
   const { sheet } = screen;
   if (sheet?.kind === "hire") return hireSheetMarkup({ race: screen.race, quote: sheet.quote, mode: screen.mode, refusal: sheet.refusal, reason: sheet.reason });
   const line = sheet && screen.race ? [...screen.lines, ...screen.fallen].find((item) => item.key === sheet.key) : null;

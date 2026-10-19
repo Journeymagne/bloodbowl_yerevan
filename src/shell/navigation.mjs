@@ -13,6 +13,10 @@
  * `coach` has the team's screens beside the league's, or — with no team yet —
  * the league's alone and a header that leads to creating one. A coach whose
  * list of teams could not be read may have teams: the header names the league.
+ *
+ * A player's address is drilled into (`drill`, owner, 2026-10-19): on a phone it
+ * is a screen of its own under the player's head with «‹ Roster», so the header
+ * draws neither the team nor the tabs; the SideNav of a desk is the same.
  */
 import { t } from "../core/i18n.mjs";
 import { refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
@@ -142,18 +146,20 @@ function navItems(links, currentKey) {
  *   `user` is the signed-in coach or null; `team` is the active team; `raceTitle` and
  *   `place` (the team's place in the season table, null outside it) are the header's subtitle;
  *   `teamsRead` is false while the coach's list of teams has not been read (no team is known)
- * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[]}}
+ * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[], drill: boolean}}
+ *   `drill` is true on a player's address alone, which a phone draws as a screen of its own: the header draws nothing there
  */
 export function shellModel({ route, user, team = null, raceTitle = "", place = null, teamsRead = true }) {
-  if (BARE_ROUTES.has(route.name)) return { mode: "bare", brand: leagueBrand(), tabs: [], side: [] };
+  if (BARE_ROUTES.has(route.name)) return { mode: "bare", brand: leagueBrand(), tabs: [], side: [], drill: false };
   const owners = Object.hasOwn(OWNERS, route.name) ? OWNERS[route.name] : [];
+  const drill = route.name === "teamPlayer";
   if (!user) {
     const [tabKey, sideKey] = owners.map(guestKey);
     const links = guestLinks();
-    return { mode: "guest", brand: leagueBrand(), tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey) };
+    return { mode: "guest", brand: leagueBrand(), tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey), drill };
   }
   const [tabKey, sideKey] = owners;
   const links = coachLinks(team, Boolean(user.isAdmin));
   const brand = !team && !teamsRead ? leagueBrand() : coachBrand(team, raceTitle, place);
-  return { mode: "coach", brand, tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey) };
+  return { mode: "coach", brand, tabs: navItems(links.tabs, tabKey), side: navItems(links.side, sideKey), drill };
 }

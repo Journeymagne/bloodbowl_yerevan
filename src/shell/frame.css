@@ -82,6 +82,8 @@ html { scrollbar-gutter: stable; }
    * reaches above the view (Shift+Tab) is scrolled to stand under it, not behind it (WCAG 2.4.11).
    */
   html { scroll-padding-top: 110px; }
+  /* A player's address has no header: his own head sticks there instead, up to 150px with a name on two lines. */
+  :root:has(.g-frame[data-drill]) { scroll-padding-top: 150px; }
 }
 
 @media (min-width: 901px) {
@@ -94,6 +96,9 @@ html { scrollbar-gutter: stable; }
   .g-frame__main > .g-appbar,
   .g-main__footer { display: none; }
 }
+
+/* A player's address is drilled into (owner, 2026-10-19): no header band; the screen draws the player's head with «‹ Roster». */
+.g-frame[data-drill] .g-appbar { display: none; }
 
 /* A page with a frame of its own: the whole width, nothing of the shell, and its own top and sides. */
 .g-frame[data-shell="bare"] { display: block; }

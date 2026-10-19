@@ -47,6 +47,19 @@
   font: 700 14px/1.2 var(--font-body);
 }
 
+/* The desk panel's injuries in one line under the skills (stage 07d; DeskRoster.html has none): red, wrapping, the panel's gap around it. */
+.g-roster__injuries {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  font: 400 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
 /* How to read the table, under it (DeskRoster.html, Stats.html). */
 .g-roster__caption {
   margin: 0;

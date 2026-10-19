@@ -384,15 +384,26 @@ test("choosing a team on a team page goes to the same section of the other one; 
 
 test("choosing the team whose page it is only closes the switcher: a player's page does not jump to the roster", async () => {
   await asCoach("#/t/t1/roster/p1", async () => {
+    // Stage 07d (owner's answer 1): a player's address is drilled into — a phone's header, and its switcher, are not drawn there.
     refreshShell({ name: "teamPlayer", params: { teamId: "t1", playerId: "p1" } });
-    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    assert.equal(document.querySelector("#app-header [data-team-switcher]"), null, "no switcher in the header of a player's address");
+    // A desk's SideNav keeps its team block there: the team whose page it is only closes the switcher, and the player stays.
+    fireEvent(document.querySelector("#side-nav [data-team-switcher]"), "click");
     assert.equal(switcherHost().querySelector('[data-switch-team="t1"]').getAttribute("aria-current"), "true");
     fireEvent(switcherHost().querySelector('[data-switch-team="t1"]'), "click");
     await flush();
     assert.equal(switcherHost().querySelector("dialog"), null, "closed");
     assert.equal(location.hash, "#/t/t1/roster/p1", "the player stays");
+    // From a page with a header, the team's roster: the same team only closes it, the other team is the roster of that team.
+    globalThis.location = { hash: "#/t/t1/roster" };
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    assert.equal(switcherHost().querySelector('[data-switch-team="t1"]').getAttribute("aria-current"), "true");
+    fireEvent(switcherHost().querySelector('[data-switch-team="t1"]'), "click");
+    await flush();
+    assert.equal(switcherHost().querySelector("dialog"), null, "closed");
+    assert.equal(location.hash, "#/t/t1/roster", "the page stays");
     assert.equal(api.calls.length, 0, "nothing is sent: it was the active team already");
-    // The other team from the same page is still the roster of that team.
     fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
     fireEvent(switcherHost().querySelector('[data-switch-team="t2"]'), "click");
     assert.equal(location.hash, "#/t/t2/roster");

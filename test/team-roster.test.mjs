@@ -424,7 +424,8 @@ test("the desk panel: badge, name, position and value, the characteristics, SPP 
   assert.deepEqual([panel.querySelector(".g-roster__availn").textContent, panel.querySelector(".g-roster__availl").textContent], ["0", "SPP available"]);
   assert.deepEqual(panel.querySelectorAll(".g-roster__ledgerline").map((line) => line.textContent), ["earned 0", "spent 0"]);
   assert.equal(panel.querySelector(".g-progress__caption").textContent, "Advancements: 0 of 6");
-  assert.equal(panel.querySelector(".g-roster__cheapest").textContent, "Cheapest — 3 SPP");
+  // Decision 21 (stage 07d): Ann's 0 SPP buy nothing, and the line under «Advance» says what she is short of.
+  assert.equal(panel.querySelector(".g-roster__cheapest").textContent, "3 more SPP needed");
   assert.equal(panel.querySelector(".g-skills-none").textContent, "no skills");
   assert.equal(panel.querySelector(".g-roster__access").textContent, "Primary: General · Secondary: Agility, Strength, Devious");
   assert.deepEqual(panel.querySelectorAll(".g-roster__access b").map((part) => part.textContent), ["General", "Agility, Strength, Devious"], "the categories in bold");
@@ -1213,7 +1214,7 @@ test("with the switch on a tap is an edit outside the match: no pairing, the ban
   });
 });
 
-test("advancement waits for the post-match: «Profile and advancement», «Advance» and the pencil say so", async () => {
+test("advancement waits for the post-match: «Advance» and the pencil say so; «Profile and advancement» stays open (K20)", async () => {
   await withoutTimers(async () => {
     const check = (control) => {
       assert.equal(control.tagName, "BUTTON");
@@ -1228,10 +1229,11 @@ test("advancement waits for the post-match: «Profile and advancement», «Advan
       gamesAre([LIVE_GAME]);
       await renderTeamRoster("t1");
       fireEvent(toggle("p2#0"), "click");
-      const profile = openRow().querySelector(".g-roster__closed");
+      // Stage 07d, K20: the profile reads in a match (his injuries, his skills) and closes its own writes, saying why.
+      const profile = openRow().querySelector("a.g-btn--dark");
       assert.equal(profile.textContent, "Profile and advancement");
-      check(profile);
-      assert.equal(openRow().querySelector("a"), null);
+      assert.equal(profile.getAttribute("href"), teamPlayerUrl("t1", "p2"));
+      assert.ok(!openRow().querySelector(".g-btn--dark.g-roster__closed"));
       assertCspSafe(view);
       assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
         "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
@@ -2361,8 +2363,14 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
     assert.ok(breakpoints.length > 0, file);
     for (const query of breakpoints) assert.match(query, /^@media \((max-width: 900px|min-width: 901px)\)$/, file);
   }
-  // The roster's own sheet, 07b's marks.css, its sheets' and its frame's; 07c's market.css after the fidelity pass's frame.css, last of all.
-  assert.ok(text("src/styles.css").trimEnd().endsWith(['roster.css', 'marks.css', 'sheets.css', 'frame.css', 'market.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
+  // The roster chain in this order (K5): its own sheet, 07b's marks.css, its sheets' and its frame's, 07c's market.css after
+  // the fidelity pass's frame.css, then 07d's sheets in the order of their tasks — those there yet; others may follow them.
+  const styles = text("src/styles.css");
+  const chain = ["roster.css", "marks.css", "sheets.css", "frame.css", "market.css", "profile.css", "advance.css", "rolls.css", "fix.css"]
+    .map((name) => styles.indexOf(`@import url("screens/team/roster/${name}");`));
+  assert.ok(chain.slice(0, 6).every((at) => at >= 0), "07a to 07c's and 07d's profile.css reach the page");
+  const present = chain.filter((at) => at >= 0);
+  assert.deepEqual(present, [...present].sort((a, b) => a - b));
 });
 
 test("the counters: six two to a row (one where two do not fit), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {

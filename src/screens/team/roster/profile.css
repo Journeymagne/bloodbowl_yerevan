@@ -1,0 +1,364 @@
+/*
+ * A player's own page on a phone (screens/team/roster/profile.mjs; Player.html, PlayerCaptain.html, PlayerDead.html):
+ * a screen of its own, drilled into from the roster. His dark head sticks to the top of the page as the prototype's
+ * stands outside its scrolling `main`, with «‹ Roster» where the prototype has the team switcher (owner, 2026-10-19),
+ * and under it his characteristics, his SPP, his skills and his injuries, 22px apart in `main`'s 16 16 28. The stat
+ * strip, the progress dots, the skill cards and the buttons are the ui/ sheets'; this one sizes them as Player.html
+ * does. A desk has no such page (the address is the roster with him in the panel), so every rule is up to 900px.
+ *
+ * Font, border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals (h1,
+ * h2, p, dl, dt, dd, a, .view's padding) outlive this sheet until stage 13. A long name, skill or injury wraps; nothing
+ * is cut with «…».
+ */
+@media (max-width: 900px) {
+  /* The page reaches the screen's edges, as the prototype's head does: the view's own padding gives way to it. */
+  .g-frame #app-view:has(> .g-profile) {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+  }
+  /* What .g-main's overflow-x: hidden would do without making it a scroll box, which would hold the head's sticking (K3). */
+  .g-main:has(.g-profile) { overflow-x: clip; }
+
+  .g-profile {
+    box-sizing: border-box;
+    display: flex;
+    flex: 1 0 auto;
+    flex-direction: column;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: var(--surface);
+    color: var(--ink);
+    font: 400 14px/1.4 var(--font-body);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /* The head (Player.html): the header's colour, 14 16 20, a column 14px apart; over what scrolls under it. */
+  .g-profile__head {
+    position: sticky;
+    top: 0;
+    z-index: 3;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-14);
+    margin: 0;
+    padding: var(--space-14) var(--space-16) var(--space-20);
+    border: 0;
+    background: var(--header);
+    color: var(--header-ink);
+  }
+  .g-profile__head :focus-visible { outline-color: var(--header-ink); }
+
+  /* «‹ Roster»: a row 24px tall, the link a thumb tall over it (10px out above and under). */
+  .g-profile__backrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 24px;
+  }
+  .g-profile__back {
+    box-sizing: border-box;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-4);
+    min-height: var(--size-touch);
+    margin: -10px 0;
+    padding: 0 var(--space-4);
+    border: 0;
+    background: none;
+    color: var(--header-muted);
+    font: 600 15px/1.2 var(--font-body);
+    letter-spacing: 0;
+    text-decoration: none;
+    text-transform: none;
+  }
+
+  .g-profile__row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-14);
+    min-width: 0;
+  }
+
+  /* His number: 60px in a 2px ring of the header's ink, 28px; the captain's «C» 24px in the corner, ringed in the header. */
+  .g-profile__badge {
+    display: flex;
+    flex: none;
+  }
+  .g-profile__badge .g-num {
+    width: 60px;
+    height: 60px;
+    box-shadow: 0 0 0 2px var(--header-ink);
+    font: 700 28px/1 var(--font-display);
+  }
+  .g-profile__badge .g-num__captain {
+    top: -6px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    box-shadow: 0 0 0 2px var(--header);
+    font: 800 13px/24px var(--font-body);
+  }
+
+  .g-profile__titles {
+    display: flex;
+    flex: 1 1 auto;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+  }
+  .g-profile__name {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--header-ink);
+    font: 700 30px/1.05 var(--font-display);
+    letter-spacing: 0;
+    text-transform: none;
+    overflow-wrap: anywhere;
+  }
+  /* The page focuses it on arrival: a place the keyboard starts from, not a control, so no ring is drawn round it. */
+  .g-profile__name:focus { outline: none; }
+  .g-profile__who {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--header-muted);
+    font: 400 15px/1.3 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    overflow-wrap: anywhere;
+  }
+
+  /* The pencil: 44px round, the header's ink over a 12% veil of it. */
+  .g-profile__edit {
+    width: var(--size-touch);
+    height: var(--size-touch);
+    margin-left: auto;
+    border: 0;
+    border-radius: 22px;
+    background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+    color: var(--header-ink);
+  }
+
+  /* `main`: 16 16 28, its blocks 22px apart. */
+  .g-profile__body {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-22);
+    min-width: 0;
+    margin: 0;
+    padding: var(--space-16) var(--space-16) 28px;
+    border: 0;
+    background: none;
+  }
+  /* A fallen player read as fallen (PlayerDead.html): 07b's body of his profile, its parts as far apart as on his own page. */
+  .g-profile__fallen .g-fallen { gap: var(--space-16); }
+  /* The fallen player's own page under the same head (screens/team/player): its parts have `main`'s room too. */
+  .g-fallen-page.g-profile > .g-fallen-page__body,
+  .g-fallen-page.g-profile > .g-roster__loading,
+  .g-fallen-page.g-profile > .g-roster__failed {
+    box-sizing: border-box;
+    max-width: none;
+    padding: var(--space-16) var(--space-16) 28px;
+  }
+
+  /* The banners, the roster's own (.g-roster__notices), and the save's state; at rest that is an empty live region, and the block takes no room. */
+  .g-profile__notices:not(:has(.g-callout, .g-status)) { margin-bottom: calc(-1 * var(--space-22)); }
+  .g-profile__status {
+    display: flex;
+    justify-content: flex-end;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    font: 400 13px/1.35 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /* The characteristics (stat-strip.css): five 6px apart, 12px corners, 8 0 10, «MA» 12/600 .05em, the value 26px. */
+  .g-profile__body .g-stats { gap: var(--space-6); }
+  .g-profile__body .g-stat {
+    padding: var(--space-8) 0 var(--space-10);
+    border-radius: var(--radius-lg);
+  }
+  .g-profile__body .g-stat__v { font: 700 26px/1.1 var(--font-display); }
+
+  /* The SPP card: a 1px ring, 16px corners, 16 in, 14 apart. */
+  .g-profile__spp {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-14);
+    margin: 0;
+    padding: var(--space-16);
+    border: 0;
+    border-radius: var(--radius-2xl);
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--line-strong);
+  }
+  .g-profile__spptop {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-12);
+  }
+  .g-profile__avail {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-6);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  .g-profile__availn {
+    color: var(--accent-text);
+    font: 700 44px/1 var(--font-display);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .g-profile__availl {
+    color: var(--ink);
+    font: 600 15px/1.2 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .g-profile__ledger {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: 400 13px/1.35 var(--font-body);
+    letter-spacing: 0;
+    text-align: right;
+    text-transform: none;
+  }
+  .g-profile__ledgerline { display: block; }
+  .g-profile__spp .g-btn--primary {
+    height: var(--size-cta);
+    border-radius: var(--radius-lg);
+    font: 700 17px/1.2 var(--font-body);
+  }
+  .g-profile__hint {
+    margin: -6px 0 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: 400 13px/1.35 var(--font-body);
+    letter-spacing: 0;
+    text-align: center;
+    text-transform: none;
+  }
+
+  /* «Skills» and «Injuries»: Oswald 24px over their blocks. */
+  .g-profile__skills {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+    min-width: 0;
+  }
+  .g-profile__injuries {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    min-width: 0;
+  }
+  .g-profile__title {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink);
+    font: 700 24px/1.1 var(--font-display);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  /* A skill's card: 10px corners, 6 12, the name 15/600, where it came from 11px; a thumb tall (D2). */
+  .g-profile__skills .g-skill--card {
+    min-height: var(--size-touch);
+    padding: var(--space-6) var(--space-12);
+    border-radius: var(--radius-md);
+    font: 600 15px/1.2 var(--font-body);
+    overflow-wrap: anywhere;
+  }
+  .g-profile__skills .g-skill--card.g-skill--gained { color: var(--on-accent-tint); }
+  .g-profile__skills .g-skill__source {
+    font: 400 11px/1.2 var(--font-body);
+    opacity: .85;
+  }
+
+  /* The access: «Primary» 84px wide and quiet, the categories in bold, 14px. */
+  .g-profile__access {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-6);
+    margin: var(--space-4) 0 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--ink-2);
+    font: 400 14px/1.35 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .g-profile__accessrow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-8);
+  }
+  .g-profile__accesskey {
+    flex: none;
+    width: 84px;
+    margin: 0;
+    color: var(--muted);
+    font: 400 14px/1.35 var(--font-body);
+  }
+  .g-profile__accessvalue {
+    min-width: 0;
+    margin: 0;
+    color: var(--ink-2);
+    font: 600 14px/1.35 var(--font-body);
+    overflow-wrap: anywhere;
+  }
+
+  /* The injuries: 15px, quiet with none, each one red. */
+  .g-profile__injurylist {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    list-style: none;
+  }
+  .g-profile__injury,
+  .g-profile__none {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: 400 15px/1.4 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    overflow-wrap: anywhere;
+  }
+  .g-profile__injury { color: var(--danger); }
+}

@@ -196,6 +196,9 @@ export function refreshShell(route = lastRoute) {
   patch(parts.sideNav, renderSideNav(model, { matchHtml, locale, generatedAt }));
   patch(parts.footer, renderSiteFooter({ generatedAt, locale }));
   parts.frame.setAttribute("data-shell", model.mode);
+  // A player's address is a screen of its own on a phone: frame.css hides the header's band there.
+  if (model.drill) parts.frame.setAttribute("data-drill", "");
+  else parts.frame.removeAttribute("data-drill");
   revealCurrentTab(parts.header);
   if (moved) closeSwitcher();
 }

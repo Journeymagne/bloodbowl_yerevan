@@ -3,7 +3,9 @@
  * the player chosen (the open row on a phone, the one in the panel on a desk), the match whose taps are
  * edits outside it, and each player's SPP when the visit first showed him. A visit elsewhere and back finds
  * the first three as they were; nothing is written to the address or to the browser's storage, so a reload forgets.
+ * The way back from a player's page (stage 07d, «‹ Roster») finds the page where the coach left it, too.
  */
+import { onScreenLeave } from "../../../core/screen-lifecycle.mjs";
 
 /** @type {Map<string, RosterMemory>} */
 const memories = new Map();
@@ -16,6 +18,8 @@ const memories = new Map();
  *   switch is the team's and that match's (R13), so the next match starts with it off (stage 07a, Task 11)
  * @property {Map<string, number>} baseline a line's SPP when this visit first showed it, and the SPP of the edits
  *   outside the match waiting for him then: what the coach's edits are counted from
+ * @property {number|null} scroll where the roster's page stood when the coach last left it (`scrollY`), none before
+ * @property {boolean} fromPlayer the roster module's last visit was its player mode, and no other page came after it
  */
 
 /**
@@ -25,7 +29,7 @@ const memories = new Map();
  * @returns {RosterMemory}
  */
 export function rosterMemory(teamId) {
-  if (!memories.has(teamId)) memories.set(teamId, { sort: null, selected: null, outside: null, baseline: new Map() });
+  if (!memories.has(teamId)) memories.set(teamId, { sort: null, selected: null, outside: null, baseline: new Map(), scroll: null, fromPlayer: false });
   return memories.get(teamId);
 }
 
@@ -45,4 +49,37 @@ export function sessionSppOf(memory, line, { outside = false } = {}) {
   const [key, now] = outside ? [`${line.key} outside`, line.outsideSpp] : [line.key, line.earned];
   if (!memory.baseline.has(key)) memory.baseline.set(key, now);
   return now - memory.baseline.get(key);
+}
+
+/**
+ * A visit of the roster module leaves (stage 07d, K4): the roster's keeps where its page stood (`scroll`); the player
+ * mode's says the roster was left for a player's page (`fromPlayer`) — until the page after it is left in turn, which
+ * forgets it: the way back is «‹ Roster», not a hop over another page.
+ *
+ * @param {RosterMemory} memory
+ * @param {boolean} player the visit was the player mode
+ */
+export function leaveVisit(memory, player) {
+  if (!player) {
+    memory.scroll = globalThis.scrollY ?? 0;
+    return;
+  }
+  onScreenLeave("team-roster-back", () => {
+    memory.fromPlayer = false;
+  });
+  memory.fromPlayer = true;
+}
+
+/**
+ * Where a visit of the roster puts its page once its lines are drawn: back from a player's page, where the coach left
+ * it; else nowhere (null). Every visit of the module takes it, so it is put back once.
+ *
+ * @param {RosterMemory} memory
+ * @param {boolean} player the visit is the player mode, which has no roster's page to put back
+ * @returns {number|null}
+ */
+export function takeWayBack(memory, player) {
+  const back = !player && memory.fromPlayer ? memory.scroll : null;
+  memory.fromPlayer = false;
+  return back;
 }

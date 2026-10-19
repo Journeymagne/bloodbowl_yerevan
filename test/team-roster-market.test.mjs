@@ -1384,8 +1384,10 @@ test("everything drawn is styled, and the cart's colours are readable", async ()
     assertReadable(MARKET, ".g-market__numbers", "color", ["--surface"], 4.5);
     assertReadable(MARKET, ".g-market__prep", "color", ["--surface"], 4.5);
     assertReadable(MARKET, ".g-market__refusal", "color", ["--surface"], 4.5);
-    // 07c's market.css after the fidelity pass's frame.css (K3), last of all.
-    assert.ok(text("src/styles.css").trimEnd().endsWith(['frame.css', 'market.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
+    // 07c's market.css after the fidelity pass's frame.css (K3), and before 07d's profile.css: a relative order, not «last» (07d's K5).
+    const at = (name) => text("src/styles.css").indexOf(`@import url("screens/team/roster/${name}");`);
+    assert.ok(at("frame.css") >= 0 && at("market.css") > at("frame.css"), "market.css after frame.css");
+    assert.ok(at("profile.css") > at("market.css"), "market.css before profile.css");
   });
 });
 

@@ -1,14 +1,15 @@
 /**
- * The player's own address (`#/t/:id/roster/:playerId`). A player of the roster still gets the 2.x editor until stage
- * 07d moves his profile here; a fallen player of the team gets his profile (spec UI §9, PlayerDead): how and when he
- * fell, the cause, and for a death a coach marked, «Undo the mark», asked first. An id that is neither is the 2.x
- * editor's, as it was.
+ * The player's own address (`#/t/:id/roster/:playerId`). A player of the roster, and an id that is neither, get the
+ * roster's player mode (stage 07d); on a phone every state of the address is a screen of its own, under the player's
+ * head with «‹ Roster» (owner, 2026-10-19). A fallen player of the team gets his profile (spec UI §9, PlayerDead): how
+ * and when he fell, the cause, and for a death a coach marked, «Undo the mark», asked first.
  *
  * Whose the id is, the coach's list says first (the route opens only on one of his teams, and the list holds its
- * roster): a player of the roster goes to the editor at once, and the fallen are not read. A list marked to be read
- * again (a post-match has finished, and may have killed him) is read first. Else the team's fallen are read, the games
- * beside them, and again whenever the tab is seen again: a match begun meanwhile closes the undo. The page stands under
- * the team's head (the player's own head is stage 07d's), and its one visible `h1` is his name.
+ * roster): a player of the roster goes to the roster's player mode at once, and the fallen are not read here (the
+ * roster reads them with the team). A list marked to be read again (a post-match has finished, and may have killed him)
+ * is read first. Else the team's fallen are read, the games beside them, and again whenever the tab is seen again: a
+ * match begun meanwhile closes the undo. On a phone the page stands under the player's dark head (profile.mjs,
+ * PlayerDead.html), on a desk under the page head; its one visible `h1` is his name. The width crossing 900px draws it again.
  *
  * The undo is the roster's own (marks.mjs, Task 9), lent this page instead of the roster: the same sheet, one DELETE
  * per press, never in a match, never while a write of the fallen is on its way, its answer the list's — never the
@@ -35,17 +36,20 @@ import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
+import { classNames } from "../../../ui/markup.mjs";
 import { renderPageHead } from "../../../ui/page-head.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
 import { wireSkillChips } from "../../../ui/skill-chip.mjs";
-import { renderSavedRoster } from "../../saved-roster.mjs";
 import { fallenWriting, readFallen } from "../roster/fallen.mjs";
 import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup, undoSheetMarkup } from "../roster/fallen-view.mjs";
 import { closeSheet, sheetOf } from "../roster/injury.mjs";
 import { markHandlers, markSheetOf } from "../roster/marks.mjs";
 import { fallenLines, rosterLines, rosterMode, undoable } from "../roster/model.mjs";
 import { markClosed } from "../roster/panel.mjs";
+import { renderTeamRoster } from "../roster/index.mjs";
+import { playerHeadMarkup } from "../roster/profile.mjs";
 import { onSaveState, saveState, takeAnswerTeam } from "../roster/save.mjs";
+import { PHONE, isPhone } from "../roster/screen.mjs";
 import { sheetIdOf, skillSheetMarkup } from "../roster/sheets.mjs";
 
 /**
@@ -111,7 +115,7 @@ function heldBy(teamId, visit) {
 function nowOf({ teamId, playerId, visit }) {
   const team = teamOf(teamId);
   const race = team ? raceTeamOf(team.baseTeamSlug) : null;
-  const lines = race ? rosterLines({ draft: normalizeDraft(team.roster ?? {}), race }) : [];
+  const lines = race ? rosterLines({ draft: normalizeDraft(team.roster ?? {}), race, skillGroups: state.data?.skillGroups ?? null }) : [];
   const fallen = fallenLines({ fallen: visit.fallen, race, rosterIds: lines.map(({ id }) => id) });
   const save = saveState(teamId);
   const held = heldBy(teamId, visit);
@@ -140,16 +144,25 @@ function noticeMarkup(now, teamId) {
 }
 
 /**
+ * The page's head: on a phone the player's dark head (profile.mjs) — with no name, «‹ Roster» alone — on a desk the
+ * page head as it was, none with no name.
+ * @param {{teamId: string, name?: string, who?: string, badgeHtml?: string}} head
+ */
+function headMarkup({ teamId, name = "", who = "", badgeHtml = "" }) {
+  if (isPhone()) return playerHeadMarkup({ teamId, badgeHtml, name, who });
+  return name ? renderPageHead({ title: name, sub: who, metaHtml: badgeHtml, phone: true }) : "";
+}
+
+/**
  * His profile: the head — his grey number, his name, «<position> · <race> · fallen» — then what closes his undo, where
  * the coach can act on it (`noticeMarkup`), and the profile's body (fallen-view.mjs), its undo closed while none can
  * be sent, saying why.
  */
 function profileMarkup(now, teamId) {
   const { line, team } = now;
-  const who = fallenWho(line, team.baseTeamSlug);
-  const badge = renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true });
+  const badgeHtml = renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true });
   const reason = undoable(line) ? markClosed(line, now, { direct: true }) : "";
-  return `${renderPageHead({ title: fallenName(line), sub: who, metaHtml: badge, phone: true })}`
+  return `${headMarkup({ teamId, name: fallenName(line), who: fallenWho(line, team.baseTeamSlug), badgeHtml })}`
     + `<div class="g-fallen-page__body">${noticeMarkup(now, teamId)}${fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason) })}</div>`;
 }
 
@@ -162,7 +175,7 @@ function goneMarkup(now, { teamId, playerId, visit }) {
   const callout = back
     ? renderCallout({ title: t("teamRoster.fallen.back", { name: visit.name }), actionHtml: rosterLinkMarkup(teamId) })
     : renderCallout({ tone: "danger", title: t("error.FALLEN_NOT_FOUND"), actionHtml: rosterLinkMarkup(teamId) });
-  return `${visit.name ? renderPageHead({ title: visit.name, phone: true }) : ""}<div class="g-fallen-page__body">${callout}</div>`;
+  return `${headMarkup({ teamId, name: visit.name })}<div class="g-fallen-page__body">${callout}</div>`;
 }
 
 /** The sheet that is open, while his line is on the page: a skill's rule, or the undo (`screenOf` closes one that no longer stands). */
@@ -190,7 +203,8 @@ function screenOf(page) {
 
 /**
  * The page: the wait, a read that failed with «Try again», his profile, or what stands once his record is gone; the
- * sheet over it.
+ * sheet over it. On a phone each under the player's head (`g-profile`, profile.css), the wait and the failure under
+ * «‹ Roster» alone.
  * @param {Page} page
  */
 function playerMarkup(page) {
@@ -202,7 +216,8 @@ function playerMarkup(page) {
     const actionHtml = renderButton({ label: t("teamRoster.readAgain"), data: { playerRetry: true } });
     body = `<div class="g-roster__failed" role="alert">${renderCallout({ tone: "danger", title: visit.error, actionHtml })}</div>`;
   } else body = now.line ? profileMarkup(now, page.teamId) : goneMarkup(now, page);
-  return `<div class="g-fallen-page" data-screen="team-player">${body}${sheetMarkup(now)}</div>`;
+  if (visit.loading || visit.error) body = `${headMarkup({ teamId: page.teamId })}${body}`;
+  return `<div class="${classNames("g-fallen-page", isPhone() && "g-profile")}" data-screen="team-player">${body}${sheetMarkup(now)}</div>`;
 }
 
 /**
@@ -249,8 +264,8 @@ async function readPlayer({ teamId, visit }) {
 
 /**
  * The page after its read: his profile, or the failure with «Try again». An id the fallen do not hold either, before
- * his profile was ever drawn, is the 2.x editor's, as it was — the page's listeners taken off first (`leave`).
- * Settles once the games have answered too.
+ * his profile was ever drawn, is the roster's player mode, which reads the team and says where he is — the page's
+ * listeners taken off first (`leave`). Settles once the games have answered too.
  * @param {Page} page @param {() => void} leave
  */
 async function showPlayer(page, leave) {
@@ -258,7 +273,7 @@ async function showPlayer(page, leave) {
   if (!read) return undefined;
   if (!page.visit.error && !page.visit.name && !nowOf(page).line) {
     leave();
-    return renderSavedRoster(page.teamId);
+    return renderTeamRoster(page.teamId, { playerId: page.playerId });
   }
   page.draw();
   return read.games;
@@ -361,6 +376,8 @@ function wirePlayer(page, retry) {
       draw();
     }),
     onGamesChange(draw),
+    // Each width draws its own head: the player's on a phone, the page head on a desk.
+    listen(globalThis.matchMedia?.(PHONE), "change", draw),
     // The tab seen again: a match may have begun meanwhile, and nothing else reads the games (R8), as on the roster. The
     // undo says it waits for them until they answer.
     listen(document, "visibilitychange", () => {
@@ -380,16 +397,18 @@ function wirePlayer(page, retry) {
 }
 
 /**
- * The player's own page (decision 19). Drawn at once with the wait (the coach's list read first, when it is marked to be
- * read again), then his profile, its name taking the focus; again when the games change or are read again, when the
- * roster's queue moves, and on every press, as a patch.
+ * The player's own page (decision 19): a player of the roster, and an id that is neither, get the roster's player mode
+ * (stage 07d); on a phone every state of the address is a screen of its own, under the player's head with «‹ Roster»
+ * (owner, 2026-10-19). A fallen player's is drawn at once with the wait (the coach's list read first, when it is marked
+ * to be read again), then his profile, its name taking the focus; again when the games change or are read again, when
+ * the roster's queue moves, when the width crosses 900px, and on every press, as a patch.
  * @param {string} teamId
  * @param {string} playerId his stored id, as the address carries it
  * @returns {Promise<void>}
  */
 export async function renderTeamPlayer(teamId, playerId) {
   const listed = state.myTeams.loaded;
-  if (listed && onRoster(teamOf(teamId), playerId)) return renderSavedRoster(teamId);
+  if (listed && onRoster(teamOf(teamId), playerId)) return renderTeamRoster(teamId, { playerId });
   /** @type {Visit} */
   const visit = {
     here: true, drawn: false, titled: false, loading: true, error: "", fallen: [], name: "", back: false, sheet: null, opener: null, reads: 0, answered: 0,
@@ -416,7 +435,7 @@ export async function renderTeamPlayer(teamId, playerId) {
     if (!visit.here) return undefined;
     if (onRoster(teamOf(teamId), playerId)) {
       leave();
-      return renderSavedRoster(teamId);
+      return renderTeamRoster(teamId, { playerId });
     }
   }
   return showPlayer(page, leave);

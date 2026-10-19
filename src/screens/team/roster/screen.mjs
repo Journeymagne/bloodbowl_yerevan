@@ -1,8 +1,9 @@
 /**
  * What the roster screen draws for a visit (moved out of index.mjs unchanged, stage 07d): the mode the games put the
  * roster in, why no counter takes a step just now, the lines the draft and the records make, and the `RosterScreen`
- * view.mjs draws. It reads the visit (`Visit`, index.mjs), the games, the save queue and the memory; the one thing it
- * writes is the visit's sheet, which it closes when its player or its match has left the screen.
+ * view.mjs draws. It reads the visit (`Visit`, index.mjs), the games, the save queue and the memory; what it writes is
+ * the visit's sheet, which it closes when its player or its match has left the screen, and in the player mode (stage
+ * 07d) the player the coach chose: the address's, once his line is first there.
  */
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
@@ -80,8 +81,14 @@ export function screenOf(teamId, visit, memory) {
   // mark's, with a match begun or the mark taken (marks.mjs); the cart, with a match begun (market.mjs). A fallen player's chip opens a skill's sheet too.
   const sheet = (KEEPERS[visit.sheet?.kind] ?? sheetOf)(visit, [...lines, ...fallen], where);
   if (!sheet) Object.assign(visit, { sheet: null, opener: null });
+  // The player mode: his row open on a phone, him in the panel on a desk — once, so that the coach's next choice stands.
+  const his = visit.player && !visit.chosen ? [...lines, ...fallen].find((line) => line.id === visit.player) : null;
+  if (his) {
+    memory.selected = his.key;
+    visit.chosen = true;
+  }
   return {
-    team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
-    ...where, records: recordsOf(visit, mode),
+    teamId, team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
+    ...where, records: recordsOf(visit, mode), player: visit.player, rolls: visit.rolls,
   };
 }

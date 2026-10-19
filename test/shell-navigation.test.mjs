@@ -44,6 +44,18 @@ test("each route lights the tab and the side item that own it", () => {
   assert.deepEqual(current(shellModel(at("teams")).tabs), []);
 });
 
+// Stage 07d, owner's answer 1: a player's address on a phone is a screen of its own, under the player's head with «‹ Roster».
+test("the player's address is drilled into: no header of the shell; every other route keeps it", () => {
+  assert.equal(shellModel(at("teamPlayer")).drill, true);
+  assert.equal(shellModel(at("teamPlayer", { user: null, team: null })).drill, true, "whoever is drawn there");
+  for (const name of OWNED_ROUTES) {
+    if (name !== "teamPlayer") assert.equal(shellModel(at(name)).drill, false, name);
+  }
+  for (const name of ["login", "register", "teamNew"]) assert.equal(shellModel(at(name)).drill, false, `${name}: bare`);
+  // The tabs and the SideNav still say where it is: the SideNav of a desk is drawn as it was.
+  assert.deepEqual([current(shellModel(at("teamPlayer")).tabs), current(shellModel(at("teamPlayer")).side)], [["roster"], ["roster"]]);
+});
+
 test("a coach without a team keeps the league's tabs and a header that leads to creating one", () => {
   const model = shellModel(at("home", { team: null, raceTitle: "", place: null }));
   assert.deepEqual(keys(model.tabs), ["overview", "table", "ref", "settings"]);
