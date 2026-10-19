@@ -17,6 +17,7 @@ import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
+import { undoable } from "./model.mjs";
 import { closedMarkup, markClosed, prepResetWords, skillChipsMarkup, statsMarkup } from "./panel.mjs";
 import { UNDO_SHEET, footButton } from "./sheets.mjs";
 
@@ -47,9 +48,6 @@ function causeMarkup(line) {
 
 /** A quiet line under the rest: where the mark is undone, or that a post-match's death is the administrator's to correct. */
 const noteMarkup = (key) => `<p class="g-fallen__note">${escapeHtml(t(key))}</p>`;
-
-/** A death the screen undoes: one a coach marked, in a record the roster can read (K11). */
-export const undoable = (line) => Boolean(line?.fallen) && !line.fallen.fromMatch && !line.bare;
 
 /**
  * That the league's administrator corrects a death the screen does not undo: one a post-match recorded, or a record the
@@ -136,8 +134,8 @@ export function fallenPanelMarkup(line, screen) {
 /**
  * «Undo the mark?» (decision 20, PlayerDeadConfirm): who comes back, and to what; during a preparation, what a save of
  * the roster resets (R12) — an undo is one. «Keep» closes it; «Back on the roster» sends the undo — the main button, not
- * a red one: a new mark undoes it in turn. While the undo is on its way the button waits for it; while none can be
- * sent, it says why and stays in reach (`reason`, as the mark's sheet's does).
+ * a red one: a new mark undoes it in turn. While the undo is on its way the button says it waits (`busy`, the focus
+ * kept on it); while none can be sent, it says why and stays in reach (`reason`, as the mark's sheet's does).
  *
  * @param {object} props
  * @param {import("./model.mjs").FallenLine} props.line the fallen player whose mark is undone
@@ -155,6 +153,6 @@ export function undoSheetMarkup({ line, mode, busy = false, refusal = "", reason
     title: t("teamRoster.fallen.undoTitle"),
     bodyHtml: `<p class="g-fallen__undotext">${escapeHtml(t("teamRoster.fallen.undoBody", { name: line.name }))}</p>${prep}${refused}`,
     footStartHtml: renderButton({ label: t("teamRoster.fallen.keep"), data: { undoKeep: true } }),
-    footHtml: footButton({ label: t("teamRoster.fallen.restore"), kind: "primary", data: { undoSend: true }, disabled: busy, reason }),
+    footHtml: footButton({ label: t("teamRoster.fallen.restore"), kind: "primary", data: { undoSend: true }, busy, reason }),
   });
 }

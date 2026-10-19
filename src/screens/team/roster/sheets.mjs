@@ -95,14 +95,17 @@ export function statChipsMarkup({ stat, group, label }) {
 }
 
 /**
- * A button of a sheet's foot, `data` naming what it does. `disabled` while it has nothing to send: busy with a write
- * of his, or nothing whole chosen. Closed (`reason`: the match's taps, the screen's lock), it says why as the
- * controls behind the sheet do — `aria-disabled` and the reason as its title, in the look of a closed control
- * (roster.css) — and stays in reach: a press says it again and sends nothing (injury.mjs, marks.mjs).
+ * A button of a sheet's foot, `data` naming what it does. `busy` while a write of his is on its way: it says so
+ * (`aria-busy`, `aria-disabled`) but is not `disabled`, which would take the focus from it in Chrome (button.mjs) —
+ * the screen refuses a press meanwhile (injury.mjs, marks.mjs). `disabled` while it has nothing to send: nothing whole
+ * chosen. Closed (`reason`: the match's taps, the screen's lock), it says why as the controls behind the sheet do —
+ * `aria-disabled` and the reason as its title, in the look of a closed control (roster.css) — and stays in reach: a
+ * press says it again and sends nothing.
  *
- * @param {{label: string, kind: string, data: object, disabled: boolean, reason: string}} props
+ * @param {{label: string, kind: string, data: object, disabled?: boolean, busy?: boolean, reason?: string}} props
  */
-export function footButton({ label, kind, data, disabled, reason }) {
+export function footButton({ label, kind, data, disabled = false, busy = false, reason = "" }) {
+  if (busy) return renderButton({ label, kind, busy, data });
   if (disabled || !reason) return renderButton({ label, kind, disabled, data });
   return `<button type="button" class="g-btn g-btn--${kind} g-roster__closed" aria-disabled="true" title="${escapeHtml(reason)}"${dataAttributes(data)}>`
     + `${escapeHtml(label)}</button>`;
@@ -124,8 +127,8 @@ export function injurySheetMarkup({ line, mode, choice, busy = false, reason = "
   const list = renderOptionList({ label: t("teamRoster.injury.choose"), options, selected: choice.code });
   const stat = choice.code === "lasting" ? statChipsMarkup({ stat: choice.stat, group: INJURY_STAT, label: t("teamRoster.injury.stat") }) : "";
   const note = `<p class="g-roster__injurynote">${escapeHtml(t("teamRoster.injury.note", { match: matchWords(mode) }))}</p>`;
-  const remove = line.injury ? footButton({ label: t("teamRoster.injury.remove"), kind: "danger-quiet", data: { injuryStep: -1 }, disabled: busy, reason }) : "";
-  const record = footButton({ label: t("teamRoster.injury.record"), kind: "primary", data: { injuryStep: 1 }, disabled: busy || (!reason && !chosenInjury(choice)), reason });
+  const remove = line.injury ? footButton({ label: t("teamRoster.injury.remove"), kind: "danger-quiet", data: { injuryStep: -1 }, busy, reason }) : "";
+  const record = footButton({ label: t("teamRoster.injury.record"), kind: "primary", data: { injuryStep: 1 }, busy, disabled: !reason && !chosenInjury(choice), reason });
   return renderSheet({
     id: INJURY_SHEET,
     title: t("teamRoster.injury.title"),

@@ -22,9 +22,9 @@ import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { storedPlayerId } from "../../../domain/roster/players.mjs";
 import { fallenWriting, markDeath, undoDeath } from "./fallen.mjs";
-import { undoable } from "./fallen-view.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { chosenMark } from "./mark-sheet.mjs";
+import { undoable } from "./model.mjs";
 import { markClosed, returnClosed } from "./panel.mjs";
 import { markSkip, savedRevision, unmarkSkip } from "./save.mjs";
 
@@ -331,7 +331,8 @@ function sendUndo(saving, lent) {
  * undo (`sendUndo`). A press on one that is closed says why and does nothing.
  *
  * A sheet's `busy` is a write of it on its way: a missed match never is one (a step of the queue closes the sheet at
- * once), a death and an undo are (`sendDeath`, `sendUndo`), and the sheet's button sends nothing while it is.
+ * once), a death and an undo are (`sendDeath`, `sendUndo`). The sheet's button says so and keeps the focus, and a
+ * press on it meanwhile is refused here (`writeOnce`).
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {Lent} lent what the screen lends: `now` is the screen as it stands at the press; `refused` is what a step the

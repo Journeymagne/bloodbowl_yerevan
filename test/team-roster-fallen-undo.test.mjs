@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { assertCspSafe, assertStyled, document } from "./helpers/ui.mjs";
+import { HOSTILE, assertCspSafe, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
@@ -59,6 +59,7 @@ const CLOSED = "Missed matches and deaths — after the post-match";
 const WAIT_SAVE = "Wait until your edits are saved";
 const WRITING = "Saving the mark…";
 const OTHER_TAB = "Someone signed in or out in another tab, so nothing was saved here.";
+const CHANGED_ELSEWHERE = "The roster was changed on another device";
 const PREP_GAME = { ...LIVE_GAME, id: "g1", preparationStatus: "preparing", postMatchStatus: "not_started" };
 const SHEETS = [...STYLES, "option-card.css", "filter-chips.css", "text-field.css"];
 
@@ -92,16 +93,19 @@ test("a record the roster cannot read has no undo: the league administrator corr
     died("f4", { id: "d4", name: "Far Row", rowIndex: 99, number: "4" }, { cause: "Old age" }),
     died("f5", { name: "Old Joe", position: "Lineman", number: 5 }),
     died("f6", null),
+    // Marked by hand, but with no id: the roster could not name him back, nor a read find him there.
+    died("f7", { rowIndex: 0, number: "5", name: "No Id" }, { cause: "Foul" }),
   ];
   await withWindow({ phone: false }, async () => {
     coach({ fallen: records });
     await renderTeamRoster("t1");
-    for (const key of ["fallen-f4", "fallen-f5", "fallen-f6"]) {
+    for (const key of ["fallen-f4", "fallen-f5", "fallen-f6", "fallen-f7"]) {
       fireEvent(toggle(key), "click");
       assert.equal(aside().getAttribute("data-panel-player"), key);
       assert.ok(!undoButton(), key);
       assert.ok(words(aside()).includes(BARE), key);
       assert.ok(!words(aside()).includes(HINT), key);
+      assert.ok(!aside().querySelector("[data-roster-closed]"), `${key}: no closed undo, with words about marking`);
     }
     assertStyled(view, ...STYLES);
   });
@@ -191,12 +195,19 @@ test("an undo the rules refuse is said in the sheet, and nothing changes", async
     askUndo();
     const violations = [{ code: "ROSTER_MAX_PLAYERS", params: { max: 7, count: 8 } }];
     api.reply(UNDO, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations });
+    const undo = api.hold(UNDO);
+    restoreButton().focus();
     fireEvent(restoreButton(), "click");
+    assert.equal(restoreButton().getAttribute("aria-busy"), "true", "busy with it");
+    assert.ok(!restoreButton().hasAttribute("disabled"), "not disabled: a focused button that is drops the focus");
+    assert.ok(document.activeElement === restoreButton(), "the focus stays on it while it waits");
+    undo.release();
     await settle();
     assert.ok(undoSheet()?.isModal, "the sheet stays");
     assert.equal(refusal().getAttribute("role"), "alert");
     assert.match(refusal().textContent, /should not exceed 7 players \(currently 8\)/);
-    assert.ok(!restoreButton().hasAttribute("disabled"), "no longer busy");
+    assert.ok(!restoreButton().hasAttribute("aria-busy") && !restoreButton().hasAttribute("disabled"), "no longer busy");
+    assert.ok(document.activeElement === restoreButton(), "the focus is where the coach left it, never on the page behind the sheet");
     api.reply(UNDO, 422, { error: { code: "FALLEN_NOT_RESTORABLE", params: {}, message: "x" } });
     fireEvent(restoreButton(), "click");
     await settle();
@@ -421,7 +432,8 @@ test("while an undo is on its way every step and mark waits, and a second press 
     fireEvent(restoreButton(), "click");
     await settle();
     assert.equal(undo.count, 1, "one DELETE");
-    assert.ok(restoreButton().hasAttribute("disabled"), "busy with it");
+    assert.equal(restoreButton().getAttribute("aria-busy"), "true", "busy with it");
+    assert.ok(!restoreButton().hasAttribute("disabled"));
     fireEvent(undoSheet(), "keydown", { key: "Escape" });
     assert.ok(!undoSheet(), "the coach may close the sheet");
     assert.equal(undoButton().getAttribute("title"), WRITING);
@@ -499,6 +511,43 @@ test("another tab's coach: no undo is sent", async () => {
     assert.equal(save.savedRevision("t1"), 4);
     assert.ok(!toasts().includes(BACK));
   });
+});
+
+test("another device's save closes the undo until the coach settles it, and says so", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    askUndo();
+    const step = api.hold(PATCH);
+    assert.deepEqual(save.stepSpp("t1", "p2", "touchdowns", 1), { ok: true });
+    await settle();
+    step.release({ status: 409, body: { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: team({ revision: 6 }) } });
+    await settle();
+    assert.equal(save.saveState("t1").status, "conflict");
+    assert.ok(undoSheet()?.isModal, "the sheet stays, saying why");
+    assert.equal(restoreButton().getAttribute("aria-disabled"), "true");
+    assert.equal(restoreButton().getAttribute("title"), CHANGED_ELSEWHERE);
+    fireEvent(restoreButton(), "click");
+    assert.equal(toasts().at(-1), CHANGED_ELSEWHERE);
+    fireEvent(keepButton(), "click");
+    assert.equal(undoButton().getAttribute("aria-disabled"), "true");
+    assert.equal(undoButton().getAttribute("title"), CHANGED_ELSEWHERE);
+    fireEvent(undoButton(), "click");
+    assert.equal(toasts().at(-1), CHANGED_ELSEWHERE);
+    assert.ok(!undoSheet());
+    await settle();
+    assert.equal(undos().length, 0);
+  });
+});
+
+test("the name in the undo's sheet is text", async () => {
+  coach({ fallen: [{ ...PIKE, player: { ...PIKE.player, name: HOSTILE } }, JOE] });
+  await renderTeamRoster("t1");
+  askUndo();
+  assert.ok(words(undoSheet()).includes(`${HOSTILE} comes back to the roster: into TV again and onto the list of players for a match. The cause of death is removed.`));
+  assert.ok(!view.querySelector("img"));
+  assert.ok(!view.querySelector("[onerror]"));
+  assertCspSafe(view);
 });
 
 test("the undo's words are readable: who comes back, and what a preparation resets", () => {

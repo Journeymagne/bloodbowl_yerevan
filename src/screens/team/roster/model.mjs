@@ -245,7 +245,8 @@ export function rosterSections(lines) {
  *   skills), no match is on for him (`injury` null, `match` zeros). `round` is the match's round, null for a friendly,
  *   a death by hand and a record the server has no round for. `bare`: a record the roster cannot read — no row of the
  *   race for its snapshot, or no player in it at all — drawn from what it says of itself; the server would not give
- *   him back to the roster (FALLEN_NOT_RESTORABLE), so no undo of it is offered (K11).
+ *   him back to the roster (FALLEN_NOT_RESTORABLE), so no undo of it is offered (K11). One with no id is bare too: no
+ *   write could name him back, and no read could find him on the roster to say whether an undo landed.
  */
 
 /** No rows: the dead have none, so the counters of a line made for them are the snapshot's own. */
@@ -295,11 +296,18 @@ export function fallenLines({ fallen, race, rosterIds = [] }) {
       ...line,
       // The captain's Pro goes with the captaincy, which the dead do not hold (and an undo gives back only to an empty chair).
       skills: line.skills.filter(({ source }) => source !== "captain"),
-      key: `fallen-${record.id}`, index, skip: false, captain: false, ready: false, absence: null, retired: false, injury: null, bare: !read,
+      key: `fallen-${record.id}`, index, skip: false, captain: false, ready: false, absence: null, retired: false, injury: null, bare: !read || !line.id,
       fallen: { id: record.id, cause: record.cause ?? null, fromMatch: Boolean(record.fromMatch), round: record.roundNumber ?? null, diedAt: record.diedAt },
     }];
   });
 }
+
+/**
+ * A death the screen undoes (K11): one a coach marked, in a record the roster reads; one a post-match recorded, and a
+ * bare record, are the league administrator's to correct.
+ * @param {FallenLine|PlayerLine|null} line
+ */
+export const undoable = (line) => Boolean(line?.fallen) && !line.fallen.fromMatch && !line.bare;
 
 // ---------------------------------------------------------------------------
 // Where a tap goes

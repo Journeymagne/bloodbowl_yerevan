@@ -1112,7 +1112,8 @@ test("while a death is on its way every step and mark waits, and a second press 
     fireEvent(sendButton(), "click");
     await settle();
     assert.equal(death.count, 1, "one POST");
-    assert.ok(sendButton().hasAttribute("disabled"), "busy with it");
+    assert.equal(sendButton().getAttribute("aria-busy"), "true", "busy with it");
+    assert.ok(!sendButton().hasAttribute("disabled"), "not disabled: a focused button that is drops the focus");
     assert.equal(markText().hasAttribute("readonly"), true, "the cause is not typed over while it goes");
     fireEvent(markOption("miss"), "click");
     assert.equal(markOption("dead").getAttribute("aria-checked"), "true", "nor is the reason changed");
@@ -1312,7 +1313,7 @@ test("a refusal is said in the sheet and nothing changes", async () => {
     assert.ok(markSheet()?.isModal, "the sheet stays");
     assert.match(refusal().textContent, /Ann, Bo/);
     assert.equal(refusal().getAttribute("role"), "alert");
-    assert.equal(sendButton().hasAttribute("disabled"), false, "no longer busy");
+    assert.ok(!sendButton().hasAttribute("aria-busy") && !sendButton().hasAttribute("disabled"), "no longer busy");
     assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "Ann is on the roster");
     assert.equal(state.myTeams.items[0].revision, 4);
     assert.equal(teamReads(), 1);

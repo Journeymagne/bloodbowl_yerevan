@@ -130,7 +130,7 @@ export function markSheetMarkup({ line, choice, busy = false, refusal = "", reas
   const refused = refusal ? `<p class="g-roster__markrefusal" role="alert">${escapeHtml(refusal)}</p>` : "";
   const waits = markWaits(choice);
   const label = waits || (choice.code === "dead" ? t("teamRoster.mark.sendDead") : t("teamRoster.mark.send"));
-  const send = footButton({ label, kind: "primary", data: { markSend: true }, disabled: busy || (!reason && Boolean(waits)), reason });
+  const send = footButton({ label, kind: "primary", data: { markSend: true }, busy, disabled: !reason && Boolean(waits), reason });
   return renderSheet({
     id: MARK_SHEET,
     title: t("teamRoster.mark.title"),

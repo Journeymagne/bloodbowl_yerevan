@@ -1773,10 +1773,13 @@ test("an injury in the air keeps the sheet busy: a second press sends nothing", 
     const held = api.hold(EVENTS);
     recordButton().focus();
     fireEvent(recordButton(), "click");
-    assert.ok(recordButton().hasAttribute("disabled"), "busy while it is in the air");
+    assert.equal(recordButton().getAttribute("aria-busy"), "true", "busy while it is in the air");
+    assert.ok(!recordButton().hasAttribute("disabled"), "not disabled: a focused button that is drops the focus (button.mjs)");
+    // «Remove the record» is drawn before it now (the injury on its way is counted), so the button is drawn anew.
     assert.ok(document.activeElement === optionFor("miss"), "the focus stays in the sheet, on the choice");
     assert.equal(subLine("p1#0").textContent, "Seriously Hurt · round 3", "counted at once, as every tap on its way");
-    assert.ok(removeButton().hasAttribute("disabled"), "nothing taken back while it is in the air either");
+    assert.equal(removeButton().getAttribute("aria-busy"), "true", "nothing taken back while it is in the air either");
+    fireEvent(removeButton(), "click");
     fireEvent(recordButton(), "click");
     await settle();
     assert.deepEqual([held.count, posts().length], [1, 1]);

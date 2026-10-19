@@ -4,7 +4,7 @@ import test from "node:test";
 
 import { expandCollections } from "../src/data/reference.mjs";
 import {
-  EXTRA_COUNTERS, MAIN_COUNTERS, SORT_KEYS, counterSlots, fallenLines, nextSort, rosterCounts, rosterLines, rosterMode, rosterSections, sortLines, stepRule,
+  EXTRA_COUNTERS, MAIN_COUNTERS, SORT_KEYS, counterSlots, fallenLines, nextSort, rosterCounts, rosterLines, rosterMode, rosterSections, sortLines, stepRule, undoable,
 } from "../src/screens/team/roster/model.mjs";
 import { currentMatch } from "../src/shell/current-match.mjs";
 
@@ -466,13 +466,27 @@ test("a record the roster cannot read is bare: no row of the race for it, or no 
     died("b3", { name: "Old Joe", position: "Lineman", number: 5 }),
     died("b4", null),
     died("b5", []),
+    // A snapshot the race reads but with no id: the roster could not name him back, nor a read find him there.
+    died("b6", { rowIndex: 0, name: "No Id" }),
+    died("b7", { id: "", rowIndex: 0, name: "Blank Id" }),
     died("r1", { id: "d6", rowIndex: 3, name: "Pike" }),
-    died("r2", { rowIndex: 0, name: "No Id" }),
+    died("r2", { id: 7, rowIndex: 0, name: "A 2.x number" }),
   ];
   assert.deepEqual(fallenLines({ fallen: records, race: HUMAN }).map(({ key, bare }) => [key, bare]), [
-    ["fallen-b1", true], ["fallen-b2", true], ["fallen-b3", true], ["fallen-b4", true], ["fallen-b5", true], ["fallen-r1", false], ["fallen-r2", false],
+    ["fallen-b1", true], ["fallen-b2", true], ["fallen-b3", true], ["fallen-b4", true], ["fallen-b5", true], ["fallen-b6", true], ["fallen-b7", true],
+    ["fallen-r1", false], ["fallen-r2", false],
   ]);
   assert.equal("bare" in linesOf([{ id: "d6", rowIndex: 3, name: "Pike" }])[0], false, "a player of the roster is none");
+});
+
+test("a death the screen undoes: one a coach marked, in a record the roster reads (K11)", () => {
+  const [manual, fromMatch, bare, noId] = fallenLines({
+    fallen: [died("u1", { id: "d1", rowIndex: 3 }), died("u2", { id: "d2", rowIndex: 3 }, { fromMatch: true }), died("u3", { id: "d3" }), died("u4", { rowIndex: 3 })],
+    race: HUMAN,
+  });
+  assert.deepEqual([manual, fromMatch, bare, noId].map(undoable), [true, false, false, false]);
+  assert.equal(undoable(linesOf([{ id: "d6", rowIndex: 3 }])[0]), false, "a player of the roster has no death to undo");
+  assert.equal(undoable(null), false);
 });
 
 test("a fallen player who is on the roster as read is drawn once, on the roster", () => {
