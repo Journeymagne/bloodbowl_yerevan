@@ -1623,6 +1623,25 @@ test("a standing injury can be taken back by its own −1", async () => {
   });
 });
 
+// Final review, Minor 4: a friendly's {match} is the adjective «товарищеский», so the Russian sentences name the match around it.
+test("in Russian a friendly keeps its noun: the switch's description and the injury's note say «этот матч (товарищеский)»", async () => {
+  const FRIENDLY = { ...LIVE_GAME, kind: "friendly", season: null, roundStatus: null, roundNumber: null };
+  const described = () => view.querySelector(`#${outsideSwitch().getAttribute("aria-describedby")}`).textContent;
+  try {
+    for (const [game, match] of [[FRIENDLY, "товарищеский"], [LIVE_GAME, "тур 3"]]) {
+      coach();
+      gamesAre([game]);
+      useLocale("ru");
+      await renderTeamRoster("t1");
+      assert.equal(described(), `исправить старую ошибку, не трогая этот матч (${match})`);
+      fireEvent(injuryButton(), "click");
+      assert.ok(injurySheet().querySelector(".g-roster__injurynote").textContent.startsWith(`Запишется в этот матч (${match}) и подставится в итоги`));
+    }
+  } finally {
+    useLocale("en");
+  }
+});
+
 test("the choice keeps the focus on the card it moved to", async () => {
   coach();
   gamesAre([LIVE_GAME]);
