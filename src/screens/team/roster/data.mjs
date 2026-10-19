@@ -9,6 +9,7 @@
 import { apiRequest } from "../../../core/api-client.mjs";
 import { refusalText } from "../../../core/api.mjs";
 import { t } from "../../../core/i18n.mjs";
+import { readFallen } from "./fallen.mjs";
 
 /**
  * @param {string} teamId
@@ -30,4 +31,20 @@ export async function readRoster(teamId, { attempts = 3 } = {}) {
     return { error: refusalText(error) };
   }
   return { error: t("teamRoster.readMismatch") };
+}
+
+/**
+ * The roster and the team's fallen, read side by side: what the screen draws is the players who are on the roster and
+ * the ones who are not, and a read of one without the other would show a player twice or not at all. They are two
+ * requests of different tables, so a death that lands between them is not told apart here: the writes of the fallen
+ * come with the team they leave, which the screen takes (save.mjs, `takeAnswerTeam`).
+ * @param {string} teamId
+ * @returns {Promise<{team: object, events: object[], fallen: object[]} | {error: string}>} `readRoster`'s answer with
+ *   the team's deaths, newest first; or why there is nothing to show (the roster's first, then the fallen's)
+ */
+export async function readSnapshot(teamId) {
+  const [roster, dead] = await Promise.all([readRoster(teamId), readFallen(teamId)]);
+  if (roster.error) return { error: roster.error };
+  if (dead.error) return { error: dead.error };
+  return { team: roster.team, events: roster.events, fallen: dead.fallen };
 }

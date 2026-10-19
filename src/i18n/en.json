@@ -1091,6 +1091,7 @@
   "teamRoster.readMismatch": "The roster kept changing while it was read. Try again.",
   "teamRoster.tapLost": "The answer to the record did not arrive: the records are read again to see whether it was written.",
   "teamRoster.tapDropped": "Not sent: the record before it did not go through. The records are read again.",
+  "teamRoster.fallen.lost": "The answer did not come: the roster is read again to see what the server holds.",
   "teamRoster.counts": "On the roster: {players} · missing a match: {skipping} · can advance: {ready}",
   "teamRoster.heading": "Active roster",
   "teamRoster.tableLabel": "Players of {team}",
