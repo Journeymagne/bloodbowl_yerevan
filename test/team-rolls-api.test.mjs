@@ -319,3 +319,44 @@ test("a team with nothing to find a player in — a race the site does not know,
     assert.deepEqual(await rows(client, id), []);
   }
 }));
+
+const rolls = (id, token) => callApi("GET", `/api/teams/${id}/rolls`, { token });
+
+test("the team's rolls are read as they are kept: used and waiting, in the order they were rolled, each as the whitelist says", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const first = (await roll(id, "p0", coach.token, { purpose: "stat" })).body.roll;
+  const second = (await roll(id, "p1", coach.token, { purpose: "random_skill", category: "General" })).body.roll;
+  await client.query("UPDATE dice_rolls SET used_at = now() WHERE id = $1", [first.id]);
+  const read = await rolls(id, coach.token);
+  assert.equal(read.status, 200);
+  assert.deepEqual(read.body.rolls.map((item) => item.id), [first.id, second.id], "in the order they were rolled");
+  for (const item of read.body.rolls) assert.deepEqual(Object.keys(item).sort(), ["createdAt", "id", "params", "playerId", "purpose", "result", "usedAt"], "nothing but what a client may read");
+  assert.deepEqual(read.body.rolls.map((item) => [item.playerId, item.purpose]), [["p0", "stat"], ["p1", "random_skill"]]);
+  assert.notEqual(read.body.rolls[0].usedAt, null, "a roll an advancement took says when");
+  assert.equal(read.body.rolls[1].usedAt, null, "a roll still waiting has no usedAt");
+  assert.deepEqual([read.body.rolls[1].params, read.body.rolls[1].result], [second.params, second.result], "what the die showed, as it was kept");
+}));
+
+test("reading the rolls is the owner's and an administrator's; a stranger is told the team is not there, and nobody without a session reads anything", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), other = await seedCoach(client, "wolf"), admin = await seedCoach(client, "boss", { admin: true });
+  const id = await seedTeam(client, coach.id);
+  const rolled = (await roll(id, "p0", coach.token, { purpose: "stat" })).body.roll;
+  for (const [who, token] of [["the owner", coach.token], ["an administrator", admin.token]]) {
+    const read = await rolls(id, token);
+    assert.deepEqual([read.status, read.body.rolls.map((item) => item.id)], [200, [rolled.id]], who);
+  }
+  const stranger = await rolls(id, other.token);
+  assert.deepEqual([stranger.status, stranger.body.error.code], [404, "TEAM_NOT_FOUND"]);
+  const nobody = await rolls(id, undefined);
+  assert.deepEqual([nobody.status, nobody.body.error.code], [401, "NOT_AUTHORIZED"]);
+  assert.equal((await rolls(NOBODY, coach.token)).body.error.code, "TEAM_NOT_FOUND", "a team that is not there");
+  assert.equal((await rolls("not-a-team", coach.token)).status, 404, "an id that is no UUID is no team either");
+}));
+
+test("a team with no rolls reads none, and another team's rolls are not in the answer", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id), busy = await seedTeam(client, coach.id, { name: "Cubs" });
+  assert.deepEqual((await rolls(id, coach.token)).body, { rolls: [] });
+  await roll(busy, "p0", coach.token, { purpose: "stat" });
+  assert.deepEqual((await rolls(id, coach.token)).body, { rolls: [] });
+  assert.equal((await rolls(busy, coach.token)).body.rolls.length, 1);
+}));

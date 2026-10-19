@@ -42,6 +42,9 @@ const WAITING_ROLLS = `
    WHERE saved_team_id = $1 AND player_id = $2 AND used_at IS NULL
    ORDER BY created_at, id`;
 
+/** Every roll of a team, used and waiting, in the order they were rolled. */
+const ROLLS_OF_TEAM = "SELECT * FROM dice_rolls WHERE saved_team_id = $1 ORDER BY created_at, id";
+
 const INSERT_ROLL = `
   INSERT INTO dice_rolls (saved_team_id, player_id, purpose, params, result, rolled_by)
   VALUES ($1, $2, $3, $4, $5, $6)
@@ -78,6 +81,19 @@ export function publicRoll(row) {
     createdAt: row.created_at,
     ...(row.stale ? { stale: true } : {}),
   };
+}
+
+/**
+ * Every roll of a team as it is kept, in the order they were rolled: the used ones, which an advancement
+ * took, and the waiting, which none has. A read, with no lock; the caller answers each row through `publicRoll`.
+ *
+ * @param {{query: Function}} db a pg pool, or the client of a transaction
+ * @param {string} teamId a team the caller has already found for the one who asks (`teamForUser`)
+ * @returns {Promise<object[]>} the dice_rolls rows
+ */
+export async function teamRolls(db, teamId) {
+  const { rows } = await db.query(ROLLS_OF_TEAM, [teamId]);
+  return rows;
 }
 
 /**
