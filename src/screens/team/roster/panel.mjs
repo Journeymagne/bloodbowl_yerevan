@@ -165,6 +165,18 @@ export function returnClosed(line, screen) {
 }
 
 /**
+ * Why nothing can be hired or sold just now (stage 07c), "" when it can: a match is on (R8: the roster is not written
+ * during one; its finish checks the roster it started with), then the screen's lock — the games unread, the roster
+ * read, a death on its way, another device's save to settle.
+ *
+ * @param {{mode: {kind: string}, lock: string}} screen
+ */
+export function hireClosed(screen) {
+  if (screen.mode.kind === "match") return t("teamRoster.market.closed");
+  return screen.lock;
+}
+
+/**
  * One button of the row of actions, as wide as the others; closed, it says why and keeps what names it. `data.key`
  * tells the two apart when the screen is patched: «Back on the roster» pressed twice is not, the second time, the
  * «Miss a match…» drawn in its place.

@@ -147,13 +147,13 @@ test("a column that cannot be sorted keeps the name a screen reader hears for it
   assert.equal(sortable.querySelector("button").getAttribute("aria-label"), "touchdowns");
 });
 
-test("the player's header carries what the caller puts before it, and the foot does not", () => {
-  const fragment = mount(table({ headLeadHtml: '<button type="button" class="g-btn" data-add="1">+</button>' }));
+test("the player's header carries what the caller puts after its button, and the foot does not", () => {
+  const fragment = mount(table({ headTailHtml: '<button type="button" class="g-btn" data-add="1">+</button>' }));
   const [who, ...others] = fragment.querySelectorAll('thead th[scope="col"]');
-  const [lead, sort] = elements(who);
+  const [sort, tail] = elements(who);
   assert.equal(elements(who).length, 2);
-  assert.equal(lead.getAttribute("data-add"), "1");
   assert.equal(sort.getAttribute("data-sort-key"), "player");
+  assert.equal(tail.getAttribute("data-add"), "1");
   assert.ok(others.every((head) => head.querySelector("[data-add]") === null));
   assert.equal(fragment.querySelectorAll("[data-add]").length, 1);
 });

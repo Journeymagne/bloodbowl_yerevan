@@ -5,8 +5,9 @@
  * another device's save, the switch «Edit outside the match», a way to the player's page that a match has closed
  * (or «Injury in the match…» closed with its taps), and the injury's button, its cards, its characteristics and its
  * two buttons; «Miss a match…», its sheet's reasons, characteristic, words and button, «Back on the roster», and a
- * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b). What each one does is
- * the screen's (index.mjs, injury.mjs, marks.mjs); this file only says who was pressed.
+ * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b); the «+» beside «Player»,
+ * its cart's + and −, «Cancel» and «Buy» (stage 07c). What each one does is the screen's (index.mjs, injury.mjs,
+ * marks.mjs, market.mjs); this file only says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
@@ -15,6 +16,7 @@ import { wireOptionLists } from "../../../ui/option-card.mjs";
 import { wireRosterTable } from "../../../ui/roster-table.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
 import { wireSkillChips } from "../../../ui/skill-chip.mjs";
+import { wireStepButtons } from "../../../ui/stepper.mjs";
 import { wireToggles } from "../../../ui/toggle.mjs";
 import { MARK_TEXT } from "./mark-sheet.mjs";
 import { INJURY_STAT, MARK_SHEET, MARK_STAT } from "./sheets.mjs";
@@ -61,6 +63,19 @@ function wireMarks(root, { onMark, onMarkChoice, onMarkText, onMarkSend, onRetur
 }
 
 /**
+ * The market's presses (stage 07c): the «+» (not when closed), a card's + or − — «+ To the cart» and the stepper's
+ * buttons alike carry `data-hire-step`; a refused + says why — and the cart's «Cancel» and «Buy».
+ */
+function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused }) {
+  return [
+    onPlayerButton(root, "data-roster-hire", onHire),
+    wireStepButtons(root, "hire", ({ key, delta }) => onHireStep(Number(key), delta), { onRefused: ({ reason }) => onRefused(reason) }),
+    delegate(root, "click", "[data-hire-keep]", () => onHireKeep()),
+    delegate(root, "click", "[data-hire-buy]", () => onHireBuy()),
+  ];
+}
+
+/**
  * The cards of whichever sheet is open, by the sheet they stand in. One wiring for the root: two would not work, since
  * the first flips the group's cards and the second then hears no change (wireFilterChips says the same of chip rows).
  */
@@ -92,6 +107,10 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice }) {
  * @param {(key: string, button: Element) => void} handlers.onUndo «Undo the mark», by the fallen line's key (not when it is closed)
  * @param {() => void} handlers.onUndoKeep «Keep» in the undo's sheet
  * @param {() => void} handlers.onUndoSend «Back on the roster» in the undo's sheet
+ * @param {(key: string, button: Element) => void} handlers.onHire the «+» beside «Player» or «Hire players» (not when it is closed)
+ * @param {(rowIndex: number, delta: 1|-1) => void} handlers.onHireStep a card's + or −, by the line of the race's table (not a refused +)
+ * @param {() => void} handlers.onHireKeep «Cancel» in the cart
+ * @param {() => void} handlers.onHireBuy «Buy» in the cart
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
@@ -114,6 +133,7 @@ export function wireRoster(root, handlers) {
     wireReasons(root, handlers),
     ...wireInjury(root, handlers),
     ...wireMarks(root, handlers),
+    ...wireMarket(root, handlers),
   ];
   return () => offs.forEach((off) => off());
 }

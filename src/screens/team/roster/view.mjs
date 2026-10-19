@@ -1,7 +1,8 @@
 /**
  * The roster's markup: the band with its counts, the table, and beside it on a desk the chosen player's panel;
- * a skill's, an injury's, a missed match's or a death's undo's sheet over it when one is open. What a line says is
- * model.mjs's, the row's panel and the side panel panel.mjs's, the sheets sheets.mjs's, mark-sheet.mjs's and fallen-view.mjs's.
+ * a skill's, an injury's, a missed match's, a death's undo's or the hire cart's sheet over it when one is open. What a
+ * line says is model.mjs's, the row's panel and the side panel panel.mjs's, the sheets sheets.mjs's, mark-sheet.mjs's,
+ * fallen-view.mjs's and hire-sheet.mjs's.
  *
  * The player's button does what the width it is drawn at does with it (R11): up to 900px it opens his row
  * (`aria-expanded`, and the row's panel it controls), from 901px it chooses him for the panel beside the table
@@ -36,6 +37,7 @@ import { renderToggle } from "../../../ui/toggle.mjs";
 import { causeOf, fallenName, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
 import { MAIN_COUNTERS, counterSlots, rosterCounts, rosterSections } from "./model.mjs";
 import { absenceWords, injuryWords, matchTarget, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
+import { hireButtonMarkup, hireSheetMarkup } from "./hire-sheet.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
@@ -55,6 +57,7 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @typedef {object} RosterScreen
  * @property {object|null} team the team as last read: id, name, baseTeamSlug; null before the first answer
  * @property {object|null} race its page in the reference
+ * @property {object} draft the save queue's draft, normalised (`players`, `treasury`): what the lines are drawn from and the cart is priced on
  * @property {object} data the reference (state.data): the skills' pages
  * @property {(import("./model.mjs").PlayerLine & {sessionSpp: number, sessionOutside: number})[]} lines in the order of
  *   `memory.sort`; `sessionSpp` is what his SPP has moved since the screen opened, `sessionOutside` what the edits
@@ -73,11 +76,15 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {number} records the rows of the match on that the team has, as last read: what its banner counts
  * @property {{kind: "skill", key: string, name: string}|{kind: "injury", key: string, gameId: string, choice: {code: string, stat: string}, busy: boolean, reason: string}
  *   |{kind: "mark", key: string, choice: import("./mark-sheet.mjs").MarkChoice, busy: boolean, refusal: string, reason: string}
- *   |{kind: "undo", key: string, busy: boolean, refusal: string, reason: string}|null} sheet
+ *   |{kind: "undo", key: string, busy: boolean, refusal: string, reason: string}
+ *   |{kind: "hire", key: "hire", cart: import("../../../domain/roster/transfers.mjs").HireCart, refusal: string,
+ *   quote: import("../../../domain/roster/transfers.mjs").HireQuote, reason: string}|null} sheet
  *   the sheet that is open: a skill's rule; an injury of the match `gameId` with what is chosen in it ("" for
  *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now; a
  *   missed match's reasons (stage 07b) with what is chosen, the last refusal, and why no mark can be made just now; or
- *   a death's undo (Task 9), whether it is on its way, the last refusal, and why none can be sent just now
+ *   a death's undo (Task 9), whether it is on its way, the last refusal, and why none can be sent just now; or the
+ *   hire cart (stage 07c) with what it holds, the last refusal of «Buy», what it buys on the draft, and why nothing can
+ *   be bought just now
  * @property {boolean} unsure an injury's answer was lost and the read that followed failed: whether it was written is
  *   not known, so no injury is recorded until a read of the records succeeds (R14)
  * @property {string} error a read that failed, "" when none
@@ -296,7 +303,8 @@ function captionMarkup(screen) {
  * them, in one column, and the panel beside it from its top (DeskRoster.html). «Active roster» always stands, with
  * the save's status: a roster with nobody on it says so, and one whose players all miss the match says that, in place
  * of its table; the other two are drawn only with someone in them. The labels repeat under the last table alone;
- * the first one's header leads with `headLeadHtml` (stage 07c's «+»).
+ * the first one's «Player» has the «+» after it (stage 07c, `headTailHtml`); with no table of its own the roster has
+ * the «Hire players» button under its words.
  */
 function layoutMarkup(screen) {
   const { lines, fallen, team } = screen;
@@ -305,13 +313,14 @@ function layoutMarkup(screen) {
   const last = fallen.length ? fallen : skipping.length ? skipping : active;
   const first = active.length ? active : skipping.length ? skipping : fallen;
   // A desk shows the labels once, over the first table drawn: the others keep theirs for a screen reader (DeskRosterInjured.html).
-  const table = (label, rows, headLeadHtml = "") => renderRosterTable({
-    label, columns: columnsOf(), groups: groupsOf(), rows: rows.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort, headLeadHtml,
+  const table = (label, rows, headTailHtml = "") => renderRosterTable({
+    label, columns: columnsOf(), groups: groupsOf(), rows: rows.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort, headTailHtml,
     foot: rows === last, quietHead: !screen.phone && rows !== first,
   });
   const activeBody = active.length
-    ? table(t("teamRoster.tableLabel", { team: team.name }), active)
-    : `<p class="g-roster__empty">${escapeHtml(lines.length ? t("teamRoster.skips.noneActive") : t("teamRoster.empty"))}</p>`;
+    ? table(t("teamRoster.tableLabel", { team: team.name }), active, hireButtonMarkup(screen))
+    : `<p class="g-roster__empty">${escapeHtml(lines.length ? t("teamRoster.skips.noneActive") : t("teamRoster.empty"))}</p>`
+      + `<div class="g-market__hirebar">${hireButtonMarkup(screen, { block: true })}</div>`;
   const sections = [sectionMarkup({ which: "active", heading: t("teamRoster.heading"), count: active.length, barHtml: statusMarkup(screen.save), bodyHtml: activeBody })];
   if (skipping.length) {
     sections.push(sectionMarkup({ which: "skipping", heading: t("teamRoster.skips.heading"), count: skipping.length, bodyHtml: table(t("teamRoster.skips.tableLabel", { team: team.name }), skipping) }));
@@ -342,10 +351,12 @@ function bodyMarkup(screen) {
 
 /**
  * The sheet that is open, while its player is still on the screen: a skill's — a fallen player's chip opens its rule
- * too — an injury's, a missed match's, or a death's undo (`screenOf` closes one that no longer stands).
+ * too — an injury's, a missed match's, or a death's undo; the hire cart, which is no player's (`screenOf` closes one
+ * that no longer stands).
  */
 function sheetMarkup(screen) {
   const { sheet } = screen;
+  if (sheet?.kind === "hire") return hireSheetMarkup({ race: screen.race, quote: sheet.quote, mode: screen.mode, refusal: sheet.refusal, reason: sheet.reason });
   const line = sheet && screen.race ? [...screen.lines, ...screen.fallen].find((item) => item.key === sheet.key) : null;
   if (!line) return "";
   if (sheet.kind === "injury") return injurySheetMarkup({ line, mode: screen.mode, choice: sheet.choice, busy: sheet.busy, reason: sheet.reason });

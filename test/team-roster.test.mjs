@@ -557,7 +557,7 @@ test("another device: a red banner and «Load the new one», which reads the tea
       }
       fireEvent(plus("touchdowns"), "click");
       assert.equal(toasts().at(-1), "The roster was changed on another device", "a tap while it stands is told why it is not taken");
-      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
         "progress-dots.css", "button.css", "callout.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
       api.calls.length = 0;
       api.reply("GET /api/teams/t1", 200, { team: elsewhere });
@@ -1104,7 +1104,7 @@ test("a match on: a green banner with the round and the records, the switch and 
     assert.deepEqual(sppLine(block), ["Match records · round 3", "+3 SPP in the match"]);
     assert.equal(block.querySelector(".g-roster__matchnote").textContent, "MVP — in the post-match. Advancement and sales — after it.");
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "3", "SPP available at once");
-    assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+    assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
       "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     api.assertAnswered();
   });
@@ -1233,7 +1233,7 @@ test("advancement waits for the post-match: «Profile and advancement», «Advan
       check(profile);
       assert.equal(openRow().querySelector("a"), null);
       assertCspSafe(view);
-      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
         "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     });
     coach();
@@ -1653,7 +1653,7 @@ const removeButton = () => injurySheet().querySelector('[data-injury-step="-1"]'
 const subLine = (key) => bodyOf(key).querySelector(".g-rtable__sub");
 /** An injury row of the match as POST …/events answers it: Ann's. */
 const injuryRow = (injury, over = {}) => rowOf({ counter: "injury", injury, ...over });
-const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
+const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
   "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "sheet.css", "option-card.css", "filter-chips.css",
   "src/screens/team/manage/strip.css"];
 
@@ -2299,7 +2299,7 @@ test("a player's and a skill's name are text", async () => {
 });
 
 test("every class the screen draws is styled and nothing the CSP refuses is on it, on a phone and on a desk, with a sheet open", async () => {
-  const sheets = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+  const sheets = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
     "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
     "src/screens/team/manage/strip.css"];
   for (const phone of [true, false]) {
@@ -2348,8 +2348,8 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
     assert.ok(breakpoints.length > 0, file);
     for (const query of breakpoints) assert.match(query, /^@media \((max-width: 900px|min-width: 901px)\)$/, file);
   }
-  // The roster's own sheet, 07b's marks.css, its sheets' and its frame's, last of all.
-  assert.ok(text("src/styles.css").trimEnd().endsWith(['roster.css', 'marks.css', 'sheets.css', 'frame.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
+  // The roster's own sheet, 07b's marks.css, its sheets' and its frame's; 07c's market.css after the fidelity pass's frame.css, last of all.
+  assert.ok(text("src/styles.css").trimEnd().endsWith(['roster.css', 'marks.css', 'sheets.css', 'frame.css', 'market.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
 });
 
 test("the counters: six two to a row (one on the narrowest phone), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {

@@ -45,15 +45,16 @@ export function sheetOf(visit, lines, where) {
   return { ...sheet, busy: inTheAir(visit, line.id), reason: injuryClosed(line, where) };
 }
 
-/** The buttons that open a sheet of a player's, by the sheet's kind: they carry his line's key. */
-const OPENERS = Object.freeze({ injury: "data-roster-injury", mark: "data-roster-mark", undo: "data-roster-undo" });
+/** The buttons that open a sheet, by the sheet's kind: a player's carry his line's key; the hire cart's «+» carries "hire" (stage 07c). */
+const OPENERS = Object.freeze({ injury: "data-roster-injury", mark: "data-roster-mark", undo: "data-roster-undo", hire: "data-roster-hire", sell: "data-roster-sell" });
 
 /** The element under the view whose `attribute` names `key`, or null: matched as text, so no key can break a selector. */
 export const keyed = (attribute, key) => [...view.querySelectorAll(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === key) ?? null;
 
 /**
  * Where the focus goes back to when a sheet has closed: what opened it, or the button of the same player drawn in its
- * place; for a mark's or an undo's (stage 07b), else his row's own button — a match begun takes the actions away, a
+ * place — for the hire cart the «+» drawn again, in the header or under the words (stage 07c); for a mark's or an
+ * undo's (stage 07b), else his row's own button — a match begun takes the actions away, a
  * mark moves him to another table. Null when there is none (the match is over: the screen gives it to the title).
  * @param {{opener: Element|null, sheet: object|null}} closed the sheet that was open, and what opened it
  */

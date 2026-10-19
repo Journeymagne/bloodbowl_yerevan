@@ -96,10 +96,11 @@ function renderGroups(groups) {
 
 /**
  * A column's header: a button that sorts by it, or, for a column that cannot be sorted, its label (and the name a
- * screen reader hears for it, on the cell). A quiet header (`quiet`) is a label for a screen reader alone: no button,
- * nothing on the screen — the table above it shows the labels and sorts them all.
+ * screen reader hears for it, on the cell). The player's carries the caller's markup after it, on its line
+ * (`headTailHtml`, DeskRosterHire.html: «PLAYER▲» and the «+» 8px apart). A quiet header (`quiet`) is a label for a
+ * screen reader alone: no button, nothing on the screen — the table above it shows the labels and sorts them all.
  */
-function renderHeadCell(column, place, index, sort, headLeadHtml, quiet) {
+function renderHeadCell(column, place, index, sort, headTailHtml, quiet) {
   const first = index === 0;
   if (quiet) {
     const name = column.name ? ` aria-label="${escapeHtml(column.name)}"` : "";
@@ -114,7 +115,7 @@ function renderHeadCell(column, place, index, sort, headLeadHtml, quiet) {
     : escapeHtml(column.label);
   const direction = sorted ? ` aria-sort="${ARIA_SORT[sort.dir]}"` : "";
   const cellName = sortable ? "" : name;
-  return `<th scope="col" class="${classNames("g-rtable__h", first && "g-rtable__h--who", placeOf(place))}"${direction}${cellName}>${first ? headLeadHtml : ""}${control}</th>`;
+  return `<th scope="col" class="${classNames("g-rtable__h", first && "g-rtable__h--who", placeOf(place))}"${direction}${cellName}>${control}${first ? headTailHtml : ""}</th>`;
 }
 
 /** One value: its words for a screen reader (a tint is not a message), and what this match added to it. */
@@ -175,7 +176,7 @@ function renderFoot(columns, places, groups) {
  *   the first group starts after the player's column
  * @param {RosterTableRow[]} props.rows
  * @param {{key: string, dir: "asc"|"desc"}|null} [props.sort]
- * @param {string} [props.headLeadHtml] markup before the player's header button (stage 07c's «+»)
+ * @param {string} [props.headTailHtml] markup after the player's header button (stage 07c's «+»)
  * @param {boolean} [props.foot] the foot that repeats the labels; true by default. A table drawn above another one
  *   leaves the foot to the last: the labels repeat once, at the end of the list
  * @param {boolean} [props.quietHead] the header row is for a screen reader alone, with no over-heads and no buttons: a
@@ -196,11 +197,11 @@ function renderFoot(columns, places, groups) {
  *   R11): the button names it in `aria-controls` and says no `aria-expanded`; such a row opens no panel of its own
  * @property {string} [panelHtml] what the open row shows
  */
-export function renderRosterTable({ label, columns, groups = [], rows, sort = null, headLeadHtml = "", foot = true, quietHead = false }) {
+export function renderRosterTable({ label, columns, groups = [], rows, sort = null, headTailHtml = "", foot = true, quietHead = false }) {
   check({ label, columns, groups, rows, sort });
   const phoneSpan = columns.filter((column) => !column.desk).length;
   const places = placesOf(columns);
-  const heads = columns.map((column, index) => renderHeadCell(column, places[index], index, sort, quietHead ? "" : headLeadHtml, quietHead)).join("");
+  const heads = columns.map((column, index) => renderHeadCell(column, places[index], index, sort, quietHead ? "" : headTailHtml, quietHead)).join("");
   const players = rows.map((row) => renderPlayer(row, places, phoneSpan)).join("");
   return `<div class="g-rtable-frame"><table class="g-rtable" aria-label="${escapeHtml(label)}">${renderColumns(places)}`
     + `<thead>${quietHead ? "" : renderGroups(groups)}<tr${quietHead ? ' class="g-rtable__quiet"' : ""}>${heads}</tr></thead>${players}${foot ? renderFoot(columns, places, groups) : ""}</table></div>`;

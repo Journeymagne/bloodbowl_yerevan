@@ -8,7 +8,10 @@ import { initLocale } from "../src/core/i18n.mjs";
 import { renderDie } from "../src/ui/die.mjs";
 import { PLAYER_BADGE_KINDS, renderPlayerBadge } from "../src/ui/number-badge.mjs";
 import { renderSkillChip, renderSkillChips, wireSkillChips } from "../src/ui/skill-chip.mjs";
-import { renderStatStrip } from "../src/ui/stat-strip.mjs";
+import { positionStatsLine, renderStatStrip } from "../src/ui/stat-strip.mjs";
+import { expandCollections } from "../src/data/reference.mjs";
+
+const human = expandCollections(JSON.parse(read("public/data.en.json"))).teams.find((team) => team.slug === "teams/human");
 
 test("skill chips open their rule and mark gained skills", () => {
   const fragment = mount(renderSkillChips({ skills: [{ name: "Block" }, { name: "Diving Catch", gained: true }] }));
@@ -49,6 +52,12 @@ test("a stat strip is the five characteristics in roster order", () => {
   assert.ok(fragment.querySelector("dl.g-stats .g-stat--up dd"));
   assertCspSafe(fragment);
   assertStyled(fragment, "stat-strip.css");
+});
+
+// Stage 07c: the builder's line of a position's characteristics, shared with the roster's hire cart (K9: no-break spaces).
+test("a position's characteristics in one line: each label tied to its value, each dot to the pair before it", () => {
+  assert.equal(positionStatsLine(human.team.roster[0]), "MA\u00a06\u00a0· ST\u00a03\u00a0· AG\u00a03+\u00a0· PA\u00a04+\u00a0· AR\u00a09+");
+  assert.equal(positionStatsLine(human.team.roster[0]).replace(/\u00a0/g, " "), "MA 6 · ST 3 · AG 3+ · PA 4+ · AR 9+");
 });
 
 test("a die shows its type and a question before the roll, the result after", () => {

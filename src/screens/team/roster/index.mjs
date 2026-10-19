@@ -25,7 +25,7 @@
  * steps of the queue like a counter's (marks.mjs): a match that begins while one waits gives it up as it gives up
  * the SPP steps, and the coach is told how many of each. A death and its undo are no step of it: each goes only when
  * none waits, every step and mark waits while one is on its way, and its answer is the list's — and the queue's while
- * the visit that sent it is here (I1).
+ * the visit that sent it is here (I1). Hiring from the «+» is a step of the queue too (stage 07c, market.mjs).
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
@@ -50,6 +50,7 @@ import { focusPlace, restoreFocus } from "./focus.mjs";
 import { closeSheet, injuryHandlers, sheetOf } from "./injury.mjs";
 import { recordsOf, sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { markHandlers, markSheetOf } from "./marks.mjs";
+import { marketHandlers, marketSheetOf } from "./market.mjs";
 import { sheetIdOf } from "./sheets.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
 import { wireAsideFit } from "./aside-fit.mjs";
@@ -100,7 +101,8 @@ function listen(target, type, listener) {
  *   treasury strip: no counter takes a step while the read that replaces it is in the air
  * @property {number|null} followed the revision of the coach's list the visit last read the team again for (`followList`)
  * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`, a
- *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs)
+ *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs),
+ *   the hire cart `{kind: "hire", key: "hire", cart, refusal}` and a player's sale `{kind: "sell", key, refusal}` (market.mjs, stage 07c)
  * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
@@ -140,32 +142,32 @@ const unsureOf = (visit) => visit.unsure && !reading(visit);
 const outsideOf = (memory, mode) => mode.kind === "match" && memory.outside === mode.game.id;
 
 /**
- * The race of the visit's team, and its lines in the roster's own order for `mode`: what the queue's draft, the
- * records and the taps on their way say, and nothing more; then the fallen the roster drawn does not hold, in the
- * server's order (decision 21: a player is drawn once, on the roster, when a read caught him on both).
+ * The race of the visit's team, the queue's draft as drawn (normalised), and its lines in the roster's own order for
+ * `mode`: what the draft, the records and the taps on their way say, and nothing more; then the fallen the roster drawn
+ * does not hold, in the server's order (decision 21: a player is drawn once, on the roster, when a read caught him on both).
  */
 function linesOf(visit, mode) {
   const race = visit.team ? raceTeamOf(visit.team.baseTeamSlug) : null;
   const draft = normalizeDraft(visit.draft ?? visit.team?.roster ?? {});
   const lines = race ? rosterLines({ draft, race, events: [...visit.events, ...visit.pending], mode }) : [];
-  return { race, lines, fallen: fallenLines({ fallen: visit.fallen, race, rosterIds: lines.map(({ id }) => id) }) };
+  return { race, draft, lines, fallen: fallenLines({ fallen: visit.fallen, race, rosterIds: lines.map(({ id }) => id) }) };
 }
 
-/** The kinds of sheet that are marks.mjs's to keep or close: a missed match's, a death's undo. */
-const MARKS = ["mark", "undo"];
+/** Who keeps or closes a sheet of each kind: marks.mjs a missed match's and a death's undo, market.mjs the cart and a sale; injury.mjs the rest. */
+const KEEPERS = { mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf };
 
 /** @returns {import("./view.mjs").RosterScreen} */
 function screenOf(teamId, visit, memory) {
   const mode = modeOf(teamId);
   const outside = outsideOf(memory, mode);
-  const { race, lines: own, fallen: dead } = linesOf(visit, mode);
+  const { race, draft, lines: own, fallen: dead } = linesOf(visit, mode);
   const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line), sessionOutside: sessionSppOf(memory, line, { outside: true }) }));
   const fallen = sortLines(dead, memory.sort);
   const save = saveState(teamId);
-  const where = { mode, outside, lock: lockOf(teamId, save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit), save };
+  const where = { mode, outside, lock: lockOf(teamId, save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit), save, race, draft };
   // A sheet whose player has left the screen (read again) closes with him; an injury's, with its match (injury.mjs); a
-  // mark's, with a match begun or the mark taken (marks.mjs). A fallen player's chip opens a skill's sheet too.
-  const sheet = (MARKS.includes(visit.sheet?.kind) ? markSheetOf : sheetOf)(visit, [...lines, ...fallen], where);
+  // mark's, with a match begun or the mark taken (marks.mjs); the cart, with a match begun (market.mjs). A fallen player's chip opens a skill's sheet too.
+  const sheet = (KEEPERS[visit.sheet?.kind] ?? sheetOf)(visit, [...lines, ...fallen], where);
   if (!sheet) Object.assign(visit, { sheet: null, opener: null });
   return {
     team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
@@ -451,8 +453,8 @@ function pressHandlers({ read, ...saving }) {
   const now = () => {
     const mode = modeOf(teamId);
     const save = saveState(teamId);
-    const { lines, fallen } = linesOf(visit, mode);
-    return { mode, outside: outsideOf(memory, mode), lines, fallen, lock: lockOf(teamId, save, visit, mode), save, sideLocked: visit.sideLocked, unsure: unsureOf(visit) };
+    const { race, draft, lines, fallen } = linesOf(visit, mode);
+    return { mode, outside: outsideOf(memory, mode), lines, fallen, lock: lockOf(teamId, save, visit, mode), save, sideLocked: visit.sideLocked, unsure: unsureOf(visit), race, draft };
   };
   const marks = {
     now, refused: () => retakeRefused(saving), hold: (answer) => holdAnswer(saving, answer),
@@ -461,6 +463,7 @@ function pressHandlers({ read, ...saving }) {
   return {
     ...injuryHandlers(saving, { tapping: tappingOf(saving), now }),
     ...markHandlers(saving, marks),
+    ...marketHandlers(saving, marks),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();

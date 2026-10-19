@@ -22,7 +22,7 @@ import { builderStaffCosts, medicalStaffDefinitions, rosterSizeLimits, startingB
 import { BUILD_STAFF_KEYS, buildTotals, hirePlayer, staffAvailable, stepStaff } from "../../domain/roster/build.mjs";
 import { positionKind, rowCountInPlayers } from "../../domain/roster/players.mjs";
 import { teamFavouredOptions, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
-import { PLAYER_STATS, costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam, statValueForDisplayByStat } from "../../domain/roster/values.mjs";
+import { costToNumber, countToNumber, rosterMax, rowCost, rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
@@ -31,6 +31,7 @@ import { classNames } from "../../ui/markup.mjs";
 import { renderOptionList, wireOptionLists } from "../../ui/option-card.mjs";
 import { renderResourceCounter, wireResourceCounters } from "../../ui/resource-counter.mjs";
 import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
+import { positionStatsLine } from "../../ui/stat-strip.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { renderStepButton, wireStepButtons } from "../../ui/stepper.mjs";
 import { renderToggle, wireToggles } from "../../ui/toggle.mjs";
@@ -179,18 +180,6 @@ function choiceSheet(race, draft, choice) {
 // The players
 // ---------------------------------------------------------------------------
 
-const NBSP = "\u00a0";
-
-/**
- * "MA 6 · ST 3 · …": a stat is its label and its value tied by a no-break space, and the dot is tied to the pair
- * before it, so that a phone's line wraps between the pairs, never inside one, and never begins with a dot.
- */
-function statsLine(row) {
-  const pairs = PLAYER_STATS.map((stat) => `${t(`stats.${stat}`)}${NBSP}${statValueForDisplayByStat(stat, row[stat])}`);
-  const last = pairs.length - 1;
-  return pairs.map((pair, index) => `${pair}${index < last ? `${NBSP}·` : ""}`).join(" ");
-}
-
 function hireRow(race, draft, totals, row, rowIndex) {
   const count = rowCountInPlayers(draft, rowIndex);
   const max = rosterMax(row.qty);
@@ -211,7 +200,7 @@ function hireRow(race, draft, totals, row, rowIndex) {
     + `<span class="g-hire__text"><b class="g-hire__name">${escapeHtml(row.position)}</b>`
     + `<span class="g-hire__line"><span class="g-hire__price">${escapeHtml(formatMoney(price))}</span>`
     + `<span class="${classNames("g-hire__limit", count >= max && "g-hire__limit--max")}">${escapeHtml(t("newTeam.positionLimit", { count, max }))}</span></span>`
-    + `<span class="g-hire__stats">${escapeHtml(statsLine(row))}</span><span class="g-hire__skills">${escapeHtml(skills)}</span></span>`
+    + `<span class="g-hire__stats">${escapeHtml(positionStatsLine(row))}</span><span class="g-hire__skills">${escapeHtml(skills)}</span></span>`
     + `<span class="g-hire__stepper">${minus}<span class="g-hire__count">${count}</span>${plus}</span></div>`;
 }
 
