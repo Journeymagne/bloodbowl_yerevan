@@ -2348,7 +2348,14 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   for (const [file, selector] of [[sheet, ".g-roster__rowpanel"], ["src/screens/team/roster/marks.css", ".g-fallen__rowpanel"]]) {
     assert.deepEqual(valuesOf(file, selector, "padding"), ["var(--space-4) 0 var(--space-14)"], selector);
   }
-  assert.deepEqual(valuesOf("src/ui/roster-table.css", ".g-rtable__player.is-expanded", "box-shadow"), ["-20px 0 var(--surface-2), 20px 0 var(--surface-2)"]);
+  // The band rides on the open row's cells, never on its <tbody>: WebKit (a coach's iPhone) paints no row group's shadow.
+  const table = "src/ui/roster-table.css";
+  const open = ".g-rtable__player.is-expanded > tr >";
+  const lastShown = ":nth-last-child(1 of :not(.g-rtable__c--desk))";
+  assert.deepEqual(valuesOf(table, ".g-rtable__player.is-expanded", "box-shadow"), []);
+  assert.deepEqual(valuesOf(table, `${open} :first-child`, "box-shadow"), ["-20px 0 var(--surface-2)"]);
+  assert.deepEqual(valuesOf(table, `${open} ${lastShown}`, "box-shadow"), ["20px 0 var(--surface-2)"]);
+  assert.deepEqual(valuesOf(table, `${open} :first-child${lastShown}`, "box-shadow"), ["-20px 0 var(--surface-2), 20px 0 var(--surface-2)"]);
   for (const file of [sheet, "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css"]) {
     const breakpoints = [...text(file).matchAll(/@media[^{]+/g)].map(([query]) => query.trim());
     assert.ok(breakpoints.length > 0, file);
