@@ -875,7 +875,8 @@ test("a removal the domain did not apply throws: nothing waits, nothing is sent"
   let asked = 0;
   const ned = draft.players.find((player) => player.id === "p8");
   Object.defineProperty(ned, "purchased", { configurable: true, enumerable: true, get: () => (asked += 1) === 1 });
-  assert.throws(() => save.removePlayer("t1", human, "p8", "cancel-purchase"), /PLAYER_PURCHASE_CLOSED/);
+  assert.throws(() => save.removePlayer("t1", human, "p8", "cancel-purchase"),
+    { message: /PLAYER_PURCHASE_CLOSED/, refusal: "This purchase can no longer be cancelled. Use a sale under the league rules." });
   assert.equal(asked, 2, "a purchase to cancel for the plan, sealed for the apply");
   assert.deepEqual([[ids(), draft.treasury], save.saveState("t1")], [before, quiet("idle")]);
   await tick();

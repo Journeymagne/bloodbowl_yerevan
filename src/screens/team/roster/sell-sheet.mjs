@@ -77,7 +77,8 @@ function notesMarkup(line, cancel, fate) {
   let note = t("teamRoster.sell.note");
   if (cancel) note = t("teamRoster.sell.cancelNote");
   else if (fate) note = t("teamRoster.sell.noteFate");
-  const captain = line.captain ? `<p class="g-market__note">${escapeHtml(t("teamRoster.sell.captain", { name: line.name }))}</p>` : "";
+  const captain = line.captain
+    ? `<p class="g-market__note">${escapeHtml(t("teamRoster.sell.captain", { name: line.name }))}</p>` : "";
   return `<p class="g-market__note">${escapeHtml(note)}</p>${captain}`;
 }
 

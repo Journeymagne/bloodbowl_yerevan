@@ -746,7 +746,7 @@ test("closed while the games are unread, the roster is read or a conflict waits"
   coach({ teamAnswer: withPlayers([{ rowIndex: 0, number: "1", name: "Nobody" }]), fallen: [] });
   await renderTeamRoster("t1");
   assert.equal(markButton().getAttribute("aria-disabled"), "true");
-  assert.equal(markButton().getAttribute("title"), "This player has no id in the roster, so nothing can be marked for him. Ask the league administrator to fix the roster.");
+  assert.equal(markButton().getAttribute("title"), "This player has no id in the roster, so nothing can be marked. Ask the league administrator to fix the roster.");
 });
 
 test("another tab's coach: no mark is sent, and the coach is told", async () => {

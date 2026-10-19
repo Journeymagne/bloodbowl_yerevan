@@ -1075,6 +1075,26 @@ test("another tab's coach: nothing is sold, and the coach is told", async () => 
   });
 });
 
+// T4-1, carried to the screen: should the plan and the domain's removal ever drift (no data reaches it today), the
+// press says the domain's words in the sheet instead of throwing out of the click. The drift is made by hand: the
+// queue's draft swapped for an equal one whose Ivo is sealed for `removeLeaguePlayer` alone, fresh for the plan.
+test("a removal the domain did not apply is said in the sheet: it stays, nothing waits, nothing is sent", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p9#0");
+    fireEvent(sellIn(aside()), "click");
+    const ivo = save.trackRoster(forSale()).players.find((player) => player.id === "p9");
+    Object.defineProperty(ivo, "purchased", { enumerable: true, get: () => !new Error().stack.includes("removeLeaguePlayer") });
+    fireEvent(sendButton(), "click");
+    assert.equal(saleRefusal().textContent, "This purchase can no longer be cancelled. Use a sale under the league rules.");
+    assert.equal(saleRefusal().getAttribute("role"), "alert");
+    assert.ok(sellSheet()?.isModal, "the sheet stays");
+    assert.deepEqual([save.saveState("t1").status, save.saveState("t1").waiting], ["idle", 0]);
+    assert.ok(toggle("p9#0"), "Ivo is still there");
+    await settle();
+    assert.equal(patches().length, 0);
+  });
+});
+
 // The T4 review's carry (07a's c088324): after a 422 whose read of the server's roster failed, a press must not only say the rule again.
 test("a sale refused after a 422 whose read failed reads the roster again; once it is read, the sale saves", async () => {
   await withoutTimers(async () => {

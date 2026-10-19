@@ -304,8 +304,12 @@ export function removePlayer(teamId, race, playerId, type) {
     return {
       apply: () => {
         // The plan asked the same rules: a removal not applied means the two drifted, and must not go as a step (T4-1).
+        // The error carries the domain's reason in words (`refusal`), for the sheet to say it (market.mjs).
         const { applied, reason, amount } = removeLeaguePlayer(race, draft, playerId, type);
-        if (!applied) throw new Error(`A removal the plan allowed was not applied (${reason}): the two checks drifted`);
+        if (!applied) {
+          const drifted = new Error(`A removal the plan allowed was not applied (${reason}): the two checks drifted`);
+          throw Object.assign(drifted, refusedFor({ code: reason }));
+        }
         return { amount, treasury: draft.treasury };
       },
     };

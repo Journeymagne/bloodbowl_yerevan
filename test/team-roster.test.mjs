@@ -402,7 +402,7 @@ test("a player the roster stores no id for has no way to a page: an empty id wou
     assert.equal(steps.length, 18);
     for (const button of steps) {
       assert.equal(button.getAttribute("aria-disabled"), "true");
-      assert.equal(button.getAttribute("title"), "This player has no id in the roster, so his counters cannot be saved. Ask the league administrator to fix the roster.");
+      assert.equal(button.getAttribute("title"), "This player has no id in the roster, so the counters cannot be saved. Ask the league administrator to fix the roster.");
     }
   });
   coach({ teamAnswer: team({ roster: { players } }) });

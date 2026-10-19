@@ -167,6 +167,21 @@ function openSale({ visit, draw }, { now }, key, button) {
 }
 
 /**
+ * One step of the queue letting the line's player go (`removePlayer`). Should the plan and the domain's removal ever
+ * drift (T4-1), the step throws before anything waits or is sent; that is a refusal in the domain's words here, said
+ * in the sheet like any other, never an error out of the press.
+ * @param {string} teamId @param {object} race @param {import("./model.mjs").PlayerLine} line
+ */
+function letGo(teamId, race, line) {
+  try {
+    return removePlayer(teamId, race, line.id, line.removal.type);
+  } catch (error) {
+    if (typeof error?.refusal !== "string") throw error;
+    return { ok: false, refusal: error.refusal };
+  }
+}
+
+/**
  * «Sell for 47.5k» or «Cancel and get 50k back»: only from the sheet that is open (K8) — a press that finds none is a
  * second press, and sends nothing. The closure is asked again, then one step of the queue (`removePlayer`) with what
  * the line says parting with him is, as the draft stands — the sheet was drawn from the same. In the same turn the
@@ -190,7 +205,7 @@ function sellPlayer(saving, { now, refused }) {
     toast(reason);
     return;
   }
-  const answer = removePlayer(teamId, where.race, line.id, line.removal.type);
+  const answer = letGo(teamId, where.race, line);
   if (answer.refusal) {
     sheet.refusal = answer.refusal;
     draw();
