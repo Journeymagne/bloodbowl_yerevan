@@ -174,11 +174,11 @@
 /*
  * A player's pair of actions (Stats.html, DeskRoster.html): «Miss a match…», «Back on the roster» or «Injury in the
  * match…» in the first column, stage 07c's «Sell» in the second — empty until then — a thumb tall on a phone, 40px on
- * a desk (desk.css).
+ * a desk (frame.css).
  */
 .g-roster__actions {
   display: grid;
-  /* Two columns while a half holds «Miss a match…» on one line (150px); in a narrower place (the 320px panel), one. */
+  /* Two columns while a half holds «Miss a match…» on one line (150px); in a narrower place (the 340px panel), one. */
   grid-template-columns: repeat(auto-fill, minmax(max(150px, calc((100% - var(--space-8)) / 2)), 1fr));
   gap: var(--space-8);
   min-width: 0;

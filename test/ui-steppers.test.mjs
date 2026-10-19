@@ -390,17 +390,27 @@ test("a desk's tile steps and refuses as the others do", () => {
   assert.ok(root.querySelector('[data-action-step="-1"]').hasAttribute("disabled"));
 });
 
-test("D2: a desk's tile has DeskRosterLive.html's 32px buttons, never under 24px; every other stepper keeps a thumb's 44px", () => {
+test("D2: a desk's tile has DeskRosterLive.html's 32px buttons, giving way down to 24px before the count does; every other stepper keeps a thumb's 44px", () => {
   const sheet = "src/ui/action-stepper.css";
   const px = (value) => Number(String(value).replace(/px$/, ""));
+  // 32px where the tile has room, shrinking first (flex-shrink 1), never under WCAG 2.5.8's 24px.
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__btn", "flex"), ["0 1 32px"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__btn", "height"), ["32px"]);
+  const [least] = valuesOf(sheet, ".g-stepper--tile .g-stepper__btn", "min-width");
+  assert.equal(least, "24px");
+  assert.ok(px(least) >= 24);
   for (const property of ["width", "height"]) {
-    const [tile] = valuesOf(sheet, ".g-stepper--tile .g-stepper__btn", property);
-    assert.equal(tile, "32px");
-    assert.ok(px(tile) >= 24, `${property}: WCAG 2.5.8's 24px`);
     assert.deepEqual(valuesOf(sheet, ".g-stepper__btn", property), ["var(--size-touch)"], `${property}: a phone's and the post-match's`);
   }
+  // The count never gives way: no shrinking, no wrapping; its size follows the tile's (17px in a 95px one, 13px at the least).
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "flex"), ["none"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "white-space"), ["nowrap"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "font-size"), ["clamp(13px, calc(26cqi - 7.6px), 17px)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile", "container-type"), ["inline-size"], "what the count's size is measured against");
+  // What the match added is a superscript beside the count, as the table's.
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__delta", "vertical-align"), ["super"]);
+  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__delta", "line-height"), ["0"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile", "flex-direction"), ["column"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper__line", "display"), ["flex"]);
   assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__label", "font-size"), ["11px"]);
-  assert.deepEqual(valuesOf(sheet, ".g-stepper--tile .g-stepper__value", "font-size"), ["17px"]);
 });

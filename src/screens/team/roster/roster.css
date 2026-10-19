@@ -8,8 +8,8 @@
  *
  * Written for a phone first: the table is the page's width and a player's row
  * opens under him. From 901px the panel stands beside the column of banners,
- * strip and tables, 320 to 380px wide, and stays in view while the page
- * scrolls (DeskRoster.html); desk.css draws the desk's frame and panel.
+ * strip and tables, 340 to 380px wide, and stays in view while the page
+ * scrolls (DeskRoster.html); frame.css draws the desk's frame and panel.
  */
 .g-roster {
   box-sizing: border-box;
@@ -517,11 +517,12 @@
 
   /*
    * The column and the panel 20px apart. The panel is DeskRoster.html's 380px (340 and its padding) where the page
-   * has room, a third of the content, and never under 320px: at 901 to 1279px the table scrolls in its frame beside it.
+   * has room, a third of the content, and never under 340px, where a match's tile still holds «− 12+1 +» between two
+   * 24px buttons (action-stepper.css): at 901 to about 1400px the table scrolls in its frame beside it.
    */
   .g-roster__layout {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) clamp(320px, 34%, 380px);
+    grid-template-columns: minmax(0, 1fr) clamp(340px, 34%, 380px);
     gap: var(--space-20);
     align-items: start;
   }

@@ -360,14 +360,19 @@ tfoot .g-rtable__glabel {
   .g-rtable__skillrow,
   .g-rtable__panelrow { display: none; }
 
-  /* The chosen row on the accent's soft tint, and a ring of --accent-text, as the focus ring in base.css: --accent is 2.9:1 on the dark surfaces. */
-  .g-rtable__player.is-selected .g-rtable__row > * { background: var(--accent-tint-soft); }
-  .g-rtable__player.is-selected .g-rtable__row {
-    outline: 2px solid var(--accent-text);
-    outline-offset: -2px;
+  /*
+   * The chosen row on the accent's soft tint, in a 2px ring of --accent-text (as the focus ring in base.css: --accent
+   * is 2.9:1 on the dark surfaces). The ring is drawn by the cells, each its top and bottom and the ends their side,
+   * so it runs straight through the sticky player cell, which a row's outline would pass under (DeskRoster.html).
+   */
+  .g-rtable__player.is-selected .g-rtable__row > * {
+    background: var(--accent-tint-soft);
+    box-shadow: inset 0 2px 0 var(--accent-text), inset 0 -2px 0 var(--accent-text);
   }
-  /* The player's cell is drawn over the row's outline: the same line, drawn on it. */
-  .g-rtable__player.is-selected .g-rtable__who {
+  .g-rtable__player.is-selected .g-rtable__row > :first-child {
     box-shadow: inset 2px 0 0 var(--accent-text), inset 0 2px 0 var(--accent-text), inset 0 -2px 0 var(--accent-text);
+  }
+  .g-rtable__player.is-selected .g-rtable__row > :last-child {
+    box-shadow: inset -2px 0 0 var(--accent-text), inset 0 2px 0 var(--accent-text), inset 0 -2px 0 var(--accent-text);
   }
 }

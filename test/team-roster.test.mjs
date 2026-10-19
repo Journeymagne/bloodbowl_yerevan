@@ -2333,8 +2333,9 @@ test("every key the screen asks for is in both dictionaries; the counters' and t
 test("on a phone the open row, on a desk the panel beside the table", () => {
   const sheet = "src/screens/team/roster/roster.css";
   assert.ok(valuesOf(sheet, ".g-roster__aside", "display").includes("none"));
-  // DeskRoster.html's panel: 380px (340 and its padding) where there is room, never under 320px; 20px from the column.
-  assert.deepEqual(valuesOf(sheet, ".g-roster__layout", "grid-template-columns"), ["minmax(0, 1fr) clamp(320px, 34%, 380px)"]);
+  // DeskRoster.html's panel: 380px (340 and its padding) where there is room; never under 340px, where a match's tile
+  // still holds «− 12+1 +» between two 24px buttons (fix round 1); 20px from the column.
+  assert.deepEqual(valuesOf(sheet, ".g-roster__layout", "grid-template-columns"), ["minmax(0, 1fr) clamp(340px, 34%, 380px)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__layout", "gap"), ["var(--space-16)", "var(--space-20)"], "a phone's column, then a desk's 20px");
   assert.ok(valuesOf(sheet, ".g-roster__aside", "position").includes("sticky"));
   assert.deepEqual([valuesOf(sheet, ".g-roster__aside", "padding"), valuesOf(sheet, ".g-roster__aside", "border-radius")], [["var(--space-20)"], ["var(--radius-2xl)"]]);

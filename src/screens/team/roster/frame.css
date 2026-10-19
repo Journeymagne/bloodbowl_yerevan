@@ -80,6 +80,15 @@
   .g-roster > .g-pagehead { margin-bottom: var(--space-8); }
 
   .g-roster__notices .g-callout { padding: var(--space-12) var(--space-16); }
+  /*
+   * In the table's column (as narrow as 250px at 901px) a banner's action may not keep its one line: it gives way and
+   * goes under the words, where the switch and «Post-match →» wrap under each other (.g-roster__calloutactions).
+   */
+  .g-roster__notices .g-callout__action {
+    flex: 0 1 auto;
+    min-width: 0;
+    white-space: normal;
+  }
   .g-roster__notices .g-roster__offline > .g-callout { padding-left: calc(var(--space-16) + 22px + var(--space-10)); }
   .g-roster__offline > .g-icon { margin-left: var(--space-16); }
   .g-roster__conflict .g-callout__action { display: flex; }

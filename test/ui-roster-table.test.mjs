@@ -375,9 +375,26 @@ test("from 901px the table scrolls inside its frame and the player's column stay
   assert.match(wide, /\.g-rtable-frame\s*\{[^}]*overflow-x:\s*auto/);
   assert.match(wide, /\.g-rtable__who[^{]*\{[^}]*position:\s*sticky/);
   assert.ok(!/sticky/.test(narrow), "a phone's table is the page's width and does not scroll");
-  assert.match(wide, /\.g-rtable__player\.is-selected \.g-rtable__row\s*\{[^}]*outline:\s*2px solid var\(--accent-text\)/);
-  // The held cell is drawn over the row's outline, so it carries the same line itself.
-  assert.match(wide, /\.g-rtable__player\.is-selected \.g-rtable__who\s*\{[^}]*box-shadow:[^;]*var\(--accent-text\)/);
+  // The chosen row's ring is drawn by its cells (fix round 1): one line through the sticky player cell, which a row's
+  // outline would pass under — its top and bottom on every cell, its sides on the first and the last.
+  assert.ok(!/is-selected[^{]*\{[^}]*outline:/.test(wide), "no row outline");
+  const ring = "inset 0 2px 0 var(--accent-text), inset 0 -2px 0 var(--accent-text)";
+  const cells = valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > *", "box-shadow");
+  assert.deepEqual(cells, [ring]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > :first-child", "box-shadow"), [`inset 2px 0 0 var(--accent-text), ${ring}`]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > :last-child", "box-shadow"), [`inset -2px 0 0 var(--accent-text), ${ring}`]);
+});
+
+test("a long position stays whole: on its name's line when it fits, under it when it does not, never cut with «…» (fix round 1)", () => {
+  const { wide } = parts(read(SHEET));
+  // A desk's name line wraps between the name and the position (Amazon's «Eagle Warrior Linewoman» is the reference's name).
+  assert.match(wide, /\.g-rtable__text\s*\{[^}]*flex-direction:\s*row;[^}]*flex-wrap:\s*wrap;/);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__sub", "overflow-wrap"), ["anywhere"], "a word longer than the cell breaks rather than overflows");
+  const sheet = read(SHEET).replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/text-overflow/.test(sheet), "nothing of the table is cut with an ellipsis");
+  for (const selector of [".g-rtable__name", ".g-rtable__sub", ".g-rtable__text"]) {
+    assert.ok(!valuesOf(SHEET, selector, "white-space").includes("nowrap"), `${selector} wraps`);
+  }
 });
 
 test("the focus ring of a head's button is drawn inside it, where the frame cannot clip it", () => {
