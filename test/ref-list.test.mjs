@@ -43,8 +43,8 @@ test("skills: every one, a letter for its category, its type, and a link to its 
 test("a category chip narrows the skills to it and says how many of how many; All brings them back", () => {
   renderRefSection("skills");
   fireEvent(view.querySelector('[data-chip-value="Agility"]'), "click");
-  assert.equal(view.querySelectorAll("a.g-ref-row").length, 13);
-  assert.equal(view.querySelector(".g-ref-list__count").textContent, "13 of 82");
+  assert.equal(view.querySelectorAll("a.g-ref-row").length, 14);
+  assert.equal(view.querySelector(".g-ref-list__count").textContent, "14 of 82");
   fireEvent(view.querySelector('[data-chip-value="all"]'), "click");
   assert.equal(view.querySelectorAll("a.g-ref-row").length, 82);
 });
@@ -124,7 +124,7 @@ test("a skill names its category for a screen reader and wears its colour; a tra
 test("the categories are the skill groups' in their order, each with the skills that carry the tag", () => {
   const categories = skillCategories(referenceData("en"));
   assert.deepEqual(categories.map((category) => category.value), ["Agility", "Devious", "General", "Mutation", "Passing", "Strength"]);
-  assert.deepEqual(categories.map((category) => category.count), [13, 9, 25, 11, 10, 14]);
+  assert.deepEqual(categories.map((category) => category.count), [14, 9, 19, 13, 13, 14]);
   assert.equal(categories.reduce((sum, category) => sum + category.count, 0), 82);
   assert.deepEqual(skillCategories({}), [], "a vault without skill groups has no categories");
 });
@@ -193,7 +193,7 @@ test("a skill that is open is marked in the list, which keeps its filter; the li
   renderRefSection("skills", { selected: dodge });
   const current = view.querySelectorAll('a.g-ref-row[aria-current="page"]');
   assert.deepEqual(current.map((row) => row.getAttribute("href")), ["#/skills/dodge"]);
-  assert.equal(view.querySelectorAll("a.g-ref-row").length, 13);
+  assert.equal(view.querySelectorAll("a.g-ref-row").length, 14);
   assert.deepEqual(view.querySelectorAll("h1").map((h) => h.textContent), ["Dodge"], "the open skill's panel owns the h1");
   assert.equal(view.querySelector("p.g-ref-list__title").textContent, "Skills");
   assert.ok(view.querySelector(".g-ref.g-ref--split.g-ref--open"));

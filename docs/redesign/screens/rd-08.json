@@ -1,0 +1,241 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "T1",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T2",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-treasury-money]",
+        "[data-money-reason=\"friendly\"]"
+      ]
+    },
+    {
+      "id": "T3",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-treasury-money]",
+        "[data-seg-value=\"out\"]",
+        "[data-money-reason=\"fine\"]"
+      ],
+      "run": [
+        "const fill = (s, v) => { const f = document.querySelector(s); f.value = v; f.dispatchEvent(new Event('input', { bubbles: true })); };",
+        "fill('#money-amount', '200');"
+      ]
+    },
+    {
+      "id": "T4",
+      "url": "http://localhost:5181/#/t/t4/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T5",
+      "url": "http://localhost:5181/#/t/t5/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "T6",
+      "url": "http://localhost:5181/#/t/t2/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "T7",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-ledger-all]"
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T8",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "click": [
+        "[data-treasury-fix]"
+      ]
+    },
+    {
+      "id": "T9",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-resource-key=\"startingRerolls\"] [data-resource-step=\"1\"]"
+      ]
+    },
+    {
+      "id": "R1",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R2",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-treasury-money]"
+      ]
+    },
+    {
+      "id": "O1",
+      "url": "http://localhost:5181/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "O2",
+      "url": "http://localhost:5181/#/t/t4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      }
+    },
+    {
+      "id": "U1",
+      "url": "http://localhost:5181/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-roster-staff=\"startingRerolls\"][data-roster-staff-step=\"1\"]"
+      ]
+    },
+    {
+      "id": "U2",
+      "url": "http://localhost:5181/#/t/t4/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "click": [
+        "[data-roster-staff=\"teamRerolls\"][data-roster-staff-step=\"1\"]"
+      ]
+    },
+    {
+      "id": "X1",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "run": [
+        "const row = document.querySelector('[data-resource-key=\"cheerleaders\"]');",
+        "if (row.querySelector('.g-resource__value').textContent.trim() === '1') row.querySelector('[data-resource-step=\"1\"]').click();"
+      ],
+      "runWaitMs": 1200,
+      "fullPage": true
+    },
+    {
+      "id": "X2",
+      "url": "http://localhost:5181/#/t/t1/team",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "click": [
+        "[data-treasury-money]",
+        "[data-money-reason=\"sponsor\"]",
+        "[data-money-apply]"
+      ],
+      "runWaitMs": 1000
+    }
+  ]
+}

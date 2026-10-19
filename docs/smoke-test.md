@@ -36,6 +36,7 @@ Two optional browser checks (need `npm i -D playwright && npx playwright install
 npm run dev &                        # public screens, builder, static exposure
 node scripts/browser-check.mjs
 
+npm run build                        # the mock reads the races from the built data
 node scripts/mock-api.mjs &          # saved roster editor, no database needed
 node scripts/browser-check-roster.mjs
 ```

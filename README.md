@@ -128,6 +128,7 @@ The logged-in saved roster editor, against a small in-memory fake API so no
 database is needed:
 
 ```bash
+npm run build          # the mock reads the races from the built data
 node scripts/mock-api.mjs &
 node scripts/browser-check-roster.mjs
 ```

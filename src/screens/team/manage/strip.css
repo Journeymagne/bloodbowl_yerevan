@@ -1,0 +1,108 @@
+/*
+ * The treasury strip of the desk roster (DeskRoster): the money first, then what the team holds, then the button
+ * that adds or takes money. Font, border, background, text-transform, letter-spacing and font-weight are set here
+ * on purpose, as in ui/resource-counter.css: the 2.x globals (button { font: inherit }, span) outlive this sheet
+ * until stage 13. The keyboard ring is base.css's.
+ *
+ * From 901px only: the phone has the treasury card instead. The strip wraps, so a narrow desktop (901 to about
+ * 1050px, with the SideNav beside it) never clips a cell; the lines between the cells are the one-pixel gap that
+ * shows the strip's own background, so a wrapped row has them too and none is drawn twice. The button is a column
+ * of its own along the right edge, whatever the number of rows: left among the cells it would wrap on its own.
+ */
+.g-funds {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 1px;
+  min-width: 0;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0 var(--size-touch) 0 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--line);
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 900px) {
+  .g-funds {
+    display: none;
+  }
+}
+
+.g-funds__cell {
+  box-sizing: border-box;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-10) var(--space-14);
+  background: var(--surface);
+}
+
+.g-funds__k {
+  color: var(--muted);
+  font: 600 11px/1.2 var(--font-body);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+}
+
+.g-funds__v {
+  color: var(--ink);
+  font: 700 20px/1.1 var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* The treasury is the one cell set apart. Its own rules for both lines: `.g-funds__v` sets `--ink`, which inheriting would not undo. */
+.g-funds__cell--money {
+  background: var(--accent-tint);
+}
+
+.g-funds__cell--money .g-funds__k,
+.g-funds__cell--money .g-funds__v {
+  color: var(--on-accent-tint);
+}
+
+.g-funds__edit {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+/* The ring inside the button: the strip clips what lies outside its edge, which is where this button sits. */
+.g-funds__edit:focus-visible {
+  outline-offset: -3px;
+}
+
+.g-funds__edit[aria-disabled="true"] {
+  color: var(--disabled);
+  cursor: not-allowed;
+}

@@ -249,7 +249,7 @@ gh pr merge <номер> --merge
 | [x] 06 | `rd/06-teams` | M1 | этап 6 | `smoke` |
 | [x] 11 | `rd/11-ref` | M1 (параллельно с 06) | этап 11 | `smoke` |
 | [ ] 07a–07e | `rd/07a-roster-table` … `rd/07e-career` | 06 | этап 7 | `smoke`, `smoke:post-match` |
-| [ ] 08 | `rd/08-treasury` | 06 (параллельно с 07) | этап 8 | `smoke` |
+| [x] 08 | `rd/08-treasury` | 06 (параллельно с 07) | этап 8 | `smoke` |
 | [ ] **M2** | — | 07e, 08, 11 | вид и данные | — |
 | [ ] 09a | `rd/09a-matches-prep` | M2 | этап 9: табло, перед матчем, подготовка, игра, удаление формы быстрого счёта | все четыре |
 | [ ] 09b | `rd/09b-post-match` | 09a | этап 9: итоги по шагам, павшие из итогов; `rehearsal:transitions` | все четыре |
@@ -327,7 +327,7 @@ WHERE NOT EXISTS (
 - Из 03, 07e: `GET …/players/:pid/history` → `{history: {playerId, matches, outside}}`; `pending` читать как «ждёт итогов»; у `source: "none"` нули не рисовать (`counters: null`); у оставленного journeyman история начинается заново под новым id; MVP, правленный руками, строки не имеет. `GET …/events` отдаёт `revision` — сверять с блобом.
 
 **08.** Счётчик ресурсов (Start Re-rolls, Team Re-rolls) отключает «+» у Start Re-rolls для команд в `active` и у Team Re-rolls для команд в `draft` и показывает переведённую причину (по смыслу `error.STAGE_PURCHASE_LOCKED`). С 02a `PATCH /api/teams/:id` отвечает 422 `STAGE_PURCHASE_LOCKED`, а включённый «+» старого редактора 2.x ломает все последующие автосохранения в этой сессии. Это должно попасть в `redesign` до того, как тренеры начнут пользоваться любой сборкой с редизайном.
-- Из 03: `GET …/ledger` → `{entries, next, since}` (`since` — «История ведётся с …»); `POST …/treasury` → `{team, entry}`, 422 с `TREASURY_INVALID`, 409 с командой.
+- Из 03: `GET …/ledger` → `{entries, next, since, total}` (`since` — «История ведётся с …», `total` — число строк истории для «Вся история · N», добавлен этапом 08); `POST …/treasury` → `{team, entry}`, 422 с `TREASURY_INVALID`, 409 с командой.
 
 **11.** Таблицы справочника уже получают от сборки классы `fit-cell`, `center-cell`, `number-cell`, `fit-table` (`scripts/lib/render-table.mjs`, перенос из PR #9 на этапе 01). `fit-cell` и `center-cell` пока стилизованы глобальными правилами 2.x в `src/styles/roster.css`; этап 11 даёт всем четырём классам стили на токенах 3.0 (узкие колонки характеристик и бросков по центру, `Cost` вправо с `tabular-nums`, короткие таблицы во всю ширину без прокрутки) и убирает зависимость от `roster.css`.
 

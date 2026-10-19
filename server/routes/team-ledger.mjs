@@ -1,9 +1,10 @@
 /**
  * A team's treasury over HTTP: the history of its money, and the entry a coach writes by hand.
  *
- * `GET /api/teams/:id/ledger` is the history, a page at a time. `POST /api/teams/:id/treasury` is a
- * correction a coach makes themselves — a friendly's winnings, a sponsor, a fine — and it moves the
- * treasury and writes its line in one transaction, so the line exists exactly when the move does.
+ * `GET /api/teams/:id/ledger` is the history: one page of it, how many lines there are, and since
+ * when it is kept. `POST /api/teams/:id/treasury` is a correction a coach makes themselves — a
+ * friendly's winnings, a sponsor, a fine — and it moves the treasury and writes its line in one
+ * transaction, so the line exists exactly when the move does.
  * What else changes the treasury (a roster save, a match, a post-match) writes its own lines in its
  * own transaction through `writeLedgerEntries`.
  *
@@ -14,7 +15,7 @@ import { isMoneyAmount, sumMoney } from "../../src/domain/money.mjs";
 import { VALIDATION_CODES } from "../../src/domain/roster/validate.mjs";
 import { countToNumber } from "../../src/domain/roster/values.mjs";
 import { UUID_SOURCE, teamConflict, teamForUser } from "../api/team-access.mjs";
-import { LEDGER_PAGE_SIZE, checkManualEntry, decodeLedgerCursor, ledgerSince, readLedgerPage, writeLedgerEntries } from "../api/team-ledger.mjs";
+import { LEDGER_PAGE_SIZE, checkManualEntry, countLedgerLines, decodeLedgerCursor, ledgerSince, readLedgerPage, writeLedgerEntries } from "../api/team-ledger.mjs";
 import { readPublicTeam } from "../api/team-queries.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
@@ -51,16 +52,16 @@ function cursorOf(params) {
  */
 const belowZero = () => rosterRefusal([{ code: VALIDATION_CODES.TREASURY_INVALID, params: {} }]);
 
-/** `GET /api/teams/:id/ledger?before=&limit=` — one page of the history, and since when it is kept. */
+/** `GET /api/teams/:id/ledger?before=&limit=` — one page of the history, how many lines there are, and since when it is kept. */
 async function sendHistory(request, response, teamId, params) {
   const user = await currentUser(request);
   if (!user) throw httpError(401, "NOT_AUTHORIZED");
-  // One snapshot: the team, the page and `since` are read at the same moment, and the database
-  // refuses a write inside it. The team comes first, so a stranger is told 404 whatever the cursor.
+  // One snapshot: the team, the page, the count and `since` are read at the same moment, and the
+  // database refuses a write inside it. The team comes first, so a stranger is told 404 whatever the cursor.
   const history = await withTransaction(async (client) => {
     const team = await teamForUser(client, teamId, user, { admin: true });
     const page = await readLedgerPage(client, team.id, { before: cursorOf(params), limit: pageSize(params) });
-    return { ...page, since: await ledgerSince(client) };
+    return { ...page, since: await ledgerSince(client), total: await countLedgerLines(client, team.id) };
   }, { readOnly: true });
   sendJson(response, 200, history);
 }

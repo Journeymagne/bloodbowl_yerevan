@@ -123,7 +123,7 @@ export function addMyTeam(team) {
 /**
  * The request got no answer to stand behind: the connection was lost, it took too long, a proxy answered with none of
  * the server's words in it, or the server failed (a 5xx: its INSERT may have committed before `readPublicTeam` did).
- * The team may exist all the same.
+ * The team may exist all the same. The treasury's writes ask it too (data/treasury.mjs): a line may be written.
  */
 export function unanswered(error) {
   return error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT || error?.status >= 500

@@ -26,6 +26,13 @@
   text-transform: none;
 }
 
+/* A team in its build: the chip, the page's first line on a phone (the head that carries it on a desk is a screen reader's there). */
+.g-overview__stage {
+  display: flex;
+  min-width: 0;
+  margin: 0;
+}
+
 /* Where the board stood when a read did not come: a callout for each. */
 .g-overview__failed {
   display: flex;
@@ -182,6 +189,9 @@
 }
 
 @media (min-width: 901px) {
+  /* The page head says it: never twice. */
+  .g-overview__stage { display: none; }
+
   /*
    * The tile row stands beside the SideNav: its four tiles share the screen less 289px, so a tile is 119px of content at
    * 901px and 134px at 960px, and the longest figure («33 · 10/3/0», 4.6 times its font size wide) wraps in it until about

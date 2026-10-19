@@ -25,9 +25,11 @@ const FORM_ID = /^[A-Za-z][\w-]*$/;
  * "save" that only has something to do once a field has changed. `form` is the
  * id of the form a submit button belongs to when it is not inside it: the
  * footer of a sheet is a sibling of the sheet's body, so its one button names
- * the form there.
+ * the form there. `busy` is a press on its way: the button says so
+ * (aria-busy, aria-disabled) but is not `disabled`, which would take the focus
+ * from a focused button in Chrome; the screen takes no second press.
  */
-export function renderButton({ label, kind = "outline", type = "button", href = "", disabled = false, hidden = false, icon = "", block = false, form = "", data = {} }) {
+export function renderButton({ label, kind = "outline", type = "button", href = "", disabled = false, hidden = false, busy = false, icon = "", block = false, form = "", data = {} }) {
   if (!label) throw new Error("a button needs a label: its icon is decoration, and nothing else names it");
   if (!BUTTON_KINDS.includes(kind)) throw new Error(`unknown button kind: ${kind}`);
   if (form && (href || !FORM_ID.test(form))) throw new Error(`a button's form is a plain id on a button, not ${JSON.stringify(form)}${href ? " on a link" : ""}`);
@@ -38,7 +40,7 @@ export function renderButton({ label, kind = "outline", type = "button", href = 
     assertLinkHref(href);
     return `<a class="${className}" href="${escapeHtml(href)}"${out}${dataAttributes(data)}>${content}</a>`;
   }
-  return `<button type="${escapeHtml(type)}" class="${className}"${form ? ` form="${escapeHtml(form)}"` : ""}${disabled ? " disabled" : ""}${out}${dataAttributes(data)}>${content}</button>`;
+  return `<button type="${escapeHtml(type)}" class="${className}"${form ? ` form="${escapeHtml(form)}"` : ""}${disabled ? " disabled" : ""}${busy ? ' aria-busy="true" aria-disabled="true"' : ""}${out}${dataAttributes(data)}>${content}</button>`;
 }
 
 /** The round close or back button of a sheet. Nothing else names it, so the label is required. */

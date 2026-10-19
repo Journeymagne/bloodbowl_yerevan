@@ -34,6 +34,13 @@ test("a button can be drawn hidden, for the screen to show it when it has someth
   assert.match(css, /\.g-btn\[hidden\]\s*\{\s*display:\s*none;\s*\}/, ".g-btn sets a display, which would show a hidden button");
 });
 
+test("a button whose press is on its way says so without being disabled, which would take the focus from it", () => {
+  const busy = mount(renderButton({ label: "Saving…", kind: "primary", busy: true })).querySelector("button");
+  assert.deepEqual([busy.getAttribute("aria-busy"), busy.getAttribute("aria-disabled"), busy.hasAttribute("disabled")], ["true", "true", false]);
+  const plain = mount(renderButton({ label: "Save", kind: "primary" })).querySelector("button");
+  assert.deepEqual([plain.hasAttribute("aria-busy"), plain.hasAttribute("aria-disabled")], [false, false]);
+});
+
 test("every kind has its class, an unknown kind is a bug", () => {
   for (const kind of BUTTON_KINDS) {
     const fragment = mount(renderButton({ label: "x", kind, block: true }));

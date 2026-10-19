@@ -173,7 +173,7 @@ export async function renderSavedRoster(teamId, refresh = true, options = {}) {
     ${renderMatchdayEditor({ team, draft, costs, mode: LEAGUE_MODE,
       identityHtml: renderSavedRosterIdentity(team, draft, teams),
       summaryHtml: renderSavedRosterSummary(savedTeam, team, draft, costs, warnings),
-      purchasesHtml: renderSavedRosterPurchases(team, draft),
+      purchasesHtml: renderSavedRosterPurchases(team, draft, isAdminEdit ? null : savedTeam.stage),
       playersHtml: renderSavedPlayerList(team, draft),
     })}</div>
   `, draft);
@@ -216,7 +216,7 @@ function renderSavedRosterIdentity(team, draft, teams) {
     </section>
   `;
 }
-function renderSavedRosterPurchases(team, draft) {
+function renderSavedRosterPurchases(team, draft, stage) {
   return `
     <div class="roster-purchases-layout" data-key="roster-purchases">
       <section class="roster-controls-panel roster-resources-panel side-panel">
@@ -230,8 +230,8 @@ function renderSavedRosterPurchases(team, draft) {
       <section class="roster-controls-panel roster-purchases-panel side-panel">
         <h2>${t("roster.purchasesHeading")}</h2>
         <div class="builder-tracker-list roster-tracker-list roster-purchase-grid" aria-label="${t("roster.purchaseTrackersAriaLabel")}">
-        ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: draft.startingRerolls, mode: LEAGUE_MODE })}
-        ${renderStaffControl({ key: "teamRerolls", title: t("savedRoster.teamRerolls"), value: draft.teamRerolls, mode: LEAGUE_MODE })}
+        ${renderStaffControl({ key: "startingRerolls", title: t("savedRoster.startingRerolls"), value: draft.startingRerolls, mode: LEAGUE_MODE, stage })}
+        ${renderStaffControl({ key: "teamRerolls", title: t("savedRoster.teamRerolls"), value: draft.teamRerolls, mode: LEAGUE_MODE, stage })}
         ${renderHiredStaffLines({ team, draft, mode: LEAGUE_MODE })}
         </div>
       </section>
