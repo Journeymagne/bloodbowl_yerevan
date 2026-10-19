@@ -14,8 +14,10 @@
  * A missed-match mark and back on the roster are the same kind of step (stage 07b): one player's fields changed in the
  * draft, the whole roster saved. A death and its undo are not the queue's (fallen.mjs); their answer is taken here, the
  * queue first, so that the list's revision is never ahead of the queue's for a write of the queue's own screen. Not
- * while a step of the coach's waits or is in the air: taken then, the answer would give that step up without a word.
- * The list alone has it, and the screen reads the team again, the path of a conflict the coach sees (K7).
+ * while a step of the coach's waits or is in the air: taken then, the answer would give that step up without a word
+ * (K7). The list alone has it then, and the screen leaves the queue alone — a read taken by `takeServerTeam` would give
+ * the step up all the same — and sends no death or undo while a step waits (stage 07b, Task 8, locks that). Nor is an
+ * answer older than what the queue or the list holds taken: it would take back a write that came after it.
  */
 import { API_ERROR, ApiError } from "../../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../../core/api-client.mjs";
@@ -286,14 +288,29 @@ export function takeServerTeam(team) {
 }
 
 /**
+ * A revision the queue or the coach's list already holds for the team above the answer's: a write that landed after
+ * it, which taking the answer would take back (a revision only goes up). The same revision is the same team.
+ */
+function behind(team) {
+  const listed = state.myTeams.items.find((item) => item.id === team.id)?.revision;
+  return [savedRevision(team.id), listed].some((known) => Number.isInteger(known) && Number.isInteger(team.revision) && known > team.revision);
+}
+
+/**
  * The team a death or its undo was answered with (fallen.mjs): to the queue first (`takeServerTeam`), when it holds
  * the team and has nothing of the coach's to send — no step waiting, none in the air — and then to its place in the
- * coach's list, whose listeners so read the queue's revision as the list's. Otherwise the list alone has it: a step
- * that waits would be given up without a word (K7), and a team the queue does not hold (a fallen player's profile)
- * is not taken up by it. Null then, for the screen to read the team again.
+ * coach's list, whose listeners so read the queue's revision as the list's.
+ *
+ * Null when the queue did not take it. A team the queue does not hold (a fallen player's profile): the list alone has
+ * it. A step of the coach's waits or is in the air: the list alone has it, and the screen leaves the queue alone (K7)
+ * — `takeServerTeam`, or a read taken by it, would give the step up without a word; the step meets the answer's
+ * revision as a 409 the coach settles. That is why no death or undo is sent while a step waits (stage 07b, Task 8,
+ * locks that). An answer older than what the queue or the list holds (`behind`): neither is touched, and a read
+ * brings the newest.
  * @param {object} team GET's shape @returns {object|null} the draft to draw; null when the queue did not take the team
  */
 export function takeAnswerTeam(team) {
+  if (behind(team)) return null;
   const free = savedRevision(team.id) !== null && waitingFor(team.id) === 0;
   const draft = free ? takeServerTeam(team) : null;
   putInPlace(team);

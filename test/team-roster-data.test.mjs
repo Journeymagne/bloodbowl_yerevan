@@ -37,11 +37,11 @@ const teamAt = (revision, spp = { touchdowns: 2 }, over = {}, players = [{ id: "
   roster: { teamSlug: "teams/human", teamName: "Iron Rooks", treasury: 50, players },
   ...over,
 });
-/** Ann, who plays; Bo, who misses the next match; Cy, retired for the season (stage 07b). */
+/** Ann, who plays; Bo, who misses the next match; Cy, retired for the season, as a stored one is: skipping, and why (stage 07b). */
 const skips = () => [
   { id: "p1", rowIndex: 0, number: "1", name: "Ann", spp: { touchdowns: 2 } },
   { id: "p2", rowIndex: 0, number: "2", name: "Bo", skipNextGame: true, absence: { code: "miss" } },
-  { id: "p3", rowIndex: 0, number: "3", name: "Cy", temporarilyRetired: true },
+  { id: "p3", rowIndex: 0, number: "3", name: "Cy", temporarilyRetired: true, skipNextGame: true, absence: { code: "lasting", stat: "ag" } },
 ];
 const elsewhereError = { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" };
 const rulesRefusal = {
@@ -708,6 +708,33 @@ test("the answer to a death or an undo goes to the queue, then to the coach's li
     heard.length = 0;
     assert.equal(save.takeAnswerTeam({ ...teamAt(3), id: "t9", name: "Ninth" }), null);
     assert.deepEqual([state.myTeams.items[2].revision, save.savedRevision("t9"), heard.length], [3, null, 1]);
+  } finally {
+    off();
+  }
+});
+
+// Review Minor 1: a death answered slowly, while the strip (or another device) wrote after it.
+test("an answer older than what the queue or the list holds is not taken: neither goes back", async () => {
+  const draft = await open(teamAt(4, undefined, {}, skips()));
+  api.reply(PATCH_URL, 200, { team: teamAt(6, undefined, {}, skips()) });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[1].revision], [6, 6]);
+  let heard = 0;
+  const off = onMyTeamsChange(() => { heard += 1; });
+  try {
+    const late = teamAt(5, undefined, {}, skips().filter((player) => player.id !== "p2"));
+    assert.equal(save.takeAnswerTeam(late), null);
+    assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[1].revision, heard], [6, 6, 0]);
+    assert.deepEqual([save.saveState("t1"), draft.players.length], [quiet("saved"), 3], "the queue and its draft as they were");
+    // Only the list ahead (the strip's write, not yet read): the queue at 4 is not moved to 5 either.
+    save.takeServerTeam(teamAt(4, undefined, {}, skips()));
+    state.myTeams.items[1] = { ...state.myTeams.items[1], revision: 6 };
+    assert.equal(save.takeAnswerTeam(late), null);
+    assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[1].revision, heard], [4, 6, 0]);
+    // The same revision is the same team: taken.
+    assert.ok(save.takeAnswerTeam(teamAt(6, undefined, {}, skips())));
+    assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[1].revision, heard], [6, 6, 1]);
   } finally {
     off();
   }
