@@ -85,11 +85,14 @@ export function cartRowMarkup({ row, quoteRow }) {
     + `${cartControlMarkup(quoteRow, refusal ? refusalWords(refusal) : "")}</div>`;
 }
 
-/** The three tiles over the cards: the treasury, what the cart costs, and what it leaves — red when it does not pay. */
+/**
+ * The three tiles over the cards: the treasury, what the cart costs — «0» while it is empty, as both prototypes write
+ * it — and what it leaves, red when it does not pay.
+ */
 function tilesMarkup({ treasury, total, left }) {
   const tile = (label, value, className = "") => `<div class="${classNames("g-market__tile", className)}"><dt class="g-market__label">${escapeHtml(label)}</dt>`
     + `<dd class="g-market__value">${escapeHtml(value)}</dd></div>`;
-  const cart = total ? t("teamRoster.hire.minus", { amount: formatMoney(total) }) : formatMoney(0);
+  const cart = total ? t("teamRoster.hire.minus", { amount: formatMoney(total) }) : "0";
   return `<dl class="g-market__tiles">${tile(t("teamRoster.hire.treasury"), formatMoney(treasury))}${tile(t("teamRoster.hire.cart"), cart)}`
     + `${tile(t("teamRoster.hire.left"), formatMoney(left), classNames("g-market__tile--left", left < 0 && "g-market__tile--short"))}</dl>`;
 }

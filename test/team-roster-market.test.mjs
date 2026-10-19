@@ -206,7 +206,7 @@ test("the cart: the race and the places, the treasury, what it costs and what is
     assert.equal(dialog.querySelector("h2").textContent, "Hire players");
     assert.equal(dialog.querySelector(".g-sheet__sub").textContent, "Human · on the roster 7 of 14 · places left: 7");
     assert.equal(dialog.querySelector("dl.g-market__tiles").childNodes.filter((node) => node.nodeType === 1).length, 3);
-    assert.deepEqual(tiles().map((tile) => [tile.querySelector("dt.g-market__label").textContent, tile.querySelector("dd.g-market__value").textContent]), [["Treasury", "120k"], ["Cart", "0k"], ["Left", "120k"]]);
+    assert.deepEqual(tiles().map((tile) => [tile.querySelector("dt.g-market__label").textContent, tile.querySelector("dd.g-market__value").textContent]), [["Treasury", "120k"], ["Cart", "0"], ["Left", "120k"]]);
     assert.ok(tiles()[2].classList.contains("g-market__tile--left"));
     assert.ok(!tiles()[2].classList.contains("g-market__tile--short"));
     assert.deepEqual(cards().map((item) => item.getAttribute("data-hire-key")), ["0", "1", "2", "3", "4", "5"], "every line of Human's table");
@@ -303,7 +303,8 @@ test("+ adds to the cart, − takes out; the card, the totals, the numbers the n
     assert.ok(!card(0).classList.contains("g-market__row--in"));
     assert.equal(card(0).querySelector(".g-market__add .g-market__addword").textContent, "To the cart", "back to «+ To the cart»");
     assert.ok(document.activeElement === plusOf(0), "K14: the focus on «+ To the cart»");
-    assert.deepEqual(tileValues(), ["120k", "0k", "120k"]);
+    // An empty cart costs «0», as StatsHire.html and DeskRosterHire.html write it, not «0k».
+    assert.deepEqual(tileValues(), ["120k", "0", "120k"]);
     assert.equal(buyButton().textContent, "The cart is empty");
     assert.ok(hireSheet()?.isModal);
     assert.equal(patches().length, 0);
@@ -411,7 +412,7 @@ test("bought: one PATCH of the whole roster — the players with the next free n
     // Opened again, the cart counts the new players.
     fireEvent(hireButton(), "click");
     assert.equal(hireSheet().querySelector(".g-sheet__sub").textContent, "Human · on the roster 9 of 14 · places left: 5");
-    assert.deepEqual(tileValues(), ["20k", "0k", "20k"]);
+    assert.deepEqual(tileValues(), ["20k", "0", "20k"]);
     assert.equal(card(0).querySelector(".g-market__meta").textContent, "no skills · in the team 5 of 16");
     api.assertAnswered();
   });
