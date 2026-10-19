@@ -227,7 +227,7 @@ test("an undo sent from the profile that lands while the roster is open: the ros
     assert.equal(callsTo("GET /api/teams/t1").length, 3, "the roster reads the team again");
     assert.deepEqual(tables().map(namesIn), [["Ann", "Bors", "Cade", "Pike"], ["Dell", "Edda", "Finn", "Grom"], ["Joe"]]);
     assert.equal(save.savedRevision("t1"), 5);
-    fireEvent(toggle("d1#7"), "click");
+    fireEvent(toggle("d1#0"), "click");
     api.reply(PATCH, 200, { team: withPike({ revision: 6 }) });
     fireEvent(plusTd(), "click");
     await settle();

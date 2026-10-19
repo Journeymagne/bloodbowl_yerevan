@@ -132,7 +132,7 @@ test("a line says who the player is: his place, number, position, colour, cost a
   assert.deepEqual([lineman.key, lineman.id, lineman.index, lineman.number, lineman.name, lineman.position, lineman.kind],
     ["p0#0", "p0", 0, "1", "Human Lineman 1", "Human Lineman", "lineman"]);
   assert.deepEqual([lineman.primary, lineman.secondary, lineman.value], [["General"], ["Agility", "Strength", "Devious"], 50]);
-  assert.deepEqual([catcher.key, catcher.number, catcher.name, catcher.position, catcher.kind], ["p2#1", "9", "Ashby", "Catcher", "catcher"]);
+  assert.deepEqual([catcher.key, catcher.number, catcher.name, catcher.position, catcher.kind], ["p2#0", "9", "Ashby", "Catcher", "catcher"]);
   assert.equal(catcher.value, 75 + 40, "the price and a characteristic raised");
   assert.deepEqual([lineman.captain, lineman.skip, lineman.injury], [false, false, null]);
   const [ogre, captain, absent] = linesOf([player(5), player(3, { isCaptain: true }), player(1, { skipNextGame: true })]);
@@ -317,7 +317,7 @@ test("an odd roster: no race, a row the race has not, a shared id, a missing PA"
   assert.deepEqual(rosterLines({ draft: { players: [] }, race: HUMAN, mode: PLAIN }), []);
   assert.deepEqual(rosterLines({ draft: {}, race: HUMAN, mode: PLAIN }), []);
   const gap = linesOf([player(0), player(99), player(2)]);
-  assert.deepEqual(gap.map(({ key }) => key), ["p0#0", "p2#2"], "nobody for a row the race has not, and the places stay as they were stored");
+  assert.deepEqual(gap.map(({ key, index }) => [key, index]), [["p0#0", 0], ["p2#0", 2]], "nobody for a row the race has not, and the places stay as they were stored");
   const shared = linesOf([player(0, { id: "dup" }), player(1, { id: "dup" })]);
   assert.deepEqual(shared.map(({ key, id }) => [key, id]), [["dup#0", "dup"], ["dup#1", "dup"]]);
   assert.equal(linesOf([player(0, { name: HOSTILE })])[0].name, HOSTILE, "the markup escapes it, the model does not");
@@ -331,9 +331,20 @@ test("an id is the text a write names: a 2.x number, a blank in it, none at all"
   const [spaced] = linesOf([player(0, { id: "a b\tc" })]);
   assert.deepEqual([spaced.id, spaced.key], ["a b\tc", "a_b_c#0"], "a blank would make a list of the id of his panel");
   const [nameless, other] = linesOf([player(0, { id: undefined }), player(1)], { events: [row("p1", "touchdowns", 1)] });
-  assert.deepEqual([nameless.id, nameless.key, nameless.career.touchdowns, other.key, other.career.touchdowns], ["", "#0", 0, "p1#1", 1], "nobody can name him, so no row is his");
+  assert.deepEqual([nameless.id, nameless.key, nameless.career.touchdowns, other.key, other.career.touchdowns], ["", "#0", 0, "p1#0", 1], "nobody can name him, so no row is his");
   const [odd] = linesOf([player(0, { id: "constructor" })], { mode: MATCH, events: [row("constructor", "touchdowns", 1, { pairingId: "g2" })] });
   assert.deepEqual([odd.injury, odd.match.touchdowns], [null, 1]);
+});
+
+// The final review's row keys (T8): a key is not the player's place, so a place taken out of the roster re-keys nobody.
+test("a key is the id and how many before him share it: a player taken out re-keys nobody after him", () => {
+  const roster = [player(0), player(3, { id: "dup" }), player(2), player(1, { id: "dup" }), player(5)];
+  const keys = (players) => linesOf(players).map(({ key }) => key);
+  assert.deepEqual(keys(roster), ["p0#0", "dup#0", "p2#0", "dup#1", "p5#0"]);
+  assert.deepEqual(keys(roster.slice(1)), ["dup#0", "p2#0", "dup#1", "p5#0"], "the first gone, the rest keep theirs");
+  assert.deepEqual(keys([roster[0], roster[2], roster[3], roster[4]]), ["p0#0", "p2#0", "dup#0", "p5#0"], "the first twin gone, the other is the first of the id now");
+  // Ids a blank alone tells apart make the same key: they are counted as one, so the keys stay apart.
+  assert.deepEqual(keys([player(0, { id: "a b" }), player(1, { id: "a_b" }), player(2, { id: "a\tb" })]), ["a_b#0", "a_b#1", "a_b#2"]);
 });
 
 test("counts: the roster, those who miss a match, those who can advance", () => {

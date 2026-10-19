@@ -137,12 +137,27 @@ function injuryOf(injuries, id) {
   return standing ? { code: standing.code, ...(standing.stat ? { stat: standing.stat } : {}) } : null;
 }
 
-/** An id is the text a write names him by, and a blank in it would make a list of the id of his panel (RosterTable). */
-const keyOf = (id, index) => `${id.replace(/\s+/g, "_")}#${index}`;
+/**
+ * The keys of the lines, in the roster's order: his id — the text a write names him by, a blank in it made `_`, since it
+ * would make a list of the id of his panel (RosterTable) — and how many lines before him have that much of a key, so
+ * that two 2.x players who share an id are told apart. Not his place in the roster: a death, which takes a place out of
+ * it, would re-key every player after it, and his row open on a phone, his place in the panel and his SPP since the
+ * screen opened (memory.mjs) would go with the old key (final review, T8).
+ * @param {string[]} ids @returns {string[]}
+ */
+function keysOf(ids) {
+  const seen = new Map();
+  return ids.map((id) => {
+    const base = id.replace(/\s+/g, "_");
+    const nth = seen.get(base) ?? 0;
+    seen.set(base, nth + 1);
+    return `${base}#${nth}`;
+  });
+}
 
 /**
  * @typedef {object} PlayerLine
- * @property {string} key `<id>#<index>`: unique in the page even where two 2.x players share an id
+ * @property {string} key `<id>#<n>`, n the lines before him with the same id (`keysOf`): unique in the page even where two 2.x players share an id
  * @property {string} id the stored id a write names (`storedPlayerId`); empty for a player the roster stores none for, whom no write can name
  * @property {number} index the place in the roster
  * @property {string} number
@@ -208,13 +223,14 @@ export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }
   };
   const players = selectedRosterPlayers(race, draft);
   const ids = players.map((player) => storedPlayerId(player) ?? "");
+  const keys = keysOf(ids);
   const { injuries } = statisticsFromEvents({ players: ids.map((id) => ({ id })) }, rows.match);
   return players.map((player, at) => {
     const { row, index } = player;
     const id = ids[at];
     const counters = countersOf(race, id, player.spp, rows);
     return {
-      key: keyOf(id, index), id, index, number: player.number, name: player.name, position: row.position, kind: positionKind(row),
+      key: keys[at], id, index, number: player.number, name: player.name, position: row.position, kind: positionKind(row),
       captain: Boolean(player.isCaptain), skip: player.skipNextGame, absence: player.absence, retired: Boolean(player.temporarilyRetired),
       stats: statsOf(row, player), skills: skillsOf(row, player),
       primary: categoriesForAccess(row.primary), secondary: categoriesForAccess(row.secondary),

@@ -37,7 +37,7 @@ const plusTd = () => aside().querySelector('[data-action-key="touchdowns"] [data
 /** The team on the server once Pike is back: at the end of the roster, rev 5 by default. */
 const withPike = (over = {}) => withPlayers([...PLAYERS, PIKE.player], { revision: 5, ...over });
 /** His line's key on the roster he is back on: his id and his place in it. */
-const PIKE_BACK = "d1#7";
+const PIKE_BACK = "d1#0";
 /** The server holds `roster` and `fallen` when the screen reads them again. */
 const serverHolds = (roster, fallen) => {
   api.reply(TEAM_READ, 200, { team: roster });

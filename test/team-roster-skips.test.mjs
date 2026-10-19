@@ -51,10 +51,10 @@ test("one sort for the three tables: a header of any of them sorts all three", a
 test("a reason in words under a name: an injury, another reason, the season's retirement, none from 2.x", async () => {
   coach();
   await renderTeamRoster("t1");
-  const subs = ["p4#3", "p5#4", "p6#5", "p7#6"].map(subOf);
+  const subs = ["p4#0", "p5#0", "p6#0", "p7#0"].map(subOf);
   assert.deepEqual(subs.map((sub) => sub.textContent), ["Lasting Injury (MA)", "Misses the next match", "Temporarily retired for the season", "Suspended"]);
   for (const sub of subs) assert.ok(sub.classList.contains("g-rtable__sub--alert"));
-  assert.deepEqual(["p1#0", "p2#1", "p3#2"].map((key) => [subOf(key).textContent, subOf(key).classList.contains("g-rtable__sub--alert")]),
+  assert.deepEqual(["p1#0", "p2#0", "p3#0"].map((key) => [subOf(key).textContent, subOf(key).classList.contains("g-rtable__sub--alert")]),
     [["Human Lineman", false], ["Blitzer", false], ["Catcher", false]]);
   // The other injuries, and another reason with no words written (K10): the 2.x line, never an empty red one.
   coach({
@@ -68,7 +68,7 @@ test("a reason in words under a name: an injury, another reason, the season's re
     fallen: [],
   });
   await renderTeamRoster("t1");
-  assert.deepEqual(["q1#0", "q2#1", "q3#2", "q4#3", "q5#4"].map((key) => subOf(key).textContent),
+  assert.deepEqual(["q1#0", "q2#0", "q3#0", "q4#0", "q5#0"].map((key) => subOf(key).textContent),
     ["Seriously Hurt", "Serious Injury", "Misses the next match", "Misses the next match", "Lasting Injury"]);
 });
 
@@ -197,14 +197,14 @@ test("a skipper's panel says why he sits the next match out", async () => {
   await withWindow({ phone: false }, async () => {
     coach();
     await renderTeamRoster("t1");
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     assert.equal(nextLine(), "Next match: sits it out · Lasting Injury (MA)");
-    fireEvent(toggle("p6#5"), "click");
+    fireEvent(toggle("p6#0"), "click");
     assert.equal(nextLine(), "Next match: sits it out · Temporarily retired for the season");
-    fireEvent(toggle("p7#6"), "click");
+    fireEvent(toggle("p7#0"), "click");
     assert.equal(nextLine(), "Next match: sits it out · Suspended");
     // A 2.x skip says no why, and the line does not say it twice (K3).
-    fireEvent(toggle("p5#4"), "click");
+    fireEvent(toggle("p5#0"), "click");
     assert.equal(nextLine(), "Next match: sits it out");
     fireEvent(toggle("p1#0"), "click");
     assert.equal(nextLine(), "Next match: plays");
@@ -323,13 +323,13 @@ test("the cause and the note are text", async () => {
         fallen: [{ ...PIKE, cause: HOSTILE }],
       });
       await renderTeamRoster("t1");
-      assert.equal(subOf("p7#6").textContent, HOSTILE);
+      assert.equal(subOf("p7#0").textContent, HOSTILE);
       assert.equal(subOf("fallen-f1").textContent, `Fallen · ${HOSTILE}`);
       fireEvent(toggle("fallen-f1"), "click");
       const where = phone ? openRow() : aside();
       assert.ok(words(where).includes(HOSTILE));
       if (!phone) {
-        fireEvent(toggle("p7#6"), "click");
+        fireEvent(toggle("p7#0"), "click");
         assert.equal(nextLine(), `Next match: sits it out · ${HOSTILE}`);
       }
       assert.ok(!view.querySelector("img"));
@@ -346,7 +346,7 @@ test("every key the new files ask for is in both dictionaries", () => {
 test("everything drawn is styled: the three sections, a skipper's row, a fallen row open and a fallen player in the panel", async () => {
   for (const phone of [true, false]) {
     await withWindow({ phone }, async () => {
-      for (const key of ["fallen-f1", "fallen-f2", "p4#3"]) {
+      for (const key of ["fallen-f1", "fallen-f2", "p4#0"]) {
         coach();
         await renderTeamRoster("t1");
         fireEvent(toggle(key), "click");
@@ -420,10 +420,10 @@ test("a playing player's row has «Miss a match…», a skipper's «Back on the 
     assert.equal(mark.getAttribute("aria-haspopup"), "dialog");
     assert.ok(!mark.hasAttribute("aria-disabled"));
     assert.ok(!returnButton(openRow()));
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     const back = returnButton(openRow());
     assert.equal(back.textContent, "Back on the roster");
-    assert.equal(back.getAttribute("data-roster-return"), "p4#3");
+    assert.equal(back.getAttribute("data-roster-return"), "p4#0");
     assert.ok(!back.hasAttribute("aria-disabled"));
     assert.ok(!markButton(openRow()), "no second mark over the first: he is brought back first");
     assertStyled(view, ...STYLES);
@@ -434,7 +434,7 @@ test("a playing player's row has «Miss a match…», a skipper's «Back on the 
   const actions = aside().querySelector(".g-roster__actions");
   assert.ok(aside().childNodes.indexOf(actions) > aside().childNodes.indexOf(next), "on a desk under «Next match»");
   assert.equal(markButton().textContent, "Miss a match…");
-  fireEvent(toggle("p7#6"), "click");
+  fireEvent(toggle("p7#0"), "click");
   assert.equal(returnButton().textContent, "Back on the roster");
   assert.ok(!markButton());
   // A match on: their place is the match's injury.
@@ -443,7 +443,7 @@ test("a playing player's row has «Miss a match…», a skipper's «Back on the 
       coach();
       gamesAre([LIVE_GAME]);
       await renderTeamRoster("t1");
-      for (const key of ["p1#0", "p4#3"]) {
+      for (const key of ["p1#0", "p4#0"]) {
         fireEvent(toggle(key), "click");
         assert.ok(!view.querySelector(".g-roster__actions"));
         assert.ok(!view.querySelector("[data-roster-mark]"));
@@ -573,14 +573,14 @@ test("back on the roster: one PATCH, he plays the next match again", async () =>
     await withoutTimers(async () => {
       coach();
       await renderTeamRoster("t1");
-      fireEvent(toggle("p4#3"), "click");
+      fireEvent(toggle("p4#0"), "click");
       const back = returnButton(openRow());
       back.focus();
       api.reply(PATCH, 200, { team: withPlayers(PLAYERS.map((player) => (player.id === "p4" ? { ...player, skipNextGame: false, absence: null } : player)), { revision: 5 }) });
       fireEvent(back, "click");
       assert.deepEqual(tables().map(namesIn).slice(0, 2), [["Ann", "Bors", "Cade", "Dell"], ["Edda", "Finn", "Grom"]], "drawn at once");
-      assert.equal(subOf("p4#3").textContent, "Human Lineman");
-      assert.ok(document.activeElement === toggle("p4#3"), "the focus on his row's button, in its new place");
+      assert.equal(subOf("p4#0").textContent, "Human Lineman");
+      assert.ok(document.activeElement === toggle("p4#0"), "the focus on his row's button, in its new place");
       assert.equal(markButton(openRow()).textContent, "Miss a match…", "his row stays open, with the mark");
       await settle();
       assert.equal(patches().length, 1);
@@ -598,7 +598,7 @@ test("a player retired for the season cannot be brought back here, and says why"
   await withoutTimers(async () => {
     coach();
     await renderTeamRoster("t1");
-    fireEvent(toggle("p6#5"), "click");
+    fireEvent(toggle("p6#0"), "click");
     const back = returnButton();
     assert.equal(back.textContent, "Back on the roster");
     assert.equal(back.getAttribute("aria-disabled"), "true");
@@ -625,7 +625,7 @@ test("closed while the games are unread, the roster is read or a conflict waits"
     fireEvent(markButton(), "click");
     assert.equal(toasts().at(-1), "Loading the matches…");
     assert.ok(!markSheet());
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     assert.equal(returnButton().getAttribute("aria-disabled"), "true");
     assert.equal(returnButton().getAttribute("title"), "Loading the matches…");
     fireEvent(returnButton(), "click");
@@ -700,12 +700,12 @@ test("another tab's coach: no mark is sent, and the coach is told", async () => 
     fireEvent(markOption("niggling"), "click");
     assert.ok(!markSheet().querySelector(".g-roster__markrefusal"), "a refusal goes with the choice it was said of");
     fireEvent(markSheet().querySelector("[data-sheet-close]"), "click");
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     fireEvent(returnButton(), "click");
     assert.equal(toasts().at(-1), OTHER_TAB);
     await settle();
     assert.equal(patches().length, 0);
-    assert.equal(subOf("p4#3").textContent, "Lasting Injury (MA)");
+    assert.equal(subOf("p4#0").textContent, "Lasting Injury (MA)");
   });
 });
 
@@ -721,7 +721,7 @@ test("one press, one save: «Mark the missed match» and «Back on the roster» 
     fireEvent(send, "click");
     await settle();
     assert.equal(patches().length, 1);
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     const back = returnButton();
     api.reply(PATCH, 200, { team: annMarked({ absence: { code: "miss" } }) });
     fireEvent(back, "click");
@@ -746,7 +746,7 @@ test("a mark or a return refused after a 422 whose read failed reads the roster 
     assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"], "the read after the refusal failed");
     const reads = () => api.calls.filter(({ key }) => key === "GET /api/teams/t1").length;
     const before = reads();
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     fireEvent(returnButton(), "click");
     assert.match(toasts().at(-1), /Ann/, "the rule that refused the queue");
     await settle();
@@ -1127,7 +1127,7 @@ test("while a death is on its way every step and mark waits, and a second press 
     assert.equal(markButton().getAttribute("title"), WRITING);
     fireEvent(markButton(), "click");
     assert.ok(!markSheet());
-    fireEvent(toggle("p4#3"), "click");
+    fireEvent(toggle("p4#0"), "click");
     assert.equal(returnButton().getAttribute("title"), WRITING);
     fireEvent(returnButton(), "click");
     assert.equal(toasts().at(-1), WRITING);
@@ -1217,6 +1217,38 @@ test("a death's answer that lands under another visit of the roster: the visit d
     assert.equal(tdValue(), "1");
     assert.equal(patches().at(-1).body.revision, 5);
     api.assertAnswered();
+  });
+});
+
+// The final review's row keys (T8): a line's key is his id and how many before him share it, not his place — a death,
+// which takes a place out of the roster, re-keys nobody after it.
+test("a death re-keys nobody: the players after her keep their keys, the panel its player and his «+N SPP»", async () => {
+  const keysOf = (table) => table.querySelectorAll("tbody.g-rtable__player").map((body) => body.getAttribute("data-key"));
+  const delta = () => aside().querySelector(".g-roster__sppdelta").textContent;
+  const withCade = (players) => players.map((player) => (player.id === "p3" ? { ...player, spp: { touchdowns: 1 } } : player));
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    const [annKey, , cadeKey] = keysOf(tables()[0]);
+    const later = [...keysOf(tables()[0]).slice(1), ...keysOf(tables()[1])];
+    fireEvent(toggle(cadeKey), "click");
+    api.reply(PATCH, 200, { team: withPlayers(withCade(PLAYERS), { revision: 5 }) });
+    fireEvent(plusTd(), "click");
+    await settle();
+    assert.equal(delta(), "+3 SPP");
+    fireEvent(toggle(annKey), "click");
+    chooseDeath();
+    const death = api.hold(DEATH);
+    fireEvent(sendButton(), "click");
+    await settle();
+    fireEvent(markSheet(), "keydown", { key: "Escape" });
+    fireEvent(toggle(cadeKey), "click");
+    death.release({ status: 201, body: { team: withPlayers(withCade(PLAYERS.filter((player) => player.id !== "p1")), { revision: 6 }), fallen: annFell() } });
+    await settle();
+    assert.deepEqual(namesIn(tables()[2]), ["Ann", "Pike", "Joe"]);
+    assert.deepEqual([...keysOf(tables()[0]), ...keysOf(tables()[1])], later, "the players after her keep their keys");
+    assert.equal(aside().getAttribute("data-panel-player"), cadeKey, "the panel keeps Cade");
+    assert.equal(delta(), "+3 SPP", "and his SPP since the screen opened");
   });
 });
 

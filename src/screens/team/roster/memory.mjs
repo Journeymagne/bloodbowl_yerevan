@@ -11,7 +11,7 @@ const memories = new Map();
 /**
  * @typedef {object} RosterMemory
  * @property {{key: string, dir: "asc"|"desc"}|null} sort null is the roster's own order
- * @property {string|null} selected a line's key (`<id>#<place>`), or none
+ * @property {string|null} selected a line's key (`<id>#<n>`, model.mjs), or none
  * @property {string|null} outside the game id of the match in which «Edit outside the match» is on, or none: the
  *   switch is the team's and that match's (R13), so the next match starts with it off (stage 07a, Task 11)
  * @property {Map<string, number>} baseline a line's SPP when this visit first showed it, and the SPP of the edits
