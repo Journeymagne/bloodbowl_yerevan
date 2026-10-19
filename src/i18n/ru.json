@@ -1285,7 +1285,7 @@
   "teamRoster.hire.cart": "Корзина",
   "teamRoster.hire.left": "Останется",
   "teamRoster.hire.minus": "−{amount}",
-  "teamRoster.hire.limit": "{skills} · в команде {have} из {max}",
+  "teamRoster.hire.limit": "{skills}\u00a0· в\u00a0команде\u00a0{have}\u00a0из\u00a0{max}",
   "teamRoster.hire.add": "Добавить в корзину: {position}",
   "teamRoster.hire.addWord": "В корзину",
   "teamRoster.hire.drop": "Убрать из корзины: {position}",

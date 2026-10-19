@@ -56,8 +56,8 @@ const MAINTENANCE_TOKEN = {
 };
 
 const MODE = {
-  light: { "--danger": "#A0473A", "--danger-tint": "#FBEDEA", "--on-danger-tint": "#7A2E22", "--on-danger": "#FFFFFF", "--warn": "#B07A1E", "--warn-tint": "#FBF1DD", "--on-warn-tint": "#6B4A0E", "--disabled": "#A9B3AE", "--scrim": "rgba(10, 22, 16, 0.5)" },
-  dark: { "--danger": "#F2A99C", "--danger-tint": "#45201A", "--on-danger-tint": "#F2A99C", "--on-danger": "#45201A", "--warn": "#E8C26A", "--warn-tint": "#3B2E14", "--on-warn-tint": "#F2D08A", "--disabled": "#4E5F56", "--scrim": "rgba(0, 0, 0, 0.6)" },
+  light: { "--danger": "#A0473A", "--danger-tint": "#FBEDEA", "--on-danger-tint": "#7A2E22", "--on-danger": "#FFFFFF", "--danger-fill": "#C4352A", "--on-danger-fill": "#FFFFFF", "--warn": "#B07A1E", "--warn-tint": "#FBF1DD", "--on-warn-tint": "#6B4A0E", "--disabled": "#A9B3AE", "--scrim": "rgba(10, 22, 16, 0.5)" },
+  dark: { "--danger": "#F2A99C", "--danger-tint": "#45201A", "--on-danger-tint": "#F2A99C", "--on-danger": "#45201A", "--danger-fill": "#C4352A", "--on-danger-fill": "#FFFFFF", "--warn": "#E8C26A", "--warn-tint": "#3B2E14", "--on-warn-tint": "#F2D08A", "--disabled": "#4E5F56", "--scrim": "rgba(0, 0, 0, 0.6)" },
 };
 
 const SCALES = {
@@ -200,6 +200,17 @@ test("every palette can be drawn inside a preview, not only on the page", () => 
 
 test("white on the accent reads 4.5:1 in every palette", () => {
   assertContrast("--on-accent", ["--accent"], 4.5);
+});
+
+// The owner's answer after 07c: the irreversible button is filled with the prototypes' #C4352A (DeskRosterSell,
+// StatsSell), while red words keep --danger. The prototypes draw no dark filled danger button, so the dark mode keeps
+// the same fill, as it keeps the accent's: white on it 5.4:1, and the fill 3:1 off the sheet it stands on (WCAG 1.4.11).
+test("white on the danger fill reads 5.4:1, and the fill stands off the surface, in every palette", () => {
+  assert.equal(contrast(colourOf("#FFFFFF", {}), colourOf(MODE.light["--danger-fill"], {})).toFixed(1), "5.4");
+  assertContrast("--on-danger-fill", ["--danger-fill"], 4.5);
+  assertContrast("--danger-fill", ["--surface"], 3);
+  // Red words are not the fill: --danger is #A0473A in a light palette.
+  assert.notEqual(MODE.light["--danger"], MODE.light["--danger-fill"]);
 });
 
 test("white on the maintenance page's accent reads 4.5:1 in every palette", () => {

@@ -510,12 +510,12 @@ test("a playing player's row has «Miss a match…», a skipper's «Back on the 
         assert.ok(!view.querySelector("[data-roster-mark]"));
         assert.ok(!view.querySelector("[data-roster-return]"));
       }
-      // The pair holds «Match injury…» for one who plays it (StatsLive.html), beside stage 07c's closed «Sell»; for one
+      // The pair holds «Injury in the match…» for one who plays it (StatsLive.html), beside stage 07c's closed «Sell»; for one
       // who sits it out, the closed «Sell» alone (K2).
       const pair = () => view.querySelector(".g-roster__actions").childNodes.filter((node) => node.nodeType === 1).map((button) => button.textContent);
       assert.deepEqual(pair(), ["Sell"], "Dell sits it out");
       fireEvent(toggle("p1#0"), "click");
-      assert.deepEqual(pair(), ["Match injury…", "Sell"]);
+      assert.deepEqual(pair(), ["Injury in the match…", "Sell"]);
     });
   }
 });
@@ -974,6 +974,18 @@ test("the pair of actions: two columns, the second stage 07c's «Sell»; a thumb
   assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "gap"), ["var(--space-8)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "min-height"), ["var(--size-touch)"]);
   assert.deepEqual(valuesOf("src/screens/team/roster/frame.css", ".g-roster__actions > .g-btn", "min-height"), ["40px"]);
+  // A label too long for its half (the owner's «Injury in the match…» beside «Sell» at 390 and 360px) wraps to two
+  // balanced lines, centred (button.css), 4px clear of the edges, in a button that keeps its 44px; the grid stretches
+  // both halves to the taller one, so the pair stays level. Nothing holds it on one line.
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "align-items"), ["stretch"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "padding"), ["var(--space-4) var(--space-10)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "text-wrap"), ["balance"]);
+  assert.deepEqual([valuesOf("src/ui/button.css", ".g-btn", "text-align"), valuesOf("src/ui/button.css", ".g-btn", "justify-content")], [["center"], ["center"]]);
+  for (const property of ["white-space", "text-overflow", "overflow"]) {
+    for (const file of [sheet, "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "src/ui/button.css"]) {
+      for (const selector of [".g-roster__actions", ".g-roster__actions > .g-btn", ".g-btn"]) assert.deepEqual(valuesOf(file, selector, property), [], `${file} ${selector} ${property}`);
+    }
+  }
   assert.deepEqual([valuesOf(sheet, ".g-roster__actions", "font"), valuesOf(sheet, ".g-roster__actions", "letter-spacing"), valuesOf(sheet, ".g-roster__actions", "text-transform")],
     [["600 14px/1.2 var(--font-body)"], ["0"], ["none"]]);
   for (const selector of [".g-roster__markrefusal", ".g-roster__markeffect"]) {

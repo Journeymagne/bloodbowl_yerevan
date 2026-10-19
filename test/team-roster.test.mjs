@@ -1641,7 +1641,7 @@ test("the switch is kept per match too: the same team's next match starts with i
 // ---------------------------------------------------------------------------
 
 const injurySheet = () => view.querySelector("dialog#roster-injury");
-/** «Match injury…»: the desk panel's by default, or the open row's. */
+/** «Injury in the match…»: the desk panel's by default, or the open row's. */
 const injuryButton = (root = aside()) => root.querySelector("[data-roster-injury]");
 const injuryOptions = () => injurySheet().querySelectorAll('.g-option[role="radio"]');
 const optionFor = (code) => injuryOptions().find((card) => card.getAttribute("data-option-value") === code);
@@ -1657,13 +1657,13 @@ const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/r
   "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "sheet.css", "option-card.css", "filter-chips.css",
   "src/screens/team/manage/strip.css"];
 
-test("«Match injury…» opens a sheet of five injuries; a lasting one asks for the characteristic; «Record in the match» sends one injury row", async () => {
+test("«Injury in the match…» opens a sheet of five injuries; a lasting one asks for the characteristic; «Record in the match» sends one injury row", async () => {
   await withoutTimers(async () => {
     coach();
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     const opener = injuryButton();
-    assert.equal(opener.textContent, "Match injury…");
+    assert.equal(opener.textContent, "Injury in the match…");
     assert.equal(opener.getAttribute("data-roster-injury"), "p1#0");
     assert.equal(opener.getAttribute("aria-haspopup"), "dialog");
     opener.focus();
@@ -1819,7 +1819,7 @@ test("no injury for a player who sits the match out, nor with the switch on, nor
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     fireEvent(toggle("p1#0"), "click");
-    assert.equal(injuryButton(openRow()).textContent, "Match injury…", "in the open row on a phone");
+    assert.equal(injuryButton(openRow()).textContent, "Injury in the match…", "in the open row on a phone");
     fireEvent(toggle("p4#0"), "click");
     assert.ok(!injuryButton(openRow()), "Dell sits it out");
     fireEvent(toggle("p1#0"), "click");
@@ -2534,14 +2534,14 @@ test("an injury recorded in the match names itself: «Injury: Seriously Hurt» i
     const next = aside().querySelector(".g-roster__next");
     assert.equal(next.textContent, "Next match: injury in the match: Seriously Hurt");
     assert.ok(next.querySelector("b").classList.contains("g-roster__nextstate--alert"));
-    // A lasting one with its characteristic; one with none recorded keeps «Match injury…».
+    // A lasting one with its characteristic; one with none recorded keeps «Injury in the match…».
     coach({ events: [injuryRow({ code: "lasting", stat: "ag" })] });
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     assert.equal(injuryButton().textContent, "Injury: Lasting Injury (AG)");
     assert.equal(aside().querySelector(".g-roster__next").textContent, "Next match: injury in the match: Lasting Injury (AG)");
     fireEvent(toggle("p2#0"), "click");
-    assert.equal(injuryButton().textContent, "Match injury…");
+    assert.equal(injuryButton().textContent, "Injury in the match…");
     assert.equal(aside().querySelector(".g-roster__next").textContent, "Next match: Plays");
     await withWindow({ phone: true }, async () => {
       coach({ events: [injuryRow({ code: "miss" })] });

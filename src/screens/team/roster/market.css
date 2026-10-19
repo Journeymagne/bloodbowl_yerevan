@@ -126,7 +126,7 @@
 .g-market__letter--blitzer { background: var(--pos-blitzer); }
 .g-market__letter--big { background: var(--pos-big); }
 
-/* The name and the price on one line, then the characteristics, then the skills and the count — each on one line. */
+/* The name and the price on one line, then the characteristics, then the skills and the count — each wrapping as it needs. */
 .g-market__text {
   display: flex;
   flex: 1 1 auto;
@@ -154,11 +154,10 @@
   letter-spacing: 0;
   text-transform: none;
 }
+/* Both wrap rather than end in «…» (the owner's answer after 07c): nothing of a position is hidden; the card grows. */
 .g-market__stats,
 .g-market__meta {
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
+  overflow-wrap: anywhere;
 }
 .g-market__stats {
   color: var(--ink-2);
