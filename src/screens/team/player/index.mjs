@@ -11,11 +11,12 @@
  * the team's head (the player's own head is stage 07d's), and its one visible `h1` is his name.
  *
  * The undo is the roster's own (marks.mjs, Task 9), lent this page instead of the roster: the same sheet, one DELETE
- * per press, never in a match, never while a write of the fallen is on its way, its answer the list's — and the
- * queue's, when it holds the team — whatever became of the sheet (K8), and only for the coach who sent it; a lost one
- * is never sent again, but the fallen and the coach's list are read back and the coach told what they say. Only the
- * roster's screen sends or settles the steps of its queue, so while one waits the undo here would wait for ever: the
- * page says so and leads there (K14). Once he is back the page says so, with the way back to the roster.
+ * per press, never in a match, never while a write of the fallen is on its way, its answer the list's — never the
+ * roster's queue, whose team the roster reads again (I1) — whatever became of the sheet (K8), and only for the coach
+ * who sent it; a lost one is never sent again, but the fallen and the coach's list are read back and the coach told
+ * what they say. Only the roster's screen sends or settles the steps of its queue, so while one waits the undo here
+ * would wait for ever: the page says so and leads there (K14). Once he is back the page says so, with the way back to
+ * the roster.
  */
 import { delegate, drawScreen, escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -289,9 +290,10 @@ async function readAgain(page) {
 
 /**
  * What the page lends the roster's undo (marks.mjs's `Lent`): the page as it stands; an answer taken (K8) — the list's,
- * and the queue's when it holds the team and nothing of the coach's waits (`takeAnswerTeam`), whatever became of the
- * visit, drawn while it is here; the read again; and, once he is back, the page's own words for it. No `reload`: only
- * a death's conflict asks for one, and the page marks no death.
+ * whatever became of the visit, drawn while it is here, and never the roster's queue (`takeAnswerTeam`, I1): the
+ * roster draws the queue's draft, and reads the team again on its next visit, or at once when it is open again and the
+ * list is ahead of it; the read again; and, once he is back, the page's own words for it. No `reload`: only a death's
+ * conflict asks for one, and the page marks no death.
  * @param {Page} page
  */
 function lentOf(page) {
@@ -301,15 +303,14 @@ function lentOf(page) {
     // A press refused while the roster's queue waits retakes nothing here: its steps are the roster's to send (K14).
     refused: () => {},
     hold: ({ team, fallen }) => {
-      takeAnswerTeam(team);
+      takeAnswerTeam(team, { queue: false });
       if (!visit.here) return;
       visit.fallen = fallen;
       page.draw();
     },
     readAgain: () => readAgain(page),
     // The page says it and a screen reader hears it. The page under the focus is gone (the sheet that sent it, the undo
-    // it stood on): the way back to the roster takes it — not the name, where a redraw on the way may have left it (the
-    // queue that takes the team draws the page before his record is gone).
+    // it stood on): the way back to the roster takes it — not the name, where a redraw on the way may have left it.
     back: (line) => {
       visit.back = true;
       page.draw();

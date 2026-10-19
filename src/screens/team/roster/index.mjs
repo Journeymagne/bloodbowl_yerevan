@@ -24,7 +24,8 @@
  * read of one without the other would draw a player twice or not at all. A missed match and back on the roster are
  * steps of the queue like a counter's (marks.mjs): a match that begins while one waits gives it up as it gives up
  * the SPP steps, and the coach is told how many of each. A death and its undo are no step of it: each goes only when
- * none waits, every step and mark waits while one is on its way, and its answer is the queue's and the list's.
+ * none waits, every step and mark waits while one is on its way, and its answer is the list's — and the queue's while
+ * the visit that sent it is here (I1).
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
@@ -287,14 +288,15 @@ async function reloadFree(saving) {
 }
 
 /**
- * The team a death or its undo was answered with, and the fallen to draw (marks.mjs, K5): the queue's and the list's at
- * once (`takeAnswerTeam`), whatever became of the visit (K8); drawn while it is here. A team the queue does not take —
- * older than what it holds, or met by a step that waits — is not drawn: the roster is read again (`reloadFree`).
+ * The team a death or its undo was answered with, and the fallen to draw (marks.mjs, K5): the list's whatever became of
+ * the visit (K8), and the queue's while the visit is here (`takeAnswerTeam`, I1) — drawn then. Once it has left, the
+ * queue is another visit's: that one reads the team again when the list is ahead of it (`followList`). A team the queue
+ * does not take — older than what it holds, or met by a step that waits — is not drawn: the roster is read again (`reloadFree`).
  * @param {Saving} saving @param {{team: object, fallen: object[]}} answer
  */
 function holdAnswer(saving, { team, fallen }) {
   const { visit } = saving;
-  const draft = takeAnswerTeam(team);
+  const draft = takeAnswerTeam(team, { queue: visit.here });
   if (!visit.here) return;
   if (draft) holdTeam(saving, { team, events: visit.events, fallen }, draft, visit.heard.length);
   else void reloadFree(saving);

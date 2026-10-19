@@ -11,12 +11,13 @@
  *
  * A death (Task 8) is one write of stage 03's, on the revision the queue stands on: never while a step of the queue
  * waits, is on its way, or meets a conflict or a 422 (its button says so, K6), and every step and mark waits for its
- * answer (index.mjs's lock, K7). That answer is the queue's and the list's however the sheet has fared (K8), and only
- * for the coach who sent it; a lost one is never sent again: the roster and the fallen are read back, and the coach is
- * told what they say — and only what both say (K15). Its undo (Task 9), asked first in a sheet of its own, is written
- * the same way (`writeOnce`, `readBack`): it names its record and no revision, so it meets no conflict, and a record
- * the server no longer has reads the roster again. The player's own page (screens/team/player, Task 10) offers the same
- * undo through `markHandlers`, with a `Lent` of its own.
+ * answer (index.mjs's lock, K7). That answer is the list's however the sheet has fared (K8) — and the queue's while the
+ * visit that sent it is here (I1) — and only for the coach who sent it; a lost one is never sent again: the roster and
+ * the fallen are read back, and the coach is told what they say — and only what both say (K15). Its undo (Task 9),
+ * asked first in a sheet of its own, is written the same way (`writeOnce`, `readBack`): it names its record and no
+ * revision, so it meets no conflict, and a record the server no longer has reads the roster again, the coach told what
+ * the read shows. The player's own page (screens/team/player, Task 10) offers the same undo through `markHandlers`,
+ * with a `Lent` of its own.
  */
 import { toast } from "../../../components/toast.mjs";
 import { t } from "../../../core/i18n.mjs";

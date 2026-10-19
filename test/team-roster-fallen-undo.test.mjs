@@ -455,7 +455,8 @@ test("while an undo is on its way every step and mark waits, and a second press 
     assert.ok(!plusTd().hasAttribute("aria-disabled"), "open again once it has answered");
     assert.equal(undos().length, 1);
   });
-  // The coach left the roster: the queue and the list take the answer all the same, for the next visit.
+  // The coach left the roster: the list takes the answer all the same; the queue, which no visit draws now, is left as
+  // it was (final review, I1), and the next visit reads the team.
   await withoutTimers(async () => {
     coach();
     await renderTeamRoster("t1");
@@ -467,8 +468,12 @@ test("while an undo is on its way every step and mark waits, and a second press 
     undo.release({ status: 200, body: { team: withPike() } });
     await settle();
     assert.equal(state.myTeams.items[0].revision, 5);
-    assert.equal(save.savedRevision("t1"), 5);
+    assert.equal(save.savedRevision("t1"), 4, "the queue is left as it was");
     assert.ok(!toasts().includes(BACK));
+    serverHolds(withPike(), [JOE]);
+    await renderTeamRoster("t1");
+    assert.equal(save.savedRevision("t1"), 5, "the next visit reads the team");
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade", "Pike"]);
   });
 });
 

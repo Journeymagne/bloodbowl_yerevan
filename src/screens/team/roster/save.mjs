@@ -13,11 +13,13 @@
  *
  * A missed-match mark and back on the roster are the same kind of step (stage 07b): one player's fields changed in the
  * draft, the whole roster saved. A death and its undo are not the queue's (fallen.mjs); their answer is taken here, the
- * queue first, so that the list's revision is never ahead of the queue's for a write of the queue's own screen. Not
- * while a step of the coach's waits or is in the air: taken then, the answer would give that step up without a word
- * (K7). The list alone has it then, and the screen leaves the queue alone — a read taken by `takeServerTeam` would give
- * the step up all the same — and sends no death or undo while a step waits (stage 07b, Task 8, locks that). Nor is an
- * answer older than what the queue or the list holds taken: it would take back a write that came after it.
+ * queue first, so that the list's revision is never ahead of the queue's for a write of the queue's own screen — only
+ * for the roster's visit that sent it, while it is on the screen: another visit draws the queue's draft, and reads the
+ * team again once the list is ahead of it (`takeAnswerTeam`). Not while a step of the coach's waits or is in the air:
+ * taken then, the answer would give that step up without a word (K7). The list alone has it then, and the screen leaves
+ * the queue alone — a read taken by `takeServerTeam` would give the step up all the same — and sends no death or undo
+ * while a step waits (stage 07b, Task 8, locks that). Nor is an answer older than what the queue or the list holds
+ * taken: it would take back a write that came after it.
  */
 import { API_ERROR, ApiError } from "../../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../../core/api-client.mjs";
@@ -297,21 +299,29 @@ function behind(team) {
 }
 
 /**
- * The team a death or its undo was answered with (fallen.mjs): to the queue first (`takeServerTeam`), when it holds
- * the team and has nothing of the coach's to send — no step waiting, none in the air — and then to its place in the
- * coach's list, whose listeners so read the queue's revision as the list's.
+ * The team a death or its undo was answered with (fallen.mjs): to the queue first (`takeServerTeam`), when `queue` says
+ * so and it holds the team and has nothing of the coach's to send — no step waiting, none in the air — and then to its
+ * place in the coach's list, whose listeners so read the queue's revision as the list's.
  *
- * Null when the queue did not take it. A team the queue does not hold (a fallen player's profile): the list alone has
- * it. A step of the coach's waits or is in the air: the list alone has it, and the screen leaves the queue alone (K7)
- * — `takeServerTeam`, or a read taken by it, would give the step up without a word; the step meets the answer's
+ * `queue` is for the roster's visit that sent the write, while it is still on the screen: the draft it draws is the
+ * queue's, and the one `takeServerTeam` hands back is drawn in its place. Any other caller — a visit that has left, the
+ * fallen player's profile — leaves the queue as it is (final review, I1): a later visit of the roster draws the queue's
+ * draft, and a draft swapped under it would draw a dead player still on the roster and steps saved but never drawn.
+ * That visit sees the list ahead of its queue and reads the team again (index.mjs, `followList`); one opened later
+ * reads it on entry.
+ *
+ * Null when the queue did not take it. Not asked to, or a team the queue does not hold: the list alone has it. A step
+ * of the coach's waits or is in the air: the list alone has it, and the screen leaves the queue alone (K7) —
+ * `takeServerTeam`, or a read taken by it, would give the step up without a word; the step meets the answer's
  * revision as a 409 the coach settles. That is why no death or undo is sent while a step waits (stage 07b, Task 8,
  * locks that). An answer older than what the queue or the list holds (`behind`): neither is touched, and a read
  * brings the newest.
- * @param {object} team GET's shape @returns {object|null} the draft to draw; null when the queue did not take the team
+ * @param {object} team GET's shape @param {{queue?: boolean}} [options]
+ * @returns {object|null} the draft to draw; null when the queue did not take the team
  */
-export function takeAnswerTeam(team) {
+export function takeAnswerTeam(team, { queue = false } = {}) {
   if (behind(team)) return null;
-  const free = savedRevision(team.id) !== null && waitingFor(team.id) === 0;
+  const free = queue && savedRevision(team.id) !== null && waitingFor(team.id) === 0;
   const draft = free ? takeServerTeam(team) : null;
   putInPlace(team);
   return draft;

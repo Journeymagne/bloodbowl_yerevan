@@ -686,7 +686,8 @@ test("a mark after a refusal by the rules says why and changes nothing, until th
   assert.deepEqual(await settle(), quiet("saved"));
 });
 
-// A death and its undo are not the queue's (fallen.mjs): their answer is taken here, the queue first.
+// A death and its undo are not the queue's (fallen.mjs): their answer is taken here, the queue first — for the roster's
+// visit that sent it while it is here (`queue`); for anyone else the list alone (final review, I1).
 test("the answer to a death or an undo goes to the queue, then to the coach's list", async () => {
   await open(teamAt(4, undefined, {}, skips()));
   state.myTeams.items = [{ id: "t0", name: "Other" }, { id: "t1", name: "Old name", revision: 4 }, { id: "t9", name: "Ninth", revision: 2 }];
@@ -694,7 +695,7 @@ test("the answer to a death or an undo goes to the queue, then to the coach's li
   const off = onMyTeamsChange(() => heard.push([save.savedRevision("t1"), state.myTeams.items[1].revision]));
   try {
     // Bo died: the answer's roster is without him.
-    const draft = save.takeAnswerTeam(teamAt(5, undefined, {}, skips().filter((player) => player.id !== "p2")));
+    const draft = save.takeAnswerTeam(teamAt(5, undefined, {}, skips().filter((player) => player.id !== "p2")), { queue: true });
     assert.deepEqual(draft.players.map((player) => player.id), ["p1", "p3"]);
     assert.equal(save.savedRevision("t1"), 5);
     assert.deepEqual(state.myTeams.items.map((item) => [item.id, item.revision]), [["t0", undefined], ["t1", 5], ["t9", 2]]);
@@ -704,9 +705,14 @@ test("the answer to a death or an undo goes to the queue, then to the coach's li
     assert.deepEqual(save.markSkip("t1", "p1", { code: "miss" }), { ok: true });
     await settle();
     assert.deepEqual(patches().map(({ body }) => [body.revision, body.roster.players.length]), [[5, 2]], "the next step goes on the answer's revision and roster");
-    // A team the queue does not hold (a fallen player's profile): the list has it all the same.
+    // Not asked to take it into the queue (a visit that has left, the fallen player's profile): the list alone has it,
+    // and the queue's draft, which a visit of the roster may be drawing, is left as it is.
+    const before = save.saveState("t1");
+    assert.equal(save.takeAnswerTeam(teamAt(7, undefined, {}, skips())), null);
+    assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[1].revision, save.saveState("t1")], [6, 7, before]);
+    // A team the queue does not hold: the list has it all the same.
     heard.length = 0;
-    assert.equal(save.takeAnswerTeam({ ...teamAt(3), id: "t9", name: "Ninth" }), null);
+    assert.equal(save.takeAnswerTeam({ ...teamAt(3), id: "t9", name: "Ninth" }, { queue: true }), null);
     assert.deepEqual([state.myTeams.items[2].revision, save.savedRevision("t9"), heard.length], [3, null, 1]);
   } finally {
     off();
@@ -724,16 +730,16 @@ test("an answer older than what the queue or the list holds is not taken: neithe
   const off = onMyTeamsChange(() => { heard += 1; });
   try {
     const late = teamAt(5, undefined, {}, skips().filter((player) => player.id !== "p2"));
-    assert.equal(save.takeAnswerTeam(late), null);
+    assert.equal(save.takeAnswerTeam(late, { queue: true }), null);
     assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[1].revision, heard], [6, 6, 0]);
     assert.deepEqual([save.saveState("t1"), draft.players.length], [quiet("saved"), 3], "the queue and its draft as they were");
     // Only the list ahead (the strip's write, not yet read): the queue at 4 is not moved to 5 either.
     save.takeServerTeam(teamAt(4, undefined, {}, skips()));
     state.myTeams.items[1] = { ...state.myTeams.items[1], revision: 6 };
-    assert.equal(save.takeAnswerTeam(late), null);
+    assert.equal(save.takeAnswerTeam(late, { queue: true }), null);
     assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[1].revision, heard], [4, 6, 0]);
     // The same revision is the same team: taken.
-    assert.ok(save.takeAnswerTeam(teamAt(6, undefined, {}, skips())));
+    assert.ok(save.takeAnswerTeam(teamAt(6, undefined, {}, skips()), { queue: true }));
     assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[1].revision, heard], [6, 6, 1]);
   } finally {
     off();
@@ -746,19 +752,19 @@ test("an answer that comes while a step waits or is in the air goes to the list 
   api.fail(PATCH_URL);
   save.stepSpp("t1", "p1", "touchdowns", 1);
   assert.equal((await settle()).status, "offline");
-  assert.equal(save.takeAnswerTeam(teamAt(5)), null, "a step waits for the network");
+  assert.equal(save.takeAnswerTeam(teamAt(5), { queue: true }), null, "a step waits for the network");
   assert.deepEqual([save.saveState("t1").waiting, save.savedRevision("t1"), draft.players[0].spp.touchdowns], [1, 4, 3]);
   assert.equal(state.myTeams.items[1].revision, 5, "the list has the answer: the screen reads the team again");
   const gate = api.hold(PATCH_URL);
   const retried = save.retrySaves("t1");
   await waitHeld(gate);
-  assert.equal(save.takeAnswerTeam(teamAt(6)), null, "a step in the air");
+  assert.equal(save.takeAnswerTeam(teamAt(6), { queue: true }), null, "a step in the air");
   assert.deepEqual([save.saveState("t1").waiting, save.savedRevision("t1"), state.myTeams.items[1].revision], [1, 4, 6]);
   gate.release({ status: 409, body: { error: elsewhereError, team: teamAt(6) } });
   assert.equal(await retried, "conflict", "the step meets the server's roster, and the coach settles it");
   assert.equal(save.saveState("t1").waiting, 1);
   // Settled, a later answer is the queue's again.
   save.takeServerTeam(teamAt(6));
-  assert.equal(save.takeAnswerTeam(teamAt(7)).players[0].spp.touchdowns, 2);
+  assert.equal(save.takeAnswerTeam(teamAt(7), { queue: true }).players[0].spp.touchdowns, 2);
   assert.equal(save.savedRevision("t1"), 7);
 });

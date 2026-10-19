@@ -7,8 +7,8 @@ import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
-  FALLEN, JOE, LIVE_GAME, PIKE, PLAYERS, STYLES, api, coach, died, formatDay, invalidateGames, releaseCurrentScreen, save, settle, state, team, text, view,
-  withPlayers, words,
+  FALLEN, JOE, LIVE_GAME, PIKE, PLAYERS, STYLES, api, aside, coach, died, formatDay, invalidateGames, namesIn, releaseCurrentScreen, renderTeamRoster, save,
+  settle, state, tables, team, text, toggle, view, withPlayers, words,
 } from "./helpers/roster-page.mjs";
 
 const { renderTeamPlayer } = await import("../src/screens/team/player/index.mjs");
@@ -184,7 +184,8 @@ test("undo from the profile: the sheet, one DELETE, «Pike is on the roster agai
     assertStyled(view, ...STYLES);
     api.assertAnswered();
   });
-  // A queue that holds the team (the roster was open before) takes it too.
+  // A queue that holds the team (the roster was open before) is left as it was: only the roster's own visit takes an
+  // answer into it (final review, I1), and the roster reads the team on its next visit.
   await withoutTimers(async () => {
     coach();
     save.trackRoster(team());
@@ -194,11 +195,45 @@ test("undo from the profile: the sheet, one DELETE, «Pike is on the roster agai
     restoreButton().focus();
     fireEvent(restoreButton(), "click");
     await settle();
-    assert.equal(save.savedRevision("t1"), 5);
+    assert.equal(save.savedRevision("t1"), 4, "the queue is left as it was");
     assert.equal(state.myTeams.items[0].revision, 5);
     assert.equal(calloutTitle(), BACK);
-    // The queue, taking the team, draws the page while his profile still stands: the focus is not left on his name.
     assert.ok(document.activeElement === rosterLink(), "the focus on the way back to the roster");
+  });
+});
+
+// The final review's Important 1, from the profile: an undo sent there lands while the roster is open again. The list
+// takes it, and the roster, which the list is now ahead of, reads the team again; its queue is never swapped under it.
+test("an undo sent from the profile that lands while the roster is open: the roster reads the team again, and draws what it saves", async () => {
+  const tdValue = () => aside().querySelector('[data-action-key="touchdowns"] .g-stepper__value').textContent;
+  const plusTd = () => aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]');
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    releaseCurrentScreen();
+    await renderTeamPlayer("t1", "d1");
+    askUndo();
+    const undo = api.hold(UNDO);
+    fireEvent(restoreButton(), "click");
+    await settle();
+    releaseCurrentScreen();
+    await renderTeamRoster("t1");
+    assert.deepEqual(namesIn(tables()[2]), ["Pike", "Joe"], "read before the undo landed");
+    api.reply("GET /api/teams/t1", 200, { team: withPike() });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    api.reply(FALLEN_READ, 200, { fallen: [JOE] });
+    undo.release({ status: 200, body: { team: withPike() } });
+    await settle(12);
+    assert.equal(callsTo("GET /api/teams/t1").length, 3, "the roster reads the team again");
+    assert.deepEqual(tables().map(namesIn), [["Ann", "Bors", "Cade", "Pike"], ["Dell", "Edda", "Finn", "Grom"], ["Joe"]]);
+    assert.equal(save.savedRevision("t1"), 5);
+    fireEvent(toggle("d1#7"), "click");
+    api.reply(PATCH, 200, { team: withPike({ revision: 6 }) });
+    fireEvent(plusTd(), "click");
+    await settle();
+    assert.equal(tdValue(), "3", "the step is drawn: Pike had two");
+    assert.equal(callsTo(PATCH).at(-1).body.revision, 5);
+    api.assertAnswered();
   });
 });
 
@@ -468,7 +503,7 @@ test("an undo's answer is taken whatever became of the sheet, and only for the c
     assert.equal(calloutTitle(), BACK);
     assert.ok(document.activeElement === rosterLink(), "the undo it stood on is gone: the focus goes to the way back, not the page's body");
   });
-  // The coach left the page: the list takes it all the same.
+  // The coach left the page: the list takes it all the same, and the roster's queue is left as it was.
   await withoutTimers(async () => {
     coach();
     save.trackRoster(team());
@@ -481,7 +516,7 @@ test("an undo's answer is taken whatever became of the sheet, and only for the c
     undo.release({ status: 200, body: { team: withPike() } });
     await settle();
     assert.equal(state.myTeams.items[0].revision, 5);
-    assert.equal(save.savedRevision("t1"), 5);
+    assert.equal(save.savedRevision("t1"), 4);
   });
   // Another coach signed in meanwhile: not his to take.
   await withoutTimers(async () => {

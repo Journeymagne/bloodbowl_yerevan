@@ -1143,7 +1143,8 @@ test("while a death is on its way every step and mark waits, and a second press 
     assert.ok(!plusTd().hasAttribute("aria-disabled"), "open again once it has answered");
     assert.equal(deaths().length, 1);
   });
-  // The coach left the roster: the queue and the list take the answer all the same, for the next visit.
+  // The coach left the roster: the list takes the answer all the same; the queue, which no visit draws now, is left as
+  // it was (final review, I1), and the next visit reads the team, the death in it.
   await withoutTimers(async () => {
     coach();
     await renderTeamRoster("t1");
@@ -1155,8 +1156,67 @@ test("while a death is on its way every step and mark waits, and a second press 
     death.release({ status: 201, body: { team: withoutAnn(), fallen: annFell() } });
     await settle();
     assert.equal(state.myTeams.items[0].revision, 5);
-    assert.equal(save.savedRevision("t1"), 5);
+    assert.equal(save.savedRevision("t1"), 4, "the queue is left as it was");
     assert.ok(!toasts().includes(DEAD_DONE));
+    serverHolds(withoutAnn(), [annFell(), ...FALLEN]);
+    await renderTeamRoster("t1");
+    assert.equal(save.savedRevision("t1"), 5, "the next visit reads the team");
+    assert.deepEqual(tables().map(namesIn), [["Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Ann", "Pike", "Joe"]]);
+  });
+});
+
+// The final review's Important 1: the answer lands after the coach has left the roster and opened it again (a language
+// switch draws it again too). The visit that sent it is gone, so the list alone takes the answer; the visit on the
+// screen draws the queue's draft and reads the team again once the list is ahead of what the queue saves on (`followList`).
+test("a death's answer that lands under another visit of the roster: the visit draws what it saves, and reads the team again when the list is ahead", async () => {
+  const tdValue = () => aside().querySelector('[data-action-key="touchdowns"] .g-stepper__value').textContent;
+  const leaveAndDie = async () => {
+    coach();
+    await renderTeamRoster("t1");
+    chooseDeath();
+    const death = api.hold(DEATH);
+    fireEvent(sendButton(), "click");
+    await settle();
+    releaseCurrentScreen();
+    return death;
+  };
+  // The new visit read the team after the death landed: the answer moves nothing, and a step is drawn as it is saved.
+  await withoutTimers(async () => {
+    const death = await leaveAndDie();
+    serverHolds(withoutAnn(), [annFell(), ...FALLEN]);
+    await renderTeamRoster("t1");
+    death.release({ status: 201, body: { team: withoutAnn(), fallen: annFell() } });
+    await settle();
+    assert.deepEqual([save.savedRevision("t1"), state.myTeams.items[0].revision], [5, 5]);
+    fireEvent(toggle("p2#0"), "click");
+    assert.equal(tdValue(), "0");
+    api.reply(PATCH, 200, { team: withoutAnn({ revision: 6 }) });
+    fireEvent(plusTd(), "click");
+    await settle();
+    assert.equal(tdValue(), "1", "the step is drawn: the screen draws the draft the queue saves");
+    assert.equal(patches().at(-1).body.revision, 5);
+    assert.equal(patches().at(-1).body.roster.players.find((player) => player.id === "p2").spp.touchdowns, 1);
+    assert.equal(teamReads(), 2, "nothing is read again: the visit has the death");
+  });
+  // The new visit read the team before the death landed: the answer puts the list ahead of the queue, the team is read
+  // again, and Ann is among the fallen — never a dead player drawn with counters and «Miss a match…».
+  await withoutTimers(async () => {
+    const death = await leaveAndDie();
+    await renderTeamRoster("t1");
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"]);
+    serverHolds(withoutAnn(), [annFell(), ...FALLEN]);
+    death.release({ status: 201, body: { team: withoutAnn(), fallen: annFell() } });
+    await settle(12);
+    assert.equal(teamReads(), 3, "read again");
+    assert.deepEqual(tables().map(namesIn), [["Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Ann", "Pike", "Joe"]]);
+    assert.equal(save.savedRevision("t1"), 5);
+    fireEvent(toggle("p2#0"), "click");
+    api.reply(PATCH, 200, { team: withoutAnn({ revision: 6 }) });
+    fireEvent(plusTd(), "click");
+    await settle();
+    assert.equal(tdValue(), "1");
+    assert.equal(patches().at(-1).body.revision, 5);
+    api.assertAnswered();
   });
 });
 
