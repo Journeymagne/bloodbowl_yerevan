@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, blocks, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
@@ -214,18 +214,18 @@ test("the cart: the race and the places, the treasury, what it costs and what is
     assert.equal(lineman.querySelector(".g-market__name").textContent, "Human Lineman");
     assert.equal(lineman.querySelector(".g-market__price").textContent, "50k");
     assert.equal(lineman.querySelector(".g-market__stats").textContent, "MA 6 · ST 3 · AG 3+ · PA 4+ · AR 9+");
-    assert.equal(lineman.querySelector(".g-market__meta").textContent, "no skills · in the team 3 of 16");
+    assert.equal(lineman.querySelector(".g-market__meta").textContent, "no skills\u00a0· in\u00a0the\u00a0team\u00a03\u00a0of\u00a016");
     const letter = lineman.querySelector(".g-market__letter");
     assert.equal(letter.textContent, "H");
     assert.ok(letter.classList.contains("g-market__letter--lineman"));
     assert.equal(letter.getAttribute("aria-hidden"), "true");
     assert.deepEqual(cards().map((item) => [item.querySelector(".g-market__price").textContent, item.querySelector(".g-market__meta").textContent]), [
-      ["50k", "no skills · in the team 3 of 16"],
-      ["80k", "Pass, Sure Hands · in the team 1 of 2"],
-      ["75k", "Catch, Dodge · in the team 1 of 2"],
-      ["80k", "Block, Tackle · in the team 1 of 2"],
-      ["30k", "Dodge, Evasive, Stunty, Right Stuff · in the team 0 of 3"],
-      ["140k", "Bone Head, Thick Skull, Mighty Blow, Loner (3+), Throw Team-mate · in the team 1 of 1"],
+      ["50k", "no skills\u00a0· in\u00a0the\u00a0team\u00a03\u00a0of\u00a016"],
+      ["80k", "Pass, Sure Hands\u00a0· in\u00a0the\u00a0team\u00a01\u00a0of\u00a02"],
+      ["75k", "Catch, Dodge\u00a0· in\u00a0the\u00a0team\u00a01\u00a0of\u00a02"],
+      ["80k", "Block, Tackle\u00a0· in\u00a0the\u00a0team\u00a01\u00a0of\u00a02"],
+      ["30k", "Dodge, Evasive, Stunty, Right Stuff\u00a0· in\u00a0the\u00a0team\u00a00\u00a0of\u00a03"],
+      ["140k", "Bone Head, Thick Skull, Mighty Blow, Loner (3+), Throw Team-mate\u00a0· in\u00a0the\u00a0team\u00a01\u00a0of\u00a01"],
     ]);
     assert.deepEqual(cards().map((item) => item.querySelector(".g-market__letter").getAttribute("class").split(" ").find((name) => name.startsWith("g-market__letter--"))),
       ["g-market__letter--lineman", "g-market__letter--thrower", "g-market__letter--catcher", "g-market__letter--blitzer", "g-market__letter--lineman", "g-market__letter--big"]);
@@ -263,6 +263,42 @@ test("the cart: the race and the places, the treasury, what it costs and what is
   });
 });
 
+// The owner's answer after 07c: a position's two lines wrap to more lines instead of ending in «…», so nothing is hidden
+// (Ogre's five skills and «in the team 1 of 1» at 390 and 1440px); the card grows with them. Like the characteristics,
+// the count holds together and its dot stays with the skills (no-break spaces), so a line breaks between skills or
+// before «in the team», never inside «1 of 1».
+test("the cart's lines wrap, never cut with «…»: Ogre's five skills and «in the team 1 of 1» whole, on a phone and on a desk", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        coach({ teamAnswer: rich() });
+        await renderTeamRoster("t1");
+        openCart();
+        const ogre = card(5);
+        // positionStatsLine: a characteristic and its value, and the dot after them, kept together; a line breaks after a dot.
+        assert.equal(ogre.querySelector(".g-market__stats").textContent, "MA\u00a05\u00a0· ST\u00a05\u00a0· AG\u00a04+\u00a0· PA\u00a05+\u00a0· AR\u00a010+");
+        assert.equal(ogre.querySelector(".g-market__meta").textContent, "Bone Head, Thick Skull, Mighty Blow, Loner (3+), Throw Team-mate\u00a0· in\u00a0the\u00a0team\u00a01\u00a0of\u00a01");
+        assertStyled(view, ...STYLES);
+      });
+    }
+    const dictionaries = Object.fromEntries(["en", "ru"].map((locale) => [locale, JSON.parse(text(`src/i18n/${locale}.json`))["teamRoster.hire.limit"]]));
+    assert.deepEqual(dictionaries, { en: "{skills}\u00a0· in\u00a0the\u00a0team\u00a0{have}\u00a0of\u00a0{max}", ru: "{skills}\u00a0· в\u00a0команде\u00a0{have}\u00a0из\u00a0{max}" });
+    for (const selector of [".g-market__stats", ".g-market__meta"]) {
+      for (const property of ["white-space", "text-overflow", "overflow"]) assert.deepEqual(valuesOf(MARKET, selector, property), [], `${selector} ${property}`);
+      assert.deepEqual(valuesOf(MARKET, selector, "overflow-wrap"), ["anywhere"], `${selector}: a word longer than the card breaks too`);
+    }
+    // No rule of the market cuts a line of the card, inside a media block or under another selector: only the «+»'s word
+    // and a sale's numbers hold one line.
+    assert.doesNotMatch(text(MARKET).replace(/\/\*[\s\S]*?\*\//g, ""), /ellipsis/, "no line of the market ends in «…»");
+    const held = blocks(text(MARKET)).filter((block) => /white-space\s*:\s*nowrap/.test(block.body)).flatMap((block) => block.selectors);
+    assert.deepEqual(held, [".g-market__add", ".g-market__factvalue"]);
+    // The card grows with its lines: nothing fixes the height of the card or of its words.
+    for (const selector of [".g-market__row", ".g-market__text", ".g-market__stats", ".g-market__meta"]) {
+      for (const property of ["height", "max-height"]) assert.deepEqual(valuesOf(MARKET, selector, property), [], `${selector} ${property}`);
+    }
+  });
+});
+
 test("+ adds to the cart, − takes out; the card, the totals, the numbers the new players get and the button follow", async () => {
   await withoutTimers(async () => {
     coach({ teamAnswer: rich() });
@@ -285,7 +321,7 @@ test("+ adds to the cart, − takes out; the card, the totals, the numbers the n
     assert.equal(buyButton().textContent, "Buy for 100k · players: 2");
     assert.ok(!buyButton().hasAttribute("disabled"));
     assert.equal(hireSheet().querySelector(".g-sheet__sub").textContent, "Human · on the roster 7 of 14 · places left: 5");
-    assert.equal(card(0).querySelector(".g-market__meta").textContent, "no skills · in the team 3 of 16", "the team's, not the cart's");
+    assert.equal(card(0).querySelector(".g-market__meta").textContent, "no skills\u00a0· in\u00a0the\u00a0team\u00a03\u00a0of\u00a016", "the team's, not the cart's");
     fireEvent(plusOf(1), "click");
     assert.deepEqual(cartLines(), [["2 × Human Lineman", "100k"], ["1 × Thrower", "80k"]]);
     assert.equal(buyButton().textContent, "Not enough: 60k");
@@ -413,7 +449,7 @@ test("bought: one PATCH of the whole roster — the players with the next free n
     fireEvent(hireButton(), "click");
     assert.equal(hireSheet().querySelector(".g-sheet__sub").textContent, "Human · on the roster 9 of 14 · places left: 5");
     assert.deepEqual(tileValues(), ["20k", "0", "20k"]);
-    assert.equal(card(0).querySelector(".g-market__meta").textContent, "no skills · in the team 5 of 16");
+    assert.equal(card(0).querySelector(".g-market__meta").textContent, "no skills\u00a0· in\u00a0the\u00a0team\u00a05\u00a0of\u00a016");
     api.assertAnswered();
   });
 });
