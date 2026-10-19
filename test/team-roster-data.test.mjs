@@ -1059,11 +1059,13 @@ const nurgleTeam = (revision) => teamAt(revision, undefined, {
   roster: { teamSlug: "teams/nurgle", teamName: "Iron Rooks", treasury: 50, favouredChoice: "Nurgle", players: [{ id: "n1", rowIndex: 0, number: "1", name: "Rot" }] },
 });
 const USED = "Undo the later advancement first: its roll was taken after this one.";
+/** The screen open at the press (K15): a step of 07d is always told why it would be closed, here never. */
+const OPEN = { closed: () => "" };
 
 test("a player's number, name and captaincy are one PATCH of the whole roster on the revision as read; the armband moves from the one who had it", async () => {
   const draft = await open(storedTeam(4, squad()));
   api.reply(PATCH_URL, 200, { team: teamAt(5) });
-  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "9", name: "Anna", captain: true }), { ok: true });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "9", name: "Anna", captain: true }, OPEN), { ok: true });
   assert.deepEqual([draft.players[0].name, draft.players[1].isCaptain, save.saveState("t1").waiting], ["Anna", false, 1], "the draft has it at once, and it waits");
   assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
@@ -1076,12 +1078,12 @@ test("a player's number, name and captaincy are one PATCH of the whole roster on
 test("an edit the rules refuse sends nothing and says why; an edit that changes nothing sends nothing", async () => {
   const draft = await open(storedTeam(4, squad()));
   const before = structuredClone(draft);
-  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "2", name: "Ann" }), { ok: false, refusal: "Number 2 is Bors's already" });
-  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "0", name: "Ann" }), { ok: false, refusal: "The number is from 1 to 99" });
-  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "1", name: "  " }), { ok: false, refusal: "The name cannot be empty" });
-  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "1", name: "Ann", captain: false }), { ok: false }, "the same fields");
-  assert.deepEqual(save.amendPlayer("t1", "p2", { number: "02", name: " Bors ", captain: true }), { ok: false }, "the same, as the server stores them");
-  assert.deepEqual(save.amendPlayer("t1", "p9", { number: "9", name: "Nobody" }), { ok: false, refusal: "This player is no longer on the team." });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "2", name: "Ann" }, OPEN), { ok: false, refusal: "Number 2 is Bors's already" });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "0", name: "Ann" }, OPEN), { ok: false, refusal: "The number is from 1 to 99" });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "1", name: "  " }, OPEN), { ok: false, refusal: "The name cannot be empty" });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "1", name: "Ann", captain: false }, OPEN), { ok: false }, "the same fields");
+  assert.deepEqual(save.amendPlayer("t1", "p2", { number: "02", name: " Bors ", captain: true }, OPEN), { ok: false }, "the same, as the server stores them");
+  assert.deepEqual(save.amendPlayer("t1", "p9", { number: "9", name: "Nobody" }, OPEN), { ok: false, refusal: "This player is no longer on the team." });
   assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
   await tick();
   assert.equal(api.calls.length, 0);
@@ -1090,9 +1092,9 @@ test("an edit the rules refuse sends nothing and says why; an edit that changes 
 test("an advancement is one PATCH: the skill, its type and its roll as the server reads it; what it cost and added is said", async () => {
   const draft = await open(storedTeam(4, squad()));
   api.reply(PATCH_URL, 200, { team: teamAt(5) });
-  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups), { ok: true, cost: 3, value: 20, level: 1 });
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups, OPEN), { ok: true, cost: 3, value: 20, level: 1 });
   // A second press of the same roll: the roll is the draft's already, and the server uses a roll once.
-  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups), { ok: false });
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups, OPEN), { ok: false });
   assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
   const [{ body }] = patches();
@@ -1103,7 +1105,7 @@ test("an advancement is one PATCH: the skill, its type and its roll as the serve
   assert.deepEqual([body.revision, draft.players[2].advancements.length], [4, 1]);
   // A chosen skill names no roll; a characteristic at the table names it so.
   api.reply(PATCH_URL, 200, { team: teamAt(6) });
-  assert.deepEqual(save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups), { ok: true, cost: 8, value: 20, level: 2 });
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups, OPEN), { ok: true, cost: 8, value: 20, level: 2 });
   assert.deepEqual(await settle(), quiet("saved"));
   assert.deepEqual(patches()[1].body.roster.players[2].advancements.at(-1), { type: "primary", grants: { skill: "Block" } });
 });
@@ -1112,7 +1114,7 @@ test("an advancement is one PATCH: the skill, its type and its roll as the serve
 test("an advancement whose answer was lost is the 409 that holds it: taken as saved, never taken twice", async () => {
   const draft = await open(storedTeam(4, squad()));
   api.fail(PATCH_URL);
-  assert.equal(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups).ok, true);
+  assert.equal(save.advancePlayer("t1", human, "p3", frenzy(), skillGroups, OPEN).ok, true);
   const offline = await settle();
   assert.deepEqual([offline.status, offline.waiting], ["offline", 1]);
   const sent = patches()[0].body;
@@ -1129,12 +1131,12 @@ test("an advancement whose answer was lost is the 409 that holds it: taken as sa
 test("a site roll the player can no longer take sends nothing and says why", async () => {
   const draft = await open(storedTeam(4, squad()));
   const before = structuredClone(draft);
-  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy({ siteRoll: { ...ROLL, stale: true } }), skillGroups), {
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy({ siteRoll: { ...ROLL, stale: true } }), skillGroups, OPEN), {
     ok: false,
     refusal: "Frenzy came up, and the player has this skill already: the roll cannot be taken. Take the skill off, or take this advancement at the table.",
   });
   const rerolled = { ...ROLL, result: { skill: "Frenzy", attempts: [{ roll: 1, skill: "Block", duplicate: true }, { roll: 4, skill: "Frenzy", duplicate: false }] } };
-  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy({ siteRoll: rerolled }), skillGroups), {
+  assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy({ siteRoll: rerolled }), skillGroups, OPEN), {
     ok: false,
     refusal: "This roll was rolled again past Block, which the player has no more: give the skill back before taking the roll, or take this advancement at the table.",
   });
@@ -1145,7 +1147,7 @@ test("a site roll the player can no longer take sends nothing and says why", asy
 
 test("an advancement the rules refuse sends nothing and says why, a characteristic by its name", async () => {
   await open(storedTeam(4, squad({ spp: {} })));
-  const refusal = (choice, playerId = "p3") => save.advancePlayer("t1", human, playerId, choice, skillGroups).refusal;
+  const refusal = (choice, playerId = "p3") => save.advancePlayer("t1", human, playerId, choice, skillGroups, OPEN).refusal;
   assert.equal(refusal(frenzy()), "3 SPP short", "Cade without SPP: a random skill costs 3");
   assert.equal(refusal({ type: "primary", grant: { skill: "Block" } }), "6 SPP short");
   save.takeServerTeam(storedTeam(4, squad({ statMods: { ag: 2 } })));
@@ -1164,8 +1166,8 @@ test("an advancement the rules refuse sends nothing and says why, a characterist
 test("the last advancement undone is one PATCH: what it gave gone, its roll no longer named, so the server frees it", async () => {
   const draft = await open(storedTeam(4, frenzied()));
   api.reply(PATCH_URL, 200, { team: teamAt(5) });
-  assert.deepEqual(save.undoAdvancement("t1", "p3"), { ok: true, cost: 3, type: "random", grants: { skill: "Frenzy" }, roll: SITE });
-  assert.deepEqual(save.undoAdvancement("t1", "p3"), { ok: false }, "none left: nothing to undo");
+  assert.deepEqual(save.undoAdvancement("t1", "p3", OPEN), { ok: true, cost: 3, type: "random", grants: { skill: "Frenzy" }, roll: SITE });
+  assert.deepEqual(save.undoAdvancement("t1", "p3", OPEN), { ok: false }, "none left: nothing to undo");
   assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
   const cade = patches()[0].body.roster.players[2];
@@ -1176,9 +1178,9 @@ test("the last advancement undone is one PATCH: what it gave gone, its roll no l
 test("a stale roll put on the table advancement that gave its skill: one PATCH naming the roll there", async () => {
   await open(storedTeam(4, frenzied({ via: "table" })));
   api.reply(PATCH_URL, 200, { team: teamAt(5) });
-  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, result: { ...ROLL.result, skill: "Block" } }), { ok: false }, "no advancement gave Block");
-  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, stale: true }), { ok: true });
-  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, stale: true }), { ok: false }, "a second press: the advancement names a site roll now");
+  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, result: { ...ROLL.result, skill: "Block" } }, OPEN), { ok: false }, "no advancement gave Block");
+  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, stale: true }, OPEN), { ok: true });
+  assert.deepEqual(save.bindRoll("t1", "p3", { ...ROLL, stale: true }, OPEN), { ok: false }, "a second press: the advancement names a site roll now");
   assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
   const cade = patches()[0].body.roster.players[2];
@@ -1189,7 +1191,7 @@ test("a stale roll put on the table advancement that gave its skill: one PATCH n
 test("a fix by hand is one PATCH: the Niggling Injuries, a characteristic, the contracts, a skill no advancement gave; a fix the rules refuse sends nothing", async () => {
   const draft = await open(storedTeam(4, squad()));
   const before = structuredClone(draft);
-  const fix = (over) => save.fixPlayer("t1", human, "p4", fixOf(over));
+  const fix = (over) => save.fixPlayer("t1", human, "p4", fixOf(over), OPEN);
   assert.deepEqual(fix({ stats: { ma: 5 } }), { ok: false, refusal: "MA cannot improve further" }, "MA 5, then +5 is past 9");
   assert.deepEqual(fix({ lasting: { ma: 1 }, stats: { ma: 4 } }), { ok: false, refusal: "MA cannot improve further" }, "MA 5, back to 6, then +4");
   // AG is a target: up is a lower number, and the words say better, never higher.
@@ -1214,9 +1216,9 @@ test("a fix by hand is one PATCH: the Niggling Injuries, a characteristic, the c
 test("a god's bonus is one PATCH: the skill among his favoured", async () => {
   const draft = await open(nurgleTeam(4));
   api.reply(PATCH_URL, 200, { team: nurgleTeam(5) });
-  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Tentacles"), { ok: true });
-  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Tentacles"), { ok: false, refusal: "The player has this skill already." });
-  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Block"), { ok: false, refusal: "This skill is not on the bonus list." });
+  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Tentacles", OPEN), { ok: true });
+  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Tentacles", OPEN), { ok: false, refusal: "The player has this skill already." });
+  assert.deepEqual(save.addFavoured("t1", nurgle, "n1", "Block", OPEN), { ok: false, refusal: "This skill is not on the bonus list." });
   assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
   assert.deepEqual(patches()[0].body.roster.players[0].favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
@@ -1248,18 +1250,39 @@ test("another tab's coach, or a write the screen has closed at the press: none o
   assert.equal(api.calls.length, 0);
   const rot = (await open(nurgleTeam(4))).players[0];
   api.items.set(TOKEN, "someone-else");
-  assert.match(save.addFavoured("t1", nurgle, "n1", "Tentacles").refusal, /another tab/);
+  assert.match(save.addFavoured("t1", nurgle, "n1", "Tentacles", OPEN).refusal, /another tab/);
   assert.deepEqual([rot.favouredSkills ?? [], api.calls.length], [[], 0]);
+});
+
+// K15, review Important 1: the queue cannot know a match is on, so a step that is not told why the screen is closed is
+// a mistake of its caller, said at once — never a write that goes during a match.
+test("a player's step not told why the screen is closed throws, and nothing is sent or changed", async () => {
+  const draft = await open(storedTeam(4, frenzied({ via: "table" })));
+  const before = structuredClone(draft);
+  const steps = [
+    (options) => save.amendPlayer("t1", "p1", { number: "9", name: "Anna" }, options),
+    (options) => save.fixPlayer("t1", human, "p4", fixOf({ niggling: 0 }), options),
+    (options) => save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups, options),
+    (options) => save.undoAdvancement("t1", "p3", options),
+    (options) => save.bindRoll("t1", "p3", ROLL, options),
+    (options) => save.addFavoured("t1", human, "p1", "Tentacles", options),
+  ];
+  for (const step of steps) {
+    for (const options of [undefined, {}, { closed: "" }]) assert.throws(() => step(options), TypeError, JSON.stringify(options));
+  }
+  assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
 });
 
 // K8: the server gives a player's rolls back last first; a 409 without the team is not another device's save.
 test("a roll given back out of its turn is refused in words, not a conflict: nothing more goes until the server's roster is taken", async () => {
   const draft = await open(storedTeam(4, frenzied()));
   api.reply(PATCH_URL, 409, { error: { code: "DICE_ROLL_USED", params: {}, message: "x" } });
-  assert.equal(save.undoAdvancement("t1", "p3").ok, true);
+  assert.equal(save.undoAdvancement("t1", "p3", OPEN).ok, true);
   const refused = await settle();
   assert.deepEqual([refused.status, refused.kind, refused.code, refused.refusal, refused.waiting], ["error", "invalid", "DICE_ROLL_USED", USED, 1]);
-  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "9", name: "Anna" }), { ok: false, refusal: USED });
+  assert.deepEqual(save.amendPlayer("t1", "p1", { number: "9", name: "Anna" }, OPEN), { ok: false, refusal: USED });
   await tick();
   assert.equal(patches().length, 1, "the refused step is not sent again");
   assert.deepEqual(draft.players[2].advancements, [], "his own undo stays on the screen until the server's roster is taken");
@@ -1267,7 +1290,8 @@ test("a roll given back out of its turn is refused in words, not a conflict: not
   assert.deepEqual([taken.players[2].advancements.length, save.saveState("t1")], [1, quiet("idle")]);
 });
 
-// K16: a skill a used site roll was rerolled against stays; the server's 422 is said for the step that met it.
+// K16: a skill a used site roll was rerolled against stays; the server's 422 is said for the step that met it — an
+// edit's own words; an advancement's, a bound roll's and a counter's the server's (`error.DICE_ROLL_MISMATCH`, review Minor 2).
 test("a 422 of a site roll is said in the words of the step that met it: an edit's, an advancement's, a counter's the server's", async () => {
   await open(storedTeam(4, frenzied({ via: "table" })));
   const mismatch = { error: { code: "DICE_ROLL_MISMATCH", params: { playerId: "p3" }, message: "x" } };
@@ -1279,10 +1303,10 @@ test("a 422 of a site roll is said in the words of the step that met it: an edit
     assert.deepEqual([refused.status, refused.kind, refused.code], ["error", "invalid", "DICE_ROLL_MISMATCH"]);
     return refused.refusal;
   };
-  assert.equal(await refusalAfter(() => save.undoAdvancement("t1", "p3")), "A roll on the site was rerolled against this skill, so it stays.");
-  assert.equal(await refusalAfter(() => save.fixPlayer("t1", human, "p4", fixOf({ niggling: 0 }))), "A roll on the site was rerolled against this skill, so it stays.");
-  assert.equal(await refusalAfter(() => save.bindRoll("t1", "p3", ROLL)), "This advancement does not match its roll on the site.");
-  assert.equal(await refusalAfter(() => save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups)),
+  assert.equal(await refusalAfter(() => save.undoAdvancement("t1", "p3", OPEN)), "A roll on the site was rerolled against this skill, so it stays.");
+  assert.equal(await refusalAfter(() => save.fixPlayer("t1", human, "p4", fixOf({ niggling: 0 }), OPEN)), "A roll on the site was rerolled against this skill, so it stays.");
+  assert.equal(await refusalAfter(() => save.bindRoll("t1", "p3", ROLL, OPEN)), "This advancement does not match its roll on the site.");
+  assert.equal(await refusalAfter(() => save.advancePlayer("t1", human, "p3", { type: "primary", grant: { skill: "Block" } }, skillGroups, OPEN)),
     "This advancement does not match its roll on the site.");
   assert.equal(await refusalAfter(() => save.stepSpp("t1", "p1", "touchdowns", 1)), "This advancement does not match its roll on the site.", "error.DICE_ROLL_MISMATCH");
   save.takeServerTeam(storedTeam(4, squad()));
@@ -1290,11 +1314,13 @@ test("a 422 of a site roll is said in the words of the step that met it: an edit
 
 test("every refusal an advancement or an edit can meet is worded in both dictionaries, with the same placeholders", () => {
   const keys = [
-    ...[...ADVANCE_REFUSALS, "DICE_ROLL_USED", "DICE_ROLL_MISMATCH"].map((code) => `teamAdvance.refusal.${code}`),
+    ...[...ADVANCE_REFUSALS, "DICE_ROLL_USED"].map((code) => `teamAdvance.refusal.${code}`),
     ...[...EDIT_REFUSALS, ...FIX_REFUSALS, "DICE_ROLL_MISMATCH"].map((code) => `teamPlayer.refusal.${code}`),
     "teamPlayer.matchDropped", "teamPlayer.favoured.held", "teamPlayer.favoured.unknown",
   ];
   const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map(([, name]) => name).sort();
+  // An advancement's 422 for its roll is the server's own words: no copy of them under the step's key (review Minor 2).
+  assert.ok(!EN["teamAdvance.refusal.DICE_ROLL_MISMATCH"] && !RU["teamAdvance.refusal.DICE_ROLL_MISMATCH"] && EN["error.DICE_ROLL_MISMATCH"]);
   for (const key of keys) {
     assert.ok(EN[key] && RU[key], `${key} in both`);
     assert.deepEqual(placeholders(RU[key]), placeholders(EN[key]), key);

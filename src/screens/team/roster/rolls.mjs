@@ -36,15 +36,20 @@ export function rollAsking(teamId, playerId) {
  * roster breaks and who to fix (K21), and its code.
  *
  * @param {string} teamId @param {string} playerId his id in the roster
- * @param {{purpose: string, category?: string, closed?: () => string}} ask `closed`: why the screen sends nothing just
- *   now, asked at the press
+ * @param {{purpose: string, category?: string, closed: () => string}} ask `closed`, required (K15): why the screen sends
+ *   nothing just now, asked at the press — an ask without it throws, sending nothing
  * @returns {Promise<{roll: object} | {waiting: string} | {refusal: string, code?: string} | {lost: true} | {ignored: true}>}
  *   `ignored` for a press while the player's ask is out
  */
-export async function askRoll(teamId, playerId, { purpose, category, closed } = {}) {
+export function askRoll(teamId, playerId, ask) {
+  if (typeof ask?.closed !== "function") throw new TypeError("A roll asks why the screen is closed: closed (K15)");
+  return sendAsk(teamId, playerId, ask);
+}
+
+async function sendAsk(teamId, playerId, { purpose, category, closed }) {
   const key = askKey(teamId, playerId);
   if (asking.has(key)) return { ignored: true };
-  const reason = closed?.() ?? "";
+  const reason = closed() ?? "";
   if (reason) return { refusal: reason };
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
   asking.add(key);

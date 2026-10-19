@@ -51,7 +51,7 @@ import { hirePlayers, hireQuote, playerRemoval, removeLeaguePlayer } from "../..
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { rowsForTeam } from "../../../domain/roster/values.mjs";
 
-/** The steps taken and not yet confirmed by an answer, by team, in order, the first in the air: each its words (`space`, 07d). */
+/** The steps taken and not yet confirmed by an answer, by team, in order, the first in the air: each its `space` (`refusalOf`). */
 const waiting = new Map();
 const waitingFor = (teamId) => waiting.get(teamId)?.length ?? 0;
 /** The team the store saves on, by team: the object it was handed, whose revision each answer moves (`mergeServerTeam`). */
@@ -224,6 +224,9 @@ function stepRoster(teamId, plan, { closed, space = "" } = {}) {
   return { ok: true, ...applied };
 }
 
+/** The player of the draft the id names, by his id as text (`storedPlayerId`), or null. */
+const playerIn = (draft, id) => (id ? draft?.players.find((player) => storedPlayerId(player) === String(id)) : null) ?? null;
+
 /**
  * One step on one player of the draft (`stepRoster`): `fieldsOf(player)` says what his fields become, or null when the
  * step has nothing to change. Nothing is sent for a player who is not on the roster.
@@ -231,7 +234,7 @@ function stepRoster(teamId, plan, { closed, space = "" } = {}) {
  * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}}
  */
 function stepOn(teamId, playerId, fieldsOf) {
-  const player = playerId ? store.getDraft(teamId)?.players.find((candidate) => storedPlayerId(candidate) === playerId) : null;
+  const player = playerIn(store.getDraft(teamId), playerId);
   if (!player) return { ok: false };
   return stepRoster(teamId, () => {
     const fields = fieldsOf(player);
@@ -312,7 +315,7 @@ export function buyPlayers(teamId, race, cart) {
  */
 export function removePlayer(teamId, race, playerId, type) {
   return stepRoster(teamId, (draft) => {
-    const player = playerId ? draft.players.find((candidate) => storedPlayerId(candidate) === String(playerId)) : null;
+    const player = playerIn(draft, playerId);
     if (!player) return null;
     const removal = playerRemoval(race, draft, player);
     if (removal.type !== type) return type === "cancel-purchase" ? refusedFor({ code: "PLAYER_PURCHASE_CLOSED" }) : null;
@@ -340,70 +343,66 @@ export function refusalWordsOf(space, { code, params = {} }) {
   if (code === "PLAYER_NOT_FOUND") return t("validation.PLAYER_NOT_FOUND");
   return t(`${space}.refusal.${code}`, params.stat ? { ...params, stat: t(`stats.${params.stat}`) } : params);
 }
-const refusedAs = (space, refusal) => ({ refusal: refusalWordsOf(space, refusal) });
 
 /**
  * One step on one player (`stepRoster`, stage 07d): `plan(draft, player, row)`, `row` his position in `race` when given;
- * a player the roster (or his position the race) has not is refused in words. Each step below tries itself on a copy
- * first, so a refused one changes nothing and one that would change nothing sends nothing; `options.closed`: why the screen
- * sends nothing just now (K15). Each answers `{ok: true, …what it says}`, `{ok: false, refusal?}` or `{refusal}` (another tab).
+ * a player the roster (or his position the race) has not is refused in words. `options.closed` is required (K15): the
+ * queue cannot know a match is on, so a step without it throws and sends nothing. Each step below tries itself on a copy
+ * first; it answers `{ok: true, …what it says}`, `{ok: false, refusal?}` or `{refusal}` (another tab).
  */
 function stepPlayer(teamId, { playerId, race, space, closed }, plan) {
+  if (typeof closed !== "function") throw new TypeError("A player's step asks why the screen is closed: options.closed (K15)");
   return stepRoster(teamId, (draft) => {
-    const player = playerId ? draft.players.find((candidate) => storedPlayerId(candidate) === String(playerId)) : null;
-    const row = player && race ? rowsForTeam(race)[Number(player.rowIndex)] : null;
-    return player && (row || !race) ? plan(draft, player, row) : refusedAs(space, { code: "PLAYER_NOT_FOUND" });
+    const player = playerIn(draft, playerId), row = player && race ? rowsForTeam(race)[Number(player.rowIndex)] : null;
+    // No position for his `rowIndex` is a broken roster rather than a missing player: rare enough to share the words.
+    return player && (row || !race) ? plan(draft, player, row) : refusedFor({ code: "PLAYER_NOT_FOUND" });
   }, { closed, space });
 }
 
+/** A domain step tried on a copy (`attempt(true)`), then made (`attempt(false)`): refused in words, none if it changes nothing. */
+function tried(space, attempt, said = () => undefined) {
+  const answer = attempt(true);
+  if (!answer.applied) return { refusal: refusalWordsOf(space, answer) };
+  return answer.changed === false ? null : { apply: () => said(attempt(false)) };
+}
+
 /** A player's number, name and captaincy (`editPlayer`), tried on a copy of the draft, where the armband moves. */
-export function amendPlayer(teamId, playerId, edit, options = {}) {
-  return stepPlayer(teamId, { ...options, playerId, space: "teamPlayer" }, (draft) => {
-    const tried = editPlayer(structuredClone(draft), playerId, edit);
-    if (!tried.applied) return refusedAs("teamPlayer", tried);
-    return tried.changed ? { apply: () => void editPlayer(draft, playerId, edit) } : null;
-  });
+export function amendPlayer(teamId, playerId, edit, options) {
+  return stepPlayer(teamId, { ...options, playerId, space: "teamPlayer" }, (draft) =>
+    tried("teamPlayer", (copy) => editPlayer(copy ? structuredClone(draft) : draft, playerId, edit)));
 }
 
 /** A fix by hand (`applyFix`), saying `value`: the player's after it, in thousands. */
-export function fixPlayer(teamId, race, playerId, fix, options = {}) {
-  return stepPlayer(teamId, { ...options, playerId, race, space: "teamPlayer" }, (draft, player, row) => {
-    const tried = applyFix(race, structuredClone(draft), playerId, fix);
-    if (!tried.applied) return refusedAs("teamPlayer", tried);
-    return tried.changed ? { apply: () => { applyFix(race, draft, playerId, fix); return { value: playerCurrentCost(row, player) }; } } : null;
-  });
+export function fixPlayer(teamId, race, playerId, fix, options) {
+  return stepPlayer(teamId, { ...options, playerId, race, space: "teamPlayer" }, (draft, player, row) => tried("teamPlayer",
+    (copy) => applyFix(race, copy ? structuredClone(draft) : draft, playerId, fix), () => ({ value: playerCurrentCost(row, player) })));
 }
 
 /**
  * An advancement (`takeAdvancement`), saying `cost`, `value` and `level` after it. A site roll's data (`choice.siteRoll`,
  * which no body carries) asks whether the player can take it (`rollRefusal`); a roll the draft names already sends nothing.
  */
-export function advancePlayer(teamId, race, playerId, choice, skillGroups, options = {}) {
+export function advancePlayer(teamId, race, playerId, choice, skillGroups, options) {
   const { siteRoll, ...taken } = choice ?? {}, site = taken.roll?.via === "site";
-  return stepPlayer(teamId, { ...options, playerId, race, space: "teamAdvance" }, (draft, player, row) => {
+  return stepPlayer(teamId, { ...options, playerId, race, space: "" }, (draft, player, row) => {
     if (site && siteRollReferences(draft).some(({ id }) => id === taken.roll.id)) return null;
-    const tried = (site && siteRoll ? rollRefusal(siteRoll, row, player) : null)
-      ?? takeAdvancement(race, row, structuredClone(player), taken, skillGroups);
-    if (!tried.applied) return refusedAs("teamAdvance", tried);
-    const apply = () => {
-      const { cost, value } = takeAdvancement(race, row, player, taken, skillGroups);
-      return { cost, value, level: playerAdvancementLevel(player) };
-    };
-    return { apply };
+    const stale = site && siteRoll ? rollRefusal(siteRoll, row, player) : null;
+    if (stale) return { refusal: refusalWordsOf("teamAdvance", stale) };
+    return tried("teamAdvance", (copy) => takeAdvancement(race, row, copy ? structuredClone(player) : player, taken, skillGroups),
+      ({ cost, value }) => ({ cost, value, level: playerAdvancementLevel(player) }));
   });
 }
 
 /** The last advancement undone (`undoLastAdvancement`), saying its `cost`, `type`, `grants` and `roll`, which the save frees. */
-export function undoAdvancement(teamId, playerId, options = {}) {
-  return stepPlayer(teamId, { ...options, playerId, space: "teamPlayer" }, (draft, player) => {
-    if (!undoLastAdvancement(structuredClone(player)).removed) return null;
-    return { apply: () => { const { cost, type, grants, roll } = undoLastAdvancement(player); return { cost, type, grants, roll }; } };
-  });
+export function undoAdvancement(teamId, playerId, options) {
+  const said = ({ cost, type, grants, roll }) => ({ cost, type, grants, roll });
+  return stepPlayer(teamId, { ...options, playerId, space: "teamPlayer" }, (draft, player) =>
+    (undoLastAdvancement(structuredClone(player)).removed ? { apply: () => said(undoLastAdvancement(player)) } : null));
 }
 
 /** A waiting site roll named by the table advancement that gave its skill (`tableAdvancementFor`). */
-export function bindRoll(teamId, playerId, roll, options = {}) {
-  return stepPlayer(teamId, { ...options, playerId, space: "teamAdvance" }, (draft, player) => {
+export function bindRoll(teamId, playerId, roll, options) {
+  return stepPlayer(teamId, { ...options, playerId, space: "" }, (draft, player) => {
     const index = tableAdvancementFor(roll, player), id = typeof roll?.id === "string" ? roll.id : "";
     const named = (advancement, at) => (at === index ? { ...advancement, roll: { id, via: "site" } } : advancement);
     return index >= 0 && id ? { apply: () => { player.advancements = normalizePlayerAdvancements(player.advancements).map(named); } } : null;
@@ -411,17 +410,17 @@ export function bindRoll(teamId, playerId, roll, options = {}) {
 }
 
 /** A god's bonus skill among the player's favoured (`addFavouredSkill`); one he holds, or off the list, is refused in words. */
-export function addFavoured(teamId, race, playerId, skill, options = {}) {
+export function addFavoured(teamId, race, playerId, skill, options) {
   return stepPlayer(teamId, { ...options, playerId, race, space: "teamPlayer" }, (draft, player, row) => {
-    const tried = addFavouredSkill(race, draft, row, structuredClone(player), skill);
-    if (!tried.applied) return { refusal: t(`teamPlayer.favoured.${tried.code === "FAVOURED_SKILL_HELD" ? "held" : "unknown"}`) };
+    const answer = addFavouredSkill(race, draft, row, structuredClone(player), skill);
+    if (!answer.applied) return { refusal: t(`teamPlayer.favoured.${answer.code === "FAVOURED_SKILL_HELD" ? "held" : "unknown"}`) };
     return { apply: () => void addFavouredSkill(race, draft, row, player, skill) };
   });
 }
 
 /**
  * A failed save in words: a roll given back out of its turn says which undo goes first (K8); a skill a used roll was
- * rerolled against, in the words of the step that met it (K16, `space`: the first that waits), else the server's.
+ * rerolled against, in an edit's words (K16, `space` of the first that waits), else the server's — an advancement's too.
  */
 function refusalOf(error, space) {
   if (error.code === OTHER_TAB) return t("auth.otherTab");

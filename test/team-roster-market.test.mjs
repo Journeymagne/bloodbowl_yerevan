@@ -13,7 +13,7 @@ import {
 
 const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
 const { droppedWords } = await import("../src/screens/team/roster/market.mjs");
-const { markAbsence } = await import("../src/domain/roster/absence.mjs");
+const { clearAbsence, markAbsence } = await import("../src/domain/roster/absence.mjs");
 
 // Stage 07c, Task 5: the «+» beside «Player» in the active roster's header (StatsHire.html, DeskRosterHire.html) and the
 // cart it opens: the race's positions with their limits, the treasury and what the cart leaves of it, and «Buy», one
@@ -1435,10 +1435,17 @@ test("droppedWords: the player edits and advancements given up when a match begi
   all.players[0].spp = { touchdowns: 1 };
   all.players.push({ id: "p9", rowIndex: 0, number: "10", name: "New", purchased: true, purchaseRefund: 50 });
   assert.deepEqual(droppedWords(server, all, 3), [SPP_DROPPED, MARKET_DROPPED, PLAYERS_DROPPED]);
-  // A mark brings its injury: that is the mark's, and no edit of the player.
+  // A mark brings its injury: that is the mark's, and no edit of the player — with a step to spare beyond the mark, so
+  // the fourth line is held back by `playerEdits` itself, not by the count (review Minor 3).
   const marked = structuredClone(server);
   marked.players[0] = markAbsence(marked.players[0], { code: "lasting", stat: "ma" });
-  assert.deepEqual(droppedWords(server, marked, 1), [MARKS_DROPPED]);
+  assert.deepEqual(droppedWords(server, marked, 2), [MARKS_DROPPED]);
+  // A mark and then «Back on the roster», both waiting: he sits out as before, but the mark's injury stays after it
+  // (`clearAbsence`), a change of the player that a match takes from the coach — said as a player's edit (review Minor 4).
+  const cleared = structuredClone(server);
+  cleared.players[0] = clearAbsence(markAbsence(cleared.players[0], { code: "lasting", stat: "ma" }));
+  assert.deepEqual([cleared.players[0].skipNextGame, cleared.players[0].injuryStatMods], [false, { ma: -1 }]);
+  assert.deepEqual(droppedWords(server, cleared, 2), [PLAYERS_DROPPED]);
   // K26: one hire waited; the server's roster renamed a player meanwhile (another device): that is not the coach's.
   const renamed = structuredClone(server);
   renamed.players[0].name = "Anne";

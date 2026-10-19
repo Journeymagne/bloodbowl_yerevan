@@ -1357,7 +1357,6 @@
   "teamAdvance.refusal.ROLL_STALE": "{skill} came up, and the player has this skill already: the roll cannot be taken. Take the skill off, or take this advancement at the table.",
   "teamAdvance.refusal.ROLL_REROLLED": "This roll was rolled again past {skills}, which the player has no more: give the skill back before taking the roll, or take this advancement at the table.",
   "teamAdvance.refusal.DICE_ROLL_USED": "Undo the later advancement first: its roll was taken after this one.",
-  "teamAdvance.refusal.DICE_ROLL_MISMATCH": "This advancement does not match its roll on the site.",
   "treasury.changedElsewhere": "The team was changed elsewhere — perhaps by this very change, if its answer was lost. Check the history before you make it again.",
   "treasury.fix.done": "The treasury is corrected",
   "treasury.fix.open": "Correct the treasury by hand",
