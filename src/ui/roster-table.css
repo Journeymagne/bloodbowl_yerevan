@@ -266,13 +266,16 @@ tfoot .g-rtable__glabel {
   .g-rtable__foot > .g-rtable__h.g-rtable__c--lead { padding-left: var(--space-12); }
   .g-rtable__g--lead .g-rtable__glabel { margin-left: var(--space-12); }
   .g-rtable__g:last-child .g-rtable__glabel { margin-right: var(--space-16); }
+  /*
+   * Every number stands centred under its label, the last column's too (the owner, 2026-10-19: one axis for a header
+   * and its values); the last column keeps the row's 16px end inside it, so its axis is the middle of what is left.
+   */
   .g-rtable__c--last,
   th.g-rtable__h.g-rtable__c--last,
   .g-rtable__foot > .g-rtable__h.g-rtable__c--last {
     padding-right: var(--space-16);
-    text-align: right;
+    text-align: center;
   }
-  .g-rtable__c--last .g-sort { justify-content: flex-end; }
 
   /* The player stays while the numbers scroll under him. */
   .g-rtable__who,

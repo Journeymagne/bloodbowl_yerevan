@@ -385,6 +385,27 @@ test("from 901px the table scrolls inside its frame and the player's column stay
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__player.is-selected .g-rtable__row > :last-child", "box-shadow"), [`inset -2px 0 0 var(--accent-text), ${ring}`]);
 });
 
+test("every number stands centred under its label, on a phone and on a desk, the SPP columns too: one axis for a header and its values (fix round 1)", () => {
+  const { narrow, wide } = parts(read(SHEET));
+  // The values: centred; the strong and quiet figures keep it (their font shorthand does not reset text-align).
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c", "text-align"), ["center"]);
+  for (const tone of [".g-rtable__c--strong", ".g-rtable__c--quiet"]) assert.deepEqual(valuesOf(SHEET, tone, "text-align"), [], tone);
+  // The labels: a header's button fills its column and centres its words; the arrow takes no width (it hangs under them).
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__h", "text-align"), ["center"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort", "justify-content"), ["center"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-sort__arrow", "position"), ["absolute"]);
+  // The SPP pair: «Total» leads its group (the gap is its left padding, on the header and the cells alike), «Avail.»
+  // ends the row (its 16px end on the header, the cells and the foot alike): both centred in what is left.
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--last", "text-align"), ["center"]);
+  assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--last", "text-align"), ["center"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--last", "padding-right"), ["var(--space-16)"]);
+  assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--last", "padding-right"), ["var(--space-16)"]);
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__c--lead", "padding-left"), ["var(--space-12)"]);
+  assert.deepEqual(valuesOf(SHEET, "th.g-rtable__h.g-rtable__c--lead", "padding-left"), ["var(--space-12)"]);
+  assert.ok(!/justify-content:\s*flex-(end|start)/.test(wide.replace(/\.g-rtable__h--who \.g-sort\s*\{[^}]*\}/g, "")), "no column but the player's is pushed to an edge");
+  assert.ok(!/text-align:\s*(right|left)/.test(narrow + wide), "no number column is aligned to an edge at either width");
+});
+
 test("a long position stays whole: on its name's line when it fits, under it when it does not, never cut with «…» (fix round 1)", () => {
   const { wide } = parts(read(SHEET));
   // A desk's name line wraps between the name and the position (Amazon's «Eagle Warrior Linewoman» is the reference's name).
