@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 import { installFakeApi } from "./helpers/fake-api.mjs";
 
@@ -8,9 +9,15 @@ const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { setDictionaries, setLocale } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
 const session = await import("../src/data/session.mjs");
-const { onMyTeamsChange } = await import("../src/data/teams.mjs");
+const { loadMyTeams, onMyTeamsChange } = await import("../src/data/teams.mjs");
 const { readRoster } = await import("../src/screens/team/roster/data.mjs");
 const save = await import("../src/screens/team/roster/save.mjs");
+const { checkRoster, loadTeamReference, teamBySlug } = await import("../server/domain/roster.mjs");
+
+// The races as public/data.en.json has them, read the way the server reads them.
+await loadTeamReference(fileURLToPath(new URL("..", import.meta.url)));
+// Human: 0 Human Lineman 50k (0-16), 1 Thrower 80k (0-2), 2 Catcher 75k (0-2), 3 Blitzer 80k (0-2), 4 Halfling Hopeful 30k (0-3), 5 Ogre 140k (0-1).
+const human = teamBySlug("teams/human");
 
 setDictionaries({
   en: {
@@ -21,6 +28,11 @@ setDictionaries({
     "error.ROSTER_BREAKS_THE_RULES": "The roster breaks the rules.",
     "error.TEAM_SAVED_ELSEWHERE": "The team was saved elsewhere.",
     "validation.DUPLICATE_PLAYER_ID": "Players {names} are stored under one id.",
+    "validation.POSITION_MAX": "{position}: maximum is {max}.",
+    "validation.ROSTER_MAX_PLAYERS": "A Sevens roster should not exceed {max} players (currently {count}).",
+    "validation.TREASURY_INVALID": "Treasury must be a nonnegative amount in whole gold pieces.",
+    "validation.PLAYER_SALE_MIN": "A sale cannot leave fewer than seven players on the team.",
+    "validation.PLAYER_PURCHASE_CLOSED": "This purchase can no longer be cancelled. Use a sale under the league rules.",
   },
   ru: { "auth.otherTab": "Кто-то вошёл или вышел в другой вкладке, поэтому здесь ничего не сохранено." },
 });
@@ -767,4 +779,223 @@ test("an answer that comes while a step waits or is in the air goes to the list 
   save.takeServerTeam(teamAt(6));
   assert.equal(save.takeAnswerTeam(teamAt(7), { queue: true }).players[0].spp.touchdowns, 2);
   assert.equal(save.savedRevision("t1"), 7);
+});
+
+// Stage 07c: a purchase and a sale are steps of the same queue, the whole roster saved, one step one PATCH.
+
+/** A roster as GET returns it: what the server stores of what was sent (`checkRoster`), over the wire. */
+const stored = (roster) => JSON.parse(JSON.stringify(checkRoster("teams/human", roster).roster));
+/** t1 as GET sends it with the players given, its roster as the server stores it; 50k in the treasury. */
+const storedTeam = (revision, players) => teamAt(revision, undefined, { roster: stored(teamAt(revision, undefined, {}, players).roster) });
+const ann = () => [{ id: "p1", rowIndex: 0, number: "1", name: "Ann" }];
+/** Ann, Hal the Catcher with Block (75k and 20k), five Linemen, and Ned, a Lineman bought for 50k before any match: eight. */
+const eight = () => [
+  ...ann(),
+  { id: "p2", rowIndex: 2, number: "2", name: "Hal", extraSkills: ["Block"] },
+  ...[3, 4, 5, 6, 7].map((n) => ({ id: `p${n}`, rowIndex: 0, number: String(n) })),
+  { id: "p8", rowIndex: 0, number: "8", name: "Ned", purchased: true, purchaseRefund: 50 },
+];
+/** The eight, Ned's purchase sealed by a match: bought, and nothing to cancel any more. */
+const sealedEight = () => eight().map((player) => (player.id === "p8" ? { ...player, purchaseRefund: undefined } : player));
+const BROKE = "Treasury must be a nonnegative amount in whole gold pieces.";
+const LIST_URL = "GET /api/teams";
+
+test("a purchase is one PATCH of the whole roster: the new players with the next free numbers and their price recorded, the treasury spent, on the revision as read", async () => {
+  const draft = await open(storedTeam(4, ann()));
+  api.reply(PATCH_URL, 200, { team: teamAt(5) });
+  assert.deepEqual(save.buyPlayers("t1", human, { 0: 1 }), { ok: true, hired: [{ number: "2", position: "Human Lineman" }], treasury: 0 });
+  assert.deepEqual([draft.players.length, draft.treasury, save.saveState("t1").waiting], [2, 0, 1], "the draft has him at once, and it waits");
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const [{ body }] = patches();
+  const { rowIndex, number, purchased, purchaseRefund } = body.roster.players[1];
+  assert.deepEqual({ rowIndex, number, purchased, purchaseRefund }, { rowIndex: 0, number: "2", purchased: true, purchaseRefund: 50 });
+  assert.deepEqual([body.revision, body.name, body.baseTeamSlug, body.logoData], [4, "Iron Rooks", "teams/human", LOGO]);
+  assert.deepEqual([body.roster.treasury, body.roster.roster, body.roster.players[0].name], [0, { 0: 2 }, "Ann"]);
+  assert.equal(save.savedRevision("t1"), 5);
+});
+
+// Review Focus 2: the cart is asked again, as a whole, on the queue's draft at the press.
+test("a cart the draft no longer pays for, or that breaks a limit, sends nothing and says why", async () => {
+  const draft = await open(storedTeam(4, ann()));
+  const before = structuredClone(draft);
+  assert.deepEqual(save.buyPlayers("t1", human, { 0: 2 }), { ok: false, refusal: BROKE }, "100k from 50k");
+  assert.deepEqual(save.buyPlayers("t1", human, { 1: 3 }), { ok: false, refusal: "Thrower: maximum is 2." });
+  assert.deepEqual(save.buyPlayers("t1", human, { 0: 14 }), { ok: false, refusal: "A Sevens roster should not exceed 14 players (currently 15)." });
+  assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
+  // A purchase spent the treasury: the same cart pressed again is asked on the draft it left, its answer not yet come.
+  const held = api.hold(PATCH_URL);
+  assert.equal(save.buyPlayers("t1", human, { 0: 1 }).ok, true);
+  await waitHeld(held);
+  assert.deepEqual(save.buyPlayers("t1", human, { 0: 1 }), { ok: false, refusal: BROKE });
+  held.release({ status: 200, body: { team: teamAt(5) } });
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.deepEqual([patches().length, draft.players.length, draft.treasury], [1, 2, 0]);
+});
+
+test("a sale is one PATCH without him and the treasury up by the sale; a cancelled purchase by what was paid", async () => {
+  const draft = await open(storedTeam(4, eight()));
+  api.reply(PATCH_URL, 200, { team: teamAt(5) });
+  assert.deepEqual(save.removePlayer("t1", human, "p2", "sell"), { ok: true, amount: 47.5, treasury: 97.5 }, "half of 75k and Block's 20k");
+  assert.deepEqual(save.removePlayer("t1", human, "p2", "sell"), { ok: false }, "a second press finds nobody to sell");
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const sold = patches()[0].body;
+  assert.deepEqual(sold.roster.players.map((player) => player.id), ["p1", "p3", "p4", "p5", "p6", "p7", "p8"]);
+  assert.deepEqual([sold.revision, sold.roster.treasury, sold.roster.roster], [4, 97.5, { 0: 7 }]);
+  // Seven are left: a sale would be refused, a purchase is cancelled all the same (owner, Q1).
+  api.reply(PATCH_URL, 200, { team: teamAt(6) });
+  assert.deepEqual(save.removePlayer("t1", human, "p8", "cancel-purchase"), { ok: true, amount: 50, treasury: 147.5 });
+  assert.deepEqual(await settle(), quiet("saved"));
+  const cancelled = patches()[1].body;
+  assert.deepEqual([cancelled.revision, cancelled.roster.players.length, cancelled.roster.treasury, cancelled.roster.roster], [5, 6, 147.5, { 0: 6 }]);
+  assert.equal(draft.players.length, 6);
+});
+
+test("a sale the rules refuse sends nothing and says why", async () => {
+  // Seven, Ned among them, his purchase sealed.
+  const draft = await open(storedTeam(4, sealedEight().filter((player) => player.id !== "p7")));
+  const before = structuredClone(draft);
+  assert.deepEqual(save.removePlayer("t1", human, "p2", "sell"), { ok: false, refusal: "A sale cannot leave fewer than seven players on the team." });
+  assert.deepEqual(save.removePlayer("t1", human, "p8", "cancel-purchase"),
+    { ok: false, refusal: "This purchase can no longer be cancelled. Use a sale under the league rules." });
+  assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
+});
+
+// Review Focus 1: the step sent again is the snapshot sent first, the new player's id with it.
+test("a purchase whose answer was lost is the 409 that holds it: taken as saved, nobody hired twice", async () => {
+  const draft = await open(storedTeam(4, ann()));
+  api.fail(PATCH_URL);
+  assert.equal(save.buyPlayers("t1", human, { 0: 1 }).ok, true);
+  const offline = await settle();
+  assert.deepEqual([offline.status, offline.waiting], ["offline", 1]);
+  // The server has it: the revision is 5, and the roster is what was sent, as the server stores it.
+  const sent = patches()[0].body;
+  api.reply(PATCH_URL, 409, { error: elsewhereError, team: teamAt(5, undefined, { roster: stored(sent.roster) }) });
+  assert.equal(await save.retrySaves("t1"), "saved");
+  assert.deepEqual(save.saveState("t1"), quiet("saved"));
+  assert.equal(save.savedRevision("t1"), 5);
+  assert.equal(patches().length, 2);
+  assert.deepEqual(patches()[1].body, sent, "the same body, the same new player");
+  assert.deepEqual([draft.players.length, draft.treasury], [2, 0], "one Lineman, paid for once");
+});
+
+test("a sale whose answer was lost: the same — the money comes back once", async () => {
+  const draft = await open(storedTeam(4, eight()));
+  api.fail(PATCH_URL);
+  assert.equal(save.removePlayer("t1", human, "p2", "sell").ok, true);
+  const offline = await settle();
+  assert.deepEqual([offline.status, offline.waiting], ["offline", 1]);
+  const sent = patches()[0].body;
+  api.reply(PATCH_URL, 409, { error: elsewhereError, team: teamAt(5, undefined, { roster: stored(sent.roster) }) });
+  assert.equal(await save.retrySaves("t1"), "saved");
+  assert.deepEqual(save.saveState("t1"), quiet("saved"));
+  assert.equal(save.savedRevision("t1"), 5);
+  assert.equal(patches().length, 2);
+  assert.deepEqual(patches()[1].body, sent);
+  assert.deepEqual([draft.players.length, draft.treasury], [7, 97.5]);
+});
+
+// Review Focus 5: the full price of a purchase a match has sealed never comes back.
+test("a purchase sealed by a match begun elsewhere is not refunded in full: the 409 that does not hold it is the coach's conflict", async () => {
+  await open(storedTeam(4, eight()));
+  api.reply(PATCH_URL, 409, { error: elsewhereError, team: storedTeam(5, sealedEight()) });
+  assert.equal(save.removePlayer("t1", human, "p8", "cancel-purchase").ok, true, "the draft does not know of the match");
+  const conflict = await settle();
+  assert.deepEqual([conflict.status, conflict.waiting, conflict.refusal], ["conflict", 1, "The team was saved elsewhere."]);
+  assert.equal(await save.retrySaves("t1"), "conflict");
+  await tick();
+  assert.equal(patches().length, 1, "nothing more is sent");
+  // The coach takes the server's roster: Ned is on it, and his purchase is no longer one to cancel.
+  const taken = save.takeServerTeam(storedTeam(5, sealedEight()));
+  assert.deepEqual([taken.players.length, taken.treasury], [8, 50]);
+  assert.deepEqual(save.removePlayer("t1", human, "p8", "cancel-purchase"),
+    { ok: false, refusal: "This purchase can no longer be cancelled. Use a sale under the league rules." });
+});
+
+test("nothing is sent after a conflict, for a player the roster has not, for an empty cart; another tab's coach is told", async () => {
+  const draft = await open(storedTeam(4, eight()));
+  const before = structuredClone(draft);
+  assert.deepEqual(save.removePlayer("t1", human, "p9", "sell"), { ok: false }, "a player the roster has not");
+  assert.deepEqual(save.removePlayer("t1", human, "", "sell"), { ok: false });
+  assert.deepEqual(save.removePlayer("t1", human, "p2", "trade"), { ok: false }, "neither a sale nor a cancel");
+  assert.deepEqual(save.removePlayer("t1", human, "p8", "sell"), { ok: false }, "a sale offered for a purchase the roster says is to cancel");
+  assert.deepEqual(save.buyPlayers("t1", human, {}), { ok: false }, "an empty cart");
+  assert.deepEqual(save.buyPlayers("t1", human, { 9: 1, 0: 0 }), { ok: false }, "a line the race has not, and none of a line");
+  assert.deepEqual(save.buyPlayers("t2", human, { 0: 1 }), { ok: false }, "a team the queue does not hold");
+  api.items.set(TOKEN, "someone-else");
+  assert.match(save.buyPlayers("t1", human, { 0: 1 }).refusal, /another tab/);
+  assert.match(save.removePlayer("t1", human, "p2", "sell").refusal, /another tab/);
+  assert.deepEqual([draft, save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
+  // Another device's save: the coach settles it before anything more goes.
+  api.items.set(TOKEN, "tok");
+  api.reply(PATCH_URL, 409, { error: elsewhereError, team: teamAt(5, { touchdowns: 9 }) });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.equal((await settle()).status, "conflict");
+  assert.deepEqual(save.buyPlayers("t1", human, { 0: 1 }), { ok: false });
+  assert.deepEqual(save.removePlayer("t1", human, "p2", "sell"), { ok: false });
+  assert.deepEqual(save.removePlayer("t1", human, "p8", "cancel-purchase"), { ok: false });
+  await tick();
+  assert.deepEqual([patches().length, draft.players.length, draft.treasury], [1, 8, 50]);
+  // A refusal by the rules: the refused step heads the queue, and a purchase or a sale says why until the server's roster is taken.
+  save.takeServerTeam(storedTeam(4, eight()));
+  api.reply(PATCH_URL, 422, rulesRefusal);
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.equal((await settle()).status, "error");
+  const why = { ok: false, refusal: "The roster breaks the rules. Players Ann, Bo are stored under one id." };
+  assert.deepEqual([save.buyPlayers("t1", human, { 0: 1 }), save.removePlayer("t1", human, "p2", "sell")], [why, why]);
+  await tick();
+  assert.equal(patches().length, 2);
+  // A session that ends takes the queue with it: there is no team to buy for.
+  session.sessionEnded();
+  assert.deepEqual([save.buyPlayers("t1", human, { 0: 1 }), save.removePlayer("t1", human, "p2", "sell")], [{ ok: false }, { ok: false }]);
+});
+
+// Decision 11, as `adopt` in data/treasury.mjs: a read of the list asked before a save answered cannot know of it.
+test("a list read on its way when a save answers is asked again: the older list never takes the answer back", async () => {
+  await open();
+  // The list's answer settles the active team: it is t1 already, and the account says so, so nothing is written there.
+  state.auth.currentUser.preferences = { activeTeamId: "t1" };
+  state.activeTeamId = "t1";
+  const listAt = (revision) => ({ teams: [{ id: "t0", name: "Other" }, { id: "t1", name: "Iron Rooks", revision }] });
+  const lists = () => api.calls.filter((call) => call.key === LIST_URL).length;
+  const older = api.hold(LIST_URL);
+  const reading = loadMyTeams(true);
+  await waitHeld(older);
+  const newer = api.hold(LIST_URL);
+  api.reply(PATCH_URL, 200, { team: teamAt(5, { touchdowns: 3 }) });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(state.myTeams.items[1].revision, 5, "the answer is in the list at once");
+  await waitHeld(newer);
+  assert.equal(lists(), 2, "and the list is asked again");
+  older.release({ status: 200, body: listAt(4) });
+  await tick();
+  await tick();
+  assert.equal(state.myTeams.items[1].revision, 5, "the list asked before the save is dropped");
+  newer.release({ status: 200, body: listAt(5) });
+  await reading;
+  assert.deepEqual([state.myTeams.items[1].revision, state.myTeams.loading, lists()], [5, false, 2]);
+  // A list that does not hold the team is not written; a read of it on its way is asked again all the same.
+  state.myTeams = { items: [], loaded: false, loading: false, error: "" };
+  const unread = api.hold(LIST_URL);
+  const first = loadMyTeams(true);
+  await waitHeld(unread);
+  const again = api.hold(LIST_URL);
+  api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 4 }) });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.deepEqual(await settle(), quiet("saved"));
+  await waitHeld(again);
+  assert.deepEqual([state.myTeams.items, lists()], [[], 4]);
+  unread.release({ status: 200, body: listAt(5) });
+  again.release({ status: 200, body: listAt(6) });
+  await first;
+  assert.equal(state.myTeams.items[1].revision, 6);
+  api.assertAnswered();
 });
