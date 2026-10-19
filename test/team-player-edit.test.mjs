@@ -21,7 +21,9 @@ const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
 
 const PATCH = "PATCH /api/teams/t1";
 const TEAM_READ = "GET /api/teams/t1";
-const PROFILE = "src/screens/team/roster/profile.css";
+const SHEETS = "src/screens/team/roster/player-sheets.css";
+/** The frame every sheet of a player's wears (player-sheets.css). */
+const FRAME = ".g-player-sheet";
 const CLOSED = "Number, name and captain — after the post-match";
 const OTHER_TAB = "Someone signed in or out in another tab, so nothing was saved here.";
 const NOTE = "Opponents see the number and the name in the roster and in the match report";
@@ -44,7 +46,7 @@ const captionOf = () => captainSwitch().querySelector(".g-toggle__caption").text
 const note = () => editSheet().querySelector(".g-player-edit__note");
 const saveButton = () => editSheet().querySelector("[data-edit-save]");
 const cancelButton = () => editSheet().querySelector("[data-edit-keep]");
-const refusal = () => editSheet().querySelector(".g-player-edit__refusal");
+const refusal = () => editSheet().querySelector(".g-player-sheet__refusal");
 const sppBlock = () => editSheet().querySelector(".g-player-edit__spp");
 /** The players of a PATCH's roster, by id: number, name and the armband. */
 const sentPlayers = (call) => Object.fromEntries(call.body.roster.players.map((player) => [player.id, [player.number, player.name, Boolean(player.isCaptain)]]));
@@ -95,6 +97,7 @@ test("the pencil opens the edit: on a phone a sheet from his profile, on a desk 
         fireEvent(button, "click");
         const sheet = editSheet();
         assert.ok(sheet?.isModal, "dialog#player-edit, open");
+        assert.equal(sheet.getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
         assert.equal(sheet.querySelector("h2").textContent, "Edit the player");
         assert.equal(sheet.querySelector(".g-sheet__sub").textContent, "Catcher · Human");
         assert.equal(sheet.querySelector('label[for="player-edit-number"]').textContent, "Number");
@@ -427,7 +430,7 @@ test("during a preparation the sheet says what a save resets", async () => {
       await withWindow({ phone }, async () => {
         await openEdit(phone, { games: [PREP_GAME] });
         assert.ok(editSheet()?.isModal, "a preparation closes nothing");
-        assert.equal(editSheet().querySelector(".g-player-edit__prep").textContent, prepResetWords());
+        assert.equal(editSheet().querySelector(".g-player-sheet__prep").textContent, prepResetWords());
         assertStyled(view, ...EDIT_STYLES);
       });
     }
@@ -498,51 +501,59 @@ test("styled as PlayerEdit.html up to 900px and DeskRosterEdit.html from 901px, 
         assertStyled(view, ...EDIT_STYLES);
       });
     }
-    const css = text(PROFILE);
+    const css = text(SHEETS);
     assert.doesNotMatch(css, /--focus-ring/);
+    assert.doesNotMatch(css, /text-overflow/, "nothing is cut with «…»");
     const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
-    assert.ok(queries.every((query) => query === "(max-width: 900px)" || query === "(min-width: 901px)"), `only the stage's two breakpoints: ${queries}`);
-    // Each new block says its font, border or background, case and spacing (the 2.x globals outlive it, stage 13).
-    for (const selector of ["#player-edit .g-player-edit__note", "#player-edit .g-player-edit__c", "#player-edit .g-player-edit__spptitle", "#player-edit .g-player-edit__sppnote",
-      "#player-edit .g-player-edit__prep", "#player-edit .g-player-edit__refusal", "#player-edit .g-toggle", "#player-edit .g-sheet__foot .g-btn"]) {
-      for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(PROFILE, selector, property).length >= 1, `${selector} ${property}`);
+    assert.deepEqual(queries, ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
+    // The shared frame on the class every player's sheet wears; the edit's own by its id (fix round 1, M4).
+    for (const selector of [`${FRAME} .g-player-edit__note`, `${FRAME} .g-player-sheet__prep`, `${FRAME} .g-player-sheet__refusal`, `${FRAME} .g-toggle`, `${FRAME} .g-sheet__foot .g-btn`,
+      "#player-edit .g-player-edit__c", "#player-edit .g-player-edit__spptitle", "#player-edit .g-player-edit__sppnote"]) {
+      for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(SHEETS, selector, property).length >= 1, `${selector} ${property}`);
     }
-    // PlayerEdit.html: the fields 96px | 1fr, 10 apart; the number Oswald 700 22px; the switch from 64px, 14px round; the foot 1fr | 2fr.
-    assert.deepEqual(valuesOf(PROFILE, "#player-edit .g-player-edit__fields", "grid-template-columns"), ["96px minmax(0, 1fr)", "100px minmax(0, 1fr)"]);
-    assert.deepEqual(valuesOf(PROFILE, "#player-edit .g-player-edit__fields", "gap"), ["var(--space-10)", "var(--space-12)"]);
-    assert.deepEqual(valuesOf(PROFILE, "#player-edit #player-edit-number", "font"), ["700 22px/normal var(--font-display)"]);
-    assert.deepEqual(valuesOf(PROFILE, "#player-edit .g-toggle", "min-height"), ["64px", "60px"]);
-    assert.deepEqual(valuesOf(PROFILE, "#player-edit .g-sheet__foot", "grid-template-columns"), ["minmax(0, 1fr) minmax(0, 2fr)"]);
-    assert.deepEqual(valuesOf(PROFILE, "dialog.g-sheet#player-edit", "border-radius"), ["20px"], "DeskRosterEdit.html's window");
-    assert.deepEqual(valuesOf(PROFILE, "#player-edit .g-player-edit__sppnote", "font"), ["400 12px/1.4 var(--font-body)"], "DeskRosterLive.html's note under the tiles");
+    // PlayerEdit.html then DeskRosterEdit.html: the fields 96px | 1fr, 10 apart, then 100px, 12; the number Oswald 700 22px;
+    // the switch from 64px, then 60px; the phone's foot 1fr | 2fr; the desk's window 20px round, its head 16 between title and cross.
+    assert.deepEqual(valuesOf(SHEETS, "#player-edit .g-player-edit__fields", "grid-template-columns"), ["96px minmax(0, 1fr)", "100px minmax(0, 1fr)"]);
+    assert.deepEqual(valuesOf(SHEETS, "#player-edit .g-player-edit__fields", "gap"), ["var(--space-10)", "var(--space-12)"]);
+    assert.deepEqual(valuesOf(SHEETS, "#player-edit #player-edit-number", "font"), ["700 22px/normal var(--font-display)"]);
+    assert.deepEqual(valuesOf(SHEETS, `${FRAME} .g-toggle`, "min-height"), ["64px", "60px"]);
+    assert.deepEqual(valuesOf(SHEETS, `${FRAME} .g-sheet__foot`, "grid-template-columns"), ["minmax(0, 1fr) minmax(0, 2fr)"]);
+    assert.deepEqual(valuesOf(SHEETS, `dialog.g-sheet${FRAME}`, "border-radius"), ["20px"], "DeskRosterEdit.html's window");
+    assert.deepEqual(valuesOf(SHEETS, `${FRAME} .g-sheet__head`, "gap"), ["var(--space-16)"], "DeskRosterEdit.html's head (M1)");
+    assert.deepEqual(valuesOf(SHEETS, "#player-edit .g-player-edit__sppnote", "font"), ["400 12px/1.4 var(--font-body)"], "DeskRosterLive.html's note under the tiles");
     // Line heights are the prototype's: `normal` where it gives none (Task 7's lesson).
-    for (const selector of ["#player-edit .g-player-edit__note", "#player-edit .g-toggle__label", "#player-edit .g-toggle__caption", "#player-edit .g-sheet__sub", "#player-edit .g-field__label"]) {
-      assert.ok(valuesOf(PROFILE, selector, "line-height").concat(valuesOf(PROFILE, selector, "font")).some((value) => /(^|\/)normal\b/.test(value)), `${selector}: line height normal`);
+    for (const selector of [`${FRAME} .g-player-edit__note`, `${FRAME} .g-toggle__label`, `${FRAME} .g-toggle__caption`, `${FRAME} .g-sheet__sub`, `${FRAME} .g-field__label`]) {
+      assert.ok(valuesOf(SHEETS, selector, "line-height").concat(valuesOf(SHEETS, selector, "font")).some((value) => /(^|\/)normal\b/.test(value)), `${selector}: line height normal`);
     }
-    assertReadable(PROFILE, "#player-edit .g-player-edit__note", "color", ["--surface"], 4.5);
-    assertReadable(PROFILE, "#player-edit .g-player-edit__note--bad", "color", ["--surface"], 4.5);
-    assertReadable(PROFILE, "#player-edit .g-player-edit__c", "color", ["--crest-gold"], 4.5);
-    assertReadable(PROFILE, "#player-edit .g-toggle__caption", "color", ["--surface", "--accent-tint-soft"], 4.5);
-    assertReadable(PROFILE, "#player-edit .g-player-edit__sppnote", "color", ["--surface"], 4.5);
-    assertReadable(PROFILE, "#player-edit .g-player-edit__refusal", "color", ["--surface"], 4.5);
+    assertReadable(SHEETS, `${FRAME} .g-player-edit__note`, "color", ["--surface"], 4.5);
+    assertReadable(SHEETS, `${FRAME} .g-player-edit__note--bad`, "color", ["--surface"], 4.5);
+    assertReadable(SHEETS, "#player-edit .g-player-edit__c", "color", ["--crest-gold"], 4.5);
+    assertReadable(SHEETS, `${FRAME} .g-toggle__caption`, "color", ["--surface", "--accent-tint-soft"], 4.5);
+    assertReadable(SHEETS, "#player-edit .g-player-edit__sppnote", "color", ["--surface"], 4.5);
+    assertReadable(SHEETS, `${FRAME} .g-player-sheet__prep`, "color", ["--surface"], 4.5);
+    assertReadable(SHEETS, `${FRAME} .g-player-sheet__refusal`, "color", ["--surface"], 4.5);
+    // Imported right after the profile's page (fix round 1, I1).
+    const styles = text("src/styles.css");
+    const at = (name) => styles.indexOf(`@import url("screens/team/roster/${name}");`);
+    assert.ok(at("profile.css") >= 0 && at("player-sheets.css") > at("profile.css"));
+    assert.ok(!text("src/screens/team/roster/profile.css").includes("player-edit"), "the profile's page holds none of the edit's rules");
   });
 });
 
 test("D2: up to 900px the fields 48px and the buttons 52px; from 901px the fields and the buttons 44px, the SPP tiles' buttons 24px or more", () => {
-  const css = text(PROFILE).replace(/\/\*[\s\S]*?\*\//g, "");
-  // Every block of the query: the profile's own up to 900px comes first, the edit's after it.
+  const css = text(SHEETS).replace(/\/\*[\s\S]*?\*\//g, "");
   const block = (query) => {
-    const parts = css.split(`@media (${query}) {`).slice(1).map((part) => part.slice(0, part.indexOf("\n}")));
-    assert.ok(parts.length, `profile.css has no @media (${query})`);
-    return parts.join("\n");
+    const start = css.indexOf(`@media (${query}) {`);
+    assert.ok(start >= 0, `player-sheets.css has no @media (${query})`);
+    return css.slice(start, css.indexOf("\n}", start));
   };
   const px = (found) => found.slice(1).map(Number);
   const phone = block("max-width: 900px");
   const desk = block("min-width: 901px");
-  assert.deepEqual(px(phone.match(/#player-edit \.g-field__input \{[^}]*height: (\d+)px;/)), [48], "a phone's fields");
-  assert.deepEqual(px(phone.match(/#player-edit \.g-sheet__foot \.g-btn \{[^}]*height: (\d+)px;/)), [52], "a phone's buttons");
-  assert.deepEqual(px(desk.match(/#player-edit \.g-field__input \{[^}]*height: (\d+)px;/)), [44], "a desk's fields");
-  assert.deepEqual(px(desk.match(/#player-edit \.g-sheet__foot \.g-btn \{[^}]*min-height: (\d+)px;/)), [44], "a desk's buttons");
+  assert.deepEqual(px(phone.match(/\.g-player-sheet \.g-field__input \{[^}]*height: (\d+)px;/)), [48], "a phone's fields");
+  assert.deepEqual(px(phone.match(/\.g-player-sheet \.g-sheet__foot \.g-btn \{[^}]*height: (\d+)px;/)), [52], "a phone's buttons");
+  assert.deepEqual(px(desk.match(/\.g-player-sheet \.g-field__input \{[^}]*height: (\d+)px;/)), [44], "a desk's fields");
+  assert.deepEqual(px(desk.match(/\.g-player-sheet \.g-sheet__foot \.g-btn \{[^}]*min-height: (\d+)px;/)), [44], "a desk's buttons");
   // The tiles are the panel's (action-stepper.css): 32px buttons that give way to 24px, never less.
   assert.deepEqual(valuesOf("src/ui/action-stepper.css", ".g-stepper--tile .g-stepper__btn", "min-width"), ["24px"]);
   assert.deepEqual(valuesOf("src/ui/action-stepper.css", ".g-stepper--tile .g-stepper__btn", "height"), ["32px"]);

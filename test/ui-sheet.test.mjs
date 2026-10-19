@@ -107,6 +107,14 @@ test("an anchored sheet carries its modifier and sits by the SideNav from 901px"
   assertStyled(fragment, "sheet.css", "button.css");
 });
 
+// Stage 07d, Task 8: a player's sheets share a frame of their own (player-sheets.css), drawn by the class their caller gives.
+test("a sheet may carry one plain class of its caller's; anything else is refused", () => {
+  const dialog = mount(renderSheet({ id: "p1", title: "T", bodyHtml: "<p>x</p>", className: "g-player-sheet" })).querySelector("dialog");
+  assert.equal(dialog.getAttribute("class"), "g-sheet g-player-sheet");
+  assert.equal(mount(renderSheet({ id: "p2", title: "T", bodyHtml: "<p>x</p>" })).querySelector("dialog").getAttribute("class"), "g-sheet", "without one, as it was");
+  for (const className of ['a" onclick="x', "a b", "a.b", "1a"]) assert.throws(() => renderSheet({ id: "p3", title: "T", bodyHtml: "", className }), /class/, className);
+});
+
 test("closing by button, backdrop or Escape goes through one path; back is its own", () => {
   const fragment = mount(renderSheet({ id: "s2", title: "T", bodyHtml: "<p>inside</p>", canGoBack: true }));
   const dialog = fragment.querySelector("dialog");

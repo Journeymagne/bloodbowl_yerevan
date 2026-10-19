@@ -2370,9 +2370,9 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   // The roster chain in this order (K5): its own sheet, 07b's marks.css, its sheets' and its frame's, 07c's market.css after
   // the fidelity pass's frame.css, then 07d's sheets in the order of their tasks — those there yet; others may follow them.
   const styles = text("src/styles.css");
-  const chain = ["roster.css", "marks.css", "sheets.css", "frame.css", "market.css", "profile.css", "advance.css", "rolls.css", "fix.css"]
+  const chain = ["roster.css", "marks.css", "sheets.css", "frame.css", "market.css", "profile.css", "player-sheets.css", "advance.css", "rolls.css", "fix.css"]
     .map((name) => styles.indexOf(`@import url("screens/team/roster/${name}");`));
-  assert.ok(chain.slice(0, 6).every((at) => at >= 0), "07a to 07c's and 07d's profile.css reach the page");
+  assert.ok(chain.slice(0, 7).every((at) => at >= 0), "07a to 07c's and 07d's profile.css and player-sheets.css reach the page");
   const present = chain.filter((at) => at >= 0);
   assert.deepEqual(present, [...present].sort((a, b) => a - b));
 });

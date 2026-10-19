@@ -35,9 +35,11 @@ const ID = /^[A-Za-z][\w-]*$/;
  * @param {string} [props.footStartHtml] one quiet control that stands beside that button (a switch such as "Show passwords"), as markup; without a button there is no footer to hold it
  * @param {boolean} [props.wide] a 640px modal on a wide screen instead of 480px
  * @param {boolean} [props.anchored] a panel of 300px by the SideNav from 901px (the team switcher), instead of a modal in the middle; up to 900px the same sheet from the bottom
+ * @param {string} [props.className] one plain class of the caller's on the dialog: a frame several of its sheets share (a player's, stage 07d)
  */
-export function renderSheet({ id, title, sub = "", step = null, canGoBack = false, bodyHtml, footHtml = "", footStartHtml = "", wide = false, anchored = false }) {
+export function renderSheet({ id, title, sub = "", step = null, canGoBack = false, bodyHtml, footHtml = "", footStartHtml = "", wide = false, anchored = false, className = "" }) {
   if (typeof id !== "string" || !ID.test(id)) throw new Error(`a sheet id is a plain name, not ${JSON.stringify(id)}`);
+  if (className && !ID.test(className)) throw new Error(`a sheet's class is one plain name, not ${JSON.stringify(className)}`);
   if (!title) throw new Error("a sheet needs a title: it is what names the dialog");
   const back = canGoBack
     ? renderIconButton({ icon: "back", label: t("ui.sheet.back"), data: { sheetBack: "" } })
@@ -47,7 +49,7 @@ export function renderSheet({ id, title, sub = "", step = null, canGoBack = fals
   const titles = `<div class="g-sheet__titles"><h2 class="g-sheet__title" id="${escapeHtml(id)}-title">${escapeHtml(title)}</h2>${context}</div>`;
   const start = footStartHtml ? `<div class="g-sheet__foot-start">${footStartHtml}</div>` : "";
   const foot = footHtml ? `<footer class="g-sheet__foot">${start}${footHtml}</footer>` : "";
-  return `<dialog class="${classNames("g-sheet", wide && "g-sheet--wide", anchored && "g-sheet--anchored")}" id="${escapeHtml(id)}" aria-labelledby="${escapeHtml(id)}-title">`
+  return `<dialog class="${classNames("g-sheet", wide && "g-sheet--wide", anchored && "g-sheet--anchored", className)}" id="${escapeHtml(id)}" aria-labelledby="${escapeHtml(id)}-title">`
     + '<div class="g-sheet__panel"><div class="g-sheet__handle" aria-hidden="true"></div>'
     + `<header class="g-sheet__head">${back}${titles}${close}</header>`
     + `${step ? renderStepDots(step) : ""}<div class="g-sheet__body">${bodyHtml}</div>${foot}`

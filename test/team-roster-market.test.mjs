@@ -1388,6 +1388,7 @@ test("everything drawn is styled, and the cart's colours are readable", async ()
     const at = (name) => text("src/styles.css").indexOf(`@import url("screens/team/roster/${name}");`);
     assert.ok(at("frame.css") >= 0 && at("market.css") > at("frame.css"), "market.css after frame.css");
     assert.ok(at("profile.css") > at("market.css"), "market.css before profile.css");
+    assert.ok(at("player-sheets.css") > at("profile.css"), "and 07d's player-sheets.css after profile.css");
   });
 });
 

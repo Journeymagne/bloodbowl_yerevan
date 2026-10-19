@@ -8,6 +8,9 @@
  * panel's tiles in a match (owner's D3, answer 2: DeskRosterLive.html's D1 block): each press is a step of the queue of
  * its own, as on a phone's open row, which neither «Save» nor «Cancel» touches. «Save» sends the number, the name and
  * the captaincy as one step.
+ *
+ * Every sheet here wears the frame `.g-player-sheet` (player-sheets.css: head, body, foot, fields, a switch as a card, the
+ * lines of words); what is one sheet's own is styled by its id.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -19,6 +22,7 @@ import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
 import { countersMarkup, prepResetWords, sessionMarkup } from "./panel.mjs";
+import { refusalWordsOf } from "./save.mjs";
 import { EDIT_SHEET, footButton } from "./sheets.mjs";
 
 /** What wireToggles reports for «Team captain». */
@@ -27,6 +31,8 @@ export const CAPTAIN_TOGGLE = "player-captain";
 export const EDIT_FIELDS = Object.freeze({ number: "player-edit-number", name: "player-edit-name" });
 /** The id of the line under the fields, which describes them both. */
 const NOTE_ID = "player-edit-note";
+/** The frame every sheet of a player's wears (player-sheets.css). */
+const FRAME = "g-player-sheet";
 
 /**
  * The edit's form as it stands: why the roster would refuse it (`editRefusal` on the draft: the name first, then the
@@ -98,15 +104,16 @@ export function editSheetMarkup({ line, lines, screen, sheet }) {
     id: EDIT_FIELDS.number, name: "number", label: t("teamPlayer.edit.number"), type: "text", inputmode: "numeric", value: form.number,
     invalid: named === "number", describedBy: NOTE_ID,
   })}${renderTextField({ id: EDIT_FIELDS.name, name: "name", label: t("teamPlayer.edit.name"), value: form.name, invalid: named === "name", autocomplete: "off", describedBy: NOTE_ID })}</div>`;
-  const words = wrong ? t(`teamPlayer.refusal.${wrong.code}`, wrong.params) : t("teamPlayer.edit.note");
+  const words = wrong ? refusalWordsOf("teamPlayer", wrong) : t("teamPlayer.edit.note");
   const note = `<p class="${classNames("g-player-edit__note", wrong && "g-player-edit__note--bad")}" id="${NOTE_ID}" role="status">${escapeHtml(words)}</p>`;
   const captain = renderToggle({
     key: CAPTAIN_TOGGLE, label: t("teamPlayer.edit.captain"), caption: captainWords(line, lines, form.captain), checked: form.captain, leadHtml: captainMarkMarkup(),
   });
-  const prep = screen.mode.kind === "prep" ? `<p class="g-player-edit__prep">${escapeHtml(prepResetWords())}</p>` : "";
-  const alert = refusal ? `<p class="g-player-edit__refusal" role="alert">${escapeHtml(refusal)}</p>` : "";
+  const prep = screen.mode.kind === "prep" ? `<p class="g-player-sheet__prep">${escapeHtml(prepResetWords())}</p>` : "";
+  const alert = refusal ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(refusal)}</p>` : "";
   return renderSheet({
     id: EDIT_SHEET,
+    className: FRAME,
     title: t("teamPlayer.edit.title"),
     sub: t("teamPlayer.edit.sub", { position: line.position, race: raceTitleOf(screen.team.baseTeamSlug) }),
     bodyHtml: `${fields}${note}${captain}${sppMarkup(line, screen)}${prep}${alert}`,
