@@ -7,7 +7,7 @@ import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
-  LIVE_GAME, PLAYERS, STYLES, api, aside, coach, died, headingText, loadGames, namesIn, page, renderTeamRoster, save, settle, tables, team, text, toggle, view,
+  LIVE_GAME, PLAYERS, STYLES, api, aside, coach, died, headingText, loadGames, namesIn, openRow, page, renderTeamRoster, save, settle, tables, team, text, toggle, view,
   withPlayers, words,
 } from "./helpers/roster-page.mjs";
 
@@ -1013,6 +1013,107 @@ test("a fallen player has no «Sell»", async () => {
       });
     }
   });
+});
+
+// R8 for the market (Task 7): what waited for the network when a match began is given up with the server's roster, and said.
+const MARKET_DROPPED = "A match has begun, so the hires and sales that were waiting were not saved. Make them again after the post-match.";
+const SPP_DROPPED = "A match has begun, so the edits that were waiting were not saved (1). Make them again as an edit outside the match.";
+const MARKS_DROPPED = "A match has begun, so the missed-match marks that were waiting were not saved (1). Make them again after the post-match.";
+const markSheet = () => view.querySelector("dialog#roster-mark");
+const markOption = (code) => markSheet().querySelectorAll('.g-option[role="radio"]').find((card) => card.getAttribute("data-option-value") === code);
+const markStat = (stat) => markSheet().querySelectorAll('[data-chip-group="mark-stat"] .g-chip').find((chip) => chip.getAttribute("data-chip-value") === stat);
+const warnings = () => toasts().filter((said) => said.startsWith("A match has begun"));
+/** A match begins on another device while the coach's steps wait: the games say so, and `server` is the roster the server holds. */
+const matchBegins = async (server) => {
+  api.reply(TEAM_READ, 200, { team: server });
+  api.reply("GET /api/teams/t1/events", 200, { events: [], revision: server.revision });
+  gamesAre([LIVE_GAME]);
+  await loadGames(true);
+  await settle();
+};
+/** Ann's «+» on touchdowns in her open row (a phone's: a desk has no counters outside a match). */
+const stepForAnn = async () => {
+  fireEvent(openRow().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
+  await settle();
+};
+
+test("a hire and a sale that waited for the network are given up when a match begins, and the coach is told", async () => {
+  await withoutTimers(async () => {
+    coach({ teamAnswer: rich() });
+    await renderTeamRoster("t1");
+    api.fail(PATCH);
+    openCart(0);
+    fireEvent(buyButton(), "click");
+    await settle();
+    assert.equal(status(), "Waiting for the network · edits: 1");
+    assert.equal(namesIn(tables()[0]).length, 4, "the new Lineman is drawn at once");
+    await matchBegins(rich({ revision: 5 }));
+    assert.equal(toasts().at(-1), MARKET_DROPPED);
+    assert.match(document.querySelectorAll("output").at(-1).className, /toast-error/);
+    assert.deepEqual(warnings(), [MARKET_DROPPED], "neither SPP nor marks waited");
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "the server's roster");
+    assert.equal(save.saveState("t1").waiting, 0);
+    assert.equal(patches().length, 1, "the one try before the network went");
+    // A sale.
+    await drawFor("p8#0");
+    fireEvent(sellIn(aside()), "click");
+    api.fail(PATCH);
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(status(), "Waiting for the network · edits: 1");
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade", "Ivo"], "Hal is gone from the screen");
+    await matchBegins(forSale(SALE_PLAYERS, { revision: 5 }));
+    assert.equal(toasts().at(-1), MARKET_DROPPED);
+    assert.deepEqual(warnings(), [MARKET_DROPPED]);
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade", "Hal", "Ivo"], "the server's roster: Hal is still his");
+    assert.equal(save.saveState("t1").waiting, 0);
+    assert.equal(patches().length, 1, "the one try before the network went");
+  });
+});
+
+test("SPP, a mark and a hire given up together: each in its own words, SPP first", async () => {
+  await withWindow({ phone: true }, async () => withoutTimers(async () => {
+    coach({ teamAnswer: rich(), open: "p1#0" });
+    await renderTeamRoster("t1");
+    api.fail(PATCH);
+    await stepForAnn();
+    fireEvent(openRow().querySelector("[data-roster-mark]"), "click");
+    fireEvent(markOption("lasting"), "click");
+    fireEvent(markStat("ma"), "click");
+    fireEvent(markSheet().querySelector("[data-mark-send]"), "click");
+    await settle();
+    openCart(0);
+    fireEvent(buyButton(), "click");
+    await settle();
+    assert.equal(save.saveState("t1").waiting, 3);
+    const tried = patches().length;
+    await matchBegins(rich({ revision: 5 }));
+    assert.deepEqual(warnings(), [SPP_DROPPED, MARKS_DROPPED, MARKET_DROPPED]);
+    assert.deepEqual(toasts().slice(-3), [SPP_DROPPED, MARKS_DROPPED, MARKET_DROPPED]);
+    for (const output of document.querySelectorAll("output").slice(-3)) assert.match(output.className, /toast-error/);
+    assert.equal(save.saveState("t1").waiting, 0);
+    assert.equal(patches().length, tried, "the tries before the network went, and none in the match");
+    assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade"], "the server's roster");
+  }));
+});
+
+test("a match begun with no hire or sale waiting says nothing of them", async () => {
+  await withWindow({ phone: true }, async () => withoutTimers(async () => {
+    // Only a step of SPP waits; another device hired meanwhile, and that is not the coach's to be told of (the count never passes what waited).
+    coach({ teamAnswer: rich(), open: "p1#0" });
+    await renderTeamRoster("t1");
+    api.fail(PATCH);
+    await stepForAnn();
+    assert.equal(save.saveState("t1").waiting, 1);
+    await matchBegins(rich({ roster: { players: [...PLAYERS, IVO], treasury: 70 }, revision: 5 }));
+    assert.deepEqual(warnings(), [SPP_DROPPED]);
+    assert.equal(save.saveState("t1").waiting, 0);
+    // Nothing waits at all: a match begins and nothing is said.
+    coach({ teamAnswer: rich(), open: "p1#0" });
+    await renderTeamRoster("t1");
+    await matchBegins(rich({ roster: { players: [...PLAYERS, IVO], treasury: 70 }, revision: 5 }));
+    assert.deepEqual(warnings(), []);
+  }));
 });
 
 test("the name and the skills are text", async () => {

@@ -1303,6 +1303,7 @@
   "teamRoster.hire.done": "Куплено: {players} · в казне {treasury}",
   "teamRoster.hire.player": "{position} #{number}",
   "teamRoster.market.closed": "Найм и продажа — после итогов матча",
+  "teamRoster.market.matchDropped": "Начался матч, поэтому ждавшие отправки найм и продажа не сохранены. Повторите их после итогов матча.",
   "teamRoster.sell.open": "Продать",
   "teamRoster.sell.cancelOpen": "Отменить покупку",
   "teamRoster.sell.title": "Продать игрока",

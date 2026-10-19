@@ -18,7 +18,9 @@ import { toast } from "../../../components/toast.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { view } from "../../../core/view.mjs";
-import { hireQuote } from "../../../domain/roster/transfers.mjs";
+import { sppEdits } from "../../../domain/post-match/events.mjs";
+import { markEdits } from "../../../domain/roster/absence.mjs";
+import { hireQuote, transferEdits } from "../../../domain/roster/transfers.mjs";
 import { refusalWords } from "./hire-sheet.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { hireClosed, sellClosed } from "./panel.mjs";
@@ -29,6 +31,29 @@ import { buyPlayers, removePlayer } from "./save.mjs";
  * and the queue's draft, which the cart is priced and limited on.
  * @typedef {import("./marks.mjs").Now & {race: object|null, draft: object}} MarketNow
  */
+
+/**
+ * What a match that has begun took from the coach's steps that waited for the network (R8), in words and in order: the
+ * SPP steps, the missed-match marks, then the hires and sales — one line, with no number, for one purchase may be
+ * several players. Each count is held to what waited, after the kinds before it have taken theirs: the roster the
+ * server holds may differ from the draft by another device's save that the same read took in, and that is not the
+ * coach's to be told of (07a's rule). A kind with nothing dropped is not said.
+ *
+ * @param {object} server the roster the server holds, which the draft is given up for
+ * @param {object} draft the queue's draft, as the coach had it
+ * @param {number} waiting how many steps of the queue waited
+ * @returns {string[]}
+ */
+export function droppedWords(server, draft, waiting) {
+  const spp = Math.min(sppEdits(server, draft).length, waiting);
+  const marks = Math.min(markEdits(server, draft), waiting - spp);
+  const market = waiting - spp - marks > 0 && transferEdits(server, draft) > 0;
+  return [
+    spp ? t("teamRoster.matchDropped", { count: spp }) : "",
+    marks ? t("teamRoster.mark.matchDropped", { count: marks }) : "",
+    market ? t("teamRoster.market.matchDropped") : "",
+  ].filter(Boolean);
+}
 
 /** The player of `key` on the roster as it stands, never one of the fallen (the dead are not sold), or null. */
 const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;

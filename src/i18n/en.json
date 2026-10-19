@@ -1303,6 +1303,7 @@
   "teamRoster.hire.done": "Hired: {players} · treasury {treasury}",
   "teamRoster.hire.player": "{position} #{number}",
   "teamRoster.market.closed": "Hiring and selling — after the post-match",
+  "teamRoster.market.matchDropped": "A match has begun, so the hires and sales that were waiting were not saved. Make them again after the post-match.",
   "teamRoster.sell.open": "Sell",
   "teamRoster.sell.cancelOpen": "Cancel purchase",
   "teamRoster.sell.title": "Sell the player",

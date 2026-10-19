@@ -8,8 +8,8 @@
  * Outside a match a counter's step is a save of the roster (save.mjs), drawn at once from the queue's draft. The
  * queue outlives the visit: what waits for the network is sent again on entry and when the network is back, and
  * never while a match is on (R8): a PATCH during a match breaks its finish (POST_TEAM_CHANGED), so a match that
- * begins while steps wait gives them up for the server's roster, and the coach is told how many SPP steps the server
- * does not have. A team is never taken on games older than it: the games are read once it has answered, and the
+ * begins while steps wait gives them up for the server's roster, and the coach is told what the server does not have:
+ * the SPP steps, the marks, the hires and the sales. A team is never taken on games older than it: the games are read once it has answered, and the
  * counters stay closed until both have.
  *
  * During a match a step is a row the server adds (match-taps.mjs, taps.mjs): a record of the match, or with «Edit
@@ -25,7 +25,8 @@
  * steps of the queue like a counter's (marks.mjs): a match that begins while one waits gives it up as it gives up
  * the SPP steps, and the coach is told how many of each. A death and its undo are no step of it: each goes only when
  * none waits, every step and mark waits while one is on its way, and its answer is the list's — and the queue's while
- * the visit that sent it is here (I1). Hiring from the «+» is a step of the queue too (stage 07c, market.mjs).
+ * the visit that sent it is here (I1). Hiring from the «+» and selling are steps of the queue too (stage 07c,
+ * market.mjs), given up and told of the same way.
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
@@ -38,8 +39,6 @@ import { toast } from "../../../components/toast.mjs";
 import { loadGames, onGamesChange } from "../../../data/games.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { raceTeamOf } from "../../../data/teams.mjs";
-import { sppEdits } from "../../../domain/post-match/events.mjs";
-import { markEdits } from "../../../domain/roster/absence.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { readSnapshot } from "./data.mjs";
 import { fallenWriting } from "./fallen.mjs";
@@ -50,7 +49,7 @@ import { focusPlace, restoreFocus } from "./focus.mjs";
 import { closeSheet, injuryHandlers, sheetOf } from "./injury.mjs";
 import { recordsOf, sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { markHandlers, markSheetOf } from "./marks.mjs";
-import { marketHandlers, marketSheetOf } from "./market.mjs";
+import { droppedWords, marketHandlers, marketSheetOf } from "./market.mjs";
 import { sheetIdOf } from "./sheets.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
 import { wireAsideFit } from "./aside-fit.mjs";
@@ -236,11 +235,11 @@ async function readWithGames(saving) {
  * the roster during the match, R8). Not while a request is in the air (`takeServerTeam` says null): the state the
  * queue comes to next asks again (Carry T7 d).
  *
- * In a match the coach is told how many SPP steps of his the server does not have (a step whose answer was lost
- * may have landed: it is not one of them), never more than waited: another device's SPP change is not his; and, in
- * words of their own, how many missed-match marks (stage 07b, decision 8), never more than waited besides those.
- * After another device's save his SPP are counted afresh; after a refusal or a match the server holds his saved
- * steps as they were, and they still count.
+ * In a match the coach is told what of his the server does not have (`droppedWords`, market.mjs), each kind in words
+ * of its own: how many SPP steps (a step whose answer was lost may have landed: it is not one of them), how many
+ * missed-match marks (stage 07b, decision 8) and the hires and sales (stage 07c, decision 8), each never more than
+ * waited besides those before it: another device's change is not his. After another device's save his SPP are counted
+ * afresh; after a refusal or a match the server holds his saved steps as they were, and they still count.
  * @param {Saving} saving
  */
 async function reloadRoster(saving) {
@@ -249,8 +248,7 @@ async function reloadRoster(saving) {
   if (!read) return;
   const { answer, since } = read;
   const { status, waiting } = saveState(teamId);
-  const spp = Math.min(sppEdits(answer.team.roster, visit.draft).length, waiting);
-  const marks = Math.min(markEdits(answer.team.roster, visit.draft), waiting - spp);
+  const dropped = droppedWords(answer.team.roster, visit.draft, waiting);
   const conflict = status === SAVE_STATUS.CONFLICT;
   const draft = takeServerTeam(answer.team);
   visit.retake = !draft;
@@ -260,8 +258,7 @@ async function reloadRoster(saving) {
   }
   draw();
   if (!draft || modeOf(teamId).kind !== "match") return;
-  if (spp) toast(t("teamRoster.matchDropped", { count: spp }), { tone: "error" });
-  if (marks) toast(t("teamRoster.mark.matchDropped", { count: marks }), { tone: "error" });
+  for (const words of dropped) toast(words, { tone: "error" });
 }
 
 /**
