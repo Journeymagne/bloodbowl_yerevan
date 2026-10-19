@@ -1,0 +1,574 @@
+/*
+ * The roster's market (stage 07c; market.mjs, hire-sheet.mjs, sell-sheet.mjs): the «+» after «Player» in the active
+ * roster's header, the button under the words where that table is not drawn, and the hire cart — its tiles, a card for
+ * each position, its lines and its notes — as StatsHire.html draws it on a phone and DeskRosterHire.html on a desk; then
+ * the sheet that sells a player or cancels his purchase, as StatsSell.html and DeskRosterSell.html draw it. The sheets
+ * themselves are ui/sheet.css's; what the prototypes change of them is set here, on their ids (#roster-hire,
+ * #roster-sell), the head and the foot once for both. Sizes (D2): a phone's targets a thumb wide (--size-touch), a
+ * desk's as the prototypes draw them, never under 24px. Font, border, background, text-transform, letter-spacing and
+ * font-weight are set on purpose: the 2.x globals (p, button, dl, ul) outlive this sheet until stage 13.
+ */
+
+/*
+ * The «+» (decision 12): a circle of the accent, its plus 14px in the accent's ink. On a phone a 26px circle drawn in
+ * a thumb's 44px (the background stops at the padding); the target's own padding is the gap after «Player».
+ */
+.g-roster__hire {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  margin: 0;
+  padding: calc((var(--size-touch) - 26px) / 2);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  background-clip: content-box;
+  color: var(--on-accent);
+  font: 700 14px/1 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  vertical-align: middle;
+  cursor: pointer;
+}
+.g-roster__hire .g-icon {
+  width: 14px;
+  height: 14px;
+  stroke-width: 3;
+}
+.g-roster__hire:not([aria-disabled="true"]):hover { background-color: var(--accent-ink); }
+/* The keyboard's ring around the circle, not around the whole target. */
+.g-roster__hire:focus-visible { outline-offset: -6px; }
+/* Closed (a match, the screen's lock): the circle in the disabled grey, as StatsLive.html's «+», in reach to say why. */
+.g-roster__hire.g-roster__closed {
+  background-color: var(--disabled);
+  opacity: 1;
+  cursor: default;
+}
+/* «Player» and the «+» on one line, their middles level (DeskRosterHire.html: align-items: center). */
+.g-rtable__h--who:has(> .g-roster__hire) > .g-sort { vertical-align: middle; }
+
+/* Nobody on the roster plays the next match: «Hire players» under the words. */
+.g-market__hirebar { margin-top: var(--space-12); }
+
+/* The three tiles (StatsHire.html): the treasury, the cart, what is left — the last on the accent's tint, red when short. */
+.g-market__tiles {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+}
+.g-market__tile {
+  min-width: 0;
+  padding: var(--space-10) var(--space-12);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+}
+.g-market__tile--left { background: var(--accent-tint); }
+.g-market__tile--short { background: var(--danger-tint); }
+.g-market__label {
+  margin: 0;
+  color: var(--muted);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__value {
+  margin: 0;
+  color: var(--ink);
+  font: 700 24px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-market__tile--short .g-market__value { color: var(--danger); }
+
+/* A position's card: 12px in a 14px radius on a ring; in the cart, on the accent's soft tint in the selected ring. */
+.g-market__row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+  padding: var(--space-12);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.g-market__row--in {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+}
+
+/* Its letter on the position's colour, as a player's number is (number-badge.css). */
+.g-market__letter {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border-radius: var(--radius-full);
+  background: var(--pos-lineman);
+  color: var(--on-accent);
+  font: 700 18px/1 var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__letter--lineman { background: var(--pos-lineman); }
+.g-market__letter--thrower { background: var(--pos-thrower); }
+.g-market__letter--catcher { background: var(--pos-catcher); }
+.g-market__letter--blitzer { background: var(--pos-blitzer); }
+.g-market__letter--big { background: var(--pos-big); }
+
+/* The name and the price on one line, then the characteristics, then the skills and the count — each on one line. */
+.g-market__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-market__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-8);
+  min-width: 0;
+}
+.g-market__name {
+  min-width: 0;
+  color: var(--ink);
+  font: 700 16px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__price {
+  flex: none;
+  color: var(--accent-text);
+  font: 700 18px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__stats,
+.g-market__meta {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.g-market__stats {
+  color: var(--ink-2);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__meta {
+  color: var(--muted);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__row .g-icon {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.6;
+}
+
+/* «+ To the cart»: the accent's ring and ink; a + the rules refuse in the disabled grey, in reach to say why. */
+.g-market__add {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  width: var(--size-touch);
+  height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--accent-text);
+  color: var(--accent-text);
+  font: 700 14px/1 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.g-market__add[aria-disabled="true"] {
+  box-shadow: inset 0 0 0 1.5px var(--control-border);
+  color: var(--disabled);
+  cursor: default;
+}
+
+/* «− N +» on a ring: the − on the quiet grey, the + filled with the accent; a + the rules refuse in the control grey. */
+.g-market__stepper {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 3px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+}
+.g-market__step {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch);
+  height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 9px;
+  background: var(--surface-3);
+  color: var(--ink);
+  cursor: pointer;
+}
+.g-market__step--plus {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.g-market__step--plus[aria-disabled="true"] {
+  background: var(--control-border);
+  cursor: default;
+}
+.g-market__count {
+  min-width: 20px;
+  color: var(--ink);
+  font: 700 20px/normal var(--font-display);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+}
+
+/* The cart's lines on the quiet grey, each sum bold at the right. */
+.g-market__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: var(--space-10) var(--space-12);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface-2);
+  color: var(--ink);
+  font: 400 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  list-style: none;
+}
+.g-market__line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+.g-market__sum {
+  flex: none;
+  font-weight: 700;
+}
+
+/* The new players' numbers, what a preparation resets, and a refusal of «Buy». */
+.g-market__numbers,
+.g-market__prep,
+.g-market__refusal {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.g-market__numbers {
+  color: var(--muted);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__prep {
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__refusal {
+  color: var(--danger);
+  font: 600 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * «Sell» alone in the pair of actions (a player who sits the match out, or «Edit outside the match» on): the
+ * prototypes always draw two places, so it keeps the second — the last column, the only one in a one-column panel.
+ */
+.g-roster__actions > [data-roster-sell]:only-child { grid-column: -2 / -1; }
+
+/*
+ * A sale's sheet (sell-sheet.mjs): on a phone his card, then the lines, the treasury now and after on the accent's
+ * tint, and what it means, 14px apart; the red button as big as the sheet's main one.
+ */
+#roster-sell .g-sheet__body { gap: var(--space-14); }
+
+/* Who he is (StatsSell.html; on a desk the sub says it): his number 44px on his position's colour, his name, the rest. */
+.g-market__who {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  min-width: 0;
+  padding: var(--space-12);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+}
+.g-market__who .g-num {
+  width: 44px;
+  height: 44px;
+  font-size: 20px;
+}
+.g-market__whotext {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-market__whoname {
+  color: var(--ink);
+  font: 700 17px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-market__wholine {
+  color: var(--muted);
+  font: 400 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* The lines: each 44px or more over a rule, the words quiet at the left, the sum on one line at the right. */
+.g-market__rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: 400 15px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__fact {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: 44px;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-market__factkey {
+  min-width: 0;
+  margin: 0;
+  color: var(--muted);
+  font: 400 15px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__factvalue {
+  flex: none;
+  margin: 0;
+  color: var(--ink);
+  font: 600 15px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+.g-market__factvalue--total { font-weight: 700; }
+/* The SPP that go with him, in red; what comes back, bold in the accent. */
+.g-market__lost { color: var(--danger); }
+.g-market__back {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* «Treasury now → After the sale»: on the accent's tint in its ink, the arrow between, the numbers large. */
+.g-market__flow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-10);
+  padding: var(--space-12) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--accent-tint);
+  color: var(--on-accent-tint);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__flowside {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-market__flowside--after {
+  align-items: flex-end;
+  text-align: right;
+}
+.g-market__flowlabel {
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-market__flownum {
+  font: 700 26px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-market__arrow {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+/* What it means: the rule of the sale or of the cancel, and the captaincy that goes with him. */
+.g-market__note {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 12px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The sale's red button, as big as the sheet's main one (button.css's primary): the whole width and 52px on a phone. */
+#roster-sell .g-sheet__foot .g-btn--danger {
+  gap: var(--space-8);
+  width: 100%;
+  height: var(--size-cta);
+  border: 0;
+  border-radius: var(--radius-lg);
+  font: 700 17px/1.2 var(--font-body);
+}
+
+/* The title over its context 2px apart, the context at the font's own line height, as the prototypes have it. */
+:is(#roster-hire, #roster-sell) .g-sheet__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+:is(#roster-hire, #roster-sell) .g-sheet__sub { line-height: normal; }
+
+@media (max-width: 900px) {
+  /* StatsHire.html, StatsSell.html: no «Cancel» — the cross closes the sheet (K7); the + alone; a sale's sub is his card. */
+  :is(#roster-hire, #roster-sell) .g-sheet__foot-start { display: none; }
+  .g-market__addword { display: none; }
+  #roster-sell .g-sheet__sub { display: none; }
+  /*
+   * The sheet as tall as the prototype's, its tiles held over the cards as they scroll (they stand outside its list):
+   * at the body's very top, across its sides, 10px under the head and 12px over the first card.
+   */
+  dialog.g-sheet#roster-hire { max-height: 92dvh; }
+  #roster-hire .g-sheet__body { padding-top: 0; }
+  #roster-hire .g-market__tiles {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    margin: 0 calc(-1 * var(--space-16));
+    padding: var(--space-10) var(--space-16) var(--space-4);
+    background: var(--surface);
+    /* A sheet that stops at a part of a pixel draws the held box a hair under the body's edge: its colour covers the seam. */
+    box-shadow: 0 calc(-1 * var(--space-4)) 0 var(--surface);
+  }
+}
+
+@media (min-width: 901px) {
+  /* DeskRosterHire.html: a 24px circle, 8px after «Player». */
+  .g-roster__hire {
+    width: 24px;
+    height: 24px;
+    padding: 0;
+  }
+  .g-roster__hire:focus-visible { outline-offset: 2px; }
+  .g-rtable__h--who > .g-sort + .g-roster__hire { margin-left: var(--space-8); }
+  .g-market__hirebar {
+    margin: 0;
+    padding: 0 var(--space-16) var(--space-16);
+  }
+
+  /* «+ To the cart» 40px tall with its word; the stepper's buttons 36px (D2). */
+  .g-market__add {
+    width: auto;
+    height: auto;
+    min-height: 40px;
+    padding: 0 var(--space-12);
+  }
+  .g-market__step {
+    width: 36px;
+    height: 36px;
+  }
+
+  /* The modals: the title 28px over its rule, a 40px cross; the cart's body 16px 24px, its parts 10px apart. */
+  :is(#roster-hire, #roster-sell) .g-sheet__head { padding: 18px var(--space-20) 18px var(--space-24); }
+  :is(#roster-hire, #roster-sell) .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  :is(#roster-hire, #roster-sell) .g-sheet__head .g-icon-btn {
+    width: 40px;
+    height: 40px;
+  }
+  #roster-hire .g-sheet__body {
+    gap: var(--space-10);
+    padding: var(--space-16) var(--space-24) var(--space-8);
+  }
+
+  /* The foot: «Cancel» right beside the button (K7: not at the left, where sheet.css puts a quiet control), both 44px. */
+  :is(#roster-hire, #roster-sell) .g-sheet__foot {
+    gap: var(--space-8);
+    padding: var(--space-12) var(--space-24) var(--space-20);
+  }
+  :is(#roster-hire, #roster-sell) .g-sheet__foot-start { margin-right: 0; }
+  :is(#roster-hire, #roster-sell) .g-sheet__foot .g-btn {
+    min-height: 44px;
+    border-radius: var(--radius-md);
+    font-size: 15px;
+  }
+  :is(#roster-hire, #roster-sell) .g-sheet__foot-start .g-btn {
+    padding: 0 18px;
+    border: 0;
+    background: var(--surface-3);
+    color: var(--ink);
+  }
+  :is(#roster-hire, #roster-sell) .g-sheet__foot .g-btn--primary { padding: 0 var(--space-22); }
+
+  /*
+   * DeskRosterSell.html: a 520px modal; no card — the sub says who; the body 4px 24px 8px; the flow 12px 16px with its
+   * numbers 28px; the note 13px; the red button 44px, as wide as its words.
+   */
+  dialog.g-sheet#roster-sell { width: min(520px, calc(100% - 32px)); }
+  .g-market__who { display: none; }
+  #roster-sell .g-sheet__body { padding: var(--space-4) var(--space-24) var(--space-8); }
+  .g-market__flow { padding: var(--space-12) var(--space-16); }
+  .g-market__flownum { font-size: 28px; }
+  .g-market__note { font-size: 13px; }
+  #roster-sell .g-sheet__foot .g-btn--danger {
+    width: auto;
+    height: 44px;
+    padding: 0 var(--space-22);
+  }
+}

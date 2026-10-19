@@ -8,9 +8,9 @@
  * Outside a match a counter's step is a save of the roster (save.mjs), drawn at once from the queue's draft. The
  * queue outlives the visit: what waits for the network is sent again on entry and when the network is back, and
  * never while a match is on (R8): a PATCH during a match breaks its finish (POST_TEAM_CHANGED), so a match that
- * begins while steps wait gives them up for the server's roster, and the coach is told how many SPP steps the server
- * does not have. A team is never taken on games older than it: the games are read once it has answered, and the
- * counters stay closed until both have.
+ * begins while steps wait gives them up for the server's roster, and the coach is told what the server does not have:
+ * the SPP steps, the marks, the hires and the sales. A team is never taken on games older than it: the games are read
+ * once it has answered, and the counters stay closed until both have.
  *
  * During a match a step is a row the server adds (match-taps.mjs, taps.mjs): a record of the match, or with «Edit
  * outside the match» an edit of the career that waits for the match's finish (Task 11). The counters wait while the
@@ -25,7 +25,8 @@
  * steps of the queue like a counter's (marks.mjs): a match that begins while one waits gives it up as it gives up
  * the SPP steps, and the coach is told how many of each. A death and its undo are no step of it: each goes only when
  * none waits, every step and mark waits while one is on its way, and its answer is the list's — and the queue's while
- * the visit that sent it is here (I1).
+ * the visit that sent it is here (I1). Hiring from the «+» and selling are steps of the queue too (stage 07c,
+ * market.mjs), given up and told of the same way.
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
@@ -38,8 +39,6 @@ import { toast } from "../../../components/toast.mjs";
 import { loadGames, onGamesChange } from "../../../data/games.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { raceTeamOf } from "../../../data/teams.mjs";
-import { sppEdits } from "../../../domain/post-match/events.mjs";
-import { markEdits } from "../../../domain/roster/absence.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { readSnapshot } from "./data.mjs";
 import { fallenWriting } from "./fallen.mjs";
@@ -50,6 +49,7 @@ import { focusPlace, restoreFocus } from "./focus.mjs";
 import { closeSheet, injuryHandlers, sheetOf } from "./injury.mjs";
 import { recordsOf, sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { markHandlers, markSheetOf } from "./marks.mjs";
+import { droppedWords, marketHandlers, marketSheetOf } from "./market.mjs";
 import { sheetIdOf } from "./sheets.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
 import { wireAsideFit } from "./aside-fit.mjs";
@@ -100,7 +100,8 @@ function listen(target, type, listener) {
  *   treasury strip: no counter takes a step while the read that replaces it is in the air
  * @property {number|null} followed the revision of the coach's list the visit last read the team again for (`followList`)
  * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`, a
- *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs)
+ *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs),
+ *   the hire cart `{kind: "hire", key: "hire", cart, refusal}` and a player's sale `{kind: "sell", key, refusal}` (market.mjs, stage 07c)
  * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
@@ -140,32 +141,32 @@ const unsureOf = (visit) => visit.unsure && !reading(visit);
 const outsideOf = (memory, mode) => mode.kind === "match" && memory.outside === mode.game.id;
 
 /**
- * The race of the visit's team, and its lines in the roster's own order for `mode`: what the queue's draft, the
- * records and the taps on their way say, and nothing more; then the fallen the roster drawn does not hold, in the
- * server's order (decision 21: a player is drawn once, on the roster, when a read caught him on both).
+ * The race of the visit's team, the queue's draft as drawn (normalised), and its lines in the roster's own order for
+ * `mode`: what the draft, the records and the taps on their way say, and nothing more; then the fallen the roster drawn
+ * does not hold, in the server's order (decision 21: a player is drawn once, on the roster, when a read caught him on both).
  */
 function linesOf(visit, mode) {
   const race = visit.team ? raceTeamOf(visit.team.baseTeamSlug) : null;
   const draft = normalizeDraft(visit.draft ?? visit.team?.roster ?? {});
   const lines = race ? rosterLines({ draft, race, events: [...visit.events, ...visit.pending], mode }) : [];
-  return { race, lines, fallen: fallenLines({ fallen: visit.fallen, race, rosterIds: lines.map(({ id }) => id) }) };
+  return { race, draft, lines, fallen: fallenLines({ fallen: visit.fallen, race, rosterIds: lines.map(({ id }) => id) }) };
 }
 
-/** The kinds of sheet that are marks.mjs's to keep or close: a missed match's, a death's undo. */
-const MARKS = ["mark", "undo"];
+/** Who keeps or closes a sheet of each kind: marks.mjs a missed match's and a death's undo, market.mjs the cart and a sale; injury.mjs the rest. */
+const KEEPERS = { mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf };
 
 /** @returns {import("./view.mjs").RosterScreen} */
 function screenOf(teamId, visit, memory) {
   const mode = modeOf(teamId);
   const outside = outsideOf(memory, mode);
-  const { race, lines: own, fallen: dead } = linesOf(visit, mode);
+  const { race, draft, lines: own, fallen: dead } = linesOf(visit, mode);
   const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line), sessionOutside: sessionSppOf(memory, line, { outside: true }) }));
   const fallen = sortLines(dead, memory.sort);
   const save = saveState(teamId);
-  const where = { mode, outside, lock: lockOf(teamId, save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit), save };
+  const where = { mode, outside, lock: lockOf(teamId, save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit), save, race, draft };
   // A sheet whose player has left the screen (read again) closes with him; an injury's, with its match (injury.mjs); a
-  // mark's, with a match begun or the mark taken (marks.mjs). A fallen player's chip opens a skill's sheet too.
-  const sheet = (MARKS.includes(visit.sheet?.kind) ? markSheetOf : sheetOf)(visit, [...lines, ...fallen], where);
+  // mark's, with a match begun or the mark taken (marks.mjs); the cart, with a match begun (market.mjs). A fallen player's chip opens a skill's sheet too.
+  const sheet = (KEEPERS[visit.sheet?.kind] ?? sheetOf)(visit, [...lines, ...fallen], where);
   if (!sheet) Object.assign(visit, { sheet: null, opener: null });
   return {
     team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
@@ -234,11 +235,11 @@ async function readWithGames(saving) {
  * the roster during the match, R8). Not while a request is in the air (`takeServerTeam` says null): the state the
  * queue comes to next asks again (Carry T7 d).
  *
- * In a match the coach is told how many SPP steps of his the server does not have (a step whose answer was lost
- * may have landed: it is not one of them), never more than waited: another device's SPP change is not his; and, in
- * words of their own, how many missed-match marks (stage 07b, decision 8), never more than waited besides those.
- * After another device's save his SPP are counted afresh; after a refusal or a match the server holds his saved
- * steps as they were, and they still count.
+ * In a match the coach is told what of his the server does not have (`droppedWords`, market.mjs), each kind in words
+ * of its own: how many SPP steps (a step whose answer was lost may have landed: it is not one of them), how many
+ * missed-match marks (stage 07b, decision 8) and the hires and sales (stage 07c, decision 8), each never more than
+ * waited besides those before it: another device's change is not his. After another device's save his SPP are counted
+ * afresh; after a refusal or a match the server holds his saved steps as they were, and they still count.
  * @param {Saving} saving
  */
 async function reloadRoster(saving) {
@@ -247,8 +248,7 @@ async function reloadRoster(saving) {
   if (!read) return;
   const { answer, since } = read;
   const { status, waiting } = saveState(teamId);
-  const spp = Math.min(sppEdits(answer.team.roster, visit.draft).length, waiting);
-  const marks = Math.min(markEdits(answer.team.roster, visit.draft), waiting - spp);
+  const dropped = droppedWords(answer.team.roster, visit.draft, waiting);
   const conflict = status === SAVE_STATUS.CONFLICT;
   const draft = takeServerTeam(answer.team);
   visit.retake = !draft;
@@ -258,8 +258,7 @@ async function reloadRoster(saving) {
   }
   draw();
   if (!draft || modeOf(teamId).kind !== "match") return;
-  if (spp) toast(t("teamRoster.matchDropped", { count: spp }), { tone: "error" });
-  if (marks) toast(t("teamRoster.mark.matchDropped", { count: marks }), { tone: "error" });
+  for (const words of dropped) toast(words, { tone: "error" });
 }
 
 /**
@@ -442,7 +441,7 @@ function heardSave(saving, now) {
  * What a press does: a header sorts, a player's button opens his row (a phone) or chooses him for the panel (a desk),
  * a chip opens its skill's sheet and the sheet's close gives the focus back to it, «Try again» reads again; a
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
- * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
+ * server's, the switch makes the match's taps edits outside it and back; «Match injury…» and its sheet are
  * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's.
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */
@@ -451,8 +450,8 @@ function pressHandlers({ read, ...saving }) {
   const now = () => {
     const mode = modeOf(teamId);
     const save = saveState(teamId);
-    const { lines, fallen } = linesOf(visit, mode);
-    return { mode, outside: outsideOf(memory, mode), lines, fallen, lock: lockOf(teamId, save, visit, mode), save, sideLocked: visit.sideLocked, unsure: unsureOf(visit) };
+    const { race, draft, lines, fallen } = linesOf(visit, mode);
+    return { mode, outside: outsideOf(memory, mode), lines, fallen, lock: lockOf(teamId, save, visit, mode), save, sideLocked: visit.sideLocked, unsure: unsureOf(visit), race, draft };
   };
   const marks = {
     now, refused: () => retakeRefused(saving), hold: (answer) => holdAnswer(saving, answer),
@@ -461,6 +460,7 @@ function pressHandlers({ read, ...saving }) {
   return {
     ...injuryHandlers(saving, { tapping: tappingOf(saving), now }),
     ...markHandlers(saving, marks),
+    ...marketHandlers(saving, marks),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();

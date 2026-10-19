@@ -8,9 +8,9 @@
  * characteristic it lowers, recorded in the match as a row of it, and the standing one taken back by its own −1.
  * The post-match's Players step reads it from the rows; the roster is changed there, not here.
  *
- * Stage 07b's sheets — a missed match's reasons (mark-sheet.mjs) and the undo of a death — are drawn by their own
- * modules; what they share with the injury's is here: the ids the screen shows each by, the row of characteristics
- * and the foot's button.
+ * Stage 07b's sheets — a missed match's reasons (mark-sheet.mjs) and the undo of a death — and stage 07c's — the hire
+ * cart (hire-sheet.mjs) and a player's sale — are drawn by their own modules; what they share with the injury's is
+ * here: the ids the screen shows each by, the row of characteristics and the foot's button.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -37,9 +37,13 @@ export const MARK_SHEET = "roster-mark";
 export const UNDO_SHEET = "roster-undo";
 /** The name the mark's row of characteristics is wired by: a row of its own, so that neither sheet hears the other's (wireFilterChips). */
 export const MARK_STAT = "mark-stat";
+/** What the hire cart is shown by (`#roster-hire`, stage 07c) and what wireSheets reports. */
+export const HIRE_SHEET = "roster-hire";
+/** What the sheet that sells a player, or cancels his purchase, is shown by (`#roster-sell`, stage 07c) and what wireSheets reports. */
+export const SELL_SHEET = "roster-sell";
 
 /** The id of each kind of sheet the visit holds (index.mjs's `visit.sheet.kind`). */
-const SHEET_IDS = Object.freeze({ skill: SKILL_SHEET, injury: INJURY_SHEET, mark: MARK_SHEET, undo: UNDO_SHEET });
+const SHEET_IDS = Object.freeze({ skill: SKILL_SHEET, injury: INJURY_SHEET, mark: MARK_SHEET, undo: UNDO_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET });
 
 /** The id a sheet of `kind` is shown by, which wireSheets reports when it is closed; "" for a kind there is none of. */
 export function sheetIdOf(kind) {

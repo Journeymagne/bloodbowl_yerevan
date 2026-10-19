@@ -20,6 +20,11 @@
  * the queue alone — a read taken by `takeServerTeam` would give the step up all the same — and sends no death or undo
  * while a step waits (stage 07b, Task 8, locks that). Nor is an answer older than what the queue or the list holds
  * taken: it would take back a write that came after it.
+ *
+ * A purchase and a sale are steps of the queue too (stage 07c): the draft changed as a whole — players hired or let go,
+ * the treasury moved — and the whole roster saved, one step one PATCH, so that the server journals exactly that step
+ * (`classifyTreasuryChange`). The players a purchase makes are the server's shape, which is what lets a lost answer's 409
+ * be known as this very purchase.
  */
 import { API_ERROR, ApiError } from "../../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../../core/api-client.mjs";
@@ -28,12 +33,14 @@ import { state } from "../../../core/state.mjs";
 import { normalizeSavedRoster, rosterForStorage } from "../../../data/roster-draft.mjs";
 import { SAVE_STATUS, createRosterStore } from "../../../data/roster-store.mjs";
 import { onSessionChange } from "../../../data/session.mjs";
-import { refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
+import { loadMyTeams, refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
 import { sameValues } from "../../../domain/post-match/events.mjs";
 import { clearAbsence, markAbsence, sitsOut } from "../../../domain/roster/absence.mjs";
 import { normalizeSppCounters, storedPlayerId } from "../../../domain/roster/players.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
+import { hirePlayers, hireQuote, playerRemoval, removeLeaguePlayer } from "../../../domain/roster/transfers.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
+import { rowsForTeam } from "../../../domain/roster/values.mjs";
 
 /** The steps taken and not yet confirmed by an answer, by team. */
 const waiting = new Map();
@@ -56,11 +63,16 @@ const OTHER_TAB = "OTHER_TAB";
 /**
  * The team as the server last said it takes its place in the coach's list, where it stands: the switcher and
  * `#/teams` follow the list's order, and a save is no reason to move a team up it. A list that does not hold the
- * team is left as it is, since writing it would make it claim it is read.
+ * team is left as it is, since writing it would make it claim it is read. A read of the list on its way was asked
+ * before this answer and would bring the old revision back over it: it is asked again, and the older answer is
+ * dropped (`loadMyTeams`; as the treasury's `adopt` does, data/treasury.mjs).
  */
 function putInPlace(team) {
-  if (!state.myTeams.items.some((item) => item.id === team?.id)) return;
-  setMyTeams(state.myTeams.items.map((item) => (item.id === team.id ? team : item)));
+  const reading = state.myTeams.loading;
+  if (state.myTeams.items.some((item) => item.id === team?.id)) {
+    setMyTeams(state.myTeams.items.map((item) => (item.id === team.id ? team : item)));
+  }
+  if (reading) void loadMyTeams(true);
 }
 
 /**
@@ -172,25 +184,43 @@ export function savedRevision(teamId) {
 }
 
 /**
- * One step on one player of the draft, saved as it is taken: `fieldsOf(player)` says what his fields become, or null
- * when the step has nothing to change. Nothing is sent either when the player is not on the roster, or the queue is
- * waiting for the coach to settle a conflict — or for the server's roster after a 422: the refused step heads the
- * queue, and a step would send it again (`takeServerTeam` gives it up), so it gets the refusal's words instead.
+ * One step on the whole draft, saved as it is taken: `plan(draft)` says what the step does — null when it has nothing
+ * to do, `{refusal}` when the rules refuse it (in words), else `{apply}`, which changes the draft and hands back what
+ * the caller is told beside `ok`. Nothing is sent either for a team the queue does not hold, or while the queue waits
+ * for the coach to settle a conflict — or for the server's roster after a 422: the refused step heads the queue, and a
+ * step would send it again (`takeServerTeam` gives it up), so it gets the refusal's words instead. Another tab's coach
+ * is told, and nothing is changed.
+ * @param {string} teamId @param {(draft: object) => null | {refusal: string} | {apply: () => object}} plan
+ * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}} with what `apply` handed back when `ok`
+ */
+function stepRoster(teamId, plan) {
+  const draft = store.getDraft(teamId);
+  if (!draft || store.statusOf(teamId) === SAVE_STATUS.CONFLICT) return { ok: false };
+  const failed = store.statusOf(teamId) === SAVE_STATUS.ERROR ? saveState(teamId) : null;
+  if (failed?.kind === API_ERROR.INVALID) return { ok: false, refusal: failed.refusal };
+  const step = plan(draft);
+  if (!step) return { ok: false };
+  if (step.refusal) return { ok: false, refusal: step.refusal };
+  if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
+  const applied = step.apply();
+  waiting.set(teamId, waitingFor(teamId) + 1);
+  store.saveChange(teamId);
+  return { ok: true, ...applied };
+}
+
+/**
+ * One step on one player of the draft (`stepRoster`): `fieldsOf(player)` says what his fields become, or null when the
+ * step has nothing to change. Nothing is sent for a player who is not on the roster.
  * @param {string} teamId @param {string} playerId his id in the roster @param {(player: object) => object|null} fieldsOf
  * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}}
  */
 function stepOn(teamId, playerId, fieldsOf) {
   const player = playerId ? store.getDraft(teamId)?.players.find((candidate) => storedPlayerId(candidate) === playerId) : null;
-  if (!player || store.statusOf(teamId) === SAVE_STATUS.CONFLICT) return { ok: false };
-  const failed = store.statusOf(teamId) === SAVE_STATUS.ERROR ? saveState(teamId) : null;
-  if (failed?.kind === API_ERROR.INVALID) return { ok: false, refusal: failed.refusal };
-  const fields = fieldsOf(player);
-  if (!fields) return { ok: false };
-  if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
-  Object.assign(player, fields);
-  waiting.set(teamId, waitingFor(teamId) + 1);
-  store.saveChange(teamId);
-  return { ok: true };
+  if (!player) return { ok: false };
+  return stepRoster(teamId, () => {
+    const fields = fieldsOf(player);
+    return fields ? { apply: () => { Object.assign(player, fields); return {}; } } : null;
+  });
 }
 
 /**
@@ -226,6 +256,64 @@ export function markSkip(teamId, playerId, mark) {
  */
 export function unmarkSkip(teamId, playerId) {
   return stepOn(teamId, playerId, (player) => (player.skipNextGame && !player.temporarilyRetired ? clearAbsence(player) : null));
+}
+
+/** A hire or a sale the rules refuse, in the words the domain's code names (`TRANSFER_REFUSALS`). */
+const refusedFor = ({ code, params = {} }) => ({ refusal: t(`validation.${code}`, params) });
+
+/**
+ * A purchase (`hirePlayers`): the cart's players on the next free numbers, each with his price recorded, the treasury
+ * paying for them — one step of the queue (`stepRoster`). The cart is asked again, as a whole, on the queue's draft at
+ * the press (`hireQuote`): one the draft no longer pays for, or that breaks a limit, is refused in words; an empty one
+ * sends nothing.
+ * @param {string} teamId @param {object} race the team's race @param {import("../../../domain/roster/transfers.mjs").HireCart} cart
+ * @returns {{ok: true, hired: {number: string, position: string}[], treasury: number} | {ok: false, refusal?: string} | {refusal: string}}
+ */
+export function buyPlayers(teamId, race, cart) {
+  return stepRoster(teamId, (draft) => {
+    const quote = hireQuote(race, draft, cart);
+    if (!quote.count) return null;
+    if (quote.refusal) return refusedFor(quote.refusal);
+    return {
+      apply: () => {
+        const rows = rowsForTeam(race);
+        const { hired } = hirePlayers(race, draft, cart);
+        return { hired: hired.map((player) => ({ number: player.number, position: rows[player.rowIndex].position })), treasury: draft.treasury };
+      },
+    };
+  });
+}
+
+/**
+ * A player let go (`removeLeaguePlayer`): sold for his sale value, or his purchase cancelled for what was paid — one
+ * step of the queue (`stepRoster`). `type` is what the sheet offered; the draft at the press decides (`playerRemoval`).
+ * A purchase that is no longer one to cancel (a match sealed it) is refused in words, and so is a sale that would leave
+ * fewer than seven; a sale offered for a purchase the draft says is to cancel sends nothing, nor does a player the
+ * roster has not.
+ * @param {string} teamId @param {object} race the team's race @param {string} playerId his id in the roster
+ * @param {"sell"|"cancel-purchase"} type
+ * @returns {{ok: true, amount: number, treasury: number} | {ok: false, refusal?: string} | {refusal: string}}
+ */
+export function removePlayer(teamId, race, playerId, type) {
+  return stepRoster(teamId, (draft) => {
+    const player = playerId ? draft.players.find((candidate) => storedPlayerId(candidate) === String(playerId)) : null;
+    if (!player) return null;
+    const removal = playerRemoval(race, draft, player);
+    if (removal.type !== type) return type === "cancel-purchase" ? refusedFor({ code: "PLAYER_PURCHASE_CLOSED" }) : null;
+    if (removal.blocked) return refusedFor({ code: "PLAYER_SALE_MIN" });
+    return {
+      apply: () => {
+        // The plan asked the same rules: a removal not applied means the two drifted, and must not go as a step (T4-1).
+        // The error carries the domain's reason in words (`refusal`), for the sheet to say it (market.mjs).
+        const { applied, reason, amount } = removeLeaguePlayer(race, draft, playerId, type);
+        if (!applied) {
+          const drifted = new Error(`A removal the plan allowed was not applied (${reason}): the two checks drifted`);
+          throw Object.assign(drifted, refusedFor({ code: reason }));
+        }
+        return { amount, treasury: draft.treasury };
+      },
+    };
+  });
 }
 
 const refusalOf = (error) => (error.code === OTHER_TAB ? t("auth.otherTab") : refusalWithRules(error));

@@ -1,14 +1,16 @@
 /**
- * The pool a coach hires from, shared by both editors.
+ * The pool a coach hires from.
  *
- * There used to be two of these: renderAvailablePlayerTable in the builder and
- * renderSavedNewPlayerTable in the saved-roster screen, with the same thirteen
- * columns and the same body, differing only in whether a budget applied, which
- * data attribute the buttons carried, and one heading. Two of the twelve
- * duplicate pairs the design spec counts in section 5.1.
+ * There used to be two of these: renderAvailablePlayerTable in the 2.x builder
+ * and renderSavedNewPlayerTable in the saved-roster screen, with the same
+ * thirteen columns and the same body. The builder is gone (the 3.0 team builder
+ * replaced it), and this is the one that stayed.
  *
- * What differs between the two situations lives in modes.mjs; this file reads
- * flags and never asks which mode it is in.
+ * A hire is never refused here: the league editor does not enforce position
+ * limits at the button, and a roster that breaks one is reported by
+ * validateRoster, which the server answers with 422. What the mode says about
+ * the pool lives in modes.mjs; this file reads it and never asks which mode it
+ * is in.
  *
  * Step 7.3 asks for one markup with the layout left to CSS. That is not what
  * the card is: it is a designed layout — position with quantity and price
@@ -19,45 +21,15 @@
  * layouts arrange the same values differently. Stats are the exception: the
  * table wants cells and the card wants a grid, which is structure rather than
  * content, so those stay as two renderers over the same row.
- *
- * Step 7.6 lands here too: a hire that cannot be made says why. The buttons
- * were already disabled, but silently — a coach who had run out of budget saw
- * a dead button and no reason for it. The first pass at that left `disabled`
- * on as well, which kept the reason unreachable; see hireAttributes below.
  */
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { startingBudget } from "../../domain/league-rules.mjs";
-import { calculateRosterCosts, spendTreasury } from "../../domain/roster/costs.mjs";
-import { canAddRowToDraft, makeRosterPlayer, rowCountInPlayers, syncRosterCountsFromPlayers } from "../../domain/roster/players.mjs";
+import { spendTreasury } from "../../domain/roster/costs.mjs";
+import { makeRosterPlayer, rowCountInPlayers, syncRosterCountsFromPlayers } from "../../domain/roster/players.mjs";
 import { costToNumber, rosterMax, rowCost, rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderRosterLinks } from "../content-links.mjs";
 import { iconButton } from "../icons.mjs";
 import { renderAccessCell, renderRosterStatCells } from "../roster-editor-shared.mjs";
-import { toast } from "../toast.mjs";
-
-/**
- * Why this position cannot be hired right now, or nothing if it can.
- *
- * @returns {{blocked: boolean, reason: string, title: string}}
- */
-function hireVerdict(draft, row, rowIndex, mode, costs) {
-  if (mode.enforcesPositionLimit && !canAddRowToDraft(row, rowIndex, draft, true)) {
-    return {
-      blocked: true,
-      reason: "position",
-      title: t("validation.POSITION_MAX", { position: row.position, max: rosterMax(row.qty) }),
-    };
-  }
-  if (mode.enforcesBudget && costs.total + costToNumber(rowCost(row)) > startingBudget) {
-    return {
-      blocked: true,
-      reason: "budget",
-      title: t("validation.BUDGET_EXCEEDED", { budget: startingBudget, total: costs.total }),
-    };
-  }
-  return { blocked: false, reason: "", title: "" };
-}
 
 /**
  * Everything the pool says about one position, written once.
@@ -65,7 +37,7 @@ function hireVerdict(draft, row, rowIndex, mode, costs) {
  * The table and the card both read from here, so a change to what a field says
  * lands in both without being typed twice.
  */
-function hireFields(row, rowIndex, draft, mode, verdict) {
+function hireFields(row, rowIndex, draft, mode) {
   const current = rowCountInPlayers(draft, rowIndex);
   return {
     qty: escapeHtml(row.qty || "-"),
@@ -75,28 +47,13 @@ function hireFields(row, rowIndex, draft, mode, verdict) {
     secondary: renderAccessCell(row.secondary),
     cost: escapeHtml(rowCost(row) || "-"),
     taken: `${current}/${rosterMax(row.qty)}`,
-    overBudget: verdict.reason === "budget",
-    blocked: verdict.blocked,
-    blockedTitle: verdict.title,
-    iconButton: () => iconButton("plus", { title: verdict.title, attributes: hireAttributes(rowIndex, mode, verdict) }),
+    iconButton: () => iconButton("plus", { attributes: `data-${mode.hireAttribute}="${rowIndex}"` }),
   };
 }
 
-/**
- * `aria-disabled`, never `disabled` — the same rule the staff steppers follow.
- * A disabled button takes no click and shows no title, so the reason a hire was
- * refused never reached the coach: the button just went dead. Marked this way it
- * still reads as unavailable to a screen reader, and a click says why.
- */
-function hireAttributes(rowIndex, mode, verdict) {
-  return `data-${mode.hireAttribute}="${rowIndex}"${verdict.blocked ? ` aria-disabled="true"` : ""}`;
-}
-
 export function renderHirePanel(team, draft, mode, { cardsOnly = false } = {}) {
-  const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: mode.enforcesBudget });
   const rows = rowsForTeam(team);
-  const fields = rows.map((row, rowIndex) =>
-    hireFields(row, rowIndex, draft, mode, hireVerdict(draft, row, rowIndex, mode, costs)));
+  const fields = rows.map((row, rowIndex) => hireFields(row, rowIndex, draft, mode));
   if (cardsOnly) return `<div class="available-player-mobile-list matchday-hire-list">${rows.map((row, index) => renderHireCard(row, fields[index])).join("")}</div>`;
 
   return `
@@ -123,7 +80,7 @@ export function renderHirePanel(team, draft, mode, { cardsOnly = false } = {}) {
           ${rows.map((row, rowIndex) => {
             const field = fields[rowIndex];
             return `
-              <tr class="${field.blocked ? "disabled-row" : ""}">
+              <tr>
                 <td>${field.qty}</td>
                 <td><strong>${field.position}</strong></td>
                 ${renderRosterStatCells(row)}
@@ -139,15 +96,10 @@ export function renderHirePanel(team, draft, mode, { cardsOnly = false } = {}) {
         </tbody>
       </table>
     </div>
-    ${mode.showsHireCards ? `
-      <div class="builder-mobile-card-list available-player-mobile-list">
-        ${rows.map((row, rowIndex) => renderHireCard(row, fields[rowIndex])).join("")}
-      </div>
-    ` : ""}
   `;
 }
 
-export function renderRosterStatGrid(row) {
+function renderRosterStatGrid(row) {
   return `
     <dl class="team-stat-grid">
       <div><dt>${t("stats.ma")}</dt><dd>${escapeHtml(row.ma || "-")}</dd></div>
@@ -161,7 +113,7 @@ export function renderRosterStatGrid(row) {
 
 function renderHireCard(row, field) {
   return `
-    <article class="available-player-card ${field.blocked ? "disabled" : ""}">
+    <article class="available-player-card">
       <header class="available-player-head">
         <div>
           <strong>${field.position}</strong>
@@ -175,40 +127,31 @@ function renderHireCard(row, field) {
         <div class="mobile-player-pills">${field.skills}</div>
       </section>
       <footer class="available-player-foot">
-        ${t("roster.primary")} ${field.primary} · ${t("roster.secondary")} ${field.secondary} · ${t("roster.selectedLabel")} ${field.taken}${field.overBudget ? ` · ${t("roster.overBudgetLabel")}` : ""}
+        ${t("roster.primary")} ${field.primary} · ${t("roster.secondary")} ${field.secondary} · ${t("roster.selectedLabel")} ${field.taken}
       </footer>
-      ${field.blocked ? `<p class="matchday-hire-reason">${escapeHtml(field.blockedTitle)}</p>` : ""}
     </article>
   `;
 }
 
 /**
  * Attach the hire buttons. The domain effect lives here rather than in each
- * screen: which flags apply is the mode's business, and duplicating it is what
- * let the two editors disagree about whether a hire touches the treasury.
+ * screen: a hire is recorded as bought after the team started, with the price it
+ * can be refunded at, and paid for out of the treasury.
  *
  * @param {ParentNode} root
  * @param {{team: object, draft: object, mode: object, onChange: () => void}} deps
  */
 export function wireHirePanel(root, { team, draft, mode, onChange }) {
   const events = listenerGroup(root);
-  const property = mode.hireAttribute === "add-row" ? "addRow" : "addSavedRow";
   events.on("click", `[data-${mode.hireAttribute}]`, (event, button) => {
-    const rowIndex = Number(button.dataset[property]);
+    const rowIndex = Number(button.dataset.addSavedRow);
     const row = rowsForTeam(team)[rowIndex];
     if (!row) return;
 
-    const costs = calculateRosterCosts(team, draft, { includeDedicatedFans: mode.enforcesBudget });
-    const verdict = hireVerdict(draft, row, rowIndex, mode, costs);
-    if (verdict.blocked) {
-      toast(verdict.title, { tone: "error" });
-      return;
-    }
-
-    const options = mode.marksPurchased ? { purchased: true,
-      ...(mode.spendsTreasury ? { purchaseRefund: costToNumber(rowCost(row)) } : {}) } : {};
-    draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex), options));
-    if (mode.spendsTreasury) spendTreasury(draft, costToNumber(rowCost(row)));
+    const price = costToNumber(rowCost(row));
+    draft.players.push(makeRosterPlayer(row, rowIndex, rowCountInPlayers(draft, rowIndex),
+      { purchased: true, purchaseRefund: price }));
+    spendTreasury(draft, price);
     syncRosterCountsFromPlayers(draft);
     onChange();
   });

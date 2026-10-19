@@ -59,8 +59,13 @@ export function validateRoster(team, draft, costs) {
   if (costs.playersCount < rosterSizeLimits.min) {
     violations.push({ code: VALIDATION_CODES.ROSTER_MIN_PLAYERS, params: { min: rosterSizeLimits.min, count: costs.playersCount } });
   }
-  if (costs.playersCount > rosterSizeLimits.max) {
-    violations.push({ code: VALIDATION_CODES.ROSTER_MAX_PLAYERS, params: { max: rosterSizeLimits.max, count: costs.playersCount } });
+  // The maximum is about the roster, not the match: it counts everyone on it, players who sit out the next
+  // match included (the league owner's ruling of 2026-10-19, as the rules and the team builder have it).
+  // `totalPlayersCount` is every player of the stored roster, a player retired for the season among them —
+  // the fallen are off the roster (their own table), so they do not count. The minimum above stays about
+  // the players who can play the next match.
+  if (costs.totalPlayersCount > rosterSizeLimits.max) {
+    violations.push({ code: VALIDATION_CODES.ROSTER_MAX_PLAYERS, params: { max: rosterSizeLimits.max, count: costs.totalPlayersCount } });
   }
 
   rowsForTeam(team).forEach((row, index) => {

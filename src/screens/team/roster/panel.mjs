@@ -15,10 +15,11 @@
  * counters out three by three as DeskRosterLive.html (D1). The way to his page is closed until the post-match: an
  * advancement there would change the roster the match's finish checks.
  *
- * Under it all stands the pair of actions (stage 07b, decisions 16 and 17; Stats.html, DeskRoster.html): outside a
- * match «Miss a match…» for a player who plays the next one, «Back on the roster» for one who misses it — never a
- * second mark over the first; during one «Injury in the match…» for a player who plays it (Task 12, decision 14),
- * closed with the match's taps. The pair's second place is stage 07c's «Sell», left empty until then.
+ * Under it all stands the pair of actions (stages 07b and 07c; StatsHire.html, StatsLive.html, DeskRosterPrep.html,
+ * DeskRosterLive.html): first, outside a match, «Miss a match…» for a player who plays the next one, «Back on the
+ * roster» for one who misses it — never a second mark over the first; during one «Match injury…» for a player
+ * who plays it (Task 12, decision 14), closed with the match's taps. Second «Sell», or «Cancel purchase» for a player
+ * bought since the last match (stage 07c), which a match closes, saying why.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -165,6 +166,33 @@ export function returnClosed(line, screen) {
 }
 
 /**
+ * Why nothing can be hired or sold just now (stage 07c), "" when it can: a match is on (R8: the roster is not written
+ * during one; its finish checks the roster it started with), then the screen's lock — the games unread, the roster
+ * read, a death on its way, another device's save to settle.
+ *
+ * @param {{mode: {kind: string}, lock: string}} screen
+ */
+export function hireClosed(screen) {
+  if (screen.mode.kind === "match") return t("teamRoster.market.closed");
+  return screen.lock;
+}
+
+/**
+ * Why a player cannot be sold, nor his purchase cancelled, just now (stage 07c), "" when he can: what closes the
+ * market (`hireClosed`: a match, the screen's lock), no id to name him by, and for a sale — never a cancel (owner's
+ * Q1) — a roster of seven or fewer (`line.removal.blocked`, the league's rule).
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {{mode: {kind: string}, lock: string}} screen
+ */
+export function sellClosed(line, screen) {
+  const closed = hireClosed(screen);
+  if (closed) return closed;
+  if (!line.id) return t("teamRoster.sell.noId");
+  return line.removal.blocked ? t("validation.PLAYER_SALE_MIN") : "";
+}
+
+/**
  * One button of the row of actions, as wide as the others; closed, it says why and keeps what names it. `data.key`
  * tells the two apart when the screen is patched: «Back on the roster» pressed twice is not, the second time, the
  * «Miss a match…» drawn in its place.
@@ -175,10 +203,21 @@ function actionMarkup({ label, reason, data, dialog = false }) {
 }
 
 /**
- * The player's pair of actions (Stats.html, DeskRoster.html): outside a match (decisions 16, 17) «Miss a match…»,
- * which opens the sheet of reasons, for one who plays the next match, or «Back on the roster» for one who misses it;
- * during one, «Injury in the match…» (`injuryMarkup`) in that place, and nothing when no injury can be his. Two
- * columns, the second stage 07c's «Sell»: its place is kept and nothing is drawn in it until then.
+ * «Sell», which opens the sheet that asks first (sell-sheet.mjs); for a purchase no match has sealed yet «Cancel
+ * purchase». In a match it is «Sell», closed, as the prototypes draw it (a match's start seals a purchase).
+ */
+function sellMarkup(line, screen) {
+  const cancel = screen.mode.kind !== "match" && line.removal.type === "cancel-purchase";
+  const label = cancel ? t("teamRoster.sell.cancelOpen") : t("teamRoster.sell.open");
+  return actionMarkup({ label, reason: sellClosed(line, screen), data: { key: "roster-sell", rosterSell: line.key }, dialog: true });
+}
+
+/**
+ * The player's pair of actions (stage 07c, decision 7): two equal columns 8px apart. First, outside a match (decisions
+ * 16, 17), «Miss a match…», which opens the sheet of reasons, for one who plays the next match, or «Back on the
+ * roster» for one who misses it; during one «Match injury…» (`injuryMarkup`) in that place, and nothing when no
+ * injury can be his — he sits the match out, or «Edit outside the match» is on — so the pair is one closed «Sell».
+ * Second «Sell» or «Cancel purchase» (`sellMarkup`).
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./view.mjs").RosterScreen} screen
@@ -191,7 +230,7 @@ export function actionsMarkup(line, screen) {
       ? { label: t("teamRoster.skips.return"), reason: returnClosed(line, screen), data: { key: "roster-return", rosterReturn: line.key } }
       : { label: t("teamRoster.mark.open"), reason: markClosed(line, screen), data: { key: "roster-mark", rosterMark: line.key }, dialog: true });
   }
-  return first ? `<div class="g-roster__actions">${first}</div>` : "";
+  return `<div class="g-roster__actions">${first}${sellMarkup(line, screen)}</div>`;
 }
 
 /**
@@ -240,7 +279,7 @@ export function injuryClosed(line, screen) {
 }
 
 /**
- * «Injury in the match…» (Task 12): for a player who plays the match, while a tap is a record of it — not for one
+ * «Match injury…» (Task 12): for a player who plays the match, while a tap is a record of it — not for one
  * who sits it out, nor with «Edit outside the match» on (an edit of the career deals no injury). Once one is
  * recorded it names it, «Injury: Seriously Hurt» (Stats.html). Closed when the match's taps are, saying why
  * (`injuryClosed`) as the closed ways to his page do; it keeps its key either way, so the focus finds it when the

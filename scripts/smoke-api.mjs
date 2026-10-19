@@ -7,11 +7,19 @@
  *
  * Override the target with APP_URL. The script creates a throwaway account and
  * a team, exercises the saved-team endpoints (its treasury and ledger, its
- * fallen, a player's roll), the account's settings and password change, then
- * deletes the team and ends its sessions. The account itself stays. It also
- * checks that files outside the static whitelist are not served.
+ * fallen, a player's roll, a hire, its cancel and a sale), the account's settings
+ * and password change, then deletes the team and ends its sessions. The account
+ * itself stays. It also checks that files outside the static whitelist are not
+ * served. The hire and sale step reads the race's rules from public/data.en.json,
+ * as the server does: run `npm run build` first.
  */
+import { readFile } from "node:fs/promises";
 import { isDeepStrictEqual } from "node:util";
+
+import { expandCollections } from "../src/data/reference.mjs";
+import { sameValues } from "../src/domain/post-match/events.mjs";
+import { normalizeDraft, rosterForStorage } from "../src/domain/roster/schema.mjs";
+import { hirePlayers, removeLeaguePlayer } from "../src/domain/roster/transfers.mjs";
 
 const baseUrl = (process.env.APP_URL || "http://localhost:3002").replace(/\/$/, "");
 
@@ -59,6 +67,9 @@ function fault(message, got) {
 function need(condition, message, got) {
   if (!condition) throw fault(message, got);
 }
+
+/** A team's PATCH body as the roster screen builds it: the draft as it stands, on the revision the team is at. */
+const saveBody = (team, draft) => ({ name: team.name, baseTeamSlug: team.baseTeamSlug, revision: team.revision, roster: rosterForStorage(draft) });
 
 console.log(`Smoke test against ${baseUrl}\n`);
 
@@ -162,6 +173,46 @@ await step("POST …/players/:pid/rolls is one roll a step", async () => {
   const again = await ask();
   need(first.roll?.id && first.roll.id === again.roll?.id, "asking twice did not give one roll", { first: first.roll, again: again.roll });
   need(first.roll.params?.sides === 8, "a characteristic roll is not a D8", first.roll);
+});
+
+await step("PATCH journals a hire, its cancel and a sale exactly; a resent hire meets the 409 that holds it; a treasury below zero is refused", async () => {
+  const data = expandCollections(JSON.parse(await readFile(new URL("../public/data.en.json", import.meta.url), "utf8")));
+  const race = data.teams.find((item) => item.slug === "teams/amazon");
+  const ledger = () => api(`${teamPath()}/ledger`);
+  const save = (team, draft) => api(teamPath(), { method: "PATCH", body: saveBody(team, draft) });
+  const headIs = async (expected, what) => {
+    const head = (await ledger()).entries?.[0];
+    need(head?.kind === expected.kind && head.delta === expected.delta, `the head of the ledger is not ${what}`, head);
+  };
+  const opened = (await ledger()).total;
+  const team = await readTeam();
+  const hiring = normalizeDraft(team.roster);
+  const [bought] = hirePlayers(race, hiring, { 0: 1 }).hired;
+  need(bought?.id && bought.purchaseRefund === 50, "the cart did not buy a Linewoman at 50", bought);
+  const body = saveBody(team, hiring);
+  const hired = await api(teamPath(), { method: "PATCH", body });
+  need(hired.team?.roster?.players?.some((player) => player.id === bought.id), "the hire is not on the saved roster", hired.team?.roster?.players?.length);
+  await headIs({ kind: "hire", delta: -50 }, "the hire at 50");
+  // The answer is lost, the same body goes again on the revision it was made on: the 409 holds the hire as sent.
+  const resent = await api(teamPath(), { method: "PATCH", expect: 409, body });
+  need(resent.error?.code === "TEAM_SAVED_ELSEWHERE", "a resent hire is not TEAM_SAVED_ELSEWHERE", resent.error);
+  need(sameValues(normalizeDraft(resent.team?.roster), normalizeDraft(body.roster)), "the 409's team does not hold the hire as it was sent", resent.team?.roster?.players?.length);
+  // The team it holds is the one the coach goes on from.
+  const cancelling = normalizeDraft(resent.team.roster);
+  need(removeLeaguePlayer(race, cancelling, bought.id, "cancel-purchase").applied, "the hire cannot be cancelled", cancelling.players.length);
+  const cancelled = await save(resent.team, cancelling);
+  await headIs({ kind: "cancel_purchase", delta: 50 }, "the cancelled purchase, 50 back");
+  const selling = normalizeDraft(cancelled.team.roster);
+  need(removeLeaguePlayer(race, selling, selling.players.at(-1).id, "sell").applied, "the last player cannot be sold", selling.players.length);
+  const sold = await save(cancelled.team, selling);
+  await headIs({ kind: "sale", delta: 25 }, "the sale at half of 50");
+  const broke = { ...normalizeDraft(sold.team.roster), treasury: -1 };
+  const refused = await api(teamPath(), { method: "PATCH", expect: 422, body: saveBody(sold.team, broke) });
+  need(refused.violations?.[0]?.code === "TREASURY_INVALID", "a treasury below zero is not TREASURY_INVALID", refused);
+  // Each of the three is one line, no hire twice and nothing the diff did not explain.
+  const after = await ledger();
+  const lines = (after.entries ?? []).slice(0, after.total - opened).map(({ kind, delta }) => ({ kind, delta }));
+  need(isDeepStrictEqual(lines, [{ kind: "sale", delta: 25 }, { kind: "cancel_purchase", delta: 50 }, { kind: "hire", delta: -50 }]), "the lines written are not the sale, the cancel and the one hire", lines);
 });
 
 await step("PATCH /api/auth/preferences and /api/auth/me", async () => {

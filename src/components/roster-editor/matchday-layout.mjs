@@ -46,22 +46,22 @@ function renderHero(team, draft, costs) {
 }
 
 
-function renderScoreboard(team, draft, costs, mode) {
-  const money = mode.enforcesBudget ? costs.remaining : countToNumber(draft.treasury);
+function renderScoreboard(team, draft, costs) {
+  const money = countToNumber(draft.treasury);
   const rows = [
     { label: t("savedRoster.totalPlayers"), value: `${costs.totalPlayersCount}<small> / ${rosterSizeLimits.max}</small>` },
     { label: t("roster.totalCost"), value: `${costs.total}k` },
-    ...(!mode.enforcesBudget ? [{ label: "SPP", value: rosterTotalSpp(team, draft), attribute: "data-total-spp-display" }] : []),
-    { label: t(mode.enforcesBudget ? "builder.remaining" : "savedRoster.treasury"), value: `${money}k`, attribute: mode.enforcesBudget ? "" : "data-treasury-display", danger: money < 0 },
+    { label: "SPP", value: rosterTotalSpp(team, draft), attribute: "data-total-spp-display" },
+    { label: t("savedRoster.treasury"), value: `${money}k`, attribute: "data-treasury-display", danger: money < 0 },
   ];
   return renderMatchdayScoreboard(rows.map(row => ({ ...row, valueHtml: row.value })));
 }
 
 export function renderMatchdayEditor({ team, draft, costs, mode, identityHtml, summaryHtml, purchasesHtml, playersHtml, readOnly = false }) {
-  const money = mode.enforcesBudget ? costs.remaining : countToNumber(draft.treasury);
+  const money = countToNumber(draft.treasury);
   return `
     ${renderHero(team, draft, costs)}
-    ${renderScoreboard(team, draft, costs, mode)}
+    ${renderScoreboard(team, draft, costs)}
     <details class="matchday-identity" data-key="matchday-identity" data-matchday-details="identity" ${matchdayDetailsOpen(draft, "identity", !draft.players.length)}>
       <summary>${t(readOnly ? "roster.teamDetails" : "roster.teamSettings")}</summary><div class="matchday-identity-body">${identityHtml}</div>
     </details>
@@ -72,9 +72,9 @@ export function renderMatchdayEditor({ team, draft, costs, mode, identityHtml, s
         ${playersHtml}
       </section>
     </div>
-    ${readOnly ? "" : `<div class="matchday-mobile-dock"><div><strong class="${money < 0 ? "danger-text" : ""}">${money}k</strong><small>${t(mode.enforcesBudget ? "builder.remaining" : "savedRoster.treasury")}</small></div>${addPlayerButton()}</div>
+    ${readOnly ? "" : `<div class="matchday-mobile-dock"><div><strong class="${money < 0 ? "danger-text" : ""}">${money}k</strong><small>${t("savedRoster.treasury")}</small></div>${addPlayerButton()}</div>
     <dialog class="matchday-hire-dialog" data-key="matchday-hire-dialog" data-matchday-hire-dialog aria-labelledby="matchday-hire-title">
-      <header><div><span class="matchday-eyebrow">${escapeHtml(team.title)}</span><h2 id="matchday-hire-title">${t("builder.availablePlayers")}</h2><p>${t(mode.enforcesBudget ? "builder.remaining" : "savedRoster.treasury")}: <strong>${money}k</strong></p></div>${iconButton("collapse", { title: t("common.close"), attributes: "data-matchday-close-hire" })}</header>
+      <header><div><span class="matchday-eyebrow">${escapeHtml(team.title)}</span><h2 id="matchday-hire-title">${t("builder.availablePlayers")}</h2><p>${t("savedRoster.treasury")}: <strong>${money}k</strong></p></div>${iconButton("collapse", { title: t("common.close"), attributes: "data-matchday-close-hire" })}</header>
       ${renderHirePanel(team, draft, mode, { cardsOnly: true })}
     </dialog>`}`;
 }

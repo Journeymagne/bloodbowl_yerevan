@@ -96,6 +96,7 @@ export const LIVE_GAME = {
   id: "g2", kind: "league", roundStatus: "started", roundNumber: 3, season: { currentRound: 3 }, resultStatus: "pending", preparationStatus: "in_progress",
   postMatchStatus: "draft", updatedAt: "2026-10-10T10:00:00Z", home: { user: { id: "u1" }, team: { id: "t1" } }, away: { user: { id: "u9" }, team: { id: "r1" } },
 };
-export const STYLES = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
+export const STYLES = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css",
+  "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
   "stat-strip.css", "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
   "src/screens/team/manage/strip.css"];

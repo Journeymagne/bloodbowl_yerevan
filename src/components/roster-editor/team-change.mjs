@@ -3,10 +3,10 @@
  * accident.
  *
  * Picking a different race empties the squad — the positions belong to the
- * race, so none of them survive. Both editors did that silently on a `change`
- * event, and in the league editor the wipe reached the server inside the
- * 450ms autosave debounce, so a mis-click on the dropdown destroyed a
- * developed roster for good. Step 7.7 of the refactor plan.
+ * race, so none of them survive. The editor did that silently on a `change`
+ * event, and the wipe reached the server inside the 450ms autosave debounce,
+ * so a mis-click on the dropdown destroyed a developed roster for good.
+ * Step 7.7 of the refactor plan.
  *
  * The guard is components/dialog.mjs, like every other destructive action in
  * the app since step 7.10. That makes it asynchronous, so callers await it;

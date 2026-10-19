@@ -3,12 +3,15 @@
  *
  * The values arrive already formatted ("3+", "6"): what a characteristic is
  * worth, and which ones an advancement has raised, is the caller's, taken
- * from src/domain.
+ * from src/domain. A position of a race's table has them as one line of
+ * words too (`positionStatsLine`): the builder's and the roster's hire cart.
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
-import { PLAYER_STATS } from "../domain/roster/values.mjs";
+import { PLAYER_STATS, statValueForDisplayByStat } from "../domain/roster/values.mjs";
 import { classNames } from "./markup.mjs";
+
+const NBSP = "\u00a0";
 
 /** What a characteristic that a player does not have (a lineman's PA) shows. */
 const NO_VALUE = "–";
@@ -49,4 +52,18 @@ export function renderStatStrip({ values, improved = [], lowered = [] }) {
       + `<dd class="g-stat__v">${escapeHtml(isEmpty(value) ? NO_VALUE : value)}${said}</dd></div>`;
   });
   return `<dl class="g-stats">${cells.join("")}</dl>`;
+}
+
+/**
+ * "MA 6 · ST 3 · …" for a line of a race's table: a stat is its label and its value tied by a no-break space, and the
+ * dot is tied to the pair before it, so that a phone's line wraps between the pairs, never inside one, and never
+ * begins with a dot. Text, not markup: the caller escapes it.
+ *
+ * @param {object} row a line of the race's table (`rowsForTeam`), its characteristics as the reference holds them
+ * @returns {string}
+ */
+export function positionStatsLine(row) {
+  const pairs = PLAYER_STATS.map((stat) => `${t(`stats.${stat}`)}${NBSP}${statValueForDisplayByStat(stat, row[stat])}`);
+  const last = pairs.length - 1;
+  return pairs.map((pair, index) => `${pair}${index < last ? `${NBSP}·` : ""}`).join(" ");
 }

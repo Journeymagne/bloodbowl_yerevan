@@ -309,3 +309,28 @@ test("a save whose SPP change would be more than 2000 steps is refused before an
     assert.equal(edits(db).length, 2000);
   });
 });
+
+// Owner ruling of 2026-10-19 (stage 07c, question 2): the limit of 14 counts everyone on the roster, players
+// sitting out the next match too, and the server holds it exactly as the browser does (one `validateRoster`).
+test("a save of more than 14 players is refused whoever of them sits out the next match, on the owner's route and the admin's; 14 are saved", async () => {
+  const squad = (playing, skipping) => [
+    ...Array.from({ length: playing }, (_, n) => ({ id: `p${n}`, rowIndex: 0 })),
+    ...Array.from({ length: skipping }, (_, n) => ({ id: `s${n}`, rowIndex: 0, skipNextGame: true }))];
+  for (const [user, route, url] of [[coach, handleTeamRoutes, teamUrl()], [admin, handleAdminRoutes, adminUrl]]) {
+    await withDatabase({ user }, async (db) => {
+      await assert.rejects(route(patch({ players: squad(12, 3) }), response(), url), (error) => {
+        assert.deepEqual([error.status, error.code, error.violations],
+          [422, "ROSTER_BREAKS_THE_RULES", [{ code: "ROSTER_MAX_PLAYERS", params: { max: 14, count: 15 } }]]);
+        return true;
+      }, `${user.login}: 12 playing and 3 skipping`);
+      assert.equal(wrote(db), false, "nothing is written");
+    });
+    await withDatabase({ user }, async (db) => {
+      const answer = response();
+      await route(patch({ players: squad(11, 3) }), answer, url);
+      assert.equal(answer.status, 200, `${user.login}: 11 playing and 3 skipping`);
+      const update = db.log.find((entry) => entry.sql.startsWith("UPDATE saved_teams"));
+      assert.equal(JSON.parse(update.values[4]).players.length, 14, "the fourteen are what is written");
+    });
+  }
+});

@@ -255,17 +255,17 @@ test("validation reports codes with the parameters the UI needs", async () => {
   const { validateRoster, VALIDATION_CODES, positionMinimum } = await import("../src/domain/roster/validate.mjs");
   const team = teamBySlug.get("teams/amazon");
 
-  const tooFew = validateRoster(team, { roster: {} }, { playersCount: 3 });
+  const tooFew = validateRoster(team, { roster: {} }, { playersCount: 3, totalPlayersCount: 3 });
   const min = tooFew.find((item) => item.code === VALIDATION_CODES.ROSTER_MIN_PLAYERS);
   assert.ok(min, "expected a minimum-players violation");
   assert.deepEqual(min.params, { min: 7, count: 3 });
 
-  const tooMany = validateRoster(team, { roster: {} }, { playersCount: 15 });
+  const tooMany = validateRoster(team, { roster: {} }, { playersCount: 15, totalPlayersCount: 15 });
   const max = tooMany.find((item) => item.code === VALIDATION_CODES.ROSTER_MAX_PLAYERS);
   assert.ok(max, "expected a maximum-players violation");
   assert.deepEqual(max.params, { max: 14, count: 15 });
 
-  const legal = validateRoster(team, { roster: {} }, { playersCount: 14 });
+  const legal = validateRoster(team, { roster: {} }, { playersCount: 14, totalPlayersCount: 14 });
   assert.deepEqual(legal.filter((item) => item.code.startsWith("ROSTER_")), []);
 
   assert.equal(positionMinimum("1-2"), 1);
@@ -281,11 +281,33 @@ test("validation reports codes with the parameters the UI needs", async () => {
   }
 });
 
+// Owner ruling of 2026-10-19 (stage 07c, question 2): the 14-player limit counts EVERYONE on the roster —
+// players sitting out the next match too. The minimum of 7 stays about the players who play it.
+test("the 14-player maximum counts everyone on the roster, those sitting out included; the minimum counts only those who play", () => {
+  const team = teamBySlug.get("teams/human");
+  /** The violations of a roster of `playing` players, `skipping` of them marked for the next match, `retired` retired for the season. */
+  const roster = (playing, skipping, retired = 0) => {
+    const player = (id, flags = {}) => ({ id, rowIndex: 0, name: id, statMods: {}, extraSkills: [], spp: {}, advancements: [], ...flags });
+    const draft = { roster: {}, playerEdits: {}, purchasedStaff: {}, treasury: 0, players: [
+      ...Array.from({ length: playing }, (_, n) => player(`p${n}`)),
+      ...Array.from({ length: skipping }, (_, n) => player(`s${n}`, { skipNextGame: true })),
+      ...Array.from({ length: retired }, (_, n) => player(`r${n}`, { temporarilyRetired: true })) ] };
+    return validateRosterSync(team, draft, calculateRosterCosts(team, draft)).filter((item) => item.code.startsWith("ROSTER_"));
+  };
+  assert.deepEqual(roster(12, 3), [{ code: "ROSTER_MAX_PLAYERS", params: { max: 14, count: 15 } }], "12 playing + 3 skipping are 15 on the roster");
+  assert.deepEqual(roster(11, 3), [], "11 + 3 are 14: the limit itself is legal");
+  assert.deepEqual(roster(13, 0, 2), [{ code: "ROSTER_MAX_PLAYERS", params: { max: 14, count: 15 } }], "a player retired for the season is on the roster still");
+  assert.deepEqual(roster(14, 0), [], "14 who play are 14");
+  assert.deepEqual(roster(5, 3), [{ code: "ROSTER_MIN_PLAYERS", params: { min: 7, count: 5 } }], "8 on the roster, 5 to play the match: the minimum counts the five");
+  assert.deepEqual(roster(7, 7), [], "7 playing is the minimum, and 14 on the roster the maximum");
+  assert.deepEqual(roster(2, 14), [{ code: "ROSTER_MIN_PLAYERS", params: { min: 7, count: 2 } }, { code: "ROSTER_MAX_PLAYERS", params: { max: 14, count: 16 } }], "both at once");
+});
+
 test("position limits are reported per position", () => {
   const team = teamBySlug.get("teams/amazon");
   const rows = team.team.roster;
   const overFilled = Object.fromEntries(rows.map((_row, index) => [index, 99]));
-  const violations = validateRosterSync(team, { roster: overFilled }, { playersCount: 9 });
+  const violations = validateRosterSync(team, { roster: overFilled }, { playersCount: 9, totalPlayersCount: 9 });
   assert.equal(violations.filter((item) => item.code === "POSITION_MAX").length, rows.length);
   for (const violation of violations.filter((item) => item.code === "POSITION_MAX")) {
     assert.ok(violation.params.position, "violation must name the position");

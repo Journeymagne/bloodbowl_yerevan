@@ -343,7 +343,12 @@ test("the router draws these screens, and the 2.x detail, legal and not-found sc
   for (const file of files) {
     assert.ok(!/screens\/detail|screens\/legal|components\/cards|renderOverviewDetail/.test(read(`src/${file}`)), `src/${file} still names a screen that is gone`);
   }
-  assert.match(read("src/components/roster-editor/hire-panel.mjs"), /export function renderRosterStatGrid\(/);
+});
+
+test("renderRosterStatGrid stays with its one user, unexported", () => {
+  const source = read("src/components/roster-editor/hire-panel.mjs");
+  assert.match(source, /\nfunction renderRosterStatGrid\(/);
+  assert.doesNotMatch(source, /export function renderRosterStatGrid/);
 });
 
 test("the league overview keeps its cards as data: the finders stay, the drawing left", () => {

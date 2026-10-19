@@ -402,7 +402,7 @@ test("a player the roster stores no id for has no way to a page: an empty id wou
     assert.equal(steps.length, 18);
     for (const button of steps) {
       assert.equal(button.getAttribute("aria-disabled"), "true");
-      assert.equal(button.getAttribute("title"), "This player has no id in the roster, so his counters cannot be saved. Ask the league administrator to fix the roster.");
+      assert.equal(button.getAttribute("title"), "This player has no id in the roster, so the counters cannot be saved. Ask the league administrator to fix the roster.");
     }
   });
   coach({ teamAnswer: team({ roster: { players } }) });
@@ -557,7 +557,7 @@ test("another device: a red banner and «Load the new one», which reads the tea
       }
       fireEvent(plus("touchdowns"), "click");
       assert.equal(toasts().at(-1), "The roster was changed on another device", "a tap while it stands is told why it is not taken");
-      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
         "progress-dots.css", "button.css", "callout.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
       api.calls.length = 0;
       api.reply("GET /api/teams/t1", 200, { team: elsewhere });
@@ -1104,7 +1104,7 @@ test("a match on: a green banner with the round and the records, the switch and 
     assert.deepEqual(sppLine(block), ["Match records · round 3", "+3 SPP in the match"]);
     assert.equal(block.querySelector(".g-roster__matchnote").textContent, "MVP — in the post-match. Advancement and sales — after it.");
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "3", "SPP available at once");
-    assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+    assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
       "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     api.assertAnswered();
   });
@@ -1233,7 +1233,7 @@ test("advancement waits for the post-match: «Profile and advancement», «Advan
       check(profile);
       assert.equal(openRow().querySelector("a"), null);
       assertCspSafe(view);
-      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
         "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     });
     coach();
@@ -1247,9 +1247,9 @@ test("advancement waits for the post-match: «Profile and advancement», «Advan
     check(advance);
     assert.equal(aside().querySelector(".g-roster__cheapest").textContent, AFTER_POST);
     assert.equal(aside().querySelector("a"), null);
-    // The switch edits the career, not the roster's advancements: they stay closed.
+    // The switch edits the career, not the roster's advancements: they stay closed, and stage 07c's «Sell» with them (K2).
     fireEvent(outsideSwitch(), "click");
-    assert.equal(aside().querySelectorAll(".g-roster__closed").length, 2);
+    assert.equal(aside().querySelectorAll(".g-roster__closed").length, 3);
   });
 });
 
@@ -1641,7 +1641,7 @@ test("the switch is kept per match too: the same team's next match starts with i
 // ---------------------------------------------------------------------------
 
 const injurySheet = () => view.querySelector("dialog#roster-injury");
-/** «Injury in the match…»: the desk panel's by default, or the open row's. */
+/** «Match injury…»: the desk panel's by default, or the open row's. */
 const injuryButton = (root = aside()) => root.querySelector("[data-roster-injury]");
 const injuryOptions = () => injurySheet().querySelectorAll('.g-option[role="radio"]');
 const optionFor = (code) => injuryOptions().find((card) => card.getAttribute("data-option-value") === code);
@@ -1653,17 +1653,17 @@ const removeButton = () => injurySheet().querySelector('[data-injury-step="-1"]'
 const subLine = (key) => bodyOf(key).querySelector(".g-rtable__sub");
 /** An injury row of the match as POST …/events answers it: Ann's. */
 const injuryRow = (injury, over = {}) => rowOf({ counter: "injury", injury, ...over });
-const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
+const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
   "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "sheet.css", "option-card.css", "filter-chips.css",
   "src/screens/team/manage/strip.css"];
 
-test("«Injury in the match…» opens a sheet of five injuries; a lasting one asks for the characteristic; «Record in the match» sends one injury row", async () => {
+test("«Match injury…» opens a sheet of five injuries; a lasting one asks for the characteristic; «Record in the match» sends one injury row", async () => {
   await withoutTimers(async () => {
     coach();
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     const opener = injuryButton();
-    assert.equal(opener.textContent, "Injury in the match…");
+    assert.equal(opener.textContent, "Match injury…");
     assert.equal(opener.getAttribute("data-roster-injury"), "p1#0");
     assert.equal(opener.getAttribute("aria-haspopup"), "dialog");
     opener.focus();
@@ -1819,7 +1819,7 @@ test("no injury for a player who sits the match out, nor with the switch on, nor
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     fireEvent(toggle("p1#0"), "click");
-    assert.equal(injuryButton(openRow()).textContent, "Injury in the match…", "in the open row on a phone");
+    assert.equal(injuryButton(openRow()).textContent, "Match injury…", "in the open row on a phone");
     fireEvent(toggle("p4#0"), "click");
     assert.ok(!injuryButton(openRow()), "Dell sits it out");
     fireEvent(toggle("p1#0"), "click");
@@ -2299,7 +2299,7 @@ test("a player's and a skill's name are text", async () => {
 });
 
 test("every class the screen draws is styled and nothing the CSP refuses is on it, on a phone and on a desk, with a sheet open", async () => {
-  const sheets = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+  const sheets = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
     "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
     "src/screens/team/manage/strip.css"];
   for (const phone of [true, false]) {
@@ -2343,21 +2343,34 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   assert.deepEqual([valuesOf(sheet, ".g-roster__aside", "padding"), valuesOf(sheet, ".g-roster__aside", "border-radius")], [["var(--space-20)"], ["var(--radius-2xl)"]]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__heading", "font"), ["700 26px/1.1 var(--font-display)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__heading", "text-transform"), ["none"]);
+  // Stats.html's and StatsMngDead.html's open row: its words 16px from the screen's edge, which is the view's padding
+  // here, so the panel pads none of its own; its band is the screen's width, carried over that padding (roster-table.css).
+  for (const [file, selector] of [[sheet, ".g-roster__rowpanel"], ["src/screens/team/roster/marks.css", ".g-fallen__rowpanel"]]) {
+    assert.deepEqual(valuesOf(file, selector, "padding"), ["var(--space-4) 0 var(--space-14)"], selector);
+  }
+  // The band rides on the open row's cells, never on its <tbody>: WebKit (a coach's iPhone) paints no row group's shadow.
+  const table = "src/ui/roster-table.css";
+  const open = ".g-rtable__player.is-expanded > tr >";
+  const lastShown = ":nth-last-child(1 of :not(.g-rtable__c--desk))";
+  assert.deepEqual(valuesOf(table, ".g-rtable__player.is-expanded", "box-shadow"), []);
+  assert.deepEqual(valuesOf(table, `${open} :first-child`, "box-shadow"), ["-20px 0 var(--surface-2)"]);
+  assert.deepEqual(valuesOf(table, `${open} ${lastShown}`, "box-shadow"), ["20px 0 var(--surface-2)"]);
+  assert.deepEqual(valuesOf(table, `${open} :first-child${lastShown}`, "box-shadow"), ["-20px 0 var(--surface-2), 20px 0 var(--surface-2)"]);
   for (const file of [sheet, "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css"]) {
     const breakpoints = [...text(file).matchAll(/@media[^{]+/g)].map(([query]) => query.trim());
     assert.ok(breakpoints.length > 0, file);
     for (const query of breakpoints) assert.match(query, /^@media \((max-width: 900px|min-width: 901px)\)$/, file);
   }
-  // The roster's own sheet, 07b's marks.css, its sheets' and its frame's, last of all.
-  assert.ok(text("src/styles.css").trimEnd().endsWith(['roster.css', 'marks.css', 'sheets.css', 'frame.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
+  // The roster's own sheet, 07b's marks.css, its sheets' and its frame's; 07c's market.css after the fidelity pass's frame.css, last of all.
+  assert.ok(text("src/styles.css").trimEnd().endsWith(['roster.css', 'marks.css', 'sheets.css', 'frame.css', 'market.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
 });
 
-test("the counters: six two to a row (one on the narrowest phone), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
+test("the counters: six two to a row (one where two do not fit), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
   const sheet = "src/screens/team/roster/roster.css";
-  // Two to a row, or one where two do not fit (320px): never more than two.
+  // Two to a row, or one where two do not fit (under about 312px): never more than two.
   assert.deepEqual(valuesOf(sheet, ".g-roster__counters", "grid-template-columns"), ["repeat(auto-fit, minmax(max(var(--roster-full), calc((100% - var(--space-8)) / 2)), 1fr))"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster", "--roster-full"), ["calc(2 * var(--size-touch) + 48px)"]);
-  // A phone's narrow tile is two 44px buttons, their gap, the cell's padding and border: three of them do not fit a 360px phone.
+  // A phone's narrow tile is two 44px buttons, their gap, the cell's padding and border: three of them fit from about 342px.
   assert.deepEqual(valuesOf(sheet, ".g-roster__extra", "grid-template-columns"), ["repeat(auto-fit, minmax(var(--roster-tile), 1fr))"]);
   // D1: a desk's nine, three by three (DeskRosterLive.html), 6px apart.
   assert.deepEqual([valuesOf(sheet, ".g-roster__tiles", "grid-template-columns"), valuesOf(sheet, ".g-roster__tiles", "gap")], [["repeat(3, minmax(0, 1fr))"], ["var(--space-6)"]]);
@@ -2521,14 +2534,14 @@ test("an injury recorded in the match names itself: «Injury: Seriously Hurt» i
     const next = aside().querySelector(".g-roster__next");
     assert.equal(next.textContent, "Next match: injury in the match: Seriously Hurt");
     assert.ok(next.querySelector("b").classList.contains("g-roster__nextstate--alert"));
-    // A lasting one with its characteristic; one with none recorded keeps «Injury in the match…».
+    // A lasting one with its characteristic; one with none recorded keeps «Match injury…».
     coach({ events: [injuryRow({ code: "lasting", stat: "ag" })] });
     gamesAre([LIVE_GAME]);
     await renderTeamRoster("t1");
     assert.equal(injuryButton().textContent, "Injury: Lasting Injury (AG)");
     assert.equal(aside().querySelector(".g-roster__next").textContent, "Next match: injury in the match: Lasting Injury (AG)");
     fireEvent(toggle("p2#0"), "click");
-    assert.equal(injuryButton().textContent, "Injury in the match…");
+    assert.equal(injuryButton().textContent, "Match injury…");
     assert.equal(aside().querySelector(".g-roster__next").textContent, "Next match: Plays");
     await withWindow({ phone: true }, async () => {
       coach({ events: [injuryRow({ code: "miss" })] });

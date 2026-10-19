@@ -510,10 +510,12 @@ test("a playing player's row has «Miss a match…», a skipper's «Back on the 
         assert.ok(!view.querySelector("[data-roster-mark]"));
         assert.ok(!view.querySelector("[data-roster-return]"));
       }
-      // The pair holds «Injury in the match…» for one who plays it (Stats.html), and nothing for one who sits it out.
-      assert.ok(!view.querySelector(".g-roster__actions"), "Dell sits it out");
+      // The pair holds «Match injury…» for one who plays it (StatsLive.html), beside stage 07c's closed «Sell»; for one
+      // who sits it out, the closed «Sell» alone (K2).
+      const pair = () => view.querySelector(".g-roster__actions").childNodes.filter((node) => node.nodeType === 1).map((button) => button.textContent);
+      assert.deepEqual(pair(), ["Sell"], "Dell sits it out");
       fireEvent(toggle("p1#0"), "click");
-      assert.deepEqual(view.querySelector(".g-roster__actions").childNodes.filter((node) => node.nodeType === 1).map((button) => button.textContent), ["Injury in the match…"]);
+      assert.deepEqual(pair(), ["Match injury…", "Sell"]);
     });
   }
 });
@@ -744,7 +746,7 @@ test("closed while the games are unread, the roster is read or a conflict waits"
   coach({ teamAnswer: withPlayers([{ rowIndex: 0, number: "1", name: "Nobody" }]), fallen: [] });
   await renderTeamRoster("t1");
   assert.equal(markButton().getAttribute("aria-disabled"), "true");
-  assert.equal(markButton().getAttribute("title"), "This player has no id in the roster, so nothing can be marked for him. Ask the league administrator to fix the roster.");
+  assert.equal(markButton().getAttribute("title"), "This player has no id in the roster, so nothing can be marked. Ask the league administrator to fix the roster.");
 });
 
 test("another tab's coach: no mark is sent, and the coach is told", async () => {

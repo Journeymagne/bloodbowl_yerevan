@@ -234,8 +234,21 @@ tfoot .g-rtable__glabel {
   .g-rtable__c { border-bottom: 0; }
   .g-rtable__player { border-bottom: 1px solid var(--line); }
   .g-rtable__skillrow > td { padding-left: 46px; }
-  /* The open row on --surface-2, as Stats.html: its plain chips are --surface-2 too and melt into it, as there. */
+  /*
+   * The open row on --surface-2, as Stats.html: its plain chips are --surface-2 too and melt into it, as there. Its
+   * band is the screen's width there, its words 16px in: the view pads the table 16px (20px from 601px,
+   * site-matchday.css), and shadows of its cells carry the band over that padding — the first cell's to the left, the
+   * last shown one's to the right, both for a cell across the row (skills, panel). On the cells, not on the row group:
+   * WebKit does not paint a <tbody>'s shadow. A shadow is no box: nothing scrolls sideways.
+   */
   .g-rtable__player.is-expanded { background: var(--surface-2); }
+  .g-rtable__player.is-expanded > tr > :first-child { box-shadow: -20px 0 var(--surface-2); }
+  .g-rtable__player.is-expanded > tr > :nth-last-child(1 of :not(.g-rtable__c--desk)) {
+    box-shadow: 20px 0 var(--surface-2);
+  }
+  .g-rtable__player.is-expanded > tr > :first-child:nth-last-child(1 of :not(.g-rtable__c--desk)) {
+    box-shadow: -20px 0 var(--surface-2), 20px 0 var(--surface-2);
+  }
 }
 
 @media (min-width: 901px) {

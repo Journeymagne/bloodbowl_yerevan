@@ -1,5 +1,5 @@
 /**
- * The roster table, shared by both editors.
+ * The roster table.
  *
  * There used to be two: renderBuilderPlayerList and renderSavedPlayerList, the
  * same scroll wrapper, table, header row, body and mobile card list twice, and
@@ -15,8 +15,8 @@
  * undone in task 7.
  *
  * What is shared instead is the **shape**: a list of columns, each declared
- * once with its heading and its cell. Both editors describe their own columns
- * and hand them here. That kills the structural duplication and closes a real
+ * once with its heading and its cell. The editor describes its columns and
+ * hands them here. That kills the structural duplication and closes a real
  * hazard along with it — with twenty columns, a heading added to `<thead>` and
  * forgotten in the row shifted every cell after it, and nothing complained.
  *
