@@ -144,10 +144,12 @@ export function applyPaidStaffChange(draft, key, previous, next) {
 }
 
 /**
- * A player sitting out the next game counts for neither the squad size nor the
- * team's value. Confirmed intentional by the league owner on 2026-08-21 —
- * question 2 of the design spec's section 13, which had it flagged as a
- * probable bug.
+ * A player sitting out the next game counts for neither the squad size
+ * (`playersCount`, what the minimum of 7 reads) nor the team's value. Confirmed
+ * intentional by the league owner on 2026-08-21 — question 2 of the design
+ * spec's section 13, which had it flagged as a probable bug. The limit of 14 is
+ * another count: `totalPlayersCount`, everyone on the roster, skipping players
+ * too (the owner's ruling of 2026-10-19, read by `validateRoster`).
  */
 export function calculateRosterCosts(team, draft, options = {}) {
   const includeDedicatedFans = Boolean(options.includeDedicatedFans);

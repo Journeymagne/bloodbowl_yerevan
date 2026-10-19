@@ -77,6 +77,18 @@ test("a player does not come back over the roster limit, and the death stays rec
   assert.equal((await teamRow(client, id)).roster.players.length, 14);
 }));
 
+test("a player does not come back over the roster limit when those on the roster who sit out the next match are counted too", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion");
+  const players = (playing, skipping) => [...Array.from({ length: playing }, (_, n) => ({ id: `p${n}`, rowIndex: 0 })), ...Array.from({ length: skipping }, (_, n) => ({ id: `s${n}`, rowIndex: 0, skipNextGame: true }))];
+  const full = await seedTeam(client, coach.id, { roster: { players: players(11, 3) } }), room = await seedTeam(client, coach.id, { roster: { players: players(10, 3) } });
+  const refusedFid = await insertFallen(client, full, { id: "x", rowIndex: 0, spp: {} }, false), backFid = await insertFallen(client, room, { id: "x", rowIndex: 0, spp: {} }, false);
+  const refused = await undo(full, refusedFid, coach.token);
+  assert.deepEqual([refused.status, refused.body.error.code, refused.body.violations], [422, "ROSTER_BREAKS_THE_RULES", [{ code: "ROSTER_MAX_PLAYERS", params: { max: 14, count: 15 } }]], "14 on the roster, 3 of them sitting out");
+  assert.equal((await teamRow(client, full)).roster.players.length, 14);
+  const back = await undo(room, backFid, coach.token);
+  assert.deepEqual([back.status, back.body.team.roster.players.length], [200, 14], "13 and one more are 14");
+}));
+
 test("a roster under the minimum of seven is a roster in progress, and no reason to refuse a death or an undo", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { players: 7 });
   const died = await death(id, "p0", coach.token);
