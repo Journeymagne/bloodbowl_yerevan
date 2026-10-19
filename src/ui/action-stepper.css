@@ -112,3 +112,37 @@
   width: auto;
   min-width: var(--size-touch);
 }
+
+/*
+ * A desk's tile (D1, DeskRosterLive.html's records block): the label with its worth centred on top, then the −, the
+ * count and the + on one line. The buttons are 32px, a desk's compact size (D2) and above WCAG 2.5.8's 24px; a
+ * phone never draws one (the panel is a desk's), so its 44px are untouched.
+ */
+.g-stepper--tile {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
+  padding: var(--space-6) 3px 3px;
+  border-color: var(--line-strong);
+}
+.g-stepper--tile .g-stepper__label {
+  font-size: 11px;
+  text-align: center;
+  white-space: nowrap;
+}
+.g-stepper__line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.g-stepper--tile .g-stepper__btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 9px;
+}
+.g-stepper--tile .g-stepper__btn .g-icon {
+  width: 14px;
+  height: 14px;
+}
+.g-stepper--tile .g-stepper__value { font-size: 17px; }
+.g-stepper--tile .g-stepper__delta { font-size: 11px; }

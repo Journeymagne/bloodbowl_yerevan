@@ -12,6 +12,8 @@ const SHAPES = {
   close: '<path d="M6 6l12 12M18 6L6 18"/>',
   back: '<path d="M15 18l-6-6 6-6"/>',
   chevron: '<path d="M9 6l6 6-6 6"/>',
+  // «Advance» (DeskRoster.html): an arrow up.
+  up: '<path d="M12 19V5M5 12l7-7 7 7"/>',
   check: '<path d="M5 12l5 5 9-10"/>',
   // A fault's sign: a ring with the «!» in it, the line and its dot.
   alert: '<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>',
