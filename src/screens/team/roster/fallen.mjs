@@ -19,6 +19,12 @@ const writing = new Set();
 
 const isObject = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 
+/** A record of a death as every line of the fallen reads it: an object with its `id` (the key of its line, the one an undo names). */
+const isRecord = (value) => isObject(value) && typeof value.id === "string";
+
+/** The team as the queue and the list take it from an answer: its `id`, and the whole `revision` the next write stands on. */
+const isTeam = (value) => isObject(value) && typeof value.id === "string" && Number.isInteger(value.revision);
+
 /** It is not known whether the server wrote it: the screen reads the roster again, and the write is not sent again. */
 const lost = () => ({ refusal: t("teamRoster.fallen.lost"), code: null, lost: true });
 
@@ -38,23 +44,26 @@ function wordsOf(error) {
  */
 function failure(error, refused) {
   if (!(error instanceof ApiError) || unanswered(error)) return lost();
-  return refused(error, { refusal: wordsOf(error), code: error.code ?? null });
+  const refusal = { refusal: wordsOf(error), code: error.code ?? null };
+  return refused ? refused(error, refusal) : refusal;
 }
 
 /**
  * One write of a team's fallen, whatever comes of it: never throws, and the team is free to write again once its
- * answer is known (before the caller is told).
+ * answer is known (before the caller is told). The request is built inside `send`, so whatever cannot be built (an id
+ * that cannot be a path) comes back as a write whose fate is not known, not as a throw.
  * @param {string} teamId
  * @param {Function} send the request (it resolves with the answer's body); asked only after the token and the team's turn are
  * @param {(answer: object) => object|null} take what the answer comes to; null where it holds no word of the server's
  * @param {(error: ApiError, refusal: object) => object} [refused] what is added to the words of a refusal
  */
-async function write(teamId, send, take, refused = (_error, refusal) => refusal) {
+async function write(teamId, send, take, refused) {
   if (writing.has(teamId)) return { ignored: true };
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab"), code: null };
   writing.add(teamId);
   try {
-    // A 2xx without the objects asked for is not the server's word that it was written (a proxy's page, which api.mjs reads as `{}`).
+    // A 2xx whose team or record cannot be used (none, or without the id and revision they are read by: a proxy's page,
+    // which api.mjs reads as `{}`) is not the server's word that it was written.
     return take(await send()) ?? lost();
   } catch (error) {
     return failure(error, refused);
@@ -70,7 +79,7 @@ export function fallenWriting(teamId) {
 
 /**
  * The team's deaths, newest first, as `GET …/fallen` sends them. An answer whose `fallen` is not a list of records
- * (each an object with its `id`) is a read that failed, not a team with no dead: the screen would draw from it.
+ * (each an object with a text `id`) is a read that failed, not a team with no dead: the screen would draw from it.
  * @param {string} teamId
  * @returns {Promise<{fallen: object[]} | {error: string}>}
  */
@@ -78,7 +87,7 @@ export async function readFallen(teamId) {
   try {
     const answer = await apiRequest(`/api/teams/${encodeURIComponent(teamId)}/fallen`);
     const fallen = answer?.fallen;
-    if (!Array.isArray(fallen) || !fallen.every((record) => isObject(record) && typeof record.id === "string")) return { error: t("request.noAnswer") };
+    if (!Array.isArray(fallen) || !fallen.every(isRecord)) return { error: t("request.noAnswer") };
     return { fallen };
   } catch (error) {
     return { error: refusalText(error) };
@@ -96,12 +105,14 @@ export async function readFallen(teamId) {
  *   elsewhere (null when the 409 carried none), `lost` where it is not known whether he died (read the roster again);
  *   or `ignored` where a write of the team's fallen is on its way and nothing was sent
  */
-export function markDeath(teamId, playerId, { cause, revision }) {
-  const path = `/api/teams/${encodeURIComponent(teamId)}/players/${encodeURIComponent(playerId)}/death`;
+export function markDeath(teamId, playerId, death) {
   return write(
     teamId,
-    () => apiRequest(path, { method: "POST", body: JSON.stringify({ cause, revision }) }),
-    (answer) => (isObject(answer?.team) && isObject(answer.fallen) ? { team: answer.team, fallen: answer.fallen } : null),
+    () => {
+      const path = `/api/teams/${encodeURIComponent(teamId)}/players/${encodeURIComponent(playerId)}/death`;
+      return apiRequest(path, { method: "POST", body: JSON.stringify({ cause: death.cause, revision: death.revision }) });
+    },
+    (answer) => (isTeam(answer?.team) && isRecord(answer.fallen) ? { team: answer.team, fallen: answer.fallen } : null),
     (error, refusal) => (error.code === "TEAM_SAVED_ELSEWHERE" ? { ...refusal, conflict: isObject(error.payload?.team) ? error.payload.team : null } : refusal),
   );
 }
@@ -113,10 +124,9 @@ export function markDeath(teamId, playerId, { cause, revision }) {
  * @returns {Promise<{team: object} | {refusal: string, code: string|null, lost?: true} | {ignored: true}>}
  */
 export function undoDeath(teamId, fallenId) {
-  const path = `/api/teams/${encodeURIComponent(teamId)}/fallen/${encodeURIComponent(fallenId)}`;
   return write(
     teamId,
-    () => apiRequest(path, { method: "DELETE" }),
-    (answer) => (isObject(answer?.team) ? { team: answer.team } : null),
+    () => apiRequest(`/api/teams/${encodeURIComponent(teamId)}/fallen/${encodeURIComponent(fallenId)}`, { method: "DELETE" }),
+    (answer) => (isTeam(answer?.team) ? { team: answer.team } : null),
   );
 }

@@ -137,6 +137,21 @@ test("the roster's snapshot is the team, its records and its fallen; either fail
   assert.deepEqual(await readSnapshot("t1"), { error: NO_ANSWER });
 });
 
+test("the fallen are read together with the roster: a roster that fails or is slow holds back no request", async () => {
+  open();
+  api.reply(EVENTS_URL, 200, { events: [], revision: 4 });
+  api.reply(FALLEN_URL, 200, { fallen: [recordOf()] });
+  const gate = api.hold(TEAM_URL);
+  const reading = readSnapshot("t1");
+  await waitHeld(gate);
+  // The team has not answered, and the fallen are on their way already (they are not asked for after it).
+  assert.equal(sent(FALLEN_URL).length, 1);
+  gate.release({ error: new TypeError("Failed to fetch") });
+  assert.deepEqual(await reading, { error: "No connection." });
+  assert.equal(sent(FALLEN_URL).length, 1);
+  api.assertAnswered();
+});
+
 test("a death is one POST with the cause and the revision the coach's roster is on; its answer is the team and the record", async () => {
   open();
   api.reply(DEATH_URL, 201, { team: teamAt(5), fallen: recordOf() });
@@ -186,23 +201,30 @@ test("an answer that is none is lost in every way it can be: offline, timed out,
   }
 });
 
+// An answer is taken by what reads it: the queue and the list want the team's id and revision, the list a record's id.
+const badTeams = [null, "t1", [], {}, { id: "t1" }, { revision: 5 }, { id: "t1", revision: "5" }, { id: "t1", revision: 5.5 }, { id: 1, revision: 5 }];
+
 test("a 2xx without the team is an answer that did not come", async () => {
   open();
-  // The death's answer holds the team and the record, both; a body that is not JSON is read as `{}` (a proxy's page).
+  // The death's answer holds the team and the record, both, each as it is read; a body that is not JSON is read as `{}` (a proxy's page).
   const bodies = [{}, null, { team: teamAt(5) }, { fallen: recordOf() }, { team: null, fallen: recordOf() }, { team: teamAt(5), fallen: null },
-    { team: "t1", fallen: recordOf() }, { team: teamAt(5), fallen: "f1" }, { team: [], fallen: recordOf() }, { team: teamAt(5), fallen: [] }];
+    { team: "t1", fallen: recordOf() }, { team: teamAt(5), fallen: "f1" }, { team: [], fallen: recordOf() }, { team: teamAt(5), fallen: [] },
+    { team: teamAt(5), fallen: {} }, { team: teamAt(5), fallen: { ...recordOf(), id: 7 } }, { team: teamAt(5), fallen: { cause: "Foul" } },
+    ...badTeams.map((team) => ({ team, fallen: recordOf() }))];
   for (const [index, body] of bodies.entries()) {
     api.reply(DEATH_URL, 201, body);
     assert.deepEqual(await markDeath("t1", "p1", DEATH), { refusal: LOST, code: null, lost: true }, `death, body ${index}`);
   }
   api.reply(DEATH_URL, 200, {});
   assert.equal((await markDeath("t1", "p1", DEATH)).lost, true);
-  for (const [index, body] of [{}, null, { team: null }, { team: "t1" }, { team: [] }, { fallen: recordOf() }].entries()) {
+  const undoBodies = [{}, null, { team: null }, { team: "t1" }, { team: [] }, { fallen: recordOf() }, ...badTeams.map((team) => ({ team }))];
+  for (const [index, body] of undoBodies.entries()) {
     api.reply(UNDO_URL, 200, body);
     assert.deepEqual(await undoDeath("t1", "f1"), { refusal: LOST, code: null, lost: true }, `undo, body ${index}`);
   }
   // None of those was sent twice.
   assert.equal(sent(DEATH_URL).length, bodies.length + 1);
+  assert.equal(sent(UNDO_URL).length, undoBodies.length);
   assert.equal(fallenWriting("t1"), false);
 });
 
@@ -316,6 +338,18 @@ test("an undo is one DELETE of the record; a refusal says the rules it breaks", 
   // An undo has no revision: a 409 is worded like any refusal and carries no team to settle.
   api.reply(UNDO_URL, 409, { ...elsewhere, team: teamAt(6) });
   assert.deepEqual(await undoDeath("t1", "f1"), { refusal: "The team was saved elsewhere.", code: "TEAM_SAVED_ELSEWHERE" });
+});
+
+test("a write that cannot be built is a write whose fate is not known, not a throw; nothing is sent", async () => {
+  open();
+  // A lone surrogate is no part of a path: encodeURIComponent throws on it.
+  assert.deepEqual(await markDeath("t1", "\ud800", DEATH), { refusal: LOST, code: null, lost: true });
+  assert.deepEqual(await markDeath("t1", "p1"), { refusal: LOST, code: null, lost: true });
+  assert.deepEqual(await markDeath("\ud800", "p1", DEATH), { refusal: LOST, code: null, lost: true });
+  assert.deepEqual(await undoDeath("t1", "\ud800"), { refusal: LOST, code: null, lost: true });
+  assert.equal(api.calls.length, 0);
+  assert.equal(fallenWriting("t1"), false);
+  assert.equal(fallenWriting("\ud800"), false);
 });
 
 test("violations that are not a list are still the server's refusal, not a throw", async () => {
