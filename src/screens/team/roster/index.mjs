@@ -2,8 +2,8 @@
  * The team's roster (`#/t/:id/roster`, plan 3.0, 7a): the table, a player's row that opens on a phone and the
  * panel beside it on a desk, the skills and their rules. What a line says is model.mjs's, the markup
  * view/panel/sheets', the writes save/taps'; this file reads, draws and lives as long as the visit. The player's
- * own address (`#/t/:id/roster/:playerId`) still draws the 2.x editor until stage 07d, and the roster leads there
- * for what it does not do yet.
+ * own address (`#/t/:id/roster/:playerId`) still draws the 2.x editor for a player of the roster until stage 07d, and
+ * the roster leads there for what it does not do yet; a fallen player's is his profile (screens/team/player).
  *
  * Outside a match a counter's step is a save of the roster (save.mjs), drawn at once from the queue's draft. The
  * queue outlives the visit: what waits for the network is sent again on entry and when the network is back, and

@@ -15,7 +15,8 @@
  * for the coach who sent it; a lost one is never sent again: the roster and the fallen are read back, and the coach is
  * told what they say — and only what both say (K15). Its undo (Task 9), asked first in a sheet of its own, is written
  * the same way (`writeOnce`, `readBack`): it names its record and no revision, so it meets no conflict, and a record
- * the server no longer has reads the roster again.
+ * the server no longer has reads the roster again. The player's own page (screens/team/player, Task 10) offers the same
+ * undo through `markHandlers`, with a `Lent` of its own.
  */
 import { toast } from "../../../components/toast.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -49,6 +50,8 @@ const undoneOf = (where, key) => where.fallen.find((line) => line.key === key &&
  * @property {(answer: {team: object, fallen: object[]}) => void} hold a death's or an undo's answer taken: its team, and the fallen to draw (K5)
  * @property {function(): Promise<boolean>} readAgain the roster and the fallen read again; true when the read was taken
  * @property {function(): Promise<void>} reload the server's roster in place of the queue's, while no step waits or is on its way
+ * @property {(line: import("./model.mjs").FallenLine, mine: boolean) => void} [back] what a page that draws no roster (the
+ *   player's own, screens/team/player) does once he is back, in place of his row and the message (`backSaid`)
  */
 
 /**
@@ -267,9 +270,14 @@ function sendDeath(saving, lent) {
 
 /**
  * He is back on the roster, as the server says: the coach is told; and when the sheet that sent it was still open, the
- * panel takes him — his line on the roster drawn now, by his id — and the focus his row.
+ * panel takes him — his line on the roster drawn now, by his id — and the focus his row. The player's own page tells it
+ * its own way (`lent.back`): it has no row to give the focus to, and its page says it.
  */
-function backSaid({ memory, draw }, { now }, { line, mine }) {
+function backSaid({ memory, draw }, { now, back: told }, { line, mine }) {
+  if (told) {
+    told(line, mine);
+    return;
+  }
   const back = mine ? now().lines.find((item) => item.id === line.id) : null;
   if (back) {
     memory.selected = back.key;

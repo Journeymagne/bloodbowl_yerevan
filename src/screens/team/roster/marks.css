@@ -238,3 +238,66 @@
   letter-spacing: 0;
   text-transform: none;
 }
+
+/*
+ * A fallen player's own page (screens/team/player, PlayerDead): his head — his grey number before his name, at any
+ * width — then a column of what the page says, no wider than 640px on a desk. The head keeps the band and the margins
+ * page-head.css gives it, so the column's gap is the one between its blocks.
+ */
+.g-fallen-page {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-fallen-page .g-pagehead {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: var(--space-14);
+}
+.g-fallen-page .g-pagehead__meta {
+  order: -1;
+  margin-top: 0;
+}
+
+.g-fallen-page__body {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  width: 100%;
+  max-width: 640px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* The way back to the roster in the page's banners (K14, an undo landed): one line, a thumb tall, in the banner's own ink. */
+.g-fallen-page__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: 700 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  text-transform: none;
+  white-space: nowrap;
+}

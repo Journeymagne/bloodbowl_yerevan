@@ -2318,8 +2318,8 @@ test("the injury's sheet: the characteristic's caption over its five chips in on
   }
 });
 
-test("the player's address still draws the 2.x editor until stage 07d", () => {
+test("the player's address: a fallen player's profile, else the 2.x editor until stage 07d", () => {
   const router = text("src/core/router.mjs");
   assert.ok(router.includes("teamRoster: ({ teamId }) => renderTeamRoster(teamId),"));
-  assert.ok(router.includes("teamPlayer: ({ teamId }) => renderSavedRoster(teamId),"));
+  assert.ok(router.includes("teamPlayer: ({ teamId, playerId }) => renderTeamPlayer(teamId, playerId),"));
 });
