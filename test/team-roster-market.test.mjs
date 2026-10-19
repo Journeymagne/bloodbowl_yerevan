@@ -590,7 +590,7 @@ const SALE_PLAYERS = [...PLAYERS, HAL, IVO];
 const forSale = (players = SALE_PLAYERS, over = {}) => team({ roster: { players, treasury: 120 }, ...over });
 const without = (id, players = SALE_PLAYERS) => players.filter((player) => player.id !== id);
 const SALE_MIN = "A sale cannot leave fewer than seven players on the team.";
-const NOTE = "The player leaves the team for good: SPP, skills and improvements are lost. Half his current value comes back. Nobody can be sold while the roster has 7 players or fewer.";
+const NOTE = "The player leaves the team for good: SPP, skills and improvements are lost. Half the player's current value comes back. Nobody can be sold while the roster has 7 players or fewer.";
 
 const { setMyTeams } = await import("../src/data/teams.mjs");
 const sellSheet = () => view.querySelector("dialog#roster-sell");
@@ -682,6 +682,24 @@ test("in a match «Sell» stands closed beside «Injury in the match…», and s
         assertStyled(view, ...STYLES, "toggle.css");
       });
     }
+  });
+});
+
+// T6-2: the prototypes always draw the pair's two places, so a lone shut «Sell» stands in the second, on both widths.
+test("a lone shut «Sell» keeps the second place of the pair", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("p4#0", { games: [LIVE_GAME] });
+        const [alone, ...more] = pairOf(placeOf(phone));
+        assert.equal(more.length, 0, "Dell sits the match out: no injury beside it");
+        assert.equal(alone.getAttribute("data-roster-sell"), "p4#0");
+        assert.equal(alone.getAttribute("aria-disabled"), "true");
+      });
+    }
+    const lone = ".g-roster__actions > [data-roster-sell]:only-child";
+    assert.deepEqual(valuesOf(MARKET, lone, "grid-column"), ["-2 / -1"], "the last column: the second of two, the only one of one");
+    for (const query of ["max-width: 900px", "min-width: 901px"]) assert.ok(!mediaBlock(MARKET, query).includes(lone), `not only ${query}`);
   });
 });
 
@@ -793,7 +811,7 @@ test("Architect of Fate: full value and the injuries back, said so", async () =>
     assert.deepEqual(facts().at(-1), ["Back to the treasury · full value and injuries", "+85k"]);
     assert.ok(factValue(4).classList.contains("g-market__back"));
     assert.deepEqual(flow().map(([, value]) => value), ["50k", "135k"]);
-    assert.deepEqual(notes(), ["The player leaves the team for good: SPP, skills and improvements are lost. Architect of Fate: his full value comes back, and 10k for each injury. Nobody can be sold while the roster has 7 players or fewer."]);
+    assert.deepEqual(notes(), ["The player leaves the team for good: SPP, skills and improvements are lost. Architect of Fate: the player's full value comes back, and 10k for each injury. Nobody can be sold while the roster has 7 players or fewer."]);
     assert.equal(sendButton().textContent, "Sell for 85k");
   });
 });
@@ -807,7 +825,7 @@ test("a cancelled purchase: what was paid comes back in full, and its button is 
     assert.deepEqual(facts(), [["Bought this time for", "50k"], ["Back to the treasury", "+50k"]]);
     assert.ok(factValue(1).classList.contains("g-market__back"));
     assert.deepEqual(flow(), [["Treasury now", "120k"], ["After the cancel", "170k"]]);
-    assert.deepEqual(notes(), ["He was bought after the last match, so the full price comes back. Once a match starts the purchase cannot be cancelled."]);
+    assert.deepEqual(notes(), ["This player was bought after the last match, so the full price comes back. Once a match starts the purchase cannot be cancelled."]);
     const send = sendButton();
     assert.equal(send.textContent, "Cancel and get 50k back");
     assert.ok(send.classList.contains("g-btn--primary"), "a cancel can be bought again: the sheet's main button");
@@ -820,7 +838,7 @@ test("a captain sold: the sheet says the team is left without one", async () => 
   await withoutTimers(async () => {
     await drawFor("p2#0");
     fireEvent(sellIn(aside()), "click");
-    assert.ok(notes().includes("He is the captain: the team has none until you name another in a player's profile."));
+    assert.ok(notes().includes("Bors is the captain: the team has none until you name another in a player's profile."));
     fireEvent(keepSale(), "click");
     fireEvent(toggle("p8#0"), "click");
     fireEvent(sellIn(aside()), "click");
@@ -929,22 +947,115 @@ test("a sheet whose match began closes, and the focus goes back to his «Sell»,
   });
 });
 
+/** The treasury strip's write elsewhere on the page moved the team on: the roster is read again, and Hal is not on it. */
+const readWithoutHal = async () => {
+  const read = forSale(without("p8"), { revision: 5 });
+  api.reply(TEAM_READ, 200, { team: read });
+  api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+  setMyTeams([read]);
+  await settle();
+};
+
 test("a player gone from the roster as read takes his sheet with him", async () => {
   await withoutTimers(async () => {
     await drawFor("p8#0");
     fireEvent(sellIn(aside()), "click");
     assert.ok(sellSheet()?.isModal);
-    // The treasury strip's write elsewhere on the page moved the team on: the roster is read again, and Hal is not on it.
-    const read = forSale(without("p8"), { revision: 5 });
-    api.reply(TEAM_READ, 200, { team: read });
-    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
-    setMyTeams([read]);
-    await settle();
+    sendButton().focus();
+    await readWithoutHal();
     assert.equal(teamReads(), 2, "read again");
     assert.ok(!sellSheet(), "his sheet went with him");
     assert.ok(!view.querySelector("dialog:modal"));
     assert.deepEqual(namesIn(tables()[0]), ["Ann", "Bors", "Cade", "Ivo"]);
+    // T6-1: the panel's «Sell» is one element, patched for the first player: the focus must not land on Ann's «Sell».
+    assert.equal(sellIn(aside()).getAttribute("data-roster-sell"), "p1#0");
+    assert.ok(document.activeElement === view.querySelector("h1"), "Hal is drawn no more: the title");
     assert.equal(patches().length, 0);
+  });
+});
+
+// T6-1, the same rule for stage 07b's marks: the panel's «Miss a match…» is patched for the next player as «Sell» is.
+test("a mark's sheet whose player a read took away gives the focus to the title, not to the next player's button", async () => {
+  await withoutTimers(async () => {
+    await drawFor("p8#0");
+    fireEvent(aside().querySelector("[data-roster-mark]"), "click");
+    const mark = () => view.querySelector("dialog#roster-mark");
+    assert.ok(mark()?.isModal);
+    mark().querySelector("[data-sheet-close]").focus();
+    await readWithoutHal();
+    assert.ok(!mark(), "his sheet went with him");
+    assert.equal(aside().querySelector("[data-roster-mark]").getAttribute("data-roster-mark"), "p1#0");
+    assert.ok(document.activeElement === view.querySelector("h1"), "Hal is drawn no more: the title, not Ann's «Miss a match…»");
+    assert.equal(patches().length, 0);
+  });
+});
+
+// T6-4: a player the roster stores no id for cannot be named by a save — a dead end with its own words.
+test("a player with no id in the roster: «Sell» closed, and says why", async () => {
+  await withoutTimers(async () => {
+    const NO_ID = "This player has no id in the roster and cannot be sold. Ask the league administrator to fix the roster.";
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("#0", { teamAnswer: forSale([...SALE_PLAYERS, { rowIndex: 0, number: "10", name: "Nobody" }]) });
+        const sell = sellIn(placeOf(phone));
+        assert.equal(sell.getAttribute("data-roster-sell"), "#0");
+        assert.equal(sell.getAttribute("aria-disabled"), "true");
+        assert.equal(sell.getAttribute("title"), NO_ID);
+        fireEvent(sell, "click");
+        assert.equal(toasts().at(-1), NO_ID);
+        assert.ok(!sellSheet());
+        assert.equal(patches().length, 0);
+      });
+    }
+  });
+});
+
+// T6-4: the screen's lock shuts «Sell» as it shuts the «+», a guard of the money's path: the matches not read yet, a
+// death on its way (its answer moves the revision), another device's save to settle.
+test("«Sell» is shut by the screen's lock, and says why", async () => {
+  await withoutTimers(async () => {
+    const shut = (words) => {
+      const sell = sellIn(aside());
+      assert.equal(sell.getAttribute("aria-disabled"), "true", words);
+      assert.equal(sell.getAttribute("title"), words);
+      fireEvent(sell, "click");
+      assert.equal(toasts().at(-1), words);
+      assert.ok(!sellSheet(), words);
+    };
+    coach({ teamAnswer: forSale() });
+    const games = api.hold("GET /api/games");
+    const drawing = renderTeamRoster("t1");
+    await settle();
+    shut("Loading the matches…");
+    games.release();
+    await drawing;
+    await settle();
+    assert.ok(!sellIn(aside()).hasAttribute("aria-disabled"), "open once the matches are read");
+    // Ann marked dead: until the death has answered, nobody is sold.
+    fireEvent(aside().querySelector("[data-roster-mark]"), "click");
+    const mark = view.querySelector("dialog#roster-mark");
+    fireEvent(mark.querySelectorAll('.g-option[role="radio"]').find((option) => option.getAttribute("data-option-value") === "dead"), "click");
+    const cause = mark.querySelector("#mark-text");
+    cause.focus();
+    cause.value = "Foul";
+    fireEvent(cause, "input");
+    const death = api.hold(DEATH);
+    fireEvent(mark.querySelector("[data-mark-send]"), "click");
+    await settle();
+    fireEvent(view.querySelector("dialog#roster-mark"), "keydown", { key: "Escape" });
+    shut("Saving the mark…");
+    death.release({ status: 201, body: { team: forSale(without("p1"), { revision: 5 }), fallen: died("f9", { ...PLAYERS[0] }, { cause: "Foul" }) } });
+    await settle();
+    fireEvent(toggle("p8#0"), "click");
+    assert.ok(!sellIn(aside()).hasAttribute("aria-disabled"), "open again once it has answered");
+    // Another device saved the team: the coach settles it before anything is sold.
+    api.reply(PATCH, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: forSale(without("p1"), { revision: 6, roster: { players: without("p1"), treasury: 999 } }) });
+    fireEvent(toggle("p5#0"), "click");
+    fireEvent(aside().querySelector("[data-roster-return]"), "click");
+    await settle();
+    fireEvent(toggle("p8#0"), "click");
+    shut("The roster was changed on another device");
+    assert.equal(patches().length, 1, "only the step the other device's save refused");
   });
 });
 
@@ -1160,6 +1271,20 @@ test("D2: the market's compact controls on a desk are the prototype's and 24px o
 
 test("every key the new files ask for is in both dictionaries", () => {
   assertDictionaryCovers("src/screens/team/roster/market.mjs", "src/screens/team/roster/hire-sheet.mjs", "src/screens/team/roster/sell-sheet.mjs", "src/screens/team/roster/panel.mjs");
+});
+
+// R1: whole races are women (Amazons), so the stage's words never say he or she of a player: «Продан: Linewoman Five» is not said.
+test("the stage's words assume no player's gender, in either language", () => {
+  const gendered = {
+    en: /\b(he|him|his|she|her|hers)\b/i,
+    ru: /(?<![а-яё])(он|она|его|её|ему|ей|продан|продана|куплен|куплена)(?![а-яё])/iu,
+  };
+  for (const [locale, pattern] of Object.entries(gendered)) {
+    const words = JSON.parse(text(`src/i18n/${locale}.json`));
+    const stage = Object.entries(words).filter(([key]) => /^teamRoster\.(hire|sell|market)\./.test(key));
+    assert.ok(stage.length > 50, locale);
+    assert.deepEqual(stage.filter(([, value]) => pattern.test(value)), [], locale);
+  }
 });
 
 test("everything drawn is styled, and the cart's colours are readable", async () => {

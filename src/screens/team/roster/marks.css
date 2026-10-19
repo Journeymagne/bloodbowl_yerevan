@@ -173,8 +173,8 @@
 
 /*
  * A player's pair of actions (Stats.html, DeskRoster.html): «Miss a match…», «Back on the roster» or «Injury in the
- * match…» in the first column, stage 07c's «Sell» in the second — empty until then — a thumb tall on a phone, 40px on
- * a desk (frame.css).
+ * match…» in the first column, stage 07c's «Sell» in the second — alone, it keeps there (market.css) — a thumb tall on
+ * a phone, 40px on a desk (frame.css).
  */
 .g-roster__actions {
   display: grid;

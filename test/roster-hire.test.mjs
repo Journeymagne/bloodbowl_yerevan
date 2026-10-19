@@ -117,15 +117,53 @@ test("an empty cart changes nothing; a refused one throws before it changes anyt
   assert.deepEqual(draft, copy);
 });
 
-test("a hire as the server stores it is the hire as sent: a lost answer's 409 is known as this very hire", () => {
-  const before = roster(), draft = structuredClone(before);
-  hirePlayers(human, draft, { 0: 2 });
+/** The cart hired on a copy of `before`, sent as the queue sends it, and what the server stores of it and journals. */
+function sentAndSaved(team, slug, before, cart) {
+  const draft = structuredClone(before);
+  const { hired } = hirePlayers(team, draft, cart);
   const sent = rosterForStorage(draft);
-  const { roster: saved, violations } = checkRoster("teams/human", JSON.parse(JSON.stringify(sent)));
+  const { roster: saved, violations } = checkRoster(slug, JSON.parse(JSON.stringify(sent)));
+  return { hired, sent, saved, violations, ledger: classifyTreasuryChange(team, before, saved) };
+}
+
+// T2-1: positions with starting skills, a big guy's traits and another race are where the shape could drift.
+test("a hire as the server stores it is the hire as sent: a lost answer's 409 is known as this very hire", () => {
+  const ogreless = stored("teams/human", { teamSlug: "teams/human", treasury: 150, players: linemen(1, 7) });
+  const blues = Array.from({ length: 8 }, (_, n) => ({ id: `b${n + 1}`, rowIndex: 0, number: String(n + 1) }));
+  const horrors = stored("teams/tzeentch", { teamSlug: "teams/tzeentch", treasury: 80, players: blues });
+  const cases = [
+    ["two Human Linemen", human, "teams/human", roster(), { 0: 2 }, [-50, -50]],
+    ["a Thrower, Pass and Sure Hands", human, "teams/human", roster(), { 1: 1 }, [-80]],
+    ["an Ogre, a big guy's traits", human, "teams/human", ogreless, { 5: 1 }, [-140]],
+    ["a Tzeentch Pink Horror", tzeentch, "teams/tzeentch", horrors, { 1: 1 }, [-75]],
+  ];
+  for (const [what, team, slug, before, cart, deltas] of cases) {
+    const { hired, sent, saved, violations, ledger } = sentAndSaved(team, slug, before, cart);
+    assert.equal(hired.length, deltas.length, what);
+    assert.deepEqual(blockingViolations(violations), [], what);
+    const conflict = JSON.parse(JSON.stringify(saved)); // the team a 409 carries
+    assert.equal(sameValues(normalizeDraft(conflict), normalizeDraft(sent)), true, `${what}: what landedTeam in save.mjs compares`);
+    assert.deepEqual(ledger, deltas.map((delta) => ({ kind: "hire", delta })), what);
+  }
+});
+
+// T2-2: one cart over several lines, on a roster whose numbers have gaps.
+test("a cart of several positions: hired in the race's order, on the numbers the quote promised, each named after the ones the roster has, journaled one line each", () => {
+  const before = stored("teams/human", { teamSlug: "teams/human", teamName: "Iron Rooks", treasury: 250,
+    players: roster().players.map((player, n) => ({ ...player, number: String([1, 2, 4, 5, 7, 9, 10][n]) })) });
+  const cart = { 4: 1, 1: 1, 0: 2 };
+  const quote = hireQuote(human, before, cart);
+  assert.deepEqual([quote.count, quote.total, quote.left, quote.refusal, quote.numbers], [4, 210, 40, null, [3, 6, 8, 11]], "the gaps first");
+  const { hired, sent, saved, violations, ledger } = sentAndSaved(human, "teams/human", before, cart);
+  assert.deepEqual(hired.map(({ rowIndex, number, name, purchaseRefund }) => [rowIndex, number, name, purchaseRefund]), [
+    [0, "3", "Human Lineman 4", 50], [0, "6", "Human Lineman 5", 50], [1, "8", "Thrower 2", 80], [4, "11", "Halfling Hopeful 1", 30],
+  ], "Lineman, Thrower, Halfling Hopeful: the table's order, not the cart's; three Linemen and a Thrower are on the roster already");
+  assert.deepEqual(hired.map((player) => Number(player.number)), quote.numbers);
+  assert.deepEqual(sent.players.slice(7).map((player) => player.id), hired.map((player) => player.id), "after the roster");
+  assert.deepEqual([sent.treasury, sent.roster[0], sent.roster[1], sent.roster[4]], [40, 5, 2, 1]);
   assert.deepEqual(blockingViolations(violations), []);
-  const conflict = JSON.parse(JSON.stringify(saved)); // the team a 409 carries
-  assert.equal(sameValues(normalizeDraft(conflict), normalizeDraft(sent)), true, "what landedTeam in save.mjs compares");
-  assert.deepEqual(classifyTreasuryChange(human, before, saved), [{ kind: "hire", delta: -50 }, { kind: "hire", delta: -50 }]);
+  assert.equal(sameValues(normalizeDraft(JSON.parse(JSON.stringify(saved))), normalizeDraft(sent)), true, "the server stores the cart as sent");
+  assert.deepEqual(ledger, [-50, -50, -80, -30].map((delta) => ({ kind: "hire", delta })), "one hire line per player, at his price");
 });
 
 test("a sale and a cancelled purchase as the server reads them: one line of their kind, at the screen's amount, no remainder", () => {

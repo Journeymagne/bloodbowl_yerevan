@@ -866,6 +866,22 @@ test("a sale the rules refuse sends nothing and says why", async () => {
   assert.equal(api.calls.length, 0);
 });
 
+// T4-1: the plan and `removeLeaguePlayer` ask the same rules twice; should the two ever drift, the step must not count
+// as waiting and send the roster unchanged with «+undefined» said. Here the purchase is sealed between the two asks.
+test("a removal the domain did not apply throws: nothing waits, nothing is sent", async () => {
+  const draft = await open(storedTeam(4, eight()));
+  const ids = () => draft.players.map((player) => player.id);
+  const before = [ids(), draft.treasury];
+  let asked = 0;
+  const ned = draft.players.find((player) => player.id === "p8");
+  Object.defineProperty(ned, "purchased", { configurable: true, enumerable: true, get: () => (asked += 1) === 1 });
+  assert.throws(() => save.removePlayer("t1", human, "p8", "cancel-purchase"), /PLAYER_PURCHASE_CLOSED/);
+  assert.equal(asked, 2, "a purchase to cancel for the plan, sealed for the apply");
+  assert.deepEqual([[ids(), draft.treasury], save.saveState("t1")], [before, quiet("idle")]);
+  await tick();
+  assert.equal(api.calls.length, 0);
+});
+
 // Review Focus 1: the step sent again is the snapshot sent first, the new player's id with it.
 test("a purchase whose answer was lost is the 409 that holds it: taken as saved, nobody hired twice", async () => {
   const draft = await open(storedTeam(4, ann()));

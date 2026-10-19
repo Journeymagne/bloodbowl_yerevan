@@ -306,6 +306,12 @@
 }
 
 /*
+ * «Sell» alone in the pair of actions (a player who sits the match out, or «Edit outside the match» on): the
+ * prototypes always draw two places, so it keeps the second — the last column, the only one in a one-column panel.
+ */
+.g-roster__actions > [data-roster-sell]:only-child { grid-column: -2 / -1; }
+
+/*
  * A sale's sheet (sell-sheet.mjs): on a phone his card, then the lines, the treasury now and after on the accent's
  * tint, and what it means, 14px apart; the red button as big as the sheet's main one.
  */

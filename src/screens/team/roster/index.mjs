@@ -9,8 +9,8 @@
  * queue outlives the visit: what waits for the network is sent again on entry and when the network is back, and
  * never while a match is on (R8): a PATCH during a match breaks its finish (POST_TEAM_CHANGED), so a match that
  * begins while steps wait gives them up for the server's roster, and the coach is told what the server does not have:
- * the SPP steps, the marks, the hires and the sales. A team is never taken on games older than it: the games are read once it has answered, and the
- * counters stay closed until both have.
+ * the SPP steps, the marks, the hires and the sales. A team is never taken on games older than it: the games are read
+ * once it has answered, and the counters stay closed until both have.
  *
  * During a match a step is a row the server adds (match-taps.mjs, taps.mjs): a record of the match, or with «Edit
  * outside the match» an edit of the career that waits for the match's finish (Task 11). The counters wait while the

@@ -303,7 +303,9 @@ export function removePlayer(teamId, race, playerId, type) {
     if (removal.blocked) return refusedFor({ code: "PLAYER_SALE_MIN" });
     return {
       apply: () => {
-        const { amount } = removeLeaguePlayer(race, draft, playerId, type);
+        // The plan asked the same rules: a removal not applied means the two drifted, and must not go as a step (T4-1).
+        const { applied, reason, amount } = removeLeaguePlayer(race, draft, playerId, type);
+        if (!applied) throw new Error(`A removal the plan allowed was not applied (${reason}): the two checks drifted`);
         return { amount, treasury: draft.treasury };
       },
     };

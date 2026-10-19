@@ -5,7 +5,8 @@
  *
  * A line is one player: his characteristics and skills, his counters in the three senses the screen needs
  * (what is in the roster, what a match has added, what an edit outside a match is waiting for), his
- * SPP, and what parting with him gives (a sale, or the cancel of his purchase) and whether the roster may. The mode is what the team's games say the roster is for just now: plain, a preparation, a match.
+ * SPP, and what parting with him gives (a sale, or the cancel of his purchase) and whether the roster may. The mode is
+ * what the team's games say the roster is for just now: plain, a preparation, a match.
  *
  * The fallen are lines too (stage 07b): what the roster held when each died, read the way a player of the
  * roster is, with how and when he fell; one the roster as read still holds is drawn there and only there.

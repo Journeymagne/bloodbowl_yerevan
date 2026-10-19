@@ -56,11 +56,13 @@ export const keyed = (attribute, key) => [...view.querySelectorAll(`[${attribute
  * place — for the hire cart the «+» drawn again, in the header or under the words (stage 07c); for a mark's or an
  * undo's (stage 07b), else his row's own button — a match begun takes the actions away, a
  * mark moves him to another table. Null when there is none (the match is over: the screen gives it to the title).
+ * What opened it counts only while it still names the sheet's player: the desk's panel patches its buttons for the
+ * next player when a read takes this one away, and Enter must not open a sheet for someone else (T6-1).
  * @param {{opener: Element|null, sheet: object|null}} closed the sheet that was open, and what opened it
  */
 export function openerOf({ opener, sheet }) {
-  if (opener?.isConnected) return opener;
   const attribute = OPENERS[sheet?.kind];
+  if (opener?.isConnected && (!attribute || opener.getAttribute(attribute) === sheet.key)) return opener;
   if (!attribute) return null;
   const again = keyed(attribute, sheet.key);
   if (again || sheet.kind === "injury") return again;
