@@ -510,12 +510,12 @@ test("a playing player's row has «Miss a match…», a skipper's «Back on the 
         assert.ok(!view.querySelector("[data-roster-mark]"));
         assert.ok(!view.querySelector("[data-roster-return]"));
       }
-      // The pair holds «Injury in the match…» for one who plays it (StatsLive.html), beside stage 07c's closed «Sell»; for one
+      // The pair holds «Match injury…» for one who plays it (StatsLive.html), beside stage 07c's closed «Sell»; for one
       // who sits it out, the closed «Sell» alone (K2).
       const pair = () => view.querySelector(".g-roster__actions").childNodes.filter((node) => node.nodeType === 1).map((button) => button.textContent);
       assert.deepEqual(pair(), ["Sell"], "Dell sits it out");
       fireEvent(toggle("p1#0"), "click");
-      assert.deepEqual(pair(), ["Injury in the match…", "Sell"]);
+      assert.deepEqual(pair(), ["Match injury…", "Sell"]);
     });
   }
 });

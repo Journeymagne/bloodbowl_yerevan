@@ -649,7 +649,7 @@ test("the action pair: «Sell» second, beside «Miss a match…» or «Back on 
   });
 });
 
-test("in a match «Sell» stands closed beside «Injury in the match…», and says why", async () => {
+test("in a match «Sell» stands closed beside «Match injury…», and says why", async () => {
   await withoutTimers(async () => {
     for (const phone of [true, false]) {
       await withWindow({ phone }, async () => {
@@ -657,7 +657,7 @@ test("in a match «Sell» stands closed beside «Injury in the match…», and s
         const [injury, sell, ...rest] = pairOf(placeOf(phone));
         assert.equal(rest.length, 0);
         assert.ok(injury.hasAttribute("data-roster-injury"));
-        assert.equal(injury.textContent, "Injury in the match…");
+        assert.equal(injury.textContent, "Match injury…");
         assert.equal(sell.textContent, "Sell");
         assert.equal(sell.getAttribute("data-roster-sell"), "p1#0");
         assert.equal(sell.getAttribute("aria-disabled"), "true");

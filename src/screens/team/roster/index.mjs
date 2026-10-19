@@ -441,7 +441,7 @@ function heardSave(saving, now) {
  * What a press does: a header sorts, a player's button opens his row (a phone) or chooses him for the panel (a desk),
  * a chip opens its skill's sheet and the sheet's close gives the focus back to it, «Try again» reads again; a
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
- * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
+ * server's, the switch makes the match's taps edits outside it and back; «Match injury…» and its sheet are
  * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's.
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */

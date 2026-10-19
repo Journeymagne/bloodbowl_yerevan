@@ -3,7 +3,7 @@
  * pressed (in a row or in the panel), a sheet closed, «Try again» after a read that failed (the roster's, or the
  * one after an injury whose answer was lost), a counter's − or + (a refused one too), «Load the new one» after
  * another device's save, the switch «Edit outside the match», a way to the player's page that a match has closed
- * (or «Injury in the match…» closed with its taps), and the injury's button, its cards, its characteristics and its
+ * (or «Match injury…» closed with its taps), and the injury's button, its cards, its characteristics and its
  * two buttons; «Miss a match…», its sheet's reasons, characteristic, words and button, «Back on the roster», and a
  * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b); the «+» beside «Player»,
  * its cart's + and −, «Cancel» and «Buy», and «Sell» or «Cancel purchase» with its sheet's «Cancel» and button (stage
@@ -35,7 +35,7 @@ function onPlayerButton(root, attribute, handler) {
   });
 }
 
-/** The injury's presses (Task 12). A closed «Injury in the match…» opens nothing. */
+/** The injury's presses (Task 12). A closed «Match injury…» opens nothing. */
 function wireInjury(root, { onInjury, onInjuryChoice, onInjuryStep }) {
   return [
     onPlayerButton(root, "data-roster-injury", onInjury),
@@ -101,7 +101,7 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice }) {
  * @param {() => void} handlers.onReload «Load the new one»
  * @param {() => void} handlers.onReread «Try again» after an injury whose fate the read that followed could not say
  * @param {(on: boolean) => void} handlers.onOutside «Edit outside the match» switched on or off
- * @param {(key: string, button: Element) => void} handlers.onInjury «Injury in the match…», by the line's key (not when it is closed)
+ * @param {(key: string, button: Element) => void} handlers.onInjury «Match injury…», by the line's key (not when it is closed)
  * @param {(change: {code?: string, stat?: string}) => void} handlers.onInjuryChoice an injury or its characteristic chosen in the sheet
  * @param {(delta: 1|-1) => void} handlers.onInjuryStep «Record in the match» (+1) or «Remove the record» (−1)
  * @param {(key: string, button: Element) => void} handlers.onMark «Miss a match…», by the line's key (not when it is closed)

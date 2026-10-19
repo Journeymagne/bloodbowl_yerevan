@@ -1,5 +1,5 @@
 /**
- * «Injury in the match…» on the roster (Task 12, decision 14): the sheet it opens, what is chosen in it, and the
+ * «Match injury…» on the roster (Task 12, decision 14): the sheet it opens, what is chosen in it, and the
  * row it sends. An injury is a row of the match like any tap (R14): it goes with `sendRow`, and its answer is heard
  * there, once, as every tap's is (match-taps.mjs) — the row counted while it is on its way, the side lock, a match
  * that is no longer live, and the one read of the records when a row's fate is not known. The sheet only follows

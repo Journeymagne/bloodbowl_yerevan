@@ -17,7 +17,7 @@
  *
  * Under it all stands the pair of actions (stages 07b and 07c; StatsHire.html, StatsLive.html, DeskRosterPrep.html,
  * DeskRosterLive.html): first, outside a match, «Miss a match…» for a player who plays the next one, «Back on the
- * roster» for one who misses it — never a second mark over the first; during one «Injury in the match…» for a player
+ * roster» for one who misses it — never a second mark over the first; during one «Match injury…» for a player
  * who plays it (Task 12, decision 14), closed with the match's taps. Second «Sell», or «Cancel purchase» for a player
  * bought since the last match (stage 07c), which a match closes, saying why.
  */
@@ -215,7 +215,7 @@ function sellMarkup(line, screen) {
 /**
  * The player's pair of actions (stage 07c, decision 7): two equal columns 8px apart. First, outside a match (decisions
  * 16, 17), «Miss a match…», which opens the sheet of reasons, for one who plays the next match, or «Back on the
- * roster» for one who misses it; during one «Injury in the match…» (`injuryMarkup`) in that place, and nothing when no
+ * roster» for one who misses it; during one «Match injury…» (`injuryMarkup`) in that place, and nothing when no
  * injury can be his — he sits the match out, or «Edit outside the match» is on — so the pair is one closed «Sell».
  * Second «Sell» or «Cancel purchase» (`sellMarkup`).
  *
@@ -279,7 +279,7 @@ export function injuryClosed(line, screen) {
 }
 
 /**
- * «Injury in the match…» (Task 12): for a player who plays the match, while a tap is a record of it — not for one
+ * «Match injury…» (Task 12): for a player who plays the match, while a tap is a record of it — not for one
  * who sits it out, nor with «Edit outside the match» on (an edit of the career deals no injury). Once one is
  * recorded it names it, «Injury: Seriously Hurt» (Stats.html). Closed when the match's taps are, saying why
  * (`injuryClosed`) as the closed ways to his page do; it keeps its key either way, so the focus finds it when the

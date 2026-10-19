@@ -1255,7 +1255,7 @@
   "teamRoster.notPlaying": "Not playing this match",
   "teamRoster.afterPost": "Advancement — after the post-match",
   "teamRoster.readingRecords": "Reading the records…",
-  "teamRoster.injury.open": "Injury in the match…",
+  "teamRoster.injury.open": "Match injury…",
   "teamRoster.injury.named": "Injury: {injury}",
   "teamRoster.injury.title": "Injury in the match",
   "teamRoster.injury.who": "#{number} {name} · {position}",
