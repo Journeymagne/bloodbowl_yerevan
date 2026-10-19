@@ -382,6 +382,8 @@ test("a strong value keeps its digits tabular after the font shorthand that woul
 
 test("what a finger presses is 44px", () => {
   assert.deepEqual(valuesOf(SHEET, ".g-sort", "min-height"), ["var(--size-touch)"]);
+  // The player's button is as wide as its word, not its column: «ИГРОК» alone is 41px.
+  assert.deepEqual(valuesOf(SHEET, ".g-rtable__h--who .g-sort", "min-width"), ["var(--size-touch)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__toggle", "min-height"), ["var(--size-touch)"]);
   assert.deepEqual(valuesOf(SHEET, ".g-rtable__row", "height"), ["var(--size-row)"]);
 });

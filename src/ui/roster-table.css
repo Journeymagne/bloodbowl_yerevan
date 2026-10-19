@@ -175,7 +175,8 @@ th.g-rtable__h {
 .g-sort:focus-visible,
 .g-rtable__toggle:focus-visible { outline-offset: -3px; }
 
-.g-rtable__h--who .g-sort { width: auto; justify-content: flex-start; }
+/* As wide as its word, and never under a finger's 44px: «ИГРОК» alone is 41. */
+.g-rtable__h--who .g-sort { width: auto; min-width: var(--size-touch); justify-content: flex-start; }
 .g-rtable__h--who .g-sort__arrow { position: static; margin-left: var(--space-4); }
 
 /* The over-heads: a line over the columns of a group. */
