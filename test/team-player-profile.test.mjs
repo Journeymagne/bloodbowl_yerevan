@@ -23,6 +23,7 @@ document.body.appendChild(frame);
 const { mountShell, refreshShell } = await import("../src/shell/shell.mjs");
 mountShell({ document, scroller: { addEventListener() {}, document } });
 const { renderTeamPlayer } = await import("../src/screens/team/player/index.mjs");
+const { rosterMemory } = await import("../src/screens/team/roster/memory.mjs");
 const { ADVANCEMENT_TYPES } = await import("../src/domain/roster/progression.mjs");
 
 const PROFILE = "src/screens/team/roster/profile.css";
@@ -103,6 +104,7 @@ test("back on the roster from a player's page: the row that was open, the page w
       await drawing;
       assert.deepEqual(scrolls.at(-1), [0, 640], "the lines drawn, the page where the coach left it (K4)");
       assert.equal(toggle("p3#0").getAttribute("aria-expanded"), "true", "his row open");
+      assert.ok(document.activeElement === toggle("p3#0"), "the focus on his open row, not on the title at the top (M5)");
       // Once: the roster drawn again (a language switch) is not put back.
       scrollPage(200);
       scrolls.length = 0;
@@ -124,6 +126,105 @@ test("back on the roster from a player's page: the row that was open, the page w
       scrolls.length = 0;
       await renderTeamRoster("t1");
       assert.deepEqual(scrolls, [[0, 0]], "the overview's hop puts nothing back");
+      // The roster left for another page first, the player's page reached from there: nothing of the roster's to go back to (I1).
+      scrollPage(640);
+      releaseCurrentScreen();
+      view.innerHTML = '<p id="overview">Overview</p>';
+      releaseCurrentScreen();
+      await playerPage("p3");
+      releaseCurrentScreen();
+      scrolls.length = 0;
+      await renderTeamRoster("t1");
+      assert.ok(!scrolls.some(([, y]) => y === 640), "a scroll of a roster that did not lead to his page is not put back");
+      assert.deepEqual(scrolls, [[0, 0]]);
+    });
+  });
+});
+
+test("no row open, the way back leaves the focus where the page put it (M5)", async () => {
+  await withWindow({ phone: true }, async ({ scrolls, scrollPage }) => {
+    coach();
+    await renderTeamRoster("t1");
+    scrollPage(400);
+    releaseCurrentScreen();
+    await playerPage("p3");
+    // His row was closed meanwhile (another device's roster, say): the way back puts the page back, the focus stays.
+    rosterMemory("t1").selected = null;
+    releaseCurrentScreen();
+    await renderTeamRoster("t1");
+    assert.deepEqual(scrolls.at(-1), [0, 400]);
+    assert.ok(!view.querySelector('[aria-expanded="true"]'));
+    assert.ok(document.activeElement === view.querySelector("h1"), "the title, as any first draw of the roster");
+  });
+});
+
+test("the way back from a fallen player's own page finds the roster as it was left (M3)", async () => {
+  await withWindow({ phone: true }, async ({ scrolls, scrollPage }) => {
+    coach({ open: "fallen-f1" });
+    await renderTeamRoster("t1");
+    scrollPage(900);
+    releaseCurrentScreen();
+    // His row's «Profile» leads to his own page: the coach's list does not hold him.
+    await renderTeamPlayer("t1", "d1");
+    assert.ok(view.querySelector('[data-screen="team-player"].g-fallen-page.g-profile'));
+    releaseCurrentScreen();
+    scrolls.length = 0;
+    await renderTeamRoster("t1");
+    assert.deepEqual(scrolls.at(-1), [0, 900], "the page where the coach left it");
+    assert.equal(toggle("fallen-f1").getAttribute("aria-expanded"), "true", "his row open");
+    assert.ok(document.activeElement === toggle("fallen-f1"));
+  });
+});
+
+test("on a desk the player mode is the roster: going on to the roster keeps the page where it is (M4)", async () => {
+  await withWindow({ phone: false }, async ({ scrolls, scrollPage }) => {
+    coach();
+    await renderTeamRoster("t1");
+    scrollPage(300);
+    releaseCurrentScreen();
+    // «Advance» in the panel leads to the address: the roster with him in the panel, where the coach scrolls and chooses.
+    await playerPage("p3");
+    scrollPage(1200);
+    fireEvent(toggle("p1#0"), "click");
+    // The SideNav's «Roster»: the same page, where it stands.
+    releaseCurrentScreen();
+    scrolls.length = 0;
+    await renderTeamRoster("t1");
+    assert.deepEqual(scrolls, [], "no jump back to where the roster stood before the address");
+    assert.equal(globalThis.scrollY, 1200);
+    assert.equal(aside().getAttribute("data-panel-player"), "p1#0", "the coach's choice");
+  });
+});
+
+test("the drill into the profile and back keeps the session's SPP count; any other visit starts it again (M7)", async () => {
+  await withWindow({ phone: true }, async () => {
+    await withoutTimers(async () => {
+      const sum = () => view.querySelector(".g-rtable__panelrow .g-roster__sppdelta").textContent;
+      coach({ open: "p1#0" });
+      await renderTeamRoster("t1");
+      assert.equal(sum(), "no changes yet");
+      const scored = withOne({ ...PLAYERS[0], spp: { touchdowns: 1 } });
+      api.reply(PATCH, 200, { team: { ...scored, revision: 5 } });
+      const touchdowns = view.querySelectorAll("[data-action-key]").find((cell) => cell.getAttribute("data-action-key") === "touchdowns");
+      fireEvent(touchdowns.querySelector('[data-action-step="1"]'), "click");
+      await settle();
+      assert.equal(sum(), "+3 SPP");
+      api.reply("GET /api/teams/t1", 200, { team: { ...scored, revision: 5 } });
+      api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+      // Ann's «Profile and advancement», then «‹ Roster».
+      releaseCurrentScreen();
+      await playerPage("p1");
+      assert.equal(view.querySelector(".g-profile__name").textContent, "Ann");
+      releaseCurrentScreen();
+      await renderTeamRoster("t1");
+      assert.equal(sum(), "+3 SPP", "the count as it was left");
+      // Any other visit (from another page) starts it again (07a, decision 11).
+      releaseCurrentScreen();
+      view.innerHTML = '<p id="overview">Overview</p>';
+      releaseCurrentScreen();
+      await renderTeamRoster("t1");
+      assert.equal(sum(), "no changes yet");
+      api.assertAnswered();
     });
   });
 });
@@ -209,7 +310,7 @@ test("a player's address on a phone is his profile: his head — number, name, p
     assert.ok(body.querySelector('.g-skill--card.g-skill--gained[data-skill="Frenzy"]'));
     assert.deepEqual(body.querySelectorAll(".g-profile__accessrow").map((row) => [row.querySelector("dt").textContent, row.querySelector("dd").textContent]),
       [["Primary", "Agility · General"], ["Secondary", "Passing · Strength · Devious"]]);
-    assert.deepEqual(valuesOf(PROFILE, ".g-profile__accessvalue", "font"), ["600 14px/1.35 var(--font-body)"], "the categories in bold");
+    assert.deepEqual(valuesOf(PROFILE, ".g-profile__accessvalue", "font"), ["600 14px/normal var(--font-body)"], "the categories in bold");
     assert.equal(body.querySelector(".g-profile__injuries h2").textContent, "Injuries");
     assert.equal(body.querySelector(".g-profile__none").textContent, "No injuries and no Niggling Injuries");
     // Player.html's order: the characteristics, the SPP card, «Skills», («Career», stage 07e), «Injuries».
@@ -315,20 +416,30 @@ test("on a desk his address is the roster with him in the panel", async () => {
 
 test("the width crossing 900px redraws the address: the profile, the roster with him", async () => {
   const { listeners, cross } = crossingWindow();
+  const scrolls = [];
+  globalThis.scrollTo = (x, y) => scrolls.push([x, y]);
   try {
     coach();
     await playerPage("p3");
     assert.ok(profile());
+    scrolls.length = 0;
     cross(false);
     assert.ok(view.querySelector('[data-screen="team-roster"]'));
     assert.equal(aside().getAttribute("data-panel-player"), "p3#0");
+    assert.deepEqual(scrolls, [[0, 0]], "another screen starts at the top of the page (M6)");
     cross(true);
     assert.ok(profile());
     assert.equal(view.querySelector(".g-profile__name").textContent, "Cade");
+    assert.deepEqual(scrolls, [[0, 0], [0, 0]], "the profile too: not part-way down where the desk stood");
+    // A patch that draws the same screen keeps the page where it is.
+    await invalidateGames();
+    await settle();
+    assert.equal(scrolls.length, 2);
     releaseCurrentScreen();
     assert.equal(listeners.size, 0, "a visit left listens no more");
   } finally {
     delete globalThis.matchMedia;
+    delete globalThis.scrollTo;
   }
 });
 
@@ -617,26 +728,31 @@ test("the profile's sizes are Player.html's", () => {
   assert.deepEqual([of(".g-profile__back", "font"), of(".g-profile__back", "color"), of(".g-profile__back", "text-decoration")],
     [["600 15px/1.2 var(--font-body)"], ["var(--header-muted)"], ["none"]]);
   assert.deepEqual(of(".g-profile__row", "gap"), ["var(--space-14)"]);
-  // His number 60px ringed 2px, 28px; his name 30px/1.05; the line 15px; the pencil round on a 12% veil.
+  // His number 60px ringed 2px, 28px; his name 30px/1.05; the line 15px/1.2 (Golos' own); the pencil round on a 12% veil.
   assert.deepEqual([of(".g-profile__badge .g-num", "width"), of(".g-profile__badge .g-num", "box-shadow"), of(".g-profile__badge .g-num", "font")],
     [["60px"], ["0 0 0 2px var(--header-ink)"], ["700 28px/1 var(--font-display)"]]);
   assert.deepEqual(of(".g-profile__name", "font"), ["700 30px/1.05 var(--font-display)"]);
-  assert.deepEqual(of(".g-profile__who", "font"), ["400 15px/1.3 var(--font-body)"]);
+  assert.deepEqual(of(".g-profile__who", "font"), ["400 15px/1.2 var(--font-body)"]);
   assert.deepEqual([of(".g-profile__edit", "border-radius"), of(".g-profile__edit", "background")], [["22px"], ["color-mix(in srgb, var(--header-ink) 12%, transparent)"]]);
-  // `main`: 16 16 28, 22 apart.
+  // `main`: 16 16 28, 22 apart. The characteristics' values 26px at Oswald's own line height: Player.html gives none (I2).
   assert.deepEqual([of(".g-profile__body", "padding"), of(".g-profile__body", "gap")], [["var(--space-16) var(--space-16) 28px"], ["var(--space-22)"]]);
+  assert.deepEqual(of(".g-profile__body .g-stat__v", "font"), ["700 26px/normal var(--font-display)"]);
   // The SPP card: 16px corners, a 1px ring (#DCE3DF), 16 in, 14 apart; «27» 44px; the line under «Advancement» 13px, 6px up.
   assert.deepEqual([of(".g-profile__spp", "border-radius"), of(".g-profile__spp", "box-shadow"), of(".g-profile__spp", "padding"), of(".g-profile__spp", "gap")],
     [["var(--radius-2xl)"], ["inset 0 0 0 1px var(--line-strong)"], ["var(--space-16)"], ["var(--space-14)"]]);
   assert.deepEqual([of(".g-profile__availn", "font"), of(".g-profile__availl", "font"), of(".g-profile__ledger", "font")],
     [["700 44px/1 var(--font-display)"], ["600 15px/1.2 var(--font-body)"], ["400 13px/1.35 var(--font-body)"]]);
-  assert.deepEqual([of(".g-profile__hint", "margin"), of(".g-profile__hint", "text-align")], [["-6px 0 0"], ["center"]]);
+  assert.deepEqual([of(".g-profile__hint", "margin"), of(".g-profile__hint", "text-align"), of(".g-profile__hint", "font")],
+    [["-6px 0 0"], ["center"], ["400 13px/normal var(--font-body)"]]);
   assert.deepEqual([of(".g-profile__spp .g-btn--primary", "border-radius"), of(".g-profile__spp .g-btn--primary", "font")], [["var(--radius-lg)"], ["700 17px/1.2 var(--font-body)"]]);
-  // «Skills», «Injuries» 24px; a skill's card 10px corners, 6 12, 15/600; the access 84px; the injuries 15px.
-  assert.deepEqual(of(".g-profile__title", "font"), ["700 24px/1.1 var(--font-display)"]);
+  // «Skills», «Injuries» 24px at Oswald's own line height (I2); a skill's card 10px corners, 6 12, 15/600, a gained one
+  // ringed in a quarter of the accent over the tint (#B7D3C3, M1); the access 84px, 14px; the injuries 15px.
+  assert.deepEqual(of(".g-profile__title", "font"), ["700 24px/normal var(--font-display)"]);
+  assert.deepEqual(of(".g-profile__skills .g-skill--card.g-skill--gained", "box-shadow"), ["inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent)"]);
+  assert.deepEqual([of(".g-profile__access", "font"), of(".g-profile__accesskey", "font")], [["400 14px/normal var(--font-body)"], ["400 14px/normal var(--font-body)"]]);
   assert.deepEqual([of(".g-profile__skills .g-skill--card", "border-radius"), of(".g-profile__skills .g-skill--card", "padding")], [["var(--radius-md)"], ["var(--space-6) var(--space-12)"]]);
   assert.deepEqual(of(".g-profile__accesskey", "width"), ["84px"]);
-  assert.deepEqual(of(".g-profile__none", "font"), ["400 15px/1.4 var(--font-body)"]);
+  assert.deepEqual(of(".g-profile__none", "font"), ["400 15px/normal var(--font-body)"]);
   for (const selector of [".g-profile", ".g-profile__name", ".g-profile__title", ".g-profile__access", ".g-profile__injury"]) {
     assert.deepEqual([of(selector, "text-transform"), of(selector, "letter-spacing")], [["none"], ["0"]], selector);
   }

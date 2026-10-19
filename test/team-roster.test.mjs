@@ -367,7 +367,7 @@ test("a skill the reference has no page for opens all the same and says so", asy
   assert.equal(sheet().querySelector(".g-roster__from").textContent, "Ann · primary");
 });
 
-test("«Profile and advancement» on a phone, «Advance» and the pencil on a desk lead to the player's page — the 2.x editor until stage 07d", async () => {
+test("«Profile and advancement» on a phone, «Advance» and the pencil on a desk lead to the player's address (the roster's player mode, stage 07d)", async () => {
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");

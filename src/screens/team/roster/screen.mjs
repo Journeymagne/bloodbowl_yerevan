@@ -3,10 +3,13 @@
  * roster in, why no counter takes a step just now, the lines the draft and the records make, and the `RosterScreen`
  * view.mjs draws. It reads the visit (`Visit`, index.mjs), the games, the save queue and the memory; what it writes is
  * the visit's sheet, which it closes when its player or its match has left the screen, and in the player mode (stage
- * 07d) the player the coach chose: the address's, once his line is first there.
+ * 07d) the player the coach chose: the address's, once his line is first there. And where the page stands when the
+ * screen drawn is another (a patch across 900px in the player mode) or the way back from a player's page is taken.
  */
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
+import { view } from "../../../core/view.mjs";
+import { patchWithModal } from "../../../components/dialog.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { raceTeamOf } from "../../../data/teams.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
@@ -91,4 +94,30 @@ export function screenOf(teamId, visit, memory) {
     teamId, team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
     ...where, records: recordsOf(visit, mode), player: visit.player, rolls: visit.rolls,
   };
+}
+
+/** The screen drawn in the view, as its root names it (`data-screen`). */
+const drawnScreen = () => view.querySelector("[data-screen]")?.getAttribute("data-screen") ?? null;
+
+/**
+ * The visit drawn again as a patch, a sheet that is open kept open (`modal`). Another screen than the one drawn — the
+ * width crossing 900px in the player mode, the profile in the roster's place or back (M6) — starts at the top of the
+ * page, as `drawScreen` starts one.
+ * @param {string} markup @param {string} modal the open sheet's selector, "" for none
+ */
+export function patchVisit(markup, modal) {
+  const before = drawnScreen();
+  patchWithModal(view, markup, modal);
+  if (drawnScreen() !== before) globalThis.scrollTo?.(0, 0);
+}
+
+/**
+ * The way back from a player's page (K4): the roster's page where the coach left it, and the focus on the row that is
+ * open, without scrolling (M5) — a keyboard goes on from there, not from the title at the top; no row open, the focus
+ * stays where it is.
+ * @param {number} at the roster's `scrollY` when the coach left it
+ */
+export function putBack(at) {
+  globalThis.scrollTo?.(0, at);
+  view.querySelector('[data-row-key][aria-expanded="true"]')?.focus({ preventScroll: true });
 }

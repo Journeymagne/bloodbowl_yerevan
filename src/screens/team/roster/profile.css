@@ -6,6 +6,7 @@
  * strip, the progress dots, the skill cards and the buttons are the ui/ sheets'; this one sizes them as Player.html
  * does. A desk has no such page (the address is the roster with him in the panel), so every rule is up to 900px.
  *
+ * Where Player.html gives no line height, the font's own (`normal`) is the prototype's: Oswald's 1.48, Golos' 1.2.
  * Font, border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals (h1,
  * h2, p, dl, dt, dd, a, .view's padding) outlive this sheet until stage 13. A long name, skill or injury wraps; nothing
  * is cut with «…».
@@ -131,7 +132,7 @@
     border: 0;
     background: none;
     color: var(--header-muted);
-    font: 400 15px/1.3 var(--font-body);
+    font: 400 15px/1.2 var(--font-body);
     letter-spacing: 0;
     text-transform: none;
     overflow-wrap: anywhere;
@@ -185,13 +186,13 @@
     text-transform: none;
   }
 
-  /* The characteristics (stat-strip.css): five 6px apart, 12px corners, 8 0 10, «MA» 12/600 .05em, the value 26px. */
+  /* The characteristics (stat-strip.css): five 6px apart, 12px corners, 8 0 10, «MA» 12/600 .05em, the value 26px at the font's own line height. */
   .g-profile__body .g-stats { gap: var(--space-6); }
   .g-profile__body .g-stat {
     padding: var(--space-8) 0 var(--space-10);
     border-radius: var(--radius-lg);
   }
-  .g-profile__body .g-stat__v { font: 700 26px/1.1 var(--font-display); }
+  .g-profile__body .g-stat__v { font: 700 26px/normal var(--font-display); }
 
   /* The SPP card: a 1px ring, 16px corners, 16 in, 14 apart. */
   .g-profile__spp {
@@ -259,13 +260,13 @@
     border: 0;
     background: none;
     color: var(--muted);
-    font: 400 13px/1.35 var(--font-body);
+    font: 400 13px/normal var(--font-body);
     letter-spacing: 0;
     text-align: center;
     text-transform: none;
   }
 
-  /* «Skills» and «Injuries»: Oswald 24px over their blocks. */
+  /* «Skills» and «Injuries»: Oswald 24px at the font's own line height (Player.html gives none), over their blocks. */
   .g-profile__skills {
     display: flex;
     flex-direction: column;
@@ -284,7 +285,7 @@
     border: 0;
     background: none;
     color: var(--ink);
-    font: 700 24px/1.1 var(--font-display);
+    font: 700 24px/normal var(--font-display);
     letter-spacing: 0;
     text-transform: none;
   }
@@ -297,7 +298,11 @@
     font: 600 15px/1.2 var(--font-body);
     overflow-wrap: anywhere;
   }
-  .g-profile__skills .g-skill--card.g-skill--gained { color: var(--on-accent-tint); }
+  /* Gained: the tint's ink, ringed in a quarter of the accent over the tint (Player.html's #B7D3C3 in the green palette). */
+  .g-profile__skills .g-skill--card.g-skill--gained {
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 25%, transparent);
+    color: var(--on-accent-tint);
+  }
   .g-profile__skills .g-skill__source {
     font: 400 11px/1.2 var(--font-body);
     opacity: .85;
@@ -313,7 +318,7 @@
     border: 0;
     background: none;
     color: var(--ink-2);
-    font: 400 14px/1.35 var(--font-body);
+    font: 400 14px/normal var(--font-body);
     letter-spacing: 0;
     text-transform: none;
   }
@@ -327,13 +332,13 @@
     width: 84px;
     margin: 0;
     color: var(--muted);
-    font: 400 14px/1.35 var(--font-body);
+    font: 400 14px/normal var(--font-body);
   }
   .g-profile__accessvalue {
     min-width: 0;
     margin: 0;
     color: var(--ink-2);
-    font: 600 14px/1.35 var(--font-body);
+    font: 600 14px/normal var(--font-body);
     overflow-wrap: anywhere;
   }
 
@@ -355,7 +360,7 @@
     border: 0;
     background: none;
     color: var(--muted);
-    font: 400 15px/1.4 var(--font-body);
+    font: 400 15px/normal var(--font-body);
     letter-spacing: 0;
     text-transform: none;
     overflow-wrap: anywhere;

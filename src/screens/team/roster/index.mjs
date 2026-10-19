@@ -34,7 +34,6 @@ import { drawScreen } from "../../../core/dom.mjs";
 import { onScreenLeave } from "../../../core/screen-lifecycle.mjs";
 import { state } from "../../../core/state.mjs";
 import { view } from "../../../core/view.mjs";
-import { patchWithModal } from "../../../components/dialog.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { loadGames, onGamesChange } from "../../../data/games.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
@@ -48,7 +47,7 @@ import { sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { markHandlers } from "./marks.mjs";
 import { droppedWords, marketHandlers } from "./market.mjs";
 import { sheetIdOf } from "./sheets.mjs";
-import { PHONE, gamesKnown, isPhone, linesOf, lockOf, modeOf, outsideOf, reading, screenOf, unsureOf } from "./screen.mjs";
+import { PHONE, gamesKnown, isPhone, linesOf, lockOf, modeOf, outsideOf, patchVisit, putBack, reading, screenOf, unsureOf } from "./screen.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
 import { wireAsideFit } from "./aside-fit.mjs";
 import { rosterMarkup } from "./view.mjs";
@@ -451,7 +450,7 @@ function drawVisit(teamId, visit, memory) {
   const screen = screenOf(teamId, visit, memory);
   const markup = screen.player && screen.phone ? playerPageMarkup(screen) : rosterMarkup(screen);
   if (visit.drawn) {
-    patchWithModal(view, markup, visit.sheet ? `#${sheetIdOf(visit.sheet.kind)}` : "");
+    patchVisit(markup, visit.sheet ? `#${sheetIdOf(visit.sheet.kind)}` : "");
     visit.fit?.();
     restoreFocus(place);
   } else {
@@ -481,7 +480,6 @@ function drawVisit(teamId, visit, memory) {
  */
 export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
   const memory = rosterMemory(teamId);
-  memory.baseline.clear();
   /** @type {Visit} */
   const visit = {
     here: true, drawn: false, loading: true, error: "", team: null, draft: null, events: [], fallen: [], sheet: null, opener: null,
@@ -500,7 +498,7 @@ export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
     if (!answer.error) holdTeam(saving, answer, trackRoster(answer.team), since);
     saving.draw();
     // Back from a player's page: the roster where the coach left it, once its lines are drawn (K4).
-    if (back !== null && visit.team) globalThis.scrollTo?.(0, back);
+    if (back !== null && visit.team && !playerId) putBack(back);
     if (visit.team) back = null;
     await games;
   };
@@ -509,10 +507,13 @@ export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
   onScreenLeave("team-roster", () => {
     visit.here = false;
     while (offs.length) offs.pop()();
-    leaveVisit(memory, Boolean(playerId));
+    // A desk's player mode is the roster (M4); a phone's leaves the way back once his profile has been drawn.
+    leaveVisit(memory, !playerId || !isPhone() ? "roster" : visit.titled ? "player" : "");
   });
   // Taken once the visit before is released: it may have been the player mode, which leaves the way back (memory.mjs).
+  // The drill into the profile and back keeps the session's SPP count; any other visit starts it again (07a, decision 11).
   let back = takeWayBack(memory, Boolean(playerId));
+  if (back === null) memory.baseline.clear();
   // The desk panel sticks only while the whole of it fits the window (aside-fit.mjs).
   const fitter = wireAsideFit(view);
   visit.fit = fitter.fit;

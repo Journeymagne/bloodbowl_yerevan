@@ -44,6 +44,7 @@ import { fallenWriting, readFallen } from "../roster/fallen.mjs";
 import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup, undoSheetMarkup } from "../roster/fallen-view.mjs";
 import { closeSheet, sheetOf } from "../roster/injury.mjs";
 import { markHandlers, markSheetOf } from "../roster/marks.mjs";
+import { leaveVisit, rosterMemory, takeWayBack } from "../roster/memory.mjs";
 import { fallenLines, rosterLines, rosterMode, undoable } from "../roster/model.mjs";
 import { markClosed } from "../roster/panel.mjs";
 import { renderTeamRoster } from "../roster/index.mjs";
@@ -416,11 +417,15 @@ export async function renderTeamPlayer(teamId, playerId) {
   /** @type {Page} */
   const page = { teamId, playerId, visit, draw: () => drawPage(page) };
   const offs = [];
+  const memory = rosterMemory(teamId);
   const leave = () => {
+    // His profile drawn, the roster's next visit is the way back to where it stood (M3), as from the player mode's.
+    if (visit.here && visit.titled) leaveVisit(memory, "player");
     visit.here = false;
     while (offs.length) offs.pop()();
   };
   onScreenLeave("team-player", leave);
+  takeWayBack(memory, true);
   page.draw();
   const retry = () => {
     Object.assign(visit, { loading: true, error: "" });

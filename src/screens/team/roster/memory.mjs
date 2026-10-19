@@ -18,8 +18,10 @@ const memories = new Map();
  *   switch is the team's and that match's (R13), so the next match starts with it off (stage 07a, Task 11)
  * @property {Map<string, number>} baseline a line's SPP when this visit first showed it, and the SPP of the edits
  *   outside the match waiting for him then: what the coach's edits are counted from
- * @property {number|null} scroll where the roster's page stood when the coach last left it (`scrollY`), none before
- * @property {boolean} fromPlayer the roster module's last visit was its player mode, and no other page came after it
+ * @property {number|null} scroll where the roster's page stood when the coach left it (`scrollY`), until the page after
+ *   it is left in turn: none once another page came between
+ * @property {number|null} wayBack where the roster stood when the coach left it for the player's page on screen
+ * @property {boolean} fromPlayer the last page left was a player's, his profile drawn, and no other page came after it
  */
 
 /**
@@ -29,7 +31,7 @@ const memories = new Map();
  * @returns {RosterMemory}
  */
 export function rosterMemory(teamId) {
-  if (!memories.has(teamId)) memories.set(teamId, { sort: null, selected: null, outside: null, baseline: new Map(), scroll: null, fromPlayer: false });
+  if (!memories.has(teamId)) memories.set(teamId, { sort: null, selected: null, outside: null, baseline: new Map(), scroll: null, wayBack: null, fromPlayer: false });
   return memories.get(teamId);
 }
 
@@ -52,34 +54,44 @@ export function sessionSppOf(memory, line, { outside = false } = {}) {
 }
 
 /**
- * A visit of the roster module leaves (stage 07d, K4): the roster's keeps where its page stood (`scroll`); the player
- * mode's says the roster was left for a player's page (`fromPlayer`) — until the page after it is left in turn, which
- * forgets it: the way back is «‹ Roster», not a hop over another page.
+ * A page of the roster module is left (stage 07d, K4). `"roster"`: the roster's page — its own mode, or a desk's player
+ * mode, which is the roster (M4) — keeps where it stood (`scroll`) for a player's page it is left for, and forgets it
+ * once the page after it is left in turn (I1): the way back is from a page the roster led to, never over another page.
+ * `"player"`: a player's page left with his profile drawn — a phone's, or a fallen player's own (M3) — leaves the way
+ * back for the roster's next visit (`fromPlayer`), which a page between them forgets. `""` keeps nothing.
  *
  * @param {RosterMemory} memory
- * @param {boolean} player the visit was the player mode
+ * @param {"roster"|"player"|""} kind
  */
-export function leaveVisit(memory, player) {
-  if (!player) {
+export function leaveVisit(memory, kind) {
+  // Each forgetting is registered before it is set: one still waiting (a page drawn again with no leave between it and
+  // the next) runs as it is replaced, and must not undo what is set now.
+  if (kind === "roster") {
+    onScreenLeave("team-roster-left", () => {
+      memory.scroll = null;
+    });
     memory.scroll = globalThis.scrollY ?? 0;
-    return;
+  } else if (kind === "player") {
+    onScreenLeave("team-roster-back", () => {
+      memory.fromPlayer = false;
+    });
+    memory.fromPlayer = true;
   }
-  onScreenLeave("team-roster-back", () => {
-    memory.fromPlayer = false;
-  });
-  memory.fromPlayer = true;
 }
 
 /**
- * Where a visit of the roster puts its page once its lines are drawn: back from a player's page, where the coach left
- * it; else nowhere (null). Every visit of the module takes it, so it is put back once.
+ * The way back, as a visit of the roster module takes it (every visit does, so it serves once). A player's page entered
+ * from the roster keeps where the roster stood (`wayBack`), and one entered from another player's page the one that page
+ * kept; the roster's next visit, back from it, puts its page there once its lines are drawn. Either visit keeps the
+ * session's SPP count while there is a way back (M7): the drill into the profile and back is the roster's own.
  *
  * @param {RosterMemory} memory
- * @param {boolean} player the visit is the player mode, which has no roster's page to put back
- * @returns {number|null}
+ * @param {boolean} player the visit is a player's page (the player mode, a fallen player's own)
+ * @returns {number|null} where the roster stood when the coach left it for the player's address; null for none
  */
 export function takeWayBack(memory, player) {
-  const back = !player && memory.fromPlayer ? memory.scroll : null;
+  const kept = memory.fromPlayer ? memory.wayBack : null;
   memory.fromPlayer = false;
-  return back;
+  memory.wayBack = player ? kept ?? memory.scroll : null;
+  return player ? memory.wayBack : kept;
 }
