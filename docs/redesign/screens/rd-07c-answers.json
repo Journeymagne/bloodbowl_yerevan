@@ -1,0 +1,87 @@
+{
+  "widths": [390, 1440],
+  "heights": { "360": 780, "390": 844, "768": 1024, "1024": 768, "1440": 900 },
+  "variants": [
+    { "name": "light", "colorScheme": "light", "storage": { "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}", "gata-league-locale": "en" } },
+    { "name": "dark", "colorScheme": "dark", "storage": { "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}", "gata-league-locale": "en" } }
+  ],
+  "states": [
+    {
+      "id": "P1",
+      "url": "http://localhost:5179/#/t/t2/roster",
+      "storage": { "gata-league-auth-token": "mock" },
+      "widths": [390, 360],
+      "click": ["[data-row-key^=\"q4#\"]"],
+      "run": [
+        "(() => {",
+        "  // The match's pair, «Injury in the match…» beside the closed «Sell», under his counters in the open row.",
+        "  document.querySelector('.g-rtable__panelrow .g-roster__actions').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "P2",
+      "url": "http://localhost:5179/#/t/t2/roster",
+      "storage": { "gata-league-auth-token": "mock", "gata-league-locale": "ru" },
+      "widths": [390, 360],
+      "click": ["[data-row-key^=\"q4#\"]"],
+      "run": [
+        "(() => {",
+        "  document.querySelector('.g-rtable__panelrow .g-roster__actions').scrollIntoView({ block: 'center' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "S1",
+      "url": "http://localhost:5179/#/t/t1/roster",
+      "storage": { "gata-league-auth-token": "mock" },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const copy = () => document.querySelector(matchMedia('(min-width: 901px)').matches ? '.g-roster__aside' : '.g-rtable__panelrow');",
+        "  document.querySelector('[data-row-key^=\"p2#\"]').click();",
+        "  await wait(300);",
+        "  copy().querySelector('[data-roster-sell]').click();",
+        "})()"
+      ]
+    },
+    {
+      "id": "D1",
+      "url": "http://localhost:5179/#/teams",
+      "storage": { "gata-league-auth-token": "mock" },
+      "click": ["[data-delete-team=\"t4\"]"]
+    },
+    {
+      "id": "C1",
+      "url": "http://localhost:5179/#/t/t3/roster",
+      "storage": { "gata-league-auth-token": "mock" },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  // A Goblin in the cart (its stepper beside two lines), then the Untrained Troll's seven skills and «in the team 0 of 1».",
+        "  document.querySelector('#roster-hire [data-hire-key=\"4\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "  document.querySelector('#roster-hire [data-hire-key=\"5\"]').scrollIntoView({ block: 'end' });",
+        "})()"
+      ]
+    },
+    {
+      "id": "C2",
+      "url": "http://localhost:5179/#/t/t3/roster",
+      "storage": { "gata-league-auth-token": "mock", "gata-league-locale": "ru" },
+      "widths": [390],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  document.querySelector('[data-roster-hire]').click();",
+        "  await wait(300);",
+        "  document.querySelector('#roster-hire [data-hire-key=\"4\"] [data-hire-step=\"1\"]').click();",
+        "  await wait(200);",
+        "  document.querySelector('#roster-hire [data-hire-key=\"5\"]').scrollIntoView({ block: 'end' });",
+        "})()"
+      ]
+    }
+  ]
+}
