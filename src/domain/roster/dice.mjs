@@ -29,6 +29,9 @@
  * "site" }`): `siteRollReferences` lists those of a roster, and
  * `rollFitsAdvancement` says whether a roll is one the advancement could have
  * taken. The server holds a save to both (`settleRosterRolls`).
+ *
+ * What a coach sees of a roll: its sixteen faces, and why a waiting roll cannot
+ * be taken as it is.
  */
 import { CAPTAINS_SKILL, canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements } from "./players.mjs";
 import { PLAYER_STATS, categoriesForAccess } from "./values.mjs";
@@ -165,6 +168,46 @@ export function skillsRerolledAgainst({ purpose, params, result }) {
  */
 export function rerollsHeldBy(roll, held) {
   return skillsRerolledAgainst(roll).every((skill) => held.has(skill));
+}
+
+/** The faces of a random skill's die over a category's column, in its order: `SKILL_DIE` of them, a face beyond the column blank. */
+export function skillFaces(candidates = []) {
+  return Array.from({ length: SKILL_DIE }, (_, at) => ({ face: at + 1, skill: candidates[at] ?? null }));
+}
+
+/**
+ * Why a waiting roll cannot be taken by the player as he is, or null when it can. A random skill he holds
+ * already — the server marks it `stale`, or he has come to hold it since — is `ROLL_STALE`; one rerolled
+ * against a skill he holds no more is `ROLL_REROLLED`, naming those skills (`rerollsHeldBy`: the server
+ * refuses the save that takes it). A characteristic roll is always good: a skill can take its place.
+ *
+ * @param {{purpose: string, params?: object, result: object, stale?: boolean}} roll a roll as GET …/rolls sends it
+ * @returns {null | {code: "ROLL_STALE", params: {skill: string}} | {code: "ROLL_REROLLED", params: {skills: string}}}
+ */
+export function rollRefusal(roll, row, player) {
+  if (roll?.purpose !== "random_skill") return null;
+  const held = heldSkillKeys(row, player), skill = roll.result?.skill;
+  if (roll.stale || (typeof skill === "string" && held.has(canonicalSkillName(skill)))) return { code: "ROLL_STALE", params: { skill } };
+  if (rerollsHeldBy(roll, held)) return null;
+  return { code: "ROLL_REROLLED", params: { skills: [...new Set(skillsRerolledAgainst(roll).filter((name) => !held.has(name)))].join(", ") } };
+}
+
+/**
+ * The player's random advancement taken at the table for the skill a site roll ended on, by canonical
+ * name, which the roll may take the place of; -1 when there is none. Only one after which no advancement
+ * of his names a site roll: the server uses a player's rolls in the order it handed them out and gives them
+ * back last first (`settleRosterRolls`), so a roll bound before a site advancement would be used out of turn.
+ *
+ * @param {{purpose: string, result: object}} roll a waiting random-skill roll
+ * @returns {number} the index in the player's advancements
+ */
+export function tableAdvancementFor(roll, player) {
+  if (roll?.purpose !== "random_skill" || typeof roll.result?.skill !== "string") return -1;
+  const skill = canonicalSkillName(roll.result.skill), advancements = normalizePlayerAdvancements(player?.advancements);
+  const lastSite = advancements.findLastIndex((advancement) => advancement.roll?.via === "site");
+  return advancements.findIndex((advancement, index) => index > lastSite && advancement.type === "random"
+    && advancement.roll?.via === "table" && typeof advancement.grants?.skill === "string"
+    && canonicalSkillName(advancement.grants.skill) === skill);
 }
 
 /** One throw of a die with `sides` faces, refusing an answer the die cannot show. */

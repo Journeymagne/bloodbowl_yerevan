@@ -2,7 +2,7 @@ import { createPlayer, normalizeAbsence } from '../roster/schema.mjs';
 import { applyInjuryEffects } from '../roster/absence.mjs';
 import { normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/players.mjs';
 import { playerCurrentCost } from '../roster/costs.mjs';
-import { applyAdvancement, canTakeAdvancement, checkAdvancementGrant } from '../roster/progression.mjs';
+import { applyAdvancement, canTakeAdvancement, checkAdvancementGrant, statIncreaseRefusal } from '../roster/progression.mjs';
 import { rowsForTeam, rosterMax, costToNumber } from '../roster/values.mjs';
 import { teamHasSpecialRule, availableMedicalStaffDefinitions, hasBribery, favouredSkillsForChoice } from '../roster/team-rules.mjs';
 import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from '../league-rules.mjs';
@@ -69,11 +69,7 @@ function applyPostAdvancement(team, row, player, choice, groups) {
 }
 
 function validateStatIncrease(row, player, stat) {
-  const mod = Number(player.statMods[stat] || 0), base = parseInt(row[stat], 10);
-  const value = ['ag', 'pa'].includes(stat) ? base - mod - 1 : base + mod + 1;
-  const limit = { ma: 9, st: 8, ar: 11, ag: 1, pa: 1 }[stat];
-  const positive = mod - Number(player.injuryStatMods?.[stat] || 0);
-  if (!Number.isFinite(value) || positive >= 2 || (['ag', 'pa'].includes(stat) ? value < limit : value > limit)) throw postError('POST_STAT_LIMIT');
+  if (statIncreaseRefusal(row, player, stat)) throw postError('POST_STAT_LIMIT');
 }
 
 export function postStaffOptions(reference) {

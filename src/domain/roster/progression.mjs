@@ -4,11 +4,20 @@
  * SPP values depend on the team's special rules: Brawlin' Brutes score
  * touchdowns for less and casualties for more, Passing Virtuosos also earn from
  * catches.
+ *
+ * Taking an advancement as a coach does on the roster (stage 07d): what each
+ * type costs him now on the roster's own SPP, the categories it draws from, the
+ * characteristic's limits, and the choice applied the way the server stores it
+ * — with the roll it names, which the server holds the save to
+ * (`settleRosterRolls`). The post-match asks the same limits
+ * (`statIncreaseRefusal`).
  */
-import { advancementRanks, advancementStatCosts } from "../league-rules.mjs";
+import { advancementRanks, advancementStatCosts, skillCosts } from "../league-rules.mjs";
 import { teamHasSpecialRule } from "./team-rules.mjs";
 import { canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements, normalizeSppCounters, selectedRosterPlayers } from "./players.mjs";
-import { categoriesForAccess } from "./values.mjs";
+import { categoriesForAccess, statValueForDisplayByStat } from "./values.mjs";
+import { eliteComboCost, playerCurrentCost } from "./costs.mjs";
+import { statsForRoll } from "./dice.mjs";
 
 export function sppCounterWeights(team) {
   const hasBrawlinBrutes = teamHasSpecialRule(team, "Brawlin' Brutes");
@@ -242,4 +251,198 @@ export function removeAdvancement(player, index) {
 
   player.advancements = advancements.filter((_, position) => position !== index);
   return { removed: true, grants: advancement.grants ?? null };
+}
+
+// ---------------------------------------------------------------------------
+// An advancement as the coach takes it on the roster (stage 07d)
+// ---------------------------------------------------------------------------
+
+/** The advancement types, in the order the prototype offers them. */
+export const ADVANCEMENT_TYPES = Object.freeze(["random", "primary", "secondary", "stat"]);
+
+/** How far a characteristic may go: MA 9, ST 8, AR 11+, AG and PA 1+. */
+export const STAT_LIMITS = Object.freeze({ ma: 9, st: 8, ag: 1, pa: 1, ar: 11 });
+
+/** How many +1s advancements may put on one characteristic; a lasting injury's −1 is not one of them. */
+export const MAX_STAT_GAIN = 2;
+
+/** The characteristics written as a target, where better is lower. */
+const TARGET_STATS = Object.freeze(["ag", "pa"]);
+
+/** The types whose result is rolled, and so may name the roll. */
+const ROLLED_TYPES = Object.freeze(["random", "stat"]);
+
+/** Every code an advancement on the roster is refused with; the screen words each as `teamAdvance.refusal.<code>`. */
+export const ADVANCE_REFUSALS = Object.freeze([
+  "ADVANCEMENT_MAX_LEVEL", "ADVANCEMENT_NOT_ENOUGH_SPP", "NO_SKILL_LEFT", "GRANT_NOT_AVAILABLE", "GRANT_WRONG_KIND",
+  "STAT_NONE", "STAT_LIMIT", "STAT_GAINS", "ROLL_STALE", "ROLL_REROLLED",
+]);
+
+/**
+ * Why a characteristic cannot take one more +1, or null when it can. The order of the checks is the
+ * post-match's (`validateStatIncrease`, which asks this): a characteristic the position has not (no digit
+ * in it, the Minotaur's PA), then +2 already gained by advancements, then the value after the step past
+ * its limit.
+ *
+ * @returns {null | {code: "STAT_NONE"|"STAT_GAINS"|"STAT_LIMIT", params: {stat: string, limit?: number, max?: number}}}
+ */
+export function statIncreaseRefusal(row, player, stat) {
+  const mod = Number(player.statMods?.[stat] || 0), base = parseInt(row[stat], 10), target = TARGET_STATS.includes(stat);
+  const value = target ? base - mod - 1 : base + mod + 1;
+  if (!Number.isFinite(value)) return { code: "STAT_NONE", params: { stat } };
+  if (mod - Number(player.injuryStatMods?.[stat] || 0) >= MAX_STAT_GAIN) return { code: "STAT_GAINS", params: { stat, max: MAX_STAT_GAIN } };
+  const limit = STAT_LIMITS[stat];
+  return (target ? value < limit : value > limit) ? { code: "STAT_LIMIT", params: { stat, limit } } : null;
+}
+
+/**
+ * @typedef {{type: string, cost: number, value: number|null,
+ *   categories: {category: string, access: "primary"|"secondary"}[],
+ *   refusal: {code: string, params: object}|null}} AdvancementOffer
+ *   `value` is what the advancement adds to his value, in thousands: a characteristic's depends on which
+ */
+
+/**
+ * The advancements a player may take now, on his own SPP as the roster holds them: one offer per type, in
+ * `ADVANCEMENT_TYPES` order, each at its price for his next rank, refused at the last rank, when he cannot
+ * pay, or — for a skill — when no category of the type has a skill left he has not.
+ *
+ * @returns {{level: number, maxed: boolean, available: number, offers: AdvancementOffer[]}}
+ */
+export function advancementOffers(team, row, player, skillGroups = []) {
+  const level = playerAdvancementLevel(player);
+  const offers = ADVANCEMENT_TYPES.map((type) => {
+    const affordable = canTakeAdvancement(team, player, type), categories = advancementCategories(row, type);
+    const skillLeft = type === "stat"
+      || categories.some(({ category }) => categorySkills(row, player, category, skillGroups).some(({ held }) => !held));
+    const refusal = !affordable.allowed ? { code: affordable.reason, params: affordable.params }
+      : skillLeft ? null : { code: "NO_SKILL_LEFT", params: {} };
+    const value = type === "stat" ? null : skillCosts[GRANT_ACCESS_BY_TYPE[type]];
+    return { type, cost: affordable.cost, value, categories, refusal };
+  });
+  return { level, maxed: !advancementRanks[level], available: playerAvailableSpp(team, player), offers };
+}
+
+/**
+ * The Skill Table categories an advancement of `type` draws from, with the access each is taken at: a
+ * random or a chosen primary skill from the primary access, a secondary from the secondary. A
+ * characteristic draws from none — unless a skill is taken `instead`, from both, the primary first.
+ *
+ * @returns {{category: string, access: "primary"|"secondary"}[]}
+ */
+export function advancementCategories(row, type, { instead = false } = {}) {
+  const of = (access) => categoriesForAccess(row[access] ?? []).map((category) => ({ category, access }));
+  if (type === "stat") return instead ? [...of("primary"), ...of("secondary")] : [];
+  const access = GRANT_ACCESS_BY_TYPE[type];
+  return access ? of(access) : [];
+}
+
+/**
+ * A category's column of the Skill Table, in its order: whether the player holds each skill already
+ * (`heldSkillKeys`, by canonical name), and whether taking it by an advancement would bring an elite
+ * combination together (`eliteComboCost` would rise). A skill he holds cannot be taken, so it brings none.
+ *
+ * @returns {{name: string, held: boolean, elite: boolean}[]}
+ */
+export function categorySkills(row, player, category, skillGroups = []) {
+  const held = heldSkillKeys(row, player), surcharge = eliteComboCost(row, player);
+  return (skillGroups.find((group) => group.category === category)?.skills ?? []).map((name) => {
+    const holds = held.has(canonicalSkillName(name));
+    const taken = { ...player, extraSkills: [...(player.extraSkills ?? []), { name, access: "primary" }] };
+    return { name, held: holds, elite: !holds && eliteComboCost(row, taken) > surcharge };
+  });
+}
+
+/**
+ * What a face of the D8 offers, in the table's order: each characteristic as it is written now and after
+ * the +1, what the +1 adds to his value, and why it cannot be taken (`statIncreaseRefusal`).
+ *
+ * @returns {{stat: string, before: string, after: string, value: number, refusal: object|null}[]}
+ */
+export function statChoices(row, player, face) {
+  return statsForRoll(face).map((stat) => {
+    const mod = Number(player.statMods?.[stat]) || 0;
+    const written = (step) => String(statValueForDisplayByStat(stat, row[stat] ?? "", mod + step));
+    return { stat, before: written(0), after: written(1), value: advancementStatCosts[stat], refusal: statIncreaseRefusal(row, player, stat) };
+  });
+}
+
+/**
+ * @typedef {{type: string, grant: {skill: string}|{stat: string},
+ *   roll?: {id: string, via: "site"}|{via: "table"}}} AdvancementChoice
+ */
+
+/**
+ * Take an advancement the coach chose: its SPP, what it grants and the roll it names, in the shape the
+ * server stores (`normalizeRosterPlayer`), so a save sent again after a lost answer reads as the same
+ * roster. Mutates `player` only when it is applied.
+ *
+ * A characteristic advancement may grant a skill in its place, as the post-match lets it
+ * (`applyPostAdvancement`): at its own price, the skill at the first access that has it, recorded as a
+ * characteristic. Only a random skill and a characteristic are rolled, so only they may name a roll, and
+ * only as `{ id, via: "site" }` or `{ via: "table" }`. A refusal is always one of `ADVANCE_REFUSALS`: a
+ * choice no screen makes — an unknown type, no grant, a characteristic there is none of — is
+ * `GRANT_WRONG_KIND`.
+ *
+ * @param {AdvancementChoice} choice
+ * @returns {{applied: true, cost: number, value: number} | {applied: false, code: string, params: object}}
+ *   `cost` the SPP spent, `value` what it added to his value with any elite combination, in thousands
+ */
+export function takeAdvancement(team, row, player, choice, skillGroups = []) {
+  const { type, grant } = choice ?? {}, roll = choiceRoll(choice?.roll);
+  if (!ADVANCEMENT_TYPES.includes(type) || roll === null || (roll && !ROLLED_TYPES.includes(type))) {
+    return advanceRefusal(GRANT_BLOCKED.WRONG_KIND, { type: String(type ?? "") });
+  }
+  const affordable = canTakeAdvancement(team, player, type);
+  if (!affordable.allowed) return advanceRefusal(affordable.reason, affordable.params);
+  const step = type === "stat" ? statStep(row, player, grant, skillGroups) : { type };
+  if (step.refusal) return advanceRefusal(step.refusal.code, step.refusal.params);
+  const before = playerCurrentCost(row, player);
+  const result = applyAdvancement(team, row, player, step.type, grant, skillGroups);
+  if (!result.applied) return advanceRefusal(result.reason, result.params);
+  const taken = player.advancements.at(-1);
+  player.advancements = [...player.advancements.slice(0, -1), { type, grants: taken.grants, ...(roll ? { roll } : {}) }];
+  return { applied: true, cost: affordable.cost, value: playerCurrentCost(row, player) - before };
+}
+
+/**
+ * The type a characteristic advancement is applied as: a skill in its place at the first access that has
+ * it, else the characteristic, once it is one the player can raise.
+ */
+function statStep(row, player, grant, skillGroups) {
+  if (grant?.skill && !grant.stat) {
+    const access = ["primary", "secondary"].find((kind) => checkAdvancementGrant(row, player, kind, grant, skillGroups).allowed);
+    return access ? { type: access } : { refusal: { code: GRANT_BLOCKED.NOT_AVAILABLE, params: { skill: grant.skill, access: "" } } };
+  }
+  const legal = checkAdvancementGrant(row, player, "stat", grant, skillGroups);
+  if (!legal.allowed) return { refusal: { code: legal.reason, params: legal.params } };
+  const limit = statIncreaseRefusal(row, player, grant.stat);
+  return limit ? { refusal: limit } : { type: "stat" };
+}
+
+/** A choice's roll as the advancement keeps it (`normalizeAdvancementRoll`): undefined for none, null for one that is neither kind. */
+function choiceRoll(roll) {
+  if (roll === undefined || roll === null) return undefined;
+  if (roll?.via === "table") return { via: "table" };
+  const id = typeof roll?.id === "string" ? roll.id.trim() : "";
+  return roll?.via === "site" && id ? { id, via: "site" } : null;
+}
+
+/** A refusal in `ADVANCE_REFUSALS`: a domain code the screen has no words for is a choice of the wrong kind. */
+function advanceRefusal(code, params) {
+  return { applied: false, code: ADVANCE_REFUSALS.includes(code) ? code : GRANT_BLOCKED.WRONG_KIND, params: params ?? {} };
+}
+
+/**
+ * Undo the player's last advancement (`removeAdvancement`): what it granted goes, and what it cost at its
+ * rank comes back to his SPP. Its roll is said, so the caller knows the server frees it with the save.
+ *
+ * @returns {{removed: false} | {removed: true, index: number, type: string, grants: object|null, roll: object|null, cost: number}}
+ */
+export function undoLastAdvancement(player) {
+  const advancements = normalizePlayerAdvancements(player.advancements), index = advancements.length - 1;
+  if (index < 0) return { removed: false };
+  const { type, grants = null, roll = null } = advancements[index];
+  removeAdvancement(player, index);
+  return { removed: true, index, type, grants, roll, cost: advancementRanks[index]?.costs?.[type] ?? 0 };
 }
