@@ -406,6 +406,9 @@
   background: none;
 }
 
+/* A card opens the rule: a finger's 44px, where its padding and two lines alone make 43. */
+.g-roster__pblock .g-skill--card { min-height: var(--size-touch); }
+
 .g-roster__ptitle {
   margin: 0;
   padding: 0;

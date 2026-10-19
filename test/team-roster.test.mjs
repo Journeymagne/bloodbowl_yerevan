@@ -2261,6 +2261,11 @@ test("the counters: six two to a row (one on the narrowest phone), the narrow on
   }
 });
 
+test("a skill card in the panel opens the rule, so it is a finger's 44px high: its padding and two lines alone make 43", () => {
+  const sheet = "src/screens/team/roster/roster.css";
+  assert.deepEqual(valuesOf(sheet, ".g-roster__pblock .g-skill--card", "min-height"), ["var(--size-touch)"]);
+});
+
 test("the words of the screen are readable in every palette, on the page, the panel and its SPP block", () => {
   const sheet = "src/screens/team/roster/roster.css";
   for (const selector of [".g-roster__count", ".g-roster__loading"]) assertReadable(sheet, selector, "color", ["--page"], 4.5);
