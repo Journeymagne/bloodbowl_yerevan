@@ -50,7 +50,8 @@
  *   GET   /api/teams             the coach's teams, each as `publicSavedTeam` has it (`stage`,
  *                                `activatedAt`, `revision`, `inActiveSeason`): t1 Mock Team
  *                                (Amazon; seven players, whose counters give the overview its
- *                                leaders), t2 Mock Humans, t3 Mock Orcs, t4 Mock Draft (Norse,
+ *                                leaders), t2 Mock Humans (seven players too, match records in
+ *                                g2), t3 Mock Orcs (a save of it is dropped), t4 Mock Draft (Norse,
  *                                `stage: "draft"`, no season, no match) and t5 Mock Veterans
  *                                (Dwarf, from a past season: in no active season, and played).
  *                                GET /api/teams/:id is one, or 404 TEAM_NOT_FOUND.
@@ -73,6 +74,8 @@
  *                                t1 has six lines (the last ends at its treasury, 120), t5 one, t4 none.
  *   POST  /api/teams/:id/treasury  an entry by hand `{delta, reason, note?, revision}`: 400, 409 or 422 as
  *                                the server gives them, else 201 `{team, entry}`.
+ *   GET   /api/teams/:id/events  `{events, revision}`: the team's records of a match tapped, or those not
+ *   POST  /api/teams/:id/events  settled; a tap is the server's 201 or 400, 409 or 422 (scripts/mock/roster.mjs).
  *   GET   /api/games             round 3 is on. g1 is "next match" (Mock Team, started, no
  *                                preparation), g2 "match in play" (Mock Humans, preparation on,
  *                                post-match a draft), g3 "awaiting confirmation" (Mock Orcs; the
@@ -80,7 +83,8 @@
  *                                coach may confirm it). Played: g4 (round 1, Mock Team at home,
  *                                won 2-1), g5 (round 2, Mock Team away, lost 0-2) and g6, a
  *                                friendly of Mock Team that ended 1-1 (`kind: "friendly"`,
- *                                `season: null`, no round, no points). Each side has `team.id`.
+ *                                `season: null`, no round, no points), and g7, a friendly of Mock
+ *                                Veterans against the same rival whose preparation is on. Each side has `team.id`.
  *                                The list is in the server's order (the friendly, then the
  *                                rounds from the last); `currentGames` (administrator) holds the
  *                                matches in play and waiting. GET /api/games/:id is one.
@@ -102,6 +106,7 @@ import { fileURLToPath } from "node:url";
 
 import { errorPayload } from "../server/http/errors.mjs";
 import { resolveStaticPath } from "../server/http/static-path.mjs";
+import { answerRoster, humanPlayers, preparingFriendly } from "./mock/roster.mjs";
 import { treasuryRoutes } from "./mock/treasury.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -187,13 +192,14 @@ const teamOf = (id, name, baseTeamSlug, players, changes = {}) => ({
   ...changes,
 });
 
-// t1 is the team whose saves the browser checks read back (any team may be saved). t2 and t3 are copies of its small roster under other races, so
-// that the coach has a team for each phase of the SideNav's match card (g1, g2, g3 below). t4 is still being
-// built and has played nothing, so it can be deleted; t5 played a season that is over, so it cannot be.
+// t1 is the team whose saves the browser checks read back (any team may be saved). t2 has seven players of its own (the roster
+// screen's match) and t3 is a copy of the small roster under another race, so that the coach has a team for each phase of the
+// SideNav's match card (g1, g2, g3 below). t4 is still being built and has played nothing, so it can be deleted; t5 played a
+// season that is over, so it cannot be.
 const team = teamOf("t1", "Mock Team", "teams/amazon", amazons);
 const teams = empty ? [] : [
   team,
-  teamOf("t2", "Mock Humans", "teams/human", startersOf("q")),
+  teamOf("t2", "Mock Humans", "teams/human", humanPlayers(playerOf)),
   teamOf("t3", "Mock Orcs", "teams/orc", startersOf("r")),
   teamOf("t4", "Mock Draft", "teams/norse", startersOf("s"), { stage: "draft", inActiveSeason: false }),
   teamOf("t5", "Mock Veterans", "teams/dwarf", startersOf("v"), { inActiveSeason: false }),
@@ -314,6 +320,8 @@ const confirmedScore = (proposer, days, { touchdowns, casualties, points }) => (
 // The server's order: by the season's start, then the rounds from the last, and a friendly, which has no season,
 // by its own: it was made after the season began, so it comes first.
 const games = empty ? [] : [
+  // A friendly of Mock Veterans against the first rival, its preparation begun and no result sent; the freshest of the friendlies.
+  preparingFriendly(pairingOf, teams[4], rivals[0]),
   // A friendly of Mock Team against the first rival, 1-1: it has no season, round or table entry, and no points.
   pairingOf("g6", 1, teams[0], rivals[0], {
     kind: "friendly",
@@ -438,6 +446,8 @@ async function readBody(request) {
 
 const reply = (payload, status = 200) => ({ status, payload });
 const refuse = (status, code, params = {}) => reply(errorPayload(code, params), status);
+/** What an answerer is given besides the request: the lists it reads and the helpers it replies with. */
+const mock = { teams, games, readBody, reply, refuse };
 
 /** A team's history, an entry by hand and the save of any team (scripts/mock/treasury.mjs); it gives t1, t4 and t5 their fixtures too. */
 const answerTreasury = treasuryRoutes({ teams, readBody, onSave: recordSave });
@@ -543,8 +553,8 @@ function answerPeople(request, pathname) {
 }
 
 async function answerApi(request, pathname) {
-  for (const answer of [answerAuth, answerTreasury, answerTeams, answerLeague, answerPeople]) {
-    const answered = await answer(request, pathname);
+  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerLeague, answerPeople]) {
+    const answered = await answer(request, pathname, mock);
     if (answered) return answered;
   }
   return reply({});
@@ -561,6 +571,8 @@ const server = http.createServer(async (request, response) => {
       if (!error.badBody) throw error;
       answered = refuse(400, "FIELD_INVALID", { field: "body" });
     }
+    // A dropped connection gets no answer at all: the screen's "no network" (scripts/mock/roster.mjs).
+    if (answered.drop) return void request.socket.destroy();
     response.writeHead(answered.status, { "Content-Type": "application/json; charset=utf-8" });
     response.end(JSON.stringify(answered.payload));
     return;
