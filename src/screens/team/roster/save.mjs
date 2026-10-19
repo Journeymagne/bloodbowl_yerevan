@@ -10,6 +10,12 @@
  * what the leaving-the-page question and the screen's "not saved" read), and the answer to a conflict that is not one.
  *
  * During a match a tap is not a save of the roster: it is an event (`POST …/events`), and the server holds the blob.
+ *
+ * A missed-match mark and back on the roster are the same kind of step (stage 07b): one player's fields changed in the
+ * draft, the whole roster saved. A death and its undo are not the queue's (fallen.mjs); their answer is taken here, the
+ * queue first, so that the list's revision is never ahead of the queue's for a write of the queue's own screen. Not
+ * while a step of the coach's waits or is in the air: taken then, the answer would give that step up without a word.
+ * The list alone has it, and the screen reads the team again, the path of a conflict the coach sees (K7).
  */
 import { API_ERROR, ApiError } from "../../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../../core/api-client.mjs";
@@ -20,6 +26,7 @@ import { SAVE_STATUS, createRosterStore } from "../../../data/roster-store.mjs";
 import { onSessionChange } from "../../../data/session.mjs";
 import { refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
 import { sameValues } from "../../../domain/post-match/events.mjs";
+import { clearAbsence, markAbsence } from "../../../domain/roster/absence.mjs";
 import { normalizeSppCounters, storedPlayerId } from "../../../domain/roster/players.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
@@ -161,25 +168,63 @@ export function savedRevision(teamId) {
 }
 
 /**
- * One step of one SPP counter of one player, saved as it is taken. Nothing is sent when the player is not on
- * the roster, the counter would leave 0…999 (the server refuses anything else), or the queue is waiting for the
- * coach to settle a conflict — or for the server's roster after a 422: the refused step heads the queue, and a tap
- * would send it again (`takeServerTeam` gives it up), so the tap gets the refusal's words instead.
- * @param {string} teamId @param {string} playerId his id in the roster @param {string} counter @param {number} delta
+ * One step on one player of the draft, saved as it is taken: `fieldsOf(player)` says what his fields become, or null
+ * when the step has nothing to change. Nothing is sent either when the player is not on the roster, or the queue is
+ * waiting for the coach to settle a conflict — or for the server's roster after a 422: the refused step heads the
+ * queue, and a step would send it again (`takeServerTeam` gives it up), so it gets the refusal's words instead.
+ * @param {string} teamId @param {string} playerId his id in the roster @param {(player: object) => object|null} fieldsOf
  * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}}
  */
-export function stepSpp(teamId, playerId, counter, delta) {
+function stepOn(teamId, playerId, fieldsOf) {
   const player = playerId ? store.getDraft(teamId)?.players.find((candidate) => storedPlayerId(candidate) === playerId) : null;
   if (!player || store.statusOf(teamId) === SAVE_STATUS.CONFLICT) return { ok: false };
   const failed = store.statusOf(teamId) === SAVE_STATUS.ERROR ? saveState(teamId) : null;
   if (failed?.kind === API_ERROR.INVALID) return { ok: false, refusal: failed.refusal };
-  const value = normalizeSppCounters(player.spp)[counter] + delta;
-  if (!Number.isInteger(value) || value < 0 || value > MAX_SPP_COUNTER) return { ok: false };
+  const fields = fieldsOf(player);
+  if (!fields) return { ok: false };
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
-  player.spp = { ...player.spp, [counter]: value };
+  Object.assign(player, fields);
   waiting.set(teamId, waitingFor(teamId) + 1);
   store.saveChange(teamId);
   return { ok: true };
+}
+
+/**
+ * One step of one SPP counter of one player (`stepOn`). Nothing is sent when the counter would leave 0…999: the
+ * server refuses anything else.
+ * @param {string} teamId @param {string} playerId his id in the roster @param {string} counter @param {number} delta
+ * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}}
+ */
+export function stepSpp(teamId, playerId, counter, delta) {
+  return stepOn(teamId, playerId, (player) => {
+    const value = normalizeSppCounters(player.spp)[counter] + delta;
+    if (!Number.isInteger(value) || value < 0 || value > MAX_SPP_COUNTER) return null;
+    return { spp: { ...player.spp, [counter]: value } };
+  });
+}
+
+/** He misses the next match already: marked, or retired for the season. */
+const sitsOut = (player) => Boolean(player.skipNextGame || player.temporarilyRetired);
+
+/**
+ * A coach's missed-match mark (`markAbsence`): the reason, the missed match, and what the injury does, one step of the
+ * queue (`stepOn`). Nothing is sent for a player who misses it already: a second mark would lay its injury over the first.
+ * @param {string} teamId @param {string} playerId his id in the roster
+ * @param {{code: string, stat?: string, note?: string}} mark as `markAbsence` takes it, whole (the screen checks first)
+ * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}}
+ */
+export function markSkip(teamId, playerId, mark) {
+  return stepOn(teamId, playerId, (player) => (sitsOut(player) ? null : markAbsence(player, mark)));
+}
+
+/**
+ * Back on the roster (`clearAbsence`): the missed match and its reason are over, one step of the queue (`stepOn`).
+ * Nothing is sent for a player who misses nothing, or one retired for the season, which back on the roster does not end.
+ * @param {string} teamId @param {string} playerId his id in the roster
+ * @returns {{ok: true} | {ok: false, refusal?: string} | {refusal: string}}
+ */
+export function unmarkSkip(teamId, playerId) {
+  return stepOn(teamId, playerId, (player) => (player.skipNextGame && !player.temporarilyRetired ? clearAbsence(player) : null));
 }
 
 const refusalOf = (error) => (error.code === OTHER_TAB ? t("auth.otherTab") : refusalWithRules(error));
@@ -238,6 +283,21 @@ export function takeServerTeam(team) {
   tracked.set(meta.id, meta);
   store.adoptServerRoster(meta.id, draft);
   return store.track(meta.id, tracking(meta, draft));
+}
+
+/**
+ * The team a death or its undo was answered with (fallen.mjs): to the queue first (`takeServerTeam`), when it holds
+ * the team and has nothing of the coach's to send — no step waiting, none in the air — and then to its place in the
+ * coach's list, whose listeners so read the queue's revision as the list's. Otherwise the list alone has it: a step
+ * that waits would be given up without a word (K7), and a team the queue does not hold (a fallen player's profile)
+ * is not taken up by it. Null then, for the screen to read the team again.
+ * @param {object} team GET's shape @returns {object|null} the draft to draw; null when the queue did not take the team
+ */
+export function takeAnswerTeam(team) {
+  const free = savedRevision(team.id) !== null && waitingFor(team.id) === 0;
+  const draft = free ? takeServerTeam(team) : null;
+  putInPlace(team);
+  return draft;
 }
 
 /**

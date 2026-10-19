@@ -8,6 +8,7 @@ const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { setDictionaries, setLocale } = await import("../src/core/i18n.mjs");
 const { state } = await import("../src/core/state.mjs");
 const session = await import("../src/data/session.mjs");
+const { onMyTeamsChange } = await import("../src/data/teams.mjs");
 const { readRoster } = await import("../src/screens/team/roster/data.mjs");
 const save = await import("../src/screens/team/roster/save.mjs");
 
@@ -30,12 +31,23 @@ const TEAM_URL = "GET /api/teams/t1";
 const EVENTS_URL = "GET /api/teams/t1/events";
 const PATCH_URL = "PATCH /api/teams/t1";
 
-/** t1 as GET sends it: Ann with 2 TD in the blob, the logo in its column. */
-const teamAt = (revision, spp = { touchdowns: 2 }, over = {}) => ({
+/** t1 as GET sends it: Ann with 2 TD in the blob, the logo in its column; or the players given. */
+const teamAt = (revision, spp = { touchdowns: 2 }, over = {}, players = [{ id: "p1", rowIndex: 0, number: "1", name: "Ann", spp }]) => ({
   id: "t1", name: "Iron Rooks", baseTeamSlug: "teams/human", logoData: LOGO, revision, stage: "active",
-  roster: { teamSlug: "teams/human", teamName: "Iron Rooks", treasury: 50, players: [{ id: "p1", rowIndex: 0, number: "1", name: "Ann", spp }] },
+  roster: { teamSlug: "teams/human", teamName: "Iron Rooks", treasury: 50, players },
   ...over,
 });
+/** Ann, who plays; Bo, who misses the next match; Cy, retired for the season (stage 07b). */
+const skips = () => [
+  { id: "p1", rowIndex: 0, number: "1", name: "Ann", spp: { touchdowns: 2 } },
+  { id: "p2", rowIndex: 0, number: "2", name: "Bo", skipNextGame: true, absence: { code: "miss" } },
+  { id: "p3", rowIndex: 0, number: "3", name: "Cy", temporarilyRetired: true },
+];
+const elsewhereError = { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" };
+const rulesRefusal = {
+  error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" },
+  violations: [{ code: "DUPLICATE_PLAYER_ID", params: { names: "Ann, Bo" } }],
+};
 /** A row of match_events as GET …/events sends it: outside any match and not settled. */
 const tdOf = (playerId, delta = 1) => ({ playerId, counter: "touchdowns", delta, pairingId: null, settledAt: null, injury: null });
 const patches = () => api.calls.filter((call) => call.key === PATCH_URL);
@@ -570,4 +582,156 @@ test("a session read again for the same coach keeps the steps that wait; another
   api.reply("GET /api/auth/me", 200, { user: { id: "someone-else", login: "other" } });
   assert.equal(await session.loadSession(), "signed-in");
   assert.deepEqual(save.saveState("t1"), quiet("idle"));
+});
+
+// Stage 07b: a missed-match mark and back on the roster are steps of the same queue.
+test("a missed match is one PATCH of the whole roster: the reason, the missed match, and what the injury did, on the revision as read", async () => {
+  const draft = await open();
+  api.reply(PATCH_URL, 200, { team: teamAt(5) });
+  assert.deepEqual(save.markSkip("t1", "p1", { code: "lasting", stat: "ag" }), { ok: true });
+  assert.deepEqual([draft.players[0].skipNextGame, save.saveState("t1").waiting], [true, 1], "the draft has it at once, and it waits");
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const [{ body }] = patches();
+  const [ann] = body.roster.players;
+  assert.deepEqual([ann.skipNextGame, ann.absence, ann.statMods.ag, ann.injuryStatMods.ag], [true, { code: "lasting", stat: "ag" }, -1, -1]);
+  assert.deepEqual([body.revision, body.name, body.baseTeamSlug, body.logoData, ann.spp.touchdowns], [4, "Iron Rooks", "teams/human", LOGO, 2]);
+  assert.equal(save.savedRevision("t1"), 5);
+});
+
+test("back on the roster is one PATCH that ends the missed match and its reason", async () => {
+  const draft = await open(teamAt(4, undefined, {}, skips()));
+  api.reply(PATCH_URL, 200, { team: teamAt(5, undefined, {}, skips()) });
+  assert.deepEqual(save.unmarkSkip("t1", "p2"), { ok: true });
+  assert.deepEqual([draft.players[1].skipNextGame, draft.players[1].absence], [false, null]);
+  assert.deepEqual(await settle(), quiet("saved"));
+  assert.equal(patches().length, 1);
+  const [{ body }] = patches();
+  assert.deepEqual([body.roster.players[1].skipNextGame, body.roster.players[1].absence, body.revision], [false, null, 4]);
+  assert.equal(body.roster.players[2].temporarilyRetired, true, "the rest of the roster as read");
+});
+
+test("a mark queues behind a step in the air and goes on the revision it came back with", async () => {
+  await open();
+  const first = api.hold(PATCH_URL);
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  await waitHeld(first);
+  api.reply(PATCH_URL, 200, { team: teamAt(6, { touchdowns: 3 }) });
+  assert.deepEqual(save.markSkip("t1", "p1", { code: "niggling" }), { ok: true });
+  assert.deepEqual([save.saveState("t1").waiting, patches().length], [2, 1], "the mark waits for the step's answer");
+  first.release({ status: 200, body: { team: teamAt(5, { touchdowns: 3 }) } });
+  assert.deepEqual(await settle(), quiet("saved"));
+  const [step, mark] = patches().map(({ body }) => body);
+  assert.deepEqual([step.revision, step.roster.players[0].spp.touchdowns, Boolean(step.roster.players[0].skipNextGame)], [4, 3, false]);
+  const ann = mark.roster.players[0];
+  assert.deepEqual([mark.revision, ann.spp.touchdowns, ann.skipNextGame, ann.absence, ann.nigglingInjuries], [5, 3, true, { code: "niggling" }, 1]);
+});
+
+test("a mark whose answer was lost is the 409 that holds it: taken as saved, not sent as new", async () => {
+  const draft = await open();
+  api.fail(PATCH_URL);
+  save.markSkip("t1", "p1", { code: "other", note: "Wedding" });
+  const offline = await settle();
+  assert.deepEqual([offline.status, offline.waiting], ["offline", 1]);
+  const sent = patches()[0].body;
+  const landed = teamAt(5, undefined, { roster: { ...sent.roster, logoData: undefined } });
+  api.reply(PATCH_URL, 409, { error: elsewhereError, team: landed });
+  assert.equal(await save.retrySaves("t1"), "saved");
+  assert.deepEqual(save.saveState("t1"), quiet("saved"));
+  assert.equal(save.savedRevision("t1"), 5);
+  assert.deepEqual(patches().map(({ body }) => [body.revision, body.roster.players[0].absence]), [[4, { code: "other", note: "Wedding" }], [4, { code: "other", note: "Wedding" }]]);
+  assert.deepEqual(draft.players[0].absence, { code: "other", note: "Wedding" }, "the mark once, as it landed");
+});
+
+test("nothing is sent for a player who already misses the match, one retired for the season, one the roster has not, or after a conflict; another tab's coach is told", async () => {
+  const draft = await open(teamAt(4, undefined, {}, skips()));
+  const before = structuredClone(draft.players);
+  assert.deepEqual(save.markSkip("t1", "p2", { code: "miss" }), { ok: false }, "Bo already misses it: a second mark would lay its injury over the first");
+  assert.deepEqual(save.markSkip("t1", "p3", { code: "miss" }), { ok: false }, "Cy is retired for the season");
+  assert.deepEqual(save.unmarkSkip("t1", "p3"), { ok: false }, "and back on the roster does not end that");
+  assert.deepEqual(save.unmarkSkip("t1", "p1"), { ok: false }, "Ann misses nothing");
+  assert.deepEqual(save.markSkip("t1", "p9", { code: "miss" }), { ok: false }, "a player the roster has not");
+  assert.deepEqual(save.unmarkSkip("t1", ""), { ok: false });
+  assert.deepEqual(save.markSkip("t2", "p1", { code: "miss" }), { ok: false }, "a team the queue does not hold");
+  api.items.set(TOKEN, "someone-else");
+  assert.match(save.markSkip("t1", "p1", { code: "miss" }).refusal, /another tab/);
+  assert.match(save.unmarkSkip("t1", "p2").refusal, /another tab/);
+  assert.deepEqual(draft.players, before, "the draft is as it was");
+  assert.deepEqual(save.saveState("t1"), quiet("idle"));
+  await tick();
+  assert.equal(api.calls.length, 0);
+  // Another device's save: the coach settles it before anything more goes.
+  api.items.set(TOKEN, "tok");
+  api.reply(PATCH_URL, 409, { error: elsewhereError, team: teamAt(5, { touchdowns: 9 }) });
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.equal((await settle()).status, "conflict");
+  assert.deepEqual(save.markSkip("t1", "p1", { code: "miss" }), { ok: false });
+  assert.deepEqual(save.unmarkSkip("t1", "p2"), { ok: false });
+  await tick();
+  assert.deepEqual([patches().length, Boolean(draft.players[0].skipNextGame), draft.players[1].skipNextGame], [1, false, true]);
+});
+
+test("a mark after a refusal by the rules says why and changes nothing, until the server's roster is taken", async () => {
+  const draft = await open(teamAt(4, undefined, {}, skips()));
+  api.reply(PATCH_URL, 422, rulesRefusal);
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.equal((await settle()).status, "error");
+  const why = { ok: false, refusal: "The roster breaks the rules. Players Ann, Bo are stored under one id." };
+  assert.deepEqual([save.markSkip("t1", "p1", { code: "miss" }), save.unmarkSkip("t1", "p2")], [why, why]);
+  await tick();
+  assert.deepEqual([patches().length, Boolean(draft.players[0].skipNextGame), draft.players[1].skipNextGame], [1, false, true]);
+  save.takeServerTeam(teamAt(4, undefined, {}, skips()));
+  api.reply(PATCH_URL, 200, { team: teamAt(5, undefined, {}, skips()) });
+  assert.deepEqual(save.unmarkSkip("t1", "p2"), { ok: true });
+  assert.deepEqual(await settle(), quiet("saved"));
+});
+
+// A death and its undo are not the queue's (fallen.mjs): their answer is taken here, the queue first.
+test("the answer to a death or an undo goes to the queue, then to the coach's list", async () => {
+  await open(teamAt(4, undefined, {}, skips()));
+  state.myTeams.items = [{ id: "t0", name: "Other" }, { id: "t1", name: "Old name", revision: 4 }, { id: "t9", name: "Ninth", revision: 2 }];
+  const heard = [];
+  const off = onMyTeamsChange(() => heard.push([save.savedRevision("t1"), state.myTeams.items[1].revision]));
+  try {
+    // Bo died: the answer's roster is without him.
+    const draft = save.takeAnswerTeam(teamAt(5, undefined, {}, skips().filter((player) => player.id !== "p2")));
+    assert.deepEqual(draft.players.map((player) => player.id), ["p1", "p3"]);
+    assert.equal(save.savedRevision("t1"), 5);
+    assert.deepEqual(state.myTeams.items.map((item) => [item.id, item.revision]), [["t0", undefined], ["t1", 5], ["t9", 2]]);
+    assert.deepEqual(heard, [[5, 5]], "the list's listener reads the queue's revision as it reads the list's: nothing to read again");
+    assert.deepEqual(save.saveState("t1"), quiet("idle"));
+    api.reply(PATCH_URL, 200, { team: teamAt(6) });
+    assert.deepEqual(save.markSkip("t1", "p1", { code: "miss" }), { ok: true });
+    await settle();
+    assert.deepEqual(patches().map(({ body }) => [body.revision, body.roster.players.length]), [[5, 2]], "the next step goes on the answer's revision and roster");
+    // A team the queue does not hold (a fallen player's profile): the list has it all the same.
+    heard.length = 0;
+    assert.equal(save.takeAnswerTeam({ ...teamAt(3), id: "t9", name: "Ninth" }), null);
+    assert.deepEqual([state.myTeams.items[2].revision, save.savedRevision("t9"), heard.length], [3, null, 1]);
+  } finally {
+    off();
+  }
+});
+
+// K7: taken while a step waits, the answer would give that step up without a word.
+test("an answer that comes while a step waits or is in the air goes to the list only: the step is kept for the coach to see", async () => {
+  const draft = await open();
+  api.fail(PATCH_URL);
+  save.stepSpp("t1", "p1", "touchdowns", 1);
+  assert.equal((await settle()).status, "offline");
+  assert.equal(save.takeAnswerTeam(teamAt(5)), null, "a step waits for the network");
+  assert.deepEqual([save.saveState("t1").waiting, save.savedRevision("t1"), draft.players[0].spp.touchdowns], [1, 4, 3]);
+  assert.equal(state.myTeams.items[1].revision, 5, "the list has the answer: the screen reads the team again");
+  const gate = api.hold(PATCH_URL);
+  const retried = save.retrySaves("t1");
+  await waitHeld(gate);
+  assert.equal(save.takeAnswerTeam(teamAt(6)), null, "a step in the air");
+  assert.deepEqual([save.saveState("t1").waiting, save.savedRevision("t1"), state.myTeams.items[1].revision], [1, 4, 6]);
+  gate.release({ status: 409, body: { error: elsewhereError, team: teamAt(6) } });
+  assert.equal(await retried, "conflict", "the step meets the server's roster, and the coach settles it");
+  assert.equal(save.saveState("t1").waiting, 1);
+  // Settled, a later answer is the queue's again.
+  save.takeServerTeam(teamAt(6));
+  assert.equal(save.takeAnswerTeam(teamAt(7)).players[0].spp.touchdowns, 2);
+  assert.equal(save.savedRevision("t1"), 7);
 });
