@@ -37,6 +37,52 @@ export function matchWords(mode) {
   return mode.round === null || mode.round === undefined ? t("teamRoster.match.friendly") : t("teamRoster.match.round", { round: mode.round });
 }
 
+/** An injury in words: «Seriously Hurt», a lasting one with its characteristic, «Lasting Injury (AG)». */
+export function injuryWords({ code, stat }) {
+  const injury = t(`teamRoster.injury.${code}`);
+  return stat ? t("teamRoster.injury.withStat", { injury, stat: t(`stats.${stat}`) }) : injury;
+}
+
+/**
+ * Why a player who misses the next match misses it (stage 07b, decision 14), "" where nothing says why: the season's
+ * retirement; another reason as the coach wrote it; an injury as the match's are said. A 2.x skip, which has no reason,
+ * and another reason with no words written (K10) say nothing here.
+ */
+function absenceReason({ retired, absence }) {
+  if (retired) return t("teamRoster.skips.retired");
+  if (!absence) return "";
+  if (absence.code === "other") return absence.note ?? "";
+  return injuryWords(absence);
+}
+
+/**
+ * The line under the name of a player who misses the next match: why, or where nothing says why, that he misses it
+ * (the words 07a drew for every skip).
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ */
+export function absenceWords(line) {
+  return absenceReason(line) || t("teamRoster.skip");
+}
+
+/**
+ * What any save of the roster resets during a preparation, the steps named as the pre-match names them (R12): the
+ * preparation's banner says it, and so does a sheet whose write is a save of the roster.
+ */
+export function prepResetWords() {
+  return t("teamRoster.prep.sub", { roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
+}
+
+/**
+ * «Next match: plays», or that he sits it out — with why, when something says it (K3: a 2.x skip keeps 07a's words,
+ * which would only say it twice).
+ */
+function nextMatchWords(line) {
+  if (!line.skip) return t("teamRoster.nextMatch", { state: t("teamRoster.plays") });
+  const reason = absenceReason(line);
+  return t("teamRoster.nextMatch", { state: reason ? t("teamRoster.skips.sits", { reason }) : t("teamRoster.sits") });
+}
+
 /** A step is a record of the match on: the match is on and the switch does not make it an edit outside it. */
 const tapsTheMatch = (screen) => screen.mode.kind === "match" && !screen.outside;
 
@@ -187,8 +233,8 @@ function headMarkup(line, href, closed) {
     + `<p class="g-roster__pline">${escapeHtml(t("teamRoster.value", { position: line.position, value: formatMoney(line.value) }))}</p></div>${pencil}</div>`;
 }
 
-/** The five characteristics, a changed one said in words as well as in colour. */
-function statsMarkup(line) {
+/** The five characteristics, a changed one said in words as well as in colour (a fallen player's profile has them too). */
+export function statsMarkup(line) {
   const changed = (change) => PLAYER_STATS.filter((stat) => line.stats[stat].change === change);
   return renderStatStrip({ values: Object.fromEntries(PLAYER_STATS.map((stat) => [stat, line.stats[stat].text])), improved: changed("up"), lowered: changed("down") });
 }
@@ -242,7 +288,6 @@ function skillsMarkup(line) {
 export function sidePanelMarkup(line, screen) {
   const href = profileUrl(line, screen);
   const closed = screen.mode.kind === "match";
-  const next = t("teamRoster.nextMatch", { state: line.skip ? t("teamRoster.sits") : t("teamRoster.plays") });
   return `${headMarkup(line, href, closed)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, href, closed)}${skillsMarkup(line)}`
-    + `<p class="g-roster__next">${escapeHtml(next)}</p>${injuryMarkup(line, screen)}`;
+    + `<p class="g-roster__next">${escapeHtml(nextMatchWords(line))}</p>${injuryMarkup(line, screen)}`;
 }

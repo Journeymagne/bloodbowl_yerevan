@@ -17,6 +17,7 @@ api.reply("GET /api/auth/me", 200, { user: COACH });
 api.reply("GET /api/teams", 200, { teams: [TEAM] });
 api.reply("GET /api/teams/t1", 200, { team: TEAM });
 api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 2 });
+api.reply("GET /api/teams/t1/fallen", 200, { fallen: [] });
 api.reply("GET /api/games", 200, { games: [], currentGames: [] });
 api.reply("GET /api/season", 200, {});
 

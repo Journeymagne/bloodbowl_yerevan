@@ -241,9 +241,9 @@ export function rosterSections(lines) {
 /**
  * @typedef {PlayerLine & {fallen: {id: string, cause: string|null, fromMatch: boolean, round: number|null, diedAt: string}}} FallenLine
  *   A fallen player as a line: `key` is `fallen-<record id>`, `index` the place in the server's list; he does not miss
- *   a match, is not the captain and takes no advancement (`skip`, `captain`, `ready` false), no match is on for him
- *   (`injury` null, `match` zeros). `round` is the match's round, null for a friendly, a death by hand and a record the
- *   server has no round for.
+ *   a match, is not the captain and takes no advancement (`skip`, `captain`, `ready` false; no captain's Pro among his
+ *   skills), no match is on for him (`injury` null, `match` zeros). `round` is the match's round, null for a friendly,
+ *   a death by hand and a record the server has no round for.
  */
 
 /** No rows: the dead have none, so the counters of a line made for them are the snapshot's own. */
@@ -288,8 +288,11 @@ export function fallenLines({ fallen, race, rosterIds = [] }) {
     const snapshot = record.player && typeof record.player === "object" ? record.player : {};
     if (held.has(storedPlayerId(snapshot))) return [];
     const [read] = rosterLines({ draft: { players: [snapshot] }, race });
+    const line = read ?? bareLine(race, snapshot);
     return [{
-      ...(read ?? bareLine(race, snapshot)),
+      ...line,
+      // The captain's Pro goes with the captaincy, which the dead do not hold (and an undo gives back only to an empty chair).
+      skills: line.skills.filter(({ source }) => source !== "captain"),
       key: `fallen-${record.id}`, index, skip: false, captain: false, ready: false, absence: null, retired: false, injury: null,
       fallen: { id: record.id, cause: record.cause ?? null, fromMatch: Boolean(record.fromMatch), round: record.roundNumber ?? null, diedAt: record.diedAt },
     }];

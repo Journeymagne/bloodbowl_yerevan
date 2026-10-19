@@ -1,0 +1,169 @@
+/*
+ * Stage 07b on the roster (screens/team/roster/): the sections under «Active roster» — «Missing the match» and
+ * «Fallen» — and a fallen player's opened row, his panel and his profile's body (fallen-view.mjs), which the
+ * player's own address draws too. roster.css is the screen's own sheet and is full; what 07b adds is here. Font,
+ * border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x global rules (h2,
+ * h3, p, dl, dt, dd, a) outlive this sheet until stage 13.
+ */
+
+/*
+ * A section of the roster: its band, then its table (StatsInjured, DeskRosterInjured). Each stands a step below the
+ * one before; the first stays at the top of its column, level with the panel beside it on a desk.
+ */
+.g-roster__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+  margin: 0;
+  margin-top: var(--space-24);
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.g-roster__section:first-child { margin-top: 0; }
+
+/* The fallen in grey: their numbers and the line under the name (the badge is grey of itself, number-badge.css). */
+.g-roster__section--fallen .g-rtable__c,
+.g-roster__section--fallen .g-rtable__sub { color: var(--muted); }
+
+/* A fallen player's profile, in the desk's panel and on his own page (PlayerDead): one column of blocks. */
+.g-fallen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* His characteristics as they were, in grey: what an advancement raised or an injury lowered is said in words still (stat-strip.mjs). */
+.g-fallen__stats { min-width: 0; }
+.g-fallen__stats .g-stat { background: var(--surface-2); }
+.g-fallen__stats .g-stat__v { color: var(--muted); }
+
+/* «Fallen» and when, the cause, and the undo or the word that the administrator corrects it. */
+.g-fallen__card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-16);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-2xl);
+  background: var(--surface-2);
+}
+
+/*
+ * The state and when on one line, the chip never broken. Where the two do not fit side by side (the desk's 320px
+ * panel in Russian), the words go whole under the chip rather than break their date in two.
+ */
+.g-fallen__state {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-6) var(--space-10);
+  min-width: 0;
+}
+.g-fallen__state .g-status {
+  flex: none;
+  white-space: nowrap;
+}
+
+.g-fallen__when {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-fallen__why {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.g-fallen__label {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-fallen__cause {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 500 16px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-fallen__cause--none {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+/* Where a mark is undone, or that a post-match's death is the administrator's: quiet, under what it is about. */
+.g-fallen__note {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+}
+
+.g-fallen__career {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: 600 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-fallen__rules {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* His row opened on a phone: the cause, the career with when he fell — a quiet line here — and the way to his profile (decision 16). */
+.g-fallen__rowpanel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  padding: var(--space-4) var(--space-16) var(--space-14);
+}
+.g-fallen__rowpanel .g-fallen__career {
+  color: var(--muted);
+  font: 400 13px/1.4 var(--font-body);
+}

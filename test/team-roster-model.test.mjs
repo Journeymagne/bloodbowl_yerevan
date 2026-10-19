@@ -402,6 +402,16 @@ test("a fallen line is the roster's own line made for the dead: nothing he could
   assert.deepEqual(fallenLines({ fallen: [died("f3", snapshot, { roundNumber: undefined })], race: HUMAN })[0].fallen.round, null);
 });
 
+test("a dead captain is no captain: neither the mark nor the captain's Pro, which goes with the captaincy (R1)", () => {
+  const captain = { id: "d1", rowIndex: 3, number: "8", name: "Pike", isCaptain: true, extraSkills: [{ name: "Mighty Blow", access: "primary" }] };
+  const [dead] = fallenLines({ fallen: [died("f1", captain)], race: HUMAN });
+  assert.deepEqual(dead.skills.map(({ name, source }) => [name, source]), [["Block", "base"], ["Tackle", "base"], ["Mighty Blow", "primary"]]);
+  assert.equal(dead.captain, false);
+  const [took] = fallenLines({ fallen: [died("f2", { ...captain, extraSkills: [{ name: "Pro", access: "secondary" }] })], race: HUMAN });
+  assert.deepEqual(took.skills.filter(({ name }) => name === "Pro"), [{ name: "Pro", gained: true, source: "secondary" }], "a Pro he took is his");
+  assert.deepEqual(linesOf([captain])[0].skills.at(-1), { name: "Pro", gained: false, source: "captain" }, "the living captain keeps it");
+});
+
 test("no race, no lines; the places are those of the server's list", () => {
   assert.deepEqual(fallenLines({ fallen: [died("f1", { id: "d1", rowIndex: 0 })], race: null }), []);
   assert.deepEqual(fallenLines({ fallen: [], race: HUMAN }), []);

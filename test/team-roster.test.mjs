@@ -71,12 +71,14 @@ function coach({ teamAnswer = team(), events = [] } = {}) {
   state.games = { items: [], currentItems: [], loaded: true, loading: false, error: "" };
   api.reply("GET /api/teams/t1", 200, { team: teamAnswer });
   api.reply("GET /api/teams/t1/events", 200, { events, revision: teamAnswer.revision });
+  api.reply("GET /api/teams/t1/fallen", 200, { fallen: [] });
   api.reply("GET /api/games", 200, { games: [], currentGames: [] });
 }
 
 const PATCH = "PATCH /api/teams/t1";
 const patches = () => api.calls.filter(({ key }) => key === PATCH);
-const callKeys = () => api.calls.map(({ key }) => key);
+// The fallen are read with the roster (stage 07b) and are not what these tests count.
+const callKeys = () => api.calls.map(({ key }) => key).filter((key) => key !== "GET /api/teams/t1/fallen");
 const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
 /** Whether the browser would ask before the tab closes. */
 const leaving = () => {
@@ -142,12 +144,14 @@ test("the roster of a team: a band «Roster» with its counts, «Active roster»
   assert.equal(view.querySelector("h1").textContent, "Roster");
   assert.equal(document.activeElement, view.querySelector("h1"), "the title takes the focus");
   assert.equal(view.querySelector(".g-pagehead__sub").textContent, "On the roster: 7 · missing a match: 1 · can advance: 1");
-  assert.match(view.querySelector("#roster-heading").textContent, /^Active roster 7$/);
+  assert.match(view.querySelector("#roster-heading").textContent, /^Active roster 6$/);
   assert.equal(view.querySelector("[data-screen]").getAttribute("data-screen"), "team-roster");
   assert.equal(view.querySelector("table.g-rtable").getAttribute("aria-label"), "Players of Ashgrove Wardens");
-  assert.deepEqual(order(), NAMES);
-  assert.deepEqual(bodies().map((body) => body.getAttribute("data-key")), KEYS);
-  assert.deepEqual(view.querySelectorAll(".g-rtable__groups .g-rtable__g").map((cell) => cell.textContent), ["", "Characteristics", "Career", "SPP"]);
+  // Dell misses the next match: he is in «Missing the match», under the others (stage 07b).
+  const last = (list) => [...list.slice(0, 3), ...list.slice(4), list[3]];
+  assert.deepEqual(order(), last(NAMES));
+  assert.deepEqual(bodies().map((body) => body.getAttribute("data-key")), last(KEYS));
+  assert.deepEqual(view.querySelector("table.g-rtable").querySelectorAll(".g-rtable__groups .g-rtable__g").map((cell) => cell.textContent), ["", "Characteristics", "Career", "SPP"]);
   api.assertAnswered();
 });
 
@@ -269,6 +273,7 @@ test("another team's roster starts at the top of the page; the same team's drawn
     // The switcher opens the other team's roster from this one: a page of its own.
     api.reply("GET /api/teams/t2", 200, { team: team({ id: "t2", name: "Grimtusk Raiders" }) });
     api.reply("GET /api/teams/t2/events", 200, { events: [], revision: 4 });
+    api.reply("GET /api/teams/t2/fallen", 200, { fallen: [] });
     releaseCurrentScreen();
     await renderTeamRoster("t2");
     assert.deepEqual(scrolls.at(-1), [0, 0]);
@@ -281,19 +286,20 @@ test("a header sorts the table, the next press turns it round, and the order sta
   await renderTeamRoster("t1");
   const head = () => view.querySelector('[data-sort-key="ma"]').closest("th");
   fireEvent(view.querySelector('[data-sort-key="ma"]'), "click");
-  assert.deepEqual(order(), ["Cade", "Bors", "Ann", "Dell", "Edda", "Finn", "Grom"]);
+  // Dell, who misses the next match, is sorted in his own table under the others (stage 07b).
+  assert.deepEqual(order(), ["Cade", "Bors", "Ann", "Edda", "Finn", "Grom", "Dell"]);
   assert.equal(head().getAttribute("aria-sort"), "descending");
   fireEvent(view.querySelector('[data-sort-key="ma"]'), "click");
-  assert.deepEqual(order(), ["Grom", "Ann", "Dell", "Edda", "Finn", "Bors", "Cade"]);
+  assert.deepEqual(order(), ["Grom", "Ann", "Edda", "Finn", "Bors", "Cade", "Dell"]);
   assert.equal(head().getAttribute("aria-sort"), "ascending");
   releaseCurrentScreen();
   view.innerHTML = "<p>elsewhere</p>";
   await renderTeamRoster("t1");
-  assert.deepEqual(order(), ["Grom", "Ann", "Dell", "Edda", "Finn", "Bors", "Cade"]);
+  assert.deepEqual(order(), ["Grom", "Ann", "Edda", "Finn", "Bors", "Cade", "Dell"]);
   assert.equal(head().getAttribute("aria-sort"), "ascending");
   // The player's column puts them back by their numbers, the lowest first.
   fireEvent(view.querySelector('[data-sort-key="player"]'), "click");
-  assert.deepEqual(order(), NAMES);
+  assert.deepEqual(order(), ["Ann", "Bors", "Cade", "Edda", "Finn", "Grom", "Dell"]);
 });
 
 test("a skill chip opens its rule: the name as written, its category and type, the rule, the player and where the skill came from; closed, the focus is back on the chip", async () => {
@@ -514,7 +520,7 @@ test("another device: a red banner and «Load the new one», which reads the tea
     }
     fireEvent(plus("touchdowns"), "click");
     assert.equal(toasts().at(-1), "The roster was changed on another device", "a tap while it stands is told why it is not taken");
-    assertStyled(view, "src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+    assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
       "progress-dots.css", "button.css", "callout.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     api.calls.length = 0;
     api.reply("GET /api/teams/t1", 200, { team: elsewhere });
@@ -1025,7 +1031,7 @@ test("a match on: a green banner with the round and the records, the switch and 
     assert.deepEqual(sppLine(block), ["Match records · round 3", "+3 SPP in the match"]);
     assert.equal(block.querySelector(".g-roster__matchnote").textContent, "MVP — in the post-match. Advancement and sales — after it.");
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "3", "SPP available at once");
-    assertStyled(view, "src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+    assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
       "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     api.assertAnswered();
   });
@@ -1154,7 +1160,7 @@ test("advancement waits for the post-match: «Profile and advancement», «Advan
       check(profile);
       assert.equal(openRow().querySelector("a"), null);
       assertCspSafe(view);
-      assertStyled(view, "src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+      assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
         "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
     });
     coach();
@@ -1517,6 +1523,7 @@ test("the switch is kept per team while the page lives", async () => {
     assert.ok(notice("warn"));
     api.reply("GET /api/teams/t2", 200, { team: team({ id: "t2", name: "Grimtusk Raiders" }) });
     api.reply("GET /api/teams/t2/events", 200, { events: [], revision: 4 });
+    api.reply("GET /api/teams/t2/fallen", 200, { fallen: [] });
     releaseCurrentScreen();
     await renderTeamRoster("t2");
     assert.equal(outsideSwitch().getAttribute("aria-checked"), "false");
@@ -1563,7 +1570,7 @@ const removeButton = () => injurySheet().querySelector('[data-injury-step="-1"]'
 const subLine = (key) => bodyOf(key).querySelector(".g-rtable__sub");
 /** An injury row of the match as POST …/events answers it: Ann's. */
 const injuryRow = (injury, over = {}) => rowOf({ counter: "injury", injury, ...over });
-const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
+const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
   "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "sheet.css", "option-card.css", "filter-chips.css",
   "src/screens/team/manage/strip.css"];
 
@@ -2192,7 +2199,7 @@ test("a player's and a skill's name are text", async () => {
 });
 
 test("every class the screen draws is styled and nothing the CSP refuses is on it, on a phone and on a desk, with a sheet open", async () => {
-  const sheets = ["src/screens/team/roster/roster.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
+  const sheets = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
     "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
     "src/screens/team/manage/strip.css"];
   for (const phone of [true, false]) {
@@ -2235,7 +2242,8 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   const breakpoints = [...text(sheet).matchAll(/@media[^{]+/g)].map(([query]) => query.trim());
   assert.ok(breakpoints.length > 0);
   for (const query of breakpoints) assert.match(query, /^@media \((max-width: 900px|min-width: 901px)\)$/);
-  assert.ok(text("src/styles.css").trimEnd().endsWith('@import url("screens/team/roster/roster.css");'));
+  // The last import is 07b's marks.css, right after the roster's own sheet.
+  assert.ok(text("src/styles.css").trimEnd().endsWith('@import url("screens/team/roster/roster.css");\n@import url("screens/team/roster/marks.css");'));
 });
 
 test("the counters: six two to a row (one on the narrowest phone), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
