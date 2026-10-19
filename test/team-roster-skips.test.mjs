@@ -776,6 +776,8 @@ test("another tab's coach: no mark is sent, and the coach is told", async () => 
     assert.ok(markSheet()?.isModal, "the sheet stays, the choice in it");
     assert.equal(markOption("miss").getAttribute("aria-checked"), "true");
     assert.equal(subOf("p1#0").textContent, "Human Lineman", "nothing marked");
+    fireEvent(markOption("niggling"), "click");
+    assert.ok(!markSheet().querySelector(".g-roster__markrefusal"), "a refusal goes with the choice it was said of");
     fireEvent(markSheet().querySelector("[data-sheet-close]"), "click");
     fireEvent(toggle("p4#3"), "click");
     fireEvent(returnButton(), "click");
@@ -783,6 +785,76 @@ test("another tab's coach: no mark is sent, and the coach is told", async () => 
     await settle();
     assert.equal(patches().length, 0);
     assert.equal(subOf("p4#3").textContent, "Lasting Injury (MA)");
+  });
+});
+
+test("one press, one save: «Mark the missed match» and «Back on the roster» pressed twice send one PATCH each", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("miss"), "click");
+    const send = sendButton();
+    api.reply(PATCH, 200, { team: annMarked({ absence: { code: "miss" } }) });
+    fireEvent(send, "click");
+    fireEvent(send, "click");
+    await settle();
+    assert.equal(patches().length, 1);
+    fireEvent(toggle("p4#3"), "click");
+    const back = returnButton();
+    api.reply(PATCH, 200, { team: annMarked({ absence: { code: "miss" } }) });
+    fireEvent(back, "click");
+    fireEvent(back, "click");
+    await settle();
+    assert.equal(patches().length, 2);
+    assert.deepEqual(patches()[1].body.roster.players.find((player) => player.id === "p4").skipNextGame, false);
+    assert.ok(!markSheet(), "the second press is not taken for «Miss a match…» drawn where «Back on the roster» was");
+    assert.equal(markButton().textContent, "Miss a match…");
+  });
+});
+
+// 07a's c088324: after a 422 whose read of the server's roster failed, a press must not only say the rule again.
+test("a mark or a return refused after a 422 whose read failed reads the roster again; once it is read, the mark saves", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamRoster("t1");
+    api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+    api.fail("GET /api/teams/t1");
+    fireEvent(aside().querySelector('[data-action-key="touchdowns"] [data-action-step="1"]'), "click");
+    await settle();
+    assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"], "the read after the refusal failed");
+    const reads = () => api.calls.filter(({ key }) => key === "GET /api/teams/t1").length;
+    const before = reads();
+    fireEvent(toggle("p4#3"), "click");
+    fireEvent(returnButton(), "click");
+    assert.match(toasts().at(-1), /Ann/, "the rule that refused the queue");
+    await settle();
+    assert.equal(reads(), before + 1, "and the roster is read again");
+    fireEvent(toggle("p1#0"), "click");
+    fireEvent(markButton(), "click");
+    fireEvent(markOption("miss"), "click");
+    fireEvent(sendButton(), "click");
+    const refusal = markSheet().querySelector(".g-roster__markrefusal");
+    assert.match(refusal.textContent, /Ann/, "said in the sheet");
+    assert.equal(refusal.getAttribute("role"), "alert");
+    await settle();
+    assert.equal(reads(), before + 2, "a mark's press reads it again too");
+    assert.equal(patches().length, 1, "the refused step, and no mark");
+    // The network is back: the press reads the server's roster, and the next one saves on it.
+    api.reply("GET /api/teams/t1", 200, { team: team({ revision: 5 }) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(reads(), before + 3);
+    assert.equal(save.saveState("t1").status, "idle", "the server's roster taken");
+    assert.ok(markSheet()?.isModal, "the sheet stays for the coach to press again");
+    api.reply(PATCH, 200, { team: annMarked({ absence: { code: "miss" } }) });
+    fireEvent(sendButton(), "click");
+    await settle();
+    assert.equal(patches().length, 2);
+    assert.equal(patches()[1].body.revision, 5);
+    assert.deepEqual(patches()[1].body.roster.players.find((player) => player.id === "p1").absence, { code: "miss" });
+    assert.ok(!markSheet());
   });
 });
 
@@ -913,6 +985,8 @@ test("the row of actions: buttons side by side, a thumb tall; the sheet's refusa
   assert.deepEqual(valuesOf(sheet, ".g-roster__actions", "gap"), ["var(--space-10)"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "flex"), ["1 1 0"]);
   assert.deepEqual(valuesOf(sheet, ".g-roster__actions > .g-btn", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual([valuesOf(sheet, ".g-roster__actions", "font"), valuesOf(sheet, ".g-roster__actions", "letter-spacing"), valuesOf(sheet, ".g-roster__actions", "text-transform")],
+    [["600 14px/1.2 var(--font-body)"], ["0"], ["none"]]);
   for (const selector of [".g-roster__markrefusal", ".g-roster__markeffect"]) {
     assert.deepEqual([valuesOf(sheet, selector, "border"), valuesOf(sheet, selector, "background"), valuesOf(sheet, selector, "text-transform")], [["0"], ["none"], ["none"]], selector);
     assert.equal(valuesOf(sheet, selector, "font").length, 1, selector);

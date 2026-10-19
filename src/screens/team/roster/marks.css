@@ -180,6 +180,9 @@
   padding: 0;
   border: 0;
   background: none;
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
 }
 .g-roster__actions > .g-btn {
   flex: 1 1 0;

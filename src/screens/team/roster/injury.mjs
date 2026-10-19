@@ -48,8 +48,8 @@ export function sheetOf(visit, lines, where) {
 /** The buttons that open a sheet of a player's, by the sheet's kind: they carry his line's key. */
 const OPENERS = Object.freeze({ injury: "data-roster-injury", mark: "data-roster-mark", undo: "data-roster-undo" });
 
-/** The element under the view whose `attribute` names `key`, or null. */
-const keyed = (attribute, key) => [...view.querySelectorAll(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === key) ?? null;
+/** The element under the view whose `attribute` names `key`, or null: matched as text, so no key can break a selector. */
+export const keyed = (attribute, key) => [...view.querySelectorAll(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === key) ?? null;
 
 /**
  * Where the focus goes back to when a sheet has closed: what opened it, or the button of the same player drawn in its

@@ -132,7 +132,11 @@ export function returnClosed(line, screen) {
   return line.retired ? t("teamRoster.skips.retiredClosed") : markClosed(line, screen);
 }
 
-/** One button of the row of actions, as wide as the others; closed, it says why and keeps what names it. */
+/**
+ * One button of the row of actions, as wide as the others; closed, it says why and keeps what names it. `data.key`
+ * tells the two apart when the screen is patched: «Back on the roster» pressed twice is not, the second time, the
+ * «Miss a match…» drawn in its place.
+ */
 function actionMarkup({ label, reason, data, dialog = false }) {
   if (reason) return closedMarkup({ className: "g-btn", label, reason, data });
   return `<button type="button" class="g-btn"${dialog ? ' aria-haspopup="dialog"' : ""}${dataAttributes(data)}>${escapeHtml(label)}</button>`;
@@ -149,8 +153,8 @@ function actionMarkup({ label, reason, data, dialog = false }) {
 export function actionsMarkup(line, screen) {
   if (screen.mode.kind === "match") return "";
   const action = line.skip
-    ? { label: t("teamRoster.skips.return"), reason: returnClosed(line, screen), data: { rosterReturn: line.key } }
-    : { label: t("teamRoster.mark.open"), reason: markClosed(line, screen), data: { rosterMark: line.key }, dialog: true };
+    ? { label: t("teamRoster.skips.return"), reason: returnClosed(line, screen), data: { key: "roster-return", rosterReturn: line.key } }
+    : { label: t("teamRoster.mark.open"), reason: markClosed(line, screen), data: { key: "roster-mark", rosterMark: line.key }, dialog: true };
   return `<div class="g-roster__actions">${actionMarkup(action)}</div>`;
 }
 

@@ -359,9 +359,16 @@ function takeStep(saving, line, counter, delta, mode) {
   const { refusal } = stepSpp(teamId, line.id, counter, delta);
   if (!refusal) return;
   toast(refusal, { tone: "error" });
-  // Refused while the queue waits for the server's roster after a 422 (save.mjs): a read that failed left the screen
-  // with no way forward, so the tap asks for that roster again.
-  const save = saveState(teamId);
+  retakeRefused(saving);
+}
+
+/**
+ * A step refused while the queue waits for the server's roster after a 422 (save.mjs) — a counter's, a mark's: a read
+ * that failed left the screen with no way forward, so the press asks for that roster again (07a, c088324).
+ * @param {Saving} saving
+ */
+function retakeRefused(saving) {
+  const save = saveState(saving.teamId);
   if (save.status === SAVE_STATUS.ERROR && save.kind === API_ERROR.INVALID && !reading(saving.visit)) void reloadRoster(saving);
 }
 
@@ -454,7 +461,7 @@ function pressHandlers({ read, ...saving }) {
   };
   return {
     ...injuryHandlers(saving, { tapping: tappingOf(saving), now }),
-    ...markHandlers(saving, { now }),
+    ...markHandlers(saving, { now, refused: () => retakeRefused(saving) }),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();

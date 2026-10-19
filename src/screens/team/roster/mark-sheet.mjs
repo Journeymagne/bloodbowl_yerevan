@@ -97,7 +97,8 @@ function detailMarkup(choice) {
  * @param {object} props
  * @param {import("./model.mjs").PlayerLine} props.line the player
  * @param {MarkChoice} props.choice what is chosen in the sheet
- * @param {boolean} [props.busy] a write of the mark is on its way: the button sends no other until it has answered
+ * @param {boolean} [props.busy] a write of the mark is on its way: the button sends no other until it has answered. A
+ *   missed match never is (a step of the queue closes the sheet at once); a death, which is no step of it, is (Task 8)
  * @param {string} [props.refusal] why the last press was refused (another tab's coach, the server's rules), "" for none
  * @param {string} [props.reason] why no mark of his can be made just now (`markClosed`), "" when one can
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#roster-mark")` opens it

@@ -9,8 +9,8 @@
  * with the coach told how many (index.mjs, `reloadRoster`). A player who misses the next match is offered no second
  * mark — it would lay its injury over the first — but «Back on the roster», then a mark (owner's question 4).
  */
-import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
+import { keyed } from "./injury.mjs";
 import { chosenMark } from "./mark-sheet.mjs";
 import { markClosed, returnClosed } from "./panel.mjs";
 import { markSkip, unmarkSkip } from "./save.mjs";
@@ -24,9 +24,6 @@ import { markSkip, unmarkSkip } from "./save.mjs";
 
 /** The player of `key` on the roster as it stands, or null: the sheet's, a row's. */
 const lineOf = (where, key) => where.lines.find((line) => line.key === key) ?? null;
-
-/** A player's own button in the table, by his line's key: where the focus goes once his mark has landed. */
-const rowButton = (key) => [...view.querySelectorAll("[data-row-key]")].find((button) => button.getAttribute("data-row-key") === key) ?? null;
 
 /**
  * The sheet as the screen draws it, or null when it stands no longer: a missed match's while its player is on the
@@ -49,12 +46,14 @@ export function markSheetOf(visit, lines, where) {
  * (another tab's coach, the rules a 422 left the queue waiting on) is said in the sheet, which stays as it was; a
  * step taken closes it, and the focus goes to his row's button — in «Missing the match» now, under the same key — and
  * the panel keeps him. A step not taken (he misses the match already, the conflict the screen's lock says) changes
- * nothing but the drawing, which closes a sheet that no longer stands.
+ * nothing but the drawing, which closes a sheet that no longer stands. A refusal while the queue waits for the server's
+ * roster after a 422 asks for it again (`refused`), as a counter's step does: else a read that failed would leave
+ * every press to say the same rule and nothing more (07a, c088324).
  *
  * @param {import("./index.mjs").Saving} saving
- * @param {() => Now} now
+ * @param {{now: () => Now, refused: () => void}} options
  */
-function sendMark({ teamId, visit, memory, draw }, now) {
+function sendMark({ teamId, visit, memory, draw }, { now, refused }) {
   const { sheet } = visit;
   if (sheet?.kind !== "mark" || sheet.busy) return;
   const where = now();
@@ -70,7 +69,8 @@ function sendMark({ teamId, visit, memory, draw }, now) {
     memory.selected = sheet.key;
   }
   draw();
-  if (answer.ok) rowButton(sheet.key)?.focus();
+  if (answer.ok) keyed("data-row-key", sheet.key)?.focus();
+  if (answer.refusal) refused();
 }
 
 /**
@@ -78,15 +78,20 @@ function sendMark({ teamId, visit, memory, draw }, now) {
  * are kept in it, «Mark the missed match» takes the step (`sendMark`), «Back on the roster» takes its own. A press on
  * one that is closed says why and does nothing.
  *
+ * The sheet's `busy` is a write of it on its way: a missed match never is one (a step of the queue closes the sheet at
+ * once), a death is (Task 8), and the sheet's button sends nothing while it is.
+ *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
- * @param {{now: () => Now}} options `now` is the screen as it stands at the press
+ * @param {{now: () => Now, refused: () => void}} options `now` is the screen as it stands at the press; `refused`
+ *   is what a step the queue refused asks for: the server's roster again, when a 422's read of it failed (index.mjs)
  */
-export function markHandlers(saving, { now }) {
+export function markHandlers(saving, { now, refused }) {
   const { teamId, visit, draw } = saving;
-  // The same sheet, changed: the field the coach types in survives the redraw (patchWithModal keeps its caret).
+  // The same sheet, changed: the field the coach types in survives the redraw (patchWithModal keeps its caret). A
+  // refusal was said of the choice before, and goes with it.
   const change = (part) => {
     if (visit.sheet?.kind !== "mark") return;
-    visit.sheet.choice = { ...visit.sheet.choice, ...part };
+    Object.assign(visit.sheet, { choice: { ...visit.sheet.choice, ...part }, refusal: "" });
     draw();
   };
   return {
@@ -103,7 +108,7 @@ export function markHandlers(saving, { now }) {
     },
     onMarkChoice: (part) => change(part),
     onMarkText: (text) => change({ text }),
-    onMarkSend: () => sendMark(saving, now),
+    onMarkSend: () => sendMark(saving, { now, refused }),
     onReturn: (key) => {
       const where = now();
       const line = lineOf(where, key);
@@ -114,7 +119,9 @@ export function markHandlers(saving, { now }) {
         return;
       }
       const { refusal } = unmarkSkip(teamId, line.id);
-      if (refusal) toast(refusal, { tone: "error" });
+      if (!refusal) return;
+      toast(refusal, { tone: "error" });
+      refused();
     },
   };
 }
