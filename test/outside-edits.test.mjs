@@ -153,6 +153,19 @@ test("outside a match a step down is refused once the blob and the edits waiting
     [["home-2", "completions", 1], ["home-2", "completions", -1], ["home-3", "touchdowns", -1]]);
 }));
 
+// Final review, Minor 8: the one place 016's `mvps` in careerCounters is load-bearing — the MVP's step down outside a match.
+test("outside a match an MVP step down is refused while the blob and the edits waiting hold none, and taken once a +1 waits", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  const refused = await edit(token, "home-2", "mvps", -1);
+  assert.deepEqual([refused.status, refused.body.error.code, refused.body.error.params], [409, "EVENT_BELOW_ZERO", { playerId: "home-2", counter: "mvps" }]);
+  assert.equal((await edit(token, "home-2", "mvps")).status, 201);
+  assert.equal((await edit(token, "home-2", "mvps", -1)).status, 201, "the +1 that waits is what it takes back");
+  assert.equal((await edit(token, "home-2", "mvps", -1)).body.error?.code, "EVENT_BELOW_ZERO", "and no further");
+  assert.deepEqual((await outside(client, teams.home)).map((row) => [row.player_id, row.counter, row.delta, row.settled]),
+    [["home-2", "mvps", 1, false], ["home-2", "mvps", -1, false]]);
+}));
+
 test("the finish carries an edit made outside the match into the blob and settles it; the match's own record does not hold it", db, () => withApiDatabase(async ({ client }) => {
   await startedFriendly(client);
   const token = await sessionFor(client, coaches.home.id);
@@ -274,6 +287,10 @@ test("the finish carries an edit waiting for a player with an old numeric id int
   assert.equal((await act("home", ready, null, true)).status, "completed");
   assert.equal(await completionsOf(client), 3);
   assert.deepEqual(await outside(client, teams.home), [{ player_id: "5", counter: "completions", delta: 1, settled: true }]);
+  // What the comment above says the finish does (final review, T6b): every id it writes is the text.
+  const ids = (await teamRow(client, teams.home)).roster.players.map((item) => item.id);
+  assert.deepEqual(ids.filter((item) => typeof item !== "string"), [], `the ids as the finish wrote them: ${JSON.stringify(ids)}`);
+  assert.ok(ids.includes("5"));
 }));
 
 test("the carry reads the roster as the team holds it: the edits waiting for a player stored with a number for an id reach the blob and are settled", db, () => withApiDatabase(async ({ client }) => {
