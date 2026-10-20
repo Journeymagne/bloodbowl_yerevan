@@ -101,9 +101,9 @@ export const LIVE_GAME = {
 };
 export const STYLES = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css",
   "src/screens/team/roster/market.css", "src/screens/team/roster/profile.css", "src/screens/team/roster/player-sheets.css", "src/screens/team/roster/advance.css",
-  "src/screens/team/roster/rolls.css", "src/screens/team/roster/fix.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
-  "stat-strip.css", "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
-  "src/screens/team/manage/strip.css"];
+  "src/screens/team/roster/rolls.css", "src/screens/team/roster/fix.css", "src/screens/team/roster/career.css", "page-head.css", "roster-table.css",
+  "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css",
+  "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css"];
 
 /** The player's address as the router draws a player of the roster (stage 07d): the roster's player mode. */
 export const playerPage = (playerId) => renderTeamRoster("t1", { playerId });

@@ -15,24 +15,24 @@ const { EXTRA_COUNTERS, MAIN_COUNTERS } = await import("../src/screens/team/rost
 // GET /api/teams/:id/players/:pid/history, and drawn on a press of the heading's button, newest first, the edits outside
 // a match last. A desk's career is stage 07e's (DeskRosterCareer.html); so is a fallen player's.
 
-const PROFILE = "src/screens/team/roster/profile.css";
+const CAREER = "src/screens/team/roster/career.css";
 const HISTORY_READ = "GET /api/teams/t1/players/p3/history";
 const TEAM_READ = "GET /api/teams/t1";
 const NOTE = "Actions are recorded by taps on the roster and in the post-match. A line that waits for the post-match is in the career already, "
   + "and stays once both coaches finish the match. Edits outside a match are a line of their own. Matches before the site's records are not listed.";
 const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
 const callsTo = (key) => callKeys().filter((each) => each === key).length;
-const career = () => view.querySelector(".g-profile__career");
+const career = () => view.querySelector(".g-career");
 const careerToggle = () => view.querySelector("[data-player-career]");
 const list = () => view.querySelector("#player-career-list");
 const press = () => fireEvent(careerToggle(), "click");
-const totals = () => career().querySelectorAll(".g-profile__careertotal").map((cell) => [cell.querySelector("dt").textContent, cell.querySelector("dd").textContent]);
-const rowWords = () => list().querySelectorAll(".g-profile__careerrow").map((row) => [
-  row.querySelector(".g-profile__careername").textContent,
-  row.querySelector(".g-profile__careerresult")?.textContent ?? "",
-  row.querySelector(".g-profile__careerevents")?.textContent ?? "",
-  row.querySelector(".g-profile__careerspp").textContent,
-  row.querySelector(".g-profile__careerpending")?.textContent ?? "",
+const totals = () => career().querySelectorAll(".g-career__total").map((cell) => [cell.querySelector("dt").textContent, cell.querySelector("dd").textContent]);
+const rowWords = () => list().querySelectorAll(".g-career__row").map((row) => [
+  row.querySelector(".g-career__name").textContent,
+  row.querySelector(".g-career__result")?.textContent ?? "",
+  row.querySelector(".g-career__events")?.textContent ?? "",
+  row.querySelector(".g-career__spp").textContent,
+  row.querySelector(".g-career__pending")?.textContent ?? "",
 ]);
 
 /** Every counter of a roster's, nought unless said. */
@@ -93,17 +93,17 @@ test("the career stands right after the skills: «Career», «N SPP · by match�
     await settle();
     const body = view.querySelector(".g-profile__body");
     const blocks = body.childNodes.map((node) => node.getAttribute("class").split(" ")[0]);
-    assert.deepEqual(blocks.slice(-3), ["g-profile__skills", "g-profile__career", "g-profile__injuries"], "PlayerCareer.html: after «Skills», before «Injuries»");
+    assert.deepEqual(blocks.slice(-3), ["g-profile__skills", "g-career", "g-profile__injuries"], "PlayerCareer.html: after «Skills», before «Injuries»");
     assert.equal(career().tagName, "SECTION");
-    assert.equal(career().querySelector(".g-profile__careertitle").textContent, "Career");
-    assert.equal(career().querySelector(".g-profile__careersub").textContent, "18 SPP · by match");
+    assert.equal(career().querySelector(".g-career__title").textContent, "Career");
+    assert.equal(career().querySelector(".g-career__sub").textContent, "18 SPP · by match");
     assert.ok(careerToggle().querySelector("svg.g-icon"), "the chevron");
     // The totals from the roster's line at once; GP waits for the history (Review Focus 4).
     assert.deepEqual(totals(), [["GP", "–"], ["TD", "4"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]]);
     gate.release();
     await settle();
     assert.deepEqual(totals(), [["GP", "1"], ["TD", "4"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]], "the one confirmed match the site knows he played");
-    const quiet = career().querySelectorAll(".g-profile__careervalue").map((value) => value.classList.contains("g-profile__careerzero"));
+    const quiet = career().querySelectorAll(".g-career__value").map((value) => value.classList.contains("g-career__zero"));
     assert.deepEqual(quiet, [false, false, true, false, true, true, false], "a nought is quiet");
     assert.equal(careerToggle().tagName, "BUTTON");
     assert.equal(careerToggle().getAttribute("type"), "button");
@@ -122,15 +122,15 @@ test("the list opens on a press: newest first — the round, the opponent, the r
     press();
     assert.equal(careerToggle().getAttribute("aria-expanded"), "true");
     assert.equal(careerToggle().getAttribute("aria-controls"), "player-career-list");
-    assert.ok(list().closest(".g-profile__career"), "in the section");
-    assert.deepEqual(list().querySelector(".g-profile__careerlisthead").childNodes.map((node) => node.textContent), ["All matches · 4", "SPP"]);
+    assert.ok(list().closest(".g-career"), "in the section");
+    assert.deepEqual(list().querySelector(".g-career__listhead").childNodes.map((node) => node.textContent), ["All matches · 4", "SPP"]);
     assert.deepEqual(rowWords(), ROWS, "18 SPP, and the rows add up to it: no «Before the site's records»");
-    assert.equal(list().querySelector(".g-profile__careerrows").tagName, "UL");
-    const results = list().querySelectorAll(".g-profile__careerresult").map((result) => result.getAttribute("class"));
-    assert.deepEqual(results, ["g-profile__careerresult g-profile__careerresult--lost", "g-profile__careerresult g-profile__careerresult--drawn", "g-profile__careerresult g-profile__careerresult--won"]);
-    const quiet = list().querySelectorAll(".g-profile__careerrow").map((row) => row.querySelector(".g-profile__careerevents").classList.contains("g-profile__careerquiet"));
+    assert.equal(list().querySelector(".g-career__rows").tagName, "UL");
+    const results = list().querySelectorAll(".g-career__result").map((result) => result.getAttribute("class"));
+    assert.deepEqual(results, ["g-career__result g-career__result--lost", "g-career__result g-career__result--drawn", "g-career__result g-career__result--won"]);
+    const quiet = list().querySelectorAll(".g-career__row").map((row) => row.querySelector(".g-career__events").classList.contains("g-career__quiet"));
     assert.deepEqual(quiet, [false, true, true, false, false], "a missed match and one without details are quiet");
-    assert.equal(list().querySelector(".g-profile__careernote").textContent, NOTE);
+    assert.equal(list().querySelector(".g-career__note").textContent, NOTE);
     assertCspSafe(view);
     assertStyled(view, ...STYLES);
     // Closed again: the totals stay, the list goes.
@@ -151,13 +151,13 @@ test("matches before the first one the site knows the player in are not listed",
     await openCade({ ...HISTORY, matches: [...before, ...HISTORY.matches] });
     press();
     assert.deepEqual(rowWords(), ROWS);
-    assert.equal(list().querySelector(".g-profile__careerlisthead").childNodes[0].textContent, "All matches · 4");
+    assert.equal(list().querySelector(".g-career__listhead").childNodes[0].textContent, "All matches · 4");
     // A player with no SPP the site knows in no match yet, nothing outside one: «No matches yet», and the footnote under it (ruling on I1).
     await openCade({ playerId: "p3", matches: before, outside: counters() }, { player: PLAYERS[2], events: [] });
     press();
-    assert.equal(list().querySelector(".g-profile__careerstate").textContent, "No matches yet");
-    assert.ok(!list().querySelector(".g-profile__careerrows"));
-    assert.equal(list().querySelector(".g-profile__careernote").textContent, NOTE);
+    assert.equal(list().querySelector(".g-career__state").textContent, "No matches yet");
+    assert.ok(!list().querySelector(".g-career__rows"));
+    assert.equal(list().querySelector(".g-career__note").textContent, NOTE);
     assert.deepEqual(totals()[0], ["GP", "0"]);
     assertStyled(view, ...STYLES);
   });
@@ -203,18 +203,18 @@ test("a read that failed: the totals stand, GP «–», the list says why; openi
     await settle();
     assert.equal(callsTo(HISTORY_READ), 1);
     assert.deepEqual(totals(), [["GP", "–"], ["TD", "4"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]]);
-    assert.ok(career().querySelector(".g-profile__careervalue").classList.contains("g-profile__careerzero"), "«–» is quiet");
+    assert.ok(career().querySelector(".g-career__value").classList.contains("g-career__zero"), "«–» is quiet");
     // Opened: read again, «Reading the matches…» meanwhile (K14: a career let go is drawn as read).
     press();
     assert.equal(callsTo(HISTORY_READ), 2);
-    const reading = list().querySelector(".g-profile__careerstate");
+    const reading = list().querySelector(".g-career__state");
     assert.equal(reading.textContent, "Reading the matches…");
     assert.equal(reading.getAttribute("role"), "status");
     await settle();
-    const failed = list().querySelector(".g-profile__careerstate");
+    const failed = list().querySelector(".g-career__state");
     assert.match(failed.textContent, /^The matches did not load: ./);
     assert.equal(failed.getAttribute("role"), "alert");
-    assert.ok(failed.classList.contains("g-profile__careerstate--bad"));
+    assert.ok(failed.classList.contains("g-career__state--bad"));
     assert.deepEqual(totals()[0], ["GP", "–"]);
     assertStyled(view, ...STYLES);
     // Closed: nothing read. Opened again: read again, and drawn.
@@ -233,7 +233,7 @@ test("a read that failed: the totals stand, GP «–», the list says why; openi
     await settle();
     press();
     await settle();
-    assert.match(list().querySelector(".g-profile__careerstate").textContent, /^The matches did not load: ./);
+    assert.match(list().querySelector(".g-career__state").textContent, /^The matches did not load: ./);
   });
 });
 
@@ -244,7 +244,7 @@ test("an answer after the coach left draws nothing", async () => {
     await playerPage("p3");
     await settle();
     press();
-    assert.equal(list().querySelector(".g-profile__careerstate").textContent, "Reading the matches…");
+    assert.equal(list().querySelector(".g-career__state").textContent, "Reading the matches…");
     // «‹ Roster»: the router leaves the profile for the roster.
     releaseCurrentScreen();
     await renderTeamRoster("t1");
@@ -266,16 +266,16 @@ test("a veteran with 28 SPP and no match the site knows: «Before the site's rec
   const unknown = match({ played: null, source: "none", counters: null });
   await withWindow({ phone: true }, async () => {
     await openCade({ playerId: "p3", matches: [unknown], outside: counters() }, { player: veteran, events: [] });
-    assert.equal(career().querySelector(".g-profile__careersub").textContent, "28 SPP · by match");
+    assert.equal(career().querySelector(".g-career__sub").textContent, "28 SPP · by match");
     assert.deepEqual(totals()[0], ["GP", "0"]);
     press();
-    assert.deepEqual(list().querySelector(".g-profile__careerlisthead").childNodes.map((node) => node.textContent), ["All matches · 0", "SPP"]);
+    assert.deepEqual(list().querySelector(".g-career__listhead").childNodes.map((node) => node.textContent), ["All matches · 0", "SPP"]);
     assert.deepEqual(rowWords(), [["Before the site's records", "", "", "+28", ""]], "no match's details: its title and its SPP alone");
-    const row = list().querySelector(".g-profile__careerrow");
-    assert.ok(!row.querySelector(".g-profile__careerevents"));
-    assert.ok(row.querySelector(".g-profile__careerspp").classList.contains("g-profile__careerquiet"), "quiet");
-    assert.ok(!list().querySelector(".g-profile__careerstate"), "not «No matches yet»: there is a row to add up");
-    assert.equal(list().querySelector(".g-profile__careernote").textContent, NOTE);
+    const row = list().querySelector(".g-career__row");
+    assert.ok(!row.querySelector(".g-career__events"));
+    assert.ok(row.querySelector(".g-career__spp").classList.contains("g-career__quiet"), "quiet");
+    assert.ok(!list().querySelector(".g-career__state"), "not «No matches yet»: there is a row to add up");
+    assert.equal(list().querySelector(".g-career__note").textContent, NOTE);
     assertCspSafe(view);
     assertStyled(view, ...STYLES);
   });
@@ -359,7 +359,7 @@ test("the toggle keeps the focus; its heading is the section's", async () => {
     await openCade();
     const heading = careerToggle().parentNode;
     assert.equal(heading.tagName, "H2", "a heading's navigation finds it, as «Skills»");
-    assert.ok(heading.classList.contains("g-profile__careerhead"));
+    assert.ok(heading.classList.contains("g-career__head"));
     assert.ok(heading.parentNode === career());
     careerToggle().focus();
     press();
@@ -375,7 +375,7 @@ test("an opponent's name and the words are text", async () => {
   await withWindow({ phone: true }, async () => {
     await openCade({ ...HISTORY, matches: [match({ opponent: { teamId: "r1", name: HOSTILE } })] });
     press();
-    assert.equal(list().querySelector(".g-profile__careername").textContent, `Round 1 · ${HOSTILE}`);
+    assert.equal(list().querySelector(".g-career__name").textContent, `Round 1 · ${HOSTILE}`);
     assert.ok(!view.querySelector("img"));
     assert.ok(!view.querySelector("[onerror]"));
     assertCspSafe(view);
@@ -396,29 +396,38 @@ test("every key in both dictionaries; styled; D2; wrapping", () => {
   assert.equal(ru["teamPlayer.career.out"], "пропуск матча", "neutral words: no «не играл»");
   assert.equal(ru["teamPlayer.career.note"], "Действия записываются тапами в «Составе» и в итогах матча. Строка «ждёт итогов» уже входит в карьеру и закрепится, "
     + "когда оба тренера завершат матч. Правки вне матча — отдельной строкой. Матчи до записей на сайте не показываются.");
+  // Stage 07e: a block of its own, in a sheet of its own with no width — the form is a class.
+  const uncommented = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.ok(!/g-career|g-profile__career/.test(uncommented("src/screens/team/roster/profile.css")), "the profile's sheet holds no career rule");
+  assert.ok(!/@media/.test(uncommented(CAREER)), "no width: the form is a class (a fallen player's page on a desk draws the phone's block, stage 07e)");
+  // PlayerCareer.html's #DCE3DF is --line-strong: the totals' two rules and the list's ring; a row's #E6EBE8 rule is --line.
+  assert.deepEqual(valuesOf(CAREER, ".g-career__totals", "border"), ["1px solid var(--line-strong)"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__totals", "border-width"), ["1px 0"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__rows", "box-shadow"), ["var(--ring)"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__row", "border-bottom"), ["1px solid var(--line)"]);
   // D2: the heading's button is a thumb tall.
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careertoggle", "min-height"), ["var(--size-touch)"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__toggle", "min-height"), ["var(--size-touch)"]);
   // PlayerCareer.html, as it draws (content-box): a row is 56px of content, 8px over and under and a 1px rule — 73px.
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careerrow", "min-height"), ["73px"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careerrow", "padding"), ["var(--space-8) var(--space-12)"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careerrow", "grid-template-columns"), ["minmax(0, 1fr) auto"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careertotals", "grid-template-columns"), ["repeat(7, minmax(0, 1fr))"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careertotals", "padding"), ["var(--space-8) 0"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careerrows", "border-radius"), ["var(--radius-xl)"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careerpending", "border-radius"), ["var(--radius-md)"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__careertoggle .g-icon", "transform"), ["rotate(90deg)"], "the chevron points down while closed");
-  assert.deepEqual(valuesOf(PROFILE, '.g-profile__careertoggle[aria-expanded="true"] .g-icon', "transform"), ["rotate(-90deg)"], "and turns 180° open");
+  assert.deepEqual(valuesOf(CAREER, ".g-career__row", "min-height"), ["73px"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__row", "padding"), ["var(--space-8) var(--space-12)"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__row", "grid-template-columns"), ["minmax(0, 1fr) auto"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__totals", "grid-template-columns"), ["repeat(7, minmax(0, 1fr))"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__totals", "padding"), ["var(--space-8) 0"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__rows", "border-radius"), ["var(--radius-xl)"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__pending", "border-radius"), ["var(--radius-md)"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__toggle .g-icon", "transform"), ["rotate(90deg)"], "the chevron points down while closed");
+  assert.deepEqual(valuesOf(CAREER, '.g-career__toggle[aria-expanded="true"] .g-icon', "transform"), ["rotate(-90deg)"], "and turns 180° open");
   // Readable on the page and on the plate, in every palette.
-  for (const selector of [".g-profile__careersub", ".g-profile__careerkey", ".g-profile__careervalue", ".g-profile__careerzero", ".g-profile__careerlisthead",
-    ".g-profile__careername", ".g-profile__careerresult--won", ".g-profile__careerresult--drawn", ".g-profile__careerresult--lost", ".g-profile__careerevents",
-    ".g-profile__careerspp", ".g-profile__careerquiet", ".g-profile__careernote", ".g-profile__careerstate", ".g-profile__careerstate--bad"]) {
-    assertReadable(PROFILE, selector, "color", ["--surface"], 4.5);
+  for (const selector of [".g-career__sub", ".g-career__key", ".g-career__value", ".g-career__zero", ".g-career__listhead",
+    ".g-career__name", ".g-career__result--won", ".g-career__result--drawn", ".g-career__result--lost", ".g-career__events",
+    ".g-career__spp", ".g-career__quiet", ".g-career__note", ".g-career__state", ".g-career__state--bad"]) {
+    assertReadable(CAREER, selector, "color", ["--surface"], 4.5);
   }
-  assertReadable(PROFILE, ".g-profile__careerpending", "color", ["--warn-tint"], 4.5);
+  assertReadable(CAREER, ".g-career__pending", "color", ["--warn-tint"], 4.5);
   // A long opponent and a long line of actions wrap; nothing is cut with «…».
-  const css = text(PROFILE).replace(/\/\*[\s\S]*?\*\//g, "");
+  const css = text(CAREER).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/text-overflow\s*:\s*ellipsis/.test(css));
-  for (const selector of [".g-profile__careername", ".g-profile__careerevents"]) assert.deepEqual(valuesOf(PROFILE, selector, "overflow-wrap"), ["anywhere"], selector);
+  for (const selector of [".g-career__name", ".g-career__events"]) assert.deepEqual(valuesOf(CAREER, selector, "overflow-wrap"), ["anywhere"], selector);
 });
 
 test("the rows: an MVP is «MVP», two are «MVP 2»; a match's injury; a negative edit outside a match; GP counts no match on", () => {

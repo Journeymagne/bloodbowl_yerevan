@@ -152,10 +152,10 @@ export function gamesPlayed(history) {
 
 /** The totals: GP («–» until the history is read), then TD to MVP from the roster's line; a nought is quiet. */
 function totalsMarkup(line, career) {
-  const cell = (label, value) => `<div class="g-profile__careertotal"><dt class="g-profile__careerkey">${escapeHtml(label)}</dt>`
-    + `<dd class="${classNames("g-profile__careervalue", (value === null || value === 0) && "g-profile__careerzero")}">${escapeHtml(value ?? "–")}</dd></div>`;
+  const cell = (label, value) => `<div class="g-career__total"><dt class="g-career__key">${escapeHtml(label)}</dt>`
+    + `<dd class="${classNames("g-career__value", (value === null || value === 0) && "g-career__zero")}">${escapeHtml(value ?? "–")}</dd></div>`;
   const games = career?.history ? gamesPlayed(career.history) : null;
-  return `<dl class="g-profile__careertotals">${cell(t("teamPlayer.career.gp"), games)}`
+  return `<dl class="g-career__totals">${cell(t("teamPlayer.career.gp"), games)}`
     + `${MAIN_COUNTERS.map((counter) => cell(t(`teamRoster.counter.${counter}`), line.career?.[counter] ?? 0)).join("")}</dl>`;
 }
 
@@ -165,12 +165,12 @@ function totalsMarkup(line, career) {
  */
 function rowMarkup(row) {
   const result = row.outcome
-    ? `<span class="g-profile__careerresult g-profile__careerresult--${escapeHtml(row.outcome)}">${escapeHtml(row.result)}</span>` : "";
-  const plate = row.pending ? `<span class="g-profile__careerpending">${escapeHtml(t("teamPlayer.career.pending"))}</span>` : "";
-  return `<li class="g-profile__careerrow"><span class="g-profile__careermain"><span class="g-profile__careerline">`
-    + `<b class="g-profile__careername">${escapeHtml(row.title)}</b>${result}</span>`
-    + `${row.events ? `<span class="${classNames("g-profile__careerevents", row.quiet && "g-profile__careerquiet")}">${escapeHtml(row.events)}</span>` : ""}</span>`
-    + `<span class="g-profile__careerside"><b class="${classNames("g-profile__careerspp", row.quiet && "g-profile__careerquiet")}">${escapeHtml(row.spp)}</b>${plate}</span></li>`;
+    ? `<span class="g-career__result g-career__result--${escapeHtml(row.outcome)}">${escapeHtml(row.result)}</span>` : "";
+  const plate = row.pending ? `<span class="g-career__pending">${escapeHtml(t("teamPlayer.career.pending"))}</span>` : "";
+  return `<li class="g-career__row"><span class="g-career__main"><span class="g-career__line">`
+    + `<b class="g-career__name">${escapeHtml(row.title)}</b>${result}</span>`
+    + `${row.events ? `<span class="${classNames("g-career__events", row.quiet && "g-career__quiet")}">${escapeHtml(row.events)}</span>` : ""}</span>`
+    + `<span class="g-career__side"><b class="${classNames("g-career__spp", row.quiet && "g-career__quiet")}">${escapeHtml(row.spp)}</b>${plate}</span></li>`;
 }
 
 /**
@@ -179,7 +179,7 @@ function rowMarkup(row) {
  * (ruling on I1: it says why the matches before the site's records are not there). The rows never fall short of `earned`.
  */
 function listMarkup(race, career, earned) {
-  const state = (words, { role = "", bad = false } = {}) => `<p class="${classNames("g-profile__careerstate", bad && "g-profile__careerstate--bad")}"`
+  const state = (words, { role = "", bad = false } = {}) => `<p class="${classNames("g-career__state", bad && "g-career__state--bad")}"`
     + `${role ? ` role="${role}"` : ""}>${escapeHtml(words)}</p>`;
   let body;
   if (!career || career.loading) body = state(t("teamPlayer.career.reading"), { role: "status" });
@@ -188,10 +188,10 @@ function listMarkup(race, career, earned) {
     const rows = careerRows(career.history, race, { earned });
     const count = rows.filter((row) => row.key !== OUTSIDE && row.key !== BEFORE).length;
     body = (!rows.length ? state(t("teamPlayer.career.none"))
-      : `<div class="g-profile__careerlisthead"><span>${escapeHtml(t("teamPlayer.career.listHead", { count }))}</span><span>${escapeHtml(t("teamPlayer.career.sppHead"))}</span></div>`
-        + `<ul class="g-profile__careerrows">${rows.map(rowMarkup).join("")}</ul>`) + `<p class="g-profile__careernote">${escapeHtml(t("teamPlayer.career.note"))}</p>`;
+      : `<div class="g-career__listhead"><span>${escapeHtml(t("teamPlayer.career.listHead", { count }))}</span><span>${escapeHtml(t("teamPlayer.career.sppHead"))}</span></div>`
+        + `<ul class="g-career__rows">${rows.map(rowMarkup).join("")}</ul>`) + `<p class="g-career__note">${escapeHtml(t("teamPlayer.career.note"))}</p>`;
   }
-  return `<div id="${LIST}" class="g-profile__careerlist">${body}</div>`;
+  return `<div id="${LIST}" class="g-career__list">${body}</div>`;
 }
 
 /**
@@ -202,11 +202,11 @@ function listMarkup(race, career, earned) {
  * @returns {string}
  */
 export function careerMarkup({ line, race, career, open }) {
-  const toggle = `<h2 class="g-profile__careerhead"><button type="button" class="g-profile__careertoggle" aria-expanded="${open ? "true" : "false"}"`
-    + `${open ? ` aria-controls="${LIST}"` : ""} data-player-career><span class="g-profile__careertitles">`
-    + `<span class="g-profile__careertitle">${escapeHtml(t("teamPlayer.career.title"))}</span>`
-    + `<span class="g-profile__careersub">${escapeHtml(t("teamPlayer.career.sub", { spp: line.earned }))}</span></span>${icon("chevron", 18)}</button></h2>`;
-  return `<section class="g-profile__career">${toggle}${totalsMarkup(line, career)}${open ? listMarkup(race, career, line.earned) : ""}</section>`;
+  const toggle = `<h2 class="g-career__head"><button type="button" class="g-career__toggle" aria-expanded="${open ? "true" : "false"}"`
+    + `${open ? ` aria-controls="${LIST}"` : ""} data-player-career><span class="g-career__titles">`
+    + `<span class="g-career__title">${escapeHtml(t("teamPlayer.career.title"))}</span>`
+    + `<span class="g-career__sub">${escapeHtml(t("teamPlayer.career.sub", { spp: line.earned }))}</span></span>${icon("chevron", 18)}</button></h2>`;
+  return `<section class="g-career">${toggle}${totalsMarkup(line, career)}${open ? listMarkup(race, career, line.earned) : ""}</section>`;
 }
 
 /**
