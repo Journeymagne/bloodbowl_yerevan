@@ -13,7 +13,7 @@
  * skill in place…» and «Record this roll…», a god's bonus skill
  * and «Add …» on done, and «Undo the last: …» with its sheet's «Keep» and «Undo advancement»; the edit's line to
  * the fix by hand, its counters' − and +, its injuries' points, favoured skills and skills to take off, «Cancel» and
- * «Save» (stage 07d).
+ * «Save»; the button of a phone's «Career» (stage 07d).
  * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs); this
  * file only says who was pressed.
  */
@@ -95,11 +95,11 @@ function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused
 /**
  * A player's own presses (stage 07d): his pencil (not when closed), the edit's number and name as they are typed — the
  * screen is patched, so the field keeps its focus and its caret — and its «Cancel» and «Save»; «Undo the last: …» (not
- * when closed) and its sheet's «Keep» and «Undo advancement». The switch «Team captain» is heard with the roster's
- * other switch (`wireRoster`); the SPP tiles of a desk's edit are the roster's counters, whose − and +
- * `wireActionSteppers` hears.
+ * when closed) and its sheet's «Keep» and «Undo advancement»; the button of his profile's «Career», which opens and
+ * closes its list. The switch «Team captain» is heard with the roster's other switch (`wireRoster`); the SPP tiles of
+ * a desk's edit are the roster's counters, whose − and + `wireActionSteppers` hears.
  */
-function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadvance, onUnadvanceKeep, onUnadvanceSend }) {
+function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadvance, onUnadvanceKeep, onUnadvanceSend, onCareerToggle }) {
   return [
     onPlayerButton(root, "data-player-edit", onEdit),
     ...Object.entries(EDIT_FIELDS).map(([field, id]) => delegate(root, "input", `#${id}`, (event, input) => onEditField(field, input.value))),
@@ -108,6 +108,7 @@ function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadv
     onPlayerButton(root, "data-player-unadvance", onUnadvance),
     delegate(root, "click", "[data-unadvance-keep]", () => onUnadvanceKeep()),
     delegate(root, "click", "[data-unadvance-send]", () => onUnadvanceSend()),
+    delegate(root, "click", "[data-player-career]", () => onCareerToggle()),
   ];
 }
 
@@ -259,6 +260,7 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {(skill: string) => void} handlers.onFixDrop a skill no advancement gave, its «Take off»
  * @param {() => void} handlers.onFixKeep «Cancel» in the fix
  * @param {() => void} handlers.onFixSave «Save» in the fix
+ * @param {() => void} handlers.onCareerToggle the button of a phone's «Career», which opens and closes its list
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {

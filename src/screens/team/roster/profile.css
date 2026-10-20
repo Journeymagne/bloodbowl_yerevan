@@ -2,9 +2,9 @@
  * A player's own page on a phone (screens/team/roster/profile.mjs; Player.html, PlayerCaptain.html, PlayerDead.html):
  * a screen of its own, drilled into from the roster. His dark head sticks to the top of the page as the prototype's
  * stands outside its scrolling `main`, with «‹ Roster» where the prototype has the team switcher (owner, 2026-10-19),
- * and under it his characteristics, his SPP — with «Undo the last: …» in its card — his skills and his injuries, 22px
- * apart in `main`'s 16 16 28. The stat
- * strip, the progress dots, the skill cards and the buttons are the ui/ sheets'; this one sizes them as Player.html
+ * and under it his characteristics, his SPP — with «Undo the last: …» in its card — his skills, his career
+ * (PlayerCareer.html) and his injuries, 22px apart in `main`'s 16 16 28. The stat strip, the progress dots, the
+ * skill cards and the buttons are the ui/ sheets'; this one sizes them as Player.html
  * does. A desk has no such page (the address is the roster with him in the panel), so every rule is up to 900px.
  *
  * Where Player.html gives no line height, the font's own (`normal`) is the prototype's: Oswald's 1.48, Golos' 1.2.
@@ -368,6 +368,209 @@
     font: 600 14px/normal var(--font-body);
     overflow-wrap: anywhere;
   }
+
+  /*
+   * «Career» (career.mjs; PlayerCareer.html), right after «Skills»: a column 10px apart — the heading's button, the totals,
+   * the list while open. The prototype is content-box: a height it gives over padding is written as it draws.
+   */
+  .g-profile__career {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+    min-width: 0;
+  }
+  /* The heading is only the button's, so a heading's navigation finds it; the footnote and the list's words are text. */
+  .g-profile__careerhead,
+  .g-profile__careernote,
+  .g-profile__careerstate {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .g-profile__careerhead { font: 400 14px/normal var(--font-body); }
+  /* A thumb tall, no frame and no fill: «Career» and «N SPP · by match» on one baseline 10px apart, the chevron at the right. */
+  .g-profile__careertoggle {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-10);
+    width: 100%;
+    min-height: var(--size-touch);
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--ink);
+    font: 400 14px/normal var(--font-body);
+    letter-spacing: 0;
+    text-align: left;
+    text-transform: none;
+    cursor: pointer;
+  }
+  .g-profile__careertitles {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--space-10);
+    min-width: 0;
+  }
+  .g-profile__careertitle {
+    color: var(--ink);
+    font: 700 24px/normal var(--font-display);
+  }
+  .g-profile__careersub {
+    color: var(--muted);
+    font: 400 13px/normal var(--font-body);
+  }
+  /* The prototype's chevron is the shared one (pointing right) turned down; open, it turns 180°. */
+  .g-profile__careertoggle .g-icon { transform: rotate(90deg); }
+  .g-profile__careertoggle[aria-expanded="true"] .g-icon { transform: rotate(-90deg); }
+  /* The totals: seven columns alike, centred, between two 1px rules, 8 0; «GP» 12/600 quiet over the number 17/600, 4 under it. */
+  .g-profile__careertotals {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    margin: 0;
+    padding: var(--space-8) 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: none;
+    text-align: center;
+  }
+  .g-profile__careertotal {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 0;
+  }
+  .g-profile__careerkey {
+    margin: 0;
+    color: var(--muted);
+    font: 600 12px/normal var(--font-body);
+    letter-spacing: 0;
+  }
+  .g-profile__careervalue {
+    margin: 0;
+    padding: var(--space-4) 0 0;
+    color: var(--ink);
+    font: 600 17px/normal var(--font-body);
+    letter-spacing: 0;
+  }
+  /* A nought, and GP before the history is read: quiet (the prototype's #8A948F is --muted, as 07a/07b decided). */
+  .g-profile__careerzero { color: var(--muted); }
+  /* The list: a column 8px apart; «All matches · N» and «SPP» at its two ends, 12/700, .06em, in capitals, quiet. */
+  .g-profile__careerlist {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-8);
+    min-width: 0;
+  }
+  .g-profile__careerlisthead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-10);
+    color: var(--muted);
+    font: 700 12px/normal var(--font-body);
+    letter-spacing: .06em;
+    text-transform: uppercase;
+  }
+  /* 14px corners and a 1px ring, as the prototype draws them: under the rows' own fill, which covers the ring. */
+  .g-profile__careerrows {
+    display: flex;
+    flex-direction: column;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xl);
+    background: none;
+    box-shadow: inset 0 0 0 1px var(--line);
+    list-style: none;
+    overflow: hidden;
+  }
+  /* A row: the match and the SPP, 10 apart; 56px of content, 8 12 and a 1px rule under it — 73px drawn; on the page's fill. */
+  .g-profile__careerrow {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-10);
+    min-height: 73px;
+    margin: 0;
+    padding: var(--space-8) var(--space-12);
+    border: 0;
+    border-bottom: 1px solid var(--line);
+    background: var(--surface);
+  }
+  .g-profile__careermain {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+  }
+  .g-profile__careerline {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    min-width: 0;
+  }
+  /* The round and the opponent 14/700, wrapping (the owner's answer on wrapping); the result 12/700 in its colour. */
+  .g-profile__careername {
+    min-width: 0;
+    color: var(--ink);
+    font: 700 14px/normal var(--font-body);
+    overflow-wrap: anywhere;
+  }
+  .g-profile__careerresult {
+    flex: none;
+    font: 700 12px/normal var(--font-body);
+  }
+  .g-profile__careerresult--won { color: var(--on-accent-tint); }
+  .g-profile__careerresult--drawn { color: var(--muted); }
+  .g-profile__careerresult--lost { color: var(--danger); }
+  .g-profile__careerevents {
+    color: var(--ink-2);
+    font: 400 13px/normal var(--font-body);
+    overflow-wrap: anywhere;
+  }
+  .g-profile__careerside {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 2px;
+  }
+  .g-profile__careerspp {
+    color: var(--on-accent-tint);
+    font: 700 18px/normal var(--font-display);
+  }
+  /* A match missed, one without details or with no actions: its words and its SPP quiet. */
+  .g-profile__careerquiet { color: var(--muted); }
+  /* «waits for the post-match»: 20px tall, 0 7, 10px corners, the warning's tint and ink, 11/700. */
+  .g-profile__careerpending {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    min-height: 20px;
+    padding: 0 7px;
+    border-radius: var(--radius-md);
+    background: var(--warn-tint);
+    color: var(--on-warn-tint);
+    font: 700 11px/normal var(--font-body);
+  }
+  .g-profile__careernote {
+    color: var(--muted);
+    font: 400 12px/1.45 var(--font-body);
+  }
+  /* The list with no rows (no prototype): as quiet as «No injuries», 15px; a read that failed in red. */
+  .g-profile__careerstate {
+    color: var(--muted);
+    font: 400 15px/normal var(--font-body);
+    overflow-wrap: anywhere;
+  }
+  .g-profile__careerstate--bad { color: var(--danger); }
 
   /* The injuries: 15px, quiet with none, each one red. */
   .g-profile__injurylist {

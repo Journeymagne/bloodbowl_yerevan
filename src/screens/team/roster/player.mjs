@@ -9,13 +9,15 @@
  * A skill's chip, in his row, his panel or his profile, opens the skill's rule (07a), saying how an advancement gave it;
  * for a roll on the site the team's rolls are read once a visit for its attempts (decision 19). The edit's and the
  * undo's sheets are drawn by player-sheets.mjs; the edit's tiles are the roster's counters, whose presses index.mjs's
- * `onStep` takes as every counter's. The edit leads to his fix by hand, whose sheet and presses are fix.mjs's.
+ * `onStep` takes as every counter's. The edit leads to his fix by hand, whose sheet and presses are fix.mjs's. The
+ * button of his profile's «Career» opens and closes its list (career.mjs), which reads and writes nothing of its own.
  */
 import { t } from "../../../core/i18n.mjs";
 import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { identityOf } from "../../../domain/roster/edits.mjs";
 import { advanceHandlers, advanceSheetOf, bonusOf } from "./advance.mjs";
+import { careerHandlers } from "./career.mjs";
 import { fixHandlers, fixSheetOf } from "./fix.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { gaveWords, undoClosed } from "./player-access.mjs";
@@ -201,7 +203,8 @@ function readSiteRolls({ teamId, visit, draw }, line, name) {
  * (`saveEdit`). «Undo the last» opens its sheet on the advancement that is his last at the press, unless something
  * closes it (said instead); «Keep» closes it, «Undo advancement» sends it (`sendUndo`). On the advancement's done
  * step a bonus skill is chosen among those the god offers him and he lacks, and «Add …» adds it (`addBonus`). His
- * advancement's other presses are advance.mjs's (`advanceHandlers`), his fix by hand's fix.mjs's (`fixHandlers`).
+ * advancement's other presses are advance.mjs's (`advanceHandlers`), his fix by hand's fix.mjs's (`fixHandlers`), his
+ * career's button career.mjs's (`careerHandlers`).
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {{now: () => object, refused: () => void}} lent what the screen lends: `now` is the screen as it stands at the
@@ -218,6 +221,7 @@ export function playerHandlers(saving, lent) {
   return {
     ...advanceHandlers(saving, lent),
     ...fixHandlers(saving, lent),
+    ...careerHandlers(saving),
     onSkill: (key, name, chip) => {
       Object.assign(visit, { sheet: { kind: "skill", key, name }, opener: chip });
       readSiteRolls(saving, rosterLineOf(lent.now().lines, key), name);

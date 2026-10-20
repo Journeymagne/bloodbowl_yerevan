@@ -57,8 +57,9 @@ export const JOE = died("f2", { id: "d2", rowIndex: 0, number: "9", name: "Joe" 
 export const FALLEN = [PIKE, JOE];
 
 /**
- * A coach on a page that has read his teams and the reference; the server answers the roster, its events, its fallen and
- * the games. `open` is the player chosen from the first draw: his row open on a phone, him in the panel on a desk.
+ * A coach on a page that has read his teams and the reference; the server answers the roster, its events, its fallen,
+ * the games and each player's career by match (none yet). `open` is the player chosen from the first draw: his row open
+ * on a phone, him in the panel on a desk.
  */
 export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}) {
   api.reset();
@@ -78,6 +79,8 @@ export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}
   api.reply("GET /api/teams/t1/events", 200, { events: [], revision: teamAnswer.revision });
   api.reply("GET /api/teams/t1/fallen", 200, { fallen });
   api.reply("GET /api/games", 200, { games: [], currentGames: [] });
+  // A phone's profile reads the player's career by match once a visit (stage 07d, Task 24): none of the team's matches yet.
+  for (const { id } of PLAYERS) api.reply(`GET /api/teams/t1/players/${id}/history`, 200, { history: { playerId: id, matches: [], outside: {} } });
 }
 
 export const callKeys = () => api.calls.map(({ key }) => key);

@@ -110,6 +110,8 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {string} player the player mode's stored id, as the address carries it (stage 07d); "" for the roster itself
  * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read
  *   them (stage 07d); a read on its way keeps the list read before it
+ * @property {import("./index.mjs").Visit["career"]} career the player's career by match as the visit read it (a phone's profile, career.mjs)
+ * @property {boolean} careerOpen its list is open
  */
 
 /** The table's columns: the player, the five characteristics, and on a desk the career and the SPP. */

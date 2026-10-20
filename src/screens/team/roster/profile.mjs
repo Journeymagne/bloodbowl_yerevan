@@ -2,9 +2,9 @@
  * A player's own page on a phone (spec UI §12; Player.html): a screen of its own, drilled into from the roster — no
  * header of the shell and no tabs, his dark head with «‹ Roster» back where the roster was left (owner, 2026-10-19) —
  * his characteristics, his SPP and the way to his next advancement, his skills with where each came from, the
- * categories he may take them from and his injuries. It is the roster's player mode (`renderTeamRoster(teamId, {
- * playerId })`): the same visit, reads, locks and save queue, so whatever it writes is a step of that queue. On a desk
- * the address is the roster with him in the panel; the page is drawn up to 900px.
+ * categories he may take them from, his career by match (career.mjs) and his injuries. It is the roster's player mode
+ * (`renderTeamRoster(teamId, { playerId })`): the same visit, reads, locks and save queue, so whatever it writes is a
+ * step of that queue. On a desk the address is the roster with him in the panel; the page is drawn up to 900px.
  *
  * Every state of the address stands under the head: the wait and a read that failed under «‹ Roster» alone, a fallen
  * player under his grey number (PlayerDead.html) with the roster's undo (stage 07b), an id the roster holds nowhere
@@ -22,6 +22,7 @@ import { icon } from "../../../ui/icons.mjs";
 import { dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderProgressDots } from "../../../ui/progress-dots.mjs";
+import { careerMarkup } from "./career.mjs";
 import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup } from "./fallen-view.mjs";
 import { undoable } from "./model.mjs";
 import { injuriesMarkup, markClosed, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
@@ -104,15 +105,17 @@ function pencilMarkup(line, screen) {
 
 /**
  * His profile (decision 3, Player.html): the head — his number, his name, «position · race · value», the pencil — then
- * what stands over it, his characteristics, his SPP, his skills and his injuries. Stage 07e's «Career» goes between
- * the skills and the injuries; nothing stands for it until then. The body names his line (`data-panel-player`), so a
- * skill's card opens its rule for him (wire.mjs).
+ * what stands over it, his characteristics, his SPP, his skills, his career and his injuries. «Career» stands right
+ * after the skills (owner, 2026-10-20; PlayerCareer.html): the phone draws it here (career.mjs), the desk's panel is
+ * stage 07e's (DeskRosterCareer.html), and a fallen player's page has none until then. The body names his line
+ * (`data-panel-player`), so a skill's card opens its rule for him (wire.mjs).
  * @returns {[string, string]} the head and the body
  */
 function profileMarkup(line, screen) {
   const who = t("teamPlayer.who", { position: line.position, race: raceTitleOf(screen.team.baseTeamSlug), value: formatMoney(line.value) });
   const badgeHtml = renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain, large: true });
-  const body = `${noticesMarkup(screen)}${statsMarkup(line)}${sppMarkup(line, screen)}${skillsMarkup(line)}${injuriesMarkup(line)}`;
+  const career = careerMarkup({ line, race: screen.race, career: screen.career, open: screen.careerOpen });
+  const body = `${noticesMarkup(screen)}${statsMarkup(line)}${sppMarkup(line, screen)}${skillsMarkup(line)}${career}${injuriesMarkup(line)}`;
   return [
     playerHeadMarkup({ teamId: screen.teamId, badgeHtml, name: line.name, who, editHtml: pencilMarkup(line, screen) }),
     `<div class="g-profile__body"${dataAttributes({ panelPlayer: line.key })}>${body}</div>`,

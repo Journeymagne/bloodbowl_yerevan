@@ -345,9 +345,9 @@ test("a player's address on a phone is his profile: his head — number, name, p
     assert.deepEqual(valuesOf(PROFILE, ".g-profile__accessvalue", "font"), ["600 14px/normal var(--font-body)"], "the categories in bold");
     assert.equal(body.querySelector(".g-profile__injuries h2").textContent, "Injuries");
     assert.equal(body.querySelector(".g-profile__none").textContent, "No injuries and no Niggling Injuries");
-    // Player.html's order: the characteristics, the SPP card, «Skills», («Career», stage 07e), «Injuries».
+    // Player.html's order: the characteristics, the SPP card, «Skills», «Career» (PlayerCareer.html, owner 2026-10-20), «Injuries».
     const blocks = body.childNodes.map((node) => node.getAttribute("class").split(" ")[0]);
-    assert.deepEqual(blocks, ["g-roster__notices", "g-stats", "g-profile__spp", "g-profile__skills", "g-profile__injuries"]);
+    assert.deepEqual(blocks, ["g-roster__notices", "g-stats", "g-profile__spp", "g-profile__skills", "g-profile__career", "g-profile__injuries"]);
     assert.ok(!view.querySelector(".g-roster__aside"), "no roster under it");
     assertCspSafe(view);
     assertStyled(view, ...STYLES);
