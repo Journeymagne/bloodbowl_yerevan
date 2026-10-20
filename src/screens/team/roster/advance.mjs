@@ -25,7 +25,7 @@
  * of the other kind that waits for the player (409 `DICE_ROLL_WAITING`); `lost` an ask whose answer did not come;
  * `asked` the category an ask was made in. On the done step, `bonus` is a god's bonus skill chosen and `favoured`
  * "added" once it is (decision 17; player.mjs, Task 11). Its markup is advance-sheet.mjs's and roll-view.mjs's; what
- * the sheet says of its roll and its pair as it stands (`pairOf`, `noteWords`, …) is roll-view.mjs's too, which the
+ * the sheet says of its roll and its pair as it stands (`pairOf`, `rolledWords`, …) is roll-view.mjs's too, which the
  * presses here read.
  */
 import { t } from "../../../core/i18n.mjs";
@@ -312,11 +312,14 @@ async function askFor({ teamId, visit, draw }, { now, readAgain }, pressed) {
   draw();
   const answer = await askRoll(teamId, line.id, { purpose, category: sheet.category, closed: () => rollClosed(line, now()) });
   if (!visit.here) return;
+  // The focus as the answer comes: still on «Roll …», or on nothing. One the coach moved meanwhile stays (T21 re-review N1).
+  const left = document.activeElement;
+  const unmoved = !left || left === document.body || left.hasAttribute?.("data-advance-roll");
   if (visit.sheet === sheet) Object.assign(sheet, { asking: false }, answerFields(sheet, purpose, answer));
   if (answer.code === "PLAYER_NOT_FOUND") void readAgain();
   draw();
   // A desk's «Roll …» is gone once the dice are in (the owner's answer): the focus goes to what came up, not the page.
-  if (visit.sheet === sheet && button && !view.contains(button)) view.querySelector(ROLLED_ENTRY)?.focus({ preventScroll: true });
+  if (unmoved && visit.sheet === sheet && button && !view.contains(button)) view.querySelector(ROLLED_ENTRY)?.focus({ preventScroll: true });
 }
 
 /**

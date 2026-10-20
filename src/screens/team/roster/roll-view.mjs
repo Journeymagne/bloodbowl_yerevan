@@ -113,7 +113,7 @@ export function wayFixed(sheet, choices) {
  * The line under the way: what the site does — the die, or a random skill's two dice — what to do at the table, or how
  * the roll was made: at the table once the D8's face or the whole pair is in (K8). A single die is said as one (M3).
  */
-export function noteWords(sheet, choices) {
+function noteWords(sheet, choices) {
   if (sheet.via === "site") {
     if (sheet.roll) return t("teamAdvance.note.rolledSite");
     return oneDie(sheet, choices) ? t("teamAdvance.note.siteDie") : t("teamAdvance.note.site");
@@ -195,7 +195,7 @@ export function siteRollOf(rolls, line, taken) {
 /**
  * What a random skill's roll on the site showed, in a line: «Rolled: A and B» for its two dice, «Rolled: A» for one (a
  * column that held a single skill the player lacked, or a roll kept before there were two dice) — the skills in the order
- * of the dice (`rolledDice`). Said of no roll that shows none; the faces and the attempts are not said (decision 39).
+ * of the dice (`rolledDice`). Empty for a roll that shows no skill; the faces and the attempts are not said (decision 39).
  * @param {object|null} roll as the server answers it
  */
 function diceWords(roll) {

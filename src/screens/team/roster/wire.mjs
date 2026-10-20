@@ -264,7 +264,7 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {() => void} handlers.onAdvanceKeep «Cancel» in a desk's window
  * @param {() => void} handlers.onAdvanceDone «Back to the player» or «Done», once taken
  * @param {(via: string) => void} handlers.onAdvanceVia «Roll on the site» or «Rolled at the table»
- * @param {() => void} handlers.onAdvanceRoll «Roll D16» or «Roll D8»
+ * @param {() => void} handlers.onAdvanceRoll «Roll two D16» (a single die's «Roll D16») or «Roll D8»
  * @param {(face: number) => void} handlers.onAdvanceFace a face of the D16 marked or unmarked, or of the D8 pressed, at the table
  * @param {(skill: string) => void} handlers.onAdvancePick a die of a random skill's pair chosen ("" for one not in yet)
  * @param {(stat: string) => void} handlers.onAdvanceStat a characteristic the face allows chosen

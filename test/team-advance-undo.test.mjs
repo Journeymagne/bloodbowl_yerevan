@@ -16,11 +16,11 @@ const { setMyTeams } = await import("../src/data/teams.mjs");
 // and two buttons, StatsSkill.html's skill sheet). «Undo the last: …» asks first, then the last advancement goes as one step
 // of the save queue: what it gave goes, its SPP come back, and the server frees its site roll, which the next advancement of
 // its type takes again. Since Task 23 (owner, 2026-10-20; decision 40) it stands in the fix by hand alone — the last block,
-// «Advancements» — and opens the question in the fix's place; the profile (Player.html) and the desk's panel
-// (DeskRoster.html) have none, as their prototypes. A roster «Favoured
-// of…» is offered the god's bonus skill on the advancement's done step (owner's answer 3). A skill an advancement gave says
-// how in its sheet, and for a site roll what its dice showed, read from the server once a visit. The page, the coach and his team are
-// helpers/roster-page.mjs's; ADVANCED is Cade 3 (a Catcher) with Frenzy from a random skill rolled on the site.
+// «Advancements» — and opens the question in the fix's place; the profile (Player.html) and the desk's panel (DeskRoster.html)
+// have none, as their prototypes. A roster «Favoured of…» is offered the god's bonus skill on the advancement's done step
+// (owner's answer 3). A skill an advancement gave says how in its sheet, and for a site roll what its dice showed, read from
+// the server once a visit. The page, the coach and his team are helpers/roster-page.mjs's; ADVANCED is Cade 3 (a Catcher)
+// with Frenzy from a random skill rolled on the site.
 
 const PATCH = "PATCH /api/teams/t1";
 const TEAM_READ = "GET /api/teams/t1";
@@ -242,6 +242,39 @@ test("the undo is closed while the fix's form is changed, saying so; nothing ope
   });
 });
 
+// T23 review m2 (the round's final wave): the press asks again what the drawn button says — reached only by an open
+// «Undo the last» the screen has not drawn again, as a late press is.
+test("a late open «Undo the last» opens nothing with no fix of his open, nor over a changed form", async () => {
+  const contracts = (step) => fixSheet().querySelector(`[data-resource-key="fix:contracts"] [data-resource-step="${step}"]`);
+  /** An open «Undo the last» for Cade that the screen did not draw, pressed and taken away. */
+  const lateUndo = () => {
+    const late = document.createElement("button");
+    late.setAttribute("type", "button");
+    late.setAttribute("data-player-unadvance", "p3#0");
+    view.appendChild(late);
+    fireEvent(late, "click");
+    view.removeChild(late);
+  };
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openPlayer(true);
+      const said = toasts().length;
+      lateUndo();
+      assert.ok(!sheet() && !fixSheet(), "no fix of his open: nothing opens");
+      assert.equal(toasts().length, said, "and nothing is said");
+      reopenFix();
+      fireEvent(contracts(1), "click");
+      lateUndo();
+      assert.equal(toasts().at(-1), SAVE_FIRST, "the form changed, asked at the press");
+      assert.ok(!sheet(), "nothing opens");
+      assert.ok(fixSheet()?.isModal, "the fix stays, as it was");
+      assert.equal(fixSheet().querySelector('[data-resource-key="fix:contracts"] .g-resource__value').textContent, "1");
+      await settle();
+      assert.equal(patches().length, 0);
+    });
+  });
+});
+
 // K12 (preflight of the owner's review): changed is «not as it opened», refused or not — a read may leave a changed form
 // one the roster refuses, and it is the coach's still.
 test("a form a read has made one the roster refuses is changed still: the undo stays closed", async () => {
@@ -328,7 +361,6 @@ test("undo of a site advancement: the sheet says the roll goes back to the playe
       assert.equal(toasts().at(-1), "Advancement undone: Frenzy · 3 SPP back");
       assert.ok(!toasts().includes(CHANGED), "its own step is no change under it");
       assert.ok(document.activeElement === pencil(), "the focus on the pencil the fix was opened from");
-      assert.ok(!undo(), "nothing left to undo");
       assert.equal(view.querySelector(".g-profile__availn").textContent, "30", "his SPP back at once, from the draft");
       assert.ok(!view.querySelector(".g-profile__skills").textContent.includes("Frenzy"));
       await settle();
@@ -338,6 +370,12 @@ test("undo of a site advancement: the sheet says the roll goes back to the playe
       assert.deepEqual(cade.advancements ?? [], [], "without the advancement, and so without its roll");
       assert.ok(!(cade.extraSkills ?? []).some(({ name }) => name === "Frenzy"));
       assert.equal(save.saveState("t1").waiting, 0);
+      // Nothing left to undo: the fix opened again has no «Advancements» (T23 review m1 — the fix itself closed with the undo).
+      reopenFix();
+      assert.ok(fixSheet()?.isModal, "the fix opens again");
+      assert.ok(!fixTitles().includes("Advancements") && !undo(), "nothing left to undo");
+      fireEvent(fixSheet().querySelector("[data-sheet-close]"), "click");
+      assert.ok(!fixSheet());
       // The next random primary skill: the server gives the same roll back, and the advancement names it again.
       fireEvent(advance(), "click");
       const advancing = () => view.querySelector("dialog#player-advance");
@@ -354,6 +392,60 @@ test("undo of a site advancement: the sheet says the roll goes back to the playe
       assert.equal(patches().length, 2);
       assert.deepEqual(sentOf("p3").advancements, ADVANCED.advancements, "the same roll, r1");
     });
+  });
+});
+
+// The round's final review m2 (Tasks 21 × 23): the pair an undo gives back is the whole pair again, nothing of the first
+// choice left on the sheet — the other die's skill is taken on the same roll (preflight §5: accepted, as a change of choice).
+test("on a desk: the second die taken, undone from the fix, the same pair given back whole, and the first die's skill taken on it", async () => {
+  const advancing = () => view.querySelector("dialog#player-advance");
+  const card = (name) => advancing().querySelector(`[data-advance-pick="${name}"]`);
+  const cards = () => ["Frenzy", "Strip Ball"].map((name) => [name, card(name).getAttribute("aria-disabled"), card(name).getAttribute("aria-checked")]);
+  const STRIP = { type: "random", grants: { skill: "Strip Ball" }, roll: { id: "r4", via: "site" } };
+  const FRENZY = { type: "random", grants: { skill: "Frenzy" }, roll: { id: "r4", via: "site" } };
+  /** «Advance» in the panel, «Random primary», General, and «Roll two D16», which the server answers with the pair, waiting. */
+  async function rollPair() {
+    fireEvent(advance(), "click");
+    fireEvent(advancing().querySelector('.g-options [data-option-value="random"]'), "click");
+    fireEvent(advancing().querySelector('[data-advance-category="General"]'), "click");
+    api.reply(ASK, 200, { roll: { ...PAIR, usedAt: null } });
+    fireEvent(advancing().querySelector("[data-advance-roll]"), "click");
+    await settle();
+  }
+  await withoutTimers(async () => {
+    await openPlayer(false, { teamAnswer: withOne(CADE) });
+    await rollPair();
+    assert.deepEqual(cards(), [["Frenzy", null, "false"], ["Strip Ball", null, "false"]]);
+    fireEvent(card("Strip Ball"), "click");
+    api.reply(PATCH, 200, { team: withOne({ ...CADE, extraSkills: [{ name: "Strip Ball", access: "primary" }], advancements: [STRIP] }, { revision: 5 }) });
+    fireEvent(advancing().querySelector("[data-advance-take]"), "click");
+    await settle();
+    assert.deepEqual(sentOf("p3").advancements, [STRIP], "the second die's skill, on r4");
+    fireEvent(advancing().querySelector("[data-sheet-close]"), "click");
+    assert.ok(!advancing());
+    // Undone from the fix by hand: one PATCH without it, and the server frees r4.
+    reopenFix();
+    assert.equal(undo().textContent, "Undo the last: Strip Ball");
+    fireEvent(undo(), "click");
+    api.reply(PATCH, 200, { team: withOne(CADE, { revision: 6 }) });
+    fireEvent(send(), "click");
+    assert.ok(document.activeElement === pencil(), "the focus on the pencil the fix was opened from");
+    await settle();
+    assert.equal(patches().length, 2);
+    assert.deepEqual(sentOf("p3").advancements ?? [], [], "the PATCH after the undo: no advancement");
+    assert.ok(!(sentOf("p3").extraSkills ?? []).some(({ name }) => name === "Strip Ball"));
+    // Asked again: the same pair, both cards open and neither checked; the first die's skill is taken this time.
+    await rollPair();
+    assert.equal(callsTo(ASK), 2);
+    assert.deepEqual(cards(), [["Frenzy", null, "false"], ["Strip Ball", null, "false"]], "the pair whole again: nothing kept of the first choice");
+    fireEvent(card("Frenzy"), "click");
+    assert.equal(advancing().querySelector("[data-advance-take]").textContent, "Take: Frenzy");
+    api.reply(PATCH, 200, { team: withOne({ ...CADE, extraSkills: [{ name: "Frenzy", access: "primary" }], advancements: [FRENZY] }, { revision: 7 }) });
+    fireEvent(advancing().querySelector("[data-advance-take]"), "click");
+    await settle();
+    assert.equal(patches().length, 3);
+    assert.deepEqual(sentOf("p3").advancements, [FRENZY], "the first die's skill, on the same roll r4");
+    assert.deepEqual((sentOf("p3").extraSkills ?? []).map(({ name }) => name), ["Frenzy"]);
   });
 });
 
@@ -871,6 +963,16 @@ test("a roll kept with one die says its one skill", async () => {
       assert.equal(said(), `Rolled: Frenzy and ${HOSTILE}`);
       assert.equal(elements(skillSheet().querySelector(".g-roster__rollpair")).length, 0, "text only");
       assertCspSafe(view);
+    });
+    // T22 review m1 (the round's final wave): a roll found that shows no skill says nothing of its dice — the line alone, no
+    // empty «Rolled:» and no state line (no roll the server settled is one).
+    await withWindow({ phone: true }, async () => {
+      await openPlayer(true);
+      api.reply(ROLLS_READ, 200, { rolls: [{ ...R1, result: {} }] });
+      fireEvent(chip("Frenzy"), "click");
+      await settle();
+      assert.deepEqual(elements(skillSheet().querySelector(".g-roster__rollblock")).map((node) => node.getAttribute("class")), ["g-roster__rollline"]);
+      assert.equal(skillSheet().querySelector(".g-roster__rollline").textContent, "Advancement 1 · Random primary skill · rolled on the site");
     });
   });
 });

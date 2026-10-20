@@ -84,8 +84,8 @@ export function yieldQuery(memory, line) {
 
 /**
  * The field's presses: what is typed narrows the tables, Esc empties it (wire.mjs empties the field), and the line to
- * the reference hands it the query and asks for the caret in its field; the link itself goes there (wire.mjs hears only a
- * plain click: another tab is another page, with a reference of its own).
+ * the reference hands it the query as the line names it, trimmed, and asks for the caret in its field; the link itself
+ * goes there (wire.mjs hears only a plain click: another tab is another page, with a reference of its own).
  * @param {{memory: import("./memory.mjs").RosterMemory, draw: () => void}} saving
  */
 export function searchHandlers({ memory, draw }) {
@@ -99,7 +99,7 @@ export function searchHandlers({ memory, draw }) {
       draw();
     },
     onRefSearch: () => {
-      setRefQuery(memory.query);
+      setRefQuery(memory.query.trim());
       askSearchFocus();
     },
   };

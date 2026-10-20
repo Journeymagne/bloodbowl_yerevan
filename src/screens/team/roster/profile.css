@@ -3,9 +3,9 @@
  * a screen of its own, drilled into from the roster. His dark head sticks to the top of the page as the prototype's
  * stands outside its scrolling `main`, with «‹ Roster» where the prototype has the team switcher (owner, 2026-10-19),
  * and under it his characteristics, his SPP, his skills, his career (PlayerCareer.html) and his injuries, 22px apart in
- * `main`'s 16 16 28. The stat strip, the progress dots, the
- * skill cards and the buttons are the ui/ sheets'; this one sizes them as Player.html
- * does. A desk has no such page (the address is the roster with him in the panel), so every rule is up to 900px.
+ * `main`'s 16 16 28. The stat strip, the progress dots, the skill cards and the buttons are the ui/ sheets'; this one
+ * sizes them as Player.html does. A desk has no such page (the address is the roster with him in the panel), so every
+ * rule is up to 900px.
  *
  * Where Player.html gives no line height, the font's own (`normal`) is the prototype's: Oswald's 1.48, Golos' 1.2.
  * Font, border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals (h1,

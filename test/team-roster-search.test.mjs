@@ -167,6 +167,13 @@ test("«Search the reference: «block»» leads to #/ref with the query and the 
   assert.equal(refQuery(), "block");
   assert.equal(takeSearchFocus(), true);
   assert.equal(rosterMemory("t1").query, "block", "the roster keeps its own");
+  // Typed with blanks round it, the query goes as the link names it (the round's final review m1).
+  type("  block ");
+  assert.equal(refLink().textContent, "Search the reference: «block»");
+  fireEvent(refLink(), "click", { button: 0 });
+  assert.equal(refQuery(), "block", "without the blanks the link does not show");
+  assert.equal(takeSearchFocus(), true);
+  assert.equal(rosterMemory("t1").query, "  block ", "the roster keeps its own as typed");
   setRefQuery("");
 });
 

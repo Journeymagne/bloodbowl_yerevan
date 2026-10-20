@@ -340,6 +340,26 @@ test("on a desk the pair stands in the third column; after the roll there is no 
   });
 });
 
+// T21 re-review N1 (the round's final wave): the focus goes to what came up only from where the press left it.
+test("on a desk, a focus the coach moved while the roll was out stays where it was put", async () => {
+  await withoutTimers(async () => {
+    for (const [type, answer, entry] of [["random", { roll: ROLL_SKILL }, () => pick("Frenzy")], ["stat", { roll: ROLL_D8 }, () => stat("ar")]]) {
+      await openAdvance(false);
+      if (type === "random") toRandomDesk("General");
+      else choose(typeCard("stat"));
+      const gate = api.hold(ask("p1"));
+      rollButton().focus();
+      press(rollButton());
+      await settle();
+      typeCard("primary").focus();
+      gate.release({ status: 200, body: answer });
+      await settle();
+      assert.ok(!rollButton() && entry(), `${type}: the roll is in`);
+      assert.ok(document.activeElement === typeCard("primary"), `${type}: the focus where the coach put it, not pulled to what came up`);
+    }
+  });
+});
+
 // Review Focus 2.
 test("a second press on «Roll two D16» sends nothing more; while it is out the button says it waits", async () => {
   await withoutTimers(async () => {
@@ -1231,7 +1251,10 @@ test("on a desk the roll stands in its columns", async () => {
     assert.equal(third.querySelector(".g-advance__empty").textContent, "Roll the D8 — the characteristics it allows appear here");
     assert.equal(summary(), "Characteristic — 14 SPP");
     assert.equal(take().textContent, "Choose a characteristic");
+    rollButton().focus();
     await rollWith("p1", 200, { roll: ROLL_D8 });
+    assert.ok(!rollButton(), "no «Roll D8» once the face is in");
+    assert.ok(document.activeElement === stat("ar"), "the focus on the first characteristic the face allows, not lost with the button (T21 re-review N2)");
     assert.deepEqual(columns()[2].querySelectorAll("[data-advance-stat]").map((item) => item.getAttribute("data-advance-stat")), ["ar", "ma", "pa"]);
     choose(stat("ma"));
     assert.equal(summary(), "Characteristic · MA — 14 SPP");

@@ -20,9 +20,10 @@
  * details»; a confirmed match whose taps the post-match has not taken waits too). Then the edits outside a match, when
  * they are not all nought; last, when «N SPP» is more than the rows add up to, «Before the site's records» with the
  * rest (controller's ruling on review I1): SPP from matches before the site's records, from a player who came with
- * SPP or from the history's other exceptions — so the rows always add up to the heading. The read is the visit's: a
- * list opened while it is in the air says so, one that failed says why and the next opening reads again; an answer
- * that comes after the coach left draws nothing.
+ * SPP or from the history's other exceptions — so the rows never fall short of the heading. They may go past it (an
+ * undone death, a counter the heading floors at nought), and nothing is added then. The read is the visit's: a list
+ * opened while it is in the air says so, one that failed says why and the next opening reads again; an answer that
+ * comes after the coach left draws nothing.
  */
 import { refusalText } from "../../../core/api.mjs";
 import { apiRequest } from "../../../core/api-client.mjs";
@@ -122,7 +123,7 @@ function matchRow(match, weights) {
 /**
  * The rows of the list (decision 43): the matches from the first one the site knows the player in — on its roster, or
  * with what a post-match or a tap left — newest first, then the edits outside a match unless they are all nought;
- * with `earned`, last the SPP the rows do not hold, when there are any (ruling on I1): the rows then add up to it.
+ * with `earned`, last the SPP the rows do not hold, when there are any (ruling on I1): the rows then never fall short of it.
  *
  * @param {{matches: object[], outside: Record<string, number>}} history as `readCareer` answers it
  * @param {object} race the team's race: what each counter is worth to it
@@ -175,7 +176,7 @@ function rowMarkup(row) {
 /**
  * The list, open: «Reading the matches…» while the read is in the air or to be sent (K14: a career the toggle let go
  * is read on this draw), why a read failed, «No matches yet» or the head and the rows — either with the footnote
- * (ruling on I1: it says why the matches before the site's records are not there). The rows add up to `earned`.
+ * (ruling on I1: it says why the matches before the site's records are not there). The rows never fall short of `earned`.
  */
 function listMarkup(race, career, earned) {
   const state = (words, { role = "", bad = false } = {}) => `<p class="${classNames("g-profile__careerstate", bad && "g-profile__careerstate--bad")}"`
