@@ -17,7 +17,7 @@
  * settings' card at the right (manage.css places them); their address is this page, the focus on the card. The width
  * is asked at each draw (`isPhone`), and the page is drawn again in the other form when it crosses 900px.
  */
-import { drawScreen, escapeHtml, patch } from "../../../core/dom.mjs";
+import { drawKeepingFocus, drawScreen, escapeHtml, patch } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { postMatchUrl, preMatchUrl } from "../../../core/routes.mjs";
@@ -40,7 +40,7 @@ import { historyExpanded, historyMarkup, safeMarkup, wireHistory } from "./histo
 import { matchLock, phaseOf, resourceRows } from "./model.mjs";
 import { resourcesMarkup, wireResources } from "./resources.mjs";
 import { settingsEntryMarkup, settingsScreenMarkup } from "./settings-screen.mjs";
-import { settingsMarkup, settingsModel, wireSettings } from "./settings.mjs";
+import { SETTINGS_PLACE, settingsMarkup, settingsModel, wireSettings } from "./settings.mjs";
 import { renderTreasuryStrip, shutOpener, treasuryCardMarkup, wireTreasuryStrip } from "./strip.mjs";
 
 /**
@@ -153,12 +153,8 @@ function markupOf(teamId, screen) {
   }));
 }
 
-/** A draw in the other width's form: a focus it left on nothing goes to the settings' title, or to the row that leads there (L22). */
-function redrawn(draw) {
-  const held = view.contains(document.activeElement);
-  draw();
-  if (held && !view.contains(document.activeElement)) view.querySelector("#team-settings-title, .g-team-settings-entry a")?.focus();
-}
+/** Where a focus the other width's form leaves on nothing goes (L22): from the settings or on their address, their title or row; else the h1. */
+const focusHome = (screen) => (screen === "settings" || document.activeElement?.closest?.(".g-team-settings, .g-team-settings-entry") ? SETTINGS_PLACE : "h1");
 
 /**
  * The team page of one of the coach's teams. Drawn at once from the state, the title taking the focus (the history
@@ -196,7 +192,7 @@ export async function renderTeamManage(teamId, { settings = false } = {}) {
     wireSettings(view, teamId),
     // The roster's queue holds the settings and lets them go (a team it does not hold: one call, nothing after).
     onSaveState(teamId, draw),
-    onPhoneChange(() => redrawn(draw)),
+    onPhoneChange(() => drawKeepingFocus(view, draw, focusHome(screen))),
   ];
   onScreenLeave("team-manage", () => {
     here = false;
@@ -206,4 +202,7 @@ export async function renderTeamManage(teamId, { settings = false } = {}) {
   // went live since must close the page (nothing polls them while it is up). A season read that failed is made again.
   await Promise.allSettled([loadGames(true), loadSeason(Boolean(state.season.error)), readLedger(teamId)]);
   draw();
+  // The reads drew the history, and perhaps a callout, over the desk's card: one the focus is still on is put in view again (T36 m3).
+  const title = view.querySelector("#team-settings-title");
+  if (here && settings && title && document.activeElement === title) title.scrollIntoView?.({ block: "nearest" });
 }

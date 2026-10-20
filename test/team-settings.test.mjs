@@ -207,7 +207,7 @@ test("the settings are the rows of the builder's team card (Builder)", () => {
   const file = fragment.querySelector("input#team-settings-logo");
   assert.deepEqual([file.getAttribute("type"), file.getAttribute("accept"), file.getAttribute("class"), file.hasAttribute("disabled")], ["file", "image/png,image/jpeg", "g-sr-only g-team-settings__file", false]);
   assert.equal(fragment.querySelector('label[for="team-settings-logo"]').getAttribute("class"), "g-btn g-team-settings__btn");
-  assert.ok(rowOf("logo", fragment).querySelector(".g-team-settings__logo svg"), "no logo: the shield");
+  assert.ok(rowOf("logo", fragment).querySelector(".g-team-settings__logo svg"), "no logo: the picture's glyph");
   assert.ok(!fragment.querySelector("[data-settings-logo-remove]"));
 
   // A god of two or more, a league of two or more, a logo.
@@ -403,11 +403,55 @@ test("on a desk the settings are a card in the right column, under the history; 
   const desk = css.slice(css.indexOf("@media (min-width: 901px) {"));
   assert.match(desk, /\.g-manage__cols > \.g-team-settings \{ grid-area: settings; \}/);
   assert.deepEqual(valuesOf(SETTINGS, ".g-manage__cols > .g-team-settings", "grid-area"), ["settings"]);
-  // Until Task 37 the card keeps its frame: the page's white card in the line's ring.
+});
+
+// DeskBuilder.html's «Команда» card: `padding: 4px 24px 20px`, a radius of 16, `inset 0 0 0 1px #DCE3DF`, which is the
+// kit's ring in --line-strong (the plan's token map, L9); its heading `padding: 18px 0 4px`, Oswald 700 22px. Builder.html
+// draws the same rows with no frame, in the screen's body.
+test("on a desk the card is DeskBuilder's team card: 24px at its sides, 4px over the heading's 18, a radius of 16 in the kit's ring", () => {
+  const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
+  const desk = css.slice(css.indexOf("@media (min-width: 901px) {"));
   const rule = desk.match(/\n {2}\.g-team-settings \{([^}]*)\}/)?.[1] ?? "";
-  for (const [property, value] of [["padding", "var(--space-20)"], ["border-radius", "var(--radius-2xl)"], ["background", "var(--surface)"]]) {
-    assert.match(rule, new RegExp(`${property}: ${value.replace(/[()]/g, "\\$&")};`), property);
+  const valueIn = (property) => rule.match(new RegExp(`(?:^|\\s)${property}: ([^;]+);`))?.[1];
+  assert.deepEqual(["padding", "border-radius", "background", "box-shadow"].map(valueIn), ["var(--space-4) var(--space-24) var(--space-20)", "var(--radius-2xl)", "var(--surface)", "var(--ring)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings", "padding"), ["0", "var(--space-4) var(--space-24) var(--space-20)"], "no frame up to 900px (Builder.html)");
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings", "box-shadow"), ["var(--ring)"], "the ring is the desk's alone");
+  const tokens = read("src/styles/tokens.css");
+  const token = (name) => tokens.match(new RegExp(`${name}: ([^;]+);`))[1];
+  assert.deepEqual(["--space-4", "--space-24", "--space-20", "--radius-2xl"].map(token), ["4px", "24px", "20px", "16px"]);
+  assert.deepEqual([token("--ring"), token("--line-strong")], ["inset 0 0 0 1px var(--line-strong)", "#DCE3DF"], "the prototype's #DCE3DF ring");
+  // The heading: 18px over it inside the card's 4px, 4px under; Oswald 22px on the font's own line. Only the desk's card draws it.
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "padding"), ["18px 0 var(--space-4)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 22px/normal var(--font-display)"]);
+  assert.equal(mount(manageMarkup(model(TEAMS[0], { phone: true, screen: "settings" }))).querySelector("h2"), null, "the phone's screen: its h1 names the rows");
+});
+
+test("the logo's frame shows the picture, or the image glyph Builder draws", () => {
+  const frameOf = (options, team = TEAMS[0]) => rowOf("logo", mount(manageMarkup(model(team, options)))).querySelector(".g-team-settings__logo");
+  for (const options of [{}, { phone: true, screen: "settings" }]) {
+    const svg = frameOf(options).querySelector("svg.g-icon");
+    assert.ok(svg, "no logo: a glyph");
+    assert.equal(svg.getAttribute("width"), "18");
+    assert.deepEqual(svg.querySelectorAll("rect").map((rect) => ["x", "y", "width", "height", "rx"].map((name) => rect.getAttribute(name))), [["3", "5", "18", "14", "2"]]);
+    assert.deepEqual(svg.querySelectorAll("path").map((path) => path.getAttribute("d")), ["M3 15l5-5 4 4 3-3 6 6"], "Builder's picture, not a shield");
+    const picture = frameOf(options, TEAMS[1]);
+    assert.equal(picture.querySelector("img").getAttribute("src"), LOGO);
+    assert.equal(picture.querySelector("svg"), null, "a logo: the picture alone");
   }
+  // The frame: 40×40, a radius of 10, --surface-2 in the kit's ring, the glyph in --muted (the prototype's #8A948F, 07a/07b).
+  const frame = (property) => valuesOf(SETTINGS, ".g-team-settings__logo", property);
+  assert.deepEqual(["width", "height", "border-radius", "background", "box-shadow", "color"].map(frame), [["40px"], ["40px"], ["var(--radius-md)"], ["var(--surface-2)"], ["var(--ring)"], ["var(--muted)"]]);
+});
+
+// The rows the builder's card does not have (the name, Favoured of…, Dedicated Fans, the order, the check) are its lines too.
+test("every line of the card is the builder's: 53px over its rule, the label 14px --muted; the check is one more such line", () => {
+  const section = mount(manageMarkup(model(TEAMS[1]))).querySelector(".g-team-settings");
+  assert.deepEqual(section.querySelectorAll(".g-team-settings__row").map((row) => row.getAttribute("data-settings-row")), ["name", "race", "league", "favoured", "logo", "fans", "order"]);
+  assert.ok(section.querySelector(".g-team-settings__check .g-team-settings__label"), "a roster of one breaks the rules: the check, labelled as a row is");
+  const check = (property) => valuesOf(SETTINGS, ".g-team-settings__check", property);
+  assert.deepEqual([check("box-sizing"), check("min-height"), check("border-bottom")], [["border-box"], ["53px"], ["1px solid var(--line)"]]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__row", "border-bottom"), ["1px solid var(--line)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__row", "gap"), ["var(--space-10)"]);
 });
 
 test("#/t/t1/settings on a desk is the team page, the focus on the card's title", async () => {
@@ -461,6 +505,103 @@ test("the settings' address follows the width: a phone turned desk draws the pag
     releaseCurrentScreen();
     assert.equal(listeners.size, 0, "a screen left listens no more");
   });
+});
+
+// T36 review m1: a sheet stands over the screen in a host of its own, and the rows under it may be drawn anew meanwhile.
+test("a sheet left open across 900px gives the focus back to its row's button as the other width draws it, or to the row that leads to the settings", async () => {
+  await atWidth(true, async ({ cross }) => {
+    // The phone's screen turned desk, the sheet closed by its cross: the card's button in the place of the screen's.
+    await page("t1", { settings: true });
+    const before = view.querySelector('[data-settings-open="fans"]');
+    before.focus();
+    openRow("fans");
+    // As a browser's showModal does, the focus is in the sheet.
+    $("[data-sheet-close]").focus();
+    cross(false);
+    assert.ok(!screenOf() && sheetOpen(), "the page with the card; the sheet stays over it");
+    fireEvent($("[data-sheet-close]"), "click");
+    assert.equal(sheetOpen(), false);
+    const card = view.querySelector('.g-manage__cols [data-settings-open="fans"]');
+    assert.ok(card && card !== before, "the desk drew the row anew");
+    assert.ok(document.activeElement === card, "the button the desk drew in its place, not the body");
+
+    // The desk's team page turned phone, and the sheet saved there: no card, and the row that leads to the settings takes it.
+    await page("t1");
+    view.querySelector('[data-settings-open="fans"]').focus();
+    openRow("fans");
+    $('[data-resource-step="1"]').focus();
+    cross(true);
+    assert.ok(view.querySelector(".g-team-settings-entry") && !view.querySelector(".g-team-settings") && sheetOpen());
+    fireEvent($('[data-resource-step="1"]'), "click");
+    api.reply(PATCH, 200, { team: t1With({}, { dedicatedFans: 4 }) });
+    await withoutTimers(async () => {
+      fireEvent($("[data-settings-save]"), "click");
+      await settled();
+    });
+    assert.deepEqual([calls(PATCH).length, sheetOpen(), toasts()], [1, false, ["Saved"]]);
+    assert.ok(document.activeElement === view.querySelector(".g-team-settings-entry a"), "the row that leads to the settings");
+
+    // A sheet closed with its button where it was: that button, as before (sheet-host.mjs).
+    await page("t1", { settings: true });
+    const opener = view.querySelector('[data-settings-open="name"]');
+    opener.focus();
+    openRow("name");
+    $("#team-settings-name").focus();
+    fireEvent($("[data-sheet-close]"), "click");
+    assert.ok(document.activeElement === opener);
+  });
+});
+
+// T36 review m4, as the overview's fix round 1: a node the patch keeps and the width's stylesheet hides drops the focus too.
+test("the team page across 900px: a focus on what the other width's stylesheet hides goes to the page's title; from the settings, to the settings' place", async () => {
+  await atWidth(false, async ({ cross }) => {
+    await page("t1");
+    // The desk's strip stays in the page on a phone, hidden (strip.css): its pencil is no place for the focus.
+    const edit = view.querySelector(".g-funds__edit");
+    edit.focus();
+    edit.getClientRects = () => [];
+    cross(true);
+    assert.ok(edit.isConnected && view.querySelector(".g-funds__edit") === edit, "the same button, still in the page");
+    assert.ok(document.activeElement === view.querySelector(".g-manage h1"), "the page's title, a place the keyboard goes on from");
+    // And back: the phone's card's «+ Add», hidden from 901px (manage.css).
+    const add = view.querySelector(".g-manage__in");
+    add.focus();
+    add.getClientRects = () => [];
+    cross(false);
+    assert.ok(add.isConnected && document.activeElement === view.querySelector(".g-manage h1"));
+    // From the settings the settings' place, as before: the card on a desk, the row on a phone.
+    view.querySelector('[data-settings-open="fans"]').focus();
+    cross(true);
+    assert.ok(document.activeElement === view.querySelector(".g-team-settings-entry a"));
+    // A focus the width keeps and shows stays where it is.
+    const fix = view.querySelector(".g-manage__fix");
+    fix.focus();
+    fix.getClientRects = () => [{ width: 200, height: 44 }];
+    cross(false);
+    assert.ok(document.activeElement === fix && fix.isConnected, "the correction's button is the same on both widths");
+  });
+});
+
+// T36 review m3: the reads draw the history, and perhaps a callout, over the desk's card after the first focus put it in view.
+test("on a desk the settings' address puts the card in view again once the reads have drawn what stands over it", async () => {
+  const arrive = async (settings, { moveFocus = false } = {}) => {
+    coach({ userId: `u-scroll-${settings}-${moveFocus}` });
+    const gate = api.hold(FIRST_PAGE);
+    const drawn = renderTeamManage("t1", { settings });
+    await waitHeld(gate);
+    const title = view.querySelector("#team-settings-title");
+    const scrolled = [];
+    title.scrollIntoView = (options) => scrolled.push(options);
+    if (moveFocus) view.querySelector('[data-settings-open="name"]').focus();
+    gate.release();
+    await drawn;
+    assert.ok(view.querySelector("#team-settings-title") === title, "the same heading, patched");
+    return scrolled;
+  };
+  assert.deepEqual(await arrive(true), [{ block: "nearest" }], "once, after the last draw");
+  assert.ok(document.activeElement === view.querySelector("h2#team-settings-title"));
+  assert.deepEqual(await arrive(true, { moveFocus: true }), [], "the coach has gone on: nothing is scrolled");
+  assert.deepEqual(await arrive(false), [], "the team page's own address: its h1 has the focus");
 });
 
 test("D2: «‹» 44px; the row 44px or more; the head as Builder.html's", () => {
@@ -1133,15 +1274,26 @@ test("readable: the labels and notes in --muted, the violations in --danger, the
   assert.ok(!read(SETTINGS).includes("--focus-ring"), "the focus ring is base.css's");
 });
 
-test("D2: the settings' buttons 44px up to 900px, 24px or more from 901px (36px, as the builder's)", () => {
+// Builder's «Загрузить»: `min-height: 36px; padding: 0 12px; border: 0; border-radius: 10px; background: #FFFFFF;
+// box-shadow: inset 0 0 0 1px #C9D3CE`, 14/600 #3E4A44. D2: a finger's 44px up to 900px.
+test("a row's button is Builder's «Upload»: the ring inside it, 14/600 --ink-2; 36px at a desk, 44px up to 900px", () => {
   const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
   const start = css.indexOf("@media (min-width: 901px) {");
   const [phone, desk] = [css.slice(0, start), css.slice(start)];
   const heightIn = (text) => text.match(/\.g-team-settings__btn \{[^}]*min-height: ([^;]+);/)?.[1];
+  const tokens = read("src/styles/tokens.css");
+  const token = (name) => tokens.match(new RegExp(`${name}: ([^;]+);`))[1];
   assert.equal(heightIn(phone), "var(--size-touch)");
-  assert.equal(read("src/styles/tokens.css").match(/--size-touch: (\d+)px;/)[1], "44");
+  assert.equal(token("--size-touch"), "44px");
   assert.ok(Number.parseInt(heightIn(desk), 10) >= 24, heightIn(desk));
   assert.equal(heightIn(desk), "36px");
+  const button = (property) => valuesOf(SETTINGS, ".g-team-settings__btn", property);
+  assert.deepEqual([button("border"), button("box-shadow")], [["0"], ["inset 0 0 0 1px var(--control-border)"]], "a ring inside it on both widths, not a border");
+  assert.equal(token("--control-border"), "#C9D3CE");
+  assert.deepEqual(["padding", "border-radius", "background", "color", "font"].map(button), [["0 var(--space-12)"], ["var(--radius-md)"], ["var(--surface)"], ["var(--ink-2)"], ["600 14px/1.2 var(--font-body)"]]);
+  assert.deepEqual([token("--space-12"), token("--radius-md")], ["12px", "10px"]);
+  // A desk changes its height only.
+  assert.deepEqual([...desk.matchAll(/\.g-team-settings__btn \{([^}]*)\}/g)].map(([, body]) => body.trim()), ["min-height: 36px;"]);
 });
 
 test("a long team name wraps; nothing is cut with «…»; breakpoints only 900/901; settings.css comes after fix.css (K5)", () => {

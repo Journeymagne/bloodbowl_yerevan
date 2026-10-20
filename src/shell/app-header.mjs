@@ -6,8 +6,9 @@
  * which tab is current, where each leads and what the team's line says all
  * come from it. The caller puts the result in `#app-header`, which carries the
  * `g-appbar` class and the folding (app-header.css). A page that brings its own
- * frame (sign-in) is `bare` and has no header, nor has a player's address, which
- * is drilled into (`drill`): its screen draws the player's own head.
+ * frame (sign-in) is `bare` and has no header, nor has an address that is
+ * drilled into (`drill`: a player's, the team's settings): its screen draws its
+ * own head.
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";

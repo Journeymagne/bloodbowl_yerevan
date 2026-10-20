@@ -1,6 +1,6 @@
 /*
- * «Team settings» (settings.mjs, stage 07d): the rows of the builder's team card (Builder) — a card in the team page's
- * right column on a desk, a screen of their own under Builder.html's head on a phone (settings-screen.mjs; owner,
+ * «Team settings» (settings.mjs, stage 07d): the rows of the builder's team card (Builder, DeskBuilder): a card in the
+ * right column of a desk, a screen's body on a phone (settings-screen.mjs, under Builder.html's head; owner,
  * 2026-10-20), and the row of the phone's team page that leads there — and the lines the sheets add to sheet.css's
  * frame. Every rule of `.g-team-settings*` is here, the card's grid area too. Font, border, background, text-transform,
  * letter-spacing and font-weight are set here on purpose: the 2.x globals (button { font: inherit }, p, h1, h2, ul)
@@ -24,12 +24,12 @@
 }
 
 /*
- * Builder's heading: Oswald 22px on the font's own line (the prototype sets none), 18px over it and 4px under. On a
- * phone the page's gap (16px, manage.css) and these 2px are the 18px.
+ * DeskBuilder's heading: Oswald 22px on the font's own line (the prototype sets none), 18px over it and 4px under. Only
+ * the desk's card draws it: the phone's screen is named by its head's h1 (settings-screen.mjs).
  */
 .g-team-settings__title {
   margin: 0;
-  padding: 2px 0 var(--space-4);
+  padding: 18px 0 var(--space-4);
   color: var(--ink);
   font: 700 22px/normal var(--font-display);
   text-transform: none;
@@ -104,7 +104,7 @@
   overflow-wrap: anywhere;
 }
 
-/* The logo: a 40px frame with the picture or the shield, its name and its sizes, then its buttons. */
+/* The logo: Builder's 40px frame with the picture, or the glyph of one in --muted; its name and its sizes, then its buttons. */
 .g-team-settings__logo-line {
   display: flex;
   align-items: center;
@@ -148,8 +148,9 @@
 }
 
 /*
- * A row's button (Builder's «Загрузить»): 12px at its sides, a radius of 10, white in the kit's ring, 14/600 --ink-2.
- * A finger's 44px up to 900px (D2; the prototype's 36px from 901px). A held one stays in the tab order and says why.
+ * A row's button (Builder's «Загрузить»): 12px at its sides, a radius of 10, white with a ring inside it in
+ * --control-border (no border of its own), 14/600 --ink-2. A finger's 44px up to 900px (D2; the prototype's 36px from
+ * 901px). A held one stays in the tab order and says why.
  */
 .g-team-settings__btn {
   box-sizing: border-box;
@@ -160,9 +161,10 @@
   min-height: var(--size-touch);
   margin: 0;
   padding: 0 var(--space-12);
-  border: 1px solid var(--control-border);
+  border: 0;
   border-radius: var(--radius-md);
   background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
   color: var(--ink-2);
   font: 600 14px/1.2 var(--font-body);
   text-align: center;
@@ -181,13 +183,21 @@
   outline-offset: 0;
 }
 
-/* «Roster check»: the rules the roster breaks, a line each, in the danger's words. */
+/*
+ * «Roster check» (not Builder's): one more line of the card, as tall and with the same rule under it; its label over
+ * the rules the roster breaks, a line each, in the danger's words, 8px off the rules around it.
+ */
 .g-team-settings__check {
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: var(--space-6);
+  min-height: 53px;
   margin: 0;
-  padding: var(--space-12) 0 0;
+  padding: var(--space-8) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
 }
 .g-team-settings__violations {
   display: flex;
@@ -385,13 +395,12 @@
   /* DeskBuilder: the card stands last in the team page's right column, under the history (manage.css names the area). */
   .g-manage__cols > .g-team-settings { grid-area: settings; }
 
-  /* DeskRosterFunds' card frame, until the builder's card (Task 37). */
+  /* DeskBuilder's team card: 4px over the heading's 18, 24px at its sides, 20px under the last line; white in the kit's ring. */
   .g-team-settings {
-    padding: var(--space-20);
+    padding: var(--space-4) var(--space-24) var(--space-20);
     border-radius: var(--radius-2xl);
     background: var(--surface);
-    box-shadow: inset 0 0 0 1px var(--line);
+    box-shadow: var(--ring);
   }
-  .g-team-settings__title { padding: 0 0 var(--space-4); }
   .g-team-settings__btn { min-height: 36px; }
 }

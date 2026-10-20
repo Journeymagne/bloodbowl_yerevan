@@ -43,7 +43,7 @@
  * games the points stand alone and no opponent is said to come later. The
  * screen draws at once from what the state holds and again when they come.
  */
-import { escapeHtml, patch } from "../../core/dom.mjs";
+import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
@@ -351,24 +351,6 @@ function markupOf(teamId, held) {
 }
 
 /**
- * `draw`, for a width that crossed 900px: the field, a tile or a list the coach was on may be gone with the other form
- * (Review Focus 2). A focus the page held that is left on nothing goes to the title, the place a keyboard starts from:
- * the body, a node no longer on the page, or one still on it that the width's stylesheet hides — the desk's «Advance»
- * on a phone, the phone's card on a desk, the fourth and fifth match on a phone (a browser drops that focus to the body
- * a moment later, fix round 1). One the new form keeps and shows, or one outside the page, stays.
- * @param {() => void} draw
- */
-function drawForWidth(draw) {
-  return () => {
-    const hadFocus = view.contains(document.activeElement);
-    draw();
-    const active = document.activeElement;
-    const lost = !active || active === document.body || !active.isConnected || active.getClientRects?.().length === 0;
-    if (hadFocus && lost) view.querySelector("h1")?.focus();
-  };
-}
-
-/**
  * The overview of one of the coach's teams. Drawn at once from the state, the title taking the focus; again when
  * the table and the games come, if the coach is still here, whenever the games change while they are (a start,
  * a score sent), and when the width crosses 900px. The later draws patch the page, so the focus stays where the coach
@@ -392,7 +374,10 @@ export async function renderTeamOverview(teamId) {
       held.games = false;
       draw();
     }),
-    onPhoneChange(drawForWidth(draw)),
+    // The field, a tile or a list the coach was on may be gone with the other form, or hidden by it — the desk's
+    // «Advance» on a phone, the phone's card on a desk, the fourth and fifth match on a phone (Review Focus 2, fix
+    // round 1): a focus left on nothing goes to the title.
+    onPhoneChange(() => drawKeepingFocus(view, draw, "h1")),
     wireRefSearch(view, { onQuery: goSearch }),
   ];
   onScreenLeave("team-overview", () => {

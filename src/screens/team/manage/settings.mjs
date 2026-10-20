@@ -1,7 +1,8 @@
 /**
  * The team's settings (stage 07d; owner, 2026-10-19: what only the 2.x editor could do moves into 3.0) — a card of the
- * team page's right column on a desk, a screen of their own on a phone (settings-screen.mjs; owner, 2026-10-20): its name, league, god and logo, its Dedicated Fans put right, its players in number order, and what the roster
- * breaks of the rules — the rows of the builder's team card, with the race shown among them and never changed (owner,
+ * team page's right column on a desk, a screen of their own on a phone (settings-screen.mjs; owner, 2026-10-20): its
+ * name, league, god and logo, its Dedicated Fans put right, its players in number order, and what the roster breaks of
+ * the rules — the rows of the builder's team card, with the race shown among them and never changed (owner,
  * 2026-10-20). Each is one save of the team, the team page's own (`saveTeamRoster`), never sent again by itself; none
  * while a match is on, while a save of the team is on its way, or while the roster's queue holds a step of its own,
  * which a save made here would leave on a revision the server no longer has.
@@ -14,7 +15,7 @@
  * the buttons.
  */
 import { toastError } from "../../../components/toast.mjs";
-import { delegate, escapeHtml, listenerGroup } from "../../../core/dom.mjs";
+import { delegate, escapeHtml, focusLost, listenerGroup } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../../core/logo-upload.mjs";
 import { teamUrl } from "../../../core/routes.mjs";
@@ -40,6 +41,11 @@ import { FANS_MAX, NAME_FIELD_ID, SETTINGS_KINDS, SETTINGS_SHEET_ID, draftOf, se
 import { mountSheetHost, sheetController, teamToast, unmountSheetHost } from "./sheet-host.mjs";
 
 const LOGO_ID = "team-settings-logo";
+/**
+ * The settings' place for a focus left on nothing: their title (the phone's screen's h1, the desk's card's h2), or on the
+ * phone's team page the row that leads to them. Each width's form of the page draws exactly one of them.
+ */
+export const SETTINGS_PLACE = "#team-settings-title, .g-team-settings-entry a";
 /** Where the roster's queue stands when it holds nothing of the team: at rest. */
 const REST = Object.freeze({ status: "idle", waiting: 0 });
 /** The queue's states that hold a step of the coach's, or a refusal the roster is to settle (`saveState`). */
@@ -139,9 +145,9 @@ function choiceRow(kind, label, value, options, held) {
   return row(kind, { label, value, action: options.length >= 2 ? opener(kind, t("teamSettings.change"), held) : "" });
 }
 
-/** The logo (Builder): the picture or the shield, the file field the label opens, and «Remove» when there is one. */
+/** The logo (Builder): the picture or Builder's glyph of one, the file field the label opens, and «Remove» when there is one. */
 function logoRow({ logoData, held }) {
-  const picture = logoData ? `<img src="${escapeHtml(logoData)}" alt="">` : icon("shield", 18);
+  const picture = logoData ? `<img src="${escapeHtml(logoData)}" alt="">` : icon("image", 18);
   const text = `<span class="g-team-settings__text"><span class="g-team-settings__logo-name">${escapeHtml(t("newTeam.logo"))}</span>`
     + `<span class="g-team-settings__note">${escapeHtml(t("newTeam.logoNote"))}</span></span>`;
   // Never disabled: held, the field stays in the tab order with its reason, and a press of it or of its label (which is
@@ -261,11 +267,20 @@ function followName(host, form) {
 }
 
 /**
+ * A sheet closed gives the focus back to the button that opened it (sheet-host.mjs). One drawn anew while the sheet was
+ * open — the width crossed 900px, and the rows moved between the phone's screen and the desk's card (T36 review m1) —
+ * is found again by its kind; where the width draws none (the phone's team page), the settings' place takes it.
+ */
+function focusBack(root, kind) {
+  if (focusLost(document.activeElement)) (root.querySelector(`[data-settings-open="${kind}"]`) ?? root.querySelector(SETTINGS_PLACE))?.focus();
+}
+
+/**
  * The press on a sheet's button. What holds the settings is asked again here: the sheet may have been drawn before a
  * match went live or a step of the roster's came, and a button that looks pressable is not a promise. One press is one
  * save (`sheetController`); a 409 or a lost answer puts the choice back to the team as it is, and the coach chooses again.
  */
-async function apply(host, sheet) {
+async function apply(root, host, sheet) {
   const form = sheet.form;
   if (!form || form.pending) return;
   const now = nowOf(form.teamId);
@@ -284,7 +299,10 @@ async function apply(host, sheet) {
       void readLedger(form.teamId);
       void loadMyTeams(true);
     },
-    done: () => teamToast(form.teamId, t("teamSettings.saved")),
+    done: () => {
+      teamToast(form.teamId, t("teamSettings.saved"));
+      focusBack(root, form.kind);
+    },
   });
   followName(host, sheet.form);
 }
@@ -388,10 +406,10 @@ function drawn(form) {
   return settingsSheetMarkup({ ...form, team, race: raceTeamOf(team.baseTeamSlug), now: nowOf(form.teamId) });
 }
 
-/** The team moved (a save of the settings', of the page's, a read): the sheet is drawn again from it, or closed when it is gone. */
-function teamMoved(host, sheet) {
+/** The team moved (a save of the settings', of the page's, a read): the sheet is drawn again from it, or closed (`close`) when it is gone. */
+function teamMoved(host, sheet, close) {
   if (sheet.form && !teamOf(sheet.form.teamId)) {
-    sheet.close();
+    close();
     return;
   }
   sheet.follow();
@@ -400,9 +418,10 @@ function teamMoved(host, sheet) {
 
 /**
  * Everything the section does: a row's button opens its sheet in a host of its own on the body (`mountSheetHost`), the
- * cross, the backdrop and Escape close it and give the focus back to that button; what is typed or chosen in it changes
- * the form and the sheet is drawn again in place; its button sends one save. The file field, «Remove» and «By number»
- * save at the press. The sheet follows the team, the games and the roster's queue. Wire once per screen mount.
+ * cross, the backdrop and Escape close it and give the focus back to that button, or to the one drawn in its place
+ * (`focusBack`); what is typed or chosen in it changes the form and the sheet is drawn again in place; its button sends
+ * one save. The file field, «Remove» and «By number» save at the press. The sheet follows the team, the games and the
+ * roster's queue. Wire once per screen mount.
  *
  * @param {Element} root the screen's element, which holds the section
  * @param {string} teamId
@@ -428,12 +447,17 @@ export function wireSettings(root, teamId) {
   const choose = (value) => {
     if (sheet.form && !sheet.form.pending) sheet.change({ value });
   };
-  group.own(wireSheets(host, { onClose: (id) => { if (id === SETTINGS_SHEET_ID) sheet.close(); } }));
+  const close = () => {
+    const kind = sheet.form?.kind;
+    sheet.close();
+    if (kind) focusBack(root, kind);
+  };
+  group.own(wireSheets(host, { onClose: (id) => { if (id === SETTINGS_SHEET_ID) close(); } }));
   group.on("input", `#${NAME_FIELD_ID}`, (event, input) => choose(input.value));
   group.own(wireOptionLists(host, choose));
   group.own(wireResourceCounters(host, ({ delta }) => stepFans(sheet, delta), { onRefused: ({ reason }) => teamToast(teamId, reason, { tone: "error" }) }));
-  group.on("click", "[data-settings-save]", () => { void apply(host, sheet); });
-  group.own(onMyTeamsChange(() => teamMoved(host, sheet)));
+  group.on("click", "[data-settings-save]", () => { void apply(root, host, sheet); });
+  group.own(onMyTeamsChange(() => teamMoved(host, sheet, close)));
   group.own(onGamesChange(() => sheet.follow()));
   group.own(onSaveState(teamId, () => sheet.follow()));
   return () => {

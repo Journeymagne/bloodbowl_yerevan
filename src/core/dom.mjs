@@ -304,6 +304,34 @@ export function drawScreen(root, markup) {
 }
 
 /**
+ * Whether a focus is left on nothing: on no element, on the body, on a node no longer in the page, or on one still in
+ * it that a stylesheet hides (it draws no box, and a browser drops that focus to the body a moment later).
+ *
+ * @param {Element|null} active what `document.activeElement` is
+ * @returns {boolean}
+ */
+export function focusLost(active) {
+  return !active || active === active.ownerDocument?.body || !active.isConnected || active.getClientRects?.().length === 0;
+}
+
+/**
+ * Draw a screen again in another form (a width that crossed 900px): a node the focus was on may be gone with the old
+ * form, or kept and hidden by the new one's stylesheet. A focus `root` held that the draw left on nothing (`focusLost`)
+ * goes to the first node of `root` that `target` names, the place a keyboard goes on from; one the new form keeps and
+ * shows, or one outside `root`, stays where it is.
+ *
+ * @param {Element} root the view
+ * @param {() => void} draw
+ * @param {string} target a selector
+ */
+export function drawKeepingFocus(root, draw, target) {
+  const document = root.ownerDocument ?? globalThis.document;
+  const held = root.contains(document.activeElement);
+  draw();
+  if (held && focusLost(document.activeElement)) root.querySelector(target)?.focus();
+}
+
+/**
  * One listener for a whole list instead of one per row.
  *
  * The screens re-render by replacing innerHTML, which throws away every
