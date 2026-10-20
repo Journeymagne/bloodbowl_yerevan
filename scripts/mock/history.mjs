@@ -1,6 +1,7 @@
 /**
- * The mock API's career of a player, what a phone's profile reads under «Career» (server/routes/player-history.mjs and
- * server/season/player-history.mjs are the reference, src/domain/post-match/history.mjs says what the rows mean).
+ * The mock API's career of a player, what «Career» reads — a phone's profile, a desk's panel, a fallen player's page
+ * (server/routes/player-history.mjs and server/season/player-history.mjs are the reference,
+ * src/domain/post-match/history.mjs says what the rows mean).
  *
  *   GET /api/teams/:id/players/:pid/history  `{history: {playerId, matches, outside}}`: the team's matches, oldest
  *                                  first, each with what the player did in it (`played`, `source`, `counters`, `injury`,
@@ -20,9 +21,16 @@
  * Fixtures: Mock Team (t1) has three matches, as scripts/mock-api.mjs holds them — g4 (round 1, at home to Rival Raiders,
  * won 2–1), g5 (round 2, away to Rival Wardens, lost 0–2) and the friendly g6 against Rival Team (1–1), which the site has
  * no details of. Blitzer Three (p3, 7 touchdowns on the roster) scored 2 in g4, played g5 with no action, and has 5
- * touchdowns from edits outside a match, so his rows add up to his roster's line. Every other player of t1 has the three
- * matches without details and nothing outside: a veteran, all of whose SPP are from before the site's records. Every
- * other team has no match.
+ * touchdowns from edits outside a match, so his rows add up to his roster's line. Linewoman Nine (p9, fallen f2,
+ * scripts/mock/fallen.mjs) made a completion in g4 and died in g5 with no tap of hers: the post-match's side has the
+ * death, and no roster after it has her (`source: "none"`, `counters: null`); g6 after it says nothing of her, and her
+ * rows end at g5 (stage 07e, pre-flight L6). Every other player of t1 — Blitzer Ten (p10, fallen f1) among them — has
+ * the three matches without details and nothing outside: a veteran, all of whose SPP are from before the site's records.
+ *
+ * Mock Humans (t2) has its match g2 on (round 3, at home to Rival Raiders, no score): its rows are what
+ * scripts/mock/roster.mjs's records of it say — Blitzer Four's touchdown, Catcher Five's completion (and his
+ * interception outside a match), Thrower Six's lasting injury (AG) — each waiting for the post-match; the others of the
+ * seven are on its roster with nothing tapped yet. Every other team has no match.
  */
 const HISTORY = /^\/api\/teams\/([^/]+)\/players\/([^/]+)\/history$/;
 
@@ -42,14 +50,45 @@ const BLITZER_MATCHES = new Map([
   ["g5", { played: true, source: "applied", counters: {}, injury: null, pending: false }],
 ]);
 
-/** The career of a player of the team `teamId` (see the header): t1's matches, his own rows in them, and his edits outside. */
+/** What Linewoman Nine did, by match: a completion in g4, as its post-match applied it, and her death in g5 with no tap of hers. */
+const LINEWOMAN_MATCHES = new Map([
+  ["g4", { played: true, source: "applied", counters: { completions: 1 }, injury: null, pending: false }],
+  ["g5", { played: true, source: "none", counters: null, injury: { code: "dead" }, pending: false }],
+]);
+
+/** Mock Humans' match on, from its own side: scripts/mock-api.mjs' g2, round 3 at home to the second rival, no score yet. */
+const MOCK_HUMANS_MATCHES = [
+  { pairingId: "g2", kind: "league", seasonId: "s1", roundNumber: 3, status: "in_progress", opponent: { teamId: "rt2", name: "Rival Raiders" }, score: null },
+];
+
+/** On the roster of the match on, with nothing tapped yet. */
+const ON_ROSTER = { played: true, source: "none", counters: null, injury: null, pending: false };
+/** A row of the match on that its taps make (scripts/mock/roster.mjs' records), waiting for the post-match. */
+const tapped = (counters, injury = null) => new Map([["g2", { played: true, source: "events", counters, injury, pending: true }]]);
+const HUMANS_ROWS = new Map([
+  ["q1", new Map([["g2", ON_ROSTER]])], ["q2", new Map([["g2", ON_ROSTER]])], ["q3", new Map([["g2", ON_ROSTER]])],
+  ["q4", tapped({ touchdowns: 1 })], ["q5", tapped({ completions: 1 })], ["q6", tapped({}, { code: "lasting", stat: "ag" })],
+  ["q7", new Map([["g2", ON_ROSTER]])],
+]);
+
+/**
+ * Each team's career: its matches, oldest first, each player's own rows in them (a match without a row of his has no
+ * details), and his edits outside a match. The ids are quoted: check-references reads a bare `t1:` as a use of `t`.
+ */
+const CAREERS = new Map([
+  ["t1", { matches: MOCK_TEAM_MATCHES, own: new Map([["p3", BLITZER_MATCHES], ["p9", LINEWOMAN_MATCHES]]), outside: new Map([["p3", { touchdowns: 5 }]]) }],
+  ["t2", { matches: MOCK_HUMANS_MATCHES, own: HUMANS_ROWS, outside: new Map([["q5", { interceptions: 1 }]]) }],
+]);
+
+/** The career of a player of the team `teamId` (see the header): the team's matches, his own rows in them, and his edits outside. */
 function careerOf(teamId, playerId) {
-  if (teamId !== "t1") return { playerId, matches: [], outside: {} };
-  const own = playerId === "p3" ? BLITZER_MATCHES : new Map();
+  const career = CAREERS.get(teamId);
+  if (!career) return { playerId, matches: [], outside: {} };
+  const own = career.own.get(playerId) ?? new Map();
   return {
     playerId,
-    matches: MOCK_TEAM_MATCHES.map(({ pairingId, ...match }) => ({ pairingId, ...(own.get(pairingId) ?? BARE), ...match })),
-    outside: playerId === "p3" ? { touchdowns: 5 } : {},
+    matches: career.matches.map(({ pairingId, ...match }) => ({ pairingId, ...(own.get(pairingId) ?? BARE), ...match })),
+    outside: career.outside.get(playerId) ?? {},
   };
 }
 
