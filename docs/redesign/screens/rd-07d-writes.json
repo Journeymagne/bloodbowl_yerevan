@@ -80,7 +80,7 @@
     },
     {
       "id": "W3",
-      "url": "http://localhost:5178/#/t/t1/team",
+      "url": "http://localhost:5178/#/t/t1/settings",
       "storage": {
         "gata-league-auth-token": "mock"
       },
@@ -96,7 +96,7 @@
         "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
         "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
         "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
-        "  document.getElementById('team-settings-title').scrollIntoView({ block: 'start' }); await wait(100);",
+        "  await wait(300);",
         "  await press('[data-settings-open=\"name\"]', 350);",
         "  await typeIn('#team-settings-name', 'Rooks');",
         "  await pick('[data-settings-save]', 800);",

@@ -369,7 +369,11 @@
         "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
         "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
         "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
-        "  document.getElementById('team-settings-title').scrollIntoView({ block: 'start' }); await wait(200);",
+        "  await wait(300);",
+        "  const place = vis('.g-team-settings-entry') || vis('#team-settings-title');",
+        "  if (!place) throw new Error('no team settings place');",
+        "  place.scrollIntoView({ block: 'center' });",
+        "  await wait(300);",
         "})()"
       ],
       "extraWidths": [
@@ -379,7 +383,7 @@
     },
     {
       "id": "S2",
-      "url": "http://localhost:5178/#/t/t1/team",
+      "url": "http://localhost:5178/#/t/t1/settings",
       "storage": {
         "gata-league-auth-token": "mock"
       },
@@ -395,7 +399,6 @@
         "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
         "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
         "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
-        "  document.getElementById('team-settings-title').scrollIntoView({ block: 'start' }); await wait(100);",
         "  await press('[data-settings-open=\"name\"]', 350);",
         "})()"
       ],
@@ -405,7 +408,7 @@
     },
     {
       "id": "S3",
-      "url": "http://localhost:5178/#/t/t4/team",
+      "url": "http://localhost:5178/#/t/t1/settings",
       "storage": {
         "gata-league-auth-token": "mock"
       },
@@ -421,14 +424,19 @@
         "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
         "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
         "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
-        "  document.getElementById('team-settings-title').scrollIntoView({ block: 'start' }); await wait(100);",
-        "  await press('[data-settings-open=\"race\"]', 350);",
+        "  await wait(300);",
+        "  if (innerWidth > 900) {",
+        "    const title = vis('#team-settings-title');",
+        "    if (!title) throw new Error('no #team-settings-title');",
+        "    title.scrollIntoView({ block: 'start' });",
+        "    await wait(300);",
+        "  }",
         "})()"
       ]
     },
     {
       "id": "S3p",
-      "url": "http://localhost:5178/#/t/t5/team",
+      "url": "http://localhost:5178/#/t/t5/settings",
       "storage": {
         "gata-league-auth-token": "mock"
       },
@@ -444,8 +452,13 @@
         "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
         "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
         "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
-        "  document.getElementById('team-settings-title').scrollIntoView({ block: 'start' }); await wait(100);",
-        "  await press('[data-settings-open=\"race\"]', 350);",
+        "  await wait(300);",
+        "  if (innerWidth > 900) {",
+        "    const title = vis('#team-settings-title');",
+        "    if (!title) throw new Error('no #team-settings-title');",
+        "    title.scrollIntoView({ block: 'start' });",
+        "    await wait(300);",
+        "  }",
         "})()"
       ]
     },
@@ -662,6 +675,51 @@
         "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
         "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
         "  await press('[data-skill=\"Dodge\"]', 600);",
+        "})()"
+      ]
+    },
+    {
+      "id": "N1",
+      "url": "http://localhost:5178/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await press('[data-team-switcher]', 400);",
+        "  await press('[data-switcher-new]', 500);",
+        "})()"
+      ]
+    },
+    {
+      "id": "N2",
+      "url": "http://localhost:5178/#/teams/new",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 250) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const sheet = () => document.querySelector('dialog[open]');",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms = 200) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(250); } };",
+        "  const firstOpen = (sel) => [...sheet().querySelectorAll(sel)].find((el) => shown(el) && el.getAttribute('aria-disabled') !== 'true');",
+        "  const typeIn = async (sel, value) => { const el = vis(sel); el.focus(); el.value = value; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(200); };",
+        "  await wait(500);",
         "})()"
       ]
     }
