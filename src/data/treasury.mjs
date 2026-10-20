@@ -232,19 +232,36 @@ export function addTreasuryEntry(teamId, { delta, reason, note }) {
 }
 
 /**
+ * A draft is saved under its own race. One whose race changed (`withRace`) goes only with that race named
+ * (`identity.baseTeamSlug`): sent under the team's, the server would store the old race with the new race's empty
+ * squad and refuse nothing. That is a mistake of the code that saves, never the coach's, so it throws. A draft
+ * that names no race — a roster stored before it carried one — is of the race it is sent with.
+ */
+function sameRace(draft, race) {
+  const own = String(draft?.teamSlug ?? "");
+  if (own && own !== race) {
+    throw new TypeError(`saveTeamRoster: a roster of "${own}" sent as "${race}"; a race changed is saved with identity.baseTeamSlug`);
+  }
+}
+
+/**
  * Save a roster draft (the stored shape, `normalizeDraft`'s) as the team's roster. The name, the race and the
  * logo go as the team has them, unless `identity` names others (the team's settings, stage 07d); the logo is not
- * re-encoded. A field of `identity` left out, or undefined, is the team's; a logo of "" or null takes it off. The
- * server writes the lines this page does not have (a purchase, a sale), so the history is read again.
+ * re-encoded. A field of `identity` left out, or undefined, is the team's; a name given goes without the blanks at
+ * its ends, in the column and in the roster alike (the builder's save does the same); a logo of "" or null takes it
+ * off. The server writes the lines this page does not have (a purchase, a sale), so the history is read again.
  * @param {string} teamId @param {object} draft
  * @param {{name?: string, baseTeamSlug?: string, logoData?: string|null}} [identity]
  * @returns {Promise<{team: object}|{refusal: string, changed?: true, unknown?: true}|{ignored: true}>} `changed` and
  *   `unknown` as for `addTreasuryEntry`.
+ * @throws {TypeError} before anything is sent, when the draft is of another race than the save sends (`sameRace`)
  */
 export function saveTeamRoster(teamId, draft, identity = {}) {
   const own = (key, held) => (identity?.[key] === undefined ? held : identity[key]);
+  const listed = state.myTeams.items.find((item) => item.id === teamId);
+  if (listed) sameRace(draft, own("baseTeamSlug", listed.baseTeamSlug));
   const send = (team) => {
-    const name = own("name", team.name);
+    const name = identity?.name === undefined ? team.name : String(identity.name ?? "").trim();
     const baseTeamSlug = own("baseTeamSlug", team.baseTeamSlug);
     return apiRequest(`/api/teams/${encodeURIComponent(teamId)}`, {
       method: "PATCH",

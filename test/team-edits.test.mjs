@@ -85,6 +85,16 @@ test("a league and a god only from the race's own; the favoured skills a new god
   assert.deepEqual(changed.draft.players.map((player) => player.favouredSkills), [[{ name: "Extra Arms", access: "favoured" }], [], []]);
   assert.deepEqual(changed.draft.players[2].extraSkills, [{ name: "Extra Arms", access: "primary" }]);
   assert.deepEqual(withFavoured(twoGods, godly, "Undivided").dropped, [], "the god the team has takes nothing off");
+
+  // A favoured copy of a skill the player keeps — Prehensile Tail by an advancement, Horns by the position (a raw
+  // draft: the server strips that one) — is a skill Slaanesh does not grant, and still not named: it is not lost.
+  const kept = { ...godly, players: [...godly.players,
+    { id: "p4", rowIndex: 1, number: "4", name: "P4", favouredSkills: ["Prehensile Tail"], extraSkills: [{ name: "Prehensile Tail", access: "secondary" }] },
+    { id: "p5", rowIndex: 0, number: "5", name: "P5", favouredSkills: ["Horns"] }] };
+  const keeping = untouched(kept, (draft) => withFavoured(twoGods, draft, "Slaanesh"));
+  assert.deepEqual(keeping.dropped.map(({ playerId, skill }) => [playerId, skill]), [["p1", "Prehensile Tail"], ["p2", "Disturbing Presence"]]);
+  assert.deepEqual(keeping.draft.players.slice(3).map((player) => player.favouredSkills), [[], []], "the copies come off");
+  assert.deepEqual(keeping.draft.players[3].extraSkills, [{ name: "Prehensile Tail", access: "secondary" }]);
   for (const [team, god] of [[twoGods, "Grungni"], [twoGods, ""], [human, "Nurgle"]]) {
     assert.deepEqual(withFavoured(team, godly, god), { code: "FAVOURED_UNKNOWN", params: {} }, `${team.slug} ${god}`);
   }
@@ -170,7 +180,9 @@ test("the roster's violations, as the 2.x editor listed them", () => {
   const over = [{ code: "POSITION_MAX", params: { position: "Blitzer", max: 2, count: 3 } }];
   assert.deepEqual(rosterViolations(human, blitzers), over);
   assert.deepEqual(rosterViolations(human, blitzers), validateRoster(human, blitzers, calculateRosterCosts(human, blitzers)), "what the 2.x editor listed");
-  assert.deepEqual(rosterViolations(human, { ...blitzers, roster: {} }), over, "counted from the players, not from a map the draft carries");
+  assert.deepEqual(untouched({ ...blitzers, roster: {} }, (draft) => rosterViolations(human, draft)), over,
+    "counted from the players, not from a map the draft carries");
+  assert.deepEqual(untouched(blitzers, (draft) => rosterViolations(human, draft)), over);
   assert.deepEqual(rosterViolations(human, stored(HUMAN, squad([0, 0, 0, 0, 0, 0]))), [{ code: "ROSTER_MIN_PLAYERS", params: { min: 7, count: 6 } }]);
 });
 

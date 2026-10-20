@@ -143,26 +143,47 @@ test("a saved roster replaces the team and reads the history again: the server w
   assert.equal(api.calls[0].body.roster.cheerleaders, 2);
 });
 
-/** The body of the last PATCH of the team, once the save given has been answered with the team as it was. */
-async function savedBody(identity) {
+/**
+ * The body of the last PATCH of the team, once the save given has been answered with the team as it was. The draft
+ * carries a name of its own and the race `race` (none by default, as a roster stored before it carried one).
+ */
+async function savedBody(identity, race = "") {
   coach();
   api.reply("PATCH /api/teams/t1", 200, { team: { ...TEAM, revision: 4 } });
   api.reply(FIRST_PAGE, 200, { entries: [], next: null, since: null, total: 0 });
-  assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, teamSlug: "x", teamName: "y" }, identity), { team: { ...TEAM, revision: 4 } });
+  assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, teamSlug: race, teamName: "y" }, identity), { team: { ...TEAM, revision: 4 } });
   await settle();
   return api.calls.filter((call) => call.key === "PATCH /api/teams/t1").at(-1).body;
 }
 const sent = (body) => [body.name, body.baseTeamSlug, body.logoData, body.revision, body.roster.teamName, body.roster.teamSlug, body.roster.treasury];
 
-test("a team saved with another name keeps the roster, the race and the logo as the list holds them (Review Focus 2)", async () => {
+test("a team saved with another name keeps the roster, the race and the logo as the list holds them", async () => {
   const body = await savedBody({ name: "Rooks" });
   assert.deepEqual(sent(body), ["Rooks", "teams/human", TEAM.logoData, 3, "Rooks", "teams/human", 70]);
   assert.equal(body.roster.logoData, undefined);
+  assert.deepEqual(sent(await savedBody({ name: "Rooks" }, "teams/human")), ["Rooks", "teams/human", TEAM.logoData, 3, "Rooks", "teams/human", 70]);
+});
+
+test("a name given goes without the blanks at its ends, in the body and in the roster alike", async () => {
+  const body = await savedBody({ name: "  Rooks \t" });
+  assert.deepEqual([body.name, body.roster.teamName], ["Rooks", "Rooks"]);
+  const none = await savedBody({ name: null });
+  assert.deepEqual([none.name, none.roster.teamName], ["", ""], "no name is no name, for the server to refuse");
 });
 
 test("a race changed goes with the new race in the body and in the roster", async () => {
-  const body = await savedBody({ baseTeamSlug: "teams/shambling-undead" });
+  const body = await savedBody({ baseTeamSlug: "teams/shambling-undead" }, "teams/shambling-undead");
   assert.deepEqual(sent(body), ["Wardens", "teams/shambling-undead", TEAM.logoData, 3, "Wardens", "teams/shambling-undead", 70]);
+  assert.deepEqual(sent(await savedBody({ baseTeamSlug: "teams/shambling-undead" })), sent(body), "a draft that names no race takes the one given");
+});
+
+test("a draft of another race than its save sends throws and sends nothing: a race changed never goes back under the old one", () => {
+  coach();
+  const undead = { ...TEAM.roster, teamSlug: "teams/shambling-undead", players: [] };
+  for (const identity of [undefined, {}, { name: "Rooks" }, { logoData: "" }, { baseTeamSlug: "teams/goblin" }]) {
+    assert.throws(() => treasury.saveTeamRoster("t1", undead, identity), TypeError, JSON.stringify(identity));
+  }
+  assert.deepEqual([api.calls.length, treasury.isWriting("t1")], [0, false]);
 });
 
 test("a logo given goes in place of the team's, never inside the roster; an empty one takes it off", async () => {
