@@ -1178,16 +1178,9 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assert.deepEqual(own(".g-overview__leaderline", "min-height"), ["49px"]);
   assert.deepEqual(own(".g-overview__leaderline:last-child", "min-height"), ["48px"], "the last has no rule");
   for (const value of [...own(".g-overview__leaderline", "min-height"), ...own(".g-overview__leaderline:last-child", "min-height")]) assert.ok(parseInt(value, 10) >= 44, value);
-  // Wrapping: a long name or position wraps; nothing is cut with «…» or held on one line — but a desk card's name, which
-  // DeskOverview.html holds on one line (`white-space: nowrap`): one longer than its card ends in «…» inside its min-width: 0
-  // column, the whole name still the card's text (the fidelity pass, F10). The position under it wraps, as the prototype's.
-  assert.deepEqual(["display", "overflow", "text-overflow", "white-space"].map((property) => inMedia(LISTS_CSS, "min-width: 901px", ".g-overview__leadername", property)),
-    [["block"], ["hidden"], ["ellipsis"], ["nowrap"]]);
-  assert.deepEqual(own(".g-overview__leaderwho", "min-width"), ["0"], "the column the name ends in «…» inside");
-  const held = ruleOf(desk, ".g-overview__leadername");
-  assert.doesNotMatch(bare.replace(held, ""), /ellipsis|nowrap|text-overflow|line-clamp/, "the desk card's name alone");
+  // Wrapping: a long name or position wraps; nothing is cut with «…» or held on one line.
+  assert.doesNotMatch(bare, /ellipsis|nowrap|text-overflow|line-clamp/);
   for (const selector of [".g-overview__leadername", ".g-overview__leaderpos"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
-  assert.deepEqual(inMedia(LISTS_CSS, "max-width: 900px", ".g-overview__leadername", "white-space"), [], "a phone's name wraps");
   // Readable in every palette: the accent of a desk's figure on its card, the grey of the tag and the position on a card and on a phone's page.
   assertReadable(LISTS_CSS, ".g-overview__leadervalue", "color", ["--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__leadervalue--spp", "color", ["--surface", "--page"], 4.5);
@@ -1520,7 +1513,7 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   // Wrapping: the opponent, the race and the MVP wrap; nothing is cut with «…» or held on one line.
   for (const selector of [".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__mvp"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.match(ruleOf(bareOf(LISTS_CSS), ".g-overview__sub"), /flex-wrap: wrap;/);
-  assert.doesNotMatch(bareOf(LISTS_CSS).replace(ruleOf(deskOf(LISTS_CSS), ".g-overview__leadername"), ""), /ellipsis|nowrap|text-overflow|line-clamp/, "only a desk leader's name is held (F10)");
+  assert.doesNotMatch(bareOf(LISTS_CSS), /ellipsis|nowrap|text-overflow|line-clamp/);
   // Readable in every palette: a desk's greys on its white card, a phone's on its page, the link on both.
   for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__racelink", ".g-overview__mvp", ".g-overview__cas"]) assertReadable(LISTS_CSS, selector, "color", ["--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
