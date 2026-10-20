@@ -96,7 +96,7 @@ function listen(target, type, listener) {
  * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`, a
  *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs),
  *   the hire cart `{kind: "hire", key: "hire", cart, refusal}` and a player's sale `{kind: "sell", key, refusal}` (market.mjs, stage 07c),
- *   a player's edit `{kind: "edit", key, form: {number, name, captain}, refusal}` (player.mjs, stage 07d)
+ *   a player's edit `{kind: "edit", key, form: {number, name, captain}, refusal}` and advancement `{kind: "advance", …}` (stage 07d)
  * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
@@ -378,7 +378,7 @@ function heardSave(saving, now) {
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
  * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
  * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's;
- * a skill's chip, the pencil and the player's edit player.mjs's (stage 07d).
+ * a skill's chip, the pencil, the player's edit and advancement player.mjs's and advance.mjs's (stage 07d).
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */
 function pressHandlers({ read, ...saving }) {

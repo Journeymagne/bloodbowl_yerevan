@@ -367,7 +367,7 @@ test("a skill the reference has no page for opens all the same and says so", asy
   assert.equal(sheet().querySelector(".g-roster__from").textContent, "Ann · primary");
 });
 
-test("«Profile and advancement» on a phone and «Advance» on a desk lead to the player's address (the roster's player mode, stage 07d); the pencil opens his edit", async () => {
+test("«Profile and advancement» on a phone leads to the player's address (the roster's player mode, stage 07d); on a desk «Advance» opens his advancement and the pencil his edit", async () => {
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
@@ -380,9 +380,11 @@ test("«Profile and advancement» on a phone and «Advance» on a desk lead to t
     coach();
     await renderTeamRoster("t1");
     fireEvent(toggle("p2#0"), "click");
-    const advance = aside().querySelector("a.g-btn--primary");
+    // Stage 07d, Task 9: «Advance» is a button that opens the advancement's window (DeskRosterAdv.html), not a link.
+    const advance = aside().querySelector('button.g-btn--primary[data-player-advance="p2#0"]');
     assert.equal(advance.textContent, "Advance");
-    assert.equal(advance.getAttribute("href"), teamPlayerUrl("t1", "p2"));
+    assert.equal(advance.getAttribute("aria-haspopup"), "dialog");
+    assert.equal(aside().querySelector("a"), null, "no link to his page in the panel");
     // Stage 07d, Task 8: the pencil is a button that opens the edit of his number, name and captaincy, not a link.
     assert.ok(!aside().querySelector("a.g-roster__edit"), "no link");
     const pencil = aside().querySelector('button.g-roster__edit[data-player-edit="p2#0"]');
@@ -1052,7 +1054,8 @@ test("a preparation that is on: a yellow banner, the round, what any save resets
       fireEvent(plus("touchdowns"), "click");
       await settle();
       assert.deepEqual([patches().length, posts().length], [1, 0], "a save of the roster, as outside a match");
-      assert.equal(aside().querySelector("a.g-btn--primary").textContent, "Advance", "a preparation closes nothing");
+      // Stage 07d, Task 9: «Advance» is a button that opens the advancement's window, not a link.
+      assert.equal(aside().querySelector("[data-player-advance]").textContent, "Advance", "a preparation closes nothing");
       // A friendly has no round.
       coach();
       gamesAre([{ ...PREP_GAME, kind: "friendly", season: null, roundStatus: null, roundNumber: null }]);
@@ -1250,6 +1253,8 @@ test("advancement waits for the post-match: «Advance» and the pencil say so; �
     // Stage 07d, Task 8: the pencil edits his number, name and captaincy, and says so.
     check(pencil, "Number, name and captain — after the post-match");
     assert.equal(advance.textContent, "Advance");
+    // Stage 07d, Task 9: a button that names him, so the focus finds it when his advancement closes.
+    assert.equal(advance.getAttribute("data-player-advance"), "p2#0");
     check(advance);
     assert.equal(aside().querySelector(".g-roster__cheapest").textContent, AFTER_POST);
     assert.equal(aside().querySelector("a"), null);
@@ -2372,7 +2377,7 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   const styles = text("src/styles.css");
   const chain = ["roster.css", "marks.css", "sheets.css", "frame.css", "market.css", "profile.css", "player-sheets.css", "advance.css", "rolls.css", "fix.css"]
     .map((name) => styles.indexOf(`@import url("screens/team/roster/${name}");`));
-  assert.ok(chain.slice(0, 7).every((at) => at >= 0), "07a to 07c's and 07d's profile.css and player-sheets.css reach the page");
+  assert.ok(chain.slice(0, 8).every((at) => at >= 0), "07a to 07c's and 07d's profile.css, player-sheets.css and advance.css reach the page");
   const present = chain.filter((at) => at >= 0);
   assert.deepEqual(present, [...present].sort((a, b) => a - b));
 });

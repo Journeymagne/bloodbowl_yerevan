@@ -7,12 +7,14 @@
  * two buttons; «Miss a match…», its sheet's reasons, characteristic, words and button, «Back on the roster», and a
  * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b); the «+» beside «Player»,
  * its cart's + and −, «Cancel» and «Buy», and «Sell» or «Cancel purchase» with its sheet's «Cancel» and button (stage
- * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save» (stage
- * 07d). What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs); this file only
- * says who was pressed.
+ * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save», and
+ * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done» (stage 07d).
+ * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs); this
+ * file only says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
+import { wireRadioGroups } from "../../../ui/choice.mjs";
 import { wireFilterChips } from "../../../ui/filter-chips.mjs";
 import { wireOptionLists } from "../../../ui/option-card.mjs";
 import { wireRosterTable } from "../../../ui/roster-table.mjs";
@@ -22,7 +24,7 @@ import { wireStepButtons } from "../../../ui/stepper.mjs";
 import { wireToggles } from "../../../ui/toggle.mjs";
 import { MARK_TEXT } from "./mark-sheet.mjs";
 import { CAPTAIN_TOGGLE, EDIT_FIELDS } from "./player-sheets.mjs";
-import { INJURY_STAT, MARK_SHEET, MARK_STAT } from "./sheets.mjs";
+import { ADVANCE_SHEET, INJURY_STAT, MARK_SHEET, MARK_STAT } from "./sheets.mjs";
 import { OUTSIDE_TOGGLE } from "./view.mjs";
 
 /** The line a chip belongs to: the panel's player, or the player of the table's body it stands in. */
@@ -98,11 +100,40 @@ function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave }) {
 }
 
 /**
- * The cards of whichever sheet is open, by the sheet they stand in. One wiring for the root: two would not work, since
- * the first flips the group's cards and the second then hears no change (wireFilterChips says the same of chip rows).
+ * A player's advancement (stage 07d): «Advancement» or «Advance» (not when closed — a press on a closed one says why, as
+ * `[data-roster-closed]` does), its categories and its skills, each a radio group of its own (a closed item says why
+ * the same way), and its sheet's «Next», «Take», «Cancel» and «Done». Its types are the option cards `wireReasons` hears;
+ * its «Back», the sheet's own (`wireSheets`).
  */
-function wireReasons(root, { onInjuryChoice, onMarkChoice }) {
-  return wireOptionLists(root, (code, list) => (list.closest("dialog")?.id === MARK_SHEET ? onMarkChoice({ code }) : onInjuryChoice({ code })));
+function wireAdvance(root, { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceNext, onAdvanceTake, onAdvanceKeep, onAdvanceDone }) {
+  return [
+    onPlayerButton(root, "data-player-advance", onAdvance),
+    wireRadioGroups(root, { group: ".g-advance__cats", item: "[data-advance-category]", attribute: "data-advance-category", onChange: onAdvanceCategory }),
+    wireRadioGroups(root, { group: ".g-advance__skills", item: "[data-advance-skill]", attribute: "data-advance-skill", onChange: onAdvanceSkill }),
+    // One listener for the sheet's buttons: a step patches its one button in place («Next», «Take», «Back to the player»),
+    // and a listener of its own for each would hear the same click again on the button it has become. A closed «Take» is
+    // `aria-disabled` and still clicked: why is said where the press is taken (advance.mjs).
+    delegate(root, "click", "[data-advance-next], [data-advance-take], [data-advance-keep], [data-advance-done]", (event, button) => {
+      if (button.hasAttribute("data-advance-next")) onAdvanceNext();
+      else if (button.hasAttribute("data-advance-take")) onAdvanceTake();
+      else if (button.hasAttribute("data-advance-keep")) onAdvanceKeep();
+      else onAdvanceDone();
+    }),
+  ];
+}
+
+/**
+ * The cards of whichever sheet is open, by the sheet they stand in: a missed match's reasons, an advancement's types
+ * (stage 07d), an injury's. One wiring for the root: two would not work, since the first flips the group's cards and
+ * the second then hears no change (wireFilterChips says the same of chip rows).
+ */
+function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
+  return wireOptionLists(root, (code, list) => {
+    const sheet = list.closest("dialog")?.id;
+    if (sheet === MARK_SHEET) onMarkChoice({ code });
+    else if (sheet === ADVANCE_SHEET) onAdvanceType(code);
+    else onInjuryChoice({ code });
+  });
 }
 
 /**
@@ -141,17 +172,26 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice }) {
  * @param {(on: boolean) => void} handlers.onEditCaptain «Team captain» switched on or off
  * @param {() => void} handlers.onEditKeep «Cancel» in the edit
  * @param {() => void} handlers.onEditSave «Save» in the edit
+ * @param {(key: string, button: Element) => void} handlers.onAdvance «Advancement» or «Advance», by the line's key (not when it is closed)
+ * @param {(type: string) => void} handlers.onAdvanceType a type of advancement chosen in its sheet
+ * @param {(category: string) => void} handlers.onAdvanceCategory a category chosen
+ * @param {(name: string) => void} handlers.onAdvanceSkill a skill chosen
+ * @param {() => void} handlers.onAdvanceNext a phone's «Next»
+ * @param {(id: string) => void} handlers.onSheetBack a sheet's «Back», by the sheet's id
+ * @param {() => void} handlers.onAdvanceTake «Take …»
+ * @param {() => void} handlers.onAdvanceKeep «Cancel» in a desk's window
+ * @param {() => void} handlers.onAdvanceDone «Back to the player» or «Done», once taken
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
-  const { onSort, onToggle, onSkill, onSheetClose, onRetry, onStep, onRefused, onReload, onReread, onOutside, onEditCaptain } = handlers;
+  const { onSort, onToggle, onSkill, onSheetClose, onSheetBack, onRetry, onStep, onRefused, onReload, onReread, onOutside, onEditCaptain } = handlers;
   const offs = [
     wireRosterTable(root, { onSort, onToggle }),
     wireSkillChips(root, (name, chip) => {
       const key = lineKeyOf(chip);
       if (key) onSkill(key, name, chip);
     }),
-    wireSheets(root, { onClose: onSheetClose }),
+    wireSheets(root, { onClose: onSheetClose, onBack: onSheetBack }),
     wireActionSteppers(root, ({ key, delta, element }) => onStep(element.getAttribute("data-player") ?? "", key, delta), { onRefused: ({ reason }) => onRefused(reason) }),
     delegate(root, "click", "[data-roster-retry]", () => onRetry()),
     delegate(root, "click", "[data-roster-reload]", () => onReload()),
@@ -166,6 +206,7 @@ export function wireRoster(root, handlers) {
     ...wireMarks(root, handlers),
     ...wireMarket(root, handlers),
     ...wirePlayer(root, handlers),
+    ...wireAdvance(root, handlers),
   ];
   return () => offs.forEach((off) => off());
 }

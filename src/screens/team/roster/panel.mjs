@@ -1,8 +1,8 @@
 /**
  * What the roster says of one player beyond his row: the row opened on a phone, and the panel beside the table
- * on a desk (plan 07a, decisions 20 and 21). Both lead to the player's own address — on a phone his profile, on a
- * desk the roster with him in the panel (stage 07d) — and say why an advancement or an edit of him is closed. The
- * panel's pencil opens his edit (stage 07d, player-sheets.mjs), as the profile's does.
+ * on a desk (plan 07a, decisions 20 and 21). The row leads to the player's own address, his profile (stage 07d); both
+ * say why an advancement or an edit of him is closed. The panel's pencil opens his edit (stage 07d, player-sheets.mjs)
+ * and its «Advance» his advancement's window (advance.mjs), as the profile's pencil and «Advancement» do.
  *
  * The phone's open row holds his SPP counters with − and + (Task 10): outside a match a step is a save of the roster
  * (save.mjs), and the count is the career. The desk's panel holds them only while a match is on (owner's D3,
@@ -33,7 +33,6 @@ import { ADVANCEMENT_BLOCKED } from "../../../domain/roster/progression.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderActionStepper } from "../../../ui/action-stepper.mjs";
-import { renderButton } from "../../../ui/button.mjs";
 import { icon } from "../../../ui/icons.mjs";
 import { assertLinkHref, classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
@@ -486,12 +485,16 @@ function manualMarkup(line, screen) {
 }
 
 /**
- * His SPP: what he may spend, what he has earned and spent, his advancements, «Advance» — closed, saying why, when no
- * advancement can be taken (`advanceClosed`) — and under it the cheapest one open, or why it is closed.
+ * His SPP: what he may spend, what he has earned and spent, his advancements, «Advance» — a button that opens his
+ * advancement's window (DeskRosterAdv.html), closed, saying why, when no advancement can be taken (`advanceClosed`); it
+ * names him either way, so the focus finds it when the window closes — and under it the cheapest one open, or why it
+ * is closed.
  */
-function sppMarkup(line, screen, href) {
+function sppMarkup(line, screen) {
   const reason = advanceClosed(line, screen);
-  const advance = reason ? closedAdvanceMarkup({ reason }) : renderButton({ label: t("teamRoster.advance"), kind: "primary", block: true, href, icon: "up" });
+  const data = { playerAdvance: line.key };
+  const advance = reason ? closedAdvanceMarkup({ reason, data })
+    : `<button type="button" class="g-btn g-btn--primary g-btn--block" aria-haspopup="dialog"${dataAttributes(data)}>${icon("up", 20)}${escapeHtml(t("teamRoster.advance"))}</button>`;
   const cheapest = advanceHintOf(line, screen);
   return `<div class="g-roster__spp"><div class="g-roster__spptop">`
     + `<p class="g-roster__avail"><span class="g-roster__availn">${escapeHtml(line.available)}</span> <span class="g-roster__availl">${escapeHtml(t("teamRoster.available"))}</span></p>`
@@ -531,7 +534,6 @@ function skillsMarkup(line) {
  * @param {import("./view.mjs").RosterScreen} screen
  */
 export function sidePanelMarkup(line, screen) {
-  const href = profileUrl(line, screen);
-  return `${headMarkup(line, screen)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, screen, href)}${skillsMarkup(line)}`
+  return `${headMarkup(line, screen)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, screen)}${skillsMarkup(line)}`
     + `<section class="g-roster__nextblock">${nextMatchMarkup(line, screen)}${actionsMarkup(line, screen)}</section>`;
 }

@@ -506,11 +506,11 @@ test("offers not known yet (no Skill Table): the plain «Advancement», with no 
     assert.equal(hint(), null);
     assert.ok(!view.querySelector(".g-profile__body").textContent.includes("every skill"), "never «no skill left»");
   });
-  // The desk's panel: «Advance», with no cost under it.
+  // The desk's panel: «Advance», with no cost under it — a button that opens the advancement since Task 9.
   coach();
   state.data = { ...state.data, skillGroups: undefined };
   await renderTeamRoster("t1");
-  assert.ok(aside().querySelector("a.g-btn--primary"));
+  assert.ok(!aside().querySelector('button.g-btn--primary[data-player-advance="p1#0"]').hasAttribute("aria-disabled"));
   assert.ok(!aside().querySelector(".g-roster__cheapest"));
 });
 

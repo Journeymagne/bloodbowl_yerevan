@@ -36,8 +36,9 @@ const ID = /^[A-Za-z][\w-]*$/;
  * @param {boolean} [props.wide] a 640px modal on a wide screen instead of 480px
  * @param {boolean} [props.anchored] a panel of 300px by the SideNav from 901px (the team switcher), instead of a modal in the middle; up to 900px the same sheet from the bottom
  * @param {string} [props.className] one plain class of the caller's on the dialog: a frame several of its sheets share (a player's, stage 07d)
+ * @param {string} [props.leadHtml] markup of a render…() function before the titles in the head (a desk's row; the player's number, stage 07d)
  */
-export function renderSheet({ id, title, sub = "", step = null, canGoBack = false, bodyHtml, footHtml = "", footStartHtml = "", wide = false, anchored = false, className = "" }) {
+export function renderSheet({ id, title, sub = "", step = null, canGoBack = false, bodyHtml, footHtml = "", footStartHtml = "", wide = false, anchored = false, className = "", leadHtml = "" }) {
   if (typeof id !== "string" || !ID.test(id)) throw new Error(`a sheet id is a plain name, not ${JSON.stringify(id)}`);
   if (className && !ID.test(className)) throw new Error(`a sheet's class is one plain name, not ${JSON.stringify(className)}`);
   if (!title) throw new Error("a sheet needs a title: it is what names the dialog");
@@ -51,7 +52,7 @@ export function renderSheet({ id, title, sub = "", step = null, canGoBack = fals
   const foot = footHtml ? `<footer class="g-sheet__foot">${start}${footHtml}</footer>` : "";
   return `<dialog class="${classNames("g-sheet", wide && "g-sheet--wide", anchored && "g-sheet--anchored", className)}" id="${escapeHtml(id)}" aria-labelledby="${escapeHtml(id)}-title">`
     + '<div class="g-sheet__panel"><div class="g-sheet__handle" aria-hidden="true"></div>'
-    + `<header class="g-sheet__head">${back}${titles}${close}</header>`
+    + `<header class="g-sheet__head">${back}${leadHtml}${titles}${close}</header>`
     + `${step ? renderStepDots(step) : ""}<div class="g-sheet__body">${bodyHtml}</div>${foot}`
     + "</div></dialog>";
 }

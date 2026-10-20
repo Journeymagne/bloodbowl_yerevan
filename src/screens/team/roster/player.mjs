@@ -1,12 +1,14 @@
 /**
  * What a player's own controls do (stage 07d): the pencil opens his edit — number, name, the captaincy — and «Save» is
  * one step of the save queue; on a desk the edit also carries his SPP counters outside a match (owner's D3), each press
- * a step of its own as on a phone. None during a match (R8). What a sheet holds lives on the visit, as the marks' do.
+ * a step of its own as on a phone. «Advancement» (the profile's) and «Advance» (the desk's panel) open his advancement,
+ * whose presses are advance.mjs's. None during a match (R8). What a sheet holds lives on the visit, as the marks' do.
  *
  * A skill's chip, in his row, his panel or his profile, opens the skill's rule (07a). The edit's sheet is drawn by
  * player-sheets.mjs; its tiles are the roster's counters, whose presses index.mjs's `onStep` takes as every counter's.
  */
 import { toast } from "../../../components/toast.mjs";
+import { advanceHandlers, advanceSheetOf } from "./advance.mjs";
 import { closeSheet } from "./injury.mjs";
 import { editClosed } from "./panel.mjs";
 import { editCheck } from "./player-sheets.mjs";
@@ -17,8 +19,9 @@ const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !l
 
 /**
  * A player's sheet as the screen draws it, or null when it stands no longer: his line has left the roster (read again,
- * or fallen), or a match has begun (R8) — the screen closes it, and the focus goes back to his pencil, closed now
- * (`openerOf`). The edit says why «Save» is closed just now (`editClosed`: the screen's lock).
+ * or fallen), or a match has begun (R8) — the screen closes it, and the focus goes back to his pencil or his
+ * «Advancement», closed now (`openerOf`). The edit says why «Save» is closed just now (`editClosed`: the screen's lock);
+ * his advancement is advance.mjs's to keep (`advanceSheetOf`).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines the roster's lines and the fallen
@@ -29,6 +32,7 @@ export function playerSheetOf(visit, lines, where) {
   const { sheet } = visit;
   const line = sheet ? rosterLineOf(lines, sheet.key) : null;
   if (!line || where.mode.kind === "match") return null;
+  if (sheet.kind === "advance") return advanceSheetOf(sheet, line, where);
   return sheet.kind === "edit" ? { ...sheet, reason: editClosed(line, where) } : null;
 }
 
@@ -79,7 +83,7 @@ function saveEdit(saving, { now, refused }) {
  * What a player's own presses do (wire.mjs): a skill's chip opens its rule; the pencil opens his edit with his number,
  * name and armband as they stand, unless something closes it just now (said instead); a field typed in or the switch
  * flipped changes the edit's form, and the last refusal goes with the form it was said of; «Cancel» closes it, the focus
- * back on the pencil; «Save» saves it (`saveEdit`).
+ * back on the pencil; «Save» saves it (`saveEdit`). His advancement's presses are advance.mjs's (`advanceHandlers`).
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {{now: () => object, refused: () => void}} lent what the screen lends: `now` is the screen as it stands at the
@@ -94,6 +98,7 @@ export function playerHandlers(saving, lent) {
     draw();
   };
   return {
+    ...advanceHandlers(saving, lent),
     onSkill: (key, name, chip) => {
       Object.assign(visit, { sheet: { kind: "skill", key, name }, opener: chip });
       draw();
