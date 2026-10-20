@@ -49,11 +49,12 @@ const PLAYERS = [
   { id: "p1", rowIndex: 0, number: "3", name: "Ashby", spp: { touchdowns: 2, completions: 1 } },
   { id: "p2", rowIndex: 1, number: "5", name: "Vane", spp: { touchdowns: 1, completions: 4 } },
 ];
+// Each at its revision: the records of a match on are taken with the revision of the team in the list (stage 07e).
 const TEAMS = [
-  { id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true, roster: { treasury: 120, players: PLAYERS } },
-  { id: "t2", name: "Grimtusk Raiders", baseTeamSlug: "teams/orc", stage: "active", inActiveSeason: true, roster: { treasury: 40 } },
-  { id: "t3", name: "Anji Magritta", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true, roster: { treasury: 0 } },
-  { id: "t4", name: "Fresh Meat", baseTeamSlug: "teams/orc", stage: "draft", inActiveSeason: false, roster: { treasury: 1000 } },
+  { id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true, revision: 4, roster: { treasury: 120, players: PLAYERS } },
+  { id: "t2", name: "Grimtusk Raiders", baseTeamSlug: "teams/orc", stage: "active", inActiveSeason: true, revision: 7, roster: { treasury: 40 } },
+  { id: "t3", name: "Anji Magritta", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true, revision: 2, roster: { treasury: 0 } },
+  { id: "t4", name: "Fresh Meat", baseTeamSlug: "teams/orc", stage: "draft", inActiveSeason: false, revision: 1, roster: { treasury: 1000 } },
 ];
 
 const side = (id, name, slug) => ({ user: { id: `u-${id}`, login: id }, team: { id, name, baseTeamSlug: slug } });
@@ -120,6 +121,8 @@ function coach({ games = GAMES, season = SEASON, gamesLoaded = true, seasonLoade
   state.data = { teams: RACES };
   state.season = { data: season, loaded: seasonLoaded, loading: false, error: "" };
   state.games = { items: games, currentItems: [], loaded: gamesLoaded, loading: false, error: gamesError };
+  // The leaders read the records not settled (stage 07e): none, at the team's revision.
+  for (const { id, revision } of TEAMS) api.reply(`GET /api/teams/${id}/events`, 200, { events: [], revision });
 }
 
 /** The server answering the list again: the games as they are now. */
@@ -995,7 +998,9 @@ test("a read that failed is made again when the coach comes back to the overview
   const drawing = renderTeamOverview("t1");
   assert.ok(view.querySelector(".g-pagehead h1"));
   await drawing;
-  assert.deepEqual(api.calls.map((call) => call.key).sort(), ["GET /api/games", "GET /api/season"]);
+  // Stage 07e: the leaders' records too — once the page is drawn, and once more for the games' answer, which came while
+  // the first was in the air (a match may have begun meanwhile).
+  assert.deepEqual(api.calls.map((call) => call.key).sort(), ["GET /api/games", "GET /api/season", "GET /api/teams/t1/events", "GET /api/teams/t1/events"]);
   assert.equal(view.querySelector(".g-overview__failed"), null);
   assert.equal(view.querySelector(".g-board__side--away .g-board__name").textContent, "Rival Team");
   api.assertAnswered();
@@ -1604,4 +1609,77 @@ test("at 320px a word of a team or a race keeps whole in the board's side column
   assert.match(board, /@media \(max-width: 359px\)\s*\{[^@]*\.g-board__name \{ font-size: 16px; \}/);
   assert.match(board, /@media \(max-width: 359px\)\s*\{[^@]*\.g-board__sub \{ font-size: 12px; \}/);
   assert.match(board, /@media \(max-width: 900px\)\s*\{\s*\.g-board__mid \{ max-width: 124px; \}/, "the middle column is still wide enough for a Russian status");
+});
+
+// Stage 07e, decision 13: the leaders are the career, as «Состав» counts it — the roster and the records not settled yet
+// (the taps of a match on). The records are read once a visit and again on every answer of the games, one read in the
+// air; they are taken only with the revision of the team in the list (else the roster and the records are two moments,
+// and a match would count twice or not at all), and only while the visit is here. None of it is said when it fails.
+test("the leaders follow a match's records: read once a visit and when the games change; another revision's records, or a read that failed, leave the roster's numbers, and nothing is said", async () => {
+  const EVENTS = "GET /api/teams/t1/events";
+  const calls = () => api.calls.filter((call) => call.key === EVENTS).length;
+  const turns = async () => { for (let turn = 0; turn < 6; turn += 1) await settle(); };
+  const leaderWords = () => view.querySelectorAll("a.g-overview__leader, a.g-overview__leaderline").map((link) => [
+    link.querySelector(".g-overview__leadertag").textContent, link.getAttribute("href"), link.querySelector(".g-overview__leadervalue").textContent]);
+  // Ashby (TD 2, COMP 1) and Vane (TD 1, COMP 4) are 7 SPP each on the roster; two taps of Vane's touchdowns in the match.
+  const ROSTER = [["SPP", "#/t/t1/roster/p1", "7"], ["TD", "#/t/t1/roster/p1", "2"], ["COMP", "#/t/t1/roster/p2", "4"]];
+  const CAREER = [["SPP", "#/t/t1/roster/p2", "13"], ["TD", "#/t/t1/roster/p2", "3"], ["COMP", "#/t/t1/roster/p2", "4"]];
+  const tap = (id) => ({ id, pairingId: "g1", playerId: "p2", counter: "touchdowns", delta: 1, injury: null, settledAt: null });
+  const TAPS = [tap("e1"), tap("e2")];
+  for (const phone of [false, true]) {
+    const { cross } = crossingWindow(phone);
+    try {
+      coach();
+      api.reply(EVENTS, 200, { events: TAPS, revision: 4 });
+      const records = api.hold(EVENTS);
+      await renderTeamOverview("t1");
+      assert.equal(calls(), 1, "read once the page is drawn");
+      assert.deepEqual(leaderWords(), ROSTER, "the roster's numbers until the records come");
+      records.release();
+      await turns();
+      assert.deepEqual(leaderWords(), CAREER, `the career, as the roster counts it (${phone ? "a phone" : "a desk"})`);
+      // A draw that is no answer of the games reads nothing: the width crossed and back.
+      cross(!phone);
+      cross(phone);
+      await turns();
+      assert.equal(calls(), 1);
+      assert.deepEqual(leaderWords(), CAREER);
+      // The games answer: read again. Another revision's records: the roster's numbers.
+      api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+      await notifyGames(GAMES);
+      await turns();
+      assert.equal(calls(), 2);
+      assert.deepEqual(leaderWords(), ROSTER, "the roster and the records of two moments: the roster's");
+      // A read that fails: the roster's numbers, and nothing is said.
+      api.reply(EVENTS, 500, { error: { code: "INTERNAL", params: {}, message: "x" } });
+      await notifyGames(GAMES);
+      await turns();
+      assert.equal(calls(), 3);
+      assert.deepEqual(leaderWords(), ROSTER);
+      assert.equal(view.querySelector('[role="alert"]'), null, "no words of the failure");
+      // One read in the air: the games answering twice while it is ask for one more after it, not two.
+      api.reply(EVENTS, 200, { events: TAPS, revision: 4 });
+      const held = api.hold(EVENTS);
+      await notifyGames(GAMES);
+      await notifyGames(GAMES);
+      await turns();
+      assert.equal(calls(), 4, "one in the air");
+      held.release();
+      await turns();
+      assert.equal(calls(), 5, "then the one asked for meanwhile");
+      assert.deepEqual(leaderWords(), CAREER);
+      // An answer after the coach left draws nothing.
+      const late = api.hold(EVENTS);
+      await notifyGames(GAMES);
+      releaseCurrentScreen();
+      view.innerHTML = "<p>next</p>";
+      late.release();
+      await turns();
+      assert.equal(view.querySelector("p").textContent, "next");
+      api.assertAnswered();
+    } finally {
+      releaseCurrentScreen();
+      delete globalThis.matchMedia;
+    }
+  }
 });

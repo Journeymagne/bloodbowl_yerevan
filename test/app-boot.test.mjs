@@ -10,12 +10,14 @@ const api = installFakeApi();
 const { document, replaced, window } = bootPage(api, { hash: "#/" });
 const COACH = { id: "u1", login: "felstell", telegram: "@felstell", isAdmin: false, managedByServer: false,
   preferences: { themeMode: "dark", lightPalette: "grass", darkPalette: "embers", activeTeamId: "t2" } };
-const TEAMS = [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human" }, { id: "t2", name: "Grimtusk Raiders", baseTeamSlug: "teams/orc" }];
+const TEAMS = [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", revision: 1 }, { id: "t2", name: "Grimtusk Raiders", baseTeamSlug: "teams/orc", revision: 3 }];
 api.items.set("gata-league-auth-token", "tok");
 api.reply("GET /api/auth/me", 200, { user: COACH });
 api.reply("GET /api/teams", 200, { teams: TEAMS });
 api.reply("GET /api/season", 200, {});
 api.reply("GET /api/games", 200, { games: [], currentGames: [] });
+// The overview's leaders read the team's records not settled (stage 07e).
+api.reply("GET /api/teams/t2/events", 200, { events: [], revision: 3 });
 // The frame's match card waits on the games; the screen must not: they stay unanswered until the screen is drawn.
 const games = api.hold("GET /api/games");
 
