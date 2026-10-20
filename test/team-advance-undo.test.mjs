@@ -861,7 +861,7 @@ test("a skill an advancement gave says how in its sheet; a site roll gave it —
       assert.ok(!said(), "nothing said of the dice before they are read");
       // Between the rule and whose skill it is (StatsSkill.html): the rolls' block holds the line and what the dice showed.
       const body = elements(skillSheet().querySelector(".g-sheet__body"));
-      assert.deepEqual(body.map((node) => node.getAttribute("class")), ["g-prose", "g-roster__rollblock", "g-roster__from"]);
+      assert.deepEqual(body.map((node) => node.getAttribute("class")), ["g-prose", "g-roster__rollblock", "g-roster__from g-roster__from--gained"]);
       assert.equal(callsTo(ROLLS_READ), 1);
       gate.release({ status: 200, body: { rolls: [R0, PAIR, R2] } });
       await settle();

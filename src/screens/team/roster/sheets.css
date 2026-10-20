@@ -6,7 +6,7 @@
  */
 /*
  * The skill's sheet: whose skill it is and where he got it, under the rule, in a box of its own (StatsSkill.html:
- * #F3F6F4, 14px at 600, radius 12); a skill the reference has no page for.
+ * #F3F6F4, 14px at 600, radius 12; a gained skill's on #E4F0E9); a skill the reference has no page for.
  */
 .g-roster__from {
   margin: var(--space-12) 0 0;
@@ -18,6 +18,11 @@
   font: 600 14px/1.4 var(--font-body);
   letter-spacing: 0;
   text-transform: none;
+}
+/* A skill an advancement gave: StatsSkill.html's #E4F0E9 on #163A28, the accent's tint of the palette; the rest is the grey box above. */
+.g-roster__from--gained {
+  background: var(--accent-tint);
+  color: var(--on-accent-tint);
 }
 
 .g-roster__nopage {

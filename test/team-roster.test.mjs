@@ -337,6 +337,23 @@ test("a skill chip opens its rule: the name as written, its category and type, t
   assert.equal(document.activeElement, chip);
 });
 
+test("the sheet's box says whose skill it is: a skill an advancement gave, by the advancement and on the accent's tint; a starting one in 07a's words on the grey (fidelity F8, StatsSkill.html)", async () => {
+  const bors = { ...PLAYERS[1], extraSkills: [{ name: "Dodge", access: "primary" }, { name: "Mighty Blow", access: "primary" }],
+    advancements: [{ type: "random", grants: { skill: "Dodge" } }, { type: "primary", grants: { skill: "Mighty Blow" } }] };
+  coach({ teamAnswer: team({ roster: { players: [bors] } }) });
+  await renderTeamRoster("t1");
+  const boxOf = (name) => {
+    fireEvent(chipIn(bodyOf("p2#0").querySelector(".g-rtable__skills--desk"), name), "click");
+    const box = sheet().querySelector(".g-roster__from");
+    const said = [box.textContent, box.getAttribute("class")];
+    fireEvent(sheet().querySelector("[data-sheet-close]"), "click");
+    return said;
+  };
+  assert.deepEqual(boxOf("Dodge"), ["Bors · Random primary", "g-roster__from g-roster__from--gained"]);
+  assert.deepEqual(boxOf("Mighty Blow"), ["Bors · Chosen primary", "g-roster__from g-roster__from--gained"]);
+  assert.deepEqual(boxOf("Block"), ["Bors · starting", "g-roster__from"]);
+});
+
 test("a chip in the panel opens the same rule; a skill with a number in it opens its template's rule under the name the player has", async () => {
   coach();
   await renderTeamRoster("t1");
@@ -2424,6 +2441,10 @@ test("the words of the screen are readable in every palette, on the page, the pa
   for (const selector of [".g-roster__sppline", ".g-roster__sppdelta", ".g-roster__sppdelta--none", ".g-roster__manualtitle"]) assertReadable(sheet, selector, "color", ["--surface-2"], 4.5);
   // The skill sheet's owner line in its box (StatsSkill.html), and a skill with no page, on the sheet.
   assertReadable("src/screens/team/roster/sheets.css", ".g-roster__from", "color", ["--surface-2"], 4.5);
+  // A gained skill's box is on the accent's tint with its own ink, as StatsSkill.html's #E4F0E9 and #163A28; the grey box is not repainted.
+  assert.deepEqual([valuesOf("src/screens/team/roster/sheets.css", ".g-roster__from--gained", "background"), valuesOf("src/screens/team/roster/sheets.css", ".g-roster__from--gained", "color")],
+    [["var(--accent-tint)"], ["var(--on-accent-tint)"]]);
+  assertReadable("src/screens/team/roster/sheets.css", ".g-roster__from--gained", "color", ["--accent-tint"], 4.5);
   assertReadable("src/screens/team/roster/sheets.css", ".g-roster__nopage", "color", ["--surface"], 4.5);
   // The bold parts of the panel's lines and the state of the next match, in red when he will not play.
   assertReadable(sheet, ".g-roster__next b", "color", ["--surface"], 4.5);

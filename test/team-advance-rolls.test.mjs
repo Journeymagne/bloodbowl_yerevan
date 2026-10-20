@@ -360,6 +360,19 @@ test("on a desk, a focus the coach moved while the roll was out stays where it w
   });
 });
 
+// T21 re-review N1, the clause for the body: Safari and Firefox on macOS do not focus a button on a click, so the focus is on the body.
+test("on a desk, «Roll two D16» pressed without the focus on it (a click in Safari or Firefox on macOS) still moves the focus to the first card that came up", async () => {
+  await withoutTimers(async () => {
+    await openAdvance(false);
+    toRandomDesk("General");
+    document.activeElement = document.body;
+    assert.ok(document.activeElement !== rollButton(), "the button is not focused");
+    await rollWith("p1", 200, { roll: ROLL_SKILL });
+    assert.ok(!rollButton() && pick("Frenzy"), "the roll is in");
+    assert.ok(document.activeElement === pick("Frenzy"), "the focus on the first card of the pair, from the body");
+  });
+});
+
 // Review Focus 2.
 test("a second press on «Roll two D16» sends nothing more; while it is out the button says it waits", async () => {
   await withoutTimers(async () => {
