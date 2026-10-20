@@ -276,7 +276,7 @@ const pairingOf = (id, tableNumber, own, opposing, changes = {}) => {
     awayPoints: null,
     resultStatus: "pending",
     preparationStatus: "not_started",
-    postMatchStatus: "not_started", homeMvps: [], awayMvps: [], // the list's MVPs (`loadGameMvps`): none, no post-match is completed
+    postMatchStatus: "not_started", homeMvps: [], awayMvps: [], // the list's MVPs (`loadGameMvps`): only g4's post-match is completed
     proposedByUserId: null,
     proposedHomeTouchdowns: null,
     proposedAwayTouchdowns: null,
@@ -354,9 +354,9 @@ const games = empty ? [] : [
     viewerIsHome: false,
     ...confirmedScore(rival, 6, { touchdowns: [2, 0], casualties: [1, 0], points: [4, 0] }),
   }),
-  // Round 1, at home: Mock Team won 2-1, and took the casualty; no MVP: its post-match is not completed.
+  // Round 1, at home: Mock Team won 2-1, took the casualty; post-match completed (mock/history.mjs), MVP Linewoman Five (p5).
   pairingOf("g4", 1, teams[0], rivals[1], {
-    roundId: "r1",
+    roundId: "r1", postMatchStatus: "completed", homeMvps: [{ id: "p5", name: "Linewoman Five" }],
     roundNumber: 1,
     roundStatus: "completed",
     ...confirmedScore(user, 13, { touchdowns: [2, 1], casualties: [1, 0], points: [3, 0] }),

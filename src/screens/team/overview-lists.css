@@ -286,6 +286,7 @@
 }
 
 .g-overview__dot {
+  margin-inline-end: calc(3px - var(--space-6)); /* DeskOverview's «· MVP»: a space after the dot, not the 6px gap */
   color: var(--muted);
   font: 400 12px/normal var(--font-body);
   letter-spacing: 0;
