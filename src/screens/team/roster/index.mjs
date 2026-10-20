@@ -106,7 +106,7 @@ function listen(target, type, listener) {
  * @property {() => void} [fit] measures whether the desk panel fits the window, after each draw (aside-fit.mjs)
  * @property {string} player the player mode's stored id (the address's), "" for the roster; `chosen` once his line was chosen
  * @property {boolean} titled his name has been drawn in his head, and has taken the focus (the player mode on a phone)
- * @property {object[]|null} rolls the team's rolls on the site as last read (stage 07d), null while none is
+ * @property {null | {loading: true} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d)
  */
 
 /**

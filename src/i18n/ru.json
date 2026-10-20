@@ -1393,6 +1393,7 @@
   "teamPlayer.undo.keep": "Оставить",
   "teamPlayer.undo.send": "Отменить прокачку",
   "teamPlayer.undo.done": "Прокачка отменена: {what} · вернулось {spp} SPP",
+  "teamPlayer.undo.changed": "Последняя прокачка изменилась — ничего не отменено.",
   "teamPlayer.favoured.title": "{alignment}: бонусный навык",
   "teamPlayer.favoured.sub": "Бросьте D8 за столом: на {trigger} игрок получает один из этих навыков, без доплаты к стоимости.",
   "teamPlayer.favoured.random": "Без Mutation в основном доступе навык выбирается случайно — и этот бросок сделайте за столом.",

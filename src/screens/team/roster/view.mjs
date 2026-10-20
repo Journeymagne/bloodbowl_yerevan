@@ -102,7 +102,7 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {boolean} loading the roster has not been read yet (or is read again after a failure)
  * @property {boolean} phone the width the screen is drawn at is a phone's (`(max-width: 900px)`)
  * @property {string} player the player mode's stored id, as the address carries it (stage 07d); "" for the roster itself
- * @property {object[]|null} rolls the team's rolls on the site as last read (stage 07d), null while none is
+ * @property {null | {loading: true} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d)
  */
 
 /** The table's columns: the player, the five characteristics, and on a desk the career and the SPP. */

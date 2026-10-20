@@ -1,8 +1,9 @@
 /**
  * What the roster says of one player beyond his row: the row opened on a phone, and the panel beside the table
  * on a desk (plan 07a, decisions 20 and 21). The row leads to the player's own address, his profile (stage 07d); both
- * say why an advancement or an edit of him is closed. The panel's pencil opens his edit (stage 07d, player-sheets.mjs)
- * and its «Advance» his advancement's window (advance.mjs), as the profile's pencil and «Advancement» do.
+ * say why an advancement or an edit of him is closed (player-access.mjs, which draws «Advance» closed and «Undo the
+ * last: …» for both). The panel's pencil opens his edit (stage 07d, player-sheets.mjs) and its «Advance» his
+ * advancement's window (advance.mjs), as the profile's pencil and «Advancement» do.
  *
  * The phone's open row holds his SPP counters with − and + (Task 10): outside a match a step is a save of the roster
  * (save.mjs), and the count is the career. The desk's panel holds them only while a match is on (owner's D3,
@@ -29,7 +30,6 @@ import { t } from "../../../core/i18n.mjs";
 import { teamPlayerUrl } from "../../../core/routes.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { advancementRanks } from "../../../domain/league-rules.mjs";
-import { ADVANCEMENT_BLOCKED } from "../../../domain/roster/progression.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderActionStepper } from "../../../ui/action-stepper.mjs";
@@ -40,6 +40,7 @@ import { renderProgressDots } from "../../../ui/progress-dots.mjs";
 import { renderSkillChips } from "../../../ui/skill-chip.mjs";
 import { renderStatStrip } from "../../../ui/stat-strip.mjs";
 import { counterSlots, stepRule } from "./model.mjs";
+import { advanceClosed, advanceHintOf, closedAdvanceMarkup, editClosed, undoLastMarkup } from "./player-access.mjs";
 
 /**
  * Words with some of their values in bold (DeskRoster.html: «Next match: **Plays**», «Primary: **General**»):
@@ -251,55 +252,6 @@ export function skillChipsMarkup(line, { card = false, sourceOf = sourceWords } 
 }
 
 /**
- * Why no advancement can be taken just now, "" when one can (decision 21): a match is on (R8), the screen's lock, no id
- * to name him by; then, unless `spp` is false, every type refused — at the last rank every advancement is taken, else the
- * SPP the cheapest one is short of. Offers not known yet (no Skill Table, K28) close nothing, nor do a dead line's none:
- * its `maxed` is «nothing to offer», never «every advancement is taken».
- *
- * @param {import("./model.mjs").PlayerLine} line
- * @param {{mode: {kind: string}, lock: string}} screen
- * @param {{spp?: boolean}} [options]
- */
-export function advanceClosed(line, screen, { spp = true } = {}) {
-  if (screen.mode.kind === "match") return t("teamRoster.afterPost");
-  if (screen.lock) return screen.lock;
-  if (!line.id) return t("teamPlayer.noId");
-  const offers = spp ? line.offers?.offers ?? [] : [];
-  if (!offers.length || offers.some(({ refusal }) => !refusal)) return "";
-  if (line.offers.maxed) return t("teamRoster.maxed");
-  const short = offers.filter(({ refusal }) => refusal.code === ADVANCEMENT_BLOCKED.NOT_ENOUGH_SPP).map(({ refusal }) => refusal.params.missing);
-  return short.length ? t("teamPlayer.short", { spp: Math.min(...short) }) : t("teamAdvance.refusal.NO_SKILL_LEFT");
-}
-
-/**
- * The line under «Advance»: why it is closed (`advanceClosed`), or what the cheapest type open costs — in the panel's
- * words or (`profile`) the profile's; nothing while the offers are not known (K28).
- *
- * @param {import("./model.mjs").PlayerLine} line
- * @param {{mode: {kind: string}, lock: string}} screen
- * @param {{profile?: boolean}} [options]
- */
-export function advanceHintOf(line, screen, { profile = false } = {}) {
-  const closed = advanceClosed(line, screen);
-  const open = (line.offers?.offers ?? []).filter(({ refusal }) => !refusal);
-  if (closed || !open.length) return closed;
-  return t(profile ? "teamPlayer.cheapest" : "teamRoster.cheapest", { spp: Math.min(...open.map(({ cost }) => cost)) });
-}
-
-/**
- * Why his number, name and captaincy cannot be edited just now, "" when they can: a match is on (R8), the screen's
- * lock, no id to name him by.
- *
- * @param {import("./model.mjs").PlayerLine} line
- * @param {{mode: {kind: string}, lock: string}} screen
- */
-export function editClosed(line, screen) {
-  if (screen.mode.kind === "match") return t("teamPlayer.edit.closed");
-  if (screen.lock) return screen.lock;
-  return line.id ? "" : t("teamPlayer.noId");
-}
-
-/**
  * His injuries (spec UI §12, 07b's hand-over): on the profile «Injuries» with a line each — why he misses the next
  * match, his Niggling Injuries, each lasting one with its characteristic — or that there are none; in the desk's panel
  * (`desk`) one line of the Niggling Injuries and the lasting ones (the panel says the missed match already), or none.
@@ -503,35 +455,6 @@ function sppMarkup(line, screen) {
     + `<span class="g-roster__ledgerline">${escapeHtml(t("teamRoster.spent", { spp: line.spent }))}</span></p></div>`
     + renderProgressDots({ total: advancementRanks.length, done: line.level, label: t("teamRoster.advancements") })
     + `${advance}${cheapest ? `<p class="g-roster__cheapest">${escapeHtml(cheapest)}</p>` : ""}${undoLastMarkup(line, screen)}</div>`;
-}
-
-/** Why his last advancement cannot be undone, nor a god's bonus added, just now: `advanceClosed` without his SPP (Task 11). */
-export const undoClosed = (line, screen) => advanceClosed(line, screen, { spp: false });
-
-/** What an advancement gave, in a word: its skill, «MA +1», or — one that does not say — its type. */
-export const gaveWords = ({ type, grants }) => (grants?.stat ? t("teamPlayer.undo.statPlus", { stat: t(`stats.${grants.stat}`) }) : grants?.skill ?? t(`teamAdvance.type.${type}`));
-
-/**
- * «Undo the last: Frenzy» under «Advance» and its line (decision 18), or under the profile's «Advancement» (`className`):
- * quiet, for an advancement can be taken again; it asks first (player-sheets.mjs). Closed (`undoClosed`) it says why,
- * keeping his key, so the focus finds it when the sheet closes.
- */
-export function undoLastMarkup(line, screen, className = "g-roster__undo") {
-  const last = line.advancements.at(-1);
-  if (!last) return "";
-  const [label, reason, data] = [t("teamPlayer.undo.open", { what: gaveWords(last) }), undoClosed(line, screen), { playerUnadvance: line.key }];
-  if (reason) return closedMarkup({ className, label, reason, data });
-  return `<button type="button" class="${className}" aria-haspopup="dialog"${dataAttributes(data)}>${escapeHtml(label)}</button>`;
-}
-
-/**
- * «Advance» closed: the arrow and the words, in reach, saying why (`closedMarkup`'s look); the words and what names the
- * button (`data`) are the caller's — the profile's «Advancement» keeps its player, so the focus finds it again.
- * @param {{reason: string, label?: string, data?: Record<string, string|boolean>}} props
- */
-export function closedAdvanceMarkup({ reason, label = t("teamRoster.advance"), data = {} }) {
-  return `<button type="button" class="g-btn g-btn--primary g-btn--block g-roster__closed" aria-disabled="true" title="${escapeHtml(reason)}"`
-    + `${dataAttributes({ rosterClosed: true, ...data })}>${icon("up", 20)}${escapeHtml(label)}</button>`;
 }
 
 /** A list of skill categories; a position with none in an access has a dash. */

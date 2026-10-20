@@ -25,7 +25,8 @@ import { classNames } from "../../../ui/markup.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
-import { countersMarkup, gaveWords, prepResetWords, sessionMarkup } from "./panel.mjs";
+import { countersMarkup, prepResetWords, sessionMarkup } from "./panel.mjs";
+import { gaveWords } from "./player-access.mjs";
 import { refusalWordsOf } from "./save.mjs";
 import { EDIT_SHEET, UNADVANCE_SHEET, footButton } from "./sheets.mjs";
 

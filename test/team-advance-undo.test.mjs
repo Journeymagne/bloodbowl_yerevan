@@ -36,6 +36,7 @@ const SITE = "The site's roll goes back to the player: the next «Random primary
 const TABLE = "The advancement can be taken again at any time.";
 const BARE = "This advancement does not say what it gave: only its SPP come back.";
 const MISMATCH = "A roll on the site was rerolled against this skill, so it stays.";
+const CHANGED = "The last advancement has changed — nothing was undone.";
 const GENERAL = ["Block", "Dauntless", "Fend", "Frenzy", "Kick", "Pro", "Steady Footing", "Strip Ball", "Sure Hands", "Tackle", "Taunt", "Wrestle",
   "Offensive", "Elvenball", "Shadowing", "Thick Skull"];
 /** ADVANCED's roll as the server keeps it: Block came up first and was rolled again, then Frenzy. */
@@ -54,6 +55,8 @@ const CHOSEN = { ...CADE, extraSkills: [{ name: "Diving Catch", access: "primary
 const BARE_ONE = { ...CADE, advancements: [{ type: "random" }] };
 /** Frenzy rolled at the table: a used site roll was rerolled against it, so the server keeps it (K16). */
 const TABLE_FRENZY = { ...ADVANCED, advancements: [{ type: "random", grants: { skill: "Frenzy" }, roll: { via: "table" } }] };
+/** R1's like for a second site advancement of Cade's, Sure Hands, which another device took after the visit read the rolls. */
+const R2 = { ...R1, id: "r2", result: { attempts: [{ roll: 9, skill: "Sure Hands", duplicate: false }], skill: "Sure Hands" } };
 /** ADVANCED once another device took his second advancement. */
 const TWICE = {
   ...ADVANCED, extraSkills: [...ADVANCED.extraSkills, { name: "Diving Catch", access: "primary" }],
@@ -118,7 +121,7 @@ test("«Undo the last» stands under «Advancement» while he has one, and asks 
       assert.equal(sheet().querySelector(".g-sheet__sub").textContent, "Cade · advancement 1 of 6");
       assert.deepEqual(rows(), [["What it gave", "Frenzy · Random primary skill · rolled on the site"], ["SPP back", "+3"], ["The player's value", "−20k"]]);
       assert.equal(keep().textContent, "Keep");
-      assert.equal(send().textContent, "Undo the advancement");
+      assert.equal(send().textContent, "Undo advancement", "short enough for half of a phone's foot (fix round 1)");
       assertCspSafe(view);
       assertStyled(view, ...UNDO_STYLES);
       // «Keep» changes nothing; the focus back on what opened it.
@@ -163,6 +166,7 @@ test("undo of a site advancement: the sheet says the roll goes back to the playe
       fireEvent(send(), "click");
       assert.ok(!sheet(), "closed in the same turn");
       assert.equal(toasts().at(-1), "Advancement undone: Frenzy · 3 SPP back");
+      assert.ok(!toasts().includes(CHANGED), "its own step is no change under it");
       assert.ok(document.activeElement === advance(), "the focus on «Advancement»");
       assert.ok(!undo(), "nothing left to undo");
       assert.equal(view.querySelector(".g-profile__availn").textContent, "30", "his SPP back at once, from the draft");
@@ -244,6 +248,7 @@ test("only the last is undone; the sheet closes if the roster changed under it",
     assert.equal(callsTo(TEAM_READ), 2, "read again");
     assert.ok(!sheet(), "the advancement it named is not his last any more");
     assert.ok(!view.querySelector("dialog:modal"));
+    assert.equal(toasts().at(-1), CHANGED);
     assert.equal(undo().textContent, "Undo the last: Diving Catch");
     assert.ok(document.activeElement === undo(), "back on what opened it");
     assert.equal(patches().length, 0);
@@ -259,6 +264,40 @@ test("only the last is undone; the sheet closes if the roster changed under it",
     assert.equal(patches()[0].body.revision, 5);
     assert.deepEqual(sentOf("p3").advancements, ADVANCED.advancements);
     assert.equal(undo().textContent, "Undo the last: Frenzy");
+  });
+});
+
+// Fix round 1 (review Minor 8): the sheet stands on the advancement it showed, not on the count — a press never undoes
+// what the coach did not see.
+test("the same count with another last advancement closes the sheet, saying so; nothing is sent", async () => {
+  await withoutTimers(async () => {
+    await openPlayer(false, { teamAnswer: withOne(TWICE) });
+    fireEvent(undo(), "click");
+    assert.deepEqual(rows()[0], ["What it gave", "Diving Catch · Chosen primary skill"]);
+    send().focus();
+    // Another device undid Diving Catch and took Sure Hands: two advancements still, the last another one.
+    const other = { ...ADVANCED, extraSkills: [...ADVANCED.extraSkills, { name: "Sure Hands", access: "primary" }],
+      advancements: [...ADVANCED.advancements, { type: "primary", grants: { skill: "Sure Hands" } }] };
+    const read = withOne(other, { revision: 6 });
+    api.reply(TEAM_READ, 200, { team: read });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 6 });
+    setMyTeams([read]);
+    await settle();
+    assert.equal(callsTo(TEAM_READ), 2, "read again");
+    assert.ok(!sheet(), "the advancement it showed is no longer his last");
+    assert.equal(toasts().at(-1), CHANGED);
+    assert.equal(toasts().filter((said) => said === CHANGED).length, 1, "said once");
+    assert.equal(undo().textContent, "Undo the last: Sure Hands");
+    assert.ok(document.activeElement === undo(), "back on what opened it");
+    // A late press of the sheet's button finds nothing to send.
+    const late = document.createElement("button");
+    late.setAttribute("type", "button");
+    late.setAttribute("data-unadvance-send", "true");
+    view.appendChild(late);
+    fireEvent(late, "click");
+    view.removeChild(late);
+    await settle();
+    assert.equal(patches().length, 0);
   });
 });
 
@@ -436,15 +475,22 @@ test("Favoured of Nurgle: done offers the bonus skill, his own closed; added as 
       // Added: one PATCH, the block gone, the coach told.
       const added = { ...mouth, favouredSkills: [{ name: "Tentacles", access: "favoured" }] };
       api.reply(PATCH, 200, { team: nurgle([added], { revision: 6 }) });
-      const press = add();
-      fireEvent(press, "click");
-      fireEvent(press, "click");
+      fireEvent(add(), "click");
       assert.equal(toasts().at(-1), "Bonus skill: Tentacles");
       assert.ok(!favoured(), "the bonus is taken");
       assert.ok(view.querySelector(".g-advance__done"), "done stays");
       assert.ok(document.activeElement === view.querySelector("[data-advance-done]"));
+      // Review Focus 2 (fix round 1, review Minor 2): a second press — a late «Add …» heard by the view — sends nothing more.
+      const late = document.createElement("button");
+      late.setAttribute("type", "button");
+      late.setAttribute("data-favoured-add", "true");
+      view.appendChild(late);
+      fireEvent(late, "click");
+      view.removeChild(late);
+      assert.equal(toasts().filter((said) => said === "Bonus skill: Tentacles").length, 1);
       await settle();
-      assert.equal(patches().length, 2);
+      assert.equal(patches().length, 2, "the advancement's and the bonus's: one PATCH for the bonus");
+      assert.equal(patches().filter(({ body }) => (body.roster.players[0].favouredSkills ?? []).length).length, 1);
       const rot = patches()[1].body.roster.players[0];
       assert.deepEqual(rot.favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
       assert.deepEqual(rot.advancements, mouth.advancements, "no advancement with it");
@@ -487,6 +533,30 @@ test("Favoured of Nurgle: done offers the bonus skill, his own closed; added as 
     assert.ok(view.querySelector(".g-advance__done"));
     assert.ok(!favoured());
     await settle();
+  });
+});
+
+// Fix round 1 (review Minor 10): nothing the god offers left to take, no block.
+test("a player holding every skill the god offers is offered no bonus", async () => {
+  const held = { ...ROT, favouredSkills: [{ name: "Tentacles", access: "favoured" }, { name: "Bone Hook", access: "favoured" }] };
+  const taken = { ...held, extraSkills: [{ name: "Monstrous Mouth", access: "primary" }], advancements: [{ type: "primary", grants: { skill: "Monstrous Mouth" } }] };
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openPlayer(true, { id: "n1", teamAnswer: nurgle([held]) });
+      fireEvent(advance(), "click");
+      const advancing = view.querySelector("dialog#player-advance");
+      fireEvent(advancing.querySelector('.g-options [data-option-value="primary"]'), "click");
+      fireEvent(advancing.querySelector("[data-advance-next]"), "click");
+      fireEvent(advancing.querySelector('[data-advance-category="Mutation"]'), "click");
+      fireEvent(advancing.querySelector("[data-advance-next]"), "click");
+      fireEvent(advancing.querySelector('[data-advance-skill="Monstrous Mouth"]'), "click");
+      api.reply(PATCH, 200, { team: nurgle([taken], { revision: 5 }) });
+      fireEvent(advancing.querySelector("[data-advance-take]"), "click");
+      assert.ok(view.querySelector(".g-advance__done"));
+      assert.ok(!view.querySelector(".g-favoured"), "Tentacles, Bone Hook and Monstrous Mouth are all his");
+      await settle();
+      assert.equal(patches().length, 1);
+    });
   });
 });
 
@@ -571,9 +641,66 @@ test("a skill an advancement gave says how in its sheet; a site roll's attempts 
   });
 });
 
+// Fix round 1 (review Minors 1, 6, 7).
+test("a read of the rolls without a site roll the roster brought since is read again; a roll is his by id and player; a D8 reads nothing", async () => {
+  const skillSheet = () => view.querySelector("dialog#roster-skill");
+  const chip = (name) => view.querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === name);
+  const rollState = () => skillSheet().querySelector(".g-roster__rollstate");
+  const attempts = () => skillSheet().querySelectorAll(".g-advance__attempt").map((each) => each.textContent);
+  const close = () => fireEvent(skillSheet().querySelector("[data-sheet-close]"), "click");
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openPlayer(true);
+      api.reply(ROLLS_READ, 200, { rolls: [R0, R1] });
+      fireEvent(chip("Frenzy"), "click");
+      await settle();
+      assert.equal(callsTo(ROLLS_READ), 1);
+      close();
+      // Another device took a second site advancement, Sure Hands on r2, after that read; a read of the roster brings it.
+      const twice = { ...ADVANCED, extraSkills: [...ADVANCED.extraSkills, { name: "Sure Hands", access: "primary" }],
+        advancements: [...ADVANCED.advancements, { type: "random", grants: { skill: "Sure Hands" }, roll: { id: "r2", via: "site" } }] };
+      const read = withOne(twice, { revision: 5 });
+      api.reply(TEAM_READ, 200, { team: read });
+      api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+      setMyTeams([read]);
+      await settle();
+      api.reply(ROLLS_READ, 200, { rolls: [R0, R1, R2] });
+      fireEvent(chip("Sure Hands"), "click");
+      assert.equal(rollState().textContent, "Reading the roll…", "the visit's read has no r2: read once more, not «no such roll»");
+      await settle();
+      assert.equal(callsTo(ROLLS_READ), 2);
+      assert.deepEqual(attempts(), ["9 — Sure Hands"]);
+      close();
+      // Frenzy's roll is in that read: no third.
+      fireEvent(chip("Frenzy"), "click");
+      assert.deepEqual(attempts(), ["1 — Block, held already, rolled again", "4 — Frenzy"]);
+      assert.equal(callsTo(ROLLS_READ), 2);
+    });
+    // A roll of another player's under the same id is not his (T3: the team's list holds every player's rolls).
+    await withWindow({ phone: true }, async () => {
+      await openPlayer(true);
+      api.reply(ROLLS_READ, 200, { rolls: [{ ...R1, playerId: "p1" }] });
+      fireEvent(chip("Frenzy"), "click");
+      await settle();
+      assert.equal(rollState().textContent, "The site has no such roll");
+    });
+    // A skill in place of a characteristic rolled on the site: a D8 has no attempts — nothing read, nothing said of a read.
+    await withWindow({ phone: true }, async () => {
+      const d8 = { ...CADE, extraSkills: [{ name: "Sure Hands", access: "primary" }], advancements: [{ type: "stat", grants: { skill: "Sure Hands" }, roll: { id: "r3", via: "site" } }] };
+      await openPlayer(true, { teamAnswer: withOne(d8) });
+      fireEvent(chip("Sure Hands"), "click");
+      assert.equal(skillSheet().querySelector(".g-roster__rollline").textContent, "Advancement 1 · Characteristic improvement · rolled on the site");
+      assert.ok(!rollState());
+      await settle();
+      assert.ok(!rollState());
+      assert.equal(callsTo(ROLLS_READ), 0);
+    });
+  });
+});
+
 test("every key in both dictionaries; styled; D2", () => {
   assertDictionaryCovers("src/screens/team/roster/player.mjs", "src/screens/team/roster/player-sheets.mjs", "src/screens/team/roster/roll-view.mjs",
-    "src/screens/team/roster/advance-sheet.mjs", "src/screens/team/roster/panel.mjs");
+    "src/screens/team/roster/advance-sheet.mjs", "src/screens/team/roster/panel.mjs", "src/screens/team/roster/player-access.mjs");
   // The words name no player's gender (owner's answer on words).
   const gendered = { en: /\b(he|him|his|she|her|hers)\b/i, ru: /(?<![а-яё])(он|она|его|её|ему|ей|получил|получила|вернул|вернула)(?![а-яё])/iu };
   for (const [locale, pattern] of Object.entries(gendered)) {
@@ -614,7 +741,9 @@ test("every key in both dictionaries; styled; D2", () => {
   assertReadable(SHEETS, "#player-unadvance .g-unadvance__key", "color", ["--surface"], 4.5);
   assertReadable(SHEETS, "#player-unadvance .g-unadvance__back", "color", ["--surface"], 4.5);
   assertReadable(SHEETS, "#player-unadvance .g-unadvance__note", "color", ["--surface"], 4.5);
-  // PlayerDeadConfirm's foot on a phone: two halves, 48px, 0 10 in, 15/700, «Keep» white in its #C9D3CE ring.
+  // PlayerDeadConfirm's foot on a phone: under a rule, 12 below the body; two halves, 48px, 0 10 in, 15/700, «Keep» white in its #C9D3CE ring.
+  assert.deepEqual(valuesOf(SHEETS, "#player-unadvance .g-sheet__foot", "border-top"), ["1px solid var(--line)"]);
+  assert.deepEqual(valuesOf(SHEETS, "#player-unadvance .g-sheet__body", "padding-bottom"), ["var(--space-12)"]);
   assert.deepEqual(valuesOf(SHEETS, "#player-unadvance .g-sheet__foot", "grid-template-columns"), ["minmax(0, 1fr) minmax(0, 1fr)"]);
   assert.deepEqual(valuesOf(SHEETS, "#player-unadvance .g-sheet__foot .g-btn", "height"), ["48px"]);
   assert.deepEqual(valuesOf(SHEETS, "#player-unadvance .g-sheet__foot-start .g-btn", "box-shadow"), ["inset 0 0 0 1px var(--control-border)"]);

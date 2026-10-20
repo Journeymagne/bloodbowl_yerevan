@@ -149,12 +149,13 @@ function doneMarkup(line, screen, taken) {
  * Adv3Skill's): a roster «Favoured of…» rolls a D8 at the table with an advancement, and on its number the player gains
  * one of the god's skills at no cost to the value — chosen, or without Mutation in the primary access rolled for at the
  * table too. The skills are a radio group, his own closed and saying so; «Add …» once one is chosen, closed while the
- * screen is (`sheet.reason`), with the last refusal under it. None for a roster with no favour, nor once it is added.
+ * screen is (`sheet.reason`), with the last refusal under it. None for a roster with no favour, nor once it is added,
+ * nor when he holds every skill the god offers: nothing to take (fix round 1).
  * @param {object} sheet the done step's, with `bonus` the skill chosen and `favoured` "added" once added
  * @param {ReturnType<typeof bonusOf>} bonus
  */
 function favouredMarkup(sheet, bonus) {
-  if (!bonus || sheet.favoured === "added") return "";
+  if (!bonus || sheet.favoured === "added" || bonus.skills.every(({ held }) => held)) return "";
   const held = `<span class="g-advance__tags"><span class="g-advance__tag g-advance__tag--held">${escapeHtml(t("teamAdvance.held"))}</span></span>`;
   const items = bonus.skills.map(({ name, held: his }) => ({
     value: name, className: "g-advance__skill", data: { favouredSkill: name }, reason: his ? t("teamPlayer.favoured.held") : "",

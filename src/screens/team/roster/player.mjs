@@ -16,21 +16,39 @@ import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { advanceHandlers, advanceSheetOf, bonusOf } from "./advance.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
-import { editClosed, gaveWords, undoClosed } from "./panel.mjs";
+import { editClosed, gaveWords, undoClosed } from "./player-access.mjs";
 import { editCheck } from "./player-sheets.mjs";
+import { siteRollOf } from "./roll-view.mjs";
 import { readRolls } from "./rolls.mjs";
 import { addFavoured, amendPlayer, undoAdvancement } from "./save.mjs";
 
 /** The roster's line of `key`, never one of the fallen (whose number, name and armband are history), or null. */
 const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;
 
+/** An advancement as the undo's sheet showed it — its type, what it gave, its roll — which is what the coach confirms. */
+const shownAs = ({ type, grants, via, rollId }) => JSON.stringify([type, grants?.skill ?? "", grants?.stat ?? "", via, rollId]);
+
+/** The advancement the undo's sheet showed is still his last: in the same place, and the same advancement there. */
+const stillLast = (sheet, line) => sheet.index === line.advancements.length - 1 && shownAs(line.advancements[sheet.index]) === sheet.confirmed;
+
+/**
+ * The undo's sheet while the advancement it showed is still his last (fix round 1: not by the count alone). A read that
+ * brought another — one more or one fewer, or as many with another last (another device undid it and took a new one) —
+ * closes it, saying so, and nothing is sent: a press must never undo what the coach did not see. The draw the undo's
+ * own step makes (`sending`) finds the advancement gone, and says nothing.
+ */
+function undoSheetOf(sheet, line, where) {
+  if (stillLast(sheet, line)) return { ...sheet, reason: undoClosed(line, where) };
+  if (!sheet.sending) toast(t("teamPlayer.undo.changed"));
+  return null;
+}
+
 /**
  * A player's sheet as the screen draws it, or null when it stands no longer: his line has left the roster (read again,
  * or fallen), or a match has begun (R8) — the screen closes it, and the focus goes back to his pencil, his
  * «Advancement» or his «Undo the last», closed now (`openerOf`). The edit says why «Save» is closed just now
  * (`editClosed`: the screen's lock); his advancement is advance.mjs's to keep (`advanceSheetOf`); the undo stands while
- * the advancement it named is still his last — a read that brought another closes it — saying why it is closed
- * (`undoClosed`).
+ * the advancement it showed is still his last (`undoSheetOf`), saying why it is closed (`undoClosed`).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines the roster's lines and the fallen
@@ -42,7 +60,7 @@ export function playerSheetOf(visit, lines, where) {
   const line = sheet ? rosterLineOf(lines, sheet.key) : null;
   if (!line || where.mode.kind === "match") return null;
   if (sheet.kind === "advance") return advanceSheetOf(sheet, line, where);
-  if (sheet.kind === "unadvance") return sheet.index === line.advancements.length - 1 ? { ...sheet, reason: undoClosed(line, where) } : null;
+  if (sheet.kind === "unadvance") return undoSheetOf(sheet, line, where);
   return sheet.kind === "edit" ? { ...sheet, reason: editClosed(line, where) } : null;
 }
 
@@ -90,7 +108,7 @@ function saveEdit(saving, { now, refused }) {
 }
 
 /**
- * «Undo the advancement»: only from the undo that is open, while the advancement it named is still his last — a press
+ * «Undo the advancement»: only from the undo that is open, while the advancement it showed is still his last — a press
  * that finds none is a second press, and sends nothing. Why it is closed is asked again (K15), then one step of the
  * queue (`undoAdvancement`): what it gave goes, its SPP come back, and the save frees its site roll. In the same turn the
  * sheet closes, the focus on «Advancement» or «Advance», and the coach is told what came back. A refusal (another tab's
@@ -105,14 +123,16 @@ function sendUndo(saving, { now, refused }) {
   const { sheet } = visit;
   const where = sheet?.kind === "unadvance" ? now() : null;
   const line = where && rosterLineOf(where.lines, sheet.key);
-  if (!line || sheet.index !== line.advancements.length - 1) return;
+  if (!line || !stillLast(sheet, line)) return;
   const reason = undoClosed(line, where);
   if (reason) {
     toast(reason);
     return;
   }
   const what = gaveWords(line.advancements[sheet.index]);
+  sheet.sending = true;
   const answer = undoAdvancement(teamId, line.id, { closed: () => undoClosed(line, now()) });
+  sheet.sending = false;
   if (answer.refusal) {
     sheet.refusal = answer.refusal;
     draw();
@@ -164,16 +184,25 @@ function addBonus(saving, { now, refused }) {
 }
 
 /**
+ * The visit's read of the team's rolls answers for a site advancement of his: it is on its way, or it holds that roll.
+ * A list without it is older than the advancement — another device's, brought in by a read of the roster since — and is
+ * read again (fix round 1); a read that failed is too.
+ */
+const rollsHold = (rolls, line, taken) => Boolean(rolls?.loading || (rolls?.rolls && siteRollOf(rolls.rolls, line, taken)));
+
+/**
  * The team's rolls read for a skill a roll on the site gave (decision 19): once a visit — a second chip finds them read,
- * or on their way — and again after a read that failed. The answer is taken only while the visit is here and asks for
- * these rolls still: an advancement taken, undone or a roll put on one since has made them old (`visit.rolls = null`).
+ * or on their way (`rollsHold`). None for a D8 a skill took the place of: a characteristic's roll has no attempts to
+ * show. The answer is taken only while the visit is here and asks for these rolls still: an advancement taken, undone
+ * or a roll put on one since has made them old (`visit.rolls = null`).
  *
  * @param {import("./index.mjs").Saving} saving
  * @param {import("./model.mjs").PlayerLine|null} line @param {string} name the skill as the roster writes it
  */
 function readSiteRolls({ teamId, visit, draw }, line, name) {
   const at = line?.skills.find((skill) => skill.name === name)?.advancement ?? null;
-  if (at === null || line.advancements[at]?.via !== "site" || (visit.rolls && !visit.rolls.error)) return;
+  const taken = at === null ? null : line.advancements[at];
+  if (taken?.via !== "site" || taken.type === "stat" || rollsHold(visit.rolls, line, taken)) return;
   const asked = { loading: true };
   visit.rolls = asked;
   void readRolls(teamId).then((answer) => {
@@ -218,7 +247,8 @@ export function playerHandlers(saving, lent) {
       const reason = line ? undoClosed(line, where) : "";
       if (reason) toast(reason);
       else if (line?.advancements.length) {
-        Object.assign(visit, { sheet: { kind: "unadvance", key, index: line.advancements.length - 1, refusal: "" }, opener: button });
+        const index = line.advancements.length - 1;
+        Object.assign(visit, { sheet: { kind: "unadvance", key, index, confirmed: shownAs(line.advancements[index]), refusal: "" }, opener: button });
         draw();
       }
     },

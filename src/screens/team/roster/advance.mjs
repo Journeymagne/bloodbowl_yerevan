@@ -32,7 +32,7 @@ import { favouredBonus } from "../../../domain/roster/edits.mjs";
 import { ADVANCEMENT_TYPES, advancementCategories, categorySkills, statChoices } from "../../../domain/roster/progression.mjs";
 import { rosterPlayerView } from "../../../domain/roster/players.mjs";
 import { closeSheet } from "./injury.mjs";
-import { advanceClosed, undoClosed } from "./panel.mjs";
+import { advanceClosed, undoClosed } from "./player-access.mjs";
 import { askRoll } from "./rolls.mjs";
 import { advancePlayer, bindRoll, refusalWordsOf } from "./save.mjs";
 import { ADVANCE_SHEET } from "./sheets.mjs";

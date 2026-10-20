@@ -90,15 +90,25 @@ export function attemptsMarkup(roll, { open = false, toggle = true } = {}) {
 const rollStateMarkup = (words, bad = false) => `<p class="${classNames("g-roster__rollstate", bad && "g-roster__rollstate--bad")}" role="status">${escapeHtml(words)}</p>`;
 
 /**
- * A site roll's attempts in the skill's sheet, as the visit read the team's rolls (`readRolls`): while the read is on its
- * way, when it failed, or when the site has no such roll, said so; the attempts only shown (`toggle: false`): the skill's
- * sheet has nothing to press. Nothing for an advancement not rolled on the site.
+ * The roll a site advancement of his names, among the team's rolls as read (`readRolls`, which answers every player's,
+ * T3): by its id, and his; null for none.
+ * @param {object[]} rolls @param {import("./model.mjs").PlayerLine} line @param {{rollId: string}} taken his advancement
  */
-function siteRollMarkup(taken, rolls) {
-  if (taken.via !== "site") return "";
+export function siteRollOf(rolls, line, taken) {
+  return (rolls ?? []).find((roll) => roll?.id === taken.rollId && String(roll.playerId) === String(line.id)) ?? null;
+}
+
+/**
+ * A site roll's attempts in the skill's sheet, as the visit read the team's rolls: while the read is on its way, when
+ * it failed, or when the site has no such roll of his, said so; the attempts only shown (`toggle: false`): the skill's
+ * sheet has nothing to press. Nothing for an advancement not rolled on the site, nor for a D8 a skill took the place of
+ * (a characteristic's: no attempts, so nothing is read for it — fix round 1).
+ */
+function siteRollMarkup(line, taken, rolls) {
+  if (taken.via !== "site" || taken.type === "stat") return "";
   if (!rolls || rolls.loading) return rollStateMarkup(t("teamPlayer.roll.reading"));
   if (rolls.error) return rollStateMarkup(t("teamPlayer.roll.failed", { reason: rolls.error }), true);
-  const roll = (rolls.rolls ?? []).find((each) => each?.id === taken.rollId);
+  const roll = siteRollOf(rolls.rolls, line, taken);
   return roll ? attemptsMarkup(roll, { toggle: false }) : rollStateMarkup(t("teamPlayer.roll.none"));
 }
 
@@ -116,7 +126,7 @@ export function rollBlockMarkup({ line, skill, rolls }) {
   if (!taken) return "";
   const [level, type] = [at + 1, t(`teamAdvance.type.${taken.type}`)];
   const words = taken.via ? t("teamPlayer.roll.line", { level, type, via: t(`teamPlayer.via.${taken.via}`) }) : t("teamPlayer.roll.lineBare", { level, type });
-  return `<div class="g-roster__rollblock"><p class="g-roster__rollline">${escapeHtml(words)}</p>${siteRollMarkup(taken, rolls)}</div>`;
+  return `<div class="g-roster__rollblock"><p class="g-roster__rollline">${escapeHtml(words)}</p>${siteRollMarkup(line, taken, rolls)}</div>`;
 }
 
 /**
