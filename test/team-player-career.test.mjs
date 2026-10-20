@@ -5,15 +5,19 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
-import { PLAYERS, STYLES, api, callKeys, coach, playerPage, releaseCurrentScreen, renderTeamRoster, settle, state, text, view, withPlayers } from "./helpers/roster-page.mjs";
+import {
+  LIVE_GAME, PLAYERS, STYLES, api, callKeys, coach, playerPage, releaseCurrentScreen, renderTeamRoster, save, settle, state, text, view, withPlayers,
+} from "./helpers/roster-page.mjs";
 
-const { careerRows, gamesPlayed } = await import("../src/screens/team/roster/career.mjs");
+const { askCareer, careerRows, gamesPlayed } = await import("../src/screens/team/roster/career.mjs");
 const { EXTRA_COUNTERS, MAIN_COUNTERS } = await import("../src/screens/team/roster/model.mjs");
 
 // Stage 07d, owner's review (2026-10-20), Task 24: a player's career on a phone's profile, right after «Skills»
 // (PlayerCareer.html). The totals stand from the roster's line at once; GP and the matches are read once a visit from
 // GET /api/teams/:id/players/:pid/history, and drawn on a press of the heading's button, newest first, the edits outside
 // a match last. A desk's career is stage 07e's (DeskRosterCareer.html); so is a fallen player's.
+// Stage 07e: the reads are the player's, and made again when the server has moved on — a match ended or begun, a save
+// landed, a tap heard (decision 5); the rows read before stand until the new answer.
 
 const CAREER = "src/screens/team/roster/career.css";
 const HISTORY_READ = "GET /api/teams/t1/players/p3/history";
@@ -546,4 +550,206 @@ test("a fallen player's rows end at the last match the site knows him in: the ma
   const byHand = { matches: [match({ played: false, source: "applied", counters: counters() }), match({ pairingId: "g2", roundNumber: 2, counters: counters({ touchdowns: 1 }) }), ...after], outside: counters() };
   assert.deepEqual(careerRows(byHand, race, { fallen: true }).map(({ key }) => key), ["g2", "g1"]);
   assert.deepEqual(careerRows({ matches: after, outside: counters() }, race, { fallen: true }), []);
+});
+
+/** The games the server answers: a match on, or none. */
+const gamesAre = (games) => api.reply("GET /api/games", 200, { games, currentGames: [] });
+const PATCH = "PATCH /api/teams/t1";
+/** Round 3 as the match on, LIVE_GAME, has it, and Cade's taps in it. */
+const LIVE_ROUND = { ...ROUND_3, pairingId: LIVE_GAME.id };
+const LIVE_TAPS = TAPS.map((tap) => ({ ...tap, pairingId: LIVE_GAME.id }));
+/** The history while LIVE_GAME is on: HISTORY's rows, round 3 its match (the friendly another pairing's). */
+const IN_MATCH = { ...HISTORY, matches: [ROUND_1, { ...FRIENDLY, pairingId: "g5" }, ROUND_2, LIVE_ROUND] };
+/** Before round 3 began: rounds 1 and 2 and the friendly; 14 SPP, which they add up to with the edit outside a match. */
+const BEFORE_ROUND_3 = { ...IN_MATCH, matches: IN_MATCH.matches.slice(0, 3) };
+/** The roster holding Cade as `player`, at `revision`. */
+const rosterWith = (player, revision) => withPlayers(PLAYERS.map((each) => (each.id === "p3" ? player : each)), { revision });
+
+// Review Focus 1: the match ends elsewhere while his profile is open; «Состав» reads the team again (07a), then the history.
+test("a match that ends while the profile is open: the roster read again, then the history; the rows stand meanwhile, then the match is confirmed and GP counts it", async () => {
+  await withWindow({ phone: true }, async () => {
+    coachCade({ events: LIVE_TAPS });
+    gamesAre([LIVE_GAME]);
+    api.reply(HISTORY_READ, 200, { history: IN_MATCH });
+    await playerPage("p3");
+    await settle();
+    assert.equal(callsTo(HISTORY_READ), 1, "a profile opened in a match reads once: after the games (pre-flight L1)");
+    press();
+    assert.deepEqual(rowWords(), ROWS);
+    assert.deepEqual(totals()[0], ["GP", "1"]);
+    // Both coaches finish it: the games say none is on. The post-match put round 3's TD and COMP on the roster and
+    // settled the records — the same 18 SPP — and the history has the match confirmed, 1–0.
+    gamesAre([]);
+    const ended = { ...LIVE_ROUND, status: "confirmed", pending: false, source: "applied", score: { own: 1, opponent: 0 } };
+    api.reply(TEAM_READ, 200, { team: rosterWith({ ...CADE, spp: { touchdowns: 4, completions: 1, mvps: 1 } }, 5) });
+    api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+    api.reply(HISTORY_READ, 200, { history: { ...IN_MATCH, matches: [...BEFORE_ROUND_3.matches, ended] } });
+    const team = api.hold(TEAM_READ);
+    globalThis.dispatchEvent(new Event("online"));
+    await settle();
+    assert.equal(team.count, 1, "the roster read again");
+    assert.equal(callsTo(HISTORY_READ), 1, "nothing while the roster's read is in the air");
+    assert.deepEqual(rowWords(), ROWS, "the rows read before stand");
+    assert.ok(!list().querySelector(".g-career__state"), "no «Reading the matches…»");
+    const history = api.hold(HISTORY_READ);
+    team.release();
+    await settle();
+    assert.equal(callsTo(HISTORY_READ), 2);
+    assert.ok(callKeys().lastIndexOf(HISTORY_READ) > callKeys().lastIndexOf(TEAM_READ), "after the roster");
+    assert.deepEqual(rowWords(), ROWS, "the rows stand while the new read is in the air");
+    assert.deepEqual(totals()[0], ["GP", "1"]);
+    assert.ok(!list().querySelector(".g-career__state"));
+    history.release();
+    await settle();
+    assert.deepEqual(rowWords(), [["Round 3 · Silverbrook Rangers", "W 1–0", "TD 1 · COMP 1", "+4", ""], ...ROWS.slice(1)], "no «Before the site's records»");
+    assert.deepEqual(totals()[0], ["GP", "2"]);
+    assert.equal(callsTo(HISTORY_READ), 2);
+    api.assertAnswered();
+  });
+});
+
+test("a match begun while the profile is open reads it again: its row waits for the post-match", async () => {
+  await withWindow({ phone: true }, async () => {
+    await openCade(BEFORE_ROUND_3, { events: [] });
+    press();
+    assert.deepEqual(rowWords(), ROWS.slice(1));
+    assert.equal(callsTo(HISTORY_READ), 1);
+    // The coaches start round 3; no tap of his in it yet.
+    gamesAre([LIVE_GAME]);
+    api.reply(HISTORY_READ, 200, { history: { ...BEFORE_ROUND_3, matches: [...BEFORE_ROUND_3.matches, { ...LIVE_ROUND, source: "none", counters: null, pending: false }] } });
+    globalThis.dispatchEvent(new Event("online"));
+    await settle();
+    assert.equal(callsTo(HISTORY_READ), 2);
+    assert.deepEqual(rowWords(), [["Round 3 · Silverbrook Rangers", "", "no actions", "—", "waits for the post-match"], ...ROWS.slice(1)]);
+    assert.equal(list().querySelector(".g-career__listhead").childNodes[0].textContent, "All matches · 4");
+    api.assertAnswered();
+  });
+});
+
+test("a save of the queue that lands reads it again once; a draw that moves nothing reads nothing", async () => {
+  await withWindow({ phone: true }, async () => {
+    await openCade();
+    press();
+    assert.equal(callsTo(HISTORY_READ), 1);
+    // A touchdown outside a match: the save lands on revision 5, and the server has it as an edit outside a match.
+    api.reply(PATCH, 200, { team: rosterWith({ ...CADE, spp: { touchdowns: 4, mvps: 1 } }, 5) });
+    api.reply(HISTORY_READ, 200, { history: { ...HISTORY, outside: counters({ touchdowns: 2 }) } });
+    assert.deepEqual(save.stepSpp("t1", "p3", "touchdowns", 1), { ok: true });
+    await settle();
+    assert.equal(callsTo(PATCH), 1);
+    assert.equal(callsTo(HISTORY_READ), 2, "the save landed: read again, once");
+    assert.equal(career().querySelector(".g-career__sub").textContent, "21 SPP · by match");
+    assert.deepEqual(rowWords().at(-1), ["Edits outside a match", "", "TD 2", "+6", ""], "the rows add up to 21: no «Before the site's records»");
+    // Draws that move nothing — the games read again and the same, the list closed and opened — read nothing.
+    globalThis.dispatchEvent(new Event("online"));
+    await settle();
+    press();
+    press();
+    await settle();
+    assert.equal(callsTo(HISTORY_READ), 2);
+    api.assertAnswered();
+  });
+});
+
+test("nothing is asked while the roster's read is in the air", async () => {
+  await withWindow({ phone: true }, async () => {
+    coachCade({ events: LIVE_TAPS });
+    gamesAre([LIVE_GAME]);
+    api.reply(HISTORY_READ, 200, { history: IN_MATCH });
+    await playerPage("p3");
+    await settle();
+    assert.equal(callsTo(HISTORY_READ), 1);
+    // The match ends: the roster is read again, and held; whatever is drawn meanwhile reads no history.
+    gamesAre([]);
+    const team = api.hold(TEAM_READ);
+    globalThis.dispatchEvent(new Event("online"));
+    await settle();
+    press();
+    press();
+    globalThis.dispatchEvent(new Event("online"));
+    await settle();
+    assert.equal(callsTo(HISTORY_READ), 1);
+    team.release();
+    await settle();
+    assert.equal(callsTo(HISTORY_READ), 2, "once it has answered");
+  });
+});
+
+test("a read that fails after one that answered: the list says why, GP «–»; opening it again reads again", async () => {
+  await withWindow({ phone: true }, async () => {
+    await openCade(BEFORE_ROUND_3, { events: [] });
+    press();
+    assert.deepEqual(totals()[0], ["GP", "1"]);
+    gamesAre([LIVE_GAME]);
+    api.reply(HISTORY_READ, 500, { error: { code: "INTERNAL", params: {}, message: "x" } });
+    globalThis.dispatchEvent(new Event("online"));
+    await settle();
+    assert.equal(callsTo(HISTORY_READ), 2);
+    const failed = list().querySelector(".g-career__state");
+    assert.match(failed.textContent, /^The matches did not load: ./);
+    assert.equal(failed.getAttribute("role"), "alert");
+    assert.ok(!list().querySelector(".g-career__rows"), "not the rows of the read before");
+    assert.deepEqual(totals()[0], ["GP", "–"]);
+    // Closed: nothing read. Opened again: read again, and drawn.
+    api.reply(HISTORY_READ, 200, { history: BEFORE_ROUND_3 });
+    press();
+    assert.equal(callsTo(HISTORY_READ), 2);
+    press();
+    assert.equal(callsTo(HISTORY_READ), 3);
+    assert.equal(list().querySelector(".g-career__state").textContent, "Reading the matches…");
+    await settle();
+    assert.deepEqual(rowWords(), ROWS.slice(1));
+    assert.deepEqual(totals()[0], ["GP", "1"]);
+    api.assertAnswered();
+  });
+});
+
+// Decision 5's rule, on the read itself: what holds it back, what lets it go, and an answer the visit no longer asks for.
+test("a read waits for a tap and a roster's read in the air, the games, his read on its way; the server moved on, it is asked again from the SPP of that moment", async () => {
+  coach();
+  api.reply(HISTORY_READ, 200, { history: HISTORY });
+  const visit = { here: true, reads: 1, answered: 1, pending: [], heard: [], match: null, careers: new Map() };
+  let draws = 0;
+  const reading = { teamId: "t1", visit, draw: () => { draws += 1; } };
+  const cade = { id: "p3", earned: 18 };
+  askCareer(reading, null);
+  askCareer(reading, { id: null, earned: 0 });
+  visit.pending = [{ pairingId: "g2", playerId: "p3", counter: "touchdowns", delta: 1 }];
+  askCareer(reading, cade);
+  visit.pending = [];
+  visit.reads = 2;
+  askCareer(reading, cade);
+  visit.answered = 2;
+  state.games.loading = true;
+  askCareer(reading, cade);
+  state.games.loading = false;
+  assert.equal(callsTo(HISTORY_READ), 0, "no line, a tap in the air, a read of the roster in the air, the games read");
+  askCareer(reading, cade);
+  assert.equal(callsTo(HISTORY_READ), 1);
+  assert.equal(visit.careers.get("p3").loading, true);
+  askCareer(reading, cade);
+  assert.equal(callsTo(HISTORY_READ), 1, "his read on its way");
+  await settle();
+  assert.equal(draws, 1);
+  const first = visit.careers.get("p3");
+  assert.deepEqual(first, { stamp: first.stamp, loading: false, history: { matches: HISTORY.matches, outside: HISTORY.outside }, basis: 18, error: "" });
+  askCareer(reading, cade);
+  assert.equal(callsTo(HISTORY_READ), 1, "the server where it was");
+  // A tap heard: asked again, the rows read before kept meanwhile, the rest then counted from the SPP of the new moment.
+  visit.heard = [{ id: "e3", pairingId: "g2", playerId: "p3", counter: "touchdowns", delta: 1, injury: null, settledAt: null }];
+  askCareer(reading, { id: "p3", earned: 21 });
+  assert.equal(callsTo(HISTORY_READ), 2);
+  assert.notEqual(visit.careers.get("p3").stamp, first.stamp);
+  assert.deepEqual([visit.careers.get("p3").loading, visit.careers.get("p3").history, visit.careers.get("p3").basis], [true, first.history, 18]);
+  await settle();
+  assert.equal(visit.careers.get("p3").basis, 21);
+  // An answer after the coach left is taken nowhere.
+  visit.match = "g2";
+  askCareer(reading, cade);
+  const asked = visit.careers.get("p3");
+  visit.here = false;
+  await settle();
+  assert.equal(draws, 2);
+  assert.equal(visit.careers.get("p3"), asked);
+  api.assertAnswered();
 });

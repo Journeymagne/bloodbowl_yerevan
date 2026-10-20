@@ -113,7 +113,7 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {string} player the player mode's stored id, as the address carries it (stage 07d); "" for the roster itself
  * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read
  *   them (stage 07d); a read on its way keeps the list read before it
- * @property {import("./index.mjs").Visit["career"]} career the player's career by match as the visit read it (a phone's profile, career.mjs)
+ * @property {Map<string, import("./career.mjs").CareerRead>} careers the career by match of each player as the visit read it, by his stored id (career.mjs)
  * @property {boolean} careerOpen its list is open
  */
 
@@ -324,6 +324,32 @@ function captionMarkup(screen) {
 }
 
 /**
+ * What the roster shows of its lines: a desk's query, the three sections — those who play, those who miss the next
+ * match, the fallen — as it filters them, and the player open or chosen for the panel among them (`choiceOf`).
+ * @param {RosterScreen} screen
+ */
+function shownOf(screen) {
+  // A phone has no field: a query kept from a desk filters nothing there.
+  const words = screen.phone ? [] : queryWords(screen.memory.query);
+  const query = words.length ? screen.memory.query.trim() : "";
+  const sorted = rosterSections(screen.lines);
+  const [active, skipping, fallen] = [sorted.active, sorted.skipping, screen.fallen].map((rows) => rows.filter((line) => lineMatches(line, words)));
+  return { query, active, skipping, fallen, choice: choiceOf([...active, ...skipping, ...fallen], screen) };
+}
+
+/**
+ * The line whose career the screen shows (career.mjs reads it for him), null for none: none before the screen is drawn
+ * (the wait, a read that failed, a race the reference does not know); on a phone in the player mode, his line among
+ * those who play.
+ * @param {RosterScreen} screen
+ * @returns {import("./model.mjs").PlayerLine|null}
+ */
+export function careerLineOf(screen) {
+  if (screen.loading || screen.error || !screen.race) return null;
+  return screen.player && screen.phone ? screen.lines.find((line) => line.id === screen.player) ?? null : null;
+}
+
+/**
  * The banners, stage 08's treasury strip on a desk (strip.mjs), the three sections and the line on how to read
  * them, in one column, and the panel beside it from its top (DeskRoster.html). «Active roster» always stands, with
  * the save's status: a roster with nobody on it says so, and one whose players all miss the match says that, in place
@@ -335,12 +361,7 @@ function captionMarkup(screen) {
  */
 function layoutMarkup(screen) {
   const { lines, team } = screen;
-  // A phone has no field: a query kept from a desk filters nothing there.
-  const words = screen.phone ? [] : queryWords(screen.memory.query);
-  const query = words.length ? screen.memory.query.trim() : "";
-  const sorted = rosterSections(lines);
-  const [active, skipping, fallen] = [sorted.active, sorted.skipping, screen.fallen].map((rows) => rows.filter((line) => lineMatches(line, words)));
-  const choice = choiceOf([...active, ...skipping, ...fallen], screen);
+  const { query, active, skipping, fallen, choice } = shownOf(screen);
   const last = fallen.length ? fallen : skipping.length ? skipping : active;
   const first = active.length ? active : skipping.length ? skipping : fallen;
   // A desk shows the labels once, over the first table drawn: the others keep theirs for a screen reader (DeskRosterInjured.html).

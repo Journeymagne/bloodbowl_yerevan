@@ -122,7 +122,7 @@ export function screenOf(teamId, visit, memory) {
   }
   return {
     teamId, team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
-    ...where, records: recordsOf(visit, mode), player: visit.player, rolls: visit.rolls, career: visit.career, careerOpen: visit.careerOpen,
+    ...where, records: recordsOf(visit, mode), player: visit.player, rolls: visit.rolls, careers: visit.careers, careerOpen: visit.careerOpen,
   };
 }
 

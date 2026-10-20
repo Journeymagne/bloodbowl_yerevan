@@ -115,7 +115,7 @@ function pencilMarkup(line, screen) {
 function profileMarkup(line, screen) {
   const who = t("teamPlayer.who", { position: line.position, race: raceTitleOf(screen.team.baseTeamSlug), value: formatMoney(line.value) });
   const badgeHtml = renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain, large: true });
-  const career = careerMarkup({ line, race: screen.race, career: screen.career, open: screen.careerOpen });
+  const career = careerMarkup({ line, race: screen.race, career: screen.careers.get(line.id) ?? null, open: screen.careerOpen });
   const body = `${noticesMarkup(screen)}${statsMarkup(line)}${sppMarkup(line, screen)}${skillsMarkup(line)}${career}${injuriesMarkup(line)}`;
   return [
     playerHeadMarkup({ teamId: screen.teamId, badgeHtml, name: line.name, who, editHtml: pencilMarkup(line, screen) }),

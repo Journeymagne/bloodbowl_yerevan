@@ -109,7 +109,7 @@ function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadv
     onPlayerButton(root, "data-player-unadvance", onUnadvance),
     delegate(root, "click", "[data-unadvance-keep]", () => onUnadvanceKeep()),
     delegate(root, "click", "[data-unadvance-send]", () => onUnadvanceSend()),
-    delegate(root, "click", "[data-player-career]", () => onCareerToggle()),
+    delegate(root, "click", "[data-player-career]", (event, button) => onCareerToggle(button.getAttribute("data-player-career") ?? "")),
   ];
 }
 
@@ -283,7 +283,7 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {(skill: string) => void} handlers.onFixDrop a skill no advancement gave, its «Take off»
  * @param {() => void} handlers.onFixKeep «Cancel» in the fix
  * @param {() => void} handlers.onFixSave «Save» in the fix
- * @param {() => void} handlers.onCareerToggle the button of a phone's «Career», which opens and closes its list
+ * @param {(playerId: string) => void} handlers.onCareerToggle the button of a «Career», which opens and closes its list, by the player's stored id
  * @param {(query: string) => void} handlers.onRosterQuery a desk's search, as typed
  * @param {() => void} handlers.onRosterQueryClear Esc in it
  * @param {() => void} handlers.onRefSearch «Search the reference: …», which the link takes there
