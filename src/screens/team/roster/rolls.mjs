@@ -1,7 +1,7 @@
 /**
  * A player's dice on the site (stage 07d): the roll of an advancement's step, asked of the server (`POST …/rolls`), which
  * keeps it until an advancement takes it and answers the same ask with the same roll — so a lost answer is asked again,
- * and nothing is ever rolled twice; and the team's rolls read for the attempts behind an advancement (`GET …/rolls`).
+ * and nothing is ever rolled twice; and the team's rolls read for what the dice behind an advancement showed (`GET …/rolls`).
  * Not a step of the save queue: a roll moves no revision.
  *
  * One ask is in the air for a player at a time: a second press while it is out sends nothing, so the screen never holds

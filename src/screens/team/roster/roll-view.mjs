@@ -20,7 +20,7 @@
  * roll is closed, `rollReason`, and whether one is out, `busy`), what it offers him (`choicesOf`), and whether it is a
  * desk's. What the sheet says of its roll, and a random skill's pair as it stands (`pairOf`, `pickedDie`), are this
  * module's too — pure, of the sheet and its choices — which advance.mjs's presses read (T21 fix round 1, M6). A skill's
- * sheet says how an advancement gave the skill, with a site roll's attempts (`rollBlockMarkup`, Task 11).
+ * sheet says how an advancement gave the skill, and for a site roll what its dice showed (`rollBlockMarkup`).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -177,25 +177,8 @@ export function rollButtonMarkup({ sheet, choices }, label) {
   return footButton({ label, kind: "primary", data: { advanceRoll: true }, busy: Boolean(sheet.busy), reason });
 }
 
-/** What one attempt of the die says: its face, and its skill, or why it was rolled again. */
-function attemptWords({ roll: face, skill, duplicate }) {
-  if (typeof skill !== "string") return t("teamAdvance.attempt.blank", { face });
-  return duplicate ? t("teamAdvance.attempt.held", { face, skill }) : t("teamAdvance.attempt.kept", { face, skill });
-}
-
-/**
- * The attempts of a random skill's roll on the site in the skill's sheet (§9.5; Task 11, until Task 22 says what the
- * dice came up instead): «Attempts: N», a caption, and the list — each face, its skill, and why it was rolled again.
- * Nothing to press, so no other sheet hears a press it cannot take; the advancement's sheet shows none (the owner's
- * answer, 2026-10-20). None for another roll.
- * @param {object|null} roll as the server answers it
- */
-export function attemptsMarkup(roll) {
-  const tries = roll?.purpose === "random_skill" && Array.isArray(roll.result?.attempts) ? roll.result.attempts : [];
-  if (!tries.length) return "";
-  return `<p class="g-advance__attemptscaption">${escapeHtml(t("teamAdvance.attempts", { count: tries.length }))}</p>`
-    + `<ol class="g-advance__attemptlist">${tries.map((attempt) => `<li class="g-advance__attempt">${escapeHtml(attemptWords(attempt))}</li>`).join("")}</ol>`;
-}
+/** The line of the skill's sheet that says what the site's roll showed: its dice's skills (`diceWords`); none for a roll that shows none. */
+const rollPairMarkup = (words) => (words ? `<p class="g-roster__rollpair">${escapeHtml(words)}</p>` : "");
 
 /** A line of the skill's sheet about a site roll: read, on its way, failed (`bad`), or not on the site. */
 const rollStateMarkup = (words, bad = false) => `<p class="${classNames("g-roster__rollstate", bad && "g-roster__rollstate--bad")}" role="status">${escapeHtml(words)}</p>`;
@@ -210,15 +193,27 @@ export function siteRollOf(rolls, line, taken) {
 }
 
 /**
- * A site roll's attempts in the skill's sheet, as the visit read the team's rolls (`attemptsMarkup`) — from the list read
- * before while a read for another roll is on its way (final wave, T11 N5); else while the read is on its way, when it failed, or when the site has no such roll of
- * his, said so. Nothing for an advancement not rolled on the site, nor for a D8 a skill took the place of (a
- * characteristic's: no attempts, so nothing is read for it — fix round 1).
+ * What a random skill's roll on the site showed, in a line: «Rolled: A and B» for its two dice, «Rolled: A» for one (a
+ * column that held a single skill the player lacked, or a roll kept before there were two dice) — the skills in the order
+ * of the dice (`rolledDice`). Said of no roll that shows none; the faces and the attempts are not said (decision 39).
+ * @param {object|null} roll as the server answers it
+ */
+function diceWords(roll) {
+  const [first, second] = rolledDice(roll).map(({ skill }) => skill);
+  if (second !== undefined) return t("teamPlayer.roll.pair", { first, second });
+  return first === undefined ? "" : t("teamPlayer.roll.one", { skill: first });
+}
+
+/**
+ * What a site roll showed in the skill's sheet, as the visit read the team's rolls (`diceWords`) — from the list read
+ * before while a read for another roll is on its way (final wave, T11 N5); else while the read is on its way, when it
+ * failed, or when the site has no such roll of his, said so. Nothing for an advancement not rolled on the site, nor for
+ * a D8 a skill took the place of (a characteristic's: no dice to say, so nothing is read for it — fix round 1).
  */
 function siteRollMarkup(line, taken, rolls) {
   if (taken.via !== "site" || taken.type === "stat") return "";
   const roll = siteRollOf(rolls?.rolls, line, taken);
-  if (roll) return attemptsMarkup(roll);
+  if (roll) return rollPairMarkup(diceWords(roll));
   if (!rolls || rolls.loading) return rollStateMarkup(t("teamPlayer.roll.reading"));
   if (rolls.error) return rollStateMarkup(t("teamPlayer.roll.failed", { reason: rolls.error }), true);
   return rollStateMarkup(t("teamPlayer.roll.none"));
@@ -226,8 +221,8 @@ function siteRollMarkup(line, taken, rolls) {
 
 /**
  * How an advancement gave a skill, in the skill's sheet (decision 19; StatsSkill.html has none): «Advancement 1 · Random
- * primary skill · rolled on the site» — a chosen one without the way — and a site roll's attempts (`siteRollMarkup`),
- * read once a visit (player.mjs). Nothing for a skill no advancement gave.
+ * primary skill · rolled on the site» — a chosen one without the way — and for a site roll what its dice showed
+ * (`siteRollMarkup`), the roll read once a visit (player.mjs). Nothing for a skill no advancement gave.
  *
  * @param {{line: import("./model.mjs").PlayerLine, skill: string, rolls: null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}}} props
  *   `rolls` the team's rolls as the visit read them; on its way, a read keeps the list read before it

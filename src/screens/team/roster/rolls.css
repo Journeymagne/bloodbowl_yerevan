@@ -3,8 +3,9 @@
  * Adv3StatTable; from 901px in the window's columns as DeskRosterAdv.html and DeskRosterAdvStat.html. The sheet's frame
  * is player-sheets.css's, the advancement's own advance.css's; ui/segmented-control.css draws the way, ui/die.css the
  * die. This sheet sets what is the roll's own, by the sheet's id, after advance.css (K5) — and in a skill's sheet
- * (`#roster-skill`, Task 11) how an advancement gave the skill, with a site roll's attempts. A random skill is two dice
- * (the owner, 2026-10-20; Task 21): its pair is the prototypes' die and result, doubled, in Adv3Stat's card.
+ * (`#roster-skill`, Task 11) how an advancement gave the skill, and what a site roll's dice showed (Task 22). A random
+ * skill is two dice (the owner, 2026-10-20; Task 21): its pair is the prototypes' die and result, doubled, in
+ * Adv3Stat's card.
  *
  * Where the prototypes give no line height, the font's own (`normal`). Font, border, background, text-transform,
  * letter-spacing and font-weight are set on purpose: the 2.x globals (p, b, ul, ol, button) outlive this sheet until
@@ -38,9 +39,7 @@
 #player-advance .g-advance__note,
 #player-advance .g-advance__kept,
 #player-advance .g-advance__result,
-#player-advance .g-advance__table,
-#player-advance .g-advance__attemptscaption,
-#roster-skill .g-advance__attemptscaption {
+#player-advance .g-advance__table {
   margin: 0;
   padding: 0;
   border: 0;
@@ -313,11 +312,7 @@
   overflow-wrap: anywhere;
 }
 
-/*
- * Not in the prototypes: a desk's «‹ Back to the characteristic» (fix round 1, M2), a quiet line in the accent, 13/600;
- * a skill's sheet's «Attempts: N» (§9.5; `attemptsMarkup`, until Task 22) the same as a caption, the attempts under it
- * 13px. The advancement's sheet shows no attempts (the owner's answer, 2026-10-20).
- */
+/* Not in the prototypes: a desk's «‹ Back to the characteristic» (fix round 1, M2), a quiet line in the accent, 13/600. */
 #player-advance .g-advance__back {
   box-sizing: border-box;
   display: flex;
@@ -334,33 +329,12 @@
   text-transform: none;
   cursor: pointer;
 }
-#player-advance .g-advance__attemptscaption,
-#roster-skill .g-advance__attemptscaption {
-  color: var(--accent-text);
-  font: 600 13px/normal var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-#player-advance .g-advance__attemptlist,
-#roster-skill .g-advance__attemptlist {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  color: var(--ink-2);
-  font: 400 13px/normal var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-#player-advance .g-advance__attempt,
-#roster-skill .g-advance__attempt { overflow-wrap: anywhere; }
 
 /*
  * A skill's sheet (StatsSkill.html has none; Task 11, decision 19): how an advancement gave the skill, between the rule
  * and whose skill it is, 12 over them, its parts 6 apart — the line 14/600 in --ink-2, as the words of the box under it;
- * the read of the site's roll 13px, quiet, a failed one in --danger; the attempts as above.
+ * what the site's roll showed («Rolled: A and B», §9.5) 13px/1.45 in --ink-2; the read of it 13px, quiet, a failed one
+ * in --danger.
  */
 #roster-skill .g-roster__rollblock {
   display: flex;
@@ -372,6 +346,7 @@
   background: none;
 }
 #roster-skill .g-roster__rollline,
+#roster-skill .g-roster__rollpair,
 #roster-skill .g-roster__rollstate {
   margin: 0;
   padding: 0;
@@ -384,6 +359,10 @@
 #roster-skill .g-roster__rollline {
   color: var(--ink-2);
   font: 600 14px/1.4 var(--font-body);
+}
+#roster-skill .g-roster__rollpair {
+  color: var(--ink-2);
+  font: 400 13px/1.45 var(--font-body);
 }
 #roster-skill .g-roster__rollstate {
   color: var(--muted);

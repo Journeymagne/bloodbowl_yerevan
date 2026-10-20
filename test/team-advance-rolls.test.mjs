@@ -1259,21 +1259,23 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   for (const purpose of DICE_PURPOSES) {
     for (const [locale, words] of Object.entries(dictionaries)) assert.ok(words[`teamAdvance.waiting.${purpose}`], `${locale} teamAdvance.waiting.${purpose}`);
   }
-  // The words of attempts the advancement's sheet no longer shows are gone (the owner's answer); the skill's sheet's stay until Task 22.
+  // The words of attempts no sheet shows any more are gone (the owner's answer; the skill's sheet says what the dice showed, Task 22).
   for (const [locale, words] of Object.entries(dictionaries)) {
-    for (const key of ["teamAdvance.rerolled", "teamAdvance.note.siteD8"]) assert.ok(!(key in words), `${locale} ${key}`);
+    for (const key of ["teamAdvance.rerolled", "teamAdvance.note.siteD8", "teamAdvance.attempts", "teamAdvance.attempt.blank", "teamAdvance.attempt.held", "teamAdvance.attempt.kept"]) {
+      assert.ok(!(key in words), `${locale} ${key}`);
+    }
   }
   assertDictionaryCovers("src/screens/team/roster/roll-view.mjs", "src/screens/team/roster/advance.mjs", "src/screens/team/roster/advance-sheet.mjs");
   const css = text(ROLLS);
   assert.doesNotMatch(css, /--focus-ring/);
   assert.doesNotMatch(css, /g-advance__dierow|g-advance__dieside/, "no die beside the button: the pair stands above it");
-  assert.doesNotMatch(css, /\.g-advance__attempts\b/, "no «Attempts» to press");
+  assert.doesNotMatch(css, /attempt/, "no attempts in the sheet: nothing to press, nothing to list");
   const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
   assert.deepEqual(queries, ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
   for (const selector of ["#player-advance .g-advance__note", "#player-advance .g-advance__result", "#player-advance .g-advance__face", "#player-advance .g-advance__facenum",
     "#player-advance .g-advance__d8face", "#player-advance .g-advance__stat", "#player-advance .g-advance__instead", "#player-advance .g-advance__pick",
-    "#player-advance .g-advance__picktag", "#player-advance .g-advance__insteadtitle", "#player-advance .g-advance__insteadsub", "#player-advance .g-advance__attemptlist",
-    "#player-advance .g-advance__attemptscaption", "#player-advance .g-advance__back", "#player-advance .g-advance__kept", "#player-advance .g-seg__item"]) {
+    "#player-advance .g-advance__picktag", "#player-advance .g-advance__insteadtitle", "#player-advance .g-advance__insteadsub",
+    "#player-advance .g-advance__back", "#player-advance .g-advance__kept", "#player-advance .g-seg__item"]) {
     for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(ROLLS, selector, property).length >= 1, `${selector} ${property}`);
   }
   // The D8's table shares advance.css's hint rule (fix round 1, M6); a desk's line height is the roll's own.
@@ -1358,7 +1360,7 @@ test("a long skill on a card or a face wraps; nothing is cut with «…»", () =
   const css = text(ROLLS);
   assert.doesNotMatch(css, /text-overflow/);
   for (const selector of ["#player-advance .g-advance__facename", "#player-advance .g-advance__pick", "#player-advance .g-advance__note", "#player-advance .g-advance__result",
-    "#player-advance .g-advance__statchange", "#player-advance .g-advance__insteadtitle", "#player-advance .g-advance__insteadsub", "#player-advance .g-advance__attempt",
+    "#player-advance .g-advance__statchange", "#player-advance .g-advance__insteadtitle", "#player-advance .g-advance__insteadsub",
     "#player-advance .g-advance__kept"]) {
     assert.deepEqual(valuesOf(ROLLS, selector, "overflow-wrap"), ["anywhere"], selector);
   }

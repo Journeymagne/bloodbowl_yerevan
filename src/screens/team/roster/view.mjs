@@ -386,7 +386,7 @@ function bodyMarkup(screen) {
 
 /**
  * The sheet that is open, while its player is still on the screen: a skill's — a fallen player's chip opens its rule
- * too; how an advancement gave it, with a site roll's attempts as the visit read them (stage 07d) — an injury's, a
+ * too; how an advancement gave it, and what a site roll's dice showed as the visit read them (stage 07d) — an injury's, a
  * missed match's, a death's undo, a sale's, on the draft's treasury, or a player's edit, advancement, the undo of his
  * last one or his fix by hand (stage 07d); the hire cart, which is no player's (`screenOf` closes one that no longer stands).
  */

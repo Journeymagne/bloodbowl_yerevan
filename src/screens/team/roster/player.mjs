@@ -7,7 +7,7 @@
  * match (R8). What a sheet holds lives on the visit, as the marks' do.
  *
  * A skill's chip, in his row, his panel or his profile, opens the skill's rule (07a), saying how an advancement gave it;
- * for a roll on the site the team's rolls are read once a visit for its attempts (decision 19). The edit's and the
+ * for a roll on the site the team's rolls are read once a visit for what its dice showed (decision 19). The edit's and the
  * undo's sheets are drawn by player-sheets.mjs; the edit's tiles are the roster's counters, whose presses index.mjs's
  * `onStep` takes as every counter's. The edit leads to his fix by hand, whose sheet and presses are fix.mjs's. The
  * button of his profile's «Career» opens and closes its list (career.mjs), which reads and writes nothing of its own.
@@ -174,8 +174,8 @@ const rollsHold = (rolls, line, taken) => Boolean(rolls?.loading || (rolls?.roll
 
 /**
  * The team's rolls read for a skill a roll on the site gave (decision 19): once a visit — a second chip finds them read,
- * or on their way (`rollsHold`). None for a D8 a skill took the place of: a characteristic's roll has no attempts to
- * show. A read again keeps the list read before while it is on its way, so a chip whose roll is in it shows its attempts
+ * or on their way (`rollsHold`). None for a D8 a skill took the place of: a characteristic's roll has no dice to say.
+ * A read again keeps the list read before while it is on its way, so a chip whose roll is in it says what its dice showed
  * meanwhile (final wave, T11 N5). The answer is taken only while the visit is here and asks for these rolls still: an
  * advancement taken, undone or a roll put on one since has made them old (`visit.rolls = null`).
  *

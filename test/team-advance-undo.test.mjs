@@ -17,7 +17,7 @@ const { setMyTeams } = await import("../src/data/teams.mjs");
 // in the desk's panel asks first, then the last advancement goes as one step of the save queue: what it gave goes, its SPP
 // come back, and the server frees its site roll, which the next advancement of its type takes again. A roster «Favoured
 // of…» is offered the god's bonus skill on the advancement's done step (owner's answer 3). A skill an advancement gave says
-// how in its sheet, and a site roll's attempts are read from the server once a visit. The page, the coach and his team are
+// how in its sheet, and for a site roll what its dice showed, read from the server once a visit. The page, the coach and his team are
 // helpers/roster-page.mjs's; ADVANCED is Cade 3 (a Catcher) with Frenzy from a random skill rolled on the site.
 
 const PATCH = "PATCH /api/teams/t1";
@@ -43,6 +43,11 @@ const GENERAL = ["Block", "Dauntless", "Fend", "Frenzy", "Kick", "Pro", "Steady 
 const R1 = {
   id: "r1", playerId: "p3", purpose: "random_skill", params: { category: "General", candidates: GENERAL, sides: 16, captain: false },
   result: { attempts: [{ roll: 1, skill: "Block", duplicate: true }, { roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" }, usedAt: "2026-10-18T10:00:00Z",
+};
+/** A random skill's roll of two dice (owner's review, 2026-10-20; Task 20), Cade's: Frenzy and Strip Ball, the pair he took Strip Ball from. */
+const PAIR = {
+  ...R1, id: "r4",
+  result: { dice: [{ attempts: [{ roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" }, { attempts: [{ roll: 8, skill: "Strip Ball", duplicate: false }], skill: "Strip Ball" }] },
 };
 /** R1 as the server gives it back once the undo has freed it: Frenzy at the first attempt (Cade never held Block). */
 const R1_FREED = { ...R1, usedAt: null, result: { attempts: [{ roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" } };
@@ -564,47 +569,63 @@ test("a player holding every skill the god offers is offered no bonus", async ()
   });
 });
 
-// Decision 19; T10 re-review: `attemptsMarkup(roll, {toggle: false})` draws a caption and the list, nothing to press.
-test("a skill an advancement gave says how in its sheet; a site roll's attempts are read once and shown", async () => {
+// Decision 19, 39 (owner's review, 2026-10-20): a site roll's two dice are said in the skill's sheet — «Rolled: A and B» — in
+// place of the attempts, which no sheet shows any more; the team's rolls are read once a visit.
+test("a skill an advancement gave says how in its sheet; a site roll gave it — what the two dice showed, read once", async () => {
   const skillSheet = () => view.querySelector("dialog#roster-skill");
   const chip = (name) => view.querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === name);
   const line = () => skillSheet().querySelector(".g-roster__rollline").textContent;
   const rollState = () => skillSheet().querySelector(".g-roster__rollstate");
+  const said = () => skillSheet().querySelector(".g-roster__rollpair");
+  const close = () => fireEvent(skillSheet().querySelector("[data-sheet-close]"), "click");
+  // Cade took Strip Ball from the pair r4 (Frenzy and Strip Ball), Sure Hands from r2, and chose Diving Catch.
+  const took = { ...ADVANCED, extraSkills: [{ name: "Strip Ball", access: "primary" }, { name: "Sure Hands", access: "primary" }, { name: "Diving Catch", access: "primary" }, { name: HOSTILE, access: "primary" }],
+    advancements: [{ type: "random", grants: { skill: "Strip Ball" }, roll: { id: "r4", via: "site" } }, { type: "random", grants: { skill: "Sure Hands" }, roll: { id: "r2", via: "site" } },
+      { type: "primary", grants: { skill: "Diving Catch" } }] };
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true, { teamAnswer: withOne({ ...TWICE, extraSkills: [...TWICE.extraSkills, { name: HOSTILE, access: "primary" }] }) });
+      await openPlayer(true, { teamAnswer: withOne(took) });
       const gate = api.hold(ROLLS_READ);
-      fireEvent(chip("Frenzy"), "click");
+      fireEvent(chip("Strip Ball"), "click");
       assert.ok(skillSheet()?.isModal);
       assert.equal(line(), "Advancement 1 · Random primary skill · rolled on the site");
       assert.equal(rollState().textContent, "Reading the roll…");
       assert.equal(rollState().getAttribute("role"), "status");
-      // Between the rule and whose skill it is (StatsSkill.html).
+      assert.ok(!said(), "nothing said of the dice before they are read");
+      // Between the rule and whose skill it is (StatsSkill.html): the rolls' block holds the line and what the dice showed.
       const body = elements(skillSheet().querySelector(".g-sheet__body"));
       assert.deepEqual(body.map((node) => node.getAttribute("class")), ["g-prose", "g-roster__rollblock", "g-roster__from"]);
       assert.equal(callsTo(ROLLS_READ), 1);
-      gate.release({ status: 200, body: { rolls: [R0, R1] } });
+      gate.release({ status: 200, body: { rolls: [R0, PAIR, R2] } });
       await settle();
       assert.ok(!rollState(), "read");
-      assert.equal(skillSheet().querySelector(".g-advance__attemptscaption").textContent, "Attempts: 2");
-      assert.deepEqual(skillSheet().querySelectorAll(".g-advance__attempt").map((each) => each.textContent), ["1 — Block, held already, rolled again", "4 — Frenzy"]);
-      // Only shown: no button, nothing to press, nothing that opens or hides.
-      assert.equal(skillSheet().querySelector(".g-sheet__body").querySelectorAll("button, [aria-expanded], [data-advance-attempts]").length, 0);
+      assert.equal(said().textContent, "Rolled: Frenzy and Strip Ball");
+      assert.equal(said().tagName, "P");
+      assert.deepEqual(elements(skillSheet().querySelector(".g-roster__rollblock")).map((node) => node.getAttribute("class")), ["g-roster__rollline", "g-roster__rollpair"]);
+      // Only said: no list, no button, nothing to press, nothing that opens or hides; the attempts are shown nowhere.
+      assert.equal(skillSheet().querySelector(".g-roster__rollblock").querySelectorAll("button, [aria-expanded], ul, ol, li").length, 0);
+      assert.ok(!skillSheet().querySelector(".g-advance__attemptlist") && !skillSheet().querySelector(".g-advance__attemptscaption") && !skillSheet().querySelector(".g-advance__attempt"));
+      assert.doesNotMatch(skillSheet().textContent, /Attempts|rolled again|held already/);
       assertCspSafe(view);
       assertStyled(view, ...UNDO_STYLES);
       // Closed and opened again in the same visit: no second read.
-      fireEvent(skillSheet().querySelector("[data-sheet-close]"), "click");
+      close();
       assert.ok(!skillSheet());
-      fireEvent(chip("Frenzy"), "click");
-      assert.equal(skillSheet().querySelectorAll(".g-advance__attempt").length, 2, "shown at once");
+      fireEvent(chip("Strip Ball"), "click");
+      assert.equal(said().textContent, "Rolled: Frenzy and Strip Ball", "said at once");
       assert.equal(callsTo(ROLLS_READ), 1);
-      fireEvent(skillSheet().querySelector("[data-sheet-close]"), "click");
-      // A chosen skill: how it came, and nothing read.
+      close();
+      // A second chip of the same visit, its roll in that list: no new read.
+      fireEvent(chip("Sure Hands"), "click");
+      assert.equal(line(), "Advancement 2 · Random primary skill · rolled on the site");
+      assert.equal(said().textContent, "Rolled: Sure Hands", "a roll of one die says its one skill");
+      assert.equal(callsTo(ROLLS_READ), 1);
+      close();
+      // A chosen skill: how it came, and nothing read, nothing said of dice.
       fireEvent(chip("Diving Catch"), "click");
-      assert.equal(line(), "Advancement 2 · Chosen primary skill");
-      assert.ok(!rollState());
-      assert.ok(!skillSheet().querySelector(".g-advance__attemptscaption"));
-      fireEvent(skillSheet().querySelector("[data-sheet-close]"), "click");
+      assert.equal(line(), "Advancement 3 · Chosen primary skill");
+      assert.ok(!rollState() && !said());
+      close();
       // A skill no advancement gave (written by hand, 2.x): no block.
       fireEvent(chip(HOSTILE), "click");
       assert.ok(!skillSheet().querySelector(".g-roster__rollblock"));
@@ -618,30 +639,64 @@ test("a skill an advancement gave says how in its sheet; a site roll's attempts 
       fireEvent(chip("Frenzy"), "click");
       await settle();
       assert.equal(rollState().textContent, "The site has no such roll");
+      assert.ok(!said());
     });
     // The read failed: said in the sheet, and read again on the next press.
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true);
+      await openPlayer(true, { teamAnswer: withOne({ ...took, advancements: [took.advancements[0]] }) });
       api.reply(ROLLS_READ, 500, { error: { code: "INTERNAL", message: "x" } });
-      fireEvent(chip("Frenzy"), "click");
+      fireEvent(chip("Strip Ball"), "click");
       await settle();
       assert.match(rollState().textContent, /^The roll did not load: ./);
       assert.match(rollState().getAttribute("class"), /g-roster__rollstate--bad/);
-      fireEvent(skillSheet().querySelector("[data-sheet-close]"), "click");
-      api.reply(ROLLS_READ, 200, { rolls: [R1] });
-      fireEvent(chip("Frenzy"), "click");
+      assert.ok(!said());
+      close();
+      api.reply(ROLLS_READ, 200, { rolls: [PAIR] });
+      fireEvent(chip("Strip Ball"), "click");
       await settle();
       assert.equal(callsTo(ROLLS_READ), 2);
-      assert.equal(skillSheet().querySelectorAll(".g-advance__attempt").length, 2);
+      assert.equal(said().textContent, "Rolled: Frenzy and Strip Ball");
     });
     // A desk's panel opens the same.
-    await openPlayer(false);
-    api.reply(ROLLS_READ, 200, { rolls: [R1] });
-    fireEvent(aside().querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === "Frenzy"), "click");
+    await openPlayer(false, { teamAnswer: withOne({ ...took, advancements: [took.advancements[0]] }) });
+    api.reply(ROLLS_READ, 200, { rolls: [PAIR] });
+    fireEvent(aside().querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === "Strip Ball"), "click");
     await settle();
     assert.equal(line(), "Advancement 1 · Random primary skill · rolled on the site");
-    assert.equal(skillSheet().querySelectorAll(".g-advance__attempt").length, 2);
+    assert.equal(said().textContent, "Rolled: Frenzy and Strip Ball");
     assertStyled(view, ...UNDO_STYLES);
+  });
+});
+
+// Decision 39, the old format: a roll kept with one die (stage 03: `result.skill`, `result.attempts`) says its one skill;
+// a roll of the new format with one die (a column holding a single skill the player lacks) the same.
+test("a roll kept with one die says its one skill", async () => {
+  const skillSheet = () => view.querySelector("dialog#roster-skill");
+  const chip = (name) => view.querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === name);
+  const said = () => skillSheet().querySelector(".g-roster__rollpair")?.textContent;
+  const one = { ...R1, result: { dice: [{ attempts: [{ roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" }] } };
+  await withoutTimers(async () => {
+    for (const roll of [R1, one]) {
+      await withWindow({ phone: true }, async () => {
+        await openPlayer(true);
+        api.reply(ROLLS_READ, 200, { rolls: [roll] });
+        fireEvent(chip("Frenzy"), "click");
+        await settle();
+        assert.equal(said(), "Rolled: Frenzy");
+        assertCspSafe(view);
+      });
+    }
+    // The words of a hostile skill are text, in the pair as in the single die's line.
+    await withWindow({ phone: true }, async () => {
+      const hostile = { ...R1, result: { dice: [{ attempts: [{ roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" }, { attempts: [{ roll: 9, skill: HOSTILE, duplicate: false }], skill: HOSTILE }] } };
+      await openPlayer(true);
+      api.reply(ROLLS_READ, 200, { rolls: [hostile] });
+      fireEvent(chip("Frenzy"), "click");
+      await settle();
+      assert.equal(said(), `Rolled: Frenzy and ${HOSTILE}`);
+      assert.equal(elements(skillSheet().querySelector(".g-roster__rollpair")).length, 0, "text only");
+      assertCspSafe(view);
+    });
   });
 });
 
@@ -650,7 +705,7 @@ test("a read of the rolls without a site roll the roster brought since is read a
   const skillSheet = () => view.querySelector("dialog#roster-skill");
   const chip = (name) => view.querySelectorAll("[data-skill]").find((each) => each.getAttribute("data-skill") === name);
   const rollState = () => skillSheet().querySelector(".g-roster__rollstate");
-  const attempts = () => skillSheet().querySelectorAll(".g-advance__attempt").map((each) => each.textContent);
+  const said = () => skillSheet().querySelector(".g-roster__rollpair")?.textContent;
   const close = () => fireEvent(skillSheet().querySelector("[data-sheet-close]"), "click");
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
@@ -676,18 +731,18 @@ test("a read of the rolls without a site roll the roster brought since is read a
       close();
       fireEvent(chip("Frenzy"), "click");
       assert.ok(!rollState(), "no «Reading the roll…» over a roll the visit holds");
-      assert.deepEqual(attempts(), ["1 — Block, held already, rolled again", "4 — Frenzy"]);
+      assert.equal(said(), "Rolled: Frenzy");
       close();
       fireEvent(chip("Sure Hands"), "click");
       assert.equal(rollState().textContent, "Reading the roll…");
       reading.release();
       await settle();
       assert.equal(callsTo(ROLLS_READ), 2, "the one read again, however many chips asked meanwhile");
-      assert.deepEqual(attempts(), ["9 — Sure Hands"]);
+      assert.equal(said(), "Rolled: Sure Hands");
       close();
       // Frenzy's roll is in that read: no third.
       fireEvent(chip("Frenzy"), "click");
-      assert.deepEqual(attempts(), ["1 — Block, held already, rolled again", "4 — Frenzy"]);
+      assert.equal(said(), "Rolled: Frenzy");
       assert.equal(callsTo(ROLLS_READ), 2);
     });
     // A roll of another player's under the same id is not his (T3: the team's list holds every player's rolls).
@@ -698,7 +753,7 @@ test("a read of the rolls without a site roll the roster brought since is read a
       await settle();
       assert.equal(rollState().textContent, "The site has no such roll");
     });
-    // A skill in place of a characteristic rolled on the site: a D8 has no attempts — nothing read, nothing said of a read.
+    // A skill in place of a characteristic rolled on the site: a D8 has no dice to say — nothing read, nothing said of a read.
     await withWindow({ phone: true }, async () => {
       const d8 = { ...CADE, extraSkills: [{ name: "Sure Hands", access: "primary" }], advancements: [{ type: "stat", grants: { skill: "Sure Hands" }, roll: { id: "r3", via: "site" } }] };
       await openPlayer(true, { teamAnswer: withOne(d8) });
@@ -732,7 +787,7 @@ test("every key in both dictionaries; styled; D2", () => {
   const own = [[PROFILE, ".g-profile__undo"], [FRAME, ".g-roster__aside .g-roster__undo"], [SHEETS, "#player-unadvance .g-unadvance__key"],
     [SHEETS, "#player-unadvance .g-unadvance__value"], [SHEETS, "#player-unadvance .g-unadvance__note"], [ADVANCE, "#player-advance .g-favoured__title"],
     [ADVANCE, "#player-advance .g-favoured__line"], [ROLLS, "#roster-skill .g-roster__rollline"], [ROLLS, "#roster-skill .g-roster__rollstate"],
-    [ROLLS, "#roster-skill .g-advance__attemptscaption"], [ROLLS, "#roster-skill .g-advance__attemptlist"]];
+    [ROLLS, "#roster-skill .g-roster__rollpair"]];
   for (const [file, selector] of own) {
     for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(file, selector, property).length >= 1, `${selector} ${property}`);
   }
@@ -770,12 +825,22 @@ test("every key in both dictionaries; styled; D2", () => {
   assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-favoured__line", "font"), ["400 13px/1.45 var(--font-body)"]);
   assertReadable(ADVANCE, "#player-advance .g-favoured__line", "color", ["--surface-2"], 4.5);
   assertReadable(ADVANCE, "#player-advance .g-favoured__title", "color", ["--surface-2"], 4.5);
-  // The skill sheet's attempts share the advancement's rules: the selector lists extended, nothing copied (T10 hand-off).
-  for (const property of ["font", "color"]) {
-    assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-advance__attemptscaption", property), valuesOf(ROLLS, "#player-advance .g-advance__attemptscaption", property), property);
-    assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-advance__attemptlist", property), valuesOf(ROLLS, "#player-advance .g-advance__attemptlist", property), property);
+  // What the dice showed (decision 39): 13px/1.45 in --ink-2, no margin, wrapping; nothing of the attempts' rules is left.
+  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-roster__rollpair", "font"), ["400 13px/1.45 var(--font-body)"]);
+  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-roster__rollpair", "color"), ["var(--ink-2)"]);
+  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-roster__rollpair", "margin"), ["0"]);
+  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-roster__rollpair", "overflow-wrap"), ["anywhere"]);
+  assert.doesNotMatch(text(ROLLS), /attempt/, "no attempts' rules in rolls.css");
+  assert.doesNotMatch(text("src/screens/team/roster/roll-view.mjs"), /attemptsMarkup|attemptWords/, "no attempts' markup");
+  for (const [locale, words] of [["en", JSON.parse(text("src/i18n/en.json"))], ["ru", JSON.parse(text("src/i18n/ru.json"))]]) {
+    assert.deepEqual(Object.keys(words).filter((key) => /^teamAdvance\.(attempts|attempt\.|rerolled)/.test(key)), [], `${locale}: no words of attempts`);
+    assert.ok(words["teamPlayer.roll.pair"] && words["teamPlayer.roll.one"], locale);
   }
-  assert.deepEqual(valuesOf(ROLLS, "#roster-skill .g-advance__attempt", "overflow-wrap"), ["anywhere"]);
+  assert.equal(JSON.parse(text("src/i18n/en.json"))["teamPlayer.roll.pair"], "Rolled: {first} and {second}");
+  assert.equal(JSON.parse(text("src/i18n/en.json"))["teamPlayer.roll.one"], "Rolled: {skill}");
+  assert.equal(JSON.parse(text("src/i18n/ru.json"))["teamPlayer.roll.pair"], "Выпало: {first} и {second}");
+  assert.equal(JSON.parse(text("src/i18n/ru.json"))["teamPlayer.roll.one"], "Выпало: {skill}");
+  assertReadable(ROLLS, "#roster-skill .g-roster__rollpair", "color", ["--surface"], 4.5);
   assertReadable(ROLLS, "#roster-skill .g-roster__rollline", "color", ["--surface"], 4.5);
   assertReadable(ROLLS, "#roster-skill .g-roster__rollstate", "color", ["--surface"], 4.5);
   assertReadable(ROLLS, "#roster-skill .g-roster__rollstate--bad", "color", ["--surface"], 4.5);
@@ -798,7 +863,7 @@ test("every key in both dictionaries; styled; D2", () => {
 test("a long skill or line wraps; nothing is cut with «…»", () => {
   for (const [file, selector] of [[SHEETS, "#player-unadvance .g-unadvance__value"], [SHEETS, "#player-unadvance .g-unadvance__note"], [PROFILE, ".g-profile__undo"],
     [FRAME, ".g-roster__aside .g-roster__undo"], [ADVANCE, "#player-advance .g-favoured__title"], [ADVANCE, "#player-advance .g-favoured__line"],
-    [ROLLS, "#roster-skill .g-roster__rollline"], [ROLLS, "#roster-skill .g-roster__rollstate"]]) {
+    [ROLLS, "#roster-skill .g-roster__rollline"], [ROLLS, "#roster-skill .g-roster__rollstate"], [ROLLS, "#roster-skill .g-roster__rollpair"]]) {
     assert.deepEqual(valuesOf(file, selector, "overflow-wrap"), ["anywhere"], selector);
   }
 });
