@@ -23,6 +23,7 @@ const { DICE_PURPOSES } = await import("../src/domain/roster/dice.mjs");
 const PATCH = "PATCH /api/teams/t1";
 const TEAM_READ = "GET /api/teams/t1";
 const ROLLS = "src/screens/team/roster/rolls.css";
+const ADVANCE = "src/screens/team/roster/advance.css";
 const ROLL_STYLES = [...STYLES, "option-card.css", "die.css", "segmented-control.css"];
 const ask = (id) => `POST /api/teams/t1/players/${id}/rolls`;
 
@@ -77,7 +78,8 @@ const title = () => sheet().querySelector("h2").textContent;
 const sub = () => sheet().querySelector(".g-sheet__sub")?.textContent ?? null;
 const dots = () => sheet().querySelector(".g-steps")?.getAttribute("aria-label") ?? null;
 const back = () => sheet().querySelector("[data-sheet-back]");
-const refusal = () => sheet().querySelector(".g-player-sheet__refusal")?.textContent ?? null;
+/** The sheet's own last refusal, under the steps (advance-sheet.mjs's lines); the roll's lines are `lines()`. */
+const refusal = () => sheet().querySelector(".g-advance__lines .g-player-sheet__refusal")?.textContent ?? null;
 const done = () => sheet().querySelector(".g-advance__done");
 const doneWords = () => [done().querySelector(".g-advance__donetitle").textContent, done().querySelector(".g-advance__how").textContent];
 const tiles = () => done().querySelectorAll(".g-advance__tile dd").map((tile) => tile.textContent);
@@ -97,7 +99,8 @@ const statWords = () => sheet().querySelectorAll("[data-advance-stat]").map((ite
 const attempts = () => sheet().querySelector("[data-advance-attempts]");
 const instead = () => sheet().querySelector("[data-advance-instead]");
 const bind = () => sheet().querySelector("[data-advance-bind]");
-const lines = () => sheet().querySelectorAll(".g-advance__alert").map((line) => line.textContent);
+/** What the sheet says of the roll, in the player sheets' refusal line (T8; fix round 1, I3). */
+const lines = () => sheet().querySelectorAll(".g-advance__roll .g-player-sheet__refusal").map((line) => line.textContent);
 const columns = () => sheet().querySelectorAll(".g-advance__col");
 const heads = () => columns().map((column) => column.querySelector(".g-advance__coltitle").textContent);
 const closed = (element) => element.getAttribute("aria-disabled") === "true";
@@ -199,7 +202,7 @@ test("a random skill on the site: declared, then rolled — the die, the skill, 
       assert.ok(ways().every(closed));
       assert.ok(ways().every((item) => item.getAttribute("title") === WORDS.kept));
       assert.ok(!back());
-      assert.ok(sheet().querySelector(".g-advance__kept").textContent === WORDS.kept);
+      assert.equal(sheet().querySelector(".g-advance__kept").textContent, WORDS.kept);
       assert.ok(!rollButton());
       assert.equal(take().textContent, "Take: Frenzy");
       assert.ok(!take().hasAttribute("disabled") && !closed(take()));
@@ -224,6 +227,14 @@ test("a random skill on the site: declared, then rolled — the die, the skill, 
     assert.equal(toasts().at(-1), WORDS.kept);
     assert.equal(typeCard("random").getAttribute("aria-checked"), "true", "nothing changed");
     assert.equal(summary(), "Random primary skill · General · Frenzy — 3 SPP");
+    // DeskRosterAdv keeps «Roll D16» beside the die, closed (fix round 1, M1): a press says why and asks nothing.
+    assert.equal(rollButton().textContent, "Roll D16");
+    assert.ok(closed(rollButton()));
+    assert.equal(rollButton().getAttribute("title"), WORDS.kept);
+    press(rollButton());
+    assert.equal(toasts().at(-1), WORDS.kept);
+    await settle();
+    assert.equal(asks().length, 1);
     assertStyled(view, ...ROLL_STYLES);
   });
 });
@@ -311,6 +322,11 @@ test("a roll of the other purpose waits: the sheet says which to take, and the t
     press(rollButton());
     await settle();
     assert.equal(asks().length, 1, "a closed «Roll D16» asks nothing");
+    // «Roll first», closed with the same words, says them on a press (fix round 1, M3).
+    assert.equal(take().textContent, "Roll first");
+    assert.equal(take().getAttribute("title"), WORDS.waitingStat);
+    press(take());
+    assert.equal(toasts().at(-1), WORDS.waitingStat);
     // The characteristic: the D8 that waits comes back.
     choose(typeCard("stat"));
     assert.deepEqual(lines(), [], "the words were for the other type");
@@ -354,8 +370,11 @@ test("a stale roll: why it cannot be taken, the table open, and the table advanc
       assert.equal(take().getAttribute("title"), WORDS.stale);
       assert.ok(!closed(way("table")), "«Rolled at the table» open (decision 11)");
       assert.equal(bind().textContent, "Record this roll for the advancement «Frenzy» taken at the table");
-      // A press on the closed «Take» sends nothing.
+      // A press on the closed «Take» says why, as its title does, once — not again in the sheet — and sends nothing (M3).
       press(take());
+      assert.equal(toasts().at(-1), WORDS.stale);
+      assert.deepEqual(lines(), [WORDS.stale]);
+      assert.ok(!refusal());
       await settle();
       assert.equal(patches().length, 0);
       // K15: a match begun before the screen is drawn again — the press asks, and nothing goes.
@@ -405,7 +424,8 @@ test("a player the server has not: the sheet says so, and the roster is read aga
   });
 });
 
-test("a roll rerolled past a skill he has no more cannot be taken, and says why", async () => {
+// Fix round 1, I2: its words say «or take this advancement at the table», and the table is open.
+test("a roll rerolled past a skill he has no more cannot be taken, and says why; at the table it is taken without the roll", async () => {
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
       await openAdvance(true, { teamAnswer: withOne({ ...ANN, extraSkills: [] }) });
@@ -415,10 +435,24 @@ test("a roll rerolled past a skill he has no more cannot be taken, and says why"
       assert.ok(closed(take()));
       assert.equal(take().getAttribute("title"), WORDS.rerolled);
       assert.ok(!bind(), "no table advancement gave Frenzy");
-      assert.ok(ways().every(closed), "only a stale roll leaves the way open");
       press(take());
+      assert.equal(toasts().at(-1), WORDS.rerolled);
+      assert.ok(!refusal(), "said once");
       await settle();
       assert.equal(patches().length, 0);
+      // The table, as the words say: the way open, the coach's face taken, the site's roll left waiting.
+      assert.ok(ways().every((item) => !closed(item)));
+      choose(way("table"));
+      assert.equal(note(), WORDS.table);
+      assert.deepEqual(lines(), [], "the site's refusal is not the table's");
+      choose(face(3));
+      assert.equal(take().textContent, "Take: Fend");
+      api.reply(PATCH, 200, { team: withOne(ANN, { revision: 5 }) });
+      press(take());
+      assert.deepEqual(doneWords(), ["Fend", "Random primary skill · General · rolled at the table"]);
+      await settle();
+      assert.deepEqual(sentOf("p1"), [[{ type: "random", grants: { skill: "Fend" }, roll: { via: "table" } }]], "no roll named");
+      assert.equal(asks().length, 1);
     });
   });
 });
@@ -533,7 +567,8 @@ test("a characteristic at the table: eight faces, then the same choice", async (
       assert.equal(group.getAttribute("aria-label"), "D8 result at the table");
       assert.deepEqual(group.querySelectorAll("[data-advance-d8]").map((item) => item.textContent), ["1", "2", "3", "4", "5", "6", "7", "8"]);
       choose(d8(6));
-      assert.ok(!sheet().querySelector(".g-advance__d8"), "the faces go once one is pressed (Adv3StatTable)");
+      // The faces stay, the one pressed checked, so that another may be pressed (fix round 1, I1; Adv3StatTable hides them).
+      assert.equal(sheet().querySelectorAll('.g-advance__d8 [aria-checked="true"]').map((item) => item.textContent).join(), "6");
       assert.equal(dieValue(), "6");
       assert.equal(result(), "May improve: AG, MA");
       assert.deepEqual(statWords(), [["AG", "3+ → 2+ · +40k"], ["MA", "6 → 7 · +30k"]]);
@@ -561,6 +596,48 @@ test("a characteristic at the table: eight faces, then the same choice", async (
     assert.ok(columns()[2].querySelector("[data-advance-instead]"));
     assert.equal(take().textContent, "Choose a characteristic");
     assertStyled(view, ...ROLL_STYLES);
+  });
+});
+
+// Fix round 1, I1: an arrow chooses a face, and the redraw keeps the group and the focus, so any face can be recorded.
+test("the D8's faces at the table from the keyboard: the arrows walk all eight, the focus stays, any face is recorded", async () => {
+  const key = (face, name) => fireEvent(d8(face), "keydown", { key: name });
+  const checked = () => sheet().querySelector('.g-advance__d8 [aria-checked="true"]')?.textContent ?? null;
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await openAdvance(phone);
+        if (phone) toStat();
+        else choose(typeCard("stat"));
+        choose(way("table"));
+        assert.equal(d8(1).getAttribute("tabindex"), "0", "Tab enters on the first face");
+        d8(1).focus();
+        for (const face of [2, 3, 4, 5]) {
+          key(face - 1, "ArrowRight");
+          assert.equal(checked(), String(face));
+          assert.ok(document.activeElement === d8(face), `the focus on face ${face}`);
+          assert.equal(dieValue(), String(face));
+        }
+        assert.deepEqual(statWords().map(([stat]) => stat), ["MA", "PA"], "5: MA or PA");
+        key(5, "End");
+        assert.equal(checked(), "8");
+        assert.deepEqual(statWords().map(([stat]) => stat), ["MA", "ST", "AG", "PA", "AR"], "8: any");
+        key(8, "ArrowRight");
+        assert.equal(checked(), "1", "the arrows wrap");
+        assert.ok(document.activeElement === d8(1));
+        key(1, "ArrowLeft");
+        key(8, "ArrowLeft");
+        assert.equal(checked(), "7");
+        assert.ok(document.activeElement === d8(7));
+        assert.deepEqual(statWords().map(([stat]) => stat), ["AG", "ST"]);
+        // Recorded as it stands: 7, ST.
+        choose(stat("st"));
+        api.reply(PATCH, 200, { team: withOne(ANN, { revision: 5 }) });
+        press(take());
+        await settle();
+        assert.deepEqual(sentOf("p1"), [[{ type: "stat", grants: { stat: "st" }, roll: { via: "table" } }]], phone ? "a phone" : "a desk");
+      });
+    }
   });
 });
 
@@ -599,6 +676,107 @@ test("a skill in place of the characteristic: primary or secondary at the charac
       });
     });
   }
+});
+
+// Fix round 1, M8: the skill in place of a characteristic takes the site's D8 by its id.
+test("a skill in place of a characteristic rolled on the site names the D8 it took", async () => {
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openAdvance(true);
+      toStat();
+      await rollWith("p1", 200, { roll: ROLL_D8 });
+      press(instead());
+      assert.equal(title(), "Skill category");
+      choose(category("General"));
+      press(next());
+      choose(skill("Fend"));
+      api.reply(PATCH, 200, { team: withOne(ANN, { revision: 5 }) });
+      press(take());
+      assert.deepEqual(doneWords(), ["Fend", "Characteristic improvement · General · in place of a characteristic"]);
+      await settle();
+      assert.deepEqual(sentOf("p1"), [[{ type: "stat", grants: { skill: "Fend" }, roll: { id: "r2", via: "site" } }]]);
+      assert.equal(asks().length, 1);
+    });
+  });
+});
+
+// Fix round 1, M2: a desk's way back from a skill in place of the characteristic (DeskRosterAdvStat's is the type card).
+test("on a desk a skill in place of the characteristic goes back to it, the face kept", async () => {
+  await withoutTimers(async () => {
+    await openAdvance(false);
+    choose(typeCard("stat"));
+    await rollWith("p1", 200, { roll: ROLL_D8 });
+    press(instead());
+    assert.deepEqual(heads(), ["1 · Type", "2 · Category", "3 · Skill"]);
+    const way = sheet().querySelector("[data-advance-statback]");
+    assert.equal(way.textContent, "‹ Back to the characteristic");
+    assert.ok(columns()[1].contains(way), "at the top of the categories");
+    choose(category("General"));
+    choose(skill("Fend"));
+    assert.equal(summary(), "Characteristic improvement · General · Fend — 14 SPP");
+    press(way);
+    assert.deepEqual(heads(), ["1 · Type", "2 · D8 roll", "3 · Characteristic"]);
+    assert.equal(dieValue(), "3", "the D8 kept");
+    assert.ok(!sheet().querySelector("[data-advance-statback]"));
+    assert.ok(document.activeElement === instead(), "the focus on «Take a skill in place…» again");
+    assert.equal(summary(), "Characteristic improvement — 14 SPP");
+    choose(stat("ma"));
+    assert.equal(take().textContent, "Improve MA");
+    assertStyled(view, ...ROLL_STYLES);
+  });
+});
+
+// Fix round 1, M8: what is fixed after a site roll is refused at the press too, not only drawn closed.
+test("after a site roll a type or a category pressed anyway changes nothing; a phone has no way back to them", async () => {
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openAdvance(true);
+      toRandom("General");
+      await rollWith("p1", 200, { roll: ROLL_SKILL });
+      assert.ok(!back(), "no «Back» to the category or the type");
+      assert.ok(!sheet().querySelector(".g-options") && !sheet().querySelector(".g-advance__cats"), "neither is drawn");
+      assert.equal(title(), "Random skill", "the step stays");
+    });
+    // A desk (Cade: Agility and General): a press that reaches the handler — as one drawn before the answer would — is refused there.
+    await openAdvance(false, { teamAnswer: withOne(CADE), id: "p3" });
+    choose(typeCard("random"));
+    choose(category("General"));
+    await rollWith("p3", 200, { roll: { ...ROLL_SKILL, playerId: "p3", result: { attempts: [{ roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" } } });
+    const primary = typeCard("primary");
+    primary.removeAttribute("aria-disabled");
+    press(primary);
+    assert.equal(toasts().at(-1), WORDS.kept);
+    assert.equal(typeCard("random").getAttribute("aria-checked"), "true");
+    assert.equal(dieValue(), "4", "the roll stays");
+    const agility = category("Agility");
+    agility.removeAttribute("aria-disabled");
+    press(agility);
+    assert.equal(category("General").getAttribute("aria-checked"), "true");
+    assert.equal(summary(), "Random primary skill · General · Frenzy — 3 SPP");
+    await settle();
+    assert.equal(asks("p3").length, 1);
+  });
+});
+
+// Fix round 1, M1: at the table a desk's «Roll D16» stays, closed, saying what to do.
+test("on a desk «Roll D16» at the table is closed with the table's words", async () => {
+  await withoutTimers(async () => {
+    await openAdvance(false, { teamAnswer: withOne(CADE), id: "p3" });
+    choose(typeCard("random"));
+    choose(category("Agility"));
+    choose(way("table"));
+    assert.ok(closed(rollButton()));
+    assert.equal(rollButton().getAttribute("title"), WORDS.table);
+    press(rollButton());
+    assert.equal(toasts().at(-1), WORDS.table);
+    choose(face(2));
+    assert.equal(rollButton().getAttribute("title"), WORDS.rolledTable);
+    // A mis-press is corrected at the table on a desk too (deviation: DeskRosterAdv locks the faces once one is pressed).
+    choose(face(3));
+    assert.equal(take().textContent, "Take: Diving Tackle");
+    await settle();
+    assert.equal(asks("p3").length, 0);
+  });
 });
 
 // Decision 10.
@@ -703,11 +881,18 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   const queries = [...css.matchAll(/@media\s*([^{]+)\{/g)].map((match) => match[1].trim());
   assert.deepEqual(queries, ["(max-width: 900px)", "(min-width: 901px)"], "only the stage's two breakpoints");
   for (const selector of ["#player-advance .g-advance__note", "#player-advance .g-advance__result", "#player-advance .g-advance__face", "#player-advance .g-advance__facenum",
-    "#player-advance .g-advance__d8face", "#player-advance .g-advance__stat", "#player-advance .g-advance__table", "#player-advance .g-advance__instead",
+    "#player-advance .g-advance__d8face", "#player-advance .g-advance__stat", "#player-advance .g-advance__instead",
     "#player-advance .g-advance__insteadtitle", "#player-advance .g-advance__insteadsub", "#player-advance .g-advance__attempts", "#player-advance .g-advance__attemptlist",
-    "#player-advance .g-advance__kept", "#player-advance .g-seg__item"]) {
+    "#player-advance .g-advance__attemptscaption", "#player-advance .g-advance__back", "#player-advance .g-advance__kept", "#player-advance .g-seg__item"]) {
     for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(ROLLS, selector, property).length >= 1, `${selector} ${property}`);
   }
+  // The D8's table shares advance.css's hint rule (fix round 1, M6); a desk's line height is the roll's own.
+  for (const property of ["font", "letter-spacing", "text-transform", "overflow-wrap"]) {
+    assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-advance__table", property), valuesOf(ADVANCE, "#player-advance .g-advance__hint", property), property);
+  }
+  // The roll's lines are the player sheets' refusal line (T8; fix round 1, I3): rolls.css copies none of it.
+  assert.doesNotMatch(css, /g-advance__alert/);
+  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__info", "color"), ["var(--ink-2)"]);
   // Adv3Random, Adv3Stat, Adv3StatTable up to 900px; DeskRosterAdv and DeskRosterAdvStat from 901px.
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-seg__item", "font"), ["600 14px/normal var(--font-body)", "600 13px/normal var(--font-body)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__note", "font"), ["400 12px/1.4 var(--font-body)"]);
@@ -716,9 +901,11 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__faces", "column-gap"), ["var(--space-10)", "var(--space-8)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8", "grid-template-columns"), ["repeat(8, minmax(0, 1fr))", "repeat(4, minmax(0, 1fr))"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__d8face", "font"), ["700 18px/normal var(--font-display)", "700 17px/normal var(--font-display)"]);
-  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__table", "font"), ["400 13px/1.45 var(--font-body)", "400 13px/1.6 var(--font-body)"]);
+  assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-advance__table", "font"), ["400 13px/1.45 var(--font-body)"]);
+  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__table", "font"), ["400 13px/1.6 var(--font-body)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__stat", "min-height"), ["52px"]);
   assert.deepEqual(valuesOf(ROLLS, '#player-advance .g-advance__stat[aria-checked="true"]', "box-shadow"), ["var(--ring-selected)"]);
+  assert.deepEqual(valuesOf(ROLLS, '#player-advance .g-advance__d8face[aria-checked="true"]', "box-shadow"), ["var(--ring-selected)"], "the face pressed (fix round 1, I1)");
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__face--hit", "background"), ["var(--accent)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__face--held", "text-decoration"), ["line-through"]);
   assertReadable(ROLLS, "#player-advance .g-advance__note", "color", ["--surface"], 4.5);
@@ -727,6 +914,9 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   assertReadable(ROLLS, "#player-advance .g-advance__face--held", "color", ["--surface"], 4.5);
   assertReadable(ROLLS, "#player-advance .g-seg__item", "color", ["--surface-3"], 4.5);
   assertReadable(ROLLS, "#player-advance .g-advance__attempts", "color", ["--surface"], 4.5);
+  // The roll's lines in every palette, the dark ones too (fix round 1, M8): the refusal's --danger, the info's --ink-2.
+  assertReadable("src/screens/team/roster/player-sheets.css", ".g-player-sheet .g-player-sheet__refusal", "color", ["--surface", "--surface-2"], 4.5);
+  assertReadable(ROLLS, "#player-advance .g-advance__info", "color", ["--surface", "--surface-2"], 4.5);
   // D2: up to 900px what is pressed is 44px or more; from 901px as the prototypes, never under 24px.
   const bare = css.replace(/\/\*[\s\S]*?\*\//g, "");
   const block = (query) => bare.slice(bare.indexOf(`@media (${query}) {`), bare.indexOf("\n}", bare.indexOf(`@media (${query}) {`)));

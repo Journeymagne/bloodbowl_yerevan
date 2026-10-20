@@ -32,6 +32,7 @@ import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { CHOSEN_TYPES, choicesOf, chosenOf, keptWords, refusedWords, stepBefore, waitingWords } from "./advance.mjs";
 import { prepResetWords } from "./panel.mjs";
+import { radioGroupMarkup } from "./radio-group.mjs";
 import { randomRollMarkup, rollButtonMarkup, statRollMarkup } from "./roll-view.mjs";
 import { rollAsking } from "./rolls.mjs";
 import { refusalWordsOf } from "./save.mjs";
@@ -66,24 +67,6 @@ function typesMarkup(sheet, choices) {
     return { ...card, pill, sub, ...(kept ? shut(kept) : {}) };
   });
   return renderOptionList({ label: t("teamAdvance.typesLabel"), options, selected: sheet.type });
-}
-
-/**
- * A radio group of the sheet's own (constraints, «Радиогруппы»): its items buttons with `role="radio"`, the chosen one —
- * else the first open one, else the first — in the tab order; a closed one `aria-disabled`, its reason its title, said
- * on a press (`data-roster-closed`, K7). The roll's faces and characteristics are drawn by it too (roll-view.mjs).
- * @param {{className: string, label: string, chosen: string,
- *   items: {value: string, className: string, data: object, reason: string, html: string}[]}} props `html` is markup
- */
-export function radioGroupMarkup({ className, label, items, chosen }) {
-  const checked = items.findIndex(({ value }) => value === chosen);
-  const entry = [checked, items.findIndex(({ reason }) => !reason), 0].find((index) => index >= 0);
-  const buttons = items.map((item, index) => {
-    const closed = item.reason ? ` aria-disabled="true" title="${escapeHtml(item.reason)}"` : "";
-    return `<button type="button" class="${item.className}" role="radio" aria-checked="${index === checked}" tabindex="${index === entry ? 0 : -1}"${closed}`
-      + `${dataAttributes({ ...item.data, rosterClosed: Boolean(item.reason) })}>${item.html}</button>`;
-  });
-  return `<div class="${className}" role="radiogroup" aria-label="${escapeHtml(label)}">${buttons.join("")}</div>`;
 }
 
 /** A category's letter on its colour (Adv2Category.html); the name beside it is what a screen reader reads. */
@@ -282,8 +265,11 @@ function summaryWords(sheet, choices) {
 function columnsMarkup(sheet, choices) {
   const props = { sheet, choices, desk: true };
   const rolled = sheet.type === "stat" && !sheet.instead;
+  // A skill in place of the characteristic goes back to it from the categories (fix round 1, M2): the type stays a
+  // characteristic, so its card is no way back (DeskRosterAdvStat's, which makes the type a chosen one, is).
+  const back = sheet.instead ? `<button type="button" class="g-advance__back"${dataAttributes({ advanceStatback: true })}>${escapeHtml(t("teamAdvance.backToStat"))}</button>` : "";
   const second = rolled ? columnMarkup(t("teamAdvance.col.d8"), statRollMarkup({ ...props, part: "roll" }))
-    : columnMarkup(t("teamAdvance.col.category"), sheet.type ? categoriesMarkup(sheet, choices) : "", t("teamAdvance.col.emptyType"));
+    : columnMarkup(t("teamAdvance.col.category"), sheet.type ? `${back}${categoriesMarkup(sheet, choices)}` : "", t("teamAdvance.col.emptyType"));
   return `<div class="g-advance__cols">${columnMarkup(t("teamAdvance.col.type"), typesMarkup(sheet, choices))}${second}${thirdColumn(props, rolled)}</div>`;
 }
 

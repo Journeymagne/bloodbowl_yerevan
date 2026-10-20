@@ -125,9 +125,29 @@ export function refusedWords(sheet, choices) {
   return (choices.offer?.refusal ? refusalWordsOf("teamAdvance", choices.offer.refusal) : "") || waitingWords(sheet, sheet.type);
 }
 
-/** Whether the way the roll is made is fixed: a roll is made on the site, and is not one the player holds the skill of already (`ROLL_STALE`: the table stays open, decision 11). */
+/**
+ * Whether the way the roll is made is fixed: a roll is made on the site, and the player can take it as it is. One that
+ * cannot be taken — `ROLL_STALE`, `ROLL_REROLLED`, whose words say «or take this advancement at the table» — leaves the
+ * table open (decision 11; fix round 1, I2): the site's roll keeps waiting for the player either way.
+ */
 export function wayFixed(sheet, choices) {
-  return Boolean(sheet.roll) && choices.rollRefused?.code !== "ROLL_STALE";
+  return Boolean(sheet.roll) && !choices.rollRefused;
+}
+
+/** The line under the way: what the site does, what to press at the table, or how the roll was made. */
+export function noteWords(sheet) {
+  if (sheet.via === "site") return sheet.roll ? t("teamAdvance.note.rolledSite") : t("teamAdvance.note.site");
+  if (sheet.face) return t("teamAdvance.note.rolledTable");
+  return sheet.type === "stat" ? t("teamAdvance.note.tableD8") : t("teamAdvance.note.table");
+}
+
+/**
+ * Why «Roll D16» or «Roll D8» has nothing to roll, "" when it has: the roll is made and stays the player's, or the die is
+ * the table's (DeskRosterAdv keeps a desk's «Roll D16» drawn, closed; fix round 1, M1).
+ */
+export function rolledWords(sheet) {
+  if (sheet.roll && sheet.via === "site") return keptWords(sheet);
+  return sheet.via === "table" ? noteWords(sheet) : "";
 }
 
 /** Whether the site's roll can be put on the random advancement taken at the table that gave its skill (`tableAdvancementFor`, T1 review Minor 4). */
@@ -205,9 +225,10 @@ function takenWords(sheet, chosen, choices) {
  * press, and sends nothing. Why it is closed is asked again, then the choice on the draft as it stands: one not whole
  * sends nothing. Then one step of the queue (`advancePlayer`, naming the site's roll by its id) and, in the same turn,
  * the done step — what he got, how, its price, what it adds to his value and his advancements now — drawn from the draft
- * at once, the focus on its button. A refusal (another tab's coach, the domain's words, a site roll he cannot take, the
- * rules a 422 left the queue on) is said in the sheet, which stays; one of the queue's 422 asks for the server's roster
- * again (`refused`).
+ * at once, the focus on its button. A closed «Take» says why on a press, as it says it in its title, and sends nothing
+ * (fix round 1, M3): the type refused on the draft at the press, a roll of the other kind waiting, a site roll the player
+ * cannot take as it is. A refusal of the step (another tab's coach, the domain's words, the rules a 422 left the queue
+ * on) is said in the sheet, which stays; one of the queue's 422 asks for the server's roster again (`refused`).
  *
  * @param {import("./index.mjs").Saving} saving
  * @param {{now: () => object, refused: () => void}} lent
@@ -221,9 +242,14 @@ function takeChosen(saving, { now, refused }) {
     toast(player.reason);
     return;
   }
-  const chosen = chosenOf(sheet, player.choices);
-  if (!chosen) return;
   const { line, where, choices } = player;
+  const chosen = chosenOf(sheet, choices);
+  const why = refusedWords(sheet, choices) || (chosen?.siteRoll && choices.rollRefused ? refusalWordsOf("teamAdvance", choices.rollRefused) : "");
+  if (why) {
+    toast(why);
+    return;
+  }
+  if (!chosen) return;
   const { elite, ...choice } = chosen;
   const answer = advancePlayer(teamId, where.race, line.id, choice, state.data?.skillGroups ?? [], { closed: () => advanceClosed(line, now()) });
   if (answer.refusal) {
@@ -254,9 +280,9 @@ function answerFields(sheet, purpose, answer) {
 
 /**
  * «Roll D16» or «Roll D8»: only from the advancement open on a rolled type declared whole (a random skill's category), on
- * the site, with nothing rolled and nothing asked — a second press while the ask is out sends nothing. Closed (the
- * screen's reason, a step of the queue that waits or is on its way, a roll of the other kind waiting) it says why and
- * asks nothing. The ask (`askRoll`) hears why the screen is closed at the press again (K15) and whether the session is
+ * the site, with nothing rolled and nothing asked — a second press while the ask is out sends nothing. Closed (the roll
+ * made, the die the table's, the screen's reason, a step of the queue that waits or is on its way, a roll of the other
+ * kind waiting) it says why and asks nothing. The ask (`askRoll`) hears why the screen is closed at the press again (K15) and whether the session is
  * still this page's coach's. Its answer is taken only while this very sheet is open on this visit: a match begun
  * meanwhile has closed it, and the answer finds nothing to take. A player the server has not reads the roster again.
  *
@@ -267,8 +293,8 @@ function answerFields(sheet, purpose, answer) {
 async function askFor({ teamId, visit, draw }, { now, readAgain }, pressed) {
   const sheet = pressed?.sheet;
   const purpose = PURPOSE_OF[sheet?.type];
-  if (!purpose || sheet.asking || sheet.roll || sheet.via !== "site" || sheet.instead || (purpose === "random_skill" && !sheet.category)) return;
-  const reason = rollClosed(pressed.line, pressed.where) || waitingWords(sheet, sheet.type);
+  if (!purpose || sheet.asking || sheet.instead || (purpose === "random_skill" && !sheet.category)) return;
+  const reason = rolledWords(sheet) || rollClosed(pressed.line, pressed.where) || waitingWords(sheet, sheet.type);
   if (reason) {
     toast(reason);
     return;
@@ -317,9 +343,10 @@ function pressedFace(sheet, choices, face) {
 }
 
 /**
- * The roll's presses: the way (before a roll on the site, or after a stale one); «Roll D16» and «Roll D8» (`askFor`); a
- * face at the table; a characteristic the face offers, refused ones never; a skill in place of the characteristic once
- * the D8 has come up; the attempts shown or hidden; a stale roll put on a table advancement (`bindSiteRoll`).
+ * The roll's presses: the way (before a roll on the site, or after one the player cannot take as it is); «Roll D16» and
+ * «Roll D8» (`askFor`); a face at the table, again and again until the advancement is taken; a characteristic the face
+ * offers, refused ones never; a skill in place of the characteristic once the D8 has come up, and a desk's way back from
+ * it; the attempts shown or hidden; a stale roll put on a table advancement (`bindSiteRoll`).
  */
 function rollHandlers(saving, lent, { pressed, change }) {
   const { visit, draw } = saving;
@@ -346,6 +373,14 @@ function rollHandlers(saving, lent, { pressed, change }) {
     onAdvanceInstead: () => {
       const now = pressed();
       if (now?.sheet.type === "stat" && now.sheet.face && !now.sheet.instead) change(now.sheet, { instead: true, step: "category", category: "", skill: "" });
+    },
+    // A desk's way back from a skill in place of the characteristic (fix round 1, M2; a phone's is «Back»): the D8's
+    // choice again, the face kept, the focus on «Take a skill in place…», which is drawn again.
+    onAdvanceStatBack: () => {
+      const sheet = openSheet(visit);
+      if (!sheet?.instead) return;
+      change(sheet, { instead: false, step: "stat", category: "", skill: "" });
+      view.querySelector("[data-advance-instead]")?.focus();
     },
     onAdvanceAttempts: () => {
       const sheet = openSheet(visit);

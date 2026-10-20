@@ -1478,6 +1478,7 @@
   "teamAdvance.insteadSub": "Основной или вторичный на выбор, по цене характеристики · {cost} SPP",
   "teamAdvance.insteadTitle": "Навык вместо характеристики · {cost} SPP",
   "teamAdvance.howInstead": "вместо характеристики",
+  "teamAdvance.backToStat": "‹ Назад к характеристике",
   "teamAdvance.col.d8": "2 · Бросок D8",
   "teamAdvance.col.roll": "3 · Бросок навыка",
   "teamAdvance.col.stat": "3 · Характеристика",

@@ -32,24 +32,18 @@
 }
 #player-advance .g-seg__item[aria-disabled="true"] { cursor: default; }
 
-/* The line under the way, and that the roll stays the player's: 12px/1.4, quiet. */
 #player-advance .g-advance__note,
 #player-advance .g-advance__kept,
 #player-advance .g-advance__result,
 #player-advance .g-advance__table,
-#player-advance .g-advance__alert {
+#player-advance .g-advance__attemptscaption {
   margin: 0;
   padding: 0;
   border: 0;
   background: none;
 }
-#player-advance .g-advance__note {
-  color: var(--muted);
-  font: 400 12px/1.4 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-  overflow-wrap: anywhere;
-}
+/* The line under the way, and that the roll stays the player's: 12px/1.4, quiet. */
+#player-advance .g-advance__note,
 #player-advance .g-advance__kept {
   color: var(--muted);
   font: 400 12px/1.4 var(--font-body);
@@ -74,15 +68,11 @@
   overflow-wrap: anywhere;
 }
 
-/* Not in the prototypes: the category the roll was made in, a roll of the other kind waiting, an answer lost, why it cannot be taken. */
-#player-advance .g-advance__alert {
-  color: var(--danger);
-  font: 600 14px/1.4 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-  overflow-wrap: anywhere;
-}
-#player-advance .g-advance__alert--info {
+/*
+ * Not in the prototypes: a roll of the other kind waiting, an answer lost, why the roll cannot be taken — the player
+ * sheets' refusal line (player-sheets.css, T8) — and, quiet in the same line, the category the roll was made in.
+ */
+#player-advance .g-advance__info {
   color: var(--ink-2);
   font-weight: 400;
 }
@@ -161,6 +151,11 @@
   text-transform: none;
   cursor: pointer;
 }
+/* Not in Adv3StatTable, which hides the faces once one is pressed (fix round 1, I1): the face pressed, as a chosen card is. */
+#player-advance .g-advance__d8face[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+}
 
 /* The characteristics the face allows (Adv3Stat): from 52px, 12 round, 8 apart; «after» in the accent; the chosen one on the tint in a 2px ring. */
 #player-advance .g-advance__stats {
@@ -209,14 +204,7 @@
   font-weight: 700;
 }
 
-/* The D8's table in a line: 13px, quiet. */
-#player-advance .g-advance__table {
-  color: var(--muted);
-  font: 400 13px/1.45 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-  overflow-wrap: anywhere;
-}
+/* The D8's table in a line: advance.css's hint (13px/1.45, quiet), whose rule it shares. */
 
 /* «Take a skill in place of the characteristic»: from 48px, 8 14, 12 round, on a ring; the bold line, the quiet one under it. */
 #player-advance .g-advance__instead {
@@ -254,8 +242,13 @@
   overflow-wrap: anywhere;
 }
 
-/* Not in the prototypes (§9.5): «Attempts: N» a quiet line in the accent, 13/600; the attempts under it, 13px. */
-#player-advance .g-advance__attempts {
+/*
+ * Not in the prototypes: «Attempts: N» (§9.5) and a desk's «‹ Back to the characteristic» (fix round 1, M2), quiet lines
+ * in the accent, 13/600 — a caption where the attempts are not to be hidden (`attemptsMarkup`, `toggle: false`); the
+ * attempts under it, 13px.
+ */
+#player-advance .g-advance__attempts,
+#player-advance .g-advance__back {
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -270,6 +263,12 @@
   text-align: left;
   text-transform: none;
   cursor: pointer;
+}
+#player-advance .g-advance__attemptscaption {
+  color: var(--accent-text);
+  font: 600 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
 }
 #player-advance .g-advance__attemptlist {
   display: flex;
@@ -381,7 +380,7 @@
   #player-advance .g-advance__roll--d8 .g-seg,
   #player-advance .g-advance__roll--d8 .g-advance__d8,
   #player-advance .g-advance__roll--d8 .g-advance__table,
-  #player-advance .g-advance__roll--d8 .g-advance__alert,
+  #player-advance .g-advance__roll--d8 .g-player-sheet__refusal,
   #player-advance .g-advance__roll--d8 .g-advance__kept { align-self: stretch; }
   #player-advance .g-advance__roll--d8 .g-btn--primary {
     align-self: center;
@@ -400,5 +399,6 @@
   #player-advance .g-advance__stat { font-size: 15px; }
   #player-advance .g-advance__insteadtitle { font-size: 14px; }
   #player-advance .g-advance__insteadsub { font-size: 12px; }
-  #player-advance .g-advance__attempts { min-height: 28px; }
+  #player-advance .g-advance__attempts,
+  #player-advance .g-advance__back { min-height: 28px; }
 }

@@ -1478,6 +1478,7 @@
   "teamAdvance.insteadSub": "A primary or secondary skill of your choice, at the characteristic's price · {cost} SPP",
   "teamAdvance.insteadTitle": "Skill in place of a characteristic · {cost} SPP",
   "teamAdvance.howInstead": "in place of a characteristic",
+  "teamAdvance.backToStat": "‹ Back to the characteristic",
   "teamAdvance.col.d8": "2 · D8 roll",
   "teamAdvance.col.roll": "3 · Skill roll",
   "teamAdvance.col.stat": "3 · Characteristic",

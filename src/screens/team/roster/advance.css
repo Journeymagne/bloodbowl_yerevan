@@ -195,6 +195,16 @@
   text-transform: none;
 }
 
+/* A step's hint (Adv2Category) and a D8's table in a line (rolls.css; Adv3Stat): 13px/1.45, quiet. */
+#player-advance .g-advance__hint,
+#player-advance .g-advance__table {
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
 /* What a save resets during a preparation and the last refusal (player-sheets.css's lines), together. */
 #player-advance .g-advance__lines {
   display: flex;
@@ -234,12 +244,6 @@
   }
   #player-advance .g-advance__catname { font: 700 17px/normal var(--font-body); }
   #player-advance .g-advance__free { font: 400 13px/normal var(--font-body); }
-  #player-advance .g-advance__hint {
-    color: var(--muted);
-    font: 400 13px/1.45 var(--font-body);
-    letter-spacing: 0;
-    text-transform: none;
-  }
 
   #player-advance .g-advance__skills {
     display: flex;

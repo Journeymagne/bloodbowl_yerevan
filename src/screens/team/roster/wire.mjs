@@ -103,14 +103,14 @@ function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave }) {
 }
 
 /** The advancement sheet's buttons, heard by one listener (`wireAdvance`). */
-const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "attempts", "bind", "keep", "done"].map((name) => `[data-advance-${name}]`).join(", ");
+const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "statback", "attempts", "bind", "keep", "done"].map((name) => `[data-advance-${name}]`).join(", ");
 
 /**
  * A player's advancement (stage 07d): «Advancement» or «Advance» (not when closed — a press on a closed one says why, as
  * `[data-roster-closed]` does), its categories, its skills, the D16's faces, the D8's and the characteristics, each a
  * radio group of its own (a closed item says why the same way), the way the roll is made (a closed way says why on a
- * press), and its sheet's «Next», «Take», «Roll …», «Take a skill in place…», «Attempts», «Record this roll…», «Cancel»
- * and «Done». Its types are the option cards `wireReasons` hears; its «Back», the sheet's own (`wireSheets`).
+ * press), and its sheet's «Next», «Take», «Roll …», «Take a skill in place…» and a desk's way back from it,
+ * «Attempts», «Record this roll…», «Cancel» and «Done». Its types are the option cards `wireReasons` hears; its «Back», the sheet's own (`wireSheets`).
  */
 function wireAdvance(root, handlers) {
   const { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceVia, onAdvanceFace, onAdvanceStat, onRefused } = handlers;
@@ -132,11 +132,13 @@ function wireAdvance(root, handlers) {
 }
 
 /** Which of the advancement sheet's buttons was pressed. */
-function pressAdvance(button, { onAdvanceNext, onAdvanceTake, onAdvanceRoll, onAdvanceInstead, onAdvanceAttempts, onAdvanceBind, onAdvanceKeep, onAdvanceDone }) {
+function pressAdvance(button, handlers) {
+  const { onAdvanceNext, onAdvanceTake, onAdvanceRoll, onAdvanceInstead, onAdvanceStatBack, onAdvanceAttempts, onAdvanceBind, onAdvanceKeep, onAdvanceDone } = handlers;
   if (button.hasAttribute("data-advance-next")) onAdvanceNext();
   else if (button.hasAttribute("data-advance-take")) onAdvanceTake();
   else if (button.hasAttribute("data-advance-roll")) onAdvanceRoll();
   else if (button.hasAttribute("data-advance-instead")) onAdvanceInstead();
+  else if (button.hasAttribute("data-advance-statback")) onAdvanceStatBack();
   else if (button.hasAttribute("data-advance-attempts")) onAdvanceAttempts();
   else if (button.hasAttribute("data-advance-bind")) onAdvanceBind();
   else if (button.hasAttribute("data-advance-keep")) onAdvanceKeep();
@@ -207,6 +209,7 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {(face: number) => void} handlers.onAdvanceFace a face of the D16 or of the D8 pressed at the table
  * @param {(stat: string) => void} handlers.onAdvanceStat a characteristic the face allows chosen
  * @param {() => void} handlers.onAdvanceInstead «Take a skill in place of the characteristic»
+ * @param {() => void} handlers.onAdvanceStatBack a desk's «‹ Back to the characteristic»
  * @param {() => void} handlers.onAdvanceAttempts «Attempts: N», shown or hidden
  * @param {() => void} handlers.onAdvanceBind «Record this roll for the advancement … taken at the table»
  * @returns {() => void} takes every listener off

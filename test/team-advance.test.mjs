@@ -722,10 +722,11 @@ test("a type chosen and then refused — his SPP gone down — closes «Next» a
     assert.equal(take().textContent, "Take Guard");
     assert.equal(take().getAttribute("aria-disabled"), "true", "«Take» closed (M1)");
     assert.equal(take().getAttribute("title"), "3 SPP short");
-    // Pressed all the same: the domain refuses it on the draft, in words in the sheet (M2).
+    // Pressed all the same: refused on the draft at the press (M2), said as the closed «Take» says it (Task 10, fix round 1, M3).
     fireEvent(take(), "click");
-    assert.equal(refusal().textContent, "3 SPP short");
-    assert.equal(done(), null);
+    assert.equal(toasts().at(-1), "3 SPP short");
+    assert.ok(!refusal(), "said once, not again in the sheet");
+    assert.ok(!done());
     inTheAir.release();
     await settle();
     const sent = patches().map((call) => (call.body.roster.players.find((player) => player.id === "p3").advancements ?? []).length);

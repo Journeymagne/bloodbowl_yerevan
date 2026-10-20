@@ -7,7 +7,7 @@
  *
  * The way is a segmented control over a line that says what happens; the die is ui/die.mjs's; the faces of the D16, the
  * faces of the D8 at the table and the characteristics a face offers are radio groups of the sheet's own
- * (advance-sheet.mjs's `radioGroupMarkup`): a face that cannot be pressed — every one on the site, a blank one or one of
+ * (radio-group.mjs's `radioGroupMarkup`): a face that cannot be pressed — every one on the site, a blank one or one of
  * his skills at the table — and a characteristic past its limits are closed, saying why on a press. What the sheet says
  * of the roll — the category it was made in, a roll of the other kind waiting, an answer lost, why it cannot be taken —
  * stands under the result. A phone's button is the sheet's (advance-sheet.mjs); a desk rolls in its column.
@@ -25,25 +25,19 @@ import { renderButton } from "../../../ui/button.mjs";
 import { renderDie } from "../../../ui/die.mjs";
 import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderSegmentedControl } from "../../../ui/segmented-control.mjs";
-import { bindable, keptWords, waitingWords, wayFixed } from "./advance.mjs";
-import { radioGroupMarkup } from "./advance-sheet.mjs";
+import { bindable, keptWords, noteWords, rolledWords, waitingWords, wayFixed } from "./advance.mjs";
 import { boldWords } from "./panel.mjs";
+import { radioGroupMarkup } from "./radio-group.mjs";
 import { refusalWordsOf } from "./save.mjs";
 import { footButton } from "./sheets.mjs";
 
 /** The name the way's segmented control is wired by (wireSegmentedControls). */
 export const VIA_GROUP = "advance-via";
 
-/** The line under the way: what the site does, what to press at the table, or how the roll was made. */
-function noteWords(sheet) {
-  if (sheet.via === "site") return sheet.roll ? t("teamAdvance.note.rolledSite") : t("teamAdvance.note.site");
-  if (sheet.face) return t("teamAdvance.note.rolledTable");
-  return sheet.type === "stat" ? t("teamAdvance.note.tableD8") : t("teamAdvance.note.table");
-}
-
 /**
  * The way — «Roll on the site» or «Rolled at the table» — and the line under it. Fixed once a roll is made on the site
- * (decision 9): each segment closed, saying why; a stale roll leaves the table open (decision 11).
+ * (decision 9): each segment closed, saying why; a roll the player cannot take as it is leaves the table open (decision
+ * 11, fix round 1).
  * @param {{sheet: object, choices: object}} props
  */
 export function viaMarkup({ sheet, choices }) {
@@ -56,40 +50,48 @@ export function viaMarkup({ sheet, choices }) {
 }
 
 /**
- * «Roll D16» or «Roll D8»: busy while the ask is out; closed, saying why — the screen's reason, a step of the queue that
- * waits or is on its way (decision 10), a roll of the other kind waiting (decision 11).
+ * «Roll D16» or «Roll D8»: busy while the ask is out; closed, saying why — the roll made and the player's, the die the
+ * table's (a desk keeps its «Roll D16» drawn, DeskRosterAdv), the screen's reason, a step of the queue that waits or is
+ * on its way (decision 10), a roll of the other kind waiting (decision 11).
  * @param {{sheet: object}} props @param {string} label
  */
 export function rollButtonMarkup({ sheet }, label) {
-  const reason = sheet.rollReason || waitingWords(sheet, sheet.type);
+  const reason = rolledWords(sheet) || sheet.rollReason || waitingWords(sheet, sheet.type);
   return footButton({ label, kind: "primary", data: { advanceRoll: true }, busy: Boolean(sheet.busy), reason });
+}
+
+/** What one attempt of the die says: its face, and its skill, or why it was rolled again. */
+function attemptWords({ roll: face, skill, duplicate }) {
+  if (typeof skill !== "string") return t("teamAdvance.attempt.blank", { face });
+  return duplicate ? t("teamAdvance.attempt.held", { face, skill }) : t("teamAdvance.attempt.kept", { face, skill });
 }
 
 /**
  * The attempts of a random skill's roll on the site (§9.5): «Attempts: N», which shows them on a press — each face, its
- * skill, and why it was rolled again — and hides them again. None for another roll. Also the skill's sheet's (Task 11).
- * @param {object|null} roll as the server answers it @param {{open?: boolean}} [options]
+ * skill, and why it was rolled again — and hides them again (the advancement's sheet, `data-advance-attempts`). With
+ * `toggle: false` (the skill's sheet, Task 11) «Attempts: N» is a caption and the list is always shown: nothing to press,
+ * so no other sheet hears a press it cannot take. None for another roll.
+ * @param {object|null} roll as the server answers it @param {{open?: boolean, toggle?: boolean}} [options]
  */
-export function attemptsMarkup(roll, { open = false } = {}) {
+export function attemptsMarkup(roll, { open = false, toggle = true } = {}) {
   const tries = roll?.purpose === "random_skill" && Array.isArray(roll.result?.attempts) ? roll.result.attempts : [];
   if (!tries.length) return "";
   const id = `advance-attempts-${roll.id}`;
-  const words = ({ roll: face, skill, duplicate }) => {
-    if (typeof skill !== "string") return t("teamAdvance.attempt.blank", { face });
-    return duplicate ? t("teamAdvance.attempt.held", { face, skill }) : t("teamAdvance.attempt.kept", { face, skill });
-  };
-  const list = open ? `<ol class="g-advance__attemptlist" id="${escapeHtml(id)}">${tries.map((attempt) => `<li class="g-advance__attempt">${escapeHtml(words(attempt))}</li>`).join("")}</ol>` : "";
+  const count = escapeHtml(t("teamAdvance.attempts", { count: tries.length }));
+  const list = (named) => `<ol class="g-advance__attemptlist"${named ? ` id="${escapeHtml(id)}"` : ""}>`
+    + `${tries.map((attempt) => `<li class="g-advance__attempt">${escapeHtml(attemptWords(attempt))}</li>`).join("")}</ol>`;
+  if (!toggle) return `<p class="g-advance__attemptscaption">${count}</p>${list(false)}`;
   return `<button type="button" class="g-advance__attempts" aria-expanded="${open}"${open ? ` aria-controls="${escapeHtml(id)}"` : ""}${dataAttributes({ advanceAttempts: true })}>`
-    + `${escapeHtml(t("teamAdvance.attempts", { count: tries.length }))}</button>${list}`;
+    + `${count}</button>${open ? list(true) : ""}`;
 }
 
 /**
- * What the sheet says of the roll, under its result: the category it was made in when another was asked (the server's
- * roll that waited), a roll of the other kind waiting, an answer that did not come, and why the site's roll cannot be
- * taken as it is (`rollRefusal`).
+ * What the sheet says of the roll, under its result, in the player sheets' refusal line (T8): the category it was made in
+ * when another was asked (the server's roll that waited; not a refusal — quiet, `g-advance__info`), a roll of the other
+ * kind waiting, an answer that did not come, and why the site's roll cannot be taken as it is (`rollRefusal`).
  */
 function alertsMarkup(sheet, choices) {
-  const line = (words, info = false) => `<p class="${classNames("g-advance__alert", info && "g-advance__alert--info")}" role="${info ? "status" : "alert"}">${escapeHtml(words)}</p>`;
+  const line = (words, info = false) => `<p class="${classNames("g-player-sheet__refusal", info && "g-advance__info")}" role="${info ? "status" : "alert"}">${escapeHtml(words)}</p>`;
   const category = sheet.roll?.purpose === "random_skill" ? sheet.roll.params?.category : "";
   const waiting = waitingWords(sheet, sheet.type);
   return [
@@ -153,7 +155,8 @@ export function randomRollMarkup(props) {
   const { sheet, choices, desk = false } = props;
   const die = renderDie({ type: "D16", value: randomFace(sheet) });
   const result = `<p class="g-advance__result">${escapeHtml(randomResult(sheet))}</p>`;
-  const button = desk && sheet.via === "site" && !sheet.roll ? rollButtonMarkup(props, t("teamAdvance.rollD16")) : "";
+  // A desk's «Roll D16» stays beside the die, closed once there is nothing to roll (DeskRosterAdv; fix round 1, M1).
+  const button = desk ? rollButtonMarkup(props, t("teamAdvance.rollD16")) : "";
   const head = desk ? `<div class="g-advance__dierow">${die}<div class="g-advance__dieside">${result}${button}</div></div>`
     : `<div class="g-advance__dice">${die}</div>${result}`;
   const attempts = sheet.via === "site" ? attemptsMarkup(sheet.roll, { open: sheet.attempts }) : "";
@@ -161,12 +164,16 @@ export function randomRollMarkup(props) {
   return `<div class="g-advance__roll">${viaMarkup(props)}${head}${attempts}${alertsMarkup(sheet, choices)}${bind}${facesMarkup(props)}${keptMarkup(sheet)}</div>`;
 }
 
-/** The D8's eight faces at the table (Adv3StatTable): any one may be pressed. */
-function d8Markup() {
+/**
+ * The D8's eight faces at the table (Adv3StatTable): any one may be pressed, and pressed again until the advancement is
+ * taken — the one pressed checked, the arrows moving it and the focus staying on it (fix round 1, I1: Adv3StatTable hides
+ * them once one is pressed, which leaves a keyboard only the first face its arrow lands on).
+ */
+function d8Markup(face) {
   const items = Array.from({ length: STAT_ROLL_TABLE.at(-1).to }, (_, at) => ({
     value: String(at + 1), className: "g-advance__d8face", data: { advanceD8: at + 1 }, reason: "", html: escapeHtml(String(at + 1)),
   }));
-  return radioGroupMarkup({ className: "g-advance__d8", label: t("teamAdvance.d8Label"), items, chosen: "" });
+  return radioGroupMarkup({ className: "g-advance__d8", label: t("teamAdvance.d8Label"), items, chosen: face ? String(face) : "" });
 }
 
 /**
@@ -203,10 +210,9 @@ function insteadMarkup(choices) {
 }
 
 /**
- * A characteristic's D8 (Adv3Stat, Adv3StatTable; DeskRosterAdvStat): the way; at the table before a face its eight
- * faces; the die; on a phone what the face allows; what the sheet says of the roll; the characteristics with before and
- * after; the D8's table; once a face is in, «Take a skill in place of the characteristic»; and that the roll stays the
- * player's. A desk splits it (`part`): its second column the roll — with «Roll D8» under the die — its third the choice.
+ * A characteristic's D8 (Adv3Stat, Adv3StatTable; DeskRosterAdvStat): the way; at the table its eight faces; the die;
+ * on a phone what the face allows; what the sheet says of the roll; the characteristics with before and after; the D8's
+ * table; once a face is in, «Take a skill in place of the characteristic»; and that the roll stays the player's. A desk splits it (`part`): its second column the roll — with «Roll D8» under the die — its third the choice.
  *
  * @param {{sheet: object, choices: object, desk?: boolean, part?: "all"|"roll"|"choice"}} props
  */
@@ -215,7 +221,7 @@ export function statRollMarkup(props) {
   const choice = sheet.face ? `${statsMarkup(sheet, choices)}` : "";
   const instead = sheet.face ? insteadMarkup(choices) : "";
   if (part === "choice") return choice || instead ? `<div class="g-advance__roll">${choice}${instead}</div>` : "";
-  const faces = sheet.via === "table" && !sheet.face ? d8Markup() : "";
+  const faces = sheet.via === "table" ? d8Markup(sheet.face) : "";
   const die = `<div class="g-advance__dice">${renderDie({ type: "D8", value: sheet.face })}</div>`;
   const stats = sheet.face ? statsForRoll(sheet.face).map((stat) => t(`stats.${stat}`)).join(", ") : "";
   const result = desk ? "" : `<p class="g-advance__result">${escapeHtml(stats ? t("teamAdvance.statResult", { stats }) : t("teamAdvance.statWait"))}</p>`;
