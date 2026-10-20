@@ -31,7 +31,7 @@ import { setRosterCaptain } from "../../domain/roster/players.mjs";
 import { teamFavouredOptions, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
 import { buildRefusalText, builderMarkup, wireBuilder } from "./builder-view.mjs";
 import { askBeforeLeaving, buildOf, endBuild, hasBuild, isCurrentBuild, onBuildStarted } from "./new-flow.mjs";
-import { NEW_TEAM_SHEET_ID, askNewTeamSheet, openNewTeamSheet } from "./new-sheet.mjs";
+import { askNewTeamSheet, openNewTeamSheet, sayInNewTeamSheet } from "./new-sheet.mjs";
 
 /** What a logo may be once it is read: the pictures the file field offers, and the WebP the optimiser makes of them (the team's settings take one so too). */
 export const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
@@ -183,8 +183,8 @@ async function save(build) {
       build.refusal = answer.refusal;
       draw();
     }
-    // Out of sight it is told too: on another screen, or under the sheet, whose «Create» clears it.
-    if (!visit?.open || document.querySelector(`#${NEW_TEAM_SHEET_ID}`)) toast(answer.refusal, { tone: "error" });
+    // Under the sheet the page is inert: the sheet says it, where the coach is. On another screen with no sheet, a toast.
+    if (!sayInNewTeamSheet(build, answer.refusal) && !visit?.open) toast(answer.refusal, { tone: "error" });
     return;
   }
   endBuild(build);

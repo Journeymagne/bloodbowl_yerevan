@@ -30,6 +30,7 @@ import { patchWithModal } from "../../components/dialog.mjs";
 import { onSessionChange } from "../../data/session.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
 import { renderButton } from "../../ui/button.mjs";
+import { renderCallout } from "../../ui/callout.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
 import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
@@ -66,14 +67,16 @@ export function racesMarkup(races, raceSlug) {
  * @param {string} props.seasonName the line under the title: the season's name, or "" for the league's
  * @param {boolean} props.resets going on from here to another race would lose a squad that was begun
  * @param {boolean} props.back there is a way back (the switcher's): «‹» in the head, «← My teams» in the foot
+ * @param {string} [props.refusal] why the builder's save was refused, when the answer came while the sheet was open, as a sentence
  * @returns {string}
  */
-export function newTeamSheetMarkup({ name, raceSlug, races, seasonName, resets, back }) {
+export function newTeamSheetMarkup({ name, raceSlug, races, seasonName, resets, back, refusal = "" }) {
   const trimmed = String(name).trim();
   const raceChosen = races.some((race) => race.slug === raceSlug);
+  const alert = refusal ? `<div role="alert">${renderCallout({ tone: "danger", title: refusal })}</div>` : "";
   const field = renderTextField({ id: "new-team-name", name: "name", label: t("newTeam.name"), placeholder: t("newTeam.namePlaceholder"), value: name, autocomplete: "off" });
   // The group is named by its aria-label; the visible word over it is for the eye alone, or a reader would say it twice.
-  const bodyHtml = `${field}<span class="g-new__label" aria-hidden="true">${escapeHtml(t("newTeam.race"))}</span>${racesMarkup(races, raceSlug)}`
+  const bodyHtml = `${alert}${field}<span class="g-new__label" aria-hidden="true">${escapeHtml(t("newTeam.race"))}</span>${racesMarkup(races, raceSlug)}`
     + `${resets ? `<p class="g-races__resets">${escapeHtml(t("newTeam.raceResets"))}</p>` : ""}`
     + `<a class="g-new__ref" href="${escapeHtml(refUrl("teams"))}">${escapeHtml(t("newTeam.raceRules"))}</a>`;
   const footHtml = renderButton({ kind: "primary", label: createLabel(trimmed, raceChosen), disabled: !trimmed || !raceChosen, data: { newTeamCreate: true } });
@@ -86,9 +89,9 @@ export function newTeamSheetMarkup({ name, raceSlug, races, seasonName, resets, 
 let host = null;
 
 /**
- * The sheet while it is open: the build it shows, the control it was opened from, its way back, and the address and
- * the coach it was opened on. Null while it is closed.
- * @type {{build: import("./new-flow.mjs").Build, opener: Element|null, back: (() => void)|null, openedAt: string, coach: object}|null}
+ * The sheet while it is open: the build it shows, the control it was opened from, its way back, the address and the
+ * coach it was opened on, and the refusal of a save it says (`sayInNewTeamSheet`). Null while it is closed.
+ * @type {{build: import("./new-flow.mjs").Build, opener: Element|null, back: (() => void)|null, openedAt: string, coach: object, refusal: string}|null}
  */
 let shown = null;
 
@@ -105,7 +108,7 @@ function draw() {
   if (!shown || !host.isConnected) return;
   const { name, raceSlug, resets } = pickOf();
   const seasonName = state.season.data?.season?.name ?? "";
-  patchWithModal(host, newTeamSheetMarkup({ name, raceSlug, races: state.data?.teams ?? [], seasonName, resets, back: Boolean(shown.back) }), `#${NEW_TEAM_SHEET_ID}`);
+  patchWithModal(host, newTeamSheetMarkup({ name, raceSlug, races: state.data?.teams ?? [], seasonName, resets, back: Boolean(shown.back), refusal: shown.refusal }), `#${NEW_TEAM_SHEET_ID}`);
 }
 
 /**
@@ -155,6 +158,9 @@ function goBack() {
   back?.();
 }
 
+/** A click the browser takes to another tab or window, a download, or not to a link at all: a modifier, or a button but the first. */
+const opensElsewhere = (event) => event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || (event.button ?? 0) !== 0;
+
 /** Everything the sheet listens to, once for the page: the host outlives every sheet shown in it. */
 function wire(root) {
   delegate(root, "input", "#new-team-name", (event, input) => press(() => {
@@ -168,8 +174,11 @@ function wire(root) {
   }) });
   delegate(root, "click", "[data-new-team-create]", () => press(create));
   delegate(root, "click", "[data-new-team-back]", () => goBack());
-  // A link is followed: the sheet goes with the page it stood over.
-  delegate(root, "click", "a", () => close());
+  // A link followed here: the sheet goes with the page it stood over. One opened elsewhere (a new tab or window, a
+  // download, the middle button) leaves the page as it is, and the sheet open on it.
+  delegate(root, "click", "a", (event) => {
+    if (!opensElsewhere(event)) close();
+  });
   wireSheets(root, { onClose: () => close({ focus: true }), onBack: () => goBack() });
   globalThis.addEventListener?.("hashchange", () => {
     if (shown && location.hash !== shown.openedAt) close();
@@ -198,11 +207,27 @@ export function openNewTeamSheet(opener, { back = null } = {}) {
     document.body.append(host);
   }
   if (!shown) globalThis.addEventListener?.("beforeunload", guardLeaving);
-  shown = { build, opener, back, openedAt: location.hash, coach: state.auth.currentUser };
+  shown = { build, opener, back, openedAt: location.hash, coach: state.auth.currentUser, refusal: "" };
   draw();
   focusName();
   // A page opened on this screen may not have read the season yet: its name stands under the title once it is in.
   void loadSeason().then(draw);
+}
+
+/**
+ * The builder's save of `build` refused while the sheet is open over it (over the builder, or over the screen the
+ * coach went on to): the page under a modal sheet is inert, and a toast or the builder's line there is neither seen
+ * nor heard. The sheet says it, at the top of its body, until it closes.
+ * @param {import("./new-flow.mjs").Build} build @param {string} refusal as a sentence
+ * @returns {boolean} whether the sheet said it: when it did, nothing else is to
+ */
+export function sayInNewTeamSheet(build, refusal) {
+  if (!shown || shown.build !== build || !liveBuild()) return false;
+  shown.refusal = refusal;
+  draw();
+  // A body taller than the window scrolls: the alert is at its top, out of view when the coach is among the races.
+  host.querySelector('[role="alert"]')?.scrollIntoView?.({ block: "nearest" });
+  return true;
 }
 
 /** `#/teams/new` with no build: «My teams», where the coach is sent, opens the sheet (decision 63). */

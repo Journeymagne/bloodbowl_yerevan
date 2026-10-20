@@ -8,15 +8,16 @@
  * font-weight are set here on purpose: the 2.x global rules (a { color:
  * inherit }, p margins, bare buttons) outlive this sheet until stage 13.
  *
- * Up to 900px (TeamNew): the head 6 12 4 with «‹» (the switcher's way back)
- * and the cross, 44px circles on --surface-3, the title Oswald 700 24px/1.1
- * over a 13px line (sheet.css); the body 12 16, a column 14 apart; the field
- * 48px, 12 round, on --surface-2; the races two to a row, 6 apart; the foot
- * 10 16 24 under a rule, «Create» the whole width, 52px.
+ * Up to 900px (TeamNew): a sheet of up to 90% of the screen; the head 6 12 4
+ * with «‹» (the switcher's way back) and the cross, 44px circles on
+ * --surface-3, the title Oswald 700 24px/1.1 2px over a 13px line; the body
+ * 12 16, a column 14 apart; the field 48px, 12 round, on --surface-2; the
+ * races two to a row, 6 apart; the foot 10 16 24 under a rule, «Create» the
+ * whole width, 52px.
  *
- * From 901px (DeskTeamNew): a window of 760px, 64px from the top, 20px round;
- * the head 20 24 over its rule, the title Oswald 700 28px/1 over a 14px line,
- * the cross 44; the body 20 24, 18 apart, a label 8 over what it names; the
+ * From 901px (DeskTeamNew): a window of 760px, 64px from the top, 20px round,
+ * on its shadow; the head 20 24 over its rule, the title Oswald 700 28px/1
+ * over a 14px line, the cross 44; the body 20 24, 18 apart, a label 8 over what it names; the
  * races as many to a row as 160px allows, 6 apart; the foot 16 24 under a
  * rule on --surface-2, «← My teams» at the left when the switcher opened the
  * sheet, «Create» at the right (sheet.css's row, with one button or two).
@@ -89,8 +90,17 @@
   box-shadow: none;
 }
 
+/* The season's line 2px under the title, on both widths. */
+.g-new-sheet .g-sheet__titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 /* ---- A phone (TeamNew) ---- */
 @media (max-width: 900px) {
+  /* TeamNew's sheet takes up to 90% of the screen, sheet.css's 86dvh being the other sheets'. */
+  dialog.g-sheet.g-new-sheet { max-height: 90dvh; }
   .g-new-sheet .g-sheet__body {
     gap: var(--space-14);
     padding: var(--space-12) var(--space-16);
@@ -113,6 +123,7 @@
     max-height: min(86dvh, calc(100dvh - 96px));
     margin: 64px auto auto;
     border-radius: 20px;
+    box-shadow: var(--shadow-window);
   }
 
   .g-new-sheet .g-sheet__head {
@@ -121,11 +132,6 @@
   }
   /* The way back is the foot's «← My teams»; the head's «‹» is a phone's. */
   .g-new-sheet .g-sheet__head [data-sheet-back] { display: none; }
-  .g-new-sheet .g-sheet__titles {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
   .g-new-sheet .g-sheet__title {
     font-size: 28px;
     line-height: 1;

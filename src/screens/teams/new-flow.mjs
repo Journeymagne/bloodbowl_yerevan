@@ -76,9 +76,14 @@ export function buildOf() {
   return flow;
 }
 
-/** Whether the coach signed in has begun a build: the builder's address draws it, and without one is «My teams» with the sheet. */
+/**
+ * Whether the coach has begun a build: the builder's address draws it, and without one is «My teams» with the sheet.
+ * It only reads, and puts no new build in place of the one in memory, as `buildOf` would while a session is read
+ * again: then nobody is signed in, and the build held is still the coach's (see below).
+ */
 export function hasBuild() {
-  return buildOf().draft !== null;
+  const coachId = state.auth.currentUser?.id;
+  return Boolean(flow?.draft) && (coachId === undefined || flow.userId === coachId);
 }
 
 /**

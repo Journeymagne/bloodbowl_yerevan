@@ -390,6 +390,57 @@ test("#/teams/new with no build is «My teams» with the sheet open over it; wit
   await settle();
 });
 
+test("#/teams/new for a coach with no team: «My teams» is the empty overview with the sheet open over it; closed, the focus is on «Create a team»", async () => {
+  start();
+  api.reply("GET /api/teams", 200, { teams: [] });
+  routes = {
+    "#/teams/new": () => { releaseCurrentScreen(); renderNewTeam(); },
+    "#/teams": () => { releaseCurrentScreen(); renderTeams(); },
+  };
+  go("#/teams/new");
+  assert.deepEqual(location.replaced, ["#/teams"]);
+  hashChanged();
+  assert.equal(view.querySelector("h1").textContent, "Create your first team");
+  assert.ok(sheet()?.matches(":modal"));
+  escape();
+  const button = view.querySelector(".g-team-empty [data-new-team]");
+  assert.ok(button && document.activeElement === button, "the focus goes to the page's own way to a first team");
+  routes = {};
+  await settle();
+});
+
+test("a guest on #/teams/new signs in first, and comes back to «My teams» with the sheet open over it (decision 63)", async () => {
+  await withoutTimers(async () => {
+    const { renderRoute } = await import("../src/core/router.mjs");
+    start();
+    const coach = state.auth.currentUser;
+    const teams = [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: false }];
+    state.myTeams = { items: teams, loaded: true, loading: false, error: "" };
+    api.reply("GET /api/teams", 200, { teams });
+    state.auth.currentUser = null;
+    globalThis.location = address("#/teams/new");
+    routes = { "#/teams/new": renderRoute, "#/teams": renderRoute };
+    renderRoute();
+    assert.deepEqual(location.replaced, ["#/login"], "a guest signs in first, the address remembered");
+    // Signed in on the sign-in screen: the session's change draws the route again (src/app.js), which goes back where it was sent from.
+    state.auth.currentUser = coach;
+    renderRoute();
+    assert.deepEqual(location.replaced, ["#/login", "#/teams/new"]);
+    hashChanged();
+    assert.deepEqual(location.replaced, ["#/login", "#/teams/new", "#/teams"], "no build: «My teams»");
+    assert.equal(isOpen(), false);
+    hashChanged();
+    assert.equal(view.querySelector("h1").textContent, "My teams");
+    assert.ok(sheet()?.matches(":modal"), "with the sheet open over it");
+    assert.ok(document.activeElement === field());
+    escape();
+    assert.ok(document.activeElement === view.querySelector("[data-new-team]"));
+    routes = {};
+    releaseCurrentScreen();
+    await settle();
+  });
+});
+
 test("the cross, the backdrop and Escape close it with the focus back where it was; a link in it, and a change of address, close it", () => {
   start();
   const ways = {
@@ -414,8 +465,14 @@ test("the cross, the backdrop and Escape close it with the focus back where it w
   view.innerHTML = '<section><h1 tabindex="-1">My teams</h1></section>';
   escape();
   assert.ok(document.activeElement === view.querySelector("h1"));
-  // A link in it: the sheet goes, and the link is followed.
+  // A link opened elsewhere (a new tab or window, the middle button): the page stays, and so does the sheet.
   openNewTeamSheet(drawPage());
+  for (const modified of [{ metaKey: true }, { ctrlKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) {
+    const opened = fireEvent(document.querySelector("a.g-new__ref"), "click", modified);
+    assert.ok(isOpen(), `${JSON.stringify(modified)}: the link opens elsewhere, and the sheet stays`);
+    assert.equal(opened.defaultPrevented, false, "and the browser opens it as it would");
+  }
+  // A plain click on a link in it: the sheet goes, and the link is followed.
   const event = click(document.querySelector("a.g-new__ref"));
   assert.equal(isOpen(), false);
   assert.equal(event.defaultPrevented, false);
@@ -596,19 +653,44 @@ test("a refusal is said by the button, and the build stays", async () => {
   assert.equal(view.querySelector('[data-hire-key="0"] .g-hire__count').textContent, "5");
 });
 
-test("a refusal that comes while the sheet is over the builder is told in a toast too: «Create» would clear it unseen", async () => {
+test("a refusal that comes while the sheet is open is said in the sheet, where the coach is: no toast behind it, and once after it closes", async () => {
   await withoutTimers(async () => {
+    const refused = { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [] };
     fillLegal();
-    api.reply("POST /api/teams", 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [] });
-    const gate = api.hold("POST /api/teams");
+    api.reply("POST /api/teams", 422, refused);
+    let gate = api.hold("POST /api/teams");
     click(save());
     click("[data-new-team-restart]");
     gate.release();
     await settle();
-    assert.equal(toasts().length, 1);
-    assert.ok(isOpen(), "the sheet stays where the coach is");
+    const alert = () => sheet()?.querySelector('[role="alert"]') ?? null;
+    assert.ok(alert(), "in the sheet: the page under a modal sheet is inert, its toast and its line neither seen nor heard");
+    const said = alert().textContent.trim();
+    assert.ok(said.length > 0);
+    assert.deepEqual(toasts(), [], "no toast behind the backdrop");
+    type("#new-team-name", "Iron Rooks II");
+    assert.equal(alert()?.textContent.trim(), said, "it stays while the coach goes on in the sheet");
     escape();
-    assert.ok(view.querySelector('.g-build__cta [role="alert"]'), "and the button says it too once the sheet is gone");
+    const alerts = document.querySelectorAll('[role="alert"]');
+    assert.equal(alerts.length, 1, "closed, it is said once: by the button, where it stays");
+    assert.ok(alerts[0].closest(".g-build__cta") && alerts[0].textContent.includes(said));
+    assert.deepEqual(toasts(), []);
+    click("[data-new-team-restart]");
+    assert.equal(alert() === null, true, "opened again, the sheet does not say an old refusal over again");
+    escape();
+    // The coach has gone on to «My teams» and opened the sheet there: it says the refusal, and nothing else does.
+    gate = api.hold("POST /api/teams");
+    click(save());
+    releaseCurrentScreen();
+    drawPage();
+    openNewTeamSheet(null);
+    gate.release();
+    await settle();
+    assert.equal(alert()?.textContent.trim(), said);
+    assert.deepEqual(toasts(), []);
+    escape();
+    assert.equal(document.querySelectorAll('[role="alert"]').length, 0, "closed, nothing says it again");
+    assert.deepEqual(toasts(), []);
   });
 });
 
@@ -845,6 +927,8 @@ test("the build's memory is one module's: buildOf, hasBuild, pickOf, setPick, st
   // While a session is read again nobody is signed in and nothing has been announced: the coach's build is still theirs.
   const coach = state.auth.currentUser;
   state.auth.currentUser = null;
+  assert.equal(memory.hasBuild(), true, "asked while the session is read again, the build held is the coach's still");
+  assert.ok(memory.isCurrentBuild(build), "and asking puts no empty build in its place");
   memory.setPick({ name: "Rooks Again" });
   assert.equal(memory.pickOf().name, "Rooks Again", "typing reaches the build that was held, not an empty one");
   assert.ok(memory.isCurrentBuild(build));
@@ -1286,10 +1370,16 @@ test("the look: TeamNew's and DeskTeamNew's values; D2; readable; no inline widt
   assert.deepEqual(phone(".g-new-sheet .g-sheet__foot-start", "display"), ["none"]);
   assert.deepEqual([phone(".g-new-sheet .g-sheet__foot .g-btn--primary", "height"), phone(".g-new-sheet .g-sheet__foot .g-btn--primary", "width")], [["52px"], ["100%"]]);
   assert.deepEqual(phone(".g-new__ref", "min-height"), ["var(--size-touch)"], "D2: the link is 44px tall on a phone");
+  assert.deepEqual(phone("dialog.g-sheet.g-new-sheet", "max-height"), ["90dvh"], "TeamNew's sheet takes up to 90% of the screen");
+  // Both widths: the season's line 2px under the title, as both prototypes draw it.
+  assert.deepEqual(["display", "flex-direction", "gap"].map((property) => valuesOf(NEW_CSS, ".g-new-sheet .g-sheet__titles", property)), [["flex"], ["column"], ["2px"]]);
   // A desk (DeskTeamNew): a window of 760px, 64px from the top, 20px round; the head 20 24, the title 28px/1 over a 14px line.
   const desk = (selector, property) => inMedia(css, "min-width: 901px", selector, property);
   assert.deepEqual(["width", "margin", "border-radius", "max-height"].map((property) => desk("dialog.g-sheet.g-new-sheet", property)),
     [["min(760px, calc(100% - 32px))"], ["64px auto auto"], ["20px"], ["min(86dvh, calc(100dvh - 96px))"]]);
+  assert.deepEqual([phone(".g-new-sheet .g-sheet__titles", "gap"), desk(".g-new-sheet .g-sheet__titles", "gap")], [[], []], "one rule for both widths");
+  assert.deepEqual(desk("dialog.g-sheet.g-new-sheet", "box-shadow"), ["var(--shadow-window)"], "DeskTeamNew's window stands over the page on its shadow");
+  assert.deepEqual(valuesOf("src/styles/tokens.css", ":root", "--shadow-window"), ["0 12px 32px rgba(20, 32, 26, 0.28)"], "the prototype's 0 12px 32px rgba(20, 32, 26, .28), a token as the thumb's shadow is");
   assert.deepEqual(desk(".g-new-sheet .g-sheet__head [data-sheet-back]", "display"), ["none"], "the desk's way back is the foot's");
   assert.deepEqual([desk(".g-new-sheet .g-sheet__head", "padding"), desk(".g-new-sheet .g-sheet__head", "gap")], [["var(--space-20) var(--space-24)"], ["var(--space-16)"]]);
   assert.deepEqual([desk(".g-new-sheet .g-sheet__title", "font-size"), desk(".g-new-sheet .g-sheet__title", "line-height"), desk(".g-new-sheet .g-sheet__sub", "font-size")], [["28px"], ["1"], ["14px"]]);
@@ -1324,7 +1414,8 @@ test("the markup of the sheet: the group is named and enters at one race, a name
   assert.equal(fresh.querySelector(".g-races__resets"), null);
   assert.equal(fresh.querySelector(".g-sheet__sub").textContent, "Gata League", "a season without a name: the league's");
   assert.equal(fresh.querySelector("dialog").hasAttribute("open"), false, "drawn closed: patchWithModal opens it");
-  const chosen = mount(newTeamSheetMarkup({ name: HOSTILE, raceSlug: "teams/norse", races, seasonName: HOSTILE, resets: true, back: true }));
+  assert.equal(fresh.querySelector('[role="alert"]') === null, true, "no refusal, no alert");
+  const chosen = mount(newTeamSheetMarkup({ name: HOSTILE, raceSlug: "teams/norse", races, seasonName: HOSTILE, resets: true, back: true, refusal: HOSTILE }));
   assert.equal(chosen.querySelector('[data-race="teams/norse"]').getAttribute("aria-checked"), "true");
   assert.equal(chosen.querySelector('[data-race="teams/norse"]').getAttribute("tabindex"), "0");
   assert.equal(chosen.querySelectorAll('[tabindex="0"][role="radio"]').length, 1);
@@ -1334,8 +1425,11 @@ test("the markup of the sheet: the group is named and enters at one race, a name
   assert.ok(chosen.querySelector(".g-races__resets"));
   assert.ok(chosen.querySelector("[data-sheet-back]") && chosen.querySelector("[data-new-team-back]"));
   assert.equal(chosen.querySelector("[data-new-team-create]").textContent.trim(), `Create «${HOSTILE}»`);
+  const said = chosen.querySelector('.g-sheet__body [role="alert"]');
+  assert.ok(said.parentNode.classList.contains("g-sheet__body") && said.parentNode.childNodes[0] === said, "a refusal of the save is an alert at the top of the body");
+  assert.equal(said.textContent.trim(), HOSTILE, "and only text");
   assertCspSafe(chosen);
-  assertStyled(chosen, NEW_CSS, "sheet.css", "text-field.css", "button.css");
+  assertStyled(chosen, NEW_CSS, "sheet.css", "text-field.css", "button.css", "callout.css");
   // The page as it was for whatever runs after.
   for (const child of [...document.body.childNodes]) document.body.removeChild(child);
   document.body.appendChild(view);
