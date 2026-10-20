@@ -276,7 +276,7 @@ const pairingOf = (id, tableNumber, own, opposing, changes = {}) => {
     awayPoints: null,
     resultStatus: "pending",
     preparationStatus: "not_started",
-    postMatchStatus: "not_started", homeMvps: [], awayMvps: [], // the list's MVPs (`loadGameMvps`): only g4 names one
+    postMatchStatus: "not_started", homeMvps: [], awayMvps: [], // the list's MVPs (`loadGameMvps`): none, no post-match is completed
     proposedByUserId: null,
     proposedHomeTouchdowns: null,
     proposedAwayTouchdowns: null,
@@ -354,9 +354,9 @@ const games = empty ? [] : [
     viewerIsHome: false,
     ...confirmedScore(rival, 6, { touchdowns: [2, 0], casualties: [1, 0], points: [4, 0] }),
   }),
-  // Round 1, at home: Mock Team won 2-1, and took the casualty; its MVP was Linewoman Five (p5, the one MVP on its roster).
+  // Round 1, at home: Mock Team won 2-1, and took the casualty; no MVP: its post-match is not completed.
   pairingOf("g4", 1, teams[0], rivals[1], {
-    roundId: "r1", homeMvps: [{ id: "p5", name: "Linewoman Five" }],
+    roundId: "r1",
     roundNumber: 1,
     roundStatus: "completed",
     ...confirmedScore(user, 13, { touchdowns: [2, 1], casualties: [1, 0], points: [3, 0] }),
@@ -519,16 +519,16 @@ async function answerTeams(request, pathname) {
 
 /** Whether a match is one the administrator's list of current matches holds: started and not confirmed (server/season/store.mjs). */
 const isCurrent = (game) => game.roundStatus === "started" && game.resultStatus !== "confirmed";
+const withoutMvps = ({ homeMvps, awayMvps, ...game }) => game; // only the list carries MVPs, as on the server (`server/routes/games.mjs`)
 
 /** Challenges, matches and the season. */
 function answerLeague(request, pathname) {
   if (pathname === "/api/challenges" && request.method === "GET") return reply(challenges);
   if (pathname === "/api/season" && request.method === "GET") return reply(seasonBundle);
-  if (pathname === "/api/games") return reply({ games, currentGames: user.isAdmin ? games.filter(isCurrent) : [] });
+  if (pathname === "/api/games") return reply({ games, currentGames: user.isAdmin ? games.filter(isCurrent).map(withoutMvps) : [] });
   if (pathname.startsWith("/api/games/")) {
     const game = games.find((item) => item.id === pathname.split("/")[3]);
-    if (!game) return refuse(404, "GAME_NOT_FOUND");
-    return reply({ game });
+    return game ? reply({ game: withoutMvps(game) }) : refuse(404, "GAME_NOT_FOUND");
   }
   return null;
 }

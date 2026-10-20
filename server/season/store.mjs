@@ -113,18 +113,21 @@ export async function loadUserGameRows(userId, pairingId = null, includeAll = fa
 }
 
 // Each MVP a completed post-match names, side by side in the order picked, with the name the side's match roster
-// (its snapshot in the state) gives the player. Only these small members of the state are read, and each is
-// walked only once `jsonb_typeof` says it is an array, so nothing in a stored state can make the query fail.
+// (its snapshot in the state) gives the player. The stored state, large and compressed, is read once per row:
+// `done` is the whole state as one value in memory when it is a completed post-match (the strict jsonpath gives
+// null for anything else, an array or a string included: an error inside a filter is only "unknown"), and
+// everything after walks that value. A member is walked only once `jsonb_typeof` says it is an array.
 const SELECT_MVPS = `
   SELECT g.pairing_id, sides.side, mvp.player_id,
-         (SELECT player ->> 'name' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.state -> sides.side -> 'snapshot' -> 'players') = 'array'
-             THEN g.state -> sides.side -> 'snapshot' -> 'players' ELSE '[]'::jsonb END) AS roster(player)
+         (SELECT player ->> 'name' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(sides.state -> 'snapshot' -> 'players') = 'array'
+             THEN sides.state -> 'snapshot' -> 'players' ELSE '[]'::jsonb END) AS roster(player)
            WHERE player ->> 'id' = mvp.player_id LIMIT 1) AS name
     FROM match_post_games g
-   CROSS JOIN (VALUES ('home'), ('away')) AS sides(side)
-   CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(g.state -> sides.side -> 'mvps') = 'array'
-       THEN g.state -> sides.side -> 'mvps' ELSE '[]'::jsonb END) WITH ORDINALITY AS mvp(player_id, at)
-   WHERE g.pairing_id = ANY($1::uuid[]) AND g.state ->> 'status' = 'completed' AND mvp.player_id IS NOT NULL
+   CROSS JOIN LATERAL jsonb_path_query_first(g.state, 'strict $ ? (@.status == "completed")') AS done(state)
+   CROSS JOIN LATERAL (VALUES ('home', done.state -> 'home'), ('away', done.state -> 'away')) AS sides(side, state)
+   CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(sides.state -> 'mvps') = 'array'
+       THEN sides.state -> 'mvps' ELSE '[]'::jsonb END) WITH ORDINALITY AS mvp(player_id, at)
+   WHERE g.pairing_id = ANY($1::uuid[]) AND done.state IS NOT NULL AND mvp.player_id IS NOT NULL
    ORDER BY g.pairing_id, sides.side, mvp.at`;
 
 /**
