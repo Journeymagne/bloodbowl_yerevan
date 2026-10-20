@@ -25,6 +25,7 @@ import { hireQuote, transferEdits } from "../../../domain/roster/transfers.mjs";
 import { refusalWords } from "./hire-sheet.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { hireClosed, sellClosed } from "./panel.mjs";
+import { rosterLineOf } from "./player-save.mjs";
 import { buyPlayers, removePlayer } from "./save.mjs";
 
 /**
@@ -58,9 +59,6 @@ export function droppedWords(server, draft, waiting) {
     players ? t("teamPlayer.matchDropped") : "",
   ].filter(Boolean);
 }
-
-/** The player of `key` on the roster as it stands, never one of the fallen (the dead are not sold), or null. */
-const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;
 
 /**
  * The market's sheet as the screen draws it, or null when it stands no longer — a match has begun (R8), or the

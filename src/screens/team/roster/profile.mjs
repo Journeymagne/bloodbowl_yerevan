@@ -18,7 +18,6 @@ import { t } from "../../../core/i18n.mjs";
 import { teamUrl } from "../../../core/routes.mjs";
 import { raceTitleOf } from "../../../data/teams.mjs";
 import { advancementRanks } from "../../../domain/league-rules.mjs";
-import { renderCallout } from "../../../ui/callout.mjs";
 import { icon } from "../../../ui/icons.mjs";
 import { dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
@@ -27,7 +26,7 @@ import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup } from "./fallen
 import { undoable } from "./model.mjs";
 import { closedMarkup, injuriesMarkup, markClosed, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
 import { advanceClosed, advanceHintOf, closedAdvanceMarkup, editClosed, undoLastMarkup } from "./player-access.mjs";
-import { failedMarkup, prepMarkup, saveNoticeMarkup, sheetMarkup, statusMarkup } from "./view.mjs";
+import { failedMarkup, goneMarkup, prepMarkup, saveNoticeMarkup, sheetMarkup, statusMarkup } from "./view.mjs";
 
 /**
  * The player's dark head (Player.html's block, owner's answer 1): «‹ Roster» on top, where the prototype has the team
@@ -145,8 +144,7 @@ function stateMarkup(screen) {
   if (screen.loading) return `<p class="g-roster__loading" role="status">${escapeHtml(t("teamRoster.loading"))}</p>`;
   if (screen.error) return failedMarkup(screen.error, { retry: true });
   if (!screen.race) return failedMarkup(t("teamRoster.noRace", { slug: screen.team.baseTeamSlug }));
-  const actionHtml = `<a class="g-roster__calloutlink" href="${escapeHtml(teamUrl(screen.teamId, "roster"))}">${escapeHtml(t("teamRoster.fallen.toRoster"))}</a>`;
-  return renderCallout({ title: t("teamPlayer.gone"), actionHtml });
+  return goneMarkup(screen.teamId);
 }
 
 /**

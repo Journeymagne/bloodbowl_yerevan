@@ -168,9 +168,9 @@ export function isWriting(teamId) {
  * `changed`. A request that got no answer to stand behind may have been applied as well: `unknown`, and the team and
  * its history are read again, so the page shows what the server holds (one or the other alone would show them
  * disagreeing, and the next write would meet a revision the list does not have). Both say so in words that send the
- * coach to the history before another try; any other refusal is the server's own.
+ * coach to the history before another try; any other refusal is the server's own, in the writer's `words`.
  */
-function refusal(teamId, error, userId) {
+function refusal(teamId, error, userId, words) {
   if (error?.code === "TEAM_SAVED_ELSEWHERE" && error.payload?.team) {
     if (adopt(error.payload.team, userId)) void readLedger(teamId);
     return { refusal: t("treasury.changedElsewhere"), changed: true };
@@ -182,16 +182,17 @@ function refusal(teamId, error, userId) {
     }
     return { refusal: t("treasury.mayHaveWritten"), unknown: true };
   }
-  return { refusal: refusalWithRules(error) };
+  return { refusal: words(error) };
 }
 
 /**
  * One write for a team, one at a time. `send(team)` is the request, made with the team as the list holds it
  * (its revision); `done(answer, userId, ticket)` is what a success changes and what it returns, with the number of
- * the newest read of the history when the request was sent. Never throws on a refusal. The flag is lowered before
- * the answer is used, so what redraws on the new list sees no write on its way.
+ * the newest read of the history when the request was sent; `words(error)` says a refusal of the server's own. Never
+ * throws on a refusal. The flag is lowered before the answer is used, so what redraws on the new list sees no write on
+ * its way.
  */
-async function write(teamId, send, done) {
+async function write(teamId, send, done, words = refusalWithRules) {
   if (writing.has(teamId)) return { ignored: true };
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
   const team = state.myTeams.items.find((item) => item.id === teamId);
@@ -207,7 +208,7 @@ async function write(teamId, send, done) {
     failure = error;
   }
   writing.delete(teamId);
-  return failure ? refusal(teamId, failure, userId) : done(answer, userId, ticket);
+  return failure ? refusal(teamId, failure, userId, words) : done(answer, userId, ticket);
 }
 
 /**
@@ -232,15 +233,18 @@ export function addTreasuryEntry(teamId, { delta, reason, note }) {
 }
 
 /**
- * A draft is saved under its own race. One whose race changed (`withRace`) goes only with that race named
- * (`identity.baseTeamSlug`): sent under the team's, the server would store the old race with the new race's empty
- * squad and refuse nothing. That is a mistake of the code that saves, never the coach's, so it throws. A draft
- * that names no race — a roster stored before it carried one — is of the race it is sent with.
+ * A draft is saved under its own race: the race `identity.baseTeamSlug` names, or else the race of the roster stored
+ * (its own `teamSlug`, or the team's where it names none). One whose race changed (`withRace`) goes only with that race
+ * named: sent under the team's, the server would store the old race with the new race's empty squad and refuse
+ * nothing. That is a mistake of the code that saves, never the coach's, so it throws. Compared with the roster stored
+ * and not with the team's column (final review M3), a team whose roster names another race than its column — an old
+ * import, a content rename — saves as it did before stage 07d. A draft that names no race — a roster stored before it
+ * carried one — is of the race it is sent with.
  */
-function sameRace(draft, race) {
+function assertSameRace(draft, race) {
   const own = String(draft?.teamSlug ?? "");
   if (own && own !== race) {
-    throw new TypeError(`saveTeamRoster: a roster of "${own}" sent as "${race}"; a race changed is saved with identity.baseTeamSlug`);
+    throw new TypeError(`saveTeamRoster: a roster of "${own}" where the race is "${race}"; a race changed is saved with identity.baseTeamSlug`);
   }
 }
 
@@ -249,17 +253,19 @@ function sameRace(draft, race) {
  * logo go as the team has them, unless `identity` names others (the team's settings, stage 07d); the logo is not
  * re-encoded. A field of `identity` left out, or undefined, is the team's; a name given goes without the blanks at
  * its ends, in the column and in the roster alike (the builder's save does the same); a logo of "" or null takes it
- * off. The server writes the lines this page does not have (a purchase, a sale), so the history is read again.
+ * off. The server writes the lines this page does not have (a purchase, a sale), so the history is read again. A
+ * refusal of the server's own is said in `words` (the server's error's words and the rules it names, unless given).
  * @param {string} teamId @param {object} draft
  * @param {{name?: string, baseTeamSlug?: string, logoData?: string|null}} [identity]
+ * @param {{words?: (error: object) => string}} [options]
  * @returns {Promise<{team: object}|{refusal: string, changed?: true, unknown?: true}|{ignored: true}>} `changed` and
  *   `unknown` as for `addTreasuryEntry`.
- * @throws {TypeError} before anything is sent, when the draft is of another race than the save sends (`sameRace`)
+ * @throws {TypeError} before anything is sent, when the draft is of another race than it is saved under (`assertSameRace`)
  */
-export function saveTeamRoster(teamId, draft, identity = {}) {
+export function saveTeamRoster(teamId, draft, identity = {}, { words } = {}) {
   const own = (key, held) => (identity?.[key] === undefined ? held : identity[key]);
   const listed = state.myTeams.items.find((item) => item.id === teamId);
-  if (listed) sameRace(draft, own("baseTeamSlug", listed.baseTeamSlug));
+  if (listed) assertSameRace(draft, own("baseTeamSlug", listed.roster?.teamSlug || listed.baseTeamSlug));
   const send = (team) => {
     const name = identity?.name === undefined ? team.name : String(identity.name ?? "").trim();
     const baseTeamSlug = own("baseTeamSlug", team.baseTeamSlug);
@@ -277,5 +283,5 @@ export function saveTeamRoster(teamId, draft, identity = {}) {
   return write(teamId, send, (answer, userId) => {
     if (adopt(answer.team, userId)) void readLedger(teamId);
     return { team: answer.team };
-  });
+  }, words);
 }

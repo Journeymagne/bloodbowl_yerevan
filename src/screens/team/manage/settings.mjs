@@ -23,7 +23,7 @@ import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../../core/lo
 import { teamUrl } from "../../../core/routes.mjs";
 import { state } from "../../../core/state.mjs";
 import { onGamesChange } from "../../../data/games.mjs";
-import { loadMyTeams, onMyTeamsChange, raceTeamOf, setMyTeams } from "../../../data/teams.mjs";
+import { loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
 import { isWriting, readLedger, saveTeamRoster } from "../../../data/treasury.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { byNumber, rosterViolations, withFans, withFavoured, withLeague, withRace } from "../../../domain/roster/team-edits.mjs";
@@ -37,6 +37,7 @@ import { wireOptionLists } from "../../../ui/option-card.mjs";
 import { wireResourceCounters } from "../../../ui/resource-counter.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
 import { LOGO_DATA_URL } from "../../teams/new.mjs";
+import { prepResetWords } from "../roster/panel.mjs";
 import { onSaveState, saveState } from "../roster/save.mjs";
 import { matchLock } from "./model.mjs";
 import { FANS_MAX, NAME_FIELD_ID, SETTINGS_KINDS, SETTINGS_SHEET_ID, draftOf, settingsCheck, settingsSheetMarkup } from "./settings-sheet.mjs";
@@ -84,9 +85,10 @@ function holdOf({ lock, queue, busy }) {
  * @param {{status: string, waiting: number}} [input.queue] where the roster's queue stands (`saveState`)
  * @returns {{name: string, logoData: string, raceSlug: string, raceTitle: string, tier: string, league: string,
  *   leagues: string[], favoured: string, alignments: string[], fans: number, inSeason: boolean, players: number,
- *   violations: {code: string, params: object}[], held: string, waitsRoster: boolean, raceHeld: string}} `league` and
- *   `favoured` as the rules read them (`choiceOf`); `logoData` only a picture (`LOGO_DATA_URL`), else ""; `raceHeld`
- *   what holds the race: `held`, or a match being prepared (K17)
+ *   violations: {code: string, params: object}[], held: string, waitsRoster: boolean, raceHeld: string, preparing: boolean}}
+ *   `league` and `favoured` as the rules read them (`choiceOf`); `logoData` only a picture (`LOGO_DATA_URL`), else "";
+ *   `raceHeld` what holds the race: `held`, or a match being prepared (K17); `preparing` a match of the team's being
+ *   prepared, which any save of the settings starts over for both teams (decision 20, final review I1)
  */
 export function settingsModel({ team, race, lock = null, busy = false, queue = REST }) {
   const draft = normalizeDraft(team.roster ?? {});
@@ -109,6 +111,7 @@ export function settingsModel({ team, race, lock = null, busy = false, queue = R
     violations: race ? rosterViolations(race, draft) : [],
     ...hold,
     raceHeld: hold.held || (lock?.kind === "preparing" ? t("teamSettings.racePreparing") : ""),
+    preparing: lock?.kind === "preparing",
   };
 }
 
@@ -177,6 +180,12 @@ function heldCallout(teamId, { held, waitsRoster }) {
 }
 
 /**
+ * During a preparation, what a save of the settings resets (R12, decision 20; final review I1), over the rows: the logo,
+ * its removal and «By number» save at the press, with no sheet to say it, so it is said before them. Nothing is closed.
+ */
+const prepCallout = ({ preparing }) => (preparing ? renderCallout({ tone: "warn", title: prepResetWords("teamSettings.prep") }) : "");
+
+/**
  * The section, the page's last (index.mjs): the title, what holds it, the rows, the roster's check.
  * @param {{teamId: string, settings: ReturnType<typeof settingsModel>}} model the page's model
  * @returns {string}
@@ -197,7 +206,7 @@ export function settingsMarkup({ teamId, settings }) {
   const title = `<h2 class="g-team-settings__title" id="team-settings-title">${escapeHtml(t("teamSettings.title"))}</h2>`;
   // Keyed, the section and its rows are the same nodes whatever callout comes or goes above them: a held field keeps the focus.
   return `<section class="g-team-settings" aria-labelledby="team-settings-title" data-key="team-settings">${title}`
-    + `${heldCallout(teamId, settings)}${rows.join("")}${checkMarkup(settings.violations)}</section>`;
+    + `${heldCallout(teamId, settings)}${prepCallout(settings)}${rows.join("")}${checkMarkup(settings.violations)}</section>`;
 }
 
 const teamOf = (teamId) => state.myTeams.items.find((item) => item.id === teamId);
@@ -221,13 +230,19 @@ function worded(answer) {
 }
 
 /**
+ * A refusal of the server's own in the settings' words: a roll on the site rerolled against a favoured skill that a god
+ * changed takes off (`checkKeptRerolls`) is no advancement's to word (final review M2); any other, as every save says it.
+ */
+const settingsWords = (error) => (error?.code === "DICE_ROLL_MISMATCH" ? t("teamSettings.refusal.DICE_ROLL_MISMATCH") : refusalWithRules(error));
+
+/**
  * One save of the team: the draft a step of team-edits.mjs made — or its refusal, in words — with the name, the race
  * or the logo given. Asynchronous throughout, so that a throw of `saveTeamRoster` (a draft of another race than it
  * sends) is a rejection its caller handles, never an exception in a click.
  */
 async function saved(teamId, changed, identity) {
   if (changed.code) return { refusal: t(`teamSettings.refusal.${changed.code}`, changed.params) };
-  return worded(await saveTeamRoster(teamId, changed.draft, identity));
+  return worded(await saveTeamRoster(teamId, changed.draft, identity, { words: settingsWords }));
 }
 
 /** The team the race's read brought, in the coach's list in place of an older copy (a read of the list on its way is asked again). */

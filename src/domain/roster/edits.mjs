@@ -91,8 +91,8 @@ export function editRefusal(draft, playerId, { number, name } = {}) {
   return wearer ? { code: "NUMBER_TAKEN", params: { number: value, name: String(wearer.name ?? "") } } : null;
 }
 
-/** A player's number, name and captaincy, and so the roster's, as values to compare. */
-const identityOf = (player) => JSON.stringify([String(player?.number ?? ""), String(player?.name ?? ""), Boolean(player?.isCaptain ?? player?.captain)]);
+/** A player's number, name and captaincy, and so the roster's, as values to compare; what his edit is seeded from (final review M1). */
+export const identityOf = (player) => JSON.stringify([String(player?.number ?? ""), String(player?.name ?? ""), Boolean(player?.isCaptain ?? player?.captain)]);
 
 /**
  * Give a player of the roster a number, a name and the captaincy, in place, as the server stores them: the number as

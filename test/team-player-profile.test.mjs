@@ -654,6 +654,38 @@ test("an id that is neither on the roster nor among the fallen: he is not on the
   });
 });
 
+// Final review M5 (decision 1): a desk draws the roster for a player's address, him in the panel; one the roster holds
+// nowhere — another device sold him, a bookmark — is said over the table in the phone's words, not left to another player.
+test("on a desk, an address whose player the roster holds nowhere says so over the table, with the way to the roster (M5)", async () => {
+  await withWindow({ phone: false }, async () => {
+    const gone = () => view.querySelectorAll(".g-roster__main .g-callout").find((callout) => callout.querySelector(".g-callout__title").textContent === "This player is no longer on the roster.");
+    coach();
+    await playerPage("zz");
+    assert.ok(view.querySelector('[data-screen="team-roster"]'), "a desk's player mode is the roster");
+    const callout = gone();
+    assert.ok(callout, "said");
+    const link = callout.querySelector("a.g-roster__calloutlink");
+    assert.equal(link.textContent, "To the roster");
+    assert.equal(link.getAttribute("href"), "#/t/t1/roster");
+    const main = [...view.querySelector(".g-roster__main").walk()];
+    assert.ok(main.indexOf(callout) < main.indexOf(view.querySelector("table.g-rtable")), "over the table");
+    assertStyled(view, ...STYLES);
+    assertCspSafe(view);
+    // One on the roster, and one among the fallen: drawn, and nothing said.
+    for (const id of ["p3", "d1"]) {
+      coach();
+      await playerPage(id);
+      assert.ok(!gone(), id);
+    }
+    // The roster itself names no player, and says nothing either.
+    coach();
+    await renderTeamRoster("t1");
+    assert.ok(!gone());
+  });
+  const ru = dictionary("ru");
+  assert.equal(ru["teamPlayer.gone"], "Этого игрока больше нет в составе.");
+});
+
 test("the save's banners stand over his profile: another device's save with «Load the new one», no network, a preparation", async () => {
   await withWindow({ phone: true }, async () => {
     await withoutTimers(async () => {

@@ -194,7 +194,7 @@ test("a preparation warns and locks nothing", () => {
   assert.equal(fragment.querySelector(".g-callout__title").textContent, "Match preparation is on");
   // The steps are named as the pre-match names them (final Minor 6): the server's reset keeps only fans and weather.
   assert.equal(fragment.querySelector(".g-callout__sub").textContent,
-    "A purchase or a change of the treasury resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
+    "A purchase, a change of the treasury or of the team's settings resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
   assert.equal(fragment.querySelector("[data-treasury-money]").hasAttribute("aria-disabled"), false);
   assert.equal(fragment.querySelector("[data-treasury-fix]").hasAttribute("aria-disabled"), false);
   assert.equal(fragment.querySelector(".g-resource--locked .g-resource__name").textContent.includes("Team Rerolls"), false);
@@ -443,7 +443,8 @@ test("entering the page reads the games again, though they were read before: a m
 
 test("a preparation known from games read before, and games that could not be read now: both are said, since the match may have gone live", () => {
   const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")], gamesUnknown: true })));
-  const titles = fragment.querySelectorAll(".g-callout__title").map((node) => node.textContent);
+  // The team's settings at the page's end say what their own saves reset (stage 07d, test/team-settings.test.mjs).
+  const titles = fragment.querySelectorAll(".g-callout__title").filter((title) => !title.closest(".g-team-settings")).map((node) => node.textContent);
   assert.deepEqual(titles, ["Match preparation is on", en["treasury.gamesUnknown"]]);
   assert.equal(fragment.querySelector("[data-treasury-money]").hasAttribute("aria-disabled"), false);
 });

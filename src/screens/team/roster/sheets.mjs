@@ -50,6 +50,8 @@ export const ADVANCE_SHEET = "player-advance";
 export const UNADVANCE_SHEET = "player-unadvance";
 /** What a player's fix by hand is shown by (`#player-fix`, stage 07d) and what wireSheets reports. */
 export const FIX_SHEET = "player-fix";
+/** The frame every sheet of a player's wears (stage 07d: his edit, the undo, his advancement, his fix; player-sheets.css). */
+export const PLAYER_FRAME = "g-player-sheet";
 
 /** The id of each kind of sheet the visit holds (index.mjs's `visit.sheet.kind`). */
 const SHEET_IDS = Object.freeze({

@@ -33,6 +33,7 @@ import { ADVANCEMENT_TYPES, advancementCategories, categorySkills, statChoices }
 import { rosterPlayerView } from "../../../domain/roster/players.mjs";
 import { closeSheet } from "./injury.mjs";
 import { advanceClosed, undoClosed } from "./player-access.mjs";
+import { rosterLineOf } from "./player-save.mjs";
 import { askRoll } from "./rolls.mjs";
 import { advancePlayer, bindRoll, refusalWordsOf } from "./save.mjs";
 import { ADVANCE_SHEET } from "./sheets.mjs";
@@ -45,9 +46,6 @@ export const PURPOSE_OF = Object.freeze({ random: "random_skill", stat: "stat" }
 export const STEP_BEFORE = Object.freeze({ category: "type", skill: "category", stat: "type" });
 /** A type chosen afresh: on the site, nothing rolled, nothing asked. A roll of the other kind that waits still does. */
 const UNROLLED = Object.freeze({ via: "site", roll: null, face: null, stat: "", instead: false, lost: false, attempts: false, asked: "" });
-
-/** The roster's line of `key`, never one of the fallen's (whose advancements are history), or null. */
-const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;
 
 /** Him on the draft `where` holds (`rosterPlayerView`: his position's row on him), or null when the draft or the race has him not. */
 function playerOn(line, where) {
@@ -220,7 +218,7 @@ export function advanceSheetOf(sheet, line, where) {
 const openSheet = (visit) => (visit.sheet?.kind === "advance" && visit.sheet.step !== "done" ? visit.sheet : null);
 
 /** His line as the screen stands at the press (`now`), what the sheet offers him there, and why «Take» is closed ("" when it is not); null when he has left the roster. */
-function playerAt(now, sheet) {
+function advanceAt(now, sheet) {
   const where = now();
   const line = rosterLineOf(where.lines, sheet.key);
   return line ? { line, where, choices: choicesOf(line, sheet, where), reason: advanceClosed(line, where) } : null;
@@ -257,7 +255,7 @@ function takenWords(sheet, chosen, choices) {
 function takeChosen(saving, { now, refused }) {
   const { teamId, visit, draw } = saving;
   const sheet = openSheet(visit);
-  const player = sheet && playerAt(now, sheet);
+  const player = sheet && advanceAt(now, sheet);
   if (!player) return;
   if (player.reason) {
     toast(player.reason);
@@ -440,7 +438,7 @@ export function advanceHandlers(saving, lent) {
   // The open sheet and its player at the press; none when it is not open, or he has left the roster.
   const pressed = () => {
     const sheet = openSheet(visit);
-    const player = sheet && playerAt(lent.now, sheet);
+    const player = sheet && advanceAt(lent.now, sheet);
     return player ? { sheet, ...player } : null;
   };
   const close = () => {

@@ -31,6 +31,7 @@ const NO_ID = "This player has no id in the roster, so nothing can be saved for 
 const DROPPED = "A match has begun, so the player edits and advancements that were waiting were not saved. Make them again after the post-match.";
 const PREP_GAME = { ...LIVE_GAME, id: "g1", preparationStatus: "preparing", postMatchStatus: "not_started" };
 const EDIT_STYLES = [...STYLES, "toggle.css", "text-field.css"];
+const CHANGED = "The player's number, name or captaincy has changed — open the edit again";
 
 const patches = () => api.calls.filter(({ key }) => key === PATCH);
 const teamReads = () => api.calls.filter(({ key }) => key === TEAM_READ).length;
@@ -336,6 +337,63 @@ test("a refusal is said in the sheet, which stays; a refusal of the queue's 422 
     await settle();
     assert.equal(teamReads(), before + 1, "and the roster is read again");
     assert.equal(patches().length, 1, "the refused step, and no edit");
+  });
+});
+
+/**
+ * Cade's edit open on a desk, his number typed, while a step of the queue is refused by a 422 whose read of the server's
+ * roster failed: «Save» is refused in turn, said in the sheet, and the server's roster read again — as `server` says it.
+ */
+const refusedEdit = async (server) => {
+  coach({ open: "p5#0" });
+  await renderTeamRoster("t1");
+  api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+  api.fail(TEAM_READ);
+  fireEvent(aside().querySelector("[data-roster-return]"), "click");
+  await settle();
+  assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"]);
+  fireEvent(toggle("p3#0"), "click");
+  fireEvent(pencil(), "click");
+  type(numberField(), "12");
+  api.reply(TEAM_READ, 200, { team: server });
+  api.reply("GET /api/teams/t1/events", 200, { events: [], revision: server.revision });
+  saveButton().focus();
+  fireEvent(saveButton(), "click");
+  assert.match(refusal().textContent, /Ann/, "the rule that refused the queue, in the sheet");
+  await settle();
+};
+
+// Final review M1, as the fix by hand (Task 13 M1): the edit's number, name and armband are absolute values; a read that
+// changes them under it must never be put back by its «Save».
+test("a read that changes his number, name or captaincy under an open edit closes it, saying so, and sends nothing; one that does not keeps it", async () => {
+  await withoutTimers(async () => {
+    const others = PLAYERS.filter(({ id }) => id !== "p3");
+    for (const [server, what] of [
+      [withOne({ ...PLAYERS[2], name: "Cady" }, { revision: 6 }), "another device renamed him"],
+      [withOne({ ...PLAYERS[2], number: "13" }, { revision: 6 }), "another device numbered him"],
+      [withPlayers(PLAYERS.map((player) => ({ ...player, isCaptain: player.id === "p3" })), { revision: 6 }), "another device moved the armband to him"],
+    ]) {
+      await refusedEdit(server);
+      assert.ok(!editSheet(), `closed: ${what}`);
+      assert.ok(!view.querySelector("dialog:modal"));
+      assert.equal(toasts().at(-1), CHANGED);
+      assert.ok(document.activeElement === pencil(), "the focus on the pencil");
+      assert.equal(patches().length, 1, "the refused step alone");
+    }
+    // What is not his number, name or armband — his SPP, another player — keeps it, with what was typed, and it saves.
+    await refusedEdit(withPlayers([...others.map((player) => (player.id === "p1" ? { ...player, name: "Anne" } : player)), { ...PLAYERS[2], spp: { touchdowns: 3 } }], { revision: 6 }));
+    assert.ok(editSheet()?.isModal, "kept");
+    assert.ok(!toasts().includes(CHANGED));
+    assert.equal(numberField().value, "12");
+    type(numberField(), "12");
+    api.reply(PATCH, 200, { team: withOne({ ...PLAYERS[2], number: "12" }, { revision: 7 }) });
+    fireEvent(saveButton(), "click");
+    assert.ok(!editSheet(), "its own «Save» closes it");
+    assert.ok(!toasts().includes(CHANGED), "its own step is no change made elsewhere");
+    await settle();
+    assert.equal(patches().length, 2);
+    assert.equal(sentPlayers(patches()[1]).p3[0], "12");
+    assert.equal(sentPlayers(patches()[1]).p1[1], "Anne", "the read's change kept");
   });
 });
 

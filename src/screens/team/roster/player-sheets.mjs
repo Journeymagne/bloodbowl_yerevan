@@ -29,7 +29,7 @@ import { renderToggle } from "../../../ui/toggle.mjs";
 import { countersMarkup, prepResetWords, sessionMarkup } from "./panel.mjs";
 import { gaveWords } from "./player-access.mjs";
 import { refusalWordsOf } from "./save.mjs";
-import { EDIT_SHEET, UNADVANCE_SHEET, footButton } from "./sheets.mjs";
+import { EDIT_SHEET, PLAYER_FRAME, UNADVANCE_SHEET, footButton } from "./sheets.mjs";
 
 /** What wireToggles reports for «Team captain». */
 export const CAPTAIN_TOGGLE = "player-captain";
@@ -37,8 +37,6 @@ export const CAPTAIN_TOGGLE = "player-captain";
 export const EDIT_FIELDS = Object.freeze({ number: "player-edit-number", name: "player-edit-name" });
 /** The id of the line under the fields, which describes them both. */
 const NOTE_ID = "player-edit-note";
-/** The frame every sheet of a player's wears (player-sheets.css). */
-const FRAME = "g-player-sheet";
 
 /**
  * The edit's form as it stands: why the roster would refuse it (`editRefusal` on the draft: the name first, then the
@@ -132,7 +130,7 @@ export function editSheetMarkup({ line, lines, screen, sheet }) {
   const fix = fixLineMarkup(line, reason || (changed ? t("teamPlayer.fix.saveFirst") : ""));
   return renderSheet({
     id: EDIT_SHEET,
-    className: FRAME,
+    className: PLAYER_FRAME,
     title: t("teamPlayer.edit.title"),
     sub: t("teamPlayer.edit.sub", { position: line.position, race: raceTitleOf(screen.team.baseTeamSlug) }),
     bodyHtml: `${fields}${note}${captain}${sppMarkup(line, screen)}${prep}${alert}${fix}`,
@@ -189,7 +187,7 @@ export function unadvanceSheetMarkup({ line, screen, sheet }) {
   const alert = refusal ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(refusal)}</p>` : "";
   return renderSheet({
     id: UNADVANCE_SHEET,
-    className: FRAME,
+    className: PLAYER_FRAME,
     title: t("teamPlayer.undo.title"),
     sub: t("teamPlayer.undo.sub", { name: line.name, level: index + 1 }),
     bodyHtml: `${rows}<p class="g-unadvance__note">${escapeHtml(undoneWords(last))}</p>${prep}${alert}`,

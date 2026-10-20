@@ -2,14 +2,20 @@
  * «Save» of a player's own sheet (stage 07d; Task 13 fix round 1, M5): his edit (player.mjs) and his fix by hand
  * (fix.mjs) are saved the same way, so the way is here once — the player as the screen stands at the press, why his
  * sheet is closed just now, the form checked on the draft, one step of the queue, a refusal into the sheet, the sheet
- * closed. A module of its own, so that the two that save with it need not import each other.
+ * closed — and both are kept the same way, tied to the player they were seeded from (`seededSheetOf`). A module of its
+ * own, so that the two that save with it need not import each other.
  */
 import { toast } from "../../../components/toast.mjs";
+import { t } from "../../../core/i18n.mjs";
 import { rowsForTeam } from "../../../domain/roster/values.mjs";
 import { closeSheet } from "./injury.mjs";
 import { editClosed } from "./player-access.mjs";
 
-/** The roster's line of `key`, never one of the fallen (whose number, name and armband are history), or null. */
+/**
+ * The roster's line of `key`, never one of the fallen (the dead are neither sold, edited nor advanced: their number,
+ * name, armband and advancements are history), or null. The one home of it (final review M6): the market, the
+ * advancement and a player's own sheets ask it.
+ */
 export const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;
 
 /**
@@ -25,6 +31,27 @@ export function playerAt(now, key) {
   const stored = line ? where.draft.players[line.index] : null;
   if (!stored) return null;
   return { line, stored, where, row: where.race ? rowsForTeam(where.race)[Number(stored.rowIndex)] : null, reason: editClosed(line, where) };
+}
+
+/**
+ * A player's sheet as the screen draws it (player.mjs's `playerSheetOf`), tied to the stored player it was seeded from
+ * (Task 13 fix round 1, M1; final review M1): his edit to his number, name and captaincy, his fix by hand to what it puts
+ * right. While `seedOf` finds him as he was, it stands, saying why «Save» is closed just now (`editClosed`). A read that
+ * changed him — another device's save, or the server's roster after a refusal, which gives up this tab's own steps —
+ * closes it, saying so in the words `changed` names, and nothing is sent: what the sheet holds is absolute, and would put
+ * back what changed. The focus goes back to the pencil (`openerOf`). The draw its own «Save» makes (`sending`) finds him
+ * changed by that very step, and keeps it for `closeSheet`.
+ *
+ * @param {{seed: string, sending?: boolean}} sheet the visit's
+ * @param {import("./model.mjs").PlayerLine} line his, on the roster
+ * @param {{mode: object, lock: string, draft: object}} where
+ * @param {{seedOf: (player: object) => string, changed: string}} tie what he is seeded by, and the dictionary's key for a change
+ * @returns {object|null}
+ */
+export function seededSheetOf(sheet, line, where, { seedOf, changed }) {
+  if (sheet.sending || seedOf(where.draft.players[line.index]) === sheet.seed) return { ...sheet, reason: editClosed(line, where) };
+  toast(t(changed));
+  return null;
 }
 
 /**
@@ -53,8 +80,13 @@ export function savePlayerSheet(saving, { now, refused }, { kind, check, send })
   const { refusal, changed } = check(player, sheet.form);
   if (refusal || !changed) return;
   sheet.sending = true;
-  const answer = send(player, structuredClone(sheet.form), () => editClosed(player.line, now()));
-  sheet.sending = false;
+  let answer;
+  try {
+    answer = send(player, structuredClone(sheet.form), () => editClosed(player.line, now()));
+  } finally {
+    // A step that threw must not leave the sheet `sending`, which would keep it over any change of him.
+    sheet.sending = false;
+  }
   if (answer.refusal) {
     sheet.refusal = answer.refusal;
     draw();

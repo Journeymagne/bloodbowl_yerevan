@@ -21,6 +21,7 @@ import { renderResourceCounter } from "../../../ui/resource-counter.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
 import { racesMarkup } from "../../teams/new.mjs";
+import { prepResetWords } from "../roster/panel.mjs";
 
 export const SETTINGS_SHEET_ID = "team-settings-sheet";
 /** The name's field (TeamNew's), where the focus goes when a save of it starts over. */
@@ -177,12 +178,15 @@ export function settingsSheetMarkup(form) {
   const check = settingsCheck(form);
   // What holds the sheet is said over it; not while its own save is on its way, which is what holds it then.
   const closed = check.closed && !form.pending ? renderCallout({ tone: "warn", title: check.closed }) : "";
+  // During a preparation a save starts its steps over (decision 20, final review I1), as every roster sheet says; the
+  // race, which a preparation closes (K17), says that instead.
+  const prep = form.now.preparing && form.kind !== "race" ? `<p class="g-team-settings__prep">${escapeHtml(prepResetWords("teamSettings.prep"))}</p>` : "";
   // Always on the page, so that a screen reader hears what is put in it.
   const alert = `<div class="g-team-settings__alert" role="alert">${form.refusal ? renderCallout({ tone: "danger", title: form.refusal }) : ""}</div>`;
   return renderSheet({
     id: SETTINGS_SHEET_ID,
     title: KINDS[form.kind].title(),
-    bodyHtml: `<div class="g-team-settings__sheet" data-settings-kind="${escapeHtml(form.kind)}">${closed}${BODIES[form.kind](form, check)}${alert}</div>`,
+    bodyHtml: `<div class="g-team-settings__sheet" data-settings-kind="${escapeHtml(form.kind)}">${closed}${BODIES[form.kind](form, check)}${prep}${alert}</div>`,
     footHtml: footOf(form, check),
     wide: form.kind === "race",
     className: "g-team-settings-sheet",

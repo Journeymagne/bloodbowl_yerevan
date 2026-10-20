@@ -53,6 +53,8 @@ const DAY = "2026-10-18T12:00:00Z";
 const SEASON = { season: { id: "s1", name: "Mock Season", currentRound: 7 }, standings: [] };
 /** What a live match holds the settings with (fix round 1, M-3). */
 const LIVE = "A match is on — the settings wait for its post-match";
+/** What a save of the settings resets during a preparation, the steps as the pre-match names them (final review I1). */
+const PREP_WORDS = "Any save of the settings resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.";
 
 /** Eleven Humans, a legal roster, numbered out of order: six Linemen, a Thrower, two Catchers, two Blitzers; №7 first. */
 const NUMBERS = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10", "11"];
@@ -178,8 +180,8 @@ test("the team page ends with the team's settings, as the builder's team card dr
   assert.equal(rowText("order", fragment), "Roster order · By number");
   assert.equal(rowOf("order", fragment).querySelector(".g-team-settings__note").textContent, "Players in the order of their numbers");
   assert.deepEqual(fragment.querySelectorAll(".g-team-settings__row").map((row) => row.getAttribute("data-settings-row")), ["name", "race", "league", "logo", "fans", "order"]);
-  assert.equal(fragment.querySelector(".g-team-settings__check"), null, "a legal roster breaks nothing");
-  assert.equal(fragment.querySelector(".g-team-settings .g-callout"), null, "nothing holds the settings");
+  assert.ok(!fragment.querySelector(".g-team-settings__check"), "a legal roster breaks nothing");
+  assert.ok(!fragment.querySelector(".g-team-settings .g-callout"), "nothing holds the settings");
   const opens = fragment.querySelectorAll("[data-settings-open]");
   assert.deepEqual(opens.map((button) => button.getAttribute("data-settings-open")), ["name", "race", "fans"]);
   assert.ok(opens.every((button) => button.getAttribute("aria-haspopup") === "dialog" && button.getAttribute("type") === "button" && !button.hasAttribute("aria-disabled")));
@@ -189,7 +191,7 @@ test("the team page ends with the team's settings, as the builder's team card dr
   assert.deepEqual([file.getAttribute("type"), file.getAttribute("accept"), file.getAttribute("class"), file.hasAttribute("disabled")], ["file", "image/png,image/jpeg", "g-sr-only g-team-settings__file", false]);
   assert.equal(fragment.querySelector('label[for="team-settings-logo"]').getAttribute("class"), "g-btn g-team-settings__btn");
   assert.ok(rowOf("logo", fragment).querySelector(".g-team-settings__logo svg"), "no logo: the shield");
-  assert.equal(fragment.querySelector("[data-settings-logo-remove]"), null);
+  assert.ok(!fragment.querySelector("[data-settings-logo-remove]"));
 
   // A god of two or more, a league of two or more, a logo.
   const chosen = mount(manageMarkup(model(TEAMS[1])));
@@ -271,7 +273,7 @@ test("the logo: a file sent at once; one too large or unreadable is said and not
   });
   assert.equal(calls(PATCH).length, 2);
   assert.deepEqual([calls(PATCH)[1].body.logoData, calls(PATCH)[1].body.revision], ["", 4]);
-  assert.equal(rowOf("logo").querySelector("img"), null);
+  assert.ok(!rowOf("logo").querySelector("img"));
   assert.ok(document.activeElement === view.querySelector("input#team-settings-logo"), "the button that held the focus is gone: the file field has it");
 });
 
@@ -406,7 +408,7 @@ test("the race: the sheet lists the races and says the squad leaves; the red but
   const seasoned = mount(manageMarkup(model({ ...TEAMS[0], inActiveSeason: true })));
   assert.equal(rowText("race", seasoned), "Race · Human · Tier 1", "no button in the season");
   assert.equal(rowOf("race", seasoned).querySelector(".g-team-settings__note").textContent, "This team is playing in the current season, so its race cannot be changed.");
-  assert.equal(seasoned.querySelector('[data-settings-open="race"]'), null);
+  assert.ok(!seasoned.querySelector('[data-settings-open="race"]'));
 });
 
 // 07d fidelity F6: TeamNew's button says «Choose a race» until one is picked and names the race once it is; the sheet
@@ -436,12 +438,67 @@ test("a match being prepared closes the race, saying why; the rest stays open (K
   const race = view.querySelector('[data-settings-open="race"]');
   assert.deepEqual([race.getAttribute("aria-disabled"), race.getAttribute("title")], ["true", "A match is being prepared: change the race after it"]);
   assert.equal(view.querySelector('[data-settings-open="name"]').hasAttribute("aria-disabled"), false);
-  assert.equal(view.querySelector(".g-team-settings .g-callout"), null, "a preparation holds the race alone");
+  // A preparation holds the race alone: the section's one callout is what a save resets, nothing held (final review I1).
+  assert.deepEqual(view.querySelectorAll(".g-team-settings .g-callout__title").map((title) => title.textContent), [PREP_WORDS]);
   await withoutTimers(async () => openRow("race"));
   assert.equal(sheetOpen(), false);
   assert.deepEqual(toasts(), ["A match is being prepared: change the race after it"]);
   openRow("name");
   assert.ok(sheetOpen(), "the name may change");
+});
+
+// Final review I1: every PATCH of the team moves its revision, and a preparation not yet in progress is built again
+// from scratch on its next read, for both teams. Decision 20: nothing closes; the words say it before a save.
+test("a preparation: the section and every sheet say what a save resets, before it goes; the page's warning names the settings (I1)", async () => {
+  const prep = () => $(".g-team-settings__prep")?.textContent ?? null;
+  await page("t1", { games: [preparingGame("t1")] });
+  const section = view.querySelector(".g-team-settings");
+  const callout = section.querySelector(".g-callout");
+  assert.equal(callout.querySelector(".g-callout__title").textContent, PREP_WORDS);
+  assert.match(callout.getAttribute("class"), /g-callout--warn/);
+  const all = [...section.walk()];
+  assert.ok(all.indexOf(callout) < all.indexOf(rowOf("logo")) && all.indexOf(callout) < all.indexOf(rowOf("order")), "said over the logo and «By number», which save at the press");
+  for (const selector of ["[data-settings-order]", '[data-settings-open="name"]', '[data-settings-open="fans"]', "#team-settings-logo"]) {
+    assert.equal(view.querySelector(selector).hasAttribute("aria-disabled"), false, `${selector} stays open`);
+  }
+  const warning = view.querySelector(".g-callout__sub").textContent;
+  assert.equal(warning, "A purchase, a change of the treasury or of the team's settings resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
+  for (const [teamId, kind] of [["t1", "name"], ["t1", "fans"], ["t2", "favoured"], ["t4", "league"]]) {
+    await page(teamId, { games: [preparingGame(teamId)] });
+    openRow(kind);
+    assert.ok(sheetOpen(), kind);
+    assert.equal(prep(), PREP_WORDS, `${kind}: as every roster sheet says it (decision 20)`);
+    const body = $(".g-team-settings__sheet").childNodes.filter((node) => node.nodeType === 1);
+    assert.ok(body.at(-2) === $(".g-team-settings__prep"), `${kind}: under what is chosen, over the refusal`);
+    assertStyled(document.querySelector(HOST), SETTINGS, "sheet.css", "button.css", "text-field.css", "option-card.css", "resource-counter.css", "callout.css");
+  }
+  assertReadable(SETTINGS, ".g-team-settings__prep", "color", ["--surface"], 4.5);
+  // A save goes as it would: the preparation starts over on the server, as the words said.
+  await page("t1", { games: [preparingGame("t1")] });
+  openRow("name");
+  type("Ashgrove Rooks");
+  api.reply(PATCH, 200, { team: t1With({ name: "Ashgrove Rooks" }) });
+  await withoutTimers(async () => {
+    fireEvent($("[data-settings-save]"), "click");
+    await settled();
+  });
+  assert.equal(calls(PATCH).length, 1);
+  // No preparation, no words: neither over the rows nor in a sheet.
+  await page("t1");
+  assert.ok(!view.querySelector(".g-team-settings .g-callout"));
+  openRow("name");
+  assert.equal(prep(), null);
+  initLocale("ru");
+  try {
+    await page("t1", { games: [preparingGame("t1")] });
+    const words = "Любая правка настроек сбросит шаги «Состав», «Индусменты» и «Удар / приём». Фанаты и погода сохранятся.";
+    assert.equal(view.querySelector(".g-team-settings .g-callout__title").textContent, words);
+    assert.match(view.querySelector(".g-callout__sub").textContent, /^Покупка, правка казны или настроек команды сбросят шаги/);
+    openRow("fans");
+    assert.equal(prep(), words);
+  } finally {
+    initLocale("en");
+  }
 });
 
 test("a team the season took meanwhile keeps its race: the fresh read says so, and nothing is sent (K17)", async () => {
@@ -457,7 +514,7 @@ test("a team the season took meanwhile keeps its race: the fresh read says so, a
   assert.equal(calls(PATCH).length, 0);
   assert.equal(alertText(), "A team playing in the season keeps its race");
   assert.equal($("[data-settings-race]").hasAttribute("disabled"), true);
-  assert.equal(view.querySelector('[data-settings-open="race"]'), null, "the page now shows the team in the season");
+  assert.ok(!view.querySelector('[data-settings-open="race"]'), "the page now shows the team in the season");
   assert.equal(rowOf("race").querySelector(".g-team-settings__note").textContent, en["roster.raceLockedInSeason"]);
 });
 
@@ -494,7 +551,7 @@ test("settings wait for the roster's queue: a step waiting closes every save of 
   // The queue saves its step: the settings open.
   api.reply(PATCH, 200, { team: t1With({}, { players: SQUAD.map((player, at) => (at ? player : { ...player, spp: { touchdowns: 1 } })) }) });
   assert.equal(await save.retrySaves("t1"), "saved");
-  assert.equal(view.querySelector(".g-team-settings .g-callout"), null);
+  assert.ok(!view.querySelector(".g-team-settings .g-callout"));
   assert.ok(view.querySelectorAll(".g-team-settings .g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
   assert.equal(view.querySelector("input#team-settings-logo").hasAttribute("aria-disabled"), false);
   openRow("name");
@@ -600,7 +657,7 @@ test("leaving the page during the race's read takes the press back: nothing is s
     await waitHeld(read);
     releaseCurrentScreen();
     view.innerHTML = "<p>next</p>";
-    assert.equal(document.querySelector(HOST), null, "the sheet went with the page");
+    assert.ok(!document.querySelector(HOST), "the sheet went with the page");
     read.release();
     await settled();
   });
@@ -676,7 +733,60 @@ test("a logo the server refuses as too large is said in its words (M-6)", async 
   });
   assert.equal(calls(PATCH).length, 1);
   assert.equal(toasts().at(-1), en["error.LOGO_TOO_LARGE"]);
-  assert.equal(rowOf("logo").querySelector("img"), null, "the logo is as it was");
+  assert.ok(!rowOf("logo").querySelector("img"), "the logo is as it was");
+});
+
+// Final review M2: the server holds a favoured skill a roll on the site was rerolled against (`checkKeptRerolls`); the
+// god's change that takes it off is refused, and it is no advancement's to word.
+test("a god's change the server refuses for a roll on the site is said in the settings' words, not the advancement's (M2)", async () => {
+  await page("t2");
+  openRow("favoured");
+  fireEvent($('[data-option-value="Slaanesh"]'), "click");
+  api.reply("PATCH /api/teams/t2", 422, { error: { code: "DICE_ROLL_MISMATCH", params: {}, message: "x" } });
+  await withoutTimers(async () => {
+    fireEvent($("[data-settings-save]"), "click");
+    await settled();
+  });
+  assert.equal(calls("PATCH /api/teams/t2").length, 1);
+  assert.equal(alertText(), "A roll on the site was rerolled against a favoured skill this change takes off: that skill stays, so nothing was saved.");
+  assert.ok(!alertText().includes(en["error.DICE_ROLL_MISMATCH"]));
+  assert.ok(sheetOpen(), "the sheet stays, with the god chosen");
+  assert.equal($('[data-option-value="Slaanesh"]').getAttribute("aria-checked"), "true");
+  assert.equal(ru["teamSettings.refusal.DICE_ROLL_MISMATCH"], "Против избранного навыка, который снимает эта правка, переброшен бросок с сайта: навык остаётся, поэтому ничего не сохранено.");
+  // Any other refusal of the server's own is said as every save says it.
+  api.reply("PATCH /api/teams/t2", 422, { error: { code: "STAGE_PURCHASE_LOCKED", params: {}, message: "x" } });
+  await withoutTimers(async () => {
+    fireEvent($("[data-settings-save]"), "click");
+    await settled();
+  });
+  assert.equal(alertText(), en["error.STAGE_PURCHASE_LOCKED"]);
+});
+
+// Final review M3: the server never forced a roster's `teamSlug` to its column. A team stored so — an old import, a
+// content rename — saves as it did before stage 07d: the guard asks the stored roster's race, not the column's.
+test("a team whose stored roster names another race than its column still saves: a resource of stage 08, a setting (M3)", async () => {
+  const legacy = t1With({ revision: 3 }, { teamSlug: "teams/humans" });
+  await page("t1", { teams: [legacy, ...TEAMS.slice(1)] });
+  const roster = (call) => [call.body.baseTeamSlug, call.body.roster.teamSlug];
+  api.reply(PATCH, 200, { team: t1With({ revision: 4 }, { teamSlug: HUMAN, cheerleaders: 1, treasury: 60 }) });
+  await withoutTimers(async () => {
+    fireEvent(view.querySelector('[data-resource-key="cheerleaders"] [data-resource-step="1"]'), "click");
+    await settled();
+  });
+  assert.equal(calls(PATCH).length, 1, "the resource's save goes, as before 07d");
+  assert.deepEqual(roster(calls(PATCH)[0]), [HUMAN, HUMAN], "under the team's race, as every save of the team page writes it");
+  assert.equal(calls(PATCH)[0].body.roster.cheerleaders, 1);
+  assert.ok(!toasts().some((said) => said.includes("saveTeamRoster")), "no developer's words");
+  await page("t1", { teams: [legacy, ...TEAMS.slice(1)] });
+  api.reply(PATCH, 200, { team: t1With({ name: "Ashgrove Rooks", revision: 4 }) });
+  openRow("name");
+  type("Ashgrove Rooks");
+  await withoutTimers(async () => {
+    fireEvent($("[data-settings-save]"), "click");
+    await settled();
+  });
+  assert.equal(calls(PATCH).length, 1, "a setting's save goes too");
+  assert.equal(calls(PATCH)[0].body.name, "Ashgrove Rooks");
 });
 
 test("a 409: the team as the server holds it, and the words to look and save again", async () => {
@@ -703,7 +813,7 @@ test("a match on closes them, saying why; another tab's coach sends nothing", as
   await page("t1", { games: [liveGame("t1")] });
   const callout = view.querySelector(".g-team-settings .g-callout");
   assert.equal(callout.querySelector(".g-callout__title").textContent, LIVE);
-  assert.equal(callout.querySelector("a"), null, "the page's own callout says where the match is");
+  assert.ok(!callout.querySelector("a"), "the page's own callout says where the match is");
   const buttons = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
   assert.ok(buttons.length >= 5 && buttons.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === LIVE));
   const file = view.querySelector("input#team-settings-logo");
@@ -767,19 +877,19 @@ test("on a desk the settings are a card across the page under the columns (DeskR
   }
   // A block after the columns of a column of blocks spans the page: the section is not one of the columns' grid areas.
   assert.deepEqual(valuesOf("src/screens/team/manage/manage.css", ".g-manage", "flex-direction"), ["column"]);
-  assert.equal(mount(manageMarkup(model(TEAMS[0]))).querySelector(".g-manage__cols .g-team-settings"), null);
+  assert.ok(!mount(manageMarkup(model(TEAMS[0]))).querySelector(".g-manage__cols .g-team-settings"));
 });
 
 test("names are text", async () => {
   const team = { ...TEAMS[0], name: HOSTILE, logoData: HOSTILE };
   const fragment = mount(manageMarkup(model(team)));
-  assert.equal(fragment.querySelector(".g-team-settings img"), null, "a logo that is no picture is not drawn");
+  assert.ok(!fragment.querySelector(".g-team-settings img"), "a logo that is no picture is not drawn");
   assert.equal(rowOf("name", fragment).querySelector("b").textContent, HOSTILE);
   assertCspSafe(fragment);
   await page("t1", { teams: [team, ...TEAMS.slice(1)] });
   openRow("name");
   assert.equal($("#team-settings-name").value, HOSTILE);
-  assert.equal(document.querySelector(HOST).querySelector("img"), null);
+  assert.ok(!document.querySelector(HOST).querySelector("img"));
   assertCspSafe(document.querySelector(HOST));
 });
 

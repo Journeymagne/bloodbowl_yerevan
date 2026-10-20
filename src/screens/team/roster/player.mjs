@@ -14,11 +14,12 @@
 import { t } from "../../../core/i18n.mjs";
 import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
+import { identityOf } from "../../../domain/roster/edits.mjs";
 import { advanceHandlers, advanceSheetOf, bonusOf } from "./advance.mjs";
 import { fixHandlers, fixSheetOf } from "./fix.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
-import { editClosed, gaveWords, undoClosed } from "./player-access.mjs";
-import { playerAt, rosterLineOf, savePlayerSheet } from "./player-save.mjs";
+import { gaveWords, undoClosed } from "./player-access.mjs";
+import { playerAt, rosterLineOf, savePlayerSheet, seededSheetOf } from "./player-save.mjs";
 import { editCheck } from "./player-sheets.mjs";
 import { siteRollOf } from "./roll-view.mjs";
 import { readRolls } from "./rolls.mjs";
@@ -45,10 +46,11 @@ function undoSheetOf(sheet, line, where) {
 /**
  * A player's sheet as the screen draws it, or null when it stands no longer: his line has left the roster (read again,
  * or fallen), or a match has begun (R8) — the screen closes it, and the focus goes back to his pencil, his
- * «Advancement» or his «Undo the last», closed now (`openerOf`). The edit says why «Save» is closed just now
- * (`editClosed`: the screen's lock); the fix by hand too, while he is as it was seeded from (fix.mjs's `fixSheetOf`);
- * his advancement is advance.mjs's to keep (`advanceSheetOf`); the undo stands while the advancement it showed is still
- * his last (`undoSheetOf`), saying why it is closed (`undoClosed`).
+ * «Advancement» or his «Undo the last», closed now (`openerOf`). The edit stands while his number, name and captaincy
+ * are as it was seeded from (final review M1), and the fix by hand while he is as it was seeded from (fix.mjs's
+ * `fixSheetOf`), each saying why «Save» is closed just now (`editClosed`: the screen's lock) — the same tie
+ * (player-save.mjs's `seededSheetOf`); his advancement is advance.mjs's to keep (`advanceSheetOf`); the undo stands
+ * while the advancement it showed is still his last (`undoSheetOf`), saying why it is closed (`undoClosed`).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines the roster's lines and the fallen
@@ -62,7 +64,7 @@ export function playerSheetOf(visit, lines, where) {
   if (sheet.kind === "advance") return advanceSheetOf(sheet, line, where);
   if (sheet.kind === "unadvance") return undoSheetOf(sheet, line, where);
   if (sheet.kind === "fix") return fixSheetOf(sheet, line, where);
-  return sheet.kind === "edit" ? { ...sheet, reason: editClosed(line, where) } : null;
+  return sheet.kind === "edit" ? seededSheetOf(sheet, line, where, { seedOf: identityOf, changed: "teamPlayer.edit.changed" }) : null;
 }
 
 /**
@@ -105,8 +107,12 @@ function sendUndo(saving, { now, refused }) {
   }
   const what = gaveWords(line.advancements[sheet.index]);
   sheet.sending = true;
-  const answer = undoAdvancement(teamId, line.id, { closed: () => undoClosed(line, now()) });
-  sheet.sending = false;
+  let answer;
+  try {
+    answer = undoAdvancement(teamId, line.id, { closed: () => undoClosed(line, now()) });
+  } finally {
+    sheet.sending = false;
+  }
   if (answer.refusal) {
     sheet.refusal = answer.refusal;
     draw();
@@ -245,7 +251,8 @@ export function playerHandlers(saving, lent) {
       if (player?.reason) toast(player.reason);
       else if (player) {
         const { number, name, captain } = player.line;
-        Object.assign(visit, { sheet: { kind: "edit", key, form: { number, name, captain }, refusal: "" }, opener: button });
+        // Tied to him as he is now (final review M1): its three values are absolute, and a save of them must never put back another device's change.
+        Object.assign(visit, { sheet: { kind: "edit", key, form: { number, name, captain }, seed: identityOf(player.stored), refusal: "" }, opener: button });
         draw();
       }
     },

@@ -315,7 +315,7 @@ test("taken: one PATCH of the whole roster, the done step at once — what he go
       assert.equal(done().querySelector(".g-advance__donetitle").textContent, "Diving Catch");
       assert.equal(done().querySelector(".g-advance__how").textContent, "Chosen primary skill · Agility");
       assert.deepEqual(tiles(), [["SPP", "−8"], ["Value", "+20k"], ["Advancements", "2 / 6"]]);
-      assert.equal(done().querySelector(".g-advance__elite"), null);
+      assert.ok(!done().querySelector(".g-advance__elite"));
       const status = done().querySelector(".g-advance__status");
       assert.equal(status.getAttribute("role"), "status");
       assert.equal(status.textContent, "Saving…");
@@ -494,7 +494,7 @@ test("on a desk the same advancement in three columns: the type, the category, t
     assert.deepEqual(categories().map(catWords), [["Agility", "12 of 14 available"], ["General", "15 of 16 available"]], "Frenzy is his");
     assert.deepEqual(empty(), ["", "", "Choose a category"]);
     assert.equal(summary(), "Chosen primary — 8 SPP", "the type short, as DeskRosterAdv's summary (fidelity F3)");
-    assert.equal(sheet().querySelector(".g-advance__hint"), null, "a desk's columns say it without the phone's line");
+    assert.ok(!sheet().querySelector(".g-advance__hint"), "a desk's columns say it without the phone's line");
     choose(category("Agility"));
     assert.deepEqual(empty(), ["", "", ""]);
     assert.equal(summary(), "Chosen primary · Agility — 8 SPP");
@@ -518,10 +518,10 @@ test("on a desk the same advancement in three columns: the type, the category, t
     fireEvent(take(), "click");
     assert.equal(done().querySelector(".g-advance__donetitle").textContent, "Cade gets Diving Catch");
     assert.equal(done().querySelector(".g-advance__how").textContent, "Chosen primary · Agility · −8 SPP · value +20k", "DeskRosterAdv's done line, the type short");
-    assert.equal(done().querySelector(".g-advance__tiles"), null, "DeskRosterAdv.html's line, not a phone's tiles");
+    assert.ok(!done().querySelector(".g-advance__tiles"), "DeskRosterAdv.html's line, not a phone's tiles");
     assert.equal(sub(), "19 SPP available · advancement 2 of 6 · Catcher", "the advancement taken, as advDone says it");
     assert.equal(summary(), "Saving…");
-    assert.equal(sheet().querySelector("[data-advance-keep]"), null, "no «Cancel» once done");
+    assert.ok(!sheet().querySelector("[data-advance-keep]"), "no «Cancel» once done");
     assert.equal(doneButton().textContent, "Done");
     assert.ok(document.activeElement === doneButton());
     await settle();
@@ -551,7 +551,7 @@ test("«Advance» on a desk is closed when no advancement is within his SPP, say
     fireEvent(closed, "click");
     assert.equal(toasts().at(-1), "3 more SPP needed");
     assert.ok(!sheet(), "no sheet");
-    assert.equal(aside().querySelector("a"), null, "no link to his page in the panel");
+    assert.ok(!aside().querySelector("a"), "no link to his page in the panel");
     assertStyled(view, ...ADVANCE_STYLES);
   });
 });
@@ -700,11 +700,41 @@ test("offers not known yet (no Skill Table): the types plain, with no price and 
     fireEvent(advance(), "click");
     choose(typeCard("primary"));
     const second = sheet().querySelectorAll(".g-advance__col")[1];
-    assert.equal(second.querySelector(".g-advance__cats"), null);
+    assert.ok(!second.querySelector(".g-advance__cats"));
     assert.ok(second.getAttribute("class").includes("g-advance__col--empty"));
     assert.equal(second.querySelector(".g-advance__empty").textContent, "Choose the type of advancement first");
     assert.ok(take().hasAttribute("disabled"));
     assertStyled(view, ...ADVANCE_STYLES);
+  });
+});
+
+// Final review M4 (decision 4): the sheet spends the roster's own SPP, as its types are priced; the career counts the rows
+// of a match given up, which wait for a post-match, and stays the profile's.
+test("the SPP the sheet says are the roster's it spends, not the career with rows waiting for a post-match; offers unknown too (M4)", async () => {
+  await withoutTimers(async () => {
+    const opened = async (phone, { unknown = false } = {}) => {
+      coach({ teamAnswer: withOne(ANN), open: phone ? null : "p1#0" });
+      // A match given up: two touchdowns of Ann's wait for its post-match (6 SPP the roster does not hold yet).
+      const touchdown = (id) => ({ id, playerId: "p1", counter: "touchdowns", delta: 1, pairingId: "g9", settledAt: null, injury: null });
+      api.reply("GET /api/teams/t1/events", 200, { events: [touchdown("e1"), touchdown("e2")], revision: 4 });
+      if (unknown) state.data = { ...state.data, skillGroups: undefined };
+      if (phone) await playerPage("p1");
+      else await renderTeamRoster("t1");
+      fireEvent(advance(), "click");
+    };
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        for (const unknown of [false, true]) {
+          await opened(phone, { unknown });
+          assert.equal(sub(), phone ? "30 SPP available · advancement 1 of 6" : "30 SPP available · advancement 1 of 6 · Human Lineman", `unknown offers: ${unknown}`);
+        }
+      });
+    }
+    // The career is still what the profile counts: the rows waiting are his.
+    await withWindow({ phone: true }, async () => {
+      await opened(true);
+      assert.ok(view.querySelector(".g-profile").textContent.includes("36"), "the profile's SPP: the career");
+    });
   });
 });
 

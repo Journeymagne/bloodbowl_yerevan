@@ -24,7 +24,7 @@ import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
-import { ADVANCEMENT_TYPES } from "../../../domain/roster/progression.mjs";
+import { ADVANCEMENT_TYPES, playerSppTotal } from "../../../domain/roster/progression.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { icon } from "../../../ui/icons.mjs";
 import { classNames, dataAttributes } from "../../../ui/markup.mjs";
@@ -37,10 +37,8 @@ import { radioGroupMarkup } from "./radio-group.mjs";
 import { randomRollMarkup, rollButtonMarkup, statRollMarkup } from "./roll-view.mjs";
 import { rollAsking } from "./rolls.mjs";
 import { refusalWordsOf } from "./save.mjs";
-import { ADVANCE_SHEET, footButton } from "./sheets.mjs";
+import { ADVANCE_SHEET, PLAYER_FRAME, footButton } from "./sheets.mjs";
 
-/** The frame every sheet of a player's wears (player-sheets.css). */
-const FRAME = "g-player-sheet";
 /** The Skill Table's categories with a colour of their own (`--cat-*`). */
 const COLOURED = Object.freeze(["agility", "devious", "general", "mutation", "passing", "strength"]);
 /** Each step's dot on a phone; done fills them all. */
@@ -213,8 +211,16 @@ function takeMarkup(sheet, choices, { desk = false } = {}) {
   return footButton({ label: chosen ? takeLabel(chosen) : waitLabel(sheet, desk), kind: "primary", data: { advanceTake: true }, disabled: !reason && !chosen, reason });
 }
 
+/**
+ * His SPP the advancement spends (decision 4; final review M4): the roster's own, which its types are priced on
+ * (`offers.available`), never the career, which counts rows still waiting for a post-match. Offers not known yet (K28):
+ * the same, from the roster's own counters.
+ * @param {import("./model.mjs").PlayerLine} line @param {object} race
+ */
+const spendable = (line, race) => line.offers?.available ?? playerSppTotal(race, { spp: line.blob }) - line.spent;
+
 /** A phone's title and the line under it, by its step (Adv2Category…Adv3Stat; a skill in place of a characteristic, DeskRosterAdvStat's words). */
-function phoneHead(line, sheet, choices) {
+function phoneHead(line, screen, sheet, choices) {
   const cost = choices.offer?.cost ?? "";
   if (sheet.step === "done") return [t("teamAdvance.doneTitle"), line.name];
   if (sheet.step === "category") {
@@ -222,7 +228,7 @@ function phoneHead(line, sheet, choices) {
   }
   if (sheet.step === "skill") return [sheet.type === "random" ? t("teamAdvance.randomTitle") : t("teamAdvance.skillTitle"), t("teamAdvance.skillSub", { category: sheet.category, cost })];
   if (sheet.step === "stat") return [t("teamAdvance.statTitle"), t("teamAdvance.statSubLine", { cost })];
-  return [t("teamAdvance.title"), t("teamAdvance.sub", { spp: line.available, next: line.level + 1 })];
+  return [t("teamAdvance.title"), t("teamAdvance.sub", { spp: spendable(line, screen.race), next: line.level + 1 })];
 }
 
 /** A rolled step's button on a phone (Adv3Random, Adv3Stat): «Roll D16» or «Roll D8» on the site until the die is in, then «Take»'s. */
@@ -265,12 +271,12 @@ function phoneParts(line, screen, sheet, choices) {
  * its place — and «Back» past the first, unless the die has come up (`stepBefore`).
  */
 function phoneMarkup(line, screen, sheet, choices) {
-  const [title, sub] = phoneHead(line, sheet, choices);
+  const [title, sub] = phoneHead(line, screen, sheet, choices);
   const [bodyHtml, footHtml] = phoneParts(line, screen, sheet, choices);
   const total = sheet.type === "stat" && !sheet.instead ? 2 : 3;
   return renderSheet({
     id: ADVANCE_SHEET,
-    className: FRAME,
+    className: PLAYER_FRAME,
     title,
     sub,
     step: { current: PLACES[sheet.step] ?? total, total },
@@ -332,9 +338,9 @@ function deskMarkup(line, screen, sheet, choices) {
     : `<p class="g-advance__summary">${escapeHtml(summaryWords(sheet, choices))}</p>`;
   return renderSheet({
     id: ADVANCE_SHEET,
-    className: FRAME,
+    className: PLAYER_FRAME,
     title: t("teamAdvance.titleDesk", { name: line.name }),
-    sub: t("teamAdvance.subDesk", { spp: line.available, next: line.level + (done ? 0 : 1), position: line.position }),
+    sub: t("teamAdvance.subDesk", { spp: spendable(line, screen.race), next: line.level + (done ? 0 : 1), position: line.position }),
     leadHtml: renderPlayerBadge({ number: line.number, kind: line.kind }),
     bodyHtml: `${done ? `${doneMarkup(line, screen, sheet.taken)}${favouredMarkup(sheet, bonusOf(line, screen))}` : columns}${linesMarkup(screen, sheet)}`,
     footStartHtml: summary,

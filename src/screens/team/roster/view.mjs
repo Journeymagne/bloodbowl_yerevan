@@ -23,7 +23,7 @@
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { postMatchUrl, preMatchUrl } from "../../../core/routes.mjs";
+import { postMatchUrl, preMatchUrl, teamUrl } from "../../../core/routes.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
@@ -347,8 +347,21 @@ function layoutMarkup(screen) {
     ? `<aside class="g-roster__aside" id="${ASIDE_ID}" aria-label="${escapeHtml(t("teamRoster.panelLabel"))}"${dataAttributes({ panelPlayer: chosen.key })}>`
       + `${chosen.fallen ? fallenPanelMarkup(chosen, screen) : sidePanelMarkup(chosen, screen)}</aside>`
     : "";
-  const main = `${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__sections">${sections.join("")}</div>${lines.length || fallen.length ? captionMarkup(screen) : ""}`;
+  // A desk drawn for a player's address that names nobody it holds says so over the table (M5), as a phone's page does.
+  const gone = screen.player && ![...lines, ...fallen].some((line) => line.id === screen.player) ? goneMarkup(screen.teamId) : "";
+  const main = `${gone}${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__sections">${sections.join("")}</div>${lines.length || fallen.length ? captionMarkup(screen) : ""}`;
   return `<div class="g-roster__layout"><div class="g-roster__main">${main}</div>${aside}</div>`;
+}
+
+/**
+ * An address whose player the roster holds nowhere — neither among those who play nor among the fallen (decision 1): he
+ * is no longer on the roster, and the way back to it. A phone says it under his page's head (profile.mjs); a desk over
+ * the table it draws in his place (final review M5).
+ * @param {string} teamId
+ */
+export function goneMarkup(teamId) {
+  const actionHtml = `<a class="g-roster__calloutlink" href="${escapeHtml(teamUrl(teamId, "roster"))}">${escapeHtml(t("teamRoster.fallen.toRoster"))}</a>`;
+  return renderCallout({ title: t("teamPlayer.gone"), actionHtml });
 }
 
 /** A fault in place of the table, in a danger callout; a read that failed offers to read again. */

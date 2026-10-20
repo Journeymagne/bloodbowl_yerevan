@@ -186,6 +186,28 @@ test("a draft of another race than its save sends throws and sends nothing: a ra
   assert.deepEqual([api.calls.length, treasury.isWriting("t1")], [0, false]);
 });
 
+// Final review M3: the guard asks the race of the roster stored, not the team's column, which the server never forced
+// the roster to match: a team stored with another slug in its roster saves as before 07d.
+test("a team whose stored roster names another race than its column saves its own roster; a race changed without its race still throws", async () => {
+  coach();
+  const legacy = { ...structuredClone(TEAM), roster: { ...TEAM.roster, teamSlug: "teams/humans" } };
+  state.myTeams.items = [state.myTeams.items[0], legacy];
+  api.reply("PATCH /api/teams/t1", 200, { team: { ...legacy, revision: 4 } });
+  api.reply(FIRST_PAGE, 200, { entries: [], next: null, since: null, total: 0 });
+  // Stage 08's resources: the stored roster with one more cheerleader, no identity.
+  assert.deepEqual(await treasury.saveTeamRoster("t1", { ...legacy.roster, cheerleaders: 2 }), { team: { ...legacy, revision: 4 } });
+  const { body } = api.calls.filter((call) => call.key === "PATCH /api/teams/t1").at(-1);
+  assert.deepEqual([body.baseTeamSlug, body.roster.teamSlug, body.roster.cheerleaders], ["teams/human", "teams/human", 2], "under the team's race, as before 07d");
+  await settle();
+  state.myTeams.items = [state.myTeams.items[0], legacy];
+  const undead = { ...legacy.roster, teamSlug: "teams/shambling-undead", players: [] };
+  for (const identity of [undefined, { name: "Rooks" }]) {
+    assert.throws(() => treasury.saveTeamRoster("t1", undead, identity), TypeError, "a draft of another race than the stored roster's");
+  }
+  assert.throws(() => treasury.saveTeamRoster("t1", { ...legacy.roster, teamSlug: "teams/human" }), TypeError, "nor the column's, where the roster names its own");
+  assert.equal(api.calls.filter((call) => call.key === "PATCH /api/teams/t1").length, 1);
+});
+
 test("a logo given goes in place of the team's, never inside the roster; an empty one takes it off", async () => {
   const body = await savedBody({ logoData: "data:image/png;base64,BB" });
   assert.deepEqual(sent(body), ["Wardens", "teams/human", "data:image/png;base64,BB", 3, "Wardens", "teams/human", 70]);

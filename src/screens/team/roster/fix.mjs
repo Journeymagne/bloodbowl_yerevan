@@ -28,14 +28,11 @@ import { renderResourceCounter } from "../../../ui/resource-counter.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { closeSheet } from "./injury.mjs";
 import { prepResetWords } from "./panel.mjs";
-import { editClosed } from "./player-access.mjs";
-import { playerAt, savePlayerSheet } from "./player-save.mjs";
+import { playerAt, savePlayerSheet, seededSheetOf } from "./player-save.mjs";
 import { editCheck } from "./player-sheets.mjs";
 import { fixPlayer, refusalWordsOf } from "./save.mjs";
-import { FIX_SHEET, footButton } from "./sheets.mjs";
+import { FIX_SHEET, PLAYER_FRAME, footButton } from "./sheets.mjs";
 
-/** The frame every sheet of a player's wears (player-sheets.css). */
-const FRAME = "g-player-sheet";
 /** What a counter of the fix is reported by (wireResourceCounters): `fix:niggling`, `fix:contracts`, `fix:stat:<stat>`. */
 const STAT_KEY = "fix:stat:";
 
@@ -66,20 +63,13 @@ const seedOf = (player) => JSON.stringify([
 ]);
 
 /**
- * The fix by hand as the screen draws it (player.mjs's `playerSheetOf`), or null: while the stored player is the one
- * it was seeded from, it says why «Save» is closed just now (`editClosed`). A read that changed him — another device's
- * save, or the server's roster after a refusal, which gives up this tab's own steps — closes it, saying so, and nothing
- * is sent: its counts would put back what changed. The focus goes back to the pencil (`openerOf`). The draw its own
- * «Save» makes (`sending`) finds him changed by that very step, and keeps it for `closeSheet`.
+ * The fix by hand as the screen draws it (player.mjs's `playerSheetOf`), or null: tied to the player it was seeded from
+ * (`seedOf`), as his edit is (player-save.mjs's `seededSheetOf`) — its counts would put back what another device changed.
  *
  * @param {object} sheet the visit's @param {import("./model.mjs").PlayerLine} line his, on the roster
  * @param {{mode: object, lock: string, draft: object}} where
  */
-export function fixSheetOf(sheet, line, where) {
-  if (sheet.sending || seedOf(where.draft.players[line.index]) === sheet.seed) return { ...sheet, reason: editClosed(line, where) };
-  toast(t("teamPlayer.fix.changed"));
-  return null;
-}
+export const fixSheetOf = (sheet, line, where) => seededSheetOf(sheet, line, where, { seedOf, changed: "teamPlayer.fix.changed" });
 
 /**
  * The fix as it stands on the draft (`applyFix` on a copy): why the roster would refuse it, whether it changes anything,
@@ -221,7 +211,7 @@ export function fixSheetMarkup({ line, screen, sheet }) {
   const alert = said ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(said)}</p>` : "";
   return renderSheet({
     id: FIX_SHEET,
-    className: FRAME,
+    className: PLAYER_FRAME,
     title: t("teamPlayer.fix.title"),
     sub: t("teamPlayer.fix.sub"),
     bodyHtml: `${blocks.join("")}${valueMarkup(line.value, playerCurrentCost(fix.row, fix.after))}${prep}${alert}`,
