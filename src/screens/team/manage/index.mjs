@@ -204,5 +204,5 @@ export async function renderTeamManage(teamId, { settings = false } = {}) {
   draw();
   // The reads drew the history, and perhaps a callout, over the desk's card: one the focus is still on is put in view again (T36 m3).
   const title = view.querySelector("#team-settings-title");
-  if (here && settings && title && document.activeElement === title) title.scrollIntoView?.({ block: "nearest" });
+  if (here && settings && !isPhone() && title && document.activeElement === title) title.scrollIntoView?.({ block: "nearest" });
 }

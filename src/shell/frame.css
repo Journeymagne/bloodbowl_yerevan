@@ -82,7 +82,10 @@ html { scrollbar-gutter: stable; }
    * reaches above the view (Shift+Tab) is scrolled to stand under it, not behind it (WCAG 2.4.11).
    */
   html { scroll-padding-top: 110px; }
-  /* A drilled-into address (a player's, the team's settings) has no header: the screen's own head sticks there instead, the player's the taller, up to 150px with a name on two lines. */
+  /*
+   * A drilled-into address (a player's or the team's settings) has no header: the screen's own head sticks there
+   * instead. The padding is the larger of the two heads, the player's, up to 150px with a name on two lines.
+   */
   :root:has(.g-frame[data-drill]) { scroll-padding-top: 150px; }
 }
 
@@ -97,7 +100,10 @@ html { scrollbar-gutter: stable; }
   .g-main__footer { display: none; }
 }
 
-/* A player's address and the team's settings are drilled into (owner, 2026-10-19 and 2026-10-20): no header band; the screen draws its own head with «‹». */
+/*
+ * A player's address or the team's settings is drilled into (owner, 2026-10-19 and 2026-10-20): no header
+ * band; the screen draws its own head with «‹».
+ */
 .g-frame[data-drill] .g-appbar { display: none; }
 
 /* A page with a frame of its own: the whole width, nothing of the shell, and its own top and sides. */

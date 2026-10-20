@@ -147,7 +147,7 @@ const drawn = (form) => moneySheetMarkup({ form, treasury: treasuryOf(form.teamI
 /** One controller per host, so that opening and wiring a host, which are two calls, meet the same form. */
 const controllers = new WeakMap();
 function controllerOf(host) {
-  if (!controllers.has(host)) controllers.set(host, sheetController(host, { id: MONEY_SHEET_ID, markup: drawn }));
+  if (!controllers.has(host)) controllers.set(host, sheetController(host, { id: MONEY_SHEET_ID, markup: drawn, openerKey: "data-treasury-money" }));
   return controllers.get(host);
 }
 

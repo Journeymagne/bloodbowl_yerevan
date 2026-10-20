@@ -19,7 +19,7 @@
  * would wait for ever: the page says so and leads there (K14). Once he is back the page says so, with the way back to
  * the roster.
  */
-import { delegate, drawScreen, escapeHtml } from "../../../core/dom.mjs";
+import { delegate, drawScreen, escapeHtml, focusLost } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { teamUrl } from "../../../core/routes.mjs";
 import { onScreenLeave } from "../../../core/screen-lifecycle.mjs";
@@ -244,8 +244,7 @@ function drawPage(page) {
     title?.focus();
     return;
   }
-  const active = document.activeElement;
-  if (inside && (!active || active === document.body || !active.isConnected)) (view.querySelector(`.${ROSTER_LINK}`) ?? title)?.focus();
+  if (inside && focusLost(document.activeElement)) (view.querySelector(`.${ROSTER_LINK}`) ?? title)?.focus();
 }
 
 /**

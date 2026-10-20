@@ -7,8 +7,9 @@
  * come from it. The caller puts the result in `#app-header`, which carries the
  * `g-appbar` class and the folding (app-header.css). A page that brings its own
  * frame (sign-in) is `bare` and has no header, nor has an address that is
- * drilled into (`drill`: a player's, the team's settings): its screen draws its
- * own head.
+ * drilled into (`drill`: a player's or the team's settings): its screen draws
+ * its own head, and the page's `scroll-padding-top` (frame.css) is the larger
+ * of the two heads, the player's, up to 150px.
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";

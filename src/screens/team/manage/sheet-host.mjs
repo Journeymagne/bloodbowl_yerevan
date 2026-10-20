@@ -12,8 +12,10 @@
  */
 import { patchWithModal } from "../../../components/dialog.mjs";
 import { toast } from "../../../components/toast.mjs";
+import { focusLost } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
+import { view } from "../../../core/view.mjs";
 import { isWriting } from "../../../data/treasury.mjs";
 
 /**
@@ -41,6 +43,24 @@ export function unmountSheetHost(host) {
 }
 
 /**
+ * The focus back to the button that opened a sheet, if the page still shows it. A sheet that names its openers'
+ * attribute (`openerKey`: the money sheet's `data-treasury-money`, the team it writes to) finds another when a redraw
+ * took that button away or a width that crossed 900px hid it (the desk strip's pencil and the phone card's «+ Add» and
+ * «− Take» all stay in the page, each shown on one width): the first shown button of the same team, else the page's
+ * h1, never the body. A sheet with none (the settings find their own place) gives it only to the button itself.
+ * @param {Element} back @param {string} openerKey
+ */
+function giveFocusBack(back, openerKey) {
+  if (!focusLost(back)) back.focus();
+  else if (openerKey) {
+    const team = back.getAttribute(openerKey);
+    const shown = [...view.querySelectorAll(`[${openerKey}]`)]
+      .find((button) => button.getAttribute(openerKey) === team && !focusLost(button));
+    (shown ?? view.querySelector("h1"))?.focus();
+  }
+}
+
+/**
  * One sheet in one host. The form is the sheet's own object (`teamId`, `pending` and `refusal` among its fields);
  * the controller never looks inside it but for those three, and `markup(form)` draws it from whatever the page holds
  * at that moment (the treasury, a match that has gone live), so every redraw is current. `opened` counts the
@@ -50,8 +70,9 @@ export function unmountSheetHost(host) {
  * @param {object} options
  * @param {string} options.id the id of the dialog `markup` draws
  * @param {(form: object) => string} options.markup the sheet, closed (`patchWithModal` opens it)
+ * @param {string} [options.openerKey] the attribute its openers carry, to find one again (`giveFocusBack`)
  */
-export function sheetController(host, { id, markup }) {
+export function sheetController(host, { id, markup, openerKey = "" }) {
   let form = null;
   let opener = null;
   let opened = 0;
@@ -76,7 +97,7 @@ export function sheetController(host, { id, markup }) {
     redraw();
   }
 
-  /** The form is forgotten, the dialog goes, and the focus goes back to the button that opened it, if that is still on the page. */
+  /** The form is forgotten, the dialog goes, and the focus goes back to the button that opened it (`giveFocusBack`). */
   function close() {
     if (!form) return;
     form = null;
@@ -84,7 +105,7 @@ export function sheetController(host, { id, markup }) {
     patchWithModal(host, "");
     const back = opener;
     opener = null;
-    if (back?.isConnected) back.focus();
+    if (back) giveFocusBack(back, openerKey);
   }
 
   function open(next, from = null) {

@@ -582,6 +582,40 @@ test("the team page across 900px: a focus on what the other width's stylesheet h
   });
 });
 
+// T37 review m4: the money sheet's openers stay in the page on both widths, each hidden on one (strip.css, manage.css).
+test("a money sheet closed after the width crossed gives the focus to a button the width shows that opens it, else the page's title, never the body", async () => {
+  await atWidth(false, async ({ cross }) => {
+    await page("t1");
+    const host = () => document.querySelector('[data-sheet-host="treasury-money"]');
+    const openFrom = (button) => {
+      button.focus();
+      fireEvent(button, "click");
+      assert.ok(host().querySelector("dialog#treasury-money").matches(":modal"));
+    };
+    const closeIt = () => fireEvent(host().querySelector("[data-sheet-close]"), "click");
+    const hide = (...buttons) => { for (const button of buttons) button.getClientRects = () => []; };
+    const show = (...buttons) => { for (const button of buttons) button.getClientRects = () => [{ width: 44, height: 44 }]; };
+    const [edit, add, take] = [".g-funds__edit", ".g-manage__in", ".g-manage__out"].map((selector) => view.querySelector(selector));
+    hide(add, take);
+    openFrom(edit);
+    hide(edit);
+    show(add, take);
+    cross(true);
+    closeIt();
+    assert.ok(document.activeElement === add, "the desk's pencil is hidden on a phone: the card's «+ Add» opens the same sheet");
+    openFrom(take);
+    hide(add, take);
+    show(edit);
+    cross(false);
+    closeIt();
+    assert.ok(document.activeElement === edit, "«− Take» is hidden on a desk: the strip's pencil");
+    openFrom(edit);
+    hide(edit);
+    closeIt();
+    assert.ok(document.activeElement === view.querySelector(".g-manage h1"), "none shown: the page's title");
+  });
+});
+
 // T36 review m3: the reads draw the history, and perhaps a callout, over the desk's card after the first focus put it in view.
 test("on a desk the settings' address puts the card in view again once the reads have drawn what stands over it", async () => {
   const arrive = async (settings, { moveFocus = false } = {}) => {
@@ -602,6 +636,10 @@ test("on a desk the settings' address puts the card in view again once the reads
   assert.ok(document.activeElement === view.querySelector("h2#team-settings-title"));
   assert.deepEqual(await arrive(true, { moveFocus: true }), [], "the coach has gone on: nothing is scrolled");
   assert.deepEqual(await arrive(false), [], "the team page's own address: its h1 has the focus");
+  await atWidth(true, async () => {
+    assert.deepEqual(await arrive(true), [], "a phone's settings are a screen of their own: nothing stands over its title");
+    assert.ok(document.activeElement === view.querySelector("h1#team-settings-title"));
+  });
 });
 
 test("D2: «‹» 44px; the row 44px or more; the head as Builder.html's", () => {
