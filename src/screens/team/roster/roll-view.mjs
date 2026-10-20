@@ -14,6 +14,7 @@
  *
  * Each function takes `{sheet, choices, desk}`: the sheet as the screen draws it (advance.mjs's, with why a roll is
  * closed, `rollReason`, and whether one is out, `busy`), what it offers him (`choicesOf`), and whether it is a desk's.
+ * A skill's sheet says how an advancement gave the skill, with a site roll's attempts (`rollBlockMarkup`, Task 11).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -83,6 +84,39 @@ export function attemptsMarkup(roll, { open = false, toggle = true } = {}) {
   if (!toggle) return `<p class="g-advance__attemptscaption">${count}</p>${list(false)}`;
   return `<button type="button" class="g-advance__attempts" aria-expanded="${open}"${open ? ` aria-controls="${escapeHtml(id)}"` : ""}${dataAttributes({ advanceAttempts: true })}>`
     + `${count}</button>${open ? list(true) : ""}`;
+}
+
+/** A line of the skill's sheet about a site roll: read, on its way, failed (`bad`), or not on the site. */
+const rollStateMarkup = (words, bad = false) => `<p class="${classNames("g-roster__rollstate", bad && "g-roster__rollstate--bad")}" role="status">${escapeHtml(words)}</p>`;
+
+/**
+ * A site roll's attempts in the skill's sheet, as the visit read the team's rolls (`readRolls`): while the read is on its
+ * way, when it failed, or when the site has no such roll, said so; the attempts only shown (`toggle: false`): the skill's
+ * sheet has nothing to press. Nothing for an advancement not rolled on the site.
+ */
+function siteRollMarkup(taken, rolls) {
+  if (taken.via !== "site") return "";
+  if (!rolls || rolls.loading) return rollStateMarkup(t("teamPlayer.roll.reading"));
+  if (rolls.error) return rollStateMarkup(t("teamPlayer.roll.failed", { reason: rolls.error }), true);
+  const roll = (rolls.rolls ?? []).find((each) => each?.id === taken.rollId);
+  return roll ? attemptsMarkup(roll, { toggle: false }) : rollStateMarkup(t("teamPlayer.roll.none"));
+}
+
+/**
+ * How an advancement gave a skill, in the skill's sheet (decision 19; StatsSkill.html has none): «Advancement 1 · Random
+ * primary skill · rolled on the site» — a chosen one without the way — and a site roll's attempts (`siteRollMarkup`),
+ * read once a visit (player.mjs). Nothing for a skill no advancement gave.
+ *
+ * @param {{line: import("./model.mjs").PlayerLine, skill: string, rolls: null | {loading: true} | {rolls: object[]} | {error: string}}} props
+ *   `rolls` the team's rolls as the visit read them
+ */
+export function rollBlockMarkup({ line, skill, rolls }) {
+  const at = line.skills.find(({ name }) => name === skill)?.advancement ?? null;
+  const taken = at === null ? null : line.advancements[at];
+  if (!taken) return "";
+  const [level, type] = [at + 1, t(`teamAdvance.type.${taken.type}`)];
+  const words = taken.via ? t("teamPlayer.roll.line", { level, type, via: t(`teamPlayer.via.${taken.via}`) }) : t("teamPlayer.roll.lineBare", { level, type });
+  return `<div class="g-roster__rollblock"><p class="g-roster__rollline">${escapeHtml(words)}</p>${siteRollMarkup(taken, rolls)}</div>`;
 }
 
 /**

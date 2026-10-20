@@ -8,8 +8,9 @@
  * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b); the «+» beside «Player»,
  * its cart's + and −, «Cancel» and «Buy», and «Sell» or «Cancel purchase» with its sheet's «Cancel» and button (stage
  * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save», and
- * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done», and its roll's
- * way, «Roll …», faces, characteristics, attempts, «Take a skill in place…» and «Record this roll…» (stage 07d).
+ * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done», its roll's
+ * way, «Roll …», faces, characteristics, attempts, «Take a skill in place…» and «Record this roll…», a god's bonus skill
+ * and «Add …» on done, and «Undo the last: …» with its sheet's «Keep» and «Undo the advancement» (stage 07d).
  * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs); this
  * file only says who was pressed.
  */
@@ -89,16 +90,20 @@ function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused
 
 /**
  * A player's own presses (stage 07d): his pencil (not when closed), the edit's number and name as they are typed — the
- * screen is patched, so the field keeps its focus and its caret — and its «Cancel» and «Save». The switch «Team
- * captain» is heard with the roster's other switch (`wireRoster`); the SPP tiles of a desk's edit are the roster's
- * counters, whose − and + `wireActionSteppers` hears.
+ * screen is patched, so the field keeps its focus and its caret — and its «Cancel» and «Save»; «Undo the last: …» (not
+ * when closed) and its sheet's «Keep» and «Undo the advancement». The switch «Team captain» is heard with the roster's
+ * other switch (`wireRoster`); the SPP tiles of a desk's edit are the roster's counters, whose − and +
+ * `wireActionSteppers` hears.
  */
-function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave }) {
+function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadvance, onUnadvanceKeep, onUnadvanceSend }) {
   return [
     onPlayerButton(root, "data-player-edit", onEdit),
     ...Object.entries(EDIT_FIELDS).map(([field, id]) => delegate(root, "input", `#${id}`, (event, input) => onEditField(field, input.value))),
     delegate(root, "click", "[data-edit-keep]", () => onEditKeep()),
     delegate(root, "click", "[data-edit-save]", () => onEditSave()),
+    onPlayerButton(root, "data-player-unadvance", onUnadvance),
+    delegate(root, "click", "[data-unadvance-keep]", () => onUnadvanceKeep()),
+    delegate(root, "click", "[data-unadvance-send]", () => onUnadvanceSend()),
   ];
 }
 
@@ -110,10 +115,11 @@ const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "statback", "attempt
  * `[data-roster-closed]` does), its categories, its skills, the D16's faces, the D8's and the characteristics, each a
  * radio group of its own (a closed item says why the same way), the way the roll is made (a closed way says why on a
  * press), and its sheet's «Next», «Take», «Roll …», «Take a skill in place…» and a desk's way back from it,
- * «Attempts», «Record this roll…», «Cancel» and «Done». Its types are the option cards `wireReasons` hears; its «Back», the sheet's own (`wireSheets`).
+ * «Attempts», «Record this roll…», «Cancel» and «Done»; on done a god's bonus skills, a radio group of their own, and
+ * «Add …» (not when closed). Its types are the option cards `wireReasons` hears; its «Back», the sheet's own (`wireSheets`).
  */
 function wireAdvance(root, handlers) {
-  const { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceVia, onAdvanceFace, onAdvanceStat, onRefused } = handlers;
+  const { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceVia, onAdvanceFace, onAdvanceStat, onRefused, onFavoured, onFavouredAdd } = handlers;
   const radios = (group, attribute, onChange) => wireRadioGroups(root, { group, item: `[${attribute}]`, attribute, onChange });
   return [
     onPlayerButton(root, "data-player-advance", onAdvance),
@@ -122,6 +128,8 @@ function wireAdvance(root, handlers) {
     radios(".g-advance__faces", "data-advance-face", (face) => onAdvanceFace(Number(face))),
     radios(".g-advance__d8", "data-advance-d8", (face) => onAdvanceFace(Number(face))),
     radios(".g-advance__stats", "data-advance-stat", onAdvanceStat),
+    radios(".g-favoured__skills", "data-favoured-skill", onFavoured),
+    onPlayerButton(root, "data-favoured-add", () => onFavouredAdd()),
     wireSegmentedControls(root, (via) => onAdvanceVia(via), { group: VIA_GROUP }),
     delegate(root, "click", `[data-seg-group="${VIA_GROUP}"] [aria-disabled="true"][title]`, (event, item) => onRefused(item.getAttribute("title"))),
     // One listener for the sheet's buttons: a step patches its one button in place («Roll …», «Next», «Take», «Back to the
@@ -212,6 +220,11 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {() => void} handlers.onAdvanceStatBack a desk's «‹ Back to the characteristic»
  * @param {() => void} handlers.onAdvanceAttempts «Attempts: N», shown or hidden
  * @param {() => void} handlers.onAdvanceBind «Record this roll for the advancement … taken at the table»
+ * @param {(skill: string) => void} handlers.onFavoured a god's bonus skill chosen on the advancement's done step
+ * @param {() => void} handlers.onFavouredAdd «Add …» under done (not when it is closed)
+ * @param {(key: string, button: Element) => void} handlers.onUnadvance «Undo the last: …», by the line's key (not when it is closed)
+ * @param {() => void} handlers.onUnadvanceKeep «Keep» in the undo's sheet
+ * @param {() => void} handlers.onUnadvanceSend «Undo the advancement» in the undo's sheet
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {

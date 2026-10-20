@@ -252,18 +252,19 @@ export function skillChipsMarkup(line, { card = false, sourceOf = sourceWords } 
 
 /**
  * Why no advancement can be taken just now, "" when one can (decision 21): a match is on (R8), the screen's lock, no id
- * to name him by; then every type refused — at the last rank every advancement is taken, else the SPP the cheapest one
- * is short of. Offers not known yet (no Skill Table, K28) close nothing, nor do a dead line's none: its `maxed` is
- * «nothing to offer», never «every advancement is taken».
+ * to name him by; then, unless `spp` is false, every type refused — at the last rank every advancement is taken, else the
+ * SPP the cheapest one is short of. Offers not known yet (no Skill Table, K28) close nothing, nor do a dead line's none:
+ * its `maxed` is «nothing to offer», never «every advancement is taken».
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {{mode: {kind: string}, lock: string}} screen
+ * @param {{spp?: boolean}} [options]
  */
-export function advanceClosed(line, screen) {
+export function advanceClosed(line, screen, { spp = true } = {}) {
   if (screen.mode.kind === "match") return t("teamRoster.afterPost");
   if (screen.lock) return screen.lock;
   if (!line.id) return t("teamPlayer.noId");
-  const offers = line.offers?.offers ?? [];
+  const offers = spp ? line.offers?.offers ?? [] : [];
   if (!offers.length || offers.some(({ refusal }) => !refusal)) return "";
   if (line.offers.maxed) return t("teamRoster.maxed");
   const short = offers.filter(({ refusal }) => refusal.code === ADVANCEMENT_BLOCKED.NOT_ENOUGH_SPP).map(({ refusal }) => refusal.params.missing);
@@ -501,7 +502,26 @@ function sppMarkup(line, screen) {
     + `<p class="g-roster__ledger"><span class="g-roster__ledgerline">${escapeHtml(t("teamRoster.earned", { spp: line.earned }))}</span>`
     + `<span class="g-roster__ledgerline">${escapeHtml(t("teamRoster.spent", { spp: line.spent }))}</span></p></div>`
     + renderProgressDots({ total: advancementRanks.length, done: line.level, label: t("teamRoster.advancements") })
-    + `${advance}${cheapest ? `<p class="g-roster__cheapest">${escapeHtml(cheapest)}</p>` : ""}</div>`;
+    + `${advance}${cheapest ? `<p class="g-roster__cheapest">${escapeHtml(cheapest)}</p>` : ""}${undoLastMarkup(line, screen)}</div>`;
+}
+
+/** Why his last advancement cannot be undone, nor a god's bonus added, just now: `advanceClosed` without his SPP (Task 11). */
+export const undoClosed = (line, screen) => advanceClosed(line, screen, { spp: false });
+
+/** What an advancement gave, in a word: its skill, «MA +1», or — one that does not say — its type. */
+export const gaveWords = ({ type, grants }) => (grants?.stat ? t("teamPlayer.undo.statPlus", { stat: t(`stats.${grants.stat}`) }) : grants?.skill ?? t(`teamAdvance.type.${type}`));
+
+/**
+ * «Undo the last: Frenzy» under «Advance» and its line (decision 18), or under the profile's «Advancement» (`className`):
+ * quiet, for an advancement can be taken again; it asks first (player-sheets.mjs). Closed (`undoClosed`) it says why,
+ * keeping his key, so the focus finds it when the sheet closes.
+ */
+export function undoLastMarkup(line, screen, className = "g-roster__undo") {
+  const last = line.advancements.at(-1);
+  if (!last) return "";
+  const [label, reason, data] = [t("teamPlayer.undo.open", { what: gaveWords(last) }), undoClosed(line, screen), { playerUnadvance: line.key }];
+  if (reason) return closedMarkup({ className, label, reason, data });
+  return `<button type="button" class="${className}" aria-haspopup="dialog"${dataAttributes(data)}>${escapeHtml(label)}</button>`;
 }
 
 /**

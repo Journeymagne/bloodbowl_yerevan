@@ -18,8 +18,9 @@
  * `face` the face that came up — the coach's at the table (the D16's or the D8's), the site's D8; `stat` the
  * characteristic chosen; `instead` a skill in place of it; `asking` while an ask is out; `waiting` the purpose of a roll
  * of the other kind that waits for the player (409 `DICE_ROLL_WAITING`); `lost` an ask whose answer did not come;
- * `attempts` the attempts shown; `asked` the category an ask was made in. Its markup is advance-sheet.mjs's and
- * roll-view.mjs's.
+ * `attempts` the attempts shown; `asked` the category an ask was made in. On the done step, `bonus` is a god's bonus
+ * skill chosen and `favoured` "added" once it is (decision 17; player.mjs, Task 11). Its markup is advance-sheet.mjs's
+ * and roll-view.mjs's.
  */
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
@@ -27,10 +28,11 @@ import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
 import { STAT_ROLL_TABLE, rollRefusal, tableAdvancementFor } from "../../../domain/roster/dice.mjs";
+import { favouredBonus } from "../../../domain/roster/edits.mjs";
 import { ADVANCEMENT_TYPES, advancementCategories, categorySkills, statChoices } from "../../../domain/roster/progression.mjs";
 import { rosterPlayerView } from "../../../domain/roster/players.mjs";
 import { closeSheet } from "./injury.mjs";
-import { advanceClosed } from "./panel.mjs";
+import { advanceClosed, undoClosed } from "./panel.mjs";
 import { askRoll } from "./rolls.mjs";
 import { advancePlayer, bindRoll, refusalWordsOf } from "./save.mjs";
 import { ADVANCE_SHEET } from "./sheets.mjs";
@@ -46,6 +48,23 @@ const UNROLLED = Object.freeze({ via: "site", roll: null, face: null, stat: "", 
 
 /** The roster's line of `key`, never one of the fallen's (whose advancements are history), or null. */
 const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;
+
+/** Him on the draft `where` holds (`rosterPlayerView`: his position's row on him), or null when the draft or the race has him not. */
+function playerOn(line, where) {
+  const stored = where.draft?.players?.[line.index];
+  return stored && where.race ? rosterPlayerView(where.race, stored, line.index) : null;
+}
+
+/**
+ * The god's bonus skill a roster «Favoured of…» may bring him with an advancement (decision 17, owner's answer 3), on
+ * the draft `where` holds (`favouredBonus`): the alignment, the D8's number, whether it is rolled for, the skills with
+ * his own marked; null for a roster with no favour.
+ * @param {import("./model.mjs").PlayerLine} line @param {{race: object|null, draft: object}} where
+ */
+export function bonusOf(line, where) {
+  const player = playerOn(line, where);
+  return player ? favouredBonus(where.race, where.draft, player.row, player) : null;
+}
 
 /**
  * What the sheet can choose for him on the draft `where` holds (the screen drawn, or the screen at the press): the offer
@@ -64,8 +83,7 @@ const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !l
 export function choicesOf(line, sheet, where) {
   const offers = line.offers?.offers ?? [];
   const offer = offers.find(({ type }) => type === sheet.type) ?? null;
-  const stored = where.draft?.players?.[line.index];
-  const player = stored && where.race ? rosterPlayerView(where.race, stored, line.index) : null;
+  const player = playerOn(line, where);
   const column = (category) => (player ? categorySkills(player.row, player, category, state.data?.skillGroups ?? []) : []);
   const listed = sheet.instead ? (offer && player ? advancementCategories(player.row, "stat", { instead: true }) : []) : offer?.categories ?? [];
   const categories = listed.map(({ category }) => {
@@ -185,7 +203,7 @@ export function rollClosed(line, where) {
  * The advancement's sheet as the screen draws it (`playerSheetOf` hands it his line on the roster), or null when it
  * stands no longer: a match has begun (R8), or on its done step the advancement it shows is his no more — a refusal of
  * the queue's 422, or another device's save, took it away. Until it is taken it says why «Take» (`reason`) and a roll
- * (`rollReason`) are closed just now.
+ * (`rollReason`) are closed just now; on its done step, why a god's bonus cannot be added (`reason`: `undoClosed`).
  *
  * @param {object} sheet the visit's
  * @param {import("./model.mjs").PlayerLine} line
@@ -194,7 +212,7 @@ export function rollClosed(line, where) {
  */
 export function advanceSheetOf(sheet, line, where) {
   if (where.mode.kind === "match") return null;
-  if (sheet.step === "done") return line.level < sheet.taken.level ? null : sheet;
+  if (sheet.step === "done") return line.level < sheet.taken.level ? null : { ...sheet, reason: undoClosed(line, where) };
   return { ...sheet, reason: advanceClosed(line, where), rollReason: rollClosed(line, where) };
 }
 
@@ -260,6 +278,8 @@ function takeChosen(saving, { now, refused }) {
   }
   if (!answer.ok) return;
   const taken = { ...takenWords(sheet, chosen, choices), cost: answer.cost, value: answer.value, elite, level: answer.level };
+  // The rolls the visit read are the team's before this one was taken: read again for the next skill's sheet.
+  visit.rolls = null;
   Object.assign(sheet, { step: "done", refusal: "", taken });
   draw();
   view.querySelector("[data-advance-done]")?.focus();
@@ -330,6 +350,7 @@ function bindSiteRoll(saving, { now, refused }, pressed) {
     return;
   }
   if (!answer.ok) return;
+  saving.visit.rolls = null;
   closeSheet(saving);
   toast(t("teamAdvance.bound", { skill: sheet.roll.result.skill }));
 }

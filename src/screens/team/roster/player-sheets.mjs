@@ -13,17 +13,21 @@
  * lines of words); what is one sheet's own is styled by its id.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
+import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { raceTitleOf } from "../../../data/teams.mjs";
+import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
 import { editRefusal } from "../../../domain/roster/edits.mjs";
+import { undoLastAdvancement } from "../../../domain/roster/progression.mjs";
+import { rowsForTeam } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { classNames } from "../../../ui/markup.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
-import { countersMarkup, prepResetWords, sessionMarkup } from "./panel.mjs";
+import { countersMarkup, gaveWords, prepResetWords, sessionMarkup } from "./panel.mjs";
 import { refusalWordsOf } from "./save.mjs";
-import { EDIT_SHEET, footButton } from "./sheets.mjs";
+import { EDIT_SHEET, UNADVANCE_SHEET, footButton } from "./sheets.mjs";
 
 /** What wireToggles reports for «Team captain». */
 export const CAPTAIN_TOGGLE = "player-captain";
@@ -119,5 +123,62 @@ export function editSheetMarkup({ line, lines, screen, sheet }) {
     bodyHtml: `${fields}${note}${captain}${sppMarkup(line, screen)}${prep}${alert}`,
     footStartHtml: renderButton({ label: t("teamPlayer.edit.cancel"), data: { editKeep: true } }),
     footHtml: footButton({ label: t("teamPlayer.edit.save"), kind: "primary", data: { editSave: true }, disabled: !reason && (Boolean(wrong) || !changed), reason }),
+  });
+}
+
+/**
+ * What the undo of his last advancement costs his value: his value now less his value without it, on a copy of him
+ * (`undoLastAdvancement`), in thousands; 0 for a player the draft or the race does not hold.
+ * @param {import("./model.mjs").PlayerLine} line @param {import("./view.mjs").RosterScreen} screen
+ */
+function valueLost(line, screen) {
+  const stored = screen.draft?.players?.[line.index];
+  const row = stored && screen.race ? rowsForTeam(screen.race)[Number(stored.rowIndex)] : null;
+  if (!row) return 0;
+  const without = structuredClone(stored);
+  undoLastAdvancement(without);
+  return playerCurrentCost(row, stored) - playerCurrentCost(row, without);
+}
+
+/** What becomes of the advancement once undone: a site roll goes back to the player, one at the table or chosen can be taken again, one that does not say what it gave gives its SPP back only. */
+function undoneWords(last) {
+  const type = t(`teamAdvance.type.${last.type}`);
+  if (!last.grants) return t("teamPlayer.undo.bare");
+  return last.via === "site" ? t("teamPlayer.undo.site", { type }) : t("teamPlayer.undo.table");
+}
+
+/**
+ * The undo of his last advancement (decision 18; no prototype — PlayerDeadConfirm.html's question and two buttons, the
+ * lines of 07c's sale): «Undo the advancement?» over «name · advancement N of 6»; what it gave — the skill or «MA +1»,
+ * its type, how it was rolled — the SPP that come back and what his value loses; what becomes of it (`undoneWords`);
+ * during a preparation what a save resets (R12), and the last refusal. «Keep», and «Undo the advancement» — the main
+ * button, never the red one: an undo loses nothing an advancement cannot take again; closed (`reason`), it says why.
+ *
+ * @param {object} props
+ * @param {import("./model.mjs").PlayerLine} props.line the player, on the roster
+ * @param {import("./view.mjs").RosterScreen} props.screen
+ * @param {{index: number, refusal?: string, reason?: string}} props.sheet `index` his last advancement's, as the sheet named it
+ * @returns {string} a closed dialog: `patchWithModal(view, markup, "#player-unadvance")` opens it
+ */
+export function unadvanceSheetMarkup({ line, screen, sheet }) {
+  const { index, refusal = "", reason = "" } = sheet;
+  const last = line.advancements[index];
+  const gave = [last.grants ? gaveWords(last) : "", t(`teamAdvance.type.${last.type}`), last.via ? t(`teamPlayer.via.${last.via}`) : ""];
+  const lost = valueLost(line, screen);
+  const row = (key, value, className = "") => `<div class="g-unadvance__row"><dt class="g-unadvance__key">${escapeHtml(key)}</dt>`
+    + `<dd class="${classNames("g-unadvance__value", className)}">${escapeHtml(value)}</dd></div>`;
+  const rows = `<dl class="g-unadvance__rows">${row(t("teamPlayer.undo.what"), gave.filter(Boolean).join(" · "))}`
+    + `${row(t("teamPlayer.undo.spp"), `+${last.cost}`, "g-unadvance__back")}`
+    + `${row(t("teamPlayer.undo.value"), lost ? `−${formatMoney(lost)}` : t("teamRoster.sell.nothing"))}</dl>`;
+  const prep = screen.mode.kind === "prep" ? `<p class="g-player-sheet__prep">${escapeHtml(prepResetWords())}</p>` : "";
+  const alert = refusal ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(refusal)}</p>` : "";
+  return renderSheet({
+    id: UNADVANCE_SHEET,
+    className: FRAME,
+    title: t("teamPlayer.undo.title"),
+    sub: t("teamPlayer.undo.sub", { name: line.name, level: index + 1 }),
+    bodyHtml: `${rows}<p class="g-unadvance__note">${escapeHtml(undoneWords(last))}</p>${prep}${alert}`,
+    footStartHtml: renderButton({ label: t("teamPlayer.undo.keep"), data: { unadvanceKeep: true } }),
+    footHtml: footButton({ label: t("teamPlayer.undo.send"), kind: "primary", data: { unadvanceSend: true }, reason }),
   });
 }

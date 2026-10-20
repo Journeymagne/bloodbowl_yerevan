@@ -1,9 +1,9 @@
 /**
  * The roster's markup: the band with its counts, the table, and beside it on a desk the chosen player's panel;
- * a skill's, an injury's, a missed match's, a death's undo's, the hire cart's, a sale's, a player's edit's or his
- * advancement's sheet over it when one is open. What a line says is model.mjs's, the row's panel and the side panel
- * panel.mjs's, the sheets sheets.mjs's, mark-sheet.mjs's, fallen-view.mjs's, hire-sheet.mjs's, sell-sheet.mjs's,
- * player-sheets.mjs's and advance-sheet.mjs's.
+ * a skill's, an injury's, a missed match's, a death's undo's, the hire cart's, a sale's, a player's edit's, his
+ * advancement's or its undo's sheet over it when one is open. What a line says is model.mjs's, the row's panel and the
+ * side panel panel.mjs's, the sheets sheets.mjs's, mark-sheet.mjs's, fallen-view.mjs's, hire-sheet.mjs's,
+ * sell-sheet.mjs's, player-sheets.mjs's, advance-sheet.mjs's and roll-view.mjs's.
  *
  * The player's button does what the width it is drawn at does with it (R11): up to 900px it opens his row
  * (`aria-expanded`, and the row's panel it controls), from 901px it chooses him for the panel beside the table
@@ -41,7 +41,8 @@ import { MAIN_COUNTERS, counterSlots, rosterCounts, rosterSections } from "./mod
 import { absenceWords, injuryWords, matchTarget, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
 import { hireButtonMarkup, hireSheetMarkup } from "./hire-sheet.mjs";
 import { markSheetMarkup } from "./mark-sheet.mjs";
-import { editSheetMarkup } from "./player-sheets.mjs";
+import { editSheetMarkup, unadvanceSheetMarkup } from "./player-sheets.mjs";
+import { rollBlockMarkup } from "./roll-view.mjs";
 import { sellSheetMarkup } from "./sell-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
@@ -363,8 +364,9 @@ function bodyMarkup(screen) {
 
 /**
  * The sheet that is open, while its player is still on the screen: a skill's — a fallen player's chip opens its rule
- * too — an injury's, a missed match's, a death's undo, a sale's, on the draft's treasury, or a player's edit or
- * advancement (stage 07d); the hire cart, which is no player's (`screenOf` closes one that no longer stands).
+ * too; how an advancement gave it, with a site roll's attempts as the visit read them (stage 07d) — an injury's, a
+ * missed match's, a death's undo, a sale's, on the draft's treasury, or a player's edit, advancement or the undo of his
+ * last one (stage 07d); the hire cart, which is no player's (`screenOf` closes one that no longer stands).
  */
 export function sheetMarkup(screen) {
   const { sheet } = screen;
@@ -379,7 +381,8 @@ export function sheetMarkup(screen) {
   }
   if (sheet.kind === "edit") return editSheetMarkup({ line, lines: screen.lines, screen, sheet });
   if (sheet.kind === "advance") return advanceSheetMarkup({ line, screen, sheet });
-  return skillSheetMarkup({ data: screen.data, line, name: sheet.name });
+  if (sheet.kind === "unadvance") return unadvanceSheetMarkup({ line, screen, sheet });
+  return skillSheetMarkup({ data: screen.data, line, name: sheet.name, advancementHtml: rollBlockMarkup({ line, skill: sheet.name, rolls: screen.rolls }) });
 }
 
 /** @param {RosterScreen} screen */

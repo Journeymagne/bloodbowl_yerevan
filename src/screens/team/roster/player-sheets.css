@@ -5,7 +5,8 @@
  *
  * `.g-player-sheet` is the frame every such sheet shares (the edit; the undo of an advancement, Task 11; the fix by hand,
  * Task 13): its head, body and foot, its fields, its switch drawn as a card, its lines of words. `#player-edit` is the
- * edit's own: the number and the name side by side, the «C» before «Team captain», a desk's SPP tiles (owner's D3).
+ * edit's own: the number and the name side by side, the «C» before «Team captain», a desk's SPP tiles (owner's D3);
+ * `#player-unadvance` the undo's: its lines, its words, its foot as PlayerDeadConfirm.html's.
  *
  * Where the prototypes give no line height, the font's own (`normal`). Font, border, background, text-transform,
  * letter-spacing and font-weight are set on purpose: the 2.x globals (h2, h3, p, input, button) outlive this sheet until
@@ -148,6 +149,68 @@
   font: 400 12px/1.4 var(--font-body);
 }
 
+/*
+ * The undo of his last advancement (Task 11, decision 18; no prototype): its lines as the sale's (07c's `.g-market__rows`:
+ * from 44px over a rule, the words quiet at the left, the value at the right, 15px/1.25 — a long one wraps), the SPP that
+ * come back bold in the accent; what becomes of the advancement as PlayerDeadConfirm.html's question, 15px/1.5 in
+ * --ink-2. «Keep» white in its ring, as PlayerDeadConfirm's «Оставить».
+ */
+#player-unadvance .g-unadvance__rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+#player-unadvance .g-unadvance__row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: 44px;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+}
+#player-unadvance .g-unadvance__key,
+#player-unadvance .g-unadvance__value,
+#player-unadvance .g-unadvance__note {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+#player-unadvance .g-unadvance__key {
+  flex: none;
+  color: var(--muted);
+  font: 400 15px/1.25 var(--font-body);
+}
+#player-unadvance .g-unadvance__value {
+  min-width: 0;
+  color: var(--ink);
+  font: 600 15px/1.25 var(--font-body);
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+#player-unadvance .g-unadvance__back {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+#player-unadvance .g-unadvance__note {
+  color: var(--ink-2);
+  font: 400 15px/1.5 var(--font-body);
+  overflow-wrap: anywhere;
+}
+#player-unadvance .g-sheet__foot-start .g-btn {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font-weight: 700;
+}
+
 /* PlayerEdit.html: the body 12 16 4; 48px fields 12px round; the switch from 64px, 14px round; the foot 1/3 | 2/3, 52px; 96px | the name, 10 apart. */
 @media (max-width: 900px) {
   .g-player-sheet .g-sheet__body { padding: var(--space-12) var(--space-16) var(--space-4); }
@@ -177,6 +240,13 @@
   #player-edit .g-player-edit__fields {
     grid-template-columns: 96px minmax(0, 1fr);
     gap: var(--space-10);
+  }
+  /* The undo's foot as PlayerDeadConfirm.html's: «Keep» and the button in two halves, 48px, 0 10 in, 15px. */
+  #player-unadvance .g-sheet__foot { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  #player-unadvance .g-sheet__foot .g-btn {
+    height: 48px;
+    padding: 0 var(--space-10);
+    font-size: 15px;
   }
 }
 

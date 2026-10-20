@@ -9,8 +9,8 @@
  * The post-match's Players step reads it from the rows; the roster is changed there, not here.
  *
  * Stage 07b's sheets — a missed match's reasons (mark-sheet.mjs) and the undo of a death — stage 07c's — the hire
- * cart (hire-sheet.mjs) and a player's sale — and stage 07d's player edit (player-sheets.mjs) and advancement
- * (advance-sheet.mjs) are drawn by their own modules; what they share with the injury's is here: the ids the screen
+ * cart (hire-sheet.mjs) and a player's sale — and stage 07d's player edit and the undo of his last advancement
+ * (player-sheets.mjs) and his advancement (advance-sheet.mjs) are drawn by their own modules; what they share with the injury's is here: the ids the screen
  * shows each by, the row of characteristics and the foot's button.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
@@ -46,10 +46,13 @@ export const SELL_SHEET = "roster-sell";
 export const EDIT_SHEET = "player-edit";
 /** What a player's advancement is shown by (`#player-advance`, stage 07d) and what wireSheets reports, «Back» too. */
 export const ADVANCE_SHEET = "player-advance";
+/** What the undo of a player's last advancement is shown by (`#player-unadvance`, stage 07d) and what wireSheets reports. */
+export const UNADVANCE_SHEET = "player-unadvance";
 
 /** The id of each kind of sheet the visit holds (index.mjs's `visit.sheet.kind`). */
 const SHEET_IDS = Object.freeze({
   skill: SKILL_SHEET, injury: INJURY_SHEET, mark: MARK_SHEET, undo: UNDO_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET, edit: EDIT_SHEET, advance: ADVANCE_SHEET,
+  unadvance: UNADVANCE_SHEET,
 });
 
 /** The id a sheet of `kind` is shown by, which wireSheets reports when it is closed; "" for a kind there is none of. */
@@ -67,21 +70,23 @@ function captionOf(data, page) {
 }
 
 /**
- * The rule of a skill a player has, in a sheet.
+ * The rule of a skill a player has, in a sheet; between the rule and whose skill it is, how an advancement gave it
+ * (stage 07d, decision 19: roll-view.mjs's `rollBlockMarkup`).
  *
  * @param {object} props
  * @param {object} props.data the reference of the page's language (state.data)
  * @param {import("./model.mjs").PlayerLine} props.line the player whose chip was pressed
  * @param {string} props.name the skill as the roster writes it
+ * @param {string} [props.advancementHtml] markup of `rollBlockMarkup()`, "" for none
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#roster-skill")` opens it
  */
-export function skillSheetMarkup({ data, line, name }) {
+export function skillSheetMarkup({ data, line, name, advancementHtml = "" }) {
   const page = pageForName(data, name);
   const skill = line.skills.find((item) => item.name === name);
   // The build escapes a page's html (scripts/build-data.mjs); a page without it has its text.
   const rule = page ? `<div class="g-prose">${page.html || `<p>${escapeHtml(page.text ?? "")}</p>`}</div>` : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
   const from = skill ? `<p class="g-roster__from">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: t(`teamRoster.source.${skill.source}`) }))}</p>` : "";
-  return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${from}` });
+  return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${advancementHtml}${from}` });
 }
 
 /** The injury the sheet's choice makes, or null while it is not whole: none chosen, a lasting one without its characteristic. */

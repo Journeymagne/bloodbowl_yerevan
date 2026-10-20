@@ -8,9 +8,9 @@
  *
  * Every state of the address stands under the head: the wait and a read that failed under «‹ Roster» alone, a fallen
  * player under his grey number (PlayerDead.html) with the roster's undo (stage 07b), an id the roster holds nowhere
- * with the way back. The pencil and «Advancement» are buttons that name him: the pencil opens his edit, a sheet over
- * the page (player-sheets.mjs, Task 8); what «Advancement» opens is Task 9's. Closed, each says why, as the roster's
- * closed controls do.
+ * with the way back. The pencil, «Advancement» and «Undo the last: …» are buttons that name him: the pencil opens his
+ * edit, a sheet over the page (player-sheets.mjs, Task 8); «Advancement» his advancement (Task 9); the undo asks first
+ * (Task 11). Closed, each says why, as the roster's closed controls do.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -26,7 +26,7 @@ import { renderProgressDots } from "../../../ui/progress-dots.mjs";
 import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup } from "./fallen-view.mjs";
 import { undoable } from "./model.mjs";
 import {
-  advanceClosed, advanceHintOf, closedAdvanceMarkup, closedMarkup, editClosed, injuriesMarkup, markClosed, skillChipsMarkup, statsMarkup,
+  advanceClosed, advanceHintOf, closedAdvanceMarkup, closedMarkup, editClosed, injuriesMarkup, markClosed, skillChipsMarkup, statsMarkup, undoLastMarkup,
 } from "./panel.mjs";
 import { failedMarkup, prepMarkup, saveNoticeMarkup, sheetMarkup, statusMarkup } from "./view.mjs";
 
@@ -78,7 +78,8 @@ function noticesMarkup(screen) {
 /**
  * His SPP (Player.html's card): what he may spend, large, what he earned and spent at the right, his advancements, then
  * «Advancement» — closed, saying why, when none can be taken (decision 21) — and the cheapest one, or why it is closed.
- * Offers not known yet (no Skill Table, K28) leave it open with no line under it.
+ * Offers not known yet (no Skill Table, K28) leave it open with no line under it. Last, while he has an advancement,
+ * the quiet «Undo the last: …» (decision 18, Task 11).
  */
 function sppMarkup(line, screen) {
   const reason = advanceClosed(line, screen);
@@ -93,7 +94,7 @@ function sppMarkup(line, screen) {
     + `<p class="g-profile__ledger"><span class="g-profile__ledgerline">${escapeHtml(t("teamRoster.earned", { spp: line.earned }))}</span>`
     + `<span class="g-profile__ledgerline">${escapeHtml(t("teamRoster.spent", { spp: line.spent }))}</span></p></div>`
     + renderProgressDots({ total: advancementRanks.length, done: line.level, label: t("teamRoster.advancements") })
-    + `${advance}${hint ? `<p class="g-profile__hint">${escapeHtml(hint)}</p>` : ""}</section>`;
+    + `${advance}${hint ? `<p class="g-profile__hint">${escapeHtml(hint)}</p>` : ""}${undoLastMarkup(line, screen, "g-profile__undo")}</section>`;
 }
 
 /** «Skills»: his skills as cards, each saying where it came from, and the categories he may take them from, in bold. */
