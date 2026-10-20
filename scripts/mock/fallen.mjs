@@ -17,8 +17,12 @@
  * What it does not do: the other rules of a roster with him back (positions, value) are not checked, nor is an
  * id two players share, and a record the roster cannot read is not told apart (FALLEN_NOT_RESTORABLE).
  *
- * Fixtures: Mock Team (t1) has two fallen. f1, Blitzer Eight, was marked by hand three days ago; f2, Linewoman Nine,
- * died in g5 (round 2), and no cause was written. Every other team has none.
+ * Fixtures: Mock Team (t1) has two fallen. f1, Blitzer Ten (p10, 2 touchdowns), was marked by hand three days ago; f2,
+ * Linewoman Nine (p9, a completion), died in g5 (round 2), and no cause was written. Every other team has none. f1's id
+ * is no roster player's (stage 07e): as Blitzer Eight (p8) he shared Linewoman Eight's, whom the mock's roster holds, and
+ * «Состав» draws a player where the roster holds him (decision 21 of stage 07b) — so he was on no table of the fallen.
+ * Their careers by match are scripts/mock/history.mjs's: f1 a veteran the site knows in no match, f2 dead in g5 with no
+ * tap of hers.
  */
 import { rosterSizeLimits } from "../../src/domain/league-rules.mjs";
 import { removeFallenPlayer, returnFallenPlayer } from "../../src/domain/roster/transfers.mjs";
@@ -57,8 +61,8 @@ const recordOf = (id, days, player, { cause = null, pairingId = null, roundNumbe
 
 // Each team's deaths, newest first. The ids are quoted: check-references reads a bare `t1:` as a use of `t`.
 const records = new Map([["t1", [
-  recordOf("f1", 3, stored(8, 2, "Blitzer Eight", { touchdowns: 2 }), { cause: "Foul by the Grimtusk Raiders, Casualty 15" }),
-  recordOf("f2", 6, stored(9, 0, "Linewoman Nine"), { pairingId: "g5", roundNumber: 2, fromMatch: true }),
+  recordOf("f1", 3, stored(10, 2, "Blitzer Ten", { touchdowns: 2 }), { cause: "Foul by the Grimtusk Raiders, Casualty 15" }),
+  recordOf("f2", 6, stored(9, 0, "Linewoman Nine", { completions: 1 }), { pairingId: "g5", roundNumber: 2, fromMatch: true }),
 ]]]);
 let lastRecord = 2;
 const recordsOf = (teamId) => records.get(teamId) ?? records.set(teamId, []).get(teamId);

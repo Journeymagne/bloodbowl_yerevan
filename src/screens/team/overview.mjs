@@ -53,7 +53,24 @@
  * no place and neither a board nor a call to enter the season, without the
  * games the points stand alone and no opponent is said to come later. The
  * screen draws at once from what the state holds and again when they come.
+ *
+ * The leaders are the career, as «Состав» counts it (stage 07e, decision 13):
+ * the roster and the records not settled yet — the taps of a match on
+ * (`careerCounters`). The records are read once the games and the table have
+ * answered, and again on every answer of the games, one read in the air (a team
+ * in its build has none to read); until they come, and when they cannot be
+ * read, the leaders are the roster's numbers, and nothing is said. They are
+ * taken only with the revision of the team in the coach's list: the roster is
+ * the list's, and records of another moment would count a match twice (the
+ * post-match settled them into a roster the list does not hold yet) or not at
+ * all. Records newer than the list read the list again, once for that answer
+ * (review I1): a match begun or ended moves the team's revision on the server —
+ * the pre-match's treasury, the post-match — and nothing else tells the coach's
+ * list, so the whole page then stands on the roster the records are of. «Ready
+ * to advance» stays on the roster (decision 14): an advancement spends the
+ * roster's SPP, and the records of a match given up wait for its post-match.
  */
+import { apiRequest } from "../../core/api-client.mjs";
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -63,7 +80,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { loadGames, onGamesChange } from "../../data/games.mjs";
 import { gameSides, recentResults, seasonDifference, seasonPager, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
-import { raceTeamOf } from "../../data/teams.mjs";
+import { loadMyTeams, raceTeamOf } from "../../data/teams.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
 import { renderCrest } from "../../shell/crest.mjs";
 import { currentMatch, matchActions, subLine } from "../../shell/current-match.mjs";
@@ -211,8 +228,9 @@ function readyPlayers(draft, raceTeam) {
  * @param {string} [input.gamesError] why the games could not be read, as a sentence
  * @param {string} [input.seasonError] why the table could not be read; said only while there is no table to show
  * @param {boolean} [input.phone] the screen is a phone's (up to 900px): Team.html's form, not DeskOverview.html's
+ * @param {object[]} [input.events] the records not settled yet, of the roster's own moment: what the leaders add to it
  */
-export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false }) {
+export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false, events = [] }) {
   const season = seasonData?.season ?? null;
   const standing = standingOf(seasonData, team.id);
   const gamesRead = Array.isArray(games) && !gamesError;
@@ -233,7 +251,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     seasonRead: Boolean(seasonData),
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, standing, worth, phone }) : null,
     ready: readyPlayers(draft, raceTeam),
-    leaders: teamLeaders(team, raceTeam),
+    leaders: teamLeaders(team, raceTeam, events),
     results: recentResults(list, team.id, RECENT_MATCHES).map(resultOf),
     gamesError,
     seasonError: seasonData ? "" : seasonError,
@@ -355,15 +373,43 @@ export function overviewMarkup(model) {
 }
 
 /**
+ * The team's records not settled yet and the revision they were read at (`GET /api/teams/:id/events`), for the
+ * leaders; null for a read that failed, or an answer that is not one (no list, no whole revision).
+ * @param {string} teamId
+ * @returns {Promise<{events: object[], revision: number}|null>}
+ */
+async function readRecords(teamId) {
+  try {
+    const { events, revision } = (await apiRequest(`/api/teams/${encodeURIComponent(teamId)}/events`)) ?? {};
+    return Array.isArray(events) && Number.isInteger(revision) ? { events, revision } : null;
+  } catch {
+    return null;
+  }
+}
+
+/** The team `teamId` in the coach's list; undefined once it is not there. */
+const listed = (teamId) => state.myTeams.items.find((item) => item.id === teamId);
+
+/**
+ * Records read at a revision past the one of the team in the coach's list (review I1): a match begun or ended since the
+ * list was read. A team the list holds with no whole revision has none to compare.
+ * @param {{revision: number}|null} records @param {{revision?: unknown}|undefined} team
+ */
+const pastList = (records, team) => Boolean(records) && Number.isInteger(team?.revision) && records.revision > team.revision;
+
+/**
  * The overview of `teamId` as the state has it now; "" when the team is not on the coach's list (it was deleted
  * while the games were on their way), and the screen is left as it was. A failure `held` back is one an earlier
- * read left, which the read repeating it has not yet answered: it is not drawn, nor the games it left.
+ * read left, which the read repeating it has not yet answered: it is not drawn, nor the games it left. The leaders
+ * count the `records` only when they are of the team's revision in the list.
  * @param {{games: boolean, season: boolean}} held
+ * @param {{events: object[], revision: number}|null} records as the visit last read them
  */
-function markupOf(teamId, held) {
-  const team = state.myTeams.items.find((item) => item.id === teamId);
+function markupOf(teamId, held, records) {
+  const team = listed(teamId);
   if (!team) return "";
   const { items, loaded, error } = state.games;
+  const same = Number.isInteger(team.revision) && records?.revision === team.revision;
   return overviewMarkup(overviewModel({
     team,
     raceTeam: raceTeamOf(team.baseTeamSlug),
@@ -372,6 +418,7 @@ function markupOf(teamId, held) {
     gamesError: held.games ? "" : error,
     seasonError: held.season ? "" : state.season.error,
     phone: isPhone(),
+    events: same ? records.events : [],
   }));
 }
 
@@ -382,22 +429,47 @@ function markupOf(teamId, held) {
  * has put it. What is typed in a desk's search takes the coach to the reference with it (`goSearch`).
  *
  * A read that failed is made again on this visit (nothing else would, and the overview would say so until a
- * reload); what it said before is not drawn while the new answer is on its way.
+ * reload); what it said before is not drawn while the new answer is on its way. The leaders' records are read once the
+ * games and the table have answered (review M2: an answer of the games on its way when the page is drawn asks for no
+ * second read), and on every answer of the games after it: one read in the air, and one more after it for the answers
+ * it missed; an answer is taken while the coach is here, a failure as none. One newer than the coach's list reads the
+ * list again before it is drawn (review I1) — as part of that read, so none is sent while another is in the air, and
+ * one for each answer at most.
  * @param {string} teamId
  */
 export async function renderTeamOverview(teamId) {
   let here = true;
   const held = { games: Boolean(state.games.error), season: Boolean(state.season.error) };
+  const records = { last: null, reading: false, again: false, armed: false };
   const draw = () => {
     if (!here) return;
-    const markup = markupOf(teamId, held);
+    const markup = markupOf(teamId, held, records.last);
     if (markup) patch(view, markup);
+  };
+  const readLeaders = async () => {
+    if (!here || listed(teamId)?.stage === "draft") return;
+    if (records.reading) {
+      records.again = true;
+      return;
+    }
+    records.reading = true;
+    const answer = await readRecords(teamId);
+    if (here && pastList(answer, listed(teamId))) await loadMyTeams(true).catch(() => {});
+    records.reading = false;
+    if (!here) return;
+    records.last = answer;
+    draw();
+    if (records.again) {
+      records.again = false;
+      void readLeaders();
+    }
   };
   // Any answer to the games heard from here on is to the read started below, or to a newer one: no old failure outlives it.
   const offs = [
     onGamesChange(() => {
       held.games = false;
       draw();
+      if (records.armed) void readLeaders();
     }),
     // The field, a tile or a list the coach was on may be gone with the other form, or hidden by it — the desk's
     // «Advance» on a phone, the phone's card on a desk, the fourth and fifth match on a phone (Review Focus 2, fix
@@ -410,7 +482,7 @@ export async function renderTeamOverview(teamId) {
     for (const off of offs) off();
   });
   const reads = Promise.allSettled([loadGames(held.games), loadSeason(held.season)]);
-  const first = markupOf(teamId, held);
+  const first = markupOf(teamId, held, records.last);
   if (first) {
     view.innerHTML = first;
     view.querySelector("h1")?.focus();
@@ -419,4 +491,6 @@ export async function renderTeamOverview(teamId) {
   held.games = false;
   held.season = false;
   draw();
+  records.armed = true;
+  void readLeaders();
 }

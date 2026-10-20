@@ -49,11 +49,12 @@ const PLAYERS = [
   { id: "p1", rowIndex: 0, number: "3", name: "Ashby", spp: { touchdowns: 2, completions: 1 } },
   { id: "p2", rowIndex: 1, number: "5", name: "Vane", spp: { touchdowns: 1, completions: 4 } },
 ];
+// Each at its revision: the records of a match on are taken with the revision of the team in the list (stage 07e).
 const TEAMS = [
-  { id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true, roster: { treasury: 120, players: PLAYERS } },
-  { id: "t2", name: "Grimtusk Raiders", baseTeamSlug: "teams/orc", stage: "active", inActiveSeason: true, roster: { treasury: 40 } },
-  { id: "t3", name: "Anji Magritta", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true, roster: { treasury: 0 } },
-  { id: "t4", name: "Fresh Meat", baseTeamSlug: "teams/orc", stage: "draft", inActiveSeason: false, roster: { treasury: 1000 } },
+  { id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true, revision: 4, roster: { treasury: 120, players: PLAYERS } },
+  { id: "t2", name: "Grimtusk Raiders", baseTeamSlug: "teams/orc", stage: "active", inActiveSeason: true, revision: 7, roster: { treasury: 40 } },
+  { id: "t3", name: "Anji Magritta", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true, revision: 2, roster: { treasury: 0 } },
+  { id: "t4", name: "Fresh Meat", baseTeamSlug: "teams/orc", stage: "draft", inActiveSeason: false, revision: 1, roster: { treasury: 1000 } },
 ];
 
 const side = (id, name, slug) => ({ user: { id: `u-${id}`, login: id }, team: { id, name, baseTeamSlug: slug } });
@@ -120,6 +121,8 @@ function coach({ games = GAMES, season = SEASON, gamesLoaded = true, seasonLoade
   state.data = { teams: RACES };
   state.season = { data: season, loaded: seasonLoaded, loading: false, error: "" };
   state.games = { items: games, currentItems: [], loaded: gamesLoaded, loading: false, error: gamesError };
+  // The leaders read the records not settled (stage 07e): none, at the team's revision.
+  for (const { id, revision } of TEAMS) api.reply(`GET /api/teams/${id}/events`, 200, { events: [], revision });
 }
 
 /** The server answering the list again: the games as they are now. */
@@ -995,7 +998,9 @@ test("a read that failed is made again when the coach comes back to the overview
   const drawing = renderTeamOverview("t1");
   assert.ok(view.querySelector(".g-pagehead h1"));
   await drawing;
-  assert.deepEqual(api.calls.map((call) => call.key).sort(), ["GET /api/games", "GET /api/season"]);
+  // Stage 07e: the leaders' records too — once, after the games have answered (review M2: the games' answer asks for no
+  // second read when the first is still to be sent).
+  assert.deepEqual(api.calls.map((call) => call.key).sort(), ["GET /api/games", "GET /api/season", "GET /api/teams/t1/events"]);
   assert.equal(view.querySelector(".g-overview__failed"), null);
   assert.equal(view.querySelector(".g-board__side--away .g-board__name").textContent, "Rival Team");
   api.assertAnswered();
@@ -1178,9 +1183,16 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assert.deepEqual(own(".g-overview__leaderline", "min-height"), ["49px"]);
   assert.deepEqual(own(".g-overview__leaderline:last-child", "min-height"), ["48px"], "the last has no rule");
   for (const value of [...own(".g-overview__leaderline", "min-height"), ...own(".g-overview__leaderline:last-child", "min-height")]) assert.ok(parseInt(value, 10) >= 44, value);
-  // Wrapping: a long name or position wraps; nothing is cut with «…» or held on one line.
-  assert.doesNotMatch(bare, /ellipsis|nowrap|text-overflow|line-clamp/);
+  // Wrapping: a long name or position wraps; nothing is cut with «…» or held on one line — but a desk card's name, which
+  // DeskOverview.html holds on one line (`white-space: nowrap`): one longer than its card ends in «…» inside its min-width: 0
+  // column, the whole name still the card's text (the fidelity pass, F10). The position under it wraps, as the prototype's.
+  assert.deepEqual(["display", "overflow", "text-overflow", "white-space"].map((property) => inMedia(LISTS_CSS, "min-width: 901px", ".g-overview__leadername", property)),
+    [["block"], ["hidden"], ["ellipsis"], ["nowrap"]]);
+  assert.deepEqual(own(".g-overview__leaderwho", "min-width"), ["0"], "the column the name ends in «…» inside");
+  const held = ruleOf(desk, ".g-overview__leadername");
+  assert.doesNotMatch(bare.replace(held, ""), /ellipsis|nowrap|text-overflow|line-clamp/, "the desk card's name alone");
   for (const selector of [".g-overview__leadername", ".g-overview__leaderpos"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  assert.deepEqual(inMedia(LISTS_CSS, "max-width: 900px", ".g-overview__leadername", "white-space"), [], "a phone's name wraps");
   // Readable in every palette: the accent of a desk's figure on its card, the grey of the tag and the position on a card and on a phone's page.
   assertReadable(LISTS_CSS, ".g-overview__leadervalue", "color", ["--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__leadervalue--spp", "color", ["--surface", "--page"], 4.5);
@@ -1513,7 +1525,7 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   // Wrapping: the opponent, the race and the MVP wrap; nothing is cut with «…» or held on one line.
   for (const selector of [".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__mvp"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.match(ruleOf(bareOf(LISTS_CSS), ".g-overview__sub"), /flex-wrap: wrap;/);
-  assert.doesNotMatch(bareOf(LISTS_CSS), /ellipsis|nowrap|text-overflow|line-clamp/);
+  assert.doesNotMatch(bareOf(LISTS_CSS).replace(ruleOf(deskOf(LISTS_CSS), ".g-overview__leadername"), ""), /ellipsis|nowrap|text-overflow|line-clamp/, "only a desk leader's name is held (F10)");
   // Readable in every palette: a desk's greys on its white card, a phone's on its page, the link on both.
   for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__racelink", ".g-overview__mvp", ".g-overview__cas"]) assertReadable(LISTS_CSS, selector, "color", ["--surface"], 4.5);
   assertReadable(LISTS_CSS, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
@@ -1597,4 +1609,255 @@ test("at 320px a word of a team or a race keeps whole in the board's side column
   assert.match(board, /@media \(max-width: 359px\)\s*\{[^@]*\.g-board__name \{ font-size: 16px; \}/);
   assert.match(board, /@media \(max-width: 359px\)\s*\{[^@]*\.g-board__sub \{ font-size: 12px; \}/);
   assert.match(board, /@media \(max-width: 900px\)\s*\{\s*\.g-board__mid \{ max-width: 124px; \}/, "the middle column is still wide enough for a Russian status");
+});
+
+// Stage 07e, decision 13: the leaders are the career, as «Состав» counts it — the roster and the records not settled yet
+// (the taps of a match on). The records are read once a visit and again on every answer of the games, one read in the
+// air; they are taken only with the revision of the team in the list (else the roster and the records are two moments,
+// and a match would count twice or not at all), and only while the visit is here. None of it is said when it fails.
+const EVENTS = "GET /api/teams/t1/events";
+const LIST = "GET /api/teams";
+/** How many requests to `key` the visit has sent. */
+const sent = (key) => api.calls.filter((call) => call.key === key).length;
+const turns = async () => { for (let turn = 0; turn < 6; turn += 1) await settle(); };
+const leaderWords = () => view.querySelectorAll("a.g-overview__leader, a.g-overview__leaderline").map((link) => [
+  link.querySelector(".g-overview__leadertag").textContent, link.getAttribute("href"), link.querySelector(".g-overview__leadervalue").textContent]);
+// Ashby (TD 2, COMP 1) and Vane (TD 1, COMP 4) are 7 SPP each on the roster; two taps of Vane's touchdowns in the match.
+const ROSTER = [["SPP", "#/t/t1/roster/p1", "7"], ["TD", "#/t/t1/roster/p1", "2"], ["COMP", "#/t/t1/roster/p2", "4"]];
+const CAREER = [["SPP", "#/t/t1/roster/p2", "13"], ["TD", "#/t/t1/roster/p2", "3"], ["COMP", "#/t/t1/roster/p2", "4"]];
+const tap = (id, playerId = "p2") => ({ id, pairingId: "g1", playerId, counter: "touchdowns", delta: 1, injury: null, settledAt: null });
+const TAPS = [tap("e1"), tap("e2")];
+/** The coach's list as the server sends it again: t1 at `revision`, the others as they were. */
+const listAt = (revision) => ({ teams: TEAMS.map((team) => (team.id === "t1" ? { ...team, revision } : team)) });
+
+test("the leaders follow a match's records: read once a visit and when the games change; another revision's records, or a read that failed, leave the roster's numbers, and nothing is said", async () => {
+  const calls = () => sent(EVENTS);
+  for (const phone of [false, true]) {
+    const { cross } = crossingWindow(phone);
+    try {
+      coach();
+      api.reply(EVENTS, 200, { events: TAPS, revision: 4 });
+      const records = api.hold(EVENTS);
+      await renderTeamOverview("t1");
+      assert.equal(calls(), 1, "read once the page is drawn");
+      assert.deepEqual(leaderWords(), ROSTER, "the roster's numbers until the records come");
+      records.release();
+      await turns();
+      assert.deepEqual(leaderWords(), CAREER, `the career, as the roster counts it (${phone ? "a phone" : "a desk"})`);
+      // A draw that is no answer of the games reads nothing: the width crossed and back.
+      cross(!phone);
+      cross(phone);
+      await turns();
+      assert.equal(calls(), 1);
+      assert.deepEqual(leaderWords(), CAREER);
+      // The games answer: read again. Another revision's records — older than the list's (a save landed since): the
+      // roster's numbers. Records newer than the list read the list again (review I1, the test after this one).
+      api.reply(EVENTS, 200, { events: TAPS, revision: 3 });
+      await notifyGames(GAMES);
+      await turns();
+      assert.equal(calls(), 2);
+      assert.deepEqual(leaderWords(), ROSTER, "the roster and the records of two moments: the roster's");
+      assert.equal(sent(LIST), 0, "records behind the list read no list");
+      // A read that fails: the roster's numbers, and nothing is said.
+      api.reply(EVENTS, 500, { error: { code: "INTERNAL", params: {}, message: "x" } });
+      await notifyGames(GAMES);
+      await turns();
+      assert.equal(calls(), 3);
+      assert.deepEqual(leaderWords(), ROSTER);
+      assert.equal(view.querySelector('[role="alert"]'), null, "no words of the failure");
+      // One read in the air: the games answering twice while it is ask for one more after it, not two.
+      api.reply(EVENTS, 200, { events: TAPS, revision: 4 });
+      const held = api.hold(EVENTS);
+      await notifyGames(GAMES);
+      await notifyGames(GAMES);
+      await turns();
+      assert.equal(calls(), 4, "one in the air");
+      held.release();
+      await turns();
+      assert.equal(calls(), 5, "then the one asked for meanwhile");
+      assert.deepEqual(leaderWords(), CAREER);
+      // An answer after the coach left draws nothing.
+      const late = api.hold(EVENTS);
+      await notifyGames(GAMES);
+      releaseCurrentScreen();
+      view.innerHTML = "<p>next</p>";
+      late.release();
+      await turns();
+      assert.equal(view.querySelector("p").textContent, "next");
+      api.assertAnswered();
+    } finally {
+      releaseCurrentScreen();
+      delete globalThis.matchMedia;
+    }
+  }
+});
+
+// Review I1: starting a match raises the team's revision on the server (the treasury's pre-match), and so does ending
+// one; the coach's list hears neither. Records newer than the list read the list again — once for that answer, none
+// while one is in the air — and the whole overview is then of one roster, the leaders the career.
+test("records newer than the coach's list read the list again, once: then the leaders are the career; a list at the records' revision is not read again", async () => {
+  for (const phone of [false, true]) {
+    crossingWindow(phone);
+    try {
+      coach();
+      api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+      api.reply(LIST, 200, listAt(5));
+      await renderTeamOverview("t1");
+      await turns();
+      assert.equal(sent(LIST), 1, "the list read again, once");
+      assert.equal(state.myTeams.items.find((item) => item.id === "t1").revision, 5);
+      assert.deepEqual(leaderWords(), CAREER, `the career (${phone ? "a phone" : "a desk"})`);
+      // The games answer again: the records are at the list's revision now, and the list is not read.
+      await notifyGames(GAMES);
+      await turns();
+      assert.equal(sent(EVENTS), 2);
+      assert.equal(sent(LIST), 1);
+      assert.deepEqual(leaderWords(), CAREER);
+      api.assertAnswered();
+    } finally {
+      releaseCurrentScreen();
+      delete globalThis.matchMedia;
+    }
+  }
+});
+
+test("a list read again that is still behind leaves the roster's numbers and asks nothing more; while it is in the air no other is sent", async () => {
+  coach();
+  api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+  api.reply(LIST, 200, listAt(4));
+  const listing = api.hold(LIST);
+  await renderTeamOverview("t1");
+  await turns();
+  assert.deepEqual([sent(EVENTS), sent(LIST)], [1, 1]);
+  // The games answer twice while the list is in the air: no list read besides it, and the records wait for it.
+  await notifyGames(GAMES);
+  await notifyGames(GAMES);
+  await turns();
+  assert.deepEqual([sent(EVENTS), sent(LIST)], [1, 1], "one read of the list in the air, and the records after it");
+  listing.release();
+  await turns();
+  // The records asked for meanwhile: one more, still newer than the list, so one more read of it — one for each answer.
+  assert.deepEqual([sent(EVENTS), sent(LIST)], [2, 2]);
+  assert.deepEqual(leaderWords(), ROSTER, "the list is still behind: the roster's numbers");
+  await turns();
+  await turns();
+  assert.deepEqual([sent(EVENTS), sent(LIST)], [2, 2], "and nothing more: no loop");
+  assert.equal(view.querySelector('[role="alert"]'), null);
+  api.assertAnswered();
+});
+
+test("a list read again that fails leaves the roster's numbers, and nothing is said", async () => {
+  coach();
+  api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+  api.reply(LIST, 500, { error: { code: "INTERNAL", params: {}, message: "x" } });
+  await renderTeamOverview("t1");
+  await turns();
+  assert.deepEqual([sent(EVENTS), sent(LIST)], [1, 1]);
+  assert.deepEqual(leaderWords(), ROSTER);
+  assert.equal(view.querySelector('[role="alert"]'), null);
+  // The next answer of the games reads the records again, and the list once more for them.
+  api.reply(LIST, 200, listAt(5));
+  await notifyGames(GAMES);
+  await turns();
+  assert.deepEqual([sent(EVENTS), sent(LIST)], [2, 2]);
+  assert.deepEqual(leaderWords(), CAREER);
+  releaseCurrentScreen();
+  api.assertAnswered();
+});
+
+test("a list read again after the coach left draws nothing", async () => {
+  coach();
+  api.reply(EVENTS, 200, { events: TAPS, revision: 5 });
+  api.reply(LIST, 200, listAt(5));
+  const listing = api.hold(LIST);
+  await renderTeamOverview("t1");
+  await turns();
+  releaseCurrentScreen();
+  view.innerHTML = "<p>next</p>";
+  listing.release();
+  await turns();
+  assert.equal(view.querySelector("p").textContent, "next");
+  assert.deepEqual([sent(EVENTS), sent(LIST)], [1, 1]);
+  api.assertAnswered();
+});
+
+// Review M2: one read of the records for the start of a visit, once the games have answered — a games answer on its
+// way when the page is drawn (app.js's at sign-in, or the overview's own after a failure) asks for no second one.
+test("a cold start reads the records once, after the games have answered; a team in its build reads none", async () => {
+  coach({ games: [], gamesLoaded: false });
+  api.reply("GET /api/games", 200, { games: GAMES, currentGames: [] });
+  const games = api.hold("GET /api/games");
+  const warming = invalidateGames(); // app.js's read at sign-in
+  const drawing = renderTeamOverview("t1");
+  await turns();
+  assert.equal(sent(EVENTS), 0, "nothing while the games are on their way");
+  games.release();
+  await warming;
+  await drawing;
+  await turns();
+  assert.equal(sent("GET /api/games"), 1);
+  assert.equal(sent(EVENTS), 1, "one read, after them");
+  // Fresh Meat (t4) is in its build: it has no match, and no records to read.
+  coach();
+  state.activeTeamId = "t4";
+  await renderTeamOverview("t4");
+  await notifyGames(GAMES);
+  await turns();
+  assert.ok(view.querySelector(".g-pagehead h1"));
+  assert.equal(sent("GET /api/teams/t4/events"), 0);
+  releaseCurrentScreen();
+  api.assertAnswered();
+});
+
+// Review M3, pre-flight L11: the records are taken only with a whole revision, the answer's and the list's alike.
+test("records with no whole revision, or a team in the list with none, leave the roster's numbers and read no list", async () => {
+  const unlisted = () => state.myTeams.items.map((team) => (team.id === "t1" ? { ...team, revision: undefined } : team));
+  const cases = [
+    ["an answer with no revision", { events: TAPS }, false],
+    ["an answer whose revision is text", { events: TAPS, revision: "4" }, false],
+    ["an answer whose revision is text and past the list's", { events: TAPS, revision: "5" }, false],
+    ["a team in the list with no revision", { events: TAPS, revision: 4 }, true],
+    ["neither with one", { events: TAPS }, true],
+  ];
+  for (const [what, answer, noRevision] of cases) {
+    coach();
+    if (noRevision) state.myTeams = { ...state.myTeams, items: unlisted() };
+    api.reply(EVENTS, 200, answer);
+    await renderTeamOverview("t1");
+    await turns();
+    assert.equal(sent(EVENTS), 1, what);
+    assert.deepEqual(leaderWords(), ROSTER, what);
+    assert.equal(sent(LIST), 0, `${what}: no list read`);
+    releaseCurrentScreen();
+    api.assertAnswered();
+  }
+});
+
+// Review M4, decision 14: «Ready to advance» spends the roster's SPP — the records of a match on, which the leaders
+// count, give nobody an advancement, nor more SPP to spend.
+test("«Ready to advance» stays on the roster's SPP while the leaders count the career", async () => {
+  // Ashby and Vane have 7 SPP on the roster, Dunn 2 — one short of the first random skill (3). Three taps of Dunn's
+  // touchdowns would give him 11: the lead, and past the price.
+  const players = [CREW[0], CREW[1], CREW[3]];
+  const DUNN_TAPS = [tap("e1", "p4"), tap("e2", "p4"), tap("e3", "p4")];
+  const readyWords = () => [
+    view.querySelector(".g-overview__ready")?.textContent ?? "",
+    view.querySelectorAll(".g-overview__readyrow").map((row) => [row.querySelector(".g-overview__readyname").textContent, row.querySelector(".g-overview__readyspp").textContent]),
+  ];
+  coach();
+  state.myTeams = { ...state.myTeams, items: [crew(players), ...TEAMS.slice(1)] };
+  api.reply(EVENTS, 200, { events: DUNN_TAPS, revision: 4 });
+  const records = api.hold(EVENTS);
+  await renderTeamOverview("t1");
+  const before = readyWords();
+  assert.deepEqual(before[1], [["Ashby", "7 SPP"], ["Vane", "7 SPP"]], "the roster's: Dunn is short");
+  assert.equal(leaderWords()[0][2], "7");
+  records.release();
+  await turns();
+  assert.deepEqual(leaderWords()[0], ["SPP", "#/t/t1/roster/p4", "11"], "the leaders: the career");
+  assert.deepEqual(readyWords(), before, "the card and the list: the roster's");
+  const model = overviewModel({ ...input("t1"), team: crew(players), raceTeam: raceOf(TEAMS[0]), events: DUNN_TAPS });
+  assert.deepEqual(model.ready, overviewModel({ ...input("t1"), team: crew(players), raceTeam: raceOf(TEAMS[0]) }).ready);
+  releaseCurrentScreen();
+  api.assertAnswered();
 });

@@ -6,6 +6,11 @@
  *
  * Nothing here counts or saves: a fallen player has no counters, plays no match and takes no advancement. What his
  * line says is model.mjs's (`fallenLines`): what the roster held when he died, and how and when he fell.
+ *
+ * His career by match (stage 07e) stands where PlayerDead.html puts its «Career» — after the card of his death, before
+ * «Skills» — in place of the one line «Career: N SPP»: career.mjs's block, which the caller draws (`careerHtml`) — the
+ * phone's on his own page and the roster's player page, the desk's in the desk's panel. The first two read it once his
+ * profile is drawn, the panel only while its list is open. A record with no id keeps the one line: no read could name him.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatDay } from "../../../core/format.mjs";
@@ -105,16 +110,17 @@ export function fallenRowMarkup(line, screen) {
 /**
  * The body of a fallen player's profile, the desk's panel and his own page alike (PlayerDead): his characteristics in
  * grey, «Fallen» and when, the cause, then the undo the caller offers (`undoHtml`, a death a coach marked) or, for a
- * death the screen does not undo, who corrects it; his career, his skills as cards (a chip opens its rule, as on the
- * roster) — an advancement's skill named by its type, as the living's are (K29): in full with how it was rolled on his
- * page, short in the desk's panel (`short`) — and what a death means.
+ * death the screen does not undo, who corrects it; his career by match (`careerHtml`, stage 07e) — «Career: N SPP» for
+ * a record with no id — his skills as cards (a chip opens its rule, as on the roster) — an advancement's skill named by
+ * its type, as the living's are (K29): in full with how it was rolled on his page, short in the desk's panel (`short`)
+ * — and what a death means.
  *
  * @param {import("./model.mjs").FallenLine} line
- * @param {{undoHtml?: string, short?: boolean}} [options] `undoHtml` is markup of a `render…()`/`…Markup()`: the undo and
- *   its hint (`undoMarkup`)
+ * @param {{undoHtml?: string, short?: boolean, careerHtml?: string}} [options] `undoHtml` and `careerHtml` are markup of
+ *   a `render…()`/`…Markup()`: the undo and its hint (`undoMarkup`), his career (career.mjs's `careerMarkup`)
  * @returns {string}
  */
-export function fallenProfileMarkup(line, { undoHtml = "", short = false } = {}) {
+export function fallenProfileMarkup(line, { undoHtml = "", short = false, careerHtml = "" } = {}) {
   const state = `<div class="g-fallen__state">${renderStatusChip({ label: t("teamRoster.fallen.status") })}`
     + `<span class="g-fallen__when">${escapeHtml(fallenWhen(line))}</span></div>`;
   const after = undoHtml || adminMarkup(line);
@@ -122,7 +128,7 @@ export function fallenProfileMarkup(line, { undoHtml = "", short = false } = {})
   const skills = `<section class="g-roster__pblock"><h3 class="g-roster__ptitle">${escapeHtml(t("teamRoster.skills"))}</h3>${chips}</section>`;
   return `<div class="g-fallen"><div class="g-fallen__stats">${statsMarkup(line)}</div>`
     + `<div class="g-fallen__card">${state}${causeMarkup(line)}${after}</div>`
-    + `<p class="g-fallen__career">${escapeHtml(t("teamRoster.fallen.career", { spp: line.earned }))}</p>${skills}`
+    + `${careerHtml || `<p class="g-fallen__career">${escapeHtml(t("teamRoster.fallen.career", { spp: line.earned }))}</p>`}${skills}`
     + `<p class="g-fallen__rules">${escapeHtml(t("teamRoster.fallen.rules"))}</p></div>`;
 }
 
@@ -140,17 +146,18 @@ export function fallenWho(line, baseTeamSlug) {
  * The desk's panel for a fallen player (decision 17: the panel is his profile): his number grey and large, his name,
  * «<position> · <race> · fallen» (`fallenWho`), then the profile's body, with «Undo the mark» for a death a coach
  * marked — closed, as the sheet's button would be, while a match is on, the screen is locked or a step of the roster
- * waits (K6).
+ * waits (K6) — and the desk's «Career» the caller draws (`careerHtml`, stage 07e).
  *
  * @param {import("./model.mjs").FallenLine} line
  * @param {import("./view.mjs").RosterScreen} screen
+ * @param {{careerHtml?: string}} [options] `careerHtml` is markup of career.mjs's `careerMarkup()`, "" for a record with no id
  */
-export function fallenPanelMarkup(line, screen) {
+export function fallenPanelMarkup(line, screen, { careerHtml = "" } = {}) {
   const who = fallenWho(line, screen.team.baseTeamSlug);
   const reason = undoable(line) ? markClosed(line, screen, { direct: true }) : "";
   return `<div class="g-roster__phead">${renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true })}`
     + `<div class="g-roster__pwho"><h2 class="g-roster__pname">${escapeHtml(fallenName(line))}</h2><p class="g-roster__pline">${escapeHtml(who)}</p></div></div>`
-    + fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason), short: true });
+    + fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason), short: true, careerHtml });
 }
 
 /**

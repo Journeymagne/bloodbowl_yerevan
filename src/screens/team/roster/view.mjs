@@ -38,6 +38,7 @@ import { renderRosterTable } from "../../../ui/roster-table.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
 import { advanceSheetMarkup } from "./advance-sheet.mjs";
+import { careerMarkup } from "./career.mjs";
 import { causeOf, fallenName, fallenPanelMarkup, fallenRowMarkup, undoSheetMarkup } from "./fallen-view.mjs";
 import { MAIN_COUNTERS, counterSlots, rosterCounts, rosterSections } from "./model.mjs";
 import { absenceWords, injuryWords, matchTarget, matchWords, prepResetWords, rowPanelMarkup, sidePanelMarkup, skillChipsMarkup } from "./panel.mjs";
@@ -113,7 +114,7 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {string} player the player mode's stored id, as the address carries it (stage 07d); "" for the roster itself
  * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read
  *   them (stage 07d); a read on its way keeps the list read before it
- * @property {import("./index.mjs").Visit["career"]} career the player's career by match as the visit read it (a phone's profile, career.mjs)
+ * @property {Map<string, import("./career.mjs").CareerRead>} careers the career by match of each player as the visit read it, by his stored id (career.mjs)
  * @property {boolean} careerOpen its list is open
  */
 
@@ -324,6 +325,49 @@ function captionMarkup(screen) {
 }
 
 /**
+ * What the roster shows of its lines: a desk's query, the three sections — those who play, those who miss the next
+ * match, the fallen — as it filters them, and the player open or chosen for the panel among them (`choiceOf`).
+ * @param {RosterScreen} screen
+ */
+function shownOf(screen) {
+  // A phone has no field: a query kept from a desk filters nothing there.
+  const words = screen.phone ? [] : queryWords(screen.memory.query);
+  const query = words.length ? screen.memory.query.trim() : "";
+  const sorted = rosterSections(screen.lines);
+  const [active, skipping, fallen] = [sorted.active, sorted.skipping, screen.fallen].map((rows) => rows.filter((line) => lineMatches(line, words)));
+  return { query, active, skipping, fallen, choice: choiceOf([...active, ...skipping, ...fallen], screen) };
+}
+
+/**
+ * The line whose career the screen shows (career.mjs reads it for him), null for none: none before the screen is drawn
+ * (the wait, a read that failed, a race the reference does not know); on a phone in the player mode, his line among
+ * those who play, then among the fallen (as `playerPageMarkup` finds it); on a desk the panel's player, a fallen one
+ * too, only while the list is open (stage 07e, decision 3: there are no totals to wait for, and the coach goes through
+ * the players with clicks) — none when a search hides everyone.
+ * @param {RosterScreen} screen
+ * @returns {import("./model.mjs").PlayerLine|null}
+ */
+export function careerLineOf(screen) {
+  if (screen.loading || screen.error || !screen.race) return null;
+  const own = (lines) => lines.find((line) => line.id === screen.player);
+  if (screen.phone) return screen.player ? own(screen.lines) ?? own(screen.fallen) ?? null : null;
+  if (!screen.careerOpen) return null;
+  const { active, skipping, fallen, choice } = shownOf(screen);
+  return [...active, ...skipping, ...fallen].find((line) => line.key === choice.chosen) ?? null;
+}
+
+/**
+ * The desk's «Career» of the panel's player (DeskRosterCareer.html), a fallen one's too, after the card of his death: the
+ * visit's read of his, the one open state of the visit's; "" for a player no read can name, and on a phone, which hides
+ * the panel (its career is the profile's).
+ * @param {import("./model.mjs").PlayerLine} line @param {RosterScreen} screen
+ */
+function deskCareerMarkup(line, screen) {
+  if (screen.phone || !line.id) return "";
+  return careerMarkup({ line, race: screen.race, career: screen.careers.get(line.id) ?? null, open: screen.careerOpen, desk: true, heading: "h3" });
+}
+
+/**
  * The banners, stage 08's treasury strip on a desk (strip.mjs), the three sections and the line on how to read
  * them, in one column, and the panel beside it from its top (DeskRoster.html). «Active roster» always stands, with
  * the save's status: a roster with nobody on it says so, and one whose players all miss the match says that, in place
@@ -335,12 +379,7 @@ function captionMarkup(screen) {
  */
 function layoutMarkup(screen) {
   const { lines, team } = screen;
-  // A phone has no field: a query kept from a desk filters nothing there.
-  const words = screen.phone ? [] : queryWords(screen.memory.query);
-  const query = words.length ? screen.memory.query.trim() : "";
-  const sorted = rosterSections(lines);
-  const [active, skipping, fallen] = [sorted.active, sorted.skipping, screen.fallen].map((rows) => rows.filter((line) => lineMatches(line, words)));
-  const choice = choiceOf([...active, ...skipping, ...fallen], screen);
+  const { query, active, skipping, fallen, choice } = shownOf(screen);
   const last = fallen.length ? fallen : skipping.length ? skipping : active;
   const first = active.length ? active : skipping.length ? skipping : fallen;
   // A desk shows the labels once, over the first table drawn: the others keep theirs for a screen reader (DeskRosterInjured.html).
@@ -360,7 +399,7 @@ function layoutMarkup(screen) {
   const chosen = [...lines, ...fallen].find((line) => line.key === choice.chosen);
   const aside = chosen
     ? `<aside class="g-roster__aside" id="${ASIDE_ID}" aria-label="${escapeHtml(t("teamRoster.panelLabel"))}"${dataAttributes({ panelPlayer: chosen.key })}>`
-      + `${chosen.fallen ? fallenPanelMarkup(chosen, screen) : sidePanelMarkup(chosen, screen)}</aside>`
+      + `${(chosen.fallen ? fallenPanelMarkup : sidePanelMarkup)(chosen, screen, { careerHtml: deskCareerMarkup(chosen, screen) })}</aside>`
     : "";
   // A desk drawn for a player's address that names nobody it holds says so over the table (M5), as a phone's page does.
   const gone = screen.player && ![...lines, ...screen.fallen].some((line) => line.id === screen.player) ? goneMarkup(screen.teamId) : "";

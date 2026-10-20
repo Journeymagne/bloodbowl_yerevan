@@ -58,7 +58,7 @@ export const FALLEN = [PIKE, JOE];
 
 /**
  * A coach on a page that has read his teams and the reference; the server answers the roster, its events, its fallen,
- * the games and each player's career by match (none yet). `open` is the player chosen from the first draw: his row open
+ * the games and each player's career by match, the fallen's too (none yet). `open` is the player chosen from the first draw: his row open
  * on a phone, him in the panel on a desk.
  */
 export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}) {
@@ -79,8 +79,11 @@ export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}
   api.reply("GET /api/teams/t1/events", 200, { events: [], revision: teamAnswer.revision });
   api.reply("GET /api/teams/t1/fallen", 200, { fallen });
   api.reply("GET /api/games", 200, { games: [], currentGames: [] });
-  // A phone's profile reads the player's career by match once a visit (stage 07d, Task 24): none of the team's matches yet.
-  for (const { id } of PLAYERS) api.reply(`GET /api/teams/t1/players/${id}/history`, 200, { history: { playerId: id, matches: [], outside: {} } });
+  // A phone's profile reads the player's career by match (stage 07d, Task 24), and a fallen player's page his (stage 07e):
+  // none of the team's matches yet.
+  for (const id of [...PLAYERS, ...FALLEN.map(({ player }) => player)].map((player) => player.id)) {
+    api.reply(`GET /api/teams/t1/players/${id}/history`, 200, { history: { playerId: id, matches: [], outside: {} } });
+  }
 }
 
 export const callKeys = () => api.calls.map(({ key }) => key);
@@ -101,9 +104,9 @@ export const LIVE_GAME = {
 };
 export const STYLES = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css",
   "src/screens/team/roster/market.css", "src/screens/team/roster/profile.css", "src/screens/team/roster/player-sheets.css", "src/screens/team/roster/advance.css",
-  "src/screens/team/roster/rolls.css", "src/screens/team/roster/fix.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
-  "stat-strip.css", "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
-  "src/screens/team/manage/strip.css"];
+  "src/screens/team/roster/rolls.css", "src/screens/team/roster/fix.css", "src/screens/team/roster/career.css", "page-head.css", "roster-table.css",
+  "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css",
+  "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css"];
 
 /** The player's address as the router draws a player of the roster (stage 07d): the roster's player mode. */
 export const playerPage = (playerId) => renderTeamRoster("t1", { playerId });

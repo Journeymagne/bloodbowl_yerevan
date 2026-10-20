@@ -18,6 +18,10 @@
  * what they say. Only the roster's screen sends or settles the steps of its queue, so while one waits the undo here
  * would wait for ever: the page says so and leads there (K14). Once he is back the page says so, with the way back to
  * the roster.
+ *
+ * His career by match (stage 07e) is PlayerCareer's block where PlayerDead puts «Career», after the card of his death:
+ * the phone's on either width — the page is one of its own, with no table to carry TD to MVP. It is read once his
+ * profile is drawn (the games read), and again after a read of the page's (career.mjs's stamp); nothing is written.
  */
 import { delegate, drawScreen, escapeHtml, focusLost } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -40,6 +44,7 @@ import { classNames } from "../../../ui/markup.mjs";
 import { renderPageHead } from "../../../ui/page-head.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
 import { wireSkillChips } from "../../../ui/skill-chip.mjs";
+import { askCareer, careerHandlers, careerMarkup } from "../roster/career.mjs";
 import { fallenWriting, readFallen } from "../roster/fallen.mjs";
 import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup, undoSheetMarkup } from "../roster/fallen-view.mjs";
 import { closeSheet, sheetOf } from "../roster/injury.mjs";
@@ -69,6 +74,8 @@ import { sheetIdOf, skillSheetMarkup } from "../roster/sheets.mjs";
  * @property {Element|null} opener what opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
+ * @property {Map<string, import("../roster/career.mjs").CareerRead>} careers his career by match as the visit read it (career.mjs)
+ * @property {boolean} careerOpen its list is open
  */
 
 /**
@@ -122,7 +129,7 @@ function nowOf({ teamId, playerId, visit }) {
   const held = heldBy(teamId, visit);
   const waits = !held && rosterWaits(save);
   return {
-    mode: modeOf(teamId), save, lock: held || (waits ? t("teamRoster.fallen.waitRoster") : ""), waits, team, lines, fallen,
+    mode: modeOf(teamId), save, lock: held || (waits ? t("teamRoster.fallen.waitRoster") : ""), waits, team, race, lines, fallen,
     line: fallen.find((item) => item.id === playerId) ?? null,
   };
 }
@@ -157,14 +164,16 @@ function headMarkup({ teamId, name = "", who = "", badgeHtml = "" }) {
 /**
  * His profile: the head — his grey number, his name, «<position> · <race> · fallen» — then what closes his undo, where
  * the coach can act on it (`noticeMarkup`), and the profile's body (fallen-view.mjs), its undo closed while none can
- * be sent, saying why.
+ * be sent, saying why, and his career (stage 07e: the phone's block, an `h3` as «Skills»; none for a record with no id).
+ * @param {ReturnType<typeof nowOf>} now @param {Page} page
  */
-function profileMarkup(now, teamId) {
+function profileMarkup(now, { teamId, visit }) {
   const { line, team } = now;
   const badgeHtml = renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true });
   const reason = undoable(line) ? markClosed(line, now, { direct: true }) : "";
+  const careerHtml = line.id ? careerMarkup({ line, race: now.race, career: visit.careers.get(line.id) ?? null, open: visit.careerOpen, heading: "h3" }) : "";
   return `${headMarkup({ teamId, name: fallenName(line), who: fallenWho(line, team.baseTeamSlug), badgeHtml })}`
-    + `<div class="g-fallen-page__body">${noticeMarkup(now, teamId)}${fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason) })}</div>`;
+    + `<div class="g-fallen-page__body">${noticeMarkup(now, teamId)}${fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason), careerHtml })}</div>`;
 }
 
 /**
@@ -216,15 +225,16 @@ function playerMarkup(page) {
   else if (visit.error) {
     const actionHtml = renderButton({ label: t("teamRoster.readAgain"), data: { playerRetry: true } });
     body = `<div class="g-roster__failed" role="alert">${renderCallout({ tone: "danger", title: visit.error, actionHtml })}</div>`;
-  } else body = now.line ? profileMarkup(now, page.teamId) : goneMarkup(now, page);
+  } else body = now.line ? profileMarkup(now, page) : goneMarkup(now, page);
   if (visit.loading || visit.error) body = `${headMarkup({ teamId: page.teamId })}${body}`;
   return `<div class="${classNames("g-fallen-page", isPhone() && "g-profile")}" data-screen="team-player">${body}${sheetMarkup(now)}</div>`;
 }
 
 /**
- * The page drawn: the first time whole, later as a patch, a sheet that is open kept open. His name takes the focus the
- * first time his profile is drawn; a redraw that took the focus from the page gives it to the way back to the roster,
- * where there is one, else to the name — never to the page's body.
+ * The page drawn: the first time whole, later as a patch, a sheet that is open kept open; his career asked for (stage
+ * 07e) on every draw after the read, the first one too (pre-flight L7). His name takes the focus the first time his
+ * profile is drawn; a redraw that took the focus from the page gives it to the way back to the roster, where there is
+ * one, else to the name — never to the page's body.
  * @param {Page} page
  */
 function drawPage(page) {
@@ -238,6 +248,7 @@ function drawPage(page) {
     visit.drawn = true;
     drawScreen(view, markup);
   }
+  if (!visit.loading && !visit.error) askCareer(page, nowOf(page).line);
   const title = view.querySelector("h1");
   if (visit.name && !visit.titled) {
     visit.titled = true;
@@ -343,7 +354,7 @@ function listen(target, type, listener) {
  * What the page hears, on the view: «Undo the mark» and its sheet's «Keep» and «Back on the roster» (marks.mjs's, as on
  * the roster), a closed undo saying why, a skill's card opening its rule, a sheet closed, «Try again» for the page's
  * read and for the games'; and the games — a match begun closes the undo, and they are read again when the tab is seen
- * again — and the roster's queue, whose edits do (K14), each drawing the page again.
+ * again — and the roster's queue, whose edits do (K14), each drawing the page again; the button of his «Career» (07e).
  * @param {Page} page
  * @param {function(): Promise<void>} retry «Try again»: the page read again
  * @returns {(() => void)[]} what takes each off
@@ -351,6 +362,7 @@ function listen(target, type, listener) {
 function wirePlayer(page, retry) {
   const { teamId, visit, draw } = page;
   const marks = markHandlers(page, lentOf(page));
+  const career = careerHandlers(page);
   return [
     wireSheets(view, {
       onClose: (id) => {
@@ -370,6 +382,7 @@ function wirePlayer(page, retry) {
     delegate(view, "click", "[data-undo-keep]", () => marks.onUndoKeep()),
     delegate(view, "click", "[data-undo-send]", () => marks.onUndoSend()),
     delegate(view, "click", "[data-player-retry]", () => void retry()),
+    delegate(view, "click", "[data-player-career]", (event, button) => career.onCareerToggle(button.getAttribute("data-player-career") ?? "")),
     // The games read again: until they answer, the undo says it waits for them.
     delegate(view, "click", "[data-player-games]", () => {
       void loadGames(true);
@@ -412,6 +425,7 @@ export async function renderTeamPlayer(teamId, playerId) {
   /** @type {Visit} */
   const visit = {
     here: true, drawn: false, titled: false, loading: true, error: "", fallen: [], name: "", back: false, sheet: null, opener: null, reads: 0, answered: 0,
+    careers: new Map(), careerOpen: false,
   };
   /** @type {Page} */
   const page = { teamId, playerId, visit, draw: () => drawPage(page) };

@@ -1,0 +1,250 @@
+/*
+ * A player's «Career» by match (screens/team/roster/career.mjs): the block a phone's profile draws right after
+ * «Skills» (PlayerCareer.html) — the heading's button with «N SPP · by match» and the chevron, the totals GP TD CAS
+ * COMP KO INT MVP, and, open, the list's head, the rows and the footnote. Stage 07e brings it to a desk's roster panel
+ * in a form of its own (`.g-career--desk`, DeskRosterCareer.html, at the end of this sheet): the panel's last block,
+ * under the pair of actions, the button 40px and the rows smaller; no totals, no list head, no footnote.
+ *
+ * The sheet has no width of its own: the form is a class, not the screen's. A fallen player's page (stage 07b) draws
+ * the phone's block on a desk as well — a page of its own, with no table beside it to carry TD to MVP.
+ *
+ * Where the prototype gives no line height, the font's own (`normal`) is the prototype's. Font, border, background,
+ * text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals (h2, h3, p, dl, dt, dd, ul) outlive
+ * this sheet until stage 13. A long opponent or a long line of actions wraps; nothing is cut with «…».
+ */
+
+/* The block: a column 10px apart — the heading's button, the totals, the list while open. The prototype is
+   content-box: a height it gives over padding is written as it draws. */
+.g-career {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  min-width: 0;
+}
+/* The heading is only the button's, so a heading's navigation finds it; the footnote and the list's words are text. */
+.g-career__head,
+.g-career__note,
+.g-career__state {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-career__head { font: 400 14px/normal var(--font-body); }
+/* A thumb tall, no frame and no fill: «Career» and «N SPP · by match» on one baseline 10px apart, the chevron at the right. */
+.g-career__toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  width: 100%;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+.g-career__titles {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-10);
+  min-width: 0;
+}
+.g-career__title {
+  color: var(--ink);
+  font: 700 24px/normal var(--font-display);
+}
+.g-career__sub {
+  color: var(--muted);
+  font: 400 13px/normal var(--font-body);
+}
+/* The prototype's chevron is the shared one (pointing right) turned down; open, it turns 180°. */
+.g-career__toggle .g-icon { transform: rotate(90deg); }
+.g-career__toggle[aria-expanded="true"] .g-icon { transform: rotate(-90deg); }
+/* The totals: seven columns alike, centred, between two 1px rules (the prototype's #DCE3DF, --line-strong), 8 0; «GP»
+   12/600 quiet over the number 17/600, 4 under it. */
+.g-career__totals {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  margin: 0;
+  padding: var(--space-8) 0;
+  border: 1px solid var(--line-strong);
+  border-width: 1px 0;
+  background: none;
+  text-align: center;
+}
+.g-career__total {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 0;
+}
+.g-career__key {
+  margin: 0;
+  color: var(--muted);
+  font: 600 12px/normal var(--font-body);
+  letter-spacing: 0;
+}
+.g-career__value {
+  margin: 0;
+  padding: var(--space-4) 0 0;
+  color: var(--ink);
+  font: 600 17px/normal var(--font-body);
+  letter-spacing: 0;
+}
+/* A nought, and GP before the history is read: quiet. The prototypes' #8A948F (--faint) is 3.1:1, too little for
+   17px/600; --muted holds 4.5:1, as 07a/07b decided for the fallen's characteristics. */
+.g-career__zero { color: var(--muted); }
+/* The list: a column 8px apart; «All matches · N» and «SPP» at its two ends, 12/700, .06em, in capitals, quiet. */
+.g-career__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+.g-career__listhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  color: var(--muted);
+  font: 700 12px/normal var(--font-body);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+}
+/* 14px corners and the 1px ring (#DCE3DF: the shared --ring), as the prototype draws them: under the rows' own fill,
+   which covers the ring. */
+.g-career__rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: none;
+  box-shadow: var(--ring);
+  list-style: none;
+  overflow: hidden;
+}
+/* A row: the match and the SPP, 10 apart; 56px of content, 8 12 and a 1px rule under it — 73px drawn; on the page's fill. */
+.g-career__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 73px;
+  margin: 0;
+  padding: var(--space-8) var(--space-12);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+/* A row that waits for its post-match: the prototypes' #FFFBF2, which no token holds — the warning's tint a third over
+   the page's fill (≈ #FEFAF3 in the grass palette), so it follows every palette; on both widths. */
+.g-career__row--pending { background: color-mix(in srgb, var(--warn-tint) 35%, var(--surface)); }
+.g-career__main {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.g-career__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  min-width: 0;
+}
+/* The round and the opponent 14/700, wrapping (the owner's answer on wrapping); the result 12/700 in its colour. */
+.g-career__name {
+  min-width: 0;
+  color: var(--ink);
+  font: 700 14px/normal var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-career__result {
+  flex: none;
+  font: 700 12px/normal var(--font-body);
+}
+.g-career__result--won { color: var(--on-accent-tint); }
+.g-career__result--drawn { color: var(--muted); }
+.g-career__result--lost { color: var(--danger); }
+.g-career__events {
+  color: var(--ink-2);
+  font: 400 13px/normal var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-career__side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+.g-career__spp {
+  color: var(--on-accent-tint);
+  font: 700 18px/normal var(--font-display);
+}
+/* A match missed, one without details or with no actions: its words and its SPP quiet. */
+.g-career__quiet { color: var(--muted); }
+/* «waits for the post-match»: 20px tall, 0 7, 10px corners, the warning's tint and ink, 11/700. */
+.g-career__pending {
+  display: flex;
+  align-items: center;
+  min-height: 20px;
+  padding: 0 7px;
+  border-radius: var(--radius-md);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font: 700 11px/normal var(--font-body);
+}
+.g-career__note {
+  color: var(--muted);
+  font: 400 12px/1.45 var(--font-body);
+}
+/* The list with no rows (no prototype): as quiet as «No injuries», 15px; a read that failed in red. */
+.g-career__state {
+  color: var(--muted);
+  font: 400 15px/normal var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-career__state--bad { color: var(--danger); }
+
+/* A desk's roster panel (DeskRosterCareer.html): its last block, under the pair of actions — a column 8px apart, 14 over
+   it and a 1px rule, as the next match's block over it. The rules below are sizes alone: the colours are the block's. */
+.g-career--desk {
+  gap: var(--space-8);
+  padding-top: var(--space-14);
+  border-top: 1px solid var(--line);
+}
+/* The button 40px (D2: from 901px at least 24, as the pair of actions over it); «Career» Oswald 22/700. */
+.g-career--desk .g-career__toggle { min-height: 40px; }
+.g-career--desk .g-career__title { font: 700 22px/normal var(--font-display); }
+/* The list's 12px corners; a row 48px of content, 6 12 and its 1px rule — 61px drawn — 8 apart; its column 1px apart. */
+.g-career--desk .g-career__rows { border-radius: var(--radius-lg); }
+.g-career--desk .g-career__row {
+  gap: var(--space-8);
+  min-height: 61px;
+  padding: var(--space-6) var(--space-12);
+}
+.g-career--desk .g-career__main { gap: 1px; }
+/* The round and the opponent 13/700, wrapping (the prototype cuts it with «…»: the owner's answer on wrapping); what the
+   player did 12px. */
+.g-career--desk .g-career__name { font: 700 13px/normal var(--font-body); }
+.g-career--desk .g-career__events { font: 400 12px/normal var(--font-body); }
+/* At the right, in a row 6 apart and centred: «waits for the post-match», then the SPP, Oswald 17/700. */
+.g-career--desk .g-career__side {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-6);
+}
+.g-career--desk .g-career__spp { font: 700 17px/normal var(--font-display); }
+/* The list with no rows: 13px, as the prototype's line for a player with no history. */
+.g-career--desk .g-career__state { font: 400 13px/normal var(--font-body); }

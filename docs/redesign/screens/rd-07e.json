@@ -1,0 +1,338 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "C1",
+      "url": "http://localhost:5179/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "extraWidths": [
+        1024
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C2",
+      "url": "http://localhost:5179/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "extraWidths": [
+        1024
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C3",
+      "url": "http://localhost:5179/#/t/t1/roster/p4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C4",
+      "url": "http://localhost:5179/#/t/t1/roster/p8",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C5",
+      "url": "http://localhost:5179/#/t/t2/roster/q4",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C6",
+      "url": "http://localhost:5179/#/t/t1/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-row-key=\"fallen-f2\"]', 500);",
+        "  await press('[data-player-career]', 600);",
+        "  into('[data-player-career]');",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C7",
+      "url": "http://localhost:5179/#/t/t1/roster/p9",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "extraWidths": [
+        768
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C7o",
+      "url": "http://localhost:5179/#/t/t1/roster/p9",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C8",
+      "url": "http://localhost:5179/#/t/t1/roster/p9",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C9",
+      "url": "http://localhost:5179/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "C10",
+      "url": "http://localhost:5179/#/t/t1/roster/p10",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "O1",
+      "url": "http://localhost:5179/#/t/t2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390,
+        1440
+      ],
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await wait(300);",
+        "})()"
+      ]
+    },
+    {
+      "id": "R1",
+      "url": "http://localhost:5179/#/t/t1/roster/p3",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms = 400) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms); };",
+        "  const into = (sel) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.scrollIntoView({ block: 'center' }); };",
+        "  await wait(300);",
+        "  await press('[data-player-career]', 600);",
+        "  await wait(300);",
+        "})()"
+      ]
+    }
+  ]
+}

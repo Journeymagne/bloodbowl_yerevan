@@ -52,7 +52,7 @@ import { sheetIdOf } from "./sheets.mjs";
 import { PHONE, gamesKnown, isPhone, linesOf, lockOf, modeOf, outsideOf, patchVisit, putBack, reading, screenOf, unsureOf } from "./screen.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
 import { wireAsideFit } from "./aside-fit.mjs";
-import { rosterMarkup } from "./view.mjs";
+import { careerLineOf, rosterMarkup } from "./view.mjs";
 import { askCareer } from "./career.mjs";
 import { playerPageMarkup } from "./profile.mjs";
 import { wireRoster } from "./wire.mjs";
@@ -109,8 +109,8 @@ function listen(target, type, listener) {
  * @property {string} player the player mode's stored id (the address's), "" for the roster; `chosen` once his line was chosen
  * @property {boolean} titled his name has been drawn in his head, and has taken the focus (the player mode on a phone)
  * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d; a read on its way keeps the list before it)
- * @property {null | {loading: true} | {history: object} | {error: string}} career the player's career by match as read (a phone's profile, career.mjs)
- * @property {boolean} careerOpen its list is open on his profile
+ * @property {Map<string, import("./career.mjs").CareerRead>} careers the career by match of each player the visit read it for, by his stored id (career.mjs)
+ * @property {boolean} careerOpen its list is open, on his profile and in a desk's panel alike (one state of the visit's)
  */
 
 /**
@@ -472,8 +472,8 @@ function drawVisit(teamId, visit, memory) {
     visit.titled = true;
     name.focus();
   }
-  // His career by match is read once his profile is drawn (career.mjs), on a phone only: a desk's is stage 07e's.
-  if (screen.player && screen.phone) askCareer({ teamId, visit, draw: () => drawVisit(teamId, visit, memory) }, screen);
+  // The career of the line the screen shows is read once it is drawn, and again when the server has moved on (career.mjs).
+  askCareer({ teamId, visit, draw: () => drawVisit(teamId, visit, memory) }, careerLineOf(screen));
 }
 
 /**
@@ -492,7 +492,7 @@ export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
     here: true, drawn: false, loading: true, error: "", team: null, draft: null, events: [], fallen: [], sheet: null, opener: null,
     reads: 0, answered: 0, status: "", retake: false, saveOff: null, pending: [], heard: [], sideLocked: "", failed: false, reread: false,
     match: null, stale: false, sent: 0, quiet: [], unsure: false, followed: null, player: playerId, chosen: false, titled: false, rolls: null,
-    career: null, careerOpen: false,
+    careers: new Map(), careerOpen: false,
   };
   const saving = { teamId, visit, memory, draw: () => drawVisit(teamId, visit, memory) };
   // The team and its fallen, then the games (R8): asked for before the team is drawn, so that its counters are drawn closed until they answer.

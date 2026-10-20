@@ -2,8 +2,9 @@
  * What a team's figures are, read from what the server already sends: no
  * endpoint of its own (design spec 3.0 §4). The record, the season's TD and CAS
  * difference, the place, the squares of the season, the last results with
- * their MVPs come from `/api/games` and `/api/season`; the value and the
- * leaders from the saved team and its race.
+ * their MVPs come from `/api/games` and `/api/season`; the value from the
+ * saved team and its race, the leaders from them and the records not settled
+ * yet (`GET /api/teams/:id/events`, which the screen reads).
  *
  * Functions only, no DOM and no `t()`: the screens that show a team (its
  * overview, the list of teams) say these in their own words.
@@ -13,6 +14,7 @@
  * and a bye, a match with no opponent, counts in no record.
  */
 import { isGameResultSubmitted } from "./games.mjs";
+import { careerCounters } from "../domain/post-match/events.mjs";
 import { ensureDraftPlayers, positionKind, selectedRosterPlayers, storedPlayerId } from "../domain/roster/players.mjs";
 import { calculateRosterCosts } from "../domain/roster/costs.mjs";
 import { playerSppTotal } from "../domain/roster/progression.mjs";
@@ -204,12 +206,12 @@ export function teamValue(savedTeam, raceTeam) {
   return calculateRosterCosts(raceTeam, rosterOf(savedTeam, raceTeam)).total;
 }
 
-/** The counters a leader is picked by, in the order the overview lists them. */
+/** The counters a leader is picked by, in the order the overview lists them, read from his career. */
 const LEADER_COUNTERS = [
-  ["spp", (raceTeam, player) => playerSppTotal(raceTeam, player)],
-  ["td", (_raceTeam, player) => player.spp.touchdowns],
-  ["cas", (_raceTeam, player) => player.spp.casualties],
-  ["comp", (_raceTeam, player) => player.spp.completions],
+  ["spp", (raceTeam, career) => playerSppTotal(raceTeam, { spp: career })],
+  ["td", (_raceTeam, career) => career.touchdowns],
+  ["cas", (_raceTeam, career) => career.casualties],
+  ["comp", (_raceTeam, career) => career.completions],
 ];
 
 /**
@@ -220,24 +222,35 @@ const LEADER_COUNTERS = [
  * read here gives an id of its own (`normalizeRosterPlayer`) that no address
  * knows. `kind` is his position's, the colour of his badge.
  *
+ * The counters are his career as the roster counts it (stage 07e, decision 13):
+ * the blob and `events`, the records not settled yet — the taps of a match on —
+ * by his stored id (`careerCounters`); one stored without has the blob alone.
+ * The caller hands the records of the blob's own moment, or none.
+ *
+ * @param {object} savedTeam @param {object|null} raceTeam
+ * @param {object[]} [events] `GET /api/teams/:id/events`'s, at the team's revision
  * @returns {{key: "spp"|"td"|"cas"|"comp", id: string, name: string, number: string, position: string, kind: string, value: number}[]}
  */
-export function teamLeaders(savedTeam, raceTeam) {
+export function teamLeaders(savedTeam, raceTeam, events = []) {
   if (!raceTeam) return [];
   const players = selectedRosterPlayers(raceTeam, rosterOf(savedTeam, raceTeam));
   const stored = Array.isArray(savedTeam?.roster?.players) ? savedTeam.roster.players : [];
   const storedIds = new Set(stored.map(storedPlayerId).filter(Boolean));
+  const careers = players.map((player) => {
+    const id = storedIds.has(player.id) ? player.id : "";
+    return { player, id, career: careerCounters({ id, spp: player.spp }, events) };
+  });
   const leaders = [];
   for (const [key, read] of LEADER_COUNTERS) {
     let best = null;
     let bestValue = 0;
-    for (const player of players) {
-      const value = read(raceTeam, player);
-      if (value > bestValue) [best, bestValue] = [player, value];
+    for (const each of careers) {
+      const value = read(raceTeam, each.career);
+      if (value > bestValue) [best, bestValue] = [each, value];
     }
     if (!best) continue;
-    const id = storedIds.has(best.id) ? best.id : "";
-    leaders.push({ key, id, name: best.name, number: best.number, position: best.row.position, kind: positionKind(best.row), value: bestValue });
+    const { player, id } = best;
+    leaders.push({ key, id, name: player.name, number: player.number, position: player.row.position, kind: positionKind(player.row), value: bestValue });
   }
   return leaders;
 }

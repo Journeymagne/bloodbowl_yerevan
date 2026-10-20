@@ -178,7 +178,9 @@ test("on a desk a fallen player chosen stands in the panel as his profile", asyn
     assert.equal(panel.querySelector(".g-fallen__when").textContent, `marked by hand · ${formatDay(PIKE.diedAt)}`);
     assert.ok(words(panel).includes("Cause of death"));
     assert.equal(panel.querySelector(".g-fallen__cause").textContent, "Foul by the Raiders");
-    assert.ok(words(panel).includes("Career: 6 SPP"));
+    // Stage 07e: his career by match, the desk's block, in place of «Career: 6 SPP» (test/team-fallen-career.test.mjs).
+    assert.ok(panel.querySelector(".g-career"));
+    assert.ok(!panel.querySelector(".g-fallen__career"));
     assert.deepEqual(panel.querySelectorAll(".g-skill--card").map((card) => card.getAttribute("data-skill")), ["Block", "Tackle"]);
     assert.ok(words(panel).includes("A fallen player plays no matches, takes no advancements and is not in TV."));
     assert.ok(!panel.querySelector("[data-action-key]"), "no counters");

@@ -174,6 +174,30 @@ test("a leader carries the player's id and the kind of the position: the badge's
   assert.equal(leaders[2].kind, positionKind(amazon.team.roster[1]));
 });
 
+// Stage 07e, decision 13: the leaders are the career, as the roster counts it (`careerCounters`) — the blob and the
+// records not settled yet; a settled record is in the blob already.
+test("the leaders count what the records not settled add: a tap of the match on puts a player ahead; a settled one is in the blob already", () => {
+  const players = [
+    { id: "pa", rowIndex: 0, number: "1", name: "Ashby", spp: { touchdowns: 2 } },
+    { id: "pb", rowIndex: 0, number: "2", name: "Vane", spp: { touchdowns: 1 } },
+    { rowIndex: 0, number: "3", name: "Nameless", spp: { completions: 1 } },
+  ];
+  const tap = (playerId, counter, settledAt = null) => ({ id: `e-${playerId}-${counter}-${settledAt ?? "open"}`, pairingId: "g2", playerId, counter, delta: 1, injury: null, settledAt });
+  const events = [tap("pb", "touchdowns"), { ...tap("pb", "touchdowns"), id: "e2" }, tap("pa", "touchdowns", "2026-10-20T10:00:00Z")];
+  const leaders = record.teamLeaders({ roster: { players } }, amazon, events);
+  // Vane: TD 1 on the roster and two taps not settled, TD 3 (9 SPP by the Amazon's weights); Ashby's settled tap is his blob's TD 2.
+  assert.deepEqual(leaders.map(({ key, id, name, value }) => [key, id, name, value]), [["spp", "pb", "Vane", 9], ["td", "pb", "Vane", 3], ["comp", "", "Nameless", 1]]);
+  // A record names a player by his stored id: one stored with none has the blob alone.
+  const nameless = record.teamLeaders({ roster: { players } }, amazon, [{ ...tap("", "completions"), playerId: "" }, tap("p3", "completions")]);
+  assert.equal(nameless.find(({ key }) => key === "comp").value, 1);
+  // Without the records, as before: the roster's numbers.
+  assert.deepEqual(record.teamLeaders({ roster: { players } }, amazon).map(({ key, name, value }) => [key, name, value]),
+    [["spp", "Ashby", 6], ["td", "Ashby", 2], ["comp", "Nameless", 1]]);
+  // A tap that takes one back is counted too, never below nought: three off Ashby's TD 2.
+  const back = record.teamLeaders({ roster: { players } }, amazon, ["e7", "e8", "e9"].map((id) => ({ ...tap("pa", "touchdowns"), id, delta: -1 })));
+  assert.deepEqual(back.map(({ key, name, value }) => [key, name, value]), [["spp", "Vane", 3], ["td", "Vane", 1], ["comp", "Nameless", 1]]);
+});
+
 test("initials are the first letters of the first two words", () => {
   assert.equal(record.teamInitials("Ashgrove Wardens"), "AW");
   assert.equal(record.teamInitials("приморец"), "П");
