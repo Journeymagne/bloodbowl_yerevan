@@ -17,9 +17,12 @@
  * match was missed («missed the match», with no reason: the history has none), that it has no details (a match from
  * before the site's records), or no actions; and its SPP, signed, by the race's weights. A match on waits for its
  * post-match (K15: by the match's status, so a match on where the player has no tap yet is not a match «without
- * details»; a confirmed match whose taps the post-match has not taken waits too). Last, the edits outside a match, when
- * they are not all nought. The read is the visit's: a list opened while it is in the air says so, one that failed says
- * why and the next opening reads again; an answer that comes after the coach left draws nothing.
+ * details»; a confirmed match whose taps the post-match has not taken waits too). Then the edits outside a match, when
+ * they are not all nought; last, when «N SPP» is more than the rows add up to, «Before the site's records» with the
+ * rest (controller's ruling on review I1): SPP from matches before the site's records, from a player who came with
+ * SPP or from the history's other exceptions — so the rows always add up to the heading. The read is the visit's: a
+ * list opened while it is in the air says so, one that failed says why and the next opening reads again; an answer
+ * that comes after the coach left draws nothing.
  */
 import { refusalText } from "../../../core/api.mjs";
 import { apiRequest } from "../../../core/api-client.mjs";
@@ -33,8 +36,9 @@ import { injuryWords } from "./panel.mjs";
 
 /** The list's id, which the heading's button names while the list is open (K14). */
 const LIST = "player-career-list";
-/** The key of the row of the edits outside a match: no match's id is it. */
+/** The keys of the rows that are no match: the edits outside one, and the SPP from before the site's records. */
 const OUTSIDE = "outside";
+const BEFORE = "before";
 /** The counters a row names, in the roster's order: the table's, its narrow row's, then the catches. */
 const SAID = [...MAIN_COUNTERS, ...EXTRA_COUNTERS, "catches"];
 
@@ -66,8 +70,9 @@ export async function readCareer(teamId, playerId) {
 }
 
 /**
- * @typedef {{key: string, title: string, result: string, outcome: "won"|"drawn"|"lost"|"", events: string, spp: string, quiet: boolean, pending: boolean}} CareerRow
- *   `quiet` for a match missed, one without details and one with no actions; `pending` for a match that waits for its post-match
+ * @typedef {{key: string, title: string, result: string, outcome: "won"|"drawn"|"lost"|"", events: string, spp: string, points: number, quiet: boolean, pending: boolean}} CareerRow
+ *   `points` what the row adds to the SPP (0 where it says «—»); `quiet` for a match missed, one without details, one
+ *   with no actions and the SPP from before the site's records; `pending` for a match that waits for its post-match
  */
 
 /** The counters that are not nought, in the roster's words: «TD 1», «TD −1», an MVP alone as «MVP». */
@@ -106,32 +111,37 @@ function resultOf(score) {
 function matchRow(match, weights) {
   const live = match.status === "in_progress";
   const row = { key: String(match.pairingId ?? ""), title: titleOf(match), ...resultOf(match.score), pending: live || match.pending === true };
-  if (match.played === false) return { ...row, events: t("teamPlayer.career.out"), spp: "—", quiet: true };
-  if (!match.counters) return { ...row, events: live ? t("teamPlayer.career.idle") : t("teamPlayer.career.bare"), spp: "—", quiet: true };
+  if (match.played === false) return { ...row, events: t("teamPlayer.career.out"), spp: "—", points: 0, quiet: true };
+  if (!match.counters) return { ...row, events: live ? t("teamPlayer.career.idle") : t("teamPlayer.career.bare"), spp: "—", points: 0, quiet: true };
   const said = [...countWords(match.counters), ...(match.injury?.code ? [injuryWords(match.injury)] : [])];
-  if (!said.length) return { ...row, events: t("teamPlayer.career.idle"), spp: signed(sppOf(match.counters, weights)), quiet: true };
-  return { ...row, events: said.join(" · "), spp: signed(sppOf(match.counters, weights)), quiet: false };
+  const points = sppOf(match.counters, weights);
+  if (!said.length) return { ...row, events: t("teamPlayer.career.idle"), spp: signed(points), points, quiet: true };
+  return { ...row, events: said.join(" · "), spp: signed(points), points, quiet: false };
 }
 
 /**
  * The rows of the list (decision 43): the matches from the first one the site knows the player in — on its roster, or
- * with what a post-match or a tap left — newest first, then the edits outside a match unless they are all nought.
+ * with what a post-match or a tap left — newest first, then the edits outside a match unless they are all nought;
+ * with `earned`, last the SPP the rows do not hold, when there are any (ruling on I1): the rows then add up to it.
  *
  * @param {{matches: object[], outside: Record<string, number>}} history as `readCareer` answers it
  * @param {object} race the team's race: what each counter is worth to it
+ * @param {{earned?: number|null}} [heading] the SPP the block's heading says (`line.earned`)
  * @returns {CareerRow[]}
  */
-export function careerRows(history, race) {
+export function careerRows(history, race, { earned = null } = {}) {
   const weights = sppCounterWeights(race);
   const matches = (Array.isArray(history?.matches) ? history.matches : []).filter((match) => match && typeof match === "object");
   const first = matches.findIndex((match) => match.played === true || match.source !== "none");
   const rows = first < 0 ? [] : matches.slice(first).reverse().map((match) => matchRow(match, weights));
   const edits = countWords(history?.outside);
-  if (!edits.length) return rows;
-  return [...rows, {
-    key: OUTSIDE, title: t("teamPlayer.career.outside"), result: "", outcome: "", events: edits.join(" · "),
-    spp: signed(sppOf(history.outside, weights)), quiet: false, pending: false,
-  }];
+  if (edits.length) {
+    const points = sppOf(history.outside, weights);
+    rows.push({ key: OUTSIDE, title: t("teamPlayer.career.outside"), result: "", outcome: "", events: edits.join(" · "), spp: signed(points), points, quiet: false, pending: false });
+  }
+  const rest = Number.isFinite(earned) ? earned - rows.reduce((sum, row) => sum + row.points, 0) : 0;
+  if (rest > 0) rows.push({ key: BEFORE, title: t("teamPlayer.career.before"), result: "", outcome: "", events: "", spp: signed(rest), points: rest, quiet: true, pending: false });
+  return rows;
 }
 
 /** GP: the confirmed matches the site knows the player played (the owner's answer 1); a match on is not one yet. */
@@ -148,33 +158,37 @@ function totalsMarkup(line, career) {
     + `${MAIN_COUNTERS.map((counter) => cell(t(`teamRoster.counter.${counter}`), line.career?.[counter] ?? 0)).join("")}</dl>`;
 }
 
-/** A row: its title and result over what the player did, its SPP at the right, over «waits for the post-match» when it does. */
+/**
+ * A row: its title and result over what the player did, its SPP at the right, over «waits for the post-match» when it
+ * does. The SPP from before the site's records has no match to say anything of: its title alone.
+ */
 function rowMarkup(row) {
   const result = row.outcome
     ? `<span class="g-profile__careerresult g-profile__careerresult--${escapeHtml(row.outcome)}">${escapeHtml(row.result)}</span>` : "";
   const plate = row.pending ? `<span class="g-profile__careerpending">${escapeHtml(t("teamPlayer.career.pending"))}</span>` : "";
   return `<li class="g-profile__careerrow"><span class="g-profile__careermain"><span class="g-profile__careerline">`
     + `<b class="g-profile__careername">${escapeHtml(row.title)}</b>${result}</span>`
-    + `<span class="${classNames("g-profile__careerevents", row.quiet && "g-profile__careerquiet")}">${escapeHtml(row.events)}</span></span>`
+    + `${row.events ? `<span class="${classNames("g-profile__careerevents", row.quiet && "g-profile__careerquiet")}">${escapeHtml(row.events)}</span>` : ""}</span>`
     + `<span class="g-profile__careerside"><b class="${classNames("g-profile__careerspp", row.quiet && "g-profile__careerquiet")}">${escapeHtml(row.spp)}</b>${plate}</span></li>`;
 }
 
 /**
  * The list, open: «Reading the matches…» while the read is in the air or to be sent (K14: a career the toggle let go
- * is read on this draw), why a read failed, «No matches yet», or the head, the rows and the footnote.
+ * is read on this draw), why a read failed, «No matches yet» or the head and the rows — either with the footnote
+ * (ruling on I1: it says why the matches before the site's records are not there). The rows add up to `earned`.
  */
-function listMarkup(race, career) {
+function listMarkup(race, career, earned) {
   const state = (words, { role = "", bad = false } = {}) => `<p class="${classNames("g-profile__careerstate", bad && "g-profile__careerstate--bad")}"`
     + `${role ? ` role="${role}"` : ""}>${escapeHtml(words)}</p>`;
   let body;
   if (!career || career.loading) body = state(t("teamPlayer.career.reading"), { role: "status" });
   else if (!career.history) body = state(t("teamPlayer.career.failed", { reason: career.error ?? "" }), { role: "alert", bad: true });
   else {
-    const rows = careerRows(career.history, race);
-    const count = rows.filter((row) => row.key !== OUTSIDE).length;
-    body = !rows.length ? state(t("teamPlayer.career.none"))
+    const rows = careerRows(career.history, race, { earned });
+    const count = rows.filter((row) => row.key !== OUTSIDE && row.key !== BEFORE).length;
+    body = (!rows.length ? state(t("teamPlayer.career.none"))
       : `<div class="g-profile__careerlisthead"><span>${escapeHtml(t("teamPlayer.career.listHead", { count }))}</span><span>${escapeHtml(t("teamPlayer.career.sppHead"))}</span></div>`
-        + `<ul class="g-profile__careerrows">${rows.map(rowMarkup).join("")}</ul><p class="g-profile__careernote">${escapeHtml(t("teamPlayer.career.note"))}</p>`;
+        + `<ul class="g-profile__careerrows">${rows.map(rowMarkup).join("")}</ul>`) + `<p class="g-profile__careernote">${escapeHtml(t("teamPlayer.career.note"))}</p>`;
   }
   return `<div id="${LIST}" class="g-profile__careerlist">${body}</div>`;
 }
@@ -191,7 +205,7 @@ export function careerMarkup({ line, race, career, open }) {
     + `${open ? ` aria-controls="${LIST}"` : ""} data-player-career><span class="g-profile__careertitles">`
     + `<span class="g-profile__careertitle">${escapeHtml(t("teamPlayer.career.title"))}</span>`
     + `<span class="g-profile__careersub">${escapeHtml(t("teamPlayer.career.sub", { spp: line.earned }))}</span></span>${icon("chevron", 18)}</button></h2>`;
-  return `<section class="g-profile__career">${toggle}${totalsMarkup(line, career)}${open ? listMarkup(race, career) : ""}</section>`;
+  return `<section class="g-profile__career">${toggle}${totalsMarkup(line, career)}${open ? listMarkup(race, career, line.earned) : ""}</section>`;
 }
 
 /**

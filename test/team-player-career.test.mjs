@@ -30,7 +30,7 @@ const totals = () => career().querySelectorAll(".g-profile__careertotal").map((c
 const rowWords = () => list().querySelectorAll(".g-profile__careerrow").map((row) => [
   row.querySelector(".g-profile__careername").textContent,
   row.querySelector(".g-profile__careerresult")?.textContent ?? "",
-  row.querySelector(".g-profile__careerevents").textContent,
+  row.querySelector(".g-profile__careerevents")?.textContent ?? "",
   row.querySelector(".g-profile__careerspp").textContent,
   row.querySelector(".g-profile__careerpending")?.textContent ?? "",
 ]);
@@ -42,7 +42,7 @@ const match = (over = {}) => ({
   pairingId: "g1", played: true, source: "applied", counters: counters(), injury: null, pending: false,
   kind: "league", seasonId: "s1", roundNumber: 1, status: "confirmed", opponent: { teamId: "r1", name: "Grimtusk Raiders" }, score: { own: 2, opponent: 1 }, ...over,
 });
-const ROUND_1 = match({ counters: counters({ touchdowns: 2 }) });
+const ROUND_1 = match({ counters: counters({ touchdowns: 2, mvps: 1 }) });
 const FRIENDLY = match({ pairingId: "g2", kind: "friendly", seasonId: null, roundNumber: null, played: null, source: "none", counters: null, opponent: { teamId: "r2", name: "Duskspire Knives" }, score: { own: 1, opponent: 1 } });
 const ROUND_2 = match({ pairingId: "g3", roundNumber: 2, played: false, opponent: { teamId: "r3", name: "Mirefen Rotters" }, score: { own: 0, opponent: 2 } });
 const ROUND_3 = match({
@@ -51,21 +51,34 @@ const ROUND_3 = match({
 });
 /** Oldest first, as the server sends them; one edit outside a match. */
 const HISTORY = { playerId: "p3", matches: [ROUND_1, FRIENDLY, ROUND_2, ROUND_3], outside: counters({ touchdowns: 1 }) };
-/** Cade, a Catcher of the humans: three touchdowns, a completion and an MVP on the roster — 15 SPP. */
-const CADE = { ...PLAYERS[2], spp: { touchdowns: 3, completions: 1, mvps: 1 } };
-const withCade = () => withPlayers(PLAYERS.map((each) => (each.id === "p3" ? CADE : each)));
+/**
+ * Cade, a Catcher of the humans, as the history tells him (M3: the two agree): round 1's TD 2 and MVP and the edit
+ * outside a match's TD 1 on the roster, and round 3's TD 1 and COMP 1 among the records not settled yet — the line
+ * counts both (`careerCounters`): TD 4 · COMP 1 · MVP 1, 18 SPP, which the rows add up to (+4, +11, +3).
+ */
+const CADE = { ...PLAYERS[2], spp: { touchdowns: 3, mvps: 1 } };
+const TAPS = [
+  { id: "e1", pairingId: "g4", playerId: "p3", counter: "touchdowns", delta: 1, injury: null, settledAt: null },
+  { id: "e2", pairingId: "g4", playerId: "p3", counter: "completions", delta: 1, injury: null, settledAt: null },
+];
+const withCade = (player = CADE) => withPlayers(PLAYERS.map((each) => (each.id === "p3" ? player : each)));
+/** The coach, his roster holding Cade as `player`, and the records `events` not settled. */
+function coachCade({ player = CADE, events = TAPS } = {}) {
+  coach({ teamAnswer: withCade(player) });
+  api.reply("GET /api/teams/t1/events", 200, { events, revision: 4 });
+}
 const human = () => state.data.teams.find((team) => team.slug === "teams/human");
 const ROWS = [
   ["Round 3 · Silverbrook Rangers", "", "TD 1 · COMP 1", "+4", "waits for the post-match"],
   ["Round 2 · Mirefen Rotters", "L 0–2", "missed the match", "—", ""],
   ["Friendly · Duskspire Knives", "D 1–1", "no details", "—", ""],
-  ["Round 1 · Grimtusk Raiders", "W 2–1", "TD 2", "+6", ""],
+  ["Round 1 · Grimtusk Raiders", "W 2–1", "TD 2 · MVP", "+11", ""],
   ["Edits outside a match", "", "TD 1", "+3", ""],
 ];
 
 /** Cade's profile on a phone, the server holding `history` for him. */
-async function openCade(history = HISTORY) {
-  coach({ teamAnswer: withCade() });
+async function openCade(history = HISTORY, cade = {}) {
+  coachCade(cade);
   api.reply(HISTORY_READ, 200, { history });
   await playerPage("p3");
   await settle();
@@ -73,7 +86,7 @@ async function openCade(history = HISTORY) {
 
 test("the career stands right after the skills: «Career», «N SPP · by match», the totals GP TD CAS COMP KO INT MVP", async () => {
   await withWindow({ phone: true }, async () => {
-    coach({ teamAnswer: withCade() });
+    coachCade();
     api.reply(HISTORY_READ, 200, { history: HISTORY });
     const gate = api.hold(HISTORY_READ);
     await playerPage("p3");
@@ -83,13 +96,13 @@ test("the career stands right after the skills: «Career», «N SPP · by match�
     assert.deepEqual(blocks.slice(-3), ["g-profile__skills", "g-profile__career", "g-profile__injuries"], "PlayerCareer.html: after «Skills», before «Injuries»");
     assert.equal(career().tagName, "SECTION");
     assert.equal(career().querySelector(".g-profile__careertitle").textContent, "Career");
-    assert.equal(career().querySelector(".g-profile__careersub").textContent, "15 SPP · by match");
+    assert.equal(career().querySelector(".g-profile__careersub").textContent, "18 SPP · by match");
     assert.ok(careerToggle().querySelector("svg.g-icon"), "the chevron");
     // The totals from the roster's line at once; GP waits for the history (Review Focus 4).
-    assert.deepEqual(totals(), [["GP", "–"], ["TD", "3"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]]);
+    assert.deepEqual(totals(), [["GP", "–"], ["TD", "4"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]]);
     gate.release();
     await settle();
-    assert.deepEqual(totals(), [["GP", "1"], ["TD", "3"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]], "the one confirmed match the site knows he played");
+    assert.deepEqual(totals(), [["GP", "1"], ["TD", "4"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]], "the one confirmed match the site knows he played");
     const quiet = career().querySelectorAll(".g-profile__careervalue").map((value) => value.classList.contains("g-profile__careerzero"));
     assert.deepEqual(quiet, [false, false, true, false, true, true, false], "a nought is quiet");
     assert.equal(careerToggle().tagName, "BUTTON");
@@ -111,7 +124,7 @@ test("the list opens on a press: newest first — the round, the opponent, the r
     assert.equal(careerToggle().getAttribute("aria-controls"), "player-career-list");
     assert.ok(list().closest(".g-profile__career"), "in the section");
     assert.deepEqual(list().querySelector(".g-profile__careerlisthead").childNodes.map((node) => node.textContent), ["All matches · 4", "SPP"]);
-    assert.deepEqual(rowWords(), ROWS);
+    assert.deepEqual(rowWords(), ROWS, "18 SPP, and the rows add up to it: no «Before the site's records»");
     assert.equal(list().querySelector(".g-profile__careerrows").tagName, "UL");
     const results = list().querySelectorAll(".g-profile__careerresult").map((result) => result.getAttribute("class"));
     assert.deepEqual(results, ["g-profile__careerresult g-profile__careerresult--lost", "g-profile__careerresult g-profile__careerresult--drawn", "g-profile__careerresult g-profile__careerresult--won"]);
@@ -139,18 +152,20 @@ test("matches before the first one the site knows the player in are not listed",
     press();
     assert.deepEqual(rowWords(), ROWS);
     assert.equal(list().querySelector(".g-profile__careerlisthead").childNodes[0].textContent, "All matches · 4");
-    // A player the site knows in no match yet, with nothing outside one: «No matches yet».
-    await openCade({ playerId: "p3", matches: before, outside: counters() });
+    // A player with no SPP the site knows in no match yet, nothing outside one: «No matches yet», and the footnote under it (ruling on I1).
+    await openCade({ playerId: "p3", matches: before, outside: counters() }, { player: PLAYERS[2], events: [] });
     press();
     assert.equal(list().querySelector(".g-profile__careerstate").textContent, "No matches yet");
     assert.ok(!list().querySelector(".g-profile__careerrows"));
+    assert.equal(list().querySelector(".g-profile__careernote").textContent, NOTE);
     assert.deepEqual(totals()[0], ["GP", "0"]);
+    assertStyled(view, ...STYLES);
   });
 });
 
 test("the history is read once a visit, after the roster; another draw reads nothing more; another visit reads again", async () => {
   await withWindow({ phone: true }, async () => {
-    coach({ teamAnswer: withCade() });
+    coachCade();
     api.reply(HISTORY_READ, 200, { history: HISTORY });
     const team = api.hold(TEAM_READ);
     const drawing = playerPage("p3");
@@ -182,12 +197,12 @@ test("the history is read once a visit, after the roster; another draw reads not
 
 test("a read that failed: the totals stand, GP «–», the list says why; opening it again reads again", async () => {
   await withWindow({ phone: true }, async () => {
-    coach({ teamAnswer: withCade() });
+    coachCade();
     api.reply(HISTORY_READ, 500, { error: { code: "INTERNAL", params: {}, message: "x" } });
     await playerPage("p3");
     await settle();
     assert.equal(callsTo(HISTORY_READ), 1);
-    assert.deepEqual(totals(), [["GP", "–"], ["TD", "3"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]]);
+    assert.deepEqual(totals(), [["GP", "–"], ["TD", "4"], ["CAS", "0"], ["COMP", "1"], ["KO", "0"], ["INT", "0"], ["MVP", "1"]]);
     assert.ok(career().querySelector(".g-profile__careervalue").classList.contains("g-profile__careerzero"), "«–» is quiet");
     // Opened: read again, «Reading the matches…» meanwhile (K14: a career let go is drawn as read).
     press();
@@ -212,7 +227,7 @@ test("a read that failed: the totals stand, GP «–», the list says why; openi
     assert.deepEqual(rowWords(), ROWS);
     assert.deepEqual(totals()[0], ["GP", "1"]);
     // A body without the matches is no answer.
-    coach({ teamAnswer: withCade() });
+    coachCade();
     api.reply(HISTORY_READ, 200, { history: { playerId: "p3" } });
     await playerPage("p3");
     await settle();
@@ -224,7 +239,7 @@ test("a read that failed: the totals stand, GP «–», the list says why; openi
 
 test("an answer after the coach left draws nothing", async () => {
   await withWindow({ phone: true }, async () => {
-    coach({ teamAnswer: withCade() });
+    coachCade();
     const gate = api.hold(HISTORY_READ);
     await playerPage("p3");
     await settle();
@@ -244,9 +259,78 @@ test("an answer after the coach left draws nothing", async () => {
   });
 });
 
+// Ruling on review I1: «N SPP · by match» is the roster's career, which holds SPP the history cannot put in a match (matches
+// before the site's records, a player who came with SPP): the rest is a last, quiet row, so the rows add up to the heading.
+test("a veteran with 28 SPP and no match the site knows: «Before the site's records · +28», under the head and over the footnote", async () => {
+  const veteran = { ...PLAYERS[2], spp: { touchdowns: 7, completions: 2, mvps: 1 } };
+  const unknown = match({ played: null, source: "none", counters: null });
+  await withWindow({ phone: true }, async () => {
+    await openCade({ playerId: "p3", matches: [unknown], outside: counters() }, { player: veteran, events: [] });
+    assert.equal(career().querySelector(".g-profile__careersub").textContent, "28 SPP · by match");
+    assert.deepEqual(totals()[0], ["GP", "0"]);
+    press();
+    assert.deepEqual(list().querySelector(".g-profile__careerlisthead").childNodes.map((node) => node.textContent), ["All matches · 0", "SPP"]);
+    assert.deepEqual(rowWords(), [["Before the site's records", "", "", "+28", ""]], "no match's details: its title and its SPP alone");
+    const row = list().querySelector(".g-profile__careerrow");
+    assert.ok(!row.querySelector(".g-profile__careerevents"));
+    assert.ok(row.querySelector(".g-profile__careerspp").classList.contains("g-profile__careerquiet"), "quiet");
+    assert.ok(!list().querySelector(".g-profile__careerstate"), "not «No matches yet»: there is a row to add up");
+    assert.equal(list().querySelector(".g-profile__careernote").textContent, NOTE);
+    assertCspSafe(view);
+    assertStyled(view, ...STYLES);
+  });
+});
+
+test("a phone's profile whose roster read failed reads no history; «Try again» that brings the roster reads it once", async () => {
+  await withWindow({ phone: true }, async () => {
+    coachCade();
+    api.reply(TEAM_READ, 500, { error: { code: "INTERNAL", params: {}, message: "x" } });
+    await playerPage("p3");
+    await settle();
+    assert.ok(view.querySelector(".g-roster__failed [data-roster-retry]"));
+    assert.equal(callsTo(HISTORY_READ), 0);
+    api.reply(TEAM_READ, 200, { team: withCade() });
+    api.reply(HISTORY_READ, 200, { history: HISTORY });
+    fireEvent(view.querySelector("[data-roster-retry]"), "click");
+    await settle();
+    assert.ok(career());
+    assert.equal(callsTo(HISTORY_READ), 1);
+    assert.deepEqual(totals()[0], ["GP", "1"]);
+  });
+});
+
+test("the width crossing 900px: a desk reads nothing; the phone's profile reads once, and not again on the way back", async () => {
+  await withWindow({ phone: false }, async () => {
+    const listeners = new Set();
+    const media = { matches: false, addEventListener: (type, listener) => listeners.add(listener), removeEventListener: (type, listener) => listeners.delete(listener) };
+    globalThis.matchMedia = (query) => (query === "(max-width: 900px)" ? media : { matches: false });
+    const cross = async (phone) => {
+      media.matches = phone;
+      listeners.forEach((listener) => listener());
+      await settle();
+    };
+    coachCade();
+    api.reply(HISTORY_READ, 200, { history: HISTORY });
+    await playerPage("p3");
+    await settle();
+    assert.ok(view.querySelector(".g-roster__aside") && !career(), "a desk: the roster with him in the panel");
+    assert.equal(callsTo(HISTORY_READ), 0);
+    await cross(true);
+    assert.ok(career());
+    assert.equal(callsTo(HISTORY_READ), 1);
+    assert.deepEqual(totals()[0], ["GP", "1"]);
+    await cross(false);
+    assert.ok(!career());
+    await cross(true);
+    assert.equal(callsTo(HISTORY_READ), 1, "the visit's read stands");
+    assert.deepEqual(totals()[0], ["GP", "1"]);
+    api.assertAnswered();
+  });
+});
+
 test("a desk draws no career and reads none; a fallen player's page neither", async () => {
   // A desk: the address is the roster with him in the panel (stage 07e draws the desk's career, DeskRosterCareer.html).
-  coach({ teamAnswer: withCade() });
+  coachCade();
   await playerPage("p3");
   await settle();
   assert.ok(view.querySelector(".g-roster__aside"));
@@ -363,4 +447,24 @@ test("the rows: an MVP is «MVP», two are «MVP 2»; a match's injury; a negati
   assert.deepEqual(careerRows({ matches: [], outside: counters() }, race), []);
   assert.equal(gamesPlayed({ matches: [ROUND_1, FRIENDLY, ROUND_2, ROUND_3, match({ pairingId: "g9", played: true, status: "confirmed" })] }), 2,
     "confirmed and played: not the match on, not one missed, not one the site has no roster for");
+});
+
+test("the rows add up to the heading: what they lack is «Before the site's records»; none when they hold it all, or more", () => {
+  coach();
+  const race = human();
+  // 12 earned; the rows hold 7 (+4, +3): the rest, +5, last and quiet.
+  const seven = { matches: [match({ counters: counters({ touchdowns: 1, completions: 1 }) }), match({ pairingId: "g2", roundNumber: 2, counters: counters({ touchdowns: 1 }) })], outside: counters() };
+  const rows = careerRows(seven, race, { earned: 12 });
+  assert.deepEqual(rows.map(({ key, spp, points, quiet }) => [key, spp, points, quiet]), [["g2", "+3", 3, false], ["g1", "+4", 4, false], ["before", "+5", 5, true]]);
+  assert.deepEqual(rows.at(-1), { key: "before", title: "Before the site's records", result: "", outcome: "", events: "", spp: "+5", points: 5, quiet: true, pending: false });
+  assert.equal(rows.reduce((sum, row) => sum + row.points, 0), 12);
+  // After the edits outside a match, which count too; a missed match and one without details count nothing.
+  const edits = careerRows({ ...seven, matches: [...seven.matches, match({ pairingId: "g3", played: false })], outside: counters({ bonus: 2 }) }, race, { earned: 12 });
+  assert.deepEqual(edits.map(({ key, spp }) => [key, spp]), [["g3", "—"], ["g2", "+3"], ["g1", "+4"], ["outside", "+2"], ["before", "+3"]]);
+  // The rows hold it all, or more (a counter the roster holds at nought): no such row.
+  assert.ok(!careerRows(seven, race, { earned: 7 }).some(({ key }) => key === "before"));
+  assert.ok(!careerRows(seven, race, { earned: 5 }).some(({ key }) => key === "before"));
+  // A veteran the site knows in no match: the one row.
+  assert.deepEqual(careerRows({ matches: [], outside: counters() }, race, { earned: 28 }).map(({ title, spp }) => [title, spp]), [["Before the site's records", "+28"]]);
+  assert.deepEqual(careerRows({ matches: [], outside: counters() }, race, { earned: 0 }), []);
 });

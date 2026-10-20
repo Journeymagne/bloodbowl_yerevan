@@ -393,7 +393,6 @@
   .g-profile__careerhead { font: 400 14px/normal var(--font-body); }
   /* A thumb tall, no frame and no fill: «Career» and «N SPP · by match» on one baseline 10px apart, the chevron at the right. */
   .g-profile__careertoggle {
-    box-sizing: border-box;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -435,9 +434,8 @@
     grid-template-columns: repeat(7, minmax(0, 1fr));
     margin: 0;
     padding: var(--space-8) 0;
-    border: 0;
-    border-top: 1px solid var(--line);
-    border-bottom: 1px solid var(--line);
+    border: 1px solid var(--line);
+    border-width: 1px 0;
     background: none;
     text-align: center;
   }
@@ -550,7 +548,6 @@
   .g-profile__careerquiet { color: var(--muted); }
   /* «waits for the post-match»: 20px tall, 0 7, 10px corners, the warning's tint and ink, 11/700. */
   .g-profile__careerpending {
-    box-sizing: border-box;
     display: flex;
     align-items: center;
     min-height: 20px;

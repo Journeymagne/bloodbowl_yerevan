@@ -1447,6 +1447,7 @@
   "teamPlayer.career.bare": "без деталей",
   "teamPlayer.career.pending": "ждёт итогов",
   "teamPlayer.career.outside": "Правки вне матча",
+  "teamPlayer.career.before": "До записей на сайте",
   "teamPlayer.career.reading": "Читаем матчи…",
   "teamPlayer.career.failed": "Матчи не прочитаны: {reason}",
   "teamPlayer.career.none": "Матчей пока нет",

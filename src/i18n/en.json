@@ -1447,6 +1447,7 @@
   "teamPlayer.career.bare": "no details",
   "teamPlayer.career.pending": "waits for the post-match",
   "teamPlayer.career.outside": "Edits outside a match",
+  "teamPlayer.career.before": "Before the site's records",
   "teamPlayer.career.reading": "Reading the matches…",
   "teamPlayer.career.failed": "The matches did not load: {reason}",
   "teamPlayer.career.none": "No matches yet",
