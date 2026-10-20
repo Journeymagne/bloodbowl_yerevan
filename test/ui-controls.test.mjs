@@ -116,6 +116,13 @@ test("a button with an href is a link and never disabled", () => {
   assert.equal(link.hasAttribute("disabled"), false);
 });
 
+test("a button that opens a dialog says so; a link cannot", () => {
+  const button = mount(renderButton({ label: "New team", kind: "primary", dialog: true, data: { newTeam: true } })).querySelector("button");
+  assert.equal(button.getAttribute("aria-haspopup"), "dialog");
+  assert.equal(mount(renderButton({ label: "New team" })).querySelector("button").hasAttribute("aria-haspopup"), false, "only when asked");
+  assert.throws(() => renderButton({ label: "New team", href: "#/teams/new", dialog: true }), /a link opens no dialog/);
+});
+
 test("labels and data are escaped", () => {
   const fragment = mount(renderButton({ label: HOSTILE, data: { player: HOSTILE } }));
   assert.equal(fragment.querySelector("img"), null);

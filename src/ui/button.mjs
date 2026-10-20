@@ -28,11 +28,15 @@ const FORM_ID = /^[A-Za-z][\w-]*$/;
  * the form there. `busy` is a press on its way: the button says so
  * (aria-busy, aria-disabled) but is not `disabled`, which would take the focus
  * from a focused button in Chrome; the screen takes no second press.
+ * `dialog` is a button that opens one (a sheet over the page, «New team»):
+ * a screen reader says so before it is pressed. A link goes somewhere else
+ * and opens nothing, so it cannot be one.
  */
-export function renderButton({ label, kind = "outline", type = "button", href = "", disabled = false, hidden = false, busy = false, icon = "", block = false, form = "", data = {} }) {
+export function renderButton({ label, kind = "outline", type = "button", href = "", disabled = false, hidden = false, busy = false, icon = "", block = false, form = "", dialog = false, data = {} }) {
   if (!label) throw new Error("a button needs a label: its icon is decoration, and nothing else names it");
   if (!BUTTON_KINDS.includes(kind)) throw new Error(`unknown button kind: ${kind}`);
   if (form && (href || !FORM_ID.test(form))) throw new Error(`a button's form is a plain id on a button, not ${JSON.stringify(form)}${href ? " on a link" : ""}`);
+  if (dialog && href) throw new Error("a link opens no dialog: a button that opens one has no href");
   const className = classNames("g-btn", kind !== "outline" && `g-btn--${kind}`, block && "g-btn--block");
   const content = `${icon ? renderIcon(icon, kind === "primary" ? 20 : 16) : ""}${escapeHtml(label)}`;
   const out = hidden ? " hidden" : "";
@@ -40,7 +44,8 @@ export function renderButton({ label, kind = "outline", type = "button", href = 
     assertLinkHref(href);
     return `<a class="${className}" href="${escapeHtml(href)}"${out}${dataAttributes(data)}>${content}</a>`;
   }
-  return `<button type="${escapeHtml(type)}" class="${className}"${form ? ` form="${escapeHtml(form)}"` : ""}${disabled ? " disabled" : ""}${busy ? ' aria-busy="true" aria-disabled="true"' : ""}${out}${dataAttributes(data)}>${content}</button>`;
+  const popup = dialog ? ' aria-haspopup="dialog"' : "";
+  return `<button type="${escapeHtml(type)}" class="${className}"${form ? ` form="${escapeHtml(form)}"` : ""}${disabled ? " disabled" : ""}${busy ? ' aria-busy="true" aria-disabled="true"' : ""}${popup}${out}${dataAttributes(data)}>${content}</button>`;
 }
 
 /** The round close or back button of a sheet. Nothing else names it, so the label is required. */

@@ -1,6 +1,7 @@
 /**
- * The builder's screen: the second step of `#/teams/new`, drawn from a draft
- * (domain/roster/build.mjs) and wired to handlers that change it.
+ * The builder's screen: `#/teams/new`, after the sheet of a new team's name
+ * and race (new-sheet.mjs), drawn from a draft (domain/roster/build.mjs) and
+ * wired to handlers that change it.
  *
  * Everything here is markup and the clicks on it. Which race, the draft, the
  * redraw after a change, the request that saves the team are `new.mjs`'s; the
@@ -93,7 +94,7 @@ function headMarkup(race, name) {
   const titles = `<div class="g-build__titles"><h1 class="g-build__title" tabindex="-1">${escapeHtml(name || race.title)}</h1>`
     + `<p class="g-build__sub">${escapeHtml(t("newTeam.subtitle", { race: race.title }))}</p></div>`;
   return `<header class="g-build__head" data-key="build-head">${back}${titles}${renderStatusChip({ label: t("teams.stage.draft"), onDark: true })}`
-    + `${renderButton({ label: t("newTeam.restart"), data: { newTeamRestart: true } })}</header>`;
+    + `${renderButton({ label: t("newTeam.restart"), dialog: true, data: { newTeamRestart: true } })}</header>`;
 }
 
 /** The bar fills in steps of ten: no inline width (the CSP), and a sliver of spending shows. */
@@ -341,7 +342,7 @@ const HANDLERS = ["onHire", "onStaff", "onToggleStaff", "onRefused", "onRosterTo
  * @param {(kind: string) => void} handlers.onChoiceOpen
  * @param {(kind: string, value: string) => void} handlers.onChoose
  * @param {() => void} handlers.onChoiceClose
- * @param {() => void} handlers.onRestart
+ * @param {(button: Element) => void} handlers.onRestart «Change the race or the name», with the button: the sheet it opens gives the focus back to it
  * @param {() => void} handlers.onSave
  * @returns {() => void} removes the listeners
  */
@@ -373,7 +374,7 @@ export function wireBuilder(root, handlers) {
       if (kind) handlers.onChoose(kind, value);
     }),
     wireSheets(root, { onClose: (id) => { if (id === CHOICE_ID) handlers.onChoiceClose(); } }),
-    delegate(root, "click", "[data-new-team-restart]", () => handlers.onRestart()),
+    delegate(root, "click", "[data-new-team-restart]", (event, button) => handlers.onRestart(button)),
     delegate(root, "click", "[data-new-team-save]", () => handlers.onSave()),
   ];
   return () => offs.forEach((off) => off());

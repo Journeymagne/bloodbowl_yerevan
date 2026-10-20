@@ -1,7 +1,8 @@
 /**
  * What a new team's build remembers: the coach's name, race and draft, and the way a session that ends, or another
- * coach on this browser, takes them away. The build lives here and nowhere else: the builder (new.mjs) reads and
- * changes it, and so will anything else that begins one; going to another screen and coming back finds it as it was.
+ * coach on this browser, takes them away. The build lives here and nowhere else: the sheet of its name and race
+ * (new-sheet.mjs) begins it and the builder (new.mjs) changes it; going to another screen and coming back finds it as
+ * it was.
  */
 import { state } from "../../core/state.mjs";
 import { onSessionChange } from "../../data/session.mjs";
@@ -15,8 +16,7 @@ import { countToNumber } from "../../domain/roster/values.mjs";
  * draft was begun, not when it was opened again: `createTeam` looks for a team made since then when an answer is lost.
  * @typedef {object} Build
  * @property {string|undefined} userId whose build it is
- * @property {"pick"|"build"} step
- * @property {string} name as typed on the first step
+ * @property {string} name as typed in the sheet
  * @property {string} raceSlug
  * @property {object|null} draft
  * @property {number} startedAt
@@ -30,10 +30,24 @@ import { countToNumber } from "../../domain/roster/values.mjs";
 let flow = null;
 
 /** @returns {Build} */
-const freshFlow = (userId) => ({ userId, step: "pick", name: "", raceSlug: "", draft: null, startedAt: 0, rosterOpen: false, choice: null, pending: false, refusal: "" });
+const freshFlow = (userId) => ({ userId, name: "", raceSlug: "", draft: null, startedAt: 0, rosterOpen: false, choice: null, pending: false, refusal: "" });
 
 /** A player or a purchase is something a reload would lose. */
 export const holdsPicks = (draft) => Boolean(draft) && (draft.players.length > 0 || BUILD_STAFF_KEYS.some((key) => countToNumber(draft[key]) > 0));
+
+/**
+ * The page's `beforeunload` while `build` is shown: a reload or a closed tab asks first when it holds a squad. The
+ * builder asks it, and so does the sheet of the name and the race while it is open over any screen: it keeps the
+ * squad of the same race (it says so), and a reload would lose it. A build with nobody and nothing bought, or none
+ * (gone with the session), has nothing to lose.
+ * @param {Event} event @param {Build|null} build
+ */
+export function askBeforeLeaving(event, build) {
+  if (!holdsPicks(build?.draft)) return;
+  event.preventDefault();
+  // Browsers that ask only for a returnValue are asked too; an event that has no setter for it is not an error.
+  Reflect.set(event, "returnValue", "");
+}
 
 let watchingSession = false;
 
@@ -62,6 +76,11 @@ export function buildOf() {
   return flow;
 }
 
+/** Whether the coach signed in has begun a build: the builder's address draws it, and without one is «My teams» with the sheet. */
+export function hasBuild() {
+  return buildOf().draft !== null;
+}
+
 /**
  * Whether `build` is still the coach's: a session that ended, another coach, or a team that was made takes it away,
  * and what was begun on it (a request that was on its way) has nothing to change.
@@ -74,13 +93,13 @@ export function isCurrentBuild(build) {
 
 /*
  * `pickOf`, `setPick` and `startBuild` work on the build in memory and never make one: only `buildOf` does, and what
- * opens a first step calls it first. While a session is read again nobody is signed in until the answer is announced
- * (data/session.mjs, `readSession`), yet the coach's build is still theirs, and a keystroke on the first step must reach
+ * opens the sheet calls it first. While a session is read again nobody is signed in until the answer is announced
+ * (data/session.mjs, `readSession`), yet the coach's build is still theirs, and a keystroke in the sheet must reach
  * it, not an empty one that `buildOf` would put in its place. With no build in memory they change and begin nothing.
  */
 
 /**
- * What the first step shows: the name as typed, the race, and whether going on from here to another race would lose
+ * What the sheet shows: the name as typed, the race, and whether going on from here to another race would lose
  * a squad that was begun.
  * @returns {{name: string, raceSlug: string, resets: boolean}}
  */
@@ -90,7 +109,7 @@ export function pickOf() {
   return { name, raceSlug, resets: holdsPicks(draft) };
 }
 
-/** Change what the first step holds: the fields given, and no others. */
+/** Change what the sheet holds: the fields given, and no others. */
 export function setPick({ name, raceSlug }) {
   if (!flow) return;
   if (name !== undefined) flow.name = name;

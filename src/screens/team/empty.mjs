@@ -4,14 +4,15 @@
  * `#/`, where a coach with a team is sent on to that team.
  *
  * Two coaches get here. One whose list came back empty has no team yet: what
- * will be here, and the one way forward, the builder. One whose list could not
+ * will be here, and the one way forward, «Create a team», which opens the sheet
+ * of a new team's name and race over the page (new-sheet.mjs). One whose list could not
  * be read at all (`/api/teams` failed while `/me` answered) may have five: the
  * screen says the list did not load and offers to read it again, rather than
  * offer a first team (R10).
  */
-import { escapeHtml } from "../../core/dom.mjs";
+import { delegate, escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { newTeamUrl, teamUrl } from "../../core/routes.mjs";
+import { teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -19,12 +20,13 @@ import { setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { syncActiveTeam } from "../../data/active-team.mjs";
 import { loadMyTeams, onMyTeamsChange } from "../../data/teams.mjs";
 import { renderButton } from "../../ui/button.mjs";
+import { openNewTeamSheet } from "../teams/new-sheet.mjs";
 
 export function noTeamMarkup() {
   return `<section class="g-team-empty">
     <h1 class="g-team-empty__title" tabindex="-1">${escapeHtml(t("team.empty.title"))}</h1>
     <p class="g-team-empty__text">${escapeHtml(t("team.empty.text"))}</p>
-    ${renderButton({ label: t("team.empty.create"), kind: "primary", href: newTeamUrl() })}
+    ${renderButton({ label: t("team.empty.create"), kind: "primary", dialog: true, data: { newTeam: true } })}
   </section>`;
 }
 
@@ -72,7 +74,8 @@ export function renderNoTeam() {
   const { loaded, error } = state.myTeams;
   if (loaded || !error) {
     view.innerHTML = noTeamMarkup();
-    onScreenLeave("team-empty", onMyTeamsChange(goOnToTeam));
+    const offs = [onMyTeamsChange(goOnToTeam), delegate(view, "click", "[data-new-team]", (event, button) => openNewTeamSheet(button))];
+    onScreenLeave("team-empty", () => offs.forEach((off) => off()));
     return;
   }
   let here = true;

@@ -1,7 +1,10 @@
 /**
  * "My teams" (`#/teams`): the coach's teams as a list, each a link to its
  * overview, with the way to a new one under it and, for a team that may go,
- * a bin. It replaces the 2.x list of cards (screens/my-teams.mjs).
+ * a bin. It replaces the 2.x list of cards (screens/my-teams.mjs). «New team»
+ * opens the sheet of a new team's name and race over the list (new-sheet.mjs),
+ * and so does «Create a team» of a coach with none; `#/teams/new` with no
+ * build begun comes here with the sheet asked for, and the first drawing opens it.
  *
  * A row is the team as the switcher draws it (shell/team-switcher.mjs): the
  * rows come from the same `switcherRows`, so the two say the same of a team.
@@ -16,7 +19,7 @@
  */
 import { escapeHtml, listenerGroup } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { teamUrl, newTeamUrl } from "../../core/routes.mjs";
+import { teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -36,6 +39,7 @@ import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { noTeamMarkup, unreadMarkup } from "../team/empty.mjs";
+import { openAskedNewTeamSheet, openNewTeamSheet } from "./new-sheet.mjs";
 
 const SHEET_ID = "team-delete";
 
@@ -83,7 +87,7 @@ function renderItem(row) {
  */
 export function teamsMarkup({ rows, deleting = null }) {
   const head = renderPageHead({ title: t("teams.title"), sub: t("teams.subtitle"), phone: true });
-  const add = renderButton({ label: t("teams.new"), kind: "primary", icon: "plus", href: newTeamUrl() });
+  const add = renderButton({ label: t("teams.new"), kind: "primary", icon: "plus", dialog: true, data: { newTeam: true } });
   return `${head}<section class="g-teams-page"><ul class="g-teams">${rows.map(renderItem).join("")}</ul>`
     + `<div class="g-teams__foot">${add}<p class="g-teams__note">${escapeHtml(t("teams.deleteNote"))}</p></div></section>`
     + (deleting ? deleteSheet(deleting) : "");
@@ -193,10 +197,13 @@ export function renderTeams() {
   group.on("click", "[data-delete-team]", (event, bin) => openDelete(bin.getAttribute("data-delete-team")));
   group.on("click", "[data-delete-confirm]", () => confirmDelete());
   group.on("click", "[data-teams-retry]", () => retry());
+  // «New team», and «Create a team» of a coach with none: the sheet over the list, in a host of its own.
+  group.on("click", "[data-new-team]", (event, button) => openNewTeamSheet(button));
   group.own(wireSheets(view, { onClose: closeDelete }));
   group.own(onMyTeamsChange(draw));
   group.own(onActiveTeamChange(draw));
   draw();
+  openAskedNewTeamSheet(view.querySelector("[data-new-team]"));
   // The list is read again on every visit, as the 2.x screen did, and drawn when it comes (onMyTeamsChange): a team
   // registered for the season since the list was read has no bin now, but a chip. Not before the first draw, and
   // not for a list that never loaded: that one has its own retry, and a read begun under it would clear its reason.
