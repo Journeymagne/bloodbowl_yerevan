@@ -7,13 +7,16 @@ import { el } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
-import { setDictionaries } from "../src/core/i18n.mjs";
+import { initLocale, setDictionaries } from "../src/core/i18n.mjs";
 
 const api = installFakeApi();
 const appView = el(document, "section", { id: "app-view" });
 document.body.appendChild(appView);
 globalThis.location = { hash: "#/t/t1", replace() {} };
 const { overviewMarkup, overviewModel, renderTeamOverview } = await import("../src/screens/team/overview.mjs");
+const { teamPlayerUrl } = await import("../src/core/routes.mjs");
+const { rosterLines } = await import("../src/screens/team/roster/model.mjs");
+const { normalizeDraft } = await import("../src/domain/roster/schema.mjs");
 const { invalidateGames } = await import("../src/data/games.mjs");
 const { raceTeamOf, raceTitleOf } = await import("../src/data/teams.mjs");
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
@@ -81,6 +84,18 @@ const GAMES = [
 ];
 /** The games with some of them changed, by id. */
 const gamesWith = (changes) => GAMES.map((item) => (changes[item.id] ? { ...item, ...changes[item.id] } : item));
+
+// The players who can advance: the first random skill costs 3 SPP, so Cade (9 touchdowns, 27 SPP) is ahead of Ashby and Vane (7 each),
+// who stand in the roster's order; Dunn (2 SPP) has not enough and Moss (3 SPP, a skill taken) has spent it.
+const CREW = [
+  { id: "p1", rowIndex: 0, number: "3", name: "Ashby", spp: { touchdowns: 2, completions: 1 } },
+  { id: "p2", rowIndex: 1, number: "5", name: "Vane", spp: { touchdowns: 1, completions: 4 } },
+  { id: "p3", rowIndex: 2, number: "7", name: "Cade", spp: { touchdowns: 9 } },
+  { id: "p4", rowIndex: 3, number: "9", name: "Dunn", spp: { completions: 2 } },
+  { id: "p5", rowIndex: 0, number: "11", name: "Moss", spp: { touchdowns: 1 }, advancements: [{ type: "random", grants: { skill: "Dodge" } }] },
+];
+/** The saved team t1 with other players. */
+const crew = (players) => ({ ...TEAMS[0], roster: { treasury: 120, players } });
 
 const raceOf = (team) => RACES.find((race) => race.slug === team.baseTeamSlug) ?? null;
 /** What the screen gives the model for a team. */
@@ -467,9 +482,228 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   for (const key of ["spp", "td", "cas", "comp"]) assert.ok(dictionary("en")[`teamOverview.leader.${key}`] && dictionary("ru")[`teamOverview.leader.${key}`], key);
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css");
+  assertStyled(fragment, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
   const outside = mount(overviewMarkup(overviewModel(input("t4"))));
   assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "status-chip.css", "callout.css");
+});
+
+const READY_WORDS = {
+  en: {
+    card: "Advancement available", who: "{name} · {spp} SPP", more: "{name} · {spp} SPP · and {more} more",
+    title: "Ready to advance", count: "players: {count}", spp: "{spp} SPP", advance: "Advance",
+  },
+  ru: {
+    card: "Доступна прокачка", who: "{name} · {spp} SPP", more: "{name} · {spp} SPP · и ещё {more}",
+    title: "Готовы к прокачке", count: "игроков: {count}", spp: "{spp} SPP", advance: "Прокачать",
+  },
+};
+const READY_CSS = "src/screens/team/overview.css";
+/** The rule block for a selector, comments out, as it stands in the sheet. */
+const READY_BARE = () => text(READY_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
+
+test("the overview says who can advance: on a phone the one with the most SPP and how many more, leading to his address", () => {
+  const model = overviewModel(input("t1", { team: crew(CREW) }));
+  assert.deepEqual(model.ready.map(({ id, available }) => [id, available]), [["p3", 27], ["p1", 7], ["p2", 7]], "most SPP first, a tie in the roster's order; Dunn has too little and Moss has spent it");
+  assert.deepEqual(model.ready[0], { id: "p3", number: "7", name: "Cade", position: "Catcher", kind: "catcher", available: 27 });
+  const fragment = mount(overviewMarkup(model));
+  const card = fragment.querySelector("a.g-overview__ready");
+  assert.equal(card.querySelector(".g-overview__readytitle").textContent, "Advancement available");
+  assert.equal(card.querySelector(".g-overview__readywho").textContent, "Cade · 27 SPP · and 2 more");
+  assert.equal(card.getAttribute("href"), teamPlayerUrl("t1", "p3"));
+  assert.equal(card.getAttribute("href"), "#/t/t1/roster/p3");
+  assert.equal(card.querySelector("svg").getAttribute("width"), "18", "the chevron of the prototype's 18px");
+  assert.equal(card.querySelector("svg").getAttribute("aria-hidden"), "true");
+  const page = fragment.querySelector(".g-overview").childNodes.filter((node) => node.nodeType === 1);
+  const classes = page.map((node) => node.getAttribute("class").split(" ")[0]);
+  assert.ok(classes.indexOf("g-overview__ready") === classes.indexOf("g-kpis") + 1, `the card follows the tiles: ${classes}`);
+  assert.ok(classes.indexOf("g-board") === classes.indexOf("g-overview__ready") + 1, "and stands before the board");
+  const alone = mount(overviewMarkup(overviewModel(input("t1", { team: crew([CREW[2]]) })))).querySelector("a.g-overview__ready");
+  assert.equal(alone.querySelector(".g-overview__readywho").textContent, "Cade · 27 SPP", "nobody else to count");
+  const two = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW.slice(0, 2)) })))).querySelector("a.g-overview__ready");
+  assert.equal(two.querySelector(".g-overview__readywho").textContent, "Ashby · 7 SPP · and 1 more");
+});
+
+test("on a desk every one of them, with his SPP and «Advance» to his address", () => {
+  const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
+  const section = fragment.querySelector("section.g-overview__readylist");
+  assert.equal(section.querySelector("h2").textContent, "Ready to advance");
+  assert.equal(section.querySelector(".g-overview__readycount").textContent, "players: 3");
+  const rows = section.querySelectorAll(".g-overview__readyrow");
+  assert.deepEqual(rows.map((row) => [
+    row.querySelector(".g-num__n").textContent, row.querySelector(".g-overview__readyname").textContent, row.querySelector(".g-overview__readypos").textContent,
+    row.querySelector(".g-overview__readyspp").textContent, row.querySelector("a.g-overview__advance").textContent, row.querySelector("a.g-overview__advance").getAttribute("href")]),
+  [["7", "Cade", "Catcher", "27 SPP", "Advance", "#/t/t1/roster/p3"], ["3", "Ashby", "Human Lineman", "7 SPP", "Advance", "#/t/t1/roster/p1"],
+    ["5", "Vane", "Thrower", "7 SPP", "Advance", "#/t/t1/roster/p2"]]);
+  assert.ok(rows[0].querySelector(".g-num--catcher"), "the number on his position's colour");
+  const cols = fragment.querySelector(".g-overview__cols");
+  assert.equal(cols.childNodes.filter((node) => node.nodeType === 1).at(-1), section, "the last of the columns, which it spans (overview.css)");
+  assert.ok(cols.querySelector(".g-overview__leaders") && cols.querySelector(".g-overview__results"), "after the leaders and the recent matches");
+});
+
+test("a player the roster stores no id for is not listed: there is no address to lead to", () => {
+  const nameless = { rowIndex: 3, number: "13", name: "Nobody", spp: { touchdowns: 20 } };
+  const model = overviewModel(input("t1", { team: crew([nameless, ...CREW.slice(0, 2)]) }));
+  assert.deepEqual(model.ready.map(({ id }) => id), ["p1", "p2"]);
+  assert.equal(mount(overviewMarkup(model)).querySelector("a.g-overview__ready .g-overview__readywho").textContent, "Ashby · 7 SPP · and 1 more");
+});
+
+test("nobody ready, or no race: neither the card nor the list is drawn", () => {
+  const nobody = overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]) }));
+  const noRace = overviewModel({ ...input("t1", { team: crew(CREW) }), raceTeam: null });
+  const empty = overviewModel(input("t3"));
+  for (const model of [nobody, noRace, empty]) {
+    assert.deepEqual(model.ready, []);
+    const fragment = mount(overviewMarkup(model));
+    assert.equal(fragment.querySelector(".g-overview__ready"), null);
+    assert.equal(fragment.querySelector(".g-overview__readylist"), null);
+  }
+});
+
+test("a Skill Table that has not come in leaves the list as it is: «unknown» is not «no skill left» (T5)", async () => {
+  // The roster's lines without the table: every `offers` is null, «unknown», and they are ready all the same, by their SPP.
+  const lines = rosterLines({ draft: normalizeDraft(crew(CREW).roster), race: raceOf(TEAMS[0]) });
+  assert.deepEqual(lines.filter((line) => line.ready).map((line) => [line.id, line.offers]), [["p1", null], ["p2", null], ["p3", null]]);
+  coach();
+  state.data = { teams: RACES };
+  state.myTeams = { ...state.myTeams, items: [crew(CREW), ...TEAMS.slice(1)] };
+  await renderTeamOverview("t1");
+  assert.equal(view.querySelector("a.g-overview__ready .g-overview__readywho").textContent, "Cade · 27 SPP · and 2 more");
+  const withoutTable = view.querySelectorAll(".g-overview__readyrow").map((row) => row.textContent);
+  assert.equal(withoutTable.length, 3);
+  assert.ok(!view.textContent.includes(dictionary("en")["teamAdvance.refusal.NO_SKILL_LEFT"]) && !view.textContent.includes("NO_SKILL_LEFT"), "nothing here says that a player has no skill left");
+  releaseCurrentScreen();
+  state.data = { teams: RACES, skillGroups: data.skillGroups };
+  await renderTeamOverview("t1");
+  assert.deepEqual(view.querySelectorAll(".g-overview__readyrow").map((row) => row.textContent), withoutTable, "the table decides nothing here: the SPP does");
+  assert.equal(view.querySelector("a.g-overview__ready").getAttribute("href"), "#/t/t1/roster/p3");
+  state.data = { teams: RACES };
+});
+
+test("the ready player's name and number are text, and a long name is whole", () => {
+  const long = "Bartholomew-Maximilian von Hohenzollern-Sigmaringen the Third of Ashgrove".repeat(2);
+  const players = [{ id: "p1", rowIndex: 0, number: HOSTILE, name: HOSTILE, spp: { touchdowns: 1 } }, { id: "p2", rowIndex: 1, number: "5", name: long, spp: { touchdowns: 2 } }];
+  const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(players) }))));
+  assert.equal(fragment.querySelector("img"), null);
+  assert.equal(fragment.querySelector(".g-overview__readywho").textContent, `${long} · 6 SPP · and 1 more`);
+  assert.deepEqual(fragment.querySelectorAll(".g-overview__readyname").map((name) => name.textContent), [long, HOSTILE]);
+  assert.equal(fragment.querySelectorAll(".g-overview__readyrow").at(-1).querySelector(".g-num__n").textContent, HOSTILE);
+  assertCspSafe(fragment);
+});
+
+test("the ready words: every key in both dictionaries, the same names, and none that names the player's gender", () => {
+  assertDictionaryCovers("src/screens/team/overview.mjs");
+  for (const locale of ["en", "ru"]) {
+    const words = dictionary(locale);
+    for (const [key, value] of Object.entries(READY_WORDS[locale])) assert.equal(words[`teamOverview.ready.${key}`], value, `${locale} ${key}`);
+    assert.deepEqual(Object.keys(words).filter((key) => key.startsWith("teamOverview.ready.")).sort(), Object.keys(READY_WORDS[locale]).map((key) => `teamOverview.ready.${key}`).sort(), `${locale}: the keys are the seven`);
+  }
+  const [en, ru] = [dictionary("en"), dictionary("ru")];
+  for (const key of Object.keys(READY_WORDS.en)) {
+    const names = (value) => [...value.matchAll(/\{(\w+)\}/g)].map(([, name]) => name).sort();
+    assert.deepEqual(names(en[`teamOverview.ready.${key}`]), names(ru[`teamOverview.ready.${key}`]), key);
+  }
+  const gendered = { en: /\b(he|him|his|she|her|hers)\b/i, ru: /(?<![а-яё])(он|она|его|её|ему|ей|получил|получила)(?![а-яё])/iu };
+  for (const locale of ["en", "ru"]) for (const value of Object.values(READY_WORDS[locale])) assert.doesNotMatch(value, gendered[locale], value);
+  // The Russian page says the same of the same players.
+  initLocale("ru");
+  try {
+    const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
+    assert.equal(fragment.querySelector(".g-overview__readytitle").textContent, "Доступна прокачка");
+    assert.equal(fragment.querySelector(".g-overview__readywho").textContent, "Cade · 27 SPP · и ещё 2");
+    assert.equal(fragment.querySelector(".g-overview__readylist h2").textContent, "Готовы к прокачке");
+    assert.equal(fragment.querySelector(".g-overview__readycount").textContent, "игроков: 3");
+    assert.equal(fragment.querySelector("a.g-overview__advance").textContent, "Прокачать");
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("the ready block is styled, as the prototypes draw it, and readable (Team.html, DeskOverview.html)", () => {
+  const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
+  assertStyled(fragment, READY_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  const own = (selector, property) => valuesOf(READY_CSS, selector, property);
+  // Every rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform; the line height is the font's own where the prototypes give none.
+  for (const selector of [".g-overview__ready", ".g-overview__readytitle", ".g-overview__readywho", ".g-overview__readylist", ".g-overview__readyheading", ".g-overview__readycount",
+    ".g-overview__readyname", ".g-overview__readypos", ".g-overview__readyspp", ".g-overview__advance"]) {
+    for (const property of ["font", "letter-spacing", "text-transform"]) assert.equal(own(selector, property).length, 1, `${selector} ${property}`);
+    assert.match(own(selector, "font")[0], /\/normal /, `${selector} keeps the font's own line height`);
+  }
+  // The card (Team.html): 56px and 10 14 in, 14 round, the accent's tint with its ink, 12 between the words and the chevron.
+  assert.deepEqual(own(".g-overview__ready", "min-height"), ["56px"]);
+  assert.deepEqual(own(".g-overview__ready", "padding"), ["var(--space-10) var(--space-14)"]);
+  assert.deepEqual(own(".g-overview__ready", "border-radius"), ["var(--radius-xl)"]);
+  assert.deepEqual(own(".g-overview__ready", "background"), ["var(--accent-tint)"]);
+  assert.deepEqual(own(".g-overview__ready", "color"), ["var(--on-accent-tint)"]);
+  assert.deepEqual(own(".g-overview__ready", "gap"), ["var(--space-12)"]);
+  assert.deepEqual(own(".g-overview__ready", "justify-content"), ["space-between"]);
+  assert.deepEqual(own(".g-overview__ready", "align-items"), ["center"]);
+  assert.deepEqual(own(".g-overview__readytext", "gap"), ["2px"]);
+  assert.deepEqual(own(".g-overview__readytitle", "font"), ["700 15px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__readywho", "font"), ["400 13px/normal var(--font-body)"]);
+  // The list (DeskOverview.html): a 16-round card in a ring, 20 in, 6 between its parts; the title Oswald 24/700, the count 14px in grey.
+  assert.deepEqual(own(".g-overview__readylist", "border-radius"), ["var(--radius-2xl)"]);
+  assert.deepEqual(own(".g-overview__readylist", "box-shadow"), ["var(--ring)"]);
+  assert.deepEqual(own(".g-overview__readylist", "background"), ["var(--surface)"]);
+  assert.deepEqual(own(".g-overview__readylist", "padding"), ["var(--space-20)"]);
+  assert.deepEqual(own(".g-overview__readylist", "gap"), ["var(--space-6)"]);
+  assert.deepEqual(own(".g-overview__readybar", "align-items"), ["baseline"]);
+  assert.deepEqual(own(".g-overview__readybar", "justify-content"), ["space-between"]);
+  assert.deepEqual(own(".g-overview__readybar", "margin"), ["0 0 var(--space-6)"], "6 under the head, on top of the 6 between the parts");
+  assert.deepEqual(own(".g-overview__readyheading", "font"), ["700 24px/normal var(--font-display)"]);
+  assert.deepEqual(own(".g-overview__readycount", "font"), ["400 14px/normal var(--font-body)"]);
+  // The rows: the badge, the player, the SPP and the button; 10 between, 56px at least, a rule under each.
+  assert.deepEqual(own(".g-overview__readyrow", "grid-template-columns"), ["36px minmax(0, 1fr) auto auto"]);
+  assert.deepEqual(own(".g-overview__readyrow", "gap"), ["var(--space-10)"]);
+  assert.deepEqual(own(".g-overview__readyrow", "min-height"), ["56px"]);
+  assert.deepEqual(own(".g-overview__readyrow", "border-bottom"), ["1px solid var(--line)"]);
+  assert.deepEqual(own(".g-overview__readyname", "font"), ["600 15px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__readypos", "font"), ["400 12px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__readyspp", "font"), ["700 15px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__advance", "font"), ["600 13px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__advance", "min-height"), ["36px"]);
+  assert.deepEqual(own(".g-overview__advance", "padding"), ["0 var(--space-12)"]);
+  assert.deepEqual(own(".g-overview__advance", "border-radius"), ["var(--radius-md)"]);
+  assert.deepEqual(own(".g-overview__advance", "background"), ["var(--header)"]);
+  assert.deepEqual(own(".g-overview__advance", "color"), ["var(--header-ink)"]);
+  // Readable in every palette: the ink on the tint, the white on the header, the greys and the accent on the card.
+  assertReadable(READY_CSS, ".g-overview__ready", "color", ["--accent-tint"], 4.5);
+  assertReadable(READY_CSS, ".g-overview__advance", "color", ["--header"], 4.5);
+  assertReadable(READY_CSS, ".g-overview__readycount", "color", ["--surface"], 4.5);
+  assertReadable(READY_CSS, ".g-overview__readypos", "color", ["--surface"], 4.5);
+  assertReadable(READY_CSS, ".g-overview__readyspp", "color", ["--surface"], 4.5);
+  assertReadable(READY_CSS, ".g-overview__readyname", "color", ["--surface"], 4.5);
+  assertReadable(READY_CSS, ".g-overview__readyheading", "color", ["--surface"], 4.5);
+});
+
+test("one of the two is shown for the width: the card up to 900px, the list from 901px (D2: the card 44px or more, «Advance» 24px or more)", () => {
+  const own = (selector, property) => valuesOf(READY_CSS, selector, property);
+  assert.deepEqual(own(".g-overview__ready", "display"), ["flex", "none"], "a phone's card, gone from a desk");
+  assert.deepEqual(own(".g-overview__readylist", "display"), ["none", "flex"], "a desk's list, gone from a phone");
+  assert.deepEqual(own(".g-overview__readylist", "grid-column"), ["1 / -1"], "the list has the row to itself");
+  const source = READY_BARE();
+  assert.match(source, /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__ready \{ display: none; \}/);
+  assert.match(source, /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__readylist\s*\{[^}]*display: flex;[^}]*grid-column: 1 \/ -1/);
+  // The card is what a thumb presses on a phone: its 56px is 44px and more; the button is on the desk's side of the line and is 24px and more.
+  assert.ok(parseInt(own(".g-overview__ready", "min-height")[0], 10) >= 44);
+  assert.ok(parseInt(own(".g-overview__advance", "min-height")[0], 10) >= 24);
+  assert.doesNotMatch(source.slice(source.indexOf("@media (max-width: 900px)"), source.indexOf("@media (min-width: 901px)")), /readylist|g-overview__advance|readyrow/, "nothing of the list is drawn on a phone");
+  // The list is a column of rows without the 2.x list's bullets and margins.
+  assert.deepEqual(own(".g-overview__readyrows", "list-style"), ["none"]);
+  assert.deepEqual(own(".g-overview__readyrows", "gap"), ["var(--space-6)"]);
+});
+
+test("a long name in «Ready to advance» wraps; nothing is cut with «…» (the owner's answer on wrapping)", () => {
+  const source = READY_BARE();
+  assert.doesNotMatch(source, /text-overflow/);
+  assert.doesNotMatch(source, /-webkit-line-clamp/);
+  for (const selector of [".g-overview__readytitle", ".g-overview__readywho", ".g-overview__readyname", ".g-overview__readypos", ".g-overview__ready", ".g-overview__readyrow"]) {
+    assert.deepEqual(valuesOf(READY_CSS, selector, "white-space"), [], `${selector} does not hold its words on one line`);
+    assert.doesNotMatch(valuesOf(READY_CSS, selector, "overflow").join(" "), /hidden|clip/, selector);
+  }
+  for (const selector of [".g-overview__readywho", ".g-overview__readyname", ".g-overview__readypos"]) assert.deepEqual(valuesOf(READY_CSS, selector, "overflow-wrap"), ["anywhere"], selector);
+  assert.deepEqual(valuesOf(READY_CSS, ".g-overview__readyrow", "align-items"), ["center"]);
+  for (const [, query] of text(READY_CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assert.doesNotMatch(source, /--focus-ring/);
 });
 
 test("the Russian overview has the words of a Russian page, and every leader's label", () => {

@@ -1,6 +1,7 @@
 /**
- * A team's overview (`#/t/:id`): the page head, four figures, the match board
- * (or the call to enter the season), the team's leaders and its recent matches.
+ * A team's overview (`#/t/:id`): the page head, four figures, who can take an
+ * advancement now, the match board (or the call to enter the season), the
+ * team's leaders and its recent matches.
  * It replaces the 2.x front page the team's address used to draw (plan stage 06,
  * decision 11); the figures are read from what the server already sends
  * (data/team-record.mjs), and the board's actions are the SideNav card's
@@ -12,6 +13,12 @@
  * model's; the board, the rows and the words around them are ui/'s and the
  * dictionaries'.
  *
+ * Who can advance is the roster's own answer (`rosterLines`' `ready`: the SPP to
+ * spend reach the first random skill), the same one the roster counts, so the
+ * two never disagree; the Skill Table plays no part in it. It is said twice,
+ * and only one is shown for the width (overview.css): a card after the figures
+ * on a phone (Team.html), a list under the leaders on a desk (DeskOverview.html).
+ *
  * A page opened on this address has read neither the table nor the games yet,
  * and nothing is said that they could contradict: without the table there is
  * no place and neither a board nor a call to enter the season, without the
@@ -21,7 +28,7 @@
 import { escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { gameUrl, seasonTabUrl, teamUrl } from "../../core/routes.mjs";
+import { gameUrl, seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -31,13 +38,16 @@ import { raceTeamOf, raceTitleOf } from "../../data/teams.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
 import { currentMatch, matchActions, subLine } from "../../shell/current-match.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
+import { icon as renderIcon } from "../../ui/icons.mjs";
 import { renderKpiGrid } from "../../ui/kpi-tile.mjs";
 import { renderRankedRow } from "../../ui/list-row.mjs";
 import { renderBoardActions, renderMatchBoard } from "../../ui/match-board.mjs";
+import { renderPlayerBadge } from "../../ui/number-badge.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderResultPill } from "../../ui/result-pill.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { loadSeason } from "../season/season-data.mjs";
+import { rosterLines } from "./roster/model.mjs";
 
 /** How many finished matches the list holds: a phone shows the first three (overview.css). */
 const RECENT_MATCHES = 5;
@@ -98,6 +108,18 @@ function tableTiles(standing, record) {
 }
 
 /**
+ * The players who can take an advancement now, the one with the most SPP to spend first, a tie in the roster's order.
+ * One the roster stores no id for is left out: no address leads to him. With no race there are no players to read.
+ * @returns {{id: string, number: string, name: string, position: string, kind: string, available: number}[]}
+ */
+function readyPlayers(draft, raceTeam) {
+  return rosterLines({ draft, race: raceTeam })
+    .filter((line) => line.ready && line.id)
+    .map(({ id, number, name, position, kind, available }) => ({ id, number, name, position, kind, available }))
+    .sort((one, other) => other.available - one.available);
+}
+
+/**
  * What the overview says of a team.
  *
  * @param {object} input
@@ -115,9 +137,10 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
   const list = Array.isArray(games) ? games : [];
   const worth = teamValue(team, raceTeam);
   const record = gamesRead && standing ? seasonRecord(list, team.id, season?.id ?? null) : null;
+  const draft = normalizeDraft(team.roster ?? {});
   const own = [
     { label: t("teamOverview.tile.value"), value: formatMoney(worth) },
-    { label: t("roster.treasuryTitle"), value: formatMoney(normalizeDraft(team.roster ?? {}).treasury), href: teamUrl(team.id, "team") },
+    { label: t("roster.treasuryTitle"), value: formatMoney(draft.treasury), href: teamUrl(team.id, "team") },
   ];
   return {
     teamId: team.id,
@@ -127,6 +150,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     inSeason: Boolean(standing),
     seasonRead: Boolean(seasonData),
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, standing, worth }) : null,
+    ready: readyPlayers(draft, raceTeam),
     leaders: teamLeaders(team, raceTeam),
     results: recentResults(list, team.id, RECENT_MATCHES),
     gamesError,
@@ -175,6 +199,37 @@ function boardSlot(model) {
   return renderCallout({ title: t("teamOverview.notInSeason"), sub: t("teamOverview.notInSeasonSub"), href: seasonTabUrl("registration") });
 }
 
+/**
+ * A phone's card (Team.html): the player with the most SPP to spend, and how many others can advance, leading to him.
+ * Nothing when nobody can.
+ */
+function readyCardMarkup(ready, teamId) {
+  if (!ready.length) return "";
+  const [first, ...others] = ready;
+  const who = others.length
+    ? t("teamOverview.ready.more", { name: first.name, spp: first.available, more: others.length })
+    : t("teamOverview.ready.who", { name: first.name, spp: first.available });
+  return `<a class="g-overview__ready" href="${escapeHtml(teamPlayerUrl(teamId, first.id))}"><span class="g-overview__readytext">`
+    + `<span class="g-overview__readytitle">${escapeHtml(t("teamOverview.ready.card"))}</span><span class="g-overview__readywho">${escapeHtml(who)}</span></span>`
+    + `${renderIcon("chevron", 18)}</a>`;
+}
+
+/** One who can advance on a desk: his number, name and position, the SPP he has to spend, and «Advance» to his address. */
+function readyRow({ id, number, name, position, kind, available }, teamId) {
+  return `<li class="g-overview__readyrow">${renderPlayerBadge({ number, kind })}`
+    + `<span class="g-overview__readyplayer"><span class="g-overview__readyname">${escapeHtml(name)}</span><span class="g-overview__readypos">${escapeHtml(position)}</span></span>`
+    + `<span class="g-overview__readyspp">${escapeHtml(t("teamOverview.ready.spp", { spp: available }))}</span>`
+    + `<a class="g-overview__advance" href="${escapeHtml(teamPlayerUrl(teamId, id))}">${escapeHtml(t("teamOverview.ready.advance"))}</a></li>`;
+}
+
+/** A desk's list (DeskOverview.html): every player who can advance, with how many they are in its head. */
+function readyListMarkup(ready, teamId) {
+  if (!ready.length) return "";
+  return `<section class="g-overview__readylist"><div class="g-overview__readybar"><h2 class="g-overview__readyheading">${escapeHtml(t("teamOverview.ready.title"))}</h2>`
+    + `<span class="g-overview__readycount">${escapeHtml(t("teamOverview.ready.count", { count: ready.length }))}</span></div>`
+    + `<ul class="g-overview__readyrows">${ready.map((player) => readyRow(player, teamId)).join("")}</ul></section>`;
+}
+
 /** A leader's tag (SPP, TD, CAS, COMP) as the ranked row's lead: text, escaped. */
 function leaderTag(key) {
   return escapeHtml(t(`teamOverview.leader.${key}`));
@@ -212,8 +267,8 @@ export function overviewMarkup(model) {
   const draft = model.draft ? renderStatusChip({ label: t("teams.stage.draft") }) : "";
   const head = renderPageHead({ title: t("shell.tab.overview"), sub: model.seasonLine, metaHtml: draft });
   const stage = draft ? `<div class="g-overview__stage" aria-hidden="true">${draft}</div>` : "";
-  const lists = leadersMarkup(model.leaders) + resultsMarkup(model.results, model.teamId);
-  return `${head}<div class="g-overview">${stage}${renderKpiGrid(model.tiles, { row: true })}${boardSlot(model)}`
+  const lists = leadersMarkup(model.leaders) + resultsMarkup(model.results, model.teamId) + readyListMarkup(model.ready, model.teamId);
+  return `${head}<div class="g-overview">${stage}${renderKpiGrid(model.tiles, { row: true })}${readyCardMarkup(model.ready, model.teamId)}${boardSlot(model)}`
     + `${lists ? `<div class="g-overview__cols">${lists}</div>` : ""}</div>`;
 }
 

@@ -9,6 +9,11 @@
  * stand in two columns, and the leaders turn from rows into cards
  * (DeskOverview.html); the recent matches are five, of which a phone shows the
  * first three.
+ *
+ * Who can advance is drawn twice and one of the two is shown for the width: a
+ * card after the figures up to 900px (Team.html), a list under the columns from
+ * 901px (DeskOverview.html). Where the prototypes give no line height, the
+ * font's own (`normal`). A long name wraps; nothing is cut with «…».
  */
 .g-overview {
   box-sizing: border-box;
@@ -40,6 +45,177 @@
   gap: var(--space-8);
   min-width: 0;
   margin: 0;
+}
+
+/*
+ * A phone's card (Team.html): the words over the player and what is left to say, the chevron at the end. The box is
+ * border-box like every sheet's, so its 56px is the card's own, not the words' and then the padding (the prototype's
+ * content-box would make it 76px).
+ */
+.g-overview__ready {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: 56px;
+  margin: 0;
+  padding: var(--space-10) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--accent-tint);
+  color: var(--on-accent-tint);
+  font: 400 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+.g-overview__readytext {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-overview__readytitle {
+  font: 700 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__readywho {
+  font: 400 13px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A desk's list (DeskOverview.html): a card in a ring, the head over the rows, six between its parts. It is not shown
+ * on a phone (below), where the card says it.
+ */
+.g-overview__readylist {
+  box-sizing: border-box;
+  display: none;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-20);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The title and how many they are, on the title's baseline. */
+.g-overview__readybar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+}
+
+.g-overview__readyheading {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 24px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__readycount {
+  color: var(--muted);
+  font: 400 14px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__readyrows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A row: the number on his position's colour, who he is, the SPP he has to spend, and the way to advance him. */
+.g-overview__readyrow {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 56px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+}
+
+.g-overview__readyplayer {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.g-overview__readyname {
+  color: var(--ink);
+  font: 600 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-overview__readypos {
+  color: var(--muted);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-overview__readyspp {
+  color: var(--accent-text);
+  font: 700 15px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__advance {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 600 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
 }
 
 /* The leaders and the recent matches: one under the other on a phone, side by side on a desk. */
@@ -206,6 +382,13 @@
   }
   /* One list alone has the row to itself. */
   .g-overview__cols > :only-child { grid-column: 1 / -1; }
+
+  /* A desk shows who can advance as a list under the columns, which it spans, not as the phone's card. */
+  .g-overview__ready { display: none; }
+  .g-overview__readylist {
+    display: flex;
+    grid-column: 1 / -1;
+  }
 
   /*
    * The leaders are cards that wrap as the column narrows (DeskOverview.html). In a card the tag and the figure share
