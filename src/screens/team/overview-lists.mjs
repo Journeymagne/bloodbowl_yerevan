@@ -73,20 +73,21 @@ const roundWord = ({ friendly, round }) => (friendly ? t("teamOverview.friendly"
 /**
  * What a desk's row says under the opponent (DeskOverview.html): the race, and after a dot the team's MVP of the match —
  * two for a winner who picks two. The MVP alone, without the dot, when the reference does not know the race; nothing
- * when neither is known.
+ * when neither is known. The dot is an element of its own, for the eye alone: a wrapped MVP does not start with it.
  */
 function aboutMarkup({ race, mvps }) {
   const mvp = mvps.length ? t("teamOverview.mvp", { names: mvps.join(", ") }) : "";
   if (!race && !mvp) return "";
-  return `<span class="g-overview__sub">${race ? `<span class="g-overview__race">${escapeHtml(race)}</span>` : ""}`
-    + `${mvp ? `<span class="g-overview__mvp">${escapeHtml(race ? `· ${mvp}` : mvp)}</span>` : ""}</span>`;
+  const dot = race && mvp ? '<span class="g-overview__dot" aria-hidden="true">·</span>' : "";
+  return `<span class="g-overview__sub">${race ? `<span class="g-overview__race">${escapeHtml(race)}</span>` : ""}${dot}`
+    + `${mvp ? `<span class="g-overview__mvp">${escapeHtml(mvp)}</span>` : ""}</span>`;
 }
 
 /** A desk's row before the score (DeskOverview.html): the pill, the round, the opponent over what is known of the match, the casualties. */
-function deskRow(result) {
-  return `${renderResultPill({ result: result.result })}<span class="g-overview__round">${escapeHtml(roundWord(result))}</span>`
-    + `<span class="g-overview__text"><span class="g-overview__opponent">${escapeHtml(result.opponent)}</span>${aboutMarkup(result)}</span>`
-    + `<span class="g-overview__cas">${escapeHtml(t("teamOverview.cas", { cas: result.cas }))}</span>`;
+function deskRow({ result, opponent, round, friendly, cas, race, mvps }) {
+  return `${renderResultPill({ result })}<span class="g-overview__round">${escapeHtml(roundWord({ friendly, round }))}</span>`
+    + `<span class="g-overview__text"><span class="g-overview__opponent">${escapeHtml(opponent)}</span>${aboutMarkup({ race, mvps })}</span>`
+    + `<span class="g-overview__cas">${escapeHtml(t("teamOverview.cas", { cas }))}</span>`;
 }
 
 /** A phone's row before the score (Team.html): the small pill, the opponent over the round and the casualties. */

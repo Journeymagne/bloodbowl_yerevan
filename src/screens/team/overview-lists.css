@@ -1,9 +1,9 @@
 /*
  * The overview's columns and lists (screens/team/overview-lists.mjs, overview.mjs): the two columns under the board, and
- * the leaders and the recent results in the form of each width. Font, border, background, text-transform, letter-spacing and font-weight are
- * set here on purpose: the 2.x global rules (h2, a) outlive this sheet until stage 13. The values are the prototypes'
- * (DeskOverview.html, Team.html); where they give no line height, the font's own (`normal`). A long name or position
- * wraps; nothing is cut with «…» or held on one line.
+ * the leaders and the recent results in the form of each width. Font, border, background, text-transform,
+ * letter-spacing and font-weight are set here on purpose: the 2.x global rules (h2, a) outlive this sheet until stage
+ * 13. The values are the prototypes' (DeskOverview.html, Team.html); where they give no line height, the font's own
+ * (`normal`). A long name or position wraps; nothing is cut with «…» or held on one line.
  *
  * The columns: from 901px DeskOverview.html's row that wraps — the leaders and the recent matches at the left (2 1
  * 560px), who can advance at the right (1 1 300px), 20 apart and each a column 20 apart — so that one column alone, the
@@ -253,9 +253,9 @@
 }
 
 /*
- * A desk's parts of a row (DeskOverview.html): the round 13px, under the opponent the race and the MVP 12px, 6 apart (a
- * long one wraps), and the casualties 13px; the prototype's greys are --muted. The round's word is never broken: its
- * column is as wide as the widest (below).
+ * A desk's parts of a row (DeskOverview.html): the round 13px, under the opponent the race, the dot and the MVP 12px, 6
+ * apart (a long one wraps, and the MVP goes to the next line whole, the dot left behind), and the casualties 13px; the
+ * prototype's greys are --muted. The round's word is never broken: its column is as wide as the widest (below).
  */
 .g-overview__round,
 .g-overview__cas {
@@ -283,6 +283,13 @@
   letter-spacing: 0;
   text-transform: none;
   overflow-wrap: anywhere;
+}
+
+.g-overview__dot {
+  color: var(--muted);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
 @media (max-width: 900px) {
@@ -384,7 +391,8 @@
    * A row (DeskOverview.html): the pill 30, the round, the opponent, the casualties 90, the score 70, 14 apart, at least
    * 52 high with its rule under it — the last too. The round's column is the prototype's 60 for «Round 6», and as wide as
    * the widest word in it when that is wider («Товарищеский» is some 90px): it is one track of the list's grid, which
-   * every row and its link take as their own (subgrid), so the columns of all the rows agree.
+   * every row and its link take as their own (subgrid), so the columns of all the rows agree. A browser with no
+   * subgrid (Chrome 111–116) drops that line and keeps the list's tracks above it: each row on one line, on its own.
    */
   .g-overview__list {
     display: grid;
@@ -394,11 +402,13 @@
   .g-overview__result {
     display: grid;
     grid-column: 1 / -1;
+    grid-template-columns: 30px minmax(60px, max-content) minmax(0, 1fr) 90px 70px;
     grid-template-columns: subgrid;
     min-height: 53px;
   }
   .g-overview__row {
     grid-column: 1 / -1;
+    grid-template-columns: 30px minmax(60px, max-content) minmax(0, 1fr) 90px 70px;
     grid-template-columns: subgrid;
     gap: var(--space-14);
     padding: 0;

@@ -310,8 +310,8 @@ function readyListMarkup(ready, teamId) {
  */
 const searchMarkup = () => `<div class="g-overview__search">${refSearchField("overview-query")}</div>`;
 
-/** A column of the overview's two, holding `markup`; nothing for a column with nothing in it. */
-const column = (name, markup) => (markup ? `<div class="g-overview__${name}">${markup}</div>` : "");
+/** A column of the overview's two (`g-overview__main`, `g-overview__aside`), holding `markup`; nothing for one with nothing in it. */
+const column = (className, markup) => (markup ? `<div class="${className}">${markup}</div>` : "");
 
 /**
  * The two columns under the board (DeskOverview.html, decision 51): the leaders and the recent matches at the left, who
@@ -322,7 +322,7 @@ function columnsMarkup(model) {
   const { leaders, results, teamId, phone } = model;
   const main = leadersMarkup({ leaders, teamId, phone }) + resultsMarkup({ results, teamId, phone });
   const aside = readyListMarkup(model.ready, teamId);
-  return main || aside ? `<div class="g-overview__cols">${column("main", main)}${column("aside", aside)}</div>` : "";
+  return main || aside ? `<div class="g-overview__cols">${column("g-overview__main", main)}${column("g-overview__aside", aside)}</div>` : "";
 }
 
 /**

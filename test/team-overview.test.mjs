@@ -726,13 +726,16 @@ test("on a desk a result is DeskOverview's row: the pill, the round, the opponen
   const rows = mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES })))).querySelectorAll(".g-overview__results .g-overview__result");
   assert.deepEqual(rows.map((row) => [...partsOf(row, DESK_PARTS), row.querySelector("a").getAttribute("href")]), [
     ["Friendly", "Friendly", "Rival Team", "Dwarf", "", "CAS 0–0", "1–1", "#/games/gf"],
-    ["Loss", "Round 2", "Rival Team", "Dwarf", "· MVP Vane, Cade", "CAS 0–2", "0–2", "#/games/gb"],
-    ["Win", "Round 1", "Rival Team", "Dwarf", "· MVP Ashby", "CAS 1–0", "2–1", "#/games/ga"],
+    ["Loss", "Round 2", "Rival Team", "Dwarf", "MVP Vane, Cade", "CAS 0–2", "0–2", "#/games/gb"],
+    ["Win", "Round 1", "Rival Team", "Dwarf", "MVP Ashby", "CAS 1–0", "2–1", "#/games/ga"],
   ]);
   // DeskOverview.html's order; the whole row is the one link (§3), so neither the opponent nor the race is a link inside it.
   assert.deepEqual(classesOf(rows[1].querySelector("a.g-overview__row")), ["g-result", "g-overview__round", "g-overview__text", "g-overview__cas", "g-overview__score"]);
   assert.deepEqual(classesOf(rows[1].querySelector(".g-overview__text")), ["g-overview__opponent", "g-overview__sub"]);
-  assert.deepEqual(classesOf(rows[1].querySelector(".g-overview__sub")), ["g-overview__race", "g-overview__mvp"]);
+  // The dot between them is an element of its own, for the eye alone: a wrapped MVP never starts its line with it (T33 m3).
+  assert.deepEqual(classesOf(rows[1].querySelector(".g-overview__sub")), ["g-overview__race", "g-overview__dot", "g-overview__mvp"]);
+  const dot = rows[1].querySelector(".g-overview__dot");
+  assert.deepEqual([dot.textContent, dot.getAttribute("aria-hidden")], ["·", "true"]);
   assert.ok(rows.every((row) => row.querySelectorAll("a").length === 1));
   assert.ok(rows.every((row) => row.querySelector(".g-result") && !row.querySelector(".g-result--compact")), "DeskOverview's 30px pill");
   assert.ok(rows.every((row) => !row.querySelector(".g-overview__line")), "the phone's line is a phone's");
@@ -780,7 +783,7 @@ test("on a phone a result keeps Team.html's row: the score in the body's face at
   for (const desk of [".g-overview__round", ".g-overview__sub", ".g-overview__race", ".g-overview__mvp", ".g-overview__cas"]) assert.equal(section.querySelector(desk), null, `${desk}: Team.html's row has none`);
   // Up to 900px the score is the body's 18/700, from 901px Oswald 26 (DeskOverview.html); the pill's column 32, the gap 10, 10 above and below.
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__score", "font"), ["700 18px/normal var(--font-body)", "700 26px/normal var(--font-display)"]);
-  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row", "grid-template-columns"), ["32px minmax(0, 1fr) auto", "subgrid"]);
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row", "grid-template-columns"), ["32px minmax(0, 1fr) auto", "30px minmax(60px, max-content) minmax(0, 1fr) 90px 70px", "subgrid"]);
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row", "gap"), ["var(--space-10)", "var(--space-14)"]);
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row", "padding"), ["var(--space-10) 0", "0"]);
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row .g-result--compact", "font-size"), ["13px"], "Team.html's letter");
@@ -877,7 +880,7 @@ test("names from other coaches are text: the opponent, the opponent's race, the 
   assert.equal(fragment.querySelector(".g-board__side--away .g-board__name").textContent, HOSTILE);
   assert.equal(fragment.querySelector(".g-overview__opponent").textContent, HOSTILE);
   assert.equal(fragment.querySelector(".g-overview__race").textContent, HOSTILE);
-  assert.equal(fragment.querySelector(".g-overview__mvp").textContent, `· MVP ${HOSTILE}`);
+  assert.equal(fragment.querySelector(".g-overview__mvp").textContent, `MVP ${HOSTILE}`);
   assert.equal(fragment.querySelector(".g-overview__leader .g-overview__leadername").textContent, HOSTILE);
   assert.equal(fragment.querySelector(".g-overview__leader .g-num__n").textContent, HOSTILE);
   assertCspSafe(fragment);
@@ -1416,7 +1419,7 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
       "status-chip.css", "callout.css", "number-badge.css");
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height (the prototypes give none).
-  const texts = [".g-overview__all", ".g-overview__row", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__mvp", ".g-overview__line", ".g-overview__cas", ".g-overview__score"];
+  const texts = [".g-overview__all", ".g-overview__row", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line", ".g-overview__cas", ".g-overview__score"];
   for (const selector of texts) {
     for (const property of ["font", "letter-spacing", "text-transform", "color"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
     for (const font of own(selector, "font")) assert.match(font, /\/normal /, `${selector} keeps the font's own line height`);
@@ -1429,6 +1432,7 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   assert.deepEqual(own(".g-overview__opponent", "font"), ["500 16px/normal var(--font-body)"]);
   assert.deepEqual(own(".g-overview__race", "font"), ["400 12px/normal var(--font-body)"]);
   assert.deepEqual(own(".g-overview__mvp", "font"), ["400 12px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__dot", "font"), ["400 12px/normal var(--font-body)"]);
   assert.deepEqual(own(".g-overview__sub", "column-gap"), ["var(--space-6)"]);
   assert.deepEqual(own(".g-overview__cas", "font"), ["400 13px/normal var(--font-body)"]);
   assert.deepEqual(own(".g-overview__line", "font"), ["400 13px/normal var(--font-body)"], "Team.html's line under the opponent");
@@ -1436,7 +1440,7 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   assert.deepEqual(own(".g-overview__all", "font"), ["600 14px/normal var(--font-body)"]);
   assert.deepEqual(own(".g-overview__all", "color"), ["var(--accent-text)"]);
   assert.deepEqual(own(".g-overview__score", "text-align"), ["right"]);
-  for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__mvp", ".g-overview__line", ".g-overview__cas"]) assert.deepEqual(own(selector, "color"), ["var(--muted)"], selector);
+  for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line", ".g-overview__cas"]) assert.deepEqual(own(selector, "color"), ["var(--muted)"], selector);
   // The desk's grid (DeskOverview.html): 30, the round, the opponent, 90, 70, 14 apart, a row at least 52 with its rule under it.
   assert.deepEqual(own(".g-overview__list", "grid-template-columns"), ["30px minmax(60px, max-content) minmax(0, 1fr) 90px 70px"]);
   assert.deepEqual(own(".g-overview__list", "column-gap"), ["var(--space-14)"]);
@@ -1447,6 +1451,8 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   // the word is never broken.
   for (const selector of [".g-overview__result", ".g-overview__row"]) {
     assert.match(ruleOf(deskOf(LISTS_CSS), selector), /^(?=[^]*grid-column: 1 \/ -1;)(?=[^]*grid-template-columns: subgrid;)/, `${selector} on the list's grid`);
+    // Chrome 111–116 has no subgrid and drops the line: the list's own tracks above it keep each row on one line there (T33 m1).
+    assert.match(ruleOf(deskOf(LISTS_CSS), selector), /grid-template-columns: 30px minmax\(60px, max-content\) minmax\(0, 1fr\) 90px 70px;\s*grid-template-columns: subgrid;/, `${selector}: the fallback first`);
   }
   assert.match(ruleOf(deskOf(LISTS_CSS), ".g-overview__list"), /display: grid;/);
   assert.deepEqual(own(".g-overview__round", "overflow-wrap"), [], "a round's word keeps whole");
