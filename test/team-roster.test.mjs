@@ -2082,7 +2082,8 @@ test("a desk roster has the treasury strip over the table; a phone has none, the
   await renderTeamRoster("t1");
   const classesOf = (root) => root.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
   assert.deepEqual(classesOf(view.querySelector(".g-roster")).slice(1), ["g-roster__layout"]);
-  assert.deepEqual(classesOf(view.querySelector(".g-roster__main")), ["g-roster__notices", "g-roster__strip", "g-roster__sections", "g-roster__caption"],
+  // The search's live region stands first, empty with no query (stage 07d, Task 25).
+  assert.deepEqual(classesOf(view.querySelector(".g-roster__main")), ["g-roster__found", "g-roster__notices", "g-roster__strip", "g-roster__sections", "g-roster__caption"],
     "between the banners and the table, in the table's column: the panel stands beside them from the top (DeskRoster.html)");
   const strip = view.querySelector(".g-roster__strip");
   const probe = document.createElement("div");

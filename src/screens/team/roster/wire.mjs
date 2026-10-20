@@ -13,8 +13,9 @@
  * skill in place…» and «Record this roll…», a god's bonus skill
  * and «Add …» on done; the edit's line to the fix by hand, its counters' − and +, its injuries' points, favoured
  * skills and skills to take off, «Cancel» and «Save», and its «Undo the last: …» with its sheet's «Keep» and «Undo
- * advancement»; the button of a phone's «Career» (stage 07d).
- * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs); this
+ * advancement»; the button of a phone's «Career»; a desk's search as it is typed, its Esc, and its line to the reference
+ * (stage 07d).
+ * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs, search.mjs); this
  * file only says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
@@ -128,6 +129,24 @@ function wireFix(root, { onFixOpen, onFixStep, onFixLasting, onFixFavoured, onFi
     pressed("data-fix-drop", onFixDrop),
     delegate(root, "click", "[data-fix-keep]", () => onFixKeep()),
     delegate(root, "click", "[data-fix-save]", () => onFixSave()),
+  ];
+}
+
+/**
+ * A desk's search (stage 07d, search.mjs): what is typed — the screen is patched, so the field keeps its focus and its
+ * caret — Esc, which empties the field too (a patch leaves a focused field's value as it is, and the browser's own
+ * clearing is prevented), and the line to the reference, which is a link and goes there itself.
+ */
+function wireSearch(root, { onRosterQuery, onRosterQueryClear, onRefSearch }) {
+  return [
+    delegate(root, "input", "[data-roster-query]", (event, field) => onRosterQuery(field.value)),
+    delegate(root, "keydown", "[data-roster-query]", (event, field) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      field.value = "";
+      onRosterQueryClear();
+    }),
+    delegate(root, "click", "[data-roster-refsearch]", () => onRefSearch()),
   ];
 }
 
@@ -261,6 +280,9 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {() => void} handlers.onFixKeep «Cancel» in the fix
  * @param {() => void} handlers.onFixSave «Save» in the fix
  * @param {() => void} handlers.onCareerToggle the button of a phone's «Career», which opens and closes its list
+ * @param {(query: string) => void} handlers.onRosterQuery a desk's search, as typed
+ * @param {() => void} handlers.onRosterQueryClear Esc in it
+ * @param {() => void} handlers.onRefSearch «Search the reference: …», which the link takes there
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
@@ -288,6 +310,7 @@ export function wireRoster(root, handlers) {
     ...wirePlayer(root, handlers),
     ...wireAdvance(root, handlers),
     ...wireFix(root, handlers),
+    ...wireSearch(root, handlers),
   ];
   return () => offs.forEach((off) => off());
 }

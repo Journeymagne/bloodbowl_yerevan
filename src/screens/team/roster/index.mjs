@@ -47,6 +47,7 @@ import { sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
 import { markHandlers } from "./marks.mjs";
 import { droppedWords, marketHandlers } from "./market.mjs";
 import { playerHandlers } from "./player.mjs";
+import { searchHandlers } from "./search.mjs";
 import { sheetIdOf } from "./sheets.mjs";
 import { PHONE, gamesKnown, isPhone, linesOf, lockOf, modeOf, outsideOf, patchVisit, putBack, reading, screenOf, unsureOf } from "./screen.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
@@ -381,7 +382,7 @@ function heardSave(saving, now) {
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
  * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
  * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's;
- * a skill's chip, the pencil, the player's edit and advancement player.mjs's and advance.mjs's (stage 07d).
+ * a skill's chip, the pencil, the player's edit and advancement player.mjs's and advance.mjs's, a desk's search search.mjs's (stage 07d).
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */
 function pressHandlers({ read, ...saving }) {
@@ -401,6 +402,7 @@ function pressHandlers({ read, ...saving }) {
     ...markHandlers(saving, marks),
     ...marketHandlers(saving, marks),
     ...playerHandlers(saving, marks),
+    ...searchHandlers(saving),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();

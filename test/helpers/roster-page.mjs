@@ -69,7 +69,7 @@ export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}
   view.innerHTML = "";
   if (save.saveState("t1").status !== "idle") save.takeServerTeam(team());
   for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
-  Object.assign(rosterMemory("t1"), { sort: null, selected: open, outside: null, scroll: null, wayBack: null, fromPlayer: false });
+  Object.assign(rosterMemory("t1"), { sort: null, selected: open, outside: null, scroll: null, wayBack: null, fromPlayer: false, query: "" });
   state.auth.currentUser = { id: "u1", login: "coach", preferences: { activeTeamId: "t1" } };
   state.myTeams = { items: [team()], loaded: true, loading: false, error: "" };
   state.activeTeamId = "t1";

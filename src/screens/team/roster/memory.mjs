@@ -1,8 +1,9 @@
 /**
  * What the roster keeps of a team while the page lives (plan 07a, decision 2): the column it is sorted by,
  * the player chosen (the open row on a phone, the one in the panel on a desk), the match whose taps are
- * edits outside it, and each player's SPP when the visit first showed him. A visit elsewhere and back finds
- * the first three as they were; nothing is written to the address or to the browser's storage, so a reload forgets.
+ * edits outside it, each player's SPP when the visit first showed him, and the query of a desk's search (stage 07d,
+ * search.mjs). A visit elsewhere and back finds the first three and the query as they were; nothing is written to the
+ * address or to the browser's storage, so a reload forgets.
  * The way back from a player's page (stage 07d, «‹ Roster») finds the page where the coach left it, too.
  */
 import { onScreenLeave } from "../../../core/screen-lifecycle.mjs";
@@ -22,6 +23,7 @@ const memories = new Map();
  *   it is left in turn: none once another page came between
  * @property {number|null} wayBack where the roster stood when the coach left it for the player's page on screen
  * @property {boolean} fromPlayer the last page left was a player's, his profile drawn, and no other page came after it
+ * @property {string} query what is typed in a desk's search, as typed; "" for none
  */
 
 /**
@@ -31,7 +33,7 @@ const memories = new Map();
  * @returns {RosterMemory}
  */
 export function rosterMemory(teamId) {
-  if (!memories.has(teamId)) memories.set(teamId, { sort: null, selected: null, outside: null, baseline: new Map(), scroll: null, wayBack: null, fromPlayer: false });
+  if (!memories.has(teamId)) memories.set(teamId, { sort: null, selected: null, outside: null, baseline: new Map(), scroll: null, wayBack: null, fromPlayer: false, query: "" });
   return memories.get(teamId);
 }
 

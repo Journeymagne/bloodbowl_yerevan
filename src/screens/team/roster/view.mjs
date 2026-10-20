@@ -12,7 +12,9 @@
  *
  * Above the table, in its column (DeskRoster.html: the panel stands beside them from the top), stand what the coach
  * has to keep in mind: a preparation or a match that is on (Task 11, decisions 12 and 13), and the save's trouble
- * (Task 10); then, on a desk, stage 08's treasury strip (Task 15). Under the tables a line says how to read them.
+ * (Task 10); then, on a desk, stage 08's treasury strip (Task 15). Under the tables a line says how to read them. A
+ * desk's page band holds the search (stage 07d, search.mjs): it narrows the three tables, and a line over them says how
+ * many it finds.
  *
  * The roster is three tables (stage 07b, decision 13): «Active roster», those who play the next match; «Missing the
  * match», each saying why under his name; and «Fallen», the dead, whose row and panel are fallen-view.mjs's. One sort
@@ -44,6 +46,7 @@ import { markSheetMarkup } from "./mark-sheet.mjs";
 import { fixSheetMarkup } from "./fix.mjs";
 import { editSheetMarkup, unadvanceSheetMarkup } from "./player-sheets.mjs";
 import { rollBlockMarkup } from "./roll-view.mjs";
+import { foundMarkup, lineMatches, queryWords, searchFieldMarkup } from "./search.mjs";
 import { sellSheetMarkup } from "./sell-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
@@ -72,7 +75,7 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {import("./model.mjs").FallenLine[]} fallen the team's dead the roster as read does not hold, in the order of
  *   `memory.sort` (none: the server's, the newest first)
  * @property {{kind: "plain"|"prep"|"match", game?: object, round?: number|null}} mode
- * @property {{sort: object|null, selected: string|null, outside: string|null}} memory (memory.mjs)
+ * @property {{sort: object|null, selected: string|null, outside: string|null, query: string}} memory (memory.mjs)
  * @property {boolean} outside «Edit outside the match» is on for the match on (`memory.outside` is its game id, R13)
  * @property {{status: string, waiting: number, refusal: string}} save where the roster's save queue stands (`saveState`)
  * @property {string} lock why every counter is closed just now: the games unread («Loading the matches…») or unreadable
@@ -326,11 +329,17 @@ function captionMarkup(screen) {
  * the save's status: a roster with nobody on it says so, and one whose players all miss the match says that, in place
  * of its table; the other two are drawn only with someone in them. The labels repeat under the last table alone;
  * the first one's «Player» has the «+» after it (stage 07c, `headTailHtml`); with no table of its own the roster has
- * the «Hire players» button under its words.
+ * the «Hire players» button under its words. A desk's query (search.mjs) draws only the players it finds, and the
+ * sections that have some: «Active roster» with none says so, with no button; the panel is the chosen player's while he
+ * is shown, else the first one found.
  */
 function layoutMarkup(screen) {
-  const { lines, fallen, team } = screen;
-  const { active, skipping } = rosterSections(lines);
+  const { lines, team } = screen;
+  // A phone has no field: a query kept from a desk filters nothing there.
+  const words = screen.phone ? [] : queryWords(screen.memory.query);
+  const query = words.length ? screen.memory.query.trim() : "";
+  const sorted = rosterSections(lines);
+  const [active, skipping, fallen] = [sorted.active, sorted.skipping, screen.fallen].map((rows) => rows.filter((line) => lineMatches(line, words)));
   const choice = choiceOf([...active, ...skipping, ...fallen], screen);
   const last = fallen.length ? fallen : skipping.length ? skipping : active;
   const first = active.length ? active : skipping.length ? skipping : fallen;
@@ -339,10 +348,10 @@ function layoutMarkup(screen) {
     label, columns: columnsOf(), groups: groupsOf(), rows: rows.map((line) => rowOf(line, screen, choice)), sort: screen.memory.sort, headTailHtml,
     foot: rows === last, quietHead: !screen.phone && rows !== first,
   });
+  const none = query ? t("teamRoster.search.none", { query }) : lines.length ? t("teamRoster.skips.noneActive") : t("teamRoster.empty");
   const activeBody = active.length
     ? table(t("teamRoster.tableLabel", { team: team.name }), active, hireButtonMarkup(screen))
-    : `<p class="g-roster__empty">${escapeHtml(lines.length ? t("teamRoster.skips.noneActive") : t("teamRoster.empty"))}</p>`
-      + `<div class="g-market__hirebar">${hireButtonMarkup(screen, { block: true })}</div>`;
+    : `<p class="g-roster__empty">${escapeHtml(none)}</p>${query ? "" : `<div class="g-market__hirebar">${hireButtonMarkup(screen, { block: true })}</div>`}`;
   const sections = [sectionMarkup({ which: "active", heading: t("teamRoster.heading"), count: active.length, barHtml: statusMarkup(screen.save), bodyHtml: activeBody })];
   if (skipping.length) {
     sections.push(sectionMarkup({ which: "skipping", heading: t("teamRoster.skips.heading"), count: skipping.length, bodyHtml: table(t("teamRoster.skips.tableLabel", { team: team.name }), skipping) }));
@@ -354,8 +363,11 @@ function layoutMarkup(screen) {
       + `${chosen.fallen ? fallenPanelMarkup(chosen, screen) : sidePanelMarkup(chosen, screen)}</aside>`
     : "";
   // A desk drawn for a player's address that names nobody it holds says so over the table (M5), as a phone's page does.
-  const gone = screen.player && ![...lines, ...fallen].some((line) => line.id === screen.player) ? goneMarkup(screen.teamId) : "";
-  const main = `${gone}${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__sections">${sections.join("")}</div>${lines.length || fallen.length ? captionMarkup(screen) : ""}`;
+  const gone = screen.player && ![...lines, ...screen.fallen].some((line) => line.id === screen.player) ? goneMarkup(screen.teamId) : "";
+  // The search's live region stands first on a desk, with no query too: a screen reader hears its first words.
+  const found = screen.phone ? "" : foundMarkup(query, active.length + skipping.length + fallen.length);
+  const caption = active.length || skipping.length || fallen.length ? captionMarkup(screen) : "";
+  const main = `${found}${gone}${noticesMarkup(screen)}${stripMarkup(team)}<div class="g-roster__sections">${sections.join("")}</div>${caption}`;
   return `<div class="g-roster__layout"><div class="g-roster__main">${main}</div>${aside}</div>`;
 }
 
@@ -366,8 +378,7 @@ function layoutMarkup(screen) {
  * @param {string} teamId
  */
 export function goneMarkup(teamId) {
-  const actionHtml = `<a class="g-roster__calloutlink" href="${escapeHtml(teamUrl(teamId, "roster"))}">${escapeHtml(t("teamRoster.fallen.toRoster"))}</a>`;
-  return renderCallout({ title: t("teamPlayer.gone"), actionHtml });
+  return renderCallout({ title: t("teamPlayer.gone"), actionHtml: calloutLink(teamUrl(teamId, "roster"), t("teamRoster.fallen.toRoster")) });
 }
 
 /** A fault in place of the table, in a danger callout; a read that failed offers to read again. */
@@ -411,6 +422,8 @@ export function sheetMarkup(screen) {
 /** @param {RosterScreen} screen */
 export function rosterMarkup(screen) {
   const drawn = !screen.loading && !screen.error && screen.race;
-  const head = renderPageHead({ title: t("shell.tab.roster"), sub: drawn ? t("teamRoster.counts", rosterCounts(screen.lines)) : "" });
+  // A desk's search at the right of the band (DeskRoster.html); a phone's band is for a screen reader, and has none.
+  const metaHtml = screen.phone ? "" : searchFieldMarkup(screen.memory.query);
+  const head = renderPageHead({ title: t("shell.tab.roster"), sub: drawn ? t("teamRoster.counts", rosterCounts(screen.lines)) : "", metaHtml });
   return `<div class="g-roster" data-screen="team-roster">${head}${bodyMarkup(screen)}${sheetMarkup(screen)}</div>`;
 }

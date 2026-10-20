@@ -89,8 +89,62 @@
 }
 
 @media (min-width: 901px) {
-  /* The page band to the first block: the band's own 24px (page-head.css), the roster's gap taken off it. */
-  .g-roster > .g-pagehead { margin-bottom: var(--space-8); }
+  /* The page band to the first block: the band's own 24px (page-head.css), the roster's gap taken off it. It wraps (DeskRoster.html). */
+  .g-roster > .g-pagehead {
+    flex-wrap: wrap;
+    margin-bottom: var(--space-8);
+  }
+
+  /*
+   * The search at the right of the band (DeskRoster.html, stage 07d): 320px and never wider than the band, 44px, its words
+   * 15px — the shared field (search-field.css) is 48px and 16px, and its fill, radius, magnifier and padding are the
+   * prototype's own. The roster's sheets name .g-search, so every list of them styles the field.
+   */
+  .g-roster__search {
+    width: 320px;
+    max-width: 100%;
+  }
+  .g-roster__search .g-search { width: 100%; }
+  .g-roster__search .g-search__input {
+    height: 44px;
+    font-size: 15px;
+  }
+
+  /*
+   * Over the tables, with a query: how many it finds, said to a screen reader as it changes, and the way to the reference
+   * with it. The column's gap spaces it; with no query the live region waits out of the column's flow, so that no gap
+   * stands for it.
+   */
+  .g-roster__found {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-4) var(--space-16);
+    margin: 0;
+  }
+  .g-roster__found:not(:has(.g-roster__refsearch)) { position: absolute; }
+  .g-roster__foundcount {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--muted);
+    font: 400 13px/1.45 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .g-roster__refsearch {
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    color: var(--accent-text);
+    font: 600 14px/1.3 var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+  }
+  .g-roster__refsearch:hover { text-decoration: underline; }
 
   .g-roster__notices .g-callout { padding: var(--space-12) var(--space-16); }
   /*
