@@ -221,6 +221,23 @@ test("undo from the profile: the sheet, one DELETE, «Pike is on the roster agai
   });
 });
 
+// N1 of the final wave's re-review: a focus on a node a stylesheet hides is lost too (`focusLost`), though the node stays.
+test("a redraw that leaves the focus on a node the stylesheet hides gives it to the title, as one that took it away", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamPlayer("t1", "d1");
+    const undo = undoButton();
+    undo.focus();
+    // `display: none` from a stylesheet: the fake page reads none, and is told the button draws no box.
+    undo.getClientRects = () => [];
+    gamesAre([]);
+    await invalidateGames();
+    await settle();
+    assert.ok(undoButton() === undo, "the same button, still in the page");
+    assert.ok(document.activeElement === title(), "the title, where the page sends a focus it lost");
+  });
+});
+
 // The final review's Important 1, from the profile: an undo sent there lands while the roster is open again. The list
 // takes it, and the roster, which the list is now ahead of, reads the team again; its queue is never swapped under it.
 test("an undo sent from the profile that lands while the roster is open: the roster reads the team again, and draws what it saves", async () => {

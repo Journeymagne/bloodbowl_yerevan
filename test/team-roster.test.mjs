@@ -1048,6 +1048,21 @@ test("a redraw that takes the focused button away: the minus stopped at zero giv
   });
 });
 
+// N1 of the final wave's re-review: a focus on a node a stylesheet hides is lost too (`focusLost`), though the node stays.
+test("a redraw that leaves the focus on a node the stylesheet hides: outside a row, to the title", async () => {
+  coach();
+  await renderTeamRoster("t1");
+  const sort = view.querySelector('[data-sort-key="ma"]');
+  sort.focus();
+  // `display: none` from a stylesheet: the fake page reads none, and is told the header draws no box.
+  sort.getClientRects = () => [];
+  gamesAre([]);
+  await invalidateGames();
+  await settle();
+  assert.ok(view.querySelector('[data-sort-key="ma"]') === sort, "the same header, still in the page");
+  assert.ok(document.activeElement === view.querySelector("h1"), "the title, not a box nobody sees");
+});
+
 // ---------------------------------------------------------------------------
 // A preparation and a match (Task 11)
 // ---------------------------------------------------------------------------
