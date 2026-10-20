@@ -234,14 +234,15 @@
 }
 
 /*
- * A desk's opponent leading to the team (DeskOverview.html): no line, over the row's own link (below). D2: 3 above and
- * below, taken back by the margin, make its 19px line 25 without moving it.
+ * A desk's opponent leading to the team (DeskOverview.html): no line, over the row's own link (below). D2: the race's
+ * link lies over the foot of its box, so it grows upwards only: 7 above, taken back by the margin, leave 24px of its own
+ * (7 + its 19px line − the race's 2) without moving it.
  */
 a.g-overview__opponent {
   position: relative;
   z-index: 2;
-  margin: -3px 0;
-  padding: 3px 0;
+  margin: -7px 0 0;
+  padding: 7px 0 0;
   text-decoration: none;
 }
 
@@ -300,8 +301,9 @@ a.g-overview__opponent {
 
 /*
  * A desk's race leading to its rules (DeskOverview.html): the 12px book 4 before the words, 600 12px in the accent with
- * no line, over the row's own link. D2: the prototype's 5 above and below, taken back by its margin, make it 24px or more
- * without moving the line. A race with no address is the text above.
+ * no line, over the row's own link. D2: 2 above and 8 below (the prototype's 5 and 5, moved down so the opponent above
+ * keeps 24px of its own), taken back by its margin, make it 24px without moving the line. A race with no address is the
+ * text above.
  */
 .g-overview__racelink {
   box-sizing: border-box;
@@ -311,8 +313,9 @@ a.g-overview__opponent {
   align-items: center;
   gap: 4px;
   min-width: 0;
-  margin: -5px 0;
-  padding: 5px 0;
+  min-height: 24px;
+  margin: -2px 0 -8px;
+  padding: 2px 0 8px;
   border: 0;
   background: none;
   color: var(--accent-text);

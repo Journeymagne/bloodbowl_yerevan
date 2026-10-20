@@ -726,7 +726,7 @@ const MVP_GAMES = gamesWith({
 /** The text of each of a row's parts, "" for a part it does not draw. */
 const partsOf = (row, selectors) => selectors.map((selector) => row.querySelector(selector)?.textContent ?? "");
 const DESK_PARTS = [".g-sr-only", ".g-overview__round", ".g-overview__opponent", ".g-overview__racelink", ".g-overview__mvp", ".g-overview__cas", ".g-overview__score"];
-/** A desk row's links: each one's first class, its address, and its tooltip ("" for none). */
+/** A desk row's links: each one's last class, its address, and its tooltip ("" for none). */
 const linksOf = (row) => row.querySelectorAll("a").map((link) => [link.getAttribute("class").split(" ").at(-1), link.getAttribute("href"), link.getAttribute("title") ?? ""]);
 
 test("on a desk a result is DeskOverview's row: the pill, the round, the opponent with the race and the MVP under it, the casualties, the score; the row opens the match", () => {
@@ -1542,10 +1542,11 @@ test("a desk's row is no link: the round's word is the match's, stretched over t
   // The race: 600 12px in the accent (the prototype's #2F7A52, --accent-text), the 12px book 4 before its words.
   assert.deepEqual(["font", "color", "display", "align-items", "gap"].map((property) => own(".g-overview__racelink", property)),
     [["600 12px/normal var(--font-body)"], ["var(--accent-text)"], ["inline-flex"], ["center"], ["4px"]]);
-  // D2 from 901px: the race's 5 above and below, taken back by its margin as in the prototype, make it 24px or more without
-  // moving its line; the opponent's 16px line is given 3 and 3 the same way. The match's link is the whole row, 52px.
-  assert.deepEqual([own(".g-overview__racelink", "padding"), own(".g-overview__racelink", "margin")], [["5px 0"], ["-5px 0"]]);
-  assert.deepEqual([own("a.g-overview__opponent", "padding"), own("a.g-overview__opponent", "margin")], [["3px 0"], ["-3px 0"]]);
+  // D2 from 901px, measured in Chrome: the race's 2 above and 8 below, taken back by its margin, make it 24px without moving
+  // its line; the opponent grows upwards only (7, taken back), since the race lies over its foot: 7 + 19 − 2 = 24px its
+  // own. The match's link is the whole row, 52px.
+  assert.deepEqual(["padding", "margin", "min-height"].map((property) => own(".g-overview__racelink", property)), [["2px 0 8px"], ["-2px 0 -8px"], ["24px"]]);
+  assert.deepEqual([own("a.g-overview__opponent", "padding"), own("a.g-overview__opponent", "margin")], [["7px 0 0"], ["-7px 0 0"]]);
   assert.deepEqual(own("span.g-overview__opponent", "padding"), [], "a name that is no link keeps the prototype's box");
   assertReadable(LISTS_CSS, ".g-overview__racelink", "color", ["--surface"], 4.5);
   // A phone's row is the link it was, nothing stretched over it: the desk's rules alone place them.
