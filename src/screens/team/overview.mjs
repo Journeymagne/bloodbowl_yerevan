@@ -14,10 +14,14 @@
  * dictionaries'.
  *
  * Who can advance is the roster's own answer (`rosterLines`' `ready`: the SPP to
- * spend reach the first random skill), the same one the roster counts, so the
- * two never disagree; the Skill Table plays no part in it. It is said twice,
- * and only one is shown for the width (overview.css): a card after the figures
- * on a phone (Team.html), a list under the leaders on a desk (DeskOverview.html).
+ * spend reach the first random skill); the Skill Table plays no part in it. It is
+ * read from the saved roster, as the player's page the card leads to is, so the
+ * Roster tab's head, which also counts the rows of a match waiting to be settled,
+ * can count one more while such a match is on, when advancing is closed. It is
+ * said twice, and only one is shown for the width (overview.css): a card after
+ * the figures on a phone (Team.html), a list under the columns on a desk, which it
+ * does not stand in, so that a lone list of leaders keeps the row to itself
+ * (DeskOverview.html).
  *
  * A page opened on this address has read neither the table nor the games yet,
  * and nothing is said that they could contradict: without the table there is
@@ -214,12 +218,15 @@ function readyCardMarkup(ready, teamId) {
     + `${renderIcon("chevron", 18)}</a>`;
 }
 
-/** One who can advance on a desk: his number, name and position, the SPP he has to spend, and «Advance» to his address. */
+/**
+ * One who can advance on a desk: the number, name and position, the SPP to spend, and «Advance» to the address.
+ * Every row says the same word, so the link is named for the player (it starts with the word, as it reads).
+ */
 function readyRow({ id, number, name, position, kind, available }, teamId) {
   return `<li class="g-overview__readyrow">${renderPlayerBadge({ number, kind })}`
     + `<span class="g-overview__readyplayer"><span class="g-overview__readyname">${escapeHtml(name)}</span><span class="g-overview__readypos">${escapeHtml(position)}</span></span>`
     + `<span class="g-overview__readyspp">${escapeHtml(t("teamOverview.ready.spp", { spp: available }))}</span>`
-    + `<a class="g-overview__advance" href="${escapeHtml(teamPlayerUrl(teamId, id))}">${escapeHtml(t("teamOverview.ready.advance"))}</a></li>`;
+    + `<a class="g-overview__advance" href="${escapeHtml(teamPlayerUrl(teamId, id))}" aria-label="${escapeHtml(t("teamOverview.ready.advanceLabel", { name }))}">${escapeHtml(t("teamOverview.ready.advance"))}</a></li>`;
 }
 
 /** A desk's list (DeskOverview.html): every player who can advance, with how many they are in its head. */
@@ -267,9 +274,9 @@ export function overviewMarkup(model) {
   const draft = model.draft ? renderStatusChip({ label: t("teams.stage.draft") }) : "";
   const head = renderPageHead({ title: t("shell.tab.overview"), sub: model.seasonLine, metaHtml: draft });
   const stage = draft ? `<div class="g-overview__stage" aria-hidden="true">${draft}</div>` : "";
-  const lists = leadersMarkup(model.leaders) + resultsMarkup(model.results, model.teamId) + readyListMarkup(model.ready, model.teamId);
+  const lists = leadersMarkup(model.leaders) + resultsMarkup(model.results, model.teamId);
   return `${head}<div class="g-overview">${stage}${renderKpiGrid(model.tiles, { row: true })}${readyCardMarkup(model.ready, model.teamId)}${boardSlot(model)}`
-    + `${lists ? `<div class="g-overview__cols">${lists}</div>` : ""}</div>`;
+    + `${lists ? `<div class="g-overview__cols">${lists}</div>` : ""}${readyListMarkup(model.ready, model.teamId)}</div>`;
 }
 
 /**

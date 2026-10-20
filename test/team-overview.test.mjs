@@ -490,11 +490,11 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
 const READY_WORDS = {
   en: {
     card: "Advancement available", who: "{name} · {spp} SPP", more: "{name} · {spp} SPP · and {more} more",
-    title: "Ready to advance", count: "players: {count}", spp: "{spp} SPP", advance: "Advance",
+    title: "Ready to advance", count: "players: {count}", spp: "{spp} SPP", advance: "Advance", advanceLabel: "Advance: {name}",
   },
   ru: {
     card: "Доступна прокачка", who: "{name} · {spp} SPP", more: "{name} · {spp} SPP · и ещё {more}",
-    title: "Готовы к прокачке", count: "игроков: {count}", spp: "{spp} SPP", advance: "Прокачать",
+    title: "Готовы к прокачке", count: "игроков: {count}", spp: "{spp} SPP", advance: "Прокачать", advanceLabel: "Прокачать: {name}",
   },
 };
 const READY_CSS = "src/screens/team/overview.css";
@@ -536,8 +536,44 @@ test("on a desk every one of them, with his SPP and «Advance» to his address",
     ["5", "Vane", "Thrower", "7 SPP", "Advance", "#/t/t1/roster/p2"]]);
   assert.ok(rows[0].querySelector(".g-num--catcher"), "the number on his position's colour");
   const cols = fragment.querySelector(".g-overview__cols");
-  assert.equal(cols.childNodes.filter((node) => node.nodeType === 1).at(-1), section, "the last of the columns, which it spans (overview.css)");
+  const page = fragment.querySelector(".g-overview").childNodes.filter((node) => node.nodeType === 1);
+  // Compared as booleans: a failed `assert.equal` of two DOM nodes would try to print both trees.
+  assert.ok(page.at(-1) === section, "the last of the page: under the columns, with the width of the page");
+  assert.ok(page.at(-2) === cols, "right after the columns");
+  assert.equal(cols.querySelector(".g-overview__readylist"), null, "not one of the columns");
   assert.ok(cols.querySelector(".g-overview__leaders") && cols.querySelector(".g-overview__results"), "after the leaders and the recent matches");
+});
+
+test("leaders and ready players, no results: the leaders keep the row to themselves, the ready list under them (stage 06's lone-list rule)", () => {
+  const model = overviewModel(input("t1", { team: crew(CREW), games: [] }));
+  assert.deepEqual(model.results, []);
+  assert.ok(model.leaders.length && model.ready.length);
+  const fragment = mount(overviewMarkup(model));
+  const cols = fragment.querySelector(".g-overview__cols");
+  assert.deepEqual(cols.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class")), ["g-overview__leaders"], "one list alone in the columns");
+  const page = fragment.querySelector(".g-overview").childNodes.filter((node) => node.nodeType === 1);
+  assert.deepEqual(page.slice(-2).map((node) => node.getAttribute("class")), ["g-overview__cols", "g-overview__readylist"]);
+  // The rule that gives a lone list the row: with the ready list outside the columns it still has a lone child to apply to.
+  assert.match(READY_BARE(), /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__cols > :only-child \{ grid-column: 1 \/ -1; \}/);
+  // And the ready list is no grid item that could ask for a column of its own.
+  assert.deepEqual(valuesOf(READY_CSS, ".g-overview__readylist", "grid-column"), []);
+});
+
+test("every «Advance» is named for its player, and the name starts with the word it shows", () => {
+  const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
+  const links = fragment.querySelectorAll("a.g-overview__advance");
+  assert.deepEqual(links.map((link) => link.getAttribute("aria-label")), ["Advance: Cade", "Advance: Ashby", "Advance: Vane"]);
+  for (const link of links) assert.ok(link.getAttribute("aria-label").startsWith(link.textContent), "the name contains the visible text, from its start");
+  const hostile = mount(overviewMarkup(overviewModel(input("t1", { team: crew([{ id: "p1", rowIndex: 0, number: "3", name: HOSTILE, spp: { touchdowns: 1 } }]) }))));
+  assert.equal(hostile.querySelector("a.g-overview__advance").getAttribute("aria-label"), `Advance: ${HOSTILE}`, "text, whatever the name holds");
+  assert.equal(hostile.querySelector("img"), null);
+  assertCspSafe(hostile);
+  initLocale("ru");
+  try {
+    assert.deepEqual(mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) })))).querySelectorAll("a.g-overview__advance").map((link) => link.getAttribute("aria-label")), ["Прокачать: Cade", "Прокачать: Ashby", "Прокачать: Vane"]);
+  } finally {
+    initLocale("en");
+  }
 });
 
 test("a player the roster stores no id for is not listed: there is no address to lead to", () => {
@@ -595,7 +631,7 @@ test("the ready words: every key in both dictionaries, the same names, and none 
   for (const locale of ["en", "ru"]) {
     const words = dictionary(locale);
     for (const [key, value] of Object.entries(READY_WORDS[locale])) assert.equal(words[`teamOverview.ready.${key}`], value, `${locale} ${key}`);
-    assert.deepEqual(Object.keys(words).filter((key) => key.startsWith("teamOverview.ready.")).sort(), Object.keys(READY_WORDS[locale]).map((key) => `teamOverview.ready.${key}`).sort(), `${locale}: the keys are the seven`);
+    assert.deepEqual(Object.keys(words).filter((key) => key.startsWith("teamOverview.ready.")).sort(), Object.keys(READY_WORDS[locale]).map((key) => `teamOverview.ready.${key}`).sort(), `${locale}: the keys are the eight`);
   }
   const [en, ru] = [dictionary("en"), dictionary("ru")];
   for (const key of Object.keys(READY_WORDS.en)) {
@@ -628,8 +664,9 @@ test("the ready block is styled, as the prototypes draw it, and readable (Team.h
     for (const property of ["font", "letter-spacing", "text-transform"]) assert.equal(own(selector, property).length, 1, `${selector} ${property}`);
     assert.match(own(selector, "font")[0], /\/normal /, `${selector} keeps the font's own line height`);
   }
-  // The card (Team.html): 56px and 10 14 in, 14 round, the accent's tint with its ink, 12 between the words and the chevron.
-  assert.deepEqual(own(".g-overview__ready", "min-height"), ["56px"]);
+  // The card (Team.html): 76px (the prototype's content-box 56 and its 10 and 10) and 10 14 in, 14 round, the accent's tint with its ink, 12 between the words and the chevron.
+  assert.deepEqual(own(".g-overview__ready", "min-height"), ["76px"]);
+  assert.deepEqual(own(".g-overview__ready", "box-sizing"), ["border-box"]);
   assert.deepEqual(own(".g-overview__ready", "padding"), ["var(--space-10) var(--space-14)"]);
   assert.deepEqual(own(".g-overview__ready", "border-radius"), ["var(--radius-xl)"]);
   assert.deepEqual(own(".g-overview__ready", "background"), ["var(--accent-tint)"]);
@@ -654,7 +691,8 @@ test("the ready block is styled, as the prototypes draw it, and readable (Team.h
   // The rows: the badge, the player, the SPP and the button; 10 between, 56px at least, a rule under each.
   assert.deepEqual(own(".g-overview__readyrow", "grid-template-columns"), ["36px minmax(0, 1fr) auto auto"]);
   assert.deepEqual(own(".g-overview__readyrow", "gap"), ["var(--space-10)"]);
-  assert.deepEqual(own(".g-overview__readyrow", "min-height"), ["56px"]);
+  assert.deepEqual(own(".g-overview__readyrow", "min-height"), ["57px"], "the prototype's 56 and its rule, in a border-box");
+  assert.deepEqual(own(".g-overview__readyrow", "box-sizing"), ["border-box"]);
   assert.deepEqual(own(".g-overview__readyrow", "border-bottom"), ["1px solid var(--line)"]);
   assert.deepEqual(own(".g-overview__readyname", "font"), ["600 15px/normal var(--font-body)"]);
   assert.deepEqual(own(".g-overview__readypos", "font"), ["400 12px/normal var(--font-body)"]);
@@ -679,11 +717,10 @@ test("one of the two is shown for the width: the card up to 900px, the list from
   const own = (selector, property) => valuesOf(READY_CSS, selector, property);
   assert.deepEqual(own(".g-overview__ready", "display"), ["flex", "none"], "a phone's card, gone from a desk");
   assert.deepEqual(own(".g-overview__readylist", "display"), ["none", "flex"], "a desk's list, gone from a phone");
-  assert.deepEqual(own(".g-overview__readylist", "grid-column"), ["1 / -1"], "the list has the row to itself");
   const source = READY_BARE();
   assert.match(source, /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__ready \{ display: none; \}/);
-  assert.match(source, /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__readylist\s*\{[^}]*display: flex;[^}]*grid-column: 1 \/ -1/);
-  // The card is what a thumb presses on a phone: its 56px is 44px and more; the button is on the desk's side of the line and is 24px and more.
+  assert.match(source, /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__readylist \{ display: flex; \}/);
+  // The card is what a thumb presses on a phone: its 76px is 44px and more; the button is on the desk's side of the line and is 24px and more.
   assert.ok(parseInt(own(".g-overview__ready", "min-height")[0], 10) >= 44);
   assert.ok(parseInt(own(".g-overview__advance", "min-height")[0], 10) >= 24);
   assert.doesNotMatch(source.slice(source.indexOf("@media (max-width: 900px)"), source.indexOf("@media (min-width: 901px)")), /readylist|g-overview__advance|readyrow/, "nothing of the list is drawn on a phone");
@@ -720,7 +757,9 @@ test("the Russian overview has the words of a Russian page, and every leader's l
 test("the stylesheet reaches the page, and the result rows keep their size and their number", () => {
   const css = "src/screens/team/overview.css";
   assert.ok(text("src/styles.css").includes('@import url("screens/team/overview.css");'));
-  assert.deepEqual(valuesOf(css, ".g-overview", "gap"), ["var(--space-20)"]);
+  assert.deepEqual(valuesOf(css, ".g-overview", "gap"), ["var(--space-20)", "var(--space-22)"], "20px on a desk (DeskOverview.html), 22px up to 900px (Team.html)");
+  assert.deepEqual(valuesOf(css, ".g-overview__cols", "gap"), ["var(--space-20)", "var(--space-22)"], "the leaders and the results stand as far apart as the other blocks");
+  assert.match(text(css), /@media \(max-width: 900px\)\s*\{\s*(?:\/\*[^*]*\*\/\s*)?\.g-overview,\s*\.g-overview__cols \{ gap: var\(--space-22\); \}/, "and only up to 900px");
   assert.ok(valuesOf(css, ".g-overview__result", "min-height").includes("56px"));
   assert.match(text(css), /@media \(max-width: 900px\)\s*\{[^@]*\.g-overview__result:nth-child\(n\+4\)\s*\{[^}]*display: none/, "the fourth and fifth result wait for a desk");
   assert.match(text(css), /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__cols\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);

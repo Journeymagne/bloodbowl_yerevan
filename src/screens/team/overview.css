@@ -13,7 +13,8 @@
  * Who can advance is drawn twice and one of the two is shown for the width: a
  * card after the figures up to 900px (Team.html), a list under the columns from
  * 901px (DeskOverview.html). Where the prototypes give no line height, the
- * font's own (`normal`). A long name wraps; nothing is cut with «…».
+ * font's own (`normal`). A long name wraps; nothing is cut with «…». A phone's
+ * blocks stand 22px apart, as in Team.html; a desk's 20px, as in DeskOverview.html.
  */
 .g-overview {
   box-sizing: border-box;
@@ -49,8 +50,8 @@
 
 /*
  * A phone's card (Team.html): the words over the player and what is left to say, the chevron at the end. The box is
- * border-box like every sheet's, so its 56px is the card's own, not the words' and then the padding (the prototype's
- * content-box would make it 76px).
+ * border-box like every sheet's, and its 76px is what the prototype's content-box draws: its 56px is the least of the
+ * words' box, and the 10px above and below come on top. A name that wraps makes the card as tall as it is plus the 20.
  */
 .g-overview__ready {
   box-sizing: border-box;
@@ -58,7 +59,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-12);
-  min-height: 56px;
+  min-height: 76px;
   margin: 0;
   padding: var(--space-10) var(--space-14);
   border: 0;
@@ -94,8 +95,9 @@
 }
 
 /*
- * A desk's list (DeskOverview.html): a card in a ring, the head over the rows, six between its parts. It is not shown
- * on a phone (below), where the card says it.
+ * A desk's list (DeskOverview.html): a card in a ring, the head over the rows, six between its parts. It stands under
+ * the columns, not in them, so that one list alone in the columns keeps its row; it is not shown on a phone (below),
+ * where the card says it.
  */
 .g-overview__readylist {
   box-sizing: border-box;
@@ -155,14 +157,14 @@
   list-style: none;
 }
 
-/* A row: the number on his position's colour, who he is, the SPP he has to spend, and the way to advance him. */
+/* A row: the number on the position's colour, who it is, the SPP to spend, and the way to advance. 57px: the 56 of the prototype's box and its rule. */
 .g-overview__readyrow {
   box-sizing: border-box;
   display: grid;
   grid-template-columns: 36px minmax(0, 1fr) auto auto;
   align-items: center;
   gap: var(--space-10);
-  min-height: 56px;
+  min-height: 57px;
   margin: 0;
   padding: 0;
   border: 0;
@@ -360,6 +362,10 @@
 
 /* A phone shows the three newest matches: the fourth and the fifth are for a desk. */
 @media (max-width: 900px) {
+  /* Team.html's blocks stand 22px apart; the desk's 20px is the base. */
+  .g-overview,
+  .g-overview__cols { gap: var(--space-22); }
+
   .g-overview__result:nth-child(n+4) { display: none; }
   .g-overview__result:nth-child(3) { border-bottom: 0; }
 }
@@ -383,12 +389,9 @@
   /* One list alone has the row to itself. */
   .g-overview__cols > :only-child { grid-column: 1 / -1; }
 
-  /* A desk shows who can advance as a list under the columns, which it spans, not as the phone's card. */
+  /* A desk shows who can advance as a list under the columns, not as the phone's card. */
   .g-overview__ready { display: none; }
-  .g-overview__readylist {
-    display: flex;
-    grid-column: 1 / -1;
-  }
+  .g-overview__readylist { display: flex; }
 
   /*
    * The leaders are cards that wrap as the column narrows (DeskOverview.html). In a card the tag and the figure share

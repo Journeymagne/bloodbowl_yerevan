@@ -1091,6 +1091,7 @@
   "teamOverview.ready.count": "игроков: {count}",
   "teamOverview.ready.spp": "{spp} SPP",
   "teamOverview.ready.advance": "Прокачать",
+  "teamOverview.ready.advanceLabel": "Прокачать: {name}",
   "teamRoster.readMismatch": "Состав менялся, пока читался. Повторите.",
   "teamRoster.tapLost": "Ответ на запись не пришёл: записи перечитываются, чтобы узнать, сохранилась ли она.",
   "teamRoster.tapDropped": "Не отправлено: предыдущая запись не прошла. Записи перечитываются.",

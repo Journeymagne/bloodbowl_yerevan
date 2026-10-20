@@ -1091,6 +1091,7 @@
   "teamOverview.ready.count": "players: {count}",
   "teamOverview.ready.spp": "{spp} SPP",
   "teamOverview.ready.advance": "Advance",
+  "teamOverview.ready.advanceLabel": "Advance: {name}",
   "teamRoster.readMismatch": "The roster kept changing while it was read. Try again.",
   "teamRoster.tapLost": "The answer to the record did not arrive: the records are read again to see whether it was written.",
   "teamRoster.tapDropped": "Not sent: the record before it did not go through. The records are read again.",
