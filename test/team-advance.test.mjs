@@ -330,6 +330,11 @@ test("taken: one PATCH of the whole roster, the done step at once — what he go
       assert.deepEqual(call.body.roster.players.map(({ id }) => id), PLAYERS.map(({ id }) => id), "the whole roster");
       assert.equal(done().querySelector(".g-advance__status").textContent, "Saved");
       assert.equal(save.saveState("t1").waiting, 0);
+      // The server's roster taken since (a read after another save): the queue at rest, the advancement his (review M4).
+      save.takeServerTeam(withOne(advancedWith("primary", "Diving Catch"), { revision: 5 }));
+      assert.equal(save.saveState("t1").status, "idle");
+      assert.ok(done(), "the advancement is still his");
+      assert.equal(done().querySelector(".g-advance__status").textContent, "Saved", "never a blank status");
       assertCspSafe(view);
       assertStyled(view, ...ADVANCE_STYLES);
       fireEvent(doneButton(), "click");
@@ -345,11 +350,17 @@ test("an elite combination's 15k is in the done step's value", async () => {
     await withWindow({ phone: true }, async () => {
       await openAdvance(true, { id: "j1", teamAnswer: AMAZONS });
       walkTo("primary", "Strength", "Guard");
-      api.reply(PATCH, 200, { team: AMAZONS });
+      // The server answers with what was sent: Ixchel with Guard and the advancement (review M8).
+      const guarded = { ...JAGUAR, extraSkills: [{ name: "Guard", access: "primary" }], advancements: [{ type: "primary", grants: { skill: "Guard" } }] };
+      api.reply(PATCH, 200, { team: team({ baseTeamSlug: "teams/amazon", revision: 5, roster: { players: [guarded] } }) });
       fireEvent(take(), "click");
       assert.deepEqual(tiles(), [["SPP", "−6"], ["Value", "+35k"], ["Advancements", "1 / 6"]]);
       assert.equal(done().querySelector(".g-advance__elite").textContent, "an elite combination +15k included");
       await settle();
+      assert.equal(patches().length, 1);
+      assert.deepEqual(patches()[0].body.roster.players[0].advancements, [{ type: "primary", grants: { skill: "Guard" } }]);
+      assert.ok(done(), "the done step stays once saved");
+      assert.equal(done().querySelector(".g-advance__elite").textContent, "an elite combination +15k included");
     });
   });
 });
@@ -511,6 +522,9 @@ test("on a desk the same advancement in three columns: the type, the category, t
     await settle();
     assert.equal(summary(), "Saved in the player's profile");
     assert.equal(patches().length, 1);
+    save.takeServerTeam(withOne(advancedWith("primary", "Diving Catch"), { revision: 5 }));
+    assert.equal(save.saveState("t1").status, "idle");
+    assert.equal(summary(), "Saved in the player's profile", "the queue at rest, the advancement his (review M4)");
     assertStyled(view, ...ADVANCE_STYLES);
     fireEvent(doneButton(), "click");
     assert.ok(!sheet());
@@ -674,6 +688,65 @@ test("offers not known yet (no Skill Table): the types plain, with no price and 
       assert.ok(next().hasAttribute("disabled"), "nothing to choose from until the table is in");
       assertCspSafe(view);
     });
+    // A desk: the second column says what it waits for, no empty group (review M3).
+    coach({ open: "p3#0" });
+    state.data = { ...state.data, skillGroups: undefined };
+    await renderTeamRoster("t1");
+    fireEvent(advance(), "click");
+    choose(typeCard("primary"));
+    const second = sheet().querySelectorAll(".g-advance__col")[1];
+    assert.equal(second.querySelector(".g-advance__cats"), null);
+    assert.ok(second.getAttribute("class").includes("g-advance__col--empty"));
+    assert.equal(second.querySelector(".g-advance__empty").textContent, "Choose the type of advancement first");
+    assert.ok(take().hasAttribute("disabled"));
+    assertStyled(view, ...ADVANCE_STYLES);
+  });
+});
+
+// Review M1 and M2: the offers are the draft's as drawn, and the take is the domain's to judge on the draft at the press.
+test("a type chosen and then refused — his SPP gone down — closes «Next» and «Take», saying why; a press sends nothing", async () => {
+  await withoutTimers(async () => {
+    // Exactly 10 SPP (two touchdowns, two casualties): «Chosen secondary skill» and no more.
+    const tenSpp = withOne({ ...PLAYERS[2], spp: { touchdowns: 2, casualties: 2 } });
+    await openAdvance(false, { teamAnswer: tenSpp });
+    choose(typeCard("secondary"));
+    choose(category("Strength"));
+    choose(skill("Guard"));
+    assert.equal(take().textContent, "Take Guard");
+    assert.ok(!take().hasAttribute("aria-disabled"));
+    // A step of the queue lowers his SPP on the draft (its PATCH in the air): 7 SPP.
+    const inTheAir = api.hold(PATCH);
+    assert.equal(save.stepSpp("t1", "p3", "touchdowns", -1).ok, true);
+    assert.deepEqual(cardWords(typeCard("secondary")), ["Chosen secondary skill", "3 SPP short", "10 SPP"]);
+    assert.equal(typeCard("secondary").getAttribute("aria-checked"), "true", "still the choice, now refused");
+    assert.equal(take().textContent, "Take Guard");
+    assert.equal(take().getAttribute("aria-disabled"), "true", "«Take» closed (M1)");
+    assert.equal(take().getAttribute("title"), "3 SPP short");
+    // Pressed all the same: the domain refuses it on the draft, in words in the sheet (M2).
+    fireEvent(take(), "click");
+    assert.equal(refusal().textContent, "3 SPP short");
+    assert.equal(done(), null);
+    inTheAir.release();
+    await settle();
+    const sent = patches().map((call) => (call.body.roster.players.find((player) => player.id === "p3").advancements ?? []).length);
+    assert.deepEqual(sent, [0], "the SPP step alone: no PATCH carries an advancement");
+    // A phone: «Next» closed the same way, and a press says why and goes nowhere.
+    await withWindow({ phone: true }, async () => {
+      await openAdvance(true, { teamAnswer: tenSpp });
+      choose(typeCard("secondary"));
+      fireEvent(next(), "click");
+      choose(category("Strength"));
+      assert.ok(!next().hasAttribute("disabled") && !next().hasAttribute("aria-disabled"));
+      const later = api.hold(PATCH);
+      save.stepSpp("t1", "p3", "touchdowns", -1);
+      assert.equal(next().getAttribute("aria-disabled"), "true");
+      assert.equal(next().getAttribute("title"), "3 SPP short");
+      fireEvent(next(), "click");
+      assert.equal(toasts().at(-1), "3 SPP short");
+      assert.equal(title(), "Skill category", "it stays on its step");
+      later.release();
+      await settle();
+    });
   });
 });
 
@@ -731,7 +804,9 @@ test("every key in both dictionaries; styled; readable", () => {
   }
   // Readable in every palette: the pill of the type chosen and of a refused one, the words of a refused type, the tags.
   assertReadable("src/ui/option-card.css", '.g-option[aria-checked="true"] .g-option__pill', "color", ["--accent"], 4.5);
-  assertReadable(ADVANCE, '#player-advance .g-option[aria-disabled="true"] .g-option__pill', "color", ["--surface-2"], 4.5);
+  // A refused type's pill a shade darker than its card, as Adv1Type's #F0F2F1 on #F6F7F6 (review M5).
+  assert.deepEqual(valuesOf(ADVANCE, '#player-advance .g-option[aria-disabled="true"] .g-option__pill', "background"), ["var(--surface-3)"]);
+  assertReadable(ADVANCE, '#player-advance .g-option[aria-disabled="true"] .g-option__pill', "color", ["--surface-3"], 4.5);
   assertReadable(ADVANCE, '#player-advance .g-option[aria-disabled="true"]', "color", ["--surface-2"], 4.5);
   assertReadable("src/ui/option-card.css", '.g-option[aria-disabled="true"] .g-option__sub', "color", ["--surface-2"], 4.5);
   assertReadable(ADVANCE, "#player-advance .g-advance__free", "color", ["--surface", "--accent-tint-soft"], 4.5);

@@ -9,7 +9,7 @@
  * stage 13. A long name or refusal wraps; nothing is cut with «…» — the price in its pill is short and hides nothing.
  */
 
-/* The types (Adv1Type.html): the words at the font's own height; a refused one grey, its price on the quiet grey. */
+/* The types (Adv1Type.html): the words at the font's own height; a refused one grey, its price a shade darker than its card. */
 #player-advance .g-option__title {
   font: 600 16px/normal var(--font-body);
   letter-spacing: 0;
@@ -31,7 +31,7 @@
 }
 #player-advance .g-option[aria-disabled="true"] { color: var(--muted); }
 #player-advance .g-option[aria-disabled="true"] .g-option__pill {
-  background: var(--surface-2);
+  background: var(--surface-3);
   color: var(--muted);
 }
 

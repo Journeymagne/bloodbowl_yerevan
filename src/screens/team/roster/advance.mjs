@@ -185,11 +185,14 @@ export function advanceHandlers(saving, lent) {
       if (now?.choices.skills.some((each) => each.name === name && !each.held)) change(now.sheet, { skill: name });
       else if (now) draw();
     },
-    // A phone's «Next»: a type's categories, or a characteristic's roll (Task 10); a category's skills.
+    // A phone's «Next»: a type's categories, or a characteristic's roll (Task 10); a category's skills. A type refused
+    // since it was chosen (his SPP gone down) goes no further, and says why.
     onAdvanceNext: () => {
-      const sheet = openSheet(visit);
-      if (sheet?.step === "type" && sheet.type) change(sheet, { step: sheet.type === "stat" ? "stat" : "category" });
-      else if (sheet?.step === "category" && sheet.category) change(sheet, { step: "skill" });
+      const now = pressed();
+      const refusal = now?.choices.offer?.refusal;
+      if (refusal) toast(refusalWordsOf("teamAdvance", refusal));
+      else if (now?.sheet.step === "type" && now.sheet.type) change(now.sheet, { step: now.sheet.type === "stat" ? "stat" : "category" });
+      else if (now?.sheet.step === "category" && now.sheet.category) change(now.sheet, { step: "skill" });
     },
     onSheetBack: (id) => {
       const sheet = id === ADVANCE_SHEET ? openSheet(visit) : null;

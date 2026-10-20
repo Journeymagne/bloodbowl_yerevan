@@ -82,8 +82,12 @@ function letterMarkup(category) {
   return `<span class="${className}" aria-hidden="true">${escapeHtml(category.charAt(0))}</span>`;
 }
 
-/** The type's categories (Adv2Category.html): the letter, the name, how many of its skills he lacks; one with none closed. */
+/**
+ * The type's categories (Adv2Category.html): the letter, the name, how many of its skills he lacks; one with none closed.
+ * None to show (offers not known yet, K28) is nothing: a desk's column then says what it waits for.
+ */
 function categoriesMarkup(sheet, choices) {
+  if (!choices.categories.length) return "";
   const items = choices.categories.map(({ category, free, total }) => ({
     value: category, className: "g-advance__cat", data: { advanceCategory: category }, reason: free ? "" : t("teamAdvance.refusal.NO_SKILL_LEFT"),
     html: `${letterMarkup(category)}<span class="g-advance__catwords"><span class="g-advance__catname">${escapeHtml(category)}</span>`
@@ -109,10 +113,13 @@ function skillsMarkup(sheet, choices) {
   return radioGroupMarkup({ className: "g-advance__skills", label: t("teamAdvance.skillsLabel"), items, chosen: sheet.skill });
 }
 
-/** Where the save of the advancement stands, in the roster's words; a desk's «Saved» says where it went (DeskRosterAdv.html). */
-function savedWords({ status, waiting }, { desk = false } = {}) {
+/**
+ * Where the save of the advancement stands, in the roster's words; a desk's «Saved» says where it went (DeskRosterAdv.html).
+ * A queue at rest (IDLE: the server's roster taken since) with the advancement in his line (`held`) has it saved.
+ */
+function savedWords({ status, waiting }, { desk = false, held = false } = {}) {
   if (status === SAVE_STATUS.SAVING || status === SAVE_STATUS.DIRTY) return t("teamRoster.status.saving");
-  if (status === SAVE_STATUS.SAVED) return t(desk ? "teamAdvance.savedDesk" : "teamRoster.status.saved");
+  if (status === SAVE_STATUS.SAVED || (status === SAVE_STATUS.IDLE && held)) return t(desk ? "teamAdvance.savedDesk" : "teamRoster.status.saved");
   if (status === SAVE_STATUS.OFFLINE) return t("teamRoster.status.waiting", { count: waiting });
   return status === SAVE_STATUS.CONFLICT || status === SAVE_STATUS.ERROR ? t("teamRoster.status.unsaved") : "";
 }
@@ -134,7 +141,7 @@ function doneMarkup(line, screen, taken) {
   const tiles = phone ? `<dl class="g-advance__tiles">${tile(t("teamRoster.group.spp"), spp)}${tile(t("teamAdvance.doneValue"), value)}`
     + `${tile(t("teamAdvance.doneLevel"), t("teamAdvance.doneLevelOf", { level: taken.level }))}</dl>` : "";
   const elite = taken.elite ? `<p class="g-advance__elite">${escapeHtml(t("teamAdvance.doneElite"))}</p>` : "";
-  const status = phone ? `<p class="g-advance__status" role="status">${escapeHtml(savedWords(screen.save))}</p>` : "";
+  const status = phone ? `<p class="g-advance__status" role="status">${escapeHtml(savedWords(screen.save, { held: line.level >= taken.level }))}</p>` : "";
   return `<div class="g-advance__done"><span class="g-advance__check" aria-hidden="true">${icon("check", 30)}</span>`
     + `<h3 class="g-advance__donetitle">${escapeHtml(title)}</h3><p class="g-advance__how">${escapeHtml(how)}</p>${tiles}${elite}${status}</div>`;
 }
@@ -147,11 +154,20 @@ function linesMarkup(screen, sheet) {
   return prep || alert ? `<div class="g-advance__lines">${prep}${alert}</div>` : "";
 }
 
-/** «Take {skill}», or «Choose a skill» shut while the choice is not whole; closed (`reason`), it says why. */
+/**
+ * Why the type chosen cannot be taken now, "" when it can: its offer refused on the draft as drawn — his SPP has gone
+ * down since it was chosen (a queue's 422 taking SPP steps back, «Load the new one»). Its card says so already.
+ */
+const refusedOf = (choices) => (choices.offer?.refusal ? refusalWordsOf("teamAdvance", choices.offer.refusal) : "");
+
+/**
+ * «Take {skill}», or «Choose a skill» shut while the choice is not whole; closed — the screen's reason (`reason`), or the
+ * type chosen refused since — it says why. A press is still the domain's to refuse, in words in the sheet (advance.mjs).
+ */
 function takeMarkup(sheet, choices) {
   const chosen = chosenOf(sheet, choices);
   const label = chosen ? t("teamAdvance.take", { skill: chosen.grant.skill }) : t("teamAdvance.pickSkill");
-  const reason = sheet.reason ?? "";
+  const reason = sheet.reason || refusedOf(choices);
   return footButton({ label, kind: "primary", data: { advanceTake: true }, disabled: !reason && !chosen, reason });
 }
 
@@ -164,15 +180,21 @@ function phoneHead(line, sheet, choices) {
   return [t("teamAdvance.title"), t("teamAdvance.sub", { spp: line.available, next: line.level + 1 })];
 }
 
-/** A phone's step (Adv1Type…Adv4Done): its body, and its one button — «Next» once a choice is made, «Take», «Back to the player». */
+/**
+ * A phone's step (Adv1Type…Adv4Done): its body, and its one button — «Next» once a choice is made (closed, saying why,
+ * when the type chosen is refused since), «Take», «Back to the player».
+ */
 function phoneParts(line, screen, sheet, choices) {
-  const next = (disabled) => renderButton({ label: t("teamAdvance.next"), kind: "primary", data: { advanceNext: true }, disabled });
+  const next = (ready) => {
+    const reason = refusedOf(choices);
+    return footButton({ label: t("teamAdvance.next"), kind: "primary", data: { advanceNext: true }, disabled: !reason && !ready, reason });
+  };
   const chosenType = CHOSEN_TYPES.includes(sheet.type);
   switch (sheet.step) {
-    case "type": return [typesMarkup(sheet, choices), next(!choices.offer)];
+    case "type": return [typesMarkup(sheet, choices), next(Boolean(choices.offer))];
     case "category": {
       const hint = chosenType ? `<p class="g-advance__hint">${escapeHtml(t("teamAdvance.chosenHint"))}</p>` : "";
-      return [`${categoriesMarkup(sheet, choices)}${hint}`, next(!sheet.category)];
+      return [`${categoriesMarkup(sheet, choices)}${hint}`, next(Boolean(sheet.category))];
     }
     case "skill": return chosenType ? [skillsMarkup(sheet, choices), takeMarkup(sheet, choices)] : ["", ""];
     case "done": return [doneMarkup(line, screen, sheet.taken), renderButton({ label: t("teamAdvance.back"), kind: "primary", data: { advanceDone: true } })];
@@ -221,7 +243,8 @@ function deskMarkup(line, screen, sheet, choices) {
     + columnMarkup(t("teamAdvance.col.category"), sheet.type ? categoriesMarkup(sheet, choices) : "", t("teamAdvance.col.emptyType"))
     + columnMarkup(t("teamAdvance.col.skill"), sheet.category && CHOSEN_TYPES.includes(sheet.type) ? skillsMarkup(sheet, choices) : "", t("teamAdvance.col.emptyCategory"))
     + "</div>";
-  const summary = done ? `<p class="g-advance__summary" role="status">${escapeHtml(savedWords(screen.save, { desk: true }))}</p>`
+  const saved = done && savedWords(screen.save, { desk: true, held: line.level >= sheet.taken.level });
+  const summary = done ? `<p class="g-advance__summary" role="status">${escapeHtml(saved)}</p>`
     : `<p class="g-advance__summary">${escapeHtml(summaryWords(sheet, choices))}</p>`;
   return renderSheet({
     id: ADVANCE_SHEET,
