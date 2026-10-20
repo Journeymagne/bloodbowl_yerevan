@@ -15,16 +15,14 @@ import { t } from "../../../core/i18n.mjs";
 import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { advanceHandlers, advanceSheetOf, bonusOf } from "./advance.mjs";
-import { fixHandlers } from "./fix.mjs";
+import { fixHandlers, fixSheetOf } from "./fix.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { editClosed, gaveWords, undoClosed } from "./player-access.mjs";
+import { playerAt, rosterLineOf, savePlayerSheet } from "./player-save.mjs";
 import { editCheck } from "./player-sheets.mjs";
 import { siteRollOf } from "./roll-view.mjs";
 import { readRolls } from "./rolls.mjs";
 import { addFavoured, amendPlayer, undoAdvancement } from "./save.mjs";
-
-/** The roster's line of `key`, never one of the fallen (whose number, name and armband are history), or null. */
-const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;
 
 /** An advancement as the undo's sheet showed it — its type, what it gave, its roll — which is what the coach confirms. */
 const shownAs = ({ type, grants, via, rollId }) => JSON.stringify([type, grants?.skill ?? "", grants?.stat ?? "", via, rollId]);
@@ -47,9 +45,10 @@ function undoSheetOf(sheet, line, where) {
 /**
  * A player's sheet as the screen draws it, or null when it stands no longer: his line has left the roster (read again,
  * or fallen), or a match has begun (R8) — the screen closes it, and the focus goes back to his pencil, his
- * «Advancement» or his «Undo the last», closed now (`openerOf`). The edit and the fix by hand say why «Save» is closed
- * just now (`editClosed`: the screen's lock); his advancement is advance.mjs's to keep (`advanceSheetOf`); the undo stands
- * while the advancement it showed is still his last (`undoSheetOf`), saying why it is closed (`undoClosed`).
+ * «Advancement» or his «Undo the last», closed now (`openerOf`). The edit says why «Save» is closed just now
+ * (`editClosed`: the screen's lock); the fix by hand too, while he is as it was seeded from (fix.mjs's `fixSheetOf`);
+ * his advancement is advance.mjs's to keep (`advanceSheetOf`); the undo stands while the advancement it showed is still
+ * his last (`undoSheetOf`), saying why it is closed (`undoClosed`).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines the roster's lines and the fallen
@@ -62,50 +61,24 @@ export function playerSheetOf(visit, lines, where) {
   if (!line || where.mode.kind === "match") return null;
   if (sheet.kind === "advance") return advanceSheetOf(sheet, line, where);
   if (sheet.kind === "unadvance") return undoSheetOf(sheet, line, where);
-  return sheet.kind === "edit" || sheet.kind === "fix" ? { ...sheet, reason: editClosed(line, where) } : null;
+  if (sheet.kind === "fix") return fixSheetOf(sheet, line, where);
+  return sheet.kind === "edit" ? { ...sheet, reason: editClosed(line, where) } : null;
 }
 
 /**
- * The player of `key` as the screen stands at the press (`now`): his line on the roster, the draft the edit is checked
- * on, and why his edit cannot be saved just now ("" when it can); null when he is not on the roster.
- */
-function playerOf(now, key) {
-  const where = now();
-  const line = rosterLineOf(where.lines, key);
-  return line ? { line, draft: where.draft, reason: editClosed(line, where) } : null;
-}
-
-/**
- * «Save»: only from the edit that is open — a press that finds none is a second press, and sends nothing. Why it is
- * closed is asked again, then the form as the draft stands: one the roster would refuse, or that changes nothing, sends
- * nothing (the sheet says so, «Save» shut). Then one step of the queue (`amendPlayer`) and, in the same turn, the sheet
- * closes, the focus back on the pencil, his number, name and armband drawn at once from the draft. A refusal (another
- * tab's coach, the rules a 422 left the queue on) is said in the sheet, which stays; one of the queue's 422 asks for the
- * server's roster again (`refused`).
+ * «Save» of the edit: the way a player's sheet is saved (player-save.mjs) — the form checked on the draft (`editCheck`:
+ * a whole number and name, and a change), then one step of the queue (`amendPlayer`), his number, name and armband drawn
+ * at once from the draft.
  *
  * @param {import("./index.mjs").Saving} saving
  * @param {{now: () => object, refused: () => void}} lent
  */
-function saveEdit(saving, { now, refused }) {
-  const { teamId, visit, draw } = saving;
-  const { sheet } = visit;
-  if (sheet?.kind !== "edit") return;
-  const player = playerOf(now, sheet.key);
-  if (!player) return;
-  if (player.reason) {
-    toast(player.reason);
-    return;
-  }
-  const { refusal, changed } = editCheck(player.draft, player.line, sheet.form);
-  if (refusal || !changed) return;
-  const answer = amendPlayer(teamId, player.line.id, { ...sheet.form }, { closed: () => editClosed(player.line, now()) });
-  if (answer.refusal) {
-    sheet.refusal = answer.refusal;
-    draw();
-    refused();
-    return;
-  }
-  closeSheet(saving);
+function saveEdit(saving, lent) {
+  savePlayerSheet(saving, lent, {
+    kind: "edit",
+    check: ({ where, line }, form) => editCheck(where.draft, line, form),
+    send: ({ line }, form, closed) => amendPlayer(saving.teamId, line.id, form, { closed }),
+  });
 }
 
 /**
@@ -268,7 +241,7 @@ export function playerHandlers(saving, lent) {
     },
     onFavouredAdd: () => addBonus(saving, lent),
     onEdit: (key, button) => {
-      const player = playerOf(lent.now, key);
+      const player = playerAt(lent.now, key);
       if (player?.reason) toast(player.reason);
       else if (player) {
         const { number, name, captain } = player.line;

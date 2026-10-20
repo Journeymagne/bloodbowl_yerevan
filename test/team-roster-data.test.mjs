@@ -1198,7 +1198,7 @@ test("a fix by hand is one PATCH: the Niggling Injuries, a characteristic, the c
   assert.deepEqual(fix({ stats: { ag: 3 } }), { ok: false, refusal: "AG cannot improve further" }, "AG 3+ cannot become 0+");
   assert.deepEqual(fix({ stats: { ag: -4 } }), { ok: false, refusal: "AG cannot be changed that far" }, "AG 3+ cannot become 7+");
   assert.deepEqual(fix({ stats: { ma: -5 } }), { ok: false, refusal: "MA cannot be changed that far" }, "MA 5 cannot become 0");
-  assert.deepEqual(fix({ niggling: 10 }), { ok: false, refusal: "Niggling Injuries: from 0 to 9" });
+  assert.deepEqual(fix({ niggling: 10 }), { ok: false, refusal: "Niggling Injury: from 0 to 9" });
   assert.deepEqual(fix({ contracts: 21 }), { ok: false, refusal: "Extended contracts: from 0 to 20" });
   assert.deepEqual(fix({ dropSkills: ["Block"] }), { ok: false, refusal: "Block came with an advancement: undo the advancement instead" });
   assert.deepEqual(fix({}), { ok: false }, "nothing changes");

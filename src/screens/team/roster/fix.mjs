@@ -8,7 +8,8 @@
  * its counters stage 08's «Ресурсы» (TeamManage.html; `renderResourceCounter` as it is), its skills chips that are
  * pressed or not (`aria-pressed`). The edit's last line opens it (player-sheets.mjs), and the focus goes back to the
  * pencil the edit was opened from. Every step of the form asks the domain first (`fixRefusal`): one it refuses is said,
- * and the form stays as it was.
+ * and the form stays as it was. The form is the player's as he was when it opened (`seedOf`): a read that changes him
+ * closes it, saying so (fix round 1, M1). «Save» is the edit's way (player-save.mjs).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -17,7 +18,7 @@ import { toast } from "../../../components/toast.mjs";
 import { extendedContractCost } from "../../../domain/league-rules.mjs";
 import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
 import {
-  MAX_CONTRACTS, MAX_NIGGLING, applyFix, favouredBonus, fixFormOf, fixRefusal, legacySkills,
+  MAX_CONTRACTS, MAX_NIGGLING, applyFix, favouredBonus, fixFormOf, fixRefusal, legacySkills, playerInjuries,
 } from "../../../domain/roster/edits.mjs";
 import { favouredSkillNames } from "../../../domain/roster/players.mjs";
 import { PLAYER_STATS, countToNumber, rowsForTeam, statValueForDisplayByStat } from "../../../domain/roster/values.mjs";
@@ -28,6 +29,7 @@ import { renderSheet } from "../../../ui/sheet.mjs";
 import { closeSheet } from "./injury.mjs";
 import { prepResetWords } from "./panel.mjs";
 import { editClosed } from "./player-access.mjs";
+import { playerAt, savePlayerSheet } from "./player-save.mjs";
 import { editCheck } from "./player-sheets.mjs";
 import { fixPlayer, refusalWordsOf } from "./save.mjs";
 import { FIX_SHEET, footButton } from "./sheets.mjs";
@@ -46,6 +48,36 @@ function moved(record, key, delta) {
   const next = { ...record, [key]: (record[key] ?? 0) + delta };
   if (!next[key]) delete next[key];
   return next;
+}
+
+/** A skill as the roster writes it, a name or `{name}`, by its name. */
+const nameOf = (skill) => (typeof skill === "string" ? skill : String(skill?.name ?? ""));
+
+/**
+ * What of a stored player a fix is seeded from, as a value to compare (fix round 1, M1): his injuries and his
+ * contracts — the form's counts are absolute — his position, his characteristics' tallies, and the skills a fix can
+ * take off or add beside those an advancement gave.
+ */
+const seedOf = (player) => JSON.stringify([
+  playerInjuries(player), countToNumber(player.extendedContracts), String(player.rowIndex),
+  PLAYER_STATS.map((stat) => countToNumber(player.statMods?.[stat])), (player.favouredSkills ?? []).map(nameOf), (player.extraSkills ?? []).map(nameOf),
+  (player.advancements ?? []).map((advancement) => advancement?.grants?.skill ?? ""),
+]);
+
+/**
+ * The fix by hand as the screen draws it (player.mjs's `playerSheetOf`), or null: while the stored player is the one
+ * it was seeded from, it says why «Save» is closed just now (`editClosed`). A read that changed him — another device's
+ * save, or the server's roster after a refusal — closes it, saying so, and nothing is sent: its counts would put back
+ * what was changed elsewhere. The focus goes back to the pencil (`openerOf`). The draw its own «Save» makes (`sending`)
+ * finds him changed by that very step, and keeps it for `closeSheet`.
+ *
+ * @param {object} sheet the visit's @param {import("./model.mjs").PlayerLine} line his, on the roster
+ * @param {{mode: object, lock: string, draft: object}} where
+ */
+export function fixSheetOf(sheet, line, where) {
+  if (sheet.sending || seedOf(where.draft.players[line.index]) === sheet.seed) return { ...sheet, reason: editClosed(line, where) };
+  toast(t("teamPlayer.fix.changed"));
+  return null;
 }
 
 /**
@@ -130,20 +162,23 @@ function contractsMarkup(form) {
 }
 
 /**
- * «Favoured of …», only for a roster whose race knows the god it chose (`favouredBonus`): his own favoured skills, each
- * with «Take off»; under them the god's skills he lacks, each a chip «Add …».
+ * «Favoured of …» for a roster whose race knows the god it chose (`favouredBonus`): his own favoured skills, each with
+ * «Take off»; under them the god's skills he lacks, each a chip «Add …». A god the roster does not name (a 2.x roster)
+ * leaves «Favoured skills» with his own alone: taking one off needs no god, adding one does (fix round 1, M6).
  */
 function favouredMarkup(where, fix, form) {
   const bonus = favouredBonus(where.race, where.draft, fix.row, fix.before);
-  if (!bonus) return "";
-  const own = [...favouredSkillNames(fix.row, fix.before)].map((skill, at) => rowMarkup({
+  const skills = [...favouredSkillNames(fix.row, fix.before)];
+  if (!bonus && !skills.length) return "";
+  const own = skills.map((skill, at) => rowMarkup({
     id: `player-fix-favoured-${at}`, name: skill, label: t("teamPlayer.fix.remove"), pressed: form.favoured.remove.includes(skill), data: { fixFavoured: skill },
   }));
-  const offered = bonus.skills.filter(({ held }) => !held).map(({ name }) => toggleMarkup({
-    label: t("teamPlayer.fix.add", { skill: name }), pressed: form.favoured.add.includes(name), data: { fixFavoured: name },
+  const offered = (bonus?.skills ?? []).filter(({ held }) => !held).map(({ name }) => toggleMarkup({
+    label: t("teamPlayer.favoured.add", { skill: name }), pressed: form.favoured.add.includes(name), data: { fixFavoured: name },
   }));
   const chips = offered.length ? `<div class="g-player-fix__chips">${offered.join("")}</div>` : "";
-  return blockMarkup(t("teamPlayer.fix.favoured", { alignment: bonus.alignment }), `${own.join("")}${chips}`);
+  const title = bonus ? t("teamPlayer.fix.favoured", { alignment: bonus.alignment }) : t("teamPlayer.fix.favouredOwn");
+  return blockMarkup(title, `${own.join("")}${chips}`);
 }
 
 /** «Skills without an advancement», only when he holds one (`legacySkills`): each with «Take off». */
@@ -194,48 +229,6 @@ export function fixSheetMarkup({ line, screen, sheet }) {
   });
 }
 
-/**
- * The player of `key` as the screen stands at the press (`now`), never one of the fallen: his line, the stored player,
- * the screen, and why his fix cannot be saved just now (`editClosed`, "" when it can); null when he is not on the roster.
- */
-function playerAt(now, key) {
-  const where = now();
-  const line = where.lines.find((item) => item.key === key && !item.fallen) ?? null;
-  const stored = line ? where.draft.players[line.index] : null;
-  return stored ? { line, stored, where, row: rowsForTeam(where.race)[Number(stored.rowIndex)], reason: editClosed(line, where) } : null;
-}
-
-/**
- * «Save»: only from the fix that is open — a press that finds none is a second press, and sends nothing. Why it is
- * closed is asked again, then the form as the draft stands: one the roster would refuse, or that changes nothing, sends
- * nothing («Save» is shut). Then one step of the queue (`fixPlayer`) and, in the same turn, the sheet closes, the focus
- * back on the pencil, the player drawn at once from the draft. A refusal (another tab's coach, the rules a 422 left the
- * queue on) is said in the sheet, which stays; one of the queue's 422 asks for the server's roster again (`refused`).
- *
- * @param {import("./index.mjs").Saving} saving
- * @param {{now: () => object, refused: () => void}} lent
- */
-function saveFix(saving, { now, refused }) {
-  const { teamId, visit, draw } = saving;
-  const { sheet } = visit;
-  const player = sheet?.kind === "fix" ? playerAt(now, sheet.key) : null;
-  if (!player) return;
-  if (player.reason) {
-    toast(player.reason);
-    return;
-  }
-  const { refusal, changed } = fixCheck(player.where, player.line, sheet.form);
-  if (refusal || !changed) return;
-  const answer = fixPlayer(teamId, player.where.race, player.line.id, structuredClone(sheet.form), { closed: () => editClosed(player.line, now()) });
-  if (answer.refusal) {
-    sheet.refusal = answer.refusal;
-    draw();
-    refused();
-    return;
-  }
-  closeSheet(saving);
-}
-
 /** The form after a press of a counter's − or + (`fix:niggling`, `fix:contracts`, `fix:stat:<stat>`), or null for another key. */
 function stepped(form, key, delta) {
   if (key === "fix:niggling") return { ...form, niggling: form.niggling + delta };
@@ -258,7 +251,7 @@ function favouredFlipped(form, { row, stored, where }, skill) {
  * open, unless something closes it just now or the edit's fields are changed (said instead); a counter's step, an
  * injury's point, a favoured skill and a skill to take off change the form when the domain takes it (`fixRefusal`),
  * else the refusal is said and the form stays; the last refusal of «Save» goes with the form it was said of. «Cancel»
- * closes it, the focus back on the pencil; «Save» saves it (`saveFix`).
+ * closes it, the focus back on the pencil; «Save» saves it as the edit is saved (`savePlayerSheet`: one `fixPlayer` step).
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {{now: () => object, refused: () => void}} lent the screen as it stands at the press, and the read again after a refusal
@@ -284,7 +277,7 @@ export function fixHandlers(saving, lent) {
       const reason = player.reason || (editCheck(player.where.draft, player.line, sheet.form).changed ? t("teamPlayer.fix.saveFirst") : "");
       if (reason) toast(reason);
       else {
-        visit.sheet = { kind: "fix", key, form: fixFormOf(player.stored), refusal: "" };
+        visit.sheet = { kind: "fix", key, form: fixFormOf(player.stored), seed: seedOf(player.stored), refusal: "" };
         draw();
       }
     },
@@ -297,6 +290,10 @@ export function fixHandlers(saving, lent) {
     onFixKeep: () => {
       if (visit.sheet?.kind === "fix") closeSheet(saving);
     },
-    onFixSave: () => saveFix(saving, lent),
+    onFixSave: () => savePlayerSheet(saving, lent, {
+      kind: "fix",
+      check: ({ where, line }, form) => fixCheck(where, line, form),
+      send: ({ where, line }, form, closed) => fixPlayer(saving.teamId, where.race, line.id, form, { closed }),
+    }),
   };
 }

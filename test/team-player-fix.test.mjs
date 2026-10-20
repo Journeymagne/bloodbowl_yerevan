@@ -7,7 +7,7 @@ import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
-  ADVANCED, LIVE_GAME, PLAYERS, STYLES, api, aside, coach, loadGames, playerPage, renderTeamRoster, save, settle, state, team, text, view, withPlayers,
+  ADVANCED, LIVE_GAME, PLAYERS, STYLES, api, aside, coach, loadGames, playerPage, renderTeamRoster, save, settle, state, team, text, toggle, view, withPlayers,
 } from "./helpers/roster-page.mjs";
 
 const { FIX_REFUSALS } = await import("../src/domain/roster/edits.mjs");
@@ -31,6 +31,7 @@ const HEAL_NOTE = "Take off only what was marked by mistake: «Back on the roste
 const CLOSED = "Number, name and captain — after the post-match";
 const OTHER_TAB = "Someone signed in or out in another tab, so nothing was saved here.";
 const MISMATCH = "A roll on the site was rerolled against this skill, so it stays.";
+const CHANGED = "The player has changed elsewhere — open the fix again";
 const DROPPED = "A match has begun, so the player edits and advancements that were waiting were not saved. Make them again after the post-match.";
 const PREP_GAME = { ...LIVE_GAME, id: "g1", preparationStatus: "preparing", postMatchStatus: "not_started" };
 const FIX_STYLES = [...STYLES, "toggle.css", "text-field.css", "resource-counter.css"];
@@ -308,6 +309,30 @@ test("favoured skills: his own taken off, one from the list added; a team withou
   });
 });
 
+// Fix round 1, M6: taking a favoured skill off needs no god; adding one does.
+test("a roster that names no god still takes a player's own favoured skills off, and adds none", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        const favoured = { ...PLAYERS[0], favouredSkills: [{ name: "Tentacles", access: "favoured" }] };
+        await openFix(phone, { id: "p1", teamAnswer: withOne(favoured) });
+        assert.deepEqual(titles(), ["Injuries", "Characteristics", "Favoured skills"]);
+        const own = toggleOf("data-fix-favoured", "Tentacles");
+        assert.equal(own.textContent, "Take off");
+        assert.equal(nameBy(own), "Tentacles");
+        assert.ok(!fixSheet().querySelector(".g-player-fix__chips"), "nothing to add without a god");
+        fireEvent(own, "click");
+        assert.equal(toggleOf("data-fix-favoured", "Tentacles").getAttribute("aria-pressed"), "true");
+        api.reply(PATCH, 200, { team: withOne({ ...favoured, favouredSkills: [] }, { revision: 5 }) });
+        fireEvent(saveButton(), "click");
+        await settle();
+        assert.equal(patches().length, 1);
+        assert.deepEqual(sentOf("p1").favouredSkills, []);
+      });
+    }
+  });
+});
+
 test("a skill no advancement gave can be taken off; one an advancement gave is not offered", async () => {
   await withoutTimers(async () => {
     for (const phone of [true, false]) {
@@ -350,6 +375,70 @@ test("a skill the server keeps for a used roll: the refusal said, and the roster
   });
 });
 
+// Fix round 1, M2: K16's second case — a favoured skill taken off.
+test("a favoured skill the server keeps for a used roll: the same words, and the roster read again", async () => {
+  await withoutTimers(async () => {
+    await openFix(false, { id: "n1", teamAnswer: nurgle([ROT, SPAWN]) });
+    fireEvent(toggleOf("data-fix-favoured", "Bone Hook"), "click");
+    const before = teamReads();
+    api.reply(PATCH, 422, { error: { code: "DICE_ROLL_MISMATCH", params: { playerId: "n1" }, message: "x" } });
+    fireEvent(saveButton(), "click");
+    await settle();
+    assert.equal(patches().length, 1);
+    assert.deepEqual(sentOf("n1").favouredSkills, [], "Bone Hook was sent taken off");
+    assert.equal(toasts().at(-1), MISMATCH);
+    assert.equal(teamReads(), before + 1, "the server's roster read again");
+    assert.equal(save.saveState("t1").waiting, 0);
+  });
+});
+
+// Fix round 1, M1: the form's counts are absolute; a read that changes the player under it must not be overwritten.
+test("a read that changes the player under an open fix closes it, saying so, and sends nothing; one that does not keeps it", async () => {
+  await withoutTimers(async () => {
+    // A step of the queue refused by a 422 whose read of the server's roster failed: the fix's «Save» is refused in
+    // turn, said in the sheet, and the server's roster read again — as `server` says it.
+    const refusedSave = async (server) => {
+      coach({ teamAnswer: withOne(ADVANCED), open: "p5#0" });
+      await renderTeamRoster("t1");
+      api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+      api.fail(TEAM_READ);
+      fireEvent(aside().querySelector("[data-roster-return]"), "click");
+      await settle();
+      assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"]);
+      fireEvent(toggle("p3#0"), "click");
+      fireEvent(pencil(), "click");
+      fireEvent(entry(), "click");
+      fireEvent(plus("fix:contracts"), "click");
+      api.reply(TEAM_READ, 200, { team: server });
+      api.reply("GET /api/teams/t1/events", 200, { events: [], revision: server.revision });
+      saveButton().focus();
+      fireEvent(saveButton(), "click");
+      assert.match(refusal().textContent, /Ann/, "the rule that refused the queue, in the sheet");
+      await settle();
+    };
+    // Another device gave Cade three contracts: the form's one would put them back to one.
+    await refusedSave(withOne({ ...ADVANCED, extendedContracts: 3 }, { revision: 6 }));
+    assert.ok(!fixSheet(), "closed");
+    assert.ok(!view.querySelector("dialog:modal"));
+    assert.equal(toasts().at(-1), CHANGED);
+    assert.ok(document.activeElement === pencil(), "the focus on the pencil");
+    assert.equal(patches().length, 1, "the refused step alone");
+    // The server's roster with Cade as he was: the fix stays, with what was chosen, and saves.
+    await refusedSave(withOne(ADVANCED, { revision: 6 }));
+    assert.ok(fixSheet()?.isModal, "kept");
+    assert.equal(valueOf("fix:contracts"), "1");
+    assert.ok(!toasts().includes(CHANGED));
+    fireEvent(minus("fix:contracts"), "click");
+    fireEvent(plus("fix:contracts"), "click");
+    api.reply(PATCH, 200, { team: withOne({ ...ADVANCED, extendedContracts: 1 }, { revision: 7 }) });
+    fireEvent(saveButton(), "click");
+    assert.ok(!fixSheet());
+    await settle();
+    assert.equal(patches().length, 2);
+    assert.equal(sentOf("p3").extendedContracts, 1);
+  });
+});
+
 test("saved: one PATCH of the whole roster; the sheet closes, the focus on the pencil; the profile draws the change at once", async () => {
   await withoutTimers(async () => {
     for (const phone of [true, false]) {
@@ -362,6 +451,7 @@ test("saved: one PATCH of the whole roster; the sheet closes, the focus on the p
         assert.ok(!fixSheet(), "closed at once: the fix is a step of the queue");
         assert.ok(!view.querySelector("dialog:modal"));
         assert.ok(document.activeElement === pencil(), "the focus on the pencil the edit was opened from");
+        assert.ok(!toasts().includes(CHANGED), "its own step is no change made elsewhere");
         const stats = phone ? view.querySelector(".g-profile") : aside();
         assert.equal(stats.querySelector(".g-stat__v").textContent.trim().slice(0, 1), "9", "his MA, at once");
         await settle();
@@ -544,7 +634,7 @@ test("every key in both dictionaries, every refusal of a fix worded, and the wor
   };
   for (const [locale, pattern] of Object.entries(gendered)) {
     const fix = Object.entries(dictionaries[locale]).filter(([key]) => key.startsWith("teamPlayer.fix."));
-    assert.ok(fix.length >= 16, locale);
+    assert.ok(fix.length >= 17, locale);
     assert.deepEqual(fix.filter(([, value]) => pattern.test(value)), [], locale);
   }
 });
