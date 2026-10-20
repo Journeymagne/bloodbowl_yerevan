@@ -221,12 +221,17 @@ test("a random skill on the site: declared, then rolled — the die, the skill, 
     assert.ok(types().every(closed), "every type closed once the roll is made");
     assert.equal(typeCard("random").getAttribute("aria-checked"), "true");
     assert.equal(typeCard("primary").getAttribute("title"), WORDS.kept);
+    // Kept, not refused (fidelity F2): each card marked so (advance.css keeps the chosen one's look, and no sub line red),
+    // with its own sub line — no refusal's words.
+    assert.ok(types().every((card) => card.hasAttribute("data-advance-kept") && card.hasAttribute("data-roster-closed")));
+    assert.deepEqual(types().map((card) => card.querySelector(".g-option__sub").textContent),
+      ["General · +20k", "General · +20k", "Agility, Strength, Devious · +40k", "D8 roll · +10–50k"]);
     assert.ok(categories().every(closed));
     assert.ok(ways().every(closed));
     press(typeCard("primary"));
     assert.equal(toasts().at(-1), WORDS.kept);
     assert.equal(typeCard("random").getAttribute("aria-checked"), "true", "nothing changed");
-    assert.equal(summary(), "Random primary skill · General · Frenzy — 3 SPP");
+    assert.equal(summary(), "Random primary · General · Frenzy — 3 SPP", "the type short, as DeskRosterAdv's summary (fidelity F3)");
     // DeskRosterAdv keeps «Roll D16» beside the die, closed (fix round 1, M1): a press says why and asks nothing.
     assert.equal(rollButton().textContent, "Roll D16");
     assert.ok(closed(rollButton()));
@@ -254,6 +259,16 @@ test("taken: one PATCH naming the roll; done says how it came", async () => {
       assert.deepEqual(sentOf("p1"), [[taken]], "one PATCH, the roll named by its id");
       assert.equal(asks().length, 1);
     });
+    // A desk's done line names the type short, as DeskRosterAdv's does, and how the roll was made (fidelity F3).
+    await openAdvance(false);
+    choose(typeCard("random"));
+    choose(category("General"));
+    await rollWith("p1", 200, { roll: ROLL_SKILL });
+    const taken = { type: "random", grants: { skill: "Frenzy" }, roll: { id: "r1", via: "site" } };
+    api.reply(PATCH, 200, { team: withOne({ ...ANN, extraSkills: [BLOCK, { name: "Frenzy", access: "primary" }], advancements: [taken] }, { revision: 5 }) });
+    press(take());
+    assert.deepEqual(doneWords(), ["Ann gets Frenzy", "Random primary · General · rolled on the site · −3 SPP · value +20k"]);
+    await settle();
   });
 });
 
@@ -713,13 +728,13 @@ test("on a desk a skill in place of the characteristic goes back to it, the face
     assert.ok(columns()[1].contains(way), "at the top of the categories");
     choose(category("General"));
     choose(skill("Fend"));
-    assert.equal(summary(), "Characteristic improvement · General · Fend — 14 SPP");
+    assert.equal(summary(), "Characteristic · General · Fend — 14 SPP");
     press(way);
     assert.deepEqual(heads(), ["1 · Type", "2 · D8 roll", "3 · Characteristic"]);
     assert.equal(dieValue(), "3", "the D8 kept");
     assert.ok(!sheet().querySelector("[data-advance-statback]"));
     assert.ok(document.activeElement === instead(), "the focus on «Take a skill in place…» again");
-    assert.equal(summary(), "Characteristic improvement — 14 SPP");
+    assert.equal(summary(), "Characteristic — 14 SPP");
     choose(stat("ma"));
     assert.equal(take().textContent, "Improve MA");
     assertStyled(view, ...ROLL_STYLES);
@@ -752,7 +767,7 @@ test("after a site roll a type or a category pressed anyway changes nothing; a p
     agility.removeAttribute("aria-disabled");
     press(agility);
     assert.equal(category("General").getAttribute("aria-checked"), "true");
-    assert.equal(summary(), "Random primary skill · General · Frenzy — 3 SPP");
+    assert.equal(summary(), "Random primary · General · Frenzy — 3 SPP");
     await settle();
     assert.equal(asks("p3").length, 1);
   });
@@ -847,12 +862,12 @@ test("on a desk the roll stands in its columns", async () => {
     assert.equal(second.querySelector("[data-advance-roll]").textContent, "Roll D8");
     assert.equal(second.querySelector(".g-advance__table").textContent, "1 AR · 2 AR/PA · 3–4 AR/MA/PA · 5 MA/PA · 6 AG/MA · 7 AG/ST · 8 any");
     assert.equal(third.querySelector(".g-advance__empty").textContent, "Roll the D8 — the characteristics it allows appear here");
-    assert.equal(summary(), "Characteristic improvement — 14 SPP");
+    assert.equal(summary(), "Characteristic — 14 SPP");
     assert.equal(take().textContent, "Choose a characteristic");
     await rollWith("p1", 200, { roll: ROLL_D8 });
     assert.deepEqual(columns()[2].querySelectorAll("[data-advance-stat]").map((item) => item.getAttribute("data-advance-stat")), ["ar", "ma", "pa"]);
     choose(stat("ma"));
-    assert.equal(summary(), "Characteristic improvement · MA — 14 SPP");
+    assert.equal(summary(), "Characteristic · MA — 14 SPP");
     assert.equal(take().textContent, "Improve MA");
     assertStyled(view, ...ROLL_STYLES);
     // A random skill: the roll in column 3, its button beside the die.

@@ -335,6 +335,12 @@ test("every way a skill came to him is named: an advancement's type, and how it 
     assert.deepEqual(view.querySelectorAll(".g-skill--card").map((card) => card.querySelector(".g-skill__source").textContent),
       ["starting", "starting", "Random primary skill · rolled on the site", "Random primary skill · rolled at the table", "Chosen primary skill"]);
   });
+  // The desk's panel names the advancement's type too, short, as DeskRoster's cards do («Основной на выбор»; fidelity F4),
+  // not 07a's «primary»; a skill no advancement gave keeps the roster's words.
+  coach({ teamAnswer: withOne(player), open: "p3#0" });
+  await renderTeamRoster("t1");
+  assert.deepEqual(aside().querySelectorAll(".g-skill--card").map((card) => [card.getAttribute("data-skill"), card.querySelector(".g-skill__source").textContent]),
+    [["Catch", "starting"], ["Dodge", "starting"], ["Frenzy", "Random primary"], ["Block", "Random primary"], ["Sure Hands", "Chosen primary"]]);
 });
 
 test("the captain wears his «C» in his head", async () => {
@@ -537,6 +543,11 @@ test("every type of advancement and every way of rolling is named in both dictio
   for (const locale of ["en", "ru"]) {
     const words = dictionary(locale);
     for (const type of ADVANCEMENT_TYPES) assert.ok(words[`teamAdvance.type.${type}`], `${locale}: teamAdvance.type.${type}`);
+    // The desk's panel and the advancement's window name each type short (fidelity F3, F4).
+    for (const type of ADVANCEMENT_TYPES) {
+      assert.ok(words[`teamAdvance.typeShort.${type}`], `${locale}: teamAdvance.typeShort.${type}`);
+      assert.notEqual(words[`teamAdvance.typeShort.${type}`], words[`teamAdvance.type.${type}`], `${locale}: ${type} short is shorter`);
+    }
     for (const via of ["site", "table"]) assert.ok(words[`teamPlayer.via.${via}`], `${locale}: teamPlayer.via.${via}`);
   }
 });

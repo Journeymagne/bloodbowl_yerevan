@@ -240,8 +240,25 @@ export function actionsMarkup(line, screen) {
 const sourceWords = (skill) => t(`teamRoster.source.${skill.source}`);
 
 /**
+ * Where a skill came to him (K29): an advancement's type — on the profile in full and, when it was rolled, how («Random
+ * primary skill · rolled on the site»); in the desk's panel (`short`) as DeskRoster's cards name it («Chosen primary») —
+ * and any other skill in the roster's own words («starting», «the captain's»).
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {import("./model.mjs").PlayerLine["skills"][number]} skill
+ * @param {{short?: boolean}} [options]
+ */
+export function skillSourceOf(line, skill, { short = false } = {}) {
+  const taken = skill.advancement === null ? null : line.advancements[skill.advancement];
+  if (!taken) return sourceWords(skill);
+  if (short) return t(`teamAdvance.typeShort.${taken.type}`);
+  const type = t(`teamAdvance.type.${taken.type}`);
+  return taken.via ? `${type} · ${t(`teamPlayer.via.${taken.via}`)}` : type;
+}
+
+/**
  * A player's skills as chips: in his row, or (`card`) as the panel's cards, each saying where it came from — in 07a's
- * words, or as `sourceOf` says it (the profile names the advancement, K29).
+ * words, or as `sourceOf` says it (the profile and the desk's panel name the advancement, K29: `skillSourceOf`).
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {{card?: boolean, sourceOf?: (skill: import("./model.mjs").PlayerLine["skills"][number]) => string}} [options]
@@ -460,11 +477,15 @@ function sppMarkup(line, screen) {
 /** A list of skill categories; a position with none in an access has a dash. */
 const categories = (names) => (names.length ? names.join(", ") : "–");
 
-/** His skills as cards with where each came from, the categories he may take them from, those in bold, and his injuries in a line. */
+/**
+ * His skills as cards with where each came from — an advancement's type as DeskRoster names it — the categories he may
+ * take them from, those in bold, and his injuries in a line.
+ */
 function skillsMarkup(line) {
   const access = boldWords("teamRoster.access", { primary: categories(line.primary), secondary: categories(line.secondary) }, ["primary", "secondary"]);
+  const sourceOf = (skill) => skillSourceOf(line, skill, { short: true });
   return `<section class="g-roster__pblock"><h3 class="g-roster__ptitle">${escapeHtml(t("teamRoster.skills"))}</h3>`
-    + `${skillChipsMarkup(line, { card: true })}<p class="g-roster__access">${access}</p>${injuriesMarkup(line, { desk: true })}</section>`;
+    + `${skillChipsMarkup(line, { card: true, sourceOf })}<p class="g-roster__access">${access}</p>${injuriesMarkup(line, { desk: true })}</section>`;
 }
 
 /**

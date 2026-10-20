@@ -226,16 +226,19 @@ function playerAt(now, sheet) {
   return line ? { line, where, choices: choicesOf(line, sheet, where), reason: advanceClosed(line, where) } : null;
 }
 
-/** What the done step says of what was taken: what it gave, and how — its type, its category, the way its roll was made, or that a skill took a characteristic's place. */
+/**
+ * What the done step says of what was taken: what it gave, and how — its type, its category, the way its roll was made,
+ * or that a skill took a characteristic's place; a desk's `howDesk` names the type short, as DeskRosterAdv does.
+ */
 function takenWords(sheet, chosen, choices) {
-  const type = t(`teamAdvance.type.${chosen.type}`);
   const way = chosen.roll ? t(`teamPlayer.via.${chosen.roll.via}`) : "";
+  const hows = (rest) => ({ how: [t(`teamAdvance.type.${chosen.type}`), ...rest].join(" · "), howDesk: [t(`teamAdvance.typeShort.${chosen.type}`), ...rest].join(" · ") });
   if (chosen.grant.stat) {
     const { stat, before, after } = choices.stats.find((each) => each.stat === chosen.grant.stat);
-    return { title: t("teamAdvance.doneStat", { stat: t(`stats.${stat}`), before, after }), how: [type, way].join(" · "), ownTitle: true };
+    return { title: t("teamAdvance.doneStat", { stat: t(`stats.${stat}`), before, after }), ...hows([way]), ownTitle: true };
   }
-  const how = sheet.instead ? [type, sheet.category, t("teamAdvance.howInstead")] : [type, sheet.category, way].filter(Boolean);
-  return { title: chosen.grant.skill, how: how.join(" · "), ownTitle: false };
+  const rest = sheet.instead ? [sheet.category, t("teamAdvance.howInstead")] : [sheet.category, way].filter(Boolean);
+  return { title: chosen.grant.skill, ...hows(rest), ownTitle: false };
 }
 
 /**

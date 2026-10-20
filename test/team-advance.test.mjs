@@ -11,6 +11,7 @@ import {
 } from "./helpers/roster-page.mjs";
 
 const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
+const { ADVANCEMENT_TYPES } = await import("../src/domain/roster/progression.mjs");
 
 // Stage 07d, Task 9: «Advancement» in a player's profile, and «Advance» in the desk's panel, open the advancement — on a
 // phone a sheet in steps (Adv1Type, Adv2Category, Adv3Skill, Adv4Done), on a desk a window in three columns
@@ -138,10 +139,10 @@ test("«Advancement» opens the types, each with its price by the rank and what 
       assertCspSafe(view);
       assertStyled(view, ...ADVANCE_STYLES);
     });
-    // A desk lists the same types in its first column (DeskRosterAdv.html).
+    // A desk lists the same types in its first column, named short as DeskRosterAdv.html's ADV does (fidelity F3).
     await openAdvance(false, { id: "p1", teamAnswer: withOne(ANN) });
     assert.deepEqual(types().map(cardWords).map(([name, , price]) => [name, price]), [
-      ["Random primary skill", "3 SPP"], ["Chosen primary skill", "6 SPP"], ["Chosen secondary skill", "10 SPP"], ["Characteristic improvement", "14 SPP"],
+      ["Random primary", "3 SPP"], ["Chosen primary", "6 SPP"], ["Chosen secondary", "10 SPP"], ["Characteristic", "14 SPP"],
     ]);
     assertStyled(view, ...ADVANCE_STYLES);
   });
@@ -153,14 +154,17 @@ test("a type he cannot pay for is grey and says how much is missing; pressed, it
       await withWindow({ phone }, async () => {
         // 5 SPP: an MVP.
         await openAdvance(phone, { id: "p1", teamAnswer: withOne({ ...PLAYERS[0], spp: { mvps: 1 } }) });
+        const names = phone ? ["Random primary skill", "Chosen primary skill", "Chosen secondary skill", "Characteristic improvement"]
+          : ["Random primary", "Chosen primary", "Chosen secondary", "Characteristic"];
         assert.deepEqual(types().map(cardWords), [
-          ["Random primary skill", "General · +20k", "3 SPP"],
-          ["Chosen primary skill", "1 SPP short", "6 SPP"],
-          ["Chosen secondary skill", "5 SPP short", "10 SPP"],
-          ["Characteristic improvement", "9 SPP short", "14 SPP"],
+          [names[0], "General · +20k", "3 SPP"],
+          [names[1], "1 SPP short", "6 SPP"],
+          [names[2], "5 SPP short", "10 SPP"],
+          [names[3], "9 SPP short", "14 SPP"],
         ]);
         const secondary = typeCard("secondary");
         assert.equal(secondary.getAttribute("aria-disabled"), "true");
+        assert.ok(types().every((card) => !card.hasAttribute("data-advance-kept")), "refused, not kept: a refusal's sub stays red (fidelity F2)");
         assert.equal(secondary.hasAttribute("disabled"), false, "it stays in reach, and says why");
         assert.equal(secondary.getAttribute("title"), "5 SPP short");
         assert.ok(secondary.hasAttribute("data-roster-closed"), "K7: a press says it, as the roster's closed controls do");
@@ -488,14 +492,14 @@ test("on a desk the same advancement in three columns: the type, the category, t
     choose(typeCard("primary"));
     assert.deepEqual(categories().map(catWords), [["Agility", "12 of 14 available"], ["General", "15 of 16 available"]], "Frenzy is his");
     assert.deepEqual(empty(), ["", "", "Choose a category"]);
-    assert.equal(summary(), "Chosen primary skill — 8 SPP");
+    assert.equal(summary(), "Chosen primary — 8 SPP", "the type short, as DeskRosterAdv's summary (fidelity F3)");
     assert.equal(sheet().querySelector(".g-advance__hint"), null, "a desk's columns say it without the phone's line");
     choose(category("Agility"));
     assert.deepEqual(empty(), ["", "", ""]);
-    assert.equal(summary(), "Chosen primary skill · Agility — 8 SPP");
+    assert.equal(summary(), "Chosen primary · Agility — 8 SPP");
     assert.ok(skill("Catch").getAttribute("aria-disabled") === "true");
     choose(skill("Diving Catch"));
-    assert.equal(summary(), "Chosen primary skill · Agility · Diving Catch — 8 SPP", "DeskRosterAdv.html's initialAdv");
+    assert.equal(summary(), "Chosen primary · Agility · Diving Catch — 8 SPP", "DeskRosterAdv.html's initialAdv");
     assert.equal(take().textContent, "Take Diving Catch");
     assertCspSafe(view);
     assertStyled(view, ...ADVANCE_STYLES);
@@ -512,7 +516,7 @@ test("on a desk the same advancement in three columns: the type, the category, t
     api.reply(PATCH, 200, { team: withOne(advancedWith("primary", "Diving Catch"), { revision: 5 }) });
     fireEvent(take(), "click");
     assert.equal(done().querySelector(".g-advance__donetitle").textContent, "Cade gets Diving Catch");
-    assert.equal(done().querySelector(".g-advance__how").textContent, "Chosen primary skill · Agility · −8 SPP · value +20k");
+    assert.equal(done().querySelector(".g-advance__how").textContent, "Chosen primary · Agility · −8 SPP · value +20k", "DeskRosterAdv's done line, the type short");
     assert.equal(done().querySelector(".g-advance__tiles"), null, "DeskRosterAdv.html's line, not a phone's tiles");
     assert.equal(sub(), "19 SPP available · advancement 2 of 6 · Catcher", "the advancement taken, as advDone says it");
     assert.equal(summary(), "Saving…");
@@ -717,7 +721,7 @@ test("a type chosen and then refused — his SPP gone down — closes «Next» a
     // A step of the queue lowers his SPP on the draft (its PATCH in the air): 7 SPP.
     const inTheAir = api.hold(PATCH);
     assert.equal(save.stepSpp("t1", "p3", "touchdowns", -1).ok, true);
-    assert.deepEqual(cardWords(typeCard("secondary")), ["Chosen secondary skill", "3 SPP short", "10 SPP"]);
+    assert.deepEqual(cardWords(typeCard("secondary")), ["Chosen secondary", "3 SPP short", "10 SPP"]);
     assert.equal(typeCard("secondary").getAttribute("aria-checked"), "true", "still the choice, now refused");
     assert.equal(take().textContent, "Take Guard");
     assert.equal(take().getAttribute("aria-disabled"), "true", "«Take» closed (M1)");
@@ -762,6 +766,12 @@ test("the player's name and a skill are text", async () => {
 
 test("every key in both dictionaries; styled; readable", () => {
   assertDictionaryCovers("src/screens/team/roster/advance.mjs", "src/screens/team/roster/advance-sheet.mjs", "src/screens/team/roster/panel.mjs");
+  // `teamAdvance.typeShort.${type}`: a desk's names of the types, DeskRosterAdv's ADV (fidelity F3).
+  const short = { en: ["Random primary", "Chosen primary", "Chosen secondary", "Characteristic"], ru: ["Случайный основной", "Основной на выбор", "Вторичный на выбор", "Характеристика"] };
+  for (const [locale, names] of Object.entries(short)) {
+    const words = JSON.parse(text(`src/i18n/${locale}.json`));
+    assert.deepEqual(ADVANCEMENT_TYPES.map((type) => words[`teamAdvance.typeShort.${type}`]), names, locale);
+  }
   // The words name no player's gender (owner's answer on words).
   const gendered = { en: /\b(he|him|his|she|her|hers)\b/i, ru: /(?<![а-яё])(он|она|его|её|ему|ей|получил|получила)(?![а-яё])/iu };
   for (const [locale, pattern] of Object.entries(gendered)) {
@@ -810,6 +820,18 @@ test("every key in both dictionaries; styled; readable", () => {
   assertReadable(ADVANCE, '#player-advance .g-option[aria-disabled="true"] .g-option__pill', "color", ["--surface-3"], 4.5);
   assertReadable(ADVANCE, '#player-advance .g-option[aria-disabled="true"]', "color", ["--surface-2"], 4.5);
   assertReadable("src/ui/option-card.css", '.g-option[aria-disabled="true"] .g-option__sub', "color", ["--surface-2"], 4.5);
+  // Closed by a site roll, not refused (fidelity F2): no sub line red, the chosen type's look kept (DeskRosterAdv's chosen
+  // card: #F1F8F4, a 2px ring, the pill on the accent). option-card.css stays as it is for every other caller.
+  const kept = "#player-advance .g-option[data-advance-kept]";
+  const keptChosen = `${kept}[aria-checked="true"]`;
+  assert.deepEqual(valuesOf(ADVANCE, `${kept} .g-option__sub`, "color"), ["var(--muted)"]);
+  assertReadable(ADVANCE, `${kept} .g-option__sub`, "color", ["--surface-2", "--accent-tint-soft"], 4.5);
+  assert.deepEqual(["background", "box-shadow", "color"].map((property) => valuesOf(ADVANCE, keptChosen, property)),
+    [["var(--accent-tint-soft)"], ["var(--ring-selected)"], ["var(--ink)"]]);
+  assertReadable(ADVANCE, keptChosen, "color", ["--accent-tint-soft"], 4.5);
+  assert.deepEqual(valuesOf(ADVANCE, `${keptChosen} .g-option__pill`, "background"), ["var(--accent)"]);
+  assertReadable(ADVANCE, `${keptChosen} .g-option__pill`, "color", ["--accent"], 4.5);
+  assert.deepEqual(valuesOf("src/ui/option-card.css", '.g-option[aria-disabled="true"] .g-option__sub', "color"), ["var(--danger)"], "a refusal's sub line, red as before");
   assertReadable(ADVANCE, "#player-advance .g-advance__free", "color", ["--surface", "--accent-tint-soft"], 4.5);
   assertReadable(ADVANCE, "#player-advance .g-advance__hint", "color", ["--surface"], 4.5);
   assertReadable(ADVANCE, "#player-advance .g-advance__tag", "color", ["--surface", "--accent-tint-soft"], 4.5);
@@ -848,6 +870,13 @@ test("D2: up to 900px the types 64px or more, the skills 48px, the button 52px; 
   assert.deepEqual(px(desk.match(/#player-advance \.g-advance__skill \{[^}]*min-height: (\d+)px;/)), [40], "a desk's skills");
   assert.deepEqual(px(desk.match(/#player-advance \.g-sheet__foot \.g-btn \{[^}]*min-height: (\d+)px;/)), [48], "a desk's buttons");
   assert.deepEqual(px(desk.match(/#player-advance \.g-sheet__head \.g-icon-btn \{[^}]*width: (\d+)px;/)), [44], "a desk's close");
+  // The types' price pill as the prototypes draw it (fidelity F1): Adv1Type's 58px and DeskRosterAdv's 56px are content,
+  // 8px a side around it (no box-sizing there); option-card.css's pill is border-box, so the width is the drawn one.
+  assert.deepEqual(valuesOf("src/ui/option-card.css", ".g-option__pill", "box-sizing"), ["border-box"]);
+  assert.deepEqual(valuesOf("src/ui/option-card.css", ".g-option__pill", "padding"), ["6px var(--space-8)"]);
+  assert.deepEqual(valuesOf(ADVANCE, "#player-advance .g-option__pill", "min-width"), ["74px", "72px"], "58 + 8 + 8, then 56 + 8 + 8");
+  assert.deepEqual(px(desk.match(/#player-advance \.g-option__pill \{[^}]*min-width: (\d+)px;/)), [72], "a desk's pill");
+  assert.doesNotMatch(phone, /\.g-option__pill/, "a phone's is the rule outside the blocks");
 });
 
 // The owner's answer on wrapping: a long word wraps in its card; «…» hides nothing in 07d.

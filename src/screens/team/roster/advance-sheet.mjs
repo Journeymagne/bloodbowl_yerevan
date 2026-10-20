@@ -50,22 +50,24 @@ const PLACES = Object.freeze({ type: 1, category: 2, skill: 3, stat: 2 });
  * The types as cards (Adv1Type.html): the price at his next rank in the pill; under the name what it draws from and adds
  * to his value — a characteristic's D8 — or why it is refused (decision 8: his SPP, the last rank, a roll of the other
  * kind waiting), closed and saying so on a press (K7). Once a roll is made on the site every type is closed, saying why
- * on a press (decision 9). Offers not known yet (K28): the names alone, none refused.
+ * on a press (decision 9) — kept, not refused (`data-advance-kept`): the chosen one keeps its look, no sub line goes red
+ * (advance.css). Offers not known yet (K28): the names alone, none refused. A desk names the types as DeskRosterAdv
+ * does, short («Chosen primary»).
  */
-function typesMarkup(sheet, choices) {
+function typesMarkup(sheet, choices, { desk = false } = {}) {
   const kept = keptWords(sheet);
-  const shut = (reason) => ({ disabled: true, reason, data: { rosterClosed: true } });
+  const shut = (reason, advanceKept = false) => ({ disabled: true, reason, data: { rosterClosed: true, advanceKept } });
   const options = ADVANCEMENT_TYPES.map((type) => {
     const offer = choices.offers.find((each) => each.type === type);
-    const card = { value: type, title: t(`teamAdvance.type.${type}`) };
+    const card = { value: type, title: t(`teamAdvance.${desk ? "typeShort" : "type"}.${type}`) };
     const waiting = waitingWords(sheet, type);
-    if (!offer) return kept || waiting ? { ...card, ...shut(kept || waiting) } : card;
+    if (!offer) return kept || waiting ? { ...card, ...shut(kept || waiting, Boolean(kept)) } : card;
     const pill = t("teamAdvance.pill", { cost: offer.cost });
     const refused = offer.refusal ? refusalWordsOf("teamAdvance", offer.refusal) : waiting;
     if (refused) return { ...card, pill, sub: refused, ...shut(refused) };
     const categories = offer.categories.map(({ category }) => category).join(", ");
     const sub = type === "stat" ? t("teamAdvance.statSub") : t("teamAdvance.typeSub", { categories, value: formatMoney(offer.value) });
-    return { ...card, pill, sub, ...(kept ? shut(kept) : {}) };
+    return { ...card, pill, sub, ...(kept ? shut(kept, true) : {}) };
   });
   return renderOptionList({ label: t("teamAdvance.typesLabel"), options, selected: sheet.type });
 }
@@ -127,14 +129,15 @@ function savedWords({ status, waiting }, { desk = false, held = false } = {}) {
  * elite combination's 15k when it is one, and on a phone where the save stands (a desk's summary says it).
  *
  * @param {import("./model.mjs").PlayerLine} line @param {import("./view.mjs").RosterScreen} screen
- * @param {{title: string, how: string, cost: number, value: number, elite: boolean, level: number, ownTitle: boolean}} taken
- *   `ownTitle`: a characteristic's «MA 6 → 7», which a desk's title says as it is (DeskRosterAdvStat)
+ * @param {{title: string, how: string, howDesk: string, cost: number, value: number, elite: boolean, level: number, ownTitle: boolean}} taken
+ *   `ownTitle`: a characteristic's «MA 6 → 7», which a desk's title says as it is (DeskRosterAdvStat); `howDesk`: `how`
+ *   with the type short, as DeskRosterAdv's done line has it
  */
 function doneMarkup(line, screen, taken) {
   const { phone } = screen;
   const [spp, value] = [`−${taken.cost}`, `+${formatMoney(taken.value)}`];
   const title = phone || taken.ownTitle ? taken.title : t("teamAdvance.doneTitleDesk", { name: line.name, skill: taken.title });
-  const how = phone ? taken.how : t("teamAdvance.doneLineDesk", { how: taken.how, spp, value });
+  const how = phone ? taken.how : t("teamAdvance.doneLineDesk", { how: taken.howDesk, spp, value });
   const tile = (key, words) => `<div class="g-advance__tile"><dt class="g-advance__tilekey">${escapeHtml(key)}</dt><dd class="g-advance__tilevalue">${escapeHtml(words)}</dd></div>`;
   const tiles = phone ? `<dl class="g-advance__tiles">${tile(t("teamRoster.group.spp"), spp)}${tile(t("teamAdvance.doneValue"), value)}`
     + `${tile(t("teamAdvance.doneLevel"), t("teamAdvance.doneLevelOf", { level: taken.level }))}</dl>` : "";
@@ -281,11 +284,11 @@ function columnMarkup(caption, bodyHtml, waiting = "") {
   return `<section class="${classNames("g-advance__col", !bodyHtml && "g-advance__col--empty")}"><h3 class="g-advance__coltitle">${escapeHtml(caption)}</h3>${inside}</section>`;
 }
 
-/** The desk's summary at the foot: the choice so far and its price (DeskRosterAdv.html, DeskRosterAdvStat.html), or what to choose first. */
+/** The desk's summary at the foot: the choice so far, its type short, and its price (DeskRosterAdv.html, DeskRosterAdvStat.html), or what to choose first. */
 function summaryWords(sheet, choices) {
   if (!sheet.type) return t("teamAdvance.pickType");
   const { grant } = chosenOf(sheet, choices) ?? {};
-  const what = [t(`teamAdvance.type.${sheet.type}`), sheet.category, grant?.stat ? t(`stats.${grant.stat}`) : grant?.skill].filter(Boolean).join(" · ");
+  const what = [t(`teamAdvance.typeShort.${sheet.type}`), sheet.category, grant?.stat ? t(`stats.${grant.stat}`) : grant?.skill].filter(Boolean).join(" · ");
   return choices.offer ? t("teamAdvance.summary", { what, cost: choices.offer.cost }) : what;
 }
 
@@ -302,7 +305,7 @@ function columnsMarkup(sheet, choices) {
   const back = sheet.instead ? `<button type="button" class="g-advance__back"${dataAttributes({ advanceStatback: true })}>${escapeHtml(t("teamAdvance.backToStat"))}</button>` : "";
   const second = rolled ? columnMarkup(t("teamAdvance.col.d8"), statRollMarkup({ ...props, part: "roll" }))
     : columnMarkup(t("teamAdvance.col.category"), sheet.type ? `${back}${categoriesMarkup(sheet, choices)}` : "", t("teamAdvance.col.emptyType"));
-  return `<div class="g-advance__cols">${columnMarkup(t("teamAdvance.col.type"), typesMarkup(sheet, choices))}${second}${thirdColumn(props, rolled)}</div>`;
+  return `<div class="g-advance__cols">${columnMarkup(t("teamAdvance.col.type"), typesMarkup(sheet, choices, { desk: true }))}${second}${thirdColumn(props, rolled)}</div>`;
 }
 
 /** A desk's third column: the characteristic the D8 allows, a random skill's roll, or the category's skills. */

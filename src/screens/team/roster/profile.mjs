@@ -25,7 +25,7 @@ import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderProgressDots } from "../../../ui/progress-dots.mjs";
 import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup } from "./fallen-view.mjs";
 import { undoable } from "./model.mjs";
-import { closedMarkup, injuriesMarkup, markClosed, skillChipsMarkup, statsMarkup } from "./panel.mjs";
+import { closedMarkup, injuriesMarkup, markClosed, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
 import { advanceClosed, advanceHintOf, closedAdvanceMarkup, editClosed, undoLastMarkup } from "./player-access.mjs";
 import { failedMarkup, prepMarkup, saveNoticeMarkup, sheetMarkup, statusMarkup } from "./view.mjs";
 
@@ -47,20 +47,6 @@ export function playerHeadMarkup({ teamId, badgeHtml = "", name = "", who = "", 
   const line = who ? `<p class="g-profile__who">${escapeHtml(who)}</p>` : "";
   return `<header class="g-profile__head">${back}<div class="g-profile__row">${badge}<div class="g-profile__titles">`
     + `<h1 class="g-profile__name" tabindex="-1">${escapeHtml(name)}</h1>${line}</div>${editHtml}</div></header>`;
-}
-
-/**
- * Where a skill came to him (K29): an advancement's type and, when it was rolled, how — «Random primary skill · rolled
- * on the site»; any other skill in the roster's own words («starting», «the captain's»).
- *
- * @param {import("./model.mjs").PlayerLine} line
- * @param {import("./model.mjs").PlayerLine["skills"][number]} skill
- */
-function skillSourceOf(line, skill) {
-  const taken = skill.advancement === null ? null : line.advancements[skill.advancement];
-  if (!taken) return t(`teamRoster.source.${skill.source}`);
-  const type = t(`teamAdvance.type.${taken.type}`);
-  return taken.via ? `${type} · ${t(`teamPlayer.via.${taken.via}`)}` : type;
 }
 
 /**

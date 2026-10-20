@@ -22,8 +22,9 @@
   text-transform: none;
   overflow-wrap: anywhere;
 }
+/* Adv1Type's pill is 58px of content and 8px a side (content-box): 74px drawn; option-card.css's pill is border-box. */
 #player-advance .g-option__pill {
-  min-width: 58px;
+  min-width: 74px;
   font: 700 14px/normal var(--font-body);
   letter-spacing: 0;
   text-transform: none;
@@ -33,6 +34,21 @@
 #player-advance .g-option[aria-disabled="true"] .g-option__pill {
   background: var(--surface-3);
   color: var(--muted);
+}
+/*
+ * Closed because a roll is made on the site (decision 9), not refused (advance-sheet.mjs's `data-advance-kept`): the
+ * type chosen keeps DeskRosterAdv's chosen look, and the others are grey with their own sub line, which says no refusal
+ * and so is not red as option-card.css draws a refused card's.
+ */
+#player-advance .g-option[data-advance-kept] .g-option__sub { color: var(--muted); }
+#player-advance .g-option[data-advance-kept][aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+  color: var(--ink);
+}
+#player-advance .g-option[data-advance-kept][aria-checked="true"] .g-option__pill {
+  background: var(--accent);
+  color: var(--on-accent);
 }
 
 /* The categories (Adv2Category.html): a card each, the letter on the category's colour over the name and the count. */
@@ -416,7 +432,8 @@
   #player-advance .g-advance__col .g-options { gap: var(--space-10); }
   #player-advance .g-option__title { font-size: 15px; }
   #player-advance .g-option__sub { font-size: 12px; }
-  #player-advance .g-option__pill { min-width: 56px; }
+  /* DeskRosterAdv's 56px of content and 8px a side: 72px drawn. */
+  #player-advance .g-option__pill { min-width: 72px; }
 
   #player-advance .g-advance__cats {
     display: flex;
