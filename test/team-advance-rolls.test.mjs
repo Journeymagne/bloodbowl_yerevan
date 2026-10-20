@@ -66,8 +66,9 @@ const AT_TABLE = { type: "random", grants: { skill: "Frenzy" }, roll: { via: "ta
 const WORDS = {
   hint: "Two D16s on the league's Skill Table, each a skill the player lacks, and different: the coach takes one of the two. A blank face, a skill the player has and the first die's skill are rolled again.",
   site: "The site rolls both dice and keeps the result — no rerolling it",
-  siteD8: "The site rolls the die and keeps the result — no rerolling it",
+  siteDie: "The site rolls the die and keeps the result — no rerolling it",
   table: "Mark the two skills the dice showed",
+  tableOne: "Mark the skill the die showed",
   tableD8: "Choose what the D8 showed",
   rolledSite: "Rolled on the site · the result is kept and seen in the player's history",
   rolledTable: "Rolled at the table · the history will say «at the table»",
@@ -77,9 +78,9 @@ const WORDS = {
   stale: "Came up: Frenzy, Strip Ball — the player has it all already: the roll cannot be taken. Take a skill off, or take this advancement at the table.",
   rerolled: "This roll was rolled again past Block, which the player has no more: give the skill back before taking the roll, or take this advancement at the table.",
   held: "has it already",
-  pickPair: "Choose one of the two skills",
-  pickFace: "Mark the skills rolled",
-  marksFull: "Both dice are marked — take one mark off first",
+  pickPair: "Choose the skill to take",
+  pickFace: "Mark what came up",
+  marksFull: "Each die is marked — take a mark off first",
   waitSave: "Wait until your edits are saved",
   afterPost: "Advancement — after the post-match",
   d8Table: "1: AR · 2: AR/PA · 3–4: AR/MA/PA · 5: MA/PA · 6: AG/MA · 7: AG/ST · 8: any",
@@ -220,6 +221,8 @@ test("a random skill on the site: declared, then two dice — two skills the pla
       assert.deepEqual(pairWords(), [["?", "—"], ["?", "—"]], "two dice, not rolled");
       assert.ok(pair().every((card) => closed(card) && card.getAttribute("title") === WORDS.site), "nothing to choose before the roll");
       assert.ok(pair().every((card) => card.querySelector(".g-die__type").textContent === "D16"));
+      // An empty card says to a screen reader that its die is not rolled yet, and the title why: no «no skill» (M5).
+      assert.ok(pair().every((card) => card.querySelector(".g-die").getAttribute("aria-label") === "D16: not rolled yet" && !card.querySelector(".g-sr-only")));
       assert.equal(result(), "Two D16s on the category's table");
       assert.equal(faces().length, 16);
       assert.ok(faces().every((item) => item.tagName === "LI"), "on the site the faces only show");
@@ -287,10 +290,14 @@ test("on a desk the pair stands in the third column; after the roll there is no 
     const third = columns()[2];
     assert.equal(third.querySelectorAll("[data-advance-pick]").length, 2);
     assert.equal(third.querySelector("[data-advance-roll]").textContent, "Roll two D16");
+    // The result and the button under it, 6 apart as DeskRosterAdv's side column (M10).
+    assert.deepEqual(third.querySelector(".g-advance__outcome").childNodes.map((child) => child.getAttribute("class")), ["g-advance__result", "g-btn g-btn--primary"]);
     assert.equal(take().textContent, "Roll first");
     assert.ok(take().hasAttribute("disabled"));
+    rollButton().focus();
     await rollWith("p1", 200, { roll: ROLL_SKILL });
     assert.ok(!rollButton(), "no roll button once the pair is in");
+    assert.ok(document.activeElement === pick("Frenzy"), "the focus on the card it enters on, not lost with the button (M1)");
     assert.deepEqual(pairWords(), [["4", "Frenzy"], ["8", "Strip Ball"]]);
     assert.ok(columns()[2].querySelector(".g-advance__pair"));
     assert.ok(!sheet().querySelector("[data-advance-attempts]"));
@@ -496,6 +503,20 @@ test("a die whose skill the player has come to hold is closed, the other taken; 
       await settle();
       assert.deepEqual(sentOf("p1"), [[bound]]);
     });
+    // The table advancement took the second die's skill (M4): the button and its words name it, not the first die's.
+    await withWindow({ phone: true }, async () => {
+      const second = { type: "random", grants: { skill: "Strip Ball" }, roll: { via: "table" } };
+      await openAdvance(true, { teamAnswer: withOne({ ...both, advancements: [second] }) });
+      toRandom("General");
+      await rollWith("p1", 200, { roll: { ...ROLL_SKILL, stale: true } });
+      assert.equal(bind().textContent, "Record this roll for the advancement «Strip Ball» taken at the table");
+      const bound = { ...second, roll: { id: "r1", via: "site" } };
+      api.reply(PATCH, 200, { team: withOne({ ...both, advancements: [bound] }, { revision: 5 }) });
+      press(bind());
+      assert.equal(toasts().at(-1), "The roll is recorded for «Strip Ball»");
+      await settle();
+      assert.deepEqual(sentOf("p1"), [[bound]]);
+    });
     // The table instead: the way is open, and two faces with skills she lacks are marked.
     await withWindow({ phone: true }, async () => {
       await openAdvance(true, { teamAnswer: withOne(both) });
@@ -606,10 +627,17 @@ test("at the table: the coach marks the two faces the dice showed, then takes on
       press(face(15));
       assert.equal(toasts().at(-1), "no skill");
       assert.deepEqual(marked(), []);
+      assert.ok(pair().every((card) => card.querySelector(".g-die").getAttribute("aria-label") === "D16: not marked yet"), "M5");
       press(face(2));
       assert.deepEqual(marked(), ["2"]);
       assert.deepEqual(pairWords(), [["2", "Diving Catch"], ["?", "—"]]);
       assert.equal(note(), WORDS.table, "one of two marked");
+      // Half a pair: its marked card says why it cannot be chosen yet (M2).
+      assert.ok(closed(pick("Diving Catch")));
+      assert.equal(pick("Diving Catch").getAttribute("title"), WORDS.table);
+      press(pick("Diving Catch"));
+      assert.equal(toasts().at(-1), WORDS.table);
+      assert.deepEqual(picked(), []);
       assert.equal(result(), "Two D16s on the category's table");
       assert.equal(take().textContent, WORDS.pickFace);
       press(face(3));
@@ -632,7 +660,16 @@ test("at the table: the coach marks the two faces the dice showed, then takes on
       choose(pick("Diving Catch"));
       assert.equal(result(), "Diving Catch");
       assert.equal(take().textContent, "Take: Diving Catch");
+      // The other mark taken off: the choice goes with its pair, and does not come back with the next mark (M2).
+      press(face(5));
+      assert.deepEqual(picked(), []);
+      assert.ok(closed(pick("Diving Catch")));
+      assert.equal(take().textContent, WORDS.pickFace);
+      press(face(5));
+      assert.deepEqual(picked(), []);
+      assert.equal(take().textContent, WORDS.pickPair);
       // The mark of the skill chosen taken off: the choice goes with it.
+      choose(pick("Diving Catch"));
       press(face(2));
       assert.deepEqual(picked(), []);
       assert.equal(take().textContent, WORDS.pickFace);
@@ -690,6 +727,11 @@ test("one skill left in the column: one die, taken without a choice", async () =
       await openAdvance(true, { teamAnswer: withOne(all) });
       toRandom("General");
       assert.deepEqual(pairWords(), [["?", "—"]], "one die to roll");
+      // A single die is said as one (M3).
+      assert.equal(rollButton().textContent, "Roll D16");
+      assert.equal(note(), WORDS.siteDie);
+      assert.equal(pick("").getAttribute("title"), WORDS.siteDie);
+      assert.equal(result(), "A D16 on the category's table");
       await rollWith("p1", 200, { roll: oneDie });
       assert.deepEqual(pairWords(), [["16", "Thick Skull"]]);
       assert.deepEqual(picked(), ["Thick Skull"], "chosen at once");
@@ -707,6 +749,9 @@ test("one skill left in the column: one die, taken without a choice", async () =
       toRandom("General");
       choose(way("table"));
       assert.equal(pair().length, 1);
+      assert.equal(note(), WORDS.tableOne);
+      assert.equal(pick("").getAttribute("title"), WORDS.tableOne);
+      assert.equal(take().textContent, WORDS.pickFace);
       assert.deepEqual(faces().filter((item) => !closed(item)).map((item) => item.getAttribute("data-advance-face")), ["16"]);
       press(face(16));
       assert.deepEqual(pairWords(), [["16", "Thick Skull"]]);
@@ -718,6 +763,11 @@ test("one skill left in the column: one die, taken without a choice", async () =
       await settle();
       assert.deepEqual(sentOf("p1"), [[{ type: "random", grants: { skill: "Thick Skull" }, roll: { via: "table" } }]]);
     });
+    // A desk's button says it too.
+    await openAdvance(false, { teamAnswer: withOne(all) });
+    toRandomDesk("General");
+    assert.equal(rollButton().textContent, "Roll D16");
+    assert.equal(result(), "A D16 on the category's table");
   });
 });
 
@@ -729,7 +779,7 @@ test("a characteristic on the site: the D8, what it allows with before and after
       assert.equal(title(), "Characteristic");
       assert.equal(sub(), "14 SPP · D8 roll");
       assert.equal(dots(), "Step 2 of 2");
-      assert.equal(note(), WORDS.siteD8);
+      assert.equal(note(), WORDS.siteDie);
       assert.equal(sheet().querySelector(".g-die__type").textContent, "D8");
       assert.equal(dieValue(), "?");
       assert.equal(result(), "The roll decides what may improve");
@@ -1210,7 +1260,9 @@ test("every key in both dictionaries (the waiting words for each purpose); style
     for (const [locale, words] of Object.entries(dictionaries)) assert.ok(words[`teamAdvance.waiting.${purpose}`], `${locale} teamAdvance.waiting.${purpose}`);
   }
   // The words of attempts the advancement's sheet no longer shows are gone (the owner's answer); the skill's sheet's stay until Task 22.
-  for (const [locale, words] of Object.entries(dictionaries)) assert.ok(!("teamAdvance.rerolled" in words), `${locale} teamAdvance.rerolled`);
+  for (const [locale, words] of Object.entries(dictionaries)) {
+    for (const key of ["teamAdvance.rerolled", "teamAdvance.note.siteD8"]) assert.ok(!(key in words), `${locale} ${key}`);
+  }
   assertDictionaryCovers("src/screens/team/roster/roll-view.mjs", "src/screens/team/roster/advance.mjs", "src/screens/team/roster/advance-sheet.mjs");
   const css = text(ROLLS);
   assert.doesNotMatch(css, /--focus-ring/);
@@ -1258,7 +1310,8 @@ test("every key in both dictionaries (the waiting words for each purpose); style
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__pick", "font"), ["600 15px/1.25 var(--font-body)", "600 14px/1.25 var(--font-body)"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__pick", "padding"), ["var(--space-12) var(--space-10)", "var(--space-10) var(--space-8)"]);
   assert.deepEqual(valuesOf(ROLLS, '#player-advance .g-advance__pick[aria-checked="true"]', "background"), ["var(--accent-tint-soft)"]);
-  assert.deepEqual(valuesOf(ROLLS, '#player-advance .g-advance__pick[aria-checked="true"]', "box-shadow"), ["inset 0 0 0 2px var(--accent)"]);
+  assert.deepEqual(valuesOf(ROLLS, '#player-advance .g-advance__pick[aria-checked="true"]', "box-shadow"), ["var(--ring-selected)"], "Adv3Stat's ringOn (M7)");
+  assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__outcome", "gap"), ["var(--space-6)"], "DeskRosterAdv's side column (M10)");
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__pick--held .g-advance__pickname", "text-decoration"), ["line-through"]);
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__pick .g-die", "width"), ["64px"], "a desk's die (DeskRosterAdv); a phone's is ui/die.css's 76");
   assert.deepEqual(valuesOf(ROLLS, "#player-advance .g-advance__pick .g-die", "border-radius"), ["var(--radius-2xl)"]);

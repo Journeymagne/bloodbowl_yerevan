@@ -16,21 +16,22 @@
  * kind waiting, an answer lost, why it cannot be taken — stands under the result. A phone's button is the sheet's
  * (advance-sheet.mjs); a desk rolls in its column.
  *
- * Each function takes `{sheet, choices, desk}`: the sheet as the screen draws it (advance.mjs's, with why a roll is
- * closed, `rollReason`, and whether one is out, `busy`), what it offers him (`choicesOf`), and whether it is a desk's.
- * A skill's sheet says how an advancement gave the skill, with a site roll's attempts (`rollBlockMarkup`, Task 11).
+ * Each markup function takes `{sheet, choices, desk}`: the sheet as the screen draws it (advance.mjs's, with why a
+ * roll is closed, `rollReason`, and whether one is out, `busy`), what it offers him (`choicesOf`), and whether it is a
+ * desk's. What the sheet says of its roll, and a random skill's pair as it stands (`pairOf`, `pickedDie`), are this
+ * module's too — pure, of the sheet and its choices — which advance.mjs's presses read (T21 fix round 1, M6). A skill's
+ * sheet says how an advancement gave the skill, with a site roll's attempts (`rollBlockMarkup`, Task 11).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { STAT_ROLL_TABLE, rolledDice, skillFaces, statsForRoll } from "../../../domain/roster/dice.mjs";
+import { STAT_ROLL_TABLE, rolledDice, skillFaces, statsForRoll, tableAdvancementFor } from "../../../domain/roster/dice.mjs";
 import { canonicalSkillName, heldSkillKeys } from "../../../domain/roster/players.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderDie } from "../../../ui/die.mjs";
 import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderSegmentedControl } from "../../../ui/segmented-control.mjs";
-import { bindable, boundSkill, chosenOf, diceCount, keptWords, noteWords, pairOf, pairWhole, rolledWords, waitingWords, wayFixed } from "./advance.mjs";
 import { boldWords } from "./panel.mjs";
 import { radioGroupMarkup } from "./radio-group.mjs";
 import { refusalWordsOf } from "./save.mjs";
@@ -38,6 +39,117 @@ import { footButton } from "./sheets.mjs";
 
 /** The name the way's segmented control is wired by (wireSegmentedControls). */
 export const VIA_GROUP = "advance-via";
+/** The die each rolled type asks the server for (`POST …/rolls`' purpose). */
+export const PURPOSE_OF = Object.freeze({ random: "random_skill", stat: "stat" });
+/** «—» where a die or a face has no skill, kept from a screen reader, which hears what the place says instead. */
+const NO_SKILL = '<span aria-hidden="true">—</span>';
+
+/** How many dice a random skill's pair has (decisions 32–34): the site's roll's once made; else two, or one when the column holds a single skill he lacks. */
+export function diceCount(sheet, choices) {
+  if (sheet.via === "site" && sheet.roll) return Math.max(1, rolledDice(sheet.roll).length);
+  return Math.min(2, Math.max(1, choices.skills.filter(({ held }) => !held).length));
+}
+
+/**
+ * A random skill's pair as the sheet stands, `diceCount` long: on the site the roll's dice (`rolledDice`); at the table
+ * the faces marked, in the order marked, each with the column's skill on it; then a place for each die not in yet —
+ * before a roll on the site, every one. A die says whether he holds its skill (`heldSkillKeys`, by canonical name) and
+ * whether it would complete an elite combination (the column's).
+ * @param {object} sheet @param {{skills: object[], player: object|null}} choices
+ * @returns {{face: number|null, skill: string|null, held: boolean, elite: boolean}[]}
+ */
+export function pairOf(sheet, choices) {
+  const held = choices.player ? heldSkillKeys(choices.player.row, choices.player) : new Set();
+  const die = (face, skill) => ({ face, skill, held: skill !== null && held.has(canonicalSkillName(skill)),
+    elite: skill !== null && Boolean(choices.skills.find(({ name }) => canonicalSkillName(name) === canonicalSkillName(skill))?.elite) });
+  const dice = sheet.via === "site" ? rolledDice(sheet.roll).map(({ face, skill }) => die(face, skill))
+    : (sheet.marks ?? []).map((face) => die(face, choices.skills[face - 1]?.name ?? null));
+  return Array.from({ length: diceCount(sheet, choices) }, (_, at) => dice[at] ?? die(null, null));
+}
+
+/** Whether a random skill's pair is in: the site's roll made, or at the table a face marked for each die. */
+export function pairWhole(sheet, choices) {
+  return sheet.via === "site" ? Boolean(sheet.roll) : (sheet.marks ?? []).length === diceCount(sheet, choices);
+}
+
+/** The die of the pair the coach has chosen — one whose skill he lacks, the pair whole (a choice does not outlive its pair, M2) — or null. */
+export function pickedDie(sheet, choices) {
+  if (!pairWhole(sheet, choices)) return null;
+  return pairOf(sheet, choices).find(({ skill, held }) => skill !== null && skill === sheet.skill && !held) ?? null;
+}
+
+/** The skill a roll of a single die gives at once (decision 34); "" for two dice, or none. */
+export const soleSkill = (roll) => (rolledDice(roll).length === 1 ? rolledDice(roll)[0].skill : "");
+
+/** Whether the die is one: a characteristic's D8, or a random skill's column with a single skill he lacks (decision 34, M3). */
+const oneDie = (sheet, choices) => sheet.type === "stat" || diceCount(sheet, choices) === 1;
+
+/** Why a type of the other kind than the roll that waits for the player cannot be rolled (409 `DICE_ROLL_WAITING`, decision 11); "" for any other. */
+export function waitingWords(sheet, type) {
+  const purpose = PURPOSE_OF[type];
+  return purpose && sheet.waiting && purpose !== sheet.waiting ? t(`teamAdvance.waiting.${sheet.waiting}`) : "";
+}
+
+/** Why the type (and a random skill's category) can no longer change: a roll on the site is made for this sheet, and stays the player's (decision 9). */
+export function keptWords(sheet) {
+  return sheet.roll ? t("teamAdvance.kept") : "";
+}
+
+/** Why the site's roll cannot be taken as it is (`rollRefusal`), "" when it can or the way is the table: «Take» closed whichever die is chosen. */
+export function siteRefusedWords(sheet, choices) {
+  return sheet.via === "site" && sheet.roll && choices.rollRefused ? refusalWordsOf("teamAdvance", choices.rollRefused) : "";
+}
+
+/**
+ * Whether the way the roll is made is fixed: a roll is made on the site, and the player can take it as it is. One that
+ * cannot be taken — `ROLL_STALE`, `ROLL_REROLLED`, whose words say «or take this advancement at the table» — leaves the
+ * table open (decision 11; fix round 1, I2): the site's roll keeps waiting for the player either way.
+ */
+export function wayFixed(sheet, choices) {
+  return Boolean(sheet.roll) && !choices.rollRefused;
+}
+
+/**
+ * The line under the way: what the site does — the die, or a random skill's two dice — what to do at the table, or how
+ * the roll was made: at the table once the D8's face or the whole pair is in (K8). A single die is said as one (M3).
+ */
+export function noteWords(sheet, choices) {
+  if (sheet.via === "site") {
+    if (sheet.roll) return t("teamAdvance.note.rolledSite");
+    return oneDie(sheet, choices) ? t("teamAdvance.note.siteDie") : t("teamAdvance.note.site");
+  }
+  if (sheet.type === "stat") return sheet.face ? t("teamAdvance.note.rolledTable") : t("teamAdvance.note.tableD8");
+  if (pairWhole(sheet, choices)) return t("teamAdvance.note.rolledTable");
+  return oneDie(sheet, choices) ? t("teamAdvance.note.tableOne") : t("teamAdvance.note.table");
+}
+
+/**
+ * Why «Roll two D16» or «Roll D8» has nothing to roll, "" when it has: the roll is made and stays the player's, or the
+ * dice are the table's. Neither is drawn then (the owner's answer): a press that reaches it all the same is told so.
+ */
+export function rolledWords(sheet, choices) {
+  if (sheet.roll && sheet.via === "site") return keptWords(sheet);
+  return sheet.via === "table" ? noteWords(sheet, choices) : "";
+}
+
+/**
+ * Whether the site's roll can be put on the random advancement taken at the table that gave one of its dice's skills
+ * (`tableAdvancementFor`, T1 review Minor 4): only a stale one, both skills his (decision 35; K9: as the plan).
+ */
+export function bindable(sheet, choices) {
+  return sheet.via === "site" && choices.rollRefused?.code === "ROLL_STALE" && tableAdvancementFor(sheet.roll, choices.player) >= 0;
+}
+
+/** The skill of the table advancement a stale roll is put on (`tableAdvancementFor`): what «Record this roll…» and its toast name (K8). */
+export function boundSkill(sheet, choices) {
+  return choices.player?.advancements?.[tableAdvancementFor(sheet.roll, choices.player)]?.grants?.skill ?? "";
+}
+
+/** What «Roll …» says: «Roll D8», a random skill's «Roll two D16» — «Roll D16» for a single die (M3). */
+export function rollLabel(sheet, choices) {
+  if (sheet.type === "stat") return t("teamAdvance.rollD8");
+  return oneDie(sheet, choices) ? t("teamAdvance.rollOneD16") : t("teamAdvance.rollD16");
+}
 
 /**
  * The way — «Roll on the site» or «Rolled at the table» — and the line under it. Fixed once a roll is made on the site
@@ -137,12 +249,12 @@ export function rollBlockMarkup({ line, skill, rolls }) {
 function alertsMarkup(sheet, choices) {
   const line = (words, info = false) => `<p class="${classNames("g-player-sheet__refusal", info && "g-advance__info")}" role="${info ? "status" : "alert"}">${escapeHtml(words)}</p>`;
   const category = sheet.roll?.purpose === "random_skill" ? sheet.roll.params?.category : "";
-  const waiting = waitingWords(sheet, sheet.type);
+  const [waiting, refused] = [waitingWords(sheet, sheet.type), siteRefusedWords(sheet, choices)];
   return [
     category && sheet.asked && category !== sheet.asked ? line(t("teamAdvance.otherCategory", { category }), true) : "",
     waiting ? line(waiting) : "",
     sheet.lost ? line(t("teamAdvance.lost")) : "",
-    sheet.via === "site" && choices.rollRefused ? line(refusalWordsOf("teamAdvance", choices.rollRefused)) : "",
+    refused ? line(refused) : "",
   ].join("");
 }
 
@@ -151,8 +263,7 @@ const keptMarkup = (sheet) => (sheet.roll ? `<p class="g-advance__kept">${escape
 
 /** A face's number and its skill, or «—» for a blank face, which a screen reader hears as «no skill». */
 function faceInnerMarkup(face, skill) {
-  const name = skill === null
-    ? `<span aria-hidden="true">—</span><span class="g-sr-only">${escapeHtml(t("teamAdvance.blank"))}</span>` : escapeHtml(skill);
+  const name = skill === null ? `${NO_SKILL}<span class="g-sr-only">${escapeHtml(t("teamAdvance.blank"))}</span>` : escapeHtml(skill);
   return `<span class="g-advance__facenum">${escapeHtml(String(face))}</span><span class="g-advance__facename">${name}</span>`;
 }
 
@@ -194,47 +305,43 @@ function facesMarkup({ sheet, choices }) {
 
 /**
  * A card's die (Adv3Random; DeskRosterAdv): ui/die.mjs's in spans — a button holds no `div` (K10) — one picture to a
- * screen reader, named by its state: the face it came up, or not rolled (not marked) yet.
+ * screen reader, named by its state: the face it came up, not rolled yet on the site, not marked yet at the table (M5).
  */
-function pickDieMarkup(face) {
+function pickDieMarkup(face, table) {
   const rolled = face !== null;
-  const label = rolled ? t("ui.die.rolled", { type: "D16", value: face }) : t("ui.die.waiting", { type: "D16" });
+  const label = rolled ? t("ui.die.rolled", { type: "D16", value: face }) : table ? t("teamAdvance.dieUnmarked") : t("ui.die.waiting", { type: "D16" });
   return `<span class="${classNames("g-die", rolled && "g-die--rolled")}" role="img" aria-label="${escapeHtml(label)}">`
     + `<span class="g-die__type">D16</span><span class="g-die__value">${escapeHtml(rolled ? String(face) : "?")}</span></span>`;
 }
 
 /**
  * A random skill's pair (the owner's answer, 2026-10-20: the prototypes show one result): a radio group «The skills
- * rolled», a card for each die — its die and its skill, an elite combination's words — of which the coach takes one. A
- * die not in yet (no skill: before the roll, or not marked yet) is closed with the line under the way; one whose skill
- * he holds is struck through and closed, «has it already» (decision 35). An empty place is `die-1`, `die-2`: an empty
+ * rolled», a card for each die — its die and its skill, an elite combination's words — of which the coach takes one. Until
+ * the pair is whole every card is closed with the line under the way — a die not in yet («—», its die named not rolled
+ * or not marked yet, M5), and a die marked while the other is not (M2) — and nothing is checked; a die whose skill he
+ * holds is struck through and closed, «has it already» (decision 35). An empty place is `die-1`, `die-2`: an empty
  * value would check the first place for no choice at all.
  * @param {{sheet: object, choices: object}} props
  */
 export function pairMarkup({ sheet, choices }) {
-  const waiting = noteWords(sheet, choices);
-  const pair = pairOf(sheet, choices);
-  // A skill chosen that has come to be his since (another device's save) is checked no more: its card is closed.
-  const chosen = pair.some(({ skill, held }) => skill === sheet.skill && !held) ? sheet.skill : "";
-  const items = pair.map(({ face, skill, held, elite }, at) => {
-    const name = skill === null
-      ? `<span aria-hidden="true">—</span><span class="g-sr-only">${escapeHtml(t("teamAdvance.blank"))}</span>` : escapeHtml(skill);
+  const [waiting, whole, table] = [noteWords(sheet, choices), pairWhole(sheet, choices), sheet.via === "table"];
+  const items = pairOf(sheet, choices).map(({ face, skill, held, elite }, at) => {
     const tag = elite && !held ? `<span class="g-advance__picktag">${escapeHtml(t("teamAdvance.elite"))}</span>` : "";
     return {
       value: skill ?? `die-${at + 1}`,
       className: classNames("g-advance__pick", held && "g-advance__pick--held"),
       data: { advancePick: skill ?? "" },
-      reason: skill === null ? waiting : held ? t("teamAdvance.held") : "",
-      html: `${pickDieMarkup(face)}<span class="g-advance__pickname">${name}</span>${tag}`,
+      reason: skill === null ? waiting : held ? t("teamAdvance.held") : whole ? "" : waiting,
+      html: `${pickDieMarkup(face, table)}<span class="g-advance__pickname">${skill === null ? NO_SKILL : escapeHtml(skill)}</span>${tag}`,
     };
   });
-  return radioGroupMarkup({ className: "g-advance__pair", label: t("teamAdvance.pairLabel"), chosen, items });
+  return radioGroupMarkup({ className: "g-advance__pair", label: t("teamAdvance.pairLabel"), chosen: pickedDie(sheet, choices)?.skill ?? "", items });
 }
 
-/** The line under the pair (Adv3Random's result): what the dice are rolled on until the pair is in, then that one is to be chosen, then the skill chosen. */
+/** The line under the pair (Adv3Random's result): what the dice are rolled on until the pair is in — a single die said as one (M3) — then that one is to be chosen, then the skill chosen. */
 function resultWords(sheet, choices) {
-  if (!pairWhole(sheet, choices)) return t("teamAdvance.rollResult");
-  return chosenOf(sheet, choices)?.grant.skill ?? t("teamAdvance.pickPair");
+  if (!pairWhole(sheet, choices)) return oneDie(sheet, choices) ? t("teamAdvance.rollResultOne") : t("teamAdvance.rollResult");
+  return pickedDie(sheet, choices)?.skill ?? t("teamAdvance.pickPair");
 }
 
 /**
@@ -247,9 +354,10 @@ function resultWords(sheet, choices) {
 export function randomRollMarkup(props) {
   const { sheet, choices, desk = false } = props;
   const result = `<p class="g-advance__result">${escapeHtml(resultWords(sheet, choices))}</p>`;
-  const button = desk && sheet.via === "site" && !sheet.roll ? rollButtonMarkup(props, t("teamAdvance.rollD16")) : "";
+  const button = desk && sheet.via === "site" && !sheet.roll ? rollButtonMarkup(props, rollLabel(sheet, choices)) : "";
   const bind = bindable(sheet, choices) ? renderButton({ label: t("teamAdvance.bind", { skill: boundSkill(sheet, choices) }), data: { advanceBind: true } }) : "";
-  return `<div class="g-advance__roll g-advance__roll--d16">${viaMarkup(props)}${pairMarkup(props)}${result}${button}`
+  // The result and a desk's button under it, 6 apart as DeskRosterAdv's side column (M10).
+  return `<div class="g-advance__roll g-advance__roll--d16">${viaMarkup(props)}${pairMarkup(props)}<div class="g-advance__outcome">${result}${button}</div>`
     + `${alertsMarkup(sheet, choices)}${bind}${facesMarkup(props)}${keptMarkup(sheet)}</div>`;
 }
 
@@ -314,7 +422,7 @@ export function statRollMarkup(props) {
   const die = `<div class="g-advance__dice">${renderDie({ type: "D8", value: sheet.face })}</div>`;
   const stats = sheet.face ? statsForRoll(sheet.face).map((stat) => t(`stats.${stat}`)).join(", ") : "";
   const result = desk ? "" : `<p class="g-advance__result">${escapeHtml(stats ? t("teamAdvance.statResult", { stats }) : t("teamAdvance.statWait"))}</p>`;
-  const button = desk && sheet.via === "site" && !sheet.roll ? rollButtonMarkup(props, t("teamAdvance.rollD8")) : "";
+  const button = desk && sheet.via === "site" && !sheet.roll ? rollButtonMarkup(props, rollLabel(sheet, choices)) : "";
   const table = `<p class="g-advance__table">${escapeHtml(d8TableWords(desk))}</p>`;
   const rolled = `${viaMarkup(props)}${faces}${die}${result}${button}${alertsMarkup(sheet, choices)}`;
   if (part === "roll") return `<div class="g-advance__roll g-advance__roll--d8">${rolled}${table}${keptMarkup(sheet)}</div>`;

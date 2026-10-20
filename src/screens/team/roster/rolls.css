@@ -63,7 +63,16 @@
 }
 #player-advance .g-die__type { opacity: .8; }
 
-/* The result under the die: 15/600 in the accent. */
+/*
+ * The result under the die: 15/600 in the accent; with a desk's «Roll two D16» under it, 6 apart, as DeskRosterAdv's
+ * side column (T21 fix round 1, M10).
+ */
+#player-advance .g-advance__outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
 #player-advance .g-advance__result {
   color: var(--accent-text);
   font: 600 15px/normal var(--font-body);
@@ -109,7 +118,7 @@
 }
 #player-advance .g-advance__pick[aria-checked="true"] {
   background: var(--accent-tint-soft);
-  box-shadow: inset 0 0 0 2px var(--accent);
+  box-shadow: var(--ring-selected);
 }
 #player-advance .g-advance__pick[aria-disabled="true"] { cursor: default; }
 #player-advance .g-advance__pick .g-die { flex: none; }

@@ -1,7 +1,8 @@
 /**
  * A radio group of a player's sheet (constraints, «Радиогруппы»; stage 07d): the advancement's categories and skills
- * (advance-sheet.mjs), the faces of the D16 and of the D8, and the characteristics a face allows (roll-view.mjs). A
- * module of its own, so that the two that draw with it need not import each other.
+ * (advance-sheet.mjs), a random skill's pair, the faces of the D8 and the characteristics a face allows (roll-view.mjs)
+ * — the D16's faces at the table mark two at once, and are no radio group (Task 21). A module of its own, so that the
+ * two that draw with it need not import each other.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { dataAttributes } from "../../../ui/markup.mjs";

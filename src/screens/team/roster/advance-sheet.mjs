@@ -31,13 +31,11 @@ import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
-import {
-  CHOSEN_TYPES, bonusOf, choicesOf, chosenOf, keptWords, pairWhole, refusedWords, siteRefusedWords, stepBefore, takenHeld, waitingWords,
-} from "./advance.mjs";
+import { CHOSEN_TYPES, bonusOf, choicesOf, chosenOf, refusedWords, stepBefore, takenHeld } from "./advance.mjs";
 import { prepResetWords } from "./panel.mjs";
 import { closedMarkup } from "./player-access.mjs";
 import { radioGroupMarkup } from "./radio-group.mjs";
-import { randomRollMarkup, rollButtonMarkup, statRollMarkup } from "./roll-view.mjs";
+import { keptWords, pairWhole, randomRollMarkup, rollButtonMarkup, rollLabel, siteRefusedWords, statRollMarkup, waitingWords } from "./roll-view.mjs";
 import { rollAsking } from "./rolls.mjs";
 import { refusalWordsOf } from "./save.mjs";
 import { ADVANCE_SHEET, PLAYER_FRAME, footButton } from "./sheets.mjs";
@@ -239,9 +237,9 @@ function phoneHead(line, screen, sheet, choices) {
   return [t("teamAdvance.title"), t("teamAdvance.sub", { spp: spendable(line, screen.race), next: line.level + 1 })];
 }
 
-/** A rolled step's button on a phone (Adv3Random, Adv3Stat): «Roll two D16» or «Roll D8» on the site until the dice are in, then «Take»'s. */
+/** A rolled step's button on a phone (Adv3Random, Adv3Stat): «Roll two D16» (a single die's «Roll D16») or «Roll D8» on the site until the dice are in, then «Take»'s. */
 function rolledFoot(sheet, choices) {
-  if (sheet.via === "site" && !sheet.roll) return rollButtonMarkup({ sheet, choices }, sheet.type === "stat" ? t("teamAdvance.rollD8") : t("teamAdvance.rollD16"));
+  if (sheet.via === "site" && !sheet.roll) return rollButtonMarkup({ sheet, choices }, rollLabel(sheet, choices));
   return takeMarkup(sheet, choices);
 }
 
