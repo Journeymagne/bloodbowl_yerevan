@@ -435,6 +435,69 @@ test("a session that stays, or changes to the same coach's again, keeps the buil
   assert.equal(count(), "5");
 });
 
+test("the build's memory is one module's: buildOf, pickOf, setPick, startBuild — a session that ends starts from nothing", async () => {
+  // Imported here, not at the top: the first test that names the module must fail alone when it is missing, not the whole file.
+  const memory = await import("../src/screens/teams/new-flow.mjs");
+  open();
+  releaseCurrentScreen();
+  const heard = [];
+  const stop = memory.onBuildStarted(() => heard.push(memory.pickOf().name));
+  const build = memory.buildOf();
+  assert.equal(build.userId, state.auth.currentUser.id);
+  assert.equal(build.draft, null);
+  assert.equal(memory.buildOf(), build, "the same build, however often it is asked for");
+  assert.ok(memory.isCurrentBuild(build));
+  assert.deepEqual(memory.pickOf(), { name: "", raceSlug: "", resets: false });
+  assert.equal(memory.startBuild(), false, "no name and no race, no build");
+  memory.setPick({ name: "  Iron Rooks  " });
+  assert.equal(memory.startBuild(), false, "a name and no race, no build");
+  memory.setPick({ raceSlug: "teams/human" });
+  assert.deepEqual(memory.pickOf(), { name: "  Iron Rooks  ", raceSlug: "teams/human", resets: false }, "setPick changes the fields it is given and no others");
+  assert.equal(memory.startBuild(), true);
+  assert.equal(build.draft.teamName, "Iron Rooks", "the name is trimmed where it is used");
+  assert.equal(build.draft.teamSlug, "teams/human");
+  assert.ok(build.startedAt > 0);
+  assert.deepEqual(heard, ["  Iron Rooks  "], "the listener is told once, with the build already begun");
+  const began = build.startedAt;
+  const draft = build.draft;
+  build.draft.players.push({ id: "p1" });
+  assert.equal(memory.pickOf().resets, true, "a squad that was begun is what going on to another race would lose");
+  assert.equal(memory.holdsPicks(null), false);
+  memory.setPick({ name: "Rooks Reborn" });
+  assert.equal(memory.startBuild(), true);
+  assert.equal(build.draft, draft, "the same race keeps the draft");
+  assert.equal(build.draft.teamName, "Rooks Reborn", "and only renames it");
+  assert.equal(build.startedAt, began, "and the moment it began");
+  memory.setPick({ raceSlug: "teams/norse" });
+  assert.equal(memory.startBuild(), true);
+  assert.notEqual(build.draft, draft, "another race starts the draft again");
+  assert.equal(build.draft.teamSlug, "teams/norse");
+  assert.equal(build.draft.players.length, 0);
+  assert.equal(memory.pickOf().resets, false);
+  assert.equal(heard.length, 3);
+  stop();
+  assert.equal(memory.startBuild(), true);
+  assert.equal(heard.length, 3, "a listener taken off hears no more");
+  // A session that ends takes the build, the same coach's next one included; another coach's starts from nothing too.
+  const coach = state.auth.currentUser;
+  sessionEnded();
+  assert.equal(memory.isCurrentBuild(build), false);
+  state.auth.currentUser = coach;
+  const next = memory.buildOf();
+  assert.notEqual(next, build);
+  assert.equal(next.draft, null);
+  assert.equal(next.name, "");
+  memory.endBuild(build);
+  assert.ok(memory.isCurrentBuild(next), "a build that is no longer the coach's is not the one to forget");
+  state.auth.currentUser = { id: "coach-other", login: "other", preferences: {} };
+  const other = memory.buildOf();
+  assert.notEqual(other, next);
+  assert.equal(other.userId, "coach-other");
+  memory.endBuild(other);
+  assert.equal(memory.isCurrentBuild(other), false, "a team that was made forgets the build");
+  assert.notEqual(memory.buildOf(), other);
+});
+
 test("the league and the alignment are chosen from a sheet, and the focus goes back to the button that opened it (K6b)", () => {
   open();
   pick("Hobbits", "teams/halfling");

@@ -3,7 +3,7 @@
  * (`pickMarkup`, this file's); the second is the builder (builder-view.mjs),
  * where the squad and the staff are chosen, and where the team is saved.
  *
- * The build lives in the memory of this module and nowhere else: going to
+ * The build lives in the memory of new-flow.mjs and nowhere else: going to
  * another screen and coming back finds it as it was, a reload or a closed tab
  * asks first (`beforeunload`, while there is a player or a purchase in it), and
  * a session that ends, or another coach on this browser, starts from nothing.
@@ -13,7 +13,7 @@
  * first step writes nothing.
  *
  * Which rule refuses what is the build's (domain/roster/build.mjs) and how it
- * looks is builder-view's; this file is the state between them and the one place
+ * looks is builder-view's; this file is the screen between them and the one place
  * that talks to the server. Every change of the state ends in `draw()`, which
  * patches the screen to match, so that the focus and the caret stay where they are.
  */
@@ -28,18 +28,17 @@ import { forgetRetiredKeys } from "../../core/storage.mjs";
 import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
 import { toast } from "../../components/toast.mjs";
-import { onSessionChange } from "../../data/session.mjs";
 import { createTeam, raceTeamOf } from "../../data/teams.mjs";
-import { BUILD_STAFF_KEYS, buildRequest, buildTotals, dropPlayer, hirePlayer, newBuild, stepStaff } from "../../domain/roster/build.mjs";
+import { buildRequest, buildTotals, dropPlayer, hirePlayer, stepStaff } from "../../domain/roster/build.mjs";
 import { setRosterCaptain } from "../../domain/roster/players.mjs";
 import { teamFavouredOptions, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
-import { countToNumber } from "../../domain/roster/values.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { wireRadioGroups } from "../../ui/choice.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { renderTextField } from "../../ui/text-field.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { buildRefusalText, builderMarkup, wireBuilder } from "./builder-view.mjs";
+import { buildOf, endBuild, holdsPicks, isCurrentBuild, onBuildStarted, pickOf, setPick, startBuild } from "./new-flow.mjs";
 
 /** What a logo may be once it is read: the pictures the file field offers, and the WebP the optimiser makes of them (the team's settings take one so too). */
 export const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
@@ -99,59 +98,25 @@ export function pickMarkup({ name, raceSlug, races, seasonName, resets }) {
 }
 
 // ---------------------------------------------------------------------------
-// What the module remembers
+// The visit
 // ---------------------------------------------------------------------------
 
 /**
- * The build of the coach on this browser, or null for none. `draft` is the build's own (domain/roster/build.mjs),
- * kept from «Change the race or the name» to the next «Create» when the race stays. `startedAt` is when the
- * draft was begun, not when it was opened again: `createTeam` looks for a team made since then when an answer is lost.
- * @typedef {object} Flow
- * @property {string|undefined} userId whose build it is
- * @property {"pick"|"build"} step
- * @property {string} name as typed on the first step
- * @property {string} raceSlug
- * @property {object|null} draft
- * @property {number} startedAt
- * @property {boolean} rosterOpen the phone's list of numbers and names is open
- * @property {"league"|"favoured"|null} choice the sheet that is open
- * @property {boolean} pending the request that saves the team is on its way
- * @property {string} refusal why the save was refused, as a sentence
+ * Whether the coach is on the screen now, and the build the screen was drawn for (new-flow.mjs): one object for every
+ * visit, so that a visit that was left stays closed.
+ * @type {{open: boolean, build: object}|null}
  */
-
-/** @type {Flow|null} */
-let flow = null;
-
-/** Whether the coach is on the screen now: one object for every visit, so that a visit that was left stays closed. */
 let visit = null;
 
-/** @returns {Flow} */
-const freshFlow = (userId) => ({ userId, step: "pick", name: "", raceSlug: "", draft: null, startedAt: 0, rosterOpen: false, choice: null, pending: false, refusal: "" });
-
-/** A player or a purchase is something a reload would lose. */
-const holdsPicks = (draft) => Boolean(draft) && (draft.players.length > 0 || BUILD_STAFF_KEYS.some((key) => countToNumber(draft[key]) > 0));
-
-let watchingSession = false;
-
-/**
- * A session that ends takes the build with it, and so does another coach's: the build is the coach's, and the next
- * one to sign in on this browser, the same coach included, starts from nothing. Heard from the first visit on, and
- * for as long as the page lives: the build outlasts the screen, and a session ends on any other one.
- */
-function watchSession() {
-  if (watchingSession) return;
-  watchingSession = true;
-  onSessionChange(() => {
-    if (flow && flow.userId !== state.auth.currentUser?.id) flow = null;
-  });
-}
+/** The build the screen draws and its buttons change: none once it is gone (the session ended, the team was made and the route has not changed yet). */
+const liveBuild = () => (isCurrentBuild(visit?.build) ? visit.build : null);
 
 /**
  * A reload or a closed tab while a squad is begun asks first, on either step: the first step keeps the squad of the
  * same race (it says so), and a reload would lose it. A build with nobody and nothing bought has nothing to lose.
  */
 function askBeforeLeaving(event) {
-  if (!holdsPicks(flow?.draft)) return;
+  if (!holdsPicks(liveBuild()?.draft)) return;
   event.preventDefault();
   // Browsers that ask only for a returnValue are asked too; an event that has no setter for it is not an error.
   Reflect.set(event, "returnValue", "");
@@ -163,14 +128,15 @@ function askBeforeLeaving(event) {
 
 /** Patch the screen to match the state: the step the coach is on, the sheet over it if one is open. */
 function draw() {
-  if (!visit?.open || !flow) return;
-  if (flow.step === "build") {
-    patchWithModal(view, builderMarkup({ race: raceTeamOf(flow.raceSlug), draft: flow.draft, rosterOpen: flow.rosterOpen, choice: flow.choice, pending: flow.pending, refusal: flow.refusal }), flow.choice ? "#new-team-choice" : "");
+  const build = visit?.open ? liveBuild() : null;
+  if (!build) return;
+  if (build.step === "build") {
+    patchWithModal(view, builderMarkup({ race: raceTeamOf(build.raceSlug), draft: build.draft, rosterOpen: build.rosterOpen, choice: build.choice, pending: build.pending, refusal: build.refusal }), build.choice ? "#new-team-choice" : "");
     // The button stays enabled while the request is on its way (a disabled one that holds the focus loses it); this says so, and the press is dropped in save().
-    if (flow.pending) view.querySelector("[data-new-team-save]")?.setAttribute("aria-busy", "true");
+    if (build.pending) view.querySelector("[data-new-team-save]")?.setAttribute("aria-busy", "true");
   } else {
-    const resets = holdsPicks(flow.draft);
-    patchWithModal(view, pickMarkup({ name: flow.name, raceSlug: flow.raceSlug, races: state.data.teams, seasonName: state.season.data?.season?.name ?? "", resets }));
+    const { name, raceSlug, resets } = pickOf();
+    patchWithModal(view, pickMarkup({ name, raceSlug, races: state.data.teams, seasonName: state.season.data?.season?.name ?? "", resets }));
   }
 }
 
@@ -178,7 +144,7 @@ function draw() {
 const focusTitle = () => view.querySelector("h1")?.focus();
 
 function show(step) {
-  flow.step = step;
+  visit.build.step = step;
   draw();
   focusTitle();
 }
@@ -193,28 +159,9 @@ function show(step) {
  */
 function onStep(step, act) {
   return (...args) => {
-    if (flow?.step === step) act(flow, ...args);
+    const build = liveBuild();
+    if (build?.step === step) act(build, ...args);
   };
-}
-
-/**
- * «Create»: the build of this race, with this name. The same race keeps what was picked and only renames it; another
- * starts again, and the moment it starts is the one `createTeam` will look from.
- */
-function create(build) {
-  const name = build.name.trim();
-  const race = raceTeamOf(build.raceSlug);
-  if (!name || !race) return;
-  if (build.draft?.teamSlug === race.slug) {
-    build.draft.teamName = name;
-  } else {
-    build.draft = newBuild(race, { name });
-    build.startedAt = Date.now();
-    build.rosterOpen = false;
-    build.choice = null;
-  }
-  build.refusal = "";
-  show("build");
 }
 
 /** A step the rule refuses is told in its words: with the staff's name, not the code's key. */
@@ -306,7 +253,7 @@ async function save(build) {
   draw();
   const request = buildRequest(race, draft);
   const answer = await createTeam(request, { startedAt: build.startedAt });
-  if (flow !== build) return;
+  if (!isCurrentBuild(build)) return;
   build.pending = false;
   if (!answer.team) {
     if (visit?.open && build.step === "build") {
@@ -317,7 +264,7 @@ async function save(build) {
     }
     return;
   }
-  flow = null;
+  endBuild(build);
   // Another tab has moved the token while the request was out: the page is about to read the session again, and the
   // team is not for whoever is signed in now, so it is neither told of nor opened (the list is read again with the session).
   if (tokenMoved()) return;
@@ -332,10 +279,7 @@ async function save(build) {
 export function renderNewTeam() {
   // The 2.x builder's draft is not offered back; it is erased, since its logo can hold much of the browser's quota.
   forgetRetiredKeys();
-  watchSession();
-  const userId = state.auth.currentUser?.id;
-  if (flow?.userId !== userId) flow = freshFlow(userId);
-  const mine = { open: true };
+  const mine = { open: true, build: buildOf() };
   const group = listenerGroup(view);
   // Registered first: the visit before this one (the same route drawn again) is released before this one is wired.
   onScreenLeave("new-team", () => {
@@ -346,14 +290,16 @@ export function renderNewTeam() {
   visit = mine;
   globalThis.addEventListener("beforeunload", askBeforeLeaving);
   group.on("input", "#new-team-name", onStep("pick", (build, event, input) => {
-    build.name = input.value;
+    setPick({ name: input.value });
     draw();
   }));
   group.own(wireRadioGroups(view, { group: ".g-races", item: "[data-race]", attribute: "data-race", onChange: onStep("pick", (build, slug) => {
-    build.raceSlug = slug;
+    setPick({ raceSlug: slug });
     draw();
   }) }));
-  group.on("click", "[data-new-team-create]", onStep("pick", create));
+  group.on("click", "[data-new-team-create]", onStep("pick", () => startBuild()));
+  // «Create» begins the build; the screen shows it once it is begun.
+  group.own(onBuildStarted(() => show("build")));
   group.own(wireBuilder(view, {
     onHire: onStep("build", hire),
     onStaff: onStep("build", stepStaffBy),
