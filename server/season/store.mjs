@@ -112,6 +112,38 @@ export async function loadUserGameRows(userId, pairingId = null, includeAll = fa
   return result.rows;
 }
 
+// Each MVP a completed post-match names, side by side in the order picked, with the name the side's match roster
+// (its snapshot in the state) gives the player. Only these small members of the state are read, and each is
+// walked only once `jsonb_typeof` says it is an array, so nothing in a stored state can make the query fail.
+const SELECT_MVPS = `
+  SELECT g.pairing_id, sides.side, mvp.player_id,
+         (SELECT player ->> 'name' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(g.state -> sides.side -> 'snapshot' -> 'players') = 'array'
+             THEN g.state -> sides.side -> 'snapshot' -> 'players' ELSE '[]'::jsonb END) AS roster(player)
+           WHERE player ->> 'id' = mvp.player_id LIMIT 1) AS name
+    FROM match_post_games g
+   CROSS JOIN (VALUES ('home'), ('away')) AS sides(side)
+   CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(g.state -> sides.side -> 'mvps') = 'array'
+       THEN g.state -> sides.side -> 'mvps' ELSE '[]'::jsonb END) WITH ORDINALITY AS mvp(player_id, at)
+   WHERE g.pairing_id = ANY($1::uuid[]) AND g.state ->> 'status' = 'completed' AND mvp.player_id IS NOT NULL
+   ORDER BY g.pairing_id, sides.side, mvp.at`;
+
+/**
+ * The MVPs of each of `pairingIds`, for the coach's list of games: `homeMvps` and `awayMvps`, each `{id, name}`
+ * in the order the post-match picked them (a player picked twice is there twice; `name` is "" when the match's
+ * roster does not hold him). Only a match finished through the post-match has any: one whose score was confirmed
+ * without it, or whose post-match is still open, has two empty lists.
+ *
+ * @param {string[]} pairingIds
+ * @returns {Promise<Map<string, {homeMvps: {id: string, name: string}[], awayMvps: {id: string, name: string}[]}>>}
+ */
+export async function loadGameMvps(pairingIds) {
+  const mvps = new Map(pairingIds.map((pairingId) => [pairingId, { homeMvps: [], awayMvps: [] }]));
+  if (!pairingIds.length) return mvps;
+  const { rows } = await pool.query(SELECT_MVPS, [pairingIds]);
+  for (const row of rows) mvps.get(row.pairing_id)?.[`${row.side}Mvps`].push({ id: row.player_id, name: row.name ?? "" });
+  return mvps;
+}
+
 /**
  * Everything the season screen shows, in one answer.
  *
