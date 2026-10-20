@@ -113,6 +113,14 @@ test("a recent result names the opponent's race by its slug; an opponent without
   assert.deepEqual(record.recentResults(games, "t1", 5).map(({ gameId, opponentRace }) => [gameId, opponentRace]), [["b", ""], ["a", "teams/skaven"]]);
 });
 
+test("a recent result names the opponent's coach and team by id, the way to its page; \"\" for one the server does not name", () => {
+  const coached = game("a", { round: 1, td: [2, 1] });
+  coached.away.user = { id: "u9", login: "rival" };
+  const games = [coached, game("b", { round: 2, td: [0, 0], away: true })];
+  assert.deepEqual(record.recentResults(games, "t1", 5).map(({ gameId, opponentUserId, opponentTeamId }) => [gameId, opponentUserId, opponentTeamId]),
+    [["b", "", "r1"], ["a", "u9", "r1"]]);
+});
+
 test("a recent result names the team's own MVPs from the server's list, home or away, a player picked twice once; none, or an answer without the field, is []", () => {
   const gruk = { id: "p7", name: "Gruk" }, vane = { id: "p5", name: "H. Vane" }, theirs = { id: "x1", name: "Their Star" };
   const games = [game("h", { round: 1, td: [2, 1], mvps: [[gruk], [theirs]] }), game("a", { round: 2, td: [3, 0], away: true, mvps: [[gruk, gruk, vane], []] }),

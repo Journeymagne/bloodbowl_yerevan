@@ -45,7 +45,8 @@
  * (Team.html's order: the figures, the card, the board, the leaders, the
  * matches). The leaders and the recent results are overview-lists.mjs's, each in
  * the form of the width; the model names the opponent's race of each result from
- * the reference, as the board does.
+ * the reference, as the board does, and the addresses of the opponent's team and
+ * of the race's rules, which a desk's row leads to (`resultOf`).
  *
  * A page opened on this address has read neither the table nor the games yet,
  * and nothing is said that they could contradict: without the table there is
@@ -62,7 +63,7 @@ import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { loadGames, onGamesChange } from "../../data/games.mjs";
 import { gameSides, recentResults, seasonDifference, seasonPager, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
-import { raceTeamOf, raceTitleOf } from "../../data/teams.mjs";
+import { raceTeamOf } from "../../data/teams.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
 import { renderCrest } from "../../shell/crest.mjs";
 import { currentMatch, matchActions, subLine } from "../../shell/current-match.mjs";
@@ -114,6 +115,18 @@ function opponentOf(rival, seasonData, phone) {
   const href = rival.user?.id && rival.team?.id ? playerTeamUrl(rival.user.id, rival.team.id) : undefined;
   const raceLink = race ? { title: race.title, href: pageUrl(race), hint: t("teamOverview.boardRace") } : undefined;
   return { name, href, hint: t("teamOverview.boardTeam"), sub: place, initial: initialOf(name), race: raceLink };
+}
+
+/**
+ * A finished match as a desk's row says it (DeskOverview.html): the opponent's race by the reference's name, and the ways
+ * the row's two links lead — the opponent's team, as the board's name does (`opponentOf`), and the race's rules. "" for a
+ * race the reference does not know, and for an opponent whose coach or team the server does not name: no address.
+ * @param {ReturnType<typeof recentResults>[number]} result
+ */
+function resultOf(result) {
+  const race = raceTeamOf(result.opponentRace);
+  const { opponentUserId: user, opponentTeamId: team } = result;
+  return { ...result, race: race?.title ?? "", raceHref: race ? pageUrl(race) : "", teamHref: user && team ? playerTeamUrl(user, team) : "" };
 }
 
 /**
@@ -221,7 +234,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, standing, worth, phone }) : null,
     ready: readyPlayers(draft, raceTeam),
     leaders: teamLeaders(team, raceTeam),
-    results: recentResults(list, team.id, RECENT_MATCHES).map((result) => ({ ...result, race: raceTitleOf(result.opponentRace) })),
+    results: recentResults(list, team.id, RECENT_MATCHES).map(resultOf),
     gamesError,
     seasonError: seasonData ? "" : seasonError,
   };

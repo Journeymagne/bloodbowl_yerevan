@@ -12,7 +12,8 @@
  * other, 22 apart as Team.html's blocks; the right column is a desk's (its list is the phone's card) and is not shown.
  *
  * The recent results: up to 900px Team.html's rows under «Recent matches», of which a phone shows the three newest;
- * from 901px DeskOverview.html's card «Results», its head inside, a row on the list's grid of five columns.
+ * from 901px DeskOverview.html's card «Results», its head inside, a row on the list's grid of five columns. A phone's
+ * row is the link to the match; a desk's is not, its opponent and race are links (below).
  */
 .g-overview__cols,
 .g-overview__main,
@@ -233,6 +234,18 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * A desk's opponent leading to the team (DeskOverview.html): no line, over the row's own link (below). D2: 3 above and
+ * below, taken back by the margin, make its 19px line 25 without moving it.
+ */
+a.g-overview__opponent {
+  position: relative;
+  z-index: 2;
+  margin: -3px 0;
+  padding: 3px 0;
+  text-decoration: none;
+}
+
 /* A phone's line: «Round 2 · CAS 0–1». */
 .g-overview__line {
   color: var(--muted);
@@ -282,6 +295,31 @@
   color: var(--muted);
   font: 400 12px/normal var(--font-body);
   letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A desk's race leading to its rules (DeskOverview.html): the 12px book 4 before the words, 600 12px in the accent with
+ * no line, over the row's own link. D2: the prototype's 5 above and below, taken back by its margin, make it 24px or more
+ * without moving the line. A race with no address is the text above.
+ */
+.g-overview__racelink {
+  box-sizing: border-box;
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  margin: -5px 0;
+  padding: 5px 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: 600 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
   text-transform: none;
   overflow-wrap: anywhere;
 }
@@ -419,11 +457,30 @@
     min-height: 53px;
   }
   .g-overview__row {
+    position: relative;
     grid-column: 1 / -1;
     grid-template-columns: 30px minmax(60px, max-content) minmax(0, 1fr) 90px 70px;
     grid-template-columns: subgrid;
     gap: var(--space-14);
     padding: 0;
+  }
+
+  /*
+   * The row is no link (F9): the match's link is the round's word, its ::after stretched over the row, so a press
+   * anywhere on it opens the match (spec §3) but on the opponent and the race, which lie over it. Not positioned itself,
+   * or its ::after would take its box and not the row's. The ring is src/ui/base.css's, written out on the ::after: the
+   * whole row is ringed, as when it was the link, and the word draws none of its own.
+   */
+  .g-overview__match { text-decoration: none; }
+  .g-overview__match::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+  .g-overview__match:focus-visible { outline: 0; }
+  .g-overview__match:focus-visible::after {
+    outline: 3px solid var(--accent-text);
+    outline-offset: 0;
   }
   .g-overview__score {
     font: 700 26px/normal var(--font-display);

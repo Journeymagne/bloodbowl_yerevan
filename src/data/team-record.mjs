@@ -148,10 +148,11 @@ function mvpNames(game, side) {
 /**
  * The team's last finished matches, the newest first, at most `limit`:
  * league and friendly alike (a friendly is marked, and has no round), with the
- * opponent's race by its slug ("" when the server names none) and the team's
- * own MVPs of the match by name.
+ * opponent's race by its slug ("" when the server names none), its coach's and
+ * its team's ids, the way to its page ("" each when the server names none), and
+ * the team's own MVPs of the match by name.
  *
- * @returns {{gameId: string, result: "w"|"d"|"l"|"t", opponent: string, opponentRace: string, round: number|null, friendly: boolean, score: string, cas: string, mvps: string[]}[]}
+ * @returns {{gameId: string, result: "w"|"d"|"l"|"t", opponent: string, opponentRace: string, opponentUserId: string, opponentTeamId: string, round: number|null, friendly: boolean, score: string, cas: string, mvps: string[]}[]}
  */
 export function recentResults(games, teamId, limit) {
   return games
@@ -160,12 +161,15 @@ export function recentResults(games, teamId, limit) {
     .slice(0, limit)
     .map((game) => {
       const sides = gameSides(game, teamId);
+      const other = game[sides.other];
       const friendly = game.kind === "friendly";
       return {
         gameId: game.id,
         result: resultKind(game, teamId),
-        opponent: game[sides.other].team?.name ?? "",
-        opponentRace: game[sides.other].team?.baseTeamSlug ?? "",
+        opponent: other.team?.name ?? "",
+        opponentRace: other.team?.baseTeamSlug ?? "",
+        opponentUserId: other.user?.id ?? "",
+        opponentTeamId: other.team?.id ?? "",
         round: friendly ? null : game.roundNumber,
         friendly,
         score: pairOf(game, sides, "Touchdowns"),

@@ -1097,6 +1097,7 @@
   "teamOverview.friendly": "Friendly",
   "teamOverview.cas": "CAS {cas}",
   "teamOverview.mvp": "MVP {names}",
+  "teamOverview.matchLabel": "{round}, {opponent}, {score}",
   "teamOverview.ready.card": "Advancement available",
   "teamOverview.ready.who": "{name} · {spp} SPP",
   "teamOverview.ready.more": "{name} · {spp} SPP · and {more} more",
