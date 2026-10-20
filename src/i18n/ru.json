@@ -1390,7 +1390,7 @@
   "teamPlayer.fix.open": "Исправить вручную: травмы, характеристики, контракт, навыки",
   "teamPlayer.fix.saveFirst": "Сначала сохраните или отмените правку",
   "teamPlayer.fix.title": "Исправить вручную",
-  "teamPlayer.fix.changed": "Игрок изменился — откройте правку заново",
+  "teamPlayer.fix.changed": "Данные игрока изменились — откройте правку заново",
   "teamPlayer.fix.sub": "То, что за столом решили иначе, чем записал сайт",
   "teamPlayer.fix.injuries": "Травмы",
   "teamPlayer.fix.niggling": "Niggling Injury",

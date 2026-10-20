@@ -56,7 +56,8 @@ const nameOf = (skill) => (typeof skill === "string" ? skill : String(skill?.nam
 /**
  * What of a stored player a fix is seeded from, as a value to compare (fix round 1, M1): his injuries and his
  * contracts — the form's counts are absolute — his position, his characteristics' tallies, and the skills a fix can
- * take off or add beside those an advancement gave.
+ * take off or add beside those an advancement gave. Nothing else: his number, name, captaincy and SPP are no part of a
+ * fix, and a read that changes only them keeps it (fix round 2).
  */
 const seedOf = (player) => JSON.stringify([
   playerInjuries(player), countToNumber(player.extendedContracts), String(player.rowIndex),
@@ -67,9 +68,9 @@ const seedOf = (player) => JSON.stringify([
 /**
  * The fix by hand as the screen draws it (player.mjs's `playerSheetOf`), or null: while the stored player is the one
  * it was seeded from, it says why «Save» is closed just now (`editClosed`). A read that changed him — another device's
- * save, or the server's roster after a refusal — closes it, saying so, and nothing is sent: its counts would put back
- * what was changed elsewhere. The focus goes back to the pencil (`openerOf`). The draw its own «Save» makes (`sending`)
- * finds him changed by that very step, and keeps it for `closeSheet`.
+ * save, or the server's roster after a refusal, which gives up this tab's own steps — closes it, saying so, and nothing
+ * is sent: its counts would put back what changed. The focus goes back to the pencil (`openerOf`). The draw its own
+ * «Save» makes (`sending`) finds him changed by that very step, and keeps it for `closeSheet`.
  *
  * @param {object} sheet the visit's @param {import("./model.mjs").PlayerLine} line his, on the roster
  * @param {{mode: object, lock: string, draft: object}} where

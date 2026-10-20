@@ -1390,7 +1390,7 @@
   "teamPlayer.fix.open": "Fix by hand: injuries, characteristics, contract, skills",
   "teamPlayer.fix.saveFirst": "Save or cancel the edit first",
   "teamPlayer.fix.title": "Fix by hand",
-  "teamPlayer.fix.changed": "The player has changed elsewhere — open the fix again",
+  "teamPlayer.fix.changed": "The player's data has changed — open the fix again",
   "teamPlayer.fix.sub": "What was settled at the table otherwise than the site recorded",
   "teamPlayer.fix.injuries": "Injuries",
   "teamPlayer.fix.niggling": "Niggling Injury",

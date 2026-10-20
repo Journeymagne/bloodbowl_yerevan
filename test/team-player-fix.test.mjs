@@ -31,7 +31,7 @@ const HEAL_NOTE = "Take off only what was marked by mistake: «Back on the roste
 const CLOSED = "Number, name and captain — after the post-match";
 const OTHER_TAB = "Someone signed in or out in another tab, so nothing was saved here.";
 const MISMATCH = "A roll on the site was rerolled against this skill, so it stays.";
-const CHANGED = "The player has changed elsewhere — open the fix again";
+const CHANGED = "The player's data has changed — open the fix again";
 const DROPPED = "A match has begun, so the player edits and advancements that were waiting were not saved. Make them again after the post-match.";
 const PREP_GAME = { ...LIVE_GAME, id: "g1", preparationStatus: "preparing", postMatchStatus: "not_started" };
 const FIX_STYLES = [...STYLES, "toggle.css", "text-field.css", "resource-counter.css"];
@@ -392,30 +392,34 @@ test("a favoured skill the server keeps for a used roll: the same words, and the
   });
 });
 
+/**
+ * Cade's fix open on a desk, his contracts one more, while a step of the queue is refused by a 422 whose read of the
+ * server's roster failed: the fix's «Save» is refused in turn, said in the sheet, and the server's roster read again —
+ * as `server` says it.
+ */
+const refusedSave = async (server) => {
+  coach({ teamAnswer: withOne(ADVANCED), open: "p5#0" });
+  await renderTeamRoster("t1");
+  api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
+  api.fail(TEAM_READ);
+  fireEvent(aside().querySelector("[data-roster-return]"), "click");
+  await settle();
+  assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"]);
+  fireEvent(toggle("p3#0"), "click");
+  fireEvent(pencil(), "click");
+  fireEvent(entry(), "click");
+  fireEvent(plus("fix:contracts"), "click");
+  api.reply(TEAM_READ, 200, { team: server });
+  api.reply("GET /api/teams/t1/events", 200, { events: [], revision: server.revision });
+  saveButton().focus();
+  fireEvent(saveButton(), "click");
+  assert.match(refusal().textContent, /Ann/, "the rule that refused the queue, in the sheet");
+  await settle();
+};
+
 // Fix round 1, M1: the form's counts are absolute; a read that changes the player under it must not be overwritten.
 test("a read that changes the player under an open fix closes it, saying so, and sends nothing; one that does not keeps it", async () => {
   await withoutTimers(async () => {
-    // A step of the queue refused by a 422 whose read of the server's roster failed: the fix's «Save» is refused in
-    // turn, said in the sheet, and the server's roster read again — as `server` says it.
-    const refusedSave = async (server) => {
-      coach({ teamAnswer: withOne(ADVANCED), open: "p5#0" });
-      await renderTeamRoster("t1");
-      api.reply(PATCH, 422, { error: { code: "ROSTER_BREAKS_THE_RULES", params: {}, message: "x" }, violations: [{ code: "SPP_OUT_OF_RANGE", params: { player: "Ann", counter: "TD" } }] });
-      api.fail(TEAM_READ);
-      fireEvent(aside().querySelector("[data-roster-return]"), "click");
-      await settle();
-      assert.deepEqual([save.saveState("t1").status, save.saveState("t1").kind], ["error", "invalid"]);
-      fireEvent(toggle("p3#0"), "click");
-      fireEvent(pencil(), "click");
-      fireEvent(entry(), "click");
-      fireEvent(plus("fix:contracts"), "click");
-      api.reply(TEAM_READ, 200, { team: server });
-      api.reply("GET /api/teams/t1/events", 200, { events: [], revision: server.revision });
-      saveButton().focus();
-      fireEvent(saveButton(), "click");
-      assert.match(refusal().textContent, /Ann/, "the rule that refused the queue, in the sheet");
-      await settle();
-    };
     // Another device gave Cade three contracts: the form's one would put them back to one.
     await refusedSave(withOne({ ...ADVANCED, extendedContracts: 3 }, { revision: 6 }));
     assert.ok(!fixSheet(), "closed");
@@ -436,6 +440,26 @@ test("a read that changes the player under an open fix closes it, saying so, and
     await settle();
     assert.equal(patches().length, 2);
     assert.equal(sentOf("p3").extendedContracts, 1);
+  });
+});
+
+// Fix round 2: what the fix's seed leaves out — the player's SPP and name are no part of a fix, and a read that changes
+// only them keeps it open.
+test("a read that changes only the player's SPP or name keeps the fix open, with what was chosen", async () => {
+  await withoutTimers(async () => {
+    await refusedSave(withOne({ ...ADVANCED, name: "Cady", spp: { touchdowns: 12 } }, { revision: 6 }));
+    assert.ok(fixSheet()?.isModal, "kept");
+    assert.ok(!toasts().includes(CHANGED));
+    assert.equal(valueOf("fix:contracts"), "1");
+    assert.equal(aside().querySelector(".g-roster__pname").textContent, "Cady", "the read is drawn behind it");
+    fireEvent(minus("fix:contracts"), "click");
+    fireEvent(plus("fix:contracts"), "click");
+    api.reply(PATCH, 200, { team: withOne({ ...ADVANCED, name: "Cady", spp: { touchdowns: 12 }, extendedContracts: 1 }, { revision: 7 }) });
+    fireEvent(saveButton(), "click");
+    assert.ok(!fixSheet());
+    await settle();
+    assert.equal(patches().length, 2);
+    assert.deepEqual([sentOf("p3").name, sentOf("p3").spp, sentOf("p3").extendedContracts], ["Cady", { touchdowns: 12 }, 1], "the read's name and SPP kept");
   });
 });
 
