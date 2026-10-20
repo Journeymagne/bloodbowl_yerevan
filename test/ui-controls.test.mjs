@@ -212,6 +212,29 @@ test("a button in a sheet's footer can belong to the form in its body", () => {
   assert.throws(() => renderButton({ label: "Go", href: "#/x", form: "f" }), /form/, "a link has no form to submit");
 });
 
+// Stage 07d, Task 10 (K6): a segment closed just now — the way a roll is made, once it is made on the site.
+test("a closed segment says why, takes no click and is skipped by the arrows; the tab stop goes to an open one", () => {
+  const items = [{ value: "light", label: "Light", disabled: true, reason: HOSTILE }, { value: "dark", label: "Dark" }, { value: "system", label: "System", disabled: true }];
+  const fragment = mount(renderSegmentedControl({ label: "Mode", items, selected: "light" }));
+  const radios = fragment.querySelectorAll('[role="radio"]');
+  assert.deepEqual(radios.map((radio) => radio.getAttribute("aria-disabled")), ["true", null, "true"]);
+  assert.deepEqual(radios.map((radio) => radio.getAttribute("title")), [HOSTILE, null, null], "the reason is its title, escaped");
+  assert.deepEqual(radios.map((radio) => radio.getAttribute("aria-checked")), ["true", "false", "false"], "the closed one may still be the one shown");
+  assert.deepEqual(radios.map((radio) => radio.getAttribute("tabindex")), ["-1", "0", "-1"], "the tab stop on the open one");
+  assert.ok(radios.every((radio) => !radio.hasAttribute("disabled")), "aria-disabled, not disabled: a press can still say why");
+  const seen = [];
+  wireSegmentedControls(fragment, (value) => seen.push(value));
+  fireEvent(radios[2], "click");
+  assert.deepEqual(seen, [], "a click on a closed segment chooses nothing");
+  fireEvent(radios[1], "click");
+  fireEvent(radios[1], "keydown", { key: "ArrowRight" });
+  assert.deepEqual(seen, ["dark"], "the arrows find no other open segment");
+  // Every one closed: the one shown keeps the tab stop, so the group can still be reached and read.
+  const shut = mount(renderSegmentedControl({ label: "Mode", items: MODES.map((item) => ({ ...item, disabled: true })), selected: "dark" }));
+  assert.deepEqual(shut.querySelectorAll('[role="radio"]').map((radio) => radio.getAttribute("tabindex")), ["-1", "0", "-1"]);
+  assertCspSafe(fragment);
+});
+
 test("a segmented control refuses what would leave it unusable", () => {
   const linked = [{ value: "stats", label: "Stats", href: "#/a" }, { value: "spp", label: "SPP" }];
   assert.throws(() => renderSegmentedControl({ label: "x", items: linked, selected: "stats" }), /all links or all buttons/);

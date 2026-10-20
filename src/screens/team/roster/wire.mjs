@@ -8,7 +8,8 @@
  * fallen player's «Undo the mark» with its sheet's «Keep» and «Back on the roster» (stage 07b); the «+» beside «Player»,
  * its cart's + and −, «Cancel» and «Buy», and «Sell» or «Cancel purchase» with its sheet's «Cancel» and button (stage
  * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save», and
- * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done» (stage 07d).
+ * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done», and its roll's
+ * way, «Roll …», faces, characteristics, attempts, «Take a skill in place…» and «Record this roll…» (stage 07d).
  * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs); this
  * file only says who was pressed.
  */
@@ -18,12 +19,14 @@ import { wireRadioGroups } from "../../../ui/choice.mjs";
 import { wireFilterChips } from "../../../ui/filter-chips.mjs";
 import { wireOptionLists } from "../../../ui/option-card.mjs";
 import { wireRosterTable } from "../../../ui/roster-table.mjs";
+import { wireSegmentedControls } from "../../../ui/segmented-control.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
 import { wireSkillChips } from "../../../ui/skill-chip.mjs";
 import { wireStepButtons } from "../../../ui/stepper.mjs";
 import { wireToggles } from "../../../ui/toggle.mjs";
 import { MARK_TEXT } from "./mark-sheet.mjs";
 import { CAPTAIN_TOGGLE, EDIT_FIELDS } from "./player-sheets.mjs";
+import { VIA_GROUP } from "./roll-view.mjs";
 import { ADVANCE_SHEET, INJURY_STAT, MARK_SHEET, MARK_STAT } from "./sheets.mjs";
 import { OUTSIDE_TOGGLE } from "./view.mjs";
 
@@ -99,27 +102,45 @@ function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave }) {
   ];
 }
 
+/** The advancement sheet's buttons, heard by one listener (`wireAdvance`). */
+const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "attempts", "bind", "keep", "done"].map((name) => `[data-advance-${name}]`).join(", ");
+
 /**
  * A player's advancement (stage 07d): «Advancement» or «Advance» (not when closed — a press on a closed one says why, as
- * `[data-roster-closed]` does), its categories and its skills, each a radio group of its own (a closed item says why
- * the same way), and its sheet's «Next», «Take», «Cancel» and «Done». Its types are the option cards `wireReasons` hears;
- * its «Back», the sheet's own (`wireSheets`).
+ * `[data-roster-closed]` does), its categories, its skills, the D16's faces, the D8's and the characteristics, each a
+ * radio group of its own (a closed item says why the same way), the way the roll is made (a closed way says why on a
+ * press), and its sheet's «Next», «Take», «Roll …», «Take a skill in place…», «Attempts», «Record this roll…», «Cancel»
+ * and «Done». Its types are the option cards `wireReasons` hears; its «Back», the sheet's own (`wireSheets`).
  */
-function wireAdvance(root, { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceNext, onAdvanceTake, onAdvanceKeep, onAdvanceDone }) {
+function wireAdvance(root, handlers) {
+  const { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceVia, onAdvanceFace, onAdvanceStat, onRefused } = handlers;
+  const radios = (group, attribute, onChange) => wireRadioGroups(root, { group, item: `[${attribute}]`, attribute, onChange });
   return [
     onPlayerButton(root, "data-player-advance", onAdvance),
-    wireRadioGroups(root, { group: ".g-advance__cats", item: "[data-advance-category]", attribute: "data-advance-category", onChange: onAdvanceCategory }),
-    wireRadioGroups(root, { group: ".g-advance__skills", item: "[data-advance-skill]", attribute: "data-advance-skill", onChange: onAdvanceSkill }),
-    // One listener for the sheet's buttons: a step patches its one button in place («Next», «Take», «Back to the player»),
-    // and a listener of its own for each would hear the same click again on the button it has become. A closed «Take» is
-    // `aria-disabled` and still clicked: why is said where the press is taken (advance.mjs).
-    delegate(root, "click", "[data-advance-next], [data-advance-take], [data-advance-keep], [data-advance-done]", (event, button) => {
-      if (button.hasAttribute("data-advance-next")) onAdvanceNext();
-      else if (button.hasAttribute("data-advance-take")) onAdvanceTake();
-      else if (button.hasAttribute("data-advance-keep")) onAdvanceKeep();
-      else onAdvanceDone();
-    }),
+    radios(".g-advance__cats", "data-advance-category", onAdvanceCategory),
+    radios(".g-advance__skills", "data-advance-skill", onAdvanceSkill),
+    radios(".g-advance__faces", "data-advance-face", (face) => onAdvanceFace(Number(face))),
+    radios(".g-advance__d8", "data-advance-d8", (face) => onAdvanceFace(Number(face))),
+    radios(".g-advance__stats", "data-advance-stat", onAdvanceStat),
+    wireSegmentedControls(root, (via) => onAdvanceVia(via), { group: VIA_GROUP }),
+    delegate(root, "click", `[data-seg-group="${VIA_GROUP}"] [aria-disabled="true"][title]`, (event, item) => onRefused(item.getAttribute("title"))),
+    // One listener for the sheet's buttons: a step patches its one button in place («Roll …», «Next», «Take», «Back to the
+    // player»), and a listener of its own for each would hear the same click again on the button it has become. A closed
+    // or busy one is `aria-disabled` and still clicked: why is said where the press is taken (advance.mjs).
+    delegate(root, "click", ADVANCE_BUTTONS, (event, button) => pressAdvance(button, handlers)),
   ];
+}
+
+/** Which of the advancement sheet's buttons was pressed. */
+function pressAdvance(button, { onAdvanceNext, onAdvanceTake, onAdvanceRoll, onAdvanceInstead, onAdvanceAttempts, onAdvanceBind, onAdvanceKeep, onAdvanceDone }) {
+  if (button.hasAttribute("data-advance-next")) onAdvanceNext();
+  else if (button.hasAttribute("data-advance-take")) onAdvanceTake();
+  else if (button.hasAttribute("data-advance-roll")) onAdvanceRoll();
+  else if (button.hasAttribute("data-advance-instead")) onAdvanceInstead();
+  else if (button.hasAttribute("data-advance-attempts")) onAdvanceAttempts();
+  else if (button.hasAttribute("data-advance-bind")) onAdvanceBind();
+  else if (button.hasAttribute("data-advance-keep")) onAdvanceKeep();
+  else onAdvanceDone();
 }
 
 /**
@@ -181,6 +202,13 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {() => void} handlers.onAdvanceTake «Take …»
  * @param {() => void} handlers.onAdvanceKeep «Cancel» in a desk's window
  * @param {() => void} handlers.onAdvanceDone «Back to the player» or «Done», once taken
+ * @param {(via: string) => void} handlers.onAdvanceVia «Roll on the site» or «Rolled at the table»
+ * @param {() => void} handlers.onAdvanceRoll «Roll D16» or «Roll D8»
+ * @param {(face: number) => void} handlers.onAdvanceFace a face of the D16 or of the D8 pressed at the table
+ * @param {(stat: string) => void} handlers.onAdvanceStat a characteristic the face allows chosen
+ * @param {() => void} handlers.onAdvanceInstead «Take a skill in place of the characteristic»
+ * @param {() => void} handlers.onAdvanceAttempts «Attempts: N», shown or hidden
+ * @param {() => void} handlers.onAdvanceBind «Record this roll for the advancement … taken at the table»
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {

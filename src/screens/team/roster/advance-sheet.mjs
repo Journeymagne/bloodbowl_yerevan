@@ -9,9 +9,15 @@
  * title, the three choices side by side, a column waiting for the one before it saying so, the choice summed up at the
  * foot by «Cancel» and «Take»; done in the window, the save's state in the summary.
  *
- * The types are a `renderOptionList`; the categories and the skills radio groups of their own (`role="radiogroup"`, a
- * roving tabindex, wireRadioGroups), whose closed items say why on a press as the roster's closed controls do (K7). A
- * random skill's roll and a characteristic's D8 are Task 10's: their steps draw nothing here yet.
+ * A random skill and a characteristic are rolled (Adv3Random, Adv3Stat, Adv3StatTable; DeskRosterAdv, DeskRosterAdvStat):
+ * a phone's third step is the D16's, its second the D8's, its button «Roll D16» or «Roll D8» until the die is in, then
+ * «Take: …» or «Improve …»; a desk's third column is the D16's, and a characteristic's second the D8's and its third the
+ * characteristic it improves. A skill in place of a characteristic walks the category and the skill as a chosen one.
+ * The roll's own markup is roll-view.mjs's.
+ *
+ * The types are a `renderOptionList`; the categories, the skills, the faces and the characteristics radio groups of
+ * their own (`role="radiogroup"`, a roving tabindex, wireRadioGroups), whose closed items say why on a press as the
+ * roster's closed controls do (K7).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -24,8 +30,10 @@ import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
-import { CHOSEN_TYPES, STEP_BEFORE, choicesOf, chosenOf } from "./advance.mjs";
+import { CHOSEN_TYPES, choicesOf, chosenOf, keptWords, refusedWords, stepBefore, waitingWords } from "./advance.mjs";
 import { prepResetWords } from "./panel.mjs";
+import { randomRollMarkup, rollButtonMarkup, statRollMarkup } from "./roll-view.mjs";
+import { rollAsking } from "./rolls.mjs";
 import { refusalWordsOf } from "./save.mjs";
 import { ADVANCE_SHEET, footButton } from "./sheets.mjs";
 
@@ -38,21 +46,24 @@ const PLACES = Object.freeze({ type: 1, category: 2, skill: 3, stat: 2 });
 
 /**
  * The types as cards (Adv1Type.html): the price at his next rank in the pill; under the name what it draws from and adds
- * to his value — a characteristic's D8 — or why it is refused, closed and saying so on a press (K7). Offers not known
- * yet (K28): the names alone, none refused.
+ * to his value — a characteristic's D8 — or why it is refused (decision 8: his SPP, the last rank, a roll of the other
+ * kind waiting), closed and saying so on a press (K7). Once a roll is made on the site every type is closed, saying why
+ * on a press (decision 9). Offers not known yet (K28): the names alone, none refused.
  */
 function typesMarkup(sheet, choices) {
+  const kept = keptWords(sheet);
+  const shut = (reason) => ({ disabled: true, reason, data: { rosterClosed: true } });
   const options = ADVANCEMENT_TYPES.map((type) => {
     const offer = choices.offers.find((each) => each.type === type);
     const card = { value: type, title: t(`teamAdvance.type.${type}`) };
-    if (!offer) return card;
+    const waiting = waitingWords(sheet, type);
+    if (!offer) return kept || waiting ? { ...card, ...shut(kept || waiting) } : card;
     const pill = t("teamAdvance.pill", { cost: offer.cost });
-    if (offer.refusal) {
-      const words = refusalWordsOf("teamAdvance", offer.refusal);
-      return { ...card, pill, sub: words, disabled: true, reason: words, data: { rosterClosed: true } };
-    }
+    const refused = offer.refusal ? refusalWordsOf("teamAdvance", offer.refusal) : waiting;
+    if (refused) return { ...card, pill, sub: refused, ...shut(refused) };
     const categories = offer.categories.map(({ category }) => category).join(", ");
-    return { ...card, pill, sub: type === "stat" ? t("teamAdvance.statSub") : t("teamAdvance.typeSub", { categories, value: formatMoney(offer.value) }) };
+    const sub = type === "stat" ? t("teamAdvance.statSub") : t("teamAdvance.typeSub", { categories, value: formatMoney(offer.value) });
+    return { ...card, pill, sub, ...(kept ? shut(kept) : {}) };
   });
   return renderOptionList({ label: t("teamAdvance.typesLabel"), options, selected: sheet.type });
 }
@@ -60,11 +71,11 @@ function typesMarkup(sheet, choices) {
 /**
  * A radio group of the sheet's own (constraints, «Радиогруппы»): its items buttons with `role="radio"`, the chosen one —
  * else the first open one, else the first — in the tab order; a closed one `aria-disabled`, its reason its title, said
- * on a press (`data-roster-closed`, K7).
+ * on a press (`data-roster-closed`, K7). The roll's faces and characteristics are drawn by it too (roll-view.mjs).
  * @param {{className: string, label: string, chosen: string,
  *   items: {value: string, className: string, data: object, reason: string, html: string}[]}} props `html` is markup
  */
-function radioGroupMarkup({ className, label, items, chosen }) {
+export function radioGroupMarkup({ className, label, items, chosen }) {
   const checked = items.findIndex(({ value }) => value === chosen);
   const entry = [checked, items.findIndex(({ reason }) => !reason), 0].find((index) => index >= 0);
   const buttons = items.map((item, index) => {
@@ -83,13 +94,15 @@ function letterMarkup(category) {
 }
 
 /**
- * The type's categories (Adv2Category.html): the letter, the name, how many of its skills he lacks; one with none closed.
- * None to show (offers not known yet, K28) is nothing: a desk's column then says what it waits for.
+ * The type's categories (Adv2Category.html): the letter, the name, how many of its skills he lacks; one with none closed,
+ * and a random skill's every one once its roll is made on the site (decision 9). None to show (offers not known yet,
+ * K28) is nothing: a desk's column then says what it waits for.
  */
 function categoriesMarkup(sheet, choices) {
   if (!choices.categories.length) return "";
+  const kept = sheet.type === "random" ? keptWords(sheet) : "";
   const items = choices.categories.map(({ category, free, total }) => ({
-    value: category, className: "g-advance__cat", data: { advanceCategory: category }, reason: free ? "" : t("teamAdvance.refusal.NO_SKILL_LEFT"),
+    value: category, className: "g-advance__cat", data: { advanceCategory: category }, reason: free ? kept : t("teamAdvance.refusal.NO_SKILL_LEFT"),
     html: `${letterMarkup(category)}<span class="g-advance__catwords"><span class="g-advance__catname">${escapeHtml(category)}</span>`
       + `<span class="g-advance__free">${escapeHtml(t("teamAdvance.free", { free, total }))}</span></span>`,
   }));
@@ -130,12 +143,13 @@ function savedWords({ status, waiting }, { desk = false, held = false } = {}) {
  * elite combination's 15k when it is one, and on a phone where the save stands (a desk's summary says it).
  *
  * @param {import("./model.mjs").PlayerLine} line @param {import("./view.mjs").RosterScreen} screen
- * @param {{title: string, how: string, cost: number, value: number, elite: boolean, level: number}} taken
+ * @param {{title: string, how: string, cost: number, value: number, elite: boolean, level: number, ownTitle: boolean}} taken
+ *   `ownTitle`: a characteristic's «MA 6 → 7», which a desk's title says as it is (DeskRosterAdvStat)
  */
 function doneMarkup(line, screen, taken) {
   const { phone } = screen;
   const [spp, value] = [`−${taken.cost}`, `+${formatMoney(taken.value)}`];
-  const title = phone ? taken.title : t("teamAdvance.doneTitleDesk", { name: line.name, skill: taken.title });
+  const title = phone || taken.ownTitle ? taken.title : t("teamAdvance.doneTitleDesk", { name: line.name, skill: taken.title });
   const how = phone ? taken.how : t("teamAdvance.doneLineDesk", { how: taken.how, spp, value });
   const tile = (key, words) => `<div class="g-advance__tile"><dt class="g-advance__tilekey">${escapeHtml(key)}</dt><dd class="g-advance__tilevalue">${escapeHtml(words)}</dd></div>`;
   const tiles = phone ? `<dl class="g-advance__tiles">${tile(t("teamRoster.group.spp"), spp)}${tile(t("teamAdvance.doneValue"), value)}`
@@ -154,66 +168,93 @@ function linesMarkup(screen, sheet) {
   return prep || alert ? `<div class="g-advance__lines">${prep}${alert}</div>` : "";
 }
 
-/**
- * Why the type chosen cannot be taken now, "" when it can: its offer refused on the draft as drawn — his SPP has gone
- * down since it was chosen (a queue's 422 taking SPP steps back, «Load the new one»). Its card says so already.
- */
-const refusedOf = (choices) => (choices.offer?.refusal ? refusalWordsOf("teamAdvance", choices.offer.refusal) : "");
-
-/**
- * «Take {skill}», or «Choose a skill» shut while the choice is not whole; closed — the screen's reason (`reason`), or the
- * type chosen refused since — it says why. A press is still the domain's to refuse, in words in the sheet (advance.mjs).
- */
-function takeMarkup(sheet, choices) {
-  const chosen = chosenOf(sheet, choices);
-  const label = chosen ? t("teamAdvance.take", { skill: chosen.grant.skill }) : t("teamAdvance.pickSkill");
-  const reason = sheet.reason || refusedOf(choices);
-  return footButton({ label, kind: "primary", data: { advanceTake: true }, disabled: !reason && !chosen, reason });
+/** What «Take» says of the advancement chosen: «Take Diving Catch», a roll's «Take: Frenzy», a characteristic's «Improve MA». */
+function takeLabel(chosen) {
+  if (chosen.grant.stat) return t("teamAdvance.improve", { stat: t(`stats.${chosen.grant.stat}`) });
+  return chosen.type === "random" ? t("teamAdvance.accept", { skill: chosen.grant.skill }) : t("teamAdvance.take", { skill: chosen.grant.skill });
 }
 
-/** A phone's title and the line under it, by its step. */
+/**
+ * What «Take» waits for: a skill, the face the coach saw on the D16 (a desk: «Roll first», DeskRosterAdv), the D8's
+ * result at the table (a desk: the characteristic, DeskRosterAdvStat), a characteristic.
+ */
+function waitLabel(sheet, desk) {
+  if (sheet.type === "random") return desk || sheet.via === "site" ? t("teamAdvance.rollFirst") : t("teamAdvance.pickFace");
+  if (sheet.type !== "stat" || sheet.instead) return t("teamAdvance.pickSkill");
+  return !desk && sheet.via === "table" && !sheet.face ? t("teamAdvance.pickD8") : t("teamAdvance.pickStat");
+}
+
+/**
+ * «Take …», or what it waits for, shut while the choice is not whole; closed — the screen's reason (`reason`), the type
+ * chosen refused since, a roll of the other kind waiting, a site roll the player cannot take as it is (`rollRefusal`)
+ * — it says why. A press is still the domain's to refuse, in words in the sheet (advance.mjs).
+ */
+function takeMarkup(sheet, choices, { desk = false } = {}) {
+  const chosen = chosenOf(sheet, choices);
+  const stale = chosen?.siteRoll && choices.rollRefused ? refusalWordsOf("teamAdvance", choices.rollRefused) : "";
+  const reason = sheet.reason || refusedWords(sheet, choices) || stale;
+  return footButton({ label: chosen ? takeLabel(chosen) : waitLabel(sheet, desk), kind: "primary", data: { advanceTake: true }, disabled: !reason && !chosen, reason });
+}
+
+/** A phone's title and the line under it, by its step (Adv2Category…Adv3Stat; a skill in place of a characteristic, DeskRosterAdvStat's words). */
 function phoneHead(line, sheet, choices) {
   const cost = choices.offer?.cost ?? "";
   if (sheet.step === "done") return [t("teamAdvance.doneTitle"), line.name];
-  if (sheet.step === "category") return [t("teamAdvance.categoryTitle"), t("teamAdvance.categorySub", { type: t(`teamAdvance.type.${sheet.type}`), cost })];
-  if (sheet.step === "skill") return [t("teamAdvance.skillTitle"), t("teamAdvance.skillSub", { category: sheet.category, cost })];
+  if (sheet.step === "category") {
+    return [t("teamAdvance.categoryTitle"), sheet.instead ? t("teamAdvance.insteadTitle", { cost }) : t("teamAdvance.categorySub", { type: t(`teamAdvance.type.${sheet.type}`), cost })];
+  }
+  if (sheet.step === "skill") return [sheet.type === "random" ? t("teamAdvance.randomTitle") : t("teamAdvance.skillTitle"), t("teamAdvance.skillSub", { category: sheet.category, cost })];
+  if (sheet.step === "stat") return [t("teamAdvance.statTitle"), t("teamAdvance.statSubLine", { cost })];
   return [t("teamAdvance.title"), t("teamAdvance.sub", { spp: line.available, next: line.level + 1 })];
 }
 
+/** A rolled step's button on a phone (Adv3Random, Adv3Stat): «Roll D16» or «Roll D8» on the site until the die is in, then «Take»'s. */
+function rolledFoot(sheet, choices) {
+  if (sheet.via === "site" && !sheet.roll) return rollButtonMarkup({ sheet }, sheet.type === "stat" ? t("teamAdvance.rollD8") : t("teamAdvance.rollD16"));
+  return takeMarkup(sheet, choices);
+}
+
 /**
- * A phone's step (Adv1Type…Adv4Done): its body, and its one button — «Next» once a choice is made (closed, saying why,
- * when the type chosen is refused since), «Take», «Back to the player».
+ * A phone's step (Adv1Type…Adv4Done, Adv3Random, Adv3Stat, Adv3StatTable): its body, and its one button — «Next» once a
+ * choice is made (closed, saying why, when the type chosen is refused since), «Roll …», «Take», «Back to the player».
  */
 function phoneParts(line, screen, sheet, choices) {
   const next = (ready) => {
-    const reason = refusedOf(choices);
+    const reason = refusedWords(sheet, choices);
     return footButton({ label: t("teamAdvance.next"), kind: "primary", data: { advanceNext: true }, disabled: !reason && !ready, reason });
   };
-  const chosenType = CHOSEN_TYPES.includes(sheet.type);
+  const listed = CHOSEN_TYPES.includes(sheet.type) || sheet.instead;
   switch (sheet.step) {
     case "type": return [typesMarkup(sheet, choices), next(Boolean(choices.offer))];
     case "category": {
-      const hint = chosenType ? `<p class="g-advance__hint">${escapeHtml(t("teamAdvance.chosenHint"))}</p>` : "";
-      return [`${categoriesMarkup(sheet, choices)}${hint}`, next(Boolean(sheet.category))];
+      const hint = sheet.type === "random" ? t("teamAdvance.randomHint") : t("teamAdvance.chosenHint");
+      return [`${categoriesMarkup(sheet, choices)}<p class="g-advance__hint">${escapeHtml(hint)}</p>`, next(Boolean(sheet.category))];
     }
-    case "skill": return chosenType ? [skillsMarkup(sheet, choices), takeMarkup(sheet, choices)] : ["", ""];
+    case "skill": {
+      if (listed) return [skillsMarkup(sheet, choices), takeMarkup(sheet, choices)];
+      return sheet.type === "random" ? [randomRollMarkup({ sheet, choices }), rolledFoot(sheet, choices)] : ["", ""];
+    }
+    case "stat": return [statRollMarkup({ sheet, choices }), rolledFoot(sheet, choices)];
     case "done": return [doneMarkup(line, screen, sheet.taken), renderButton({ label: t("teamAdvance.back"), kind: "primary", data: { advanceDone: true } })];
     default: return ["", ""];
   }
 }
 
-/** A phone's sheet from the bottom: the step's title, its dots — 3 for a skill, 2 for a characteristic — and «Back» past the first. */
+/**
+ * A phone's sheet from the bottom: the step's title, its dots — 3 for a skill, 2 for a characteristic, 3 for a skill in
+ * its place — and «Back» past the first, unless the die has come up (`stepBefore`).
+ */
 function phoneMarkup(line, screen, sheet, choices) {
   const [title, sub] = phoneHead(line, sheet, choices);
   const [bodyHtml, footHtml] = phoneParts(line, screen, sheet, choices);
-  const total = sheet.type === "stat" ? 2 : 3;
+  const total = sheet.type === "stat" && !sheet.instead ? 2 : 3;
   return renderSheet({
     id: ADVANCE_SHEET,
     className: FRAME,
     title,
     sub,
     step: { current: PLACES[sheet.step] ?? total, total },
-    canGoBack: Boolean(STEP_BEFORE[sheet.step]),
+    canGoBack: Boolean(stepBefore(sheet)),
     bodyHtml: `${bodyHtml}${linesMarkup(screen, sheet)}`,
     footHtml,
   });
@@ -225,11 +266,34 @@ function columnMarkup(caption, bodyHtml, waiting = "") {
   return `<section class="${classNames("g-advance__col", !bodyHtml && "g-advance__col--empty")}"><h3 class="g-advance__coltitle">${escapeHtml(caption)}</h3>${inside}</section>`;
 }
 
-/** The desk's summary at the foot: the choice so far and its price (DeskRosterAdv.html), or what to choose first. */
+/** The desk's summary at the foot: the choice so far and its price (DeskRosterAdv.html, DeskRosterAdvStat.html), or what to choose first. */
 function summaryWords(sheet, choices) {
   if (!sheet.type) return t("teamAdvance.pickType");
-  const what = [t(`teamAdvance.type.${sheet.type}`), sheet.category, chosenOf(sheet, choices)?.grant.skill].filter(Boolean).join(" · ");
+  const { grant } = chosenOf(sheet, choices) ?? {};
+  const what = [t(`teamAdvance.type.${sheet.type}`), sheet.category, grant?.stat ? t(`stats.${grant.stat}`) : grant?.skill].filter(Boolean).join(" · ");
   return choices.offer ? t("teamAdvance.summary", { what, cost: choices.offer.cost }) : what;
+}
+
+/**
+ * A desk's three columns (DeskRosterAdv.html, DeskRosterAdvStat.html): the types; the categories, or a characteristic's
+ * D8 — the way, the faces at the table, the die, «Roll D8»; the skills, a random skill's roll, or the characteristic the
+ * D8 allows. A skill in place of a characteristic: its categories and skills.
+ */
+function columnsMarkup(sheet, choices) {
+  const props = { sheet, choices, desk: true };
+  const rolled = sheet.type === "stat" && !sheet.instead;
+  const second = rolled ? columnMarkup(t("teamAdvance.col.d8"), statRollMarkup({ ...props, part: "roll" }))
+    : columnMarkup(t("teamAdvance.col.category"), sheet.type ? categoriesMarkup(sheet, choices) : "", t("teamAdvance.col.emptyType"));
+  return `<div class="g-advance__cols">${columnMarkup(t("teamAdvance.col.type"), typesMarkup(sheet, choices))}${second}${thirdColumn(props, rolled)}</div>`;
+}
+
+/** A desk's third column: the characteristic the D8 allows, a random skill's roll, or the category's skills. */
+function thirdColumn(props, rolled) {
+  const { sheet, choices } = props;
+  if (rolled) return columnMarkup(t("teamAdvance.col.stat"), statRollMarkup({ ...props, part: "choice" }), t("teamAdvance.col.emptyD8"));
+  if (sheet.type === "random") return columnMarkup(t("teamAdvance.col.roll"), sheet.category ? randomRollMarkup(props) : "", t("teamAdvance.col.emptyCategory"));
+  const listed = sheet.category && (CHOSEN_TYPES.includes(sheet.type) || sheet.instead);
+  return columnMarkup(t("teamAdvance.col.skill"), listed ? skillsMarkup(sheet, choices) : "", t("teamAdvance.col.emptyCategory"));
 }
 
 /**
@@ -239,10 +303,7 @@ function summaryWords(sheet, choices) {
  */
 function deskMarkup(line, screen, sheet, choices) {
   const done = sheet.step === "done";
-  const columns = `<div class="g-advance__cols">${columnMarkup(t("teamAdvance.col.type"), typesMarkup(sheet, choices))}`
-    + columnMarkup(t("teamAdvance.col.category"), sheet.type ? categoriesMarkup(sheet, choices) : "", t("teamAdvance.col.emptyType"))
-    + columnMarkup(t("teamAdvance.col.skill"), sheet.category && CHOSEN_TYPES.includes(sheet.type) ? skillsMarkup(sheet, choices) : "", t("teamAdvance.col.emptyCategory"))
-    + "</div>";
+  const columns = done ? "" : columnsMarkup(sheet, choices);
   const saved = done && savedWords(screen.save, { desk: true, held: line.level >= sheet.taken.level });
   const summary = done ? `<p class="g-advance__summary" role="status">${escapeHtml(saved)}</p>`
     : `<p class="g-advance__summary">${escapeHtml(summaryWords(sheet, choices))}</p>`;
@@ -255,7 +316,7 @@ function deskMarkup(line, screen, sheet, choices) {
     bodyHtml: `${done ? doneMarkup(line, screen, sheet.taken) : columns}${linesMarkup(screen, sheet)}`,
     footStartHtml: summary,
     footHtml: done ? renderButton({ label: t("teamAdvance.finish"), kind: "primary", data: { advanceDone: true } })
-      : `${renderButton({ label: t("teamAdvance.cancel"), data: { advanceKeep: true } })}${takeMarkup(sheet, choices)}`,
+      : `${renderButton({ label: t("teamAdvance.cancel"), data: { advanceKeep: true } })}${takeMarkup(sheet, choices, { desk: true })}`,
   });
 }
 
@@ -265,10 +326,12 @@ function deskMarkup(line, screen, sheet, choices) {
  * @param {object} props
  * @param {import("./model.mjs").PlayerLine} props.line the player, on the roster
  * @param {import("./view.mjs").RosterScreen} props.screen
- * @param {object} props.sheet the visit's (advance.mjs), with why «Take» is closed just now (`reason`)
+ * @param {object} props.sheet the visit's (advance.mjs), with why «Take» and a roll are closed just now (`reason`,
+ *   `rollReason`); drawn busy while its roll is asked (`asking`, or the player's ask still out: `rollAsking`)
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#player-advance")` opens it
  */
 export function advanceSheetMarkup({ line, screen, sheet }) {
-  const choices = choicesOf(line, sheet, screen);
-  return screen.phone ? phoneMarkup(line, screen, sheet, choices) : deskMarkup(line, screen, sheet, choices);
+  const shown = { ...sheet, busy: Boolean(sheet.asking) || rollAsking(screen.teamId, line.id) };
+  const choices = choicesOf(line, shown, screen);
+  return screen.phone ? phoneMarkup(line, screen, shown, choices) : deskMarkup(line, screen, shown, choices);
 }

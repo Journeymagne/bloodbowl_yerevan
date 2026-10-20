@@ -19,11 +19,19 @@ function renderLinks(items, selected) {
     .join("");
 }
 
+/**
+ * The segments as radios. A closed one (`disabled`) is `aria-disabled`, never `disabled`: it stays reachable and its
+ * `reason` is its title, which a screen that says why on a press reads; the arrows pass it by (wireRadioGroups). Tab
+ * enters at the segment shown, unless it is closed and another is open; every one closed, at the one shown.
+ */
 function renderRadios(items, selected) {
+  const shown = items.findIndex((item) => item.value === selected);
+  const entry = items[shown].disabled ? [items.findIndex((item) => !item.disabled), shown].find((index) => index >= 0) : shown;
   return items
-    .map(({ value, label }) => {
-      const on = value === selected;
-      return `<button type="button" class="g-seg__item" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}"${dataAttributes({ segValue: value })}>${escapeHtml(label)}</button>`;
+    .map(({ value, label, disabled = false, reason = "" }, index) => {
+      const closed = disabled ? ` aria-disabled="true"${reason ? ` title="${escapeHtml(reason)}"` : ""}` : "";
+      return `<button type="button" class="g-seg__item" role="radio" aria-checked="${index === shown}" tabindex="${index === entry ? 0 : -1}"${closed}`
+        + `${dataAttributes({ segValue: value })}>${escapeHtml(label)}</button>`;
     })
     .join("");
 }
@@ -31,7 +39,8 @@ function renderRadios(items, selected) {
 /**
  * @param {object} props
  * @param {string} props.label names the group for a screen reader
- * @param {{value: string, label: string, href?: string}[]} props.items
+ * @param {{value: string, label: string, href?: string, disabled?: boolean, reason?: string}[]} props.items `disabled`
+ *   and its `reason`: a radio segment closed just now (stage 07d, K6)
  * @param {string} props.selected the value of the segment that is shown; links may name none (a page that is none of theirs)
  */
 export function renderSegmentedControl({ label, items, selected, data = {} }) {
