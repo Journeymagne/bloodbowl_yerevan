@@ -6,14 +6,14 @@
  *
  * The page is assembled here and decides nothing of its own: which phase the team is in, which match closes it and
  * which resource is open are the model's (`phaseOf`, `matchLock`, `resourceRows`); the parts are drawn and wired by
- * their modules (the strip, the two sheets, the resources, the history). `manageModel` gathers what the page shows,
- * `manageMarkup` draws it. A match on closes the money and the resources and says where to go (decision 11); a
- * match being prepared only warns.
+ * their modules (the strip, the two sheets, the resources, the history, the settings). `manageModel` gathers what the
+ * page shows, `manageMarkup` draws it. A match on closes the money and the resources and says where to go (decision
+ * 11); a match being prepared only warns.
  *
  * On a phone the page is a dark treasury card with «+ Add» and «− Take», then the safe, the correction, the
  * resources and the history, in that order (decision 19), and the DOM keeps it. On a desk the strip says the
  * treasury, and two columns follow: the resources at the left, the safe, the correction and the history at the
- * right (manage.css places them).
+ * right (manage.css places them). The team's settings close the page, on a desk a card across it (stage 07d).
  */
 import { drawScreen, escapeHtml, patch } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -31,10 +31,12 @@ import { renderCallout } from "../../../ui/callout.mjs";
 import { renderPageHead } from "../../../ui/page-head.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { loadSeason } from "../../season/season-data.mjs";
+import { onSaveState, saveState } from "../roster/save.mjs";
 import { wireFixSheet } from "./fix-sheet.mjs";
 import { historyExpanded, historyMarkup, safeMarkup, wireHistory } from "./history.mjs";
 import { matchLock, phaseOf, resourceRows } from "./model.mjs";
 import { resourcesMarkup, wireResources } from "./resources.mjs";
+import { settingsMarkup, settingsModel, wireSettings } from "./settings.mjs";
 import { renderTreasuryStrip, wireTreasuryStrip } from "./strip.mjs";
 
 /**
@@ -50,12 +52,14 @@ import { renderTreasuryStrip, wireTreasuryStrip } from "./strip.mjs";
  * @param {boolean} [input.busy] a save of the team is on its way (`isWriting`)
  * @param {boolean} [input.gamesUnknown] the games could not be read (`state.games.error`): whether a match is on is
  *   not known, and the lock judges the list read before, if any
+ * @param {{status: string, waiting: number}} [input.queue] where the roster's queue stands (`saveState`): a step of
+ *   it holds the settings
  * @returns {{teamId: string, team: object, treasury: number, safe: number, worth: number|null,
  *   phase: ReturnType<typeof phaseOf>, lock: ReturnType<typeof matchLock>, rows: ReturnType<typeof resourceRows>,
- *   ledger: object, games: object[], expanded: boolean, busy: boolean, gamesUnknown: boolean}} `team` is what the
- *   strip is drawn from
+ *   ledger: object, games: object[], expanded: boolean, busy: boolean, gamesUnknown: boolean,
+ *   settings: ReturnType<typeof settingsModel>}} `team` is what the strip is drawn from
  */
-export function manageModel({ team, race, seasonData, games, ledger, expanded = false, busy = false, gamesUnknown = false }) {
+export function manageModel({ team, race, seasonData, games, ledger, expanded = false, busy = false, gamesUnknown = false, queue }) {
   const roster = team.roster ?? {};
   const list = games ?? [];
   const lock = matchLock(list, team.id);
@@ -73,6 +77,7 @@ export function manageModel({ team, race, seasonData, games, ledger, expanded = 
     expanded,
     busy,
     gamesUnknown,
+    settings: settingsModel({ team, race, lock, busy, queue }),
   };
 }
 
@@ -134,7 +139,7 @@ export function manageMarkup(model) {
   const history = historyMarkup({ ledger: model.ledger, games: model.games, expanded: model.expanded });
   return `<div class="g-manage" data-screen="team-manage">${head}${lockCallout(model.lock, model.gamesUnknown)}`
     + `${renderTreasuryStrip({ team: model.team, games: model.games })}${cardMarkup(model, live)}`
-    + `<div class="g-manage__cols">${side}${resourcesMarkup({ rows: model.rows, busy: model.busy })}${history}</div></div>`;
+    + `<div class="g-manage__cols">${side}${resourcesMarkup({ rows: model.rows, busy: model.busy })}${history}</div>${settingsMarkup(model)}</div>`;
 }
 
 /** The page of `teamId` as the state has it now; "" when the team is not on the coach's list. */
@@ -151,6 +156,7 @@ function markupOf(teamId) {
     // As fresh as this draw: a write's start is not announced, and a redraw then would turn a medic's switch back while its save is on its way.
     busy: isWriting(teamId),
     gamesUnknown: Boolean(state.games.error),
+    queue: saveState(teamId),
   }));
 }
 
@@ -162,7 +168,7 @@ function markupOf(teamId) {
  * coach has put it. A team not on the list (it was deleted meanwhile) draws nothing, as the overview does.
  *
  * Everything the page wires is on `view`, which outlives its redraws, and goes when the screen is left: the strip's
- * wiring holds the money sheet's host, the fix sheet holds its own.
+ * wiring holds the money sheet's host, the fix sheet and the settings hold their own.
  * @param {string} teamId
  */
 export async function renderTeamManage(teamId) {
@@ -184,6 +190,9 @@ export async function renderTeamManage(teamId) {
     wireResources(view, teamId),
     wireFixSheet(view),
     wireHistory(view, teamId, draw),
+    wireSettings(view, teamId),
+    // The roster's queue holds the settings and lets them go (a team it does not hold: one call, nothing after).
+    onSaveState(teamId, draw),
   ];
   onScreenLeave("team-manage", () => {
     here = false;

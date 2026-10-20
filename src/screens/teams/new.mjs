@@ -41,8 +41,8 @@ import { renderTextField } from "../../ui/text-field.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { buildRefusalText, builderMarkup, wireBuilder } from "./builder-view.mjs";
 
-/** What a logo may be once it is read: the pictures the file field offers, and the WebP the optimiser makes of them. */
-const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
+/** What a logo may be once it is read: the pictures the file field offers, and the WebP the optimiser makes of them (the team's settings take one so too). */
+export const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
 
 /** What each choice of the team's card changes in the draft, and what it may be chosen from. */
 const CHOICES = {
@@ -61,8 +61,8 @@ function createLabel(name, raceChosen) {
   return t("newTeam.create", { name });
 }
 
-/** One radio group of buttons: Tab enters at the chosen race, or at the first when none is, and the arrows move along it. */
-function racesMarkup(races, raceSlug) {
+/** One radio group of buttons: Tab enters at the chosen race, or at the first when none is, and the arrows move along it (the team's settings change a race on it). */
+export function racesMarkup(races, raceSlug) {
   const checked = races.findIndex((race) => race.slug === raceSlug);
   const entry = Math.max(0, checked);
   const items = races.map((race, index) => `<button type="button" class="g-races__item" role="radio" aria-checked="${index === checked}" tabindex="${index === entry ? 0 : -1}"`

@@ -1,0 +1,260 @@
+/*
+ * «Team settings» (settings.mjs, stage 07d): the rows of the builder's team card (Builder) closing the team page, and
+ * the lines its sheets add to sheet.css's frame; the races are new.css's (TeamNew, stage 06). Font, border,
+ * background, text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals
+ * (button { font: inherit }, p, h2, ul) outlive this sheet until stage 13. The keyboard ring is base.css's. A long
+ * name, a long note or a long rule wraps: nothing here is cut with «…».
+ */
+
+.g-team-settings {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/*
+ * Builder's heading: Oswald 22px on the font's own line (the prototype sets none), 18px over it and 4px under. On a
+ * phone the page's gap (16px, manage.css) and these 2px are the 18px.
+ */
+.g-team-settings__title {
+  margin: 0;
+  padding: 2px 0 var(--space-4);
+  color: var(--ink);
+  font: 700 22px/normal var(--font-display);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* What holds the settings, between the heading and the rows. */
+.g-team-settings .g-callout { margin: var(--space-8) 0; }
+
+/*
+ * A line of the card: a rule under it, the label at the left, the value and the button at the right. Builder's rows are
+ * 52px and 60px over their 1px rule (content-box), 53px and 61px as drawn; a line that wraps keeps 4px over and under.
+ */
+.g-team-settings__row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-height: 53px;
+  margin: 0;
+  padding: var(--space-4) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+}
+.g-team-settings__row--logo { min-height: 61px; }
+/* The label's side takes what the value leaves: a short value stays whole on its line, a long one wraps. */
+.g-team-settings__row > .g-team-settings__label,
+.g-team-settings__row > .g-team-settings__text { flex: 1 1 0; }
+
+.g-team-settings__text {
+  display: flex;
+  flex-direction: column;
+}
+
+.g-team-settings__label {
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* The quieter line under a label: the logo's sizes, the fans' correction, the order, the season's lock of the race. */
+.g-team-settings__note {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.g-team-settings__value {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-10);
+  min-width: 0;
+  color: var(--ink);
+  font: 700 15px/1.3 var(--font-body);
+  text-align: right;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-team-settings__value b {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* The logo: a 40px frame with the picture or the shield, its name and its sizes, then its buttons. */
+.g-team-settings__logo-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-width: 0;
+}
+.g-team-settings__logo {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface-2);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--muted);
+  overflow: hidden;
+}
+.g-team-settings__logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.g-team-settings__logo-name {
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-team-settings__actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+}
+
+/*
+ * A row's button (Builder's «Загрузить»): 12px at its sides, a radius of 10, white in the kit's ring, 14/600 --ink-2.
+ * A finger's 44px up to 900px (D2; the prototype's 36px from 901px). A held one stays in the tab order and says why.
+ */
+.g-team-settings__btn {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink-2);
+  font: 600 14px/1.2 var(--font-body);
+  text-align: center;
+  text-decoration: none;
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+}
+.g-team-settings__btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* The file field is the keyboard's way to the picker; the label beside it is the button, and takes its ring. */
+.g-team-settings__file:focus-visible + .g-team-settings__btn {
+  outline: 3px solid var(--accent-text);
+  outline-offset: 0;
+}
+
+/* «Roster check»: the rules the roster breaks, a line each, in the danger's words. */
+.g-team-settings__check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: 0;
+  padding: var(--space-12) 0 0;
+}
+.g-team-settings__violations {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.g-team-settings__violation {
+  margin: 0;
+  padding: 0;
+  color: var(--danger);
+  font: 400 14px/1.4 var(--font-body);
+  overflow-wrap: anywhere;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* A sheet's body: what holds it, the field, the list or the counter, what goes, the refusal. */
+.g-team-settings__sheet {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  text-transform: none;
+  letter-spacing: 0;
+}
+/* TeamNew's races follow a label there; here they open the body. */
+.g-team-settings__sheet .g-races { margin: 0; }
+
+/* What a god or a race takes off, said before the button: TeamNew's line under the races, a line each. */
+.g-team-settings__drops {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: var(--space-10) var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font: 400 13px/1.4 var(--font-body);
+  text-align: left;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.g-team-settings__drop {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+/* A live region that must stand on the page before it speaks, and takes no room while it is empty: it gives back the column's gap. */
+.g-team-settings__alert { margin: 0; }
+.g-team-settings__alert:empty { margin-top: calc(-1 * var(--space-16)); }
+
+@media (min-width: 901px) {
+  /* DeskRosterFunds: a card across the page under the columns. */
+  .g-team-settings {
+    padding: var(--space-20);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--line);
+  }
+  .g-team-settings__title { padding: 0 0 var(--space-4); }
+  .g-team-settings__btn { min-height: 36px; }
+
+  /* The race's foot is a row on a desk: what goes takes a line of its own over the red button. */
+  .g-team-settings-sheet .g-sheet__foot { flex-wrap: wrap; }
+  .g-team-settings-sheet .g-team-settings__drops { flex: 1 1 100%; }
+}

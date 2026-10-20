@@ -213,7 +213,9 @@ test("games that could not be read say the match state is unknown, quietly, and 
   assert.equal(fragment.querySelector(".g-resource--locked .g-resource__name").textContent.includes("Team Rerolls"), false);
   assert.equal(mount(manageMarkup(model("t1"))).querySelector(".g-callout"), null, "games read: nothing to say");
   const live = mount(manageMarkup(model("t1", { games: [liveGame("t1")], gamesUnknown: true })));
-  assert.deepEqual(live.querySelectorAll(".g-callout__title").map((title) => title.textContent), ["A match is on"], "a page shut by a match says only that");
+  // The team's settings at the page's end say what holds them in their own words (stage 07d, test/team-settings.test.mjs).
+  const said = live.querySelectorAll(".g-callout__title").filter((title) => !title.closest(".g-team-settings"));
+  assert.deepEqual(said.map((title) => title.textContent), ["A match is on"], "a page shut by a match says only that");
 });
 
 test("the safe says the last deposit from the whole history, not the three lines shown; the history folds them (T8 carry)", () => {
@@ -529,8 +531,10 @@ test("every word of the page is in both dictionaries, the phases too; nothing un
   }
   const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")] })));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/manage/manage.css", "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "callout.css", "resource-counter.css", "toggle.css", "button.css");
-  assertStyled(mount(manageMarkup(model("t4", { ledger: held([]) }))), CSS, "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "resource-counter.css", "toggle.css");
+  // The team's settings close the page (stage 07d): settings.css styles them.
+  const settings = "src/screens/team/manage/settings.css";
+  assertStyled(fragment, "src/screens/team/manage/manage.css", "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "callout.css", "resource-counter.css", "toggle.css", "button.css", settings);
+  assertStyled(mount(manageMarkup(model("t4", { ledger: held([]) }))), CSS, "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "resource-counter.css", "toggle.css", "button.css", settings);
 });
 
 test("the phone has the card and no strip, the desk the strip and two columns; the card's buttons are 44px and ringed in the header's ink", () => {
