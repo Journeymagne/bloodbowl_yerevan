@@ -89,6 +89,9 @@ test("the list opens on a press: newest first — the round, the opponent, the r
     assert.deepEqual(results, ["g-career__result g-career__result--lost", "g-career__result g-career__result--drawn", "g-career__result g-career__result--won"]);
     const quiet = list().querySelectorAll(".g-career__row").map((row) => row.querySelector(".g-career__events").classList.contains("g-career__quiet"));
     assert.deepEqual(quiet, [false, true, true, false, false], "a missed match and one without details are quiet");
+    // Fidelity E2 (PlayerCareer.html's #FFFBF2): the row that waits for its post-match has the warning's soft fill.
+    const waiting = list().querySelectorAll(".g-career__row").map((row) => row.classList.contains("g-career__row--pending"));
+    assert.deepEqual(waiting, [true, false, false, false, false], "only the match on");
     assert.equal(list().querySelector(".g-career__note").textContent, NOTE);
     assertCspSafe(view);
     assertStyled(view, ...STYLES);
@@ -391,6 +394,20 @@ test("every key in both dictionaries; styled; D2; wrapping", () => {
     assertReadable(CAREER, selector, "color", ["--surface"], 4.5);
   }
   assertReadable(CAREER, ".g-career__pending", "color", ["--warn-tint"], 4.5);
+  // Fidelity E1 (PlayerCareer.html, PlayerDead.html): a nought of the totals is grey, each other number the ink. The
+  // prototype's #8A948F is 3.1:1, too little for 17px/600: the grey is --muted, which holds 4.5:1 (as 07a/07b decided).
+  assert.deepEqual(valuesOf(CAREER, ".g-career__value", "color"), ["var(--ink)"]);
+  assert.deepEqual(valuesOf(CAREER, ".g-career__zero", "color"), ["var(--muted)"]);
+  assert.ok(!text(CAREER).replace(/\/\*[\s\S]*?\*\//g, "").includes("--faint"), "nothing in the career is faint");
+  // Fidelity E2 (PlayerCareer.html, DeskRosterCareer.html: #FFFBF2): the row that waits for its post-match has the
+  // warning's tint a third over the page's fill — no token holds #FFFBF2, the mix follows every palette — and whatever
+  // such a row says is readable on it.
+  const PENDING_FILL = "color-mix(in srgb, var(--warn-tint) 35%, var(--surface))";
+  assert.deepEqual(valuesOf(CAREER, ".g-career__row--pending", "background"), [PENDING_FILL]);
+  for (const selector of [".g-career__name", ".g-career__result--won", ".g-career__result--drawn", ".g-career__result--lost",
+    ".g-career__events", ".g-career__spp", ".g-career__quiet"]) {
+    assertReadable(CAREER, selector, "color", [PENDING_FILL], 4.5);
+  }
   // A long opponent and a long line of actions wrap; nothing is cut with «…».
   const css = text(CAREER).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/text-overflow\s*:\s*ellipsis/.test(css));

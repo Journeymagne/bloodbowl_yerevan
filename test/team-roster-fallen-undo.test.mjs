@@ -59,7 +59,7 @@ const askUndo = () => {
 const BACK = "Pike is on the roster again";
 const UNDO_LOST = "The mark is still on the server: undo it again.";
 const UNKNOWN = "Could not tell what the server holds: look at the roster before you undo the mark again.";
-const HINT = "Marked by mistake? He comes back to the roster and into TV.";
+const HINT = "Marked by mistake? The player comes back to the roster and into TV.";
 const FROM_MATCH = "A death the post-match recorded is not undone here: the league administrator corrects it.";
 const BARE = "The roster cannot read this record, so it is not undone here: the league administrator corrects it.";
 const CLOSED = "Missed matches and deaths — after the post-match";

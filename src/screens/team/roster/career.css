@@ -101,7 +101,8 @@
   font: 600 17px/normal var(--font-body);
   letter-spacing: 0;
 }
-/* A nought, and GP before the history is read: quiet (the prototype's #8A948F is --muted, as 07a/07b decided). */
+/* A nought, and GP before the history is read: quiet. The prototypes' #8A948F (--faint) is 3.1:1, too little for
+   17px/600; --muted holds 4.5:1, as 07a/07b decided for the fallen's characteristics. */
 .g-career__zero { color: var(--muted); }
 /* The list: a column 8px apart; «All matches · N» and «SPP» at its two ends, 12/700, .06em, in capitals, quiet. */
 .g-career__list {
@@ -147,6 +148,9 @@
   border-bottom: 1px solid var(--line);
   background: var(--surface);
 }
+/* A row that waits for its post-match: the prototypes' #FFFBF2, which no token holds — the warning's tint a third over
+   the page's fill (≈ #FEFAF3 in the grass palette), so it follows every palette; on both widths. */
+.g-career__row--pending { background: color-mix(in srgb, var(--warn-tint) 35%, var(--surface)); }
 .g-career__main {
   display: flex;
   flex-direction: column;

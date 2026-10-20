@@ -85,6 +85,41 @@ test("the page read when the games answer before the fallen: one read of his his
   });
 });
 
+// Review M5: L7's other half — the fallen answer first, and the first draw asks nothing while the games are read.
+test("the page read when the fallen answer before the games: no read of his history until the games answer, then one", async () => {
+  await withWindow({ phone: true }, async () => {
+    coach();
+    api.reply(READ("d2"), 200, { history: JOE_HISTORY });
+    const games = api.hold("GET /api/games");
+    const drawing = renderTeamPlayer("t1", "d2");
+    await settle();
+    await settle();
+    assert.ok(block(), "his profile is drawn: the fallen have answered");
+    assert.deepEqual(totals()[0], ["GP", "–"]);
+    assert.equal(histories().length, 0, "nothing while the games are read (pre-flight L1)");
+    games.release();
+    await drawing;
+    await settle();
+    assert.equal(callsTo(READ("d2")), 1, "the games' answer asks for it, once");
+    assert.deepEqual(totals()[0], ["GP", "1"]);
+    api.assertAnswered();
+  });
+});
+
+// Fidelity E1 (PlayerDead.html): a nought of the counter row is quiet, each number that is not keeps the ink.
+test("the fallen player's counter row: a nought is quiet, as on his profile", async () => {
+  await withWindow({ phone: true }, async () => {
+    coach();
+    api.reply(READ("d1"), 200, { history: { playerId: "d1", matches: [match({ counters: counters({ touchdowns: 2 }) })], outside: counters() } });
+    await renderTeamPlayer("t1", "d1");
+    await settle();
+    const values = block().querySelectorAll(".g-career__value");
+    assert.deepEqual(values.map((value) => [value.textContent, value.classList.contains("g-career__zero")]),
+      [["1", false], ["2", false], ["0", true], ["0", true], ["0", true], ["0", true], ["0", true]]);
+    api.assertAnswered();
+  });
+});
+
 test("the page on a desk draws the phone's block: the totals, the list head and the footnote", async () => {
   await withWindow({ phone: false }, async () => {
     coach();

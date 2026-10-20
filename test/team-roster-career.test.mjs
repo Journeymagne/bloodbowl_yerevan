@@ -97,6 +97,9 @@ test("opened: read once for the panel's player; «Reading the matches…» meanw
     const live = list().querySelectorAll(".g-career__row")[0];
     assert.deepEqual(live.querySelector(".g-career__side").childNodes.map((node) => node.getAttribute("class").split(" ")[0]),
       ["g-career__pending", "g-career__spp"], "DeskRosterCareer.html: the plate, then the SPP");
+    // Fidelity E2 (DeskRosterCareer.html's #FFFBF2): that row, and it alone, has the warning's soft fill.
+    assert.deepEqual(list().querySelectorAll(".g-career__row").map((row) => row.classList.contains("g-career__row--pending")),
+      [true, false, false, false, false]);
     assert.ok(!list().querySelector(".g-career__listhead"), "no list head");
     assert.ok(!list().querySelector(".g-career__note"), "no footnote");
     assert.ok(!block().querySelector(".g-career__totals"));
@@ -302,6 +305,7 @@ test("sizes as DeskRosterCareer (D2), readable, wrapping", () => {
   assertReadable(CAREER, ".g-career__pending", "color", ["--warn-tint"], 4.5);
   const deskColours = text(CAREER).replace(/\/\*[\s\S]*?\*\//g, "").match(/\.g-career--desk[^{]*\{[^}]*\}/g).join("\n");
   assert.ok(!/(?:^|[;\s{])color\s*:/.test(deskColours), "the desk's rules are sizes: its colours are the block's");
+  assert.ok(!/background/.test(deskColours), "the fill of a row that waits is the block's too, on both widths (E2)");
   // Nothing is cut with «…»: a long opponent wraps.
   const css = text(CAREER).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/ellipsis/.test(css));

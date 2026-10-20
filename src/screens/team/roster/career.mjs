@@ -213,15 +213,16 @@ function totalsMarkup(line, career) {
 
 /**
  * A row: its title and result over what the player did, its SPP at the right with «waits for the post-match» when it
- * does — under the SPP on a phone (PlayerCareer.html), before it on a desk (DeskRosterCareer.html). The SPP from before
- * the site's records has no match to say anything of: its title alone.
+ * does — under the SPP on a phone (PlayerCareer.html), before it on a desk (DeskRosterCareer.html) — and then the row
+ * has the warning's soft fill on both (`g-career__row--pending`). The SPP from before the site's records has no match
+ * to say anything of: its title alone.
  */
 function rowMarkup(row, desk) {
   const result = row.outcome
     ? `<span class="g-career__result g-career__result--${escapeHtml(row.outcome)}">${escapeHtml(row.result)}</span>` : "";
   const plate = row.pending ? `<span class="g-career__pending">${escapeHtml(t("teamPlayer.career.pending"))}</span>` : "";
   const spp = `<b class="${classNames("g-career__spp", (row.quiet || row.spp === "—") && "g-career__quiet")}">${escapeHtml(row.spp)}</b>`;
-  return `<li class="g-career__row"><span class="g-career__main"><span class="g-career__line">`
+  return `<li class="${classNames("g-career__row", row.pending && "g-career__row--pending")}"><span class="g-career__main"><span class="g-career__line">`
     + `<b class="g-career__name">${escapeHtml(row.title)}</b>${result}</span>`
     + `${row.events ? `<span class="${classNames("g-career__events", row.quiet && "g-career__quiet")}">${escapeHtml(row.events)}</span>` : ""}</span>`
     + `<span class="g-career__side">${desk ? `${plate}${spp}` : `${spp}${plate}`}</span></li>`;

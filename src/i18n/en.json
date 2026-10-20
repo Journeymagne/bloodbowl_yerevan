@@ -1133,7 +1133,7 @@
   "teamRoster.fallen.fromMatch": "A death the post-match recorded is not undone here: the league administrator corrects it.",
   "teamRoster.fallen.rules": "A fallen player plays no matches, takes no advancements and is not in TV.",
   "teamRoster.fallen.undo": "Undo the mark",
-  "teamRoster.fallen.undoHint": "Marked by mistake? He comes back to the roster and into TV.",
+  "teamRoster.fallen.undoHint": "Marked by mistake? The player comes back to the roster and into TV.",
   "teamRoster.fallen.undoTitle": "Undo the mark?",
   "teamRoster.fallen.undoBody": "{name} comes back to the roster: into TV again and onto the list of players for a match. The cause of death is removed.",
   "teamRoster.fallen.keep": "Keep",
