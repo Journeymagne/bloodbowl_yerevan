@@ -68,8 +68,19 @@ test("a column with one skill the player lacks throws one die", () => {
 });
 
 test("a die stuck on the first die's skill stops after maxAttempts", () => {
+  let thrown = 0;
   assert.throws(() => randomSkillRoll({ row: lineman, player: {}, category: "General", skillGroups: data.skillGroups,
-    rng: () => 1, maxAttempts: 5 }), /5 attempts/, "the first die is Block at once, the second lands on Block every time");
+    rng: () => { thrown += 1; return 1; }, maxAttempts: 5 }), /5 attempts/, "the first die is Block at once, the second lands on Block every time");
+  assert.equal(thrown, 6, "the first die's one throw, then the second die's own five (T20 review M3: maxAttempts is per die)");
+});
+
+test("maxAttempts is each die's own: two dice of four throws each stay within five", () => {
+  const player = { extraSkills: general.slice(0, 3).map((name) => ({ name, access: "primary" })) };
+  const rng = scripted(1, 2, 3, 4, 1, 2, 4, 5);
+  const roll = randomSkillRoll({ row: lineman, player, category: "General", skillGroups: data.skillGroups, rng, maxAttempts: 5 });
+  assert.deepEqual(roll.result.dice.map((die) => [die.attempts.length, die.skill]), [[4, general[3]], [4, general[4]]],
+    "eight throws in all, past three held skills and the first die's");
+  assert.deepEqual(rng.asked, Array(8).fill(16));
 });
 
 test("the skill die is a D16 whatever the length of the column", () => {

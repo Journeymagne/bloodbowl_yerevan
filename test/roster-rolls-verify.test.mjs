@@ -726,6 +726,47 @@ test("a random advancement takes either die's skill; a skill neither die rolled 
   assert.ok(await usedAt(client, other.id));
 }));
 
+// T20 review M1 (the round's final wave): decision 35's own path — one die's skill come to be held, the other's taken on the site.
+test("a pair whose first skill the player has come to hold is taken for the other die's skill through the server; a third skill is refused", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills(), [first, second, third] = general.slice(2, 5);
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const held = (...names) => names.map((name) => ({ name, access: "primary" }));
+  const die = scriptedServerDie(3, 4);
+  let roll;
+  try { roll = (await rollFor(id, coach.token, "p0", { purpose: "random_skill", category: "General" })).body.roll; } finally { die.done(); }
+  assert.deepEqual(rolledDice(roll).map((rolled) => rolled.skill), [first, second], "the route's two dice, past nothing");
+  assert.equal((await save(id, coach.token, 1, { players: { p0: { extraSkills: held(first) } } })).status, 200, `${first} held since, at the table or by hand`);
+  const random = (skill) => ({ type: "random", grants: { skill }, roll: site(roll.id) });
+  const neither = await save(id, coach.token, 2, { players: { p0: { advancements: [random(third)], extraSkills: held(first, third) } } });
+  assert.deepEqual([neither.status, neither.body.error.code, neither.body.error.params], [422, "DICE_ROLL_MISMATCH", { playerId: "p0" }], `${third}: on neither die`);
+  assert.equal(await usedAt(client, roll.id), null, "the refused save used nothing");
+  assert.equal((await save(id, coach.token, 2, { players: { p0: { advancements: [random(second)], extraSkills: held(first, second) } } })).status, 200,
+    `${second}: the other die's, still the player's to take`);
+  assert.ok(await usedAt(client, roll.id));
+}));
+
+// T20 review M2 (the round's final wave): the second die's rerolls held through the database, as the first die's are.
+test("the second die's rerolls are the roster's through the database: a blank face and the first die's skill ask nothing, a skill held does", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const held = (...names) => names.map((name) => ({ name, access: "primary" }));
+  const second = { attempts: [{ roll: 16, skill: null, duplicate: false }, { roll: 1, skill: "Block", duplicate: false, twin: true },
+    { roll: 3, skill: "Fend", duplicate: true }, { roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" };
+  const roll = await putRoll(client, id, "p0", "random_skill", { dice: [cameUp(1, "Block"), second] });
+  const frenzy = { type: "random", grants: { skill: "Frenzy" }, roll: site(roll.id) };
+  const unheld = await save(id, coach.token, 1, { players: { p0: { advancements: [frenzy], extraSkills: held("Frenzy") } } });
+  assert.deepEqual([unheld.status, unheld.body.error.code, unheld.body.error.params], [422, "DICE_ROLL_MISMATCH", { playerId: "p0" }],
+    "Fend, which the second die was rolled again past as held, is held by nothing");
+  assert.equal(await usedAt(client, roll.id), null);
+  assert.equal((await save(id, coach.token, 1, { players: { p0: { advancements: [frenzy], extraSkills: held("Fend", "Frenzy") } } })).status, 200,
+    "Fend held: taken, with neither the blank face nor Block, the first die's, held");
+  assert.ok(await usedAt(client, roll.id));
+  const before = await stored(client, id);
+  const dropped = await save(id, coach.token, 2, { players: { p0: { advancements: [frenzy], extraSkills: held("Frenzy") } } });
+  assert.deepEqual([dropped.status, dropped.body.error.code, dropped.body.error.params], [422, "DICE_ROLL_MISMATCH", { playerId: "p0" }],
+    "Fend dropped a save later: the used roll's second die was rolled again past it");
+  assert.deepEqual(await stored(client, id), before, "nothing of it saved");
+}));
+
 test("a characteristic roll is never stale: improved at the table meanwhile, the player is handed the same roll", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   const first = (await rollFor(id, coach.token, "p0", { purpose: "stat" })).body.roll, stat = first.result.stats[0];

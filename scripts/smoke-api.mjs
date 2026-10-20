@@ -151,6 +151,15 @@ await step("GET /api/teams lists the new team", async () => {
 const teamPath = () => `/api/teams/${teamId}`;
 const readTeam = async () => (await api(teamPath())).team;
 
+/** The last advancement of the player `id` on `team` undone and saved, which must be the one that took `roll`: the team's rolls then. */
+async function undoTaking(team, id, roll) {
+  const undoing = normalizeDraft(team.roster);
+  const undone = undoLastAdvancement(undoing.players.find((item) => item.id === id));
+  need(undone.removed && undone.roll?.id === roll.id, "the advancement undone is not the one that took the roll", undone);
+  await api(teamPath(), { method: "PATCH", body: saveBody(team, undoing) });
+  return (await api(`${teamPath()}/rolls`)).rolls;
+}
+
 await step("GET /api/teams/:id has stage and activatedAt", async () => {
   const team = await readTeam();
   for (const key of ["stage", "activatedAt"]) need(Object.hasOwn(team, key), `the team has no ${key}`, Object.keys(team));
@@ -227,11 +236,7 @@ await step("an advancement takes the site's roll once; a resent one meets the 40
   need(sameValues(normalizeDraft(resent.team?.roster), normalizeDraft(body.roster)), "the 409's team does not hold the advancement as it was sent", resent.team?.roster?.players?.find((item) => item.id === playerId));
   const used = await teamRolls();
   need(used?.length === 1 && used[0].id === roll.id && used[0].usedAt !== null, "the team's rolls are not the one roll, used", used);
-  const undoing = normalizeDraft(advanced.roster);
-  const undone = undoLastAdvancement(playerOf(undoing));
-  need(undone.removed && undone.roll?.id === roll.id, "the advancement undone is not the one that took the roll", undone);
-  await api(teamPath(), { method: "PATCH", body: saveBody(advanced, undoing) });
-  const freed = await teamRolls();
+  const freed = await undoTaking(advanced, playerId, roll);
   need(freed?.length === 1 && freed[0].id === roll.id && freed[0].usedAt === null, "the undone advancement did not give the roll back", freed);
   const again = await ask({ purpose: "stat" });
   need(again.roll?.id === roll.id, "the roll given back is not the one asked for again", again.roll);
@@ -243,9 +248,10 @@ await step("a random skill is two dice, both skills the player lacks and differe
   const { teams, skillGroups } = await reference();
   const race = teams.find((item) => item.slug === "teams/amazon");
   const team = await readTeam();
-  // The roster's second player, read now: the first has the characteristic's roll waiting.
+  // Any player but `playerId`, whose characteristic roll waits and whom the death's undo put back at the end: the second, read now.
   const otherId = team.roster?.players?.[1]?.id;
   need(otherId, "the team's second player has no id", team.roster?.players?.[1]);
+  need(otherId !== playerId, "the team's second player is the one whose characteristic roll waits", { otherId, playerId });
   const playerOf = (draft) => draft.players.find((item) => item.id === otherId);
   const ask = () => api(`${teamPath()}/players/${otherId}/rolls`, { method: "POST", body: { purpose: "random_skill", category: "General" } });
   const listed = async (id) => (await api(`${teamPath()}/rolls`)).rolls?.find((item) => item.id === id);
@@ -257,7 +263,10 @@ await step("a random skill is two dice, both skills the player lacks and differe
   const advancing = normalizeDraft(scored.roster), player = playerOf(advancing), row = rowsForTeam(race)[player.rowIndex];
   // A Linewoman holds no General skill: the column has more than one free skill, so the server throws both dice.
   const dice = rolledDice(roll), held = heldSkillKeys(row, player), skills = dice.map((die) => canonicalSkillName(die.skill));
-  need(roll?.id && dice.length === 2 && skills[0] !== skills[1], "a random skill is not two dice of different skills", roll);
+  // Each die ends on a face of the D16 that is its skill's on the column: not a blank face beyond it.
+  const faced = dice.every((die) => Number.isInteger(die.face) && roll?.params?.candidates?.[die.face - 1] === die.skill);
+  need(roll?.id && roll.params?.sides === 16 && dice.length === 2 && faced && skills[0] !== skills[1],
+    "a random skill is not two D16s of different skills, each ending on its face's skill", roll);
   need(!skills.some((skill) => held.has(skill)), "a die came up a skill the player holds", { skills, held: [...held] });
   const choice = { type: "random", grant: { skill: dice[1].skill }, roll: { id: roll.id, via: "site" } };
   const taken = takeAdvancement(race, row, player, choice, skillGroups);
@@ -265,11 +274,7 @@ await step("a random skill is two dice, both skills the player lacks and differe
   const advanced = (await api(teamPath(), { method: "PATCH", body: saveBody(scored, advancing) })).team;
   const used = await listed(roll.id);
   need(used && used.usedAt !== null, "the advancement that takes the second die did not use the roll", used);
-  const undoing = normalizeDraft(advanced.roster);
-  const undone = undoLastAdvancement(playerOf(undoing));
-  need(undone.removed && undone.roll?.id === roll.id, "the advancement undone is not the one that took the roll", undone);
-  await api(teamPath(), { method: "PATCH", body: saveBody(advanced, undoing) });
-  const freed = await listed(roll.id);
+  const freed = (await undoTaking(advanced, otherId, roll))?.find((item) => item.id === roll.id);
   need(freed && freed.usedAt === null, "the undone advancement did not give the roll back", freed);
   const again = await ask();
   need(again.roll?.id === roll.id, "the roll given back is not the one asked for again", again.roll);
