@@ -578,8 +578,9 @@ test("the switcher's way back: «‹» in a phone's head and «← My teams» in
   const dialog = sheet();
   assert.equal(dialog.querySelector(".g-sheet__head [data-sheet-back]").getAttribute("aria-label"), "Back");
   const button = dialog.querySelector(".g-sheet__foot-start [data-new-team-back]");
-  assert.equal(button.textContent.trim(), "My teams");
-  assert.ok(button.querySelector("svg"), "with the arrow");
+  // DeskTeamNew's «← Мои команды»: the arrow is a character of the words, not the kit's chevron.
+  assert.equal(button.textContent, "← My teams");
+  assert.equal(button.querySelector("svg"), null, "no icon");
   assertCspSafe(host());
   assertStyled(host(), NEW_CSS, "sheet.css", "text-field.css", "button.css");
   click(dialog.querySelector("[data-sheet-back]"));
@@ -1447,7 +1448,7 @@ test("it speaks Russian when the site does, and leaves no placeholder, no undefi
       assert.equal(sheet().querySelector('[role="radiogroup"]').getAttribute("aria-label"), "Раса");
       assert.equal(sheet().querySelector('label[for="new-team-name"]').textContent, "Название");
       assert.equal(document.querySelector("a.g-new__ref").textContent.trim(), "Правила рас и стартовый бюджет — в справочнике →");
-      assert.match(document.querySelector("[data-new-team-back]").textContent, /Мои команды/);
+      assert.equal(document.querySelector("[data-new-team-back]").textContent, "← Мои команды");
       assert.equal(document.querySelector("[data-sheet-back]").getAttribute("aria-label"), "Назад", "the arrow is the way back, not the list's name");
       assert.equal(document.querySelector("[data-sheet-close]").getAttribute("aria-label"), "Закрыть");
       assert.doesNotMatch(sheet().textContent, /[{}]|undefined|NaN|newTeam\.|teams\./);

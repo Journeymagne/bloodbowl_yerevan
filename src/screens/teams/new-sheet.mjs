@@ -84,7 +84,7 @@ export function newTeamSheetMarkup({ name, raceSlug, races, seasonName, resets, 
     + `<a class="g-new__ref" href="${escapeHtml(refUrl("teams"))}">${escapeHtml(t("newTeam.raceRules"))}</a>`;
   const footHtml = renderButton({ kind: "primary", label: createLabel(trimmed, raceChosen), disabled: !trimmed || !raceChosen, data: { newTeamCreate: true } });
   // The way back is the head's «‹» on a phone and the foot's button on a desk; new.css shows each where it belongs.
-  const footStartHtml = back ? renderButton({ label: t("teams.title"), icon: "back", data: { newTeamBack: true } }) : "";
+  const footStartHtml = back ? renderButton({ label: t("newTeam.backToTeams"), data: { newTeamBack: true } }) : "";
   return renderSheet({ id: NEW_TEAM_SHEET_ID, title: t("newTeam.title"), sub: seasonName || t("shell.league"), canGoBack: back, className: "g-new-sheet", bodyHtml, footHtml, footStartHtml });
 }
 

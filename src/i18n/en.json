@@ -538,6 +538,7 @@
   "newTeam.namePlaceholder": "What the team will be called",
   "newTeam.raceRules": "Race rules and the starting budget are in the reference →",
   "newTeam.raceResets": "Another race starts the squad again: the players picked so far go.",
+  "newTeam.backToTeams": "← My teams",
   "newTeam.needName": "Enter a name",
   "newTeam.needRace": "Choose a race",
   "newTeam.create": "Create «{name}»",

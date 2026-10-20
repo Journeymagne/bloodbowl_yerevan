@@ -538,6 +538,7 @@
   "newTeam.namePlaceholder": "Как будет называться команда",
   "newTeam.raceRules": "Правила рас и стартовый бюджет — в справочнике →",
   "newTeam.raceResets": "Другая раса начнёт состав заново: набранные игроки пропадут.",
+  "newTeam.backToTeams": "← Мои команды",
   "newTeam.needName": "Введите название",
   "newTeam.needRace": "Выберите расу",
   "newTeam.create": "Создать «{name}»",
