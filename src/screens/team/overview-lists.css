@@ -3,7 +3,8 @@
  * the leaders and the recent results in the form of each width. Font, border, background, text-transform,
  * letter-spacing and font-weight are set here on purpose: the 2.x global rules (h2, a) outlive this sheet until stage
  * 13. The values are the prototypes' (DeskOverview.html, Team.html); where they give no line height, the font's own
- * (`normal`). A long name or position wraps; nothing is cut with «…» or held on one line.
+ * (`normal`). A long name or position wraps; nothing is cut with «…» or held on one line but a desk card's name, which
+ * DeskOverview.html holds on one line.
  *
  * The columns: from 901px DeskOverview.html's row that wraps — the leaders and the recent matches at the left (2 1
  * 560px), who can advance at the right (1 1 300px), 20 apart and each a column 20 apart — so that one column alone, the
@@ -363,7 +364,17 @@
     min-width: 0;
   }
 
-  .g-overview__leadername { font: 600 13px/normal var(--font-body); }
+  /*
+   * The name on one line, as DeskOverview.html's `white-space: nowrap` (the fidelity pass, F10): one longer than its card
+   * ends in «…» inside the column's min-width: 0, the whole name still the card's text. The position under it wraps.
+   */
+  .g-overview__leadername {
+    display: block;
+    overflow: hidden;
+    font: 600 13px/normal var(--font-body);
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
   .g-overview__leaderpos { font: 400 12px/normal var(--font-body); }
 
   .g-overview__leadervalue {
