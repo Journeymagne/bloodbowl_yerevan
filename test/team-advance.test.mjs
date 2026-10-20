@@ -233,6 +233,7 @@ test("the categories of the type, with how many of their skills he lacks; a cate
       assert.deepEqual(catWords(closed), ["Agility", "0 of 14 available"]);
       assert.equal(closed.getAttribute("aria-disabled"), "true");
       assert.equal(closed.getAttribute("title"), NO_SKILL_LEFT);
+      assert.ok(!closed.hasAttribute("data-advance-kept"), "refused, not kept by a roll");
       assert.ok(closed.hasAttribute("data-roster-closed"));
       assert.equal(category("General").getAttribute("tabindex"), "0", "the group is entered at the first open card");
       choose(closed);
@@ -832,6 +833,11 @@ test("every key in both dictionaries; styled; readable", () => {
   assert.deepEqual(valuesOf(ADVANCE, `${keptChosen} .g-option__pill`, "background"), ["var(--accent)"]);
   assertReadable(ADVANCE, `${keptChosen} .g-option__pill`, "color", ["--accent"], 4.5);
   assert.deepEqual(valuesOf("src/ui/option-card.css", '.g-option[aria-disabled="true"] .g-option__sub', "color"), ["var(--danger)"], "a refusal's sub line, red as before");
+  // The category a site roll keeps (fidelity follow-up): DeskRosterAdv's chosen category, #F1F8F4 with the 2px ring.
+  const catKept = '#player-advance .g-advance__cat[data-advance-kept][aria-checked="true"]';
+  assert.deepEqual(["background", "box-shadow", "color"].map((property) => valuesOf(ADVANCE, catKept, property)),
+    [["var(--accent-tint-soft)"], ["var(--ring-selected)"], ["var(--ink)"]]);
+  assertReadable(ADVANCE, catKept, "color", ["--accent-tint-soft"], 4.5);
   assertReadable(ADVANCE, "#player-advance .g-advance__free", "color", ["--surface", "--accent-tint-soft"], 4.5);
   assertReadable(ADVANCE, "#player-advance .g-advance__hint", "color", ["--surface"], 4.5);
   assertReadable(ADVANCE, "#player-advance .g-advance__tag", "color", ["--surface", "--accent-tint-soft"], 4.5);

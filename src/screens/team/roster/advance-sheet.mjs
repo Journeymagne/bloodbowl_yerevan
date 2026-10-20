@@ -81,14 +81,16 @@ function letterMarkup(category) {
 
 /**
  * The type's categories (Adv2Category.html): the letter, the name, how many of its skills he lacks; one with none closed,
- * and a random skill's every one once its roll is made on the site (decision 9). None to show (offers not known yet,
- * K28) is nothing: a desk's column then says what it waits for.
+ * and a random skill's every one once its roll is made on the site (decision 9) — kept, not refused, as the types
+ * (`data-advance-kept`): the chosen one keeps its look (advance.css). None to show (offers not known yet, K28) is
+ * nothing: a desk's column then says what it waits for.
  */
 function categoriesMarkup(sheet, choices) {
   if (!choices.categories.length) return "";
   const kept = sheet.type === "random" ? keptWords(sheet) : "";
   const items = choices.categories.map(({ category, free, total }) => ({
-    value: category, className: "g-advance__cat", data: { advanceCategory: category }, reason: free ? kept : t("teamAdvance.refusal.NO_SKILL_LEFT"),
+    value: category, className: "g-advance__cat", data: { advanceCategory: category, advanceKept: Boolean(free && kept) },
+    reason: free ? kept : t("teamAdvance.refusal.NO_SKILL_LEFT"),
     html: `${letterMarkup(category)}<span class="g-advance__catwords"><span class="g-advance__catname">${escapeHtml(category)}</span>`
       + `<span class="g-advance__free">${escapeHtml(t("teamAdvance.free", { free, total }))}</span></span>`,
   }));

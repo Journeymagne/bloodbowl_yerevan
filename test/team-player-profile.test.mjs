@@ -7,7 +7,7 @@ import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
-  ADVANCED, FALLEN, LIVE_GAME, PIKE, PLAYERS, STYLES, api, aside, coach, invalidateGames, playerPage, releaseCurrentScreen, renderTeamRoster, save,
+  ADVANCED, FALLEN, LIVE_GAME, PIKE, PLAYERS, STYLES, api, aside, coach, died, invalidateGames, playerPage, releaseCurrentScreen, renderTeamRoster, save,
   settle, state, team, text, toggle, view, withPlayers,
 } from "./helpers/roster-page.mjs";
 
@@ -550,6 +550,27 @@ test("every type of advancement and every way of rolling is named in both dictio
     }
     for (const via of ["site", "table"]) assert.ok(words[`teamPlayer.via.${via}`], `${locale}: teamPlayer.via.${via}`);
   }
+});
+
+// Fidelity follow-up: a fallen player's skill cards name an advancement's type as the living's do (K29) — in full with how
+// it was rolled on his page, short in the desk's panel (DeskRoster's «Основной на выбор») — not 07a's «primary».
+test("a fallen player's skill an advancement gave names its type: in full on his page, short in the desk's panel", async () => {
+  const fallen = [died("f3", {
+    id: "d3", rowIndex: 3, number: "8", name: "Pike", spp: { touchdowns: 10 },
+    extraSkills: [{ name: "Mighty Blow", access: "primary" }, { name: "Dodge", access: "secondary" }],
+    advancements: [{ type: "primary", grants: { skill: "Mighty Blow" } }, { type: "random", grants: { skill: "Dodge" }, roll: { id: "r9", via: "site" } }],
+  }, { cause: "Foul by the Raiders" })];
+  const sources = (root) => root.querySelectorAll(".g-skill--card").map((card) => [card.getAttribute("data-skill"), card.querySelector(".g-skill__source").textContent]);
+  await withWindow({ phone: true }, async () => {
+    coach({ fallen });
+    await renderTeamPlayer("t1", "d3");
+    assert.ok(view.querySelector(".g-fallen-page"));
+    assert.deepEqual(sources(view), [["Block", "starting"], ["Tackle", "starting"], ["Mighty Blow", "Chosen primary skill"], ["Dodge", "Random primary skill · rolled on the site"]]);
+  });
+  coach({ fallen, open: "fallen-f3" });
+  await renderTeamRoster("t1");
+  assert.ok(aside().querySelector(".g-fallen"), "his profile in the panel");
+  assert.deepEqual(sources(aside()), [["Block", "starting"], ["Tackle", "starting"], ["Mighty Blow", "Chosen primary"], ["Dodge", "Random primary"]]);
 });
 
 test("a fallen player's address read as fallen draws his profile, the undo the roster's", async () => {

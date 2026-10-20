@@ -18,7 +18,7 @@ import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { undoable } from "./model.mjs";
-import { closedMarkup, markClosed, prepResetWords, profileLinkMarkup, skillChipsMarkup, statsMarkup } from "./panel.mjs";
+import { closedMarkup, markClosed, prepResetWords, profileLinkMarkup, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
 import { UNDO_SHEET, footButton } from "./sheets.mjs";
 
 /**
@@ -105,17 +105,20 @@ export function fallenRowMarkup(line, screen) {
  * The body of a fallen player's profile, the desk's panel and his own page alike (PlayerDead): his characteristics in
  * grey, «Fallen» and when, the cause, then the undo the caller offers (`undoHtml`, a death a coach marked) or, for a
  * death the screen does not undo, who corrects it; his career, his skills as cards (a chip opens its rule, as on the
- * roster), and what a death means.
+ * roster) — an advancement's skill named by its type, as the living's are (K29): in full with how it was rolled on his
+ * page, short in the desk's panel (`short`) — and what a death means.
  *
  * @param {import("./model.mjs").FallenLine} line
- * @param {{undoHtml?: string}} [options] `undoHtml` is markup of a `render…()`/`…Markup()`: the undo and its hint (`undoMarkup`)
+ * @param {{undoHtml?: string, short?: boolean}} [options] `undoHtml` is markup of a `render…()`/`…Markup()`: the undo and
+ *   its hint (`undoMarkup`)
  * @returns {string}
  */
-export function fallenProfileMarkup(line, { undoHtml = "" } = {}) {
+export function fallenProfileMarkup(line, { undoHtml = "", short = false } = {}) {
   const state = `<div class="g-fallen__state">${renderStatusChip({ label: t("teamRoster.fallen.status") })}`
     + `<span class="g-fallen__when">${escapeHtml(fallenWhen(line))}</span></div>`;
   const after = undoHtml || adminMarkup(line);
-  const skills = `<section class="g-roster__pblock"><h3 class="g-roster__ptitle">${escapeHtml(t("teamRoster.skills"))}</h3>${skillChipsMarkup(line, { card: true })}</section>`;
+  const chips = skillChipsMarkup(line, { card: true, sourceOf: (skill) => skillSourceOf(line, skill, { short }) });
+  const skills = `<section class="g-roster__pblock"><h3 class="g-roster__ptitle">${escapeHtml(t("teamRoster.skills"))}</h3>${chips}</section>`;
   return `<div class="g-fallen"><div class="g-fallen__stats">${statsMarkup(line)}</div>`
     + `<div class="g-fallen__card">${state}${causeMarkup(line)}${after}</div>`
     + `<p class="g-fallen__career">${escapeHtml(t("teamRoster.fallen.career", { spp: line.earned }))}</p>${skills}`
@@ -146,7 +149,7 @@ export function fallenPanelMarkup(line, screen) {
   const reason = undoable(line) ? markClosed(line, screen, { direct: true }) : "";
   return `<div class="g-roster__phead">${renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true })}`
     + `<div class="g-roster__pwho"><h2 class="g-roster__pname">${escapeHtml(fallenName(line))}</h2><p class="g-roster__pline">${escapeHtml(who)}</p></div></div>`
-    + fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason) });
+    + fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason), short: true });
 }
 
 /**

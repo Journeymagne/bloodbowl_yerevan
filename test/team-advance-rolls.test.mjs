@@ -773,6 +773,22 @@ test("after a site roll a type or a category pressed anyway changes nothing; a p
   });
 });
 
+// Fidelity follow-up: after a site roll the category chosen keeps its look, as the type does (DeskRosterAdv's chosen
+// category); the other is closed by the roll — kept, not refused.
+test("on a desk a site roll keeps the category chosen: closed, marked kept, still the choice", async () => {
+  await withoutTimers(async () => {
+    await openAdvance(false, { teamAnswer: withOne(CADE), id: "p3" });
+    choose(typeCard("random"));
+    choose(category("General"));
+    assert.ok(categories().every((item) => !item.hasAttribute("data-advance-kept")), "nothing kept before the roll");
+    await rollWith("p3", 200, { roll: { ...ROLL_SKILL, playerId: "p3", result: { attempts: [{ roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" } } });
+    assert.deepEqual(categories().map((item) => [item.getAttribute("data-advance-category"), item.getAttribute("aria-checked"), closed(item), item.hasAttribute("data-advance-kept")]),
+      [["Agility", "false", true, true], ["General", "true", true, true]]);
+    assert.equal(category("Agility").getAttribute("title"), WORDS.kept);
+    assertStyled(view, ...ROLL_STYLES);
+  });
+});
+
 // Fix round 1, M1: at the table a desk's «Roll D16» stays, closed, saying what to do.
 test("on a desk «Roll D16» at the table is closed with the table's words", async () => {
   await withoutTimers(async () => {

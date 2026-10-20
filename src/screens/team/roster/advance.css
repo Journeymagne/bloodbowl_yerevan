@@ -76,6 +76,12 @@
   color: var(--muted);
   cursor: default;
 }
+/* Closed by a site roll, not refused (`data-advance-kept`, as the types): the category chosen keeps DeskRosterAdv's chosen look. */
+#player-advance .g-advance__cat[data-advance-kept][aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+  color: var(--ink);
+}
 
 #player-advance .g-advance__letter {
   display: flex;
