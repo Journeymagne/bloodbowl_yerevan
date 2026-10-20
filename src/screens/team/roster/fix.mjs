@@ -1,15 +1,20 @@
 /**
  * A player put right by hand (stage 07d; owner, 2026-10-19: what only the 2.x editor could do moves into 3.0): the
  * Niggling Injuries as a count, a lasting injury marked by mistake, a characteristic, the extended contracts, the
- * favoured skills and a skill no advancement gave — what was settled at the table otherwise than the site recorded. The
- * form lives on the visit, as the edit's does, and «Save» is one step of the save queue; never during a match (R8).
+ * favoured skills and a skill no advancement gave — what was settled at the table otherwise than the site recorded —
+ * and last, the undo of the last advancement, which asks first (owner, 2026-10-20: the profile and the panel have none,
+ * as the prototypes). The form lives on the visit, as the edit's does, and «Save» is one step of the save queue; never
+ * during a match (R8).
  *
  * No prototype: the frame is the edit's (PlayerEdit.html, DeskRosterEdit.html; player-sheets.css's `.g-player-sheet`),
  * its counters stage 08's «Ресурсы» (TeamManage.html; `renderResourceCounter` as it is), its skills chips that are
  * pressed or not (`aria-pressed`). The edit's last line opens it (player-sheets.mjs), and the focus goes back to the
  * pencil the edit was opened from. Every step of the form asks the domain first (`fixRefusal`): one it refuses is said,
  * and the form stays as it was. The form is the player's as he was when it opened (`seedOf`): a read that changes him
- * closes it, saying so (fix round 1, M1). «Save» is the edit's way (player-save.mjs).
+ * closes it, saying so (fix round 1, M1). «Save» is the edit's way (player-save.mjs). «Undo the last: …» opens the
+ * undo's question in the fix's place (player.mjs, player-sheets.mjs) — one sheet at a time, the focus back on the
+ * pencil after it — and is closed while the form is changed: saved or cancelled first, so that no change is dropped
+ * unsaid.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -28,6 +33,7 @@ import { renderResourceCounter } from "../../../ui/resource-counter.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { closeSheet } from "./injury.mjs";
 import { prepResetWords } from "./panel.mjs";
+import { closedMarkup, gaveWords, undoClosed } from "./player-access.mjs";
 import { playerAt, savePlayerSheet, seededSheetOf } from "./player-save.mjs";
 import { editCheck } from "./player-sheets.mjs";
 import { fixPlayer, refusalWordsOf } from "./save.mjs";
@@ -88,6 +94,15 @@ function fixCheck({ race, draft }, line, form) {
     after: answer.applied ? copy.players[line.index] : before, row: rowsForTeam(race)[Number(before.rowIndex)],
   };
 }
+
+/**
+ * Whether the fix's form is changed: other than the form he opens with (`fixFormOf` of him as the draft stores him),
+ * refused or not (K12) — a read may leave a changed form one the roster refuses, and it is the coach's still.
+ *
+ * @param {{draft: object}} where @param {import("./model.mjs").PlayerLine} line
+ * @param {import("../../../domain/roster/edits.mjs").PlayerFix} form
+ */
+export const fixChanged = ({ draft }, line, form) => JSON.stringify(form) !== JSON.stringify(fixFormOf(draft.players[line.index]));
 
 /** A block of the fix: its title over what it holds; one whose single row names it has none ("": the same words twice). */
 function blockMarkup(title, html) {
@@ -181,6 +196,20 @@ function legacyMarkup(fix, form) {
   })).join(""));
 }
 
+/**
+ * «Advancements», the last block, only for a player who has one: «Undo the last: Frenzy» (decisions 18 and 40), quiet —
+ * an advancement can be taken again — which asks first. Closed while the undo is (`undoClosed`: a match, the screen's
+ * lock, no id) or the form is `changed`, saying why; it keeps his key either way.
+ */
+function advancementsMarkup(line, screen, changed) {
+  const last = line.advancements.at(-1);
+  if (!last) return "";
+  const [label, data] = [t("teamPlayer.undo.open", { what: gaveWords(last) }), { playerUnadvance: line.key }];
+  const reason = undoClosed(line, screen) || (changed ? t("teamPlayer.fix.saveFirst") : "");
+  return blockMarkup(t("teamPlayer.fix.advancements"), reason ? closedMarkup({ className: "g-player-fix__undo", label, reason, data })
+    : `<button type="button" class="g-player-fix__undo" aria-haspopup="dialog"${dataAttributes(data)}>${escapeHtml(label)}</button>`);
+}
+
 /** «Player's value: 95k → 125k», the value after the fix bold: said as it changes (`role="status"`). */
 function valueMarkup(before, after) {
   const mark = "\u0000";
@@ -189,11 +218,11 @@ function valueMarkup(before, after) {
 }
 
 /**
- * His fix by hand, in the edit's frame (no prototype; a sheet from the bottom on a phone, a 480px window on a desk): its
- * blocks — injuries, characteristics, contracts, his favour, the skills no advancement gave — and his value before and
- * after; during a preparation what a save resets (R12), and the last refusal of «Save» — or, should a read have made the
- * form one the roster refuses, why. «Cancel» and «Save», which waits for a whole, changed form; closed (`reason`), it
- * says why.
+ * His fix by hand, in the edit's frame (no prototype; a sheet from the bottom on a phone, a 480px window on a desk):
+ * its blocks — injuries, characteristics, contracts, his favour, the skills no advancement gave, his advancements' undo
+ * — and his value before and after; during a preparation what a save resets (R12), and the last refusal of «Save» — or,
+ * should a read have made the form one the roster refuses, why. «Cancel» and «Save», which waits for a whole, changed
+ * form; closed (`reason`), it says why.
  *
  * @param {object} props
  * @param {import("./model.mjs").PlayerLine} props.line the player, on the roster
@@ -205,7 +234,8 @@ export function fixSheetMarkup({ line, screen, sheet }) {
   const { form, refusal = "", reason = "" } = sheet;
   const fix = fixCheck(screen, line, form);
   const probe = (change) => fixRefusal(screen.race, screen.draft, line.id, { ...form, ...change });
-  const blocks = [injuriesMarkup(line, form), statsMarkup(line, fix, form, probe), contractsMarkup(form), favouredMarkup(screen, fix, form), legacyMarkup(fix, form)];
+  const blocks = [injuriesMarkup(line, form), statsMarkup(line, fix, form, probe), contractsMarkup(form), favouredMarkup(screen, fix, form), legacyMarkup(fix, form),
+    advancementsMarkup(line, screen, fixChanged(screen, line, form))];
   const prep = screen.mode.kind === "prep" ? `<p class="g-player-sheet__prep">${escapeHtml(prepResetWords())}</p>` : "";
   const said = refusal || (fix.refusal ? wordsOf(fix.refusal) : "");
   const alert = said ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(said)}</p>` : "";

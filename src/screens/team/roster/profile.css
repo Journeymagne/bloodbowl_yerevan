@@ -2,8 +2,8 @@
  * A player's own page on a phone (screens/team/roster/profile.mjs; Player.html, PlayerCaptain.html, PlayerDead.html):
  * a screen of its own, drilled into from the roster. His dark head sticks to the top of the page as the prototype's
  * stands outside its scrolling `main`, with «‹ Roster» where the prototype has the team switcher (owner, 2026-10-19),
- * and under it his characteristics, his SPP — with «Undo the last: …» in its card — his skills, his career
- * (PlayerCareer.html) and his injuries, 22px apart in `main`'s 16 16 28. The stat strip, the progress dots, the
+ * and under it his characteristics, his SPP, his skills, his career (PlayerCareer.html) and his injuries, 22px apart in
+ * `main`'s 16 16 28. The stat strip, the progress dots, the
  * skill cards and the buttons are the ui/ sheets'; this one sizes them as Player.html
  * does. A desk has no such page (the address is the roster with him in the panel), so every rule is up to 900px.
  *
@@ -267,30 +267,6 @@
     letter-spacing: 0;
     text-align: center;
     text-transform: none;
-  }
-  /*
-   * «Undo the last: …» (decision 18; no prototype): quiet, for an advancement can be taken again — words in the accent,
-   * 14/600, no frame and no fill — centred under «Advancement» and its line, a thumb tall (D2), its words as close to
-   * them as the line is to the button.
-   */
-  .g-profile__undo {
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    align-self: center;
-    min-height: 44px;
-    margin: -12px 0 -10px;
-    padding: 0 var(--space-12);
-    border: 0;
-    background: none;
-    color: var(--accent-text);
-    font: 600 14px/normal var(--font-body);
-    letter-spacing: 0;
-    text-align: center;
-    text-transform: none;
-    overflow-wrap: anywhere;
-    cursor: pointer;
   }
 
   /* «Skills» and «Injuries»: Oswald 24px at the font's own line height (Player.html gives none), over their blocks. */

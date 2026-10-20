@@ -1,11 +1,13 @@
 /*
  * A player's fix by hand (fix.mjs; stage 07d, Task 13; no prototype). The frame is the edit's: player-sheets.css's
- * `.g-player-sheet` (PlayerEdit.html up to 900px, DeskRosterEdit.html from 901px), with its lines of words; the counters
- * are stage 08's «Ресурсы» rows as they are (TeamManage.html, ui/resource-counter.css); the skills are chips. This sheet
- * draws what is the fix's own: its blocks one under another, 14px either side of a rule (none over the first, which the
- * body's own padding holds); a block's title 15/700, 2px over its rows; a lasting injury's or a skill's line as a
- * counter's row (from 58px over a rule, its words as a counter's name), its chip at the right — pressed, on the accent's
- * tint in its ring; the note under the injuries 12/1.4; his value 14px in --ink-2, the value after the fix bold. And the
+ * `.g-player-sheet` (PlayerEdit.html up to 900px, DeskRosterEdit.html from 901px), with its lines of words; the
+ * counters are stage 08's «Ресурсы» rows as they are (TeamManage.html, ui/resource-counter.css); the skills are chips.
+ * This sheet draws what is the fix's own: its blocks one under another, 14px either side of a rule (none over the
+ * first, which the body's own padding holds); a block's title 15/700, 2px over its rows; a lasting injury's or a
+ * skill's line as a counter's row (from 58px over a rule, its words as a counter's name), its chip at the right —
+ * pressed, on the accent's tint in its ring; the note under the injuries 12/1.4; «Undo the last: …» in the last block,
+ * «Advancements» (owner, 2026-10-20: the profile's and the panel's moved here), quiet as before — words in the accent,
+ * 14/600, no frame and no fill — at the block's left; his value 14px in --ink-2, the value after the fix bold. And the
  * edit's last line, which opens it: under a rule, the words and a chevron, quiet when closed.
  *
  * Where nothing gives a line height, the font's own (`normal`). Font, border, background, text-transform,
@@ -115,6 +117,26 @@
   color: var(--on-accent-tint);
 }
 
+/* «Undo the last: …»: a line of words, for an advancement can be taken again; closed, the roster's closed look. */
+.g-player-fix__undo {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: 600 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-player-fix__undo.g-roster__closed { cursor: default; }
+
 /* His value before and after, under a rule. */
 .g-player-fix__value {
   margin: 0;
@@ -168,11 +190,13 @@
 /* Up to 900px what is pressed is 44px or more (D2), the line to the fix 52px. */
 @media (max-width: 900px) {
   .g-player-fix__toggle { min-height: 44px; }
+  .g-player-fix__undo { min-height: 44px; }
   #player-edit .g-player-edit__fix { min-height: 52px; }
 }
 
-/* From 901px DeskRosterEdit.html's sizes: the chips 32px (D2: 24 or more), the line to the fix 44px, as its buttons. */
+/* From 901px DeskRosterEdit.html's sizes: the chips and the undo 32px (D2: 24 or more), the line to the fix 44px. */
 @media (min-width: 901px) {
   .g-player-fix__toggle { min-height: 32px; }
+  .g-player-fix__undo { min-height: 32px; }
   #player-edit .g-player-edit__fix { min-height: 44px; }
 }

@@ -13,9 +13,11 @@ import {
 const { setMyTeams } = await import("../src/data/teams.mjs");
 
 // Stage 07d, Task 11 (decisions 17–19; no prototypes — the look is the 07b/07c sheets', PlayerDeadConfirm.html's question
-// and two buttons, StatsSkill.html's skill sheet). «Undo the last: …» under «Advancement» in the profile and under «Advance»
-// in the desk's panel asks first, then the last advancement goes as one step of the save queue: what it gave goes, its SPP
-// come back, and the server frees its site roll, which the next advancement of its type takes again. A roster «Favoured
+// and two buttons, StatsSkill.html's skill sheet). «Undo the last: …» asks first, then the last advancement goes as one step
+// of the save queue: what it gave goes, its SPP come back, and the server frees its site roll, which the next advancement of
+// its type takes again. Since Task 23 (owner, 2026-10-20; decision 40) it stands in the fix by hand alone — the last block,
+// «Advancements» — and opens the question in the fix's place; the profile (Player.html) and the desk's panel
+// (DeskRoster.html) have none, as their prototypes. A roster «Favoured
 // of…» is offered the god's bonus skill on the advancement's done step (owner's answer 3). A skill an advancement gave says
 // how in its sheet, and for a site roll what its dice showed, read from the server once a visit. The page, the coach and his team are
 // helpers/roster-page.mjs's; ADVANCED is Cade 3 (a Catcher) with Frenzy from a random skill rolled on the site.
@@ -29,7 +31,11 @@ const FRAME = "src/screens/team/roster/frame.css";
 const SHEETS = "src/screens/team/roster/player-sheets.css";
 const ADVANCE = "src/screens/team/roster/advance.css";
 const ROLLS = "src/screens/team/roster/rolls.css";
+const FIX = "src/screens/team/roster/fix.css";
 const UNDO_STYLES = [...STYLES, "option-card.css", "die.css", "segmented-control.css"];
+const FIX_STYLES = [...UNDO_STYLES, "toggle.css", "text-field.css", "resource-counter.css"];
+const SAVE_FIRST = "Save or cancel the edit first";
+const EDIT_CLOSED = "Number, name and captain — after the post-match";
 const AFTER_POST = "Advancement — after the post-match";
 const DROPPED = "A match has begun, so the player edits and advancements that were waiting were not saved. Make them again after the post-match.";
 const SITE = "The site's roll goes back to the player: the next «Random primary skill» takes the same roll; there is no new roll before that.";
@@ -82,6 +88,11 @@ const sentOf = (id, call = patches().at(-1)) => call.body.roster.players.find((p
 const sheet = () => view.querySelector("dialog#player-unadvance");
 const undo = () => view.querySelector("[data-player-unadvance]");
 const advance = () => view.querySelector("[data-player-advance]");
+const pencil = () => view.querySelector("[data-player-edit]");
+const fixSheet = () => view.querySelector("dialog#player-fix");
+const fixBlocks = () => fixSheet().querySelectorAll(".g-player-fix__block");
+const fixTitles = () => fixBlocks().map((block) => block.querySelector(".g-player-fix__title")?.textContent ?? "");
+const skillsIn = (root) => root.querySelectorAll("[data-skill]").map((chip) => chip.getAttribute("data-skill"));
 const rows = () => sheet().querySelectorAll(".g-unadvance__row").map((row) => [row.querySelector("dt").textContent, row.querySelector("dd").textContent]);
 const note = () => sheet().querySelector(".g-unadvance__note").textContent;
 const keep = () => sheet().querySelector("[data-unadvance-keep]");
@@ -97,6 +108,24 @@ async function openPlayer(phone, { id = "p3", teamAnswer = withOne(ADVANCED), ga
   else await renderTeamRoster("t1");
 }
 
+/** His fix by hand opened as the coach opens it, on the page as it stands: the pencil, then the edit's last line. */
+function reopenFix() {
+  fireEvent(pencil(), "click");
+  fireEvent(view.querySelector("[data-player-fix]"), "click");
+}
+
+/** His page or the desk's panel, then his fix by hand (Task 23: the undo stands there alone). */
+async function openFix(phone, options = {}) {
+  await openPlayer(phone, options);
+  reopenFix();
+}
+
+/** «Undo the last: …» pressed in his fix by hand: the undo's question open in the fix's place. */
+async function openUndo(phone, options = {}) {
+  await openFix(phone, options);
+  fireEvent(undo(), "click");
+}
+
 /** A match begins on another device: the games say so, and `server` is the roster the server holds. */
 async function matchBegins(server) {
   api.reply(TEAM_READ, 200, { team: server });
@@ -106,54 +135,180 @@ async function matchBegins(server) {
   await settle();
 }
 
-// Decision 18.
-test("«Undo the last» stands under «Advancement» while he has one, and asks first: what it gave, the SPP back, the value lost", async () => {
+// Decision 40 (owner, 2026-10-20): Player.html's SPP card ends with the line under «Advancement», DeskRoster.html's with the
+// line under «Advance» — no undo in either.
+test("no «Undo the last» on the profile nor in the desk's panel (Player.html, DeskRoster.html)", async () => {
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
       await openPlayer(true);
-      const button = undo();
-      assert.equal(button.tagName, "BUTTON");
-      assert.equal(button.getAttribute("class"), "g-profile__undo");
-      assert.equal(button.getAttribute("aria-haspopup"), "dialog");
-      assert.equal(button.textContent, "Undo the last: Frenzy");
-      // In his SPP card, the last thing in it: under «Advancement» and the line under it.
+      assert.ok(!view.querySelector(".g-profile__spp [data-player-unadvance]"));
+      assert.ok(!undo(), "nowhere on the page");
       const card = elements(view.querySelector(".g-profile__spp"));
-      assert.ok(card.at(-1) === button && card.at(-2) === view.querySelector(".g-profile__hint") && card.at(-3) === advance());
-      fireEvent(button, "click");
-      assert.ok(sheet()?.isModal, "dialog#player-unadvance, open");
-      assert.equal(sheet().getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
-      assert.equal(sheet().querySelector("h2").textContent, "Undo the advancement?");
-      assert.equal(sheet().querySelector(".g-sheet__sub").textContent, "Cade · advancement 1 of 6");
-      assert.deepEqual(rows(), [["What it gave", "Frenzy · Random primary skill · rolled on the site"], ["SPP back", "+3"], ["The player's value", "−20k"]]);
-      assert.equal(keep().textContent, "Keep");
-      assert.equal(send().textContent, "Undo advancement", "short enough for half of a phone's foot (fix round 1)");
-      assertCspSafe(view);
-      assertStyled(view, ...UNDO_STYLES);
-      // «Keep» changes nothing; the focus back on what opened it.
-      fireEvent(keep(), "click");
-      assert.ok(!sheet());
-      assert.ok(document.activeElement === undo());
+      assert.ok(card.at(-1) === view.querySelector(".g-profile__hint") && card.at(-2) === advance(), "the card ends with the line under «Advancement»");
+    });
+    await openPlayer(false);
+    assert.ok(!aside().querySelector("[data-player-unadvance]"));
+    assert.ok(!undo(), "nowhere on the page");
+    const spp = elements(aside().querySelector(".g-roster__spp"));
+    assert.ok(spp.at(-1) === aside().querySelector(".g-roster__cheapest") && spp.at(-2) === aside().querySelector("[data-player-advance]"),
+      "the panel's SPP ends with the line under «Advance»");
+  });
+});
+
+// Decisions 18 and 40: the same question, the same step — opened from the fix by hand, in its place.
+test("the fix by hand ends with «Advancements»: «Undo the last: Frenzy», which asks first as before", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await openFix(phone);
+        assert.ok(fixSheet()?.isModal);
+        assert.equal(fixTitles().at(-1), "Advancements", "the fix's last block");
+        const block = fixBlocks().at(-1);
+        assert.deepEqual(elements(block).map((node) => node.getAttribute("class")), ["g-player-fix__title", "g-player-fix__undo"]);
+        const body = elements(fixSheet().querySelector(".g-sheet__body"));
+        assert.equal(body.indexOf(fixSheet().querySelector(".g-player-fix__value")), body.indexOf(block) + 1, "after every block, before his value");
+        const button = undo();
+        assert.ok(block.contains(button));
+        assert.equal(button.tagName, "BUTTON");
+        assert.equal(button.getAttribute("type"), "button");
+        assert.equal(button.getAttribute("class"), "g-player-fix__undo");
+        assert.equal(button.getAttribute("aria-haspopup"), "dialog");
+        assert.equal(button.getAttribute("data-player-unadvance"), "p3#0");
+        assert.ok(!button.hasAttribute("aria-disabled"));
+        assert.equal(button.textContent, "Undo the last: Frenzy");
+        assertCspSafe(view);
+        assertStyled(view, ...FIX_STYLES);
+        fireEvent(button, "click");
+        assert.ok(!fixSheet(), "the question takes the fix's place");
+        assert.ok(sheet()?.isModal, "dialog#player-unadvance, open");
+        assert.equal(view.querySelectorAll("dialog").filter((dialog) => dialog.isModal).length, 1, "one sheet at a time");
+        assert.equal(sheet().getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
+        assert.equal(sheet().querySelector("h2").textContent, "Undo the advancement?");
+        assert.equal(sheet().querySelector(".g-sheet__sub").textContent, "Cade · advancement 1 of 6");
+        assert.deepEqual(rows(), [["What it gave", "Frenzy · Random primary skill · rolled on the site"], ["SPP back", "+3"], ["The player's value", "−20k"]]);
+        assert.equal(keep().textContent, "Keep");
+        assert.equal(send().textContent, "Undo advancement", "short enough for half of a phone's foot (fix round 1)");
+        assertCspSafe(view);
+        assertStyled(view, ...UNDO_STYLES);
+        await settle();
+        assert.equal(patches().length, 0, "asked, nothing sent");
+      });
+    }
+  });
+});
+
+test("a player with no advancement has no «Advancements» block", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await openFix(phone, { teamAnswer: withOne(CADE) });
+        assert.ok(fixSheet()?.isModal);
+        assert.ok(!fixTitles().includes("Advancements"));
+        assert.ok(!undo());
+      });
+    }
+  });
+});
+
+// Review Focus 3: a changed form is saved or cancelled first — an undo opened over it would drop it unsaid.
+test("the undo is closed while the fix's form is changed, saying so; nothing opens", async () => {
+  const contracts = (step) => fixSheet().querySelector(`[data-resource-key="fix:contracts"] [data-resource-step="${step}"]`);
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await openFix(phone);
+        fireEvent(contracts(1), "click");
+        assert.equal(fixSheet().querySelector('[data-resource-key="fix:contracts"] .g-resource__value').textContent, "1");
+        assert.equal(undo().getAttribute("aria-disabled"), "true");
+        assert.equal(undo().getAttribute("title"), SAVE_FIRST);
+        assert.ok(undo().hasAttribute("data-roster-closed"));
+        assert.match(undo().getAttribute("class"), /^g-player-fix__undo g-roster__closed$/);
+        assert.equal(undo().textContent, "Undo the last: Frenzy", "it keeps its words");
+        assert.ok(!undo().hasAttribute("aria-haspopup"), "it opens nothing");
+        fireEvent(undo(), "click");
+        assert.equal(toasts().at(-1), SAVE_FIRST);
+        assert.ok(!sheet(), "nothing opens");
+        assert.ok(fixSheet()?.isModal, "the fix stays, as it was");
+        assert.equal(fixSheet().querySelector('[data-resource-key="fix:contracts"] .g-resource__value').textContent, "1");
+        assertStyled(view, ...FIX_STYLES);
+        // Back as it was: open again.
+        fireEvent(contracts(-1), "click");
+        assert.ok(!undo().hasAttribute("aria-disabled"));
+        assert.equal(undo().getAttribute("aria-haspopup"), "dialog");
+        await settle();
+        assert.equal(patches().length, 0);
+      });
+    }
+  });
+});
+
+// K12 (preflight of the owner's review): changed is «not as it opened», refused or not — a read may leave a changed form
+// one the roster refuses, and it is the coach's still.
+test("a form a read has made one the roster refuses is changed still: the undo stays closed", async () => {
+  const mouth = { ...ROT, extraSkills: [{ name: "Monstrous Mouth", access: "primary" }], advancements: [{ type: "primary", grants: { skill: "Monstrous Mouth" } }] };
+  const { fixChanged } = await import("../src/screens/team/roster/fix.mjs");
+  const { fixFormOf } = await import("../src/domain/roster/edits.mjs");
+  const stored = { ...CADE, nigglingInjuries: 1 };
+  const where = { draft: { players: [stored] } };
+  assert.equal(fixChanged(where, { index: 0 }, fixFormOf(stored)), false, "as it opened");
+  assert.equal(fixChanged(where, { index: 0 }, { ...fixFormOf(stored), contracts: 1 }), true);
+  assert.equal(fixChanged(where, { index: 0 }, { ...fixFormOf(stored), niggling: 99 }), true, "refused (NIGGLING_RANGE), changed all the same");
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openFix(true, { id: "n1", teamAnswer: nurgle([mouth]) });
+      fireEvent(fixSheet().querySelectorAll("[data-fix-favoured]").find((chip) => chip.getAttribute("data-fix-favoured") === "Tentacles"), "click");
+      assert.equal(undo().getAttribute("title"), SAVE_FIRST);
+      // Another device takes the roster's god away: Rot is as the fix was seeded from, so it stands — its «Add Tentacles» refused now.
+      const read = team({ baseTeamSlug: "teams/nurgle", roster: { favouredChoice: null, players: [mouth] }, revision: 5 });
+      api.reply(TEAM_READ, 200, { team: read });
+      api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 5 });
+      setMyTeams([read]);
+      await settle();
+      assert.equal(callsTo(TEAM_READ), 2, "read again");
+      assert.ok(fixSheet()?.isModal, "the fix stands");
+      assert.ok(fixSheet().querySelector(".g-player-sheet__refusal"), "the form is one the roster refuses");
+      assert.equal(undo().getAttribute("aria-disabled"), "true");
+      assert.equal(undo().getAttribute("title"), SAVE_FIRST);
+      fireEvent(undo(), "click");
+      assert.ok(!sheet() && fixSheet()?.isModal, "nothing opens, nothing is dropped");
       await settle();
       assert.equal(patches().length, 0);
     });
-    // No advancement, nothing to undo.
-    await withWindow({ phone: true }, async () => {
-      await openPlayer(true, { teamAnswer: withOne(CADE) });
-      assert.ok(advance());
-      assert.ok(!undo());
-    });
-    // A desk: under «Advance» and its line, in the panel.
-    await openPlayer(false);
-    const quiet = aside().querySelector("[data-player-unadvance]");
-    assert.equal(quiet.getAttribute("class"), "g-roster__undo");
-    assert.equal(quiet.textContent, "Undo the last: Frenzy");
-    const spp = elements(aside().querySelector(".g-roster__spp"));
-    assert.ok(spp.at(-1) === quiet && spp.at(-2) === aside().querySelector(".g-roster__cheapest"));
-    fireEvent(quiet, "click");
-    assert.ok(sheet()?.isModal);
-    assert.deepEqual(rows(), [["What it gave", "Frenzy · Random primary skill · rolled on the site"], ["SPP back", "+3"], ["The player's value", "−20k"]]);
-    assertCspSafe(view);
-    assertStyled(view, ...UNDO_STYLES);
+  });
+});
+
+// Review Focus 3, decision 40: as the fix's own «Cancel», the question gives the focus back to the pencil the fix was opened
+// from; the fix is not opened again (no sheet of the roster's comes back).
+test("«Keep» and a sent undo give the focus back to the pencil", async () => {
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await openUndo(phone);
+        keep().focus();
+        fireEvent(keep(), "click");
+        assert.ok(!sheet() && !fixSheet() && !view.querySelector("dialog#player-edit"), "closed, and nothing opened again");
+        assert.ok(document.activeElement === pencil(), "the pencil");
+        await settle();
+        assert.equal(patches().length, 0);
+        reopenFix();
+        fireEvent(undo(), "click");
+        // Pressed as a browser presses it, the focus on it: the redraw gives it to what opened the question (`OPENERS`).
+        send().focus();
+        api.reply(PATCH, 200, { team: withOne(CADE, { revision: 5 }) });
+        fireEvent(send(), "click");
+        assert.ok(!sheet() && !fixSheet(), "closed in the same turn");
+        assert.ok(document.activeElement === pencil(), "the pencil again");
+        assert.equal(toasts().at(-1), "Advancement undone: Frenzy · 3 SPP back");
+        await settle();
+        assert.equal(patches().length, 1);
+        // The question's own close (×, Esc) is a «Keep».
+        await openUndo(phone, { teamAnswer: withOne(TWICE) });
+        keep().focus();
+        fireEvent(sheet().querySelector("[data-sheet-close]"), "click");
+        assert.ok(!sheet());
+        assert.ok(document.activeElement === pencil());
+      });
+    }
   });
 });
 
@@ -161,18 +316,18 @@ test("«Undo the last» stands under «Advancement» while he has one, and asks 
 test("undo of a site advancement: the sheet says the roll goes back to the player, one PATCH without it, the coach told", async () => {
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true);
-      fireEvent(undo(), "click");
+      await openUndo(true);
       assert.equal(note(), SITE);
       // Decision 18: an undo is no loss — the main button, never the red one.
       assert.match(send().getAttribute("class"), /\bg-btn--primary\b/);
       assert.doesNotMatch(send().getAttribute("class"), /danger/);
       api.reply(PATCH, 200, { team: withOne(CADE, { revision: 5 }) });
+      // Pressed with the focus elsewhere (a click that does not focus a button): the undo gives it to the pencil itself.
       fireEvent(send(), "click");
       assert.ok(!sheet(), "closed in the same turn");
       assert.equal(toasts().at(-1), "Advancement undone: Frenzy · 3 SPP back");
       assert.ok(!toasts().includes(CHANGED), "its own step is no change under it");
-      assert.ok(document.activeElement === advance(), "the focus on «Advancement»");
+      assert.ok(document.activeElement === pencil(), "the focus on the pencil the fix was opened from");
       assert.ok(!undo(), "nothing left to undo");
       assert.equal(view.querySelector(".g-profile__availn").textContent, "30", "his SPP back at once, from the draft");
       assert.ok(!view.querySelector(".g-profile__skills").textContent.includes("Frenzy"));
@@ -205,7 +360,7 @@ test("undo of a site advancement: the sheet says the roll goes back to the playe
 test("a table or chosen advancement can be taken again; one that does not say what it gave gives the SPP back only", async () => {
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true, { teamAnswer: withOne(STAT) });
+      await openFix(true, { teamAnswer: withOne(STAT) });
       assert.equal(undo().textContent, "Undo the last: MA +1");
       fireEvent(undo(), "click");
       assert.deepEqual(rows(), [["What it gave", "MA +1 · Characteristic improvement · rolled at the table"], ["SPP back", "+14"], ["The player's value", "−30k"]]);
@@ -218,13 +373,12 @@ test("a table or chosen advancement can be taken again; one that does not say wh
       assert.deepEqual(sentOf("p3").statMods ?? {}, {}, "the +1 goes with it");
     });
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true, { teamAnswer: withOne(CHOSEN) });
-      fireEvent(undo(), "click");
+      await openUndo(true, { teamAnswer: withOne(CHOSEN) });
       assert.deepEqual(rows(), [["What it gave", "Diving Catch · Chosen primary skill"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
       assert.equal(note(), TABLE);
     });
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true, { teamAnswer: withOne(BARE_ONE) });
+      await openFix(true, { teamAnswer: withOne(BARE_ONE) });
       assert.equal(undo().textContent, "Undo the last: Random primary skill");
       fireEvent(undo(), "click");
       assert.deepEqual(rows(), [["What it gave", "Random primary skill"], ["SPP back", "+3"], ["The player's value", "—"]]);
@@ -240,8 +394,7 @@ test("a table or chosen advancement can be taken again; one that does not say wh
 
 test("only the last is undone; the sheet closes if the roster changed under it", async () => {
   await withoutTimers(async () => {
-    await openPlayer(false);
-    fireEvent(undo(), "click");
+    await openUndo(false);
     assert.ok(sheet()?.isModal);
     send().focus();
     // Another device took his second advancement: the roster is read again, and the sheet named the first.
@@ -254,20 +407,23 @@ test("only the last is undone; the sheet closes if the roster changed under it",
     assert.ok(!sheet(), "the advancement it named is not his last any more");
     assert.ok(!view.querySelector("dialog:modal"));
     assert.equal(toasts().at(-1), CHANGED);
-    assert.equal(undo().textContent, "Undo the last: Diving Catch");
-    assert.ok(document.activeElement === undo(), "back on what opened it");
+    assert.ok(!fixSheet(), "the fix is not opened again");
+    assert.ok(document.activeElement === pencil(), "back on the pencil the fix was opened from");
     assert.equal(patches().length, 0);
     // The last one goes, the first stays.
+    reopenFix();
+    assert.equal(undo().textContent, "Undo the last: Diving Catch");
     fireEvent(undo(), "click");
     assert.equal(sheet().querySelector(".g-sheet__sub").textContent, "Cade · advancement 2 of 6");
     assert.deepEqual(rows(), [["What it gave", "Diving Catch · Chosen primary skill"], ["SPP back", "+8"], ["The player's value", "−20k"]]);
     api.reply(PATCH, 200, { team: withOne(ADVANCED, { revision: 6 }) });
     fireEvent(send(), "click");
-    assert.ok(document.activeElement === advance(), "the focus on «Advance»");
+    assert.ok(document.activeElement === pencil(), "the focus on the pencil");
     await settle();
     assert.equal(patches().length, 1);
     assert.equal(patches()[0].body.revision, 5);
     assert.deepEqual(sentOf("p3").advancements, ADVANCED.advancements);
+    reopenFix();
     assert.equal(undo().textContent, "Undo the last: Frenzy");
   });
 });
@@ -276,8 +432,7 @@ test("only the last is undone; the sheet closes if the roster changed under it",
 // what the coach did not see.
 test("the same count with another last advancement closes the sheet, saying so; nothing is sent", async () => {
   await withoutTimers(async () => {
-    await openPlayer(false, { teamAnswer: withOne(TWICE) });
-    fireEvent(undo(), "click");
+    await openUndo(false, { teamAnswer: withOne(TWICE) });
     assert.deepEqual(rows()[0], ["What it gave", "Diving Catch · Chosen primary skill"]);
     send().focus();
     // Another device undid Diving Catch and took Sure Hands: two advancements still, the last another one.
@@ -292,8 +447,7 @@ test("the same count with another last advancement closes the sheet, saying so; 
     assert.ok(!sheet(), "the advancement it showed is no longer his last");
     assert.equal(toasts().at(-1), CHANGED);
     assert.equal(toasts().filter((said) => said === CHANGED).length, 1, "said once");
-    assert.equal(undo().textContent, "Undo the last: Sure Hands");
-    assert.ok(document.activeElement === undo(), "back on what opened it");
+    assert.ok(document.activeElement === pencil(), "back on the pencil the fix was opened from");
     // A late press of the sheet's button finds nothing to send.
     const late = document.createElement("button");
     late.setAttribute("type", "button");
@@ -303,33 +457,57 @@ test("the same count with another last advancement closes the sheet, saying so; 
     view.removeChild(late);
     await settle();
     assert.equal(patches().length, 0);
+    reopenFix();
+    assert.equal(undo().textContent, "Undo the last: Sure Hands");
   });
 });
 
-test("closed in a match, saying why; a second press sends nothing more", async () => {
+test("closed in a match: the fix and the question close with it, the focus on the pencil, closed now; a second press sends nothing more", async () => {
   await withoutTimers(async () => {
     for (const phone of [true, false]) {
+      // A match begun while the fix is open closes it, as it did (R8).
       await withWindow({ phone }, async () => {
-        await openPlayer(phone);
-        fireEvent(undo(), "click");
+        await openFix(phone);
+        undo().focus();
+        await matchBegins(withOne(ADVANCED, { revision: 4 }));
+        assert.ok(!fixSheet(), "R8: the fix closes with the match");
+        assert.ok(!undo(), "and its undo with it: none anywhere");
+        assert.ok(document.activeElement === pencil(), "the focus on the pencil, closed now");
+        assert.ok(closed(pencil()));
+        assert.equal(pencil().getAttribute("title"), EDIT_CLOSED);
+        fireEvent(pencil(), "click");
+        assert.equal(toasts().at(-1), EDIT_CLOSED);
+        assert.ok(!view.querySelector("dialog#player-edit") && !fixSheet() && !sheet(), "nothing opens");
+        await settle();
+        assert.equal(patches().length, 0);
+      });
+      // And while the question is open.
+      await withWindow({ phone }, async () => {
+        await openUndo(phone);
         send().focus();
         await matchBegins(withOne(ADVANCED, { revision: 4 }));
-        assert.ok(!sheet(), "R8: the sheet closes with the match");
-        assert.ok(document.activeElement === undo(), "the focus on «Undo the last», closed now");
-        assert.ok(closed(undo()));
-        assert.equal(undo().getAttribute("title"), AFTER_POST);
-        assert.equal(undo().textContent, "Undo the last: Frenzy");
-        fireEvent(undo(), "click");
-        assert.equal(toasts().at(-1), AFTER_POST);
-        assert.ok(!sheet());
+        assert.ok(!sheet(), "R8: the question closes with the match");
+        assert.ok(document.activeElement === pencil(), "the focus on the pencil, closed now");
+        assert.ok(closed(pencil()));
         await settle();
         assert.equal(patches().length, 0);
       });
     }
+    // K15: a match begun before the screen is drawn again — «Undo the last» asks at the press, and nothing opens.
+    await withWindow({ phone: true }, async () => {
+      await openFix(true);
+      const games = state.games.items;
+      state.games.items = [LIVE_GAME];
+      fireEvent(undo(), "click");
+      assert.equal(toasts().at(-1), AFTER_POST);
+      assert.ok(!sheet());
+      state.games.items = games;
+      await settle();
+      assert.equal(patches().length, 0);
+    });
     // Review Focus 2: one press, one step — a second press, or a late one, finds no sheet.
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true);
-      fireEvent(undo(), "click");
+      await openUndo(true);
       const press = send();
       api.reply(PATCH, 200, { team: withOne(CADE, { revision: 5 }) });
       fireEvent(press, "click");
@@ -346,8 +524,7 @@ test("closed in a match, saying why; a second press sends nothing more", async (
     });
     // K15: a match begun before the screen is drawn again — the press asks, and nothing goes.
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true);
-      fireEvent(undo(), "click");
+      await openUndo(true);
       const games = state.games.items;
       state.games.items = [LIVE_GAME];
       fireEvent(send(), "click");
@@ -362,17 +539,16 @@ test("closed in a match, saying why; a second press sends nothing more", async (
 // Review Focus 4.
 test("an undo that waited for the network is given up when a match begins, and the coach is told", async () => {
   await withoutTimers(async () => {
-    await openPlayer(false);
-    fireEvent(undo(), "click");
+    await openUndo(false);
     api.fail(PATCH);
     fireEvent(send(), "click");
     await settle();
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "30", "drawn at once");
-    assert.ok(!undo());
+    assert.ok(!skillsIn(aside()).includes("Frenzy"), "undone in the draft");
     await matchBegins(withOne(ADVANCED, { revision: 4 }));
     assert.equal(toasts().at(-1), DROPPED);
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "27", "the server's roster");
-    assert.equal(undo().textContent, "Undo the last: Frenzy");
+    assert.ok(skillsIn(aside()).includes("Frenzy"), "Frenzy back with it");
     assert.equal(save.saveState("t1").waiting, 0);
     assert.equal(patches().length, 1, "the one try before the network went");
   });
@@ -381,13 +557,12 @@ test("an undo that waited for the network is given up when a match begins, and t
 // The roster's invariant: a lost answer's step is the same roster sent again, its 409 known as that very save — never a second undo.
 test("an undo whose answer was lost is sent again as the same roster, and its 409 is known as this very undo", async () => {
   await withoutTimers(async () => {
-    await openPlayer(false, { teamAnswer: withOne(TWICE) });
-    fireEvent(undo(), "click");
+    await openUndo(false, { teamAnswer: withOne(TWICE) });
     api.fail(PATCH);
     fireEvent(send(), "click");
     await settle();
     assert.equal(save.saveState("t1").waiting, 1);
-    assert.equal(undo().textContent, "Undo the last: Frenzy", "Diving Catch undone in the draft");
+    assert.deepEqual(skillsIn(aside()).filter((skill) => ["Frenzy", "Diving Catch"].includes(skill)), ["Frenzy"], "Diving Catch undone in the draft");
     // The server has it: the revision is 5 and the roster is what was sent.
     const sent = patches()[0].body;
     api.reply(PATCH, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: { ...withOne(ADVANCED, { revision: 5 }), roster: { ...sent.roster, logoData: undefined } } });
@@ -399,6 +574,7 @@ test("an undo whose answer was lost is sent again as the same roster, and its 40
     assert.equal(patches().length, 2);
     assert.deepEqual(patches()[1].body, sent, "the same roster sent again");
     assert.deepEqual(sentOf("p3").advancements, ADVANCED.advancements, "Frenzy stays: one undo, not two");
+    reopenFix();
     assert.equal(undo().textContent, "Undo the last: Frenzy");
   });
 });
@@ -407,8 +583,7 @@ test("an undo whose answer was lost is sent again as the same roster, and its 40
 test("an undo the server refuses for a used roll is said, and the roster read again", async () => {
   await withoutTimers(async () => {
     await withWindow({ phone: true }, async () => {
-      await openPlayer(true, { teamAnswer: withOne(TABLE_FRENZY) });
-      fireEvent(undo(), "click");
+      await openUndo(true, { teamAnswer: withOne(TABLE_FRENZY) });
       assert.equal(note(), TABLE);
       api.reply(PATCH, 422, { error: { code: "DICE_ROLL_MISMATCH", params: {}, message: "x" } });
       fireEvent(send(), "click");
@@ -416,7 +591,7 @@ test("an undo the server refuses for a used roll is said, and the roster read ag
       assert.equal(patches().length, 1);
       assert.equal(toasts().at(-1), MISMATCH);
       assert.equal(callsTo(TEAM_READ), 2, "the server's roster read again");
-      assert.equal(undo().textContent, "Undo the last: Frenzy", "it stays");
+      assert.ok(skillsIn(view.querySelector(".g-profile__skills")).includes("Frenzy"), "it stays");
       assert.equal(view.querySelector(".g-profile__availn").textContent, "27");
     });
   });
@@ -769,7 +944,14 @@ test("a read of the rolls without a site roll the roster brought since is read a
 
 test("every key in both dictionaries; styled; D2", () => {
   assertDictionaryCovers("src/screens/team/roster/player.mjs", "src/screens/team/roster/player-sheets.mjs", "src/screens/team/roster/roll-view.mjs",
-    "src/screens/team/roster/advance-sheet.mjs", "src/screens/team/roster/panel.mjs", "src/screens/team/roster/player-access.mjs");
+    "src/screens/team/roster/advance-sheet.mjs", "src/screens/team/roster/panel.mjs", "src/screens/team/roster/player-access.mjs", "src/screens/team/roster/fix.mjs");
+  for (const locale of ["en", "ru"]) {
+    const words = JSON.parse(text(`src/i18n/${locale}.json`));
+    assert.deepEqual([words["teamPlayer.fix.advancements"], words["teamPlayer.fix.open"]], {
+      en: ["Advancements", "Fix by hand: injuries, characteristics, contract, skills, advancements"],
+      ru: ["Прокачки", "Исправить вручную: травмы, характеристики, контракт, навыки, прокачки"],
+    }[locale], locale);
+  }
   // The words name no player's gender (owner's answer on words).
   const gendered = { en: /\b(he|him|his|she|her|hers)\b/i, ru: /(?<![а-яё])(он|она|его|её|ему|ей|получил|получила|вернул|вернула)(?![а-яё])/iu };
   for (const [locale, pattern] of Object.entries(gendered)) {
@@ -777,30 +959,35 @@ test("every key in both dictionaries; styled; D2", () => {
     assert.ok(words.length >= 24, locale);
     assert.deepEqual(words.filter(([, value]) => pattern.test(value)), [], locale);
   }
-  for (const file of [PROFILE, FRAME, SHEETS, ADVANCE, ROLLS]) {
+  for (const file of [PROFILE, FRAME, SHEETS, ADVANCE, ROLLS, FIX]) {
     const css = text(file);
     assert.doesNotMatch(css, /--focus-ring/, file);
     assert.doesNotMatch(css, /text-overflow/, file);
     for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), `${file}: ${query}`);
   }
   // Every new rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform.
-  const own = [[PROFILE, ".g-profile__undo"], [FRAME, ".g-roster__aside .g-roster__undo"], [SHEETS, "#player-unadvance .g-unadvance__key"],
+  const own = [[FIX, ".g-player-fix__undo"], [SHEETS, "#player-unadvance .g-unadvance__key"],
     [SHEETS, "#player-unadvance .g-unadvance__value"], [SHEETS, "#player-unadvance .g-unadvance__note"], [ADVANCE, "#player-advance .g-favoured__title"],
     [ADVANCE, "#player-advance .g-favoured__line"], [ROLLS, "#roster-skill .g-roster__rollline"], [ROLLS, "#roster-skill .g-roster__rollstate"],
     [ROLLS, "#roster-skill .g-roster__rollpair"]];
   for (const [file, selector] of own) {
     for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(valuesOf(file, selector, property).length >= 1, `${selector} ${property}`);
   }
-  // «Undo the last» is quiet (decision 18): a line of words in the accent, no frame, no fill — never the danger's.
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__undo", "font"), ["600 14px/normal var(--font-body)"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__undo", "color"), ["var(--accent-text)"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__undo", "border"), ["0"]);
-  assert.deepEqual(valuesOf(PROFILE, ".g-profile__undo", "background"), ["none"]);
-  assert.deepEqual(valuesOf(FRAME, ".g-roster__aside .g-roster__undo", "font"), ["600 14px/normal var(--font-body)"]);
-  assert.deepEqual(valuesOf(FRAME, ".g-roster__aside .g-roster__undo", "color"), ["var(--accent-text)"]);
-  for (const file of [PROFILE, FRAME, SHEETS]) assert.doesNotMatch(text(file).replace(/\/\*[\s\S]*?\*\//g, ""), /undo[^{]*\{[^}]*danger/, file);
-  assertReadable(PROFILE, ".g-profile__undo", "color", ["--surface"], 4.5);
-  assertReadable(FRAME, ".g-roster__aside .g-roster__undo", "color", ["--surface-2"], 4.5);
+  // «Undo the last» is quiet (decisions 18, 40): a line of words in the accent at the block's left, no frame, no fill — never
+  // the danger's; closed, the roster's closed look (`.g-roster__closed`), its pointer too.
+  assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo", "font"), ["600 14px/1.3 var(--font-body)"]);
+  assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo", "color"), ["var(--accent-text)"]);
+  assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo", "border"), ["0"]);
+  assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo", "background"), ["none"]);
+  assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo", "padding"), ["0"]);
+  assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo", "justify-content"), ["flex-start"]);
+  assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo", "text-align"), ["left"]);
+  assert.deepEqual(valuesOf(FIX, ".g-player-fix__undo.g-roster__closed", "cursor"), ["default"]);
+  for (const file of [PROFILE, FRAME, SHEETS, FIX]) assert.doesNotMatch(text(file).replace(/\/\*[\s\S]*?\*\//g, ""), /undo[^{]*\{[^}]*danger/, file);
+  assertReadable(FIX, ".g-player-fix__undo", "color", ["--surface"], 4.5);
+  // Task 23 (K19 withdrawn): the profile's and the panel's undo are gone, and their rules with them.
+  assert.doesNotMatch(text(PROFILE), /g-profile__undo/);
+  assert.doesNotMatch(text(FRAME), /g-roster__undo/);
   // The undo's lines as the sale's (07c's `.g-market__rows`): from 44px over a rule, 15px/1.25; the words 15px/1.5 (PlayerDeadConfirm).
   assert.deepEqual(valuesOf(SHEETS, "#player-unadvance .g-unadvance__row", "min-height"), ["44px"]);
   assert.deepEqual(valuesOf(SHEETS, "#player-unadvance .g-unadvance__row", "border-bottom"), ["1px solid var(--line)"]);
@@ -851,9 +1038,9 @@ test("every key in both dictionaries; styled; D2", () => {
     return start < 0 ? "" : css.slice(start, css.indexOf("\n}", start));
   };
   const height = (file, query, selector) => Number(block(file, query).match(new RegExp(`${selector.replace(/[.[\]"]/g, "\\$&")} \\{[^}]*min-height: (\\d+)px;`))?.[1]);
-  assert.equal(height(PROFILE, "max-width: 900px", ".g-profile__undo"), 44);
-  assert.equal(height(FRAME, "min-width: 901px", ".g-roster__aside .g-roster__undo"), 32);
-  assert.ok(height(FRAME, "min-width: 901px", ".g-roster__aside .g-roster__undo") >= 24);
+  assert.equal(height(FIX, "max-width: 900px", ".g-player-fix__undo"), 44);
+  assert.equal(height(FIX, "min-width: 901px", ".g-player-fix__undo"), 32);
+  assert.ok(height(FIX, "min-width: 901px", ".g-player-fix__undo") >= 24);
   assert.ok(height(ADVANCE, "max-width: 900px", "#player-advance .g-favoured .g-btn") >= 44);
   assert.ok(height(ADVANCE, "min-width: 901px", "#player-advance .g-favoured .g-btn") >= 24);
   // The profile's page holds the page only (T8): the sheets' rules live in their own files.
@@ -861,8 +1048,8 @@ test("every key in both dictionaries; styled; D2", () => {
 });
 
 test("a long skill or line wraps; nothing is cut with «…»", () => {
-  for (const [file, selector] of [[SHEETS, "#player-unadvance .g-unadvance__value"], [SHEETS, "#player-unadvance .g-unadvance__note"], [PROFILE, ".g-profile__undo"],
-    [FRAME, ".g-roster__aside .g-roster__undo"], [ADVANCE, "#player-advance .g-favoured__title"], [ADVANCE, "#player-advance .g-favoured__line"],
+  for (const [file, selector] of [[SHEETS, "#player-unadvance .g-unadvance__value"], [SHEETS, "#player-unadvance .g-unadvance__note"], [FIX, ".g-player-fix__undo"],
+    [ADVANCE, "#player-advance .g-favoured__title"], [ADVANCE, "#player-advance .g-favoured__line"],
     [ROLLS, "#roster-skill .g-roster__rollline"], [ROLLS, "#roster-skill .g-roster__rollstate"], [ROLLS, "#roster-skill .g-roster__rollpair"]]) {
     assert.deepEqual(valuesOf(file, selector, "overflow-wrap"), ["anywhere"], selector);
   }

@@ -1,10 +1,10 @@
 /**
- * What of a player's own may be written just now, and the controls of his advancements that say so (stage 07d): why
- * his edit is closed (`editClosed`), why an advancement is (`advanceClosed`, and the line under «Advance»), why the undo
- * of his last one and a god's bonus are (`undoClosed`); «Advance» closed, and «Undo the last: …». The desk's panel
- * (panel.mjs) and the phone's profile (profile.mjs) both draw them, and the sheets ask them at a press: a module of
- * their own (K25, Task 11 fix round 1), which imports neither, so that the panel keeps its room and no two of the
- * roster's modules import each other.
+ * What of a player's own may be written just now, and the controls of his advancements that say so (stage 07d): why his
+ * edit is closed (`editClosed`), why an advancement is (`advanceClosed`, and the line under «Advance»), why the undo of
+ * his last one and a god's bonus are (`undoClosed`); a closed control, «Advance» closed, and what an advancement gave
+ * in a word. The desk's panel (panel.mjs) and the phone's profile (profile.mjs) both draw them, the fix by hand
+ * (fix.mjs) its undo with them, and the sheets ask them at a press: a module of their own (K25, Task 11 fix round 1),
+ * which imports none of those, so that the panel keeps its room and no two of the roster's modules import each other.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -66,11 +66,11 @@ export function advanceHintOf(line, screen, { profile = false } = {}) {
 
 /**
  * A control of the roster's that is closed: a button that says why (`reason`; for a way to the player's page a match
- * has closed, `teamRoster.afterPost`) as its tooltip and, pressed, in a message (`data-roster-closed`, wire.mjs), in the
- * look of what it stands for (button.css, roster.css). With a `glyph` the label is its name for a screen reader, as the
- * pencil's link has it; `leadHtml` (markup of `icon()`) leads the words, as «Advance»'s arrow does; `data` keeps what
- * names the control (an action's player, a fallen player's undo), so the focus finds it again. Here, in the module the
- * panel and the profile both import, the one home of it (final wave, T11 N3).
+ * has closed, `teamRoster.afterPost`) as its tooltip and, pressed, in a message (`data-roster-closed`, wire.mjs), in
+ * the look of what it stands for (button.css, roster.css). With a `glyph` the label is its name for a screen reader, as
+ * the pencil's link has it; `leadHtml` (markup of `icon()`) leads the words, as «Advance»'s arrow does; `data` keeps
+ * what names the control (an action's player, a fallen player's undo), so the focus finds it again. Here, in the module
+ * the panel, the profile and the fix by hand all import, the one home of it (final wave, T11 N3).
  */
 export function closedMarkup({ className, label, glyph = "", leadHtml = "", reason = t("teamRoster.afterPost"), data = {} }) {
   const named = glyph ? ` aria-label="${escapeHtml(label)}"` : "";
@@ -89,20 +89,3 @@ export function closedAdvanceMarkup({ reason, label = t("teamRoster.advance"), d
 
 /** What an advancement gave, in a word: its skill, «MA +1», or — one that does not say — its type. */
 export const gaveWords = ({ type, grants }) => (grants?.stat ? t("teamPlayer.undo.statPlus", { stat: t(`stats.${grants.stat}`) }) : grants?.skill ?? t(`teamAdvance.type.${type}`));
-
-/**
- * «Undo the last: Frenzy» under «Advance» and its line (decision 18) — the panel's `g-roster__undo` — or under the
- * profile's «Advancement» (`className`: `g-profile__undo`): quiet, for an advancement can be taken again; it asks first
- * (player-sheets.mjs). Closed (`undoClosed`) it says why, keeping his key, so the focus finds it when the sheet closes.
- *
- * @param {import("./model.mjs").PlayerLine} line
- * @param {{mode: {kind: string}, lock: string}} screen
- * @param {string} [className]
- */
-export function undoLastMarkup(line, screen, className = "g-roster__undo") {
-  const last = line.advancements.at(-1);
-  if (!last) return "";
-  const [label, reason, data] = [t("teamPlayer.undo.open", { what: gaveWords(last) }), undoClosed(line, screen), { playerUnadvance: line.key }];
-  if (reason) return closedMarkup({ className, label, reason, data });
-  return `<button type="button" class="${className}" aria-haspopup="dialog"${dataAttributes(data)}>${escapeHtml(label)}</button>`;
-}

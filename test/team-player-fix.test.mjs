@@ -24,7 +24,7 @@ const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
 const PATCH = "PATCH /api/teams/t1";
 const TEAM_READ = "GET /api/teams/t1";
 const FIX = "src/screens/team/roster/fix.css";
-const OPEN = "Fix by hand: injuries, characteristics, contract, skills";
+const OPEN = "Fix by hand: injuries, characteristics, contract, skills, advancements";
 const SAVE_FIRST = "Save or cancel the edit first";
 const SUB = "What was settled at the table otherwise than the site recorded";
 const HEAL_NOTE = "Take off only what was marked by mistake: «Back on the roster» keeps an injury's effects.";
@@ -134,9 +134,10 @@ test("the edit leads to the fix by hand; while the edit's fields are changed it 
         assert.equal(sheet.getAttribute("class"), "g-sheet g-player-sheet", "in the frame a player's sheets share");
         assert.equal(sheet.querySelector("h2").textContent, "Fix by hand");
         assert.equal(sheet.querySelector(".g-sheet__sub").textContent, SUB);
-        assert.deepEqual(titles(), ["Injuries", "Characteristics"], "no favour, no skill outside an advancement");
+        // Cade's Frenzy: the last block, «Advancements», holds the undo of it (Task 23; test/team-advance-undo.test.mjs).
+        assert.deepEqual(titles(), ["Injuries", "Characteristics", "Advancements"], "no favour, no skill outside an advancement");
         // The contracts' block has no title of its own: its one row says it.
-        assert.equal(fixSheet().querySelectorAll(".g-player-fix__block").length, 3);
+        assert.equal(fixSheet().querySelectorAll(".g-player-fix__block").length, 4);
         assert.ok(!counter("fix:contracts").closest(".g-player-fix__block").querySelector(".g-player-fix__title"));
         assert.equal(saveButton().textContent, "Save");
         assert.ok(saveButton().hasAttribute("disabled"), "nothing changed yet");

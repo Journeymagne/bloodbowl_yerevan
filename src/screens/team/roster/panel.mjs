@@ -1,9 +1,8 @@
 /**
- * What the roster says of one player beyond his row: the row opened on a phone, and the panel beside the table
- * on a desk (plan 07a, decisions 20 and 21). The row leads to the player's own address, his profile (stage 07d); both
- * say why an advancement or an edit of him is closed (player-access.mjs, which draws «Advance» closed and «Undo the
- * last: …» for both). The panel's pencil opens his edit (stage 07d, player-sheets.mjs) and its «Advance» his
- * advancement's window (advance.mjs), as the profile's pencil and «Advancement» do.
+ * What the roster says of one player beyond his row: the row opened on a phone, and the panel beside the table on a
+ * desk (plan 07a, decisions 20 and 21). The row leads to his profile (stage 07d); both say why an advancement or an
+ * edit of him is closed (player-access.mjs). The panel's pencil opens his edit (player-sheets.mjs) and its «Advance»
+ * his advancement (advance.mjs), as the profile's do; the undo of his last advancement is his fix by hand's (fix.mjs).
  *
  * The phone's open row holds his SPP counters with − and + (Task 10): outside a match a step is a save of the roster
  * (save.mjs), and the count is the career. The desk's panel holds them only while a match is on (owner's D3,
@@ -40,7 +39,7 @@ import { renderProgressDots } from "../../../ui/progress-dots.mjs";
 import { renderSkillChips } from "../../../ui/skill-chip.mjs";
 import { renderStatStrip } from "../../../ui/stat-strip.mjs";
 import { counterSlots, stepRule } from "./model.mjs";
-import { advanceClosed, advanceHintOf, closedAdvanceMarkup, closedMarkup, editClosed, undoLastMarkup } from "./player-access.mjs";
+import { advanceClosed, advanceHintOf, closedAdvanceMarkup, closedMarkup, editClosed } from "./player-access.mjs";
 
 /**
  * Words with some of their values in bold (DeskRoster.html: «Next match: **Plays**», «Primary: **General**»):
@@ -446,7 +445,7 @@ function manualMarkup(line, screen) {
  * His SPP: what he may spend, what he has earned and spent, his advancements, «Advance» — a button that opens his
  * advancement's window (DeskRosterAdv.html), closed, saying why, when no advancement can be taken (`advanceClosed`); it
  * names him either way, so the focus finds it when the window closes — and under it the cheapest one open, or why it
- * is closed.
+ * is closed. No undo of his last advancement under them, as DeskRoster.html (decision 40: his fix by hand's).
  */
 function sppMarkup(line, screen) {
   const reason = advanceClosed(line, screen);
@@ -459,7 +458,7 @@ function sppMarkup(line, screen) {
     + `<p class="g-roster__ledger"><span class="g-roster__ledgerline">${escapeHtml(t("teamRoster.earned", { spp: line.earned }))}</span>`
     + `<span class="g-roster__ledgerline">${escapeHtml(t("teamRoster.spent", { spp: line.spent }))}</span></p></div>`
     + renderProgressDots({ total: advancementRanks.length, done: line.level, label: t("teamRoster.advancements") })
-    + `${advance}${cheapest ? `<p class="g-roster__cheapest">${escapeHtml(cheapest)}</p>` : ""}${undoLastMarkup(line, screen)}</div>`;
+    + `${advance}${cheapest ? `<p class="g-roster__cheapest">${escapeHtml(cheapest)}</p>` : ""}</div>`;
 }
 
 /** A list of skill categories; a position with none in an access has a dash. */

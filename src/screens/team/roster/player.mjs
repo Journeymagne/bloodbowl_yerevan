@@ -3,8 +3,8 @@
  * one step of the save queue; on a desk the edit also carries his SPP counters outside a match (owner's D3), each press
  * a step of its own as on a phone. «Advancement» (the profile's) and «Advance» (the desk's panel) open his advancement,
  * whose presses are advance.mjs's; its done step offers a roster «Favoured of…» the god's bonus skill, one step more
- * (decision 17). «Undo the last: …» asks first, then his last advancement goes as one step (decision 18). None during a
- * match (R8). What a sheet holds lives on the visit, as the marks' do.
+ * (decision 17). «Undo the last: …» — in his fix by hand alone (decision 40) — asks first, then his last advancement
+ * goes as one step (decision 18). None during a match (R8). What a sheet holds lives on the visit, as the marks' do.
  *
  * A skill's chip, in his row, his panel or his profile, opens the skill's rule (07a), saying how an advancement gave it;
  * for a roll on the site the team's rolls are read once a visit for what its dice showed (decision 19). The edit's and the
@@ -18,8 +18,8 @@ import { toast } from "../../../components/toast.mjs";
 import { identityOf } from "../../../domain/roster/edits.mjs";
 import { advanceHandlers, advanceSheetOf, bonusOf } from "./advance.mjs";
 import { careerHandlers } from "./career.mjs";
-import { fixHandlers, fixSheetOf } from "./fix.mjs";
-import { closeSheet, keyed } from "./injury.mjs";
+import { fixChanged, fixHandlers, fixSheetOf } from "./fix.mjs";
+import { closeSheet, openerOf } from "./injury.mjs";
 import { gaveWords, undoClosed } from "./player-access.mjs";
 import { playerAt, rosterLineOf, savePlayerSheet, seededSheetOf } from "./player-save.mjs";
 import { editCheck } from "./player-sheets.mjs";
@@ -47,12 +47,13 @@ function undoSheetOf(sheet, line, where) {
 
 /**
  * A player's sheet as the screen draws it, or null when it stands no longer: his line has left the roster (read again,
- * or fallen), or a match has begun (R8) — the screen closes it, and the focus goes back to his pencil, his
- * «Advancement» or his «Undo the last», closed now (`openerOf`). The edit stands while his number, name and captaincy
- * are as it was seeded from (final review M1), and the fix by hand while he is as it was seeded from (fix.mjs's
- * `fixSheetOf`), each saying why «Save» is closed just now (`editClosed`: the screen's lock) — the same tie
- * (player-save.mjs's `seededSheetOf`); his advancement is advance.mjs's to keep (`advanceSheetOf`); the undo stands
- * while the advancement it showed is still his last (`undoSheetOf`), saying why it is closed (`undoClosed`).
+ * or fallen), or a match has begun (R8) — the screen closes it, and the focus goes back to his pencil or his
+ * «Advancement», closed now (`openerOf`; the undo's to the pencil its fix was opened from). The edit stands while his
+ * number, name and captaincy are as it was seeded from (final review M1), and the fix by hand while he is as it was
+ * seeded from (fix.mjs's `fixSheetOf`), each saying why «Save» is closed just now (`editClosed`: the screen's lock) —
+ * the same tie (player-save.mjs's `seededSheetOf`); his advancement is advance.mjs's to keep (`advanceSheetOf`); the
+ * undo stands while the advancement it showed is still his last (`undoSheetOf`), saying why it is closed
+ * (`undoClosed`).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines the roster's lines and the fallen
@@ -86,12 +87,13 @@ function saveEdit(saving, lent) {
 }
 
 /**
- * «Undo advancement»: only from the undo that is open, while the advancement it showed is still his last — a press
- * that finds none is a second press, and sends nothing. Why it is closed is asked again (K15), then one step of the
- * queue (`undoAdvancement`): what it gave goes, its SPP come back, and the save frees its site roll. In the same turn the
- * sheet closes, the focus on «Advancement» or «Advance», and the coach is told what came back. A refusal (another tab's
- * coach, the rules a 422 left the queue on) is said in the sheet, which stays; one of the queue's 422 asks for the
- * server's roster again (`refused`).
+ * «Undo advancement»: only from the undo that is open, while the advancement it showed is still his last — a press that
+ * finds none is a second press, and sends nothing. Why it is closed is asked again (K15), then one step of the queue
+ * (`undoAdvancement`): what it gave goes, its SPP come back, and the save frees its site roll. In the same turn the
+ * sheet closes, the focus on the pencil its fix was opened from — the step's own draw has closed it already
+ * (`undoSheetOf`), so the pencil is asked for here (`openerOf`) — and the coach is told what came back. A refusal
+ * (another tab's coach, the rules a 422 left the queue on) is said in the sheet, which stays; one of the queue's 422
+ * asks for the server's roster again (`refused`).
  *
  * @param {import("./index.mjs").Saving} saving
  * @param {{now: () => object, refused: () => void}} lent
@@ -107,7 +109,7 @@ function sendUndo(saving, { now, refused }) {
     toast(reason);
     return;
   }
-  const what = gaveWords(line.advancements[sheet.index]);
+  const [what, opener] = [gaveWords(line.advancements[sheet.index]), visit.opener];
   sheet.sending = true;
   let answer;
   try {
@@ -124,7 +126,7 @@ function sendUndo(saving, { now, refused }) {
   if (!answer.ok) return;
   visit.rolls = null;
   closeSheet(saving);
-  keyed("data-player-advance", sheet.key)?.focus();
+  openerOf({ opener, sheet })?.focus();
   toast(t("teamPlayer.undo.done", { what, spp: answer.cost }));
 }
 
@@ -200,11 +202,12 @@ function readSiteRolls({ teamId, visit, draw }, line, name) {
  * roll gave (`readSiteRolls`); the pencil opens his edit with his number, name and armband as they stand, unless
  * something closes it just now (said instead); a field typed in or the switch flipped changes the edit's form, and the
  * last refusal goes with the form it was said of; «Cancel» closes it, the focus back on the pencil; «Save» saves it
- * (`saveEdit`). «Undo the last» opens its sheet on the advancement that is his last at the press, unless something
- * closes it (said instead); «Keep» closes it, «Undo advancement» sends it (`sendUndo`). On the advancement's done
- * step a bonus skill is chosen among those the god offers him and he lacks, and «Add …» adds it (`addBonus`). His
- * advancement's other presses are advance.mjs's (`advanceHandlers`), his fix by hand's fix.mjs's (`fixHandlers`), his
- * career's button career.mjs's (`careerHandlers`).
+ * (`saveEdit`). «Undo the last» opens its sheet in the place of his fix by hand — only from that fix, open — on the
+ * advancement that is his last at the press, unless something closes it or the fix's form is changed (said instead);
+ * «Keep» closes it, «Undo advancement» sends it (`sendUndo`), the focus back on the pencil either way. On the
+ * advancement's done step a bonus skill is chosen among those the god offers him and he lacks, and «Add …» adds it
+ * (`addBonus`). His advancement's other presses are advance.mjs's (`advanceHandlers`), his fix by hand's fix.mjs's
+ * (`fixHandlers`), his career's button career.mjs's (`careerHandlers`).
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {{now: () => object, refused: () => void}} lent what the screen lends: `now` is the screen as it stands at the
@@ -227,14 +230,17 @@ export function playerHandlers(saving, lent) {
       readSiteRolls(saving, rosterLineOf(lent.now().lines, key), name);
       draw();
     },
-    onUnadvance: (key, button) => {
-      const where = lent.now();
-      const line = rosterLineOf(where.lines, key);
-      const reason = line ? undoClosed(line, where) : "";
+    onUnadvance: (key) => {
+      const fix = visit.sheet?.kind === "fix" && visit.sheet.key === key ? visit.sheet : null;
+      const where = fix ? lent.now() : null;
+      const line = where && rosterLineOf(where.lines, key);
+      if (!line?.advancements.length) return;
+      const reason = undoClosed(line, where) || (fixChanged(where, line, fix.form) ? t("teamPlayer.fix.saveFirst") : "");
       if (reason) toast(reason);
-      else if (line?.advancements.length) {
+      else {
         const index = line.advancements.length - 1;
-        Object.assign(visit, { sheet: { kind: "unadvance", key, index, confirmed: shownAs(line.advancements[index]), refusal: "" }, opener: button });
+        // In the fix's place, `visit.opener` kept: the pencil the fix was opened from, which «Keep» and a sent undo focus.
+        visit.sheet = { kind: "unadvance", key, index, confirmed: shownAs(line.advancements[index]), refusal: "" };
         draw();
       }
     },

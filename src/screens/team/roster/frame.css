@@ -2,8 +2,7 @@
  * The roster's frame as the prototypes draw it (owner's fidelity pass, 2026-10-19): the banners' parts, the line
  * under the tables, and from 901px the desk — the page band's 24px, the three tables in one card with the other two
  * sections as bands across it (DeskRosterInjured.html), and the panel's compact sizes (D2: a desk's controls are
- * compact, never under WCAG 2.5.8's 24px; a phone keeps 44px) — «Undo the last» among them (stage 07d, K19). roster.css
- * lays the screen out; this sheet follows it.
+ * compact, never under WCAG 2.5.8's 24px; a phone keeps 44px). roster.css lays the screen out; this sheet follows it.
  * Font, border, background, text-transform and letter-spacing are set on purpose: the 2.x globals outlive this sheet
  * until stage 13.
  */
@@ -192,29 +191,6 @@
     font-size: 16px;
   }
   .g-roster__aside .g-roster__cheapest { margin-top: -4px; }
-  /*
-   * «Undo the last: …» under them (decision 18, K19; no prototype): quiet, as the profile's — words in the accent, 14/600,
-   * no frame and no fill — centred, from 32px (D2: a desk's compact control, never under 24px).
-   */
-  .g-roster__aside .g-roster__undo {
-    box-sizing: border-box;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    align-self: center;
-    min-height: 32px;
-    margin: -6px 0 -4px;
-    padding: 0 var(--space-10);
-    border: 0;
-    background: none;
-    color: var(--accent-text);
-    font: 600 14px/normal var(--font-body);
-    letter-spacing: 0;
-    text-align: center;
-    text-transform: none;
-    overflow-wrap: anywhere;
-    cursor: pointer;
-  }
 
   /* The pair of actions, 40px (D2). */
   .g-roster__actions > .g-btn { min-height: 40px; }

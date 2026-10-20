@@ -11,9 +11,9 @@
  * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done», its roll's
  * way, «Roll …», a random skill's pair and the faces marked at the table, the D8's faces, characteristics, «Take a
  * skill in place…» and «Record this roll…», a god's bonus skill
- * and «Add …» on done, and «Undo the last: …» with its sheet's «Keep» and «Undo advancement»; the edit's line to
- * the fix by hand, its counters' − and +, its injuries' points, favoured skills and skills to take off, «Cancel» and
- * «Save»; the button of a phone's «Career» (stage 07d).
+ * and «Add …» on done; the edit's line to the fix by hand, its counters' − and +, its injuries' points, favoured
+ * skills and skills to take off, «Cancel» and «Save», and its «Undo the last: …» with its sheet's «Keep» and «Undo
+ * advancement»; the button of a phone's «Career» (stage 07d).
  * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs); this
  * file only says who was pressed.
  */
@@ -94,10 +94,10 @@ function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused
 
 /**
  * A player's own presses (stage 07d): his pencil (not when closed), the edit's number and name as they are typed — the
- * screen is patched, so the field keeps its focus and its caret — and its «Cancel» and «Save»; «Undo the last: …» (not
- * when closed) and its sheet's «Keep» and «Undo advancement»; the button of his profile's «Career», which opens and
- * closes its list. The switch «Team captain» is heard with the roster's other switch (`wireRoster`); the SPP tiles of
- * a desk's edit are the roster's counters, whose − and + `wireActionSteppers` hears.
+ * screen is patched, so the field keeps its focus and its caret — and its «Cancel» and «Save»; his fix by hand's «Undo
+ * the last: …» (not when closed) and its sheet's «Keep» and «Undo advancement»; the button of his profile's «Career»,
+ * which opens and closes its list. The switch «Team captain» is heard with the roster's other switch (`wireRoster`);
+ * the SPP tiles of a desk's edit are the roster's counters, whose − and + `wireActionSteppers` hears.
  */
 function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadvance, onUnadvanceKeep, onUnadvanceSend, onCareerToggle }) {
   return [
@@ -250,7 +250,7 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {() => void} handlers.onAdvanceBind «Record this roll for the advancement … taken at the table»
  * @param {(skill: string) => void} handlers.onFavoured a god's bonus skill chosen on the advancement's done step
  * @param {() => void} handlers.onFavouredAdd «Add …» under done (not when it is closed)
- * @param {(key: string, button: Element) => void} handlers.onUnadvance «Undo the last: …», by the line's key (not when it is closed)
+ * @param {(key: string) => void} handlers.onUnadvance the fix's «Undo the last: …», by the line's key (not when it is closed)
  * @param {() => void} handlers.onUnadvanceKeep «Keep» in the undo's sheet
  * @param {() => void} handlers.onUnadvanceSend «Undo advancement» in the undo's sheet
  * @param {(key: string, button: Element) => void} handlers.onFixOpen the edit's line to the fix by hand, by the line's key (not when it is closed)
