@@ -1,25 +1,22 @@
 /**
  * What a coach may change of a team on the team page (stage 07d; what only the 2.x editor could do): its league and
- * its god from the race's own, its Dedicated Fans put right, its players put in number order, its race changed — the
- * squad gone, as the 2.x editor did — and what the roster breaks of the rules. Each is a copy of the draft the way the
- * server stores it; the name and the logo are the request's, not the draft's.
+ * its god from the race's own, its Dedicated Fans put right, its players put in number order, and what the roster
+ * breaks of the rules. Never its race: a coach does not change a team's race (owner, 2026-10-20). Each is a copy of the
+ * draft the way the server stores it; the name and the logo are the request's, not the draft's.
  *
  * A change is refused with one of `TEAM_EDIT_REFUSALS` as `{code, params}`; the draft handed over is never changed.
  */
-import { builderStaffMaximums, medicalStaffDefinitions } from "../league-rules.mjs";
-import { calculateRosterCosts, syncMedicalStaffForTeam } from "./costs.mjs";
+import { builderStaffMaximums } from "../league-rules.mjs";
+import { calculateRosterCosts } from "./costs.mjs";
 import { normalizePlayerExtraSkills, normalizePlayerFavouredSkills, syncRosterCountsFromPlayers } from "./players.mjs";
 import { favouredSkillsForChoice, ruleLookupKey, teamFavouredOptions, teamLeagueOptions } from "./team-rules.mjs";
 import { validateRoster } from "./validate.mjs";
-import { countToNumber, rowsForTeam } from "./values.mjs";
+import { rowsForTeam } from "./values.mjs";
 
 /** Every code a change of the team's settings is refused with; the screen words each as `teamSettings.refusal.<code>`. */
 export const TEAM_EDIT_REFUSALS = Object.freeze([
-  "TEAM_NAME_EMPTY", "LEAGUE_UNKNOWN", "FAVOURED_UNKNOWN", "FANS_RANGE", "RACE_SAME", "RACE_UNKNOWN", "RACE_IN_SEASON",
+  "TEAM_NAME_EMPTY", "LEAGUE_UNKNOWN", "FAVOURED_UNKNOWN", "FANS_RANGE",
 ]);
-
-/** The staff a race may not be allowed to hold, in the order `syncMedicalStaffForTeam` puts it right: bribes, then medics. */
-const RACE_STAFF = Object.freeze(["bribes", ...medicalStaffDefinitions.map((staff) => staff.key)]);
 
 const refusal = (code, params = {}) => ({ code, params });
 /** The option of the race's list that `value` names, by its rule key (`ruleLookupKey`), as the list writes it; or undefined. */
@@ -102,37 +99,6 @@ export function byNumber(draft) {
   const moved = ranked.some(({ at }, place) => at !== place);
   if (moved) next.players = ranked.map(({ player }) => player);
   return { draft: next, moved };
-}
-
-/**
- * The draft of a team whose race changes from `before` to `after` (two slugs of `races`), as the 2.x editor changed
- * it: the squad gone — the positions are the race's — and counted; the league and the god the first of the new race's
- * (none where it has none); the bribes and the medical staff as the new race may hold them (`syncMedicalStaffForTeam`).
- * The treasury, the Coach's Safe, the re-rolls, the assistants, the cheerleaders and the fans stay as they were. Never
- * for a team playing in the season (the server does not check it: the client holds the rule, as the 2.x editor did).
- *
- * `dropped` is how many players the roster had; `staff` what of the staff goes, `key` its field of the draft (`bribes`,
- * `apothecary`, `mortuaryAssistant`, `plagueDoctor`) and `count` how many, for the screen to name before the change.
- * @param {object[]} races every race
- * @param {object} draft
- * @param {{before: string, after: string, inSeason: boolean}} change
- * @returns {{draft: object, dropped: number, staff: {key: string, count: number}[]}|{code: string, params: {}}}
- */
-export function withRace(races, draft, { before, after, inSeason }) {
-  if (inSeason) return refusal("RACE_IN_SEASON");
-  const race = (Array.isArray(races) ? races : []).find((item) => item?.slug === after);
-  if (!race) return refusal("RACE_UNKNOWN");
-  if (after === before) return refusal("RACE_SAME");
-  const next = structuredClone(draft);
-  const dropped = playersOf(next).filter((player) => player && typeof player === "object").length;
-  Object.assign(next, {
-    teamSlug: after, players: [], selectedLeague: teamLeagueOptions(race)[0] ?? "", favouredChoice: teamFavouredOptions(race)[0] ?? "",
-  });
-  syncRosterCountsFromPlayers(next);
-  const held = RACE_STAFF.map((key) => countToNumber(next[key]));
-  syncMedicalStaffForTeam(race, next);
-  const staff = RACE_STAFF.map((key, at) => ({ key, count: held[at] - countToNumber(next[key]) })).filter(({ count }) => count > 0);
-  return { draft: next, dropped, staff };
 }
 
 /**

@@ -1,7 +1,8 @@
 /**
  * The team's settings on the team page (stage 07d; owner, 2026-10-19: what only the 2.x editor could do moves into
- * 3.0): its name, race, league, god and logo, its Dedicated Fans put right, its players in number order, and what the
- * roster breaks of the rules — the rows of the builder's team card. Each is one save of the team, the team page's own
+ * 3.0): its name, league, god and logo, its Dedicated Fans put right, its players in number order, and what the roster
+ * breaks of the rules — the rows of the builder's team card, with the race shown among them and never changed (owner,
+ * 2026-10-20). Each is one save of the team, the team page's own
  * (`saveTeamRoster`), never sent again by itself; none while a match is on, while a save of the team is on its way, or
  * while the roster's queue holds a step of its own, which a save made here would leave on a revision the server no
  * longer has.
@@ -11,27 +12,23 @@
  * holds it; `wireSettings` is the whole of its wiring. A row's button opens its sheet (settings-sheet.mjs) in a host of
  * its own; the logo, its removal and the order go at the press, with no sheet. A held button stays in the tab order
  * and says why when pressed, and nothing goes: what holds the settings is asked again at every press, never read off
- * the buttons. The race is held by a match being prepared too, and the press reads the team once more first, for the
- * season it may have joined since (K17).
+ * the buttons.
  */
 import { toastError } from "../../../components/toast.mjs";
-import { refusalText } from "../../../core/api.mjs";
-import { apiRequest, sessionTokenHolds } from "../../../core/api-client.mjs";
 import { delegate, escapeHtml, listenerGroup } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../../core/logo-upload.mjs";
 import { teamUrl } from "../../../core/routes.mjs";
 import { state } from "../../../core/state.mjs";
 import { onGamesChange } from "../../../data/games.mjs";
-import { loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules, setMyTeams } from "../../../data/teams.mjs";
+import { loadMyTeams, onMyTeamsChange, raceTeamOf, refusalWithRules } from "../../../data/teams.mjs";
 import { isWriting, readLedger, saveTeamRoster } from "../../../data/treasury.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
-import { byNumber, rosterViolations, withFans, withFavoured, withLeague, withRace } from "../../../domain/roster/team-edits.mjs";
+import { byNumber, rosterViolations, withFans, withFavoured, withLeague } from "../../../domain/roster/team-edits.mjs";
 import { ruleLookupKey, teamFavouredOptions, teamLeagueOptions } from "../../../domain/roster/team-rules.mjs";
 import { countToNumber } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
-import { wireRadioGroups } from "../../../ui/choice.mjs";
 import { icon } from "../../../ui/icons.mjs";
 import { wireOptionLists } from "../../../ui/option-card.mjs";
 import { wireResourceCounters } from "../../../ui/resource-counter.mjs";
@@ -54,7 +51,6 @@ const REFOCUS = {
   league: '.g-options [tabindex="0"]',
   favoured: '.g-options [tabindex="0"]',
   fans: '[data-resource-step="1"]',
-  race: '.g-races [tabindex="0"]',
 };
 
 /**
@@ -83,12 +79,12 @@ function holdOf({ lock, queue, busy }) {
  * @param {{kind: "live"|"preparing"}|null} [input.lock] `matchLock`
  * @param {boolean} [input.busy] a save of the team is on its way (`isWriting`)
  * @param {{status: string, waiting: number}} [input.queue] where the roster's queue stands (`saveState`)
- * @returns {{name: string, logoData: string, raceSlug: string, raceTitle: string, tier: string, league: string,
- *   leagues: string[], favoured: string, alignments: string[], fans: number, inSeason: boolean, players: number,
- *   violations: {code: string, params: object}[], held: string, waitsRoster: boolean, raceHeld: string, preparing: boolean}}
- *   `league` and `favoured` as the rules read them (`choiceOf`); `logoData` only a picture (`LOGO_DATA_URL`), else "";
- *   `raceHeld` what holds the race: `held`, or a match being prepared (K17); `preparing` a match of the team's being
- *   prepared, which any save of the settings starts over for both teams (decision 20, final review I1)
+ * @returns {{name: string, logoData: string, raceTitle: string, tier: string, league: string, leagues: string[],
+ *   favoured: string, alignments: string[], fans: number, violations: {code: string, params: object}[], held: string,
+ *   waitsRoster: boolean, preparing: boolean}}
+ *   `league` and `favoured` as the rules read them (`choiceOf`); `logoData` only a picture (`LOGO_DATA_URL`);
+ *   `preparing` a match of the team's being prepared, which any save of the settings starts over for both teams
+ *   (decision 20, final review I1)
  */
 export function settingsModel({ team, race, lock = null, busy = false, queue = REST }) {
   const draft = normalizeDraft(team.roster ?? {});
@@ -98,7 +94,6 @@ export function settingsModel({ team, race, lock = null, busy = false, queue = R
   return {
     name: String(team.name ?? ""),
     logoData: LOGO_DATA_URL.test(logo) ? logo : "",
-    raceSlug: String(team.baseTeamSlug ?? ""),
     raceTitle: race?.title ?? "",
     tier: race?.team?.meta?.league ?? "",
     league: choiceOf(leagues, draft.selectedLeague),
@@ -106,11 +101,8 @@ export function settingsModel({ team, race, lock = null, busy = false, queue = R
     favoured: choiceOf(alignments, draft.favouredChoice),
     alignments,
     fans: countToNumber(draft.dedicatedFans),
-    inSeason: team.inActiveSeason === true,
-    players: draft.players.length,
     violations: race ? rosterViolations(race, draft) : [],
     ...hold,
-    raceHeld: hold.held || (lock?.kind === "preparing" ? t("teamSettings.racePreparing") : ""),
     preparing: lock?.kind === "preparing",
   };
 }
@@ -136,11 +128,10 @@ function row(kind, { label, note = "", value = "", action = "" }) {
   return `<div class="g-team-settings__row" data-settings-row="${kind}" data-key="team-settings-${kind}">${text}<span class="g-team-settings__value">${shown}${action}</span></div>`;
 }
 
-/** The race and its tier; changed only out of the season, and then not while a match is prepared (K17). */
+/** The race and its tier, read only on every width and in every state: a coach does not change a team's race (owner, 2026-10-20). */
 function raceRow(settings) {
   const value = settings.tier ? `${settings.raceTitle} · ${settings.tier}` : settings.raceTitle;
-  if (settings.inSeason) return row("race", { label: t("teamSettings.race"), note: t("roster.raceLockedInSeason"), value });
-  return row("race", { label: t("teamSettings.race"), value, action: opener("race", t("teamSettings.raceOpen"), settings.raceHeld) });
+  return row("race", { label: t("teamSettings.race"), value });
 }
 
 /** A league or a god: no line for a race that has none, no button for one that has one only. */
@@ -236,70 +227,23 @@ function worded(answer) {
 const settingsWords = (error) => (error?.code === "DICE_ROLL_MISMATCH" ? t("teamSettings.refusal.DICE_ROLL_MISMATCH") : refusalWithRules(error));
 
 /**
- * One save of the team: the draft a step of team-edits.mjs made — or its refusal, in words — with the name, the race
- * or the logo given. Asynchronous throughout, so that a throw of `saveTeamRoster` (a draft of another race than it
- * sends) is a rejection its caller handles, never an exception in a click.
+ * One save of the team: the draft a step of team-edits.mjs made — or its refusal, in words — with the name or the logo
+ * given. Asynchronous throughout, so that a save that threw is a rejection its caller handles, never an exception in a
+ * click.
  */
 async function saved(teamId, changed, identity) {
   if (changed.code) return { refusal: t(`teamSettings.refusal.${changed.code}`, changed.params) };
   return worded(await saveTeamRoster(teamId, changed.draft, identity, { words: settingsWords }));
 }
 
-/** The team the race's read brought, in the coach's list in place of an older copy (a read of the list on its way is asked again). */
-function takeFresh(fresh, listed) {
-  if (!(fresh.revision >= listed.revision)) return;
-  const reading = state.myTeams.loading;
-  setMyTeams(state.myTeams.items.map((item) => (item.id === fresh.id ? fresh : item)));
-  if (reading) void loadMyTeams(true);
-}
-
-/**
- * «Change the race» (K17): the team is read once more first, since the server does not refuse a race changed in the
- * season — the client holds the rule, as the 2.x editor did — and the list may be older than the season. Nothing is
- * sent for another tab's coach, a read that fails, a team changed elsewhere since (the coach sees it first, as after a
- * 409), a team in the season, or what holds the settings now (a match being prepared, a step of the roster's, a save,
- * any of which may have come during the read). Nor, and nothing is said, when the coach has closed the sheet or left the
- * page during the read (`stillOpen`): the press is the page's one irreversible write, and backing out of it takes it
- * back. The draft is the read team's, with the new race's league, god and staff, and goes with the new race named
- * (`baseTeamSlug`): without it the server keeps the old one.
- * @param {string} teamId @param {string} after the race chosen
- * @param {() => boolean} stillOpen whether the sheet that was pressed is still the one open, on the page still shown
- */
-async function changeRace(teamId, after, stillOpen) {
-  if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
-  let fresh = null;
-  let failure = null;
-  try {
-    fresh = (await apiRequest(`/api/teams/${encodeURIComponent(teamId)}`))?.team ?? null;
-  } catch (error) {
-    failure = error;
-  }
-  // An ignored press of a sheet that has gone says nothing (sheet-host.mjs, `submit`).
-  if (!stillOpen()) return { ignored: true };
-  if (failure) return { refusal: refusalText(failure) };
-  const listed = teamOf(teamId);
-  if (!fresh || fresh.id !== teamId) return { refusal: t("request.noAnswer") };
-  if (!listed) return { refusal: t("error.TEAM_NOT_FOUND") };
-  if (fresh.revision !== listed.revision || fresh.inActiveSeason !== listed.inActiveSeason) takeFresh(fresh, listed);
-  if (fresh.revision !== listed.revision) {
-    void readLedger(teamId);
-    return { refusal: t("teamSettings.changed"), changed: true };
-  }
-  const held = nowOf(teamId)?.raceHeld;
-  if (held) return { refusal: held };
-  const change = { before: fresh.baseTeamSlug, after, inSeason: fresh.inActiveSeason === true };
-  return saved(teamId, withRace(state.data?.teams ?? [], draftOf(fresh), change), { baseTeamSlug: after });
-}
-
-/** What a sheet's press sends: the step of its kind on the team as the list holds it, or the race's own way. */
-function sendOf(form, chosen, stillOpen) {
+/** What a sheet's press sends: the step of its kind on the team as the list holds it. */
+function sendOf(form, chosen) {
   const team = teamOf(form.teamId);
   const race = raceTeamOf(team?.baseTeamSlug);
   if (form.kind === "name") return saved(form.teamId, { draft: draftOf(team) }, { name: chosen });
   if (form.kind === "league") return saved(form.teamId, withLeague(race, draftOf(team), chosen));
   if (form.kind === "favoured") return saved(form.teamId, withFavoured(race, draftOf(team), chosen));
-  if (form.kind === "fans") return saved(form.teamId, withFans(draftOf(team), Number(chosen)));
-  return changeRace(form.teamId, chosen, stillOpen);
+  return saved(form.teamId, withFans(draftOf(team), Number(chosen)));
 }
 
 /**
@@ -329,10 +273,7 @@ async function apply(host, sheet) {
     sheet.focus(REFOCUS[form.kind]);
     return;
   }
-  // The race's send waits for a read first: it goes only if this very sheet is still open on the page still shown.
-  const opened = sheet.opened;
-  const stillOpen = () => sheet.opened === opened && host.isConnected;
-  await sheet.submit(() => sendOf(form, check.chosen, stillOpen), {
+  await sheet.submit(() => sendOf(form, check.chosen), {
     startOver: { value: null },
     refocus: REFOCUS[form.kind],
     // A lost answer is read again by `saveTeamRoster`; a save whose own code threw is not.
@@ -349,7 +290,7 @@ async function apply(host, sheet) {
 function open(sheet, teamId, button) {
   const kind = button.getAttribute("data-settings-open");
   const now = nowOf(teamId);
-  const reason = now ? (kind === "race" ? now.raceHeld : now.held) : t("error.TEAM_NOT_FOUND");
+  const reason = now ? now.held : t("error.TEAM_NOT_FOUND");
   if (reason) {
     teamToast(teamId, reason, { tone: "error" });
     return;
@@ -441,7 +382,7 @@ function pickerPress(event, teamId, gate) {
 function drawn(form) {
   const team = teamOf(form.teamId);
   if (!team) return "";
-  return settingsSheetMarkup({ ...form, team, race: raceTeamOf(team.baseTeamSlug), races: state.data?.teams ?? [], now: nowOf(form.teamId) });
+  return settingsSheetMarkup({ ...form, team, race: raceTeamOf(team.baseTeamSlug), now: nowOf(form.teamId) });
 }
 
 /** The team moved (a save of the settings', of the page's, a read): the sheet is drawn again from it, or closed when it is gone. */
@@ -487,9 +428,8 @@ export function wireSettings(root, teamId) {
   group.own(wireSheets(host, { onClose: (id) => { if (id === SETTINGS_SHEET_ID) sheet.close(); } }));
   group.on("input", `#${NAME_FIELD_ID}`, (event, input) => choose(input.value));
   group.own(wireOptionLists(host, choose));
-  group.own(wireRadioGroups(host, { group: ".g-races", item: "[data-race]", attribute: "data-race", onChange: choose }));
   group.own(wireResourceCounters(host, ({ delta }) => stepFans(sheet, delta), { onRefused: ({ reason }) => teamToast(teamId, reason, { tone: "error" }) }));
-  group.on("click", "[data-settings-save], [data-settings-race]", () => { void apply(host, sheet); });
+  group.on("click", "[data-settings-save]", () => { void apply(host, sheet); });
   group.own(onMyTeamsChange(() => teamMoved(host, sheet)));
   group.own(onGamesChange(() => sheet.follow()));
   group.own(onSaveState(teamId, () => sheet.follow()));

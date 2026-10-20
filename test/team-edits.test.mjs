@@ -7,14 +7,14 @@ import { expandCollections } from "../src/data/reference.mjs";
 import { sameValues } from "../src/domain/post-match/events.mjs";
 import { calculateRosterCosts } from "../src/domain/roster/costs.mjs";
 import { normalizeDraft, rosterForStorage } from "../src/domain/roster/schema.mjs";
-import {
-  TEAM_EDIT_REFUSALS, byNumber, rosterViolations, teamNameRefusal, withFans, withFavoured, withLeague, withRace,
-} from "../src/domain/roster/team-edits.mjs";
+import * as edits from "../src/domain/roster/team-edits.mjs";
 import { teamFavouredOptions, teamLeagueOptions } from "../src/domain/roster/team-rules.mjs";
 import { validateRoster } from "../src/domain/roster/validate.mjs";
 import { blockingViolations, checkRoster, loadTeamReference } from "../server/domain/roster.mjs";
 
 await loadTeamReference(fileURLToPath(new URL("..", import.meta.url)));
+
+const { TEAM_EDIT_REFUSALS, byNumber, rosterViolations, teamNameRefusal, withFans, withFavoured, withLeague } = edits;
 
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
 const dictionary = (locale) => JSON.parse(readFileSync(new URL(`../src/i18n/${locale}.json`, import.meta.url), "utf8"));
@@ -23,8 +23,6 @@ const races = data.teams;
 // Human: 0 Human Lineman (0-16), 1 Thrower, 2 Catcher, 3 Blitzer (0-2 each); an apothecary, no bribes, no god.
 const HUMAN = "teams/human";
 const human = race(HUMAN);
-// Shambling Undead (K23): Sylvanian Spotlight, a Mortuary Assistant and no apothecary, no bribes, no god.
-const UNDEAD = "teams/shambling-undead";
 // The first race of the data with two leagues or more, and the first with two gods or more.
 const twoLeagues = races.find((team) => teamLeagueOptions(team).length >= 2);
 const twoGods = races.find((team) => teamFavouredOptions(team).length >= 2);
@@ -125,42 +123,9 @@ test("by number: 1, 2, 10 in that order, a number that is no number last, the re
   assert.deepEqual(byNumber(stored(HUMAN, [])), { draft: stored(HUMAN, []), moved: false });
 });
 
-test("a race changed: the squad gone and counted; the treasury, the safe, the re-rolls and the fans kept; the league, the god, the medics and the bribes the new race's; never in a season, never to the same race", () => {
-  const kept = { treasury: 150, coachesSafe: 30, teamRerolls: 2, startingRerolls: 1, assistantCoaches: 1, cheerleaders: 2, dedicatedFans: 3 };
-  const draft = stored(HUMAN, ELEVEN, { ...kept, apothecary: 1, purchasedStaff: { apothecary: 1, teamRerolls: 1 }, selectedLeague: "Old World Classic" });
-  const change = { before: HUMAN, after: UNDEAD, inSeason: false };
-  const changed = untouched(draft, (held) => withRace(races, held, change));
-  assert.equal(changed.dropped, 11);
-  assert.deepEqual(changed.staff, [{ key: "apothecary", count: 1 }], "the apothecary the undead cannot hold is named");
-  const next = changed.draft;
-  assert.deepEqual([next.teamSlug, next.players, next.roster, next.selectedLeague, next.favouredChoice],
-    [UNDEAD, [], {}, teamLeagueOptions(race(UNDEAD))[0], ""]);
-  assert.deepEqual([next.apothecary, next.mortuaryAssistant, next.plagueDoctor, next.bribes, next.purchasedStaff.apothecary], [0, 0, 0, 0, 0]);
-  for (const [key, value] of Object.entries({ ...kept, teamName: "Iron Rooks" })) assert.equal(next[key], value, key);
-  assert.equal(next.purchasedStaff.teamRerolls, 1);
-
-  // A god for a race that has one, the first of its list; the bribes go where the new race has no Bribery and Corruption.
-  const nurgle = withRace(races, draft, { ...change, after: "teams/nurgle" });
-  assert.deepEqual([nurgle.draft.favouredChoice, nurgle.draft.selectedLeague, nurgle.staff], ["Nurgle", "Chaos Clash", [{ key: "apothecary", count: 1 }]]);
-  const goblins = stored("teams/goblin", [], { bribes: 2, apothecary: 1, purchasedStaff: { bribes: 1 } });
-  const bribed = withRace(races, goblins, { before: "teams/goblin", after: HUMAN, inSeason: false });
-  assert.deepEqual([bribed.dropped, bribed.staff, bribed.draft.bribes, bribed.draft.apothecary], [0, [{ key: "bribes", count: 2 }], 0, 1]);
-  assert.deepEqual(withRace(races, goblins, { before: "teams/goblin", after: "teams/black-orc", inSeason: false }).staff, [], "a race that may bribe keeps the bribes");
-
-  assert.deepEqual(withRace(races, draft, { ...change, inSeason: true }), { code: "RACE_IN_SEASON", params: {} });
-  assert.deepEqual(withRace(races, draft, { ...change, after: HUMAN, inSeason: true }), { code: "RACE_IN_SEASON", params: {} }, "the season first");
-  assert.deepEqual(withRace(races, draft, { ...change, after: HUMAN }), { code: "RACE_SAME", params: {} });
-  for (const after of ["teams/nowhere", "", undefined]) {
-    assert.deepEqual(withRace(races, draft, { ...change, after }), { code: "RACE_UNKNOWN", params: {} }, String(after));
-  }
-});
-
-test("a race changed is a roster the server stores as sent", () => {
-  const draft = stored(HUMAN, ELEVEN, { apothecary: 1, purchasedStaff: { apothecary: 1 }, dedicatedFans: 3 });
-  for (const after of [UNDEAD, "teams/nurgle", "teams/goblin", twoLeagues.slug]) {
-    const changed = withRace(races, draft, { before: HUMAN, after, inSeason: false }).draft;
-    assert.ok(asStored(after, changed), `${after} is stored as it was sent`);
-  }
+// Owner, 2026-10-20: a coach does not change a team's race, so team-edits has no step for it.
+test("there is no race to change: team-edits has no withRace", () => {
+  assert.equal(edits.withRace, undefined);
 });
 
 test("a league, a god, the fans and the order changed are rosters the server stores as sent", () => {
@@ -187,14 +152,10 @@ test("the roster's violations, as the 2.x editor listed them", () => {
 });
 
 test("every refusal of the settings is worded in both dictionaries, with the same placeholders", () => {
-  assert.deepEqual(TEAM_EDIT_REFUSALS, ["TEAM_NAME_EMPTY", "LEAGUE_UNKNOWN", "FAVOURED_UNKNOWN", "FANS_RANGE", "RACE_SAME", "RACE_UNKNOWN", "RACE_IN_SEASON"]);
+  assert.deepEqual(TEAM_EDIT_REFUSALS, ["TEAM_NAME_EMPTY", "LEAGUE_UNKNOWN", "FAVOURED_UNKNOWN", "FANS_RANGE"]);
   assert.ok(Object.isFrozen(TEAM_EDIT_REFUSALS));
   const draft = stored(HUMAN, ELEVEN);
-  const change = { before: HUMAN, after: UNDEAD, inSeason: false };
-  const given = [
-    teamNameRefusal(" "), withLeague(human, draft, "Chaos Clash"), withFavoured(human, draft, "Nurgle"), withFans(draft, 7),
-    withRace(races, draft, { ...change, after: HUMAN }), withRace(races, draft, { ...change, after: "teams/nowhere" }), withRace(races, draft, { ...change, inSeason: true }),
-  ];
+  const given = [teamNameRefusal(" "), withLeague(human, draft, "Chaos Clash"), withFavoured(human, draft, "Nurgle"), withFans(draft, 7)];
   assert.deepEqual(given.map(({ code }) => code), TEAM_EDIT_REFUSALS, "each is one a step gives");
   const [en, ru] = [dictionary("en"), dictionary("ru")];
   const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map(([, name]) => name).sort();
@@ -203,5 +164,18 @@ test("every refusal of the settings is worded in both dictionaries, with the sam
     assert.ok(en[key] && ru[key], `${key} in both`);
     assert.deepEqual(placeholders(ru[key]), placeholders(en[key]), key);
     assert.deepEqual(placeholders(en[key]), Object.keys(params).sort(), `${key} says what the refusal brings`);
+  }
+});
+
+test("the race's words are gone from both dictionaries", () => {
+  const gone = [
+    "teamSettings.refusal.RACE_SAME", "teamSettings.refusal.RACE_UNKNOWN", "teamSettings.refusal.RACE_IN_SEASON",
+    "teamSettings.raceOpen", "teamSettings.raceDrops", "teamSettings.raceStaff", "teamSettings.racePreparing", "teamSettings.raceChange",
+  ];
+  for (const locale of ["en", "ru"]) {
+    const words = dictionary(locale);
+    for (const key of gone) assert.equal(key in words, false, `${locale}: ${key}`);
+    // What stays: the read-only row's label, TeamNew's «Choose a race», the 2.x editor's season lock.
+    for (const key of ["teamSettings.race", "newTeam.needRace", "roster.raceLockedInSeason"]) assert.ok(words[key], `${locale}: ${key}`);
   }
 });

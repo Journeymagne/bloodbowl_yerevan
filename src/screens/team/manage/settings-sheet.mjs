@@ -1,26 +1,24 @@
 /**
- * The sheets of the team's settings: the name (TeamNew's field), a league or a god (the builder's choice), the fans,
- * and the race — the race's red button the one irreversible press of the page.
+ * The sheets of the team's settings: the name (TeamNew's field), a league or a god (the builder's choice), the fans.
+ * The race has none: a coach does not change a team's race (owner, 2026-10-20), and the page shows it and nothing more.
  *
  * One sheet at a time, named as its row is (K18), drawn from a form whose `value` is what the coach has chosen, or
  * null for what the team holds now: a sheet that a 409 or a lost answer starts over shows the team as it then is, by
- * one assignment. What a sheet says before its button — the favoured skills a god takes off, the players and the staff
- * a race lets go (K17) — is the domain's own answer (domain/roster/team-edits.mjs) on the team as it stands, asked at
- * each draw. When the button may send is `settingsCheck`, which the sheet draws from and the press asks again
- * (settings.mjs); what it sends is settings.mjs's.
+ * one assignment. What a sheet says before its button — the favoured skills a god takes off — is the domain's own
+ * answer (domain/roster/team-edits.mjs) on the team as it stands, asked at each draw. When the button may send is
+ * `settingsCheck`, which the sheet draws from and the press asks again (settings.mjs); what it sends is settings.mjs's.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
-import { builderStaffMaximums, medicalStaffDefinitions } from "../../../domain/league-rules.mjs";
+import { builderStaffMaximums } from "../../../domain/league-rules.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
-import { teamNameRefusal, withFavoured, withRace } from "../../../domain/roster/team-edits.mjs";
+import { teamNameRefusal, withFavoured } from "../../../domain/roster/team-edits.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderCallout } from "../../../ui/callout.mjs";
 import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderResourceCounter } from "../../../ui/resource-counter.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
-import { racesMarkup } from "../../teams/new.mjs";
 import { prepResetWords } from "../roster/panel.mjs";
 
 export const SETTINGS_SHEET_ID = "team-settings-sheet";
@@ -35,7 +33,6 @@ const KINDS = {
   league: { title: () => t("teamSettings.league"), own: (now) => now.league },
   favoured: { title: () => t("teamSettings.favoured"), own: (now) => now.favoured },
   fans: { title: () => t("teamSettings.fans"), own: (now) => now.fans },
-  race: { title: () => t("teamSettings.race"), own: (now) => now.raceSlug },
 };
 export const SETTINGS_KINDS = Object.freeze(Object.keys(KINDS));
 
@@ -44,9 +41,9 @@ export const draftOf = (team) => normalizeDraft(structuredClone(team?.roster ?? 
 
 /**
  * What a sheet's one button waits for, the same for the sheet that draws it and the press that sends: `chosen` is
- * what it would save; `closed` why nothing may be saved now (the section's `held`; for the race also a match being
- * prepared, or the season, K17); `refusal` a name that is none (`teamNameRefusal`); `ready` whether a press sends —
- * not while closed or refused, nor for what the team holds already (a name compared without its blanks).
+ * what it would save; `closed` why nothing may be saved now (the section's `held`); `refusal` a name that is none
+ * (`teamNameRefusal`); `ready` whether a press sends — not while closed or refused, nor for what the team holds
+ * already (a name compared without its blanks).
  *
  * @param {{kind: string, value: string|number|null, now: object}} form `now` is the section's model (`settingsModel`)
  * @returns {{chosen: string|number, closed: string, refusal: {code: string, params: object}|null, ready: boolean}}
@@ -54,13 +51,13 @@ export const draftOf = (team) => normalizeDraft(structuredClone(team?.roster ?? 
 export function settingsCheck({ kind, value, now }) {
   const own = KINDS[kind].own(now);
   const chosen = value ?? own;
-  const closed = kind === "race" ? now.raceHeld || (now.inSeason ? t("roster.raceLockedInSeason") : "") : now.held;
+  const closed = now.held;
   const refusal = kind === "name" ? teamNameRefusal(chosen) : null;
   const same = kind === "name" ? String(chosen).trim() === String(own).trim() : chosen === own;
   return { chosen, closed, refusal, ready: !closed && !refusal && !same };
 }
 
-/** A box of warnings, a line each, in the look of TeamNew's line under the races (`.g-races__resets`: what another race would cost). */
+/** A box of warnings, a line each, in the look of TeamNew's line under the races (`.g-races__resets`, new.css). */
 function dropsBox(lines) {
   const shown = lines.map((line) => `<span class="g-team-settings__drop">${escapeHtml(line)}</span>`).join("");
   return `<div class="g-races__resets g-team-settings__drops">${shown}</div>`;
@@ -117,60 +114,28 @@ function fansBody(form, check) {
   });
 }
 
-/** The races as TeamNew lists them (stage 06), one radio group (`wireRadioGroups`). */
-const raceBody = (form, check) => racesMarkup(form.races, check.chosen);
-
-/** What a staff is called: the dictionary's word for the bribes, the rule table's title for a medic (as the resources name them). */
-function staffWords({ key, count }) {
-  const title = key === "bribes" ? t("savedRoster.bribes") : medicalStaffDefinitions.find((staff) => staff.key === key)?.title ?? key;
-  return count > 1 ? `${title} ×${count}` : title;
-}
+const BODIES = { name: nameBody, league: choiceBody, favoured: choiceBody, fans: fansBody };
 
 /**
- * What a race changed lets go, said by the red button (K17): the squad, always; the staff and the bribes the chosen
- * race cannot hold (`withRace`'s `staff`), once one is chosen. The treasury, the resources and the history stay.
- */
-function raceDrops(form, check) {
-  const lines = [t("teamSettings.raceDrops", { count: form.now.players })];
-  if (check.chosen !== form.now.raceSlug) {
-    const changed = withRace(form.races, draftOf(form.team), { before: form.now.raceSlug, after: check.chosen, inSeason: false });
-    if (!changed.code && changed.staff.length) lines.push(t("teamSettings.raceStaff", { list: changed.staff.map(staffWords).join(", ") }));
-  }
-  return dropsBox(lines);
-}
-
-const BODIES = { name: nameBody, league: choiceBody, favoured: choiceBody, fans: fansBody, race: raceBody };
-
-/**
- * The sheet's foot: «Save», or the race's red button (`kind: "danger"`, decision 28) under the words of what it lets go.
- * Neither is disabled while its save is on its way (`busy`: a focused button that is disabled drops the focus in
- * Chrome); a second press is refused by the controller (sheet-host.mjs).
+ * The sheet's foot: «Save». It is not disabled while its save is on its way (`busy`: a focused button that is disabled
+ * drops the focus in Chrome); a second press is refused by the controller (sheet-host.mjs).
  */
 function footOf(form, check) {
   const busy = form.pending;
   const disabled = !busy && !check.ready;
-  if (form.kind !== "race") {
-    return renderButton({ kind: "primary", label: busy ? t("treasury.money.saving") : t("teamSettings.save"), busy, disabled, data: { settingsSave: "" } });
-  }
-  // Until another race is chosen the button names none, as TeamNew's does («Choose a race»): naming the team's own
-  // would promise a change to what it has.
-  const race = form.races.find((item) => item.slug === check.chosen);
-  const unchosen = check.chosen === form.now.raceSlug;
-  const label = busy ? t("treasury.money.saving") : unchosen ? t("newTeam.needRace") : t("teamSettings.raceChange", { race: race?.title ?? String(check.chosen) });
-  return `${raceDrops(form, check)}${renderButton({ kind: "danger", label, busy, disabled, data: { settingsRace: "" } })}`;
+  return renderButton({ kind: "primary", label: busy ? t("treasury.money.saving") : t("teamSettings.save"), busy, disabled, data: { settingsSave: "" } });
 }
 
 /**
  * One sheet of the settings, closed (`patchWithModal` opens it).
  *
  * @param {object} form
- * @param {"name"|"league"|"favoured"|"fans"|"race"} form.kind
+ * @param {"name"|"league"|"favoured"|"fans"} form.kind
  * @param {string|number|null} form.value what the coach has chosen; null for what the team holds
  * @param {boolean} form.pending its save is on its way
  * @param {string} form.refusal what the last press was told, in words; "" for none
  * @param {object} form.team the team as the coach's list holds it
  * @param {object|null} form.race the reference's entry for its race
- * @param {object[]} form.races every race (`state.data.teams`)
  * @param {object} form.now the section's model of the team (`settingsModel`)
  * @returns {string}
  */
@@ -178,9 +143,8 @@ export function settingsSheetMarkup(form) {
   const check = settingsCheck(form);
   // What holds the sheet is said over it; not while its own save is on its way, which is what holds it then.
   const closed = check.closed && !form.pending ? renderCallout({ tone: "warn", title: check.closed }) : "";
-  // During a preparation a save starts its steps over (decision 20, final review I1), as every roster sheet says; the
-  // race, which a preparation closes (K17), says that instead.
-  const prep = form.now.preparing && form.kind !== "race" ? `<p class="g-team-settings__prep">${escapeHtml(prepResetWords("teamSettings.prep"))}</p>` : "";
+  // During a preparation a save starts its steps over (decision 20, final review I1), as every roster sheet says.
+  const prep = form.now.preparing ? `<p class="g-team-settings__prep">${escapeHtml(prepResetWords("teamSettings.prep"))}</p>` : "";
   // Always on the page, so that a screen reader hears what is put in it.
   const alert = `<div class="g-team-settings__alert" role="alert">${form.refusal ? renderCallout({ tone: "danger", title: form.refusal }) : ""}</div>`;
   return renderSheet({
@@ -188,7 +152,5 @@ export function settingsSheetMarkup(form) {
     title: KINDS[form.kind].title(),
     bodyHtml: `<div class="g-team-settings__sheet" data-settings-kind="${escapeHtml(form.kind)}">${closed}${BODIES[form.kind](form, check)}${prep}${alert}</div>`,
     footHtml: footOf(form, check),
-    wide: form.kind === "race",
-    className: "g-team-settings-sheet",
   });
 }

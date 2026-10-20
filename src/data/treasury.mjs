@@ -233,49 +233,30 @@ export function addTreasuryEntry(teamId, { delta, reason, note }) {
 }
 
 /**
- * A draft is saved under its own race: the race `identity.baseTeamSlug` names, or else the race of the roster stored
- * (its own `teamSlug`, or the team's where it names none). One whose race changed (`withRace`) goes only with that race
- * named: sent under the team's, the server would store the old race with the new race's empty squad and refuse
- * nothing. That is a mistake of the code that saves, never the coach's, so it throws. Compared with the roster stored
- * and not with the team's column (final review M3), a team whose roster names another race than its column — an old
- * import, a content rename — saves as it did before stage 07d. A draft that names no race — a roster stored before it
- * carried one — is of the race it is sent with.
- */
-function assertSameRace(draft, race) {
-  const own = String(draft?.teamSlug ?? "");
-  if (own && own !== race) {
-    throw new TypeError(`saveTeamRoster: a roster of "${own}" where the race is "${race}"; a race changed is saved with identity.baseTeamSlug`);
-  }
-}
-
-/**
- * Save a roster draft (the stored shape, `normalizeDraft`'s) as the team's roster. The name, the race and the
- * logo go as the team has them, unless `identity` names others (the team's settings, stage 07d); the logo is not
- * re-encoded. A field of `identity` left out, or undefined, is the team's; a name given goes without the blanks at
- * its ends, in the column and in the roster alike (the builder's save does the same); a logo of "" or null takes it
- * off. The server writes the lines this page does not have (a purchase, a sale), so the history is read again. A
- * refusal of the server's own is said in `words` (the server's error's words and the rules it names, unless given).
+ * Save a roster draft (the stored shape, `normalizeDraft`'s) as the team's roster. The name and the logo go as the team
+ * has them, unless `identity` names others (the team's settings, stage 07d); the logo is not re-encoded. The race goes
+ * as the team has it, always: a coach does not change a team's race (owner, 2026-10-20); a race named in `identity` is
+ * not read. A field of `identity` left out, or undefined, is the team's; a name given goes without the blanks at its
+ * ends, in the column and in the roster alike (the builder's save does the same); a logo of "" or null takes it off.
+ * The server writes the lines this page does not have (a purchase, a sale), so the history is read again. A refusal of
+ * the server's own is said in `words` (the server's error's words and the rules it names, unless given).
  * @param {string} teamId @param {object} draft
- * @param {{name?: string, baseTeamSlug?: string, logoData?: string|null}} [identity]
+ * @param {{name?: string, logoData?: string|null}} [identity]
  * @param {{words?: (error: object) => string}} [options]
  * @returns {Promise<{team: object}|{refusal: string, changed?: true, unknown?: true}|{ignored: true}>} `changed` and
  *   `unknown` as for `addTreasuryEntry`.
- * @throws {TypeError} before anything is sent, when the draft is of another race than it is saved under (`assertSameRace`)
  */
 export function saveTeamRoster(teamId, draft, identity = {}, { words } = {}) {
-  const own = (key, held) => (identity?.[key] === undefined ? held : identity[key]);
-  const listed = state.myTeams.items.find((item) => item.id === teamId);
-  if (listed) assertSameRace(draft, own("baseTeamSlug", listed.roster?.teamSlug || listed.baseTeamSlug));
   const send = (team) => {
     const name = identity?.name === undefined ? team.name : String(identity.name ?? "").trim();
-    const baseTeamSlug = own("baseTeamSlug", team.baseTeamSlug);
+    const logoData = identity?.logoData === undefined ? team.logoData ?? null : identity.logoData;
     return apiRequest(`/api/teams/${encodeURIComponent(teamId)}`, {
       method: "PATCH",
       body: JSON.stringify({
         name,
-        baseTeamSlug,
-        logoData: own("logoData", team.logoData ?? null),
-        roster: rosterForStorage({ ...draft, teamSlug: baseTeamSlug, teamName: name }),
+        baseTeamSlug: team.baseTeamSlug,
+        logoData,
+        roster: rosterForStorage({ ...draft, teamSlug: team.baseTeamSlug, teamName: name }),
         revision: team.revision,
       }),
     });

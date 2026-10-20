@@ -32,6 +32,7 @@ const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { invalidateGames } = await import("../src/data/games.mjs");
 const { expandCollections } = await import("../src/data/reference.mjs");
+const { SETTINGS_KINDS } = await import("../src/screens/team/manage/settings-sheet.mjs");
 const save = await import("../src/screens/team/roster/save.mjs");
 const { renderAppHeader } = await import("../src/shell/app-header.mjs");
 const { shellModel } = await import("../src/shell/navigation.mjs");
@@ -42,8 +43,6 @@ const RACES = expandCollections(JSON.parse(read("public/data.en.json"))).teams;
 const SETTINGS = "src/screens/team/manage/settings.css";
 const TOKEN = "gata-league-auth-token";
 const PATCH = "PATCH /api/teams/t1";
-const FRESH = "GET /api/teams/t1";
-const LIST = "GET /api/teams";
 const FIRST_PAGE = "GET /api/teams/t1/ledger?limit=20";
 const HOST = '[data-sheet-host="team-settings"]';
 const LOGO = "data:image/png;base64,AAAA";
@@ -116,14 +115,6 @@ function type(value) {
 }
 const alertText = () => $(".g-team-settings__alert")?.textContent ?? null;
 
-/** Wait until `count` requests are held at the gate. */
-async function waitHeld(gate, count = 1) {
-  for (let spins = 0; gate.count < count; spins += 1) {
-    assert.ok(spins < 50, `${count} request(s) were to be held`);
-    await settle();
-  }
-}
-
 /**
  * A coach signed in on a page that has read the list, the table and the games; the screen before is left and its
  * toasts are gone. `userId` keeps the history cache of one test from another's.
@@ -170,7 +161,7 @@ test("the team page ends with the team's settings, as the builder's team card dr
   const blocks = fragment.querySelector(".g-manage").childNodes.filter((node) => node.nodeType === 1);
   assert.ok(blocks.at(-1) === section, "the page's last block");
   assert.equal(rowText("name", fragment), "Name · Ashgrove Wardens · Change");
-  assert.equal(rowText("race", fragment), "Race · Human · Tier 1 · Change the race");
+  assert.equal(rowText("race", fragment), "Race · Human · Tier 1", "read only: no button");
   assert.equal(rowText("league", fragment), "League · Old World Classic", "one league: nothing to change it to");
   assert.equal(rowOf("favoured", fragment), null, "Humans have no god");
   assert.equal(rowText("logo", fragment), "Logo · Upload");
@@ -183,7 +174,7 @@ test("the team page ends with the team's settings, as the builder's team card dr
   assert.ok(!fragment.querySelector(".g-team-settings__check"), "a legal roster breaks nothing");
   assert.ok(!fragment.querySelector(".g-team-settings .g-callout"), "nothing holds the settings");
   const opens = fragment.querySelectorAll("[data-settings-open]");
-  assert.deepEqual(opens.map((button) => button.getAttribute("data-settings-open")), ["name", "race", "fans"]);
+  assert.deepEqual(opens.map((button) => button.getAttribute("data-settings-open")), ["name", "fans"]);
   assert.ok(opens.every((button) => button.getAttribute("aria-haspopup") === "dialog" && button.getAttribute("type") === "button" && !button.hasAttribute("aria-disabled")));
   assert.equal(opens[0].getAttribute("aria-describedby"), "team-settings-name-label");
   assert.equal(fragment.querySelector("#team-settings-name-label").textContent, "Name");
@@ -369,82 +360,67 @@ test("by number: one PATCH with the players in number order; in order already �
   assert.equal(toasts().at(-1), "The roster is in number order already");
 });
 
-test("the race: the sheet lists the races and says the squad leaves; the red button changes it in one PATCH; a team in the season has no button and says why", async () => {
-  await page();
-  openRow("race");
-  assert.equal($(".g-sheet__title").textContent, "Race");
-  assert.equal($(".g-races").getAttribute("role"), "radiogroup");
-  assert.equal($(".g-races").querySelectorAll("[data-race]").length, RACES.length);
-  assert.equal($(`[data-race="${HUMAN}"]`).getAttribute("aria-checked"), "true");
-  const button = () => $("[data-settings-race]");
-  assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], ["Choose a race", true], "no race chosen yet: TeamNew's words, not a change to the race the team has");
-  assert.match(button().getAttribute("class"), /\bg-btn--danger\b/);
-  assert.match($(".g-team-settings__drops").getAttribute("class"), /\bg-races__resets\b/, "TeamNew's line under the races (M-5)");
-  assert.deepEqual($(".g-team-settings__drops").querySelectorAll(".g-team-settings__drop").map((line) => line.textContent),
-    ["All players of the roster (11) leave; the treasury, the resources and the history stay"]);
-  fireEvent($('[data-race="teams/shambling-undead"]'), "click");
-  assert.deepEqual($(".g-team-settings__drops").querySelectorAll(".g-team-settings__drop").map((line) => line.textContent), [
-    "All players of the roster (11) leave; the treasury, the resources and the history stay",
-    "What the new race cannot hold goes too, with no money back: Apothecary",
-  ], "the staff the new race cannot hold is named (K17)");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  assert.equal($(".g-team-settings__drops").querySelectorAll(".g-team-settings__drop").length, 1, "Orcs keep the apothecary");
-  assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], ["Change the race: Orc", false]);
-  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
-  const orcs = t1With({ baseTeamSlug: "teams/orc" }, { teamSlug: "teams/orc", players: [], selectedLeague: "Badlands Brawl" });
-  api.reply(PATCH, 200, { team: orcs });
-  await withoutTimers(async () => {
-    fireEvent(button(), "click");
-    await settled();
-  });
-  assert.deepEqual(api.calls.filter((call) => call.key === FRESH || call.key === PATCH).map((call) => call.key), [FRESH, PATCH], "one fresh read, then one PATCH (K17)");
-  const { body } = calls(PATCH)[0];
-  assert.deepEqual([body.baseTeamSlug, body.roster.teamSlug, body.roster.players, body.revision], ["teams/orc", "teams/orc", [], 3]);
-  assert.deepEqual([body.roster.treasury, body.roster.coachesSafe, body.roster.dedicatedFans, body.roster.apothecary], [70, 20, 3, 1], "the treasury and the resources stay");
-  assert.equal(sheetOpen(), false);
-  assert.equal(toasts().at(-1), "Saved");
-  assert.equal(rowText("race"), "Race · Orc · Tier 1 · Change the race");
-
-  const seasoned = mount(manageMarkup(model({ ...TEAMS[0], inActiveSeason: true })));
-  assert.equal(rowText("race", seasoned), "Race · Human · Tier 1", "no button in the season");
-  assert.equal(rowOf("race", seasoned).querySelector(".g-team-settings__note").textContent, "This team is playing in the current season, so its race cannot be changed.");
-  assert.ok(!seasoned.querySelector('[data-settings-open="race"]'));
+// Owner, 2026-10-20: a coach does not change a team's race, and the page shows it and nothing more (Review Focus 5).
+test("the race is read only on every width and in every state: «Race · Human · Tier 1», no button, no note — in the season or out of it, during a preparation, during a match", async () => {
+  const states = [
+    ["out of the season", {}, TEAMS[0]],
+    ["in the season", {}, { ...TEAMS[0], inActiveSeason: true }],
+    ["a match being prepared", { games: [preparingGame("t1")] }, TEAMS[0]],
+    ["a match on", { games: [liveGame("t1")] }, TEAMS[0]],
+  ];
+  for (const [name, options, team] of states) {
+    await page("t1", { ...options, teams: [team, ...TEAMS.slice(1)] });
+    const rows = view.querySelectorAll('[data-settings-row="race"]');
+    assert.equal(rows.length, 1, `${name}: one row for every width`);
+    assert.equal(rowText("race"), "Race · Human · Tier 1", name);
+    assert.deepEqual([rows[0].querySelectorAll("button, a, input, label").length, rows[0].querySelectorAll(".g-team-settings__note").length], [0, 0], `${name}: no button, no note`);
+    assert.equal(view.querySelector('[data-settings-open="race"]'), null, name);
+  }
+  initLocale("ru");
+  try {
+    await page("t1");
+    assert.equal(rowText("race"), "Раса · Human · Tier 1");
+  } finally {
+    initLocale("en");
+  }
+  // Nothing of the race is styled by the settings: no button, no list of races, no foot for a red button.
+  const css = read(SETTINGS);
+  assert.ok(!/\.g-races|data-race|g-sheet__foot|settings-race/.test(css.replace(/\/\*[\s\S]*?\*\//g, "")), "no rule of the race's sheet is left");
 });
 
-// 07d fidelity F6: TeamNew's button says «Choose a race» until one is picked and names the race once it is; the sheet
-// opens on the team's own race, so the button must not name that one as if it were a change.
-test("the race's red button names no race while the chosen one is the team's own, in both languages; it names another once chosen", async () => {
-  assert.equal(en["newTeam.needRace"], "Choose a race");
-  assert.equal(ru["newTeam.needRace"], "Выберите расу");
-  for (const [locale, needed, changed] of [["en", "Choose a race", "Change the race: Orc"], ["ru", "Выберите расу", "Сменить расу: Orc"]]) {
-    initLocale(locale);
-    try {
-      await page();
-      openRow("race");
-      const button = () => $("[data-settings-race]");
-      assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], [needed, true], `${locale}: nothing chosen`);
-      fireEvent($('[data-race="teams/orc"]'), "click");
-      assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], [changed, false], `${locale}: another race chosen`);
-      fireEvent($(`[data-race="${HUMAN}"]`), "click");
-      assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], [needed, true], `${locale}: back on the team's own race`);
-    } finally {
-      initLocale("en");
+test("no sheet of the settings lists the races", async () => {
+  assert.deepEqual(SETTINGS_KINDS, ["name", "league", "favoured", "fans"]);
+  for (const [teamId, kinds] of [["t1", ["name", "fans"]], ["t2", ["name", "favoured", "fans"]], ["t4", ["name", "league", "fans"]]]) {
+    await page(teamId);
+    assert.deepEqual(view.querySelectorAll("[data-settings-open]").map((button) => button.getAttribute("data-settings-open")), kinds, teamId);
+    assert.equal(view.querySelector('[data-settings-open="race"]'), null, teamId);
+    for (const kind of kinds) {
+      openRow(kind);
+      assert.ok(sheetOpen(), `${teamId}: ${kind}`);
+      assert.deepEqual([$(".g-races"), $("[data-race]"), $("[data-settings-race]")], [null, null, null], `${teamId}: ${kind} lists no race`);
+      fireEvent($("[data-sheet-close]"), "click");
     }
   }
 });
 
-test("a match being prepared closes the race, saying why; the rest stays open (K17)", async () => {
-  await page("t1", { games: [preparingGame("t1")] });
-  const race = view.querySelector('[data-settings-open="race"]');
-  assert.deepEqual([race.getAttribute("aria-disabled"), race.getAttribute("title")], ["true", "A match is being prepared: change the race after it"]);
-  assert.equal(view.querySelector('[data-settings-open="name"]').hasAttribute("aria-disabled"), false);
-  // A preparation holds the race alone: the section's one callout is what a save resets, nothing held (final review I1).
-  assert.deepEqual(view.querySelectorAll(".g-team-settings .g-callout__title").map((title) => title.textContent), [PREP_WORDS]);
-  await withoutTimers(async () => openRow("race"));
-  assert.equal(sheetOpen(), false);
-  assert.deepEqual(toasts(), ["A match is being prepared: change the race after it"]);
-  openRow("name");
-  assert.ok(sheetOpen(), "the name may change");
+// A preparation closes nothing of the settings (decision 20, final review I1): the section says what a save resets,
+// and every opener stays as it is.
+test("a preparation leaves every setting open and says what a save resets", async () => {
+  for (const [teamId, kinds] of [["t1", ["name", "fans"]], ["t2", ["name", "favoured", "fans"]], ["t4", ["name", "league", "fans"]]]) {
+    const team = TEAMS.find((item) => item.id === teamId);
+    await page(teamId, { games: [preparingGame(teamId)] });
+    const openers = view.querySelectorAll("[data-settings-open]");
+    assert.deepEqual(openers.map((button) => button.getAttribute("data-settings-open")), kinds, teamId);
+    assert.ok(openers.every((button) => !button.hasAttribute("aria-disabled") && !button.hasAttribute("title")), `${teamId}: every opener open`);
+    assert.deepEqual(view.querySelectorAll(".g-team-settings .g-callout__title").map((title) => title.textContent), [PREP_WORDS], `${teamId}: what a save resets, nothing held`);
+    assert.equal(model(team, { games: [preparingGame(teamId)] }).settings.held, "", `${teamId}: a preparation holds nothing`);
+    for (const kind of kinds) {
+      openRow(kind);
+      assert.ok(sheetOpen(), `${teamId}: ${kind} opens`);
+      assert.deepEqual(toasts(), [], `${teamId}: ${kind} says nothing of being held`);
+      fireEvent($("[data-sheet-close]"), "click");
+    }
+  }
 });
 
 // Final review I1: every PATCH of the team moves its revision, and a preparation not yet in progress is built again
@@ -501,23 +477,6 @@ test("a preparation: the section and every sheet say what a save resets, before 
   }
 });
 
-test("a team the season took meanwhile keeps its race: the fresh read says so, and nothing is sent (K17)", async () => {
-  await page();
-  openRow("race");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  api.reply(FRESH, 200, { team: { ...structuredClone(TEAMS[0]), inActiveSeason: true } });
-  await withoutTimers(async () => {
-    fireEvent($("[data-settings-race]"), "click");
-    await settled();
-  });
-  assert.equal(calls(FRESH).length, 1);
-  assert.equal(calls(PATCH).length, 0);
-  assert.equal(alertText(), "A team playing in the season keeps its race");
-  assert.equal($("[data-settings-race]").hasAttribute("disabled"), true);
-  assert.ok(!view.querySelector('[data-settings-open="race"]'), "the page now shows the team in the season");
-  assert.equal(rowOf("race").querySelector(".g-team-settings__note").textContent, en["roster.raceLockedInSeason"]);
-});
-
 test("settings wait for the roster's queue: a step waiting closes every save of them, saying so, with the way to the roster (Review Focus 2)", async () => {
   coach({ userId: "u-queue" });
   // The roster's visit: the team read and tracked, and a step taken while the network is down.
@@ -536,7 +495,7 @@ test("settings wait for the roster's queue: a step waiting closes every save of 
   const link = callout.querySelector("a");
   assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/t/t1/roster", "To the roster"]);
   const shut = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
-  assert.ok(shut.length >= 5 && shut.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === "Wait until the roster's edits are saved"));
+  assert.ok(shut.length >= 4 && shut.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === "Wait until the roster's edits are saved"));
   const file = view.querySelector("input#team-settings-logo");
   assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", "Wait until the roster's edits are saved"]);
   const before = api.calls.length;
@@ -572,135 +531,11 @@ test("the model says what holds the settings, in order: a match on, the roster's
   assert.deepEqual([busy.held, busy.waitsRoster], ["A save of the team is on its way", false]);
   const settings = model(TEAMS[0]).settings;
   assert.deepEqual(
-    [settings.name, settings.raceSlug, settings.raceTitle, settings.tier, settings.league, settings.leagues, settings.favoured, settings.alignments, settings.fans, settings.inSeason, settings.players, settings.violations, settings.logoData],
-    ["Ashgrove Wardens", HUMAN, "Human", "Tier 1", "Old World Classic", ["Old World Classic"], "", [], 3, false, 11, [], ""],
+    [settings.name, settings.raceTitle, settings.tier, settings.league, settings.leagues, settings.favoured, settings.alignments, settings.fans, settings.violations, settings.logoData],
+    ["Ashgrove Wardens", "Human", "Tier 1", "Old World Classic", ["Old World Classic"], "", [], 3, [], ""],
   );
-});
-
-test("a second press on «Change the race» sends nothing more; a lost answer reads the team again and sends nothing (Review Focus 2)", async () => {
-  await page("t1", { userId: "u-lost" });
-  openRow("race");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
-  const gate = api.hold(PATCH);
-  const race = () => $("[data-settings-race]");
-  await withoutTimers(async () => {
-    fireEvent(race(), "click");
-    fireEvent(race(), "click");
-    await waitHeld(gate);
-    fireEvent(race(), "click");
-    assert.deepEqual([calls(FRESH).length, calls(PATCH).length], [1, 1], "one read, one PATCH");
-    assert.deepEqual([race().getAttribute("aria-busy"), race().textContent.trim()], ["true", "Saving…"]);
-    // The answer is lost: the server holds the list and the history as they were.
-    api.reply(LIST, 200, { teams: structuredClone(TEAMS) });
-    const sent = api.calls.length;
-    gate.release({ error: new TypeError("Failed to fetch") });
-    await settled();
-    const after = api.calls.slice(sent).map((call) => call.key);
-    assert.deepEqual([after.filter((key) => key === LIST).length, after.filter((key) => key === FIRST_PAGE).length], [1, 1], "the team and its history read again, once each");
-  });
-  assert.equal(calls(PATCH).length, 1, "never sent again by itself");
-  assert.equal(alertText(), "No answer came: the site is reading the team again — check whether it was saved");
-  assert.ok(sheetOpen(), "the sheet stays, to look");
-  assert.equal($(`[data-race="${HUMAN}"]`).getAttribute("aria-checked"), "true", "the choice starts over from the team as it is");
-  assert.equal(race().hasAttribute("disabled"), true);
-  assert.ok(document.activeElement === $(`[data-race="${HUMAN}"]`), "the focus is on the list, not on a button gone dead");
-});
-
-test("closing the race's sheet during its read takes the press back: nothing is sent, nothing is said (fix round 1, I-1)", async () => {
-  await page();
-  openRow("race");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
-  api.reply(PATCH, 200, { team: t1With({ baseTeamSlug: "teams/orc" }, { teamSlug: "teams/orc", players: [] }) });
-  const read = api.hold(FRESH);
-  await withoutTimers(async () => {
-    fireEvent($("[data-settings-race]"), "click");
-    await waitHeld(read);
-    fireEvent($("[data-sheet-close]"), "click");
-    assert.equal(sheetOpen(), false);
-    read.release();
-    await settled();
-  });
-  assert.equal(calls(FRESH).length, 1);
-  assert.equal(calls(PATCH).length, 0, "the irreversible write never goes");
-  assert.deepEqual(toasts(), [], "and nothing is said");
-  assert.equal(state.myTeams.items[0].baseTeamSlug, HUMAN);
-
-  // Closed and opened again during the read: the sheet open is another one, and the first press still sends nothing.
-  openRow("race");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  const again = api.hold(FRESH);
-  await withoutTimers(async () => {
-    fireEvent($("[data-settings-race]"), "click");
-    await waitHeld(again);
-    fireEvent($("[data-sheet-close]"), "click");
-    openRow("race");
-    again.release();
-    await settled();
-  });
-  assert.equal(calls(PATCH).length, 0);
-  assert.ok(sheetOpen(), "the new sheet stays");
-  assert.deepEqual([$("[data-settings-race]").textContent.trim(), $("[data-settings-race]").hasAttribute("aria-busy")], ["Choose a race", false], "a new choice, not the first press's");
-  assert.deepEqual(toasts(), []);
-});
-
-test("leaving the page during the race's read takes the press back: nothing is sent, nothing is said (I-1)", async () => {
-  await page();
-  openRow("race");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
-  api.reply(PATCH, 200, { team: t1With({ baseTeamSlug: "teams/orc" }, { teamSlug: "teams/orc", players: [] }) });
-  const read = api.hold(FRESH);
-  await withoutTimers(async () => {
-    fireEvent($("[data-settings-race]"), "click");
-    await waitHeld(read);
-    releaseCurrentScreen();
-    view.innerHTML = "<p>next</p>";
-    assert.ok(!document.querySelector(HOST), "the sheet went with the page");
-    read.release();
-    await settled();
-  });
-  assert.equal(calls(PATCH).length, 0);
-  assert.deepEqual(toasts(), []);
-  assert.equal(view.querySelector("p").textContent, "next");
-});
-
-test("a preparation or a step of the roster's that comes during the race's read refuses it in words, and nothing is sent (I-1, M-6)", async () => {
-  await page();
-  openRow("race");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
-  const read = api.hold(FRESH);
-  fireEvent($("[data-settings-race]"), "click");
-  await waitHeld(read);
-  state.games.items = [preparingGame("t1")];
-  read.release();
-  await settled();
-  assert.equal(calls(PATCH).length, 0);
-  assert.equal(alertText(), "A match is being prepared: change the race after it");
-  assert.ok(sheetOpen());
-
-  // A step of the roster's, waiting for the network, taken while the read is in the air.
-  coach({ userId: "u-race-queue" });
-  save.trackRoster(structuredClone(TEAMS[0]));
-  await renderTeamManage("t1");
-  openRow("race");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
-  const second = api.hold(FRESH);
-  fireEvent($("[data-settings-race]"), "click");
-  await waitHeld(second);
-  api.fail(PATCH);
-  assert.equal(save.stepSpp("t1", "p1", "touchdowns", 1).ok, true);
-  for (let spins = 0; save.saveState("t1").status !== "offline"; spins += 1) {
-    assert.ok(spins < 50, "the step waits for the network");
-    await settle();
-  }
-  second.release();
-  await settled();
-  assert.equal(calls(PATCH).filter((call) => call.body.baseTeamSlug === "teams/orc").length, 0, "the race's PATCH never goes");
-  assert.equal(alertText(), "Wait until the roster's edits are saved");
+  // The race is shown and never changed: nothing of the model is for a change of it.
+  assert.deepEqual(["raceSlug", "inSeason", "players", "raceHeld"].filter((key) => key in settings), []);
 });
 
 test("held, the file field stays in the tab order and says why; the focus on it is not dropped when a match goes live (M-4)", async () => {
@@ -763,7 +598,7 @@ test("a god's change the server refuses for a roll on the site is said in the se
 });
 
 // Final review M3: the server never forced a roster's `teamSlug` to its column. A team stored so — an old import, a
-// content rename — saves as it did before stage 07d: the guard asks the stored roster's race, not the column's.
+// content rename — saves as it did before stage 07d, under the column's race: nothing throws.
 test("a team whose stored roster names another race than its column still saves: a resource of stage 08, a setting (M3)", async () => {
   const legacy = t1With({ revision: 3 }, { teamSlug: "teams/humans" });
   await page("t1", { teams: [legacy, ...TEAMS.slice(1)] });
@@ -815,12 +650,12 @@ test("a match on closes them, saying why; another tab's coach sends nothing", as
   assert.equal(callout.querySelector(".g-callout__title").textContent, LIVE);
   assert.ok(!callout.querySelector("a"), "the page's own callout says where the match is");
   const buttons = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
-  assert.ok(buttons.length >= 5 && buttons.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === LIVE));
+  assert.ok(buttons.length >= 4 && buttons.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === LIVE));
   const file = view.querySelector("input#team-settings-logo");
   assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", LIVE], "in the tab order, with its reason (M-4)");
   const before = api.calls.length;
   await withoutTimers(async () => {
-    openRow("race");
+    openRow("name");
     openRow("fans");
     press("[data-settings-order]");
   });
@@ -839,7 +674,7 @@ test("a match on closes them, saying why; another tab's coach sends nothing", as
   assert.equal($(".g-team-settings__sheet .g-callout__title").textContent, LIVE);
   assert.equal($("[data-settings-save]").hasAttribute("disabled"), true);
 
-  // Another tab signed in or out: nothing goes, not even the race's read.
+  // Another tab signed in or out: nothing goes.
   await page();
   openRow("name");
   type("Rooks");
@@ -847,13 +682,7 @@ test("a match on closes them, saying why; another tab's coach sends nothing", as
   fireEvent($("[data-settings-save]"), "click");
   await settled();
   assert.equal(alertText(), en["auth.otherTab"]);
-  fireEvent($("[data-sheet-close]"), "click");
-  openRow("race");
-  fireEvent($('[data-race="teams/orc"]'), "click");
-  fireEvent($("[data-settings-race]"), "click");
-  await settled();
-  assert.equal(alertText(), en["auth.otherTab"]);
-  assert.deepEqual([calls(PATCH).length, calls(FRESH).length], [0, 0]);
+  assert.equal(calls(PATCH).length, 0);
 });
 
 test("the roster's violations are listed when there are any", () => {
@@ -924,10 +753,9 @@ test("styled: the section, its callout, and every sheet; nothing the CSP refuses
   assertStyled(section(TEAMS[1], { queue: { status: "offline", waiting: 1 } }), ...sheets);
   assertStyled(section(TEAMS[2]), ...sheets);
   assertCspSafe(section(TEAMS[1]));
-  for (const [teamId, kind] of [["t1", "name"], ["t1", "fans"], ["t1", "race"], ["t2", "favoured"], ["t4", "league"]]) {
+  for (const [teamId, kind] of [["t1", "name"], ["t1", "fans"], ["t2", "favoured"], ["t4", "league"]]) {
     await page(teamId);
     openRow(kind);
-    if (kind === "race") fireEvent($('[data-race="teams/shambling-undead"]'), "click");
     if (kind === "favoured") fireEvent($('[data-option-value="Slaanesh"]'), "click");
     const host = document.querySelector(HOST);
     assertStyled(host, SETTINGS, "sheet.css", "src/screens/teams/new.css", "button.css", "text-field.css", "option-card.css", "resource-counter.css", "callout.css");

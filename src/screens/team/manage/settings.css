@@ -1,9 +1,9 @@
 /*
  * «Team settings» (settings.mjs, stage 07d): the rows of the builder's team card (Builder) closing the team page, and
- * the lines its sheets add to sheet.css's frame; the races are new.css's (TeamNew, stage 06). Font, border,
- * background, text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals
- * (button { font: inherit }, p, h2, ul) outlive this sheet until stage 13. The keyboard ring is base.css's. A long
- * name, a long note or a long rule wraps: nothing here is cut with «…».
+ * the lines its sheets add to sheet.css's frame. Font, border, background, text-transform, letter-spacing and
+ * font-weight are set here on purpose: the 2.x globals (button { font: inherit }, p, h2, ul) outlive this sheet until
+ * stage 13. The keyboard ring is base.css's. A long name, a long note or a long rule wraps: nothing here is cut with
+ * «…».
  */
 
 .g-team-settings {
@@ -75,7 +75,7 @@
   letter-spacing: 0;
 }
 
-/* The quieter line under a label: the logo's sizes, the fans' correction, the order, the season's lock of the race. */
+/* The quieter line under a label: the logo's sizes, the fans' correction, the order. */
 .g-team-settings__note {
   color: var(--muted);
   font: 400 12px/1.4 var(--font-body);
@@ -219,11 +219,9 @@
   text-transform: none;
   letter-spacing: 0;
 }
-/* TeamNew's races follow a label there; here they open the body. */
-.g-team-settings__sheet .g-races { margin: 0; }
 
 /*
- * What a god or a race takes off, said before the button, a line each. Its look is TeamNew's line under the races
+ * What a god takes off, said before the button, a line each. Its look is TeamNew's line under the races
  * (`.g-races__resets`, new.css: the warning's tint, 10px 12px, 13/1.4); this is only the lines' layout.
  */
 .g-team-settings__drops {
@@ -269,8 +267,4 @@
   }
   .g-team-settings__title { padding: 0 0 var(--space-4); }
   .g-team-settings__btn { min-height: 36px; }
-
-  /* The race's foot is a row on a desk: what goes takes a line of its own over the red button. */
-  .g-team-settings-sheet .g-sheet__foot { flex-wrap: wrap; }
-  .g-team-settings-sheet .g-team-settings__drops { flex: 1 1 100%; }
 }

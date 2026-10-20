@@ -171,24 +171,17 @@ test("a name given goes without the blanks at its ends, in the body and in the r
   assert.deepEqual([none.name, none.roster.teamName], ["", ""], "no name is no name, for the server to refuse");
 });
 
-test("a race changed goes with the new race in the body and in the roster", async () => {
-  const body = await savedBody({ baseTeamSlug: "teams/shambling-undead" }, "teams/shambling-undead");
-  assert.deepEqual(sent(body), ["Wardens", "teams/shambling-undead", TEAM.logoData, 3, "Wardens", "teams/shambling-undead", 70]);
-  assert.deepEqual(sent(await savedBody({ baseTeamSlug: "teams/shambling-undead" })), sent(body), "a draft that names no race takes the one given");
-});
-
-test("a draft of another race than its save sends throws and sends nothing: a race changed never goes back under the old one", () => {
-  coach();
-  const undead = { ...TEAM.roster, teamSlug: "teams/shambling-undead", players: [] };
-  for (const identity of [undefined, {}, { name: "Rooks" }, { logoData: "" }, { baseTeamSlug: "teams/goblin" }]) {
-    assert.throws(() => treasury.saveTeamRoster("t1", undead, identity), TypeError, JSON.stringify(identity));
+// Owner, 2026-10-20: a coach does not change a team's race. Whatever a draft or an identity says, the save goes under
+// the race the team has, in the body and in the roster alike; nothing throws.
+test("an identity that names a race sends the team's race: no save changes it", async () => {
+  for (const [identity, race] of [[{ baseTeamSlug: "teams/goblin" }, ""], [{ baseTeamSlug: "teams/shambling-undead" }, "teams/shambling-undead"], [{ name: "Rooks", baseTeamSlug: "teams/orc" }, "teams/human"]]) {
+    const body = await savedBody(identity, race);
+    assert.deepEqual([body.baseTeamSlug, body.roster.teamSlug], ["teams/human", "teams/human"], `${JSON.stringify(identity)} on a draft of ${race || "no race"}`);
   }
-  assert.deepEqual([api.calls.length, treasury.isWriting("t1")], [0, false]);
 });
 
-// Final review M3: the guard asks the race of the roster stored, not the team's column, which the server never forced
-// the roster to match: a team stored with another slug in its roster saves as before 07d.
-test("a team whose stored roster names another race than its column saves its own roster; a race changed without its race still throws", async () => {
+// Final review M3, as 07d's second review leaves it: the race is the team's column, never the roster's own say.
+test("a team whose stored roster names another race than its column saves under the column's race, as before 07d — nothing throws", async () => {
   coach();
   const legacy = { ...structuredClone(TEAM), roster: { ...TEAM.roster, teamSlug: "teams/humans" } };
   state.myTeams.items = [state.myTeams.items[0], legacy];
@@ -199,13 +192,16 @@ test("a team whose stored roster names another race than its column saves its ow
   const { body } = api.calls.filter((call) => call.key === "PATCH /api/teams/t1").at(-1);
   assert.deepEqual([body.baseTeamSlug, body.roster.teamSlug, body.roster.cheerleaders], ["teams/human", "teams/human", 2], "under the team's race, as before 07d");
   await settle();
+  // A draft of another race than the stored roster's, with or without a name: nothing throws, the team's race goes.
   state.myTeams.items = [state.myTeams.items[0], legacy];
-  const undead = { ...legacy.roster, teamSlug: "teams/shambling-undead", players: [] };
   for (const identity of [undefined, { name: "Rooks" }]) {
-    assert.throws(() => treasury.saveTeamRoster("t1", undead, identity), TypeError, "a draft of another race than the stored roster's");
+    const answer = await treasury.saveTeamRoster("t1", { ...legacy.roster, teamSlug: "teams/shambling-undead", players: [] }, identity);
+    assert.ok(answer.team, JSON.stringify(identity));
+    const sentRace = api.calls.filter((call) => call.key === "PATCH /api/teams/t1").at(-1).body;
+    assert.deepEqual([sentRace.baseTeamSlug, sentRace.roster.teamSlug], ["teams/human", "teams/human"], JSON.stringify(identity));
+    await settle();
+    state.myTeams.items = [state.myTeams.items[0], legacy];
   }
-  assert.throws(() => treasury.saveTeamRoster("t1", { ...legacy.roster, teamSlug: "teams/human" }), TypeError, "nor the column's, where the roster names its own");
-  assert.equal(api.calls.filter((call) => call.key === "PATCH /api/teams/t1").length, 1);
 });
 
 test("a logo given goes in place of the team's, never inside the roster; an empty one takes it off", async () => {
@@ -217,7 +213,7 @@ test("a logo given goes in place of the team's, never inside the roster; an empt
 });
 
 test("without an identity a save is as before: the team's name, race and logo, whatever the draft says", async () => {
-  for (const identity of [undefined, {}, { name: undefined, baseTeamSlug: undefined, logoData: undefined }]) {
+  for (const identity of [undefined, {}, { name: undefined, logoData: undefined }]) {
     assert.deepEqual(sent(await savedBody(identity)), ["Wardens", "teams/human", TEAM.logoData, 3, "Wardens", "teams/human", 70], JSON.stringify(identity));
   }
 });
