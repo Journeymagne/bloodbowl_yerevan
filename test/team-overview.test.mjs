@@ -496,6 +496,14 @@ const LEADERS = [
 /** The element children of a node, by their first class. */
 const classesOf = (node) => node.childNodes.filter((child) => child.nodeType === 1).map((child) => child.getAttribute("class").split(" ")[0]);
 const LISTS_CSS = "src/screens/team/overview-lists.css";
+/** A sheet without its comments. */
+const bareOf = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
+/** What a sheet says from 901px: everything from its desk's query on. */
+const deskOf = (file) => bareOf(file).slice(bareOf(file).indexOf("@media (min-width: 901px)"));
+/** What a sheet says up to 900px: its phone's query, up to the desk's. */
+const phoneOf = (file) => bareOf(file).slice(bareOf(file).indexOf("@media (max-width: 900px)"), bareOf(file).indexOf("@media (min-width: 901px)"));
+/** The body of the first rule in `source` whose selector is `selector` alone, or ends a list with it; "" when there is none. */
+const ruleOf = (source, selector) => source.match(new RegExp(`(?:^|[{}\\s])${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
 
 test("on a desk the leaders are DeskOverview's cards: the tag over the player's number on his position's colour, the name and the position, the figure at the right; each card leads to the player", () => {
   const model = overviewModel(input("t1", { team: crew(LEADERS) }));
@@ -614,18 +622,82 @@ test("one column alone takes the row: no one ready leaves the left alone; no lea
   assert.match(desk, /\.g-overview__cols \{[^}]*flex-direction: row;[^}]*flex-wrap: wrap;[^}]*align-items: flex-start;/);
   assert.match(desk, /\.g-overview__main \{ flex: 2 1 560px; \}/);
   assert.match(desk, /\.g-overview__aside \{ flex: 1 1 300px; \}/);
-  assert.doesNotMatch(source, /:only-child|grid-column/, "no lone-list rule: the wrap does it");
+  // (A result row spans its list's grid, Task 33: that is a row's rule, not a column's.)
+  assert.doesNotMatch(source, /:only-child|\.g-overview__(?:cols|main|aside)(?![\w-])[^{]*\{[^}]*grid-column/, "no lone-list rule: the wrap does it");
 });
 
-test("a recent result: the pill, the opponent, the round and the casualties, the score from our side, and the way to the match", () => {
-  const rows = mount(overviewMarkup(overviewModel(input("t1")))).querySelectorAll(".g-overview__results .g-overview__result");
-  assert.deepEqual(rows.map((row) => [
-    row.querySelector(".g-sr-only").textContent, row.querySelector(".g-overview__opponent").textContent,
-    row.querySelector(".g-overview__line").textContent, row.querySelector(".g-overview__score").textContent, row.querySelector("a").getAttribute("href")]),
-  [["Friendly", "Rival Team", "Friendly · CAS 0–0", "1–1", "#/games/gf"],
+// The team's own MVPs as the server's list sends them (Task 30): Ashby in round 1 at home, two in round 2 away (a conceded
+// winner picks two); the rival's own MVP of round 1 is the rival's, not ours.
+const MVP_GAMES = gamesWith({
+  ga: { homeMvps: [{ id: "p1", name: "Ashby" }], awayMvps: [{ id: "x9", name: "Their Star" }] },
+  gb: { awayMvps: [{ id: "p2", name: "Vane" }, { id: "p3", name: "Cade" }] },
+});
+/** The text of each of a row's parts, "" for a part it does not draw. */
+const partsOf = (row, selectors) => selectors.map((selector) => row.querySelector(selector)?.textContent ?? "");
+const DESK_PARTS = [".g-sr-only", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__mvp", ".g-overview__cas", ".g-overview__score"];
+
+test("on a desk a result is DeskOverview's row: the pill, the round, the opponent with the race and the MVP under it, the casualties, the score; the whole row opens the match", () => {
+  const rows = mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES })))).querySelectorAll(".g-overview__results .g-overview__result");
+  assert.deepEqual(rows.map((row) => [...partsOf(row, DESK_PARTS), row.querySelector("a").getAttribute("href")]), [
+    ["Friendly", "Friendly", "Rival Team", "Dwarf", "", "CAS 0–0", "1–1", "#/games/gf"],
+    ["Loss", "Round 2", "Rival Team", "Dwarf", "· MVP Vane, Cade", "CAS 0–2", "0–2", "#/games/gb"],
+    ["Win", "Round 1", "Rival Team", "Dwarf", "· MVP Ashby", "CAS 1–0", "2–1", "#/games/ga"],
+  ]);
+  // DeskOverview.html's order; the whole row is the one link (§3), so neither the opponent nor the race is a link inside it.
+  assert.deepEqual(classesOf(rows[1].querySelector("a.g-overview__row")), ["g-result", "g-overview__round", "g-overview__text", "g-overview__cas", "g-overview__score"]);
+  assert.deepEqual(classesOf(rows[1].querySelector(".g-overview__text")), ["g-overview__opponent", "g-overview__sub"]);
+  assert.deepEqual(classesOf(rows[1].querySelector(".g-overview__sub")), ["g-overview__race", "g-overview__mvp"]);
+  assert.ok(rows.every((row) => row.querySelectorAll("a").length === 1));
+  assert.ok(rows.every((row) => row.querySelector(".g-result") && !row.querySelector(".g-result--compact")), "DeskOverview's 30px pill");
+  assert.ok(rows.every((row) => !row.querySelector(".g-overview__line")), "the phone's line is a phone's");
+});
+
+test("on a desk a row says what is known under the opponent: the MVP alone when the race is not known, nothing when neither is", () => {
+  const nameless = side("r9", "Nameless", "teams/nobody");
+  const games = [
+    played("ga", 1, [2, 1], [1, 0], { away: nameless, homeMvps: [{ id: "p1", name: "Ashby" }] }),
+    played("gb", 2, [0, 0], [0, 0], { away: nameless }),
+  ];
+  const rows = mount(overviewMarkup(overviewModel(input("t1", { games })))).querySelectorAll(".g-overview__result");
+  assert.deepEqual(rows.map((row) => partsOf(row, [".g-overview__opponent", ".g-overview__race", ".g-overview__mvp"])), [["Nameless", "", ""], ["Nameless", "", "MVP Ashby"]]);
+  assert.equal(rows[0].querySelector(".g-overview__sub"), null, "no empty line");
+  assert.deepEqual(classesOf(rows[1].querySelector(".g-overview__sub")), ["g-overview__mvp"], "and no dot before the MVP");
+});
+
+test("on a desk the results are a card with its head inside: «Results» and «Whole season →»", () => {
+  const section = mount(overviewMarkup(overviewModel(input("t1")))).querySelector(".g-overview__results");
+  assert.deepEqual(classesOf(section), ["g-overview__bar", "g-overview__list"]);
+  const title = section.querySelector(".g-overview__bar h2.g-overview__title");
+  assert.equal(title.textContent, "Results");
+  assert.equal(section.getAttribute("aria-labelledby"), title.getAttribute("id"));
+  assert.equal(section.querySelector('.g-overview__bar a.g-overview__all[href="#/t/t1/matches"]').textContent, "Whole season →");
+  // DeskOverview.html: the section is the card, 16 round, white in the ring, 8 24 12 in; its head 14 0 6, the title and the link at its two ends.
+  const desk = deskOf(LISTS_CSS);
+  assert.match(ruleOf(desk, ".g-overview__results"), /^(?=[^]*padding: var\(--space-8\) var\(--space-24\) var\(--space-12\);)(?=[^]*border-radius: var\(--radius-2xl\);)(?=[^]*background: var\(--surface\);)(?=[^]*box-shadow: var\(--ring\);)(?=[^]*gap: 0;)/);
+  assert.match(ruleOf(desk, ".g-overview__bar"), /padding: var\(--space-14\) 0 var\(--space-6\);/);
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__bar", "justify-content"), ["space-between"]);
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__bar", "align-items"), ["center"]);
+  assert.doesNotMatch(ruleOf(desk, ".g-overview__list"), /box-shadow|border-radius|background/, "the list is not a card of its own any more");
+});
+
+test("on a phone a result keeps Team.html's row: the score in the body's face at 18px, the pill's column 32px", () => {
+  const section = mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES, phone: true })))).querySelector(".g-overview__results");
+  assert.equal(section.querySelector("h2.g-overview__title").textContent, "Recent matches");
+  assert.equal(section.querySelector('.g-overview__bar a[href="#/t/t1/matches"]').textContent, "Whole season →", "the way to the matches stays (§3)");
+  const rows = section.querySelectorAll(".g-overview__result");
+  assert.deepEqual(rows.map((row) => [...partsOf(row, [".g-sr-only", ".g-overview__opponent", ".g-overview__line", ".g-overview__score"]), row.querySelector("a").getAttribute("href")]), [
+    ["Friendly", "Rival Team", "Friendly · CAS 0–0", "1–1", "#/games/gf"],
     ["Loss", "Rival Team", "Round 2 · CAS 0–2", "0–2", "#/games/gb"],
     ["Win", "Rival Team", "Round 1 · CAS 1–0", "2–1", "#/games/ga"]]);
-  assert.ok(rows[0].querySelector(".g-result--compact"), "the small pill of a dense list");
+  assert.deepEqual(classesOf(rows[1].querySelector("a.g-overview__row")), ["g-result", "g-overview__text", "g-overview__score"]);
+  assert.ok(rows.every((row) => row.querySelector(".g-result--compact")), "Team.html's 28px pill");
+  for (const desk of [".g-overview__round", ".g-overview__sub", ".g-overview__race", ".g-overview__mvp", ".g-overview__cas"]) assert.equal(section.querySelector(desk), null, `${desk}: Team.html's row has none`);
+  // Up to 900px the score is the body's 18/700, from 901px Oswald 26 (DeskOverview.html); the pill's column 32, the gap 10, 10 above and below.
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__score", "font"), ["700 18px/normal var(--font-body)", "700 26px/normal var(--font-display)"]);
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row", "grid-template-columns"), ["32px minmax(0, 1fr) auto", "subgrid"]);
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row", "gap"), ["var(--space-10)", "var(--space-14)"]);
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row", "padding"), ["var(--space-10) 0", "0"]);
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__row .g-result--compact", "font-size"), ["13px"], "Team.html's letter");
 });
 
 test("the recent matches are five at most, the newest first", () => {
@@ -703,14 +775,23 @@ test("a treasury an administrator stored as text is the treasury (T2)", () => {
   assert.equal(overviewModel({ ...input("t1"), team }).tiles[3].value, "120k");
 });
 
-test("names from other coaches are text: the opponent, the leader's name and the position", () => {
-  const rival = side("r1", HOSTILE, "teams/dwarf");
-  const hostile = [played("ga", 1, [2, 1], [1, 0], { away: rival }), game("g1", { away: rival })];
+test("names from other coaches are text: the opponent, the opponent's race, the MVP, the leader's name and the position", () => {
+  const rival = side("r1", HOSTILE, "teams/hostile");
+  const hostile = [played("ga", 1, [2, 1], [1, 0], { away: rival, homeMvps: [{ id: "p1", name: HOSTILE }] }), game("g1", { away: rival })];
   const team = { ...TEAMS[0], roster: { treasury: 1, players: [{ id: "p1", rowIndex: 0, number: HOSTILE, name: HOSTILE, spp: { touchdowns: 1 } }] } };
-  const fragment = mount(overviewMarkup(overviewModel({ ...input("t1"), team, games: hostile })));
+  // A race's name is the reference's (`state.data.teams`): text too, whatever it holds.
+  state.data = { teams: [...RACES, { slug: "teams/hostile", title: HOSTILE }] };
+  let fragment;
+  try {
+    fragment = mount(overviewMarkup(overviewModel({ ...input("t1"), team, games: hostile })));
+  } finally {
+    state.data = { teams: RACES };
+  }
   assert.equal(fragment.querySelector("img"), null);
   assert.equal(fragment.querySelector(".g-board__side--away .g-board__name").textContent, HOSTILE);
   assert.equal(fragment.querySelector(".g-overview__opponent").textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-overview__race").textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-overview__mvp").textContent, `· MVP ${HOSTILE}`);
   assert.equal(fragment.querySelector(".g-overview__leader .g-overview__leadername").textContent, HOSTILE);
   assert.equal(fragment.querySelector(".g-overview__leader .g-num__n").textContent, HOSTILE);
   assertCspSafe(fragment);
@@ -869,6 +950,16 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   const [en, ru] = [dictionary("en"), dictionary("ru")];
   assert.deepEqual([en["teamOverview.leaders"], ru["teamOverview.leaders"]], ["Team leaders", "Лидеры команды"], "a desk's heading (DeskOverview.html)");
   assert.deepEqual([en["teamOverview.leadersShort"], ru["teamOverview.leadersShort"]], ["Leaders", "Лидеры"], "a phone's (Team.html)");
+  // A desk's results (DeskOverview.html): the title, the round's column, the casualties' and the MVP under the opponent.
+  const RESULT_WORDS = {
+    "teamOverview.resultsTitle": ["Results", "Результаты"],
+    "teamOverview.round": ["Round {round}", "Тур {round}"],
+    "teamOverview.friendly": ["Friendly", "Товарищеский"],
+    "teamOverview.cas": ["CAS {cas}", "CAS {cas}"],
+    "teamOverview.mvp": ["MVP {names}", "MVP {names}"],
+    "teamOverview.results": ["Recent matches", "Последние матчи"],
+  };
+  for (const [key, words] of Object.entries(RESULT_WORDS)) assert.deepEqual([en[key], ru[key]], words, key);
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assertCspSafe(fragment);
   assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
@@ -1216,14 +1307,103 @@ test("the stylesheet reaches the page, and the result rows keep their size and t
   // The columns and the leaders are overview-lists.css's (stage 07d, Task 32): the same 20 and 22 between the columns' blocks, up to 900px one under the other.
   assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__cols", "gap"), ["var(--space-20)", "var(--space-22)"], "the leaders and the results stand as far apart as the other blocks");
   assert.match(text(LISTS_CSS), /@media \(max-width: 900px\)\s*\{\s*(?:\/\*[^*]*\*\/\s*)?\.g-overview__cols,\s*\.g-overview__main \{ gap: var\(--space-22\); \}/, "and only up to 900px");
-  for (const gone of [".g-overview__cols", ".g-overview__title", ".g-overview__leaders", ".g-overview__leaderlist", ".g-ranked"]) assert.doesNotMatch(text(css).replace(/\/\*[\s\S]*?\*\//g, ""), new RegExp(`\\${gone}(?![\\w-])`), `${gone} is not overview.css's any more`);
-  assert.ok(valuesOf(css, ".g-overview__result", "min-height").includes("56px"));
-  assert.match(text(css), /@media \(max-width: 900px\)\s*\{[^@]*\.g-overview__result:nth-child\(n\+4\)\s*\{[^}]*display: none/, "the fourth and fifth result wait for a desk");
-  assert.ok(valuesOf(css, ".g-overview__score", "font").includes("700 22px/1.1 var(--font-display)"));
-  assert.ok(valuesOf(css, ".g-overview__score", "font-variant-numeric").includes("tabular-nums"));
+  // So are the recent results (Task 33), and their rules and queries have left overview.css.
+  const gone = [".g-overview__cols", ".g-overview__title", ".g-overview__leaders", ".g-overview__leaderlist", ".g-ranked", ".g-overview__results", ".g-overview__bar",
+    ".g-overview__all", ".g-overview__list", ".g-overview__result", ".g-overview__row", ".g-overview__text", ".g-overview__opponent", ".g-overview__line", ".g-overview__score"];
+  for (const name of gone) assert.doesNotMatch(bareOf(css), new RegExp(`\\${name}(?![\\w-])`), `${name} is not overview.css's any more`);
+  // A phone's row is 56 as Team.html's content-box draws it, and the phone shows the three newest; a desk's row is 53, its 52 and the rule.
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__result", "min-height"), ["56px", "53px"]);
+  assert.match(phoneOf(LISTS_CSS), /\.g-overview__result:nth-child\(n\+4\) \{ display: none; \}/, "the fourth and fifth result wait for a desk");
+  assert.match(phoneOf(LISTS_CSS), /\.g-overview__result:nth-child\(3\),\s*\.g-overview__result:last-child \{ border-bottom: 0; \}/, "Team.html's last row has no rule");
+  assert.doesNotMatch(deskOf(LISTS_CSS), /:last-child \{ border-bottom: 0/, "DeskOverview.html's last row keeps its rule");
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__score", "font-variant-numeric"), ["tabular-nums", "tabular-nums"], "after each shorthand, which resets it");
   assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)", "34px"], "a phone's figure keeps to one line at 320px; a desk's is DeskOverview.html's 34px, its cards wrapping instead");
   assert.doesNotMatch(text(css), /1360px|359px/, "the sheet has the 900/901 breakpoints only");
-  assertReadable(css, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
+});
+
+test("the results as DeskOverview.html and Team.html draw them: styled; readable; D2; wrapping; the round's column as wide as its longest word", () => {
+  const own = (selector, property) => valuesOf(LISTS_CSS, selector, property);
+  for (const phone of [false, true]) {
+    const fragment = mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES, phone }))));
+    assertCspSafe(fragment);
+    assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "result-pill.css", "button.css",
+      "status-chip.css", "callout.css", "number-badge.css");
+  }
+  // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height (the prototypes give none).
+  const texts = [".g-overview__all", ".g-overview__row", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__mvp", ".g-overview__line", ".g-overview__cas", ".g-overview__score"];
+  for (const selector of texts) {
+    for (const property of ["font", "letter-spacing", "text-transform", "color"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
+    for (const font of own(selector, "font")) assert.match(font, /\/normal /, `${selector} keeps the font's own line height`);
+  }
+  for (const selector of [".g-overview__results", ".g-overview__result", ".g-overview__row", ".g-overview__all"]) {
+    for (const property of ["border", "background"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
+  }
+  // DeskOverview.html: the round 13px, the opponent 16/500, under it the race and the MVP 12px 6 apart, the casualties 13px; the greys --muted.
+  assert.deepEqual(own(".g-overview__round", "font"), ["400 13px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__opponent", "font"), ["500 16px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__race", "font"), ["400 12px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__mvp", "font"), ["400 12px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__sub", "column-gap"), ["var(--space-6)"]);
+  assert.deepEqual(own(".g-overview__cas", "font"), ["400 13px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__line", "font"), ["400 13px/normal var(--font-body)"], "Team.html's line under the opponent");
+  assert.deepEqual(own(".g-overview__text", "gap"), [], "the two lines touch, as in both prototypes");
+  assert.deepEqual(own(".g-overview__all", "font"), ["600 14px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__all", "color"), ["var(--accent-text)"]);
+  assert.deepEqual(own(".g-overview__score", "text-align"), ["right"]);
+  for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__mvp", ".g-overview__line", ".g-overview__cas"]) assert.deepEqual(own(selector, "color"), ["var(--muted)"], selector);
+  // The desk's grid (DeskOverview.html): 30, the round, the opponent, 90, 70, 14 apart, a row at least 52 with its rule under it.
+  assert.deepEqual(own(".g-overview__list", "grid-template-columns"), ["30px minmax(60px, max-content) minmax(0, 1fr) 90px 70px"]);
+  assert.deepEqual(own(".g-overview__list", "column-gap"), ["var(--space-14)"]);
+  assert.deepEqual(own(".g-overview__result", "border-bottom"), ["1px solid var(--line)"]);
+  assert.deepEqual(own(".g-overview__result", "box-sizing"), ["border-box"]);
+  // L6: «Товарищеский» is wider than the prototype's 60px. The round's column is the list's one track, as wide as the widest
+  // word in it and never under 60, and every row sits on the list's grid (subgrid), so the columns of all the rows agree;
+  // the word is never broken.
+  for (const selector of [".g-overview__result", ".g-overview__row"]) {
+    assert.match(ruleOf(deskOf(LISTS_CSS), selector), /^(?=[^]*grid-column: 1 \/ -1;)(?=[^]*grid-template-columns: subgrid;)/, `${selector} on the list's grid`);
+  }
+  assert.match(ruleOf(deskOf(LISTS_CSS), ".g-overview__list"), /display: grid;/);
+  assert.deepEqual(own(".g-overview__round", "overflow-wrap"), [], "a round's word keeps whole");
+  // D2: up to 900px «Whole season →» and a row are 44 or more; from 901px «Whole season →» 24, a row 53.
+  assert.deepEqual(own(".g-overview__all", "min-height"), ["var(--size-touch)", "24px"]);
+  for (const value of own(".g-overview__result", "min-height")) assert.ok(parseInt(value, 10) >= 44, value);
+  // Wrapping: the opponent, the race and the MVP wrap; nothing is cut with «…» or held on one line.
+  for (const selector of [".g-overview__opponent", ".g-overview__race", ".g-overview__mvp"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  assert.match(ruleOf(bareOf(LISTS_CSS), ".g-overview__sub"), /flex-wrap: wrap;/);
+  assert.doesNotMatch(bareOf(LISTS_CSS), /ellipsis|nowrap|text-overflow|line-clamp/);
+  // Readable in every palette: a desk's greys on its white card, a phone's on its page, the link on both.
+  for (const selector of [".g-overview__round", ".g-overview__race", ".g-overview__mvp", ".g-overview__cas"]) assertReadable(LISTS_CSS, selector, "color", ["--surface"], 4.5);
+  assertReadable(LISTS_CSS, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
+  assertReadable(LISTS_CSS, ".g-overview__all", "color", ["--page", "--surface"], 4.5);
+  assertReadable(LISTS_CSS, ".g-overview__opponent", "color", ["--page", "--surface"], 4.5);
+  assertReadable(LISTS_CSS, ".g-overview__score", "color", ["--page", "--surface"], 4.5);
+});
+
+test("a result the coach is on is the same match's row on the other width; the fourth and fifth, hidden on a phone, give the focus to the title", async () => {
+  const { cross } = crossingWindow(false);
+  const many = Array.from({ length: 5 }, (_, index) => played(`m${index}`, 1, [1, 0], [0, 0], { confirmedAt: `2026-09-0${index + 1}T10:00:00Z` }));
+  try {
+    coach({ games: many });
+    await renderTeamOverview("t1");
+    const rows = () => view.querySelectorAll("a.g-overview__row");
+    assert.ok(view.querySelector(".g-overview__round"), "a desk's row");
+    rows()[1].focus();
+    cross(true);
+    assert.equal(view.querySelector(".g-overview__round"), null, "a phone's row");
+    assert.equal(document.activeElement.getAttribute("href"), "#/games/m3", "the same match, and the focus on it");
+    cross(false);
+    assert.equal(document.activeElement.getAttribute("href"), "#/games/m3");
+    // The fifth: the phone's stylesheet hides it (the patch keeps the node), as a browser would say by its empty boxes.
+    const fifth = rows()[4];
+    fifth.focus();
+    fifth.getClientRects = () => [];
+    cross(true);
+    assert.ok(fifth.isConnected && rows()[4] === fifth, "the same link, still in the page");
+    assert.ok(document.activeElement === view.querySelector("h1"), "a row the phone hides is no place to leave the focus");
+  } finally {
+    releaseCurrentScreen();
+    delete globalThis.matchMedia;
+  }
 });
 
 test("at 320px a word of a team or a race keeps whole in the board's side column (T10 carry)", () => {

@@ -1,6 +1,6 @@
 /*
- * The overview's columns and lists (screens/team/overview-lists.mjs, overview.mjs): the two columns under the board and
- * the leaders in the form of each width. Font, border, background, text-transform, letter-spacing and font-weight are
+ * The overview's columns and lists (screens/team/overview-lists.mjs, overview.mjs): the two columns under the board, and
+ * the leaders and the recent results in the form of each width. Font, border, background, text-transform, letter-spacing and font-weight are
  * set here on purpose: the 2.x global rules (h2, a) outlive this sheet until stage 13. The values are the prototypes'
  * (DeskOverview.html, Team.html); where they give no line height, the font's own (`normal`). A long name or position
  * wraps; nothing is cut with «…» or held on one line.
@@ -9,6 +9,9 @@
  * 560px), who can advance at the right (1 1 300px), 20 apart and each a column 20 apart — so that one column alone, the
  * other not drawn, has the row to itself, and at 901px the right one goes under the left. Up to 900px one under the
  * other, 22 apart as Team.html's blocks; the right column is a desk's (its list is the phone's card) and is not shown.
+ *
+ * The recent results: up to 900px Team.html's rows under «Recent matches», of which a phone shows the three newest;
+ * from 901px DeskOverview.html's card «Results», its head inside, a row on the list's grid of five columns.
  */
 .g-overview__cols,
 .g-overview__main,
@@ -123,11 +126,175 @@
 }
 .g-overview__leadervalue--spp { color: var(--accent-text); }
 
+/* The recent results: a phone's title stands 6 over its rows (Team.html's `0 0 6`); a desk's card is below. */
+.g-overview__results {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* The title, and the way to the whole season at its end. */
+.g-overview__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.g-overview__all {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: 600 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+.g-overview__all:hover { text-decoration: underline; }
+
+.g-overview__list {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/*
+ * A phone's row (Team.html): the pill in 32, the opponent over the round and the casualties, the score; 10 apart, 10
+ * above and below, a rule under each but the last. The row is a link as high as the row: the whole of it is the target.
+ * The prototype's content-box draws 55.5px, the two lines' 34.5 with the 10 and 10 and the rule; the row holds the 56 it
+ * had, half a pixel more.
+ */
+.g-overview__result {
+  box-sizing: border-box;
+  display: flex;
+  min-width: 0;
+  min-height: 56px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+}
+
+.g-overview__row {
+  box-sizing: border-box;
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-10) 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 16px/normal var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+/* Team.html's letter is 13px in its 28px square; the dense list's pill (result-pill.css) says it at 14. */
+.g-overview__row .g-result--compact { font-size: 13px; }
+
+/* The opponent over the line under it; the two touch, as in both prototypes. */
+.g-overview__text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.g-overview__opponent {
+  min-width: 0;
+  color: var(--ink);
+  font: 500 16px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* A phone's line: «Round 2 · CAS 0–1». */
+.g-overview__line {
+  color: var(--muted);
+  font: 400 13px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__score {
+  color: var(--ink);
+  font: 700 18px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-align: right;
+  text-transform: none;
+}
+
+/*
+ * A desk's parts of a row (DeskOverview.html): the round 13px, under the opponent the race and the MVP 12px, 6 apart (a
+ * long one wraps), and the casualties 13px; the prototype's greys are --muted. The round's word is never broken: its
+ * column is as wide as the widest (below).
+ */
+.g-overview__round,
+.g-overview__cas {
+  color: var(--muted);
+  font: 400 13px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-6);
+  min-width: 0;
+}
+
+.g-overview__race,
+.g-overview__mvp {
+  min-width: 0;
+  color: var(--muted);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
 @media (max-width: 900px) {
   .g-overview__cols,
   .g-overview__main { gap: var(--space-22); }
 
   .g-overview__aside { display: none; }
+
+  /* A phone shows the three newest matches: the fourth and the fifth are for a desk. Team.html's last row has no rule. */
+  .g-overview__result:nth-child(n+4) { display: none; }
+  .g-overview__result:nth-child(3),
+  .g-overview__result:last-child { border-bottom: 0; }
 }
 
 @media (min-width: 901px) {
@@ -195,6 +362,49 @@
     margin-left: auto;
     color: var(--accent-text);
     font: 700 30px/normal var(--font-display);
+    /* The shorthand above resets it. */
+    font-variant-numeric: tabular-nums;
+  }
+
+  /*
+   * The recent results are DeskOverview.html's card: 16 round, white in the ring, 8 24 12 in, the head inside it 14 0 6,
+   * and «Whole season →» at the prototype's own height, never under 24 (D2).
+   */
+  .g-overview__results {
+    gap: 0;
+    padding: var(--space-8) var(--space-24) var(--space-12);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-overview__bar { padding: var(--space-14) 0 var(--space-6); }
+  .g-overview__all { min-height: 24px; }
+
+  /*
+   * A row (DeskOverview.html): the pill 30, the round, the opponent, the casualties 90, the score 70, 14 apart, at least
+   * 52 high with its rule under it — the last too. The round's column is the prototype's 60 for «Round 6», and as wide as
+   * the widest word in it when that is wider («Товарищеский» is some 90px): it is one track of the list's grid, which
+   * every row and its link take as their own (subgrid), so the columns of all the rows agree.
+   */
+  .g-overview__list {
+    display: grid;
+    grid-template-columns: 30px minmax(60px, max-content) minmax(0, 1fr) 90px 70px;
+    column-gap: var(--space-14);
+  }
+  .g-overview__result {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    min-height: 53px;
+  }
+  .g-overview__row {
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    gap: var(--space-14);
+    padding: 0;
+  }
+  .g-overview__score {
+    font: 700 26px/normal var(--font-display);
     /* The shorthand above resets it. */
     font-variant-numeric: tabular-nums;
   }

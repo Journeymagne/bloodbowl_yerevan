@@ -40,7 +40,9 @@
  * matches at the left, who can advance at the right; a column with nothing in it
  * is not drawn, and the other has the row. A phone shows the left one alone
  * (Team.html's order: the figures, the card, the board, the leaders, the
- * matches). The leaders are overview-lists.mjs's, in the form of the width.
+ * matches). The leaders and the recent results are overview-lists.mjs's, each in
+ * the form of the width; the model names the opponent's race of each result from
+ * the reference, as the board does.
  *
  * A page opened on this address has read neither the table nor the games yet,
  * and nothing is said that they could contradict: without the table there is
@@ -51,7 +53,7 @@
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { gameUrl, seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
+import { seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -66,15 +68,14 @@ import { renderKpiGrid } from "../../ui/kpi-tile.mjs";
 import { renderBoardActions, renderMatchBoard } from "../../ui/match-board.mjs";
 import { renderPlayerBadge } from "../../ui/number-badge.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
-import { renderResultPill } from "../../ui/result-pill.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { goSearch, refSearchField, wireRefSearch } from "../ref/frame.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { rosterLines } from "./roster/model.mjs";
 import { isPhone, onPhoneChange } from "./roster/screen.mjs";
-import { leadersMarkup } from "./overview-lists.mjs";
+import { leadersMarkup, resultsMarkup } from "./overview-lists.mjs";
 
-/** How many finished matches the list holds: a phone shows the first three (overview.css). */
+/** How many finished matches the list holds: a phone shows the first three (overview-lists.css). */
 const RECENT_MATCHES = 5;
 
 /** "Mock Season · round 3"; the name alone while no round has begun; "" with no season. */
@@ -201,7 +202,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, standing, worth }) : null,
     ready: readyPlayers(draft, raceTeam),
     leaders: teamLeaders(team, raceTeam),
-    results: recentResults(list, team.id, RECENT_MATCHES),
+    results: recentResults(list, team.id, RECENT_MATCHES).map((result) => ({ ...result, race: raceTitleOf(result.opponentRace) })),
     gamesError,
     seasonError: seasonData ? "" : seasonError,
   };
@@ -282,21 +283,6 @@ function readyListMarkup(ready, teamId) {
     + `<ul class="g-overview__readyrows">${ready.map((player) => readyRow(player, teamId)).join("")}</ul></section>`;
 }
 
-/** One finished match: its pill, the opponent with the round and the casualties, the score; the whole row opens the match. */
-function resultRow({ gameId, result, opponent, round, friendly, score, cas }) {
-  const line = friendly ? t("teamOverview.friendlyLine", { cas }) : t("teamOverview.resultLine", { round, cas });
-  return `<li class="g-overview__result"><a class="g-overview__row" href="${escapeHtml(gameUrl(gameId))}">${renderResultPill({ result, compact: true })}`
-    + `<span class="g-overview__text"><span class="g-overview__opponent">${escapeHtml(opponent)}</span><span class="g-overview__line">${escapeHtml(line)}</span></span>`
-    + `<span class="g-overview__score">${escapeHtml(score)}</span></a></li>`;
-}
-
-function resultsMarkup(results, teamId) {
-  if (!results.length) return "";
-  return `<section class="g-overview__results"><div class="g-overview__bar"><h2 class="g-overview__title">${escapeHtml(t("teamOverview.results"))}</h2>`
-    + `<a class="g-overview__all" href="${escapeHtml(teamUrl(teamId, "matches"))}">${escapeHtml(t("teamOverview.wholeSeason"))}</a></div>`
-    + `<ul class="g-overview__list">${results.map(resultRow).join("")}</ul></section>`;
-}
-
 /**
  * The reference's search at the right of a desk's head (DeskOverview.html, decision 49): the reference's own field and
  * words — the prototype's «Players, skills, rules…» would promise players, whom the reference does not look for.
@@ -312,8 +298,9 @@ const column = (name, markup) => (markup ? `<div class="g-overview__${name}">${m
  * there is nothing. A phone shows the left one alone, under the board (Team.html): the right one's list is a desk's.
  */
 function columnsMarkup(model) {
-  const main = leadersMarkup({ leaders: model.leaders, teamId: model.teamId, phone: model.phone }) + resultsMarkup(model.results, model.teamId);
-  const aside = readyListMarkup(model.ready, model.teamId);
+  const { leaders, results, teamId, phone } = model;
+  const main = leadersMarkup({ leaders, teamId, phone }) + resultsMarkup({ results, teamId, phone });
+  const aside = readyListMarkup(model.ready, teamId);
   return main || aside ? `<div class="g-overview__cols">${column("main", main)}${column("aside", aside)}</div>` : "";
 }
 

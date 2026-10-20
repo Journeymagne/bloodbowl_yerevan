@@ -1,15 +1,14 @@
 /*
  * A team's overview (screens/team/overview.mjs). The figures, the board, the
- * callout and the rows are the ui/ sheets'; this one lays them out and draws
- * who can advance and the recent matches. The columns under the board and the
- * leaders in them are overview-lists.css's. Font, border, background,
+ * callout and the pills are the ui/ sheets'; this one lays them out and draws
+ * who can advance. The columns under the board, and the leaders and the recent
+ * results in them, are overview-lists.css's. Font, border, background,
  * text-transform and font-weight are set here on purpose: the 2.x global rules
  * (h2, ul, a, p) outlive this sheet until stage 13.
  *
  * Written for a phone first. From 901px the figures are white cards in a ring
- * that wrap by 180px, the head has the reference's search at its right, and the
- * recent matches are a card (DeskOverview.html); they are five, of which a phone
- * shows the first three.
+ * that wrap by 180px, and the head has the reference's search at its right
+ * (DeskOverview.html).
  *
  * Who can advance is drawn twice and one of the two is shown for the width: a
  * card after the figures up to 900px (Team.html), a list in the right column
@@ -220,17 +219,6 @@
   text-transform: none;
 }
 
-.g-overview__results {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-}
-
 /*
  * The figures (Team.html, DeskOverview.html): the label straight over the figure, each at its font's own line height,
  * as the prototypes draw them — a phone's tile is 85px high, a desk's card 95px.
@@ -246,103 +234,9 @@
   line-height: normal;
 }
 
-/* The recent matches: the title, and the way to the whole season at its end. */
-.g-overview__bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-12);
-}
-
-.g-overview__all {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  min-height: var(--size-touch);
-  border: 0;
-  background: none;
-  color: var(--accent-text);
-  font: 600 14px/1.2 var(--font-body);
-  letter-spacing: 0;
-  text-decoration: none;
-  text-transform: none;
-}
-.g-overview__all:hover { text-decoration: underline; }
-
-.g-overview__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A row is a link as high as the row: the whole of it is the target. */
-.g-overview__result {
-  box-sizing: border-box;
-  display: flex;
-  min-height: 56px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  background: none;
-}
-.g-overview__result:last-child { border-bottom: 0; }
-
-.g-overview__row {
-  box-sizing: border-box;
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-10);
-  min-width: 0;
-  padding: var(--space-10) 0;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.g-overview__text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.g-overview__opponent {
-  color: var(--ink);
-  font: 500 16px/1.3 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-  overflow-wrap: anywhere;
-}
-
-.g-overview__line {
-  color: var(--muted);
-  font: 400 13px/1.35 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-.g-overview__score {
-  color: var(--ink);
-  font: 700 22px/1.1 var(--font-display);
-  /* The shorthand above resets it. */
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 0;
-  text-align: right;
-  text-transform: none;
-  white-space: nowrap;
-}
-
-/* A phone shows the three newest matches: the fourth and the fifth are for a desk. */
 @media (max-width: 900px) {
   /* Team.html's blocks stand 22px apart; the desk's 20px is the base. */
   .g-overview { gap: var(--space-22); }
-
-  .g-overview__result:nth-child(n+4) { display: none; }
-  .g-overview__result:nth-child(3) { border-bottom: 0; }
 }
 
 @media (min-width: 901px) {
@@ -382,12 +276,4 @@
   /* A desk shows who can advance as a list in the right column, not as the phone's card. */
   .g-overview__ready { display: none; }
   .g-overview__readylist { display: flex; }
-
-  /* The list is a card on a desk: the rows keep to their rules inside it. */
-  .g-overview__list {
-    padding: var(--space-4) var(--space-24) var(--space-8);
-    border-radius: var(--radius-2xl);
-    background: var(--surface);
-    box-shadow: var(--ring);
-  }
 }
