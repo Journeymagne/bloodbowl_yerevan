@@ -29,8 +29,10 @@
  *
  * Mock Humans (t2) has its match g2 on (round 3, at home to Rival Raiders, no score): its rows are what
  * scripts/mock/roster.mjs's records of it say — Blitzer Four's touchdown, Catcher Five's completion (and his
- * interception outside a match), Thrower Six's lasting injury (AG) — each waiting for the post-match; the others of the
- * seven are on its roster with nothing tapped yet. Every other team has no match.
+ * interception outside a match), Thrower Six's lasting injury (AG) — each waiting for the post-match; Lineman Two, who
+ * skips the next game (scripts/mock/roster.mjs), misses it, as the server leaves him out of the match's roster
+ * (src/domain/match/snapshot.mjs); the other three are on its roster with nothing tapped yet. Every other team has no
+ * match.
  */
 const HISTORY = /^\/api\/teams\/([^/]+)\/players\/([^/]+)\/history$/;
 
@@ -63,10 +65,12 @@ const MOCK_HUMANS_MATCHES = [
 
 /** On the roster of the match on, with nothing tapped yet. */
 const ON_ROSTER = { played: true, source: "none", counters: null, injury: null, pending: false };
+/** Left out of the match's roster: he skips it (`skipNextGame`), so no tap of his can be made. */
+const SKIPPED = { played: false, source: "none", counters: null, injury: null, pending: false };
 /** A row of the match on that its taps make (scripts/mock/roster.mjs' records), waiting for the post-match. */
 const tapped = (counters, injury = null) => new Map([["g2", { played: true, source: "events", counters, injury, pending: true }]]);
 const HUMANS_ROWS = new Map([
-  ["q1", new Map([["g2", ON_ROSTER]])], ["q2", new Map([["g2", ON_ROSTER]])], ["q3", new Map([["g2", ON_ROSTER]])],
+  ["q1", new Map([["g2", ON_ROSTER]])], ["q2", new Map([["g2", SKIPPED]])], ["q3", new Map([["g2", ON_ROSTER]])],
   ["q4", tapped({ touchdowns: 1 })], ["q5", tapped({ completions: 1 })], ["q6", tapped({}, { code: "lasting", stat: "ag" })],
   ["q7", new Map([["g2", ON_ROSTER]])],
 ]);
