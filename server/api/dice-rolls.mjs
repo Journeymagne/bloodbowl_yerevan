@@ -10,8 +10,8 @@
  * roll waits for a player, asking for its purpose hands back his earliest waiting roll, whatever category
  * is asked this time, and asking for the other purpose is refused — a coach never holds a D8 and a D16
  * for one player before choosing which advancement to take, and an undone site advancement is taken again
- * before the player gets his next roll. A random skill the player has come to hold since it was rolled is
- * still his roll: it is handed back marked `stale`, never spent for a fresh die.
+ * before the player gets his next roll. A random skill the player has come to hold both skills of since it was
+ * rolled is still his roll: it is handed back marked `stale`, never spent for a fresh die.
  * All of that is held by the team row lock every writer of this table takes first (`teamForUser(…,
  * { lock: true })` inside a transaction, `writeSavedTeam`'s FOR UPDATE), and by nothing else — there is
  * no index for it, on purpose: an undone advancement frees its roll while the next one may already wait,
@@ -20,15 +20,18 @@
  * A roll is used by the advancement that names it (`roll: { id, via: "site" }`), by one only, in the
  * order the player's rolls were handed out, and given back in the reverse order, whatever their purpose:
  * the undo of a player's site advancements goes last first. A used random skill keeps the
- * skills its die was rerolled against for as long as it is used, the Pro a captain's die was turned off
+ * skills its dice were rerolled against for as long as it is used, the Pro a captain's die was turned off
  * excepted, which comes and goes with the captaincy (a random skill's roll keeps `params.captain`). A save
  * of the roster settles all of that (`settleRosterRolls`). A team is created with no rolls, so a roster it
  * is created with names none (`refuseSiteRolls`).
+ *
+ * A random skill is two dice (the owner, 2026-10-20): both skills the player lacks, and different; the coach takes
+ * one, and an advancement may name either (`rollFitsAdvancement`). It is stale only when he holds both.
  */
 import crypto from "node:crypto";
 
 import {
-  randomSkillRoll, rerollsHeldBy, rollFitsAdvancement, siteRollReferences, skillsRerolledAgainst, statRoll,
+  randomSkillRoll, rerollsHeldBy, rollFitsAdvancement, rolledDice, siteRollReferences, skillsRerolledAgainst, statRoll,
 } from "../../src/domain/roster/dice.mjs";
 import { canonicalSkillName, heldSkillKeys, normalizeDraftPlayers } from "../../src/domain/roster/players.mjs";
 import { rowsForTeam } from "../../src/domain/roster/values.mjs";
@@ -109,10 +112,11 @@ export async function teamRolls(db, teamId) {
  * The player's earliest waiting roll, of either purpose, is the one looked at: asked for its purpose, it is
  * handed back; asked for the other, the ask is refused with its purpose, stale or not. So one roll waits for
  * a player at a time, and when an undo has left two waiting — a skill and a characteristic given back, last
- * first — the earlier is taken again before the later is handed out. A waiting random skill the player has come to hold since it was
- * rolled — taken at the table meanwhile, or added by hand (`heldSkillKeys`, by canonical name, as the die
- * reads it) — comes back marked `stale: true`. It is not spent for a fresh die, which would be a reroll
- * for nothing; the step goes on once the duplicate is gone, or once this roll takes the place of the table
+ * first — the earlier is taken again before the later is handed out. A waiting random skill whose every die's
+ * skill the player has come to hold since it was rolled — taken at the table meanwhile, or added by hand
+ * (`heldSkillKeys`, by canonical name, as the die reads it) — comes back marked `stale: true`; while one die's
+ * skill is still his to take, it is not stale. It is not spent for a fresh die, which would be a reroll
+ * for nothing; the step goes on once a duplicate is gone, or once this roll takes the place of the table
  * advancement. A second advancement for the same skill can take it as well: that only wastes the
  * advancement, and is let be. A characteristic roll is never stale: a skill can always be taken in place
  * of the characteristic.
@@ -155,10 +159,10 @@ export async function rollForPlayer(client, { teamRow, playerId, purpose, catego
   return row;
 }
 
-/** Whether a random-skill roll ended on a skill the player holds now. */
+/** Whether a random-skill roll has dice, and the player holds now the skill every one of them came up (`rolledDice`). */
 function heldSince(roll, position, player) {
-  return roll.purpose === "random_skill" && typeof roll.result?.skill === "string"
-    && heldSkillKeys(position, player).has(canonicalSkillName(roll.result.skill));
+  const dice = rolledDice(roll), held = heldSkillKeys(position, player);
+  return dice.length > 0 && dice.every((die) => held.has(canonicalSkillName(die.skill)));
 }
 
 /**

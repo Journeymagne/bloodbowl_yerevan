@@ -260,8 +260,8 @@ test("a roll's table: sixteen faces, a column shorter than that blank on the res
 test("a site roll he can no longer take: a skill he has since, rerolls against a skill he has no more; the table advancement that gave the skill is found", () => {
   const frenzy = { purpose: "random_skill", result: { skill: "Frenzy", attempts: [{ roll: 4, skill: "Frenzy", duplicate: false }] } };
   const holder = catcher(RICH, [], { extraSkills: [{ name: "Frenzy", access: "primary" }] });
-  assert.deepEqual(rollRefusal(frenzy, rows[2], holder), { code: "ROLL_STALE", params: { skill: "Frenzy" } });
-  assert.deepEqual(rollRefusal({ ...frenzy, stale: true }, rows[2], catcher(RICH)), { code: "ROLL_STALE", params: { skill: "Frenzy" } });
+  assert.deepEqual(rollRefusal(frenzy, rows[2], holder), { code: "ROLL_STALE", params: { skills: "Frenzy" } });
+  assert.deepEqual(rollRefusal({ ...frenzy, stale: true }, rows[2], catcher(RICH)), { code: "ROLL_STALE", params: { skills: "Frenzy" } });
   assert.equal(rollRefusal(frenzy, rows[2], catcher(RICH)), null);
   const rerolled = { purpose: "random_skill", result: { skill: "Frenzy", attempts: [
     { roll: 1, skill: "Block", duplicate: true }, { roll: 16, skill: "Thick Skull", duplicate: false }, { roll: 1, skill: "Block", duplicate: true },
@@ -282,6 +282,31 @@ test("a site roll he can no longer take: a skill he has since, rerolls against a
   assert.equal(tableAdvancementFor({ purpose: "stat", result: { roll: 3, stats: ["ma"] } }, catcher(RICH, [random("Frenzy", TABLE)])), -1);
   assert.equal(tableAdvancementFor({ purpose: "random_skill", result: { skill: "Mighty Blow" } }, player(5, RICH, { advancements: [random("Mighty Blow (+1)", TABLE)] })), 0,
     "by canonical name");
+});
+
+// Not the plan's {Frenzy, Dodge}: a Human Catcher holds Dodge of his own, and one roll is one category's column.
+test("two dice: stale only when the player has both; the table advancement of either is found", () => {
+  const cameUp = (roll, skill) => ({ attempts: [{ roll, skill, duplicate: false }], skill });
+  const pair = { purpose: "random_skill", result: { dice: [cameUp(4, "Frenzy"), cameUp(8, "Strip Ball")] } };
+  const holding = (...names) => ({ extraSkills: names.map((name) => ({ name, access: "primary" })) });
+  assert.equal(rollRefusal(pair, rows[2], catcher(RICH, [], holding("Frenzy"))), null, "one of the two held: the other can be taken");
+  assert.equal(rollRefusal(pair, rows[2], catcher(RICH, [], holding("Strip Ball"))), null);
+  assert.deepEqual(rollRefusal(pair, rows[2], catcher(RICH, [], holding("Frenzy", "Strip Ball"))), { code: "ROLL_STALE", params: { skills: "Frenzy, Strip Ball" } });
+  assert.deepEqual(rollRefusal({ ...pair, stale: true }, rows[2], catcher(RICH)), { code: "ROLL_STALE", params: { skills: "Frenzy, Strip Ball" } }, "the server says so");
+  const rerolled = { purpose: "random_skill", result: { dice: [cameUp(4, "Frenzy"),
+    { attempts: [{ roll: 1, skill: "Block", duplicate: true }, { roll: 8, skill: "Strip Ball", duplicate: false }], skill: "Strip Ball" }] } };
+  assert.deepEqual(rollRefusal(rerolled, rows[2], catcher(RICH)), { code: "ROLL_REROLLED", params: { skills: "Block" } }, "the second die's reroll is the roster's too");
+  for (const broken of [{ dice: [] }, {}, { dice: [{ attempts: [{ roll: 1, skill: "Block", duplicate: true }] }] }]) {
+    assert.equal(rollRefusal({ purpose: "random_skill", result: broken, stale: true }, rows[2], catcher(RICH)), null, `${JSON.stringify(broken)}: no die, nothing to call stale (K4)`);
+  }
+
+  const random = (skill, roll) => ({ type: "random", grants: { skill }, roll });
+  assert.equal(tableAdvancementFor(pair, catcher(RICH, [random("Frenzy", TABLE)])), 0, "the first die's skill");
+  assert.equal(tableAdvancementFor(pair, catcher(RICH, [random("Block", { id: "r0", via: "site" }), random("Strip Ball", TABLE)])), 1,
+    "the second die's, after the last site advancement");
+  assert.equal(tableAdvancementFor(pair, catcher(RICH, [random("Strip Ball", TABLE), random("Block", { id: "r0", via: "site" })])), -1,
+    "before a site advancement: its roll would be used out of turn (K8)");
+  assert.equal(tableAdvancementFor(pair, catcher(RICH, [random("Block", TABLE)])), -1, "neither die's");
 });
 
 /** Seven Humans as the server stores them; the Catcher `p5` has 30 SPP. */

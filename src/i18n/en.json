@@ -1440,7 +1440,7 @@
   "teamAdvance.refusal.STAT_NONE": "{stat}: the position has none",
   "teamAdvance.refusal.STAT_LIMIT": "{stat} is at its limit already",
   "teamAdvance.refusal.STAT_GAINS": "{stat}: +{max} taken already",
-  "teamAdvance.refusal.ROLL_STALE": "{skill} came up, and the player has this skill already: the roll cannot be taken. Take the skill off, or take this advancement at the table.",
+  "teamAdvance.refusal.ROLL_STALE": "Came up: {skills} — the player has it all already: the roll cannot be taken. Take a skill off, or take this advancement at the table.",
   "teamAdvance.refusal.ROLL_REROLLED": "This roll was rolled again past {skills}, which the player has no more: give the skill back before taking the roll, or take this advancement at the table.",
   "teamAdvance.refusal.DICE_ROLL_USED": "Undo the later advancement first: its roll was taken after this one.",
   "teamAdvance.type.random": "Random primary skill",

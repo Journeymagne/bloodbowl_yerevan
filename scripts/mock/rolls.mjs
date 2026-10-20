@@ -10,23 +10,26 @@
  *                                  TEAM_NOT_FOUND), the body (400 FIELD_INVALID `purpose`, or `category` for a random
  *                                  skill), the player (404 PLAYER_NOT_FOUND). Then the player's earliest waiting roll:
  *                                  asked for its purpose, it is the answer, whatever category is asked (a random skill
- *                                  the player holds since comes back `stale: true`); asked for the other, 409
- *                                  DICE_ROLL_WAITING `{purpose}` (`errorPayload`). Else a new roll, 200 `{roll}`, on the
- *                                  mock's die: a characteristic's D8 shows 6 (`{roll: 6, stats: ["ag", "ma"]}`); a random
- *                                  skill's D16 shows 16, then the first face of the category's column (public/data.en.json)
- *                                  whose skill the player does not hold. Every column but General is shorter than 16, so
- *                                  its roll is a blank face and then that skill; General's 16th face is Thick Skull,
- *                                  which ends the roll there unless the player holds it. A category that is not one of
- *                                  the position's primaries is 422 DICE_CATEGORY, a column with nothing left 422
- *                                  DICE_NO_SKILL (`randomSkillRoll` says which).
+ *                                  whose every die's skill the player holds since comes back `stale: true`); asked for the
+ *                                  other, 409 DICE_ROLL_WAITING `{purpose}` (`errorPayload`). Else a new roll, 200 `{roll}`,
+ *                                  on the mock's die: a characteristic's D8 shows 6 (`{roll: 6, stats: ["ag", "ma"]}`); a
+ *                                  random skill is two dice, as the server's: its die shows 16, then the first face of the
+ *                                  category's column (public/data.en.json) whose skill the player does not hold, then the
+ *                                  next such face. Every column but General is shorter than 16, so the first die is a blank
+ *                                  face and then that skill, and the second die the next one; General's 16th face is Thick
+ *                                  Skull: unless the player holds it, the first die ends there and the second lands on the
+ *                                  first free face. A column with one skill left throws one die. A
+ *                                  category that is not one of the position's primaries is 422 DICE_CATEGORY, a column with
+ *                                  nothing left 422 DICE_NO_SKILL (`randomSkillRoll` says which).
  *
  * What it does not do: ids are not UUIDs, an id two players share is not refused (DUPLICATE_PLAYER_ID), anybody may
  * roll, and a save of the roster (scripts/mock/treasury.mjs) does not settle the rolls it names: a roll that does not
  * fit the advancement, or one taken out of turn (DICE_ROLL_MISMATCH, DICE_ROLL_USED), is kept as sent.
  *
- * Fixtures: Mock Team (t1) has two rolls. mock-roll-p3 is used: Blitzer Three's random Agility skill, a blank 15 and
- * then Dodge, which his advancement names (scripts/mock-api.mjs). mock-roll-p5 waits: Linewoman Five's characteristic,
- * the D8's 6, so she is asked to take it before any random skill. Every other team has none.
+ * Fixtures: Mock Team (t1) has two rolls. mock-roll-p3 is used: Blitzer Three's random Agility skill, two dice — a blank
+ * 15 and then Dodge, which his advancement names (scripts/mock-api.mjs), and Dodge again (the first die's, `twin`) and
+ * then Catch. mock-roll-p5 waits: Linewoman Five's characteristic, the D8's 6, so she is asked to take it before any
+ * random skill. Every other team has none.
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -89,7 +92,7 @@ async function seed(teams) {
   const blitzer = found && rosterPlayer(data, found, "p3");
   if (!blitzer || !rosterPlayer(data, found, "p5")) return;
   const before = { ...blitzer.player, extraSkills: [], advancements: [] };
-  const skill = randomSkillRoll({ row: blitzer.row, player: before, category: "Agility", skillGroups: data.skillGroups, rng: dieOf([15, 4]) });
+  const skill = randomSkillRoll({ row: blitzer.row, player: before, category: "Agility", skillGroups: data.skillGroups, rng: dieOf([15, 4, 4, 1]) });
   // The data the seed is made from changed under it (a Blitzer with no Agility, a column without a free skill): said, not a roll with no params.
   if (!skill.ok) throw new Error(`mock rolls: the seed's random skill for p3 is refused (${skill.reason})`);
   const at = (days) => new Date(Date.now() - days * DAY).toISOString();
@@ -125,8 +128,10 @@ function rollNew(data, { player, row }, { purpose, category }) {
   if (purpose === "stat") return statRoll(dieOf([STAT_FACE]));
   const held = heldSkillKeys(row, player);
   const column = data.skillGroups.find((group) => group.category === category)?.skills ?? [];
-  const free = column.findIndex((skill) => !held.has(canonicalSkillName(skill))) + 1;
-  const rolled = randomSkillRoll({ row, player, category, skillGroups: data.skillGroups, rng: dieOf([SKILL_DIE, free]) });
+  const faceAfter = (after) => column.findIndex((skill, at) => at >= after && !held.has(canonicalSkillName(skill))) + 1;
+  const free = faceAfter(0), second = free && faceAfter(free);
+  const faces = second ? [SKILL_DIE, free, second] : [SKILL_DIE, free];
+  const rolled = randomSkillRoll({ row, player, category, skillGroups: data.skillGroups, rng: dieOf(faces) });
   return rolled.ok ? { ...rolled, params: { ...rolled.params, captain: player.isCaptain } } : rolled;
 }
 

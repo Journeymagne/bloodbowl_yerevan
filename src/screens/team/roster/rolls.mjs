@@ -29,11 +29,11 @@ export function rollAsking(teamId, playerId) {
 
 /**
  * Ask the server for the roll of a player's step: a random skill of a category (`random_skill`) or a characteristic's
- * D8 (`stat`, which reads no category). The answer is the roll, new or the one that waits — a random skill the player
- * holds since comes back `stale`. An answer that did not come (the network, a timeout, a proxy's page, a 5xx, a 2xx
- * without the roll) is `lost`: the roll may be made, and asking again hands it back. A roll of the other purpose that
- * waits is said by its purpose (409 `DICE_ROLL_WAITING`); any other refusal in the server's words, with the rules a
- * roster breaks and who to fix (K21), and its code.
+ * D8 (`stat`, which reads no category). The answer is the roll, new or the one that waits — a random skill whose every
+ * die's skill the player holds since comes back `stale`. An answer that did not come (the network, a timeout, a proxy's
+ * page, a 5xx, a 2xx without the roll) is `lost`: the roll may be made, and asking again hands it back. A roll of the
+ * other purpose that waits is said by its purpose (409 `DICE_ROLL_WAITING`); any other refusal in the server's words,
+ * with the rules a roster breaks and who to fix (K21), and its code.
  *
  * @param {string} teamId @param {string} playerId his id in the roster
  * @param {{purpose: string, category?: string, closed: () => string}} ask `closed`, required (K15): why the screen sends

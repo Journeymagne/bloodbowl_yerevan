@@ -39,11 +39,13 @@ test("a characteristic roll is a D8 the server rolls once: asked again for the s
   assert.equal((await rows(client, id)).length, 1);
 }));
 
-test("a random skill is a D16 in a primary category; asking in another category returns the roll already waiting", db, () => withApiDatabase(async ({ client }) => {
+test("a random skill is two D16s in a primary category; asking in another category returns the roll already waiting", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
   const general = await roll(id, "p0", coach.token, { purpose: "random_skill", category: "General" });
   assert.deepEqual([general.body.roll.params.category, general.body.roll.params.sides], ["General", 16]);
-  assert.ok(general.body.roll.params.candidates.includes(general.body.roll.result.skill));
+  const skills = general.body.roll.result.dice.map((die) => die.skill);
+  assert.equal(new Set(skills).size, 2, "two dice, two different skills");
+  assert.ok(skills.every((skill) => general.body.roll.params.candidates.includes(skill)));
   assert.equal((await roll(id, "p0", coach.token, { purpose: "random_skill", category: "Strength" })).body.roll.id, general.body.roll.id);
   assert.notEqual((await roll(id, "p1", coach.token, { purpose: "random_skill", category: "General" })).body.roll.id, general.body.roll.id);
 }));
@@ -87,11 +89,13 @@ test("the route's die is the server's: a D8 for a characteristic, a D16 for a sk
     assert.deepEqual([rolled.params, rolled.result], [{ sides: 8 }, { roll: 3, stats: ["ar", "ma", "pa"] }], "what the die showed is what was recorded");
     assert.deepEqual(stat.asked, [[1, 9]], "one throw, of a D8");
   } finally { stat.done(); }
-  const skill = scriptedServerDie(2, 3);
+  const skill = scriptedServerDie(2, 3, 4);
   try {
     const { body: { roll: rolled } } = await roll(id, "p1", coach.token, { purpose: "random_skill", category: "General" });
-    assert.deepEqual(rolled.result, { attempts: [{ roll: 2, skill: general[1], duplicate: true }, { roll: 3, skill: general[2], duplicate: false }], skill: general[2] });
-    assert.deepEqual(skill.asked, [[1, 17], [1, 17]], "every throw is of a D16");
+    assert.deepEqual(rolled.result, { dice: [
+      { attempts: [{ roll: 2, skill: general[1], duplicate: true }, { roll: 3, skill: general[2], duplicate: false }], skill: general[2] },
+      { attempts: [{ roll: 4, skill: general[3], duplicate: false }], skill: general[3] }] });
+    assert.deepEqual(skill.asked, [[1, 17], [1, 17], [1, 17]], "every throw is of a D16");
   } finally { skill.done(); }
   assert.deepEqual((await rows(client, id)).map((row) => row.purpose).sort(), ["random_skill", "stat"]);
 }));
@@ -100,17 +104,58 @@ test("a blank face of the D16 is part of the roll: kept as an attempt with no sk
   const strength = (await matchReference()).skillGroups.find((group) => group.category === "Strength").skills;
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { players: [{ id: "ogre", rowIndex: 5, spp: {} }] } });
   assert.ok(strength.length < 15, "a column with blank faces");
-  const die = scriptedServerDie(16, strength.length + 1, 1);
+  const die = scriptedServerDie(16, strength.length + 1, 1, 1, 16, 2);
   let rolled;
   try {
     const { status, body } = await roll(id, "ogre", coach.token, { purpose: "random_skill", category: "Strength" });
     assert.equal(status, 200);
     rolled = body.roll;
   } finally { die.done(); }
-  const attempts = [{ roll: 16, skill: null, duplicate: false }, { roll: strength.length + 1, skill: null, duplicate: false }, { roll: 1, skill: strength[0], duplicate: false }];
-  assert.deepEqual(rolled.result, { attempts, skill: strength[0] });
+  const dice = [
+    { attempts: [{ roll: 16, skill: null, duplicate: false }, { roll: strength.length + 1, skill: null, duplicate: false }, { roll: 1, skill: strength[0], duplicate: false }], skill: strength[0] },
+    { attempts: [{ roll: 1, skill: strength[0], duplicate: false, twin: true }, { roll: 16, skill: null, duplicate: false }, { roll: 2, skill: strength[1], duplicate: false }], skill: strength[1] }];
+  assert.deepEqual(rolled.result, { dice });
   const stored = (await client.query("SELECT result FROM dice_rolls WHERE id = $1", [rolled.id])).rows[0].result;
-  assert.deepEqual(stored, { attempts, skill: strength[0] });
+  assert.deepEqual(stored, { dice });
+}));
+
+test("a random skill's roll is two dice, both skills the player lacks and different, kept as one row; asked again, the same two", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills();
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const ask = () => roll(id, "p0", coach.token, { purpose: "random_skill", category: "General" });
+  const die = scriptedServerDie(3, 3, 4);
+  let first;
+  try { first = (await ask()).body.roll; } finally { die.done(); }
+  assert.deepEqual(first.result.dice.map((rolled) => rolled.skill), [general[2], general[3]]);
+  assert.deepEqual(first.result.dice[1].attempts, [{ roll: 3, skill: general[2], duplicate: false, twin: true }, { roll: 4, skill: general[3], duplicate: false }],
+    "the second die rerolls the first one's skill");
+  const again = (await ask()).body.roll;
+  assert.deepEqual([again.id, again.result], [first.id, first.result]);
+  assert.equal((await rows(client, id)).length, 1);
+}));
+
+test("a waiting roll the player has come to hold one skill of is no stale roll; both — stale", db, () => withApiDatabase(async ({ client }) => {
+  const general = await generalSkills();
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const ask = () => roll(id, "p0", coach.token, { purpose: "random_skill", category: "General" });
+  /** p0 saved holding `skills`, as the roster's PATCH stores him. */
+  const holds = async (revision, skills) => {
+    const team = (await callApi("GET", `/api/teams/${id}`, { token: coach.token })).body.team;
+    const players = team.roster.players.map((player) => (player.id === "p0" ? { ...player, extraSkills: holding(skills) } : player));
+    const saved = await callApi("PATCH", `/api/teams/${id}`, { token: coach.token, body: { name: team.name, baseTeamSlug: team.baseTeamSlug, revision, roster: { ...team.roster, players } } });
+    assert.equal(saved.status, 200, JSON.stringify(saved.body));
+  };
+  const die = scriptedServerDie(3, 4);
+  let first;
+  try { first = (await ask()).body.roll; } finally { die.done(); }
+  assert.deepEqual(first.result.dice.map((rolled) => rolled.skill), [general[2], general[3]]);
+  await holds(1, [general[2]]);
+  const one = (await ask()).body.roll;
+  assert.deepEqual([one.id, Object.hasOwn(one, "stale")], [first.id, false], "one of the two held: the other is still there to take");
+  await holds(2, [general[2], general[3]]);
+  const both = (await ask()).body.roll;
+  assert.deepEqual([both.id, both.stale], [first.id, true]);
+  assert.equal((await rows(client, id)).length, 1, "no ask threw a die again");
 }));
 
 test("a player with every skill of the category but one can only roll that one; with all of them there is nothing to roll", db, () => withApiDatabase(async ({ client }) => {
@@ -128,9 +173,11 @@ test("a player with every skill of the category but one can only roll that one; 
   } finally { die.done(); }
   assert.deepEqual(await rows(client, id), []);
   const rolled = (await roll(id, "p1", coach.token, { purpose: "random_skill", category: "General" })).body.roll;
-  assert.equal(rolled.result.skill, last);
-  assert.deepEqual(rolled.result.attempts.map((attempt) => attempt.duplicate), [...Array(rolled.result.attempts.length - 1).fill(true), false]);
-  assert.equal(rolled.result.attempts.at(-1).skill, last);
+  assert.equal(rolled.result.dice.length, 1, "one skill left: one die, no second to differ from it");
+  const [only] = rolled.result.dice;
+  assert.equal(only.skill, last);
+  assert.deepEqual(only.attempts.map((attempt) => attempt.duplicate), [...Array(only.attempts.length - 1).fill(true), false]);
+  assert.equal(only.attempts.at(-1).skill, last);
 }));
 
 test("a category the player cannot take is refused as 422, a nonsense one too, and neither rolls nor writes anything", db, () => withApiDatabase(async ({ client }) => {
@@ -154,11 +201,11 @@ test("the player's own position decides what he may roll and what he already has
   const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id, { roster: { players: [
     { id: "lineman", rowIndex: 0, spp: {} }, { id: "ogre", rowIndex: 5, spp: {} }] } }); // Human rows 0 (primary G) and 5 (primary S, base Mighty Blow)
   assert.equal((await roll(id, "lineman", coach.token, { purpose: "random_skill", category: "Strength" })).body.error.code, "DICE_CATEGORY");
-  const die = scriptedServerDie(mightyBlow, 1);
+  const die = scriptedServerDie(mightyBlow, 1, 2);
   try {
     const { status, body } = await roll(id, "ogre", coach.token, { purpose: "random_skill", category: "Strength" });
     assert.equal(status, 200);
-    assert.deepEqual(body.roll.result.attempts, [{ roll: mightyBlow, skill: "Mighty Blow", duplicate: true }, { roll: 1, skill: strength[0], duplicate: false }]);
+    assert.deepEqual(body.roll.result.dice[0].attempts, [{ roll: mightyBlow, skill: "Mighty Blow", duplicate: true }, { roll: 1, skill: strength[0], duplicate: false }]);
     assert.deepEqual([body.roll.params.category, body.roll.params.candidates], ["Strength", strength]);
   } finally { die.done(); }
   assert.deepEqual((await rows(client, id)).map((row) => row.purpose), ["random_skill"], "the Lineman's refusal wrote nothing");

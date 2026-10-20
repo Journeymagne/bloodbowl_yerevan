@@ -752,7 +752,7 @@ test("a god's change the server refuses for a roll on the site is said in the se
   assert.ok(!alertText().includes(en["error.DICE_ROLL_MISMATCH"]));
   assert.ok(sheetOpen(), "the sheet stays, with the god chosen");
   assert.equal($('[data-option-value="Slaanesh"]').getAttribute("aria-checked"), "true");
-  assert.equal(ru["teamSettings.refusal.DICE_ROLL_MISMATCH"], "Против избранного навыка, который снимает эта правка, переброшен бросок с сайта: навык остаётся, поэтому ничего не сохранено.");
+  assert.equal(ru["teamSettings.refusal.DICE_ROLL_MISMATCH"], "Против навыка Favoured, который снимает эта правка, переброшен бросок с сайта: навык остаётся, поэтому ничего не сохранено.");
   // Any other refusal of the server's own is said as every save says it.
   api.reply("PATCH /api/teams/t2", 422, { error: { code: "STAGE_PURCHASE_LOCKED", params: {}, message: "x" } });
   await withoutTimers(async () => {

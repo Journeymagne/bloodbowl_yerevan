@@ -1133,7 +1133,7 @@ test("a site roll the player can no longer take sends nothing and says why", asy
   const before = structuredClone(draft);
   assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy({ siteRoll: { ...ROLL, stale: true } }), skillGroups, OPEN), {
     ok: false,
-    refusal: "Frenzy came up, and the player has this skill already: the roll cannot be taken. Take the skill off, or take this advancement at the table.",
+    refusal: "Came up: Frenzy — the player has it all already: the roll cannot be taken. Take a skill off, or take this advancement at the table.",
   });
   const rerolled = { ...ROLL, result: { skill: "Frenzy", attempts: [{ roll: 1, skill: "Block", duplicate: true }, { roll: 4, skill: "Frenzy", duplicate: false }] } };
   assert.deepEqual(save.advancePlayer("t1", human, "p3", frenzy({ siteRoll: rerolled }), skillGroups, OPEN), {

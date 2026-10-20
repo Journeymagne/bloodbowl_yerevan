@@ -51,7 +51,7 @@ const WORDS = {
   kept: "The roll stays the player's: close this now, and the next advancement of this type takes the same roll",
   lost: "The roll's answer did not come: press again — the site gives the same roll back",
   waitingStat: "A D8 for a characteristic waits for this player: take «Characteristic improvement» first — the site gives that roll back",
-  stale: "Frenzy came up, and the player has this skill already: the roll cannot be taken. Take the skill off, or take this advancement at the table.",
+  stale: "Came up: Frenzy — the player has it all already: the roll cannot be taken. Take a skill off, or take this advancement at the table.",
   rerolled: "This roll was rolled again past Block, which the player has no more: give the skill back before taking the roll, or take this advancement at the table.",
   waitSave: "Wait until your edits are saved",
   afterPost: "Advancement — after the post-match",

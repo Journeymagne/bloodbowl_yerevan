@@ -48,35 +48,50 @@ test("a die that answers outside its faces is refused", () => {
   for (const face of [0, 9, 2.5, undefined]) assert.throws(() => statRoll(scripted(face)), RangeError);
 });
 
-test("a random skill is a D16 over the category's Skill Table column and rerolls what the player already has", () => {
-  const rng = scripted(2, 3);
+test("a random skill is two D16s over the category's column: each rerolls a blank face and a skill the player has, the second the first's skill too", () => {
+  const rng = scripted(2, 3, 3, 4);
   const roll = randomSkillRoll({ row: lineman, player: { extraSkills: [{ name: "Dauntless", access: "primary" }] },
     category: "General", skillGroups: data.skillGroups, rng });
-  assert.deepEqual(roll, { ok: true, params: { category: "General", candidates: general, sides: 16 }, result: {
-    attempts: [{ roll: 2, skill: "Dauntless", duplicate: true }, { roll: 3, skill: "Fend", duplicate: false }], skill: "Fend" } });
-  assert.deepEqual(rng.asked, [16, 16]);
+  assert.deepEqual(roll, { ok: true, params: { category: "General", candidates: general, sides: 16 }, result: { dice: [
+    { attempts: [{ roll: 2, skill: "Dauntless", duplicate: true }, { roll: 3, skill: "Fend", duplicate: false }], skill: "Fend" },
+    { attempts: [{ roll: 3, skill: "Fend", duplicate: false, twin: true }, { roll: 4, skill: "Frenzy", duplicate: false }], skill: "Frenzy" }] } });
+  assert.deepEqual(rng.asked, [16, 16, 16, 16]);
+});
+
+test("a column with one skill the player lacks throws one die", () => {
+  const rng = scripted(1, 16);
+  const player = { extraSkills: general.filter((name) => name !== "Thick Skull").map((name) => ({ name, access: "primary" })) };
+  const roll = randomSkillRoll({ row: lineman, player, category: "General", skillGroups: data.skillGroups, rng });
+  assert.equal(roll.result.dice.length, 1);
+  assert.deepEqual(roll.result.dice[0], { attempts: [{ roll: 1, skill: "Block", duplicate: true }, { roll: 16, skill: "Thick Skull", duplicate: false }], skill: "Thick Skull" });
+  assert.deepEqual(rng.asked, [16, 16], "no second die is thrown");
+});
+
+test("a die stuck on the first die's skill stops after maxAttempts", () => {
+  assert.throws(() => randomSkillRoll({ row: lineman, player: {}, category: "General", skillGroups: data.skillGroups,
+    rng: () => 1, maxAttempts: 5 }), /5 attempts/, "the first die is Block at once, the second lands on Block every time");
 });
 
 test("the skill die is a D16 whatever the length of the column", () => {
   assert.equal(SKILL_DIE, 16);
   assert.deepEqual([general, devious, strength].map((column) => column.length), [16, 9, 12]);
-  const rng = scripted(14, 3);
+  const rng = scripted(14, 3, 3, 1);
   const roll = randomSkillRoll({ row: clanrat, player: {}, category: "Devious", skillGroups: data.skillGroups, rng });
   assert.equal(roll.params.sides, 16);
-  assert.deepEqual(rng.asked, [16, 16]);
+  assert.deepEqual(rng.asked, [16, 16, 16, 16]);
 });
 
 test("a face beyond the column is a blank and is rolled again", () => {
-  const roll = randomSkillRoll({ row: clanrat, player: {}, category: "Devious", skillGroups: data.skillGroups, rng: scripted(14, 3) });
-  assert.deepEqual(roll.result.attempts, [{ roll: 14, skill: null, duplicate: false }, { roll: 3, skill: devious[2], duplicate: false }]);
-  assert.equal(roll.result.skill, devious[2]);
+  const roll = randomSkillRoll({ row: clanrat, player: {}, category: "Devious", skillGroups: data.skillGroups, rng: scripted(14, 3, 3, 1) });
+  assert.deepEqual(roll.result.dice[0].attempts, [{ roll: 14, skill: null, duplicate: false }, { roll: 3, skill: devious[2], duplicate: false }]);
+  assert.equal(roll.result.dice[0].skill, devious[2]);
   assert.equal(devious[2], "Lethal Flight");
 });
 
 test("the last column of the table is the whole D16: face 16 is the 16th General skill, 17 is no face", () => {
-  const roll = randomSkillRoll({ row: lineman, player: {}, category: "General", skillGroups: data.skillGroups, rng: scripted(16) });
-  assert.deepEqual(roll.result.attempts, [{ roll: 16, skill: general[15], duplicate: false }]);
-  assert.equal(roll.result.skill, "Thick Skull");
+  const roll = randomSkillRoll({ row: lineman, player: {}, category: "General", skillGroups: data.skillGroups, rng: scripted(16, 1) });
+  assert.deepEqual(roll.result.dice[0].attempts, [{ roll: 16, skill: general[15], duplicate: false }]);
+  assert.equal(roll.result.dice[0].skill, "Thick Skull");
   for (const face of [0, 17, 2.5, undefined]) {
     assert.throws(() => randomSkillRoll({ row: lineman, player: {}, category: "General", skillGroups: data.skillGroups, rng: scripted(face) }), RangeError);
   }
@@ -84,21 +99,23 @@ test("the last column of the table is the whole D16: face 16 is the 16th General
 
 test("blanks and held skills are both rerolled, and every attempt is kept in order", () => {
   const mightyBlow = strength.indexOf("Mighty Blow") + 1;
-  const rng = scripted(15, mightyBlow, 4);
+  const rng = scripted(15, mightyBlow, 4, 4, 5);
   const roll = randomSkillRoll({ row: ratOgre, player: {}, category: "Strength", skillGroups: data.skillGroups, rng });
-  assert.deepEqual(roll.result.attempts, [
+  assert.deepEqual(roll.result.dice[0].attempts, [
     { roll: 15, skill: null, duplicate: false },
     { roll: mightyBlow, skill: "Mighty Blow", duplicate: true },
     { roll: 4, skill: strength[3], duplicate: false },
   ]);
-  assert.equal(roll.result.skill, strength[3]);
-  assert.deepEqual(rng.asked, [16, 16, 16]);
+  assert.equal(roll.result.dice[0].skill, strength[3]);
+  assert.deepEqual(roll.result.dice[1], { attempts: [{ roll: 4, skill: strength[3], duplicate: false, twin: true }, { roll: 5, skill: strength[4], duplicate: false }],
+    skill: strength[4] }, "the second die rerolls the first one's skill");
+  assert.deepEqual(rng.asked, [16, 16, 16, 16, 16]);
 });
 
 test("a base skill counts as already held", () => {
-  const roll = randomSkillRoll({ row: blitzer, player: {}, category: "General", skillGroups: data.skillGroups, rng: scripted(1, 2) });
-  assert.deepEqual(roll.result.attempts.map((attempt) => attempt.duplicate), [true, false]);
-  assert.equal(roll.result.skill, "Dauntless");
+  const roll = randomSkillRoll({ row: blitzer, player: {}, category: "General", skillGroups: data.skillGroups, rng: scripted(1, 2, 3) });
+  assert.deepEqual(roll.result.dice[0].attempts.map((attempt) => attempt.duplicate), [true, false]);
+  assert.equal(roll.result.dice[0].skill, "Dauntless");
 });
 
 test("only the player's primary categories can be rolled", () => {
@@ -156,9 +173,10 @@ test("a skill's (+N) is not part of which skill it is", () => {
 
 test("a Rat Ogre already has Mighty Blow, so it is rerolled instead of rolled again", () => {
   const mightyBlow = strength.indexOf("Mighty Blow") + 1;
-  const roll = randomSkillRoll({ row: ratOgre, player: {}, category: "Strength", skillGroups: data.skillGroups, rng: scripted(mightyBlow, 1) });
-  assert.deepEqual(roll.result.attempts, [{ roll: mightyBlow, skill: "Mighty Blow", duplicate: true }, { roll: 1, skill: strength[0], duplicate: false }]);
-  assert.equal(roll.result.skill, strength[0]);
+  const roll = randomSkillRoll({ row: ratOgre, player: {}, category: "Strength", skillGroups: data.skillGroups, rng: scripted(mightyBlow, 1, 1, 2) });
+  assert.deepEqual(roll.result.dice[0].attempts, [{ roll: mightyBlow, skill: "Mighty Blow", duplicate: true }, { roll: 1, skill: strength[0], duplicate: false }]);
+  assert.equal(roll.result.dice[0].skill, strength[0]);
+  assert.deepEqual(roll.result.dice[1].attempts.map((attempt) => [attempt.skill, attempt.twin ?? false]), [[strength[0], true], [strength[1], false]]);
 });
 
 test("a Rat Ogre with every Strength skill but Mighty Blow has nothing left to roll", () => {
