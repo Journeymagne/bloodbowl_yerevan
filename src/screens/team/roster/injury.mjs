@@ -47,11 +47,12 @@ export function sheetOf(visit, lines, where) {
 
 /**
  * The buttons that open a sheet, by the sheet's kind: a player's carry his line's key — his pencil, his «Advancement»
- * and his «Undo the last» too (stage 07d); the hire cart's «+» carries "hire" (stage 07c).
+ * and his «Undo the last» too (stage 07d), and his pencil again for the fix by hand, which his edit opens; the hire
+ * cart's «+» carries "hire" (stage 07c).
  */
 const OPENERS = Object.freeze({
   injury: "data-roster-injury", mark: "data-roster-mark", undo: "data-roster-undo", hire: "data-roster-hire", sell: "data-roster-sell", edit: "data-player-edit",
-  advance: "data-player-advance", unadvance: "data-player-unadvance",
+  advance: "data-player-advance", unadvance: "data-player-unadvance", fix: "data-player-edit",
 });
 
 /** The element under the view whose `attribute` names `key`, or null: matched as text, so no key can break a selector. */

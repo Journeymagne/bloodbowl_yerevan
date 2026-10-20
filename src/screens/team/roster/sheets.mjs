@@ -10,7 +10,7 @@
  *
  * Stage 07b's sheets — a missed match's reasons (mark-sheet.mjs) and the undo of a death — stage 07c's — the hire
  * cart (hire-sheet.mjs) and a player's sale — and stage 07d's player edit and the undo of his last advancement
- * (player-sheets.mjs) and his advancement (advance-sheet.mjs) are drawn by their own modules; what they share with the injury's is here: the ids the screen
+ * (player-sheets.mjs), his advancement (advance-sheet.mjs) and his fix by hand (fix.mjs) are drawn by their own modules; what they share with the injury's is here: the ids the screen
  * shows each by, the row of characteristics and the foot's button.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
@@ -48,11 +48,13 @@ export const EDIT_SHEET = "player-edit";
 export const ADVANCE_SHEET = "player-advance";
 /** What the undo of a player's last advancement is shown by (`#player-unadvance`, stage 07d) and what wireSheets reports. */
 export const UNADVANCE_SHEET = "player-unadvance";
+/** What a player's fix by hand is shown by (`#player-fix`, stage 07d) and what wireSheets reports. */
+export const FIX_SHEET = "player-fix";
 
 /** The id of each kind of sheet the visit holds (index.mjs's `visit.sheet.kind`). */
 const SHEET_IDS = Object.freeze({
   skill: SKILL_SHEET, injury: INJURY_SHEET, mark: MARK_SHEET, undo: UNDO_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET, edit: EDIT_SHEET, advance: ADVANCE_SHEET,
-  unadvance: UNADVANCE_SHEET,
+  unadvance: UNADVANCE_SHEET, fix: FIX_SHEET,
 });
 
 /** The id a sheet of `kind` is shown by, which wireSheets reports when it is closed; "" for a kind there is none of. */

@@ -10,7 +10,9 @@
  * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save», and
  * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done», its roll's
  * way, «Roll …», faces, characteristics, attempts, «Take a skill in place…» and «Record this roll…», a god's bonus skill
- * and «Add …» on done, and «Undo the last: …» with its sheet's «Keep» and «Undo the advancement» (stage 07d).
+ * and «Add …» on done, and «Undo the last: …» with its sheet's «Keep» and «Undo the advancement»; the edit's line to
+ * the fix by hand, its counters' − and +, its injuries' points, favoured skills and skills to take off, «Cancel» and
+ * «Save» (stage 07d).
  * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs); this
  * file only says who was pressed.
  */
@@ -19,6 +21,7 @@ import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
 import { wireRadioGroups } from "../../../ui/choice.mjs";
 import { wireFilterChips } from "../../../ui/filter-chips.mjs";
 import { wireOptionLists } from "../../../ui/option-card.mjs";
+import { wireResourceCounters } from "../../../ui/resource-counter.mjs";
 import { wireRosterTable } from "../../../ui/roster-table.mjs";
 import { wireSegmentedControls } from "../../../ui/segmented-control.mjs";
 import { wireSheets } from "../../../ui/sheet.mjs";
@@ -104,6 +107,25 @@ function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadv
     onPlayerButton(root, "data-player-unadvance", onUnadvance),
     delegate(root, "click", "[data-unadvance-keep]", () => onUnadvanceKeep()),
     delegate(root, "click", "[data-unadvance-send]", () => onUnadvanceSend()),
+  ];
+}
+
+/**
+ * A player's fix by hand (stage 07d, Task 13): the edit's line to it (not when closed — a press on a closed one says
+ * why, as `[data-roster-closed]` does), its counters' − and + — the roster has no other counters of a resource, so
+ * every key is the fix's; a refused + says why — an injury's point, a favoured skill, a skill to take off, «Cancel»
+ * and «Save».
+ */
+function wireFix(root, { onFixOpen, onFixStep, onFixLasting, onFixFavoured, onFixDrop, onFixKeep, onFixSave, onRefused }) {
+  const pressed = (attribute, handler) => delegate(root, "click", `[${attribute}]`, (event, button) => handler(button.getAttribute(attribute)));
+  return [
+    onPlayerButton(root, "data-player-fix", onFixOpen),
+    wireResourceCounters(root, ({ key, delta }) => onFixStep({ key, delta }), { onRefused: ({ reason }) => onRefused(reason) }),
+    pressed("data-fix-lasting", onFixLasting),
+    pressed("data-fix-favoured", onFixFavoured),
+    pressed("data-fix-drop", onFixDrop),
+    delegate(root, "click", "[data-fix-keep]", () => onFixKeep()),
+    delegate(root, "click", "[data-fix-save]", () => onFixSave()),
   ];
 }
 
@@ -225,6 +247,13 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {(key: string, button: Element) => void} handlers.onUnadvance «Undo the last: …», by the line's key (not when it is closed)
  * @param {() => void} handlers.onUnadvanceKeep «Keep» in the undo's sheet
  * @param {() => void} handlers.onUnadvanceSend «Undo the advancement» in the undo's sheet
+ * @param {(key: string, button: Element) => void} handlers.onFixOpen the edit's line to the fix by hand, by the line's key (not when it is closed)
+ * @param {(step: {key: string, delta: 1|-1}) => void} handlers.onFixStep a counter's − or + in the fix (not a refused +)
+ * @param {(stat: string) => void} handlers.onFixLasting «Take one off» of a lasting injury
+ * @param {(skill: string) => void} handlers.onFixFavoured a favoured skill's «Take off» or «Add …»
+ * @param {(skill: string) => void} handlers.onFixDrop a skill no advancement gave, its «Take off»
+ * @param {() => void} handlers.onFixKeep «Cancel» in the fix
+ * @param {() => void} handlers.onFixSave «Save» in the fix
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
@@ -251,6 +280,7 @@ export function wireRoster(root, handlers) {
     ...wireMarket(root, handlers),
     ...wirePlayer(root, handlers),
     ...wireAdvance(root, handlers),
+    ...wireFix(root, handlers),
   ];
   return () => offs.forEach((off) => off());
 }

@@ -2377,7 +2377,7 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
   const styles = text("src/styles.css");
   const chain = ["roster.css", "marks.css", "sheets.css", "frame.css", "market.css", "profile.css", "player-sheets.css", "advance.css", "rolls.css", "fix.css"]
     .map((name) => styles.indexOf(`@import url("screens/team/roster/${name}");`));
-  assert.ok(chain.slice(0, 9).every((at) => at >= 0), "07a to 07c's and 07d's profile.css, player-sheets.css, advance.css and rolls.css reach the page");
+  assert.ok(chain.every((at) => at >= 0), "07a to 07c's and 07d's profile.css, player-sheets.css, advance.css, rolls.css and fix.css reach the page");
   const present = chain.filter((at) => at >= 0);
   assert.deepEqual(present, [...present].sort((a, b) => a - b));
 });

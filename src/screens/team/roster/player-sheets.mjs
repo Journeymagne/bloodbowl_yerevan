@@ -7,7 +7,7 @@
  * (PlayerCaptain.html, DeskRosterCaptain.html). On a desk, outside a match, his SPP counters stand under it as the
  * panel's tiles in a match (owner's D3, answer 2: DeskRosterLive.html's D1 block): each press is a step of the queue of
  * its own, as on a phone's open row, which neither «Save» nor «Cancel» touches. «Save» sends the number, the name and
- * the captaincy as one step.
+ * the captaincy as one step. Its last line opens his fix by hand (Task 13) in its place.
  *
  * Every sheet here wears the frame `.g-player-sheet` (player-sheets.css: head, body, foot, fields, a switch as a card, the
  * lines of words); what is one sheet's own is styled by its id.
@@ -21,7 +21,8 @@ import { editRefusal } from "../../../domain/roster/edits.mjs";
 import { undoLastAdvancement } from "../../../domain/roster/progression.mjs";
 import { rowsForTeam } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
-import { classNames } from "../../../ui/markup.mjs";
+import { icon } from "../../../ui/icons.mjs";
+import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderTextField } from "../../../ui/text-field.mjs";
 import { renderToggle } from "../../../ui/toggle.mjs";
@@ -88,11 +89,23 @@ function sppMarkup(line, screen) {
 }
 
 /**
+ * The edit's last line, which opens his fix by hand in its place (fix.mjs; no prototype): the words and a chevron.
+ * Closed (`reason`: why the edit is, or that its fields are changed and are saved or cancelled first) it stays in
+ * reach, saying why as its title and, pressed, in a message (`data-roster-closed`, K7).
+ * @param {import("./model.mjs").PlayerLine} line @param {string} reason
+ */
+function fixLineMarkup(line, reason) {
+  const closed = reason ? ` aria-disabled="true" title="${escapeHtml(reason)}"` : "";
+  return `<button type="button" class="g-player-edit__fix" aria-haspopup="dialog"${closed}${dataAttributes({ playerFix: line.key, rosterClosed: Boolean(reason) })}>`
+    + `<span class="g-player-edit__fixwords">${escapeHtml(t("teamPlayer.fix.open"))}</span>${icon("chevron", 16)}</button>`;
+}
+
+/**
  * His edit (PlayerEdit.html from the bottom on a phone, DeskRosterEdit.html's 480px window on a desk): «position ·
  * race» under the title; the number and the name — the field a refusal names drawn so — and the line that says who
  * sees them, or the refusal as it is typed; «Team captain» with the «C»; on a desk his SPP counters (`sppMarkup`);
- * during a preparation what a save resets (R12), and the last refusal of «Save». «Cancel» and «Save», which waits for
- * a whole, changed form; closed (`reason`), it says why.
+ * during a preparation what a save resets (R12), and the last refusal of «Save»; last, the line to his fix by hand
+ * (`fixLineMarkup`). «Cancel» and «Save», which waits for a whole, changed form; closed (`reason`), it says why.
  *
  * @param {object} props
  * @param {import("./model.mjs").PlayerLine} props.line the player, on the roster
@@ -116,12 +129,13 @@ export function editSheetMarkup({ line, lines, screen, sheet }) {
   });
   const prep = screen.mode.kind === "prep" ? `<p class="g-player-sheet__prep">${escapeHtml(prepResetWords())}</p>` : "";
   const alert = refusal ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(refusal)}</p>` : "";
+  const fix = fixLineMarkup(line, reason || (changed ? t("teamPlayer.fix.saveFirst") : ""));
   return renderSheet({
     id: EDIT_SHEET,
     className: FRAME,
     title: t("teamPlayer.edit.title"),
     sub: t("teamPlayer.edit.sub", { position: line.position, race: raceTitleOf(screen.team.baseTeamSlug) }),
-    bodyHtml: `${fields}${note}${captain}${sppMarkup(line, screen)}${prep}${alert}`,
+    bodyHtml: `${fields}${note}${captain}${sppMarkup(line, screen)}${prep}${alert}${fix}`,
     footStartHtml: renderButton({ label: t("teamPlayer.edit.cancel"), data: { editKeep: true } }),
     footHtml: footButton({ label: t("teamPlayer.edit.save"), kind: "primary", data: { editSave: true }, disabled: !reason && (Boolean(wrong) || !changed), reason }),
   });

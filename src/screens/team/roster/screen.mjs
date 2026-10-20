@@ -71,9 +71,12 @@ export function linesOf(visit, mode) {
 
 /**
  * Who keeps or closes a sheet of each kind: marks.mjs a missed match's and a death's undo, market.mjs the cart and a sale,
- * player.mjs a player's edit, his advancement and the undo of his last one (stage 07d); injury.mjs the rest.
+ * player.mjs a player's edit, his advancement, the undo of his last one and his fix by hand (stage 07d); injury.mjs the rest.
  */
-const KEEPERS = { mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf, edit: playerSheetOf, advance: playerSheetOf, unadvance: playerSheetOf };
+const KEEPERS = {
+  mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf, edit: playerSheetOf, advance: playerSheetOf, unadvance: playerSheetOf,
+  fix: playerSheetOf,
+};
 
 /** @returns {import("./view.mjs").RosterScreen} */
 export function screenOf(teamId, visit, memory) {

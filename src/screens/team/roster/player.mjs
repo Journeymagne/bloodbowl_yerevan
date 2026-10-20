@@ -9,12 +9,13 @@
  * A skill's chip, in his row, his panel or his profile, opens the skill's rule (07a), saying how an advancement gave it;
  * for a roll on the site the team's rolls are read once a visit for its attempts (decision 19). The edit's and the
  * undo's sheets are drawn by player-sheets.mjs; the edit's tiles are the roster's counters, whose presses index.mjs's
- * `onStep` takes as every counter's.
+ * `onStep` takes as every counter's. The edit leads to his fix by hand, whose sheet and presses are fix.mjs's.
  */
 import { t } from "../../../core/i18n.mjs";
 import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { advanceHandlers, advanceSheetOf, bonusOf } from "./advance.mjs";
+import { fixHandlers } from "./fix.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { editClosed, gaveWords, undoClosed } from "./player-access.mjs";
 import { editCheck } from "./player-sheets.mjs";
@@ -46,9 +47,9 @@ function undoSheetOf(sheet, line, where) {
 /**
  * A player's sheet as the screen draws it, or null when it stands no longer: his line has left the roster (read again,
  * or fallen), or a match has begun (R8) — the screen closes it, and the focus goes back to his pencil, his
- * «Advancement» or his «Undo the last», closed now (`openerOf`). The edit says why «Save» is closed just now
- * (`editClosed`: the screen's lock); his advancement is advance.mjs's to keep (`advanceSheetOf`); the undo stands while
- * the advancement it showed is still his last (`undoSheetOf`), saying why it is closed (`undoClosed`).
+ * «Advancement» or his «Undo the last», closed now (`openerOf`). The edit and the fix by hand say why «Save» is closed
+ * just now (`editClosed`: the screen's lock); his advancement is advance.mjs's to keep (`advanceSheetOf`); the undo stands
+ * while the advancement it showed is still his last (`undoSheetOf`), saying why it is closed (`undoClosed`).
  *
  * @param {object} visit index.mjs's `Visit`
  * @param {import("./model.mjs").PlayerLine[]} lines the roster's lines and the fallen
@@ -61,7 +62,7 @@ export function playerSheetOf(visit, lines, where) {
   if (!line || where.mode.kind === "match") return null;
   if (sheet.kind === "advance") return advanceSheetOf(sheet, line, where);
   if (sheet.kind === "unadvance") return undoSheetOf(sheet, line, where);
-  return sheet.kind === "edit" ? { ...sheet, reason: editClosed(line, where) } : null;
+  return sheet.kind === "edit" || sheet.kind === "fix" ? { ...sheet, reason: editClosed(line, where) } : null;
 }
 
 /**
@@ -220,7 +221,7 @@ function readSiteRolls({ teamId, visit, draw }, line, name) {
  * (`saveEdit`). «Undo the last» opens its sheet on the advancement that is his last at the press, unless something
  * closes it (said instead); «Keep» closes it, «Undo the advancement» sends it (`sendUndo`). On the advancement's done
  * step a bonus skill is chosen among those the god offers him and he lacks, and «Add …» adds it (`addBonus`). His
- * advancement's other presses are advance.mjs's (`advanceHandlers`).
+ * advancement's other presses are advance.mjs's (`advanceHandlers`), his fix by hand's fix.mjs's (`fixHandlers`).
  *
  * @param {import("./index.mjs").Saving} saving the visit's side of the queue
  * @param {{now: () => object, refused: () => void}} lent what the screen lends: `now` is the screen as it stands at the
@@ -236,6 +237,7 @@ export function playerHandlers(saving, lent) {
   };
   return {
     ...advanceHandlers(saving, lent),
+    ...fixHandlers(saving, lent),
     onSkill: (key, name, chip) => {
       Object.assign(visit, { sheet: { kind: "skill", key, name }, opener: chip });
       readSiteRolls(saving, rosterLineOf(lent.now().lines, key), name);
