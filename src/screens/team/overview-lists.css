@@ -1,0 +1,201 @@
+/*
+ * The overview's columns and lists (screens/team/overview-lists.mjs, overview.mjs): the two columns under the board and
+ * the leaders in the form of each width. Font, border, background, text-transform, letter-spacing and font-weight are
+ * set here on purpose: the 2.x global rules (h2, a) outlive this sheet until stage 13. The values are the prototypes'
+ * (DeskOverview.html, Team.html); where they give no line height, the font's own (`normal`). A long name or position
+ * wraps; nothing is cut with «…» or held on one line.
+ *
+ * The columns: from 901px DeskOverview.html's row that wraps — the leaders and the recent matches at the left (2 1
+ * 560px), who can advance at the right (1 1 300px), 20 apart and each a column 20 apart — so that one column alone, the
+ * other not drawn, has the row to itself, and at 901px the right one goes under the left. Up to 900px one under the
+ * other, 22 apart as Team.html's blocks; the right column is a desk's (its list is the phone's card) and is not shown.
+ */
+.g-overview__cols,
+.g-overview__main,
+.g-overview__aside {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/* A heading of the lists: Oswald 24/700, on its font's own line. */
+.g-overview__title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 24px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The leaders: a phone's title stands 6 over its rows (Team.html's `0 0 6`), a desk's 12 over its cards (below). */
+.g-overview__leaders {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.g-overview__leaderrows {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+/*
+ * A phone's row (Team.html): the tag in 44px, the name, the figure; 10 apart, 8 above and below, a rule under each but
+ * the last. The whole row is the link (D2: the prototype's link is the name's 32px). 49px is what the prototype's
+ * content-box draws, its 32 of content with the 8 and 8 and the rule; the last, without the rule, 48.
+ */
+.g-overview__leaderline {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 49px;
+  margin: 0;
+  padding: var(--space-8) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+  color: var(--ink);
+  font: 400 16px/normal var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+.g-overview__leaderline:last-child {
+  min-height: 48px;
+  border-bottom: 0;
+}
+
+.g-overview__leadertag {
+  color: var(--muted);
+  font: 700 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The name with «#3 Catcher» 6 beside it; a long one wraps, and the position goes under it. */
+.g-overview__leadername {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-6);
+  min-width: 0;
+  color: var(--ink);
+  font: 500 16px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-overview__leaderpos {
+  min-width: 0;
+  color: var(--muted);
+  font: 400 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-overview__leadervalue {
+  color: var(--ink);
+  font: 700 18px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-align: right;
+  text-transform: none;
+}
+.g-overview__leadervalue--spp { color: var(--accent-text); }
+
+@media (max-width: 900px) {
+  .g-overview__cols,
+  .g-overview__main { gap: var(--space-22); }
+
+  .g-overview__aside { display: none; }
+}
+
+@media (min-width: 901px) {
+  .g-overview__cols {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+  .g-overview__main { flex: 2 1 560px; }
+  .g-overview__aside { flex: 1 1 300px; }
+
+  .g-overview__leaders { gap: var(--space-12); }
+
+  /* A desk's cards (DeskOverview.html): a grid that wraps by 150px, 12 apart. */
+  .g-overview__leadercards {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: var(--space-12);
+    min-width: 0;
+  }
+
+  /* A card: 14 round, white in the ring, 14 16 in, the tag over the row 10 apart; the whole card is the link. */
+  .g-overview__leader {
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+    min-width: 0;
+    margin: 0;
+    padding: var(--space-14) var(--space-16);
+    border: 0;
+    border-radius: var(--radius-xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+    color: var(--ink);
+    font: 400 16px/normal var(--font-body);
+    letter-spacing: 0;
+    text-decoration: none;
+    text-transform: none;
+  }
+
+  .g-overview__leadertag {
+    font: 600 12px/normal var(--font-body);
+    letter-spacing: .04em;
+  }
+
+  /* The number on the position's colour (number-badge.css), the name over the position, the figure at the right. */
+  .g-overview__leaderrow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-10);
+    min-width: 0;
+  }
+
+  .g-overview__leaderwho {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .g-overview__leadername { font: 600 13px/normal var(--font-body); }
+  .g-overview__leaderpos { font: 400 12px/normal var(--font-body); }
+
+  .g-overview__leadervalue {
+    margin-left: auto;
+    color: var(--accent-text);
+    font: 700 30px/normal var(--font-display);
+    /* The shorthand above resets it. */
+    font-variant-numeric: tabular-nums;
+  }
+}

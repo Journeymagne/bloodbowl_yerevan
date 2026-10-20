@@ -1079,6 +1079,7 @@
   "teamOverview.gamesFailed": "The matches did not load: {reason}",
   "teamOverview.seasonFailed": "The league table did not load: {reason}",
   "teamOverview.leaders": "Team leaders",
+  "teamOverview.leadersShort": "Leaders",
   "teamOverview.leader.spp": "SPP",
   "teamOverview.leader.td": "TD",
   "teamOverview.leader.cas": "CAS",

@@ -1,19 +1,19 @@
 /*
  * A team's overview (screens/team/overview.mjs). The figures, the board, the
  * callout and the rows are the ui/ sheets'; this one lays them out and draws
- * the two lists. Font, border, background, text-transform and font-weight are
- * set here on purpose: the 2.x global rules (h2, ul, a, p) outlive this sheet
- * until stage 13.
+ * who can advance and the recent matches. The columns under the board and the
+ * leaders in them are overview-lists.css's. Font, border, background,
+ * text-transform and font-weight are set here on purpose: the 2.x global rules
+ * (h2, ul, a, p) outlive this sheet until stage 13.
  *
  * Written for a phone first. From 901px the figures are white cards in a ring
- * that wrap by 180px, the head has the reference's search at its right, the
- * leaders and the recent matches stand in two columns, and the leaders turn
- * from rows into cards (DeskOverview.html); the recent matches are five, of
- * which a phone shows the first three.
+ * that wrap by 180px, the head has the reference's search at its right, and the
+ * recent matches are a card (DeskOverview.html); they are five, of which a phone
+ * shows the first three.
  *
  * Who can advance is drawn twice and one of the two is shown for the width: a
- * card after the figures up to 900px (Team.html), a list under the columns from
- * 901px (DeskOverview.html). Where the prototypes give no line height, the
+ * card after the figures up to 900px (Team.html), a list in the right column
+ * from 901px (DeskOverview.html). Where the prototypes give no line height, the
  * font's own (`normal`). A long name wraps; nothing is cut with «…». A phone's
  * blocks stand 22px apart, as in Team.html; a desk's 20px, as in DeskOverview.html.
  */
@@ -96,9 +96,8 @@
 }
 
 /*
- * A desk's list (DeskOverview.html): a card in a ring, the head over the rows, six between its parts. It stands under
- * the columns, not in them, so that one list alone in the columns keeps its row; it is not shown on a phone (below),
- * where the card says it.
+ * A desk's list (DeskOverview.html): a card in a ring, the head over the rows, six between its parts. It is the right
+ * column's (overview-lists.css); it is not shown on a phone (below), where the card says it.
  */
 .g-overview__readylist {
   box-sizing: border-box;
@@ -221,17 +220,6 @@
   text-transform: none;
 }
 
-/* The leaders and the recent matches: one under the other on a phone, side by side on a desk. */
-.g-overview__cols {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-20);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-}
-
-.g-overview__leaders,
 .g-overview__results {
   display: flex;
   flex-direction: column;
@@ -242,27 +230,6 @@
   border: 0;
   background: none;
 }
-
-.g-overview__title {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  font: 700 24px/1.1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-/* The leaders: the ranked rows of list-row.css, the last one without its rule. */
-.g-overview__leaderlist {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.g-overview__leaders .g-ranked:last-child { border-bottom: 0; }
-
-.g-overview__leaders .g-ranked__value { color: var(--accent-text); }
 
 /*
  * The figures (Team.html, DeskOverview.html): the label straight over the figure, each at its font's own line height,
@@ -372,8 +339,7 @@
 /* A phone shows the three newest matches: the fourth and the fifth are for a desk. */
 @media (max-width: 900px) {
   /* Team.html's blocks stand 22px apart; the desk's 20px is the base. */
-  .g-overview,
-  .g-overview__cols { gap: var(--space-22); }
+  .g-overview { gap: var(--space-22); }
 
   .g-overview__result:nth-child(n+4) { display: none; }
   .g-overview__result:nth-child(3) { border-bottom: 0; }
@@ -413,49 +379,9 @@
     font-size: 15px;
   }
 
-  .g-overview__cols {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
-  /* One list alone has the row to itself. */
-  .g-overview__cols > :only-child { grid-column: 1 / -1; }
-
-  /* A desk shows who can advance as a list under the columns, not as the phone's card. */
+  /* A desk shows who can advance as a list in the right column, not as the phone's card. */
   .g-overview__ready { display: none; }
   .g-overview__readylist { display: flex; }
-
-  /*
-   * The leaders are cards that wrap as the column narrows (DeskOverview.html). In a card the tag and the figure share
-   * the top line and the player is under them, so a card stays readable as narrow as 120px.
-   */
-  .g-overview__leaderlist {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: var(--space-12);
-  }
-
-  .g-overview__leaders .g-ranked {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "tag figure" "player player";
-    align-content: start;
-    gap: var(--space-8) var(--space-10);
-    min-height: 0;
-    padding: var(--space-14) var(--space-16);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-xl);
-    background: var(--surface);
-  }
-  .g-overview__leaders .g-ranked:last-child { border-bottom: 1px solid var(--line-strong); }
-  .g-overview__leaders .g-ranked__lead { grid-area: tag; font-size: 12px; letter-spacing: .04em; }
-  .g-overview__leaders .g-ranked__text { grid-area: player; }
-  .g-overview__leaders .g-ranked__title { font: 600 14px/1.25 var(--font-body); }
-  .g-overview__leaders .g-ranked__value {
-    grid-area: figure;
-    font: 700 30px/1 var(--font-display);
-    /* The shorthand above resets it. */
-    font-variant-numeric: tabular-nums;
-  }
 
   /* The list is a card on a desk: the rows keep to their rules inside it. */
   .g-overview__list {

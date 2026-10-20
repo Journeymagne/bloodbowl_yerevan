@@ -1079,6 +1079,7 @@
   "teamOverview.gamesFailed": "Матчи не загрузились: {reason}",
   "teamOverview.seasonFailed": "Таблица лиги не загрузилась: {reason}",
   "teamOverview.leaders": "Лидеры команды",
+  "teamOverview.leadersShort": "Лидеры",
   "teamOverview.leader.spp": "SPP",
   "teamOverview.leader.td": "TD",
   "teamOverview.leader.cas": "CAS",

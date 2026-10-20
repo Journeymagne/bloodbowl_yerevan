@@ -33,9 +33,14 @@
  * rows of a match waiting to be settled too, so it can count one more: while a
  * step that gives SPP waits, or while such a match is on, when advancing is
  * closed. It is said twice, and only one is shown for the width (overview.css): a
- * card after the figures on a phone (Team.html), a list under the columns on a
- * desk (DeskOverview.html), which it does not stand in, so that a lone list of
- * leaders keeps the row to itself.
+ * card after the figures on a phone (Team.html), a list in the right column on a
+ * desk (DeskOverview.html).
+ *
+ * Under the board stand two columns (decision 51): the leaders and the recent
+ * matches at the left, who can advance at the right; a column with nothing in it
+ * is not drawn, and the other has the row. A phone shows the left one alone
+ * (Team.html's order: the figures, the card, the board, the leaders, the
+ * matches). The leaders are overview-lists.mjs's, in the form of the width.
  *
  * A page opened on this address has read neither the table nor the games yet,
  * and nothing is said that they could contradict: without the table there is
@@ -58,7 +63,6 @@ import { currentMatch, matchActions, subLine } from "../../shell/current-match.m
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon as renderIcon } from "../../ui/icons.mjs";
 import { renderKpiGrid } from "../../ui/kpi-tile.mjs";
-import { renderRankedRow } from "../../ui/list-row.mjs";
 import { renderBoardActions, renderMatchBoard } from "../../ui/match-board.mjs";
 import { renderPlayerBadge } from "../../ui/number-badge.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
@@ -68,12 +72,10 @@ import { goSearch, refSearchField, wireRefSearch } from "../ref/frame.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { rosterLines } from "./roster/model.mjs";
 import { isPhone, onPhoneChange } from "./roster/screen.mjs";
+import { leadersMarkup } from "./overview-lists.mjs";
 
 /** How many finished matches the list holds: a phone shows the first three (overview.css). */
 const RECENT_MATCHES = 5;
-
-/** "#3 Catcher": a player's number, when he has one, and his position. */
-const playerLine = (number, position) => [number ? `#${number}` : "", position].filter(Boolean).join(" ");
 
 /** "Mock Season · round 3"; the name alone while no round has begun; "" with no season. */
 function seasonLineOf(season) {
@@ -280,18 +282,6 @@ function readyListMarkup(ready, teamId) {
     + `<ul class="g-overview__readyrows">${ready.map((player) => readyRow(player, teamId)).join("")}</ul></section>`;
 }
 
-/** A leader's tag (SPP, TD, CAS, COMP) as the ranked row's lead: text, escaped. */
-function leaderTag(key) {
-  return escapeHtml(t(`teamOverview.leader.${key}`));
-}
-
-function leadersMarkup(leaders) {
-  if (!leaders.length) return "";
-  const rows = leaders.map(({ key, name, number, position, value }) => renderRankedRow({ leadHtml: leaderTag(key), title: name, caption: playerLine(number, position), value }));
-  return `<section class="g-overview__leaders"><h2 class="g-overview__title">${escapeHtml(t("teamOverview.leaders"))}</h2>`
-    + `<div class="g-overview__leaderlist">${rows.join("")}</div></section>`;
-}
-
 /** One finished match: its pill, the opponent with the round and the casualties, the score; the whole row opens the match. */
 function resultRow({ gameId, result, opponent, round, friendly, score, cas }) {
   const line = friendly ? t("teamOverview.friendlyLine", { cas }) : t("teamOverview.resultLine", { round, cas });
@@ -313,6 +303,20 @@ function resultsMarkup(results, teamId) {
  */
 const searchMarkup = () => `<div class="g-overview__search">${refSearchField("overview-query")}</div>`;
 
+/** A column of the overview's two, holding `markup`; nothing for a column with nothing in it. */
+const column = (name, markup) => (markup ? `<div class="g-overview__${name}">${markup}</div>` : "");
+
+/**
+ * The two columns under the board (DeskOverview.html, decision 51): the leaders and the recent matches at the left, who
+ * can advance at the right. A column with nothing in it is not drawn, and the other has the row to itself; with neither
+ * there is nothing. A phone shows the left one alone, under the board (Team.html): the right one's list is a desk's.
+ */
+function columnsMarkup(model) {
+  const main = leadersMarkup({ leaders: model.leaders, teamId: model.teamId, phone: model.phone }) + resultsMarkup(model.results, model.teamId);
+  const aside = readyListMarkup(model.ready, model.teamId);
+  return main || aside ? `<div class="g-overview__cols">${column("main", main)}${column("aside", aside)}</div>` : "";
+}
+
 /**
  * A team in its build says so: in the page head on a desk, and as the first line of the page on a phone, where the
  * head is only for a screen reader (the owner's ruling R4 of stage 08). The phone's line is hidden from a screen
@@ -324,9 +328,8 @@ export function overviewMarkup(model) {
   const draft = model.draft ? renderStatusChip({ label: t("teams.stage.draft") }) : "";
   const head = renderPageHead({ title: t("shell.tab.overview"), sub: model.seasonLine, metaHtml: draft + (model.phone ? "" : searchMarkup()) });
   const stage = draft ? `<div class="g-overview__stage" aria-hidden="true">${draft}</div>` : "";
-  const lists = leadersMarkup(model.leaders) + resultsMarkup(model.results, model.teamId);
   return `${head}<div class="g-overview">${stage}${renderKpiGrid(model.tiles, { row: true })}${readyCardMarkup(model.ready, model.teamId)}${boardSlot(model)}`
-    + `${lists ? `<div class="g-overview__cols">${lists}</div>` : ""}${readyListMarkup(model.ready, model.teamId)}</div>`;
+    + `${columnsMarkup(model)}</div>`;
 }
 
 /**

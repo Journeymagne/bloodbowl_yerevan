@@ -330,6 +330,17 @@ test("the overview follows the width: a desk turned phone draws Team.html's tile
     link.getClientRects = () => [{ width: 120, height: 44 }];
     cross(false);
     assert.ok(document.activeElement === link && link.isConnected, "the board's link is the same link on both widths");
+    // The leaders follow the width too: a desk's cards, a phone's rows; a focus on a card is never lost on the body.
+    assert.ok(view.querySelector(".g-overview__leadercards") && !view.querySelector(".g-overview__leaderrows"));
+    const leader = view.querySelector("a.g-overview__leader");
+    leader.focus();
+    cross(true);
+    assert.equal(view.querySelector(".g-overview__leadercards"), null);
+    assert.equal(view.querySelectorAll("a.g-overview__leaderline").length, 3);
+    assert.ok(document.activeElement === view.querySelector("a.g-overview__leaderline"), "the same leader's link, now a phone's row: the patch keeps it, and the width shows it");
+    assert.equal(document.activeElement.getAttribute("href"), "#/t/t1/roster/p1");
+    cross(false);
+    assert.ok(view.querySelector(".g-overview__leadercards"));
     // Left, the width is heard no more.
     releaseCurrentScreen();
     assert.equal(listeners.size, 0, "a visit left listens no more");
@@ -470,19 +481,140 @@ test("an unknown race leaves a dash, not a crash", () => {
 
 test("leaders and recent results; a friendly is marked, and «Whole season» leads to the team's matches", () => {
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
-  assert.ok(fragment.querySelectorAll(".g-overview__leaders .g-ranked").length >= 1);
+  assert.ok(fragment.querySelectorAll(".g-overview__leaders .g-overview__leader").length >= 1);
   const results = fragment.querySelectorAll(".g-overview__results .g-overview__result");
   assert.equal(results[0].querySelector(".g-result--t") !== null, true, "the friendly is the newest");
   assert.equal(fragment.querySelector('.g-overview__results a[href="#/t/t1/matches"]').textContent.trim(), "Whole season →");
 });
 
-test("the leaders are the four counters in order, the player's number and position under the name, the figure at the right", () => {
-  const model = overviewModel(input("t1"));
-  assert.deepEqual(model.leaders.map(({ key, name, value }) => [key, name, value]), [["spp", "Ashby", 7], ["td", "Ashby", 2], ["comp", "Vane", 4]]);
-  const rows = mount(overviewMarkup(model)).querySelectorAll(".g-overview__leaders .g-ranked");
-  assert.deepEqual(rows.map((row) => [row.querySelector(".g-ranked__lead").textContent, row.querySelector(".g-ranked__title").textContent, row.querySelector(".g-ranked__caption").textContent, row.querySelector(".g-ranked__value").textContent]),
-    [["SPP", "Ashby", "#3 Human Lineman", "7"], ["TD", "Ashby", "#3 Human Lineman", "2"], ["COMP", "Vane", "#5 Thrower", "4"]]);
+// A leader in each of the four counters: Ashby the SPP (7) and the touchdowns, Gruk the casualties, Vane the completions.
+const LEADERS = [
+  { id: "p1", rowIndex: 0, number: "3", name: "Ashby", spp: { touchdowns: 2, completions: 1 } },
+  { id: "p2", rowIndex: 1, number: "5", name: "Vane", spp: { touchdowns: 1, completions: 4 } },
+  { id: "p3", rowIndex: 2, number: "12", name: "Gruk", spp: { casualties: 3 } },
+];
+/** The element children of a node, by their first class. */
+const classesOf = (node) => node.childNodes.filter((child) => child.nodeType === 1).map((child) => child.getAttribute("class").split(" ")[0]);
+const LISTS_CSS = "src/screens/team/overview-lists.css";
+
+test("on a desk the leaders are DeskOverview's cards: the tag over the player's number on his position's colour, the name and the position, the figure at the right; each card leads to the player", () => {
+  const model = overviewModel(input("t1", { team: crew(LEADERS) }));
+  assert.deepEqual(model.leaders.map(({ key, id, name, kind, value }) => [key, id, name, kind, value]),
+    [["spp", "p1", "Ashby", "lineman", 7], ["td", "p1", "Ashby", "lineman", 2], ["cas", "p3", "Gruk", "catcher", 3], ["comp", "p2", "Vane", "thrower", 4]]);
+  const section = mount(overviewMarkup(model)).querySelector("section.g-overview__leaders");
+  assert.equal(section.getAttribute("aria-labelledby"), "overview-leaders-title");
+  assert.deepEqual(classesOf(section), ["g-overview__title", "g-overview__leadercards"]);
+  const title = section.querySelector("h2.g-overview__title");
+  assert.equal(title.getAttribute("id"), "overview-leaders-title");
+  assert.equal(title.textContent, "Team leaders");
+  const cards = section.querySelectorAll(".g-overview__leadercards a.g-overview__leader");
+  assert.deepEqual(cards.map((card) => [
+    card.querySelector(".g-overview__leadertag").textContent, card.querySelector(".g-num__n").textContent, card.querySelector(".g-overview__leadername").textContent,
+    card.querySelector(".g-overview__leaderpos").textContent, card.querySelector(".g-overview__leadervalue").textContent, card.getAttribute("href")]),
+  [["SPP", "3", "Ashby", "Human Lineman", "7", teamPlayerUrl("t1", "p1")], ["TD", "3", "Ashby", "Human Lineman", "2", teamPlayerUrl("t1", "p1")],
+    ["CAS", "12", "Gruk", "Catcher", "3", teamPlayerUrl("t1", "p3")], ["COMP", "5", "Vane", "Thrower", "4", teamPlayerUrl("t1", "p2")]]);
+  assert.equal(cards[0].getAttribute("href"), "#/t/t1/roster/p1", "on a desk the roster with the player in its panel");
+  // The tag over the row; in the row the badge renderPlayerBadge draws, who it is (the name over the position), the figure.
+  for (const card of cards) {
+    assert.deepEqual(classesOf(card), ["g-overview__leadertag", "g-overview__leaderrow"]);
+    assert.deepEqual(classesOf(card.querySelector(".g-overview__leaderrow")), ["g-num", "g-overview__leaderwho", "g-overview__leadervalue"]);
+    assert.deepEqual(classesOf(card.querySelector(".g-overview__leaderwho")), ["g-overview__leadername", "g-overview__leaderpos"]);
+  }
+  assert.deepEqual(cards.map((card) => card.querySelector(".g-num").getAttribute("class")), ["g-num g-num--lineman", "g-num g-num--lineman", "g-num g-num--catcher", "g-num g-num--thrower"],
+    "the number on the position's colour");
+  assert.equal(section.querySelector(".g-overview__leaderrows"), null, "not a phone's rows");
+  assert.equal(section.querySelector(".g-overview__leadervalue--spp"), null, "every figure of a desk is in the accent: no SPP's own");
   assert.equal(mount(overviewMarkup(overviewModel(input("t2")))).querySelector(".g-overview__leaders"), null, "a team nobody has scored for has no leaders");
+  initLocale("ru");
+  try {
+    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS) })))).querySelector("#overview-leaders-title").textContent, "Лидеры команды");
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("on a phone the leaders are Team.html's rows under «Leaders»: the tag, the name with «#3 …» beside it, the figure; only SPP's in the accent; each row leads to the player", () => {
+  const section = mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone: true })))).querySelector("section.g-overview__leaders");
+  assert.equal(section.getAttribute("aria-labelledby"), "overview-leaders-title");
+  assert.deepEqual(classesOf(section), ["g-overview__title", "g-overview__leaderrows"]);
+  assert.equal(section.querySelector("h2#overview-leaders-title").textContent, "Leaders");
+  const rows = section.querySelectorAll(".g-overview__leaderrows a.g-overview__leaderline");
+  assert.deepEqual(rows.map((row) => [
+    row.querySelector(".g-overview__leadertag").textContent, row.querySelector(".g-overview__leadername").textContent, row.querySelector(".g-overview__leaderpos").textContent,
+    row.querySelector(".g-overview__leadervalue").textContent, row.getAttribute("href")]),
+  [["SPP", "Ashby #3 Human Lineman", "#3 Human Lineman", "7", "#/t/t1/roster/p1"], ["TD", "Ashby #3 Human Lineman", "#3 Human Lineman", "2", "#/t/t1/roster/p1"],
+    ["CAS", "Gruk #12 Catcher", "#12 Catcher", "3", "#/t/t1/roster/p3"], ["COMP", "Vane #5 Thrower", "#5 Thrower", "4", "#/t/t1/roster/p2"]]);
+  for (const row of rows) {
+    assert.deepEqual(classesOf(row), ["g-overview__leadertag", "g-overview__leadername", "g-overview__leadervalue"]);
+    assert.deepEqual(classesOf(row.querySelector(".g-overview__leadername")), ["g-overview__leaderpos"], "the number and the position beside the name, in it");
+  }
+  assert.deepEqual(rows.map((row) => row.querySelector(".g-overview__leadervalue").getAttribute("class")),
+    ["g-overview__leadervalue g-overview__leadervalue--spp", "g-overview__leadervalue", "g-overview__leadervalue", "g-overview__leadervalue"], "SPP's alone in the accent");
+  assert.equal(section.querySelector(".g-num"), null, "no badge on a phone (Team.html)");
+  assert.equal(section.querySelector(".g-overview__leadercards"), null, "not a desk's cards");
+  // A player with no number: the position alone beside the name.
+  const unnumbered = mount(overviewMarkup(overviewModel(input("t1", { team: crew([{ ...LEADERS[0], number: "" }]), phone: true }))));
+  assert.equal(unnumbered.querySelector(".g-overview__leaderpos").textContent, "Human Lineman");
+  initLocale("ru");
+  try {
+    assert.equal(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone: true })))).querySelector("#overview-leaders-title").textContent, "Лидеры");
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("a leader the roster stores no id for is no link, on either width", () => {
+  // Cade leads the SPP and the touchdowns and is stored without an id; Vane, who leads the completions, has his.
+  const team = crew([{ rowIndex: 2, number: "7", name: "Cade", spp: { touchdowns: 9 } }, LEADERS[1]]);
+  for (const [phone, box] of [[false, ".g-overview__leader"], [true, ".g-overview__leaderline"]]) {
+    const fragment = mount(overviewMarkup(overviewModel(input("t1", { team, phone }))));
+    const boxes = fragment.querySelectorAll(box);
+    assert.deepEqual(boxes.map((node) => [node.tagName.toLowerCase(), node.getAttribute("href") ?? ""]), [["div", ""], ["div", ""], ["a", "#/t/t1/roster/p2"]], phone ? "phone" : "desk");
+    assert.equal(boxes[0].querySelector(".g-overview__leadername").textContent.split(" ")[0], "Cade", "still said, only not a link");
+    assert.equal(fragment.querySelectorAll(".g-overview__leaders a").length, 1);
+  }
+});
+
+test("the blocks stand as DeskOverview orders them: the leaders and the results at the left, who can advance at the right; a phone keeps Team.html's order", () => {
+  const desk = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
+  assert.deepEqual(classesOf(desk.querySelector(".g-overview")), ["g-kpis", "g-overview__ready", "g-board", "g-overview__cols"], "the columns after the board");
+  const cols = desk.querySelector(".g-overview__cols");
+  assert.deepEqual(classesOf(cols), ["g-overview__main", "g-overview__aside"]);
+  assert.deepEqual(classesOf(cols.querySelector(".g-overview__main")), ["g-overview__leaders", "g-overview__results"]);
+  assert.deepEqual(classesOf(cols.querySelector(".g-overview__aside")), ["g-overview__readylist"]);
+  // A phone: the tiles, the card of who can advance, the board, the leaders, the recent matches (Team.html; the board, question 2).
+  // The right column is a desk's: the stylesheet hides it, and nothing else of the page is in it.
+  const phone = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW), phone: true }))));
+  assert.deepEqual(classesOf(phone.querySelector(".g-overview")), ["g-kpis", "g-overview__ready", "g-board", "g-overview__cols"]);
+  assert.deepEqual(classesOf(phone.querySelector(".g-overview__main")), ["g-overview__leaders", "g-overview__results"]);
+  assert.deepEqual(classesOf(phone.querySelector(".g-overview__aside")), ["g-overview__readylist"]);
+  const source = text(LISTS_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.match(source.slice(source.indexOf("@media (max-width: 900px)"), source.indexOf("@media (min-width: 901px)")), /\.g-overview__aside \{ display: none; \}/);
+});
+
+test("one column alone takes the row: no one ready leaves the left alone; no leader and no result leave the right alone", () => {
+  // Dunn has too little to spend and Moss has spent it: nobody is ready, and the left column is drawn alone.
+  const left = mount(overviewMarkup(overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]) }))));
+  assert.deepEqual(classesOf(left.querySelector(".g-overview__cols")), ["g-overview__main"], "no empty right column");
+  assert.deepEqual(classesOf(left.querySelector(".g-overview__main")), ["g-overview__leaders", "g-overview__results"]);
+  // No leader and no result: the right column alone.
+  const model = { ...overviewModel(input("t1", { team: crew(CREW), games: [] })), leaders: [] };
+  assert.deepEqual(model.results, []);
+  const right = mount(overviewMarkup(model));
+  assert.deepEqual(classesOf(right.querySelector(".g-overview__cols")), ["g-overview__aside"], "no empty left column");
+  // A column holds what it has: the leaders alone, or the results alone.
+  const leadersOnly = mount(overviewMarkup(overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]), games: [] }))));
+  assert.deepEqual(classesOf(leadersOnly.querySelector(".g-overview__main")), ["g-overview__leaders"]);
+  const resultsOnly = mount(overviewMarkup({ ...overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]) })), leaders: [] }));
+  assert.deepEqual(classesOf(resultsOnly.querySelector(".g-overview__cols")), ["g-overview__main"]);
+  assert.deepEqual(classesOf(resultsOnly.querySelector(".g-overview__main")), ["g-overview__results"]);
+  // The stylesheet: a row that wraps, each column growing from its basis, so one alone fills the row without a rule of its own.
+  const source = text(LISTS_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
+  const desk = source.slice(source.indexOf("@media (min-width: 901px)"));
+  assert.match(desk, /\.g-overview__cols \{[^}]*flex-direction: row;[^}]*flex-wrap: wrap;[^}]*align-items: flex-start;/);
+  assert.match(desk, /\.g-overview__main \{ flex: 2 1 560px; \}/);
+  assert.match(desk, /\.g-overview__aside \{ flex: 1 1 300px; \}/);
+  assert.doesNotMatch(source, /:only-child|grid-column/, "no lone-list rule: the wrap does it");
 });
 
 test("a recent result: the pill, the opponent, the round and the casualties, the score from our side, and the way to the match", () => {
@@ -579,18 +711,27 @@ test("names from other coaches are text: the opponent, the leader's name and the
   assert.equal(fragment.querySelector("img"), null);
   assert.equal(fragment.querySelector(".g-board__side--away .g-board__name").textContent, HOSTILE);
   assert.equal(fragment.querySelector(".g-overview__opponent").textContent, HOSTILE);
-  assert.equal(fragment.querySelector(".g-overview__leaders .g-ranked__title").textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-overview__leader .g-overview__leadername").textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-overview__leader .g-num__n").textContent, HOSTILE);
   assertCspSafe(fragment);
+  // A phone's row: the name, and the number beside it.
+  const phone = mount(overviewMarkup(overviewModel({ ...input("t1"), team, games: hostile, phone: true })));
+  assert.equal(phone.querySelector("img"), null);
+  assert.equal(phone.querySelector(".g-overview__leaderline .g-overview__leadername").textContent, `${HOSTILE} #${HOSTILE} Human Lineman`);
+  assert.equal(phone.querySelector(".g-overview__leaderline .g-overview__leaderpos").textContent, `#${HOSTILE} Human Lineman`);
+  assertCspSafe(phone);
 });
 
 test("the leaders' tag is escaped text, whatever the dictionary holds (K7c)", () => {
   const real = { en: dictionary("en"), ru: dictionary("ru") };
   setDictionaries({ ...real, en: { ...real.en, "teamOverview.leader.spp": HOSTILE } });
   try {
-    const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
-    assert.equal(fragment.querySelector("img"), null);
-    assert.equal(fragment.querySelector(".g-overview__leaders .g-ranked__lead").textContent, HOSTILE);
-    assertCspSafe(fragment);
+    for (const phone of [false, true]) {
+      const fragment = mount(overviewMarkup(overviewModel(input("t1", { phone }))));
+      assert.equal(fragment.querySelector("img"), null);
+      assert.equal(fragment.querySelector(".g-overview__leaders .g-overview__leadertag").textContent, HOSTILE);
+      assertCspSafe(fragment);
+    }
   } finally {
     setDictionaries(real);
   }
@@ -723,16 +864,101 @@ test("the race of a team is looked up in one place, and is empty while the data 
 });
 
 test("every word on the overview is in both dictionaries, the leaders' labels too", () => {
-  assertDictionaryCovers("src/screens/team/overview.mjs");
+  assertDictionaryCovers("src/screens/team/overview.mjs", "src/screens/team/overview-lists.mjs");
   for (const key of ["spp", "td", "cas", "comp"]) assert.ok(dictionary("en")[`teamOverview.leader.${key}`] && dictionary("ru")[`teamOverview.leader.${key}`], key);
+  const [en, ru] = [dictionary("en"), dictionary("ru")];
+  assert.deepEqual([en["teamOverview.leaders"], ru["teamOverview.leaders"]], ["Team leaders", "Лидеры команды"], "a desk's heading (DeskOverview.html)");
+  assert.deepEqual([en["teamOverview.leadersShort"], ru["teamOverview.leadersShort"]], ["Leaders", "Лидеры"], "a phone's (Team.html)");
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
   const outside = mount(overviewMarkup(overviewModel(input("t4"))));
   assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "status-chip.css", "callout.css");
   const phone = mount(overviewMarkup(overviewModel(input("t1", { phone: true }))));
   assertCspSafe(phone);
-  assertStyled(phone, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(phone, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+});
+
+test("the leaders and the columns as DeskOverview.html and Team.html draw them: styled; readable; D2; wrapping", () => {
+  const own = (selector, property) => valuesOf(LISTS_CSS, selector, property);
+  const bare = text(LISTS_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
+  const desk = bare.slice(bare.indexOf("@media (min-width: 901px)"));
+  assert.ok(text("src/styles.css").trim().endsWith('@import url("screens/team/overview-lists.css");'), "the sheet reaches the page, imported last");
+  for (const phone of [false, true]) {
+    assertStyled(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone })))), "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css",
+      "search-field.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  }
+  // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height where the prototypes give none.
+  for (const selector of [".g-overview__title", ".g-overview__leader", ".g-overview__leaderline", ".g-overview__leadertag", ".g-overview__leadername", ".g-overview__leaderpos", ".g-overview__leadervalue"]) {
+    for (const property of ["font", "letter-spacing", "text-transform"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
+    for (const font of own(selector, "font")) assert.match(font, /\/normal /, `${selector} keeps the font's own line height`);
+  }
+  for (const selector of [".g-overview__title", ".g-overview__leader", ".g-overview__leaderline"]) {
+    for (const property of ["border", "background"]) assert.ok(own(selector, property).length >= 1, `${selector} ${property}`);
+  }
+  // The columns: up to 900px one under the other, 22 apart (Team.html); from 901px DeskOverview.html's wrapping row, 20 apart.
+  assert.deepEqual(own(".g-overview__cols", "gap"), ["var(--space-20)", "var(--space-22)"], "the leaders and the results stand as far apart as the other blocks");
+  assert.deepEqual(own(".g-overview__main", "gap"), ["var(--space-20)", "var(--space-22)"]);
+  assert.deepEqual(own(".g-overview__aside", "gap"), ["var(--space-20)"]);
+  assert.deepEqual(own(".g-overview__aside", "display"), ["flex", "none"], "the right column is a desk's: who can advance is the phone's card there");
+  assert.match(desk, /\.g-overview__cols \{[^}]*flex-wrap: wrap;/);
+  // «Team leaders» (DeskOverview.html): a column 12 apart, the title Oswald 24/700 with no margin.
+  assert.deepEqual(own(".g-overview__title", "font"), ["700 24px/normal var(--font-display)"]);
+  assert.deepEqual(own(".g-overview__title", "margin"), ["0"]);
+  assert.deepEqual(own(".g-overview__leaders", "gap"), ["var(--space-6)", "var(--space-12)"], "a phone's title is 6 over its rows (Team.html), a desk's 12 over its cards");
+  assert.match(desk, /\.g-overview__leaders \{ gap: var\(--space-12\); \}/);
+  // The cards: a grid that wraps by 150px, 12 apart; a card 14 round, white in the ring, 14 16 in, a column 10 apart, a link without its line.
+  assert.deepEqual(own(".g-overview__leadercards", "grid-template-columns"), ["repeat(auto-fit, minmax(150px, 1fr))"]);
+  assert.deepEqual(own(".g-overview__leadercards", "gap"), ["var(--space-12)"]);
+  assert.deepEqual(own(".g-overview__leader", "border-radius"), ["var(--radius-xl)"]);
+  assert.deepEqual(own(".g-overview__leader", "background"), ["var(--surface)"]);
+  assert.deepEqual(own(".g-overview__leader", "box-shadow"), ["var(--ring)"]);
+  assert.deepEqual(own(".g-overview__leader", "padding"), ["var(--space-14) var(--space-16)"]);
+  assert.deepEqual(own(".g-overview__leader", "flex-direction"), ["column"]);
+  assert.deepEqual(own(".g-overview__leader", "gap"), ["var(--space-10)"]);
+  assert.deepEqual(own(".g-overview__leader", "text-decoration"), ["none"]);
+  assert.deepEqual(own(".g-overview__leader", "color"), ["var(--ink)"]);
+  // In a card: the tag 12/600 with .04em, the row centred 10 apart, the name 13/600, the position 12px, the figure Oswald 30/700 in the accent at the right.
+  assert.deepEqual(own(".g-overview__leaderrow", "align-items"), ["center"]);
+  assert.deepEqual(own(".g-overview__leaderrow", "gap"), ["var(--space-10)"]);
+  assert.deepEqual(own(".g-overview__leaderwho", "flex-direction"), ["column"]);
+  assert.deepEqual(own(".g-overview__leadertag", "font"), ["700 13px/normal var(--font-body)", "600 12px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__leadertag", "letter-spacing"), ["0", ".04em"]);
+  assert.deepEqual(own(".g-overview__leadertag", "color"), ["var(--muted)"]);
+  assert.deepEqual(own(".g-overview__leadername", "font"), ["500 16px/normal var(--font-body)", "600 13px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__leaderpos", "font"), ["400 13px/normal var(--font-body)", "400 12px/normal var(--font-body)"]);
+  assert.deepEqual(own(".g-overview__leaderpos", "color"), ["var(--muted)"]);
+  assert.deepEqual(own(".g-overview__leadervalue", "font"), ["700 18px/normal var(--font-body)", "700 30px/normal var(--font-display)"]);
+  assert.deepEqual(own(".g-overview__leadervalue", "color"), ["var(--ink)", "var(--accent-text)"]);
+  assert.deepEqual(own(".g-overview__leadervalue", "margin-left"), ["auto"]);
+  assert.deepEqual(own(".g-overview__leadervalue", "font-variant-numeric"), ["tabular-nums", "tabular-nums"], "after each shorthand, which resets it");
+  // A phone's row (Team.html): 44px for the tag, the name, the figure; 10 apart, 8 above and below, a rule under each but the last.
+  assert.deepEqual(own(".g-overview__leaderline", "grid-template-columns"), ["44px minmax(0, 1fr) auto"]);
+  assert.deepEqual(own(".g-overview__leaderline", "gap"), ["var(--space-10)"]);
+  assert.deepEqual(own(".g-overview__leaderline", "align-items"), ["center"]);
+  assert.deepEqual(own(".g-overview__leaderline", "padding"), ["var(--space-8) 0"]);
+  assert.deepEqual(own(".g-overview__leaderline", "border-bottom"), ["1px solid var(--line)"]);
+  assert.deepEqual(own(".g-overview__leaderline", "box-sizing"), ["border-box"]);
+  assert.deepEqual(own(".g-overview__leaderline:last-child", "border-bottom"), ["0"]);
+  assert.deepEqual(own(".g-overview__leaderline", "text-decoration"), ["none"]);
+  assert.deepEqual(own(".g-overview__leaderline", "color"), ["var(--ink)"]);
+  assert.deepEqual(own(".g-overview__leadername", "column-gap"), ["var(--space-6)"], "«#3 Catcher» 6 beside the name");
+  assert.deepEqual(own(".g-overview__leadervalue--spp", "color"), ["var(--accent-text)"]);
+  // D2: a phone's row is the link, as high as the prototype's (its 32 of content, 8 and 8, and the rule) and never under 44.
+  assert.deepEqual(own(".g-overview__leaderline", "min-height"), ["49px"]);
+  assert.deepEqual(own(".g-overview__leaderline:last-child", "min-height"), ["48px"], "the last has no rule");
+  for (const value of [...own(".g-overview__leaderline", "min-height"), ...own(".g-overview__leaderline:last-child", "min-height")]) assert.ok(parseInt(value, 10) >= 44, value);
+  // Wrapping: a long name or position wraps; nothing is cut with «…» or held on one line.
+  assert.doesNotMatch(bare, /ellipsis|nowrap|text-overflow|line-clamp/);
+  for (const selector of [".g-overview__leadername", ".g-overview__leaderpos"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  // Readable in every palette: the accent of a desk's figure on its card, the grey of the tag and the position on a card and on a phone's page.
+  assertReadable(LISTS_CSS, ".g-overview__leadervalue", "color", ["--surface"], 4.5);
+  assertReadable(LISTS_CSS, ".g-overview__leadervalue--spp", "color", ["--surface", "--page"], 4.5);
+  assertReadable(LISTS_CSS, ".g-overview__leaderpos", "color", ["--surface", "--page"], 4.5);
+  assertReadable(LISTS_CSS, ".g-overview__leadertag", "color", ["--surface", "--page"], 4.5);
+  assertReadable(LISTS_CSS, ".g-overview__leadername", "color", ["--surface", "--page"], 4.5);
+  for (const [, query] of text(LISTS_CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  assert.doesNotMatch(bare, /--focus-ring/);
 });
 
 const READY_WORDS = {
@@ -783,28 +1009,8 @@ test("on a desk every one of them, with his SPP and «Advance» to his address",
   [["7", "Cade", "Catcher", "27 SPP", "Advance", "#/t/t1/roster/p3"], ["3", "Ashby", "Human Lineman", "7 SPP", "Advance", "#/t/t1/roster/p1"],
     ["5", "Vane", "Thrower", "7 SPP", "Advance", "#/t/t1/roster/p2"]]);
   assert.ok(rows[0].querySelector(".g-num--catcher"), "the number on his position's colour");
-  const cols = fragment.querySelector(".g-overview__cols");
-  const page = fragment.querySelector(".g-overview").childNodes.filter((node) => node.nodeType === 1);
   // Compared as booleans: a failed `assert.equal` of two DOM nodes would try to print both trees.
-  assert.ok(page.at(-1) === section, "the last of the page: under the columns, with the width of the page");
-  assert.ok(page.at(-2) === cols, "right after the columns");
-  assert.equal(cols.querySelector(".g-overview__readylist"), null, "not one of the columns");
-  assert.ok(cols.querySelector(".g-overview__leaders") && cols.querySelector(".g-overview__results"), "after the leaders and the recent matches");
-});
-
-test("leaders and ready players, no results: the leaders keep the row to themselves, the ready list under them (stage 06's lone-list rule)", () => {
-  const model = overviewModel(input("t1", { team: crew(CREW), games: [] }));
-  assert.deepEqual(model.results, []);
-  assert.ok(model.leaders.length && model.ready.length);
-  const fragment = mount(overviewMarkup(model));
-  const cols = fragment.querySelector(".g-overview__cols");
-  assert.deepEqual(cols.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class")), ["g-overview__leaders"], "one list alone in the columns");
-  const page = fragment.querySelector(".g-overview").childNodes.filter((node) => node.nodeType === 1);
-  assert.deepEqual(page.slice(-2).map((node) => node.getAttribute("class")), ["g-overview__cols", "g-overview__readylist"]);
-  // The rule that gives a lone list the row: with the ready list outside the columns it still has a lone child to apply to.
-  assert.match(READY_BARE(), /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__cols > :only-child \{ grid-column: 1 \/ -1; \}/);
-  // And the ready list is no grid item that could ask for a column of its own.
-  assert.deepEqual(valuesOf(READY_CSS, ".g-overview__readylist", "grid-column"), []);
+  assert.ok(section.parentNode === fragment.querySelector(".g-overview__cols .g-overview__aside"), "the right column (DeskOverview.html)");
 });
 
 test("every «Advance» is named for its player, and the name starts with the word it shows", () => {
@@ -904,7 +1110,7 @@ test("the ready words: every key in both dictionaries, the same names, and none 
 
 test("the ready block is styled, as the prototypes draw it, and readable (Team.html, DeskOverview.html)", () => {
   const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
-  assertStyled(fragment, READY_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
   const own = (selector, property) => valuesOf(READY_CSS, selector, property);
   // Every rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform; the line height is the font's own where the prototypes give none.
   for (const selector of [".g-overview__ready", ".g-overview__readytitle", ".g-overview__readywho", ".g-overview__readylist", ".g-overview__readyheading", ".g-overview__readycount",
@@ -1006,18 +1212,18 @@ test("the stylesheet reaches the page, and the result rows keep their size and t
   const css = "src/screens/team/overview.css";
   assert.ok(text("src/styles.css").includes('@import url("screens/team/overview.css");'));
   assert.deepEqual(valuesOf(css, ".g-overview", "gap"), ["var(--space-20)", "var(--space-22)"], "20px on a desk (DeskOverview.html), 22px up to 900px (Team.html)");
-  assert.deepEqual(valuesOf(css, ".g-overview__cols", "gap"), ["var(--space-20)", "var(--space-22)"], "the leaders and the results stand as far apart as the other blocks");
-  assert.match(text(css), /@media \(max-width: 900px\)\s*\{\s*(?:\/\*[^*]*\*\/\s*)?\.g-overview,\s*\.g-overview__cols \{ gap: var\(--space-22\); \}/, "and only up to 900px");
+  assert.match(text(css), /@media \(max-width: 900px\)\s*\{\s*(?:\/\*[^*]*\*\/\s*)?\.g-overview \{ gap: var\(--space-22\); \}/, "and only up to 900px");
+  // The columns and the leaders are overview-lists.css's (stage 07d, Task 32): the same 20 and 22 between the columns' blocks, up to 900px one under the other.
+  assert.deepEqual(valuesOf(LISTS_CSS, ".g-overview__cols", "gap"), ["var(--space-20)", "var(--space-22)"], "the leaders and the results stand as far apart as the other blocks");
+  assert.match(text(LISTS_CSS), /@media \(max-width: 900px\)\s*\{\s*(?:\/\*[^*]*\*\/\s*)?\.g-overview__cols,\s*\.g-overview__main \{ gap: var\(--space-22\); \}/, "and only up to 900px");
+  for (const gone of [".g-overview__cols", ".g-overview__title", ".g-overview__leaders", ".g-overview__leaderlist", ".g-ranked"]) assert.doesNotMatch(text(css).replace(/\/\*[\s\S]*?\*\//g, ""), new RegExp(`\\${gone}(?![\\w-])`), `${gone} is not overview.css's any more`);
   assert.ok(valuesOf(css, ".g-overview__result", "min-height").includes("56px"));
   assert.match(text(css), /@media \(max-width: 900px\)\s*\{[^@]*\.g-overview__result:nth-child\(n\+4\)\s*\{[^}]*display: none/, "the fourth and fifth result wait for a desk");
-  assert.match(text(css), /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__cols\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
   assert.ok(valuesOf(css, ".g-overview__score", "font").includes("700 22px/1.1 var(--font-display)"));
   assert.ok(valuesOf(css, ".g-overview__score", "font-variant-numeric").includes("tabular-nums"));
   assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)", "34px"], "a phone's figure keeps to one line at 320px; a desk's is DeskOverview.html's 34px, its cards wrapping instead");
-  assert.ok(valuesOf(css, ".g-overview__leaderlist", "grid-template-columns").includes("repeat(auto-fit, minmax(120px, 1fr))"), "the cards wrap as the column narrows");
   assert.doesNotMatch(text(css), /1360px|359px/, "the sheet has the 900/901 breakpoints only");
   assertReadable(css, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);
-  assertReadable(css, ".g-overview__leaders .g-ranked__value", "color", ["--surface", "--page"], 4.5);
 });
 
 test("at 320px a word of a team or a race keeps whole in the board's side column (T10 carry)", () => {
