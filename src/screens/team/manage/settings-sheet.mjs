@@ -38,7 +38,8 @@ const KINDS = {
 };
 export const SETTINGS_KINDS = Object.freeze(Object.keys(KINDS));
 
-const draftOf = (team) => normalizeDraft(structuredClone(team?.roster ?? {}));
+/** A team's roster as a draft to change: `normalizeDraft` of a copy, so the list's own object is never touched. */
+export const draftOf = (team) => normalizeDraft(structuredClone(team?.roster ?? {}));
 
 /**
  * What a sheet's one button waits for, the same for the sheet that draws it and the press that sends: `chosen` is
@@ -58,8 +59,11 @@ export function settingsCheck({ kind, value, now }) {
   return { chosen, closed, refusal, ready: !closed && !refusal && !same };
 }
 
-/** A box of warnings, a line each (TeamNew's line under the races: what another race would cost). */
-const dropsBox = (lines) => `<div class="g-team-settings__drops">${lines.map((line) => `<span class="g-team-settings__drop">${escapeHtml(line)}</span>`).join("")}</div>`;
+/** A box of warnings, a line each, in the look of TeamNew's line under the races (`.g-races__resets`: what another race would cost). */
+function dropsBox(lines) {
+  const shown = lines.map((line) => `<span class="g-team-settings__drop">${escapeHtml(line)}</span>`).join("");
+  return `<div class="g-races__resets g-team-settings__drops">${shown}</div>`;
+}
 
 function nameBody(form, check) {
   const error = check.refusal ? t(`teamSettings.refusal.${check.refusal.code}`, check.refusal.params) : "";

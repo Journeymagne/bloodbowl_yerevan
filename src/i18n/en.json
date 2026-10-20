@@ -1562,6 +1562,7 @@
   "teamSettings.check": "Roster check",
   "teamSettings.save": "Save",
   "teamSettings.saved": "Saved",
+  "teamSettings.live": "A match is on — the settings wait for its post-match",
   "teamSettings.waitRoster": "Wait until the roster's edits are saved",
   "teamSettings.toRoster": "To the roster",
   "teamSettings.writing": "A save of the team is on its way",

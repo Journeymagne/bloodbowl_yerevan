@@ -30,6 +30,7 @@ const { logoUploadMaxBytes } = await import("../src/core/logo-upload.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
+const { invalidateGames } = await import("../src/data/games.mjs");
 const { expandCollections } = await import("../src/data/reference.mjs");
 const save = await import("../src/screens/team/roster/save.mjs");
 const { renderAppHeader } = await import("../src/shell/app-header.mjs");
@@ -50,6 +51,8 @@ const HUMAN = "teams/human";
 const CHOSEN = "teams/chaos-chosen";
 const DAY = "2026-10-18T12:00:00Z";
 const SEASON = { season: { id: "s1", name: "Mock Season", currentRound: 7 }, standings: [] };
+/** What a live match holds the settings with (fix round 1, M-3). */
+const LIVE = "A match is on — the settings wait for its post-match";
 
 /** Eleven Humans, a legal roster, numbered out of order: six Linemen, a Thrower, two Catchers, two Blitzers; №7 first. */
 const NUMBERS = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10", "11"];
@@ -141,6 +144,12 @@ function coach({ games = [], userId = "u1", teams = TEAMS, active = "t1" } = {})
   api.reply(`GET /api/teams/${active}/ledger?limit=20`, 200, { entries: [], next: null, since: null, total: 0 });
   // A step a test before left in the roster's queue is given up: it would hold every page after it.
   if (save.saveState("t1").waiting > 0) save.takeServerTeam(structuredClone(TEAMS[0]));
+}
+
+/** The server answering the games again: the list as it is now (the page follows it). */
+async function notifyGames(games) {
+  api.reply("GET /api/games", 200, { games, currentGames: [] });
+  await invalidateGames();
 }
 
 /** The team page of `teamId`, drawn and read. */
@@ -368,6 +377,7 @@ test("the race: the sheet lists the races and says the squad leaves; the red but
   const button = () => $("[data-settings-race]");
   assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], ["Change the race: Human", true]);
   assert.match(button().getAttribute("class"), /\bg-btn--danger\b/);
+  assert.match($(".g-team-settings__drops").getAttribute("class"), /\bg-races__resets\b/, "TeamNew's line under the races (M-5)");
   assert.deepEqual($(".g-team-settings__drops").querySelectorAll(".g-team-settings__drop").map((line) => line.textContent),
     ["All players of the roster (11) leave; the treasury, the resources and the history stay"]);
   fireEvent($('[data-race="teams/shambling-undead"]'), "click");
@@ -448,7 +458,8 @@ test("settings wait for the roster's queue: a step waiting closes every save of 
   assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/t/t1/roster", "To the roster"]);
   const shut = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
   assert.ok(shut.length >= 5 && shut.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === "Wait until the roster's edits are saved"));
-  assert.equal(view.querySelector("input#team-settings-logo").hasAttribute("disabled"), true);
+  const file = view.querySelector("input#team-settings-logo");
+  assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", "Wait until the roster's edits are saved"]);
   const before = api.calls.length;
   await withoutTimers(async () => {
     openRow("name");
@@ -463,14 +474,14 @@ test("settings wait for the roster's queue: a step waiting closes every save of 
   assert.equal(await save.retrySaves("t1"), "saved");
   assert.equal(view.querySelector(".g-team-settings .g-callout"), null);
   assert.ok(view.querySelectorAll(".g-team-settings .g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
-  assert.equal(view.querySelector("input#team-settings-logo").hasAttribute("disabled"), false);
+  assert.equal(view.querySelector("input#team-settings-logo").hasAttribute("aria-disabled"), false);
   openRow("name");
   assert.ok(sheetOpen());
 });
 
 test("the model says what holds the settings, in order: a match on, the roster's queue, a save on its way", () => {
   const live = model(TEAMS[0], { games: [liveGame("t1")], queue: { status: "offline", waiting: 1 } }).settings;
-  assert.deepEqual([live.held, live.waitsRoster], ["After the match's post-match", false]);
+  assert.deepEqual([live.held, live.waitsRoster], [LIVE, false]);
   for (const queue of [{ status: "offline", waiting: 1 }, { status: "saving", waiting: 0 }, { status: "dirty", waiting: 0 }, { status: "conflict", waiting: 0 }, { status: "error", waiting: 0 }]) {
     const settings = model(TEAMS[0], { queue }).settings;
     assert.deepEqual([settings.held, settings.waitsRoster], ["Wait until the roster's edits are saved", true], JSON.stringify(queue));
@@ -517,6 +528,135 @@ test("a second press on «Change the race» sends nothing more; a lost answer re
   assert.ok(document.activeElement === $(`[data-race="${HUMAN}"]`), "the focus is on the list, not on a button gone dead");
 });
 
+test("closing the race's sheet during its read takes the press back: nothing is sent, nothing is said (fix round 1, I-1)", async () => {
+  await page();
+  openRow("race");
+  fireEvent($('[data-race="teams/orc"]'), "click");
+  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
+  api.reply(PATCH, 200, { team: t1With({ baseTeamSlug: "teams/orc" }, { teamSlug: "teams/orc", players: [] }) });
+  const read = api.hold(FRESH);
+  await withoutTimers(async () => {
+    fireEvent($("[data-settings-race]"), "click");
+    await waitHeld(read);
+    fireEvent($("[data-sheet-close]"), "click");
+    assert.equal(sheetOpen(), false);
+    read.release();
+    await settled();
+  });
+  assert.equal(calls(FRESH).length, 1);
+  assert.equal(calls(PATCH).length, 0, "the irreversible write never goes");
+  assert.deepEqual(toasts(), [], "and nothing is said");
+  assert.equal(state.myTeams.items[0].baseTeamSlug, HUMAN);
+
+  // Closed and opened again during the read: the sheet open is another one, and the first press still sends nothing.
+  openRow("race");
+  fireEvent($('[data-race="teams/orc"]'), "click");
+  const again = api.hold(FRESH);
+  await withoutTimers(async () => {
+    fireEvent($("[data-settings-race]"), "click");
+    await waitHeld(again);
+    fireEvent($("[data-sheet-close]"), "click");
+    openRow("race");
+    again.release();
+    await settled();
+  });
+  assert.equal(calls(PATCH).length, 0);
+  assert.ok(sheetOpen(), "the new sheet stays");
+  assert.deepEqual([$("[data-settings-race]").textContent.trim(), $("[data-settings-race]").hasAttribute("aria-busy")], ["Change the race: Human", false], "a new choice, not the first press's");
+  assert.deepEqual(toasts(), []);
+});
+
+test("leaving the page during the race's read takes the press back: nothing is sent, nothing is said (I-1)", async () => {
+  await page();
+  openRow("race");
+  fireEvent($('[data-race="teams/orc"]'), "click");
+  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
+  api.reply(PATCH, 200, { team: t1With({ baseTeamSlug: "teams/orc" }, { teamSlug: "teams/orc", players: [] }) });
+  const read = api.hold(FRESH);
+  await withoutTimers(async () => {
+    fireEvent($("[data-settings-race]"), "click");
+    await waitHeld(read);
+    releaseCurrentScreen();
+    view.innerHTML = "<p>next</p>";
+    assert.equal(document.querySelector(HOST), null, "the sheet went with the page");
+    read.release();
+    await settled();
+  });
+  assert.equal(calls(PATCH).length, 0);
+  assert.deepEqual(toasts(), []);
+  assert.equal(view.querySelector("p").textContent, "next");
+});
+
+test("a preparation or a step of the roster's that comes during the race's read refuses it in words, and nothing is sent (I-1, M-6)", async () => {
+  await page();
+  openRow("race");
+  fireEvent($('[data-race="teams/orc"]'), "click");
+  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
+  const read = api.hold(FRESH);
+  fireEvent($("[data-settings-race]"), "click");
+  await waitHeld(read);
+  state.games.items = [preparingGame("t1")];
+  read.release();
+  await settled();
+  assert.equal(calls(PATCH).length, 0);
+  assert.equal(alertText(), "A match is being prepared: change the race after it");
+  assert.ok(sheetOpen());
+
+  // A step of the roster's, waiting for the network, taken while the read is in the air.
+  coach({ userId: "u-race-queue" });
+  save.trackRoster(structuredClone(TEAMS[0]));
+  await renderTeamManage("t1");
+  openRow("race");
+  fireEvent($('[data-race="teams/orc"]'), "click");
+  api.reply(FRESH, 200, { team: structuredClone(TEAMS[0]) });
+  const second = api.hold(FRESH);
+  fireEvent($("[data-settings-race]"), "click");
+  await waitHeld(second);
+  api.fail(PATCH);
+  assert.equal(save.stepSpp("t1", "p1", "touchdowns", 1).ok, true);
+  for (let spins = 0; save.saveState("t1").status !== "offline"; spins += 1) {
+    assert.ok(spins < 50, "the step waits for the network");
+    await settle();
+  }
+  second.release();
+  await settled();
+  assert.equal(calls(PATCH).filter((call) => call.body.baseTeamSlug === "teams/orc").length, 0, "the race's PATCH never goes");
+  assert.equal(alertText(), "Wait until the roster's edits are saved");
+});
+
+test("held, the file field stays in the tab order and says why; the focus on it is not dropped when a match goes live (M-4)", async () => {
+  await page();
+  const file = view.querySelector("input#team-settings-logo");
+  file.focus();
+  await notifyGames([liveGame("t1")]);
+  assert.ok(view.querySelector(".g-team-settings .g-callout"), "the match holds the settings");
+  assert.ok(view.querySelector("input#team-settings-logo") === file, "the same field: the section and its rows are keyed");
+  assert.ok(document.activeElement === file, "the focus stays on the field");
+  assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", LIVE]);
+  await withoutTimers(async () => {
+    assert.equal(fireEvent(file, "click").defaultPrevented, true, "the picker does not open");
+    fireEvent(Object.assign(file, { files: [{ name: "logo.png", size: 100, dataUrl: LOGO }] }), "change");
+    await settled();
+  });
+  assert.deepEqual(toasts(), [LIVE, LIVE], "the press and the pick each say why");
+  assert.equal(calls(PATCH).length, 0);
+  // Not held, a press of the field opens the picker.
+  await page();
+  assert.equal(fireEvent(view.querySelector("input#team-settings-logo"), "click").defaultPrevented, false);
+});
+
+test("a logo the server refuses as too large is said in its words (M-6)", async () => {
+  await page();
+  api.reply(PATCH, 400, { error: { code: "LOGO_TOO_LARGE", params: {}, message: "x" } });
+  await withoutTimers(async () => {
+    fireEvent(Object.assign(view.querySelector("input#team-settings-logo"), { files: [{ name: "logo.png", size: 100, dataUrl: LOGO }] }), "change");
+    await settled();
+  });
+  assert.equal(calls(PATCH).length, 1);
+  assert.equal(toasts().at(-1), en["error.LOGO_TOO_LARGE"]);
+  assert.equal(rowOf("logo").querySelector("img"), null, "the logo is as it was");
+});
+
 test("a 409: the team as the server holds it, and the words to look and save again", async () => {
   await page();
   openRow("name");
@@ -540,11 +680,12 @@ test("a 409: the team as the server holds it, and the words to look and save aga
 test("a match on closes them, saying why; another tab's coach sends nothing", async () => {
   await page("t1", { games: [liveGame("t1")] });
   const callout = view.querySelector(".g-team-settings .g-callout");
-  assert.equal(callout.querySelector(".g-callout__title").textContent, "After the match's post-match");
+  assert.equal(callout.querySelector(".g-callout__title").textContent, LIVE);
   assert.equal(callout.querySelector("a"), null, "the page's own callout says where the match is");
   const buttons = view.querySelectorAll(".g-team-settings .g-team-settings__btn");
-  assert.ok(buttons.length >= 5 && buttons.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === "After the match's post-match"));
-  assert.equal(view.querySelector("input#team-settings-logo").hasAttribute("disabled"), true);
+  assert.ok(buttons.length >= 5 && buttons.every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === LIVE));
+  const file = view.querySelector("input#team-settings-logo");
+  assert.deepEqual([file.hasAttribute("disabled"), file.getAttribute("aria-disabled"), file.getAttribute("title")], [false, "true", LIVE], "in the tab order, with its reason (M-4)");
   const before = api.calls.length;
   await withoutTimers(async () => {
     openRow("race");
@@ -552,7 +693,7 @@ test("a match on closes them, saying why; another tab's coach sends nothing", as
     press("[data-settings-order]");
   });
   assert.equal(sheetOpen(), false);
-  assert.deepEqual(toasts(), Array(3).fill("After the match's post-match"), "each press says why");
+  assert.deepEqual(toasts(), Array(3).fill(LIVE), "each press says why");
   assert.equal(api.calls.length, before);
 
   // A sheet open when the match goes live: its button is shut, and a press sends nothing.
@@ -563,7 +704,7 @@ test("a match on closes them, saying why; another tab's coach sends nothing", as
   fireEvent($("[data-settings-save]"), "click");
   await settled();
   assert.equal(calls(PATCH).length, 0);
-  assert.equal($(".g-team-settings__sheet .g-callout__title").textContent, "After the match's post-match");
+  assert.equal($(".g-team-settings__sheet .g-callout__title").textContent, LIVE);
   assert.equal($("[data-settings-save]").hasAttribute("disabled"), true);
 
   // Another tab signed in or out: nothing goes, not even the race's read.
@@ -667,7 +808,7 @@ test("readable: the labels and notes in --muted, the violations in --danger, the
   assertReadable(SETTINGS, ".g-team-settings__violation", "color", ["--surface", "--page"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__btn", "color", ["--surface"], 4.5);
   assertReadable(SETTINGS, ".g-team-settings__value", "color", ["--surface", "--page"], 4.5);
-  assertReadable(SETTINGS, ".g-team-settings__drops", "color", ["--warn-tint"], 4.5);
+  assertReadable("src/screens/teams/new.css", ".g-races__resets", "color", ["--warn-tint"], 4.5);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__label", "font"), ["400 14px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value", "font"), ["700 15px/1.3 var(--font-body)"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__title", "font"), ["700 22px/normal var(--font-display)"]);
@@ -677,6 +818,9 @@ test("readable: the labels and notes in --muted, the violations in --danger, the
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__row", "box-sizing"), ["border-box"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__row--logo", "min-height"), ["61px"]);
   assert.deepEqual([valuesOf(SETTINGS, ".g-team-settings__logo", "width"), valuesOf(SETTINGS, ".g-team-settings__logo", "height"), valuesOf(SETTINGS, ".g-team-settings__logo", "border-radius")], [["40px"], ["40px"], ["var(--radius-md)"]]);
+  // The logo's frame rings as the builder's does, the prototype's #DCE3DF (fix round 1, M-1).
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__logo", "box-shadow"), ["var(--ring)"]);
+  assert.deepEqual(valuesOf("src/screens/teams/builder.css", ".g-build__logo", "box-shadow"), ["var(--ring)"]);
   assert.ok(!read(SETTINGS).includes("--danger-fill"), "the red fill is the danger button's alone (button.css)");
   assert.ok(!read(SETTINGS).includes("--focus-ring"), "the focus ring is base.css's");
 });
@@ -698,6 +842,12 @@ test("a long team name wraps; nothing is cut with «…»; breakpoints only 900/
   assert.ok(!/white-space:\s*nowrap/.test(css));
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__value b", "overflow-wrap"), ["anywhere"]);
   assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__violation", "overflow-wrap"), ["anywhere"]);
+  // At 320px with a logo the buttons wrap before «Logo» runs into them (fix round 1, M-2): the buttons may shrink and
+  // wrap; the logo's side takes what they leave and never shrinks under its longest word.
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__actions", "flex-wrap"), ["wrap"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__actions", "flex"), ["0 1 auto"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__row > .g-team-settings__logo-line", "flex"), ["1 1 0"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings__logo-line", "min-width"), []);
   for (const query of [...css.matchAll(/@media[^{]+/g)].map(([found]) => found.trim())) {
     assert.match(query, /^@media \((max-width: 900px|min-width: 901px)\)$/);
   }

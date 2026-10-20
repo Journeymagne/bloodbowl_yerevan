@@ -39,7 +39,7 @@ import { wireSheets } from "../../../ui/sheet.mjs";
 import { LOGO_DATA_URL } from "../../teams/new.mjs";
 import { onSaveState, saveState } from "../roster/save.mjs";
 import { matchLock } from "./model.mjs";
-import { FANS_MAX, NAME_FIELD_ID, SETTINGS_KINDS, SETTINGS_SHEET_ID, settingsCheck, settingsSheetMarkup } from "./settings-sheet.mjs";
+import { FANS_MAX, NAME_FIELD_ID, SETTINGS_KINDS, SETTINGS_SHEET_ID, draftOf, settingsCheck, settingsSheetMarkup } from "./settings-sheet.mjs";
 import { mountSheetHost, sheetController, teamToast, unmountSheetHost } from "./sheet-host.mjs";
 
 const LOGO_ID = "team-settings-logo";
@@ -68,7 +68,7 @@ function choiceOf(options, stored) {
 
 /** Why no save of the settings may go now, the first that applies: a match on, the roster's queue, a save on its way. */
 function holdOf({ lock, queue, busy }) {
-  if (lock?.kind === "live") return { held: t("treasury.lockedLive"), waitsRoster: false };
+  if (lock?.kind === "live") return { held: t("teamSettings.live"), waitsRoster: false };
   if (queue.waiting > 0 || QUEUE_HOLDS.has(queue.status)) return { held: t("teamSettings.waitRoster"), waitsRoster: true };
   return { held: busy ? t("teamSettings.writing") : "", waitsRoster: false };
 }
@@ -130,7 +130,7 @@ function row(kind, { label, note = "", value = "", action = "" }) {
   const name = `<span class="g-team-settings__label" id="team-settings-${kind}-label">${escapeHtml(label)}</span>`;
   const text = note ? `<span class="g-team-settings__text">${name}<span class="g-team-settings__note">${escapeHtml(note)}</span></span>` : name;
   const shown = value === "" ? "" : `<b>${escapeHtml(value)}</b>`;
-  return `<div class="g-team-settings__row" data-settings-row="${kind}">${text}<span class="g-team-settings__value">${shown}${action}</span></div>`;
+  return `<div class="g-team-settings__row" data-settings-row="${kind}" data-key="team-settings-${kind}">${text}<span class="g-team-settings__value">${shown}${action}</span></div>`;
 }
 
 /** The race and its tier; changed only out of the season, and then not while a match is prepared (K17). */
@@ -151,11 +151,12 @@ function logoRow({ logoData, held }) {
   const picture = logoData ? `<img src="${escapeHtml(logoData)}" alt="">` : icon("shield", 18);
   const text = `<span class="g-team-settings__text"><span class="g-team-settings__logo-name">${escapeHtml(t("newTeam.logo"))}</span>`
     + `<span class="g-team-settings__note">${escapeHtml(t("newTeam.logoNote"))}</span></span>`;
-  // The field is disabled while the settings are held, and its label, which is the button, says why.
-  const file = `<input class="g-sr-only g-team-settings__file" type="file" id="${LOGO_ID}" accept="image/png,image/jpeg"${held ? " disabled" : ""}>`
+  // Never disabled: held, the field stays in the tab order with its reason, and a press of it or of its label (which is
+  // the button) says why instead of opening the picker; a field that is disabled under the focus would drop it.
+  const file = `<input class="g-sr-only g-team-settings__file" type="file" id="${LOGO_ID}" accept="image/png,image/jpeg"${shut(held)}>`
     + `<label class="g-btn g-team-settings__btn" for="${LOGO_ID}"${shut(held)}>${escapeHtml(t("newTeam.upload"))}</label>`;
   const remove = logoData ? rowButton("data-settings-logo-remove", t("teamSettings.remove"), held) : "";
-  return '<div class="g-team-settings__row g-team-settings__row--logo" data-settings-row="logo">'
+  return '<div class="g-team-settings__row g-team-settings__row--logo" data-settings-row="logo" data-key="team-settings-logo">'
     + `<span class="g-team-settings__logo-line"><span class="g-team-settings__logo">${picture}</span>${text}</span>`
     + `<span class="g-team-settings__actions">${file}${remove}</span></div>`;
 }
@@ -164,7 +165,7 @@ function logoRow({ logoData, held }) {
 function checkMarkup(violations) {
   if (!violations.length) return "";
   const lines = violations.map(({ code, params }) => `<li class="g-team-settings__violation">${escapeHtml(t(`validation.${code}`, params))}</li>`);
-  return `<div class="g-team-settings__check"><span class="g-team-settings__label" id="team-settings-check-label">${escapeHtml(t("teamSettings.check"))}</span>`
+  return `<div class="g-team-settings__check" data-key="team-settings-check"><span class="g-team-settings__label" id="team-settings-check-label">${escapeHtml(t("teamSettings.check"))}</span>`
     + `<ul class="g-team-settings__violations" aria-labelledby="team-settings-check-label">${lines.join("")}</ul></div>`;
 }
 
@@ -194,12 +195,12 @@ export function settingsMarkup({ teamId, settings }) {
     row("order", { label: t("teamSettings.order"), note: t("teamSettings.orderNote"), action: order }),
   ];
   const title = `<h2 class="g-team-settings__title" id="team-settings-title">${escapeHtml(t("teamSettings.title"))}</h2>`;
-  return `<section class="g-team-settings" aria-labelledby="team-settings-title">${title}`
+  // Keyed, the section and its rows are the same nodes whatever callout comes or goes above them: a held field keeps the focus.
+  return `<section class="g-team-settings" aria-labelledby="team-settings-title" data-key="team-settings">${title}`
     + `${heldCallout(teamId, settings)}${rows.join("")}${checkMarkup(settings.violations)}</section>`;
 }
 
 const teamOf = (teamId) => state.myTeams.items.find((item) => item.id === teamId);
-const draftOf = (team) => normalizeDraft(structuredClone(team?.roster ?? {}));
 
 /** The section's model of a team as the page holds it now; null for a team no longer on the list. */
 function nowOf(teamId) {
@@ -241,17 +242,26 @@ function takeFresh(fresh, listed) {
  * «Change the race» (K17): the team is read once more first, since the server does not refuse a race changed in the
  * season — the client holds the rule, as the 2.x editor did — and the list may be older than the season. Nothing is
  * sent for another tab's coach, a read that fails, a team changed elsewhere since (the coach sees it first, as after a
- * 409), a team in the season, or what holds the settings now. The draft is the read team's, with the new race's league,
- * god and staff, and goes with the new race named (`baseTeamSlug`): without it the server keeps the old one.
+ * 409), a team in the season, or what holds the settings now (a match being prepared, a step of the roster's, a save,
+ * any of which may have come during the read). Nor, and nothing is said, when the coach has closed the sheet or left the
+ * page during the read (`stillOpen`): the press is the page's one irreversible write, and backing out of it takes it
+ * back. The draft is the read team's, with the new race's league, god and staff, and goes with the new race named
+ * (`baseTeamSlug`): without it the server keeps the old one.
+ * @param {string} teamId @param {string} after the race chosen
+ * @param {() => boolean} stillOpen whether the sheet that was pressed is still the one open, on the page still shown
  */
-async function changeRace(teamId, after) {
+async function changeRace(teamId, after, stillOpen) {
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
   let fresh = null;
+  let failure = null;
   try {
     fresh = (await apiRequest(`/api/teams/${encodeURIComponent(teamId)}`))?.team ?? null;
   } catch (error) {
-    return { refusal: refusalText(error) };
+    failure = error;
   }
+  // An ignored press of a sheet that has gone says nothing (sheet-host.mjs, `submit`).
+  if (!stillOpen()) return { ignored: true };
+  if (failure) return { refusal: refusalText(failure) };
   const listed = teamOf(teamId);
   if (!fresh || fresh.id !== teamId) return { refusal: t("request.noAnswer") };
   if (!listed) return { refusal: t("error.TEAM_NOT_FOUND") };
@@ -267,14 +277,14 @@ async function changeRace(teamId, after) {
 }
 
 /** What a sheet's press sends: the step of its kind on the team as the list holds it, or the race's own way. */
-function sendOf(form, chosen) {
+function sendOf(form, chosen, stillOpen) {
   const team = teamOf(form.teamId);
   const race = raceTeamOf(team?.baseTeamSlug);
   if (form.kind === "name") return saved(form.teamId, { draft: draftOf(team) }, { name: chosen });
   if (form.kind === "league") return saved(form.teamId, withLeague(race, draftOf(team), chosen));
   if (form.kind === "favoured") return saved(form.teamId, withFavoured(race, draftOf(team), chosen));
   if (form.kind === "fans") return saved(form.teamId, withFans(draftOf(team), Number(chosen)));
-  return changeRace(form.teamId, chosen);
+  return changeRace(form.teamId, chosen, stillOpen);
 }
 
 /**
@@ -304,7 +314,10 @@ async function apply(host, sheet) {
     sheet.focus(REFOCUS[form.kind]);
     return;
   }
-  await sheet.submit(() => sendOf(form, check.chosen), {
+  // The race's send waits for a read first: it goes only if this very sheet is still open on the page still shown.
+  const opened = sheet.opened;
+  const stillOpen = () => sheet.opened === opened && host.isConnected;
+  await sheet.submit(() => sendOf(form, check.chosen, stillOpen), {
     startOver: { value: null },
     refocus: REFOCUS[form.kind],
     // A lost answer is read again by `saveTeamRoster`; a save whose own code threw is not.
@@ -401,7 +414,7 @@ function pressed(teamId, gate, run) {
   });
 }
 
-/** The label that opens the file picker: while the settings are held, it says why instead (its field is disabled then). */
+/** The file field, or its label, pressed: while the settings are held (or a press of the page's is on its way), it says why instead of opening the picker. */
 function pickerPress(event, teamId, gate) {
   const reason = gate.busy ? t("teamSettings.writing") : heldNow(teamId);
   if (!reason) return;
@@ -445,7 +458,7 @@ export function wireSettings(root, teamId) {
   onPage("click", "[data-settings-open]", (event, button) => open(sheet, teamId, button));
   onPage("click", "[data-settings-order]", () => pressed(teamId, gate, () => putInOrder(teamId)));
   onPage("click", "[data-settings-logo-remove]", () => pressed(teamId, gate, () => dropLogo(root, teamId)));
-  onPage("click", `label[for="${LOGO_ID}"]`, (event) => pickerPress(event, teamId, gate));
+  onPage("click", `label[for="${LOGO_ID}"], #${LOGO_ID}`, (event) => pickerPress(event, teamId, gate));
   onPage("change", `#${LOGO_ID}`, (event, input) => {
     const file = input.files?.[0];
     // Emptied, so that the same file can be picked again.

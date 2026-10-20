@@ -1562,6 +1562,7 @@
   "teamSettings.check": "Проверка состава",
   "teamSettings.save": "Сохранить",
   "teamSettings.saved": "Сохранено",
+  "teamSettings.live": "Идёт матч — настройки ждут итогов матча",
   "teamSettings.waitRoster": "Сначала дождитесь сохранения состава",
   "teamSettings.toRoster": "К составу",
   "teamSettings.writing": "Сохранение команды уже в пути",

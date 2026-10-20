@@ -55,9 +55,13 @@
   background: none;
 }
 .g-team-settings__row--logo { min-height: 61px; }
-/* The label's side takes what the value leaves: a short value stays whole on its line, a long one wraps. */
+/*
+ * The label's side takes what the value or the buttons leave: a short value stays whole on its line, a long one wraps;
+ * the label itself never shrinks under its longest word (the logo's buttons wrap first, at 320px with a logo).
+ */
 .g-team-settings__row > .g-team-settings__label,
-.g-team-settings__row > .g-team-settings__text { flex: 1 1 0; }
+.g-team-settings__row > .g-team-settings__text,
+.g-team-settings__row > .g-team-settings__logo-line { flex: 1 1 0; }
 
 .g-team-settings__text {
   display: flex;
@@ -101,7 +105,6 @@
   display: flex;
   align-items: center;
   gap: var(--space-10);
-  min-width: 0;
 }
 .g-team-settings__logo {
   box-sizing: border-box;
@@ -114,7 +117,7 @@
   border: 0;
   border-radius: var(--radius-md);
   background: var(--surface-2);
-  box-shadow: inset 0 0 0 1px var(--line);
+  box-shadow: var(--ring);
   color: var(--muted);
   overflow: hidden;
 }
@@ -130,9 +133,11 @@
   text-transform: none;
   letter-spacing: 0;
 }
+/* «Upload» and «Remove»: on one line where they fit, one under the other where they do not (as the builder's). */
 .g-team-settings__actions {
   display: flex;
-  flex: none;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
   gap: var(--space-8);
@@ -217,19 +222,17 @@
 /* TeamNew's races follow a label there; here they open the body. */
 .g-team-settings__sheet .g-races { margin: 0; }
 
-/* What a god or a race takes off, said before the button: TeamNew's line under the races, a line each. */
+/*
+ * What a god or a race takes off, said before the button, a line each. Its look is TeamNew's line under the races
+ * (`.g-races__resets`, new.css: the warning's tint, 10px 12px, 13/1.4); this is only the lines' layout.
+ */
 .g-team-settings__drops {
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: var(--space-4);
   margin: 0;
-  padding: var(--space-10) var(--space-12);
   border: 0;
-  border-radius: var(--radius-md);
-  background: var(--warn-tint);
-  color: var(--on-warn-tint);
-  font: 400 13px/1.4 var(--font-body);
   text-align: left;
   text-transform: none;
   letter-spacing: 0;
