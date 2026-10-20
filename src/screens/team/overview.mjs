@@ -15,13 +15,14 @@
  *
  * Who can advance is the roster's own answer (`rosterLines`' `ready`: the SPP to
  * spend reach the first random skill); the Skill Table plays no part in it. It is
- * read from the saved roster, as the player's page the card leads to is, so the
- * Roster tab's head, which also counts the rows of a match waiting to be settled,
- * can count one more while such a match is on, when advancing is closed. It is
- * said twice, and only one is shown for the width (overview.css): a card after
- * the figures on a phone (Team.html), a list under the columns on a desk, which it
- * does not stand in, so that a lone list of leaders keeps the row to itself
- * (DeskOverview.html).
+ * read from the saved roster, as the player's page the card leads to is. The
+ * Roster tab's head counts the save queue's draft — steps not saved yet — and the
+ * rows of a match waiting to be settled too, so it can count one more: while a
+ * step that gives SPP waits, or while such a match is on, when advancing is
+ * closed. It is said twice, and only one is shown for the width (overview.css): a
+ * card after the figures on a phone (Team.html), a list under the columns on a
+ * desk (DeskOverview.html), which it does not stand in, so that a lone list of
+ * leaders keeps the row to itself.
  *
  * A page opened on this address has read neither the table nor the games yet,
  * and nothing is said that they could contradict: without the table there is

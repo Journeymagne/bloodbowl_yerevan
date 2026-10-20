@@ -656,6 +656,57 @@ test("the D8's faces at the table from the keyboard: the arrows walk all eight, 
   });
 });
 
+// Final wave (T10 re-review): the D16's faces at the table are a radio group too — the arrows pass the closed faces (his
+// own skills, the blank ones), the redraw keeps the focus, and the face reached is the one recorded.
+test("the D16's faces at the table from the keyboard: the arrows pass his skills and the blank faces, the focus stays, the face reached is recorded", async () => {
+  const key = (number, name) => fireEvent(face(number), "keydown", { key: name });
+  const checked = () => sheet().querySelector('.g-advance__faces [aria-checked="true"]')?.getAttribute("data-advance-face") ?? null;
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await openAdvance(phone, { id: "p3", teamAnswer: withOne(CADE) });
+        if (phone) toRandom("Agility");
+        else {
+          choose(typeCard("random"));
+          choose(category("Agility"));
+        }
+        choose(way("table"));
+        // Catch (1) and Dodge (4) are his, 15 and 16 blank: Tab enters on the first face he may take.
+        assert.equal(face(2).getAttribute("tabindex"), "0");
+        assert.ok([1, 3, 4, 15, 16].every((number) => face(number).getAttribute("tabindex") === "-1"));
+        face(2).focus();
+        key(2, "ArrowRight");
+        assert.equal(checked(), "3");
+        assert.ok(document.activeElement === face(3), "the focus on face 3");
+        key(3, "ArrowRight");
+        assert.equal(checked(), "5", "Dodge, his, is passed");
+        assert.ok(document.activeElement === face(5));
+        assert.equal(dieValue(), "5");
+        key(5, "End");
+        assert.equal(checked(), "14", "the last face with a skill");
+        key(14, "ArrowRight");
+        assert.equal(checked(), "2", "the arrows wrap past the blank faces and Catch");
+        assert.ok(document.activeElement === face(2));
+        key(2, "ArrowLeft");
+        assert.equal(checked(), "14");
+        key(14, "Home");
+        assert.equal(checked(), "2");
+        key(2, "ArrowDown");
+        key(3, "ArrowDown");
+        assert.equal(checked(), "5");
+        assert.ok(document.activeElement === face(5));
+        // Recorded as it stands: face 5, its skill.
+        const skillName = faceName(5);
+        assert.equal(take().textContent, `Take: ${skillName}`);
+        api.reply(PATCH, 200, { team: withOne(CADE, { revision: 5 }) });
+        press(take());
+        await settle();
+        assert.deepEqual(sentOf("p3").at(-1).at(-1), { type: "random", grants: { skill: skillName }, roll: { via: "table" } }, phone ? "a phone" : "a desk");
+      });
+    }
+  });
+});
+
 test("a skill in place of the characteristic: primary or secondary at the characteristic's price, recorded as a characteristic advancement", async () => {
   const cases = [["General", "Fend", "+20k"], ["Strength", "Guard", "+40k"]];
   for (const [categoryName, skillName, value] of cases) {

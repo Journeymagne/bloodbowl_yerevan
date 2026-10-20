@@ -299,7 +299,11 @@ export function statIncreaseRefusal(row, player, stat) {
  * @typedef {{type: string, cost: number, value: number|null,
  *   categories: {category: string, access: "primary"|"secondary"}[],
  *   refusal: {code: string, params: object}|null}} AdvancementOffer
- *   `value` is what the advancement adds to his value, in thousands: a characteristic's depends on which
+ *   `cost` is its price in SPP at his next rank (`canTakeAdvancement`), 0 past the last rank, where it is refused
+ *   (`MAX_LEVEL`) and there is no next rank to price it at. `value` is what the advancement adds to his value, in
+ *   thousands: a skill's by its access (`skillCosts`); a characteristic's depends on which one the D8 lets him improve,
+ *   so it is null here (`statChoices` says it per face). `categories` are what it draws from (`advancementCategories`);
+ *   `refusal` why it cannot be taken now, or null.
  */
 
 /**
@@ -313,8 +317,8 @@ export function advancementOffers(team, row, player, skillGroups = []) {
   const level = playerAdvancementLevel(player);
   const offers = ADVANCEMENT_TYPES.map((type) => {
     const affordable = canTakeAdvancement(team, player, type), categories = advancementCategories(row, type);
-    const skillLeft = type === "stat"
-      || categories.some(({ category }) => categorySkills(row, player, category, skillGroups).some(({ held }) => !held));
+    // A skill he lacks in the type's categories: the grant's own options, without the elite combinations a list draws.
+    const skillLeft = type === "stat" || advancementGrantOptions(row, player, type, skillGroups).options.length > 0;
     const refusal = !affordable.allowed ? { code: affordable.reason, params: affordable.params }
       : skillLeft ? null : { code: "NO_SKILL_LEFT", params: {} };
     const value = type === "stat" ? null : skillCosts[GRANT_ACCESS_BY_TYPE[type]];

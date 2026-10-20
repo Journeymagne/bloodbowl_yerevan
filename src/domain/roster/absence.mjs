@@ -58,7 +58,9 @@ export function clearAbsence(player) {
 
 /** He misses the next match already: marked (`skipNextGame`), or retired for the season (`temporarilyRetired`). */
 export const sitsOut = (player) => Boolean(player.skipNextGame || player.temporarilyRetired);
-const reasonOf = (player) => JSON.stringify(normalizeAbsence(player.absence, sitsOut(player)));
+/** Why he misses the next match, as the roster reads it (`normalizeAbsence`); null when nothing says. */
+export const absenceOf = (player) => normalizeAbsence(player.absence, sitsOut(player));
+const reasonOf = (player) => JSON.stringify(absenceOf(player));
 
 /**
  * Whether a player sits out differently from before: whether he misses the next match, or why (`normalizeAbsence`).

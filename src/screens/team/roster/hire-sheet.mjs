@@ -17,7 +17,8 @@ import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { positionStatsLine } from "../../../ui/stat-strip.mjs";
 import { renderStepButton } from "../../../ui/stepper.mjs";
-import { closedMarkup, hireClosed, prepResetWords } from "./panel.mjs";
+import { hireClosed, prepResetWords } from "./panel.mjs";
+import { closedMarkup } from "./player-access.mjs";
 import { HIRE_SHEET, footButton } from "./sheets.mjs";
 
 /**

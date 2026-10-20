@@ -337,6 +337,23 @@ test("the team's rolls are read as they are kept: used and waiting, in the order
   assert.deepEqual([read.body.rolls[1].params, read.body.rolls[1].result], [second.params, second.result], "what the die showed, as it was kept");
 }));
 
+// T3 review m2/m3 (final wave): the order is the rolls' own time, then the lower id — never the table's order — and a
+// roll stays the team's when its player has left the roster (the client asks by `playerId`).
+test("the team's rolls are read by when they were rolled, the lower id first at the same moment, whatever order they were written in; a departed player's are there too", db, () => withApiDatabase(async ({ client }) => {
+  const coach = await seedCoach(client, "lion"), id = await seedTeam(client, coach.id);
+  const uuid = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, "0")}`;
+  const put = (n, player, at) => client.query(
+    "INSERT INTO dice_rolls (id, saved_team_id, player_id, purpose, params, result, created_at) VALUES ($1, $2, $3, 'stat', '{}', '{}', $4)", [uuid(n), id, player, at]);
+  await put(5, "p0", "2026-03-01 00:00:00+00"); // written first, rolled last
+  await put(9, "p1", "2026-02-01 00:00:00+00"); // the higher id, rolled before it
+  await put(8, "gone", "2026-01-01 00:00:00+00"); // a player no longer on the roster
+  await put(7, "p2", "2026-01-01 00:00:00+00"); // the same moment: the lower id first, though written after
+  const read = await rolls(id, coach.token);
+  assert.equal(read.status, 200);
+  assert.deepEqual(read.body.rolls.map((item) => item.id), [uuid(7), uuid(8), uuid(9), uuid(5)]);
+  assert.deepEqual(read.body.rolls.map((item) => item.playerId), ["p2", "gone", "p1", "p0"], "the departed player's roll with the rest");
+}));
+
 test("reading the rolls is the owner's and an administrator's; a stranger is told the team is not there, and nobody without a session reads anything", db, () => withApiDatabase(async ({ client }) => {
   const coach = await seedCoach(client, "lion"), other = await seedCoach(client, "wolf"), admin = await seedCoach(client, "boss", { admin: true });
   const id = await seedTeam(client, coach.id);

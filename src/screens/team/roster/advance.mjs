@@ -198,10 +198,21 @@ export function rollClosed(line, where) {
 }
 
 /**
+ * The advancement the done step shows is his, in its place: the one at its rank of the same type that gave the same
+ * (final wave, T9 N3) — not his count of advancements, which another device's could make up. What keeps the done step,
+ * and what its «Saved» is claimed by once the queue is at rest (advance-sheet.mjs).
+ * @param {import("./model.mjs").PlayerLine} line @param {{level: number, type: string, grant: {skill?: string, stat?: string}}} taken
+ */
+export function takenHeld(line, { level, type, grant }) {
+  const at = line.advancements[level - 1];
+  return Boolean(at) && at.type === type && (at.grants?.skill ?? "") === (grant.skill ?? "") && (at.grants?.stat ?? "") === (grant.stat ?? "");
+}
+
+/**
  * The advancement's sheet as the screen draws it (`playerSheetOf` hands it his line on the roster), or null when it
- * stands no longer: a match has begun (R8), or on its done step the advancement it shows is his no more — a refusal of
- * the queue's 422, or another device's save, took it away. Until it is taken it says why «Take» (`reason`) and a roll
- * (`rollReason`) are closed just now; on its done step, why a god's bonus cannot be added (`reason`: `undoClosed`).
+ * stands no longer: a match has begun (R8), or on its done step the advancement it shows is his no more (`takenHeld`) —
+ * a refusal of the queue's 422, or another device's save, took it away. Until it is taken it says why «Take» (`reason`)
+ * and a roll (`rollReason`) are closed just now; on its done step, why a god's bonus cannot be added (`reason`: `undoClosed`).
  *
  * @param {object} sheet the visit's
  * @param {import("./model.mjs").PlayerLine} line
@@ -210,7 +221,7 @@ export function rollClosed(line, where) {
  */
 export function advanceSheetOf(sheet, line, where) {
   if (where.mode.kind === "match") return null;
-  if (sheet.step === "done") return line.level < sheet.taken.level ? null : { ...sheet, reason: undoClosed(line, where) };
+  if (sheet.step === "done") return takenHeld(line, sheet.taken) ? { ...sheet, reason: undoClosed(line, where) } : null;
   return { ...sheet, reason: advanceClosed(line, where), rollReason: rollClosed(line, where) };
 }
 
@@ -278,7 +289,7 @@ function takeChosen(saving, { now, refused }) {
     return;
   }
   if (!answer.ok) return;
-  const taken = { ...takenWords(sheet, chosen, choices), cost: answer.cost, value: answer.value, elite, level: answer.level };
+  const taken = { ...takenWords(sheet, chosen, choices), cost: answer.cost, value: answer.value, elite, level: answer.level, type: chosen.type, grant: chosen.grant };
   // The rolls the visit read are the team's before this one was taken: read again for the next skill's sheet.
   visit.rolls = null;
   Object.assign(sheet, { step: "done", refusal: "", taken });

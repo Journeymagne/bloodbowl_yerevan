@@ -250,6 +250,8 @@
     text-transform: none;
   }
   .g-profile__ledgerline { display: block; }
+  /* «Advancements: 1 of 6» on the font's own line, as Player.html sets none (the shared caption's 1.35 is the card's elsewhere). */
+  .g-profile__spp .g-progress__caption { line-height: normal; }
   .g-profile__spp .g-btn--primary {
     height: var(--size-cta);
     border-radius: var(--radius-lg);

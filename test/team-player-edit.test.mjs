@@ -579,6 +579,10 @@ test("styled as PlayerEdit.html up to 900px and DeskRosterEdit.html from 901px, 
     assert.deepEqual(valuesOf(SHEETS, `dialog.g-sheet${FRAME}`, "border-radius"), ["20px"], "DeskRosterEdit.html's window");
     assert.deepEqual(valuesOf(SHEETS, `${FRAME} .g-sheet__head`, "gap"), ["var(--space-16)"], "DeskRosterEdit.html's head (M1)");
     assert.deepEqual(valuesOf(SHEETS, "#player-edit .g-player-edit__sppnote", "font"), ["400 12px/1.4 var(--font-body)"], "DeskRosterLive.html's note under the tiles");
+    // A long line wraps (owner's rule), as it did before the move into this sheet (final wave, T8 N1).
+    for (const selector of ["#player-edit .g-player-edit__spptitle", "#player-edit .g-player-edit__sppnote"]) {
+      assert.deepEqual(valuesOf(SHEETS, selector, "overflow-wrap"), ["anywhere"], selector);
+    }
     // Line heights are the prototype's: `normal` where it gives none (Task 7's lesson).
     for (const selector of [`${FRAME} .g-player-edit__note`, `${FRAME} .g-toggle__label`, `${FRAME} .g-toggle__caption`, `${FRAME} .g-sheet__sub`, `${FRAME} .g-field__label`]) {
       assert.ok(valuesOf(SHEETS, selector, "line-height").concat(valuesOf(SHEETS, selector, "font")).some((value) => /(^|\/)normal\b/.test(value)), `${selector}: line height normal`);

@@ -99,17 +99,19 @@ export function siteRollOf(rolls, line, taken) {
 }
 
 /**
- * A site roll's attempts in the skill's sheet, as the visit read the team's rolls: while the read is on its way, when
- * it failed, or when the site has no such roll of his, said so; the attempts only shown (`toggle: false`): the skill's
- * sheet has nothing to press. Nothing for an advancement not rolled on the site, nor for a D8 a skill took the place of
- * (a characteristic's: no attempts, so nothing is read for it — fix round 1).
+ * A site roll's attempts in the skill's sheet, as the visit read the team's rolls: the attempts only shown (`toggle:
+ * false`), the skill's sheet having nothing to press — from the list read before while a read for another roll is on
+ * its way (final wave, T11 N5); else while the read is on its way, when it failed, or when the site has no such roll of
+ * his, said so. Nothing for an advancement not rolled on the site, nor for a D8 a skill took the place of (a
+ * characteristic's: no attempts, so nothing is read for it — fix round 1).
  */
 function siteRollMarkup(line, taken, rolls) {
   if (taken.via !== "site" || taken.type === "stat") return "";
+  const roll = siteRollOf(rolls?.rolls, line, taken);
+  if (roll) return attemptsMarkup(roll, { toggle: false });
   if (!rolls || rolls.loading) return rollStateMarkup(t("teamPlayer.roll.reading"));
   if (rolls.error) return rollStateMarkup(t("teamPlayer.roll.failed", { reason: rolls.error }), true);
-  const roll = siteRollOf(rolls.rolls, line, taken);
-  return roll ? attemptsMarkup(roll, { toggle: false }) : rollStateMarkup(t("teamPlayer.roll.none"));
+  return rollStateMarkup(t("teamPlayer.roll.none"));
 }
 
 /**
@@ -117,8 +119,8 @@ function siteRollMarkup(line, taken, rolls) {
  * primary skill · rolled on the site» — a chosen one without the way — and a site roll's attempts (`siteRollMarkup`),
  * read once a visit (player.mjs). Nothing for a skill no advancement gave.
  *
- * @param {{line: import("./model.mjs").PlayerLine, skill: string, rolls: null | {loading: true} | {rolls: object[]} | {error: string}}} props
- *   `rolls` the team's rolls as the visit read them
+ * @param {{line: import("./model.mjs").PlayerLine, skill: string, rolls: null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}}} props
+ *   `rolls` the team's rolls as the visit read them; on its way, a read keeps the list read before it
  */
 export function rollBlockMarkup({ line, skill, rolls }) {
   const at = line.skills.find(({ name }) => name === skill)?.advancement ?? null;

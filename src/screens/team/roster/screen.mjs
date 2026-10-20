@@ -1,10 +1,12 @@
 /**
  * What the roster screen draws for a visit (moved out of index.mjs unchanged, stage 07d): the mode the games put the
  * roster in, why no counter takes a step just now, the lines the draft and the records make, and the `RosterScreen`
- * view.mjs draws. It reads the visit (`Visit`, index.mjs), the games, the save queue and the memory; what it writes is
- * the visit's sheet, which it closes when its player or its match has left the screen, and in the player mode (stage
- * 07d) the player the coach chose: the address's, once his line is first there. And where the page stands when the
- * screen drawn is another (a patch across 900px in the player mode) or the way back from a player's page is taken.
+ * view.mjs draws. It reads the visit (`import("./index.mjs").Visit`), the games, the save queue and the memory; what it
+ * writes is the visit's sheet and what opened it (`opener`), both let go when the sheet's player or its match has left
+ * the screen, and in the player mode (stage 07d) the player the coach chose: the address's, once his line is first
+ * there. A sheet's keeper may say why it let one go, in a toast: a player's undo, edit or fix whose player changed
+ * under it (player.mjs, player-save.mjs). And where the page stands when the screen drawn is another (a patch across
+ * 900px in the player mode) or the way back from a player's page is taken.
  */
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
@@ -17,7 +19,7 @@ import { fallenWriting } from "./fallen.mjs";
 import { sessionSppOf } from "./memory.mjs";
 import { fallenLines, rosterLines, rosterMode, sortLines } from "./model.mjs";
 import { saveState } from "./save.mjs";
-import { sheetOf } from "./injury.mjs";
+import { keyed, sheetOf } from "./injury.mjs";
 import { recordsOf } from "./match-taps.mjs";
 import { markSheetOf } from "./marks.mjs";
 import { marketSheetOf } from "./market.mjs";
@@ -78,7 +80,10 @@ const KEEPERS = {
   fix: playerSheetOf,
 };
 
-/** @returns {import("./view.mjs").RosterScreen} */
+/**
+ * @param {string} teamId @param {import("./index.mjs").Visit} visit @param {import("./memory.mjs").RosterMemory} memory
+ * @returns {import("./view.mjs").RosterScreen}
+ */
 export function screenOf(teamId, visit, memory) {
   const mode = modeOf(teamId);
   const outside = outsideOf(memory, mode);
@@ -120,12 +125,13 @@ export function patchVisit(markup, modal) {
 }
 
 /**
- * The way back from a player's page (K4): the roster's page where the coach left it, and the focus on the row that is
- * open, without scrolling (M5) — a keyboard goes on from there, not from the title at the top; no row open, the focus
- * stays where it is.
- * @param {number} at the roster's `scrollY` when the coach left it
+ * The way back from a player's page (K4): the roster's page where the coach left it, and the focus on the row of the
+ * player the coach had chosen — his open row on a phone, on a desk his row's own button, which opens no row (final
+ * wave, T7 N1) — without scrolling (M5): a keyboard goes on from there, not from the title at the top. None chosen, or
+ * he is no longer drawn, the focus stays where it is.
+ * @param {number} at the roster's `scrollY` when the coach left it @param {string|null} selected his row's key (`memory.selected`)
  */
-export function putBack(at) {
+export function putBack(at, selected) {
   globalThis.scrollTo?.(0, at);
-  view.querySelector('[data-row-key][aria-expanded="true"]')?.focus({ preventScroll: true });
+  if (selected) keyed("data-row-key", selected)?.focus({ preventScroll: true });
 }

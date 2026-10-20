@@ -65,13 +65,17 @@ export function advanceHintOf(line, screen, { profile = false } = {}) {
 }
 
 /**
- * A control of his advancements that is closed just now: in reach, saying why as its title and, pressed, in a message
- * (`data-roster-closed`, wire.mjs), in the look of a closed control (roster.css) — panel.mjs's `closedMarkup`, with
- * what leads the words (`leadHtml`, markup of `icon()`).
+ * A control of the roster's that is closed: a button that says why (`reason`; for a way to the player's page a match
+ * has closed, `teamRoster.afterPost`) as its tooltip and, pressed, in a message (`data-roster-closed`, wire.mjs), in the
+ * look of what it stands for (button.css, roster.css). With a `glyph` the label is its name for a screen reader, as the
+ * pencil's link has it; `leadHtml` (markup of `icon()`) leads the words, as «Advance»'s arrow does; `data` keeps what
+ * names the control (an action's player, a fallen player's undo), so the focus finds it again. Here, in the module the
+ * panel and the profile both import, the one home of it (final wave, T11 N3).
  */
-function closedButton({ className, label, reason, data, leadHtml = "" }) {
-  return `<button type="button" class="${className} g-roster__closed" aria-disabled="true" title="${escapeHtml(reason)}"`
-    + `${dataAttributes({ rosterClosed: true, ...data })}>${leadHtml}${escapeHtml(label)}</button>`;
+export function closedMarkup({ className, label, glyph = "", leadHtml = "", reason = t("teamRoster.afterPost"), data = {} }) {
+  const named = glyph ? ` aria-label="${escapeHtml(label)}"` : "";
+  return `<button type="button" class="${className} g-roster__closed"${named} aria-disabled="true" title="${escapeHtml(reason)}"`
+    + `${dataAttributes({ rosterClosed: true, ...data })}>${glyph ? icon(glyph, 18) : `${leadHtml}${escapeHtml(label)}`}</button>`;
 }
 
 /**
@@ -80,7 +84,7 @@ function closedButton({ className, label, reason, data, leadHtml = "" }) {
  * @param {{reason: string, label?: string, data?: Record<string, string|boolean>}} props
  */
 export function closedAdvanceMarkup({ reason, label = t("teamRoster.advance"), data = {} }) {
-  return closedButton({ className: "g-btn g-btn--primary g-btn--block", label, reason, data, leadHtml: icon("up", 20) });
+  return closedMarkup({ className: "g-btn g-btn--primary g-btn--block", label, reason, data, leadHtml: icon("up", 20) });
 }
 
 /** What an advancement gave, in a word: its skill, «MA +1», or — one that does not say — its type. */
@@ -99,6 +103,6 @@ export function undoLastMarkup(line, screen, className = "g-roster__undo") {
   const last = line.advancements.at(-1);
   if (!last) return "";
   const [label, reason, data] = [t("teamPlayer.undo.open", { what: gaveWords(last) }), undoClosed(line, screen), { playerUnadvance: line.key }];
-  if (reason) return closedButton({ className, label, reason, data });
+  if (reason) return closedMarkup({ className, label, reason, data });
   return `<button type="button" class="${className}" aria-haspopup="dialog"${dataAttributes(data)}>${escapeHtml(label)}</button>`;
 }

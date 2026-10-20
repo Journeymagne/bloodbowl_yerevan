@@ -18,7 +18,8 @@ import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { undoable } from "./model.mjs";
-import { closedMarkup, markClosed, prepResetWords, profileLinkMarkup, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
+import { markClosed, prepResetWords, profileLinkMarkup, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
+import { closedMarkup } from "./player-access.mjs";
 import { UNDO_SHEET, footButton } from "./sheets.mjs";
 
 /**

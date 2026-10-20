@@ -45,9 +45,16 @@ const ASK = /^\/api\/teams\/([^/]+)\/players\/([^/]+)\/rolls$/;
 const STAT_FACE = 6;
 
 let reference = null;
-/** The built data, read once at the first roll asked or read: the races' positions and the Skill Table. */
+/**
+ * The built data, read once at the first roll asked or read: the races' positions and the Skill Table. A read that
+ * failed is not kept: the next ask reads again (the mock answers the failure as a 500, mock-api.mjs).
+ */
 const referenceData = () => (reference ??= fs.readFile(path.join(rootDir, "public", "data.en.json"), "utf8")
-  .then((text) => expandCollections(JSON.parse(text))));
+  .then((text) => expandCollections(JSON.parse(text)))
+  .catch((error) => {
+    reference = null;
+    throw error;
+  }));
 
 /** A die that shows `faces` in turn, and the last of them from then on. */
 function dieOf(faces) {
@@ -83,6 +90,8 @@ async function seed(teams) {
   if (!blitzer || !rosterPlayer(data, found, "p5")) return;
   const before = { ...blitzer.player, extraSkills: [], advancements: [] };
   const skill = randomSkillRoll({ row: blitzer.row, player: before, category: "Agility", skillGroups: data.skillGroups, rng: dieOf([15, 4]) });
+  // The data the seed is made from changed under it (a Blitzer with no Agility, a column without a free skill): said, not a roll with no params.
+  if (!skill.ok) throw new Error(`mock rolls: the seed's random skill for p3 is refused (${skill.reason})`);
   const at = (days) => new Date(Date.now() - days * DAY).toISOString();
   rolls.set("t1", [
     rollOf("mock-roll-p3", "p3", "random_skill", { params: { ...skill.params, captain: false }, result: skill.result }, at(9), at(9)),
@@ -153,7 +162,11 @@ export async function answerRolls(request, pathname, mock) {
   const asking = method === "POST" ? ASK.exec(pathname) : null;
   const [, id, playerId] = listing ?? asking ?? [];
   if (!id) return null;
-  seeded ??= seed(teams);
+  // A seed whose data read failed is not kept either: the next ask seeds again.
+  seeded ??= seed(teams).catch((error) => {
+    seeded = null;
+    throw error;
+  });
   await seeded;
   const found = teams.find((item) => item.id === id);
   if (!found) return refuse(404, "TEAM_NOT_FOUND");

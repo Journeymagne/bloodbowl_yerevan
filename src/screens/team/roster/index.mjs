@@ -106,7 +106,7 @@ function listen(target, type, listener) {
  * @property {() => void} [fit] measures whether the desk panel fits the window, after each draw (aside-fit.mjs)
  * @property {string} player the player mode's stored id (the address's), "" for the roster; `chosen` once his line was chosen
  * @property {boolean} titled his name has been drawn in his head, and has taken the focus (the player mode on a phone)
- * @property {null | {loading: true} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d)
+ * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d; a read on its way keeps the list before it)
  */
 
 /**
@@ -498,7 +498,7 @@ export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
     if (!answer.error) holdTeam(saving, answer, trackRoster(answer.team), since);
     saving.draw();
     // Back from a player's page: the roster where the coach left it, once its lines are drawn (K4).
-    if (back !== null && visit.team && !playerId) putBack(back);
+    if (back !== null && visit.team && !playerId) putBack(back, memory.selected);
     if (visit.team) back = null;
     await games;
   };

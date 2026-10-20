@@ -87,25 +87,29 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  *   |{kind: "hire", key: "hire", cart: import("../../../domain/roster/transfers.mjs").HireCart, refusal: string,
  *   quote: import("../../../domain/roster/transfers.mjs").HireQuote, reason: string}
  *   |{kind: "sell", key: string, refusal: string, reason: string}
- *   |{kind: "edit", key: string, form: {number: string, name: string, captain: boolean}, refusal: string, reason: string}
+ *   |{kind: "edit", key: string, form: {number: string, name: string, captain: boolean}, seed: string, refusal: string, reason: string}
  *   |{kind: "advance", key: string, type: string, category: string, skill: string, step: string, refusal: string, taken: object|null, reason?: string}
- *   |{kind: "fix", key: string, form: import("../../../domain/roster/edits.mjs").PlayerFix, refusal: string, reason: string}|null} sheet
+ *   |{kind: "unadvance", key: string, index: number, confirmed: string, refusal: string, reason?: string}
+ *   |{kind: "fix", key: string, form: import("../../../domain/roster/edits.mjs").PlayerFix, seed: string, refusal: string, reason: string}|null} sheet
  *   the sheet that is open: a skill's rule; an injury of the match `gameId` with what is chosen in it ("" for
  *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now; a
  *   missed match's reasons (stage 07b) with what is chosen, the last refusal, and why no mark can be made just now; or
  *   a death's undo (Task 9), whether it is on its way, the last refusal, and why none can be sent just now; or the
  *   hire cart (stage 07c) with what it holds, the last refusal of «Buy», what it buys on the draft, and why nothing can
  *   be bought just now; or a player's sale or cancelled purchase (stage 07c), the last refusal, and why he cannot go
- *   just now; or a player's edit (stage 07d) with its form as typed, the last refusal of «Save», and why it is closed;
- *   or his advancement (stage 07d, advance.mjs) with what is chosen, its step, what was taken, and why «Take» is closed;
- *   or his fix by hand (stage 07d, fix.mjs) with its form, the last refusal of «Save», and why it is closed
+ *   just now; or a player's edit (stage 07d) with its form as typed, what it was seeded from, the last refusal of «Save»,
+ *   and why it is closed; or his advancement (stage 07d, advance.mjs) with what is chosen, its step, what was taken, and
+ *   why «Take» is closed; or the undo of his last advancement (stage 07d) with the advancement it confirms (its place and
+ *   how it was shown), the last refusal, and why «Undo advancement» is closed; or his fix by hand (stage 07d, fix.mjs)
+ *   with its form, what it was seeded from, the last refusal of «Save», and why it is closed
  * @property {boolean} unsure an injury's answer was lost and the read that followed failed: whether it was written is
  *   not known, so no injury is recorded until a read of the records succeeds (R14)
  * @property {string} error a read that failed, "" when none
  * @property {boolean} loading the roster has not been read yet (or is read again after a failure)
  * @property {boolean} phone the width the screen is drawn at is a phone's (`(max-width: 900px)`)
  * @property {string} player the player mode's stored id, as the address carries it (stage 07d); "" for the roster itself
- * @property {null | {loading: true} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d)
+ * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read
+ *   them (stage 07d); a read on its way keeps the list read before it
  */
 
 /** The table's columns: the player, the five characteristics, and on a desk the career and the SPP. */

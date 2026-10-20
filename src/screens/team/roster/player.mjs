@@ -84,7 +84,7 @@ function saveEdit(saving, lent) {
 }
 
 /**
- * «Undo the advancement»: only from the undo that is open, while the advancement it showed is still his last — a press
+ * «Undo advancement»: only from the undo that is open, while the advancement it showed is still his last — a press
  * that finds none is a second press, and sends nothing. Why it is closed is asked again (K15), then one step of the
  * queue (`undoAdvancement`): what it gave goes, its SPP come back, and the save frees its site roll. In the same turn the
  * sheet closes, the focus on «Advancement» or «Advance», and the coach is told what came back. A refusal (another tab's
@@ -173,8 +173,9 @@ const rollsHold = (rolls, line, taken) => Boolean(rolls?.loading || (rolls?.roll
 /**
  * The team's rolls read for a skill a roll on the site gave (decision 19): once a visit — a second chip finds them read,
  * or on their way (`rollsHold`). None for a D8 a skill took the place of: a characteristic's roll has no attempts to
- * show. The answer is taken only while the visit is here and asks for these rolls still: an advancement taken, undone
- * or a roll put on one since has made them old (`visit.rolls = null`).
+ * show. A read again keeps the list read before while it is on its way, so a chip whose roll is in it shows its attempts
+ * meanwhile (final wave, T11 N5). The answer is taken only while the visit is here and asks for these rolls still: an
+ * advancement taken, undone or a roll put on one since has made them old (`visit.rolls = null`).
  *
  * @param {import("./index.mjs").Saving} saving
  * @param {import("./model.mjs").PlayerLine|null} line @param {string} name the skill as the roster writes it
@@ -183,7 +184,7 @@ function readSiteRolls({ teamId, visit, draw }, line, name) {
   const at = line?.skills.find((skill) => skill.name === name)?.advancement ?? null;
   const taken = at === null ? null : line.advancements[at];
   if (taken?.via !== "site" || taken.type === "stat" || rollsHold(visit.rolls, line, taken)) return;
-  const asked = { loading: true };
+  const asked = { loading: true, rolls: visit.rolls?.rolls ?? null };
   visit.rolls = asked;
   void readRolls(teamId).then((answer) => {
     if (!visit.here || visit.rolls !== asked) return;
@@ -198,7 +199,7 @@ function readSiteRolls({ teamId, visit, draw }, line, name) {
  * something closes it just now (said instead); a field typed in or the switch flipped changes the edit's form, and the
  * last refusal goes with the form it was said of; «Cancel» closes it, the focus back on the pencil; «Save» saves it
  * (`saveEdit`). «Undo the last» opens its sheet on the advancement that is his last at the press, unless something
- * closes it (said instead); «Keep» closes it, «Undo the advancement» sends it (`sendUndo`). On the advancement's done
+ * closes it (said instead); «Keep» closes it, «Undo advancement» sends it (`sendUndo`). On the advancement's done
  * step a bonus skill is chosen among those the god offers him and he lacks, and «Add …» adds it (`addBonus`). His
  * advancement's other presses are advance.mjs's (`advanceHandlers`), his fix by hand's fix.mjs's (`fixHandlers`).
  *

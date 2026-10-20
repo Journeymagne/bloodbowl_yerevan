@@ -12,6 +12,7 @@ import {
 
 const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
 const { ADVANCEMENT_TYPES } = await import("../src/domain/roster/progression.mjs");
+const { setMyTeams } = await import("../src/data/teams.mjs");
 
 // Stage 07d, Task 9: «Advancement» in a player's profile, and «Advance» in the desk's panel, open the advancement — on a
 // phone a sheet in steps (Adv1Type, Adv2Category, Adv3Skill, Adv4Done), on a desk a window in three columns
@@ -346,6 +347,22 @@ test("taken: one PATCH of the whole roster, the done step at once — what he go
       assert.ok(!sheet());
       assert.ok(!view.querySelector("dialog:modal"));
       assert.ok(document.activeElement === advance(), "the focus back on «Advancement»");
+      // Final wave (T9 N3): the done step and its «Saved» stand by the advancement itself, not by his count of them —
+      // another device that undid it and took Sure Hands in its place, read in, takes the done step away, claiming nothing.
+      await openAdvance(true, { teamAnswer: withOne(ADVANCED) });
+      walkTo("primary", "Agility", "Diving Catch");
+      api.reply(PATCH, 200, { team: withOne(advancedWith("primary", "Diving Catch"), { revision: 5 }) });
+      fireEvent(take(), "click");
+      await settle();
+      assert.equal(done().querySelector(".g-advance__status").textContent, "Saved");
+      const other = withOne(advancedWith("primary", "Sure Hands"), { revision: 6 });
+      api.reply(TEAM_READ, 200, { team: other });
+      api.reply("GET /api/teams/t1/events", 200, { events: [], revision: 6 });
+      setMyTeams([other]);
+      await settle();
+      assert.ok(!sheet(), "the advancement it showed is his no more: two advancements still, the second another one");
+      assert.ok(!view.querySelector("dialog:modal"));
+      assert.ok(view.querySelector(".g-profile__skills").textContent.includes("Sure Hands"), "the read is drawn");
     });
   });
 });

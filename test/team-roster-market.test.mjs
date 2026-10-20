@@ -846,6 +846,37 @@ test("the sheet on a phone: his card, the same lines, one red button", async () 
   });
 });
 
+// F7 follow-up (stage 07d fidelity, final wave): the sale's red button closed by the screen (`aria-disabled`, sheets.mjs's
+// `footButton`) is closed as button.css closes a disabled one — the grey fill under its full white label, never dimmed.
+test("the sale's red button, closed, is the grey fill under its full white label, as a closed main button", async () => {
+  const ROSTER = "src/screens/team/roster/roster.css";
+  for (const selector of [".g-btn--danger.g-roster__closed", ".g-btn--primary.g-roster__closed"]) {
+    assert.deepEqual(valuesOf(ROSTER, selector, "background"), ["var(--disabled)"], selector);
+    assert.deepEqual(valuesOf(ROSTER, selector, "border-color"), ["var(--disabled)"], selector);
+    assert.deepEqual(valuesOf(ROSTER, selector, "opacity"), ["1"], selector);
+  }
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn--danger:disabled", "background"), ["var(--disabled)"], "as button.css closes a disabled one");
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("p8#0");
+        fireEvent(sellIn(placeOf(phone)), "click");
+        assert.ok(sellSheet()?.isModal);
+        // Another device's save meets a step of the roster's while the sheet is open: the screen's lock closes its red
+        // button, which says why and stays in reach.
+        api.reply(PATCH, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: forSale(SALE_PLAYERS, { revision: 6 }) });
+        assert.equal(save.stepSpp("t1", "p1", "touchdowns", 1).ok, true);
+        await settle();
+        const send = sendButton();
+        assert.deepEqual([send.getAttribute("aria-disabled"), send.getAttribute("title")], ["true", "The roster was changed on another device"]);
+        assert.ok(send.classList.contains("g-btn--danger") && send.classList.contains("g-roster__closed"), "the red button, closed by the screen");
+        assert.ok(!send.hasAttribute("disabled"), "in reach: it says why when pressed");
+        assertStyled(view, ...STYLES);
+      });
+    }
+  });
+});
+
 test("Architect of Fate: full value and the injuries back, said so", async () => {
   await withoutTimers(async () => {
     // Tzeentch: 0 Blue Horror 30k, 1 Pink Horror 75k. Eight on the roster, so one can be sold.

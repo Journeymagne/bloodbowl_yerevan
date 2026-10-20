@@ -24,8 +24,8 @@ import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderProgressDots } from "../../../ui/progress-dots.mjs";
 import { fallenName, fallenProfileMarkup, fallenWho, undoMarkup } from "./fallen-view.mjs";
 import { undoable } from "./model.mjs";
-import { closedMarkup, injuriesMarkup, markClosed, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
-import { advanceClosed, advanceHintOf, closedAdvanceMarkup, editClosed, undoLastMarkup } from "./player-access.mjs";
+import { injuriesMarkup, markClosed, skillChipsMarkup, skillSourceOf, statsMarkup } from "./panel.mjs";
+import { advanceClosed, advanceHintOf, closedAdvanceMarkup, closedMarkup, editClosed, undoLastMarkup } from "./player-access.mjs";
 import { failedMarkup, goneMarkup, prepMarkup, saveNoticeMarkup, sheetMarkup, statusMarkup } from "./view.mjs";
 
 /**

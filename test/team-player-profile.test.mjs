@@ -176,6 +176,38 @@ test("the way back from a fallen player's own page finds the roster as it was le
   });
 });
 
+// Final wave (T7 re-review N1): a desk's rows open no panel of their own, so the way back finds the chosen one by its key.
+test("on a desk, the way back from a fallen player's own page puts the focus on his row's button, without scrolling", async () => {
+  await withWindow({ phone: false }, async ({ scrolls, scrollPage }) => {
+    coach({ open: "fallen-f1" });
+    await renderTeamRoster("t1");
+    assert.equal(toggle("fallen-f1").getAttribute("aria-current"), "true", "him in the panel");
+    assert.ok(!toggle("fallen-f1").hasAttribute("aria-expanded"), "a desk's row opens nothing");
+    scrollPage(900);
+    releaseCurrentScreen();
+    await renderTeamPlayer("t1", "d1");
+    releaseCurrentScreen();
+    scrolls.length = 0;
+    // What each focus is asked with: the row's must not scroll the page put back.
+    const element = Object.getPrototypeOf(view);
+    const focus = element.focus;
+    const asked = [];
+    element.focus = function (options) {
+      asked.push([this.getAttribute?.("data-row-key") ?? null, options ?? null]);
+      return focus.call(this, options);
+    };
+    try {
+      await renderTeamRoster("t1");
+    } finally {
+      element.focus = focus;
+    }
+    assert.deepEqual(scrolls.at(-1), [0, 900], "the page where the coach left it");
+    assert.ok(document.activeElement === toggle("fallen-f1"), "his row's button, not the title at the top");
+    assert.deepEqual(asked.at(-1), ["fallen-f1", { preventScroll: true }]);
+    assert.equal(aside().getAttribute("data-panel-player"), "fallen-f1");
+  });
+});
+
 test("on a desk the player mode is the roster: going on to the roster keeps the page where it is (M4)", async () => {
   await withWindow({ phone: false }, async ({ scrolls, scrollPage }) => {
     coach();
@@ -806,6 +838,9 @@ test("the profile's sizes are Player.html's", () => {
     [["var(--radius-2xl)"], ["inset 0 0 0 1px var(--line-strong)"], ["var(--space-16)"], ["var(--space-14)"]]);
   assert.deepEqual([of(".g-profile__availn", "font"), of(".g-profile__availl", "font"), of(".g-profile__ledger", "font")],
     [["700 44px/1 var(--font-display)"], ["600 15px/1.2 var(--font-body)"], ["400 13px/1.35 var(--font-body)"]]);
+  // «Advancements: 1 of 6» at 13px on the font's own line, as Player.html (final wave, T7 N2): here, not in the shared caption.
+  assert.deepEqual(of(".g-profile__spp .g-progress__caption", "line-height"), ["normal"]);
+  assert.deepEqual(valuesOf("src/ui/progress-dots.css", ".g-progress__caption", "font"), ["400 13px/1.35 var(--font-body)"], "the shared caption as it was");
   assert.deepEqual([of(".g-profile__hint", "margin"), of(".g-profile__hint", "text-align"), of(".g-profile__hint", "font")],
     [["-6px 0 0"], ["center"], ["400 13px/normal var(--font-body)"]]);
   assert.deepEqual([of(".g-profile__spp .g-btn--primary", "border-radius"), of(".g-profile__spp .g-btn--primary", "font")], [["var(--radius-lg)"], ["700 17px/1.2 var(--font-body)"]]);

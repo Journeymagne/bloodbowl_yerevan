@@ -467,11 +467,13 @@ test("Favoured of Nurgle: done offers the bonus skill, his own closed; added as 
       // K15: a match begun before the screen is drawn again — the press asks, and nothing goes.
       const games = state.games.items;
       state.games.items = [LIVE_GAME];
+      const reads = callsTo(TEAM_READ);
       fireEvent(add(), "click");
       assert.equal(toasts().at(-1), AFTER_POST);
       state.games.items = games;
       await settle();
       assert.equal(patches().length, 1, "the advancement's only");
+      assert.equal(callsTo(TEAM_READ), reads, "no refusal of the queue's to read the roster again for (final wave, T11 N4)");
       // Added: one PATCH, the block gone, the coach told.
       const added = { ...mouth, favouredSkills: [{ name: "Tentacles", access: "favoured" }] };
       api.reply(PATCH, 200, { team: nurgle([added], { revision: 6 }) });
@@ -485,11 +487,13 @@ test("Favoured of Nurgle: done offers the bonus skill, his own closed; added as 
       late.setAttribute("type", "button");
       late.setAttribute("data-favoured-add", "true");
       view.appendChild(late);
+      const before = callsTo(TEAM_READ);
       fireEvent(late, "click");
       view.removeChild(late);
       assert.equal(toasts().filter((said) => said === "Bonus skill: Tentacles").length, 1);
       await settle();
       assert.equal(patches().length, 2, "the advancement's and the bonus's: one PATCH for the bonus");
+      assert.equal(callsTo(TEAM_READ), before, "the late press read nothing either (final wave, T11 N4)");
       assert.equal(patches().filter(({ body }) => (body.roster.players[0].favouredSkills ?? []).length).length, 1);
       const rot = patches()[1].body.roster.players[0];
       assert.deepEqual(rot.favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
@@ -665,10 +669,20 @@ test("a read of the rolls without a site roll the roster brought since is read a
       setMyTeams([read]);
       await settle();
       api.reply(ROLLS_READ, 200, { rolls: [R0, R1, R2] });
+      const reading = api.hold(ROLLS_READ);
       fireEvent(chip("Sure Hands"), "click");
       assert.equal(rollState().textContent, "Reading the roll…", "the visit's read has no r2: read once more, not «no such roll»");
+      // Final wave (T11 N5): while that read is on its way, Frenzy's roll — in the list read before — is shown, not «Reading…».
+      close();
+      fireEvent(chip("Frenzy"), "click");
+      assert.ok(!rollState(), "no «Reading the roll…» over a roll the visit holds");
+      assert.deepEqual(attempts(), ["1 — Block, held already, rolled again", "4 — Frenzy"]);
+      close();
+      fireEvent(chip("Sure Hands"), "click");
+      assert.equal(rollState().textContent, "Reading the roll…");
+      reading.release();
       await settle();
-      assert.equal(callsTo(ROLLS_READ), 2);
+      assert.equal(callsTo(ROLLS_READ), 2, "the one read again, however many chips asked meanwhile");
       assert.deepEqual(attempts(), ["9 — Sure Hands"]);
       close();
       // Frenzy's roll is in that read: no third.

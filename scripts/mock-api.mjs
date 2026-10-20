@@ -568,8 +568,8 @@ const server = http.createServer(async (request, response) => {
     try {
       answered = await answerApi(request, url.pathname);
     } catch (error) {
-      if (!error.badBody) throw error;
-      answered = refuse(400, "FIELD_INVALID", { field: "body" });
+      if (!error.badBody) console.error(error);
+      answered = error.badBody ? refuse(400, "FIELD_INVALID", { field: "body" }) : refuse(500, "SERVER_ERROR");
     }
     // A dropped connection gets no answer at all: the screen's "no network" (scripts/mock/roster.mjs).
     if (answered.drop) return void request.socket.destroy();

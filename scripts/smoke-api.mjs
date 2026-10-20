@@ -75,13 +75,13 @@ function need(condition, message, got) {
 const saveBody = (team, draft) => ({ name: team.name, baseTeamSlug: team.baseTeamSlug, revision: team.revision, roster: rosterForStorage(draft) });
 
 /**
- * A team's PATCH body as its settings send it (`saveTeamRoster` with an identity, src/data/treasury.mjs): the name, race
- * and logo the team has unless `identity` names others, and its roster as it stands, under that name and race.
+ * A team's PATCH body as its settings send it (`saveTeamRoster` with an identity, src/data/treasury.mjs): `saveBody`'s,
+ * with the name, race and logo the team has unless `identity` names others, and its roster as it stands, under that
+ * name and race.
  */
 function settingsBody(team, identity = {}) {
   const { name = team.name, baseTeamSlug = team.baseTeamSlug, logoData = team.logoData ?? null } = identity;
-  const roster = rosterForStorage({ ...normalizeDraft(team.roster), teamSlug: baseTeamSlug, teamName: name });
-  return { name, baseTeamSlug, logoData, roster, revision: team.revision };
+  return { ...saveBody({ ...team, name, baseTeamSlug }, { ...normalizeDraft(team.roster), teamSlug: baseTeamSlug, teamName: name }), logoData };
 }
 
 // One transparent pixel: a logo for the rename to keep.
@@ -247,7 +247,11 @@ await step("a team renamed keeps its roster, race and logo", async () => {
   // What a rename leaves as it was: the race, the logo, and the roster but for the name it carries.
   const kept = (team) => ({ baseTeamSlug: team.baseTeamSlug, logoData: team.logoData, roster: { ...normalizeDraft(team.roster), teamName: "" } });
   need(before.logoData === SMOKE_LOGO, "the logo was not saved", before.logoData?.slice(0, 40));
-  need(sameValues(kept(renamed), kept(before)), "the rename did not keep the race, the logo and the roster", { before: kept(before).baseTeamSlug, after: kept(renamed).baseTeamSlug });
+  // On a failure, what changed by name — the race, the logo, the roster's fields — not the values (a logo is long).
+  const changed = (left, right) => Object.keys({ ...left, ...right }).filter((key) => !sameValues(left[key], right[key]));
+  need(sameValues(kept(renamed), kept(before)), "the rename did not keep the race, the logo and the roster", {
+    changed: changed(kept(before), kept(renamed)), roster: changed(kept(before).roster, kept(renamed).roster), race: [before.baseTeamSlug, renamed.baseTeamSlug],
+  });
   const back = await save(renamed, { name: before.name });
   need(back.name === before.name && back.logoData === SMOKE_LOGO, "the old name did not come back with the logo", { name: back.name });
 });
@@ -278,6 +282,8 @@ await step("PATCH journals a hire, its cancel and a sale exactly; a resent hire 
   need(removeLeaguePlayer(race, cancelling, bought.id, "cancel-purchase").applied, "the hire cannot be cancelled", cancelling.players.length);
   const cancelled = await save(resent.team, cancelling);
   await headIs({ kind: "cancel_purchase", delta: 50 }, "the cancelled purchase, 50 back");
+  // The last player is the one the death's undo put back at the end, whose advancement the step before undid: his value
+  // is a Linewoman's 50 again, and the sale half of it.
   const selling = normalizeDraft(cancelled.team.roster);
   need(removeLeaguePlayer(race, selling, selling.players.at(-1).id, "sell").applied, "the last player cannot be sold", selling.players.length);
   const sold = await save(cancelled.team, selling);

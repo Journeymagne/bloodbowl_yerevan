@@ -10,14 +10,13 @@
  * `validation.PLAYER_NOT_FOUND`; every other refusal is one of `EDIT_REFUSALS` or `FIX_REFUSALS`.
  */
 import { FAVOURED_ROLLS } from "../post-match/rules.mjs";
-import { applyInjuryEffects, markChanged, sitsOut } from "./absence.mjs";
+import { absenceOf, applyInjuryEffects, markChanged } from "./absence.mjs";
 import { LAST_SHIRT_NUMBER } from "./build.mjs";
 import {
   canonicalSkillName, favouredSkillNames, heldSkillKeys, normalizePlayerAdvancements, normalizePlayerExtraSkills,
   normalizePlayerFavouredSkills, setRosterCaptain, storedPlayerId,
 } from "./players.mjs";
 import { STAT_LIMITS, TARGET_STATS } from "./progression.mjs";
-import { normalizeAbsence } from "./schema.mjs";
 import { favouredSkillsForChoice, ruleLookupKey, teamFavouredOptions } from "./team-rules.mjs";
 import { PLAYER_STATS, categoriesForAccess, countToNumber, rowsForTeam } from "./values.mjs";
 
@@ -261,7 +260,7 @@ const injuryValues = (player) => JSON.stringify(playerInjuries(player));
  * mark's (`markEdits` counts it); any other change to his injuries beside it is an edit.
  */
 function markedAs(prior, player) {
-  const absence = markChanged(prior, player) ? normalizeAbsence(player.absence, sitsOut(player)) : null;
+  const absence = markChanged(prior, player) ? absenceOf(player) : null;
   if (!absence || !["niggling", "lasting"].includes(absence.code)) return prior;
   const expected = structuredClone(prior);
   applyInjuryEffects(expected, { code: absence.code, stat: absence.stat });

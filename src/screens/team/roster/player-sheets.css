@@ -139,6 +139,7 @@
   background: none;
   letter-spacing: 0;
   text-transform: none;
+  overflow-wrap: anywhere;
 }
 #player-edit .g-player-edit__spptitle {
   color: var(--ink);

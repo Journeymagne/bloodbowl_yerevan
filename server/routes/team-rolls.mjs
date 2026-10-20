@@ -15,8 +15,9 @@
  *
  * Reading is the owner's and an administrator's (`teamForUser` with `admin`, as for the team's fallen):
  * every roll of the team as it is kept, the waiting and the used, in the order they were rolled, so a
- * client can show which a player still has to take and which an advancement has taken. A read takes no
- * lock. To anybody else the team is not there.
+ * client can show which a player still has to take and which an advancement has taken. The rolls of
+ * players who have left the roster are in it too: the client picks a player's own by `playerId`. A read
+ * takes no lock. To anybody else the team is not there.
  */
 import { DICE_PURPOSES } from "../../src/domain/roster/dice.mjs";
 import { publicRoll, rollForPlayer, teamRolls } from "../api/dice-rolls.mjs";

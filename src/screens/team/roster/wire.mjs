@@ -10,7 +10,7 @@
  * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save», and
  * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done», its roll's
  * way, «Roll …», faces, characteristics, attempts, «Take a skill in place…» and «Record this roll…», a god's bonus skill
- * and «Add …» on done, and «Undo the last: …» with its sheet's «Keep» and «Undo the advancement»; the edit's line to
+ * and «Add …» on done, and «Undo the last: …» with its sheet's «Keep» and «Undo advancement»; the edit's line to
  * the fix by hand, its counters' − and +, its injuries' points, favoured skills and skills to take off, «Cancel» and
  * «Save» (stage 07d).
  * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs); this
@@ -94,7 +94,7 @@ function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused
 /**
  * A player's own presses (stage 07d): his pencil (not when closed), the edit's number and name as they are typed — the
  * screen is patched, so the field keeps its focus and its caret — and its «Cancel» and «Save»; «Undo the last: …» (not
- * when closed) and its sheet's «Keep» and «Undo the advancement». The switch «Team captain» is heard with the roster's
+ * when closed) and its sheet's «Keep» and «Undo advancement». The switch «Team captain» is heard with the roster's
  * other switch (`wireRoster`); the SPP tiles of a desk's edit are the roster's counters, whose − and +
  * `wireActionSteppers` hears.
  */
@@ -246,7 +246,7 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {() => void} handlers.onFavouredAdd «Add …» under done (not when it is closed)
  * @param {(key: string, button: Element) => void} handlers.onUnadvance «Undo the last: …», by the line's key (not when it is closed)
  * @param {() => void} handlers.onUnadvanceKeep «Keep» in the undo's sheet
- * @param {() => void} handlers.onUnadvanceSend «Undo the advancement» in the undo's sheet
+ * @param {() => void} handlers.onUnadvanceSend «Undo advancement» in the undo's sheet
  * @param {(key: string, button: Element) => void} handlers.onFixOpen the edit's line to the fix by hand, by the line's key (not when it is closed)
  * @param {(step: {key: string, delta: 1|-1}) => void} handlers.onFixStep a counter's − or + in the fix (not a refused +)
  * @param {(stat: string) => void} handlers.onFixLasting «Take one off» of a lasting injury

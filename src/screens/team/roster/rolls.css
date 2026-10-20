@@ -206,8 +206,6 @@
   font-weight: 700;
 }
 
-/* The D8's table in a line: advance.css's hint (13px/1.45, quiet), whose rule it shares. */
-
 /* «Take a skill in place of the characteristic»: from 48px, 8 14, 12 round, on a ring; the bold line, the quiet one under it. */
 #player-advance .g-advance__instead {
   box-sizing: border-box;

@@ -164,7 +164,7 @@ function undoneWords(last) {
  * The undo of his last advancement (decision 18; no prototype — PlayerDeadConfirm.html's question and two buttons, the
  * lines of 07c's sale): «Undo the advancement?» over «name · advancement N of 6»; what it gave — the skill or «MA +1»,
  * its type, how it was rolled — the SPP that come back and what his value loses; what becomes of it (`undoneWords`);
- * during a preparation what a save resets (R12), and the last refusal. «Keep», and «Undo the advancement» — the main
+ * during a preparation what a save resets (R12), and the last refusal. «Keep», and «Undo advancement» — the main
  * button, never the red one: an undo loses nothing an advancement cannot take again; closed (`reason`), it says why.
  *
  * @param {object} props

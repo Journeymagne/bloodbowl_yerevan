@@ -84,8 +84,10 @@ export function publicRoll(row) {
 }
 
 /**
- * Every roll of a team as it is kept, in the order they were rolled: the used ones, which an advancement
- * took, and the waiting, which none has. A read, with no lock; the caller answers each row through `publicRoll`.
+ * Every roll of a team as it is kept, in the order they were rolled (their `created_at`, then the lower id —
+ * never the table's own order): the used ones, which an advancement took, and the waiting, which none has.
+ * Those of players no longer on the roster too — a roll goes with its team, not its player — so a client
+ * picks a player's own by `player_id`. A read, with no lock; the caller answers each row through `publicRoll`.
  *
  * @param {{query: Function}} db a pg pool, or the client of a transaction
  * @param {string} teamId a team the caller has already found for the one who asks (`teamForUser`)
