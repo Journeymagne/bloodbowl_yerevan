@@ -1,7 +1,10 @@
 /**
  * A player's career on a phone's profile (owner, 2026-10-20; PlayerCareer.html): the totals from the roster's line, and
  * the matches as GET …/players/:pid/history tells them — read for the player, and again when the server has moved on;
- * nothing is written.
+ * nothing is written. A desk's roster panel draws it too, in a form of its own (stage 07e, DeskRosterCareer.html): the
+ * last block, under the pair of actions, «by match» beside the word and no totals (the table carries TD to MVP); its
+ * list is the rows alone, each with «waits for the post-match» before its SPP. It is read only while its list is open,
+ * for the player in the panel (decision 3): the coach goes through the players with clicks.
  *
  * The block stands right after «Skills»: a heading whose button opens the list and closes it (`aria-expanded`; it names
  * the list only while the list is there, K14), «N SPP · by match» beside the word, and under it, open or not, the
@@ -209,17 +212,19 @@ function totalsMarkup(line, career) {
 }
 
 /**
- * A row: its title and result over what the player did, its SPP at the right, over «waits for the post-match» when it
- * does. The SPP from before the site's records has no match to say anything of: its title alone.
+ * A row: its title and result over what the player did, its SPP at the right with «waits for the post-match» when it
+ * does — under the SPP on a phone (PlayerCareer.html), before it on a desk (DeskRosterCareer.html). The SPP from before
+ * the site's records has no match to say anything of: its title alone.
  */
-function rowMarkup(row) {
+function rowMarkup(row, desk) {
   const result = row.outcome
     ? `<span class="g-career__result g-career__result--${escapeHtml(row.outcome)}">${escapeHtml(row.result)}</span>` : "";
   const plate = row.pending ? `<span class="g-career__pending">${escapeHtml(t("teamPlayer.career.pending"))}</span>` : "";
+  const spp = `<b class="${classNames("g-career__spp", (row.quiet || row.spp === "—") && "g-career__quiet")}">${escapeHtml(row.spp)}</b>`;
   return `<li class="g-career__row"><span class="g-career__main"><span class="g-career__line">`
     + `<b class="g-career__name">${escapeHtml(row.title)}</b>${result}</span>`
     + `${row.events ? `<span class="${classNames("g-career__events", row.quiet && "g-career__quiet")}">${escapeHtml(row.events)}</span>` : ""}</span>`
-    + `<span class="g-career__side"><b class="${classNames("g-career__spp", (row.quiet || row.spp === "—") && "g-career__quiet")}">${escapeHtml(row.spp)}</b>${plate}</span></li>`;
+    + `<span class="g-career__side">${desk ? `${plate}${spp}` : `${spp}${plate}`}</span></li>`;
 }
 
 /**
@@ -227,9 +232,10 @@ function rowMarkup(row) {
  * a career the toggle let go is read on this draw), why the last read failed, «No matches yet» or the head and the rows
  * of the last answer — a read asked again leaves them as they stand — either with the footnote (ruling on I1: it says
  * why the matches before the site's records are not there). The rows never fall short of the SPP of the read's moment.
- * @param {object} race @param {CareerRead|null} career
+ * A desk's is its rows alone (DeskRosterCareer.html): no head, no footnote.
+ * @param {object} race @param {CareerRead|null} career @param {boolean} desk
  */
-function listMarkup(race, career) {
+function listMarkup(race, career, desk) {
   const state = (words, { role = "", bad = false } = {}) => `<p class="${classNames("g-career__state", bad && "g-career__state--bad")}"`
     + `${role ? ` role="${role}"` : ""}>${escapeHtml(words)}</p>`;
   let body;
@@ -238,27 +244,33 @@ function listMarkup(race, career) {
   else {
     const rows = careerRows(career.history, race, { earned: career.basis });
     const count = rows.filter((row) => row.key !== OUTSIDE && row.key !== BEFORE).length;
-    body = (!rows.length ? state(t("teamPlayer.career.none"))
-      : `<div class="g-career__listhead"><span>${escapeHtml(t("teamPlayer.career.listHead", { count }))}</span><span>${escapeHtml(t("teamPlayer.career.sppHead"))}</span></div>`
-        + `<ul class="g-career__rows">${rows.map(rowMarkup).join("")}</ul>`) + `<p class="g-career__note">${escapeHtml(t("teamPlayer.career.note"))}</p>`;
+    const head = desk ? ""
+      : `<div class="g-career__listhead"><span>${escapeHtml(t("teamPlayer.career.listHead", { count }))}</span><span>${escapeHtml(t("teamPlayer.career.sppHead"))}</span></div>`;
+    body = !rows.length ? state(t("teamPlayer.career.none")) : `${head}<ul class="g-career__rows">${rows.map((row) => rowMarkup(row, desk)).join("")}</ul>`;
+    if (!desk) body += `<p class="g-career__note">${escapeHtml(t("teamPlayer.career.note"))}</p>`;
   }
   return `<div id="${LIST}" class="g-career__list">${body}</div>`;
 }
 
 /**
- * «Career» on a phone's profile (PlayerCareer.html): the heading's button with «N SPP · by match» (the line's SPP now)
- * and the chevron, which names the player it is his for, the totals, and the list while it is open.
+ * «Career»: the heading's button — which names the player it is his for — and the chevron, then the list while it is
+ * open. On a phone's profile (PlayerCareer.html) the button says «N SPP · by match» (the line's SPP now) and the
+ * totals stand under it; in a desk's panel (`desk`, DeskRosterCareer.html) it says «by match», and there are no totals:
+ * the table beside it carries TD to MVP. `heading` is the button's heading: «Skills»'s level where the block stands.
  *
- * @param {{line: import("./model.mjs").PlayerLine, race: object, career: CareerRead|null, open: boolean}} props `career`
- *   the visit's read of his
+ * @param {{line: import("./model.mjs").PlayerLine, race: object, career: CareerRead|null, open: boolean, desk?: boolean,
+ *   heading?: "h2"|"h3"}} props `career` the visit's read of his
  * @returns {string}
  */
-export function careerMarkup({ line, race, career, open }) {
-  const toggle = `<h2 class="g-career__head"><button type="button" class="g-career__toggle" aria-expanded="${open ? "true" : "false"}"`
+export function careerMarkup({ line, race, career, open, desk = false, heading = "h2" }) {
+  const tag = heading === "h3" ? "h3" : "h2";
+  const sub = desk ? t("teamPlayer.career.byMatch") : t("teamPlayer.career.sub", { spp: line.earned });
+  const toggle = `<${tag} class="g-career__head"><button type="button" class="g-career__toggle" aria-expanded="${open ? "true" : "false"}"`
     + `${open ? ` aria-controls="${LIST}"` : ""}${dataAttributes({ playerCareer: line.id ?? "" })}><span class="g-career__titles">`
     + `<span class="g-career__title">${escapeHtml(t("teamPlayer.career.title"))}</span>`
-    + `<span class="g-career__sub">${escapeHtml(t("teamPlayer.career.sub", { spp: line.earned }))}</span></span>${icon("chevron", 18)}</button></h2>`;
-  return `<section class="g-career">${toggle}${totalsMarkup(line, career)}${open ? listMarkup(race, career) : ""}</section>`;
+    + `<span class="g-career__sub">${escapeHtml(sub)}</span></span>${icon("chevron", 18)}</button></${tag}>`;
+  const totals = desk ? "" : totalsMarkup(line, career);
+  return `<section class="${classNames("g-career", desk && "g-career--desk")}">${toggle}${totals}${open ? listMarkup(race, career, desk) : ""}</section>`;
 }
 
 /**

@@ -478,13 +478,15 @@ function skillsMarkup(line) {
 /**
  * The panel beside the table on a desk (DeskRoster.html, DeskRosterLive.html): the player the coach chose, or the
  * table's first — his head, his characteristics, in a match the counters, his SPP, his skills and his injuries (a line
- * DeskRoster.html has not, stage 07d), then the next match with the pair of actions under a rule. Stage 07e's «Career»
- * goes under them (DeskRosterCareer.html); a phone's profile draws its own (career.mjs), the desk's nothing until then.
+ * DeskRoster.html has not, stage 07d), then the next match with the pair of actions under a rule, and last his «Career»
+ * under another (stage 07e, DeskRosterCareer.html: the desk's form of career.mjs's block, which the caller draws).
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./view.mjs").RosterScreen} screen
+ * @param {{careerHtml?: string}} [options] `careerHtml` is markup of career.mjs's `careerMarkup()`, "" for a player no
+ *   read can name
  */
-export function sidePanelMarkup(line, screen) {
+export function sidePanelMarkup(line, screen, { careerHtml = "" } = {}) {
   return `${headMarkup(line, screen)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, screen)}${skillsMarkup(line)}`
-    + `<section class="g-roster__nextblock">${nextMatchMarkup(line, screen)}${actionsMarkup(line, screen)}</section>`;
+    + `<section class="g-roster__nextblock">${nextMatchMarkup(line, screen)}${actionsMarkup(line, screen)}</section>${careerHtml}`;
 }

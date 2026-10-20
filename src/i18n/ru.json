@@ -1456,6 +1456,7 @@
   "teamPlayer.roll.one": "Выпало: {skill}",
   "teamPlayer.career.title": "Карьера",
   "teamPlayer.career.sub": "{spp} SPP · по матчам",
+  "teamPlayer.career.byMatch": "по матчам",
   "teamPlayer.career.gp": "GP",
   "teamPlayer.career.listHead": "Все матчи · {count}",
   "teamPlayer.career.sppHead": "SPP",

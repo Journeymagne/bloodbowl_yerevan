@@ -8,6 +8,7 @@ import { withWindow } from "./helpers/ref-screen.mjs";
 import {
   LIVE_GAME, PLAYERS, STYLES, api, callKeys, coach, playerPage, releaseCurrentScreen, renderTeamRoster, save, settle, state, text, view, withPlayers,
 } from "./helpers/roster-page.mjs";
+import { CADE, FRIENDLY, HISTORY, ROUND_1, ROUND_2, ROUND_3, ROWS, TAPS, coachCade, counters, human, match, rowWordsIn, withCade } from "./helpers/career.mjs";
 
 const { askCareer, careerRows, gamesPlayed } = await import("../src/screens/team/roster/career.mjs");
 const { EXTRA_COUNTERS, MAIN_COUNTERS } = await import("../src/screens/team/roster/model.mjs");
@@ -15,7 +16,7 @@ const { EXTRA_COUNTERS, MAIN_COUNTERS } = await import("../src/screens/team/rost
 // Stage 07d, owner's review (2026-10-20), Task 24: a player's career on a phone's profile, right after «Skills»
 // (PlayerCareer.html). The totals stand from the roster's line at once; GP and the matches are read once a visit from
 // GET /api/teams/:id/players/:pid/history, and drawn on a press of the heading's button, newest first, the edits outside
-// a match last. A desk's career is stage 07e's (DeskRosterCareer.html); so is a fallen player's.
+// a match last. A desk's career is test/team-roster-career.test.mjs's (stage 07e, DeskRosterCareer.html).
 // Stage 07e: the reads are the player's, and made again when the server has moved on — a match ended or begun, a save
 // landed, a tap heard (decision 5); the rows read before stand until the new answer.
 
@@ -32,54 +33,7 @@ const careerToggle = () => view.querySelector("[data-player-career]");
 const list = () => view.querySelector("#player-career-list");
 const press = () => fireEvent(careerToggle(), "click");
 const totals = () => career().querySelectorAll(".g-career__total").map((cell) => [cell.querySelector("dt").textContent, cell.querySelector("dd").textContent]);
-const rowWords = () => list().querySelectorAll(".g-career__row").map((row) => [
-  row.querySelector(".g-career__name").textContent,
-  row.querySelector(".g-career__result")?.textContent ?? "",
-  row.querySelector(".g-career__events")?.textContent ?? "",
-  row.querySelector(".g-career__spp").textContent,
-  row.querySelector(".g-career__pending")?.textContent ?? "",
-]);
-
-/** Every counter of a roster's, nought unless said. */
-const counters = (over = {}) => ({ touchdowns: 0, casualties: 0, knockouts: 0, completions: 0, catches: 0, interceptions: 0, throws: 0, landings: 0, bonus: 0, mvps: 0, ...over });
-/** A row of the history as the server sends it: what the player did, and what the match was from the team's side. */
-const match = (over = {}) => ({
-  pairingId: "g1", played: true, source: "applied", counters: counters(), injury: null, pending: false,
-  kind: "league", seasonId: "s1", roundNumber: 1, status: "confirmed", opponent: { teamId: "r1", name: "Grimtusk Raiders" }, score: { own: 2, opponent: 1 }, ...over,
-});
-const ROUND_1 = match({ counters: counters({ touchdowns: 2, mvps: 1 }) });
-const FRIENDLY = match({ pairingId: "g2", kind: "friendly", seasonId: null, roundNumber: null, played: null, source: "none", counters: null, opponent: { teamId: "r2", name: "Duskspire Knives" }, score: { own: 1, opponent: 1 } });
-const ROUND_2 = match({ pairingId: "g3", roundNumber: 2, played: false, opponent: { teamId: "r3", name: "Mirefen Rotters" }, score: { own: 0, opponent: 2 } });
-const ROUND_3 = match({
-  pairingId: "g4", roundNumber: 3, status: "in_progress", score: null, source: "events", pending: true, counters: counters({ touchdowns: 1, completions: 1 }),
-  opponent: { teamId: "r4", name: "Silverbrook Rangers" },
-});
-/** Oldest first, as the server sends them; one edit outside a match. */
-const HISTORY = { playerId: "p3", matches: [ROUND_1, FRIENDLY, ROUND_2, ROUND_3], outside: counters({ touchdowns: 1 }) };
-/**
- * Cade, a Catcher of the humans, as the history tells him (M3: the two agree): round 1's TD 2 and MVP and the edit
- * outside a match's TD 1 on the roster, and round 3's TD 1 and COMP 1 among the records not settled yet — the line
- * counts both (`careerCounters`): TD 4 · COMP 1 · MVP 1, 18 SPP, which the rows add up to (+4, +11, +3).
- */
-const CADE = { ...PLAYERS[2], spp: { touchdowns: 3, mvps: 1 } };
-const TAPS = [
-  { id: "e1", pairingId: "g4", playerId: "p3", counter: "touchdowns", delta: 1, injury: null, settledAt: null },
-  { id: "e2", pairingId: "g4", playerId: "p3", counter: "completions", delta: 1, injury: null, settledAt: null },
-];
-const withCade = (player = CADE) => withPlayers(PLAYERS.map((each) => (each.id === "p3" ? player : each)));
-/** The coach, his roster holding Cade as `player`, and the records `events` not settled. */
-function coachCade({ player = CADE, events = TAPS } = {}) {
-  coach({ teamAnswer: withCade(player) });
-  api.reply("GET /api/teams/t1/events", 200, { events, revision: 4 });
-}
-const human = () => state.data.teams.find((team) => team.slug === "teams/human");
-const ROWS = [
-  ["Round 3 · Silverbrook Rangers", "", "TD 1 · COMP 1", "+4", "waits for the post-match"],
-  ["Round 2 · Mirefen Rotters", "L 0–2", "missed the match", "—", ""],
-  ["Friendly · Duskspire Knives", "D 1–1", "no details", "—", ""],
-  ["Round 1 · Grimtusk Raiders", "W 2–1", "TD 2 · MVP", "+11", ""],
-  ["Edits outside a match", "", "TD 1", "+3", ""],
-];
+const rowWords = () => rowWordsIn(list());
 
 /** Cade's profile on a phone, the server holding `history` for him. */
 async function openCade(history = HISTORY, cade = {}) {
@@ -304,10 +258,10 @@ test("a phone's profile whose roster read failed reads no history; «Try again»
   });
 });
 
-test("the width crossing 900px: a desk reads nothing; the phone's profile reads once, and not again on the way back", async () => {
-  await withWindow({ phone: false }, async () => {
+test("the width crossing 900px: the phone's read stands for the desk's panel", async () => {
+  await withWindow({ phone: true }, async () => {
     const listeners = new Set();
-    const media = { matches: false, addEventListener: (type, listener) => listeners.add(listener), removeEventListener: (type, listener) => listeners.delete(listener) };
+    const media = { matches: true, addEventListener: (type, listener) => listeners.add(listener), removeEventListener: (type, listener) => listeners.delete(listener) };
     globalThis.matchMedia = (query) => (query === "(max-width: 900px)" ? media : { matches: false });
     const cross = async (phone) => {
       media.matches = phone;
@@ -318,28 +272,35 @@ test("the width crossing 900px: a desk reads nothing; the phone's profile reads 
     api.reply(HISTORY_READ, 200, { history: HISTORY });
     await playerPage("p3");
     await settle();
-    assert.ok(view.querySelector(".g-roster__aside") && !career(), "a desk: the roster with him in the panel");
-    assert.equal(callsTo(HISTORY_READ), 0);
-    await cross(true);
-    assert.ok(career());
+    assert.ok(career() && !career().classList.contains("g-career--desk"), "the phone's profile");
     assert.equal(callsTo(HISTORY_READ), 1);
     assert.deepEqual(totals()[0], ["GP", "1"]);
+    // A desk (stage 07e, DeskRosterCareer.html): the roster with him in the panel, his career closed; nothing read.
     await cross(false);
-    assert.ok(!career());
-    await cross(true);
+    assert.ok(view.querySelector(".g-roster__aside .g-career--desk"));
+    assert.equal(careerToggle().getAttribute("aria-expanded"), "false");
+    assert.equal(callsTo(HISTORY_READ), 1);
+    // Opened: the phone's read stands for it.
+    press();
+    assert.deepEqual(rowWords(), ROWS);
+    await settle();
     assert.equal(callsTo(HISTORY_READ), 1, "the visit's read stands");
+    await cross(true);
+    assert.equal(callsTo(HISTORY_READ), 1);
     assert.deepEqual(totals()[0], ["GP", "1"]);
+    assert.deepEqual(rowWords(), ROWS, "open on the phone too: one state of the visit's");
     api.assertAnswered();
   });
 });
 
-test("a desk draws no career and reads none; a fallen player's page neither", async () => {
-  // A desk: the address is the roster with him in the panel (stage 07e draws the desk's career, DeskRosterCareer.html).
+test("a desk draws its career closed and reads none; a fallen player's page none", async () => {
+  // A desk: the address is the roster with him in the panel, the desk's career closed under it (stage 07e, DeskRosterCareer.html).
   coachCade();
   await playerPage("p3");
   await settle();
   assert.ok(view.querySelector(".g-roster__aside"));
-  assert.ok(!career());
+  assert.ok(career().classList.contains("g-career--desk"));
+  assert.equal(careerToggle().getAttribute("aria-expanded"), "false");
   assert.equal(callsTo(HISTORY_READ), 0);
   api.assertAnswered();
   await withWindow({ phone: true }, async () => {

@@ -13,7 +13,7 @@
  * skill in place…» and «Record this roll…», a god's bonus skill
  * and «Add …» on done; the edit's line to the fix by hand, its counters' − and +, its injuries' points, favoured
  * skills and skills to take off, «Cancel» and «Save», and its «Undo the last: …» with its sheet's «Keep» and «Undo
- * advancement»; the button of a phone's «Career»; a desk's search as it is typed, its Esc, and its line to the reference
+ * advancement»; the button of a «Career», a phone's or a desk's; a desk's search as typed, its Esc, its line to the reference
  * (stage 07d).
  * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs, search.mjs); this
  * file only says who was pressed.
@@ -96,7 +96,7 @@ function wireMarket(root, { onHire, onHireStep, onHireKeep, onHireBuy, onRefused
 /**
  * A player's own presses (stage 07d): his pencil (not when closed), the edit's number and name as they are typed — the
  * screen is patched, so the field keeps its focus and its caret — and its «Cancel» and «Save»; his fix by hand's «Undo
- * the last: …» (not when closed) and its sheet's «Keep» and «Undo advancement»; the button of his profile's «Career»,
+ * the last: …» (not when closed) and its sheet's «Keep» and «Undo advancement»; the button of his «Career» (profile, panel),
  * which opens and closes its list. The switch «Team captain» is heard with the roster's other switch (`wireRoster`);
  * the SPP tiles of a desk's edit are the roster's counters, whose − and + `wireActionSteppers` hears.
  */

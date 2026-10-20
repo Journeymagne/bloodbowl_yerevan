@@ -110,7 +110,7 @@ function listen(target, type, listener) {
  * @property {boolean} titled his name has been drawn in his head, and has taken the focus (the player mode on a phone)
  * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d; a read on its way keeps the list before it)
  * @property {Map<string, import("./career.mjs").CareerRead>} careers the career by match of each player the visit read it for, by his stored id (career.mjs)
- * @property {boolean} careerOpen its list is open on his profile
+ * @property {boolean} careerOpen its list is open, on his profile and in a desk's panel alike (one state of the visit's)
  */
 
 /**

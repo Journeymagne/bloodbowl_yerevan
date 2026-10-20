@@ -1144,7 +1144,7 @@ test("a match on: a green banner with the round and the records, the switch and 
     assert.equal(block.querySelector(".g-roster__matchnote").textContent, "MVP — in the post-match. Advancement and sales — after it.");
     assert.equal(aside().querySelector(".g-roster__availn").textContent, "3", "SPP available at once");
     assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
-      "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
+      "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css", "src/screens/team/roster/career.css");
     api.assertAnswered();
   });
 });
@@ -1698,7 +1698,7 @@ const subLine = (key) => bodyOf(key).querySelector(".g-rtable__sub");
 const injuryRow = (injury, over = {}) => rowOf({ counter: "injury", injury, ...over });
 const INJURY_SHEETS = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css", "progress-dots.css",
   "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "sheet.css", "option-card.css", "filter-chips.css",
-  "src/screens/team/manage/strip.css"];
+  "src/screens/team/manage/strip.css", "src/screens/team/roster/career.css"];
 
 test("«Injury in the match…» opens a sheet of five injuries; a lasting one asks for the characteristic; «Record in the match» sends one injury row", async () => {
   await withoutTimers(async () => {
@@ -2345,7 +2345,7 @@ test("a player's and a skill's name are text", async () => {
 test("every class the screen draws is styled and nothing the CSP refuses is on it, on a phone and on a desk, with a sheet open", async () => {
   const sheets = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
     "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
-    "src/screens/team/manage/strip.css"];
+    "src/screens/team/manage/strip.css", "src/screens/team/roster/career.css"];
   for (const phone of [true, false]) {
     await withWindow({ phone }, async () => {
       coach();

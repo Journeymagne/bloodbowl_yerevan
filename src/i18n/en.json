@@ -1456,6 +1456,7 @@
   "teamPlayer.roll.one": "Rolled: {skill}",
   "teamPlayer.career.title": "Career",
   "teamPlayer.career.sub": "{spp} SPP · by match",
+  "teamPlayer.career.byMatch": "by match",
   "teamPlayer.career.gp": "GP",
   "teamPlayer.career.listHead": "All matches · {count}",
   "teamPlayer.career.sppHead": "SPP",
