@@ -1074,6 +1074,8 @@
   "teamOverview.ownSub": "{race} · #{place} · TV {value}",
   "teamOverview.opponentLater": "Opponent — after round {round}",
   "teamOverview.opponentPlace": "#{place}",
+  "teamOverview.boardTeam": "Team overview",
+  "teamOverview.boardRace": "The team's rules in the reference",
   "teamOverview.friendlies": "Friendlies",
   "teamOverview.notInSeason": "Not entered in the season",
   "teamOverview.notInSeasonSub": "Enter it in the Season section; the administrator confirms the entry.",

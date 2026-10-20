@@ -17,9 +17,9 @@
  *
  * It stands in a host of its own at the end of <body> (`mountSheetHost`), one for the page, wired once: the screens
  * under it patch their own markup, which would take a dialog standing in it away. The cross, the backdrop and Escape
- * close it with the focus back where it was; a link in it, a change of address (heard before the router draws, and
- * one away from the address it was opened on) and any change of session close it with the screen under it about to be
- * drawn again, or just drawn, whose title then takes the focus.
+ * close it with the focus back where it was; a link in it, a change of address (one away from the address it was
+ * opened on: the router, which hears the same hashchange first, may have just opened it there) and any change of
+ * session close it with the screen under it about to be drawn again, or just drawn, whose title then takes the focus.
  */
 import { delegate, escapeHtml, focusLost } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -195,12 +195,12 @@ function wire(root) {
     if (!opensElsewhere(event)) close();
   });
   wireSheets(root, { onClose: () => close({ focus: true }), onBack: () => goBack() });
-  // With capture: heard before the router (src/app.js), which listens on the same target without it, so the sheet is gone
-  // when the next screen is drawn and gives its title the focus. The address it was opened on leaves it (a router that
-  // hears first, where capture is not heard first, may have just opened it there).
+  // The router (src/app.js) hears the change first and may have drawn the next screen under the sheet, or opened the
+  // sheet there: the address it was opened on leaves it. A capture listener would not be heard first: on `window`,
+  // which is no node, a browser calls its listeners in the order they were added (Chrome, checked in 07d's final wave).
   globalThis.addEventListener?.("hashchange", () => {
     if (shown && location.hash !== shown.openedAt) closeUnder();
-  }, { capture: true });
+  });
   // Any change of session: the build may be gone with it, and the screen under the sheet is drawn again, by the router,
   // which hears it first. A sheet opened while the change is told (the router drew «My teams» for the same coach) was
   // opened for the coach told of.

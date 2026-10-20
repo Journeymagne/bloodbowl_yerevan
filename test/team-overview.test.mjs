@@ -5,7 +5,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
-import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale, setDictionaries } from "../src/core/i18n.mjs";
 import { renderCrest } from "../src/shell/crest.mjs";
@@ -357,7 +357,7 @@ test("the figures and the head's field as DeskOverview.html and Team.html draw t
   const css = "src/screens/team/overview.css";
   const own = (selector, property) => valuesOf(css, selector, property);
   const bare = text(css).replace(/\/\*[\s\S]*?\*\//g, "");
-  const desk = bare.slice(bare.indexOf("@media (min-width: 901px)"));
+  const desk = mediaText(css, "min-width: 901px");
   // A desk's cards: white in the ring, 14 16 in; the figure Oswald 34 at the font's own line height, the place's second part 20px.
   assert.deepEqual(own(".g-overview .g-kpi", "box-shadow"), ["var(--ring)"]);
   assert.deepEqual(own(".g-overview .g-kpi", "background"), ["var(--surface)"]);
@@ -368,7 +368,8 @@ test("the figures and the head's field as DeskOverview.html and Team.html draw t
   assert.deepEqual(own(".g-overview .g-kpi__v", "line-height"), ["normal"]);
   assert.deepEqual(own(".g-overview .g-kpi__k", "line-height"), ["normal"]);
   assert.deepEqual(own(".g-overview .g-kpi", "gap"), ["0"]);
-  assert.ok(bare.indexOf(".g-overview .g-kpi { gap: 0; }") < bare.indexOf("@media"), "for both widths");
+  const gapless = ".g-overview .g-kpi { gap: 0; }";
+  assert.ok(bare.includes(gapless) && !["max-width: 900px", "min-width: 901px"].some((query) => mediaText(css, query).includes(gapless)), "for both widths");
   assert.deepEqual(own(".g-overview .g-kpi:first-child .g-kpi__rest", "font-size"), ["20px"], "«/ 10» is 20px, «· 4/1/1» the tile's 22px");
   assert.match(desk, /\.g-overview \.g-kpi:first-child \.g-kpi__rest \{ font-size: 20px; \}/);
   // A phone's tile (Team.html) is kpi-tile.css's: --surface-2, 14 round, 12 14 in, two columns 8 apart, Oswald 700 30px.
@@ -423,7 +424,9 @@ test("on a desk the board draws the league's crest by our name, the opponent's i
   const model = overviewModel(input("t1"));
   assert.equal(model.board.own.crestHtml, renderCrest({ size: "md" }));
   // The opponent's name leads to the team's page (DeskOverview.html, L7), the race to its rules in the reference.
-  assert.deepEqual(model.board.opponent, { name: "Rival Team", href: "#/coaches/u-r1/teams/r1", sub: "#1", initial: "R", race: { title: "Dwarf", href: "#/teams/dwarf" } });
+  // Each with the prototype's tooltip: «Обзор команды», «Правила команды в справочнике».
+  assert.deepEqual(model.board.opponent, { name: "Rival Team", href: "#/coaches/u-r1/teams/r1", hint: "Team overview", sub: "#1", initial: "R",
+    race: { title: "Dwarf", href: "#/teams/dwarf", hint: "The team's rules in the reference" } });
   const fragment = mount(overviewMarkup(model));
   const [ours, theirs] = fragment.querySelectorAll(".g-board__side");
   assert.ok(ours.querySelector(".g-board__crest svg.g-crest--md"));
@@ -431,11 +434,15 @@ test("on a desk the board draws the league's crest by our name, the opponent's i
   assert.equal(theirs.querySelector(".g-board__initial").textContent, "R");
   assert.equal(theirs.querySelector('a.g-board__name[href="#/coaches/u-r1/teams/r1"]').textContent, "Rival Team");
   assert.equal(theirs.querySelector('a.g-board__race[href="#/teams/dwarf"]').textContent, "Dwarf");
+  assert.deepEqual([theirs.querySelector("a.g-board__name").getAttribute("title"), theirs.querySelector("a.g-board__race").getAttribute("title")],
+    ["Team overview", "The team's rules in the reference"]);
   assert.equal(theirs.querySelector(".g-board__sub").textContent, "Dwarf · #1");
   // In Russian the place is «1-е», as the prototype's «5-е».
   initLocale("ru");
   try {
     assert.equal(overviewModel(input("t1")).board.opponent.sub, "1-е");
+    const { hint, race } = overviewModel(input("t1")).board.opponent;
+    assert.deepEqual([hint, race.hint], ["Обзор команды", "Правила команды в справочнике"], "DeskOverview.html's own words");
     assert.equal(overviewModel(input("t1", { phone: true })).board.opponent.sub, "Dwarf · 1-е", "the race is the reference's word: the test reads the English one");
   } finally {
     initLocale("en");
@@ -476,10 +483,10 @@ test("a phone's board draws neither the crest nor the initial, and the race as t
   assert.equal(model.board.own.crestHtml, undefined);
   assert.deepEqual(model.board.opponent, { name: "Rival Team", sub: "Dwarf · #1" });
   const fragment = mount(overviewMarkup(model));
-  for (const selector of [".g-board__crest", ".g-board__initial", ".g-board__texts", ".g-board a"]) {
-    if (selector === ".g-board a") assert.ok(fragment.querySelectorAll(selector).every((link) => link.closest(".g-board__actions")), "the only links are the actions");
-    else assert.equal(fragment.querySelector(selector), null, selector);
-  }
+  assert.equal(fragment.querySelector(".g-board__crest"), null);
+  assert.equal(fragment.querySelector(".g-board__initial"), null);
+  assert.equal(fragment.querySelector(".g-board__texts"), null);
+  assert.ok(fragment.querySelectorAll(".g-board a").every((link) => link.closest(".g-board__actions")), "the only links are the actions");
   assert.equal(fragment.querySelector(".g-board__side--away .g-board__sub").textContent, "Dwarf · #1");
   assert.equal(fragment.querySelector(".g-board__side--away .g-board__name").tagName, "SPAN");
 });
@@ -584,10 +591,9 @@ const classesOf = (node) => node.childNodes.filter((child) => child.nodeType ===
 const LISTS_CSS = "src/screens/team/overview-lists.css";
 /** A sheet without its comments. */
 const bareOf = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
-/** What a sheet says from 901px: everything from its desk's query on. */
-const deskOf = (file) => bareOf(file).slice(bareOf(file).indexOf("@media (min-width: 901px)"));
-/** What a sheet says up to 900px: its phone's query, up to the desk's. */
-const phoneOf = (file) => bareOf(file).slice(bareOf(file).indexOf("@media (max-width: 900px)"), bareOf(file).indexOf("@media (min-width: 901px)"));
+/** What a sheet says from 901px, and up to 900px: its rules inside the query of the width. */
+const deskOf = (file) => mediaText(file, "min-width: 901px");
+const phoneOf = (file) => mediaText(file, "max-width: 900px");
 /** The body of the first rule in `source` whose selector is `selector` alone, or ends a list with it; "" when there is none. */
 const ruleOf = (source, selector) => source.match(new RegExp(`(?:^|[{}\\s])${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[1] ?? "";
 
@@ -682,8 +688,7 @@ test("the blocks stand as DeskOverview orders them: the leaders and the results 
   assert.deepEqual(classesOf(phone.querySelector(".g-overview")), ["g-kpis", "g-overview__ready", "g-board", "g-overview__cols"]);
   assert.deepEqual(classesOf(phone.querySelector(".g-overview__main")), ["g-overview__leaders", "g-overview__results"]);
   assert.deepEqual(classesOf(phone.querySelector(".g-overview__aside")), ["g-overview__readylist"]);
-  const source = text(LISTS_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
-  assert.match(source.slice(source.indexOf("@media (max-width: 900px)"), source.indexOf("@media (min-width: 901px)")), /\.g-overview__aside \{ display: none; \}/);
+  assert.deepEqual(inMedia(LISTS_CSS, "max-width: 900px", ".g-overview__aside", "display"), ["none"]);
 });
 
 test("one column alone takes the row: no one ready leaves the left alone; no leader and no result leave the right alone", () => {
@@ -704,7 +709,7 @@ test("one column alone takes the row: no one ready leaves the left alone; no lea
   assert.deepEqual(classesOf(resultsOnly.querySelector(".g-overview__main")), ["g-overview__results"]);
   // The stylesheet: a row that wraps, each column growing from its basis, so one alone fills the row without a rule of its own.
   const source = text(LISTS_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const desk = source.slice(source.indexOf("@media (min-width: 901px)"));
+  const desk = mediaText(LISTS_CSS, "min-width: 901px");
   assert.match(desk, /\.g-overview__cols \{[^}]*flex-direction: row;[^}]*flex-wrap: wrap;[^}]*align-items: flex-start;/);
   assert.match(desk, /\.g-overview__main \{ flex: 2 1 560px; \}/);
   assert.match(desk, /\.g-overview__aside \{ flex: 1 1 300px; \}/);
@@ -1062,7 +1067,7 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
 test("the leaders and the columns as DeskOverview.html and Team.html draw them: styled; readable; D2; wrapping", () => {
   const own = (selector, property) => valuesOf(LISTS_CSS, selector, property);
   const bare = text(LISTS_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const desk = bare.slice(bare.indexOf("@media (min-width: 901px)"));
+  const desk = mediaText(LISTS_CSS, "min-width: 901px");
   assert.ok(text("src/styles.css").trim().endsWith('@import url("screens/team/overview-lists.css");'), "the sheet reaches the page, imported last");
   for (const phone of [false, true]) {
     assertStyled(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone })))), "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css",
@@ -1357,7 +1362,7 @@ test("one of the two is shown for the width: the card up to 900px, the list from
   // The card is what a thumb presses on a phone: its 76px is 44px and more; the button is on the desk's side of the line and is 24px and more.
   assert.ok(parseInt(own(".g-overview__ready", "min-height")[0], 10) >= 44);
   assert.ok(parseInt(own(".g-overview__advance", "min-height")[0], 10) >= 24);
-  assert.doesNotMatch(source.slice(source.indexOf("@media (max-width: 900px)"), source.indexOf("@media (min-width: 901px)")), /readylist|g-overview__advance|readyrow/, "nothing of the list is drawn on a phone");
+  assert.doesNotMatch(mediaText(READY_CSS, "max-width: 900px"), /readylist|g-overview__advance|readyrow/, "nothing of the list is drawn on a phone");
   // The list is a column of rows without the 2.x list's bullets and margins.
   assert.deepEqual(own(".g-overview__readyrows", "list-style"), ["none"]);
   assert.deepEqual(own(".g-overview__readyrows", "gap"), ["var(--space-6)"]);

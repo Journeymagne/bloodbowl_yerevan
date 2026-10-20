@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { assertContrast, assertReadable, blocks, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 import { renderCrest } from "../src/shell/crest.mjs";
@@ -481,7 +481,7 @@ const classAttr = (node) => node.getAttribute("class");
 test("the board can carry our crest, the opponent's initial, and the opponent's race as a link heading the line under the name; without them it is as it was", () => {
   const fragment = mount(renderMatchBoard({
     own: { ...own, crestHtml: renderCrest({ size: "md" }) },
-    opponent: { name: "Raiders", href: "#/coaches/u2/teams/r1", sub: "#1", initial: "R", race: { title: "Skaven", href: "#/teams/skaven" } },
+    opponent: { name: "Raiders", href: "#/coaches/u2/teams/r1", hint: "Team overview", sub: "#1", initial: "R", race: { title: "Skaven", href: "#/teams/skaven", hint: "Rules" } },
   }));
   const [ours, theirs] = fragment.querySelectorAll(".g-board__side");
   // Our side (DeskOverview.html): the crest, then the name and its line together.
@@ -495,11 +495,11 @@ test("the board can carry our crest, the opponent's initial, and the opponent's 
   assert.deepEqual(theirs.childNodes.map(classAttr), ["g-board__initial", "g-board__texts"]);
   assert.equal(theirs.querySelector(".g-board__initial").textContent, "R");
   const name = theirs.querySelector(".g-board__name");
-  assert.deepEqual([name.tagName, name.getAttribute("href"), name.textContent], ["A", "#/coaches/u2/teams/r1", "Raiders"]);
+  assert.deepEqual([name.tagName, name.getAttribute("href"), name.textContent, name.getAttribute("title")], ["A", "#/coaches/u2/teams/r1", "Raiders", "Team overview"]);
   const line = theirs.querySelector(".g-board__sub");
   assert.equal(classAttr(line), "g-board__sub g-board__sub--race");
   const race = line.childNodes[0];
-  assert.deepEqual([race.tagName, classAttr(race), race.getAttribute("href"), race.textContent], ["A", "g-board__race", "#/teams/skaven", "Skaven"]);
+  assert.deepEqual([race.tagName, classAttr(race), race.getAttribute("href"), race.textContent, race.getAttribute("title")], ["A", "g-board__race", "#/teams/skaven", "Skaven", "Rules"]);
   assert.ok(race.querySelector("svg.g-icon"), "the book before the race");
   assert.equal(line.textContent, "Skaven · #1");
   assertCspSafe(fragment);
@@ -507,14 +507,15 @@ test("the board can carry our crest, the opponent's initial, and the opponent's 
   // A race with nothing after it is the line alone; a race with no crest or letter needs no box around the texts.
   const raceOnly = mount(renderMatchBoard({ own, opponent: { name: "Raiders", race: { title: "Skaven", href: "#/teams/skaven" } } }));
   assert.equal(raceOnly.querySelector(".g-board__side--away .g-board__sub").textContent, "Skaven");
+  assert.equal(raceOnly.querySelector(".g-board__race").hasAttribute("title"), false, "a link with no hint has no tooltip");
   assert.equal(raceOnly.querySelector(".g-board__texts"), null);
   assert.equal(classAttr(raceOnly.querySelector(".g-board__side--away")), "g-board__side g-board__side--away");
-  // Without the new fields, the markup is as it was: the name and the line straight in the side, no box, no mark, no link.
-  const plain = mount(renderMatchBoard({ own, opponent: { name: "Raiders", sub: "Skaven · #1" } }));
-  assert.deepEqual(plain.querySelectorAll(".g-board__side").map((side) => side.childNodes.map(classAttr)), [["g-board__name", "g-board__sub"], ["g-board__name", "g-board__sub"]]);
-  assert.deepEqual(plain.querySelectorAll(".g-board__side").map(classAttr), ["g-board__side", "g-board__side g-board__side--away"]);
-  assert.equal(plain.querySelector("a"), null);
-  assert.equal(plain.querySelector(".g-board__sub").getAttribute("class"), "g-board__sub");
+  // Without the new fields, the markup is as it was before them (0c9255b), string for string: the name and the line straight
+  // in the side, no box, no mark, no link.
+  assert.equal(renderMatchBoard({ own, opponent: { name: "Raiders", sub: "Skaven · #1" } }), '<section class="g-board"><div class="g-board__main">'
+    + '<div class="g-board__side"><span class="g-board__name">Wardens</span><span class="g-board__sub">Human · #2</span></div>'
+    + '<div class="g-board__mid"><span class="g-board__score">–:–</span></div>'
+    + '<div class="g-board__side g-board__side--away"><span class="g-board__name">Raiders</span><span class="g-board__sub">Skaven · #1</span></div></div></section>');
   // An initial of nothing is no initial: the caller says what the circle holds.
   assert.equal(mount(renderMatchBoard({ own, opponent: { name: "Raiders", initial: "" } })).querySelector(".g-board__initial"), null);
 });
@@ -522,7 +523,7 @@ test("the board can carry our crest, the opponent's initial, and the opponent's 
 test("the initial is hidden from a screen reader; the race's title and the line are text", () => {
   const fragment = mount(renderMatchBoard({
     own: { name: HOSTILE, sub: HOSTILE, crestHtml: renderCrest() },
-    opponent: { name: HOSTILE, href: "#/coaches/u2/teams/r1", sub: HOSTILE, initial: HOSTILE, race: { title: HOSTILE, href: "#/teams/skaven" } },
+    opponent: { name: HOSTILE, href: "#/coaches/u2/teams/r1", hint: HOSTILE, sub: HOSTILE, initial: HOSTILE, race: { title: HOSTILE, href: "#/teams/skaven", hint: HOSTILE } },
   }));
   assert.equal(fragment.querySelector("img"), null);
   const initial = fragment.querySelector(".g-board__initial");
@@ -531,6 +532,7 @@ test("the initial is hidden from a screen reader; the race's title and the line 
   assert.equal(fragment.querySelector(".g-board__crest svg").getAttribute("aria-hidden"), "true");
   assert.equal(fragment.querySelector("a.g-board__name").textContent, HOSTILE);
   assert.equal(fragment.querySelector(".g-board__race").textContent, HOSTILE);
+  assert.deepEqual(fragment.querySelectorAll("a").map((link) => link.getAttribute("title")), [HOSTILE, HOSTILE], "a tooltip is text too");
   assert.equal(fragment.querySelector(".g-board__side--away .g-board__sub").textContent, `${HOSTILE} · ${HOSTILE}`);
   assertCspSafe(fragment);
   // A link the board cannot draw is refused, the name's as the race's.
@@ -540,24 +542,6 @@ test("the initial is hidden from a screen reader; the race's title and the line 
   assert.deepEqual(quoted.querySelectorAll("a").map((link) => link.getAttribute("href")), ['#/x"onmouseover="1', '#/y"onfocus="1']);
   assertCspSafe(quoted);
 });
-
-/** The values a sheet gives a property of one selector inside its `@media (query)` blocks, in file order. */
-function inMedia(file, query, selector, property) {
-  const css = readFileSync(new URL(`../${file}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  const declaration = new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g");
-  const values = [];
-  for (const media of css.matchAll(/@media\s*([^{]+)\{/g)) {
-    if (media[1].trim() !== `(${query})`) continue;
-    let depth = 1;
-    let at = media.index + media[0].length;
-    const start = at;
-    for (; depth; at += 1) depth += css[at] === "{" ? 1 : css[at] === "}" ? -1 : 0;
-    for (const block of blocks(css.slice(start, at - 1))) {
-      if (block.selectors.includes(selector)) values.push(...[...block.body.matchAll(declaration)].map(([, value]) => value.trim()));
-    }
-  }
-  return values;
-}
 
 test("styled; the crest and the initial are a desk's", () => {
   const desk = (selector, property) => inMedia(BOARD_CSS, "min-width: 901px", selector, property);
@@ -590,6 +574,12 @@ test("styled; the crest and the initial are a desk's", () => {
     assert.ok(onDesk.length === 1 && px(onDesk[0]) >= 24, `${selector}: ${onDesk}`);
     assert.deepEqual(valuesOf(BOARD_CSS, `${selector}:focus-visible`, "outline-color"), ["var(--header-ink)"], selector);
   }
+  // The race's 24px take no room from its line: −3px above and below keep the line about the prototype's 17.5px, as
+  // .g-profile__back does (T34 I1). The name's 32px clear 24 by themselves.
+  assert.deepEqual([desk(".g-board__race", "margin"), desk("a.g-board__name", "margin")], [["-3px 0"], []]);
+  // The state's chip as DeskOverview.html's from 901px: 24px high, 12px (the kit's 26 and 13); its 700 and its dots the kit's.
+  assert.deepEqual([desk(".g-board__mid .g-status", "height"), desk(".g-board__mid .g-status", "font-size")], [["24px"], ["12px"]]);
+  assert.deepEqual([desk(".g-board__mid .g-status", "font-weight"), desk(".g-board__mid .g-status::before", "background")], [[], []]);
   assert.deepEqual(valuesOf(BOARD_CSS, "a.g-board__name", "text-decoration"), ["none"], "the name is white, not underlined");
   for (const selector of [".g-board__name", ".g-board__race"]) assert.deepEqual(valuesOf(BOARD_CSS, selector, "overflow-wrap"), ["anywhere"], selector);
   assertReadable(BOARD_CSS, ".g-board__race", "color", ["--header"], 4.5);
@@ -656,8 +646,8 @@ test("a status on a phone fits the middle column: the chip is tightened so «п�
   // that was 137px in a 124px column (measured in Chrome at 375 and 320). The numbers below are what is left to fit it in: 95 + 8 + 4 + 2 × 6 = 119px.
   const chip = ".g-board__mid .g-status";
   assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__mid", "max-width"), ["124px"]);
-  assert.deepEqual([valuesOf(BOARD_CSS, chip, "font-size"), valuesOf(BOARD_CSS, chip, "gap"), valuesOf(BOARD_CSS, chip, "padding")],
-    [["12px"], ["var(--space-4)"], ["var(--space-4) var(--space-6)"]]);
+  const phone = (property) => inMedia(BOARD_CSS, "max-width: 900px", chip, property);
+  assert.deepEqual([phone("font-size"), phone("gap"), phone("padding")], [["12px"], ["var(--space-4)"], ["var(--space-4) var(--space-6)"]]);
   assert.deepEqual(valuesOf(BOARD_CSS, chip, "white-space"), ["normal"], "a longer status still wraps");
   const tokens = tokensOf("grass");
   assert.deepEqual([tokens["--space-4"], tokens["--space-6"]], ["4px", "6px"]);

@@ -21,7 +21,8 @@
  * (`initial`, hidden from a screen reader: the name beside it is read) at its
  * outer edge, with the name and its line boxed together beside it; a link on
  * the name (`href`); and a race (`race`) leading to its rules at the head of
- * the line, the rest of the line after « · ». A side given none of them is
+ * the line, the rest of the line after « · ». Each link may carry a tooltip
+ * (`hint`), the prototype's. A side given none of them is
  * drawn as before. The stylesheet shows the crest and the letter on a desk
  * only. What the board does not draw, though the prototype does: the
  * opponent's TV, the bubbles of inducements and of players who miss the match,
@@ -35,21 +36,22 @@ import { icon } from "./icons.mjs";
 import { assertLinkHref, classNames } from "./markup.mjs";
 import { resultLabels } from "./result-pill.mjs";
 
-/** A link the board draws: the address checked, then escaped. */
-function linkMarkup(className, href, inner) {
+/** A link the board draws: the address checked, then escaped; a tooltip (`hint`) is text. */
+function linkMarkup(className, href, inner, hint = "") {
   assertLinkHref(href);
-  return `<a class="${className}" href="${escapeHtml(href)}">${inner}</a>`;
+  const title = hint ? ` title="${escapeHtml(hint)}"` : "";
+  return `<a class="${className}" href="${escapeHtml(href)}"${title}>${inner}</a>`;
 }
 
 /** The team's name: a link to the team when there is an address for it. */
-function nameMarkup({ name, href }) {
-  return href ? linkMarkup("g-board__name", href, escapeHtml(name)) : `<span class="g-board__name">${escapeHtml(name)}</span>`;
+function nameMarkup({ name, href, hint }) {
+  return href ? linkMarkup("g-board__name", href, escapeHtml(name), hint) : `<span class="g-board__name">${escapeHtml(name)}</span>`;
 }
 
 /** The line under the name: the race leading to its rules, then « · » and the rest when there is any; the rest alone without a race. */
 function lineMarkup({ sub, race }) {
   if (!race) return sub ? `<span class="g-board__sub">${escapeHtml(sub)}</span>` : "";
-  const link = linkMarkup("g-board__race", race.href, `${icon("book", 12)}${escapeHtml(race.title)}`);
+  const link = linkMarkup("g-board__race", race.href, `${icon("book", 12)}${escapeHtml(race.title)}`, race.hint);
   return `<span class="g-board__sub g-board__sub--race">${link}${sub ? ` · ${escapeHtml(sub)}` : ""}</span>`;
 }
 
@@ -85,9 +87,9 @@ function renderSquare({ label, result, current }) {
  * @param {object} props
  * @param {string} [props.overline] the small line over the score: the round and where
  * @param {{name: string, sub?: string, crestHtml?: string}} props.own our team, at the left; `crestHtml`, `renderCrest`'s markup, by the name
- * @param {{name: string, sub?: string, href?: string, initial?: string, race?: {title: string, href: string}}|null} [props.opponent]
- *   theirs, at the right; none while there is no pairing. `href` makes the name a link, `initial` is the letter in the
- *   circle by it, `race` heads the line, before `sub`
+ * @param {{name: string, sub?: string, href?: string, hint?: string, initial?: string, race?: {title: string, href: string, hint?: string}}|null} [props.opponent]
+ *   theirs, at the right; none while there is no pairing. `href` makes the name a link, `hint` its tooltip, `initial` is
+ *   the letter in the circle by it, `race` heads the line, before `sub`
  * @param {string} [props.pendingText] in the opponent's place when there is none: when there will be
  * @param {string} [props.score] "2:1", between the names; the dash pair while there is none
  * @param {string} [props.statusHtml] a status chip, under the score

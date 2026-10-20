@@ -42,12 +42,40 @@ export function blocks(css) {
   }));
 }
 
-/** The values a stylesheet gives a property of one selector, in file order. */
-export function valuesOf(file, selector, property) {
+/** The values `css` gives a property of one selector, in its order. */
+function valuesIn(css, selector, property) {
   const declaration = new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g");
-  return blocks(read(file))
+  return blocks(css)
     .filter((block) => block.selectors.includes(selector))
     .flatMap((block) => [...block.body.matchAll(declaration)].map(([, value]) => value.trim()));
+}
+
+/** The values a stylesheet gives a property of one selector, in file order. */
+export function valuesOf(file, selector, property) {
+  return valuesIn(read(file), selector, property);
+}
+
+/**
+ * What a stylesheet says inside its `@media (query)` blocks (`query` without the brackets: "min-width: 901px"), in file
+ * order and without its comments, as one text: its rules for one width, whatever stands before or after them.
+ */
+export function mediaText(file, query) {
+  const css = read(file).replace(/\/\*[\s\S]*?\*\//g, "");
+  const inside = [];
+  for (const media of css.matchAll(/@media\s*([^{]+)\{/g)) {
+    if (media[1].trim() !== `(${query})`) continue;
+    const start = media.index + media[0].length;
+    let depth = 1;
+    let at = start;
+    for (; depth; at += 1) depth += css[at] === "{" ? 1 : css[at] === "}" ? -1 : 0;
+    inside.push(css.slice(start, at - 1));
+  }
+  return inside.join("\n");
+}
+
+/** The values a stylesheet gives a property of one selector inside its `@media (query)` blocks, in file order. */
+export function inMedia(file, query, selector, property) {
+  return valuesIn(mediaText(file, query), selector, property);
 }
 
 const customProperties = (body) => Object.fromEntries([...body.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map(([, name, value]) => [name, value.trim()]));

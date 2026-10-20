@@ -5,24 +5,18 @@ import test, { afterEach } from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 
-/*
- * Node has no window events: the builder and the sheet ask the page before a reload, the sheet hears the address change;
- * the test is the page. Nor has Node's EventTarget a browser's order at the target, where the listeners added with
- * `capture` are heard before the others (DOM): the page keeps them apart, and is told of a change of address in that order.
- */
+// Node has no window events: the builder and the sheet ask the page before a reload, the sheet hears the address change; the test is the page.
 const page = new EventTarget();
-const capturing = new EventTarget();
-const targetOf = (options) => (options === true || options?.capture ? capturing : page);
-globalThis.addEventListener = (type, listener, options) => targetOf(options).addEventListener(type, listener, options);
-globalThis.removeEventListener = (type, listener, options) => targetOf(options).removeEventListener(type, listener, options);
+globalThis.addEventListener = page.addEventListener.bind(page);
+globalThis.removeEventListener = page.removeEventListener.bind(page);
 
 /*
- * The router hears the address from the start (src/app.js), with no capture: on one hashchange the sheet, which listens
- * with it from its first opening on, is heard first. `routes` is what a test lets it draw: an address and the screen drawn
- * there. On a change of session the router is heard first (src/app.js listens from the start): `sessionRoute` is what it draws then.
+ * The router hears the address from the start (src/app.js), so on one hashchange it is heard before the sheet, which
+ * listens from its first opening on. `routes` is what a test lets it draw: an address and the screen drawn there. On a
+ * change of session too the router is heard first (src/app.js listens from the start): `sessionRoute` is what it draws then.
  */
 let routes = {};
 page.addEventListener("hashchange", () => routes[location.hash]?.());
@@ -40,11 +34,8 @@ function address(hash) {
   };
 }
 
-/** The page hears a change of address: the sheet first (it listens with capture), then the router. */
-const hashChanged = () => {
-  capturing.dispatchEvent(new Event("hashchange"));
-  page.dispatchEvent(new Event("hashchange"));
-};
+/** The page hears a change of address: the router first, then the sheet. */
+const hashChanged = () => page.dispatchEvent(new Event("hashchange"));
 function go(hash) {
   location.hash = hash;
   hashChanged();
@@ -373,7 +364,7 @@ test("#/teams/new with no build is «My teams» with the sheet open over it; wit
     "#/teams/new": () => { releaseCurrentScreen(); renderNewTeam(); },
     "#/teams": () => { releaseCurrentScreen(); renderTeams(); },
   };
-  // A sheet opened and closed before: its listener is on the page now, heard before the router's (L1).
+  // A sheet opened and closed before: its listener is on the page now, after the router's (L1).
   openNewTeamSheet(null);
   click(sheet().querySelector("[data-sheet-close]"));
   go("#/teams/new");
@@ -381,7 +372,7 @@ test("#/teams/new with no build is «My teams» with the sheet open over it; wit
   assert.equal(isOpen(), false, "nothing over the page before it is drawn");
   hashChanged();
   assert.equal(view.querySelector("h1").textContent, "My teams");
-  assert.ok(sheet()?.matches(":modal"), "the sheet is open over it: the sheet heard the change before the router drew «My teams» and opened it there, and it stays");
+  assert.ok(sheet()?.matches(":modal"), "the sheet is open over it: the router drew it before the sheet heard the same change, and it stays");
   assert.ok(document.activeElement === field());
   escape();
   assert.ok(document.activeElement === view.querySelector("[data-new-team]"), "closed, the focus is on the page's own way to a new team");
@@ -497,22 +488,24 @@ test("the cross, the backdrop and Escape close it with the focus back where it w
   assert.equal(isOpen(), false, "«Back» of the browser, or any other change of address");
 });
 
-// Final review m1: a screen the router draws while the modal sheet stands over the page cannot take the focus (it is inert).
-test("a change of address closes the sheet before the router draws the screen there, which can take the focus then", () => {
+/*
+ * Final review m1: the router draws the next screen under the sheet, which a modal dialog makes inert: the screen's title
+ * cannot take the focus then, and it stays in the sheet. As a browser has it, the routes here put it back there.
+ */
+test("a change of address drawn under the sheet first: the sheet goes, and the focus it held goes to the title of the screen drawn", () => {
   fillLegal();
   const overview = '<section><h1 tabindex="-1">Ashgrove Wardens</h1><button type="button" data-opener>Ashgrove Wardens</button></section>';
-  const drawn = [];
+  const inert = () => { if (isOpen()) field().focus(); };
   routes = {
     "#/t/t1": () => { releaseCurrentScreen(); view.innerHTML = overview; },
-    "#/teams/new": () => { drawn.push(isOpen()); releaseCurrentScreen(); renderNewTeam(); },
+    "#/teams/new": () => { releaseCurrentScreen(); renderNewTeam(); inert(); },
   };
   go("#/t/t1");
   openNewTeamSheet(view.querySelector("[data-opener]"));
-  // «Back» of the browser: the builder, which is drawn at once and gives its title the focus.
+  // «Back» of the browser: the builder, drawn at once, its title kept from the focus while the sheet stands.
   go("#/teams/new");
-  assert.deepEqual(drawn, [false], "the sheet was gone when the builder was drawn");
   assert.equal(isOpen(), false);
-  assert.ok(document.activeElement === view.querySelector("h1") && view.querySelector("h1").textContent === "Iron Rooks");
+  assert.ok(document.activeElement === view.querySelector("h1") && view.querySelector("h1").textContent === "Iron Rooks", "the builder's title");
   routes = {};
 });
 
@@ -1487,15 +1480,6 @@ function fillRest() {
 // The markup and the look
 // ---------------------------------------------------------------------------
 
-/** The values a property of one selector has inside the blocks of one media query (the file's media blocks stand at its end). */
-function inMedia(css, query, selector, property) {
-  const declaration = new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g");
-  return css.split("@media").filter((chunk) => chunk.trimStart().startsWith(`(${query})`))
-    .flatMap((chunk) => [...chunk.matchAll(/([^{}]+)\{([^{}]*)\}/g)])
-    .filter(([, selectors]) => selectors.split(",").map((part) => part.trim().replace(/\s+/g, " ")).includes(selector))
-    .flatMap(([, , body]) => [...body.matchAll(declaration)].map(([, value]) => value.trim()));
-}
-
 test("the look: TeamNew's and DeskTeamNew's values; D2; readable; no inline widths; breakpoints only 900/901", () => {
   const css = readFileSync(new URL(`../${NEW_CSS}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(css, /\bstyle\s*=/);
@@ -1516,7 +1500,7 @@ test("the look: TeamNew's and DeskTeamNew's values; D2; readable; no inline widt
   assert.deepEqual([valuesOf(NEW_CSS, ".g-new-sheet .g-field__input", "background"), valuesOf(NEW_CSS, ".g-new-sheet .g-field__input", "box-shadow")], [["var(--surface-2)"], ["none"]]);
   assert.deepEqual([valuesOf("src/ui/text-field.css", ".g-field__input", "height"), valuesOf("src/ui/text-field.css", ".g-field__input", "border-radius")], [["48px"], ["var(--radius-lg)"]]);
   // A phone (TeamNew): the body 12 16, 14 apart; no foot-start (its way back is the head's «‹»); «Create» 52px, the whole width.
-  const phone = (selector, property) => inMedia(css, "max-width: 900px", selector, property);
+  const phone = (selector, property) => inMedia(NEW_CSS, "max-width: 900px", selector, property);
   assert.deepEqual([phone(".g-new-sheet .g-sheet__body", "gap"), phone(".g-new-sheet .g-sheet__body", "padding")], [["var(--space-14)"], ["var(--space-12) var(--space-16)"]]);
   assert.deepEqual(phone(".g-new-sheet .g-sheet__foot-start", "display"), ["none"]);
   assert.deepEqual([phone(".g-new-sheet .g-sheet__foot .g-btn--primary", "height"), phone(".g-new-sheet .g-sheet__foot .g-btn--primary", "width")], [["52px"], ["100%"]]);
@@ -1525,7 +1509,7 @@ test("the look: TeamNew's and DeskTeamNew's values; D2; readable; no inline widt
   // Both widths: the season's line 2px under the title, as both prototypes draw it.
   assert.deepEqual(["display", "flex-direction", "gap"].map((property) => valuesOf(NEW_CSS, ".g-new-sheet .g-sheet__titles", property)), [["flex"], ["column"], ["2px"]]);
   // A desk (DeskTeamNew): a window of 760px, 64px from the top, 20px round; the head 20 24, the title 28px/1 over a 14px line.
-  const desk = (selector, property) => inMedia(css, "min-width: 901px", selector, property);
+  const desk = (selector, property) => inMedia(NEW_CSS, "min-width: 901px", selector, property);
   assert.deepEqual(["width", "margin", "border-radius", "max-height"].map((property) => desk("dialog.g-sheet.g-new-sheet", property)),
     [["min(760px, calc(100% - 32px))"], ["64px auto auto"], ["20px"], ["min(86dvh, calc(100dvh - 96px))"]]);
   assert.deepEqual([phone(".g-new-sheet .g-sheet__titles", "gap"), desk(".g-new-sheet .g-sheet__titles", "gap")], [[], []], "one rule for both widths");

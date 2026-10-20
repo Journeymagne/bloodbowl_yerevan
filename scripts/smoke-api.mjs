@@ -79,12 +79,12 @@ const saveBody = (team, draft) => ({ name: team.name, baseTeamSlug: team.baseTea
 
 /**
  * A team's PATCH body as its settings send it (`saveTeamRoster` with an identity, src/data/treasury.mjs): `saveBody`'s,
- * with the name, race and logo the team has unless `identity` names others, and its roster as it stands, under that
- * name and race.
+ * with the name and logo the team has unless `identity` names others, and its roster as it stands, under that name and
+ * the team's own race (the settings change no race).
  */
 function settingsBody(team, identity = {}) {
-  const { name = team.name, baseTeamSlug = team.baseTeamSlug, logoData = team.logoData ?? null } = identity;
-  return { ...saveBody({ ...team, name, baseTeamSlug }, { ...normalizeDraft(team.roster), teamSlug: baseTeamSlug, teamName: name }), logoData };
+  const { name = team.name, logoData = team.logoData ?? null } = identity;
+  return { ...saveBody({ ...team, name }, { ...normalizeDraft(team.roster), teamSlug: team.baseTeamSlug, teamName: name }), logoData };
 }
 
 // One transparent pixel: a logo for the rename to keep.

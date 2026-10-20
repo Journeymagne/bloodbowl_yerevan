@@ -112,7 +112,8 @@ function opponentOf(rival, seasonData, phone) {
   const place = rank ? t("teamOverview.opponentPlace", { place: rank }) : "";
   if (phone) return { name, sub: [race?.title, place].filter(Boolean).join(" · ") };
   const href = rival.user?.id && rival.team?.id ? playerTeamUrl(rival.user.id, rival.team.id) : undefined;
-  return { name, href, sub: place, initial: initialOf(name), race: race ? { title: race.title, href: pageUrl(race) } : undefined };
+  const raceLink = race ? { title: race.title, href: pageUrl(race), hint: t("teamOverview.boardRace") } : undefined;
+  return { name, href, hint: t("teamOverview.boardTeam"), sub: place, initial: initialOf(name), race: raceLink };
 }
 
 /**

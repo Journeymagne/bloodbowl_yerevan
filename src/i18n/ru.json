@@ -1074,6 +1074,8 @@
   "teamOverview.ownSub": "{race} · {place}-е · TV {value}",
   "teamOverview.opponentLater": "Соперник — после тура {round}",
   "teamOverview.opponentPlace": "{place}-е",
+  "teamOverview.boardTeam": "Обзор команды",
+  "teamOverview.boardRace": "Правила команды в справочнике",
   "teamOverview.friendlies": "Товарищеские матчи",
   "teamOverview.notInSeason": "Команда не заявлена в сезон",
   "teamOverview.notInSeasonSub": "Заявить её можно в разделе «Сезон» — администратор подтвердит заявку.",

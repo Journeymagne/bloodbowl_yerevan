@@ -329,6 +329,7 @@ a.g-board__name:focus-visible,
  * At 320px the sides are 62px wide, and a word of a team or a race (Grimtusk, Lizardmen) needs 68 at the sizes above, so it
  * broke in the middle. A narrower middle column would not hold «подтверждения» (see above); the names are one size smaller
  * and the gaps and the padding give the sides 68.
+ * The one breakpoint besides 900/901, kept on purpose: without it «Lizardmen» and «Necromantic» break mid-word at 320px.
  */
 @media (max-width: 359px) {
   .g-board__main {
@@ -389,8 +390,18 @@ a.g-board__name:focus-visible,
     letter-spacing: 0;
   }
 
-  a.g-board__name,
-  .g-board__race { min-height: 24px; }
+  /* D2's 24px; the race's take no room from its line, which stays the prototype's 17.5px (as .g-profile__back does). */
+  a.g-board__name { min-height: 24px; }
+  .g-board__race {
+    min-height: 24px;
+    margin: -3px 0;
+  }
+
+  /* DeskOverview.html's chip: 24px high, 12px; its weight, its padding and its dots are the kit's. */
+  .g-board__mid .g-status {
+    height: 24px;
+    font-size: 12px;
+  }
 
   .g-board__score { font: 700 72px/1 var(--font-display); font-variant-numeric: tabular-nums; }
 
