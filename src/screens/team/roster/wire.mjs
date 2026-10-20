@@ -135,7 +135,9 @@ function wireFix(root, { onFixOpen, onFixStep, onFixLasting, onFixFavoured, onFi
 /**
  * A desk's search (stage 07d, search.mjs): what is typed — the screen is patched, so the field keeps its focus and its
  * caret — Esc, which empties the field too (a patch leaves a focused field's value as it is, and the browser's own
- * clearing is prevented), and the line to the reference, which is a link and goes there itself.
+ * clearing is prevented), and the line to the reference, which is a link and goes there itself: only a plain click hands
+ * the query over — a new tab or window (a modifier, another button) is another page, which would get neither the query
+ * nor the caret, and this one would keep a stale request for the caret.
  */
 function wireSearch(root, { onRosterQuery, onRosterQueryClear, onRefSearch }) {
   return [
@@ -146,7 +148,9 @@ function wireSearch(root, { onRosterQuery, onRosterQueryClear, onRefSearch }) {
       field.value = "";
       onRosterQueryClear();
     }),
-    delegate(root, "click", "[data-roster-refsearch]", () => onRefSearch()),
+    delegate(root, "click", "[data-roster-refsearch]", (event) => {
+      if (!event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey && !event.button) onRefSearch();
+    }),
   ];
 }
 

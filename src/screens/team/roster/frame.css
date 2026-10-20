@@ -137,6 +137,10 @@
     display: inline-flex;
     align-items: center;
     min-height: 32px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
     color: var(--accent-text);
     font: 600 14px/1.3 var(--font-body);
     letter-spacing: 0;
@@ -189,7 +193,11 @@
     gap: 0;
     margin-top: 0;
   }
-  .g-roster__sections .g-roster__empty { padding: var(--space-16); }
+  /* A search's words name the query as typed: a long one wraps. */
+  .g-roster__sections .g-roster__empty {
+    padding: var(--space-16);
+    overflow-wrap: anywhere;
+  }
 
   /* «Missing the match N» and «Fallen N»: a band across the card, held at its left edge while the numbers scroll. */
   .g-roster__sections .g-roster__bar {

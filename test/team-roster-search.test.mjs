@@ -5,7 +5,10 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document 
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
-import { STYLES, api, aside, coach, headingText, namesIn, releaseCurrentScreen, renderTeamRoster, tables, text, view } from "./helpers/roster-page.mjs";
+import {
+  ADVANCED, FALLEN, PLAYERS, STYLES, api, aside, coach, died, headingText, namesIn, playerPage, releaseCurrentScreen, renderTeamRoster, save, settle, tables,
+  text, view, withPlayers,
+} from "./helpers/roster-page.mjs";
 
 // Stage 07d, owner review, Task 25: a desk's search in the roster's page band (DeskRoster.html). The page, the coach and
 // his team are helpers/roster-page.mjs's: Ann, Bors (Blitzer: Block) and Cade play; Dell and Finn (Linemen), Edda and
@@ -20,6 +23,7 @@ const field = () => view.querySelector("#roster-query");
 const found = () => view.querySelector(".g-roster__foundcount");
 const refLink = () => view.querySelector(".g-roster__refsearch");
 const names = () => tables().map(namesIn);
+const FULL = [["Ann", "Bors", "Cade"], ["Dell", "Edda", "Finn", "Grom"], ["Pike", "Joe"]];
 /** The coach types `value` into the field: it has the focus, its value is what is typed, then the browser's `input`. */
 function type(value) {
   const input = field();
@@ -87,6 +91,8 @@ test("typing narrows the three tables by name, number, position and skill; every
   assert.ok(lineMatches({ name: "Grom", skills: [{ name: "Mighty Blow (+1)" }] }, queryWords("mighty")));
   assert.ok(!lineMatches({ name: "Grom", skills: [{ name: "Loner (4+)" }] }, queryWords("4")));
   assert.ok(lineMatches({ name: "Ann", position: "Human Lineman" }, []), "no words find everyone");
+  // With no query nothing of the line is read: every draw with none, a counter's tap included, costs nothing.
+  assert.ok(lineMatches({ get name() { throw new Error("read with no query"); } }, []));
 });
 
 test("the count is said in a live region; a query that finds nobody says so under «Active roster» and draws no other section", async () => {
@@ -151,7 +157,13 @@ test("«Search the reference: «block»» leads to #/ref with the query and the 
   assert.equal(link.getAttribute("href"), "#/ref");
   assert.equal(link.textContent, "Search the reference: «block»");
   assert.equal(link.parentNode, found().parentNode, "beside the count");
-  fireEvent(link, "click");
+  // A new tab or window is another page, with a reference of its own: nothing is handed over, and no caret is asked for here.
+  for (const modified of [{ ctrlKey: true }, { metaKey: true }, { shiftKey: true }, { altKey: true }, { button: 1 }]) {
+    fireEvent(link, "click", modified);
+    assert.equal(refQuery(), "", JSON.stringify(modified));
+    assert.equal(takeSearchFocus(), false, JSON.stringify(modified));
+  }
+  fireEvent(link, "click", { button: 0 });
   assert.equal(refQuery(), "block");
   assert.equal(takeSearchFocus(), true);
   assert.equal(rosterMemory("t1").query, "block", "the roster keeps its own");
@@ -171,6 +183,91 @@ test("the panel shows the first player found when the chosen one is filtered out
   // A query that keeps the chosen one keeps him in the panel.
   type("lineman");
   assert.equal(aside().getAttribute("data-panel-player"), "p1#0");
+});
+
+test("an address names a player a kept query would hide: the query gives way, in the field too, and the table and the panel show him", async () => {
+  coach();
+  await renderTeamRoster("t1");
+  type("cade");
+  releaseCurrentScreen();
+  view.innerHTML = "<p>elsewhere</p>";
+  // The read held, so that the field drawn with the query kept has the focus when the answer comes: a patch leaves its value.
+  const gate = api.hold("GET /api/teams/t1");
+  const drawing = playerPage("p1");
+  await settle();
+  assert.equal(field().value, "cade");
+  field().focus();
+  gate.release();
+  await drawing;
+  assert.equal(rosterMemory("t1").query, "");
+  assert.equal(field().value, "");
+  assert.equal(rosterMemory("t1").selected, "p1#0");
+  assert.equal(aside().getAttribute("data-panel-player"), "p1#0", "Ann, whom the address names");
+  assert.equal(view.querySelector('[data-row-key="p1#0"]').getAttribute("aria-current"), "true");
+  assert.deepEqual(names(), FULL);
+  assert.equal(found().textContent, "");
+  // Once: the coach's next query stands, even one that hides him.
+  type("cade");
+  assert.deepEqual(names(), [["Cade"]]);
+  assert.equal(rosterMemory("t1").query, "cade");
+});
+
+test("an address whose player a kept query finds keeps the query", async () => {
+  coach();
+  await renderTeamRoster("t1");
+  type("lineman");
+  releaseCurrentScreen();
+  view.innerHTML = "<p>elsewhere</p>";
+  await playerPage("p1");
+  assert.equal(rosterMemory("t1").query, "lineman");
+  assert.equal(field().value, "lineman");
+  assert.equal(aside().getAttribute("data-panel-player"), "p1#0");
+  assert.deepEqual(names(), [["Ann"], ["Dell", "Finn"], ["Joe"]]);
+  assert.equal(found().textContent, "Players found: 4");
+});
+
+test("an advancement's skill and a favoured one are found; «ё» typed finds «е»; typing asks the server nothing and saves nothing", async () => {
+  const players = [PLAYERS[0], { ...PLAYERS[1], favouredSkills: [{ name: "Dodge", access: "favoured" }] }, ADVANCED, ...PLAYERS.slice(3),
+    { id: "p8", rowIndex: 0, number: "10", name: "Фёдор" }];
+  coach({ teamAnswer: withPlayers(players) });
+  await renderTeamRoster("t1");
+  await settle();
+  const calls = api.calls.length;
+  const saved = JSON.stringify(save.saveState("t1"));
+  type("frenzy");
+  assert.deepEqual(names(), [["Cade"]], "Frenzy, which his advancement gave");
+  type("dodge");
+  assert.deepEqual(names(), [["Bors", "Cade"]], "Bors's favoured Dodge, and the Catcher's own");
+  type("федор");
+  assert.deepEqual(names(), [["Фёдор"]]);
+  type("ФЁДОР");
+  assert.deepEqual(names(), [["Фёдор"]]);
+  fireEvent(field(), "keydown", { key: "Escape" });
+  await settle();
+  assert.equal(api.calls.length, calls, "no request");
+  assert.equal(JSON.stringify(save.saveState("t1")), saved, "no step of the save queue");
+});
+
+test("the sort orders what the query finds, and the whole roster once it is gone", async () => {
+  coach();
+  await renderTeamRoster("t1");
+  type("lineman");
+  fireEvent(view.querySelector('[data-sort-key="ma"]'), "click");
+  // MA: Finn 6, Dell 5 (lowered).
+  assert.deepEqual(names(), [["Ann"], ["Finn", "Dell"], ["Joe"]]);
+  fireEvent(field(), "keydown", { key: "Escape" });
+  assert.deepEqual(names(), [["Cade", "Bors", "Ann"], ["Edda", "Finn", "Dell", "Grom"], ["Pike", "Joe"]]);
+});
+
+test("a fallen record with no name is found by the name the table shows", async () => {
+  // A record the race has no row for (a league admin's shape) and that names nobody: the table says «Fallen».
+  coach({ fallen: [...FALLEN, died("f3", { id: "d3", number: "11" })] });
+  await renderTeamRoster("t1");
+  assert.deepEqual(names().at(-1), ["Pike", "Joe", "Fallen"]);
+  type("fallen");
+  assert.deepEqual(names(), [["Fallen"]]);
+  type("11");
+  assert.deepEqual(names(), [["Fallen"]]);
 });
 
 test("a phone has no field, and a query kept from a desk filters nothing there", async () => {
@@ -231,6 +328,9 @@ test("every key in both dictionaries; styled; D2", async () => {
   assert.equal(view.querySelector(".g-roster__empty").textContent, `Nobody in the active roster matches «${HOSTILE}»`);
   // D2: a desk's link no smaller than 24px; its words and the count readable on the page in every palette.
   assert.deepEqual(valuesOf(FRAME, ".g-roster__refsearch", "min-height"), ["32px"]);
+  // The house rule for new CSS: the link sets its box; the words that name the query wrap however long it is.
+  assert.deepEqual(["margin", "padding", "border", "background"].map((property) => valuesOf(FRAME, ".g-roster__refsearch", property)), [["0"], ["0"], ["0"], ["none"]]);
+  assert.deepEqual(valuesOf(FRAME, ".g-roster__sections .g-roster__empty", "overflow-wrap"), ["anywhere"]);
   assertReadable(FRAME, ".g-roster__foundcount", "color", ["--page"], 4.5);
   assertReadable(FRAME, ".g-roster__refsearch", "color", ["--page"], 4.5);
   for (const selector of [".g-roster__found", ".g-roster__foundcount", ".g-roster__refsearch"]) assert.deepEqual(valuesOf(FRAME, selector, "text-overflow"), []);

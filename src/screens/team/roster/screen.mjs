@@ -4,7 +4,7 @@
  * view.mjs draws. It reads the visit (`import("./index.mjs").Visit`), the games, the save queue and the memory; what it
  * writes is the visit's sheet and what opened it (`opener`), both let go when the sheet's player or its match has left
  * the screen, and in the player mode (stage 07d) the player the coach chose: the address's, once his line is first
- * there. A sheet's keeper may say why it let one go, in a toast: a player's undo, edit or fix whose player changed
+ * there, with a search's query that would hide him cleared (search.mjs). A sheet's keeper may say why it let one go, in a toast: a player's undo, edit or fix whose player changed
  * under it (player.mjs, player-save.mjs). And where the page stands when the screen drawn is another (a patch across
  * 900px in the player mode) or the way back from a player's page is taken.
  */
@@ -24,6 +24,7 @@ import { recordsOf } from "./match-taps.mjs";
 import { markSheetOf } from "./marks.mjs";
 import { marketSheetOf } from "./market.mjs";
 import { playerSheetOf } from "./player.mjs";
+import { yieldQuery } from "./search.mjs";
 
 /** The width up to which a player's button opens his row; from 901px it chooses him for the panel. */
 export const PHONE = "(max-width: 900px)";
@@ -97,11 +98,13 @@ export function screenOf(teamId, visit, memory) {
   // advancement, with a match begun (player.mjs). A fallen player's chip opens a skill's sheet too.
   const sheet = (KEEPERS[visit.sheet?.kind] ?? sheetOf)(visit, [...lines, ...fallen], where);
   if (!sheet) Object.assign(visit, { sheet: null, opener: null });
-  // The player mode: his row open on a phone, him in the panel on a desk — once, so that the coach's next choice stands.
+  // The player mode: his row open on a phone, him in the panel on a desk — once, so that the coach's next choice stands; a
+  // query kept from a desk that would hide him gives way (search.mjs).
   const his = visit.player && !visit.chosen ? [...lines, ...fallen].find((line) => line.id === visit.player) : null;
   if (his) {
     memory.selected = his.key;
     visit.chosen = true;
+    yieldQuery(memory, his);
   }
   return {
     teamId, team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
