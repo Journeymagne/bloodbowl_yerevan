@@ -7,16 +7,17 @@
  * Each team is a row with its tile of initials, its name and a line that says
  * where it stands: its race with its place in the table and its record, or the
  * matches it has played, or the race alone. The row of the active team is
- * ticked. Under the list stand the way to a new team and the way to all of them.
+ * ticked. Under the list stand the way to a new team, a sheet the shell is
+ * handed (app.js), and the way to all of them.
  *
  * What this module draws and decides is the content: `switcherRows` reads the
  * rows from the coach's list, the table and the games, `renderTeamSwitcher`
- * draws them, `switchTarget` says where a choice leads. Opening, closing and
- * the focus around them are the shell's (shell/shell.mjs).
+ * draws them, `switchTarget` says where a choice leads. Opening, closing, the
+ * focus around them and what «New team» opens are the shell's (shell/shell.mjs).
  */
 import { delegate, escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
-import { newTeamUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
+import { teamUrl, teamsUrl } from "../core/routes.mjs";
 import { gameOutcome, seasonRecord, standingOf, teamInitials } from "../data/team-record.mjs";
 import { icon } from "../ui/icons.mjs";
 import { renderSheet, wireSheets } from "../ui/sheet.mjs";
@@ -99,7 +100,8 @@ export function renderTeamSwitcher(rows) {
   const title = escapeHtml(t("teams.title"));
   // A coach with no team has no rows: a group with nothing in it would be announced for nothing.
   const list = rows.length ? `<div class="g-switcher" role="group" aria-label="${title}">${rows.map(renderRow).join("")}</div>` : "";
-  const bodyHtml = `${list}<a class="g-switcher__new" href="${escapeHtml(newTeamUrl())}"><span class="g-switcher__plus">${icon("plus")}</span>${escapeHtml(t("teams.new"))}</a>`
+  // «New team» opens a sheet over this screen, so it is a button that says so, not a link to an address.
+  const bodyHtml = `${list}<button type="button" class="g-switcher__new" data-switcher-new aria-haspopup="dialog"><span class="g-switcher__plus">${icon("plus")}</span>${escapeHtml(t("teams.new"))}</button>`
     + `<a class="g-switcher__all" href="${escapeHtml(teamsUrl())}">${escapeHtml(t("teams.all"))}</a>`;
   return renderSheet({ id: SWITCHER_ID, title: t("teams.title"), anchored: true, bodyHtml });
 }
@@ -120,16 +122,18 @@ export function switchTarget(route, teamId) {
 
 /**
  * Listen to the sheet in `host`: a team chosen is reported to `onSwitch`; a link
- * followed, the cross, the backdrop and Escape are reported to `onClose`. The
- * host outlives the sheet, so this is wired once.
+ * followed, the cross, the backdrop and Escape are reported to `onClose`; «New
+ * team» is reported to `onNewTeam` alone, the shell closing the switcher and
+ * opening what it is handed. The host outlives the sheet, so this is wired once.
  *
  * @param {Element} host
- * @param {{onSwitch: (teamId: string) => void, onClose: () => void}} handlers
+ * @param {{onSwitch: (teamId: string) => void, onClose: () => void, onNewTeam?: () => void}} handlers
  * @returns {() => void} removes the listeners
  */
-export function wireTeamSwitcher(host, { onSwitch, onClose }) {
+export function wireTeamSwitcher(host, { onSwitch, onClose, onNewTeam = () => {} }) {
   const offs = [
     delegate(host, "click", "[data-switch-team]", (event, row) => onSwitch(row.getAttribute("data-switch-team"))),
+    delegate(host, "click", "[data-switcher-new]", () => onNewTeam()),
     delegate(host, "click", "a", () => onClose()),
     wireSheets(host, { onClose: () => onClose() }),
   ];

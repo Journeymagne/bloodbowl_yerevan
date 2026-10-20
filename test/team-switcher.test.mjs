@@ -44,7 +44,7 @@ test("the switcher is a labelled sheet anchored by the SideNav on a desk: every 
   assert.deepEqual(fragment.querySelectorAll("[data-switch-team]").map((row) => row.getAttribute("data-switch-team")), ["t1", "t2", "t3"]);
   assert.equal(fragment.querySelector('[data-switch-team="t1"]').getAttribute("aria-current"), "true");
   assert.equal(fragment.querySelector('[data-switch-team="t2"]').hasAttribute("aria-current"), false);
-  assert.equal(fragment.querySelector("a.g-switcher__new").getAttribute("href"), "#/teams/new");
+  assert.equal(fragment.querySelector("button.g-switcher__new[data-switcher-new]").textContent.trim(), "New team");
   assert.equal(fragment.querySelector("a.g-switcher__all").getAttribute("href"), "#/teams");
   assert.ok(fragment.querySelector('[data-switch-team="t3"] .g-status'), "a team in the pre-season build says so");
   assertCspSafe(fragment);
@@ -56,7 +56,7 @@ test("a coach with no team is shown the way to a new one and to all, and no empt
   const fragment = mount(renderTeamSwitcher([]));
   assert.equal(fragment.querySelector('[role="group"]'), null, "a group with nothing in it is announced for nothing");
   assert.equal(fragment.querySelector(".g-switcher"), null);
-  assert.equal(fragment.querySelector("a.g-switcher__new").getAttribute("href"), "#/teams/new");
+  assert.ok(fragment.querySelector("button.g-switcher__new[data-switcher-new]"), "the way to a new team is there with no rows");
   assert.equal(fragment.querySelector("a.g-switcher__all").getAttribute("href"), "#/teams");
   assert.equal(mount(renderTeamSwitcher(rows())).querySelector('[role="group"]').getAttribute("aria-label"), "My teams", "with rows the group is named");
 });
@@ -77,6 +77,35 @@ test("choosing a team reports it once; a link inside and every way out close it"
   fireEvent(host.querySelector("[data-sheet-close]"), "click");
   assert.deepEqual(heard, [["switch", "t2"], ["close"], ["close"]]);
   off();
+});
+
+test("«New team» under the list is a button that opens a dialog, not a link to #/teams/new", () => {
+  const button = mount(renderTeamSwitcher(rows())).querySelector(".g-switcher__new");
+  assert.equal(button.getAttribute("type"), "button");
+  assert.equal(button.getAttribute("aria-haspopup"), "dialog", "what it opens is a dialog: the sheet over this screen");
+  assert.equal(button.hasAttribute("href"), false);
+  assert.equal(mount(renderTeamSwitcher(rows())).querySelector("a.g-switcher__new"), null);
+  assert.equal(mount(renderTeamSwitcher(rows())).querySelector(".g-switcher__new").hasAttribute("data-switcher-new"), true);
+  assert.ok(button.querySelector(".g-switcher__plus svg"), "with its plus");
+});
+
+test("pressed, «New team» is reported to onNewTeam, and only that: the switcher is closed by the shell, which opens the sheet", () => {
+  const host = el(document, "div");
+  document.body.appendChild(host);
+  host.innerHTML = renderTeamSwitcher(rows());
+  const heard = [];
+  const off = wireTeamSwitcher(host, { onSwitch: (id) => heard.push(["switch", id]), onClose: () => heard.push(["close"]), onNewTeam: () => heard.push(["new"]) });
+  fireEvent(host.querySelector("[data-switcher-new]"), "click");
+  fireEvent(host.querySelector(".g-switcher__plus"), "click");
+  assert.deepEqual(heard, [["new"], ["new"]], "a press on its plus is a press on it");
+  off();
+  fireEvent(host.querySelector("[data-switcher-new]"), "click");
+  assert.equal(heard.length, 2, "the listeners are gone");
+  // A shell that wants nothing of it hears nothing, and nothing throws.
+  const quiet = wireTeamSwitcher(host, { onSwitch: () => {}, onClose: () => heard.push(["close"]) });
+  fireEvent(host.querySelector("[data-switcher-new]"), "click");
+  assert.equal(heard.length, 2);
+  quiet();
 });
 
 // What the brief's tests do not hold: every team screen leads somewhere, the Russian reader's words, and what the sheet looks like.
@@ -115,7 +144,7 @@ test("in Russian the switcher is Мои команды, the place is a place and
     assert.deepEqual(fragment.querySelectorAll(".g-teamface__line").map((line) => line.textContent), ["Human · 2-е место · 1-0-0", "Матчей: 1", "Orc"]);
     assert.equal(fragment.querySelector('[data-switch-team="t1"] .g-sr-only').textContent, "Текущая команда");
     assert.equal(fragment.querySelector('[data-switch-team="t3"] .g-status').textContent, "Набор");
-    assert.equal(fragment.querySelector("a.g-switcher__new").textContent, "Новая команда");
+    assert.equal(fragment.querySelector("button.g-switcher__new").textContent, "Новая команда");
     assert.equal(fragment.querySelector("a.g-switcher__all").textContent, "Все команды");
   } finally {
     initLocale("en");
@@ -144,6 +173,15 @@ test("every row is a target of 44px at least, and a name or a line that is too l
   }
   assert.deepEqual(valuesOf(CSS, ".g-teamface__text", "min-width"), ["0"], "the column may shrink below its words");
   assert.deepEqual([valuesOf(CSS, ".g-teamface__tile", "width"), valuesOf(CSS, ".g-teamface__tile", "height")], [["42px"], ["42px"]]);
+});
+
+test("«New team» is a button across its sheet: TeamSwitch's 16px outlined on a phone, DeskTeamSwitch's 15px row on a desk", () => {
+  assert.deepEqual(valuesOf(CSS, ".g-switcher__new", "width"), ["100%"], "a button is as wide as its words, a link was as wide as its box");
+  assert.deepEqual(valuesOf(CSS, ".g-switcher__new", "cursor"), ["pointer"]);
+  assert.deepEqual(valuesOf(CSS, ".g-switcher__new", "font"), ["700 16px/1.2 var(--font-body)"], "the phone's button: 16px, bold");
+  assert.deepEqual(valuesOf(CSS, ".g-switcher__new", "font-size"), ["15px"], "the desk's row: 15px");
+  assert.deepEqual(valuesOf(CSS, ".g-switcher__new", "border-radius"), ["var(--radius-xl)", "var(--radius-lg)"], "14px on a phone, 12px on a desk");
+  assert.deepEqual(valuesOf(CSS, ".g-switcher__new", "padding"), ["0 var(--space-12)", "0 var(--space-10)"], "the desk's row has 10px at its sides");
 });
 
 test("the switcher reads in every palette: the row's words on both of its grounds, the tick, the tile and the links", () => {

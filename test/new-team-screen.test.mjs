@@ -65,6 +65,7 @@ const { storage } = await import("../src/core/storage.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { expandCollections } = await import("../src/data/reference.mjs");
 const { loadSession, sessionEnded } = await import("../src/data/session.mjs");
+const shell = await import("../src/shell/shell.mjs");
 const { builderStaffMaximums } = await import("../src/domain/league-rules.mjs");
 const { rowsForTeam } = await import("../src/domain/roster/values.mjs");
 
@@ -537,6 +538,43 @@ test("the switcher's way back: «‹» in a phone's head and «← My teams» in
   openNewTeamSheet(null);
   assert.equal(sheet().querySelector("[data-new-team-back]") === null, true, "opened from elsewhere, it has none");
   escape();
+});
+
+test("opened from the switcher, «‹» on a phone and «← My teams» on a desk go back to it; the cross gives the focus to the team block", () => {
+  start();
+  const block = drawPage();
+  const switcher = [];
+  // The shell's way back: the sheet is gone by the time the switcher opens, one modal dialog at a time.
+  const back = () => switcher.push(isOpen() ? "sheet still open" : "switcher");
+  openNewTeamSheet(block, { back });
+  assert.ok(sheet().querySelector(".g-sheet__head [data-sheet-back]") && sheet().querySelector(".g-sheet__foot-start [data-new-team-back]"), "both ways back are drawn: new.css shows each at its width");
+  type("#new-team-name", "Iron Rooks");
+  click(sheet().querySelector("[data-sheet-back]"));
+  assert.deepEqual(switcher, ["switcher"], "«‹» of the phone's head: the sheet goes, and the switcher takes over");
+  openNewTeamSheet(block, { back });
+  assert.equal(field().value, "Iron Rooks", "what was typed stays with the build: the switcher's «New team» again finds it");
+  click("[data-new-team-back]");
+  assert.deepEqual(switcher, ["switcher", "switcher"], "«← My teams» of the desk's foot does the same");
+  assert.equal(isOpen(), false);
+  // The cross, the backdrop and Escape are no way back: the coach leaves the switcher altogether, onto the block.
+  const ways = {
+    cross: () => click(sheet().querySelector("[data-sheet-close]")),
+    backdrop: () => fireEvent(sheet(), "click"),
+    escape,
+  };
+  for (const [way, shut] of Object.entries(ways)) {
+    document.querySelector("#app-view").focus?.();
+    openNewTeamSheet(block, { back });
+    shut();
+    assert.equal(isOpen(), false, way);
+    assert.ok(document.activeElement === block, `${way}: the focus is on the team block that opened the switcher`);
+  }
+  assert.equal(switcher.length, 2, "and none of them went back");
+  // «Create» from it is the builder, as from anywhere: the switcher is not asked for.
+  openNewTeamSheet(block, { back });
+  click('[data-race="teams/human"]');
+  click(create());
+  assert.deepEqual([isOpen(), switcher.length, location.assigned], [false, 2, ["#/teams/new"]]);
 });
 
 test("a reload while the sheet is open asks first when a squad is begun, over any screen; closed, it asks nothing (L3)", () => {
@@ -1433,4 +1471,52 @@ test("the markup of the sheet: the group is named and enters at one race, a name
   // The page as it was for whatever runs after.
   for (const child of [...document.body.childNodes]) document.body.removeChild(child);
   document.body.appendChild(view);
+});
+
+test("with the app's own shell: the team block opens the switcher, «New team» closes it and opens the sheet, «‹» comes back to it, the cross gives the focus to the block", () => {
+  const { mountShell, refreshShell } = shell;
+  const frame = el(document, "div", { id: "app-frame", "data-shell": "coach" },
+    el(document, "aside", { id: "side-nav" }), el(document, "header", { id: "app-header" }), el(document, "footer", { id: "site-footer" }));
+  document.body.appendChild(frame);
+  start();
+  state.myTeams = { items: [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true }], loaded: true, loading: false, error: "" };
+  state.activeTeamId = "t1";
+  mountShell({ document, scroller: { addEventListener() {}, document }, onNewTeam: openNewTeamSheet });
+  refreshShell({ name: "team", params: { teamId: "t1" } });
+  const switcher = () => document.querySelector("dialog#team-switcher");
+  const press = (selector) => click(document.querySelector(selector));
+  for (const where of ["#side-nav", "#app-header"]) {
+    const block = document.querySelector(`${where} [data-team-switcher]`);
+    press(`${where} [data-team-switcher]`);
+    assert.ok(switcher() !== null && !isOpen(), `${where}: the switcher is open`);
+    press("[data-switcher-new]");
+    assert.deepEqual([switcher() === null, isOpen()], [true, true], "«New team»: the switcher is gone and the sheet stands over the screen, one modal dialog at a time");
+    assert.ok(sheet().querySelector("[data-sheet-back]") && sheet().querySelector("[data-new-team-back]"), "with the way back, which only the switcher's sheet has");
+    click("[data-new-team-back]");
+    assert.deepEqual([switcher() !== null, isOpen()], [true, false], "the way back: the switcher again, the sheet gone");
+    press("[data-switcher-new]");
+    type("#new-team-name", "Iron Rooks");
+    click(sheet().querySelector("[data-sheet-back]"));
+    assert.deepEqual([switcher() !== null, isOpen()], [true, false]);
+    press("[data-switcher-new]");
+    assert.equal(field().value, "Iron Rooks");
+    click(sheet().querySelector("[data-sheet-close]"));
+    assert.deepEqual([switcher() === null, isOpen()], [true, false], "the cross leaves both");
+    assert.ok(document.activeElement === block, `${where}: the focus is on the team block`);
+  }
+  // Escape over the sheet, too.
+  press("#app-header [data-team-switcher]");
+  press("[data-switcher-new]");
+  escape();
+  assert.ok(document.activeElement === document.querySelector("#app-header [data-team-switcher]"));
+  assert.deepEqual([switcher() === null, isOpen()], [true, false]);
+  // «Create» goes to the builder; a coach who goes elsewhere (the address changes) is not brought back to the switcher.
+  press("#side-nav [data-team-switcher]");
+  press("[data-switcher-new]");
+  type("#new-team-name", "Iron Rooks");
+  click('[data-race="teams/human"]');
+  click(create());
+  assert.deepEqual([switcher() === null, isOpen(), location.assigned], [true, false, ["#/teams/new"]]);
+  refreshShell({ name: "login", params: {} });
+  document.body.removeChild(frame);
 });
