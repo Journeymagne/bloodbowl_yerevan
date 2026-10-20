@@ -3,9 +3,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { el } from "./helpers/fake-dom.mjs";
+import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale, setDictionaries } from "../src/core/i18n.mjs";
 
@@ -23,6 +23,7 @@ const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
+const { refQuery, setRefQuery, takeSearchFocus } = await import("../src/screens/ref/memory.mjs");
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
@@ -126,20 +127,248 @@ async function notifyGames(games) {
   await invalidateGames();
 }
 
-test("a team in the season: its place, its points with the record, its value and treasury, in one row on a desk", () => {
+/** The tiles as the page draws them: each label, figure and quieter second part, in order. */
+const tilesOf = (fragment) => fragment.querySelectorAll(".g-kpi").map((tile) => [
+  tile.querySelector(".g-kpi__k").textContent, tile.querySelector(".g-kpi__v").textContent, tile.querySelector(".g-kpi__rest")?.textContent ?? ""]);
+
+/** The phone's media query, which the test answers and changes: what the overview listens to when the width crosses 900px. */
+function crossingWindow(phone = false) {
+  const listeners = new Set();
+  const media = { matches: phone, addEventListener: (type, listener) => listeners.add(listener), removeEventListener: (type, listener) => listeners.delete(listener) };
+  globalThis.matchMedia = (query) => (query === "(max-width: 900px)" ? media : { matches: false });
+  return { listeners, cross: (next) => { media.matches = next; listeners.forEach((listener) => listener()); } };
+}
+
+test("a desk's tiles are DeskOverview's five: the place «2» with «/ 4», the points «3» with «· 1/0/1», the value, the treasury leading to the team page, «TD ± / CAS ±» «−1 / −1»", () => {
   const model = overviewModel(input("t1"));
-  assert.deepEqual(model.tiles.map(({ label, value }) => [label, value]), [
-    ["Place in the league", "2 / 4"], ["Points · W/D/L", "3 · 1/0/1"], ["Team value", model.tiles[2].value], ["Treasury", "120k"]]);
-  assert.match(model.tiles[2].value, /^\d[\d,]*k$/);
+  assert.equal(model.phone, false, "a desk unless the screen says otherwise");
+  const worth = model.tiles[2].value;
+  assert.match(worth, /^\d[\d,]*k$/);
+  // ga 2–1 and CAS 1–0 at home, gb 0–2 and CAS 0–2 away: one win, one loss, a touchdown and a casualty behind; the friendly is not the season's.
+  assert.deepEqual(model.tiles.map(({ label, value, rest = "" }) => [label, value, rest]), [
+    ["Place in the league", "2", "/ 4"], ["Points · W/D/L", "3", "· 1/0/1"], ["Team value", worth, ""], ["Treasury", "120k", ""], ["TD ± / CAS ±", "−1 / −1", ""]]);
   assert.equal(model.tiles[3].href, "#/t/t1/team", "the treasury is managed on the team page (06 → 08)");
-  assert.deepEqual(model.tiles.slice(0, 3).map((tile) => tile.href), [undefined, undefined, undefined]);
+  assert.deepEqual(model.tiles.map((tile) => Boolean(tile.href)), [false, false, false, true, false]);
+  assert.deepEqual(model.tiles.map((tile) => Boolean(tile.accent)), [false, false, false, false, false], "a difference below zero is no good news");
   const fragment = mount(overviewMarkup(model));
   assert.ok(fragment.querySelector(".g-kpis.g-kpis--row"));
+  assert.deepEqual(tilesOf(fragment), [
+    ["Place in the league", "2 / 4", "/ 4"], ["Points · W/D/L", "3 · 1/0/1", "· 1/0/1"], ["Team value", worth, ""], ["Treasury", "120k", ""], ["TD ± / CAS ±", "−1 / −1", ""]]);
   assert.equal(fragment.querySelector('a.g-kpi[href="#/t/t1/team"] .g-kpi__k').textContent, "Treasury");
   assert.equal(fragment.querySelectorAll("a.g-kpi").length, 1);
+  assert.equal(fragment.querySelector(".g-kpi--accent"), null);
+  assert.ok("−1 / −1".startsWith("−"), "a real minus sign, not a hyphen");
   assert.equal(fragment.querySelector("h1").textContent, "Overview");
   assert.equal(fragment.querySelector(".g-pagehead__sub").textContent, "Mock Season · round 3");
   assert.equal(fragment.querySelector(".g-overview__stage"), null, "an active team has no stage to say");
+  initLocale("ru");
+  try {
+    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1"))))).map(([label]) => label), ["Место в лиге", "Очки · В/Н/П", "Стоимость команды", "Казна", "TD ± / CAS ±"]);
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("a phone's tiles are Team.html's four: the value, the treasury, «W · D · L» «1 · 0 · 1», «TD / CAS difference» «−1 / −1»", () => {
+  const model = overviewModel(input("t1", { phone: true }));
+  assert.equal(model.phone, true);
+  const worth = model.tiles[0].value;
+  assert.deepEqual(model.tiles.map(({ label, value }) => [label, value]), [["Team value", worth], ["Treasury", "120k"], ["W · D · L", "1 · 0 · 1"], ["TD / CAS difference", "−1 / −1"]]);
+  assert.equal(model.tiles[1].href, "#/t/t1/team");
+  const fragment = mount(overviewMarkup(model));
+  assert.deepEqual(tilesOf(fragment), [["Team value", worth, ""], ["Treasury", "120k", ""], ["W · D · L", "1 · 0 · 1", ""], ["TD / CAS difference", "−1 / −1", ""]],
+    "no second parts: the place is in the phone's header (Team.html)");
+  assert.equal(fragment.querySelector("a.g-kpi").getAttribute("href"), "#/t/t1/team");
+  assert.equal(fragment.querySelectorAll("a.g-kpi").length, 1);
+  initLocale("ru");
+  try {
+    assert.deepEqual(tilesOf(mount(overviewMarkup(overviewModel(input("t1", { phone: true }))))).map(([label]) => label), ["Стоимость команды", "Казна", "В · Н · П", "TD / CAS разница"]);
+  } finally {
+    initLocale("en");
+  }
+  const words = { en: dictionary("en"), ru: dictionary("ru") };
+  assert.deepEqual(["record", "diff", "diffDesk"].map((key) => [words.en[`teamOverview.tile.${key}`], words.ru[`teamOverview.tile.${key}`]]),
+    [["W · D · L", "В · Н · П"], ["TD / CAS difference", "TD / CAS разница"], ["TD ± / CAS ±", "TD ± / CAS ±"]]);
+});
+
+test("the difference is in the accent on a desk only when neither is below zero and one is above; never on a phone", () => {
+  const cases = [
+    { games: [played("ga", 1, [2, 1], [0, 0])], value: "+1 / 0", good: true },
+    { games: [played("ga", 1, [1, 1], [2, 0])], value: "0 / +2", good: true },
+    { games: [played("ga", 1, [3, 1], [0, 1])], value: "+2 / −1", good: false },
+    { games: [played("ga", 1, [1, 1], [1, 1])], value: "0 / 0", good: false },
+    { games: [], value: "0 / 0", good: false },
+    { games: GAMES, value: "−1 / −1", good: false },
+  ];
+  for (const { games, value, good } of cases) {
+    const desk = overviewModel(input("t1", { games }));
+    assert.deepEqual([desk.tiles[4].value, Boolean(desk.tiles[4].accent)], [value, good], value);
+    assert.equal(Boolean(mount(overviewMarkup(desk)).querySelector(".g-kpi--accent")), good, `${value} on a desk`);
+    const phone = overviewModel(input("t1", { games, phone: true }));
+    assert.deepEqual([phone.tiles[3].value, Boolean(phone.tiles[3].accent)], [value, false], `${value} on a phone`);
+    assert.equal(mount(overviewMarkup(phone)).querySelector(".g-kpi--accent"), null, `${value} is the ink on a phone (Team.html)`);
+  }
+  // Only the difference ever is: the place, the points, the value and the treasury never.
+  const fragment = mount(overviewMarkup(overviewModel(input("t1", { games: cases[0].games }))));
+  assert.deepEqual(fragment.querySelectorAll(".g-kpi").map((tile) => tile.classList.contains("g-kpi--accent")), [false, false, false, false, true]);
+});
+
+test("before the games are read the record and the difference say «–»; outside the season two tiles on both widths", () => {
+  for (const games of [null, []]) {
+    const gamesError = games ? "No connection" : "";
+    const desk = overviewModel(input("t1", { games, gamesError }));
+    assert.deepEqual(desk.tiles.map(({ value, rest = "", accent = false }) => [value, rest, accent]).filter((_, index) => index !== 2),
+      [["2", "/ 4", false], ["3", "", false], ["120k", "", false], ["–", "", false]], `${gamesError || "not read"}: the points alone, the difference a dash`);
+    assert.deepEqual(tilesOf(mount(overviewMarkup(desk)))[1], ["Points · W/D/L", "3", ""], "no «·» left hanging after the points");
+    const phone = overviewModel(input("t1", { games, gamesError, phone: true }));
+    assert.deepEqual(phone.tiles.slice(2).map(({ label, value }) => [label, value]), [["W · D · L", "–"], ["TD / CAS difference", "–"]], `${gamesError || "not read"} on a phone`);
+  }
+  assert.equal("–", "–", "the dash is an en dash");
+  // Outside the table — a team not entered, a table not read or that failed — the value and the treasury alone, on both widths.
+  const outside = [input("t4"), input("t1", { seasonData: null }), input("t1", { seasonData: null, seasonError: "No connection" }), input("t1", { seasonData: null, games: null })];
+  for (const over of outside) {
+    for (const phone of [false, true]) {
+      const model = overviewModel({ ...over, phone });
+      assert.deepEqual(model.tiles.map(({ label }) => label), ["Team value", "Treasury"], `${over.team.id} ${phone ? "phone" : "desk"}`);
+      assert.deepEqual(tilesOf(mount(overviewMarkup(model))).map(([label]) => label), ["Team value", "Treasury"]);
+    }
+  }
+});
+
+test("a desk's head has the reference's search at its right; typing takes the coach to #/ref with the query and the caret asked for; a phone has no field", async () => {
+  const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
+  const field = fragment.querySelector(".g-pagehead__meta .g-overview__search .g-search #overview-query");
+  assert.ok(field, "in the head's slot at the right of the band (DeskOverview.html)");
+  assert.equal(field.getAttribute("type"), "search");
+  assert.ok(field.hasAttribute("data-search-all"), "the reference's own hand-over (stage 11)");
+  assert.equal(fragment.querySelector('label[for="overview-query"]').textContent, "Search the reference");
+  assert.equal(field.getAttribute("placeholder"), dictionary("en")["search.placeholder"]);
+  assert.equal(field.getAttribute("value"), "", "an empty field: the reference keeps what is typed");
+  assert.equal(fragment.querySelector(".g-overview__search svg").getAttribute("width"), "18", "the prototype's 18px magnifier");
+  // A team in its build: the chip, then the field.
+  const draft = mount(overviewMarkup(overviewModel(input("t4"))));
+  assert.deepEqual(draft.querySelector(".g-pagehead__meta").childNodes.map((node) => node.getAttribute("class").split(" ")[0]), ["g-status", "g-overview__search"]);
+  // A phone's head is a screen reader's: no field, the chip alone.
+  for (const id of ["t1", "t4"]) {
+    const phone = mount(overviewMarkup(overviewModel(input(id, { phone: true }))));
+    assert.equal(phone.querySelector("#overview-query"), null, id);
+    assert.equal(phone.querySelector(".g-overview__search"), null, id);
+  }
+  assert.equal(mount(overviewMarkup(overviewModel(input("t1", { phone: true })))).querySelector(".g-pagehead__meta"), null, "nothing at all for an active team");
+  // On the page: typing hands the query to the reference and goes there, the caret asked for in its field.
+  coach();
+  setRefQuery("");
+  takeSearchFocus();
+  await renderTeamOverview("t1");
+  globalThis.location.hash = "#/t/t1";
+  const live = view.querySelector("#overview-query");
+  live.value = "block";
+  fireEvent(live, "input");
+  assert.equal(location.hash, "#/ref");
+  assert.equal(refQuery(), "block");
+  assert.equal(takeSearchFocus(), true);
+  // Blanks go nowhere, as in the reference's own head.
+  globalThis.location.hash = "#/t/t1";
+  live.value = "  ";
+  fireEvent(live, "input");
+  assert.equal(location.hash, "#/t/t1");
+  assert.equal(takeSearchFocus(), false);
+  // Left, the field is heard no more.
+  releaseCurrentScreen();
+  live.value = "dodge";
+  fireEvent(live, "input");
+  assert.equal(location.hash, "#/t/t1");
+  assert.equal(refQuery(), "  ");
+  setRefQuery("");
+});
+
+test("the overview follows the width: a desk turned phone draws Team.html's tiles, and back", async () => {
+  const { listeners, cross } = crossingWindow(false);
+  const labels = () => view.querySelectorAll(".g-kpi__k").map((label) => label.textContent);
+  const DESK = ["Place in the league", "Points · W/D/L", "Team value", "Treasury", "TD ± / CAS ±"];
+  const PHONE = ["Team value", "Treasury", "W · D · L", "TD / CAS difference"];
+  try {
+    coach();
+    await renderTeamOverview("t1");
+    assert.deepEqual(labels(), DESK);
+    assert.ok(view.querySelector("#overview-query"));
+    // The field the coach is in goes with the desk: the focus is not lost on the body (Review Focus 2), it is the title's.
+    view.querySelector("#overview-query").focus();
+    cross(true);
+    assert.deepEqual(labels(), PHONE);
+    assert.equal(view.querySelector("#overview-query"), null);
+    assert.ok(document.activeElement === view.querySelector("h1"), "the page's title, a place the keyboard goes on from");
+    // The treasury the coach is on is another tile on a desk: the title again.
+    view.querySelector("a.g-kpi").focus();
+    cross(false);
+    assert.deepEqual(labels(), DESK);
+    assert.ok(view.querySelector("#overview-query"), "the field is back");
+    assert.ok(document.activeElement === view.querySelector("h1"));
+    // A focus the redraw keeps stays where it is: the board's link, and anything outside the page.
+    const outside = el(document, "button", { id: "outside" });
+    document.body.appendChild(outside);
+    outside.focus();
+    cross(true);
+    assert.ok(document.activeElement === outside, "the shell's focus is not taken");
+    document.body.removeChild(outside);
+    view.querySelector(".g-board__actions a").focus();
+    const link = document.activeElement;
+    cross(false);
+    assert.ok(document.activeElement === link && link.isConnected, "the board's link is the same link on both widths");
+    // Left, the width is heard no more.
+    releaseCurrentScreen();
+    assert.equal(listeners.size, 0, "a visit left listens no more");
+    view.innerHTML = "<p>next</p>";
+    cross(true);
+    assert.equal(view.querySelector("p").textContent, "next");
+  } finally {
+    delete globalThis.matchMedia;
+  }
+});
+
+test("the figures and the head's field as DeskOverview.html and Team.html draw them: styled; readable; breakpoints only 900/901", () => {
+  const css = "src/screens/team/overview.css";
+  const own = (selector, property) => valuesOf(css, selector, property);
+  const bare = text(css).replace(/\/\*[\s\S]*?\*\//g, "");
+  const desk = bare.slice(bare.indexOf("@media (min-width: 901px)"));
+  // A desk's cards: white in the ring, 14 16 in; the figure Oswald 34 at the font's own line height, the place's second part 20px.
+  assert.deepEqual(own(".g-overview .g-kpi", "box-shadow"), ["var(--ring)"]);
+  assert.deepEqual(own(".g-overview .g-kpi", "background"), ["var(--surface)"]);
+  assert.deepEqual(own(".g-overview .g-kpi", "padding"), ["var(--space-14) var(--space-16)"]);
+  assert.match(desk, /\.g-overview \.g-kpi \{[^}]*padding: var\(--space-14\) var\(--space-16\);[^}]*background: var\(--surface\);[^}]*box-shadow: var\(--ring\);/, "from 901px: a phone's tile is kpi-tile.css's own");
+  assert.match(desk, /\.g-overview \.g-kpi__v \{ font-size: 34px; \}/);
+  // On both widths the label sits straight over the figure, each at its font's own line height, as the prototypes draw them: 85px on a phone, 95px on a desk.
+  assert.deepEqual(own(".g-overview .g-kpi__v", "line-height"), ["normal"]);
+  assert.deepEqual(own(".g-overview .g-kpi__k", "line-height"), ["normal"]);
+  assert.deepEqual(own(".g-overview .g-kpi", "gap"), ["0"]);
+  assert.ok(bare.indexOf(".g-overview .g-kpi { gap: 0; }") < bare.indexOf("@media"), "for both widths");
+  assert.deepEqual(own(".g-overview .g-kpi:first-child .g-kpi__rest", "font-size"), ["20px"], "«/ 10» is 20px, «· 4/1/1» the tile's 22px");
+  assert.match(desk, /\.g-overview \.g-kpi:first-child \.g-kpi__rest \{ font-size: 20px; \}/);
+  // A phone's tile (Team.html) is kpi-tile.css's: --surface-2, 14 round, 12 14 in, two columns 8 apart, Oswald 700 30px.
+  const tile = "src/ui/kpi-tile.css";
+  assert.deepEqual(valuesOf(tile, ".g-kpi", "background"), ["var(--surface-2)"]);
+  assert.deepEqual(valuesOf(tile, ".g-kpi", "border-radius"), ["var(--radius-xl)"]);
+  assert.deepEqual(valuesOf(tile, ".g-kpi", "padding"), ["var(--space-12) var(--space-14)"]);
+  assert.deepEqual(valuesOf(tile, ".g-kpis", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))"]);
+  assert.deepEqual(valuesOf(tile, ".g-kpis", "gap"), ["var(--space-8)"]);
+  assert.deepEqual(valuesOf(tile, ".g-kpi__v", "font"), ["700 30px/1.1 var(--font-display)"]);
+  // The link card's hover is a shade of the ink over white, in every palette.
+  const [hover] = own(".g-overview a.g-kpi--link:hover", "background");
+  assert.equal(hover, "color-mix(in srgb, var(--ink) 4%, var(--surface))");
+  assertContrast(hover, ["--surface"], 1.05, { what: "the hover of a desk's link card" });
+  assert.match(desk, /\.g-overview a\.g-kpi--link:hover \{/);
+  // The field (DeskOverview.html): 320px and never wider than the band, 44px, its words 15px.
+  assert.deepEqual(own(".g-overview__search", "width"), ["320px"]);
+  assert.deepEqual(own(".g-overview__search", "max-width"), ["100%"]);
+  assert.deepEqual(own(".g-overview__search .g-search", "width"), ["100%"]);
+  assert.deepEqual(own(".g-overview__search .g-search__input", "height"), ["44px"]);
+  assert.deepEqual(own(".g-overview__search .g-search__input", "font-size"), ["15px"]);
+  assert.match(desk, /\.g-overview__search \{/);
+  // Readable: the grey second part on a desk's card and on a phone's tile, the accent on the card.
+  assertReadable(tile, ".g-kpi__rest", "color", ["--surface", "--surface-2"], 4.5);
+  assertReadable(tile, ".g-kpi--accent .g-kpi__v", "color", ["--surface"], 4.5);
+  for (const file of [css, tile]) for (const [, query] of text(file).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), `${file}: ${query}`);
+  assert.doesNotMatch(bare, /--focus-ring/);
 });
 
 test("the board shows the next match with «Match preparation» and «Friendlies», the season's squares as its form", () => {
@@ -270,8 +499,9 @@ test("games that failed to load leave the figures and say so where the board was
   assert.equal(fragment.querySelector(".g-board"), null);
   assert.match(fragment.querySelector(".g-overview__failed").textContent, /No connection/);
   assert.match(fragment.querySelector(".g-overview__failed").textContent, /^The matches did not load/);
-  assert.equal(fragment.querySelectorAll(".g-kpi").length, 4, "the table still gives the place and the points");
+  assert.equal(fragment.querySelectorAll(".g-kpi").length, 5, "the table still gives the place and the points");
   assert.equal(fragment.querySelectorAll(".g-kpi__v")[1].textContent, "3", "the points without a record that was not read");
+  assert.equal(fragment.querySelectorAll(".g-kpi__v")[4].textContent, "–", "nor a difference");
 });
 
 test("a table that failed to load says so where the board would stand; the team's own figures stay", () => {
@@ -376,7 +606,7 @@ test("it draws at once from what the page has, takes the title for the focus, an
   assert.equal(view.querySelector("a.g-callout"), null);
   seasonHold.release();
   await drawing;
-  assert.equal(view.querySelectorAll(".g-kpi").length, 4);
+  assert.equal(view.querySelectorAll(".g-kpi").length, 5);
   assert.equal(view.querySelector(".g-board__side--away .g-board__name").textContent, "Rival Team");
   assert.equal(document.activeElement, view.querySelector("h1"), "the title is not given the focus again");
   api.assertAnswered();
@@ -407,7 +637,7 @@ test("a failure an earlier read left is not drawn while the read that repeats it
   gamesHold.release({ error: new TypeError("Failed to fetch") });
   await drawing;
   assert.deepEqual(view.querySelectorAll(".g-overview__failed .g-callout__title").map((title) => title.textContent.replace(/:.*/, "")), ["The matches did not load"], "the games failed again; the table came");
-  assert.equal(view.querySelectorAll(".g-kpi").length, 4);
+  assert.equal(view.querySelectorAll(".g-kpi").length, 5);
   assert.equal(view.querySelectorAll(".g-kpi__v")[1].textContent, "3", "the points without a record that was not read");
 });
 
@@ -482,9 +712,12 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   for (const key of ["spp", "td", "cas", "comp"]) assert.ok(dictionary("en")[`teamOverview.leader.${key}`] && dictionary("ru")[`teamOverview.leader.${key}`], key);
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(fragment, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
   const outside = mount(overviewMarkup(overviewModel(input("t4"))));
-  assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "status-chip.css", "callout.css");
+  assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "status-chip.css", "callout.css");
+  const phone = mount(overviewMarkup(overviewModel(input("t1", { phone: true }))));
+  assertCspSafe(phone);
+  assertStyled(phone, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "match-board.css", "list-row.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
 });
 
 const READY_WORDS = {
@@ -765,12 +998,7 @@ test("the stylesheet reaches the page, and the result rows keep their size and t
   assert.match(text(css), /@media \(min-width: 901px\)\s*\{[^@]*\.g-overview__cols\s*\{[^}]*grid-template-columns: minmax\(0, 1fr\) minmax\(0, 1fr\)/);
   assert.ok(valuesOf(css, ".g-overview__score", "font").includes("700 22px/1.1 var(--font-display)"));
   assert.ok(valuesOf(css, ".g-overview__score", "font-variant-numeric").includes("tabular-nums"));
-  assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)", "clamp(24px, calc(5.4vw - 24px), 30px)"], "«33 · 10/3/0» keeps to one line at 320px, and from 901px beside the SideNav, with no breakpoint of its own");
-  // The figure is 4.6 times its font size wide, in a tile whose content is a quarter of the screen less 106px from 901px.
-  for (const width of [901, 930, 960, 990, 1024, 1440]) {
-    const size = Math.min(30, Math.max(24, 5.4 * (width / 100) - 24));
-    assert.ok(4.62 * size <= width / 4 - 106.25, `${width}px: «33 · 10/3/0» at ${size.toFixed(1)}px is ${(4.62 * size).toFixed(0)}px wide in ${(width / 4 - 106.25).toFixed(0)}px`);
-  }
+  assert.deepEqual(valuesOf(css, ".g-overview .g-kpi__v", "font-size"), ["clamp(24px, calc(10.8vw - 10px), 30px)", "34px"], "a phone's figure keeps to one line at 320px; a desk's is DeskOverview.html's 34px, its cards wrapping instead");
   assert.ok(valuesOf(css, ".g-overview__leaderlist", "grid-template-columns").includes("repeat(auto-fit, minmax(120px, 1fr))"), "the cards wrap as the column narrows");
   assert.doesNotMatch(text(css), /1360px|359px/, "the sheet has the 900/901 breakpoints only");
   assertReadable(css, ".g-overview__line", "color", ["--page", "--desk", "--surface"], 4.5);

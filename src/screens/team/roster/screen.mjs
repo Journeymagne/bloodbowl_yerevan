@@ -31,6 +31,20 @@ export const PHONE = "(max-width: 900px)";
 /** Read when the screen is drawn; a page with no window to ask (a test) is a desk. */
 export const isPhone = () => Boolean(globalThis.matchMedia?.(PHONE)?.matches);
 
+/**
+ * `listener` each time the width crosses 900px (the query's `change`), for a screen that draws one form for each width
+ * (the overview, stage 07d); and what takes it off. A page with no window to ask, or a query that cannot be listened
+ * to, never crosses: nothing is heard and nothing is to take off.
+ * @param {() => void} listener
+ * @returns {() => void}
+ */
+export function onPhoneChange(listener) {
+  const media = globalThis.matchMedia?.(PHONE);
+  if (typeof media?.addEventListener !== "function") return () => {};
+  media.addEventListener("change", listener);
+  return () => media.removeEventListener?.("change", listener);
+}
+
 /** What the roster is for just now, by the games as last read (`rosterMode`). */
 export const modeOf = (teamId) => rosterMode(state.games.loaded ? state.games.items ?? [] : [], teamId);
 

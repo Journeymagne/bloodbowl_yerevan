@@ -1,5 +1,5 @@
 /**
- * A team's overview (`#/t/:id`): the page head, four figures, who can take an
+ * A team's overview (`#/t/:id`): the page head, the figures, who can take an
  * advancement now, the match board (or the call to enter the season), the
  * team's leaders and its recent matches.
  * It replaces the 2.x front page the team's address used to draw (plan stage 06,
@@ -12,6 +12,19 @@
  * races), and `overviewMarkup` draws that. What a figure is worth is the
  * model's; the board, the rows and the words around them are ui/'s and the
  * dictionaries'.
+ *
+ * One form for each width (stage 07d, decision 47): the model is told whether
+ * the screen is a phone's (`isPhone`, as the roster asks it) each time it is
+ * drawn, and the screen is drawn again when the width crosses 900px. The figures
+ * are the prototypes' (decision 48): a desk's five cards (DeskOverview.html) —
+ * the place and the points, each with a quieter second part, the value, the
+ * treasury and the TD and CAS difference, in the accent when it is good news —
+ * and a phone's four tiles (Team.html): the value, the treasury, the record and
+ * the difference, the place being the phone's header's. A desk's head has the
+ * reference's search at its right (decision 49), which hands what is typed to
+ * the reference as the reference's own heads do; a phone's head is a screen
+ * reader's, and has none. The ready players are the one exception: both forms
+ * are drawn, and the stylesheet shows one.
  *
  * Who can advance is the roster's own answer (`rosterLines`' `ready`: the SPP to
  * spend reach the first random skill); the Skill Table plays no part in it. It is
@@ -38,7 +51,7 @@ import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { loadGames, onGamesChange } from "../../data/games.mjs";
-import { gameSides, recentResults, seasonPager, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
+import { gameSides, recentResults, seasonDifference, seasonPager, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
 import { raceTeamOf, raceTitleOf } from "../../data/teams.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
 import { currentMatch, matchActions, subLine } from "../../shell/current-match.mjs";
@@ -50,9 +63,12 @@ import { renderBoardActions, renderMatchBoard } from "../../ui/match-board.mjs";
 import { renderPlayerBadge } from "../../ui/number-badge.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderResultPill } from "../../ui/result-pill.mjs";
+import { renderSearchField } from "../../ui/search-field.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
+import { goSearch, wireRefSearch } from "../ref/frame.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { rosterLines } from "./roster/model.mjs";
+import { isPhone, onPhoneChange } from "./roster/screen.mjs";
 
 /** How many finished matches the list holds: a phone shows the first three (overview.css). */
 const RECENT_MATCHES = 5;
@@ -103,12 +119,38 @@ function boardOf({ team, raceTeam, seasonData, games, gamesRead, standing, worth
   };
 }
 
-/** The place and the points of a team in the table; the record only when the games were read. */
-function tableTiles(standing, record) {
-  const points = record ? `${standing.points} · ${record.wins}/${record.draws}/${record.losses}` : String(standing.points);
+/** What a figure the games give says while they are not read, or could not be: a dash, not a zero they could contradict. */
+const UNREAD = "–";
+
+/** A difference with its sign: «+6», «0», «−1» (a minus sign, not a hyphen). */
+const signed = (n) => (n > 0 ? `+${n}` : n < 0 ? `\u2212${-n}` : "0");
+
+/** Good news: neither difference below zero, and one above it. */
+const ahead = ({ touchdowns, casualties }) => touchdowns >= 0 && casualties >= 0 && (touchdowns > 0 || casualties > 0);
+
+/**
+ * The figures (decision 48). Outside the table, the value and the treasury on both widths. In it, a desk's five
+ * (DeskOverview.html): the place «2» with «/ 10», the points «13» with «· 4/1/1», the value, the treasury and «+6 / +4»,
+ * in the accent when it is good news; a phone's four (Team.html): the value, the treasury, «4 · 1 · 1» and «+6 / +4» in
+ * the ink. The record and the difference are the season's league matches with a confirmed score (`seasonRecord`,
+ * `seasonDifference`); `games` is null while they are not read, and then the points stand alone and both are a dash.
+ * @param {{teamId: string, standing: object|null, games: object[]|null, seasonId: string|null, own: object[], phone: boolean}} input
+ */
+function tilesOf({ teamId, standing, games, seasonId, own, phone }) {
+  if (!standing) return own;
+  const record = games && seasonRecord(games, teamId, seasonId);
+  const difference = games && seasonDifference(games, teamId, seasonId);
+  const both = difference ? `${signed(difference.touchdowns)} / ${signed(difference.casualties)}` : UNREAD;
+  if (phone) {
+    return [...own,
+      { label: t("teamOverview.tile.record"), value: record ? `${record.wins} · ${record.draws} · ${record.losses}` : UNREAD },
+      { label: t("teamOverview.tile.diff"), value: both }];
+  }
   return [
-    { label: t("teamOverview.tile.place"), value: `${standing.rank} / ${standing.of}` },
-    { label: t("teamOverview.tile.points"), value: points },
+    { label: t("teamOverview.tile.place"), value: String(standing.rank), rest: `/ ${standing.of}` },
+    { label: t("teamOverview.tile.points"), value: String(standing.points), rest: record ? `· ${record.wins}/${record.draws}/${record.losses}` : "" },
+    ...own,
+    { label: t("teamOverview.tile.diffDesk"), value: both, accent: Boolean(difference) && ahead(difference) },
   ];
 }
 
@@ -134,14 +176,14 @@ function readyPlayers(draft, raceTeam) {
  * @param {object[]|null} input.games the answer of `/api/games`; null while it is not read
  * @param {string} [input.gamesError] why the games could not be read, as a sentence
  * @param {string} [input.seasonError] why the table could not be read; said only while there is no table to show
+ * @param {boolean} [input.phone] the screen is a phone's (up to 900px): Team.html's form, not DeskOverview.html's
  */
-export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "" }) {
+export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false }) {
   const season = seasonData?.season ?? null;
   const standing = standingOf(seasonData, team.id);
   const gamesRead = Array.isArray(games) && !gamesError;
   const list = Array.isArray(games) ? games : [];
   const worth = teamValue(team, raceTeam);
-  const record = gamesRead && standing ? seasonRecord(list, team.id, season?.id ?? null) : null;
   const draft = normalizeDraft(team.roster ?? {});
   const own = [
     { label: t("teamOverview.tile.value"), value: formatMoney(worth) },
@@ -149,9 +191,10 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
   ];
   return {
     teamId: team.id,
+    phone,
     seasonLine: seasonLineOf(season),
     draft: team.stage === "draft",
-    tiles: standing ? [...tableTiles(standing, record), ...own] : own,
+    tiles: tilesOf({ teamId: team.id, standing, games: gamesRead ? list : null, seasonId: season?.id ?? null, own, phone }),
     inSeason: Boolean(standing),
     seasonRead: Boolean(seasonData),
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, standing, worth }) : null,
@@ -266,14 +309,24 @@ function resultsMarkup(results, teamId) {
 }
 
 /**
+ * The reference's search at the right of a desk's head (DeskOverview.html, decision 49): the reference's own field and
+ * words — the prototype's «Players, skills, rules…» would promise players, whom the reference does not look for.
+ */
+function searchMarkup() {
+  const field = renderSearchField({ id: "overview-query", label: t("ref.search"), placeholder: t("search.placeholder"), data: { searchAll: "" } });
+  return `<div class="g-overview__search">${field}</div>`;
+}
+
+/**
  * A team in its build says so: in the page head on a desk, and as the first line of the page on a phone, where the
  * head is only for a screen reader (the owner's ruling R4 of stage 08). The phone's line is hidden from a screen
- * reader, which hears the head's, and from a desk (overview.css), so the chip is never said twice.
+ * reader, which hears the head's, and from a desk (overview.css), so the chip is never said twice. The head's search
+ * is a desk's only: a phone's head is not seen.
  * @param {ReturnType<typeof overviewModel>} model
  */
 export function overviewMarkup(model) {
   const draft = model.draft ? renderStatusChip({ label: t("teams.stage.draft") }) : "";
-  const head = renderPageHead({ title: t("shell.tab.overview"), sub: model.seasonLine, metaHtml: draft });
+  const head = renderPageHead({ title: t("shell.tab.overview"), sub: model.seasonLine, metaHtml: draft + (model.phone ? "" : searchMarkup()) });
   const stage = draft ? `<div class="g-overview__stage" aria-hidden="true">${draft}</div>` : "";
   const lists = leadersMarkup(model.leaders) + resultsMarkup(model.results, model.teamId);
   return `${head}<div class="g-overview">${stage}${renderKpiGrid(model.tiles, { row: true })}${readyCardMarkup(model.ready, model.teamId)}${boardSlot(model)}`
@@ -297,13 +350,30 @@ function markupOf(teamId, held) {
     games: loaded && !held.games ? items : null,
     gamesError: held.games ? "" : error,
     seasonError: held.season ? "" : state.season.error,
+    phone: isPhone(),
   }));
 }
 
 /**
+ * `draw`, for a width that crossed 900px: the field, a tile or a list the coach was on may be gone with the other form
+ * (Review Focus 2). A focus the page held that is left on nothing — the body, or a node no longer on the page — goes
+ * to the title, the place a keyboard starts from; one the new form keeps, or one outside the page, stays.
+ * @param {() => void} draw
+ */
+function drawForWidth(draw) {
+  return () => {
+    const hadFocus = view.contains(document.activeElement);
+    draw();
+    const active = document.activeElement;
+    if (hadFocus && (!active || active === document.body || !active.isConnected)) view.querySelector("h1")?.focus();
+  };
+}
+
+/**
  * The overview of one of the coach's teams. Drawn at once from the state, the title taking the focus; again when
- * the table and the games come, if the coach is still here, and whenever the games change while they are (a start,
- * a score sent). The later draws patch the page, so the focus stays where the coach has put it.
+ * the table and the games come, if the coach is still here, whenever the games change while they are (a start,
+ * a score sent), and when the width crosses 900px. The later draws patch the page, so the focus stays where the coach
+ * has put it. What is typed in a desk's search takes the coach to the reference with it (`goSearch`).
  *
  * A read that failed is made again on this visit (nothing else would, and the overview would say so until a
  * reload); what it said before is not drawn while the new answer is on its way.
@@ -318,13 +388,17 @@ export async function renderTeamOverview(teamId) {
     if (markup) patch(view, markup);
   };
   // Any answer to the games heard from here on is to the read started below, or to a newer one: no old failure outlives it.
-  const stopListening = onGamesChange(() => {
-    held.games = false;
-    draw();
-  });
+  const offs = [
+    onGamesChange(() => {
+      held.games = false;
+      draw();
+    }),
+    onPhoneChange(drawForWidth(draw)),
+    wireRefSearch(view, { onQuery: goSearch }),
+  ];
   onScreenLeave("team-overview", () => {
     here = false;
-    stopListening();
+    for (const off of offs) off();
   });
   const reads = Promise.allSettled([loadGames(held.games), loadSeason(held.season)]);
   const first = markupOf(teamId, held);

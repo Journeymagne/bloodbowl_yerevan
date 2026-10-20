@@ -66,7 +66,7 @@ test("a kpi grid keeps its tiles in order, two to a row", () => {
   assert.deepEqual(grid.childNodes.map((node) => node.classList.contains("g-kpi--positive")), [false, true, false, false]);
 });
 
-test("an empty grid draws nothing, an odd one gives its last tile the row, and a row grid is one line from 901px (05–13)", () => {
+test("an empty grid draws nothing, an odd one gives its last tile the row, and a row grid wraps by 180px from 901px (DeskOverview.html)", () => {
   const tile = { label: "TV", value: "1 120k" };
   assert.equal(renderKpiGrid([]), "");
   assert.equal(mount(renderKpiGrid([tile, tile, tile])).querySelectorAll(".g-kpi").length, 3);
@@ -76,14 +76,53 @@ test("an empty grid draws nothing, an odd one gives its last tile the row, and a
   assert.throws(() => renderKpiGrid(), /tiles/);
   assert.throws(() => renderKpiGrid("tiles"), /tiles/);
   assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["1 / -1"]);
-  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "grid-auto-flow"), ["column"]);
-  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["auto"]);
+  // DeskOverview.html's row: as many 180px cards as the width holds, 12 apart, the rest on the next line.
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "grid-auto-flow"), ["row"]);
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "grid-template-columns"), ["repeat(auto-fit, minmax(180px, 1fr))"]);
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "gap"), ["var(--space-12)"]);
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["auto"], "a lone last card is one card, not the row");
   // valuesOf reads every rule whatever its at-rule, so "from 901px" is read from the source text: the row rules are inside that query, and nowhere else.
   const css = readFileSync(new URL("../src/ui/kpi-tile.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const desk = css.match(/@media \(min-width: 901px\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(desk, /\.g-kpis--row \{[^}]*grid-auto-flow: column/);
+  assert.match(desk, /\.g-kpis--row \{[^}]*grid-auto-flow: row/);
+  assert.match(desk, /\.g-kpis--row \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(180px, 1fr\)\)/);
   assert.match(desk, /\.g-kpis--row > \.g-kpi:last-child:nth-child\(odd\) \{[^}]*grid-column: auto/);
   assert.ok(!css.replace(desk, "").includes(".g-kpis--row"), "the row rules are not outside the 901px query");
+  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+});
+
+test("a tile can say a quieter second part of its figure, and a figure in the accent; both escaped", () => {
+  const place = mount(renderKpiTile({ label: "Place in the league", value: "2", rest: "/ 10" })).querySelector(".g-kpi");
+  assert.equal(place.getAttribute("class"), "g-kpi", "a second part is no form of the tile");
+  const figure = place.querySelector(".g-kpi__v");
+  assert.equal(figure.textContent, "2 / 10", "one line, read as one figure: the number, a space, the quieter part");
+  assert.equal(figure.querySelector(".g-kpi__rest").textContent, "/ 10");
+  assert.equal(figure.childNodes.length, 2, "the number as text, then the part in its own span");
+  assert.equal(mount(renderKpiTile({ label: "Team value", value: "1 120k" })).querySelector(".g-kpi__rest"), null, "no second part, no span and no trailing space");
+  assert.equal(mount(renderKpiTile({ label: "Team value", value: "1 120k" })).querySelector(".g-kpi__v").textContent, "1 120k");
+  const good = mount(renderKpiTile({ label: "TD ± / CAS ±", value: "+6 / +4", accent: true })).querySelector(".g-kpi");
+  assert.equal(good.getAttribute("class"), "g-kpi g-kpi--accent");
+  assert.equal(mount(renderKpiTile({ label: "TD ± / CAS ±", value: "−1 / −1" })).querySelector(".g-kpi--accent"), null, "only when asked for");
+  // Text, whatever it holds; a zero is a figure here too.
+  const hostile = mount(renderKpiTile({ label: HOSTILE, value: HOSTILE, rest: HOSTILE, accent: true }));
+  assert.equal(hostile.querySelector("img"), null);
+  assert.equal(hostile.querySelector(".g-kpi__rest").textContent, HOSTILE);
+  assert.equal(hostile.querySelector(".g-kpi__v").textContent, `${HOSTILE} ${HOSTILE}`);
+  assertCspSafe(hostile);
+  assert.equal(mount(renderKpiTile({ label: "Points", value: 0, rest: "· 0/0/0" })).querySelector(".g-kpi__v").textContent, "0 · 0/0/0");
+  // A grid hands both on, tile by tile.
+  const grid = mount(renderKpiGrid([{ label: "Points", value: "13", rest: "· 4/1/1" }, { label: "Treasury", value: "70k", href: "#/t/t1/team" }, { label: "TD ± / CAS ±", value: "+6 / +4", accent: true }], { row: true }));
+  assert.deepEqual(grid.querySelectorAll(".g-kpi").map((tile) => [tile.getAttribute("class"), tile.querySelector(".g-kpi__rest")?.textContent ?? ""]),
+    [["g-kpi", "· 4/1/1"], ["g-kpi g-kpi--link", ""], ["g-kpi g-kpi--accent", ""]]);
+  assertStyled(grid, "kpi-tile.css");
+  // The part is the figure's own font and weight, smaller and grey; the accent is the accent's text colour. Readable on a desk's card and a phone's tile.
+  const sheet = "src/ui/kpi-tile.css";
+  assert.deepEqual(valuesOf(sheet, ".g-kpi__rest", "color"), ["var(--muted)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-kpi__rest", "font-size"), ["22px"]);
+  assert.deepEqual(valuesOf(sheet, ".g-kpi__rest", "font"), [], "the figure's Oswald 700, not a font of its own");
+  assert.deepEqual(valuesOf(sheet, ".g-kpi--accent .g-kpi__v", "color"), ["var(--accent-text)"]);
+  assertReadable(sheet, ".g-kpi__rest", "color", ["--surface", "--surface-2"], 4.5);
+  assertReadable(sheet, ".g-kpi--accent .g-kpi__v", "color", ["--surface", "--surface-2"], 4.5);
 });
 
 test("a tile may lead somewhere: a link with the same face (06 → 08: the treasury tile)", () => {

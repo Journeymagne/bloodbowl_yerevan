@@ -5,10 +5,11 @@
  * set here on purpose: the 2.x global rules (h2, ul, a, p) outlive this sheet
  * until stage 13.
  *
- * Written for a phone first. From 901px the leaders and the recent matches
- * stand in two columns, and the leaders turn from rows into cards
- * (DeskOverview.html); the recent matches are five, of which a phone shows the
- * first three.
+ * Written for a phone first. From 901px the figures are white cards in a ring
+ * that wrap by 180px, the head has the reference's search at its right, the
+ * leaders and the recent matches stand in two columns, and the leaders turn
+ * from rows into cards (DeskOverview.html); the recent matches are five, of
+ * which a phone shows the first three.
  *
  * Who can advance is drawn twice and one of the two is shown for the width: a
  * card after the figures up to 900px (Team.html), a list under the columns from
@@ -264,11 +265,19 @@
 .g-overview__leaders .g-ranked__value { color: var(--accent-text); }
 
 /*
- * The figures of the tiles keep to one line on the narrowest phones: a tile is 112px of content at 320px, and the longest
- * figure («33 · 10/3/0») is 4.6 times its font size wide. The size follows the width of the screen from 24px at 320px to
- * the tile's own 30px at 375px, and is 30px on every wider one.
+ * The figures (Team.html, DeskOverview.html): the label straight over the figure, each at its font's own line height,
+ * as the prototypes draw them — a phone's tile is 85px high, a desk's card 95px.
+ *
+ * A phone's figure keeps to one line on the narrowest phones: a tile is 112px of content at 320px. The size follows the
+ * width of the screen from 24px at 320px to the tile's own 30px at 375px, and is 30px on every wider one. A desk's
+ * cards are DeskOverview.html's 34px (below).
  */
-.g-overview .g-kpi__v { font-size: clamp(24px, calc(10.8vw - 10px), 30px); }
+.g-overview .g-kpi { gap: 0; }
+.g-overview .g-kpi__k { line-height: normal; }
+.g-overview .g-kpi__v {
+  font-size: clamp(24px, calc(10.8vw - 10px), 30px);
+  line-height: normal;
+}
 
 /* The recent matches: the title, and the way to the whole season at its end. */
 .g-overview__bar {
@@ -375,11 +384,34 @@
   .g-overview__stage { display: none; }
 
   /*
-   * The tile row stands beside the SideNav: its four tiles share the screen less 289px, so a tile is 119px of content at
-   * 901px and 134px at 960px, and the longest figure («33 · 10/3/0», 4.6 times its font size wide) wraps in it until about
-   * 990px. The size follows the width again, from 25px at 901px to the tile's own 30px at 1000px and wider.
+   * A desk's figures are DeskOverview.html's cards: white in the ring, 14 16 in, the figure Oswald 34, the place's «/ 10»
+   * 20px (the points' «· 4/1/1» is the tile's 22px). The row wraps by 180px (kpi-tile.css), so a figure never shrinks:
+   * at 901px three cards stand on the first line and two on the next. The link card's hover is a shade of the ink over
+   * the white card.
    */
-  .g-overview .g-kpi__v { font-size: clamp(24px, calc(5.4vw - 24px), 30px); }
+  .g-overview .g-kpi {
+    padding: var(--space-14) var(--space-16);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+  .g-overview .g-kpi__v { font-size: 34px; }
+  .g-overview .g-kpi:first-child .g-kpi__rest { font-size: 20px; }
+  .g-overview a.g-kpi--link:hover { background: color-mix(in srgb, var(--ink) 4%, var(--surface)); }
+
+  /*
+   * The reference's search at the right of the head (DeskOverview.html): 320px and never wider than the band, 44px, its
+   * words 15px — the shared field (search-field.css) is 48px and 16px; its fill, radius, magnifier and padding are the
+   * prototype's own.
+   */
+  .g-overview__search {
+    width: 320px;
+    max-width: 100%;
+  }
+  .g-overview__search .g-search { width: 100%; }
+  .g-overview__search .g-search__input {
+    height: 44px;
+    font-size: 15px;
+  }
 
   .g-overview__cols {
     display: grid;
