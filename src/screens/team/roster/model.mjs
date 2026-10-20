@@ -5,8 +5,9 @@
  *
  * A line is one player: his characteristics and skills, his counters in the three senses the screen needs
  * (what is in the roster, what a match has added, what an edit outside a match is waiting for), his
- * SPP, and what parting with him gives (a sale, or the cancel of his purchase) and whether the roster may. The mode is
- * what the team's games say the roster is for just now: plain, a preparation, a match.
+ * SPP, the advancements he has taken and what the next would cost him, his injuries, and what parting with him
+ * gives (a sale, or the cancel of his purchase) and whether the roster may. The mode is what the team's games
+ * say the roster is for just now: plain, a preparation, a match.
  *
  * The fallen are lines too (stage 07b): what the roster held when each died, read the way a player of the
  * roster is, with how and when he fell; one the roster as read still holds is drawn there and only there.
@@ -14,12 +15,12 @@
 import { gameSides } from "../../../data/team-record.mjs";
 import { isGameClosedForPlayers } from "../../../data/games.mjs";
 import { SPP_EVENT_COUNTERS, careerCounters, eventTotal, statisticsFromEvents } from "../../../domain/post-match/events.mjs";
-import { ADVANCEMENT_BLOCKED, canTakeAdvancement, playerAdvancementLevel, playerAdvancementSpent, playerSppTotal, sppCounterWeights } from "../../../domain/roster/progression.mjs";
+import { ADVANCEMENT_BLOCKED, advancementOffers, canTakeAdvancement, playerAdvancementLevel, playerAdvancementSpent, playerSppTotal, sppCounterWeights } from "../../../domain/roster/progression.mjs";
 import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
+import { playerInjuries } from "../../../domain/roster/edits.mjs";
+import { advancementRanks } from "../../../domain/league-rules.mjs";
 import { playerRemoval } from "../../../domain/roster/transfers.mjs";
-import {
-  CAPTAINS_SKILL, baseSkillsForPlayer, normalizePlayerExtraSkills, normalizePlayerFavouredSkills, normalizeSppCounters, positionKind, selectedRosterPlayers, storedPlayerId,
-} from "../../../domain/roster/players.mjs";
+import { normalizeSppCounters, positionKind, selectedRosterPlayers, skillsForPlayer, storedPlayerId } from "../../../domain/roster/players.mjs";
 import { PLAYER_STATS, categoriesForAccess, costToNumber, countToNumber, rowCost, statValueForDisplayByStat } from "../../../domain/roster/values.mjs";
 import { currentMatch } from "../../../shell/current-match.mjs";
 
@@ -105,18 +106,27 @@ function statsOf(row, player) {
 /** The ways a skill comes to a player in the league: an advancement, or a god's favour. The captain's Pro comes with the captaincy and is not gained. */
 const GAINED = ["primary", "secondary", "favoured"];
 
-/** The skills in the order the player came by them: his position's, the advancements', the favoured, the captain's. A skill is listed once. */
-function skillsOf(row, player) {
-  const listed = [
-    ...baseSkillsForPlayer(row),
-    ...normalizePlayerExtraSkills(row, player.extraSkills ?? []),
-    ...normalizePlayerFavouredSkills(row, player.favouredSkills ?? []),
-    ...(player.isCaptain ? [{ name: CAPTAINS_SKILL, access: "captain" }] : []),
-  ];
-  const seen = new Set();
-  return listed
-    .filter(({ name }) => name && !seen.has(name) && seen.add(name))
-    .map(({ name, access }) => ({ name, gained: GAINED.includes(access), source: access }));
+/**
+ * The skills in the order the player came by them (`skillsForPlayer`), each with the advancement that granted it: the place in
+ * `advancements` of the first whose grant names it, null for a skill nothing granted, which a position's, a god's and the
+ * captaincy's are, whatever an advancement is written to have granted.
+ */
+function skillsOf(row, player, advancements) {
+  return skillsForPlayer(row, player).map(({ name, access }) => {
+    const granted = access === "primary" || access === "secondary" ? advancements.findIndex(({ grants }) => grants?.skill === name) : -1;
+    return { name, gained: GAINED.includes(access), source: access, advancement: granted < 0 ? null : granted };
+  });
+}
+
+/**
+ * The advancements he has taken, in the order he took them: what each granted (null where nothing was written), how it was
+ * rolled — `site` and the roll's id, `table`, or neither for one the roster has no roll for — and what it cost at the rank
+ * it was taken at.
+ */
+function advancementsOf(player) {
+  return player.advancements.map(({ type, grants, roll }, rank) => ({
+    type, grants: grants ?? null, via: roll?.via ?? "", rollId: roll?.id ?? "", cost: advancementRanks[rank]?.costs?.[type] ?? 0,
+  }));
 }
 
 /**
@@ -172,7 +182,8 @@ function keysOf(ids) {
  * @property {boolean} retired temporarilyRetired: out for the season, which `skip` is true for as well
  * @property {Record<"ma"|"st"|"ag"|"pa"|"ar", {text: string, change: "up"|"down"|"", order: number|null}>} stats
  *   `text` as statValueForDisplayByStat writes it, "–" for a characteristic the player has not; `order` — the number to sort by (the target for AG and PA, "3+" → 3), null for none
- * @property {{name: string, gained: boolean, source: "base"|"primary"|"secondary"|"favoured"|"captain"}[]} skills
+ * @property {{name: string, gained: boolean, source: "base"|"primary"|"secondary"|"favoured"|"captain", advancement: number|null}[]} skills
+ *   `advancement`: the place in `advancements` of the one that granted the skill (by its `grants.skill`), null for a skill none did
  * @property {string[]} primary category names (categoriesForAccess)
  * @property {string[]} secondary category names (categoriesForAccess)
  * @property {Record<string, number>} blob the draft's counters (normalizeSppCounters)
@@ -184,6 +195,13 @@ function keysOf(ids) {
  * @property {number} spent
  * @property {number} available earned − spent
  * @property {number} level advancements taken
+ * @property {{type: string, grants: {skill?: string, stat?: string}|null, via: "site"|"table"|"", rollId: string, cost: number}[]} advancements
+ *   in the order taken; `via` how the result was rolled ("" where the roster has no roll for it), `rollId` the site roll's id ("" for none),
+ *   `cost` the price of the type at the rank it was taken at
+ * @property {ReturnType<typeof advancementOffers>|null} offers what he may take next on the roster's own SPP, the draft's — the blob, which the
+ *   rows waiting are not in (decision 4), unlike `available`; null while the Skill Table has not come in (`rosterLines`' `skillGroups`), which is
+ *   «unknown»: a skill type is not «no skill left» for a table nobody has read
+ * @property {{niggling: number, lasting: {stat: string, count: number}[]}} injuries Niggling Injuries and the points each characteristic lost to a lasting one (playerInjuries)
  * @property {number|null} cheapest the random skill's cost at the next rank, null at the last
  * @property {boolean} ready cheapest !== null && available >= cheapest
  * @property {number} value playerCurrentCost(row, player), in thousands
@@ -215,9 +233,10 @@ function countersOf(race, id, spp, rows) {
  * @param {object|null} props.race the race's page in the reference data; with none there are no lines
  * @param {object[]} [props.events] GET …/events: every row not settled, with its `pairingId`
  * @param {{kind: string, game?: object}} [props.mode] `rosterMode`'s
+ * @param {{category: string, skills: string[]}[]|null} [props.skillGroups] the Skill Table; null (it has not come in) leaves every `offers` null
  * @returns {PlayerLine[]}
  */
-export function rosterLines({ draft, race, events = [], mode = { kind: "plain" } }) {
+export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }, skillGroups = null }) {
   if (!race) return [];
   const unsettled = events.filter((event) => !event.settledAt);
   const rows = {
@@ -228,18 +247,20 @@ export function rosterLines({ draft, race, events = [], mode = { kind: "plain" }
   const players = selectedRosterPlayers(race, draft);
   const ids = players.map((player) => storedPlayerId(player) ?? "");
   const keys = keysOf(ids);
-  const { injuries } = statisticsFromEvents({ players: ids.map((id) => ({ id })) }, rows.match);
+  const { injuries: matchInjuries } = statisticsFromEvents({ players: ids.map((id) => ({ id })) }, rows.match);
   return players.map((player, at) => {
     const { row, index } = player;
     const id = ids[at];
     const counters = countersOf(race, id, player.spp, rows);
+    const advancements = advancementsOf(player);
     return {
       key: keys[at], id, index, number: player.number, name: player.name, position: row.position, kind: positionKind(row),
       captain: Boolean(player.isCaptain), skip: player.skipNextGame, absence: player.absence, retired: Boolean(player.temporarilyRetired),
-      stats: statsOf(row, player), skills: skillsOf(row, player),
+      stats: statsOf(row, player), skills: skillsOf(row, player, advancements),
       primary: categoriesForAccess(row.primary), secondary: categoriesForAccess(row.secondary),
-      ...counters, injury: mode.kind === "match" ? injuryOf(injuries, id) : null,
+      ...counters, injury: mode.kind === "match" ? injuryOf(matchInjuries, id) : null,
       ...progressOf(race, player, counters.career), value: playerCurrentCost(row, player),
+      advancements, offers: skillGroups ? advancementOffers(race, row, player, skillGroups) : null, injuries: playerInjuries(player),
       // What he brings back is the league's rule, kept where the server's save reads it (transfers.mjs): half his value, his full value and ten for each
       // injury under Architect of Fate (content/Gata/General Information/Special Rules.md), and no sale that leaves under seven (content/Gata/Rules/3. Team Management.md).
       price: costToNumber(rowCost(row)), removal: playerRemoval(race, draft, player),
@@ -264,13 +285,14 @@ export function rosterSections(lines) {
 /**
  * @typedef {PlayerLine & {bare: boolean, fallen: {id: string, cause: string|null, fromMatch: boolean, round: number|null, diedAt: string}}} FallenLine
  *   A fallen player as a line: `key` is `fallen-<record id>`, `index` the place in the server's list; he does not miss
- *   a match, is not the captain and takes no advancement (`skip`, `captain`, `ready` false; no captain's Pro among his
- *   skills), no match is on for him (`injury` null, `match` zeros). `round` is the match's round, null for a friendly,
- *   a death by hand and a record the server has no round for. `bare`: a record the roster cannot read — no row of the
- *   race for its snapshot, or no player in it at all — drawn from what it says of itself; the server would not give
- *   him back to the roster (FALLEN_NOT_RESTORABLE), so no undo of it is offered (K11). One with no id is bare too: no
- *   write could name him back, and no read could find him on the roster to say whether an undo landed. `price` and
- *   `removal` are there for the shape's sake: the dead are neither hired nor sold, and no screen reads them for him.
+ *   a match, is not the captain and takes no advancement (`skip`, `captain`, `ready` false, `offers` maxed with nothing
+ *   to offer — never null, which a view reads as «unknown»; no captain's Pro among his skills), no match is on for him
+ *   (`injury` null, `match` zeros). `round` is the match's round, null for a friendly, a death by hand and a record the
+ *   server has no round for. `bare`: a record the roster cannot read — no row of the race for its snapshot, or no
+ *   player in it at all — drawn from what it says of itself; the server would not give him back to the roster
+ *   (FALLEN_NOT_RESTORABLE), so no undo of it is offered (K11). One with no id is bare too: no write could name him
+ *   back, and no read could find him on the roster to say whether an undo landed. `price` and `removal` are there for
+ *   the shape's sake: the dead are neither hired nor sold, and no screen reads them for him.
  */
 
 /** No rows: the dead have none, so the counters of a line made for them are the snapshot's own. */
@@ -293,6 +315,7 @@ function bareLine(race, snapshot) {
     stats: Object.fromEntries(PLAYER_STATS.map((stat) => [stat, { text: NO_VALUE, change: "", order: null }])), skills: [], primary: [], secondary: [],
     ...counters, injury: null,
     earned: 0, spent: 0, available: 0, level: 0, cheapest: null, ready: false, value: 0,
+    advancements: [], offers: { level: 0, maxed: true, available: 0, offers: [] }, injuries: { niggling: 0, lasting: [] },
     price: 0, removal: { type: "sell", amount: 0, blocked: true },
   };
 }
@@ -321,7 +344,7 @@ export function fallenLines({ fallen, race, rosterIds = [] }) {
       ...line,
       // The captain's Pro goes with the captaincy, which the dead do not hold (and an undo gives back only to an empty chair).
       skills: line.skills.filter(({ source }) => source !== "captain"),
-      key: `fallen-${record.id}`, index, skip: false, captain: false, ready: false, absence: null, retired: false, injury: null, bare: !read || !line.id,
+      key: `fallen-${record.id}`, index, skip: false, captain: false, ready: false, offers: { level: line.level, maxed: true, available: 0, offers: [] }, absence: null, retired: false, injury: null, bare: !read || !line.id,
       fallen: { id: record.id, cause: record.cause ?? null, fromMatch: Boolean(record.fromMatch), round: record.roundNumber ?? null, diedAt: record.diedAt },
     }];
   });

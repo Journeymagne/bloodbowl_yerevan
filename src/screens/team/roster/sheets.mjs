@@ -8,9 +8,10 @@
  * characteristic it lowers, recorded in the match as a row of it, and the standing one taken back by its own −1.
  * The post-match's Players step reads it from the rows; the roster is changed there, not here.
  *
- * Stage 07b's sheets — a missed match's reasons (mark-sheet.mjs) and the undo of a death — and stage 07c's — the hire
- * cart (hire-sheet.mjs) and a player's sale — are drawn by their own modules; what they share with the injury's is
- * here: the ids the screen shows each by, the row of characteristics and the foot's button.
+ * Stage 07b's sheets — a missed match's reasons (mark-sheet.mjs) and the undo of a death — stage 07c's — the hire
+ * cart (hire-sheet.mjs) and a player's sale — and stage 07d's player edit and the undo of his last advancement
+ * (player-sheets.mjs), his advancement (advance-sheet.mjs) and his fix by hand (fix.mjs) are drawn by their own modules; what they share with the injury's is here: the ids the screen
+ * shows each by, the row of characteristics and the foot's button.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -18,12 +19,12 @@ import { INJURIES } from "../../../domain/post-match/rules.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderButton } from "../../../ui/button.mjs";
 import { renderFilterChips } from "../../../ui/filter-chips.mjs";
-import { dataAttributes } from "../../../ui/markup.mjs";
+import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
 import { pageForName } from "../../ref/catalog.mjs";
 import { categoryOf, tagsOf } from "../../ref/skill.mjs";
-import { matchWords } from "./panel.mjs";
+import { matchWords, skillSourceOf } from "./panel.mjs";
 
 /** What the skill's sheet is shown by (`#roster-skill`) and what wireSheets reports. */
 export const SKILL_SHEET = "roster-skill";
@@ -41,9 +42,22 @@ export const MARK_STAT = "mark-stat";
 export const HIRE_SHEET = "roster-hire";
 /** What the sheet that sells a player, or cancels his purchase, is shown by (`#roster-sell`, stage 07c) and what wireSheets reports. */
 export const SELL_SHEET = "roster-sell";
+/** What a player's edit — his number, name and captaincy — is shown by (`#player-edit`, stage 07d) and what wireSheets reports. */
+export const EDIT_SHEET = "player-edit";
+/** What a player's advancement is shown by (`#player-advance`, stage 07d) and what wireSheets reports, «Back» too. */
+export const ADVANCE_SHEET = "player-advance";
+/** What the undo of a player's last advancement is shown by (`#player-unadvance`, stage 07d) and what wireSheets reports. */
+export const UNADVANCE_SHEET = "player-unadvance";
+/** What a player's fix by hand is shown by (`#player-fix`, stage 07d) and what wireSheets reports. */
+export const FIX_SHEET = "player-fix";
+/** The frame every sheet of a player's wears (stage 07d: his edit, the undo, his advancement, his fix; player-sheets.css). */
+export const PLAYER_FRAME = "g-player-sheet";
 
 /** The id of each kind of sheet the visit holds (index.mjs's `visit.sheet.kind`). */
-const SHEET_IDS = Object.freeze({ skill: SKILL_SHEET, injury: INJURY_SHEET, mark: MARK_SHEET, undo: UNDO_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET });
+const SHEET_IDS = Object.freeze({
+  skill: SKILL_SHEET, injury: INJURY_SHEET, mark: MARK_SHEET, undo: UNDO_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET, edit: EDIT_SHEET, advance: ADVANCE_SHEET,
+  unadvance: UNADVANCE_SHEET, fix: FIX_SHEET,
+});
 
 /** The id a sheet of `kind` is shown by, which wireSheets reports when it is closed; "" for a kind there is none of. */
 export function sheetIdOf(kind) {
@@ -60,21 +74,27 @@ function captionOf(data, page) {
 }
 
 /**
- * The rule of a skill a player has, in a sheet.
+ * The rule of a skill a player has, in a sheet; between the rule and whose skill it is, how an advancement gave it
+ * (stage 07d, decision 19: roll-view.mjs's `rollBlockMarkup`). Whose skill it is says how he came by it as the panel's card
+ * does (`skillSourceOf`, short): a gained skill's advancement, on the accent's tint; any other skill 07a's words, on grey.
  *
  * @param {object} props
  * @param {object} props.data the reference of the page's language (state.data)
  * @param {import("./model.mjs").PlayerLine} props.line the player whose chip was pressed
  * @param {string} props.name the skill as the roster writes it
+ * @param {string} [props.advancementHtml] markup of `rollBlockMarkup()`, "" for none
  * @returns {string} a closed dialog: `patchWithModal(view, markup, "#roster-skill")` opens it
  */
-export function skillSheetMarkup({ data, line, name }) {
+export function skillSheetMarkup({ data, line, name, advancementHtml = "" }) {
   const page = pageForName(data, name);
   const skill = line.skills.find((item) => item.name === name);
   // The build escapes a page's html (scripts/build-data.mjs); a page without it has its text.
   const rule = page ? `<div class="g-prose">${page.html || `<p>${escapeHtml(page.text ?? "")}</p>`}</div>` : `<p class="g-roster__nopage">${escapeHtml(t("teamRoster.skill.noPage"))}</p>`;
-  const from = skill ? `<p class="g-roster__from">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: t(`teamRoster.source.${skill.source}`) }))}</p>` : "";
-  return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${from}` });
+  // A gained skill's box is green and names the advancement that gave it as the panel does (StatsSkill.html, fidelity F8); any other keeps 07a's words on the grey.
+  const from = skill
+    ? `<p class="${classNames("g-roster__from", skill.gained && "g-roster__from--gained")}">${escapeHtml(t("teamRoster.skill.from", { player: line.name, source: skillSourceOf(line, skill, { short: true }) }))}</p>`
+    : "";
+  return renderSheet({ id: SKILL_SHEET, title: name, sub: page ? captionOf(data, page) : "", bodyHtml: `${rule}${advancementHtml}${from}` });
 }
 
 /** The injury the sheet's choice makes, or null while it is not whole: none chosen, a lasting one without its characteristic. */

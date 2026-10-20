@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { PALETTES, assertReadable, colourOf, contrast, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { BUTTON_KINDS, renderButton, renderIconButton } from "../src/ui/button.mjs";
 import { wireRadioGroups } from "../src/ui/choice.mjs";
@@ -78,10 +78,49 @@ test("the filled danger button wears --danger-fill with --on-danger-fill, readab
   assert.deepEqual(wearers.map((name) => name.split("\\").join("/")), ["ui/button.css"]);
 });
 
+// 07d fidelity F7: a closed red button used to be the red fill and the white label both dimmed by .g-btn:disabled's
+// opacity (a pale red, 2.7:1 in a light palette and 3.7:1 in a dark one). The prototypes' closed main button is the
+// grey fill with its full white label, and so is ours: the red shows only when the irreversible step can be taken.
+test("a closed danger button is drawn as a closed primary is: the grey fill at full opacity under the undimmed label, in every palette", () => {
+  const css = "src/ui/button.css";
+  const fragment = mount(renderButton({ label: "Choose a race", kind: "danger", disabled: true }));
+  const closed = fragment.querySelector("button");
+  assert.ok(closed.hasAttribute("disabled") && closed.classList.contains("g-btn--danger"));
+  assertStyled(fragment, "button.css");
+  assert.deepEqual(valuesOf(css, ".g-btn:disabled", "opacity"), [".6"], "the base look still dims what is closed");
+  // Both closed fills come from one rule, so the two cannot drift apart.
+  for (const kind of ["primary", "danger"]) {
+    const selector = `.g-btn--${kind}:disabled`;
+    assert.deepEqual(valuesOf(css, selector, "background"), ["var(--disabled)"], selector);
+    assert.deepEqual(valuesOf(css, selector, "border-color"), ["var(--disabled)"], selector);
+    assert.deepEqual(valuesOf(css, selector, "opacity"), ["1"], `${selector}: neither the fill nor the label is dimmed`);
+    assert.deepEqual(valuesOf(css, selector, "color"), [], `${selector}: the label keeps the colour of its kind`);
+  }
+  assert.deepEqual(valuesOf(css, ".g-btn--danger", "color"), ["var(--on-danger-fill)"]);
+  // The label on the closed fill, in all eight palettes: never less readable than the closed primary's (the same grey
+  // under a white label), and, in a dark palette, 4.5:1. In a light palette the prototypes' own #A9B3AE under white is
+  // 2.15:1, which is what a closed main button is there (WCAG 1.4.3 leaves an inactive control out); 2 is the floor.
+  for (const palette of Object.keys(PALETTES)) {
+    const tokens = tokensOf(palette);
+    const [fill, danger, primary] = ["--disabled", "--on-danger-fill", "--on-accent"].map((name) => colourOf(`var(${name})`, tokens));
+    const [red, main] = [contrast(danger, fill), contrast(primary, fill)];
+    assert.ok(red >= main, `${palette}: the closed red label (${red.toFixed(2)}:1) is below the closed primary's (${main.toFixed(2)}:1)`);
+    assert.ok(red >= (PALETTES[palette] === "dark" ? 4.5 : 2), `${palette}: the closed red label is ${red.toFixed(2)}:1`);
+  }
+  assertReadable(css, ".g-btn--danger", "color", ["--danger-fill"], 4.5);
+});
+
 test("a button with an href is a link and never disabled", () => {
   const link = mount(renderButton({ label: "Profile", kind: "dark", href: "#/t/1/roster/p1", disabled: true })).querySelector("a");
   assert.equal(link.getAttribute("href"), "#/t/1/roster/p1");
   assert.equal(link.hasAttribute("disabled"), false);
+});
+
+test("a button that opens a dialog says so; a link cannot", () => {
+  const button = mount(renderButton({ label: "New team", kind: "primary", dialog: true, data: { newTeam: true } })).querySelector("button");
+  assert.equal(button.getAttribute("aria-haspopup"), "dialog");
+  assert.equal(mount(renderButton({ label: "New team" })).querySelector("button").hasAttribute("aria-haspopup"), false, "only when asked");
+  assert.throws(() => renderButton({ label: "New team", href: "#/teams/new", dialog: true }), /a link opens no dialog/);
 });
 
 test("labels and data are escaped", () => {
@@ -169,6 +208,20 @@ test("a toggle is a switch row that flips and reports; a disabled one does not m
   assertStyled(fragment, "toggle.css");
 });
 
+// Stage 07d, Task 8: «Team captain» has the «C» before its words (PlayerEdit.html, DeskRosterEdit.html).
+test("a switch may carry a mark before its words", () => {
+  const plain = renderToggle({ key: "captain", label: "Team captain", caption: "The team has no captain" });
+  const marked = renderToggle({ key: "captain", label: "Team captain", caption: "The team has no captain", leadHtml: '<span class="g-mark" aria-hidden="true">C</span>' });
+  assert.equal(renderToggle({ key: "captain", label: "Team captain", caption: "The team has no captain", leadHtml: "" }), plain, "without one, as it was");
+  assert.equal(marked, plain.replace('<span class="g-toggle__text">', '<span class="g-mark" aria-hidden="true">C</span><span class="g-toggle__text">'));
+  const fragment = mount(marked);
+  const button = fragment.querySelector('[role="switch"]');
+  const parts = button.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  assert.deepEqual(parts, ["g-mark", "g-toggle__text", "g-toggle__track"], "the mark first, then the words and the track");
+  assert.equal(button.querySelector(".g-mark").getAttribute("aria-hidden"), "true");
+  assertCspSafe(fragment);
+});
+
 test("a toggle another element describes names it, and is named by its label alone", () => {
   const fragment = mount(`${renderToggle({ key: "outside", label: "Edit outside the match", describedBy: "outside-note" })}<span id="outside-note" hidden>fix an old mistake</span>`
     + renderToggle({ key: "plain", label: "Plain" }));
@@ -196,6 +249,29 @@ test("a button in a sheet's footer can belong to the form in its body", () => {
   assert.equal(mount(renderButton({ label: "Change", type: "submit" })).querySelector("button").hasAttribute("form"), false, "no form unless asked");
   assert.throws(() => renderButton({ label: "Change", form: 'a" onclick="x' }), /form/);
   assert.throws(() => renderButton({ label: "Go", href: "#/x", form: "f" }), /form/, "a link has no form to submit");
+});
+
+// Stage 07d, Task 10 (K6): a segment closed just now — the way a roll is made, once it is made on the site.
+test("a closed segment says why, takes no click and is skipped by the arrows; the tab stop goes to an open one", () => {
+  const items = [{ value: "light", label: "Light", disabled: true, reason: HOSTILE }, { value: "dark", label: "Dark" }, { value: "system", label: "System", disabled: true }];
+  const fragment = mount(renderSegmentedControl({ label: "Mode", items, selected: "light" }));
+  const radios = fragment.querySelectorAll('[role="radio"]');
+  assert.deepEqual(radios.map((radio) => radio.getAttribute("aria-disabled")), ["true", null, "true"]);
+  assert.deepEqual(radios.map((radio) => radio.getAttribute("title")), [HOSTILE, null, null], "the reason is its title, escaped");
+  assert.deepEqual(radios.map((radio) => radio.getAttribute("aria-checked")), ["true", "false", "false"], "the closed one may still be the one shown");
+  assert.deepEqual(radios.map((radio) => radio.getAttribute("tabindex")), ["-1", "0", "-1"], "the tab stop on the open one");
+  assert.ok(radios.every((radio) => !radio.hasAttribute("disabled")), "aria-disabled, not disabled: a press can still say why");
+  const seen = [];
+  wireSegmentedControls(fragment, (value) => seen.push(value));
+  fireEvent(radios[2], "click");
+  assert.deepEqual(seen, [], "a click on a closed segment chooses nothing");
+  fireEvent(radios[1], "click");
+  fireEvent(radios[1], "keydown", { key: "ArrowRight" });
+  assert.deepEqual(seen, ["dark"], "the arrows find no other open segment");
+  // Every one closed: the one shown keeps the tab stop, so the group can still be reached and read.
+  const shut = mount(renderSegmentedControl({ label: "Mode", items: MODES.map((item) => ({ ...item, disabled: true })), selected: "dark" }));
+  assert.deepEqual(shut.querySelectorAll('[role="radio"]').map((radio) => radio.getAttribute("tabindex")), ["-1", "0", "-1"]);
+  assertCspSafe(fragment);
 });
 
 test("a segmented control refuses what would leave it unusable", () => {

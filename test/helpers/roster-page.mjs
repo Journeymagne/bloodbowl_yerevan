@@ -2,7 +2,7 @@
  * The page stage 07b's roster tests stand on (test/team-roster-skips.test.mjs, test/team-roster-fallen-undo.test.mjs),
  * set up as test/team-roster.test.mjs sets it up (lines 1–80): the window's events, the fake API before the screen's
  * modules are imported, the view. Then a coach whose team has three who play, four who miss the next match and two
- * fallen, and the queries the tests read the screen by.
+ * fallen, and the queries the tests read the screen by; the player's address as the router draws it (stage 07d).
  *
  * Imported before any module of src/ that talks to the API: the client picks up `fetch` when it loads (fake-api.mjs).
  */
@@ -57,8 +57,9 @@ export const JOE = died("f2", { id: "d2", rowIndex: 0, number: "9", name: "Joe" 
 export const FALLEN = [PIKE, JOE];
 
 /**
- * A coach on a page that has read his teams and the reference; the server answers the roster, its events, its fallen and
- * the games. `open` is the player chosen from the first draw: his row open on a phone, him in the panel on a desk.
+ * A coach on a page that has read his teams and the reference; the server answers the roster, its events, its fallen,
+ * the games and each player's career by match (none yet). `open` is the player chosen from the first draw: his row open
+ * on a phone, him in the panel on a desk.
  */
 export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}) {
   api.reset();
@@ -68,7 +69,7 @@ export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}
   view.innerHTML = "";
   if (save.saveState("t1").status !== "idle") save.takeServerTeam(team());
   for (const node of document.querySelectorAll("output")) node.parentNode.removeChild(node);
-  Object.assign(rosterMemory("t1"), { sort: null, selected: open, outside: null });
+  Object.assign(rosterMemory("t1"), { sort: null, selected: open, outside: null, scroll: null, wayBack: null, fromPlayer: false, query: "" });
   state.auth.currentUser = { id: "u1", login: "coach", preferences: { activeTeamId: "t1" } };
   state.myTeams = { items: [team()], loaded: true, loading: false, error: "" };
   state.activeTeamId = "t1";
@@ -78,6 +79,8 @@ export function coach({ teamAnswer = team(), fallen = FALLEN, open = null } = {}
   api.reply("GET /api/teams/t1/events", 200, { events: [], revision: teamAnswer.revision });
   api.reply("GET /api/teams/t1/fallen", 200, { fallen });
   api.reply("GET /api/games", 200, { games: [], currentGames: [] });
+  // A phone's profile reads the player's career by match once a visit (stage 07d, Task 24): none of the team's matches yet.
+  for (const { id } of PLAYERS) api.reply(`GET /api/teams/t1/players/${id}/history`, 200, { history: { playerId: id, matches: [], outside: {} } });
 }
 
 export const callKeys = () => api.calls.map(({ key }) => key);
@@ -97,6 +100,15 @@ export const LIVE_GAME = {
   postMatchStatus: "draft", updatedAt: "2026-10-10T10:00:00Z", home: { user: { id: "u1" }, team: { id: "t1" } }, away: { user: { id: "u9" }, team: { id: "r1" } },
 };
 export const STYLES = ["src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css",
-  "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
+  "src/screens/team/roster/market.css", "src/screens/team/roster/profile.css", "src/screens/team/roster/player-sheets.css", "src/screens/team/roster/advance.css",
+  "src/screens/team/roster/rolls.css", "src/screens/team/roster/fix.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css",
   "stat-strip.css", "progress-dots.css", "button.css", "callout.css", "sheet.css", "src/screens/ref/prose.css", "action-stepper.css", "status-chip.css",
   "src/screens/team/manage/strip.css"];
+
+/** The player's address as the router draws a player of the roster (stage 07d): the roster's player mode. */
+export const playerPage = (playerId) => renderTeamRoster("t1", { playerId });
+/** Cade with ten touchdowns and a random skill rolled on the site, Frenzy, for his first advancement: 27 SPP to spend. */
+export const ADVANCED = {
+  ...PLAYERS[2], spp: { touchdowns: 10 }, extraSkills: [{ name: "Frenzy", access: "primary" }],
+  advancements: [{ type: "random", grants: { skill: "Frenzy" }, roll: { id: "r1", via: "site" } }],
+};

@@ -143,6 +143,102 @@ test("a saved roster replaces the team and reads the history again: the server w
   assert.equal(api.calls[0].body.roster.cheerleaders, 2);
 });
 
+/**
+ * The body of the last PATCH of the team, once the save given has been answered with the team as it was. The draft
+ * carries a name of its own and the race `race` (none by default, as a roster stored before it carried one).
+ */
+async function savedBody(identity, race = "") {
+  coach();
+  api.reply("PATCH /api/teams/t1", 200, { team: { ...TEAM, revision: 4 } });
+  api.reply(FIRST_PAGE, 200, { entries: [], next: null, since: null, total: 0 });
+  assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, teamSlug: race, teamName: "y" }, identity), { team: { ...TEAM, revision: 4 } });
+  await settle();
+  return api.calls.filter((call) => call.key === "PATCH /api/teams/t1").at(-1).body;
+}
+const sent = (body) => [body.name, body.baseTeamSlug, body.logoData, body.revision, body.roster.teamName, body.roster.teamSlug, body.roster.treasury];
+
+test("a team saved with another name keeps the roster, the race and the logo as the list holds them", async () => {
+  const body = await savedBody({ name: "Rooks" });
+  assert.deepEqual(sent(body), ["Rooks", "teams/human", TEAM.logoData, 3, "Rooks", "teams/human", 70]);
+  assert.equal(body.roster.logoData, undefined);
+  assert.deepEqual(sent(await savedBody({ name: "Rooks" }, "teams/human")), ["Rooks", "teams/human", TEAM.logoData, 3, "Rooks", "teams/human", 70]);
+});
+
+test("a name given goes without the blanks at its ends, in the body and in the roster alike", async () => {
+  const body = await savedBody({ name: "  Rooks \t" });
+  assert.deepEqual([body.name, body.roster.teamName], ["Rooks", "Rooks"]);
+  const none = await savedBody({ name: null });
+  assert.deepEqual([none.name, none.roster.teamName], ["", ""], "no name is no name, for the server to refuse");
+});
+
+// Owner, 2026-10-20: a coach does not change a team's race. Whatever a draft or an identity says, the save goes under
+// the race the team has, in the body and in the roster alike; nothing throws.
+test("an identity that names a race sends the team's race: no save changes it", async () => {
+  for (const [identity, race] of [[{ baseTeamSlug: "teams/goblin" }, ""], [{ baseTeamSlug: "teams/shambling-undead" }, "teams/shambling-undead"], [{ name: "Rooks", baseTeamSlug: "teams/orc" }, "teams/human"]]) {
+    const body = await savedBody(identity, race);
+    assert.deepEqual([body.baseTeamSlug, body.roster.teamSlug], ["teams/human", "teams/human"], `${JSON.stringify(identity)} on a draft of ${race || "no race"}`);
+  }
+});
+
+// Final review M3, as 07d's second review leaves it: the race is the team's column, never the roster's own say.
+test("a team whose stored roster names another race than its column saves under the column's race, as before 07d — nothing throws", async () => {
+  coach();
+  const legacy = { ...structuredClone(TEAM), roster: { ...TEAM.roster, teamSlug: "teams/humans" } };
+  state.myTeams.items = [state.myTeams.items[0], legacy];
+  api.reply("PATCH /api/teams/t1", 200, { team: { ...legacy, revision: 4 } });
+  api.reply(FIRST_PAGE, 200, { entries: [], next: null, since: null, total: 0 });
+  // Stage 08's resources: the stored roster with one more cheerleader, no identity.
+  assert.deepEqual(await treasury.saveTeamRoster("t1", { ...legacy.roster, cheerleaders: 2 }), { team: { ...legacy, revision: 4 } });
+  const { body } = api.calls.filter((call) => call.key === "PATCH /api/teams/t1").at(-1);
+  assert.deepEqual([body.baseTeamSlug, body.roster.teamSlug, body.roster.cheerleaders], ["teams/human", "teams/human", 2], "under the team's race, as before 07d");
+  await settle();
+  // A draft of another race than the stored roster's, with or without a name: nothing throws, the team's race goes.
+  state.myTeams.items = [state.myTeams.items[0], legacy];
+  for (const identity of [undefined, { name: "Rooks" }]) {
+    const answer = await treasury.saveTeamRoster("t1", { ...legacy.roster, teamSlug: "teams/shambling-undead", players: [] }, identity);
+    assert.ok(answer.team, JSON.stringify(identity));
+    const sentRace = api.calls.filter((call) => call.key === "PATCH /api/teams/t1").at(-1).body;
+    assert.deepEqual([sentRace.baseTeamSlug, sentRace.roster.teamSlug], ["teams/human", "teams/human"], JSON.stringify(identity));
+    await settle();
+    state.myTeams.items = [state.myTeams.items[0], legacy];
+  }
+});
+
+test("a logo given goes in place of the team's, never inside the roster; an empty one takes it off", async () => {
+  const body = await savedBody({ logoData: "data:image/png;base64,BB" });
+  assert.deepEqual(sent(body), ["Wardens", "teams/human", "data:image/png;base64,BB", 3, "Wardens", "teams/human", 70]);
+  assert.equal(body.roster.logoData, undefined);
+  assert.equal((await savedBody({ logoData: "" })).logoData, "");
+  assert.equal((await savedBody({ logoData: null })).logoData, null);
+});
+
+test("without an identity a save is as before: the team's name, race and logo, whatever the draft says", async () => {
+  for (const identity of [undefined, {}, { name: undefined, logoData: undefined }]) {
+    assert.deepEqual(sent(await savedBody(identity)), ["Wardens", "teams/human", TEAM.logoData, 3, "Wardens", "teams/human", 70], JSON.stringify(identity));
+  }
+});
+
+test("a save with an identity is one write like any other: one at a time, this tab's, a 409 taken as the server has it", async () => {
+  coach();
+  api.reply("PATCH /api/teams/t1", 200, { team: { ...TEAM, revision: 4 } });
+  const gate = api.hold("PATCH /api/teams/t1");
+  const first = treasury.saveTeamRoster("t1", TEAM.roster, { name: "Rooks" });
+  assert.equal(treasury.isWriting("t1"), true);
+  assert.deepEqual(await treasury.saveTeamRoster("t1", TEAM.roster, { name: "Crows" }), { ignored: true });
+  api.reply(FIRST_PAGE, 200, { entries: [], next: null, since: null, total: 0 });
+  gate.release();
+  await first;
+  assert.equal(api.calls.filter((call) => call.key === "PATCH /api/teams/t1").length, 1);
+  api.items.set(TOKEN, "other-tab");
+  assert.deepEqual(await treasury.saveTeamRoster("t1", TEAM.roster, { name: "Crows" }), { refusal: "Other tab" });
+  api.items.set(TOKEN, "tok");
+  const theirs = { ...TEAM, name: "Ravens", revision: 5 };
+  api.reply("PATCH /api/teams/t1", 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: theirs });
+  assert.deepEqual(await treasury.saveTeamRoster("t1", TEAM.roster, { name: "Crows" }), { refusal: "Changed elsewhere.", changed: true });
+  assert.equal(state.myTeams.items[1].name, "Ravens");
+  await settle();
+});
+
 test("a read that fails keeps the lines and says why; the next one that comes clears it", async () => {
   coach();
   api.reply(FIRST_PAGE, 200, { entries: [ENTRY], next: null, since: null, total: 1 });

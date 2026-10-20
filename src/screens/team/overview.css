@@ -1,14 +1,20 @@
 /*
  * A team's overview (screens/team/overview.mjs). The figures, the board, the
- * callout and the rows are the ui/ sheets'; this one lays them out and draws
- * the two lists. Font, border, background, text-transform and font-weight are
- * set here on purpose: the 2.x global rules (h2, ul, a, p) outlive this sheet
- * until stage 13.
+ * callout and the pills are the ui/ sheets'; this one lays them out and draws
+ * who can advance. The columns under the board, and the leaders and the recent
+ * results in them, are overview-lists.css's. Font, border, background,
+ * text-transform and font-weight are set here on purpose: the 2.x global rules
+ * (h2, ul, a, p) outlive this sheet until stage 13.
  *
- * Written for a phone first. From 901px the leaders and the recent matches
- * stand in two columns, and the leaders turn from rows into cards
- * (DeskOverview.html); the recent matches are five, of which a phone shows the
- * first three.
+ * Written for a phone first. From 901px the figures are white cards in a ring
+ * that wrap by 180px, and the head has the reference's search at its right
+ * (DeskOverview.html).
+ *
+ * Who can advance is drawn twice and one of the two is shown for the width: a
+ * card after the figures up to 900px (Team.html), a list in the right column
+ * from 901px (DeskOverview.html). Where the prototypes give no line height, the
+ * font's own (`normal`). A long name wraps; nothing is cut with «…». A phone's
+ * blocks stand 22px apart, as in Team.html; a desk's 20px, as in DeskOverview.html.
  */
 .g-overview {
   box-sizing: border-box;
@@ -42,150 +48,195 @@
   margin: 0;
 }
 
-/* The leaders and the recent matches: one under the other on a phone, side by side on a desk. */
-.g-overview__cols {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-20);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-}
-
-.g-overview__leaders,
-.g-overview__results {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-6);
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-}
-
-.g-overview__title {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  font: 700 24px/1.1 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-/* The leaders: the ranked rows of list-row.css, the last one without its rule. */
-.g-overview__leaderlist {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-.g-overview__leaders .g-ranked:last-child { border-bottom: 0; }
-
-.g-overview__leaders .g-ranked__value { color: var(--accent-text); }
-
 /*
- * The figures of the tiles keep to one line on the narrowest phones: a tile is 112px of content at 320px, and the longest
- * figure («33 · 10/3/0») is 4.6 times its font size wide. The size follows the width of the screen from 24px at 320px to
- * the tile's own 30px at 375px, and is 30px on every wider one.
+ * A phone's card (Team.html): the words over the player and what is left to say, the chevron at the end. The box is
+ * border-box like every sheet's, and its 76px is what the prototype's content-box draws: its 56px is the least of the
+ * words' box, and the 10px above and below come on top. A name that wraps makes the card as tall as it is plus the 20.
  */
-.g-overview .g-kpi__v { font-size: clamp(24px, calc(10.8vw - 10px), 30px); }
-
-/* The recent matches: the title, and the way to the whole season at its end. */
-.g-overview__bar {
+.g-overview__ready {
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-12);
-}
-
-.g-overview__all {
-  display: inline-flex;
-  align-items: center;
-  flex: none;
-  min-height: var(--size-touch);
+  min-height: 76px;
+  margin: 0;
+  padding: var(--space-10) var(--space-14);
   border: 0;
-  background: none;
-  color: var(--accent-text);
-  font: 600 14px/1.2 var(--font-body);
+  border-radius: var(--radius-xl);
+  background: var(--accent-tint);
+  color: var(--on-accent-tint);
+  font: 400 14px/normal var(--font-body);
   letter-spacing: 0;
   text-decoration: none;
   text-transform: none;
 }
-.g-overview__all:hover { text-decoration: underline; }
 
-.g-overview__list {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-/* A row is a link as high as the row: the whole of it is the target. */
-.g-overview__result {
-  box-sizing: border-box;
-  display: flex;
-  min-height: 56px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  background: none;
-}
-.g-overview__result:last-child { border-bottom: 0; }
-
-.g-overview__row {
-  box-sizing: border-box;
-  display: grid;
-  flex: 1 1 auto;
-  grid-template-columns: 28px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-10);
-  min-width: 0;
-  padding: var(--space-10) 0;
-  border: 0;
-  background: none;
-  color: var(--ink);
-  text-decoration: none;
-}
-
-.g-overview__text {
+.g-overview__readytext {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.g-overview__opponent {
-  color: var(--ink);
-  font: 500 16px/1.3 var(--font-body);
+.g-overview__readytitle {
+  font: 700 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__readywho {
+  font: 400 13px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
   letter-spacing: 0;
   text-transform: none;
   overflow-wrap: anywhere;
 }
 
-.g-overview__line {
-  color: var(--muted);
-  font: 400 13px/1.35 var(--font-body);
+/*
+ * A desk's list (DeskOverview.html): a card in a ring, the head over the rows, six between its parts. It is the right
+ * column's (overview-lists.css); it is not shown on a phone (below), where the card says it.
+ */
+.g-overview__readylist {
+  box-sizing: border-box;
+  display: none;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-20);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 14px/normal var(--font-body);
   letter-spacing: 0;
   text-transform: none;
 }
 
-.g-overview__score {
+/* The title and how many they are, on the title's baseline. */
+.g-overview__readybar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+  margin: 0 0 var(--space-6);
+  padding: 0;
+}
+
+.g-overview__readyheading {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--ink);
-  font: 700 22px/1.1 var(--font-display);
+  font: 700 24px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__readycount {
+  color: var(--muted);
+  font: 400 14px/normal var(--font-body);
   /* The shorthand above resets it. */
   font-variant-numeric: tabular-nums;
   letter-spacing: 0;
-  text-align: right;
   text-transform: none;
-  white-space: nowrap;
 }
 
-/* A phone shows the three newest matches: the fourth and the fifth are for a desk. */
+.g-overview__readyrows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* A row: the number on the position's colour, who it is, the SPP to spend, and the way to advance. 57px: the 56 of the prototype's box and its rule. */
+.g-overview__readyrow {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 57px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: none;
+}
+
+.g-overview__readyplayer {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.g-overview__readyname {
+  color: var(--ink);
+  font: 600 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-overview__readypos {
+  color: var(--muted);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+.g-overview__readyspp {
+  color: var(--accent-text);
+  font: 700 15px/normal var(--font-body);
+  /* The shorthand above resets it. */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-overview__advance {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--header);
+  color: var(--header-ink);
+  font: 600 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+/*
+ * The figures (Team.html, DeskOverview.html): the label straight over the figure, each at its font's own line height,
+ * as the prototypes draw them — a phone's tile is 85px high, a desk's card 95px.
+ *
+ * A phone's figure keeps to one line on the narrowest phones: a tile is 112px of content at 320px. The size follows the
+ * width of the screen from 24px at 320px to the tile's own 30px at 375px, and is 30px on every wider one. A desk's
+ * cards are DeskOverview.html's 34px (below).
+ */
+.g-overview .g-kpi { gap: 0; }
+.g-overview .g-kpi__k { line-height: normal; }
+.g-overview .g-kpi__v {
+  font-size: clamp(24px, calc(10.8vw - 10px), 30px);
+  line-height: normal;
+}
+
 @media (max-width: 900px) {
-  .g-overview__result:nth-child(n+4) { display: none; }
-  .g-overview__result:nth-child(3) { border-bottom: 0; }
+  /* Team.html's blocks stand 22px apart; the desk's 20px is the base. */
+  .g-overview { gap: var(--space-22); }
 }
 
 @media (min-width: 901px) {
@@ -193,57 +244,36 @@
   .g-overview__stage { display: none; }
 
   /*
-   * The tile row stands beside the SideNav: its four tiles share the screen less 289px, so a tile is 119px of content at
-   * 901px and 134px at 960px, and the longest figure («33 · 10/3/0», 4.6 times its font size wide) wraps in it until about
-   * 990px. The size follows the width again, from 25px at 901px to the tile's own 30px at 1000px and wider.
+   * A desk's figures are DeskOverview.html's cards: white in the ring, 14 16 in, the figure Oswald 34, the place's «/ 10»
+   * 20px (the points' «· 4/1/1» is the tile's 22px). The row wraps by 180px (kpi-tile.css), so a figure never shrinks:
+   * at 901px three cards stand on the first line and two on the next. The link card's hover is a shade of the ink over
+   * the white card.
    */
-  .g-overview .g-kpi__v { font-size: clamp(24px, calc(5.4vw - 24px), 30px); }
-
-  .g-overview__cols {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: start;
-  }
-  /* One list alone has the row to itself. */
-  .g-overview__cols > :only-child { grid-column: 1 / -1; }
-
-  /*
-   * The leaders are cards that wrap as the column narrows (DeskOverview.html). In a card the tag and the figure share
-   * the top line and the player is under them, so a card stays readable as narrow as 120px.
-   */
-  .g-overview__leaderlist {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: var(--space-12);
-  }
-
-  .g-overview__leaders .g-ranked {
-    grid-template-columns: minmax(0, 1fr) auto;
-    grid-template-areas: "tag figure" "player player";
-    align-content: start;
-    gap: var(--space-8) var(--space-10);
-    min-height: 0;
+  .g-overview .g-kpi {
     padding: var(--space-14) var(--space-16);
-    border: 1px solid var(--line-strong);
-    border-radius: var(--radius-xl);
-    background: var(--surface);
-  }
-  .g-overview__leaders .g-ranked:last-child { border-bottom: 1px solid var(--line-strong); }
-  .g-overview__leaders .g-ranked__lead { grid-area: tag; font-size: 12px; letter-spacing: .04em; }
-  .g-overview__leaders .g-ranked__text { grid-area: player; }
-  .g-overview__leaders .g-ranked__title { font: 600 14px/1.25 var(--font-body); }
-  .g-overview__leaders .g-ranked__value {
-    grid-area: figure;
-    font: 700 30px/1 var(--font-display);
-    /* The shorthand above resets it. */
-    font-variant-numeric: tabular-nums;
-  }
-
-  /* The list is a card on a desk: the rows keep to their rules inside it. */
-  .g-overview__list {
-    padding: var(--space-4) var(--space-24) var(--space-8);
-    border-radius: var(--radius-2xl);
     background: var(--surface);
     box-shadow: var(--ring);
   }
+  .g-overview .g-kpi__v { font-size: 34px; }
+  .g-overview .g-kpi:first-child .g-kpi__rest { font-size: 20px; }
+  .g-overview a.g-kpi--link:hover { background: color-mix(in srgb, var(--ink) 4%, var(--surface)); }
+
+  /*
+   * The reference's search at the right of the head (DeskOverview.html): 320px and never wider than the band, 44px, its
+   * words 15px — the shared field (search-field.css) is 48px and 16px; its fill, radius, magnifier and padding are the
+   * prototype's own.
+   */
+  .g-overview__search {
+    width: 320px;
+    max-width: 100%;
+  }
+  .g-overview__search .g-search { width: 100%; }
+  .g-overview__search .g-search__input {
+    height: 44px;
+    font-size: 15px;
+  }
+
+  /* A desk shows who can advance as a list in the right column, not as the phone's card. */
+  .g-overview__ready { display: none; }
+  .g-overview__readylist { display: flex; }
 }

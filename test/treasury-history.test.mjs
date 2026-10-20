@@ -303,6 +303,27 @@ test("the last «More» leaves the focus on the history's heading; a «More» th
   api.assertAnswered();
 });
 
+// N1 of the final wave's re-review: a focus on a node a stylesheet hides is lost too (`focusLost`), though the node stays.
+test("a «More» that stays, but a stylesheet hides once its page comes, leaves the focus on the history's heading", async () => {
+  coach();
+  api.reply(pageOf("t-focus-hidden"), 200, { entries: lines(5, 25), next: "c", since: null, total: 25 });
+  await readLedger("t-focus-hidden");
+  standPatched("t-focus-hidden");
+  click("[data-ledger-all]");
+  api.reply(pageOf("t-focus-hidden", "before=c&limit=20"), 200, { entries: lines(5, 20), next: "d", since: null, total: 25 });
+  const more = document.querySelector("[data-ledger-more]");
+  more.focus();
+  click("[data-ledger-more]");
+  assert.ok(document.activeElement === more, "shown while its read starts: the focus stays");
+  // `display: none` from a stylesheet: the fake page reads none, and is told the button draws no box.
+  more.getClientRects = () => [];
+  await settle();
+  assert.equal(rows().length, 10);
+  assert.ok(document.querySelector("[data-ledger-more]") === more, "the same button, still in the page");
+  assert.ok(document.activeElement === heading(), "the focus is on the heading");
+  api.assertAnswered();
+});
+
 test("a press made with the focus elsewhere moves nothing (final Minor 4)", async () => {
   coach();
   api.reply(pageOf("t-focus-none"), 500, { error: { code: "SERVER_ERROR", message: "x" } });

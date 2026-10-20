@@ -167,7 +167,19 @@ test("the 3.0 screens match by name and carry their ids", () => {
   assert.deepEqual(matchRoute("coaches/u1/teams/t1"), { name: "coachTeam", params: { userId: "u1", teamId: "t1" } });
   assert.deepEqual(matchRoute("ref/skills"), { name: "refSection", params: { section: "skills" } });
   for (const name of ["login", "register", "settings", "teams", "ref"]) assert.deepEqual(matchRoute(name), { name, params: {} });
-  assert.deepEqual([...TEAM_ROUTES].sort(), ["team", "teamChallenges", "teamManage", "teamMatches", "teamPlayer", "teamRoster"]);
+  assert.deepEqual([...TEAM_ROUTES].sort(), ["team", "teamChallenges", "teamManage", "teamMatches", "teamPlayer", "teamRoster", "teamSettings"]);
+});
+
+// Stage 07d, owner's second review (decision 56): the settings are a screen of their own on a phone, a card on a desk.
+test("the team's settings have an address of their own: #/t/:id/settings, a team screen a guest signs in for", () => {
+  assert.equal(teamUrl("t1", "settings"), "#/t/t1/settings");
+  assert.equal(teamUrl({ id: "t 1" }, "settings"), "#/t/t%201/settings");
+  assert.deepEqual(matchRoute("t/t1/settings"), { name: "teamSettings", params: { teamId: "t1" } });
+  assert.equal(matchRoute(routeFromHash("#/t/t1/settings")).name, "teamSettings");
+  assert.equal(matchRoute("t/t1/settings/x").name, "page", "a segment too many is a content slug");
+  assert.ok(TEAM_ROUTES.has("teamSettings"), "a team screen: the team is made the active one");
+  assert.deepEqual(resolveRedirect("t/t1/settings", { ...guest, hash: "#/t/t1/settings" }), { target: "#/login", returnTo: "#/t/t1/settings" });
+  assert.equal(target("t/t1/settings", coach), null, "a coach is drawn it");
 });
 
 test("what is not a 3.0 shape stays a content slug", () => {
@@ -253,7 +265,7 @@ test("a guest may open the public pages, and every coach page asks for a session
   for (const route of ["home", "login", "register", "settings", "season", "season/standings", "ref", "ref/skills", "skills/block", "overview/x", "legal"]) {
     assert.equal(target(route, guest), null, route);
   }
-  for (const route of ["t/t1", "t/t1/team", "t/t1/roster", "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u1",
+  for (const route of ["t/t1", "t/t1/team", "t/t1/settings", "t/t1/roster", "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u1",
     "coaches/u1/teams/t1", "games/g1", "games/g1/pre-match", "games/g1/post-match/2", "administration", "administration/users/u1",
     "administration/users/u1/teams/t1/edit"]) {
     assert.equal(target(route, guest), "#/login", route);

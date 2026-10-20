@@ -49,6 +49,9 @@ test("icons are decorative stroke SVGs and an unknown one is a bug", () => {
   }
   // The fault's sign: a ring with the «!» in it, the line and its dot.
   assert.ok(icon("alert").includes('<circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5v.01"/>'));
+  // A picture (Builder's logo frame, the team's settings): its frame and the hills in it.
+  assert.ok(ICON_NAMES.includes("image"));
+  assert.ok(icon("image").includes('<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>'));
   assert.throws(() => icon("rocket"), /unknown icon/);
   // A name Object.prototype owns is no more an icon than a name nobody wrote.
   assert.throws(() => icon("toString"), /unknown icon/);

@@ -168,9 +168,9 @@ export function isWriting(teamId) {
  * `changed`. A request that got no answer to stand behind may have been applied as well: `unknown`, and the team and
  * its history are read again, so the page shows what the server holds (one or the other alone would show them
  * disagreeing, and the next write would meet a revision the list does not have). Both say so in words that send the
- * coach to the history before another try; any other refusal is the server's own.
+ * coach to the history before another try; any other refusal is the server's own, in the writer's `words`.
  */
-function refusal(teamId, error, userId) {
+function refusal(teamId, error, userId, words) {
   if (error?.code === "TEAM_SAVED_ELSEWHERE" && error.payload?.team) {
     if (adopt(error.payload.team, userId)) void readLedger(teamId);
     return { refusal: t("treasury.changedElsewhere"), changed: true };
@@ -182,16 +182,17 @@ function refusal(teamId, error, userId) {
     }
     return { refusal: t("treasury.mayHaveWritten"), unknown: true };
   }
-  return { refusal: refusalWithRules(error) };
+  return { refusal: words(error) };
 }
 
 /**
  * One write for a team, one at a time. `send(team)` is the request, made with the team as the list holds it
  * (its revision); `done(answer, userId, ticket)` is what a success changes and what it returns, with the number of
- * the newest read of the history when the request was sent. Never throws on a refusal. The flag is lowered before
- * the answer is used, so what redraws on the new list sees no write on its way.
+ * the newest read of the history when the request was sent; `words(error)` says a refusal of the server's own. Never
+ * throws on a refusal. The flag is lowered before the answer is used, so what redraws on the new list sees no write on
+ * its way.
  */
-async function write(teamId, send, done) {
+async function write(teamId, send, done, words = refusalWithRules) {
   if (writing.has(teamId)) return { ignored: true };
   if (!sessionTokenHolds()) return { refusal: t("auth.otherTab") };
   const team = state.myTeams.items.find((item) => item.id === teamId);
@@ -207,7 +208,7 @@ async function write(teamId, send, done) {
     failure = error;
   }
   writing.delete(teamId);
-  return failure ? refusal(teamId, failure, userId) : done(answer, userId, ticket);
+  return failure ? refusal(teamId, failure, userId, words) : done(answer, userId, ticket);
 }
 
 /**
@@ -232,26 +233,36 @@ export function addTreasuryEntry(teamId, { delta, reason, note }) {
 }
 
 /**
- * Save a roster draft (the stored shape, `normalizeDraft`'s) as the team's roster. The name, the race and the
- * logo go as the team has them: the logo is not re-encoded and not lost. The server writes the lines this page
- * does not have (a purchase, a sale), so the history is read again.
+ * Save a roster draft (the stored shape, `normalizeDraft`'s) as the team's roster. The name and the logo go as the team
+ * has them, unless `identity` names others (the team's settings, stage 07d); the logo is not re-encoded. The race goes
+ * as the team has it, always: a coach does not change a team's race (owner, 2026-10-20); a race named in `identity` is
+ * not read. A field of `identity` left out, or undefined, is the team's; a name given goes without the blanks at its
+ * ends, in the column and in the roster alike (the builder's save does the same); a logo of "" or null takes it off.
+ * The server writes the lines this page does not have (a purchase, a sale), so the history is read again. A refusal of
+ * the server's own is said in `words` (the server's error's words and the rules it names, unless given).
  * @param {string} teamId @param {object} draft
+ * @param {{name?: string, logoData?: string|null}} [identity]
+ * @param {{words?: (error: object) => string}} [options]
  * @returns {Promise<{team: object}|{refusal: string, changed?: true, unknown?: true}|{ignored: true}>} `changed` and
  *   `unknown` as for `addTreasuryEntry`.
  */
-export function saveTeamRoster(teamId, draft) {
-  const send = (team) => apiRequest(`/api/teams/${encodeURIComponent(teamId)}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      name: team.name,
-      baseTeamSlug: team.baseTeamSlug,
-      logoData: team.logoData ?? null,
-      roster: rosterForStorage({ ...draft, teamSlug: team.baseTeamSlug, teamName: team.name }),
-      revision: team.revision,
-    }),
-  });
+export function saveTeamRoster(teamId, draft, identity = {}, { words } = {}) {
+  const send = (team) => {
+    const name = identity?.name === undefined ? team.name : String(identity.name ?? "").trim();
+    const logoData = identity?.logoData === undefined ? team.logoData ?? null : identity.logoData;
+    return apiRequest(`/api/teams/${encodeURIComponent(teamId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        name,
+        baseTeamSlug: team.baseTeamSlug,
+        logoData,
+        roster: rosterForStorage({ ...draft, teamSlug: team.baseTeamSlug, teamName: name }),
+        revision: team.revision,
+      }),
+    });
+  };
   return write(teamId, send, (answer, userId) => {
     if (adopt(answer.team, userId)) void readLedger(teamId);
     return { team: answer.team };
-  });
+  }, words);
 }

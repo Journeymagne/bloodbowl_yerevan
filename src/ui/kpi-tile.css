@@ -1,5 +1,6 @@
 /*
- * Figures: a label over a value, two to a row. Font, border, background,
+ * Figures: a label over a value, two to a row; a row of tiles wraps by 180px
+ * from 901px (the overview's figures, DeskOverview). Font, border, background,
  * text-transform and border-radius are set here on purpose: the 2.x globals
  * outlive this sheet until stage 13.
  */
@@ -14,12 +15,15 @@
 /* An odd count leaves the last tile alone on its row: it takes the row. */
 .g-kpis > .g-kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
-/* The overview's figures: one line from 901px, however many there are; on a phone it stays two columns. */
+/*
+ * The overview's figures from 901px (DeskOverview.html): as many cards of 180px or more to a line as the width holds, 12
+ * apart, the rest on the next line; a lone last card is one card, not the row. On a phone it stays two columns.
+ */
 @media (min-width: 901px) {
   .g-kpis--row {
-    grid-template-columns: none;
-    grid-auto-flow: column;
-    grid-auto-columns: minmax(0, 1fr);
+    grid-auto-flow: row;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: var(--space-12);
   }
   .g-kpis--row > .g-kpi:last-child:nth-child(odd) { grid-column: auto; }
 }
@@ -55,6 +59,15 @@
   text-transform: none;
   letter-spacing: 0;
 }
+
+/* The figure's quieter second part on its line («· 4/1/1»): the figure's own font and weight, smaller and grey. */
+.g-kpi__rest {
+  color: var(--muted);
+  font-size: 22px;
+}
+
+/* Good news the figure says alone (the overview's difference): the accent's text colour, on the tile as it is. */
+.g-kpi--accent .g-kpi__v { color: var(--accent-text); }
 
 /*
  * A figure managed on a page of its own (the overview's treasury): the whole tile is the link, with the same face.

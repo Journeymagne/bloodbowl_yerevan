@@ -20,10 +20,12 @@ import { t } from "../../../core/i18n.mjs";
 import { view } from "../../../core/view.mjs";
 import { sppEdits } from "../../../domain/post-match/events.mjs";
 import { markEdits } from "../../../domain/roster/absence.mjs";
+import { playerEdits } from "../../../domain/roster/edits.mjs";
 import { hireQuote, transferEdits } from "../../../domain/roster/transfers.mjs";
 import { refusalWords } from "./hire-sheet.mjs";
 import { closeSheet, keyed } from "./injury.mjs";
 import { hireClosed, sellClosed } from "./panel.mjs";
+import { rosterLineOf } from "./player-save.mjs";
 import { buyPlayers, removePlayer } from "./save.mjs";
 
 /**
@@ -34,10 +36,11 @@ import { buyPlayers, removePlayer } from "./save.mjs";
 
 /**
  * What a match that has begun took from the coach's steps that waited for the network (R8), in words and in order: the
- * SPP steps, the missed-match marks, then the hires and sales — one line, with no number, for one purchase may be
- * several players. Each count is held to what waited, after the kinds before it have taken theirs: the roster the
- * server holds may differ from the draft by another device's save that the same read took in, and that is not the
- * coach's to be told of (07a's rule). A kind with nothing dropped is not said.
+ * SPP steps, the missed-match marks, the hires and sales — one line, with no number, for one purchase may be several
+ * players — then the player edits and advancements (stage 07d), one line with no number either: the captaincy moved
+ * changes two players. Each count is held to what waited, after the kinds before it have taken theirs (the hires and
+ * sales one step at least, K26): the roster the server holds may differ from the draft by another device's save that
+ * the same read took in, and that is not the coach's to be told of (07a's rule). A kind with nothing dropped is not said.
  *
  * @param {object} server the roster the server holds, which the draft is given up for
  * @param {object} draft the queue's draft, as the coach had it
@@ -48,15 +51,14 @@ export function droppedWords(server, draft, waiting) {
   const spp = Math.min(sppEdits(server, draft).length, waiting);
   const marks = Math.min(markEdits(server, draft), waiting - spp);
   const market = waiting - spp - marks > 0 && transferEdits(server, draft) > 0;
+  const players = waiting - spp - marks - (market ? 1 : 0) > 0 && playerEdits(server, draft) > 0;
   return [
     spp ? t("teamRoster.matchDropped", { count: spp }) : "",
     marks ? t("teamRoster.mark.matchDropped", { count: marks }) : "",
     market ? t("teamRoster.market.matchDropped") : "",
+    players ? t("teamPlayer.matchDropped") : "",
   ].filter(Boolean);
 }
-
-/** The player of `key` on the roster as it stands, never one of the fallen (the dead are not sold), or null. */
-const rosterLineOf = (lines, key) => lines.find((line) => line.key === key && !line.fallen) ?? null;
 
 /**
  * The market's sheet as the screen draws it, or null when it stands no longer — a match has begun (R8), or the

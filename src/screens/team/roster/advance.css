@@ -1,0 +1,535 @@
+/*
+ * A player's advancement (advance-sheet.mjs; stage 07d): from the bottom up to 900px as Adv1Type, Adv2Category,
+ * Adv3Skill and Adv4Done; a window of three columns from 901px as DeskRosterAdv.html. The frame is player-sheets.css's
+ * (`.g-player-sheet`: its head, body, foot and lines of words); this sheet sets what is the advancement's own, by its
+ * id. ui/option-card.css draws the types' cards, which this sizes as the prototypes do.
+ *
+ * Where the prototypes give no line height, the font's own (`normal`). Font, border, background, text-transform,
+ * letter-spacing and font-weight are set on purpose: the 2.x globals (h3, p, button, dl) outlive this sheet until
+ * stage 13. A long name or refusal wraps; nothing is cut with «…» — the price in its pill is short and hides nothing.
+ */
+
+/* The types (Adv1Type.html): the words at the font's own height; a refused one grey, its price a shade darker than its card. */
+#player-advance .g-option__title {
+  font: 600 16px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+#player-advance .g-option__sub {
+  font: 400 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+/* Adv1Type's pill is 58px of content and 8px a side (content-box): 74px drawn; option-card.css's pill is border-box. */
+#player-advance .g-option__pill {
+  min-width: 74px;
+  font: 700 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  white-space: nowrap;
+}
+#player-advance .g-option[aria-disabled="true"] { color: var(--muted); }
+#player-advance .g-option[aria-disabled="true"] .g-option__pill {
+  background: var(--surface-3);
+  color: var(--muted);
+}
+/*
+ * Closed because a roll is made on the site (decision 9), not refused (advance-sheet.mjs's `data-advance-kept`): the
+ * type chosen keeps DeskRosterAdv's chosen look, and the others are grey with their own sub line, which says no refusal
+ * and so is not red as option-card.css draws a refused card's.
+ */
+#player-advance .g-option[data-advance-kept] .g-option__sub { color: var(--muted); }
+#player-advance .g-option[data-advance-kept][aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+  color: var(--ink);
+}
+#player-advance .g-option[data-advance-kept][aria-checked="true"] .g-option__pill {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+/* The categories (Adv2Category.html): a card each, the letter on the category's colour over the name and the count. */
+#player-advance .g-advance__cat {
+  box-sizing: border-box;
+  display: flex;
+  margin: 0;
+  border: 0;
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+#player-advance .g-advance__cat[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+}
+/* Not in the prototypes: a category with none of its skills left, closed as a refused type is. */
+#player-advance .g-advance__cat[aria-disabled="true"] {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: default;
+}
+/* Closed by a site roll, not refused (`data-advance-kept`, as the types): the category chosen keeps DeskRosterAdv's chosen look. */
+#player-advance .g-advance__cat[data-advance-kept][aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+  color: var(--ink);
+}
+
+#player-advance .g-advance__letter {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--cat-trait);
+  color: var(--on-accent);
+  font: 700 20px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+#player-advance .g-advance__letter--agility { background: var(--cat-agility); }
+#player-advance .g-advance__letter--devious { background: var(--cat-devious); }
+#player-advance .g-advance__letter--general { background: var(--cat-general); }
+#player-advance .g-advance__letter--mutation { background: var(--cat-mutation); }
+#player-advance .g-advance__letter--passing { background: var(--cat-passing); }
+#player-advance .g-advance__letter--strength { background: var(--cat-strength); }
+
+#player-advance .g-advance__catwords {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+#player-advance .g-advance__catname {
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+#player-advance .g-advance__free {
+  color: var(--muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The skills (Adv3Skill.html; a desk's grid): the chosen one bold on the accent's tint, his own grey. */
+#player-advance .g-advance__skill {
+  box-sizing: border-box;
+  display: flex;
+  margin: 0;
+  border: 0;
+  background: var(--surface);
+  color: var(--ink);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+#player-advance .g-advance__skill[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  font-weight: 700;
+}
+#player-advance .g-advance__skill[aria-disabled="true"] {
+  color: var(--muted);
+  cursor: default;
+}
+#player-advance .g-advance__skillname {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#player-advance .g-advance__tags {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+#player-advance .g-advance__tag {
+  color: var(--accent-text);
+  font: 600 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+#player-advance .g-advance__tag--held { color: var(--muted); }
+
+/* Done (Adv4Done.html, advDone): the tick on the accent, what he got, how. */
+#player-advance .g-advance__done {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-12);
+  text-align: center;
+}
+#player-advance .g-advance__check {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: var(--on-accent);
+}
+#player-advance .g-advance__donetitle,
+#player-advance .g-advance__how,
+#player-advance .g-advance__elite,
+#player-advance .g-advance__status,
+#player-advance .g-advance__coltitle,
+#player-advance .g-advance__empty,
+#player-advance .g-advance__summary,
+#player-advance .g-advance__hint {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+#player-advance .g-advance__donetitle {
+  color: var(--ink);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+#player-advance .g-advance__how {
+  color: var(--muted);
+  font: 400 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+/* Not in the prototypes: an elite combination's 15k (Gata's rule), and where the save stands (the queue's). */
+#player-advance .g-advance__elite {
+  color: var(--accent-text);
+  font: 600 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+#player-advance .g-advance__status {
+  color: var(--muted);
+  font: 400 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/*
+ * A god's bonus skill under done (decision 17; no prototype — Adv4Done's done step): a block on --surface-2, 14 round,
+ * 12 14 in, its parts 10 apart, its words at the left; the title 15/700, the lines 13px/1.45 quiet; the skills the
+ * advancement's own (`.g-advance__skills`); «Add …» white in its ring, 15/700, as PlayerDeadConfirm's button in its block.
+ */
+#player-advance .g-favoured {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin: 0;
+  padding: var(--space-12) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--surface-2);
+  text-align: left;
+}
+#player-advance .g-favoured__title,
+#player-advance .g-favoured__line {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+#player-advance .g-favoured__title {
+  color: var(--ink);
+  font: 700 15px/normal var(--font-body);
+}
+#player-advance .g-favoured__line {
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+}
+#player-advance .g-favoured__skills { margin: 2px 0 0; }
+#player-advance .g-favoured .g-btn {
+  width: 100%;
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* A step's hint (Adv2Category) and a D8's table in a line (rolls.css; Adv3Stat): 13px/1.45, quiet. */
+#player-advance .g-advance__hint,
+#player-advance .g-advance__table {
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* What a save resets during a preparation and the last refusal (player-sheets.css's lines), together. */
+#player-advance .g-advance__lines {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+/*
+ * Adv1Type…Adv4Done: the body 12 16 8, its parts 12 apart; the categories two to a row, 10 apart, from 112px, 16px
+ * round, the name 17/700; the hint 13px/1.45; the skills one card 14px round, a row from 48px each under a rule, 16px;
+ * done's title Oswald 28px/1.1, its tiles three, 8 apart; the one button the width of the sheet under a rule, 10 16 24.
+ */
+@media (max-width: 900px) {
+  #player-advance .g-sheet__body {
+    gap: var(--space-12);
+    padding: var(--space-12) var(--space-16) var(--space-8);
+  }
+  #player-advance .g-sheet__foot {
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-10) var(--space-16) var(--space-24);
+    border-top: 1px solid var(--line);
+  }
+
+  #player-advance .g-advance__cats {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-10);
+  }
+  #player-advance .g-advance__cat {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: space-between;
+    min-height: 112px;
+    padding: var(--space-14);
+    border-radius: var(--radius-2xl);
+  }
+  #player-advance .g-advance__catname { font: 700 17px/normal var(--font-body); }
+  #player-advance .g-advance__free { font: 400 13px/normal var(--font-body); }
+
+  #player-advance .g-advance__skills {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--ring);
+  }
+  #player-advance .g-advance__skill {
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-10);
+    min-height: 48px;
+    padding: 0 var(--space-14);
+    border-bottom: 1px solid var(--line);
+    font: 500 16px/normal var(--font-body);
+  }
+  /* Inside the card that clips it, the focus ring is drawn inside the row. */
+  #player-advance .g-advance__skill:focus-visible { outline-offset: -3px; }
+  #player-advance .g-advance__skill[aria-checked="true"] { font-weight: 700; }
+
+  #player-advance .g-advance__done { padding: var(--space-8) 0 var(--space-4); }
+  #player-advance .g-advance__donetitle { font: 700 28px/1.1 var(--font-display); }
+  #player-advance .g-favoured .g-btn { min-height: 48px; }
+  #player-advance .g-advance__tiles {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-8);
+    width: 100%;
+    margin: 6px 0 0;
+    padding: 0;
+  }
+  #player-advance .g-advance__tile {
+    padding: var(--space-10) var(--space-4);
+    border-radius: var(--radius-lg);
+    background: var(--surface-2);
+  }
+  #player-advance .g-advance__tilekey,
+  #player-advance .g-advance__tilevalue {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+  #player-advance .g-advance__tilekey {
+    color: var(--muted);
+    font: 400 12px/normal var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  #player-advance .g-advance__tilevalue {
+    color: var(--ink);
+    font: 700 18px/normal var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+}
+
+/*
+ * DeskRosterAdv.html: a window min(1080px) 64px from the top; the head 20 24 over its rule, his 44px number 14 before
+ * the title, the line 14px, the 44px cross; the columns from 280px, 440px tall, 20 20 24 each, 10 apart, under their
+ * 12/700 caption in capitals, a rule between them, an empty one on a lighter grey with its words 14px; the types 15px
+ * and 12px, their pill from 56px; the categories in a row from 72px, 14px round; the skills two to a row, 6 apart,
+ * from 40px, 10px round, 14px, his own struck through; done 300px tall, its title 34px; the foot on the grey under a
+ * rule, 16 24, the summary 15px, «Cancel» and «Take» 48px, 12px round, the button from 220px.
+ */
+@media (min-width: 901px) {
+  dialog#player-advance {
+    width: min(1080px, calc(100% - 32px));
+    max-height: calc(100dvh - 96px);
+    margin: 64px auto auto;
+  }
+  #player-advance .g-sheet__head {
+    gap: var(--space-14);
+    padding: var(--space-20) var(--space-24);
+  }
+  #player-advance .g-sheet__head .g-num {
+    width: 44px;
+    height: 44px;
+    font: 700 20px/normal var(--font-display);
+  }
+  #player-advance .g-sheet__sub { font: 400 14px/normal var(--font-body); }
+  #player-advance .g-sheet__head .g-icon-btn {
+    width: 44px;
+    height: 44px;
+    margin-left: 2px;
+  }
+  #player-advance .g-sheet__body {
+    gap: 0;
+    padding: 0;
+  }
+
+  #player-advance .g-advance__cols {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    min-height: 440px;
+  }
+  #player-advance .g-advance__col {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+    min-width: 0;
+    padding: var(--space-20) var(--space-20) var(--space-24);
+    border-right: 1px solid var(--line);
+    background: var(--surface);
+  }
+  #player-advance .g-advance__col:last-child { border-right: 0; }
+  #player-advance .g-advance__col--empty { background: color-mix(in srgb, var(--surface-2) 50%, var(--surface)); }
+  #player-advance .g-advance__coltitle {
+    color: var(--muted);
+    font: 700 12px/normal var(--font-body);
+    letter-spacing: .08em;
+    text-transform: uppercase;
+  }
+  #player-advance .g-advance__empty {
+    padding-top: var(--space-8);
+    color: var(--muted);
+    font: 400 14px/normal var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  #player-advance .g-advance__col .g-options { gap: var(--space-10); }
+  #player-advance .g-option__title { font-size: 15px; }
+  #player-advance .g-option__sub { font-size: 12px; }
+  /* DeskRosterAdv's 56px of content and 8px a side: 72px drawn. */
+  #player-advance .g-option__pill { min-width: 72px; }
+
+  #player-advance .g-advance__cats {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-10);
+  }
+  #player-advance .g-advance__cat {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-12);
+    min-height: 72px;
+    padding: var(--space-12) var(--space-14);
+    border-radius: var(--radius-xl);
+  }
+  #player-advance .g-advance__catname { font: 700 16px/normal var(--font-body); }
+  #player-advance .g-advance__free { font: 400 12px/normal var(--font-body); }
+
+  #player-advance .g-advance__skills {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 6px;
+  }
+  #player-advance .g-advance__skill {
+    flex-direction: column;
+    align-items: flex-start;
+    justify-content: center;
+    gap: 2px;
+    min-height: 40px;
+    padding: 0 var(--space-10);
+    border-radius: var(--radius-md);
+    box-shadow: var(--ring);
+    font: 500 14px/normal var(--font-body);
+  }
+  #player-advance .g-advance__skill[aria-checked="true"] {
+    box-shadow: var(--ring-selected);
+    font-weight: 700;
+  }
+  #player-advance .g-advance__skill[aria-disabled="true"] {
+    background: var(--surface-2);
+    text-decoration: line-through;
+  }
+  /* The grid says the chosen and the held by their look; an elite combination's 15k is said in words under the name. */
+  #player-advance .g-advance__tag--held,
+  #player-advance .g-advance__tag--picked { display: none; }
+  #player-advance .g-advance__tag--elite { font-size: 12px; }
+
+  #player-advance .g-advance__done {
+    justify-content: center;
+    min-height: 300px;
+    padding: 32px;
+  }
+  #player-advance .g-advance__donetitle { font: 700 34px/normal var(--font-display); }
+  #player-advance .g-advance__lines { padding: var(--space-12) var(--space-24); }
+  /* The bonus under done in the window: the window's 24 at the sides; «Add …» 40px, as the skills. */
+  #player-advance .g-favoured { margin: 0 var(--space-24) var(--space-20); }
+  #player-advance .g-favoured .g-btn { min-height: 40px; }
+
+  #player-advance .g-sheet__foot {
+    flex-wrap: wrap;
+    gap: var(--space-8);
+    padding: var(--space-16) var(--space-24);
+    border-top: 1px solid var(--line);
+    background: var(--surface-2);
+  }
+  /* The summary at the left, «Cancel» and «Take» at the right, 16 or more between them. */
+  #player-advance .g-sheet__foot-start {
+    margin-right: auto;
+    padding-right: var(--space-8);
+  }
+  #player-advance .g-advance__summary {
+    color: var(--ink-2);
+    font: 400 15px/normal var(--font-body);
+    letter-spacing: 0;
+    text-transform: none;
+    overflow-wrap: anywhere;
+  }
+  #player-advance .g-sheet__foot .g-btn {
+    min-height: 48px;
+    border-radius: var(--radius-lg);
+  }
+  #player-advance .g-sheet__foot .g-btn[data-advance-keep] {
+    padding: 0 18px;
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--control-border);
+    color: var(--ink-2);
+    font: 600 15px/normal var(--font-body);
+  }
+  #player-advance .g-sheet__foot .g-btn--primary {
+    min-width: 220px;
+    padding: 0 var(--space-20);
+    font: 700 16px/normal var(--font-body);
+  }
+}

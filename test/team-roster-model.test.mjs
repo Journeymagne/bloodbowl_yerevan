@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { expandCollections } from "../src/data/reference.mjs";
+import { ADVANCEMENT_TYPES } from "../src/domain/roster/progression.mjs";
 import {
   EXTRA_COUNTERS, MAIN_COUNTERS, SORT_KEYS, counterSlots, fallenLines, nextSort, rosterCounts, rosterLines, rosterMode, rosterSections, sortLines, stepRule, undoable,
 } from "../src/screens/team/roster/model.mjs";
@@ -12,6 +13,7 @@ import { currentMatch } from "../src/shell/current-match.mjs";
 const HOSTILE = `<img src=x onerror="alert(1)"> & 'Grak'`;
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
 const race = (slug) => data.teams.find((team) => team.slug === slug);
+const { skillGroups } = data;
 // The rows of Human: 0 Lineman, 1 Thrower, 2 Catcher, 3 Blitzer, 4 Halfling Hopeful, 5 Ogre. Dwarf: 0 Blocker, 1 Runner, 2 Blitzer, 3 Troll Slayer, 4 Deathroller.
 // Chaos Dwarfs: 5 Minotaur, whose PA the vault writes as a dash ("—"), where the Troll Slayer's is a hyphen.
 const HUMAN = race("teams/human");
@@ -249,7 +251,7 @@ test("skills come with where they came from, and the captain's Pro once", () => 
   assert.deepEqual(captain.skills.map(({ name, source }) => [name, source]), [["Block", "base"], ["Tackle", "base"], ["Mighty Blow", "primary"], ["Pro", "captain"]]);
   assert.deepEqual(captain.skills.filter(({ gained }) => gained).map(({ name }) => name), ["Mighty Blow"]);
   const [taken] = linesOf([player(3, { extraSkills: [{ name: "Pro", access: "primary" }], isCaptain: true })]);
-  assert.deepEqual(taken.skills.filter(({ name }) => name === "Pro"), [{ name: "Pro", gained: true, source: "primary" }], "one Pro, the one he took");
+  assert.deepEqual(taken.skills.filter(({ name }) => name === "Pro"), [{ name: "Pro", gained: true, source: "primary", advancement: null }], "one Pro, the one he took");
 });
 
 test("skills: a secondary and a favoured one are gained, one he starts with is not listed twice, a player with none has an empty list", () => {
@@ -258,10 +260,69 @@ test("skills: a secondary and a favoured one are gained, one he starts with is n
     favouredSkills: [{ name: "Frenzy" }, { name: "Dodge" }],
   })]);
   assert.deepEqual(line.skills, [
-    { name: "Block", gained: false, source: "base" }, { name: "Tackle", gained: false, source: "base" },
-    { name: "Dodge", gained: true, source: "secondary" }, { name: "Frenzy", gained: true, source: "favoured" },
+    { name: "Block", gained: false, source: "base", advancement: null }, { name: "Tackle", gained: false, source: "base", advancement: null },
+    { name: "Dodge", gained: true, source: "secondary", advancement: null }, { name: "Frenzy", gained: true, source: "favoured", advancement: null },
   ]);
   assert.deepEqual(linesOf([player(0)])[0].skills, []);
+});
+
+test("a line lists his advancements in order: its type, what it granted, how it was rolled, what it cost", () => {
+  const [line] = linesOf([player(3, { advancements: [
+    { type: "random", grants: { skill: "Frenzy" }, roll: { id: "r1", via: "site" } },
+    { type: "stat", grants: { stat: "ma" }, roll: { via: "table" } },
+    { type: "primary", grants: { skill: "Block" } },
+    { type: "secondary" },
+  ] })]);
+  assert.deepEqual(line.advancements, [
+    { type: "random", grants: { skill: "Frenzy" }, via: "site", rollId: "r1", cost: 3 },
+    { type: "stat", grants: { stat: "ma" }, via: "table", rollId: "", cost: 16 },
+    { type: "primary", grants: { skill: "Block" }, via: "", rollId: "", cost: 12 },
+    { type: "secondary", grants: null, via: "", rollId: "", cost: 20 },
+  ], "the price of the rank each was taken at; one that granted nothing says so");
+  assert.deepEqual(linesOf([player(3)])[0].advancements, []);
+});
+
+test("what each type of advancement costs him now is the roster's own SPP, not the career", () => {
+  const [line] = linesOf([player(3, { spp: { touchdowns: 2 } })], { events: [1, 2, 3].map(() => row("p3", "touchdowns", 1)), skillGroups });
+  assert.deepEqual([line.earned, line.available], [15, 15], "the career counts the edit outside a match");
+  assert.equal(line.offers.available, 6, "the roster's own: two touchdowns of three");
+  const [inMatch] = linesOf([player(3, { spp: { touchdowns: 2 } })], { mode: MATCH, events: [...[1, 2, 3].map(() => row("p3", "touchdowns", 1)), row("p3", "touchdowns", 1, { pairingId: "g2" })], skillGroups });
+  assert.deepEqual([inMatch.available, inMatch.offers.available], [18, 6], "nor does a touchdown of the match on: the career counts it, the roster's own does not");
+  assert.deepEqual(line.offers.offers.map(({ type, cost }) => [type, cost]), [["random", 3], ["primary", 6], ["secondary", 10], ["stat", 14]]);
+  assert.deepEqual(line.offers.offers.map(({ refusal }) => refusal?.code ?? null), [null, null, "ADVANCEMENT_NOT_ENOUGH_SPP", "ADVANCEMENT_NOT_ENOUGH_SPP"]);
+  assert.deepEqual([line.offers.level, line.offers.maxed], [0, false]);
+});
+
+test("until the Skill Table comes in, a line's offers are unknown, never «no skill left»", () => {
+  const players = [player(3, { spp: { touchdowns: 5 } }), player(2, { spp: { mvps: 4 }, advancements: [{ type: "random" }] })];
+  const unknown = linesOf(players);
+  assert.deepEqual(unknown.map(({ offers }) => offers), [null, null], "no Skill Table, so nobody can say what a skill type leaves");
+  assert.deepEqual(linesOf(players, { skillGroups: null }).map(({ offers }) => offers), [null, null]);
+  assert.equal(JSON.stringify(unknown).includes("NO_SKILL_LEFT"), false);
+  const known = linesOf(players, { skillGroups });
+  assert.deepEqual(known.map(({ offers }) => offers.offers.map(({ type }) => type)), [ADVANCEMENT_TYPES, ADVANCEMENT_TYPES]);
+  assert.deepEqual(known[0].offers.offers.map(({ refusal }) => refusal), [null, null, null, null], "with the table, what he can pay for is offered");
+  assert.deepEqual(known.map(({ offers }) => offers.level), [0, 1]);
+});
+
+test("his injuries: Niggling Injuries and each characteristic a lasting injury took", () => {
+  const [hurt] = linesOf([player(3, { nigglingInjuries: 2, injuryStatMods: { ag: -1, ma: -2 } })]);
+  assert.deepEqual(hurt.injuries, { niggling: 2, lasting: [{ stat: "ma", count: 2 }, { stat: "ag", count: 1 }] }, "in the order of the characteristics");
+  assert.deepEqual(linesOf([player(3, { niglingInjury: true })])[0].injuries, { niggling: 1, lasting: [] }, "a 2.x flag is one");
+  assert.deepEqual(linesOf([player(3)])[0].injuries, { niggling: 0, lasting: [] });
+});
+
+test("a skill an advancement granted knows which", () => {
+  const [catcher] = linesOf([player(2, {
+    extraSkills: [{ name: "Frenzy", access: "primary" }, { name: "Dodge", access: "secondary" }],
+    advancements: [{ type: "stat", grants: { stat: "ma" } }, { type: "primary", grants: { skill: "Frenzy" } }],
+  })]);
+  assert.deepEqual(catcher.skills.map(({ name, advancement }) => [name, advancement]), [["Catch", null], ["Dodge", null], ["Frenzy", 1]],
+    "Frenzy is the second advancement; Catch and Dodge are the position's, and a Dodge written as an advancement's is not listed twice");
+  const [odd] = linesOf([player(2, { favouredSkills: [{ name: "Frenzy" }], isCaptain: true, advancements: [{ type: "random", grants: { skill: "Frenzy" } }, { type: "random", grants: { skill: "Catch" } }, { type: "random", grants: { skill: "Pro" } }] })]);
+  assert.deepEqual(odd.skills.map(({ name, source, advancement }) => [name, source, advancement]),
+    [["Catch", "base", null], ["Dodge", "base", null], ["Frenzy", "favoured", null], ["Pro", "captain", null]],
+    "what the position, a god and the captaincy gave was granted by none, whatever an advancement is written to have granted");
 });
 
 test("SPP: earned from the career, spent on advancements, the cheapest next one, and who can advance", () => {
@@ -459,8 +520,8 @@ test("a dead captain is no captain: neither the mark nor the captain's Pro, whic
   assert.deepEqual(dead.skills.map(({ name, source }) => [name, source]), [["Block", "base"], ["Tackle", "base"], ["Mighty Blow", "primary"]]);
   assert.equal(dead.captain, false);
   const [took] = fallenLines({ fallen: [died("f2", { ...captain, extraSkills: [{ name: "Pro", access: "secondary" }] })], race: HUMAN });
-  assert.deepEqual(took.skills.filter(({ name }) => name === "Pro"), [{ name: "Pro", gained: true, source: "secondary" }], "a Pro he took is his");
-  assert.deepEqual(linesOf([captain])[0].skills.at(-1), { name: "Pro", gained: false, source: "captain" }, "the living captain keeps it");
+  assert.deepEqual(took.skills.filter(({ name }) => name === "Pro"), [{ name: "Pro", gained: true, source: "secondary", advancement: null }], "a Pro he took is his");
+  assert.deepEqual(linesOf([captain])[0].skills.at(-1), { name: "Pro", gained: false, source: "captain", advancement: null }, "the living captain keeps it");
 });
 
 test("no race, no lines; the places are those of the server's list", () => {
@@ -502,6 +563,16 @@ test("a fallen record the roster cannot read lets nobody go: no price, a sale th
   assert.deepEqual([joe.bare, joe.price, joe.removal], [true, 0, { type: "sell", amount: 0, blocked: true }]);
   const [read] = fallenLines({ fallen: [died("f4", { id: "d4", rowIndex: 3 })], race: HUMAN });
   assert.deepEqual([read.price, read.value], [80, 80], "a fallen line the race reads has the price of his position");
+});
+
+test("a fallen record the roster cannot read has no advancement to offer", () => {
+  const [bare] = fallenLines({ fallen: [died("f1", { id: "d1", rowIndex: 99, name: "Far Row" })], race: HUMAN });
+  assert.equal(bare.bare, true);
+  assert.deepEqual(bare.offers, { level: 0, maxed: true, available: 0, offers: [] });
+  assert.deepEqual([bare.advancements, bare.injuries], [[], { niggling: 0, lasting: [] }]);
+  const [dead] = fallenLines({ fallen: [died("f2", { id: "d2", rowIndex: 3, spp: { touchdowns: 9 }, advancements: [{ type: "random" }] })], race: HUMAN });
+  assert.deepEqual(dead.offers, { level: 1, maxed: true, available: 0, offers: [] }, "a readable dead player is maxed too, never «unknown»: no view reads him as one who can advance");
+  assert.deepEqual([dead.ready, dead.level], [false, 1]);
 });
 
 test("a record whose player is no object is a bare line from nothing, not an error", () => {

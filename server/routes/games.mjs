@@ -9,6 +9,9 @@
  *
  * Task 14.1 is about the propose/confirm/reject route: today the coach who
  * proposed a result can accept it themselves.
+ *
+ * The list alone names each game's MVPs (`homeMvps`, `awayMvps`, `loadGameMvps`):
+ * the team's overview shows them in its last results. One game's answer does not.
  */
 import { createHash } from "node:crypto";
 import { pool } from "../db/pool.mjs";
@@ -16,7 +19,7 @@ import { httpError, readJson, sendJson, writeResponse } from "../http/responses.
 import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { publicGame } from "../api/serializers.mjs";
-import { loadUserGameRows } from "../season/store.mjs";
+import { loadGameMvps, loadUserGameRows } from "../season/store.mjs";
 import { proposeGameResult, respondToGameProposal, updateSeasonPairing } from "../season/games.mjs";
 import { handlePreparationRoutes } from "./preparation.mjs";
 import { handleChallengeRoutes } from "./challenges.mjs";
@@ -47,8 +50,10 @@ export async function handleGameRoutes(request, response, url) {
       loadUserGameRows(user.id),
       user.is_admin ? loadUserGameRows(user.id, null, true) : Promise.resolve([]),
     ]);
+    // The coach's own games carry their MVPs, for the team's last results; the admin's open matches have none to carry.
+    const mvps = await loadGameMvps(rows.map((row) => row.id));
     return send(response, 200, {
-      games: rows.map((row) => publicGame(row, user.id)),
+      games: rows.map((row) => ({ ...publicGame(row, user.id), ...mvps.get(row.id) })),
       currentGames: currentRows.map((row) => publicGame(row, user.id)),
     });
   }

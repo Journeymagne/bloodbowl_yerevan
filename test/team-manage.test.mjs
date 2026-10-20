@@ -64,10 +64,10 @@ const liveGame = (teamId) => game(teamId, { preparationStatus: "in_progress", po
 const preparingGame = (teamId) => game(teamId, { preparationStatus: "preparing" });
 
 const raceOf = (team) => RACES.find((race) => race.slug === team.baseTeamSlug) ?? null;
-/** What the screen gives the model for a team of the fixtures: the games given (none by default), its history read. */
-function model(id, { games = [], ledger = held(), expanded = false, busy = false, gamesUnknown = false } = {}) {
+/** What the screen gives the model for a team of the fixtures: the games given (none by default), its history read; a desk unless `phone`. */
+function model(id, { games = [], ledger = held(), expanded = false, busy = false, gamesUnknown = false, phone = false } = {}) {
   const team = TEAMS.find((item) => item.id === id);
-  return manageModel({ team, race: raceOf(team), seasonData: SEASON, games, ledger, expanded, busy, gamesUnknown });
+  return manageModel({ team, race: raceOf(team), seasonData: SEASON, games, ledger, expanded, busy, gamesUnknown, phone });
 }
 
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
@@ -148,6 +148,25 @@ test("the DOM is in the phone's order: the head, the card, the safe and its corr
   assert.equal(fragment.querySelector(".g-manage__side .g-manage__history"), null, "the history follows the resources, as on a phone");
 });
 
+// Stage 07d, owner's second review (decision 57): the settings are a screen of their own on a phone, and the page leads there.
+test("the phone's page keeps stage 08's order — the card, the safe, the correction, the resources, the history — and then the settings' row", () => {
+  const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")], phone: true })));
+  const order = [".g-pagehead", ".g-callout", ".g-funds", ".g-manage__card", ".g-manage__safe", ".g-manage__fix", ".g-manage__resources", ".g-manage__history", ".g-team-settings-entry"];
+  const all = [...fragment.walk()].filter((node) => node.nodeType === 1);
+  const at = order.map((selector) => all.indexOf(fragment.querySelector(selector)));
+  assert.ok(at.every((index) => index >= 0), String(at));
+  assert.deepEqual(at, [...at].sort((a, b) => a - b), "in the order the phone shows them");
+  assert.ok(fragment.querySelector(".g-manage").childNodes.filter((node) => node.nodeType === 1).at(-1) === fragment.querySelector(".g-team-settings-entry"), "the page's last");
+  assert.ok(!fragment.querySelector(".g-team-settings"), "the settings themselves are on their own screen");
+  assert.equal(fragment.querySelector(".g-team-settings-entry a").getAttribute("href"), "#/t/t1/settings");
+  // The page's own callouts are the page's alone: nothing of the settings says anything here.
+  assert.deepEqual(fragment.querySelectorAll(".g-callout__title").map((node) => node.textContent), ["Match preparation is on"]);
+  // A desk: no row, the card in the right column.
+  const desk = mount(manageMarkup(model("t1")));
+  assert.ok(!desk.querySelector(".g-team-settings-entry"));
+  assert.ok(desk.querySelector(".g-manage__cols .g-team-settings"));
+});
+
 test("a team in the build: Starting rerolls on sale, Team Rerolls closed, the chip says it is building (TeamManagePre, DeskRosterPreseason)", () => {
   const fragment = mount(manageMarkup(model("t4", { ledger: held([]) })));
   assert.equal(fragment.querySelector(".g-pagehead__meta .g-status").textContent, "Building the team");
@@ -194,7 +213,7 @@ test("a preparation warns and locks nothing", () => {
   assert.equal(fragment.querySelector(".g-callout__title").textContent, "Match preparation is on");
   // The steps are named as the pre-match names them (final Minor 6): the server's reset keeps only fans and weather.
   assert.equal(fragment.querySelector(".g-callout__sub").textContent,
-    "A purchase or a change of the treasury resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
+    "A purchase, a change of the treasury or of the team's settings resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
   assert.equal(fragment.querySelector("[data-treasury-money]").hasAttribute("aria-disabled"), false);
   assert.equal(fragment.querySelector("[data-treasury-fix]").hasAttribute("aria-disabled"), false);
   assert.equal(fragment.querySelector(".g-resource--locked .g-resource__name").textContent.includes("Team Rerolls"), false);
@@ -213,7 +232,9 @@ test("games that could not be read say the match state is unknown, quietly, and 
   assert.equal(fragment.querySelector(".g-resource--locked .g-resource__name").textContent.includes("Team Rerolls"), false);
   assert.equal(mount(manageMarkup(model("t1"))).querySelector(".g-callout"), null, "games read: nothing to say");
   const live = mount(manageMarkup(model("t1", { games: [liveGame("t1")], gamesUnknown: true })));
-  assert.deepEqual(live.querySelectorAll(".g-callout__title").map((title) => title.textContent), ["A match is on"], "a page shut by a match says only that");
+  // The team's settings' card says what holds them in its own words (stage 07d, test/team-settings.test.mjs).
+  const said = live.querySelectorAll(".g-callout__title").filter((title) => !title.closest(".g-team-settings"));
+  assert.deepEqual(said.map((title) => title.textContent), ["A match is on"], "a page shut by a match says only that");
 });
 
 test("the safe says the last deposit from the whole history, not the three lines shown; the history folds them (T8 carry)", () => {
@@ -441,7 +462,8 @@ test("entering the page reads the games again, though they were read before: a m
 
 test("a preparation known from games read before, and games that could not be read now: both are said, since the match may have gone live", () => {
   const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")], gamesUnknown: true })));
-  const titles = fragment.querySelectorAll(".g-callout__title").map((node) => node.textContent);
+  // The team's settings' card says what its own saves reset (stage 07d, test/team-settings.test.mjs).
+  const titles = fragment.querySelectorAll(".g-callout__title").filter((title) => !title.closest(".g-team-settings")).map((node) => node.textContent);
   assert.deepEqual(titles, ["Match preparation is on", en["treasury.gamesUnknown"]]);
   assert.equal(fragment.querySelector("[data-treasury-money]").hasAttribute("aria-disabled"), false);
 });
@@ -529,8 +551,11 @@ test("every word of the page is in both dictionaries, the phases too; nothing un
   }
   const fragment = mount(manageMarkup(model("t1", { games: [preparingGame("t1")] })));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/manage/manage.css", "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "callout.css", "resource-counter.css", "toggle.css", "button.css");
-  assertStyled(mount(manageMarkup(model("t4", { ledger: held([]) }))), CSS, "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "resource-counter.css", "toggle.css");
+  // The team's settings are a card in the desk's right column, a row on the phone's page (stage 07d): settings.css styles both.
+  const settings = "src/screens/team/manage/settings.css";
+  assertStyled(fragment, "src/screens/team/manage/manage.css", "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "callout.css", "resource-counter.css", "toggle.css", "button.css", settings);
+  assertStyled(mount(manageMarkup(model("t4", { ledger: held([]) }))), CSS, "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "resource-counter.css", "toggle.css", "button.css", settings);
+  assertStyled(mount(manageMarkup(model("t1", { phone: true }))), CSS, "src/screens/team/manage/strip.css", "page-head.css", "status-chip.css", "resource-counter.css", "toggle.css", "button.css", "list-row.css", settings);
 });
 
 test("the phone has the card and no strip, the desk the strip and two columns; the card's buttons are 44px and ringed in the header's ink", () => {
@@ -540,7 +565,7 @@ test("the phone has the card and no strip, the desk the strip and two columns; t
   assert.match(css, /@media \(min-width: 901px\)\s*\{[^@]*\.g-manage__card \{ display: none; \}/);
   assert.match(css, /@media \(max-width: 900px\)\s*\{\s*\.g-manage \.g-pagehead__sub \{ display: none; \}/, "on a phone the value is in the card");
   assert.ok(valuesOf(sheet, ".g-manage__cols", "grid-template-areas").length > 0);
-  assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-areas"), ['"resources side" "resources history"']);
+  assert.deepEqual(valuesOf(sheet, ".g-manage__cols", "grid-template-areas"), ['"resources side" "resources history" "resources settings"']);
   for (const [selector, area] of [[".g-manage__resources", "resources"], [".g-manage__side", "side"], [".g-manage__history", "history"]]) {
     assert.deepEqual(valuesOf(sheet, selector, "grid-area"), [area], selector);
   }

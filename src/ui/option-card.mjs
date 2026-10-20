@@ -5,20 +5,26 @@
  * A card is a radio button, and the list around it a radio group, so the
  * choosing is wireRadioGroups' (the click, the arrows, the roving tabindex).
  * A card that cannot be chosen is `aria-disabled`, never `disabled`: it stays
- * in the tab order and the reason sits where the sub line would. The reason
- * and the price in the pill are the caller's, taken from src/domain.
+ * in the tab order and the reason sits where the sub line would — and, given
+ * as `reason`, in its tooltip, which a screen that says why on a press reads
+ * (the roster's `data-roster-closed`, carried in `data`). The reason and the
+ * price in the pill are the caller's, taken from src/domain.
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { wireRadioGroups } from "./choice.mjs";
 import { dataAttributes } from "./markup.mjs";
 
-/** A card; `tabindex` is the list's, a card on its own has none and is in the tab order as any button is. */
-function card({ value, title, sub = "", pill = "", radio = false, selected = false, disabled = false }, tabindex = null) {
+/**
+ * A card; `tabindex` is the list's, a card on its own has none and is in the tab order as any button is. A refused card's
+ * `reason` is its tooltip; `data` are the caller's own attributes beside its value.
+ */
+function card({ value, title, sub = "", pill = "", radio = false, selected = false, disabled = false, reason = "", data = {} }, tabindex = null) {
   const dot = radio ? '<span class="g-option__radio" aria-hidden="true"></span>' : "";
-  const reason = sub ? `<span class="g-option__sub">${escapeHtml(sub)}</span>` : "";
+  const line = sub ? `<span class="g-option__sub">${escapeHtml(sub)}</span>` : "";
   const price = pill ? `<span class="g-option__pill">${escapeHtml(pill)}</span>` : "";
-  const text = `<span class="g-option__text"><span class="g-option__title">${escapeHtml(title)}</span>${reason}</span>`;
-  const attributes = `aria-checked="${Boolean(selected)}"${tabindex === null ? "" : ` tabindex="${tabindex}"`}${dataAttributes({ optionValue: value })}${disabled ? ' aria-disabled="true"' : ""}`;
+  const text = `<span class="g-option__text"><span class="g-option__title">${escapeHtml(title)}</span>${line}</span>`;
+  const why = disabled && reason ? ` title="${escapeHtml(reason)}"` : "";
+  const attributes = `aria-checked="${Boolean(selected)}"${tabindex === null ? "" : ` tabindex="${tabindex}"`}${dataAttributes({ ...data, optionValue: value })}${disabled ? ' aria-disabled="true"' : ""}${why}`;
   return `<button type="button" class="g-option" role="radio" ${attributes}>${dot}${text}${price}</button>`;
 }
 

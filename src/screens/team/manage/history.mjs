@@ -9,7 +9,7 @@
  * ledger, the team or the games) draws it unfolded again. A history that has not answered yet says so: a team that
  * has one is never shown as having none.
  */
-import { escapeHtml, listenerGroup } from "../../../core/dom.mjs";
+import { escapeHtml, focusLost, listenerGroup } from "../../../core/dom.mjs";
 import { formatDay, formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { readLedger } from "../../../data/treasury.mjs";
@@ -131,8 +131,7 @@ function readKeepingFocus(root, button, read) {
   const reading = read();
   if (!held) return;
   const keep = () => {
-    const active = document.activeElement;
-    if (active && active !== document.body && active.isConnected) return;
+    if (!focusLost(document.activeElement)) return;
     root.querySelector(`#${HEADING_ID}`)?.focus();
   };
   keep();

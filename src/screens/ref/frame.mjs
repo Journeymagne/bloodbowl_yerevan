@@ -22,6 +22,17 @@ const LAYOUTS = new Set(["index", "list", "article", "split"]);
 const hasCount = (count) => count !== "" && count !== null && count !== undefined;
 
 /**
+ * The reference's search field: its words, and the attribute `wireRefSearch` hears it by. The reference's own head
+ * draws it, and so does a head that hands what is typed to the reference (a team overview's, on a desk).
+ *
+ * @param {string} id the field's id, one per page
+ * @param {string} [query] what the field already holds
+ */
+export function refSearchField(id, query = "") {
+  return renderSearchField({ id, label: t("ref.search"), placeholder: t("search.placeholder"), value: query, data: { searchAll: "" } });
+}
+
+/**
  * The title, the league's name and the search. The index owns the page's one `h1`; on every other
  * screen the article or the list has it, and the title here is a paragraph.
  *
@@ -29,7 +40,7 @@ const hasCount = (count) => count !== "" && count !== null && count !== undefine
  */
 export function refHeadMarkup({ isIndex = false, query = "" } = {}) {
   const tag = isIndex ? "h1" : "p";
-  const field = renderSearchField({ id: "ref-query", label: t("ref.search"), placeholder: t("search.placeholder"), value: query, data: { searchAll: "" } });
+  const field = refSearchField("ref-query", query);
   return `<header class="g-ref-head">`
     + `<${tag} class="g-ref-head__title">${escapeHtml(t("shell.tab.ref"))}</${tag}>`
     + `<p class="g-ref-head__sub">${escapeHtml(`${t("shell.league")} · ${t("shell.leagueSub")}`)}</p>`

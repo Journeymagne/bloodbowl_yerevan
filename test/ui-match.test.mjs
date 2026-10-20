@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { assertContrast, assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
+import { renderCrest } from "../src/shell/crest.mjs";
 import { renderButton } from "../src/ui/button.mjs";
 import { renderFormStrip } from "../src/ui/form-strip.mjs";
 import { renderKpiGrid, renderKpiTile } from "../src/ui/kpi-tile.mjs";
@@ -66,7 +67,7 @@ test("a kpi grid keeps its tiles in order, two to a row", () => {
   assert.deepEqual(grid.childNodes.map((node) => node.classList.contains("g-kpi--positive")), [false, true, false, false]);
 });
 
-test("an empty grid draws nothing, an odd one gives its last tile the row, and a row grid is one line from 901px (05–13)", () => {
+test("an empty grid draws nothing, an odd one gives its last tile the row, and a row grid wraps by 180px from 901px (DeskOverview.html)", () => {
   const tile = { label: "TV", value: "1 120k" };
   assert.equal(renderKpiGrid([]), "");
   assert.equal(mount(renderKpiGrid([tile, tile, tile])).querySelectorAll(".g-kpi").length, 3);
@@ -76,14 +77,55 @@ test("an empty grid draws nothing, an odd one gives its last tile the row, and a
   assert.throws(() => renderKpiGrid(), /tiles/);
   assert.throws(() => renderKpiGrid("tiles"), /tiles/);
   assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["1 / -1"]);
-  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "grid-auto-flow"), ["column"]);
-  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["auto"]);
+  // DeskOverview.html's row: as many 180px cards as the width holds, 12 apart, the rest on the next line.
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "grid-auto-flow"), ["row"]);
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "grid-template-columns"), ["repeat(auto-fit, minmax(180px, 1fr))"]);
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row", "gap"), ["var(--space-12)"]);
+  assert.deepEqual(valuesOf("src/ui/kpi-tile.css", ".g-kpis--row > .g-kpi:last-child:nth-child(odd)", "grid-column"), ["auto"], "a lone last card is one card, not the row");
   // valuesOf reads every rule whatever its at-rule, so "from 901px" is read from the source text: the row rules are inside that query, and nowhere else.
   const css = readFileSync(new URL("../src/ui/kpi-tile.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const desk = css.match(/@media \(min-width: 901px\) \{([\s\S]*?)\n\}/)[1];
-  assert.match(desk, /\.g-kpis--row \{[^}]*grid-auto-flow: column/);
+  assert.match(desk, /\.g-kpis--row \{[^}]*grid-auto-flow: row/);
+  assert.match(desk, /\.g-kpis--row \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(180px, 1fr\)\)/);
   assert.match(desk, /\.g-kpis--row > \.g-kpi:last-child:nth-child\(odd\) \{[^}]*grid-column: auto/);
   assert.ok(!css.replace(desk, "").includes(".g-kpis--row"), "the row rules are not outside the 901px query");
+  for (const [, query] of css.matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+});
+
+test("a tile can say a quieter second part of its figure, and a figure in the accent; both escaped", () => {
+  const place = mount(renderKpiTile({ label: "Place in the league", value: "2", rest: "/ 10" })).querySelector(".g-kpi");
+  assert.equal(place.getAttribute("class"), "g-kpi", "a second part is no form of the tile");
+  const figure = place.querySelector(".g-kpi__v");
+  assert.equal(figure.textContent, "2 / 10", "one line, read as one figure: the number, a space, the quieter part");
+  assert.equal(figure.querySelector(".g-kpi__rest").textContent, "/ 10");
+  assert.equal(figure.childNodes.length, 2, "the number as text, then the part in its own span");
+  assert.equal(mount(renderKpiTile({ label: "Team value", value: "1 120k" })).querySelector(".g-kpi__rest"), null, "no second part, no span and no trailing space");
+  assert.equal(mount(renderKpiTile({ label: "Team value", value: "1 120k" })).querySelector(".g-kpi__v").textContent, "1 120k");
+  const good = mount(renderKpiTile({ label: "TD ± / CAS ±", value: "+6 / +4", accent: true })).querySelector(".g-kpi");
+  assert.equal(good.getAttribute("class"), "g-kpi g-kpi--accent");
+  assert.equal(mount(renderKpiTile({ label: "TD ± / CAS ±", value: "−1 / −1" })).querySelector(".g-kpi--accent"), null, "only when asked for");
+  // Text, whatever it holds; a zero is a figure here too.
+  const hostile = mount(renderKpiTile({ label: HOSTILE, value: HOSTILE, rest: HOSTILE, accent: true }));
+  assert.equal(hostile.querySelector("img"), null);
+  assert.equal(hostile.querySelector(".g-kpi__rest").textContent, HOSTILE);
+  assert.equal(hostile.querySelector(".g-kpi__v").textContent, `${HOSTILE} ${HOSTILE}`);
+  assertCspSafe(hostile);
+  assert.equal(mount(renderKpiTile({ label: "Points", value: 0, rest: "· 0/0/0" })).querySelector(".g-kpi__v").textContent, "0 · 0/0/0");
+  assert.equal(mount(renderKpiTile({ label: "Place", value: "2", rest: 0 })).querySelector(".g-kpi__rest").textContent, "0", "a second part of zero is one (fix round 1, M7)");
+  for (const rest of [null, undefined, ""]) assert.equal(mount(renderKpiTile({ label: "Place", value: "2", rest })).querySelector(".g-kpi__v").textContent, "2", String(rest));
+  // A grid hands both on, tile by tile.
+  const grid = mount(renderKpiGrid([{ label: "Points", value: "13", rest: "· 4/1/1" }, { label: "Treasury", value: "70k", href: "#/t/t1/team" }, { label: "TD ± / CAS ±", value: "+6 / +4", accent: true }], { row: true }));
+  assert.deepEqual(grid.querySelectorAll(".g-kpi").map((tile) => [tile.getAttribute("class"), tile.querySelector(".g-kpi__rest")?.textContent ?? ""]),
+    [["g-kpi", "· 4/1/1"], ["g-kpi g-kpi--link", ""], ["g-kpi g-kpi--accent", ""]]);
+  assertStyled(grid, "kpi-tile.css");
+  // The part is the figure's own font and weight, smaller and grey; the accent is the accent's text colour. Readable on a desk's card and a phone's tile.
+  const sheet = "src/ui/kpi-tile.css";
+  assert.deepEqual(valuesOf(sheet, ".g-kpi__rest", "color"), ["var(--muted)"]);
+  assert.deepEqual(valuesOf(sheet, ".g-kpi__rest", "font-size"), ["22px"]);
+  assert.deepEqual(valuesOf(sheet, ".g-kpi__rest", "font"), [], "the figure's Oswald 700, not a font of its own");
+  assert.deepEqual(valuesOf(sheet, ".g-kpi--accent .g-kpi__v", "color"), ["var(--accent-text)"]);
+  assertReadable(sheet, ".g-kpi__rest", "color", ["--surface", "--surface-2"], 4.5);
+  assertReadable(sheet, ".g-kpi--accent .g-kpi__v", "color", ["--surface", "--surface-2"], 4.5);
 });
 
 test("a tile may lead somewhere: a link with the same face (06 → 08: the treasury tile)", () => {
@@ -434,6 +476,119 @@ test("the board's two teams are named by the caller; a line under a name is ther
   assert.throws(() => renderMatchBoard({ own: { name: "" } }), /own/);
 });
 
+const classAttr = (node) => node.getAttribute("class");
+
+test("the board can carry our crest, the opponent's initial, and the opponent's race as a link heading the line under the name; without them it is as it was", () => {
+  const fragment = mount(renderMatchBoard({
+    own: { ...own, crestHtml: renderCrest({ size: "md" }) },
+    opponent: { name: "Raiders", href: "#/coaches/u2/teams/r1", hint: "Team overview", sub: "#1", initial: "R", race: { title: "Skaven", href: "#/teams/skaven", hint: "Rules" } },
+  }));
+  const [ours, theirs] = fragment.querySelectorAll(".g-board__side");
+  // Our side (DeskOverview.html): the crest, then the name and its line together.
+  assert.equal(classAttr(ours), "g-board__side g-board__side--emblem");
+  assert.deepEqual(ours.childNodes.map(classAttr), ["g-board__crest", "g-board__texts"]);
+  assert.ok(ours.querySelector(".g-board__crest svg.g-crest.g-crest--md"), "the league's crest, renderCrest's");
+  assert.deepEqual(ours.querySelector(".g-board__texts").childNodes.map(classAttr), ["g-board__name", "g-board__sub"]);
+  assert.equal(ours.querySelector(".g-board__name").tagName, "SPAN", "our name is no link: the page is ours");
+  // Theirs: the circle with the letter, the name leading to the team, the race leading to its rules at the head of the line.
+  assert.equal(classAttr(theirs), "g-board__side g-board__side--away g-board__side--emblem");
+  assert.deepEqual(theirs.childNodes.map(classAttr), ["g-board__initial", "g-board__texts"]);
+  assert.equal(theirs.querySelector(".g-board__initial").textContent, "R");
+  const name = theirs.querySelector(".g-board__name");
+  assert.deepEqual([name.tagName, name.getAttribute("href"), name.textContent, name.getAttribute("title")], ["A", "#/coaches/u2/teams/r1", "Raiders", "Team overview"]);
+  const line = theirs.querySelector(".g-board__sub");
+  assert.equal(classAttr(line), "g-board__sub g-board__sub--race");
+  const race = line.childNodes[0];
+  assert.deepEqual([race.tagName, classAttr(race), race.getAttribute("href"), race.textContent, race.getAttribute("title")], ["A", "g-board__race", "#/teams/skaven", "Skaven", "Rules"]);
+  assert.ok(race.querySelector("svg.g-icon"), "the book before the race");
+  assert.equal(line.textContent, "Skaven · #1");
+  assertCspSafe(fragment);
+  assertStyled(fragment, "match-board.css", "src/shell/crest.css");
+  // A race with nothing after it is the line alone; a race with no crest or letter needs no box around the texts.
+  const raceOnly = mount(renderMatchBoard({ own, opponent: { name: "Raiders", race: { title: "Skaven", href: "#/teams/skaven" } } }));
+  assert.equal(raceOnly.querySelector(".g-board__side--away .g-board__sub").textContent, "Skaven");
+  assert.equal(raceOnly.querySelector(".g-board__race").hasAttribute("title"), false, "a link with no hint has no tooltip");
+  assert.equal(raceOnly.querySelector(".g-board__texts"), null);
+  assert.equal(classAttr(raceOnly.querySelector(".g-board__side--away")), "g-board__side g-board__side--away");
+  // Without the new fields, the markup is as it was before them (0c9255b), string for string: the name and the line straight
+  // in the side, no box, no mark, no link.
+  assert.equal(renderMatchBoard({ own, opponent: { name: "Raiders", sub: "Skaven · #1" } }), '<section class="g-board"><div class="g-board__main">'
+    + '<div class="g-board__side"><span class="g-board__name">Wardens</span><span class="g-board__sub">Human · #2</span></div>'
+    + '<div class="g-board__mid"><span class="g-board__score">–:–</span></div>'
+    + '<div class="g-board__side g-board__side--away"><span class="g-board__name">Raiders</span><span class="g-board__sub">Skaven · #1</span></div></div></section>');
+  // An initial of nothing is no initial: the caller says what the circle holds.
+  assert.equal(mount(renderMatchBoard({ own, opponent: { name: "Raiders", initial: "" } })).querySelector(".g-board__initial"), null);
+});
+
+test("the initial is hidden from a screen reader; the race's title and the line are text", () => {
+  const fragment = mount(renderMatchBoard({
+    own: { name: HOSTILE, sub: HOSTILE, crestHtml: renderCrest() },
+    opponent: { name: HOSTILE, href: "#/coaches/u2/teams/r1", hint: HOSTILE, sub: HOSTILE, initial: HOSTILE, race: { title: HOSTILE, href: "#/teams/skaven", hint: HOSTILE } },
+  }));
+  assert.equal(fragment.querySelector("img"), null);
+  const initial = fragment.querySelector(".g-board__initial");
+  assert.equal(initial.getAttribute("aria-hidden"), "true", "the name beside it is what is read");
+  assert.equal(initial.textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-board__crest svg").getAttribute("aria-hidden"), "true");
+  assert.equal(fragment.querySelector("a.g-board__name").textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-board__race").textContent, HOSTILE);
+  assert.deepEqual(fragment.querySelectorAll("a").map((link) => link.getAttribute("title")), [HOSTILE, HOSTILE], "a tooltip is text too");
+  assert.equal(fragment.querySelector(".g-board__side--away .g-board__sub").textContent, `${HOSTILE} · ${HOSTILE}`);
+  assertCspSafe(fragment);
+  // A link the board cannot draw is refused, the name's as the race's.
+  assert.throws(() => renderMatchBoard({ own, opponent: { name: "R", href: "javascript:alert(1)" } }), /javascript/);
+  assert.throws(() => renderMatchBoard({ own, opponent: { name: "R", race: { title: "S", href: " javascript:alert(1)" } } }), /javascript/);
+  const quoted = mount(renderMatchBoard({ own, opponent: { name: "R", href: '#/x"onmouseover="1', race: { title: "S", href: '#/y"onfocus="1' } } }));
+  assert.deepEqual(quoted.querySelectorAll("a").map((link) => link.getAttribute("href")), ['#/x"onmouseover="1', '#/y"onfocus="1']);
+  assertCspSafe(quoted);
+});
+
+test("styled; the crest and the initial are a desk's", () => {
+  const desk = (selector, property) => inMedia(BOARD_CSS, "min-width: 901px", selector, property);
+  // From 901px, DeskOverview.html's: the side a row 16px apart, the shield 52×59, the circle 52 in a 2px ring of half the ink on an eighth of it.
+  assert.deepEqual([desk(".g-board__side--emblem", "flex-direction"), desk(".g-board__side--emblem", "align-items"), desk(".g-board__side--emblem", "gap")], [["row"], ["center"], ["var(--space-16)"]]);
+  assert.deepEqual(desk(".g-board__side--away.g-board__side--emblem", "flex-direction"), ["row-reverse"]);
+  assert.deepEqual([desk(".g-board__crest .g-crest", "width"), desk(".g-board__crest .g-crest", "height")], [["52px"], ["59px"]]);
+  assert.deepEqual([desk(".g-board__initial", "width"), desk(".g-board__initial", "height"), desk(".g-board__initial", "border-radius")], [["52px"], ["52px"], ["var(--radius-full)"]]);
+  assert.deepEqual(desk(".g-board__initial", "background"), ["color-mix(in srgb, var(--header-ink) 12%, transparent)"]);
+  assert.deepEqual(desk(".g-board__initial", "box-shadow"), ["inset 0 0 0 2px color-mix(in srgb, var(--header-ink) 50%, transparent)"]);
+  assert.deepEqual([desk(".g-board__initial", "font"), desk(".g-board__initial", "color")], [["700 26px/1 var(--font-display)"], ["var(--header-ink)"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__initial", "width"), ["52px"], "nowhere but on a desk");
+  // Up to 900px neither is drawn: the phone's board is as it was (Team.html has none).
+  assert.deepEqual(inMedia(BOARD_CSS, "max-width: 900px", ".g-board__crest", "display"), ["none"]);
+  assert.deepEqual(inMedia(BOARD_CSS, "max-width: 900px", ".g-board__initial", "display"), ["none"]);
+  // The texts beside the mark are the column the side was; theirs at the right.
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__texts", "flex-direction"), valuesOf(BOARD_CSS, ".g-board__texts", "gap"), valuesOf(BOARD_CSS, ".g-board__texts", "min-width")], [["column"], ["var(--space-4)"], ["0"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__side--away .g-board__texts", "align-items"), ["flex-end"]);
+  // The race: 13/600 in the ink, underlined in 40% of it 3px under the words, the book 5px before them; the rest 6px after it.
+  const race = (property) => valuesOf(BOARD_CSS, ".g-board__race", property);
+  assert.deepEqual([race("display"), race("align-items"), race("gap"), race("font"), race("color")], [["inline-flex"], ["center"], ["5px"], ["600 13px/1.35 var(--font-body)"], ["var(--header-ink)"]]);
+  assert.deepEqual([race("text-decoration"), race("text-decoration-color"), race("text-underline-offset")], [["underline"], ["color-mix(in srgb, var(--header-ink) 40%, transparent)"], ["3px"]]);
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__sub--race", "gap"), valuesOf(BOARD_CSS, ".g-board__sub--race", "flex-wrap")], [["0 var(--space-6)"], ["wrap"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__side--away .g-board__sub--race", "justify-content"), ["flex-end"]);
+  // D2: a finger's 44px up to 900px, from 24px on a desk (the overview draws the links on a desk only); the keyboard's ring the header's ink.
+  const px = (value) => (value === "var(--size-touch)" ? 44 : Number.parseFloat(value));
+  for (const selector of [".g-board__race", "a.g-board__name"]) {
+    assert.deepEqual(valuesOf(BOARD_CSS, selector, "min-height")[0], "var(--size-touch)", selector);
+    const onDesk = desk(selector, "min-height");
+    assert.ok(onDesk.length === 1 && px(onDesk[0]) >= 24, `${selector}: ${onDesk}`);
+    assert.deepEqual(valuesOf(BOARD_CSS, `${selector}:focus-visible`, "outline-color"), ["var(--header-ink)"], selector);
+  }
+  // The race's 24px take no room from its line: −3px above and below keep the line about the prototype's 17.5px, as
+  // .g-profile__back does (T34 I1). The name's 32px clear 24 by themselves.
+  assert.deepEqual([desk(".g-board__race", "margin"), desk("a.g-board__name", "margin")], [["-3px 0"], []]);
+  // The state's chip as DeskOverview.html's from 901px: 24px high, 12px (the kit's 26 and 13); its 700 and its dots the kit's.
+  assert.deepEqual([desk(".g-board__mid .g-status", "height"), desk(".g-board__mid .g-status", "font-size")], [["24px"], ["12px"]]);
+  assert.deepEqual([desk(".g-board__mid .g-status", "font-weight"), desk(".g-board__mid .g-status::before", "background")], [[], []]);
+  assert.deepEqual(valuesOf(BOARD_CSS, "a.g-board__name", "text-decoration"), ["none"], "the name is white, not underlined");
+  for (const selector of [".g-board__name", ".g-board__race"]) assert.deepEqual(valuesOf(BOARD_CSS, selector, "overflow-wrap"), ["anywhere"], selector);
+  assertReadable(BOARD_CSS, ".g-board__race", "color", ["--header"], 4.5);
+  assertReadable(BOARD_CSS, ".g-board__initial", "color", ["color-mix(in srgb, var(--header-ink) 12%, var(--header))"], 4.5);
+  for (const selector of [".g-board__name", "a.g-board__name", ".g-board__texts", ".g-board__sub--race", ".g-board__race"]) {
+    assert.deepEqual([valuesOf(BOARD_CSS, selector, "white-space"), valuesOf(BOARD_CSS, selector, "text-overflow")], [[], []], `${selector} wraps, and nothing is cut off`);
+  }
+});
+
 test("a score is text between the names; the dash pair stands in until there is one", () => {
   const score = (props) => mount(renderMatchBoard({ own, ...props })).querySelector(".g-board__score").textContent;
   assert.equal(score({}), "–:–");
@@ -491,8 +646,8 @@ test("a status on a phone fits the middle column: the chip is tightened so «п�
   // that was 137px in a 124px column (measured in Chrome at 375 and 320). The numbers below are what is left to fit it in: 95 + 8 + 4 + 2 × 6 = 119px.
   const chip = ".g-board__mid .g-status";
   assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__mid", "max-width"), ["124px"]);
-  assert.deepEqual([valuesOf(BOARD_CSS, chip, "font-size"), valuesOf(BOARD_CSS, chip, "gap"), valuesOf(BOARD_CSS, chip, "padding")],
-    [["12px"], ["var(--space-4)"], ["var(--space-4) var(--space-6)"]]);
+  const phone = (property) => inMedia(BOARD_CSS, "max-width: 900px", chip, property);
+  assert.deepEqual([phone("font-size"), phone("gap"), phone("padding")], [["12px"], ["var(--space-4)"], ["var(--space-4) var(--space-6)"]]);
   assert.deepEqual(valuesOf(BOARD_CSS, chip, "white-space"), ["normal"], "a longer status still wraps");
   const tokens = tokensOf("grass");
   assert.deepEqual([tokens["--space-4"], tokens["--space-6"]], ["4px", "6px"]);

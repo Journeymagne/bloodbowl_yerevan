@@ -1,99 +1,27 @@
 /*
- * The first step of `#/teams/new` (screens/teams/new.mjs): a name and a race
- * (TeamNew, DeskTeamNew). The second step, the builder, is builder.css's. Font,
- * border, background, text-transform and font-weight are set here on purpose:
- * the 2.x global rules (h1 at weight 800, a { color: inherit }, p margins, bare
- * buttons) outlive this sheet until stage 13.
+ * «New team» (screens/teams/new-sheet.mjs): a name and a race, in a sheet over
+ * the screen it is opened on, from the bottom of a phone (TeamNew) and a window
+ * of 760px on a desk (DeskTeamNew). The sheet's frame is ui/sheet.css's; this
+ * file draws what TeamNew and DeskTeamNew draw otherwise, and the races. The
+ * builder is builder.css's; the team's settings draw their warnings in the
+ * look of `.g-races__resets`. Font, border, background, text-transform and
+ * font-weight are set here on purpose: the 2.x global rules (a { color:
+ * inherit }, p margins, bare buttons) outlive this sheet until stage 13.
  *
- * The page has its own frame (`bare`: no header, tabs or SideNav) and #app-view
- * has no padding in it, so this sheet brings its own.
+ * Up to 900px (TeamNew): a sheet of up to 90% of the screen; the head 6 12 4
+ * with «‹» (the switcher's way back) and the cross, 44px circles on
+ * --surface-3, the title Oswald 700 24px/1.1 2px over a 13px line; the body
+ * 12 16, a column 14 apart; the field 48px, 12 round, on --surface-2; the
+ * races two to a row, 6 apart; the foot 10 16 24 under a rule, «Create» the
+ * whole width, 52px.
  *
- * Up to 900px: a column the width of the screen, the head over the form, the
- * button at the foot of the screen (the way back is the head's arrow). From
- * 901px: a card of 760px in the middle of the desk, the races four to a row,
- * and a foot that is a row: the way back to the list at the left, the button at
- * the right as wide as its words.
+ * From 901px (DeskTeamNew): a window of 760px, 64px from the top, 20px round,
+ * on its shadow; the head 20 24 over its rule, the title Oswald 700 28px/1
+ * over a 14px line, the cross 44; the body 20 24, 18 apart, a label 8 over what it names; the
+ * races as many to a row as 160px allows, 6 apart; the foot 16 24 under a
+ * rule on --surface-2, «← My teams» at the left when the switcher opened the
+ * sheet, «Create» at the right (sheet.css's row, with one button or two).
  */
-.g-new {
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  background: var(--page);
-  color: var(--ink);
-  font: 400 14px/1.4 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
-
-/* The 2.x globals give a heading a weight of 800 and a paragraph its margins. */
-.g-new :where(p, h1) {
-  margin: 0;
-  padding: 0;
-  border: 0;
-  text-transform: none;
-  letter-spacing: 0;
-}
-
-/*
- * The sticky foot needs the page itself to be the one that scrolls; the frame clips sideways with overflow-x:
- * hidden, which makes .g-main the container a sticky element sticks in, and it never scrolls. Scoped to this
- * screen with :has(), as the builder's is (builder.css). Stage 13 makes it global in frame.css and removes both.
- */
-.g-main:has(.g-new) { overflow-x: clip; }
-
-.g-new__card {
-  box-sizing: border-box;
-  display: flex;
-  flex: 1 0 auto;
-  flex-direction: column;
-  min-width: 0;
-  background: var(--page);
-}
-
-/* ---- The head ---- */
-.g-new__head {
-  box-sizing: border-box;
-  display: grid;
-  grid-template-columns: var(--size-touch) minmax(0, 1fr) var(--size-touch);
-  align-items: center;
-  gap: var(--space-8);
-  padding: var(--space-8) var(--space-12) var(--space-4);
-}
-.g-new__head > .g-icon-btn { grid-column: 1; }
-
-.g-new__titles {
-  grid-column: 2;
-  min-width: 0;
-  text-align: center;
-}
-
-.g-new__title {
-  color: var(--ink);
-  font: 700 24px/1.1 var(--font-display);
-  overflow-wrap: anywhere;
-}
-/* The screen focuses it on arrival and when the step changes: a place the keyboard starts from, not a control. */
-.g-new__title:focus { outline: none; }
-
-.g-new__sub {
-  margin-top: 2px;
-  color: var(--muted);
-  font: 400 13px/1.35 var(--font-body);
-}
-
-/* ---- The form ---- */
-.g-new__body {
-  box-sizing: border-box;
-  display: flex;
-  flex: 1 0 auto;
-  flex-direction: column;
-  gap: var(--space-14);
-  padding: var(--space-12) var(--space-16);
-}
 
 /* The word over the races, in the voice of the field's label above it. */
 .g-new__label {
@@ -107,7 +35,6 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--space-6);
-  margin: calc(-1 * var(--space-6)) 0 0;
 }
 
 .g-races__item {
@@ -115,12 +42,13 @@
   display: flex;
   align-items: center;
   min-width: 0;
-  min-height: 48px;
+  min-height: 44px;
   margin: 0;
   padding: 0 var(--space-12);
-  border: 1px solid var(--line);
+  border: 0;
   border-radius: var(--radius-md);
   background: var(--surface);
+  box-shadow: var(--ring);
   color: var(--ink);
   font: 500 14px/1.25 var(--font-body);
   letter-spacing: 0;
@@ -130,14 +58,14 @@
   cursor: pointer;
 }
 .g-races__item[aria-checked="true"] {
-  border-color: transparent;
-  background: var(--accent-tint);
+  background: var(--accent-tint-soft);
   box-shadow: var(--ring-selected);
   font-weight: 700;
 }
 
 /* What another race would cost: the squad begun, said where the race is chosen. */
 .g-races__resets {
+  margin: 0;
   padding: var(--space-10) var(--space-12);
   border-radius: var(--radius-md);
   background: var(--warn-tint);
@@ -149,7 +77,6 @@
   align-self: flex-start;
   display: inline-flex;
   align-items: center;
-  min-height: var(--size-touch);
   color: var(--accent-text);
   font: 600 13px/1.4 var(--font-body);
   letter-spacing: 0;
@@ -157,82 +84,96 @@
   text-transform: none;
 }
 
-/* ---- The foot ---- */
-.g-new__foot {
-  box-sizing: border-box;
+/* The name's field on the soft grey of the prototypes, with no ring. */
+.g-new-sheet .g-field__input {
+  background: var(--surface-2);
+  box-shadow: none;
+}
+
+/* The season's line 2px under the title, on both widths. */
+.g-new-sheet .g-sheet__titles {
   display: flex;
-  gap: var(--space-12);
-  padding: var(--space-10) var(--space-16) var(--space-24);
-  background: var(--page);
+  flex-direction: column;
+  gap: 2px;
 }
 
-/* ---- A phone ---- */
+/* ---- A phone (TeamNew) ---- */
 @media (max-width: 900px) {
-  /* The button is a bar at the foot of the screen, over the room a phone leaves under it. */
-  .g-new__foot {
-    position: sticky;
-    bottom: 0;
-    z-index: 1;
-    border-top: 1px solid var(--line);
+  /* TeamNew's sheet takes up to 90% of the screen, sheet.css's 86dvh being the other sheets'. */
+  dialog.g-sheet.g-new-sheet { max-height: 90dvh; }
+  .g-new-sheet .g-sheet__body {
+    gap: var(--space-14);
+    padding: var(--space-12) var(--space-16);
   }
-  /* The head's arrow leads back; the foot's button is the desk's. */
-  .g-new__foot > a.g-btn { display: none; }
+  /* D2: the link is a target of 44px. */
+  .g-new__ref { min-height: var(--size-touch); }
+  /* The way back is the head's «‹»; the foot's button is a desk's. */
+  .g-new-sheet .g-sheet__foot-start { display: none; }
+  .g-new-sheet .g-sheet__foot .g-btn--primary {
+    width: 100%;
+    height: 52px;
+  }
 }
 
-/* ---- A desk ---- */
+/* ---- A desk (DeskTeamNew) ---- */
 @media (min-width: 901px) {
-  .g-new {
-    align-items: center;
-    padding: var(--space-24) 28px 48px;
-    background: var(--desk);
+  dialog.g-sheet.g-new-sheet {
+    width: min(760px, calc(100% - 32px));
+    /* The top margin is 64px; leave the bottom its 32px as well on a short window. */
+    max-height: min(86dvh, calc(100dvh - 96px));
+    margin: 64px auto auto;
+    border-radius: 20px;
+    box-shadow: var(--shadow-window);
   }
 
-  .g-new__card {
-    flex: 0 0 auto;
-    width: 100%;
-    max-width: 760px;
-    border-radius: var(--radius-2xl);
-    background: var(--surface);
-    box-shadow: var(--ring);
-  }
-
-  /* The foot's button leads back from here; the head's arrow is a phone's. */
-  .g-new__head {
-    grid-template-columns: minmax(0, 1fr);
-    padding: var(--space-20) var(--space-24) var(--space-12);
-    border-bottom: 1px solid var(--line);
-    border-radius: var(--radius-2xl) var(--radius-2xl) 0 0;
-  }
-  .g-new__head > .g-icon-btn { display: none; }
-  .g-new__titles {
-    grid-column: 1;
-    text-align: left;
-  }
-  .g-new__title { font-size: 26px; }
-
-  .g-new__body {
-    flex: 0 0 auto;
+  .g-new-sheet .g-sheet__head {
+    gap: var(--space-16);
     padding: var(--space-20) var(--space-24);
   }
+  /* The way back is the foot's «← My teams»; the head's «‹» is a phone's. */
+  .g-new-sheet .g-sheet__head [data-sheet-back] { display: none; }
+  .g-new-sheet .g-sheet__title {
+    font-size: 28px;
+    line-height: 1;
+  }
+  .g-new-sheet .g-sheet__sub { font-size: 14px; }
 
-  .g-races {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: var(--space-8);
-    margin: calc(-1 * var(--space-6)) 0 0;
+  .g-new-sheet .g-sheet__body {
+    gap: 18px;
+    padding: var(--space-20) var(--space-24);
+  }
+  .g-new-sheet .g-field { gap: var(--space-8); }
+  /* «Race», the races and the way to their rules are one block, 8 apart, inside the body's 18. */
+  .g-new-sheet .g-races {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    margin-top: -10px;
+  }
+  .g-new__ref {
+    min-height: 24px;
+    margin-top: -10px;
   }
 
-  .g-new__foot {
-    align-items: center;
-    justify-content: space-between;
+  /* No justify-content of its own: sheet.css puts «Create» at the right, with the way back at the left or without it. */
+  .g-new-sheet .g-sheet__foot {
     padding: var(--space-16) var(--space-24);
     border-top: 1px solid var(--line);
-    border-radius: 0 0 var(--radius-2xl) var(--radius-2xl);
     background: var(--surface-2);
   }
-  /* The button is as wide as its words on a desk, not the whole foot. */
-  .g-new__foot .g-btn--primary {
-    width: auto;
+  .g-new-sheet .g-sheet__foot-start .g-btn {
+    min-height: 48px;
+    padding: 0 18px;
+    border: 0;
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: inset 0 0 0 1px var(--control-border);
+    color: var(--ink-2);
+    font: 600 15px/1.2 var(--font-body);
+  }
+  .g-new-sheet .g-sheet__foot .g-btn--primary {
+    height: 48px;
     min-width: 240px;
-    padding: 0 var(--space-24);
+    padding: 0 var(--space-20);
+    border-radius: var(--radius-lg);
+    font-size: 16px;
   }
 }

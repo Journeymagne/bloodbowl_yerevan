@@ -1,5 +1,6 @@
 /**
- * A player's dice over HTTP: `POST /api/teams/:id/players/:pid/rolls` — the server rolls.
+ * A team's dice over HTTP: `POST /api/teams/:id/players/:pid/rolls` — the server rolls — and
+ * `GET /api/teams/:id/rolls` — what has been rolled.
  *
  * A coach who rolls on the site asks for a roll and is told what came up; the die is the server's
  * (`serverDie`), the result is kept as a `dice_rolls` row, and the advancement that takes it
@@ -11,9 +12,15 @@
  * Rolling is the owner's, and an administrator is not the owner: to anybody else the team is not
  * there (`teamForUser`). The request is a transaction that takes the team's row first, so the roll
  * that is waiting is looked for, and a new one written, with nobody else doing the same.
+ *
+ * Reading is the owner's and an administrator's (`teamForUser` with `admin`, as for the team's fallen):
+ * every roll of the team as it is kept, the waiting and the used, in the order they were rolled, so a
+ * client can show which a player still has to take and which an advancement has taken. The rolls of
+ * players who have left the roster are in it too: the client picks a player's own by `playerId`. A read
+ * takes no lock. To anybody else the team is not there.
  */
 import { DICE_PURPOSES } from "../../src/domain/roster/dice.mjs";
-import { publicRoll, rollForPlayer } from "../api/dice-rolls.mjs";
+import { publicRoll, rollForPlayer, teamRolls } from "../api/dice-rolls.mjs";
 import { PLAYER_ID_SOURCE, UUID_SOURCE, teamForUser } from "../api/team-access.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
@@ -21,6 +28,7 @@ import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 
 const ROLLS = new RegExp(`^/api/teams/(${UUID_SOURCE})/players/(${PLAYER_ID_SOURCE})/rolls$`, "i");
+const TEAM_ROLLS = new RegExp(`^/api/teams/(${UUID_SOURCE})/rolls$`, "i");
 
 /**
  * What a body asks for: one of the purposes dice are rolled for, and for a random skill a category.
@@ -52,10 +60,23 @@ async function rollForOwner(request, response, teamId, playerId) {
   sendJson(response, 200, { roll: publicRoll(row) });
 }
 
+/** `GET /api/teams/:id/rolls` — the team's rolls, used and waiting, in the order they were rolled: 200 `{ rolls }`. */
+async function sendRolls(request, response, teamId) {
+  const user = await currentUser(request);
+  if (!user) throw httpError(401, "NOT_AUTHORIZED");
+  const team = await teamForUser(pool, teamId, user, { admin: true });
+  sendJson(response, 200, { rolls: (await teamRolls(pool, team.id)).map(publicRoll) });
+}
+
 /**
  * @returns {Promise<boolean>} true when this module answered the request
  */
 export async function handleRollRoutes(request, response, url) {
+  const listPath = request.method === "GET" ? TEAM_ROLLS.exec(url.pathname) : null;
+  if (listPath) {
+    await sendRolls(request, response, listPath[1]);
+    return true;
+  }
   const rollPath = request.method === "POST" ? ROLLS.exec(url.pathname) : null;
   if (!rollPath) return false;
   await rollForOwner(request, response, rollPath[1], rollPath[2]);

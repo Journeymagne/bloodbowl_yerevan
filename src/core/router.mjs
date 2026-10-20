@@ -72,6 +72,7 @@ const screens = {
   teamNew: () => renderNewTeam(),
   team: ({ teamId }) => renderTeamOverview(teamId),
   teamManage: ({ teamId }) => renderTeamManage(teamId),
+  teamSettings: ({ teamId }) => renderTeamManage(teamId, { settings: true }),
   teamRoster: ({ teamId }) => renderTeamRoster(teamId),
   teamPlayer: ({ teamId, playerId }) => renderTeamPlayer(teamId, playerId),
   teamMatches: () => renderMyGames(),

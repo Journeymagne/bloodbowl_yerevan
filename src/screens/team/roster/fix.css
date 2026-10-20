@@ -1,0 +1,202 @@
+/*
+ * A player's fix by hand (fix.mjs; stage 07d, Task 13; no prototype). The frame is the edit's: player-sheets.css's
+ * `.g-player-sheet` (PlayerEdit.html up to 900px, DeskRosterEdit.html from 901px), with its lines of words; the
+ * counters are stage 08's «Ресурсы» rows as they are (TeamManage.html, ui/resource-counter.css); the skills are chips.
+ * This sheet draws what is the fix's own: its blocks one under another, 14px either side of a rule (none over the
+ * first, which the body's own padding holds); a block's title 15/700, 2px over its rows; a lasting injury's or a
+ * skill's line as a counter's row (from 58px over a rule, its words as a counter's name), its chip at the right —
+ * pressed, on the accent's tint in its ring; the note under the injuries 12/1.4; «Undo the last: …» in the last block,
+ * «Advancements» (owner, 2026-10-20: the profile's and the panel's moved here), quiet as before — words in the accent,
+ * 14/600, no frame and no fill — at the block's left; his value 14px in --ink-2, the value after the fix bold. And the
+ * edit's last line, which opens it: under a rule, the words and a chevron, quiet when closed.
+ *
+ * Where nothing gives a line height, the font's own (`normal`). Font, border, background, text-transform,
+ * letter-spacing and font-weight are set on purpose: the 2.x globals (h3, p, button) outlive this sheet until stage 13.
+ * A long name wraps; nothing is cut with «…».
+ */
+
+/* The blocks space themselves: 14px either side of the rule between two. */
+#player-fix .g-sheet__body { gap: 0; }
+
+.g-player-fix__block {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: var(--space-14) 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+}
+.g-player-fix__block:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+/* A block's last row draws no rule of its own: the next block's stands for it. */
+.g-player-fix__block > :last-child { border-bottom: 0; }
+
+/* 2px over the first row, as TeamManage.html's «Ресурсы» heading. */
+.g-player-fix__title {
+  margin: 0;
+  padding: 0 0 2px;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* A lasting injury's or a skill's line: as a counter's row (resource-counter.css), its chip at the right. */
+.g-player-fix__row {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-height: 58px;
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--line);
+}
+.g-player-fix__name {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-player-fix__note {
+  margin: 0;
+  padding: var(--space-8) 0 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* The god's skills a player lacks: chips side by side, a long one on a line of its own. */
+.g-player-fix__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  padding: var(--space-12) 0 0;
+}
+
+.g-player-fix__toggle {
+  box-sizing: border-box;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  max-width: 100%;
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  color: var(--ink-2);
+  font: 600 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-player-fix__toggle[aria-pressed="true"] {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 2px var(--accent);
+  color: var(--on-accent-tint);
+}
+
+/* «Undo the last: …»: a line of words, for an advancement can be taken again; closed, the roster's closed look. */
+.g-player-fix__undo {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: 600 14px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-player-fix__undo.g-roster__closed { cursor: default; }
+
+/* His value before and after, under a rule. */
+.g-player-fix__value {
+  margin: 0;
+  padding: var(--space-14) 0 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  background: none;
+  color: var(--ink-2);
+  font: 400 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+.g-player-fix__after { font-weight: 700; }
+
+/* The frame's lines of words (player-sheets.css), 14px under what stands over them: the body's gap is the blocks'. */
+#player-fix .g-player-sheet__prep,
+#player-fix .g-player-sheet__refusal { margin-top: var(--space-14); }
+
+/* The edit's last line, which opens the fix: the words at the left, the chevron at the right, under a rule. */
+#player-edit .g-player-edit__fix {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  background: none;
+  color: var(--ink);
+  font: 600 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+#player-edit .g-player-edit__fixwords {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+#player-edit .g-player-edit__fix .g-icon { flex: none; }
+#player-edit .g-player-edit__fix[aria-disabled="true"] {
+  color: var(--disabled);
+  cursor: default;
+}
+
+/* Up to 900px what is pressed is 44px or more (D2), the line to the fix 52px. */
+@media (max-width: 900px) {
+  .g-player-fix__toggle { min-height: 44px; }
+  .g-player-fix__undo { min-height: 44px; }
+  #player-edit .g-player-edit__fix { min-height: 52px; }
+}
+
+/* From 901px DeskRosterEdit.html's sizes: the chips and the undo 32px (D2: 24 or more), the line to the fix 44px. */
+@media (min-width: 901px) {
+  .g-player-fix__toggle { min-height: 32px; }
+  .g-player-fix__undo { min-height: 32px; }
+  #player-edit .g-player-edit__fix { min-height: 44px; }
+}

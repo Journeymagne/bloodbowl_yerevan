@@ -6,16 +6,18 @@
  *
  * The page is assembled here and decides nothing of its own: which phase the team is in, which match closes it and
  * which resource is open are the model's (`phaseOf`, `matchLock`, `resourceRows`); the parts are drawn and wired by
- * their modules (the strip, the two sheets, the resources, the history). `manageModel` gathers what the page shows,
- * `manageMarkup` draws it. A match on closes the money and the resources and says where to go (decision 11); a
- * match being prepared only warns.
+ * their modules (the strip, the two sheets, the resources, the history, the settings). `manageModel` gathers what the
+ * page shows, `manageMarkup` draws it. A match on closes the money and the resources and says where to go (decision
+ * 11); a match being prepared only warns.
  *
  * On a phone the page is a dark treasury card with «+ Add» and «− Take», then the safe, the correction, the
- * resources and the history, in that order (decision 19), and the DOM keeps it. On a desk the strip says the
- * treasury, and two columns follow: the resources at the left, the safe, the correction and the history at the
- * right (manage.css places them).
+ * resources and the history, in that order (decision 19), and the DOM keeps it; a row last leads to the team's
+ * settings, a screen of their own at their address (settings-screen.mjs; owner, 2026-10-20). On a desk the strip says
+ * the treasury, and two columns follow: the resources at the left, the safe, the correction, the history and the
+ * settings' card at the right (manage.css places them); their address is this page, the focus on the card. The width
+ * is asked at each draw (`isPhone`), and the page is drawn again in the other form when it crosses 900px.
  */
-import { drawScreen, escapeHtml, patch } from "../../../core/dom.mjs";
+import { drawKeepingFocus, drawScreen, escapeHtml, patch } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { postMatchUrl, preMatchUrl } from "../../../core/routes.mjs";
@@ -31,11 +33,15 @@ import { renderCallout } from "../../../ui/callout.mjs";
 import { renderPageHead } from "../../../ui/page-head.mjs";
 import { renderStatusChip } from "../../../ui/status-chip.mjs";
 import { loadSeason } from "../../season/season-data.mjs";
+import { onSaveState, saveState } from "../roster/save.mjs";
+import { isPhone, onPhoneChange } from "../roster/screen.mjs";
 import { wireFixSheet } from "./fix-sheet.mjs";
 import { historyExpanded, historyMarkup, safeMarkup, wireHistory } from "./history.mjs";
 import { matchLock, phaseOf, resourceRows } from "./model.mjs";
 import { resourcesMarkup, wireResources } from "./resources.mjs";
-import { renderTreasuryStrip, wireTreasuryStrip } from "./strip.mjs";
+import { settingsEntryMarkup, settingsScreenMarkup } from "./settings-screen.mjs";
+import { SETTINGS_PLACE, settingsMarkup, settingsModel, wireSettings } from "./settings.mjs";
+import { renderTreasuryStrip, shutOpener, treasuryCardMarkup, wireTreasuryStrip } from "./strip.mjs";
 
 /**
  * What the page shows of a team.
@@ -50,12 +56,16 @@ import { renderTreasuryStrip, wireTreasuryStrip } from "./strip.mjs";
  * @param {boolean} [input.busy] a save of the team is on its way (`isWriting`)
  * @param {boolean} [input.gamesUnknown] the games could not be read (`state.games.error`): whether a match is on is
  *   not known, and the lock judges the list read before, if any
+ * @param {{status: string, waiting: number}} [input.queue] where the roster's queue stands (`saveState`): a step of
+ *   it holds the settings
+ * @param {boolean} [input.phone] the width is a phone's (`isPhone`)
+ * @param {"page"|"settings"} [input.screen] the address: the team page's, or its settings' (a screen of its own on a phone)
  * @returns {{teamId: string, team: object, treasury: number, safe: number, worth: number|null,
  *   phase: ReturnType<typeof phaseOf>, lock: ReturnType<typeof matchLock>, rows: ReturnType<typeof resourceRows>,
- *   ledger: object, games: object[], expanded: boolean, busy: boolean, gamesUnknown: boolean}} `team` is what the
- *   strip is drawn from
+ *   ledger: object, games: object[], expanded: boolean, busy: boolean, gamesUnknown: boolean, phone: boolean,
+ *   screen: "page"|"settings", settings: ReturnType<typeof settingsModel>}} `team` is what the strip is drawn from
  */
-export function manageModel({ team, race, seasonData, games, ledger, expanded = false, busy = false, gamesUnknown = false }) {
+export function manageModel({ team, race, seasonData, games, ledger, expanded = false, busy = false, gamesUnknown = false, queue, phone = false, screen = "page" }) {
   const roster = team.roster ?? {};
   const list = games ?? [];
   const lock = matchLock(list, team.id);
@@ -73,6 +83,9 @@ export function manageModel({ team, race, seasonData, games, ledger, expanded = 
     expanded,
     busy,
     gamesUnknown,
+    phone,
+    screen,
+    settings: settingsModel({ team, race, lock, busy, queue }),
   };
 }
 
@@ -87,42 +100,22 @@ function phaseChip({ key, round }) {
 /** The steps of the pre-match a purchase resets, named as the pre-match names them (the server keeps fans and weather). */
 const resetSteps = () => ({ roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
 
-/**
- * What a match does to the page, said above it, with the way to where it is finished or prepared. Games that could
- * not be read are said quietly, but for a live match (which closes the page anyway): the page stays open, and a write
- * may land in a match it does not know of.
- */
+/** Games that could not be read, said quietly: the page stays open, and a write may land in a match it does not know of. */
+const unknownCallout = (gamesUnknown) => (gamesUnknown ? renderCallout({ tone: "warn", title: t("treasury.gamesUnknown") }) : "");
+
+/** What a match does to the page, said above it, with the way to where it is finished or prepared; the games not read, unless a match is on. */
 function lockCallout(lock, gamesUnknown) {
   if (lock?.kind === "live") return renderCallout({ tone: "warn", title: t("treasury.liveTitle"), sub: t("treasury.liveSub"), href: postMatchUrl(lock.game) });
-  const unknown = gamesUnknown ? renderCallout({ tone: "warn", title: t("treasury.gamesUnknown") }) : "";
   // A preparation known from games read before is the state most likely to have gone live since: both are said.
-  if (lock?.kind === "preparing") return renderCallout({ tone: "warn", title: t("treasury.prepTitle"), sub: t("treasury.prepSub", resetSteps()), href: preMatchUrl(lock.game) }) + unknown;
-  return unknown;
-}
-
-/**
- * A button that opens a sheet. While a match is on it is shut, not disabled (it keeps its place in the tab order and
- * says why when pressed: the strip's and the fix sheet's wiring read the `title`).
- */
-function opener(className, data, label, live) {
-  const shut = live ? ` aria-disabled="true" title="${escapeHtml(t("treasury.lockedLive"))}"` : "";
-  return `<button type="button" class="${className}" ${data} aria-haspopup="dialog"${shut}>${escapeHtml(label)}</button>`;
-}
-
-/** The phone's treasury card: the sum, the team's value, and «+ Add» / «− Take», which open the strip's sheet. */
-function cardMarkup(model, live) {
-  const id = escapeHtml(model.teamId);
-  const money = (sign, className, label) => opener(className, `data-treasury-money="${id}" data-treasury-sign="${sign}"`, label, live);
-  return `<section class="g-manage__card" aria-labelledby="manage-card-title"><div class="g-manage__card-text">`
-    + `<h2 class="g-manage__card-title" id="manage-card-title">${escapeHtml(t("roster.treasuryTitle"))}</h2>`
-    + `<span class="g-manage__card-sum">${escapeHtml(formatMoney(model.treasury))}</span>`
-    + `<span class="g-manage__card-tv">${escapeHtml(t("treasury.tv", { value: formatMoney(model.worth) }))}</span></div>`
-    + `<div class="g-manage__card-actions">${money("1", "g-manage__in", t("treasury.in"))}${money("-1", "g-manage__out", t("treasury.out"))}</div></section>`;
+  if (lock?.kind === "preparing") return renderCallout({ tone: "warn", title: t("treasury.prepTitle"), sub: t("treasury.prepSub", resetSteps()), href: preMatchUrl(lock.game) }) + unknownCallout(gamesUnknown);
+  return unknownCallout(gamesUnknown);
 }
 
 /** @param {ReturnType<typeof manageModel>} model */
 export function manageMarkup(model) {
   const live = model.lock?.kind === "live";
+  // The phone's settings screen says a match on and a preparation in the settings' words, and the games not read as here (L4).
+  if (model.phone && model.screen === "settings") return settingsScreenMarkup(model, { noticeHtml: live ? "" : unknownCallout(model.gamesUnknown) });
   const head = renderPageHead({
     title: t("treasury.title"),
     sub: t("treasury.tv", { value: formatMoney(model.worth) }),
@@ -130,15 +123,18 @@ export function manageMarkup(model) {
     phone: true,
   });
   const side = `<div class="g-manage__side">${safeMarkup({ safe: model.safe, entries: model.ledger.entries })}`
-    + `${opener("g-manage__fix", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live)}</div>`;
+    + `${shutOpener("g-manage__fix", `data-treasury-fix="${escapeHtml(model.teamId)}"`, t("treasury.fix.open"), live)}</div>`;
   const history = historyMarkup({ ledger: model.ledger, games: model.games, expanded: model.expanded });
+  // The settings: the right column's last card on a desk (the columns keyed: a callout coming over them keeps their nodes,
+  // and a focus in them); on a phone, a row last on the page leads to their screen.
+  const [card, entry] = model.phone ? ["", settingsEntryMarkup(model.teamId)] : [settingsMarkup(model), ""];
   return `<div class="g-manage" data-screen="team-manage">${head}${lockCallout(model.lock, model.gamesUnknown)}`
-    + `${renderTreasuryStrip({ team: model.team, games: model.games })}${cardMarkup(model, live)}`
-    + `<div class="g-manage__cols">${side}${resourcesMarkup({ rows: model.rows, busy: model.busy })}${history}</div></div>`;
+    + `${renderTreasuryStrip({ team: model.team, games: model.games })}${treasuryCardMarkup(model, live)}`
+    + `<div class="g-manage__cols" data-key="manage-cols">${side}${resourcesMarkup({ rows: model.rows, busy: model.busy })}${history}${card}</div>${entry}</div>`;
 }
 
-/** The page of `teamId` as the state has it now; "" when the team is not on the coach's list. */
-function markupOf(teamId) {
+/** The page of `teamId` (its `screen`, at the width there is now) as the state has it now; "" when the team is not on the coach's list. */
+function markupOf(teamId, screen) {
   const team = state.myTeams.items.find((item) => item.id === teamId);
   if (!team) return "";
   return manageMarkup(manageModel({
@@ -151,8 +147,14 @@ function markupOf(teamId) {
     // As fresh as this draw: a write's start is not announced, and a redraw then would turn a medic's switch back while its save is on its way.
     busy: isWriting(teamId),
     gamesUnknown: Boolean(state.games.error),
+    queue: saveState(teamId),
+    phone: isPhone(),
+    screen,
   }));
 }
+
+/** Where a focus the other width's form leaves on nothing goes (L22): from the settings or on their address, their title or row; else the h1. */
+const focusHome = (screen) => (screen === "settings" || document.activeElement?.closest?.(".g-team-settings, .g-team-settings-entry") ? SETTINGS_PLACE : "h1");
 
 /**
  * The team page of one of the coach's teams. Drawn at once from the state, the title taking the focus (the history
@@ -162,20 +164,23 @@ function markupOf(teamId) {
  * coach has put it. A team not on the list (it was deleted meanwhile) draws nothing, as the overview does.
  *
  * Everything the page wires is on `view`, which outlives its redraws, and goes when the screen is left: the strip's
- * wiring holds the money sheet's host, the fix sheet holds its own.
+ * wiring holds the money sheet's host, the fix sheet and the settings hold their own. The settings' address (`settings`)
+ * puts the first focus on their title — the phone's screen's h1, the desk's card's h2 — and the page's on its h1.
  * @param {string} teamId
+ * @param {{settings?: boolean}} [options]
  */
-export async function renderTeamManage(teamId) {
-  const first = markupOf(teamId);
+export async function renderTeamManage(teamId, { settings = false } = {}) {
+  const screen = settings ? "settings" : "page";
+  const first = markupOf(teamId, screen);
   if (!first) return;
   let here = true;
   const draw = () => {
     if (!here) return;
-    const markup = markupOf(teamId);
+    const markup = markupOf(teamId, screen);
     if (markup) patch(view, markup);
   };
   drawScreen(view, first);
-  view.querySelector("h1")?.focus();
+  view.querySelector(settings ? "#team-settings-title" : "h1")?.focus();
   const releases = [
     onMyTeamsChange(draw),
     onGamesChange(draw),
@@ -184,6 +189,10 @@ export async function renderTeamManage(teamId) {
     wireResources(view, teamId),
     wireFixSheet(view),
     wireHistory(view, teamId, draw),
+    wireSettings(view, teamId),
+    // The roster's queue holds the settings and lets them go (a team it does not hold: one call, nothing after).
+    onSaveState(teamId, draw),
+    onPhoneChange(() => drawKeepingFocus(view, draw, focusHome(screen))),
   ];
   onScreenLeave("team-manage", () => {
     here = false;
@@ -193,4 +202,7 @@ export async function renderTeamManage(teamId) {
   // went live since must close the page (nothing polls them while it is up). A season read that failed is made again.
   await Promise.allSettled([loadGames(true), loadSeason(Boolean(state.season.error)), readLedger(teamId)]);
   draw();
+  // The reads drew the history, and perhaps a callout, over the desk's card: one the focus is still on is put in view again (T36 m3).
+  const title = view.querySelector("#team-settings-title");
+  if (here && settings && !isPhone() && title && document.activeElement === title) title.scrollIntoView?.({ block: "nearest" });
 }

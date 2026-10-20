@@ -101,24 +101,28 @@
 }
 .g-teamface .g-status { margin-top: var(--space-4); }
 
-/* On a phone the way to a new team is an outlined button across the sheet. */
+/*
+ * On a phone the way to a new team is an outlined button across the sheet (TeamSwitch.html: 56px, 14px corners, 16px
+ * bold). It is a button, which a browser sizes to its words: the width is asked for, and the hand with it.
+ */
 .g-switcher__new {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-8);
+  width: 100%;
   min-height: 56px;
   margin: 0;
   padding: 0 var(--space-12);
   border: 1.5px solid var(--accent);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   background: transparent;
   color: var(--accent-text);
-  font: 700 15px/1.2 var(--font-body);
+  font: 700 16px/1.2 var(--font-body);
   letter-spacing: 0;
-  text-decoration: none;
   text-transform: none;
+  cursor: pointer;
 }
 /* The full tint would hold the words at 4.46:1 on the light palettes; half of it holds them. */
 .g-switcher__new:hover { background: var(--accent-tint-soft); }
@@ -153,8 +157,10 @@
     justify-content: flex-start;
     gap: var(--space-12);
     min-height: 48px;
-    padding: 0 var(--space-12);
+    padding: 0 var(--space-10);
     border: 0;
+    border-radius: var(--radius-lg);
+    font-size: 15px;
   }
   .g-switcher__plus {
     box-sizing: border-box;

@@ -13,7 +13,9 @@ strings, the following categories are **never translated**, in either locale:
   descriptive prose is translated).
 - **Core stat shorthand** — MA, ST, AG, PA, AV/AR, SPP, TV, GP, CAS.
 - **Advancement rank and type names** — Rookie, Experienced, Veteran, Emerging
-  Star, Star, Superstar, Legend, and Random/Primary/Secondary/Stat.
+  Star, Star, Superstar, Legend, and Random/Primary/Secondary/Stat. (The 3.0
+  advancement sheet is a deliberate UI exception for the type names — see the
+  last item under "New-UI translation sweep" below.)
 
 **Not a league term: palette names.** The theme palettes (`theme.palette.*`) take their Russian
 names from the design handoff (`Settings.html` PALETTES / the design-system README): they name a
@@ -376,3 +378,14 @@ further:
 - **Round/Table/Home/Away/Opponent** (Swiss-pairing season vocabulary) are ordinary translated UI
   words («раунд», «стол», «хозяева», «гости», «соперник») — not treated as kept-English rule
   identifiers, since they're season-administration bookkeeping terms, not Blood Bowl rules text.
+- **Advancement types in the 3.0 UI** (stage 07d, 2026-10-20) — a UI-only exception to "Advancement
+  rank and type names" at the top: the RU UI names the four types the way the handoff prototypes
+  do (`Adv1Type`, `DeskRosterAdv`), not with the English terms. The full names
+  (`teamAdvance.type.*`: phone sheet, profile, undo sheet) are «Случайный основной навык»,
+  «Основной навык на выбор», «Вторичный навык на выбор», «Улучшение характеристики»; the desk's
+  short ones (`teamAdvance.typeShort.*`: desk window, its summary and «done» line, the desk panel's
+  skill source) are «Случайный основной», «Основной на выбор», «Вторичный на выбор»,
+  «Характеристика». Content keeps the English Random/Primary/Secondary terms (`content/Gata-ru`,
+  including the Player Advancement table headers), so don't "fix" either side to match the other.
+  Skill names and skill categories (Agility, General, Strength…) stay English in the sheet, as
+  everywhere.

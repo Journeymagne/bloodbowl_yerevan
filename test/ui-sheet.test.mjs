@@ -107,6 +107,50 @@ test("an anchored sheet carries its modifier and sits by the SideNav from 901px"
   assertStyled(fragment, "sheet.css", "button.css");
 });
 
+// Stage 07d, Task 8: a player's sheets share a frame of their own (player-sheets.css), drawn by the class their caller gives.
+test("a sheet may carry one plain class of its caller's; anything else is refused", () => {
+  const dialog = mount(renderSheet({ id: "p1", title: "T", bodyHtml: "<p>x</p>", className: "g-player-sheet" })).querySelector("dialog");
+  assert.equal(dialog.getAttribute("class"), "g-sheet g-player-sheet");
+  assert.equal(mount(renderSheet({ id: "p2", title: "T", bodyHtml: "<p>x</p>" })).querySelector("dialog").getAttribute("class"), "g-sheet", "without one, as it was");
+  for (const className of ['a" onclick="x', "a b", "a.b", "1a"]) assert.throws(() => renderSheet({ id: "p3", title: "T", bodyHtml: "", className }), /class/, className);
+});
+
+// Stage 07d, Task 9: the advancement's window on a desk carries the player's number before its titles (DeskRosterAdv.html).
+test("a sheet may carry a mark before its titles", () => {
+  const classesOf = (head) => head.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
+  const head = mount(renderSheet({ id: "l1", title: "T", sub: "S", bodyHtml: "<p>x</p>", leadHtml: '<span class="g-num">7</span>' })).querySelector(".g-sheet__head");
+  assert.deepEqual(classesOf(head), ["g-sheet__spacer", "g-num", "g-sheet__titles", "g-icon-btn"], "in the head, before the titles");
+  assert.equal(head.querySelector(".g-num").textContent, "7");
+  const bare = mount(renderSheet({ id: "l2", title: "T", bodyHtml: "<p>x</p>" })).querySelector(".g-sheet__head");
+  assert.deepEqual(classesOf(bare), ["g-sheet__spacer", "g-sheet__titles", "g-icon-btn"], "without one, as it was");
+});
+
+// Stage 07d, Task 9 (K7): a refused card on the roster says why when it is pressed, as the roster's closed controls do.
+test("a refused card may say why in its tooltip and carry its caller's data", () => {
+  const [refused, open] = mount(renderOptionList({
+    label: "Type",
+    options: [
+      { value: "secondary", title: "Secondary", sub: "5 SPP short", disabled: true, reason: HOSTILE, data: { rosterClosed: true } },
+      { value: "primary", title: "Primary", reason: "never said", data: { extra: "x" } },
+    ],
+    selected: "",
+  })).querySelectorAll(".g-option");
+  assert.equal(refused.getAttribute("title"), HOSTILE, "escaped, as every attribute is");
+  assert.equal(refused.getAttribute("data-roster-closed"), "true");
+  assert.equal(refused.getAttribute("data-option-value"), "secondary", "its value as before");
+  assert.equal(refused.getAttribute("aria-disabled"), "true");
+  assert.equal(open.hasAttribute("title"), false, "only a refused card says why");
+  assert.equal(open.getAttribute("data-extra"), "x");
+  assert.equal(mount(renderOptionCard({ value: "v", title: "T" })).querySelector(".g-option").hasAttribute("title"), false, "without them, as it was");
+  // Additive: a card without them is drawn as it was before the props came (Task 9).
+  assert.equal(renderOptionCard({ value: "v", title: "T" }),
+    '<button type="button" class="g-option" role="radio" aria-checked="false" data-option-value="v"><span class="g-option__text"><span class="g-option__title">T</span></span></button>');
+  assert.equal(renderOptionCard({ value: "s", title: "S", sub: "x", disabled: true }),
+    '<button type="button" class="g-option" role="radio" aria-checked="false" data-option-value="s" aria-disabled="true"><span class="g-option__text">'
+    + '<span class="g-option__title">S</span><span class="g-option__sub">x</span></span></button>');
+  assertCspSafe(mount(renderOptionCard({ value: "v", title: "T", disabled: true, reason: HOSTILE })));
+});
+
 test("closing by button, backdrop or Escape goes through one path; back is its own", () => {
   const fragment = mount(renderSheet({ id: "s2", title: "T", bodyHtml: "<p>inside</p>", canGoBack: true }));
   const dialog = fragment.querySelector("dialog");

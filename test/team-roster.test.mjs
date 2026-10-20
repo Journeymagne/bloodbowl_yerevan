@@ -337,6 +337,23 @@ test("a skill chip opens its rule: the name as written, its category and type, t
   assert.equal(document.activeElement, chip);
 });
 
+test("the sheet's box says whose skill it is: a skill an advancement gave, by the advancement and on the accent's tint; a starting one in 07a's words on the grey (fidelity F8, StatsSkill.html)", async () => {
+  const bors = { ...PLAYERS[1], extraSkills: [{ name: "Dodge", access: "primary" }, { name: "Mighty Blow", access: "primary" }],
+    advancements: [{ type: "random", grants: { skill: "Dodge" } }, { type: "primary", grants: { skill: "Mighty Blow" } }] };
+  coach({ teamAnswer: team({ roster: { players: [bors] } }) });
+  await renderTeamRoster("t1");
+  const boxOf = (name) => {
+    fireEvent(chipIn(bodyOf("p2#0").querySelector(".g-rtable__skills--desk"), name), "click");
+    const box = sheet().querySelector(".g-roster__from");
+    const said = [box.textContent, box.getAttribute("class")];
+    fireEvent(sheet().querySelector("[data-sheet-close]"), "click");
+    return said;
+  };
+  assert.deepEqual(boxOf("Dodge"), ["Bors · Random primary", "g-roster__from g-roster__from--gained"]);
+  assert.deepEqual(boxOf("Mighty Blow"), ["Bors · Chosen primary", "g-roster__from g-roster__from--gained"]);
+  assert.deepEqual(boxOf("Block"), ["Bors · starting", "g-roster__from"]);
+});
+
 test("a chip in the panel opens the same rule; a skill with a number in it opens its template's rule under the name the player has", async () => {
   coach();
   await renderTeamRoster("t1");
@@ -367,7 +384,7 @@ test("a skill the reference has no page for opens all the same and says so", asy
   assert.equal(sheet().querySelector(".g-roster__from").textContent, "Ann · primary");
 });
 
-test("«Profile and advancement» on a phone, «Advance» and the pencil on a desk lead to the player's page — the 2.x editor until stage 07d", async () => {
+test("«Profile and advancement» on a phone leads to the player's address (the roster's player mode, stage 07d); on a desk «Advance» opens his advancement and the pencil his edit", async () => {
   await withWindow({ phone: true }, async () => {
     coach();
     await renderTeamRoster("t1");
@@ -380,12 +397,17 @@ test("«Profile and advancement» on a phone, «Advance» and the pencil on a de
     coach();
     await renderTeamRoster("t1");
     fireEvent(toggle("p2#0"), "click");
-    const advance = aside().querySelector("a.g-btn--primary");
+    // Stage 07d, Task 9: «Advance» is a button that opens the advancement's window (DeskRosterAdv.html), not a link.
+    const advance = aside().querySelector('button.g-btn--primary[data-player-advance="p2#0"]');
     assert.equal(advance.textContent, "Advance");
-    assert.equal(advance.getAttribute("href"), teamPlayerUrl("t1", "p2"));
-    const pencil = aside().querySelector("a.g-roster__edit");
+    assert.equal(advance.getAttribute("aria-haspopup"), "dialog");
+    assert.equal(aside().querySelector("a"), null, "no link to his page in the panel");
+    // Stage 07d, Task 8: the pencil is a button that opens the edit of his number, name and captaincy, not a link.
+    assert.ok(!aside().querySelector("a.g-roster__edit"), "no link");
+    const pencil = aside().querySelector('button.g-roster__edit[data-player-edit="p2#0"]');
     assert.equal(pencil.getAttribute("aria-label"), "Edit Bors");
-    assert.equal(pencil.getAttribute("href"), "#/t/t1/roster/p2");
+    assert.equal(pencil.getAttribute("aria-haspopup"), "dialog");
+    assert.equal(pencil.hasAttribute("href"), false);
   });
 });
 
@@ -424,7 +446,8 @@ test("the desk panel: badge, name, position and value, the characteristics, SPP 
   assert.deepEqual([panel.querySelector(".g-roster__availn").textContent, panel.querySelector(".g-roster__availl").textContent], ["0", "SPP available"]);
   assert.deepEqual(panel.querySelectorAll(".g-roster__ledgerline").map((line) => line.textContent), ["earned 0", "spent 0"]);
   assert.equal(panel.querySelector(".g-progress__caption").textContent, "Advancements: 0 of 6");
-  assert.equal(panel.querySelector(".g-roster__cheapest").textContent, "Cheapest — 3 SPP");
+  // Decision 21 (stage 07d): Ann's 0 SPP buy nothing, and the line under «Advance» says what she is short of.
+  assert.equal(panel.querySelector(".g-roster__cheapest").textContent, "3 more SPP needed");
   assert.equal(panel.querySelector(".g-skills-none").textContent, "no skills");
   assert.equal(panel.querySelector(".g-roster__access").textContent, "Primary: General · Secondary: Agility, Strength, Devious");
   assert.deepEqual(panel.querySelectorAll(".g-roster__access b").map((part) => part.textContent), ["General", "Agility, Strength, Devious"], "the categories in bold");
@@ -1025,6 +1048,21 @@ test("a redraw that takes the focused button away: the minus stopped at zero giv
   });
 });
 
+// N1 of the final wave's re-review: a focus on a node a stylesheet hides is lost too (`focusLost`), though the node stays.
+test("a redraw that leaves the focus on a node the stylesheet hides: outside a row, to the title", async () => {
+  coach();
+  await renderTeamRoster("t1");
+  const sort = view.querySelector('[data-sort-key="ma"]');
+  sort.focus();
+  // `display: none` from a stylesheet: the fake page reads none, and is told the header draws no box.
+  sort.getClientRects = () => [];
+  gamesAre([]);
+  await invalidateGames();
+  await settle();
+  assert.ok(view.querySelector('[data-sort-key="ma"]') === sort, "the same header, still in the page");
+  assert.ok(document.activeElement === view.querySelector("h1"), "the title, not a box nobody sees");
+});
+
 // ---------------------------------------------------------------------------
 // A preparation and a match (Task 11)
 // ---------------------------------------------------------------------------
@@ -1048,7 +1086,8 @@ test("a preparation that is on: a yellow banner, the round, what any save resets
       fireEvent(plus("touchdowns"), "click");
       await settle();
       assert.deepEqual([patches().length, posts().length], [1, 0], "a save of the roster, as outside a match");
-      assert.equal(aside().querySelector("a.g-btn--primary").textContent, "Advance", "a preparation closes nothing");
+      // Stage 07d, Task 9: «Advance» is a button that opens the advancement's window, not a link.
+      assert.equal(aside().querySelector("[data-player-advance]").textContent, "Advance", "a preparation closes nothing");
       // A friendly has no round.
       coach();
       gamesAre([{ ...PREP_GAME, kind: "friendly", season: null, roundStatus: null, roundNumber: null }]);
@@ -1213,25 +1252,26 @@ test("with the switch on a tap is an edit outside the match: no pairing, the ban
   });
 });
 
-test("advancement waits for the post-match: «Profile and advancement», «Advance» and the pencil say so", async () => {
+test("advancement waits for the post-match: «Advance» and the pencil say so; «Profile and advancement» stays open (K20)", async () => {
   await withoutTimers(async () => {
-    const check = (control) => {
+    const check = (control, title = AFTER_POST) => {
       assert.equal(control.tagName, "BUTTON");
       assert.equal(control.hasAttribute("href"), false);
       assert.equal(control.getAttribute("aria-disabled"), "true");
-      assert.equal(control.getAttribute("title"), AFTER_POST);
+      assert.equal(control.getAttribute("title"), title);
       fireEvent(control, "click");
-      assert.equal(toasts().at(-1), AFTER_POST);
+      assert.equal(toasts().at(-1), title);
     };
     await withWindow({ phone: true }, async () => {
       coach();
       gamesAre([LIVE_GAME]);
       await renderTeamRoster("t1");
       fireEvent(toggle("p2#0"), "click");
-      const profile = openRow().querySelector(".g-roster__closed");
+      // Stage 07d, K20: the profile reads in a match (his injuries, his skills) and closes its own writes, saying why.
+      const profile = openRow().querySelector("a.g-btn--dark");
       assert.equal(profile.textContent, "Profile and advancement");
-      check(profile);
-      assert.equal(openRow().querySelector("a"), null);
+      assert.equal(profile.getAttribute("href"), teamPlayerUrl("t1", "p2"));
+      assert.ok(!openRow().querySelector(".g-btn--dark.g-roster__closed"));
       assertCspSafe(view);
       assertStyled(view, "src/screens/team/roster/roster.css", "src/screens/team/roster/marks.css", "src/screens/team/roster/sheets.css", "src/screens/team/roster/frame.css", "src/screens/team/roster/market.css", "page-head.css", "roster-table.css", "number-badge.css", "skill-chip.css", "stat-strip.css",
         "progress-dots.css", "button.css", "callout.css", "toggle.css", "action-stepper.css", "status-chip.css", "src/screens/team/manage/strip.css");
@@ -1242,8 +1282,11 @@ test("advancement waits for the post-match: «Profile and advancement», «Advan
     fireEvent(toggle("p2#0"), "click");
     const [pencil, advance] = aside().querySelectorAll(".g-roster__closed");
     assert.equal(pencil.getAttribute("aria-label"), "Edit Bors");
-    check(pencil);
+    // Stage 07d, Task 8: the pencil edits his number, name and captaincy, and says so.
+    check(pencil, "Number, name and captain — after the post-match");
     assert.equal(advance.textContent, "Advance");
+    // Stage 07d, Task 9: a button that names him, so the focus finds it when his advancement closes.
+    assert.equal(advance.getAttribute("data-player-advance"), "p2#0");
     check(advance);
     assert.equal(aside().querySelector(".g-roster__cheapest").textContent, AFTER_POST);
     assert.equal(aside().querySelector("a"), null);
@@ -2071,7 +2114,8 @@ test("a desk roster has the treasury strip over the table; a phone has none, the
   await renderTeamRoster("t1");
   const classesOf = (root) => root.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class"));
   assert.deepEqual(classesOf(view.querySelector(".g-roster")).slice(1), ["g-roster__layout"]);
-  assert.deepEqual(classesOf(view.querySelector(".g-roster__main")), ["g-roster__notices", "g-roster__strip", "g-roster__sections", "g-roster__caption"],
+  // The search's live region stands first, empty with no query (stage 07d, Task 25).
+  assert.deepEqual(classesOf(view.querySelector(".g-roster__main")), ["g-roster__found", "g-roster__notices", "g-roster__strip", "g-roster__sections", "g-roster__caption"],
     "between the banners and the table, in the table's column: the panel stands beside them from the top (DeskRoster.html)");
   const strip = view.querySelector(".g-roster__strip");
   const probe = document.createElement("div");
@@ -2361,8 +2405,14 @@ test("on a phone the open row, on a desk the panel beside the table", () => {
     assert.ok(breakpoints.length > 0, file);
     for (const query of breakpoints) assert.match(query, /^@media \((max-width: 900px|min-width: 901px)\)$/, file);
   }
-  // The roster's own sheet, 07b's marks.css, its sheets' and its frame's; 07c's market.css after the fidelity pass's frame.css, last of all.
-  assert.ok(text("src/styles.css").trimEnd().endsWith(['roster.css', 'marks.css', 'sheets.css', 'frame.css', 'market.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
+  // The roster chain in this order (K5): its own sheet, 07b's marks.css, its sheets' and its frame's, 07c's market.css after
+  // the fidelity pass's frame.css, then 07d's sheets in the order of their tasks — those there yet; others may follow them.
+  const styles = text("src/styles.css");
+  const chain = ["roster.css", "marks.css", "sheets.css", "frame.css", "market.css", "profile.css", "player-sheets.css", "advance.css", "rolls.css", "fix.css"]
+    .map((name) => styles.indexOf(`@import url("screens/team/roster/${name}");`));
+  assert.ok(chain.every((at) => at >= 0), "07a to 07c's and 07d's profile.css, player-sheets.css, advance.css, rolls.css and fix.css reach the page");
+  const present = chain.filter((at) => at >= 0);
+  assert.deepEqual(present, [...present].sort((a, b) => a - b));
 });
 
 test("the counters: six two to a row (one where two do not fit), the narrow ones as many to a row as leave each button a thumb's width; the SPP line quiet, its sum in the accent", () => {
@@ -2406,6 +2456,10 @@ test("the words of the screen are readable in every palette, on the page, the pa
   for (const selector of [".g-roster__sppline", ".g-roster__sppdelta", ".g-roster__sppdelta--none", ".g-roster__manualtitle"]) assertReadable(sheet, selector, "color", ["--surface-2"], 4.5);
   // The skill sheet's owner line in its box (StatsSkill.html), and a skill with no page, on the sheet.
   assertReadable("src/screens/team/roster/sheets.css", ".g-roster__from", "color", ["--surface-2"], 4.5);
+  // A gained skill's box is on the accent's tint with its own ink, as StatsSkill.html's #E4F0E9 and #163A28; the grey box is not repainted.
+  assert.deepEqual([valuesOf("src/screens/team/roster/sheets.css", ".g-roster__from--gained", "background"), valuesOf("src/screens/team/roster/sheets.css", ".g-roster__from--gained", "color")],
+    [["var(--accent-tint)"], ["var(--on-accent-tint)"]]);
+  assertReadable("src/screens/team/roster/sheets.css", ".g-roster__from--gained", "color", ["--accent-tint"], 4.5);
   assertReadable("src/screens/team/roster/sheets.css", ".g-roster__nopage", "color", ["--surface"], 4.5);
   // The bold parts of the panel's lines and the state of the next match, in red when he will not play.
   assertReadable(sheet, ".g-roster__next b", "color", ["--surface"], 4.5);

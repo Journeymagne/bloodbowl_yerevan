@@ -22,6 +22,7 @@ import { syncThemeWithAccount } from "./data/preferences.mjs";
 import { followSessionAcrossTabs, loadSession, onSessionChange, sessionEnded, sessionFailureText } from "./data/session.mjs";
 import { loadSeason } from "./screens/season/season-data.mjs";
 import { rosterStore } from "./screens/saved-roster.mjs";
+import { openNewTeamSheet } from "./screens/teams/new-sheet.mjs";
 import { mountShell, refreshShell } from "./shell/shell.mjs";
 
 // Cache-busting token: index.html loads this module as `src/app.js?v=<version>`
@@ -93,7 +94,7 @@ async function init() {
   setOnUnauthorized(sessionEnded);
   followSessionAcrossTabs(window); // another tab that signs in or out moves this page's session too
   setLocaleHandler(switchLocale); // screens and the SideNav ask for a language; this file reloads the data
-  mountShell(); // before the session: its first change draws the first screen, and the frame with it
+  mountShell({ onNewTeam: openNewTeamSheet }); // before the session: its first change draws the first screen, and the frame with it
   onSessionChange(afterSessionChange);
   onActiveTeamChange(() => refreshShell());
   // applyStaticI18n cannot reach the frame: it is drawn, not marked up.

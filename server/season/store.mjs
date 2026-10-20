@@ -112,6 +112,41 @@ export async function loadUserGameRows(userId, pairingId = null, includeAll = fa
   return result.rows;
 }
 
+// Each MVP a completed post-match names, side by side in the order picked, with the name the side's match roster
+// (its snapshot in the state) gives the player. The stored state, large and compressed, is read once per row:
+// `done` is the whole state as one value in memory when it is a completed post-match (the strict jsonpath gives
+// null for anything else, an array or a string included: an error inside a filter is only "unknown"), and
+// everything after walks that value. A member is walked only once `jsonb_typeof` says it is an array.
+const SELECT_MVPS = `
+  SELECT g.pairing_id, sides.side, mvp.player_id,
+         (SELECT player ->> 'name' FROM jsonb_array_elements(CASE WHEN jsonb_typeof(sides.state -> 'snapshot' -> 'players') = 'array'
+             THEN sides.state -> 'snapshot' -> 'players' ELSE '[]'::jsonb END) AS roster(player)
+           WHERE player ->> 'id' = mvp.player_id LIMIT 1) AS name
+    FROM match_post_games g
+   CROSS JOIN LATERAL jsonb_path_query_first(g.state, 'strict $ ? (@.status == "completed")') AS done(state)
+   CROSS JOIN LATERAL (VALUES ('home', done.state -> 'home'), ('away', done.state -> 'away')) AS sides(side, state)
+   CROSS JOIN LATERAL jsonb_array_elements_text(CASE WHEN jsonb_typeof(sides.state -> 'mvps') = 'array'
+       THEN sides.state -> 'mvps' ELSE '[]'::jsonb END) WITH ORDINALITY AS mvp(player_id, at)
+   WHERE g.pairing_id = ANY($1::uuid[]) AND done.state IS NOT NULL AND mvp.player_id IS NOT NULL
+   ORDER BY g.pairing_id, sides.side, mvp.at`;
+
+/**
+ * The MVPs of each of `pairingIds`, for the coach's list of games: `homeMvps` and `awayMvps`, each `{id, name}`
+ * in the order the post-match picked them (a player picked twice is there twice; `name` is "" when the match's
+ * roster does not hold him). Only a match finished through the post-match has any: one whose score was confirmed
+ * without it, or whose post-match is still open, has two empty lists.
+ *
+ * @param {string[]} pairingIds
+ * @returns {Promise<Map<string, {homeMvps: {id: string, name: string}[], awayMvps: {id: string, name: string}[]}>>}
+ */
+export async function loadGameMvps(pairingIds) {
+  const mvps = new Map(pairingIds.map((pairingId) => [pairingId, { homeMvps: [], awayMvps: [] }]));
+  if (!pairingIds.length) return mvps;
+  const { rows } = await pool.query(SELECT_MVPS, [pairingIds]);
+  for (const row of rows) mvps.get(row.pairing_id)?.[`${row.side}Mvps`].push({ id: row.player_id, name: row.name ?? "" });
+  return mvps;
+}
+
 /**
  * Everything the season screen shows, in one answer.
  *

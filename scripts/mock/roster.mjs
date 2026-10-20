@@ -10,8 +10,11 @@
  *                                 player (422 POST_PLAYER: of the roster, and for a tap of a match one who plays
  *                                 it, so not one who skips it), a step down that would take back nothing (409
  *                                 EVENT_BELOW_ZERO); else 201 `{event}` and it is listed from then on.
- *   The fallen (GET …/fallen, POST …/players/:pid/death, DELETE …/fallen/:fid) are asked first and answered by
- *                                 scripts/mock/fallen.mjs, which holds their rules and fixtures (t1 has two).
+ *   The rolls (GET …/rolls, POST …/players/:pid/rolls) are asked first, then the fallen (GET …/fallen, POST
+ *                                 …/players/:pid/death, DELETE …/fallen/:fid), then a player's career (GET
+ *                                 …/players/:pid/history): scripts/mock/rolls.mjs, scripts/mock/fallen.mjs and
+ *                                 scripts/mock/history.mjs answer them and hold their rules and fixtures (t1 has two
+ *                                 rolls, two fallen, and three matches told for each of its players).
  *   PATCH /api/teams/t3           the connection is dropped, so a save fails the way it does with no network:
  *                                 `{drop: true}`, which the server of scripts/mock-api.mjs turns into a destroyed
  *                                 socket. Every other save is the treasury's (scripts/mock/treasury.mjs).
@@ -27,6 +30,8 @@ import { MATCH_COUNTERS, SPP_EVENT_COUNTERS, careerCounters, eventTotal, isValid
 import { storedPlayerId } from "../../src/domain/roster/players.mjs";
 
 import { answerFallen } from "./fallen.mjs";
+import { answerHistory } from "./history.mjs";
+import { answerRolls } from "./rolls.mjs";
 
 const MAX_PLAYER_ID_LENGTH = 200;
 // What a tap of a match carries: the counters a match taps, and the injury. The MVP is picked in the post-match.
@@ -147,8 +152,10 @@ function writeTap(found, { pairingId, playerId, counter, delta, injury }, { game
  * @returns {Promise<{status: number, payload: object}|{drop: true}|null>} null for a route that is not this module's
  */
 export async function answerRoster(request, pathname, mock) {
-  const fallen = await answerFallen(request, pathname, mock);
-  if (fallen) return fallen;
+  for (const answer of [answerRolls, answerFallen, answerHistory]) {
+    const answered = await answer(request, pathname, mock);
+    if (answered) return answered;
+  }
   const { teams, readBody, reply, refuse } = mock;
   const { method } = request;
   if (method === "PATCH" && pathname === "/api/teams/t3" && teams.some(({ id }) => id === "t3")) {

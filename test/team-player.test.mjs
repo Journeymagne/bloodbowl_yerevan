@@ -12,12 +12,13 @@ import {
 } from "./helpers/roster-page.mjs";
 
 const { renderTeamPlayer } = await import("../src/screens/team/player/index.mjs");
+const { sessionEnded } = await import("../src/data/session.mjs");
 
-// Stage 07b, Task 10: the player's own address (`#/t/:id/roster/:playerId`). A player of the roster still gets the 2.x
-// editor until stage 07d; a fallen player of the team gets his profile, with «Undo the mark» for a death a coach marked
-// — the desk's undo (marks.mjs): asked first, one DELETE, its answer always taken and only by the coach who sent it, a
-// lost one read back and never sent again; never while the roster's own edits wait (K14), nor in a match. An id that is
-// neither is the 2.x editor's, as it was.
+// Stage 07b, Task 10: the player's own address (`#/t/:id/roster/:playerId`). A player of the roster, and an id that is
+// neither, get the roster's player mode (stage 07d, test/team-player-profile.test.mjs); a fallen player of the team gets
+// his profile, with «Undo the mark» for a death a coach marked — the desk's undo (marks.mjs): asked first, one DELETE, its
+// answer always taken and only by the coach who sent it, a lost one read back and never sent again; never while the
+// roster's own edits wait (K14), nor in a match. On a phone his page stands under the player's head with «‹ Roster».
 
 const UNDO = "DELETE /api/teams/t1/fallen/f1";
 const PATCH = "PATCH /api/teams/t1";
@@ -45,8 +46,9 @@ const serverHolds = (teams, fallen) => {
   api.reply(FALLEN_READ, 200, { fallen });
 };
 const askUndo = () => fireEvent(undoButton(), "click");
-/** The 2.x editor: its wait, then its page. */
-const editorWaits = () => view.querySelector(".loading");
+/** The roster's player mode (stage 07d): on a phone his profile, on a desk the roster with him in the panel. */
+const playerMode = () => view.querySelector('[data-screen="team-player"].g-profile, [data-screen="team-roster"]');
+/** The 2.x editor, which the address no longer draws. */
 const editor = () => view.querySelector(".matchday-editor");
 const BACK = "Pike is on the roster again";
 const UNDO_LOST = "The mark is still on the server: undo it again.";
@@ -59,18 +61,33 @@ const WAIT_ROSTER = "The roster has edits not saved yet: open it to save them, t
 const WRITING = "Saving the mark…";
 const SHEETS = [...STYLES, "option-card.css", "filter-chips.css", "text-field.css"];
 
-test("a player of the roster: the 2.x editor, as before, without reading the fallen", async () => {
-  coach();
-  api.reply(LIST_READ, 200, { teams: [team()] });
-  const drawing = renderTeamPlayer("t1", "p1");
-  assert.ok(editorWaits(), "the 2.x editor's wait, at once");
-  assert.ok(!screen());
-  await drawing;
-  await settle();
-  assert.ok(editor(), "the 2.x editor");
-  assert.ok(!screen());
-  assert.equal(callsTo(FALLEN_READ).length, 0, "the fallen are not read");
-  api.assertAnswered();
+test("a player of the roster: the roster's player mode, without reading the fallen first", async () => {
+  // A roster's visit takes the team into the save queue, which outlives every visit (save.mjs): the session's end empties
+  // it, as the app's own sign-out does — before, and after, so the undo's tests below find no team in it, as on their own.
+  sessionEnded();
+  try {
+    await withWindow({ phone: true }, async () => {
+      coach();
+      api.reply(LIST_READ, 200, { teams: [team()] });
+      const drawing = renderTeamPlayer("t1", "p1");
+      assert.ok(view.querySelector('[data-screen="team-player"].g-profile .g-roster__loading'), "the profile's wait, at once");
+      assert.ok(!view.querySelector(".g-fallen-page"), "not a fallen player's page");
+      const keys = api.calls.map(({ key }) => key);
+      assert.ok(keys.indexOf("GET /api/teams/t1") >= 0 && keys.indexOf(FALLEN_READ) > keys.indexOf("GET /api/teams/t1"), "the fallen only with the roster's read");
+      await drawing;
+      await settle();
+      assert.equal(title().textContent, "Ann", "his profile");
+      assert.ok(!editor(), "no 2.x editor");
+      assert.equal(callsTo(FALLEN_READ).length, 1, "read once, by the roster (readSnapshot)");
+      assert.equal(callsTo(LIST_READ).length, 0);
+      assert.equal(save.savedRevision("t1"), 4, "the queue holds the team now");
+      api.assertAnswered();
+    });
+  } finally {
+    releaseCurrentScreen();
+    sessionEnded();
+  }
+  assert.equal(save.savedRevision("t1"), null, "and holds it no more");
 });
 
 test("a fallen player's address draws his profile: grey number, name, position · race · fallen, characteristics, how and when, the cause, «Undo the mark», career, skills, the rules line", async () => {
@@ -84,10 +101,12 @@ test("a fallen player's address draws his profile: grey number, name, position �
       const page = screen();
       assert.ok(page?.classList.contains("g-fallen-page"));
       assert.equal(title().textContent, "Pike");
-      assert.ok(title().closest(".g-pagehead--phone"), "the name is drawn on a phone too: it is the page's own");
+      // On a phone the player's dark head with «‹ Roster» (stage 07d, PlayerDead.html); on a desk the page head, as it was.
+      const [head, sub] = phone ? [".g-profile__head", ".g-profile__who"] : [".g-pagehead--phone", ".g-pagehead__sub"];
+      assert.ok(title().closest(head), "the name is drawn on a phone too: it is the page's own");
       assert.ok(document.activeElement === title(), "the name takes the focus");
-      assert.equal(view.querySelector(".g-pagehead__sub").textContent, "Blitzer · Human · fallen");
-      const badge = view.querySelector(".g-pagehead .g-num--fallen.g-num--lg");
+      assert.equal(view.querySelector(sub).textContent, "Blitzer · Human · fallen");
+      const badge = view.querySelector(`${phone ? ".g-profile__badge" : ".g-pagehead"} .g-num--fallen.g-num--lg`);
       assert.ok(badge, "his number, grey and large, at the head");
       assert.equal(badge.textContent, "8");
       assert.deepEqual(page.querySelectorAll(".g-fallen__stats .g-stat__v").map((value) => value.textContent), ["7", "3", "3+", "4+", "9+"]);
@@ -202,6 +221,23 @@ test("undo from the profile: the sheet, one DELETE, «Pike is on the roster agai
   });
 });
 
+// N1 of the final wave's re-review: a focus on a node a stylesheet hides is lost too (`focusLost`), though the node stays.
+test("a redraw that leaves the focus on a node the stylesheet hides gives it to the title, as one that took it away", async () => {
+  await withoutTimers(async () => {
+    coach();
+    await renderTeamPlayer("t1", "d1");
+    const undo = undoButton();
+    undo.focus();
+    // `display: none` from a stylesheet: the fake page reads none, and is told the button draws no box.
+    undo.getClientRects = () => [];
+    gamesAre([]);
+    await invalidateGames();
+    await settle();
+    assert.ok(undoButton() === undo, "the same button, still in the page");
+    assert.ok(document.activeElement === title(), "the title, where the page sends a focus it lost");
+  });
+});
+
 // The final review's Important 1, from the profile: an undo sent there lands while the roster is open again. The list
 // takes it, and the roster, which the list is now ahead of, reads the team again; its queue is never swapped under it.
 test("an undo sent from the profile that lands while the roster is open: the roster reads the team again, and draws what it saves", async () => {
@@ -237,20 +273,23 @@ test("an undo sent from the profile that lands while the roster is open: the ros
   });
 });
 
-test("an id that is neither on the roster nor among the fallen: the 2.x editor", async () => {
-  coach();
-  api.reply(LIST_READ, 200, { teams: [team()] });
-  await renderTeamPlayer("t1", "zz");
-  await settle();
-  assert.equal(callsTo(FALLEN_READ).length, 1);
-  assert.ok(editor(), "the 2.x editor, as it was");
-  assert.ok(!screen());
-  // The profile left nothing behind: the games changing draw no profile over the editor.
-  await invalidateGames();
-  await settle();
-  assert.ok(editor());
-  assert.ok(!screen());
-  api.assertAnswered();
+test("an id that is neither on the roster nor among the fallen: the roster's player mode says he is not on the roster", async () => {
+  await withWindow({ phone: true }, async () => {
+    coach();
+    api.reply(LIST_READ, 200, { teams: [team()] });
+    await renderTeamPlayer("t1", "zz");
+    await settle();
+    assert.equal(callsTo(FALLEN_READ).length, 2, "the page's read, then the roster's with the team");
+    assert.ok(playerMode(), "the roster's player mode");
+    assert.equal(view.querySelector(".g-callout__title").textContent, "This player is no longer on the roster.");
+    assert.ok(!editor());
+    // The fallen player's page left nothing behind: the games changing draw it no more over the roster's.
+    await invalidateGames();
+    await settle();
+    assert.ok(playerMode());
+    assert.ok(!view.querySelector(".g-fallen-page"));
+    api.assertAnswered();
+  });
 });
 
 test("a list of the fallen that cannot be read says so and reads again on «Try again»", async () => {
@@ -551,7 +590,7 @@ test("an undo's answer is taken whatever became of the sheet, and only for the c
 });
 
 test("a visit left before the fallen are read draws nothing", async () => {
-  // His profile, and an id the fallen do not hold, which would go to the 2.x editor.
+  // His profile, and an id the fallen do not hold, which would go to the roster's player mode.
   for (const playerId of ["d1", "zz"]) {
     coach();
     api.reply(LIST_READ, 200, { teams: [team()] });
@@ -566,7 +605,7 @@ test("a visit left before the fallen are read draws nothing", async () => {
     await settle();
     assert.ok(view.querySelector("#elsewhere"), `${playerId}: the screen after it is left as it is`);
     assert.ok(!screen(), playerId);
-    assert.ok(!editor(), `${playerId}: nor handed to the 2.x editor`);
+    assert.ok(!playerMode(), `${playerId}: nor handed to the roster's player mode`);
     assert.equal(callsTo(LIST_READ).length, 0, playerId);
   }
 });
@@ -580,29 +619,30 @@ test("a list marked to be read again is read before it says whose the id is", as
   api.reply(LIST_READ, 200, { teams: [team()] });
   const drawing = renderTeamPlayer("t1", "d1");
   assert.equal(view.querySelector(".g-roster__loading").textContent, "Loading the player…", "the wait, while the list is read");
-  assert.ok(!editorWaits());
+  assert.ok(!view.querySelector('[data-screen="team-roster"]'), "not the roster's player mode");
   await drawing;
-  assert.ok(screen(), "his profile, not the 2.x editor");
+  assert.ok(screen(), "his profile, not the roster's player mode");
   assert.equal(title().textContent, "Pike");
   assert.ok(undoButton());
-  assert.ok(!editor());
+  assert.ok(view.querySelector(".g-fallen-page"));
   assert.equal(callsTo(LIST_READ).length, 1);
   assert.ok(callsTo(LIST_READ)[0] && api.calls.indexOf(callsTo(LIST_READ)[0]) < api.calls.indexOf(callsTo(FALLEN_READ)[0]), "the list first");
   api.assertAnswered();
-  // A player the list read again still holds: the 2.x editor, and the fallen are not read.
+  // A player the list read again still holds: the roster's player mode, and the fallen are read only with the roster.
   coach();
   state.myTeams = { items: [team()], loaded: false, loading: false, error: "" };
   api.reply(LIST_READ, 200, { teams: [team()] });
   await renderTeamPlayer("t1", "p1");
   await settle();
-  assert.ok(editor());
-  assert.ok(!screen());
-  assert.equal(callsTo(FALLEN_READ).length, 0);
-  // A list read from a list read, untouched: the editor at once, nothing read first.
+  assert.ok(playerMode());
+  assert.ok(!view.querySelector(".g-fallen-page"));
+  assert.equal(callsTo(FALLEN_READ).length, 1, "the roster's read");
+  // A list read from a list read, untouched: the roster's player mode at once, nothing read first.
   coach();
   api.reply(LIST_READ, 200, { teams: [team()] });
   renderTeamPlayer("t1", "p1");
-  assert.ok(editorWaits(), "at once");
+  assert.ok(view.querySelector('[data-screen="team-roster"] .g-roster__loading'), "at once");
+  assert.equal(callsTo(LIST_READ).length, 0);
   await settle();
   // The visit left while the list is read: nothing is drawn, nothing handed over.
   coach();
@@ -687,10 +727,12 @@ test("a 2.x player's numeric id: the address carries it as text", async () => {
   coach();
   state.myTeams = { items: [withPlayers([...PLAYERS, LIVING])], loaded: true, loading: false, error: "" };
   api.reply(LIST_READ, 200, { teams: [withPlayers([...PLAYERS, LIVING])] });
+  api.reply("GET /api/teams/t1", 200, { team: withPlayers([...PLAYERS, LIVING]) });
   renderTeamPlayer("t1", "5");
-  assert.ok(editorWaits(), "a player of the roster: the 2.x editor");
+  assert.ok(playerMode(), "a player of the roster: the roster's player mode");
   await settle();
-  assert.equal(callsTo(FALLEN_READ).length, 0);
+  assert.equal(aside().getAttribute("data-panel-player"), "5#0", "his address's id, as text, chooses his line");
+  assert.equal(callsTo(FALLEN_READ).length, 1, "the roster's read");
   coach({ fallen: [died("f9", { id: 9, rowIndex: 3, number: "9", name: "Nine" }, { cause: "Foul" })] });
   await renderTeamPlayer("t1", "9");
   assert.equal(title().textContent, "Nine");

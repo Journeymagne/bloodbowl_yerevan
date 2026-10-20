@@ -12,6 +12,8 @@ import {
 } from "./helpers/roster-page.mjs";
 
 const { prepResetWords } = await import("../src/screens/team/roster/panel.mjs");
+const { droppedWords } = await import("../src/screens/team/roster/market.mjs");
+const { clearAbsence, markAbsence } = await import("../src/domain/roster/absence.mjs");
 
 // Stage 07c, Task 5: the «+» beside «Player» in the active roster's header (StatsHire.html, DeskRosterHire.html) and the
 // cart it opens: the race's positions with their limits, the treasury and what the cart leaves of it, and «Buy», one
@@ -844,6 +846,37 @@ test("the sheet on a phone: his card, the same lines, one red button", async () 
   });
 });
 
+// F7 follow-up (stage 07d fidelity, final wave): the sale's red button closed by the screen (`aria-disabled`, sheets.mjs's
+// `footButton`) is closed as button.css closes a disabled one — the grey fill under its full white label, never dimmed.
+test("the sale's red button, closed, is the grey fill under its full white label, as a closed main button", async () => {
+  const ROSTER = "src/screens/team/roster/roster.css";
+  for (const selector of [".g-btn--danger.g-roster__closed", ".g-btn--primary.g-roster__closed"]) {
+    assert.deepEqual(valuesOf(ROSTER, selector, "background"), ["var(--disabled)"], selector);
+    assert.deepEqual(valuesOf(ROSTER, selector, "border-color"), ["var(--disabled)"], selector);
+    assert.deepEqual(valuesOf(ROSTER, selector, "opacity"), ["1"], selector);
+  }
+  assert.deepEqual(valuesOf("src/ui/button.css", ".g-btn--danger:disabled", "background"), ["var(--disabled)"], "as button.css closes a disabled one");
+  await withoutTimers(async () => {
+    for (const phone of [true, false]) {
+      await withWindow({ phone }, async () => {
+        await drawFor("p8#0");
+        fireEvent(sellIn(placeOf(phone)), "click");
+        assert.ok(sellSheet()?.isModal);
+        // Another device's save meets a step of the roster's while the sheet is open: the screen's lock closes its red
+        // button, which says why and stays in reach.
+        api.reply(PATCH, 409, { error: { code: "TEAM_SAVED_ELSEWHERE", params: {}, message: "x" }, team: forSale(SALE_PLAYERS, { revision: 6 }) });
+        assert.equal(save.stepSpp("t1", "p1", "touchdowns", 1).ok, true);
+        await settle();
+        const send = sendButton();
+        assert.deepEqual([send.getAttribute("aria-disabled"), send.getAttribute("title")], ["true", "The roster was changed on another device"]);
+        assert.ok(send.classList.contains("g-btn--danger") && send.classList.contains("g-roster__closed"), "the red button, closed by the screen");
+        assert.ok(!send.hasAttribute("disabled"), "in reach: it says why when pressed");
+        assertStyled(view, ...STYLES);
+      });
+    }
+  });
+});
+
 test("Architect of Fate: full value and the injuries back, said so", async () => {
   await withoutTimers(async () => {
     // Tzeentch: 0 Blue Horror 30k, 1 Pink Horror 75k. Eight on the roster, so one can be sold.
@@ -1382,8 +1415,11 @@ test("everything drawn is styled, and the cart's colours are readable", async ()
     assertReadable(MARKET, ".g-market__numbers", "color", ["--surface"], 4.5);
     assertReadable(MARKET, ".g-market__prep", "color", ["--surface"], 4.5);
     assertReadable(MARKET, ".g-market__refusal", "color", ["--surface"], 4.5);
-    // 07c's market.css after the fidelity pass's frame.css (K3), last of all.
-    assert.ok(text("src/styles.css").trimEnd().endsWith(['frame.css', 'market.css'].map((name) => `@import url("screens/team/roster/${name}");`).join("\n")));
+    // 07c's market.css after the fidelity pass's frame.css (K3), and before 07d's profile.css: a relative order, not «last» (07d's K5).
+    const at = (name) => text("src/styles.css").indexOf(`@import url("screens/team/roster/${name}");`);
+    assert.ok(at("frame.css") >= 0 && at("market.css") > at("frame.css"), "market.css after frame.css");
+    assert.ok(at("profile.css") > at("market.css"), "market.css before profile.css");
+    assert.ok(at("player-sheets.css") > at("profile.css"), "and 07d's player-sheets.css after profile.css");
   });
 });
 
@@ -1415,5 +1451,57 @@ test("the sale's sheet is styled, and its colours are readable", async () => {
     assert.deepEqual(valuesOf(MARKET, ".g-market__flownum", "font"), ["700 26px/normal var(--font-display)"]);
     assert.deepEqual(valuesOf(MARKET, ".g-market__note", "font-size"), ["13px"]);
     assert.deepEqual(valuesOf(MARKET, ".g-market__note", "font"), ["400 12px/1.45 var(--font-body)"]);
+  });
+});
+
+// Stage 07d, Review Focus 4: a player's edit or advancement a match took from the coach, said after the hires and sales.
+const PLAYERS_DROPPED = "A match has begun, so the player edits and advancements that were waiting were not saved. Make them again after the post-match.";
+
+test("droppedWords: the player edits and advancements given up when a match begins are said last, with no number, and only when they waited", () => {
+  const server = { players: [{ id: "p1", rowIndex: 0, number: "1", name: "Ann" }, { id: "p3", rowIndex: 2, number: "3", name: "Cade", spp: { touchdowns: 10 } }] };
+  const edited = structuredClone(server);
+  edited.players[0].number = "9";
+  Object.assign(edited.players[1], { advancements: [{ type: "random", grants: { skill: "Frenzy" } }], extraSkills: [{ name: "Frenzy", access: "primary" }] });
+  assert.deepEqual(droppedWords(server, edited, 2), [PLAYERS_DROPPED], "two players changed, one line and no number");
+  assert.deepEqual(droppedWords(server, edited, 0), [], "nothing of his waited: another device's change");
+  // With SPP and a hire before it: the player edits come last.
+  const all = structuredClone(edited);
+  all.players[0].spp = { touchdowns: 1 };
+  all.players.push({ id: "p9", rowIndex: 0, number: "10", name: "New", purchased: true, purchaseRefund: 50 });
+  assert.deepEqual(droppedWords(server, all, 3), [SPP_DROPPED, MARKET_DROPPED, PLAYERS_DROPPED]);
+  // A mark brings its injury: that is the mark's, and no edit of the player — with a step to spare beyond the mark, so
+  // the fourth line is held back by `playerEdits` itself, not by the count (review Minor 3).
+  const marked = structuredClone(server);
+  marked.players[0] = markAbsence(marked.players[0], { code: "lasting", stat: "ma" });
+  assert.deepEqual(droppedWords(server, marked, 2), [MARKS_DROPPED]);
+  // A mark and then «Back on the roster», both waiting: he sits out as before, but the mark's injury stays after it
+  // (`clearAbsence`), a change of the player that a match takes from the coach — said as a player's edit (review Minor 4).
+  const cleared = structuredClone(server);
+  cleared.players[0] = clearAbsence(markAbsence(cleared.players[0], { code: "lasting", stat: "ma" }));
+  assert.deepEqual([cleared.players[0].skipNextGame, cleared.players[0].injuryStatMods], [false, { ma: -1 }]);
+  assert.deepEqual(droppedWords(server, cleared, 2), [PLAYERS_DROPPED]);
+  // K26: one hire waited; the server's roster renamed a player meanwhile (another device): that is not the coach's.
+  const renamed = structuredClone(server);
+  renamed.players[0].name = "Anne";
+  const hired = structuredClone(server);
+  hired.players.push({ id: "p9", rowIndex: 0, number: "10", name: "New", purchased: true, purchaseRefund: 50 });
+  assert.deepEqual(droppedWords(renamed, hired, 1), [MARKET_DROPPED]);
+});
+
+// K8 (stage 07d): a 409 without the team — a site roll given back out of its turn — is no other device's save. The screen
+// takes a 422's way: it says why and reads the server's roster again; no «changed on another device», no step sent again.
+test("a 409 that refuses a roll's turn is said and the roster read again, as a 422 is: never the conflict", async () => {
+  await withoutTimers(async () => {
+    coach({ teamAnswer: rich() });
+    await renderTeamRoster("t1");
+    const before = teamReads();
+    api.reply(PATCH, 409, { error: { code: "DICE_ROLL_USED", params: {}, message: "x" } });
+    stepOfTheRoster();
+    await settle();
+    assert.equal(toasts().at(-1), "Undo the later advancement first: its roll was taken after this one.");
+    assert.equal(teamReads(), before + 1, "the server's roster is read again");
+    assert.deepEqual([save.saveState("t1").status, save.saveState("t1").waiting], ["idle", 0], "and taken: the refused step is given up");
+    assert.equal(patches().length, 1, "never sent again");
+    assert.ok(!view.textContent.includes("The roster was changed on another device"));
   });
 });

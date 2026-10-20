@@ -325,11 +325,11 @@
 
 /*
  * The page (index.mjs): the head, the callout of a match, the strip (a desk's) or the treasury card (a phone's), then
- * the safe and its correction, the resources and the history, in that order on a phone (TeamManage). From 901px the
- * card gives way to the strip and the rest stands in two columns (DeskRosterFunds): the resources at the left, the
- * safe, the correction and the history at the right, placed by grid areas. The DOM stays in the phone's order, so on a
- * desk the keyboard goes from the safe to the resources and then to the history: each block is whole on its own, as
- * the build's (stage 06).
+ * the safe and its correction, the resources, the history and the settings' row, in that order on a phone (TeamManage).
+ * From 901px the card gives way to the strip and the rest stands in two columns (DeskRosterFunds): the resources at the
+ * left; the safe, the correction, the history and the settings' card (settings.css) at the right, by grid areas. The
+ * DOM stays in the phone's order, so on a desk the keyboard goes from the safe to the resources and then to the history
+ * and the settings: each block is whole on its own, as the build's (stage 06).
  */
 .g-manage {
   box-sizing: border-box;
@@ -492,8 +492,8 @@
   .g-manage__cols {
     display: grid;
     grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
-    grid-template-rows: auto 1fr;
-    grid-template-areas: "resources side" "resources history";
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "resources side" "resources history" "resources settings";
     gap: var(--space-16) var(--space-20);
     align-items: start;
   }

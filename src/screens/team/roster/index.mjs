@@ -1,9 +1,10 @@
 /**
  * The team's roster (`#/t/:id/roster`, plan 3.0, 7a): the table, a player's row that opens on a phone and the
- * panel beside it on a desk, the skills and their rules. What a line says is model.mjs's, the markup
- * view/panel/sheets', the writes save/taps'; this file reads, draws and lives as long as the visit. The player's
- * own address (`#/t/:id/roster/:playerId`) still draws the 2.x editor for a player of the roster until stage 07d, and
- * the roster leads there for what it does not do yet; a fallen player's is his profile (screens/team/player).
+ * panel beside it on a desk, the skills and their rules. What a line says is model.mjs's, what the visit draws
+ * screen.mjs's, the markup view/panel/sheets', the writes save/taps'; this file reads, draws and lives as long as the
+ * visit. The player's own address (`#/t/:id/roster/:playerId`) is its player mode (stage 07d): on a phone his profile,
+ * a screen of its own (profile.mjs), on a desk the roster with him in the panel; the way back finds the roster where the
+ * coach left it. A fallen player the coach's list knows as fallen has his own page (screens/team/player).
  *
  * Outside a match a counter's step is a save of the roster (save.mjs), drawn at once from the queue's draft. The
  * queue outlives the visit: what waits for the network is sent again on entry and when the network is back, and
@@ -30,36 +31,31 @@
  */
 import { API_ERROR } from "../../../core/api.mjs";
 import { drawScreen } from "../../../core/dom.mjs";
-import { t } from "../../../core/i18n.mjs";
 import { onScreenLeave } from "../../../core/screen-lifecycle.mjs";
 import { state } from "../../../core/state.mjs";
 import { view } from "../../../core/view.mjs";
-import { patchWithModal } from "../../../components/dialog.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { loadGames, onGamesChange } from "../../../data/games.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
-import { raceTeamOf } from "../../../data/teams.mjs";
-import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { readSnapshot } from "./data.mjs";
-import { fallenWriting } from "./fallen.mjs";
-import { rosterMemory, sessionSppOf } from "./memory.mjs";
-import { fallenLines, nextSort, rosterLines, rosterMode, sortLines, stepRule } from "./model.mjs";
+import { leaveVisit, rosterMemory, takeWayBack } from "./memory.mjs";
+import { nextSort, stepRule } from "./model.mjs";
 import { onSaveState, retrySaves, saveState, savedRevision, stepSpp, takeAnswerTeam, takeServerTeam, trackRoster } from "./save.mjs";
 import { focusPlace, restoreFocus } from "./focus.mjs";
-import { closeSheet, injuryHandlers, sheetOf } from "./injury.mjs";
-import { recordsOf, sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
-import { markHandlers, markSheetOf } from "./marks.mjs";
-import { droppedWords, marketHandlers, marketSheetOf } from "./market.mjs";
+import { closeSheet, injuryHandlers } from "./injury.mjs";
+import { sendRow, whenQuiet, withHeard } from "./match-taps.mjs";
+import { markHandlers } from "./marks.mjs";
+import { droppedWords, marketHandlers } from "./market.mjs";
+import { playerHandlers } from "./player.mjs";
+import { searchHandlers } from "./search.mjs";
 import { sheetIdOf } from "./sheets.mjs";
+import { PHONE, gamesKnown, isPhone, linesOf, lockOf, modeOf, outsideOf, patchVisit, putBack, reading, screenOf, unsureOf } from "./screen.mjs";
 import { listAhead, wireStrip } from "./strip.mjs";
 import { wireAsideFit } from "./aside-fit.mjs";
 import { rosterMarkup } from "./view.mjs";
+import { askCareer } from "./career.mjs";
+import { playerPageMarkup } from "./profile.mjs";
 import { wireRoster } from "./wire.mjs";
-
-/** The width up to which a player's button opens his row; from 901px it chooses him for the panel. */
-const PHONE = "(max-width: 900px)";
-/** Read when the screen is drawn; a page with no window to ask (a test) is a desk. */
-const isPhone = () => Boolean(globalThis.matchMedia?.(PHONE)?.matches);
 
 /**
  * The team whose roster was drawn last. drawScreen keeps the page where it is for the same screen drawn again (a
@@ -101,7 +97,8 @@ function listen(target, type, listener) {
  * @property {number|null} followed the revision of the coach's list the visit last read the team again for (`followList`)
  * @property {object|null} sheet the sheet that is open: a skill's `{kind, key, name}`, an injury's `{kind, key, choice}`, a
  *   mark's — a missed match or a death — `{kind, key, choice, busy, refusal}`, a death's undo `{kind, key, busy, refusal}` (marks.mjs),
- *   the hire cart `{kind: "hire", key: "hire", cart, refusal}` and a player's sale `{kind: "sell", key, refusal}` (market.mjs, stage 07c)
+ *   the hire cart `{kind: "hire", key: "hire", cart, refusal}` and a player's sale `{kind: "sell", key, refusal}` (market.mjs, stage 07c),
+ *   a player's edit `{kind: "edit", key, form: {number, name, captain}, refusal}` and advancement `{kind: "advance", …}` (stage 07d)
  * @property {Element|null} opener the chip or the button that opened it
  * @property {number} reads the number of the last read sent
  * @property {number} answered the number of the last read answered: less than `reads` while one is in the air
@@ -109,70 +106,12 @@ function listen(target, type, listener) {
  * @property {boolean} retake the server's roster was to be taken while a request was in the air: asked again when it answers
  * @property {(() => void)|null} saveOff stops hearing the queue
  * @property {() => void} [fit] measures whether the desk panel fits the window, after each draw (aside-fit.mjs)
+ * @property {string} player the player mode's stored id (the address's), "" for the roster; `chosen` once his line was chosen
+ * @property {boolean} titled his name has been drawn in his head, and has taken the focus (the player mode on a phone)
+ * @property {null | {loading: true, rolls: object[]|null} | {rolls: object[]} | {error: string}} rolls the team's rolls on the site as the visit read them (stage 07d; a read on its way keeps the list before it)
+ * @property {null | {loading: true} | {history: object} | {error: string}} career the player's career by match as read (a phone's profile, career.mjs)
+ * @property {boolean} careerOpen its list is open on his profile
  */
-
-/** What the roster is for just now, by the games as last read (`rosterMode`). */
-const modeOf = (teamId) => rosterMode(state.games.loaded ? state.games.items ?? [] : [], teamId);
-
-/** The games are read and say what they say: until then a step might go into a match (plan 07a, decision 18). */
-const gamesKnown = () => state.games.loaded && !state.games.loading && !state.games.error;
-
-/** A read of the visit is in the air. */
-const reading = (visit) => visit.answered !== visit.reads;
-
-/**
- * Why no counter takes a step just now, "" when none: the games unread or unreadable, or to be read after the roster
- * in the air (`readWithGames`); the records read during a match or after one ended (fix round 1: a read may land with
- * a tap already in it, and a roster read during the match is no roster to save); a death on its way (K7: a step taken
- * now would go on the revision it moves, and its answer would give that step up); another device's save to settle.
- */
-function lockOf(teamId, save, visit, mode) {
-  if (!state.games.loaded || state.games.loading) return t("teamRoster.gamesLoading");
-  if (state.games.error) return state.games.error;
-  if (reading(visit)) return t(mode.kind === "match" || visit.stale ? "teamRoster.readingRecords" : "teamRoster.gamesLoading");
-  if (fallenWriting(teamId)) return t("teamRoster.mark.writing");
-  return save.status === SAVE_STATUS.CONFLICT ? t("teamRoster.conflict.title") : "";
-}
-
-/** An injury's answer was lost and no read is in the air: the one that followed failed (R14, fix round 1). */
-const unsureOf = (visit) => visit.unsure && !reading(visit);
-
-/** «Edit outside the match» is on for the match on: the switch is the team's and that match's (R13). */
-const outsideOf = (memory, mode) => mode.kind === "match" && memory.outside === mode.game.id;
-
-/**
- * The race of the visit's team, the queue's draft as drawn (normalised), and its lines in the roster's own order for
- * `mode`: what the draft, the records and the taps on their way say, and nothing more; then the fallen the roster drawn
- * does not hold, in the server's order (decision 21: a player is drawn once, on the roster, when a read caught him on both).
- */
-function linesOf(visit, mode) {
-  const race = visit.team ? raceTeamOf(visit.team.baseTeamSlug) : null;
-  const draft = normalizeDraft(visit.draft ?? visit.team?.roster ?? {});
-  const lines = race ? rosterLines({ draft, race, events: [...visit.events, ...visit.pending], mode }) : [];
-  return { race, draft, lines, fallen: fallenLines({ fallen: visit.fallen, race, rosterIds: lines.map(({ id }) => id) }) };
-}
-
-/** Who keeps or closes a sheet of each kind: marks.mjs a missed match's and a death's undo, market.mjs the cart and a sale; injury.mjs the rest. */
-const KEEPERS = { mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf };
-
-/** @returns {import("./view.mjs").RosterScreen} */
-function screenOf(teamId, visit, memory) {
-  const mode = modeOf(teamId);
-  const outside = outsideOf(memory, mode);
-  const { race, draft, lines: own, fallen: dead } = linesOf(visit, mode);
-  const lines = sortLines(own, memory.sort).map((line) => ({ ...line, sessionSpp: sessionSppOf(memory, line), sessionOutside: sessionSppOf(memory, line, { outside: true }) }));
-  const fallen = sortLines(dead, memory.sort);
-  const save = saveState(teamId);
-  const where = { mode, outside, lock: lockOf(teamId, save, visit, mode), sideLocked: visit.sideLocked, unsure: unsureOf(visit), save, race, draft };
-  // A sheet whose player has left the screen (read again) closes with him; an injury's, with its match (injury.mjs); a
-  // mark's, with a match begun or the mark taken (marks.mjs); the cart, with a match begun (market.mjs). A fallen player's chip opens a skill's sheet too.
-  const sheet = (KEEPERS[visit.sheet?.kind] ?? sheetOf)(visit, [...lines, ...fallen], where);
-  if (!sheet) Object.assign(visit, { sheet: null, opener: null });
-  return {
-    team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
-    ...where, records: recordsOf(visit, mode),
-  };
-}
 
 /**
  * The visit's side of the save queue, shared by the functions below: the route's team, the visit, the memory, and the draw.
@@ -439,10 +378,11 @@ function heardSave(saving, now) {
 
 /**
  * What a press does: a header sorts, a player's button opens his row (a phone) or chooses him for the panel (a desk),
- * a chip opens its skill's sheet and the sheet's close gives the focus back to it, «Try again» reads again; a
+ * a sheet's close gives the focus back to what opened it, «Try again» reads again; a
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
  * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
- * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's.
+ * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's;
+ * a skill's chip, the pencil, the player's edit and advancement player.mjs's and advance.mjs's, a desk's search search.mjs's (stage 07d).
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */
 function pressHandlers({ read, ...saving }) {
@@ -461,6 +401,8 @@ function pressHandlers({ read, ...saving }) {
     ...injuryHandlers(saving, { tapping: tappingOf(saving), now }),
     ...markHandlers(saving, marks),
     ...marketHandlers(saving, marks),
+    ...playerHandlers(saving, marks),
+    ...searchHandlers(saving),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();
@@ -468,10 +410,6 @@ function pressHandlers({ read, ...saving }) {
     // A phone opens the row and closes it again; a desk chooses the player for the panel, and a second press keeps him.
     onToggle: (key) => {
       memory.selected = isPhone() && memory.selected === key ? null : key;
-      draw();
-    },
-    onSkill: (key, name, chip) => {
-      Object.assign(visit, { sheet: { kind: "skill", key, name }, opener: chip });
       draw();
     },
     onSheetClose: (id) => {
@@ -509,41 +447,52 @@ function pressHandlers({ read, ...saving }) {
 /**
  * The visit drawn: the first time whole, the title taking the focus (and another team's roster from the top of the
  * page); later as a patch, a sheet that is open kept open and the focus where the coach put it, or the nearest place left.
+ * The player mode on a phone is his page (profile.mjs), whose name takes the focus the first time it is drawn.
  */
 function drawVisit(teamId, visit, memory) {
   if (!visit.here) return;
   const place = focusPlace(visit);
-  const markup = rosterMarkup(screenOf(teamId, visit, memory));
+  const screen = screenOf(teamId, visit, memory);
+  const markup = screen.player && screen.phone ? playerPageMarkup(screen) : rosterMarkup(screen);
   if (visit.drawn) {
-    patchWithModal(view, markup, visit.sheet ? `#${sheetIdOf(visit.sheet.kind)}` : "");
+    patchVisit(markup, visit.sheet ? `#${sheetIdOf(visit.sheet.kind)}` : "");
     visit.fit?.();
     restoreFocus(place);
-    return;
+  } else {
+    visit.drawn = true;
+    const another = shownTeam !== teamId;
+    shownTeam = teamId;
+    drawScreen(view, markup);
+    visit.fit?.();
+    if (another) globalThis.scrollTo?.(0, 0);
+    view.querySelector("h1")?.focus();
   }
-  visit.drawn = true;
-  const another = shownTeam !== teamId;
-  shownTeam = teamId;
-  drawScreen(view, markup);
-  visit.fit?.();
-  if (another) globalThis.scrollTo?.(0, 0);
-  view.querySelector("h1")?.focus();
+  const name = visit.titled ? null : view.querySelector(".g-profile__name");
+  if (name) {
+    visit.titled = true;
+    name.focus();
+  }
+  // His career by match is read once his profile is drawn (career.mjs), on a phone only: a desk's is stage 07e's.
+  if (screen.player && screen.phone) askCareer({ teamId, visit, draw: () => drawVisit(teamId, visit, memory) }, screen);
 }
 
 /**
- * The roster of one of the coach's teams. Drawn at once with the wait, the title taking the focus; again when the
- * roster comes, when the games change (a match begun or ended changes what a line counts), when the width crosses
- * 900px, when the save queue moves, and on every press. The later draws patch the page, so the focus stays where the
- * coach has put it (or goes to the nearest place left), and a sheet that is open stays open.
+ * The roster of one of the coach's teams, or with `playerId` its player mode: the player's address (stage 07d). Drawn at
+ * once with the wait, the title taking the focus; again when the roster comes, when the games change (a match begun or
+ * ended changes what a line counts), when the width crosses 900px, when the save queue moves, and on every press. The
+ * later draws patch the page, so the focus stays where the coach has put it (or goes to the nearest place left), and a
+ * sheet that is open stays open.
  * @param {string} teamId
+ * @param {{playerId?: string}} [options] `playerId` is his stored id, as the address carries it
  */
-export async function renderTeamRoster(teamId) {
+export async function renderTeamRoster(teamId, { playerId = "" } = {}) {
   const memory = rosterMemory(teamId);
-  memory.baseline.clear();
   /** @type {Visit} */
   const visit = {
     here: true, drawn: false, loading: true, error: "", team: null, draft: null, events: [], fallen: [], sheet: null, opener: null,
     reads: 0, answered: 0, status: "", retake: false, saveOff: null, pending: [], heard: [], sideLocked: "", failed: false, reread: false,
-    match: null, stale: false, sent: 0, quiet: [], unsure: false, followed: null,
+    match: null, stale: false, sent: 0, quiet: [], unsure: false, followed: null, player: playerId, chosen: false, titled: false, rolls: null,
+    career: null, careerOpen: false,
   };
   const saving = { teamId, visit, memory, draw: () => drawVisit(teamId, visit, memory) };
   // The team and its fallen, then the games (R8): asked for before the team is drawn, so that its counters are drawn closed until they answer.
@@ -556,6 +505,9 @@ export async function renderTeamRoster(teamId) {
     Object.assign(visit, { answered: ticket, loading: false, error: answer.error ?? "" });
     if (!answer.error) holdTeam(saving, answer, trackRoster(answer.team), since);
     saving.draw();
+    // Back from a player's page: the roster where the coach left it, once its lines are drawn (K4).
+    if (back !== null && visit.team && !playerId) putBack(back, memory.selected);
+    if (visit.team) back = null;
     await games;
   };
   const offs = [];
@@ -563,7 +515,13 @@ export async function renderTeamRoster(teamId) {
   onScreenLeave("team-roster", () => {
     visit.here = false;
     while (offs.length) offs.pop()();
+    // A desk's player mode is the roster (M4); a phone's leaves the way back once his profile has been drawn.
+    leaveVisit(memory, !playerId || !isPhone() ? "roster" : visit.titled ? "player" : "");
   });
+  // Taken once the visit before is released: it may have been the player mode, which leaves the way back (memory.mjs).
+  // The drill into the profile and back keeps the session's SPP count; any other visit starts it again (07a, decision 11).
+  let back = takeWayBack(memory, Boolean(playerId));
+  if (back === null) memory.baseline.clear();
   // The desk panel sticks only while the whole of it fits the window (aside-fit.mjs).
   const fitter = wireAsideFit(view);
   visit.fit = fitter.fit;

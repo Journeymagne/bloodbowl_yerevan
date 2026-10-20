@@ -413,6 +413,17 @@ test("the sheet and the buttons of the screen tell what was chosen, asked or clo
   assert.deepEqual(heard, [["choose", "league", "Woodland League"], ["close"], ["open", "league"], ["restart"], ["save"]]);
 });
 
+test("«Change the race or the name» opens a dialog: onRestart is handed its button", () => {
+  const fragment = mount(builderMarkup({ race: human, draft: filled() }));
+  const button = fragment.querySelector("[data-new-team-restart]");
+  assert.equal(button.tagName, "BUTTON");
+  assert.equal(button.getAttribute("aria-haspopup"), "dialog", "the first step is a sheet over the builder now, and the button says it opens one");
+  const heard = [];
+  wire({ ...noop, onRestart: (opener) => heard.push(opener) });
+  fireEvent(button, "click");
+  assert.deepEqual(heard, [button], "the sheet gives the focus back to it when it closes");
+});
+
 test("the staff the race may buy: counters with their price, medics as switches, bribes where Bribery allows them", () => {
   const fragment = mount(builderMarkup({ race: human, draft: filled() }));
   const counter = (key) => fragment.querySelector(`[data-resource-key="${key}"]`);

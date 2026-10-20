@@ -333,13 +333,15 @@
 
 /*
  * A way to the player's page that a match has closed until its post-match: still in reach, it says why when pressed,
- * in the look button.css gives a disabled button (a primary keeps its words readable on the disabled fill).
+ * in the look button.css gives a disabled button (a primary, or the red one, keeps its full words on the grey fill).
  */
 .g-roster__closed {
   cursor: default;
   opacity: .6;
 }
-.g-btn--primary.g-roster__closed {
+.g-btn--primary.g-roster__closed,
+.g-btn--danger.g-roster__closed {
+  border-color: var(--disabled);
   background: var(--disabled);
   opacity: 1;
 }

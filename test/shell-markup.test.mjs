@@ -65,6 +65,19 @@ test("a guest is offered to sign in; a bare page gets no header at all", () => {
   assert.equal(renderSideNav(bare, { locale: "en" }), "");
 });
 
+// Stage 07d, owner's answer 1: the player's own head with «‹ Roster» stands in the header's place (screens/team/roster/profile.mjs).
+test("a drilled-into page has no header", () => {
+  const drilled = shellModel({ route: { name: "teamPlayer", params: { teamId: "t1", playerId: "p1" } }, user: { id: "u1", isAdmin: false }, team: { id: "t1", name: "Ashgrove Wardens" }, raceTitle: "Human", place: 2 });
+  assert.equal(renderAppHeader({ ...coach(), drill: true }), "");
+  assert.equal(renderAppHeader(drilled), "");
+  assert.ok(mount(renderSideNav(drilled, { locale: "en" })).querySelector('.g-sidenav__link[aria-current="page"]'), "a desk's SideNav as it was");
+  assert.ok(mount(renderAppHeader(coach())).querySelector("nav.g-tabs"), "any other page keeps it");
+  // The team's settings on a phone draw Builder.html's head with «‹» in the header's place (owner, 2026-10-20).
+  const settings = shellModel({ route: { name: "teamSettings", params: { teamId: "t1" } }, user: { id: "u1", isAdmin: false }, team: { id: "t1", name: "Ashgrove Wardens" }, raceTitle: "Human", place: 2 });
+  assert.equal(renderAppHeader(settings), "");
+  assert.ok(mount(renderSideNav(settings, { locale: "en" })).querySelector('.g-sidenav__link[aria-current="page"][href="#/t/t1/roster"]'), "a desk's SideNav lights «Roster», as on the team page");
+});
+
 test("text on the header band reads in every palette, and focus there is drawn in header ink", () => {
   assertReadable("src/shell/app-header.css", ".g-tab", "color", ["--header"], 4.5);
   assertReadable("src/shell/app-header.css", ".g-appbar__sub", "color", ["--header"], 4.5);
@@ -255,7 +268,9 @@ test("every route, for every visitor, draws without an unknown glyph, with every
       }
       const fragment = mount(markup);
       assertCspSafe(fragment);
-      assert.equal(fragment.querySelectorAll(".g-tab").length, model.tabs.length, name);
+      // A player's address and the team's settings are drilled into (stage 07d): no header, and so no tabs drawn; any other route counts them.
+      if (model.drill) assert.equal(renderAppHeader(model), "", `${name}: a drilled-into page draws no header`);
+      else assert.equal(fragment.querySelectorAll(".g-tab").length, model.tabs.length, name);
       assert.equal(fragment.querySelectorAll(".g-sidenav__link").length, model.side.length, name);
       assert.ok(fragment.querySelectorAll(".g-tab, .g-sidenav__link").every((link) => link.getAttribute("href").startsWith("#/")), name);
     }

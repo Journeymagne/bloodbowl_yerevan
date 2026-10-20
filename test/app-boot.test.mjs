@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { installFakeApi } from "./helpers/fake-api.mjs";
+import { fireEvent } from "./helpers/fake-dom.mjs";
 import { bootPage } from "./helpers/boot-page.mjs";
 
 // R13-M7 (final review M7): the orders src/app.js keeps, which no other test imports it to see. A coach opens `#/`.
@@ -62,5 +63,23 @@ test("a token another tab changes moves this page too: app.js listens to the win
   assert.equal(api.calls.filter((call) => call.headers.Authorization === "Bearer other-tab").length > 0, true, "read again with the token there now");
   assert.equal(state.auth.currentUser?.id, "u1");
   assert.equal(state.activeTeamId, "t2");
+  api.assertAnswered();
+});
+
+test("«New team» of the team switcher opens the new team's sheet over the screen, with the way back: app.js hands the shell the sheet", async () => {
+  await turns();
+  const block = document.querySelector("#side-nav [data-team-switcher]");
+  fireEvent(block, "click");
+  fireEvent(document.querySelector("#team-switcher [data-switcher-new]"), "click");
+  assert.equal(document.querySelector("#team-switcher"), null, "the switcher is closed");
+  const sheet = document.querySelector("dialog#new-team-sheet");
+  assert.ok(sheet?.isModal, "the sheet stands over the team's screen");
+  assert.ok(view.querySelector(".g-pagehead h1"), "which is still there");
+  assert.ok(sheet.querySelector("[data-sheet-back]"), "with the way back to the switcher");
+  fireEvent(sheet.querySelector("[data-sheet-back]"), "click");
+  assert.ok(document.querySelector("dialog#team-switcher")?.isModal, "which opens it again");
+  assert.equal(document.querySelector("dialog#new-team-sheet"), null);
+  fireEvent(document.querySelector("#team-switcher [data-sheet-close]"), "click");
+  assert.ok(document.activeElement === block);
   api.assertAnswered();
 });

@@ -21,7 +21,9 @@ const { addMyTeam, setMyTeams } = await import("../src/data/teams.mjs");
 test("a coach with no team sees an empty overview with one way forward", () => {
   const fragment = mount(noTeamMarkup());
   assert.equal(fragment.querySelectorAll("h1").length, 1);
-  assert.equal(fragment.querySelector("a.g-btn--primary").getAttribute("href"), "#/teams/new");
+  const create = fragment.querySelector("button.g-btn--primary[data-new-team]");
+  assert.deepEqual([create.textContent.trim(), create.getAttribute("aria-haspopup")], ["Create a team", "dialog"], "it opens the sheet of a new team over this page");
+  assert.equal(fragment.querySelector("a[href]"), null);
   assertCspSafe(fragment);
   assertStyled(fragment, "src/screens/team/empty.css", "button.css");
   assertDictionaryCovers("src/screens/team/empty.mjs");
@@ -57,7 +59,7 @@ test("a list that could not be read is said as such, with a way to read it again
   assert.equal(view.querySelector("h1").textContent, "Your teams did not load");
   assert.equal(view.querySelector(".g-team-empty__text").textContent, "The server did not answer. Try again in a minute.");
   assert.equal(retry().textContent.trim(), "Try again");
-  assert.equal(view.querySelector('a[href="#/teams/new"]'), null, "no offer to create a first team to a coach who may have five");
+  assert.equal(view.querySelector("[data-new-team]"), null, "no offer to create a first team to a coach who may have five");
   assertCspSafe(view);
   assertStyled(view, "src/screens/team/empty.css", "button.css");
 });
@@ -137,4 +139,25 @@ test("a list that is still empty, or a screen already left, is not taken anywher
   addMyTeam({ id: "t9", name: "Iron Rooks" });
   assert.deepEqual(replaced, [], "nor a list nobody is signed in for");
   releaseCurrentScreen();
+});
+
+test("«Create a team» opens the sheet over the empty overview, with no change of address; a screen left opens nothing", () => {
+  // The first test's mount() took the view off the page; the focus goes back only to a button on it.
+  if (!view.isConnected) document.body.appendChild(view);
+  noTeam();
+  state.data = { teams: [{ slug: "teams/human", title: "Human" }] };
+  state.season = { data: null, loaded: true, loading: false, error: "" };
+  const sheet = () => document.querySelector("dialog#new-team-sheet");
+  const button = view.querySelector("[data-new-team]");
+  button.focus();
+  fireEvent(button, "click");
+  assert.ok(sheet().matches(":modal"));
+  assert.ok(sheet().closest('[data-sheet-host="new-team"]'));
+  assert.deepEqual([location.hash, replaced], ["#/", []]);
+  fireEvent(sheet(), "keydown", { key: "Escape" });
+  assert.equal(sheet(), null);
+  assert.equal(document.activeElement, button);
+  releaseCurrentScreen();
+  fireEvent(button, "click");
+  assert.equal(sheet(), null, "the button is no longer heard");
 });

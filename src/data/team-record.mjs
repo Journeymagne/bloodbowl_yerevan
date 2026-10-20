@@ -1,8 +1,9 @@
 /**
  * What a team's figures are, read from what the server already sends: no
- * endpoint of its own (design spec 3.0 §4). The record, the place, the squares
- * of the season, the last results come from `/api/games` and `/api/season`;
- * the value and the leaders from the saved team and its race.
+ * endpoint of its own (design spec 3.0 §4). The record, the season's TD and CAS
+ * difference, the place, the squares of the season, the last results with
+ * their MVPs come from `/api/games` and `/api/season`; the value and the
+ * leaders from the saved team and its race.
  *
  * Functions only, no DOM and no `t()`: the screens that show a team (its
  * overview, the list of teams) say these in their own words.
@@ -12,7 +13,7 @@
  * and a bye, a match with no opponent, counts in no record.
  */
 import { isGameResultSubmitted } from "./games.mjs";
-import { ensureDraftPlayers, selectedRosterPlayers } from "../domain/roster/players.mjs";
+import { ensureDraftPlayers, positionKind, selectedRosterPlayers, storedPlayerId } from "../domain/roster/players.mjs";
 import { calculateRosterCosts } from "../domain/roster/costs.mjs";
 import { playerSppTotal } from "../domain/roster/progression.mjs";
 import { normalizeDraft } from "../domain/roster/schema.mjs";
@@ -76,6 +77,25 @@ export function seasonRecord(games, teamId, seasonId) {
 }
 
 /**
+ * The season's touchdowns and casualties, the team's less the opponents', over the matches `seasonRecord` counts:
+ * the season's league matches with an opponent (a bye adds nothing) and a confirmed score. A friendly, another
+ * season's match and a score nobody confirmed add nothing. The table's own `touchdowns` is never read: it is the
+ * touchdowns scored, byes included, not a difference.
+ *
+ * @returns {{touchdowns: number, casualties: number}}
+ */
+export function seasonDifference(games, teamId, seasonId) {
+  const difference = { touchdowns: 0, casualties: 0 };
+  for (const game of seasonGames(games, teamId, seasonId)) {
+    if (!gameOutcome(game, teamId)) continue;
+    const sides = gameSides(game, teamId);
+    difference.touchdowns += count(game, sides.own, "Touchdowns") - count(game, sides.other, "Touchdowns");
+    difference.casualties += count(game, sides.own, "Casualties") - count(game, sides.other, "Casualties");
+  }
+  return difference;
+}
+
+/**
  * The team's row of the season's table: its place, its points, and how many
  * rows the table has. The count is the table's length, withdrawn rows too: they
  * keep their rank on the server, so a team below one is "3 of 3", not "3 of 2".
@@ -114,10 +134,25 @@ const settledAt = (game) => Date.parse(game.confirmedAt ?? game.updatedAt) || 0;
 const pairOf = (game, sides, what) => `${count(game, sides.own, what)}–${count(game, sides.other, what)}`;
 
 /**
+ * The names of a side's MVPs, as the server's list sends them (`homeMvps`/`awayMvps`: each MVP a completed
+ * post-match picked, in its order): a player picked twice is named once, a name the server did not know is left
+ * out, and a game without the field (one not finished through the post-match, a single game's answer) has none.
+ */
+function mvpNames(game, side) {
+  const picked = game[`${side}Mvps`];
+  const names = new Map();
+  for (const mvp of Array.isArray(picked) ? picked : []) if (mvp?.name && !names.has(mvp.id)) names.set(mvp.id, String(mvp.name));
+  return [...names.values()];
+}
+
+/**
  * The team's last finished matches, the newest first, at most `limit`:
- * league and friendly alike (a friendly is marked, and has no round).
+ * league and friendly alike (a friendly is marked, and has no round), with the
+ * opponent's race by its slug ("" when the server names none), its coach's and
+ * its team's ids, the way to its page ("" each when the server names none), and
+ * the team's own MVPs of the match by name.
  *
- * @returns {{gameId: string, result: "w"|"d"|"l"|"t", opponent: string, round: number|null, friendly: boolean, score: string, cas: string}[]}
+ * @returns {{gameId: string, result: "w"|"d"|"l"|"t", opponent: string, opponentRace: string, opponentUserId: string, opponentTeamId: string, round: number|null, friendly: boolean, score: string, cas: string, mvps: string[]}[]}
  */
 export function recentResults(games, teamId, limit) {
   return games
@@ -126,15 +161,20 @@ export function recentResults(games, teamId, limit) {
     .slice(0, limit)
     .map((game) => {
       const sides = gameSides(game, teamId);
+      const other = game[sides.other];
       const friendly = game.kind === "friendly";
       return {
         gameId: game.id,
         result: resultKind(game, teamId),
-        opponent: game[sides.other].team?.name ?? "",
+        opponent: other.team?.name ?? "",
+        opponentRace: other.team?.baseTeamSlug ?? "",
+        opponentUserId: other.user?.id ?? "",
+        opponentTeamId: other.team?.id ?? "",
         round: friendly ? null : game.roundNumber,
         friendly,
         score: pairOf(game, sides, "Touchdowns"),
         cas: pairOf(game, sides, "Casualties"),
+        mvps: mvpNames(game, sides.own),
       };
     });
 }
@@ -175,13 +215,18 @@ const LEADER_COUNTERS = [
 /**
  * The player ahead in each counter: the total of star player points, touchdowns,
  * casualties, completions. A tie goes to the first in the roster; a counter
- * nobody has a point in is left out.
+ * nobody has a point in is left out. `id` is the player's id as the roster
+ * stores it, the way to his address; "" for one stored without, whom the copy
+ * read here gives an id of its own (`normalizeRosterPlayer`) that no address
+ * knows. `kind` is his position's, the colour of his badge.
  *
- * @returns {{key: "spp"|"td"|"cas"|"comp", name: string, number: string, position: string, value: number}[]}
+ * @returns {{key: "spp"|"td"|"cas"|"comp", id: string, name: string, number: string, position: string, kind: string, value: number}[]}
  */
 export function teamLeaders(savedTeam, raceTeam) {
   if (!raceTeam) return [];
   const players = selectedRosterPlayers(raceTeam, rosterOf(savedTeam, raceTeam));
+  const stored = Array.isArray(savedTeam?.roster?.players) ? savedTeam.roster.players : [];
+  const storedIds = new Set(stored.map(storedPlayerId).filter(Boolean));
   const leaders = [];
   for (const [key, read] of LEADER_COUNTERS) {
     let best = null;
@@ -190,7 +235,9 @@ export function teamLeaders(savedTeam, raceTeam) {
       const value = read(raceTeam, player);
       if (value > bestValue) [best, bestValue] = [player, value];
     }
-    if (best) leaders.push({ key, name: best.name, number: best.number, position: best.row.position, value: bestValue });
+    if (!best) continue;
+    const id = storedIds.has(best.id) ? best.id : "";
+    leaders.push({ key, id, name: best.name, number: best.number, position: best.row.position, kind: positionKind(best.row), value: bestValue });
   }
   return leaders;
 }

@@ -4,20 +4,25 @@ import test from "node:test";
 
 import { expandCollections } from "../src/data/reference.mjs";
 import * as record from "../src/data/team-record.mjs";
+import { positionKind } from "../src/domain/roster/players.mjs";
 
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
 const amazon = data.teams.find((team) => team.slug === "teams/amazon");
 const SEASON = { season: { id: "s1" }, standings: [] };
 /** A game as /api/games sends it; t1 is home unless `away`, the score is t1's first. */
-function game(id, { round = 1, td = null, cas = [0, 0], away = false, kind = "league", seasonId = "s1", confirmed = true, at = "2026-10-0" + round + "T10:00:00Z", bye = false } = {}) {
+function game(id, { round = 1, td = null, cas = [0, 0], away = false, kind = "league", seasonId = "s1", confirmed = true, at = "2026-10-0" + round + "T10:00:00Z", bye = false,
+  race = "teams/dwarf", mvps = null } = {}) {
   const [own, other] = td ?? [null, null];
   const us = { team: { id: "t1", name: "Wardens" } };
-  const them = bye ? null : { team: { id: "r1", name: "Raiders" } };
+  const them = bye ? null : { team: { id: "r1", name: "Raiders", ...(race ? { baseTeamSlug: race } : {}) } };
+  // The MVPs as the server's list carries them (`loadGameMvps`): [ours, theirs], each a list of {id, name}.
+  const [ownMvps, otherMvps] = mvps ?? [[], []];
   return {
     id, kind, roundNumber: round, season: kind === "league" ? { id: seasonId } : null,
     resultStatus: confirmed && td ? "confirmed" : "pending", confirmedAt: confirmed && td ? at : null, updatedAt: at,
     homeTouchdowns: away ? other : own, awayTouchdowns: away ? own : other,
     homeCasualties: td ? (away ? cas[1] : cas[0]) : null, awayCasualties: td ? (away ? cas[0] : cas[1]) : null,
+    ...(mvps ? { homeMvps: away ? otherMvps : ownMvps, awayMvps: away ? ownMvps : otherMvps } : {}),
     home: away ? them : us, away: away ? us : them,
   };
 }
@@ -51,6 +56,15 @@ test("the season's record counts its league games only: not friendlies, not anot
     game("f", { td: [5, 0], kind: "friendly" }), game("o", { td: [4, 0], seasonId: "s0" }), game("p", { round: 4, td: [1, 0], confirmed: false })];
   assert.deepEqual(record.seasonRecord(games, "t1", "s1"), { wins: 1, draws: 1, losses: 1 });
   assert.deepEqual(record.seasonRecord([], "t1", "s1"), { wins: 0, draws: 0, losses: 0 });
+});
+
+test("the season's TD and CAS difference: the league's confirmed matches of the season, from the team's side; a friendly, another season, a bye and an unconfirmed score add nothing", () => {
+  const games = [game("h", { td: [2, 1], cas: [1, 0] }), game("a", { round: 2, td: [0, 2], cas: [0, 2], away: true }),
+    game("f", { round: 3, td: [3, 0], kind: "friendly" }), game("o", { round: 4, td: [5, 0], seasonId: "s0" }),
+    game("b", { round: 5, td: [1, 0], bye: true }), game("p", { round: 6, td: [4, 0], cas: [2, 0], confirmed: false })];
+  assert.deepEqual(record.seasonDifference(games, "t1", "s1"), { touchdowns: -1, casualties: -1 });
+  assert.deepEqual(record.seasonDifference([], "t1", "s1"), { touchdowns: 0, casualties: 0 });
+  assert.deepEqual(record.seasonDifference(games, "r1", "s1"), { touchdowns: 1, casualties: 1 }, "the opponent's side of the same matches");
 });
 
 test("the place and the points come from the table; a team outside it, or withdrawn, has none", () => {
@@ -90,7 +104,30 @@ test("recent results are the newest finished first, a friendly marked, cut at th
 
 test("a recent result names the opponent and the round; a friendly has no round", () => {
   const games = [game("a", { round: 2, td: [2, 1] }), game("f", { round: 3, td: [1, 1], kind: "friendly" })];
-  assert.deepEqual(record.recentResults(games, "t1", 5).map(({ gameId, opponent, round }) => [gameId, opponent, round]), [["f", "Raiders", null], ["a", "Raiders", 2]]);
+  assert.deepEqual(record.recentResults(games, "t1", 5).map(({ gameId, opponent, opponentRace, round, mvps }) => [gameId, opponent, opponentRace, round, mvps]),
+    [["f", "Raiders", "teams/dwarf", null, []], ["a", "Raiders", "teams/dwarf", 2, []]]);
+});
+
+test("a recent result names the opponent's race by its slug; an opponent without one has \"\"", () => {
+  const games = [game("a", { round: 1, td: [2, 1], race: "teams/skaven" }), game("b", { round: 2, td: [0, 0], away: true, race: null })];
+  assert.deepEqual(record.recentResults(games, "t1", 5).map(({ gameId, opponentRace }) => [gameId, opponentRace]), [["b", ""], ["a", "teams/skaven"]]);
+});
+
+test("a recent result names the opponent's coach and team by id, the way to its page; \"\" for one the server does not name", () => {
+  const coached = game("a", { round: 1, td: [2, 1] });
+  coached.away.user = { id: "u9", login: "rival" };
+  const games = [coached, game("b", { round: 2, td: [0, 0], away: true })];
+  assert.deepEqual(record.recentResults(games, "t1", 5).map(({ gameId, opponentUserId, opponentTeamId }) => [gameId, opponentUserId, opponentTeamId]),
+    [["b", "", "r1"], ["a", "u9", "r1"]]);
+});
+
+test("a recent result names the team's own MVPs from the server's list, home or away, a player picked twice once; none, or an answer without the field, is []", () => {
+  const gruk = { id: "p7", name: "Gruk" }, vane = { id: "p5", name: "H. Vane" }, theirs = { id: "x1", name: "Their Star" };
+  const games = [game("h", { round: 1, td: [2, 1], mvps: [[gruk], [theirs]] }), game("a", { round: 2, td: [3, 0], away: true, mvps: [[gruk, gruk, vane], []] }),
+    game("l", { round: 3, td: [0, 2], mvps: [[], [theirs, theirs]] }), game("n", { round: 4, td: [1, 1] }), game("u", { round: 5, td: [1, 0], mvps: [[{ id: "p9", name: "" }], []] })];
+  assert.deepEqual(record.recentResults(games, "t1", 5).map(({ gameId, mvps }) => [gameId, mvps]),
+    [["u", []], ["n", []], ["l", []], ["a", ["Gruk", "H. Vane"]], ["h", ["Gruk"]]], "a name the server did not know is left out");
+  assert.deepEqual(record.recentResults(games, "r1", 5).find((result) => result.gameId === "l").mvps, ["Their Star"], "the other side reads its own");
 });
 
 test("team value is the roster's cost without fans; an unknown race has none", () => {
@@ -111,7 +148,7 @@ test("leaders are the best of each counter, the first on a tie, and a counter no
     { id: "p2", rowIndex: 0, number: "5", name: "Vane", spp: { touchdowns: 2, completions: 4 } },
   ];
   const leaders = record.teamLeaders({ roster: { players } }, amazon);
-  assert.deepEqual(leaders.map(({ key, name, value }) => [key, name, value]), [["spp", "Vane", 10], ["td", "Ashby", 2], ["comp", "Vane", 4]]);
+  assert.deepEqual(leaders.map(({ key, id, name, value }) => [key, id, name, value]), [["spp", "p2", "Vane", 10], ["td", "p1", "Ashby", 2], ["comp", "p2", "Vane", 4]]);
   assert.equal(leaders.find((leader) => leader.key === "cas"), undefined);
   assert.equal(leaders[1].number, "3", "a tie goes to the first in the roster");
   assert.deepEqual(record.teamLeaders({ roster: { players } }, null), []);
@@ -120,9 +157,21 @@ test("leaders are the best of each counter, the first on a tie, and a counter no
 test("a leader carries the player's position, and a team nobody has scored for has none", () => {
   const players = [{ id: "p1", rowIndex: 0, number: "7", name: "Ashby", spp: { casualties: 1 } }, { id: "p2", rowIndex: 0, name: "Vane" }];
   const [leader] = record.teamLeaders({ roster: { players } }, amazon);
-  assert.deepEqual([leader.key, leader.value, leader.position], ["spp", 2, amazon.team.roster[0].position]);
+  assert.deepEqual([leader.key, leader.value, leader.position, leader.kind], ["spp", 2, amazon.team.roster[0].position, "lineman"]);
   assert.deepEqual(record.teamLeaders({ roster: { players: [{ id: "p1", rowIndex: 0 }] } }, amazon), []);
   assert.deepEqual(record.teamLeaders({ roster: {} }, amazon), []);
+});
+
+test("a leader carries the player's id and the kind of the position: the badge's colour and the way to the player", () => {
+  const players = [
+    { id: "p1", rowIndex: 2, number: "4", name: "Blitz", spp: { touchdowns: 3 } },
+    { rowIndex: 1, number: "9", name: "Nameless", spp: { completions: 5 } },
+  ];
+  const leaders = record.teamLeaders({ roster: { players } }, amazon);
+  assert.deepEqual(leaders.map(({ key, id, kind }) => [key, id, kind]), [["spp", "p1", "blitzer"], ["td", "p1", "blitzer"], ["comp", "", "thrower"]],
+    "a player the roster stores no id for has none: no address leads to him");
+  assert.equal(leaders[0].kind, positionKind(amazon.team.roster[2]));
+  assert.equal(leaders[2].kind, positionKind(amazon.team.roster[1]));
 });
 
 test("initials are the first letters of the first two words", () => {

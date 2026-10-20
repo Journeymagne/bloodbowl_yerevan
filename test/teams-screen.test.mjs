@@ -72,10 +72,40 @@ test("the coach's teams, the active one marked, each opening its overview", () =
   assert.equal(view.querySelector("h1").textContent, "My teams");
   assert.deepEqual(view.querySelectorAll("a.g-teams__open").map((link) => link.getAttribute("href")), ["#/t/t1", "#/t/t2", "#/t/t3"]);
   assert.ok(view.querySelector('a[href="#/t/t1"]').closest(".g-teams__item").querySelector(".g-sr-only"), "the current one says so");
-  assert.equal(view.querySelector('a.g-btn--primary[href="#/teams/new"]').textContent.trim(), "New team");
+  const add = view.querySelector("button.g-btn--primary[data-new-team]");
+  assert.deepEqual([add.textContent.trim(), add.getAttribute("aria-haspopup")], ["New team", "dialog"], "a button that opens the sheet, not a link to a page");
+  assert.equal(view.querySelector('a[href="#/teams/new"]'), null);
   assertCspSafe(view);
   assertStyled(view, "src/screens/teams/teams.css", "src/shell/team-switcher.css", "page-head.css", "button.css", "status-chip.css");
   assertDictionaryCovers("src/screens/teams/index.mjs");
+});
+
+test("«New team» opens the sheet over «My teams», with no change of address", () => {
+  coach();
+  renderTeams();
+  const sheet = () => document.querySelector("dialog#new-team-sheet");
+  const add = view.querySelector("[data-new-team]");
+  add.focus();
+  fireEvent(add, "click");
+  assert.ok(sheet().matches(":modal"));
+  assert.ok(sheet().closest('[data-sheet-host="new-team"]'), "in its own host on the body, out of the list's redraws");
+  assert.equal(location.hash, "#/teams");
+  assert.equal(view.querySelector("h1").textContent, "My teams", "the list stays under it");
+  assert.equal(sheet().querySelectorAll("[data-race]").length, 2, "the races from the data");
+  setMyTeams(TEAMS.slice(0, 2));
+  assert.ok(sheet()?.matches(":modal"), "the list drawn again leaves it open");
+  fireEvent(sheet(), "keydown", { key: "Escape" });
+  assert.equal(sheet(), null);
+  assert.equal(document.activeElement, view.querySelector("[data-new-team]"), "the focus is back on the button");
+  // A coach with no team: «Create a team» of the empty overview opens it too.
+  coach({ items: [] });
+  renderTeams();
+  fireEvent(view.querySelector("[data-new-team]"), "click");
+  assert.ok(sheet().matches(":modal"));
+  fireEvent(sheet(), "keydown", { key: "Escape" });
+  releaseCurrentScreen();
+  fireEvent(view.querySelector("[data-new-team]"), "click");
+  assert.equal(sheet(), null, "a screen left hears no button");
 });
 
 test("each team is drawn as the switcher draws it: its tile, its name, where it stands, and a draft says so", () => {
@@ -432,7 +462,7 @@ test("in Russian: the title, the quoted name on the bin and the sheet's red butt
     assert.equal(view.querySelector(".g-pagehead__sub").textContent, "Команды вашего аккаунта");
     assert.equal(view.querySelector('a[href="#/t/t1"]').closest(".g-teams__item").querySelector(".g-status").textContent, "В сезоне");
     assert.equal(view.querySelector('[data-delete-team="t2"]').getAttribute("aria-label"), "Удалить «Anji Magritta»");
-    assert.equal(view.querySelector("a.g-btn--primary").textContent.trim(), "Новая команда");
+    assert.equal(view.querySelector("button.g-btn--primary[data-new-team]").textContent.trim(), "Новая команда");
     fireEvent(view.querySelector('[data-delete-team="t2"]'), "click");
     assert.equal(view.querySelector(".g-sheet__title").textContent, "Удалить команду?");
     assert.equal(view.querySelector(".g-sheet__body").textContent.trim(), "Команда «Anji Magritta» и её состав удаляются навсегда.");

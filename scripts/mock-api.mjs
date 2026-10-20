@@ -148,16 +148,16 @@ const startersOf = (idPrefix) => [
   playerOf(idPrefix, 1, 0, "Linewoman One", { spp: { touchdowns: 1 } }),
   playerOf(idPrefix, 2, 1, "Thrower Two", { statMods: { ma: 1 }, extraSkills: [{ name: "Block", access: "primary" }] }),
 ];
-// Mock Team's eight (rows of teams/amazon: 0 Linewoman, 1 Thrower, 2 Blitzer, 3 Blocker), the counters spread so
-// that every leader of the overview is somebody else: SPP and touchdowns Three, casualties Four, completions
-// Two, and the MVP, who is no leader of a counter, Five; Eight is a fresh purchase (cancelled for 50, until a match).
+// Mock Team's eight (rows of teams/amazon: 0 Linewoman, 1 Thrower, 2 Blitzer, 3 Blocker), the counters spread so that every leader of the overview
+// is somebody else: SPP and touchdowns Three, casualties Four, completions Two, and the MVP, who is no leader of a counter, Five; Eight is a fresh
+// purchase (cancelled for 50, until a match). Three advances, Four is the captain, Six carries a lasting injury.
 const amazons = [
   playerOf("p", 1, 0, "Linewoman One", { spp: { touchdowns: 1 } }),
   playerOf("p", 2, 1, "Thrower Two", { statMods: { ma: 1 }, extraSkills: [{ name: "Block", access: "primary" }], spp: { completions: 3 } }),
-  playerOf("p", 3, 2, "Blitzer Three", { spp: { touchdowns: 4 } }),
-  playerOf("p", 4, 3, "Blocker Four", { spp: { casualties: 2 } }),
+  playerOf("p", 3, 2, "Blitzer Three", { spp: { touchdowns: 7 }, extraSkills: [{ name: "Dodge", access: "primary" }], advancements: [{ type: "random", grants: { skill: "Dodge" }, roll: { id: "mock-roll-p3", via: "site" } }] }),
+  playerOf("p", 4, 3, "Blocker Four", { isCaptain: true, spp: { casualties: 2 } }),
   playerOf("p", 5, 0, "Linewoman Five", { spp: { mvps: 1 } }),
-  playerOf("p", 6, 0, "Linewoman Six", { skipNextGame: true, absence: { code: "niggling" }, nigglingInjuries: 1, niglingInjury: true }),
+  playerOf("p", 6, 0, "Linewoman Six", { skipNextGame: true, absence: { code: "niggling" }, nigglingInjuries: 1, niglingInjury: true, statMods: { ag: -1 }, injuryStatMods: { ag: -1 } }),
   playerOf("p", 7, 2, "Blitzer Seven", { skipNextGame: true, absence: { code: "other", note: "Suspended by the league" } }), playerOf("p", 8, 0, "Linewoman Eight", { purchased: true, purchaseRefund: 50 }),
 ];
 
@@ -276,7 +276,7 @@ const pairingOf = (id, tableNumber, own, opposing, changes = {}) => {
     awayPoints: null,
     resultStatus: "pending",
     preparationStatus: "not_started",
-    postMatchStatus: "not_started",
+    postMatchStatus: "not_started", homeMvps: [], awayMvps: [], // the list's MVPs (`loadGameMvps`): only g4's post-match is completed
     proposedByUserId: null,
     proposedHomeTouchdowns: null,
     proposedAwayTouchdowns: null,
@@ -354,9 +354,9 @@ const games = empty ? [] : [
     viewerIsHome: false,
     ...confirmedScore(rival, 6, { touchdowns: [2, 0], casualties: [1, 0], points: [4, 0] }),
   }),
-  // Round 1, at home: Mock Team won 2-1, and took the casualty.
+  // Round 1, at home: Mock Team won 2-1, took the casualty; post-match completed (mock/history.mjs), MVP Linewoman Five (p5).
   pairingOf("g4", 1, teams[0], rivals[1], {
-    roundId: "r1",
+    roundId: "r1", postMatchStatus: "completed", homeMvps: [{ id: "p5", name: "Linewoman Five" }],
     roundNumber: 1,
     roundStatus: "completed",
     ...confirmedScore(user, 13, { touchdowns: [2, 1], casualties: [1, 0], points: [3, 0] }),
@@ -519,16 +519,16 @@ async function answerTeams(request, pathname) {
 
 /** Whether a match is one the administrator's list of current matches holds: started and not confirmed (server/season/store.mjs). */
 const isCurrent = (game) => game.roundStatus === "started" && game.resultStatus !== "confirmed";
+const withoutMvps = ({ homeMvps, awayMvps, ...game }) => game; // only the list carries MVPs, as on the server (`server/routes/games.mjs`)
 
 /** Challenges, matches and the season. */
 function answerLeague(request, pathname) {
   if (pathname === "/api/challenges" && request.method === "GET") return reply(challenges);
   if (pathname === "/api/season" && request.method === "GET") return reply(seasonBundle);
-  if (pathname === "/api/games") return reply({ games, currentGames: user.isAdmin ? games.filter(isCurrent) : [] });
+  if (pathname === "/api/games") return reply({ games, currentGames: user.isAdmin ? games.filter(isCurrent).map(withoutMvps) : [] });
   if (pathname.startsWith("/api/games/")) {
     const game = games.find((item) => item.id === pathname.split("/")[3]);
-    if (!game) return refuse(404, "GAME_NOT_FOUND");
-    return reply({ game });
+    return game ? reply({ game: withoutMvps(game) }) : refuse(404, "GAME_NOT_FOUND");
   }
   return null;
 }
@@ -568,8 +568,8 @@ const server = http.createServer(async (request, response) => {
     try {
       answered = await answerApi(request, url.pathname);
     } catch (error) {
-      if (!error.badBody) throw error;
-      answered = refuse(400, "FIELD_INVALID", { field: "body" });
+      if (!error.badBody) console.error(error);
+      answered = error.badBody ? refuse(400, "FIELD_INVALID", { field: "body" }) : refuse(500, "SERVER_ERROR");
     }
     // A dropped connection gets no answer at all: the screen's "no network" (scripts/mock/roster.mjs).
     if (answered.drop) return void request.socket.destroy();

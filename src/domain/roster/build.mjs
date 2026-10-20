@@ -37,7 +37,7 @@ export const BUILD_STAFF_KEYS = Object.freeze([
 ]);
 
 /** Shirt numbers run 1 to 99. */
-const LAST_SHIRT_NUMBER = 99;
+export const LAST_SHIRT_NUMBER = 99;
 
 /**
  * A draft of a new team of this race: named, in the first league and with the

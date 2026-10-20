@@ -16,11 +16,12 @@
  * shell/app-header.mjs and shell/side-nav.mjs; the sizes and breakpoints are
  * frame.css's. The team block of the header and the SideNav opens the team
  * switcher (shell/team-switcher.mjs) in a host at the end of the frame; what
- * the shell does is open it, close it with the focus back where it was, and act
- * on a team chosen.
+ * the shell does is open it, close it with the focus back where it was, act on
+ * a team chosen, and hand «New team» to the sheet it is given (app.js gives it:
+ * the frame imports no screen).
  */
 import { patchWithModal } from "../components/dialog.mjs";
-import { delegate, patch } from "../core/dom.mjs";
+import { delegate, focusLost, patch } from "../core/dom.mjs";
 import { getLocale } from "../core/i18n.mjs";
 import { requestLocale } from "../core/locale-request.mjs";
 import { setReturn } from "../core/return-to.mjs";
@@ -89,10 +90,12 @@ export function tabScrollLeft({ tabLeft, tabWidth, viewWidth, scrollLeft }) {
 /**
  * Find the frame's parts and wire what outlives every screen. The language
  * buttons are heard on the SideNav, which holds them, and not on the frame.
- * @param {{document?: Document, scroller?: {addEventListener: Function, document?: Document}}} [options]
- *   `scroller` is what scrolls the page — the window — and the document whose position is read
+ * @param {{document?: Document, scroller?: {addEventListener: Function, document?: Document}, onNewTeam?: (opener: Element|null, options: {back: () => void}) => void}} [options]
+ *   `scroller` is what scrolls the page — the window — and the document whose position is read;
+ *   `onNewTeam` opens what «New team» of the switcher leads to, over the page, with the block the switcher
+ *   was opened from (where the focus goes back to) and a `back` that opens the switcher again
  */
-export function mountShell({ document = globalThis.document, scroller = globalThis } = {}) {
+export function mountShell({ document = globalThis.document, scroller = globalThis, onNewTeam = () => {} } = {}) {
   const find = (id) => document.querySelector(`#${id}`);
   parts = { frame: find("app-frame"), header: find("app-header"), sideNav: find("side-nav"), footer: find("site-footer"), switcher: find(SWITCHER_HOST) };
   if (!parts.switcher) {
@@ -111,7 +114,7 @@ export function mountShell({ document = globalThis.document, scroller = globalTh
   for (const root of [parts.header, parts.sideNav]) delegate(root, "click", SIGN_IN_LINKS, () => setReturn(globalThis.location?.hash ?? ""));
   // The team block of either opens the one switcher, which is wired here once: the host outlives every sheet shown in it.
   for (const root of [parts.header, parts.sideNav]) delegate(root, "click", "[data-team-switcher]", (event, button) => openSwitcher(button));
-  wireTeamSwitcher(parts.switcher, { onSwitch: chooseTeam, onClose: closeSwitcher });
+  wireTeamSwitcher(parts.switcher, { onSwitch: chooseTeam, onClose: closeSwitcher, onNewTeam: () => newTeam(onNewTeam) });
   // The match card is drawn from the games: a screen that changes one (data/games.mjs `invalidateGames`) redraws the frame when the list is read again.
   onGamesChange(redraw);
   // The team's name, tabs and card come from the coach's list: one read after the frame was drawn redraws it (R14).
@@ -132,14 +135,15 @@ function openSwitcher(button) {
 
 /**
  * Take the switcher away, if it is open, and give the focus back to the button that opened it, if that
- * button is still on the page (a coach who signed out has a link there now).
+ * button is still on the page and shown (`focusLost`: a coach who signed out has a link there now; a width
+ * that crossed 900px hides the phone header's block); else the screen's title takes it, never the body.
  */
 function closeSwitcher() {
   if (!opener) return;
   const button = opener;
   opener = null;
   patch(parts.switcher, "");
-  if (button.isConnected) button.focus();
+  (focusLost(button) ? parts.frame.ownerDocument?.querySelector("#app-view h1") : button)?.focus();
 }
 
 /**
@@ -153,6 +157,17 @@ function chooseTeam(teamId) {
   const target = switchTarget(lastRoute, teamId);
   if (target) globalThis.location.hash = target;
   else syncActiveTeam({ routeTeamId: teamId });
+}
+
+/**
+ * «New team»: the switcher goes first, so that one modal dialog is open at a time, and the sheet opens over the page in
+ * its place. It is handed the block the switcher was opened from, which the focus goes back to when the sheet is closed,
+ * and a way back that opens the switcher again for that block.
+ */
+function newTeam(open) {
+  const button = opener;
+  closeSwitcher();
+  open(button, { back: () => openSwitcher(button) });
 }
 
 /** The team's place in the season table: its standings row's `rank` (the server's order is not the place); null outside the table. */
@@ -196,6 +211,9 @@ export function refreshShell(route = lastRoute) {
   patch(parts.sideNav, renderSideNav(model, { matchHtml, locale, generatedAt }));
   patch(parts.footer, renderSiteFooter({ generatedAt, locale }));
   parts.frame.setAttribute("data-shell", model.mode);
+  // A player's address is a screen of its own on a phone: frame.css hides the header's band there.
+  if (model.drill) parts.frame.setAttribute("data-drill", "");
+  else parts.frame.removeAttribute("data-drill");
   revealCurrentTab(parts.header);
   if (moved) closeSwitcher();
 }

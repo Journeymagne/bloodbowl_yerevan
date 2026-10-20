@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { document } from "./helpers/ui.mjs";
-import { el } from "./helpers/fake-dom.mjs";
+import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 
 // A coach's `#/` with no team active (resolveRedirect sends one with a team active on to it): never the 2.x front page.
@@ -60,8 +60,15 @@ test("one whose account names no team goes on to the first of the list, and the 
 test("a coach whose list came back empty gets the overview of no team, which goes on once a team appears", async () => {
   coachHome({ items: [], loaded: true });
   assert.equal(view.querySelector("h1").textContent, "Create your first team");
-  assert.equal(view.querySelector('a[href="#/teams/new"]').textContent.trim(), "Create a team");
+  const create = view.querySelector("[data-new-team]");
+  assert.deepEqual([create.textContent.trim(), create.getAttribute("aria-haspopup")], ["Create a team", "dialog"]);
   assert.deepEqual(replaced, []);
+  api.reply("GET /api/season", 200, { season: null, standings: [] });
+  fireEvent(create, "click");
+  const sheet = () => document.querySelector("dialog#new-team-sheet");
+  assert.ok(sheet()?.matches(":modal"), "it opens the sheet of a new team over the overview");
+  assert.deepEqual(replaced, [], "where the address stays");
+  fireEvent(sheet(), "keydown", { key: "Escape" });
   api.reply("PATCH /api/auth/preferences", 200, { preferences: { activeTeamId: "t9" } });
   addMyTeam({ id: "t9", name: "Iron Rooks" });
   assert.deepEqual(replaced, ["#/t/t9"]);
@@ -74,7 +81,7 @@ test("a coach whose list could not be read is told so, with a way to read it aga
   coachHome({ items: [], loaded: false, error: "The server did not answer. Try again in a minute." });
   assert.equal(view.querySelector("h1").textContent, "Your teams did not load");
   assert.ok(view.querySelector("button[data-teams-retry]"));
-  assert.equal(view.querySelector('a[href="#/teams/new"]'), null);
+  assert.equal(view.querySelector("[data-new-team]"), null);
   assert.deepEqual(replaced, []);
   releaseCurrentScreen();
 });

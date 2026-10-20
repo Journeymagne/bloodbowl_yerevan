@@ -14,7 +14,11 @@
  * base, bought, Favoured, and the captain's Pro, whatever their (+N)). Every
  * attempt is kept as `{ roll, skill, duplicate }` — `skill` is null for a blank
  * face beyond the column — so the record shows the whole roll, not just where
- * it ended.
+ * it ended. A random skill is two dice (the owner, 2026-10-20): the second
+ * rerolls a blank face, a skill the player holds and the first die's skill
+ * (`twin`), so both are skills he lacks and different, and the coach takes one;
+ * a column with one such skill throws one die. Every attempt of both is kept; a
+ * roll kept before (one die, `result.skill`) reads as one (`rolledDice`).
  *
  * Pure: the die is passed in. `rng(sides)` answers an integer from 1 to `sides`;
  * the server hands in `serverDie` (server/api/dice-rolls.mjs). An answer outside
@@ -29,6 +33,9 @@
  * "site" }`): `siteRollReferences` lists those of a roster, and
  * `rollFitsAdvancement` says whether a roll is one the advancement could have
  * taken. The server holds a save to both (`settleRosterRolls`).
+ *
+ * What a coach sees of a roll: its sixteen faces, what its dice came up, and
+ * why a waiting roll cannot be taken as it is.
  */
 import { CAPTAINS_SKILL, canonicalSkillName, heldSkillKeys, normalizePlayerAdvancements } from "./players.mjs";
 import { PLAYER_STATS, categoriesForAccess } from "./values.mjs";
@@ -68,35 +75,69 @@ export function statRoll(rng) {
 }
 
 /**
- * Roll a random primary skill of `category` for a player.
+ * One die of a random skill: every attempt it took, and the skill it ended on. `skill` of an attempt is null for a blank
+ * face beyond the column; `twin` marks the second die landing on the first die's skill (not the player's: `duplicate`
+ * is false).
+ *
+ * @typedef {{attempts: {roll: number, skill: string|null, duplicate: boolean, twin?: true}[], skill: string}} RolledDie
+ */
+
+/**
+ * Roll a random primary skill of `category` for a player: two dice, the second rerolling the first one's skill too, or
+ * one when the column has a single skill he lacks.
  *
  * @param {object} args
  * @param {object} args.row the player's position row
  * @param {object} args.player
  * @param {string} args.category a primary category of the row
  * @param {Array<{category: string, skills: string[]}>} args.skillGroups the Skill Table
- * @param {(sides: number) => number} args.rng
- * @param {number} [args.maxAttempts] a die stuck on blanks and held skills throws instead of looping. 1000, not 100: a
- *   9-skill column with 8 held leaves one face in 16, and a fair die would miss 100 times running 0.16 % of the time
- * @returns {{ok: true,
- *   params: {category: string, candidates: string[], sides: number},
- *   result: {attempts: Array<{roll: number, skill: string | null, duplicate: boolean}>, skill: string}}
+ * @param {(sides: number) => number} args.rng asked for a `SKILL_DIE` on every attempt of both dice
+ * @param {number} [args.maxAttempts] per die: a die stuck on blanks and held skills throws instead of looping. 1000, not
+ *   100: a 9-skill column with 8 held leaves one face in 16, and a fair die would miss 100 times running 0.16 % of the time
+ * @returns {{ok: true, params: {category: string, candidates: string[], sides: number}, result: {dice: RolledDie[]}}
  *   | {ok: false, reason: string}}
- *   `skill` of an attempt is null for a blank face beyond the column; `result.skill` is the free skill the roll ended on
  */
 export function randomSkillRoll({ row, player, category, skillGroups = [], rng, maxAttempts = 1000 }) {
   if (!categoriesForAccess(row.primary ?? []).includes(category)) return { ok: false, reason: "DICE_CATEGORY" };
   const candidates = [...(skillGroups.find((group) => group.category === category)?.skills ?? [])];
   const held = heldSkillKeys(row, player);
-  if (!candidates.some((skill) => !held.has(canonicalSkillName(skill)))) return { ok: false, reason: "DICE_NO_SKILL" };
+  const free = new Set(candidates.map(canonicalSkillName).filter((skill) => !held.has(skill)));
+  if (!free.size) return { ok: false, reason: "DICE_NO_SKILL" };
+  const first = rollDie(rng, candidates, held, null, maxAttempts);
+  const dice = free.size > 1 ? [first, rollDie(rng, candidates, held, canonicalSkillName(first.skill), maxAttempts)] : [first];
+  return { ok: true, params: { category, candidates, sides: SKILL_DIE }, result: { dice } };
+}
+
+/** One die over the column, thrown until it lands on a skill the player lacks and that is not `twinOf` (canonical). */
+function rollDie(rng, candidates, held, twinOf, maxAttempts) {
   const attempts = [];
   while (attempts.length < maxAttempts) {
     const roll = face(rng, SKILL_DIE), skill = candidates[roll - 1] ?? null;
     const duplicate = skill !== null && held.has(canonicalSkillName(skill));
-    attempts.push({ roll, skill, duplicate });
-    if (skill !== null && !duplicate) return { ok: true, params: { category, candidates, sides: SKILL_DIE }, result: { attempts, skill } };
+    const twin = skill !== null && !duplicate && canonicalSkillName(skill) === twinOf;
+    attempts.push(twin ? { roll, skill, duplicate, twin } : { roll, skill, duplicate });
+    if (skill !== null && !duplicate && !twin) return { attempts, skill };
   }
   throw new Error(`no free skill after ${maxAttempts} attempts`);
+}
+
+/** The dice a random skill's result keeps: `result.dice`, or the result itself for a roll kept with one die (stage 03). */
+const diceOf = (result) => (Array.isArray(result?.dice) ? result.dice : [result]);
+
+/**
+ * What a random skill's dice came up, in their order: each die's face — where it ended, the roll of its last attempt,
+ * null with none kept — and its skill. A roll kept before there were two dice (`result.skill`, `result.attempts`) is one
+ * die; a die with no skill is none; a characteristic, or anything that is no random skill, has no dice.
+ *
+ * @param {{purpose: string, result: object}|null|undefined} roll a `dice_rolls` row, or its public form
+ * @returns {{face: number|null, skill: string}[]}
+ */
+export function rolledDice(roll) {
+  if (roll?.purpose !== "random_skill") return [];
+  return diceOf(roll.result).filter((die) => typeof die?.skill === "string").map((die) => {
+    const last = Array.isArray(die.attempts) ? die.attempts.at(-1) : undefined;
+    return { face: Number.isInteger(last?.roll) ? last.roll : null, skill: die.skill };
+  });
 }
 
 /**
@@ -116,19 +157,20 @@ export function siteRollReferences(roster) {
 }
 
 /**
- * Whether a roll is one the advancement could have taken. A random skill takes a random-skill roll that
- * ended on the skill it grants, by canonical name (the Skill Table's `Mighty Blow` is the Rat Ogre's
- * `Mighty Blow (+1)`). A characteristic takes a D8 whose face may improve the characteristic it grants,
- * or any skill taken in its place, as the post-match lets a characteristic advancement do. An advancement
- * that does not say what it granted, or of any other type, takes no roll.
+ * Whether a roll is one the advancement could have taken. A random skill takes a random-skill roll one of
+ * whose dice came up the skill it grants (`rolledDice`: the coach takes either), by canonical name (the
+ * Skill Table's `Mighty Blow` is the Rat Ogre's `Mighty Blow (+1)`). A characteristic takes a D8 whose face
+ * may improve the characteristic it grants, or any skill taken in its place, as the post-match lets a
+ * characteristic advancement do. An advancement that does not say what it granted, or of any other type,
+ * takes no roll.
  *
  * @param {{purpose: string, result: object}} roll a `dice_rolls` row, or its public form
  * @param {{type: string, grants?: {skill?: string, stat?: string}|null}} advancement
  */
 export function rollFitsAdvancement({ purpose, result }, { type, grants }) {
   if (type === "random") {
-    return purpose === "random_skill" && typeof grants?.skill === "string" && typeof result?.skill === "string"
-      && canonicalSkillName(grants.skill) === canonicalSkillName(result.skill);
+    return typeof grants?.skill === "string"
+      && rolledDice({ purpose, result }).some((die) => canonicalSkillName(die.skill) === canonicalSkillName(grants.skill));
   }
   if (type === "stat") {
     return purpose === "stat" && (Boolean(grants?.skill) || (Array.isArray(result?.stats) && result.stats.includes(grants?.stat)));
@@ -137,8 +179,9 @@ export function rollFitsAdvancement({ purpose, result }, { type, grants }) {
 }
 
 /**
- * The skills a random-skill roll threw again as already held, by canonical name, attempt by attempt, that the
- * roster it is used on must answer for. The die rerolls what the player holds when it is asked, and a roster can
+ * The skills a random-skill roll threw again as already held, by canonical name, attempt by attempt of each die in
+ * turn, that the roster it is used on must answer for — the second die landing on the first one's skill (`twin`) is
+ * no skill of the player's, and not one of them. The die rerolls what the player holds when it is asked, and a roster can
  * say a player holds anything: a skill held only while the die was asked would steer it. So a roll is taken only
  * by a roster that holds all of these (`rerollsHeldBy`), and while it is used no save may drop one of them
  * (`settleRosterRolls`). The one left out is the captaincy's Pro on a roll made while the player was captain
@@ -150,7 +193,7 @@ export function rollFitsAdvancement({ purpose, result }, { type, grants }) {
  * @returns {string[]}
  */
 export function skillsRerolledAgainst({ purpose, params, result }) {
-  const attempts = purpose === "random_skill" && Array.isArray(result?.attempts) ? result.attempts : [];
+  const attempts = purpose === "random_skill" ? diceOf(result).flatMap((die) => (Array.isArray(die?.attempts) ? die.attempts : [])) : [];
   return attempts.filter((attempt) => attempt?.duplicate).map((attempt) => canonicalSkillName(attempt.skill))
     .filter((skill) => !(skill === CAPTAINS_SKILL && params?.captain === true));
 }
@@ -165,6 +208,54 @@ export function skillsRerolledAgainst({ purpose, params, result }) {
  */
 export function rerollsHeldBy(roll, held) {
   return skillsRerolledAgainst(roll).every((skill) => held.has(skill));
+}
+
+/** The faces of a random skill's die over a category's column, in its order: `SKILL_DIE` of them, a face beyond the column blank. */
+export function skillFaces(candidates = []) {
+  return Array.from({ length: SKILL_DIE }, (_, at) => ({ face: at + 1, skill: candidates[at] ?? null }));
+}
+
+/**
+ * Why a waiting roll cannot be taken by the player as he is, or null when it can. A random skill whose every
+ * die's skill he holds already — the server marks it `stale`, or he has come to hold them since — is
+ * `ROLL_STALE`, naming the dice's skills; while one die's skill is still his to take, the roll is good (the
+ * screen closes the other). One rerolled against a skill he holds no more is `ROLL_REROLLED`, naming those
+ * skills (`rerollsHeldBy`: the server refuses the save that takes it). A roll with no dice (`rolledDice`) is
+ * nothing to say — the server refuses the save that names it, and calls it stale no more than this does — and a
+ * characteristic roll is always good: a skill can take its place.
+ *
+ * @param {{purpose: string, params?: object, result: object, stale?: boolean}} roll a roll as GET …/rolls sends it
+ * @returns {null | {code: "ROLL_STALE", params: {skills: string}} | {code: "ROLL_REROLLED", params: {skills: string}}}
+ */
+export function rollRefusal(roll, row, player) {
+  const dice = rolledDice(roll);
+  if (!dice.length) return null;
+  const held = heldSkillKeys(row, player);
+  if (roll.stale || dice.every((die) => held.has(canonicalSkillName(die.skill)))) {
+    return { code: "ROLL_STALE", params: { skills: dice.map((die) => die.skill).join(", ") } };
+  }
+  if (rerollsHeldBy(roll, held)) return null;
+  return { code: "ROLL_REROLLED", params: { skills: [...new Set(skillsRerolledAgainst(roll).filter((name) => !held.has(name)))].join(", ") } };
+}
+
+/**
+ * The player's random advancement taken at the table for the skill one of a site roll's dice came up
+ * (`rolledDice`), by canonical name, which the roll may take the place of; -1 when there is none. Only one
+ * after which no advancement of his names a site roll: the server uses a player's rolls in the order it
+ * handed them out and gives them back last first (`settleRosterRolls`), so a roll bound before a site
+ * advancement would be used out of turn.
+ *
+ * @param {{purpose: string, result: object}} roll a waiting random-skill roll
+ * @returns {number} the index in the player's advancements
+ */
+export function tableAdvancementFor(roll, player) {
+  const skills = new Set(rolledDice(roll).map((die) => canonicalSkillName(die.skill)));
+  if (!skills.size) return -1;
+  const advancements = normalizePlayerAdvancements(player?.advancements);
+  const lastSite = advancements.findLastIndex((advancement) => advancement.roll?.via === "site");
+  return advancements.findIndex((advancement, index) => index > lastSite && advancement.type === "random"
+    && advancement.roll?.via === "table" && typeof advancement.grants?.skill === "string"
+    && skills.has(canonicalSkillName(advancement.grants.skill)));
 }
 
 /** One throw of a die with `sides` faces, refusing an answer the die cannot show. */

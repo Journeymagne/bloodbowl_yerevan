@@ -1,0 +1,484 @@
+/*
+ * A roll in the advancement's sheet (roll-view.mjs; stage 07d, Task 10): up to 900px as Adv3Random, Adv3Stat and
+ * Adv3StatTable; from 901px in the window's columns as DeskRosterAdv.html and DeskRosterAdvStat.html. The sheet's frame
+ * is player-sheets.css's, the advancement's own advance.css's; ui/segmented-control.css draws the way, ui/die.css the
+ * die. This sheet sets what is the roll's own, by the sheet's id, after advance.css (K5) — and in a skill's sheet
+ * (`#roster-skill`, Task 11) how an advancement gave the skill, and what a site roll's dice showed (Task 22). A random
+ * skill is two dice (the owner, 2026-10-20; Task 21): its pair is the prototypes' die and result, doubled, in
+ * Adv3Stat's card.
+ *
+ * Where the prototypes give no line height, the font's own (`normal`). Font, border, background, text-transform,
+ * letter-spacing and font-weight are set on purpose: the 2.x globals (p, b, ul, ol, button) outlive this sheet until
+ * stage 13. A long skill or line wraps; nothing is cut with «…». Up to 900px what is pressed is 44px or more (D2): the
+ * way's segments (40px in Adv3Random), the pair's cards and the faces marked at the table (32px) grow to it — the site's
+ * list of faces, which only shows, keeps Adv3Random's 32px; from 901px as the prototypes.
+ */
+
+/* The roll's parts, one under the other (Adv3Random: 14 apart). */
+#player-advance .g-advance__roll {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  min-width: 0;
+}
+
+/* The way: the track ui/segmented-control.css draws (12 round, 4 around and between, --surface-3); the segment shown lifted, 700. */
+#player-advance .g-seg { width: 100%; }
+#player-advance .g-seg__item {
+  color: var(--muted);
+  font: 600 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+#player-advance .g-seg__item[aria-checked="true"] {
+  color: var(--ink);
+  font-weight: 700;
+}
+#player-advance .g-seg__item[aria-disabled="true"] { cursor: default; }
+
+#player-advance .g-advance__note,
+#player-advance .g-advance__kept,
+#player-advance .g-advance__result,
+#player-advance .g-advance__table {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+/* The line under the way, and that the roll stays the player's: 12px/1.4, quiet. */
+#player-advance .g-advance__note,
+#player-advance .g-advance__kept {
+  color: var(--muted);
+  font: 400 12px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* The die (ui/die.css: 76 square, 18 round, on --surface-3 until rolled, then on the accent); its label at .8. */
+#player-advance .g-advance__dice {
+  display: flex;
+  justify-content: center;
+}
+#player-advance .g-die__type { opacity: .8; }
+
+/*
+ * The result under the die: 15/600 in the accent; with a desk's «Roll two D16» under it, 6 apart, as DeskRosterAdv's
+ * side column (T21 fix round 1, M10).
+ */
+#player-advance .g-advance__outcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+}
+#player-advance .g-advance__result {
+  color: var(--accent-text);
+  font: 600 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/*
+ * A random skill's pair (the owner's answer, 2026-10-20: the prototypes show one result): two cards to a row, 10 apart,
+ * one die alone across the row. A card is Adv3Stat's — 12 round on a 1px --line ring, the chosen one on the soft tint
+ * in a 2px accent ring — holding Adv3Random's die (ui/die.css: 76 square, 18 round, 12px over Oswald 36px, on the accent
+ * once in, on --surface-3 before) over its skill, 15/600 centred, 8 apart, from 44px (D2). His skill grey and struck
+ * through; an elite combination's words 12/600 in the accent.
+ */
+#player-advance .g-advance__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-10);
+}
+#player-advance .g-advance__pick:only-child { grid-column: 1 / -1; }
+#player-advance .g-advance__pick {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  min-width: 0;
+  min-height: 44px;
+  margin: 0;
+  padding: var(--space-12) var(--space-10);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--line);
+  color: var(--ink);
+  font: 600 15px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+#player-advance .g-advance__pick[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+}
+#player-advance .g-advance__pick[aria-disabled="true"] { cursor: default; }
+#player-advance .g-advance__pick .g-die { flex: none; }
+#player-advance .g-advance__pickname { max-width: 100%; }
+#player-advance .g-advance__pick--held .g-advance__pickname {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+#player-advance .g-advance__picktag {
+  color: var(--accent-text);
+  font: 600 12px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/*
+ * Not in the prototypes: a roll of the other kind waiting, an answer lost, why the roll cannot be taken — the player
+ * sheets' refusal line (player-sheets.css, T8) — and, quiet in the same line, the category the roll was made in.
+ */
+#player-advance .g-advance__info {
+  color: var(--ink-2);
+  font-weight: 400;
+}
+
+/*
+ * The D16's sixteen faces, two to a row — on the site a list (no bullets, no indent), at the table buttons: the number
+ * 18px wide at .7, the skill. His own grey and struck through; a face a die came up on, or one marked at the table, on
+ * the accent, 700; at the table one that can be pressed on its own ground (`:where`, so that a face marked keeps the
+ * accent).
+ */
+#player-advance .g-advance__faces {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+#player-advance .g-advance__faces--shown {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+#player-advance .g-advance__face {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: 400 14px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-decoration: none;
+  text-transform: none;
+  cursor: default;
+}
+#player-advance .g-advance__face:where(button:not([aria-disabled="true"])) {
+  background: var(--surface);
+  cursor: pointer;
+}
+#player-advance .g-advance__face--held {
+  color: var(--muted);
+  text-decoration: line-through;
+}
+#player-advance .g-advance__face--hit,
+#player-advance .g-advance__face[aria-pressed="true"] {
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+}
+#player-advance .g-advance__facenum {
+  flex: none;
+  width: 18px;
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  opacity: .7;
+}
+#player-advance .g-advance__facename {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* The D8's eight faces at the table (Adv3StatTable): 4 apart, 10 round, on a ring, the number in Oswald. */
+#player-advance .g-advance__d8 {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+#player-advance .g-advance__d8face {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 700 18px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+/* Not in Adv3StatTable, which hides the faces once one is pressed (fix round 1, I1): the face pressed, as a chosen card is. */
+#player-advance .g-advance__d8face[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+}
+
+/* The characteristics the face allows (Adv3Stat): from 52px, 12 round, 8 apart; «after» in the accent; the chosen one on the tint in a 2px ring. */
+#player-advance .g-advance__stats {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+#player-advance .g-advance__stat {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: 52px;
+  margin: 0;
+  padding: 0 var(--space-14);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 16px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+#player-advance .g-advance__stat[aria-checked="true"] {
+  background: var(--accent-tint-soft);
+  box-shadow: var(--ring-selected);
+}
+/* Not in the prototypes: a characteristic past its limits, closed as a refused type is, its refusal in its place. */
+#player-advance .g-advance__stat[aria-disabled="true"] {
+  background: var(--surface-2);
+  color: var(--muted);
+  cursor: default;
+}
+#player-advance .g-advance__statkey { font-weight: 700; }
+#player-advance .g-advance__statchange {
+  min-width: 0;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+#player-advance .g-advance__after {
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+/* «Take a skill in place of the characteristic»: from 48px, 8 14, 12 round, on a ring; the bold line, the quiet one under it. */
+#player-advance .g-advance__instead {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-height: 48px;
+  margin: 0;
+  padding: var(--space-8) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 400 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+#player-advance .g-advance__insteadtitle {
+  color: var(--ink);
+  font: 700 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+#player-advance .g-advance__insteadsub {
+  color: var(--muted);
+  font: 400 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* Not in the prototypes: a desk's «‹ Back to the characteristic» (fix round 1, M2), a quiet line in the accent, 13/600. */
+#player-advance .g-advance__back {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  align-self: flex-start;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-text);
+  font: 600 13px/normal var(--font-body);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+
+/*
+ * A skill's sheet (StatsSkill.html has none; Task 11, decision 19): how an advancement gave the skill, between the rule
+ * and whose skill it is, 12 over them, its parts 6 apart — the line 14/600 in --ink-2, as the words of the box under it;
+ * what the site's roll showed («Rolled: A and B», §9.5) 13px/1.45 in --ink-2; the read of it 13px, quiet, a failed one
+ * in --danger.
+ */
+#roster-skill .g-roster__rollblock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: var(--space-12) 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+#roster-skill .g-roster__rollline,
+#roster-skill .g-roster__rollpair,
+#roster-skill .g-roster__rollstate {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+#roster-skill .g-roster__rollline {
+  color: var(--ink-2);
+  font: 600 14px/1.4 var(--font-body);
+}
+#roster-skill .g-roster__rollpair {
+  color: var(--ink-2);
+  font: 400 13px/1.45 var(--font-body);
+}
+#roster-skill .g-roster__rollstate {
+  color: var(--muted);
+  font: 400 13px/normal var(--font-body);
+}
+#roster-skill .g-roster__rollstate--bad { color: var(--danger); }
+
+/*
+ * Adv3Random, Adv3Stat, Adv3StatTable: the way's segments from 44px (D2; 40 in the prototype), its line centred; the die
+ * 6 above and below; the result centred, from 22px; the faces 10 apart across, 6 8, 8 round — those marked at the table
+ * from 44px (D2; 32), on --surface, the site's list from 32px as the prototype; the D8's faces eight to a row, from 44px.
+ */
+@media (max-width: 900px) {
+  #player-advance .g-seg__item { min-height: 44px; }
+  #player-advance .g-advance__note { text-align: center; }
+  #player-advance .g-advance__dice { padding: 6px 0; }
+  #player-advance .g-advance__result {
+    min-height: 22px;
+    text-align: center;
+  }
+  #player-advance .g-advance__faces { column-gap: var(--space-10); }
+  #player-advance .g-advance__face {
+    gap: var(--space-8);
+    min-height: 44px;
+    padding: 6px var(--space-8);
+    border-radius: var(--radius-sm);
+  }
+  #player-advance .g-advance__faces--shown .g-advance__face { min-height: 32px; }
+  #player-advance .g-advance__d8face { min-height: 44px; }
+}
+
+/*
+ * DeskRosterAdv.html, DeskRosterAdvStat.html: in its column, 10 apart; the segments from 36px, 13px; a random skill's
+ * pair 8 apart, its cards 10 8, from 24px, 14px, the die 64 square, 16 round, 11px over 30px; «Roll two D16» under the
+ * result (from 40px, 0 14, 10 round, 14/700); the faces «4. Frenzy», 2 apart down and 8 across, from 28px, 4 6, 6
+ * round, 13px, on --surface-2 at the table. The D8's column centred, 12 apart, 8 from its caption: the faces four to a
+ * row from 40px, 17px; «Roll D8» from 44px, 0 18, 10 round, 15/700; its table 13px/1.6. The characteristics 15px, 10
+ * apart; «Take a skill in place…» 14px over 12px.
+ */
+@media (min-width: 901px) {
+  #player-advance .g-advance__roll { gap: var(--space-10); }
+  #player-advance .g-seg__item {
+    min-height: 36px;
+    font: 600 13px/normal var(--font-body);
+  }
+
+  #player-advance .g-advance__pair { gap: var(--space-8); }
+  #player-advance .g-advance__pick {
+    min-height: 24px;
+    padding: var(--space-10) var(--space-8);
+    font: 600 14px/1.25 var(--font-body);
+  }
+  #player-advance .g-advance__pick .g-die {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-2xl);
+  }
+  #player-advance .g-advance__pick .g-die__type { font-size: 11px; }
+  #player-advance .g-advance__pick .g-die__value { font-size: 30px; }
+  #player-advance .g-advance__roll .g-btn--primary {
+    align-self: flex-start;
+    width: auto;
+    height: auto;
+    border-radius: var(--radius-md);
+  }
+  #player-advance .g-advance__roll--d16 .g-btn--primary {
+    min-height: 40px;
+    padding: 0 var(--space-14);
+    font: 700 14px/1.2 var(--font-body);
+  }
+
+  #player-advance .g-advance__faces {
+    column-gap: var(--space-8);
+    row-gap: 2px;
+  }
+  #player-advance .g-advance__face {
+    gap: var(--space-4);
+    min-height: 28px;
+    padding: var(--space-4) 6px;
+    border-radius: 6px;
+    font-size: 13px;
+  }
+  #player-advance .g-advance__face:where(button:not([aria-disabled="true"])) { background: var(--surface-2); }
+  #player-advance .g-advance__facenum {
+    width: auto;
+    font-weight: inherit;
+    opacity: 1;
+  }
+  #player-advance .g-advance__facenum::after { content: "."; }
+
+  #player-advance .g-advance__roll--d8 {
+    align-items: center;
+    gap: var(--space-12);
+    padding-top: var(--space-8);
+  }
+  #player-advance .g-advance__roll--d8 .g-seg,
+  #player-advance .g-advance__roll--d8 .g-advance__d8,
+  #player-advance .g-advance__roll--d8 .g-advance__table,
+  #player-advance .g-advance__roll--d8 .g-player-sheet__refusal,
+  #player-advance .g-advance__roll--d8 .g-advance__kept { align-self: stretch; }
+  #player-advance .g-advance__roll--d8 .g-btn--primary {
+    align-self: center;
+    min-height: 44px;
+    padding: 0 18px;
+    font: 700 15px/normal var(--font-body);
+  }
+  #player-advance .g-advance__d8 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  #player-advance .g-advance__d8face {
+    min-height: 40px;
+    font: 700 17px/normal var(--font-display);
+  }
+  #player-advance .g-advance__table { font: 400 13px/1.6 var(--font-body); }
+
+  #player-advance .g-advance__stats { gap: var(--space-10); }
+  #player-advance .g-advance__stat { font-size: 15px; }
+  #player-advance .g-advance__insteadtitle { font-size: 14px; }
+  #player-advance .g-advance__insteadsub { font-size: 12px; }
+  #player-advance .g-advance__back { min-height: 28px; }
+}

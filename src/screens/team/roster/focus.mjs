@@ -2,6 +2,7 @@
  * Where the roster's focus is before a redraw, and where it goes after one (index.mjs's `drawVisit`): the screen is
  * patched, not drawn anew, so the focus stays where the coach put it — unless the redraw took that element away.
  */
+import { focusLost } from "../../../core/dom.mjs";
 import { view } from "../../../core/view.mjs";
 import { openerOf } from "./injury.mjs";
 
@@ -29,8 +30,7 @@ export function focusPlace(visit) {
  * @param {ReturnType<typeof focusPlace>} place
  */
 export function restoreFocus(place) {
-  const active = document.activeElement;
-  if (!place || (active && active !== document.body && active.isConnected && !active.hasAttribute("disabled"))) return;
+  if (!place || (!focusLost(document.activeElement) && !document.activeElement.hasAttribute("disabled"))) return;
   const dialog = place.sheet ? view.querySelector("dialog:modal") : null;
   if (dialog) {
     (dialog.querySelector('[aria-checked="true"]') ?? dialog.querySelector("[data-sheet-close]"))?.focus();

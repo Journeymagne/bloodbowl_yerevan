@@ -1,19 +1,21 @@
 /**
- * What the roster says of one player beyond his row: the row opened on a phone, and the panel beside the table
- * on a desk (plan 07a, decisions 20 and 21). Both lead to the player's own page — the 2.x editor until stage
- * 07d — for what the roster does not do yet: advancements, the name, the number, the captaincy.
+ * What the roster says of one player beyond his row: the row opened on a phone, and the panel beside the table on a
+ * desk (plan 07a, decisions 20 and 21). The row leads to his profile (stage 07d); both say why an advancement or an
+ * edit of him is closed (player-access.mjs). The panel's pencil opens his edit (player-sheets.mjs) and its «Advance»
+ * his advancement (advance.mjs), as the profile's do; the undo of his last advancement is his fix by hand's (fix.mjs).
  *
  * The phone's open row holds his SPP counters with − and + (Task 10): outside a match a step is a save of the roster
  * (save.mjs), and the count is the career. The desk's panel holds them only while a match is on (owner's D3,
  * DeskRoster.html): outside one a desk shows his SPP, skills and actions, and his manual SPP edits are stage 07d's
- * player edit — no save of the roster starts from its counters then. A player the roster stores no id for
- * (`line.id === ""`) has no page to lead to — an empty id would make the roster's own address — and no save can name
- * him, so his counters are closed.
+ * player edit, whose window carries the same tiles (player-sheets.mjs) — no save of the roster starts from the panel
+ * then. A player the roster stores no id for (`line.id === ""`) has no page to lead to — an empty id would make the
+ * roster's own address — and no save can name him, so his counters are closed.
  *
  * During a match (Task 11, decision 13) a step is a record of the match, and the count says beside it what the
  * match has added; the switch «Edit outside the match» makes it an edit of the career instead. A desk lays the nine
- * counters out three by three as DeskRosterLive.html (D1). The way to his page is closed until the post-match: an
- * advancement there would change the roster the match's finish checks.
+ * counters out three by three as DeskRosterLive.html (D1). «Advance» and the pencil are closed until the post-match:
+ * an advancement would change the roster the match's finish checks. The phone's way to his profile stays open (K20):
+ * the profile reads, and closes its own writes, saying why.
  *
  * Under it all stands the pair of actions (stages 07b and 07c; StatsHire.html, StatsLive.html, DeskRosterPrep.html,
  * DeskRosterLive.html): first, outside a match, «Miss a match…» for a player who plays the next one, «Back on the
@@ -30,7 +32,6 @@ import { advancementRanks } from "../../../domain/league-rules.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { PLAYER_STATS } from "../../../domain/roster/values.mjs";
 import { renderActionStepper } from "../../../ui/action-stepper.mjs";
-import { renderButton } from "../../../ui/button.mjs";
 import { icon } from "../../../ui/icons.mjs";
 import { assertLinkHref, classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
@@ -38,6 +39,7 @@ import { renderProgressDots } from "../../../ui/progress-dots.mjs";
 import { renderSkillChips } from "../../../ui/skill-chip.mjs";
 import { renderStatStrip } from "../../../ui/stat-strip.mjs";
 import { counterSlots, stepRule } from "./model.mjs";
+import { advanceClosed, advanceHintOf, closedAdvanceMarkup, closedMarkup, editClosed } from "./player-access.mjs";
 
 /**
  * Words with some of their values in bold (DeskRoster.html: «Next match: **Plays**», «Primary: **General**»):
@@ -123,18 +125,6 @@ function nextMatchMarkup(line, screen) {
 
 /** A step is a record of the match on: the match is on and the switch does not make it an edit outside it. */
 const tapsTheMatch = (screen) => screen.mode.kind === "match" && !screen.outside;
-
-/**
- * A control that is closed: a button that says why (`reason`; for a way to the player's page a match has closed,
- * `teamRoster.afterPost`) as its tooltip and, pressed, in a message (wire.mjs), in the look of what it stands for
- * (button.css). With a `glyph` the label is its name for a screen reader, as the pencil's link has it; `data` keeps
- * what names the control (an action's player, a fallen player's undo), so the focus finds it again.
- */
-export function closedMarkup({ className, label, glyph = "", reason = t("teamRoster.afterPost"), data = {} }) {
-  const named = glyph ? ` aria-label="${escapeHtml(label)}"` : "";
-  return `<button type="button" class="${className} g-roster__closed"${named} aria-disabled="true" title="${escapeHtml(reason)}"`
-    + `${dataAttributes({ rosterClosed: true, ...data })}>${glyph ? icon(glyph, 18) : escapeHtml(label)}</button>`;
-}
 
 /**
  * Why no missed match, nor its end, nor a death can be marked for a player just now, "" when it can (stage 07b): a
@@ -233,15 +223,58 @@ export function actionsMarkup(line, screen) {
   return `<div class="g-roster__actions">${first}${sellMarkup(line, screen)}</div>`;
 }
 
+/** Where a skill came from in 07a's words: «starting», «primary», «the captain's». */
+const sourceWords = (skill) => t(`teamRoster.source.${skill.source}`);
+
 /**
- * A player's skills as chips: in his row, or (`card`) as the panel's cards, each saying where it came from.
+ * Where a skill came to him (K29): an advancement's type — on the profile in full and, when it was rolled, how («Random
+ * primary skill · rolled on the site»); in the desk's panel (`short`) as DeskRoster's cards name it («Chosen primary») —
+ * and any other skill in the roster's own words («starting», «the captain's»).
  *
  * @param {import("./model.mjs").PlayerLine} line
- * @param {{card?: boolean}} [options]
+ * @param {import("./model.mjs").PlayerLine["skills"][number]} skill
+ * @param {{short?: boolean}} [options]
  */
-export function skillChipsMarkup(line, { card = false } = {}) {
-  const skills = line.skills.map(({ name, gained, source }) => ({ name, gained, source: card ? t(`teamRoster.source.${source}`) : "" }));
+export function skillSourceOf(line, skill, { short = false } = {}) {
+  const taken = skill.advancement === null ? null : line.advancements[skill.advancement];
+  if (!taken) return sourceWords(skill);
+  if (short) return t(`teamAdvance.typeShort.${taken.type}`);
+  const type = t(`teamAdvance.type.${taken.type}`);
+  return taken.via ? `${type} · ${t(`teamPlayer.via.${taken.via}`)}` : type;
+}
+
+/**
+ * A player's skills as chips: in his row, or (`card`) as the panel's cards, each saying where it came from — in 07a's
+ * words, or as `sourceOf` says it (the profile and the desk's panel name the advancement, K29: `skillSourceOf`).
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {{card?: boolean, sourceOf?: (skill: import("./model.mjs").PlayerLine["skills"][number]) => string}} [options]
+ */
+export function skillChipsMarkup(line, { card = false, sourceOf = sourceWords } = {}) {
+  const skills = line.skills.map((skill) => ({ name: skill.name, gained: skill.gained, source: card ? sourceOf(skill) : "" }));
   return renderSkillChips({ skills, card });
+}
+
+/**
+ * His injuries (spec UI §12, 07b's hand-over): on the profile «Injuries» with a line each — why he misses the next
+ * match, his Niggling Injuries, each lasting one with its characteristic — or that there are none; in the desk's panel
+ * (`desk`) one line of the Niggling Injuries and the lasting ones (the panel says the missed match already), or none.
+ *
+ * @param {import("./model.mjs").PlayerLine} line
+ * @param {{desk?: boolean}} [options]
+ */
+export function injuriesMarkup(line, { desk = false } = {}) {
+  const { niggling, lasting } = line.injuries;
+  const named = [
+    ...(niggling ? [t("teamPlayer.niggling", { count: niggling })] : []),
+    ...lasting.map(({ stat, count }) => t("teamPlayer.lasting", { stat: t(`stats.${stat}`), count })),
+  ];
+  if (desk) return named.length ? `<p class="g-roster__injuries">${escapeHtml(named.join(" · "))}</p>` : "";
+  const all = [...(line.skip ? [t("teamPlayer.misses", { reason: absenceWords(line) })] : []), ...named];
+  const body = all.length
+    ? `<ul class="g-profile__injurylist">${all.map((words) => `<li class="g-profile__injury">${escapeHtml(words)}</li>`).join("")}</ul>`
+    : `<p class="g-profile__none">${escapeHtml(t("teamPlayer.noInjuries"))}</p>`;
+  return `<section class="g-profile__injuries"><h2 class="g-profile__title">${escapeHtml(t("teamPlayer.injuries"))}</h2>${body}</section>`;
 }
 
 /**
@@ -334,7 +367,7 @@ function sumMarkup(sum, words) {
  * What the coach's edits have moved his SPP since the screen opened: «+3 SPP», or none yet. With «Edit outside the
  * match» on, the edits outside it alone: a record of the match made on this visit is none (fix round 1, Minor 4).
  */
-function sessionMarkup(line, screen) {
+export function sessionMarkup(line, screen) {
   const moved = screen.outside ? line.sessionOutside : line.sessionSpp;
   return sumMarkup(moved, t("teamRoster.sppDelta", { delta: `${moved > 0 ? "+" : "−"}${Math.abs(moved)}` }));
 }
@@ -344,17 +377,15 @@ const matchSppOf = (line) => Math.max(0, line.matchSpp);
 
 /**
  * The row of a player opened on a phone: his SPP and what the edits have moved it, his counters, the way to his
- * page, and under it his row of actions. In a match the line says what the match's records give him, and the way to
- * his page waits for its post-match.
+ * profile, and under it his row of actions. In a match the line says what the match's records give him; the way to
+ * his profile stays open (K20).
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./view.mjs").RosterScreen} screen
  */
 export function rowPanelMarkup(line, screen) {
   const href = profileUrl(line, screen);
-  const label = t("teamRoster.profile");
-  const closed = href && screen.mode.kind === "match";
-  const profile = closed ? closedMarkup({ className: "g-btn g-btn--dark g-btn--block", label }) : href ? profileLinkMarkup(label, href) : "";
+  const profile = href ? profileLinkMarkup(t("teamRoster.profile"), href) : "";
   const [context, sum] = tapsTheMatch(screen)
     ? [boldWords("teamRoster.sppLineMatch", { spp: line.earned, match: matchWords(screen.mode) }, ["spp"]), sumMarkup(matchSppOf(line), t("teamRoster.sppDelta", { delta: `+${matchSppOf(line)}` }))]
     : [boldWords("teamRoster.sppLine", { spp: line.earned }, ["spp"]), sessionMarkup(line, screen)];
@@ -371,12 +402,18 @@ export function profileLinkMarkup(label, href) {
   return `<a class="g-btn g-btn--dark g-btn--block" href="${escapeHtml(href)}">${escapeHtml(label)}${icon("chevron", 14)}</a>`;
 }
 
-/** The badge, the name, the position with what he is worth, and the pencil to his page (`closed` in a match). */
-function headMarkup(line, href, closed) {
-  const ariaLabel = t("teamRoster.edit", { name: line.name });
-  let pencil = "";
-  if (href && closed) pencil = closedMarkup({ className: "g-icon-btn g-roster__edit", label: ariaLabel, glyph: "pencil" });
-  else if (href) pencil = `<a class="g-icon-btn g-roster__edit" href="${escapeHtml(href)}" aria-label="${escapeHtml(ariaLabel)}">${icon("pencil", 18)}</a>`;
+/**
+ * The badge, the name, the position with what he is worth, and the pencil, which opens the edit of his number, name and
+ * captaincy (stage 07d, DeskRosterEdit.html) — closed, saying why, in a match, by the screen's lock and for a player no
+ * write can name (`editClosed`); it keeps his key either way, so the focus finds it when the edit closes.
+ */
+function headMarkup(line, screen) {
+  const label = t("teamRoster.edit", { name: line.name });
+  const reason = editClosed(line, screen);
+  const data = { playerEdit: line.key };
+  const pencil = reason
+    ? closedMarkup({ className: "g-icon-btn g-roster__edit", label, glyph: "pencil", reason, data })
+    : `<button type="button" class="g-icon-btn g-roster__edit" aria-haspopup="dialog" aria-label="${escapeHtml(label)}"${dataAttributes(data)}>${icon("pencil", 18)}</button>`;
   return `<div class="g-roster__phead">${renderPlayerBadge({ number: line.number, kind: line.kind, captain: line.captain, large: true })}`
     + `<div class="g-roster__pwho"><h2 class="g-roster__pname">${escapeHtml(line.name)}</h2>`
     + `<p class="g-roster__pline">${escapeHtml(t("teamRoster.value", { position: line.position, value: formatMoney(line.value) }))}</p></div>${pencil}</div>`;
@@ -404,50 +441,50 @@ function manualMarkup(line, screen) {
     + `${sum}</div>${countersMarkup(line, screen, { desk: true })}${note}</section>`;
 }
 
-/** His SPP: what he may spend, what he has earned and spent, his advancements, and the cheapest next one — or, in a match (`closed`), when he may take it. */
-function sppMarkup(line, href, closed) {
-  let cheapest = line.cheapest === null ? t("teamRoster.maxed") : t("teamRoster.cheapest", { spp: line.cheapest });
-  let advance = href ? renderButton({ label: t("teamRoster.advance"), kind: "primary", block: true, href, icon: "up" }) : "";
-  if (closed) {
-    cheapest = t("teamRoster.afterPost");
-    advance = href ? closedAdvanceMarkup() : "";
-  }
+/**
+ * His SPP: what he may spend, what he has earned and spent, his advancements, «Advance» — a button that opens his
+ * advancement's window (DeskRosterAdv.html), closed, saying why, when no advancement can be taken (`advanceClosed`); it
+ * names him either way, so the focus finds it when the window closes — and under it the cheapest one open, or why it
+ * is closed. No undo of his last advancement under them, as DeskRoster.html (decision 40: his fix by hand's).
+ */
+function sppMarkup(line, screen) {
+  const reason = advanceClosed(line, screen);
+  const data = { playerAdvance: line.key };
+  const advance = reason ? closedAdvanceMarkup({ reason, data })
+    : `<button type="button" class="g-btn g-btn--primary g-btn--block" aria-haspopup="dialog"${dataAttributes(data)}>${icon("up", 20)}${escapeHtml(t("teamRoster.advance"))}</button>`;
+  const cheapest = advanceHintOf(line, screen);
   return `<div class="g-roster__spp"><div class="g-roster__spptop">`
     + `<p class="g-roster__avail"><span class="g-roster__availn">${escapeHtml(line.available)}</span> <span class="g-roster__availl">${escapeHtml(t("teamRoster.available"))}</span></p>`
     + `<p class="g-roster__ledger"><span class="g-roster__ledgerline">${escapeHtml(t("teamRoster.earned", { spp: line.earned }))}</span>`
     + `<span class="g-roster__ledgerline">${escapeHtml(t("teamRoster.spent", { spp: line.spent }))}</span></p></div>`
     + renderProgressDots({ total: advancementRanks.length, done: line.level, label: t("teamRoster.advancements") })
-    + `${advance}<p class="g-roster__cheapest">${escapeHtml(cheapest)}</p></div>`;
-}
-
-/** «Advance» closed by a match: the arrow and the words, in reach, saying why (`closedMarkup`'s look and data). */
-function closedAdvanceMarkup() {
-  const reason = t("teamRoster.afterPost");
-  return `<button type="button" class="g-btn g-btn--primary g-btn--block g-roster__closed" aria-disabled="true" title="${escapeHtml(reason)}"`
-    + `${dataAttributes({ rosterClosed: true })}>${icon("up", 20)}${escapeHtml(t("teamRoster.advance"))}</button>`;
+    + `${advance}${cheapest ? `<p class="g-roster__cheapest">${escapeHtml(cheapest)}</p>` : ""}</div>`;
 }
 
 /** A list of skill categories; a position with none in an access has a dash. */
 const categories = (names) => (names.length ? names.join(", ") : "–");
 
-/** His skills as cards with where each came from, and the categories he may take them from, those in bold. */
+/**
+ * His skills as cards with where each came from — an advancement's type as DeskRoster names it — the categories he may
+ * take them from, those in bold, and his injuries in a line.
+ */
 function skillsMarkup(line) {
   const access = boldWords("teamRoster.access", { primary: categories(line.primary), secondary: categories(line.secondary) }, ["primary", "secondary"]);
+  const sourceOf = (skill) => skillSourceOf(line, skill, { short: true });
   return `<section class="g-roster__pblock"><h3 class="g-roster__ptitle">${escapeHtml(t("teamRoster.skills"))}</h3>`
-    + `${skillChipsMarkup(line, { card: true })}<p class="g-roster__access">${access}</p></section>`;
+    + `${skillChipsMarkup(line, { card: true, sourceOf })}<p class="g-roster__access">${access}</p>${injuriesMarkup(line, { desk: true })}</section>`;
 }
 
 /**
  * The panel beside the table on a desk (DeskRoster.html, DeskRosterLive.html): the player the coach chose, or the
- * table's first — his head, his characteristics, in a match the counters, his SPP, his skills, then the next match
- * with the pair of actions under a rule. Stage 07e's «Career» goes under them; nothing is drawn for it until then.
+ * table's first — his head, his characteristics, in a match the counters, his SPP, his skills and his injuries (a line
+ * DeskRoster.html has not, stage 07d), then the next match with the pair of actions under a rule. Stage 07e's «Career»
+ * goes under them (DeskRosterCareer.html); a phone's profile draws its own (career.mjs), the desk's nothing until then.
  *
  * @param {import("./model.mjs").PlayerLine} line
  * @param {import("./view.mjs").RosterScreen} screen
  */
 export function sidePanelMarkup(line, screen) {
-  const href = profileUrl(line, screen);
-  const closed = screen.mode.kind === "match";
-  return `${headMarkup(line, href, closed)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, href, closed)}${skillsMarkup(line)}`
+  return `${headMarkup(line, screen)}${statsMarkup(line)}${manualMarkup(line, screen)}${sppMarkup(line, screen)}${skillsMarkup(line)}`
     + `<section class="g-roster__nextblock">${nextMatchMarkup(line, screen)}${actionsMarkup(line, screen)}</section>`;
 }

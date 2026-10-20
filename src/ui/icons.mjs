@@ -30,6 +30,8 @@ const SHAPES = {
   book: '<path d="M5 5a2 2 0 0 1 2-2h12v16H7a2 2 0 0 0-2 2z"/><path d="M5 21V5"/>',
   settings: '<circle cx="12" cy="12" r="3"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/>',
   shield: '<path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/>',
+  // A picture: its frame and the hills in it (Builder's logo frame, where the team's settings show no logo).
+  image: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 15l5-5 4 4 3-3 6 6"/>',
   // The roster table's: a signal crossed out for a connection that dropped (its hand edit's pencil is above, shared with the treasury).
   offline: '<path d="M3 3l18 18"/><path d="M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 4.6-2.6M14.4 10.3A10 10 0 0 1 19 12.9M2 9.4a15 15 0 0 1 4.2-2.6M12 19.5h.01"/>',
 };

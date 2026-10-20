@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { delegate, escapeHtml, html, isRaw, patch, raw, toHtml } from "../src/core/dom.mjs";
+import { delegate, drawKeepingFocus, escapeHtml, focusLost, html, isRaw, patch, raw, toHtml } from "../src/core/dom.mjs";
 import { createDocument, el, outline } from "./helpers/fake-dom.mjs";
 
 test("escapeHtml neutralises everything that can break out of markup", () => {
@@ -248,4 +248,34 @@ test("patch survives a focused control that has no caret to save", () => {
   patch(live, el(document, "div", {}, el(document, "div", {}, el(document, "input", { "data-key": "spp", type: "number", value: "3" }))));
 
   assert.equal(document.activeElement, live.querySelector('[data-key="spp"]'));
+});
+
+// The overview and the team page across 900px (07d, L22): one test of a lost focus, one place for it to go.
+test("focusLost: no element, the body, a node out of the page, or one a stylesheet hides; drawKeepingFocus moves only a focus the root held and the draw lost", () => {
+  const document = createDocument();
+  const kept = el(document, "button", { id: "kept" });
+  const root = el(document, "section", {}, el(document, "h1", {}, "Title"), kept);
+  document.body.appendChild(root);
+  const title = root.querySelector("h1");
+  assert.deepEqual([focusLost(null), focusLost(document.body), focusLost(el(document, "button", {})), focusLost(kept)], [true, true, true, false]);
+  kept.getClientRects = () => [];
+  assert.equal(focusLost(kept), true, "in the page, but it draws no box");
+  kept.getClientRects = () => [{ width: 40, height: 44 }];
+  assert.equal(focusLost(kept), false);
+
+  // The focused node goes with the draw: the title takes the focus.
+  kept.focus();
+  drawKeepingFocus(root, () => root.removeChild(kept), "h1");
+  assert.equal(document.activeElement, title);
+  // One the draw keeps and shows stays; so does one outside the root.
+  const other = el(document, "button", {});
+  root.appendChild(other);
+  other.focus();
+  drawKeepingFocus(root, () => {}, "h1");
+  assert.equal(document.activeElement, other);
+  const outside = el(document, "button", {});
+  document.body.appendChild(outside);
+  outside.focus();
+  drawKeepingFocus(root, () => document.body.removeChild(outside), "h1");
+  assert.equal(document.activeElement, document.body, "not the root's to move");
 });

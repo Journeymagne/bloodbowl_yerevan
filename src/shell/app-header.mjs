@@ -6,7 +6,10 @@
  * which tab is current, where each leads and what the team's line says all
  * come from it. The caller puts the result in `#app-header`, which carries the
  * `g-appbar` class and the folding (app-header.css). A page that brings its own
- * frame (sign-in) is `bare` and has no header.
+ * frame (sign-in) is `bare` and has no header, nor has an address that is
+ * drilled into (`drill`: a player's or the team's settings): its screen draws
+ * its own head, and the page's `scroll-padding-top` (frame.css) is the larger
+ * of the two heads, the player's, up to 150px.
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
@@ -40,12 +43,12 @@ function renderTab({ label, href, current }) {
 
 /**
  * The content of `#app-header` for a model: the team link (and, for a guest,
- * the way to sign in) over the tabs. Empty for a `bare` page.
+ * the way to sign in) over the tabs. Empty for a `bare` page and a drilled-into one.
  *
  * @param {ReturnType<typeof import("./navigation.mjs").shellModel>} model
  */
 export function renderAppHeader(model) {
-  if (model.mode === "bare") return "";
+  if (model.mode === "bare" || model.drill) return "";
   const login = model.mode === "guest" ? `<a class="g-appbar__login" href="${escapeHtml(authUrl())}">${escapeHtml(t("auth.toLogin"))}</a>` : "";
   return `<div class="g-appbar__bar">${renderTeamLink(model.brand)}${login}</div>`
     + `<nav class="g-tabs" aria-label="${escapeHtml(t("shell.sections"))}">${model.tabs.map(renderTab).join("")}</nav>`;

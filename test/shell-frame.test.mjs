@@ -22,7 +22,9 @@ const { peekReturn, setReturn } = await import("../src/core/return-to.mjs");
 const scrolls = [];
 const scroller = { addEventListener: (type, listener) => scrolls.push(listener), document };
 state.data = { teams: [], generatedAt: "2026-10-07T10:00:00Z" };
-mountShell({ document, scroller });
+// What «New team» of the switcher is handed (stage 07d): the team block's button and the way back, as the app's sheet would be.
+const newTeams = [];
+mountShell({ document, scroller, onNewTeam: (button, options) => newTeams.push({ button, ...options }) });
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 /** Every script and stylesheet under src, as paths from the root of the repository. */
 const sources = () => readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => /\.(css|m?js)$/.test(name)).map((name) => `src/${name}`);
@@ -384,15 +386,26 @@ test("choosing a team on a team page goes to the same section of the other one; 
 
 test("choosing the team whose page it is only closes the switcher: a player's page does not jump to the roster", async () => {
   await asCoach("#/t/t1/roster/p1", async () => {
+    // Stage 07d (owner's answer 1): a player's address is drilled into — a phone's header, and its switcher, are not drawn there.
     refreshShell({ name: "teamPlayer", params: { teamId: "t1", playerId: "p1" } });
-    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    assert.equal(document.querySelector("#app-header [data-team-switcher]"), null, "no switcher in the header of a player's address");
+    // A desk's SideNav keeps its team block there: the team whose page it is only closes the switcher, and the player stays.
+    fireEvent(document.querySelector("#side-nav [data-team-switcher]"), "click");
     assert.equal(switcherHost().querySelector('[data-switch-team="t1"]').getAttribute("aria-current"), "true");
     fireEvent(switcherHost().querySelector('[data-switch-team="t1"]'), "click");
     await flush();
     assert.equal(switcherHost().querySelector("dialog"), null, "closed");
     assert.equal(location.hash, "#/t/t1/roster/p1", "the player stays");
+    // From a page with a header, the team's roster: the same team only closes it, the other team is the roster of that team.
+    globalThis.location = { hash: "#/t/t1/roster" };
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
+    assert.equal(switcherHost().querySelector('[data-switch-team="t1"]').getAttribute("aria-current"), "true");
+    fireEvent(switcherHost().querySelector('[data-switch-team="t1"]'), "click");
+    await flush();
+    assert.equal(switcherHost().querySelector("dialog"), null, "closed");
+    assert.equal(location.hash, "#/t/t1/roster", "the page stays");
     assert.equal(api.calls.length, 0, "nothing is sent: it was the active team already");
-    // The other team from the same page is still the roster of that team.
     fireEvent(document.querySelector("#app-header [data-team-switcher]"), "click");
     fireEvent(switcherHost().querySelector('[data-switch-team="t2"]'), "click");
     assert.equal(location.hash, "#/t/t2/roster");
@@ -419,11 +432,72 @@ test("a link in the switcher closes it, and a route change closes it too; a redr
     fireEvent(document.querySelector("#side-nav [data-team-switcher]"), "click");
     refreshShell();
     assert.ok(openDialog(), "the games came in, the frame is drawn again: the switcher stays");
-    fireEvent(switcherHost().querySelector("a.g-switcher__new"), "click");
-    assert.equal(switcherHost().querySelector("dialog"), null, "the way to a new team closes it");
+    fireEvent(switcherHost().querySelector("a.g-switcher__all"), "click");
+    assert.equal(switcherHost().querySelector("dialog"), null, "the way to all the teams closes it");
     fireEvent(document.querySelector("#side-nav [data-team-switcher]"), "click");
     refreshShell({ name: "season", params: {} });
     assert.equal(switcherHost().querySelector("dialog"), null, "a new page takes it with it");
+  });
+});
+
+test("«New team» in the switcher: the switcher closes, onNewTeam is handed the team block's button and a way back that opens the switcher again", async () => {
+  await asCoach("#/t/t1/roster", () => {
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    for (const selector of ["#side-nav [data-team-switcher]", "#app-header [data-team-switcher]"]) {
+      newTeams.length = 0;
+      const opener = document.querySelector(selector);
+      fireEvent(opener, "click");
+      fireEvent(switcherHost().querySelector("[data-switcher-new]"), "click");
+      assert.equal(switcherHost().querySelector("dialog"), null, `${selector}: the switcher is closed before the sheet opens: one modal dialog at a time`);
+      assert.equal(newTeams.length, 1, "pressed once, reported once");
+      assert.ok(newTeams[0].button === opener, "it is handed the team block the switcher was opened from: the sheet gives the focus back to it");
+      assert.deepEqual(Object.keys(newTeams[0]).sort(), ["back", "button"]);
+      assert.ok(document.activeElement === opener, "closing gave it the focus, as for any way out; the sheet takes it where it opens");
+      // The way back (the sheet's «‹» or «← My teams») opens the switcher again, from the coach's list as it stands.
+      document.querySelector("#app-view").focus();
+      newTeams[0].back();
+      assert.ok(openDialog().isModal, "the switcher is open, modal, in its host");
+      assert.deepEqual(switcherHost().querySelectorAll("[data-switch-team]").map((row) => row.getAttribute("data-switch-team")), ["t1", "t2"]);
+      // Where the focus goes on opening is the browser's (see above); closing it gives it back to the same button.
+      fireEvent(switcherHost().querySelector("[data-sheet-close]"), "click");
+      assert.equal(switcherHost().querySelector("dialog"), null);
+      assert.ok(document.activeElement === opener, `${selector}: the switcher that came back closes onto the block, as the first did`);
+    }
+    // Escape closes the switcher that came back, too.
+    const opener = document.querySelector("#app-header [data-team-switcher]");
+    fireEvent(opener, "click");
+    fireEvent(switcherHost().querySelector("[data-switcher-new]"), "click");
+    newTeams.at(-1).back();
+    document.querySelector("#app-view").focus();
+    fireEvent(openDialog(), "keydown", { key: "Escape" });
+    assert.equal(switcherHost().querySelector("dialog"), null);
+    assert.ok(document.activeElement === opener);
+    // A choice made in the switcher that came back keeps the section, as in the first.
+    fireEvent(opener, "click");
+    fireEvent(switcherHost().querySelector("[data-switcher-new]"), "click");
+    newTeams.at(-1).back();
+    fireEvent(switcherHost().querySelector('[data-switch-team="t2"]'), "click");
+    assert.equal(location.hash, "#/t/t2/roster");
+    assert.equal(switcherHost().querySelector("dialog"), null);
+  });
+});
+
+// Stage 07d final review m1, for the switcher too: the phone header's block is hidden on a desk (app-header.css), still in the page.
+test("a switcher closed after the width hid the block it was opened from gives the focus to the screen's title", async () => {
+  await asCoach("#/t/t1/roster", () => {
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    const screen = document.querySelector("#app-view");
+    screen.innerHTML = '<h1 tabindex="-1">Roster</h1>';
+    try {
+      const opener = document.querySelector("#app-header [data-team-switcher]");
+      fireEvent(opener, "click");
+      opener.getClientRects = () => [];
+      fireEvent(openDialog(), "keydown", { key: "Escape" });
+      assert.equal(switcherHost().querySelector("dialog"), null);
+      assert.ok(document.activeElement === screen.querySelector("h1"), "not the hidden block, nor the body");
+    } finally {
+      screen.innerHTML = "";
+    }
   });
 });
 
