@@ -143,7 +143,7 @@ function choiceRow(kind, label, value, options) {
 }
 
 function logoRow(logoData) {
-  const picture = LOGO_DATA_URL.test(logoData) ? `<img src="${escapeHtml(logoData)}" alt="">` : icon("shield", 18);
+  const picture = LOGO_DATA_URL.test(logoData) ? `<img src="${escapeHtml(logoData)}" alt="">` : icon("image", 18);
   const remove = LOGO_DATA_URL.test(logoData) ? renderButton({ label: t("savedRoster.removeLogo"), data: { newTeamLogoRemove: true } }) : "";
   return `<div class="g-build__row g-build__row--logo"><span class="g-build__logo-line"><span class="g-build__logo">${picture}</span>`
     + `<span class="g-build__logo-text"><span class="g-build__logo-name">${escapeHtml(t("newTeam.logo"))}</span><span class="g-build__hint">${escapeHtml(t("newTeam.logoNote"))}</span></span></span>`

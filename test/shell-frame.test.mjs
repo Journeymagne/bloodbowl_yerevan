@@ -482,6 +482,25 @@ test("«New team» in the switcher: the switcher closes, onNewTeam is handed the
   });
 });
 
+// Stage 07d final review m1, for the switcher too: the phone header's block is hidden on a desk (app-header.css), still in the page.
+test("a switcher closed after the width hid the block it was opened from gives the focus to the screen's title", async () => {
+  await asCoach("#/t/t1/roster", () => {
+    refreshShell({ name: "teamRoster", params: { teamId: "t1" } });
+    const screen = document.querySelector("#app-view");
+    screen.innerHTML = '<h1 tabindex="-1">Roster</h1>';
+    try {
+      const opener = document.querySelector("#app-header [data-team-switcher]");
+      fireEvent(opener, "click");
+      opener.getClientRects = () => [];
+      fireEvent(openDialog(), "keydown", { key: "Escape" });
+      assert.equal(switcherHost().querySelector("dialog"), null);
+      assert.ok(document.activeElement === screen.querySelector("h1"), "not the hidden block, nor the body");
+    } finally {
+      screen.innerHTML = "";
+    }
+  });
+});
+
 test("a switcher closed over a button that is gone, as a guest's block is a link, does not look for it", async () => {
   await asCoach("#/t/t1/roster", () => {
     refreshShell({ name: "teamRoster", params: { teamId: "t1" } });

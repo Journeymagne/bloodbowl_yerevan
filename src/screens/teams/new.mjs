@@ -21,6 +21,7 @@ import { t } from "../../core/i18n.mjs";
 import { fileToOptimizedLogoDataUrl, logoUploadMaxBytes } from "../../core/logo-upload.mjs";
 import { teamUrl, teamsUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
+import { state } from "../../core/state.mjs";
 import { forgetRetiredKeys } from "../../core/storage.mjs";
 import { view } from "../../core/view.mjs";
 import { patchWithModal } from "../../components/dialog.mjs";
@@ -31,7 +32,7 @@ import { setRosterCaptain } from "../../domain/roster/players.mjs";
 import { teamFavouredOptions, teamLeagueOptions } from "../../domain/roster/team-rules.mjs";
 import { buildRefusalText, builderMarkup, wireBuilder } from "./builder-view.mjs";
 import { askBeforeLeaving, buildOf, endBuild, hasBuild, isCurrentBuild, onBuildStarted } from "./new-flow.mjs";
-import { askNewTeamSheet, openNewTeamSheet, sayInNewTeamSheet } from "./new-sheet.mjs";
+import { askNewTeamSheet, openNewTeamSheet, sayCreatedInNewTeamSheet, sayInNewTeamSheet } from "./new-sheet.mjs";
 
 /** What a logo may be once it is read: the pictures the file field offers, and the WebP the optimiser makes of them (the team's settings take one so too). */
 export const LOGO_DATA_URL = /^data:image\/(?:png|jpeg|webp);base64,/;
@@ -191,7 +192,9 @@ async function save(build) {
   // Another tab has moved the token while the request was out: the page is about to read the session again, and the
   // team is not for whoever is signed in now, so it is neither told of nor opened (the list is read again with the session).
   if (tokenMoved()) return;
-  toast(t("newTeam.created", { name: request.name }));
+  const created = t("newTeam.created", { name: request.name });
+  // Over another screen, a sheet left open on this build says it there and takes the next build (the page under it is inert).
+  if (visit?.open || !sayCreatedInNewTeamSheet(build, created)) toast(created);
   // In place of the builder's address: «Back» from the overview leads where the coach was before, not to a sheet for another team.
   if (visit?.open) location.replace(teamUrl(answer.team.id));
 }
@@ -203,6 +206,9 @@ async function save(build) {
 export function renderNewTeam() {
   // The 2.x builder's draft is not offered back; it is erased, since its logo can hold much of the browser's quota.
   forgetRetiredKeys();
+  // Nobody signed in: a session read again (the router sends a guest to sign in first). `hasBuild` still counts the
+  // coach's held build, but `buildOf` would put an empty one in its place: nothing is drawn, and the announce draws it.
+  if (!state.auth.currentUser) return;
   if (!hasBuild()) {
     askNewTeamSheet();
     location.replace(teamsUrl());

@@ -21,7 +21,7 @@
  * the frame imports no screen).
  */
 import { patchWithModal } from "../components/dialog.mjs";
-import { delegate, patch } from "../core/dom.mjs";
+import { delegate, focusLost, patch } from "../core/dom.mjs";
 import { getLocale } from "../core/i18n.mjs";
 import { requestLocale } from "../core/locale-request.mjs";
 import { setReturn } from "../core/return-to.mjs";
@@ -135,14 +135,15 @@ function openSwitcher(button) {
 
 /**
  * Take the switcher away, if it is open, and give the focus back to the button that opened it, if that
- * button is still on the page (a coach who signed out has a link there now).
+ * button is still on the page and shown (`focusLost`: a coach who signed out has a link there now; a width
+ * that crossed 900px hides the phone header's block); else the screen's title takes it, never the body.
  */
 function closeSwitcher() {
   if (!opener) return;
   const button = opener;
   opener = null;
   patch(parts.switcher, "");
-  if (button.isConnected) button.focus();
+  (focusLost(button) ? parts.frame.ownerDocument?.querySelector("#app-view h1") : button)?.focus();
 }
 
 /**

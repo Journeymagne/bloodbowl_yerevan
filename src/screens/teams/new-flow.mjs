@@ -79,7 +79,8 @@ export function buildOf() {
 /**
  * Whether the coach has begun a build: the builder's address draws it, and without one is «My teams» with the sheet.
  * It only reads, and puts no new build in place of the one in memory, as `buildOf` would while a session is read
- * again: then nobody is signed in, and the build held is still the coach's (see below).
+ * again: then nobody is signed in, and the build held is still the coach's (see below). A caller that goes on to
+ * `buildOf` asks it only with a coach signed in (`renderNewTeam`).
  */
 export function hasBuild() {
   const coachId = state.auth.currentUser?.id;

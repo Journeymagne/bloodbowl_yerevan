@@ -8,17 +8,25 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 
-// Node has no window events: the builder and the sheet ask the page before a reload, the sheet hears the address change; the test is the page.
+/*
+ * Node has no window events: the builder and the sheet ask the page before a reload, the sheet hears the address change;
+ * the test is the page. Nor has Node's EventTarget a browser's order at the target, where the listeners added with
+ * `capture` are heard before the others (DOM): the page keeps them apart, and is told of a change of address in that order.
+ */
 const page = new EventTarget();
-globalThis.addEventListener = page.addEventListener.bind(page);
-globalThis.removeEventListener = page.removeEventListener.bind(page);
+const capturing = new EventTarget();
+const targetOf = (options) => (options === true || options?.capture ? capturing : page);
+globalThis.addEventListener = (type, listener, options) => targetOf(options).addEventListener(type, listener, options);
+globalThis.removeEventListener = (type, listener, options) => targetOf(options).removeEventListener(type, listener, options);
 
 /*
- * The router hears the address from the start (src/app.js), so on one hashchange it is heard before the sheet, which
- * listens from its first opening on. `routes` is what a test lets it draw: an address and the screen drawn there.
+ * The router hears the address from the start (src/app.js), with no capture: on one hashchange the sheet, which listens
+ * with it from its first opening on, is heard first. `routes` is what a test lets it draw: an address and the screen drawn
+ * there. On a change of session the router is heard first (src/app.js listens from the start): `sessionRoute` is what it draws then.
  */
 let routes = {};
 page.addEventListener("hashchange", () => routes[location.hash]?.());
+let sessionRoute = null;
 
 /** The address bar: what was assigned and what was replaced, in order. A replace() changes the hash at once; the hashchange after it is the test's to send. */
 function address(hash) {
@@ -32,8 +40,11 @@ function address(hash) {
   };
 }
 
-/** The page hears a change of address: the router first, then the sheet. */
-const hashChanged = () => page.dispatchEvent(new Event("hashchange"));
+/** The page hears a change of address: the sheet first (it listens with capture), then the router. */
+const hashChanged = () => {
+  capturing.dispatchEvent(new Event("hashchange"));
+  page.dispatchEvent(new Event("hashchange"));
+};
 function go(hash) {
   location.hash = hash;
   hashChanged();
@@ -64,7 +75,8 @@ const { state } = await import("../src/core/state.mjs");
 const { storage } = await import("../src/core/storage.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { expandCollections } = await import("../src/data/reference.mjs");
-const { loadSession, sessionEnded } = await import("../src/data/session.mjs");
+const { loadSession, onSessionChange, sessionEnded } = await import("../src/data/session.mjs");
+onSessionChange(() => sessionRoute?.());
 const shell = await import("../src/shell/shell.mjs");
 const { builderStaffMaximums } = await import("../src/domain/league-rules.mjs");
 const { rowsForTeam } = await import("../src/domain/roster/values.mjs");
@@ -361,7 +373,7 @@ test("#/teams/new with no build is «My teams» with the sheet open over it; wit
     "#/teams/new": () => { releaseCurrentScreen(); renderNewTeam(); },
     "#/teams": () => { releaseCurrentScreen(); renderTeams(); },
   };
-  // A sheet opened and closed before: its listener is on the page now, after the router's (L1).
+  // A sheet opened and closed before: its listener is on the page now, heard before the router's (L1).
   openNewTeamSheet(null);
   click(sheet().querySelector("[data-sheet-close]"));
   go("#/teams/new");
@@ -369,7 +381,7 @@ test("#/teams/new with no build is «My teams» with the sheet open over it; wit
   assert.equal(isOpen(), false, "nothing over the page before it is drawn");
   hashChanged();
   assert.equal(view.querySelector("h1").textContent, "My teams");
-  assert.ok(sheet()?.matches(":modal"), "the sheet is open over it: the router drew it before the sheet heard the same change, and it stays");
+  assert.ok(sheet()?.matches(":modal"), "the sheet is open over it: the sheet heard the change before the router drew «My teams» and opened it there, and it stays");
   assert.ok(document.activeElement === field());
   escape();
   assert.ok(document.activeElement === view.querySelector("[data-new-team]"), "closed, the focus is on the page's own way to a new team");
@@ -483,6 +495,53 @@ test("the cross, the backdrop and Escape close it with the focus back where it w
   assert.ok(isOpen(), "the address is the one it was opened on");
   go("#/season");
   assert.equal(isOpen(), false, "«Back» of the browser, or any other change of address");
+});
+
+// Final review m1: a screen the router draws while the modal sheet stands over the page cannot take the focus (it is inert).
+test("a change of address closes the sheet before the router draws the screen there, which can take the focus then", () => {
+  fillLegal();
+  const overview = '<section><h1 tabindex="-1">Ashgrove Wardens</h1><button type="button" data-opener>Ashgrove Wardens</button></section>';
+  const drawn = [];
+  routes = {
+    "#/t/t1": () => { releaseCurrentScreen(); view.innerHTML = overview; },
+    "#/teams/new": () => { drawn.push(isOpen()); releaseCurrentScreen(); renderNewTeam(); },
+  };
+  go("#/t/t1");
+  openNewTeamSheet(view.querySelector("[data-opener]"));
+  // «Back» of the browser: the builder, which is drawn at once and gives its title the focus.
+  go("#/teams/new");
+  assert.deepEqual(drawn, [false], "the sheet was gone when the builder was drawn");
+  assert.equal(isOpen(), false);
+  assert.ok(document.activeElement === view.querySelector("h1") && view.querySelector("h1").textContent === "Iron Rooks");
+  routes = {};
+});
+
+test("a change of session drawn under the sheet first: the sheet goes, and the focus it held goes to the screen's title", () => {
+  start();
+  openNewTeamSheet(drawPage());
+  try {
+    // The router draws the route again before the sheet hears of it (src/app.js); the modal sheet keeps the title from the focus.
+    sessionRoute = () => { view.innerHTML = '<section><h1 tabindex="-1">Sign in</h1><a href="#/login" data-opener>Sign in</a></section>'; };
+    sessionEnded();
+  } finally {
+    sessionRoute = null;
+  }
+  assert.equal(isOpen(), false);
+  assert.ok(document.activeElement === view.querySelector("h1"), "not the body, nor the name field gone with the sheet");
+});
+
+test("closed by the coach, the sheet gives the focus to the title when the width has hidden what it was opened from", () => {
+  start();
+  const opener = drawPage();
+  openNewTeamSheet(opener);
+  // A phone's team block on a desk (app-header.css hides the header from 901px): still in the page, drawing no box.
+  opener.getClientRects = () => [];
+  escape();
+  assert.ok(document.activeElement === view.querySelector("h1"));
+  openNewTeamSheet(opener);
+  opener.getClientRects = () => [{ width: 200, height: 44 }];
+  escape();
+  assert.ok(document.activeElement === opener, "shown, it takes the focus back");
 });
 
 test("a change of session closes it: a session that ends, the same coach read again; a press on a sheet whose build has gone begins nothing", async () => {
@@ -699,10 +758,12 @@ test("a refusal that comes while the sheet is open is said in the sheet, where t
     let gate = api.hold("POST /api/teams");
     click(save());
     click("[data-new-team-restart]");
+    const [input, races] = [field(), sheet().querySelector(".g-races")];
     gate.release();
     await settle();
     const alert = () => sheet()?.querySelector('[role="alert"]') ?? null;
     assert.ok(alert(), "in the sheet: the page under a modal sheet is inert, its toast and its line neither seen nor heard");
+    assert.ok(field() === input && sheet().querySelector(".g-races") === races, "the alert is put in front of the name and the races, which stay the same nodes (T39 N1)");
     const said = alert().textContent.trim();
     assert.ok(said.length > 0);
     assert.deepEqual(toasts(), [], "no toast behind the backdrop");
@@ -729,6 +790,38 @@ test("a refusal that comes while the sheet is open is said in the sheet, where t
     escape();
     assert.equal(document.querySelectorAll('[role="alert"]').length, 0, "closed, nothing says it again");
     assert.deepEqual(toasts(), []);
+  });
+});
+
+// Final review m2: the coach left the builder while its save was on its way, and opened «New team» over another screen.
+test("a save that goes through under the sheet showing its build: the sheet takes the next build, empty, says the team is made, and «Create» works", async () => {
+  await withoutTimers(async () => {
+    fillLegal(); // Iron Rooks, Human, 555k
+    api.reply("POST /api/teams", 201, { team: { id: "t9", name: "Iron Rooks" } });
+    const gate = api.hold("POST /api/teams");
+    click(save());
+    releaseCurrentScreen();
+    go("#/teams");
+    openNewTeamSheet(drawPage());
+    assert.deepEqual([field().value, Boolean(document.querySelector(".g-races__resets"))], ["Iron Rooks", true], "the build on its way");
+    const input = field();
+    gate.release();
+    await settle();
+    assert.ok(isOpen(), "the sheet stays where the coach is");
+    assert.equal(sheet().querySelector('[role="status"]')?.textContent.trim(), "Iron Rooks is created", "and says it: the page under it is inert");
+    assert.deepEqual(toasts(), [], "no toast behind the backdrop");
+    assert.ok(field() === input && field().value === "", "the next build, empty, drawn in place");
+    assert.equal(document.querySelector(".g-races__resets"), null, "with no squad to lose");
+    assert.equal(location.hash, "#/teams", "the coach stays on the screen they went to");
+    type("#new-team-name", "Second Rooks");
+    click('[data-race="teams/human"]');
+    click(create());
+    assert.equal(isOpen(), false);
+    assert.deepEqual([location.hash, location.assigned.at(-1)], ["#/teams/new", "#/teams/new"], "«Create» begins the next build");
+    routes = { "#/teams/new": () => { releaseCurrentScreen(); renderNewTeam(); } };
+    hashChanged();
+    assert.deepEqual([view.querySelector("h1").textContent, count()], ["Second Rooks", "0"]);
+    routes = {};
   });
 });
 
@@ -908,58 +1001,62 @@ test("a session that stays, or changes to the same coach's again, keeps the buil
 test("the build's memory is one module's: buildOf, hasBuild, pickOf, setPick, startBuild — a session that ends starts from nothing", async () => {
   // Imported here, not at the top: the first test that names the module must fail alone when it is missing, not the whole file.
   const memory = await import("../src/screens/teams/new-flow.mjs");
+  releaseCurrentScreen(); // the visit the test before left open hears no build begun here
   coaches += 1;
   state.data = data.en;
   signIn();
-  const heard = [];
-  const stop = memory.onBuildStarted(() => heard.push(memory.buildOf().draft?.teamSlug));
   assert.equal(memory.hasBuild(), false, "a coach with no build begun");
   const build = memory.buildOf();
-  assert.equal(build.userId, state.auth.currentUser.id);
-  assert.equal(build.draft, null);
-  assert.equal(Object.hasOwn(build, "step"), false, "the first step is a sheet now, not a step of the build");
-  assert.equal(memory.buildOf(), build, "the same build, however often it is asked for");
-  assert.ok(memory.isCurrentBuild(build));
-  assert.deepEqual(memory.pickOf(), { name: "", raceSlug: "", resets: false });
-  assert.equal(memory.startBuild(), false, "no name and no race, no build");
-  memory.setPick({ name: "  Iron Rooks  " });
-  assert.equal(memory.startBuild(), false, "a name and no race, no build");
-  memory.setPick({ raceSlug: "teams/human" });
-  assert.deepEqual(memory.pickOf(), { name: "  Iron Rooks  ", raceSlug: "teams/human", resets: false }, "setPick changes the fields it is given and no others");
-  const realNow = Date.now;
-  try {
-    Date.now = () => 1_000_000;
-    assert.equal(memory.startBuild(), true);
-    assert.equal(memory.hasBuild(), true);
-    assert.equal(build.draft.teamName, "Iron Rooks", "the name is trimmed where it is used");
-    assert.equal(build.draft.teamSlug, "teams/human");
-    assert.equal(build.startedAt, 1_000_000);
-    assert.deepEqual(heard, ["teams/human"], "the listener is told once, with the draft already there");
-    const draft = build.draft;
-    build.draft.players.push({ id: "p1" });
-    assert.equal(memory.pickOf().resets, true, "a squad that was begun is what going on to another race would lose");
-    assert.equal(memory.holdsPicks(null), false);
-    Date.now = () => 2_000_000;
-    memory.setPick({ name: "Rooks Reborn" });
-    assert.equal(memory.startBuild(), true);
-    assert.equal(build.draft, draft, "the same race keeps the draft");
-    assert.equal(build.draft.teamName, "Rooks Reborn", "and only renames it");
-    assert.equal(build.startedAt, 1_000_000, "and the moment it began");
-    Object.assign(build, { rosterOpen: true, choice: "league", refusal: "not this" });
-    Date.now = () => 3_000_000;
-    memory.setPick({ raceSlug: "teams/norse" });
-    assert.equal(memory.startBuild(), true);
-    assert.notEqual(build.draft, draft, "another race starts the draft again");
-    assert.equal(build.draft.teamSlug, "teams/norse");
-    assert.equal(build.draft.players.length, 0);
-    assert.equal(build.startedAt, 3_000_000, "from a new moment");
-    assert.deepEqual([build.rosterOpen, build.choice, build.refusal], [false, null, ""], "with the list shut, no sheet open and nothing refused");
+  const heard = [];
+  const stop = memory.onBuildStarted(() => heard.push(memory.buildOf().draft?.teamSlug));
+  try { // a failure here must not leave the listener on for the tests after it
+    assert.equal(build.userId, state.auth.currentUser.id);
+    assert.equal(build.draft, null);
+    assert.equal(Object.hasOwn(build, "step"), false, "the first step is a sheet now, not a step of the build");
+    assert.equal(memory.buildOf(), build, "the same build, however often it is asked for");
+    assert.ok(memory.isCurrentBuild(build));
+    assert.deepEqual(memory.pickOf(), { name: "", raceSlug: "", resets: false });
+    assert.equal(memory.startBuild(), false, "no name and no race, no build");
+    memory.setPick({ name: "  Iron Rooks  " });
+    assert.equal(memory.startBuild(), false, "a name and no race, no build");
+    memory.setPick({ raceSlug: "teams/human" });
+    assert.deepEqual(memory.pickOf(), { name: "  Iron Rooks  ", raceSlug: "teams/human", resets: false }, "setPick changes the fields it is given and no others");
+    const realNow = Date.now;
+    try {
+      Date.now = () => 1_000_000;
+      assert.equal(memory.startBuild(), true);
+      assert.equal(memory.hasBuild(), true);
+      assert.equal(build.draft.teamName, "Iron Rooks", "the name is trimmed where it is used");
+      assert.equal(build.draft.teamSlug, "teams/human");
+      assert.equal(build.startedAt, 1_000_000);
+      assert.deepEqual(heard, ["teams/human"], "the listener is told once, with the draft already there");
+      const draft = build.draft;
+      build.draft.players.push({ id: "p1" });
+      assert.equal(memory.pickOf().resets, true, "a squad that was begun is what going on to another race would lose");
+      assert.equal(memory.holdsPicks(null), false);
+      Date.now = () => 2_000_000;
+      memory.setPick({ name: "Rooks Reborn" });
+      assert.equal(memory.startBuild(), true);
+      assert.equal(build.draft, draft, "the same race keeps the draft");
+      assert.equal(build.draft.teamName, "Rooks Reborn", "and only renames it");
+      assert.equal(build.startedAt, 1_000_000, "and the moment it began");
+      Object.assign(build, { rosterOpen: true, choice: "league", refusal: "not this" });
+      Date.now = () => 3_000_000;
+      memory.setPick({ raceSlug: "teams/norse" });
+      assert.equal(memory.startBuild(), true);
+      assert.notEqual(build.draft, draft, "another race starts the draft again");
+      assert.equal(build.draft.teamSlug, "teams/norse");
+      assert.equal(build.draft.players.length, 0);
+      assert.equal(build.startedAt, 3_000_000, "from a new moment");
+      assert.deepEqual([build.rosterOpen, build.choice, build.refusal], [false, null, ""], "with the list shut, no sheet open and nothing refused");
+    } finally {
+      Date.now = realNow;
+    }
+    assert.equal(memory.pickOf().resets, false);
+    assert.deepEqual(heard, ["teams/human", "teams/human", "teams/norse"]);
   } finally {
-    Date.now = realNow;
+    stop();
   }
-  assert.equal(memory.pickOf().resets, false);
-  assert.deepEqual(heard, ["teams/human", "teams/human", "teams/norse"]);
-  stop();
   assert.equal(memory.startBuild(), true);
   assert.equal(heard.length, 3, "a listener taken off hears no more");
   // While a session is read again nobody is signed in and nothing has been announced: the coach's build is still theirs.
@@ -1014,10 +1111,18 @@ test("another tab moves the token: while the session is read again nobody is sig
   view.querySelector("[data-new-team-restart]").focus();
   click("[data-new-team-restart]");
   assert.equal(isOpen(), false, "nobody signed in: a sheet opened now would put an empty build in place of the coach's");
+  // The builder's address drawn while nobody is signed in asks for no build either (T39 N2): the announce draws it again.
+  releaseCurrentScreen();
+  view.innerHTML = "";
+  const moves = [location.assigned.length, location.replaced.length];
+  renderNewTeam();
+  assert.equal(view.querySelector("h1"), null, "it draws nothing");
+  assert.deepEqual([location.assigned.length, location.replaced.length], moves, "and goes nowhere");
   state.auth.currentUser = coach;
   releaseCurrentScreen();
   renderNewTeam();
   assert.equal(count(), "5", "the same coach is back to the build they left");
+  assert.deepEqual([location.assigned.length, location.replaced.length], moves, "on the builder's address");
 });
 
 test("the league and the alignment are chosen from a sheet, and the focus goes back to the button that opened it (K6b)", () => {
@@ -1118,6 +1223,14 @@ test("the numbers, the names and the captain are the coach's, and reach the serv
     assert.deepEqual(players.map((player) => Boolean(player.isCaptain)), [false, true, false, false, false, false, false, false]);
     assert.equal(players[1].id, second.getAttribute("data-captain"));
   });
+});
+
+test("with no logo the builder's frame draws Builder.html's picture glyph, not a shield", () => {
+  open();
+  const svg = view.querySelector(".g-build__logo svg.g-icon");
+  assert.equal(svg.getAttribute("width"), "18");
+  assert.deepEqual(svg.querySelectorAll("rect").map((rect) => ["x", "y", "width", "height", "rx"].map((name) => rect.getAttribute(name))), [["3", "5", "18", "14", "2"]]);
+  assert.deepEqual(svg.querySelectorAll("path").map((path) => path.getAttribute("d")), ["M3 15l5-5 4 4 3-3 6 6"]);
 });
 
 test("a logo of up to 2 MB is shown and sent; a larger one is refused in words; taking it away gives the focus to the file field", async () => {
@@ -1479,44 +1592,51 @@ test("with the app's own shell: the team block opens the switcher, «New team» 
     el(document, "aside", { id: "side-nav" }), el(document, "header", { id: "app-header" }), el(document, "footer", { id: "site-footer" }));
   document.body.appendChild(frame);
   start();
-  state.myTeams = { items: [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true }], loaded: true, loading: false, error: "" };
-  state.activeTeamId = "t1";
-  mountShell({ document, scroller: { addEventListener() {}, document }, onNewTeam: openNewTeamSheet });
-  refreshShell({ name: "team", params: { teamId: "t1" } });
-  const switcher = () => document.querySelector("dialog#team-switcher");
-  const press = (selector) => click(document.querySelector(selector));
-  for (const where of ["#side-nav", "#app-header"]) {
-    const block = document.querySelector(`${where} [data-team-switcher]`);
-    press(`${where} [data-team-switcher]`);
-    assert.ok(switcher() !== null && !isOpen(), `${where}: the switcher is open`);
+  const before = { myTeams: state.myTeams, activeTeamId: state.activeTeamId };
+  try {
+    state.myTeams = { items: [{ id: "t1", name: "Ashgrove Wardens", baseTeamSlug: "teams/human", stage: "active", inActiveSeason: true }], loaded: true, loading: false, error: "" };
+    state.activeTeamId = "t1";
+    mountShell({ document, scroller: { addEventListener() {}, document }, onNewTeam: openNewTeamSheet });
+    refreshShell({ name: "team", params: { teamId: "t1" } });
+    const switcher = () => document.querySelector("dialog#team-switcher");
+    const press = (selector) => click(document.querySelector(selector));
+    for (const where of ["#side-nav", "#app-header"]) {
+      const block = document.querySelector(`${where} [data-team-switcher]`);
+      press(`${where} [data-team-switcher]`);
+      assert.ok(switcher() !== null && !isOpen(), `${where}: the switcher is open`);
+      press("[data-switcher-new]");
+      assert.deepEqual([switcher() === null, isOpen()], [true, true], "«New team»: the switcher is gone and the sheet stands over the screen, one modal dialog at a time");
+      assert.ok(sheet().querySelector("[data-sheet-back]") && sheet().querySelector("[data-new-team-back]"), "with the way back, which only the switcher's sheet has");
+      click("[data-new-team-back]");
+      assert.deepEqual([switcher() !== null, isOpen()], [true, false], "the way back: the switcher again, the sheet gone");
+      press("[data-switcher-new]");
+      type("#new-team-name", "Iron Rooks");
+      click(sheet().querySelector("[data-sheet-back]"));
+      assert.deepEqual([switcher() !== null, isOpen()], [true, false]);
+      press("[data-switcher-new]");
+      assert.equal(field().value, "Iron Rooks");
+      click(sheet().querySelector("[data-sheet-close]"));
+      assert.deepEqual([switcher() === null, isOpen()], [true, false], "the cross leaves both");
+      assert.ok(document.activeElement === block, `${where}: the focus is on the team block`);
+    }
+    // Escape over the sheet, too.
+    press("#app-header [data-team-switcher]");
     press("[data-switcher-new]");
-    assert.deepEqual([switcher() === null, isOpen()], [true, true], "«New team»: the switcher is gone and the sheet stands over the screen, one modal dialog at a time");
-    assert.ok(sheet().querySelector("[data-sheet-back]") && sheet().querySelector("[data-new-team-back]"), "with the way back, which only the switcher's sheet has");
-    click("[data-new-team-back]");
-    assert.deepEqual([switcher() !== null, isOpen()], [true, false], "the way back: the switcher again, the sheet gone");
+    escape();
+    assert.ok(document.activeElement === document.querySelector("#app-header [data-team-switcher]"));
+    assert.deepEqual([switcher() === null, isOpen()], [true, false]);
+    // «Create» goes to the builder; a coach who goes elsewhere (the address changes) is not brought back to the switcher.
+    press("#side-nav [data-team-switcher]");
     press("[data-switcher-new]");
     type("#new-team-name", "Iron Rooks");
-    click(sheet().querySelector("[data-sheet-back]"));
-    assert.deepEqual([switcher() !== null, isOpen()], [true, false]);
-    press("[data-switcher-new]");
-    assert.equal(field().value, "Iron Rooks");
-    click(sheet().querySelector("[data-sheet-close]"));
-    assert.deepEqual([switcher() === null, isOpen()], [true, false], "the cross leaves both");
-    assert.ok(document.activeElement === block, `${where}: the focus is on the team block`);
+    click('[data-race="teams/human"]');
+    click(create());
+    assert.deepEqual([switcher() === null, isOpen(), location.assigned], [true, false, ["#/teams/new"]]);
+  } finally {
+    // What the test changed goes back, however it ended: the frame drawn bare and taken away, the coach's teams as `start`
+    // left them. The shell's listeners stay (mountShell gives none back): over a bare frame they draw no header.
+    refreshShell({ name: "login", params: {} });
+    frame.parentNode?.removeChild(frame);
+    Object.assign(state, before);
   }
-  // Escape over the sheet, too.
-  press("#app-header [data-team-switcher]");
-  press("[data-switcher-new]");
-  escape();
-  assert.ok(document.activeElement === document.querySelector("#app-header [data-team-switcher]"));
-  assert.deepEqual([switcher() === null, isOpen()], [true, false]);
-  // «Create» goes to the builder; a coach who goes elsewhere (the address changes) is not brought back to the switcher.
-  press("#side-nav [data-team-switcher]");
-  press("[data-switcher-new]");
-  type("#new-team-name", "Iron Rooks");
-  click('[data-race="teams/human"]');
-  click(create());
-  assert.deepEqual([switcher() === null, isOpen(), location.assigned], [true, false, ["#/teams/new"]]);
-  refreshShell({ name: "login", params: {} });
-  document.body.removeChild(frame);
 });

@@ -17,11 +17,11 @@
  *
  * It stands in a host of its own at the end of <body> (`mountSheetHost`), one for the page, wired once: the screens
  * under it patch their own markup, which would take a dialog standing in it away. The cross, the backdrop and Escape
- * close it with the focus back where it was; a link in it, a change of address (one away from the address it was
- * opened on: the router, which hears the same hashchange first, may have just opened it there) and any change of
- * session close it with the screen under it about to be drawn again.
+ * close it with the focus back where it was; a link in it, a change of address (heard before the router draws, and
+ * one away from the address it was opened on) and any change of session close it with the screen under it about to be
+ * drawn again, or just drawn, whose title then takes the focus.
  */
-import { delegate, escapeHtml } from "../../core/dom.mjs";
+import { delegate, escapeHtml, focusLost } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 import { newTeamUrl, refUrl } from "../../core/routes.mjs";
 import { state } from "../../core/state.mjs";
@@ -49,7 +49,7 @@ function createLabel(name, raceChosen) {
 }
 
 /** One radio group of buttons: Tab enters at the chosen race, or at the first when none is, and the arrows move along it. */
-export function racesMarkup(races, raceSlug) {
+function racesMarkup(races, raceSlug) {
   const checked = races.findIndex((race) => race.slug === raceSlug);
   const entry = Math.max(0, checked);
   const items = races.map((race, index) => `<button type="button" class="g-races__item" role="radio" aria-checked="${index === checked}" tabindex="${index === entry ? 0 : -1}"`
@@ -68,15 +68,18 @@ export function racesMarkup(races, raceSlug) {
  * @param {boolean} props.resets going on from here to another race would lose a squad that was begun
  * @param {boolean} props.back there is a way back (the switcher's): «‹» in the head, «← My teams» in the foot
  * @param {string} [props.refusal] why the builder's save was refused, when the answer came while the sheet was open, as a sentence
+ * @param {string} [props.created] the team the builder's save made while the sheet was open over its build, as a sentence
  * @returns {string}
  */
-export function newTeamSheetMarkup({ name, raceSlug, races, seasonName, resets, back, refusal = "" }) {
+export function newTeamSheetMarkup({ name, raceSlug, races, seasonName, resets, back, refusal = "", created = "" }) {
   const trimmed = String(name).trim();
   const raceChosen = races.some((race) => race.slug === raceSlug);
-  const alert = refusal ? `<div role="alert">${renderCallout({ tone: "danger", title: refusal })}</div>` : "";
+  // Keyed: a patch puts them in front of the name and the races, and does not rebuild those around them.
+  const alert = refusal ? `<div role="alert" data-key="refusal">${renderCallout({ tone: "danger", title: refusal })}</div>` : "";
+  const status = created ? `<div role="status" data-key="created">${renderCallout({ title: created })}</div>` : "";
   const field = renderTextField({ id: "new-team-name", name: "name", label: t("newTeam.name"), placeholder: t("newTeam.namePlaceholder"), value: name, autocomplete: "off" });
   // The group is named by its aria-label; the visible word over it is for the eye alone, or a reader would say it twice.
-  const bodyHtml = `${alert}${field}<span class="g-new__label" aria-hidden="true">${escapeHtml(t("newTeam.race"))}</span>${racesMarkup(races, raceSlug)}`
+  const bodyHtml = `${alert}${status}${field}<span class="g-new__label" aria-hidden="true">${escapeHtml(t("newTeam.race"))}</span>${racesMarkup(races, raceSlug)}`
     + `${resets ? `<p class="g-races__resets">${escapeHtml(t("newTeam.raceResets"))}</p>` : ""}`
     + `<a class="g-new__ref" href="${escapeHtml(refUrl("teams"))}">${escapeHtml(t("newTeam.raceRules"))}</a>`;
   const footHtml = renderButton({ kind: "primary", label: createLabel(trimmed, raceChosen), disabled: !trimmed || !raceChosen, data: { newTeamCreate: true } });
@@ -90,8 +93,9 @@ let host = null;
 
 /**
  * The sheet while it is open: the build it shows, the control it was opened from, its way back, the address and the
- * coach it was opened on, and the refusal of a save it says (`sayInNewTeamSheet`). Null while it is closed.
- * @type {{build: import("./new-flow.mjs").Build, opener: Element|null, back: (() => void)|null, openedAt: string, coach: object, refusal: string}|null}
+ * coach it was opened on, and the refusal or the success of a save it says (`sayInNewTeamSheet`,
+ * `sayCreatedInNewTeamSheet`). Null while it is closed.
+ * @type {{build: import("./new-flow.mjs").Build, opener: Element|null, back: (() => void)|null, openedAt: string, coach: object, refusal: string, created: string}|null}
  */
 let shown = null;
 
@@ -108,12 +112,13 @@ function draw() {
   if (!shown || !host.isConnected) return;
   const { name, raceSlug, resets } = pickOf();
   const seasonName = state.season.data?.season?.name ?? "";
-  patchWithModal(host, newTeamSheetMarkup({ name, raceSlug, races: state.data?.teams ?? [], seasonName, resets, back: Boolean(shown.back), refusal: shown.refusal }), `#${NEW_TEAM_SHEET_ID}`);
+  patchWithModal(host, newTeamSheetMarkup({ name, raceSlug, races: state.data?.teams ?? [], seasonName, resets, back: Boolean(shown.back), refusal: shown.refusal, created: shown.created }), `#${NEW_TEAM_SHEET_ID}`);
 }
 
 /**
  * The sheet goes. With `focus` (the cross, the backdrop, Escape) the focus goes back where it was opened from, or to
- * the page's title when that was drawn away meanwhile; without, the next thing on the screen takes it.
+ * the page's title when that was drawn away meanwhile or a width that crossed 900px hid it (`focusLost`: the phone
+ * header's team block on a desk); without, the next thing on the screen takes it.
  */
 function close({ focus = false } = {}) {
   if (!shown) return;
@@ -121,7 +126,17 @@ function close({ focus = false } = {}) {
   shown = null;
   globalThis.removeEventListener?.("beforeunload", guardLeaving);
   patchWithModal(host, "");
-  if (focus) (opener?.isConnected ? opener : view.querySelector("h1"))?.focus();
+  if (focus) (opener && !focusLost(opener) ? opener : view.querySelector("h1"))?.focus();
+}
+
+/**
+ * The sheet goes with the screen under it (the address or the session changed). A screen drawn while it stood over the
+ * page could not take the focus (a modal dialog makes the page inert), and the dialog gives it back to where it was
+ * opened from, which may be gone or hidden: then the screen's title takes it, never the body.
+ */
+function closeUnder() {
+  close();
+  if (focusLost(document.activeElement)) view.querySelector("h1")?.focus();
 }
 
 /** A press on the sheet, made on the build it shows: one that has gone since has nothing to change, and the sheet goes. */
@@ -180,13 +195,17 @@ function wire(root) {
     if (!opensElsewhere(event)) close();
   });
   wireSheets(root, { onClose: () => close({ focus: true }), onBack: () => goBack() });
+  // With capture: heard before the router (src/app.js), which listens on the same target without it, so the sheet is gone
+  // when the next screen is drawn and gives its title the focus. The address it was opened on leaves it (a router that
+  // hears first, where capture is not heard first, may have just opened it there).
   globalThis.addEventListener?.("hashchange", () => {
-    if (shown && location.hash !== shown.openedAt) close();
-  });
-  // Any change of session: the build may be gone with it, and the screen under the sheet is drawn again. A sheet opened
-  // while the change is told (the router drew «My teams» for the same coach) was opened for the coach told of.
+    if (shown && location.hash !== shown.openedAt) closeUnder();
+  }, { capture: true });
+  // Any change of session: the build may be gone with it, and the screen under the sheet is drawn again, by the router,
+  // which hears it first. A sheet opened while the change is told (the router drew «My teams» for the same coach) was
+  // opened for the coach told of.
   onSessionChange(() => {
-    if (shown && state.auth.currentUser !== shown.coach) close();
+    if (shown && state.auth.currentUser !== shown.coach) closeUnder();
   });
 }
 
@@ -207,7 +226,7 @@ export function openNewTeamSheet(opener, { back = null } = {}) {
     document.body.append(host);
   }
   if (!shown) globalThis.addEventListener?.("beforeunload", guardLeaving);
-  shown = { build, opener, back, openedAt: location.hash, coach: state.auth.currentUser, refusal: "" };
+  shown = { build, opener, back, openedAt: location.hash, coach: state.auth.currentUser, refusal: "", created: "" };
   draw();
   focusName();
   // A page opened on this screen may not have read the season yet: its name stands under the title once it is in.
@@ -227,6 +246,24 @@ export function sayInNewTeamSheet(build, refusal) {
   draw();
   // A body taller than the window scrolls: the alert is at its top, out of view when the coach is among the races.
   host.querySelector('[role="alert"]')?.scrollIntoView?.({ block: "nearest" });
+  return true;
+}
+
+/**
+ * The builder's save of `build` went through while the sheet is open over it, over another screen: that build is done
+ * (`endBuild`), and a press on it would begin nothing. The sheet takes the coach's next build, empty, and says the
+ * team is made at the top of its body, as a refusal is said: the page under a modal sheet is inert.
+ * @param {import("./new-flow.mjs").Build} build @param {string} created as a sentence
+ * @returns {boolean} whether the sheet said it: when it did, nothing else is to
+ */
+export function sayCreatedInNewTeamSheet(build, created) {
+  if (!shown || shown.build !== build || !state.auth.currentUser) return false;
+  Object.assign(shown, { build: buildOf(), refusal: "", created });
+  draw();
+  // A patch leaves a focused field as typed: the name is the done build's, and the next one has none.
+  const input = host.querySelector("#new-team-name");
+  if (input) input.value = "";
+  host.querySelector('[role="status"]')?.scrollIntoView?.({ block: "nearest" });
   return true;
 }
 

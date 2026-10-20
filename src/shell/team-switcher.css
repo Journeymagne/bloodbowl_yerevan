@@ -121,7 +121,6 @@
   color: var(--accent-text);
   font: 700 16px/1.2 var(--font-body);
   letter-spacing: 0;
-  text-decoration: none;
   text-transform: none;
   cursor: pointer;
 }
