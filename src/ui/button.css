@@ -74,9 +74,14 @@
 }
 /*
  * A disabled primary is drawn by its fill, and its label says what is
- * missing: dimming that label as well would leave it unreadable.
+ * missing: dimming that label as well would leave it unreadable. The red
+ * button of an irreversible step is closed the same way (a grey fill, the
+ * full white label, as the prototypes draw a closed main button): the red
+ * shows only when the step can be taken.
  */
-.g-btn--primary:disabled {
+.g-btn--primary:disabled,
+.g-btn--danger:disabled {
+  border-color: var(--disabled);
   background: var(--disabled);
   opacity: 1;
 }

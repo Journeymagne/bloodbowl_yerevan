@@ -3,7 +3,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertStyled, document, mount } from "./helpers/ui.mjs";
-import { assertReadable, valuesOf } from "./helpers/contrast.mjs";
+import { PALETTES, assertReadable, colourOf, contrast, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { BUTTON_KINDS, renderButton, renderIconButton } from "../src/ui/button.mjs";
 import { wireRadioGroups } from "../src/ui/choice.mjs";
@@ -76,6 +76,38 @@ test("the filled danger button wears --danger-fill with --on-danger-fill, readab
   const sheets = readdirSync(new URL("../src/", import.meta.url), { recursive: true }).filter((name) => name.endsWith(".css") && !name.endsWith("tokens.css"));
   const wearers = sheets.filter((name) => /var\(\s*--(?:on-)?danger-fill\s*\)/.test(readFileSync(new URL(`../src/${name}`, import.meta.url), "utf8")));
   assert.deepEqual(wearers.map((name) => name.split("\\").join("/")), ["ui/button.css"]);
+});
+
+// 07d fidelity F7: a closed red button used to be the red fill and the white label both dimmed by .g-btn:disabled's
+// opacity (a pale red, 2.7:1 in a light palette and 3.7:1 in a dark one). The prototypes' closed main button is the
+// grey fill with its full white label, and so is ours: the red shows only when the irreversible step can be taken.
+test("a closed danger button is drawn as a closed primary is: the grey fill at full opacity under the undimmed label, in every palette", () => {
+  const css = "src/ui/button.css";
+  const fragment = mount(renderButton({ label: "Choose a race", kind: "danger", disabled: true }));
+  const closed = fragment.querySelector("button");
+  assert.ok(closed.hasAttribute("disabled") && closed.classList.contains("g-btn--danger"));
+  assertStyled(fragment, "button.css");
+  assert.deepEqual(valuesOf(css, ".g-btn:disabled", "opacity"), [".6"], "the base look still dims what is closed");
+  // Both closed fills come from one rule, so the two cannot drift apart.
+  for (const kind of ["primary", "danger"]) {
+    const selector = `.g-btn--${kind}:disabled`;
+    assert.deepEqual(valuesOf(css, selector, "background"), ["var(--disabled)"], selector);
+    assert.deepEqual(valuesOf(css, selector, "border-color"), ["var(--disabled)"], selector);
+    assert.deepEqual(valuesOf(css, selector, "opacity"), ["1"], `${selector}: neither the fill nor the label is dimmed`);
+    assert.deepEqual(valuesOf(css, selector, "color"), [], `${selector}: the label keeps the colour of its kind`);
+  }
+  assert.deepEqual(valuesOf(css, ".g-btn--danger", "color"), ["var(--on-danger-fill)"]);
+  // The label on the closed fill, in all eight palettes: never less readable than the closed primary's (the same grey
+  // under a white label), and, in a dark palette, 4.5:1. In a light palette the prototypes' own #A9B3AE under white is
+  // 2.15:1, which is what a closed main button is there (WCAG 1.4.3 leaves an inactive control out); 2 is the floor.
+  for (const palette of Object.keys(PALETTES)) {
+    const tokens = tokensOf(palette);
+    const [fill, danger, primary] = ["--disabled", "--on-danger-fill", "--on-accent"].map((name) => colourOf(`var(${name})`, tokens));
+    const [red, main] = [contrast(danger, fill), contrast(primary, fill)];
+    assert.ok(red >= main, `${palette}: the closed red label (${red.toFixed(2)}:1) is below the closed primary's (${main.toFixed(2)}:1)`);
+    assert.ok(red >= (PALETTES[palette] === "dark" ? 4.5 : 2), `${palette}: the closed red label is ${red.toFixed(2)}:1`);
+  }
+  assertReadable(css, ".g-btn--danger", "color", ["--danger-fill"], 4.5);
 });
 
 test("a button with an href is a link and never disabled", () => {

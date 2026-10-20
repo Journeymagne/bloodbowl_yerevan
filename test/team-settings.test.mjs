@@ -375,7 +375,7 @@ test("the race: the sheet lists the races and says the squad leaves; the red but
   assert.equal($(".g-races").querySelectorAll("[data-race]").length, RACES.length);
   assert.equal($(`[data-race="${HUMAN}"]`).getAttribute("aria-checked"), "true");
   const button = () => $("[data-settings-race]");
-  assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], ["Change the race: Human", true]);
+  assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], ["Choose a race", true], "no race chosen yet: TeamNew's words, not a change to the race the team has");
   assert.match(button().getAttribute("class"), /\bg-btn--danger\b/);
   assert.match($(".g-team-settings__drops").getAttribute("class"), /\bg-races__resets\b/, "TeamNew's line under the races (M-5)");
   assert.deepEqual($(".g-team-settings__drops").querySelectorAll(".g-team-settings__drop").map((line) => line.textContent),
@@ -407,6 +407,28 @@ test("the race: the sheet lists the races and says the squad leaves; the red but
   assert.equal(rowText("race", seasoned), "Race · Human · Tier 1", "no button in the season");
   assert.equal(rowOf("race", seasoned).querySelector(".g-team-settings__note").textContent, "This team is playing in the current season, so its race cannot be changed.");
   assert.equal(seasoned.querySelector('[data-settings-open="race"]'), null);
+});
+
+// 07d fidelity F6: TeamNew's button says «Choose a race» until one is picked and names the race once it is; the sheet
+// opens on the team's own race, so the button must not name that one as if it were a change.
+test("the race's red button names no race while the chosen one is the team's own, in both languages; it names another once chosen", async () => {
+  assert.equal(en["newTeam.needRace"], "Choose a race");
+  assert.equal(ru["newTeam.needRace"], "Выберите расу");
+  for (const [locale, needed, changed] of [["en", "Choose a race", "Change the race: Orc"], ["ru", "Выберите расу", "Сменить расу: Orc"]]) {
+    initLocale(locale);
+    try {
+      await page();
+      openRow("race");
+      const button = () => $("[data-settings-race]");
+      assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], [needed, true], `${locale}: nothing chosen`);
+      fireEvent($('[data-race="teams/orc"]'), "click");
+      assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], [changed, false], `${locale}: another race chosen`);
+      fireEvent($(`[data-race="${HUMAN}"]`), "click");
+      assert.deepEqual([button().textContent.trim(), button().hasAttribute("disabled")], [needed, true], `${locale}: back on the team's own race`);
+    } finally {
+      initLocale("en");
+    }
+  }
 });
 
 test("a match being prepared closes the race, saying why; the rest stays open (K17)", async () => {
@@ -562,7 +584,7 @@ test("closing the race's sheet during its read takes the press back: nothing is 
   });
   assert.equal(calls(PATCH).length, 0);
   assert.ok(sheetOpen(), "the new sheet stays");
-  assert.deepEqual([$("[data-settings-race]").textContent.trim(), $("[data-settings-race]").hasAttribute("aria-busy")], ["Change the race: Human", false], "a new choice, not the first press's");
+  assert.deepEqual([$("[data-settings-race]").textContent.trim(), $("[data-settings-race]").hasAttribute("aria-busy")], ["Choose a race", false], "a new choice, not the first press's");
   assert.deepEqual(toasts(), []);
 });
 

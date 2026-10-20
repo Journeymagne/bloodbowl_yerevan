@@ -151,8 +151,11 @@ function footOf(form, check) {
   if (form.kind !== "race") {
     return renderButton({ kind: "primary", label: busy ? t("treasury.money.saving") : t("teamSettings.save"), busy, disabled, data: { settingsSave: "" } });
   }
+  // Until another race is chosen the button names none, as TeamNew's does («Choose a race»): naming the team's own
+  // would promise a change to what it has.
   const race = form.races.find((item) => item.slug === check.chosen);
-  const label = busy ? t("treasury.money.saving") : t("teamSettings.raceChange", { race: race?.title ?? String(check.chosen) });
+  const unchosen = check.chosen === form.now.raceSlug;
+  const label = busy ? t("treasury.money.saving") : unchosen ? t("newTeam.needRace") : t("teamSettings.raceChange", { race: race?.title ?? String(check.chosen) });
   return `${raceDrops(form, check)}${renderButton({ kind: "danger", label, busy, disabled, data: { settingsRace: "" } })}`;
 }
 
