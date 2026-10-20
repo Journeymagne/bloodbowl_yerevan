@@ -7,30 +7,34 @@
  *
  * A random skill and a characteristic are rolled (stage 07d, Task 10; decisions 9–13): declared first — the type, and a
  * random skill's category — then rolled on the site (`askRoll`: the server keeps the roll until an advancement takes it,
- * and answers the same ask with it) or at the table (the coach presses the face). Once a roll is made on the site the
- * type, the category and the way are fixed and there is no way back: closing the sheet leaves the roll the player's. A
- * skill may take a characteristic's place, from the primary and the secondary categories at the characteristic's price.
+ * and answers the same ask with it) or at the table. A random skill is two dice (the owner, 2026-10-20; decisions 32–38):
+ * on the site the pair, of which the coach takes one; at the table the two faces the coach marks, then the one taken; no
+ * attempts are shown, and there is no die to roll once the pair is in. A column with one skill the player lacks throws
+ * one die, whose skill is taken without a choice (decision 34). Once a roll is made on the site the type, the category
+ * and the way are fixed and there is no way back: closing the sheet leaves the roll the player's. A skill may take a
+ * characteristic's place, from the primary and the secondary categories at the characteristic's price.
  *
  * The sheet (`visit.sheet`) is `{kind: "advance", key, type, category, skill, step, refusal, taken, via, roll, face,
- * stat, instead, asking, waiting, lost, attempts, asked}`: `step` is a phone's — "type", "category", "skill", "stat" or
- * "done"; a desk's columns show the first three at once — and `taken` what the done step says, `{title, how, cost, value,
- * elite, level, ownTitle}`. `via` is "site" or "table"; `roll` the site's roll as the server answered it, null before;
- * `face` the face that came up — the coach's at the table (the D16's or the D8's), the site's D8; `stat` the
+ * marks, stat, instead, asking, waiting, lost, asked}`: `step` is a phone's — "type", "category", "skill", "stat" or
+ * "done"; a desk's columns show the first three at once — and `taken` what the done step says, `{title, how, howDesk,
+ * cost, value, elite, level, ownTitle, type, grant}`, whose `level`, `type` and `grant` say which advancement of his it
+ * is (`takenHeld`). `via` is "site" or "table"; `roll` the site's roll as the server answered it, null before; `skill`
+ * the skill chosen — of the list, or a random skill's of its pair (`pairOf`); `face` the D8's face — the coach's at the
+ * table, the site's; `marks` a random skill's faces the coach marked at the table, in the order marked; `stat` the
  * characteristic chosen; `instead` a skill in place of it; `asking` while an ask is out; `waiting` the purpose of a roll
  * of the other kind that waits for the player (409 `DICE_ROLL_WAITING`); `lost` an ask whose answer did not come;
- * `attempts` the attempts shown; `asked` the category an ask was made in. On the done step, `bonus` is a god's bonus
- * skill chosen and `favoured` "added" once it is (decision 17; player.mjs, Task 11). Its markup is advance-sheet.mjs's
- * and roll-view.mjs's.
+ * `asked` the category an ask was made in. On the done step, `bonus` is a god's bonus skill chosen and `favoured`
+ * "added" once it is (decision 17; player.mjs, Task 11). Its markup is advance-sheet.mjs's and roll-view.mjs's.
  */
 import { t } from "../../../core/i18n.mjs";
 import { state } from "../../../core/state.mjs";
 import { view } from "../../../core/view.mjs";
 import { toast } from "../../../components/toast.mjs";
 import { SAVE_STATUS } from "../../../data/roster-store.mjs";
-import { STAT_ROLL_TABLE, rollRefusal, tableAdvancementFor } from "../../../domain/roster/dice.mjs";
+import { STAT_ROLL_TABLE, rolledDice, rollRefusal, tableAdvancementFor } from "../../../domain/roster/dice.mjs";
 import { favouredBonus } from "../../../domain/roster/edits.mjs";
 import { ADVANCEMENT_TYPES, advancementCategories, categorySkills, statChoices } from "../../../domain/roster/progression.mjs";
-import { rosterPlayerView } from "../../../domain/roster/players.mjs";
+import { canonicalSkillName, heldSkillKeys, rosterPlayerView } from "../../../domain/roster/players.mjs";
 import { closeSheet } from "./injury.mjs";
 import { advanceClosed, undoClosed } from "./player-access.mjs";
 import { rosterLineOf } from "./player-save.mjs";
@@ -44,8 +48,8 @@ export const CHOSEN_TYPES = Object.freeze(["primary", "secondary"]);
 export const PURPOSE_OF = Object.freeze({ random: "random_skill", stat: "stat" });
 /** Where «Back» goes from each step of a phone's sheet; a step it does not name has no way back (`stepBefore`). */
 export const STEP_BEFORE = Object.freeze({ category: "type", skill: "category", stat: "type" });
-/** A type chosen afresh: on the site, nothing rolled, nothing asked. A roll of the other kind that waits still does. */
-const UNROLLED = Object.freeze({ via: "site", roll: null, face: null, stat: "", instead: false, lost: false, attempts: false, asked: "" });
+/** A type chosen afresh: on the site, nothing rolled, nothing marked, nothing asked. A roll of the other kind that waits still does. */
+const UNROLLED = Object.freeze({ via: "site", roll: null, face: null, marks: Object.freeze([]), stat: "", instead: false, lost: false, asked: "" });
 
 /** Him on the draft `where` holds (`rosterPlayerView`: his position's row on him), or null when the draft or the race has him not. */
 function playerOn(line, where) {
@@ -94,18 +98,54 @@ export function choicesOf(line, sheet, where) {
   return { offers, offer, categories, skills, player, stats, rollRefused };
 }
 
-/** The roll an advancement of a rolled type names — the site's by its id, with its data (`siteRoll`, which no body carries), or the table's — none for a chosen type; null while there is none to name. */
+/**
+ * The roll an advancement of a rolled type names — the site's by its id, with its data (`siteRoll`, which no body
+ * carries), or the table's once a face is in (the D8's, or a random skill's marks, K8) — none for a chosen type; null
+ * while there is none to name.
+ */
 function namedRoll(sheet) {
   if (!PURPOSE_OF[sheet.type]) return {};
   if (sheet.via === "site") return sheet.roll ? { roll: { id: sheet.roll.id, via: "site" }, siteRoll: sheet.roll } : null;
-  return sheet.face ? { roll: { via: "table" } } : null;
+  return sheet.face || sheet.marks?.length ? { roll: { via: "table" } } : null;
 }
+
+/** How many dice a random skill's pair has (decisions 32–34): the site's roll's once made; else two, or one when the column holds a single skill he lacks. */
+export function diceCount(sheet, choices) {
+  if (sheet.via === "site" && sheet.roll) return Math.max(1, rolledDice(sheet.roll).length);
+  return Math.min(2, Math.max(1, choices.skills.filter(({ held }) => !held).length));
+}
+
+/**
+ * A random skill's pair as the sheet stands, `diceCount` long: on the site the roll's dice (`rolledDice`); at the table
+ * the faces marked, in the order marked, each with the column's skill on it; then a place for each die not in yet —
+ * before a roll on the site, every one. A die says whether he holds its skill (`heldSkillKeys`, by canonical name) and
+ * whether it would complete an elite combination (the column's).
+ * @param {object} sheet @param {ReturnType<typeof choicesOf>} choices
+ * @returns {{face: number|null, skill: string|null, held: boolean, elite: boolean}[]}
+ */
+export function pairOf(sheet, choices) {
+  const held = choices.player ? heldSkillKeys(choices.player.row, choices.player) : new Set();
+  const die = (face, skill) => ({ face, skill, held: skill !== null && held.has(canonicalSkillName(skill)),
+    elite: skill !== null && Boolean(choices.skills.find(({ name }) => canonicalSkillName(name) === canonicalSkillName(skill))?.elite) });
+  const dice = sheet.via === "site" ? rolledDice(sheet.roll).map(({ face, skill }) => die(face, skill))
+    : (sheet.marks ?? []).map((face) => die(face, choices.skills[face - 1]?.name ?? null));
+  return Array.from({ length: diceCount(sheet, choices) }, (_, at) => dice[at] ?? die(null, null));
+}
+
+/** Whether a random skill's pair is in: the site's roll made, or at the table a face marked for each die. */
+export function pairWhole(sheet, choices) {
+  return sheet.via === "site" ? Boolean(sheet.roll) : (sheet.marks ?? []).length === diceCount(sheet, choices);
+}
+
+/** The skill a roll of a single die gives at once (decision 34); "" for two dice, or none. */
+const soleSkill = (roll) => (rolledDice(roll).length === 1 ? rolledDice(roll)[0].skill : "");
 
 /**
  * The advancement the sheet has chosen, whole, as `advancePlayer` takes it, with whether it completes an elite
  * combination; null until it is. A skill of the list he has not (a chosen type's, or one in place of a characteristic);
- * a random skill's — the site's roll as it is (whether he can take it is `rollRefusal`'s: the sheet says so and «Take»
- * is closed), or at the table a face of the column with a skill he lacks; a characteristic the D8's face offers him.
+ * a random skill's — one of the pair he lacks, the pair whole: the site's roll (whether he can take it as it is is
+ * `rollRefusal`'s: the sheet says so and «Take» is closed), or the faces marked at the table; a characteristic the D8's
+ * face offers him.
  * @param {object} sheet @param {ReturnType<typeof choicesOf>} choices
  */
 export function chosenOf(sheet, choices) {
@@ -116,10 +156,8 @@ export function chosenOf(sheet, choices) {
     return skill ? { type: sheet.type, grant: { skill: skill.name }, elite: skill.elite, ...named } : null;
   }
   if (sheet.type === "random") {
-    const name = sheet.via === "site" ? sheet.roll.result?.skill : sheet.skill;
-    const skill = choices.skills.find((each) => each.name === name);
-    if (typeof name !== "string" || !name || (sheet.via === "table" && (!skill || skill.held))) return null;
-    return { type: "random", grant: { skill: name }, elite: Boolean(skill?.elite), ...named };
+    const die = pairWhole(sheet, choices) ? pairOf(sheet, choices).find(({ skill, held }) => skill !== null && skill === sheet.skill && !held) : null;
+    return die ? { type: "random", grant: { skill: die.skill }, elite: die.elite, ...named } : null;
   }
   const option = sheet.type === "stat" ? choices.stats.find(({ stat, refusal }) => stat === sheet.stat && !refusal) : null;
   return option ? { type: "stat", grant: { stat: option.stat }, elite: false, ...named } : null;
@@ -141,6 +179,11 @@ export function refusedWords(sheet, choices) {
   return (choices.offer?.refusal ? refusalWordsOf("teamAdvance", choices.offer.refusal) : "") || waitingWords(sheet, sheet.type);
 }
 
+/** Why the site's roll cannot be taken as it is (`rollRefusal`), "" when it can or the way is the table: «Take» closed whichever die is chosen. */
+export function siteRefusedWords(sheet, choices) {
+  return sheet.via === "site" && sheet.roll && choices.rollRefused ? refusalWordsOf("teamAdvance", choices.rollRefused) : "";
+}
+
 /**
  * Whether the way the roll is made is fixed: a roll is made on the site, and the player can take it as it is. One that
  * cannot be taken — `ROLL_STALE`, `ROLL_REROLLED`, whose words say «or take this advancement at the table» — leaves the
@@ -150,25 +193,36 @@ export function wayFixed(sheet, choices) {
   return Boolean(sheet.roll) && !choices.rollRefused;
 }
 
-/** The line under the way: what the site does, what to press at the table, or how the roll was made. */
-export function noteWords(sheet) {
-  if (sheet.via === "site") return sheet.roll ? t("teamAdvance.note.rolledSite") : t("teamAdvance.note.site");
-  if (sheet.face) return t("teamAdvance.note.rolledTable");
-  return sheet.type === "stat" ? t("teamAdvance.note.tableD8") : t("teamAdvance.note.table");
+/** The line under the way: what the site does, what to do at the table, or how the roll was made — at the table once the D8's face or the whole pair is in (K8). */
+export function noteWords(sheet, choices) {
+  if (sheet.via === "site") {
+    if (sheet.roll) return t("teamAdvance.note.rolledSite");
+    return sheet.type === "stat" ? t("teamAdvance.note.siteD8") : t("teamAdvance.note.site");
+  }
+  if (sheet.type === "stat") return sheet.face ? t("teamAdvance.note.rolledTable") : t("teamAdvance.note.tableD8");
+  return pairWhole(sheet, choices) ? t("teamAdvance.note.rolledTable") : t("teamAdvance.note.table");
 }
 
 /**
- * Why «Roll D16» or «Roll D8» has nothing to roll, "" when it has: the roll is made and stays the player's, or the die is
- * the table's (DeskRosterAdv keeps a desk's «Roll D16» drawn, closed; fix round 1, M1).
+ * Why «Roll two D16» or «Roll D8» has nothing to roll, "" when it has: the roll is made and stays the player's, or the
+ * dice are the table's. Neither is drawn then (the owner's answer): a press that reaches it all the same is told so.
  */
-export function rolledWords(sheet) {
+export function rolledWords(sheet, choices) {
   if (sheet.roll && sheet.via === "site") return keptWords(sheet);
-  return sheet.via === "table" ? noteWords(sheet) : "";
+  return sheet.via === "table" ? noteWords(sheet, choices) : "";
 }
 
-/** Whether the site's roll can be put on the random advancement taken at the table that gave its skill (`tableAdvancementFor`, T1 review Minor 4). */
+/**
+ * Whether the site's roll can be put on the random advancement taken at the table that gave one of its dice's skills
+ * (`tableAdvancementFor`, T1 review Minor 4): only a stale one, both skills his (decision 35; K9: as the plan).
+ */
 export function bindable(sheet, choices) {
   return sheet.via === "site" && choices.rollRefused?.code === "ROLL_STALE" && tableAdvancementFor(sheet.roll, choices.player) >= 0;
+}
+
+/** The skill of the table advancement a stale roll is put on (`tableAdvancementFor`): what «Record this roll…» and its toast name (K8). */
+export function boundSkill(sheet, choices) {
+  return choices.player?.advancements?.[tableAdvancementFor(sheet.roll, choices.player)]?.grants?.skill ?? "";
 }
 
 /**
@@ -179,7 +233,7 @@ export function bindable(sheet, choices) {
 export function stepBefore(sheet) {
   if (sheet.asking) return "";
   if (sheet.instead) return sheet.step === "category" ? "stat" : STEP_BEFORE[sheet.step] ?? "";
-  const rolled = Boolean(sheet.roll || sheet.face) && (sheet.step === "stat" || sheet.step === "skill");
+  const rolled = Boolean(sheet.roll || sheet.face || sheet.marks?.length) && (sheet.step === "stat" || sheet.step === "skill");
   return rolled ? "" : STEP_BEFORE[sheet.step] ?? "";
 }
 
@@ -274,7 +328,7 @@ function takeChosen(saving, { now, refused }) {
   }
   const { line, where, choices } = player;
   const chosen = chosenOf(sheet, choices);
-  const why = refusedWords(sheet, choices) || (chosen?.siteRoll && choices.rollRefused ? refusalWordsOf("teamAdvance", choices.rollRefused) : "");
+  const why = refusedWords(sheet, choices) || siteRefusedWords(sheet, choices);
   if (why) {
     toast(why);
     return;
@@ -297,7 +351,10 @@ function takeChosen(saving, { now, refused }) {
   view.querySelector("[data-advance-done]")?.focus();
 }
 
-/** What an ask's answer makes of the sheet (decision 11): the roll as it is — a random skill's in its own category, a D8's face — or why there is none. */
+/**
+ * What an ask's answer makes of the sheet (decision 11): the roll as it is — a random skill's in its own category, its
+ * pair to choose from (one die's skill chosen at once, decision 34), a D8's face — or why there is none.
+ */
 function answerFields(sheet, purpose, answer) {
   if (answer.lost) return { lost: true };
   if (answer.waiting) return { waiting: answer.waiting };
@@ -305,18 +362,19 @@ function answerFields(sheet, purpose, answer) {
   const { roll } = answer;
   if (!roll) return {};
   if (roll.purpose !== purpose) return { waiting: roll.purpose };
-  const taken = { roll, via: "site", waiting: "", lost: false, attempts: false };
+  const taken = { roll, via: "site", waiting: "", lost: false };
   if (purpose === "stat") return { ...taken, face: roll.result.roll, stat: "" };
-  return { ...taken, category: roll.params?.category ?? sheet.category, skill: roll.result.skill, face: null };
+  return { ...taken, category: roll.params?.category ?? sheet.category, marks: [], skill: soleSkill(roll) };
 }
 
 /**
- * «Roll D16» or «Roll D8»: only from the advancement open on a rolled type declared whole (a random skill's category), on
- * the site, with nothing rolled and nothing asked — a second press while the ask is out sends nothing. Closed (the roll
- * made, the die the table's, the screen's reason, a step of the queue that waits or is on its way, a roll of the other
- * kind waiting) it says why and asks nothing. The ask (`askRoll`) hears why the screen is closed at the press again (K15) and whether the session is
- * still this page's coach's. Its answer is taken only while this very sheet is open on this visit: a match begun
- * meanwhile has closed it, and the answer finds nothing to take. A player the server has not reads the roster again.
+ * «Roll two D16» or «Roll D8»: only from the advancement open on a rolled type declared whole (a random skill's
+ * category), on the site, with nothing rolled and nothing asked — a second press while the ask is out sends nothing.
+ * One ask either way: the server rolls a random skill's two dice at once (Task 20). Closed (the roll made, the dice the
+ * table's, the screen's reason, a step of the queue that waits or is on its way, a roll of the other kind waiting) it
+ * says why and asks nothing. The ask (`askRoll`) hears why the screen is closed at the press again (K15) and whether the
+ * session is still this page's coach's. Its answer is taken only while this very sheet is open on this visit: a match
+ * begun meanwhile has closed it, and the answer finds nothing to take. A player the server has not reads the roster again.
  *
  * @param {import("./index.mjs").Saving} saving
  * @param {{now: () => object, readAgain: () => void}} lent
@@ -326,7 +384,7 @@ async function askFor({ teamId, visit, draw }, { now, readAgain }, pressed) {
   const sheet = pressed?.sheet;
   const purpose = PURPOSE_OF[sheet?.type];
   if (!purpose || sheet.asking || sheet.instead || (purpose === "random_skill" && !sheet.category)) return;
-  const reason = rolledWords(sheet) || rollClosed(pressed.line, pressed.where) || waitingWords(sheet, sheet.type);
+  const reason = rolledWords(sheet, pressed.choices) || rollClosed(pressed.line, pressed.where) || waitingWords(sheet, sheet.type);
   if (reason) {
     toast(reason);
     return;
@@ -343,8 +401,9 @@ async function askFor({ teamId, visit, draw }, { now, readAgain }, pressed) {
 
 /**
  * «Record this roll for the advancement «…» taken at the table» (decision 11, §3.4): a stale roll takes the place of the
- * random advancement taken at the table that gave its skill — one step of the queue (`bindRoll`), which asks why the
- * screen is closed at the press (K15). The sheet closes in the same turn, and the coach is told; a refusal is said in it.
+ * random advancement taken at the table that gave one of its dice's skills — one step of the queue (`bindRoll`), which
+ * asks why the screen is closed at the press (K15). The sheet closes in the same turn, and the coach is told the skill
+ * of that advancement (`boundSkill`, on the draft at the press); a refusal is said in it.
  */
 function bindSiteRoll(saving, { now, refused }, pressed) {
   const sheet = pressed?.sheet;
@@ -354,6 +413,7 @@ function bindSiteRoll(saving, { now, refused }, pressed) {
     return;
   }
   const { line } = pressed;
+  const skill = boundSkill(sheet, pressed.choices);
   const answer = bindRoll(saving.teamId, line.id, sheet.roll, { closed: () => advanceClosed(line, now()) });
   if (answer.refusal) {
     sheet.refusal = answer.refusal;
@@ -364,22 +424,35 @@ function bindSiteRoll(saving, { now, refused }, pressed) {
   if (!answer.ok) return;
   saving.visit.rolls = null;
   closeSheet(saving);
-  toast(t("teamAdvance.bound", { skill: sheet.roll.result.skill }));
-}
-
-/** The fields a face the coach presses at the table gives the sheet: a D16's — only a face of the column with a skill he lacks; a D8's — any; null for none. */
-function pressedFace(sheet, choices, face) {
-  if (sheet.via !== "table" || sheet.asking || sheet.instead || !Number.isInteger(face)) return null;
-  if (sheet.type === "stat") return STAT_ROLL_TABLE.some(({ from, to }) => face >= from && face <= to) ? { face, stat: "" } : null;
-  const skill = sheet.type === "random" ? choices.skills[face - 1] : null;
-  return skill && !skill.held ? { face, skill: skill.name } : null;
+  toast(t("teamAdvance.bound", { skill }));
 }
 
 /**
- * The roll's presses: the way (before a roll on the site, or after one the player cannot take as it is); «Roll D16» and
- * «Roll D8» (`askFor`); a face at the table, again and again until the advancement is taken; a characteristic the face
- * offers, refused ones never; a skill in place of the characteristic once the D8 has come up, and a desk's way back from
- * it; the attempts shown or hidden; a stale roll put on a table advancement (`bindSiteRoll`).
+ * The marks a D16's face pressed at the table leaves a random skill's sheet with (decision 38): a face marked is
+ * unmarked — the skill on it no longer the choice — and a face with a skill he lacks is marked while the pair is not
+ * whole, a single die's skill chosen with it (decision 34); null for a press that changes nothing.
+ */
+function markedFace(sheet, choices, face) {
+  const skill = choices.skills[face - 1] ?? null;
+  if (sheet.marks.includes(face)) return { marks: sheet.marks.filter((each) => each !== face), skill: sheet.skill === skill?.name ? "" : sheet.skill };
+  const count = diceCount(sheet, choices);
+  if (!skill || skill.held || sheet.marks.length >= count) return null;
+  return { marks: [...sheet.marks, face], ...(count === 1 ? { skill: skill.name } : {}) };
+}
+
+/** The fields a face the coach presses at the table gives the sheet: a D16's marks (`markedFace`); a D8's — any face; null for none. */
+function pressedFace(sheet, choices, face) {
+  if (sheet.via !== "table" || sheet.asking || sheet.instead || !Number.isInteger(face)) return null;
+  if (sheet.type === "stat") return STAT_ROLL_TABLE.some(({ from, to }) => face >= from && face <= to) ? { face, stat: "" } : null;
+  return sheet.type === "random" ? markedFace(sheet, choices, face) : null;
+}
+
+/**
+ * The roll's presses: the way (before a roll on the site, or after one the player cannot take as it is); «Roll two D16»
+ * and «Roll D8» (`askFor`); a face at the table — the D16's marked and unmarked, the D8's pressed again and again —
+ * until the advancement is taken; a die of the pair chosen; a characteristic the face offers, refused ones never; a
+ * skill in place of the characteristic once the D8 has come up, and a desk's way back from it; a stale roll put on a
+ * table advancement (`bindSiteRoll`).
  */
 function rollHandlers(saving, lent, { pressed, change }) {
   const { visit, draw } = saving;
@@ -389,7 +462,7 @@ function rollHandlers(saving, lent, { pressed, change }) {
       if (!now) return;
       const { sheet } = now;
       if (sheet.asking || !PURPOSE_OF[sheet.type] || !["site", "table"].includes(via) || wayFixed(sheet, now.choices)) draw();
-      else change(sheet, { via, face: null, stat: "", instead: false, skill: via === "site" && sheet.roll ? sheet.roll.result.skill : "" });
+      else change(sheet, { via, face: null, marks: [], stat: "", instead: false, skill: via === "site" ? soleSkill(sheet.roll) : "" });
     },
     onAdvanceRoll: () => askFor(saving, lent, pressed()),
     onAdvanceFace: (face) => {
@@ -397,6 +470,16 @@ function rollHandlers(saving, lent, { pressed, change }) {
       const fields = now && pressedFace(now.sheet, now.choices, face);
       if (fields) change(now.sheet, fields);
       else if (now) draw();
+    },
+    // A die of the pair chosen: only once the pair is whole, and one whose skill he lacks; any other press is drawn
+    // back as it was — wireRadioGroups has flipped the group already.
+    onAdvancePick: (skill) => {
+      const now = pressed();
+      if (!now) return;
+      const { sheet, choices } = now;
+      const open = sheet.type === "random" && !sheet.asking && pairWhole(sheet, choices);
+      if (open && pairOf(sheet, choices).some((die) => die.skill === skill && !die.held)) change(sheet, { skill });
+      else draw();
     },
     onAdvanceStat: (stat) => {
       const now = pressed();
@@ -414,12 +497,6 @@ function rollHandlers(saving, lent, { pressed, change }) {
       if (!sheet?.instead) return;
       change(sheet, { instead: false, step: "stat", category: "", skill: "" });
       view.querySelector("[data-advance-instead]")?.focus();
-    },
-    onAdvanceAttempts: () => {
-      const sheet = openSheet(visit);
-      if (!sheet?.roll) return;
-      sheet.attempts = !sheet.attempts;
-      draw();
     },
     onAdvanceBind: () => bindSiteRoll(saving, lent, pressed()),
   };
@@ -480,8 +557,10 @@ export function advanceHandlers(saving, lent) {
     onAdvanceCategory: (category) => {
       const now = pressed();
       const fixed = now && (now.sheet.asking || (now.sheet.type === "random" && now.sheet.roll));
-      // A random skill's category starts its die again; a skill in place of a characteristic keeps the D8's face.
-      const again = now?.sheet.type === "random" ? { face: null, lost: false } : {};
+      // A random skill's category starts its dice again — the marks too, so that a desk, which shows the categories
+      // beside them, never records a skill of another column on a face marked in this one (K8); a skill in place of a
+      // characteristic keeps the D8's face.
+      const again = now?.sheet.type === "random" ? { face: null, marks: [], lost: false } : {};
       if (!fixed && now?.choices.categories.some((each) => each.category === category && each.free > 0)) change(now.sheet, { category, skill: "", ...again });
       else if (now) draw();
     },

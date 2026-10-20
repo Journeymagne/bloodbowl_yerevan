@@ -11,14 +11,14 @@
  * «Favoured of…» is offered the god's bonus skill (decision 17, Task 11).
  *
  * A random skill and a characteristic are rolled (Adv3Random, Adv3Stat, Adv3StatTable; DeskRosterAdv, DeskRosterAdvStat):
- * a phone's third step is the D16's, its second the D8's, its button «Roll D16» or «Roll D8» until the die is in, then
- * «Take: …» or «Improve …»; a desk's third column is the D16's, and a characteristic's second the D8's and its third the
- * characteristic it improves. A skill in place of a characteristic walks the category and the skill as a chosen one.
- * The roll's own markup is roll-view.mjs's.
+ * a phone's third step is a random skill's two dice (the owner, 2026-10-20), its second the D8's, its button «Roll two
+ * D16» or «Roll D8» on the site until the dice are in, then «Take: …» or «Improve …»; a desk's third column is the two
+ * dice's, and a characteristic's second the D8's and its third the characteristic it improves. A skill in place of a
+ * characteristic walks the category and the skill as a chosen one. The roll's own markup is roll-view.mjs's.
  *
- * The types are a `renderOptionList`; the categories, the skills, the faces and the characteristics radio groups of
- * their own (`role="radiogroup"`, a roving tabindex, wireRadioGroups), whose closed items say why on a press as the
- * roster's closed controls do (K7).
+ * The types are a `renderOptionList`; the categories, the skills, a random skill's pair, the D8's faces and the
+ * characteristics radio groups of their own (`role="radiogroup"`, a roving tabindex, wireRadioGroups), whose closed
+ * items say why on a press as the roster's closed controls do (K7); the D16's faces at the table buttons that mark.
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { formatMoney } from "../../../core/format.mjs";
@@ -31,7 +31,9 @@ import { classNames, dataAttributes } from "../../../ui/markup.mjs";
 import { renderPlayerBadge } from "../../../ui/number-badge.mjs";
 import { renderOptionList } from "../../../ui/option-card.mjs";
 import { renderSheet } from "../../../ui/sheet.mjs";
-import { CHOSEN_TYPES, bonusOf, choicesOf, chosenOf, keptWords, refusedWords, stepBefore, takenHeld, waitingWords } from "./advance.mjs";
+import {
+  CHOSEN_TYPES, bonusOf, choicesOf, chosenOf, keptWords, pairWhole, refusedWords, siteRefusedWords, stepBefore, takenHeld, waitingWords,
+} from "./advance.mjs";
 import { prepResetWords } from "./panel.mjs";
 import { closedMarkup } from "./player-access.mjs";
 import { radioGroupMarkup } from "./radio-group.mjs";
@@ -192,25 +194,29 @@ function takeLabel(chosen) {
 }
 
 /**
- * What «Take» waits for: a skill, the face the coach saw on the D16 (a desk: «Roll first», DeskRosterAdv), the D8's
- * result at the table (a desk: the characteristic, DeskRosterAdvStat), a characteristic.
+ * What «Take» waits for: a skill; a random skill's roll (a desk on the site: «Roll first», DeskRosterAdv), the faces the
+ * coach saw at the table until the pair is marked, then one of the two; the D8's result at the table (a desk: the
+ * characteristic, DeskRosterAdvStat), a characteristic.
  */
-function waitLabel(sheet, desk) {
-  if (sheet.type === "random") return desk || sheet.via === "site" ? t("teamAdvance.rollFirst") : t("teamAdvance.pickFace");
+function waitLabel(sheet, choices, desk) {
+  if (sheet.type === "random") {
+    if (sheet.via === "site") return sheet.roll ? t("teamAdvance.pickPair") : t("teamAdvance.rollFirst");
+    return pairWhole(sheet, choices) ? t("teamAdvance.pickPair") : t("teamAdvance.pickFace");
+  }
   if (sheet.type !== "stat" || sheet.instead) return t("teamAdvance.pickSkill");
   return !desk && sheet.via === "table" && !sheet.face ? t("teamAdvance.pickD8") : t("teamAdvance.pickStat");
 }
 
 /**
  * «Take …», or what it waits for, shut while the choice is not whole; closed — the screen's reason (`reason`), the type
- * chosen refused since, a roll of the other kind waiting, a site roll the player cannot take as it is (`rollRefusal`)
- * — it says why. A press is still the domain's to refuse, in words in the sheet (advance.mjs).
+ * chosen refused since, a roll of the other kind waiting, a site roll the player cannot take as it is (`rollRefusal`,
+ * whichever die is chosen, and before one is) — it says why. A press is still the domain's to refuse, in words in the
+ * sheet (advance.mjs).
  */
 function takeMarkup(sheet, choices, { desk = false } = {}) {
   const chosen = chosenOf(sheet, choices);
-  const stale = chosen?.siteRoll && choices.rollRefused ? refusalWordsOf("teamAdvance", choices.rollRefused) : "";
-  const reason = sheet.reason || refusedWords(sheet, choices) || stale;
-  return footButton({ label: chosen ? takeLabel(chosen) : waitLabel(sheet, desk), kind: "primary", data: { advanceTake: true }, disabled: !reason && !chosen, reason });
+  const reason = sheet.reason || refusedWords(sheet, choices) || siteRefusedWords(sheet, choices);
+  return footButton({ label: chosen ? takeLabel(chosen) : waitLabel(sheet, choices, desk), kind: "primary", data: { advanceTake: true }, disabled: !reason && !chosen, reason });
 }
 
 /**
@@ -233,9 +239,9 @@ function phoneHead(line, screen, sheet, choices) {
   return [t("teamAdvance.title"), t("teamAdvance.sub", { spp: spendable(line, screen.race), next: line.level + 1 })];
 }
 
-/** A rolled step's button on a phone (Adv3Random, Adv3Stat): «Roll D16» or «Roll D8» on the site until the die is in, then «Take»'s. */
+/** A rolled step's button on a phone (Adv3Random, Adv3Stat): «Roll two D16» or «Roll D8» on the site until the dice are in, then «Take»'s. */
 function rolledFoot(sheet, choices) {
-  if (sheet.via === "site" && !sheet.roll) return rollButtonMarkup({ sheet }, sheet.type === "stat" ? t("teamAdvance.rollD8") : t("teamAdvance.rollD16"));
+  if (sheet.via === "site" && !sheet.roll) return rollButtonMarkup({ sheet, choices }, sheet.type === "stat" ? t("teamAdvance.rollD8") : t("teamAdvance.rollD16"));
   return takeMarkup(sheet, choices);
 }
 

@@ -9,7 +9,8 @@
  * its cart's + and −, «Cancel» and «Buy», and «Sell» or «Cancel purchase» with its sheet's «Cancel» and button (stage
  * 07c); a player's pencil, his edit's fields as they are typed, its switch «Team captain», «Cancel» and «Save», and
  * his «Advancement» with its sheet's type, category, skill, «Back», «Next», «Take», «Cancel» and «Done», its roll's
- * way, «Roll …», faces, characteristics, attempts, «Take a skill in place…» and «Record this roll…», a god's bonus skill
+ * way, «Roll …», a random skill's pair and the faces marked at the table, the D8's faces, characteristics, «Take a
+ * skill in place…» and «Record this roll…», a god's bonus skill
  * and «Add …» on done, and «Undo the last: …» with its sheet's «Keep» and «Undo advancement»; the edit's line to
  * the fix by hand, its counters' − and +, its injuries' points, favoured skills and skills to take off, «Cancel» and
  * «Save» (stage 07d).
@@ -130,24 +131,29 @@ function wireFix(root, { onFixOpen, onFixStep, onFixLasting, onFixFavoured, onFi
 }
 
 /** The advancement sheet's buttons, heard by one listener (`wireAdvance`). */
-const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "statback", "attempts", "bind", "keep", "done"].map((name) => `[data-advance-${name}]`).join(", ");
+const ADVANCE_BUTTONS = ["next", "take", "roll", "instead", "statback", "bind", "keep", "done"].map((name) => `[data-advance-${name}]`).join(", ");
 
 /**
  * A player's advancement (stage 07d): «Advancement» or «Advance» (not when closed — a press on a closed one says why, as
- * `[data-roster-closed]` does), its categories, its skills, the D16's faces, the D8's and the characteristics, each a
- * radio group of its own (a closed item says why the same way), the way the roll is made (a closed way says why on a
- * press), and its sheet's «Next», «Take», «Roll …», «Take a skill in place…» and a desk's way back from it,
- * «Attempts», «Record this roll…», «Cancel» and «Done»; on done a god's bonus skills, a radio group of their own, and
- * «Add …» (not when closed). Its types are the option cards `wireReasons` hears; its «Back», the sheet's own (`wireSheets`).
+ * `[data-roster-closed]` does), its categories, its skills, a random skill's pair, the D8's faces and the
+ * characteristics, each a radio group of its own (a closed item says why the same way), the D16's faces at the table,
+ * which mark (two at once: no radio group; a closed one says why the same way, and marks nothing), the way the roll is
+ * made (a closed way says why on a press), and its sheet's «Next», «Take», «Roll …», «Take a skill in place…» and a
+ * desk's way back from it, «Record this roll…», «Cancel» and «Done»; on done a god's bonus skills, a radio group of
+ * their own, and «Add …» (not when closed). Its types are the option cards `wireReasons` hears; its «Back», the sheet's
+ * own (`wireSheets`).
  */
 function wireAdvance(root, handlers) {
-  const { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceVia, onAdvanceFace, onAdvanceStat, onRefused, onFavoured, onFavouredAdd } = handlers;
+  const { onAdvance, onAdvanceCategory, onAdvanceSkill, onAdvanceVia, onAdvanceFace, onAdvancePick, onAdvanceStat, onRefused, onFavoured, onFavouredAdd } = handlers;
   const radios = (group, attribute, onChange) => wireRadioGroups(root, { group, item: `[${attribute}]`, attribute, onChange });
   return [
     onPlayerButton(root, "data-player-advance", onAdvance),
     radios(".g-advance__cats", "data-advance-category", onAdvanceCategory),
     radios(".g-advance__skills", "data-advance-skill", onAdvanceSkill),
-    radios(".g-advance__faces", "data-advance-face", (face) => onAdvanceFace(Number(face))),
+    radios(".g-advance__pair", "data-advance-pick", onAdvancePick),
+    delegate(root, "click", ".g-advance__faces button[data-advance-face]", (event, button) => {
+      if (button.getAttribute("aria-disabled") !== "true") onAdvanceFace(Number(button.getAttribute("data-advance-face")));
+    }),
     radios(".g-advance__d8", "data-advance-d8", (face) => onAdvanceFace(Number(face))),
     radios(".g-advance__stats", "data-advance-stat", onAdvanceStat),
     radios(".g-favoured__skills", "data-favoured-skill", onFavoured),
@@ -163,13 +169,12 @@ function wireAdvance(root, handlers) {
 
 /** Which of the advancement sheet's buttons was pressed. */
 function pressAdvance(button, handlers) {
-  const { onAdvanceNext, onAdvanceTake, onAdvanceRoll, onAdvanceInstead, onAdvanceStatBack, onAdvanceAttempts, onAdvanceBind, onAdvanceKeep, onAdvanceDone } = handlers;
+  const { onAdvanceNext, onAdvanceTake, onAdvanceRoll, onAdvanceInstead, onAdvanceStatBack, onAdvanceBind, onAdvanceKeep, onAdvanceDone } = handlers;
   if (button.hasAttribute("data-advance-next")) onAdvanceNext();
   else if (button.hasAttribute("data-advance-take")) onAdvanceTake();
   else if (button.hasAttribute("data-advance-roll")) onAdvanceRoll();
   else if (button.hasAttribute("data-advance-instead")) onAdvanceInstead();
   else if (button.hasAttribute("data-advance-statback")) onAdvanceStatBack();
-  else if (button.hasAttribute("data-advance-attempts")) onAdvanceAttempts();
   else if (button.hasAttribute("data-advance-bind")) onAdvanceBind();
   else if (button.hasAttribute("data-advance-keep")) onAdvanceKeep();
   else onAdvanceDone();
@@ -236,11 +241,11 @@ function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType }) {
  * @param {() => void} handlers.onAdvanceDone «Back to the player» or «Done», once taken
  * @param {(via: string) => void} handlers.onAdvanceVia «Roll on the site» or «Rolled at the table»
  * @param {() => void} handlers.onAdvanceRoll «Roll D16» or «Roll D8»
- * @param {(face: number) => void} handlers.onAdvanceFace a face of the D16 or of the D8 pressed at the table
+ * @param {(face: number) => void} handlers.onAdvanceFace a face of the D16 marked or unmarked, or of the D8 pressed, at the table
+ * @param {(skill: string) => void} handlers.onAdvancePick a die of a random skill's pair chosen ("" for one not in yet)
  * @param {(stat: string) => void} handlers.onAdvanceStat a characteristic the face allows chosen
  * @param {() => void} handlers.onAdvanceInstead «Take a skill in place of the characteristic»
  * @param {() => void} handlers.onAdvanceStatBack a desk's «‹ Back to the characteristic»
- * @param {() => void} handlers.onAdvanceAttempts «Attempts: N», shown or hidden
  * @param {() => void} handlers.onAdvanceBind «Record this roll for the advancement … taken at the table»
  * @param {(skill: string) => void} handlers.onFavoured a god's bonus skill chosen on the advancement's done step
  * @param {() => void} handlers.onFavouredAdd «Add …» under done (not when it is closed)
