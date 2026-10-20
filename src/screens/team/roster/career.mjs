@@ -24,6 +24,16 @@
  * undone death, a counter the heading floors at nought), and nothing is added then. The read is the visit's: a list
  * opened while it is in the air says so, one that failed says why and the next opening reads again; an answer that
  * comes after the coach left draws nothing.
+ *
+ * Two rows the history tells in its own way (stage 07e). A journeyman kept starts his history again under his new id
+ * (the rollout plan, from 03): the match he was hired in has him on its roster under the old one (`played: false`),
+ * and the post-match applied what he did there to the new one (`applied`) — so a row like that with something done is
+ * a match he played, said as one and counted in GP; with nothing done it is one missed, as a player bought in the
+ * post-match (a journeyman kept with nothing done reads so too: the history cannot tell them apart). And a player
+ * killed in a match with no tap of his is on no roster the post-match left, so the history has no counters for him
+ * (`source: "none"`) but the injury from the post-match's side: the row says the injury, «—» for its SPP. A «—» is
+ * quiet whatever the row. A fallen player's rows end at the last match the site knows him in, as they begin at the
+ * first: the history has every match of the team's, and each one after the death has him on no roster.
  */
 import { refusalText } from "../../../core/api.mjs";
 import { apiRequest } from "../../../core/api-client.mjs";
@@ -73,7 +83,8 @@ export async function readCareer(teamId, playerId) {
 /**
  * @typedef {{key: string, title: string, result: string, outcome: "won"|"drawn"|"lost"|"", events: string, spp: string, points: number, quiet: boolean, pending: boolean}} CareerRow
  *   `points` what the row adds to the SPP (0 where it says «—»); `quiet` for a match missed, one without details, one
- *   with no actions and the SPP from before the site's records; `pending` for a match that waits for its post-match
+ *   with no actions and the SPP from before the site's records (a «—» is quiet in any row); `pending` for a match that
+ *   waits for its post-match
  */
 
 /** The counters that are not nought, in the roster's words: «TD 1», «TD −1», an MVP alone as «MVP». */
@@ -105,14 +116,23 @@ function resultOf(score) {
 }
 
 /**
- * A match's row (decision 43, K15): missed, without details, with no actions, or what the player did and its SPP. A
- * match on waits for its post-match; one with no tap of the player's yet has no actions, not «no details».
+ * Whether the player played the match: on its roster, or a journeyman kept — on it under his old id (`played: false`),
+ * with what the post-match applied to his new one (`applied`), something that is not nought (stage 07e, decision 7).
+ */
+const playedIn = (match) => match.played === true
+  || (match.played === false && match.source === "applied" && SAID.some((counter) => countOf(match.counters, counter) !== 0));
+
+/**
+ * A match's row (decision 43, K15; stage 07e, decisions 7–8): missed, the injury of a match the site has no counters
+ * of, without details, with no actions, or what the player did and its SPP. A match on waits for its post-match; one
+ * with no tap of the player's yet has no actions, not «no details».
  * @returns {CareerRow}
  */
 function matchRow(match, weights) {
   const live = match.status === "in_progress";
   const row = { key: String(match.pairingId ?? ""), title: titleOf(match), ...resultOf(match.score), pending: live || match.pending === true };
-  if (match.played === false) return { ...row, events: t("teamPlayer.career.out"), spp: "—", points: 0, quiet: true };
+  if (match.played === false && !playedIn(match)) return { ...row, events: t("teamPlayer.career.out"), spp: "—", points: 0, quiet: true };
+  if (!match.counters && match.injury?.code) return { ...row, events: injuryWords(match.injury), spp: "—", points: 0, quiet: false };
   if (!match.counters) return { ...row, events: live ? t("teamPlayer.career.idle") : t("teamPlayer.career.bare"), spp: "—", points: 0, quiet: true };
   const said = [...countWords(match.counters), ...(match.injury?.code ? [injuryWords(match.injury)] : [])];
   const points = sppOf(match.counters, weights);
@@ -120,21 +140,26 @@ function matchRow(match, weights) {
   return { ...row, events: said.join(" · "), spp: signed(points), points, quiet: false };
 }
 
+/** A match the site knows the player in: on its roster, or with what a post-match or a tap left. */
+const knownIn = (match) => match.played === true || match.source !== "none";
+
 /**
- * The rows of the list (decision 43): the matches from the first one the site knows the player in — on its roster, or
- * with what a post-match or a tap left — newest first, then the edits outside a match unless they are all nought;
- * with `earned`, last the SPP the rows do not hold, when there are any (ruling on I1): the rows then never fall short of it.
+ * The rows of the list (decision 43): the matches from the first one the site knows the player in, newest first — for
+ * a fallen player, up to the last one too (stage 07e, pre-flight L6: the history has every match of the team's, and
+ * those after the death have him on no roster) — then the edits outside a match unless they are all nought; with
+ * `earned`, last the SPP the rows do not hold, when there are any (ruling on I1): the rows then never fall short of it.
  *
  * @param {{matches: object[], outside: Record<string, number>}} history as `readCareer` answers it
  * @param {object} race the team's race: what each counter is worth to it
- * @param {{earned?: number|null}} [heading] the SPP the block's heading says (`line.earned`)
+ * @param {{earned?: number|null, fallen?: boolean}} [heading] the SPP the block's heading says (`line.earned`); whether
+ *   the player is a fallen one
  * @returns {CareerRow[]}
  */
-export function careerRows(history, race, { earned = null } = {}) {
+export function careerRows(history, race, { earned = null, fallen = false } = {}) {
   const weights = sppCounterWeights(race);
   const matches = (Array.isArray(history?.matches) ? history.matches : []).filter((match) => match && typeof match === "object");
-  const first = matches.findIndex((match) => match.played === true || match.source !== "none");
-  const rows = first < 0 ? [] : matches.slice(first).reverse().map((match) => matchRow(match, weights));
+  const [first, last] = [matches.findIndex(knownIn), fallen ? matches.findLastIndex(knownIn) : matches.length - 1];
+  const rows = first < 0 ? [] : matches.slice(first, last + 1).reverse().map((match) => matchRow(match, weights));
   const edits = countWords(history?.outside);
   if (edits.length) {
     const points = sppOf(history.outside, weights);
@@ -145,9 +170,12 @@ export function careerRows(history, race, { earned = null } = {}) {
   return rows;
 }
 
-/** GP: the confirmed matches the site knows the player played (the owner's answer 1); a match on is not one yet. */
+/**
+ * GP: the confirmed matches the site knows the player played (the owner's answer 1), a journeyman kept's match of his
+ * hiring among them (decision 7); a match on is not one yet.
+ */
 export function gamesPlayed(history) {
-  return (Array.isArray(history?.matches) ? history.matches : []).filter((match) => match?.status === "confirmed" && match.played === true).length;
+  return (Array.isArray(history?.matches) ? history.matches : []).filter((match) => match?.status === "confirmed" && playedIn(match)).length;
 }
 
 /** The totals: GP («–» until the history is read), then TD to MVP from the roster's line; a nought is quiet. */
@@ -170,7 +198,7 @@ function rowMarkup(row) {
   return `<li class="g-career__row"><span class="g-career__main"><span class="g-career__line">`
     + `<b class="g-career__name">${escapeHtml(row.title)}</b>${result}</span>`
     + `${row.events ? `<span class="${classNames("g-career__events", row.quiet && "g-career__quiet")}">${escapeHtml(row.events)}</span>` : ""}</span>`
-    + `<span class="g-career__side"><b class="${classNames("g-career__spp", row.quiet && "g-career__quiet")}">${escapeHtml(row.spp)}</b>${plate}</span></li>`;
+    + `<span class="g-career__side"><b class="${classNames("g-career__spp", (row.quiet || row.spp === "—") && "g-career__quiet")}">${escapeHtml(row.spp)}</b>${plate}</span></li>`;
 }
 
 /**

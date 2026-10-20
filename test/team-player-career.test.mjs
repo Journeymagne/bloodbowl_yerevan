@@ -18,8 +18,9 @@ const { EXTRA_COUNTERS, MAIN_COUNTERS } = await import("../src/screens/team/rost
 const CAREER = "src/screens/team/roster/career.css";
 const HISTORY_READ = "GET /api/teams/t1/players/p3/history";
 const TEAM_READ = "GET /api/teams/t1";
-const NOTE = "Actions are recorded by taps on the roster and in the post-match. A line that waits for the post-match is in the career already, "
-  + "and stays once both coaches finish the match. Edits outside a match are a line of their own. Matches before the site's records are not listed.";
+// Stage 07e, decision 9: the footnote no longer promises that a line waiting for the post-match stands as it is.
+const NOTE = "Actions are recorded by taps on the roster and in the post-match. A line that waits for the post-match is in the career already; "
+  + "the post-match may still change it. Edits outside a match are a line of their own. Matches before the site's records are not listed.";
 const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
 const callsTo = (key) => callKeys().filter((each) => each === key).length;
 const career = () => view.querySelector(".g-career");
@@ -394,8 +395,8 @@ test("every key in both dictionaries; styled; D2; wrapping", () => {
   for (const key of career(en)) assert.deepEqual(ru[key].match(/\{\w+\}/g), en[key].match(/\{\w+\}/g), key);
   assert.equal(ru["teamPlayer.career.listHead"], "Все матчи · {count}");
   assert.equal(ru["teamPlayer.career.out"], "пропуск матча", "neutral words: no «не играл»");
-  assert.equal(ru["teamPlayer.career.note"], "Действия записываются тапами в «Составе» и в итогах матча. Строка «ждёт итогов» уже входит в карьеру и закрепится, "
-    + "когда оба тренера завершат матч. Правки вне матча — отдельной строкой. Матчи до записей на сайте не показываются.");
+  assert.equal(ru["teamPlayer.career.note"], "Действия записываются тапами в «Составе» и в итогах матча. Строка «ждёт итогов» уже входит в карьеру; "
+    + "итоги матча могут её изменить. Правки вне матча — отдельной строкой. Матчи до записей на сайте не показываются.");
   // Stage 07e: a block of its own, in a sheet of its own with no width — the form is a class.
   const uncommented = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.ok(!/g-career|g-profile__career/.test(uncommented("src/screens/team/roster/profile.css")), "the profile's sheet holds no career rule");
@@ -476,4 +477,73 @@ test("the rows add up to the heading: what they lack is «Before the site's reco
   // A veteran the site knows in no match: the one row.
   assert.deepEqual(careerRows({ matches: [], outside: counters() }, race, { earned: 28 }).map(({ title, spp }) => [title, spp]), [["Before the site's records", "+28"]]);
   assert.deepEqual(careerRows({ matches: [], outside: counters() }, race, { earned: 0 }), []);
+});
+
+/** A row as the tests of `careerRows` read it. */
+const fields = ({ key, title, result, outcome, events, spp, quiet, pending }) => [key, title, result, outcome, events, spp, quiet, pending];
+
+// Stage 07e, decision 7 (the rollout plan, from 03: a journeyman kept starts his history again under his new id). The
+// match he was hired in is on the snapshot under his old id, so it reads `played: false`; the post-match applied what he
+// did there to the new one.
+test("a journeyman kept: the match he played under his old id says what he did, and GP counts it", () => {
+  coach();
+  const race = human();
+  const kept = { matches: [match({ played: false, source: "applied", counters: counters({ touchdowns: 1 }) })], outside: counters() };
+  assert.deepEqual(careerRows(kept, race).map(fields), [["g1", "Round 1 · Grimtusk Raiders", "W 2–1", "won", "TD 1", "+3", false, false]]);
+  assert.equal(gamesPlayed(kept), 1);
+  // One bought in the post-match: on no roster of the match and nothing done there — a match missed, as before.
+  const bought = { matches: [match({ played: false, source: "applied", counters: counters() })], outside: counters() };
+  assert.deepEqual(careerRows(bought, race).map(fields), [["g1", "Round 1 · Grimtusk Raiders", "W 2–1", "won", "missed the match", "—", true, false]]);
+  assert.equal(gamesPlayed(bought), 0);
+});
+
+// Decision 8: a player killed in a match with no tap of his is on no roster the post-match left, so the history has no
+// counters for him, and has the injury from the post-match's side.
+test("a match the site has no counters of but an injury: the injury is said", () => {
+  coach();
+  const race = human();
+  const [death] = careerRows({ matches: [match({ source: "none", counters: null, injury: { code: "dead" } })], outside: counters() }, race);
+  assert.deepEqual([death.events, death.spp, death.quiet, death.points], ["Dead", "—", false, 0]);
+  // A match missed, after one the site knows him in, says so still.
+  const [missed] = careerRows({ matches: [ROUND_1, match({ pairingId: "g2", roundNumber: 2, played: false, source: "none", counters: null })], outside: counters() }, race);
+  assert.deepEqual([missed.key, missed.events, missed.spp, missed.quiet], ["g2", "missed the match", "—", true]);
+  // Without the injury, as before: no details.
+  const [bare] = careerRows({ matches: [match({ source: "none", counters: null })], outside: counters() }, race);
+  assert.deepEqual([bare.events, bare.spp, bare.quiet], ["no details", "—", true]);
+});
+
+test("«—» is quiet whatever the row", async () => {
+  const death = match({ pairingId: "g5", roundNumber: 2, source: "none", counters: null, injury: { code: "dead" }, opponent: { teamId: "r5", name: "Ironjaw Reavers" } });
+  await withWindow({ phone: true }, async () => {
+    await openCade({ ...HISTORY, matches: [ROUND_1, death] });
+    press();
+    const row = list().querySelectorAll(".g-career__row").find((each) => each.querySelector(".g-career__name").textContent === "Round 2 · Ironjaw Reavers");
+    assert.equal(row.querySelector(".g-career__events").textContent, "Dead");
+    assert.ok(!row.querySelector(".g-career__events").classList.contains("g-career__quiet"), "the death is said aloud");
+    assert.equal(row.querySelector(".g-career__spp").textContent, "—");
+    assert.ok(row.querySelector(".g-career__spp").classList.contains("g-career__quiet"), "its «—» is quiet");
+    assertStyled(view, ...STYLES);
+  });
+});
+
+// Pre-flight L6 (controller's ruling, default): the history has every match of the team's, so after a death each match the
+// team plays has him on no roster — «missed the match» for ever. A fallen player's rows end at the last match the site
+// knows him in, as they begin at the first; a living player's tail is a match on he misses, and stays.
+test("a fallen player's rows end at the last match the site knows him in: the matches after the death add no row", () => {
+  coach();
+  const race = human();
+  const after = [
+    match({ pairingId: "g8", roundNumber: 3, played: false, source: "none", counters: null, opponent: { teamId: "r8", name: "Karak Hold Hammers" } }),
+    match({ pairingId: "g9", roundNumber: 4, played: false, source: "none", counters: null, opponent: { teamId: "r9", name: "Tombway Kings" } }),
+  ];
+  const joe = { matches: [match({ pairingId: "g7", roundNumber: 2, source: "none", counters: null, injury: { code: "dead" } }), ...after], outside: counters() };
+  const rows = careerRows(joe, race, { earned: 0, fallen: true });
+  assert.deepEqual(rows.map(({ key, events }) => [key, events]), [["g7", "Dead"]], "one match: «All matches · 1»");
+  assert.equal(gamesPlayed(joe), 1);
+  // A living player keeps them: the matches he misses.
+  assert.deepEqual(careerRows(joe, race, { earned: 0 }).map(({ key }) => key), ["g9", "g8", "g7"]);
+  // A death by hand after matches missed: those before it stay (`applied`), the ones after go; no row he is known in, none.
+  const byHand = { matches: [match({ played: false, source: "applied", counters: counters() }), match({ pairingId: "g2", roundNumber: 2, counters: counters({ touchdowns: 1 }) }), ...after], outside: counters() };
+  assert.deepEqual(careerRows(byHand, race, { fallen: true }).map(({ key }) => key), ["g2", "g1"]);
+  assert.deepEqual(careerRows({ matches: after, outside: counters() }, race, { fallen: true }), []);
 });
