@@ -148,16 +148,16 @@ const startersOf = (idPrefix) => [
   playerOf(idPrefix, 1, 0, "Linewoman One", { spp: { touchdowns: 1 } }),
   playerOf(idPrefix, 2, 1, "Thrower Two", { statMods: { ma: 1 }, extraSkills: [{ name: "Block", access: "primary" }] }),
 ];
-// Mock Team's eight (rows of teams/amazon: 0 Linewoman, 1 Thrower, 2 Blitzer, 3 Blocker), the counters spread so
-// that every leader of the overview is somebody else: SPP and touchdowns Three, casualties Four, completions
-// Two, and the MVP, who is no leader of a counter, Five; Eight is a fresh purchase (cancelled for 50, until a match).
+// Mock Team's eight (rows of teams/amazon: 0 Linewoman, 1 Thrower, 2 Blitzer, 3 Blocker), the counters spread so that every leader of the overview
+// is somebody else: SPP and touchdowns Three, casualties Four, completions Two, and the MVP, who is no leader of a counter, Five; Eight is a fresh
+// purchase (cancelled for 50, until a match). Three advances, Four is the captain, Six carries a lasting injury.
 const amazons = [
   playerOf("p", 1, 0, "Linewoman One", { spp: { touchdowns: 1 } }),
   playerOf("p", 2, 1, "Thrower Two", { statMods: { ma: 1 }, extraSkills: [{ name: "Block", access: "primary" }], spp: { completions: 3 } }),
-  playerOf("p", 3, 2, "Blitzer Three", { spp: { touchdowns: 4 } }),
-  playerOf("p", 4, 3, "Blocker Four", { spp: { casualties: 2 } }),
+  playerOf("p", 3, 2, "Blitzer Three", { spp: { touchdowns: 7 }, extraSkills: [{ name: "Dodge", access: "primary" }], advancements: [{ type: "random", grants: { skill: "Dodge" }, roll: { id: "mock-roll-p3", via: "site" } }] }),
+  playerOf("p", 4, 3, "Blocker Four", { isCaptain: true, spp: { casualties: 2 } }),
   playerOf("p", 5, 0, "Linewoman Five", { spp: { mvps: 1 } }),
-  playerOf("p", 6, 0, "Linewoman Six", { skipNextGame: true, absence: { code: "niggling" }, nigglingInjuries: 1, niglingInjury: true }),
+  playerOf("p", 6, 0, "Linewoman Six", { skipNextGame: true, absence: { code: "niggling" }, nigglingInjuries: 1, niglingInjury: true, statMods: { ag: -1 }, injuryStatMods: { ag: -1 } }),
   playerOf("p", 7, 2, "Blitzer Seven", { skipNextGame: true, absence: { code: "other", note: "Suspended by the league" } }), playerOf("p", 8, 0, "Linewoman Eight", { purchased: true, purchaseRefund: 50 }),
 ];
 
