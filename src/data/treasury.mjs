@@ -233,23 +233,30 @@ export function addTreasuryEntry(teamId, { delta, reason, note }) {
 
 /**
  * Save a roster draft (the stored shape, `normalizeDraft`'s) as the team's roster. The name, the race and the
- * logo go as the team has them: the logo is not re-encoded and not lost. The server writes the lines this page
- * does not have (a purchase, a sale), so the history is read again.
+ * logo go as the team has them, unless `identity` names others (the team's settings, stage 07d); the logo is not
+ * re-encoded. A field of `identity` left out, or undefined, is the team's; a logo of "" or null takes it off. The
+ * server writes the lines this page does not have (a purchase, a sale), so the history is read again.
  * @param {string} teamId @param {object} draft
+ * @param {{name?: string, baseTeamSlug?: string, logoData?: string|null}} [identity]
  * @returns {Promise<{team: object}|{refusal: string, changed?: true, unknown?: true}|{ignored: true}>} `changed` and
  *   `unknown` as for `addTreasuryEntry`.
  */
-export function saveTeamRoster(teamId, draft) {
-  const send = (team) => apiRequest(`/api/teams/${encodeURIComponent(teamId)}`, {
-    method: "PATCH",
-    body: JSON.stringify({
-      name: team.name,
-      baseTeamSlug: team.baseTeamSlug,
-      logoData: team.logoData ?? null,
-      roster: rosterForStorage({ ...draft, teamSlug: team.baseTeamSlug, teamName: team.name }),
-      revision: team.revision,
-    }),
-  });
+export function saveTeamRoster(teamId, draft, identity = {}) {
+  const own = (key, held) => (identity?.[key] === undefined ? held : identity[key]);
+  const send = (team) => {
+    const name = own("name", team.name);
+    const baseTeamSlug = own("baseTeamSlug", team.baseTeamSlug);
+    return apiRequest(`/api/teams/${encodeURIComponent(teamId)}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        name,
+        baseTeamSlug,
+        logoData: own("logoData", team.logoData ?? null),
+        roster: rosterForStorage({ ...draft, teamSlug: baseTeamSlug, teamName: name }),
+        revision: team.revision,
+      }),
+    });
+  };
   return write(teamId, send, (answer, userId) => {
     if (adopt(answer.team, userId)) void readLedger(teamId);
     return { team: answer.team };
