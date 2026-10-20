@@ -74,6 +74,59 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * A side with a crest or a letter (DeskOverview.html; both a desk's, below): the name and its line are boxed together
+ * beside it, the column the side was without one.
+ */
+.g-board__texts {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+.g-board__side--away .g-board__texts { align-items: flex-end; }
+
+/*
+ * The opponent's name as a link to the team: white, as the name is, and not underlined. The overview draws the links
+ * on a desk only (24px there, below); drawn on a phone, they would be a finger's size.
+ */
+a.g-board__name {
+  min-height: var(--size-touch);
+  text-decoration: none;
+}
+a.g-board__name:hover { text-decoration: underline; }
+
+/* A line that starts with the race: the race, then « · » and the rest 6px after it, the rest wrapping as a whole. */
+.g-board__sub--race {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 var(--space-6);
+}
+.g-board__side--away .g-board__sub--race { justify-content: flex-end; }
+
+/* The race leading to its rules: the book, then the words in the ink, underlined in a fainter ink. */
+.g-board__race {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--header-ink);
+  font: 600 13px/1.35 var(--font-body);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--header-ink) 40%, transparent);
+  text-underline-offset: 3px;
+  text-transform: none;
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+.g-board__race:hover { text-decoration-color: var(--header-ink); }
+
 /* In the opponent's place while the next round is not paired: when there will be one. */
 .g-board__pending {
   color: var(--header-muted);
@@ -243,7 +296,9 @@
 
 /* The keyboard ring on the dark band is the header's ink (decision 19 of stage 05): the accent is for a page. */
 .g-board__actions .g-btn:focus-visible,
-.g-board__link:focus-visible { outline-color: var(--header-ink); }
+.g-board__link:focus-visible,
+a.g-board__name:focus-visible,
+.g-board__race:focus-visible { outline-color: var(--header-ink); }
 
 /*
  * On a phone the middle column is held narrow, so the names keep their room: the overline wraps, and so does a
@@ -264,6 +319,10 @@
     text-align: center;
     white-space: normal;
   }
+
+  /* Team.html has no board, and the phone's keeps its room for the names: neither the crest nor the letter. */
+  .g-board__crest,
+  .g-board__initial { display: none; }
 }
 
 /*
@@ -292,6 +351,46 @@
   .g-board__bar { padding-right: var(--space-16); padding-left: var(--space-16); }
 
   .g-board__name { font: 700 32px/1 var(--font-display); }
+
+  /* DeskOverview.html: our crest at the left of our name, their letter in a ringed circle at the right of theirs, 16px off. */
+  .g-board__side--emblem {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-16);
+  }
+  .g-board__side--away.g-board__side--emblem { flex-direction: row-reverse; }
+
+  .g-board__crest {
+    display: flex;
+    flex: none;
+  }
+  .g-board__crest .g-crest {
+    width: 52px;
+    height: 59px;
+  }
+
+  .g-board__initial {
+    box-sizing: border-box;
+    display: flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-full);
+    background: color-mix(in srgb, var(--header-ink) 12%, transparent);
+    box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--header-ink) 50%, transparent);
+    color: var(--header-ink);
+    font: 700 26px/1 var(--font-display);
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  a.g-board__name,
+  .g-board__race { min-height: 24px; }
 
   .g-board__score { font: 700 72px/1 var(--font-display); font-variant-numeric: tabular-nums; }
 

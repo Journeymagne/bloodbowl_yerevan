@@ -1073,6 +1073,7 @@
   "teamOverview.status.idle": "Not started",
   "teamOverview.ownSub": "{race} · #{place} · TV {value}",
   "teamOverview.opponentLater": "Opponent — after round {round}",
+  "teamOverview.opponentPlace": "#{place}",
   "teamOverview.friendlies": "Friendlies",
   "teamOverview.notInSeason": "Not entered in the season",
   "teamOverview.notInSeasonSub": "Enter it in the Season section; the administrator confirms the entry.",

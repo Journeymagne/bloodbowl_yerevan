@@ -8,6 +8,7 @@ import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, assertReadable, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale, setDictionaries } from "../src/core/i18n.mjs";
+import { renderCrest } from "../src/shell/crest.mjs";
 
 const api = installFakeApi();
 const appView = el(document, "section", { id: "app-view" });
@@ -409,12 +410,97 @@ test("the board names both teams by race, our place and value, the round and the
   assert.equal(model.board.status, "idle");
   assert.equal(model.board.overline, "Round 3 · home");
   assert.match(model.board.own.sub, /^Human · #2 · TV \d[\d,]*k$/);
-  assert.deepEqual(model.board.opponent, { name: "Rival Team", sub: "Dwarf · #1 in the league" });
+  assert.equal(model.board.opponent.sub, "#1", "the opponent's place short, after the race (DeskOverview.html's «5-е»)");
+  assert.equal(overviewModel(input("t1", { phone: true })).board.opponent.sub, "Dwarf · #1", "a phone's line: the race and the place short");
   const fragment = mount(overviewMarkup(model));
   assert.equal(fragment.querySelector(".g-board__mid .g-status").textContent, "Not started");
   assert.equal(fragment.querySelector(".g-board__score").textContent, "–:–");
   assert.equal(fragment.querySelector(".g-board__square--current").textContent, "3", "the match the board is about is the current square");
   assert.equal(fragment.querySelector(".g-board--live"), null);
+});
+
+test("on a desk the board draws the league's crest by our name, the opponent's initial by theirs, the race as a link to its rules and the place short", () => {
+  const model = overviewModel(input("t1"));
+  assert.equal(model.board.own.crestHtml, renderCrest({ size: "md" }));
+  // The opponent's name leads to the team's page (DeskOverview.html, L7), the race to its rules in the reference.
+  assert.deepEqual(model.board.opponent, { name: "Rival Team", href: "#/coaches/u-r1/teams/r1", sub: "#1", initial: "R", race: { title: "Dwarf", href: "#/teams/dwarf" } });
+  const fragment = mount(overviewMarkup(model));
+  const [ours, theirs] = fragment.querySelectorAll(".g-board__side");
+  assert.ok(ours.querySelector(".g-board__crest svg.g-crest--md"));
+  assert.equal(ours.querySelector(".g-board__name").tagName, "SPAN");
+  assert.equal(theirs.querySelector(".g-board__initial").textContent, "R");
+  assert.equal(theirs.querySelector('a.g-board__name[href="#/coaches/u-r1/teams/r1"]').textContent, "Rival Team");
+  assert.equal(theirs.querySelector('a.g-board__race[href="#/teams/dwarf"]').textContent, "Dwarf");
+  assert.equal(theirs.querySelector(".g-board__sub").textContent, "Dwarf · #1");
+  // In Russian the place is «1-е», as the prototype's «5-е».
+  initLocale("ru");
+  try {
+    assert.equal(overviewModel(input("t1")).board.opponent.sub, "1-е");
+    assert.equal(overviewModel(input("t1", { phone: true })).board.opponent.sub, "Dwarf · 1-е", "the race is the reference's word: the test reads the English one");
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("the opponent's letter is the first of the name, upper case, «?» for a name of nothing; no race known, no link to one; no place, no rest", () => {
+  const rival = (name, slug = "teams/dwarf", over = {}) => overviewModel(input("t1", { games: gamesWith({ g1: { away: { ...side("r1", name, slug), ...over } } }) })).board.opponent;
+  assert.equal(rival("  émigrés").initial, "É", "after the blanks, upper case");
+  assert.equal(rival("𝔊rimtusk").initial, "𝔊", "a letter outside the basic plane is one letter, not half of one");
+  for (const name of ["", "   "]) assert.equal(rival(name).initial, "?", JSON.stringify(name));
+  // A race the reference does not know is neither a title nor a link: the line is the place alone.
+  const unknown = rival("Rival Team", "teams/nowhere");
+  assert.equal(unknown.race, undefined);
+  assert.equal(unknown.sub, "#1");
+  const drawn = mount(overviewMarkup(overviewModel(input("t1", { games: gamesWith({ g1: { away: side("r1", "Rival Team", "teams/nowhere") } }) }))));
+  assert.equal(drawn.querySelector(".g-board__race"), null);
+  assert.equal(drawn.querySelector(".g-board__side--away .g-board__sub").textContent, "#1");
+  // An opponent outside the table: the race alone, and no « · » after it.
+  const outside = overviewModel(input("t1", { games: gamesWith({ g1: { away: side("r9", "Late Entry", "teams/dwarf") } }) }));
+  assert.equal(outside.board.opponent.sub, "");
+  assert.equal(mount(overviewMarkup(outside)).querySelector(".g-board__side--away .g-board__sub").textContent, "Dwarf");
+  // With no coach or no team to lead to, the name is text.
+  assert.equal(rival("Rival Team", "teams/dwarf", { user: null }).href, undefined);
+  assert.equal(rival("Rival Team", "teams/dwarf", { user: { id: "u-r1" }, team: { name: "Rival Team", baseTeamSlug: "teams/dwarf" } }).href, undefined);
+});
+
+test("the state under the score is the dark band's chip on both widths, as DeskOverview.html's: an eighth of the ink, the dot the state's", () => {
+  for (const phone of [false, true]) {
+    const chips = ["t1", "t2", "t3"].map((id) => mount(overviewMarkup(overviewModel(input(id, { phone })))).querySelector(".g-board__mid .g-status").getAttribute("class"));
+    assert.deepEqual(chips, ["g-status g-status--on-dark", "g-status g-status--live g-status--on-dark", "g-status g-status--wait g-status--on-dark"], `phone: ${phone}`);
+  }
+  assertReadable("src/ui/status-chip.css", ".g-status--on-dark", "color", ["color-mix(in srgb, var(--header-ink) 12%, var(--header))"], 4.5);
+});
+
+test("a phone's board draws neither the crest nor the initial, and the race as text", () => {
+  const model = overviewModel(input("t1", { phone: true }));
+  assert.equal(model.board.own.crestHtml, undefined);
+  assert.deepEqual(model.board.opponent, { name: "Rival Team", sub: "Dwarf · #1" });
+  const fragment = mount(overviewMarkup(model));
+  for (const selector of [".g-board__crest", ".g-board__initial", ".g-board__texts", ".g-board a"]) {
+    if (selector === ".g-board a") assert.ok(fragment.querySelectorAll(selector).every((link) => link.closest(".g-board__actions")), "the only links are the actions");
+    else assert.equal(fragment.querySelector(selector), null, selector);
+  }
+  assert.equal(fragment.querySelector(".g-board__side--away .g-board__sub").textContent, "Dwarf · #1");
+  assert.equal(fragment.querySelector(".g-board__side--away .g-board__name").tagName, "SPAN");
+});
+
+test("a focus on the board's links of a desk is not lost on a phone, where they are text: it goes to the title", async () => {
+  const { cross } = crossingWindow(false);
+  try {
+    coach();
+    await renderTeamOverview("t1");
+    for (const selector of ["a.g-board__name", "a.g-board__race"]) {
+      view.querySelector(selector).focus();
+      cross(true);
+      assert.equal(view.querySelector(selector), null, `${selector} is text on a phone`);
+      assert.ok(document.activeElement === view.querySelector("h1"), selector);
+      cross(false);
+      assert.ok(view.querySelector(selector), `${selector} is a link again on a desk`);
+    }
+    releaseCurrentScreen();
+  } finally {
+    delete globalThis.matchMedia;
+  }
 });
 
 test("a live match offers its records and the post-match; a score the opponent sent waits to be confirmed", () => {
@@ -962,7 +1048,7 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   for (const [key, words] of Object.entries(RESULT_WORDS)) assert.deepEqual([en[key], ru[key]], words, key);
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
   const outside = mount(overviewMarkup(overviewModel(input("t4"))));
   assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "status-chip.css", "callout.css");
   const phone = mount(overviewMarkup(overviewModel(input("t1", { phone: true }))));
@@ -977,7 +1063,7 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assert.ok(text("src/styles.css").trim().endsWith('@import url("screens/team/overview-lists.css");'), "the sheet reaches the page, imported last");
   for (const phone of [false, true]) {
     assertStyled(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone })))), "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css",
-      "search-field.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+      "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height where the prototypes give none.
   for (const selector of [".g-overview__title", ".g-overview__leader", ".g-overview__leaderline", ".g-overview__leadertag", ".g-overview__leadername", ".g-overview__leaderpos", ".g-overview__leadervalue"]) {
@@ -1201,7 +1287,7 @@ test("the ready words: every key in both dictionaries, the same names, and none 
 
 test("the ready block is styled, as the prototypes draw it, and readable (Team.html, DeskOverview.html)", () => {
   const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
-  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
   const own = (selector, property) => valuesOf(READY_CSS, selector, property);
   // Every rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform; the line height is the font's own where the prototypes give none.
   for (const selector of [".g-overview__ready", ".g-overview__readytitle", ".g-overview__readywho", ".g-overview__readylist", ".g-overview__readyheading", ".g-overview__readycount",
@@ -1326,7 +1412,7 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
   for (const phone of [false, true]) {
     const fragment = mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES, phone }))));
     assertCspSafe(fragment);
-    assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "result-pill.css", "button.css",
+    assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css",
       "status-chip.css", "callout.css", "number-badge.css");
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height (the prototypes give none).

@@ -23,8 +23,11 @@
  * the difference, the place being the phone's header's. A desk's head has the
  * reference's search at its right (decision 49), which hands what is typed to
  * the reference as the reference's own heads do; a phone's head is a screen
- * reader's, and has none. The ready players are the one exception: both forms
- * are drawn, and the stylesheet shows one.
+ * reader's, and has none. A desk's board is DeskOverview.html's (decision 54):
+ * the league's crest by our name, the opponent's letter in a circle by theirs,
+ * their name leading to their team and their race to its rules; a phone's
+ * board says the race and the place as text. The ready players are the one
+ * exception: both forms are drawn, and the stylesheet shows one.
  *
  * Who can advance is the roster's own answer (`rosterLines`' `ready`: the SPP to
  * spend reach the first random skill); the Skill Table plays no part in it. It is
@@ -53,7 +56,7 @@
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
+import { pageUrl, playerTeamUrl, seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -61,6 +64,7 @@ import { loadGames, onGamesChange } from "../../data/games.mjs";
 import { gameSides, recentResults, seasonDifference, seasonPager, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
 import { raceTeamOf, raceTitleOf } from "../../data/teams.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
+import { renderCrest } from "../../shell/crest.mjs";
 import { currentMatch, matchActions, subLine } from "../../shell/current-match.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon as renderIcon } from "../../ui/icons.mjs";
@@ -93,26 +97,40 @@ function proposedScore(game, sides) {
   return own === null || own === undefined || other === null || other === undefined ? "" : `${own}–${other}`;
 }
 
-/** The opponent's race and its place in the table: "Dwarf · #1 in the league". */
-function opponentLine(rival, seasonData) {
-  const place = standingOf(seasonData, rival.team?.id)?.rank;
-  return [raceTitleOf(rival.team?.baseTeamSlug), place ? t("shell.place", { place }) : ""].filter(Boolean).join(" · ");
+/** The letter in the opponent's circle (DeskOverview.html): the name's first, upper case; «?» for a name of nothing. */
+const initialOf = (name) => Array.from(name.trim())[0]?.toUpperCase() ?? "?";
+
+/**
+ * The opponent's side of the board, with its place short («#1», «1-е»). On a desk (DeskOverview.html, decision 54) the
+ * name leads to the team's page, the letter stands in a circle by it, and a race the reference knows leads to its rules
+ * at the head of the line, the place after it; on a phone the race and the place are a line of text: «Dwarf · #1».
+ */
+function opponentOf(rival, seasonData, phone) {
+  const name = rival.team?.name ?? "";
+  const race = raceTeamOf(rival.team?.baseTeamSlug);
+  const rank = standingOf(seasonData, rival.team?.id)?.rank;
+  const place = rank ? t("teamOverview.opponentPlace", { place: rank }) : "";
+  if (phone) return { name, sub: [race?.title, place].filter(Boolean).join(" · ") };
+  const href = rival.user?.id && rival.team?.id ? playerTeamUrl(rival.user.id, rival.team.id) : undefined;
+  return { name, href, sub: place, initial: initialOf(name), race: race ? { title: race.title, href: pageUrl(race) } : undefined };
 }
 
 /**
- * The board of a team in the table: the match it is about (`currentMatch`), our side with the place and the value, the
- * other with the race and the place, the score only once one is sent, and the season's squares for the form.
+ * The board of a team in the table: the match it is about (`currentMatch`), our side with the place and the value (and
+ * on a desk the league's crest), the other's (`opponentOf`), the score only once one is sent, and the season's squares
+ * for the form.
  */
-function boardOf({ team, raceTeam, seasonData, games, gamesRead, standing, worth }) {
+function boardOf({ team, raceTeam, seasonData, games, gamesRead, standing, worth, phone }) {
   const current = currentMatch(games, team.id);
   const sides = current && gameSides(current.game, team.id);
   const rival = sides && current.game[sides.other];
   const round = seasonData.season?.currentRound;
   const own = { name: team.name, sub: raceTeam ? t("teamOverview.ownSub", { race: raceTeam.title, place: standing.rank, value: formatMoney(worth) }) : "" };
+  if (!phone) own.crestHtml = renderCrest({ size: "md" });
   return {
     overline: sides ? subLine(current.game, sides.own) : "",
     own,
-    opponent: rival ? { name: rival.team?.name ?? "", sub: opponentLine(rival, seasonData) } : null,
+    opponent: rival ? opponentOf(rival, seasonData, phone) : null,
     pendingText: gamesRead && round ? t("teamOverview.opponentLater", { round }) : "",
     score: current?.phase === "sent" ? proposedScore(current.game, sides) : "",
     status: current?.phase ?? "none",
@@ -199,7 +217,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     tiles: tilesOf({ teamId: team.id, standing, games: gamesRead ? list : null, seasonId: season?.id ?? null, own, phone }),
     inSeason: Boolean(standing),
     seasonRead: Boolean(seasonData),
-    board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, standing, worth }) : null,
+    board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, standing, worth, phone }) : null,
     ready: readyPlayers(draft, raceTeam),
     leaders: teamLeaders(team, raceTeam),
     results: recentResults(list, team.id, RECENT_MATCHES).map((result) => ({ ...result, race: raceTitleOf(result.opponentRace) })),
@@ -208,11 +226,14 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
   };
 }
 
-/** The state under the score: not begun, in play, waiting for the opponent's or our confirmation; nothing for no match. */
+/**
+ * The state under the score: not begun, in play, waiting for the opponent's or our confirmation; nothing for no match.
+ * The chip is the dark band's (DeskOverview.html: an eighth of the ink, the dot the state's).
+ */
 function statusChip(status) {
-  if (status === "idle") return renderStatusChip({ label: t("teamOverview.status.idle") });
-  if (status === "live") return renderStatusChip({ label: t("shell.match.live"), tone: "live" });
-  if (status === "sent") return renderStatusChip({ label: t("shell.match.awaiting"), tone: "wait" });
+  if (status === "idle") return renderStatusChip({ label: t("teamOverview.status.idle"), onDark: true });
+  if (status === "live") return renderStatusChip({ label: t("shell.match.live"), tone: "live", onDark: true });
+  if (status === "sent") return renderStatusChip({ label: t("shell.match.awaiting"), tone: "wait", onDark: true });
   return "";
 }
 

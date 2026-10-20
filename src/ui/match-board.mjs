@@ -15,17 +15,56 @@
  * «Start the match» and «Cancel the start»); its anatomy is kept. The actions
  * are 0.9's, from `matchActions` (shell/current-match.mjs); `renderBoardActions`
  * draws them.
+ *
+ * A side can carry more, as DeskOverview.html's does (stage 07d, decision 54):
+ * a crest (`crestHtml`, `renderCrest`'s markup) or a letter in a circle
+ * (`initial`, hidden from a screen reader: the name beside it is read) at its
+ * outer edge, with the name and its line boxed together beside it; a link on
+ * the name (`href`); and a race (`race`) leading to its rules at the head of
+ * the line, the rest of the line after « · ». A side given none of them is
+ * drawn as before. The stylesheet shows the crest and the letter on a desk
+ * only. What the board does not draw, though the prototype does: the
+ * opponent's TV, the bubbles of inducements and of players who miss the match,
+ * the arrows and the squares as tabs to page through the season's matches,
+ * and the «T» of a friendly among them (stage 09 and 09a).
  */
 import { escapeHtml } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { renderButton } from "./button.mjs";
+import { icon } from "./icons.mjs";
 import { assertLinkHref, classNames } from "./markup.mjs";
 import { resultLabels } from "./result-pill.mjs";
 
-/** One team: its name, and a line under it when there is one. */
+/** A link the board draws: the address checked, then escaped. */
+function linkMarkup(className, href, inner) {
+  assertLinkHref(href);
+  return `<a class="${className}" href="${escapeHtml(href)}">${inner}</a>`;
+}
+
+/** The team's name: a link to the team when there is an address for it. */
+function nameMarkup({ name, href }) {
+  return href ? linkMarkup("g-board__name", href, escapeHtml(name)) : `<span class="g-board__name">${escapeHtml(name)}</span>`;
+}
+
+/** The line under the name: the race leading to its rules, then « · » and the rest when there is any; the rest alone without a race. */
+function lineMarkup({ sub, race }) {
+  if (!race) return sub ? `<span class="g-board__sub">${escapeHtml(sub)}</span>` : "";
+  const link = linkMarkup("g-board__race", race.href, `${icon("book", 12)}${escapeHtml(race.title)}`);
+  return `<span class="g-board__sub g-board__sub--race">${link}${sub ? ` · ${escapeHtml(sub)}` : ""}</span>`;
+}
+
+/** The crest or the letter at a side's outer edge; "" for neither. The letter is the name's, which is read instead. */
+function emblemMarkup({ crestHtml, initial }) {
+  const crest = crestHtml ? `<span class="g-board__crest">${crestHtml}</span>` : "";
+  return crest + (initial ? `<span class="g-board__initial" aria-hidden="true">${escapeHtml(initial)}</span>` : "");
+}
+
+/** One team: its name, and a line under it when there is one; beside them, boxed together, its crest or letter when given. */
 function renderTeam(team, away) {
-  const sub = team.sub ? `<span class="g-board__sub">${escapeHtml(team.sub)}</span>` : "";
-  return `<div class="${classNames("g-board__side", away && "g-board__side--away")}"><span class="g-board__name">${escapeHtml(team.name)}</span>${sub}</div>`;
+  const texts = nameMarkup(team) + lineMarkup(team);
+  const emblem = emblemMarkup(team);
+  const className = classNames("g-board__side", away && "g-board__side--away", emblem && "g-board__side--emblem");
+  return `<div class="${className}">${emblem ? `${emblem}<span class="g-board__texts">${texts}</span>` : texts}</div>`;
 }
 
 /** The opponent's column: the opponent, or the words that say when there will be one. */
@@ -45,8 +84,10 @@ function renderSquare({ label, result, current }) {
 /**
  * @param {object} props
  * @param {string} [props.overline] the small line over the score: the round and where
- * @param {{name: string, sub?: string}} props.own our team, at the left
- * @param {{name: string, sub?: string}|null} [props.opponent] theirs, at the right; none while there is no pairing
+ * @param {{name: string, sub?: string, crestHtml?: string}} props.own our team, at the left; `crestHtml`, `renderCrest`'s markup, by the name
+ * @param {{name: string, sub?: string, href?: string, initial?: string, race?: {title: string, href: string}}|null} [props.opponent]
+ *   theirs, at the right; none while there is no pairing. `href` makes the name a link, `initial` is the letter in the
+ *   circle by it, `race` heads the line, before `sub`
  * @param {string} [props.pendingText] in the opponent's place when there is none: when there will be
  * @param {string} [props.score] "2:1", between the names; the dash pair while there is none
  * @param {string} [props.statusHtml] a status chip, under the score
@@ -72,8 +113,7 @@ function renderBoardLink({ label, href, kind }) {
   if (!BUTTON_OF.has(kind)) throw new Error(`unknown match action kind: ${kind}`);
   const button = BUTTON_OF.get(kind);
   if (button) return renderButton({ label, href, kind: button });
-  assertLinkHref(href);
-  return `<a class="g-board__link" href="${escapeHtml(href)}">${escapeHtml(label)}</a>`;
+  return linkMarkup("g-board__link", href, escapeHtml(label));
 }
 
 /**

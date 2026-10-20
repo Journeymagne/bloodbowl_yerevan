@@ -2,9 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
-import { assertContrast, assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, blocks, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
+import { renderCrest } from "../src/shell/crest.mjs";
 import { renderButton } from "../src/ui/button.mjs";
 import { renderFormStrip } from "../src/ui/form-strip.mjs";
 import { renderKpiGrid, renderKpiTile } from "../src/ui/kpi-tile.mjs";
@@ -473,6 +474,129 @@ test("the board's two teams are named by the caller; a line under a name is ther
   assert.equal(mount(renderMatchBoard({ own: { name: "Solo" } })).querySelector(".g-board__sub"), null);
   assert.throws(() => renderMatchBoard({}), /own/);
   assert.throws(() => renderMatchBoard({ own: { name: "" } }), /own/);
+});
+
+const classAttr = (node) => node.getAttribute("class");
+
+test("the board can carry our crest, the opponent's initial, and the opponent's race as a link heading the line under the name; without them it is as it was", () => {
+  const fragment = mount(renderMatchBoard({
+    own: { ...own, crestHtml: renderCrest({ size: "md" }) },
+    opponent: { name: "Raiders", href: "#/coaches/u2/teams/r1", sub: "#1", initial: "R", race: { title: "Skaven", href: "#/teams/skaven" } },
+  }));
+  const [ours, theirs] = fragment.querySelectorAll(".g-board__side");
+  // Our side (DeskOverview.html): the crest, then the name and its line together.
+  assert.equal(classAttr(ours), "g-board__side g-board__side--emblem");
+  assert.deepEqual(ours.childNodes.map(classAttr), ["g-board__crest", "g-board__texts"]);
+  assert.ok(ours.querySelector(".g-board__crest svg.g-crest.g-crest--md"), "the league's crest, renderCrest's");
+  assert.deepEqual(ours.querySelector(".g-board__texts").childNodes.map(classAttr), ["g-board__name", "g-board__sub"]);
+  assert.equal(ours.querySelector(".g-board__name").tagName, "SPAN", "our name is no link: the page is ours");
+  // Theirs: the circle with the letter, the name leading to the team, the race leading to its rules at the head of the line.
+  assert.equal(classAttr(theirs), "g-board__side g-board__side--away g-board__side--emblem");
+  assert.deepEqual(theirs.childNodes.map(classAttr), ["g-board__initial", "g-board__texts"]);
+  assert.equal(theirs.querySelector(".g-board__initial").textContent, "R");
+  const name = theirs.querySelector(".g-board__name");
+  assert.deepEqual([name.tagName, name.getAttribute("href"), name.textContent], ["A", "#/coaches/u2/teams/r1", "Raiders"]);
+  const line = theirs.querySelector(".g-board__sub");
+  assert.equal(classAttr(line), "g-board__sub g-board__sub--race");
+  const race = line.childNodes[0];
+  assert.deepEqual([race.tagName, classAttr(race), race.getAttribute("href"), race.textContent], ["A", "g-board__race", "#/teams/skaven", "Skaven"]);
+  assert.ok(race.querySelector("svg.g-icon"), "the book before the race");
+  assert.equal(line.textContent, "Skaven · #1");
+  assertCspSafe(fragment);
+  assertStyled(fragment, "match-board.css", "src/shell/crest.css");
+  // A race with nothing after it is the line alone; a race with no crest or letter needs no box around the texts.
+  const raceOnly = mount(renderMatchBoard({ own, opponent: { name: "Raiders", race: { title: "Skaven", href: "#/teams/skaven" } } }));
+  assert.equal(raceOnly.querySelector(".g-board__side--away .g-board__sub").textContent, "Skaven");
+  assert.equal(raceOnly.querySelector(".g-board__texts"), null);
+  assert.equal(classAttr(raceOnly.querySelector(".g-board__side--away")), "g-board__side g-board__side--away");
+  // Without the new fields, the markup is as it was: the name and the line straight in the side, no box, no mark, no link.
+  const plain = mount(renderMatchBoard({ own, opponent: { name: "Raiders", sub: "Skaven · #1" } }));
+  assert.deepEqual(plain.querySelectorAll(".g-board__side").map((side) => side.childNodes.map(classAttr)), [["g-board__name", "g-board__sub"], ["g-board__name", "g-board__sub"]]);
+  assert.deepEqual(plain.querySelectorAll(".g-board__side").map(classAttr), ["g-board__side", "g-board__side g-board__side--away"]);
+  assert.equal(plain.querySelector("a"), null);
+  assert.equal(plain.querySelector(".g-board__sub").getAttribute("class"), "g-board__sub");
+  // An initial of nothing is no initial: the caller says what the circle holds.
+  assert.equal(mount(renderMatchBoard({ own, opponent: { name: "Raiders", initial: "" } })).querySelector(".g-board__initial"), null);
+});
+
+test("the initial is hidden from a screen reader; the race's title and the line are text", () => {
+  const fragment = mount(renderMatchBoard({
+    own: { name: HOSTILE, sub: HOSTILE, crestHtml: renderCrest() },
+    opponent: { name: HOSTILE, href: "#/coaches/u2/teams/r1", sub: HOSTILE, initial: HOSTILE, race: { title: HOSTILE, href: "#/teams/skaven" } },
+  }));
+  assert.equal(fragment.querySelector("img"), null);
+  const initial = fragment.querySelector(".g-board__initial");
+  assert.equal(initial.getAttribute("aria-hidden"), "true", "the name beside it is what is read");
+  assert.equal(initial.textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-board__crest svg").getAttribute("aria-hidden"), "true");
+  assert.equal(fragment.querySelector("a.g-board__name").textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-board__race").textContent, HOSTILE);
+  assert.equal(fragment.querySelector(".g-board__side--away .g-board__sub").textContent, `${HOSTILE} · ${HOSTILE}`);
+  assertCspSafe(fragment);
+  // A link the board cannot draw is refused, the name's as the race's.
+  assert.throws(() => renderMatchBoard({ own, opponent: { name: "R", href: "javascript:alert(1)" } }), /javascript/);
+  assert.throws(() => renderMatchBoard({ own, opponent: { name: "R", race: { title: "S", href: " javascript:alert(1)" } } }), /javascript/);
+  const quoted = mount(renderMatchBoard({ own, opponent: { name: "R", href: '#/x"onmouseover="1', race: { title: "S", href: '#/y"onfocus="1' } } }));
+  assert.deepEqual(quoted.querySelectorAll("a").map((link) => link.getAttribute("href")), ['#/x"onmouseover="1', '#/y"onfocus="1']);
+  assertCspSafe(quoted);
+});
+
+/** The values a sheet gives a property of one selector inside its `@media (query)` blocks, in file order. */
+function inMedia(file, query, selector, property) {
+  const css = readFileSync(new URL(`../${file}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const declaration = new RegExp(`(?:^|[;\\s])${property}\\s*:\\s*([^;]+)`, "g");
+  const values = [];
+  for (const media of css.matchAll(/@media\s*([^{]+)\{/g)) {
+    if (media[1].trim() !== `(${query})`) continue;
+    let depth = 1;
+    let at = media.index + media[0].length;
+    const start = at;
+    for (; depth; at += 1) depth += css[at] === "{" ? 1 : css[at] === "}" ? -1 : 0;
+    for (const block of blocks(css.slice(start, at - 1))) {
+      if (block.selectors.includes(selector)) values.push(...[...block.body.matchAll(declaration)].map(([, value]) => value.trim()));
+    }
+  }
+  return values;
+}
+
+test("styled; the crest and the initial are a desk's", () => {
+  const desk = (selector, property) => inMedia(BOARD_CSS, "min-width: 901px", selector, property);
+  // From 901px, DeskOverview.html's: the side a row 16px apart, the shield 52×59, the circle 52 in a 2px ring of half the ink on an eighth of it.
+  assert.deepEqual([desk(".g-board__side--emblem", "flex-direction"), desk(".g-board__side--emblem", "align-items"), desk(".g-board__side--emblem", "gap")], [["row"], ["center"], ["var(--space-16)"]]);
+  assert.deepEqual(desk(".g-board__side--away.g-board__side--emblem", "flex-direction"), ["row-reverse"]);
+  assert.deepEqual([desk(".g-board__crest .g-crest", "width"), desk(".g-board__crest .g-crest", "height")], [["52px"], ["59px"]]);
+  assert.deepEqual([desk(".g-board__initial", "width"), desk(".g-board__initial", "height"), desk(".g-board__initial", "border-radius")], [["52px"], ["52px"], ["var(--radius-full)"]]);
+  assert.deepEqual(desk(".g-board__initial", "background"), ["color-mix(in srgb, var(--header-ink) 12%, transparent)"]);
+  assert.deepEqual(desk(".g-board__initial", "box-shadow"), ["inset 0 0 0 2px color-mix(in srgb, var(--header-ink) 50%, transparent)"]);
+  assert.deepEqual([desk(".g-board__initial", "font"), desk(".g-board__initial", "color")], [["700 26px/1 var(--font-display)"], ["var(--header-ink)"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__initial", "width"), ["52px"], "nowhere but on a desk");
+  // Up to 900px neither is drawn: the phone's board is as it was (Team.html has none).
+  assert.deepEqual(inMedia(BOARD_CSS, "max-width: 900px", ".g-board__crest", "display"), ["none"]);
+  assert.deepEqual(inMedia(BOARD_CSS, "max-width: 900px", ".g-board__initial", "display"), ["none"]);
+  // The texts beside the mark are the column the side was; theirs at the right.
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__texts", "flex-direction"), valuesOf(BOARD_CSS, ".g-board__texts", "gap"), valuesOf(BOARD_CSS, ".g-board__texts", "min-width")], [["column"], ["var(--space-4)"], ["0"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__side--away .g-board__texts", "align-items"), ["flex-end"]);
+  // The race: 13/600 in the ink, underlined in 40% of it 3px under the words, the book 5px before them; the rest 6px after it.
+  const race = (property) => valuesOf(BOARD_CSS, ".g-board__race", property);
+  assert.deepEqual([race("display"), race("align-items"), race("gap"), race("font"), race("color")], [["inline-flex"], ["center"], ["5px"], ["600 13px/1.35 var(--font-body)"], ["var(--header-ink)"]]);
+  assert.deepEqual([race("text-decoration"), race("text-decoration-color"), race("text-underline-offset")], [["underline"], ["color-mix(in srgb, var(--header-ink) 40%, transparent)"], ["3px"]]);
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__sub--race", "gap"), valuesOf(BOARD_CSS, ".g-board__sub--race", "flex-wrap")], [["0 var(--space-6)"], ["wrap"]]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__side--away .g-board__sub--race", "justify-content"), ["flex-end"]);
+  // D2: a finger's 44px up to 900px, from 24px on a desk (the overview draws the links on a desk only); the keyboard's ring the header's ink.
+  const px = (value) => (value === "var(--size-touch)" ? 44 : Number.parseFloat(value));
+  for (const selector of [".g-board__race", "a.g-board__name"]) {
+    assert.deepEqual(valuesOf(BOARD_CSS, selector, "min-height")[0], "var(--size-touch)", selector);
+    const onDesk = desk(selector, "min-height");
+    assert.ok(onDesk.length === 1 && px(onDesk[0]) >= 24, `${selector}: ${onDesk}`);
+    assert.deepEqual(valuesOf(BOARD_CSS, `${selector}:focus-visible`, "outline-color"), ["var(--header-ink)"], selector);
+  }
+  assert.deepEqual(valuesOf(BOARD_CSS, "a.g-board__name", "text-decoration"), ["none"], "the name is white, not underlined");
+  for (const selector of [".g-board__name", ".g-board__race"]) assert.deepEqual(valuesOf(BOARD_CSS, selector, "overflow-wrap"), ["anywhere"], selector);
+  assertReadable(BOARD_CSS, ".g-board__race", "color", ["--header"], 4.5);
+  assertReadable(BOARD_CSS, ".g-board__initial", "color", ["color-mix(in srgb, var(--header-ink) 12%, var(--header))"], 4.5);
+  for (const selector of [".g-board__name", "a.g-board__name", ".g-board__texts", ".g-board__sub--race", ".g-board__race"]) {
+    assert.deepEqual([valuesOf(BOARD_CSS, selector, "white-space"), valuesOf(BOARD_CSS, selector, "text-overflow")], [[], []], `${selector} wraps, and nothing is cut off`);
+  }
 });
 
 test("a score is text between the names; the dash pair stands in until there is one", () => {
