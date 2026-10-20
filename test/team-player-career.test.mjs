@@ -293,7 +293,7 @@ test("the width crossing 900px: the phone's read stands for the desk's panel", a
   });
 });
 
-test("a desk draws its career closed and reads none; a fallen player's page none", async () => {
+test("a desk draws its career closed and reads none; a fallen player's page reads his; an id the roster holds nowhere, none", async () => {
   // A desk: the address is the roster with him in the panel, the desk's career closed under it (stage 07e, DeskRosterCareer.html).
   coachCade();
   await playerPage("p3");
@@ -304,12 +304,13 @@ test("a desk draws its career closed and reads none; a fallen player's page none
   assert.equal(callsTo(HISTORY_READ), 0);
   api.assertAnswered();
   await withWindow({ phone: true }, async () => {
+    // A fallen player's page reads his (stage 07e, test/team-fallen-career.test.mjs).
     coach();
     await playerPage("d1");
     await settle();
     assert.equal(view.querySelector("h1").textContent, "Pike");
-    assert.ok(!career());
-    assert.ok(!callKeys().some((key) => key.endsWith("/history")));
+    assert.ok(career());
+    assert.deepEqual(callKeys().filter((key) => key.endsWith("/history")), ["GET /api/teams/t1/players/d1/history"]);
     // An id the roster holds nowhere: the way back, and nothing read.
     coach();
     await playerPage("zz");

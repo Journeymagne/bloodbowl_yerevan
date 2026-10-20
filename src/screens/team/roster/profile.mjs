@@ -107,9 +107,10 @@ function pencilMarkup(line, screen) {
 /**
  * His profile (decision 3, Player.html): the head — his number, his name, «position · race · value», the pencil — then
  * what stands over it, his characteristics, his SPP, his skills, his career and his injuries. «Career» stands right
- * after the skills (owner, 2026-10-20; PlayerCareer.html): the phone draws it here (career.mjs), the desk's panel is
- * stage 07e's (DeskRosterCareer.html), and a fallen player's page has none until then. The body names his line
- * (`data-panel-player`), so a skill's card opens its rule for him (wire.mjs).
+ * after the skills (owner, 2026-10-20; PlayerCareer.html): the phone's block (career.mjs), a heading as «Skills»'s; the
+ * desk's panel draws its own form (stage 07e, DeskRosterCareer.html; view.mjs), and a fallen player's profile the
+ * phone's after the card of his death (`fallenMarkup`). The body names his line (`data-panel-player`), so a skill's card
+ * opens its rule for him (wire.mjs).
  * @returns {[string, string]} the head and the body
  */
 function profileMarkup(line, screen) {
@@ -126,13 +127,15 @@ function profileMarkup(line, screen) {
 /**
  * A fallen player read as fallen — a list that still held him led here (PlayerDead.html): his grey number, his name,
  * «position · race · fallen» and no pencil; under it the body of his profile with the roster's own undo (stage 07b),
- * closed while none can be sent, saying why.
+ * closed while none can be sent, saying why, and his career by match where PlayerDead puts its «Career» (stage 07e):
+ * the phone's block, an `h3` as «Skills» there, read once his profile is drawn (index.mjs) — for a record with an id.
  * @returns {[string, string]} the head and the body
  */
 function fallenMarkup(line, screen) {
   const badgeHtml = renderPlayerBadge({ number: line.number, kind: line.kind, fallen: true, large: true });
   const reason = undoable(line) ? markClosed(line, screen, { direct: true }) : "";
-  const body = `${noticesMarkup(screen)}${fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason) })}`;
+  const careerHtml = line.id ? careerMarkup({ line, race: screen.race, career: screen.careers.get(line.id) ?? null, open: screen.careerOpen, heading: "h3" }) : "";
+  const body = `${noticesMarkup(screen)}${fallenProfileMarkup(line, { undoHtml: undoMarkup(line, reason), careerHtml })}`;
   return [
     playerHeadMarkup({ teamId: screen.teamId, badgeHtml, name: fallenName(line), who: fallenWho(line, screen.team.baseTeamSlug) }),
     `<div class="g-profile__body g-profile__fallen"${dataAttributes({ panelPlayer: line.key })}>${body}</div>`,

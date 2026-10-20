@@ -341,26 +341,29 @@ function shownOf(screen) {
 /**
  * The line whose career the screen shows (career.mjs reads it for him), null for none: none before the screen is drawn
  * (the wait, a read that failed, a race the reference does not know); on a phone in the player mode, his line among
- * those who play; on a desk the panel's player, only while the list is open (stage 07e, decision 3: there are no totals
- * to wait for, and the coach goes through the players with clicks) — none when a search hides everyone.
+ * those who play, then among the fallen (as `playerPageMarkup` finds it); on a desk the panel's player, a fallen one
+ * too, only while the list is open (stage 07e, decision 3: there are no totals to wait for, and the coach goes through
+ * the players with clicks) — none when a search hides everyone.
  * @param {RosterScreen} screen
  * @returns {import("./model.mjs").PlayerLine|null}
  */
 export function careerLineOf(screen) {
   if (screen.loading || screen.error || !screen.race) return null;
-  if (screen.phone) return screen.player ? screen.lines.find((line) => line.id === screen.player) ?? null : null;
+  const own = (lines) => lines.find((line) => line.id === screen.player);
+  if (screen.phone) return screen.player ? own(screen.lines) ?? own(screen.fallen) ?? null : null;
   if (!screen.careerOpen) return null;
-  const { active, skipping, choice } = shownOf(screen);
-  return [...active, ...skipping].find((line) => line.key === choice.chosen) ?? null;
+  const { active, skipping, fallen, choice } = shownOf(screen);
+  return [...active, ...skipping, ...fallen].find((line) => line.key === choice.chosen) ?? null;
 }
 
 /**
- * The desk's «Career» of the panel's player (DeskRosterCareer.html): the visit's read of his, the one open state of the
- * visit's; "" for a player no read can name, and on a phone, which hides the panel (its career is the profile's).
+ * The desk's «Career» of the panel's player (DeskRosterCareer.html), a fallen one's too, after the card of his death: the
+ * visit's read of his, the one open state of the visit's; "" for a player no read can name, and on a phone, which hides
+ * the panel (its career is the profile's).
  * @param {import("./model.mjs").PlayerLine} line @param {RosterScreen} screen
  */
 function deskCareerMarkup(line, screen) {
-  if (screen.phone || !line.id || line.fallen) return "";
+  if (screen.phone || !line.id) return "";
   return careerMarkup({ line, race: screen.race, career: screen.careers.get(line.id) ?? null, open: screen.careerOpen, desk: true, heading: "h3" });
 }
 
@@ -396,7 +399,7 @@ function layoutMarkup(screen) {
   const chosen = [...lines, ...fallen].find((line) => line.key === choice.chosen);
   const aside = chosen
     ? `<aside class="g-roster__aside" id="${ASIDE_ID}" aria-label="${escapeHtml(t("teamRoster.panelLabel"))}"${dataAttributes({ panelPlayer: chosen.key })}>`
-      + `${chosen.fallen ? fallenPanelMarkup(chosen, screen) : sidePanelMarkup(chosen, screen, { careerHtml: deskCareerMarkup(chosen, screen) })}</aside>`
+      + `${(chosen.fallen ? fallenPanelMarkup : sidePanelMarkup)(chosen, screen, { careerHtml: deskCareerMarkup(chosen, screen) })}</aside>`
     : "";
   // A desk drawn for a player's address that names nobody it holds says so over the table (M5), as a phone's page does.
   const gone = screen.player && ![...lines, ...screen.fallen].some((line) => line.id === screen.player) ? goneMarkup(screen.teamId) : "";

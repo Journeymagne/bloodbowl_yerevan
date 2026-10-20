@@ -232,17 +232,18 @@ function rowMarkup(row, desk) {
  * a career the toggle let go is read on this draw), why the last read failed, «No matches yet» or the head and the rows
  * of the last answer — a read asked again leaves them as they stand — either with the footnote (ruling on I1: it says
  * why the matches before the site's records are not there). The rows never fall short of the SPP of the read's moment.
- * A desk's is its rows alone (DeskRosterCareer.html): no head, no footnote.
- * @param {object} race @param {CareerRead|null} career @param {boolean} desk
+ * A desk's is its rows alone (DeskRosterCareer.html): no head, no footnote. A fallen player's end at the last match the
+ * site knows him in (pre-flight L6).
+ * @param {object} race @param {CareerRead|null} career @param {{desk: boolean, fallen: boolean}} form
  */
-function listMarkup(race, career, desk) {
+function listMarkup(race, career, { desk, fallen }) {
   const state = (words, { role = "", bad = false } = {}) => `<p class="${classNames("g-career__state", bad && "g-career__state--bad")}"`
     + `${role ? ` role="${role}"` : ""}>${escapeHtml(words)}</p>`;
   let body;
   if (!career || (career.loading && !career.history)) body = state(t("teamPlayer.career.reading"), { role: "status" });
   else if (!career.history) body = state(t("teamPlayer.career.failed", { reason: career.error ?? "" }), { role: "alert", bad: true });
   else {
-    const rows = careerRows(career.history, race, { earned: career.basis });
+    const rows = careerRows(career.history, race, { earned: career.basis, fallen });
     const count = rows.filter((row) => row.key !== OUTSIDE && row.key !== BEFORE).length;
     const head = desk ? ""
       : `<div class="g-career__listhead"><span>${escapeHtml(t("teamPlayer.career.listHead", { count }))}</span><span>${escapeHtml(t("teamPlayer.career.sppHead"))}</span></div>`;
@@ -270,7 +271,7 @@ export function careerMarkup({ line, race, career, open, desk = false, heading =
     + `<span class="g-career__title">${escapeHtml(t("teamPlayer.career.title"))}</span>`
     + `<span class="g-career__sub">${escapeHtml(sub)}</span></span>${icon("chevron", 18)}</button></${tag}>`;
   const totals = desk ? "" : totalsMarkup(line, career);
-  return `<section class="${classNames("g-career", desk && "g-career--desk")}">${toggle}${totals}${open ? listMarkup(race, career, desk) : ""}</section>`;
+  return `<section class="${classNames("g-career", desk && "g-career--desk")}">${toggle}${totals}${open ? listMarkup(race, career, { desk, fallen: Boolean(line.fallen) }) : ""}</section>`;
 }
 
 /**

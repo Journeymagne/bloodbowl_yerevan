@@ -118,7 +118,9 @@ test("a fallen player's address draws his profile: grey number, name, position �
       assert.ok(!undoButton().hasAttribute("aria-disabled"));
       assert.ok(undoButton().closest(".g-fallen__card"));
       assert.ok(words(page).includes(HINT));
-      assert.ok(words(page).includes("Career: 6 SPP"));
+      // Stage 07e: his career by match, PlayerCareer's block, in place of «Career: 6 SPP» (test/team-fallen-career.test.mjs).
+      assert.ok(page.querySelector(".g-career"));
+      assert.ok(!page.querySelector(".g-fallen__career"));
       assert.deepEqual(page.querySelectorAll(".g-skill--card").map((card) => card.getAttribute("data-skill")), ["Block", "Tackle"]);
       assert.ok(words(page).includes("A fallen player plays no matches, takes no advancements and is not in TV."));
       assert.ok(!page.querySelector("[data-action-key]"), "no counters");

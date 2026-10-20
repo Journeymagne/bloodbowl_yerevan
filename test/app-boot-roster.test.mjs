@@ -39,6 +39,8 @@ test("a fallen player's address draws his profile", async () => {
   const pike = { id: "f1", player: { id: "d1", rowIndex: 3, number: "8", name: "Pike" }, cause: "Foul", pairingId: null, roundNumber: null, diedAt: "2026-10-18T10:00:00Z", fromMatch: false };
   api.reply("GET /api/teams/t1/fallen", 200, { fallen: [pike] });
   api.reply("GET /api/games", 200, { games: [], currentGames: [] });
+  // Stage 07e: his page reads his career by match.
+  api.reply("GET /api/teams/t1/players/d1/history", 200, { history: { playerId: "d1", matches: [], outside: {} } });
   location.replace("#/t/t1/roster/d1");
   await turns();
   const view = document.querySelector("#app-view");
@@ -46,6 +48,7 @@ test("a fallen player's address draws his profile", async () => {
   assert.ok(view.querySelector('[data-screen="team-player"]'), "the profile, not the 2.x editor");
   assert.equal(view.querySelector("h1").textContent, "Pike");
   assert.ok(view.querySelector("[data-roster-undo]"));
+  assert.ok(view.querySelector(".g-fallen .g-career"), "his career by match");
   assert.ok(!view.querySelector(".matchday-editor"));
   api.assertAnswered();
 });
