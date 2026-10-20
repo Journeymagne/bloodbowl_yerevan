@@ -104,7 +104,7 @@ export function pickMarkup({ name, raceSlug, races, seasonName, resets }) {
 /**
  * Whether the coach is on the screen now, and the build the screen was drawn for (new-flow.mjs): one object for every
  * visit, so that a visit that was left stays closed.
- * @type {{open: boolean, build: object}|null}
+ * @type {{open: boolean, build: import("./new-flow.mjs").Build}|null}
  */
 let visit = null;
 

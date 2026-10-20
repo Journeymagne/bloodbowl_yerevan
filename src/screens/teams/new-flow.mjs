@@ -72,21 +72,29 @@ export function isCurrentBuild(build) {
   return Boolean(build) && flow === build;
 }
 
+/*
+ * `pickOf`, `setPick` and `startBuild` work on the build in memory and never make one: only `buildOf` does, and what
+ * opens a first step calls it first. While a session is read again nobody is signed in until the answer is announced
+ * (data/session.mjs, `readSession`), yet the coach's build is still theirs, and a keystroke on the first step must reach
+ * it, not an empty one that `buildOf` would put in its place. With no build in memory they change and begin nothing.
+ */
+
 /**
  * What the first step shows: the name as typed, the race, and whether going on from here to another race would lose
  * a squad that was begun.
  * @returns {{name: string, raceSlug: string, resets: boolean}}
  */
 export function pickOf() {
-  const { name, raceSlug, draft } = buildOf();
+  if (!flow) return { name: "", raceSlug: "", resets: false };
+  const { name, raceSlug, draft } = flow;
   return { name, raceSlug, resets: holdsPicks(draft) };
 }
 
 /** Change what the first step holds: the fields given, and no others. */
 export function setPick({ name, raceSlug }) {
-  const build = buildOf();
-  if (name !== undefined) build.name = name;
-  if (raceSlug !== undefined) build.raceSlug = raceSlug;
+  if (!flow) return;
+  if (name !== undefined) flow.name = name;
+  if (raceSlug !== undefined) flow.raceSlug = raceSlug;
 }
 
 const startListeners = new Set();
@@ -103,12 +111,13 @@ export function onBuildStarted(listener) {
 
 /**
  * «Create»: the build of this race, with this name. The same race keeps what was picked and only renames it; another
- * starts again, and the moment it starts is the one `createTeam` will look from. With no name or no race it begins
- * nothing and says so.
+ * starts again, and the moment it starts is the one `createTeam` will look from. With no build in memory, no name or
+ * no race it begins nothing and returns `false`.
  * @returns {boolean} whether a build was begun
  */
 export function startBuild() {
-  const build = buildOf();
+  const build = flow;
+  if (!build) return false;
   const name = build.name.trim();
   const race = raceTeamOf(build.raceSlug);
   if (!name || !race) return false;
