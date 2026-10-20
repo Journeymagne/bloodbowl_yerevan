@@ -43,6 +43,7 @@ const RACES = expandCollections(JSON.parse(read("public/data.en.json"))).teams;
 const SETTINGS = "src/screens/team/manage/settings.css";
 const TOKEN = "gata-league-auth-token";
 const PATCH = "PATCH /api/teams/t1";
+const LIST = "GET /api/teams";
 const FIRST_PAGE = "GET /api/teams/t1/ledger?limit=20";
 const HOST = '[data-sheet-host="team-settings"]';
 const LOGO = "data:image/png;base64,AAAA";
@@ -114,6 +115,14 @@ function type(value) {
   fireEvent(field, "input");
 }
 const alertText = () => $(".g-team-settings__alert")?.textContent ?? null;
+
+/** Wait until `count` requests are held at the gate. */
+async function waitHeld(gate, count = 1) {
+  for (let spins = 0; gate.count < count; spins += 1) {
+    assert.ok(spins < 50, `${count} request(s) were to be held`);
+    await settle();
+  }
+}
 
 /**
  * A coach signed in on a page that has read the list, the table and the games; the screen before is left and its
@@ -536,6 +545,59 @@ test("the model says what holds the settings, in order: a match on, the roster's
   );
   // The race is shown and never changed: nothing of the model is for a change of it.
   assert.deepEqual(["raceSlug", "inSeason", "players", "raceHeld"].filter((key) => key in settings), []);
+});
+
+// Review Focus 2, on the name's sheet (07d's second review took the race's, which this test was first written on).
+test("a second press on «Save» sends nothing more; a lost answer reads the team again and sends nothing (Review Focus 2)", async () => {
+  await page("t1", { userId: "u-lost" });
+  openRow("name");
+  type("Rooks");
+  const gate = api.hold(PATCH);
+  const save = () => $("[data-settings-save]");
+  await withoutTimers(async () => {
+    fireEvent(save(), "click");
+    fireEvent(save(), "click");
+    await waitHeld(gate);
+    fireEvent(save(), "click");
+    await settled(2);
+    assert.equal(calls(PATCH).length, 1, "one PATCH");
+    // Said by nothing but the button: a press that is refused is no «another save is on its way».
+    assert.deepEqual([save().getAttribute("aria-busy"), save().textContent.trim(), save().hasAttribute("disabled"), alertText()], ["true", "Saving…", false, ""]);
+    // The answer is lost: the server holds the list and the history as they were.
+    api.reply(LIST, 200, { teams: structuredClone(TEAMS) });
+    const sent = api.calls.length;
+    gate.release({ error: new TypeError("Failed to fetch") });
+    await settled();
+    const after = api.calls.slice(sent).map((call) => call.key);
+    assert.deepEqual([after.filter((key) => key === LIST).length, after.filter((key) => key === FIRST_PAGE).length], [1, 1], "the team and its history read again, once each");
+  });
+  assert.equal(calls(PATCH).length, 1, "never sent again by itself");
+  assert.equal(alertText(), "No answer came: the site is reading the team again — check whether it was saved");
+  assert.ok(sheetOpen(), "the sheet stays, to look");
+  assert.equal($("#team-settings-name").value, "Ashgrove Wardens", "the choice starts over from the team as it is");
+  assert.deepEqual([save().hasAttribute("disabled"), save().hasAttribute("aria-busy")], [true, false]);
+  assert.ok(document.activeElement === $("#team-settings-name"), "the focus is on the field, not on a button gone dead");
+});
+
+// A write whose own code throws is a write of unknown fate (sheet-host's `submit`): the sheet leaves «Saving…» and the
+// team and its history are read again, once each; nothing is sent.
+test("a save whose own code throws leaves «Saving…», says nothing is known, and reads the team and its history again once each", async () => {
+  await page("t1", { userId: "u-threw" });
+  openRow("name");
+  type("Rooks");
+  // A roster that cannot be copied: the step throws before a request is made.
+  state.myTeams.items[0].roster.uncopyable = () => {};
+  api.reply(LIST, 200, { teams: structuredClone(TEAMS) });
+  const sent = api.calls.length;
+  await withoutTimers(async () => {
+    fireEvent($("[data-settings-save]"), "click");
+    await settled();
+  });
+  const after = api.calls.slice(sent).map((call) => call.key);
+  assert.deepEqual([after.includes(PATCH), after.filter((key) => key === LIST).length, after.filter((key) => key === FIRST_PAGE).length], [false, 1, 1]);
+  assert.equal(alertText(), en["treasury.mayHaveWritten"]);
+  assert.ok(sheetOpen(), "the sheet stays, to look");
+  assert.deepEqual([$("[data-settings-save]").hasAttribute("aria-busy"), $("#team-settings-name").value], [false, "Ashgrove Wardens"], "not on «Saving…»; the field starts over");
 });
 
 test("held, the file field stays in the tab order and says why; the focus on it is not dropped when a match goes live (M-4)", async () => {

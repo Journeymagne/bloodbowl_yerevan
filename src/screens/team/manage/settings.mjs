@@ -2,10 +2,9 @@
  * The team's settings on the team page (stage 07d; owner, 2026-10-19: what only the 2.x editor could do moves into
  * 3.0): its name, league, god and logo, its Dedicated Fans put right, its players in number order, and what the roster
  * breaks of the rules — the rows of the builder's team card, with the race shown among them and never changed (owner,
- * 2026-10-20). Each is one save of the team, the team page's own
- * (`saveTeamRoster`), never sent again by itself; none while a match is on, while a save of the team is on its way, or
- * while the roster's queue holds a step of its own, which a save made here would leave on a revision the server no
- * longer has.
+ * 2026-10-20). Each is one save of the team, the team page's own (`saveTeamRoster`), never sent again by itself; none
+ * while a match is on, while a save of the team is on its way, or while the roster's queue holds a step of its own,
+ * which a save made here would leave on a revision the server no longer has.
  *
  * `settingsModel` says what the section shows and what holds it (`held`, in that order); `settingsMarkup` draws the
  * rows (decision 26), a held section saying why over them, with the way to the roster when the roster's queue is what
@@ -243,7 +242,8 @@ function sendOf(form, chosen) {
   if (form.kind === "name") return saved(form.teamId, { draft: draftOf(team) }, { name: chosen });
   if (form.kind === "league") return saved(form.teamId, withLeague(race, draftOf(team), chosen));
   if (form.kind === "favoured") return saved(form.teamId, withFavoured(race, draftOf(team), chosen));
-  return saved(form.teamId, withFans(draftOf(team), Number(chosen)));
+  if (form.kind === "fans") return saved(form.teamId, withFans(draftOf(team), Number(chosen)));
+  throw new TypeError(`settings: no save for a sheet of kind "${form.kind}"`);
 }
 
 /**
