@@ -1,8 +1,10 @@
 /**
  * The treasury strip of the desk roster (DeskRoster): the money and what the team holds in one row, and the way
- * to add or take money. Stage 07a puts it over the roster table; its two exports are that stage's contract —
+ * to add or take money. Stage 07a puts it over the roster table; two of its exports are that stage's contract —
  * renderTreasuryStrip({team}) and wireTreasuryStrip(root). The strip redraws itself when the team or the games
  * change, and its sheet lives in a host of its own on the body, so a screen redrawing around it closes nothing.
+ * The other two are the team page's (index.mjs): its phone's treasury card (`treasuryCardMarkup`), whose «+ Add» and
+ * «− Take» open the strip's sheet through the same wiring, and the shut opener both draw (`shutOpener`).
  *
  * What the strip announces. Every write of the team page (an entry by hand, a step of a resource, a correction
  * of a roster) replaces the team in `state.myTeams` (`adopt` in data/treasury.mjs, via `setMyTeams` of
@@ -43,6 +45,26 @@ function resourceCell(row) {
 function editButton(teamId, live) {
   const shut = live ? ` aria-disabled="true" title="${escapeHtml(t("treasury.lockedLive"))}"` : "";
   return `<button type="button" class="g-funds__edit" data-key="treasury-edit" data-treasury-money="${escapeHtml(teamId)}" data-treasury-sign="1" aria-label="${escapeHtml(t("treasury.strip.edit"))}"${shut}>${icon("pencil")}</button>`;
+}
+
+/**
+ * A button that opens a sheet. While a match is on it is shut, not disabled (it keeps its place in the tab order and
+ * says why when pressed: the strip's and the fix sheet's wiring read the `title`).
+ */
+export function shutOpener(className, data, label, live) {
+  const shut = live ? ` aria-disabled="true" title="${escapeHtml(t("treasury.lockedLive"))}"` : "";
+  return `<button type="button" class="${className}" ${data} aria-haspopup="dialog"${shut}>${escapeHtml(label)}</button>`;
+}
+
+/** The phone's treasury card of the team page: the sum, the team's value, and «+ Add» / «− Take», which open the strip's sheet. */
+export function treasuryCardMarkup(model, live) {
+  const id = escapeHtml(model.teamId);
+  const money = (sign, className, label) => shutOpener(className, `data-treasury-money="${id}" data-treasury-sign="${sign}"`, label, live);
+  return `<section class="g-manage__card" aria-labelledby="manage-card-title"><div class="g-manage__card-text">`
+    + `<h2 class="g-manage__card-title" id="manage-card-title">${escapeHtml(t("roster.treasuryTitle"))}</h2>`
+    + `<span class="g-manage__card-sum">${escapeHtml(formatMoney(model.treasury))}</span>`
+    + `<span class="g-manage__card-tv">${escapeHtml(t("treasury.tv", { value: formatMoney(model.worth) }))}</span></div>`
+    + `<div class="g-manage__card-actions">${money("1", "g-manage__in", t("treasury.in"))}${money("-1", "g-manage__out", t("treasury.out"))}</div></section>`;
 }
 
 /** What stands in the strip: the cells and the button; the section around them stays when the strip is patched. */

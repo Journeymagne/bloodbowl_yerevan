@@ -22,10 +22,10 @@
 export const REF_SECTIONS = new Set(["teams", "skills", "traits", "rules", "cheatsheets", "inducements", "star-players"]);
 
 /** The screens of one of the coach's own teams, `#/t/:teamId[/…]`. */
-export const TEAM_ROUTES = new Set(["team", "teamManage", "teamRoster", "teamPlayer", "teamMatches", "teamChallenges"]);
+export const TEAM_ROUTES = new Set(["team", "teamManage", "teamSettings", "teamRoster", "teamPlayer", "teamMatches", "teamChallenges"]);
 
-/** The tail of a team address for each team screen but the player, which has an id of its own. */
-const TEAM_SECTIONS = new Set(["", "team", "roster", "matches", "challenges"]);
+/** The tail of a team address for each team screen but the player, which has an id of its own; `settings` are the team page's (stage 07d). */
+const TEAM_SECTIONS = new Set(["", "team", "settings", "roster", "matches", "challenges"]);
 
 /** Accept either an entity or its id, because call sites have both. */
 function idOf(entityOrId) {
@@ -166,6 +166,7 @@ const PLAIN_ROUTES = new Map([
 const ID_ROUTES = [
   [/^t\/([^/]+)$/, "team", "teamId"],
   [/^t\/([^/]+)\/team$/, "teamManage", "teamId"],
+  [/^t\/([^/]+)\/settings$/, "teamSettings", "teamId"],
   [/^t\/([^/]+)\/roster$/, "teamRoster", "teamId"],
   [/^t\/([^/]+)\/roster\/([^/]+)$/, "teamPlayer", "teamId", "playerId"],
   [/^t\/([^/]+)\/matches$/, "teamMatches", "teamId"],

@@ -26,7 +26,7 @@ import { renderStatusChip } from "../ui/status-chip.mjs";
 export const SWITCHER_ID = "team-switcher";
 
 /** The team screens a choice keeps: the section of the other team each leads to; a player's page leads to the roster. */
-const SECTIONS = { team: "", teamManage: "team", teamRoster: "roster", teamPlayer: "roster", teamMatches: "matches", teamChallenges: "challenges" };
+const SECTIONS = { team: "", teamManage: "team", teamSettings: "settings", teamRoster: "roster", teamPlayer: "roster", teamMatches: "matches", teamChallenges: "challenges" };
 
 /** "1-0-0": wins, draws, losses. */
 const recordText = ({ wins, draws, losses }) => `${wins}-${draws}-${losses}`;

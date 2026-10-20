@@ -33,6 +33,10 @@ test("switching from a team's page keeps its section, from a player the roster; 
   for (const name of ["season", "ref", "settings", "game", "teams", "home"]) assert.equal(switchTarget({ name, params: {} }, "t2"), null, name);
 });
 
+test("a team chosen on its settings goes to the other team's settings", () => {
+  assert.equal(switchTarget({ name: "teamSettings", params: { teamId: "t1" } }, "t2"), "#/t/t2/settings");
+});
+
 test("the switcher is a labelled sheet anchored by the SideNav on a desk: every team, a new one, all of them", () => {
   const fragment = mount(renderTeamSwitcher(rows()));
   const dialog = fragment.querySelector("dialog#team-switcher.g-sheet.g-sheet--anchored");

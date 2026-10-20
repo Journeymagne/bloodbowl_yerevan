@@ -89,9 +89,9 @@ const preparingGame = (teamId) => game(teamId, { preparationStatus: "preparing" 
 
 const raceOf = (team) => RACES.find((race) => race.slug === team.baseTeamSlug) ?? null;
 const held = () => ({ entries: [], next: null, since: null, total: 0, loaded: true, loading: false, error: "" });
-/** The page's model of a team: the games given, the roster's queue at rest unless it is given. */
-function model(team, { games = [], queue } = {}) {
-  return manageModel({ team, race: raceOf(team), seasonData: SEASON, games, ledger: held(), queue });
+/** The page's model of a team: the games given, the roster's queue at rest unless it is given; a desk's team page unless it is said. */
+function model(team, { games = [], queue, phone = false, screen = "page", gamesUnknown = false } = {}) {
+  return manageModel({ team, race: raceOf(team), seasonData: SEASON, games, ledger: held(), queue, phone, screen, gamesUnknown });
 }
 
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
@@ -154,21 +154,38 @@ async function notifyGames(games) {
   await invalidateGames();
 }
 
-/** The team page of `teamId`, drawn and read. */
-async function page(teamId = "t1", options = {}) {
+/** The team page of `teamId`, drawn and read; with `settings`, its settings' address. */
+async function page(teamId = "t1", { settings = false, ...options } = {}) {
   coach({ ...options, active: teamId });
-  await renderTeamManage(teamId);
+  await renderTeamManage(teamId, { settings });
 }
 
-test("the team page ends with the team's settings, as the builder's team card draws them (Builder)", () => {
+/**
+ * A window of a phone's width (`phone`) or a desk's for the length of `run`, whose width crosses 900px when `cross`
+ * says so, as a window narrowed or a tablet turned (test/team-player-profile.test.mjs has its like).
+ */
+async function atWidth(phone, run) {
+  const listeners = new Set();
+  const media = { matches: phone, addEventListener: (type, listener) => listeners.add(listener), removeEventListener: (type, listener) => listeners.delete(listener) };
+  globalThis.matchMedia = (query) => (query === "(max-width: 900px)" ? media : { matches: false });
+  const cross = (next) => {
+    media.matches = next;
+    for (const listener of [...listeners]) listener();
+  };
+  try {
+    return await run({ cross, listeners });
+  } finally {
+    delete globalThis.matchMedia;
+  }
+}
+const screenOf = () => view.querySelector('[data-screen="team-settings"]');
+const titles = (root) => root.querySelectorAll(".g-callout__title").map((node) => node.textContent);
+
+test("the settings are the rows of the builder's team card (Builder)", () => {
   const fragment = mount(manageMarkup(model(TEAMS[0])));
   const section = fragment.querySelector("section.g-team-settings");
   assert.equal(section.getAttribute("aria-labelledby"), "team-settings-title");
   assert.equal(fragment.querySelector("h2#team-settings-title").textContent, "Team settings");
-  const all = [...fragment.walk()].filter((node) => node.nodeType === 1);
-  assert.ok(all.indexOf(section) > all.indexOf(fragment.querySelector(".g-manage__cols")), "after the columns");
-  const blocks = fragment.querySelector(".g-manage").childNodes.filter((node) => node.nodeType === 1);
-  assert.ok(blocks.at(-1) === section, "the page's last block");
   assert.equal(rowText("name", fragment), "Name · Ashgrove Wardens · Change");
   assert.equal(rowText("race", fragment), "Race · Human · Tier 1", "read only: no button");
   assert.equal(rowText("league", fragment), "League · Old World Classic", "one league: nothing to change it to");
@@ -202,6 +219,280 @@ test("the team page ends with the team's settings, as the builder's team card dr
   const norse = mount(manageMarkup(model(TEAMS[2])));
   assert.equal(rowText("league", norse), "League · Chaos Clash · Change", "two leagues, none stored: the first, as the 2.x editor read it");
   assert.equal(rowText("favoured", norse), "Favoured of… · Khorne", "one god: nothing to change it to");
+});
+
+// Owner, 2026-10-20 (decisions 56–58): «отдельный экран на мобилке, справа на десктопе, есть кнопка назад в мобильной версии».
+test("a phone's team page has no settings section but a row «Team settings» last, after the history, leading to #/t/t1/settings", async () => {
+  const fragment = mount(manageMarkup(model(TEAMS[0], { phone: true })));
+  assert.ok(!fragment.querySelector(".g-team-settings"), "no section on the phone's page");
+  const entry = fragment.querySelector("div.g-team-settings-entry");
+  const blocks = fragment.querySelector(".g-manage").childNodes.filter((node) => node.nodeType === 1);
+  assert.ok(blocks.at(-1) === entry, "the page's last block");
+  assert.ok(blocks.at(-2) === fragment.querySelector(".g-manage__cols"), "after the columns");
+  assert.ok(fragment.querySelector(".g-manage__cols").childNodes.filter((node) => node.nodeType === 1).at(-1) === fragment.querySelector(".g-manage__history"), "whose last is the history");
+  const link = entry.querySelector("a.g-list-row");
+  assert.deepEqual([link.getAttribute("href"), link.querySelector(".g-list-row__title").textContent, link.querySelector(".g-list-row__desc").textContent],
+    ["#/t/t1/settings", "Team settings", "Name, league, logo, Dedicated Fans, roster order"]);
+  assert.ok(link.querySelector("svg.g-icon"), "the chevron");
+  assert.equal(entry.querySelectorAll("a").length, 1);
+  // Drawn on a phone's screen: the same row, the page's title taking the focus.
+  await atWidth(true, async () => {
+    await page();
+    assert.ok(!view.querySelector(".g-team-settings"));
+    assert.equal(view.querySelector(".g-team-settings-entry a").getAttribute("href"), "#/t/t1/settings");
+    assert.ok(document.activeElement === view.querySelector("h1"), "the page's title");
+  });
+  initLocale("ru");
+  try {
+    const russian = mount(manageMarkup(model(TEAMS[0], { phone: true })));
+    assert.equal(russian.querySelector(".g-list-row__title").textContent, "Настройки команды");
+    assert.equal(russian.querySelector(".g-list-row__desc").textContent, "Название, лига, логотип, Dedicated Fans, порядок в составе");
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("#/t/t1/settings on a phone is a screen of its own (Builder.html's head): «‹» back to the team page, «Team settings» and «Ashgrove Wardens · Human», the rows under it; neither the treasury, the resources nor the history", async () => {
+  await atWidth(true, async () => {
+    await page("t1", { settings: true });
+    const screen = screenOf();
+    assert.equal(screen.getAttribute("class"), "g-team-settings-screen");
+    const inView = view.childNodes.filter((node) => node.nodeType === 1);
+    assert.ok(inView.length === 1 && inView[0] === screen, "the view's one block");
+    const head = screen.querySelector("header.g-team-settings-screen__head");
+    assert.ok(head.parentNode === screen, "the screen's own head");
+    const back = head.querySelector("a.g-team-settings-screen__back");
+    assert.deepEqual([back.getAttribute("href"), back.getAttribute("aria-label"), back.textContent.trim()], ["#/t/t1/team", "Back to the team page", ""], "a round link: the chevron alone");
+    assert.ok(back.querySelector("svg.g-icon"), "the chevron");
+    const title = head.querySelector(".g-team-settings-screen__titles h1#team-settings-title");
+    assert.deepEqual([title.textContent, title.getAttribute("tabindex"), title.getAttribute("class")], ["Team settings", "-1", "g-team-settings-screen__title"]);
+    assert.equal(head.querySelector(".g-team-settings-screen__titles p.g-team-settings-screen__sub").textContent, "Ashgrove Wardens · Human");
+    assert.ok(document.activeElement === title, "the screen's title takes the focus");
+    const body = screen.querySelector(".g-team-settings-screen__body");
+    const section = body.querySelector("section.g-team-settings");
+    const parts = screen.childNodes.filter((node) => node.nodeType === 1);
+    assert.ok(parts.length === 2 && parts[0] === head && parts[1] === body, "the head, then the body");
+    assert.ok(section.parentNode === body);
+    assert.equal(section.getAttribute("aria-labelledby"), "team-settings-title", "named by the screen's h1");
+    assert.ok(!section.querySelector("h2"), "no h2: the head names it (decision 59)");
+    assert.equal(view.querySelectorAll("#team-settings-title").length, 1);
+    assert.deepEqual(section.querySelectorAll(".g-team-settings__row").map((row) => row.getAttribute("data-settings-row")), ["name", "race", "league", "logo", "fans", "order"]);
+    assert.equal(rowText("name"), "Name · Ashgrove Wardens · Change");
+    for (const selector of [".g-manage", ".g-pagehead", ".g-funds", ".g-manage__card", ".g-manage__safe", ".g-manage__fix", ".g-manage__resources", ".g-manage__history", ".g-team-settings-entry"]) {
+      assert.ok(!view.querySelector(selector), selector);
+    }
+    assert.equal(view.querySelectorAll("h1").length, 1);
+    assert.ok(!document.querySelector('[data-sheet-host="treasury-money"] dialog:modal'));
+  });
+  // A team with no race known yet says its name alone; a name is text.
+  const named = mount(manageMarkup(manageModel({ team: { ...TEAMS[0], name: HOSTILE }, race: null, seasonData: SEASON, games: [], ledger: held(), phone: true, screen: "settings" })));
+  assert.equal(named.querySelector(".g-team-settings-screen__sub").textContent, HOSTILE);
+  assertCspSafe(named);
+  initLocale("ru");
+  try {
+    const russian = mount(manageMarkup(model(TEAMS[0], { phone: true, screen: "settings" })));
+    assert.equal(russian.querySelector(".g-team-settings-screen__back").getAttribute("aria-label"), "Назад на страницу «Команда»");
+    assert.equal(russian.querySelector("h1").textContent, "Настройки команды");
+  } finally {
+    initLocale("en");
+  }
+});
+
+test("a sheet opened on the phone's screen works as on the page: one PATCH, the focus back on the row's button", async () => {
+  await atWidth(true, async () => {
+    await page("t1", { settings: true });
+    const opener = view.querySelector('[data-settings-open="fans"]');
+    opener.focus();
+    openRow("fans");
+    assert.ok(sheetOpen());
+    fireEvent($('[data-resource-step="1"]'), "click");
+    assert.equal($(".g-resource__value").textContent, "4");
+    api.reply(PATCH, 200, { team: t1With({}, { dedicatedFans: 4 }) });
+    await withoutTimers(async () => {
+      fireEvent($("[data-settings-save]"), "click");
+      fireEvent($("[data-settings-save]"), "click");
+      await settled();
+    });
+    assert.equal(calls(PATCH).length, 1, "one press, one save");
+    assert.equal(calls(PATCH)[0].body.roster.dedicatedFans, 4);
+    assert.equal(sheetOpen(), false);
+    assert.deepEqual(toasts(), ["Saved"]);
+    assert.ok(document.activeElement === opener, "the focus is back on the row's button");
+    assert.equal(rowText("fans"), "Dedicated Fans · 4 · Correct");
+    assert.ok(screenOf(), "still the screen");
+  });
+});
+
+// Review Focus 3, and L4 of the round's preflight: the page's quiet «games not read» goes to the screen with the settings.
+test("held on its own screen as on the page: a match on, the roster's queue, a preparation's words; «‹» still leads back (Review Focus 3)", async () => {
+  const back = () => view.querySelector(".g-team-settings-screen__back").getAttribute("href");
+  const shut = (reason) => view.querySelectorAll(".g-team-settings__btn").every((button) => button.getAttribute("aria-disabled") === "true" && button.getAttribute("title") === reason);
+  await atWidth(true, async () => {
+    // A match on: said, every button shut with its reason, a press says it, and nothing goes.
+    await page("t1", { settings: true, games: [liveGame("t1")] });
+    assert.deepEqual(titles(screenOf()), [LIVE]);
+    assert.ok(view.querySelectorAll(".g-team-settings__btn").length >= 4 && shut(LIVE));
+    assert.equal(view.querySelector("input#team-settings-logo").getAttribute("aria-disabled"), "true");
+    let before = api.calls.length;
+    await withoutTimers(async () => {
+      openRow("name");
+      press("[data-settings-order]");
+    });
+    assert.equal(sheetOpen(), false);
+    assert.deepEqual(toasts(), [LIVE, LIVE]);
+    assert.equal(api.calls.length, before, "nothing is sent");
+    assert.equal(back(), "#/t/t1/team");
+
+    // The roster's queue holds a step: said, with the way to the roster.
+    coach({ userId: "u-screen-queue" });
+    save.trackRoster(structuredClone(TEAMS[0]));
+    api.fail(PATCH);
+    assert.equal(save.stepSpp("t1", "p1", "touchdowns", 1).ok, true);
+    for (let spins = 0; save.saveState("t1").status !== "offline"; spins += 1) {
+      assert.ok(spins < 50, "the step waits for the network");
+      await settle();
+    }
+    await renderTeamManage("t1", { settings: true });
+    const waits = "Wait until the roster's edits are saved";
+    assert.deepEqual(titles(screenOf()), [waits]);
+    const link = screenOf().querySelector(".g-callout a");
+    assert.deepEqual([link.getAttribute("href"), link.textContent], ["#/t/t1/roster", "To the roster"]);
+    assert.ok(shut(waits));
+    before = api.calls.length;
+    await withoutTimers(async () => openRow("fans"));
+    assert.deepEqual([sheetOpen(), toasts(), api.calls.length], [false, [waits], before]);
+    assert.equal(back(), "#/t/t1/team");
+
+    // A preparation: what a save resets, nothing held.
+    await page("t1", { settings: true, games: [preparingGame("t1")] });
+    assert.deepEqual(titles(screenOf()), [PREP_WORDS]);
+    assert.ok(view.querySelectorAll(".g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
+    assert.equal(back(), "#/t/t1/team");
+
+    // The games could not be read: the page's quiet warning, said on the screen too (L4); the rows stay open.
+    coach({ games: [preparingGame("t1")] });
+    api.fail("GET /api/games");
+    await renderTeamManage("t1", { settings: true });
+    assert.deepEqual(titles(screenOf()), [en["treasury.gamesUnknown"], PREP_WORDS], "over the rows, before what holds them");
+    const blocks = screenOf().querySelector(".g-team-settings-screen__body").childNodes.filter((node) => node.nodeType === 1);
+    assert.deepEqual(blocks.map((node) => node.getAttribute("class")), ["g-callout g-callout--warn", "g-team-settings"]);
+    assert.ok(view.querySelectorAll(".g-team-settings__btn").every((button) => !button.hasAttribute("aria-disabled")));
+    await notifyGames([]);
+    assert.deepEqual(titles(screenOf()), [], "a read that comes takes it away");
+  });
+  // As the page: a match on says only that, in the settings' words.
+  assert.deepEqual(titles(mount(manageMarkup(model(TEAMS[0], { phone: true, screen: "settings", games: [liveGame("t1")], gamesUnknown: true })))), [LIVE]);
+  assert.deepEqual(titles(mount(manageMarkup(model(TEAMS[0], { phone: true, screen: "settings", gamesUnknown: true })))), [en["treasury.gamesUnknown"]]);
+});
+
+test("on a desk the settings are a card in the right column, under the history; the resources keep the left (DeskBuilder, DeskRosterFunds)", () => {
+  const fragment = mount(manageMarkup(model(TEAMS[0])));
+  const cols = fragment.querySelector(".g-manage__cols").childNodes.filter((node) => node.nodeType === 1);
+  assert.ok(cols.at(-1) === fragment.querySelector("section.g-team-settings"), "the columns' last");
+  assert.ok(cols.at(-2) === fragment.querySelector(".g-manage__history"), "after the history");
+  assert.ok(fragment.querySelector(".g-manage").childNodes.filter((node) => node.nodeType === 1).at(-1) === fragment.querySelector(".g-manage__cols"), "nothing across the page under the columns");
+  assert.ok(!fragment.querySelector(".g-team-settings-entry"), "no row: the card is on the page");
+  assert.equal(fragment.querySelector("h2#team-settings-title").getAttribute("tabindex"), "-1", "the address of the settings puts the focus there");
+  const MANAGE = "src/screens/team/manage/manage.css";
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "grid-template-areas"), ['"resources side" "resources history" "resources settings"']);
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "grid-template-rows"), ["auto auto 1fr"]);
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__cols", "align-items"), ["start"], "the 1fr row stretches neither the history nor the card");
+  assert.deepEqual(valuesOf(MANAGE, ".g-manage__resources", "grid-area"), ["resources"]);
+  // The card's area is the settings' own sheet's; from 901px, as the columns are.
+  const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
+  const desk = css.slice(css.indexOf("@media (min-width: 901px) {"));
+  assert.match(desk, /\.g-manage__cols > \.g-team-settings \{ grid-area: settings; \}/);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-manage__cols > .g-team-settings", "grid-area"), ["settings"]);
+  // Until Task 37 the card keeps its frame: the page's white card in the line's ring.
+  const rule = desk.match(/\n {2}\.g-team-settings \{([^}]*)\}/)?.[1] ?? "";
+  for (const [property, value] of [["padding", "var(--space-20)"], ["border-radius", "var(--radius-2xl)"], ["background", "var(--surface)"]]) {
+    assert.match(rule, new RegExp(`${property}: ${value.replace(/[()]/g, "\\$&")};`), property);
+  }
+});
+
+test("#/t/t1/settings on a desk is the team page, the focus on the card's title", async () => {
+  await page("t1", { settings: true });
+  assert.ok(view.querySelector('[data-screen="team-manage"]'), "the team page");
+  assert.ok(!screenOf());
+  const title = view.querySelector(".g-manage__cols section.g-team-settings h2#team-settings-title");
+  assert.ok(title && document.activeElement === title, "the card's title, which the focus scrolls into view");
+  // Its own address: the page's title.
+  await page("t1");
+  assert.ok(document.activeElement === view.querySelector("h1"));
+});
+
+// Review Focus 2, and L22 of the round's preflight: a node the other width does not draw takes the focus with it.
+test("the settings' address follows the width: a phone turned desk draws the page with the card, and back (Review Focus 2)", async () => {
+  await atWidth(true, async ({ cross, listeners }) => {
+    await page("t1", { settings: true });
+    assert.ok(screenOf());
+    // The focus on «‹», which a desk does not draw: the card's title takes it, not the body.
+    view.querySelector(".g-team-settings-screen__back").focus();
+    cross(false);
+    assert.ok(!screenOf());
+    assert.ok(view.querySelector('[data-screen="team-manage"] .g-manage__cols section.g-team-settings'));
+    assert.ok(document.activeElement === view.querySelector("h2#team-settings-title"), "the card's title");
+    // A desk turned phone with the focus on a row's button: the screen's title.
+    view.querySelector('[data-settings-open="name"]').focus();
+    cross(true);
+    assert.ok(screenOf());
+    assert.ok(document.activeElement === view.querySelector("h1#team-settings-title"), "the screen's title");
+    // The title itself is the same place on both widths.
+    cross(false);
+    assert.ok(document.activeElement === view.querySelector("h2#team-settings-title"));
+    // A focus outside the screen stays where it is: a width that changes moves nothing of the coach's.
+    const outside = el(document, "button", { type: "button" });
+    document.body.appendChild(outside);
+    outside.focus();
+    cross(true);
+    assert.ok(screenOf());
+    assert.ok(document.activeElement === outside);
+    outside.parentNode.removeChild(outside);
+    // The team page's address: the row on a phone, the card on a desk, each the other's place for the focus.
+    await page("t1");
+    view.querySelector(".g-team-settings-entry a").focus();
+    cross(false);
+    assert.ok(!view.querySelector(".g-team-settings-entry"));
+    assert.ok(document.activeElement === view.querySelector("h2#team-settings-title"), "the row's place: the card");
+    view.querySelector('[data-settings-open="fans"]').focus();
+    cross(true);
+    assert.ok(!view.querySelector(".g-team-settings"));
+    assert.ok(document.activeElement === view.querySelector(".g-team-settings-entry a"), "the card's place: the row");
+    releaseCurrentScreen();
+    assert.equal(listeners.size, 0, "a screen left listens no more");
+  });
+});
+
+test("D2: «‹» 44px; the row 44px or more; the head as Builder.html's", () => {
+  const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
+  const phone = css.slice(css.indexOf("@media (max-width: 900px) {"), css.indexOf("@media (min-width: 901px) {"));
+  for (const selector of [".g-team-settings-screen", ".g-team-settings-screen__head", ".g-team-settings-screen__back", ".g-team-settings-screen__title", ".g-team-settings-screen__body"]) {
+    assert.ok(phone.includes(`${selector} {`), `${selector}: a phone's alone`);
+  }
+  const back = (property) => valuesOf(SETTINGS, ".g-team-settings-screen__back", property);
+  assert.deepEqual([back("width"), back("height"), back("border-radius")], [["44px"], ["44px"], ["22px"]], "Builder.html's 40px circle, a thumb's 44px (D2)");
+  assert.deepEqual(back("background"), ["color-mix(in srgb, var(--header-ink) 12%, transparent)"], "as the builder's «‹» (.g-build__head > .g-icon-btn)");
+  assert.deepEqual([back("color"), back("text-decoration")], [["var(--header-ink)"], ["none"]]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings-screen__head :focus-visible", "outline-color"), ["var(--header-ink)"]);
+  assert.ok(Number.parseInt(valuesOf("src/ui/list-row.css", ".g-list-row", "min-height")[0], 10) >= 44, "the settings' row");
+  const head = (property) => valuesOf(SETTINGS, ".g-team-settings-screen__head", property);
+  assert.deepEqual([head("position"), head("top"), head("z-index")], [["sticky"], ["0"], ["3"]], "it sticks, as the profile's head");
+  assert.deepEqual([head("padding"), head("background"), head("align-items"), head("gap")], [["var(--space-10) var(--space-16) var(--space-14)"], ["var(--header)"], ["center"], ["var(--space-10)"]]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings-screen__title", "font"), ["600 22px/1.15 var(--font-display)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings-screen__title", "overflow-wrap"), ["anywhere"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings-screen__title:focus", "outline"), ["none"], "a place the keyboard starts from, not a control");
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings-screen__sub", "font"), ["400 13px/normal var(--font-body)"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings-screen__body", "padding"), ["var(--space-4) var(--space-16) 28px"]);
+  assertReadable(SETTINGS, ".g-team-settings-screen__title", "color", ["--header"], 4.5);
+  assertReadable(SETTINGS, ".g-team-settings-screen__sub", "color", ["--header"], 4.5);
+  assertReadable(SETTINGS, ".g-team-settings-screen__back", "color", ["--header"], 4.5);
+  // The page reaches the screen's edges, the head sticking in a main that does not scroll (K3), as the profile's.
+  assert.deepEqual(valuesOf(SETTINGS, ".g-frame #app-view:has(> .g-team-settings-screen)", "padding"), ["0"]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-main:has(.g-team-settings-screen)", "overflow-x"), ["clip"]);
+  // The row of the phone's page is framed as the history's card is.
+  const entry = (property) => valuesOf(SETTINGS, ".g-team-settings-entry", property);
+  assert.deepEqual([entry("padding"), entry("border"), entry("border-radius"), entry("background")], [["0 var(--space-16)"], ["1px solid var(--line)"], ["var(--radius-lg)"], ["var(--surface)"]]);
+  assert.deepEqual(valuesOf(SETTINGS, ".g-team-settings-entry .g-list-row", "border-bottom"), ["0"]);
 });
 
 test("the name: one PATCH with the new name and the roster, the race and the logo as the list holds them; the sheet closes, the shell's header says the new name (TeamNew)", async () => {
@@ -758,19 +1049,6 @@ test("the roster's violations are listed when there are any", () => {
   assert.deepEqual(empty.querySelectorAll(".g-team-settings__violation").map((line) => line.textContent), [en["validation.ROSTER_MIN_PLAYERS"].replace("{min}", "7").replace("{count}", "0")]);
 });
 
-test("on a desk the settings are a card across the page under the columns (DeskRosterFunds)", () => {
-  const css = read(SETTINGS).replace(/\/\*[\s\S]*?\*\//g, "");
-  const desk = css.slice(css.indexOf("@media (min-width: 901px) {"));
-  assert.ok(desk.length > 30, "a desk's block");
-  const rule = desk.match(/\n {2}\.g-team-settings \{([^}]*)\}/)?.[1] ?? "";
-  for (const [property, value] of [["padding", "var(--space-20)"], ["border-radius", "var(--radius-2xl)"], ["background", "var(--surface)"], ["box-shadow", "inset 0 0 0 1px var(--line)"]]) {
-    assert.match(rule, new RegExp(`${property}: ${value.replace(/[()]/g, "\\$&")};`), property);
-  }
-  // A block after the columns of a column of blocks spans the page: the section is not one of the columns' grid areas.
-  assert.deepEqual(valuesOf("src/screens/team/manage/manage.css", ".g-manage", "flex-direction"), ["column"]);
-  assert.ok(!mount(manageMarkup(model(TEAMS[0]))).querySelector(".g-manage__cols .g-team-settings"));
-});
-
 test("names are text", async () => {
   const team = { ...TEAMS[0], name: HOSTILE, logoData: HOSTILE };
   const fragment = mount(manageMarkup(model(team)));
@@ -785,7 +1063,7 @@ test("names are text", async () => {
 });
 
 test("every key in both dictionaries, with the same placeholders; Russian words", () => {
-  assertDictionaryCovers("src/screens/team/manage/settings.mjs", "src/screens/team/manage/settings-sheet.mjs");
+  assertDictionaryCovers("src/screens/team/manage/settings.mjs", "src/screens/team/manage/settings-sheet.mjs", "src/screens/team/manage/settings-screen.mjs");
   const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map(([, name]) => name).sort();
   const keys = Object.keys(en).filter((key) => key.startsWith("teamSettings."));
   assert.ok(keys.length >= 30, String(keys.length));
@@ -794,6 +1072,8 @@ test("every key in both dictionaries, with the same placeholders; Russian words"
     assert.deepEqual(placeholders(ru[key]), placeholders(en[key]), key);
   }
   assert.deepEqual(Object.keys(ru).filter((key) => key.startsWith("teamSettings.")).sort(), [...keys].sort());
+  assert.deepEqual([en["teamSettings.entryDesc"], ru["teamSettings.entryDesc"]], ["Name, league, logo, Dedicated Fans, roster order", "Название, лига, логотип, Dedicated Fans, порядок в составе"]);
+  assert.deepEqual([en["teamSettings.backLabel"], ru["teamSettings.backLabel"]], ["Back to the team page", "Назад на страницу «Команда»"]);
   assert.equal(en["teamSettings.favoured"], "Favoured of…");
   assert.equal(ru["teamSettings.favoured"], "Favoured of…");
   initLocale("ru");
@@ -815,6 +1095,12 @@ test("styled: the section, its callout, and every sheet; nothing the CSP refuses
   assertStyled(section(TEAMS[1], { queue: { status: "offline", waiting: 1 } }), ...sheets);
   assertStyled(section(TEAMS[2]), ...sheets);
   assertCspSafe(section(TEAMS[1]));
+  // The phone's screen and the phone's row: the screen's head, its body, the row's frame.
+  const screen = mount(manageMarkup(model(TEAMS[1], { phone: true, screen: "settings", gamesUnknown: true, queue: { status: "offline", waiting: 1 } })));
+  assertStyled(screen, ...sheets);
+  assertCspSafe(screen);
+  const entry = mount(manageMarkup(model(TEAMS[0], { phone: true }))).querySelector(".g-team-settings-entry");
+  assertStyled(entry, SETTINGS, "list-row.css");
   for (const [teamId, kind] of [["t1", "name"], ["t1", "fans"], ["t2", "favoured"], ["t4", "league"]]) {
     await page(teamId);
     openRow(kind);

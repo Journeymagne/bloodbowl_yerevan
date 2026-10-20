@@ -1,6 +1,6 @@
 /**
- * The team's settings on the team page (stage 07d; owner, 2026-10-19: what only the 2.x editor could do moves into
- * 3.0): its name, league, god and logo, its Dedicated Fans put right, its players in number order, and what the roster
+ * The team's settings (stage 07d; owner, 2026-10-19: what only the 2.x editor could do moves into 3.0) — a card of the
+ * team page's right column on a desk, a screen of their own on a phone (settings-screen.mjs; owner, 2026-10-20): its name, league, god and logo, its Dedicated Fans put right, its players in number order, and what the roster
  * breaks of the rules — the rows of the builder's team card, with the race shown among them and never changed (owner,
  * 2026-10-20). Each is one save of the team, the team page's own (`saveTeamRoster`), never sent again by itself; none
  * while a match is on, while a save of the team is on its way, or while the roster's queue holds a step of its own,
@@ -176,11 +176,13 @@ function heldCallout(teamId, { held, waitsRoster }) {
 const prepCallout = ({ preparing }) => (preparing ? renderCallout({ tone: "warn", title: prepResetWords("teamSettings.prep") }) : "");
 
 /**
- * The section, the page's last (index.mjs): the title, what holds it, the rows, the roster's check.
+ * The section: the title, what holds it, the rows, the roster's check. On a desk it is the team page's card, the last of
+ * its right column (index.mjs); on a phone the rows of a screen of its own (settings-screen.mjs), whose h1 names it.
  * @param {{teamId: string, settings: ReturnType<typeof settingsModel>}} model the page's model
+ * @param {{titled?: boolean}} [options] `titled: false` draws no h2: the screen's h1 carries its id
  * @returns {string}
  */
-export function settingsMarkup({ teamId, settings }) {
+export function settingsMarkup({ teamId, settings }, { titled = true } = {}) {
   const { held } = settings;
   const order = rowButton('data-settings-order aria-describedby="team-settings-order-label"', t("teamSettings.orderAction"), held);
   const fans = opener("fans", t("teamSettings.fansFix"), held);
@@ -193,7 +195,8 @@ export function settingsMarkup({ teamId, settings }) {
     row("fans", { label: t("teamSettings.fans"), note: t("teamSettings.fansNote"), value: String(settings.fans), action: fans }),
     row("order", { label: t("teamSettings.order"), note: t("teamSettings.orderNote"), action: order }),
   ];
-  const title = `<h2 class="g-team-settings__title" id="team-settings-title">${escapeHtml(t("teamSettings.title"))}</h2>`;
+  // The address of the settings puts the focus on it (decision 58), as a place the keyboard starts from.
+  const title = titled ? `<h2 class="g-team-settings__title" id="team-settings-title" tabindex="-1">${escapeHtml(t("teamSettings.title"))}</h2>` : "";
   // Keyed, the section and its rows are the same nodes whatever callout comes or goes above them: a held field keeps the focus.
   return `<section class="g-team-settings" aria-labelledby="team-settings-title" data-key="team-settings">${title}`
     + `${heldCallout(teamId, settings)}${prepCallout(settings)}${rows.join("")}${checkMarkup(settings.violations)}</section>`;

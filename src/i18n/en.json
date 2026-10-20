@@ -1583,6 +1583,8 @@
   "teamSettings.refusal.FANS_RANGE": "Dedicated Fans: from 0 to {max}",
   "teamSettings.refusal.DICE_ROLL_MISMATCH": "A roll on the site was rerolled against a favoured skill this change takes off: that skill stays, so nothing was saved.",
   "teamSettings.title": "Team settings",
+  "teamSettings.entryDesc": "Name, league, logo, Dedicated Fans, roster order",
+  "teamSettings.backLabel": "Back to the team page",
   "teamSettings.name": "Name",
   "teamSettings.race": "Race",
   "teamSettings.league": "League",

@@ -1583,6 +1583,8 @@
   "teamSettings.refusal.FANS_RANGE": "Dedicated Fans: от 0 до {max}",
   "teamSettings.refusal.DICE_ROLL_MISMATCH": "Против навыка Favoured, который снимает эта правка, переброшен бросок с сайта: навык остаётся, поэтому ничего не сохранено.",
   "teamSettings.title": "Настройки команды",
+  "teamSettings.entryDesc": "Название, лига, логотип, Dedicated Fans, порядок в составе",
+  "teamSettings.backLabel": "Назад на страницу «Команда»",
   "teamSettings.name": "Название",
   "teamSettings.race": "Раса",
   "teamSettings.league": "Лига",

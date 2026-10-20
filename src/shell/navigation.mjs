@@ -14,9 +14,11 @@
  * the league's alone and a header that leads to creating one. A coach whose
  * list of teams could not be read may have teams: the header names the league.
  *
- * A player's address is drilled into (`drill`, owner, 2026-10-19): on a phone it
- * is a screen of its own under the player's head with «‹ Roster», so the header
- * draws neither the team nor the tabs; the SideNav of a desk is the same.
+ * A player's address and the team's settings are drilled into (`drill`; owner,
+ * 2026-10-19 and 2026-10-20): on a phone each is a screen of its own under a head
+ * of its own — the player's with «‹ Roster», Builder.html's with «‹» back to the
+ * team page — so the header draws neither the team nor the tabs; the SideNav of a
+ * desk is the same.
  */
 import { t } from "../core/i18n.mjs";
 import { refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
@@ -27,6 +29,9 @@ const ADMINISTRATION_URL = "#/administration";
 /** The routes the shell stays out of. */
 const BARE_ROUTES = new Set(["login", "register", "teamNew"]);
 
+/** The routes a phone draws as a screen of its own, under its own head: the header draws nothing there. */
+const DRILL_ROUTES = new Set(["teamPlayer", "teamSettings"]);
+
 /**
  * Which tab and which side item own a route: `[tab, side item]`. A route that
  * is not here — My Teams, the builder — lights nothing, because it is the way
@@ -36,6 +41,7 @@ const OWNERS = {
   home: ["overview", "overview"],
   team: ["overview", "overview"],
   teamManage: ["team", "roster"],
+  teamSettings: ["team", "roster"],
   teamRoster: ["roster", "roster"],
   teamPlayer: ["roster", "roster"],
   teamMatches: ["matches", "season"],
@@ -147,12 +153,12 @@ function navItems(links, currentKey) {
  *   `place` (the team's place in the season table, null outside it) are the header's subtitle;
  *   `teamsRead` is false while the coach's list of teams has not been read (no team is known)
  * @returns {{mode: "bare"|"guest"|"coach", brand: {name: string, sub: string, sideSub: string, href: string, switchTeam: boolean}, tabs: NavItem[], side: NavItem[], drill: boolean}}
- *   `drill` is true on a player's address alone, which a phone draws as a screen of its own: the header draws nothing there
+ *   `drill` is true on a player's address and on the team's settings, which a phone draws as screens of their own: the header draws nothing there
  */
 export function shellModel({ route, user, team = null, raceTitle = "", place = null, teamsRead = true }) {
   if (BARE_ROUTES.has(route.name)) return { mode: "bare", brand: leagueBrand(), tabs: [], side: [], drill: false };
   const owners = Object.hasOwn(OWNERS, route.name) ? OWNERS[route.name] : [];
-  const drill = route.name === "teamPlayer";
+  const drill = DRILL_ROUTES.has(route.name);
   if (!user) {
     const [tabKey, sideKey] = owners.map(guestKey);
     const links = guestLinks();
