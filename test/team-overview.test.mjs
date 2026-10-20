@@ -157,7 +157,7 @@ test("a desk's tiles are DeskOverview's five: the place «2» with «/ 4», the 
   assert.equal(fragment.querySelector('a.g-kpi[href="#/t/t1/team"] .g-kpi__k').textContent, "Treasury");
   assert.equal(fragment.querySelectorAll("a.g-kpi").length, 1);
   assert.equal(fragment.querySelector(".g-kpi--accent"), null);
-  assert.ok("−1 / −1".startsWith("−"), "a real minus sign, not a hyphen");
+  assert.deepEqual([...model.tiles[4].value].map((sign) => sign.codePointAt(0).toString(16)), ["2212", "31", "20", "2f", "20", "2212", "31"], "a real minus sign (U+2212), not a hyphen");
   assert.equal(fragment.querySelector("h1").textContent, "Overview");
   assert.equal(fragment.querySelector(".g-pagehead__sub").textContent, "Mock Season · round 3");
   assert.equal(fragment.querySelector(".g-overview__stage"), null, "an active team has no stage to say");
@@ -223,7 +223,7 @@ test("before the games are read the record and the difference say «–»; outsi
     const phone = overviewModel(input("t1", { games, gamesError, phone: true }));
     assert.deepEqual(phone.tiles.slice(2).map(({ label, value }) => [label, value]), [["W · D · L", "–"], ["TD / CAS difference", "–"]], `${gamesError || "not read"} on a phone`);
   }
-  assert.equal("–", "–", "the dash is an en dash");
+  assert.equal(overviewModel(input("t1", { games: null })).tiles[4].value.codePointAt(0), 0x2013, "the dash is an en dash (U+2013), not a hyphen or a minus");
   // Outside the table — a team not entered, a table not read or that failed — the value and the treasury alone, on both widths.
   const outside = [input("t4"), input("t1", { seasonData: null }), input("t1", { seasonData: null, seasonError: "No connection" }), input("t1", { seasonData: null, games: null })];
   for (const over of outside) {
@@ -304,7 +304,21 @@ test("the overview follows the width: a desk turned phone draws Team.html's tile
     assert.deepEqual(labels(), DESK);
     assert.ok(view.querySelector("#overview-query"), "the field is back");
     assert.ok(document.activeElement === view.querySelector("h1"));
-    // A focus the redraw keeps stays where it is: the board's link, and anything outside the page.
+    // A focus on a node the redraw keeps but the width's stylesheet hides is lost as well (fix round 1, I1): the desk's
+    // «Advance» stays in the page on a phone, hidden (overview.css), and a browser would drop the focus to the body.
+    const advance = view.querySelector("a.g-overview__advance");
+    advance.focus();
+    advance.getClientRects = () => [];
+    cross(true);
+    assert.ok(advance.isConnected && view.querySelector("a.g-overview__advance") === advance, "the same link, still in the page");
+    assert.ok(document.activeElement === view.querySelector("h1"), "a hidden link is no place to leave the focus");
+    // And back: the phone's card, hidden on a desk.
+    const card = view.querySelector("a.g-overview__ready");
+    card.focus();
+    card.getClientRects = () => [];
+    cross(false);
+    assert.ok(card.isConnected && document.activeElement === view.querySelector("h1"));
+    // A focus the redraw keeps, and the width shows, stays where it is: the board's link, and anything outside the page.
     const outside = el(document, "button", { id: "outside" });
     document.body.appendChild(outside);
     outside.focus();
@@ -313,6 +327,7 @@ test("the overview follows the width: a desk turned phone draws Team.html's tile
     document.body.removeChild(outside);
     view.querySelector(".g-board__actions a").focus();
     const link = document.activeElement;
+    link.getClientRects = () => [{ width: 120, height: 44 }];
     cross(false);
     assert.ok(document.activeElement === link && link.isConnected, "the board's link is the same link on both widths");
     // Left, the width is heard no more.

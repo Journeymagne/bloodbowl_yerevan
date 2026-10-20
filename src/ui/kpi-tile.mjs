@@ -16,7 +16,7 @@ import { assertLinkHref, classNames } from "./markup.mjs";
  * @param {object} props
  * @param {string} props.label what the figure is
  * @param {string|number} props.value the figure as it is written; a zero is one, and a figure that is not there is a dash the caller writes
- * @param {string} [props.rest] a quieter second part of the figure, on its line after a space: the «/ 10» of a place, the «· 4/1/1» of the points
+ * @param {string|number} [props.rest] a quieter second part of the figure, on its line after a space: the «/ 10» of a place, the «· 4/1/1» of the points; a zero is one
  * @param {boolean} [props.accent] the figure in the accent's text colour: good news said by the figure alone (the overview's difference)
  * @param {boolean} [props.positive] good news for the coach, on the accent tint
  * @param {boolean} [props.compact] the small form that sits in a card, such as the match card's
@@ -26,7 +26,7 @@ export function renderKpiTile({ label, value, rest = "", accent = false, positiv
   if (!label) throw new Error("a kpi tile needs a label: it says what the figure is");
   if (value === "" || value === null || value === undefined) throw new Error(`a kpi tile needs a value: "${label}" has none (write a dash)`);
   const className = classNames("g-kpi", positive && "g-kpi--positive", accent && "g-kpi--accent", compact && "g-kpi--compact", href && "g-kpi--link");
-  const second = rest ? ` <span class="g-kpi__rest">${escapeHtml(rest)}</span>` : "";
+  const second = rest === "" || rest === null || rest === undefined ? "" : ` <span class="g-kpi__rest">${escapeHtml(rest)}</span>`;
   const face = `<span class="g-kpi__k">${escapeHtml(label)}</span><span class="g-kpi__v">${escapeHtml(value)}${second}</span>`;
   if (!href) return `<div class="${className}">${face}</div>`;
   assertLinkHref(href);

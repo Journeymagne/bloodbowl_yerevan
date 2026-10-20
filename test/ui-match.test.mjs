@@ -110,6 +110,8 @@ test("a tile can say a quieter second part of its figure, and a figure in the ac
   assert.equal(hostile.querySelector(".g-kpi__v").textContent, `${HOSTILE} ${HOSTILE}`);
   assertCspSafe(hostile);
   assert.equal(mount(renderKpiTile({ label: "Points", value: 0, rest: "· 0/0/0" })).querySelector(".g-kpi__v").textContent, "0 · 0/0/0");
+  assert.equal(mount(renderKpiTile({ label: "Place", value: "2", rest: 0 })).querySelector(".g-kpi__rest").textContent, "0", "a second part of zero is one (fix round 1, M7)");
+  for (const rest of [null, undefined, ""]) assert.equal(mount(renderKpiTile({ label: "Place", value: "2", rest })).querySelector(".g-kpi__v").textContent, "2", String(rest));
   // A grid hands both on, tile by tile.
   const grid = mount(renderKpiGrid([{ label: "Points", value: "13", rest: "· 4/1/1" }, { label: "Treasury", value: "70k", href: "#/t/t1/team" }, { label: "TD ± / CAS ±", value: "+6 / +4", accent: true }], { row: true }));
   assert.deepEqual(grid.querySelectorAll(".g-kpi").map((tile) => [tile.getAttribute("class"), tile.querySelector(".g-kpi__rest")?.textContent ?? ""]),

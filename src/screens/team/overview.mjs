@@ -63,9 +63,8 @@ import { renderBoardActions, renderMatchBoard } from "../../ui/match-board.mjs";
 import { renderPlayerBadge } from "../../ui/number-badge.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderResultPill } from "../../ui/result-pill.mjs";
-import { renderSearchField } from "../../ui/search-field.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
-import { goSearch, wireRefSearch } from "../ref/frame.mjs";
+import { goSearch, refSearchField, wireRefSearch } from "../ref/frame.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { rosterLines } from "./roster/model.mjs";
 import { isPhone, onPhoneChange } from "./roster/screen.mjs";
@@ -312,10 +311,7 @@ function resultsMarkup(results, teamId) {
  * The reference's search at the right of a desk's head (DeskOverview.html, decision 49): the reference's own field and
  * words — the prototype's «Players, skills, rules…» would promise players, whom the reference does not look for.
  */
-function searchMarkup() {
-  const field = renderSearchField({ id: "overview-query", label: t("ref.search"), placeholder: t("search.placeholder"), data: { searchAll: "" } });
-  return `<div class="g-overview__search">${field}</div>`;
-}
+const searchMarkup = () => `<div class="g-overview__search">${refSearchField("overview-query")}</div>`;
 
 /**
  * A team in its build says so: in the page head on a desk, and as the first line of the page on a phone, where the
@@ -356,8 +352,10 @@ function markupOf(teamId, held) {
 
 /**
  * `draw`, for a width that crossed 900px: the field, a tile or a list the coach was on may be gone with the other form
- * (Review Focus 2). A focus the page held that is left on nothing — the body, or a node no longer on the page — goes
- * to the title, the place a keyboard starts from; one the new form keeps, or one outside the page, stays.
+ * (Review Focus 2). A focus the page held that is left on nothing goes to the title, the place a keyboard starts from:
+ * the body, a node no longer on the page, or one still on it that the width's stylesheet hides — the desk's «Advance»
+ * on a phone, the phone's card on a desk, the fourth and fifth match on a phone (a browser drops that focus to the body
+ * a moment later, fix round 1). One the new form keeps and shows, or one outside the page, stays.
  * @param {() => void} draw
  */
 function drawForWidth(draw) {
@@ -365,7 +363,8 @@ function drawForWidth(draw) {
     const hadFocus = view.contains(document.activeElement);
     draw();
     const active = document.activeElement;
-    if (hadFocus && (!active || active === document.body || !active.isConnected)) view.querySelector("h1")?.focus();
+    const lost = !active || active === document.body || !active.isConnected || active.getClientRects?.().length === 0;
+    if (hadFocus && lost) view.querySelector("h1")?.focus();
   };
 }
 
