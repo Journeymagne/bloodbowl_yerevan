@@ -1,14 +1,16 @@
 /**
  * The panel of a skill or a trait (`#/skills/:slug`, `#/traits/:slug`), drawn beside its list: the
  * letter of its category on the category's colour, its name and what it is, the rule as the vault
- * has it, and — for a skill — the face of the Skill Table's D16 that rolls it. A coach with an active
- * team also sees which of its players have the skill, by number.
+ * has it, and — for a skill — the face of the Skill Table's D16 that rolls it and the elite combination
+ * it is half of. A coach with an active team also sees which of its players have the skill, by number.
  *
  * The category and the face are what the vault says; where the page's tags and the Skill Table
  * disagree, each is drawn as it is written.
  */
 import { escapeHtml } from "../../core/dom.mjs";
+import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
+import { eliteComboCost, eliteSkillCombos } from "../../domain/league-rules.mjs";
 import { canonicalSkillName, skillNamesForPlayer } from "../../domain/roster/players.mjs";
 import { rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderKeyValueRow } from "../../ui/list-row.mjs";
@@ -57,6 +59,22 @@ export function skillRoll(data, title) {
 }
 
 /**
+ * The elite combination a skill is half of, as the league's rules have it (`eliteSkillCombos`, and the
+ * surcharge `eliteComboCost` — the number, not the roster's function of the same name): the skills that
+ * complete it and what the pair adds to a player's value. A skill with a parameter is found under its name
+ * (`Mighty Blow (+1)` is the pair's `Mighty Blow`), as on the Skill Table; a skill of no pair has none.
+ *
+ * @returns {{partners: string[], surcharge: number}|null}
+ */
+export function eliteOf(title) {
+  const wanted = canonicalSkillName(title ?? "");
+  const partners = eliteSkillCombos.flatMap((pair) => (pair.some((name) => canonicalSkillName(name) === wanted)
+    ? pair.filter((name) => canonicalSkillName(name) !== wanted)
+    : []));
+  return wanted && partners.length ? { partners, surcharge: eliteComboCost } : null;
+}
+
+/**
  * Whether a player holds the skill a page is about: a name of theirs that the page stands for (catalog.mjs
  * `nameMatchesTitle`, the rule that links a roster's skills to their pages), so that the panel and the link
  * agree. A page with a number in its title (`Mighty Blow (+1)` and `(+2)` are skills of their own) is held by
@@ -89,6 +107,17 @@ function rollValue(roll) {
   return roll ? t("ref.skill.rollValue", { category: roll.category, face: roll.face }) : t("ref.skill.notInTable");
 }
 
+function eliteValue(elite) {
+  return elite ? t("ref.skill.eliteWith", { skills: elite.partners.join(", "), price: formatMoney(elite.surcharge) }) : t("ref.skill.eliteNone");
+}
+
+/** A skill's lines under its rule (DeskRef): the random roll, then the elite combination. A trait has neither. */
+function factsMarkup(data, page) {
+  if (page.kind !== "skill") return "";
+  return `<div class="g-skill-detail__facts">${renderKeyValueRow({ label: t("ref.skill.roll"), value: rollValue(skillRoll(data, page.title)) })}`
+    + `${renderKeyValueRow({ label: t("ref.skill.elite"), value: eliteValue(eliteOf(page.title)) })}</div>`;
+}
+
 function holderRow({ number, name, position }) {
   // The badge, then the name with the position under it; the source order is the reading order: number, name, position.
   return `<li class="g-skill-detail__holder"><span class="g-skill-detail__num">${escapeHtml(number)}</span>`
@@ -116,11 +145,10 @@ export function skillDetailMarkup({ data, page, team = null, teamPage = null }) 
   const category = categoryOf(data, page);
   const { category: tagged, type } = tagsOf(page);
   const caption = [category ?? tagged, type].filter(Boolean).join(" · ");
-  const roll = page.kind === "skill" ? renderKeyValueRow({ label: t("ref.skill.roll"), value: rollValue(skillRoll(data, page.title)) }) : "";
   const rule = page.html || `<p>${escapeHtml(page.text ?? "")}</p>`;
   return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}"><header class="g-skill-detail__head">${badgeMarkup(category, { large: true })}`
     + `<div class="g-skill-detail__title"><h1 class="g-skill-detail__name">${escapeHtml(page.title)}</h1>`
     + `<p class="g-skill-detail__caption">${escapeHtml(caption)}</p></div></header>`
-    + `<div class="g-prose">${rule}</div>${roll}`
+    + `<div class="g-prose">${rule}</div>${factsMarkup(data, page)}`
     + `${team ? oursMarkup(skillHolders({ team, teamPage, title: page.title })) : ""}</article>`;
 }

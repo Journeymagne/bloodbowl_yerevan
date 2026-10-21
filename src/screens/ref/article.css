@@ -350,9 +350,28 @@
   margin-top: 0;
 }
 
-/* The roll is one line between two rules. */
-.g-skill-detail .g-kv {
+/*
+ * The roll and the elite combination, as DeskRef draws them: one rule above the pair, each line over its
+ * own (the row's border-bottom, ui/list-row.css), 15px, the label quiet and the value 700. No gap between
+ * the two: they are one block of the panel's column. A long value wraps under itself.
+ */
+.g-skill-detail__facts {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   border-top: 1px solid var(--line);
+}
+
+.g-skill-detail__facts .g-kv {
+  font-size: 15px;
+}
+
+.g-skill-detail__facts .g-kv__label {
+  color: var(--muted);
+}
+
+.g-skill-detail__facts .g-kv__value {
+  font-weight: 700;
 }
 
 .g-skill-detail__ours {
