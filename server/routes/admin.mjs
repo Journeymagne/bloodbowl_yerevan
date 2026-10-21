@@ -10,6 +10,9 @@
  * admin too. A roster that breaks the rules is just as wrong when an admin
  * sends it. The stage rule for re-rolls is the one thing that does not: an
  * admin may put a team right in either stage.
+ *
+ * What the coaches' list and a coach's page say, and a coach with a team made
+ * at one stroke, are server/routes/admin-coaches.mjs (stage 12).
  */
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
@@ -27,11 +30,11 @@ import {
   publicAdminUser,
   publicGame,
   publicSavedTeam,
-  publicSavedTeamSummary,
   publicUser,
   serializeRosterForStorage,
 } from "../api/serializers.mjs";
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
+import { handleAdminCoachRoutes, readCoach, readCoachList, userHasSeasonHistory } from "./admin-coaches.mjs";
 import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam, userHasFriendlyGames } from "../api/team-queries.mjs";
 import { loadAwaitingGameRows } from "../season/store.mjs";
@@ -62,21 +65,13 @@ function sendError(response, status, code, params) {
  */
 export async function handleAdminRoutes(request, response, url) {
   if (await handleAdminAwaitingRoute(request, response, url)) return true;
+  if (await handleAdminCoachRoutes(request, response, url)) return true; // POST /api/admin/coaches
 
   if (url.pathname === "/api/admin/users" && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
-    const result = await pool.query(
-      `SELECT users.*,
-              COUNT(saved_teams.id) AS saved_team_count,
-              MAX(saved_teams.updated_at) AS last_team_updated_at
-       FROM users
-       LEFT JOIN saved_teams ON saved_teams.user_id = users.id
-       GROUP BY users.id
-       ORDER BY users.login_key ASC`,
-    );
-    return send(response, 200, { users: result.rows.map(publicAdminUser) });
+    return send(response, 200, { users: await readCoachList(pool) });
   }
 
   return handleAdminUserRoutes(request, response, url);
@@ -200,7 +195,11 @@ async function handleAdminPasswordResetRoute(request, response, url) {
  * user's row (`FOR KEY SHARE`, through a foreign key): taking the user first, as a bare DELETE did, closed
  * a cycle with each of them (40P01). Taken in the writers' order, team then user, it only waits its turn.
  *
- * @throws 404 USER_NOT_FOUND; 409 SELF_ADMIN_DELETE or USER_IN_FRIENDLY_GAMES
+ * A coach with a season history (`USER_IN_SEASON`) is asked about once his teams are held, when no entry can
+ * be added to them any more: an entry would take its pairings with the user (CASCADE), and its team is held
+ * by RESTRICT — a 500 nobody can act on, which this 409 answers before the DELETE.
+ *
+ * @throws 404 USER_NOT_FOUND; 409 SELF_ADMIN_DELETE, USER_IN_FRIENDLY_GAMES or USER_IN_SEASON
  */
 async function deleteUser(client, userId, admin) {
   const { rows: [target] } = await client.query("SELECT id FROM users WHERE id = $1", [userId]);
@@ -208,6 +207,7 @@ async function deleteUser(client, userId, admin) {
   if (target.id === admin.id) throw httpError(409, "SELF_ADMIN_DELETE");
   if (await userHasFriendlyGames(client, target.id)) throw httpError(409, "USER_IN_FRIENDLY_GAMES");
   await client.query("SELECT 1 FROM saved_teams WHERE user_id = $1 ORDER BY id FOR UPDATE", [target.id]);
+  if (await userHasSeasonHistory(client, target.id)) throw httpError(409, "USER_IN_SEASON");
   // Another admin may have deleted him while this one waited on the teams: then there is no one to delete.
   const deleted = await client.query("DELETE FROM users WHERE id = $1 RETURNING id", [target.id]);
   if (!deleted.rows[0]) throw httpError(404, "USER_NOT_FOUND");
@@ -233,30 +233,9 @@ async function handleAdminUserReadRoutes(request, response, url) {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
-    const [profileResult, teamsResult] = await Promise.all([
-      pool.query(
-        `SELECT users.*,
-                COUNT(saved_teams.id) AS saved_team_count,
-                MAX(saved_teams.updated_at) AS last_team_updated_at
-         FROM users
-         LEFT JOIN saved_teams ON saved_teams.user_id = users.id
-         WHERE users.id = $1
-         GROUP BY users.id`,
-        [adminUserMatch[1]],
-      ),
-      pool.query(
-        `SELECT id, user_id, name, base_team_slug, roster, created_at, updated_at
-         FROM saved_teams
-         WHERE user_id = $1
-         ORDER BY updated_at DESC`,
-        [adminUserMatch[1]],
-      ),
-    ]);
-    if (!profileResult.rows[0]) return sendError(response, 404, "USER_NOT_FOUND");
-    return send(response, 200, {
-      user: publicAdminUser(profileResult.rows[0]),
-      teams: teamsResult.rows.map(publicSavedTeamSummary),
-    });
+    const coach = await readCoach(pool, adminUserMatch[1], user);
+    if (!coach) return sendError(response, 404, "USER_NOT_FOUND");
+    return send(response, 200, coach);
   }
 
   return handleAdminUserTeamRoutes(request, response, url);
@@ -279,9 +258,10 @@ async function handleAdminUserTeamRoutes(request, response, url) {
     const coach = await pool.query(`SELECT * FROM users WHERE id = $1`, [adminUserTeamsMatch[1]]);
     if (!coach.rows[0]) return sendError(response, 404, "COACH_NOT_FOUND");
 
+    // Born in `draft`, like every new team (decision 26): the admin moves it to `active` («Сезон → Участники»).
     const result = await pool.query(
-      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster, stage)
+       VALUES ($1, $2, $3, $4, $5, 'draft')
        RETURNING id`,
       [coach.rows[0].id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );

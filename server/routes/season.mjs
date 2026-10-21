@@ -13,13 +13,10 @@ import { pool } from "../db/pool.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 import { errorPayload } from "../http/errors.mjs";
 import { currentUser } from "../auth/session.mjs";
-import { publicGame, publicSavedTeam, serializeRosterForStorage } from "../api/serializers.mjs";
+import { publicGame, publicSavedTeam } from "../api/serializers.mjs";
 import { commitSavedTeamToSeason, ensureActiveSeason, loadSeasonBundle, loadUserGameRows } from "../season/store.mjs";
 import { addSeasonPairing, createManualRound, generateSwissRound, startSeasonRound, validateSeasonEntry } from "../season/rounds.mjs";
 import { proposeGameResult, setTechnicalReason, updateSeasonPairing } from "../season/games.mjs";
-import { createSeasonCoachWithTeam } from "../season/coach-entry.mjs";
-import { readTeamBody, refuseRosterPlayers } from "./teams.mjs";
-import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 
 /** Answer, and say the request is handled — the chain stops at the first true. */
 function send(response, status, payload) {
@@ -74,14 +71,13 @@ export async function handleSeasonRoutes(request, response, url) {
 }
 
 /**
- * Who is in the season: adding an entry, removing one, creating a team for it.
+ * Who is in the season: adding an entry, removing one. (A coach and his team made for it are the
+ * administration's since stage 12: `POST /api/admin/coaches`, server/routes/admin-coaches.mjs.)
  *
  * Its own function because the check limits one to eighty lines, and the
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleSeasonEntryRoutes(request, response, url) {
-  if (await handleSeasonCoachRoute(request, response, url)) return true;
-
   if (url.pathname === "/api/season/admin/entries" && request.method === "POST") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -108,61 +104,7 @@ async function handleSeasonEntryRoutes(request, response, url) {
     return send(response, 200, await loadSeasonBundle(user));
   }
 
-  if (url.pathname === "/api/season/admin/create-team" && request.method === "POST") {
-    const user = await currentUser(request);
-    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
-    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
-    const body = await readJson(request);
-    const userId = String(body.userId ?? "").trim();
-    const name = String(body.name ?? "").trim();
-    const baseTeamSlug = String(body.baseTeamSlug ?? "").trim();
-    const logoData = body.logoData ? String(body.logoData) : null;
-    const roster = body.roster ?? {};
-
-    if (!userId) return sendError(response, 400, "COACH_REQUIRED");
-    if (!name) return sendError(response, 400, "TEAM_NAME_REQUIRED");
-    if (!baseTeamSlug) return sendError(response, 400, "BASE_TEAM_REQUIRED");
-    if (logoData && Buffer.byteLength(logoData, "utf8") > 2_900_000) {
-      return sendError(response, 400, "LOGO_TOO_LARGE");
-    }
-    refuseSiteRolls(roster); // stored as sent, so read raw
-    refuseRosterPlayers(roster); // and its players held to what every roster write is
-    const coach = await pool.query(`SELECT id FROM users WHERE id = $1`, [userId]);
-    if (!coach.rows[0]) return sendError(response, 404, "COACH_NOT_FOUND");
-
-    const season = await ensureActiveSeason();
-    const existingEntry = await pool.query(
-      `SELECT id FROM season_entries WHERE season_id = $1 AND user_id = $2 AND withdrawn_at IS NULL`,
-      [season.id, userId],
-    );
-    if (existingEntry.rows[0]) {
-      return sendError(response, 409, "COACH_ALREADY_COMMITTED");
-    }
-
-    const savedTeam = await pool.query(
-      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING *`,
-      [userId, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
-    );
-    await commitSavedTeamToSeason(season.id, savedTeam.rows[0].id);
-    return send(response, 201, await loadSeasonBundle(user));
-  }
-
   return handleSeasonRoundRoutes(request, response, url);
-}
-
-/** Create a coach account without changing the admin's session. */
-async function handleSeasonCoachRoute(request, response, url) {
-  if (url.pathname !== "/api/season/admin/coaches" || request.method !== "POST") return false;
-  const user = await currentUser(request);
-  if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
-  if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
-  const { body, name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
-  refuseSiteRolls(roster); // before the season is looked up, or made
-  const season = await ensureActiveSeason();
-  await createSeasonCoachWithTeam(season.id, { ...body, name, baseTeamSlug, logoData, roster });
-  return send(response, 201, await loadSeasonBundle(user));
 }
 
 /**

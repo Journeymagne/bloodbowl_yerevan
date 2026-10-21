@@ -725,13 +725,15 @@ test("only the env administrator's login, Telegram and rights are the file's: an
   assert.deepEqual([promoted.status, promoted.body.user.isAdmin], [200, true]);
 }));
 
-test("/me says so when the account is the file's, and only /me does: no user, list, login or edit answer carries it", db, () => withApiDatabase(async ({ client }) => {
+test("/me says so when the account is the file's, and so do the administration's coaches (stage 12); no other user, login or edit answer carries it", db, () => withApiDatabase(async ({ client }) => {
   const env = await seedCoach(client, envAdminLogin(), { admin: true }), deputy = await seedCoach(client, "pw-deputy-3", { admin: true }), coach = await seedCoach(client, "pw-coach-3");
   assert.equal((await whoIs(env.token)).managedByServer, true);
   for (const who of [deputy, coach]) assert.equal((await whoIs(who.token)).managedByServer, false, `${who.login}: the key is there and false`);
+  // The admin's «Тренеры» and «Тренер» read it since stage 12: that account's login and rights are shown read only, with no reset.
+  const listed = (await callApi("GET", "/api/admin/users", { token: deputy.token })).body.users;
+  assert.deepEqual(listed.map((user) => [user.id, user.managedByServer]).sort(), [[env.id, true], [deputy.id, false], [coach.id, false]].sort());
+  assert.equal((await callApi("GET", `/api/admin/users/${env.id}`, { token: deputy.token })).body.user.managedByServer, true);
   const shown = [
-    ["the user list", await callApi("GET", "/api/admin/users", { token: deputy.token })],
-    ["a user as an admin sees him", await callApi("GET", `/api/admin/users/${env.id}`, { token: deputy.token })],
     ["a player page", await callApi("GET", `/api/players/${env.id}`, { token: coach.token })],
     ["the season", await callApi("GET", "/api/season", { token: deputy.token })],
     ["his own settings answer", await profile(env.token, { telegram: `@${env.login}` })],

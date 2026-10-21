@@ -55,6 +55,7 @@ export const API_ERRORS = Object.freeze({
   FRIENDLY_TEAMS_FIXED: "The teams were chosen when this challenge was accepted.",
   TEAM_IN_FRIENDLY_GAMES: "This team belongs to a friendly pairing and cannot be deleted.",
   USER_IN_FRIENDLY_GAMES: "This coach belongs to friendly pairings and cannot be deleted.",
+  USER_IN_SEASON: "This coach has a team with a season history and cannot be deleted.",
   MATCH_ACTION: "Unknown preparation action.",
   MATCH_DICE: "Enter an integer between 1 and {maximum}.",
   MATCH_JOURNEYMEN: "Choose a Lineman position. Journeymen can only bring the available roster up to seven players.",

@@ -34,12 +34,23 @@ export function publicUser(row) {
   };
 }
 
+/**
+ * A coach as the administration reads him. What only the admin's queries select comes only from them — a
+ * row without the column (a coach's public page, an edit's answer) has no such field, never a guess:
+ * `draftTeamCount` (his teams still being built), `lastLoginAt` (his newest live session, or null),
+ * `managedByServer` (the account the env file keeps) and `deleteBlock` (why it cannot be deleted, or null).
+ */
 export function publicAdminUser(row) {
   if (!row) return null;
+  const only = (column, field, read = (value) => value) => (row[column] === undefined ? {} : { [field]: read(row[column]) });
   return {
     ...publicUser(row),
     savedTeamCount: Number(row.saved_team_count ?? 0),
     lastTeamUpdatedAt: row.last_team_updated_at ?? null,
+    ...only("draft_team_count", "draftTeamCount", Number),
+    ...only("last_login_at", "lastLoginAt"),
+    ...only("managed_by_server", "managedByServer", Boolean),
+    ...only("delete_block", "deleteBlock"),
   };
 }
 

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { matchPoints, seasonPoints } from "../src/domain/league-rules.mjs";
+import { pool } from "../server/db/pool.mjs";
+import { generateSwissRound } from "../server/season/rounds.mjs";
 import { computeSeasonStandings, scoreLeagueResult } from "../server/season/scoring.mjs";
 
 test("a win is three points, a draw one, a loss none", () => {
@@ -130,4 +132,46 @@ test("two coaches equal on everything keep a stable order", () => {
   const entries = [entry("b", "bob", "Black Orcs"), entry("a", "ann", "Amazons")];
   const table = computeSeasonStandings(entries, []);
   assert.deepEqual(table.map((row) => row.user.login), ["ann", "bob"], "by login, so the table does not shuffle");
+});
+
+// Moved from test/season-coach-entry.test.mjs when stage 12 deleted the 2.x season coach route it tested:
+// a coach the admin enters mid-season (`POST /api/admin/coaches` with `enter`) is this late entrant.
+test("a late entrant starts at zero and appears in the next draw without changing past results", async () => {
+  const entry = (id) => ({ id, user_id: `${id}-coach`, user_login: id,
+    saved_team_id: `${id}-team`, team_name: `${id} Team`, base_team_slug: "teams/amazon" });
+  const entries = [entry("a"), entry("b"), entry("c"), entry("late")];
+  const pairings = [{ home_entry_id: "a", away_entry_id: "b", round_number: 1,
+    round_status: "completed", result_status: "confirmed", home_points: 3, away_points: 0 },
+  { home_entry_id: "c", away_entry_id: null, round_number: 1,
+    round_status: "completed", result_status: "confirmed", home_points: 3, away_points: null }];
+  const history = structuredClone(pairings);
+  const before = computeSeasonStandings(entries.slice(0, 3), pairings);
+  const after = computeSeasonStandings(entries, pairings);
+  assert.equal(after.find(row => row.entryId === "late").points, 0);
+  assert.equal(after.find(row => row.entryId === "late").games, 0);
+  for (const standing of before) {
+    const current = after.find(row => row.entryId === standing.entryId);
+    assert.equal(current.points, standing.points);
+    assert.equal(current.games, standing.games);
+  }
+  const originalQuery = pool.query;
+  const originalConnect = pool.connect;
+  const nextPairings = [];
+  try {
+    pool.query = async (sql) => {
+      if (sql.includes("FROM season_entries se")) return { rows: entries };
+      if (sql.includes("FROM season_pairings")) return { rows: pairings };
+      if (sql.includes("FROM season_rounds")) return { rows: [{ round_number: 1, status: "completed" }] };
+      assert.fail(`Unexpected query: ${sql}`);
+    };
+    pool.connect = async () => ({ release() {}, async query(sql, values) {
+      if (sql.includes("INSERT INTO season_rounds")) return { rows: [{ id: "round-2", round_number: values[1] }] };
+      if (sql.includes("INSERT INTO season_pairings")) nextPairings.push(values.slice(2, 4));
+      return { rows: [] };
+    } });
+    const round = await generateSwissRound({ id: "ongoing-season", current_round: 1 });
+    assert.equal(round.round_number, 2);
+    assert.deepEqual(new Set(nextPairings.flat()), new Set(entries.map(row => row.id)));
+    assert.deepEqual(pairings, history);
+  } finally { pool.query = originalQuery; pool.connect = originalConnect; }
 });
