@@ -2,6 +2,7 @@ import { normalizeDraft } from '../roster/schema.mjs';
 import { ensureDraftPlayers } from '../roster/players.mjs';
 import { SIDES, otherSide, CONFIRM_ACTION } from '../match/rules.mjs';
 import { favouredSkillsForChoice } from '../roster/team-rules.mjs';
+import { choiceRoll } from '../roster/progression.mjs';
 import { POST_STEPS, INJURIES, RESULT_MODES, FAVOURED_ROLLS, postCount, postError, resultAgreed, mvpCount } from './rules.mjs';
 import { normalizeMatchStats, validateStatistics } from './statistics.mjs';
 import { statisticsFromEvents, sameValues } from './events.mjs';
@@ -82,21 +83,27 @@ function rosterAction(state, name, action) {
     playerId: action.playerId, rowIndex: postCount(action.rowIndex), key: action.key, delta: Number(action.delta) });
 }
 
+// A site roll's id as the server matches it: a UUID in either case is one roll (Postgres's uuid). The choice keeps
+// it trimmed (`choiceRoll`).
+const rollKey = id => String(id).toLowerCase();
+
 // The site's rolls this side's choices name, whatever player each is for.
 function namedRolls(side) {
-  return new Set(Object.values(side.advancements).flat().filter(choice => choice.roll?.via === 'site').map(choice => String(choice.roll.id).trim()));
+  return new Set(Object.values(side.advancements).flat().filter(choice => choice.roll?.via === 'site').map(choice => rollKey(choice.roll.id)));
 }
 
 // An advancement may name its roll (stage 09b): the site's, kept until the finish uses it (server), or the
 // table's. The Favoured bonus is its own step, as on the roster (07d decision 17).
 // The roll's shape, and whether the type is rolled at all, is the roster's rule (`takeAdvancement`, when
-// the roster is projected: POST_ADVANCEMENT); a site roll another choice of this side names is
-// DICE_ROLL_USED, so a second advancement of the same player takes a fresh roll. A step of 2.x carries the
-// god's D8 in the advancement: it is kept, so a post-match begun then reads as before.
+// the roster is projected: POST_ADVANCEMENT); a roll is kept as the roster keeps it (`choiceRoll`: the id
+// trimmed, nothing else), and one of another shape as sent, for that projection to refuse. A site roll
+// another choice of this side names is DICE_ROLL_USED, so a second advancement of the same player takes a
+// fresh roll. A step of 2.x carries the god's D8 in the advancement: it is kept, so a post-match begun then
+// reads as before.
 function addAdvancement(side, action) {
-  const id = action.playerId, roll = action.roll ?? undefined;
+  const id = action.playerId, kept = choiceRoll(action.roll), roll = kept === null ? action.roll : kept;
   if (!postAdvancer(side, id)) throw postError('POST_PLAYER');
-  if (roll?.via === 'site' && namedRolls(side).has(String(roll.id).trim())) throw postError('DICE_ROLL_USED');
+  if (kept?.via === 'site' && namedRolls(side).has(rollKey(kept.id))) throw postError('DICE_ROLL_USED');
   const carried = ['favouredRoll', 'favouredSkill'].filter(key => action[key] !== undefined).map(key => [key, action[key]]);
   side.advancements[id] ||= [];
   side.advancements[id].push({ type: action.advancementType, grant: action.grant, ...(roll === undefined ? {} : { roll }), ...Object.fromEntries(carried) });

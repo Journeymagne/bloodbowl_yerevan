@@ -424,8 +424,11 @@ function statStep(row, player, grant, skillGroups) {
   return limit ? { refusal: limit } : { type: "stat" };
 }
 
-/** A choice's roll as the advancement keeps it (`normalizeAdvancementRoll`): undefined for none, null for one that is neither kind. */
-function choiceRoll(roll) {
+/**
+ * A choice's roll as the advancement keeps it (`normalizeAdvancementRoll`): undefined for none, null for one that is
+ * neither kind. The post-match keeps its choices' rolls so too (src/domain/post-match/state.mjs).
+ */
+export function choiceRoll(roll) {
   if (roll === undefined || roll === null) return undefined;
   if (roll?.via === "table") return { via: "table" };
   const id = typeof roll?.id === "string" ? roll.id.trim() : "";

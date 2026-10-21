@@ -115,6 +115,34 @@ test("undoing an advancement takes its roll away from the side", () => {
   assert.deepEqual(rosterPlayer(again, "h1").advancements, [{ type: "random", grants: { skill: "Wrestle" }, roll }]);
 });
 
+test("a roll is kept as the roster keeps it — the id trimmed, nothing else — and one roll in two spellings is one roll", () => {
+  const roll = siteRoll(5), sent = { id: `  ${roll.id} `, via: "site", note: "kept by nobody" };
+  const taken = applyPostAction(toPlayers(), "home", advance("h1", "random", { skill: "Block" }, { roll: sent }), data);
+  assert.deepEqual(taken.home.advancements.h1, [{ type: "random", grant: { skill: "Block" }, roll }]);
+  sent.id = siteRoll(6).id;
+  assert.deepEqual(taken.home.advancements.h1[0].roll, roll, "not the action's own object");
+  assert.throws(() => applyPostAction(taken, "home", advance("h2", "random", { skill: "Wrestle" }, { roll: { id: roll.id.toUpperCase(), via: "site" } }), data),
+    { code: "DICE_ROLL_USED" }, "a UUID in capitals is the same roll");
+  const table = applyPostAction(toPlayers(), "home", advance("h1", "stat", { stat: "ma" }, { roll: { via: "table", id: roll.id, more: { deep: 1 } } }), data);
+  assert.deepEqual(table.home.advancements.h1[0].roll, { via: "table" });
+});
+
+test("two advancements of one player: the bonus goes on the last, and the undo takes the last first", () => {
+  const state = toPlayers({ home: "teams/khorne", roster: { favouredChoice: "Khorne" } });
+  let next = applyPostAction(state, "home", advance("h1", "random", { skill: "Block" }, { roll: siteRoll(1) }), data);
+  next = applyPostAction(next, "home", { type: "favoured", playerId: "h1", skill: "Horns" }, data);
+  next = applyPostAction(next, "home", advance("h1", "random", { skill: "Wrestle" }, { roll: siteRoll(2) }), data);
+  next = applyPostAction(next, "home", { type: "favoured", playerId: "h1", skill: "Iron Hard Skin" }, data);
+  assert.deepEqual(next.home.advancements.h1.map((choice) => [choice.roll.id, choice.favouredSkill]),
+    [[siteRoll(1).id, "Horns"], [siteRoll(2).id, "Iron Hard Skin"]]);
+  const undone = applyPostAction(next, "home", { type: "undo-advance", playerId: "h1" }, data);
+  assert.deepEqual(undone.home.advancements.h1, [{ type: "random", grant: { skill: "Block" }, roll: siteRoll(1), favouredRoll: 8, favouredSkill: "Horns" }]);
+  assert.deepEqual(rosterPlayer(undone, "h1").favouredSkills, [{ name: "Horns", access: "favoured" }]);
+  assert.throws(() => applyPostAction(undone, "home", advance("h1", "random", { skill: "Tackle" }, { roll: siteRoll(1) }), data), { code: "DICE_ROLL_USED" });
+  const again = applyPostAction(undone, "home", advance("h1", "random", { skill: "Tackle" }, { roll: siteRoll(2) }), data);
+  assert.deepEqual(rosterPlayer(again, "h1").advancements.map(({ roll }) => roll), [siteRoll(1), siteRoll(2)], "the last roll is free again");
+});
+
 test("who may advance in the post-match, and who may have the site's roll for it", () => {
   const state = toPlayers(), side = state.home, row = rowsForTeam(side.reference)[0];
   side.snapshot.players.push({ id: "star-1", kind: "star", name: "Star", number: "S" },
