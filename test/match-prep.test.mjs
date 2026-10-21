@@ -438,3 +438,32 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.ok(styles.indexOf('@import url("screens/matches/prep.css");') < styles.indexOf('@import url("screens/matches/prep-inducements.css");'), "before the inducements' sheet");
   assert.ok(!document.querySelector("script"));
 });
+
+test("a frame given none of the new props is drawn as before", () => {
+  // The markup stage 09a drew, taken before the post-match's props came (stage 09b Task 4): the same, string for string.
+  const before = JSON.parse(text("test/fixtures/prep-frame-09a.json"));
+  const phone = prepModel(payloadAt(FANS, { isAdmin: true }), "away", "fans", { data, userId: "admin", error: "Refused." });
+  assert.equal(prepFrameMarkup(phone, { phone: true, contentHtml: "<p>step</p>" }), before.phone);
+  const desk = modelAt([...FANS, ...WEATHER, ...ROSTERS, ...BASKETS]);
+  assert.equal(prepFrameMarkup(desk, { phone: false, contentHtml: "<p>step</p>" }), before.desk);
+});
+
+test("with them: no opponent card, a lead before the button, notices under the head, the steps' own label", () => {
+  const model = { ...modelAt([...FANS, ...WEATHER, ...ROSTERS, ...BASKETS]), stepsLabel: "Post-match steps" };
+  const props = { contentHtml: "<p>step</p>", opponentHtml: "", actionLeadHtml: '<span class="g-status">Lead</span>', noticesHtml: '<p class="g-prep__note">Said.</p>' };
+  const desk = mount(prepFrameMarkup(model, { phone: false, ...props }));
+  assert.ok(!desk.querySelector(".g-prep__panel--rows"), "no opponent card");
+  const panel = desk.querySelector(".g-prep__panel--action");
+  assert.deepEqual(panel.childNodes.map((node) => node.getAttribute("class")), ["g-status", "g-prep__cta"], "the lead before the button");
+  assert.equal(desk.querySelector(".g-prep__notices .g-prep__note").textContent, "Said.");
+  assert.equal(desk.querySelector(".g-prep__steps nav").getAttribute("aria-label"), "Post-match steps");
+  // Another card in the opponent's place, a lead with no button, notices after a refusal.
+  const other = mount(prepFrameMarkup({ ...model, footer: { kind: "none" }, error: "Refused." }, { phone: false, ...props, opponentHtml: '<div class="g-prep__panel">Theirs</div>' }));
+  assert.equal(other.querySelector(".g-prep__column").textContent, "TheirsLead");
+  const notices = other.querySelector(".g-prep__notices");
+  assert.deepEqual(notices.childNodes.map((node) => node.getAttribute("class")), ["g-prep__alert", "g-prep__note"], "the screen's own after the refusal");
+  const phone = mount(prepFrameMarkup(model, { phone: true, ...props }));
+  assert.equal(phone.querySelector("nav.g-prep__dots").getAttribute("aria-label"), "Post-match steps");
+  assert.equal(phone.querySelector(".g-prep__notices .g-prep__note").textContent, "Said.");
+  assert.ok(!phone.querySelector(".g-status"), "a phone has no lead: its footer says the opponent's line");
+});

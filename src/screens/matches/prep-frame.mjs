@@ -10,6 +10,8 @@
  *
  * A match begun or a round closed is said under the head (the records and the post-match to go to once begun); a
  * write refused is said there too, as an alert. An administrator picks the side the page is for (decision 22).
+ *
+ * The post-match draws in the same frame (stage 09b): its steps' label, its own notices, no opponent card, a chip over the button.
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
@@ -38,7 +40,7 @@ function dotsMarkup(model) {
     if (!step.href) return `<li class="g-prep__dotitem"><span class="${kind}">${inner}</span></li>`;
     return `<li class="g-prep__dotitem"><a class="${kind}" href="${escapeHtml(step.href)}"${step.onScreen ? ' aria-current="step"' : ""}>${inner}</a></li>`;
   }).join("");
-  return `<nav class="g-prep__dots" aria-label="${escapeHtml(t("pre.steps"))}"><ol class="g-prep__dotlist">${dots}</ol></nav>`;
+  return `<nav class="g-prep__dots" aria-label="${escapeHtml(model.stepsLabel ?? t("pre.steps"))}"><ol class="g-prep__dotlist">${dots}</ol></nav>`;
 }
 
 /** A desk's list of steps: the mark, the name and the summary; a link for a step passed or current. */
@@ -50,7 +52,7 @@ function stepsMarkup(model) {
     if (!step.href) return `<li class="g-prep__stepitem"><span class="${kind}">${inner}</span></li>`;
     return `<li class="g-prep__stepitem"><a class="${kind}" href="${escapeHtml(step.href)}"${step.onScreen ? ' aria-current="step"' : ""}>${inner}</a></li>`;
   }).join("");
-  return `<aside class="g-prep__steps"><nav aria-label="${escapeHtml(t("pre.steps"))}"><ol class="g-prep__steplist">${rows}</ol></nav></aside>`;
+  return `<aside class="g-prep__steps"><nav aria-label="${escapeHtml(model.stepsLabel ?? t("pre.steps"))}"><ol class="g-prep__steplist">${rows}</ol></nav></aside>`;
 }
 
 /** An administrator's choice of the side the page is for (decision 22): both teams, the one shown checked. */
@@ -60,8 +62,8 @@ function sideSwitch(model) {
     items: [{ value: "home", label: model.sides.home }, { value: "away", label: model.sides.away }] })}</div>`;
 }
 
-/** What is said under the head: a match begun (with the way to its records and post-match), a round closed, a write refused. */
-function noticesMarkup(model) {
+/** What is said under the head: a match begun (with the way to its records and post-match), a round closed, a write refused; then the screen's own. */
+function noticesMarkup(model, extraHtml = "") {
   const notes = [];
   if (model.readonlyWhy === "started") {
     const links = renderButton({ label: t("shell.match.records"), href: teamUrl(model.teamId, "roster") })
@@ -70,6 +72,7 @@ function noticesMarkup(model) {
   }
   if (model.readonlyWhy === "closed") notes.push(renderCallout({ tone: "warn", title: t("prep.closed") }));
   if (model.error) notes.push(`<div class="g-prep__alert" role="alert">${renderCallout({ tone: "danger", title: model.error })}</div>`);
+  if (extraHtml) notes.push(extraHtml);
   return notes.length ? `<div class="g-prep__notices">${notes.join("")}</div>` : "";
 }
 
@@ -122,23 +125,26 @@ function opponentCard(model) {
 /**
  * The frame around a step.
  * @param {ReturnType<typeof import("./prep-model.mjs").prepModel>} model
- * @param {{phone: boolean, contentHtml: string, asideHtml?: string, cardTitle?: string, footHtml?: string}} props `contentHtml`
+ * @param {{phone: boolean, contentHtml: string, asideHtml?: string, cardTitle?: string, footHtml?: string, opponentHtml?: string,
+ *   actionLeadHtml?: string, noticesHtml?: string}} props `contentHtml`
  *   and `asideHtml` are the step's markup (prep-steps.mjs); a desk's card is titled `cardTitle` (the step's name by
- *   default); `footHtml` stands for the footer's button where the step draws its own (a desk's budget card).
+ *   default); `footHtml` stands for the footer's button where the step draws its own (a desk's budget card). The
+ *   post-match's (stage 09b): `opponentHtml` stands for a desk's opponent card ("" for none), `actionLeadHtml` goes
+ *   before a desk's button in its panel (a chip of the opponent's line), `noticesHtml` after what is said under the head.
  */
-export function prepFrameMarkup(model, { phone, contentHtml, asideHtml = "", cardTitle = "", footHtml = null }) {
+export function prepFrameMarkup(model, { phone, contentHtml, asideHtml = "", cardTitle = "", footHtml = null, opponentHtml = null, actionLeadHtml = "", noticesHtml = "" }) {
   const cta = footHtml ?? prepCtaMarkup(model.footer);
   if (phone) {
     const head = `<header class="g-prep__head"><div class="g-prep__bar">${backMarkup(model)}<span class="g-prep__titles">`
       + `<h1 class="g-prep__title" tabindex="-1">${escapeHtml(model.title)}</h1><span class="g-prep__sub">${escapeHtml(model.sub)}</span></span></div>${dotsMarkup(model)}</header>`;
     const foot = cta || model.opponent.text ? `<div class="g-prep__foot">${opponentLine(model.opponent)}${cta}</div>` : "";
-    return `<div class="g-prep g-prep--phone">${head}${sideSwitch(model)}${noticesMarkup(model)}<div class="g-prep__body">${contentHtml}</div>${foot}</div>`;
+    return `<div class="g-prep g-prep--phone">${head}${sideSwitch(model)}${noticesMarkup(model, noticesHtml)}<div class="g-prep__body">${contentHtml}</div>${foot}</div>`;
   }
   const band = `<header class="g-prep__band">${backMarkup(model)}<span class="g-prep__titles"><h1 class="g-prep__title" tabindex="-1">${escapeHtml(model.deskTitle)}</h1>`
     + `<span class="g-prep__sub">${escapeHtml(model.deskSub)}</span></span></header>`;
   const title = cardTitle || model.steps[model.stepIndex].label;
   const card = `<section class="g-prep__card" aria-labelledby="prep-card-title"><h2 class="g-prep__cardtitle" id="prep-card-title">${escapeHtml(title)}</h2>${contentHtml}</section>`;
-  const action = cta ? `<div class="g-prep__panel g-prep__panel--action">${cta}</div>` : "";
-  const column = `<div class="g-prep__column">${asideHtml}${opponentCard(model)}${action}</div>`;
-  return `<div class="g-prep g-prep--desk">${band}${sideSwitch(model)}${noticesMarkup(model)}<div class="g-prep__main">${stepsMarkup(model)}${card}${column}</div></div>`;
+  const action = cta || actionLeadHtml ? `<div class="g-prep__panel g-prep__panel--action">${actionLeadHtml}${cta}</div>` : "";
+  const column = `<div class="g-prep__column">${asideHtml}${opponentHtml ?? opponentCard(model)}${action}</div>`;
+  return `<div class="g-prep g-prep--desk">${band}${sideSwitch(model)}${noticesMarkup(model, noticesHtml)}<div class="g-prep__main">${stepsMarkup(model)}${card}${column}</div></div>`;
 }
