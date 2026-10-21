@@ -381,12 +381,12 @@ export function statChoices(row, player, face) {
  * server stores (`normalizeRosterPlayer`), so a save sent again after a lost answer reads as the same
  * roster. Mutates `player` only when it is applied.
  *
- * A characteristic advancement may grant a skill in its place, as the post-match lets it
- * (`applyPostAdvancement`): at its own price, the skill at the first access that has it, recorded as a
- * characteristic. Only a random skill and a characteristic are rolled, so only they may name a roll, and
- * only as `{ id, via: "site" }` or `{ via: "table" }`. A refusal is always one of `ADVANCE_REFUSALS`: a
- * choice no screen makes — an unknown type, no grant, a characteristic there is none of — is
- * `GRANT_WRONG_KIND`.
+ * A characteristic advancement may grant a skill in its place, as the post-match lets it (`postPlayers`
+ * takes each of its advancements here): at its own price, the skill at the first access that has it,
+ * recorded as a characteristic. Only a random skill and a characteristic are rolled, so only they may
+ * name a roll, and only as `{ id, via: "site" }` or `{ via: "table" }`. A refusal is always one of
+ * `ADVANCE_REFUSALS`: a choice no screen makes — an unknown type, no grant, a characteristic there is
+ * none of — is `GRANT_WRONG_KIND`.
  *
  * @param {AdvancementChoice} choice
  * @returns {{applied: true, cost: number, value: number} | {applied: false, code: string, params: object}}

@@ -1,11 +1,12 @@
 import { normalizeDraft } from '../roster/schema.mjs';
 import { ensureDraftPlayers } from '../roster/players.mjs';
 import { SIDES, otherSide, CONFIRM_ACTION } from '../match/rules.mjs';
-import { POST_STEPS, INJURIES, RESULT_MODES, postCount, postError, resultAgreed, mvpCount } from './rules.mjs';
+import { favouredSkillsForChoice } from '../roster/team-rules.mjs';
+import { POST_STEPS, INJURIES, RESULT_MODES, FAVOURED_ROLLS, postCount, postError, resultAgreed, mvpCount } from './rules.mjs';
 import { normalizeMatchStats, validateStatistics } from './statistics.mjs';
 import { statisticsFromEvents, sameValues } from './events.mjs';
 import { validateFans } from './finance.mjs';
-import { projectPostRoster } from './roster.mjs';
+import { projectPostRoster, postAdvancer } from './roster.mjs';
 
 export function createPostSide(source, snapshot, data) {
   const reference = data.teams.find(team => team.slug === source.team.baseTeamSlug);
@@ -81,6 +82,36 @@ function rosterAction(state, name, action) {
     playerId: action.playerId, rowIndex: postCount(action.rowIndex), key: action.key, delta: Number(action.delta) });
 }
 
+// The site's rolls this side's choices name, whatever player each is for.
+function namedRolls(side) {
+  return new Set(Object.values(side.advancements).flat().filter(choice => choice.roll?.via === 'site').map(choice => String(choice.roll.id).trim()));
+}
+
+// An advancement may name its roll (stage 09b): the site's, kept until the finish uses it (server), or the
+// table's. The Favoured bonus is its own step, as on the roster (07d decision 17).
+// The roll's shape, and whether the type is rolled at all, is the roster's rule (`takeAdvancement`, when
+// the roster is projected: POST_ADVANCEMENT); a site roll another choice of this side names is
+// DICE_ROLL_USED, so a second advancement of the same player takes a fresh roll. A step of 2.x carries the
+// god's D8 in the advancement: it is kept, so a post-match begun then reads as before.
+function addAdvancement(side, action) {
+  const id = action.playerId, roll = action.roll ?? undefined;
+  if (!postAdvancer(side, id)) throw postError('POST_PLAYER');
+  if (roll?.via === 'site' && namedRolls(side).has(String(roll.id).trim())) throw postError('DICE_ROLL_USED');
+  const carried = ['favouredRoll', 'favouredSkill'].filter(key => action[key] !== undefined).map(key => [key, action[key]]);
+  side.advancements[id] ||= [];
+  side.advancements[id].push({ type: action.advancementType, grant: action.grant, ...(roll === undefined ? {} : { roll }), ...Object.fromEntries(carried) });
+}
+
+// The god's bonus on the player's last advancement of this post-match: the god's own face of the D8, a
+// skill of the god. Whether the player holds it by then is the projected roster's to say (POST_FAVOURED).
+function favourAdvancement(side, action) {
+  const alignment = side.baseRoster.favouredChoice;
+  const choice = Object.hasOwn(side.advancements, action.playerId) ? side.advancements[action.playerId].at(-1) : undefined;
+  if (!Object.hasOwn(FAVOURED_ROLLS, alignment) || !choice) throw postError('POST_ACTION');
+  if (!favouredSkillsForChoice(alignment).includes(action.skill)) throw postError('POST_FAVOURED');
+  Object.assign(choice, { favouredRoll: FAVOURED_ROLLS[alignment], favouredSkill: action.skill });
+}
+
 function performAction(state, name, action, data) {
   const side = state[name], type = action.type;
   if (type === 'result') { setResult(state, name, action, data); return; }
@@ -99,13 +130,8 @@ function performAction(state, name, action, data) {
     validateFans(state, name); side.stage = 2; return;
   }
   if (type === 'statistics' && side.stage === 2) { saveStatistics(state, name, action); return; }
-  if (type === 'advance' && side.stage === 2) {
-    if (!side.snapshot.players.some(player => player.id === action.playerId && player.kind !== 'star')) throw postError('POST_PLAYER');
-    side.advancements[action.playerId] ||= [];
-    side.advancements[action.playerId].push({ type: action.advancementType, grant: action.grant,
-      favouredRoll: action.favouredRoll, favouredSkill: action.favouredSkill });
-    return;
-  }
+  if (type === 'advance' && side.stage === 2) { addAdvancement(side, action); return; }
+  if (type === 'favoured' && side.stage === 2) { favourAdvancement(side, action); return; }
   if (type === 'undo-advance' && side.stage === 2) { side.advancements[action.playerId]?.pop(); return; }
   if (type === 'lock-players' && side.stage === 2) { validateStatistics(state, name); side.stage = 3; return; }
   if (['roster', 'undo-roster'].includes(type) && side.stage === 3) { rosterAction(state, name, action); return; }

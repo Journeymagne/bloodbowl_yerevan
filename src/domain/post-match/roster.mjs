@@ -2,7 +2,7 @@ import { createPlayer, normalizeAbsence } from '../roster/schema.mjs';
 import { applyInjuryEffects } from '../roster/absence.mjs';
 import { normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/players.mjs';
 import { playerCurrentCost } from '../roster/costs.mjs';
-import { applyAdvancement, canTakeAdvancement, checkAdvancementGrant, statIncreaseRefusal } from '../roster/progression.mjs';
+import { statIncreaseRefusal, takeAdvancement } from '../roster/progression.mjs';
 import { rowsForTeam, rosterMax, costToNumber } from '../roster/values.mjs';
 import { teamHasSpecialRule, availableMedicalStaffDefinitions, hasBribery, favouredSkillsForChoice } from '../roster/team-rules.mjs';
 import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum } from '../league-rules.mjs';
@@ -25,8 +25,10 @@ function applyInjury(player, injury, pairingId) {
   if (injury.code === 'lasting' && injury.retire) player.temporarilyRetired = true;
 }
 
+// The god's bonus is a step of its own (`favoured`, stage 09b), or the D8 a step of 2.x carried in the
+// advancement: with none named there is no bonus, as on the roster (07d decision 17).
 function applyFavoured(side, player, choice) {
-  if (!side.baseRoster.favouredChoice) return;
+  if (!side.baseRoster.favouredChoice || [undefined, null, ''].includes(choice.favouredRoll)) return;
   const roll = postDie(choice.favouredRoll, 8), alignment = side.baseRoster.favouredChoice;
   if (roll !== FAVOURED_ROLLS[alignment]) return;
   const skill = choice.favouredSkill, row = rowsForTeam(side.reference)[player.rowIndex];
@@ -34,6 +36,18 @@ function applyFavoured(side, player, choice) {
   const held = [...row.skills, ...player.extraSkills.map(item => item.name), ...player.favouredSkills.map(item => item.name)];
   if (!favouredSkillsForChoice(alignment).includes(skill) || held.includes(skill)) throw postError('POST_FAVOURED');
   player.favouredSkills.push({ name: skill, access: 'favoured' });
+}
+
+/**
+ * May this player of the side take an advancement in the post-match: one of the match's snapshot, not a
+ * star, not dead as the post-match stands (rookie protection applied, `effectiveInjury`). `site` asks
+ * whether the site may roll for it too: only for a player of the roster — a journeyman or a rookie of the
+ * match rolls at the table (a journeyman kept gets a new id), so the site's roll waits for no one it
+ * could not go to.
+ */
+export function postAdvancer(side, id, { site = false } = {}) {
+  const player = side.snapshot.players.find(item => item.id === id);
+  return Boolean(player) && player.kind !== 'star' && !(site && player.kind) && effectiveInjury(side, id).code !== 'dead';
 }
 
 export function postPlayers(state, name, data) {
@@ -50,22 +64,14 @@ export function postPlayers(state, name, data) {
       if (injury.code === 'dead') throw postError('POST_PLAYER');
       const row = rowsForTeam(side.reference)[player.rowIndex];
       if (choice.grant?.stat) validateStatIncrease(row, player, choice.grant.stat);
-      const result = applyPostAdvancement(side.reference, row, player, choice, data.skillGroups);
+      // The roster's own step (07d): a characteristic may take a skill in its place, and the roll the
+      // choice names goes onto the advancement, as the server stores it.
+      const result = takeAdvancement(side.reference, row, player, { type: choice.type, grant: choice.grant, roll: choice.roll }, data.skillGroups);
       if (!result.applied) throw postError('POST_ADVANCEMENT', result.params);
       applyFavoured(side, player, choice);
     }
   }
   return players;
-}
-
-function applyPostAdvancement(team, row, player, choice, groups) {
-  if (choice.type !== 'stat' || !choice.grant?.skill) return applyAdvancement(team, row, player, choice.type, choice.grant, groups);
-  if (!canTakeAdvancement(team, player, 'stat').allowed) return { applied: false };
-  const access = ['primary', 'secondary'].find(type => checkAdvancementGrant(row, player, type, choice.grant, groups).allowed);
-  if (!access) return { applied: false };
-  const result = applyAdvancement(team, row, player, access, choice.grant, groups);
-  if (result.applied) player.advancements.at(-1).type = 'stat';
-  return result;
 }
 
 function validateStatIncrease(row, player, stat) {
