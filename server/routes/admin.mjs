@@ -12,7 +12,9 @@
  * admin may put a team right in either stage.
  *
  * What the coaches' list and a coach's page say, and a coach with a team made
- * at one stroke, are server/routes/admin-coaches.mjs (stage 12).
+ * at one stroke, are server/routes/admin-coaches.mjs (stage 12). A team's
+ * treasury set with its reason, a death and its undo, and a fallen player added
+ * afterwards — the repair path while a team plays — are server/routes/admin-team.mjs.
  */
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
@@ -35,6 +37,8 @@ import {
 } from "../api/serializers.mjs";
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
 import { handleAdminCoachRoutes, readCoach, readCoachList, userHasSeasonHistory } from "./admin-coaches.mjs";
+import { adminTeamMatches, handleAdminTeamWrites } from "./admin-team.mjs";
+import { teamHasLiveMatch } from "../season/live-match.mjs";
 import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam, userHasFriendlyGames } from "../api/team-queries.mjs";
 import { loadAwaitingGameRows } from "../season/store.mjs";
@@ -66,6 +70,7 @@ function sendError(response, status, code, params) {
 export async function handleAdminRoutes(request, response, url) {
   if (await handleAdminAwaitingRoute(request, response, url)) return true;
   if (await handleAdminCoachRoutes(request, response, url)) return true; // POST /api/admin/coaches
+  if (await handleAdminTeamWrites(request, response, url)) return true; // /api/admin/teams/:id/{treasury,players/:pid/death,fallen[/:fid]}
 
   if (url.pathname === "/api/admin/users" && request.method === "GET") {
     const user = await currentUser(request);
@@ -304,6 +309,8 @@ async function handleAdminTeamRoutes(request, response, url) {
         created_at: row.owner_created_at,
       }),
       team: publicSavedTeam(row),
+      inMatch: await teamHasLiveMatch(pool, row.id), // the admin's edit goes through while it plays: the repair path
+      matches: await adminTeamMatches(pool, row.id),
     });
   }
 
