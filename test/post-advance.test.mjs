@@ -327,6 +327,52 @@ it("a take pressed twice while its write is on its way sends one", async () => {
   assert.ok(sheet().querySelector(".g-advance__done"));
 });
 
+// Task 10 lens review: a press in the sheet while the post-match's take is on its way does not change what done says.
+it("a press while the take is on its way leaves done saying what was taken", async () => {
+  const post = onPlayers();
+  await visit(post, { phone: false });
+  await press(advanceOf("h3"));
+  await press(typeCard("random"));
+  await press(category("General"));
+  await press(way("table"));
+  await press(face(4));
+  await press(face(8));
+  await press(pick("Strip Ball"));
+  answers(post, { type: "advance", playerId: "h3", advancementType: "random", grant: { skill: "Strip Ball" }, roll: { via: "table" } });
+  const gate = api.hold(WRITE);
+  fireEvent(take(), "click");
+  await flush();
+  await press(category("Agility"));
+  gate.release();
+  await flush();
+  assert.match(sheet().querySelector(".g-advance__donetitle").textContent, /Strip Ball/);
+  assert.match(sheet().querySelector(".g-advance__how").textContent, /General/);
+  assert.doesNotMatch(sheet().querySelector(".g-advance__how").textContent, /Agility/);
+});
+
+// Task 10 lens review: «Done» after the player's last affordable advancement has no «Advance» to go back to — the focus
+// goes to what the sheet made, his card's «Undo», never to the footer's «Next».
+it("«Done» after his last affordable advancement gives the focus to his card's «Undo», not to «Next»", async () => {
+  const post = onPlayers();
+  await visit(post);
+  await press(advanceOf("h4")); // R. Pike: a touchdown, 3 SPP — one random skill
+  await toRandom();
+  await press(way("table"));
+  await press(face(4));
+  await press(face(8));
+  await press(pick("Strip Ball"));
+  const action = { type: "advance", playerId: "h4", advancementType: "random", grant: { skill: "Strip Ball" }, roll: { via: "table" } };
+  answers(post, action);
+  await press(take());
+  assert.deepEqual(writes().map(({ action: sent }) => sent), [action]);
+  await press(sheet().querySelector("[data-advance-done]"));
+  assert.equal(sheet(), null);
+  assert.equal(advanceOf("h4"), null, "no advancement left for him");
+  const focused = document.activeElement;
+  assert.ok(focused === view.querySelector('[data-after-untake="h4"]'), `the focus on his «Undo», not on ${focused?.getAttribute?.("class") ?? focused?.tagName}`);
+  api.assertAnswered();
+});
+
 it("while the Players step is written the advancement waits, and says so", async () => {
   const post = onPlayers();
   await visit(post);

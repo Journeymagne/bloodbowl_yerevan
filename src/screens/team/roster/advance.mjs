@@ -263,6 +263,8 @@ async function takeChosen(saving, { now, refused, take }) {
   }
   if (!chosen || god?.waits) return;
   const { elite, ...choice } = chosen;
+  // What done says is the choice as it was pressed: a press while a lent take is on its way changes none of it.
+  const said = { ...takenWords(sheet, chosen, choices), elite, type: chosen.type, grant: chosen.grant, favoured: favouredTaken(god) };
   let answer;
   if (take) {
     Object.assign(sheet, { taking: true });
@@ -277,8 +279,7 @@ async function takeChosen(saving, { now, refused, take }) {
     return;
   }
   if (!answer.ok) return;
-  const taken = { ...takenWords(sheet, chosen, choices), cost: answer.cost, value: answer.value, elite, level: answer.level, type: chosen.type, grant: chosen.grant,
-    favoured: favouredTaken(god) };
+  const taken = { ...said, cost: answer.cost, value: answer.value, level: answer.level };
   // The rolls the visit read are the team's before this one was taken: read again for the next skill's sheet.
   visit.rolls = null;
   Object.assign(sheet, { step: "done", refusal: "", taken });

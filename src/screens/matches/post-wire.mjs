@@ -36,7 +36,7 @@ import { wireToggles } from "../../ui/toggle.mjs";
 import { onPhoneChange } from "../team/roster/screen.mjs";
 import { ADVANCE_SHEET } from "../team/roster/sheets.mjs";
 import { wireAdvance, wireReasons } from "../team/roster/wire.mjs";
-import { postAdvanceHandlers } from "./post-advance.mjs";
+import { postAdvanceHandlers, postAdvancePlayer } from "./post-advance.mjs";
 import { playersSendable } from "./post-players.mjs";
 import { resultAction } from "./post-steps.mjs";
 
@@ -193,7 +193,10 @@ function wireRoster(visit, screen, events) {
  */
 function wireAdvancement(visit, screen, events) {
   const handlers = postAdvanceHandlers(visit, screen);
-  for (const off of wireAdvance(view, handlers)) events.own(off);
+  // «Done» and «Cancel» close it as the page's own sheets close (`closeSheet`): the focus never left to the draw's
+  // fallback, the footer's «Next», when his «Advance» is gone with his last affordable advancement.
+  const close = () => closeSheet(visit, screen);
+  for (const off of wireAdvance(view, { ...handlers, onAdvanceDone: close, onAdvanceKeep: close })) events.own(off);
   events.own(wireReasons(view, { onInjuryChoice() {}, onMarkChoice() {}, onAdvanceType: handlers.onAdvanceType }));
   events.on("click", "[data-after-untake]", (event, button) => {
     if (!closed(button)) void screen.send({ type: "undo-advance", playerId: button.getAttribute("data-after-untake") });
@@ -207,14 +210,18 @@ function openSheet(visit, screen, sheet, opener) {
   screen.draw();
 }
 
-/** Close the sheet: the focus back on what opened it (or on its row, or its «Advance», drawn again), else on the title. */
+/**
+ * Close the sheet: the focus back on what opened it (or on its row, or its «Advance», drawn again — or, his last
+ * advancement taken, on what the sheet made: his card's «Undo»), else on the title.
+ */
 function closeSheet(visit, screen) {
   const { sheet, opener } = visit.ui;
   Object.assign(visit.ui, { sheet: null, opener: null });
   screen.draw({ refocus: false });
   const named = (attribute, value) => [...view.querySelectorAll(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === value);
+  const advanced = () => named("data-player-advance", sheet.key) ?? named("data-after-untake", postAdvancePlayer(visit, sheet.key));
   const again = sheet?.kind === "player" ? named("data-after-player", sheet.playerId)
-    : sheet?.kind === "advance" ? named("data-player-advance", sheet.key) : view.querySelector(`[data-after-open="${sheet?.kind}"]`);
+    : sheet?.kind === "advance" ? advanced() : view.querySelector(`[data-after-open="${sheet?.kind}"]`);
   (opener?.isConnected ? opener : again ?? view.querySelector("h1"))?.focus();
 }
 

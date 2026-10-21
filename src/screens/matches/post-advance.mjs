@@ -75,6 +75,11 @@ export function postAdvanceKey(visit, playerId) {
   return postAdvanceWhere(visit).lines.find(({ id }) => id === String(playerId))?.key ?? "";
 }
 
+/** The player of the sheet's line `key` (`postAdvanceKey`'s other way), "" for none. */
+export function postAdvancePlayer(visit, key) {
+  return rosterLineOf(postAdvanceWhere(visit).lines, key)?.id ?? "";
+}
+
 /** The advancement's sheet while it is open and still stands (`advanceSheetOf`: not when it shows one taken off since), else "". */
 export function postAdvanceMarkup(visit) {
   const { sheet } = visit.ui;
