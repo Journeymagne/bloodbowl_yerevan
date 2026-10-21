@@ -803,6 +803,19 @@ test("a team below the sixth stands last in it with its place", () => {
     ["1", "Rival Team", false], ["2", "Rival Raiders", false], ["3", "Rival Wardens", false], ["4", "Fourth Wall", false], ["5", "Fifth Column", false], ["8", "Ashgrove Wardens", true]]);
 });
 
+test("the overview's table draws the playoff zone the admin set by the place in the whole table: the team eighth, last in the window, is outside a zone of six", () => {
+  const zone = (seasonData) => {
+    const rows = mount(overviewMarkup(overviewModel(input("t1", { seasonData, viewerId: "u1" })))).querySelectorAll(".g-minitable__row");
+    const ranks = (modifier) => rows.filter((row) => row.getAttribute("class").includes(`g-minitable__row--${modifier}`)).map((row) => row.querySelector(".g-minitable__rank").textContent);
+    return { zone: ranks("zone"), end: ranks("zoneend") };
+  };
+  const places = (league, playoffPlaces) => ({ ...league, season: { ...league.season, playoffPlaces } });
+  assert.deepEqual(zone(places(LEAGUE_LAST, 6)), { zone: ["1", "2", "3", "4", "5"], end: [] }, "the sixth place is not in the window: no line for it (pre-flight L16)");
+  assert.deepEqual(zone(places(LEAGUE_LAST, 3)), { zone: ["1", "2", "3"], end: ["3"] });
+  assert.deepEqual(zone(places(LEAGUE, 2)), { zone: ["1", "2"], end: ["2"] }, "the team's own row in the zone");
+  assert.deepEqual(zone(LEAGUE), { zone: [], end: [] }, "no playoff places set: no zone");
+});
+
 test("the coach's other team in the table leads to its overview, unmarked: the overview marks its own team's row (DeskOverview.html)", () => {
   const both = { ...LEAGUE, standings: LEAGUE.standings.map((row) => (row.team.id === "r2" ? { ...row, user: { id: "u1", login: "coach" } } : row)) };
   const rows = mount(overviewMarkup(overviewModel(input("t1", { seasonData: both, viewerId: "u1" })))).querySelectorAll(".g-minitable__row");

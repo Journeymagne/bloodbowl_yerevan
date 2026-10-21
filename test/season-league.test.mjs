@@ -14,6 +14,8 @@ document.body.appendChild(appView);
 globalThis.location = { hash: "#/season", replace() {} };
 const { renderSeasonRoute, leagueModel, leagueMarkup, roundsMarkup } = await import("../src/screens/season/league.mjs");
 const { ROUND_STATES, leagueRounds } = await import("../src/data/season-table.mjs");
+const { tablePointsText } = await import("../src/screens/season/table.mjs");
+const { TECHNICAL_REASONS } = await import("../src/domain/league-rules.mjs");
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
 const { resolveRedirect } = await import("../src/core/routes.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
@@ -134,7 +136,8 @@ test("a desk's page: «Table» with its line, the table and the calendar side by
     assert.equal(aside.parentNode, row);
     assert.equal(row.childNodes.filter((node) => node.nodeType === 1)[0], table, "the table first, the calendar at its right");
     assert.equal(table.querySelector("h2#league-title").textContent, t("shell.tab.table"));
-    assert.equal(table.querySelector(".g-season__rule").textContent, t("league.points", { win: 3, draw: 1, loss: 0, bonus: 1, margin: 3, casualties: 3 }));
+    assert.equal(table.querySelector(".g-season__rule").textContent, tablePointsText());
+    assert.ok(tablePointsText().startsWith(t("league.points", { win: 3, draw: 1, loss: 0, bonus: 1, margin: 3, casualties: 3 })));
     assert.equal(table.querySelectorAll('[role="columnheader"]').length, 11, "the desk's form");
     assert.ok(table.querySelector(".g-table__notes").textContent.includes(t("league.clicks")));
     assert.ok(aside.querySelector("#league-calendar"));
@@ -193,6 +196,51 @@ test("the calendar: newest round first, its state, a pair's score once confirmed
     assert.equal(ours.querySelector("a.g-league__team").getAttribute("href"), "#/t/t1", "the coach's own team leads to its overview");
     assert.equal(ours.querySelectorAll("a.g-league__team")[1].getAttribute("href"), "#/coaches/u3/teams/r2");
     assert.equal(bye.querySelector("a.g-league__team").getAttribute("href"), "#/coaches/u5/teams/r4", "a bye's team leads to its page too");
+  } finally {
+    leave();
+  }
+});
+
+test("the calendar says a technical win and why", async () => {
+  // Round 2 decided without being played: r1 over r2 when r2 could not field a team; t1 over r3 before stage 12 said why.
+  const technical = (item, technicalReason) => ({ ...item, resultType: "technical", technicalReason });
+  const season = { ...SEASON, rounds: SEASON.rounds.map((round) => (round.roundNumber !== 2 ? round : { ...round, pairings: [
+    technical(pairing(2, "completed", 1, "r1", "r2", { score: [2, 0], cas: [0, 0], points: [4, 0] }), "no_team"),
+    technical(pairing(2, "completed", 2, "r3", "t1", { score: [0, 2], cas: [0, 0], points: [0, 2] }), null),
+  ] })) };
+  try {
+    for (const phone of [true, false]) {
+      await visit("", { phone, season });
+      const pairs = [...view.querySelectorAll(".g-league__pair")];
+      const line = (pair) => [pair.querySelector(".g-league__names").textContent, pair.querySelector(".g-league__state")?.textContent ?? null,
+        pair.querySelector(".g-league__score").textContent];
+      assert.deepEqual(pairs.slice(3, 7).map(line), [
+        ["Team r1 — Team r2", "Technical win · the opponent could not field a team", "2–0"],
+        ["Team r3 — Team t1", "Technical win", "0–2"],
+        ["Team t1 — Team r1", null, "2–1"],
+        ["Team r2 — Team r3", null, "1–1"],
+      ], "a technical result stored before stage 12 has no reason: a technical win, no more; a played one says nothing");
+      assert.equal(pairs[3].querySelector(".g-league__state").textContent, t("league.technical.no_team"));
+      assert.equal(pairs[4].querySelector(".g-league__state").textContent, t("league.technical.other"));
+    }
+  } finally {
+    leave();
+  }
+});
+
+test("the league's table draws the playoff zone the admin set, on both widths, and names it under the table; none until it is set", async () => {
+  const zoned = { ...SEASON, season: { ...SEASON.season, playoffPlaces: 2 } };
+  try {
+    for (const phone of [true, false]) {
+      await visit("", { phone, season: zoned, user: null });
+      const ranks = (selector) => [...view.querySelectorAll(selector)].map((row) => row.querySelector(".g-table__rank").textContent);
+      assert.deepEqual(ranks(".g-table__row--zone"), ["1", "2"]);
+      assert.deepEqual(ranks(".g-table__row--zoneend"), ["2"]);
+      assert.equal(view.querySelector(".g-table__notes p.g-table__zone").textContent, t("league.zone", { places: 2 }));
+      await visit("", { phone });
+      assert.equal(view.querySelectorAll(".g-table__row--zone").length, 0, "the season has no playoff places: no zone");
+      assert.equal(view.querySelector(".g-table__zone"), null);
+    }
   } finally {
     leave();
   }
@@ -323,6 +371,12 @@ test("styled", () => {
   assertStyled(mount(leagueMarkup(leagueModel({ seasonData: null, seasonError: "offline", viewer: COACH, phone: true }))), CSS, "src/screens/season/table.css",
     "page-head.css", "callout.css");
   assertStyled(mount(roundsMarkup([], { viewerId: "", signedIn: false })), CSS);
+  const technical = { ...SEASON, season: { ...SEASON.season, playoffPlaces: 3 }, rounds: SEASON.rounds.map((round) => ({ ...round,
+    pairings: round.pairings.map((item) => (item.resultStatus === "confirmed" ? { ...item, resultType: "technical", technicalReason: "no_team" } : item)) })) };
+  for (const phone of [true, false]) {
+    assertStyled(mount(leagueMarkup(leagueModel({ seasonData: technical, viewer: COACH, phone }))), CSS, "src/screens/season/table.css", "page-head.css", "form-strip.css",
+      "callout.css");
+  }
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/season/league.css");') > styles.indexOf('@import url("screens/season/table.css");'), "after the table's sheet");
 });
@@ -334,6 +388,12 @@ test("every key in both dictionaries", () => {
     assert.ok(en[`league.roundState.${status}`], `en ${status}`);
     assert.ok(ru[`league.roundState.${status}`], `ru ${status}`);
   }
+  for (const reason of TECHNICAL_REASONS) {
+    assert.ok(en[`league.technical.${reason}`], `en ${reason}`);
+    assert.ok(ru[`league.technical.${reason}`], `ru ${reason}`);
+  }
+  assert.equal(ru["league.technical.no_team"], "Техническая победа · соперник не смог выставить команду");
+  assert.equal(ru["league.technical.other"], "Техническая победа");
   for (const gone of ["season.tab.standings", "season.tab.fixture"]) assert.equal(en[gone], undefined, gone);
 });
 

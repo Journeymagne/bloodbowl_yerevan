@@ -9,8 +9,10 @@
  *
  * The season's calendar has no prototype (owner question 2): the league's rounds under way or over, newest first,
  * each pairing a line «Home — Away» built as DeskSeason.html's calendar draws a match, the score once confirmed,
- * a bye said as one. A name leads where its row in the table does (`rowHref`): nowhere for a guest, nor for a
- * withdrawn entry.
+ * a bye said as one, a result decided without being played said as a technical win and why (stage 12, decision 5).
+ * A name leads where its row in the table does (`rowHref`): nowhere for a guest, nor for a withdrawn entry.
+ *
+ * The table draws the playoff zone the admin set for the season (`playoffPlacesOf`, stage 12), on both widths.
  *
  * Every `#/season/<tab>` is this page (`renderSeasonRoute`): the 2.x season screen and its two tabs went with stage 12
  * — a coach enters a team from its own pages (screens/season/enter.mjs), the admin runs the season in the
@@ -22,7 +24,7 @@ import { adminSeasonUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
-import { lastRoundOver, leagueRounds, seasonTable } from "../../data/season-table.mjs";
+import { lastRoundOver, leagueRounds, playoffPlacesOf, seasonTable } from "../../data/season-table.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { assertLinkHref, classNames } from "../../ui/markup.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
@@ -49,6 +51,7 @@ export function leagueModel({ seasonData, seasonError = "", viewer, phone }) {
     line: seasonLineOf(seasonData),
     read: Boolean(seasonData),
     rows: seasonTable(seasonData),
+    playoffPlaces: playoffPlacesOf(seasonData),
     rounds: leagueRounds(seasonData),
     viewerId: viewer?.id ?? "",
     signedIn: Boolean(viewer),
@@ -74,18 +77,25 @@ function sentenceWith(key, name, html) {
 
 const WAITING_WORDS = { result: "league.pending", confirmation: "league.awaiting" };
 
-/** One pairing: «Home — Away» (or the bye's line), what it waits for under it, the score at the right. */
+/** What the line under a pairing says: what it still waits for, or why a confirmed result was not played; "" for neither. */
+function pairState(pairing) {
+  if (pairing.technical) return t(`league.technical.${pairing.technical.reason}`);
+  const waiting = WAITING_WORDS[pairing.waiting];
+  return waiting ? t(waiting) : "";
+}
+
+/** One pairing: «Home — Away» (or the bye's line), what it waits for or a technical win under it, the score at the right. */
 function pairMarkup(pairing, viewer) {
   const mine = viewer.signedIn && [pairing.home, pairing.away].some((side) => side && side.user?.id === viewer.viewerId);
   const names = pairing.away
     ? `${sideMarkup(pairing.home, viewer)} — ${sideMarkup(pairing.away, viewer)}`
     : sentenceWith("league.bye", "team", sideMarkup(pairing.home, viewer));
-  const waiting = WAITING_WORDS[pairing.waiting];
+  const line = pairState(pairing);
   const score = pairing.score
     ? `<span class="g-league__score">${escapeHtml(`${pairing.score[0]}–${pairing.score[1]}`)}</span>`
     : `<span class="g-league__score g-league__score--none">—</span>`;
   return `<li class="${classNames("g-league__pair", mine && "g-league__pair--mine")}"><div class="g-league__teams">`
-    + `<span class="g-league__names">${names}</span>${waiting ? `<span class="g-league__state">${escapeHtml(t(waiting))}</span>` : ""}</div>${score}</li>`;
+    + `<span class="g-league__names">${names}</span>${line ? `<span class="g-league__state">${escapeHtml(line)}</span>` : ""}</div>${score}</li>`;
 }
 
 /**
@@ -106,8 +116,9 @@ export function roundsMarkup(rounds, viewer) {
 /** The table, its rules under it; while the table is on its way, the word that it is. */
 function tableMarkup(model) {
   if (!model.read) return model.failure ? "" : `<p class="g-league__loading" role="status">${escapeHtml(t("season.loading"))}</p>`;
-  const table = leagueTableMarkup({ rows: model.rows, phone: model.phone, viewerId: model.viewerId, signedIn: model.signedIn, labelledBy: "league-title" });
-  return model.rows.length ? `${table}${tableNotesMarkup({ phone: model.phone, signedIn: model.signedIn })}` : table;
+  const { rows, phone, viewerId, signedIn, playoffPlaces } = model;
+  const table = leagueTableMarkup({ rows, phone, viewerId, signedIn, labelledBy: "league-title", playoffPlaces });
+  return rows.length ? `${table}${tableNotesMarkup({ phone, signedIn, playoffPlaces })}` : table;
 }
 
 const failureMarkup = (model) => (model.failure ? `<div class="g-league__failed" role="alert">${renderCallout({ tone: "danger", title: model.failure })}</div>` : "");

@@ -808,6 +808,21 @@ test("the table is the season's: the same rows as #/season", async () => {
   }
 });
 
+test("a desk's table draws the playoff zone the admin set and names it in its note", async () => {
+  try {
+    await visit("t1", { phone: false, season: { ...SEASON, season: { ...SEASON.season, playoffPlaces: 2 } } });
+    const table = view.querySelector(".g-season__table");
+    const ranks = (modifier) => table.querySelectorAll(`.g-table__row--${modifier}`).map((row) => row.querySelector(".g-table__rank").textContent);
+    assert.deepEqual([ranks("zone"), ranks("zoneend")], [["1", "2"], ["2"]]);
+    assert.equal(table.querySelector(".g-table__notes p.g-table__zone").textContent, t("league.zone", { places: 2 }));
+    await visit("t1", { phone: false });
+    assert.equal(view.querySelectorAll(".g-table__row--zone").length, 0);
+    assert.equal(view.querySelector(".g-table__zone"), null);
+  } finally {
+    leave();
+  }
+});
+
 test("a desk's season: the board, then the table at the left with the coach's row marked and the calendar at the right", async () => {
   try {
     await visit("t1", { phone: false });

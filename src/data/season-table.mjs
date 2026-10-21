@@ -16,8 +16,14 @@
  * - a result is read by touchdowns, as `gameOutcome` reads a game: more is a win, as many a draw.
  *
  * The rounds are the league's calendar: the rounds under way or over, newest first, their pairings by table,
- * each side the season's entry (a withdrawn one too, from `historicalEntries`), the score once confirmed.
+ * each side the season's entry (a withdrawn one too, from `historicalEntries`), the score once confirmed, and for a
+ * result decided without being played its winner and why (stage 12).
+ *
+ * The playoff zone is the season's setting the admin sets (`season.playoffPlaces`, stage 12): the first N entries
+ * still in the season. Each row carries its place among them (`zonePlace`) from the whole table, so a few rows of it
+ * (`tableWindow`, which sets the team's own row last) are zoned by the team's place, not by the row's (pre-flight L16).
  */
+import { TECHNICAL_REASONS } from "../domain/league-rules.mjs";
 
 /** The states of a round whose pairings count in the table and show in the calendar; a `draft` round is neither. */
 export const ROUND_STATES = Object.freeze(["started", "completed"]);
@@ -79,7 +85,9 @@ function counted(seasonData) {
  * @typedef {{rank: number, entryId: string, user: {id: string, login: string},
  *   team: {id: string, name: string, baseTeamSlug: string}, games: number, points: number,
  *   wins: number, draws: number, losses: number, touchdowns: number, conceded: number,
- *   casualties: number, suffered: number, form: ("w"|"d"|"l")[], withdrawn: boolean}} TableRow
+ *   casualties: number, suffered: number, form: ("w"|"d"|"l")[], withdrawn: boolean, zonePlace: number|null}} TableRow
+ *   `zonePlace`: the row's place among the entries still in the season — the place the playoff zone counts —; null for a
+ *   withdrawn entry
  */
 
 /**
@@ -92,8 +100,11 @@ export function seasonTable(seasonData) {
   const standings = Array.isArray(seasonData?.standings) ? seasonData.standings : [];
   if (!standings.length) return [];
   const tally = counted(seasonData);
+  let inSeason = 0;
   return [...standings].sort((first, second) => first.rank - second.rank).map((standing) => {
     const record = tally.get(standing.entryId);
+    const withdrawn = Boolean(standing.withdrawnAt);
+    if (!withdrawn) inSeason += 1;
     const form = (record?.results ?? []).sort((first, second) => first.round - second.round).slice(-FORM_LENGTH).map((result) => result.outcome);
     return {
       rank: standing.rank,
@@ -110,9 +121,21 @@ export function seasonTable(seasonData) {
       casualties: record?.casualties ?? 0,
       suffered: record?.suffered ?? 0,
       form,
-      withdrawn: Boolean(standing.withdrawnAt),
+      withdrawn,
+      zonePlace: withdrawn ? null : inSeason,
     };
   });
+}
+
+/**
+ * The season's playoff places as the admin set them (`season.playoffPlaces`): a whole number from 1; null — no zone —
+ * while none is set, and for anything else.
+ *
+ * @returns {number|null}
+ */
+export function playoffPlacesOf(seasonData) {
+  const places = seasonData?.season?.playoffPlaces;
+  return Number.isInteger(places) && places >= 1 ? places : null;
 }
 
 /**
@@ -143,7 +166,9 @@ export function tableWindow(rows, teamId, size = 6) {
 /**
  * @typedef {{entryId: string, user: object, team: object, withdrawn: boolean}|null} RoundSide
  * @typedef {{id: string, table: number, home: RoundSide, away: RoundSide, score: [number, number]|null,
- *   casualties: [number, number]|null, waiting: "none"|"result"|"confirmation"|null}} RoundPairing
+ *   casualties: [number, number]|null, waiting: "none"|"result"|"confirmation"|null,
+ *   technical: {winner: "home"|"away", reason: "no_team"|"other"}|null}} RoundPairing
+ *   `technical`: a confirmed result decided without being played (`resultType` "technical"), null otherwise
  */
 
 /** The season's entry of a side, a withdrawn one too (as `pairingEntry` of the 2.x season). */
@@ -158,6 +183,17 @@ function waitingOf(pairing, bye) {
   if (bye) return "none";
   if (pairing.resultStatus === "confirmed") return null;
   return pairing.resultStatus === "awaiting_confirmation" ? "confirmation" : "result";
+}
+
+/**
+ * A confirmed technical result's winner and reason. The winner is the side the server gave the touchdowns, as its
+ * `setTechnicalReason` reads it; a result stored before stage 12 has no reason and is «other» (2 points), as the server
+ * counts it, and so is a reason this client does not know.
+ */
+function technicalOf(pairing) {
+  if (pairing.resultType !== "technical") return null;
+  const winner = amount(pairing.homeTouchdowns) > amount(pairing.awayTouchdowns) ? "home" : "away";
+  return { winner, reason: TECHNICAL_REASONS.includes(pairing.technicalReason) ? pairing.technicalReason : "other" };
 }
 
 /** A pairing of the calendar; null for one with neither side. A bye is its one side at home. */
@@ -175,6 +211,7 @@ function roundPairing(seasonData, pairing) {
     score: confirmed ? [amount(pairing.homeTouchdowns), amount(pairing.awayTouchdowns)] : null,
     casualties: confirmed ? [amount(pairing.homeCasualties), amount(pairing.awayCasualties)] : null,
     waiting: waitingOf(pairing, bye),
+    technical: confirmed ? technicalOf(pairing) : null,
   };
 }
 

@@ -19,7 +19,13 @@
  * 09a's results). A race the reference has no page for has no name to show and is left out.
  *
  * The note under the table is the league's own rules, read from `seasonPoints` and in the order of
- * `standingsOrder`, not the prototype's words.
+ * `standingsOrder`, not the prototype's words — a technical win's points among them (stage 12).
+ *
+ * The playoff zone (stage 12, decision 6; League.html, DeskSeason.html, DeskOverview.html) is the season's setting the
+ * admin sets: none until it is set. The first N entries still in the season have their place in the league's green, the
+ * Nth a line under it when a row follows (a line under the last row tells nothing), and the note names the zone first,
+ * by its dot. A withdrawn entry keeps its place in the table and is no place of the zone. The overview's few rows are
+ * zoned by each team's place in the whole table (`zonePlace`), not by the row of the window (pre-flight L16).
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
@@ -109,9 +115,25 @@ function cellOf(key, row, phone, viewer) {
 /** The coach's own row: his team on that team's screens (`teamId`), else any of his. */
 const ownRow = (row, { viewerId, teamId }) => Boolean(viewerId) && row.user.id === viewerId && (!teamId || row.team.id === teamId);
 
-function rowMarkup(row, phone, viewer) {
+/**
+ * Where each row stands in the playoff zone of `playoffPlaces`: in it when its place among the entries still in the
+ * season (`zonePlace`) is N or better; the Nth ends it — the line under it — when another row follows it here.
+ *
+ * @param {import("../../data/season-table.mjs").TableRow[]} rows the table, or the overview's few rows of it
+ * @param {number|null} playoffPlaces the season's (`playoffPlacesOf`); null — no zone
+ * @returns {{zone: boolean, end: boolean}[]} one for each row, in their order
+ */
+function zoneRank(rows, playoffPlaces) {
+  return rows.map((row, at) => {
+    const zone = Boolean(playoffPlaces) && row.zonePlace != null && row.zonePlace <= playoffPlaces;
+    return { zone, end: zone && row.zonePlace === playoffPlaces && at < rows.length - 1 };
+  });
+}
+
+function rowMarkup(row, phone, viewer, place) {
   const mine = !row.withdrawn && viewer.signedIn && ownRow(row, viewer);
-  const className = classNames("g-table__row", mine && "g-table__row--mine", row.withdrawn && "g-table__row--withdrawn");
+  const className = classNames("g-table__row", mine && "g-table__row--mine", row.withdrawn && "g-table__row--withdrawn",
+    place.zone && "g-table__row--zone", place.end && "g-table__row--zoneend");
   const cells = TABLE_COLUMNS[phone ? "phone" : "desk"].map((key) => {
     const { html, extra } = cellOf(key, row, phone, viewer);
     return `<span class="${classNames("g-table__cell", extra)}" role="cell"${dataAttributes({ column: key })}>${html}</span>`;
@@ -127,21 +149,27 @@ function rowMarkup(row, phone, viewer) {
  * @param {boolean} [props.signedIn] a guest's rows are no links
  * @param {string} [props.teamId] on a team's own screens, the team whose row alone is the coach's own
  * @param {string} props.labelledBy the id of the heading that names the table
+ * @param {number|null} [props.playoffPlaces] the season's playoff places (`playoffPlacesOf`); null — no zone
  */
-export function leagueTableMarkup({ rows, phone, viewerId = "", signedIn = false, teamId = "", labelledBy }) {
+export function leagueTableMarkup({ rows, phone, viewerId = "", signedIn = false, teamId = "", labelledBy, playoffPlaces = null }) {
   if (!rows.length) return `<p class="g-table__empty">${escapeHtml(t("guestHome.tableEmpty"))}</p>`;
   const viewer = { viewerId, signedIn, teamId };
-  const body = rows.map((row) => rowMarkup(row, phone, viewer)).join("");
+  const zone = zoneRank(rows, playoffPlaces);
+  const body = rows.map((row, at) => rowMarkup(row, phone, viewer, zone[at])).join("");
   return `<div class="g-table" role="table" aria-labelledby="${escapeHtml(labelledBy)}">`
     + `${headerMarkup(TABLE_COLUMNS[phone ? "phone" : "desk"])}<div role="rowgroup">${body}</div></div>`;
 }
 
-/** How the league scores a match, in its own numbers (`seasonPoints`): a phone's note says it, a desk's card at its head. */
+/**
+ * How the league scores a match, in its own numbers (`seasonPoints`), a technical win's too (content: «2 points for a
+ * technical win», «+2 points if the opponent could not field a team»): a phone's note says it, a desk's card at its head.
+ */
 export function tablePointsText() {
-  return t("league.points", {
+  const played = t("league.points", {
     win: seasonPoints.win, draw: seasonPoints.draw, loss: seasonPoints.loss, bonus: seasonPoints.bigWinBonus,
     margin: seasonPoints.bigWinMargin, casualties: seasonPoints.casualtyThreshold,
   });
+  return `${played} ${t("league.technicalPoints", { technical: seasonPoints.technicalWin, bonus: seasonPoints.noTeamBonus })}`;
 }
 
 /**
@@ -156,31 +184,41 @@ export function tableCardMarkup({ titleId, bodyHtml }) {
     + `<span class="g-season__rule">${escapeHtml(tablePointsText())}</span></div>${bodyHtml}</div></section>`;
 }
 
+/** The zone's line, its dot before it: «Playoff zone: places 1–4»; nothing without a zone. */
+function zoneNoteMarkup(places) {
+  if (!places) return "";
+  const words = places === 1 ? t("league.zoneOne") : t("league.zone", { places });
+  return `<p class="g-table__zone">${escapeHtml(words)}</p>`;
+}
+
 /**
- * The note under the table: on a phone the points, the order and what a tap does; on a desk the order and
- * what a click does (its card says the points at its head). A guest is told nothing about rows that lead
- * nowhere for him.
+ * The note under the table: the playoff zone first when the season has one, as the prototypes write it; then on a
+ * phone the points, the order and what a tap does, on a desk the order and what a click does (its card says the
+ * points at its head). A guest is told nothing about rows that lead nowhere for him.
  *
- * @param {{phone: boolean, signedIn?: boolean}} props
+ * @param {{phone: boolean, signedIn?: boolean, playoffPlaces?: number|null}} props
  */
-export function tableNotesMarkup({ phone, signedIn = true }) {
+export function tableNotesMarkup({ phone, signedIn = true, playoffPlaces = null }) {
   const lines = phone
     ? [tablePointsText(), t("league.order"), signedIn ? t("league.taps") : ""]
     : [t("league.order"), t(signedIn ? "league.clicks" : "league.clicksGuest")];
-  return `<div class="g-table__notes">${lines.filter(Boolean).map((line) => `<p class="g-table__note">${escapeHtml(line)}</p>`).join("")}</div>`;
+  return `<div class="g-table__notes">${zoneNoteMarkup(playoffPlaces)}`
+    + `${lines.filter(Boolean).map((line) => `<p class="g-table__note">${escapeHtml(line)}</p>`).join("")}</div>`;
 }
 
 const MINI_COLUMNS = ["rank", "team", "tdDiff", "points"];
 
-function miniRowMarkup(row, viewerId, teamId) {
+function miniRowMarkup(row, viewerId, teamId, place) {
   const href = rowHref(row, { viewerId, signedIn: true });
   if (href) assertLinkHref(href);
   const mine = ownRow(row, { viewerId, teamId });
+  const className = classNames("g-minitable__row", mine && "g-minitable__row--mine", place.zone && "g-minitable__row--zone",
+    place.end && "g-minitable__row--zoneend");
   const { text, tone } = signed(row.touchdowns - row.conceded);
   const name = href
     ? `<a class="g-minitable__link" href="${escapeHtml(href)}">${escapeHtml(row.team.name)}</a>`
     : `<span class="g-minitable__name">${escapeHtml(row.team.name)}</span>`;
-  return `<div class="${classNames("g-minitable__row", mine && "g-minitable__row--mine")}" role="row">`
+  return `<div class="${className}" role="row">`
     + `<span class="g-minitable__rank" role="cell">${escapeHtml(row.rank)}</span>`
     + `<span class="g-minitable__team" role="cell">${name}</span>`
     + `<span class="g-minitable__diff g-minitable__diff--${tone}" role="cell">${escapeHtml(text)}</span>`
@@ -188,21 +226,23 @@ function miniRowMarkup(row, viewerId, teamId) {
 }
 
 /**
- * The overview's «Table» (DeskOverview.html): a few rows of it (`tableWindow`), the team's own marked, and
+ * The overview's «Table» (DeskOverview.html): a few rows of it (`tableWindow`), the team's own marked, the playoff zone
+ * by each team's place in the whole table — the line under the Nth only when the window shows the row after it —, and
  * the way to the whole table. The columns are named for a screen reader only, as the prototype draws none.
  *
- * @param {{rows: import("../../data/season-table.mjs").TableRow[], viewerId: string, teamId?: string, href: string}} props
- *   `teamId`: the overview's team, whose row alone is marked
+ * @param {{rows: import("../../data/season-table.mjs").TableRow[], viewerId: string, teamId?: string, href: string,
+ *   playoffPlaces?: number|null}} props `teamId`: the overview's team, whose row alone is marked
  * @returns {string} "" when there are no rows
  */
-export function miniTableMarkup({ rows, viewerId, teamId = "", href }) {
+export function miniTableMarkup({ rows, viewerId, teamId = "", href, playoffPlaces = null }) {
   if (!rows.length) return "";
   assertLinkHref(href);
+  const zone = zoneRank(rows, playoffPlaces);
   const head = MINI_COLUMNS.map((key) => `<span role="columnheader">${escapeHtml(t(`league.colName.${key}`))}</span>`).join("");
   return `<section class="g-minitable" aria-labelledby="overview-table"><div class="g-minitable__head">`
     + `<h2 class="g-minitable__title" id="overview-table">${escapeHtml(t("shell.tab.table"))}</h2>`
     + `<a class="g-minitable__all" href="${escapeHtml(href)}">${escapeHtml(t("teamOverview.tableAll"))}</a></div>`
     + `<div class="g-minitable__rows" role="table" aria-labelledby="overview-table">`
     + `<div class="g-sr-only" role="rowgroup"><div role="row">${head}</div></div>`
-    + `<div role="rowgroup">${rows.map((row) => miniRowMarkup(row, viewerId, teamId)).join("")}</div></div></section>`;
+    + `<div role="rowgroup">${rows.map((row, at) => miniRowMarkup(row, viewerId, teamId, zone[at])).join("")}</div></div></section>`;
 }

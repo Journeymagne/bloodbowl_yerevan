@@ -3,12 +3,12 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
-import { assertReadable, inMedia, read, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, assertReadable, inMedia, read, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { t } from "../src/core/i18n.mjs";
 import { state } from "../src/core/state.mjs";
 import { seasonPoints, standingsOrder } from "../src/domain/league-rules.mjs";
-import { tableWindow } from "../src/data/season-table.mjs";
+import { seasonTable, tableWindow } from "../src/data/season-table.mjs";
 import { TABLE_COLUMNS, leagueTableMarkup, miniTableMarkup, rowHref, tableNotesMarkup, tablePointsText } from "../src/screens/season/table.mjs";
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -29,6 +29,26 @@ const ROWS = [
 ];
 const rowsOf = (fragment) => [...fragment.querySelectorAll('.g-table__row[role="row"]')];
 const cell = (rowElement, key) => rowElement.querySelector(`.g-table__cell[data-column="${key}"]`);
+
+/**
+ * The table of `count` teams `k1`…`k<count>` as `seasonTable` reads the server's standings: the `withdrawn`th entry
+ * withdrawn (its place kept), the `own`th team the coach u1's.
+ */
+function tableOf(count, { withdrawn = 0, own = 0 } = {}) {
+  return seasonTable({ rounds: [], standings: Array.from({ length: count }, (_, at) => ({
+    entryId: `e-k${at + 1}`, rank: at + 1, games: 3, points: 20 - at, byes: 0, touchdowns: 0, casualties: 0,
+    withdrawnAt: at + 1 === withdrawn ? "2026-10-01T10:00:00Z" : null,
+    user: at + 1 === own ? { id: "u1", login: "coach-u1" } : { id: `u${at + 10}`, login: `coach-u${at + 10}` },
+    team: { id: `k${at + 1}`, name: `Team k${at + 1}`, baseTeamSlug: "teams/dwarf" },
+  })) });
+}
+/** The places of the rows in the zone, and of the one with the line under it, of a big table or of the overview's. */
+function zoneOf(fragment, big = true) {
+  const [rowClass, rankClass] = big ? ["g-table__row", "g-table__rank"] : ["g-minitable__row", "g-minitable__rank"];
+  const rows = [...fragment.querySelectorAll(`.${rowClass}[role="row"]`)];
+  const places = (modifier) => rows.filter((item) => item.classList.contains(`${rowClass}--${modifier}`)).map((item) => item.querySelector(`.${rankClass}`).textContent);
+  return { zone: places("zone"), end: places("zoneend") };
+}
 
 test("one form for each width: a phone's eight columns, a desk's eleven, in the order of the prototypes", () => {
   const phone = mount(leagueTableMarkup({ rows: ROWS, phone: true, viewerId: "u1", signedIn: true, labelledBy: "t" }));
@@ -180,7 +200,66 @@ test("the note is the league's rules: its numbers are seasonPoints', its order s
   assert.ok(desk.includes(t("league.order")) && desk.includes(t("league.clicks")));
   assert.ok(!desk.includes(t("league.taps")));
   assert.ok(!desk.includes(t("league.points", { win: 3, draw: 1, loss: 0, bonus: 1, margin: 3, casualties: 3 })), "a desk says the points at the card's head");
-  assert.equal(tablePointsText(), t("league.points", { win: 3, draw: 1, loss: 0, bonus: 1, margin: 3, casualties: 3 }));
+  assert.ok(tablePointsText().startsWith(t("league.points", { win: 3, draw: 1, loss: 0, bonus: 1, margin: 3, casualties: 3 })));
+});
+
+test("the note says the technical win's points in the league's numbers", () => {
+  const technical = t("league.technicalPoints", { technical: seasonPoints.technicalWin, bonus: seasonPoints.noTeamBonus });
+  assert.equal(technical, "Technical win 2; +2 if the opponent could not field a team.");
+  assert.ok(technical.includes(String(seasonPoints.technicalWin)) && technical.includes(`+${seasonPoints.noTeamBonus}`));
+  const points = t("league.points", { win: seasonPoints.win, draw: seasonPoints.draw, loss: seasonPoints.loss, bonus: seasonPoints.bigWinBonus,
+    margin: seasonPoints.bigWinMargin, casualties: seasonPoints.casualtyThreshold });
+  assert.equal(tablePointsText(), `${points} ${technical}`, "the content's «2 points for a technical win» and «+2 points if the opponent could not field a team»");
+  assert.ok(mount(tableNotesMarkup({ phone: true })).textContent.includes(technical), "a phone's note says it");
+  assert.ok(!mount(tableNotesMarkup({ phone: false })).textContent.includes(technical), "a desk's card says it at its head, once");
+});
+
+test("the playoff zone: the first N rows not withdrawn, the line under the Nth; none without a number", () => {
+  const rows = tableOf(6, { withdrawn: 2 });
+  for (const phone of [true, false]) {
+    const table = (playoffPlaces) => mount(leagueTableMarkup({ rows, phone, viewerId: "u1", signedIn: true, labelledBy: "t", playoffPlaces }));
+    assert.deepEqual(zoneOf(table(3)), { zone: ["1", "3", "4"], end: ["4"] }, "the withdrawn second is no place of the zone");
+    assert.deepEqual(zoneOf(table(null)), { zone: [], end: [] }, "no number, no zone");
+    assert.deepEqual(zoneOf(table(undefined)), { zone: [], end: [] });
+    assert.deepEqual(zoneOf(table(1)), { zone: ["1"], end: ["1"] });
+    assert.deepEqual(zoneOf(table(5)), { zone: ["1", "3", "4", "5", "6"], end: [] }, "the fifth is the last row: no line under the table");
+    assert.deepEqual(zoneOf(table(64)), { zone: ["1", "3", "4", "5", "6"], end: [] }, "more places than teams: all of them, no line");
+    const withdrawn = rowsOf(table(3))[1];
+    assert.ok(!withdrawn.classList.contains("g-table__row--zone"));
+  }
+  const zone = (props) => mount(tableNotesMarkup(props)).querySelector(".g-table__notes p.g-table__zone");
+  for (const phone of [true, false]) {
+    const notes = mount(tableNotesMarkup({ phone, playoffPlaces: 3 })).querySelector(".g-table__notes");
+    assert.equal(notes.childNodes.filter((node) => node.nodeType === 1)[0], notes.querySelector("p.g-table__zone"), "the zone's line first, as the prototypes write it");
+    assert.equal(zone({ phone, playoffPlaces: 3 }).textContent, "Playoff zone: places 1–3");
+    assert.equal(zone({ phone, playoffPlaces: 1 }).textContent, "Playoff zone: place 1");
+    assert.equal(zone({ phone, playoffPlaces: null }), null);
+    assert.equal(zone({ phone }), null);
+    assert.equal(zone({ phone, signedIn: false, playoffPlaces: 4 }).textContent, "Playoff zone: places 1–4", "a guest is told the zone too");
+  }
+  const mini = (window, playoffPlaces) => mount(miniTableMarkup({ rows: window, viewerId: "u1", href: "#/t/k1/matches", playoffPlaces }));
+  const many = tableOf(9);
+  assert.deepEqual(zoneOf(mini(tableWindow(many, "k1"), 6), false), { zone: ["1", "2", "3", "4", "5", "6"], end: [] }, "nothing under the sixth in a window of six: no line");
+  assert.deepEqual(zoneOf(mini(tableWindow(many, "k1"), 3), false), { zone: ["1", "2", "3"], end: ["3"] });
+  assert.deepEqual(zoneOf(mini(tableWindow(many, "k1"), null), false), { zone: [], end: [] });
+  assert.deepEqual(zoneOf(mini(tableWindow(many, "k1")), false), { zone: [], end: [] });
+});
+
+test("the overview's zone goes by the place in the whole table, not by the row of the window (pre-flight L16)", () => {
+  const ninth = tableOf(9, { own: 9 });
+  const window = tableWindow(ninth, "k9");
+  assert.deepEqual(window.map((item) => item.rank), [1, 2, 3, 4, 5, 9]);
+  const mini = (rows, playoffPlaces) => mount(miniTableMarkup({ rows, viewerId: "u1", teamId: "k9", href: "#/t/k9/matches", playoffPlaces }));
+  assert.deepEqual(zoneOf(mini(window, 6), false), { zone: ["1", "2", "3", "4", "5"], end: [] },
+    "the ninth stands sixth in the window and outside a zone of six; the sixth place is not shown, nor a line for it");
+  const own = mini(window, 6).querySelector(".g-minitable__row--mine");
+  assert.equal(own.querySelector(".g-minitable__rank").textContent, "9");
+  assert.ok(!own.classList.contains("g-minitable__row--zone"), "the team's own row is marked, outside the zone");
+  assert.deepEqual(zoneOf(mini(window, 5), false), { zone: ["1", "2", "3", "4", "5"], end: ["5"] }, "the line under the fifth: the ninth follows it");
+  const withdrawn = tableOf(9, { withdrawn: 2 });
+  assert.deepEqual(zoneOf(mini(tableWindow(withdrawn, "k1"), 3), false), { zone: ["1", "3", "4"], end: ["4"] }, "the window leaves the withdrawn out, the zone does not count it");
+  assert.deepEqual(zoneOf(mount(leagueTableMarkup({ rows: ninth, phone: false, viewerId: "u1", signedIn: true, teamId: "k9", labelledBy: "t", playoffPlaces: 6 }))),
+    { zone: ["1", "2", "3", "4", "5", "6"], end: ["6"] }, "the whole table draws the sixth and the line under it");
 });
 
 test("a guest is not told a row leads anywhere: his rows are no links", () => {
@@ -243,6 +322,12 @@ test("styled", () => {
   }
   assertStyled(mount(leagueTableMarkup({ rows: [], phone: true, labelledBy: "t" })), CSS);
   assertStyled(mount(miniTableMarkup({ rows: ROWS, viewerId: "u1", href: "#/t/t1/matches" })), CSS);
+  const zoned = tableOf(8, { withdrawn: 2, own: 3 });
+  for (const phone of [true, false]) {
+    assertStyled(mount(leagueTableMarkup({ rows: zoned, phone, viewerId: "u1", signedIn: true, labelledBy: "t", playoffPlaces: 4 })), CSS, "form-strip.css");
+    assertStyled(mount(tableNotesMarkup({ phone, playoffPlaces: 4 })), CSS);
+  }
+  assertStyled(mount(miniTableMarkup({ rows: tableWindow(zoned, "k3"), viewerId: "u1", teamId: "k3", href: "#/t/k3/matches", playoffPlaces: 4 })), CSS);
   const styles = read("src/styles.css");
   const at = styles.indexOf('@import url("screens/season/table.css");');
   assert.ok(at > styles.indexOf('@import url("screens/matches/prep-inducements.css");') && at > styles.lastIndexOf('@import url("ui/'),
@@ -277,9 +362,30 @@ test("readable: the own row's tint, the signs' colours, the muted figures, in ev
     [".g-minitable__row--mine .g-minitable__diff--up", ["--accent-tint"]],
     [".g-minitable__all", ["--surface"]],
     [".g-minitable__rank", ["--surface", "--accent-tint"]],
+    [".g-table__row--zone .g-table__rank", ["--surface"]],
+    [".g-table__row--mine.g-table__row--zone .g-table__rank", ["--accent-tint"]],
+    [".g-minitable__row--zone .g-minitable__rank", ["--surface"]],
+    [".g-minitable__row--mine.g-minitable__row--zone .g-minitable__rank", ["--accent-tint"]],
   ]) assertReadable(CSS, selector, "color", backgrounds, 4.5);
   assert.deepEqual(valuesOf(CSS, ".g-table__row--mine", "background"), ["var(--accent-tint)"]);
   assert.deepEqual(valuesOf(CSS, ".g-minitable__row--mine", "background"), ["var(--accent-tint)"]);
+});
+
+test("readable: the zone's place in the league's green (League.html's posColor), its line and its dot a mark that holds 3:1", () => {
+  // The prototypes' #2F7A52 is --accent-text (= --accent in a light palette); a dark palette's --accent is under 3:1 on
+  // --surface, so the line and the dot take --accent-text, the colour of the places they key.
+  assert.deepEqual(valuesOf(CSS, ".g-table__row--zone .g-table__rank", "color"), ["var(--accent-text)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-minitable__row--zone .g-minitable__rank", "color"), ["var(--accent-text)"]);
+  for (const selector of [".g-table__row--zoneend", ".g-minitable__row--zoneend"]) {
+    const [line] = valuesOf(CSS, selector, "border-bottom");
+    assert.match(line, /^2px solid var\(--accent-text\)$/, selector);
+    assertContrast("var(--accent-text)", ["--surface", "--accent-tint"], 3, { what: `${selector} line` });
+  }
+  assert.deepEqual(valuesOf(CSS, ".g-table__zone::before", "width"), ["10px"]);
+  assert.deepEqual(valuesOf(CSS, ".g-table__zone::before", "height"), ["10px"]);
+  assert.deepEqual(valuesOf(CSS, ".g-table__zone::before", "border-radius"), ["50%"]);
+  assertReadable(CSS, ".g-table__zone::before", "background", ["--surface"], 3);
+  assert.deepEqual(valuesOf(CSS, ".g-table__zone", "gap"), ["var(--space-8)"], "the dot 8 from the words, as the prototypes'");
 });
 
 test("a long team name wraps; nothing is cut with «…»", () => {

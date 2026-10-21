@@ -16,7 +16,7 @@
  *
  * A desk's page is the season's (DeskSeason.html, with its table since stage 10): its line («Mock Season · teams: 4 ·
  * after round 2»), the board paging through the team's matches (`bandBoard`, as the overview's), the table (`seasonTable`,
- * the league page's rows) and the calendar — the played matches, the one on, the team's other open matches, each leading
+ * the league page's rows, with the playoff zone the admin set since stage 12) and the calendar — the played matches, the one on, the team's other open matches, each leading
  * to its match (stage 10, decision 13), and the next round.
  *
  * Nothing is said that a read not answered yet could contradict: without the games no card, no result and no round to
@@ -26,7 +26,7 @@ import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, playerTeamUrl, postMatchUrl, preMatchUrl } from "../../core/routes.mjs";
 import { resultLabels } from "../../ui/result-pill.mjs";
-import { seasonTable } from "../../data/season-table.mjs";
+import { playoffPlacesOf, seasonTable } from "../../data/season-table.mjs";
 import { gameOutcome, gameSides, seasonRecord, standingOf } from "../../data/team-record.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
 import { seasonCallFor } from "../../data/season-entry.mjs";
@@ -345,6 +345,7 @@ export function matchesModel({ team, raceTeam = null, seasonData, games, gamesEr
     calendar: list ? calendarOf(list, team.id, seasonData, current, round ? round + 1 : null, Boolean(standing)) : [],
     seasonLine: seasonLineOf(seasonData),
     table: seasonTable(seasonData),
+    playoffPlaces: playoffPlacesOf(seasonData),
     viewerId,
     failures: failuresOf({ seasonData, seasonError, gamesError }),
   };

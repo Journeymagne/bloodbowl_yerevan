@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ROUND_STATES, lastRoundOver, leagueRounds, seasonTable, tableWindow, teamTableRow } from "../src/data/season-table.mjs";
+import { ROUND_STATES, lastRoundOver, leagueRounds, playoffPlacesOf, seasonTable, tableWindow, teamTableRow } from "../src/data/season-table.mjs";
+import { TECHNICAL_REASONS } from "../src/domain/league-rules.mjs";
 
 /** A season's entry as `/api/season` sends it; the key is the team's id, `e<key>` the entry's, `u<key>` the coach's. */
 const entry = (key, { withdrawn = false, race = "teams/dwarf" } = {}) => ({
@@ -18,9 +19,13 @@ const standing = (key, rank, games, points, { withdrawn = false } = {}) => {
 
 const round = (roundNumber, status) => ({ roundNumber, status });
 
-/** A pairing as `publicSeasonPairing` sends it; the home side's numbers come first. `away` null is a bye. */
-function pairing(at, home, away, { touchdowns = null, casualties = null, points = null, status = "confirmed", table = 1, id = null } = {}) {
+/**
+ * A pairing as `publicSeasonPairing` sends it; the home side's numbers come first. `away` null is a bye. `resultType`
+ * and `technicalReason` are stage 12's; a pairing read before it has neither.
+ */
+function pairing(at, home, away, { touchdowns = null, casualties = null, points = null, status = "confirmed", table = 1, id = null, technical } = {}) {
   return {
+    ...(technical === undefined ? {} : { resultType: "technical", technicalReason: technical }),
     id: id ?? `p${at.roundNumber}-${home}-${away}`, roundId: `r${at.roundNumber}`, roundNumber: at.roundNumber, roundStatus: at.status, tableNumber: table,
     homeEntryId: home ? `e${home}` : null, awayEntryId: away ? `e${away}` : null,
     homeTouchdowns: touchdowns?.[0] ?? null, awayTouchdowns: touchdowns?.[1] ?? null,
@@ -112,6 +117,7 @@ test("a withdrawn entry keeps the server's rank and is marked; the team's row is
   });
   const rows = seasonTable(data);
   assert.deepEqual(rows.map((row) => [row.rank, row.withdrawn]), [[1, false], [2, true], [3, false]]);
+  assert.deepEqual(rows.map((row) => row.zonePlace), [1, null, 2], "the playoff zone counts the entries still in the season: the third is second there");
   assert.equal(teamTableRow(rows, "w"), null);
   assert.equal(teamTableRow(rows, "c"), rows[2]);
   assert.equal(teamTableRow(rows, "nobody"), null);
@@ -185,4 +191,45 @@ test("a season nobody has read, or one without standings or rounds, is no row an
 test("the states a round is shown and counted in", () => {
   assert.deepEqual(ROUND_STATES, ["started", "completed"]);
   assert.ok(Object.isFrozen(ROUND_STATES));
+});
+
+test("the playoff places are the season's setting, a whole number from 1; anything else is no zone", () => {
+  const of = (playoffPlaces) => playoffPlacesOf({ season: { id: "s1", name: "Mock Season", playoffPlaces } });
+  assert.equal(of(4), 4);
+  assert.equal(of(1), 1);
+  assert.equal(of(64), 64);
+  for (const none of [null, undefined, 0, -2, 2.5, "4", Number.NaN]) assert.equal(of(none), null, String(none));
+  assert.equal(playoffPlacesOf(null), null, "a season nobody has read");
+  assert.equal(playoffPlacesOf({}), null);
+});
+
+test("a technical pairing says its winner and its reason; one before stage 12 is «other»", () => {
+  const data = season({
+    entries: ["a", "b", "c", "d", "e", "f"].map((key) => entry(key)),
+    standings: [],
+    rounds: [[R1,
+      pairing(R1, "a", "b", { touchdowns: [0, 2], casualties: [0, 0], points: [0, 4], table: 1, technical: "no_team" }),
+      pairing(R1, "c", "d", { touchdowns: [2, 0], casualties: [0, 0], points: [2, 0], table: 2, technical: null }),
+      pairing(R1, "e", "f", { touchdowns: [2, 1], casualties: [1, 0], points: [3, 0], table: 3 }),
+    ], [R2,
+      pairing(R2, "a", "c", { touchdowns: [2, 0], casualties: [0, 0], points: [2, 0], table: 1, technical: "other" }),
+      pairing(R2, "b", "d", { touchdowns: [0, 2], casualties: [0, 0], points: [0, 2], table: 2, technical: "late" }),
+      pairing(R2, "e", "f", { status: "pending", table: 3 }),
+      pairing(R2, "f", null, { points: [3, null], table: 4 }),
+    ]],
+  });
+  const [second, first] = leagueRounds(data);
+  assert.deepEqual(first.pairings.map((item) => item.technical), [
+    { winner: "away", reason: "no_team" },
+    { winner: "home", reason: "other" },
+    null,
+  ], "the winner is the side with the touchdowns, as the server's; a technical result stored before 017 has no reason: «other», 2 points");
+  assert.deepEqual(first.pairings[0].score, [0, 2], "the score stands as the server wrote it");
+  assert.deepEqual(second.pairings.map((item) => item.technical), [
+    { winner: "home", reason: "other" },
+    { winner: "away", reason: "other" },
+    null,
+    null,
+  ], "a reason the client does not know is read as «other»; a pairing with no result and a bye are no technical result");
+  assert.deepEqual(TECHNICAL_REASONS, ["no_team", "other"], "the reasons a calendar line says: league.technical.* has one for each");
 });

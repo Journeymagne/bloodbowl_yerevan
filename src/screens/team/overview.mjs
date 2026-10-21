@@ -52,7 +52,8 @@
  * Under the board stand two columns (decision 51): the leaders and the recent
  * matches at the left, who can advance at the right and under them, since stage
  * 10, a few rows of the league's table (decision 15 of its plan: the top six, the
- * team below them last with its place, `tableWindow`) and the way to the whole of
+ * team below them last with its place, `tableWindow`; since stage 12 the playoff
+ * zone the admin set, by each team's place in the whole table) and the way to the whole of
  * it; a column with nothing in it is not drawn, and the other has the row. A
  * phone has no table (Team.html) and shows the left column alone
  * (Team.html's order: the figures, the card, the board, the leaders, the
@@ -92,7 +93,7 @@ import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { loadGames, onGamesChange } from "../../data/games.mjs";
-import { seasonTable, tableWindow } from "../../data/season-table.mjs";
+import { playoffPlacesOf, seasonTable, tableWindow } from "../../data/season-table.mjs";
 import { recentResults, seasonDifference, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
 import { loadMyTeams, raceTeamOf } from "../../data/teams.mjs";
 import { seasonCallFor } from "../../data/season-entry.mjs";
@@ -237,6 +238,7 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     inSeason: Boolean(standing),
     seasonRead: Boolean(seasonData),
     table: standing && !phone ? tableWindow(seasonTable(seasonData), team.id) : [],
+    playoffPlaces: playoffPlacesOf(seasonData),
     viewerId,
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, phone, band, matchEvents, data }) : null,
     ready: readyPlayers(draft, raceTeam),
@@ -318,7 +320,8 @@ const column = (className, markup) => (markup ? `<div class="${className}">${mar
 function columnsMarkup(model) {
   const { leaders, results, teamId, phone } = model;
   const main = leadersMarkup({ leaders, teamId, phone }) + resultsMarkup({ results, teamId, phone });
-  const aside = readyListMarkup(model.ready, teamId) + miniTableMarkup({ rows: model.table, viewerId: model.viewerId, teamId, href: teamUrl(teamId, "matches") });
+  const aside = readyListMarkup(model.ready, teamId)
+    + miniTableMarkup({ rows: model.table, viewerId: model.viewerId, teamId, href: teamUrl(teamId, "matches"), playoffPlaces: model.playoffPlaces });
   return main || aside ? `<div class="g-overview__cols">${column("g-overview__main", main)}${column("g-overview__aside", aside)}</div>` : "";
 }
 
