@@ -29,7 +29,7 @@ import { seasonLineOf } from "../matches/model.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { renderSeason } from "./index.mjs";
 import { loadSeason } from "./season-data.mjs";
-import { leagueTableMarkup, rowHref, tableNotesMarkup, tablePointsText } from "./table.mjs";
+import { leagueTableMarkup, rowHref, tableCardMarkup, tableNotesMarkup } from "./table.mjs";
 
 /**
  * What the page says.
@@ -119,9 +119,7 @@ function deskMarkup(model) {
   const head = renderPageHead({ title: t("shell.side.season"), sub: model.line, metaHtml: admin });
   const viewer = { viewerId: model.viewerId, signedIn: model.signedIn };
   return `${head}<div class="g-league">${failureMarkup(model)}<div class="g-season__row">`
-    + `<section class="g-season__table" aria-labelledby="league-title"><div class="g-season__inner"><div class="g-season__head">`
-    + `<h2 class="g-season__title" id="league-title">${escapeHtml(t("shell.tab.table"))}</h2>`
-    + `<span class="g-season__rule">${escapeHtml(tablePointsText())}</span></div>${tableMarkup(model)}</div></section>`
+    + `${tableCardMarkup({ titleId: "league-title", bodyHtml: tableMarkup(model) })}`
     + `<aside class="g-season__aside">${roundsMarkup(model.rounds, viewer)}</aside></div></div>`;
 }
 

@@ -1023,6 +1023,7 @@
   "league.noRounds": "Туров пока нет",
   "league.admin": "Администрирование сезона",
   "league.vs": "{home} — {away}",
+  "league.calendarAll": "Календарь сезона →",
   "teamOverview.leaders": "Лидеры команды",
   "teamOverview.leadersShort": "Лидеры",
   "teamOverview.leader.spp": "SPP",

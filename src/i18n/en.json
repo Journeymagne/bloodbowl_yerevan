@@ -1023,6 +1023,7 @@
   "league.noRounds": "No rounds yet",
   "league.admin": "Season administration",
   "league.vs": "{home} — {away}",
+  "league.calendarAll": "Season calendar →",
   "teamOverview.leaders": "Team leaders",
   "teamOverview.leadersShort": "Leaders",
   "teamOverview.leader.spp": "SPP",

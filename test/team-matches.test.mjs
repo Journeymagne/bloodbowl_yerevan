@@ -5,7 +5,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
-import { assertReadable, mediaText, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable, inMedia, mediaText, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
 
@@ -22,6 +22,9 @@ const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs"
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { formatMoney } = await import("../src/core/format.mjs");
+const { seasonTable } = await import("../src/data/season-table.mjs");
+const { leagueTableMarkup, tablePointsText } = await import("../src/screens/season/table.mjs");
+const { t } = await import("../src/core/i18n.mjs");
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
@@ -30,13 +33,17 @@ const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 const CSS = "src/screens/matches/matches.css";
 
 // The table: the rival first, the coach's three teams after it. Round 3 is on; rounds 1 and 2 are over.
+/** A row of the server's standings, as `/api/season` sends it: the coach's own teams are u1's. */
+const standingRow = (id, name, slug, user, rank, points) => ({
+  entryId: `e-${id}`, withdrawnAt: null, user: { id: user, login: user }, team: { id, name, baseTeamSlug: slug }, rank, points, games: 2, byes: 0, touchdowns: 0, casualties: 0,
+});
 const SEASON = {
   season: { id: "s1", name: "Mock Season", currentRound: 3, createdAt: "2026-09-01T00:00:00Z" },
   standings: [
-    { team: { id: "r1" }, rank: 1, points: 6 },
-    { team: { id: "t1" }, rank: 2, points: 3 },
-    { team: { id: "t2" }, rank: 3, points: 1 },
-    { team: { id: "t3" }, rank: 4, points: 0 },
+    standingRow("r1", "Rival Team", "teams/dwarf", "u-r1", 1, 6),
+    standingRow("t1", "Ashgrove Wardens", "teams/human", "u1", 2, 3),
+    standingRow("t2", "Grimtusk Raiders", "teams/orc", "u1", 3, 1),
+    standingRow("t3", "Anji Magritta", "teams/human", "u1", 4, 0),
   ],
   rounds: [{ roundNumber: 1, status: "completed" }, { roundNumber: 2, status: "completed" }, { roundNumber: 3, status: "started" }],
 };
@@ -725,15 +732,76 @@ test("the bubbles open «Before the match»", async () => {
   }
 });
 
-test("no table on the page (until stage 10)", async () => {
+test("the table is the season's: the same rows as #/season", async () => {
   try {
     await visit("t1", { phone: false });
-    assert.equal(view.querySelector("table"), null);
-    assert.equal(view.querySelectorAll("h2").map((heading) => heading.textContent).includes("Table"), false);
-    assert.doesNotMatch(view.textContent, /\bTable\b/);
+    const table = view.querySelector(".g-season__table");
+    assert.equal(table.getAttribute("aria-labelledby"), "matches-table");
+    assert.equal(table.querySelector("h2#matches-table").textContent, "Table");
+    const own = (markup) => mountHere(markup).querySelector('[role="table"]').textContent;
+    const rows = seasonTable(SEASON);
+    assert.equal(table.querySelector('[role="table"]').textContent,
+      own(leagueTableMarkup({ rows, phone: false, viewerId: "u1", signedIn: true, labelledBy: "matches-table" })));
+    assert.equal(table.querySelector(".g-season__rule").textContent, tablePointsText(), "the league's points at the card's head (pre-flight L17)");
+    assert.ok(table.querySelector(".g-table__notes").textContent.includes(t("league.order")));
+    assert.ok(!table.querySelector(".g-table__notes").textContent.includes(tablePointsText()), "said once");
   } finally {
     leave();
   }
+});
+
+test("a desk's season: the board, then the table at the left with the coach's row marked and the calendar at the right", async () => {
+  try {
+    await visit("t1", { phone: false });
+    const page = view.querySelector(".g-matches--desk");
+    const row = view.querySelector(".g-season__row");
+    assert.equal(row.parentNode, page);
+    const order = page.childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class").split(" ")[0]);
+    assert.deepEqual(order, ["g-board", "g-season__row"], "the board the whole width, then the row");
+    const [table, aside] = row.childNodes.filter((node) => node.nodeType === 1);
+    assert.ok(table.classList.contains("g-season__table"));
+    assert.ok(table.querySelector('[role="table"]'));
+    assert.ok(aside.classList.contains("g-season__aside"));
+    assert.ok(aside.querySelector(".g-matches__calendar"));
+    const mine = view.querySelectorAll(".g-table__row--mine").map((item) => item.querySelector(".g-table__link").getAttribute("href"));
+    assert.deepEqual(mine, [teamUrl("t1"), teamUrl("t2"), teamUrl("t3")], "every team of the coach's in the table is his own row");
+    assert.equal(view.querySelector(".g-table__row .g-table__link").getAttribute("href"), playerTeamUrl("u-r1", "r1"));
+    assert.equal(view.querySelector(".g-matches__calall").getAttribute("href"), "#/season", "the league's calendar is a step away (pre-flight L11)");
+  } finally {
+    leave();
+  }
+});
+
+test("the calendar lists the team's other open matches after the one on, each leading to the match", async () => {
+  const friendly = game("g7", { kind: "friendly", season: null, roundNumber: null, roundStatus: null, away: GRIM, preparationStatus: "preparing" });
+  try {
+    await visit("t1", { phone: false, games: [...GAMES, friendly] });
+    assert.deepEqual(calendarRows(), [...CALENDAR.slice(0, 4), ["F", "Grimtusk Others", "Friendly · Preparation", "—"], CALENDAR[4]]);
+    const other = view.querySelectorAll(".g-matches__calrow")[4];
+    assert.equal(other.querySelector("a.g-matches__calline").getAttribute("href"), preMatchUrl("g7"));
+    assert.equal(other.querySelector("a.g-matches__calopp").getAttribute("href"), playerTeamUrl("u-r6", "r6"));
+    assert.equal(other.querySelector(".g-matches__square").getAttribute("class"), "g-matches__square g-matches__square--later");
+    assert.equal(view.querySelectorAll("a.g-matches__calline").length, 1, "no other row's line is a link");
+  } finally {
+    leave();
+  }
+  const rows = modelOf("t1", { phone: false, games: [...GAMES, friendly] }).calendar;
+  assert.deepEqual(rows.map((row) => row.href), ["", "", "", "", preMatchUrl("g7"), ""]);
+});
+
+test("a team outside the table: no table, the calendar and the call to enter the season", async () => {
+  try {
+    await visit("t4", { phone: false });
+    assert.equal(view.querySelector(".g-season__row"), null);
+    assert.equal(view.querySelector(".g-table"), null);
+    const page = view.querySelector(".g-matches--desk");
+    assert.equal(view.querySelector(".g-matches__calendar").parentNode, page, "the calendar takes the row, as before stage 10 (pre-flight L18)");
+    assert.match(page.textContent, /Not entered in the season/);
+  } finally {
+    leave();
+  }
+  assert.deepEqual(modelOf("t4", { phone: false }).table.map((row) => row.team.id), ["r1", "t1", "t2", "t3"], "the model has the table; the page shows it for a team in it");
+  assert.deepEqual(modelOf("t1", { phone: false, seasonData: null }).table, []);
 });
 
 test("a desk outside the table: the call to enter the season, the board only with a match on, the friendlies in the calendar", () => {
@@ -766,7 +834,7 @@ test("a desk outside the table: the call to enter the season, the board only wit
 
 test("a desk's calendar: styled as DeskSeason.html; readable; D2 from 901px; nothing cut", () => {
   const sheets = [CSS, "src/ui/match-card.css", "src/screens/matches/before.css", "match-board.css", "src/shell/crest.css", "status-chip.css", "button.css",
-    "callout.css", "page-head.css", "result-pill.css"];
+    "callout.css", "page-head.css", "result-pill.css", "src/screens/season/table.css", "src/screens/season/league.css", "form-strip.css"];
   const live = gamesWith({ g2: { preparationStatus: "in_progress" } });
   for (const model of [modelOf("t1", { phone: false }), modelOf("t2", { phone: false, games: live }), modelOf("t3", { phone: false }), modelOf("t4", { phone: false })]) {
     assertStyled(mountHere(matchesMarkup(model)), ...sheets);
@@ -802,6 +870,11 @@ test("a desk's calendar: styled as DeskSeason.html; readable; D2 from 901px; not
   // D2 from 901px: «Friendlies» 36px, the opponent's link 24px, the board's squares 30px — each 24 or more.
   assert.ok(parseInt(own(".g-matches__calfriendlies", "min-height")[0], 10) >= 24);
   assert.deepEqual(own("a.g-matches__calopp", "min-height"), ["24px"]);
+  const season = "src/screens/season/table.css";
+  assert.ok(parseInt(inMedia(season, "min-width: 901px", "a.g-matches__calline", "min-height")[0], 10) >= 24, "a match's line that leads to it (pre-flight L19)");
+  assert.ok(parseInt(inMedia(season, "min-width: 901px", ".g-matches__calall", "min-height")[0], 10) >= 24);
+  assertReadable(season, "a.g-matches__calline", "color", ["--surface"], 4.5);
+  assertReadable(season, ".g-matches__calall", "color", ["--surface"], 4.5);
   assert.deepEqual(valuesOf("src/ui/match-board.css", ".g-board__square", "width"), ["30px"]);
   for (const selector of [".g-matches__calopp", ".g-matches__calline", ".g-matches__caltitle"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.doesNotMatch(text(CSS).replace(/\/\*[\s\S]*?\*\//g, ""), /ellipsis|text-overflow|nowrap/);

@@ -42,7 +42,7 @@ test("the SideNav: team block, items with icons, language and the footer line", 
   const team = fragment.querySelector("button.g-sidenav__team[data-team-switcher]");
   assert.equal(team.getAttribute("aria-haspopup"), "dialog");
   const links = fragment.querySelectorAll(".g-sidenav__link");
-  assert.deepEqual(links.map((link) => link.getAttribute("href")), ["#/t/t1", "#/t/t1/roster", "#/season", "#/ref", "#/settings"]);
+  assert.deepEqual(links.map((link) => link.getAttribute("href")), ["#/t/t1", "#/t/t1/roster", "#/t/t1/matches", "#/ref", "#/settings"]);
   assert.ok(links.every((link) => link.querySelector("svg.g-icon")));
   assert.equal(fragment.querySelector('.g-sidenav__link[aria-current="page"]').getAttribute("href"), "#/t/t1/roster");
   assert.ok(fragment.querySelector('.g-site-footer a[href="#/legal"]'));

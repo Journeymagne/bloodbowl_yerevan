@@ -139,6 +139,18 @@ export function tablePointsText() {
 }
 
 /**
+ * A desk's card of the table (DeskSeason.html; the season's row of league.css): «Table» with the league's points at its
+ * right, then what `bodyHtml` holds — the table and its note —, all of it one block that scrolls sideways in the card.
+ *
+ * @param {{titleId: string, bodyHtml: string}} props `bodyHtml`: markup of `leagueTableMarkup` and `tableNotesMarkup`
+ */
+export function tableCardMarkup({ titleId, bodyHtml }) {
+  return `<section class="g-season__table" aria-labelledby="${escapeHtml(titleId)}"><div class="g-season__inner"><div class="g-season__head">`
+    + `<h2 class="g-season__title" id="${escapeHtml(titleId)}">${escapeHtml(t("shell.tab.table"))}</h2>`
+    + `<span class="g-season__rule">${escapeHtml(tablePointsText())}</span></div>${bodyHtml}</div></section>`;
+}
+
+/**
  * The note under the table: on a phone the points, the order and what a tap does; on a desk the order and
  * what a click does (its card says the points at its head). A guest is told nothing about rows that lead
  * nowhere for him.

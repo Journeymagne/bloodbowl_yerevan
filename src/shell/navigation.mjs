@@ -12,7 +12,10 @@
  * PreReview, DeskPreInducements, DeskPreReview; stage 09a), which bring their
  * own frame: no tabs, no items. `guest` has the league without a team.
  * `coach` has the team's screens beside the league's, or — with no team yet —
- * the league's alone and a header that leads to creating one. A coach whose
+ * the league's alone and a header that leads to creating one. A desk's «Season»
+ * of a coach with a team is the team's season (its board, the table and its
+ * calendar, `#/t/:id/matches`); a phone's «Table», a guest's and a coach's with
+ * no team lead to the league's page (`#/season`; stage 10, decision 12). A coach whose
  * list of teams could not be read may have teams: the header names the league.
  *
  * A player's address and the team's settings are drilled into (`drill`; owner,
@@ -126,7 +129,7 @@ function coachLinks(team, isAdmin) {
       ["matches", teamUrl(team.id, "matches")],
       ...leagueTabs(),
     ],
-    side: [["overview", teamUrl(team.id)], ["roster", teamUrl(team.id, "roster")], ...leagueSide(), ...admin],
+    side: [["overview", teamUrl(team.id)], ["roster", teamUrl(team.id, "roster")], ["season", teamUrl(team.id, "matches")], ["ref", refUrl()], ["settings", settingsUrl()], ...admin],
   };
 }
 

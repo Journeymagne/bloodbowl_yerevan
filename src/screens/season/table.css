@@ -327,3 +327,42 @@
   .g-minitable__name,
   .g-minitable__link { min-height: 24px; }
 }
+
+/*
+ * A desk's team calendar (screens/matches/lists.mjs) since stage 10: the line of another open match leads to the match,
+ * in the link's colour, 24 high at least (D2; pre-flight L19); and at the calendar's foot the way to the league's
+ * calendar (pre-flight L11). Here rather than in matches.css, which this stage does not grow.
+ */
+a.g-matches__calline {
+  align-self: flex-start;
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.g-matches__calall {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: var(--space-8) 0 var(--space-4);
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+@media (min-width: 901px) {
+  a.g-matches__calline {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+  .g-matches__calall { min-height: 24px; }
+  /*
+   * In the season's column (320 wide at the least) «Calendar» keeps its word whole, as DeskSeason.html's nowrap does,
+   * and «Friendlies» gives way, its words wrapping in the button as the prototype's do.
+   */
+  .g-season__aside .g-matches__caltitle { flex: none; }
+  .g-season__aside .g-matches__calfriendlies { flex: 0 1 auto; }
+}

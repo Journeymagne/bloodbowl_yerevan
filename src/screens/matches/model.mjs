@@ -14,9 +14,10 @@
  * season» lists the team's other open matches first (the owner's M2 answer 3: a friendly accepted beside the league's
  * match), then the next round, whose opponent the Swiss pairing gives once the round is in.
  *
- * A desk's page is the season's (DeskSeason.html, until stage 10 without its table): its line («Mock Season · teams: 4 ·
- * after round 2»), the board paging through the team's matches (`bandBoard`, as the overview's), and the calendar — the
- * played matches, the one on and the next round.
+ * A desk's page is the season's (DeskSeason.html, with its table since stage 10): its line («Mock Season · teams: 4 ·
+ * after round 2»), the board paging through the team's matches (`bandBoard`, as the overview's), the table (`seasonTable`,
+ * the league page's rows) and the calendar — the played matches, the one on, the team's other open matches, each leading
+ * to its match (stage 10, decision 13), and the next round.
  *
  * Nothing is said that a read not answered yet could contradict: without the games no card, no result and no round to
  * come; without the table no call to enter the season.
@@ -25,6 +26,7 @@ import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, playerTeamUrl, postMatchUrl, preMatchUrl } from "../../core/routes.mjs";
 import { resultLabels } from "../../ui/result-pill.mjs";
+import { seasonTable } from "../../data/season-table.mjs";
 import { gameOutcome, gameSides, seasonRecord, standingOf } from "../../data/team-record.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
@@ -137,21 +139,27 @@ function openHref(game, phase) {
 const URGENCY = ["live", "post", "preparing", "idle", "sent"];
 
 /**
- * The team's other open matches, not the card's (the owner's M2 answer 3): each one the card would show if it were
- * alone, the most urgent phase first. A friendly says so before its opponent.
+ * The team's open matches but the card's (the owner's M2 answer 3): each one the card would show if it were alone, with
+ * its phase, the most urgent first.
+ * @returns {{game: object, phase: typeof MATCH_PHASES[number]}[]}
  */
-function othersOf(games, teamId, shownId) {
-  const rows = [];
+function openGames(games, teamId, shownId) {
+  const open = [];
   for (const game of games) {
-    const open = game.id !== shownId && currentMatch([game], teamId);
-    if (!open) continue;
-    const phase = phaseOf(open);
+    const alone = game.id !== shownId && currentMatch([game], teamId);
+    if (alone) open.push({ game, phase: phaseOf(alone) });
+  }
+  return open.sort((one, other) => URGENCY.indexOf(one.phase) - URGENCY.indexOf(other.phase));
+}
+
+/** The team's other open matches as a phone's «Later in the season» lists them. A friendly says so before its opponent. */
+function othersOf(games, teamId, shownId) {
+  return openGames(games, teamId, shownId).map(({ game, phase }) => {
     const rival = game[gameSides(game, teamId).other].team?.name ?? "";
     const friendly = game.kind === "friendly";
-    rows.push({ key: game.id, label: friendly ? "" : t("matches.before.round", { round: game.roundNumber }),
-      title: friendly ? t("matches.otherFriendly", { opponent: rival }) : rival, note: t(`matches.status.${phase}`), href: openHref(game, phase), phase });
-  }
-  return rows.sort((one, other) => URGENCY.indexOf(one.phase) - URGENCY.indexOf(other.phase));
+    return { key: game.id, label: friendly ? "" : t("matches.before.round", { round: game.roundNumber }),
+      title: friendly ? t("matches.otherFriendly", { opponent: rival }) : rival, note: t(`matches.status.${phase}`), href: openHref(game, phase), phase };
+  });
 }
 
 /** The season's round on, as a number; null without one. */
@@ -188,7 +196,8 @@ const opponentRef = (rival) => ({ name: rival?.team?.name ?? "", href: teamHrefO
 
 /**
  * @typedef {{key: string, square: {label: string, result: "w"|"d"|"l"|"t"|null, current: boolean, friendly: boolean},
- *   opponent: {name: string, href: string}|null, line: string, score: string, muted: boolean}} CalendarRow
+ *   opponent: {name: string, href: string}|null, line: string, href: string, score: string, muted: boolean}} CalendarRow
+ *   `href`: where the line leads — the match, for another open one; "" for the rest
  */
 
 /** @returns {CalendarRow} a played match: its result's letter, «Round 1 · at home · CAS 2–0», the score from our side */
@@ -197,7 +206,7 @@ function playedRow(result, teamId) {
   const sides = gameSides(game, teamId);
   const venue = result.friendly ? "matches.calendarFriendly" : sides.own === "home" ? "matches.calendarHome" : "matches.calendarAway";
   return { key: game.id, square: { label: resultLabels(result.result).letter, result: result.result, current: false, friendly: result.friendly },
-    opponent: opponentRef(game[sides.other]), line: `${roundWord(game)} · ${t(venue, { cas: result.cas })}`, score: result.score, muted: false };
+    opponent: opponentRef(game[sides.other]), line: `${roundWord(game)} · ${t(venue, { cas: result.cas })}`, href: "", score: result.score, muted: false };
 }
 
 /** @returns {CalendarRow} the match on: «Round 3 · at home · next» (in play, awaiting confirmation…), the score sent */
@@ -208,23 +217,38 @@ function currentRow(current, teamId) {
   const where = friendly ? "friendly" : sides.own;
   const state = t(`matches.calendarState.${phaseOf(current)}`);
   return { key: game.id, square: { label: friendly ? t("ui.result.t") : String(game.roundNumber), result: null, current: true, friendly },
-    opponent: opponentRef(game[sides.other]), line: `${roundWord(game)} · ${t(`matches.calendarAt.${where}`, { state })}`,
+    opponent: opponentRef(game[sides.other]), line: `${roundWord(game)} · ${t(`matches.calendarAt.${where}`, { state })}`, href: "",
     score: current.phase === "sent" ? sentScore(game, sides) || "—" : "—", muted: false };
+}
+
+/**
+ * @returns {CalendarRow[]} the team's other open matches (decision 13): the round's number or «F» in a ringed square, the
+ * opponent, «Friendly · Preparation» leading to the match (its preparation, post-match or game), the most urgent first
+ */
+function openRows(games, teamId, shownId) {
+  return openGames(games, teamId, shownId).map(({ game, phase }) => {
+    const friendly = game.kind === "friendly";
+    return { key: game.id, square: { label: friendly ? t("ui.result.t") : String(game.roundNumber), result: null, current: false, friendly },
+      opponent: opponentRef(game[gameSides(game, teamId).other]), line: `${roundWord(game)} · ${t(`matches.status.${phase}`)}`,
+      href: openHref(game, phase), score: "—", muted: false };
+  });
 }
 
 /** @returns {CalendarRow} the next round: its opponent comes with the Swiss pairing once the round on is over */
 const nextRow = (round) => ({ key: "next", square: { label: String(round), result: null, current: false, friendly: false },
   opponent: { name: t("teamOverview.opponentLater", { round: round - 1 }), href: "" },
-  line: `${t("matches.before.round", { round })} · ${t("matches.calendarSwiss")}`, score: "—", muted: true });
+  line: `${t("matches.before.round", { round })} · ${t("matches.calendarSwiss")}`, href: "", score: "—", muted: true });
 
 /**
  * The calendar (DeskSeason.html): the season's played matches in the order they were settled, as the board pages them
- * (`seasonResults`; a team outside the table, every friendly), then the match on, then the next round.
+ * (`seasonResults`; a team outside the table, every friendly), then the match on, the team's other open matches, then
+ * the next round.
  * @returns {CalendarRow[]}
  */
 function calendarOf(games, teamId, seasonData, current, nextRound, sinceSeason) {
   const rows = seasonResults(games, teamId, seasonData, { sinceSeason }).reverse().map((result) => playedRow(result, teamId));
   if (current) rows.push(currentRow(current, teamId));
+  rows.push(...openRows(games, teamId, current?.game.id ?? null));
   if (nextRound) rows.push(nextRow(nextRound));
   return rows;
 }
@@ -266,9 +290,10 @@ function failuresOf({ seasonData, seasonError, gamesError }) {
  * @param {object|null} [input.data] the reference, for «Before the match»
  * @param {boolean} [input.phone] the screen is a phone's (up to 900px)
  * @param {string|null} [input.bandKey] the item a desk's board shows, as the visit holds it; null for the current one
+ * @param {string} [input.viewerId] the signed-in coach, whose rows of the table are his own
  */
 export function matchesModel({ team, raceTeam = null, seasonData, games, gamesError = "", seasonError = "", opponent = null, records = null,
-  data = null, phone = false, bandKey = null }) {
+  data = null, phone = false, bandKey = null, viewerId = "" }) {
   const list = Array.isArray(games) && !gamesError ? games : null;
   const standing = standingOf(seasonData, team.id);
   const current = list && currentMatch(list, team.id);
@@ -289,6 +314,8 @@ export function matchesModel({ team, raceTeam = null, seasonData, games, gamesEr
     band: phone ? null : deskBand({ list, team, raceTeam, seasonData, standing, current, preview, opponent, records, bandKey }),
     calendar: list ? calendarOf(list, team.id, seasonData, current, round ? round + 1 : null, Boolean(standing)) : [],
     seasonLine: seasonLineOf(seasonData),
+    table: seasonTable(seasonData),
+    viewerId,
     failures: failuresOf({ seasonData, seasonError, gamesError }),
   };
 }
