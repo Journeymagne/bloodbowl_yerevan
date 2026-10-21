@@ -188,9 +188,12 @@
   .g-table__head,
   .g-table__row { grid-template-columns: 26px minmax(0, 1fr) repeat(4, 24px) 38px 34px; }
   .g-table__head { padding: 0 var(--space-16); }
-  /* At least 58 high: the link over it is a thumb's target (D2). */
+  /*
+   * League.html's 71: its 58, the padding and the rule on top (the prototype sets no box-sizing). The link over the row
+   * is a thumb's target (D2).
+   */
   .g-table__row {
-    min-height: 58px;
+    min-height: 71px;
     padding: var(--space-6) var(--space-16);
   }
 }

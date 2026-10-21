@@ -416,6 +416,8 @@ test("the head line's race and coach: 44 to a thumb, 24 on a desk, and their zon
       assert.ok(above <= nameGap, `${width} ${selector}: ${above} above the line, the name ${nameGap} above it — a tap on the name is the name's`);
       assert.ok(beneath <= below, `${width} ${selector}: ${beneath} below the line, ${under} ${below} below it`);
       assert.ok(rowGap >= above + beneath, `${width} ${selector}: a wrapped line ${rowGap} under the first, the two zones ${above + beneath} into the gap — none lies over another`);
+      const padding = box(at(selector, "padding"));
+      assert.equal(padding.top - padding.bottom, above - beneath, `${width} ${selector}: its words sit on the line as the plain ones beside them, not lowered by an uneven zone`);
     }
   }
 });
@@ -431,6 +433,25 @@ test("the 2.x public team's rules went with it: no sheet keeps a selector no mod
   }
   assert.ok(!code.includes("matchday-jersey"));
   assert.doesNotMatch(sheets, /\.matchday-jersey\s*\{/, "the jersey's own rule is gone (the saved roster's :not() keeps its weight)");
+});
+
+test("the prototypes' sizes: their padding on top of min-height, Oswald's figures at its own line height, a chip 44 wide, no ring on the title", () => {
+  // OppTeam.html and DeskOppTeam.html set no box-sizing: a min-height there is the content's, the padding on top of it.
+  assert.deepEqual(valuesOf(CSS, ".g-opp__next", "min-height"), ["76px", "88px"], "a phone's 56 + 10·2; a desk's 64 + 12·2");
+  assert.deepEqual(valuesOf(CSS, ".g-opp__meeting", "min-height"), ["76px", "0"], "a phone's 56 + 10·2; a desk's has none: its 14·2 and the score make 73");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__player", "min-height"), ["69px"], "a desk's row: 52 + 8·2 + its rule");
+  // Oswald's figures as the prototypes write them: no line height of their own, the font's (H4).
+  assert.deepEqual(valuesOf(CSS, ".g-opp .g-kpi__v", "line-height"), ["normal"], "a tile 81 high");
+  assert.deepEqual(valuesOf(CSS, ".g-opp .g-kpi__k", "line-height"), ["normal"], "the tile's word as the prototypes write it, right on the figure");
+  assert.deepEqual(valuesOf(CSS, ".g-opp .g-kpi", "gap"), ["0"]);
+  assert.deepEqual(valuesOf(CSS, ".g-opp__score", "font"), ["700 26px/normal var(--font-display)"]);
+  assert.deepEqual(valuesOf(CSS, ".g-opp__squadtitle", "font"), ["700 24px/normal var(--font-display)"], "«Roster» 36 high");
+  // H1: «Pro» or «Leap» is a target as wide as it is high on a phone.
+  assert.deepEqual(valuesOf(CSS, ".g-opp .g-skill", "min-width"), ["44px", "24px"]);
+  assert.deepEqual(valuesOf(CSS, ".g-opp .g-skill", "justify-content"), ["center"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp .g-skill", "min-width"), ["24px"]);
+  // H6: the title takes the focus on arrival, a place the keyboard starts from, not a control (page-head.css's).
+  assert.deepEqual(valuesOf(CSS, ".g-opp__name:focus", "outline"), ["none"]);
 });
 
 test("every key in both dictionaries", () => {

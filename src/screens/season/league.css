@@ -143,6 +143,12 @@
 
 @media (max-width: 900px) {
   /*
+   * League.html, OppTeam.html and Matches.html are white: the 2.x view's wash (site-matchday.css's .view::after, the
+   * accent's tint fading over 320px) is off under these pages alone; the 2.x pages keep it until stage 13. A desk's pages
+   * stand on the desk's grey.
+   */
+  #app-view:has(> .g-league, > .g-opp, > .g-matches)::after { display: none; }
+  /*
    * League.html's page runs to the screen's edges, its rows 16 in: the page takes back the 2.x view's padding of a
    * phone (20 above, 16 at the sides, site-matchday.css), and the view's own 32 below stands for the prototype's 28.
    */
@@ -198,10 +204,11 @@
     letter-spacing: 0;
     text-transform: none;
   }
+  /* From the left as DeskSeason.html's, the card's space-between keeping it right; two even lines when it wraps, no word alone. */
   .g-season__rule {
     color: var(--muted);
     font: 400 13px/1.4 var(--font-body);
-    text-align: right;
+    text-wrap: balance;
   }
   .g-season__inner .g-league__loading,
   .g-season__inner .g-table__empty { padding: 0 var(--space-20) var(--space-16); }

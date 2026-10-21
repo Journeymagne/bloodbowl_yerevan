@@ -79,6 +79,8 @@
   font: 700 32px/1 var(--font-display);
   overflow-wrap: anywhere;
 }
+/* The page focuses it on arrival: a place the keyboard starts from, not a control, so no ring (as page-head.css's title). */
+.g-opp__name:focus { outline: none; }
 /* A line that wraps keeps 26 between its rows: the zones of the links, 8 above and 18 below a row, meet and never lie over each other. */
 .g-opp__meta {
   display: flex;
@@ -91,7 +93,8 @@
 }
 /*
  * The race and the coach: links of the line, 44 to a thumb without making the line taller (as the prototype's race). The
- * zone reaches 8 above the line, into the gap under the name and no further, and 18 below it, into the page's 20.
+ * zone reaches 8 above the line, into the gap under the name and no further, and 18 below it, into the page's 20; the
+ * padding mirrors it, so the words sit on the line with the plain ones beside them.
  */
 .g-opp__race,
 .g-opp__coachlink {
@@ -100,20 +103,24 @@
   gap: var(--space-4);
   min-height: 44px;
   margin: -8px 0 -18px;
+  padding: var(--space-8) 0 18px;
   color: var(--accent-text);
   font: 600 14px/1.3 var(--font-body);
   text-decoration: none;
   overflow-wrap: anywhere;
 }
 
-/* «Next opponent» (OppTeam.html): the accent's tint, the round under the word, a chevron. */
+/*
+ * «Next opponent» (OppTeam.html): the accent's tint, the round under the word, a chevron. The prototypes set no box-sizing,
+ * so their min-height is the content's and the padding comes on top: 56 + 10·2 here, 64 + 12·2 on a desk.
+ */
 .g-opp__next {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-12);
-  min-height: 56px;
+  min-height: 76px;
   padding: var(--space-10) var(--space-14);
   border-radius: var(--radius-xl);
   background: var(--accent-tint);
@@ -133,13 +140,13 @@
 }
 .g-opp__nextline { font: 400 13px/1.3 var(--font-body); }
 
-/* «Our meeting»: the outcome, the words, the score. */
+/* «Our meeting»: the outcome, the words, the score; 76 high as the prototype draws its 56 and padding. */
 .g-opp__meeting {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   gap: var(--space-12);
-  min-height: 56px;
+  min-height: 76px;
   padding: var(--space-10) var(--space-14);
   border-radius: var(--radius-xl);
   background: var(--surface-2);
@@ -159,10 +166,11 @@
   color: var(--muted);
   font: 400 13px/1.3 var(--font-body);
 }
+/* Oswald's figures at the font's own line height, as the prototypes write them (no line-height of theirs). */
 .g-opp__score {
   flex: none;
   color: var(--ink);
-  font: 700 26px/1 var(--font-display);
+  font: 700 26px/normal var(--font-display);
   font-variant-numeric: tabular-nums;
 }
 
@@ -172,8 +180,16 @@
   gap: var(--space-10);
 }
 
-/* The tiles: the prototypes' 28px figure, not the overview's 30. */
-.g-opp .g-kpi__v { font-size: 28px; }
+/*
+ * The tiles as the prototypes write them: the word right on the figure, both at their fonts' own line height, and the
+ * figure 28px, not the overview's 30: a tile 81 high.
+ */
+.g-opp .g-kpi { gap: 0; }
+.g-opp .g-kpi__k { line-height: normal; }
+.g-opp .g-kpi__v {
+  font-size: 28px;
+  line-height: normal;
+}
 
 /* «Form» and its five squares of 26, 4 apart (not the strip's ten of 28). */
 .g-opp__formrow {
@@ -247,7 +263,7 @@
   gap: 0 var(--space-8);
   margin-bottom: var(--space-4);
   color: var(--ink);
-  font: 700 24px/1.2 var(--font-display);
+  font: 700 24px/normal var(--font-display);
 }
 .g-opp__count {
   color: var(--muted);
@@ -284,8 +300,10 @@
 }
 .g-opp__chips { padding-top: var(--space-6); }
 .g-opp__chips .g-skills { gap: var(--space-4); }
-/* A chip opens the skill's rule (decision 20): the prototype's 12px tag, 44 high to a thumb. */
+/* A chip opens the skill's rule (decision 20): the prototype's 12px tag, 44 high and wide to a thumb («Pro», «Leap»). */
 .g-opp .g-skill {
+  justify-content: center;
+  min-width: 44px;
   min-height: 44px;
   padding: 3px var(--space-8);
   border-radius: 7px;
@@ -349,6 +367,7 @@
   .g-opp__coachlink {
     min-height: 24px;
     margin: -3px 0;
+    padding: 0;
   }
 
   /* Telegram at the band's right: 44 high, a ring, the plane and the contact. */
@@ -387,7 +406,7 @@
 
   /* «Next opponent» on the header's colour, its word in capitals over the round. */
   .g-opp__next {
-    min-height: 64px;
+    min-height: 88px;
     padding: var(--space-12) 18px;
     border-radius: var(--radius-2xl);
     background: var(--header);
@@ -401,7 +420,9 @@
   }
   .g-opp__nextline { font: 600 16px/1.3 var(--font-body); }
 
+  /* No floor of its own, as the prototype's: its padding and the score make it 73. */
   .g-opp__meeting {
+    min-height: 0;
     gap: var(--space-14);
     padding: var(--space-14) 18px;
     border-radius: var(--radius-2xl);
@@ -467,8 +488,9 @@
   .g-opp__col--center,
   .g-opp__num { text-align: center; }
   .g-opp__col--end { text-align: right; }
+  /* DeskOppTeam.html's row: 52 and its padding and rule on top. */
   .g-opp__player {
-    min-height: 52px;
+    min-height: 69px;
     padding: var(--space-8) var(--space-20);
   }
   .g-opp__player .g-num {
@@ -478,7 +500,10 @@
   }
   .g-opp__pname { font-weight: 600; }
   .g-opp__chips { padding: 2px 0; }
-  .g-opp .g-skill { min-height: 24px; }
+  .g-opp .g-skill {
+    min-width: 24px;
+    min-height: 24px;
+  }
   .g-opp__num { font: 400 15px/1.2 var(--font-body); }
   .g-opp__player > .g-opp__sppn { text-align: right; }
 }

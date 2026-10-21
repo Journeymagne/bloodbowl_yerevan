@@ -301,6 +301,12 @@ test("D2: a row, a race and «Whole table» are 44px to touch up to 900px and at
   assert.ok(px(inMedia(CSS, "min-width: 901px", ".g-minitable__link", "min-height")) >= 24);
 });
 
+test("a phone's row is League.html's 71: its 58 with the padding and the rule on top, the prototype setting no box-sizing", () => {
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-table__row", "min-height"), ["71px"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-table__row", "padding"), ["var(--space-6) var(--space-16)"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-table__row", "min-height"), ["56px"], "a desk's is 57 in DeskSeason.html: a pixel, left");
+});
+
 test("the grids are the prototypes'", () => {
   assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-table__row", "grid-template-columns"), ["26px minmax(0, 1fr) repeat(4, 24px) 38px 34px"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-table__row", "grid-template-columns"),

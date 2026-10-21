@@ -332,6 +332,19 @@ test("every key in both dictionaries", () => {
   for (const gone of ["season.tab.standings", "season.tab.fixture"]) assert.equal(en[gone], undefined, gone);
 });
 
+test("up to 900px the league's, an opponent's and the matches' pages are white, as their prototypes: the 2.x view's wash is off for them alone", () => {
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", "#app-view:has(> .g-league, > .g-opp, > .g-matches)::after", "display"), ["none"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", "#app-view:has(> .g-league, > .g-opp, > .g-matches)::after", "display"), [], "a desk's page is the desk's grey");
+  assert.match(text("src/styles/site-matchday.css"), /\.view::after \{[^}]*var\(--md-wash\)/, "the 2.x pages keep it until stage 13");
+  // The matches' page is matches/index.mjs's .g-matches, a child of the view as the others are.
+  assert.match(text("src/screens/matches/index.mjs"), /<div class="g-matches">/);
+});
+
+test("the table's rule at the card's head: balanced lines from the left, no word left alone at the right (DeskSeason.html)", () => {
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-season__rule", "text-align"), []);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-season__rule", "text-wrap"), ["balance"]);
+});
+
 test("the sizes: the season's row, its two columns, the calendar's targets (D2), nothing cut with «…»", () => {
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-season__table", "flex"), ["999 1 640px"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-season__aside", "flex"), ["1 1 320px"]);
