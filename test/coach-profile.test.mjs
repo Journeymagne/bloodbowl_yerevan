@@ -110,7 +110,7 @@ test("the model: since when, how many teams, each team's line and address, your 
     { line: "Round 3 · league", teams: "Ashgrove Wardens — Grimtusk Raiders", outcome: "Win 2–1", tone: "w" },
     { line: `${formatDay(LOSS.confirmedAt)} · friendly`, teams: "Ashgrove Wardens — Iron Teeth", outcome: "Loss 0–1", tone: "l" },
   ]);
-  assert.equal(model.challengeHref, "#/t/t1/challenges");
+  assert.equal(model.challengeHref, "#/t/t1/challenges/u2");
   assert.equal(model.adminHref, "");
   // A draw, from our side; a team in its build says so (pre-flight L30); no date says nothing.
   const draw = confirmed("gd", { home: RAIDERS, away: OURS, homeTouchdowns: 1, awayTouchdowns: 1, confirmedAt: "2026-10-04T10:00:00Z", roundNumber: 4 });
@@ -148,7 +148,7 @@ test("a phone's coach profile: the login, since when and how many teams, Telegra
   assert.ok(meetings[0].querySelector(".g-coach__outcome--w"));
   assert.ok(meetings[1].querySelector(".g-coach__outcome--l"));
   const challenge = view.querySelector(".g-coach__challenge a.g-btn--primary");
-  assert.deepEqual([challenge.textContent, challenge.getAttribute("href")], ["Challenge to a friendly", "#/t/t1/challenges"]);
+  assert.deepEqual([challenge.textContent, challenge.getAttribute("href")], ["Challenge to a friendly", "#/t/t1/challenges/u2"]);
   // CoachProfile.html's order.
   const order = view.querySelector(".g-coach").childNodes.filter((node) => node.nodeType === 1).map((node) => node.getAttribute("class").split(" ")[0]);
   assert.deepEqual(order, ["g-coach__id", "g-coach__tgcard", "g-coach__caption", "g-coach__teams", "g-coach__meetings", "g-coach__challenge"]);
@@ -167,7 +167,7 @@ test("a desk's coach profile: the band, the row with both buttons, the two cards
   const actions = view.querySelector(".g-coach__actions");
   const [write, challenge] = actions.querySelectorAll("a");
   assert.deepEqual([write.textContent, write.getAttribute("href"), write.getAttribute("rel")], ["Write on Telegram", "https://t.me/orc_boss", "noopener noreferrer"]);
-  assert.deepEqual([challenge.textContent, challenge.getAttribute("href")], ["Challenge", "#/t/t1/challenges"]);
+  assert.deepEqual([challenge.textContent, challenge.getAttribute("href")], ["Challenge", "#/t/t1/challenges/u2"]);
   const cards = view.querySelectorAll(".g-coach__grid section.g-coach__card");
   assert.deepEqual(cards.map((card) => card.querySelector("h2").textContent), ["Teams", "Your meetings"]);
   assert.equal(cards[0].querySelectorAll("a.g-coach__team").length, 2);
@@ -187,6 +187,19 @@ test("one's own profile has no Telegram buttons, no meetings and no challenge; o
   }
   assert.deepEqual(coachModel({ ...base, viewerId: "u2" }).meetings, []);
   assert.equal(coachModel({ ...base, viewerId: "u2" }).challengeHref, "");
+});
+
+// Stage 09c (decision 19): the server would refuse him (CHALLENGE_OPPONENT_UNAVAILABLE), so there is nothing to press.
+test("a coach with no team has no challenge on his profile", async () => {
+  assert.equal(coachModel({ ...base, teams: [] }).challengeHref, "");
+  for (const phone of [true, false]) {
+    await visit({ page: { user: { ...ORC_BOSS, savedTeamCount: 0 }, teams: [] } }, { phone });
+    assert.equal(view.querySelector(".g-coach__login").textContent, "orc_boss", phone ? "a phone's" : "a desk's");
+    assert.equal(view.querySelector(".g-coach__challenge"), null);
+    assert.equal(view.querySelector(".g-btn--primary"), null);
+    assert.ok(!view.querySelectorAll("a").some((link) => /challenges/.test(link.getAttribute("href"))));
+    api.assertAnswered();
+  }
 });
 
 test("an admin has the way to manage the coach; a coach has not", async () => {
