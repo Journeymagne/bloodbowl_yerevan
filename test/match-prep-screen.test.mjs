@@ -523,7 +523,7 @@ test("after the footer's own action the focus stays on the footer, else the titl
   await focused(view.querySelector('[data-prep-action="lock-roster"]'));
   assert.equal(document.activeElement.tagName, "A");
   assert.ok(document.activeElement === view.querySelector("a.g-prep__cta"), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
-  assert.equal(document.activeElement.textContent, "Next: Inducements");
+  assert.equal(document.activeElement.textContent, "Next: inducements");
   // «Change the roster»: the quiet button goes, the focus to «Confirm the roster».
   api.reply(WRITE, 200, payloadAt([...theirsLocked, ["home", { type: "lock-roster" }], ["home", { type: "reopen" }]]));
   await focused(view.querySelector('[data-prep-action="reopen"]'));

@@ -438,8 +438,9 @@
 .g-prep--desk .g-prep__side,
 .g-prep--desk .g-prep__notices { padding: var(--space-20) 32px 0; }
 
+/* The steps and the card are content-box, as the prototype's: 260 + 2×12 = 284px and 520 + 2×24 = 568 (G7). */
 .g-prep__steps {
-  box-sizing: border-box;
+  box-sizing: content-box;
   flex: 0 1 260px;
   min-width: 220px;
   padding: var(--space-12);
@@ -502,7 +503,7 @@
 .g-prep__step--current .g-prep__stepsum { color: var(--on-accent-tint); }
 
 .g-prep__card {
-  box-sizing: border-box;
+  box-sizing: content-box;
   display: flex;
   flex: 3 1 520px;
   flex-direction: column;

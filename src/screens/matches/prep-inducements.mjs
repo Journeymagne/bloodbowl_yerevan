@@ -5,8 +5,9 @@
  *
  * Help is a counter per inducement (`renderResourceCounter`): its price, limit and the rule's first line, and a «+»
  * that says why it cannot be pressed. Stars are rows with «Take» or «Remove» (`data-prep-star`) and the places they
- * take. Every counter is locked, with why, while it is not the team's turn, once its basket is confirmed, or when the
- * preparation reads only. A phone has the budget card at the top of the step; a desk has it in the right column with
+ * take. While it is not the team's turn, once its basket is confirmed, or when the preparation reads only, every «−» is
+ * off and every «+» and «Take» says why when pressed; each row keeps its price and rule, and the turn's chip or the
+ * footer says the lock once (the final review, m-3). A phone has the budget card at the top of the step; a desk has it in the right column with
  * what is bought and the button, and the step's order words at the top of its card.
  *
  * The bar's width is a class, a tenth at a time (`g-prep-budget__bar--<share>`): the CSP allows no style attribute.
@@ -59,13 +60,17 @@ export function budgetCardMarkup(model, { desk = false } = {}) {
   return `<div class="g-prep__panel g-prep-budget${desk ? " g-prep-budget--desk" : ""}">${head}${line}${barMarkup(inducements)}${hint}${lines}${cta}</div>`;
 }
 
-/** A star's row: its name and line, why it cannot be taken, and «Take» or «Remove». */
+/**
+ * A star's row: its name and line, why it cannot be taken (its own reason, not the lock's: the turn says that once), and
+ * «Take» or «Remove» — closed while locked, the lock's words its title, which a press says.
+ */
 function starRow(row, lockedReason) {
   const taken = row.quantity > 0;
-  const why = lockedReason || (taken ? "" : row.reason);
-  const closed = Boolean(why);
+  const why = taken ? "" : row.reason;
+  const closed = Boolean(lockedReason || why);
   const words = taken ? t("prep.ind.drop") : t("prep.ind.take");
-  const button = `<button type="button" class="g-prep-ind__take" data-prep-star="${escapeHtml(row.id)}"${closed ? ' aria-disabled="true"' : ""}`
+  const title = lockedReason ? ` title="${escapeHtml(lockedReason)}"` : "";
+  const button = `<button type="button" class="g-prep-ind__take" data-prep-star="${escapeHtml(row.id)}"${closed ? ' aria-disabled="true"' : ""}${title}`
     + ` aria-label="${escapeHtml(`${words}: ${row.title}`)}">${escapeHtml(words)}</button>`;
   return `<div class="g-prep-ind__star"><span class="g-prep-ind__text"><span class="g-prep-ind__name">${escapeHtml(row.title)}</span>`
     + `<span class="g-prep-ind__note">${escapeHtml(row.note)}</span>${why ? `<span class="g-prep-ind__why">${escapeHtml(why)}</span>` : ""}</span>${button}</div>`;
@@ -79,7 +84,7 @@ function rowsMarkup(inducements) {
     return `<div class="g-prep-ind__list g-prep-ind__list--stars">${places}${rows.map((row) => starRow(row, lockedReason)).join("")}</div>`;
   }
   const counters = rows.map((row) => renderResourceCounter({ key: row.id, name: row.title, note: row.note, value: row.quantity,
-    incBlockedReason: row.reason, lockedReason })).join("");
+    decDisabled: Boolean(lockedReason) || row.quantity <= 0, incBlockedReason: lockedReason || row.reason })).join("");
   return `<div class="g-prep-ind__list">${counters}</div>`;
 }
 

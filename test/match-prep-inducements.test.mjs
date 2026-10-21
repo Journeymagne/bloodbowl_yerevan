@@ -129,13 +129,23 @@ test("the stars: their places, Take and Remove; a mega star takes two", () => {
   assert.equal(megaGriff.querySelector(".g-prep-ind__note").textContent, `${formatMoney(300)} · Mega Star · 2 places`);
 });
 
-test("not our turn, or the basket confirmed: the counters are locked with why", () => {
-  const waiting = mount(inducementsMarkup(modelAt([])));
+test("not our turn, or the basket confirmed: the counters are locked with why, and keep their price and rule", () => {
+  const waitModel = modelAt([]);
+  const waiting = mount(inducementsMarkup(waitModel));
   const rows = waiting.querySelectorAll(".g-resource");
   assert.ok(rows.length > 5);
-  for (const row of rows) {
-    assert.ok(row.classList.contains("g-resource--locked"));
-    assert.equal(row.querySelector(".g-resource__note").textContent, "The opponent buys first");
+  // The final review, m-3: each row keeps its note; «−» is off, «+» says the lock when pressed; the chip says it once.
+  for (const [row, data] of rows.map((row, at) => [row, waitModel.inducements.rows[at]])) {
+    assert.equal(row.querySelector(".g-resource__note").textContent, data.note);
+    assert.ok(row.querySelector('[data-resource-step="-1"]').hasAttribute("disabled"));
+    assert.equal(row.querySelector('[data-resource-step="1"]').getAttribute("title"), "The opponent buys first");
+  }
+  const stars = mount(inducementsMarkup(modelAt([], { category: "stars" })));
+  for (const star of stars.querySelectorAll(".g-prep-ind__star")) {
+    const take = star.querySelector("[data-prep-star]");
+    assert.equal(take.getAttribute("aria-disabled"), "true");
+    assert.equal(take.getAttribute("title"), "The opponent buys first");
+    assert.notEqual(star.querySelector(".g-prep-ind__why")?.textContent, "The opponent buys first", "said once, not by every row");
   }
   const waitFrame = mount(prepFrameMarkup(modelAt([]), { phone: true, ...prepStepMarkup(modelAt([]), data, true) }));
   const lock = waitFrame.querySelector('.g-prep__cta[data-prep-action="lock-basket"]');
@@ -147,12 +157,13 @@ test("not our turn, or the basket confirmed: the counters are locked with why", 
   const open = mount(prepFrameMarkup(choosing, { phone: true, ...prepStepMarkup(choosing, data, true) }));
   assert.equal(open.querySelector('.g-prep__cta[data-prep-action="lock-basket"]').textContent, "Confirm the purchases");
   assert.ok(!open.querySelector('.g-prep__cta[data-prep-action="lock-basket"]').hasAttribute("disabled"));
-  assert.equal(open.querySelector(".g-prep__opp").textContent, "The opponent has confirmed their purchases");
+  // He bought first: his line says why, as PreInducements.html (G9).
+  assert.equal(open.querySelector(".g-prep__opp").textContent, "The opponent bought first: their CTV is higher");
   // Confirmed: locked, «Next: Start» and the quiet way back.
   const locked = modelAt([...THEY_BOUGHT, buy("team-mascot"), ["home", { type: "lock-basket" }]]);
   const fragment = mount(prepFrameMarkup(locked, { phone: true, ...prepStepMarkup(locked, data, true) }));
-  for (const row of fragment.querySelectorAll(".g-resource")) assert.equal(row.querySelector(".g-resource__note").textContent, "Purchases confirmed");
-  assert.equal(fragment.querySelector("a.g-prep__cta").textContent, "Next: Start");
+  for (const row of fragment.querySelectorAll(".g-resource")) assert.equal(row.querySelector('[data-resource-step="1"]').getAttribute("title"), "Purchases confirmed");
+  assert.equal(fragment.querySelector("a.g-prep__cta").textContent, "Next: start");
   assert.equal(fragment.querySelector("a.g-prep__cta").getAttribute("href"), preMatchUrl("g1", "review"));
   assert.equal(fragment.querySelector('.g-prep__quiet[data-prep-action="reopen"]').textContent, "Change the purchases");
 });
@@ -287,8 +298,16 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own(".g-prep-budget--desk .g-prep__cta", "min-height"), ["48px"]);
   assert.deepEqual(own(".g-prep-ind__name", "font"), ["600 15px/1.3 var(--font-body)"]);
   assert.deepEqual(own(".g-prep-ind__take", "box-shadow"), ["inset 0 0 0 1px var(--control-border)"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-prep-ind__list", "grid-template-columns"), ["repeat(auto-fit, minmax(300px, 1fr))"]);
-  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-prep-ind__list", "column-gap"), ["var(--space-24)"]);
+  // The help in columns; the stars one column of rows 16 apart, as DeskPreInducements.html (G8).
+  const help = ".g-prep-ind__list:not(.g-prep-ind__list--stars)";
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", help, "grid-template-columns"), ["repeat(auto-fit, minmax(300px, 1fr))"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", help, "column-gap"), ["var(--space-24)"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-prep-ind__list", "grid-template-columns"), [], "no grid for the stars");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-prep-ind__list--stars", "gap"), ["var(--space-16)"]);
+  // A «−» or «+» that is off is grey (G6): the list's ink is the live buttons' only.
+  for (const off of [".g-prep-ind__list .g-resource__btn:disabled", '.g-prep-ind__list .g-resource__btn[aria-disabled="true"]']) {
+    assert.deepEqual(own(off, "color"), ["var(--disabled)"], off);
+  }
   // Readable in every palette.
   assertReadable(CSS, ".g-prep-budget__petty", "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-prep-budget__hint", "color", ["--surface"], 4.5);

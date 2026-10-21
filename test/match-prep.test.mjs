@@ -94,7 +94,7 @@ test("a phone's frame: back to the team's matches, the title, the dots, the foot
   assert.ok(fragment.querySelector(".g-prep__oppdot--wait"));
   const next = fragment.querySelector(".g-prep__cta");
   assert.equal(next.tagName, "BUTTON");
-  assert.equal(next.textContent, "Next: Weather");
+  assert.equal(next.textContent, "Next: weather");
   assert.ok(next.hasAttribute("disabled"));
   assert.equal(fragment.querySelector(".g-prep__hint").textContent, "Opens once both have rolled");
   // Both rolled: a link on.
@@ -134,9 +134,13 @@ test("a desk's frame: the steps aside with their summaries, the card, the column
   initLocale("ru");
   try {
     assert.equal(frame(modelAt([...FANS, ...WEATHER, ...ROSTERS, ...BASKETS]), false).querySelector("h1").textContent, "Перед матчем · тур 7");
+    // The step's name inside the sentence is small, as PreFans.html's «Далее: погода» (the final review, m-1).
+    assert.equal(frame(modelAt([]), true).querySelector(".g-prep__cta").textContent, "Далее: погода");
   } finally {
     initLocale("en");
   }
+  // The steps 260 + 2×12 and the card 520 + 2×24, content-box as the prototype's (G7).
+  assert.deepEqual([valuesOf(CSS, ".g-prep__steps", "box-sizing"), valuesOf(CSS, ".g-prep__card", "box-sizing")], [["content-box"], ["content-box"]]);
 });
 
 test("the fans' dice are one radio group; the opponent's card says whether they rolled", () => {
@@ -231,7 +235,7 @@ test("the roster: who plays, who misses it and why, the journeymen positions clo
   assert.equal(lock.querySelector('.g-prep__cta[data-prep-action="lock-roster"]').textContent, "Confirm the roster");
   const locked = modelAt([...FANS, ...WEATHER, ...ROSTERS], "roster");
   const after = frame(locked);
-  assert.equal(after.querySelector("a.g-prep__cta").textContent, "Next: Inducements");
+  assert.equal(after.querySelector("a.g-prep__cta").textContent, "Next: inducements");
   assert.equal(after.querySelector('.g-prep__quiet[data-prep-action="reopen"]').textContent, "Change the roster");
   assert.equal(mount(rosterMarkup(locked)).querySelector(".g-prep__hire .g-prep__why").textContent, "The roster is confirmed");
   assert.equal(after.querySelector(".g-prep__opp").textContent, "The opponent confirmed the roster: 9 in the lineup");
@@ -337,7 +341,9 @@ test("every key in both dictionaries, the waits and the opponent's states by the
   assertDictionaryCovers("src/screens/matches/prep-model.mjs", "src/screens/matches/prep-frame.mjs", "src/screens/matches/prep-steps.mjs");
   for (const locale of ["en", "ru"]) {
     const words = dictionary(locale);
-    for (const step of MATCH_STEPS) assert.ok(words[`prep.wait.${step}`], `${locale} prep.wait.${step}`);
+    // The start leads nowhere further: no wait of its own (the final review, m-5).
+    for (const step of MATCH_STEPS.slice(0, -1)) assert.ok(words[`prep.wait.${step}`], `${locale} prep.wait.${step}`);
+    assert.equal(words["prep.wait.review"], undefined);
     for (const state of PREP_OPPONENT_STATES) assert.ok(words[`prep.opponent.${state}`], `${locale} prep.opponent.${state}`);
     for (const season of ["Spring", "Summer", "Autumn"]) assert.ok(words[`pre.season.${season}`], `${locale} pre.season.${season}`);
   }

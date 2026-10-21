@@ -136,6 +136,9 @@
 .g-prep-ind__list .g-resource__btn--inc:disabled,
 .g-prep-ind__list .g-resource__btn--inc[aria-disabled="true"] { background: var(--surface); }
 .g-prep-ind__list .g-resource__btn--inc { color: var(--ink); }
+/* A «−» at zero or under a lock, a «+» refused: the grey of a control that is off, as the prototypes' (G6). */
+.g-prep-ind__list .g-resource__btn:disabled,
+.g-prep-ind__list .g-resource__btn[aria-disabled="true"] { color: var(--disabled); }
 
 .g-prep-ind__star {
   box-sizing: border-box;
@@ -273,19 +276,24 @@
   .g-prep-effects__select { min-height: var(--size-touch); }
 }
 
-/* From 901px the prototype's sizes, never under 24px (D2); the rows stand in columns of 300px or more, 24 apart. */
+/*
+ * From 901px the prototype's sizes, never under 24px (D2): the help in columns of 300px or more, 24 apart; the stars one
+ * column of rows 16 apart, as DeskPreInducements.html stands them in its card (G8).
+ */
 @media (min-width: 901px) {
   .g-prep-ind__list .g-resource__btn {
     width: 34px;
     height: 34px;
   }
   .g-prep-ind__list {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    column-gap: var(--space-24);
     padding: 0;
     background: none;
     box-shadow: none;
   }
-  .g-prep-ind__list--stars > .g-prep__note { grid-column: 1 / -1; }
+  .g-prep-ind__list:not(.g-prep-ind__list--stars) {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    column-gap: var(--space-24);
+  }
+  .g-prep-ind__list--stars { gap: var(--space-16); }
 }

@@ -194,22 +194,29 @@ function inducementsOf({ prep, sideName, data, category, readonly }) {
     bought, canChoose: budget.canChoose, effects: effectsOf(side, data, !lockedReason) };
 }
 
-/** The inducements' line about the opponent, and a desk's rows of his card: who bought first, and whether his choice is in. */
+/**
+ * The inducements' line about the opponent, and a desk's rows of his card: who bought first, and whether his choice is
+ * in. When he bought first his line says why he did (PreInducements.html, the fidelity pass's G9).
+ */
 function inducementsOpponent(inducements, other) {
   if (!inducements) return { state: "", done: false, text: "", rows: null };
   const { turn, spentByOther } = inducements;
-  const text = other.basketLocked ? t("prep.ind.opponentLocked") : turn === "wait" ? t("prep.turn.wait") : t("prep.ind.opponentChoosing");
+  const text = turn === "second" ? t("prep.ind.opponentFirst") : other.basketLocked ? t("prep.ind.opponentLocked")
+    : turn === "wait" ? t("prep.turn.wait") : t("prep.ind.opponentChoosing");
   const rows = [[t("matches.ctv"), formatMoney(other.ctv), ""]];
   if (turn === "second" || turn === "wait") rows.push([t("prep.opponentFirst"), formatMoney(spentByOther), ""]);
   rows.push([t("prep.opponentState"), other.basketLocked ? t("prep.opponentChosen") : t("prep.ind.opponentChoosing"), other.basketLocked ? "done" : ""]);
   return { state: "", done: other.basketLocked, text, rows };
 }
 
-/** «Next: Weather»: a link to the next step once both sides have passed this one, closed with why until then. */
+/** The first letter small: a step's name inside a sentence (PreFans.html «Далее: погода»). */
+const lowerFirst = (words) => words.charAt(0).toLocaleLowerCase() + words.slice(1);
+
+/** «Next: weather»: a link to the next step once both sides have passed this one, closed with why until then. */
 function nextFooter(key, index, current, gameId) {
   const next = MATCH_STEPS[index + 1];
   const open = current > index;
-  return { kind: "next", label: t("prep.next", { step: t(`pre.step.${next}`) }), href: preMatchUrl(gameId, next), disabled: !open,
+  return { kind: "next", label: t("prep.next", { step: lowerFirst(t(`pre.step.${next}`)) }), href: preMatchUrl(gameId, next), disabled: !open,
     hint: open ? "" : t(`prep.wait.${key}`), quiet: null };
 }
 
