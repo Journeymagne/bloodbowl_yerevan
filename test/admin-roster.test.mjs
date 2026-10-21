@@ -2,16 +2,28 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
+import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { withWindow } from "./helpers/ref-screen.mjs";
 import { withoutTimers } from "./helpers/without-timers.mjs";
 import {
-  JOE, PIKE, PLAYERS, STYLES, api, aside, coach, died, openRow, releaseCurrentScreen, renderTeamRoster, save, settle, state, team, toggle, view, words,
+  JOE, PIKE, PLAYERS, STYLES, api, aside, coach, died, openRow, releaseCurrentScreen, renderTeamRoster, save, settle, state, team, text, toggle, view, words,
 } from "./helpers/roster-page.mjs";
+
+// A file read by the logo picker: the reader answers with what the "file" carries (as test/team-settings.test.mjs reads one).
+globalThis.FileReader = class {
+  constructor() { this.listeners = new Map(); }
+  addEventListener(type, listener) { this.listeners.set(type, listener); }
+  readAsDataURL(file) {
+    this.result = file.dataUrl;
+    queueMicrotask(() => (file.failure ? this.listeners.get("error")?.(file.failure) : this.listeners.get("load")?.()));
+  }
+};
 
 const { rosterMemory } = await import("../src/screens/team/roster/memory.mjs");
 const { adminOf, openRosterAs, teamSavePath } = await import("../src/screens/team/roster/source.mjs");
 const { renderAdminTeam } = await import("../src/screens/admin/team.mjs");
+const { logoUploadMaxBytes } = await import("../src/core/logo-upload.mjs");
 
 // Stage 12, Task 14 (decision 23; Review Focus 4): any coach's team in the administration is the same roster 3.0 as its
 // coach's, in the admin's mode — read and saved through the admin's routes (`GET`/`PATCH /api/admin/teams/:id`), its
@@ -32,6 +44,9 @@ const sent = (key) => api.calls.filter((call) => call.key === key);
 const adminCalls = () => api.calls.filter(({ key }) => key.includes("/api/admin/"));
 const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
 const markText = (sheet) => sheet.querySelector("#mark-text");
+
+/** What an admin's visit is styled by: the roster's sheets, the administration's, the name and logo card's (stage 12). */
+const ADMIN_STYLES = [...STYLES, "src/screens/admin/admin.css", "src/screens/admin/team.css", "text-field.css"];
 
 const NO_SITE_ROLL = "An admin marks the advancement «at the table»";
 const ADMIN_FROM_MATCH = "A death the post-match recorded: the player comes back with the advancements, and the match's rolls stay used.";
@@ -105,6 +120,7 @@ test("an admin's visit reads and saves through the admin's routes; the owner's n
       assert.equal(sent(COACH_PATCH).length, 1, "the owner's step goes on the owner's route");
       assert.equal(sent(COACH_PATCH)[0].body.revision, 5);
       assert.equal(sent(ADMIN_PATCH).length, 1, "nothing more on the admin's");
+      assert.equal(view.querySelector(".g-adminteam__identity"), null, "the owner's roster has no admin's card: the coach's name and logo are «Team settings»");
     });
   });
 });
@@ -173,7 +189,7 @@ test("the admin undoes a death a match recorded, and is told what the undo keeps
       fireEvent(aside().querySelector("[data-roster-undo]"), "click");
       assert.ok(!words(view.querySelector("dialog#roster-undo")).some((line) => line === ADMIN_FROM_MATCH || line === COACH_FROM_MATCH));
       assertCspSafe(view);
-      assertStyled(view, ...STYLES, "src/screens/admin/admin.css");
+      assertStyled(view, ...ADMIN_STYLES);
     });
   });
   // On a phone the row of a death from a match leads to the profile, where it is undone.
@@ -267,7 +283,7 @@ test("the admin's head names the team and its coach: «Coach's team», the path 
     assert.ok(view.querySelector(".g-admin__head .g-roster__search"), "the desk's search stays in the band");
     assert.equal(view.querySelector(".g-roster__strip"), null, "no treasury strip of the coach's");
     assertCspSafe(view);
-    assertStyled(view, ...STYLES, "src/screens/admin/admin.css");
+    assertStyled(view, ...ADMIN_STYLES);
   });
   // A phone draws the head as a title: the shell's header names the admin's own team.
   await withWindow({ phone: true }, async () => {
@@ -299,6 +315,132 @@ test("a coach who is no admin is told the section is the admin's, and nothing is
 });
 
 test("every key of the admin's roster is in both dictionaries", () => {
-  assertDictionaryCovers("src/screens/admin/team.mjs", "src/screens/team/roster/source.mjs", "src/screens/team/roster/view.mjs",
+  assertDictionaryCovers("src/screens/admin/team.mjs", "src/screens/team/roster/source.mjs", "src/screens/team/roster/view.mjs", "src/screens/team/roster/admin-identity.mjs",
     "src/screens/team/roster/fallen-view.mjs", "src/screens/team/roster/advance.mjs");
+});
+
+// Stage 12, Task 14 review (the owner's answer, binding over plan decision 25): the admin edits a team's name and its logo,
+// never its race. The 2.x editor did it on this address; the roster 3.0 in the admin's mode does it in a card where the
+// coach's treasury strip stands (Task 15's admin block takes it into its grid). Each change is one step of the roster's
+// queue — the team's name or logo in the body, the race and the roster as they are — on the admin's route.
+const LOGO = "data:image/png;base64,iVBORw0KGgo=";
+const card = () => view.querySelector(".g-adminteam__identity");
+const nameField = () => view.querySelector("input#admin-team-name");
+const typeName = (value) => {
+  const field = nameField();
+  field.value = value;
+  fireEvent(field, "input");
+};
+const pressName = () => fireEvent(card().querySelector("[data-identity-save]"), "click");
+const pickLogo = (file) => fireEvent(Object.assign(view.querySelector("input#admin-team-logo"), { files: [file], value: "C:\\fakepath\\logo.png" }), "change");
+const bodyOf = (index) => sent(ADMIN_PATCH)[index].body;
+const WAIT_QUEUE = "Wait for the roster to be saved first";
+
+test("the admin renames the team and changes its logo: each one save on the admin's route, the race and the roster as they are", async () => {
+  await withoutTimers(async () => {
+    await withWindow({ phone: false }, async () => {
+      admin();
+      await visit();
+      assert.ok(card(), "the admin's visit has the card in the treasury strip's place");
+      assert.equal(card().querySelector("h2").textContent, "Name and logo");
+      assert.equal(nameField().value, "Grimtusk Raiders");
+      assert.ok(words(card()).includes("Race: Human. A team's race is not changed."), "the race is shown, with nothing to change it");
+      api.reply(ADMIN_PATCH, 200, { team: T9({ name: "Grimtusk Reavers", revision: 5 }) });
+      typeName("  Grimtusk Reavers ");
+      pressName();
+      await settle();
+      assert.equal(sent(ADMIN_PATCH).length, 1, "one save");
+      assert.deepEqual([bodyOf(0).name, bodyOf(0).baseTeamSlug, bodyOf(0).logoData, bodyOf(0).revision], ["Grimtusk Reavers", "teams/human", "", 4]);
+      assert.deepEqual(bodyOf(0).roster.players.map((player) => player.id), PLAYERS.map((player) => player.id), "the roster as it is");
+      assert.equal(sent(COACH_PATCH).length, 0, "never the coach's route");
+      assert.equal(nameField().value, "Grimtusk Reavers");
+      assert.equal(view.querySelector(".g-admin__crumbs").textContent, "Administration → orc_boss → Grimtusk Reavers", "the path names the team as it is now");
+      // A logo: one save of it, with the name the team has now.
+      assert.ok(card().querySelector(".g-adminteam__picture svg"), "no logo: the picture's glyph");
+      assert.equal(card().querySelector("[data-identity-logo-remove]"), null);
+      api.reply(ADMIN_PATCH, 200, { team: T9({ name: "Grimtusk Reavers", logoData: LOGO, revision: 6 }) });
+      pickLogo({ name: "logo.png", size: 100, dataUrl: LOGO });
+      await settle();
+      assert.equal(sent(ADMIN_PATCH).length, 2);
+      assert.deepEqual([bodyOf(1).name, bodyOf(1).baseTeamSlug, bodyOf(1).logoData, bodyOf(1).revision], ["Grimtusk Reavers", "teams/human", LOGO, 5]);
+      assert.equal(view.querySelector("input#admin-team-logo").value, "", "emptied: the same file may be picked again");
+      assert.equal(card().querySelector(".g-adminteam__picture img").getAttribute("src"), LOGO);
+      // «Remove»: an empty logo; the button that had the focus goes, the file field takes it.
+      api.reply(ADMIN_PATCH, 200, { team: T9({ name: "Grimtusk Reavers", logoData: null, revision: 7 }) });
+      const remove = card().querySelector("[data-identity-logo-remove]");
+      remove.focus();
+      fireEvent(remove, "click");
+      await settle();
+      assert.equal(sent(ADMIN_PATCH).length, 3);
+      assert.deepEqual([bodyOf(2).name, bodyOf(2).logoData, bodyOf(2).revision], ["Grimtusk Reavers", "", 6]);
+      assert.equal(card().querySelector("img"), null);
+      assert.equal(document.activeElement, view.querySelector("input#admin-team-logo"));
+      assert.equal(sent(COACH_PATCH).length, 0);
+      api.assertAnswered();
+      assertCspSafe(view);
+      assertStyled(view, ...ADMIN_STYLES);
+    });
+  });
+});
+
+test("the name and the logo wait for the roster's queue and say so; an empty name, the same name, a file too large or no picture send nothing", async () => {
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      admin({ open: "p1#0" });
+      await visit();
+      assert.ok(card(), "a phone has the card too");
+      pressName();
+      assert.equal(toasts().at(-1), "The name is the same");
+      typeName("   ");
+      pressName();
+      assert.equal(toasts().at(-1), "The name cannot be empty");
+      assert.equal(sent(ADMIN_PATCH).length, 0);
+      // A step of the roster's in the air: the name and the logo wait for it, and what was typed stays.
+      const scored = PLAYERS.map((player) => (player.id === "p1" ? { ...player, spp: { touchdowns: 1 } } : player));
+      const gate = api.hold(ADMIN_PATCH);
+      api.reply(ADMIN_PATCH, 200, { team: withPlayers9(scored, { revision: 5 }) });
+      fireEvent(plus("touchdowns"), "click");
+      await settle();
+      assert.equal(sent(ADMIN_PATCH).length, 1);
+      typeName("Grimtusk Reavers");
+      pressName();
+      assert.equal(toasts().at(-1), WAIT_QUEUE);
+      pickLogo({ name: "logo.png", size: 100, dataUrl: LOGO });
+      await settle();
+      assert.equal(toasts().at(-1), WAIT_QUEUE);
+      assert.equal(sent(ADMIN_PATCH).length, 1, "nothing more is sent");
+      assert.equal(nameField().value, "Grimtusk Reavers", "what was typed stays through the draws");
+      gate.release();
+      await settle();
+      api.reply(ADMIN_PATCH, 200, { team: withPlayers9(scored, { name: "Grimtusk Reavers", revision: 6 }) });
+      pressName();
+      await settle();
+      assert.equal(sent(ADMIN_PATCH).length, 2);
+      assert.deepEqual([bodyOf(1).name, bodyOf(1).revision], ["Grimtusk Reavers", 5], "on the revision the step before came back with");
+      assert.equal(bodyOf(1).roster.players.find((player) => player.id === "p1").spp.touchdowns, 1, "with the roster that step saved");
+      pickLogo({ name: "big.png", size: logoUploadMaxBytes + 1, dataUrl: LOGO });
+      await settle();
+      assert.equal(toasts().at(-1), "Logo must be 2 MB or smaller.");
+      pickLogo({ name: "paper.pdf", size: 100, dataUrl: "data:application/pdf;base64,JVBERi0=" });
+      await settle();
+      assert.equal(toasts().at(-1), "The logo could not be read: choose a PNG or JPG picture.");
+      assert.equal(sent(ADMIN_PATCH).length, 2, "neither is sent");
+      api.assertAnswered();
+    });
+  });
+});
+
+test("the name and logo card: the prototype's card, a 48px field and button, 40px buttons on a desk and 44px on a phone; nothing cut", () => {
+  const CSS = "src/screens/admin/team.css";
+  const px = (value) => Number.parseFloat(value);
+  assert.doesNotMatch(text(CSS), /ellipsis|nowrap|@media \((?!max-width: 900px|min-width: 901px)/);
+  assert.match(text("src/styles.css"), /@import url\("screens\/admin\/team\.css"\);\s*$/, "imported last");
+  assert.deepEqual(valuesOf(CSS, ".g-adminteam .g-admin__grid", "grid-template-columns"), ["repeat(auto-fit, minmax(min(340px, 100%), 1fr))"],
+    "the prototype's 340px cards, never wider than the roster's column beside a desk's panel");
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-adminteam__btn", "min-height"), ["40px"]);
+  assert.ok(px(inMedia(CSS, "max-width: 900px", ".g-adminteam__btn", "min-height")[0]) >= 44);
+  assert.deepEqual(valuesOf(CSS, ".g-adminteam__identity .g-btn--primary", "height"), ["48px"]);
+  assert.ok(valuesOf(CSS, ".g-adminteam__logotext", "overflow-wrap").includes("anywhere"), "a long note wraps");
+  assertReadable(CSS, ".g-adminteam__logoname", "color", ["--surface"], 4.5);
+  assertReadable(CSS, ".g-adminteam__picture", "color", ["--surface-2"], 3);
 });

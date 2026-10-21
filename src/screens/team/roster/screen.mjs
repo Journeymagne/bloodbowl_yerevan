@@ -18,7 +18,7 @@ import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { fallenWriting } from "./fallen.mjs";
 import { sessionSppOf } from "./memory.mjs";
 import { fallenLines, rosterLines, rosterMode, sortLines } from "./model.mjs";
-import { saveState } from "./save.mjs";
+import { saveState, savedIdentity } from "./save.mjs";
 import { adminOf } from "./source.mjs";
 import { keyed, sheetOf } from "./injury.mjs";
 import { recordsOf } from "./match-taps.mjs";
@@ -128,8 +128,10 @@ export function screenOf(teamId, visit, memory) {
     visit.chosen = true;
     yieldQuery(memory, his);
   }
+  // An admin's change of the name or the logo is drawn at once, as a step's draft is (save.mjs, `stepIdentity`).
+  const team = where.admin && visit.team ? { ...visit.team, ...savedIdentity(teamId) } : visit.team;
   return {
-    teamId, team: visit.team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
+    teamId, team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
     ...where, records: recordsOf(visit, mode), player: visit.player, rolls: visit.rolls, careers: visit.careers, careerOpen: visit.careerOpen,
     owner: visit.admin?.owner ?? null,
   };

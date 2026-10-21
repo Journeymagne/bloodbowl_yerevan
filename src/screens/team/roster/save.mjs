@@ -227,6 +227,20 @@ function stepRoster(teamId, plan, { closed, space = "" } = {}) {
   return { ok: true, ...applied };
 }
 
+/**
+ * The team's name or logo, an admin's step (stage 12; owner: never the race): `meta`, which a request is built from as it
+ * leaves, takes it. Only with no step of the queue's waiting or in the air — the answer of one before would put the old
+ * one back in `meta` (`mergeServerTeam`) — else nothing is sent; the screen says why first (admin-identity.mjs).
+ * @param {string} teamId @param {{name?: string, logoData?: string}} identity @param {{closed?: () => string}} [options]
+ */
+export function stepIdentity(teamId, identity, { closed } = {}) {
+  const meta = waitingFor(teamId) === 0 ? tracked.get(teamId) : null;
+  return stepRoster(teamId, () => (meta ? { apply: () => { Object.assign(meta, identity); } } : null), { closed });
+}
+
+/** The name and logo the team's next save sends: as read, or as a step made them; null for a team the queue does not hold. */
+export const savedIdentity = (teamId) => (tracked.has(teamId) ? { name: tracked.get(teamId).name, logoData: tracked.get(teamId).logoData ?? "" } : null);
+
 /** The player of the draft the id names, by his id as text (`storedPlayerId`), or null. */
 const playerIn = (draft, id) => (id ? draft?.players.find((player) => storedPlayerId(player) === String(id)) : null) ?? null;
 

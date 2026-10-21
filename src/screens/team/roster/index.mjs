@@ -56,6 +56,7 @@ import { askCareer } from "./career.mjs";
 import { playerPageMarkup } from "./profile.mjs";
 import { wireRoster } from "./wire.mjs";
 import { adminOf, openRosterAs } from "./source.mjs";
+import { wireIdentity } from "./admin-identity.mjs";
 
 /**
  * The team whose roster was drawn last. drawScreen keeps the page where it is for the same screen drawn again (a
@@ -548,6 +549,8 @@ export async function renderTeamRoster(teamId, { playerId = "", admin = null } =
     fitter.release,
     () => visit.saveOff?.(),
     wireRoster(view, pressHandlers({ ...saving, read })),
+    // The admin's card of the team's name and logo (stage 12): on a coach's visit there is none to hear.
+    wireIdentity(view, saving),
     onGamesChange(() => {
       followMatch(saving);
       saving.draw();

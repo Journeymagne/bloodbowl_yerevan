@@ -17,7 +17,8 @@
  * many it finds.
  *
  * The administration draws the same roster for any team (stage 12, decision 23; source.mjs): its band is «Coach's team»
- * with the path to it under the title (DeskAdminTeamEdit.html), and the coach's treasury strip is not drawn there.
+ * with the path to it under the title (DeskAdminTeamEdit.html), and in the coach's treasury strip's place, on both
+ * widths, stands the admin's block: the team's name and logo (admin-identity.mjs; the owner's answer).
  *
  * The roster is three tables (stage 07b, decision 13): «Active roster», those who play the next match; «Missing the
  * match», each saying why under his name; and «Fallen», the dead, whose row and panel are fallen-view.mjs's. One sort
@@ -55,6 +56,7 @@ import { sellSheetMarkup } from "./sell-sheet.mjs";
 import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
 import { rosterHref } from "./source.mjs";
+import { identityMarkup } from "./admin-identity.mjs";
 import { crumbsMarkup } from "../../admin/frame.mjs";
 
 /** The id of the panel beside the table, which a desk's player buttons control. */
@@ -413,8 +415,8 @@ function layoutMarkup(screen) {
   // The search's live region stands first on a desk, with no query too: a screen reader hears its first words.
   const found = screen.phone ? "" : foundMarkup(query, active.length + skipping.length + fallen.length);
   const caption = active.length || skipping.length || fallen.length ? captionMarkup(screen) : "";
-  // The admin's visit has no strip of the coach's (stage 12): its place is the admin's own block.
-  const strip = screen.admin ? "" : stripMarkup(team);
+  // The admin's visit has no strip of the coach's (stage 12): its place is the admin's own block, the team's name and logo first.
+  const strip = screen.admin ? `<div class="g-adminteam"><div class="g-admin__grid">${identityMarkup(screen)}</div></div>` : stripMarkup(team);
   const main = `${found}${gone}${noticesMarkup(screen)}${strip}<div class="g-roster__sections">${sections.join("")}</div>${caption}`;
   return `<div class="g-roster__layout"><div class="g-roster__main">${main}</div>${aside}</div>`;
 }
