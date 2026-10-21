@@ -801,6 +801,13 @@ test("a team below the sixth stands last in it with its place", () => {
     ["1", "Rival Team", false], ["2", "Rival Raiders", false], ["3", "Rival Wardens", false], ["4", "Fourth Wall", false], ["5", "Fifth Column", false], ["8", "Ashgrove Wardens", true]]);
 });
 
+test("the coach's other team in the table leads to its overview, unmarked: the overview marks its own team's row (DeskOverview.html)", () => {
+  const both = { ...LEAGUE, standings: LEAGUE.standings.map((row) => (row.team.id === "r2" ? { ...row, user: { id: "u1", login: "coach" } } : row)) };
+  const rows = mount(overviewMarkup(overviewModel(input("t1", { seasonData: both, viewerId: "u1" })))).querySelectorAll(".g-minitable__row");
+  assert.deepEqual(rows.filter((row) => row.getAttribute("class").includes("--mine")).map((row) => row.querySelector(".g-minitable__team").textContent), ["Ashgrove Wardens"]);
+  assert.equal(rows[2].querySelector("a").getAttribute("href"), "#/t/r2", "the coach's other team: its overview");
+});
+
 test("a phone has no table; a team outside the season has none; until the table is read there is none", () => {
   const phone = overviewModel(input("t1", { seasonData: LEAGUE, viewerId: "u1", phone: true }));
   assert.deepEqual(phone.table, []);

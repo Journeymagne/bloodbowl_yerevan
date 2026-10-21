@@ -94,7 +94,6 @@
   color: var(--text); font: 800 1.5rem/1.2 var(--display-font); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap;
 }
 .matchday-card-top .cost-note { display: block; margin: 0; font-size: .875rem; font-weight: 700; line-height: 1.3; }
-.matchday-jersey { color: var(--md-accent); font: 700 2.25rem/1 var(--body-font); }
 .matchday-editor .saved-number-control { display: flex; flex-direction: row-reverse; align-items: center; gap: 5px; }
 .matchday-editor .saved-number-control .table-number-input { width: 47px; min-width: 47px; height: 44px; padding: 0; border: 0; background: transparent; color: var(--md-accent); font: 700 2.1rem/1 var(--body-font); text-align: left; }
 .matchday-editor .table-drag-handle { min-width: 26px; width: 26px; height: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; color: var(--muted); box-shadow: none; font-size: .95rem; }
@@ -266,14 +265,8 @@ body.matchday-modal-open { overflow: hidden; }
 .matchday-hire-dialog .table-icon-button { width: 44px; min-width: 44px; min-height: 44px; }
 .matchday-editor details > summary::-webkit-details-marker { display: none; }
 .matchday-editor details > summary:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
-.matchday-player-name { margin: 0; min-height: 44px; display: flex; align-items: center; font-size: 1.12rem; letter-spacing: -.5px; overflow-wrap: anywhere; }
-.matchday-player-details { border-top: 1px solid var(--line); }
-.matchday-player-details > summary { display: flex; align-items: center; justify-content: space-between; min-height: 44px; list-style: none; font-size: .65rem; color: var(--muted); cursor: pointer; }
 .roster-transfer-actions { margin-block: 14px; }
 .roster-transfer-actions button { max-width: 100%; white-space: normal; }
-.matchday-player-details > summary::after { content: "+"; font-size: 1rem; }
-.matchday-player-details[open] > summary::after { content: "−"; }
-.matchday-player-details > .mobile-player-section { margin-top: 14px; }
 @media (max-width: 600px) {
   body:has(.matchday-editor) { min-width: 0; }
 }

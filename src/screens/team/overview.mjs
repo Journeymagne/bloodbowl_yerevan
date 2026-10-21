@@ -210,7 +210,7 @@ function readyPlayers(draft, raceTeam) {
  *   opponent's team, as the visit holds them (`bandVisit`)
  * @param {object[]|null} [input.matchEvents] the records as last read, of any moment: what a match on counts
  * @param {object|null} [input.data] the reference, for «Before the match»
- * @param {string} [input.viewerId] the coach who looks, whose rows of the table are his own
+ * @param {string} [input.viewerId] the coach who looks: the team's row of the table is his own, marked
  */
 export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false, events = [],
   band = { key: null, opponent: null }, matchEvents = null, data = null, viewerId = "" }) {
@@ -311,7 +311,7 @@ const column = (className, markup) => (markup ? `<div class="${className}">${mar
 function columnsMarkup(model) {
   const { leaders, results, teamId, phone } = model;
   const main = leadersMarkup({ leaders, teamId, phone }) + resultsMarkup({ results, teamId, phone });
-  const aside = readyListMarkup(model.ready, teamId) + miniTableMarkup({ rows: model.table, viewerId: model.viewerId, href: teamUrl(teamId, "matches") });
+  const aside = readyListMarkup(model.ready, teamId) + miniTableMarkup({ rows: model.table, viewerId: model.viewerId, teamId, href: teamUrl(teamId, "matches") });
   return main || aside ? `<div class="g-overview__cols">${column("g-overview__main", main)}${column("g-overview__aside", aside)}</div>` : "";
 }
 

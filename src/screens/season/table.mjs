@@ -12,7 +12,9 @@
  * stretch a link over: an ARIA table, each column named by its letter for the eye and by its word for a
  * screen reader. A coach's own row is tinted and leads to the team's overview, another's to the opponent's
  * page; a guest's rows lead nowhere (the pages of a coach are closed to a guest), nor does a withdrawn entry,
- * which keeps its place and says so. A race leads to its rules in the reference on a desk, over the row's
+ * which keeps its place and says so. On the league's page every team of the coach's is his own row (decision 6); on a
+ * team's own screens (its desk season, its overview's few rows) that team's alone is, as DeskSeason.html and
+ * DeskOverview.html mark one row. A race leads to its rules in the reference on a desk, over the row's
  * link; on a phone it is text, as a 44px target under the name would lie over the name (pre-flight L5, as
  * 09a's results). A race the reference has no page for has no name to show and is left out.
  *
@@ -95,8 +97,8 @@ function cellOf(key, row, phone, viewer) {
     case "rank": return { html: escapeHtml(row.rank), extra: "g-table__rank" };
     case "team": return { html: teamMarkup(row, phone, viewer), extra: "g-table__team" };
     case "games": return number(row.games, "g-table__num--muted");
-    case "td": return number(`${row.touchdowns}–${row.conceded}`, "g-table__num--muted");
-    case "tdDiff": return difference(row.touchdowns - row.conceded);
+    case "td": return number(`${row.touchdowns}–${row.conceded}`, "g-table__num--muted g-table__num--pair");
+    case "tdDiff": return difference(row.touchdowns - row.conceded, phone ? "" : "g-table__diff--strong");
     case "casDiff": return difference(row.casualties - row.suffered);
     case "form": return { html: renderFormStrip({ results: row.form }), extra: "g-table__form" };
     case "points": return { html: escapeHtml(row.points), extra: "g-table__points" };
@@ -104,8 +106,11 @@ function cellOf(key, row, phone, viewer) {
   }
 }
 
+/** The coach's own row: his team on that team's screens (`teamId`), else any of his. */
+const ownRow = (row, { viewerId, teamId }) => Boolean(viewerId) && row.user.id === viewerId && (!teamId || row.team.id === teamId);
+
 function rowMarkup(row, phone, viewer) {
-  const mine = !row.withdrawn && viewer.signedIn && Boolean(viewer.viewerId) && row.user.id === viewer.viewerId;
+  const mine = !row.withdrawn && viewer.signedIn && ownRow(row, viewer);
   const className = classNames("g-table__row", mine && "g-table__row--mine", row.withdrawn && "g-table__row--withdrawn");
   const cells = TABLE_COLUMNS[phone ? "phone" : "desk"].map((key) => {
     const { html, extra } = cellOf(key, row, phone, viewer);
@@ -120,11 +125,12 @@ function rowMarkup(row, phone, viewer) {
  * @param {boolean} props.phone the phone's eight columns, or the desk's eleven
  * @param {string} [props.viewerId] the signed-in coach, whose rows are his own
  * @param {boolean} [props.signedIn] a guest's rows are no links
+ * @param {string} [props.teamId] on a team's own screens, the team whose row alone is the coach's own
  * @param {string} props.labelledBy the id of the heading that names the table
  */
-export function leagueTableMarkup({ rows, phone, viewerId = "", signedIn = false, labelledBy }) {
+export function leagueTableMarkup({ rows, phone, viewerId = "", signedIn = false, teamId = "", labelledBy }) {
   if (!rows.length) return `<p class="g-table__empty">${escapeHtml(t("guestHome.tableEmpty"))}</p>`;
-  const viewer = { viewerId, signedIn };
+  const viewer = { viewerId, signedIn, teamId };
   const body = rows.map((row) => rowMarkup(row, phone, viewer)).join("");
   return `<div class="g-table" role="table" aria-labelledby="${escapeHtml(labelledBy)}">`
     + `${headerMarkup(TABLE_COLUMNS[phone ? "phone" : "desk"])}<div role="rowgroup">${body}</div></div>`;
@@ -166,10 +172,10 @@ export function tableNotesMarkup({ phone, signedIn = true }) {
 
 const MINI_COLUMNS = ["rank", "team", "tdDiff", "points"];
 
-function miniRowMarkup(row, viewerId) {
+function miniRowMarkup(row, viewerId, teamId) {
   const href = rowHref(row, { viewerId, signedIn: true });
   if (href) assertLinkHref(href);
-  const mine = Boolean(viewerId) && row.user.id === viewerId;
+  const mine = ownRow(row, { viewerId, teamId });
   const { text, tone } = signed(row.touchdowns - row.conceded);
   const name = href
     ? `<a class="g-minitable__link" href="${escapeHtml(href)}">${escapeHtml(row.team.name)}</a>`
@@ -185,10 +191,11 @@ function miniRowMarkup(row, viewerId) {
  * The overview's «Table» (DeskOverview.html): a few rows of it (`tableWindow`), the team's own marked, and
  * the way to the whole table. The columns are named for a screen reader only, as the prototype draws none.
  *
- * @param {{rows: import("../../data/season-table.mjs").TableRow[], viewerId: string, href: string}} props
+ * @param {{rows: import("../../data/season-table.mjs").TableRow[], viewerId: string, teamId?: string, href: string}} props
+ *   `teamId`: the overview's team, whose row alone is marked
  * @returns {string} "" when there are no rows
  */
-export function miniTableMarkup({ rows, viewerId, href }) {
+export function miniTableMarkup({ rows, viewerId, teamId = "", href }) {
   if (!rows.length) return "";
   assertLinkHref(href);
   const head = MINI_COLUMNS.map((key) => `<span role="columnheader">${escapeHtml(t(`league.colName.${key}`))}</span>`).join("");
@@ -197,5 +204,5 @@ export function miniTableMarkup({ rows, viewerId, href }) {
     + `<a class="g-minitable__all" href="${escapeHtml(href)}">${escapeHtml(t("teamOverview.tableAll"))}</a></div>`
     + `<div class="g-minitable__rows" role="table" aria-labelledby="overview-table">`
     + `<div class="g-sr-only" role="rowgroup"><div role="row">${head}</div></div>`
-    + `<div role="rowgroup">${rows.map((row) => miniRowMarkup(row, viewerId)).join("")}</div></div></section>`;
+    + `<div role="rowgroup">${rows.map((row) => miniRowMarkup(row, viewerId, teamId)).join("")}</div></div></section>`;
 }

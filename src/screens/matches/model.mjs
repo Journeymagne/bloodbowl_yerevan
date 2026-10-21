@@ -313,7 +313,7 @@ function failuresOf({ seasonData, seasonError, gamesError }) {
  * @param {object|null} [input.data] the reference, for «Before the match»
  * @param {boolean} [input.phone] the screen is a phone's (up to 900px)
  * @param {string|null} [input.bandKey] the item a desk's board shows, as the visit holds it; null for the current one
- * @param {string} [input.viewerId] the signed-in coach, whose rows of the table are his own
+ * @param {string} [input.viewerId] the signed-in coach: the team's row of the table is his own, marked
  */
 export function matchesModel({ team, raceTeam = null, seasonData, games, gamesError = "", seasonError = "", opponent = null, records = null,
   data = null, phone = false, bandKey = null, viewerId = "" }) {
@@ -322,6 +322,7 @@ export function matchesModel({ team, raceTeam = null, seasonData, games, gamesEr
   const current = list && currentMatch(list, team.id);
   const preview = current ? previewFor({ team, current, opponent, data, teamId: team.id }) : null;
   const round = list && standing ? roundOn(seasonData) : null;
+  const sent = list ? sentRows(list, team.id) : [];
   return {
     teamId: team.id,
     phone,
@@ -330,9 +331,10 @@ export function matchesModel({ team, raceTeam = null, seasonData, games, gamesEr
     gamesRead: Boolean(list),
     current: current ? cardOf({ current, team, seasonData, preview, opponent, records }) : null,
     pendingRound: list && standing ? pendingOf(list, team, seasonData, current) : null,
-    results: list ? [...sentRows(list, team.id), ...seasonResults(list, team.id, seasonData, { sinceSeason: Boolean(standing) }).map((result) => resultRow(result, team.id))] : [],
+    results: list ? [...sent, ...seasonResults(list, team.id, seasonData, { sinceSeason: Boolean(standing) }).map((result) => resultRow(result, team.id))] : [],
     record: list && standing ? seasonRecord(list, team.id, seasonData.season.id) : null,
-    others: list ? othersOf(list, team.id, current?.game.id ?? null) : [],
+    // A score sent stands first in the results; «Later in the season» does not say it again.
+    others: list ? othersOf(list, team.id, current?.game.id ?? null).filter((row) => !sent.some(({ gameId }) => gameId === row.key)) : [],
     nextRound: round ? round + 1 : null,
     band: phone ? null : deskBand({ list, team, raceTeam, seasonData, standing, current, preview, opponent, records, bandKey }),
     calendar: list ? calendarOf(list, team.id, seasonData, current, round ? round + 1 : null, Boolean(standing)) : [],

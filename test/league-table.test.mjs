@@ -81,6 +81,38 @@ test("a coach's own rows are marked and lead to the team's overview; another's l
   assert.equal(rowHref(ROWS[2], { viewerId: "u1", signedIn: true }), "", "a withdrawn entry leads nowhere");
 });
 
+test("on a team's own screens the team's row alone is marked: the coach's other teams lead to their overviews, unmarked (DeskSeason, DeskOverview)", () => {
+  const rows = [...ROWS, row(5, "t2", "u1")];
+  const marked = (fragment, selector) => [...fragment.querySelectorAll(selector)].map((item) => item.querySelector("a").getAttribute("href"));
+  for (const phone of [true, false]) {
+    const league = mount(leagueTableMarkup({ rows, phone, viewerId: "u1", signedIn: true, labelledBy: "t" }));
+    assert.deepEqual(marked(league, ".g-table__row--mine"), ["#/t/t1", "#/t/t2"], "the league's page: every team of the coach's (decision 6)");
+    const team = mount(leagueTableMarkup({ rows, phone, viewerId: "u1", signedIn: true, teamId: "t2", labelledBy: "t" }));
+    assert.deepEqual(marked(team, ".g-table__row--mine"), ["#/t/t2"], "t2's season: t2 alone");
+    assert.equal(rowsOf(team)[1].querySelector("a.g-table__link").getAttribute("href"), "#/t/t1", "t1 still leads to its overview");
+    const stranger = mount(leagueTableMarkup({ rows, phone, viewerId: "u9", signedIn: true, teamId: "t2", labelledBy: "t" }));
+    assert.equal(stranger.querySelectorAll(".g-table__row--mine").length, 0, "a team is marked for its own coach only");
+  }
+  const mini = mount(miniTableMarkup({ rows, viewerId: "u1", teamId: "t2", href: "#/t/t2/matches" }));
+  assert.deepEqual(marked(mini, ".g-minitable__row--mine"), ["#/t/t2"]);
+  assert.equal(mini.querySelectorAll(".g-minitable__row a")[1].getAttribute("href"), "#/t/t1");
+});
+
+test("a desk's TD pair is the prototype's 14px and its TD± 600 (DeskSeason.html); a phone's TD± stays as League.html draws it", () => {
+  const desk = rowsOf(mount(leagueTableMarkup({ rows: ROWS, phone: false, viewerId: "u1", signedIn: true, labelledBy: "t" })));
+  for (const rowElement of desk) {
+    assert.ok(cell(rowElement, "td").classList.contains("g-table__num--pair"));
+    assert.ok(cell(rowElement, "td").classList.contains("g-table__num--muted"));
+    assert.ok(cell(rowElement, "tdDiff").classList.contains("g-table__diff--strong"));
+    assert.ok(!cell(rowElement, "casDiff").classList.contains("g-table__diff--strong"), "CAS± is 400, as the prototype's");
+  }
+  const phone = rowsOf(mount(leagueTableMarkup({ rows: ROWS, phone: true, viewerId: "u1", signedIn: true, labelledBy: "t" })));
+  assert.ok(phone.every((rowElement) => !cell(rowElement, "tdDiff").classList.contains("g-table__diff--strong")));
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-table__num--pair", "font-size"), ["14px"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-table__diff--strong", "font-weight"), ["600"]);
+  assert.deepEqual(valuesOf(CSS, ".g-table__diff--strong", "font-weight"), ["600"], "a desk's only");
+});
+
 test("a race leads to its team rules on a desk; one the reference does not know, and every race on a phone, is text", () => {
   const desk = mount(leagueTableMarkup({ rows: ROWS, phone: false, viewerId: "u1", signedIn: true, labelledBy: "t" }));
   const [rival, , , unknown] = rowsOf(desk);

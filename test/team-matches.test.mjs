@@ -428,6 +428,10 @@ test("every score sent leads the results, not only the card's: a friendly's wait
   assert.equal(modelOf("t1", { games: [...GAMES, friendly] }).current.gameId, "g1", "the card is the league's match");
   assert.deepEqual([rows[0].gameId, rows[0].sent, rows[0].result, rows[0].line], ["g8", true, "d", "Friendly · awaiting confirmation · CAS 0–0"]);
   assert.deepEqual(rows.slice(1).map((row) => row.gameId), ["g6", "g5", "g4"]);
+  const { others } = modelOf("t1", { games: [...GAMES, friendly] });
+  assert.ok(!others.some((row) => row.key === "g8"), "said once: the results have it, «Later in the season» does not (final review m-7)");
+  const desk = modelOf("t1", { games: [...GAMES, friendly], phone: false });
+  assert.ok(desk.calendar.some((row) => row.key === "g8"), "a desk's calendar, which has no results list, keeps it");
 });
 
 test("a score not sent adds no row", async () => {
@@ -817,11 +821,24 @@ test("a desk's season: the board, then the table at the left with the coach's ro
     assert.ok(aside.classList.contains("g-season__aside"));
     assert.ok(aside.querySelector(".g-matches__calendar"));
     const mine = view.querySelectorAll(".g-table__row--mine").map((item) => item.querySelector(".g-table__link").getAttribute("href"));
-    assert.deepEqual(mine, [teamUrl("t1"), teamUrl("t2"), teamUrl("t3")], "every team of the coach's in the table is his own row");
+    assert.deepEqual(mine, [teamUrl("t1")], "the team's own row, as DeskSeason.html marks one (final review m-4)");
+    const others = view.querySelectorAll(".g-table__row").filter((item) => ["t2", "t3"].some((id) => item.querySelector(".g-table__link")?.getAttribute("href") === teamUrl(id)));
+    assert.equal(others.length, 2, "the coach's other teams lead to their overviews, unmarked");
     assert.equal(view.querySelector(".g-table__row .g-table__link").getAttribute("href"), playerTeamUrl("u-r1", "r1"));
     assert.equal(view.querySelector(".g-matches__calall").getAttribute("href"), "#/season", "the league's calendar is a step away (pre-flight L11)");
   } finally {
     leave();
+  }
+});
+
+test("a desk's season whose games are not read: the table's card takes the row, no empty column beside it", () => {
+  for (const failed of [{ games: null }, { gamesError: "Server unavailable" }]) {
+    const page = mountHere(matchesMarkup(modelOf("t1", { phone: false, viewerId: "u1", ...failed })));
+    const row = page.querySelector(".g-season__row");
+    assert.ok(row.querySelector(".g-season__table"));
+    // (assert.ok, not assert.equal(node, null): a failing equal prints the fake DOM node and runs out of memory.)
+    assert.ok(!row.querySelector(".g-season__aside"), "no empty complementary landmark");
+    assert.ok(!page.querySelector("aside"));
   }
 });
 

@@ -5,7 +5,8 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
-import { assertContrast, inMedia, valuesOf } from "./helpers/contrast.mjs";
+import { assertContrast, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
+import { readdirSync } from "node:fs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const api = installFakeApi();
@@ -379,6 +380,57 @@ test("D2: a thumb's targets are 44 high up to 900px, a desk's 24 at least", () =
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__inner", "min-width"), ["620px"]);
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-opp__player", "grid-template-columns"), ["44px minmax(160px, 1fr) minmax(200px, 1.6fr) 44px 44px 52px"], "DeskOppTeam.html's columns");
   assert.deepEqual(valuesOf(CSS, ".g-opp__player", "grid-template-columns")[0], "36px minmax(0, 1fr) auto", "OppTeam.html's row");
+});
+
+test("the head line's race and coach: 44 to a thumb, 24 on a desk, and their zones never overlap — each other's on a wrapped line, the name's above, the next block's below", () => {
+  const tokens = tokensOf("grass");
+  const px = (value) => {
+    const token = String(value).match(/^var\((--[\w-]+)\)$/);
+    return Number(String(token ? tokens[token[1]] : value).replace("px", ""));
+  };
+  const box = (shorthand) => {
+    const [top, right = top, bottom = top] = shorthand.split(/\s+/).map(px);
+    return { top, right, bottom };
+  };
+  const lineOf = (font) => {
+    const [, size, ratio] = font.match(/(\d+)px\/([\d.]+)/);
+    return Number(size) * Number(ratio);
+  };
+  const phone = (selector, property) => valuesOf(CSS, selector, property)[0];
+  const desk = (selector, property) => inMedia(CSS, "min-width: 901px", selector, property).at(-1) ?? phone(selector, property);
+  const forms = [
+    { width: "a phone's", target: 44, at: phone, below: px(phone(".g-opp", "gap")), under: "the page's next block, 20 below the head" },
+    { width: "a desk's", target: 24, at: desk, below: box(desk(".g-opp__head", "padding")).bottom, under: "the band's foot" },
+  ];
+  for (const { width, target, at, below, under } of forms) {
+    const line = lineOf(at(".g-opp__meta", "font"));
+    const rowGap = px(at(".g-opp__meta", "gap").split(/\s+/)[0]);
+    const nameGap = px(at(".g-opp__title", "gap"));
+    for (const selector of [".g-opp__race", ".g-opp__coachlink"]) {
+      const height = px(at(selector, "min-height"));
+      const margin = box(at(selector, "margin"));
+      const [above, beneath] = [-margin.top, -margin.bottom];
+      assert.ok(height >= target, `${width} ${selector}: ${height} high`);
+      assert.ok(above >= 0 && beneath >= 0, `${width} ${selector}: its zone reaches out of the line, never into it`);
+      assert.ok(height - above - beneath <= line, `${width} ${selector}: the line keeps the text's height, as the prototype's`);
+      assert.ok(above <= nameGap, `${width} ${selector}: ${above} above the line, the name ${nameGap} above it — a tap on the name is the name's`);
+      assert.ok(beneath <= below, `${width} ${selector}: ${beneath} below the line, ${under} ${below} below it`);
+      assert.ok(rowGap >= above + beneath, `${width} ${selector}: a wrapped line ${rowGap} under the first, the two zones ${above + beneath} into the gap — none lies over another`);
+    }
+  }
+});
+
+test("the 2.x public team's rules went with it: no sheet keeps a selector no module draws", () => {
+  const sources = (dir) => readdirSync(new URL(`../${dir}`, import.meta.url), { withFileTypes: true }).flatMap((entry) => (entry.isDirectory()
+    ? sources(`${dir}/${entry.name}`) : entry.name.endsWith(".mjs") || entry.name.endsWith(".js") ? [text(`${dir}/${entry.name}`)] : []));
+  const code = sources("src").join("\n");
+  const sheets = ["src/styles/matchday.css", "src/styles/roster.css", "src/styles/responsive.css"].map(text).join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const name of ["matchday-public", "matchday-readonly-label", "public-team-coach-block", "matchday-player-name", "matchday-player-details"]) {
+    assert.ok(!code.includes(name), `${name}: no module draws it`);
+    assert.ok(!sheets.includes(`.${name}`), `${name}: no rule left for it`);
+  }
+  assert.ok(!code.includes("matchday-jersey"));
+  assert.doesNotMatch(sheets, /\.matchday-jersey\s*\{/, "the jersey's own rule is gone (the saved roster's :not() keeps its weight)");
 });
 
 test("every key in both dictionaries", () => {

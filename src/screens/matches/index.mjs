@@ -66,16 +66,17 @@ function currentMarkup(model) {
 /**
  * A desk's page (DeskSeason.html): the head «Season» with the season's line, the board the whole width, paging through
  * the team's matches with its bubbles, and under it the season's row — the table's card at the left (the league page's
- * rows, the coach's own marked) and the calendar at its right. A team outside the table has no table: the call to enter
- * the season and the calendar the whole width, as before stage 10, and no board without a match on.
+ * rows, the team's own marked) and the calendar at its right; with the games not read, no calendar and no column for it.
+ * A team outside the table has no table: the call to enter the season and the calendar the whole width, as before
+ * stage 10, and no board without a match on.
  */
 function deskMarkup(model) {
   const head = renderPageHead({ title: t("shell.side.season"), sub: model.seasonLine });
   const calendar = model.gamesRead ? calendarMarkup(model.calendar, model.teamId) : "";
-  const table = leagueTableMarkup({ rows: model.table, phone: false, viewerId: model.viewerId, signedIn: true, labelledBy: "matches-table" });
+  const table = leagueTableMarkup({ rows: model.table, phone: false, viewerId: model.viewerId, signedIn: true, teamId: model.teamId, labelledBy: "matches-table" });
   const season = model.inSeason
     ? `<div class="g-season__row">${tableCardMarkup({ titleId: "matches-table", bodyHtml: table + tableNotesMarkup({ phone: false }) })}`
-      + `<aside class="g-season__aside">${calendar}</aside></div>`
+      + `${calendar ? `<aside class="g-season__aside">${calendar}</aside>` : ""}</div>`
     : `${seasonCallMarkup(model)}${calendar}`;
   return `${head}<div class="g-matches g-matches--desk">${failuresMarkup(model.failures)}${model.band ? bandBoardMarkup(model.band) : ""}${season}</div>`;
 }
