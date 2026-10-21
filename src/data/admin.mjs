@@ -96,15 +96,23 @@ async function readSeasonAgain() {
  * A write that changes the season (a round, a pairing, a result, an entry, the playoff places). An answer that is the
  * season (`/api/season`'s shape) is put in `state.season` as it came, for the admin who sent it; any other answer (a
  * game's), and one that did not come back, have the season read again, so the screen patches from what the server
- * holds. The way is free once the season is in place: a press while it is read sends nothing.
+ * holds. A read of the season already on its way (a screen's refresh, the session's change) may have gone before the
+ * write did: the answer waits for it to land, and is put in place after it, so the older season never stands over the
+ * write's. The way is free once the season is in place: a press while it is read, or while that read is waited for,
+ * sends nothing.
  * @param {string} path @param {{method?: string, body?: object}} [options] a POST unless said
  * @returns {Promise<{answer: object}|{refusal: string, code: string, unknown: boolean}|{ignored: true}>} as adminRequest's
  */
 export function seasonWrite(path, { method = "POST", body } = {}) {
   const userId = state.auth.currentUser?.id;
+  const sender = () => state.auth.currentUser?.id === userId;
   return write(path, { method, body }, async ({ answer, unknown }) => {
-    if (answer?.season && state.auth.currentUser?.id === userId) replaceSeasonData(answer);
-    else if (answer || unknown) await readSeasonAgain();
+    if (answer?.season && sender()) {
+      if (state.season.loading) await loadSeason();
+      // Signed out or in as someone else while that read landed: the answer is not theirs; read theirs instead.
+      if (sender()) return replaceSeasonData(answer);
+    }
+    if (answer || unknown) await readSeasonAgain();
   });
 }
 

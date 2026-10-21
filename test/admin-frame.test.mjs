@@ -14,6 +14,7 @@ const { t } = await import("../src/core/i18n.mjs");
 const routes = await import("../src/core/routes.mjs");
 const { shellModel } = await import("../src/shell/navigation.mjs");
 const { adminRequest, readAdminUser, readAdminUsers, readAwaiting, seasonWrite } = await import("../src/data/admin.mjs");
+const { loadSeason } = await import("../src/screens/season/season-data.mjs");
 const { adminHeadMarkup, adminRefusalMarkup, avatarMarkup, crumbsMarkup, isAdminViewer } = await import("../src/screens/admin/frame.mjs");
 
 const { adminCoachUrl, adminSeasonUrl, adminTeamEditUrl, adminTeamPlayerUrl, adminUrl, matchRoute, routeFromHash } = routes;
@@ -201,6 +202,54 @@ test("a season write puts the server's season in place", async () => {
   assert.equal(refused.code, "FIELD_INVALID");
   assert.deepEqual(keys(), ["PATCH /api/season/admin/settings"]);
   assert.equal(state.season.data, after);
+});
+
+test("a read of the season on its way when a season write is answered does not put back the season from before the write", async () => {
+  signIn();
+  const before = { ...SEASON, rounds: [{ roundNumber: 8, status: "draft", pairings: [] }] };
+  const after = { ...SEASON, rounds: [{ roundNumber: 8, status: "started", pairings: [{ id: "p1", homeTeamId: null, awayTeamId: null }] }] };
+  // A screen's background refresh (or afterSessionChange's loadSeason) went out before the write did.
+  api.reply("GET /api/season", 200, before);
+  const reading = api.hold("GET /api/season");
+  const refresh = loadSeason(true);
+  api.reply("POST /api/season/admin/rounds/r8/pairings", 201, after);
+  const written = seasonWrite("/api/season/admin/rounds/r8/pairings", { method: "POST" });
+  let second;
+  try {
+    await new Promise((resolve) => { setImmediate(resolve); });
+    assert.equal(reading.count, 1, "the older read is still on its way");
+    second = await seasonWrite("/api/season/admin/rounds/r8/pairings", { method: "POST" });
+  } finally {
+    // Released whatever the asserts say, so the read on its way does not outlive this test.
+    reading.release();
+    await refresh;
+  }
+  assert.deepEqual(second, { ignored: true }, "the way stays held until the write's season is in place: a second «+ pair» sends nothing");
+  assert.equal((await written).answer, after);
+  assert.equal(state.season.data, after, "the write's season stands, not the older read's");
+  assert.equal(state.season.loading, false);
+  assert.deepEqual(keys(), ["GET /api/season", "POST /api/season/admin/rounds/r8/pairings"], "nothing read again, nothing sent twice");
+  api.assertAnswered();
+
+  // Signed out while that read was waited for: the admin's answer is not put in place; the season is read for whoever is here.
+  signIn();
+  const guest = { ...SEASON, rounds: [] };
+  api.reply("GET /api/season", 200, guest);
+  const held = api.hold("GET /api/season");
+  const older = loadSeason(true);
+  api.reply("POST /api/season/admin/rounds/r8/pairings", 201, after);
+  const answered = seasonWrite("/api/season/admin/rounds/r8/pairings", { method: "POST" });
+  try {
+    await new Promise((resolve) => { setImmediate(resolve); });
+    state.auth.currentUser = null;
+  } finally {
+    held.release({ status: 200, body: before });
+    await older;
+  }
+  assert.equal((await answered).answer, after);
+  assert.equal(state.season.data, guest, "what the server holds for the guest, not the admin's answer");
+  assert.deepEqual(keys(), ["GET /api/season", "POST /api/season/admin/rounds/r8/pairings", "GET /api/season"]);
+  api.assertAnswered();
 });
 
 test("a lost answer reads again and sends nothing twice", async () => {
