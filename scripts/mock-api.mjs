@@ -88,12 +88,7 @@
  *                                The list is in the server's order (the friendly, then the
  *                                rounds from the last); `currentGames` (administrator) holds the
  *                                matches in play and waiting. GET /api/games/:id is one.
- *   GET   /api/season            one active season at round 3 whose standings put the rival
- *                                first (6 points, two games), Mock Team second (3 points, two
- *                                games, 2 touchdowns, 1 casualty: g4 and g5), Mock Humans third,
- *                                Mock Orcs fourth, each row with its `rank` (the header's place
- *                                reads it). Rival Raiders and Rival Wardens have no row: the table
- *                                is cut down to the leader and the coach's teams in the season.
+ *   GET   /api/season            scripts/mock/season.mjs (and the league's other coaches' pages; t1's place is what the table makes).
  * Errors are the server's `errorPayload`: `{error: {code, params, message}}`.
  * MOCK_EMPTY=1 leaves no team, game or challenge; the season still has the rival.
  * Its ids are `t1`, `g1`, not UUIDs: the server would refuse `t1` as an active team (400), the mock takes it.
@@ -106,6 +101,7 @@ import { fileURLToPath } from "node:url";
 import { errorPayload } from "../server/http/errors.mjs";
 import { resolveStaticPath } from "../server/http/static-path.mjs";
 import { answerMatches } from "./mock/matches.mjs";
+import { answerSeason } from "./mock/season.mjs";
 import { answerRoster, humanPlayers, preparingFriendly } from "./mock/roster.mjs";
 import { treasuryRoutes } from "./mock/treasury.mjs";
 
@@ -384,41 +380,6 @@ const challenges = {
   opponents: [coach(rival)],
 };
 
-/**
- * GET /api/season (server/season/store.mjs loadSeasonBundle), cut down to the table, in the order the screens
- * are photographed in. The rows are `computeSeasonStandings`' (server/season/scoring.mjs), `rank` included: the
- * header's place reads it. `figures` is what a row has played: nothing, for a team that has not.
- */
-const standingRow = (owner, entryTeam, rank, figures = {}) => ({
-  entryId: `e-${entryTeam.id}`,
-  withdrawnAt: null,
-  user: { id: owner.id, login: owner.login, telegram: owner.telegram, isAdmin: owner.isAdmin },
-  team: { id: entryTeam.id, name: entryTeam.name, baseTeamSlug: entryTeam.baseTeamSlug, logoData: null, roster: {}, createdAt: now, updatedAt: now },
-  points: 0,
-  games: 0,
-  byes: 0,
-  touchdowns: 0,
-  casualties: 0,
-  ...figures,
-  rank,
-});
-// Only the teams of the active season have a row. Mock Team's figures are g4 and g5 added up; the leader's are
-// two wins of 3.
-const seasonBundle = {
-  season: { ...season, createdAt: daysAgo(30), updatedAt: now },
-  entries: [],
-  historicalEntries: [],
-  standings: [
-    standingRow(rival, rivals[0], 1, { points: 6, games: 2, touchdowns: 4, casualties: 2 }),
-    ...teams.filter(({ inActiveSeason }) => inActiveSeason)
-      .map((entryTeam, index) => standingRow(user, entryTeam, index + 2, entryTeam === team ? { points: 3, games: 2, touchdowns: 2, casualties: 1 } : {})),
-  ],
-  rounds: [],
-  myEntry: null,
-  currentFixture: null,
-  myTeams: [],
-};
-
 export const saves = [];
 
 /** A PATCH of t1 that was accepted, kept for scripts/browser-check-roster.mjs in .codex_tmp/mock-saves.json. */
@@ -447,7 +408,7 @@ async function readBody(request) {
 const reply = (payload, status = 200) => ({ status, payload });
 const refuse = (status, code, params = {}) => reply(errorPayload(code, params), status);
 /** What an answerer is given besides the request: the lists it reads and the helpers it replies with. */
-const mock = { teams, games, readBody, reply, refuse };
+const mock = { teams, games, user, rival, readBody, reply, refuse };
 
 /** A team's history, an entry by hand and the save of any team (scripts/mock/treasury.mjs); it gives t1, t4 and t5 their fixtures too. */
 const answerTreasury = treasuryRoutes({ teams, readBody, onSave: recordSave });
@@ -521,10 +482,9 @@ async function answerTeams(request, pathname) {
 const isCurrent = (game) => game.roundStatus === "started" && game.resultStatus !== "confirmed";
 const withoutMvps = ({ homeMvps, awayMvps, ...game }) => game; // only the list carries MVPs, as on the server (`server/routes/games.mjs`)
 
-/** Challenges, matches and the season. */
+/** Challenges and matches. */
 function answerLeague(request, pathname) {
   if (pathname === "/api/challenges" && request.method === "GET") return reply(challenges);
-  if (pathname === "/api/season" && request.method === "GET") return reply(seasonBundle);
   if (pathname === "/api/games") return reply({ games, currentGames: user.isAdmin ? games.filter(isCurrent).map(withoutMvps) : [] });
   if (pathname.startsWith("/api/games/")) {
     const game = games.find((item) => item.id === pathname.split("/")[3]);
@@ -553,7 +513,7 @@ function answerPeople(request, pathname) {
 }
 
 async function answerApi(request, pathname) {
-  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerMatches, answerLeague, answerPeople]) {
+  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerMatches, answerSeason, answerLeague, answerPeople]) {
     const answered = await answer(request, pathname, mock);
     if (answered) return answered;
   }
