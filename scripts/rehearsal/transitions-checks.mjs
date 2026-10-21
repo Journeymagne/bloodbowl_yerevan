@@ -27,6 +27,11 @@ const STATE_FIELDS = {
   challenge: ["challengeId", "teamId"],
 };
 
+// A seed that stopped part-way (a refused call, ^C) has made rows its record may not name — the one being made
+// when it stopped. Nothing may count on such a record; only a new restore takes those rows away.
+const UNFINISHED = "the seed did not finish («complete» is not true), so it left rows in gata_rehearsal this record may not name";
+const AGAIN = "run rehearsal:restore again, then --seed";
+
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
 const count = (value) => Number(value ?? 0) || 0;
 
@@ -73,17 +78,18 @@ function missingOfCoach(coach) {
 }
 
 /**
- * A record of the seed as --finish reads it back: this version, both coaches with what signs them in, and
- * every one of the five states with what its finish needs.
+ * A record of the seed as --finish reads it back: this version, a seed that finished, both coaches with what
+ * signs them in, and every one of the five states with what its finish needs.
  *
  * @param {unknown} value the parsed output/rehearsal/transitions.json
  * @returns {object} the record, unchanged
  * @throws naming what is missing
  */
 export function assertTransitionsRecord(value) {
-  const fail = (what) => { throw new Error(`output/rehearsal/transitions.json is not a record of rehearsal:transitions: ${what} — seed again`); };
+  const fail = (what) => { throw new Error(`output/rehearsal/transitions.json is not a record of rehearsal:transitions: ${what} — ${AGAIN}`); };
   if (!isObject(value)) fail("not an object");
   if (value.version !== RECORD_VERSION) fail(`version ${value.version}, this script reads ${RECORD_VERSION}`);
+  if (value.complete !== true) fail(UNFINISHED);
   for (const side of ["home", "away"]) {
     const missing = missingOfCoach(value.coaches?.[side]);
     if (missing.length) fail(`coaches.${side} has no ${missing.join(", ")}`);
@@ -104,10 +110,12 @@ export function assertTransitionsRecord(value) {
  *
  * @param {unknown} value the parsed output/rehearsal/transitions.json, or null
  * @returns {{ pairingIds: string[], challengeIds: string[], teamIds: string[] }|null}
+ * @throws for the record of a seed that did not finish: a row it does not name would be counted as the site's own
  */
 export function seededRows(value) {
   const seeded = isObject(value) ? value.seeded : null;
   if (!isObject(seeded)) return null;
+  if (value.complete !== true) throw new Error(`output/rehearsal/transitions.json: ${UNFINISHED} — ${AGAIN}`);
   return Object.fromEntries(SEEDED_LISTS.map((key) => [key, Array.isArray(seeded[key]) ? seeded[key].map(String) : []]));
 }
 

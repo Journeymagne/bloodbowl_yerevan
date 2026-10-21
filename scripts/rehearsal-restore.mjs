@@ -10,7 +10,8 @@
  * reads the result back and marks the database as anonymized
  * (scripts/rehearsal/marker.mjs). Never touches the database DATABASE_URL names
  * — only gata_rehearsal beside it — and starts a new rehearsal: the reports of
- * the previous one in output/rehearsal are deleted.
+ * the previous one in output/rehearsal are deleted, the record and the result of
+ * rehearsal:transitions with them (scripts/rehearsal/outputs.mjs).
  *
  * DATABASE_URL should use `localhost` or `127.0.0.1`: the `[::1]` form passes
  * the local-host guard but is refused by pg's connection. Its port must be the
@@ -36,6 +37,7 @@ import { loadEnvFile } from "../server/config/env-file.mjs";
 import { anonymizeRehearsalDatabase, verifyAnonymized } from "./rehearsal/anonymize.mjs";
 import { REHEARSAL_DATABASE, assertLocalDatabaseUrl, assertLocalDocker, assertSameServer, rehearsalDatabaseUrl } from "./rehearsal/guard.mjs";
 import { anonymizedMarker } from "./rehearsal/marker.mjs";
+import { STALE_OUTPUTS } from "./rehearsal/outputs.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 await loadEnvFile(rootDir);
@@ -43,8 +45,6 @@ await loadEnvFile(rootDir);
 const container = process.env.POSTGRES_CONTAINER || "gata-league-postgres";
 const inside = "/tmp/rehearsal.dump";
 const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
-// What the last rehearsal left in output/rehearsal; a new restore invalidates all of it.
-const STALE_OUTPUTS = ["before.json", "after.json", "report.md", "migrate.json"];
 
 function runDocker(args) {
   return spawnSync("docker", args, { encoding: "utf8" });
@@ -137,6 +137,7 @@ async function main() {
   const user = decodeURIComponent(source.username) || process.env.POSTGRES_USER;
   const target = rehearsalDatabaseUrl(process.env.DATABASE_URL);
   assertDockerIsLocal();
+  // What the last rehearsal left in output/rehearsal; a new restore invalidates all of it.
   for (const name of STALE_OUTPUTS) rmSync(path.join(rootDir, "output", "rehearsal", name), { force: true });
 
   const stopListening = dropOnSignals(user);

@@ -21,10 +21,14 @@
  *
  * It never touches a database itself: it speaks HTTP only, and only to a site on this machine (http on localhost,
  * 127.0.0.1 or [::1]). --seed writes output/rehearsal/transitions.json, mode 0600: it holds the passwords this
- * run gave its two coaches — test values, never in git. --finish reads it back, signs in as those coaches and as
- * the admin of ADMIN_LOGIN and ADMIN_PASSWORD (read as the server reads them: the environment, then the env
- * file), prints a line per state, «<state>: ok» or «<state>: FAIL — <why>», then the table's, and writes what it
- * checked to output/rehearsal/transitions-finish.json. Exit 1 on any FAIL, 2 when there is no seed to finish.
+ * run gave its two coaches — test values, never in git. It writes it as it goes, «complete»: false until the
+ * end, so a seed that stops part-way (a refused call, ^C) leaves a record of the rows it made, which
+ * rehearsal:check and --finish refuse: run rehearsal:restore again (it deletes the record), then --seed. A
+ * --seed with a record already there is refused too — a second seed would leave the first one's rows unmarked.
+ * --finish reads it back, signs in as those coaches and as the admin of ADMIN_LOGIN and ADMIN_PASSWORD (read as
+ * the server reads them: the environment, then the env file), prints a line per state, «<state>: ok» or
+ * «<state>: FAIL — <why>», then the table's, and writes what it checked to output/rehearsal/transitions-finish.json.
+ * Exit 1 on any FAIL or refusal, 2 when there is no seed to finish.
  */
 import { promises as fs } from "node:fs";
 import { randomUUID } from "node:crypto";
@@ -32,27 +36,17 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { loadEnvFile } from "../server/config/env-file.mjs";
+import { TRANSITIONS_FINISH as FINISH_FILE, TRANSITIONS_RECORD as SEED_FILE, writePrivate } from "./rehearsal/outputs.mjs";
 import { siteApi } from "./rehearsal/transitions-api.mjs";
 import { assertTransitionsRecord, parseTransitionsArgs } from "./rehearsal/transitions-checks.mjs";
 import { finishTransitions } from "./rehearsal/transitions-finish.mjs";
-import { seedTransitions } from "./rehearsal/transitions-seed.mjs";
+import { seedToRecord } from "./rehearsal/transitions-seed.mjs";
 
 const rootDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outDir = path.join(rootDir, "output", "rehearsal");
-const SEED_FILE = "transitions.json";
-const FINISH_FILE = "transitions-finish.json";
-
-// Readable by this user only, whether the file is new or was there before (a write keeps an old file's mode).
-async function writePrivate(name, value) {
-  await fs.mkdir(outDir, { recursive: true });
-  const file = path.join(outDir, name);
-  await fs.writeFile(file, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
-  await fs.chmod(file, 0o600);
-}
 
 async function seed(base) {
-  const record = await seedTransitions(siteApi(base), { stamp: randomUUID() });
-  await writePrivate(SEED_FILE, record);
+  const record = await seedToRecord(siteApi(base), { dir: outDir, stamp: randomUUID() });
   console.log(`rehearsal:transitions: seeded 5 states on ${base} (${Object.keys(record.cases).join(", ")}) — output/rehearsal/${SEED_FILE}`);
 }
 
@@ -69,7 +63,7 @@ async function readRecord() {
   try {
     value = JSON.parse(text);
   } catch {
-    throw new Error(`output/rehearsal/${SEED_FILE} is not valid JSON — seed again`);
+    throw new Error(`output/rehearsal/${SEED_FILE} is not valid JSON — run rehearsal:restore again, then --seed`);
   }
   return assertTransitionsRecord(value);
 }
@@ -90,7 +84,7 @@ async function finish(base) {
     return;
   }
   const results = await finishTransitions(siteApi(base), record, { admin: adminOfEnvironment() });
-  await writePrivate(FINISH_FILE, { finishedAt: new Date().toISOString(), base, stamp: record.stamp, results });
+  await writePrivate(path.join(outDir, FINISH_FILE), { finishedAt: new Date().toISOString(), base, stamp: record.stamp, results });
   for (const result of results) console.log(result.ok ? `${result.state}: ok` : `${result.state}: FAIL — ${result.error}`);
   const failed = results.filter((result) => !result.ok).length;
   console.log(`rehearsal:transitions: ${failed ? `${failed} FAIL` : "every state ok"} — output/rehearsal/${FINISH_FILE}`);

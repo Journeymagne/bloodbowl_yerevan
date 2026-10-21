@@ -12,10 +12,18 @@
  * 5. `challenge` — a challenge sent and not accepted.
  *
  * Every coach, team and match is new and named after the run's stamp; nothing that was there is touched.
+ *
+ * The record is written as the seed goes, after every coach, team, challenge and accepted challenge, with
+ * «complete»: false until the last write: a seed that stops part-way leaves rows on the site, and the record
+ * names them and says it did not finish, which rehearsal:check and --finish refuse (`seededRows`,
+ * `assertTransitionsRecord`).
  */
 import { randomUUID } from "node:crypto";
+import { existsSync, promises as fs } from "node:fs";
+import path from "node:path";
 
 import { preparationStep } from "../../src/domain/match/preparation.mjs";
+import { TRANSITIONS_FINISH, TRANSITIONS_RECORD, writePrivate } from "./outputs.mjs";
 import { finishPreMatch, openPreMatch, postMatch, preMatch, transitionRoster } from "./transitions-api.mjs";
 import { seasonTable } from "./transitions-checks.mjs";
 
@@ -39,21 +47,51 @@ async function register(api, side, stamp8) {
   return { login, password, id: answer.user.id, token: answer.token };
 }
 
+const coachRecord = (coach) => ({ login: coach.login, password: coach.password, id: coach.id });
+
+/**
+ * The record of a seed as it goes: `coach(side, coach)` and `made(list, id)` add a coach, or a row the site has
+ * just made to `seeded`, and write the record again, still not complete; `finished(fields)` adds the rest and
+ * writes it complete.
+ */
+function seedRecord(api, stamp, save) {
+  // Keyed by strings: `challengeIds:` would read as a use of the export challengeId to check-references.
+  const seeded = Object.fromEntries([["pairingIds", []], ["challengeIds", []], ["teamIds", []]]);
+  const record = { version: 1, stamp, seededAt: null, seedBase: api.base, complete: false, coaches: {}, seeded };
+  const write = () => save(structuredClone(record));
+  return {
+    async coach(side, coach) {
+      record.coaches[side] = coachRecord(coach);
+      await write();
+    },
+    async made(list, id) {
+      seeded[list].push(id);
+      await write();
+      return id;
+    },
+    async finished(fields) {
+      Object.assign(record, fields, { seededAt: new Date().toISOString(), complete: true });
+      await write();
+      return record;
+    },
+  };
+}
+
 // One team per state for the coach of `side`, each with players of its own.
-async function createTeams(api, coach, side, stamp8) {
+async function createTeams(api, progress, coach, side, stamp8) {
   const teams = {};
   for (const [index, name] of NAMES.entries()) {
     const body = transitionRoster(`Transitions · ${name} · ${side} · ${stamp8}`, `${stamp8}-${side[0]}${index + 1}`);
-    teams[name] = (await api.ok("POST", "/api/teams", { token: coach.token, body })).team.id;
+    teams[name] = await progress.made("teamIds", (await api.ok("POST", "/api/teams", { token: coach.token, body })).team.id);
   }
   return teams;
 }
 
-const sendChallenge = async (api, coaches, teamId) =>
-  (await api.ok("POST", "/api/challenges", { token: coaches.home.token, body: { opponentId: coaches.away.id, teamId } })).id;
+const sendChallenge = async (api, progress, coaches, teamId) => progress.made("challengeIds",
+  (await api.ok("POST", "/api/challenges", { token: coaches.home.token, body: { opponentId: coaches.away.id, teamId } })).id);
 
-const acceptChallenge = async (api, coaches, challengeId, teamId) =>
-  (await api.ok("POST", `/api/challenges/${challengeId}/accept`, { token: coaches.away.token, body: { teamId } })).gameId;
+const acceptChallenge = async (api, progress, coaches, challengeId, teamId) => progress.made("pairingIds",
+  (await api.ok("POST", `/api/challenges/${challengeId}/accept`, { token: coaches.away.token, body: { teamId } })).gameId);
 
 // A pre-match with both sides' fans and the weather: on its «Roster» step.
 async function opened(api, gameId, tokens) {
@@ -113,22 +151,24 @@ async function seedProposed(api, gameId, tokens) {
  * The five states, seeded on a 2.1.0 site, and the record --finish reads: the coaches (with the passwords this
  * run gave them, test values written only to output/), the league table as 2.1.0 answers it (for the report
  * only: 3.0 answers it its own way), each state's ids and what its checks need, and every row the seed made,
- * which rehearsal:check marks and leaves out of the open states it counts.
+ * which rehearsal:check marks and leaves out of the open states it counts. `save` is given the record after
+ * every row the site makes («complete»: false) and once more at the end («complete»: true).
  *
  * @param {ReturnType<import("./transitions-api.mjs").siteApi>} api a 2.1.0 site
- * @param {{ stamp: string }} options the run's stamp (a UUID); its first eight characters name what it makes
+ * @param {{ stamp: string, save?: (record: object) => Promise<void> }} options the run's stamp (a UUID; its
+ *   first eight characters name what it makes), and where the record goes
  * @returns {Promise<object>} the record (`assertTransitionsRecord`)
  */
-export async function seedTransitions(api, { stamp }) {
-  const stamp8 = stamp.slice(0, 8), coaches = {}, teams = {};
-  for (const side of SIDES) coaches[side] = await register(api, side, stamp8);
-  for (const side of SIDES) teams[side] = await createTeams(api, coaches[side], side, stamp8);
+export async function seedTransitions(api, { stamp, save = async () => {} }) {
+  const stamp8 = stamp.slice(0, 8), coaches = {}, teams = {}, progress = seedRecord(api, stamp, save);
+  for (const side of SIDES) await progress.coach(side, coaches[side] = await register(api, side, stamp8));
+  for (const side of SIDES) teams[side] = await createTeams(api, progress, coaches[side], side, stamp8);
   const tokens = { home: coaches.home.token, away: coaches.away.token };
   const season = seasonTable(await api.ok("GET", "/api/season"));
-  const challengeIds = {}, gameIds = {}, teamIds = {};
+  const gameIds = {}, teamIds = {};
   for (const name of PAIRED) {
-    challengeIds[name] = await sendChallenge(api, coaches, teams.home[name]);
-    gameIds[name] = await acceptChallenge(api, coaches, challengeIds[name], teams.away[name]);
+    const challengeId = await sendChallenge(api, progress, coaches, teams.home[name]);
+    gameIds[name] = await acceptChallenge(api, progress, coaches, challengeId, teams.away[name]);
     teamIds[name] = { home: teams.home[name], away: teams.away[name] };
   }
   const cases = {
@@ -137,18 +177,41 @@ export async function seedTransitions(api, { stamp }) {
     postPlayers: await seedPostPlayers(api, gameIds.postPlayers, tokens, teamIds.postPlayers),
     proposed: await seedProposed(api, gameIds.proposed, tokens),
   };
-  challengeIds.challenge = await sendChallenge(api, coaches, teams.home.challenge);
-  cases.challenge = { challengeId: challengeIds.challenge, teamId: teams.away.challenge };
-  const coachRecord = (side) => ({ login: coaches[side].login, password: coaches[side].password, id: coaches[side].id });
-  return {
-    version: 1, stamp, seededAt: new Date().toISOString(), seedBase: api.base,
-    coaches: { home: coachRecord("home"), away: coachRecord("away") },
-    season, cases,
-    // Keyed by strings: `challengeIds:` would read as a use of the export challengeId to check-references.
-    seeded: Object.fromEntries([
-      ["pairingIds", PAIRED.map((name) => gameIds[name])],
-      ["challengeIds", NAMES.map((name) => challengeIds[name])],
-      ["teamIds", SIDES.flatMap((side) => NAMES.map((name) => teams[side][name]))],
-    ]),
+  cases.challenge = { challengeId: await sendChallenge(api, progress, coaches, teams.home.challenge), teamId: teams.away.challenge };
+  return progress.finished({ season, cases });
+}
+
+/** What a seed that stopped part-way says: its rows are on the site, and only a new restore takes them away. */
+const LEFT_ROWS = "the seed left rows in gata_rehearsal — run rehearsal:restore again, then --seed "
+  + `(output/rehearsal/${TRANSITIONS_RECORD} names the rows it made and says «complete»: false; rehearsal:check and --finish refuse it)`;
+
+/**
+ * The seed as --seed runs it, its record written to `dir` as it goes (0600: it holds the coaches' passwords).
+ * Refused when `dir` holds a record already: that database was seeded once, or a seed stopped part-way on it,
+ * and a new record would leave those rows unmarked in rehearsal:check. A finish of an earlier seed is deleted.
+ *
+ * @param {ReturnType<import("./transitions-api.mjs").siteApi>} api a 2.1.0 site
+ * @param {{ dir: string, stamp: string }} options output/rehearsal, and the run's stamp
+ * @returns {Promise<object>} the record
+ * @throws when a record is there, or when the seed stops — saying, if it made anything, to restore again
+ */
+export async function seedToRecord(api, { dir, stamp }) {
+  const file = path.join(dir, TRANSITIONS_RECORD);
+  if (existsSync(file)) {
+    throw new Error(`output/rehearsal/${TRANSITIONS_RECORD} is there: this database was seeded already, or a seed stopped part-way on it, `
+      + "and a second seed would leave those rows unmarked — run rehearsal:restore again (it deletes the record), then --seed; "
+      + "on a database you made by hand, drop it and delete the record");
+  }
+  await fs.rm(path.join(dir, TRANSITIONS_FINISH), { force: true });
+  let saved = false;
+  const save = async (record) => {
+    await writePrivate(file, record);
+    saved = true;
   };
+  try {
+    return await seedTransitions(api, { stamp, save });
+  } catch (error) {
+    if (!saved) throw error;
+    throw new Error(`${error.message}; ${LEFT_ROWS}`, { cause: error });
+  }
 }

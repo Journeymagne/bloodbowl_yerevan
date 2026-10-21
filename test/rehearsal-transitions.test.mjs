@@ -15,7 +15,7 @@ const AT = "2026-10-21T10:00:00.000Z";
 // A record as --seed writes it: two coaches, the 2.1.0 table, the five states and the rows it made.
 function record() {
   return {
-    version: 1, stamp: "0f1e2d3c-0000-4000-8000-000000000000", seededAt: AT, seedBase: "http://localhost:3004",
+    version: 1, stamp: "0f1e2d3c-0000-4000-8000-000000000000", seededAt: AT, seedBase: "http://localhost:3004", complete: true,
     coaches: { home: { login: "transitions-home-0f1e2d3c", password: "pw-home", id: "u1" }, away: { login: "transitions-away-0f1e2d3c", password: "pw-away", id: "u2" } },
     season: { id: "s1", standings: [] },
     cases: {
@@ -62,6 +62,9 @@ test("a record names all five states, or it is not one", () => {
   const noBefore = record();
   delete noBefore.cases.postPlayers.before;
   assert.throws(() => assertTransitionsRecord(noBefore), /postPlayers/);
+  for (const complete of [false, undefined]) {
+    assert.throws(() => assertTransitionsRecord({ ...record(), complete }), /the seed did not finish.*run rehearsal:restore again/s, String(complete));
+  }
 });
 
 test("SPP after the match is SPP before plus the match's statistics and MVPs, once", () => {
@@ -111,6 +114,10 @@ test("a seed names its rows; anything else names none", () => {
   assert.deepEqual(seededRows(record()), record().seeded);
   assert.equal(seededRows(null), null);
   assert.equal(seededRows({ version: 1 }), null);
+  // A seed that stopped part-way may have made a row its record does not name: rehearsal:check would count it.
+  for (const complete of [false, undefined]) {
+    assert.throws(() => seededRows({ ...record(), complete }), /the seed did not finish.*run rehearsal:restore again/s, String(complete));
+  }
 });
 
 test("the roster the seed creates: Humans, eleven players on four rows, 100 in the treasury, SPP to advance with", () => {

@@ -15,7 +15,9 @@
  *
  * What rehearsal:transitions seeded before --before (output/rehearsal/transitions.json)
  * is in both snapshots like any other row; the report marks its teams and leaves its
- * pairings and challenge out of the open states it counts for the day.
+ * pairings and challenge out of the open states it counts for the day. A record of a
+ * seed that did not finish is refused in both phases: a row it does not name would be
+ * counted as the site's own — restore again.
  */
 import { promises as fs } from "node:fs";
 import path from "node:path";
@@ -25,6 +27,7 @@ import pg from "pg";
 import { loadEnvFile } from "../server/config/env-file.mjs";
 import { rehearsalDatabaseUrl } from "./rehearsal/guard.mjs";
 import { assertAnonymized } from "./rehearsal/marker.mjs";
+import { TRANSITIONS_RECORD } from "./rehearsal/outputs.mjs";
 import { compareSnapshots, exitCodeFor, renderReport, takeSnapshot, verdict } from "./rehearsal/snapshot.mjs";
 import { seededRows } from "./rehearsal/transitions-checks.mjs";
 
@@ -63,6 +66,7 @@ async function main() {
   const phase = process.argv.includes("--before") ? "before" : process.argv.includes("--after") ? "after" : null;
   if (!phase) throw new Error("usage: npm run rehearsal:check -- --before | --after");
   const before = phase === "after" ? await readBefore() : null;
+  const seed = seededRows(await readJson(TRANSITIONS_RECORD));
   const client = new pg.Client({ connectionString: rehearsalDatabaseUrl(process.env.DATABASE_URL) });
   await client.connect();
   let snapshot;
@@ -81,7 +85,6 @@ async function main() {
     return;
   }
   const comparison = compareSnapshots(before, snapshot);
-  const seed = seededRows(await readJson("transitions.json"));
   await fs.writeFile(path.join(outDir, "report.md"), renderReport(before, snapshot, comparison, await readJson("migrate.json"), seed));
   const { strong, rest } = verdict(before, snapshot, comparison);
   const report = "output/rehearsal/report.md";
