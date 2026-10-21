@@ -29,6 +29,16 @@
  * board says the race and the place as text. The ready players are the one
  * exception: both forms are drawn, and the stylesheet shows one.
  *
+ * The board is the season's band (screens/matches/band.mjs, stage 09a): a desk
+ * pages through the team's played matches to the current one, its squares the
+ * tabs, and its bubbles open «Before the match» from the numbers the
+ * preparation would have; the opponent's value stands by his name on both
+ * widths once his team is read (from his public page, once a visit for the
+ * game as it stands). A phone's board pages nothing and has no bubbles: its
+ * squares are smaller than a thumb (decision 12 of stage 05), and the owner
+ * keeps the phone's board as it was. A match in play offers its records with
+ * their count — the same records the leaders read, not a second read.
+ *
  * Who can advance is the roster's own answer (`rosterLines`' `ready`: the SPP to
  * spend reach the first random skill); the Skill Table plays no part in it. It is
  * read from the saved roster, as the player's page the card leads to is. The
@@ -79,18 +89,18 @@ import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { loadGames, onGamesChange } from "../../data/games.mjs";
-import { gameSides, recentResults, seasonDifference, seasonPager, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
+import { recentResults, seasonDifference, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
 import { loadMyTeams, raceTeamOf } from "../../data/teams.mjs";
+import { matchRecords } from "../../domain/match/preview.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
-import { renderCrest } from "../../shell/crest.mjs";
-import { currentMatch, matchActions, subLine } from "../../shell/current-match.mjs";
+import { currentMatch } from "../../shell/current-match.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon as renderIcon } from "../../ui/icons.mjs";
 import { renderKpiGrid } from "../../ui/kpi-tile.mjs";
-import { renderBoardActions, renderMatchBoard } from "../../ui/match-board.mjs";
 import { renderPlayerBadge } from "../../ui/number-badge.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
+import { bandBoard, bandBoardMarkup, bandItems, bandVisit, previewFor } from "../matches/band.mjs";
 import { goSearch, refSearchField, wireRefSearch } from "../ref/frame.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { rosterLines } from "./roster/model.mjs";
@@ -106,34 +116,6 @@ function seasonLineOf(season) {
   return season.currentRound ? t("teamOverview.season", { season: season.name, round: season.currentRound }) : season.name;
 }
 
-/** The side a proposed score is read from: the proposal's touchdowns of home or away. */
-const proposedTouchdowns = (game, side) => game[`proposed${side === "home" ? "Home" : "Away"}Touchdowns`];
-
-/** The score a team sent or was sent, as the team reads it ("2–1"); "" when a number of it is missing. */
-function proposedScore(game, sides) {
-  const [own, other] = [proposedTouchdowns(game, sides.own), proposedTouchdowns(game, sides.other)];
-  return own === null || own === undefined || other === null || other === undefined ? "" : `${own}–${other}`;
-}
-
-/** The letter in the opponent's circle (DeskOverview.html): the name's first, upper case; «?» for a name of nothing. */
-const initialOf = (name) => Array.from(name.trim())[0]?.toUpperCase() ?? "?";
-
-/**
- * The opponent's side of the board, with its place short («#1», «1-е»). On a desk (DeskOverview.html, decision 54) the
- * name leads to the team's page, the letter stands in a circle by it, and a race the reference knows leads to its rules
- * at the head of the line, the place after it; on a phone the race and the place are a line of text: «Dwarf · #1».
- */
-function opponentOf(rival, seasonData, phone) {
-  const name = rival.team?.name ?? "";
-  const race = raceTeamOf(rival.team?.baseTeamSlug);
-  const rank = standingOf(seasonData, rival.team?.id)?.rank;
-  const place = rank ? t("teamOverview.opponentPlace", { place: rank }) : "";
-  if (phone) return { name, sub: [race?.title, place].filter(Boolean).join(" · ") };
-  const href = rival.user?.id && rival.team?.id ? playerTeamUrl(rival.user.id, rival.team.id) : undefined;
-  const raceLink = race ? { title: race.title, href: pageUrl(race), hint: t("teamOverview.boardRace") } : undefined;
-  return { name, href, hint: t("teamOverview.boardTeam"), sub: place, initial: initialOf(name), race: raceLink };
-}
-
 /**
  * A finished match as a desk's row says it (DeskOverview.html): the opponent's race by the reference's name, and the ways
  * the row's two links lead — the opponent's team, as the board's name does (`opponentOf`), and the race's rules. "" for a
@@ -147,27 +129,17 @@ function resultOf(result) {
 }
 
 /**
- * The board of a team in the table: the match it is about (`currentMatch`), our side with the place and the value (and
- * on a desk the league's crest), the other's (`opponentOf`), the score only once one is sent, and the season's squares
- * for the form.
+ * The board of a team in the table: the season's band (screens/matches/band.mjs) at the item `band.key` names (the
+ * current one for none, or one the games no longer hold), the opponent's team as the visit read it, «Before the match»
+ * from both, and the records of a match on counted from `matchEvents`, the leaders' read (null while it has not come).
  */
-function boardOf({ team, raceTeam, seasonData, games, gamesRead, standing, worth, phone }) {
+function boardOf({ team, raceTeam, seasonData, games, gamesRead, phone, band, matchEvents, data }) {
+  const items = bandItems(games, team.id, seasonData);
   const current = currentMatch(games, team.id);
-  const sides = current && gameSides(current.game, team.id);
-  const rival = sides && current.game[sides.other];
-  const round = seasonData.season?.currentRound;
-  const own = { name: team.name, sub: raceTeam ? t("teamOverview.ownSub", { race: raceTeam.title, place: standing.rank, value: formatMoney(worth) }) : "" };
-  if (!phone) own.crestHtml = renderCrest({ size: "md" });
-  return {
-    overline: sides ? subLine(current.game, sides.own) : "",
-    own,
-    opponent: rival ? opponentOf(rival, seasonData, phone) : null,
-    pendingText: gamesRead && round ? t("teamOverview.opponentLater", { round }) : "",
-    score: current?.phase === "sent" ? proposedScore(current.game, sides) : "",
-    status: current?.phase ?? "none",
-    pager: seasonPager(games, team.id, seasonData, current?.game.id).map((square) => ({ label: String(square.round), result: square.result, current: square.current })),
-    ...matchActions(current, team.id),
-  };
+  const at = band.key === null ? -1 : items.findIndex((item) => item.key === band.key);
+  const preview = previewFor({ team, current, opponent: band.opponent, data, teamId: team.id });
+  const records = current && matchEvents ? matchRecords(matchEvents, current.game.id) : null;
+  return bandBoard({ items, index: at === -1 ? null : at, games, team, raceTeam, seasonData, current, preview, opponent: band.opponent, records, phone, gamesRead });
 }
 
 /** What a figure the games give says while they are not read, or could not be: a dash, not a zero they could contradict. */
@@ -229,8 +201,13 @@ function readyPlayers(draft, raceTeam) {
  * @param {string} [input.seasonError] why the table could not be read; said only while there is no table to show
  * @param {boolean} [input.phone] the screen is a phone's (up to 900px): Team.html's form, not DeskOverview.html's
  * @param {object[]} [input.events] the records not settled yet, of the roster's own moment: what the leaders add to it
+ * @param {{key: string|null, opponent: {team: object}|{error: string}|null}} [input.band] the board's item shown and the
+ *   opponent's team, as the visit holds them (`bandVisit`)
+ * @param {object[]|null} [input.matchEvents] the records as last read, of any moment: what a match on counts
+ * @param {object|null} [input.data] the reference, for «Before the match»
  */
-export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false, events = [] }) {
+export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false, events = [],
+  band = { key: null, opponent: null }, matchEvents = null, data = null }) {
   const season = seasonData?.season ?? null;
   const standing = standingOf(seasonData, team.id);
   const gamesRead = Array.isArray(games) && !gamesError;
@@ -249,40 +226,13 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     tiles: tilesOf({ teamId: team.id, standing, games: gamesRead ? list : null, seasonId: season?.id ?? null, own, phone }),
     inSeason: Boolean(standing),
     seasonRead: Boolean(seasonData),
-    board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, standing, worth, phone }) : null,
+    board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, phone, band, matchEvents, data }) : null,
     ready: readyPlayers(draft, raceTeam),
     leaders: teamLeaders(team, raceTeam, events),
     results: recentResults(list, team.id, RECENT_MATCHES).map(resultOf),
     gamesError,
     seasonError: seasonData ? "" : seasonError,
   };
-}
-
-/**
- * The state under the score: not begun, in play, waiting for the opponent's or our confirmation; nothing for no match.
- * The chip is the dark band's (DeskOverview.html: an eighth of the ink, the dot the state's).
- */
-function statusChip(status) {
-  if (status === "idle") return renderStatusChip({ label: t("teamOverview.status.idle"), onDark: true });
-  if (status === "live") return renderStatusChip({ label: t("shell.match.live"), tone: "live", onDark: true });
-  if (status === "sent") return renderStatusChip({ label: t("shell.match.awaiting"), tone: "wait", onDark: true });
-  return "";
-}
-
-/** The board, with the way to the friendlies last among its actions. */
-function boardMarkup(board, teamId) {
-  const friendlies = { label: t("teamOverview.friendlies"), href: teamUrl(teamId, "challenges"), kind: "light" };
-  return renderMatchBoard({
-    overline: board.overline,
-    own: board.own,
-    opponent: board.opponent,
-    pendingText: board.pendingText,
-    score: board.score,
-    statusHtml: statusChip(board.status),
-    pager: board.pager,
-    actionsHtml: renderBoardActions({ links: [...board.links, friendlies], sentLine: board.sentLine }),
-    live: board.status === "live",
-  });
 }
 
 /** A read that failed, in a danger callout. */
@@ -293,7 +243,7 @@ const failedLine = (title) => renderCallout({ tone: "danger", title });
  * games for a team in the table or while the table is not there to say); the call to enter the season; or nothing yet.
  */
 function boardSlot(model) {
-  if (model.board) return boardMarkup(model.board, model.teamId);
+  if (model.board) return bandBoardMarkup(model.board);
   const failures = [];
   if (model.seasonError) failures.push(failedLine(t("teamOverview.seasonFailed", { reason: model.seasonError })));
   if (model.gamesError && (model.inSeason || !model.seasonRead)) failures.push(failedLine(t("teamOverview.gamesFailed", { reason: model.gamesError })));
@@ -401,11 +351,12 @@ const pastList = (records, team) => Boolean(records) && Number.isInteger(team?.r
  * The overview of `teamId` as the state has it now; "" when the team is not on the coach's list (it was deleted
  * while the games were on their way), and the screen is left as it was. A failure `held` back is one an earlier
  * read left, which the read repeating it has not yet answered: it is not drawn, nor the games it left. The leaders
- * count the `records` only when they are of the team's revision in the list.
+ * count the `records` only when they are of the team's revision in the list; a match on counts them as they are.
  * @param {{games: boolean, season: boolean}} held
  * @param {{events: object[], revision: number}|null} records as the visit last read them
+ * @param {{key: string|null, opponent: object|null}} band the board's part of the visit
  */
-function markupOf(teamId, held, records) {
+function markupOf(teamId, held, records, band) {
   const team = listed(teamId);
   if (!team) return "";
   const { items, loaded, error } = state.games;
@@ -419,6 +370,9 @@ function markupOf(teamId, held, records) {
     seasonError: held.season ? "" : state.season.error,
     phone: isPhone(),
     events: same ? records.events : [],
+    band: { key: band.key, opponent: band.opponent },
+    matchEvents: records?.events ?? null,
+    data: state.data,
   }));
 }
 
@@ -443,9 +397,12 @@ export async function renderTeamOverview(teamId) {
   const records = { last: null, reading: false, again: false, armed: false };
   const draw = () => {
     if (!here) return;
-    const markup = markupOf(teamId, held, records.last);
+    const markup = markupOf(teamId, held, records.last, band);
     if (markup) patch(view, markup);
   };
+  // The board's part: the match shown, the opponent read for the match on, «Before the match» (stage 09a).
+  const gamesNow = () => (state.games.loaded && !held.games ? state.games.items : null);
+  const band = bandVisit({ teamId, root: view, draw, read: () => ({ team: listed(teamId), games: gamesNow(), seasonData: state.season.data, data: state.data }) });
   const readLeaders = async () => {
     if (!here || listed(teamId)?.stage === "draft") return;
     if (records.reading) {
@@ -468,6 +425,7 @@ export async function renderTeamOverview(teamId) {
   const offs = [
     onGamesChange(() => {
       held.games = false;
+      band.gamesChanged();
       draw();
       if (records.armed) void readLeaders();
     }),
@@ -476,13 +434,14 @@ export async function renderTeamOverview(teamId) {
     // round 1): a focus left on nothing goes to the title.
     onPhoneChange(() => drawKeepingFocus(view, draw, "h1")),
     wireRefSearch(view, { onQuery: goSearch }),
+    () => band.release(),
   ];
   onScreenLeave("team-overview", () => {
     here = false;
     for (const off of offs) off();
   });
   const reads = Promise.allSettled([loadGames(held.games), loadSeason(held.season)]);
-  const first = markupOf(teamId, held, records.last);
+  const first = markupOf(teamId, held, records.last, band);
   if (first) {
     view.innerHTML = first;
     view.querySelector("h1")?.focus();
@@ -490,6 +449,7 @@ export async function renderTeamOverview(teamId) {
   await reads;
   held.games = false;
   held.season = false;
+  band.gamesChanged();
   draw();
   records.armed = true;
   void readLeaders();

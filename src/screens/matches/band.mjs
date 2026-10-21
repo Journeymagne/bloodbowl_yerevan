@@ -11,14 +11,17 @@
  * `bandItems` is the season as items, `bandBoard` what the board says of one of them (the screen's model; the overview
  * keeps its fields), `bandMarkup` draws it with ui/match-board.mjs, and `wireBand` answers its tabs, its way back to
  * the current match and its bubbles. The friendlies of a season are those settled since it was created (pre-flight
- * L13; all of them while the season does not say when).
+ * L13; all of them while the season does not say when). `bandVisit` is the board's part of a screen's visit (pre-flight
+ * L10): the match shown, the opponent's team read for the match on, the sheet its bubbles open.
  */
 import { delegate } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { pageUrl, playerTeamUrl, teamUrl } from "../../core/routes.mjs";
+import { forgetOpponents, readOpponentTeam } from "../../data/match-day.mjs";
 import { gameOutcome, gameSides, recentResults, seasonPager, standingOf, teamValue } from "../../data/team-record.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
+import { matchPreview } from "../../domain/match/preview.mjs";
 import { renderCrest } from "../../shell/crest.mjs";
 import { currentMatch, matchActions, sentCasualties, sentScore, subLine } from "../../shell/current-match.mjs";
 import {
@@ -26,7 +29,7 @@ import {
 } from "../../ui/match-board.mjs";
 import { resultLabels } from "../../ui/result-pill.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
-import { beforeFigures } from "./before.mjs";
+import { beforeFigures, closeBeforeSheet, openBeforeSheet } from "./before.mjs";
 
 /**
  * @typedef {{key: string, gameId: string|null, label: string, title: string, venue: string, round: number|null,
@@ -269,4 +272,75 @@ export function wireBand(root, { onPick, onBefore }) {
     delegate(root, "click", "[data-before-open]", (event, button) => onBefore(button)),
   ];
   return () => offs.forEach((off) => off());
+}
+
+/**
+ * «Before the match» for the match on: the preparation the server would build from our saved team and the opponent's,
+ * as his public page has it (`matchPreview`); null while he is not read, for another match's opponent, and where the
+ * rules cannot say (a race the reference does not know, the reference not read whole).
+ * @param {{team: object, current: ReturnType<typeof currentMatch>, opponent: {team: object}|{error: string}|null, data: object|null, teamId: string}} input
+ */
+export function previewFor({ team, current, opponent, data, teamId }) {
+  const sides = current && gameSides(current.game, teamId);
+  const rival = sides && current.game[sides.other];
+  if (!rival || !opponent?.team || opponent.team.id !== rival.team?.id) return null;
+  return matchPreview({ own: { user: current.game[sides.own].user, team }, other: { user: rival.user, team: opponent.team } }, data);
+}
+
+/**
+ * The board's part of a visit (pre-flight L10): which item is shown (`key`, null for the current one; it stays while the
+ * games still hold it — Review Focus 5), the opponent's team for the match on (read on the first draw and whenever the
+ * games change, once a visit for the game as it stands — L11 —, taken only while the visit lasts and only for the match
+ * still on), and «Before the match» from the bubbles. `read()` is the state as it is now; `draw()` draws the screen
+ * again. `release()` as the screen is left: the listeners go, and the sheet with its host.
+ * @param {{teamId: string, root: Element, read: () => {team: object|undefined, games: object[]|null, seasonData: object|null, data: object|null}, draw: () => void}} props
+ */
+export function bandVisit({ teamId, root, read, draw }) {
+  forgetOpponents();
+  let here = true;
+  let key = null;
+  let opponent = null;
+  const itemsNow = () => {
+    const { games, seasonData } = read();
+    return Array.isArray(games) ? bandItems(games, teamId, seasonData) : [];
+  };
+  const currentNow = () => (Array.isArray(read().games) ? currentMatch(read().games, teamId) : null);
+  const readRival = async () => {
+    const current = currentNow();
+    if (!current) {
+      opponent = null;
+      return;
+    }
+    const answer = await readOpponentTeam(current.game, teamId);
+    if (!here || currentNow()?.game.id !== current.game.id) return;
+    opponent = answer;
+    draw();
+  };
+  const unwire = wireBand(root, {
+    onPick: (index) => {
+      const items = itemsNow();
+      key = index >= items.length - 1 ? null : items[index]?.key ?? null;
+      draw();
+    },
+    onBefore: (button) => {
+      const { team, data } = read();
+      const current = currentNow();
+      const preview = team && previewFor({ team, current, opponent, data, teamId });
+      if (preview) openBeforeSheet(button, { preview, game: current.game });
+    },
+  });
+  return {
+    get key() { return key; },
+    get opponent() { return opponent; },
+    /** The games answered (the first time, or changed): the item shown stays if they still hold it; the opponent is read. */
+    gamesChanged() {
+      if (key !== null && !itemsNow().some((item) => item.key === key)) key = null;
+      void readRival();
+    },
+    release() {
+      here = false;
+      unwire();
+      closeBeforeSheet();
+    },
+  };
 }
