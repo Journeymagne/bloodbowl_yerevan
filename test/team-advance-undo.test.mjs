@@ -774,7 +774,7 @@ test("Favoured of Nurgle: the god's D8 before «Take», with every advancement; 
       assert.equal(patches().length, 1, "the advancement and its bonus: one save");
       const rot = sentOf("n1");
       assert.deepEqual(rot.favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
-      assert.deepEqual(rot.advancements, mouth.advancements);
+      assert.deepEqual(rot.advancements, [{ ...mouth.advancements[0], favoured: "Tentacles" }], "the god's skill tied to its advancement (Task 10 review)");
       assert.equal(patches()[0].body.roster.favouredChoice, "Nurgle");
     });
     // A Rotspawn (no Mutation in his primary access): the skill is rolled for at the table too; his own Tentacles closed; «No bonus».
@@ -860,6 +860,70 @@ test("a player holding every skill the god offers rolls no D8: said so, «Take»
       await settle();
       assert.equal(patches().length, 1);
       assert.deepEqual(sentOf("n1").favouredSkills, held.favouredSkills);
+    });
+  });
+});
+
+// Task 10 review (content «Team Management» :313 — one god's skill per advancement): the god's skill the D8 brought is tied
+// to its advancement, and «Undo the last» takes it back with it, as the post-match's own undo does; a take again rolls the
+// god's D8 for a clean player, never a second skill for one advancement.
+test("Favoured of Nurgle: undoing an advancement takes back the god's skill its D8 brought; a take again asks a fresh D8", async () => {
+  const BLOCK = { type: "primary", grants: { skill: "Block" } };
+  const blessed = { ...ROT, extraSkills: [{ name: "Block", access: "primary" }], favouredSkills: [{ name: "Tentacles", access: "favoured" }],
+    advancements: [{ ...BLOCK, favoured: "Tentacles" }] };
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openPlayer(true, { id: "n1", teamAnswer: nurgle([ROT]) });
+      fireEvent(advance(), "click");
+      choosePrimary("General", "Block");
+      fireEvent(godFace(7), "click");
+      fireEvent(godItem("Tentacles"), "click");
+      api.reply(PATCH, 200, { team: nurgle([blessed], { revision: 5 }) });
+      fireEvent(godTake(), "click");
+      await settle();
+      assert.deepEqual(sentOf("n1").advancements, [{ ...BLOCK, favoured: "Tentacles" }], "the god's skill tied to its advancement");
+      fireEvent(godSheet().querySelector("[data-advance-done]"), "click");
+      assert.ok(!godSheet());
+      // «Undo the last: Block» says the god's skill goes with it.
+      reopenFix();
+      assert.equal(undo().textContent, "Undo the last: Block");
+      fireEvent(undo(), "click");
+      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["The god's skill", "Tentacles"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
+      assert.deepEqual(sheet().querySelectorAll(".g-unadvance__note").map((line) => line.textContent), [TABLE], "nothing loose to point at");
+      api.reply(PATCH, 200, { team: nurgle([ROT], { revision: 6 }) });
+      fireEvent(send(), "click");
+      assert.equal(toasts().at(-1), "Advancement undone: Block and the god's Tentacles · 6 SPP back");
+      await settle();
+      assert.equal(patches().length, 2);
+      assert.deepEqual(sentOf("n1").advancements ?? [], []);
+      assert.deepEqual(sentOf("n1").favouredSkills ?? [], [], "the god's skill goes with its advancement");
+      assert.ok(!(sentOf("n1").extraSkills ?? []).some(({ name }) => name === "Block"));
+      // Taken again: the god's D8 for a clean player — Tentacles the god's to give again, not a second skill of one advancement.
+      fireEvent(advance(), "click");
+      choosePrimary("General", "Block");
+      assert.equal(godTake().textContent, "Mark the god's D8");
+      fireEvent(godFace(7), "click");
+      assert.ok(!closed(godItem("Tentacles")), "Tentacles is no longer his");
+    });
+  });
+});
+
+// Task 10 review: an advancement saved before the tie (2.x's, or a post-match finished before it) says nothing of a god's
+// skill; the undo names the god's skills no advancement names and points to taking one off by hand. Nothing else goes.
+test("an advancement without a tie: the undo names the loose god's skills and points to the fix by hand; they stay", async () => {
+  const legacy = { ...ROT, extraSkills: [{ name: "Block", access: "primary" }], favouredSkills: [{ name: "Tentacles", access: "favoured" }, { name: "Bone Hook", access: "favoured" }],
+    advancements: [{ type: "primary", grants: { skill: "Block" } }] };
+  const LOOSE = "The god's skills no advancement names (Tentacles, Bone Hook) stay: if this advancement brought one, take it off in «Fix by hand».";
+  await withoutTimers(async () => {
+    await withWindow({ phone: true }, async () => {
+      await openUndo(true, { id: "n1", teamAnswer: nurgle([legacy]) });
+      assert.deepEqual(rows(), [["What it gave", "Block · Chosen primary skill"], ["SPP back", "+6"], ["The player's value", "−20k"]]);
+      assert.deepEqual(sheet().querySelectorAll(".g-unadvance__note").map((line) => line.textContent), [TABLE, LOOSE]);
+      api.reply(PATCH, 200, { team: nurgle([{ ...ROT, favouredSkills: legacy.favouredSkills }], { revision: 5 }) });
+      fireEvent(send(), "click");
+      assert.equal(toasts().at(-1), "Advancement undone: Block · 6 SPP back");
+      await settle();
+      assert.deepEqual(sentOf("n1").favouredSkills, legacy.favouredSkills, "a god's skill no advancement names stays");
     });
   });
 });

@@ -26,8 +26,8 @@ import { siteRollOf } from "./roll-view.mjs";
 import { readRolls } from "./rolls.mjs";
 import { amendPlayer, undoAdvancement } from "./save.mjs";
 
-/** An advancement as the undo's sheet showed it — its type, what it gave, its roll — which is what the coach confirms. */
-const shownAs = ({ type, grants, via, rollId }) => JSON.stringify([type, grants?.skill ?? "", grants?.stat ?? "", via, rollId]);
+/** An advancement as the undo's sheet showed it — its type, what it gave, its roll, the god's skill tied to it — which is what the coach confirms. */
+const shownAs = ({ type, grants, via, rollId, favoured }) => JSON.stringify([type, grants?.skill ?? "", grants?.stat ?? "", via, rollId, favoured ?? ""]);
 
 /** The advancement the undo's sheet showed is still his last: in the same place, and the same advancement there. */
 const stillLast = (sheet, line) => sheet.index === line.advancements.length - 1 && shownAs(line.advancements[sheet.index]) === sheet.confirmed;
@@ -88,9 +88,10 @@ function saveEdit(saving, lent) {
 /**
  * «Undo advancement»: only from the undo that is open, while the advancement it showed is still his last — a press that
  * finds none is a second press, and sends nothing. Why it is closed is asked again (K15), then one step of the queue
- * (`undoAdvancement`): what it gave goes, its SPP come back, and the save frees its site roll. In the same turn the
- * sheet closes, the focus on the pencil its fix was opened from — the step's own draw has closed it already
- * (`undoSheetOf`), so the pencil is asked for here (`openerOf`) — and the coach is told what came back. A refusal
+ * (`undoAdvancement`): what it gave goes — the god's skill tied to it too — its SPP come back, and the save frees its
+ * site roll. In the same turn the sheet closes, the focus on the pencil its fix was opened from — the step's own draw has
+ * closed it already (`undoSheetOf`), so the pencil is asked for here (`openerOf`) — and the coach is told what went and
+ * what came back. A refusal
  * (another tab's coach, the rules a 422 left the queue on) is said in the sheet, which stays; one of the queue's 422
  * asks for the server's roster again (`refused`).
  *
@@ -126,7 +127,7 @@ function sendUndo(saving, { now, refused }) {
   visit.rolls = null;
   closeSheet(saving);
   openerOf({ opener, sheet })?.focus();
-  toast(t("teamPlayer.undo.done", { what, spp: answer.cost }));
+  toast(answer.favoured ? t("teamPlayer.undo.doneFavoured", { what, skill: answer.favoured, spp: answer.cost }) : t("teamPlayer.undo.done", { what, spp: answer.cost }));
 }
 
 /**

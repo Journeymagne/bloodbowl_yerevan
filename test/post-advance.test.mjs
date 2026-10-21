@@ -169,7 +169,7 @@ it("a random skill is two dice on the site, asked of the post-match; the coach t
   assert.equal(writes()[0].revision, post.revision);
   assert.ok(sheet().querySelector(".g-advance__done"));
   assert.equal(tiles()[0], "−3");
-  assert.equal(status(), t("teamRoster.status.saved"));
+  assert.equal(status(), "Saved in the post-match: on the roster once it is finished", "the post-match's draft, not the roster (Task 10 review)");
   assert.equal(document.activeElement, sheet().querySelector("[data-advance-done]"));
   assert.equal(sheet().querySelector("[data-advance-done]").textContent, t("teamAdvance.finish"), "back to the step, not to a player's page");
   // The step drawn from the answer: the advancement on his card, with «Undo».
@@ -240,6 +240,30 @@ it("at the table the advancement names a table roll", async () => {
   await press(take());
   assert.deepEqual(writes().map(({ action: sent }) => sent), [action]);
   assert.equal(calls(ROLLS).length, 0, "nothing rolled on the site");
+  api.assertAnswered();
+});
+
+// Task 10 review: the done step of a desk's window (DeskRosterAdv) says where the advancement is — in the post-match, not
+// in the player's profile, which the roster's window says: it reaches the roster only once the post-match is finished.
+it("on a desk the done step says the advancement is in the post-match, on the roster once it is finished", async () => {
+  const post = onPlayers();
+  await visit(post, { phone: false });
+  await press(advanceOf("h3"));
+  await press(typeCard("random"));
+  await press(category("General"));
+  await press(way("table"));
+  await press(face(4));
+  await press(face(8));
+  await press(pick("Strip Ball"));
+  const action = { type: "advance", playerId: "h3", advancementType: "random", grant: { skill: "Strip Ball" }, roll: { via: "table" } };
+  answers(post, action);
+  await press(take());
+  assert.deepEqual(writes().map(({ action: sent }) => sent), [action]);
+  assert.ok(sheet().querySelector(".g-advance__done"));
+  const summary = sheet().querySelector(".g-advance__summary");
+  assert.equal(summary.getAttribute("role"), "status");
+  assert.equal(summary.textContent, "Saved in the post-match: on the roster once it is finished");
+  assert.notEqual(summary.textContent, t("teamAdvance.savedDesk"), "not the roster's «Saved in the player's profile»");
   api.assertAnswered();
 });
 

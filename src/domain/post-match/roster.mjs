@@ -2,7 +2,7 @@ import { createPlayer, normalizeAbsence } from '../roster/schema.mjs';
 import { applyInjuryEffects } from '../roster/absence.mjs';
 import { normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/players.mjs';
 import { playerCurrentCost } from '../roster/costs.mjs';
-import { statIncreaseRefusal, takeAdvancement } from '../roster/progression.mjs';
+import { statIncreaseRefusal, takeAdvancement, tieFavoured } from '../roster/progression.mjs';
 import { rowsForTeam, rosterMax, costToNumber } from '../roster/values.mjs';
 import { teamHasSpecialRule, availableMedicalStaffDefinitions, hasBribery } from '../roster/team-rules.mjs';
 import { favouredBonus, favouredRollAsked } from '../roster/edits.mjs';
@@ -29,13 +29,16 @@ function applyInjury(player, injury, pairingId) {
 // The god's D8 a Favoured roster's every advancement carries (the owner, 2026-10-21, as 2.x did; content «Team
 // Management»): none is POST_DICE, unless the player holds every skill the god offers once the advancement is his
 // (`favouredRollAsked`, as the roster's sheet asks it) — then none is asked. On the god's face the skill named, one
-// of the god's he lacks, or none (declined); a skill he holds, or another god's, is POST_FAVOURED.
+// of the god's he lacks, or none (declined); a skill he holds, or another god's, is POST_FAVOURED. The skill is tied to
+// its advancement (`tieFavoured`, Task 10 review), as the roster's sheet ties it: the roster's undo of it after the
+// finish takes the skill back too.
 function applyFavoured(side, player, choice, row) {
   const bonus = favouredBonus(side.reference, side.baseRoster, row, player);
   if (!bonus || (!favouredRollAsked(bonus) && [undefined, null, ''].includes(choice.favouredRoll))) return;
   if (postDie(choice.favouredRoll, 8) !== bonus.trigger || !choice.favouredSkill) return;
   if (!bonus.skills.some(({ name, held }) => name === choice.favouredSkill && !held)) throw postError('POST_FAVOURED');
   player.favouredSkills.push({ name: choice.favouredSkill, access: 'favoured' });
+  tieFavoured(player, choice.favouredSkill);
 }
 
 /**

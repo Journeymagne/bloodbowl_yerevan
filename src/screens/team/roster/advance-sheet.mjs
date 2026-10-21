@@ -117,11 +117,14 @@ function skillsMarkup(sheet, choices) {
 /**
  * Where the save of the advancement stands, in the roster's words; a desk's «Saved» says where it went (DeskRosterAdv.html).
  * A queue at rest (IDLE: the server's roster taken since) with the advancement itself in his line (`held`: `takenHeld`)
- * has it saved.
+ * has it saved. In the post-match (`post`) it is saved in the post-match's draft, not in his profile: it reaches the
+ * roster once the post-match is finished, which a phone and a desk say alike (Task 10 review).
  */
-function savedWords({ status, waiting }, { desk = false, held = false } = {}) {
+function savedWords({ status, waiting }, { desk = false, held = false, post = false } = {}) {
   if (status === SAVE_STATUS.SAVING || status === SAVE_STATUS.DIRTY) return t("teamRoster.status.saving");
-  if (status === SAVE_STATUS.SAVED || (status === SAVE_STATUS.IDLE && held)) return t(desk ? "teamAdvance.savedDesk" : "teamRoster.status.saved");
+  if (status === SAVE_STATUS.SAVED || (status === SAVE_STATUS.IDLE && held)) {
+    return t(post ? "after.advanceSaved" : desk ? "teamAdvance.savedDesk" : "teamRoster.status.saved");
+  }
   if (status === SAVE_STATUS.OFFLINE) return t("teamRoster.status.waiting", { count: waiting });
   return status === SAVE_STATUS.CONFLICT || status === SAVE_STATUS.ERROR ? t("teamRoster.status.unsaved") : "";
 }
@@ -145,7 +148,8 @@ function doneMarkup(line, screen, taken) {
   const tiles = phone ? `<dl class="g-advance__tiles">${tile(t("teamRoster.group.spp"), spp)}${tile(t("teamAdvance.doneValue"), value)}`
     + `${tile(t("teamAdvance.doneLevel"), t("teamAdvance.doneLevelOf", { level: taken.level }))}</dl>` : "";
   const elite = taken.elite ? `<p class="g-advance__elite">${escapeHtml(t("teamAdvance.doneElite"))}</p>` : "";
-  const status = phone ? `<p class="g-advance__status" role="status">${escapeHtml(savedWords(screen.save, { held: takenHeld(line, taken) }))}</p>` : "";
+  const post = screen.mode.kind === "post";
+  const status = phone ? `<p class="g-advance__status" role="status">${escapeHtml(savedWords(screen.save, { held: takenHeld(line, taken), post }))}</p>` : "";
   return `<div class="g-advance__done"><span class="g-advance__check" aria-hidden="true">${icon("check", 30)}</span>`
     + `<h3 class="g-advance__donetitle">${escapeHtml(title)}</h3><p class="g-advance__how">${escapeHtml(how)}</p>${tiles}${elite}${status}</div>`;
 }
@@ -366,7 +370,7 @@ function thirdColumn(props, rolled) {
 function deskMarkup(line, screen, sheet, choices) {
   const done = sheet.step === "done";
   const columns = done ? "" : columnsMarkup(sheet, choices);
-  const saved = done && savedWords(screen.save, { desk: true, held: takenHeld(line, sheet.taken) });
+  const saved = done && savedWords(screen.save, { desk: true, held: takenHeld(line, sheet.taken), post: screen.mode.kind === "post" });
   const summary = done ? `<p class="g-advance__summary" role="status">${escapeHtml(saved)}</p>`
     : `<p class="g-advance__summary">${escapeHtml(summaryWords(sheet, choices))}</p>`;
   return renderSheet({

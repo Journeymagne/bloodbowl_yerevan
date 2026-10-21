@@ -228,11 +228,15 @@ export function applyAdvancement(team, row, player, type, grant, skillGroups = [
 }
 
 /**
- * Undo the advancement at `index`, taking back whatever it granted.
+ * Undo the advancement at `index`, taking back whatever it granted, and the
+ * god's skill its D8 brought (`favoured`, `tieFavoured`) with it — one god's
+ * skill per advancement (content «Team Management», «Favoured of…»), so an
+ * advancement taken again rolls its own D8 for a player without it.
  *
  * An advancement saved before grants existed has nothing to take back, so only
  * the SPP is returned — the skill or stat it may have paid for is
- * indistinguishable from a freely added one and stays put.
+ * indistinguishable from a freely added one and stays put. So does a god's
+ * skill no advancement names (2.x's, or one added by hand).
  */
 export function removeAdvancement(player, index) {
   const advancements = normalizePlayerAdvancements(player.advancements);
@@ -248,9 +252,44 @@ export function removeAdvancement(player, index) {
   } else if (advancement.grants?.skill) {
     player.extraSkills = (player.extraSkills ?? []).filter((skill) => skill?.name !== advancement.grants.skill);
   }
+  const favoured = tiedFavoured(player, advancement);
+  if (favoured) player.favouredSkills = (player.favouredSkills ?? []).filter((skill) => favouredName(skill) !== favoured);
 
   player.advancements = advancements.filter((_, position) => position !== index);
-  return { removed: true, grants: advancement.grants ?? null };
+  return { removed: true, grants: advancement.grants ?? null, ...(favoured ? { favoured } : {}) };
+}
+
+const favouredName = (skill) => (typeof skill === "string" ? skill : skill?.name);
+
+/**
+ * Untie, in place, every advancement of the player tied to one of `names` (`favoured`): a god's skill taken off by hand,
+ * or added by hand, is no advancement's to take back. An advancement tied to none of them is left as it is.
+ * @param {object} player @param {Set<string>} names
+ */
+export function untieFavoured(player, names) {
+  const advancements = normalizePlayerAdvancements(player.advancements);
+  if (!advancements.some(({ favoured }) => names.has(favoured))) return;
+  player.advancements = advancements.map(({ favoured, ...advancement }) => (favoured && !names.has(favoured) ? { ...advancement, favoured } : advancement));
+}
+
+/**
+ * The god's skill tied to `advancement` (`favoured`) while the player still holds it as a favoured skill, else "": one
+ * taken off by hand or by a change of god since is no longer the advancement's to take back, nor to say.
+ */
+export function tiedFavoured(player, advancement) {
+  const name = advancement?.favoured;
+  return name && (player?.favouredSkills ?? []).some((skill) => favouredName(skill) === name) ? name : "";
+}
+
+/**
+ * Tie the god's skill `skill`, which the D8 of a roster «Favoured of…» brought with his last advancement, to that
+ * advancement (`favoured`), in place: its undo takes the skill back (`removeAdvancement`). The roster's sheet and the
+ * post-match's finish tie it the same.
+ */
+export function tieFavoured(player, skill) {
+  const advancements = normalizePlayerAdvancements(player.advancements);
+  if (!advancements.length || !skill) return;
+  player.advancements = [...advancements.slice(0, -1), { ...advancements.at(-1), favoured: skill }];
 }
 
 // ---------------------------------------------------------------------------
@@ -441,15 +480,15 @@ function advanceRefusal(code, params) {
 }
 
 /**
- * Undo the player's last advancement (`removeAdvancement`): what it granted goes, and what it cost at its
- * rank comes back to his SPP. Its roll is said, so the caller knows the server frees it with the save.
+ * Undo the player's last advancement (`removeAdvancement`): what it granted goes — the god's skill its D8 brought
+ * too, said as `favoured` — and what it cost at its rank comes back to his SPP. Its roll is said, so the caller knows
+ * the server frees it with the save.
  *
- * @returns {{removed: false} | {removed: true, index: number, type: string, grants: object|null, roll: object|null, cost: number}}
+ * @returns {{removed: false} | {removed: true, index: number, type: string, grants: object|null, roll: object|null, favoured?: string, cost: number}}
  */
 export function undoLastAdvancement(player) {
   const advancements = normalizePlayerAdvancements(player.advancements), index = advancements.length - 1;
   if (index < 0) return { removed: false };
-  const { type, grants = null, roll = null } = advancements[index];
-  removeAdvancement(player, index);
-  return { removed: true, index, type, grants, roll, cost: advancementRanks[index]?.costs?.[type] ?? 0 };
+  const { type, grants = null, roll = null } = advancements[index], { favoured } = removeAdvancement(player, index);
+  return { removed: true, index, type, grants, roll, ...(favoured ? { favoured } : {}), cost: advancementRanks[index]?.costs?.[type] ?? 0 };
 }

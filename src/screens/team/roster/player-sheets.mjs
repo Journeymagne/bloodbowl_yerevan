@@ -161,11 +161,23 @@ function undoneWords(last) {
 }
 
 /**
+ * The god's skills he holds that no advancement of his names (`favoured`): 2.x's, a post-match's finished before the tie,
+ * or one added by hand. An undo leaves them; the coach is pointed to the fix by hand for one this advancement brought.
+ * @param {import("./model.mjs").PlayerLine} line
+ */
+function looseFavoured(line) {
+  const tied = new Set(line.advancements.map(({ favoured }) => favoured).filter(Boolean));
+  return line.skills.filter(({ source, name }) => source === "favoured" && !tied.has(name)).map(({ name }) => name);
+}
+
+/**
  * The undo of his last advancement (decision 18; no prototype — PlayerDeadConfirm.html's question and two buttons, the
  * lines of 07c's sale): «Undo the advancement?» over «name · advancement N of 6»; what it gave — the skill or «MA +1»,
- * its type, how it was rolled — the SPP that come back and what his value loses; what becomes of it (`undoneWords`);
- * during a preparation what a save resets (R12), and the last refusal. «Keep», and «Undo advancement» — the main
- * button, never the red one: an undo loses nothing an advancement cannot take again; closed (`reason`), it says why.
+ * its type, how it was rolled — the god's skill its D8 brought, which goes with it (Task 10 review), the SPP that come
+ * back and what his value loses; what becomes of it (`undoneWords`) and, for one with no god's skill tied, the god's
+ * skills no advancement names, which stay (`looseFavoured`); during a preparation what a save resets (R12), and the
+ * last refusal. «Keep», and «Undo advancement» — the main button, never the red one: an undo loses nothing an
+ * advancement cannot take again; closed (`reason`), it says why.
  *
  * @param {object} props
  * @param {import("./model.mjs").PlayerLine} props.line the player, on the roster
@@ -181,8 +193,11 @@ export function unadvanceSheetMarkup({ line, screen, sheet }) {
   const row = (key, value, className = "") => `<div class="g-unadvance__row"><dt class="g-unadvance__key">${escapeHtml(key)}</dt>`
     + `<dd class="${classNames("g-unadvance__value", className)}">${escapeHtml(value)}</dd></div>`;
   const rows = `<dl class="g-unadvance__rows">${row(t("teamPlayer.undo.what"), gave.filter(Boolean).join(" · "))}`
+    + `${last.favoured ? row(t("teamPlayer.undo.favoured"), last.favoured) : ""}`
     + `${row(t("teamPlayer.undo.spp"), `+${last.cost}`, "g-unadvance__back")}`
     + `${row(t("teamPlayer.undo.value"), lost ? `−${formatMoney(lost)}` : t("teamRoster.sell.nothing"))}</dl>`;
+  const loose = last.favoured ? [] : looseFavoured(line);
+  const stay = loose.length ? `<p class="g-unadvance__note">${escapeHtml(t("teamPlayer.undo.favouredLoose", { skills: loose.join(", ") }))}</p>` : "";
   const prep = screen.mode.kind === "prep" ? `<p class="g-player-sheet__prep">${escapeHtml(prepResetWords())}</p>` : "";
   const alert = refusal ? `<p class="g-player-sheet__refusal" role="alert">${escapeHtml(refusal)}</p>` : "";
   return renderSheet({
@@ -190,7 +205,7 @@ export function unadvanceSheetMarkup({ line, screen, sheet }) {
     className: PLAYER_FRAME,
     title: t("teamPlayer.undo.title"),
     sub: t("teamPlayer.undo.sub", { name: line.name, level: index + 1 }),
-    bodyHtml: `${rows}<p class="g-unadvance__note">${escapeHtml(undoneWords(last))}</p>${prep}${alert}`,
+    bodyHtml: `${rows}<p class="g-unadvance__note">${escapeHtml(undoneWords(last))}</p>${stay}${prep}${alert}`,
     footStartHtml: renderButton({ label: t("teamPlayer.undo.keep"), data: { unadvanceKeep: true } }),
     footHtml: footButton({ label: t("teamPlayer.undo.send"), kind: "primary", data: { unadvanceSend: true }, reason }),
   });

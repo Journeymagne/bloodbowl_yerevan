@@ -7,6 +7,7 @@ import { createMatchSide } from "../src/domain/match/roster.mjs";
 import { applyPostAction, createPostMatch } from "../src/domain/post-match/state.mjs";
 import { postAdvancer, projectPostRoster } from "../src/domain/post-match/roster.mjs";
 import { favouredBonus, favouredRollAsked } from "../src/domain/roster/edits.mjs";
+import { undoLastAdvancement } from "../src/domain/roster/progression.mjs";
 import { rowsForTeam } from "../src/domain/roster/values.mjs";
 
 const data = expandCollections(JSON.parse(readFileSync(new URL("../public/data.en.json", import.meta.url), "utf8")));
@@ -96,6 +97,13 @@ test("a Favoured roster's every advancement carries the god's D8: none is a refu
     "the skill the advancement gives him");
   const undone = applyPostAction(hit, "home", { type: "undo-advance", playerId: "h1" }, data);
   assert.deepEqual(rosterPlayer(undone, "h1").favouredSkills, [], "the bonus goes with its advancement");
+  // Task 10 review: the roster the finish writes ties the bonus to its advancement (`favoured`), so the roster's own undo
+  // of it later takes the god's skill back too — the same rule on both screens. A D8 that missed ties nothing.
+  const finished = rosterPlayer(hit, "h1");
+  assert.deepEqual(finished.advancements, [{ type: "random", grants: { skill: "Block" }, roll: siteRoll(1), favoured: "Horns" }]);
+  assert.deepEqual(rosterPlayer(missed, "h1").advancements, [{ type: "primary", grants: { skill: "Block" } }]);
+  assert.equal(undoLastAdvancement(finished).favoured, "Horns");
+  assert.deepEqual([finished.advancements, finished.favouredSkills], [[], []], "undone on the roster after the finish: the god's skill with it");
   // The bonus as a step of its own (stage 09b, Task 1) is no more.
   assert.throws(() => applyPostAction(missed, "home", { type: "favoured", playerId: "h1", skill: "Horns" }, data), { code: "POST_ACTION" });
   // No favour, no D8: one sent is not read.

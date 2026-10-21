@@ -43,7 +43,7 @@ import { sameValues } from "../../../domain/post-match/events.mjs";
 import { clearAbsence, markAbsence, sitsOut } from "../../../domain/roster/absence.mjs";
 import { playerCurrentCost } from "../../../domain/roster/costs.mjs";
 import { rollRefusal, siteRollReferences, tableAdvancementFor } from "../../../domain/roster/dice.mjs";
-import { addFavouredSkill, applyFix, editPlayer } from "../../../domain/roster/edits.mjs";
+import { addAdvancementFavoured, applyFix, editPlayer } from "../../../domain/roster/edits.mjs";
 import { normalizePlayerAdvancements, normalizeSppCounters, storedPlayerId } from "../../../domain/roster/players.mjs";
 import { playerAdvancementLevel, takeAdvancement, undoLastAdvancement } from "../../../domain/roster/progression.mjs";
 import { normalizeDraft } from "../../../domain/roster/schema.mjs";
@@ -381,7 +381,8 @@ export function fixPlayer(teamId, race, playerId, fix, options) {
 /**
  * An advancement (`takeAdvancement`), saying `cost`, `value` and `level` after it. A site roll's data (`choice.siteRoll`,
  * which no body carries) asks whether the player can take it (`rollRefusal`); a roll the draft names already sends nothing.
- * The god's skill the D8 brought with it (`choice.favoured`, favoured.mjs) is added in the same step, one save.
+ * The god's skill the D8 brought with it (`choice.favoured`, favoured.mjs) is added in the same step, one save, tied to
+ * the advancement (`addAdvancementFavoured`), so that its undo takes the skill back (Task 10 review).
  */
 export function advancePlayer(teamId, race, playerId, choice, skillGroups, options) {
   const { siteRoll, favoured, ...taken } = choice ?? {}, site = taken.roll?.via === "site";
@@ -391,16 +392,19 @@ export function advancePlayer(teamId, race, playerId, choice, skillGroups, optio
     if (stale) return { refusal: refusalWordsOf("teamAdvance", stale) };
     const take = (target) => {
       const answer = takeAdvancement(race, row, target, taken, skillGroups);
-      const bonus = answer.applied && favoured ? addFavouredSkill(race, draft, row, target, favoured) : { applied: true };
+      const bonus = answer.applied && favoured ? addAdvancementFavoured(race, draft, row, target, favoured) : { applied: true };
       return bonus.applied ? answer : { applied: false, code: "GRANT_NOT_AVAILABLE", params: { skill: favoured } };
     };
     return tried("teamAdvance", (copy) => take(copy ? structuredClone(player) : player), ({ cost, value }) => ({ cost, value, level: playerAdvancementLevel(player) }));
   });
 }
 
-/** The last advancement undone (`undoLastAdvancement`), saying its `cost`, `type`, `grants` and `roll`, which the save frees. */
+/**
+ * The last advancement undone (`undoLastAdvancement`), saying its `cost`, `type`, `grants` and `roll`, which the save
+ * frees, and `favoured`, the god's skill tied to it that went with it ("" for none).
+ */
 export function undoAdvancement(teamId, playerId, options) {
-  const said = ({ cost, type, grants, roll }) => ({ cost, type, grants, roll });
+  const said = ({ cost, type, grants, roll, favoured = "" }) => ({ cost, type, grants, roll, favoured });
   return stepPlayer(teamId, { ...options, playerId, space: "teamPlayer" }, (draft, player) =>
     (undoLastAdvancement(structuredClone(player)).removed ? { apply: () => said(undoLastAdvancement(player)) } : null));
 }
