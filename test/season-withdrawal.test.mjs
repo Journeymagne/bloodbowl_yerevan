@@ -7,7 +7,8 @@ import { generateSwissRound } from "../server/season/rounds.mjs";
 import { computeSeasonStandings } from "../server/season/scoring.mjs";
 import { handleSeasonRoutes } from "../server/routes/season.mjs";
 import { pairingEntry } from "../src/screens/season/season-links.mjs";
-import { renderSeasonStandings } from "../src/screens/season/standings.mjs";
+import { leagueTableMarkup } from "../src/screens/season/table.mjs";
+import { seasonTable } from "../src/data/season-table.mjs";
 import { renderSeasonRounds } from "../src/screens/season/schedule.mjs";
 import { state } from "../src/core/state.mjs";
 import { setDictionaries } from "../src/core/i18n.mjs";
@@ -104,7 +105,12 @@ test("historical participants render in results and only their existing selector
   setDictionaries({ en: JSON.parse(await readFile(new URL("../src/i18n/en.json", import.meta.url), "utf8")) });
   await fixture(async () => {
     const data = await loadSeasonBundle();
-    assert.match(renderSeasonStandings(data), /season-withdrawn-label">Withdrawn/);
+    const table = leagueTableMarkup({ rows: seasonTable(data), phone: false, viewerId: "opponent-coach", signedIn: true, labelledBy: "t" });
+    const withdrawnRow = table.split('role="row"').find((row) => row.includes(removedId + " Team"));
+    assert.match(withdrawnRow, /g-table__withdrawn">entry withdrawn/);
+    assert.doesNotMatch(withdrawnRow, /g-table__link/, "a withdrawn entry leads nowhere");
+    assert.equal(seasonTable(data).find((row) => row.entryId === removedId).rank, data.standings.find((row) => row.entryId === removedId).rank,
+      "the server's place is kept");
     assert.match(renderSeasonRounds(data), new RegExp(removedId + " Team"));
     const html = renderSeasonRounds(data, true);
     const selectors = [...html.matchAll(/<select[^>]*data-(home|away)[^>]*>([\s\S]*?)<\/select>/g)];

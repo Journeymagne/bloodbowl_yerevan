@@ -1,0 +1,223 @@
+/*
+ * The league's page (screens/season/league.mjs): League.html up to 900px, DeskSeason.html without its board from
+ * 901px, and the season's calendar, which has no prototype of its own and is drawn as DeskSeason.html's calendar.
+ * The season's row of a desk — the table's card at the left, a column at its right — is here too: a team's desk
+ * season (screens/matches) stands in it as well. The table's rows are table.css's. Font, border, background,
+ * text-transform, letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until
+ * stage 13.
+ *
+ * Long names wrap; nothing is cut with «…».
+ */
+.g-league {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-league :where(h2, h3, p, ul, li) {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-league__failed {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+}
+
+.g-league__loading,
+.g-league__none {
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+}
+.g-league__none { padding: var(--space-8) 0 var(--space-4); }
+
+/* The season's name with the last round over at its right (League.html). */
+.g-league__bar {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: 18px var(--space-16) var(--space-10);
+}
+.g-league__title {
+  min-width: 0;
+  color: var(--ink);
+  font: 700 26px/1.15 var(--font-display);
+  overflow-wrap: anywhere;
+}
+.g-league__after {
+  flex: none;
+  color: var(--muted);
+  font: 400 14px/1.3 var(--font-body);
+  white-space: nowrap;
+}
+
+/* ---- The season's calendar: the rounds, each pairing a line as DeskSeason.html's calendar draws a match ---- */
+.g-league__calendar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-league__caltitle {
+  color: var(--ink);
+  font: 700 24px/1.2 var(--font-display);
+}
+.g-league__round {
+  padding: var(--space-12) 0 var(--space-4);
+  color: var(--muted);
+  font: 600 13px/1.3 var(--font-body);
+}
+.g-league__pairs {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+.g-league__pair {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 52px;
+  padding: var(--space-4) 0;
+  border-bottom: 1px solid var(--line);
+}
+/* The coach's pair: tinted, a little wider than the text so the tint does not end at the letters. */
+.g-league__pair--mine {
+  margin: 0 calc(-1 * var(--space-8));
+  padding: var(--space-4) var(--space-8);
+  background: var(--accent-tint);
+}
+.g-league__teams {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.g-league__names {
+  color: var(--ink);
+  font: 500 15px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+.g-league__team {
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink);
+  font: inherit;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.g-league__state {
+  color: var(--muted);
+  font: 400 12px/1.3 var(--font-body);
+}
+.g-league__score {
+  color: var(--ink);
+  font: 700 22px/1 var(--font-display);
+  white-space: nowrap;
+}
+.g-league__score--none { color: var(--muted); }
+
+/* An admin's way to the season's administration, in the band. */
+.g-league__admin {
+  display: inline-flex;
+  align-items: center;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  text-decoration: none;
+}
+
+@media (max-width: 900px) {
+  /*
+   * League.html's page runs to the screen's edges, its rows 16 in: the page takes back the 2.x view's padding of a
+   * phone (20 above, 16 at the sides, site-matchday.css), and the view's own 32 below stands for the prototype's 28.
+   */
+  .g-league { margin: calc(-1 * var(--space-20)) calc(-1 * var(--space-16)) 0; }
+  /* A name in the calendar is a thumb's target (D2): two in a line, each 44 high, make the pair's line taller than 52. */
+  .g-league__team,
+  .g-league__admin { min-height: 44px; }
+  .g-league__failed { padding: var(--space-16) var(--space-16) 0; }
+  .g-league__loading { padding: var(--space-14) var(--space-16) 0; }
+  .g-league__calendar { padding: var(--space-22) var(--space-16) 0; }
+}
+
+@media (min-width: 901px) {
+  .g-league { gap: var(--space-20); }
+  .g-league__team,
+  .g-league__admin { min-height: 24px; }
+
+  /* The season's row (DeskSeason.html): the table's card takes what is left of the calendar's column, 640 at least. */
+  .g-season__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: var(--space-20);
+    min-width: 0;
+  }
+  .g-season__table {
+    box-sizing: border-box;
+    flex: 999 1 640px;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+    overflow-x: auto;
+  }
+  /* The card's heading, the table and its note scroll sideways together, as one block of 700 at least. */
+  .g-season__inner { min-width: 700px; }
+  .g-season__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-12);
+    padding: 18px var(--space-20) var(--space-10);
+  }
+  .g-season__title {
+    margin: 0;
+    padding: 0;
+    border: 0;
+    color: var(--ink);
+    font: 700 26px/1.2 var(--font-display);
+    letter-spacing: 0;
+    text-transform: none;
+  }
+  .g-season__rule {
+    color: var(--muted);
+    font: 400 13px/1.4 var(--font-body);
+    text-align: right;
+  }
+  .g-season__inner .g-league__loading,
+  .g-season__inner .g-table__empty { padding: 0 var(--space-20) var(--space-16); }
+  .g-season__aside {
+    display: flex;
+    flex: 1 1 320px;
+    flex-direction: column;
+    gap: var(--space-16);
+    min-width: 0;
+    max-width: 420px;
+  }
+  .g-season__aside .g-league__calendar {
+    box-sizing: border-box;
+    padding: var(--space-16) var(--space-20) var(--space-8);
+    border-radius: var(--radius-2xl);
+    background: var(--surface);
+    box-shadow: var(--ring);
+  }
+}

@@ -1,6 +1,9 @@
 /**
  * The season screen: `#/season` and its tabs, `#/season/:tab`.
  *
+ * Since stage 10 `#/season` is the league's 3.0 page (screens/season/league.mjs); this 2.x screen draws a coach's
+ * entry and the admin's season until stage 12.
+ *
  * Mechanically moved out of src/app.js, with one deliberate exception to
  * "no behaviour change" — spelled out by task 6.7 of the refactor plan: the
  * active tab used to live in `state.season.activeTab`, so a tab couldn't be
@@ -21,22 +24,17 @@ import { view } from "../../core/view.mjs";
 import { seasonTabUrl } from "../../core/routes.mjs";
 import { renderHeader, setActiveNav, setViewSection } from "../../components/page-chrome.mjs";
 import { renderSeasonRegistration, wireRegistration } from "./registration.mjs";
-import { renderLeagueFixture } from "./fixture.mjs";
-import { renderSeasonStandings } from "./standings.mjs";
-import { renderSeasonRounds } from "./schedule.mjs";
 import { renderSeasonAdmin, wireAdmin, wireEntryManagement } from "./admin.mjs";
 import { loadSeason } from "./season-data.mjs";
 
 /**
- * `signedIn` marks a tab that says something about *you*: entering the season
- * and your current fixture. Since step 10.3 the rest is readable without an
- * account, so a visitor lands on the standings rather than on a login notice.
+ * `signedIn` marks a tab that says something about *you*: entering the season.
+ * The table, the schedule and the results are the league's page since stage 10
+ * (league.mjs), which a visitor reads without an account; the admin's schedule
+ * is part of the administration tab (admin.mjs).
  */
 const seasonTabDefinitions = [
   { id: "registration", labelKey: "season.tab.registration", signedIn: true },
-  { id: "fixture", labelKey: "season.tab.fixture", signedIn: true },
-  { id: "standings", labelKey: "season.tab.standings" },
-  { id: "schedule", labelKey: "season.tab.schedule" },
   { id: "administration", labelKey: "nav.administration", adminOnly: true },
 ];
 
@@ -95,9 +93,6 @@ function renderSeasonPanel(data, activeTab) {
 }
 
 function renderSeasonTabContent(data, activeTab) {
-  if (activeTab === "fixture") return renderLeagueFixture(data);
-  if (activeTab === "standings") return renderSeasonStandings(data);
-  if (activeTab === "schedule") return renderSeasonRounds(data);
   if (activeTab === "administration" && state.auth.currentUser?.isAdmin) return renderSeasonAdmin(data);
   return renderSeasonRegistration(data);
 }

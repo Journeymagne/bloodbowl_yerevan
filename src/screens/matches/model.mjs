@@ -170,7 +170,7 @@ function pendingOf(games, team, seasonData, current) {
  * «Mock Season · teams: 10 · after round 6» (DeskSeason.html): the season, how many teams its table has, and the last
  * round over — by the rounds the season names, else the one before the round on; without one over, the first two alone.
  */
-function seasonLineOf(seasonData) {
+export function seasonLineOf(seasonData) {
   const season = seasonData?.season;
   if (!season?.name) return "";
   const teams = Array.isArray(seasonData.standings) ? seasonData.standings.length : 0;
