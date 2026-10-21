@@ -4,7 +4,7 @@ import test from "node:test";
 
 import {
   LOGIN_MIN_LENGTH, PASSWORD_MIN_LENGTH, STRONG_PASSWORD_LENGTH,
-  normalizeTelegram, passwordChangeChecks, passwordStrength, registrationProblems, telegramProblem,
+  normalizeTelegram, passwordChangeChecks, passwordStrength, registrationProblems, telegramProblem, telegramUrl,
 } from "../src/domain/account.mjs";
 
 test("the lengths are the server's", () => {
@@ -29,6 +29,15 @@ test("a Telegram contact is @ and 5 to 32 letters, digits or underscores; a bare
   assert.equal(telegramProblem(`@${"a".repeat(33)}`), "TELEGRAM_FORMAT");
   assert.equal(telegramProblem("@тренер_лиги"), "TELEGRAM_FORMAT");
   assert.equal(telegramProblem("t.me/felstell"), "TELEGRAM_FORMAT");
+});
+
+test("a contact the forms accept is a t.me address; anything else is none", () => {
+  assert.equal(telegramUrl("@lilit_leaps"), "https://t.me/lilit_leaps");
+  assert.equal(telegramUrl("lilit_leaps"), "https://t.me/lilit_leaps");
+  assert.equal(telegramUrl("  @lilit_leaps "), "https://t.me/lilit_leaps");
+  for (const contact of ["@ab", "https://t.me/x", "t.me/lilit_leaps", "", null, undefined, "@lilit leaps", "@тренер_лиги"]) {
+    assert.equal(telegramUrl(contact), "", String(contact));
+  }
 });
 
 test("password strength has three steps", () => {
