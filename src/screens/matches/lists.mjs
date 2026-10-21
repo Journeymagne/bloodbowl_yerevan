@@ -7,17 +7,25 @@
  * row give no thumb 44px); the opponent and the race are text in it.
  *
  * A desk has «Calendar» instead (DeskSeason.html): every played match of the season with its result's square, the match
- * on, and the next round, «Friendlies» in its head.
+ * on, the team's other open matches (their lines lead to the match), and the next round, «Friendlies» in its head and the
+ * way to the league's calendar at its foot (stage 10, pre-flight L11).
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { teamUrl } from "../../core/routes.mjs";
+import { seasonTabUrl, teamUrl } from "../../core/routes.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderResultPill, resultLabels } from "../../ui/result-pill.mjs";
 
-/** A row's body: the pill, the opponent over the round, race and casualties, the MVP; the score at the end. */
-function resultBody({ result, opponent, line, mvp, score }) {
-  return `${renderResultPill({ result })}<span class="g-matches__text"><span class="g-matches__opponent">${escapeHtml(opponent)}</span>`
+/** A score sent: the outcome it proposes on the waiting tint, its letter seen and its word, with what it waits for, heard. */
+function sentPill(result) {
+  const { letter, name } = resultLabels(result);
+  return `<span class="g-result g-matches__pill--sent"><span aria-hidden="true">${escapeHtml(letter)}</span>`
+    + `<span class="g-sr-only">${escapeHtml(`${name} · ${t("matches.sentResult")}`)}</span></span>`;
+}
+
+/** A row's body: the pill (a score sent's on the waiting tint), the opponent over the round, race and casualties, the MVP; the score at the end. */
+function resultBody({ result, sent, opponent, line, mvp, score }) {
+  return `${sent ? sentPill(result) : renderResultPill({ result })}<span class="g-matches__text"><span class="g-matches__opponent">${escapeHtml(opponent)}</span>`
     + `<span class="g-matches__line">${escapeHtml(line)}</span>${mvp ? `<span class="g-matches__line">${escapeHtml(mvp)}</span>` : ""}</span>`
     + `<span class="g-matches__score">${escapeHtml(score)}</span>`;
 }
@@ -79,14 +87,18 @@ function squareMarkup({ label, result, current }) {
   return `<span class="g-matches__square${current ? " g-matches__square--current" : " g-matches__square--later"}">${escapeHtml(label)}</span>`;
 }
 
-/** One row of the calendar: the square, the opponent (a link to his team) over its line, the score or «—». */
+/** One row of the calendar: the square, the opponent (a link to his team) over its line (a link to the match, for another open one), the score or «—». */
 function calendarRow(row) {
   const name = row.opponent?.href
     ? `<a class="g-matches__calopp" href="${escapeHtml(row.opponent.href)}">${escapeHtml(row.opponent.name)}</a>`
     : `<span class="g-matches__calopp${row.muted ? " g-matches__calopp--muted" : ""}">${escapeHtml(row.opponent?.name ?? "")}</span>`;
   if (row.opponent?.href) assertLinkHref(row.opponent.href);
+  if (row.href) assertLinkHref(row.href);
+  const line = row.href
+    ? `<a class="g-matches__calline" href="${escapeHtml(row.href)}">${escapeHtml(row.line)}</a>`
+    : `<span class="g-matches__calline">${escapeHtml(row.line)}</span>`;
   const empty = row.score === "—";
-  return `<li class="g-matches__calrow">${squareMarkup(row.square)}<span class="g-matches__text">${name}<span class="g-matches__calline">${escapeHtml(row.line)}</span></span>`
+  return `<li class="g-matches__calrow">${squareMarkup(row.square)}<span class="g-matches__text">${name}${line}</span>`
     + `<span class="g-matches__calscore${empty ? " g-matches__calscore--none" : ""}">${escapeHtml(row.score)}</span></li>`;
 }
 
@@ -100,5 +112,6 @@ export function calendarMarkup(rows, teamId) {
   const body = rows.length ? `<ul class="g-matches__list">${rows.map(calendarRow).join("")}</ul>` : `<p class="g-matches__empty">${escapeHtml(t("matches.noResults"))}</p>`;
   return `<section class="g-matches__calendar" aria-labelledby="matches-calendar"><div class="g-matches__calhead">`
     + `<h2 class="g-matches__caltitle" id="matches-calendar">${escapeHtml(t("matches.calendar"))}</h2>`
-    + `<a class="g-matches__calfriendlies" href="${escapeHtml(teamUrl(teamId, "challenges"))}">${escapeHtml(t("teamOverview.friendlies"))}</a></div>${body}</section>`;
+    + `<a class="g-matches__calfriendlies" href="${escapeHtml(teamUrl(teamId, "challenges"))}">${escapeHtml(t("teamOverview.friendlies"))}</a></div>${body}`
+    + `<a class="g-matches__calall" href="${escapeHtml(seasonTabUrl())}">${escapeHtml(t("league.calendarAll"))}</a></section>`;
 }

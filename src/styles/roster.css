@@ -1473,22 +1473,11 @@
   align-items: start;
 }
 
-.public-team-summary-block,
-.public-team-coach-block {
+.public-team-summary-block {
   display: grid;
   min-width: 0;
   gap: 12px;
   align-content: start;
-}
-
-.public-team-coach-block {
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
-}
-
-.public-team-coach-block h2,
-.public-team-coach-block p {
-  margin: 0;
 }
 
 .public-team-logo-block {

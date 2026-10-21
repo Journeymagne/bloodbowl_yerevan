@@ -1,0 +1,371 @@
+/*
+ * The league's table (screens/season/table.mjs): League.html up to 900px, the table of DeskSeason.html from
+ * 901px, and the overview's mini table (DeskOverview.html). The rows' grid and look are here; the card a desk
+ * draws the table in, with its heading, is the page's (league.css). Font, border, background, text-transform,
+ * letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13.
+ *
+ * Long names wrap; nothing is cut with «…» (the owner's answer on wrapping; the prototypes cut them).
+ * The head does not stick to the top on a phone, as League.html's does inside its own scroller: here the
+ * document scrolls under the shell's sticky header of its own height (decision 8).
+ */
+.g-table {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The head: the column letters, upper case as the prototypes write them, over a stronger rule. */
+.g-table__head {
+  box-sizing: border-box;
+  display: grid;
+  align-items: center;
+  height: 40px;
+  border-bottom: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--muted);
+  font: 600 12px/1.2 var(--font-body);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.g-table__col { text-align: center; }
+.g-table__col--start { text-align: left; }
+.g-table__col--end { text-align: right; }
+
+/*
+ * A row is the box its link stretches over: the link (the team's name) is not positioned itself, so its
+ * ::after takes the row's box. The ring is src/ui/base.css's, drawn on the ::after inside the row, so the
+ * whole row is ringed and a desk's card, which scrolls sideways and clips, does not cut it.
+ */
+.g-table__row {
+  box-sizing: border-box;
+  position: relative;
+  display: grid;
+  align-items: center;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.g-table__row--mine { background: var(--accent-tint); }
+
+.g-table__cell {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.g-table__rank {
+  color: var(--muted);
+  font: 700 15px/1 var(--font-body);
+}
+
+.g-table__team {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding-right: var(--space-6);
+}
+
+.g-table__name,
+.g-table__link {
+  color: var(--ink);
+  font: 500 15px/1.3 var(--font-body);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.g-table__row--mine .g-table__name,
+.g-table__row--mine .g-table__link { font-weight: 700; }
+.g-table__row--withdrawn .g-table__name { color: var(--muted); }
+
+.g-table__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+.g-table__link:focus-visible { outline: 0; }
+.g-table__link:focus-visible::after {
+  outline: 3px solid var(--accent-text);
+  outline-offset: -3px;
+}
+
+/* A desk's race: a link over the row's (z-index), the prototype's 5px above and below it taken back by the margin. */
+.g-table__race {
+  position: relative;
+  z-index: 1;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 5px 0;
+  margin: -5px 0;
+  color: var(--accent-text);
+  font: 600 12px/1.2 var(--font-body);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+/* --accent-text is under 4.5:1 on the tint in one palette; the own row's green text is the tint's own ink. */
+.g-table__row--mine .g-table__race { color: var(--on-accent-tint); }
+
+/* A phone's race, and one in a row that leads nowhere: text, as League.html writes a race it has no page for. */
+.g-table__racetext,
+.g-table__withdrawn {
+  color: var(--muted);
+  font: 400 12px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.g-table__num {
+  text-align: center;
+  font: 400 15px/1 var(--font-body);
+}
+.g-table__num--muted { color: var(--muted); }
+
+.g-table__diff {
+  text-align: center;
+  font: 400 15px/1 var(--font-body);
+}
+.g-table__diff--up { color: var(--accent-text); }
+.g-table__diff--down { color: var(--danger); }
+.g-table__diff--even { color: var(--muted); }
+.g-table__row--mine .g-table__diff--up { color: var(--on-accent-tint); }
+
+.g-table__points {
+  text-align: right;
+  font: 700 17px/1 var(--font-body);
+}
+
+/* The form: five squares of 22, 3 apart (DeskSeason.html), not the strip's ten of 28. */
+.g-table__form .g-form {
+  display: flex;
+  justify-content: center;
+  gap: 3px;
+}
+.g-table__form .g-form__item {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  font: 700 11px/1 var(--font-body);
+}
+
+.g-table__empty {
+  margin: 0;
+  padding: var(--space-14) var(--space-16);
+  color: var(--muted);
+  font: 400 14px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* The note under the table: the league's rules and what a row and a race do. */
+.g-table__notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  margin: 0;
+  padding: var(--space-14) var(--space-16) 0;
+  color: var(--muted);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-table__note {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .g-table__head,
+  .g-table__row { grid-template-columns: 26px minmax(0, 1fr) repeat(4, 24px) 38px 34px; }
+  .g-table__head { padding: 0 var(--space-16); }
+  /*
+   * League.html's 71: its 58, the padding and the rule on top (the prototype sets no box-sizing). The link over the row
+   * is a thumb's target (D2).
+   */
+  .g-table__row {
+    min-height: 71px;
+    padding: var(--space-6) var(--space-16);
+  }
+}
+
+@media (min-width: 901px) {
+  .g-table__head,
+  .g-table__row {
+    grid-template-columns: 32px minmax(200px, 1fr) repeat(4, 32px) 52px 44px 44px 136px 40px;
+    column-gap: var(--space-4);
+    padding: 0 var(--space-20);
+  }
+  .g-table__row { min-height: 56px; }
+  .g-table__name,
+  .g-table__link { font-size: 16px; }
+  /* The prototype's 26 for the race, which D2 asks to be at least 24. */
+  .g-table__race { min-height: 24px; }
+  .g-table__num--pair { font-size: 14px; }
+  .g-table__diff--strong { font-weight: 600; }
+  .g-table__points { font-size: 18px; }
+  .g-table__notes {
+    gap: var(--space-4);
+    padding: var(--space-12) var(--space-20) var(--space-16);
+  }
+}
+
+/*
+ * The overview's mini table (DeskOverview.html): a card of a few rows, the place, the name, the touchdown
+ * difference and the points. No zone: every place is --muted (decision 4); a difference below nothing is
+ * --muted too, as the prototype draws it. Drawn on a desk only; the sizes a thumb needs stand as the default.
+ */
+.g-minitable {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-20) 0 var(--space-8);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-minitable__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: 0 var(--space-20) var(--space-8);
+}
+
+.g-minitable__title {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 24px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-minitable__all {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.g-minitable__rows {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.g-minitable__row {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr) 34px 30px;
+  align-items: center;
+  gap: var(--space-8);
+  min-height: 42px;
+  padding: 0 var(--space-20);
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+.g-minitable__row--mine { background: var(--accent-tint); }
+
+.g-minitable__rank {
+  color: var(--muted);
+  font: 700 14px/1 var(--font-body);
+}
+
+.g-minitable__team { min-width: 0; }
+
+.g-minitable__name,
+.g-minitable__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font: 500 15px/1.3 var(--font-body);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.g-minitable__row--mine .g-minitable__name,
+.g-minitable__row--mine .g-minitable__link { font-weight: 700; }
+
+.g-minitable__diff {
+  text-align: center;
+  color: var(--muted);
+  font: 400 14px/1 var(--font-body);
+}
+.g-minitable__diff--down,
+.g-minitable__diff--even { color: var(--muted); }
+.g-minitable__diff--up { color: var(--accent-text); }
+.g-minitable__row--mine .g-minitable__diff--up { color: var(--on-accent-tint); }
+
+.g-minitable__points {
+  text-align: right;
+  font: 700 16px/1 var(--font-body);
+}
+
+@media (min-width: 901px) {
+  .g-minitable__all,
+  .g-minitable__name,
+  .g-minitable__link { min-height: 24px; }
+}
+
+/*
+ * A desk's team calendar (screens/matches/lists.mjs) since stage 10: the line of another open match leads to the match,
+ * in the link's colour, 24 high at least (D2; pre-flight L19); and at the calendar's foot the way to the league's
+ * calendar (pre-flight L11). Here rather than in matches.css, which this stage does not grow.
+ */
+a.g-matches__calline {
+  align-self: flex-start;
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.g-matches__calall {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: var(--space-8) 0 var(--space-4);
+  color: var(--accent-text);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+@media (min-width: 901px) {
+  a.g-matches__calline {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
+  .g-matches__calall { min-height: 24px; }
+  /*
+   * In the season's column (320 wide at the least) «Calendar» keeps its word whole, as DeskSeason.html's nowrap does,
+   * and «Friendlies» gives way, its words wrapping in the button as the prototype's do.
+   */
+  .g-season__aside .g-matches__caltitle { flex: none; }
+  .g-season__aside .g-matches__calfriendlies { flex: 0 1 auto; }
+}

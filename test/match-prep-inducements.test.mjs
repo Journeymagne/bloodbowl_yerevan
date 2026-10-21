@@ -329,6 +329,8 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   for (const selector of [".g-prep-ind__name", ".g-prep-ind__note", ".g-prep-ind__why", ".g-prep-budget__petty"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.doesNotMatch(bare, /--focus-ring|style=/);
   for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
-  const styles = text("src/styles.css").trim();
-  assert.ok(styles.endsWith('@import url("screens/matches/prep-inducements.css");'), "imported last");
+  // Imported after every sheet it was written over (stage 10 adds the season's sheets after it, in the order of its tasks).
+  const styles = text("src/styles.css");
+  const at = styles.indexOf('@import url("screens/matches/prep-inducements.css");');
+  assert.ok(at > styles.indexOf('@import url("screens/matches/prep.css");') && at > styles.lastIndexOf('@import url("ui/'), "imported after the sheets it is written over");
 });

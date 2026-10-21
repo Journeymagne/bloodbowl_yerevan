@@ -2,7 +2,7 @@
  * The «Matches» tab of a team (`#/t/:id/matches`, stage 09a). A phone's: the match on as a card, «Friendlies», the
  * season's results and what comes later in it (Matches.html, MatchesLive.html, MatchesPrePlus.html). A desk's is the
  * season's (DeskSeason.html, DeskSeasonLive.html, DeskSeasonPrePlus.html): the board paging through the team's matches,
- * its bubbles opening «Before the match», and the calendar; the table is stage 10's (the owner's M2 answer 1). It
+ * its bubbles opening «Before the match», and under it the table with the calendar at its right (stage 10). It
  * replaces 2.x's «My games» on this address; that screen draws the challenges alone until stage 09c (decision 3).
  *
  * `matchesModel` (model.mjs) says what the page says; the card is card.mjs's, the lists lists.mjs's. One form for each
@@ -31,6 +31,7 @@ import { renderCallout } from "../../ui/callout.mjs";
 import { icon } from "../../ui/icons.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { loadSeason } from "../season/season-data.mjs";
+import { leagueTableMarkup, tableCardMarkup, tableNotesMarkup } from "../season/table.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
 import { bandBoardMarkup, bandVisit } from "./band.mjs";
 import { currentCardMarkup, noMatchMarkup } from "./card.mjs";
@@ -63,15 +64,21 @@ function currentMarkup(model) {
 }
 
 /**
- * A desk's page (DeskSeason.html without its table, the owner's M2 answer 1): the head «Season» with the season's line,
- * the board the whole width, paging through the team's matches with its bubbles, and the calendar under it. Outside the
- * table with no match on, the call to enter the season instead of the board.
+ * A desk's page (DeskSeason.html): the head «Season» with the season's line, the board the whole width, paging through
+ * the team's matches with its bubbles, and under it the season's row — the table's card at the left (the league page's
+ * rows, the team's own marked) and the calendar at its right; with the games not read, no calendar and no column for it.
+ * A team outside the table has no table: the call to enter the season and the calendar the whole width, as before
+ * stage 10, and no board without a match on.
  */
 function deskMarkup(model) {
   const head = renderPageHead({ title: t("shell.side.season"), sub: model.seasonLine });
   const calendar = model.gamesRead ? calendarMarkup(model.calendar, model.teamId) : "";
-  return `${head}<div class="g-matches g-matches--desk">${failuresMarkup(model.failures)}${model.band ? bandBoardMarkup(model.band) : ""}`
-    + `${seasonCallMarkup(model)}${calendar}</div>`;
+  const table = leagueTableMarkup({ rows: model.table, phone: false, viewerId: model.viewerId, signedIn: true, teamId: model.teamId, labelledBy: "matches-table" });
+  const season = model.inSeason
+    ? `<div class="g-season__row">${tableCardMarkup({ titleId: "matches-table", bodyHtml: table + tableNotesMarkup({ phone: false }) })}`
+      + `${calendar ? `<aside class="g-season__aside">${calendar}</aside>` : ""}</div>`
+    : `${seasonCallMarkup(model)}${calendar}`;
+  return `${head}<div class="g-matches g-matches--desk">${failuresMarkup(model.failures)}${model.band ? bandBoardMarkup(model.band) : ""}${season}</div>`;
 }
 
 /**
@@ -101,7 +108,7 @@ function markupOf(teamId, held, band, records) {
   return matchesMarkup(matchesModel({
     team, raceTeam: raceTeamOf(team.baseTeamSlug), seasonData: state.season.data,
     games: loaded && !held.games ? items : null, gamesError: held.games ? "" : error, seasonError: held.season ? "" : state.season.error,
-    opponent: band.opponent, records, data: state.data, phone: isPhone(), bandKey: band.key,
+    opponent: band.opponent, records, data: state.data, phone: isPhone(), bandKey: band.key, viewerId: state.auth.currentUser?.id ?? "",
   }));
 }
 

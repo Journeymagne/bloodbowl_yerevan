@@ -224,10 +224,6 @@
   background: var(--panel-glass);
 }
 
-.season-table {
-  min-width: 760px;
-}
-
 .season-score-input {
   width: 76px;
   min-height: 34px;
@@ -254,36 +250,6 @@
 .season-td-pair {
   display: grid;
   gap: 6px;
-}
-
-.fixture-headline {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-}
-
-.fixture-headline > div,
-.season-score-summary {
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-glass);
-}
-
-.fixture-headline strong {
-  display: block;
-  color: var(--soft);
-  font-size: 1.125rem;
-}
-
-.fixture-headline p {
-  margin: 4px 0 0;
-}
-
-.season-score-summary {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
 }
 
 .fixture-result-form {
@@ -582,4 +548,3 @@ td {
   background: var(--panel);
   color: var(--muted);
 }
-.season-table .season-withdrawn-label { display: block; margin-top: 4px; color: var(--muted); font-size: .8125rem; line-height: 1.5; }

@@ -36,7 +36,7 @@ import { renderRefSection } from "../screens/ref/list.mjs";
 import { renderTeams } from "../screens/teams/index.mjs";
 import { renderSavedRoster } from "../screens/saved-roster.mjs";
 import { renderNewTeam } from "../screens/teams/new.mjs";
-import { renderSeason } from "../screens/season/index.mjs";
+import { renderSeasonRoute } from "../screens/season/league.mjs";
 import { renderMyGames } from "../screens/games/my-games.mjs";
 import { renderTeamMatches } from "../screens/matches/index.mjs";
 import { renderPreMatch } from "../screens/matches/prep.mjs";
@@ -44,8 +44,8 @@ import { renderGamePage } from "../screens/games/game.mjs";
 import { renderPostMatch } from "../screens/games/post-match.mjs";
 import { renderAdministration } from "../screens/administration/users.mjs";
 import { renderAdminUserProfile } from "../screens/administration/user.mjs";
-import { renderPlayerProfile } from "../screens/players/profile.mjs";
-import { renderPublicTeamProfile } from "../screens/players/team.mjs";
+import { renderCoachProfile } from "../screens/coaches/profile.mjs";
+import { renderCoachTeam } from "../screens/coaches/team.mjs";
 import { refreshShell } from "../shell/shell.mjs";
 
 /**
@@ -78,14 +78,14 @@ const screens = {
   teamPlayer: ({ teamId, playerId }) => renderTeamPlayer(teamId, playerId),
   teamMatches: ({ teamId }) => renderTeamMatches(teamId),
   teamChallenges: () => renderMyGames(),
-  coach: ({ userId }) => renderPlayerProfile(userId),
-  coachTeam: ({ userId, teamId }) => renderPublicTeamProfile(userId, teamId),
+  coach: ({ userId }) => renderCoachProfile(userId),
+  coachTeam: ({ userId, teamId }) => renderCoachTeam(userId, teamId),
   ref: () => renderRef(),
   refSection: ({ section }) => renderRefSection(section),
   game: ({ gameId }) => renderGamePage(gameId),
   preMatch: ({ gameId, step }) => renderPreMatch(gameId, step),
   postMatch: ({ gameId, step }) => renderPostMatch(gameId, step),
-  season: ({ tab }) => renderSeason(true, tab),
+  season: ({ tab }) => renderSeasonRoute(tab),
   adminTeamEdit: ({ ownerId, teamId }) => renderSavedRoster(teamId, true, { adminOwnerId: ownerId }),
   adminUserProfile: ({ userId }) => renderAdminUserProfile(userId),
   administration: () => renderAdministration(),

@@ -50,8 +50,11 @@
  * desk (DeskOverview.html).
  *
  * Under the board stand two columns (decision 51): the leaders and the recent
- * matches at the left, who can advance at the right; a column with nothing in it
- * is not drawn, and the other has the row. A phone shows the left one alone
+ * matches at the left, who can advance at the right and under them, since stage
+ * 10, a few rows of the league's table (decision 15 of its plan: the top six, the
+ * team below them last with its place, `tableWindow`) and the way to the whole of
+ * it; a column with nothing in it is not drawn, and the other has the row. A
+ * phone has no table (Team.html) and shows the left column alone
  * (Team.html's order: the figures, the card, the board, the leaders, the
  * matches). The leaders and the recent results are overview-lists.mjs's, each in
  * the form of the width; the model names the opponent's race of each result from
@@ -89,6 +92,7 @@ import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
 import { loadGames, onGamesChange } from "../../data/games.mjs";
+import { seasonTable, tableWindow } from "../../data/season-table.mjs";
 import { recentResults, seasonDifference, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
 import { loadMyTeams, raceTeamOf } from "../../data/teams.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
@@ -103,6 +107,7 @@ import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { bandBoard, bandBoardMarkup, bandItems, bandVisit, previewFor } from "../matches/band.mjs";
 import { goSearch, refSearchField, wireRefSearch } from "../ref/frame.mjs";
 import { loadSeason } from "../season/season-data.mjs";
+import { miniTableMarkup } from "../season/table.mjs";
 import { rosterLines } from "./roster/model.mjs";
 import { isPhone, onPhoneChange } from "./roster/screen.mjs";
 import { leadersMarkup, resultsMarkup } from "./overview-lists.mjs";
@@ -205,9 +210,10 @@ function readyPlayers(draft, raceTeam) {
  *   opponent's team, as the visit holds them (`bandVisit`)
  * @param {object[]|null} [input.matchEvents] the records as last read, of any moment: what a match on counts
  * @param {object|null} [input.data] the reference, for «Before the match»
+ * @param {string} [input.viewerId] the coach who looks: the team's row of the table is his own, marked
  */
 export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false, events = [],
-  band = { key: null, opponent: null }, matchEvents = null, data = null }) {
+  band = { key: null, opponent: null }, matchEvents = null, data = null, viewerId = "" }) {
   const season = seasonData?.season ?? null;
   const standing = standingOf(seasonData, team.id);
   const gamesRead = Array.isArray(games) && !gamesError;
@@ -226,6 +232,8 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     tiles: tilesOf({ teamId: team.id, standing, games: gamesRead ? list : null, seasonId: season?.id ?? null, own, phone }),
     inSeason: Boolean(standing),
     seasonRead: Boolean(seasonData),
+    table: standing && !phone ? tableWindow(seasonTable(seasonData), team.id) : [],
+    viewerId,
     board: standing && !gamesError ? boardOf({ team, raceTeam, seasonData, games: list, gamesRead, phone, band, matchEvents, data }) : null,
     ready: readyPlayers(draft, raceTeam),
     leaders: teamLeaders(team, raceTeam, events),
@@ -297,13 +305,13 @@ const column = (className, markup) => (markup ? `<div class="${className}">${mar
 
 /**
  * The two columns under the board (DeskOverview.html, decision 51): the leaders and the recent matches at the left, who
- * can advance at the right. A column with nothing in it is not drawn, and the other has the row to itself; with neither
- * there is nothing. A phone shows the left one alone, under the board (Team.html): the right one's list is a desk's.
+ * can advance and the table at the right. A column with nothing in it is not drawn, and the other has the row to itself;
+ * with neither there is nothing. A phone shows the left one alone, under the board (Team.html): the right one is a desk's.
  */
 function columnsMarkup(model) {
   const { leaders, results, teamId, phone } = model;
   const main = leadersMarkup({ leaders, teamId, phone }) + resultsMarkup({ results, teamId, phone });
-  const aside = readyListMarkup(model.ready, teamId);
+  const aside = readyListMarkup(model.ready, teamId) + miniTableMarkup({ rows: model.table, viewerId: model.viewerId, teamId, href: teamUrl(teamId, "matches") });
   return main || aside ? `<div class="g-overview__cols">${column("g-overview__main", main)}${column("g-overview__aside", aside)}</div>` : "";
 }
 
@@ -373,6 +381,7 @@ function markupOf(teamId, held, records, band) {
     band: { key: band.key, opponent: band.opponent },
     matchEvents: records?.events ?? null,
     data: state.data,
+    viewerId: state.auth.currentUser?.id ?? "",
   }));
 }
 

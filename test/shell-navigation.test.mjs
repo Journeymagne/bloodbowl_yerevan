@@ -23,6 +23,17 @@ test("a coach with a team gets seven tabs and five side items, each to its place
   assert.deepEqual(model.brand, { name: "Ashgrove Wardens", sub: "Human · #2 in the league", sideSub: "Human", href: "#/teams", switchTeam: true });
 });
 
+test("a coach with a team: the side item «Season» leads to the team's season; the phone's tab «Table» to the league's", () => {
+  const href = (items, key) => items.find((item) => item.key === key).href;
+  const model = shellModel(at("team"));
+  assert.equal(href(model.side, "season"), "#/t/t1/matches");
+  assert.equal(href(model.tabs, "table"), "#/season");
+  for (const other of [shellModel(at("home", { user: null, team: null })), shellModel(at("season", { team: null })), shellModel(at("season", { team: null, user: { ...COACH, isAdmin: true } }))]) {
+    assert.equal(href(other.side, "season"), "#/season");
+    assert.equal(href(other.tabs, "table"), "#/season");
+  }
+});
+
 test("an admin has administration on the desktop; the mobile reaches it from Settings", () => {
   const model = shellModel(at("administration", { user: { ...COACH, isAdmin: true } }));
   assert.equal(model.side.at(-1).href, "#/administration");

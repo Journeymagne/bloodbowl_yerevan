@@ -1,0 +1,194 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "L1",
+      "url": "http://localhost:5182/#/season",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "L2",
+      "url": "http://localhost:5182/#/season",
+      "storage": {},
+      "fullPage": true
+    },
+    {
+      "id": "L3",
+      "url": "http://localhost:5182/#/season",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "S1",
+      "url": "http://localhost:5182/#/t/t1/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "S2",
+      "url": "http://localhost:5182/#/t/t2/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "S3",
+      "url": "http://localhost:5182/#/t/t3/matches",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "O1",
+      "url": "http://localhost:5182/#/t/t1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T1",
+      "url": "http://localhost:5182/#/coaches/u2/teams/rt1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T2",
+      "url": "http://localhost:5182/#/coaches/u2/teams/rt2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "T3",
+      "url": "http://localhost:5182/#/coaches/u3/teams/n1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const byText = (re, sel) => [...document.querySelectorAll(sel || 'button, a, [role=\"tab\"], [role=\"radio\"]')].filter((el) => shown(el) && re.test(el.textContent.trim()));",
+        "  const press = async (re, sel, nth, ms) => { const all = byText(re, sel); const i = nth || 0; if (all.length <= i) throw new Error('no ' + re); all[i].click(); await wait(ms || 500); };",
+        "  await wait(400);",
+        "  await press(/^Wrestle$/, 'button[data-skill]', 0, 800);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "T4",
+      "url": "http://localhost:5182/#/coaches/u2/teams/rt1",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "T5",
+      "url": "http://localhost:5182/#/coaches/u3/teams/n1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "C1",
+      "url": "http://localhost:5182/#/coaches/u2",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "C2",
+      "url": "http://localhost:5182/#/coaches/u1",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "G1",
+      "url": "http://localhost:5182/#/coaches/u2",
+      "storage": {},
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    }
+  ]
+}

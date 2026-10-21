@@ -92,3 +92,7 @@
 @import url("screens/matches/matches.css");
 @import url("screens/matches/prep.css");
 @import url("screens/matches/prep-inducements.css");
+@import url("screens/season/table.css");
+@import url("screens/season/league.css");
+@import url("screens/coaches/team.css");
+@import url("screens/coaches/profile.css");

@@ -36,6 +36,8 @@ const SHAPES = {
   offline: '<path d="M3 3l18 18"/><path d="M8.5 16.4a5 5 0 0 1 7 0M5 12.9a10 10 0 0 1 4.6-2.6M14.4 10.3A10 10 0 0 1 19 12.9M2 9.4a15 15 0 0 1 4.2-2.6M12 19.5h.01"/>',
   // More to read (the board's bubbles, DeskSeason.html): a ring with the «i» in it.
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>',
+  // A coach's Telegram (OppTeam.html, DeskOppTeam.html, stage 10): a paper plane.
+  send: '<path d="M21 3L3 10.5l7 3 3 7.5z"/><path d="M10 13.5L21 3"/>',
 };
 
 export const ICON_NAMES = Object.keys(SHAPES);

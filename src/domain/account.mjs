@@ -43,6 +43,17 @@ export function telegramProblem(value) {
 }
 
 /**
+ * The address a contact opens in Telegram: `https://t.me/` and the name without its `@`. A contact the forms
+ * would refuse (`telegramProblem`) has none, so a link built from what a coach typed never leads elsewhere.
+ *
+ * @param {unknown} contact as stored or typed
+ * @returns {string} "" when the contact is not one the forms accept
+ */
+export function telegramUrl(contact) {
+  return telegramProblem(contact) === null ? `https://t.me/${normalizeTelegram(contact).slice(1)}` : "";
+}
+
+/**
  * @param {unknown} password
  * @returns {0|1|2|3} 0 for none, 1 for one the server refuses, 2 for one it takes, 3 for a long one
  */
