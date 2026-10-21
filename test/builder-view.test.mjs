@@ -437,7 +437,9 @@ test("the staff the race may buy: counters with their price, medics as switches,
   assert.deepEqual(fragment.querySelectorAll(".g-toggle").map((toggle) => toggle.getAttribute("data-toggle-key")), ["apothecary"], "humans have the apothecary and no other medic");
   assert.equal(fragment.querySelector(".g-toggle").getAttribute("aria-checked"), "false");
   assert.match(fragment.querySelector(".g-toggle").textContent, /Apothecary\s*50k/);
-  assert.match(fragment.querySelector(".g-build__staff").textContent, /While building, Start Re-rolls cost 60k\. Once the team is saved, only Team Re-rolls can be bought, at 120k\./);
+  // Stage 12 (decision 26): the team is saved as a draft, which buys Start Re-rolls on its page too; Team Re-rolls wait for the season.
+  assert.match(fragment.querySelector(".g-build__staff").textContent,
+    /Start Re-rolls cost 60k while the team is being built: buy them now or on the team's page until it plays\. Team Re-rolls at 120k open once an admin moves the team into the season\./);
 
   const mob = newBuild(goblin, { name: "G" });
   stepStaff(goblin, mob, "bribes", 1);

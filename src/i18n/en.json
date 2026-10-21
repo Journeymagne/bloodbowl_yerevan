@@ -519,7 +519,7 @@
   "newTeam.price": "{price} each",
   "newTeam.fansNote": "{price} · in the season they change only after matches",
   "newTeam.bribesLocked": "Only for teams with Bribery and Corruption",
-  "newTeam.rerollNote": "While building, Start Re-rolls cost {start}. Once the team is saved, only Team Re-rolls can be bought, at {team}.",
+  "newTeam.rerollNote": "Start Re-rolls cost {start} while the team is being built: buy them now or on the team's page until it plays. Team Re-rolls at {team} open once an admin moves the team into the season.",
   "newTeam.save": "Save team · {total}",
   "newTeam.saving": "Saving…",
   "newTeam.short": "Add players: {count} more",

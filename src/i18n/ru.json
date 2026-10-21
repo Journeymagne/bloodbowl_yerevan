@@ -519,7 +519,7 @@
   "newTeam.price": "{price} за штуку",
   "newTeam.fansNote": "{price} · в сезоне меняются только после матчей",
   "newTeam.bribesLocked": "Только для команд с Bribery and Corruption",
-  "newTeam.rerollNote": "В наборе Start Re-rolls стоят {start}. После сохранения команды докупить можно только Team Re-rolls по {team}.",
+  "newTeam.rerollNote": "Start Re-rolls в наборе стоят {start}: их можно докупить и после сохранения, на странице команды, пока она в наборе. Team Re-rolls по {team} откроются, когда администратор переведёт команду в сезон.",
   "newTeam.save": "Сохранить команду · {total}",
   "newTeam.saving": "Сохраняем…",
   "newTeam.short": "Нужно ещё игроков: {count}",

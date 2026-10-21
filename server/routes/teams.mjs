@@ -57,9 +57,11 @@ export async function handleTeamRoutes(request, response, url) {
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
     const { name, baseTeamSlug, logoData, roster } = await readTeamBody(request);
     refuseSiteRolls(roster);
+    // Born in `draft` (stage 12, decision 26): the build goes on on the team's pages, Start Re-rolls included, and an
+    // admin moves it to `active`. The create is not held to the stage — what the build bought is the draft's to keep.
     const result = await pool.query(
-      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO saved_teams (user_id, name, base_team_slug, logo_data, roster, stage)
+       VALUES ($1, $2, $3, $4, $5, 'draft')
        RETURNING id`,
       [user.id, name, baseTeamSlug, logoData, serializeRosterForStorage(roster)],
     );

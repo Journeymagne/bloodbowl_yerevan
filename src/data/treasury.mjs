@@ -168,7 +168,10 @@ export function isWriting(teamId) {
  * `changed`. A request that got no answer to stand behind may have been applied as well: `unknown`, and the team and
  * its history are read again, so the page shows what the server holds (one or the other alone would show them
  * disagreeing, and the next write would meet a revision the list does not have). Both say so in words that send the
- * coach to the history before another try; any other refusal is the server's own, in the writer's `words`.
+ * coach to the history before another try; any other refusal is the server's own, in the writer's `words`. A purchase
+ * the stage refuses (STAGE_PURCHASE_LOCKED) means the stage the list holds may be old — an admin moved the team into the
+ * season since it was read (stage 12): the list is read again, for the same coach, and the page draws the stage the
+ * server has. Nothing was written, so the history is not.
  */
 function refusal(teamId, error, userId, words) {
   if (error?.code === "TEAM_SAVED_ELSEWHERE" && error.payload?.team) {
@@ -182,6 +185,7 @@ function refusal(teamId, error, userId, words) {
     }
     return { refusal: t("treasury.mayHaveWritten"), unknown: true };
   }
+  if (error?.code === "STAGE_PURCHASE_LOCKED" && state.auth.currentUser?.id === userId) void loadMyTeams(true);
   return { refusal: words(error) };
 }
 

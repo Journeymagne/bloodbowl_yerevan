@@ -298,18 +298,33 @@ test("a switch that cannot be afforded is off and says why, a refused save puts 
   assert.equal(toggle("apothecary").getAttribute("aria-checked"), "true", "the team has it now: the switch says what the team has, not what it was before the press");
 });
 
-test("a refusal of the save is said", async () => {
+// Stage 12 (the hand-off of 08, its final review's T1): the stage's refusal may mean the stage the list holds is old — an
+// admin moved the team into the season — so the list is read again (src/data/treasury.mjs `refusal`); any other refusal
+// is an answer, with nothing to find out.
+test("a refusal of the save is said; the stage's reads the coach's list again, any other reads nothing", async () => {
   coach();
   draw();
   api.reply(PATCH, 422, STAGE_LOCKED);
+  api.reply("GET /api/teams", 200, { teams: [TEAM] });
   await withoutTimers(async () => {
     click(plus("cheerleaders"));
+    await settle();
     await settle();
   });
   const [said] = toasts();
   assert.equal(said.text, en["error.STAGE_PURCHASE_LOCKED"]);
   assert.match(said.tone, /toast-error/);
   assert.equal(state.myTeams.items[0].roster.cheerleaders, 1, "nothing changed");
+  assert.equal(api.calls.filter((call) => call.key === "GET /api/teams").length, 1, "the stage the list held may be old: read once more");
+
+  coach();
+  draw();
+  api.reply(PATCH, 422, { error: { code: "TEAM_NAME_REQUIRED", params: {}, message: "x" } });
+  await withoutTimers(async () => {
+    click(plus("cheerleaders"));
+    await settle();
+  });
+  assert.match(toasts()[0].tone, /toast-error/);
   assert.equal(api.calls.some((call) => call.key === "GET /api/teams"), false, "a refusal is an answer: nothing to find out");
 });
 
