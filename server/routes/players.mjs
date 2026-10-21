@@ -36,14 +36,15 @@ function sendError(response, status, code, params) {
  * (the faces, the duplicates thrown again), the params (the column and its candidates), who rolled it or
  * when it was rolled and used.
  *
- * @param {{id: string, player_id: string, purpose: string, result: object}} row a `dice_rolls` row
- * @returns {{id: string, playerId: string, purpose: string, result: {dice: {skill: string}[]}}}
+ * @param {{id: string, player_id: string, result: object}} row a `dice_rolls` row the query below read: a used random
+ *   skill's, so its purpose is written as the contract has it rather than copied
+ * @returns {{id: string, playerId: string, purpose: "random_skill", result: {dice: {skill: string}[]}}}
  */
 export function publicTeamRoll(row) {
   return {
     id: row.id,
     playerId: String(row.player_id),
-    purpose: row.purpose,
+    purpose: "random_skill",
     result: { dice: rolledDice(row).map(({ skill }) => ({ skill })) },
   };
 }

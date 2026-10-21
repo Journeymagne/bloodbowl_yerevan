@@ -12,12 +12,12 @@ const TWO_DICE = { dice: [
   { skill: "Block", attempts: [{ roll: 3, skill: "Dodge", duplicate: true }, { roll: 1, skill: "Block", duplicate: false }] },
   { skill: "Fend", attempts: [{ roll: 7, skill: "Fend", duplicate: false }] },
 ] };
-/** A roll the site kept for `team`'s player `p1`: used unless `used` is false, `age` before now. */
-const put = (client, n, team, { purpose = "random_skill", result = TWO_DICE, used = true, age = "0 seconds", by = null } = {}) => client.query(
+/** A roll the site kept for `team`'s player `p1`: used unless `used` is false, `age` before now, or rolled exactly `at`. */
+const put = (client, n, team, { purpose = "random_skill", result = TWO_DICE, used = true, age = "0 seconds", at = null, by = null } = {}) => client.query(
   `INSERT INTO dice_rolls (id, saved_team_id, player_id, purpose, params, result, used_at, rolled_by, created_at)
    VALUES ($1, $2, 'p1', $3, '{"sides":16,"category":"General","candidates":["Block","Fend"]}', $4,
-           CASE WHEN $5::boolean THEN now() END, $6, now() - $7::interval)`,
-  [UUID(n), team, purpose, JSON.stringify(result), used, by, age]);
+           CASE WHEN $5::boolean THEN now() END, $6, COALESCE($8::timestamptz, now() - $7::interval))`,
+  [UUID(n), team, purpose, JSON.stringify(result), used, by, age, at]);
 const publicTeam = async (client, owner, teamId, viewer) =>
   callApi("GET", `/api/players/${owner}/teams/${teamId}`, { token: await sessionFor(client, viewer) });
 
@@ -25,6 +25,8 @@ test("a public roll is the roll's id, its player, its purpose and its dice' skil
   const row = { id: UUID(1), saved_team_id: UUID(9), player_id: 7, purpose: "random_skill", params: { sides: 16, candidates: ["Block"] },
     result: TWO_DICE, rolled_by: UUID(8), used_at: new Date(), created_at: new Date() };
   assert.deepEqual(publicTeamRoll(row), { id: UUID(1), playerId: "7", purpose: "random_skill", result: { dice: [{ skill: "Block" }, { skill: "Fend" }] } });
+  const { purpose, ...unnamed } = row;
+  assert.equal(publicTeamRoll(unnamed).purpose, "random_skill", "the purpose is the one the query pins, written as the contract writes it, not copied from the row");
 });
 
 test("a coach's public team carries its used random-skill rolls as the skills of their dice, and nothing else of them", db, () => withApiDatabase(async ({ client }) => {
@@ -63,6 +65,15 @@ test("the rolls are in the order they were rolled", db, () => withApiDatabase(as
   await put(client, 1, teamId, { age: "5 minutes" });
   await put(client, 2, teamId, { age: "2 hours" }); // the higher id, and the earlier roll: the id is not the order
   assert.deepEqual((await publicTeam(client, owner.id, teamId, viewer.id)).body.rolls.map(({ id }) => id), [UUID(2), UUID(1)]);
+}));
+
+test("two rolls of the same moment are in the order of their ids", db, () => withApiDatabase(async ({ client }) => {
+  const owner = await seedCoach(client, "lion"), viewer = await seedCoach(client, "wolf");
+  const teamId = await seedTeam(client, owner.id);
+  const at = "2026-10-01T10:00:00Z";
+  await put(client, 4, teamId, { at }); // kept first, the higher id: neither the order kept nor the id descending passes
+  await put(client, 3, teamId, { at });
+  assert.deepEqual((await publicTeam(client, owner.id, teamId, viewer.id)).body.rolls.map(({ id }) => id), [UUID(3), UUID(4)]);
 }));
 
 test("a team without rolls answers an empty list; a stranger's team is still 404, a guest still 401", db, () => withApiDatabase(async ({ client }) => {

@@ -9,6 +9,7 @@ import { rolledDice } from "../src/domain/roster/dice.mjs";
 import { matchPoints } from "../src/domain/league-rules.mjs";
 import { answerMatches } from "../scripts/mock/matches.mjs";
 import { answerSeason } from "../scripts/mock/season.mjs";
+import { publicTeamRoll } from "../server/routes/players.mjs";
 
 /*
  * The mock API's season (scripts/mock/season.mjs, stage 10 Task 11): a season of ten entries with its rounds, the
@@ -142,8 +143,12 @@ test("a coach's page and a team's with its site roll", async () => {
   assert.equal(payload.user.id, "u3");
   assert.equal(payload.user.savedTeamCount, undefined, "the public user, without the counts");
   const [roll] = payload.rolls;
-  assert.deepEqual(Object.keys(roll).sort(), ["id", "playerId", "purpose", "result"], "the public roll: no attempts, faces or stamps");
-  assert.equal(roll.purpose, "random_skill");
+  // The server's own whitelist, read without a database: the mock's roll and the server's cannot drift apart.
+  const served = publicTeamRoll({ id: "x", saved_team_id: "t", player_id: 1, purpose: "random_skill", params: { sides: 16 },
+    result: { dice: [{ skill: "Wrestle", attempts: [] }, { skill: "Fend", attempts: [] }] }, rolled_by: "u", used_at: new Date(), created_at: new Date() });
+  assert.deepEqual(Object.keys(roll).sort(), Object.keys(served).sort(), "the public roll: no attempts, faces or stamps");
+  assert.deepEqual(roll.result.dice.map((die) => Object.keys(die)), served.result.dice.map((die) => Object.keys(die)), "a die: its skill alone");
+  assert.equal(roll.purpose, served.purpose);
   assert.equal(rolledDice(roll).length, 2);
   const players = payload.team.roster.players;
   const rolled = players.find((player) => player.advancements?.some((advancement) => advancement.roll?.id === roll.id));
