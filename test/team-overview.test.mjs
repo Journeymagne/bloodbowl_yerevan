@@ -37,13 +37,17 @@ state.data = { teams: RACES };
 const settle = () => new Promise((resolve) => { setImmediate(resolve); });
 
 // The table: the rival first, the coach's three teams after it. Round 3 is on.
+/** A row of the server's standings, as `/api/season` sends it (the mini table reads the coach and the team, stage 10): the coach's own teams are u1's. */
+const standingRow = (id, name, slug, user, rank, points) => ({
+  entryId: `e-${id}`, withdrawnAt: null, user: { id: user, login: user }, team: { id, name, baseTeamSlug: slug }, rank, points, games: 2, byes: 0, touchdowns: 0, casualties: 0,
+});
 const SEASON = {
   season: { id: "s1", name: "Mock Season", currentRound: 3 },
   standings: [
-    { team: { id: "r1" }, rank: 1, points: 6 },
-    { team: { id: "t1" }, rank: 2, points: 3 },
-    { team: { id: "t2" }, rank: 3, points: 1 },
-    { team: { id: "t3" }, rank: 4, points: 0 },
+    standingRow("r1", "Rival Team", "teams/dwarf", "u-r1", 1, 6),
+    standingRow("t1", "Ashgrove Wardens", "teams/human", "u1", 2, 3),
+    standingRow("t2", "Grimtusk Raiders", "teams/orc", "u1", 3, 1),
+    standingRow("t3", "Anji Magritta", "teams/human", "u1", 4, 0),
   ],
 };
 
@@ -614,6 +618,8 @@ const LEADERS = [
 /** The element children of a node, by their first class. */
 const classesOf = (node) => node.childNodes.filter((child) => child.nodeType === 1).map((child) => child.getAttribute("class").split(" ")[0]);
 const LISTS_CSS = "src/screens/team/overview-lists.css";
+/** The mini table's sheet (stage 10): a desk's right column holds the table under who can advance. */
+const TABLE_CSS = "src/screens/season/table.css";
 /** A sheet without its comments. */
 const bareOf = (file) => text(file).replace(/\/\*[\s\S]*?\*\//g, "");
 /** What a sheet says from 901px, and up to 900px: its rules inside the query of the width. */
@@ -706,7 +712,7 @@ test("the blocks stand as DeskOverview orders them: the leaders and the results 
   const cols = desk.querySelector(".g-overview__cols");
   assert.deepEqual(classesOf(cols), ["g-overview__main", "g-overview__aside"]);
   assert.deepEqual(classesOf(cols.querySelector(".g-overview__main")), ["g-overview__leaders", "g-overview__results"]);
-  assert.deepEqual(classesOf(cols.querySelector(".g-overview__aside")), ["g-overview__readylist"]);
+  assert.deepEqual(classesOf(cols.querySelector(".g-overview__aside")), ["g-overview__readylist", "g-minitable"], "the table under who can advance (stage 10)");
   // A phone: the tiles, the card of who can advance, the board, the leaders, the recent matches (Team.html; the board, question 2).
   // The right column is a desk's: the stylesheet hides it, and nothing else of the page is in it.
   const phone = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW), phone: true }))));
@@ -717,8 +723,9 @@ test("the blocks stand as DeskOverview orders them: the leaders and the results 
 });
 
 test("one column alone takes the row: no one ready leaves the left alone; no leader and no result leave the right alone", () => {
-  // Dunn has too little to spend and Moss has spent it: nobody is ready, and the left column is drawn alone.
-  const left = mount(overviewMarkup(overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]) }))));
+  // Dunn has too little to spend and Moss has spent it: nobody is ready, and with no table (stage 10: the right column holds it)
+  // the left column is drawn alone.
+  const left = mount(overviewMarkup(overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]), seasonData: null }))));
   assert.deepEqual(classesOf(left.querySelector(".g-overview__cols")), ["g-overview__main"], "no empty right column");
   assert.deepEqual(classesOf(left.querySelector(".g-overview__main")), ["g-overview__leaders", "g-overview__results"]);
   // No leader and no result: the right column alone.
@@ -729,7 +736,7 @@ test("one column alone takes the row: no one ready leaves the left alone; no lea
   // A column holds what it has: the leaders alone, or the results alone.
   const leadersOnly = mount(overviewMarkup(overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]), games: [] }))));
   assert.deepEqual(classesOf(leadersOnly.querySelector(".g-overview__main")), ["g-overview__leaders"]);
-  const resultsOnly = mount(overviewMarkup({ ...overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]) })), leaders: [] }));
+  const resultsOnly = mount(overviewMarkup({ ...overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]), seasonData: null })), leaders: [] }));
   assert.deepEqual(classesOf(resultsOnly.querySelector(".g-overview__cols")), ["g-overview__main"]);
   assert.deepEqual(classesOf(resultsOnly.querySelector(".g-overview__main")), ["g-overview__results"]);
   // The stylesheet: a row that wraps, each column growing from its basis, so one alone fills the row without a rule of its own.
@@ -740,6 +747,80 @@ test("one column alone takes the row: no one ready leaves the left alone; no lea
   assert.match(desk, /\.g-overview__aside \{ flex: 1 1 300px; \}/);
   // (A result row spans its list's grid, Task 33: that is a row's rule, not a column's.)
   assert.doesNotMatch(source, /:only-child|\.g-overview__(?:cols|main|aside)(?![\w-])[^{]*\{[^}]*grid-column/, "no lone-list rule: the wrap does it");
+});
+
+// Stage 10, decision 15: the league of eight, the coach's t1 second, or eighth (DeskOverview.html's «Table»).
+const LEAGUE = {
+  season: SEASON.season,
+  standings: [
+    standingRow("r1", "Rival Team", "teams/dwarf", "u-r1", 1, 6), standingRow("t1", "Ashgrove Wardens", "teams/human", "u1", 2, 3),
+    standingRow("r2", "Rival Raiders", "teams/skaven", "u-r2", 3, 3), standingRow("r3", "Rival Wardens", "teams/lizardmen", "u-r3", 4, 3),
+    standingRow("r4", "Fourth Wall", "teams/orc", "u-r4", 5, 1), standingRow("r5", "Fifth Column", "teams/orc", "u-r5", 6, 1),
+    standingRow("r6", "Sixth Sense", "teams/orc", "u-r6", 7, 0), standingRow("r7", "Seventh Seal", "teams/orc", "u-r7", 8, 0),
+  ],
+  rounds: [{ roundNumber: 1, status: "completed", pairings: [
+    { id: "pa", tableNumber: 1, homeEntryId: "e-t1", awayEntryId: "e-r4", homeTouchdowns: 3, awayTouchdowns: 1, homeCasualties: 0, awayCasualties: 0, homePoints: 3, awayPoints: 0, resultStatus: "confirmed" },
+  ] }],
+};
+/** The league with t1 swapped to the last place. */
+const LEAGUE_LAST = { ...LEAGUE, standings: LEAGUE.standings.map((row) => {
+  if (row.team.id === "t1") return { ...row, rank: 8 };
+  return row.rank > 2 ? { ...row, rank: row.rank - 1 } : row;
+}).sort((one, other) => one.rank - other.rank) };
+/** Each row of the mini table: its place, team, TD± and points, and whether it is the coach's. */
+const miniRows = (root) => root.querySelectorAll(".g-minitable__row").map((row) => [
+  row.querySelector(".g-minitable__rank").textContent, row.querySelector(".g-minitable__team").textContent,
+  row.querySelector(".g-minitable__diff").textContent, row.querySelector(".g-minitable__points").textContent, row.getAttribute("class").includes("g-minitable__row--mine")]);
+
+test("a desk's right column has the table's top six, the team's row marked, and the way to the whole table", async () => {
+  const model = overviewModel(input("t1", { seasonData: LEAGUE, viewerId: "u1" }));
+  assert.deepEqual(model.table.map((row) => [row.rank, row.team.id]), [[1, "r1"], [2, "t1"], [3, "r2"], [4, "r3"], [5, "r4"], [6, "r5"]]);
+  assert.equal(model.viewerId, "u1");
+  const aside = mount(overviewMarkup(model)).querySelector(".g-overview__aside");
+  const table = aside.querySelector(".g-minitable");
+  assert.ok(table, "the table in the right column");
+  assert.deepEqual(miniRows(aside), [
+    ["1", "Rival Team", "0", "6", false], ["2", "Ashgrove Wardens", "+2", "3", true], ["3", "Rival Raiders", "0", "3", false],
+    ["4", "Rival Wardens", "0", "3", false], ["5", "Fourth Wall", "−2", "1", false], ["6", "Fifth Column", "0", "1", false]]);
+  assert.equal(table.querySelector("h2").textContent, "Table");
+  assert.equal(table.querySelector("a.g-minitable__all").getAttribute("href"), "#/t/t1/matches", "the whole table: the team's season, where a desk has it (decision 12)");
+  assert.equal(table.querySelector(".g-minitable__row--mine a").getAttribute("href"), "#/t/t1", "the coach's own row leads to its overview");
+  assert.equal(table.querySelectorAll(".g-minitable__row a")[0].getAttribute("href"), "#/coaches/u-r1/teams/r1", "another's to the opponent's page");
+  // The screen gives the model the coach who looks.
+  coach({ season: LEAGUE });
+  await renderTeamOverview("t1");
+  await settle();
+  assert.equal(view.querySelectorAll(".g-overview__aside .g-minitable__row").length, 6);
+  assert.equal(view.querySelector(".g-overview__aside .g-minitable__row--mine .g-minitable__team").textContent, "Ashgrove Wardens");
+  releaseCurrentScreen();
+});
+
+test("a team below the sixth stands last in it with its place", () => {
+  const rows = miniRows(mount(overviewMarkup(overviewModel(input("t1", { seasonData: LEAGUE_LAST, viewerId: "u1" })))));
+  assert.deepEqual(rows.map(([rank, team, , , mine]) => [rank, team, mine]), [
+    ["1", "Rival Team", false], ["2", "Rival Raiders", false], ["3", "Rival Wardens", false], ["4", "Fourth Wall", false], ["5", "Fifth Column", false], ["8", "Ashgrove Wardens", true]]);
+});
+
+test("a phone has no table; a team outside the season has none; until the table is read there is none", () => {
+  const phone = overviewModel(input("t1", { seasonData: LEAGUE, viewerId: "u1", phone: true }));
+  assert.deepEqual(phone.table, []);
+  assert.equal(mount(overviewMarkup(phone)).querySelector(".g-minitable"), null, "Team.html has none");
+  const outside = overviewModel(input("t4", { seasonData: LEAGUE, viewerId: "u1" }));
+  assert.deepEqual(outside.table, []);
+  assert.equal(mount(overviewMarkup(outside)).querySelector(".g-minitable"), null);
+  const withdrawn = { ...LEAGUE, standings: LEAGUE.standings.map((row) => (row.team.id === "t1" ? { ...row, withdrawnAt: "2026-10-01T00:00:00Z" } : row)) };
+  assert.deepEqual(overviewModel(input("t1", { seasonData: withdrawn, viewerId: "u1" })).table, [], "an entry withdrawn is outside the table");
+  const unread = overviewModel(input("t1", { seasonData: null, viewerId: "u1" }));
+  assert.deepEqual(unread.table, []);
+  assert.equal(mount(overviewMarkup(unread)).querySelector(".g-minitable"), null);
+});
+
+test("with nobody ready to advance the column holds the table alone", () => {
+  const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]), seasonData: LEAGUE, viewerId: "u1" }))));
+  assert.deepEqual(classesOf(fragment.querySelector(".g-overview__cols")), ["g-overview__main", "g-overview__aside"]);
+  assert.deepEqual(classesOf(fragment.querySelector(".g-overview__aside")), ["g-minitable"]);
+  // Nobody ready and no table: no right column at all, as before.
+  assert.deepEqual(classesOf(mount(overviewMarkup(overviewModel(input("t1", { team: crew([CREW[3], CREW[4]]), seasonData: null })))).querySelector(".g-overview__cols")), ["g-overview__main"]);
 });
 
 // The team's own MVPs as the server's list sends them (Task 30): Ashby in round 1 at home, two in round 2 away (a conceded
@@ -872,7 +953,12 @@ test("a team with no finished match has no results, and a team with no leader no
   const fragment = mount(overviewMarkup(overviewModel(input("t3", { games: [] }))));
   assert.equal(fragment.querySelector(".g-overview__results"), null);
   assert.equal(fragment.querySelector(".g-overview__leaders"), null);
-  assert.equal(fragment.querySelector(".g-overview__cols"), null);
+  assert.equal(fragment.querySelector(".g-overview__main"), null);
+  // A desk's right column holds the table since stage 10: the columns stand for it alone.
+  assert.deepEqual(classesOf(fragment.querySelector(".g-overview__cols")), ["g-overview__aside"]);
+  assert.deepEqual(classesOf(fragment.querySelector(".g-overview__aside")), ["g-minitable"]);
+  // Without the table, nothing at all.
+  assert.ok(!mount(overviewMarkup(overviewModel(input("t3", { games: [], seasonData: null })))).querySelector(".g-overview__cols"));
 });
 
 test("games that failed to load leave the figures and say so where the board was", () => {
@@ -1315,7 +1401,7 @@ test("every word on the overview is in both dictionaries, the leaders' labels to
   for (const [key, words] of Object.entries(RESULT_WORDS)) assert.deepEqual([en[key], ru[key]], words, key);
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assertCspSafe(fragment);
-  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
   const outside = mount(overviewMarkup(overviewModel(input("t4"))));
   assertStyled(outside, "src/screens/team/overview.css", "page-head.css", "kpi-tile.css", "search-field.css", "status-chip.css", "callout.css");
   const phone = mount(overviewMarkup(overviewModel(input("t1", { phone: true }))));
@@ -1333,7 +1419,7 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   assert.ok(Math.min(at("screens/team/overview.css"), at("ui/match-board.css")) >= 0);
   for (const phone of [false, true]) {
     assertStyled(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone })))), "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css",
-      "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+      "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height where the prototypes give none.
   for (const selector of [".g-overview__title", ".g-overview__leader", ".g-overview__leaderline", ".g-overview__leadertag", ".g-overview__leadername", ".g-overview__leaderpos", ".g-overview__leadervalue"]) {
@@ -1564,7 +1650,7 @@ test("the ready words: every key in both dictionaries, the same names, and none 
 
 test("the ready block is styled, as the prototypes draw it, and readable (Team.html, DeskOverview.html)", () => {
   const fragment = mount(overviewMarkup(overviewModel(input("t1", { team: crew(CREW) }))));
-  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
+  assertStyled(fragment, READY_CSS, LISTS_CSS, "page-head.css", "kpi-tile.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
   const own = (selector, property) => valuesOf(READY_CSS, selector, property);
   // Every rule sets what the 2.x globals would otherwise give: font, letter-spacing, text-transform; the line height is the font's own where the prototypes give none.
   for (const selector of [".g-overview__ready", ".g-overview__readytitle", ".g-overview__readywho", ".g-overview__readylist", ".g-overview__readyheading", ".g-overview__readycount",
@@ -1690,7 +1776,7 @@ test("the results as DeskOverview.html and Team.html draw them: styled; readable
     const fragment = mount(overviewMarkup(overviewModel(input("t1", { games: MVP_GAMES, phone }))));
     assertCspSafe(fragment);
     assertStyled(fragment, "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css", "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css",
-      "status-chip.css", "callout.css", "number-badge.css");
+      "status-chip.css", "callout.css", "number-badge.css", TABLE_CSS);
   }
   // Every rule of a text sets what the 2.x globals would otherwise give, at the font's own line height (the prototypes give none).
   const texts = [".g-overview__all", ".g-overview__row", ".g-overview__round", ".g-overview__opponent", ".g-overview__race", ".g-overview__racelink", ".g-overview__dot", ".g-overview__mvp", ".g-overview__line",
