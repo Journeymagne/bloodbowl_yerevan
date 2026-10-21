@@ -1,0 +1,95 @@
+/*
+ * The post-match's money steps (screens/matches/post-roster.mjs, post-money.mjs, post-review.mjs): PostRoster.html,
+ * PostFinance.html, PostNext.html, PostReview.html on a phone, DeskPostReview.html on a desk; their cards are post.css's.
+ * Font, border, background, text-transform, letter-spacing and font-weight are set on purpose: the 2.x globals outlive
+ * this sheet until stage 13. Up to 900px every control is a thumb's 44px or more; from 901px the prototype's sizes,
+ * never under 24px (D2). Long lines wrap; nothing is cut with «…».
+ */
+
+/* A row's money: spending in the danger's colour, a gain in the accent's ink. */
+.g-after__rowv--danger { color: var(--danger); }
+.g-after__rowv--gain { color: var(--on-accent-tint); }
+
+/* «Treasury after income 150k» and what is left, Oswald 24; below zero in the danger's colour. */
+.g-after__money { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-10); }
+
+.g-after__moneyk { color: var(--muted); font: 400 14px/1.35 var(--font-body); overflow-wrap: anywhere; }
+
+.g-after__moneyv { color: var(--ink); font-weight: 700; }
+
+.g-after__left { flex: none; color: var(--on-accent-tint); font: 700 24px/1 var(--font-display); font-variant-numeric: tabular-nums; }
+.g-after__left--short { color: var(--danger); }
+
+/* The staff (PostRoster.html): the counters' rows 58px, their buttons white on the group's grey, 34px from 901px. */
+.g-after__staff .g-resource__btn,
+.g-after__staff .g-resource__btn--inc {
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.g-after__staff .g-resource__btn:disabled,
+.g-after__staff .g-resource__btn[aria-disabled="true"],
+.g-after__staff .g-resource__btn--inc:disabled,
+.g-after__staff .g-resource__btn--inc[aria-disabled="true"] { background: var(--surface); color: var(--disabled); }
+
+/* «+ Hire» and «Sell…» side by side, 44px, the control's ring; the journeymen and Raise Dead under them. */
+.g-after__opens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); }
+
+.g-after__open,
+.g-after__place,
+.g-after__pick {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: var(--space-4) var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+  font: 600 14px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-align: center;
+  text-transform: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.g-after__open[aria-disabled="true"],
+.g-after__place[aria-disabled="true"],
+.g-after__pick[aria-disabled="true"] { background: var(--surface-2); box-shadow: none; color: var(--muted); cursor: default; }
+
+/* A sheet's row: the prototype's 52px. */
+.g-after__pick { min-height: var(--size-cta); }
+
+.g-after__why { font: 400 12px/1.3 var(--font-body); overflow-wrap: anywhere; }
+
+.g-after__places,
+.g-after__picks { display: flex; flex-direction: column; gap: var(--space-8); }
+
+.g-after__keeprow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); }
+
+/* «Undo the last»: quiet, in the accent's words, 36px from 901px. */
+.g-after__undo {
+  box-sizing: border-box;
+  align-self: flex-start;
+  min-height: var(--size-touch);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--accent-text);
+  font: 600 14px/1.25 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+@media (min-width: 901px) {
+  .g-after__staff .g-resource__btn { width: 34px; height: 34px; }
+  .g-after__undo { min-height: 36px; }
+}
