@@ -1118,7 +1118,10 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   const own = (selector, property) => valuesOf(LISTS_CSS, selector, property);
   const bare = text(LISTS_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   const desk = mediaText(LISTS_CSS, "min-width: 901px");
-  assert.ok(text("src/styles.css").trim().endsWith('@import url("screens/team/overview-lists.css");'), "the sheet reaches the page, imported last");
+  // Stage 09a's sheets come after it (pre-flight L2): what it needs is to come after the sheets it overrides.
+  const styles = text("src/styles.css"), at = (file) => styles.indexOf(`@import url("${file}");`);
+  assert.ok(at("screens/team/overview-lists.css") > Math.max(at("screens/team/overview.css"), at("ui/match-board.css")), "the sheet reaches the page, after the overview's and the board's");
+  assert.ok(Math.min(at("screens/team/overview.css"), at("ui/match-board.css")) >= 0);
   for (const phone of [false, true]) {
     assertStyled(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone })))), "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css",
       "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");
