@@ -111,6 +111,7 @@ export const API_ERRORS = Object.freeze({
   PLAYER_NOT_FOUND: "Player not found.",
   PROPOSER_CANNOT_CONFIRM: "You proposed this result; your opponent has to confirm it.",
   RESULT_ALREADY_CONFIRMED: "This result is already confirmed.",
+  RESULT_NOT_TECHNICAL: "Only a confirmed technical result has a reason.",
   RESULT_NEEDS_BOTH_TEAMS: "Enter touchdowns and casualties for both teams.",
   ROSTER_BREAKS_THE_RULES: "This roster breaks the league's rules.",
   ROUND_HAS_UNFINISHED_PAIRINGS: "Round {round} has unfinished pairings.",

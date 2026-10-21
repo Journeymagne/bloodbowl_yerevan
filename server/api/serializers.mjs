@@ -198,6 +198,9 @@ export function publicSeasonPairing(row) {
     awayCasualties: row.away_casualties ?? null,
     homePoints: row.home_points ?? null,
     awayPoints: row.away_points ?? null,
+    // How the result came about, and a technical one's reason (stage 12; none before it, read as "other").
+    resultType: row.result_type ?? "played",
+    technicalReason: row.technical_reason ?? null,
     resultStatus,
     preparationStatus: row.preparation_status ?? "not_started",
     postMatchStatus: row.post_match_status ?? "not_started",

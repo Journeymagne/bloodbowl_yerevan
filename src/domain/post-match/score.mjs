@@ -14,19 +14,20 @@
  * A mismatch is what `validateStatistics` refuses at `lock-players`: TD and CAS (crowd and foul
  * casualties are part of CAS) against the score, nil for a technical result, the TD of the side that
  * conceded (either way of conceding) not compared. The points are `matchPoints`, the server's, with the
- * parts they are made of; a technical win is 2 (content: "2 points for a technical win").
+ * parts they are made of; a technical win is `technicalPoints`, the admin's result's too (stage 12): 2, and 2
+ * more when the opponent could not field a team (content: "2 points for a technical win", "+2 points if the
+ * opponent could not field a team").
  */
 import { SIDES, otherSide } from '../match/rules.mjs';
-import { matchPoints, seasonPoints } from '../league-rules.mjs';
+import { matchPoints, seasonPoints, technicalPoints } from '../league-rules.mjs';
 import { sppCounterWeights } from '../roster/progression.mjs';
 import { effectiveInjury, mvpCount } from './rules.mjs';
 import { earnedCounters } from './statistics.mjs';
 import { MATCH_COUNTERS } from './events.mjs';
 
 /** Every part the points of a match are made of, in the order `postPoints` lists them. */
-export const POINT_PARTS = Object.freeze(['win', 'draw', 'loss', 'bigWin', 'shutout', 'casualties', 'technical']);
+export const POINT_PARTS = Object.freeze(['win', 'draw', 'loss', 'bigWin', 'shutout', 'casualties', 'technical', 'noTeam']);
 
-const TECHNICAL_WIN = 2;
 const SCORE_COUNTERS = ['touchdowns', 'casualties'];
 const SKIPPING = ['miss', 'niggling', 'lasting']; // the injuries that keep a player out of the next match
 
@@ -78,7 +79,9 @@ export function scoreMismatches(state) {
 
 /**
  * A side's points for the match, as the table counts them, and the parts they add up to. A friendly is
- * none; a technical result is 2 to the winner, nothing to the loser.
+ * none; a technical result is 2 to the winner and 2 more when its reason is that the opponent could not
+ * field a team (`noTeam`), nothing to the loser. A technical result with no reason — one a post-match
+ * begun before stage 12 holds — is the other kind: 2.
  *
  * @param {string} kind the match's kind (`match_kind`): "friendly" gives no points
  * @returns {{total: number, parts: {key: string, points: number}[]}} each `key` one of `POINT_PARTS`
@@ -87,8 +90,10 @@ export function postPoints(state, name, kind) {
   const result = state.result;
   if (kind === 'friendly' || !result) return { total: 0, parts: [] };
   if (result.mode === 'technical') {
-    return result.winner === name ? { total: TECHNICAL_WIN, parts: [{ key: 'technical', points: TECHNICAL_WIN }] }
-      : { total: seasonPoints.loss, parts: [{ key: 'loss', points: seasonPoints.loss }] };
+    if (result.winner !== name) return { total: seasonPoints.loss, parts: [{ key: 'loss', points: seasonPoints.loss }] };
+    const reason = result.reason ?? 'other', parts = [{ key: 'technical', points: seasonPoints.technicalWin }];
+    if (reason === 'no_team') parts.push({ key: 'noTeam', points: seasonPoints.noTeamBonus });
+    return { total: technicalPoints({ won: true, reason }), parts };
   }
   const scored = result[name].touchdowns, conceded = result[otherSide(name)].touchdowns, casualties = result[name].casualties;
   const outcome = scored > conceded ? 'win' : scored === conceded ? 'draw' : 'loss';

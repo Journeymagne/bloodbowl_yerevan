@@ -32,15 +32,15 @@ const hurt = (playerId, code) => [{ playerId, counter: "injury", delta: 1, injur
 /**
  * A post-match of humans whose score both coaches agreed, reading each side's match records as the server
  * does (`followEvents`). `score` is `[home TD, away TD, home CAS, away CAS]`; a mode other than "played"
- * is won by home.
+ * is won by home; `reason`, when given, is sent with the result.
  */
-function agreed({ score = [0, 0, 0, 0], mode = "played", events = {}, gamesPlayed = 4, players = {}, stars = [] } = {}) {
+function agreed({ score = [0, 0, 0, 0], mode = "played", reason, events = {}, gamesPlayed = 4, players = {}, stars = [] } = {}) {
   const sources = { home: source("home", gamesPlayed, players.home), away: source("away", gamesPlayed, players.away) };
   const snapshots = Object.fromEntries(Object.entries(sources).map(([name, item]) => [name, { ...createMatchSide(item, data), fanFactor: 3, effects: {} }]));
   snapshots.home.players.push(...stars);
   let state = createPostMatch("game", sources, snapshots, data);
   const [homeTd, awayTd, homeCas, awayCas] = score;
-  state = applyPostAction(state, "home", { type: "result", mode, winner: mode === "played" ? "" : "home",
+  state = applyPostAction(state, "home", { type: "result", mode, winner: mode === "played" ? "" : "home", ...(reason === undefined ? {} : { reason }),
     home: { touchdowns: homeTd, casualties: homeCas }, away: { touchdowns: awayTd, casualties: awayCas } }, data);
   state = applyPostAction(state, "away", { type: "agree-result" }, data);
   return followEvents(state, events);
@@ -99,7 +99,7 @@ test("a mismatch is what lock-players would refuse: a side, a counter, the score
 });
 
 test("points as the table counts them, in parts that add up", () => {
-  assert.deepEqual(POINT_PARTS, ["win", "draw", "loss", "bigWin", "shutout", "casualties", "technical"]);
+  assert.deepEqual(POINT_PARTS, ["win", "draw", "loss", "bigWin", "shutout", "casualties", "technical", "noTeam"]);
   const big = agreed({ score: [3, 0, 3, 1] });
   const won = postPoints(big, "home", "league");
   assert.equal(won.total, matchPoints({ touchdownsFor: 3, touchdownsAgainst: 0, casualtiesFor: 3 }));
@@ -117,6 +117,31 @@ test("points as the table counts them, in parts that add up", () => {
   assert.deepEqual(postPoints(technical, "home", "league"), { total: 2, parts: [{ key: "technical", points: 2 }] });
   assert.deepEqual(postPoints(technical, "away", "league"), { total: 0, parts: [{ key: "loss", points: 0 }] });
   for (const name of ["home", "away"]) assert.deepEqual(postPoints(big, name, "friendly"), { total: 0, parts: [] });
+});
+
+test("the post-match's points are the same: 2 + 2 in two parts for a win when the opponent could not field a team, one part otherwise", () => {
+  const noTeam = agreed({ mode: "technical", reason: "no_team" });
+  assert.deepEqual(postPoints(noTeam, "home", "league"), { total: 4, parts: [{ key: "technical", points: 2 }, { key: "noTeam", points: 2 }] });
+  assert.deepEqual(postPoints(noTeam, "away", "league"), { total: 0, parts: [{ key: "loss", points: 0 }] });
+  assert.deepEqual(postPoints(agreed({ mode: "technical", reason: "other" }), "home", "league"), { total: 2, parts: [{ key: "technical", points: 2 }] });
+  const begunBefore12 = structuredClone(agreed({ mode: "technical" }));
+  delete begunBefore12.result.reason;
+  assert.deepEqual(postPoints(begunBefore12, "home", "league"), { total: 2, parts: [{ key: "technical", points: 2 }] }, "a technical result with no reason is the other kind");
+  assert.deepEqual(postPoints(noTeam, "home", "friendly"), { total: 0, parts: [] });
+  for (const name of ["home", "away"]) assert.equal(sumOf(postPoints(noTeam, name, "league").parts), postPoints(noTeam, name, "league").total);
+});
+
+test("a technical result in the post-match carries its reason — the other kind when it is sent none, a reason outside the two refused; another mode has none", () => {
+  assert.equal(agreed({ mode: "technical", reason: "no_team" }).result.reason, "no_team");
+  assert.equal(agreed({ mode: "technical", reason: "other" }).result.reason, "other");
+  for (const reason of [undefined, null]) assert.equal(agreed({ mode: "technical", reason }).result.reason, "other", `sent ${reason}`);
+  for (const reason of ["late", "", "No_team", 2, ["no_team"]]) {
+    assert.throws(() => agreed({ mode: "technical", reason }), { code: "POST_VALUE" }, `sent ${JSON.stringify(reason)}`);
+  }
+  for (const mode of ["played", "conceded", "conceded-safe"]) {
+    const result = agreed({ score: [2, 0, 1, 0], mode, reason: "no_team" }).result;
+    assert.equal(Object.hasOwn(result, "reason"), false, mode);
+  }
 });
 
 test("MVP choices leave out stars and the dead; rookie protection makes Dead Badly Hurt", () => {

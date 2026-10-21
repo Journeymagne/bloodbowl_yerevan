@@ -16,7 +16,7 @@ import { currentUser } from "../auth/session.mjs";
 import { publicGame, publicSavedTeam, serializeRosterForStorage } from "../api/serializers.mjs";
 import { commitSavedTeamToSeason, ensureActiveSeason, loadSeasonBundle, loadUserGameRows } from "../season/store.mjs";
 import { addSeasonPairing, createManualRound, generateSwissRound, startSeasonRound, validateSeasonEntry } from "../season/rounds.mjs";
-import { proposeGameResult, updateSeasonPairing } from "../season/games.mjs";
+import { proposeGameResult, setTechnicalReason, updateSeasonPairing } from "../season/games.mjs";
 import { createSeasonCoachWithTeam } from "../season/coach-entry.mjs";
 import { readTeamBody, refuseRosterPlayers } from "./teams.mjs";
 import { refuseSiteRolls } from "../api/dice-rolls.mjs";
@@ -233,6 +233,18 @@ async function handleSeasonPairingRoutes(request, response, url) {
     const body = await readJson(request);
     const season = await ensureActiveSeason();
     await updateSeasonPairing(season.id, seasonPairingMatch[1], body, true, user.id);
+    return send(response, 200, await loadSeasonBundle(user));
+  }
+
+  // A confirmed technical result's reason (stage 12): the reason and its points, nothing else.
+  const technicalReasonMatch = url.pathname.match(/^\/api\/season\/admin\/pairings\/([0-9a-f-]+)\/technical-reason$/i);
+  if (technicalReasonMatch && request.method === "PATCH") {
+    const user = await currentUser(request);
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
+    const body = await readJson(request);
+    const season = await ensureActiveSeason();
+    await setTechnicalReason(season.id, technicalReasonMatch[1], body.technicalReason);
     return send(response, 200, await loadSeasonBundle(user));
   }
 

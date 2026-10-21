@@ -14,7 +14,7 @@ import crypto from "node:crypto";
 
 import { httpError } from "../http/responses.mjs";
 import { publicSeasonEntry } from "../api/serializers.mjs";
-import { matchPoints, standingsOrder } from "../../src/domain/league-rules.mjs";
+import { matchPoints, standingsOrder, technicalPoints } from "../../src/domain/league-rules.mjs";
 
 export function nullableInteger(value, fieldName) {
   if (value === undefined) return undefined;
@@ -26,6 +26,18 @@ export function nullableInteger(value, fieldName) {
   return number;
 }
 
+/**
+ * A result's score and points, as the pairing stores them.
+ *
+ * A played result (the default) is the score sent and `matchPoints`; it carries no reason. A technical one
+ * (stage 12, `resultType: "technical"`) is decided without being played: 2–0 to `winner`, CAS 0–0, and
+ * `technicalPoints` for its reason — 4 when the opponent could not field a team, 2 otherwise —, the reason
+ * kept as given. A friendly gives no points either way. The caller has checked the mode, the winner and the
+ * reason (server/season/games.mjs `nextResult`).
+ *
+ * @returns {{homePoints: number|null, awayPoints: number|null, homeTouchdowns: number|null, awayTouchdowns: number|null,
+ *   homeCasualties: number|null, awayCasualties: number|null, resultType: "played"|"technical", technicalReason: string|null}}
+ */
 export function scoreLeagueResult({
   homeTouchdowns,
   awayTouchdowns,
@@ -34,13 +46,18 @@ export function scoreLeagueResult({
   hasHome = true,
   hasAway = true,
   kind = "league",
+  resultType = "played",
+  winner = "",
+  technicalReason = null,
 }) {
+  if (resultType === "technical") return scoreTechnicalResult(winner, technicalReason, kind);
+  const played = { resultType: "played", technicalReason: null };
   if (!hasHome && !hasAway) {
-    return { homePoints: null, awayPoints: null, homeTouchdowns: null, awayTouchdowns: null, homeCasualties: null, awayCasualties: null };
+    return { homePoints: null, awayPoints: null, homeTouchdowns: null, awayTouchdowns: null, homeCasualties: null, awayCasualties: null, ...played };
   }
 
   if (homeTouchdowns === null || awayTouchdowns === null || homeTouchdowns === undefined || awayTouchdowns === undefined) {
-    return { homePoints: null, awayPoints: null, homeTouchdowns: homeTouchdowns ?? null, awayTouchdowns: awayTouchdowns ?? null, homeCasualties: homeCasualties ?? null, awayCasualties: awayCasualties ?? null };
+    return { homePoints: null, awayPoints: null, homeTouchdowns: homeTouchdowns ?? null, awayTouchdowns: awayTouchdowns ?? null, homeCasualties: homeCasualties ?? null, awayCasualties: awayCasualties ?? null, ...played };
   }
 
   // The numbers themselves are in src/domain/league-rules.mjs (step 14.3),
@@ -56,7 +73,23 @@ export function scoreLeagueResult({
     touchdownsAgainst: homeTouchdowns,
     casualtiesFor: awayCasualties,
   });
-  return { homePoints, awayPoints, homeTouchdowns, awayTouchdowns, homeCasualties, awayCasualties };
+  return { homePoints, awayPoints, homeTouchdowns, awayTouchdowns, homeCasualties, awayCasualties, ...played };
+}
+
+/** A technical result: 2–0 to the winner, CAS 0–0, the winner's points by the reason (none in a friendly). */
+function scoreTechnicalResult(winner, technicalReason, kind) {
+  const won = (name) => winner === name;
+  const points = (name) => (kind === "friendly" ? 0 : technicalPoints({ won: won(name), reason: technicalReason }));
+  return {
+    homePoints: points("home"),
+    awayPoints: points("away"),
+    homeTouchdowns: won("home") ? 2 : 0,
+    awayTouchdowns: won("away") ? 2 : 0,
+    homeCasualties: 0,
+    awayCasualties: 0,
+    resultType: "technical",
+    technicalReason,
+  };
 }
 
 export function computeSeasonStandings(entryRows, pairingRows, { includeContacts = true } = {}) {
