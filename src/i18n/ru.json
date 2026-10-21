@@ -1762,5 +1762,16 @@
   "matches.before.out": "Пропуски:",
   "matches.before.lineupLead": "Состав:",
   "matches.before.lineupAll": "все в строю",
-  "matches.before.unread": "Команду соперника не прочитать: {reason}"
+  "matches.before.unread": "Команду соперника не прочитать: {reason}",
+  "ui.board.prev": "Предыдущий матч",
+  "ui.board.next": "Следующий матч",
+  "ui.board.toCurrent": "К текущему матчу →",
+  "matches.band.points": "{points} в таблице",
+  "matches.band.offTable": "Не влияет на таблицу",
+  "matches.band.cas": "CAS {cas}",
+  "matches.band.mvp": "MVP {names}",
+  "matches.band.friendlyChip": "Не влияет на таблицу лиги",
+  "matches.band.square": "{title} · {opponent}",
+  "matches.records": "Записи матча · {count}",
+  "teamOverview.oppValue": "TV {value}"
 }

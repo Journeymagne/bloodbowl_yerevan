@@ -24,16 +24,26 @@
  * the line, the rest of the line after « · ». Each link may carry a tooltip
  * (`hint`), the prototype's. A side given none of them is
  * drawn as before. The stylesheet shows the crest and the letter on a desk
- * only. What the board does not draw, though the prototype does: the
- * opponent's TV, the bubbles of inducements and of players who miss the match,
- * the arrows and the squares as tabs to page through the season's matches,
- * and the «T» of a friendly among them (stage 09 and 09a).
+ * only.
+ *
+ * A desk's board pages through the season (DeskSeason.html, DeskOverview.html;
+ * stage 09a): with `tabs` the squares are the tabs of one group between the
+ * arrows «‹ ›», the one shown selected, and `wireBoardPager` moves through them
+ * (clicks, the arrows, ←/→, Home and End, the focus following). A past match is
+ * drawn with its score in the colour of the result (`scoreResult`), the outcome
+ * under it (`outcome`), its chips in the middle of the bar (`chipsHtml`,
+ * `renderBoardChips`) and the way back to the current one where the actions
+ * stand (`toCurrentHtml`, `renderBoardToCurrent`). The current one may carry the
+ * screen's bubbles (`bubbles`, `renderBoardBubble`): under our name, under the
+ * state, under theirs. A board given none of these props is drawn as before.
+ * A phone's squares stay a list and no links (30px is less than a thumb's 44,
+ * decision 12 of stage 05): a phone does not page.
  */
-import { escapeHtml } from "../core/dom.mjs";
+import { delegate, escapeHtml, focusLost } from "../core/dom.mjs";
 import { t } from "../core/i18n.mjs";
 import { renderButton } from "./button.mjs";
 import { icon } from "./icons.mjs";
-import { assertLinkHref, classNames } from "./markup.mjs";
+import { assertLinkHref, classNames, dataAttributes } from "./markup.mjs";
 import { resultLabels } from "./result-pill.mjs";
 
 /** A link the board draws: the address checked, then escaped; a tooltip (`hint`) is text. */
@@ -61,17 +71,20 @@ function emblemMarkup({ crestHtml, initial }) {
   return crest + (initial ? `<span class="g-board__initial" aria-hidden="true">${escapeHtml(initial)}</span>` : "");
 }
 
-/** One team: its name, and a line under it when there is one; beside them, boxed together, its crest or letter when given. */
-function renderTeam(team, away) {
-  const texts = nameMarkup(team) + lineMarkup(team);
+/**
+ * One team: its name, and a line under it when there is one, and the screen's bubble under them; beside them, boxed
+ * together, its crest or letter when given.
+ */
+function renderTeam(team, away, bubbleHtml = "") {
+  const texts = nameMarkup(team) + lineMarkup(team) + bubbleHtml;
   const emblem = emblemMarkup(team);
   const className = classNames("g-board__side", away && "g-board__side--away", emblem && "g-board__side--emblem");
   return `<div class="${className}">${emblem ? `${emblem}<span class="g-board__texts">${texts}</span>` : texts}</div>`;
 }
 
 /** The opponent's column: the opponent, or the words that say when there will be one. */
-function renderOpponent(opponent, pendingText) {
-  if (opponent) return renderTeam(opponent, true);
+function renderOpponent(opponent, pendingText, bubbleHtml) {
+  if (opponent) return renderTeam(opponent, true, bubbleHtml);
   return `<div class="g-board__side g-board__side--away"><span class="g-board__pending">${escapeHtml(pendingText)}</span></div>`;
 }
 
@@ -81,6 +94,32 @@ function renderSquare({ label, result, current }) {
   const className = classNames("g-board__square", `g-board__square--${result || "none"}`, current && "g-board__square--current");
   const mark = current ? ' aria-current="true"' : "";
   return `<li class="${className}" aria-label="${escapeHtml(`${label}: ${state}`)}"${mark}>${escapeHtml(label)}</li>`;
+}
+
+/** A square as a tab of the group: named by its match (`title`) and state, selected or not, one of them in the tab order. */
+function renderTab({ label, result, current, title }, index, selected) {
+  const state = result ? resultLabels(result).name : t("ui.board.notPlayed");
+  const className = classNames("g-board__square", `g-board__square--${result || "none"}`, current && "g-board__square--current");
+  const mark = current ? ' aria-current="true"' : "";
+  return `<button type="button" role="tab" class="${className}" data-board-item="${index}" aria-selected="${selected}" tabindex="${selected ? 0 : -1}"`
+    + ` aria-label="${escapeHtml(`${title || label}: ${state}`)}"${mark}>${escapeHtml(label)}</button>`;
+}
+
+/** The arrows and the tabs between them; with none selected, the last one is. An arrow at its end is off. */
+function renderNav(pager) {
+  const marked = pager.findIndex((item) => item.selected);
+  const at = marked === -1 ? pager.length - 1 : marked;
+  const arrow = (step, key, glyph, off) => `<button type="button" class="g-board__step" data-board-step="${step}" aria-label="${escapeHtml(t(key))}"${off ? " disabled" : ""}>${icon(glyph, 14)}</button>`;
+  const tabs = pager.map((item, index) => renderTab(item, index, index === at)).join("");
+  return `<div class="g-board__nav">${arrow(-1, "ui.board.prev", "back", at === 0)}`
+    + `<div class="g-board__tabs" role="tablist" aria-label="${escapeHtml(t("ui.board.pager"))}">${tabs}</div>`
+    + `${arrow(1, "ui.board.next", "chevron", at === pager.length - 1)}</div>`;
+}
+
+/** Under a past match's score: «Win · +3 in the table», the outcome in its colour, the note quieter. */
+function outcomeMarkup({ label, note, result }) {
+  const rest = note ? ` · <span class="g-board__outcome-note">${escapeHtml(note)}</span>` : "";
+  return `<span class="g-board__outcome g-board__outcome--${escapeHtml(result)}">${escapeHtml(label)}${rest}</span>`;
 }
 
 /**
@@ -96,16 +135,93 @@ function renderSquare({ label, result, current }) {
  * @param {{label: string, result: string|null, current: boolean}[]} [props.pager] the season's matches in order, as squares: `result` is one of RESULT_KINDS, or null for one not played
  * @param {string} [props.actionsHtml] the buttons and links of the bar, such as `renderBoardActions`
  * @param {boolean} [props.live] a match in progress: the board is ringed
+ * @param {boolean} [props.tabs] the squares as tabs between the arrows (a desk's); each square may then say `selected`
+ *   and be named by its match (`title`)
+ * @param {{label: string, note: string, result: "w"|"d"|"l"|"t"}|null} [props.outcome] a past match's, under its score
+ * @param {"w"|"l"|""} [props.scoreResult] the score in the colour of a win or a loss
+ * @param {string} [props.chipsHtml] `renderBoardChips`' markup, in the middle of the bar
+ * @param {{own?: string, mid?: string, other?: string}} [props.bubbles] `renderBoardBubble`'s markup: under our name,
+ *   under the state, under theirs
+ * @param {string} [props.toCurrentHtml] `renderBoardToCurrent`'s markup, where the actions stand
  */
-export function renderMatchBoard({ overline = "", own, opponent = null, pendingText = "", score = "", statusHtml = "", pager = [], actionsHtml = "", live = false }) {
+export function renderMatchBoard({
+  overline = "", own, opponent = null, pendingText = "", score = "", statusHtml = "", pager = [], actionsHtml = "", live = false,
+  tabs = false, outcome = null, scoreResult = "", chipsHtml = "", bubbles = {}, toCurrentHtml = "",
+}) {
   if (!own?.name) throw new Error("a match board needs our own team with a name");
   const over = overline ? `<span class="g-board__overline">${escapeHtml(overline)}</span>` : "";
-  const middle = `<div class="g-board__mid">${over}<span class="g-board__score">${escapeHtml(score || t("ui.board.empty"))}</span>${statusHtml}</div>`;
-  const main = `<div class="g-board__main">${renderTeam(own, false)}${middle}${renderOpponent(opponent, pendingText)}</div>`;
-  const squares = pager.length ? `<ol class="g-board__pager" role="list" aria-label="${escapeHtml(t("ui.board.pager"))}">${pager.map(renderSquare).join("")}</ol>` : "";
-  const actions = actionsHtml ? `<div class="g-board__actions">${actionsHtml}</div>` : "";
-  const bar = squares || actions ? `<div class="g-board__bar">${squares}${actions}</div>` : "";
+  const scoreClass = classNames("g-board__score", scoreResult && `g-board__score--${scoreResult}`);
+  const below = `${statusHtml}${bubbles.mid ?? ""}${outcome ? outcomeMarkup(outcome) : ""}`;
+  const middle = `<div class="g-board__mid">${over}<span class="${scoreClass}">${escapeHtml(score || t("ui.board.empty"))}</span>${below}</div>`;
+  const main = `<div class="g-board__main">${renderTeam(own, false, bubbles.own ?? "")}${middle}${renderOpponent(opponent, pendingText, bubbles.other ?? "")}</div>`;
+  const list = () => `<ol class="g-board__pager" role="list" aria-label="${escapeHtml(t("ui.board.pager"))}">${pager.map(renderSquare).join("")}</ol>`;
+  const squares = pager.length ? (tabs ? renderNav(pager) : list()) : "";
+  const chips = chipsHtml ? `<div class="g-board__chips">${chipsHtml}</div>` : "";
+  const actions = actionsHtml || toCurrentHtml ? `<div class="g-board__actions">${actionsHtml}${toCurrentHtml}</div>` : "";
+  const bar = squares || chips || actions ? `<div class="g-board__bar">${squares}${chips}${actions}</div>` : "";
   return `<section class="${classNames("g-board", live && "g-board--live")}">${main}${bar}</section>`;
+}
+
+/** A past match's or a sent score's chips: «CAS 3–1», «MVP Gruk». Text. */
+export function renderBoardChips(texts) {
+  return texts.map((text) => `<span class="g-board__chip">${escapeHtml(text)}</span>`).join("");
+}
+
+/**
+ * A bubble that opens more about the match: a 28px button with the «i» after its words. `data` names what the screen
+ * answers it by (`{beforeOpen: ""}`); it says it opens a dialog.
+ * @param {{text: string, data?: object}} props
+ */
+export function renderBoardBubble({ text, data = {} }) {
+  return `<button type="button" class="g-board__bubble" aria-haspopup="dialog"${dataAttributes(data)}>${escapeHtml(text)}${icon("info", 14)}</button>`;
+}
+
+/** «To the current match →», a past match's way back; `wireBand` (screens/matches/band.mjs) answers it. */
+export function renderBoardToCurrent() {
+  return `<button type="button" class="g-board__tocurrent" data-board-current="">${escapeHtml(t("ui.board.toCurrent"))}</button>`;
+}
+
+const TAB = '.g-board__nav [role="tab"]';
+/** Where each key moves the selection from `at` of `count`: the neighbour, the first or the last; undefined for any other key. */
+const KEY_TARGETS = { ArrowLeft: (at) => at - 1, ArrowRight: (at) => at + 1, Home: () => 0, End: (at, count) => count - 1 };
+
+/**
+ * Wire the tabs and the arrows of the boards under `root` (a container that outlives the redraws): a click on a square,
+ * an arrow, and on a tab ←/→, Home and End pick another match, `onPick(index)`, which the screen answers by drawing the
+ * board with it selected. A key or a click on a square takes the focus to the square picked (the tabs' roving focus); an
+ * arrow keeps it, unless the arrow is off at the end now, when it goes to the selected square. Nothing past the ends.
+ * @param {Element} root
+ * @param {(index: number) => void} onPick
+ * @returns {() => void} removes the listeners
+ */
+export function wireBoardPager(root, onPick) {
+  const tabs = () => root.querySelectorAll(TAB);
+  const selected = () => [...tabs()].findIndex((tab) => tab.getAttribute("aria-selected") === "true");
+  const focusOn = (index) => root.querySelector(`.g-board__nav [data-board-item="${index}"]`)?.focus();
+  const pick = (index) => {
+    if (!Number.isInteger(index) || index < 0 || index >= tabs().length || index === selected()) return false;
+    onPick(index);
+    return true;
+  };
+  const offs = [
+    delegate(root, "click", TAB, (event, tab) => {
+      const index = Number(tab.getAttribute("data-board-item"));
+      pick(index);
+      focusOn(index);
+    }),
+    delegate(root, "click", ".g-board__nav [data-board-step]", (event, arrow) => {
+      pick(selected() + Number(arrow.getAttribute("data-board-step")));
+      if (arrow.disabled || focusLost(arrow)) focusOn(selected());
+    }),
+    delegate(root, "keydown", TAB, (event, tab) => {
+      const target = Object.hasOwn(KEY_TARGETS, event.key) ? KEY_TARGETS[event.key] : null;
+      if (!target) return;
+      event.preventDefault();
+      const index = target(Number(tab.getAttribute("data-board-item")), tabs().length);
+      if (pick(index)) focusOn(index);
+    }),
+  ];
+  return () => offs.forEach((off) => off());
 }
 
 /** How the band draws each kind of action: a button of this ui/button.mjs kind, or (null) a plain link. */

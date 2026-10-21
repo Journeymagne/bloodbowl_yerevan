@@ -1762,5 +1762,16 @@
   "matches.before.out": "Out:",
   "matches.before.lineupLead": "Lineup:",
   "matches.before.lineupAll": "all in",
-  "matches.before.unread": "The opponent's team could not be read: {reason}"
+  "matches.before.unread": "The opponent's team could not be read: {reason}",
+  "ui.board.prev": "Previous match",
+  "ui.board.next": "Next match",
+  "ui.board.toCurrent": "To the current match →",
+  "matches.band.points": "{points} in the table",
+  "matches.band.offTable": "Does not count in the table",
+  "matches.band.cas": "CAS {cas}",
+  "matches.band.mvp": "MVP {names}",
+  "matches.band.friendlyChip": "Does not count in the league table",
+  "matches.band.square": "{title} · {opponent}",
+  "matches.records": "Match records · {count}",
+  "teamOverview.oppValue": "TV {value}"
 }
