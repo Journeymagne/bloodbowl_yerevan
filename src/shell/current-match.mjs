@@ -105,14 +105,34 @@ export function subLine(game, own) {
   return t("shell.match.round", { round: game.roundNumber, venue: own === "home" ? t("shell.match.home") : t("shell.match.away") });
 }
 
+/** A figure of the score proposed, [ours, theirs] from the team's side; null when either number is missing. */
+function sentPair(game, sides, kind) {
+  const [own, other] = [sides.own, sides.other].map((side) => game[`proposed${side[0].toUpperCase()}${side.slice(1)}${kind}`]);
+  return [own, other].some((value) => value === null || value === undefined) ? null : [own, other];
+}
+
+/**
+ * The score sent or proposed to the team, from its side: «2–1», or with `between` the board's «2:1» (stage 09a, the
+ * one reader of a score sent, for the card and the board); "" when a number of it is missing.
+ * @param {object} game @param {{own: "home"|"away", other: "home"|"away"}} sides @param {string} [between]
+ */
+export function sentScore(game, sides, between = "–") {
+  return sentPair(game, sides, "Touchdowns")?.join(between) ?? "";
+}
+
+/** The casualties sent, from the team's side: «1–0»; "" when a number of them is missing. */
+export function sentCasualties(game, sides) {
+  return sentPair(game, sides, "Casualties")?.join("–") ?? "";
+}
+
 /** «Win 2–1 · CAS 1–0» by the score proposed, from the coach's side, as plain text; "" when a number of it is missing. */
 function sentLineOf(game, sides) {
-  const [own, other] = [sides.own, sides.other].map((side) => side[0].toUpperCase() + side.slice(1));
-  const pick = (kind, side) => game[`proposed${side}${kind}`];
-  const [td, against, cas, casAgainst] = [pick("Touchdowns", own), pick("Touchdowns", other), pick("Casualties", own), pick("Casualties", other)];
-  if ([td, against, cas, casAgainst].some((value) => value === null || value === undefined)) return "";
+  const touchdowns = sentPair(game, sides, "Touchdowns");
+  const cas = sentCasualties(game, sides);
+  if (!touchdowns || !cas) return "";
+  const [td, against] = touchdowns;
   const kind = td > against ? "w" : td < against ? "l" : "d";
-  return t("shell.match.result", { outcome: resultLabels(kind).name, score: `${td}–${against}`, cas: `${cas}–${casAgainst}` });
+  return t("shell.match.result", { outcome: resultLabels(kind).name, score: sentScore(game, sides), cas });
 }
 
 /** No actions: a fresh one each time, since a caller may add to its list. */

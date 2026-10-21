@@ -105,10 +105,37 @@ async function verifyStart() {
   assert.ok(after.every(team => team.revision === before.find(item => item.id === team.id).revision + 1));
   assert.deepEqual((await pool.query("SELECT id,roster FROM saved_teams WHERE id=ANY($1::uuid[])", [teams])).rows, saved);
   await expectError("home", { type: "fans", value: 1 }, "MATCH_STARTED");
-  console.log("Pre-match API smoke passed: authorization, revision conflicts, phase order, roster refresh, effects, snapshots, fractional balances, drafts without spending and atomic/idempotent treasury spending.");
 }
 
-try { await createFixture(); await prepareMatch(); await verifyStart(); }
+/**
+ * The home team plays its match now (stage 09a, TEAM_IN_MATCH): its coach's save of the team as GET gives it, a treasury
+ * entry, a death and a site roll — each on the team's own revision, so a 409 cannot stand in for the refusal — are 422,
+ * and nothing of the team is written: the revision, the treasury, and no ledger line, fallen player or roll.
+ */
+async function verifyClosedInMatch() {
+  const id = teams[0];
+  const { team } = (await request("home", `/api/teams/${id}`)).data;
+  const player = encodeURIComponent(team.roster.players[1].id);
+  const written = async () => (await pool.query(`SELECT t.revision, t.roster->'treasury' AS treasury,
+    (SELECT count(*)::int FROM team_ledger WHERE saved_team_id = t.id) AS ledger,
+    (SELECT count(*)::int FROM team_fallen_players WHERE saved_team_id = t.id) AS fallen,
+    (SELECT count(*)::int FROM dice_rolls WHERE saved_team_id = t.id) AS rolls FROM saved_teams t WHERE t.id = $1`, [id])).rows[0];
+  const before = await written();
+  assert.equal(before.revision, team.revision);
+  for (const [method, path, body] of [
+    ["PATCH", `/api/teams/${id}`, team],
+    ["POST", `/api/teams/${id}/treasury`, { delta: 5, reason: "sponsor", revision: team.revision }],
+    ["POST", `/api/teams/${id}/players/${player}/death`, { cause: "Pre-match smoke", revision: team.revision }],
+    ["POST", `/api/teams/${id}/players/${player}/rolls`, { purpose: "stat" }],
+  ]) {
+    const refused = await request("home", path, body, method);
+    assert.deepEqual([refused.status, refused.data.error?.code], [422, "TEAM_IN_MATCH"], `${method} ${path}: ${JSON.stringify(refused.data)}`);
+  }
+  assert.deepEqual(await written(), before, "A team in a match keeps its roster, treasury, dead and rolls.");
+  console.log("Pre-match API smoke passed: authorization, revision conflicts, phase order, roster refresh, effects, snapshots, fractional balances, drafts without spending and atomic/idempotent treasury spending, and a team in a match keeps its roster, treasury, dead and rolls.");
+}
+
+try { await createFixture(); await prepareMatch(); await verifyStart(); await verifyClosedInMatch(); }
 finally {
   if (seasonId) await pool.query("DELETE FROM seasons WHERE id=$1", [seasonId]);
   if (teams.length) await pool.query("DELETE FROM saved_teams WHERE id=ANY($1::uuid[])", [teams]);

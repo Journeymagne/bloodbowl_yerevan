@@ -71,6 +71,8 @@
   --crest-gold: #F2C14E;
   --on-accent: #FFFFFF;
   --live: #7FD3A2;
+  /* A loss on the dark band (a past match's score and outcome, DeskSeason.html): the danger of the dark modes. */
+  --on-header-loss: #F2A99C;
   /* tokens.json has #6F7A75, where a white D is 4.45:1: a shade darker reads 4.7:1. */
   --neutral-result: #6B7671;
   --result-friendly: #8A5A12;

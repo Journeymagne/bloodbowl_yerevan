@@ -127,6 +127,7 @@ export const API_ERRORS = Object.freeze({
   STAGE_PURCHASE_LOCKED: "Starting rerolls can only be bought while the team is being assembled, and Team Rerolls only once it plays in the season.",
   TEAM_IN_SEASON_CANNOT_BE_DELETED:
     "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
+  TEAM_IN_MATCH: "This team is playing a match: changes to the team wait until after the post-match.",
   TEAM_SAVED_ELSEWHERE: "This team was saved somewhere else after you opened it.",
   TEAM_NAME_REQUIRED: "Team name is required.",
   TEAM_NOT_FOUND: "Team not found.",

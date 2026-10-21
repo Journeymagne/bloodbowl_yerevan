@@ -19,14 +19,8 @@
 .pre-team-panel form { display: grid; gap: 18px; }
 .pre-result { display: flex; align-items: baseline; gap: 18px; border-top: 1px solid var(--line); margin-top: 24px; padding-top: 18px; font-size: .72rem; }
 .pre-result strong { font: 2rem var(--label-font); color: var(--ink-2); }
-.pre-dice-field { display: grid; grid-template-columns: minmax(0, 1fr) 65px 30px; align-items: center; gap: 12px; font-size: .75rem; }
-.pre-dice-field input { width: 65px; min-height: 50px; text-align: center; font: 1.2rem var(--label-font); }
-.pre-dice-field small { color: var(--muted); }
-.pre-dice-row { display: grid; gap: 16px; margin: 22px 0; }
 .pre-match fieldset { min-width: 0; border: 0; padding: 0; margin: 0; }
 .pre-match label:not(.pre-dice-field):not(.pre-checkbox):not(.post-check) { display: grid; gap: 8px; color: var(--muted); font-size: .75rem; }
-.pre-weather-result { margin: 22px 0; border-left: 3px solid var(--line-bright); background: var(--panel-2); padding: 23px; font-size: .8rem; line-height: 1.7; }
-.pre-weather-result h3 { font-size: 1.25rem; }
 .pre-player-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 265px), 1fr)); gap: 15px; }
 .pre-player-card { min-width: 0; border: 1px solid var(--line); border-radius: 0; background: var(--panel); padding: 16px; }
 .pre-player-card > header { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
@@ -43,11 +37,7 @@
 .pre-skills { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 14px; font-size: .65rem; }
 .pre-player-card footer { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
 .pre-badge { display: inline-block; padding: 5px 7px; border: 1px solid var(--line-bright); font-size: .62rem; color: var(--muted); }
-.pre-mng, .pre-ctv-details { margin: 24px 0; border-top: 1px solid var(--line); padding: 18px 0; font-size: .8rem; }
-.pre-mng > summary, .pre-ctv-details > summary, .pre-team-panel details > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
-.pre-mng .pre-player-grid { margin-top: 15px; opacity: .75; }
-.pre-ctv-details .summary-stat-grid { display: grid; grid-template-columns: 1fr auto; max-width: 420px; gap: 10px; }
-.pre-ctv-details dd { margin: 0; font-family: var(--label-font); }
+.pre-team-panel details > summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
 .pre-inline-actions { display: flex; gap: 15px; flex-wrap: wrap; margin: 28px 0; }
 .pre-inline-actions > button, .pre-next { min-height: 44px; }
 .pre-next { display: inline-flex; align-items: center; justify-content: center; margin-top: 12px; text-decoration: none; }
@@ -60,41 +50,12 @@
 .pre-team-readiness small { width: 100%; margin-left: 15px; color: var(--muted); font-size: .6rem; }
 .pre-status-dot { width: 6px; height: 6px; background: var(--muted); }
 .pre-status-dot.done { background: var(--accent-2); }
-.pre-basket { display: grid; gap: 15px; }
-.pre-inducement-card { min-width: 0; padding: 20px; border: 1px solid var(--line); background: var(--panel); }
-.pre-inducement-card > header { display: flex; justify-content: space-between; gap: 14px; }
-.pre-inducement-card h3 { margin: 0 0 8px; font-size: .9rem; }
-.pre-inducement-card header strong { white-space: nowrap; font: .9rem var(--label-font); color: var(--ink-2); }
-.pre-inducement-card header small, .pre-inducement-card > p { font-size: .68rem; color: var(--muted); line-height: 1.65; }
-.pre-inducement-card footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-top: 18px; }
-.pre-inducement-card .inline-stepper-control button:disabled, .pre-inducement-card .inline-stepper-control button[aria-disabled] { opacity: .5; cursor: default; }
-.pre-inducement-card .inline-stepper-control strong { font: .9rem var(--label-font); }
-.pre-inducement-card.is-unavailable { opacity: .7; }
-.pre-blocked-reason { display: block; color: var(--danger); margin-top: 12px; font-size: .66rem; }
-.pre-empty { border: 1px dashed var(--line); padding: 36px 22px; color: var(--muted); font-size: .8rem; }
-.pre-star-preview { display: grid; gap: 12px; margin-top: 18px; }
-.pre-star-preview .pre-player-card { padding: 12px; border-color: var(--line); }
-.pre-catalog-controls { position: sticky; top: 110px; z-index: 1; padding: 18px; background: var(--modal-bg); border-bottom: 1px solid var(--line); }
-.pre-categories { display: flex; gap: 9px; margin-bottom: 15px; }
-.pre-catalog-controls > input { width: 100%; }
-.pre-checkbox { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: .7rem; }
-.pre-effects-form { margin-top: 30px; }
-.pre-effects-form > h2 { font-size: 1.1rem; }
-.pre-effects-form > p { font-size: .75rem; }
-.pre-effect-card { padding: 20px; border: 1px solid var(--line); background: var(--panel-2); margin: 16px 0; }
-.pre-effect-card h3 { font-size: .9rem; }
-.pre-effect-card p { font-size: .73rem; line-height: 1.7; }
-.pre-effect-card label { margin-top: 15px; }
-.pre-effect-card select[multiple] { min-height: 110px; }
-.pre-purchase-list { list-style: none; padding: 0; font-size: .72rem; }
-.pre-purchase-list li { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
 .pre-game-reminder { color: var(--muted); padding: 18px 0; border-top: 1px solid var(--line); font-size: .73rem; line-height: 1.7; }
 .pre-game-panel { margin: 0 0 26px; padding: 24px; border: 2px solid var(--line-bright); background: var(--panel-2); }
 .pre-game-panel > p { font-size: .8rem; line-height: 1.7; }
 .pre-game-panel h2 { font-size: 1.6rem; }
 .pre-admin-side { margin: 20px 0; max-width: 350px; }
 .pre-mobile-dock > span { color: var(--muted); font-size: .75rem; }
-.pre-hire-button { width: 100%; margin-top: 10px; }
 .pre-content[aria-busy="true"] { opacity: .8; }
 @media (max-width: 1199px) {
   .pre-workspace { display: flex; flex-direction: column; }
@@ -109,11 +70,9 @@
   .pre-two-teams { grid-template-columns: minmax(0, 1fr); }
   .pre-section-head { flex-wrap: wrap; }
   .pre-section-head > button, .pre-section-head > a { width: 100%; }
-  .pre-team-panel, .pre-inducement-card { padding: 17px; }
+  .pre-team-panel { padding: 17px; }
   .pre-match .matchday-scoreboard { grid-auto-flow: initial; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .pre-game-panel { padding: 17px; }
   .pre-mobile-dock > a { margin-left: auto; text-decoration: none; font-size: .8rem; }
-  .pre-dice-field { grid-template-columns: minmax(0, 1fr) 58px 24px; gap: 8px; }
-  .pre-dice-field input { width: 58px; }
   .pre-inline-actions button { width: 100%; }
 }

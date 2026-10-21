@@ -25,6 +25,8 @@ const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs"
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
 const { refQuery, setRefQuery, takeSearchFocus } = await import("../src/screens/ref/memory.mjs");
+const { teamValue } = await import("../src/data/team-record.mjs");
+const { formatMoney } = await import("../src/core/format.mjs");
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const dictionary = (locale) => JSON.parse(text(`src/i18n/${locale}.json`));
@@ -69,10 +71,13 @@ const game = (id, over = {}) => ({
   proposedHomeTouchdowns: null, proposedAwayTouchdowns: null, proposedHomeCasualties: null, proposedAwayCasualties: null,
   confirmedAt: null, updatedAt: "2026-10-06T10:00:00Z", home: OURS.t1, away: RIVAL, viewerIsHome: true, viewerIsProposer: false, ...over,
 });
-/** A finished match: the score is [home, away]. */
+/** The league's points of a side for its touchdowns against the other's: 3 a win, 1 a draw (stage 09a: the band says them). */
+const pointsOf = (own, other) => (own > other ? 3 : own === other ? 1 : 0);
+/** A finished match: the score is [home, away], and the points each side took. */
 const played = (id, round, touchdowns, casualties, over = {}) => game(id, {
   roundNumber: round, roundStatus: "completed", resultStatus: "confirmed", confirmedAt: `2026-10-0${round}T10:00:00Z`,
-  homeTouchdowns: touchdowns[0], awayTouchdowns: touchdowns[1], homeCasualties: casualties[0], awayCasualties: casualties[1], ...over,
+  homeTouchdowns: touchdowns[0], awayTouchdowns: touchdowns[1], homeCasualties: casualties[0], awayCasualties: casualties[1],
+  homePoints: pointsOf(touchdowns[0], touchdowns[1]), awayPoints: pointsOf(touchdowns[1], touchdowns[0]), ...over,
 });
 const GAMES = [
   played("ga", 1, [2, 1], [1, 0]),
@@ -87,6 +92,14 @@ const GAMES = [
 ];
 /** The games with some of them changed, by id. */
 const gamesWith = (changes) => GAMES.map((item) => (changes[item.id] ? { ...item, ...changes[item.id] } : item));
+
+/** A rival's team as his public page has it (stage 09a): `count` players of the race's first position, the `out`th missing the match. */
+const rivalTeam = (id, slug, count, out = -1) => ({ id, name: `Rival ${id}`, baseTeamSlug: slug, revision: 1, roster: { treasury: 40,
+  players: Array.from({ length: count }, (_, at) => ({ id: `${id}-${at}`, rowIndex: 0, number: String(at + 1), name: `${id} ${at + 1}`, ...(at === out ? { skipNextGame: true, absence: { code: "miss" } } : {}) })) } });
+// The rival of t1's g1: seven Dwarf Blocker Linemen, one of them out — 420k against our 130k.
+const RIVAL_TEAM = rivalTeam("r1", "teams/dwarf", 7, 2);
+const RIVAL_PAGES = { "u-r1/teams/r1": RIVAL_TEAM, "u-r2/teams/r2": rivalTeam("r2", "teams/skaven", 7), "u-r3/teams/r3": rivalTeam("r3", "teams/lizardmen", 7) };
+const RIVAL_PAGE = "GET /api/players/u-r1/teams/r1";
 
 // The players who can advance: the first random skill costs 3 SPP, so Cade (9 touchdowns, 27 SPP) is ahead of Ashby and Vane (7 each),
 // who stand in the roster's order; Dunn (2 SPP) has not enough and Moss (3 SPP, a skill taken) has spent it.
@@ -118,11 +131,14 @@ function coach({ games = GAMES, season = SEASON, gamesLoaded = true, seasonLoade
   state.auth.currentUser = { id: "u1", login: "coach", preferences: { activeTeamId: "t1" } };
   state.myTeams = { items: TEAMS, loaded: true, loading: false, error: "" };
   state.activeTeamId = "t1";
-  state.data = { teams: RACES };
+  // The whole reference, as a page that has read it holds it: «Before the match» needs its catalogue (pre-flight L4).
+  state.data = data;
   state.season = { data: season, loaded: seasonLoaded, loading: false, error: "" };
   state.games = { items: games, currentItems: [], loaded: gamesLoaded, loading: false, error: gamesError };
   // The leaders read the records not settled (stage 07e): none, at the team's revision.
   for (const { id, revision } of TEAMS) api.reply(`GET /api/teams/${id}/events`, 200, { events: [], revision });
+  // The board reads the opponent of the match on from his public page (stage 09a): each of the three rivals answers.
+  for (const [page, team] of Object.entries(RIVAL_PAGES)) api.reply(`GET /api/players/${page}`, 200, { user: { id: page.split("/")[0], login: team.id }, team });
 }
 
 /** The server answering the list again: the games as they are now. */
@@ -406,7 +422,11 @@ test("the board shows the next match with «Match preparation» and «Friendlies
   const fragment = mount(overviewMarkup(overviewModel(input("t1"))));
   assert.equal(fragment.querySelector(".g-board__side--away .g-board__name").textContent, "Rival Team");
   assert.deepEqual(fragment.querySelectorAll(".g-board__actions a").map((link) => link.getAttribute("href")), ["#/games/g1/pre-match", "#/t/t1/challenges"]);
-  assert.deepEqual(fragment.querySelectorAll(".g-board__square").map((square) => square.textContent), ["1", "2", "3"]);
+  // A desk's squares are the band's (stage 09a): the matches played in the order they were settled, the friendly an «F», then the current one.
+  assert.deepEqual(fragment.querySelectorAll(".g-board__square").map((square) => square.textContent), ["1", "2", "F", "3"]);
+  // A phone's are the season's league matches, as before (the owner: the phone's board stays).
+  const phone = mount(overviewMarkup(overviewModel(input("t1", { phone: true }))));
+  assert.deepEqual(phone.querySelectorAll("ol .g-board__square").map((square) => square.textContent), ["1", "2", "3"]);
 });
 
 test("the board names both teams by race, our place and value, the round and the venue, and the match not begun", () => {
@@ -514,18 +534,20 @@ test("a focus on the board's links of a desk is not lost on a phone, where they 
 });
 
 test("a live match offers its records and the post-match; a score the opponent sent waits to be confirmed", () => {
-  assert.deepEqual(overviewModel(input("t2")).board.links.map(({ kind }) => kind), ["text", "light"]);
+  // The band's looks (DeskSeasonLive.html, stage 09a): the records outlined, the post-match white.
+  assert.deepEqual(overviewModel(input("t2")).board.links.map(({ kind }) => kind), ["light", "primary"]);
   const sent = overviewModel(input("t3")).board;
   assert.equal(sent.status, "sent");
-  assert.equal(sent.score, "2–1");
+  assert.equal(sent.score, "2:1", "one way of writing a score on the board (pre-flight L31)");
   assert.equal(sent.links[0].href, "#/games/g3");
   const live = mount(overviewMarkup(overviewModel(input("t2"))));
   assert.ok(live.querySelector(".g-board--live"));
   assert.equal(live.querySelector(".g-board__mid .g-status--live").textContent, "Match in play");
   const awaiting = mount(overviewMarkup(overviewModel(input("t3"))));
   assert.equal(awaiting.querySelector(".g-board__mid .g-status--wait").textContent, "Awaiting confirmation");
-  assert.equal(awaiting.querySelector(".g-board__score").textContent, "2–1");
-  assert.equal(awaiting.querySelector(".g-board__note").textContent, "Win 2–1 · CAS 1–0");
+  assert.equal(awaiting.querySelector(".g-board__score").textContent, "2:1");
+  // The opponent sent it: «Confirm the score» alone, no line repeating the score and the CAS (G5).
+  assert.ok(!awaiting.querySelector(".g-board__note"), "no line");
 });
 
 test("a team in the table with nothing to play says when the opponent comes, and offers the friendlies alone", () => {
@@ -533,7 +555,7 @@ test("a team in the table with nothing to play says when the opponent comes, and
   assert.equal(model.board.status, "none");
   assert.equal(model.board.opponent, null);
   assert.equal(model.board.pendingText, "Opponent — after round 3");
-  assert.deepEqual(model.board.links, []);
+  assert.deepEqual(model.board.links.map(({ label, kind }) => [label, kind]), [["Friendlies", "light"]], "the friendlies, as the band offers them with no match on");
   const fragment = mount(overviewMarkup(model));
   assert.equal(fragment.querySelector(".g-board__pending").textContent, "Opponent — after round 3");
   assert.deepEqual(fragment.querySelectorAll(".g-board__actions a").map((link) => link.textContent.trim()), ["Friendlies"]);
@@ -959,6 +981,192 @@ test("the leaders' tag is escaped text, whatever the dictionary holds (K7c)", ()
   }
 });
 
+// Stage 09a: a desk's board pages through the season, the opponent's value by his name, «Before the match» from the bubbles.
+const tabs = () => view.querySelectorAll('.g-board__nav [role="tab"]');
+const shownTab = () => tabs().findIndex((tab) => tab.getAttribute("aria-selected") === "true");
+const opponentLine = () => view.querySelector(".g-board__side--away .g-board__sub").textContent;
+const bubbles = () => view.querySelectorAll("[data-before-open]").map((bubble) => bubble.textContent);
+const beforeSheet = () => document.querySelector('[data-sheet-host="match-before"] dialog#match-before');
+/** The overview of t1 on a desk or a phone, its reads answered. */
+async function visit({ games = GAMES, phone = false } = {}) {
+  const { cross } = crossingWindow(phone);
+  coach({ games });
+  await renderTeamOverview("t1");
+  await settle();
+  return cross;
+}
+/** As DeskOverview.html's band: the first match won 2–1 with an MVP, the second lost, the friendly, the match on. */
+const PAGED = gamesWith({ ga: { homeMvps: [{ id: "p5", name: "Linewoman Five" }] } });
+
+test("a desk's board pages back to a past match and forward again", async () => {
+  try {
+    await visit({ games: PAGED });
+    assert.deepEqual(tabs().map((tab) => tab.textContent), ["1", "2", "F", "3"]);
+    assert.equal(shownTab(), 3, "the match on is shown");
+    fireEvent(tabs()[0], "click");
+    assert.equal(shownTab(), 0);
+    assert.equal(document.activeElement, tabs()[0]);
+    assert.equal(view.querySelector(".g-board__score").textContent, "2:1", "as the board writes a score");
+    assert.equal(view.querySelector(".g-board__outcome").textContent, "Win · +3 in the table");
+    assert.deepEqual(view.querySelectorAll(".g-board__chip").map((chip) => chip.textContent), ["CAS 1–0", "MVP Linewoman Five"]);
+    assert.equal(view.querySelector(".g-board__overline").textContent, "Round 1 · home");
+    assert.equal(view.querySelector("[data-before-open]"), null, "no bubbles on a match gone");
+    fireEvent(view.querySelector("[data-board-current]"), "click");
+    assert.equal(shownTab(), 3);
+    assert.equal(document.activeElement, tabs()[3], "the focus on the current match's square");
+    assert.equal(view.querySelector(".g-board__score").textContent, "–:–");
+    // The arrows and the keys too.
+    fireEvent(view.querySelector('[data-board-step="-1"]'), "click");
+    assert.equal(shownTab(), 2);
+    fireEvent(tabs()[2], "keydown", { key: "Home" });
+    assert.equal(shownTab(), 0);
+    fireEvent(tabs()[0], "keydown", { key: "End" });
+    assert.equal(shownTab(), 3);
+  } finally {
+    releaseCurrentScreen();
+    delete globalThis.matchMedia;
+  }
+});
+
+test("games read again keep the match shown when it is still there, the current otherwise", async () => {
+  try {
+    await visit({ games: PAGED });
+    fireEvent(tabs()[0], "click");
+    await notifyGames(PAGED);
+    await settle();
+    assert.equal(shownTab(), 0, "the first round, still there");
+    assert.equal(view.querySelector(".g-board__score").textContent, "2:1");
+    await notifyGames(PAGED.filter((item) => item.id !== "ga"));
+    await settle();
+    assert.deepEqual(tabs().map((tab) => tab.textContent), ["2", "F", "3"]);
+    assert.equal(shownTab(), 2, "gone: the current match");
+    await notifyGames(PAGED);
+    await settle();
+    assert.equal(shownTab(), 3);
+    // A pick of the current one follows the current one: once its score is confirmed, the opponent to come is shown, not it.
+    fireEvent(tabs()[0], "click");
+    fireEvent(tabs()[0], "keydown", { key: "End" });
+    assert.equal(shownTab(), 3);
+    const settled = PAGED.map((item) => (item.id === "g1" ? { ...item, resultStatus: "confirmed", homeTouchdowns: 1, awayTouchdowns: 0,
+      homeCasualties: 0, awayCasualties: 0, confirmedAt: "2026-10-06T10:00:00Z" } : item));
+    await notifyGames(settled);
+    await settle();
+    assert.deepEqual(tabs().map((tab) => tab.textContent), ["1", "2", "F", "3", "4"]);
+    assert.equal(shownTab(), 4, "the opponent to come");
+    assert.equal(view.querySelector(".g-board__pending").textContent, "Opponent — after round 3");
+  } finally {
+    releaseCurrentScreen();
+    delete globalThis.matchMedia;
+  }
+});
+
+test("the opponent's value stands in his line once his team is read, on both widths", async () => {
+  const value = `TV ${formatMoney(teamValue(RIVAL_TEAM, raceTeamOf("teams/dwarf")))}`;
+  for (const phone of [false, true]) {
+    try {
+      const { cross } = crossingWindow(phone);
+      coach();
+      const page = api.hold(RIVAL_PAGE);
+      await renderTeamOverview("t1");
+      assert.doesNotMatch(opponentLine(), /TV/, "not before his team is read");
+      page.release();
+      await settle();
+      await settle();
+      assert.match(opponentLine(), new RegExp(`${value}$`));
+      assert.equal(Boolean(view.querySelector('[role="tablist"]')), !phone, "a phone pages nothing");
+      assert.equal(bubbles().length, phone ? 0 : 2, "a phone has no bubbles");
+      cross(!phone);
+      assert.match(opponentLine(), new RegExp(`${value}$`), "the other width says it too");
+      api.assertAnswered();
+      assert.equal(sent(RIVAL_PAGE), 1, "read once a visit for the game as it stands");
+    } finally {
+      releaseCurrentScreen();
+      delete globalThis.matchMedia;
+    }
+  }
+});
+
+test("the bubbles open «Before the match» over the page", async () => {
+  try {
+    await visit();
+    // Ours: two players, 130k; theirs: seven Dwarf Blocker Linemen, one out, 420k. We get the difference.
+    assert.deepEqual(bubbles(), [`+${formatMoney(290)} for inducements`, "missing the match: 1"]);
+    assert.ok(view.querySelectorAll(".g-board__side")[0].querySelector("[data-before-open]"), "under our name: we get it");
+    const bubble = view.querySelectorAll("[data-before-open]")[1];
+    bubble.focus();
+    fireEvent(bubble, "click");
+    assert.ok(beforeSheet()?.open, "the sheet, over the page");
+    assert.equal(beforeSheet().querySelector(".g-sheet__title").textContent, "Before the match · Round\u00a03");
+    assert.deepEqual(beforeSheet().querySelectorAll(".g-before__name").map((name) => name.textContent), ["Ashgrove Wardens", "Rival r1"]);
+    // The page drawn again (the games answer) leaves it open.
+    await notifyGames(GAMES);
+    await settle();
+    assert.ok(beforeSheet()?.open);
+    fireEvent(beforeSheet(), "keydown", { key: "Escape" });
+    assert.equal(beforeSheet(), null);
+    fireEvent(view.querySelectorAll("[data-before-open]")[0], "click");
+    assert.ok(beforeSheet()?.open);
+    releaseCurrentScreen();
+    assert.equal(document.querySelector('[data-sheet-host="match-before"]'), null, "it goes with the screen");
+  } finally {
+    releaseCurrentScreen();
+    delete globalThis.matchMedia;
+  }
+});
+
+test("the opponent could not be read: no bubbles, no value, nothing said twice", async () => {
+  try {
+    crossingWindow(false);
+    coach();
+    api.reply(RIVAL_PAGE, 404, { error: { code: "TEAM_NOT_FOUND" } });
+    await renderTeamOverview("t1");
+    await settle();
+    assert.equal(bubbles().length, 0);
+    assert.doesNotMatch(opponentLine(), /TV/);
+    assert.equal(view.querySelector('[role="alert"]'), null, "the board is drawn and says nothing of it");
+    assert.equal(view.querySelector(".g-board__side--away .g-board__name").textContent, "Rival Team");
+    // The games answer: read again (a refusal is not kept); it answers now.
+    api.reply(RIVAL_PAGE, 200, { team: RIVAL_TEAM });
+    await notifyGames(GAMES);
+    await settle();
+    await settle();
+    assert.equal(bubbles().length, 2);
+    api.assertAnswered();
+    releaseCurrentScreen();
+    // The reference not read whole yet (pre-flight L4): no preview, and the board is drawn all the same.
+    coach();
+    state.data = { teams: RACES };
+    await renderTeamOverview("t1");
+    await settle();
+    await settle();
+    assert.equal(bubbles().length, 0);
+    assert.match(opponentLine(), /TV/, "his value needs only his race");
+    api.assertAnswered();
+  } finally {
+    releaseCurrentScreen();
+    delete globalThis.matchMedia;
+  }
+});
+
+test("in a match the band offers the records with their count and the post-match", async () => {
+  try {
+    crossingWindow(false);
+    coach();
+    state.activeTeamId = "t2";
+    const taps = Array.from({ length: 8 }, (_, at) => ({ id: `e${at}`, pairingId: "g2", playerId: "x", counter: "touchdowns", delta: 1, injury: null, settledAt: null }));
+    api.reply("GET /api/teams/t2/events", 200, { events: [...taps, { ...taps[0], id: "old", settledAt: "2026-10-01T10:00:00Z" }], revision: 7 });
+    await renderTeamOverview("t2");
+    await settle();
+    await settle();
+    const actions = view.querySelectorAll(".g-board__actions a").map((link) => [link.textContent, link.getAttribute("class"), link.getAttribute("href")]);
+    assert.deepEqual(actions, [["Match records · 8", "g-btn", "#/t/t2/roster"], ["Post-match", "g-btn g-btn--primary", "#/games/g2/post-match"]]);
+    api.assertAnswered();
+  } finally {
+    releaseCurrentScreen();
+    delete globalThis.matchMedia;
+  }
+});
+
 test("the overview follows the games while it is on screen, and nothing after it is left", async () => {
   coach();
   await renderTeamOverview("t1");
@@ -1000,7 +1208,8 @@ test("a read that failed is made again when the coach comes back to the overview
   await drawing;
   // Stage 07e: the leaders' records too — once, after the games have answered (review M2: the games' answer asks for no
   // second read when the first is still to be sent).
-  assert.deepEqual(api.calls.map((call) => call.key).sort(), ["GET /api/games", "GET /api/season", "GET /api/teams/t1/events"]);
+  // Stage 09a: the opponent of the match on, from his public page, once the games are in.
+  assert.deepEqual(api.calls.map((call) => call.key).sort(), ["GET /api/games", RIVAL_PAGE, "GET /api/season", "GET /api/teams/t1/events"]);
   assert.equal(view.querySelector(".g-overview__failed"), null);
   assert.equal(view.querySelector(".g-board__side--away .g-board__name").textContent, "Rival Team");
   api.assertAnswered();
@@ -1118,7 +1327,10 @@ test("the leaders and the columns as DeskOverview.html and Team.html draw them: 
   const own = (selector, property) => valuesOf(LISTS_CSS, selector, property);
   const bare = text(LISTS_CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   const desk = mediaText(LISTS_CSS, "min-width: 901px");
-  assert.ok(text("src/styles.css").trim().endsWith('@import url("screens/team/overview-lists.css");'), "the sheet reaches the page, imported last");
+  // Stage 09a's sheets come after it (pre-flight L2): what it needs is to come after the sheets it overrides.
+  const styles = text("src/styles.css"), at = (file) => styles.indexOf(`@import url("${file}");`);
+  assert.ok(at("screens/team/overview-lists.css") > Math.max(at("screens/team/overview.css"), at("ui/match-board.css")), "the sheet reaches the page, after the overview's and the board's");
+  assert.ok(Math.min(at("screens/team/overview.css"), at("ui/match-board.css")) >= 0);
   for (const phone of [false, true]) {
     assertStyled(mount(overviewMarkup(overviewModel(input("t1", { team: crew(LEADERS), phone })))), "src/screens/team/overview.css", LISTS_CSS, "page-head.css", "kpi-tile.css",
       "search-field.css", "match-board.css", "src/shell/crest.css", "result-pill.css", "button.css", "status-chip.css", "callout.css", "number-badge.css");

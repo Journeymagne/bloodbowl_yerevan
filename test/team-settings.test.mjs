@@ -54,7 +54,7 @@ const SEASON = { season: { id: "s1", name: "Mock Season", currentRound: 7 }, sta
 /** What a live match holds the settings with (fix round 1, M-3). */
 const LIVE = "A match is on — the settings wait for its post-match";
 /** What a save of the settings resets during a preparation, the steps as the pre-match names them (final review I1). */
-const PREP_WORDS = "Any save of the settings resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.";
+const PREP_WORDS = "Any save of the settings resets the steps «Roster», «Inducements» and «Start». Fans and weather stay.";
 
 /** Eleven Humans, a legal roster, numbered out of order: six Linemen, a Thrower, two Catchers, two Blitzers; №7 first. */
 const NUMBERS = ["7", "1", "2", "3", "4", "5", "6", "8", "9", "10", "11"];
@@ -917,7 +917,7 @@ test("a preparation: the section and every sheet say what a save resets, before 
     assert.equal(view.querySelector(selector).hasAttribute("aria-disabled"), false, `${selector} stays open`);
   }
   const warning = view.querySelector(".g-callout__sub").textContent;
-  assert.equal(warning, "A purchase, a change of the treasury or of the team's settings resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
+  assert.equal(warning, "A purchase, a change of the treasury or of the team's settings resets the steps «Roster», «Inducements» and «Start». Fans and weather stay.");
   for (const [teamId, kind] of [["t1", "name"], ["t1", "fans"], ["t2", "favoured"], ["t4", "league"]]) {
     await page(teamId, { games: [preparingGame(teamId)] });
     openRow(kind);
@@ -946,7 +946,7 @@ test("a preparation: the section and every sheet say what a save resets, before 
   initLocale("ru");
   try {
     await page("t1", { games: [preparingGame("t1")] });
-    const words = "Любая правка настроек сбросит шаги «Состав», «Индусменты» и «Удар / приём». Фанаты и погода сохранятся.";
+    const words = "Любая правка настроек сбросит шаги «Состав», «Индьюсменты» и «Старт». Фанаты и погода сохранятся.";
     assert.equal(view.querySelector(".g-team-settings .g-callout__title").textContent, words);
     assert.match(view.querySelector(".g-callout__sub").textContent, /^Покупка, правка казны или настроек команды сбросят шаги/);
     openRow("fans");

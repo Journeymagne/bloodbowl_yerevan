@@ -14,7 +14,8 @@
  * (`teamForUser`): a team that is not the coach's never gets this far.
  *
  * An edit outside a match is taken only while the team has a live match (`teamHasLiveMatch`), and holds
- * nothing but the team's own row: whether a match is on is read without a lock.
+ * nothing but the team's own row: whether a match is on is read without a lock. A coach's write of the team
+ * itself is refused for exactly that while, on the same terms (`refuseWhilePlaying`).
  */
 import { httpError } from "../http/errors.mjs";
 import { loadPreparationFixture, loadPreparationSources } from "./preparation-store.mjs";
@@ -106,4 +107,29 @@ export async function lockLiveSide(client, { pairingId, teamId, user }) {
  */
 export async function teamHasLiveMatch(db, teamId) {
   return (await db.query(TEAM_HAS_LIVE_MATCH, [teamId])).rows[0].live;
+}
+
+/**
+ * Refuses a coach's write of a team while the team plays a match (stage 09a): 422 TEAM_IN_MATCH. The team — its
+ * roster, name and logo, treasury, deaths, site rolls — changes again once the post-match is completed; until then the
+ * match's own record (taps, edits outside it) is the way in. An administrator's repair is the administration's route
+ * (`PATCH /api/admin/teams/:id`, whose caller leaves this out); the coach's routes refuse an administrator alike.
+ *
+ * The round is not asked (the Task 1 review, M-1): a match left in its post-match after its round was closed keeps the
+ * team in it, as the client's `isMatchLive` and the taps read it. The post-match is not closed by the round, the card
+ * leads to it, and finishing it is what frees the team.
+ *
+ * Call it inside the write's transaction, which already holds the team's row `FOR UPDATE`, after the revision is
+ * compared (a stale tab still hears TEAM_SAVED_ELSEWHERE with the team). So a start (the pairing, then both teams) and
+ * the write are put in one order: the write first — it lands before the match, and a roster it changed has another
+ * revision for the start to see (MATCH_ROSTER_CHANGED); the start first — the write sees the match on. The finish takes
+ * the same row: a write before it is refused, one after it lands.
+ *
+ * @param {{ query: Function }} db the client of the write's transaction
+ * @param {string} teamId the team's id as the database holds it
+ * @returns {Promise<void>}
+ * @throws 422 TEAM_IN_MATCH while `teamHasLiveMatch`
+ */
+export async function refuseWhilePlaying(db, teamId) {
+  if (await teamHasLiveMatch(db, teamId)) throw httpError(422, "TEAM_IN_MATCH");
 }

@@ -12,7 +12,8 @@ const treasury = await import("../src/data/treasury.mjs");
 
 setDictionaries({ en: { "auth.otherTab": "Other tab", "request.offline": "No connection.", "treasury.changedElsewhere": "Changed elsewhere.",
   "error.ROSTER_BREAKS_THE_RULES": "Breaks the rules.", "validation.TREASURY_INVALID": "Treasury below zero.", "error.STAGE_PURCHASE_LOCKED": "Locked by the stage.",
-  "error.TEAM_NOT_FOUND": "Team not found.", "treasury.mayHaveWritten": "May have written.", "treasury.history.unreadable": "Unreadable." }, ru: {} });
+  "error.TEAM_NOT_FOUND": "Team not found.", "treasury.mayHaveWritten": "May have written.", "treasury.history.unreadable": "Unreadable.",
+  "error.TEAM_IN_MATCH": "Playing a match." }, ru: {} });
 const TOKEN = "gata-league-auth-token";
 const TEAM = { id: "t1", name: "Wardens", baseTeamSlug: "teams/human", logoData: "data:image/png;base64,AA", revision: 3, stage: "active", roster: { treasury: 70, cheerleaders: 1, players: [] } };
 const ENTRY = { id: "l9", kind: "manual", delta: 20, balanceAfter: 90, reason: "friendly", note: null, pairingId: null, createdAt: "2026-10-18T12:00:00Z" };
@@ -113,6 +114,18 @@ test("a refused or conflicting save is said; a roster save keeps the columns and
   assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, startingRerolls: 2 }), { refusal: "Locked by the stage." });
   const body = api.calls.at(-1).body;
   assert.deepEqual([body.name, body.baseTeamSlug, body.logoData, body.revision, body.roster.logoData, body.roster.teamSlug], ["Wardens", "teams/human", TEAM.logoData, 3, undefined, "teams/human"]);
+});
+
+// Stage 09a, Task 1: the server refuses a write of a team that plays a match (TEAM_IN_MATCH); the team's page says so.
+test("while the team plays a match an entry and a roster save are refused in the server's words, and the team is left as it is", async () => {
+  coach();
+  const playing = { error: { code: "TEAM_IN_MATCH", params: {}, message: "x" } };
+  api.reply("POST /api/teams/t1/treasury", 422, playing);
+  assert.deepEqual(await treasury.addTreasuryEntry("t1", { delta: 20, reason: "friendly" }), { refusal: "Playing a match." });
+  api.reply("PATCH /api/teams/t1", 422, playing);
+  assert.deepEqual(await treasury.saveTeamRoster("t1", { ...TEAM.roster, cheerleaders: 2 }), { refusal: "Playing a match." });
+  assert.deepEqual([state.myTeams.items[1], treasury.isWriting("t1")], [TEAM, false]);
+  assert.deepEqual(api.calls.map((call) => call.key), ["POST /api/teams/t1/treasury", "PATCH /api/teams/t1"], "each sent once, nothing read again");
 });
 
 test("another tab's coach: nothing is written", async () => {

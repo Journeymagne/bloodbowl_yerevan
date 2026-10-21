@@ -9,7 +9,10 @@ import { renderCrest } from "../src/shell/crest.mjs";
 import { renderButton } from "../src/ui/button.mjs";
 import { renderFormStrip } from "../src/ui/form-strip.mjs";
 import { renderKpiGrid, renderKpiTile } from "../src/ui/kpi-tile.mjs";
-import { renderBoardActions, renderMatchBoard } from "../src/ui/match-board.mjs";
+import { fireEvent } from "./helpers/fake-dom.mjs";
+import {
+  renderBoardActions, renderBoardBubble, renderBoardChips, renderBoardToCurrent, renderMatchBoard, wireBoardPager,
+} from "../src/ui/match-board.mjs";
 import { renderMatchCard } from "../src/ui/match-card.mjs";
 import { RESULT_KINDS, renderResultPill, resultLabels } from "../src/ui/result-pill.mjs";
 import { STATUS_TONES, renderStatusChip } from "../src/ui/status-chip.mjs";
@@ -336,6 +339,23 @@ test("a match card draws only the parts it was given, and a plain one is a headi
   assert.equal(bare.querySelector(".g-match__sub"), null, "no line under a name that has none");
   assert.equal(bare.querySelector(".g-match__mid").textContent, "vs");
   assert.equal(bare.querySelector(".g-match__mid--score"), null);
+});
+
+test("a card labelled by a heading outside it has none of its own; a side with an address leads to its team", () => {
+  const card = mount(renderMatchCard({ labelledBy: "x", meta: { left: "Round 3 · home" }, home: { name: "A" }, away: { name: HOSTILE, sub: "Orc", href: "#/coaches/u2/teams/t9" },
+    statusHtml: renderStatusChip({ label: "Live", tone: "live" }) })).querySelector("article");
+  assert.equal(card.getAttribute("aria-labelledby"), "x");
+  assert.equal(card.querySelector(".g-match__head"), null, "no heading inside, nor the chip that sits in it");
+  assert.deepEqual(card.childNodes.map((node) => node.getAttribute("class")), ["g-match__meta", "g-match__teams"]);
+  const away = card.querySelector(".g-match__side--away a.g-match__name");
+  assert.equal(away.getAttribute("href"), "#/coaches/u2/teams/t9");
+  assert.equal(away.textContent, HOSTILE);
+  assert.equal(card.querySelector(".g-match__side").querySelector("a"), null, "no address, no link");
+  assertCspSafe(card.parentNode);
+  assert.throws(() => renderMatchCard({ home: { name: "A" }, away: { name: "B" } }), /needs a title/);
+  assert.throws(() => renderMatchCard({ labelledBy: "x", home: { name: "A" }, away: { name: "B", href: "javascript:alert(1)" } }));
+  // Without it, as before.
+  assert.equal(mount(renderMatchCard({ title: "T", home: { name: "A" }, away: { name: "B" } })).querySelector("article").hasAttribute("aria-labelledby"), false);
 });
 
 test("the two sides: the home one, then the away one that is aligned the other way", () => {
@@ -674,7 +694,8 @@ test("a square's letter and number read on its colour in every palette", () => {
 
 test("the board is drawn as the design says: a dark 16px card, a 72px score on a desk and 40px on a phone, 30px squares, a darker bar", () => {
   assert.deepEqual([valuesOf(BOARD_CSS, ".g-board", "background"), valuesOf(BOARD_CSS, ".g-board", "color"), valuesOf(BOARD_CSS, ".g-board", "border-radius")], [["var(--header)"], ["var(--header-ink)"], ["var(--radius-2xl)"]]);
-  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__main", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)"]);
+  // From 901px a side keeps the room of its bubble on one line, the other gives way (the fidelity pass's G1).
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__main", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)", "minmax(min-content, 1fr) auto minmax(min-content, 1fr)"]);
   assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__score", "font"), ["700 40px/1 var(--font-display)", "700 72px/1 var(--font-display)"]);
   assert.match(valuesOf(BOARD_CSS, ".g-board__overline", "font")[0], /^700 12px\//);
   assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__overline", "text-transform"), valuesOf(BOARD_CSS, ".g-board__overline", "color")], [["uppercase"], ["var(--header-muted)"]]);
@@ -712,6 +733,10 @@ test("the board's actions: a primary and a light button, a plain link, and a not
   assert.deepEqual(fragment.querySelectorAll("a").map((link) => link.getAttribute("href")), ["#/t/t1/roster", "#/games/g1/post-match", "#/games/g1/pre-match"]);
   assertCspSafe(fragment);
   assertStyled(fragment, "match-board.css", "button.css");
+  // From 901px the note is DeskSeason's quiet line of who confirms a score sent (G5): 14px/1.4, the header's muted ink, 260px.
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__note", "font"), ["700 14px/1.3 var(--font-body)", "400 14px/1.4 var(--font-body)"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__note", "color"), ["var(--header-ink)", "var(--header-muted)"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__note", "max-width"), ["260px"]);
 });
 
 test("the board's actions draw nothing for nothing, and refuse a kind or a link they cannot draw", () => {
@@ -723,4 +748,187 @@ test("the board's actions draw nothing for nothing, and refuse a kind or a link 
   assert.equal(hostile.querySelector("img"), null);
   assert.deepEqual(hostile.querySelectorAll("a").map((link) => link.textContent), [HOSTILE, HOSTILE]);
   assertCspSafe(hostile);
+});
+
+// Stage 09a: a desk's board pages through the season (DeskSeason.html, DeskOverview.html).
+
+test("a board given none of the new props is drawn as before", () => {
+  // The markup of 0c9a292's renderMatchBoard for these props, string for string (stage 06, 07d): the tests of both pass as they were.
+  const props = {
+    overline: "Round 3 · home", own, opponent: { name: "Raiders", href: "#/coaches/u2/teams/r1", hint: "Team overview", sub: "#1", initial: "R" },
+    score: "2–1", statusHtml: renderStatusChip({ label: "Live", tone: "live", onDark: true }), live: true,
+    pager: [{ label: "1", result: "w", current: false }, { label: "2", result: null, current: true }],
+    actionsHtml: renderBoardActions({ links: [{ label: "Post-match", href: "#/games/g1/post-match", kind: "light" }], sentLine: "" }),
+  };
+  assert.equal(renderMatchBoard(props), '<section class="g-board g-board--live"><div class="g-board__main"><div class="g-board__side"><span class="g-board__name">Wardens</span>'
+    + '<span class="g-board__sub">Human · #2</span></div><div class="g-board__mid"><span class="g-board__overline">Round 3 · home</span><span class="g-board__score">2–1</span>'
+    + '<span class="g-status g-status--live g-status--on-dark">Live</span></div><div class="g-board__side g-board__side--away g-board__side--emblem">'
+    + '<span class="g-board__initial" aria-hidden="true">R</span><span class="g-board__texts"><a class="g-board__name" href="#/coaches/u2/teams/r1" title="Team overview">Raiders</a>'
+    + '<span class="g-board__sub">#1</span></span></div></div><div class="g-board__bar"><ol class="g-board__pager" role="list" aria-label="Season matches">'
+    + '<li class="g-board__square g-board__square--w" aria-label="1: Win">1</li><li class="g-board__square g-board__square--none g-board__square--current" aria-label="2: Not played" aria-current="true">2</li>'
+    + '</ol><div class="g-board__actions"><a class="g-btn" href="#/games/g1/post-match">Post-match</a></div></div></section>');
+  assert.equal(renderMatchBoard({ ...props, tabs: false, outcome: null, scoreResult: "", chipsHtml: "", bubbles: {}, toCurrentHtml: "" }), renderMatchBoard(props), "the new props left empty change nothing");
+});
+
+/** Five matches of a season, the fourth (index 3) shown: two wins, a friendly, a loss, the current one not played. */
+const SEASON_PAGER = [["1", "w"], ["F", "t"], ["2", "w"], ["3", "l"], ["4", null]].map(([label, result], at) => ({ label, result, current: at === 4, title: `Match ${label}` }));
+const pagerAt = (selected) => SEASON_PAGER.map((item, at) => ({ ...item, selected: at === selected }));
+
+/** A board on a page that draws it again for every pick, as a screen does; what was picked, in order. */
+function pagingBoard(selected) {
+  const fragment = mount('<div class="host"></div>');
+  const root = fragment.querySelector(".host");
+  const picks = [];
+  const draw = (at) => { root.innerHTML = renderMatchBoard({ own, tabs: true, pager: pagerAt(at) }); };
+  draw(selected);
+  const off = wireBoardPager(root, (index) => { picks.push(index); draw(index); });
+  const tab = (index) => root.querySelector(`[data-board-item="${index}"]`);
+  return { root, picks, off, tab, arrow: (step) => root.querySelector(`[data-board-step="${step}"]`) };
+}
+
+test("the squares are tabs of one group: arrows, Home and End move the selection and the focus", () => {
+  const { root, picks, off, tab } = pagingBoard(3);
+  const list = root.querySelector('[role="tablist"]');
+  assert.equal(list.getAttribute("aria-label"), "Season matches");
+  const tabs = list.querySelectorAll('[role="tab"]');
+  assert.deepEqual(tabs.map((each) => [each.tagName, each.getAttribute("aria-selected"), each.getAttribute("tabindex")]),
+    [["BUTTON", "false", "-1"], ["BUTTON", "false", "-1"], ["BUTTON", "false", "-1"], ["BUTTON", "true", "0"], ["BUTTON", "false", "-1"]]);
+  assert.deepEqual(tabs.map((each) => each.getAttribute("aria-label")), ["Match 1: Win", "Match F: Friendly", "Match 2: Win", "Match 3: Loss", "Match 4: Not played"]);
+  assert.equal(tabs[4].getAttribute("aria-current"), "true", "the match on says so whichever is shown");
+  assert.equal(root.querySelector("ol"), null, "the tabs are no list");
+  // The teams and the score are the tabs' panel, named by the tab selected (the final review, m-4).
+  const panel = root.querySelector('[role="tabpanel"]');
+  assert.ok(panel?.classList.contains("g-board__main"));
+  assert.ok(tabs.every((each, at) => each.getAttribute("aria-controls") === panel.id && each.id === `g-board-tab-${at}`));
+  assert.equal(panel.getAttribute("aria-labelledby"), tabs[3].id);
+  tab(3).focus();
+  fireEvent(tab(3), "keydown", { key: "ArrowLeft" });
+  assert.deepEqual(picks, [2]);
+  assert.equal(document.activeElement, tab(2), "the focus goes with the selection");
+  fireEvent(tab(2), "keydown", { key: "Home" });
+  fireEvent(tab(0), "keydown", { key: "End" });
+  fireEvent(tab(4), "keydown", { key: "ArrowRight" });
+  fireEvent(tab(4), "keydown", { key: "End" });
+  assert.deepEqual(picks, [2, 0, 4], "nothing past the last, and the one shown is not picked again");
+  assert.equal(document.activeElement, tab(4));
+  fireEvent(tab(4), "keydown", { key: "ArrowRight" });
+  fireEvent(tab(4), "keydown", { key: "Enter" });
+  fireEvent(tab(4), "keydown", { key: "toString" });
+  assert.deepEqual(picks, [2, 0, 4]);
+  fireEvent(tab(1), "click");
+  assert.deepEqual(picks, [2, 0, 4, 1]);
+  assert.equal(document.activeElement, tab(1), "a square clicked takes the focus");
+  off();
+  fireEvent(tab(2), "click");
+  assert.deepEqual(picks, [2, 0, 4, 1], "unwired, it hears nothing");
+});
+
+test("the arrows are off at the ends", () => {
+  const first = pagingBoard(0);
+  assert.equal(first.arrow(-1).hasAttribute("disabled"), true);
+  assert.equal(first.arrow(1).hasAttribute("disabled"), false);
+  assert.deepEqual([first.arrow(-1).getAttribute("aria-label"), first.arrow(1).getAttribute("aria-label")], ["Previous match", "Next match"]);
+  first.arrow(1).focus();
+  fireEvent(first.arrow(1), "click");
+  assert.deepEqual(first.picks, [1]);
+  const last = pagingBoard(4);
+  assert.equal(last.arrow(1).hasAttribute("disabled"), true);
+  assert.equal(last.arrow(-1).hasAttribute("disabled"), false);
+  const before = pagingBoard(3);
+  before.arrow(1).focus();
+  fireEvent(before.arrow(1), "click");
+  assert.deepEqual(before.picks, [4]);
+  assert.equal(before.arrow(1).hasAttribute("disabled"), true);
+  assert.equal(document.activeElement, before.tab(4), "an arrow that went off gives the focus to the square shown");
+  // With none said selected, the last one is: the current match.
+  const none = mount(renderMatchBoard({ own, tabs: true, pager: SEASON_PAGER }));
+  assert.equal(none.querySelector('[aria-selected="true"]').getAttribute("data-board-item"), "4");
+});
+
+test("a past match: its score in the result's colour, the outcome under it, its chips", () => {
+  const fragment = mount(renderMatchBoard({
+    own, score: "2:1", scoreResult: "w", outcome: { label: "Win", note: "+3 in the table", result: "w" },
+    chipsHtml: renderBoardChips(["CAS 1–0", "MVP Gruk"]), toCurrentHtml: renderBoardToCurrent(),
+  }));
+  assert.equal(fragment.querySelector(".g-board__score").getAttribute("class"), "g-board__score g-board__score--w");
+  const outcome = fragment.querySelector(".g-board__mid .g-board__outcome");
+  assert.equal(outcome.getAttribute("class"), "g-board__outcome g-board__outcome--w");
+  assert.equal(outcome.textContent, "Win · +3 in the table");
+  assert.equal(outcome.querySelector(".g-board__outcome-note").textContent, "+3 in the table");
+  assert.deepEqual(fragment.querySelectorAll(".g-board__bar .g-board__chips .g-board__chip").map((chip) => chip.textContent), ["CAS 1–0", "MVP Gruk"]);
+  const back = fragment.querySelector(".g-board__actions .g-board__tocurrent");
+  assert.deepEqual([back.tagName, back.getAttribute("type"), back.hasAttribute("data-board-current"), back.textContent], ["BUTTON", "button", true, "To the current match →"]);
+  assert.equal(mount(renderMatchBoard({ own, outcome: { label: "Draw", note: "", result: "d" } })).querySelector(".g-board__outcome").textContent, "Draw", "no note, no dot");
+  assertCspSafe(fragment);
+  assertStyled(fragment, "match-board.css");
+  const hostile = mount(renderMatchBoard({ own, outcome: { label: HOSTILE, note: HOSTILE, result: "l" }, chipsHtml: renderBoardChips([HOSTILE]) }));
+  assert.equal(hostile.querySelector("img"), null);
+  assert.equal(hostile.querySelector(".g-board__chip").textContent, HOSTILE);
+});
+
+test("bubbles stand under their side and under the state", () => {
+  const bubble = (text) => renderBoardBubble({ text, data: { beforeOpen: "" } });
+  const fragment = mount(renderMatchBoard({
+    own: { ...own, crestHtml: renderCrest() }, opponent: { name: "Raiders", sub: "#1", initial: "R" },
+    statusHtml: renderStatusChip({ label: "Not started", onDark: true }),
+    bubbles: { own: bubble("+90k for inducements"), mid: bubble("missing the match: 3"), other: bubble(HOSTILE) },
+  }));
+  const [ours, theirs] = fragment.querySelectorAll(".g-board__side");
+  assert.equal(ours.querySelector(".g-board__texts .g-board__bubble").textContent, "+90k for inducements");
+  assert.equal(fragment.querySelector(".g-board__mid").childNodes.at(-1).textContent, "missing the match: 3", "under the state");
+  assert.equal(theirs.querySelector(".g-board__bubble").textContent, HOSTILE);
+  assert.ok(ours.classList.contains("g-board__side--bubble") && theirs.classList.contains("g-board__side--bubble"), "a side with a bubble says so");
+  // A pill keeps its line (G1); the side without one wraps its emblem rather than its name, the one with one does not.
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__bubble", "white-space"), ["nowrap"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__side--emblem:not(.g-board__side--bubble)", "flex-wrap"), ["wrap"]);
+  assert.equal(fragment.querySelector("img"), null);
+  for (const each of fragment.querySelectorAll(".g-board__bubble")) {
+    assert.deepEqual([each.tagName, each.getAttribute("type"), each.getAttribute("aria-haspopup"), each.hasAttribute("data-before-open")], ["BUTTON", "button", "dialog", true]);
+    assert.ok(each.querySelector("svg.g-icon[aria-hidden=\"true\"]"), "the «i» after the words");
+  }
+  assertCspSafe(fragment);
+  assertStyled(fragment, "match-board.css", "src/shell/crest.css", "status-chip.css");
+});
+
+test("the paging board is styled as DeskSeason.html draws it; readable on the band; every target a desk's 24px and more", () => {
+  const tabs = mount(renderMatchBoard({ own, tabs: true, pager: pagerAt(2) }));
+  assertCspSafe(tabs);
+  assertStyled(tabs, "match-board.css");
+  assert.deepEqual(valuesOf("src/styles/tokens.css", ":root", "--on-header-loss"), ["#F2A99C"]);
+  // A win's green and a loss's red on the band, in every palette.
+  assertContrast("--live", ["--header", "color-mix(in srgb, #000 20%, var(--header))"], 4.5, { what: "a win on the band" });
+  assertContrast("--on-header-loss", ["--header", "color-mix(in srgb, #000 20%, var(--header))"], 4.5, { what: "a loss on the band" });
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__score--w", "color"), valuesOf(BOARD_CSS, ".g-board__score--l", "color")], [["var(--live)"], ["var(--on-header-loss)"]]);
+  assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__outcome--w", "color"), valuesOf(BOARD_CSS, ".g-board__outcome--l", "color")], [["var(--live)"], ["var(--on-header-loss)"]]);
+  assertReadable(BOARD_CSS, ".g-board__outcome-note", "color", ["--header"], 4.5);
+  // The chips' words on their wash of the white, over the bar.
+  assertReadable(BOARD_CSS, ".g-board__chip", "color", ["color-mix(in srgb, var(--header-ink) 10%, var(--header))", "color-mix(in srgb, #000 20%, var(--header))"], 4.5);
+  assertReadable(BOARD_CSS, ".g-board__bubble", "color", ["color-mix(in srgb, var(--header-ink) 14%, var(--header))"], 4.5);
+  assertReadable(BOARD_CSS, '.g-board__nav [role="tab"][aria-selected="true"]', "color", ["--header-ink"], 4.5);
+  // DeskSeason.html's values.
+  const prop = (selector, property) => valuesOf(BOARD_CSS, selector, property);
+  assert.deepEqual([prop(".g-board__step", "width"), prop(".g-board__step", "height"), prop(".g-board__step", "border-radius")], [["32px"], ["32px"], ["var(--radius-sm)"]]);
+  assert.deepEqual(prop(".g-board__step:disabled", "color"), ["color-mix(in srgb, var(--header-ink) 30%, transparent)"]);
+  assert.deepEqual(prop(".g-board__tabs", "gap"), ["var(--space-4)"]);
+  assert.deepEqual(prop('.g-board__nav [role="tab"].g-board__square--current:not([aria-selected="true"])', "box-shadow"), ["inset 0 0 0 1.5px color-mix(in srgb, var(--header-ink) 60%, transparent)"]);
+  assert.deepEqual([prop(".g-board__chip", "min-height"), prop(".g-board__chip", "border-radius"), prop(".g-board__chip", "font"), prop(".g-board__chip", "background")],
+    [["30px"], ["15px"], ["600 13px/1.3 var(--font-body)"], ["color-mix(in srgb, var(--header-ink) 10%, transparent)"]]);
+  assert.deepEqual([prop(".g-board__bubble", "min-height"), prop(".g-board__bubble", "border-radius"), prop(".g-board__bubble", "background"), prop(".g-board__bubble", "box-shadow")],
+    [["28px"], ["var(--radius-xl)"], ["color-mix(in srgb, var(--header-ink) 14%, transparent)"], ["inset 0 0 0 1px color-mix(in srgb, var(--header-ink) 25%, transparent)"]]);
+  assert.deepEqual([prop(".g-board__tocurrent", "min-height"), prop(".g-board__tocurrent", "box-shadow"), prop(".g-board__tocurrent", "font")],
+    [["40px"], ["inset 0 0 0 1.5px color-mix(in srgb, var(--header-ink) 40%, transparent)"], ["600 14px/1.2 var(--font-body)"]]);
+  assert.deepEqual(prop(".g-board__outcome", "font"), ["700 13px/1.3 var(--font-body)"]);
+  // D2 from 901px: every target of the paging 24px and more (the square's 30, the arrow's 32, the bubble's 28, the way back's 40).
+  for (const [selector, property] of [[".g-board__square", "height"], [".g-board__step", "height"], [".g-board__bubble", "min-height"], [".g-board__tocurrent", "min-height"]]) {
+    assert.ok(Number.parseFloat(prop(selector, property)[0]) >= 24, selector);
+  }
+  // The ring of the keyboard is the band's ink; the bar's background and the squares' 30px stay 07d's (L15).
+  for (const selector of [".g-board__step:focus-visible", '.g-board__nav [role="tab"]:focus-visible', ".g-board__bubble:focus-visible", ".g-board__tocurrent:focus-visible"]) {
+    assert.deepEqual([prop(selector, "outline"), prop(selector, "outline-offset")], [["3px solid var(--header-ink)"], ["2px"]], selector);
+  }
+  assert.deepEqual(prop(".g-board__square", "width"), ["30px"]);
+  assert.deepEqual(prop(".g-board__bar", "background"), ["color-mix(in srgb, #000 20%, transparent)"]);
+  const css = readFileSync(new URL(`../${BOARD_CSS}`, import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  assert.doesNotMatch(css, /ellipsis|text-overflow/);
+  assertDictionaryCovers("src/ui/match-board.mjs");
 });

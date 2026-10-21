@@ -11,7 +11,8 @@
  *
  * Rolling is the owner's, and an administrator is not the owner: to anybody else the team is not
  * there (`teamForUser`). The request is a transaction that takes the team's row first, so the roll
- * that is waiting is looked for, and a new one written, with nobody else doing the same.
+ * that is waiting is looked for, and a new one written, with nobody else doing the same. While the team
+ * plays a match (stage 09a) a roll is refused, TEAM_IN_MATCH: advancements wait for the post-match.
  *
  * Reading is the owner's and an administrator's (`teamForUser` with `admin`, as for the team's fallen):
  * every roll of the team as it is kept, the waiting and the used, in the order they were rolled, so a
@@ -26,6 +27,7 @@ import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 
 const ROLLS = new RegExp(`^/api/teams/(${UUID_SOURCE})/players/(${PLAYER_ID_SOURCE})/rolls$`, "i");
 const TEAM_ROLLS = new RegExp(`^/api/teams/(${UUID_SOURCE})/rolls$`, "i");
@@ -44,7 +46,8 @@ function checkRoll(body) {
 
 /**
  * `POST /api/teams/:id/players/:pid/rolls` `{ purpose, category? }` — the owner asks for the roll of a step: 200 `{ roll }`,
- * new or waiting; 409 DICE_ROLL_WAITING while the player's earliest waiting roll is of the other purpose.
+ * new or waiting; 409 DICE_ROLL_WAITING while the player's earliest waiting roll is of the other purpose; 422 TEAM_IN_MATCH
+ * while the team plays a match (stage 09a), asked under the team's lock.
  */
 async function rollForOwner(request, response, teamId, playerId) {
   const user = await currentUser(request);
@@ -55,6 +58,7 @@ async function rollForOwner(request, response, teamId, playerId) {
   const { purpose, category } = checkRoll(await readJson(request)); // a bad body costs no transaction
   const row = await withTransaction(async (client) => {
     const team = await teamForUser(client, teamId, user, { lock: true });
+    await refuseWhilePlaying(client, team.id);
     return rollForPlayer(client, { teamRow: team, playerId, purpose, category, userId: user.id });
   });
   sendJson(response, 200, { roll: publicRoll(row) });

@@ -98,7 +98,7 @@ function phaseChip({ key, round }) {
 }
 
 /** The steps of the pre-match a purchase resets, named as the pre-match names them (the server keeps fans and weather). */
-const resetSteps = () => ({ roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
+const resetSteps = () => ({ roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.review") });
 
 /** Games that could not be read, said quietly: the page stays open, and a write may land in a match it does not know of. */
 const unknownCallout = (gamesUnknown) => (gamesUnknown ? renderCallout({ tone: "warn", title: t("treasury.gamesUnknown") }) : "");

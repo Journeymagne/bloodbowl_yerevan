@@ -1,4 +1,4 @@
-/** Keep each team's TD/CAS together in both result entry flows. */
+/** Keep each team's TD/CAS together in both result entry flows: the 2.x post-match and the administrator's manual result. */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
 
@@ -11,15 +11,15 @@ export function renderResultFields(sides, values, { maximum, status } = {}) {
   </fieldset>`).join("")}</div>`;
 }
 
-export function renderGameResultForm(game, admin = false) {
+/** The administrator's manual result on the game page: the score when there is one, else the score sent. */
+export function renderAdminResultForm(game) {
   const values = {};
   for (const key of ["homeTouchdowns", "awayTouchdowns", "homeCasualties", "awayCasualties"]) {
-    const proposed = game["proposed" + key[0].toUpperCase() + key.slice(1)];
-    values[key] = admin ? game[key] ?? proposed : proposed ?? game[key];
+    values[key] = game[key] ?? game["proposed" + key[0].toUpperCase() + key.slice(1)];
   }
-  return `<form class="game-result-form" ${admin ? "data-admin-game-result" : "data-game-proposal"}>
-    ${admin ? `<h3>${t("games.adminEditHeading")}</h3>` : ""}
+  return `<form class="game-result-form" data-admin-game-result>
+    <h3>${t("games.adminEditHeading")}</h3>
     ${renderResultFields(game, values)}
-    <button class="primary-button" type="submit">${t(admin ? "games.adminSaveResultAction" : "games.requestConfirmationAction")}</button>
+    <button class="primary-button" type="submit">${t("games.adminSaveResultAction")}</button>
   </form>`;
 }

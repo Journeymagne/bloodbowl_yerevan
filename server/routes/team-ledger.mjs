@@ -9,7 +9,8 @@
  * own transaction through `writeLedgerEntries`.
  *
  * A team is the owner's. The history may be read by an administrator too; an entry is the owner's
- * alone, and to anybody else the team is not there (`teamForUser`).
+ * alone, and to anybody else the team is not there (`teamForUser`). While the team plays a match (stage
+ * 09a) an entry is refused, TEAM_IN_MATCH: the treasury changes again after the post-match.
  */
 import { isMoneyAmount, sumMoney } from "../../src/domain/money.mjs";
 import { VALIDATION_CODES } from "../../src/domain/roster/validate.mjs";
@@ -22,6 +23,7 @@ import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
 import { rosterRefusal } from "../domain/roster.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 
 const LEDGER = new RegExp(`^/api/teams/(${UUID_SOURCE})/ledger$`, "i");
 const TREASURY = new RegExp(`^/api/teams/(${UUID_SOURCE})/treasury$`, "i");
@@ -68,8 +70,9 @@ async function sendHistory(request, response, teamId, params) {
 
 /**
  * The transaction of an entry. The team is locked first; then, in this order, the revision the client
- * saw, the rule, the write and the answer read back. A refusal at any point throws, and the whole
- * transaction goes back: the treasury never moves without its line, nor the line without the treasury.
+ * saw, the match (TEAM_IN_MATCH while the team plays one, stage 09a), the rule, the write and the answer
+ * read back. A refusal at any point throws, and the whole transaction goes back: the treasury never moves
+ * without its line, nor the line without the treasury.
  *
  * The team in the answer is read again after the write, the way `GET` reads it (`readPublicTeam`,
  * `inActiveSeason` included), so the client handles one shape of team whichever route it came from.
@@ -79,6 +82,7 @@ async function sendHistory(request, response, teamId, params) {
 async function writeEntry(client, teamId, user, revision, { delta, reason, note }) {
   const team = await teamForUser(client, teamId, user, { lock: true });
   if (revision !== team.revision) throw await teamConflict(client, team); // no revision at all is a revision that cannot match
+  await refuseWhilePlaying(client, team.id);
   const opening = countToNumber(team.roster?.treasury);
   const closing = sumMoney(opening, delta);
   if (!isMoneyAmount(closing)) throw belowZero();

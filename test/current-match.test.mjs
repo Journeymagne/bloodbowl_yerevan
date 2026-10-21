@@ -5,7 +5,7 @@ import test from "node:test";
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } from "./helpers/ui.mjs";
 import { assertReadable, tokensOf, valuesOf } from "./helpers/contrast.mjs";
 import { initLocale } from "../src/core/i18n.mjs";
-import { currentMatch, isMatchLive, matchActions, renderNavMatch } from "../src/shell/current-match.mjs";
+import { currentMatch, isMatchLive, matchActions, renderNavMatch, sentCasualties, sentScore } from "../src/shell/current-match.mjs";
 
 const side = (teamId, name) => ({ user: { id: `u-${teamId}`, login: "x" }, team: { id: teamId, name } });
 const game = (id, over = {}) => ({
@@ -50,6 +50,20 @@ test("a result sent: waiting for confirmation, the score from our side", () => {
   assert.equal(fragment.querySelector(".g-navmatch__label").textContent, "Awaiting confirmation");
   assert.equal(fragment.querySelector(".g-navmatch__result").textContent, "Win 2–1 · CAS 1–0");
   assert.equal(fragment.querySelector("a"), null);
+});
+
+test("the score sent is read one way for the card and the board", () => {
+  // SENT: the guests (t1) proposed 2–1 for themselves; the hosts read it from their side.
+  assert.equal(sentScore(SENT, { own: "away", other: "home" }), "2–1");
+  assert.equal(sentScore(SENT, { own: "home", other: "away" }), "1–2");
+  assert.equal(sentScore(SENT, { own: "away", other: "home" }, ":"), "2:1", "the board's way of writing it");
+  assert.equal(sentCasualties(SENT, { own: "away", other: "home" }), "1–0");
+  assert.equal(sentScore(NEXT, { own: "home", other: "away" }), "");
+  assert.equal(sentScore({ ...SENT, proposedHomeTouchdowns: null }, { own: "away", other: "home" }), "");
+  assert.equal(sentScore({ ...SENT, proposedHomeTouchdowns: 0, proposedAwayTouchdowns: 0 }, { own: "home", other: "away" }), "0–0", "a goalless score is a score");
+  assert.equal(sentCasualties({ ...SENT, proposedAwayCasualties: undefined }, { own: "away", other: "home" }), "");
+  assert.equal(mount(renderNavMatch(currentMatch([SENT], "t1"), "t1")).querySelector(".g-navmatch__result").textContent, "Win 2–1 · CAS 1–0");
+  assert.equal(mount(renderNavMatch(currentMatch([{ ...SENT, proposedAwayCasualties: null }], "t1"), "t1")).querySelector(".g-navmatch__result"), null, "a line with a number missing is none");
 });
 
 test("a friendly says so instead of a round, and names are escaped", () => {

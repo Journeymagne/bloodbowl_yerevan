@@ -35,6 +35,9 @@ try {
     ON CONFLICT (round_id,table_number) DO UPDATE SET home_entry_id=EXCLUDED.home_entry_id RETURNING *`, [round, entries.home, entries.away])).rows[0];
   const preparation = createPreparation(sources, data);
   await client.query("INSERT INTO match_preparations (pairing_id,state) VALUES ($1,$2) ON CONFLICT (pairing_id) DO NOTHING", [fixture.id, JSON.stringify(preparation)]);
+  // The pairing reads as the preparation it holds, as savePreparationState leaves it: a second run keeps that preparation.
+  await client.query(`UPDATE season_pairings p SET preparation_status = m.state->>'status' FROM match_preparations m
+    WHERE m.pairing_id = p.id AND p.id = $1`, [fixture.id]);
   await client.query("COMMIT");
   console.log(JSON.stringify({ url: `http://localhost:${process.env.APP_PORT || 3002}/#/games/${fixture.id}/pre-match`, gameId: fixture.id, accounts: ["preview-home", "preview-away"], password: "preview2026" }, null, 2));
 } catch (error) { await client.query("ROLLBACK"); throw error; }

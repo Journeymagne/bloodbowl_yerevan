@@ -5,6 +5,8 @@
  * Mechanically moved out of src/app.js; the list's loader and the rules that
  * sort a game into "next" or "history" now live in src/data/games.mjs, which
  * the single game page and the SideNav's match card read as well.
+ *
+ * Since stage 09a only `teamChallenges` draws it, for the challenges, until stage 09c.
  */
 import { errorText } from "../../core/api.mjs";
 import { escapeHtml } from "../../core/dom.mjs";

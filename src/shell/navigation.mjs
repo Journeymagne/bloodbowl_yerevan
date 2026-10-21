@@ -7,9 +7,10 @@
  * caller passes the route, the visitor and the active team, and draws the
  * answer.
  *
- * Three modes. `bare` is the sign-in and registration screens and the new
- * team's builder (Builder, DeskBuilder), which bring their own frame: no tabs,
- * no items. `guest` has the league without a team.
+ * Three modes. `bare` is the sign-in and registration screens, the new
+ * team's builder (Builder, DeskBuilder) and a match's preparation (PreFans …
+ * PreReview, DeskPreInducements, DeskPreReview; stage 09a), which bring their
+ * own frame: no tabs, no items. `guest` has the league without a team.
  * `coach` has the team's screens beside the league's, or — with no team yet —
  * the league's alone and a header that leads to creating one. A coach whose
  * list of teams could not be read may have teams: the header names the league.
@@ -26,8 +27,8 @@ import { refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/ro
 /** The admin screens have no builder in core/routes.mjs; this is the one link to them. */
 const ADMINISTRATION_URL = "#/administration";
 
-/** The routes the shell stays out of. */
-const BARE_ROUTES = new Set(["login", "register", "teamNew"]);
+/** The routes the shell stays out of. The preparation keeps its owners below: what it lit before it had a frame of its own. */
+const BARE_ROUTES = new Set(["login", "register", "teamNew", "preMatch"]);
 
 /** The routes a phone draws as a screen of its own, under its own head: the header draws nothing there. */
 const DRILL_ROUTES = new Set(["teamPlayer", "teamSettings"]);
