@@ -8,9 +8,10 @@
  * answer.
  *
  * Three modes. `bare` is the sign-in and registration screens, the new
- * team's builder (Builder, DeskBuilder) and a match's preparation (PreFans …
- * PreReview, DeskPreInducements, DeskPreReview; stage 09a), which bring their
- * own frame: no tabs, no items. `guest` has the league without a team.
+ * team's builder (Builder, DeskBuilder), a match's preparation (PreFans …
+ * PreReview, DeskPreInducements, DeskPreReview; stage 09a) and its post-match
+ * (PostResult … PostReview, DeskPostResult … DeskPostReview; stage 09b), which
+ * bring their own frame: no tabs, no items. `guest` has the league without a team.
  * `coach` has the team's screens beside the league's, or — with no team yet —
  * the league's alone and a header that leads to creating one. A desk's «Season»
  * of a coach with a team is the team's season (its board, the table and its

@@ -136,7 +136,8 @@ export async function teamRolls(db, teamId) {
  *
  * @param {{query: Function}} client the client of the transaction
  * @param {object} step
- * @param {object} step.teamRow the locked saved_teams row
+ * @param {object} step.teamRow the locked saved_teams row — or, for an open post-match, `{id, base_team_slug, roster}`
+ *   with the roster the post-match holds (its team rows locked by the post-match's own locks)
  * @param {string} step.playerId a player of the team's roster
  * @param {string} step.purpose one of `DICE_PURPOSES`, checked by the caller
  * @param {string} [step.category] the Skill Table category of a random skill; a characteristic does not read it

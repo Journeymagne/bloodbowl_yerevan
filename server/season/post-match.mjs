@@ -9,7 +9,10 @@
  * post-match never stores a roll: a choice names it (`roll: { id, via: "site" }`), held to it when made
  * (`checkPostRoll`), and it waits, unused, until the finish uses it with the roster it goes into
  * (`settleRosterRolls`, the roster save's own rule): a finish refused uses none, the finish of a completed
- * post-match uses nothing again, and an advancement undone leaves its roll waiting for the next ask.
+ * post-match uses nothing again, and an advancement undone leaves its roll waiting for the next ask. A player the
+ * finish takes off the roster: one sold frees his used rolls, as a player fired from the roster does (they read as
+ * waiting for a player who is gone); one dead keeps them used, his record in «The fallen» naming them, as a death
+ * marked by hand does — so the admin's undo of the death gives him back with them taken.
  */
 import { pool } from '../db/pool.mjs';
 import { withTransaction } from '../db/transaction.mjs';
@@ -19,14 +22,13 @@ import { matchReference } from '../domain/match-reference.mjs';
 import { loadPreparationFixture, loadPreparationSources } from './preparation-store.mjs';
 import { createPostMatch, createPostSide, applyPostAction, validatePostSide } from '../../src/domain/post-match/state.mjs';
 import { followEvents } from '../../src/domain/post-match/events.mjs';
-import { POST_STEPS, resultAgreed } from '../../src/domain/post-match/rules.mjs';
+import { PLAYERS_STAGE, resultAgreed } from '../../src/domain/post-match/rules.mjs';
 import { fallenPlayers, postAdvancer, postPlayers } from '../../src/domain/post-match/roster.mjs';
 import { postPoints } from '../../src/domain/post-match/score.mjs';
 import { SIDES, otherSide } from '../../src/domain/match/rules.mjs';
 import { applyPostMatchRoster } from './finance-store.mjs';
 import { loadMatchEvents, recordSideStatistics, settleMatchEvents, settleOutsideEdits } from './match-events-store.mjs';
 
-const PLAYERS_STAGE = POST_STEPS.indexOf('players');
 
 /**
  * The games each of `teamIds` has played, the match `pairingId` left out: its confirmed matches that were not
@@ -168,8 +170,11 @@ export async function accessPostMatch(pairingId, user, body = null, finish = fal
         if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
         if (finish) state = await finishPost(client, fixture, state, sources, data, user.id);
         else {
-          if (body.action?.type === 'advance' && body.action.roll?.via === 'site') await checkPostRoll(client, rollCheck(state, name, body.action, data));
+          // The domain's refusals first (the step, a confirmed side, the player, a roll this side names already), then
+          // the roll's row, held against the post-match as it stood before this advancement.
+          const before = state;
           state = applyPostAction(state, name, body.action, data);
+          if (body.action?.type === 'advance' && body.action.roll?.via === 'site') await checkPostRoll(client, rollCheck(before, name, body.action, data));
           if (body.action?.type === 'statistics') events[name] = await recordSideStatistics(client, fixture.id, state[name], events[name], user.id);
         }
       }

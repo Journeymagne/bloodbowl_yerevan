@@ -21,6 +21,7 @@ import { askPostRoll } from "../../data/post-match-client.mjs";
 import { SAVE_STATUS } from "../../data/roster-store.mjs";
 import { sameValues } from "../../domain/post-match/events.mjs";
 import { postAdvancer, postPlayers } from "../../domain/post-match/roster.mjs";
+import { PLAYERS_STAGE } from "../../domain/post-match/rules.mjs";
 import { playerAdvancementLevel, takeAdvancement } from "../../domain/roster/progression.mjs";
 import { rowsForTeam } from "../../domain/roster/values.mjs";
 import { advanceHandlers, advanceSheetOf } from "../team/roster/advance.mjs";
@@ -29,9 +30,6 @@ import { rosterLines } from "../team/roster/model.mjs";
 import { rosterLineOf } from "../team/roster/player-save.mjs";
 import { refusalWordsOf } from "../team/roster/save.mjs";
 import { isPhone } from "../team/roster/screen.mjs";
-
-/** The side's stage of the Players step, where an advancement is taken. */
-const PLAYERS_STAGE = 2;
 
 /** The post-match's side on screen. */
 const sideOf = (visit) => visit.payload.postMatch[visit.sideName];

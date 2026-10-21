@@ -149,6 +149,18 @@ test("not on the Players step, or the post-match finished: nothing is rolled", d
   assert.deepEqual(await rollsOf(client), []);
 }));
 
+test("the domain's refusal comes before the roll's; a pairing id that is no UUID is no route (the T3 review's M-4, M-6)", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  const token = await sessionFor(client, coaches.home.id);
+  const bad = await callApi("POST", "/api/games/abc/post-match/rolls", { token, body: { playerId: "home-1", purpose: "stat" } });
+  assert.deepEqual([bad.status, bad.body.error.code], [404, "ROUTE_NOT_FOUND"]);
+  for (const path of ["/api/games/abc/post-match", "/api/games/0000/finish"]) assert.equal((await callApi("GET", path, { token })).status, 404, path);
+  // Past the Players step a site roll named is the step's refusal, not «no such roll».
+  const state = await act("home", await saveHome(await toPlayersStep()), { type: "lock-players" });
+  const stray = { type: "advance", playerId: "home-1", advancementType: "random", grant: { skill: "Block" }, roll: { id: id(99), via: "site" } };
+  await assert.rejects(act("home", state, stray), { code: "POST_ACTION" });
+}));
+
 test("an advancement naming another player's, a used or an unfitting roll is refused and writes nothing", db, () => withApiDatabase(async ({ client }) => {
   await startedFriendly(client);
   await withSpp(client, 1, 30);

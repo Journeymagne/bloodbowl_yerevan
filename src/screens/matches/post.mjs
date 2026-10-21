@@ -54,6 +54,7 @@ import { invalidateGames } from "../../data/games.mjs";
 import { savePostMatch } from "../../data/post-match-client.mjs";
 import { loadMyTeams } from "../../data/teams.mjs";
 import { sameValues, sideFollowsEvents } from "../../domain/post-match/events.mjs";
+import { PLAYERS_STAGE } from "../../domain/post-match/rules.mjs";
 import { renderButton } from "../../ui/button.mjs";
 import { renderCallout } from "../../ui/callout.mjs";
 import { icon } from "../../ui/icons.mjs";
@@ -93,9 +94,6 @@ const SHEETS = Object.freeze({ player: PLAYERS_SHEET, hire: HIRE_SHEET, sell: SE
 
 /** What the Players step saves of a side: the draft compares with these. */
 const playersValues = (side) => [side.statistics, side.injuries, side.mvps, side.departures];
-
-/** The side's stage of the Players step (`statistics` is taken there only). */
-const PLAYERS_STAGE = 2;
 
 /** An answer that never came: the write may have landed all the same. */
 const lostAnswer = (error) => error?.kind === API_ERROR.OFFLINE || error?.kind === API_ERROR.TIMEOUT;

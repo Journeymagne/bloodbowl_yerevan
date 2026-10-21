@@ -104,6 +104,8 @@ function namedRolls(side) {
 function addAdvancement(side, action) {
   const id = action.playerId, kept = choiceRoll(action.roll), roll = kept === null ? action.roll : kept;
   if (!postAdvancer(side, id)) throw postError('POST_PLAYER');
+  // A journeyman or a rookie of the match rolls at the table: the site's roll waits for no one it could not go to.
+  if (kept?.via === 'site' && !postAdvancer(side, id, { site: true })) throw postError('POST_ADVANCEMENT');
   if (kept?.via === 'site' && namedRolls(side).has(rollKey(kept.id))) throw postError('DICE_ROLL_USED');
   const carried = ['favouredRoll', 'favouredSkill'].filter(key => action[key] !== undefined).map(key => [key, action[key]]);
   side.advancements[id] ||= [];
@@ -129,7 +131,10 @@ function performAction(state, name, action, data) {
   }
   if (type === 'statistics' && side.stage === 2) { saveStatistics(state, name, action); return; }
   if (type === 'advance' && side.stage === 2) { addAdvancement(side, action); return; }
-  if (type === 'undo-advance' && side.stage === 2) { side.advancements[action.playerId]?.pop(); return; }
+  if (type === 'undo-advance' && side.stage === 2) {
+    if (Object.hasOwn(side.advancements, String(action.playerId))) side.advancements[action.playerId].pop();
+    return;
+  }
   if (type === 'lock-players' && side.stage === 2) { validateStatistics(state, name); side.stage = 3; return; }
   if (['roster', 'undo-roster'].includes(type) && side.stage === 3) { rosterAction(state, name, action); return; }
   if (type === 'lock-roster' && side.stage === 3) { side.stage = 4; return; }

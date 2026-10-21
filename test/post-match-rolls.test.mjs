@@ -201,3 +201,22 @@ test("who may advance in the post-match, and who may have the site's roll for it
   side.gamesPlayed = 2;
   assert.equal(postAdvancer(side, "h3"), true, "rookie protection: Dead reads as Badly Hurt");
 });
+
+test("a journeyman of the match advances at the table only: a site roll is refused by the domain too (the T1 review's M-1)", () => {
+  const state = toPlayers();
+  const row = rowsForTeam(state.home.reference)[0];
+  state.home.snapshot.players.push({ id: "journeyman-12", kind: "journeyman", row, rowIndex: 0, number: "12", name: "Journeyman", skills: [] });
+  state.home.statistics["journeyman-12"] = { touchdowns: 1 }; // 3 SPP: one random skill
+  assert.equal(postAdvancer(state.home, "journeyman-12"), true);
+  assert.throws(() => applyPostAction(state, "home", advance("journeyman-12", "random", { skill: "Block" }, { roll: siteRoll(1) }), data), { code: "POST_ADVANCEMENT" });
+  const table = applyPostAction(state, "home", advance("journeyman-12", "random", { skill: "Block" }, { roll: { via: "table" } }), data);
+  assert.deepEqual(table.home.advancements["journeyman-12"], [{ type: "random", grant: { skill: "Block" }, roll: { via: "table" } }]);
+});
+
+test("an undo for a player id the object's own keys answer is a refusal of nothing, not a crash (the T1 review's M-4)", () => {
+  const state = toPlayers();
+  for (const playerId of ["constructor", "__proto__", "toString", "nobody"]) {
+    const next = applyPostAction(state, "home", { type: "undo-advance", playerId }, data);
+    assert.deepEqual(next.home.advancements, state.home.advancements, playerId);
+  }
+});
