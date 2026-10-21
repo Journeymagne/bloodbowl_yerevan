@@ -375,8 +375,10 @@ test("readable: the letter on its circle, the muted words, the path's links, the
 test("every key in both dictionaries, in the plan's words", () => {
   assertDictionaryCovers("src/screens/admin/frame.mjs", "src/data/admin.mjs");
   const [en, ru] = ["en", "ru"].map((locale) => JSON.parse(text(`src/i18n/${locale}.json`)));
-  const own = Object.keys(en).filter((key) => key.startsWith("administration."));
-  assert.deepEqual(Object.keys(ru).filter((key) => key.startsWith("administration.")), own, "the same keys in the same order");
+  assert.deepEqual(Object.keys(ru).filter((key) => key.startsWith("administration.")), Object.keys(en).filter((key) => key.startsWith("administration.")),
+    "the same keys in the same order");
+  // The frame's own keys; the screens of the administration add theirs to the same namespace (Task 9 on).
+  const own = ["title", "sections", "coaches", "season", "only", "onlySub", "mayHaveWritten", "reading", "readFailed", "again"].map((key) => `administration.${key}`);
   assert.deepEqual(Object.fromEntries(own.map((key) => [key, ru[key]])), {
     "administration.title": "Администрирование",
     "administration.sections": "Разделы администрирования",

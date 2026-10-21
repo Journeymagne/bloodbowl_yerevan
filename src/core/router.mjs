@@ -42,7 +42,7 @@ import { renderTeamMatches } from "../screens/matches/index.mjs";
 import { renderPreMatch } from "../screens/matches/prep.mjs";
 import { renderGamePage } from "../screens/games/game.mjs";
 import { renderPostMatch } from "../screens/matches/post.mjs";
-import { renderAdministration } from "../screens/administration/users.mjs";
+import { renderAdminCoaches } from "../screens/admin/coaches.mjs";
 import { renderAdminUserProfile } from "../screens/administration/user.mjs";
 import { renderCoachProfile } from "../screens/coaches/profile.mjs";
 import { renderCoachTeam } from "../screens/coaches/team.mjs";
@@ -88,7 +88,7 @@ const screens = {
   season: ({ tab }) => renderSeasonRoute(tab),
   adminTeamEdit: ({ ownerId, teamId }) => renderSavedRoster(teamId, true, { adminOwnerId: ownerId }),
   adminUserProfile: ({ userId }) => renderAdminUserProfile(userId),
-  administration: () => renderAdministration(),
+  administration: () => renderAdminCoaches(),
   legal: () => renderLegal(),
   page: ({ slug }) => renderReferencePage(slug),
 };
