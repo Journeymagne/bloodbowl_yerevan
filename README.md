@@ -24,7 +24,7 @@ The site contains:
 - `scripts/build-site.mjs` - copies the static app into `dist` for hosting.
 - `index.html`, `src/app.js`, `src/styles.css` - static frontend.
 - `src/components/matchday.mjs` and `games/checklist-layout.mjs` - shared heroes, scoreboards and match checklist layouts; each checklist screen retains its own rules and actions.
-- `src/components/saved-teams.mjs` - saved-team cards used by My Teams and public/admin profiles.
+- `src/screens/admin/*` - the administration (the coaches, a coach's page, the season) over `src/data/admin.mjs`.
 - `src/styles/tokens.css`, `controls.css`, `overlays.css` - common theme, form and dialog styles; screen styles specialise layout.
 - `public/data.json` - generated site data.
 - `dist` - generated deploy output, ignored by Git and recreated during build.

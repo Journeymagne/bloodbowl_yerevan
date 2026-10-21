@@ -86,10 +86,11 @@ function racesOf(all) {
 /**
  * The race as a radio group of buttons (DeskAdminCoachNew): Tab enters at the race chosen, or at the first, and the
  * arrows move along it. Short of every race, «Other…» stands last: a button, not a race, that opens them all.
- * While the form is sent the races are closed (`aria-disabled`): the arrows and a click pass them by.
+ * While the form is sent the races are closed (`aria-disabled`): the arrows and a click pass them by. A coach's
+ * «+ Team» (coach-sheets.mjs) chooses the race the same way.
  * @param {{selected: string, all: boolean, busy: boolean}} props
  */
-function raceChoiceMarkup({ selected, all, busy }) {
+export function raceChoiceMarkup({ selected, all, busy }) {
   const races = racesOf(all || (selected && !FEATURED_RACES.includes(selected)));
   const checked = races.findIndex((race) => race.slug === selected);
   const entry = Math.max(0, checked);
@@ -157,13 +158,16 @@ function createMarkup(shown) {
 
 /**
  * The temporary password, once, with «Copy» (DeskAdminReset.html's box): monospace on the second surface, the button at
- * its right. What the last «Copy» did is said under it.
+ * its right. What the last «Copy» did is said under it. A reset's window (coach-sheets.mjs) shows its password so too:
+ * its title already says «Temporary password», so `labelledBy` names that title and no word stands over the box.
  * @param {{password: string, copied: ""|"done"|"manual"}} props
+ * @param {{labelledBy?: string}} [options] the id of what names the password, when it is not the word over it
  */
-function passwordMarkup({ password, copied }) {
+export function passwordMarkup({ password, copied }, { labelledBy = "" } = {}) {
   const said = { done: t("administration.copied"), manual: t("administration.copyByHand") }[copied] ?? "";
-  return `<span class="g-field__label" id="coach-new-password">${escapeHtml(t("administration.password"))}</span>`
-    + `<div class="g-coachnew__secret"><span class="g-coachnew__password" aria-labelledby="coach-new-password">${escapeHtml(password)}</span>`
+  const label = labelledBy ? "" : `<span class="g-field__label" id="coach-new-password">${escapeHtml(t("administration.password"))}</span>`;
+  return label
+    + `<div class="g-coachnew__secret"><span class="g-coachnew__password" aria-labelledby="${escapeHtml(labelledBy || "coach-new-password")}">${escapeHtml(password)}</span>`
     + `${renderButton({ label: t("administration.copy"), data: { coachCopy: "" } })}</div>`
     + `<p class="g-coachnew__copied" role="status">${escapeHtml(said)}</p>`;
 }
@@ -319,21 +323,27 @@ async function create() {
 }
 
 /**
- * «Copy»: the clipboard, or, where the page may not write to it, the password selected and the words to copy it by
- * hand (2.x `admin.passwordCopyFallbackMessage`).
+ * The password put on the clipboard: `"done"`, or `"manual"` where the page may not write to it, and the admin copies
+ * it by hand (2.x `admin.passwordCopyFallbackMessage`). A reset's window copies with it too.
+ * @param {string} password @returns {Promise<"done"|"manual">}
  */
-async function copy() {
-  const result = shown?.result;
-  if (!result) return;
-  let copied = "manual";
+export async function copyPassword(password) {
   try {
     const clipboard = globalThis.navigator?.clipboard;
     if (typeof clipboard?.writeText !== "function") throw new Error("no clipboard");
-    await clipboard.writeText(result.password);
-    copied = "done";
+    await clipboard.writeText(password);
+    return "done";
   } catch {
     // The page may not write to the clipboard here: the admin copies it.
+    return "manual";
   }
+}
+
+/** «Copy»: the clipboard, or the password selected and the words to copy it by hand. */
+async function copy() {
+  const result = shown?.result;
+  if (!result) return;
+  const copied = await copyPassword(result.password);
   if (shown?.result !== result) return;
   result.copied = copied;
   draw();
