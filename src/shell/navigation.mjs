@@ -30,8 +30,11 @@ import { refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/ro
 /** The admin screens have no builder in core/routes.mjs; this is the one link to them. */
 const ADMINISTRATION_URL = "#/administration";
 
-/** The routes the shell stays out of. The preparation keeps its owners below: what it lit before it had a frame of its own. */
-const BARE_ROUTES = new Set(["login", "register", "teamNew", "preMatch"]);
+/**
+ * The routes the shell stays out of. The preparation and the post-match (PostResult … PostReview, DeskPostResult …
+ * DeskPostReview; stage 09b) bring a frame of their own and keep their owners below: what they lit before.
+ */
+const BARE_ROUTES = new Set(["login", "register", "teamNew", "preMatch", "postMatch"]);
 
 /** The routes a phone draws as a screen of its own, under its own head: the header draws nothing there. */
 const DRILL_ROUTES = new Set(["teamPlayer", "teamSettings"]);

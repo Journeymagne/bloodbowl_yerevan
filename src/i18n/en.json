@@ -2206,5 +2206,11 @@
   "after.finishHint": "Opens once the opponent confirms",
   "after.toMatches": "To the matches",
   "after.toRoster": "To the roster",
-  "after.injuryStat": "{injury} ({stat})"
+  "after.injuryStat": "{injury} ({stat})",
+  "after.draftLost": "The post-match was read again: what was not sent is gone",
+  "after.tapsChanged": "The match records changed: the statistics are read again and the advancements chosen here are taken off.",
+  "after.reopenAsk": "Advancements, roster, treasury and this side's confirmation are reset.",
+  "after.resetAsk": "The side starts over from the team as it is now; the statistics are read from the records again.",
+  "after.retry": "Read again",
+  "after.statFirst": "Pick the characteristic of the Lasting Injury first"
 }

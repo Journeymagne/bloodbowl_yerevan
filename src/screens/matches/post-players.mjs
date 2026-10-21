@@ -271,6 +271,73 @@ export function playersFooter(model, draft) {
   return actionFooter("lock-players", t("after.next.roster"), hint);
 }
 
+/** A counter's next value: within 0…99 (`postCount`), crowd and foul casualties never more than CAS. Null for a step refused. */
+function nextCounts(stats, counter, delta) {
+  if (!POST_STATS.includes(counter)) return null;
+  const next = { ...stats, [counter]: Math.min(99, Math.max(0, (Number(stats[counter]) || 0) + delta)) };
+  const parts = PART_OF_CAS.reduce((sum, key) => sum + (Number(next[key]) || 0), 0);
+  return parts > (Number(next.casualties) || 0) ? null : next;
+}
+
+/** The MVPs after a chip, a radio or a star: one MVP replaced, two at most of different players, only those the step offers. */
+function nextMvps(model, draft, { playerId, on }) {
+  const choices = mvpChoices(withDraft(model, draft), model.sideName);
+  if (![...choices.top, ...choices.rest].some((choice) => choice.id === playerId)) return draft.mvps;
+  const others = draft.mvps.filter((id) => id !== playerId);
+  if (!on) return others;
+  if (choices.count === 1) return [playerId];
+  return others.length < choices.count ? [...others, playerId] : draft.mvps;
+}
+
+/** An injury after a choice: a Lasting one keeps its characteristic and «rest of the season», any other is `{code, retire: false}`. */
+function nextInjury(before, { kind, code, stat, on }) {
+  const lasting = before?.code === "lasting";
+  if (kind === "injury") {
+    if (!INJURIES.includes(code)) return before;
+    if (code !== "lasting") return { code, retire: false };
+    return { code, ...(lasting && before.stat ? { stat: before.stat } : {}), retire: lasting ? before.retire : false };
+  }
+  if (!lasting) return before;
+  if (kind === "stat") return PLAYER_STATS.includes(stat) ? { code: "lasting", stat, retire: before.retire } : before;
+  return { ...before, retire: Boolean(on) };
+}
+
+/**
+ * The step's draft after one press (pre-flight L2): a new draft in the very shape `playersDraft` gives and the domain's
+ * `saveStatistics` keeps — every counter of every player, an injury as `{code, stat?, retire}` («No injury» is
+ * `{code: "none", retire: false}`), the MVPs the step offers, a veteran's die only for the side that conceded in full —
+ * so the answer to the write it makes is equal to it. A press the domain would refuse or drop (crowd and foul past CAS,
+ * a third MVP, a departure of a player who is not a veteran) leaves the draft as it was. Pure.
+ * @param {ReturnType<typeof import("./post-model.mjs").postModel>} model @param {ReturnType<typeof playersDraft>} draft
+ * @param {{kind: "counter"|"mvp"|"injury"|"stat"|"retire"|"departure", playerId: string, counter?: string, delta?: number,
+ *   on?: boolean, code?: string, stat?: string, die?: number}} change
+ * @returns {ReturnType<typeof playersDraft>}
+ */
+export function changePlayers(model, draft, change) {
+  const id = change.playerId;
+  if (!Object.hasOwn(draft.statistics, id)) return draft;
+  const next = { statistics: { ...draft.statistics }, injuries: { ...draft.injuries }, mvps: [...draft.mvps], departures: { ...draft.departures } };
+  if (change.kind === "counter") {
+    const counts = nextCounts(draft.statistics[id], change.counter, Number(change.delta) || 0);
+    if (!counts) return draft;
+    next.statistics[id] = counts;
+  } else if (change.kind === "mvp") next.mvps = nextMvps(model, draft, change);
+  else if (["injury", "stat", "retire"].includes(change.kind)) {
+    const injury = nextInjury(draft.injuries[id], change);
+    if (!injury) return draft;
+    next.injuries[id] = injury;
+  } else if (change.kind === "departure") {
+    const die = Number(change.die);
+    const veteran = model.post[model.sideName].baseRoster.players.some((player) => player.id === id && (player.advancements ?? []).length >= 3);
+    if (!lostConceding(model) || !veteran || !Number.isInteger(die) || die < 1 || die > 6) return draft;
+    next.departures[id] = die;
+  } else return draft;
+  return next;
+}
+
+/** Whether the draft can be written: every Lasting Injury names its characteristic (the domain refuses one that does not). */
+export const playersSendable = (draft) => Object.values(draft.injuries).every((injury) => injury.code !== "lasting" || PLAYER_STATS.includes(injury.stat));
+
 /**
  * The player's sheet (`dialog#after-player`): a stepper for every counter of the match — crowd and foul casualties part
  * of CAS, worth nothing of their own (L19: said under them) and never more than it —, then the injury, closed when the

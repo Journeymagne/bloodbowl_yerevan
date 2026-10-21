@@ -41,7 +41,7 @@ import { renderMyGames } from "../screens/games/my-games.mjs";
 import { renderTeamMatches } from "../screens/matches/index.mjs";
 import { renderPreMatch } from "../screens/matches/prep.mjs";
 import { renderGamePage } from "../screens/games/game.mjs";
-import { renderPostMatch } from "../screens/games/post-match.mjs";
+import { renderPostMatch } from "../screens/matches/post.mjs";
 import { renderAdministration } from "../screens/administration/users.mjs";
 import { renderAdminUserProfile } from "../screens/administration/user.mjs";
 import { renderCoachProfile } from "../screens/coaches/profile.mjs";
