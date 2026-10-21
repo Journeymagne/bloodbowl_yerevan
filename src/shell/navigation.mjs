@@ -26,10 +26,7 @@
  * desk is the same.
  */
 import { t } from "../core/i18n.mjs";
-import { refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
-
-/** The admin screens have no builder in core/routes.mjs; this is the one link to them. */
-const ADMINISTRATION_URL = "#/administration";
+import { adminUrl, refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "../core/routes.mjs";
 
 /**
  * The routes the shell stays out of. The preparation and the post-match (PostResult … PostReview, DeskPostResult …
@@ -123,7 +120,7 @@ function guestLinks() {
 }
 
 function coachLinks(team, isAdmin) {
-  const admin = isAdmin ? [["administration", ADMINISTRATION_URL]] : [];
+  const admin = isAdmin ? [["administration", adminUrl()]] : [];
   if (!team) return { tabs: [["overview", "#/"], ...leagueTabs()], side: [["overview", "#/"], ...leagueSide(), ...admin] };
   return {
     tabs: [

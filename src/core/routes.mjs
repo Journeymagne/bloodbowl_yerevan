@@ -90,6 +90,26 @@ export function adminTeamEditUrl(userOrId, teamOrId) {
   return `#/administration/users/${segment(userOrId)}/teams/${segment(teamOrId)}/edit`;
 }
 
+/** The administration's coaches (stage 12, decision 7): where the SideNav's item and the section switch lead. */
+export function adminUrl() {
+  return "#/administration";
+}
+
+/** One coach as the administration sees the account: the login, the rights, the teams. */
+export function adminCoachUrl(userOrId) {
+  return `${adminUrl()}/users/${segment(userOrId)}`;
+}
+
+/** The season as the administration runs it: its rounds and pairs, or (`"entries"`) the teams in it. */
+export function adminSeasonUrl(tab = "") {
+  return `${adminUrl()}/season${tab === "entries" ? "/entries" : ""}`;
+}
+
+/** A player of the team an admin edits: the roster's player screen in the admin's mode. */
+export function adminTeamPlayerUrl(userOrId, teamOrId, playerOrId) {
+  return `${adminTeamEditUrl(userOrId, teamOrId)}/${segment(playerOrId)}`;
+}
+
 export function gameUrl(gameOrId) {
   return `#/games/${segment(gameOrId)}`;
 }
