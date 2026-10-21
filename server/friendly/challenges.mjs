@@ -8,17 +8,26 @@ export function challengeId(value) {
   return id;
 }
 
+/**
+ * The coach's challenges, both ways, with his own teams and the coaches he can challenge.
+ * Each coach who can be challenged comes with his teams' names and races (stage 09c: the challenge
+ * sheet finds a coach by any of his teams); nothing else of them. A challenge names the challenging
+ * team's race the same way.
+ */
 export async function listChallenges(userId) {
   const [challenges, teams, opponents] = await Promise.all([
-    pool.query(`SELECT c.*, su.login AS sender_login, ru.login AS recipient_login, t.name AS sender_team_name
+    pool.query(`SELECT c.*, su.login AS sender_login, ru.login AS recipient_login, t.name AS sender_team_name,
+      t.base_team_slug AS sender_team_slug
       FROM friendly_challenges c JOIN users su ON su.id=c.sender_id JOIN users ru ON ru.id=c.recipient_id
       JOIN saved_teams t ON t.id=c.sender_team_id WHERE c.sender_id=$1 OR c.recipient_id=$1 ORDER BY c.created_at DESC LIMIT 100`, [userId]),
     pool.query("SELECT id,name,base_team_slug,created_at,updated_at FROM saved_teams WHERE user_id=$1 ORDER BY updated_at DESC", [userId]),
-    pool.query(`SELECT u.id,u.login FROM users u WHERE u.id<>$1
-      AND EXISTS (SELECT 1 FROM saved_teams t WHERE t.user_id=u.id) ORDER BY u.login_key`, [userId]),
+    pool.query(`SELECT u.id,u.login,json_agg(json_build_object('id',t.id,'name',t.name,'baseTeamSlug',t.base_team_slug)
+      ORDER BY t.updated_at DESC, t.id) AS teams
+      FROM users u JOIN saved_teams t ON t.user_id=u.id WHERE u.id<>$1 GROUP BY u.id ORDER BY u.login_key`, [userId]),
   ]);
   return { challenges: challenges.rows.map(row => ({ id: row.id, sender: { id: row.sender_id, login: row.sender_login },
-    recipient: { id: row.recipient_id, login: row.recipient_login }, team: { id: row.sender_team_id, name: row.sender_team_name },
+    recipient: { id: row.recipient_id, login: row.recipient_login },
+    team: { id: row.sender_team_id, name: row.sender_team_name, baseTeamSlug: row.sender_team_slug },
     status: row.status, gameId: row.pairing_id, createdAt: row.created_at, updatedAt: row.updated_at })),
     teams: teams.rows.map(publicSavedTeamSlim), opponents: opponents.rows };
 }
