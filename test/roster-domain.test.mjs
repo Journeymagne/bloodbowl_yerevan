@@ -315,6 +315,36 @@ test("position limits are reported per position", () => {
   }
 });
 
+// Stage 12, decision 27: Starting and Team Re-rolls together are at most `combinedRerollsMaximum` (8) — a violation
+// every write refuses (server/domain/roster.mjs, BLOCKING_CODES), read from the draft as normalised, where the first
+// builder's `rerolls` is Starting Re-rolls.
+test("nine re-rolls are refused on every write, eight are not", async () => {
+  const { combinedRerollsMaximum } = await import("../src/domain/league-rules.mjs");
+  const { normalizeDraft } = await import("../src/domain/roster/schema.mjs");
+  const team = teamBySlug.get("teams/human");
+  const legal = { playersCount: 11, totalPlayersCount: 11 };
+  const rerolls = (draft) => validateRosterSync(team, { roster: {}, ...draft }, legal).filter((item) => item.code === "REROLLS_MAX");
+  const nine = [{ code: "REROLLS_MAX", params: { max: 8, count: 9 } }];
+  assert.equal(combinedRerollsMaximum, 8);
+  assert.deepEqual(rerolls({ startingRerolls: 5, teamRerolls: 4 }), nine, "5 + 4");
+  assert.deepEqual(rerolls({ startingRerolls: 8, teamRerolls: 1 }), nine, "8 + 1: each within its own maximum, not together");
+  assert.deepEqual(rerolls({ startingRerolls: 0, teamRerolls: 12 }), [{ code: "REROLLS_MAX", params: { max: 8, count: 12 } }]);
+  assert.deepEqual(rerolls({ startingRerolls: 4, teamRerolls: 4 }), [], "4 + 4 are eight");
+  assert.deepEqual(rerolls({ startingRerolls: 8, teamRerolls: 0 }), [], "8 + 0");
+  assert.deepEqual(rerolls({}), [], "none at all");
+  assert.deepEqual(rerolls({ startingRerolls: "5", teamRerolls: "4" }), nine, "counted as the roster counts them");
+  const legacy = normalizeDraft({ rerolls: 6, teamRerolls: 3 });
+  assert.deepEqual(validateRosterSync(team, legacy, legal).filter((item) => item.code === "REROLLS_MAX"), nine, "2.x `rerolls` 6 + Team 3");
+  assert.deepEqual(validateRosterSync(team, normalizeDraft({ rerolls: 5, teamRerolls: 3 }), legal).filter((item) => item.code === "REROLLS_MAX"), [], "2.x 5 + 3");
+  // Its words, in both dictionaries (and through VALIDATION_CODES, "validation reports codes…" above checks every code).
+  const { VALIDATION_CODES } = await import("../src/domain/roster/validate.mjs");
+  assert.equal(VALIDATION_CODES.REROLLS_MAX, "REROLLS_MAX");
+  const en = JSON.parse(await fs.readFile(path.join(rootDir, "src", "i18n", "en.json"), "utf8"));
+  const ru = JSON.parse(await fs.readFile(path.join(rootDir, "src", "i18n", "ru.json"), "utf8"));
+  assert.equal(en["validation.REROLLS_MAX"], "Starting and Team Re-rolls together: at most {max}, the team has {count}.");
+  assert.equal(ru["validation.REROLLS_MAX"], "Start и Team Re-rolls вместе — не больше {max}, у команды {count}.");
+});
+
 // ---------------------------------------------------------------------------
 // Advancements cannot be taken on credit.
 // ---------------------------------------------------------------------------

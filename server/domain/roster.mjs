@@ -102,10 +102,13 @@ export function checkRoster(baseTeamSlug, roster) {
  * reads it — the season table, the opponent, the public profile — and there is
  * no editing state that legitimately passes through it. Nor does one send an SPP
  * counter outside 0…999 — each step of a save's SPP change is a row of the
- * player's history — or two players under one id.
+ * player's history — or two players under one id, or more than eight Starting and
+ * Team Re-rolls together (REROLLS_MAX, stage 12: the team page and the post-match
+ * never sell past it; a roster stored over it is refused on every write until it is
+ * put right, and the rehearsal's report names those before the window).
  */
 const BLOCKING_CODES = new Set(["ROSTER_MAX_PLAYERS", "POSITION_MAX", "UNKNOWN_TEAM", "TREASURY_INVALID", "SAFE_INVALID",
-  "SPP_OUT_OF_RANGE", "DUPLICATE_PLAYER_ID"]);
+  "SPP_OUT_OF_RANGE", "DUPLICATE_PLAYER_ID", "REROLLS_MAX"]);
 
 export function blockingViolations(violations) {
   return violations.filter((violation) => BLOCKING_CODES.has(violation.code));
