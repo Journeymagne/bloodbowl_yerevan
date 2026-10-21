@@ -21,8 +21,10 @@
   white-space: normal;
 }
 .g-after__lead .g-status::before { width: 7px; height: 7px; }
-/* The post-match's button on a desk is the prototype's 48px, 16px words. */
+/* The post-match's button on a desk is the prototype's 48px, 16px words; the summary's (confirm, finish) DeskPostReview's
+   52px, 17px. */
 .g-after__lead ~ .g-prep__cta { min-height: 48px; font-size: 16px; }
+.g-after__lead ~ .g-prep__cta:is([data-prep-action="confirm"], [data-prep-action="finish"]) { min-height: 52px; font-size: 17px; }
 
 /* A step's card: white in the ring, 14 16 in, its parts 10 apart; a card of rows has none between them. */
 .g-after__card {

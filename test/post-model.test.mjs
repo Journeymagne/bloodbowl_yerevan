@@ -105,7 +105,7 @@ test("a desk's summaries", () => {
   assert.deepEqual(model.steps.map((step) => step.summary), ["2–1 · confirmed", "+80k · fans 3 → 4", "+18 SPP · injuries: 1", "0k", "safe +10k", "captain W. Brandt", "now"]);
   // The score while it is being entered, the roster's money with its sign.
   const open = modelOf(scored(begin()), "result");
-  assert.equal(open.steps[0].summary, "now");
+  assert.deepEqual([open.steps[0].state, open.steps[0].summary], ["current", "being entered"], "DeskPostResult: «вводим», not «now» (fidelity J3)");
   const hired = act(reach(agreed(begin()), { home: 3, away: 3 }), "home", { type: "roster", operation: "hire", rowIndex: 0 });
   const roster = modelOf(hired, "fans");
   assert.equal(roster.steps[3].summary, "now");

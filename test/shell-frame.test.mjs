@@ -244,6 +244,12 @@ test("a short page fills the screen without scrolling: the content grows into it
   assert.deepEqual(valuesOf("src/shell/frame.css", ".g-frame #app-view", "flex"), ["1 0 auto"]);
 });
 
+test("a bare screen's root fills the frame; a sheet it draws in #app-view keeps its own place (09b fidelity J2)", () => {
+  const root = '.g-frame[data-shell="bare"] #app-view > :not(dialog)';
+  assert.deepEqual([valuesOf("src/shell/frame.css", root, "margin"), valuesOf("src/shell/frame.css", root, "max-width")], [["0"], ["none"]]);
+  assert.equal(valuesOf("src/shell/frame.css", '.g-frame[data-shell="bare"] #app-view > *', "margin").length, 0, "a dialog is no screen's root");
+});
+
 test("a sheet's scroll lock does not shift the page", () => {
   assert.deepEqual(valuesOf("src/shell/frame.css", "html", "scrollbar-gutter"), ["stable"]);
 });

@@ -133,7 +133,7 @@ test("a technical result closes the steppers at 2–0; a mode other than played 
   const modes = played.querySelector('[role="radiogroup"][data-after-mode]');
   assert.equal(modes.getAttribute("aria-label"), "How the match ended");
   assert.deepEqual(modes.querySelectorAll('[role="radio"]').map((item) => [item.textContent, item.getAttribute("data-mode"), item.getAttribute("aria-checked"), item.getAttribute("tabindex")]),
-    [["Played", "played", "true", "0"], ["Technical", "technical", "false", "-1"], ["Conceded", "conceded", "false", "-1"], ["Conceded, no penalty", "conceded-safe", "false", "-1"]]);
+    [["Played", "played", "true", "0"], ["Technical", "technical", "false", "-1"], ["Conceded", "conceded", "false", "-1"], ["Safe concession", "conceded-safe", "false", "-1"]]);
   assert.ok(!played.querySelector('[data-seg-group="after-winner"]'), "played: no winner to pick");
   const technical = drawScore(model, { mode: "technical", winner: "away" });
   assert.deepEqual(["own:touchdowns", "other:touchdowns", "own:casualties", "other:casualties"].map((key) => value(technical, key)), ["0", "2", "0", "0"]);

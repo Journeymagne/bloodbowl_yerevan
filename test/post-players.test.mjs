@@ -266,11 +266,17 @@ test("a desk's table: a real table, the MVP a star button, the injuries at the r
   assert.equal(rows.find((row) => row.querySelector('[data-after-player="h6"]')).querySelector(".g-after__star").getAttribute("aria-pressed"), "false");
   assert.deepEqual(words(fragment, ".g-after__notes .g-after__note"),
     ["Events — from the records of the match (Round 7): taps on the «Roster» during the game. An edit in the player's sheet changes the same records, and the career stays right.",
-      "MVP — the star, +5 SPP. Anyone but stars and the dead; after a technical win or the opponent's concession — two MVPs."]);
+      "MVP — the star, +5 SPP. Anyone but stars and the dead; after a technical win or the opponent's concession — two MVPs.",
+      "Codes as in the Casualty Table. With fewer than 3 games played, any injury counts as Badly Hurt."], "the codes over the table, once (fidelity J6)");
   assert.ok(fragment.querySelector(".g-after__card--adv"), "the advancement cards under the table");
   assert.ok(!fragment.querySelector("[data-after-injury]"), "the injuries are the column's");
   const aside = mount(step.asideHtml);
   assert.ok(aside.querySelector('[data-after-injury="h2"]'));
+  // DeskPostPlayers' injury card: the title with its chip, the six injuries, «Characteristic» and the five; no paragraph.
+  assert.equal(aside.querySelectorAll(".g-after__note").length, 0, "neither «Marked on the «Roster»…» nor the codes");
+  assert.deepEqual(words(aside, ".g-after__label").slice(1), ["Characteristic"]);
+  assert.equal(aside.querySelector("[data-after-stat]").getAttribute("aria-label"), "Characteristic");
+  assert.match(mount(playersStep(model, draft, { phone: true }).contentHtml).textContent, /Which characteristic.*Codes as in the Casualty Table/s, "a phone's card keeps both");
   // Friendly words, and no star where nobody is MVP.
   const friendly = mount(playersStep(modelAt(atPlayers(), { fixture: { ...FIXTURE, kind: "friendly" } }), draft, { phone: false }).contentHtml);
   assert.match(friendly.querySelector(".g-after__notes").textContent, /\(Friendly\)/);
@@ -342,8 +348,14 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own(".g-after__td", "height"), ["52px"]);
   assert.deepEqual(own(".g-after__table", "font-variant-numeric"), ["tabular-nums"]);
   assert.deepEqual(own(".g-after__star", "color"), ["var(--warn)"]);
+  // Fidelity J4, J5, J11: DeskPostPlayers' columns (36 · 1.4fr · 5 × 52 · 64 · 1.2fr, gap 8: border-box cells 0 4 in),
+  // only the MVP's ★ gold, «+4 SPP» 16px.
+  assert.deepEqual(["1", "2", "n+3):nth-child(-n+7", "8", "9"].map((n) => own(`.g-after__th:nth-child(${n})`, "width")), [["44px"], ["53.8%"], ["60px"], ["72px"], ["46.2%"]]);
+  assert.deepEqual(own('.g-after__star[aria-pressed="false"]', "color"), ["var(--muted)"]);
+  assert.deepEqual(own(".g-after__spp", "font"), ["700 16px/1.3 var(--font-body)"]);
   // Readable in every palette.
   assertContrast("--warn", ["--surface"], 3, { what: "the MVP's star, a large mark" });
+  assertReadable(CSS, '.g-after__star[aria-pressed="false"]', "color", ["--surface"], 4.5);
   assertReadable(CSS, ".g-after__td--hurt", "color", ["--surface"], 4.5);
   assertContrast("--on-accent-tint", ["--accent-tint-soft"], 4.5, { what: "the accent's ink on the advancement card" });
   for (const selector of [".g-after__spp", ".g-after__line", ".g-after__th", ".g-after__td--none", ".g-after__rookie", ".g-after__td--spp", ".g-after__rest", ".g-after__untake"]) {

@@ -226,6 +226,9 @@ test("confirm, then finish once the opponent has confirmed", () => {
   const done = structuredClone(ready);
   done.status = "completed";
   assert.equal(reviewStep(modelOf(done, "review")).footer.kind, "none");
+  // What the finish will do is said until it is done (fidelity J12): the «finished» callout says the rest.
+  assert.match(mount(reviewStep(modelOf(ready, "review")).contentHtml).textContent, /The match is finished once both coaches confirm the summary\./);
+  assert.doesNotMatch(mount(reviewStep(modelOf(done, "review")).contentHtml).textContent, /once both coaches confirm/);
   const notice = mount(completedMarkup(modelOf(done, "review")));
   assert.equal(notice.querySelector(".g-callout__title").textContent, "The match is finished");
   assert.deepEqual(notice.querySelectorAll("a").map((link) => [link.textContent, link.getAttribute("href")]),
@@ -266,7 +269,14 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own(".g-after__options--captain", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))"]);
   assert.deepEqual(own(".g-after__sides", "grid-template-columns"), ["repeat(auto-fit, minmax(300px, 1fr))"]);
   assert.deepEqual(own(".g-after__team", "font"), ["700 16px/1.3 var(--font-body)"]);
-  assert.deepEqual(own(".g-after__resultscore", "font"), ["700 40px/1.1 var(--font-display)"]);
+  assert.deepEqual(own(".g-after__resultscore", "font"), ["700 40px/normal var(--font-display)"], "DeskPostReview's 60px line (fidelity J7)");
+  // Fidelity J8–J10: the summary's button 52px / 17px on a desk; the Expensive Mistakes' dice 44px; «Coach's Safe» 700.
+  const post = (selector, property) => valuesOf("src/screens/matches/post.css", selector, property);
+  const summaryButton = '.g-after__lead ~ .g-prep__cta:is([data-prep-action="confirm"], [data-prep-action="finish"])';
+  assert.deepEqual([post(summaryButton, "min-height"), post(summaryButton, "font-size")], [["52px"], ["17px"]]);
+  assert.deepEqual([post(".g-after__lead ~ .g-prep__cta", "min-height"), post(".g-after__lead ~ .g-prep__cta", "font-size")], [["48px"], ["16px"]], "the other steps' 48 / 16");
+  assert.deepEqual(own("[data-after-mistake] .g-prep__face", "min-height"), ["44px"]);
+  assert.deepEqual(own(".g-after__card--safe .g-resource__name", "font-weight"), ["700"]);
   assert.deepEqual(own(".g-after__resultv", "font"), ["700 14px/1.35 var(--font-body)"]);
   assert.deepEqual(own(".g-after__sidehead .g-status::before", "width"), ["7px"]);
   // Readable in every palette.

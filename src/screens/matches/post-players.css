@@ -37,7 +37,7 @@
 
 .g-after__line { color: var(--muted); font: 400 12px/1.35 var(--font-body); overflow-wrap: anywhere; }
 
-.g-after__spp { flex: none; color: var(--on-accent-tint); font: 700 15px/1.3 var(--font-body); }
+.g-after__spp { flex: none; color: var(--on-accent-tint); font: 700 16px/1.3 var(--font-body); }
 
 .g-after__rest {
   box-sizing: border-box;
@@ -171,7 +171,9 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* A cell's width holds its padding: the fixed columns add up to the prototype's 36 + 5 × 52 + 64 px. */
+/* A cell's width holds its padding (0 4 in: 8 between two cells, the prototype's gap): DeskPostPlayers' grid 36 · 1.4fr ·
+   5 × 52 · 64 · 1.2fr — «#» 44, TD…MVP 60 each, SPP 72, the player and the injury sharing the rest 1.4 : 1.2. A fixed
+   table gives its percentages what the fixed columns leave, in their proportion (a calc() with a % it would not read). */
 .g-after__th,
 .g-after__td { box-sizing: border-box; }
 
@@ -186,9 +188,11 @@
   text-align: left;
   text-transform: uppercase;
 }
-.g-after__th:nth-child(1) { width: 36px; }
-.g-after__th:nth-child(n+3):nth-child(-n+7) { width: 52px; }
-.g-after__th:nth-child(8) { width: 64px; }
+.g-after__th:nth-child(1) { width: 44px; }
+.g-after__th:nth-child(2) { width: 53.8%; }
+.g-after__th:nth-child(n+3):nth-child(-n+7) { width: 60px; }
+.g-after__th:nth-child(8) { width: 72px; }
+.g-after__th:nth-child(9) { width: 46.2%; }
 
 .g-after__td {
   height: 52px;
@@ -241,6 +245,8 @@
   font: 400 18px/1 var(--font-body);
   cursor: pointer;
 }
+/* Only the MVP's ★ is gold (DeskPostPlayers); a star not pressed is quiet. */
+.g-after__star[aria-pressed="false"] { color: var(--muted); }
 .g-after__star[aria-disabled="true"] { cursor: default; }
 
 /* From 901px the prototype's sizes: chips, characteristics, dice and «Advance» 40px, the injuries 44px. */

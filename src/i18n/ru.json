@@ -1940,6 +1940,7 @@
   "after.injurySub.niggling": "NI + пропуск",
   "after.injurySub.lasting": "−1 стат",
   "after.whichStat": "Какая характеристика",
+  "after.whichStatDesk": "Характеристика",
   "after.retire": "До конца сезона",
   "after.injuryCodes": "Коды как в Casualty Table. Если у команды меньше 3 сыгранных матчей, любая травма считается Badly Hurt.",
   "after.rookie": "Засчитается как Badly Hurt: у команды меньше 3 сыгранных матчей",

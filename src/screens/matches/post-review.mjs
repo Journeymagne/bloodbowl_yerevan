@@ -91,14 +91,15 @@ function reviewFooter(model) {
 }
 
 /**
- * The summary (PostReview.html, DeskPostReview.html): both sides' cards and what the finish does; a desk's result in the
- * right column. The card's title is the prototype's «Match summary».
+ * The summary (PostReview.html, DeskPostReview.html): both sides' cards and what the finish will do (not once it is
+ * done); a desk's result in the right column. The card's title is the prototype's «Match summary».
  * @param {ReturnType<typeof import("./post-model.mjs").postModel>} model
  */
 export function reviewStep(model) {
   const other = otherSide(model.sideName);
   const cards = `<div class="g-after__sides">${sideCard(model, model.sideName, model.preview)}${sideCard(model, other, previewOf(model.post, other, model.data))}</div>`;
-  const note = noteMarkup(t(model.kind === "friendly" ? "after.reviewNoteFriendly" : "after.reviewNote"));
+  // What the finish will do, until it is done: then the «finished» callout over the cards says it.
+  const note = model.completed ? "" : noteMarkup(t(model.kind === "friendly" ? "after.reviewNoteFriendly" : "after.reviewNote"));
   return { contentHtml: `${cards}${note}`, asideHtml: resultCard(model), footer: reviewFooter(model), cardTitle: t("after.reviewTitle") };
 }
 

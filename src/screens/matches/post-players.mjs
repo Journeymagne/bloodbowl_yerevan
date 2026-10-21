@@ -154,33 +154,40 @@ function optionsMarkup({ name, values, chosen, closed, data, item, kind }) {
   return `<div class="g-after__options g-after__options--${kind}" role="radiogroup" aria-label="${escapeHtml(name)}" ${data}>${items}</div>`;
 }
 
-/** The injury's radios, the characteristic and «Out for the rest of the season» at Lasting, and the rookies' rule: the card's and the sheet's. */
-function injuryControls(model, draft, id, closed) {
+/**
+ * The injury's radios, the characteristic and «Out for the rest of the season» at Lasting, and the rookies' rule: the
+ * card's and the sheet's. A desk's card names the characteristic as DeskPostPlayers does («Characteristic»).
+ */
+function injuryControls(model, draft, id, closed, { desk = false } = {}) {
   const injury = draft.injuries[id] ?? { code: "none", retire: false };
   const values = INJURIES.map((code) => [code, t(`after.injury.${code}`), SUBS.includes(code) ? t(`after.injurySub.${code}`) : ""]);
   let html = optionsMarkup({ name: t("after.injuryLabel"), values, chosen: injury.code, closed, data: `data-after-injury="${escapeHtml(id)}"`, item: "code", kind: "injury" });
   if (injury.code === "lasting") {
-    const stats = PLAYER_STATS.map((stat) => [stat, t(`stats.${stat}`)]);
-    html += `${labelMarkup(t("after.whichStat"))}${optionsMarkup({ name: t("after.whichStat"), values: stats, chosen: injury.stat ?? "", closed, data: `data-after-stat="${escapeHtml(id)}"`, item: "stat", kind: "stat" })}`;
+    const stats = PLAYER_STATS.map((stat) => [stat, t(`stats.${stat}`)]), which = t(desk ? "after.whichStatDesk" : "after.whichStat");
+    html += `${labelMarkup(which)}${optionsMarkup({ name: which, values: stats, chosen: injury.stat ?? "", closed, data: `data-after-stat="${escapeHtml(id)}"`, item: "stat", kind: "stat" })}`;
     html += renderToggle({ key: `retire:${id}`, label: t("after.retire"), checked: injury.retire, disabled: closed });
   }
   if (model.post[model.sideName].gamesPlayed < 3 && !["none", "badly-hurt"].includes(injury.code)) html += `<p class="g-after__rookie">${escapeHtml(t("after.rookie"))}</p>`;
   return html;
 }
 
-/** A card for a player with an injury in the draft: «Injury · #2 O. Krell», «from a match record» while the side follows the records. */
-function injuryCard(model, draft, player) {
+/**
+ * A card for a player with an injury in the draft: «Injury · #2 O. Krell», «from a match record» while the side follows
+ * the records. A phone's says what the «Roster» marked and the codes (PostPlayers); a desk's has neither paragraph — the
+ * codes are said once over the table (DeskPostPlayers).
+ */
+function injuryCard(model, draft, player, desk) {
   const side = model.post[model.sideName], injury = draft.injuries[player.id];
   const recorded = sideFollowsEvents(side) && injury.code !== "none";
   const chip = recorded ? `<span class="g-after__fromrec">${escapeHtml(t("after.fromRecord"))}</span>` : "";
   const head = `<div class="g-after__head"><span class="g-after__label">${escapeHtml(t("after.injury", { number: player.number, name: player.name }))}</span>${chip}</div>`;
-  const note = recorded ? noteMarkup(t("after.injuryNote", { injury: injuryOf(injury) })) : "";
-  return `<div class="g-after__card">${head}${note}${injuryControls(model, draft, player.id, model.readonly)}${noteMarkup(t("after.injuryCodes"))}</div>`;
+  const note = recorded && !desk ? noteMarkup(t("after.injuryNote", { injury: injuryOf(injury) })) : "";
+  return `<div class="g-after__card">${head}${note}${injuryControls(model, draft, player.id, model.readonly, { desk })}${desk ? "" : noteMarkup(t("after.injuryCodes"))}</div>`;
 }
 
 /** Every injury card, in the match's order (the stars get none). */
-function injuryCards(model, draft) {
-  return model.post[model.sideName].snapshot.players.filter((player) => player.kind !== "star" && draft.injuries[player.id]).map((player) => injuryCard(model, draft, player)).join("");
+function injuryCards(model, draft, desk = false) {
+  return model.post[model.sideName].snapshot.players.filter((player) => player.kind !== "star" && draft.injuries[player.id]).map((player) => injuryCard(model, draft, player, desk)).join("");
 }
 
 /** «Veterans after conceding · D6»: a die for each player with 3+ advancements, who leaves on 1–3. None unless the side conceded in full. */
@@ -260,12 +267,12 @@ export function playersStep(model, draft, { phone, open = false }) {
   if (phone) {
     return { contentHtml: `${mismatch}${eventsCard(model, draft, players, open)}${mvpCard(model, draft)}${injuryCards(model, draft)}${departuresCard(model, draft)}${advanceCards(model)}`, asideHtml: "", footer };
   }
-  const side = model.post[model.sideName], records = sideRecords(side);
+  const side = model.post[model.sideName], records = sideRecords(side), injuries = injuryCards(model, draft, true);
   const notes = `<div class="g-after__notes">${noteMarkup(records ? t("after.deskEventsNote", { match: model.matchLabel }) : t("after.eventsNote2x"))}${noteMarkup(t("after.deskMvpNote"))}`
-    + `${lostConceding(model) ? noteMarkup(t("after.concededSpp")) : ""}</div>`;
+    + `${injuries ? noteMarkup(t("after.injuryCodes")) : ""}${lostConceding(model) ? noteMarkup(t("after.concededSpp")) : ""}</div>`;
   const none = mvpChoices(withDraft(model, draft), model.sideName).count ? "" : mvpCard(model, draft);
   return { contentHtml: `${mismatch}${notes}${tableMarkup(model, draft, players)}${none}${departuresCard(model, draft)}${advanceCards(model)}`,
-    asideHtml: injuryCards(model, draft), footer };
+    asideHtml: injuries, footer };
 }
 
 /** «Next: roster» locks the step (`lock-players`): closed while the score and the records part, the MVP is missing, or a veteran's die is unmarked. */

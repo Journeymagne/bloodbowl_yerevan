@@ -119,7 +119,9 @@ html { scrollbar-gutter: stable; }
   padding: 0;
 }
 .g-frame[data-shell="bare"] #app-view::after { display: none; }
-.g-frame[data-shell="bare"] #app-view > * {
+/* The screen's root fills the frame; a sheet a bare screen puts in #app-view (the post-match's, the preparation's) keeps
+   its own place — a phone's at the bottom, a desk's window centred at its width. */
+.g-frame[data-shell="bare"] #app-view > :not(dialog) {
   flex: 1 0 auto;
   width: 100%;
   max-width: none;

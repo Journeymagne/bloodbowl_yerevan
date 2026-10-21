@@ -122,11 +122,14 @@ function summaryOf(key, { post, sideName, preview }) {
   return "";
 }
 
-/** The steps as the side stands: done, the one on screen when earlier than the current, the current, later. */
+/**
+ * The steps as the side stands: done, the one on screen when earlier than the current, the current, later. The current
+ * says «now», but «Score», which says «being entered» until both agree (DeskPostResult).
+ */
 function stepsOf({ gameId, current, shown, ...read }) {
   return POST_STEPS.map((key, index) => {
     const state = index === current ? "current" : index > current ? "later" : index === shown ? "open" : "done";
-    const summary = state === "current" ? t("after.now") : state === "later" ? "" : summaryOf(key, read);
+    const summary = state === "current" ? (key === "result" ? summaryOf(key, read) : t("after.now")) : state === "later" ? "" : summaryOf(key, read);
     return { key, label: t(`after.step.${key}`), state, summary, onScreen: index === shown, href: state === "later" ? null : postMatchUrl(gameId, key) };
   });
 }

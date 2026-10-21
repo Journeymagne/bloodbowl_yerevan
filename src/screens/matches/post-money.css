@@ -38,8 +38,13 @@
 .g-after__card--safe .g-resource__btn--inc:disabled,
 .g-after__card--safe .g-resource__btn--inc[aria-disabled="true"] { background: var(--surface); color: var(--disabled); }
 
-/* The safe's card holds its one counter: no line under it. */
+/* The safe's card holds its one counter: no line under it; «Coach's Safe» in 700 (PostFinance's <b>), the staff's 600. */
 .g-after__card--safe .g-resource { min-height: 0; border-bottom: 0; }
+.g-after__card--safe .g-resource__name { font-weight: 700; }
+
+/* The Expensive Mistakes' dice are PostFinance's 44px (the preparation's are 46): D2 still holds on a phone. */
+[data-after-mistake] .g-prep__face,
+[data-after-extra] .g-prep__face { min-height: 44px; }
 
 /* «Treasury after» in the ink, not the accent's (PostFinance.html). */
 .g-after__big--ink { color: var(--ink); }
@@ -66,7 +71,7 @@
 /* A desk's result: «Result» 13px, the score Oswald 40, the outcome and its points 700 14px in the accent's ink. */
 .g-after__resultk { color: var(--muted); font: 400 13px/1.35 var(--font-body); }
 
-.g-after__resultscore { color: var(--ink); font: 700 40px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+.g-after__resultscore { color: var(--ink); font: 700 40px/normal var(--font-display); font-variant-numeric: tabular-nums; }
 
 .g-after__resultv { color: var(--on-accent-tint); font: 700 14px/1.35 var(--font-body); overflow-wrap: anywhere; }
 
