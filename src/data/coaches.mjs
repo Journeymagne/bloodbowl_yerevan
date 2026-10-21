@@ -32,3 +32,20 @@ export async function readCoachTeam(userId, teamId) {
     return refused(error);
   }
 }
+
+/**
+ * A coach's page as anyone signed in sees it (`GET /api/players/:uid`): the coach (`publicAdminUser`: his teams'
+ * count too) and his saved teams, each a summary with its roster. Teams that are not a list are none.
+ *
+ * @param {string} userId
+ * @returns {Promise<{user: object, teams: object[]}|{error: string, code: string}>}
+ */
+export async function readCoach(userId) {
+  try {
+    const answer = await apiRequest(`/api/players/${encodeURIComponent(userId)}`);
+    if (!answer?.user || typeof answer.user !== "object") return unanswered();
+    return { user: answer.user, teams: Array.isArray(answer.teams) ? answer.teams : [] };
+  } catch (error) {
+    return refused(error);
+  }
+}
