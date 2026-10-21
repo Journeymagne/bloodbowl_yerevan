@@ -373,6 +373,9 @@
   letter-spacing: 0;
 }
 
+/* A score sent: the result pill's square (ui/result-pill.css) on the waiting tint (Matches.html's #B07A1E, under 4.5:1 with white). */
+.g-matches__pill--sent { background: var(--warn-tint); color: var(--on-warn-tint); }
+
 /* What comes later: the round's word in a 56px column, the match and its note. */
 .g-matches__later {
   box-sizing: border-box;

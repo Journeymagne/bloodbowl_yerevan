@@ -30,7 +30,7 @@ import { seasonTable } from "../../data/season-table.mjs";
 import { gameOutcome, gameSides, seasonRecord, standingOf } from "../../data/team-record.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
-import { currentMatch, matchActions, sentScore, subLine } from "../../shell/current-match.mjs";
+import { currentMatch, matchActions, sentCasualties, sentScore, subLine } from "../../shell/current-match.mjs";
 import { beforeFigures } from "./before.mjs";
 import { bandBoard, bandItems, previewFor, seasonResults } from "./band.mjs";
 
@@ -126,7 +126,30 @@ function resultRow(result, teamId) {
   return {
     gameId: result.gameId, result: result.friendly ? gameOutcome(result.game, teamId) ?? result.result : result.result, opponent: result.opponent,
     href: gameUrl(result.gameId), line, mvp: result.mvps.length ? t("matches.mvp", { names: result.mvps.join(", ") }) : "", score: result.score,
+    sent: false,
   };
+}
+
+/**
+ * A score sent and not confirmed yet, as the first rows of a phone's «Results» say it (decision 14, Matches.html with
+ * `demo-match="sent"`): the outcome by the score proposed, from the team's side, «Round 3 · awaiting confirmation ·
+ * CAS 1–0», no MVP, the score proposed; the row leads to the game, as the others do. Every game of the team whose score
+ * waits, not only the card's (pre-flight L20: a friendly's sent beside a league match on), the freshest first. A
+ * friendly's is drawn as a league match's: the prototype gives it the plain outcome and «friendly» (spec §7).
+ */
+function sentRows(games, teamId) {
+  const rows = [];
+  for (const game of [...games].sort((one, other) => (Date.parse(other.updatedAt) || 0) - (Date.parse(one.updatedAt) || 0))) {
+    if (currentMatch([game], teamId)?.phase !== "sent") continue;
+    const sides = gameSides(game, teamId);
+    const score = sentScore(game, sides);
+    if (!score) continue;
+    const [own, other] = score.split("–").map(Number);
+    const line = [roundWord(game), t("matches.sentResult"), t("matches.band.cas", { cas: sentCasualties(game, sides) })].join(" · ");
+    rows.push({ gameId: game.id, result: own === other ? "d" : own > other ? "w" : "l", sent: true, opponent: game[sides.other].team?.name ?? "",
+      href: gameUrl(game.id), line, mvp: "", score });
+  }
+  return rows;
 }
 
 /** Where an open match leads: its post-match while it is on, the game while a score waits, else its preparation. */
@@ -307,7 +330,7 @@ export function matchesModel({ team, raceTeam = null, seasonData, games, gamesEr
     gamesRead: Boolean(list),
     current: current ? cardOf({ current, team, seasonData, preview, opponent, records }) : null,
     pendingRound: list && standing ? pendingOf(list, team, seasonData, current) : null,
-    results: list ? seasonResults(list, team.id, seasonData, { sinceSeason: Boolean(standing) }).map((result) => resultRow(result, team.id)) : [],
+    results: list ? [...sentRows(list, team.id), ...seasonResults(list, team.id, seasonData, { sinceSeason: Boolean(standing) }).map((result) => resultRow(result, team.id))] : [],
     record: list && standing ? seasonRecord(list, team.id, seasonData.season.id) : null,
     others: list ? othersOf(list, team.id, current?.game.id ?? null) : [],
     nextRound: round ? round + 1 : null,

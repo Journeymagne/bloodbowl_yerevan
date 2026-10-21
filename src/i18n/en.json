@@ -1725,6 +1725,7 @@
   "matches.status.live": "In play",
   "matches.status.post": "Post-match",
   "matches.status.sent": "Awaiting confirmation",
+  "matches.sentResult": "awaiting confirmation",
   "matches.offTable": "Friendly · off the table",
   "matches.ctv": "CTV",
   "matches.inducements": "Inducements",

@@ -16,9 +16,16 @@ import { seasonTabUrl, teamUrl } from "../../core/routes.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { renderResultPill, resultLabels } from "../../ui/result-pill.mjs";
 
-/** A row's body: the pill, the opponent over the round, race and casualties, the MVP; the score at the end. */
-function resultBody({ result, opponent, line, mvp, score }) {
-  return `${renderResultPill({ result })}<span class="g-matches__text"><span class="g-matches__opponent">${escapeHtml(opponent)}</span>`
+/** A score sent: the outcome it proposes on the waiting tint, its letter seen and its word, with what it waits for, heard. */
+function sentPill(result) {
+  const { letter, name } = resultLabels(result);
+  return `<span class="g-result g-matches__pill--sent"><span aria-hidden="true">${escapeHtml(letter)}</span>`
+    + `<span class="g-sr-only">${escapeHtml(`${name} · ${t("matches.sentResult")}`)}</span></span>`;
+}
+
+/** A row's body: the pill (a score sent's on the waiting tint), the opponent over the round, race and casualties, the MVP; the score at the end. */
+function resultBody({ result, sent, opponent, line, mvp, score }) {
+  return `${sent ? sentPill(result) : renderResultPill({ result })}<span class="g-matches__text"><span class="g-matches__opponent">${escapeHtml(opponent)}</span>`
     + `<span class="g-matches__line">${escapeHtml(line)}</span>${mvp ? `<span class="g-matches__line">${escapeHtml(mvp)}</span>` : ""}</span>`
     + `<span class="g-matches__score">${escapeHtml(score)}</span>`;
 }

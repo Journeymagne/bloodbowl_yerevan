@@ -1725,6 +1725,7 @@
   "matches.status.live": "Идёт игра",
   "matches.status.post": "Итоги",
   "matches.status.sent": "Ждёт подтверждения",
+  "matches.sentResult": "ждёт подтверждения",
   "matches.offTable": "Товарищеский · вне таблицы",
   "matches.ctv": "CTV",
   "matches.inducements": "Индьюсменты",

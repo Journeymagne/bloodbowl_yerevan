@@ -390,6 +390,57 @@ test("the results: every finished match, newest first, the record in its head", 
   assert.match(matchesMarkup(modelOf("t2")), /g-matches__empty">No matches played yet</);
 });
 
+test("a score sent is the first result: its outcome on the waiting tint, «awaiting confirmation» in its line, the score proposed, the row to the match", async () => {
+  try {
+    await visit("t3");
+    const results = view.querySelector('section[aria-labelledby="matches-results"]');
+    const first = results.querySelector(".g-matches__item");
+    const pill = first.querySelector(".g-matches__pill--sent");
+    assert.ok(pill, "the waiting tint");
+    assert.equal(pill.querySelector('[aria-hidden="true"]').textContent, "W", "won 2–1 by the score proposed, from t3's side");
+    assert.equal(pill.querySelector(".g-sr-only").textContent, `${t("ui.result.wName")} · ${t("matches.sentResult")}`);
+    assert.equal(first.querySelector(".g-result--w"), null, "not the colour of a win confirmed");
+    assert.equal(first.querySelector(".g-matches__opponent").textContent, "Rival Wardens");
+    assert.deepEqual(words(".g-matches__line", first), ["Round\u00a03 · awaiting confirmation · CAS 1–0"], "no MVP");
+    assert.equal(first.querySelector(".g-matches__score").textContent, "2–1");
+    assert.equal(first.querySelector("a.g-matches__row").getAttribute("href"), gameUrl("g3"));
+    assert.equal(results.querySelectorAll(".g-matches__item").length, 1, "nothing else played yet");
+    assert.equal(results.querySelector(".g-matches__empty"), null);
+  } finally {
+    leave();
+  }
+  const [sentRow] = modelOf("t3").results;
+  assert.deepEqual({ ...sentRow }, { gameId: "g3", result: "w", sent: true, opponent: "Rival Wardens", href: gameUrl("g3"),
+    line: "Round\u00a03 · awaiting confirmation · CAS 1–0", mvp: "", score: "2–1" });
+  assert.ok(modelOf("t1").results.every((row) => row.sent === false));
+});
+
+test("a score sent from the other side reads from the team's own: the opponent's 2–1 at home is our loss 1–2", () => {
+  const away = gamesWith({ g3: { home: side("r3", "Rival Wardens", "teams/lizardmen"), away: OURS.t3, proposedHomeCasualties: 0, proposedAwayCasualties: 2 } });
+  const [row] = modelOf("t3", { games: away }).results;
+  assert.deepEqual([row.result, row.score, row.line], ["l", "1–2", "Round\u00a03 · awaiting confirmation · CAS 2–0"]);
+});
+
+test("every score sent leads the results, not only the card's: a friendly's waits beside a league match on", () => {
+  const friendly = game("g8", { kind: "friendly", season: null, roundNumber: null, roundStatus: null, home: OURS.t1, away: GRIM, resultStatus: "awaiting_confirmation",
+    proposedHomeTouchdowns: 1, proposedAwayTouchdowns: 1, proposedHomeCasualties: 0, proposedAwayCasualties: 0 });
+  const rows = modelOf("t1", { games: [...GAMES, friendly] }).results;
+  assert.equal(modelOf("t1", { games: [...GAMES, friendly] }).current.gameId, "g1", "the card is the league's match");
+  assert.deepEqual([rows[0].gameId, rows[0].sent, rows[0].result, rows[0].line], ["g8", true, "d", "Friendly · awaiting confirmation · CAS 0–0"]);
+  assert.deepEqual(rows.slice(1).map((row) => row.gameId), ["g6", "g5", "g4"]);
+});
+
+test("a score not sent adds no row", async () => {
+  try {
+    await visit("t1");
+    const results = view.querySelector('section[aria-labelledby="matches-results"]');
+    assert.equal(results.querySelectorAll(".g-matches__item").length, 3, "the three finished matches");
+    assert.equal(results.querySelector(".g-matches__pill--sent"), null);
+  } finally {
+    leave();
+  }
+});
+
 test("later in the season: the team's other open matches first, then the next round", async () => {
   const friendly = game("g7", { kind: "friendly", season: null, roundNumber: null, roundStatus: null, away: GRIM, preparationStatus: "preparing" });
   try {
@@ -621,6 +672,8 @@ test("styled as Matches.html draws it; readable; D2 up to 900px; nothing cut wit
   assertReadable(CSS, ".g-matches__tilek", "color", ["--surface-2"], 4.5);
   assertReadable(CSS, ".g-matches__records", "color", ["--accent-tint"], 4.5);
   assertReadable(CSS, ".g-matches__sent", "color", ["--warn-tint"], 4.5);
+  assertReadable(CSS, ".g-matches__pill--sent", "color", ["--warn-tint"], 4.5);
+  assert.deepEqual(own(".g-matches__pill--sent", "background"), ["var(--warn-tint)"]);
   assertReadable(CSS, ".g-matches__cta", "color", ["--accent"], 4.5);
   assertReadable(CSS, ".g-matches__cta--dark", "color", ["--header"], 4.5);
   assertReadable(CSS, ".g-matches__friendlies", "color", ["--surface", "--page"], 4.5);
