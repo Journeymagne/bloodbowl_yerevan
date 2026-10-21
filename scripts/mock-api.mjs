@@ -89,6 +89,7 @@
  *                                rounds from the last); `currentGames` (administrator) holds the
  *                                matches in play and waiting. GET /api/games/:id is one.
  *   GET   /api/season            scripts/mock/season.mjs (and the league's other coaches' pages; t1's place is what the table makes).
+ *   GET/PATCH /api/games/:id/post-match, POST …/finish, …/post-match/rolls  scripts/mock/post.mjs (g2's post-match and its cases).
  * Errors are the server's `errorPayload`: `{error: {code, params, message}}`.
  * MOCK_EMPTY=1 leaves no team, game or challenge; the season still has the rival.
  * Its ids are `t1`, `g1`, not UUIDs: the server would refuse `t1` as an active team (400), the mock takes it.
@@ -101,6 +102,7 @@ import { fileURLToPath } from "node:url";
 import { errorPayload } from "../server/http/errors.mjs";
 import { resolveStaticPath } from "../server/http/static-path.mjs";
 import { answerMatches } from "./mock/matches.mjs";
+import { answerPost } from "./mock/post.mjs";
 import { answerSeason } from "./mock/season.mjs";
 import { answerRoster, humanPlayers, preparingFriendly } from "./mock/roster.mjs";
 import { treasuryRoutes } from "./mock/treasury.mjs";
@@ -513,7 +515,7 @@ function answerPeople(request, pathname) {
 }
 
 async function answerApi(request, pathname) {
-  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerMatches, answerSeason, answerLeague, answerPeople]) {
+  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerPost, answerMatches, answerSeason, answerLeague, answerPeople]) {
     const answered = await answer(request, pathname, mock);
     if (answered) return answered;
   }
