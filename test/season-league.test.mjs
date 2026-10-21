@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document, mount } from "./helpers/ui.mjs";
@@ -15,6 +15,7 @@ globalThis.location = { hash: "#/season", replace() {} };
 const { renderSeasonRoute, leagueModel, leagueMarkup, roundsMarkup } = await import("../src/screens/season/league.mjs");
 const { ROUND_STATES, leagueRounds } = await import("../src/data/season-table.mjs");
 const { rememberSessionToken } = await import("../src/core/api-client.mjs");
+const { resolveRedirect } = await import("../src/core/routes.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
 const { state } = await import("../src/core/state.mjs");
 const { view } = await import("../src/core/view.mjs");
@@ -137,10 +138,11 @@ test("a desk's page: «Table» with its line, the table and the calendar side by
     assert.equal(table.querySelectorAll('[role="columnheader"]').length, 11, "the desk's form");
     assert.ok(table.querySelector(".g-table__notes").textContent.includes(t("league.clicks")));
     assert.ok(aside.querySelector("#league-calendar"));
-    assert.equal(view.querySelector('a[href="#/season/administration"]'), null, "a coach has none");
+    assert.equal(view.querySelector('a[href="#/administration/season"]'), null, "a coach has none");
     await visit("", { phone: false, user: ADMIN });
-    const admin = view.querySelector('.g-pagehead__meta a[href="#/season/administration"]');
-    assert.equal(admin.textContent, t("league.admin"));
+    const admin = view.querySelector('.g-pagehead__meta a[href="#/administration/season"]');
+    assert.equal(admin.textContent, t("league.admin"), "the administration's season since stage 12, not the 2.x tab");
+    assert.equal(view.querySelector('a[href="#/season/administration"]'), null);
   } finally {
     leave();
   }
@@ -206,22 +208,25 @@ test("a withdrawn side of a pairing is text, as its row in the table; no rounds 
   assert.ok(none.querySelector("#league-calendar"));
 });
 
-test("registration for a coach and administration for an admin are the 2.x screen with those two tabs; anything else, and the same addresses for a guest, are the league's page", async () => {
+test("registration and administration are the league's page too: the 2.x season screen is gone, its addresses lead on", async () => {
   try {
-    await visit("registration");
-    assert.ok(view.querySelector('[data-season-tab="registration"]'));
-    for (const gone of ["standings", "schedule", "fixture"]) assert.equal(view.querySelector(`[data-season-tab="${gone}"]`), null, gone);
-    assert.equal(view.querySelector(".g-league"), null);
-    await visit("administration", { user: ADMIN, answer: { ...SEASON, admin: { users: [], savedTeams: [] } } });
-    assert.ok(view.querySelector('[data-season-tab="administration"]'));
-    assert.deepEqual(view.querySelectorAll("[data-season-tab]").map((tab) => tab.getAttribute("data-season-tab")), ["registration", "administration"]);
-    for (const [tab, user] of [["administration", COACH], ["standings", COACH], ["schedule", ADMIN], ["registration", null], ["standings", null], ["administration", null]]) {
-      await visit(tab, { user });
-      assert.ok(view.querySelector(".g-league"), `${tab} for ${user?.isAdmin ? "an admin" : user ? "a coach" : "a guest"}`);
-      assert.equal(view.querySelector("[data-season-tab]"), null);
+    for (const [tab, user] of [["registration", COACH], ["administration", ADMIN], ["administration", COACH], ["standings", COACH], ["schedule", ADMIN],
+      ["registration", null], ["standings", null], ["administration", null]]) {
+      await visit(tab, { user, answer: user?.isAdmin ? { ...SEASON, admin: { users: [], savedTeams: [] } } : SEASON });
+      const who = `${tab} for ${user?.isAdmin ? "an admin" : user ? "a coach" : "a guest"}`;
+      assert.ok(view.querySelector(".g-league"), who);
+      assert.equal(view.querySelector("[data-season-tab]"), null, who);
+      assert.equal(view.querySelector("[data-season-commit]"), null, who);
     }
   } finally {
     leave();
+  }
+  // The old addresses: a coach's entry is made from the team's pages now, so «registration» is the league's page; the
+  // admin's tab is the administration's season (stage 12, decision 7) — a guest signs in from there.
+  for (const signedIn of [true, false]) assert.deepEqual(resolveRedirect("season/registration", { signedIn }), { target: "#/season", returnTo: "" });
+  assert.equal(resolveRedirect("season/administration", { signedIn: true }).target, "#/administration/season");
+  for (const gone of ["index", "registration", "admin", "schedule", "coach-entry"]) {
+    assert.equal(existsSync(new URL(`../src/screens/season/${gone}.mjs`, import.meta.url)), false, gone);
   }
 });
 
@@ -323,7 +328,7 @@ test("styled", () => {
 });
 
 test("every key in both dictionaries", () => {
-  assertDictionaryCovers("src/screens/season/league.mjs", "src/screens/season/index.mjs");
+  assertDictionaryCovers("src/screens/season/league.mjs");
   const [en, ru] = [dictionary("en"), dictionary("ru")];
   for (const status of ROUND_STATES) {
     assert.ok(en[`league.roundState.${status}`], `en ${status}`);

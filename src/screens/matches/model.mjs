@@ -29,6 +29,7 @@ import { resultLabels } from "../../ui/result-pill.mjs";
 import { seasonTable } from "../../data/season-table.mjs";
 import { gameOutcome, gameSides, seasonRecord, standingOf } from "../../data/team-record.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
+import { seasonCallFor } from "../../data/season-entry.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
 import { currentMatch, matchActions, sentCasualties, sentScore, subLine } from "../../shell/current-match.mjs";
 import { beforeFigures } from "./before.mjs";
@@ -314,9 +315,11 @@ function failuresOf({ seasonData, seasonError, gamesError }) {
  * @param {boolean} [input.phone] the screen is a phone's (up to 900px)
  * @param {string|null} [input.bandKey] the item a desk's board shows, as the visit holds it; null for the current one
  * @param {string} [input.viewerId] the signed-in coach: the team's row of the table is his own, marked
+ * @param {object[]} [input.myTeams] the coach's teams: the call to enter the season names the one that plays it (stage 12)
+ * @param {boolean} [input.entering] the entry into the season is on its way (the call's button is busy)
  */
 export function matchesModel({ team, raceTeam = null, seasonData, games, gamesError = "", seasonError = "", opponent = null, records = null,
-  data = null, phone = false, bandKey = null, viewerId = "" }) {
+  data = null, phone = false, bandKey = null, viewerId = "", myTeams = [], entering = false }) {
   const list = Array.isArray(games) && !gamesError ? games : null;
   const standing = standingOf(seasonData, team.id);
   const current = list && currentMatch(list, team.id);
@@ -328,6 +331,8 @@ export function matchesModel({ team, raceTeam = null, seasonData, games, gamesEr
     phone,
     inSeason: Boolean(standing),
     seasonRead: Boolean(seasonData),
+    seasonCall: seasonCallFor(team.id, seasonData, myTeams),
+    entering,
     gamesRead: Boolean(list),
     current: current ? cardOf({ current, team, seasonData, preview, opponent, records }) : null,
     pendingRound: list && standing ? pendingOf(list, team, seasonData, current) : null,

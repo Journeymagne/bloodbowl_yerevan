@@ -1,5 +1,6 @@
 /*
- * The season: standings, fixtures, rounds, games, and the notices around them.
+ * The 2.x pages' panels, tables and notices, the game page and the games list.
+ * (The 2.x season screen's tabs, entries and rounds went with it in stage 12.)
  *
  * Part of src/styles.css, which imports the eight files in this directory in
  * order. The split is by position, not by theme: the cuts fall between rules
@@ -57,93 +58,6 @@
   background: rgba(239, 224, 183, 0.08);
 }
 
-.season-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-bottom: 18px;
-  padding: 8px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--surface-strong);
-}
-
-.season-tab {
-  display: inline-flex;
-  flex: 1 1 140px;
-  min-height: 38px;
-  align-items: center;
-  justify-content: center;
-  padding: 0 14px;
-  border: 1px solid var(--button-border);
-  border-radius: 6px;
-  background: var(--button-bg);
-  color: var(--button-text);
-  font: inherit;
-  font-weight: 800;
-  cursor: pointer;
-}
-
-.season-tab:hover {
-  border-color: var(--line-bright);
-  background: var(--button-bg-hover);
-}
-
-.season-tab.active {
-  border-color: var(--active-button-border);
-  background: var(--active-button-bg);
-  color: var(--active-button-text);
-}
-
-.season-overview-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 18px;
-  margin-bottom: 18px;
-}
-
-.season-registration-layout {
-  display: grid;
-  gap: 18px;
-}
-
-.season-registration-top {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(420px, 100%), 1fr));
-  gap: 18px;
-  align-items: stretch;
-}
-
-.season-registered-panel {
-  min-width: 0;
-}
-
-.season-rounds {
-  display: grid;
-  gap: 18px;
-}
-
-.season-round-header {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.season-round-header > div:first-child {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.season-round-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: stretch;
-  gap: 8px;
-}
-
 .season-status-pill {
   display: inline-grid;
   min-height: 24px;
@@ -163,11 +77,6 @@
   color: var(--accent-text);
 }
 
-.season-admin-stack {
-  display: grid;
-  gap: 18px;
-}
-
 .season-card {
   display: grid;
   gap: 14px;
@@ -179,88 +88,11 @@
   margin: 0;
 }
 
-.season-committed-team {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: 14px;
-  align-items: center;
-}
-
-.season-committed-team img {
-  width: 72px;
-  height: 72px;
-  object-fit: contain;
-  margin: 0;
-}
-
 .season-action-row {
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
   align-items: end;
-}
-
-.season-admin-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 14px;
-}
-
-.season-coach-entry-form {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
-  gap: 14px;
-  align-items: end;
-}
-
-.season-admin-block {
-  display: grid;
-  align-content: start;
-  gap: 10px;
-  min-width: 0;
-  padding: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-glass);
-}
-
-.season-score-input {
-  width: 76px;
-  min-height: 34px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--input-bg);
-  color: var(--text);
-  font: inherit;
-  font-weight: 800;
-  text-align: center;
-}
-
-.season-pairing-team {
-  display: grid;
-  gap: 3px;
-  min-width: 180px;
-}
-
-.season-pairing-team span {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.season-td-pair {
-  display: grid;
-  gap: 6px;
-}
-
-.fixture-result-form {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 12px;
-  align-items: end;
-}
-
-.fixture-result-form > strong {
-  grid-column: 1 / -1;
 }
 
 .admin-profile-grid {
@@ -385,14 +217,6 @@
   opacity: 0.48;
 }
 
-.public-roster-table {
-  min-width: 980px;
-}
-
-.legal-panel {
-  max-width: 900px;
-}
-
 .notice-box { margin-bottom: 22px; padding: 16px; border: 1px solid var(--line); border-left: 3px solid var(--line-bright); border-radius: var(--radius); background: var(--md-wash); }
 .notice-box strong {
   display: block;
@@ -438,25 +262,6 @@
   margin: 4px 0 0;
   color: var(--text);
   overflow-wrap: anywhere;
-}
-
-.kv {
-  display: grid;
-  gap: 10px;
-}
-
-.kv div {
-  display: grid;
-  gap: 3px;
-}
-
-.kv span {
-  color: var(--muted);
-  font-size: 0.75rem;
-}
-
-.kv strong {
-  font-size: 0.875rem;
 }
 
 .table-scroll {

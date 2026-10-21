@@ -37,10 +37,6 @@
     padding: 22px;
   }
 
-  .season-tab {
-    flex: 0 1 auto;
-  }
-
 
   /* Rows that had to stack on a phone. */
   .builder-addon,
@@ -145,24 +141,12 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
-  .season-overview-grid {
-    grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.18fr);
-  }
-
-  .season-admin-grid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .admin-profile-grid {
     grid-template-columns: minmax(240px, 0.34fr) minmax(0, 1fr);
   }
 
   .game-versus {
     grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  }
-
-  .fixture-result-form {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   /* What the narrow layout stacks, side by side again. */
@@ -172,15 +156,6 @@
 
   .builder-tracker-list {
     grid-template-columns: none;
-  }
-
-  .season-round-header {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .season-round-actions {
-    justify-content: flex-end;
   }
 
   .builder-summary {

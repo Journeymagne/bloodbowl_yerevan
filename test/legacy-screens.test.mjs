@@ -37,11 +37,10 @@ test("the stat strip's divider and the saved roster's stat outlines are 3.0 line
   }
 });
 
-test("the badges of the games list and the numbers of the season table are text colour, not the pale border colour", () => {
+test("the badges of the games list are text colour, not the pale border colour", () => {
   const pre = "src/styles/pre-match.css";
   const onPage = ["--surface", "--surface-2", "--page"];
   assertReadable(pre, ".pre-badge", "color", onPage, 4.5);
-  assertReadable("src/styles/season-results.css", ".season-results-table .season-match-number strong", "color", onPage, 4.5);
   // The badge's outline is a border and keeps the border colour.
   assert.deepEqual(valuesOf(pre, ".pre-badge", "border"), ["1px solid var(--line-bright)"]);
 });
@@ -96,6 +95,9 @@ test("the 2.x post-match is gone — its screen, its steps, the checklist layout
     ...["steps", "players", "review", "shared", "finance"].map((name) => `src/components/post-match/${name}.mjs`),
     "src/components/games/checklist-layout.mjs",
     "src/styles/post-match.css",
+    // The admin's manual result of the game page went with the 2.x season screen (stage 12): the administration's season has it.
+    "src/components/games/result-fields.mjs",
+    "src/styles/result-form.css",
   ];
   for (const file of gone) assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
   // The 2.x game page (#/games/:id, stage 13) draws these; the 3.0 post-match saves through the client.
@@ -104,11 +106,11 @@ test("the 2.x post-match is gone — its screen, its steps, the checklist layout
     "src/components/pre-match/game-panel.mjs",
     "src/components/pre-match/shared.mjs",
     "src/components/matchday.mjs",
-    "src/components/games/result-fields.mjs",
     "src/data/post-match-client.mjs",
   ];
   for (const file of kept) assert.ok(existsSync(new URL(`../${file}`, import.meta.url)), file);
   assert.doesNotMatch(read("src/styles.css"), /styles\/post-match\.css/);
+  assert.doesNotMatch(read("src/styles.css"), /styles\/(result-form|season-results|season-entries)\.css/);
   // The 2.x post-match's player card had no other reader.
   assert.doesNotMatch(read("src/components/pre-match/shared.mjs"), /playerCard/);
   // The checklist layout was the last to draw .pre-match: its rules went with it.

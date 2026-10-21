@@ -48,14 +48,7 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .content-panel table th, .side-panel table th { background: var(--panel-2); font: .65rem/1.5 var(--label-font); letter-spacing: .3px; color: var(--muted); }
 .content-panel table td { border-color: var(--line); }
 .table-scroll { border-color: var(--line); }
-.season-admin-block,
 .game-versus > div { background: var(--panel-2); border-color: var(--line); box-shadow: none; }
-.season-tabs { padding: 0; border: 0; background: none; gap: 7px; margin-bottom: 24px; }
-.season-tab { min-height: 48px; font-size: .8rem; background: var(--panel); border-color: var(--line); }
-.season-tab.active { border: 2px solid var(--line-bright); background: var(--panel-2); color: var(--text); }
-.season-rounds { gap: 24px; }
-.season-round-header { padding-bottom: 16px; border-bottom: 1px solid var(--line); }
-.season-round-header h2 { margin: 0; }
 .game-page > .pre-game-panel { margin-bottom: 28px; }
 .game-versus > strong { font: 700 2rem/1 var(--body-font); color: var(--muted); }
 .game-versus h2 { overflow-wrap: anywhere; }

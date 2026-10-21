@@ -4,20 +4,21 @@
  * One form for each width, drawn again when the width crosses 900px. A phone's is League.html: the season's name
  * with the last round over at its right, the table's eight columns, the league's rules under it, then the season's
  * calendar. A desk's is DeskSeason.html without its board: the band «Table» (its `h1`, as the prototype's; the owner,
- * 2026-10-21) with the season's line (and, for an admin, the way to the season's administration until stage 12 moves
- * it), the table's card at the left and the calendar at its right.
+ * 2026-10-21) with the season's line (and, for an admin, the way to the administration's season, `#/administration/season`
+ * since stage 12), the table's card at the left and the calendar at its right.
  *
  * The season's calendar has no prototype (owner question 2): the league's rounds under way or over, newest first,
  * each pairing a line «Home — Away» built as DeskSeason.html's calendar draws a match, the score once confirmed,
  * a bye said as one. A name leads where its row in the table does (`rowHref`): nowhere for a guest, nor for a
  * withdrawn entry.
  *
- * `#/season/registration` for a coach and `#/season/administration` for an admin are still the 2.x screen with those
- * two tabs (index.mjs); any other tab, and those two for anyone else, is this page (`renderSeasonRoute`).
+ * Every `#/season/<tab>` is this page (`renderSeasonRoute`): the 2.x season screen and its two tabs went with stage 12
+ * — a coach enters a team from its own pages (screens/season/enter.mjs), the admin runs the season in the
+ * administration, and their old addresses lead there (`OLD_ADDRESSES`).
  */
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
-import { seasonTabUrl } from "../../core/routes.mjs";
+import { adminSeasonUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -27,7 +28,6 @@ import { assertLinkHref, classNames } from "../../ui/markup.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { seasonLineOf } from "../matches/model.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
-import { renderSeason } from "./index.mjs";
 import { loadSeason } from "./season-data.mjs";
 import { leagueTableMarkup, rowHref, tableCardMarkup, tableNotesMarkup } from "./table.mjs";
 
@@ -115,7 +115,7 @@ const failureMarkup = (model) => (model.failure ? `<div class="g-league__failed"
 /** A desk's: the band «Table», then the table's card and the calendar side by side (DeskSeason.html without the board). */
 function deskMarkup(model) {
   const admin = model.admin
-    ? `<a class="g-league__admin" href="${escapeHtml(seasonTabUrl("administration"))}">${escapeHtml(t("league.admin"))}</a>` : "";
+    ? `<a class="g-league__admin" href="${escapeHtml(adminSeasonUrl())}">${escapeHtml(t("league.admin"))}</a>` : "";
   const head = renderPageHead({ title: t("shell.tab.table"), sub: model.line, metaHtml: admin });
   const viewer = { viewerId: model.viewerId, signedIn: model.signedIn };
   return `${head}<div class="g-league">${failureMarkup(model)}<div class="g-season__row">`
@@ -164,13 +164,10 @@ export async function renderLeague() {
 }
 
 /**
- * `#/season/<tab>`: a coach's entry (`registration`) and an admin's season (`administration`) are the 2.x screen until
- * stage 12; everything else is the league's page.
- *
- * @param {string} [tab]
+ * `#/season/<tab>`: the league's page, whatever the tab — the router hands the tab over, and it is not read (stage 12:
+ * the 2.x screen's `registration` and `administration` are gone; their old addresses are led on before the route is
+ * drawn, `resolveRedirect`).
  */
-export function renderSeasonRoute(tab = "") {
-  const user = state.auth.currentUser;
-  if ((tab === "registration" && user) || (tab === "administration" && user?.isAdmin)) return renderSeason(true, tab);
+export function renderSeasonRoute() {
   return renderLeague();
 }

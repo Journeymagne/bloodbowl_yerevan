@@ -293,6 +293,8 @@ const OLD_ADDRESSES = [
   [/^(skills|traits|rules|cheatsheets|inducements|star-players)$/, ([, name]) => refUrl(name)],
   // The 2.x season screen's administration tab: the administration's season since stage 12 (a guest signs in from there, rule 4).
   [/^season\/administration$/, () => adminSeasonUrl()],
+  // Its registration tab: a coach enters a team from the team's own pages since stage 12; the address is the league's page.
+  [/^season\/registration$/, () => seasonTabUrl()],
   // In 2.x #/teams was the team rules list, and a guest's old link still means that.
   [/^teams$/, (match, { signedIn }) => (signedIn ? null : refUrl("teams"))],
 ];

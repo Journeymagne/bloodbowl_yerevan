@@ -87,7 +87,7 @@ import { apiRequest } from "../../core/api-client.mjs";
 import { drawKeepingFocus, escapeHtml, patch } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
-import { pageUrl, playerTeamUrl, seasonTabUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
+import { pageUrl, playerTeamUrl, teamPlayerUrl, teamUrl } from "../../core/routes.mjs";
 import { onScreenLeave } from "../../core/screen-lifecycle.mjs";
 import { state } from "../../core/state.mjs";
 import { view } from "../../core/view.mjs";
@@ -95,6 +95,7 @@ import { loadGames, onGamesChange } from "../../data/games.mjs";
 import { seasonTable, tableWindow } from "../../data/season-table.mjs";
 import { recentResults, seasonDifference, seasonRecord, standingOf, teamLeaders, teamValue } from "../../data/team-record.mjs";
 import { loadMyTeams, raceTeamOf } from "../../data/teams.mjs";
+import { seasonCallFor } from "../../data/season-entry.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
 import { normalizeDraft } from "../../domain/roster/schema.mjs";
 import { currentMatch } from "../../shell/current-match.mjs";
@@ -106,6 +107,7 @@ import { renderPageHead } from "../../ui/page-head.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { bandBoard, bandBoardMarkup, bandItems, bandVisit, previewFor } from "../matches/band.mjs";
 import { goSearch, refSearchField, wireRefSearch } from "../ref/frame.mjs";
+import { enterCallMarkup, seasonEnterVisit } from "../season/enter.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { miniTableMarkup } from "../season/table.mjs";
 import { rosterLines } from "./roster/model.mjs";
@@ -211,9 +213,11 @@ function readyPlayers(draft, raceTeam) {
  * @param {object[]|null} [input.matchEvents] the records as last read, of any moment: what a match on counts
  * @param {object|null} [input.data] the reference, for «Before the match»
  * @param {string} [input.viewerId] the coach who looks: the team's row of the table is his own, marked
+ * @param {object[]} [input.myTeams] the coach's teams: the call to enter the season names the one that plays it
+ * @param {boolean} [input.entering] the entry into the season is on its way (the call's button is busy)
  */
 export function overviewModel({ team, raceTeam, seasonData, games, gamesError = "", seasonError = "", phone = false, events = [],
-  band = { key: null, opponent: null }, matchEvents = null, data = null, viewerId = "" }) {
+  band = { key: null, opponent: null }, matchEvents = null, data = null, viewerId = "", myTeams = [], entering = false }) {
   const season = seasonData?.season ?? null;
   const standing = standingOf(seasonData, team.id);
   const gamesRead = Array.isArray(games) && !gamesError;
@@ -240,6 +244,8 @@ export function overviewModel({ team, raceTeam, seasonData, games, gamesError = 
     results: recentResults(list, team.id, RECENT_MATCHES).map(resultOf),
     gamesError,
     seasonError: seasonData ? "" : seasonError,
+    seasonCall: seasonCallFor(team.id, seasonData, myTeams),
+    entering,
   };
 }
 
@@ -248,7 +254,8 @@ const failedLine = (title) => renderCallout({ tone: "danger", title });
 
 /**
  * Where the board stands: the board; the words for each read that failed, when it could not be drawn (the table, and the
- * games for a team in the table or while the table is not there to say); the call to enter the season; or nothing yet.
+ * games for a team in the table or while the table is not there to say); the call to enter the season, with its button
+ * (stage 12) or the coach's other team that plays it; or nothing yet.
  */
 function boardSlot(model) {
   if (model.board) return bandBoardMarkup(model.board);
@@ -257,7 +264,7 @@ function boardSlot(model) {
   if (model.gamesError && (model.inSeason || !model.seasonRead)) failures.push(failedLine(t("teamOverview.gamesFailed", { reason: model.gamesError })));
   if (failures.length) return `<div class="g-overview__failed" role="alert">${failures.join("")}</div>`;
   if (!model.seasonRead) return "";
-  return renderCallout({ title: t("teamOverview.notInSeason"), sub: t("teamOverview.notInSeasonSub"), href: seasonTabUrl("registration") });
+  return enterCallMarkup(model.seasonCall, model.entering);
 }
 
 /**
@@ -364,7 +371,7 @@ const pastList = (records, team) => Boolean(records) && Number.isInteger(team?.r
  * @param {{events: object[], revision: number}|null} records as the visit last read them
  * @param {{key: string|null, opponent: object|null}} band the board's part of the visit
  */
-function markupOf(teamId, held, records, band) {
+function markupOf(teamId, held, records, band, entry) {
   const team = listed(teamId);
   if (!team) return "";
   const { items, loaded, error } = state.games;
@@ -382,6 +389,8 @@ function markupOf(teamId, held, records, band) {
     matchEvents: records?.events ?? null,
     data: state.data,
     viewerId: state.auth.currentUser?.id ?? "",
+    myTeams: state.myTeams.items,
+    entering: entry.busy,
   }));
 }
 
@@ -406,9 +415,11 @@ export async function renderTeamOverview(teamId) {
   const records = { last: null, reading: false, again: false, armed: false };
   const draw = () => {
     if (!here) return;
-    const markup = markupOf(teamId, held, records.last, band);
+    const markup = markupOf(teamId, held, records.last, band, entry);
     if (markup) patch(view, markup);
   };
+  // «Enter the season» on the call (stage 12): one question, one entry on its way.
+  const entry = seasonEnterVisit({ root: view, teamId, here: () => here, draw });
   // The board's part: the match shown, the opponent read for the match on, «Before the match» (stage 09a).
   const gamesNow = () => (state.games.loaded && !held.games ? state.games.items : null);
   const band = bandVisit({ teamId, root: view, draw, read: () => ({ team: listed(teamId), games: gamesNow(), seasonData: state.season.data, data: state.data }) });
@@ -444,13 +455,14 @@ export async function renderTeamOverview(teamId) {
     onPhoneChange(() => drawKeepingFocus(view, draw, "h1")),
     wireRefSearch(view, { onQuery: goSearch }),
     () => band.release(),
+    entry.off,
   ];
   onScreenLeave("team-overview", () => {
     here = false;
     for (const off of offs) off();
   });
   const reads = Promise.allSettled([loadGames(held.games), loadSeason(held.season)]);
-  const first = markupOf(teamId, held, records.last, band);
+  const first = markupOf(teamId, held, records.last, band, entry);
   if (first) {
     view.innerHTML = first;
     view.querySelector("h1")?.focus();

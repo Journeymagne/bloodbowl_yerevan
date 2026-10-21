@@ -1,10 +1,10 @@
 /**
- * A single game page: the versus header, the administrator's result form, and
- * the opponent-confirmation flow.
+ * A single game page: the versus header and the opponent-confirmation flow.
  *
  * The coach's quick score is gone (spec 3.0 §9.6): a match is played through its
- * preparation and post-match; the admin's manual result stays. A score sent
- * before 3.0 is still confirmed or rejected here.
+ * preparation and post-match. A score sent before 3.0 is still confirmed or
+ * rejected here. The admin's manual result left with stage 12: it is the
+ * administration's season (`#/administration/season`, a pair's «Result…»).
  *
  * Mechanically moved out of src/app.js.
  */
@@ -19,7 +19,6 @@ import { invalidateGames, isGameClosedForPlayers, isGameResultSubmitted } from "
 import { toastError } from "../../components/toast.mjs";
 import { renderGamePreparationPanel } from "../../components/pre-match/game-panel.mjs";
 import { renderGamePostMatchPanel } from "../../components/post-match/game-panel.mjs";
-import { renderAdminResultForm } from "../../components/games/result-fields.mjs";
 import { gameContextLabel } from "../../components/games/context.mjs";
 
 function renderGameScore(game, proposed = false) {
@@ -59,7 +58,7 @@ export async function renderGamePage(gameId) {
     view.innerHTML = `
       ${renderHeader(t("games.gameHeading"), gameContextLabel(game), "", { back: true, backFallback: "#/my-games" })}
       ${game.kind === "friendly" ? `<p class="notice-box">${t("games.friendlyRules")}</p>` : ""}
-      <section class="content-panel game-page"><div class="game-versus"><div><span>${t("season.homeLabel")}</span><h2>${escapeHtml(game.home?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.home?.team?.name || "-")}</p>${game.home?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.home.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div><strong>VS</strong><div><span>${t("season.awayLabel")}</span><h2>${escapeHtml(game.away?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.away?.team?.name || "-")}</p>${game.away?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.away.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div></div>${actions}${isAdmin && !postMatchEnabled ? renderAdminResultForm(game) : ""}</section>`;
+      <section class="content-panel game-page"><div class="game-versus"><div><span>${t("season.homeLabel")}</span><h2>${escapeHtml(game.home?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.home?.team?.name || "-")}</p>${game.home?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.home.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div><strong>VS</strong><div><span>${t("season.awayLabel")}</span><h2>${escapeHtml(game.away?.user?.login || "-")}</h2><p class="game-team-name">${escapeHtml(game.away?.team?.name || "-")}</p>${game.away?.team?.logoUrl ? `<img class="game-team-logo" src="${escapeHtml(game.away.team.logoUrl)}" alt="" loading="lazy" decoding="async">` : ""}</div></div>${actions}</section>`;
     view.querySelector(".game-page")?.insertAdjacentHTML("afterbegin", preparationHtml + renderGamePostMatchPanel(game));
     wireGamePage(game);
   } catch (error) {
@@ -67,11 +66,6 @@ export async function renderGamePage(gameId) {
   }
 }
 function wireGamePage(game) {
-  view.querySelector("[data-admin-game-result]")?.addEventListener("submit", async (event) => {
-    event.preventDefault();
-    const form = Object.fromEntries(new FormData(event.currentTarget));
-    try { await apiRequest(`/api/games/${game.id}`, { method: "PATCH", body: JSON.stringify(form) }); void invalidateGames(); renderGamePage(game.id); } catch (error) { toastError(error); }
-  });
   for (const [selector, action] of [["[data-game-confirm]", "confirm"], ["[data-game-reject]", "reject"]]) {
     view.querySelector(selector)?.addEventListener("click", async () => {
       try { await apiRequest(`/api/games/${game.id}/${action}`, { method: "POST", body: "{}" }); void invalidateGames(); renderGamePage(game.id); } catch (error) { toastError(error); }
