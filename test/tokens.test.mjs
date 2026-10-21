@@ -94,11 +94,11 @@ const DERIVED = {
 /** Every 2.x variable src/styles reads, except --line, --muted, --accent and --danger, which 3.0 reuses by name. */
 const LEGACY_ALIASES = {
   "--bg": "var(--page)", "--panel": "var(--surface)", "--panel-2": "var(--surface-2)", "--line-bright": "var(--control-border)",
-  "--text": "var(--ink)", "--soft": "var(--accent-text)", "--accent-2": "var(--accent)", "--focus": "var(--accent-text)",
+  "--text": "var(--ink)", "--soft": "var(--accent-text)", "--focus": "var(--accent-text)",
   "--bone": "var(--surface-2)", "--radius": "var(--radius-md)",
   "--body-font": "var(--font-body)", "--display-font": "var(--font-display)", "--label-font": "var(--font-body)",
   "--md-accent": "var(--accent-text)", "--md-wash": "var(--accent-tint-soft)",
-  "--stat-up-bg": "var(--accent-tint)", "--stat-up-text": "var(--on-accent-tint)", "--stat-down-bg": "var(--danger-tint)",
+  "--stat-up-text": "var(--on-accent-tint)",
   "--grid-line": "transparent", "--grid-line-soft": "transparent", "--stripe-line": "transparent", "--body-glow": "transparent",
   "--body-gradient": "linear-gradient(transparent, transparent)",
   "--input-bg": "var(--field)", "--input-bg-soft": "var(--field)",

@@ -21,7 +21,6 @@ import { loadGames } from "./data/games.mjs";
 import { syncThemeWithAccount } from "./data/preferences.mjs";
 import { followSessionAcrossTabs, loadSession, onSessionChange, sessionEnded, sessionFailureText } from "./data/session.mjs";
 import { loadSeason } from "./screens/season/season-data.mjs";
-import { rosterStore } from "./screens/saved-roster.mjs";
 import { openNewTeamSheet } from "./screens/teams/new-sheet.mjs";
 import { mountShell, refreshShell } from "./shell/shell.mjs";
 
@@ -71,13 +70,7 @@ function handleHistoryBack(event) {
 function wireFrame() {
   view.addEventListener("click", handleHistoryBack);
   document.querySelector("[data-skip-to-content]")?.addEventListener("click", () => view.focus());
-  window.addEventListener("beforeunload", (event) => {
-    // Even immediate autosave can still have a request in flight. Do not let a
-    // tab close silently until the server has acknowledged it.
-    if (!rosterStore.hasPendingChanges()) return;
-    event.preventDefault();
-    event.returnValue = "";
-  });
+  // A step of a roster still waiting for its answer asks before the tab closes: 3.0's own guard (screens/team/roster/save.mjs).
   window.addEventListener("hashchange", renderRoute);
 }
 

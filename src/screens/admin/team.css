@@ -1,12 +1,15 @@
 /*
- * The admin's block on a team's roster (stage 12; screens/team/roster/admin-identity.mjs, and Task 15's banner and cards
- * after it): in the coach's treasury strip's place, on both widths, cards in the administration's grid (admin.css).
+ * The admin's block on a team's roster (stage 12; screens/team/roster/admin-block.mjs, admin-identity.mjs, and the sheet
+ * of screens/admin/team-sheets.mjs): over the roster and across its width, on both widths, DeskAdminTeamEdit.html's
+ * yellow banner and its band of cards in the administration's grid (admin.css) — «Treasury», «Staff», «Fallen, added
+ * afterwards», and the team's name and logo (the owner's answer: the admin changes them, never the race).
  *
- * Its first card is the team's name and logo (the owner's answer: the admin changes them, never the race). No prototype
- * draws it: it has DeskAdminTeamEdit.html's «Treasury» card's look — a 48px field (text-field.css) and a 48px main
- * button, radius 12, 15px 700 — and the logo's buttons are the prototype's «Back to the coach»: 40px on a desk, 44px on a
- * phone (D2). Font, border, background, text-transform, letter-spacing and font-weight are set here on purpose: the 2.x
- * globals outlive this sheet until stage 13. Colours are tokens; long lines wrap, and nothing is cut.
+ * The prototype's values: the banner 14px 16px on --warn-tint, radius 14, its words 15px 700 and 13px, «Back to the
+ * coach» 40px with the control's ring; fields 48px (text-field.css) and the main button 48px, radius 12, 15px 700; the
+ * other buttons 40px on a desk and 44px on a phone (D2). The cards and the fields that have no prototype (the staff, the
+ * fallen added afterwards, the name and logo) take the treasury card's look. Font, border, background, text-transform,
+ * letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13. Colours are
+ * tokens; long lines wrap, and nothing is cut.
  */
 .g-adminteam {
   box-sizing: border-box;
@@ -14,19 +17,66 @@
   flex-direction: column;
   gap: var(--space-20);
   min-width: 0;
-  margin: 0;
+  /* The roster under the block, as under the prototype's band: its gap of 20. */
+  margin: 0 0 var(--space-20);
   padding: 0;
   border: 0;
   background: none;
 }
 
-/*
- * The prototype's grid of cards, in the roster's column: beside a desk's panel from 901px it is narrower than one 340px
- * card, and a card never stands wider than the column (one under the other then).
- */
+/* The prototype's grid of cards; a card never stands wider than the page (one under the other then). */
 .g-adminteam .g-admin__grid { grid-template-columns: repeat(auto-fit, minmax(min(340px, 100%), 1fr)); }
 
-/* «Save the name»: the card's main button, as the prototype's «Save the fix». */
+/* ---- The banner: whose team, what a change does, the way back; a match on under it ---- */
+.g-adminteam__banner {
+  box-sizing: border-box;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-width: 0;
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font: 400 13px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-adminteam__bannertext {
+  display: flex;
+  flex: 1 1 240px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.g-adminteam__bannertitle { font: 700 15px/1.35 var(--font-body); }
+.g-adminteam__bannersub { font: 400 13px/1.4 var(--font-body); }
+.g-adminteam__back {
+  border: 0;
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink);
+}
+.g-adminteam__match {
+  margin: 0;
+  padding: 14px 16px;
+  border: 0;
+  border-radius: var(--radius-xl);
+  background: var(--warn-tint);
+  color: var(--on-warn-tint);
+  font: 400 14px/1.45 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* «Save the fix» and «Save the name»: the cards' main button, as the prototype's. */
+.g-adminteam__treasury .g-btn--primary,
 .g-adminteam__identity .g-btn--primary {
   height: 48px;
   border-radius: var(--radius-lg);
@@ -96,9 +146,56 @@
   text-transform: none;
 }
 
+/* «Staff»: the Team page's counters (resource-counter.css), one under the other; the card's edge ends the last. */
+.g-adminteam__counters {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.g-adminteam__staff .g-resource:last-child { border-bottom: 0; }
+.g-adminteam__staff .g-resource__text { overflow-wrap: anywhere; }
+
+/* «+ Add a fallen player afterwards»: as wide as its words, which wrap. */
+.g-adminteam__fallen .g-adminteam__btn {
+  align-self: flex-start;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+/* The sheet of a fallen player added afterwards: its fields one under the other, the refusal under them. */
+.g-adminteam__form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-14);
+  min-width: 0;
+}
+/* A native choice and the day keep the browser's own arrow and calendar inside the field's look (text-field.css). */
+.g-adminteam__control {
+  appearance: auto;
+  -webkit-appearance: auto;
+}
+.g-adminteam__refusal {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--danger);
+  font: 600 14px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
 /* ---- A phone: one column (admin.css), every target 44px ---- */
 @media (max-width: 900px) {
-  .g-adminteam { gap: 18px; }
+  .g-adminteam {
+    gap: 18px;
+    margin-bottom: 18px;
+  }
   .g-adminteam__btn { min-height: 44px; }
 }
 

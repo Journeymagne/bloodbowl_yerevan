@@ -124,14 +124,8 @@ npm run dev            # in another terminal
 node scripts/browser-check.mjs
 ```
 
-The logged-in saved roster editor, against a small in-memory fake API so no
-database is needed:
-
-```bash
-npm run build          # the mock reads the races from the built data
-node scripts/mock-api.mjs &
-node scripts/browser-check-roster.mjs
-```
+The logged-in screens can be driven by hand against a small in-memory fake API,
+so no database is needed: `npm run build`, then `node scripts/mock-api.mjs`.
 
 On Windows PowerShell, if `npm` is blocked by execution policy, use:
 

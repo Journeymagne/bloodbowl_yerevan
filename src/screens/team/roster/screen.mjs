@@ -20,6 +20,7 @@ import { sessionSppOf } from "./memory.mjs";
 import { fallenLines, rosterLines, rosterMode, sortLines } from "./model.mjs";
 import { saveState, savedIdentity } from "./save.mjs";
 import { adminOf } from "./source.mjs";
+import { adminSheetOf, adminWriting } from "./admin-block.mjs";
 import { keyed, sheetOf } from "./injury.mjs";
 import { recordsOf } from "./match-taps.mjs";
 import { markSheetOf } from "./marks.mjs";
@@ -65,13 +66,15 @@ export const reading = (visit) => visit.answered !== visit.reads;
  * Why no counter takes a step just now, "" when none: the games unread or unreadable, or to be read after the roster
  * in the air (`readWithGames`); the records read during a match or after one ended (fix round 1: a read may land with
  * a tap already in it, and a roster read during the match is no roster to save); a death on its way (K7: a step taken
- * now would go on the revision it moves, and its answer would give that step up); another device's save to settle.
+ * now would go on the revision it moves, and its answer would give that step up), or an admin's fix of the treasury
+ * (stage 12, admin-block.mjs: the same reason); another device's save to settle.
  */
 export function lockOf(teamId, save, visit, mode) {
   if (!state.games.loaded || state.games.loading) return t("teamRoster.gamesLoading");
   if (state.games.error) return state.games.error;
   if (reading(visit)) return t(mode.kind === "match" || visit.stale ? "teamRoster.readingRecords" : "teamRoster.gamesLoading");
   if (fallenWriting(teamId)) return t("teamRoster.mark.writing");
+  if (adminWriting(teamId)) return t("adminTeam.treasury.writing");
   return save.status === SAVE_STATUS.CONFLICT ? t("teamRoster.conflict.title") : "";
 }
 
@@ -95,11 +98,12 @@ export function linesOf(visit, mode) {
 
 /**
  * Who keeps or closes a sheet of each kind: marks.mjs a missed match's and a death's undo, market.mjs the cart and a sale,
- * player.mjs a player's edit, his advancement, the undo of his last one and his fix by hand (stage 07d); injury.mjs the rest.
+ * player.mjs a player's edit, his advancement, the undo of his last one and his fix by hand (stage 07d), admin-block.mjs the
+ * admin's fallen player added afterwards (stage 12); injury.mjs the rest.
  */
 const KEEPERS = {
   mark: markSheetOf, undo: markSheetOf, hire: marketSheetOf, sell: marketSheetOf, edit: playerSheetOf, advance: playerSheetOf, unadvance: playerSheetOf,
-  fix: playerSheetOf,
+  fix: playerSheetOf, adminFallen: adminSheetOf,
 };
 
 /**
@@ -133,7 +137,7 @@ export function screenOf(teamId, visit, memory) {
   return {
     teamId, team, race, data: state.data, lines, fallen, memory, sheet, error: visit.error, loading: visit.loading, phone: isPhone(),
     ...where, records: recordsOf(visit, mode), player: visit.player, rolls: visit.rolls, careers: visit.careers, careerOpen: visit.careerOpen,
-    owner: visit.admin?.owner ?? null,
+    owner: visit.admin?.owner ?? null, inMatch: Boolean(visit.admin?.inMatch), matches: visit.admin?.matches ?? [],
   };
 }
 

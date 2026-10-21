@@ -30,20 +30,15 @@ DELETE FROM users WHERE login LIKE 'smoke-%';
 
 Never point `APP_URL` at production.
 
-Two optional browser checks (need `npm i -D playwright && npx playwright install chromium`):
+An optional browser check (needs `npm i -D playwright && npx playwright install chromium`):
 
 ```bash
 npm run dev &                        # public screens, builder, static exposure
 node scripts/browser-check.mjs
-
-npm run build                        # the mock reads the races from the built data
-node scripts/mock-api.mjs &          # saved roster editor, no database needed
-node scripts/browser-check-roster.mjs
 ```
 
-The second one covers what the manual pass below checks by hand: the editor
-renders, edits autosave, hiring works, SPP updates on both layouts, a reload
-keeps the edits, and the roster sent to the server carries no retired keys.
+The 2.x roster editor's own browser check went with the editor (stage 12); the
+3.0 roster's screens are covered by `npm test` and the manual pass below.
 
 Before deploying anything that touches roster storage, also run the shape check
 against the real database (read-only):

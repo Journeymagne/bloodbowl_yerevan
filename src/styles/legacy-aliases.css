@@ -10,7 +10,6 @@
   --line-bright: var(--control-border);
   --text: var(--ink);
   --soft: var(--accent-text);
-  --accent-2: var(--accent);
   --focus: var(--accent-text);
   --bone: var(--surface-2);
   --radius: var(--radius-md);
@@ -19,9 +18,7 @@
   --label-font: var(--font-body);
   --md-accent: var(--accent-text);
   --md-wash: var(--accent-tint-soft);
-  --stat-up-bg: var(--accent-tint);
   --stat-up-text: var(--on-accent-tint);
-  --stat-down-bg: var(--danger-tint);
   --grid-line: transparent;
   --grid-line-soft: transparent;
   --stripe-line: transparent;

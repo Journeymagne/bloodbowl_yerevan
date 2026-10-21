@@ -19,7 +19,9 @@
  * ends while the screen is open, as the games say it, reads the roster and the records again.
  *
  * On a desk stage 08's treasury strip stands over the table (strip.mjs). Its writes land in the coach's list, and the
- * roster reads the team again when the list moves past the revision its queue saves on (`followList`).
+ * roster reads the team again when the list moves past the revision its queue saves on (`followList`). An admin's visit
+ * (stage 12) has the admin's block in its place (admin-block.mjs): its fix of the treasury is no step of the queue
+ * either — it goes only when none waits, every step waits while it is on its way, and its answer is the queue's.
  *
  * The team's fallen are read with it, every time (stage 07b, `readSnapshot`): they are drawn under the roster, and a
  * read of one without the other would draw a player twice or not at all. A missed match and back on the roster are
@@ -57,6 +59,7 @@ import { playerPageMarkup } from "./profile.mjs";
 import { wireRoster } from "./wire.mjs";
 import { adminOf, openRosterAs } from "./source.mjs";
 import { wireIdentity } from "./admin-identity.mjs";
+import { adminHandlers } from "./admin-block.mjs";
 
 /**
  * The team whose roster was drawn last. drawScreen keeps the page where it is for the same screen drawn again (a
@@ -398,7 +401,8 @@ function heardSave(saving, now) {
  * counter's step saves the roster or adds a row (`takeStep`), a refused one says why, «Load the new one» takes the
  * server's, the switch makes the match's taps edits outside it and back; «Injury in the match…» and its sheet are
  * injury.mjs's, their rows the match's taps (R14); «Miss a match…», its sheet and «Back on the roster» are marks.mjs's;
- * a skill's chip, the pencil, the player's edit and advancement player.mjs's and advance.mjs's, a desk's search search.mjs's (stage 07d).
+ * a skill's chip, the pencil, the player's edit and advancement player.mjs's and advance.mjs's, a desk's search search.mjs's (stage 07d);
+ * the admin's block admin-block.mjs's (stage 12).
  * @param {Saving & {read: Function}} handlers the visit's side of the queue (`draw` draws it again), and `read`, which reads the roster again
  */
 function pressHandlers({ read, ...saving }) {
@@ -419,6 +423,7 @@ function pressHandlers({ read, ...saving }) {
     ...marketHandlers(saving, marks),
     ...playerHandlers(saving, marks),
     ...searchHandlers(saving),
+    ...adminHandlers(saving, marks),
     onSort: (column) => {
       memory.sort = nextSort(memory.sort, column);
       draw();

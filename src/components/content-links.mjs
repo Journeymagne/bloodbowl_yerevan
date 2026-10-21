@@ -3,9 +3,8 @@
  * when there is somewhere for it to point.
  *
  * Mechanically moved out of src/app.js. Reference screens use the rule/page
- * links for cross-links between pages; the roster editor
- * (screens/saved-roster.mjs), screens/season/*.mjs, and the admin screens
- * still in app.js use the same functions to link a player's skills and a
+ * links for cross-links between pages; screens/season/*.mjs and the 2.x
+ * admin screens use the same functions to link a player's skills and a
  * team's special rules back to their pages, and `renderPublicTeamLink`/
  * `renderPlayerLink` to link to a coach's profile or saved team — which is
  * why this is a shared module rather than living under screens/.

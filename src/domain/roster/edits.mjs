@@ -35,7 +35,7 @@ export const FIX_REFUSALS = Object.freeze([
 export const MAX_NIGGLING = 9;
 /** As many extended contracts as a fix may leave a player with. */
 export const MAX_CONTRACTS = 20;
-/** How far a characteristic may be put right either way, what injuries took apart: the 2.x editor's ±10 (`saved-roster.mjs`). */
+/** How far a characteristic may be put right either way, what injuries took apart: the 2.x editor's ±10 (gone in stage 12). */
 export const MAX_STAT_CORRECTION = 10;
 
 /**

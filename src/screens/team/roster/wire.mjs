@@ -13,9 +13,10 @@
  * skill in place…» and «Record this roll…», the god's D8 and his bonus skill before «Take»; the edit's line to the fix by hand, its counters' − and +, its injuries' points, favoured
  * skills and skills to take off, «Cancel» and «Save», and its «Undo the last: …» with its sheet's «Keep» and «Undo
  * advancement»; the button of a «Career», a phone's or a desk's; a desk's search as typed, its Esc, its line to the reference
- * (stage 07d).
- * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs, search.mjs); this
- * file only says who was pressed.
+ * (stage 07d). On an admin's visit (stage 12) the admin's block: the treasury's fields as typed and «Save the fix», a staff
+ * counter's − and +, «+ Add a fallen player afterwards» with its sheet's fields and «Add».
+ * What each one does is the screen's (index.mjs, injury.mjs, marks.mjs, market.mjs, player.mjs, advance.mjs, search.mjs,
+ * admin-block.mjs); this file only says who was pressed.
  */
 import { delegate } from "../../../core/dom.mjs";
 import { wireActionSteppers } from "../../../ui/action-stepper.mjs";
@@ -29,6 +30,8 @@ import { wireSheets } from "../../../ui/sheet.mjs";
 import { wireSkillChips } from "../../../ui/skill-chip.mjs";
 import { wireStepButtons } from "../../../ui/stepper.mjs";
 import { wireToggles } from "../../../ui/toggle.mjs";
+import { FALLEN_FIELDS } from "../../admin/team-sheets.mjs";
+import { STAFF_KEY, TREASURY_FIELDS } from "./admin-block.mjs";
 import { MARK_TEXT } from "./mark-sheet.mjs";
 import { CAPTAIN_TOGGLE, EDIT_FIELDS } from "./player-sheets.mjs";
 import { VIA_GROUP } from "./roll-view.mjs";
@@ -114,20 +117,46 @@ function wirePlayer(root, { onEdit, onEditField, onEditKeep, onEditSave, onUnadv
 
 /**
  * A player's fix by hand (stage 07d, Task 13): the edit's line to it (not when closed — a press on a closed one says
- * why, as `[data-roster-closed]` does), its counters' − and + — the roster has no other counters of a resource, so
- * every key is the fix's; a refused + says why — an injury's point, a favoured skill, a skill to take off, «Cancel»
- * and «Save».
+ * why, as `[data-roster-closed]` does), an injury's point, a favoured skill, a skill to take off, «Cancel» and «Save».
+ * Its counters' − and + are heard with the admin's staff counters (`wireCounters`).
  */
-function wireFix(root, { onFixOpen, onFixStep, onFixLasting, onFixFavoured, onFixDrop, onFixKeep, onFixSave, onRefused }) {
+function wireFix(root, { onFixOpen, onFixLasting, onFixFavoured, onFixDrop, onFixKeep, onFixSave }) {
   const pressed = (attribute, handler) => delegate(root, "click", `[${attribute}]`, (event, button) => handler(button.getAttribute(attribute)));
   return [
     onPlayerButton(root, "data-player-fix", onFixOpen),
-    wireResourceCounters(root, ({ key, delta }) => onFixStep({ key, delta }), { onRefused: ({ reason }) => onRefused(reason) }),
     pressed("data-fix-lasting", onFixLasting),
     pressed("data-fix-favoured", onFixFavoured),
     pressed("data-fix-drop", onFixDrop),
     delegate(root, "click", "[data-fix-keep]", () => onFixKeep()),
     delegate(root, "click", "[data-fix-save]", () => onFixSave()),
+  ];
+}
+
+/**
+ * The roster's counters of a resource, heard by one listener (two would each hear every click): the admin's staff
+ * (`staff:<key>`, stage 12, admin-block.mjs) and the fix by hand's (every other key); a refused + says why.
+ */
+function wireCounters(root, { onFixStep, onAdminStaff, onRefused }) {
+  return wireResourceCounters(root, ({ key, delta }) => {
+    if (key.startsWith(STAFF_KEY)) onAdminStaff(key.slice(STAFF_KEY.length), delta);
+    else onFixStep({ key, delta });
+  }, { onRefused: ({ reason }) => onRefused(reason) });
+}
+
+/**
+ * The admin's block (stage 12, admin-block.mjs): the treasury's fields as they are typed — the screen is patched, so a
+ * field keeps its focus and its caret — and «Save the fix»; «+ Add a fallen player afterwards» (not when closed), its
+ * sheet's fields as they are typed or chosen, and «Add».
+ */
+function wireAdmin(root, { onAdminTreasury, onAdminTreasuryField, onAdminFallen, onAdminFallenField, onAdminFallenSend }) {
+  const typed = (fields, onField, types) => Object.entries(fields)
+    .flatMap(([field, id]) => types.map((type) => delegate(root, type, `#${id}`, (event, input) => onField(field, input.value))));
+  return [
+    ...typed(TREASURY_FIELDS, onAdminTreasuryField, ["input"]),
+    delegate(root, "click", "[data-admin-treasury]", () => onAdminTreasury()),
+    onPlayerButton(root, "data-admin-fallen", onAdminFallen),
+    ...typed(FALLEN_FIELDS, onAdminFallenField, ["input", "change"]),
+    delegate(root, "click", "[data-admin-fallen-send]", () => onAdminFallenSend()),
   ];
 }
 
@@ -286,6 +315,12 @@ export function wireReasons(root, { onInjuryChoice, onMarkChoice, onAdvanceType 
  * @param {(query: string) => void} handlers.onRosterQuery a desk's search, as typed
  * @param {() => void} handlers.onRosterQueryClear Esc in it
  * @param {() => void} handlers.onRefSearch «Search the reference: …», which the link takes there
+ * @param {(field: "treasury"|"note", value: string) => void} handlers.onAdminTreasuryField a field of the admin's treasury, as typed (stage 12)
+ * @param {() => void} handlers.onAdminTreasury «Save the fix»
+ * @param {(key: string, delta: 1|-1) => void} handlers.onAdminStaff a staff counter's − or + (not a refused +), by the staff's key
+ * @param {(key: string, button: Element) => void} handlers.onAdminFallen «+ Add a fallen player afterwards» (not when it is closed)
+ * @param {(field: string, value: string) => void} handlers.onAdminFallenField a field of its sheet, as typed or chosen
+ * @param {() => void} handlers.onAdminFallenSend «Add» in its sheet
  * @returns {() => void} takes every listener off
  */
 export function wireRoster(root, handlers) {
@@ -313,7 +348,9 @@ export function wireRoster(root, handlers) {
     ...wirePlayer(root, handlers),
     ...wireAdvance(root, handlers),
     ...wireFix(root, handlers),
+    wireCounters(root, handlers),
     ...wireSearch(root, handlers),
+    ...wireAdmin(root, handlers),
   ];
   return () => offs.forEach((off) => off());
 }

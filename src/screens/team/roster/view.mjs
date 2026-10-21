@@ -18,7 +18,9 @@
  *
  * The administration draws the same roster for any team (stage 12, decision 23; source.mjs): its band is «Coach's team»
  * with the path to it under the title (DeskAdminTeamEdit.html), and in the coach's treasury strip's place, on both
- * widths, stands the admin's block: the team's name and logo (admin-identity.mjs; the owner's answer).
+ * widths, stands the admin's block (admin-block.mjs): the banner naming the coach, then the cards of the treasury, the
+ * staff, a fallen player added afterwards and the team's name and logo (admin-identity.mjs; the owner's answer) — over the
+ * roster and across its width, as the prototype stands them over its page.
  *
  * The roster is three tables (stage 07b, decision 13): «Active roster», those who play the next match; «Missing the
  * match», each saying why under his name; and «Fallen», the dead, whose row and panel are fallen-view.mjs's. One sort
@@ -57,6 +59,7 @@ import { injurySheetMarkup, skillSheetMarkup } from "./sheets.mjs";
 import { stripMarkup } from "./strip.mjs";
 import { rosterHref } from "./source.mjs";
 import { identityMarkup } from "./admin-identity.mjs";
+import { adminBlockMarkup, adminSheetMarkup } from "./admin-block.mjs";
 import { crumbsMarkup } from "../../admin/frame.mjs";
 
 /** The id of the panel beside the table, which a desk's player buttons control. */
@@ -101,7 +104,8 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  *   |{kind: "edit", key: string, form: {number: string, name: string, captain: boolean}, seed: string, refusal: string, reason: string}
  *   |{kind: "advance", key: string, type: string, category: string, skill: string, step: string, refusal: string, taken: object|null, reason?: string}
  *   |{kind: "unadvance", key: string, index: number, confirmed: string, refusal: string, reason?: string}
- *   |{kind: "fix", key: string, form: import("../../../domain/roster/edits.mjs").PlayerFix, seed: string, refusal: string, reason: string}|null} sheet
+ *   |{kind: "fix", key: string, form: import("../../../domain/roster/edits.mjs").PlayerFix, seed: string, refusal: string, reason: string}
+ *   |{kind: "adminFallen", key: string, form: ReturnType<import("../../admin/team-sheets.mjs").fallenFormOf>, busy: boolean, refusal: string}|null} sheet
  *   the sheet that is open: a skill's rule; an injury of the match `gameId` with what is chosen in it ("" for
  *   nothing yet), whether an injury of the player is on its way (R14), and why none can be recorded just now; a
  *   missed match's reasons (stage 07b) with what is chosen, the last refusal, and why no mark can be made just now; or
@@ -112,7 +116,8 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  *   and why it is closed; or his advancement (stage 07d, advance.mjs) with what is chosen, its step, what was taken, and
  *   why «Take» is closed; or the undo of his last advancement (stage 07d) with the advancement it confirms (its place and
  *   how it was shown), the last refusal, and why «Undo advancement» is closed; or his fix by hand (stage 07d, fix.mjs)
- *   with its form, what it was seeded from, the last refusal of «Save», and why it is closed
+ *   with its form, what it was seeded from, the last refusal of «Save», and why it is closed; or the admin's fallen player
+ *   added afterwards (stage 12, admin-block.mjs) with its form, whether it is on its way, and the last refusal of «Add»
  * @property {boolean} unsure an injury's answer was lost and the read that followed failed: whether it was written is
  *   not known, so no injury is recorded until a read of the records succeeds (R14)
  * @property {string} error a read that failed, "" when none
@@ -125,6 +130,8 @@ const NO_MATCH = Object.freeze({ kind: "plain" });
  * @property {boolean} careerOpen its list is open
  * @property {{ownerId: string}|null} admin the admin's visit (stage 12, source.mjs), null for the coach's
  * @property {object|null} owner the team's coach as the admin's read names it (`{id, login}`), null before it or on a coach's visit
+ * @property {boolean} inMatch the admin's read says the team plays a match now (false on a coach's visit)
+ * @property {object[]} matches the team's confirmed matches as the admin's read lists them (none on a coach's visit)
  */
 
 /** The table's columns: the player, the five characteristics, and on a desk the career and the SPP. */
@@ -415,10 +422,10 @@ function layoutMarkup(screen) {
   // The search's live region stands first on a desk, with no query too: a screen reader hears its first words.
   const found = screen.phone ? "" : foundMarkup(query, active.length + skipping.length + fallen.length);
   const caption = active.length || skipping.length || fallen.length ? captionMarkup(screen) : "";
-  // The admin's visit has no strip of the coach's (stage 12): its place is the admin's own block, the team's name and logo first.
-  const strip = screen.admin ? `<div class="g-adminteam"><div class="g-admin__grid">${identityMarkup(screen)}</div></div>` : stripMarkup(team);
-  const main = `${found}${gone}${noticesMarkup(screen)}${strip}<div class="g-roster__sections">${sections.join("")}</div>${caption}`;
-  return `<div class="g-roster__layout"><div class="g-roster__main">${main}</div>${aside}</div>`;
+  // The admin's visit has no strip of the coach's (stage 12): the admin's own block stands over the roster, across its width.
+  const block = screen.admin ? adminBlockMarkup(screen, identityMarkup(screen)) : "";
+  const main = `${found}${gone}${noticesMarkup(screen)}${screen.admin ? "" : stripMarkup(team)}<div class="g-roster__sections">${sections.join("")}</div>${caption}`;
+  return `${block}<div class="g-roster__layout"><div class="g-roster__main">${main}</div>${aside}</div>`;
 }
 
 /**
@@ -449,10 +456,12 @@ function bodyMarkup(screen) {
  * The sheet that is open, while its player is still on the screen: a skill's — a fallen player's chip opens its rule
  * too; how an advancement gave it, and what a site roll's dice showed as the visit read them (stage 07d) — an injury's, a
  * missed match's, a death's undo, a sale's, on the draft's treasury, or a player's edit, advancement, the undo of his
- * last one or his fix by hand (stage 07d); the hire cart, which is no player's (`screenOf` closes one that no longer stands).
+ * last one or his fix by hand (stage 07d); the hire cart, which is no player's (`screenOf` closes one that no longer stands);
+ * the admin's fallen player added afterwards (stage 12), no one's of the roster either.
  */
 export function sheetMarkup(screen) {
   const { sheet } = screen;
+  if (sheet?.kind === "adminFallen") return adminSheetMarkup(screen);
   if (sheet?.kind === "hire") return hireSheetMarkup({ race: screen.race, quote: sheet.quote, mode: screen.mode, refusal: sheet.refusal, reason: sheet.reason });
   const line = sheet && screen.race ? [...screen.lines, ...screen.fallen].find((item) => item.key === sheet.key) : null;
   if (!line) return "";

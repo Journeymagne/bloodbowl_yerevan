@@ -122,7 +122,7 @@ export function postMatchUrl(gameOrId, step = "") {
   return `${gameUrl(gameOrId)}/post-match${step ? `/${encodeURIComponent(step)}` : ""}`;
 }
 
-/** The 2.x saved-roster editor, which the team's roster tab draws until stage 07. */
+/** A team's «Roster» tab, as the 2.x administration's profile of a coach links it. */
 export function savedRosterUrl(teamOrId) {
   return teamUrl(teamOrId, "roster");
 }

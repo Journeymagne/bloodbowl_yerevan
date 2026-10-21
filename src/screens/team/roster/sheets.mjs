@@ -11,7 +11,8 @@
  * Stage 07b's sheets — a missed match's reasons (mark-sheet.mjs) and the undo of a death — stage 07c's — the hire
  * cart (hire-sheet.mjs) and a player's sale — and stage 07d's player edit and the undo of his last advancement
  * (player-sheets.mjs), his advancement (advance-sheet.mjs) and his fix by hand (fix.mjs) are drawn by their own modules; what they share with the injury's is here: the ids the screen
- * shows each by, the row of characteristics and the foot's button.
+ * shows each by, the row of characteristics and the foot's button. So is the id of the admin's sheet of a fallen player added
+ * afterwards (stage 12, admin/team-sheets.mjs).
  */
 import { escapeHtml } from "../../../core/dom.mjs";
 import { t } from "../../../core/i18n.mjs";
@@ -52,11 +53,13 @@ export const UNADVANCE_SHEET = "player-unadvance";
 export const FIX_SHEET = "player-fix";
 /** The frame every sheet of a player's wears (stage 07d: his edit, the undo, his advancement, his fix; player-sheets.css). */
 export const PLAYER_FRAME = "g-player-sheet";
+/** What the admin's sheet of a fallen player added afterwards is shown by (`#admin-fallen`, stage 12; admin/team-sheets.mjs). */
+export const ADMIN_FALLEN_SHEET = "admin-fallen";
 
 /** The id of each kind of sheet the visit holds (index.mjs's `visit.sheet.kind`). */
 const SHEET_IDS = Object.freeze({
   skill: SKILL_SHEET, injury: INJURY_SHEET, mark: MARK_SHEET, undo: UNDO_SHEET, hire: HIRE_SHEET, sell: SELL_SHEET, edit: EDIT_SHEET, advance: ADVANCE_SHEET,
-  unadvance: UNADVANCE_SHEET, fix: FIX_SHEET,
+  unadvance: UNADVANCE_SHEET, fix: FIX_SHEET, adminFallen: ADMIN_FALLEN_SHEET,
 });
 
 /** The id a sheet of `kind` is shown by, which wireSheets reports when it is closed; "" for a kind there is none of. */

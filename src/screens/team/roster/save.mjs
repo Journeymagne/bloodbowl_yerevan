@@ -241,6 +241,14 @@ export function stepIdentity(teamId, identity, { closed } = {}) {
 /** The name and logo the team's next save sends: as read, or as a step made them; null for a team the queue does not hold. */
 export const savedIdentity = (teamId) => (tracked.has(teamId) ? { name: tracked.get(teamId).name, logoData: tracked.get(teamId).logoData ?? "" } : null);
 
+/** An admin's staff step (stage 12, admin-block.mjs): the count ± 1 alone — no money, no purchase on record, so no ledger line (L18). */
+export function stepAdminStaff(teamId, key, delta, { closed, refusal }) {
+  return stepRoster(teamId, (draft) => {
+    const value = (Number(draft[key]) || 0) + delta, said = value < 0 ? null : refusal(draft, value);
+    return said === null ? null : said ? { refusal: said } : { apply: () => { draft[key] = value; } };
+  }, { closed });
+}
+
 /** The player of the draft the id names, by his id as text (`storedPlayerId`), or null. */
 const playerIn = (draft, id) => (id ? draft?.players.find((player) => storedPlayerId(player) === String(id)) : null) ?? null;
 

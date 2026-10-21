@@ -2,7 +2,7 @@
  * The one HTTP client every screen uses, and where the session token lives.
  *
  * Mechanically moved out of src/app.js. Screens across the whole app call
- * `apiRequest` (auth, admin, season, games, my-teams, builder, saved-roster),
+ * `apiRequest` (auth, admin, season, games, my-teams, builder, roster),
  * so — like core/state.mjs and core/view.mjs before it — this has to live
  * somewhere both app.js and src/screens/*.mjs can import it from, or they'd
  * import each other.

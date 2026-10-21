@@ -4,7 +4,6 @@
  * browser without Postgres.
  *
  *   node scripts/mock-api.mjs          # serves on :5174
- *   node scripts/browser-check-roster.mjs
  *
  * Ports and variants (the launch configs in .claude/launch.json):
  *   :5174  bloodbowl-mock-api          a coach with five teams and six matches

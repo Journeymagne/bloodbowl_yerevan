@@ -8,8 +8,9 @@
  * the roster blob, and the columns win.
  *
  * `normalizeSavedRoster` alone is called from the admin screens, the
- * public player profile and saved-roster — genuinely everywhere a saved team
- * gets displayed — so this has to be importable without pulling in a screen.
+ * public player profile and the roster's save queue — genuinely everywhere a
+ * saved team gets displayed — so this has to be importable without pulling in a
+ * screen.
  */
 import { createDraft, normalizeDraft, rosterForStorage } from "../domain/roster/schema.mjs";
 

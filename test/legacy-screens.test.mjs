@@ -25,16 +25,8 @@ test("an improved stat on a roster card is text-accent green, not the button fil
   assertReadable("src/styles/matchday.css", selector, "color", ["--surface", "--surface-2"], 4.5);
 });
 
-test("the stat strip's divider and the saved roster's stat outlines are 3.0 lines, not 2.x taupe", () => {
-  const pages = "src/styles/pages.css";
-  const roster = "src/styles/roster.css";
-  for (const [file, selector, property, value] of [
-    [pages, ".team-stat-grid div", "border-left", "1px solid var(--line)"],
-    [roster, ".readonly-stat-line", "border", "1px solid var(--line-strong)"],
-    [roster, ".player-stat-editors", "border", "1px solid var(--line-strong)"],
-  ]) {
-    assert.deepEqual(valuesOf(file, selector, property), [value], `${file} ${selector} ${property}`);
-  }
+test("the stat strip's divider is a 3.0 line, not 2.x taupe", () => {
+  assert.deepEqual(valuesOf("src/styles/pages.css", ".team-stat-grid div", "border-left"), ["1px solid var(--line)"]);
 });
 
 test("the badges of the games list are text colour, not the pale border colour", () => {
@@ -54,15 +46,6 @@ test("a checked checkbox is filled with the text accent, which a control's outli
   }
 });
 
-test("the improved and reduced stats of the saved roster table are 3.0 text on the 3.0 tints, not a light green and a light red", () => {
-  const sheet = "src/styles/roster.css";
-  assert.deepEqual(valuesOf(sheet, ".stat-table-cell.stat-up", "background"), ["var(--stat-up-bg)"]);
-  assert.deepEqual(valuesOf(sheet, ".stat-table-cell.stat-down", "background"), ["var(--stat-down-bg)"]);
-  // The strong sits on the cell's tint, inside a --surface-2 stepper.
-  assertReadable(sheet, ".stat-table-cell.stat-up strong", "color", ["--surface", "--surface-2", "--stat-up-bg"], 4.5);
-  assertReadable(sheet, ".stat-table-cell.stat-down strong", "color", ["--surface", "--surface-2", "--stat-down-bg"], 4.5);
-});
-
 test("the error notice of match preparation and results, and a negative budget, are danger text a light page can read", () => {
   // A notice box is the --md-wash tint; the budget sits on a panel.
   assertReadable("src/styles/roster.css", ".danger-text", "color", ["--surface", "--surface-2", "--page", "--accent-tint-soft"], 4.5);
@@ -71,13 +54,6 @@ test("the error notice of match preparation and results, and a negative budget, 
 test("a started round or game is accent text on its pill, not a pale green made for a dark page", () => {
   // The pill is the --md-wash tint (site-matchday.css); its label is .6rem, so 4.5:1.
   assertReadable("src/styles/season.css", '.season-status-pill[data-status="started"]', "color", ["--accent-tint-soft", "--surface"], 4.5);
-});
-
-test("the table stepper is outlined with the 3.0 line, not 2.x taupe", () => {
-  const sheet = "src/styles/roster.css";
-  assert.deepEqual(valuesOf(sheet, ".table-stepper", "border"), ["1px solid var(--line-strong)"]);
-  assert.deepEqual(valuesOf(sheet, ".table-stepper button", "border-right"), ["1px solid var(--line-strong)"]);
-  assert.deepEqual(valuesOf(sheet, ".table-stepper button:last-child", "border-left"), ["1px solid var(--line-strong)"]);
 });
 
 test("the destructive confirm button keeps its label readable in every palette, hovered too", () => {
@@ -115,4 +91,13 @@ test("the 2.x post-match is gone — its screen, its steps, the checklist layout
   assert.doesNotMatch(read("src/components/pre-match/shared.mjs"), /playerCard/);
   // The checklist layout was the last to draw .pre-match: its rules went with it.
   assert.doesNotMatch(read("src/styles/pre-match.css"), /\.pre-match\b/);
+});
+
+test("the 2.x roster editor is gone — its screen, its parts, and the rules of roster.css only it read (stage 12, Task 15)", () => {
+  const gone = ["src/screens/saved-roster.mjs", "src/components/roster-editor", "src/components/roster-editor-shared.mjs", "src/components/roster-notices.mjs"];
+  for (const file of gone) assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
+  // Its table, its stat cells, its steppers and its cards: the 3.0 roster (screens/team/roster) draws none of them.
+  assert.doesNotMatch(read("src/styles/roster.css"), /\.(saved-roster-|stat-table-cell|table-stepper|player-stat-editors|roster-identity-panel)/);
+  // What the 2.x screens that are left still draw stays: the icon buttons a template names by their tone.
+  assert.deepEqual(valuesOf("src/styles/roster.css", ".danger-icon-button", "color"), ["var(--danger)"]);
 });

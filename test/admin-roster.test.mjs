@@ -45,8 +45,8 @@ const adminCalls = () => api.calls.filter(({ key }) => key.includes("/api/admin/
 const toasts = () => document.querySelectorAll("output").map((node) => node.textContent);
 const markText = (sheet) => sheet.querySelector("#mark-text");
 
-/** What an admin's visit is styled by: the roster's sheets, the administration's, the name and logo card's (stage 12). */
-const ADMIN_STYLES = [...STYLES, "src/screens/admin/admin.css", "src/screens/admin/team.css", "text-field.css"];
+/** What an admin's visit is styled by: the roster's sheets, the administration's, the admin's block's — its cards' fields and counters (stage 12). */
+const ADMIN_STYLES = [...STYLES, "src/screens/admin/admin.css", "src/screens/admin/team.css", "text-field.css", "resource-counter.css"];
 
 const NO_SITE_ROLL = "An admin marks the advancement «at the table»";
 const ADMIN_FROM_MATCH = "A death the post-match recorded: the player comes back with the advancements, and the match's rolls stay used.";
