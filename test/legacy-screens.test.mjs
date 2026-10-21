@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import test from "node:test";
 
-import { assertReadable as assertReadableIn, valuesOf } from "./helpers/contrast.mjs";
+import { assertReadable as assertReadableIn, read, valuesOf } from "./helpers/contrast.mjs";
 
 /*
  * The 2.x screens were put on the 3.0 tokens through legacy-aliases.css and not
@@ -36,12 +37,9 @@ test("the stat strip's divider and the saved roster's stat outlines are 3.0 line
   }
 });
 
-test("the numbers, badges and prices of match preparation and the season table are text colour, not the pale border colour", () => {
+test("the badges of the games list and the numbers of the season table are text colour, not the pale border colour", () => {
   const pre = "src/styles/pre-match.css";
   const onPage = ["--surface", "--surface-2", "--page"];
-  assertReadable(pre, ".pre-step-nav a span", "color", onPage, 4.5);
-  assertReadable(pre, ".pre-result strong", "color", onPage, 4.5);
-  assertReadable(pre, ".pre-player-number", "color", onPage, 4.5);
   assertReadable(pre, ".pre-badge", "color", onPage, 4.5);
   assertReadable("src/styles/season-results.css", ".season-results-table .season-match-number strong", "color", onPage, 4.5);
   // The badge's outline is a border and keeps the border colour.
@@ -90,4 +88,29 @@ test("the destructive confirm button keeps its label readable in every palette, 
   const hovered = valuesOf(sheet, `${button}:hover:not(:disabled)`, "background").at(-1);
   // Large bold text would need 3:1; the dialog's label is neither, so 4.5:1.
   assertReadable(sheet, button, "color", [fill, hovered], 4.5);
+});
+
+test("the 2.x post-match is gone — its screen, its steps, the checklist layout and its stylesheet; the game page keeps its panels", () => {
+  const gone = [
+    "src/screens/games/post-match.mjs",
+    ...["steps", "players", "review", "shared", "finance"].map((name) => `src/components/post-match/${name}.mjs`),
+    "src/components/games/checklist-layout.mjs",
+    "src/styles/post-match.css",
+  ];
+  for (const file of gone) assert.equal(existsSync(new URL(`../${file}`, import.meta.url)), false, file);
+  // The 2.x game page (#/games/:id, stage 13) draws these; the 3.0 post-match saves through the client.
+  const kept = [
+    "src/components/post-match/game-panel.mjs",
+    "src/components/pre-match/game-panel.mjs",
+    "src/components/pre-match/shared.mjs",
+    "src/components/matchday.mjs",
+    "src/components/games/result-fields.mjs",
+    "src/data/post-match-client.mjs",
+  ];
+  for (const file of kept) assert.ok(existsSync(new URL(`../${file}`, import.meta.url)), file);
+  assert.doesNotMatch(read("src/styles.css"), /styles\/post-match\.css/);
+  // The 2.x post-match's player card had no other reader.
+  assert.doesNotMatch(read("src/components/pre-match/shared.mjs"), /playerCard/);
+  // The checklist layout was the last to draw .pre-match: its rules went with it.
+  assert.doesNotMatch(read("src/styles/pre-match.css"), /\.pre-match\b/);
 });

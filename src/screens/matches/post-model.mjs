@@ -11,7 +11,7 @@
  * later and lead nowhere. A desk's list says each passed step in a few words (DeskPostResult.html … DeskPostReview.html).
  *
  * The roster this side would leave with is `projectPostRoster`'s. One the domain refuses — a sale at seven, a purchase
- * the treasury cannot pay — is drawn without the roster's steps, the safe and the dice (2.x's `previewPost`), and the
+ * the treasury cannot pay — is drawn without the roster's steps, the safe and the dice (as 2.x did), and the
  * refusal is said where a write's refusal would be (`error`). The footer leads on to the next step once it is open; the
  * steps' modules (post-steps.mjs … post-review.mjs) put their own in its place.
  */
@@ -78,7 +78,7 @@ export function signedMoney(amount) {
 /**
  * The roster `sideName` would leave with, as the domain projects it. A projection it refuses is made again without the
  * roster's steps, the safe and the dice, then without the advancements and the captain too, and carries the refusal's
- * code (`invalid`) and the refusal itself (`refusal`), as 2.x's `previewPost`.
+ * code (`invalid`) and the refusal itself (`refusal`), as 2.x did.
  */
 export function previewOf(post, sideName, data) {
   try {

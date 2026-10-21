@@ -164,15 +164,11 @@
 .matchday-player-card.is-expanded .mobile-player-section { gap: 6px; }
 .matchday-player-card.is-expanded .mobile-player-section > h3 { margin-bottom: 0; }
 .matchday-player-card.is-expanded .roster-transfer-actions { margin-block: 0; }
-.matchday-player-card .mobile-skill-editor,
 .matchday-player-card .favoured-skill-editor { width: min(100%, 410px); }
-.matchday-player-card .mobile-skill-editor,
 .matchday-player-card .favoured-skill-editor .table-skill-editor {
   display: grid; grid-template-columns: minmax(0, 1fr) 44px; min-width: 0;
 }
-.matchday-player-card .mobile-skill-editor .table-input,
-.matchday-player-card .favoured-skill-editor .table-input,
-.matchday-player-card .advancement-add-row .table-select { min-width: 0; min-height: 44px; }
+.matchday-player-card .favoured-skill-editor .table-input { min-width: 0; min-height: 44px; }
 .matchday-player-card .player-contract-control { width: fit-content; justify-items: start; }
 .matchday-player-card .player-contract-control .table-stepper {
   grid-template-columns: repeat(3, 44px); grid-template-rows: 44px; width: max-content; min-width: 0;
@@ -183,7 +179,6 @@
 }
 .matchday-player-card .mobile-advancement-section { width: min(100%, 660px); }
 .matchday-player-card .mobile-advancement-section > div { min-width: 0; }
-.matchday-player-card .advancement-add-row { grid-template-columns: minmax(0, 1fr) 44px; }
 .matchday-player-spp {
   --spp-panel-padding: 12px;
   width: 100%; min-width: 0; align-self: stretch;
@@ -217,7 +212,6 @@
 .matchday-sidebar { display: grid; gap: 20px; align-items: start; }
 .matchday-sidebar > * { min-width: 0; }
 .matchday-editor .side-panel { border-radius: 0; box-shadow: none; background: var(--panel); }
-.matchday-sidebar .builder-info-summary,
 .matchday-sidebar .saved-roster-summary-panel { padding: 20px; margin: 0; border: 0; border-top: 3px solid var(--line-bright); background: var(--panel-2); }
 .matchday-sidebar .summary-title-block h3 { font: 800 .875rem/1.5 var(--display-font); text-transform: uppercase; letter-spacing: 1.2px; }
 .matchday-sidebar .autosave-status { margin: 4px 0 8px; font-size: .8125rem; line-height: 1.4; }
@@ -260,7 +254,6 @@ body.matchday-modal-open { overflow: hidden; }
 .matchday-hire-dialog .team-stat-grid > div { min-width: 0; border-radius: 0; }
 .matchday-hire-dialog .mobile-player-section h3 { font-size: .875rem; }
 .matchday-hire-dialog .available-player-foot { font-size: .875rem; line-height: 1.6; }
-.matchday-hire-reason { color: var(--danger); font-size: .65rem; line-height: 1.5; margin: 7px 0 0; }
 .matchday-hire-dialog .available-player-card.disabled { opacity: .78; }
 .matchday-hire-dialog .table-icon-button { width: 44px; min-width: 44px; min-height: 44px; }
 .matchday-editor details > summary::-webkit-details-marker { display: none; }
