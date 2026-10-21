@@ -1,7 +1,7 @@
 /**
  * The steps of the preparation 3.0, each as cards (PreFans.html, PreWeather.html, PreRoster.html, PreReview.html; on a
  * desk the same cards in the frame's middle column, decision 17): the fans, the weather, the roster and the start. The
- * inducements are prep-inducements.mjs's.
+ * inducements are prep-inducements.mjs's; `prepStepMarkup` hands the frame whichever step is on screen.
  *
  * Dice are radio groups (the master plan's 05–13 rule): one `role="radiogroup"` with its name, a `role="radio"` per
  * face, the chosen one checked and the only one in the tab order (none chosen: the first). A press writes at once
@@ -17,11 +17,13 @@ import { matchCatalog } from "../../domain/match/catalog.mjs";
 import { absenceOf } from "../../domain/roster/absence.mjs";
 import { journeymanPositions } from "../../domain/match/roster.mjs";
 import { MATCH_RULES, otherSide } from "../../domain/match/rules.mjs";
-import { weatherEntries, weatherResult } from "../../domain/match/weather.mjs";
+
 import { rosterMax } from "../../domain/roster/values.mjs";
 import { renderSegmentedControl } from "../../ui/segmented-control.mjs";
 import { renderStatusChip } from "../../ui/status-chip.mjs";
 import { absenceWords } from "../team/roster/panel.mjs";
+import { budgetCardMarkup, inducementsMarkup } from "./prep-inducements.mjs";
+import { weatherTable } from "./prep-model.mjs";
 
 /** The seasons of the weather table, as the domain names them. */
 const SEASONS = ["Spring", "Summer", "Autumn"];
@@ -70,12 +72,6 @@ export function fansMarkup(model) {
 /** «4–10»: a roll of the weather table as the prototype writes it, with a dash between the ends. */
 const rollWords = (roll) => String(roll).replace("-", "–");
 
-/**
- * The rows of the time of year's weather table: the content's table as the domain reads it, without what it also
- * catches there that is no row of it (the table's own head, «2d6 | Result», and the wind's direction table under it).
- */
-const tableOf = (data, season) => weatherEntries(data, season).filter((entry) => entry.name && /^\d+(?:[-–]\d+)?$/.test(entry.roll));
-
 /** The weather's result card: «Weather for the match · 4–10», its name and what it does. */
 function weatherCard(result) {
   if (!result) return "";
@@ -98,8 +94,8 @@ export function weatherMarkup(model, data) {
     return `${label(name)}${facesMarkup({ name, faces: [1, 2, 3, 4, 5, 6], value: weather[side], closed: model.readonly, data: `data-prep-weather="${side}"` })}`;
   }).join("");
   const sum = weather.home && weather.away ? String(Number(weather.home) + Number(weather.away)) : "—";
-  const result = weatherResult(data, weather);
-  const table = tableOf(data, season).map((entry) => {
+  const { entries, result } = weatherTable(data, { ...weather, season });
+  const table = entries.map((entry) => {
     const lit = result && entry.roll === result.roll;
     return `<li class="g-prep__wrow${lit ? " g-prep__wrow--lit" : ""}"><span class="g-prep__wroll">${escapeHtml(rollWords(entry.roll))}</span><span>${escapeHtml(entry.name)}</span></li>`;
   }).join("");
@@ -156,7 +152,7 @@ export function rosterMarkup(model) {
 /** «Perfect Conditions · autumn»: the weather and its time of year, for the start's card. */
 export function weatherLine(model, data) {
   const { weather } = model.preparation;
-  const result = weatherResult(data, weather);
+  const { result } = weatherTable(data, weather);
   const season = t(`pre.season.${SEASONS.includes(weather.season) ? weather.season : "Autumn"}`).toLocaleLowerCase();
   return `<div class="g-prep__weather g-prep__weather--line"><span class="g-prep__muted">${escapeHtml(t("prep.review.weather"))}</span>`
     + `<b class="g-prep__weatherline">${escapeHtml(result ? `${result.name} · ${season}` : "—")}</b></div>`;
@@ -216,13 +212,18 @@ export function reviewMarkup(model, data, { phone = true } = {}) {
 
 /**
  * The step on screen as the frame takes it: its middle (`contentHtml`), what a desk's right column holds of it
- * (`asideHtml`) and a desk's card's title.
+ * (`asideHtml`), a desk's card's title, and — on a desk's inducements, whose budget card holds the button — an empty
+ * `footHtml`.
  * @param {ReturnType<typeof import("./prep-model.mjs").prepModel>} model @param {object} data @param {boolean} phone
  */
 export function prepStepMarkup(model, data, phone) {
   if (model.step === "fans") return { contentHtml: fansMarkup(model), asideHtml: "", cardTitle: "" };
   if (model.step === "weather") return { contentHtml: weatherMarkup(model, data), asideHtml: "", cardTitle: "" };
   if (model.step === "roster") return { contentHtml: rosterMarkup(model), asideHtml: "", cardTitle: "" };
+  if (model.step === "inducements") {
+    return { contentHtml: inducementsMarkup(model, { desk: !phone }), asideHtml: phone ? "" : budgetCardMarkup(model, { desk: true }), cardTitle: "",
+      ...(phone || !model.inducements ? {} : { footHtml: "" }) };
+  }
   if (model.step === "review") {
     return { contentHtml: reviewMarkup(model, data, { phone }), asideHtml: phone ? "" : weatherLine(model, data), cardTitle: t("prep.review.title") };
   }

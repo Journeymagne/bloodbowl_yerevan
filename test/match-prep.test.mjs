@@ -185,6 +185,21 @@ test("the weather: the time of year, both dice rows, the sum, the result and the
   assert.ok(!open.querySelector(".g-prep__wrow--lit"));
 });
 
+test("the weather in Russian: the reference heads the season in its own word, and the table is still read", () => {
+  const russian = expandCollections(JSON.parse(text("public/data.ru.json")));
+  initLocale("ru");
+  try {
+    const model = prepModel(payloadAt([...FANS, ...WEATHER]), "home", "weather", { data: russian });
+    const fragment = mount(weatherMarkup(model, russian));
+    assert.equal(fragment.querySelectorAll(".g-prep__wrow").length, 5);
+    assert.ok(fragment.querySelector(".g-prep__wrow--lit"));
+    assert.ok(fragment.querySelector(".g-prep__weathername").textContent.length > 0);
+    assert.notEqual(prepModel(payloadAt([...FANS, ...WEATHER]), "home", "roster", { data: russian }).steps[1].summary, "—");
+  } finally {
+    initLocale("en");
+  }
+});
+
 test("the roster: who plays, who misses it and why, the journeymen positions closed with why", () => {
   const model = modelAt([...FANS, ...WEATHER], "roster");
   const fragment = mount(rosterMarkup(model));
@@ -338,7 +353,8 @@ test("every key in both dictionaries, the waits and the opponent's states by the
 });
 
 test("styled as the prototypes draw it; readable; D2; nothing cut with «…»", () => {
-  const sheets = [CSS, "status-chip.css", "segmented-control.css", "callout.css", "button.css"];
+  // The inducements' step draws prep-inducements.css's rows (stage 09a Task 10).
+  const sheets = [CSS, "src/screens/matches/prep-inducements.css", "resource-counter.css", "status-chip.css", "segmented-control.css", "callout.css", "button.css"];
   const stages = [[], FANS, [...FANS, ...WEATHER], [...FANS, ...WEATHER, ...ROSTERS], [...FANS, ...WEATHER, ...ROSTERS, ...BASKETS]];
   for (const actions of stages) {
     for (const step of MATCH_STEPS) for (const phone of [true, false]) assertStyled(frame(modelAt(actions, step, {}, { isAdmin: true }), phone), ...sheets);
@@ -413,5 +429,6 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/matches/prep.css");') > styles.indexOf('@import url("screens/matches/matches.css");'), "after the matches' sheet");
+  assert.ok(styles.indexOf('@import url("screens/matches/prep.css");') < styles.indexOf('@import url("screens/matches/prep-inducements.css");'), "before the inducements' sheet");
   assert.ok(!document.querySelector("script"));
 });

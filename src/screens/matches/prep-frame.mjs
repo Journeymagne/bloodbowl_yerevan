@@ -74,7 +74,7 @@ function noticesMarkup(model) {
 }
 
 /** The footer's button: a link on to the next step, a write (`data-prep-action`), or the same closed with why under it. */
-function ctaMarkup(footer) {
+export function prepCtaMarkup(footer) {
   if (footer.kind === "none") return "";
   let button;
   if (footer.kind === "next" && !footer.disabled) {
@@ -99,12 +99,17 @@ function opponentLine(opponent) {
 const cardRow = (label, value, tone = "") => `<div class="g-prep__row"><span class="g-prep__rowk">${escapeHtml(label)}</span>`
   + `<span class="g-prep__rowv${tone ? ` g-prep__rowv--${tone}` : ""}">${escapeHtml(value)}</span></div>`;
 
-/** A desk's card of the opponent: his name, his CTV, his Fan Factor once rolled, and where he stands. */
+/**
+ * A desk's card of the opponent: his name, his CTV, his Fan Factor once rolled, and where he stands — or the rows the
+ * step gives (the inducements': who bought first, whether his choice is in; DeskPreInducements.html).
+ */
 function opponentCard(model) {
   const { other, opponent } = model;
-  const rows = cardRow(t("matches.ctv"), formatMoney(other.ctv))
-    + (other.fanFactor ? cardRow(t("prep.fans.factor"), String(other.fanFactor)) : "")
-    + (opponent.text ? cardRow(t("prep.opponentState"), opponent.text, opponent.done ? "done" : "") : "");
+  const rows = opponent.rows
+    ? opponent.rows.map(([label, value, tone]) => cardRow(label, value, tone)).join("")
+    : cardRow(t("matches.ctv"), formatMoney(other.ctv))
+      + (other.fanFactor ? cardRow(t("prep.fans.factor"), String(other.fanFactor)) : "")
+      + (opponent.text ? cardRow(t("prep.opponentState"), opponent.text, opponent.done ? "done" : "") : "");
   return `<div class="g-prep__panel g-prep__panel--rows"><span class="g-prep__label">${escapeHtml(t("prep.opponentCard"))}</span>`
     + `<b class="g-prep__team">${escapeHtml(other.name)}</b>${rows}</div>`;
 }
@@ -117,7 +122,7 @@ function opponentCard(model) {
  *   default); `footHtml` stands for the footer's button where the step draws its own (a desk's budget card).
  */
 export function prepFrameMarkup(model, { phone, contentHtml, asideHtml = "", cardTitle = "", footHtml = null }) {
-  const cta = footHtml ?? ctaMarkup(model.footer);
+  const cta = footHtml ?? prepCtaMarkup(model.footer);
   if (phone) {
     const head = `<header class="g-prep__head"><div class="g-prep__bar">${backMarkup(model)}<span class="g-prep__titles">`
       + `<h1 class="g-prep__title" tabindex="-1">${escapeHtml(model.title)}</h1><span class="g-prep__sub">${escapeHtml(model.sub)}</span></span></div>${dotsMarkup(model)}</header>`;

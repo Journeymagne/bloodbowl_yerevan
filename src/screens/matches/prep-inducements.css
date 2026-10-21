@@ -1,0 +1,291 @@
+/*
+ * The inducements' step (screens/matches/prep-inducements.mjs, prep-effects.mjs): PreInducements.html and
+ * DeskPreInducements.html. Font, border, background, text-transform, letter-spacing and font-weight are set here on
+ * purpose: the 2.x globals outlive this sheet until stage 13. The counters are ui/resource-counter's, in the
+ * prototype's look: a white − and + on the grey well, 44px up to 900px (D2) and the prototype's 34px from 901px.
+ *
+ * The bar's width is a class, a tenth at a time: the CSP allows no style attribute.
+ */
+
+/* The budget card: «Petty cash 90k + from the treasury up to 50k», what is chosen, the bar, the hint. */
+.g-prep-budget { gap: var(--space-10); }
+
+/* The turn's chip says a sentence: it wraps inside the card rather than running out of it (the owner's answer on wrapping). */
+.g-prep-budget .g-status {
+  align-self: flex-start;
+  height: auto;
+  min-height: 26px;
+  max-width: 100%;
+  padding: var(--space-4) var(--space-10);
+  font: 700 12px/1.3 var(--font-body);
+  white-space: normal;
+}
+
+.g-prep-budget__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-10);
+}
+
+.g-prep-budget__petty {
+  min-width: 0;
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-prep-budget__figure {
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.g-prep-budget__chosen {
+  flex: none;
+  color: var(--ink);
+  font: 700 24px/1 var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+
+.g-prep-budget__bar {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 4px;
+  background: var(--line);
+}
+
+.g-prep-budget__fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+}
+.g-prep-budget__bar--0 .g-prep-budget__fill { width: 0; }
+.g-prep-budget__bar--1 .g-prep-budget__fill { width: 10%; }
+.g-prep-budget__bar--2 .g-prep-budget__fill { width: 20%; }
+.g-prep-budget__bar--3 .g-prep-budget__fill { width: 30%; }
+.g-prep-budget__bar--4 .g-prep-budget__fill { width: 40%; }
+.g-prep-budget__bar--5 .g-prep-budget__fill { width: 50%; }
+.g-prep-budget__bar--6 .g-prep-budget__fill { width: 60%; }
+.g-prep-budget__bar--7 .g-prep-budget__fill { width: 70%; }
+.g-prep-budget__bar--8 .g-prep-budget__fill { width: 80%; }
+.g-prep-budget__bar--9 .g-prep-budget__fill { width: 90%; }
+.g-prep-budget__bar--10 .g-prep-budget__fill { width: 100%; }
+/* The accent while the petty cash pays, the warning's once the treasury does, the danger's past what it may give. */
+.g-prep-budget__bar--accent .g-prep-budget__fill { background: var(--accent); }
+.g-prep-budget__bar--warn .g-prep-budget__fill { background: var(--warn); }
+.g-prep-budget__bar--danger .g-prep-budget__fill { background: var(--danger); }
+
+.g-prep-budget__hint {
+  color: var(--muted);
+  font: 400 12px/1.35 var(--font-body);
+  letter-spacing: 0;
+}
+
+/* A desk's card: what is bought line by line, 36px, and the button, 48px (DeskPreInducements.html). */
+.g-prep-budget__lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.g-prep-budget__bought {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-10);
+  min-height: 36px;
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font: 400 14px/1.3 var(--font-body);
+  overflow-wrap: anywhere;
+}
+
+.g-prep-budget--desk .g-prep__cta {
+  min-height: 48px;
+  font-size: 16px;
+}
+
+/* The rows of what the team may buy: 60px each, a rule under each; a phone has them in a card. */
+.g-prep-ind__list {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: var(--space-4) var(--space-16);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+.g-prep-ind__list--stars { padding: var(--space-10) var(--space-16); }
+
+.g-prep-ind__list .g-resource { min-height: 60px; }
+
+.g-prep-ind__list .g-resource__btn {
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--ink);
+}
+.g-prep-ind__list .g-resource__btn--inc,
+.g-prep-ind__list .g-resource__btn--inc:disabled,
+.g-prep-ind__list .g-resource__btn--inc[aria-disabled="true"] { background: var(--surface); }
+.g-prep-ind__list .g-resource__btn--inc { color: var(--ink); }
+
+.g-prep-ind__star {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: var(--space-10);
+  min-height: 60px;
+  border-bottom: 1px solid var(--line);
+}
+
+.g-prep-ind__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.g-prep-ind__name {
+  color: var(--ink);
+  font: 600 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-prep-ind__note,
+.g-prep-ind__why {
+  color: var(--muted);
+  font: 400 12px/1.35 var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+/* «Take» and «Remove»: outlined, 600 14px; closed with why, it says so in the row. */
+.g-prep-ind__take {
+  box-sizing: border-box;
+  flex: none;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink-2);
+  font: 600 14px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+.g-prep-ind__take[aria-disabled="true"] {
+  background: var(--surface-2);
+  box-shadow: none;
+  color: var(--muted);
+  cursor: default;
+}
+
+/* The prayers and effects: native selects in 3.0's cards. */
+.g-prep-effects {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-10);
+  margin: 0;
+}
+
+.g-prep-effects__card {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-14);
+  border: 0;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--ring);
+}
+
+.g-prep-effects__title {
+  margin: 0;
+  color: var(--ink);
+  font: 700 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.g-prep-effects__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.g-prep-effects__label {
+  color: var(--muted);
+  font: 400 13px/1.35 var(--font-body);
+  letter-spacing: 0;
+}
+
+.g-prep-effects__select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  margin: 0;
+  padding: 0 var(--space-10);
+  border: 1px solid var(--control-border);
+  border-radius: var(--radius-md);
+  background: var(--field);
+  color: var(--ink);
+  font: 400 15px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-prep-effects__select[multiple] { padding: var(--space-6) var(--space-10); }
+
+.g-prep-effects__desc {
+  margin: 0;
+  color: var(--ink-2);
+  font: 400 13px/1.45 var(--font-body);
+  letter-spacing: 0;
+}
+
+.g-prep-effects__pair {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+/* Up to 900px every control is a thumb's (D2): the counters' buttons stay 44px, «Take» and the selects grow to it. */
+@media (max-width: 900px) {
+  .g-prep-ind__list .g-resource__btn {
+    width: var(--size-touch);
+    height: var(--size-touch);
+  }
+  .g-prep-ind__take,
+  .g-prep-effects__select { min-height: var(--size-touch); }
+}
+
+/* From 901px the prototype's sizes, never under 24px (D2); the rows stand in columns of 300px or more, 24 apart. */
+@media (min-width: 901px) {
+  .g-prep-ind__list .g-resource__btn {
+    width: 34px;
+    height: 34px;
+  }
+  .g-prep-ind__list {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    column-gap: var(--space-24);
+    padding: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .g-prep-ind__list--stars > .g-prep__note { grid-column: 1 / -1; }
+}

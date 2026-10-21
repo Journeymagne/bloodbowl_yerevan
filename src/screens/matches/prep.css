@@ -32,11 +32,7 @@
   color: var(--header-ink);
 }
 
-.g-prep__bar {
-  display: flex;
-  align-items: center;
-  gap: var(--space-10);
-}
+.g-prep__bar { display: flex; align-items: center; gap: var(--space-10); }
 
 .g-prep__back {
   box-sizing: border-box;
@@ -53,12 +49,7 @@
   text-decoration: none;
 }
 
-.g-prep__titles {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  min-width: 0;
-}
+.g-prep__titles { display: flex; flex: 1 1 auto; flex-direction: column; min-width: 0; }
 
 .g-prep__title {
   margin: 0;
@@ -73,12 +64,7 @@
 }
 .g-prep__title:focus { outline: none; }
 
-.g-prep__sub {
-  color: var(--header-muted);
-  font: 400 12px/1.35 var(--font-body);
-  letter-spacing: 0;
-  overflow-wrap: anywhere;
-}
+.g-prep__sub { color: var(--header-muted); font: 400 12px/1.35 var(--font-body); letter-spacing: 0; overflow-wrap: anywhere; }
 
 /* The steps' dots: five columns 2 apart, each a thumb's high; the label under its circle wraps rather than being cut. */
 .g-prep__dots { min-width: 0; }
@@ -92,12 +78,7 @@
   list-style: none;
 }
 
-.g-prep__dotitem {
-  display: flex;
-  min-width: 0;
-  margin: 0;
-  padding: 0;
-}
+.g-prep__dotitem { display: flex; min-width: 0; margin: 0; padding: 0; }
 
 .g-prep__dot {
   box-sizing: border-box;
@@ -126,14 +107,8 @@
   font: 700 12px/1 var(--font-body);
 }
 .g-prep__dot--done .g-prep__dotmark,
-.g-prep__dot--open .g-prep__dotmark {
-  background: var(--accent);
-  color: var(--on-accent);
-}
-.g-prep__dot--current .g-prep__dotmark {
-  background: var(--header-ink);
-  color: var(--header);
-}
+.g-prep__dot--open .g-prep__dotmark { background: var(--accent); color: var(--on-accent); }
+.g-prep__dot--current .g-prep__dotmark { background: var(--header-ink); color: var(--header); }
 /* A later step leads nowhere yet. */
 .g-prep__dot--later { cursor: default; }
 
@@ -144,28 +119,17 @@
   letter-spacing: 0;
   text-align: center;
   overflow-wrap: anywhere;
+  hyphens: auto;
 }
-.g-prep__dot--shown .g-prep__dotlabel {
-  color: var(--header-ink);
-  font-weight: 700;
-}
+.g-prep__dot--shown .g-prep__dotlabel { color: var(--header-ink); font-weight: 700; }
 
 /* An administrator's choice of side, and what is said under the head. */
 .g-prep__side,
-.g-prep__notices {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-10);
-  padding: var(--space-14) var(--space-16) 0;
-}
+.g-prep__notices { display: flex; flex-direction: column; gap: var(--space-10); padding: var(--space-14) var(--space-16) 0; }
 
 .g-prep__alert { min-width: 0; }
 
-.g-prep__links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-8);
-}
+.g-prep__links { display: flex; flex-wrap: wrap; gap: var(--space-8); }
 
 /* The step's body. */
 .g-prep__body {
@@ -178,10 +142,7 @@
 }
 
 /* A phone's footer: the line about the opponent, the one button. It stays at the bottom while the step scrolls. */
-.g-prep--phone .g-prep__foot {
-  position: sticky;
-  bottom: 0;
-}
+.g-prep--phone .g-prep__foot { position: sticky; bottom: 0; }
 
 .g-prep__foot {
   display: flex;
@@ -205,13 +166,7 @@
   text-align: center;
 }
 
-.g-prep__oppdot {
-  flex: none;
-  width: 8px;
-  height: 8px;
-  border-radius: 4px;
-  background: var(--warn);
-}
+.g-prep__oppdot { flex: none; width: 8px; height: 8px; border-radius: 4px; background: var(--warn); }
 .g-prep__oppdot--done { background: var(--accent); }
 .g-prep__oppdot--wait { background: var(--warn); }
 
@@ -234,17 +189,9 @@
   text-transform: none;
   cursor: pointer;
 }
-.g-prep__cta:disabled {
-  background: var(--disabled);
-  cursor: default;
-}
+.g-prep__cta:disabled { background: var(--disabled); cursor: default; }
 
-.g-prep__hint {
-  color: var(--muted);
-  font: 400 12px/1.35 var(--font-body);
-  letter-spacing: 0;
-  text-align: center;
-}
+.g-prep__hint { color: var(--muted); font: 400 12px/1.35 var(--font-body); letter-spacing: 0; text-align: center; }
 
 .g-prep__quiet {
   box-sizing: border-box;
@@ -280,53 +227,20 @@
 .g-prep__panel--table { gap: 2px; }
 .g-prep__panel--action { gap: var(--space-8); }
 
-.g-prep__label {
-  color: var(--muted);
-  font: 700 12px/1.3 var(--font-body);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
+.g-prep__label { color: var(--muted); font: 700 12px/1.3 var(--font-body); letter-spacing: 0.06em; text-transform: uppercase; }
 
-.g-prep__note {
-  margin: 0;
-  color: var(--muted);
-  font: 400 13px/1.45 var(--font-body);
-  letter-spacing: 0;
-  text-transform: none;
-}
+.g-prep__note { margin: 0; color: var(--muted); font: 400 13px/1.45 var(--font-body); letter-spacing: 0; text-transform: none; }
 
-.g-prep__muted {
-  color: var(--muted);
-  font: 400 13px/1.35 var(--font-body);
-  letter-spacing: 0;
-  overflow-wrap: anywhere;
-}
+.g-prep__muted { color: var(--muted); font: 400 13px/1.35 var(--font-body); letter-spacing: 0; overflow-wrap: anywhere; }
 
-.g-prep__teamrow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-10);
-}
+.g-prep__teamrow { display: flex; align-items: center; justify-content: space-between; gap: var(--space-10); }
 
-.g-prep__teamtext {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
+.g-prep__teamtext { display: flex; flex-direction: column; min-width: 0; }
 
-.g-prep__team {
-  color: var(--ink);
-  font: 700 16px/1.3 var(--font-body);
-  letter-spacing: 0;
-  overflow-wrap: anywhere;
-}
+.g-prep__team { color: var(--ink); font: 700 16px/1.3 var(--font-body); letter-spacing: 0; overflow-wrap: anywhere; }
 
 /* The faces of a die, one radio group: the chosen one in the soft tint inside the accent's ring. */
-.g-prep__faces {
-  display: grid;
-  gap: var(--space-6);
-}
+.g-prep__faces { display: grid; gap: var(--space-6); }
 .g-prep__faces--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .g-prep__faces--6 { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 
@@ -349,38 +263,18 @@
   cursor: pointer;
 }
 .g-prep__faces--6 .g-prep__face { min-height: 46px; }
-.g-prep__face[aria-checked="true"] {
-  background: var(--accent-tint-soft);
-  box-shadow: inset 0 0 0 2px var(--accent);
-  font-weight: 700;
-}
+.g-prep__face[aria-checked="true"] { background: var(--accent-tint-soft); box-shadow: inset 0 0 0 2px var(--accent); font-weight: 700; }
 .g-prep__face[aria-disabled="true"] { cursor: default; }
 
-.g-prep__result {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-10);
-}
+.g-prep__result { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-10); }
 
-.g-prep__resultk {
-  color: var(--muted);
-  font: 400 14px/1.35 var(--font-body);
-}
+.g-prep__resultk { color: var(--muted); font: 400 14px/1.35 var(--font-body); }
 
-.g-prep__big {
-  color: var(--ink);
-  font: 700 28px/1 var(--font-display);
-  font-variant-numeric: tabular-nums;
-}
+.g-prep__big { color: var(--ink); font: 700 28px/1 var(--font-display); font-variant-numeric: tabular-nums; }
 .g-prep__big--ours { color: var(--on-accent-tint); }
 
 /* The weather: the sum, the result in the soft tint, the table with its row lit. */
-.g-prep__sum {
-  color: var(--muted);
-  font: 400 14px/1.35 var(--font-body);
-  text-align: right;
-}
+.g-prep__sum { color: var(--muted); font: 400 14px/1.35 var(--font-body); text-align: right; }
 
 .g-prep__weather {
   box-sizing: border-box;
@@ -396,26 +290,13 @@
 }
 .g-prep__weather--line { gap: var(--space-4); }
 
-.g-prep__weathername {
-  font: 700 26px/1.1 var(--font-display);
-  overflow-wrap: anywhere;
-}
+.g-prep__weathername { font: 700 26px/1.1 var(--font-display); overflow-wrap: anywhere; }
 
-.g-prep__weatherdesc {
-  color: var(--ink-2);
-  font: 400 14px/1.45 var(--font-body);
-}
+.g-prep__weatherdesc { color: var(--ink-2); font: 400 14px/1.45 var(--font-body); }
 
-.g-prep__weatherline {
-  font: 700 17px/1.3 var(--font-body);
-  overflow-wrap: anywhere;
-}
+.g-prep__weatherline { font: 700 17px/1.3 var(--font-body); overflow-wrap: anywhere; }
 
-.g-prep__wrows {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
+.g-prep__wrows { margin: 0; padding: 0; list-style: none; }
 
 .g-prep__wrow {
   display: flex;
@@ -427,34 +308,17 @@
   border-radius: var(--radius-sm);
   font: 500 14px/1.3 var(--font-body);
 }
-.g-prep__wrow--lit {
-  background: var(--accent-tint);
-  color: var(--on-accent-tint);
-  font-weight: 700;
-}
+.g-prep__wrow--lit { background: var(--accent-tint); color: var(--on-accent-tint); font-weight: 700; }
 
-.g-prep__wroll {
-  flex: none;
-  width: 40px;
-  color: var(--muted);
-}
+.g-prep__wroll { flex: none; width: 40px; color: var(--muted); }
 .g-prep__wrow--lit .g-prep__wroll { color: inherit; }
 
 /* The roster: «In the lineup 11 of 12» over the rows; one who misses the match in the danger's colour. */
-.g-prep__listhead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-10);
-}
+.g-prep__listhead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-10); }
 
 .g-prep__lineup { font: 700 16px/1.3 var(--font-body); }
 
-.g-prep__players {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
+.g-prep__players { margin: 0; padding: 0; list-style: none; }
 
 .g-prep__player {
   box-sizing: border-box;
@@ -468,39 +332,17 @@
 }
 .g-prep__player--out { color: var(--danger); }
 
-.g-prep__num {
-  flex: none;
-  width: 26px;
-  font: 700 14px/1 var(--font-display);
-  font-variant-numeric: tabular-nums;
-}
+.g-prep__num { flex: none; width: 26px; font: 700 14px/1 var(--font-display); font-variant-numeric: tabular-nums; }
 
-.g-prep__pname {
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
+.g-prep__pname { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 
-.g-prep__ppos {
-  color: var(--muted);
-  overflow-wrap: anywhere;
-  text-align: right;
-}
+/* A long reason wraps in its own column, never squeezing the name to a letter a line. */
+.g-prep__ppos { max-width: 60%; color: var(--muted); overflow-wrap: anywhere; text-align: right; }
 .g-prep__player--out .g-prep__ppos { color: var(--danger); }
 
-.g-prep__h3 {
-  margin: 0;
-  color: var(--ink);
-  font: 700 20px/1.15 var(--font-display);
-  letter-spacing: 0;
-  text-transform: none;
-}
+.g-prep__h3 { margin: 0; color: var(--ink); font: 700 20px/1.15 var(--font-display); letter-spacing: 0; text-transform: none; }
 
-.g-prep__hires {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-8);
-}
+.g-prep__hires { display: flex; flex-direction: column; gap: var(--space-8); }
 
 .g-prep__hire,
 .g-prep__remove {
@@ -520,25 +362,11 @@
   text-transform: none;
   cursor: pointer;
 }
-.g-prep__hire {
-  min-height: var(--size-touch);
-  padding: var(--space-6) var(--space-12);
-}
-.g-prep__hire[aria-disabled="true"] {
-  background: var(--surface-2);
-  box-shadow: none;
-  color: var(--muted);
-  cursor: default;
-}
-.g-prep__remove {
-  flex: none;
-  padding: 0 var(--space-12);
-}
+.g-prep__hire { min-height: var(--size-touch); padding: var(--space-6) var(--space-12); }
+.g-prep__hire[aria-disabled="true"] { background: var(--surface-2); box-shadow: none; color: var(--muted); cursor: default; }
+.g-prep__remove { flex: none; padding: 0 var(--space-12); }
 
-.g-prep__why {
-  font: 400 12px/1.3 var(--font-body);
-  overflow-wrap: anywhere;
-}
+.g-prep__why { font: 400 12px/1.3 var(--font-body); overflow-wrap: anywhere; }
 
 .g-prep__more { padding: 0 var(--space-4); }
 .g-prep__summary {
@@ -551,11 +379,7 @@
 }
 
 /* The start: each side's rows, the label at the left and the value at the right. */
-.g-prep__sides {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: var(--space-14);
-}
+.g-prep__sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--space-14); }
 
 .g-prep__row {
   box-sizing: border-box;
@@ -571,12 +395,7 @@
 
 .g-prep__rowk { color: var(--muted); }
 
-.g-prep__rowv {
-  color: var(--ink);
-  font-weight: 600;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
+.g-prep__rowv { color: var(--ink); font-weight: 600; text-align: right; overflow-wrap: anywhere; }
 .g-prep__rowv--done { color: var(--accent-text); }
 
 /* Up to 900px every control is a thumb's (D2): the season's segments and «Remove» too. */
@@ -604,11 +423,7 @@
   background: var(--header);
   color: var(--header-ink);
 }
-.g-prep__band .g-prep__back {
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
-}
+.g-prep__band .g-prep__back { width: 40px; height: 40px; border-radius: 20px; }
 .g-prep__band .g-prep__title { font: 600 28px/1.1 var(--font-display); }
 .g-prep__band .g-prep__sub { font-size: 14px; }
 
@@ -643,10 +458,7 @@
   list-style: none;
 }
 
-.g-prep__stepitem {
-  margin: 0;
-  padding: 0;
-}
+.g-prep__stepitem { margin: 0; padding: 0; }
 
 .g-prep__step {
   box-sizing: border-box;
@@ -676,34 +488,17 @@
   font: 700 13px/1 var(--font-body);
 }
 .g-prep__step--done .g-prep__stepmark,
-.g-prep__step--open .g-prep__stepmark {
-  background: var(--accent);
-  color: var(--on-accent);
-}
+.g-prep__step--open .g-prep__stepmark { background: var(--accent); color: var(--on-accent); }
 .g-prep__step--later { cursor: default; }
-.g-prep__step--later .g-prep__stepmark {
-  background: var(--surface-3);
-  color: var(--muted);
-}
+.g-prep__step--later .g-prep__stepmark { background: var(--surface-3); color: var(--muted); }
 
-.g-prep__steptext {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
+.g-prep__steptext { display: flex; flex-direction: column; min-width: 0; }
 
-.g-prep__stepname {
-  font: 500 15px/1.3 var(--font-body);
-  overflow-wrap: anywhere;
-}
+.g-prep__stepname { font: 500 15px/1.3 var(--font-body); overflow-wrap: anywhere; }
 .g-prep__step--current .g-prep__stepname,
 .g-prep__step--shown .g-prep__stepname { font-weight: 700; }
 
-.g-prep__stepsum {
-  color: var(--muted);
-  font: 400 12px/1.3 var(--font-body);
-  overflow-wrap: anywhere;
-}
+.g-prep__stepsum { color: var(--muted); font: 400 12px/1.3 var(--font-body); overflow-wrap: anywhere; }
 .g-prep__step--current .g-prep__stepsum { color: var(--on-accent-tint); }
 
 .g-prep__card {
@@ -729,11 +524,5 @@
   overflow-wrap: anywhere;
 }
 
-.g-prep__column {
-  display: flex;
-  flex: 1 1 300px;
-  flex-direction: column;
-  gap: var(--space-16);
-  min-width: 0;
-}
+.g-prep__column { display: flex; flex: 1 1 300px; flex-direction: column; gap: var(--space-16); min-width: 0; }
 .g-prep__column .g-prep__weatherline { font-size: 18px; }
