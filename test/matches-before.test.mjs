@@ -6,12 +6,13 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document,
 import { fireEvent } from "./helpers/fake-dom.mjs";
 import { assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
 import { expandCollections } from "../src/data/reference.mjs";
-import { t } from "../src/core/i18n.mjs";
+import { initLocale, t } from "../src/core/i18n.mjs";
 import { formatMoney } from "../src/core/format.mjs";
 import { matchPreview, BEFORE_GETS } from "../src/domain/match/preview.mjs";
 import {
   BEFORE_SHEET_ID, beforeFigures, beforeSheetMarkup, beforeTitle, closeBeforeSheet, openBeforeSheet,
 } from "../src/screens/matches/before.mjs";
+import { absenceWords } from "../src/screens/team/roster/panel.mjs";
 
 const text = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 const data = expandCollections(JSON.parse(text("public/data.en.json")));
@@ -56,7 +57,7 @@ test("the sheet says who gets the inducements and why: CTV against CTV, the amou
   const sheet = sheetOf(PLUS);
   const dialog = sheet.querySelector(`dialog#${BEFORE_SHEET_ID}`);
   assert.ok(dialog.classList.contains("g-before-sheet") && dialog.classList.contains("g-sheet--wide"));
-  assert.equal(textOf(sheet, ".g-sheet__title"), "Before the match · Round 7");
+  assert.equal(textOf(sheet, ".g-sheet__title"), "Before the match · Round\u00a07");
   assert.equal(beforeTitle(FRIENDLY), "Before the match · Friendly");
   assert.ok(sheet.querySelector(".g-before__hero--gets"));
   assert.equal(textOf(sheet, ".g-before__amount"), formatMoney(90));
@@ -102,6 +103,11 @@ test("the budget lines are the preview's", () => {
   assert.equal(textOf(sheetOf(EVEN), ".g-before__note"), t("matches.before.note.even"));
   const shop = sheetOf(PLUS).querySelector(".g-before__shop");
   assert.deepEqual([shop.getAttribute("href"), shop.textContent], ["#/ref/inducements", "What inducements can buy"]);
+  // A match begun: the start settled the treasury, and the saved team holds what is left of it (the final review, m-2).
+  const begun = { ...ROUND_7, preparationStatus: "in_progress" };
+  assert.deepEqual(linesOf(sheetOf(PLUS, begun)).at(-1), ["From the treasury", "settled at the start"]);
+  assert.deepEqual(linesOf(sheetOf(MINUS, begun)).at(-1), ["From the treasury", "settled at the start"]);
+  assert.deepEqual(linesOf(sheetOf(EVEN, begun)).at(-1), ["From the treasury", "not allowed · CTVs equal"], "a rule, not a figure");
 });
 
 test("with equal CTVs and a tier bonus the sheet does not say there are no inducements", () => {
@@ -124,17 +130,36 @@ test("the tile, the line and the bubbles say the same as the sheet", () => {
   assert.deepEqual(plus.tile, { who: "we get them", amount: "+90k", tone: "gets" });
   assert.deepEqual(minus.tile, { who: "the opponent's", amount: "−90k", tone: "pays" });
   assert.deepEqual(even.tile, { who: "CTVs equal", amount: "0", tone: "even" });
-  assert.deepEqual(plus.miss, { lead: "Out:", names: "J. Corr", why: " · seriously Hurt" });
-  assert.deepEqual(minus.miss, { lead: "Out:", names: "Elriel, Thalion", why: " · serious Injury" });
-  assert.deepEqual(beforeFigures(ALL_IN).miss, { lead: "Lineup:", names: "all in", why: "" });
+  // English keeps the injury's name as it is written (the fix wave's parked 6); a shared reason is said once (G4).
+  assert.deepEqual(plus.miss, { lead: "Out:", parts: [{ name: "J. Corr", why: "Seriously Hurt" }] });
+  assert.deepEqual(minus.miss, { lead: "Out:", parts: [{ name: "Elriel", why: "Serious Injury" }, { name: "Thalion", why: "Disqualified" }] });
+  const shared = matchPreview({ own: ash(players("x", [0, 0, 0, 0, 0, 0, 0, 0], {
+    0: { name: "Nod", skipNextGame: true, absence: { code: "miss" } }, 1: { name: "Rue", skipNextGame: true, absence: { code: "miss" } },
+  })), other: silver() }, data);
+  assert.deepEqual(beforeFigures(shared).miss.parts, [{ name: "Nod, Rue", why: "Seriously Hurt" }]);
+  assert.deepEqual(beforeFigures(ALL_IN).miss, { lead: "Lineup:", parts: [{ name: "all in", why: "" }] });
   assert.equal(plus.missText, "missing the match: 3");
   assert.equal(beforeFigures(OUR_BONUS).missText, "Everyone is in the lineup");
   assert.deepEqual(plus.bubble, { gets: "own", text: "+90k for inducements" });
   assert.deepEqual(minus.bubble, { gets: "other", text: "+90k for inducements" });
   assert.deepEqual(even.bubble, { gets: null, text: "" }, "no side gets it: no bubble (L29)");
-  // Only the first letter is made small: a coach's note, or a characteristic, stays as written (L25).
-  const lasting = matchPreview({ own: ash(players("x", [0, 0, 0, 0, 0, 0, 0, 0], { 0: { name: "Nod", skipNextGame: true, absence: { code: "lasting", stat: "ag" } } })), other: silver() }, data);
-  assert.equal(beforeFigures(lasting).miss.why, " · lasting Injury (AG)");
+  // Each player his own reason when they differ (G4: one was suspended, the other hurt).
+  const two = matchPreview({ own: ash(players("x", [0, 0, 0, 0, 0, 0, 0, 0], {
+    0: { name: "Nod", skipNextGame: true, absence: { code: "lasting", stat: "ag" } },
+    1: { name: "Rue", skipNextGame: true, absence: { code: "other", note: "Suspended by the league" } },
+  })), other: silver() }, data);
+  assert.deepEqual(beforeFigures(two).miss.parts, [{ name: "Nod", why: "Lasting Injury (AG)" }, { name: "Rue", why: "Suspended by the league" }]);
+  // In Russian only the first letter is made small: a coach's note, or a characteristic, stays as written (L25).
+  initLocale("ru");
+  try {
+    const small = (words) => words.charAt(0).toLocaleLowerCase() + words.slice(1);
+    const why = beforeFigures(two).miss.parts.map((part) => part.why);
+    assert.deepEqual(why, two.own.missing.map((player) => small(absenceWords(player))));
+    assert.equal(why[1], "suspended by the league", "a coach's note keeps the rest as written");
+    assert.notEqual(why[0], absenceWords(two.own.missing[0]), "the first letter is made small");
+  } finally {
+    initLocale("en");
+  }
 });
 
 test("the sheet opens over the page, gives the focus back on close, and goes with the screen", () => {

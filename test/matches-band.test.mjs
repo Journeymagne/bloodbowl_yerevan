@@ -64,7 +64,7 @@ test("the band is the team's played matches in the order they were settled, then
   assert.deepEqual(items.map((item) => item.label), ["1", "F", "2", "3"]);
   assert.deepEqual(items.map((item) => item.key), ["g-r1", "g-f", "g-r2", "g-now"]);
   assert.deepEqual(items.map((item) => item.current), [false, false, false, true]);
-  assert.deepEqual(items.map((item) => item.title), ["Round 1", "Friendly", "Round 2", "Round 3"]);
+  assert.deepEqual(items.map((item) => item.title), ["Round\u00a01", "Friendly", "Round\u00a02", "Round\u00a03"]);
   assert.deepEqual(items.map((item) => item.result), ["w", "t", "l", null]);
   assert.deepEqual(items.map((item) => item.score), ["2:0", "1:1", "1:2", ""], "from the team's side, the board's way");
   assert.deepEqual(items.map((item) => item.cas), ["1–0", "2–0", "1–0", ""]);
@@ -97,7 +97,7 @@ test("the season's league matches and its friendlies: another season's are not i
 test("no current match: the last item is the opponent to come", () => {
   const items = bandItems([R1, FRIENDLY, R2], "t1", SEASON);
   const last = items.at(-1);
-  assert.deepEqual([last.current, last.opponent, last.title, last.label, last.gameId], [true, null, "Round 4", "4", null]);
+  assert.deepEqual([last.current, last.opponent, last.title, last.label, last.gameId], [true, null, "Round\u00a04", "4", null]);
   const board = bandBoard(input({ games: [R1, FRIENDLY, R2] }));
   assert.equal(board.pendingText, "Opponent — after round 3");
   assert.equal(board.opponent, null);
@@ -147,7 +147,11 @@ test("in a match the records are an outlined button with their count and the pos
   // Before the match: the preparation, then the friendlies; a score sent its line, and nothing else for our own proposal.
   assert.deepEqual(bandActions(currentMatch([NOW], "t1"), "t1", null).links.map((link) => [link.label, link.kind]), [["Match preparation", "primary"], ["Friendlies", "light"]]);
   const sent = currentMatch([game("g-sent", { resultStatus: "awaiting_confirmation", viewerIsProposer: true, proposedHomeTouchdowns: 2, proposedAwayTouchdowns: 1, proposedHomeCasualties: 2, proposedAwayCasualties: 1 })], "t1");
-  assert.deepEqual(bandActions(sent, "t1", null), { links: [], sentLine: "Win 2–1 · CAS 2–1" });
+  // Our own proposal: who confirms it, in a quiet line (DeskSeason's sentNote, G5); the opponent's: the button alone.
+  const rival = sent.game.away.team.name;
+  assert.deepEqual(bandActions(sent, "t1", null), { links: [], sentLine: `${rival} confirms the result` });
+  const theirs = currentMatch([{ ...sent.game, viewerIsProposer: false }], "t1");
+  assert.deepEqual(bandActions(theirs, "t1", null), { links: [{ label: "Confirm the score", href: "#/games/g-sent", kind: "primary" }], sentLine: "" });
   assert.deepEqual(bandActions(null, "t1", null).links.map((link) => link.label), ["Friendlies"]);
   // On the band, a score sent stands as the board writes a score, with its CAS as a chip (L19, L31).
   const board = bandBoard(input({ games: [sent.game], current: sent, items: bandItems([sent.game], "t1", SEASON) }));

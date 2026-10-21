@@ -47,11 +47,12 @@ function tilesMarkup(tiles) {
     + `<span class="g-matches__tilev">${escapeHtml(tiles.own)} <span class="g-matches__tilerest">/ ${escapeHtml(tiles.other)}</span></span></div>${inducementTile(tiles)}`;
 }
 
-/** «Out: J. Corr · seriously hurt», or «Lineup: all in»: it opens «Before the match» too. */
+/** «Out: J. Corr · Seriously Hurt, B. Seven · Suspended», or «Lineup: all in»: it opens «Before the match» too. */
 function missMarkup(miss) {
   if (!miss) return "";
+  const parts = miss.parts.map(({ name, why }) => `<b>${escapeHtml(name)}</b>${why ? ` · ${escapeHtml(why)}` : ""}`).join(", ");
   return `<button type="button" class="g-matches__miss" aria-haspopup="dialog" data-before-open=""><span class="g-matches__misstext">${escapeHtml(miss.lead)} `
-    + `<b>${escapeHtml(miss.names)}</b>${escapeHtml(miss.why)}</span><span class="g-matches__missicon">${icon("info", 14)}</span></button>`;
+    + `${parts}</span><span class="g-matches__missicon">${icon("info", 14)}</span></button>`;
 }
 
 /** The match's records in play: their count and sums when read, why not when they could not be. */

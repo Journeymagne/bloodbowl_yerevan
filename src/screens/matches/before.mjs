@@ -16,7 +16,7 @@
 import { patchWithModal } from "../../components/dialog.mjs";
 import { escapeHtml, focusLost } from "../../core/dom.mjs";
 import { formatMoney } from "../../core/format.mjs";
-import { t } from "../../core/i18n.mjs";
+import { getLocale, t } from "../../core/i18n.mjs";
 import { refUrl } from "../../core/routes.mjs";
 import { renderSheet, wireSheets } from "../../ui/sheet.mjs";
 import { mountSheetHost, unmountSheetHost } from "../team/manage/sheet-host.mjs";
@@ -47,6 +47,23 @@ function backWords(game) {
 
 /** The first letter lower, the rest as written: an injury with its characteristic, a coach's note (pre-flight L25). */
 const lowerFirst = (words) => (words ? words.charAt(0).toLocaleLowerCase() + words.slice(1) : words);
+
+/**
+ * Why a player misses the match, as the line after his name says it: in Russian with its first letter small (pre-flight
+ * L25: «· тяжёлое повреждение»); in English as the injury is named, «· Seriously Hurt» (the fix wave's parked 6: the
+ * names are capitalised word by word, and a small first letter alone read «seriously Hurt»).
+ */
+const reasonOf = (player) => (getLocale() === "ru" ? lowerFirst(absenceWords(player)) : absenceWords(player));
+
+/**
+ * Our players who miss the match, each with why (the fidelity pass's G4): «J. Corr · Seriously Hurt, B. Seven ·
+ * Suspended by the league»; one reason after all the names when they share it, «Elriel, Thalion · Serious Injury».
+ */
+function missParts(players) {
+  const reasons = players.map(reasonOf);
+  if (reasons.every((why) => why === reasons[0])) return [{ name: players.map((player) => player.name).join(", "), why: reasons[0] }];
+  return players.map((player, at) => ({ name: player.name, why: reasons[at] }));
+}
 
 function sideMarkup(side, which) {
   const other = which === "other";
@@ -81,21 +98,26 @@ function columnMarkup(side, game, other) {
     + `${side.missing.map((player) => missMarkup(player, game, other)).join("")}</ul></div>`;
 }
 
-/** The budget's lines, as the preview gives them; ours, and the opponent's tier bonus when there is one. */
-function budgetLines(preview) {
+/**
+ * The budget's lines, as the preview gives them; ours, and the opponent's tier bonus when there is one. Once the match
+ * has begun the treasury was settled by the start, and the saved team's treasury is what is left after it: the line
+ * says so rather than give that remainder as what may be spent (the final review, m-2).
+ */
+function budgetLines(preview, begun) {
   const { gets, petty, bonus, treasury } = preview;
   const lines = [[gets === "own" ? t("matches.before.petty") : t("matches.before.pettyNone"), formatMoney(petty)]];
   if (gets !== "even" || bonus.own > 0) lines.push([t("matches.before.bonus"), formatMoney(bonus.own)]);
   if (bonus.other > 0) lines.push([t("matches.before.bonusOther"), formatMoney(bonus.other)]);
-  if (gets === "own") lines.push([t("matches.before.treasuryTop"), t("matches.before.treasuryUpTo", { amount: formatMoney(treasury.amount) })]);
+  if (begun && gets !== "even") lines.push([t("matches.before.treasury"), t("matches.before.treasuryStarted")]);
+  else if (gets === "own") lines.push([t("matches.before.treasuryTop"), t("matches.before.treasuryUpTo", { amount: formatMoney(treasury.amount) })]);
   else if (gets === "other") lines.push([t("matches.before.treasury"), t("matches.before.treasuryAll", { amount: formatMoney(treasury.amount) })]);
   else lines.push([t("matches.before.treasury"), t("matches.before.treasuryNone")]);
   return lines;
 }
 
-function budgetMarkup(preview) {
+function budgetMarkup(preview, begun) {
   const note = preview.gets === "even" && anyBonus(preview) ? t("matches.before.noteEvenBonus") : t(`matches.before.note.${preview.gets}`);
-  const lines = budgetLines(preview).map(([label, value]) => `<div class="g-before__line"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("");
+  const lines = budgetLines(preview, begun).map(([label, value]) => `<div class="g-before__line"><dt>${escapeHtml(label)}</dt><dd>${escapeHtml(value)}</dd></div>`).join("");
   return `<section class="g-before__budget"><h3 class="g-before__heading g-before__heading--start">${escapeHtml(t("matches.before.budget"))}</h3>`
     + `<dl class="g-before__lines">${lines}</dl><p class="g-before__note">${escapeHtml(note)}</p></section>`;
 }
@@ -109,15 +131,15 @@ export function beforeSheetMarkup({ preview, game }) {
   const body = `<div class="g-before">${heroMarkup(preview)}<div class="g-before__body">`
     + `<h3 class="g-before__heading">${escapeHtml(t("matches.before.missing"))}</h3>`
     + `<div class="g-before__missing">${columnMarkup(preview.own, game, false)}${columnMarkup(preview.other, game, true)}</div>`
-    + `${budgetMarkup(preview)}<a class="g-before__shop" href="${escapeHtml(refUrl("inducements"))}">${escapeHtml(t("matches.before.shop"))}</a></div></div>`;
+    + `${budgetMarkup(preview, game?.preparationStatus === "in_progress")}<a class="g-before__shop" href="${escapeHtml(refUrl("inducements"))}">${escapeHtml(t("matches.before.shop"))}</a></div></div>`;
   return renderSheet({ id: BEFORE_SHEET_ID, title: beforeTitle(game), wide: true, className: "g-before-sheet", bodyHtml: body });
 }
 
 /**
  * What the tile, the line of who is out and the bubbles say, from the same preview as the sheet: the amount of the
  * difference with its sign (`+90k` ours, `−90k` the opponent's, `0` at equal CTVs; the tier bonus is the sheet's to say),
- * our players who miss the match with why the first one does, and how many miss it on both sides. `bubble.gets` is
- * null when no side gets the difference: there is no bubble then.
+ * our players who miss the match with why each one does (`missParts`), and how many miss it on both sides.
+ * `bubble.gets` is null when no side gets the difference: there is no bubble then.
  * @param {NonNullable<Preview>} preview
  */
 export function beforeFigures(preview) {
@@ -125,8 +147,8 @@ export function beforeFigures(preview) {
   const amount = gets === "even" ? "0" : `${gets === "own" ? "+" : MINUS}${formatMoney(difference)}`;
   const ours = preview.own.missing;
   const miss = ours.length
-    ? { lead: t("matches.before.out"), names: ours.map((player) => player.name).join(", "), why: ` · ${lowerFirst(absenceWords(ours[0]))}` }
-    : { lead: t("matches.before.lineupLead"), names: t("matches.before.lineupAll"), why: "" };
+    ? { lead: t("matches.before.out"), parts: missParts(ours) }
+    : { lead: t("matches.before.lineupLead"), parts: [{ name: t("matches.before.lineupAll"), why: "" }] };
   const count = ours.length + preview.other.missing.length;
   return {
     tile: { who: t(`matches.before.tileWho.${gets}`), amount, tone: HERO_TONES[gets] },

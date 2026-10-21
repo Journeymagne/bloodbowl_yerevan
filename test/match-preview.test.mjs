@@ -83,12 +83,19 @@ test("a player who sits the match out is not in the CTV and is listed with why; 
   assert.deepEqual(preview.other.missing, []);
 });
 
-test("a race the reference does not know, or a treasury the rules cannot read: no preview", () => {
+test("a race the reference does not know, or our treasury the rules cannot read: no preview; the opponent's unreadable treasury blanks nothing of ours", () => {
   const other = source("d", "teams/dwarf", dwarves);
   assert.equal(matchPreview({ own: source("x", "teams/nope", humans), other }, data), null);
   assert.equal(matchPreview({ own: other, other: source("x", "teams/nope", humans) }, data), null);
   assert.equal(matchPreview({ own: source("h", "teams/human", humans, { treasury: -5 }), other }, data), null);
-  assert.equal(matchPreview({ own: other, other: source("h", "teams/human", humans, { treasury: 0.0004 }) }, data), null);
+  assert.equal(matchPreview({ own: source("h", "teams/human", humans, { treasury: 0.0004 }), other }, data), null);
+  // The final review, m-6: his treasury is not ours to read; his tier bonus is the tiers'.
+  for (const treasury of [-5, 0.0004]) {
+    const preview = matchPreview({ own: other, other: source("h", "teams/human", humans, { treasury }) }, data);
+    assert.ok(preview, `the opponent's treasury ${treasury}`);
+    const whole = matchPreview({ own: other, other: source("h", "teams/human", humans) }, data);
+    assert.deepEqual(preview, whole, "every number of ours as with a readable treasury of his");
+  }
 });
 
 test("the reference not read whole yet: no preview; any other fault is not swallowed", () => {

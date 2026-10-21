@@ -40,8 +40,12 @@
  *                                 re-rolls nearest two — and the two out stay. Both races are Tier 1: no tier bonus. With
  *                                 the mock's Mock Team (670k: scripts/mock/treasury.mjs gives it an apothecary) `plus` is
  *                                 760k (5 Linemen, a Runner, a Blitzer, 4 re-rolls), `even` 670k (3 Linemen, 2 Runners, 2
- *                                 Blitzers, 2 re-rolls), `minus` 580k (5 Linemen, a Runner, a Blitzer, 1 re-roll). Answers
- *                                 `{case, team, ctv: {own, rival}}`; 400 FIELD_INVALID `case` for another word.
+ *                                 Blitzers, 2 re-rolls), `minus` 580k (5 Linemen, a Runner, a Blitzer, 1 re-roll).
+ *                                 `even-bonus` is level too, but the rival plays Tzeentch, a Tier 2 race (the list's
+ *                                 game says so too): his tier bonus stands at equal CTVs (decision 12, the final review's
+ *                                 m-7) — at 670k 5 Blue Horrors, 2 Forsaken and 4 re-rolls. Any other case gives him back
+ *                                 his Dwarfs. Answers `{case, team, ctv: {own, rival}}`; 400 FIELD_INVALID `case` for
+ *                                 another word.
  *
  * What it does not do: the start spends no treasury and seals no purchase (the server's `applyPreMatchTreasury`), the
  * teams' revisions stay; nobody hires a Journeyman for the opponent; ids are the mock's, not UUIDs. Everything is held
@@ -96,12 +100,14 @@ const outOf = (team) => [
   playerOf(team, 9, 3, "Out Two", { skipNextGame: true, absence: { code: "other", note: "Disqualified" } }),
 ];
 /** How far the first rival's CTV stands from the coach's in each case of «Before the match», in k. */
-const BEFORE_CASES = { plus: 90, even: 0, minus: -90 };
+const BEFORE_CASES = { plus: 90, even: 0, minus: -90, "even-bonus": 0 };
 /**
- * What the first rival (a Dwarf team in mock-api.mjs) plays beside his Blocker Linemen (row 0) in a case: rows of
- * teams/dwarf and how many of each the race leaves beside the two out — Runners (1), Blitzers (2), a Troll Slayer (3).
+ * The race the first rival plays in a case, what he plays beside its first position (row 0) — rows of the race and how
+ * many of each it leaves beside the two out — and his players' word. A Dwarf team in mock-api.mjs: Runners (1),
+ * Blitzers (2), a Troll Slayer (3). For `even-bonus` Tzeentch, Tier 2: Pink Horrors (1), Forsaken (2).
  */
-const CASE_ROWS = [[1, 2], [2, 2], [3, 1]];
+const DWARVES = { slug: "teams/dwarf", rows: [[1, 2], [2, 2], [3, 1]], word: "Dwarf" };
+const CASE_RACES = { "even-bonus": { slug: "teams/tzeentch", rows: [[1, 3], [2, 2]], word: "Horror" } };
 const NUMBERS = ["One", "Two", "Three", "Four", "Five", "Six", "Seven"];
 
 /** A roster as the mock's teams carry one (`rosterOf`, mock-api.mjs), with `rerolls` re-rolls. */
@@ -110,9 +116,9 @@ const rosterOf = (side, players, rerolls) => ({
   roster: players.reduce((counts, { rowIndex }) => ({ ...counts, [rowIndex]: (counts[rowIndex] ?? 0) + 1 }), {}),
   treasury: 70, coachesSafe: 0, startingRerolls: Math.min(1, rerolls), teamRerolls: Math.max(0, rerolls - 1), purchasedStaff: {}, dedicatedFans: 2,
 });
-/** The first rival's roster: players of `rows` (row indexes, in order), then the two out. */
-const caseRoster = (side, rows, rerolls) => rosterOf(side,
-  [...rows.map((rowIndex, at) => playerOf(side.team.id, at + 1, rowIndex, `Dwarf ${NUMBERS[at]}`)), ...outOf(side.team.id)], rerolls);
+/** The first rival's roster: players of `rows` (row indexes, in order) named by `word`, then the two out. */
+const caseRoster = (side, rows, rerolls, word = DWARVES.word) => rosterOf(side,
+  [...rows.map((rowIndex, at) => playerOf(side.team.id, at + 1, rowIndex, `${word} ${NUMBERS[at]}`)), ...outOf(side.team.id)], rerolls);
 /** Seven of the race's first position, nobody out, two re-rolls. */
 const wholeRoster = (side) => rosterOf(side, NUMBERS.map((word, at) => playerOf(side.team.id, at + 1, 0, `Rival ${word}`)), 2);
 
@@ -133,15 +139,15 @@ function mixesOf(rows) {
  * few besides Blocker Linemen as the sum needs, the re-rolls nearest two. Each part is priced by the domain (the CTV is
  * a sum) and the whole once more; a sum no roster makes is the mock's error.
  */
-function caseFor(side, own, gap, data) {
-  const priced = (rows, rerolls) => ctvOf({ baseTeamSlug: side.team.baseTeamSlug, roster: caseRoster(side, rows, rerolls) }, data);
+function caseFor(side, own, gap, data, race = DWARVES) {
+  const priced = (rows, rerolls) => ctvOf({ baseTeamSlug: side.team.baseTeamSlug, roster: caseRoster(side, rows, rerolls, race.word) }, data);
   const lineman = priced([0], 0), reroll = priced([], 1);
-  const mixes = mixesOf(CASE_ROWS.map(([row, most]) => [row, most, priced([row], 0) - lineman]));
+  const mixes = mixesOf(race.rows.map(([row, most]) => [row, most, priced([row], 0) - lineman]));
   for (const count of [7, 6, 5, 4]) {
     for (const rerolls of [2, 3, 1, 4, 0, 5, 6, 7, 8]) {
       const mix = mixes.find((item) => item.rows.length <= count && item.cost === own + gap - count * lineman - rerolls * reroll);
       const rows = mix && [...Array(count - mix.rows.length).fill(0), ...mix.rows];
-      if (rows && priced(rows, rerolls) === own + gap) return caseRoster(side, rows, rerolls);
+      if (rows && priced(rows, rerolls) === own + gap) return caseRoster(side, rows, rerolls, race.word);
     }
   }
   throw new Error(`mock: no roster of ${side.team.name} stands ${gap}k from the coach's ${own}k`);
@@ -152,14 +158,17 @@ const viewerSideOf = (game) => (game.viewerIsHome === false ? "away" : "home");
 /** The opponent's side of a match: `{user, team}` as the games carry them. */
 const opponentOf = (game) => game[otherSide(viewerSideOf(game))];
 
-/** The first rival's roster for the case `name`, against the coach's team of g1 as it is now: `{roster, own}`. */
+/** The first rival's roster for the case `name`, against the coach's team of g1 as it is now: `{roster, own, slug}`. */
 async function caseNow({ teams, games }, name) {
   const game = games.find((item) => item.id === FIRST_MATCH);
   const team = teams.find((item) => item.id === game[viewerSideOf(game)].team.id);
   if (!team) throw refusal(404, "TEAM_NOT_FOUND");
   const data = await referenceData();
   const own = ctvOf(team, data);
-  return { roster: caseFor(opponentOf(game), own, BEFORE_CASES[name], data), own };
+  const race = CASE_RACES[name] ?? DWARVES;
+  const rival = opponentOf(game);
+  const side = { ...rival, team: { ...rival.team, baseTeamSlug: race.slug } };
+  return { roster: caseFor(side, own, BEFORE_CASES[name], data, race), own, slug: race.slug };
 }
 
 /** Each rival's team as his public page has it, made at the first ask: rival team id → `publicSavedTeam`. */
@@ -194,9 +203,11 @@ async function setBefore(name, mock) {
   const game = mock.games.find((item) => item.id === FIRST_MATCH);
   const found = game && await rivalOf(mock, opponentOf(game).team.id);
   if (!found) throw refusal(404, "TEAM_NOT_FOUND");
-  const { roster, own } = await caseNow(mock, name);
+  const { roster, own, slug } = await caseNow(mock, name);
   const { team } = found;
-  Object.assign(team, { roster, revision: team.revision + 1, updatedAt: new Date().toISOString() });
+  Object.assign(team, { baseTeamSlug: slug, roster, revision: team.revision + 1, updatedAt: new Date().toISOString() });
+  // The list's games name his race too: the board's line and «Before the match» agree.
+  for (const item of mock.games) if (opponentOf(item)?.team?.id === team.id) opponentOf(item).team.baseTeamSlug = slug;
   return mock.reply({ case: name, team, ctv: { own, rival: ctvOf(team, await referenceData()) } });
 }
 

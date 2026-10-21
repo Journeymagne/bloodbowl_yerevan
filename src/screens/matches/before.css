@@ -11,6 +11,9 @@ dialog.g-sheet.g-before-sheet .g-sheet__body {
   padding: 0;
 }
 
+/* The title wraps in balance after «·»: «Round 3» holds together by its no-break space (the fidelity pass's G3). */
+.g-before-sheet .g-sheet__title { text-wrap: balance; }
+
 .g-before {
   display: flex;
   flex-direction: column;

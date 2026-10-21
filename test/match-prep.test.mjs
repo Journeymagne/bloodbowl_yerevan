@@ -80,7 +80,7 @@ test("a phone's frame: back to the team's matches, the title, the dots, the foot
   assert.equal(back.getAttribute("href"), teamUrl("t1", "matches"));
   assert.equal(back.getAttribute("aria-label"), "Back to the matches");
   assert.equal(fragment.querySelector("h1.g-prep__title").textContent, "Before the match");
-  assert.equal(fragment.querySelector(".g-prep__sub").textContent, "Round 7 · Ashgrove Wardens — Silverbrook Rangers");
+  assert.equal(fragment.querySelector(".g-prep__sub").textContent, "Round\u00a07 · Ashgrove Wardens — Silverbrook Rangers");
   const dots = fragment.querySelector("nav.g-prep__dots");
   assert.equal(dots.getAttribute("aria-label"), "Preparation steps");
   assert.equal(dots.querySelectorAll(".g-prep__dot").length, 5);

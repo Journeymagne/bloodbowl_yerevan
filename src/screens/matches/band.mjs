@@ -85,16 +85,18 @@ function nextItem(season) {
  * The team's played matches of the season, the newest first, each with its game: the league's of this season and the
  * friendlies settled since it was created (all of them while it does not say when, or with no season at all); a match
  * still on is the current one's, not one of these. The board, the matches page's results and its calendar read the
- * season the same way (pre-flight L13).
+ * season the same way (pre-flight L13). A team that is not in the season (`sinceSeason: false`: the matches page's
+ * results are its friendlies, decision 8) keeps every friendly, those before the season too (the final review, m-8).
  * @param {object[]} games `/api/games`'s
  * @param {string} teamId
  * @param {object|null} seasonData `/api/season`'s
+ * @param {{sinceSeason?: boolean}} [options]
  * @returns {(ReturnType<typeof recentResults>[number] & {game: object})[]}
  */
-export function seasonResults(games, teamId, seasonData) {
+export function seasonResults(games, teamId, seasonData, { sinceSeason = true } = {}) {
   const season = seasonData?.season ?? null;
   const current = currentMatch(games, teamId);
-  const since = Date.parse(season?.createdAt) || 0;
+  const since = sinceSeason ? Date.parse(season?.createdAt) || 0 : 0;
   const byId = new Map(games.map((game) => [game.id, game]));
   const ofSeason = ({ gameId, friendly }) => {
     const game = byId.get(gameId);
@@ -120,8 +122,9 @@ export function bandItems(games, teamId, seasonData) {
 
 /**
  * What the band offers (`matchActions`, in DeskSeason's and DeskSeasonLive's looks): before the match the preparation
- * and then the friendlies; in it the records with their count, outlined, and the post-match, white; a score sent its
- * line. With no match on, the friendlies.
+ * and then the friendlies; in it the records with their count, outlined, and the post-match, white. A score sent: ours
+ * says in a quiet line who confirms it (DeskSeason's `sentNote`, the fidelity pass's G5 — the score and its CAS are on
+ * the band already); the opponent's has «Confirm the score» alone. With no match on, the friendlies.
  * @param {ReturnType<typeof currentMatch>} current
  * @param {string} teamId
  * @param {{count: number}|null} records `matchRecords`' of the match on; null while they are not read
@@ -131,6 +134,10 @@ export function bandActions(current, teamId, records) {
   if (!current) return { links: [friendlies], sentLine: "" };
   const actions = matchActions(current, teamId);
   if (current.phase === "idle") return { ...actions, links: [...actions.links, friendlies] };
+  if (current.phase === "sent") {
+    const rival = current.game[gameSides(current.game, teamId).other];
+    return { ...actions, sentLine: current.game.viewerIsProposer === false ? "" : t("matches.sentWaiting", { team: rival.team?.name ?? "" }) };
+  }
   if (current.phase !== "live") return actions;
   const recordsLabel = records ? t("matches.records", { count: records.count }) : t("shell.match.records");
   return { ...actions, links: actions.links.map((link) => (link.kind === "text" ? { ...link, label: recordsLabel, kind: "light" } : { ...link, kind: "primary" })) };

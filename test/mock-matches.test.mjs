@@ -206,6 +206,20 @@ test("«Before the match»: the first rival's roster dearer, cheaper or level wi
     assert.deepEqual((await ask(mock, "POST", `/api/mock/before/${name}`)).payload.ctv, { own: 670, rival: total }, name);
     assert.equal(ctvOf(await page()), total, name);
   }
+  // Level, with a Tier 2 rival: his tier bonus stands at equal CTVs (decision 12; the final review, m-7).
+  const bonus = await ask(mock, "POST", "/api/mock/before/even-bonus");
+  assert.deepEqual(bonus.payload.ctv, { own: 670, rival: 670 });
+  const tzeentch = await page();
+  assert.equal(tzeentch.baseTeamSlug, "teams/tzeentch");
+  assert.equal(mock.games.find((game) => game.id === "g1").away.team.baseTeamSlug, "teams/tzeentch", "the list's game says so too");
+  const { matchPreview } = await import("../src/domain/match/preview.mjs");
+  const ours = mock.teams[0];
+  const preview = matchPreview({ own: { user: { id: "u1", login: "coach" }, team: ours }, other: { user: { id: "u2", login: "rival" }, team: tzeentch } }, data);
+  assert.deepEqual([preview.gets, preview.bonus], ["even", { own: 0, other: 200 }]);
+  assert.equal(tzeentch.roster.players.filter((player) => player.skipNextGame).length, 2);
+  await ask(mock, "POST", "/api/mock/before/even");
+  assert.equal((await page()).baseTeamSlug, "teams/dwarf", "another case gives him back his Dwarfs");
+  assert.equal(mock.games.find((game) => game.id === "g1").away.team.baseTeamSlug, "teams/dwarf");
   delete mock.teams[0].roster.apothecary;
   // The g1 preparation follows the rival's new roster on its next read, as the server's does.
   await ask(mock, "POST", "/api/mock/prep/g1/roster");

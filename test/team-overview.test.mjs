@@ -546,7 +546,8 @@ test("a live match offers its records and the post-match; a score the opponent s
   const awaiting = mount(overviewMarkup(overviewModel(input("t3"))));
   assert.equal(awaiting.querySelector(".g-board__mid .g-status--wait").textContent, "Awaiting confirmation");
   assert.equal(awaiting.querySelector(".g-board__score").textContent, "2:1");
-  assert.equal(awaiting.querySelector(".g-board__note").textContent, "Win 2–1 · CAS 1–0");
+  // The opponent sent it: «Confirm the score» alone, no line repeating the score and the CAS (G5).
+  assert.ok(!awaiting.querySelector(".g-board__note"), "no line");
 });
 
 test("a team in the table with nothing to play says when the opponent comes, and offers the friendlies alone", () => {
@@ -1095,7 +1096,7 @@ test("the bubbles open «Before the match» over the page", async () => {
     bubble.focus();
     fireEvent(bubble, "click");
     assert.ok(beforeSheet()?.open, "the sheet, over the page");
-    assert.equal(beforeSheet().querySelector(".g-sheet__title").textContent, "Before the match · Round 3");
+    assert.equal(beforeSheet().querySelector(".g-sheet__title").textContent, "Before the match · Round\u00a03");
     assert.deepEqual(beforeSheet().querySelectorAll(".g-before__name").map((name) => name.textContent), ["Ashgrove Wardens", "Rival r1"]);
     // The page drawn again (the games answer) leaves it open.
     await notifyGames(GAMES);

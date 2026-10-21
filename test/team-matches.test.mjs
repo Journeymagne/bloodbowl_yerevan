@@ -177,11 +177,33 @@ test("a phone's next match: its card, the CTVs, the inducements and who misses i
     assert.ok(ind.classList.contains("g-matches__tile--gets"));
     assert.match(ind.querySelector(".g-matches__tilek").textContent, /^Inducements · we get them$/);
     assert.match(ind.querySelector(".g-matches__tilev").textContent, /^\+\d/);
-    assert.equal(article.querySelector(".g-matches__miss").textContent, "Out: J. Corr · seriously Hurt");
+    assert.equal(article.querySelector(".g-matches__miss").textContent, "Out: J. Corr · Seriously Hurt");
     assert.equal(article.querySelector(".g-btn--primary, .g-matches__cta").getAttribute("href"), preMatchUrl("g1"));
     assert.equal(article.querySelector(".g-matches__cta").textContent, "Match preparation");
     assert.equal(view.querySelector(".g-matches__friendlies").getAttribute("href"), teamUrl("t1", "challenges"));
     api.assertAnswered();
+  } finally {
+    leave();
+  }
+});
+
+test("an opponent's team that answers for a match no longer on is dropped: the match on keeps its own opponent", async () => {
+  let gate;
+  try {
+    await visit("t1", { before: () => { gate = api.hold(RIVAL_PAGE); } });
+    assert.equal(sent(RIVAL_PAGE), 1, "g1's opponent is asked for");
+    // Meanwhile g1 is gone from the list and g9, against r2, is the match on; r2's team answers at once.
+    const next = game("g9", { away: side("r2", "Rival Raiders", "teams/skaven") });
+    await notifyGames([...GAMES.filter((item) => item.id !== "g1"), next]);
+    await settle();
+    await settle();
+    const tile = () => card().querySelector(".g-matches__tile .g-matches__tilev").textContent;
+    assert.match(tile(), /^\d/, "g9's CTVs, from r2's team");
+    // r1's answer comes late: it is not taken for g9's (band.mjs `readRival`, the batch B concern).
+    gate.release();
+    await settle();
+    await settle();
+    assert.match(tile(), /^\d/, "still g9's: the late answer was dropped");
   } finally {
     leave();
   }
@@ -192,7 +214,7 @@ test("the inducement tile and the line of who misses it open «Before the match�
     await visit();
     fireEvent(view.querySelector(".g-matches__tile--ind"), "click");
     assert.ok(beforeSheet()?.open);
-    assert.equal(beforeSheet().querySelector(".g-sheet__title").textContent, "Before the match · Round 3");
+    assert.equal(beforeSheet().querySelector(".g-sheet__title").textContent, "Before the match · Round\u00a03");
     fireEvent(beforeSheet(), "keydown", { key: "Escape" });
     assert.equal(beforeSheet(), null);
     fireEvent(view.querySelector(".g-matches__miss"), "click");
@@ -305,7 +327,7 @@ test("no opponent yet: «Opponent — after round 3», no tiles", async () => {
     assert.equal(view.querySelector(".g-matches__tile"), null);
     assert.equal(view.querySelector("h2#matches-current"), null, "the round's match is played: nothing waits in its place");
     const later = view.querySelectorAll(".g-matches__later");
-    assert.deepEqual(words(".g-matches__round", later.at(-1)), ["Round 4"]);
+    assert.deepEqual(words(".g-matches__round", later.at(-1)), ["Round\u00a04"]);
     assert.equal(later.at(-1).querySelector(".g-matches__next").textContent, "Opponent — after round 3");
     assert.equal(later.at(-1).querySelector(".g-matches__line").textContent, "Swiss: paired by points once every result of the round is in");
     assert.equal(later.at(-1).tagName, "DIV", "nothing to open");
@@ -347,10 +369,12 @@ test("the results: every finished match, newest first, the record in its head", 
     assert.equal(results.querySelector(".g-matches__record").textContent, "W · D · L: 1 · 0 · 1");
     assert.deepEqual(words(".g-matches__opponent", results), ["Grimtusk Others", "Mirefen Rotters", "Tombway Kings"]);
     const rows = results.querySelectorAll(".g-matches__row");
-    assert.deepEqual(rows.map((row) => row.getAttribute("href")), [playerTeamUrl("u-r6", "r6"), playerTeamUrl("u-r5", "r5"), playerTeamUrl("u-r4", "r4")]);
-    assert.deepEqual(rows.map((row) => row.querySelector(".g-result").getAttribute("class")), ["g-result g-result--t", "g-result g-result--l", "g-result g-result--w"]);
+    // A row opens the match, as the overview's rows do (spec §3; the fix wave's parked 8).
+    assert.deepEqual(rows.map((row) => row.getAttribute("href")), [gameUrl("g6"), gameUrl("g5"), gameUrl("g4")]);
+    // A friendly's square says how it ended, as Matches.html's (G2): the 1–1 is a draw.
+    assert.deepEqual(rows.map((row) => row.querySelector(".g-result").getAttribute("class")), ["g-result g-result--d", "g-result g-result--l", "g-result g-result--w"]);
     assert.deepEqual(words(".g-matches__score", results), ["1–1", "0–2", "2–1"]);
-    assert.deepEqual(words(".g-matches__line", rows[2]), [`Round 1 · ${raceTitle("teams/orc")} · CAS 1–0`, "MVP: Linewoman Five"]);
+    assert.deepEqual(words(".g-matches__line", rows[2]), [`Round\u00a01 · ${raceTitle("teams/orc")} · CAS 1–0`, "MVP: Linewoman Five"]);
     assert.deepEqual(words(".g-matches__line", rows[0]), [`Friendly · ${raceTitle("teams/orc")} · CAS 0–0`], "no MVP: none picked");
     assert.equal(rows[2].querySelector("a"), null, "the row is one link: the race is text (pre-flight L14)");
   } finally {
@@ -369,7 +393,7 @@ test("later in the season: the team's other open matches first, then the next ro
     assert.equal(rows[0].querySelector(".g-matches__next").textContent, "Friendly · Grimtusk Others");
     assert.equal(rows[0].querySelector(".g-matches__line").textContent, "Preparation");
     assert.equal(rows[0].getAttribute("href"), preMatchUrl("g7"));
-    assert.equal(rows[1].querySelector(".g-matches__round").textContent, "Round 4");
+    assert.equal(rows[1].querySelector(".g-matches__round").textContent, "Round\u00a04");
   } finally {
     leave();
   }
@@ -396,6 +420,14 @@ test("a team not in the table: the call to enter the season, the friendlies, the
   // Nothing on: the call, the friendlies, the results.
   const quiet = matchesMarkup(modelOf("t4", { games: [...GAMES, done] }));
   assert.match(quiet, /Not entered in the season[\s\S]*g-matches__friendlies[\s\S]*Results/);
+  // A friendly settled before the season began is still one of its results (the final review, m-8): the season's cut is
+  // for a team in its table.
+  const before = played("g10", 0, [2, 0], [0, 0], { kind: "friendly", season: null, roundStatus: null, home: OURS.t4, away: TOMB, confirmedAt: "2026-08-20T10:00:00Z" });
+  const model = modelOf("t4", { games: [...GAMES, done, before] });
+  assert.deepEqual(model.results.map((row) => row.gameId), ["g9", "g10"]);
+  assert.deepEqual(model.calendar.map((row) => row.key), ["g10", "g9"], "and of its calendar");
+  assert.deepEqual(modelOf("t1", { games: [...GAMES, played("g11", 0, [2, 0], [0, 0], { kind: "friendly", season: null, roundStatus: null, away: TOMB, confirmedAt: "2026-08-20T10:00:00Z" })] })
+    .results.map((row) => row.gameId), ["g6", "g5", "g4"], "a team in the table keeps the season's cut");
 });
 
 test("the games are read afresh on the way in and when the tab is seen again", async () => {
@@ -614,11 +646,11 @@ const calendarRows = () => view.querySelectorAll(".g-matches__calrow").map((row)
   row.querySelector(".g-matches__square").textContent, row.querySelector(".g-matches__calopp").textContent,
   row.querySelector(".g-matches__calline").textContent, row.querySelector(".g-matches__calscore").textContent]);
 const CALENDAR = [
-  ["WWin", "Tombway Kings", "Round 1 · at home · CAS 1–0", "2–1"],
-  ["LLoss", "Mirefen Rotters", "Round 2 · away · CAS 0–2", "0–2"],
+  ["WWin", "Tombway Kings", "Round\u00a01 · at home · CAS 1–0", "2–1"],
+  ["LLoss", "Mirefen Rotters", "Round\u00a02 · away · CAS 0–2", "0–2"],
   ["FFriendly", "Grimtusk Others", "Friendly · off the table · CAS 0–0", "1–1"],
-  ["3", "Rival Team", "Round 3 · at home · next", "—"],
-  ["4", "Opponent — after round 3", "Round 4 · paired by the Swiss system", "—"],
+  ["3", "Rival Team", "Round\u00a03 · at home · next", "—"],
+  ["4", "Opponent — after round 3", "Round\u00a04 · paired by the Swiss system", "—"],
 ];
 
 test("a desk's matches page is the season's: its head, the board through its matches, the calendar", async () => {
@@ -672,12 +704,12 @@ test("in play: the band's records and post-match; the calendar's line says it is
     assert.ok(view.querySelector(".g-board--live"));
     const actions = view.querySelectorAll(".g-board__actions a").map((link) => [link.textContent, link.getAttribute("href")]);
     assert.deepEqual(actions, [["Match records · 8", teamUrl("t2", "roster")], ["Post-match", postMatchUrl("g2")]]);
-    assert.deepEqual(calendarRows().at(-2), ["3", "Rival Raiders", "Round 3 · at home · in play", "—"]);
+    assert.deepEqual(calendarRows().at(-2), ["3", "Rival Raiders", "Round\u00a03 · at home · in play", "—"]);
   } finally {
     leave();
   }
   const sentRow = matchesModel({ team: TEAMS[2], seasonData: SEASON, games: GAMES, data, phone: false }).calendar.at(-2);
-  assert.deepEqual([sentRow.line, sentRow.score], ["Round 3 · at home · awaiting confirmation", "2–1"]);
+  assert.deepEqual([sentRow.line, sentRow.score], ["Round\u00a03 · at home · awaiting confirmation", "2–1"]);
 });
 
 test("the bubbles open «Before the match»", async () => {
@@ -687,7 +719,7 @@ test("the bubbles open «Before the match»", async () => {
     assert.equal(bubbles.length, 2);
     fireEvent(bubbles[0], "click");
     assert.ok(beforeSheet()?.open);
-    assert.equal(beforeSheet().querySelector(".g-sheet__title").textContent, "Before the match · Round 3");
+    assert.equal(beforeSheet().querySelector(".g-sheet__title").textContent, "Before the match · Round\u00a03");
   } finally {
     leave();
   }

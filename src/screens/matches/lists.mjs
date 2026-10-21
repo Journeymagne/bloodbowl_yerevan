@@ -3,8 +3,8 @@
  * first, the record in its head — and «Later in the season» — the team's other open matches, then the next round, whose
  * opponent the Swiss pairing gives once every result of the round is in.
  *
- * A phone's result row is one link, to the opponent's team (pre-flight L14: three links in a row give no thumb 44px);
- * the race is text in its line.
+ * A phone's result row is one link, to the match, as the overview's rows are (spec §3; pre-flight L14: three links in a
+ * row give no thumb 44px); the opponent and the race are text in it.
  *
  * A desk has «Calendar» instead (DeskSeason.html): every played match of the season with its result's square, the match
  * on, and the next round, «Friendlies» in its head.
@@ -22,9 +22,8 @@ function resultBody({ result, opponent, line, mvp, score }) {
     + `<span class="g-matches__score">${escapeHtml(score)}</span>`;
 }
 
-/** One finished match: a link to the opponent's team, or the same row as text when the server names no team. */
+/** One finished match: a link to the match. */
 function resultRow(row) {
-  if (!row.href) return `<li class="g-matches__item"><div class="g-matches__row">${resultBody(row)}</div></li>`;
   assertLinkHref(row.href);
   return `<li class="g-matches__item"><a class="g-matches__row" href="${escapeHtml(row.href)}">${resultBody(row)}</a></li>`;
 }

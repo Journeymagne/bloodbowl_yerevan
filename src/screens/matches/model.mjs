@@ -25,7 +25,7 @@ import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, playerTeamUrl, postMatchUrl, preMatchUrl } from "../../core/routes.mjs";
 import { resultLabels } from "../../ui/result-pill.mjs";
-import { gameSides, seasonRecord, standingOf } from "../../data/team-record.mjs";
+import { gameOutcome, gameSides, seasonRecord, standingOf } from "../../data/team-record.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
 import { currentMatch, matchActions, sentScore, subLine } from "../../shell/current-match.mjs";
@@ -111,16 +111,19 @@ function cardOf({ current, team, seasonData, preview, opponent, records }) {
 }
 
 /**
- * A result as a phone's row says it (Matches.html): the opponent leading to his team, «Round 6 · Orc · CAS 3–1» with
- * the race as text (pre-flight L14: the row is one link on a phone), «MVP: Gruk» when the team picked one, the score.
+ * A result as a phone's row says it (Matches.html): the row leads to the match, as the overview's rows do (spec §3,
+ * parked 8 of the fix wave), the opponent over «Round 6 · Orc · CAS 3–1» with the race as text, «MVP: Gruk» when the
+ * team picked one, the score. Its square is how the match ended for the team, a friendly's too (В/Н/П in the result's
+ * colour, as Matches.html's: the friendly says so in its line); the desk's calendar keeps the friendly's «F».
  * @param {ReturnType<typeof seasonResults>[number]} result
+ * @param {string} teamId
  */
-function resultRow(result) {
+function resultRow(result, teamId) {
   const word = result.friendly ? t("ui.result.tName") : t("matches.before.round", { round: result.round });
   const line = [word, raceTeamOf(result.opponentRace)?.title, t("matches.band.cas", { cas: result.cas })].filter(Boolean).join(" · ");
   return {
-    gameId: result.gameId, result: result.result, opponent: result.opponent,
-    href: result.opponentUserId && result.opponentTeamId ? playerTeamUrl(result.opponentUserId, result.opponentTeamId) : "", line, mvp: result.mvps.length ? t("matches.mvp", { names: result.mvps.join(", ") }) : "", score: result.score,
+    gameId: result.gameId, result: result.friendly ? gameOutcome(result.game, teamId) ?? result.result : result.result, opponent: result.opponent,
+    href: gameUrl(result.gameId), line, mvp: result.mvps.length ? t("matches.mvp", { names: result.mvps.join(", ") }) : "", score: result.score,
   };
 }
 
@@ -216,11 +219,11 @@ const nextRow = (round) => ({ key: "next", square: { label: String(round), resul
 
 /**
  * The calendar (DeskSeason.html): the season's played matches in the order they were settled, as the board pages them
- * (`seasonResults`), then the match on, then the next round.
+ * (`seasonResults`; a team outside the table, every friendly), then the match on, then the next round.
  * @returns {CalendarRow[]}
  */
-function calendarOf(games, teamId, seasonData, current, nextRound) {
-  const rows = seasonResults(games, teamId, seasonData).reverse().map((result) => playedRow(result, teamId));
+function calendarOf(games, teamId, seasonData, current, nextRound, sinceSeason) {
+  const rows = seasonResults(games, teamId, seasonData, { sinceSeason }).reverse().map((result) => playedRow(result, teamId));
   if (current) rows.push(currentRow(current, teamId));
   if (nextRound) rows.push(nextRow(nextRound));
   return rows;
@@ -279,12 +282,12 @@ export function matchesModel({ team, raceTeam = null, seasonData, games, gamesEr
     gamesRead: Boolean(list),
     current: current ? cardOf({ current, team, seasonData, preview, opponent, records }) : null,
     pendingRound: list && standing ? pendingOf(list, team, seasonData, current) : null,
-    results: list ? seasonResults(list, team.id, seasonData).map(resultRow) : [],
+    results: list ? seasonResults(list, team.id, seasonData, { sinceSeason: Boolean(standing) }).map((result) => resultRow(result, team.id)) : [],
     record: list && standing ? seasonRecord(list, team.id, seasonData.season.id) : null,
     others: list ? othersOf(list, team.id, current?.game.id ?? null) : [],
     nextRound: round ? round + 1 : null,
     band: phone ? null : deskBand({ list, team, raceTeam, seasonData, standing, current, preview, opponent, records, bandKey }),
-    calendar: list ? calendarOf(list, team.id, seasonData, current, round ? round + 1 : null) : [],
+    calendar: list ? calendarOf(list, team.id, seasonData, current, round ? round + 1 : null, Boolean(standing)) : [],
     seasonLine: seasonLineOf(seasonData),
     failures: failuresOf({ seasonData, seasonError, gamesError }),
   };

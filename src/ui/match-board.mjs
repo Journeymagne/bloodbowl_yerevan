@@ -73,12 +73,13 @@ function emblemMarkup({ crestHtml, initial }) {
 
 /**
  * One team: its name, and a line under it when there is one, and the screen's bubble under them; beside them, boxed
- * together, its crest or letter when given.
+ * together, its crest or letter when given. A side with a bubble says so (`g-board__side--bubble`): on a desk it keeps
+ * the room its bubble needs on one line, and the other side gives way.
  */
 function renderTeam(team, away, bubbleHtml = "") {
   const texts = nameMarkup(team) + lineMarkup(team) + bubbleHtml;
   const emblem = emblemMarkup(team);
-  const className = classNames("g-board__side", away && "g-board__side--away", emblem && "g-board__side--emblem");
+  const className = classNames("g-board__side", away && "g-board__side--away", emblem && "g-board__side--emblem", bubbleHtml && "g-board__side--bubble");
   return `<div class="${className}">${emblem ? `${emblem}<span class="g-board__texts">${texts}</span>` : texts}</div>`;
 }
 
@@ -96,19 +97,28 @@ function renderSquare({ label, result, current }) {
   return `<li class="${className}" aria-label="${escapeHtml(`${label}: ${state}`)}"${mark}>${escapeHtml(label)}</li>`;
 }
 
+/** The board's teams and score are the tabs' panel (the final review, m-4): one board on a page, so one id. */
+const PANEL_ID = "g-board-panel";
+const tabId = (index) => `g-board-tab-${index}`;
+
+/** The tab selected: the one marked, else the last. */
+function selectedTab(pager) {
+  const marked = pager.findIndex((item) => item.selected);
+  return marked === -1 ? pager.length - 1 : marked;
+}
+
 /** A square as a tab of the group: named by its match (`title`) and state, selected or not, one of them in the tab order. */
 function renderTab({ label, result, current, title }, index, selected) {
   const state = result ? resultLabels(result).name : t("ui.board.notPlayed");
   const className = classNames("g-board__square", `g-board__square--${result || "none"}`, current && "g-board__square--current");
   const mark = current ? ' aria-current="true"' : "";
-  return `<button type="button" role="tab" class="${className}" data-board-item="${index}" aria-selected="${selected}" tabindex="${selected ? 0 : -1}"`
-    + ` aria-label="${escapeHtml(`${title || label}: ${state}`)}"${mark}>${escapeHtml(label)}</button>`;
+  return `<button type="button" role="tab" class="${className}" id="${tabId(index)}" aria-controls="${PANEL_ID}" data-board-item="${index}" aria-selected="${selected}"`
+    + ` tabindex="${selected ? 0 : -1}" aria-label="${escapeHtml(`${title || label}: ${state}`)}"${mark}>${escapeHtml(label)}</button>`;
 }
 
 /** The arrows and the tabs between them; with none selected, the last one is. An arrow at its end is off. */
 function renderNav(pager) {
-  const marked = pager.findIndex((item) => item.selected);
-  const at = marked === -1 ? pager.length - 1 : marked;
+  const at = selectedTab(pager);
   const arrow = (step, key, glyph, off) => `<button type="button" class="g-board__step" data-board-step="${step}" aria-label="${escapeHtml(t(key))}"${off ? " disabled" : ""}>${icon(glyph, 14)}</button>`;
   const tabs = pager.map((item, index) => renderTab(item, index, index === at)).join("");
   return `<div class="g-board__nav">${arrow(-1, "ui.board.prev", "back", at === 0)}`
@@ -153,7 +163,8 @@ export function renderMatchBoard({
   const scoreClass = classNames("g-board__score", scoreResult && `g-board__score--${scoreResult}`);
   const below = `${statusHtml}${bubbles.mid ?? ""}${outcome ? outcomeMarkup(outcome) : ""}`;
   const middle = `<div class="g-board__mid">${over}<span class="${scoreClass}">${escapeHtml(score || t("ui.board.empty"))}</span>${below}</div>`;
-  const main = `<div class="g-board__main">${renderTeam(own, false, bubbles.own ?? "")}${middle}${renderOpponent(opponent, pendingText, bubbles.other ?? "")}</div>`;
+  const panel = tabs && pager.length ? ` id="${PANEL_ID}" role="tabpanel" aria-labelledby="${tabId(selectedTab(pager))}"` : "";
+  const main = `<div class="g-board__main"${panel}>${renderTeam(own, false, bubbles.own ?? "")}${middle}${renderOpponent(opponent, pendingText, bubbles.other ?? "")}</div>`;
   const list = () => `<ol class="g-board__pager" role="list" aria-label="${escapeHtml(t("ui.board.pager"))}">${pager.map(renderSquare).join("")}</ol>`;
   const squares = pager.length ? (tabs ? renderNav(pager) : list()) : "";
   const chips = chipsHtml ? `<div class="g-board__chips">${chipsHtml}</div>` : "";

@@ -10,6 +10,7 @@
 import { createPreparation } from "./preparation.mjs";
 import { matchBudget, purchaseOrder } from "./budget.mjs";
 import { calculateMatchCtv } from "./roster.mjs";
+import { tierAllowance } from "./rules.mjs";
 import { absenceOf, sitsOut } from "../roster/absence.mjs";
 
 /** Who gets the petty cash: our side, the opponent's, or neither when the CTVs are equal. */
@@ -46,21 +47,24 @@ const wholeReference = (data) => Boolean(data?.teams && data?.starPlayers && dat
  *
  * @param {{own: PreviewSource, other: PreviewSource}} sources
  * @param {object} data the reference, read whole
+ * The opponent's bonus is the tiers' (`tierAllowance`, as `matchBudget` counts it), not his budget: a treasury of his
+ * that the rules cannot read (a 2.x value) does not blank our own numbers (the final review, m-6).
+ *
  * @returns {{own: PreviewSide, other: PreviewSide, gets: "own"|"other"|"even", difference: number, petty: number,
  *   bonus: {own: number, other: number}, treasury: {rule: "all"|"top"|"none", amount: number}}|null}
- *   null when the reference has not come, a race is unknown, or a treasury cannot be read
+ *   null when the reference has not come, a race is unknown, or our treasury cannot be read
  */
 export function matchPreview({ own, other }, data) {
   if (!wholeReference(data)) return null;
   try {
     const preparation = createPreparation({ home: own, away: other }, data);
-    const budget = matchBudget(preparation, "home", data), theirs = matchBudget(preparation, "away", data);
+    const budget = matchBudget(preparation, "home", data);
     const ours = sideOf(preparation.home), opponent = sideOf(preparation.away);
     const first = purchaseOrder(preparation);
     return { own: ours, other: opponent,
       gets: ours.ctv === opponent.ctv ? "even" : ours.ctv < opponent.ctv ? "own" : "other",
       difference: Math.abs(opponent.ctv - ours.ctv), petty: budget.pettyCash,
-      bonus: { own: budget.bonus, other: theirs.bonus },
+      bonus: { own: budget.bonus, other: tierAllowance(preparation.away.reference, preparation.home.reference) },
       treasury: { rule: first === "home" ? "all" : first === "away" ? "top" : "none", amount: budget.treasuryLimit } };
   } catch (error) {
     if (NO_PREVIEW.has(error?.code)) return null;

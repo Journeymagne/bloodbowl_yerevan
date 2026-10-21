@@ -694,7 +694,8 @@ test("a square's letter and number read on its colour in every palette", () => {
 
 test("the board is drawn as the design says: a dark 16px card, a 72px score on a desk and 40px on a phone, 30px squares, a darker bar", () => {
   assert.deepEqual([valuesOf(BOARD_CSS, ".g-board", "background"), valuesOf(BOARD_CSS, ".g-board", "color"), valuesOf(BOARD_CSS, ".g-board", "border-radius")], [["var(--header)"], ["var(--header-ink)"], ["var(--radius-2xl)"]]);
-  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__main", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)"]);
+  // From 901px a side keeps the room of its bubble on one line, the other gives way (the fidelity pass's G1).
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__main", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)", "minmax(min-content, 1fr) auto minmax(min-content, 1fr)"]);
   assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__score", "font"), ["700 40px/1 var(--font-display)", "700 72px/1 var(--font-display)"]);
   assert.match(valuesOf(BOARD_CSS, ".g-board__overline", "font")[0], /^700 12px\//);
   assert.deepEqual([valuesOf(BOARD_CSS, ".g-board__overline", "text-transform"), valuesOf(BOARD_CSS, ".g-board__overline", "color")], [["uppercase"], ["var(--header-muted)"]]);
@@ -732,6 +733,10 @@ test("the board's actions: a primary and a light button, a plain link, and a not
   assert.deepEqual(fragment.querySelectorAll("a").map((link) => link.getAttribute("href")), ["#/t/t1/roster", "#/games/g1/post-match", "#/games/g1/pre-match"]);
   assertCspSafe(fragment);
   assertStyled(fragment, "match-board.css", "button.css");
+  // From 901px the note is DeskSeason's quiet line of who confirms a score sent (G5): 14px/1.4, the header's muted ink, 260px.
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__note", "font"), ["700 14px/1.3 var(--font-body)", "400 14px/1.4 var(--font-body)"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__note", "color"), ["var(--header-ink)", "var(--header-muted)"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__note", "max-width"), ["260px"]);
 });
 
 test("the board's actions draw nothing for nothing, and refuse a kind or a link they cannot draw", () => {
@@ -791,6 +796,11 @@ test("the squares are tabs of one group: arrows, Home and End move the selection
   assert.deepEqual(tabs.map((each) => each.getAttribute("aria-label")), ["Match 1: Win", "Match F: Friendly", "Match 2: Win", "Match 3: Loss", "Match 4: Not played"]);
   assert.equal(tabs[4].getAttribute("aria-current"), "true", "the match on says so whichever is shown");
   assert.equal(root.querySelector("ol"), null, "the tabs are no list");
+  // The teams and the score are the tabs' panel, named by the tab selected (the final review, m-4).
+  const panel = root.querySelector('[role="tabpanel"]');
+  assert.ok(panel?.classList.contains("g-board__main"));
+  assert.ok(tabs.every((each, at) => each.getAttribute("aria-controls") === panel.id && each.id === `g-board-tab-${at}`));
+  assert.equal(panel.getAttribute("aria-labelledby"), tabs[3].id);
   tab(3).focus();
   fireEvent(tab(3), "keydown", { key: "ArrowLeft" });
   assert.deepEqual(picks, [2]);
@@ -867,6 +877,10 @@ test("bubbles stand under their side and under the state", () => {
   assert.equal(ours.querySelector(".g-board__texts .g-board__bubble").textContent, "+90k for inducements");
   assert.equal(fragment.querySelector(".g-board__mid").childNodes.at(-1).textContent, "missing the match: 3", "under the state");
   assert.equal(theirs.querySelector(".g-board__bubble").textContent, HOSTILE);
+  assert.ok(ours.classList.contains("g-board__side--bubble") && theirs.classList.contains("g-board__side--bubble"), "a side with a bubble says so");
+  // A pill keeps its line (G1); the side without one wraps its emblem rather than its name, the one with one does not.
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__bubble", "white-space"), ["nowrap"]);
+  assert.deepEqual(valuesOf(BOARD_CSS, ".g-board__side--emblem:not(.g-board__side--bubble)", "flex-wrap"), ["wrap"]);
   assert.equal(fragment.querySelector("img"), null);
   for (const each of fragment.querySelectorAll(".g-board__bubble")) {
     assert.deepEqual([each.tagName, each.getAttribute("type"), each.getAttribute("aria-haspopup"), each.hasAttribute("data-before-open")], ["BUTTON", "button", "dialog", true]);
