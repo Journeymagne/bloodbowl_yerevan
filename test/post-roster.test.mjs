@@ -138,6 +138,31 @@ test("Raise Dead only for Masters of Undeath, no more than the other side's dead
   assert.deepEqual(opLines(modelAt(raised)), [{ label: "Raise Dead: Zombie Lineman", amount: 0 }]);
 });
 
+test("Raise Dead for a side that had a Plague Ridden player in the match (the house rules): the same cap, its own Lineman rows", () => {
+  const events = { home: RECORDS.home, away: [...RECORDS.away, ...hurt("a3", { code: "dead" })] };
+  // Nurgle: the Rotter Lineman is Plague Ridden; no Masters of Undeath.
+  const nurgle = begin({ home: { roster: players("h", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]), slug: "teams/nurgle" }, events });
+  assert.ok(!teamHasSpecialRule(nurgle.home.reference, "Masters of Undeath"));
+  const state = atRoster(nurgle, events);
+  const raise = draw(modelAt(state)).querySelectorAll("[data-after-raise]");
+  assert.deepEqual(raise.map((button) => [button.textContent, button.getAttribute("data-after-raise")]), [["Raise Dead · Rotter Lineman", "0"]], "his own team's Lineman only");
+  const raised = act(state, "home", { type: "roster", operation: "raise", rowIndex: 0 }, events);
+  assert.deepEqual(opLines(modelAt(raised)), [{ label: "Raise Dead: Rotter Lineman", amount: 0 }]);
+  assert.throws(() => act(raised, "home", { type: "roster", operation: "raise", rowIndex: 0 }, events), { code: "POST_RAISE" }, "one dead, one raised");
+  assert.throws(() => act(state, "home", { type: "roster", operation: "raise", rowIndex: 1 }, events), { code: "POST_RAISE" }, "a Pestigor is no Lineman");
+  // Humans with a Plague Ridden player in the match (a star's skills, say) raise a Lineman of theirs; without one, nobody.
+  const humans = atRoster(begin({ events }), events);
+  assert.throws(() => act(humans, "home", { type: "roster", operation: "raise", rowIndex: 0 }, events), { code: "POST_RAISE" });
+  const ridden = structuredClone(humans);
+  ridden.home.snapshot.players[0].skills = [...ridden.home.snapshot.players[0].skills, "Plague Ridden"];
+  assert.deepEqual(draw(modelAt(ridden)).querySelectorAll("[data-after-raise]").map((button) => button.textContent),
+    ["Raise Dead · Human Lineman", "Raise Dead · Halfling Hopeful"]);
+  assert.equal(act(ridden, "home", { type: "roster", operation: "raise", rowIndex: 0 }, events).home.operations.length, 1);
+  // No dead on the other side: nothing to raise.
+  assert.throws(() => act(atRoster(begin({ home: { roster: players("h", [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]), slug: "teams/nurgle" } })), "home",
+    { type: "roster", operation: "raise", rowIndex: 0 }), { code: "POST_RAISE" });
+});
+
 test("this step's operations in words with their money, and «Undo the last»", () => {
   let state = atRoster();
   assert.ok(!draw(modelAt(state)).querySelector(".g-after__undo"), "nothing to undo");

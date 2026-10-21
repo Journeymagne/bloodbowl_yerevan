@@ -20,7 +20,7 @@ import { loadPreparationFixture, loadPreparationSources } from './preparation-st
 import { createPostMatch, createPostSide, applyPostAction, validatePostSide } from '../../src/domain/post-match/state.mjs';
 import { followEvents } from '../../src/domain/post-match/events.mjs';
 import { POST_STEPS, resultAgreed } from '../../src/domain/post-match/rules.mjs';
-import { postAdvancer, postPlayers } from '../../src/domain/post-match/roster.mjs';
+import { fallenPlayers, postAdvancer, postPlayers } from '../../src/domain/post-match/roster.mjs';
 import { postPoints } from '../../src/domain/post-match/score.mjs';
 import { SIDES, otherSide } from '../../src/domain/match/rules.mjs';
 import { applyPostMatchRoster } from './finance-store.mjs';
@@ -106,8 +106,11 @@ async function finishPost(client, fixture, state, sources, data, actorId) {
     if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
     const projection = validatePostSide(state, name, data);
     // The site's rolls the side's advancements name are used here, with the roster they go into: a finish refused
-    // after this, for this side or the next, rolls them back with the rest.
-    await settleRosterRolls(client, { teamId: state[name].team.id, race: raceOf(data, state[name]), before: state[name].baseRoster, after: projection.roster });
+    // after this, for this side or the next, rolls them back with the rest. The dead go into «The fallen» as the
+    // roster held them, their advancements naming their rolls: those stay used, as a death marked by hand leaves
+    // them, so a death undone gives the player back with his rolls taken, not waiting for him again.
+    const kept = { ...projection.roster, players: [...projection.roster.players, ...fallenPlayers(state[name])] };
+    await settleRosterRolls(client, { teamId: state[name].team.id, race: raceOf(data, state[name]), before: state[name].baseRoster, after: kept });
     await applyPostMatchRoster(client, fixture.id, name, state[name], projection, actorId);
     // The difference once more, for a post-match begun before 3.0: it has no events, and its statistics
     // become rows here. A side begun in 3.0 holds what its events read, or wrote its difference on the

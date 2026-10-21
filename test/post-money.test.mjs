@@ -96,6 +96,19 @@ test("Expensive Mistakes: a die from 100k, then a D3 or two D6 as the kind needs
   assert.equal(finance(under).footer.disabled, false, "no roll under 100k");
 });
 
+test("the treasury's rows add up to «Treasury after»: a Minor Incident's D3 is a row of its own", () => {
+  const model = modelOf(at(4, 3), "finance");
+  const money = (text) => Number(text.replace("−", "-").replace("+", "").replace(/k$/, ""));
+  const card = drawFinance(model, { roll: 1, first: 2 }).querySelector(".g-after__card");
+  const lines = rows(card);
+  assert.deepEqual(lines.at(-1), ["Expensive Mistakes", "", "−20k"]);
+  assert.equal(lines.reduce((sum, [, , value]) => sum + money(value), 0), money(card.querySelector(".g-after__big--ink").textContent));
+  // Nothing lost, no row: a 4, or the D3 not yet marked.
+  for (const change of [{ roll: 4 }, { roll: 1 }]) {
+    assert.ok(!rows(drawFinance(model, change).querySelector(".g-after__card")).some(([label]) => label === "Expensive Mistakes"));
+  }
+});
+
 test("the treasury step waits for the opponent's Players step", () => {
   const model = modelOf(at(4, 2), "finance");
   assert.equal(model.step, "finance");

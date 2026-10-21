@@ -323,7 +323,7 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own(".g-after__rowv", "overflow-wrap"), ["anywhere"]);
   assert.deepEqual(own(".g-after__note", "font"), ["400 13px/1.45 var(--font-body)"]);
   assert.deepEqual(own(".g-after__big", "font"), ["700 28px/1 var(--font-display)"]);
-  assert.deepEqual(own(".g-after__score", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)"]);
+  assert.deepEqual(own(".g-after__score", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)", "repeat(2, auto)"], "under 370px, two columns under the word");
   assert.deepEqual(own(".g-after__counter", "background"), ["var(--surface-2)"]);
   assert.deepEqual(own(".g-after__counter", "border-radius"), ["var(--radius-lg)"]);
   assert.deepEqual(own(".g-after__step", "border-radius"), ["9px"]);
@@ -359,7 +359,11 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.doesNotMatch(bare, /--focus-ring|style=/);
   for (const selector of [".g-after__teams", ".g-after__mode", ".g-after__label"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.deepEqual(own(".g-after__rowk", "overflow-wrap"), ["break-word"], "a row's label wraps between its words, never inside one");
-  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
+  for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)", "(max-width: 369px)"].includes(query.trim()), query);
+  // Under 370px the score's word goes over its two steppers, the figure narrower; the buttons keep 44px (the final review).
+  assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-after__score > .g-after__counterk", "grid-row"), ["1"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 369px", ".g-after__value", "min-width"), ["24px"]);
+  assert.equal(inMedia(CSS, "max-width: 369px", ".g-after__step", "width").length, 0, "the 44px buttons stay");
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/matches/post.css");') > styles.indexOf('@import url("screens/matches/prep.css");'), "after the preparation's sheet it draws over");
 });

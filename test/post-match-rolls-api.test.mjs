@@ -116,6 +116,17 @@ test("the roll is by the post-match's roster: a skill taken in this post-match i
   assert.deepEqual(state.home.advancements["home-1"].map((choice) => choice.type), ["primary", "random"]);
 }));
 
+test("a roll both of whose skills the player has taken here since comes back stale, not a fresh die", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  await withSpp(client, 1, 60);
+  let state = await toPlayersStep();
+  const token = await sessionFor(client, coaches.home.id), roll = (await ask(token, { playerId: "home-1", ...RANDOM })).body.roll;
+  for (const die of roll.result.dice) state = await act("home", state, { type: "advance", playerId: "home-1", advancementType: "primary", grant: { skill: die.skill } });
+  const again = await ask(token, { playerId: "home-1", ...RANDOM });
+  assert.deepEqual([again.status, again.body.roll.id, again.body.roll.stale], [200, roll.id, true], "by the roster the post-match holds (the T3 review's M-2)");
+  assert.equal((await rollsOf(client)).length, 1);
+}));
+
 test("not on the Players step, or the post-match finished: nothing is rolled", db, () => withApiDatabase(async ({ client }) => {
   await startedFriendly(client);
   const token = await sessionFor(client, coaches.home.id), refused = async (code) => {
@@ -205,7 +216,9 @@ test("the finish uses the roll once; a refused finish uses none", db, () => with
   await withSpp(client, 1, 30);
   let state = await saveHome(await toPlayersStep());
   const token = await sessionFor(client, coaches.home.id), roll = (await ask(token, { playerId: "home-1", ...RANDOM })).body.roll;
-  const skill = roll.result.dice[1].skill, usedAt = async () => (await client.query("SELECT used_at FROM dice_rolls WHERE id = $1", [roll.id])).rows[0].used_at;
+  const skill = roll.result.dice[1].skill, usedAt = async (named = roll) => (await client.query("SELECT used_at FROM dice_rolls WHERE id = $1", [named.id])).rows[0].used_at;
+  // A roll no advancement names waits on through the finish (the T3 review's M-1).
+  const unnamed = (await ask(token, { playerId: "home-2", purpose: "stat" })).body.roll;
   state = await act("home", await takeRandom(state, "home-1", roll, skill), { type: "lock-players" });
   state = await act("away", state, { type: "statistics", statistics: state.away.statistics, mvps: ["away-6"] });
   state = await lockedToReady(await act("away", state, { type: "lock-players" }));
@@ -224,10 +237,41 @@ test("the finish uses the roll once; a refused finish uses none", db, () => with
   assert.ok(used instanceof Date);
   assert.equal((await act("away", state, null, true)).status, "completed", "the other coach's finish answers the finished post-match");
   assert.deepEqual(await usedAt(), used, "and uses nothing again");
+  assert.equal(await usedAt(unnamed), null, "only the rolls the advancements name are used");
   const blob = (await client.query("SELECT roster FROM saved_teams WHERE id = $1", [teams.home])).rows[0].roster;
   assert.deepEqual(blob.players.find((player) => player.id === "home-1").advancements, [{ type: "random", grants: { skill }, roll: site(roll) }]);
   const pairing = (await client.query("SELECT home_points, away_points FROM season_pairings WHERE id = $1", [G])).rows[0];
   assert.deepEqual(pairing, { home_points: 0, away_points: 0 }, "a friendly is out of the table");
+}));
+
+test("a player who dies in the post-match keeps his used rolls used, as a death marked by hand does: undone, he is rolled afresh", db, () => withApiDatabase(async ({ client }) => {
+  await startedFriendly(client);
+  // home-2 took a characteristic on the site's D8 before the match: the roll is used, his advancement names it.
+  const { rows: [old] } = await client.query(`INSERT INTO dice_rolls (saved_team_id, player_id, purpose, params, result, used_at)
+    VALUES ($1, 'home-2', 'stat', '{"sides": 8}', '{"roll": 2, "stats": ["ma", "pa"]}', now()) RETURNING id`, [teams.home]);
+  const advancements = [{ type: "stat", grants: { stat: "ma" }, roll: site(old) }];
+  await client.query("UPDATE saved_teams SET roster = jsonb_set(jsonb_set(roster, '{players,2,advancements}', $2::jsonb), '{players,2,spp}', $3::jsonb) WHERE id = $1",
+    [teams.home, JSON.stringify(advancements), JSON.stringify({ bonus: 14 })]);
+  let state = await toPlayersStep();
+  // Past rookie protection: the death stands.
+  await client.query("UPDATE match_post_games SET state = jsonb_set(state, '{home,gamesPlayed}', '3') WHERE pairing_id = $1", [G]);
+  state = (await accessPostMatch(G, coaches.home)).postMatch;
+  state = await act("home", state, { type: "statistics", statistics: homeScores("home", state.home), mvps: ["home-6"], injuries: { "home-2": { code: "dead" } } });
+  state = await act("away", state, { type: "statistics", statistics: state.away.statistics, mvps: ["away-6"] });
+  for (const name of SIDES) state = await act(name, state, { type: "lock-players" });
+  assert.equal((await act("home", await lockedToReady(state), null, true)).status, "completed");
+  const usedAt = async () => (await client.query("SELECT used_at FROM dice_rolls WHERE id = $1", [old.id])).rows[0].used_at;
+  assert.ok(await usedAt() instanceof Date, "the fallen record names the roll: it stays used");
+  const { rows: [fallen] } = await client.query("SELECT id, player FROM team_fallen_players WHERE saved_team_id = $1", [teams.home]);
+  assert.deepEqual(fallen.player.advancements, advancements);
+  // The administrator undoes the death: the player is back with his advancement, and his next ask is a fresh die.
+  const admin = await sessionFor(client, (await seedCoach(client, "boss", { admin: true })).id);
+  assert.equal((await callApi("DELETE", `/api/teams/${teams.home}/fallen/${fallen.id}`, { token: admin })).status, 200);
+  assert.ok(await usedAt() instanceof Date);
+  const token = await sessionFor(client, coaches.home.id);
+  const fresh = await callApi("POST", `/api/teams/${teams.home}/players/home-2/rolls`, { token, body: { purpose: "stat" } });
+  assert.equal(fresh.status, 200, JSON.stringify(fresh.body));
+  assert.notEqual(fresh.body.roll.id, old.id);
 }));
 
 test("the points of a finished league match are the domain's", db, () => withApiDatabase(async ({ client }) => {

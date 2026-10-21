@@ -2,8 +2,8 @@
  * The post-match's Roster step (stage 09b decision 15, PostRoster.html; a desk draws the same cards in the frame's
  * middle): what the treasury holds after the match's income and what is left once this step's purchases are paid, the
  * staff as counters — Team Re-rolls only bought —, hiring and selling from sheets, the journeymen of this match kept at
- * full price, Raise Dead for Masters of Undeath, and this step's operations in words with their money and «Undo the
- * last». Every press is a write of the step (`roster`, the screen's); nothing is kept on the page.
+ * full price, Raise Dead for Masters of Undeath and a side that had a Plague Ridden player in the match (the house rules),
+ * and this step's operations in words with their money and «Undo the last». Every press is a write of the step (`roster`, the screen's); nothing is kept on the page.
  *
  * The numbers are the domain's: the roster as `projectPostRoster` leaves it with this step's operations, the prices and
  * the limits its `rosterOperation` holds them to. Each control closed says why (a counter's «+», a sheet's row).
@@ -13,12 +13,10 @@ import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { builderStaffCosts, builderStaffMaximums, combinedRerollsMaximum, medicalStaffDefinitions } from "../../domain/league-rules.mjs";
 import { isLineman } from "../../domain/match/roster.mjs";
-import { otherSide } from "../../domain/match/rules.mjs";
 import { sumMoney } from "../../domain/money.mjs";
-import { postStaffOptions } from "../../domain/post-match/roster.mjs";
+import { deadToRaise, postStaffOptions, raisesDead } from "../../domain/post-match/roster.mjs";
 import { effectiveInjury } from "../../domain/post-match/rules.mjs";
 import { playerCurrentCost } from "../../domain/roster/costs.mjs";
-import { teamHasSpecialRule } from "../../domain/roster/team-rules.mjs";
 import { playerSaleValue } from "../../domain/roster/transfers.mjs";
 import { costToNumber, rosterMax, rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderResourceCounter } from "../../ui/resource-counter.mjs";
@@ -75,12 +73,6 @@ function journeymenOf(model) {
   return model.preview.players.filter((player) => player.kind === "journeyman" && !kept.has(player.id) && effectiveInjury(side, player.id).code !== "dead");
 }
 
-/** The opponent's dead of this match (rookie protection applied): how many a Masters of Undeath side may raise. */
-function deadOfOpponent(model) {
-  const other = model.post[otherSide(model.sideName)];
-  return other.snapshot.players.filter((player) => player.kind !== "star" && effectiveInjury(other, player.id).code === "dead").length;
-}
-
 /** Why one more player of a row cannot join the roster: the position full, the roster full, the treasury. "" when it can. */
 function placeRefusal(model, rowIndex, price) {
   const roster = model.preview.roster, row = rowsForTeam(model.post[model.sideName].reference)[rowIndex];
@@ -107,9 +99,9 @@ function playersCard(model, closed) {
   }).join("");
   const keepHtml = keeps ? `${labelMarkup(t("after.journeymen"))}<div class="g-after__places">${keeps}</div>` : "";
   let raise = "";
-  if (teamHasSpecialRule(side.reference, "Masters of Undeath")) {
+  if (raisesDead(side)) {
     const raised = side.operations.filter((operation) => operation.type === "raise").length;
-    const shut = closed || (raised >= deadOfOpponent(model) ? t("after.raiseShut") : "");
+    const shut = closed || (raised >= deadToRaise(model.post, model.sideName) ? t("after.raiseShut") : "");
     raise = rows.map((row, rowIndex) => (isLineman(row) ? placeButton({ words: t("after.raise", { position: row.position }), reason: shut || placeRefusal(model, rowIndex, 0), data: `data-after-raise="${rowIndex}"` }) : "")).join("");
     raise = raise ? `<div class="g-after__places">${raise}</div>` : "";
   }

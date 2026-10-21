@@ -1,6 +1,6 @@
 import { createPlayer, normalizeAbsence } from '../roster/schema.mjs';
 import { applyInjuryEffects } from '../roster/absence.mjs';
-import { normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/players.mjs';
+import { canonicalSkillName, normalizeSppCounters, syncRosterCountsFromPlayers } from '../roster/players.mjs';
 import { playerCurrentCost } from '../roster/costs.mjs';
 import { statIncreaseRefusal, takeAdvancement, tieFavoured } from '../roster/progression.mjs';
 import { rowsForTeam, rosterMax, costToNumber } from '../roster/values.mjs';
@@ -184,11 +184,25 @@ export function fallenPlayers(side) {
     .map(player => structuredClone(player));
 }
 
-function validateRaise(state, name, side, operation) {
+/**
+ * May the side raise the dead (Raise Dead): the house rules give a free Lineman of the side's own team for an opponent
+ * killed by a player with Masters of Undeath or Plague Ridden («Special Rules», «Plague Ridden», «All Gata Changes») — a
+ * team of Masters of Undeath, or one that had a Plague Ridden player in the match (its snapshot's players, a star too).
+ */
+export function raisesDead(side) {
+  return teamHasSpecialRule(side.reference, 'Masters of Undeath')
+    || side.snapshot.players.some(player => (player.skills ?? []).some(skill => canonicalSkillName(skill) === 'Plague Ridden'));
+}
+
+/** How many the side may raise: the opponent's dead of this match, rookie protection applied, no star. */
+export function deadToRaise(state, name) {
   const opponent = state[name === 'home' ? 'away' : 'home'];
-  const dead = opponent.snapshot.players.filter(player => player.kind !== 'star' && effectiveInjury(opponent, player.id).code === 'dead').length;
+  return opponent.snapshot.players.filter(player => player.kind !== 'star' && effectiveInjury(opponent, player.id).code === 'dead').length;
+}
+
+function validateRaise(state, name, side, operation) {
   const count = side.operations.filter(item => item.type === 'raise').length;
-  if (!teamHasSpecialRule(side.reference, 'Masters of Undeath') || count > dead
+  if (!raisesDead(side) || count > deadToRaise(state, name)
     || !isLineman(rowsForTeam(side.reference)[operation.rowIndex])) throw postError('POST_RAISE');
   postCount(operation.rowIndex);
 }

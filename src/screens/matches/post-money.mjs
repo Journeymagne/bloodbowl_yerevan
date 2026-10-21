@@ -53,14 +53,18 @@ function projectionWith(model, draft) {
   }
 }
 
-/** The rows of the treasury (PostFinance.html): before, the income, purchases and sales, into the safe; «Treasury after» in Oswald 28. */
+/**
+ * The rows of the treasury (PostFinance.html): before, the income, purchases and sales, into the safe, what the Expensive
+ * Mistakes took once their dice are in — the rows add up to «Treasury after», in Oswald 28.
+ */
 function treasuryCard(model, projection) {
   const { accounting, finance } = projection;
   const purchases = accounting.purchases > 0 ? rowMarkup(t("after.purchases"), signedMoney(-accounting.purchases), { sub: purchasesWords(model), tone: "danger" }) : "";
   const sales = accounting.sales > 0 ? rowMarkup(t("after.sales"), signedMoney(accounting.sales), { tone: "gain" }) : "";
+  const loss = finance.loss > 0 ? rowMarkup(t("after.mistakeLoss"), signedMoney(-finance.loss), { tone: "danger" }) : "";
   return `<div class="g-after__card g-after__card--rows">${rowMarkup(t("after.before"), formatMoney(accounting.opening))}`
     + `${rowMarkup(t("after.matchIncome"), signedMoney(accounting.winnings), { tone: "gain" })}${purchases}${sales}`
-    + `${rowMarkup(t("after.toSafe"), signedMoney(-finance.deposit))}`
+    + `${rowMarkup(t("after.toSafe"), signedMoney(-finance.deposit))}${loss}`
     + `<div class="g-after__total"><span class="g-after__totalk">${escapeHtml(t("after.treasuryAfter"))}</span><span class="g-after__big g-after__big--ink">${escapeHtml(formatMoney(finance.after))}</span></div></div>`;
 }
 

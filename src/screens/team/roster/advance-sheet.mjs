@@ -34,7 +34,6 @@ import { renderSheet } from "../../../ui/sheet.mjs";
 import { CHOSEN_TYPES, bonusOf, choicesOf, chosenOf, refusedWords, stepBefore, takenHeld } from "./advance.mjs";
 import { NO_BONUS, favouredOf } from "./favoured.mjs";
 import { prepResetWords } from "./panel.mjs";
-import { closedMarkup } from "./player-access.mjs";
 import { radioGroupMarkup } from "./radio-group.mjs";
 import { keptWords, pairWhole, randomRollMarkup, rollButtonMarkup, rollLabel, siteRefusedWords, statRollMarkup, waitingWords } from "./roll-view.mjs";
 import { rollAsking } from "./rolls.mjs";
