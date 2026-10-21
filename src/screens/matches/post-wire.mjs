@@ -8,8 +8,8 @@
  *   «Change the score…», «Change from «Income»…» and «Start over with the current roster» ask first (`confirmAction`);
  *   «Finish the match» is the finish. The footer's button takes no press until it is armed (`visit.footerAfter`) and no
  *   key's auto-repeat: a double click on «Confirm the summary» is not «Finish the match».
- * - Kept on the page: the score's steppers, how the match ended and who won; the income's faces and switches; the safe's
- *   counter and the Expensive Mistakes' faces; the captain.
+ * - Kept on the page: the score's steppers, how the match ended, who won and why a technical result (stage 12); the
+ *   income's faces and switches; the safe's counter and the Expensive Mistakes' faces; the captain.
  * - The Players step, press by press (`changePlayers`): the MVP (a radio of one group, or a button pressed), the injury,
  *   the characteristic, «Out for the rest of the season», a veteran's die, a counter of the player's sheet. A row of the
  *   events (or a desk's name) opens the player's sheet, which gives the focus back to it when it closes; a stepper in it
@@ -114,7 +114,7 @@ function wireFrame(visit, screen, events) {
   });
 }
 
-/** The score's steppers, how the match ended and who won: the score's draft. */
+/** The score's steppers, how the match ended, who won and why a technical result: the score's draft. */
 function wireScore(screen, events) {
   const change = (update) => {
     const model = screen.model(), draft = screen.draftOf("result", model);
@@ -127,6 +127,7 @@ function wireScore(screen, events) {
   }));
   events.own(radios("[data-after-mode]", "data-mode", (mode) => change(() => ({ mode }))));
   events.own(wireSegmentedControls(view, (winner) => change(() => ({ winner })), { group: "after-winner" }));
+  events.own(radios("[data-after-reason]", "data-reason", (reason) => change(() => ({ reason }))));
 }
 
 /** The income's faces and switches, «Out for the rest of the season», the treasury's faces, the captain. */

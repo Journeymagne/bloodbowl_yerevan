@@ -19,6 +19,7 @@ import { errorText } from "../../core/api.mjs";
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, postMatchUrl, teamUrl } from "../../core/routes.mjs";
+import { TECHNICAL_REASONS } from "../../domain/league-rules.mjs";
 import { otherSide } from "../../domain/match/rules.mjs";
 import { projectPostRoster } from "../../domain/post-match/roster.mjs";
 import { POST_STEPS, effectiveInjury, resultAgreed } from "../../domain/post-match/rules.mjs";
@@ -58,14 +59,18 @@ export function opponentState(post, sideName, step = POST_STEPS[Math.min(post[si
 /**
  * The line's words and its dot: the accent once the opponent has done their part of the step on screen — the score
  * agreed or sent to us, the summary confirmed, this step reached (PostFans.html) or passed —, the warning's colour
- * while they are behind or we wait for them.
+ * while they are behind or we wait for them. A technical score the line names says why (stage 12): «The opponent sent
+ * the score 0–2 · technical: the opponent could not field a team»; one sent before 12, with no reason, is the other kind.
  */
 function opponentOf(post, sideName, step) {
   const state = opponentState(post, sideName, step);
   const other = post[otherSide(sideName)];
   const theirs = Math.min(other.stage, POST_STEPS.length - 1);
   const done = ["agreed", "sent", "confirmed", "same"].includes(state) || (state === "step" && theirs > POST_STEPS.indexOf(step));
-  return { state, done, text: t(`after.opponent.${state}`, { step: t(`after.step.${POST_STEPS[theirs]}`), score: scoreWords(post, sideName) }) };
+  const line = t(`after.opponent.${state}`, { step: t(`after.step.${POST_STEPS[theirs]}`), score: scoreWords(post, sideName) });
+  if (!["agreed", "sent"].includes(state) || post.result.mode !== "technical") return { state, done, text: line };
+  const reason = TECHNICAL_REASONS.includes(post.result.reason) ? post.result.reason : "other";
+  return { state, done, text: t(`after.reasonLine.${reason}`, { line }) };
 }
 
 /** «+80k», «−20k», «0k»: an amount of money with its sign. */

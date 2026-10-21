@@ -6,6 +6,7 @@ import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, mount } f
 import { assertContrast, assertReadable, inMedia, valuesOf } from "./helpers/contrast.mjs";
 import { AWAY, FIXTURE, HOME, RECORDS, act, agreed, begin, modelOf, reach, scored, tap } from "./helpers/post-cases.mjs";
 import { postMatchUrl } from "../src/core/routes.mjs";
+import { TECHNICAL_REASONS, seasonPoints } from "../src/domain/league-rules.mjs";
 import { postIncome } from "../src/domain/post-match/finance.mjs";
 import { RESULT_MODES } from "../src/domain/post-match/rules.mjs";
 import { POINT_PARTS, postPoints } from "../src/domain/post-match/score.mjs";
@@ -53,7 +54,7 @@ test("a side begun before 3.0 says it has no records, and nothing is said to mis
 
 test("the steppers start at the score sent, else at each side's records; ours at the left", () => {
   const fresh = modelOf(begin());
-  assert.deepEqual(resultDraft(fresh), { mode: "played", winner: "", own: { touchdowns: 2, casualties: 3 }, other: { touchdowns: 1, casualties: 1 }, changed: false, unlocked: false });
+  assert.deepEqual(resultDraft(fresh), { mode: "played", winner: "", reason: "", own: { touchdowns: 2, casualties: 3 }, other: { touchdowns: 1, casualties: 1 }, changed: false, unlocked: false });
   const fragment = drawScore(fresh);
   assert.deepEqual(words(fragment, ".g-after__teams span"), ["Mock Team", "Mock Rivals"]);
   assert.deepEqual(["own:touchdowns", "other:touchdowns", "own:casualties", "other:casualties"].map((key) => value(fragment, key)), ["2", "1", "3", "1"]);
@@ -144,7 +145,7 @@ test("a technical result closes the steppers at 2–0; a mode other than played 
   assert.equal(winner.querySelector('[aria-checked="true"]').textContent, "Mock Rivals");
   assert.match(technical.textContent, /A technical result is 2–0 to the winner, CAS 0\./);
   assert.deepEqual(resultAction(model, { ...resultDraft(model), mode: "technical", winner: "away" }),
-    { type: "result", mode: "technical", winner: "away", home: { touchdowns: 0, casualties: 0 }, away: { touchdowns: 2, casualties: 0 } });
+    { type: "result", mode: "technical", winner: "away", reason: "", home: { touchdowns: 0, casualties: 0 }, away: { touchdowns: 2, casualties: 0 } }, "no reason picked yet (stage 12)");
   // No winner picked yet: ours, as the segments show it and the action sends it.
   const conceded = drawScore(model, { mode: "conceded", own: { touchdowns: 2, casualties: 0 }, other: { touchdowns: 0, casualties: 0 } });
   assert.equal(conceded.querySelector('[data-seg-group="after-winner"] [aria-checked="true"]').textContent, "Mock Team");
@@ -153,6 +154,76 @@ test("a technical result closes the steppers at 2–0; a mode other than played 
   const refused = score(model, { mode: "conceded", winner: "home", own: { touchdowns: 1, casualties: 0 }, other: { touchdowns: 0, casualties: 0 } }).footer;
   assert.deepEqual([refused.disabled, refused.hint], [true, "Conceded: the winner has at least 2 TD, the loser none"]);
   assert.equal(score(model, { mode: "conceded-safe", winner: "away", own: { touchdowns: 0, casualties: 0 }, other: { touchdowns: 2, casualties: 0 } }).footer.disabled, false);
+});
+
+test("a technical result asks why; the reason goes with the score (stage 12, decisions 1, 3)", () => {
+  const model = modelOf(begin({ events: {} }));
+  assert.equal(resultDraft(model).reason, "", "nothing picked on a fresh page");
+  assert.ok(!drawScore(model).querySelector("[data-after-reason]"), "played: no reason to ask");
+  for (const mode of ["conceded", "conceded-safe"]) assert.ok(!drawScore(model, { mode, winner: "home" }).querySelector("[data-after-reason]"), mode);
+  const technical = { mode: "technical", winner: "home" };
+  const asked = drawScore(model, technical);
+  // Under the winner, as the winner stands under the modes.
+  assert.deepEqual(words(asked, ".g-after__label"), ["From the match records", "How the match ended", "Winner", "Why technical"]);
+  const group = asked.querySelector('[role="radiogroup"][data-after-reason]');
+  assert.equal(group.getAttribute("aria-label"), "Why technical");
+  assert.deepEqual(group.querySelectorAll('[role="radio"]').map((item) => item.getAttribute("data-reason")), [...TECHNICAL_REASONS]);
+  assert.deepEqual(group.querySelectorAll('[role="radio"]').map((item) => [item.querySelector(".g-after__reasonl").textContent, item.querySelector(".g-after__reasonsub")?.textContent ?? "",
+    item.getAttribute("aria-checked"), item.getAttribute("tabindex"), item.hasAttribute("aria-disabled")]),
+  [["The opponent could not field a team", `+${seasonPoints.noTeamBonus} to the winner's points`, "false", "0", false], ["Another reason", "", "false", "-1", false]]);
+  // Nothing picked: the button is closed and says why; nothing to send.
+  const waiting = score(model, technical).footer;
+  assert.deepEqual([waiting.kind, waiting.action, waiting.disabled, waiting.hint], ["action", "result", true, "Choose why the result is technical"]);
+  // The opponent could not field a team: 2 + 2 to the winner, in the post-match's own points.
+  const noTeam = { ...technical, reason: "no_team" };
+  const chosen = drawScore(model, noTeam);
+  assert.equal(chosen.querySelector('[data-after-reason] [aria-checked="true"]').getAttribute("data-reason"), "no_team");
+  assert.equal(chosen.querySelector('[data-after-reason] [tabindex="0"]').getAttribute("data-reason"), "no_team");
+  assert.deepEqual([chosen.querySelector(".g-after__for").textContent, chosen.querySelector(".g-after__pts").textContent], ["For you: Win", "+4 pts"]);
+  assert.equal(pointWords(postPoints({ result: { ...noTeam, home: { touchdowns: 2, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } } }, "home", "league")),
+    "+2 for a technical win, +2: the opponent could not field a team");
+  assert.deepEqual([score(model, noTeam).footer.disabled, score(model, noTeam).footer.hint], [false, ""]);
+  const action = resultAction(model, { ...resultDraft(model), ...noTeam });
+  assert.deepEqual(action, { type: "result", mode: "technical", winner: "home", reason: "no_team", home: { touchdowns: 2, casualties: 0 }, away: { touchdowns: 0, casualties: 0 } });
+  assert.equal(act(begin({ events: {} }), "home", action, {}).result.reason, "no_team", "the domain takes what the step sends");
+  // Another reason: 2; the loser none.
+  assert.equal(drawScore(model, { ...noTeam, reason: "other" }).querySelector(".g-after__pts").textContent, "+2 pts");
+  const lost = drawScore(model, { ...noTeam, winner: "away" });
+  assert.deepEqual([lost.querySelector(".g-after__for").textContent, lost.querySelector(".g-after__pts").textContent], ["For you: Loss", "+0 pts"]);
+  // A mode other than technical sends no reason, whatever the draft held before.
+  assert.ok(!Object.hasOwn(resultAction(model, { ...resultDraft(model), reason: "no_team" }), "reason"), "played");
+  assert.ok(!Object.hasOwn(resultAction(model, { ...resultDraft(model), mode: "conceded", reason: "no_team" }), "reason"), "conceded");
+  // The draft starts at the reason sent; a played score has none.
+  const sent = act(begin({ events: {} }), "away", { ...action, winner: "away", home: { touchdowns: 0, casualties: 0 }, away: { touchdowns: 2, casualties: 0 } }, {});
+  assert.equal(resultDraft(modelOf(sent, "result")).reason, "no_team");
+  assert.equal(drawScore(modelOf(sent, "result")).querySelector('[data-after-reason] [aria-checked="true"]').getAttribute("data-reason"), "no_team");
+  assert.equal(resultDraft(modelOf(scored(begin()), "result")).reason, "");
+  // Agreed: the reason reads only, as the modes do, until «Change the score…».
+  const both = agreed(begin({ events: {} }), { mode: "technical", home: [2, 0], away: [0, 0] });
+  const closed = drawScore(modelOf(both, "result"));
+  assert.equal(closed.querySelectorAll('[data-after-reason] [aria-disabled="true"]').length, TECHNICAL_REASONS.length);
+  assert.equal(closed.querySelector('[data-after-reason] [aria-checked="true"]').getAttribute("data-reason"), "other", "a score sent with no reason is the other kind (L2)");
+  assert.equal(mount(score(modelOf(both, "result"), { unlocked: true }).contentHtml).querySelectorAll('[data-after-reason] [aria-disabled="true"]').length, 0);
+});
+
+test("the opponent's technical result says its reason in the line about the opponent", () => {
+  const sent = (reason) => act(begin({ events: {} }), "away", { type: "result", mode: "technical", winner: "away", reason,
+    home: { touchdowns: 0, casualties: 0 }, away: { touchdowns: 2, casualties: 0 } }, {});
+  const model = modelOf(sent("no_team"), "result");
+  assert.equal(model.opponent.text, "The opponent sent the score 0–2 · technical: the opponent could not field a team");
+  assert.equal(mount(opponentLeadMarkup(model)).querySelector(".g-status").textContent, model.opponent.text, "a desk's chip over the button");
+  assert.equal(modelOf(sent("other"), "result").opponent.text, "The opponent sent the score 0–2 · technical: another reason");
+  // Confirmed, the line still says what was agreed.
+  assert.equal(modelOf(act(sent("no_team"), "home", { type: "agree-result" }, {}), "result").opponent.text,
+    "The opponent confirmed the score 0–2 · technical: the opponent could not field a team");
+  // A score begun before stage 12 holds no reason: the other kind, as its points are.
+  const old = structuredClone(sent("no_team"));
+  delete old.result.reason;
+  assert.equal(modelOf(old, "result").opponent.text, "The opponent sent the score 0–2 · technical: another reason");
+  assert.equal(resultDraft(modelOf(old, "result")).reason, "", "the step asks again if the score is sent again");
+  // A played score says none; the side that sent it waits.
+  assert.equal(modelOf(scored(begin(), { by: "away" }), "result").opponent.text, "The opponent sent the score 2–1");
+  assert.equal(modelOf(sent("no_team"), "result", {}, { viewerSide: "away" }).opponent.text, "Waiting for the opponent to confirm");
 });
 
 test("points for you: a win in parts, a friendly off the table", () => {
@@ -288,9 +359,14 @@ test("names are text", () => {
 });
 
 test("every key in both dictionaries, the modes, outcomes and parts by their sets", () => {
-  assertDictionaryCovers("src/screens/matches/post-steps.mjs");
+  assertDictionaryCovers("src/screens/matches/post-steps.mjs", "src/screens/matches/post-model.mjs");
   for (const locale of ["en", "ru"]) {
     const words = dictionary(locale);
+    for (const reason of TECHNICAL_REASONS) {
+      for (const key of [`after.reason.${reason}`, `after.reasonLine.${reason}`]) assert.ok(words[key], `${locale} ${key}`);
+      assert.match(words[`after.reasonLine.${reason}`], /\{line\}/, `${locale} after.reasonLine.${reason} carries the line`);
+    }
+    assert.match(words["after.reasonBonus"], /\{points\}/, `${locale} after.reasonBonus says the league's number`);
     for (const mode of RESULT_MODES) assert.ok(words[`after.mode.${mode}`], `${locale} after.mode.${mode}`);
     for (const outcome of ["win", "draw", "loss"]) assert.ok(words[`after.outcome.${outcome}`], `${locale} after.outcome.${outcome}`);
     for (const part of POINT_PARTS) assert.ok(words[`after.part.${part}`], `${locale} after.part.${part}`);
@@ -310,6 +386,7 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
     }
   }
   assertStyled(mount(opponentLeadMarkup(modelOf(begin()))), ...sheets);
+  for (const reason of ["", ...TECHNICAL_REASONS]) assertStyled(mount(score(modelOf(begin()), { mode: "technical", winner: "home", reason }).contentHtml), ...sheets);
   const own = (selector, property) => valuesOf(CSS, selector, property);
   // The prototypes' values (PostResult.html, PostFans.html).
   assert.deepEqual(own(".g-after__card", "border-radius"), ["var(--radius-2xl)"]);
@@ -333,6 +410,15 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own('.g-after__mode[aria-checked="true"]', "box-shadow"), ["inset 0 0 0 2px var(--accent)"]);
   assert.deepEqual(own('.g-after__mode[aria-checked="true"]', "background"), ["var(--accent-tint-soft)"]);
   assert.deepEqual(own(".g-after__modes", "grid-template-columns"), ["repeat(2, minmax(0, 1fr))", "minmax(0, 1fr)"], "2×2; one column under 370px, the narrow rule after the base one it overrides (J13)");
+  // The reason of a technical result (stage 12): the modes' radios (PostResult.html's kit), the reason over its quiet line.
+  assert.deepEqual(own(".g-after__reasons", "grid-template-columns"), ["minmax(0, 1fr)"], "one under another: a whole row holds «The opponent could not field a team» in one line");
+  assert.deepEqual(own(".g-after__reason", "flex-direction"), ["column"]);
+  assert.deepEqual(own(".g-after__reason", "border-radius"), ["var(--radius-md)"]);
+  assert.deepEqual(own(".g-after__reason", "box-shadow"), ["inset 0 0 0 1px var(--control-border)"]);
+  assert.deepEqual(own('.g-after__reason[aria-checked="true"]', "box-shadow"), ["inset 0 0 0 2px var(--accent)"]);
+  assert.deepEqual(own('.g-after__reason[aria-checked="true"]', "background"), ["var(--accent-tint-soft)"]);
+  assert.deepEqual(own(".g-after__reason", "font"), ["600 14px/1.25 var(--font-body)"]);
+  assert.deepEqual(own(".g-after__reasonsub", "font"), ["500 11px/1.3 var(--font-body)"]);
   assert.deepEqual(own(".g-after__fans", "font"), ["700 16px/1.3 var(--font-body)"]);
   assert.deepEqual(own(".g-after__card--switches .g-toggle", "min-height"), ["56px"]);
   assert.deepEqual(own(".g-prep__dotlist:has(> :nth-child(7))", "grid-template-columns"), ["repeat(7, minmax(0, 1fr))"], "seven dots");
@@ -345,11 +431,16 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   for (const selector of [".g-after__label", ".g-after__note", ".g-after__rowk", ".g-after__rowsub", ".g-after__for", ".g-after__counterk", ".g-after__fans", ".g-after__totalk"]) {
     assertReadable(CSS, selector, "color", ["--surface"], 4.5);
   }
+  for (const selector of [".g-after__reason", ".g-after__reasonsub"]) assertReadable(CSS, selector, "color", ["--surface", "--accent-tint-soft"], 4.5);
   // D2: a thumb's up to 900px, the prototype's from 901px and never under 24.
   const px = (value) => ({ "var(--size-touch)": 44 })[value] ?? parseInt(value, 10);
-  for (const [selector, property] of [[".g-after__step", "height"], [".g-after__step", "width"], [".g-after__mode", "min-height"], [".g-after__card--switches .g-toggle", "min-height"]]) {
+  for (const [selector, property] of [[".g-after__step", "height"], [".g-after__step", "width"], [".g-after__mode", "min-height"], [".g-after__reason", "min-height"], [".g-after__card--switches .g-toggle", "min-height"]]) {
     assert.ok(px(own(selector, property)[0]) >= 44, `${selector} ${property}`);
   }
+  // A reason is 44px on a phone, the desk's 40px from 901px (the plan's value; never under 24).
+  assert.deepEqual(own(".g-after__reason", "min-height"), ["44px", "40px"]);
+  assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-after__reason", "min-height"), ["40px"]);
+  assert.equal(inMedia(CSS, "max-width: 900px", ".g-after__reason", "min-height").length, 0, "nothing smaller on a phone");
   assert.ok(px(valuesOf("src/screens/matches/prep.css", ".g-prep__faces--6 .g-prep__face", "min-height")[0]) >= 44, "the faces, the preparation's 46px");
   assert.deepEqual(inMedia(CSS, "min-width: 901px", ".g-after__step", "height"), ["40px"]);
   assert.equal(inMedia(CSS, "max-width: 900px", ".g-after__step", "height").length, 0, "nothing smaller on a phone");
@@ -357,7 +448,7 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   const bare = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(bare, /ellipsis|text-overflow|line-clamp/);
   assert.doesNotMatch(bare, /--focus-ring|style=/);
-  for (const selector of [".g-after__teams", ".g-after__mode", ".g-after__label"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  for (const selector of [".g-after__teams", ".g-after__mode", ".g-after__label", ".g-after__reason"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
   assert.deepEqual(own(".g-after__rowk", "overflow-wrap"), ["break-word"], "a row's label wraps between its words, never inside one");
   for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)", "(max-width: 369px)"].includes(query.trim()), query);
   // Under 370px the score's word goes over its two steppers, the figure narrower; the buttons keep 44px (the final review).
