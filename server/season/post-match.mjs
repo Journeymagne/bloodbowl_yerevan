@@ -1,14 +1,32 @@
+/**
+ * The post-match on the server: read, written and finished in one transaction each, under the pairing's lock,
+ * then both teams', then its own row's (`lockPost`; a tap takes them in the same order, live-match.mjs).
+ *
+ * Its Players step rolls the site's dice for the advancements it takes (stage 09b, decision 22): through its
+ * own route and under these locks, since the team's own dice are shut while the team plays (TEAM_IN_MATCH), and
+ * by the roster the post-match holds — the SPP and the skills its choices gave a player so far — not the blob
+ * (`rollInPostMatch`). A roll is the side's coach's, an admin's neither, for a player of the team's roster. The
+ * post-match never stores a roll: a choice names it (`roll: { id, via: "site" }`), held to it when made
+ * (`checkPostRoll`), and it waits, unused, until the finish uses it with the roster it goes into
+ * (`settleRosterRolls`, the roster save's own rule): a finish refused uses none, the finish of a completed
+ * post-match uses nothing again, and an advancement undone leaves its roll waiting for the next ask.
+ */
 import { pool } from '../db/pool.mjs';
+import { withTransaction } from '../db/transaction.mjs';
 import { httpError } from '../http/errors.mjs';
+import { checkPostRoll, rollForPlayer, serverDie, settleRosterRolls } from '../api/dice-rolls.mjs';
 import { matchReference } from '../domain/match-reference.mjs';
 import { loadPreparationFixture, loadPreparationSources } from './preparation-store.mjs';
 import { createPostMatch, createPostSide, applyPostAction, validatePostSide } from '../../src/domain/post-match/state.mjs';
 import { followEvents } from '../../src/domain/post-match/events.mjs';
-import { resultAgreed } from '../../src/domain/post-match/rules.mjs';
+import { POST_STEPS, resultAgreed } from '../../src/domain/post-match/rules.mjs';
+import { postAdvancer, postPlayers } from '../../src/domain/post-match/roster.mjs';
+import { postPoints } from '../../src/domain/post-match/score.mjs';
 import { SIDES, otherSide } from '../../src/domain/match/rules.mjs';
-import { matchPoints } from '../../src/domain/league-rules.mjs';
 import { applyPostMatchRoster } from './finance-store.mjs';
 import { loadMatchEvents, recordSideStatistics, settleMatchEvents, settleOutsideEdits } from './match-events-store.mjs';
+
+const PLAYERS_STAGE = POST_STEPS.indexOf('players');
 
 /**
  * The games each of `teamIds` has played, the match `pairingId` left out: its confirmed matches that were not
@@ -62,11 +80,24 @@ async function savePost(client, fixture, state) {
     ON CONFLICT(pairing_id) DO UPDATE SET state=EXCLUDED.state,updated_at=now()`, [fixture.id, JSON.stringify(state)]);
 }
 
-function points(state, name, kind) {
-  if (kind === 'friendly') return 0;
-  if (state.result.mode === 'technical') return state.result.winner === name ? 2 : 0;
-  return matchPoints({ touchdownsFor: state.result[name].touchdowns, touchdownsAgainst: state.result[otherSide(name)].touchdowns,
-    casualtiesFor: state.result[name].casualties });
+// The race of a side's team as the roster rules read it: the reference data `teamBySlug` holds, from the same file.
+const raceOf = (data, side) => data.teams.find(team => team.slug === side.team.baseTeamSlug) ?? null;
+
+// The site's rolls a side's choices name (kept trimmed, `choiceRoll`): taken, though unused until the finish.
+const namedRolls = side => Object.values(side.advancements).flat().filter(choice => choice.roll?.via === 'site').map(choice => String(choice.roll.id));
+
+// The side's roster for the site's dice: as the post-match began, its players as the post-match leaves them so far
+// (SPP, injuries, the advancements chosen); the match's journeymen and rookies roll at the table.
+function diceRoster(state, name, data) {
+  return { ...state[name].baseRoster, players: postPlayers(state, name, data).filter(player => !player.kind) };
+}
+
+// What `checkPostRoll` holds an advancement to: the side's team, its race, its roster before the advancement and
+// the rolls its other choices name.
+function rollCheck(state, name, action, data) {
+  const side = state[name];
+  return { teamId: side.team.id, race: raceOf(data, side), roster: diceRoster(state, name, data), playerId: action.playerId,
+    roll: action.roll, advancement: { type: action.advancementType, grants: action.grant }, exclude: namedRolls(side) };
 }
 
 async function finishPost(client, fixture, state, sources, data, actorId) {
@@ -74,6 +105,9 @@ async function finishPost(client, fixture, state, sources, data, actorId) {
   for (const name of SIDES) {
     if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
     const projection = validatePostSide(state, name, data);
+    // The site's rolls the side's advancements name are used here, with the roster they go into: a finish refused
+    // after this, for this side or the next, rolls them back with the rest.
+    await settleRosterRolls(client, { teamId: state[name].team.id, race: raceOf(data, state[name]), before: state[name].baseRoster, after: projection.roster });
     await applyPostMatchRoster(client, fixture.id, name, state[name], projection, actorId);
     // The difference once more, for a post-match begun before 3.0: it has no events, and its statistics
     // become rows here. A side begun in 3.0 holds what its events read, or wrote its difference on the
@@ -86,11 +120,11 @@ async function finishPost(client, fixture, state, sources, data, actorId) {
     await settleOutsideEdits(client, state[name].team.id);
     state[name].settlement = projection;
   }
-  const result = state.result;
+  const result = state.result, points = name => postPoints(state, name, fixture.match_kind).total;
   await client.query(`UPDATE season_pairings SET home_touchdowns=$2,away_touchdowns=$3,home_casualties=$4,away_casualties=$5,
     home_points=$6,away_points=$7,result_type=$8,result_status='confirmed',confirmed_at=now(),updated_at=now() WHERE id=$1`,
   [fixture.id, result.home.touchdowns, result.away.touchdowns, result.home.casualties, result.away.casualties,
-    points(state, 'home', fixture.match_kind), points(state, 'away', fixture.match_kind), result.mode === 'technical' ? 'technical' : 'played']);
+    points('home'), points('away'), result.mode === 'technical' ? 'technical' : 'played']);
   state.status = 'completed'; state.completedAt = new Date().toISOString(); state.revision++;
   return state;
 }
@@ -106,15 +140,21 @@ function resetSide(state, name, sources, data) {
   return state;
 }
 
+// The post-match under its locks, in their one order: the pairing, both teams, then its row. A followed side reads
+// its events again under them, so no tap lands between this read and a write after it.
+async function lockPost(client, pairingId, user, data) {
+  const fixture = await loadPreparationFixture(client, pairingId, user), sources = await postSources(client, fixture);
+  const events = Object.fromEntries(SIDES.map(name => [name, sources[name].events]));
+  const state = followEvents(await loadPost(client, fixture, sources, data), events);
+  return { fixture, sources, events, state, viewerSide: fixture.home_user_id === user.id ? 'home' : 'away' };
+}
+
 export async function accessPostMatch(pairingId, user, body = null, finish = false) {
   const data = await matchReference(), client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const fixture = await loadPreparationFixture(client, pairingId, user), sources = await postSources(client, fixture);
-    // Read under the pairing and team locks taken above, so no tap lands between this read and the writes below.
-    const events = Object.fromEntries(SIDES.map(name => [name, sources[name].events]));
-    let state = followEvents(await loadPost(client, fixture, sources, data), events);
-    const viewerSide = fixture.home_user_id === user.id ? 'home' : 'away';
+    const opened = await lockPost(client, pairingId, user, data), { fixture, sources, events, viewerSide } = opened;
+    let state = opened.state;
     if (body && !(finish && state.status === 'completed')) {
       const name = body.side || viewerSide;
       if (!SIDES.includes(name) || (!user.is_admin && fixture[name + '_user_id'] !== user.id)) throw httpError(403, 'FIXTURE_NOT_YOURS');
@@ -125,6 +165,7 @@ export async function accessPostMatch(pairingId, user, body = null, finish = fal
         if (sources[name].team.revision !== state[name].baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
         if (finish) state = await finishPost(client, fixture, state, sources, data, user.id);
         else {
+          if (body.action?.type === 'advance' && body.action.roll?.via === 'site') await checkPostRoll(client, rollCheck(state, name, body.action, data));
           state = applyPostAction(state, name, body.action, data);
           if (body.action?.type === 'statistics') events[name] = await recordSideStatistics(client, fixture.id, state[name], events[name], user.id);
         }
@@ -138,4 +179,35 @@ export async function accessPostMatch(pairingId, user, body = null, finish = fal
     await client.query('COMMIT'); return response;
   } catch (error) { await client.query('ROLLBACK').catch(() => {}); throw error; }
   finally { client.release(); }
+}
+
+/**
+ * `POST /api/games/:id/post-match/rolls`: the site's roll for an advancement of the post-match — the one waiting
+ * for the player, or a new one kept (`rollForPlayer`), by the roster the post-match holds, the rolls its choices
+ * name left out. The side's coach's (an admin's neither), on the Players step of an open post-match whose team
+ * is as it began, the side not confirmed, for a player of the team's roster who may advance (`postAdvancer`).
+ * The post-match is left as it is: nothing written to it, the same revision.
+ *
+ * @param {string} pairingId
+ * @param {{id: string, is_admin?: boolean}} user
+ * @param {{purpose: string, category?: string}} ask what `checkRoll` read of the body
+ * @param {{side?: string, playerId?: string}} body the side (the viewer's by default) and the player
+ * @param {{rng?: (sides: number) => number}} [options] the die, for a test
+ * @returns {Promise<object>} the dice_rolls row
+ * @throws 403 FIXTURE_NOT_YOURS; 409 POST_CLOSED, POST_TEAM_CHANGED, POST_ACTION; 404 PLAYER_NOT_FOUND; what
+ *   `rollForPlayer` refuses (409 DICE_ROLL_WAITING, 422 DICE_CATEGORY / DICE_NO_SKILL)
+ */
+export async function rollInPostMatch(pairingId, user, { purpose, category }, body, { rng = serverDie } = {}) {
+  const data = await matchReference();
+  return withTransaction(async client => {
+    const { fixture, sources, state, viewerSide } = await lockPost(client, pairingId, user, data);
+    const name = body.side || viewerSide, side = state[name];
+    if (!SIDES.includes(name) || fixture[name + '_user_id'] !== user.id) throw httpError(403, 'FIXTURE_NOT_YOURS');
+    if (state.status === 'completed') throw httpError(409, 'POST_CLOSED');
+    if (sources[name].team.revision !== side.baseRevision) throw httpError(409, 'POST_TEAM_CHANGED');
+    if (side.stage !== PLAYERS_STAGE || side.confirmed) throw httpError(409, 'POST_ACTION');
+    if (!postAdvancer(side, body.playerId, { site: true })) throw httpError(404, 'PLAYER_NOT_FOUND');
+    const teamRow = { id: side.team.id, base_team_slug: side.team.baseTeamSlug, roster: diceRoster(state, name, data) };
+    return rollForPlayer(client, { teamRow, playerId: body.playerId, purpose, category, userId: user.id, rng, exclude: namedRolls(side) });
+  });
 }

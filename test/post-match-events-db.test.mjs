@@ -27,6 +27,8 @@ test("a match tapped in 3.0: the post-match starts from the taps, the Players st
       { player_id: "home-1", counter: "completions", total: 0, rows: 2, settled: true }]);
     assert.equal((await spp(client, "home", "home-0")).touchdowns, 1);
     assert.equal((await spp(client, "home", "home-1")).completions, 0);
+    // Both sides named an MVP (toReady): the post-match keeps it in its own state and writes no MVP rows.
+    assert.equal((await client.query("SELECT count(*)::int AS n FROM match_events WHERE pairing_id = $1 AND counter = 'mvps'", [G])).rows[0].n, 0);
   });
 });
 
