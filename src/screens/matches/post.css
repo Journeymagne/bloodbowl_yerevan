@@ -68,11 +68,14 @@
   font: 400 15px/1.25 var(--font-body);
 }
 
-.g-after__rowk { display: flex; flex-direction: column; min-width: 0; color: var(--muted); overflow-wrap: anywhere; }
+/* The label keeps its words whole (it gives way to the value only between words); the value wraps where it must. */
+.g-after__rowk { display: flex; flex-direction: column; color: var(--muted); overflow-wrap: break-word; }
 
 .g-after__rowsub { color: var(--muted); font: 400 12px/1.35 var(--font-body); }
 
-.g-after__rowv { flex: none; color: var(--ink); font-weight: 600; text-align: right; white-space: nowrap; }
+/* A value wraps where it must (a reason, a list of names); the score's totals keep to one line (PostResult.html). */
+.g-after__rowv { flex: 0 1 auto; min-width: 0; color: var(--ink); font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.g-after__rowv--keep { flex: none; white-space: nowrap; }
 
 /* A total: its word at the left, the figure in Oswald 28 in the accent's ink. */
 .g-after__total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-10); padding-top: var(--space-8); }

@@ -67,6 +67,12 @@ export function opponentLeadMarkup(model) {
   return `<span class="g-after__lead">${renderStatusChip({ label: model.opponent.text, tone: model.opponent.done ? "live" : "wait" })}</span>`;
 }
 
+/** An injury as the post-match names it (PostPlayers.html, PostReview.html: the Casualty Table's names): «Lasting Injury (AG)». */
+export function postInjuryWords({ code, stat }) {
+  const injury = t(`after.injury.${code}`);
+  return stat ? t("after.injuryStat", { injury, stat: t(`stats.${stat}`) }) : injury;
+}
+
 /** «+3 for the win, +1 for 3+ CAS»: the points of a match in the parts they add up to (`postPoints`). */
 export function pointWords(points) {
   return points.parts.map((part) => t(`after.part.${part.key}`, { points: part.points })).join(", ");
@@ -137,8 +143,8 @@ function recordsCard(model) {
   const totals = (records) => (records ? t("after.totals", { td: records.touchdowns, cas: records.casualties }) : "—");
   const tally = t("after.recordsCount", { own: own ? own.count : "—", other: other ? other.count : "—" });
   return `<div class="g-after__card g-after__card--tight"><div class="g-after__head">${labelMarkup(t("after.records"))}<span class="g-after__tally">${escapeHtml(tally)}</span></div>`
-    + rowMarkup(t("after.yours"), totals(own), { sub: own ? scorersWords(own) : none })
-    + rowMarkup(t("after.theirs"), totals(other), { sub: other ? t("after.theirsSub") : none })
+    + rowMarkup(t("after.yours"), totals(own), { sub: own ? scorersWords(own) : none, tone: "keep" })
+    + rowMarkup(t("after.theirs"), totals(other), { sub: other ? t("after.theirsSub") : none, tone: "keep" })
     + `${noteMarkup(t("after.recordsNote"))}</div>`;
 }
 

@@ -319,7 +319,8 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   assert.deepEqual(own(".g-after__label", "letter-spacing"), ["0.06em"]);
   assert.deepEqual(own(".g-after__row", "min-height"), ["44px"]);
   assert.deepEqual(own(".g-after__row", "font"), ["400 15px/1.25 var(--font-body)"]);
-  assert.deepEqual(own(".g-after__rowv", "white-space"), ["nowrap"]);
+  assert.deepEqual(own(".g-after__rowv--keep", "white-space"), ["nowrap"], "the score's totals on one line; the other values wrap");
+  assert.deepEqual(own(".g-after__rowv", "overflow-wrap"), ["anywhere"]);
   assert.deepEqual(own(".g-after__note", "font"), ["400 13px/1.45 var(--font-body)"]);
   assert.deepEqual(own(".g-after__big", "font"), ["700 28px/1 var(--font-display)"]);
   assert.deepEqual(own(".g-after__score", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)"]);
@@ -356,7 +357,8 @@ test("styled as the prototypes draw it; readable; D2; nothing cut with «…»",
   const bare = text(CSS).replace(/\/\*[\s\S]*?\*\//g, "");
   assert.doesNotMatch(bare, /ellipsis|text-overflow|line-clamp/);
   assert.doesNotMatch(bare, /--focus-ring|style=/);
-  for (const selector of [".g-after__teams", ".g-after__rowk", ".g-after__mode", ".g-after__label"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  for (const selector of [".g-after__teams", ".g-after__mode", ".g-after__label"]) assert.deepEqual(own(selector, "overflow-wrap"), ["anywhere"], selector);
+  assert.deepEqual(own(".g-after__rowk", "overflow-wrap"), ["break-word"], "a row's label wraps between its words, never inside one");
   for (const [, query] of text(CSS).matchAll(/@media\s*([^{]+)\{/g)) assert.ok(["(max-width: 900px)", "(min-width: 901px)"].includes(query.trim()), query);
   const styles = text("src/styles.css");
   assert.ok(styles.indexOf('@import url("screens/matches/post.css");') > styles.indexOf('@import url("screens/matches/prep.css");'), "after the preparation's sheet it draws over");

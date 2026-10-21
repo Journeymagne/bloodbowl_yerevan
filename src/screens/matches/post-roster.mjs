@@ -138,6 +138,19 @@ export function opLines(model) {
   });
 }
 
+/** «Assistant Coaches, Human Lineman ×2»: what this post-match buys, in a few words (the treasury's and the summary's lines); "" for nothing. */
+export function purchasesWords(model) {
+  const side = model.post[model.sideName], rows = rowsForTeam(side.reference);
+  const names = model.preview.accounting.transactions.filter((operation) => -operation.amount > 0).map((operation) => {
+    if (operation.type === "staff") return staffName(operation.key);
+    if (operation.type === "keep") return side.snapshot.players.find((player) => player.id === operation.playerId)?.name ?? "";
+    return rows[operation.rowIndex]?.position ?? "";
+  });
+  const counts = new Map();
+  for (const name of names) counts.set(name, (counts.get(name) ?? 0) + 1);
+  return [...counts].map(([name, count]) => (count > 1 ? `${name} ×${count}` : name)).join(", ");
+}
+
 /** «This step's operations» with their money, spending in the danger's colour, a sale's in the accent's ink; «Undo the last». */
 function opsCard(model, closed) {
   const lines = opLines(model);

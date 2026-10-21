@@ -20,9 +20,11 @@
 .g-after__left { flex: none; color: var(--on-accent-tint); font: 700 24px/1 var(--font-display); font-variant-numeric: tabular-nums; }
 .g-after__left--short { color: var(--danger); }
 
-/* The staff (PostRoster.html): the counters' rows 58px, their buttons white on the group's grey, 34px from 901px. */
+/* The staff and the safe (PostRoster.html, PostFinance.html): the counters' buttons white on the group's grey, 34px from 901px. */
 .g-after__staff .g-resource__btn,
-.g-after__staff .g-resource__btn--inc {
+.g-after__staff .g-resource__btn--inc,
+.g-after__card--safe .g-resource__btn,
+.g-after__card--safe .g-resource__btn--inc {
   border-radius: 9px;
   background: var(--surface);
   color: var(--ink);
@@ -30,7 +32,43 @@
 .g-after__staff .g-resource__btn:disabled,
 .g-after__staff .g-resource__btn[aria-disabled="true"],
 .g-after__staff .g-resource__btn--inc:disabled,
-.g-after__staff .g-resource__btn--inc[aria-disabled="true"] { background: var(--surface); color: var(--disabled); }
+.g-after__staff .g-resource__btn--inc[aria-disabled="true"],
+.g-after__card--safe .g-resource__btn:disabled,
+.g-after__card--safe .g-resource__btn[aria-disabled="true"],
+.g-after__card--safe .g-resource__btn--inc:disabled,
+.g-after__card--safe .g-resource__btn--inc[aria-disabled="true"] { background: var(--surface); color: var(--disabled); }
+
+/* The safe's card holds its one counter: no line under it. */
+.g-after__card--safe .g-resource { min-height: 0; border-bottom: 0; }
+
+/* «Treasury after» in the ink, not the accent's (PostFinance.html). */
+.g-after__big--ink { color: var(--ink); }
+
+/* What the Expensive Mistakes do: 700 15px, a loss in the danger's colour, the roll still to make quiet. */
+.g-after__mistake { color: var(--on-accent-tint); font: 700 15px/1.35 var(--font-body); }
+.g-after__mistake--loss { color: var(--danger); }
+.g-after__mistake--pending { color: var(--muted); }
+
+/* The captain: two to a row (PostNext.html). */
+.g-after__options--captain { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+/* The summary: both sides' cards, 300px or more each (DeskPostReview.html); the name 700 16px and its chip, 12px with a 7px dot. */
+.g-after__sides { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: var(--space-16); }
+
+.g-after__side { min-width: 0; }
+
+.g-after__sidehead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--space-8); }
+.g-after__sidehead .g-status { font: 700 12px/1 var(--font-body); }
+.g-after__sidehead .g-status::before { width: 7px; height: 7px; }
+
+.g-after__team { color: var(--ink); font: 700 16px/1.3 var(--font-body); overflow-wrap: anywhere; }
+
+/* A desk's result: «Result» 13px, the score Oswald 40, the outcome and its points 700 14px in the accent's ink. */
+.g-after__resultk { color: var(--muted); font: 400 13px/1.35 var(--font-body); }
+
+.g-after__resultscore { color: var(--ink); font: 700 40px/1.1 var(--font-display); font-variant-numeric: tabular-nums; }
+
+.g-after__resultv { color: var(--on-accent-tint); font: 700 14px/1.35 var(--font-body); overflow-wrap: anywhere; }
 
 /* «+ Hire» and «Sell…» side by side, 44px, the control's ring; the journeymen and Raise Dead under them. */
 .g-after__opens { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-8); }
@@ -90,6 +128,7 @@
 }
 
 @media (min-width: 901px) {
-  .g-after__staff .g-resource__btn { width: 34px; height: 34px; }
+  .g-after__staff .g-resource__btn,
+  .g-after__card--safe .g-resource__btn { width: 34px; height: 34px; }
   .g-after__undo { min-height: 36px; }
 }

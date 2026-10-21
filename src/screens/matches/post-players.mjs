@@ -24,10 +24,9 @@ import { PLAYER_STATS } from "../../domain/roster/values.mjs";
 import { renderActionStepper } from "../../ui/action-stepper.mjs";
 import { renderSheet } from "../../ui/sheet.mjs";
 import { renderToggle } from "../../ui/toggle.mjs";
-import { injuryWords } from "../team/roster/panel.mjs";
 import { gaveWords } from "../team/roster/player-access.mjs";
 import { postAdvanceKey } from "./post-model.mjs";
-import { actionFooter, labelMarkup, mismatchMarkup, nextLink, noteMarkup } from "./post-steps.mjs";
+import { actionFooter, labelMarkup, mismatchMarkup, nextLink, noteMarkup, postInjuryWords } from "./post-steps.mjs";
 
 /** The id of the player's sheet of counters and injury. */
 export const PLAYERS_SHEET = "after-player";
@@ -71,7 +70,7 @@ function countersWords(stats = {}) {
 }
 
 /** The words of a standing injury: «Lasting Injury (AG)»; "" for none. */
-const injuryOf = (injury) => (injury && injury.code !== "none" ? injuryWords(injury) : "");
+const injuryOf = (injury) => (injury && injury.code !== "none" ? postInjuryWords(injury) : "");
 
 /** The players of the match as the step reads them: what each did, the injury, the SPP without and with the MVP. */
 function playersOf(model, draft) {
