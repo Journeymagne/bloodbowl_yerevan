@@ -192,7 +192,31 @@ export const seasonPoints = Object.freeze({
   /** So are three casualties, however the match went. */
   casualtyThreshold: 3,
   casualtyBonus: 1,
+  /**
+   * A match decided without being played. content/Gata/Rules/3. Team Management.md:71
+   * («2 points for a technical win») and :81 («+2 points if the opponent could not field
+   * a team for the match»); technicalPoints below adds them up for one side.
+   */
+  technicalWin: 2,
+  noTeamBonus: 2,
 });
+
+/**
+ * Why a match was decided without being played: the opponent could not field a
+ * team (the content's +2), or anything else the Commissioner rules on.
+ */
+export const TECHNICAL_REASONS = Object.freeze(["no_team", "other"]);
+
+/**
+ * One side's points for a technical result.
+ *
+ * @param {{won: boolean, reason?: string|null}} result
+ * @returns {number}
+ */
+export function technicalPoints({ won, reason }) {
+  if (!won) return seasonPoints.loss;
+  return seasonPoints.technicalWin + (reason === "no_team" ? seasonPoints.noTeamBonus : 0);
+}
 
 /**
  * One side's points for a finished match.
