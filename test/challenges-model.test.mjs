@@ -185,9 +185,9 @@ test("the games not read: no accepted, no played, and an accepted challenge is i
 test("the challenges not read, or not yet: nothing is drawn of them; nothing yet says so", () => {
   const page = { games: [], teamId: "t1", viewerId: "u1", teams: TEAMS, now: NOW, phone: true };
   const loading = challengesModel({ ...page, payload: null, readError: "" });
-  assert.deepEqual([loading.read, loading.failures, loading.empty, loading.incoming], [false, [], false, []]);
+  assert.deepEqual([loading.read, loading.unread, loading.failures, loading.empty, loading.incoming], [false, false, [], false, []]);
   const failed = challengesModel({ ...page, payload: null, readError: "No connection" });
-  assert.deepEqual([failed.read, failed.failures, failed.empty], [false, ["The challenges could not be read: No connection"], false]);
+  assert.deepEqual([failed.read, failed.unread, failed.failures, failed.empty], [false, true, ["The challenges could not be read: No connection"], false]);
   const none = challengesModel({ ...page, payload: { challenges: [], opponents: OPPONENTS } });
   assert.deepEqual([none.read, none.empty, none.incoming, none.outgoing, none.accepted, none.history], [true, true, [], [], [], []]);
 });

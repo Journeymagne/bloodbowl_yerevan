@@ -212,7 +212,7 @@ function settledOf(challenges, games, context) {
 
 /**
  * @typedef {{id: string, login: string, initial: string, line: string}} ChallengeRow
- * @typedef {{teamId: string, phone: boolean, read: boolean, played: string, failures: string[],
+ * @typedef {{teamId: string, phone: boolean, read: boolean, unread: boolean, played: string, failures: string[],
  *   incoming: ChallengeRow[], outgoing: ChallengeRow[],
  *   accepted: {id: string, gameId: string, own: string, other: string, when: string,
  *     links: {label: string, href: string, kind: "primary"|"light"|"text"}[], sentLine: string}[],
@@ -221,8 +221,9 @@ function settledOf(challenges, games, context) {
 
 /**
  * The page (decisions 2–5). The challenges are drawn once read, and not while a read of them failed: what the
- * page would say is from before; the failure is said with its reason. The games not read (null, or a read that
- * failed: `gamesError`) leave out «Accepted» and «played», and say why. `empty` — the challenges read, and none.
+ * page would say is from before; the failure is said with its reason (`unread`: the page offers to read again; not
+ * read and not `unread` is still on its way). The games not read (null, or a read that failed: `gamesError`) leave
+ * out «Accepted» and «played», and say why. `empty` — the challenges read, and none.
  *
  * @param {{payload: {challenges: object[], opponents: object[]}|null, readError?: string, games?: object[]|null,
  *   gamesError?: string, teamId: string, viewerId: string, teams?: object[], now?: Date, phone?: boolean}} input
@@ -237,7 +238,7 @@ export function challengesModel({ payload, readError = "", games = null, gamesEr
   const context = { opponents, teams, teamId, viewerId, phone, now };
   const { accepted, history } = settledOf(challenges, known, context);
   return {
-    teamId, phone, read,
+    teamId, phone, read, unread: Boolean(readError),
     played: known ? t("friendly.played", { count: friendliesPlayed(known, teamId) }) : "",
     failures: [readError && t("friendly.unread", { reason: readError }), gamesError && t("teamOverview.gamesFailed", { reason: gamesError })].filter(Boolean),
     incoming: waiting.filter((challenge) => challenge.recipient?.id === viewerId).map((challenge) => incomingRow(challenge, context)),
