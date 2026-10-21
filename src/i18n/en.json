@@ -1732,6 +1732,7 @@
   "prep.friendly": "friendly",
   "prep.back": "Back to the matches",
   "prep.loading": "Loading the preparation…",
+  "prep.retry": "Try again",
   "prep.now": "now",
   "prep.summary.fans": "Fan Factor {own} : {other}",
   "prep.summary.roster": "{own} and {other} in the lineup",

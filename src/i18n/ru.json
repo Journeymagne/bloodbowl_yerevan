@@ -1732,6 +1732,7 @@
   "prep.friendly": "товарищеский",
   "prep.back": "Назад к матчам",
   "prep.loading": "Загружаем подготовку…",
+  "prep.retry": "Повторить",
   "prep.now": "сейчас",
   "prep.summary.fans": "Fan Factor {own} : {other}",
   "prep.summary.roster": "{own} и {other} в строю",

@@ -73,18 +73,23 @@ function noticesMarkup(model) {
   return notes.length ? `<div class="g-prep__notices">${notes.join("")}</div>` : "";
 }
 
-/** The footer's button: a link on to the next step, a write (`data-prep-action`), or the same closed with why under it. */
+/**
+ * The footer's button: a link on to the next step, a write (`data-prep-action`), or the same closed with why under it.
+ * Both forms carry one key (`data-key="prep-cta"`), and the quiet button its own, so a draw that turns the one into the
+ * other gives it the focus the old one had (core/dom.mjs `patch`).
+ */
 export function prepCtaMarkup(footer) {
   if (footer.kind === "none") return "";
   let button;
   if (footer.kind === "next" && !footer.disabled) {
     assertLinkHref(footer.href);
-    button = `<a class="g-prep__cta" href="${escapeHtml(footer.href)}">${escapeHtml(footer.label)}</a>`;
+    button = `<a class="g-prep__cta" data-key="prep-cta" href="${escapeHtml(footer.href)}">${escapeHtml(footer.label)}</a>`;
   } else {
     const action = footer.action ? ` data-prep-action="${escapeHtml(footer.action)}"` : "";
-    button = `<button type="button" class="g-prep__cta"${action}${footer.disabled ? " disabled" : ""}>${escapeHtml(footer.label)}</button>`;
+    button = `<button type="button" class="g-prep__cta" data-key="prep-cta"${action}${footer.disabled ? " disabled" : ""}>${escapeHtml(footer.label)}</button>`;
   }
-  const quiet = footer.quiet ? `<button type="button" class="g-prep__quiet" data-prep-action="${escapeHtml(footer.quiet.action)}">${escapeHtml(footer.quiet.label)}</button>` : "";
+  const quiet = footer.quiet
+    ? `<button type="button" class="g-prep__quiet" data-key="prep-quiet" data-prep-action="${escapeHtml(footer.quiet.action)}">${escapeHtml(footer.quiet.label)}</button>` : "";
   const hint = footer.hint ? `<span class="g-prep__hint">${escapeHtml(footer.hint)}</span>` : "";
   return `${button}${hint}${quiet}`;
 }

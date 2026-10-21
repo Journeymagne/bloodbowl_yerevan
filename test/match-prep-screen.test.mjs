@@ -171,12 +171,22 @@ test("a preparation that cannot be read says why, with the way back", async () =
   await renderPreMatch("g1", "");
   await flush();
   assert.ok(view.querySelector(".g-prep"));
-  assert.equal(view.querySelector('[role="alert"]').textContent.trim(), t("error.GAME_NOT_FOUND"));
+  assert.ok(view.querySelector('[role="alert"]').textContent.includes(t("error.GAME_NOT_FOUND")));
   assert.equal(view.querySelector("a.g-prep__back").getAttribute("href"), gameUrl("g1"));
   assert.equal(document.activeElement, view.querySelector("h1"));
   assert.equal(polls.ticks.size, 0, "no poll for a preparation not read");
   assertStyled(view, "src/screens/matches/prep.css", "callout.css");
   assertCspSafe(view);
+  // «Try again» reads it once more (the Task 11 review, m-5): no reload needed after a moment offline.
+  const retry = view.querySelector("[data-prep-retry]");
+  assert.equal(retry.textContent, t("prep.retry"));
+  api.reply(READ, 200, payloadAt());
+  fireEvent(retry, "click");
+  assert.equal(view.querySelector('[role="status"]').textContent, "Loading the preparation…");
+  await flush();
+  assert.equal(api.calls.filter((call) => call.key === READ).length, 2);
+  assert.ok(view.querySelector(".g-prep__body"), "the preparation, read at last");
+  assert.equal(polls.ticks.size, 1, "and its poll");
   // While it is read: the same head, and that it is being read.
   releaseCurrentScreen();
   view.innerHTML = "";
@@ -209,7 +219,7 @@ test("a die pressed is one write with the revision and the side; the answer is d
   api.assertAnswered();
 });
 
-test("a press while a write is on its way sends nothing", async () => {
+test("a die pressed while a write is on its way: the latest value wins, sent once from the answer", async () => {
   await visit();
   api.reply(WRITE, 200, payloadAt([["home", { type: "fans", value: 2 }]]));
   const gate = api.hold(WRITE);
@@ -217,11 +227,77 @@ test("a press while a write is on its way sends nothing", async () => {
   await press(face("[data-prep-fans]", 3));
   await press(face("[data-prep-fans]", 1));
   assert.equal(writes().length, 1, "one write in the air");
-  gate.release();
+  // The follow-up goes on the answer's revision, once, with the last face pressed.
+  api.reply(WRITE, 200, payloadAt([["home", { type: "fans", value: 2 }], ["home", { type: "fans", value: 1 }]]));
+  gate.release({ status: 200, body: payloadAt([["home", { type: "fans", value: 2 }]]) });
   await flush();
-  assert.equal(writes().length, 1, "the presses dropped are not sent afterwards");
-  assert.equal(face("[data-prep-fans]", 2).getAttribute("aria-checked"), "true", "the answer is what is drawn");
-  assert.equal(face("[data-prep-fans]", 3).getAttribute("aria-checked"), "false");
+  assert.deepEqual(writes().map((call) => [call.body.revision, call.body.action.value]), [[1, 2], [2, 1]]);
+  assert.equal(face("[data-prep-fans]", 1).getAttribute("aria-checked"), "true", "the last answer is what is drawn");
+  assert.equal(face("[data-prep-fans]", 2).getAttribute("aria-checked"), "false");
+  // Back to the face on its way: the answer holds it, so nothing follows.
+  await visit();
+  api.reply(WRITE, 200, payloadAt([["home", { type: "fans", value: 2 }]]));
+  const held = api.hold(WRITE);
+  await press(face("[data-prep-fans]", 2));
+  await press(face("[data-prep-fans]", 3));
+  await press(face("[data-prep-fans]", 2));
+  held.release();
+  await flush();
+  assert.equal(writes().length, 1, "a value the answer already holds is not sent again");
+  assert.equal(face("[data-prep-fans]", 2).getAttribute("aria-checked"), "true");
+  api.assertAnswered();
+});
+
+test("a value waiting is dropped when the write on its way is refused or lost: nothing is sent on the coach's behalf", async () => {
+  for (const refuse of [(gate) => gate.release({ status: 409, body: { error: { code: "MATCH_REVISION", message: "x" } } }), (gate) => gate.release({ error: new TypeError("Failed to fetch") })]) {
+    await visit();
+    api.reply(READ, 200, payloadAt([["away", { type: "fans", value: 1 }]]));
+    const gate = api.hold(WRITE);
+    await press(face("[data-prep-fans]", 2));
+    await press(face("[data-prep-fans]", 3));
+    refuse(gate);
+    await flush();
+    assert.equal(writes().length, 1, "the value that waited is not sent");
+    assert.equal(reads().length, 2, "the preparation is read again");
+    assert.ok(view.querySelectorAll("[data-prep-fans] [data-prep-die]").every((die) => die.getAttribute("aria-checked") === "false"), "and drawn as read");
+    api.assertAnswered();
+  }
+});
+
+test("the arrow keys move a die; each value set waits for the write on its way, and the last one is the one kept", async () => {
+  await visit();
+  api.reply(WRITE, 200, payloadAt([["home", { type: "fans", value: 2 }]]));
+  const gate = api.hold(WRITE);
+  face("[data-prep-fans]", 1).focus();
+  fireEvent(face("[data-prep-fans]", 1), "keydown", { key: "ArrowRight" });
+  await flush();
+  assert.ok(document.activeElement === face("[data-prep-fans]", 2), "the focus moved with the arrow");
+  fireEvent(face("[data-prep-fans]", 2), "keydown", { key: "ArrowRight" });
+  await flush();
+  assert.equal(writes().length, 1);
+  api.reply(WRITE, 200, payloadAt([["home", { type: "fans", value: 2 }], ["home", { type: "fans", value: 3 }]]));
+  gate.release({ status: 200, body: payloadAt([["home", { type: "fans", value: 2 }]]) });
+  await flush();
+  assert.deepEqual(writes().map((call) => call.body.action.value), [2, 3]);
+  assert.equal(face("[data-prep-fans]", 3).getAttribute("aria-checked"), "true", "the check where the focus is");
+  assert.ok(document.activeElement === face("[data-prep-fans]", 3), "the focus where the check is");
+  api.assertAnswered();
+});
+
+test("the weather's dice and season pressed while a write is on its way add up into one follow-up", async () => {
+  await visit(FANS, { step: "weather" });
+  api.reply(WRITE, 200, payloadAt([...FANS, ["home", { type: "weather", season: "Spring", home: null, away: null }]]));
+  const gate = api.hold(WRITE);
+  await press(view.querySelector('.g-seg[data-seg-group="prep-season"] [data-seg-value="Spring"]'));
+  await press(face('[data-prep-weather="home"]', 3));
+  await press(face('[data-prep-weather="away"]', 5));
+  api.reply(WRITE, 200, payloadAt([...FANS, ["home", { type: "weather", season: "Spring", home: 3, away: 5 }]]));
+  gate.release({ status: 200, body: payloadAt([...FANS, ["home", { type: "weather", season: "Spring", home: null, away: null }]]) });
+  await flush();
+  assert.deepEqual(writes().map((call) => call.body.action), [
+    { type: "weather", season: "Spring", home: null, away: null },
+    { type: "weather", season: "Spring", home: 3, away: 5 },
+  ]);
   api.assertAnswered();
 });
 
@@ -384,6 +460,7 @@ test("the start pressed twice is one request; a start answered in_progress leads
   assert.equal(location.hash, teamUrl("t1", "matches"));
   const keys = api.calls.map((call) => call.key);
   assert.ok(keys.indexOf("GET /api/games") > keys.indexOf(START), "the games are read again: the match is on");
+  assert.equal(keys.filter((key) => key === "GET /api/games").length, 1, "once (the Task 11 review, m-3)");
   // A start answered by nothing: the preparation is read, and a match begun there leads on too.
   await visit(READY);
   api.fail(START);
@@ -398,6 +475,113 @@ test("the start pressed twice is one request; a start answered in_progress leads
   assert.ok(closed.hasAttribute("disabled"));
   await press(closed);
   assert.equal(api.calls.filter((call) => call.key === START).length, 0);
+  api.reset();
+});
+
+test("«Confirm the preparation» turned into «Start the match» on its node starts nothing on a second click until it is armed", async () => {
+  const realNow = Date.now;
+  let now = realNow();
+  Date.now = () => now;
+  try {
+    const theyConfirmed = [...TO_INDUCEMENTS, ["home", { type: "lock-basket" }], ["away", { type: "confirm" }]];
+    await visit(theyConfirmed);
+    const button = view.querySelector('[data-prep-action="confirm"]');
+    api.reply(WRITE, 200, payloadAt([...theyConfirmed, ["home", { type: "confirm" }]]));
+    api.reply(START, 200, begun(payloadAt([...theyConfirmed, ["home", { type: "confirm" }]])));
+    await press(button);
+    // The double click's second half lands on the same node, which is «Start the match» now.
+    assert.equal(button.getAttribute("data-prep-action"), "start", "the same node");
+    assert.ok(!button.hasAttribute("disabled"));
+    await press(button);
+    now += 400;
+    await press(button);
+    assert.equal(api.calls.filter((call) => call.key === START).length, 0, "no start within the arming time");
+    now += 300;
+    await press(button);
+    assert.equal(api.calls.filter((call) => call.key === START).length, 1, "a deliberate press after it starts the match");
+    assert.equal(location.hash, teamUrl("t1", "matches"));
+    // A start that was pressable when the page opened is not held back.
+    await visit(READY);
+    api.reply(START, 200, begun(payloadAt(READY)));
+    await press(view.querySelector('[data-prep-action="start"]'));
+    assert.equal(api.calls.filter((call) => call.key === START).length, 1);
+    api.assertAnswered();
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test("after the footer's own action the focus stays on the footer, else the title — never the body", async () => {
+  const focused = async (element) => {
+    element.focus();
+    await press(element);
+  };
+  // «Confirm the roster» with the opponent's confirmed: the button becomes the link on.
+  const theirsLocked = [...FANS, ...WEATHER, ["away", { type: "lock-roster" }]];
+  await visit(theirsLocked, { step: "roster" });
+  api.reply(WRITE, 200, payloadAt([...theirsLocked, ["home", { type: "lock-roster" }]]));
+  await focused(view.querySelector('[data-prep-action="lock-roster"]'));
+  assert.equal(document.activeElement.tagName, "A");
+  assert.ok(document.activeElement === view.querySelector("a.g-prep__cta"), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  assert.equal(document.activeElement.textContent, "Next: Inducements");
+  // «Change the roster»: the quiet button goes, the focus to «Confirm the roster».
+  api.reply(WRITE, 200, payloadAt([...theirsLocked, ["home", { type: "lock-roster" }], ["home", { type: "reopen" }]]));
+  await focused(view.querySelector('[data-prep-action="reopen"]'));
+  assert.ok(document.activeElement === view.querySelector('[data-prep-action="lock-roster"]'), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  // «Confirm the roster» while the opponent's is not: the button stays, closed — the title takes the focus.
+  await visit([...FANS, ...WEATHER], { step: "roster" });
+  api.reply(WRITE, 200, payloadAt([...FANS, ...WEATHER, ["home", { type: "lock-roster" }]]));
+  await focused(view.querySelector('[data-prep-action="lock-roster"]'));
+  assert.ok(document.activeElement === view.querySelector("h1"), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  // «Confirm the purchases» once the opponent's are in: the link on to the start.
+  await visit(TO_INDUCEMENTS, { step: "inducements" });
+  api.reply(WRITE, 200, payloadAt([...TO_INDUCEMENTS, ["home", { type: "lock-basket" }]]));
+  await focused(view.querySelector('[data-prep-action="lock-basket"]'));
+  assert.ok(document.activeElement === view.querySelector("a.g-prep__cta"), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  // The address with no step follows the step on: the same node, «Confirm the preparation» now, keeps the focus — and a
+  // second click right after it confirms nothing.
+  await visit(TO_INDUCEMENTS);
+  api.reply(WRITE, 200, payloadAt([...TO_INDUCEMENTS, ["home", { type: "lock-basket" }]]));
+  const button = view.querySelector('[data-prep-action="lock-basket"]');
+  await focused(button);
+  assert.equal(button.getAttribute("data-prep-action"), "confirm");
+  assert.ok(document.activeElement === button, "the focus stays on the footer's button");
+  await press(button);
+  assert.equal(writes().length, 1, "the rest of a double click is no confirmation");
+  // A match begun elsewhere: the footer goes, the title takes the focus.
+  await visit(READY);
+  view.querySelector('[data-prep-action="start"]').focus();
+  api.reply(READ, 200, begun(payloadAt(READY)));
+  await tick();
+  assert.ok(!view.querySelector(".g-prep__cta"), "the footer is gone");
+  assert.ok(document.activeElement === view.querySelector("h1"), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  api.assertAnswered();
+});
+
+test("a refusal that is not a 409 is said and nothing is read; a timeout reads again; a start refused reads again and stays", async () => {
+  await visit();
+  api.reply(WRITE, 403, { error: { code: "FIXTURE_NOT_YOURS", message: "x" } });
+  await press(face("[data-prep-fans]", 2));
+  assert.equal(view.querySelector('[role="alert"]').textContent.trim(), t("error.FIXTURE_NOT_YOURS"));
+  assert.equal(reads().length, 1, "a 403 is not read again");
+  assert.ok(view.querySelector(".g-prep__body"), "the page keeps its preparation");
+  // A timeout is a lost answer.
+  await visit();
+  const { ApiError, API_ERROR } = await import("../src/core/api.mjs");
+  api.fail(WRITE, new ApiError(API_ERROR.TIMEOUT));
+  await press(face("[data-prep-fans]", 2));
+  assert.equal(reads().length, 2, "read again after a timeout");
+  // The start refused: MATCH_WAIT, read again, drawn, the coach not taken away.
+  const notYet = READY.slice(0, -1);
+  await visit(READY);
+  const hash = location.hash;
+  api.reply(START, 409, { error: { code: "MATCH_WAIT", message: "x" } });
+  api.reply(READ, 200, payloadAt(notYet));
+  await press(view.querySelector('[data-prep-action="start"]'));
+  assert.equal(location.hash, hash);
+  assert.equal(reads().length, 2);
+  assert.equal(view.querySelector('[role="alert"]').textContent.trim(), t("error.MATCH_WAIT"));
+  assert.ok(view.querySelector('[data-prep-action="start"]').hasAttribute("disabled"), "drawn as read: not ready");
   api.reset();
 });
 
@@ -453,6 +637,76 @@ test("the poll waits while a write is on its way, the tab is hidden, or the effe
   fireEvent(view.querySelector("form[data-prep-effects] select"), "input");
   await tick();
   assert.equal(reads().length, 1, "not while the effects' form holds what is not saved");
+  api.assertAnswered();
+});
+
+test("the poll stops once the match is begun or the preparation is refused, and waits longer after each read that fails", async () => {
+  await visit(FANS, { step: "fans" });
+  const [id] = [...polls.ticks.keys()];
+  api.reply(READ, 200, begun(payloadAt(FANS)));
+  await tick();
+  assert.ok(polls.cleared.includes(id), "a match begun changes no more here");
+  assert.equal(polls.ticks.size, 0);
+  // Opened on a match begun: no poll at all.
+  await visit(READY, { over: {} });
+  api.reply(READ, 200, begun(payloadAt(READY)));
+  releaseCurrentScreen();
+  api.reset();
+  api.reply(READ, 200, begun(payloadAt(READY)));
+  polls.ticks.clear();
+  await renderPreMatch("g1", "");
+  await flush();
+  assert.equal(polls.ticks.size, 0, "a page read only from the start is not polled");
+  // A 404 stops it for good.
+  await visit();
+  api.reply(READ, 404, { error: { code: "GAME_NOT_FOUND", message: "x" } });
+  await tick();
+  assert.equal(polls.ticks.size, 0);
+  // A 500: one tick waited out, then three, then the next read; an answer resets the waits.
+  await visit();
+  api.reply(READ, 500, { error: { code: "INTERNAL", message: "x" } });
+  const readsAfter = [];
+  for (let round = 0; round < 8; round += 1) {
+    await tick();
+    readsAfter.push(reads().length);
+  }
+  assert.deepEqual(readsAfter, [2, 2, 3, 3, 3, 3, 4, 4], "reads at 0, 2, 6: the waits double");
+  api.reply(READ, 200, payloadAt());
+  for (let round = 0; round < 7; round += 1) await tick();
+  const answered = reads().length;
+  await tick();
+  assert.equal(reads().length, answered + 1, "an answer ends the waiting");
+  api.assertAnswered();
+});
+
+test("a poll in the air is not doubled; the effects' form read again after a refusal no longer holds the poll", async () => {
+  await visit([], { step: "fans" });
+  const gate = api.hold(READ);
+  const [{ callback }] = [...polls.ticks.values()];
+  const first = callback();
+  await flush();
+  await tick();
+  assert.equal(reads().length, 2, "a second tick while a read is in the air reads nothing");
+  gate.release({ status: 200, body: payloadAt() });
+  await first;
+  await flush();
+  // The form touched, «Save» refused with a 409: the form is drawn from the read, and the poll may read again.
+  const bought = [...TO_INDUCEMENTS, ["home", { type: "basket", id: "nuffles-prayers", quantity: 1 }]];
+  await visit(bought);
+  fireEvent(view.querySelector("form[data-prep-effects] select"), "input");
+  api.reply(WRITE, 409, { error: { code: "MATCH_REVISION", message: "x" } });
+  api.reply(READ, 200, payloadAt(bought));
+  const RealFormData = globalThis.FormData;
+  globalThis.FormData = class { getAll() { return []; } get() { return null; } };
+  try {
+    fireEvent(view.querySelector("form[data-prep-effects]"), "submit");
+    await flush();
+  } finally {
+    globalThis.FormData = RealFormData;
+  }
+  assert.equal(reads().length, 2);
+  await tick();
+  assert.equal(reads().length, 3, "the poll reads again");
   api.assertAnswered();
 });
 
