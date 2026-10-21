@@ -167,9 +167,13 @@ function scoreCard(model, score, locked) {
     + `${line("touchdowns")}${line("casualties")}<div class="g-after__forrow">${forYou}</div></div>`;
 }
 
-/** «The score does not match the records» under the score (PostResultMismatch.html): ours counter by counter, the opponent's in a word, then where to fix it. */
-function mismatchMarkup(model, score) {
-  const mismatches = scoreMismatches({ ...model.post, result: score });
+/**
+ * «The score does not match the records» (PostResultMismatch.html): ours counter by counter, the opponent's in a word
+ * (`ownOnly`: not theirs — the Players step sets ours right), then where to fix it. `post` is the post-match with the
+ * page's draft in it: the score's, or the Players step's statistics.
+ */
+export function mismatchMarkup(model, post, { ownOnly = false } = {}) {
+  const mismatches = scoreMismatches(post).filter((item) => !ownOnly || item.side === model.sideName);
   if (!mismatches.length) return "";
   const parts = mismatches.filter((item) => item.side === model.sideName)
     .map((item) => t("after.mismatchOwn", { counter: t(`after.stat.${item.counter}`), score: item.score, records: item.records }));
@@ -218,7 +222,7 @@ export function resultStep(model, draft) {
   const locked = official || model.completed || model.confirmed || (model.agreed && !draft.unlocked);
   const score = draftScore(model, draft);
   const contentHtml = `${official ? renderCallout({ title: t("after.official") }) : ""}${recordsCard(model)}`
-    + `${scoreCard(model, score, locked || score.mode === "technical")}${mismatchMarkup(model, score)}`
+    + `${scoreCard(model, score, locked || score.mode === "technical")}${mismatchMarkup(model, { ...post, result: score })}`
     + `${official ? "" : modeCard(model, score, locked)}${noteMarkup(t("after.agreeNote"))}`;
   return { contentHtml, asideHtml: "", footer: resultFooter(model, draft, score) };
 }

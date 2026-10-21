@@ -191,7 +191,7 @@ export function postModel(payload, sideName, step, ui = {}) {
     footer: defaultFooter({ index: shown, current, gameId }),
     opponent: completed ? { state: "", done: true, text: "" } : opponentOf(post, sideName, key),
     post, own, other, preview, completed, confirmed: own.confirmed, agreed: resultAgreed(post), passed,
-    rosterChanged: Boolean(payload.rosterChanged?.[sideName]), kind: payload.fixture.kind, data,
+    rosterChanged: Boolean(payload.rosterChanged?.[sideName]), kind: payload.fixture.kind, matchLabel: words.phone, data,
   };
 }
 

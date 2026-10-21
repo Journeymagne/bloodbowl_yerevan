@@ -84,10 +84,14 @@ export function agreed(state, options = {}) {
   return act(scored(state, options), by === "home" ? "away" : "home", { type: "agree-result" }, options.events ?? RECORDS);
 }
 
-/** The side's step done with the defaults the tests need: a D6 of 4, the records saved as they are with the first MVP, nothing bought, no deposit, a 6 on the Expensive Mistakes, the captain kept (else the first player). */
+/** The side's step done with the defaults the tests need: a D6 of 4 (a D3 of 2 after conceding; a technical win's D3 of 2), the records saved as they are with the first MVP, nothing bought, no deposit, a 6 on the Expensive Mistakes, the captain kept (else the first player). */
 export function stepDone(state, side, events = RECORDS, options = {}) {
   const stage = state[side].stage;
-  if (stage === 1) return act(state, side, { type: "fans", roll: options.roll ?? 4, technicalRoll: options.technicalRoll ?? "", painted: false, stalling: false }, events);
+  if (stage === 1) {
+    const { mode, winner } = state.result;
+    const roll = options.roll ?? (mode === "conceded" && winner !== side ? 2 : 4), technicalRoll = options.technicalRoll ?? (mode === "technical" && winner === side ? 2 : "");
+    return act(state, side, { type: "fans", roll, technicalRoll, painted: false, stalling: false }, events);
+  }
   if (stage === 2) {
     const mvps = options.mvps ?? [state[side].snapshot.players[0].id];
     const saved = act(state, side, { type: "statistics", statistics: state[side].statistics, injuries: state[side].injuries, mvps, departures: options.departures ?? {} }, events);
