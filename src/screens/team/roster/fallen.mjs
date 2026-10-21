@@ -8,11 +8,15 @@
  * One write at a time per team, the death and the undo alike: a press while one is on its way sends nothing
  * (`ignored`), where a tap of the match waits its turn (taps.mjs), since a tap is a step of a counter and a death is
  * a decision the coach took on the roster they saw.
+ *
+ * An admin's visit (stage 12, source.mjs) writes both on the administration's routes, during a match too (the repair
+ * path); the list of the fallen is read on the coach's, which an admin may read.
  */
 import { ApiError, refusalText } from "../../../core/api.mjs";
 import { apiRequest, sessionTokenHolds } from "../../../core/api-client.mjs";
 import { t } from "../../../core/i18n.mjs";
 import { refusalWithRules, unanswered } from "../../../data/teams.mjs";
+import { deathPath, undoPath } from "./source.mjs";
 
 /** The teams a write of the fallen is on its way for. */
 const writing = new Set();
@@ -111,10 +115,7 @@ export async function readFallen(teamId) {
 export function markDeath(teamId, playerId, death) {
   return write(
     teamId,
-    () => {
-      const path = `/api/teams/${encodeURIComponent(teamId)}/players/${encodeURIComponent(playerId)}/death`;
-      return apiRequest(path, { method: "POST", body: JSON.stringify({ cause: death.cause, revision: death.revision }) });
-    },
+    () => apiRequest(deathPath(teamId, playerId), { method: "POST", body: JSON.stringify({ cause: death.cause, revision: death.revision }) }),
     (answer) => (isTeam(answer?.team) && isRecord(answer.fallen) ? { team: answer.team, fallen: answer.fallen } : null),
     (error, refusal) => (error.code === "TEAM_SAVED_ELSEWHERE" ? { ...refusal, conflict: isObject(error.payload?.team) ? error.payload.team : null } : refusal),
   );
@@ -129,7 +130,7 @@ export function markDeath(teamId, playerId, death) {
 export function undoDeath(teamId, fallenId) {
   return write(
     teamId,
-    () => apiRequest(`/api/teams/${encodeURIComponent(teamId)}/fallen/${encodeURIComponent(fallenId)}`, { method: "DELETE" }),
+    () => apiRequest(undoPath(teamId, fallenId), { method: "DELETE" }),
     (answer) => (isTeam(answer?.team) ? { team: answer.team } : null),
   );
 }

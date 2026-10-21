@@ -40,8 +40,11 @@ import { markSkip, savedRevision, unmarkSkip } from "./save.mjs";
 /** The player of `key` on the roster as it stands, or null: the sheet's, a row's. */
 const lineOf = (where, key) => where.lines.find((line) => line.key === key) ?? null;
 
-/** The fallen player of `key` while his death is one the screen undoes (`undoable`), or null: the undo's sheet's, the panel's. */
-const undoneOf = (where, key) => where.fallen.find((line) => line.key === key && undoable(line)) ?? null;
+/**
+ * The fallen player of `key` while his death is one the screen undoes (`undoable`; on the admin's visit, `where.admin`, a
+ * death a match recorded too), or null: the undo's sheet's, the panel's.
+ */
+const undoneOf = (where, key) => where.fallen.find((line) => line.key === key && undoable(line, { admin: Boolean(where.admin) })) ?? null;
 
 /**
  * What the screen lends the marks (index.mjs).
@@ -70,7 +73,7 @@ const undoneOf = (where, key) => where.fallen.find((line) => line.key === key &&
 export function markSheetOf(visit, lines, where) {
   const { sheet } = visit;
   if (sheet?.kind === "undo") {
-    const fallen = lines.find((item) => item.key === sheet.key && undoable(item));
+    const fallen = lines.find((item) => item.key === sheet.key && undoable(item, { admin: Boolean(where.admin) }));
     return fallen ? { ...sheet, reason: markClosed(fallen, where, { direct: true }) } : null;
   }
   const line = sheet?.kind === "mark" ? lines.find((item) => item.key === sheet.key && !item.fallen) : null;

@@ -35,7 +35,7 @@ import { adminUrl, refUrl, seasonTabUrl, settingsUrl, teamUrl, teamsUrl } from "
 const BARE_ROUTES = new Set(["login", "register", "teamNew", "preMatch", "postMatch"]);
 
 /** The routes a phone draws as a screen of its own, under its own head: the header draws nothing there. */
-const DRILL_ROUTES = new Set(["teamPlayer", "teamSettings"]);
+const DRILL_ROUTES = new Set(["teamPlayer", "teamSettings", "adminTeamPlayer"]);
 
 /**
  * Which tab and which side item own a route: `[tab, side item]`. A route that
@@ -67,6 +67,7 @@ const OWNERS = {
   adminUserProfile: ["settings", "administration"],
   adminTeamEdit: ["settings", "administration"],
   adminSeason: ["settings", "administration"],
+  adminTeamPlayer: ["settings", "administration"],
 };
 
 /** The route names the model has an answer for; test/shell-navigation.test.mjs holds them against the router's. */

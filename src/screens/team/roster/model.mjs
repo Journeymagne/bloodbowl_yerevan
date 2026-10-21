@@ -355,10 +355,11 @@ export function fallenLines({ fallen, race, rosterIds = [] }) {
 
 /**
  * A death the screen undoes (K11): one a coach marked, in a record the roster reads; one a post-match recorded, and a
- * bare record, are the league administrator's to correct.
- * @param {FallenLine|PlayerLine|null} line
+ * bare record, are the league administrator's to correct — and on the admin's visit (stage 12, pre-flight L10) one a
+ * post-match recorded is undone too (the server lets the admin, `returnPlayer`). A bare record the server would not give back.
+ * @param {FallenLine|PlayerLine|null} line @param {{admin?: boolean}} [options] `admin` is the admin's visit
  */
-export const undoable = (line) => Boolean(line?.fallen) && !line.fallen.fromMatch && !line.bare;
+export const undoable = (line, { admin = false } = {}) => Boolean(line?.fallen) && (admin || !line.fallen.fromMatch) && !line.bare;
 
 // ---------------------------------------------------------------------------
 // Where a tap goes

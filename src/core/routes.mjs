@@ -196,6 +196,8 @@ const ID_ROUTES = [
   [/^games\/([^/]+)\/pre-match(?:\/([^/]+))?$/, "preMatch", "gameId", "step"],
   [/^games\/([^/]+)\/post-match(?:\/([^/]+))?$/, "postMatch", "gameId", "step"],
   [/^administration\/season(?:\/(entries))?$/, "adminSeason", "tab"],
+  // A player of the team an admin edits (stage 12): the roster's player screen in the admin's mode.
+  [/^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit\/([^/]+)$/, "adminTeamPlayer", "ownerId", "teamId", "playerId"],
   [/^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit$/, "adminTeamEdit", "ownerId", "teamId"],
 ];
 
@@ -270,6 +272,7 @@ const SIGNED_IN_ROUTES = new Set([
   "adminUserProfile",
   "adminTeamEdit",
   "adminSeason",
+  "adminTeamPlayer",
 ]);
 
 /**

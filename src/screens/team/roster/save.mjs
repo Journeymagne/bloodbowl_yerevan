@@ -50,6 +50,7 @@ import { normalizeDraft } from "../../../domain/roster/schema.mjs";
 import { hirePlayers, hireQuote, playerRemoval, removeLeaguePlayer } from "../../../domain/roster/transfers.mjs";
 import { MAX_SPP_COUNTER } from "../../../domain/roster/validate.mjs";
 import { rowsForTeam } from "../../../domain/roster/values.mjs";
+import { teamSavePath } from "./source.mjs";
 
 /** The steps taken and not yet confirmed by an answer, by team, in order, the first in the air: each its `space` (`refusalOf`). */
 const waiting = new Map();
@@ -152,12 +153,14 @@ function watchSession() {
 /**
  * What the store is told of a team: its draft, and `meta`, which the server's answers move (its revision)
  * and the next request is built from. The body is the blob as GET gave it and as the steps changed it — never the career.
+ * Where it goes is the visit's (source.mjs, stage 12): the admin's route on an admin's visit, the coach's on the coach's.
+ * The store takes it on each read the queue takes, so steps that wait keep the route they were taken on.
  */
 function tracking(meta, draft) {
   return {
     draft,
     meta,
-    endpoint: `/api/teams/${encodeURIComponent(meta.id)}`,
+    endpoint: teamSavePath(meta.id),
     buildRequest: (snapshot) => ({
       name: meta.name,
       baseTeamSlug: meta.baseTeamSlug,

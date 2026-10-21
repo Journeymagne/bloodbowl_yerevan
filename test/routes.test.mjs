@@ -158,6 +158,17 @@ test("an admin roster URL with an extra segment is not the editor", () => {
   assert.notEqual(matchRoute("administration/users/u1/teams/t1/edit/extra").name, "adminTeamEdit");
 });
 
+// Stage 12, Task 14: a player of the team an admin edits is the roster's player screen in the admin's mode.
+test("a player of a team the admin edits is its own route, with the owner, the team and the player", () => {
+  assert.deepEqual(matchRoute("administration/users/u/teams/t/edit/p"), {
+    name: "adminTeamPlayer",
+    params: { ownerId: "u", teamId: "t", playerId: "p" },
+  });
+  assert.notEqual(matchRoute("administration/users/u/teams/t/edit/p/extra").name, "adminTeamPlayer");
+  assert.equal(target("administration/users/u/teams/t/edit/p", guest), "#/login");
+  assert.equal(target("administration/users/u/teams/t/edit/p", coach), null);
+});
+
 test("the 3.0 screens match by name and carry their ids", () => {
   assert.deepEqual(matchRoute("teams/new"), { name: "teamNew", params: {} });
   assert.deepEqual(matchRoute("t/t1"), { name: "team", params: { teamId: "t1" } });
@@ -267,7 +278,7 @@ test("a guest may open the public pages, and every coach page asks for a session
   }
   for (const route of ["t/t1", "t/t1/team", "t/t1/settings", "t/t1/roster", "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u1",
     "coaches/u1/teams/t1", "games/g1", "games/g1/pre-match", "games/g1/post-match/2", "administration", "administration/users/u1",
-    "administration/users/u1/teams/t1/edit"]) {
+    "administration/users/u1/teams/t1/edit", "administration/users/u1/teams/t1/edit/p1"]) {
     assert.equal(target(route, guest), "#/login", route);
   }
 });

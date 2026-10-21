@@ -160,13 +160,16 @@ export function stepBefore(sheet) {
 }
 
 /**
- * Why no roll is asked just now, "" when one may be: what closes the advancement (`advanceClosed`: a match, the lock, no
- * id), or a step of the queue that waits or is on its way (decision 10): the server rolls on the roster it holds.
+ * Why no roll is asked just now, "" when one may be: on the admin's visit always (stage 12, decision 23: the admin marks
+ * an advancement «at the table», as 09b's post-match has the admin roll nothing); what closes the advancement
+ * (`advanceClosed`: a match, the lock, no id), or a step of the queue that waits or is on its way (decision 10): the
+ * server rolls on the roster it holds.
  *
  * @param {import("./model.mjs").PlayerLine} line
- * @param {{mode: {kind: string}, lock: string, save: {status: string, waiting: number}}} where
+ * @param {{mode: {kind: string}, lock: string, save: {status: string, waiting: number}, admin?: object|null}} where
  */
 export function rollClosed(line, where) {
+  if (where.admin) return t("adminTeam.noSiteRoll");
   const reason = advanceClosed(line, where);
   if (reason) return reason;
   const { status, waiting } = where.save;
