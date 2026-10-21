@@ -1167,7 +1167,8 @@ test("an advancement the rules refuse sends nothing and says why, a characterist
 test("the last advancement undone is one PATCH: what it gave gone, its roll no longer named, so the server frees it", async () => {
   const draft = await open(storedTeam(4, frenzied()));
   api.reply(PATCH_URL, 200, { team: teamAt(5) });
-  assert.deepEqual(save.undoAdvancement("t1", "p3", OPEN), { ok: true, cost: 3, type: "random", grants: { skill: "Frenzy" }, roll: SITE });
+  // No god's skill was tied to it (de470aa: "" for none).
+  assert.deepEqual(save.undoAdvancement("t1", "p3", OPEN), { ok: true, cost: 3, type: "random", grants: { skill: "Frenzy" }, roll: SITE, favoured: "" });
   assert.deepEqual(save.undoAdvancement("t1", "p3", OPEN), { ok: false }, "none left: nothing to undo");
   assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
@@ -1228,7 +1229,8 @@ test("an advancement with the god's skill is one PATCH: the advancement, and the
   assert.deepEqual(await settle(), quiet("saved"));
   assert.equal(patches().length, 1);
   const rot = patches()[0].body.roster.players[0];
-  assert.deepEqual([rot.advancements, rot.favouredSkills], [[{ type: "primary", grants: { skill: "Monstrous Mouth" } }], [{ name: "Tentacles", access: "favoured" }]]);
+  // The skill is tied to the advancement that brought it, so its undo takes it back (de470aa).
+  assert.deepEqual([rot.advancements, rot.favouredSkills], [[{ type: "primary", grants: { skill: "Monstrous Mouth" }, favoured: "Tentacles" }], [{ name: "Tentacles", access: "favoured" }]]);
   assert.deepEqual(draft.players[0].favouredSkills, [{ name: "Tentacles", access: "favoured" }]);
 });
 
