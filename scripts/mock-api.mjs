@@ -101,11 +101,11 @@
 import http from "node:http";
 import { promises as fs } from "node:fs";
 import path from "node:path";
-
 import { fileURLToPath } from "node:url";
 
 import { errorPayload } from "../server/http/errors.mjs";
 import { resolveStaticPath } from "../server/http/static-path.mjs";
+import { answerMatches } from "./mock/matches.mjs";
 import { answerRoster, humanPlayers, preparingFriendly } from "./mock/roster.mjs";
 import { treasuryRoutes } from "./mock/treasury.mjs";
 
@@ -553,7 +553,7 @@ function answerPeople(request, pathname) {
 }
 
 async function answerApi(request, pathname) {
-  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerLeague, answerPeople]) {
+  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerMatches, answerLeague, answerPeople]) {
     const answered = await answer(request, pathname, mock);
     if (answered) return answered;
   }
