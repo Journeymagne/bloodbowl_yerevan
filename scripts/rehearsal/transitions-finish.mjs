@@ -14,8 +14,8 @@
  */
 import { preparationStep } from "../../src/domain/match/preparation.mjs";
 import { POST_STEPS } from "../../src/domain/post-match/rules.mjs";
-import { finishPreMatch, postMatch, preMatch } from "./transitions-api.mjs";
-import { eventMismatches, moneyMismatches, seasonTable, sppAfterMatch, sppMismatches } from "./transitions-checks.mjs";
+import { assertSiteVersion, finishPreMatch, postMatch, preMatch } from "./transitions-api.mjs";
+import { eventMismatches, moneyMismatches, seasonTable, sppAfterMatch, sppMismatches, tableChanges } from "./transitions-checks.mjs";
 
 const SIDES = ["home", "away"];
 const ROSTER_STEP = POST_STEPS.indexOf("roster"); // where a side is once its Players step is locked
@@ -148,9 +148,8 @@ async function finishChallenge(api, seeded, tokens) {
 
 async function checkTable(api, before, seededTable) {
   const after = seasonTable(await api.ok("GET", "/api/season"));
-  if (JSON.stringify(after) !== JSON.stringify(before)) {
-    throw new Error(`the league table changed: ${JSON.stringify(before).slice(0, 300)} → ${JSON.stringify(after).slice(0, 300)}`);
-  }
+  const changes = tableChanges(before, after);
+  if (changes.length) throw new Error(`the league table changed: ${changes.join("; ")}`);
   const alike = JSON.stringify(seededTable) === JSON.stringify(after);
   return [`season ${after.id}: ${after.standings.length} entries, as before the finish`,
     alike ? "as 2.1.0 answered it at the seed" : "2.1.0 answered it otherwise at the seed (for the report only)"];
@@ -169,19 +168,38 @@ async function settle(name, run) {
   }
 }
 
+// The sessions and the table before any state: each sign-in says whose it was when it is refused.
+async function opening(api, record, admin) {
+  const tokens = {};
+  for (const [who, account] of [["home", record.coaches.home], ["away", record.coaches.away], ["admin", admin]]) {
+    try {
+      tokens[who] = await signIn(api, account);
+    } catch (error) {
+      throw new Error(`the sign-in of the ${who === "admin" ? "admin (ADMIN_LOGIN)" : `${who} coach (${account.login})`} — ${error.message}`, { cause: error });
+    }
+  }
+  return { tokens, table: seasonTable(await api.ok("GET", "/api/season")) };
+}
+
 /**
- * The five states taken to their end on the 3.0 site, then the league table.
+ * The five states taken to their end on the 3.0 site, then the league table. The site is held to 3.0 first, by a
+ * read (`assertSiteVersion`): on 2.1.0 the finish would use up the seed's states. A sign-in refused, or the table
+ * unread, before the first state fails every state with why — a line for each, as for any FAIL.
  *
  * @param {ReturnType<import("./transitions-api.mjs").siteApi>} api the 3.0 site
  * @param {object} record what --seed wrote (`assertTransitionsRecord`)
  * @param {{ admin: { login: string, password: string } }} options the 3.0 server's admin (ADMIN_LOGIN, ADMIN_PASSWORD)
  * @returns {Promise<{ state: string, ok: boolean, checks: string[], error?: string }[]>} one per state, and `table`
+ * @throws when the site is not 3.0, before anything is written to it
  */
 export async function finishTransitions(api, record, { admin }) {
-  const tokens = {
-    home: await signIn(api, record.coaches.home), away: await signIn(api, record.coaches.away), admin: await signIn(api, admin),
-  };
-  const table = seasonTable(await api.ok("GET", "/api/season"));
+  await assertSiteVersion(api, "3.0");
+  let tokens, table;
+  try {
+    ({ tokens, table } = await opening(api, record, admin));
+  } catch (error) {
+    return [...FINISHERS.map(([name]) => name), "table"].map((state) => ({ state, ok: false, checks: [], error: `before the first state: ${error.message}` }));
+  }
   const results = [];
   for (const [name, finish] of FINISHERS) results.push(await settle(name, () => finish(api, record.cases[name], tokens)));
   results.push(await settle("table", () => checkTable(api, table, record.season)));

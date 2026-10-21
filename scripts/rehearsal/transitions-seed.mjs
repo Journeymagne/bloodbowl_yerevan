@@ -24,7 +24,7 @@ import path from "node:path";
 
 import { preparationStep } from "../../src/domain/match/preparation.mjs";
 import { TRANSITIONS_FINISH, TRANSITIONS_RECORD, writePrivate } from "./outputs.mjs";
-import { finishPreMatch, openPreMatch, postMatch, preMatch, transitionRoster } from "./transitions-api.mjs";
+import { assertSiteVersion, finishPreMatch, openPreMatch, postMatch, preMatch, transitionRoster } from "./transitions-api.mjs";
 import { seasonTable } from "./transitions-checks.mjs";
 
 const SIDES = ["home", "away"];
@@ -181,19 +181,21 @@ export async function seedTransitions(api, { stamp, save = async () => {} }) {
   return progress.finished({ season, cases });
 }
 
-/** What a seed that stopped part-way says: its rows are on the site, and only a new restore takes them away. */
-const LEFT_ROWS = "the seed left rows in gata_rehearsal — run rehearsal:restore again, then --seed "
+/** What a seed that stopped part-way says: its rows are in the site's database, and only a new restore takes them away. */
+const leftRows = (base) => `the seed left rows in the database of ${base} — run rehearsal:restore again, then --seed `
   + `(output/rehearsal/${TRANSITIONS_RECORD} names the rows it made and says «complete»: false; rehearsal:check and --finish refuse it)`;
 
 /**
  * The seed as --seed runs it, its record written to `dir` as it goes (0600: it holds the coaches' passwords).
  * Refused when `dir` holds a record already: that database was seeded once, or a seed stopped part-way on it,
- * and a new record would leave those rows unmarked in rehearsal:check. A finish of an earlier seed is deleted.
+ * and a new record would leave those rows unmarked in rehearsal:check. Refused too, before anything is written
+ * anywhere, when the site is not 2.1.0 (`assertSiteVersion`, one read). A finish of an earlier seed is deleted.
  *
  * @param {ReturnType<import("./transitions-api.mjs").siteApi>} api a 2.1.0 site
  * @param {{ dir: string, stamp: string }} options output/rehearsal, and the run's stamp
  * @returns {Promise<object>} the record
- * @throws when a record is there, or when the seed stops — saying, if it made anything, to restore again
+ * @throws when a record is there, when the site is not 2.1.0, or when the seed stops — saying, if it made anything,
+ *   to restore again
  */
 export async function seedToRecord(api, { dir, stamp }) {
   const file = path.join(dir, TRANSITIONS_RECORD);
@@ -202,6 +204,7 @@ export async function seedToRecord(api, { dir, stamp }) {
       + "and a second seed would leave those rows unmarked — run rehearsal:restore again (it deletes the record), then --seed; "
       + "on a database you made by hand, drop it and delete the record");
   }
+  await assertSiteVersion(api, "2.1.0");
   await fs.rm(path.join(dir, TRANSITIONS_FINISH), { force: true });
   let saved = false;
   const save = async (record) => {
@@ -212,6 +215,6 @@ export async function seedToRecord(api, { dir, stamp }) {
     return await seedTransitions(api, { stamp, save });
   } catch (error) {
     if (!saved) throw error;
-    throw new Error(`${error.message}; ${LEFT_ROWS}`, { cause: error });
+    throw new Error(`${error.message}; ${leftRows(api.base)}`, { cause: error });
   }
 }

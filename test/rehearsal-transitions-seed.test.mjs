@@ -10,9 +10,9 @@ import { seedToRecord, seedTransitions } from "../scripts/rehearsal/transitions-
 // A 2.1.0 site as far as the seed's creates go: coaches, teams, the season, challenges and their accepts. The
 // call numbered `failAt` is refused with a 409, and so is anything past the creates (the pre-matches), so a
 // seed against it always stops part-way, after making rows. `made` lists what the site made, in order.
-function fakeSite({ failAt = Infinity } = {}) {
+function fakeSite({ failAt = Infinity, version = "2.1.0" } = {}) {
   const made = { users: [], teamIds: [], challengeIds: [], pairingIds: [] };
-  let calls = 0;
+  let calls = 0, probes = 0;
   const refuse = (method, route) => { throw new Error(`${method} ${route} → 409 {"error":"conflict"}`); };
   const answer = (method, route) => {
     if (method === "POST" && route === "/api/auth/register") {
@@ -28,12 +28,18 @@ function fakeSite({ failAt = Infinity } = {}) {
   const site = {
     base: "http://localhost:3004", made,
     get calls() { return calls; },
+    get probes() { return probes; },
     async ok(method, route) {
       calls += 1;
       if (calls === failAt) refuse(method, route);
       return answer(method, route);
     },
     async request(method, route, options) {
+      // The version's read (`siteVersion`): 2.1.0 has no rolls route, 3.0 asks a stranger to sign in.
+      if (method === "GET" && /^\/api\/teams\/[^/]+\/rolls$/.test(route)) {
+        probes += 1;
+        return version === "3.0" ? { status: 401, data: { error: { code: "NOT_AUTHORIZED" } } } : { status: 404, data: { error: { code: "ROUTE_NOT_FOUND" } } };
+      }
       return { status: 200, data: await site.ok(method, route, options) };
     },
   };
@@ -75,7 +81,7 @@ test("--seed writes its record as it goes, 0600, and a seed that stops says to r
   const dir = await scratchDir(), site = fakeSite();
   await assert.rejects(seedToRecord(site, { dir, stamp: STAMP }), (error) => {
     assert.match(error.message, /409/);
-    assert.match(error.message, /the seed left rows in gata_rehearsal/);
+    assert.match(error.message, /the seed left rows in the database of http:\/\/localhost:3004 /);
     assert.match(error.message, /run rehearsal:restore again/);
     return true;
   });
@@ -95,6 +101,21 @@ test("--seed refuses a record already there, whatever it says: a second seed wou
   assert.equal(site.calls, 0, "nothing is asked of the site");
   assert.equal(await fs.readFile(file, "utf8"), kept, "the record is left as it was");
   await fs.rm(dir, { recursive: true, force: true });
+});
+
+test("--seed reads the site's version before anything is written: a 3.0 site is refused, its address said", async () => {
+  const dir = await scratchDir(), site = fakeSite({ version: "3.0" });
+  const finish = path.join(dir, TRANSITIONS_FINISH);
+  await fs.writeFile(finish, "{\"results\":[]}\n");
+  await assert.rejects(seedToRecord(site, { dir, stamp: STAMP }), /http:\/\/localhost:3004 is a 3\.0 site, and --seed runs against 2\.1\.0 only — nothing was written to it/);
+  assert.deepEqual([site.probes, site.calls], [1, 0], "one read, no write");
+  await assert.rejects(fs.stat(path.join(dir, TRANSITIONS_RECORD)), { code: "ENOENT" });
+  assert.equal(await fs.readFile(finish, "utf8"), "{\"results\":[]}\n", "nothing on this side either");
+  // A 2.1.0 site is read once, then seeded.
+  const old = fakeSite(), other = await scratchDir();
+  await assert.rejects(seedToRecord(old, { dir: other, stamp: STAMP }), /409/);
+  assert.equal(old.probes, 1);
+  for (const each of [dir, other]) await fs.rm(each, { recursive: true, force: true });
 });
 
 test("--seed clears an old finish, and a seed refused before it made anything leaves no record", async () => {

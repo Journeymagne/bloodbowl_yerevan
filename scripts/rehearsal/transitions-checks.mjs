@@ -29,7 +29,8 @@ const STATE_FIELDS = {
 
 // A seed that stopped part-way (a refused call, ^C) has made rows its record may not name — the one being made
 // when it stopped. Nothing may count on such a record; only a new restore takes those rows away.
-const UNFINISHED = "the seed did not finish («complete» is not true), so it left rows in gata_rehearsal this record may not name";
+const unfinished = (record) => "the seed did not finish («complete» is not true), so it left rows in the database of "
+  + `${typeof record?.seedBase === "string" ? record.seedBase : "the site it seeded"} this record may not name`;
 const AGAIN = "run rehearsal:restore again, then --seed";
 
 const isObject = (value) => Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -89,7 +90,7 @@ export function assertTransitionsRecord(value) {
   const fail = (what) => { throw new Error(`output/rehearsal/transitions.json is not a record of rehearsal:transitions: ${what} — ${AGAIN}`); };
   if (!isObject(value)) fail("not an object");
   if (value.version !== RECORD_VERSION) fail(`version ${value.version}, this script reads ${RECORD_VERSION}`);
-  if (value.complete !== true) fail(UNFINISHED);
+  if (value.complete !== true) fail(unfinished(value));
   for (const side of ["home", "away"]) {
     const missing = missingOfCoach(value.coaches?.[side]);
     if (missing.length) fail(`coaches.${side} has no ${missing.join(", ")}`);
@@ -115,7 +116,7 @@ export function assertTransitionsRecord(value) {
 export function seededRows(value) {
   const seeded = isObject(value) ? value.seeded : null;
   if (!isObject(seeded)) return null;
-  if (value.complete !== true) throw new Error(`output/rehearsal/transitions.json: ${UNFINISHED} — ${AGAIN}`);
+  if (value.complete !== true) throw new Error(`output/rehearsal/transitions.json: ${unfinished(value)} — ${AGAIN}`);
   return Object.fromEntries(SEEDED_LISTS.map((key) => [key, Array.isArray(seeded[key]) ? seeded[key].map(String) : []]));
 }
 
@@ -232,4 +233,29 @@ export function seasonTable(payload) {
     id: payload?.season?.id ?? null,
     standings: standings.map(({ entryId, points, games, byes, touchdowns, casualties }) => ({ entryId, points, games, byes, touchdowns, casualties })),
   };
+}
+
+/**
+ * What changed between two readings of the table (`seasonTable`): the season, and each entry that came, went or
+ * moved, by the fields that moved — what a FAIL line says, not the tables themselves. An order of the standings
+ * that changed with no entry moving is said as such.
+ *
+ * @param {{ id: string|null, standings: object[] }} before
+ * @param {{ id: string|null, standings: object[] }} after
+ * @returns {string[]} empty when the two are the same table
+ */
+export function tableChanges(before, after) {
+  const changes = before.id === after.id ? [] : [`the season ${before.id} → ${after.id}`];
+  const was = new Map(before.standings.map((row) => [row.entryId, row])), now = new Map(after.standings.map((row) => [row.entryId, row]));
+  for (const [entryId, row] of was) {
+    const next = now.get(entryId);
+    const moved = next ? Object.keys(row).filter((key) => row[key] !== next[key]).map((key) => `${key} ${row[key]} → ${next[key]}`) : [];
+    if (!next) changes.push(`entry ${entryId} is gone`);
+    else if (moved.length) changes.push(`entry ${entryId}: ${moved.join(", ")}`);
+  }
+  for (const [entryId, row] of now) {
+    if (!was.has(entryId)) changes.push(`entry ${entryId} is new: ${Object.entries(row).filter(([key]) => key !== "entryId").map(([key, value]) => `${key} ${value}`).join(", ")}`);
+  }
+  if (!changes.length && JSON.stringify(before) !== JSON.stringify(after)) changes.push("the entries are the same, in another order");
+  return changes;
 }

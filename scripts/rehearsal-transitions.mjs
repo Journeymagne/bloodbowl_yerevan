@@ -20,14 +20,16 @@
  *      smoke checks, then --finish with the same ADMIN_LOGIN and ADMIN_PASSWORD
  *
  * It never touches a database itself: it speaks HTTP only, and only to a site on this machine (http on localhost,
- * 127.0.0.1 or [::1]). --seed writes output/rehearsal/transitions.json, mode 0600: it holds the passwords this
+ * 127.0.0.1 or [::1]); it follows no redirect, and reads which version the site is before it writes anything —
+ * --seed refuses a site that is not 2.1.0, --finish one that is not 3.0, each naming the address. --seed writes output/rehearsal/transitions.json, mode 0600: it holds the passwords this
  * run gave its two coaches — test values, never in git. It writes it as it goes, «complete»: false until the
  * end, so a seed that stops part-way (a refused call, ^C) leaves a record of the rows it made, which
  * rehearsal:check and --finish refuse: run rehearsal:restore again (it deletes the record), then --seed. A
  * --seed with a record already there is refused too — a second seed would leave the first one's rows unmarked.
  * --finish reads it back, signs in as those coaches and as the admin of ADMIN_LOGIN and ADMIN_PASSWORD (read as
  * the server reads them: the environment, then the env file), prints a line per state, «<state>: ok» or
- * «<state>: FAIL — <why>», then the table's, and writes what it checked to output/rehearsal/transitions-finish.json.
+ * «<state>: FAIL — <why>» (a refused step names its side and its step; a refused sign-in fails every state, saying
+ * whose), then the table's (the entries that moved, when it moved), and writes what it checked to output/rehearsal/transitions-finish.json.
  * Exit 1 on any FAIL or refusal, 2 when there is no seed to finish.
  */
 import { promises as fs } from "node:fs";
