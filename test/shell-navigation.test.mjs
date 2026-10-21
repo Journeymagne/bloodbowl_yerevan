@@ -277,7 +277,7 @@ test("a route the router gains is a route the model must be told about", () => {
   // And the names are the router's own: every shape of address lands on one of them, and every one is landed on.
   const addresses = ["home", "login", "register", "settings", "teams", "teams/new", "ref", "ref/skills", "administration", "legal", "t/t1", "t/t1/team", "t/t1/settings", "t/t1/roster",
     "t/t1/roster/p1", "t/t1/matches", "t/t1/challenges", "coaches/u2", "coaches/u2/teams/t9", "games/g1", "games/g1/pre-match", "games/g1/post-match", "season", "season/rounds",
-    "overview/rules", "administration/users/u2", "administration/users/u2/teams/t9/edit", "no-such-slug"];
+    "overview/rules", "administration/users/u2", "administration/users/u2/teams/t9/edit", "administration/season", "no-such-slug"];
   assert.deepEqual([...new Set(addresses.map((address) => matchRoute(address).name))].sort(), [...ROUTE_NAMES].sort());
 });
 

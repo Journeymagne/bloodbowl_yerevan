@@ -66,6 +66,7 @@ const OWNERS = {
   administration: ["settings", "administration"],
   adminUserProfile: ["settings", "administration"],
   adminTeamEdit: ["settings", "administration"],
+  adminSeason: ["settings", "administration"],
 };
 
 /** The route names the model has an answer for; test/shell-navigation.test.mjs holds them against the router's. */

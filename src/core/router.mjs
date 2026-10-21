@@ -44,6 +44,7 @@ import { renderGamePage } from "../screens/games/game.mjs";
 import { renderPostMatch } from "../screens/matches/post.mjs";
 import { renderAdminCoaches } from "../screens/admin/coaches.mjs";
 import { renderAdminCoach } from "../screens/admin/coach.mjs";
+import { renderAdminSeason } from "../screens/admin/season.mjs";
 import { renderCoachProfile } from "../screens/coaches/profile.mjs";
 import { renderCoachTeam } from "../screens/coaches/team.mjs";
 import { refreshShell } from "../shell/shell.mjs";
@@ -89,6 +90,7 @@ const screens = {
   adminTeamEdit: ({ ownerId, teamId }) => renderSavedRoster(teamId, true, { adminOwnerId: ownerId }),
   adminUserProfile: ({ userId }) => renderAdminCoach(userId),
   administration: () => renderAdminCoaches(),
+  adminSeason: ({ tab }) => renderAdminSeason(tab),
   legal: () => renderLegal(),
   page: ({ slug }) => renderReferencePage(slug),
 };

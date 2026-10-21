@@ -195,6 +195,7 @@ const ID_ROUTES = [
   [/^coaches\/([^/]+)\/teams\/([^/]+)$/, "coachTeam", "userId", "teamId"],
   [/^games\/([^/]+)\/pre-match(?:\/([^/]+))?$/, "preMatch", "gameId", "step"],
   [/^games\/([^/]+)\/post-match(?:\/([^/]+))?$/, "postMatch", "gameId", "step"],
+  [/^administration\/season(?:\/(entries))?$/, "adminSeason", "tab"],
   [/^administration\/users\/([^/]+)\/teams\/([^/]+)\/edit$/, "adminTeamEdit", "ownerId", "teamId"],
 ];
 
@@ -268,6 +269,7 @@ const SIGNED_IN_ROUTES = new Set([
   "administration",
   "adminUserProfile",
   "adminTeamEdit",
+  "adminSeason",
 ]);
 
 /**
@@ -289,6 +291,8 @@ const OLD_ADDRESSES = [
   [/^players\/([^/]+)\/teams\/([^/]+)$/, ([, userId, teamId]) => playerTeamUrl(userId, teamId)],
   [/^(?:ref\/)?pages$/, () => refUrl()],
   [/^(skills|traits|rules|cheatsheets|inducements|star-players)$/, ([, name]) => refUrl(name)],
+  // The 2.x season screen's administration tab: the administration's season since stage 12 (a guest signs in from there, rule 4).
+  [/^season\/administration$/, () => adminSeasonUrl()],
   // In 2.x #/teams was the team rules list, and a guest's old link still means that.
   [/^teams$/, (match, { signedIn }) => (signedIn ? null : refUrl("teams"))],
 ];
