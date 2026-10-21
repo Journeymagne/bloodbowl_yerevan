@@ -213,7 +213,7 @@ test("a preparation warns and locks nothing", () => {
   assert.equal(fragment.querySelector(".g-callout__title").textContent, "Match preparation is on");
   // The steps are named as the pre-match names them (final Minor 6): the server's reset keeps only fans and weather.
   assert.equal(fragment.querySelector(".g-callout__sub").textContent,
-    "A purchase, a change of the treasury or of the team's settings resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
+    "A purchase, a change of the treasury or of the team's settings resets the steps «Roster», «Inducements» and «Start». Fans and weather stay.");
   assert.equal(fragment.querySelector("[data-treasury-money]").hasAttribute("aria-disabled"), false);
   assert.equal(fragment.querySelector("[data-treasury-fix]").hasAttribute("aria-disabled"), false);
   assert.equal(fragment.querySelector(".g-resource--locked .g-resource__name").textContent.includes("Team Rerolls"), false);
@@ -268,7 +268,7 @@ test("the Russian page: the head, the chip, the card and the callout", () => {
     assert.equal(fragment.querySelector(".g-callout__title").textContent, "Идёт матч");
     assert.equal(mount(manageMarkup(model("t4"))).querySelector(".g-pagehead__meta .g-status").textContent, "Набор команды");
     const steps = mount(manageMarkup(model("t1", { games: [preparingGame("t1")] }))).querySelector(".g-callout__sub").textContent;
-    assert.ok(steps.includes("«Удар / приём»") && steps.includes("«Индусменты»") && steps.includes("«Состав»"), steps);
+    assert.ok(steps.includes("«Старт»") && steps.includes("«Индьюсменты»") && steps.includes("«Состав»"), steps);
     assert.equal(mount(manageMarkup(model("t1", { gamesUnknown: true }))).querySelector(".g-callout__title").textContent,
       "Не удалось проверить, идёт ли матч: правка сейчас может помешать завершить итоги.");
   } finally {

@@ -512,7 +512,7 @@ test("during a preparation the sheet says what a change of the roster resets", a
     openCart(0);
     const prep = hireSheet().querySelector(".g-market__prep");
     assert.equal(prep.textContent, prepResetWords());
-    assert.ok(words(hireSheet()).includes("Any save of the roster, SPP included, resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay."));
+    assert.ok(words(hireSheet()).includes("Any save of the roster, SPP included, resets the steps «Roster», «Inducements» and «Start». Fans and weather stay."));
     assert.ok(!buyButton().hasAttribute("aria-disabled"), "nothing is closed: a purchase only sends the coach back to those steps");
     assertStyled(view, ...STYLES);
   });

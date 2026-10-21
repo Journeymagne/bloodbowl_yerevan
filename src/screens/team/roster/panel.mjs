@@ -104,7 +104,7 @@ export function absenceWords(line) {
  * `…bannerPhone` adds its SPP edits, which save the roster too).
  */
 export function prepResetWords(key = "teamRoster.prep.sub") {
-  return t(key, { roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.kickoff") });
+  return t(key, { roster: t("pre.step.roster"), inducements: t("pre.step.inducements"), kickoff: t("pre.step.review") });
 }
 
 /**

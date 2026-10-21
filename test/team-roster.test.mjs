@@ -1077,7 +1077,7 @@ test("a preparation that is on: a yellow banner, the round, what any save resets
       assert.ok(callout && callout === banner(), "the first banner");
       assert.equal(titleOf(callout), "Preparation for round 3 is on");
       // StatsPrep.html's words, with a phone's SPP edits (they save the roster too); R12: the steps as the pre-match names them.
-      assert.equal(subOf(callout), "Hiring, selling, missed matches and SPP edits reset the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.");
+      assert.equal(subOf(callout), "Hiring, selling, missed matches and SPP edits reset the steps «Roster», «Inducements» and «Start». Fans and weather stay.");
       const link = callout.querySelector(".g-callout__action .g-roster__calloutlink");
       assert.equal(link.getAttribute("href"), "#/games/g1/pre-match");
       assert.equal(link.textContent, "To the preparation →");
@@ -1100,7 +1100,7 @@ test("a preparation that is on: a yellow banner, the round, what any save resets
       try {
         await renderTeamRoster("t1");
         assert.equal(titleOf(notice("warn")), "Идёт подготовка к туру 3");
-        assert.match(subOf(notice("warn")), /«Индусменты» и «Удар \/ приём»/);
+        assert.match(subOf(notice("warn")), /«Индьюсменты» и «Старт»/);
       } finally {
         useLocale("en");
       }
@@ -2627,7 +2627,7 @@ test("the banners say their prototype's words: a desk's preparation (DeskRosterP
     coach();
     gamesAre([PREP_GAME]);
     await renderTeamRoster("t1");
-    assert.equal(subOf(banner()), "Hiring, selling and missed matches reset the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.",
+    assert.equal(subOf(banner()), "Hiring, selling and missed matches reset the steps «Roster», «Inducements» and «Start». Fans and weather stay.",
       "a desk saves the roster by hiring, selling and marks only (D3)");
     await withWindow({ phone: true }, async () => {
       coach();

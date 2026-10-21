@@ -523,7 +523,7 @@ test("during a preparation the sheet says what a change of the roster resets", a
   gamesAre([PREP_GAME]);
   await renderTeamRoster("t1");
   askUndo();
-  const prep = "Any save of the roster, SPP included, resets the steps «Roster», «Inducements» and «Kick / receive». Fans and weather stay.";
+  const prep = "Any save of the roster, SPP included, resets the steps «Roster», «Inducements» and «Start». Fans and weather stay.";
   assert.ok(words(undoSheet()).includes(prep));
   assert.ok(!restoreButton().hasAttribute("aria-disabled"), "nothing is closed: the undo only sends the coach back to those steps");
   assertStyled(view, ...SHEETS);
