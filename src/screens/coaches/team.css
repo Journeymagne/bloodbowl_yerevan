@@ -98,6 +98,7 @@
  */
 .g-opp__race,
 .g-opp__coachlink {
+  box-sizing: border-box;
   display: inline-flex;
   align-items: center;
   gap: var(--space-4);

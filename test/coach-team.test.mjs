@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import test from "node:test";
 
 import { HOSTILE, assertCspSafe, assertDictionaryCovers, assertStyled, document } from "./helpers/ui.mjs";
 import { el, fireEvent } from "./helpers/fake-dom.mjs";
 import { installFakeApi } from "./helpers/fake-api.mjs";
 import { assertContrast, inMedia, tokensOf, valuesOf } from "./helpers/contrast.mjs";
-import { readdirSync } from "node:fs";
 import { expandCollections } from "../src/data/reference.mjs";
 
 const api = installFakeApi();
@@ -383,6 +382,8 @@ test("D2: a thumb's targets are 44 high up to 900px, a desk's 24 at least", () =
 });
 
 test("the head line's race and coach: 44 to a thumb, 24 on a desk, and their zones never overlap — each other's on a wrapped line, the name's above, the next block's below", () => {
+  // The geometry counts the padding inside min-height: the rule says so itself rather than lean on 2.x's global box-sizing.
+  for (const selector of [".g-opp__race", ".g-opp__coachlink"]) assert.deepEqual(valuesOf(CSS, selector, "box-sizing"), ["border-box"], selector);
   const tokens = tokensOf("grass");
   const px = (value) => {
     const token = String(value).match(/^var\((--[\w-]+)\)$/);
