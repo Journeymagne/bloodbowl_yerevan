@@ -39,3 +39,33 @@
   appearance: none;
 }
 .g-search__input::placeholder { color: var(--muted); }
+
+/*
+ * The browser's own clear button (WebKit and Blink draw one in a search
+ * input; the pseudo-element is theirs only, and so is the prefixed mask) in
+ * the palette: the kit's close icon at the magnifier's 18px, as a mask over a
+ * --muted background, so the glyph takes the token's colour in every palette.
+ * The browser still decides when it shows (a value typed in) and what it does.
+ * The target is 44px up to 900px and 24px from 901px (D2), the glyph centred
+ * in it; the negative margin takes the target into the input's right padding,
+ * so the glyph stands as far in from the right edge as the magnifier from the
+ * left.
+ */
+.g-search__input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 44px;
+  height: 44px;
+  margin: 0;
+  margin-right: calc((18px - 44px) / 2);
+  background-color: var(--muted);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 6l12 12M18 6L6 18'/%3E%3C/svg%3E") center / 18px 18px no-repeat;
+}
+
+@media (min-width: 901px) {
+  .g-search__input::-webkit-search-cancel-button {
+    width: 24px;
+    height: 24px;
+    margin-right: calc((18px - 24px) / 2);
+  }
+}

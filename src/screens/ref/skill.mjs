@@ -15,6 +15,7 @@ import { canonicalSkillName, skillNamesForPlayer } from "../../domain/roster/pla
 import { rowsForTeam } from "../../domain/roster/values.mjs";
 import { renderKeyValueRow } from "../../ui/list-row.mjs";
 import { hasNumericParameter, nameMatchesTitle, withoutParameter } from "./catalog.mjs";
+import { proseMarkup } from "./prose.mjs";
 
 /** The categories that have a colour of their own; any other tag is drawn as a trait is. */
 const TONES = new Set(["agility", "devious", "general", "mutation", "passing", "strength"]);
@@ -149,6 +150,6 @@ export function skillDetailMarkup({ data, page, team = null, teamPage = null }) 
   return `<article class="g-skill-detail" data-page="${escapeHtml(page.slug ?? "")}"><header class="g-skill-detail__head">${badgeMarkup(category, { large: true })}`
     + `<div class="g-skill-detail__title"><h1 class="g-skill-detail__name">${escapeHtml(page.title)}</h1>`
     + `<p class="g-skill-detail__caption">${escapeHtml(caption)}</p></div></header>`
-    + `<div class="g-prose">${rule}</div>${factsMarkup(data, page)}`
+    + `${proseMarkup(rule)}${factsMarkup(data, page)}`
     + `${team ? oursMarkup(skillHolders({ team, teamPage, title: page.title })) : ""}</article>`;
 }

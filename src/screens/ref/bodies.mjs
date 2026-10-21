@@ -18,6 +18,7 @@ import { renderFilterChips, wireFilterChips } from "../../ui/filter-chips.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
 import { pageForName } from "./catalog.mjs";
 import { rollerState, setRoller } from "./memory.mjs";
+import { proseMarkup } from "./prose.mjs";
 
 /** The roller's chip row is one of its screen's rows by name, for the reason `wireFilterChips` gives. */
 const ROLLER_GROUP = "roller";
@@ -145,7 +146,7 @@ function listsMarkup(data, groups) {
  */
 export function skillTableBody(data, page, roller) {
   const group = rollerGroup(data, roller);
-  if (!group) return `<div class="g-prose">${page.html}</div>`;
+  if (!group) return proseMarkup(page.html);
   const rolled = roller.category === group.category && roller.face !== null && group.skills[roller.face - 1] === roller.skill ? roller : null;
   return rollerMarkup(data, group, rolled)
     + listsMarkup(data, data.skillGroups)
