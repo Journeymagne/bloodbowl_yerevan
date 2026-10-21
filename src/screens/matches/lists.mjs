@@ -5,11 +5,15 @@
  *
  * A phone's result row is one link, to the opponent's team (pre-flight L14: three links in a row give no thumb 44px);
  * the race is text in its line.
+ *
+ * A desk has «Calendar» instead (DeskSeason.html): every played match of the season with its result's square, the match
+ * on, and the next round, «Friendlies» in its head.
  */
 import { escapeHtml } from "../../core/dom.mjs";
 import { t } from "../../core/i18n.mjs";
+import { teamUrl } from "../../core/routes.mjs";
 import { assertLinkHref } from "../../ui/markup.mjs";
-import { renderResultPill } from "../../ui/result-pill.mjs";
+import { renderResultPill, resultLabels } from "../../ui/result-pill.mjs";
 
 /** A row's body: the pill, the opponent over the round, race and casualties, the MVP; the score at the end. */
 function resultBody({ result, opponent, line, mvp, score }) {
@@ -65,4 +69,37 @@ export function othersMarkup(rows, nextRound) {
   if (!open.length && !next.length) return "";
   return `<section class="g-matches__section" aria-labelledby="matches-upcoming"><h2 class="g-matches__title g-matches__title--list" id="matches-upcoming">`
     + `${escapeHtml(t("matches.upcoming"))}</h2><ul class="g-matches__list">${[...open, ...next].join("")}</ul></section>`;
+}
+
+/** A calendar row's square: a played match's letter in its result's colour, the match on's number in the tint, a later one ringed. */
+function squareMarkup({ label, result, current }) {
+  if (result) {
+    return `<span class="g-matches__square g-matches__square--${escapeHtml(result)}"><span aria-hidden="true">${escapeHtml(label)}</span>`
+      + `<span class="g-sr-only">${escapeHtml(resultLabels(result).name)}</span></span>`;
+  }
+  return `<span class="g-matches__square${current ? " g-matches__square--current" : " g-matches__square--later"}">${escapeHtml(label)}</span>`;
+}
+
+/** One row of the calendar: the square, the opponent (a link to his team) over its line, the score or «—». */
+function calendarRow(row) {
+  const name = row.opponent?.href
+    ? `<a class="g-matches__calopp" href="${escapeHtml(row.opponent.href)}">${escapeHtml(row.opponent.name)}</a>`
+    : `<span class="g-matches__calopp${row.muted ? " g-matches__calopp--muted" : ""}">${escapeHtml(row.opponent?.name ?? "")}</span>`;
+  if (row.opponent?.href) assertLinkHref(row.opponent.href);
+  const empty = row.score === "—";
+  return `<li class="g-matches__calrow">${squareMarkup(row.square)}<span class="g-matches__text">${name}<span class="g-matches__calline">${escapeHtml(row.line)}</span></span>`
+    + `<span class="g-matches__calscore${empty ? " g-matches__calscore--none" : ""}">${escapeHtml(row.score)}</span></li>`;
+}
+
+/**
+ * «Calendar» (DeskSeason.html): its head with «Friendlies», then the season's played matches, the match on and the next
+ * round; «No matches played yet» when there is none.
+ * @param {ReturnType<typeof import("./model.mjs").matchesModel>["calendar"]} rows
+ * @param {string} teamId
+ */
+export function calendarMarkup(rows, teamId) {
+  const body = rows.length ? `<ul class="g-matches__list">${rows.map(calendarRow).join("")}</ul>` : `<p class="g-matches__empty">${escapeHtml(t("matches.noResults"))}</p>`;
+  return `<section class="g-matches__calendar" aria-labelledby="matches-calendar"><div class="g-matches__calhead">`
+    + `<h2 class="g-matches__caltitle" id="matches-calendar">${escapeHtml(t("matches.calendar"))}</h2>`
+    + `<a class="g-matches__calfriendlies" href="${escapeHtml(teamUrl(teamId, "challenges"))}">${escapeHtml(t("teamOverview.friendlies"))}</a></div>${body}</section>`;
 }

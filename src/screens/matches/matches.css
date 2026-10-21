@@ -401,3 +401,142 @@
   letter-spacing: 0;
   overflow-wrap: anywhere;
 }
+
+/*
+ * A desk's page (DeskSeason.html, without its table until stage 10): the board the whole width, the calendar under it,
+ * 20 apart. The board is match-board.css's; its main's own margins (24 32 40) are the shell's view's until stage 13.
+ */
+.g-matches--desk { gap: var(--space-20); }
+
+.g-matches__calendar {
+  box-sizing: border-box;
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-16) var(--space-20) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-2xl);
+  background: var(--surface);
+  box-shadow: var(--ring);
+  color: var(--ink);
+}
+
+.g-matches__calhead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8);
+  margin-bottom: var(--space-4);
+}
+
+.g-matches__caltitle {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  font: 700 24px/normal var(--font-display);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
+/* «Friendlies» in the calendar's head: 36px from 901px (D2: 24 or more), outlined in the accent. */
+.g-matches__calfriendlies {
+  box-sizing: border-box;
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-6);
+  min-height: 36px;
+  padding: 0 var(--space-12);
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+  color: var(--accent-text);
+  font: 700 13px/1.2 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+}
+
+/* A round: its square, the opponent over the line, the score; 52px or more, a rule under each. */
+.g-matches__calrow {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-12);
+  min-height: 52px;
+  margin: 0;
+  padding: var(--space-6) 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+}
+
+/* A played match's square in its result's colour (a friendly's «F» in its own); the match on's in the tint, a later one ringed. */
+.g-matches__square {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--neutral-result);
+  color: var(--on-accent);
+  font: 700 13px/1 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-matches__square--w { background: var(--accent); }
+.g-matches__square--d { background: var(--neutral-result); }
+.g-matches__square--l {
+  background: var(--danger);
+  color: var(--on-danger);
+}
+.g-matches__square--t { background: var(--result-friendly); }
+.g-matches__square--current {
+  background: var(--accent-tint);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--on-accent-tint);
+}
+.g-matches__square--later {
+  background: var(--surface);
+  box-shadow: inset 0 0 0 1px var(--control-border);
+  color: var(--ink-2);
+}
+
+.g-matches__calopp {
+  align-self: flex-start;
+  color: var(--ink);
+  font: 500 15px/normal var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+/* The opponent leads to his team: 24px or more from 901px (D2). */
+a.g-matches__calopp {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+}
+.g-matches__calopp--muted { color: var(--muted); }
+
+.g-matches__calline {
+  color: var(--muted);
+  font: 400 12px/normal var(--font-body);
+  letter-spacing: 0;
+  overflow-wrap: anywhere;
+}
+
+.g-matches__calscore {
+  color: var(--ink);
+  font: 700 22px/normal var(--font-display);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+.g-matches__calscore--none { color: var(--muted); }

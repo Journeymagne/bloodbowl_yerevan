@@ -14,18 +14,23 @@
  * season» lists the team's other open matches first (the owner's M2 answer 3: a friendly accepted beside the league's
  * match), then the next round, whose opponent the Swiss pairing gives once the round is in.
  *
+ * A desk's page is the season's (DeskSeason.html, until stage 10 without its table): its line («Mock Season · teams: 4 ·
+ * after round 2»), the board paging through the team's matches (`bandBoard`, as the overview's), and the calendar — the
+ * played matches, the one on and the next round.
+ *
  * Nothing is said that a read not answered yet could contradict: without the games no card, no result and no round to
  * come; without the table no call to enter the season.
  */
 import { formatMoney } from "../../core/format.mjs";
 import { t } from "../../core/i18n.mjs";
 import { gameUrl, playerTeamUrl, postMatchUrl, preMatchUrl } from "../../core/routes.mjs";
+import { resultLabels } from "../../ui/result-pill.mjs";
 import { gameSides, seasonRecord, standingOf } from "../../data/team-record.mjs";
 import { raceTeamOf } from "../../data/teams.mjs";
 import { matchRecords } from "../../domain/match/preview.mjs";
 import { currentMatch, matchActions, sentScore, subLine } from "../../shell/current-match.mjs";
 import { beforeFigures } from "./before.mjs";
-import { previewFor, seasonResults } from "./band.mjs";
+import { bandBoard, bandItems, previewFor, seasonResults } from "./band.mjs";
 
 /** The phases of the match on, as the card says them (decision 2). */
 export const MATCH_PHASES = Object.freeze(["idle", "preparing", "live", "post", "sent"]);
@@ -158,6 +163,83 @@ function pendingOf(games, team, seasonData, current) {
   return ofRound ? null : round;
 }
 
+/**
+ * «Mock Season · teams: 10 · after round 6» (DeskSeason.html): the season, how many teams its table has, and the last
+ * round over — by the rounds the season names, else the one before the round on; without one over, the first two alone.
+ */
+function seasonLineOf(seasonData) {
+  const season = seasonData?.season;
+  if (!season?.name) return "";
+  const teams = Array.isArray(seasonData.standings) ? seasonData.standings.length : 0;
+  const over = Array.isArray(seasonData.rounds)
+    ? Math.max(0, ...seasonData.rounds.filter((each) => each.status === "completed").map((each) => Number(each.roundNumber) || 0))
+    : Math.max(0, (roundOn(seasonData) ?? 1) - 1);
+  return over ? t("matches.seasonLine", { season: season.name, teams, round: over }) : t("matches.seasonLineStart", { season: season.name, teams });
+}
+
+/** The calendar's word of a match: «Round 3», «Friendly». */
+const roundWord = (game) => (game.kind === "friendly" ? t("ui.result.tName") : t("matches.before.round", { round: game.roundNumber }));
+
+/** A side's opponent as the calendar names him: his team's name, leading to it when the server names its coach and team. */
+const opponentRef = (rival) => ({ name: rival?.team?.name ?? "", href: teamHrefOf(rival) });
+
+/**
+ * @typedef {{key: string, square: {label: string, result: "w"|"d"|"l"|"t"|null, current: boolean, friendly: boolean},
+ *   opponent: {name: string, href: string}|null, line: string, score: string, muted: boolean}} CalendarRow
+ */
+
+/** @returns {CalendarRow} a played match: its result's letter, «Round 1 · at home · CAS 2–0», the score from our side */
+function playedRow(result, teamId) {
+  const { game } = result;
+  const sides = gameSides(game, teamId);
+  const venue = result.friendly ? "matches.calendarFriendly" : sides.own === "home" ? "matches.calendarHome" : "matches.calendarAway";
+  return { key: game.id, square: { label: resultLabels(result.result).letter, result: result.result, current: false, friendly: result.friendly },
+    opponent: opponentRef(game[sides.other]), line: `${roundWord(game)} · ${t(venue, { cas: result.cas })}`, score: result.score, muted: false };
+}
+
+/** @returns {CalendarRow} the match on: «Round 3 · at home · next» (in play, awaiting confirmation…), the score sent */
+function currentRow(current, teamId) {
+  const { game } = current;
+  const sides = gameSides(game, teamId);
+  const friendly = game.kind === "friendly";
+  const where = friendly ? "friendly" : sides.own;
+  const state = t(`matches.calendarState.${phaseOf(current)}`);
+  return { key: game.id, square: { label: friendly ? t("ui.result.t") : String(game.roundNumber), result: null, current: true, friendly },
+    opponent: opponentRef(game[sides.other]), line: `${roundWord(game)} · ${t(`matches.calendarAt.${where}`, { state })}`,
+    score: current.phase === "sent" ? sentScore(game, sides) || "—" : "—", muted: false };
+}
+
+/** @returns {CalendarRow} the next round: its opponent comes with the Swiss pairing once the round on is over */
+const nextRow = (round) => ({ key: "next", square: { label: String(round), result: null, current: false, friendly: false },
+  opponent: { name: t("teamOverview.opponentLater", { round: round - 1 }), href: "" },
+  line: `${t("matches.before.round", { round })} · ${t("matches.calendarSwiss")}`, score: "—", muted: true });
+
+/**
+ * The calendar (DeskSeason.html): the season's played matches in the order they were settled, as the board pages them
+ * (`seasonResults`), then the match on, then the next round.
+ * @returns {CalendarRow[]}
+ */
+function calendarOf(games, teamId, seasonData, current, nextRound) {
+  const rows = seasonResults(games, teamId, seasonData).reverse().map((result) => playedRow(result, teamId));
+  if (current) rows.push(currentRow(current, teamId));
+  if (nextRound) rows.push(nextRow(nextRound));
+  return rows;
+}
+
+/**
+ * A desk's board (DeskSeason.html): the season's band at the item the visit's key names (the current one for none, or
+ * for one the games no longer hold), as the overview's (`bandBoard`); null outside the table with no match on.
+ */
+function deskBand({ list, team, raceTeam, seasonData, standing, current, preview, opponent, records, bandKey }) {
+  if (!list || (!standing && !current)) return null;
+  const items = bandItems(list, team.id, seasonData);
+  if (!items.length) return null;
+  const at = bandKey === null ? -1 : items.findIndex((item) => item.key === bandKey);
+  const counted = current && records?.events ? matchRecords(records.events, current.game.id) : null;
+  return bandBoard({ items, index: at === -1 ? null : at, games: list, team, raceTeam, seasonData, current, preview, opponent,
+    records: counted, phone: false, gamesRead: true });
+}
+
 /** A read that failed, as the page says it: the table's when there is none to show, the games' when the team's matches need them. */
 function failuresOf({ seasonData, seasonError, gamesError }) {
   const failures = [];
@@ -180,9 +262,10 @@ function failuresOf({ seasonData, seasonError, gamesError }) {
  * @param {{events: object[]}|{error: string}|null} [input.records] the team's records, as last read
  * @param {object|null} [input.data] the reference, for «Before the match»
  * @param {boolean} [input.phone] the screen is a phone's (up to 900px)
+ * @param {string|null} [input.bandKey] the item a desk's board shows, as the visit holds it; null for the current one
  */
 export function matchesModel({ team, raceTeam = null, seasonData, games, gamesError = "", seasonError = "", opponent = null, records = null,
-  data = null, phone = false }) {
+  data = null, phone = false, bandKey = null }) {
   const list = Array.isArray(games) && !gamesError ? games : null;
   const standing = standingOf(seasonData, team.id);
   const current = list && currentMatch(list, team.id);
@@ -200,7 +283,9 @@ export function matchesModel({ team, raceTeam = null, seasonData, games, gamesEr
     record: list && standing ? seasonRecord(list, team.id, seasonData.season.id) : null,
     others: list ? othersOf(list, team.id, current?.game.id ?? null) : [],
     nextRound: round ? round + 1 : null,
-    band: null,
+    band: phone ? null : deskBand({ list, team, raceTeam, seasonData, standing, current, preview, opponent, records, bandKey }),
+    calendar: list ? calendarOf(list, team.id, seasonData, current, round ? round + 1 : null) : [],
+    seasonLine: seasonLineOf(seasonData),
     failures: failuresOf({ seasonData, seasonError, gamesError }),
   };
 }

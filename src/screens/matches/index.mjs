@@ -1,7 +1,9 @@
 /**
- * The «Matches» tab of a team (`#/t/:id/matches`, stage 09a): the match on as a card, «Friendlies», the season's results
- * and what comes later in it (Matches.html, MatchesLive.html, MatchesPrePlus.html). It replaces 2.x's «My games» on this
- * address; that screen draws the challenges alone until stage 09c (decision 3).
+ * The «Matches» tab of a team (`#/t/:id/matches`, stage 09a). A phone's: the match on as a card, «Friendlies», the
+ * season's results and what comes later in it (Matches.html, MatchesLive.html, MatchesPrePlus.html). A desk's is the
+ * season's (DeskSeason.html, DeskSeasonLive.html, DeskSeasonPrePlus.html): the board paging through the team's matches,
+ * its bubbles opening «Before the match», and the calendar; the table is stage 10's (the owner's M2 answer 1). It
+ * replaces 2.x's «My games» on this address; that screen draws the challenges alone until stage 09c (decision 3).
  *
  * `matchesModel` (model.mjs) says what the page says; the card is card.mjs's, the lists lists.mjs's. One form for each
  * width, as the overview (decision 1): the model is told whether the screen is a phone's each time it is drawn, and the
@@ -9,8 +11,9 @@
  *
  * The visit reads the games afresh on the way in and whenever the tab is seen again (decision 9: a match's phase is not
  * judged by an old list), the table once, the opponent of the match on from his public page (once for the game as it
- * stands: the band's part, `bandVisit`) and the team's records while a match is on — once, and again when the games
- * change, one read in the air. No timer polls. The inducements' tile and the line of who is out open «Before the match»;
+ * stands: the band's part, `bandVisit`, which also holds the match a desk's board shows while the games still have it)
+ * and the team's records while a match is on — once, and again when the games change, one read in the air. No timer
+ * polls. The inducements' tile and the line of who is out open «Before the match»;
  * a tile closed for an opponent not read says why when it is pressed. Leaving closes the sheet and stops listening.
  */
 import { announce } from "../../components/live-region.mjs";
@@ -29,10 +32,10 @@ import { icon } from "../../ui/icons.mjs";
 import { renderPageHead } from "../../ui/page-head.mjs";
 import { loadSeason } from "../season/season-data.mjs";
 import { isPhone, onPhoneChange } from "../team/roster/screen.mjs";
-import { bandVisit } from "./band.mjs";
+import { bandBoardMarkup, bandVisit } from "./band.mjs";
 import { currentCardMarkup, noMatchMarkup } from "./card.mjs";
 import { matchesModel, phaseOf } from "./model.mjs";
-import { othersMarkup, resultsMarkup } from "./lists.mjs";
+import { calendarMarkup, othersMarkup, resultsMarkup } from "./lists.mjs";
 
 /** The reads that failed, in danger callouts, as an alert. */
 function failuresMarkup(failures) {
@@ -60,11 +63,24 @@ function currentMarkup(model) {
 }
 
 /**
- * The page, as Matches.html orders it: the match on, the call to enter the season, «Friendlies», «Results», «Later in
- * the season».
+ * A desk's page (DeskSeason.html without its table, the owner's M2 answer 1): the head «Season» with the season's line,
+ * the board the whole width, paging through the team's matches with its bubbles, and the calendar under it. Outside the
+ * table with no match on, the call to enter the season instead of the board.
+ */
+function deskMarkup(model) {
+  const head = renderPageHead({ title: t("shell.side.season"), sub: model.seasonLine });
+  const calendar = model.gamesRead ? calendarMarkup(model.calendar, model.teamId) : "";
+  return `${head}<div class="g-matches g-matches--desk">${failuresMarkup(model.failures)}${model.band ? bandBoardMarkup(model.band) : ""}`
+    + `${seasonCallMarkup(model)}${calendar}</div>`;
+}
+
+/**
+ * The page in the form of the width: a phone's as Matches.html orders it — the match on, the call to enter the season,
+ * «Friendlies», «Results», «Later in the season» —, a desk's as DeskSeason.html (`deskMarkup`).
  * @param {ReturnType<typeof matchesModel>} model
  */
 export function matchesMarkup(model) {
+  if (!model.phone) return deskMarkup(model);
   const head = renderPageHead({ title: t("matches.title") });
   const lists = model.gamesRead ? resultsMarkup(model.results, model.record) + othersMarkup(model.others, model.nextRound) : "";
   return `${head}<div class="g-matches">${failuresMarkup(model.failures)}${currentMarkup(model)}${seasonCallMarkup(model)}`
@@ -85,7 +101,7 @@ function markupOf(teamId, held, band, records) {
   return matchesMarkup(matchesModel({
     team, raceTeam: raceTeamOf(team.baseTeamSlug), seasonData: state.season.data,
     games: loaded && !held.games ? items : null, gamesError: held.games ? "" : error, seasonError: held.season ? "" : state.season.error,
-    opponent: band.opponent, records, data: state.data, phone: isPhone(),
+    opponent: band.opponent, records, data: state.data, phone: isPhone(), bandKey: band.key,
   }));
 }
 
