@@ -88,20 +88,6 @@
   margin: 0;
 }
 
-.games-grid {
-  margin-top: 14px;
-}
-
-.game-card {
-  display: grid;
-  gap: 8px;
-}
-
-.game-card h3,
-.game-card p {
-  margin: 0;
-}
-
 .game-versus {
   display: grid;
   grid-template-columns: minmax(0, 1fr);

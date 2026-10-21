@@ -40,9 +40,6 @@ const PHASES = ["live", "idle", "sent"];
  * opened, when it is on again. The payload says `not_started` for a match that
  * has no post-match row.
  *
- * The list on "My games" asks a looser question of its own (a started match is
- * "next" until its post-match is completed) and keeps it; this is the card's.
- *
  * @param {object} game one of the coach's games, as `/api/games` sends it
  * @returns {boolean}
  */

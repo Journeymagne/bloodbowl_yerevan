@@ -37,7 +37,6 @@ body { background: var(--bg); font-size: .9375rem; }
 a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .card h2, .card h3 { font: 800 1.7rem/1.2 var(--display-font); letter-spacing: .3px; text-transform: uppercase; text-shadow: none; color: var(--text); }
 .card p { font-size: .85rem; text-shadow: none; line-height: 1.65; }
-.card-grid { gap: 20px; }
 .badge, .season-status-pill { border-radius: 0; }
 .badge, .season-status-pill { background: var(--md-wash); border-color: var(--line); font: .6rem/1.5 var(--label-font); letter-spacing: .3px; padding: 5px 8px; }
 .chip { min-height: 44px; align-items: center; }
@@ -48,13 +47,6 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
 .game-page > .pre-game-panel { margin-bottom: 28px; }
 .game-versus > strong { font: 700 2rem/1 var(--body-font); color: var(--muted); }
 .game-versus h2 { overflow-wrap: anywhere; }
-.game-card { display: flex; flex-direction: column; gap: 15px; }
-.game-card > p { margin: 0; }
-.game-card-flags { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.game-card-flags .pre-badge { display: inline-flex; padding: 5px 8px; font: .6rem/1.5 var(--label-font); margin: 0; }
-.challenge-panel { margin-bottom: 28px; }
-.challenge-card { border-color: var(--line); }
-.challenge-card h3 { font: 800 1.7rem/1.2 var(--display-font); text-transform: uppercase; }
 .empty-state, .loading { background: var(--panel); border: 1px dashed var(--line-bright); padding: 30px; font-size: .85rem; }
 @media (min-width: 901px) {
   .view { padding: 28px 28px 44px; }
@@ -78,5 +70,4 @@ a.card:hover { box-shadow: 3px 3px 0 var(--line-bright); }
   .content-panel, .card { padding: 18px; }
   .content-panel h2 { font-size: 1.65rem; }
   .card h3 { font-size: 1.6rem; }
-  .challenge-panel { margin-bottom: 24px; }
 }

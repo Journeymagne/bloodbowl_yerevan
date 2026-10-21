@@ -1,17 +1,10 @@
 /*
- * Cards and badges the 2.x screens still draw: the card grid and the game cards of My Games, and the
- * season badge on a saved team.
+ * Cards and badges the 2.x screens still draw: a saved team's card and its season badge.
  *
  * Part of src/styles.css, which imports the eight files in this directory in
  * order. The split is by position, not by theme: the cuts fall between rules
  * that were already neighbours, so the cascade is exactly what it was.
  */
-.card-grid {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 14px;
-}
-
 .card {
   position: relative;
   display: block;
@@ -41,10 +34,6 @@
   background:
     linear-gradient(180deg, rgba(255, 215, 120, 0.08), transparent),
     var(--surface-strong);
-}
-
-.card.compact {
-  min-height: 88px;
 }
 
 .card h2,
