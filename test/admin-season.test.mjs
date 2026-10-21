@@ -500,12 +500,12 @@ it("a refusal is the server's words; a lost answer reads the season again and se
   assert.deepEqual(writes().map(({ key }) => key), ["PATCH /api/games/r7p3"]);
 });
 
-it("the entries until their task: the tab, the card, the way to the league's table", async () => {
+it("the entries' tab: its own segment, the entries' cards in place of the rounds (admin-entries.test.mjs)", async () => {
   await visit({ tab: "entries" });
   assert.equal(view.querySelector(".g-pagehead__sub").textContent, "Administration → Season · entries");
   assert.deepEqual(view.querySelectorAll(".g-adminseason__tabs a").map((link) => link.getAttribute("aria-current")), [null, "page"]);
-  assert.equal(view.querySelector(".g-admin__card h2").textContent, "Entries");
-  assert.equal(view.querySelector(".g-admin__card a").getAttribute("href"), "#/season");
+  assert.equal(view.querySelector(".g-adminentries h2").textContent, "Entries · 8");
+  assert.equal(view.querySelector(".g-adminseason__round"), null, "the rounds are the other tab's");
   assert.deepEqual(keys(), ["GET /api/season"], "the scores awaiting are the rounds'");
 });
 

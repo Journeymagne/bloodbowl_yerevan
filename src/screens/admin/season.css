@@ -1,9 +1,9 @@
 /*
- * The administration's «Season» (screens/admin/season.mjs, season-rounds.mjs, result-sheet.mjs): the season's tabs,
- * the cards of the rounds and their tables, and a pair's sheet. DeskAdminSeason.html from 901px; up to 900px the
- * desk's cards in one column, every target 44px (no prototype). Font, border, background, text-transform,
- * letter-spacing and font-weight are set here on purpose: the 2.x globals outlive this sheet until stage 13. Colours
- * are tokens. Long names wrap; nothing is cut with «…».
+ * The administration's «Season» (screens/admin/season.mjs, season-rounds.mjs, result-sheet.mjs, season-entries.mjs):
+ * the season's tabs, the cards of the rounds and their tables, a pair's sheet, the entries and the playoff places.
+ * DeskAdminSeason.html and DeskAdminEntries.html from 901px; up to 900px the desk's cards in one column, every target
+ * 44px (no prototype). Font, border, background, text-transform, letter-spacing and font-weight are set here on
+ * purpose: the 2.x globals outlive this sheet until stage 13. Colours are tokens. Long names wrap; nothing is cut with «…».
  */
 
 .g-adminseason {
@@ -65,8 +65,9 @@
 .g-adminseason__next,
 .g-adminseason__awaiting { gap: var(--space-10); }
 
-/* «Rounds 1–6 · over»: 14 20 in its card. */
-.g-adminseason__pastcard {
+/* «Rounds 1–6 · over», «Withdrawn · 1»: 14 20 in its card. */
+.g-adminseason__pastcard,
+.g-adminentries__gone {
   gap: var(--space-10);
   padding-top: var(--space-14);
   padding-bottom: var(--space-14);
@@ -325,6 +326,98 @@
   cursor: default;
 }
 
+/* ---- «Entries» (DeskAdminEntries.html): the playoff places, the entries, the withdrawn ---- */
+/* The entries' card has 6 between its parts (the prototype's), the playoff card a round's 10. */
+.g-adminentries { gap: var(--space-6); }
+.g-adminentries__playoff { gap: var(--space-10); }
+
+/* The places and «Save» beside them: a number's field, not the card's width; the rule under them takes the card's. */
+.g-adminentries__places {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+.g-adminentries__places .g-field__control { max-width: 360px; }
+
+.g-adminentries__list {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.g-adminentries__list[hidden] { display: none; }
+
+/*
+ * A row: the team and its coach, the status, the buttons; 60 high, the line under it. Where a narrow desk (901px with
+ * the SideNav) cannot hold them on one line, the status and the buttons go under the team, never squeezing a name or a
+ * login into its letters; a line of its own keeps the 60.
+ */
+.g-adminentries__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+  min-height: 60px;
+  margin: 0;
+  padding: var(--space-8) 0;
+  border-bottom: 1px solid var(--line);
+  color: var(--ink);
+  font: 400 15px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.g-adminentries__who {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  min-width: 0;
+}
+.g-adminentries__team {
+  color: var(--ink);
+  font: 700 16px/1.3 var(--font-body);
+  letter-spacing: 0;
+  text-decoration: none;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+a.g-adminentries__team:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.g-adminentries__coach {
+  color: var(--muted);
+  font: 400 13px/1.4 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+/* «в сезоне», «набор · потрачено 450k из 600k»: breaks between its words only. */
+.g-adminentries__status {
+  flex: 0 1 auto;
+  min-width: 0;
+  font: 600 14px/1.35 var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+  overflow-wrap: break-word;
+}
+.g-adminentries__status--active { color: var(--on-accent-tint); }
+.g-adminentries__status--draft { color: var(--on-warn-tint); }
+/* The buttons stand at the right, on the row's line or on the status's; at 320 one under the other. */
+.g-adminentries__actions {
+  display: flex;
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  min-width: 0;
+  margin-left: auto;
+}
+
 /* ---- A phone: the cards in one column, every target 44px ---- */
 @media (max-width: 900px) {
   .g-adminseason__tabs .g-seg__item,
@@ -374,6 +467,11 @@
     flex-wrap: wrap;
     padding: var(--space-8) 0;
   }
+
+  /* An entry in two lines: the team and its coach, then the status and the buttons (a third line when they do not fit). */
+  .g-adminentries__row { padding: var(--space-10) 0; }
+  .g-adminentries__who { flex-basis: 100%; }
+  .g-adminentries__places .g-field__control { max-width: none; }
 }
 
 /* ---- A desk (DeskAdminSeason.html) ---- */
