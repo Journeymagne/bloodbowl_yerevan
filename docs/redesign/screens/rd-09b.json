@@ -1,0 +1,264 @@
+{
+  "widths": [
+    390,
+    1440
+  ],
+  "heights": {
+    "320": 568,
+    "390": 844,
+    "768": 1024,
+    "1024": 768,
+    "1440": 900
+  },
+  "variants": [
+    {
+      "name": "light",
+      "colorScheme": "light",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"light\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    },
+    {
+      "name": "dark",
+      "colorScheme": "dark",
+      "storage": {
+        "gata-league-palette": "{\"mode\":\"dark\",\"light\":\"grass\",\"dark\":\"night\"}",
+        "gata-league-locale": "en"
+      }
+    }
+  ],
+  "states": [
+    {
+      "id": "S1",
+      "url": "http://localhost:5181/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        320,
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "S2",
+      "url": "http://localhost:5181/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "S3",
+      "url": "http://localhost:5181/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "U1",
+      "url": "http://localhost:5181/#/games/g2/post-match/result",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "F1",
+      "url": "http://localhost:5181/#/games/g2/post-match/fans",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "P1",
+      "url": "http://localhost:5181/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "P2",
+      "url": "http://localhost:5181/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const sheet = () => { const open = document.querySelector('dialog[open]'); if (!open) throw new Error('no sheet open'); return open; };",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 300); };",
+        "  const firstOpen = (sel) => { const el = [...sheet().querySelectorAll(sel)].find((item) => shown(item) && item.getAttribute('aria-disabled') !== 'true'); if (!el) throw new Error('no open ' + sel); return el; };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(300); } };",
+        "  await wait(400);",
+        "  await press('[data-after-player]', 700);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "A1",
+      "url": "http://localhost:5181/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const sheet = () => { const open = document.querySelector('dialog[open]'); if (!open) throw new Error('no sheet open'); return open; };",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 300); };",
+        "  const firstOpen = (sel) => { const el = [...sheet().querySelectorAll(sel)].find((item) => shown(item) && item.getAttribute('aria-disabled') !== 'true'); if (!el) throw new Error('no open ' + sel); return el; };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(300); } };",
+        "  await wait(400);",
+        "  await press('[data-player-advance]', 600);",
+        "  await pick('.g-options [data-option-value=\"random\"]');",
+        "  await nextIfAny();",
+        "  firstOpen('[data-advance-category]').click(); await wait(300);",
+        "  await nextIfAny();",
+        "  await pick('[data-advance-roll]', 1200);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "U2",
+      "url": "http://localhost:5181/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock",
+        "gata-league-locale": "ru"
+      },
+      "widths": [
+        1440
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "P3",
+      "url": "http://localhost:5181/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "P4",
+      "url": "http://localhost:5181/#/games/g2/post-match/players",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "R1",
+      "url": "http://localhost:5181/#/games/g2/post-match/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "R2",
+      "url": "http://localhost:5181/#/games/g2/post-match/roster",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "widths": [
+        390
+      ],
+      "fullPage": false,
+      "run": [
+        "(async () => {",
+        "  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));",
+        "  const shown = (el) => el && el.getClientRects().length > 0;",
+        "  const vis = (sel) => [...document.querySelectorAll(sel)].find(shown);",
+        "  const press = async (sel, ms) => { const el = vis(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 500); };",
+        "  const sheet = () => { const open = document.querySelector('dialog[open]'); if (!open) throw new Error('no sheet open'); return open; };",
+        "  const inSheet = (sel) => [...sheet().querySelectorAll(sel)].find(shown);",
+        "  const pick = async (sel, ms) => { const el = inSheet(sel); if (!el) throw new Error('no ' + sel); el.click(); await wait(ms || 300); };",
+        "  const firstOpen = (sel) => { const el = [...sheet().querySelectorAll(sel)].find((item) => shown(item) && item.getAttribute('aria-disabled') !== 'true'); if (!el) throw new Error('no open ' + sel); return el; };",
+        "  const nextIfAny = async () => { const n = inSheet('[data-advance-next]'); if (n) { n.click(); await wait(300); } };",
+        "  await wait(400);",
+        "  await press('[data-after-open=\"hire\"]', 700);",
+        "  await wait(400);",
+        "})()"
+      ]
+    },
+    {
+      "id": "T1",
+      "url": "http://localhost:5181/#/games/g2/post-match/finance",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "N1",
+      "url": "http://localhost:5181/#/games/g2/post-match/next",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "V1",
+      "url": "http://localhost:5181/#/games/g2/post-match/review",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "extraWidths": [
+        768,
+        1024
+      ],
+      "fullPage": true
+    },
+    {
+      "id": "V2",
+      "url": "http://localhost:5181/#/games/g2/post-match/review",
+      "storage": {
+        "gata-league-auth-token": "mock"
+      },
+      "fullPage": true
+    },
+    {
+      "id": "G1",
+      "url": "http://localhost:5181/#/games/g2/post-match",
+      "storage": {},
+      "widths": [
+        390
+      ],
+      "fullPage": false
+    }
+  ]
+}
