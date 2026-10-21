@@ -34,6 +34,7 @@
     "rehearsal:restore": "node scripts/rehearsal-restore.mjs",
     "rehearsal:check": "node scripts/rehearsal-check.mjs",
     "rehearsal:migrate": "node scripts/rehearsal-migrate.mjs",
+    "rehearsal:transitions": "node scripts/rehearsal-transitions.mjs",
     "screens": "node scripts/screenshots.mjs"
   },
   "dependencies": {
