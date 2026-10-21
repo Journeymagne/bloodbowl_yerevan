@@ -726,6 +726,29 @@ test("nothing is cut with «…»; long lines wrap; the 900/901 breakpoints only
   }
 });
 
+test("a team's row wraps at every width: on a narrow card «Edit» and «Delete» drop under the name and never crush it", () => {
+  // From 901px the grid puts the cards side by side from a main area of 700 (admin.css), so a desk's card can be ~314
+  // inside: a row that never wraps leaves the name a column a few pixels wide between 997 and ~1210px.
+  assert.deepEqual(valuesOf(CSS, ".g-acoach__team", "flex-wrap"), ["wrap"], "the base row wraps, not only a phone's");
+  assert.deepEqual(valuesOf(CSS, ".g-acoach--phone .g-acoach__team", "flex-wrap"), [], "no second rule for a phone");
+  const [flex, ...more] = valuesOf(CSS, ".g-acoach__teamtext", "flex");
+  assert.equal(more.length, 0, "one flex for the name and its line, at every width");
+  const [grow, shrink, basis] = flex.split(/\s+/);
+  assert.equal(grow, "1", "the name takes what the line leaves it");
+  assert.equal(shrink, "1");
+  assert.match(basis, /^\d+px$/, "a basis in pixels, so the buttons wrap before the name is squeezed");
+  const keeps = Number.parseInt(basis, 10);
+  assert.ok(keeps >= 120, `the name keeps ${basis} before the buttons drop under it`);
+  // Measured in the browser, Russian: «Редактировать» and «Удалить» with their 8 take 228; a desk's card of 1280 has
+  // 442 inside (the frame 232, the paddings 64, two cards 20 apart, 20 each side). There the line stays one, as drawn.
+  assert.ok(40 + 12 + keeps + 12 + 228 <= 442, `a card of 1280 keeps DeskAdminUser's one line with a basis of ${basis}`);
+  assert.deepEqual(valuesOf(CSS, ".g-acoach--phone .g-acoach__teamtext", "flex-basis"), []);
+  // A wrapped row keeps its buttons off its rule; one line stays the prototype's 64 (its padding inside the 64).
+  assert.deepEqual(valuesOf(CSS, ".g-acoach__team", "padding"), ["var(--space-8) 0"]);
+  assert.deepEqual(valuesOf(CSS, ".g-acoach__team", "box-sizing"), ["border-box"]);
+  assert.deepEqual(valuesOf(CSS, ".g-acoach__teambtns", "flex-wrap"), ["wrap"], "the buttons wrap among themselves on a narrow phone");
+});
+
 test("the prototypes' measures: the coach's head, the cards, the rows of the teams, the buttons, the window of the reset", () => {
   assert.deepEqual(valuesOf(CSS, ".g-acoach__id", "gap"), ["var(--space-16)"]);
   assert.deepEqual(valuesOf(CSS, ".g-acoach__login", "font"), ["700 32px/1 var(--font-display)"]);

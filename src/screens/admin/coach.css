@@ -142,13 +142,22 @@
   min-width: 0;
 }
 
-/* A team: its tile, its name over its line, «Edit» and «Delete» on one line of a desk; a row of 64 over its rule. */
+/*
+ * A team: its tile, its name over its line, «Edit» and «Delete»; a row of 64 over its rule. With room the buttons stand
+ * on the name's line, as DeskAdminUser draws them; on a narrow card (two cards side by side from a main area of 700,
+ * phones) they drop under the name rather than squeeze it, so the row wraps at every width. The name keeps 140 before
+ * they drop: a card of 1280 holds the line in Russian (442 inside: 40 + 12 + 150 + 12 + 228 of the buttons), one
+ * of ~1260 and less wraps. Its 8 above and below change nothing on one line (40 in 64) and keep a wrapped row's
+ * buttons off its rule.
+ */
 .g-acoach__team {
+  box-sizing: border-box;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-12);
   min-height: 64px;
-  padding: 0;
+  padding: var(--space-8) 0;
   border-bottom: 1px solid var(--line);
 }
 .g-acoach__tile {
@@ -168,7 +177,7 @@
 }
 .g-acoach__teamtext {
   display: flex;
-  flex: 1 1 auto;
+  flex: 1 1 140px;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
@@ -291,16 +300,8 @@
   text-transform: none;
 }
 
-/*
- * A phone's form: the cards in one column (admin.css), the login 26 beside its letter (the page's title is 24 there),
- * the rows wrapping their buttons under the name.
- */
+/* A phone's form: the cards in one column (admin.css), the login 26 beside its letter (the page's title is 24 there). */
 .g-acoach--phone .g-acoach__login { font-size: 26px; }
-.g-acoach--phone .g-acoach__team {
-  flex-wrap: wrap;
-  padding: var(--space-8) 0;
-}
-.g-acoach--phone .g-acoach__teamtext { flex-basis: 160px; }
 
 /* ---- Up to 900px ---- */
 @media (max-width: 900px) {
