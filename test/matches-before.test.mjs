@@ -229,6 +229,9 @@ test("styled as the prototypes draw it; readable; D2; nothing cut", () => {
   assert.deepEqual(valuesOf(BEFORE_CSS, ".g-before__hero--gets", "background"), ["linear-gradient(90deg, var(--hero-gets) 0 38%, var(--hero-pays) 62% 100%)"]);
   assert.deepEqual(valuesOf(BEFORE_CSS, ".g-before__hero--pays", "background"), ["linear-gradient(90deg, var(--hero-pays) 0 38%, var(--hero-gets) 62% 100%)"]);
   assert.deepEqual(valuesOf(BEFORE_CSS, ".g-before__teams", "grid-template-columns"), ["minmax(0, 1fr) auto minmax(0, 1fr)"]);
+  // The title wraps in balance, «Round 3» whole by its no-break space (G3).
+  assert.deepEqual(valuesOf(BEFORE_CSS, ".g-before-sheet .g-sheet__title", "text-wrap"), ["balance"]);
+  assert.ok(t("matches.before.round", { round: 3 }).includes("\u00a0"));
   assert.deepEqual(valuesOf(BEFORE_CSS, ".g-before__name", "font"), ["700 19px/1.05 var(--font-display)"]);
   assert.deepEqual(inMedia(BEFORE_CSS, "min-width: 901px", ".g-before__name", "font-size"), ["24px"]);
   assert.deepEqual(inMedia(BEFORE_CSS, "min-width: 901px", ".g-before-sheet .g-sheet__title", "font-size"), ["28px"]);

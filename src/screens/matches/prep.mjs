@@ -18,10 +18,12 @@
  *
  * The footer's button keeps its place (`data-key="prep-cta"`): «Confirm the preparation» turns into «Start the match»
  * on the same node once both sides have confirmed, and on an address with no step the page follows the step on, so
- * «Confirm the roster» can turn into «Go on without purchases». A button that turns into another action is armed only
- * `FOOTER_ARM_MS` later: the second click of a double click does nothing. A draw that replaces the footer's button or
- * takes it away (a confirmation that leads on, «Change…», a match begun) gives the focus to the button, or to the title
- * when there is none, never to the page's body.
+ * «Confirm the roster» can turn into «Go on without purchases»; a step link («Next: start») opens a page whose button
+ * stands where the link stood. So the footer's action is armed only `FOOTER_ARM_MS` after it appears — on the first
+ * draw too, and whenever the page moves the focus onto it —: the second click of a double click does nothing, and an
+ * Enter held down (its auto-repeat) presses nothing more. A draw that replaces the footer's button or takes it away (a
+ * confirmation that leads on, «Change…», a match begun) gives the focus to the button, or to the title when there is
+ * none, never to the page's body.
  *
  * The weather is one per match (the owner's M2 answer): a die or the time of year sends the weather as the last read
  * has it with that one change (pre-flight L21), never what the page alone holds — so the opponent's die is not wiped.
@@ -123,25 +125,38 @@ function stopPoll(visit) {
   visit.timer = 0;
 }
 
+/** Arm the footer's action `FOOTER_ARM_MS` from now: a press before then is the rest of an earlier gesture. */
+const armFooter = (visit) => {
+  visit.footerAfter = Date.now() + FOOTER_ARM_MS;
+};
+
+/** The footer's action as `model` draws it: armed when it appears (none before it, or another one). */
+function takeFooter(visit, model) {
+  const action = footerAction(model.footer);
+  if (action && action !== visit.footerAction) armFooter(visit);
+  visit.footerAction = action;
+}
+
 /**
- * Draw the page again over what is there: the focus stays where the coach put it. A footer's button that turns into
- * another action is armed `FOOTER_ARM_MS` later. A focus the page held that the draw left on nothing (the footer's button replaced or
- * gone, or closed under it) goes to the footer's button, else to the title — but for another form of the width, whose
- * title takes it (`drawKeepingFocus`). A match begun stops the poll.
+ * Draw the page again over what is there: the focus stays where the coach put it. A footer's action that appears is
+ * armed `FOOTER_ARM_MS` later (`takeFooter`). A focus the page held that the draw left on nothing (the footer's button
+ * replaced or gone, or a control closed under it — a «−» at zero) goes to the footer's button, which is armed again
+ * then (the re-review's F-2), else to the title — but for another form of the width, whose title takes it
+ * (`drawKeepingFocus`). A match begun stops the poll.
  */
 function draw(visit, { refocus = true } = {}) {
   if (!visit.here || !visit.payload) return;
   const page = view.ownerDocument ?? globalThis.document;
   const held = view.contains(page.activeElement);
   const model = modelOf(visit);
-  const action = footerAction(model.footer);
-  if (action && action !== visit.footerAction) visit.footerAfter = Date.now() + FOOTER_ARM_MS;
-  visit.footerAction = action;
+  takeFooter(visit, model);
   patch(view, markupOf(visit, model));
   if (visit.payload.preparation.status === "in_progress") stopPoll(visit);
   for (const target of [".g-prep__cta", "h1"]) {
     if (!refocus || !held || !focusGone(page.activeElement)) return;
-    view.querySelector(target)?.focus();
+    const next = view.querySelector(target);
+    next?.focus();
+    if (next && page.activeElement === next && target === ".g-prep__cta") armFooter(visit);
   }
 }
 
@@ -309,6 +324,10 @@ function wire(visit) {
     const id = button.getAttribute("data-prep-star");
     if (!closed(button)) write({ type: "basket", id, quantity: basketOf(visit, id) > 0 ? 0 : 1 });
   });
+  // An Enter held down repeats its click: the footer's action takes the first press only (the re-review's F-3).
+  events.on("keydown", "[data-prep-action]", (event) => {
+    if (event.repeat) event.preventDefault();
+  });
   events.on("click", "[data-prep-action]", (event, button) => {
     if (button.hasAttribute("disabled") || closed(button)) return;
     // A footer's button not armed yet: the rest of a double click on what it was a moment ago.
@@ -399,7 +418,8 @@ async function openVisit(visit) {
   visit.payload = payload;
   visit.sideName = payload.viewerSide === "away" ? "away" : "home";
   const model = modelOf(visit);
-  visit.footerAction = footerAction(model.footer);
+  // Armed on the first draw too (the re-review's F-1): a double click on «Next: start» lands on «Start the match».
+  takeFooter(visit, model);
   view.innerHTML = markupOf(visit, model);
   view.querySelector("h1")?.focus();
   visit.release = wire(visit);

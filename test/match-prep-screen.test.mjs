@@ -30,6 +30,13 @@ globalThis.clearInterval = (id) => {
   polls.ticks.delete(id);
 };
 globalThis.location = { hash: "#/games/g1/pre-match", replaced: "", replace(target) { this.replaced = target; } };
+// The page's clock, held by the test: the footer's action is armed 600 ms after it appears.
+let clock = Date.parse("2026-10-21T10:00:00Z");
+Date.now = () => clock;
+/** Time passes, past the arming of what appeared. */
+const later = (ms = 1000) => {
+  clock += ms;
+};
 const { renderPreMatch } = await import("../src/screens/matches/prep.mjs");
 const { gameUrl, preMatchUrl, teamUrl } = await import("../src/core/routes.mjs");
 const { releaseCurrentScreen } = await import("../src/core/screen-lifecycle.mjs");
@@ -103,6 +110,8 @@ async function visit(actions = [], { step = "", phone = true, over = {}, rosters
   const cross = crossingWindow(phone);
   await renderPreMatch("g1", step);
   await flush();
+  // A coach reads the page before pressing: the footer's action of the first draw is armed by then.
+  later();
   return cross;
 }
 
@@ -171,7 +180,7 @@ test("a preparation that cannot be read says why, with the way back", async () =
   await renderPreMatch("g1", "");
   await flush();
   assert.ok(view.querySelector(".g-prep"));
-  assert.ok(view.querySelector('[role="alert"]').textContent.includes(t("error.GAME_NOT_FOUND")));
+  assert.equal(view.querySelector('[role="alert"] .g-callout__title').textContent, t("error.GAME_NOT_FOUND"));
   assert.equal(view.querySelector("a.g-prep__back").getAttribute("href"), gameUrl("g1"));
   assert.equal(document.activeElement, view.querySelector("h1"));
   assert.equal(polls.ticks.size, 0, "no poll for a preparation not read");
@@ -298,7 +307,40 @@ test("the weather's dice and season pressed while a write is on its way add up i
     { type: "weather", season: "Spring", home: null, away: null },
     { type: "weather", season: "Spring", home: 3, away: 5 },
   ]);
+  // A die waiting that the answer already holds is not sent (the weather's `holds`).
+  await visit(FANS, { step: "weather" });
+  const held = api.hold(WRITE);
+  await press(view.querySelector('.g-seg[data-seg-group="prep-season"] [data-seg-value="Spring"]'));
+  await press(face('[data-prep-weather="home"]', 3));
+  held.release({ status: 200, body: payloadAt([...FANS, ["home", { type: "weather", season: "Spring", home: 3, away: null }]]) });
+  await flush();
+  assert.equal(writes().length, 1);
   api.assertAnswered();
+});
+
+test("a counter, a journeyman, a lock, a confirmation or a star pressed while a write is on its way is dropped, not sent later", async () => {
+  const short = { rosters: { ours: SHORT } };
+  const stars = async () => press(view.querySelector('.g-seg[data-seg-group="prep-category"] [data-seg-value="stars"]'));
+  const cases = [
+    ["a counter", TO_INDUCEMENTS, {}, null, '[data-resource-key="bloodweiser-keg"] [data-resource-step="1"]'],
+    ["a journeyman", [...FANS, ...WEATHER], short, null, '[data-prep-hire="0"]'],
+    ["a lock", [...FANS, ...WEATHER], { step: "roster" }, null, '[data-prep-action="lock-roster"]'],
+    ["a confirmation", [...TO_INDUCEMENTS, ["home", { type: "lock-basket" }]], {}, null, '[data-prep-action="confirm"]'],
+    ["a star", TO_INDUCEMENTS, {}, stars, () => view.querySelectorAll("[data-prep-star]").find((each) => each.getAttribute("aria-disabled") !== "true")],
+  ];
+  for (const [label, actions, options, before, selector] of cases) {
+    await visit(actions, options);
+    await before?.();
+    api.reply(WRITE, 409, { error: { code: "MATCH_REVISION", message: "x" } });
+    const gate = api.hold(WRITE);
+    const control = typeof selector === "function" ? selector() : view.querySelector(selector);
+    await press(control);
+    await press(control);
+    gate.release();
+    await flush();
+    assert.equal(writes().length, 1, label);
+  }
+  api.reset();
 });
 
 test("a 409 reads the preparation again and says why; nothing is sent twice", async () => {
@@ -478,37 +520,77 @@ test("the start pressed twice is one request; a start answered in_progress leads
   api.reset();
 });
 
-test("«Confirm the preparation» turned into «Start the match» on its node starts nothing on a second click until it is armed", async () => {
-  const realNow = Date.now;
-  let now = realNow();
-  Date.now = () => now;
-  try {
-    const theyConfirmed = [...TO_INDUCEMENTS, ["home", { type: "lock-basket" }], ["away", { type: "confirm" }]];
-    await visit(theyConfirmed);
-    const button = view.querySelector('[data-prep-action="confirm"]');
-    api.reply(WRITE, 200, payloadAt([...theyConfirmed, ["home", { type: "confirm" }]]));
-    api.reply(START, 200, begun(payloadAt([...theyConfirmed, ["home", { type: "confirm" }]])));
-    await press(button);
-    // The double click's second half lands on the same node, which is «Start the match» now.
-    assert.equal(button.getAttribute("data-prep-action"), "start", "the same node");
-    assert.ok(!button.hasAttribute("disabled"));
-    await press(button);
-    now += 400;
-    await press(button);
-    assert.equal(api.calls.filter((call) => call.key === START).length, 0, "no start within the arming time");
-    now += 300;
-    await press(button);
-    assert.equal(api.calls.filter((call) => call.key === START).length, 1, "a deliberate press after it starts the match");
-    assert.equal(location.hash, teamUrl("t1", "matches"));
-    // A start that was pressable when the page opened is not held back.
-    await visit(READY);
-    api.reply(START, 200, begun(payloadAt(READY)));
-    await press(view.querySelector('[data-prep-action="start"]'));
-    assert.equal(api.calls.filter((call) => call.key === START).length, 1);
-    api.assertAnswered();
-  } finally {
-    Date.now = realNow;
-  }
+const starts = () => api.calls.filter((call) => call.key === START).length;
+
+test("the footer's action is armed when it appears: «Confirm» turned into «Start» on its node starts nothing on a second click", async () => {
+  const theyConfirmed = [...TO_INDUCEMENTS, ["home", { type: "lock-basket" }], ["away", { type: "confirm" }]];
+  await visit(theyConfirmed);
+  const button = view.querySelector('[data-prep-action="confirm"]');
+  api.reply(WRITE, 200, payloadAt([...theyConfirmed, ["home", { type: "confirm" }]]));
+  api.reply(START, 200, begun(payloadAt([...theyConfirmed, ["home", { type: "confirm" }]])));
+  await press(button);
+  // The double click's second half lands on the same node, which is «Start the match» now.
+  assert.equal(button.getAttribute("data-prep-action"), "start", "the same node");
+  assert.ok(!button.hasAttribute("disabled"));
+  await press(button);
+  later(400);
+  await press(button);
+  assert.equal(starts(), 0, "no start within the arming time");
+  later(300);
+  await press(button);
+  assert.equal(starts(), 1, "a deliberate press after it starts the match");
+  assert.equal(location.hash, teamUrl("t1", "matches"));
+  api.assertAnswered();
+});
+
+test("a page opened by «Next: start» arms its «Start the match» on its first draw: a double click on the link starts nothing", async () => {
+  // Ready, and the coach went back to the inducements to look (the re-review's F-1).
+  await visit(READY, { step: "inducements" });
+  const link = view.querySelector("a.g-prep__cta");
+  assert.equal(link.getAttribute("href"), preMatchUrl("g1", "review"));
+  api.reply(START, 200, begun(payloadAt(READY)));
+  // The first click: the router opens the address; the new page's button stands where the link stood.
+  await renderPreMatch("g1", "review");
+  await flush();
+  const button = view.querySelector('.g-prep__cta[data-prep-action="start"]');
+  assert.ok(button && !button.hasAttribute("disabled"), "«Start the match», live");
+  await press(button);
+  assert.equal(starts(), 0, "the double click's second half starts nothing");
+  later(700);
+  await press(button);
+  assert.equal(starts(), 1, "a deliberate press does");
+  api.assertAnswered();
+});
+
+test("a «−» that reaches zero gives the focus to the footer's button, armed: the next press of the key locks nothing", async () => {
+  // The re-review's F-2: «Confirm the purchases» and «Go on without purchases» are one action, so only the focus moved.
+  const chosen = [...TO_INDUCEMENTS, ["home", { type: "basket", id: "bloodweiser-keg", quantity: 1 }]];
+  await visit(chosen);
+  const minus = view.querySelector('[data-resource-key="bloodweiser-keg"] [data-resource-step="-1"]');
+  minus.focus();
+  api.reply(WRITE, 200, payloadAt(TO_INDUCEMENTS));
+  await press(minus);
+  const cta = view.querySelector(".g-prep__cta");
+  assert.ok(document.activeElement === cta, `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  assert.equal(cta.textContent, "Go on without purchases");
+  await press(cta);
+  assert.equal(writes().length, 1, "a stray press locks nothing");
+  later(700);
+  api.reply(WRITE, 200, payloadAt([...TO_INDUCEMENTS, ["home", { type: "lock-basket" }]]));
+  await press(cta);
+  assert.deepEqual(writes().map((call) => call.body.action.type), ["basket", "lock-basket"]);
+  api.assertAnswered();
+});
+
+test("an Enter held down presses the footer's action once: its auto-repeat makes no click", async () => {
+  // The re-review's F-3: a button's Enter repeats its click; the first keydown is the press, the repeats are not.
+  await visit(READY);
+  const button = view.querySelector('.g-prep__cta[data-prep-action="start"]');
+  assert.equal(fireEvent(button, "keydown", { key: "Enter", repeat: false }).defaultPrevented, false);
+  assert.equal(fireEvent(button, "keydown", { key: "Enter", repeat: true }).defaultPrevented, true);
+  const quiet = await visit([...TO_INDUCEMENTS, ["home", { type: "lock-basket" }]], { step: "inducements" }).then(() => view.querySelector(".g-prep__quiet"));
+  assert.equal(fireEvent(quiet, "keydown", { key: "Enter", repeat: true }).defaultPrevented, true, "the quiet one too");
+  api.assertAnswered();
 });
 
 test("after the footer's own action the focus stays on the footer, else the title — never the body", async () => {
@@ -538,6 +620,15 @@ test("after the footer's own action the focus stays on the footer, else the titl
   api.reply(WRITE, 200, payloadAt([...TO_INDUCEMENTS, ["home", { type: "lock-basket" }]]));
   await focused(view.querySelector('[data-prep-action="lock-basket"]'));
   assert.ok(document.activeElement === view.querySelector("a.g-prep__cta"), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  // Both forms of the footer's button carry one key, the quiet button its own: `patch` finds one in the other's place.
+  assert.deepEqual([view.querySelector("a.g-prep__cta").getAttribute("data-key"), view.querySelector(".g-prep__quiet").getAttribute("data-key")], ["prep-cta", "prep-quiet"]);
+  // «Change the purchases»: a write of `reopen`, the quiet button goes and the focus to the footer's button. The domain's
+  // `reopen` unlocks the roster and empties both baskets, so the page stands on the roster again: «Confirm the roster».
+  api.reply(WRITE, 200, payloadAt([...TO_INDUCEMENTS, ["home", { type: "lock-basket" }], ["home", { type: "reopen" }]]));
+  await focused(view.querySelector('.g-prep__quiet[data-prep-action="reopen"]'));
+  assert.deepEqual(writes().at(-1).body.action, { type: "reopen" });
+  assert.ok(document.activeElement === view.querySelector('.g-prep__cta[data-prep-action="lock-roster"]'), `the focus is on ${document.activeElement?.tagName} ${document.activeElement?.textContent}`);
+  assert.equal(document.activeElement.getAttribute("data-key"), "prep-cta");
   // The address with no step follows the step on: the same node, «Confirm the preparation» now, keeps the focus — and a
   // second click right after it confirms nothing.
   await visit(TO_INDUCEMENTS);
@@ -665,17 +756,25 @@ test("the poll stops once the match is begun or the preparation is refused, and 
   // A 500: one tick waited out, then three, then the next read; an answer resets the waits.
   await visit();
   api.reply(READ, 500, { error: { code: "INTERNAL", message: "x" } });
-  const readsAfter = [];
-  for (let round = 0; round < 8; round += 1) {
+  const readAt = [];
+  for (let round = 0; round < 36; round += 1) {
+    const before = reads().length;
     await tick();
-    readsAfter.push(reads().length);
+    if (reads().length > before) readAt.push(round);
   }
-  assert.deepEqual(readsAfter, [2, 2, 3, 3, 3, 3, 4, 4], "reads at 0, 2, 6: the waits double");
+  // The waits double — 1, 3, 7 ticks — and stay at 9 (a minute) from then on.
+  assert.deepEqual(readAt, [0, 2, 6, 14, 24, 34]);
   api.reply(READ, 200, payloadAt());
-  for (let round = 0; round < 7; round += 1) await tick();
+  for (let round = 0; round < 9; round += 1) await tick();
   const answered = reads().length;
   await tick();
   assert.equal(reads().length, answered + 1, "an answer ends the waiting");
+  // A failure after an answer waits one tick again: the count starts over.
+  api.reply(READ, 500, { error: { code: "INTERNAL", message: "x" } });
+  await tick();
+  await tick();
+  await tick();
+  assert.equal(reads().length, answered + 3, "read, one tick waited, read");
   api.assertAnswered();
 });
 
