@@ -10,6 +10,7 @@
  * Moved out by step 4.9 so that route modules can import them without importing
  * the server itself.
  */
+import { countToNumber } from "../../src/domain/roster/values.mjs";
 
 export function normalizeLogin(value = "") {
   return String(value).toLowerCase().replace(/\s+/g, " ").trim();
@@ -139,6 +140,8 @@ export function publicSeason(row) {
     name: row.name,
     status: row.status,
     currentRound: row.current_round,
+    // How many places of the table go on to the playoff (stage 12, 017): the admin's setting, null for no zone.
+    playoffPlaces: row.playoff_places ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -220,6 +223,10 @@ export function publicAdminSavedTeamSlim(row) {
   if (!row) return null;
   return {
     ...publicSavedTeamSlim(row),
+    // Where the team is in its life and what its treasury holds (stage 12): the admin's season names a team in
+    // the draft by what it has spent. The roster itself stays out of the list.
+    stage: row.stage,
+    treasury: countToNumber(row.treasury),
     owner: {
       id: row.user_id,
       login: row.user_login,

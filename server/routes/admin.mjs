@@ -25,6 +25,7 @@ import {
   isAdminUser,
   normalizeLogin,
   publicAdminUser,
+  publicGame,
   publicSavedTeam,
   publicSavedTeamSummary,
   publicUser,
@@ -33,6 +34,7 @@ import {
 import { readTeamBody, writeSavedTeam } from "./teams.mjs";
 import { refuseSiteRolls } from "../api/dice-rolls.mjs";
 import { SAVED_TEAM_COLUMNS, hasSeasonHistory, hasFriendlyGames, readPublicTeam, userHasFriendlyGames } from "../api/team-queries.mjs";
+import { loadAwaitingGameRows } from "../season/store.mjs";
 import { UUID_SOURCE } from "../api/team-access.mjs";
 import { LOGIN_MIN_LENGTH, PASSWORD_MIN_LENGTH } from "../../src/domain/account.mjs";
 
@@ -59,6 +61,8 @@ function sendError(response, status, code, params) {
  * @returns {Promise<boolean>} true when this module answered the request
  */
 export async function handleAdminRoutes(request, response, url) {
+  if (await handleAdminAwaitingRoute(request, response, url)) return true;
+
   if (url.pathname === "/api/admin/users" && request.method === "GET") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
@@ -76,6 +80,19 @@ export async function handleAdminRoutes(request, response, url) {
   }
 
   return handleAdminUserRoutes(request, response, url);
+}
+
+/**
+ * `GET /api/admin/awaiting` (stage 12): every score awaiting confirmation — the season's league games of any
+ * round and the friendlies — for the admin to confirm, reject or put right.
+ */
+async function handleAdminAwaitingRoute(request, response, url) {
+  if (url.pathname !== "/api/admin/awaiting" || request.method !== "GET") return false;
+  const user = await currentUser(request);
+  if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+  if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
+  const rows = await loadAwaitingGameRows();
+  return send(response, 200, { games: rows.map((row) => publicGame(row, user.id)) });
 }
 
 /**

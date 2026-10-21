@@ -32,6 +32,21 @@ function sendError(response, status, code, params) {
   return send(response, status, errorPayload(code, params));
 }
 
+// How many places of the table go on to the playoff: what 017's CHECK on seasons.playoff_places allows.
+const PLAYOFF_PLACES = Object.freeze({ min: 1, max: 64 });
+
+/**
+ * The season's playoff places as an admin sends them: a whole number in PLAYOFF_PLACES, or null for no zone.
+ *
+ * @throws 400 FIELD_INVALID `{field: "playoffPlaces"}` for anything else — a missing field, a string, a fraction
+ */
+function playoffPlacesOf(body) {
+  const places = body.playoffPlaces;
+  if (places === null) return null;
+  if (Number.isInteger(places) && places >= PLAYOFF_PLACES.min && places <= PLAYOFF_PLACES.max) return places;
+  throw httpError(400, "FIELD_INVALID", { field: "playoffPlaces" });
+}
+
 /**
  * @returns {Promise<boolean>} true when this module answered the request
  */
@@ -157,6 +172,17 @@ async function handleSeasonCoachRoute(request, response, url) {
  * split falls where the subject changes rather than where the line count did.
  */
 async function handleSeasonRoundRoutes(request, response, url) {
+  // The season's own settings (stage 12): its playoff places, which the league table draws its zone by.
+  if (url.pathname === "/api/season/admin/settings" && request.method === "PATCH") {
+    const user = await currentUser(request);
+    if (!user) return sendError(response, 401, "NOT_AUTHORIZED");
+    if (!user.is_admin) return sendError(response, 403, "ADMIN_REQUIRED");
+    const playoffPlaces = playoffPlacesOf(await readJson(request)); // before the season is looked up, or made
+    const season = await ensureActiveSeason();
+    await pool.query(`UPDATE seasons SET playoff_places = $2, updated_at = now() WHERE id = $1`, [season.id, playoffPlaces]);
+    return send(response, 200, await loadSeasonBundle(user));
+  }
+
   if (url.pathname === "/api/season/admin/rounds/generate" && request.method === "POST") {
     const user = await currentUser(request);
     if (!user) return sendError(response, 401, "NOT_AUTHORIZED");

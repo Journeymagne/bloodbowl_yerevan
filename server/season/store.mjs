@@ -74,14 +74,38 @@ export async function loadSeasonRoundRows(seasonId) {
   return result.rows;
 }
 
+// Where a pairing's post-match stands, as one column of a query over `table`: `not_started` when it has none.
+const postMatchStatus = (table) => `COALESCE((SELECT state->>'status' FROM match_post_games
+       WHERE pairing_id = ${table}.id), 'not_started') AS post_match_status`;
+
+// The post-match's status too (stage 12): the admin's result sheet sends a pairing with an open
+// post-match to it instead of offering a result the server refuses (POST_RESULT_LOCKED).
 export async function loadSeasonPairingRows(seasonId) {
   const result = await pool.query(
-    `SELECT season_pairings.*, season_rounds.round_number, season_rounds.status AS round_status
+    `SELECT season_pairings.*, season_rounds.round_number, season_rounds.status AS round_status,
+       ${postMatchStatus("season_pairings")}
      FROM season_pairings
      JOIN season_rounds ON season_rounds.id = season_pairings.round_id
      WHERE season_rounds.season_id = $1
      ORDER BY season_rounds.round_number ASC, season_pairings.table_number ASC`,
     [seasonId],
+  );
+  return result.rows;
+}
+
+/**
+ * Every score a coach proposed and the other side has not answered, for the admin (stage 12): the active
+ * season's league games of any round — a closed round's too, which the 2.x list of current games left out —
+ * and the friendlies. Another season's games are not in it. The earliest proposal first.
+ *
+ * @returns {Promise<object[]>} rows of match_pairing_context, with `post_match_status`
+ */
+export async function loadAwaitingGameRows() {
+  const result = await pool.query(
+    `SELECT match_pairing_context.*, ${postMatchStatus("match_pairing_context")}
+     FROM match_pairing_context
+     WHERE result_status = 'awaiting_confirmation' AND (match_kind = 'friendly' OR season_status = 'active')
+     ORDER BY proposed_at ASC NULLS LAST, created_at ASC, table_number ASC`,
   );
   return result.rows;
 }
@@ -103,8 +127,7 @@ export async function loadUserGameRows(userId, pairingId = null, includeAll = fa
     params = [];
   }
   const result = await pool.query(
-    `SELECT match_pairing_context.*, COALESCE((SELECT state->>'status' FROM match_post_games
-       WHERE pairing_id=match_pairing_context.id),'not_started') AS post_match_status FROM match_pairing_context
+    `SELECT match_pairing_context.*, ${postMatchStatus("match_pairing_context")} FROM match_pairing_context
      WHERE ${pairingFilter}
      ORDER BY COALESCE(season_created_at,created_at) DESC, round_number DESC NULLS LAST, table_number ASC`,
     params,
@@ -211,31 +234,39 @@ export async function loadSeasonBundle(user = null) {
     myTeams: myTeamsResult.rows.map(publicSavedTeamSlim),
   };
 
-  if (user?.is_admin) {
-    const [usersResult, teamsResult] = await Promise.all([
-      pool.query(`SELECT * FROM users ORDER BY login_key ASC`),
-      pool.query(
-        `SELECT saved_teams.id,
-                saved_teams.user_id,
-                saved_teams.name,
-                saved_teams.base_team_slug,
-                saved_teams.created_at,
-                saved_teams.updated_at,
-                users.login AS user_login,
-                users.telegram AS user_telegram,
-                users.is_admin AS user_is_admin
-         FROM saved_teams
-         JOIN users ON users.id = saved_teams.user_id
-         ORDER BY users.login_key ASC, saved_teams.updated_at DESC`,
-      ),
-    ]);
-    payload.admin = {
-      users: usersResult.rows.map(publicUser),
-      savedTeams: teamsResult.rows.map(publicAdminSavedTeamSlim),
-    };
-  }
+  if (user?.is_admin) payload.admin = await loadAdminSeasonBlock();
 
   return payload;
+}
+
+/**
+ * The admin's half of the season: every account, and every team with its owner, its stage and its treasury
+ * (stage 12: a team in the draft is named by what it has spent). The roster itself stays on the server.
+ */
+async function loadAdminSeasonBlock() {
+  const [usersResult, teamsResult] = await Promise.all([
+    pool.query(`SELECT * FROM users ORDER BY login_key ASC`),
+    pool.query(
+      `SELECT saved_teams.id,
+              saved_teams.user_id,
+              saved_teams.name,
+              saved_teams.base_team_slug,
+              saved_teams.stage,
+              saved_teams.roster -> 'treasury' AS treasury,
+              saved_teams.created_at,
+              saved_teams.updated_at,
+              users.login AS user_login,
+              users.telegram AS user_telegram,
+              users.is_admin AS user_is_admin
+       FROM saved_teams
+       JOIN users ON users.id = saved_teams.user_id
+       ORDER BY users.login_key ASC, saved_teams.updated_at DESC`,
+    ),
+  ]);
+  return {
+    users: usersResult.rows.map(publicUser),
+    savedTeams: teamsResult.rows.map(publicAdminSavedTeamSlim),
+  };
 }
 
 export async function commitSavedTeamToSeason(seasonId, savedTeamId, ownerId = "") {
