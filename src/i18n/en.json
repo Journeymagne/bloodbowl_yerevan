@@ -285,7 +285,6 @@
   "games.noNextGame": "No upcoming game.",
   "games.openGameAction": "Open Game",
   "games.rejectAction": "Reject",
-  "games.requestConfirmationAction": "Request Confirmation",
   "games.roundClosed": "This round is closed. Players can no longer change this game result.",
   "games.status.awaiting_confirmation": "Awaiting confirmation",
   "games.status.confirmed": "Confirmed",

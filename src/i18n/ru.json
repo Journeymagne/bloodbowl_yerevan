@@ -285,7 +285,6 @@
   "games.noNextGame": "Следующей игры пока нет.",
   "games.openGameAction": "Открыть игру",
   "games.rejectAction": "Отклонить",
-  "games.requestConfirmationAction": "Запросить подтверждение",
   "games.roundClosed": "Этот раунд закрыт. Игроки больше не могут менять результат этой игры.",
   "games.status.awaiting_confirmation": "Ожидает подтверждения",
   "games.status.confirmed": "Подтверждён",
