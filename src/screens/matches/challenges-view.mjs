@@ -60,18 +60,24 @@ function whoMarkup(row, chip = "") {
     + `<span class="g-friendly__id"><b class="g-friendly__login">${escapeHtml(row.login)}</b><span class="g-friendly__line">${escapeHtml(row.line)}</span></span>${chip}</div>`;
 }
 
+/**
+ * A waiting challenge's card is known by its id: the card a decline or a cancel took away goes with its button, and the
+ * card under it keeps its own (a card matched by place would take the focus on to that challenge's button).
+ */
+const cardKey = (row) => `data-key="${escapeHtml(row.id)}"`;
+
 /** One challenge sent to the coach: who and with which team, «Accept…» and «Decline». */
 function incomingMarkup(row, { phone }) {
   const accept = renderButton({ label: t("friendly.accept"), kind: "primary", dialog: true, data: { friendlyAccept: row.id } });
   const decline = renderButton({ label: t("friendly.decline"), data: { friendlyAnswer: "decline", friendlyId: row.id } });
-  return `<div class="${phone ? "g-friendly__card " : ""}g-friendly__item">${whoMarkup(row)}<div class="g-friendly__actions g-friendly__actions--pair">${accept}${decline}</div></div>`;
+  return `<div class="${phone ? "g-friendly__card " : ""}g-friendly__item" ${cardKey(row)}>${whoMarkup(row)}<div class="g-friendly__actions g-friendly__actions--pair">${accept}${decline}</div></div>`;
 }
 
 /** One challenge the coach sent: whom, «Waiting» on a phone, and the way to take it back. */
 function outgoingMarkup(row, { phone }) {
   const chip = phone ? renderStatusChip({ label: t("friendly.waitChip"), tone: "wait" }) : "";
   const cancel = renderButton({ label: phone ? t("friendly.cancel") : t("friendly.cancelDesk"), data: { friendlyAnswer: "cancel", friendlyId: row.id } });
-  return `<div class="${phone ? "g-friendly__card " : ""}g-friendly__item">${whoMarkup(row, chip)}<div class="g-friendly__actions">${cancel}</div></div>`;
+  return `<div class="${phone ? "g-friendly__card " : ""}g-friendly__item" ${cardKey(row)}>${whoMarkup(row, chip)}<div class="g-friendly__actions">${cancel}</div></div>`;
 }
 
 /** One way a match offers, by how loud it is: the accent's button, an outline one, or a plain link. */

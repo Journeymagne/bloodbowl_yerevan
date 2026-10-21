@@ -488,6 +488,121 @@ test("decline and cancel: one request each; the card goes and the focus is on th
   }
 });
 
+/** Two challenges each way: narek's c5 came before orc_boss's c1, the coach's c6 to rival before his c2 to lilit. */
+const TWO_EACH_WAY = [...CHALLENGES, challenge("c5", NAREK, ME, NAREK.teams[0], { createdAt: ago(2) }), challenge("c6", ME, RIVAL, T1, { createdAt: ago(2) })];
+
+test("decline and cancel with another card under the one pressed: the focus goes to the title, never to that card's button", async () => {
+  try {
+    for (const phone of [true, false]) {
+      const form = phone ? "phone" : "desk";
+      await visit({ phone, challenges: TWO_EACH_WAY });
+      api.reply("POST /api/challenges/c1/decline", 200, {});
+      const declined = changed({ c1: { status: "declined", updatedAt: ago(0) } }, TWO_EACH_WAY);
+      list(declined);
+      const decline = view.querySelector('[data-friendly-answer="decline"]');
+      assert.equal(decline.getAttribute("data-friendly-id"), "c1", "the newest first");
+      decline.focus();
+      fireEvent(decline, "click");
+      await settle();
+      await settle();
+      assert.ok(view.querySelector('[data-friendly-accept="c1"]') === null);
+      assert.ok(view.querySelector('[data-friendly-answer="decline"][data-friendly-id="c5"]'), "narek's card stays");
+      assert.ok(document.activeElement === title(), `${form}: the title, not narek's «Decline»`);
+      api.reply("POST /api/challenges/c2/cancel", 200, {});
+      list(changed({ c2: { status: "cancelled", updatedAt: ago(0) } }, declined));
+      const cancel = view.querySelector('[data-friendly-answer="cancel"]');
+      assert.equal(cancel.getAttribute("data-friendly-id"), "c2");
+      cancel.focus();
+      fireEvent(cancel, "click");
+      await settle();
+      await settle();
+      assert.ok(view.querySelector('[data-friendly-answer="cancel"][data-friendly-id="c6"]'), "the challenge to rival stays");
+      assert.ok(document.activeElement === title(), `${form}: the title, not the «Cancel» of the challenge to rival`);
+      assert.deepEqual(api.calls.filter(({ key }) => key.startsWith("POST")).map(({ key }) => key),
+        ["POST /api/challenges/c1/decline", "POST /api/challenges/c2/cancel"]);
+    }
+    api.assertAnswered();
+  } finally {
+    leave();
+  }
+});
+
+test("while a decline or a challenge is on its way, «Accept…» and «Challenge» open nothing; once it is done, they open again", async () => {
+  try {
+    await visit({ challenges: TWO_EACH_WAY });
+    await silence();
+    const declining = api.hold("POST /api/challenges/c1/decline");
+    api.reply("POST /api/challenges/c1/decline", 200, {});
+    // narek cancels c5 meanwhile: the list read after the decline has neither waiting.
+    list(changed({ c1: { status: "declined", updatedAt: ago(0) }, c5: { status: "cancelled", updatedAt: ago(0) } }, TWO_EACH_WAY));
+    click('[data-friendly-answer="decline"]');
+    click('[data-friendly-accept="c5"]');
+    click('[data-friendly-accept="c1"]');
+    click("[data-friendly-send]");
+    await settle();
+    assert.ok(view.querySelector("dialog[open]") === null, "no sheet opens while the decline is on its way");
+    declining.release();
+    await settle();
+    await settle();
+    assert.ok(view.querySelector('[data-friendly-accept="c5"]') === null);
+    assert.equal(alerts(), "");
+    await afterAnnouncements();
+    assert.equal(spoken(), "Challenge declined");
+    click("[data-friendly-send]");
+    assert.ok(sendSheet()?.isModal, "«Challenge» opens its sheet again");
+    // The challenge sheet closed while its challenge is on its way: the page opens nothing until it is done.
+    await visit({ challenges: TWO_EACH_WAY });
+    click("[data-friendly-send]");
+    fireEvent(row("u3"), "click");
+    const sending = api.hold("POST /api/challenges");
+    api.reply("POST /api/challenges", 201, { id: "c9" });
+    list([...changed({ c5: { status: "cancelled", updatedAt: ago(0) } }, TWO_EACH_WAY), challenge("c9", ME, NAREK, T1, { createdAt: ago(0) })]);
+    click("[data-friendly-challenge]");
+    fireEvent(sendSheet(), "keydown", { key: "Escape" });
+    assert.ok(sendSheet() === null);
+    click('[data-friendly-accept="c5"]');
+    click("[data-friendly-send]");
+    await settle();
+    assert.ok(view.querySelector("dialog[open]") === null, "no sheet opens while the challenge is on its way");
+    sending.release();
+    await settle();
+    await settle();
+    assert.equal(sent("POST /api/challenges").length, 1);
+    assert.ok(view.querySelector('[data-friendly-accept="c5"]') === null);
+    assert.equal(alerts(), "");
+    click('[data-friendly-accept="c1"]');
+    await settle();
+    assert.ok(acceptSheet()?.isModal, "«Accept…» opens its sheet again");
+    api.assertAnswered();
+  } finally {
+    leave();
+  }
+});
+
+test("a read after a write that drops the open accept sheet's challenge closes the sheet with why; the page still opens sheets", async () => {
+  try {
+    await visit({ challenges: TWO_EACH_WAY });
+    click('[data-friendly-accept="c1"]');
+    await settle();
+    assert.ok(acceptSheet()?.isModal);
+    // A browser keeps the page under the open sheet out of reach; the decline pressed there stands for any write whose
+    // list is read while the sheet is open. orc_boss cancels c1 meanwhile.
+    api.reply("POST /api/challenges/c5/decline", 200, {});
+    list(changed({ c5: { status: "declined", updatedAt: ago(0) }, c1: { status: "cancelled", updatedAt: ago(0) } }, TWO_EACH_WAY));
+    click('[data-friendly-answer="decline"][data-friendly-id="c5"]');
+    await settle();
+    await settle();
+    assert.ok(acceptSheet() === null, "the sheet closes");
+    assert.ok(alerts().includes(t("error.CHALLENGE_CLOSED")), "the page says why");
+    assert.ok(document.activeElement === title(), "its button is gone: the title");
+    click("[data-friendly-send]");
+    assert.ok(sendSheet()?.isModal, "«Challenge» opens its sheet");
+    api.assertAnswered();
+  } finally {
+    leave();
+  }
+});
+
 test("a refused decline is said on the page; a lost one is read again and never sent twice", async () => {
   try {
     await visit();

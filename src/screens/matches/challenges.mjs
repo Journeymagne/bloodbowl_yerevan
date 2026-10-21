@@ -12,7 +12,8 @@
  * seconds): an opponent's answer is seen on the next visit or the next look at the tab. A read waits for the one on its
  * way, so the later answer is always the newer list.
  *
- * The writes — one on its way at a time; a press while one is (and while the list is read after it) sends nothing:
+ * The writes — one on its way at a time; a press while one is (and while the list is read after it) sends nothing and
+ * opens no sheet: what the page offers is what the write's answer and the list read after it say:
  * - «Challenge <login>» (`POST /api/challenges {opponentId, teamId}`): sent — the list read, the sheet closed, the
  *   coach told «Challenge sent: …», the focus on «Challenge». Refused — the server's words in the sheet, the list read,
  *   the sheet open (`CHALLENGE_ALREADY_SENT` from another device makes the coach busy). Lost (no answer came) — the list
@@ -35,7 +36,8 @@
  *
  * The accept sheet reads the challenger's team (`readCoachTeam`: its value, his Telegram) when it opens, once for a
  * challenge; a read that failed is tried again when the sheet opens again. A challenge that stops waiting while its
- * sheet is open (a read after it was cancelled) closes the sheet, the page saying why.
+ * sheet is open (any read — the tab seen again, «Refresh», the one after a write — after it was cancelled) closes the
+ * sheet, the page saying why: no draw leaves the sheet open with nothing drawn.
  *
  * A closed sheet gives the focus back to the button that opened it, or to the title once that is gone. Leaving closes
  * the sheet and stops listening; an answer that comes after draws nothing and leads nowhere.
@@ -123,10 +125,18 @@ function markupOf(visit) {
   return accept ? page + acceptSheetMarkup(accept, { refusal: visit.refusal, busy: visit.writing === "accept" }) : page;
 }
 
-/** Draw the visit over what is there: the sheet open stays open (and modal), the focus where the coach put it. */
+/**
+ * Draw the visit over what is there: the sheet open stays open (and modal), the focus where the coach put it. An accept
+ * sheet whose challenge a read took away is not kept open with nothing drawn (every press would wait for it to close):
+ * it closes, the page saying why.
+ */
 function draw(visit) {
-  if (visit.here) patchWithModal(view, markupOf(visit), visit.sheet ? `#${visit.sheet}` : "");
+  if (!visit.here || closeIfGone(visit)) return;
+  patchWithModal(view, markupOf(visit), visit.sheet ? `#${visit.sheet}` : "");
 }
+
+/** Whether a sheet may open: none is, and no write is on its way (its answer and the list read after it come first). */
+const mayOpen = (visit) => !visit.sheet && !visit.writing;
 
 /** Where the focus goes when the width's other form has no node it was on (pre-flight L5): never under the sheet. */
 function focusTarget(visit) {
@@ -198,7 +208,7 @@ function openSend(visit, chosenId = "") {
 /** The accept sheet of challenge `id` opens with the page's team; the challenger's team is read, unless it already was. */
 async function openAccept(visit, id) {
   const challenge = incomingOf(visit, id);
-  if (!challenge || visit.sheet) return;
+  if (!challenge || !mayOpen(visit)) return;
   Object.assign(visit, { sheet: ACCEPT_SHEET, acceptId: id, ownChoice: visit.teamId, refusal: "", notice: "" });
   draw(visit);
   // Read, or on its way (null): not read again. A read that failed is.
@@ -217,8 +227,7 @@ async function refresh(visit) {
   await Promise.allSettled([readList(visit), loadGames(true)]);
   if (!visit.here) return;
   visit.held = false;
-  if (closeIfGone(visit)) return;
-  if (visit.presetPending && !visit.sheet && visit.payload && !visit.readError) openSend(visit, visit.preset);
+  if (visit.presetPending && mayOpen(visit) && visit.payload && !visit.readError) openSend(visit, visit.preset);
   else draw(visit);
 }
 
@@ -280,7 +289,7 @@ async function accept(visit) {
     return visit.sheet === ACCEPT_SHEET ? closeSheet(visit) : draw(visit);
   }
   say(visit, ACCEPT_SHEET, answer.lost ? t("friendly.lost") : answer.error);
-  if (!closeIfGone(visit)) draw(visit);
+  draw(visit);
 }
 
 /** «Decline» or «Cancel the challenge»: one request, the list read after it; the card gone, or why not said. */
@@ -359,7 +368,7 @@ function wire(visit) {
     redraw();
   });
   events.on("click", "[data-friendly-send]", (event, button) => {
-    if (!button.hasAttribute("disabled") && !visit.sheet) openSend(visit);
+    if (!button.hasAttribute("disabled") && mayOpen(visit)) openSend(visit);
   });
   events.on("click", "[data-friendly-accept]", (event, button) => void openAccept(visit, button.getAttribute("data-friendly-accept")));
   events.on("click", "[data-friendly-answer]", (event, button) => void respond(visit, button.getAttribute("data-friendly-answer"), button.getAttribute("data-friendly-id")));
