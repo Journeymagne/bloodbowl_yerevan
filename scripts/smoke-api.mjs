@@ -31,6 +31,7 @@ const baseUrl = (process.env.APP_URL || "http://localhost:3002").replace(/\/$/, 
 
 let failures = 0;
 let token = "";
+let userId = "";
 
 function ok(message) {
   console.log(`  ok   ${message}`);
@@ -122,6 +123,7 @@ await step("POST /api/auth/register", async () => {
 await step("GET /api/auth/me", async () => {
   const payload = await api("/api/auth/me");
   if (payload.user?.login !== login) throw new Error(`unexpected user: ${JSON.stringify(payload.user)}`);
+  userId = payload.user.id;
 });
 
 await step("POST /api/teams", async () => {
@@ -274,6 +276,10 @@ await step("a random skill is two dice, both skills the player lacks and differe
   const advanced = (await api(teamPath(), { method: "PATCH", body: saveBody(scored, advancing) })).team;
   const used = await listed(roll.id);
   need(used && used.usedAt !== null, "the advancement that takes the second die did not use the roll", used);
+  // The public team shows the used roll as any coach who can open the roster sees it: its dice' skills alone.
+  const shown = (await api(`/api/players/${userId}/teams/${teamId}`)).rolls?.find((item) => item.id === roll.id);
+  need(shown && sameValues(shown.result, { dice: dice.map(({ skill }) => ({ skill })) }) && !("usedAt" in shown) && !("params" in shown),
+    "the public team does not show the used roll's skills alone", shown);
   const freed = (await undoTaking(advanced, otherId, roll))?.find((item) => item.id === roll.id);
   need(freed && freed.usedAt === null, "the undone advancement did not give the roll back", freed);
   const again = await ask();
