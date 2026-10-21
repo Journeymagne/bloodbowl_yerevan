@@ -26,9 +26,9 @@
  * into .codex_tmp/mock-saves.json, and answers just enough of the API for the shell
  * (sign-in, settings, the SideNav's match card, the header's place), the teams
  * list, a team's overview, a new team, the saved roster, my-games (with its
- * challenges), game, administration (including editing a user's team) and
- * player-profile screens. Not a substitute for `npm run smoke`, which exercises
- * the real server.
+ * challenges), game and player-profile screens; the administration's are
+ * scripts/mock/admin.mjs's (MOCK_ADMIN=1). Not a substitute for `npm run smoke`,
+ * which exercises the real server.
  *
  * What it answers, where it is not obvious (the real server is the reference):
  *   GET   /api/auth/me           the coach as `accountUser` (server/routes/account.mjs)
@@ -100,6 +100,7 @@ import { fileURLToPath } from "node:url";
 
 import { errorPayload } from "../server/http/errors.mjs";
 import { resolveStaticPath } from "../server/http/static-path.mjs";
+import { answerAdmin } from "./mock/admin.mjs";
 import { answerMatches } from "./mock/matches.mjs";
 import { answerPost } from "./mock/post.mjs";
 import { answerSeason } from "./mock/season.mjs";
@@ -500,13 +501,8 @@ function teamOrRefusal(id, answer) {
   return found ? reply(answer(found)) : refuse(404, "TEAM_NOT_FOUND");
 }
 
-/** The administrator's lists, and a player's page. */
+/** The coach's own page as a player's page has it, and one of his teams. */
 function answerPeople(request, pathname) {
-  if (pathname === "/api/admin/users") return reply({ users: [user, rival] });
-  if (pathname.startsWith("/api/admin/users/")) return reply({ user, teams });
-  // An administrator opening somebody else's team: the owner beside the team (server/routes/admin.mjs).
-  const adminTeam = pathname.match(/^\/api\/admin\/teams\/([^/]+)$/);
-  if (adminTeam && request.method === "GET") return teamOrRefusal(adminTeam[1], (found) => ({ owner: user, team: found }));
   const playerTeam = pathname.match(/^\/api\/players\/[^/]+\/teams\/([^/]+)$/);
   if (playerTeam) return teamOrRefusal(playerTeam[1], (found) => ({ user, team: found }));
   if (pathname.startsWith("/api/players/")) return reply({ user, teams });
@@ -514,7 +510,8 @@ function answerPeople(request, pathname) {
 }
 
 async function answerApi(request, pathname) {
-  for (const answer of [answerAuth, answerRoster, answerTreasury, answerTeams, answerPost, answerMatches, answerSeason, answerLeague, answerPeople]) {
+  // The administration first: the roster's mock would call another coach's team, which an admin opens, not found.
+  for (const answer of [answerAuth, answerAdmin, answerRoster, answerTreasury, answerTeams, answerPost, answerMatches, answerSeason, answerLeague, answerPeople]) {
     const answered = await answer(request, pathname, mock);
     if (answered) return answered;
   }
