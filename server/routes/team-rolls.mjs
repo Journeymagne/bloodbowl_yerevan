@@ -25,6 +25,7 @@ import { PLAYER_ID_SOURCE, UUID_SOURCE, teamForUser } from "../api/team-access.m
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 import { httpError, readJson, sendJson } from "../http/responses.mjs";
 
 const ROLLS = new RegExp(`^/api/teams/(${UUID_SOURCE})/players/(${PLAYER_ID_SOURCE})/rolls$`, "i");
@@ -44,7 +45,8 @@ function checkRoll(body) {
 
 /**
  * `POST /api/teams/:id/players/:pid/rolls` `{ purpose, category? }` — the owner asks for the roll of a step: 200 `{ roll }`,
- * new or waiting; 409 DICE_ROLL_WAITING while the player's earliest waiting roll is of the other purpose.
+ * new or waiting; 409 DICE_ROLL_WAITING while the player's earliest waiting roll is of the other purpose; 422 TEAM_IN_MATCH
+ * while the team plays a match (stage 09a), asked under the team's lock.
  */
 async function rollForOwner(request, response, teamId, playerId) {
   const user = await currentUser(request);
@@ -55,6 +57,7 @@ async function rollForOwner(request, response, teamId, playerId) {
   const { purpose, category } = checkRoll(await readJson(request)); // a bad body costs no transaction
   const row = await withTransaction(async (client) => {
     const team = await teamForUser(client, teamId, user, { lock: true });
+    await refuseWhilePlaying(client, team.id);
     return rollForPlayer(client, { teamRow: team, playerId, purpose, category, userId: user.id });
   });
   sendJson(response, 200, { roll: publicRoll(row) });

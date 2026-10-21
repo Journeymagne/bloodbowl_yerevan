@@ -34,6 +34,7 @@ function database({ stage = "active", stored = {}, revision = 4, slug = "teams/h
     if (text.startsWith("UPDATE saved_teams")) return { rows: [{ ...row, roster: JSON.parse(values[4]), revision: revision + 1 }] };
     if (text.startsWith("INSERT INTO saved_teams")) return { rows: [{ id: row.id }] }; // a create answers with the team read back
     if (text.includes("in_active_season")) return { rows: [{ ...row, in_active_season: false }] };
+    if (text.endsWith("AS live")) return { rows: [{ live: false }] }; // whether the team plays a match (stage 09a): it does not
     return { rows: [] };
   };
   return { log, query, connect: async () => ({ query, release() { log.push({ sql: "release" }); } }) };

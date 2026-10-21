@@ -20,6 +20,7 @@ import { removeFallenPlayer, returnFallenPlayer } from "../../src/domain/roster/
 import { publicFallen } from "../api/serializers.mjs";
 import { PLAYER_ID_SOURCE, UUID_SOURCE, teamConflict, teamForUser } from "../api/team-access.mjs";
 import { readPublicTeam } from "../api/team-queries.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
@@ -76,11 +77,13 @@ async function sendFallen(request, response, teamId) {
  * The transaction of a death. The team is locked first; then, in this order, the revision the client
  * saw, the player — one only: an id two players of a 2.x blob share is refused (`refuseSharedPlayerId`) —
  * the roster without him and the row that keeps him, and the answer read back. A refusal at any point
- * throws, and the whole transaction goes back.
+ * throws, and the whole transaction goes back. While the team plays a match, a coach's write is refused (TEAM_IN_MATCH,
+ * stage 09a) — after the revision, so a stale tab still hears it was saved elsewhere.
  */
 async function writeDeath(client, teamId, user, playerId, cause, revision) {
   const team = await teamForUser(client, teamId, user, { lock: true });
   if (revision !== team.revision) throw await teamConflict(client, team); // no revision at all is a revision that cannot match
+  await refuseWhilePlaying(client, team.id);
   refuseSharedPlayerId(team.roster, playerId);
   const removed = removeFallenPlayer(team.roster, playerId);
   if (!removed) throw httpError(404, "PLAYER_NOT_FOUND");
@@ -107,7 +110,8 @@ async function markDeath(request, response, teamId, playerId) {
 }
 
 /**
- * The transaction of an undo. The team is locked first; then, in this order, the death (of this team
+ * The transaction of an undo. The team is locked first; then, in this order, for a coach the team's match (TEAM_IN_MATCH
+ * while it plays one, stage 09a; an administrator's undo is the repair path and is not refused), the death (of this team
  * and no other), who may undo it, the rules the roster has to keep with him back, that the roster can
  * read him as he was kept, the roster with him, and the death forgotten. Refused at any point, nothing
  * is written.
@@ -118,6 +122,7 @@ async function markDeath(request, response, teamId, playerId) {
  */
 async function returnPlayer(client, teamId, fallenId, user) {
   const team = await teamForUser(client, teamId, user, { lock: true, admin: true });
+  if (!user.is_admin) await refuseWhilePlaying(client, team.id);
   const { rows } = await client.query("SELECT * FROM team_fallen_players WHERE id = $1 AND saved_team_id = $2", [fallenId, team.id]);
   const dead = rows[0];
   if (!dead) throw httpError(404, "FALLEN_NOT_FOUND");

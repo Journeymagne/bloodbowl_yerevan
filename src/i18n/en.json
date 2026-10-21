@@ -468,6 +468,7 @@
   "error.SERVER_ERROR": "Server error.",
   "error.STAGE_PURCHASE_LOCKED": "Starting rerolls can only be bought while the team is being assembled, and Team Rerolls only once it plays in the season.",
   "error.TEAM_IN_SEASON_CANNOT_BE_DELETED": "This team has played in a season, so its results belong to other coaches too. It cannot be deleted.",
+  "error.TEAM_IN_MATCH": "This team is playing a match: changes to the team wait until after the post-match.",
   "error.TEAM_SAVED_ELSEWHERE": "This team was saved somewhere else after you opened it.",
   "error.TEAM_NAME_REQUIRED": "Team name is required.",
   "error.TEAM_NOT_FOUND": "Team not found.",

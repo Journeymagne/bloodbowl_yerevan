@@ -152,6 +152,7 @@ test("a ledger write that fails after the treasury moved takes the treasury back
     if (text.includes("FROM saved_teams")) return { rows: [team] }; // the first look at the team, the locked one, and the one the answer is made from
     if (text.startsWith("UPDATE saved_teams")) return { rows: [team] };
     if (text.startsWith("INSERT INTO team_ledger")) throw new Error("disk full");
+    if (text.endsWith("AS live")) return { rows: [{ live: false }] }; // whether the team plays a match (stage 09a): it does not
     return { rows: [] };
   };
   Object.assign(pool, { query, connect: async () => ({ query, release: () => log.push("release") }) });

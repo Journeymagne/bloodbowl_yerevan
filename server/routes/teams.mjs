@@ -20,6 +20,7 @@ import { writeLedgerEntries } from "../api/team-ledger.mjs";
 import { refuseSiteRolls, settleRosterRolls } from "../api/dice-rolls.mjs";
 import { UUID_SOURCE } from "../api/team-access.mjs";
 import { writeMatchEvents } from "../season/match-events-store.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 import { sppEdits } from "../../src/domain/post-match/events.mjs";
 import { handleTeamResourceRoutes } from "./team-resources.mjs";
 
@@ -147,14 +148,16 @@ export async function handleTeamRoutes(request, response, url) {
  * MAX_SPP_EDIT_STEPS steps is refused before anything is written, the rolls
  * included. The team the save answers with, like the one a conflict shows, is
  * read in the transaction (`readPublicTeam`), after the writes: GET's shape,
- * `inActiveSeason` included.
+ * `inActiveSeason` included. While the team plays a match, a coach's write is refused (TEAM_IN_MATCH, stage 09a)
+ * — after the revision, so a stale tab still hears it was saved elsewhere; the admin's is not (the repair path).
  *
  * @param {string|null} ownerId restricts the write to one owner; null for admin
  * @param {{id?: string, admin?: boolean}} [actor] who is writing
  * @returns {Promise<{team: object}|{conflict: object}|null>} null when no such team
  * @throws {Error} a 422 STAGE_PURCHASE_LOCKED when a coach buys what the stage forbids;
  *   a 422 ROSTER_BREAKS_THE_RULES (SPP_EDIT_TOO_LARGE) for an SPP change too large for one save;
- *   a 422 DICE_ROLL_MISMATCH or 409 DICE_ROLL_USED for a site roll the save cannot take
+ *   a 422 DICE_ROLL_MISMATCH or 409 DICE_ROLL_USED for a site roll the save cannot take;
+ *   a 422 TEAM_IN_MATCH for a coach's save while the team plays a match
  */
 export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logoData, roster, revision, actor = {} }) {
   const expected = Number.isInteger(revision) ? revision : null;
@@ -176,6 +179,7 @@ export async function writeSavedTeam({ teamId, ownerId, name, baseTeamSlug, logo
       await client.query("ROLLBACK");
       return { conflict: current };
     }
+    if (!actor.admin) await refuseWhilePlaying(client, teamId);
     const before = normalizeDraft(locked.roster);
     if (!actor.admin) refuseLockedPurchases(before, roster, locked.stage);
     const edits = sppEditsWithin(before, roster);

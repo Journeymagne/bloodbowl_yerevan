@@ -17,6 +17,7 @@ import { countToNumber } from "../../src/domain/roster/values.mjs";
 import { UUID_SOURCE, teamConflict, teamForUser } from "../api/team-access.mjs";
 import { LEDGER_PAGE_SIZE, checkManualEntry, countLedgerLines, decodeLedgerCursor, ledgerSince, readLedgerPage, writeLedgerEntries } from "../api/team-ledger.mjs";
 import { readPublicTeam } from "../api/team-queries.mjs";
+import { refuseWhilePlaying } from "../season/live-match.mjs";
 import { currentUser } from "../auth/session.mjs";
 import { pool } from "../db/pool.mjs";
 import { withTransaction } from "../db/transaction.mjs";
@@ -68,8 +69,9 @@ async function sendHistory(request, response, teamId, params) {
 
 /**
  * The transaction of an entry. The team is locked first; then, in this order, the revision the client
- * saw, the rule, the write and the answer read back. A refusal at any point throws, and the whole
- * transaction goes back: the treasury never moves without its line, nor the line without the treasury.
+ * saw, the match (TEAM_IN_MATCH while the team plays one, stage 09a), the rule, the write and the answer
+ * read back. A refusal at any point throws, and the whole transaction goes back: the treasury never moves
+ * without its line, nor the line without the treasury.
  *
  * The team in the answer is read again after the write, the way `GET` reads it (`readPublicTeam`,
  * `inActiveSeason` included), so the client handles one shape of team whichever route it came from.
@@ -79,6 +81,7 @@ async function sendHistory(request, response, teamId, params) {
 async function writeEntry(client, teamId, user, revision, { delta, reason, note }) {
   const team = await teamForUser(client, teamId, user, { lock: true });
   if (revision !== team.revision) throw await teamConflict(client, team); // no revision at all is a revision that cannot match
+  await refuseWhilePlaying(client, team.id);
   const opening = countToNumber(team.roster?.treasury);
   const closing = sumMoney(opening, delta);
   if (!isMoneyAmount(closing)) throw belowZero();
