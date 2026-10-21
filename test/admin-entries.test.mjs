@@ -367,6 +367,20 @@ it("a refusal is the server's words; a lost answer reads the season again and se
   assert.equal(words(view.querySelector('.g-adminseason__alert[role="alert"]')), t("administration.mayHaveWritten"));
   assert.equal(writes().filter(({ key }) => key === "POST /api/season/admin/entries").length, 1);
 
+  // A lost answer of the playoff places, sent by Enter in the field (the focus on it) or by «Save»: the season read
+  // again, and the field shows the places the server holds (4), not the ones typed (6) — it is the only place that shows them.
+  for (const enter of [true, false]) {
+    await visit();
+    api.fail("PATCH /api/season/admin/settings");
+    if (enter) field().focus();
+    else view.querySelector("[data-entries-places-save]").focus();
+    await savePlaces("6");
+    assert.deepEqual(keys(), ["GET /api/season", "PATCH /api/season/admin/settings", "GET /api/season"], "read again, never sent twice");
+    assert.equal(words(view.querySelector('.g-adminseason__alert[role="alert"]')), t("administration.mayHaveWritten"));
+    assert.equal(field().value, "4", enter ? "Enter: the field shows what the server holds" : "«Save»: the field shows what the server holds");
+    assert.equal(view.querySelector("#admin-playoff-places-error"), null);
+  }
+
   // Another tab's token: nothing sent, its words said.
   await visit();
   api.items.set(TOKEN, "another");
@@ -473,4 +487,18 @@ test("the prototype's measures: the rows, the card, the statuses; D2 — 44 on a
   assert.ok(px(valuesOf(CSS, ".g-adminseason__btn", "min-height")[0]) >= 24);
   assert.ok(px(inMedia(CSS, "max-width: 900px", ".g-adminseason__btn", "min-height")[0]) >= 44);
   assert.ok(px(valuesOf("src/ui/text-field.css", ".g-field__input", "height")[0]) >= 44);
+  // The team's name leads to its edit (the prototype draws a <b>; 16/1.3 is a 20.8px line): 24 from 901px, a thumb's 44 on a
+  // phone. The room over the line is a padding that a margin as large takes back out of the space around it (as
+  // matches.css's names reach over theirs): the row keeps its 60, and a name in two lines still pushes its coach down.
+  const link = "a.g-adminentries__team";
+  assert.deepEqual([valuesOf(CSS, link, "display"), valuesOf(CSS, link, "align-items"), valuesOf(CSS, link, "box-sizing")], [["flex"], ["center"], ["border-box"]]);
+  assert.ok(px(valuesOf(CSS, link, "min-height")[0]) >= 24, "24 and more from 901px");
+  assert.ok(px(inMedia(CSS, "max-width: 900px", link, "min-height")[0]) >= 44, "44 on a phone");
+  assert.deepEqual([valuesOf(CSS, link, "padding")[0], valuesOf(CSS, link, "margin")[0]], ["calc(12px - 0.65em) 0", "calc(0.65em - 12px) 0"],
+    "the desk's 24: (24 − 20.8) / 2 above and below, taken back");
+  assert.deepEqual([inMedia(CSS, "max-width: 900px", link, "padding")[0], inMedia(CSS, "max-width: 900px", link, "margin")[0]],
+    ["calc(var(--size-touch) / 2 - 0.65em) 0", "calc(0.65em - var(--size-touch) / 2) 0"], "a phone's 44: (44 − 20.8) / 2 above and below, taken back");
+  // Over the coach's line its height stays the link's (drawn over it), and a phone row's top padding holds the room above it.
+  assert.deepEqual(valuesOf(CSS, link, "position"), ["relative"]);
+  assert.deepEqual(inMedia(CSS, "max-width: 900px", ".g-adminentries__row", "padding"), ["var(--space-12) 0 var(--space-10)"]);
 });

@@ -125,7 +125,9 @@ function draw(visit) {
  */
 function settleFocus(home = "") {
   if (!focusLost(document.activeElement)) return;
-  ((home && view.querySelector(home)) ?? view.querySelector("[data-season-card]") ?? view.querySelector("h1"))?.focus();
+  // `home && …` would be "" without a home, and `??` passes "" on: the selector is asked only when there is one.
+  const target = (home ? view.querySelector(home) : null) ?? view.querySelector("[data-season-card]") ?? view.querySelector("h1");
+  target?.focus();
 }
 
 /**
@@ -310,8 +312,10 @@ async function deletePair(visit, button, id) {
 }
 
 /**
- * The playoff places as typed: said wrong before anything is sent (the field takes the focus back), else one PATCH; the
- * season it answers with is put in place, and the field shows the places it holds.
+ * The playoff places as typed: said wrong before anything is sent (the field takes the focus back), else one PATCH. The
+ * season it answers with is put in place; an answer that did not come back has it read again (`seasonWrite`). Either
+ * way the field then shows the places the server holds — it is the one place on the screen that shows them, so what was
+ * typed must not stand there as if saved. A refusal, or a write that never went, keeps what was typed.
  */
 async function savePlaces(visit, input) {
   const entries = visit.entries;
@@ -324,11 +328,16 @@ async function savePlaces(visit, input) {
     view.querySelector("form[data-entries-places] input")?.focus();
     return;
   }
-  await act(visit, "places", async () => {
-    const outcome = await seasonWrite(`${SEASON_PATH}/settings`, { method: "PATCH", body: { playoffPlaces: places.value } });
-    if (outcome.answer) entries.places = null;
-    return outcome;
+  const outcome = await act(visit, "places", async () => {
+    const written = await seasonWrite(`${SEASON_PATH}/settings`, { method: "PATCH", body: { playoffPlaces: places.value } });
+    if (written.answer || written.unknown) entries.places = null;
+    return written;
   });
+  if (!visit.here || !(outcome?.answer || outcome?.unknown)) return;
+  // A patch leaves a focused field's value alone (Enter sent the form from it): the server's places are put in by hand.
+  const field = view.querySelector("form[data-entries-places] input");
+  const held = entriesModel(state.season.data).places;
+  if (field) field.value = held === null ? "" : String(held);
 }
 
 /**

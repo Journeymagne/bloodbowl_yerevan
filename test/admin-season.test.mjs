@@ -431,6 +431,28 @@ it("a draft round: start it, delete it, add a pair, set its sides", async () => 
   api.assertAnswered();
 });
 
+it("a draft round deleted from its own button: the focus on a card's title, nothing thrown", async () => {
+  // A keyboard presses «Delete round» where it stands (a browser's click focuses it too, and the question hands the focus
+  // back to it): the answer takes the card and the button away, and a card's title takes the focus.
+  const failures = [];
+  const caught = (error) => failures.push(error);
+  process.on("unhandledRejection", caught);
+  try {
+    const started = round(7, "started", [live(1, "e3", "e2", played([2, 1]))]);
+    await visit({ season: seasonWith([...PAST, started, round(8, "draft", [pairing(8, 1, "e1", "e2", { roundStatus: "draft" })])]), awaiting: [] });
+    view.querySelector("[data-season-delete-round]").focus();
+    api.reply("DELETE /api/season/admin/rounds/r8", 200, seasonWith([...PAST, started]));
+    await press(view.querySelector("[data-season-delete-round]"));
+    assert.deepEqual(writes().map(({ key }) => key), ["DELETE /api/season/admin/rounds/r8"]);
+    assert.equal(view.querySelector(".g-adminseason__draft"), null, "the draft round is gone");
+    assert.deepEqual(failures.map(String), [], "the write ends without an error");
+    assert.ok(document.activeElement?.hasAttribute("data-season-card"), "a card's title takes the focus");
+    assert.ok(view.contains(document.activeElement));
+  } finally {
+    process.off("unhandledRejection", caught);
+  }
+});
+
 it("past rounds are folded, and open", async () => {
   await visit();
   const card = view.querySelector(".g-adminseason__pastcard");

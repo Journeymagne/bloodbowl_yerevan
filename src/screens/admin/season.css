@@ -384,6 +384,24 @@
   text-transform: none;
   overflow-wrap: anywhere;
 }
+/*
+ * The team leads to its edit (the prototype draws a <b>): 24px or more from 901px (D2) over its 16/1.3 line (20.8px).
+ * The room over that line is a padding above and below it that a margin as large takes back out of the space around
+ * it (above, the row's padding; below, the coach's line, as matches.css's names reach over theirs): the name and its
+ * coach stand where the prototype draws them, the row keeps its 60, and a name in two lines still pushes its coach
+ * down. `12px - 0.65em` is (24px − 20.8px) / 2 at the link's 16px. Positioned, it is drawn over the coach's line it
+ * reaches into, so all of its height takes the press.
+ */
+a.g-adminentries__team {
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  align-self: flex-start;
+  align-items: center;
+  min-height: 24px;
+  margin: calc(0.65em - 12px) 0;
+  padding: calc(12px - 0.65em) 0;
+}
 a.g-adminentries__team:hover {
   text-decoration: underline;
   text-decoration-thickness: 1px;
@@ -468,9 +486,18 @@ a.g-adminentries__team:hover {
     padding: var(--space-8) 0;
   }
 
-  /* An entry in two lines: the team and its coach, then the status and the buttons (a third line when they do not fit). */
-  .g-adminentries__row { padding: var(--space-10) 0; }
+  /*
+   * An entry in two lines: the team and its coach, then the status and the buttons (a third line when they do not fit).
+   * The team's link is a thumb's 44 (D2) over its 20.8px line, 11.6 above and below it: the row's top padding is 12, so
+   * the room above stays in its own row.
+   */
+  .g-adminentries__row { padding: var(--space-12) 0 var(--space-10); }
   .g-adminentries__who { flex-basis: 100%; }
+  a.g-adminentries__team {
+    min-height: var(--size-touch);
+    margin: calc(0.65em - var(--size-touch) / 2) 0;
+    padding: calc(var(--size-touch) / 2 - 0.65em) 0;
+  }
   .g-adminentries__places .g-field__control { max-width: none; }
 }
 
